@@ -1,7 +1,7 @@
 // One project per source package, so each suite keeps the settings it passed
-// under: reactive and fetch never opted into the strict root options below,
-// and a project inherits them only through `extends: true` (a sibling of
-// `test`; inside `test` it is inert).
+// under. reactive and fetch never set the strict options, and a root-level
+// `expect.requireAssertions` reaches every project, `extends` or not, so they
+// are spread only into the projects that had them.
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
@@ -22,6 +22,34 @@ function chromium() {
   };
 }
 
+const strict = {
+  passWithNoTests: false,
+  allowOnly: false,
+  globals: false,
+  expect: {
+    requireAssertions: true,
+  },
+  clearMocks: true,
+  mockReset: true,
+  restoreMocks: true,
+  unstubEnvs: true,
+  unstubGlobals: true,
+  testTimeout: 5000,
+  hookTimeout: 10000,
+  sequence: {
+    shuffle: { files: false, tests: false },
+    concurrent: false,
+    hooks: "stack",
+  },
+  printConsoleTrace: true,
+  expandSnapshotDiff: true,
+  chaiConfig: {
+    truncateThreshold: 0,
+    showDiff: true,
+    includeStack: true,
+  },
+} as const;
+
 export default defineConfig({
   test: {
     projects: [
@@ -39,6 +67,32 @@ export default defineConfig({
           browser: chromium(),
         },
       },
+      {
+        test: {
+          ...strict,
+          name: "primitives",
+          include: ["src/primitives/**/*.test.ts"],
+          setupFiles: ["./src/primitives/fc-strict-setup.ts"],
+          browser: chromium(),
+        },
+      },
+      {
+        test: {
+          ...strict,
+          name: "node",
+          environment: "node",
+          include: ["src/**/*.node.test.ts"],
+        },
+      },
     ],
+    bail: process.env["CI"] ? 1 : 0,
+    slowTestThreshold: 300,
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.test.ts", "src/**/*.d.ts", "src/**/*-setup.ts", "src/**/test-helpers/**"],
+      reportOnFailure: true,
+      reporter: ["text", "text-summary", "lcov"],
+    },
   },
 });
