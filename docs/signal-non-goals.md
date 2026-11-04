@@ -11,6 +11,7 @@ This page lists what `@cplieger/ui/signal` and `@cplieger/ui/dom` leave out on p
 - Server-side rendering, or per-request isolation. This is a client-side library. On a server, create a fresh signal graph per request.
 - Suspense, or a resource that throws while loading. `resource` reports loading and failure as values in its `Loadable`, and the view decides what to show.
 - Transactions. They are a framework-level concern, not a signals primitive.
+- `action` and `createModel` from @preact/signals-core. An action is `batch` around `untracked`, and a model is a function that builds its signals and effects inside `createRoot`.
 - A custom scheduler, or `setScheduler()`. A write flushes before it returns and `batch` is synchronous, so there is no queue to schedule. To defer, write on a later task.
 - A flush barrier, such as `flushSync` or `nextTick`. A barrier is what a deferred model owes its callers. This model never holds work, so a barrier would have nothing to report.
 - Controlled form inputs. See the section below.

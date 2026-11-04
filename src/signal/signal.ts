@@ -155,7 +155,7 @@ class OwnerNode implements Owner {
 
 function assertOpen(owner: OwnerNode | undefined, what: string): void {
   if (owner !== undefined && owner._state !== OPEN) {
-    throw new Error(`reactive: cannot create ${what} under an owner that is being disposed`);
+    throw new Error(`@cplieger/ui: cannot create ${what} under an owner that is being disposed`);
   }
 }
 
@@ -163,7 +163,7 @@ function ownerNode(owner: Owner): OwnerNode {
   if (owner instanceof OwnerNode) {
     return owner;
   }
-  throw new TypeError("reactive: not an owner made by createRoot");
+  throw new TypeError("@cplieger/ui: not an owner made by createRoot");
 }
 
 function runDisposeCallback(fn: () => void): void {
@@ -248,7 +248,7 @@ function teardownOwner(owner: OwnerNode): void {
  *  one. Throws outside any owner, or under one being disposed. */
 export function requireOwner(what: string): Owner {
   if (currentOwner === undefined) {
-    throw new Error(`reactive: cannot create ${what} outside an owner`);
+    throw new Error(`@cplieger/ui: cannot create ${what} outside an owner`);
   }
   assertOpen(currentOwner, what);
   return currentOwner;

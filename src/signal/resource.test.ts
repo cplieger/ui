@@ -167,7 +167,7 @@ describe("construction", () => {
         () => 1,
         () => Promise.resolve(1),
       ),
-    ).toThrow("reactive: cannot create a resource outside an owner");
+    ).toThrow("@cplieger/ui: cannot create a resource outside an owner");
   });
 
   it("throws inside a disposal callback", () => {
@@ -181,7 +181,7 @@ describe("construction", () => {
       dispose();
     });
     expect(errors.map((e) => (e instanceof Error ? e.message : e))).toEqual([
-      "reactive: cannot create a resource under an owner that is being disposed",
+      "@cplieger/ui: cannot create a resource under an owner that is being disposed",
     ]);
   });
 

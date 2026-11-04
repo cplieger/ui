@@ -260,7 +260,7 @@ async function parseErrorResponse(res: Response, max: number | undefined): Promi
 
 function logObserverError(e: unknown): void {
   try {
-    console.error("@cplieger/fetch: onError threw", e);
+    console.error("@cplieger/ui: onError threw", e);
   } catch {
     // A throwing console cannot reach the caller either.
   }

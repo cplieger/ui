@@ -79,7 +79,7 @@ describe("a disposed owner refuses re-entry", () => {
     });
     expect(ran).toBe(false);
     expect(errors.map(messageOf)).toEqual([
-      "reactive: cannot create an effect under an owner that is being disposed",
+      "@cplieger/ui: cannot create an effect under an owner that is being disposed",
     ]);
   });
 
@@ -95,7 +95,7 @@ describe("a disposed owner refuses re-entry", () => {
     });
     expect(ran).toBe(false);
     expect(errors.map(messageOf)).toEqual([
-      "reactive: cannot create a root under an owner that is being disposed",
+      "@cplieger/ui: cannot create a root under an owner that is being disposed",
     ]);
   });
 
@@ -329,7 +329,7 @@ describe("disposal order", () => {
     s.value = 1;
     expect(leaked).toBe(0);
     expect(errors.map(messageOf)).toEqual([
-      "reactive: cannot create an effect under an owner that is being disposed",
+      "@cplieger/ui: cannot create an effect under an owner that is being disposed",
     ]);
   });
 
@@ -395,7 +395,7 @@ describe("disposal order", () => {
     });
     route.value = "b";
     expect(errors.map(messageOf)).toContain(
-      "reactive: cannot create an effect under an owner that is being disposed",
+      "@cplieger/ui: cannot create an effect under an owner that is being disposed",
     );
   });
 });

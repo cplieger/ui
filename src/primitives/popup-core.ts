@@ -239,7 +239,7 @@ export function closePopupGroup(group: string): void {
     throw errors[0];
   }
   if (errors.length > 1) {
-    throw new AggregateError(errors, "ui-primitives: several callbacks threw");
+    throw new AggregateError(errors, "@cplieger/ui: several callbacks threw");
   }
 }
 
