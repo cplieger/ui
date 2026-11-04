@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -71,6 +71,16 @@ async function bundleEffectOnly(bundle: Bundle, subpath: string): Promise<string
   await writeFile(entry, `import "@cplieger/ui${subpath}";\n`);
   return bundle(entry);
 }
+
+it("classifies every exported subpath as observing or pure", async () => {
+  const pkg = JSON.parse(await readFile(join(PACKAGE_ROOT, "package.json"), "utf8")) as {
+    exports: Record<string, unknown>;
+  };
+  const exported = Object.keys(pkg.exports)
+    .filter((key) => key !== "./css")
+    .map((key) => key.slice(1));
+  expect(exported.toSorted()).toEqual([...PURE, ...OBSERVES.map((name) => `/${name}`)].toSorted());
+});
 
 describe.each(Object.entries(bundlers))("sideEffects under %s", (_name, bundle) => {
   it.each(OBSERVES)("an effect-only import of /%s keeps the import-time watchers", async (name) => {

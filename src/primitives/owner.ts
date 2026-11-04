@@ -15,7 +15,7 @@ import { fxAt, type Fx } from "./fx.js";
 export const SUPERSEDED: unique symbol = Symbol("superseded");
 
 /** Thrown by a pass's checks and caught only by the drive or act that made that pass. */
-const STALE: Error = Object.freeze(new Error("ui-primitives: stale pass"));
+const STALE: Error = Object.freeze(new Error("@cplieger/ui: stale pass"));
 
 /** A restart needs app code to change the state again inside this driver's own
  *  calls, so this many in one drive is a loop the app made; React bounds the
@@ -73,7 +73,7 @@ function rethrow(errors: readonly unknown[]): void {
     throw errors[0];
   }
   if (errors.length > 1) {
-    throw new AggregateError(errors, "ui-primitives: several callbacks threw");
+    throw new AggregateError(errors, "@cplieger/ui: several callbacks threw");
   }
 }
 
@@ -158,7 +158,7 @@ export function createDriver<S>(spec: DriverSpec<S>): Driver<S> {
         }
         // A released driver cannot restart, so its terminal pass is never cut off.
         if (!released && ++passes > RESTART_LIMIT) {
-          errors.push(new Error("ui-primitives: a controller's realization did not converge"));
+          errors.push(new Error("@cplieger/ui: a controller's realization did not converge"));
           break;
         }
       }
