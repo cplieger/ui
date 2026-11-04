@@ -17,6 +17,8 @@ const PURE = [
   "/signal",
   "/dom",
   "/fetch",
+  "/actions",
+  "/actions/testing",
   "/disclosure",
   "/focus-trap",
   "/roving-focus",

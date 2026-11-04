@@ -79,6 +79,15 @@ export default defineConfig({
       {
         test: {
           ...strict,
+          name: "actions",
+          include: ["src/actions/**/*.test.ts"],
+          exclude: ["src/**/*.node.test.ts"],
+          browser: chromium(),
+        },
+      },
+      {
+        test: {
+          ...strict,
           name: "node",
           environment: "node",
           include: ["src/**/*.node.test.ts"],

@@ -22,6 +22,8 @@
     "./signal": "./src/signal/index.ts",
     "./dom": "./src/dom/index.ts",
     "./fetch": "./src/fetch/index.ts",
+    "./actions": "./src/actions/index.ts",
+    "./actions/testing": "./src/actions/testing.ts",
     "./toast": "./src/primitives/toast/index.ts",
     "./tooltip": "./src/primitives/tooltip.ts",
     "./popover": "./src/primitives/popover.ts",
