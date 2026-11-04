@@ -22,6 +22,8 @@ function chromium() {
   };
 }
 
+const EXCLUDE = ["**/node_modules/**", "**/.stryker-tmp/**"];
+
 const strict = {
   passWithNoTests: false,
   allowOnly: false,
@@ -56,6 +58,8 @@ export default defineConfig({
       {
         test: {
           name: "reactive",
+          isolate: true,
+          exclude: EXCLUDE,
           include: ["src/index.exports.test.ts", "src/signal/**/*.test.ts", "src/dom/**/*.test.ts"],
           browser: chromium(),
         },
@@ -63,6 +67,8 @@ export default defineConfig({
       {
         test: {
           name: "fetch",
+          isolate: true,
+          exclude: EXCLUDE,
           include: ["src/fetch/**/*.test.ts"],
           browser: chromium(),
         },
@@ -71,6 +77,8 @@ export default defineConfig({
         test: {
           ...strict,
           name: "primitives",
+          isolate: true,
+          exclude: EXCLUDE,
           include: ["src/primitives/**/*.test.ts"],
           setupFiles: ["./src/primitives/fc-strict-setup.ts"],
           browser: chromium(),
@@ -81,7 +89,8 @@ export default defineConfig({
           ...strict,
           name: "actions",
           include: ["src/actions/**/*.test.ts"],
-          exclude: ["src/**/*.node.test.ts"],
+          isolate: true,
+          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
           browser: chromium(),
         },
       },
@@ -90,6 +99,8 @@ export default defineConfig({
           ...strict,
           name: "node",
           environment: "node",
+          isolate: true,
+          exclude: EXCLUDE,
           include: ["src/**/*.node.test.ts"],
         },
       },

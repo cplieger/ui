@@ -82,6 +82,9 @@
     "src/",
     "css/",
     "jsr.json",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md",
     "!src/**/*.test.ts",
     "!src/**/*-setup.ts",
     "!src/**/test-helpers/**"
