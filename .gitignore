@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+.vitest-cache/
+
+# Local agent state
+**/.app-review/
+**/.judgement/
+**/.steering-maintenance/
+
+# Stryker mutation-testing artifacts (weekly-stryker.yaml / local npx stryker run)
+reports/
+.stryker-tmp/
+
+# Agent workflow scratch
+.agents/

@@ -1,0 +1,25 @@
+{
+  "name": "@cplieger/ui",
+  "version": "0.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": ["src/", "jsr.json", "!src/**/*.test.ts", "!src/**/*-setup.ts", "!src/**/test-helpers/**"],
+  "description": "Build framework-free TypeScript browser UIs with signals, accessible widgets, typed requests and server actions",
+  "license": "Apache-2.0",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cplieger/ui.git"
+  },
+  "homepage": "https://github.com/cplieger/ui",
+  "bugs": {
+    "url": "https://github.com/cplieger/ui/issues"
+  },
+  "author": "cplieger <917744+cplieger@users.noreply.github.com>"
+}
