@@ -3,10 +3,38 @@
   "version": "0.0.0",
   "license": "Apache-2.0",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./signal": "./src/signal/index.ts",
+    "./dom": "./src/dom/index.ts",
+    "./fetch": "./src/fetch/index.ts",
+    "./actions": "./src/actions/index.ts",
+    "./actions/testing": "./src/actions/testing.ts",
+    "./toast": "./src/primitives/toast/index.ts",
+    "./tooltip": "./src/primitives/tooltip.ts",
+    "./popover": "./src/primitives/popover.ts",
+    "./popup": "./src/primitives/popup.ts",
+    "./dialog": "./src/primitives/dialog.ts",
+    "./modal": "./src/primitives/modal.ts",
+    "./ask": "./src/primitives/ask.ts",
+    "./disclosure": "./src/primitives/disclosure.ts",
+    "./focus-trap": "./src/primitives/focus-trap.ts",
+    "./roving-focus": "./src/primitives/roving-focus.ts",
+    "./skeleton": "./src/primitives/skeleton.ts",
+    "./theme": "./src/primitives/theme.ts",
+    "./view-transition": "./src/primitives/view-transition.ts",
+    "./transition": "./src/primitives/transition.ts",
+    "./announce": "./src/primitives/announce.ts"
   },
   "publish": {
-    "include": ["LICENSE", "README.md", "src/**/*.ts", "jsr.json"],
+    "include": [
+      "LICENSE",
+      "NOTICE",
+      "README.md",
+      "THIRD_PARTY_NOTICES.md",
+      "src/**/*.ts",
+      "css/**/*.css",
+      "jsr.json"
+    ],
     "exclude": ["src/**/*.test.ts", "src/**/*-setup.ts", "src/**/test-helpers/**"]
   }
 }

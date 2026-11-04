@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // A suppression added here that stops matching fails the gate instead of going stale.
+  "treatConfigHintsAsErrors": true,
+  // cycles is knip's one warn-level issue type: without this it prints and exits 0.
+  "rules": { "cycles": "error" },
+}
