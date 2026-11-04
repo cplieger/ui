@@ -79,20 +79,20 @@ else console.error(res.status, res.code, res.error);
 
 ## Subpaths
 
-Import each part from its own subpath. The last column names the package each one came from, with the same exports.
+Import each part from its own subpath. Code that imports one of the earlier packages, `@cplieger/reactive`, `@cplieger/ui-primitives`, `@cplieger/actions` or `@cplieger/fetch`, moves by the table in [Moving from the earlier packages](docs/migrating.md).
 
-| Import from | What it holds | Earlier package |
-| --- | --- | --- |
-| `@cplieger/ui` | everything in `/signal` and `/dom` | `@cplieger/reactive` |
-| `@cplieger/ui/signal` | signals, computed values, effects, owners, resources, stores, collections and the event bus | `@cplieger/reactive` |
-| `@cplieger/ui/dom` | `el`, `reconcile`, `bindList`, `patch` and `trackHandler` | `@cplieger/reactive` |
-| `@cplieger/ui/fetch` | typed JSON requests | `@cplieger/fetch` |
-| `@cplieger/ui/actions` | server actions | `@cplieger/actions` |
-| `@cplieger/ui/actions/testing` | `resetActionFramework` for tests | `@cplieger/actions/testing` |
-| `@cplieger/ui/<widget>` | one widget, such as `@cplieger/ui/dialog` | `@cplieger/ui-primitives/<widget>` |
-| `@cplieger/ui/css` | the base stylesheet, on npm only | `@cplieger/ui-primitives/css` |
+| Import from | What it holds |
+| --- | --- |
+| `@cplieger/ui` | everything in `/signal` and `/dom` |
+| `@cplieger/ui/signal` | signals, computed values, effects, owners, resources, stores, collections and the event bus |
+| `@cplieger/ui/dom` | `el`, `reconcile`, `bindList`, `patch` and `trackHandler` |
+| `@cplieger/ui/fetch` | typed JSON requests |
+| `@cplieger/ui/actions` | server actions |
+| `@cplieger/ui/actions/testing` | `resetActionFramework` for tests |
+| `@cplieger/ui/<widget>` | one widget, such as `@cplieger/ui/dialog` |
+| `@cplieger/ui/css` | the base stylesheet, on npm only |
 
-The widget subpaths are `toast`, `tooltip`, `popover`, `popup`, `dialog`, `modal`, `ask`, `disclosure`, `focus-trap`, `roving-focus`, `skeleton`, `theme`, `view-transition`, `transition` and `announce`. Every name the `@cplieger/ui-primitives` root exported is in the widget subpath of the same topic.
+The widget subpaths are `toast`, `tooltip`, `popover`, `popup`, `dialog`, `modal`, `ask`, `disclosure`, `focus-trap`, `roving-focus`, `skeleton`, `theme`, `view-transition`, `transition` and `announce`.
 
 Eight widget subpaths start watching the `open` attribute of dialogs when they load, so they need a DOM at import: `dialog`, `modal`, `ask`, `announce`, `toast`, `popup`, `popover` and `tooltip`. The package root and every other subpath touch no DOM at import, so they also run under Node, Deno, Bun or Workers. `package.json` marks the watching modules as side effects, so `import "@cplieger/ui/dialog"` keeps its watcher in a bundle.
 
@@ -134,6 +134,7 @@ When `count.value = 1` returns, every effect that depends on `count` has already
 - [Results and errors](docs/results.md), [Requests, timeouts and runtimes](docs/requests.md) and [Base URLs and untrusted responses](docs/security-model.md) cover `/fetch`.
 - [Dispatch lifecycle](docs/lifecycle.md), [HTTP and streaming actions](docs/http.md) and [UI and polling helpers](docs/helpers.md) cover `/actions`.
 - [CSS contract](docs/css.md) covers the base stylesheet and the names you style. Each widget's page is linked from the [API](#api) list.
+- [Moving from the earlier packages](docs/migrating.md) maps each import of `@cplieger/reactive`, `@cplieger/ui-primitives`, `@cplieger/actions` and `@cplieger/fetch` and lists what behaves differently.
 
 ## Credits
 
