@@ -22,16 +22,11 @@ export interface PollOptions<TResult = unknown> {
 }
 
 /** Start polling an action in the background and return its stop function.
- *
- *  Single-flight: a tick landing while a dispatch is still in flight is dropped
- *  rather than queued, focus-triggered polls included. The first poll runs
- *  immediately unless the document is already hidden, in which case it is
- *  deferred until the document is shown. `stop()` is idempotent, detaches both
- *  listeners, and also runs on page unload, so an unstopped poller does not
- *  survive navigation.
- *
- *  The pause-when-hidden and refresh-on-focus behaviour needs a DOM; where
- *  `document` or `window` is absent the loop degrades to a plain interval. */
+ *  Single-flight: a tick, focus-triggered ones included, that lands during a
+ *  dispatch is dropped. The first poll runs at once unless the document is
+ *  hidden, then waits until it is shown. `stop()` is idempotent and also runs
+ *  on page unload. Without `document` or `window` the loop is a plain
+ *  interval. */
 export function pollAction<TArgs, TResult>(
   action: Action<TArgs, TResult>,
   args: TArgs,

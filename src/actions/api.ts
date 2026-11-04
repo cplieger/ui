@@ -1,4 +1,4 @@
-// actions holds its own fetch instance (fetch v2 is
+// actions holds its own fetch instance (the fetch module is
 // instances-only), fully isolated from any instance a consuming app builds,
 // and maps fetch's ApiResult envelope onto ActionError.
 
@@ -40,28 +40,15 @@ export interface ApiConfig {
   readonly fetchFn?: typeof fetch;
 }
 
-// fetch v2's config is frozen at construction, so configureApi's
+// A fetch instance's config is frozen at construction, so configureApi's
 // replace-not-merge semantics rebuild the instance rather than mutate it.
 // prepareHeaders stays here rather than on the instance: it is spec-aware
 // (`(headers, { spec })`), a shape fetch's `(headers)`-only hook can't express.
 let apiFetch: FetchInstance = createFetch();
 let apiPrepareHeaders: ApiConfig["prepareHeaders"];
 
-/**
- * Configure the global HTTP layer used by all `apiAction` instances.
- * Call once at app boot. Subsequent calls replace the previous config.
- *
- * @example
- * ```ts
- * configureApi({
- *   baseUrl: "https://api.example.com",
- *   credentials: "include",
- *   prepareHeaders: (headers) => {
- *     headers.set("Authorization", `Bearer ${getToken()}`);
- *   },
- * });
- * ```
- */
+/** Configure the global HTTP layer used by all `apiAction` instances. Call
+ *  once at app boot; a later call replaces the whole previous config. */
 export function configureApi(config: ApiConfig): void {
   const fetchConfig: FetchConfig = {};
   if (config.baseUrl !== undefined) {
@@ -73,7 +60,7 @@ export function configureApi(config: ApiConfig): void {
   if (config.fetchFn !== undefined) {
     fetchConfig.fetchFn = config.fetchFn;
   }
-  // fetch v2 instances are immutable; replace-not-merge needs a fresh one.
+  // Fetch instances are immutable; replace-not-merge needs a fresh one.
   apiFetch = createFetch(fetchConfig);
   apiPrepareHeaders = config.prepareHeaders;
 }

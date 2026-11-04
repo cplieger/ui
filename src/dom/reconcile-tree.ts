@@ -1,19 +1,9 @@
 // Structural tree-diff: reconcile a parent's children against new nodes.
-// Handles attribute patching, text node updates, element reordering,
-// and recursive child reconciliation.
 //
-// Correspondence between a child the parent HAS and a child the caller ASKED
-// for is decided in one order, strongest notion of "the same child" first:
-//
-//   1. the same NODE   — the caller handed back a node already in this parent
-//   2. the same KEY    — a specific `*-id` attribute wins over the generic
-//                        `data-col`; siblings sharing a key queue in document
-//                        order, so they pair first-with-first
-//   3. the same POSITION — the next unclaimed unkeyed child
-//
-// Position is last because it is the only one that is not really identity. It
-// is the fallback for a caller that supplies no keys, and every child is
-// claimed at most once so the three tiers cannot disagree about a node.
+// A child the parent HAS corresponds to a child the caller ASKED for by, in
+// order: the same node; the same key (a `*-id` attribute over `data-col`,
+// same-key siblings pairing in document order); the next unclaimed unkeyed
+// child. Each child is claimed at most once, so the tiers cannot disagree.
 
 const handlerKeysMap = new WeakMap<HTMLElement, Set<string>>();
 
@@ -27,25 +17,13 @@ export function trackHandler(el: HTMLElement, key: string): void {
   keys.add(key);
 }
 
-/** Replace a parent's children with the given nodes/strings, reconciling against existing DOM.
- *
- * Strings become text nodes, a `DocumentFragment` contributes its children,
- * and `null`/`undefined` are skipped. Afterwards `parent`'s children are
- * exactly what was passed, in order, with existing children reused wherever
- * one corresponds to a requested child — so focus, selection, scroll position
- * and live input state survive a re-render.
- *
- * Two things a caller has to know:
- *
- * - **A node that is already a child of `parent` is placed at the index it was
- *   passed at, unmodified.** Handing a parent its own children reordered is a
- *   supported operation (a drag-and-drop, a sort).
- * - **Any other node is a TEMPLATE.** Its tag, attributes and content may be
- *   copied into a reused child and the node itself never inserted, so a
- *   reference to a freshly built node is not a reference to something in the
- *   DOM. This is what reuse costs, and it is why the point above is worth
- *   stating separately.
- */
+/** Replace a parent's children with the given nodes or strings, reusing each
+ *  existing child that corresponds to a requested one, so focus, selection,
+ *  scroll and live input state survive. Strings become text nodes, a
+ *  `DocumentFragment` contributes its children, `null`/`undefined` are skipped.
+ *  A node already in `parent` is moved there unmodified; any other node is a
+ *  template whose content may be copied into a reused child, and is never
+ *  inserted itself. */
 export function patch(
   parent: Node,
   ...children: (string | Node | DocumentFragment | null | undefined)[]
@@ -205,16 +183,10 @@ function nodeKey(node: Node): string {
   if (node.nodeType !== 1) {
     return "";
   }
-  // A specific entity id (`*-id`, e.g. data-cov-id / data-act-id) takes
-  // precedence over the generic column key (`data-col`), so an element
-  // carrying both keys by its entity identity — a generic first-in-attribute-
-  // order `data-col` must not shadow it.
-  //
-  // The `data-col` scan is last-wins. The DOM keys attributes by (namespace,
-  // localName), so `setAttributeNS` with a foreign namespace and no prefix can
-  // put a second attribute whose `.name` is also "data-col" on the element;
-  // first-wins would key the node off the foreign one and refuse to match the
-  // author's own, destroying and recreating the node instead of reusing it.
+  // A specific entity id (`*-id`) wins over the generic `data-col` key. The
+  // `data-col` scan is last-wins: `setAttributeNS` with a foreign namespace can
+  // add a second attribute named "data-col", and first-wins would key the node
+  // off it, recreating the node instead of reusing it.
   let colKey = "";
   for (const attr of (node as Element).attributes) {
     if (attr.name.endsWith("-id")) {
@@ -239,43 +211,20 @@ function patchAttrs(oldEl: HTMLElement, newEl: HTMLElement): void {
     }
   }
 
-  // Unreflected live state. `checked` (input), `selected` (option) and the
-  // `value` of an input/textarea are dirty-flag IDL properties: their content
-  // attributes are the DEFAULTS (`defaultChecked` / `defaultSelected` /
-  // `defaultValue`), so the two loops above equalise the default and never the
-  // live value. Without this, a keyed re-patch could not turn a checkbox off,
-  // move a selection, or replace the text in a field, ever.
-  //
-  // Syncing `value` overwrites whatever a user has typed, and a write that
-  // changes it also moves the caret to the end. That is correct only where a
-  // re-render cannot land mid-keystroke, which is a property of the CONSUMER, not
-  // of this function: a form re-rendered by a click (open, save, reset) is safe,
-  // one re-rendered by a timer or a server push is not. The README records the
-  // obligation; a consumer in the second shape must drive the field from an effect
-  // instead of re-rendering over it.
-  //
-  // Not covered here: `value` on an <option>/<progress>/<li> DOES reflect, so the
-  // loops above already carry it. A <select>'s value is derived from its options,
-  // which the OPTION branch below reconciles. `indeterminate` is unreflected too,
-  // but el() cannot set it, so it is outside patch()'s reach.
-  //
-  // canPatch has already established that both nodes share a nodeName, so one
-  // side decides the branch.
-  //
-  // Each `!==` guard is deliberate: assigning to `.value` sets the element's
-  // dirty-value flag unconditionally, which severs the property from its content
-  // attribute for the rest of the element's life, and on a field holding raw
-  // content the value getter cannot see (`type=date`, `number`, `time`, `month`,
-  // `week`, `datetime-local`) it destroys what the user is half-way through
-  // typing. The caret is NOT the reason: per the HTML spec the text entry cursor
-  // moves only when the value actually changes, so a same-value write leaves it
-  // where it was. The dirty-value, dirty-checkedness and dirtiness flags are what
-  // make "the re-patch did not write" observable as "the element still follows
-  // its content attribute" — all four guards are pinned behaviourally, with no
-  // spy and no caret.
+  // `checked`, `selected` and an input's or textarea's `value` are dirty-flag
+  // IDL properties whose content attributes are only defaults, so the loops
+  // above never reach the live state; without this a re-patch could not turn a
+  // checkbox off or replace a field's text. Writing `value` moves the caret, so a
+  // consumer that re-renders mid-keystroke must drive the field from an effect;
+  // docs/dom.md records the obligation. canPatch guarantees both nodes share a
+  // nodeName, so one side picks the branch.
   if (oldEl.nodeName === "INPUT") {
     const oldInput = oldEl as HTMLInputElement;
     const newInput = newEl as HTMLInputElement;
+    // Each `!==` guard is required: a `.value` write sets the dirty-value flag
+    // for good, severing the property from its attribute, and on a raw-content
+    // field (`type=date`, `number`, `time`, ...) it destroys a half-typed entry.
+    // The tests pin all four guards through those flags, not through the caret.
     if (oldInput.checked !== newInput.checked) {
       oldInput.checked = newInput.checked;
     }

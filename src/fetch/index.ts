@@ -1,3 +1,5 @@
+/** Typed HTTP requests that never throw: each resolves to a result envelope, or to `null` on failure. @module */
+
 export { createFetch } from "./instance.js";
 export type { FetchInstance } from "./instance.js";
 

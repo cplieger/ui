@@ -1,3 +1,5 @@
+/** Server actions with pending state, retries, optimistic rollback, polling and debouncing. @module */
+
 export { configure } from "./notifier.js";
 export type { Notifier, NotifierRetry } from "./notifier.js";
 

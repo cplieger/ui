@@ -217,15 +217,10 @@ class TooltipController {
     });
   }
 
-  /** What the tip is placed against: the trigger's marked ink when it has any,
-   *  otherwise the trigger itself.
-   *
-   *  The mark's rect is INTERSECTED with the trigger's, so ink the trigger clips
-   *  cannot drag the tip off the control — an ellipsised file name's own rect
-   *  runs past the row's edge, and a mark inside a scrolled or overflow-hidden
-   *  trigger can sit outside it entirely. An empty intersection (a mark scrolled
-   *  fully out of view) falls back to the trigger rather than positioning against
-   *  nothing. */
+  /** What the tip is placed against: the trigger's marked ink intersected with
+   *  the trigger's rect, so clipped ink (an ellipsised name, a mark scrolled
+   *  out of an overflow-hidden trigger) cannot drag the tip off the control.
+   *  No mark, or an empty intersection, falls back to the trigger. */
   private positionAnchor(anchor: HTMLElement): PopoverAnchor {
     const mark = this.markInside(anchor);
     if (mark === null) {

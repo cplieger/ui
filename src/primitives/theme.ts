@@ -163,19 +163,11 @@ export function themeInitSnippet(storageKey: string, attribute = DEFAULT_ATTRIBU
   );
 }
 
-/** Like {@link themeInitSnippet}, but the preference lives in a **field of a
- *  JSON object** stored under `storageKey` — the anti-FOUC companion to a custom
- *  `storage` adapter that persists the theme inside a JSON blob. The inline
- *  blocking-`<head>` IIFE reads `localStorage[storageKey]`, `JSON.parse`s it,
- *  extracts `field`, and applies the resolved theme attribute before paint:
- *
- *      <script>{themeInitSnippetFromJSON("app.ui-state", "theme")}</script>
- *
- *  A missing / blank / non-object blob, or a `"system"` (or unrecognized) field,
- *  resolves to the OS preference — so a 2-state app that only ever stores
- *  `"light"` / `"dark"` still gets the correct first paint, and a dark-mode user
- *  never flashes light. `storageKey`, `field`, and `attribute` are escaped for
- *  the inline-`<script>` context exactly like {@link themeInitSnippet}. */
+/** Like {@link themeInitSnippet}, but the preference is the `field` of a JSON
+ *  object stored under `storageKey`, for a custom `storage` adapter that keeps
+ *  the theme in a JSON blob. A missing, blank or non-object blob, or a
+ *  `"system"` or unrecognized field, resolves to the OS preference. All three
+ *  arguments are escaped for the inline-`<script>` context. */
 export function themeInitSnippetFromJSON(
   storageKey: string,
   field: string,

@@ -1,3 +1,5 @@
+/** Signals, computed values, effects, owners, resources, stores, collections and the event bus. @module */
+
 export {
   signal,
   effect,

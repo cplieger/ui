@@ -1,16 +1,9 @@
-// bus.ts — typed event bus (discrete events, NOT reactive state).
-//
-// The deliberate counterpart to signals. A signal models continuous STATE:
-// it has a current value you read and subscribe to. A bus models discrete
-// EVENTS: fire-and-forget notifications with no retained value. Reach for a
-// signal/Collection when "what is the current value?" makes sense; reach for
-// the bus when "X just happened" does (navigation, "refresh requested",
-// "escape pressed"). Mixing the two is the smell this split prevents.
+// Typed event bus for discrete events with no retained value; continuous state
+// belongs in a signal.
 //
 // Handler sets are snapshot-cached: the iteration array is rebuilt only when
-// the set is mutated, not on every emit, and a handler unsubscribed during an
-// emit still fires for that emit (it was in the snapshot). No-payload events
-// use `undefined` as their payload type.
+// the set is mutated, so a handler unsubscribed during an emit still fires for
+// that emit.
 
 /** Handler for a bus event. Events whose payload type is `undefined` take no
  *  argument. */

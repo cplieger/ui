@@ -32,21 +32,11 @@ interface DebounceOptions {
 }
 
 /** Wrap an action so a burst of calls collapses into one dispatch per `wait`
- *  window — the search-as-you-type case.
- *
- *  Trailing edge by default: every call restarts the timer and the last args
- *  win, so a caller typing faster than `wait` never dispatches at all until it
- *  pauses. With `leading: true` the first call dispatches immediately and calls
- *  inside the window are held for a single trailing fire as it closes. There is
- *  deliberately no `maxWait`; a caller that needs a guaranteed fire calls
- *  `flush()`.
- *
- *  `cancel()` discards scheduled args only. A dispatch already handed to the
- *  action is past this wrapper's reach — abort it through the action or its
- *  dispatch handle.
- *
- *  Disposing the `@cplieger/ui/signal` owner it was created under cancels it
- *  for good: later calls and `flush()` dispatch nothing. */
+ *  window. Trailing edge by default (each call restarts the timer, last args
+ *  win); `leading: true` fires the first call at once and holds the rest for
+ *  one trailing fire. There is no `maxWait`: call `flush()` for a guaranteed
+ *  fire. `cancel()` drops scheduled args only, never a dispatch already
+ *  started. Disposing the owner it was created under cancels it for good. */
 export function debouncedDispatch<TArgs, TResult>(
   action: Action<TArgs, TResult>,
   opts: DebounceOptions,

@@ -42,17 +42,11 @@ export interface VirtualAnchor {
  *  (e.g. a coordinate via pointAnchor). */
 export type PopoverAnchor = HTMLElement | VirtualAnchor;
 
-/** Build a virtual anchor at a viewport coordinate — for positioning a popover
- *  at a right-click / pointer point. The rect is zero-size at (x, y), so the
- *  popover opens from that point (bottom/start places it just below-right of the
- *  cursor). Read fresh each placement, so pass a function-free fixed point; for a
- *  moving point, build a new pointAnchor and call reposition/placeAnchored again.
- *
- *  Inside a modal `<dialog>`: a virtual anchor has no trigger element to derive
- *  the dialog from, so a DISCONNECTED point-anchored panel is hosted into the
- *  topmost open dialog (falling back to `document.body` when none is open) —
- *  a right-click context menu inside a modal stays interactive. A
- *  caller-connected panel stays where the caller put it, as always. */
+/** Build a zero-size virtual anchor at a fixed viewport point, such as a
+ *  right-click; for a moving point build a new one and reposition. With no
+ *  trigger element, a disconnected panel anchored to it is hosted into the
+ *  topmost open modal `<dialog>`, else `document.body`; a connected panel
+ *  stays where the caller put it. */
 export function pointAnchor(x: number, y: number): VirtualAnchor {
   return {
     getBoundingClientRect: (): DOMRect => ({
@@ -418,17 +412,10 @@ function normalizePopoverKey(key: string, value: unknown): unknown {
   return key === "trigger" ? undefined : normalizePopupKey(key, value);
 }
 
-/**
- * Wire `anchor` and a caller-supplied `panel` into an anchored, dismissible
- * popover. The controller reveals + positions the panel, tracks the anchor on
- * scroll/resize, and dismisses on outside-click / Escape. It does not build the
- * panel and never removes it from the DOM — the caller owns that element.
- *
- * Built on the popup lifecycle core: popup owns the reveal / light-dismiss
- * lifecycle; this layer adds placement on every open pass, rAF-throttled
- * anchor tracking (scroll / resize / visualViewport), and the `is-stretched`
- * full-bleed marker.
- */
+/** Wire `anchor` and a caller-supplied `panel` into an anchored, dismissible
+ *  popover: it reveals and positions the panel, tracks the anchor on scroll
+ *  and resize, and dismisses on outside click or Escape. The caller owns the
+ *  panel element, which the controller never builds or removes. */
 export function createPopover(
   anchor: PopoverAnchor,
   panel: HTMLElement,

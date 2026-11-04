@@ -83,14 +83,10 @@ function isRendered(el: HTMLElement): boolean {
 }
 
 /** Wire `trigger` (a button, or any element given button semantics) to `region`
- *  as an animated disclosure.
- *
- *  Pass `trigger: null` for a REGION-ONLY controller: no trigger is wired (no
- *  aria-expanded, no click/keyboard handling) and the open state is driven
- *  entirely through the controller — for a collapse whose visible control is
- *  something a disclosure trigger would mis-describe (a checkbox enable-toggle
- *  whose `checked` already conveys the state, an app state machine). The
- *  region still gets the height animation and `aria-hidden` + `inert`. */
+ *  as an animated disclosure. With `trigger: null` nothing is wired (no
+ *  aria-expanded, no click or keyboard handling) and only the controller
+ *  changes the open state; the region still animates and gets `aria-hidden`
+ *  plus `inert`. */
 export function createDisclosure(
   trigger: HTMLElement | null,
   region: HTMLElement,

@@ -14,15 +14,11 @@ export type Decoder<T> = (value: unknown) => T;
  *  {@link createFetch} (shallow-copied and frozen at construction); a changed
  *  backend produces a new instance. */
 export interface FetchConfig {
-  /** Prepended to relative paths. The trailing `/` is stripped and a leading
-   *  `/` is ensured on the path before joining.
-   *
-   *  CONTRACT: `path` is treated as a RELATIVE path. With `baseUrl` set, the
-   *  configured scheme+host always precede it, so an absolute (`https://…`) or
-   *  protocol-relative (`//host`) path is neutralised (kept as a path segment)
-   *  and cannot override the origin. With `baseUrl` UNSET, `path` is passed to
-   *  `fetch()` verbatim — the caller owns the full URL and must never pass
-   *  untrusted input as the whole path. */
+  /** Prepended to relative paths, minus one trailing `/`. With it set,
+   *  an absolute (`https://…`) or protocol-relative (`//host`) path stays a
+   *  path segment and cannot override the origin. With it UNSET, `path` goes
+   *  to `fetch()` verbatim, so the caller owns the full URL and must never
+   *  pass untrusted input as the whole path. */
   baseUrl?: string;
   /** `RequestInit.credentials` mode applied to every request (e.g. `"include"`
    *  for cookies). */
@@ -76,14 +72,10 @@ export interface ApiErr {
   /** Human-readable message. */
   readonly error: string;
   /** Machine code: `"network"` | `"timeout"` | `"cancelled"` | `"decode"` |
-   *  `"invalid"`, or a server-supplied code lifted from the error body.
-   *
-   *  SECURITY: this field is dual-purpose — a server-controlled body value
-   *  shares the namespace with the library's own control codes, so a
-   *  malicious upstream can spoof a reserved value. Disambiguate by `status`,
-   *  never by `code` alone: the reserved codes carry `status === 0` (except
-   *  `"decode"`, which carries the real 2xx status); a lifted server code
-   *  always carries the real non-2xx status. */
+   *  `"invalid"`, or a code lifted from the server's error body, which can
+   *  spoof a reserved one. Disambiguate by `status`, never by `code` alone:
+   *  reserved codes carry `status === 0` (`"decode"` its real 2xx status), a
+   *  lifted code always the real non-2xx status. */
   readonly code?: string;
   /** Lifted from the error body's `request_id` / `requestId`, when present. */
   readonly requestId?: string;

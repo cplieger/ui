@@ -80,17 +80,11 @@ function statusOf(res: Response): number {
   return typeof res.status === "number" ? res.status : 0;
 }
 
-/**
- * Neutralize a relative path's parser-significant navigation syntax before it
- * is concatenated onto a base URL, so a crafted path cannot escape the base
- * path prefix via URL normalization. A leading slash is ensured, backslashes
- * are percent-encoded, ASCII TAB / LF / CR (which the WHATWG URL parser strips
- * before a stripped char could fuse two dots into a live `..`) are
- * percent-encoded in the path part only, and any dot-segment — `.` / `..` and
- * percent-encoded equivalents — is double-encoded so it survives
- * normalization as opaque path data. The dots become `%252E`, not `%2E`: the
- * latter is still recognized as a dot octet and would be popped.
- */
+/** Neutralize a relative path's navigation syntax before it joins a base URL,
+ *  so URL normalization cannot pop the base path prefix. Backslashes, and in
+ *  the path part ASCII TAB/LF/CR (which the WHATWG parser strips, fusing two
+ *  dots into a live `..`), are percent-encoded. Every dot-segment, encoded or
+ *  not, is double-encoded to `%252E`: the parser still pops `%2E`. */
 function safeSuffix(path: string): string {
   // Query (`?`) / fragment (`#`) are isolated before segment processing: the
   // URL parser does not path-normalize them and they must reach the server

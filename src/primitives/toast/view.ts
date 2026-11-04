@@ -29,18 +29,10 @@ export interface ToastHandle {
   enterRaf: number | null;
 }
 
-/**
- * Create a DOM-backed toast view. The stack container is created lazily on
- * first `mount`, so importing this module appends nothing to the DOM.
- *
- * Mounts on `document.body` by default; pass `host` to confine it to an
- * app-owned element (an embeddable widget's root). Without an explicit
- * `host`, the stack auto-hosts into the topmost open modal `<dialog>` while
- * one is open — `showModal()` inerts everything outside the dialog subtree,
- * so a body-mounted stack would paint behind it and be dead to interaction —
- * and returns to `document.body` after. An explicit `host` is exempt from
- * auto-hosting.
- */
+/** Create a DOM-backed toast view whose stack is created on first `mount`.
+ *  It mounts on `host` when given, else on `document.body`, moving into the
+ *  topmost open modal `<dialog>` while one is open (`showModal()` inerts
+ *  everything outside it) and back to the body after. */
 export function createToastView(host?: HTMLElement): ToastView<ToastHandle> {
   let container: HTMLElement | null = null;
   // The modal <dialog> currently auto-hosting the stack, if any. Its `close`

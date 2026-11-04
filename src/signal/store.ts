@@ -1,24 +1,11 @@
-// Typed per-key reactive store — a thin facade over the signal engine.
+// Typed per-key store: a facade over the signal engine with one lazily-created
+// signal per key, and no reactivity of its own.
 //
-// Each key is backed by a lazily-created signal, so the store inherits the
-// engine's glitch-freedom, cycle detection, batching, and error handling.
-// There is NO separate reactivity implementation here: get/set read and
-// write signals, and auto-tracking falls out of reading `signal.value` inside an
-// effect.
-//
-// The member set is decided by one rule: a Store member exists only where it
-// does something the engine's namesake does NOT. `subscribe` skips the initial
-// call and runs untracked; `computed` is an eager key-writing effect rather than
-// a lazy signal. `effect` and `batch` were the engine's own function objects
-// verbatim and are NOT re-exposed here (removed in v2.0.0) — `store.batch(…)`
-// read as "batch this store's writes" while batching the whole graph, which is a
-// scope the flush model does not have. Import `batch` and `effect` from the
-// package root beside `createStore`.
-//
-// Usage:
-//   import { createStore, batch, effect } from '@cplieger/ui/signal';
-//   interface MyMap { count: number; name: string }
-//   const { get, set, subscribe, computed } = createStore<MyMap>();
+// A Store member exists only where it does something the engine's namesake
+// does not: `subscribe` skips the initial call and runs untracked, `computed`
+// is an eager key-writing effect. `batch` and `effect` stay off the store,
+// because `store.batch(…)` reads as store-scoped while it batches the whole
+// graph, a scope the flush model does not have.
 
 import { signal, effect, untracked, type Signal } from "./signal.js";
 

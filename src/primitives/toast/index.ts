@@ -90,9 +90,8 @@ export function createToaster(opts?: ToasterOptions): Toaster {
   return build(opts);
 }
 
-// Built lazily: eager construction would attach a document listener at
-// import time, throwing in a DOM-less runtime and violating the package's
-// no-import-side-effects contract.
+// Built lazily, so a page that only calls createToaster never builds the
+// default stack or its document listener.
 let singleton: Toaster | null = null;
 
 function getSingleton(): Toaster {
