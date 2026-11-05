@@ -269,6 +269,9 @@ export function createPopupCore<C extends PopupConfig>(
     let annotated: HTMLElement | null = null;
     let joined: string | null = null;
     let armed: { readonly outside: boolean; readonly escape: boolean } | null = null;
+    // The show the listeners were armed for: a hide and a show that one commit
+    // coalesces still defer them again.
+    let armedFor = -1;
     let armTimer: ReturnType<typeof setTimeout> | null = null;
     let listening = false;
     let leave: { readonly forHide: number; readonly cancel: () => void } | null = null;
@@ -449,7 +452,12 @@ export function createPopupCore<C extends PopupConfig>(
               fx.focus(c.initialFocus);
             }
           }
-          if (armed?.outside !== c.closeOnOutside || armed.escape !== c.closeOnEscape) {
+          if (
+            armedFor !== d.shows ||
+            armed?.outside !== c.closeOnOutside ||
+            armed.escape !== c.closeOnEscape
+          ) {
+            armedFor = d.shows;
             arm({ outside: c.closeOnOutside, escape: c.closeOnEscape });
           }
           return;

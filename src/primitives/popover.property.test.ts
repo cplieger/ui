@@ -455,6 +455,19 @@ describe("popover: re-entry property", () => {
       {
         numRuns: 150,
         examples: [
+          // A hide and a show re-entered from a setOptions commit: the listeners defer again.
+          [
+            {
+              anchor: "virtual",
+              fillOnOpen: false,
+              script: [
+                { k: "show" },
+                { k: "arm" },
+                { k: "setOptions", offset: 4, placement: "top" },
+              ],
+              injections: [{ at: 14, actions: [{ k: "hide" }, { k: "show" }] }],
+            },
+          ],
           // A show() and a throw from the anchor's rect during show(): later placements are still judged.
           [
             {
