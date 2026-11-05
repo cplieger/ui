@@ -9,14 +9,13 @@ import { iconNames } from "./icons.js";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const SHIPPED = join(ROOT, "icons", "svg");
-const RELEASE = join(
-  dirname(createRequire(import.meta.url).resolve("lucide-static/package.json")),
-  "icons",
-);
+const require = createRequire(import.meta.url);
+const PINNED = dirname(require.resolve("lucide-static/package.json"));
+const RELEASE = join(PINNED, "icons");
 
 /**
- * What keeps `dir` from being the pinned lucide-static release of exactly
- * iconNames. With ICONS_SYNC=1 (`npm run icons:sync`) it rewrites `dir` to
+ * What keeps `dir`, and the LICENSE-lucide beside it, from being the pinned
+ * lucide-static release of exactly iconNames. With ICONS_SYNC=1 (`npm run icons:sync`) it rewrites `dir` to
  * match instead and reports only names the release lacks.
  */
 async function drift(dir: string, sync = false): Promise<string[]> {
@@ -39,6 +38,16 @@ async function drift(dir: string, sync = false): Promise<string[]> {
       problems.push(
         `${name}.svg: ${have === null ? "missing" : "differs from the pinned lucide-static"}`,
       );
+    }
+  }
+  const license = await readFile(join(PINNED, "LICENSE"));
+  const shippedLicense = join(dirname(dir), "LICENSE-lucide");
+  const haveLicense = await readFile(shippedLicense).catch(() => null);
+  if (haveLicense?.equals(license) !== true) {
+    if (sync) {
+      await writeFile(shippedLicense, license);
+    } else {
+      problems.push("LICENSE-lucide: differs from the pinned lucide-static LICENSE");
     }
   }
   const names = new Set<string>(iconNames);
@@ -66,11 +75,14 @@ describe("the shipped icon set", () => {
   it("reports a changed, a missing and an extra file", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ui-icons-"));
     try {
-      await cp(SHIPPED, dir, { recursive: true });
-      await writeFile(join(dir, "x.svg"), "<svg/>");
-      await rm(join(dir, "zap.svg"));
-      await writeFile(join(dir, "extra.svg"), "<svg/>");
-      expect((await drift(dir)).sort()).toEqual([
+      await cp(join(ROOT, "icons"), dir, { recursive: true });
+      const svg = join(dir, "svg");
+      await writeFile(join(dir, "LICENSE-lucide"), "stale");
+      await writeFile(join(svg, "x.svg"), "<svg/>");
+      await rm(join(svg, "zap.svg"));
+      await writeFile(join(svg, "extra.svg"), "<svg/>");
+      expect((await drift(svg)).sort()).toEqual([
+        "LICENSE-lucide: differs from the pinned lucide-static LICENSE",
         "extra.svg: no name in iconNames",
         "x.svg: differs from the pinned lucide-static",
         "zap.svg: missing",
