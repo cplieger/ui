@@ -47,7 +47,7 @@ Then add the rule below to your own stylesheet. The package ships no CSS for the
 }
 ```
 
-In forced colours the browser replaces `background-color` with a system colour, which paints the mask in the page's background colour, so the icon would vanish. The rule opts the icon out, so it keeps `currentColor`, and the two engines then differ. Firefox forces colours during the cascade, so with `none` the icon's own `color` is already the forced colour of its button, link or selected row. Chromium forces them afterwards, so with `none` the icon would inherit the author's colour, and `preserve-parent-color` is what makes it inherit the forced one. Firefox does not support that value, so the `@supports` block applies only where it is needed.
+In forced colours Chromium replaces `background-color` with a system colour, which paints the mask in the page's background colour, so the icon would vanish. The rule opts the icon out, so it keeps `currentColor`, and the two engines then differ. Firefox forces colours during the cascade, so with `none` the icon's own `color` is already the forced colour of its button, link or selected row. Chromium forces them afterwards, so with `none` the icon would inherit the author's colour, and `preserve-parent-color` is what makes it inherit the forced one. Firefox does not support that value, so the `@supports` block applies only where it is needed.
 
 ## API
 

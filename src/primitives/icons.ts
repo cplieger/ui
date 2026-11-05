@@ -4,11 +4,6 @@
  * `currentColor`. The host serves the files and owns the CSS; the factory only
  * builds the element.
  *
- * ```ts
- * const { icon } = createIcons({ base: "/static/icons/" });
- * button.append(icon("refresh-cw"), "Refresh");
- * ```
- *
  * @module
  */
 
