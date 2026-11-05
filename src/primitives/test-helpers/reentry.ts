@@ -284,8 +284,14 @@ export type PlatformKind =
 
 export interface WorldOptions<E> {
   /** A platform change made by a raw call, observed at the next hit or when the call
-   *  returns; `opening`: a showModal or show whose `beforetoggle` ran is still to write `open`. */
-  readonly onEdge?: (dialog: HTMLDialogElement, open: boolean, opening: boolean) => E;
+   *  returns; `opening`: a showModal or show whose `beforetoggle` ran is still to write `open`;
+   *  `closing`: a close the library made is in its `beforetoggle` and will remove `open`. */
+  readonly onEdge?: (
+    dialog: HTMLDialogElement,
+    open: boolean,
+    opening: boolean,
+    closing: boolean,
+  ) => E;
   /** Swap a customized `<body>` in for the case. */
   readonly probeBody?: boolean;
 }
@@ -338,7 +344,11 @@ export class World<E = unknown> {
   private raw: RawFrame | null = null;
   private readonly cleanups: (() => void)[] = [];
   private readonly onEdge:
-    ((dialog: HTMLDialogElement, open: boolean, opening: boolean) => E) | undefined;
+    | ((dialog: HTMLDialogElement, open: boolean, opening: boolean, closing: boolean) => E)
+    | undefined;
+  // Dialogs whose close by the library is in its beforetoggle and still to remove `open`:
+  // the close removes it after its listeners whenever it is set again by then.
+  private readonly ownClosing = new Set<Element>();
   private originalBody: HTMLElement | null = null;
 
   constructor(options: WorldOptions<E> = {}) {
@@ -370,6 +380,10 @@ export class World<E = unknown> {
           (te: Event) => {
             if (te.defaultPrevented) {
               this.endToggle(target);
+            }
+            // A close that finds `open` gone after its listeners writes nothing.
+            if ((te as ToggleEvent).newState === "closed" && !target.hasAttribute("open")) {
+              this.ownClosing.delete(target);
             }
           },
           { once: true },
@@ -490,6 +504,9 @@ export class World<E = unknown> {
       const value = next === undefined ? el.getAttribute(name) : next.oldValue;
       if (name === "open" && (r.oldValue === null) !== (value === null)) {
         this.endToggle(el);
+        if (value === null && this.raw?.dialog !== el) {
+          this.ownClosing.delete(el);
+        }
       }
       if (win !== null && isProbe(el) && (OBSERVED as readonly string[]).includes(name)) {
         this.write({ el, name, old: r.oldValue, value }, win);
@@ -537,6 +554,9 @@ export class World<E = unknown> {
     const toggle = /beforetoggle:(open|closed)/.exec(kind);
     if (el !== undefined && toggle !== null) {
       this.toggling.set(el, [...(this.toggling.get(el) ?? []), toggle[1] ?? ""]);
+      if (toggle[1] === "closed" && this.raw?.dialog !== el) {
+        this.ownClosing.add(el);
+      }
     }
     this.checkRaw();
     const index = this.trace.length;
@@ -693,6 +713,7 @@ export class World<E = unknown> {
   checkEffects(where: string): string | null {
     this.endWindow(true);
     this.toggling.clear();
+    this.ownClosing.clear();
     const first = this.inadmissible.splice(0)[0];
     return first === undefined ? null : `${where}: ${first}`;
   }
@@ -707,6 +728,7 @@ export class World<E = unknown> {
       if (this.depth === 0) {
         this.endWindow(true);
         this.toggling.clear();
+        this.ownClosing.clear();
       }
     }
   }
@@ -776,7 +798,14 @@ export class World<E = unknown> {
     raw.seen = raw.dialog.open;
     this.endWindow(false);
     if (this.onEdge !== undefined) {
-      this.events.push(this.onEdge(raw.dialog, raw.seen, this.opening(raw.dialog)));
+      this.events.push(
+        this.onEdge(
+          raw.dialog,
+          raw.seen,
+          this.opening(raw.dialog),
+          this.ownClosing.has(raw.dialog),
+        ),
+      );
     }
   }
 
@@ -790,6 +819,8 @@ export class World<E = unknown> {
 
   private platformCall(dialog: HTMLDialogElement, kind: PlatformKind): void {
     this.rawTouched.add(dialog);
+    // Taken at both ends, so every `open` record is read with the raw frame that made it.
+    this.takeWrites(this.window);
     const previous = this.raw;
     this.raw = { dialog, seen: dialog.open };
     try {
@@ -843,6 +874,7 @@ export class World<E = unknown> {
     } catch (error) {
       this.observed.push({ error, channel: "platform" });
     } finally {
+      this.takeWrites(this.window);
       this.checkRaw();
       this.raw = previous;
       if (previous !== null) {
