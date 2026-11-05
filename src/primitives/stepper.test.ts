@@ -124,6 +124,55 @@ describe("stepper markup", () => {
     expect(await linkNames()).toEqual(["Connect, done", "Languages, not started"]);
   });
 
+  it("reads update's steps untracked too", () => {
+    const root = host();
+    const s = createStepper(root, [{ id: "b", label: "B", state: "current", href: null }]);
+    const state = signal<"done" | "todo">("done");
+    const steps: StepperStep[] = [
+      {
+        id: "a",
+        label: "A",
+        get state() {
+          return state.value;
+        },
+        href: "/a",
+      },
+      { id: "b", label: "B", state: "current", href: null },
+    ];
+    let runs = 0;
+    const dispose = createRoot((d) => {
+      effect(() => {
+        runs++;
+        s.update(steps);
+      });
+      return d;
+    });
+    state.value = "todo";
+    expect(runs).toBe(1);
+    dispose();
+  });
+
+  it("reads labels untracked", () => {
+    const root = host();
+    const word = signal("done");
+    const labels = {
+      get done() {
+        return word.value;
+      },
+    };
+    let runs = 0;
+    const dispose = createRoot((d) => {
+      effect(() => {
+        runs++;
+        createStepper(root, setup, labels);
+      });
+      return d;
+    });
+    word.value = "fait";
+    expect(runs).toBe(1);
+    dispose();
+  });
+
   it("reads host input untracked, so an enclosing effect does not rerun", () => {
     const root = host();
     const state = signal<"done" | "todo">("done");
@@ -293,6 +342,23 @@ describe("stepper update", () => {
         expect(document.activeElement).toBe(link);
       }),
     );
+  });
+});
+
+describe("stepper in a shadow root", () => {
+  it("keeps focus on a link it moves around", () => {
+    const shadow = host().attachShadow({ mode: "open" });
+    const root = document.createElement("div");
+    shadow.append(root);
+    const a: StepperStep = { id: "a", label: "A", state: "current", href: null };
+    const f: StepperStep = { id: "f", label: "F", state: "done", href: "/f" };
+    const s = createStepper(root, [a, f]);
+    const link = root.querySelector<HTMLAnchorElement>('li[data-step="f"] a');
+    link?.focus();
+    expect(shadow.activeElement).toBe(link);
+    s.update([f, a]);
+    expect(items(root).map((li) => li.dataset["step"])).toEqual(["f", "a"]);
+    expect(shadow.activeElement).toBe(link);
   });
 });
 
