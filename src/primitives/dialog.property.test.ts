@@ -1370,6 +1370,40 @@ describe("dialog: re-entry property", () => {
               injections: [],
             },
           ],
+          // A closeDialog() and a dispose() from the beforetoggle of an open the page
+          // then refuses: no fade was cut, so the callback runs.
+          [
+            {
+              guard: "none",
+              cancelWorld: true,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }, { k: "platformOther", kind: "show" }],
+              injections: [
+                { at: 0, actions: [{ k: "platformOpen" }] },
+                { at: 2, actions: [{ k: "helperClose", cb: "log" }, { k: "dispose" }] },
+              ],
+            },
+          ],
+          // A dismissal and a browser close inside the engine's own showModal, which then
+          // writes open again: the close completed the leave, so the dialog ends closed.
+          [
+            {
+              guard: "allow",
+              cancelWorld: false,
+              onCloseDisposes: true,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }, { k: "platformClose", kind: "closeWatcher" }],
+              injections: [
+                {
+                  at: 49,
+                  actions: [{ k: "platformOpen" }, { k: "platformClose", kind: "closeWatcher" }],
+                },
+              ],
+            },
+          ],
         ],
       },
     );

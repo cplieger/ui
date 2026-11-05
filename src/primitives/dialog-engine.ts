@@ -131,6 +131,9 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
   let reopened = false;
   // The element has been open at some moment since the record.
   let seenOpen = dialog.open;
+  // The engine's own open wrote `open` after a page close since the record: the
+  // close is the page's newest edge, and a leave it completed stays complete.
+  let closedUnderOwn = false;
   // The edge the engine's own showModal (true) or close (false) writes next, from the
   // end of its `beforetoggle` dispatch until a record makes it (`own`). The write follows
   // at once and fx's check after the call takes its record, so it is null again when
@@ -149,6 +152,7 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
       const after = next === undefined ? dialog.open : next.oldValue !== null;
       if (before !== after && expected === after) {
         expected = null;
+        closedUnderOwn ||= after && pageClosed;
       } else {
         page = true;
         if (!before && after) {
@@ -175,6 +179,9 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
   trackOpens(dialog);
   /** The engine's own showModal() or close() under way, and its event once it starts. */
   let call: OwnCall | null = null;
+  /** The callbacks a teardown inside the engine's own showModal found waiting: that
+   *  open's outcome decides whether the teardown cut their fade. */
+  let cut: Waiter[] | null = null;
   starts.set(dialog, (e) => {
     if (call !== null && call.event === null && e.newState === call.state) {
       call.event = e;
@@ -215,6 +222,17 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
       return [result, mine.event !== null];
     } finally {
       call = null;
+      const waiting = cut;
+      cut = null;
+      if (waiting !== null && dialog.open) {
+        // The open went through, so the teardown cut a fade: drop its callbacks.
+        for (const w of waiting) {
+          const i = outbox.indexOf(w);
+          if (i !== -1) {
+            outbox.splice(i, 1);
+          }
+        }
+      }
     }
   };
   // The last pass ended inside a close of the dialog that C3 could not make: it
@@ -233,7 +251,7 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
     if (d.retired) {
       return d;
     }
-    if (!dialog.open) {
+    if (!dialog.open || (closedUnderOwn && d.phase === "leaving")) {
       // The page's close is the newest edge, whatever D intends. The cycle stays:
       // the callbacks waiting for that close are due.
       return pageClosed && d.phase !== "closed" ? { ...d, phase: "closed" } : d;
@@ -357,6 +375,7 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
       pageOpened = false;
       pageClosed = false;
       reopened = false;
+      closedUnderOwn = false;
       seenOpen = dialog.open;
       return next;
     },
@@ -428,18 +447,26 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
   }
 
   const detachTo = (facet: DialogFacet, retired: boolean): void => {
-    driver.update((d) =>
-      d.facet !== facet
-        ? d
-        : {
-            ...d,
-            facet: null,
-            phase: "closed",
-            // Teardown closes at once with no fade: callbacks waiting for one are dropped.
-            cycle: d.phase === "closed" ? d.cycle : d.cycle + 1,
-            retired: d.retired || retired,
-          },
-    );
+    driver.update((d) => {
+      if (d.facet !== facet) {
+        return d;
+      }
+      // Teardown closes at once with no fade: callbacks waiting for one are dropped.
+      // Inside the engine's own showModal there is a fade to cut only if that open
+      // goes through, which its beforetoggle listeners decide after this.
+      const cuts = d.phase !== "closed";
+      const deferred = cuts && call?.state === "open";
+      if (deferred) {
+        cut = [...(cut ?? []), ...outbox.filter((w) => w.cycle === d.cycle && !w.due)];
+      }
+      return {
+        ...d,
+        facet: null,
+        phase: "closed",
+        cycle: cuts && !deferred ? d.cycle + 1 : d.cycle,
+        retired: d.retired || retired,
+      };
+    });
   };
 
   return {

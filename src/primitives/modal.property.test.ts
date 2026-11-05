@@ -977,6 +977,30 @@ describe("createModal: re-entry property", () => {
               ],
             },
           ],
+          // A teardown inside the engine's own showModal drops only the callbacks
+          // waiting at that moment: one added to the spent modal afterwards runs.
+          [
+            {
+              probeBody: false,
+              allowGuard: false,
+              script: [{ k: "open", who: "b" }],
+              injections: [{ at: 213, actions: [{ k: "dispose", who: "b" }, { k: "throw" }] }],
+            },
+          ],
+          [
+            {
+              probeBody: false,
+              allowGuard: false,
+              script: [
+                { k: "open", who: "a" },
+                { k: "platformClose", who: "a", kind: "form" },
+              ],
+              injections: [
+                { at: 350, actions: [{ k: "owner" }] },
+                { at: 348, actions: [{ k: "open", who: "a" }] },
+              ],
+            },
+          ],
         ],
       },
     );
