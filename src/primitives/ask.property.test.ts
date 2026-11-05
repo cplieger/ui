@@ -78,7 +78,10 @@ interface Q {
   settled: boolean;
 }
 
-type Phase = "open" | "leaving" | "closed";
+// "pending": committed to a closed dialog whose open has not landed. ask's driver
+// defers a commit made inside that dialog's own drive, and a leave arriving before
+// the drive resumes cancels the open, so the dialog never shows.
+type Phase = "pending" | "open" | "leaving" | "closed";
 
 function scenario(w: World<Ev>): Scenario<Step> {
   const failure: string | null = null;
@@ -93,6 +96,10 @@ function scenario(w: World<Ev>): Scenario<Step> {
   // Counts leaves, so a settle closes only the fades that began before it.
   const leaves: Record<Shape, number> = { boolean: 0, input: 0 };
   const leave = (shape: Shape): void => {
+    if (phase[shape] === "pending" && !opened(shape)) {
+      phase[shape] = "closed";
+      return;
+    }
     phase[shape] = "leaving";
     leaves[shape]++;
   };
@@ -104,6 +111,11 @@ function scenario(w: World<Ev>): Scenario<Step> {
     document.querySelector<HTMLDialogElement>(
       shape === "input" ? "dialog.uip-ask--input" : "dialog.uip-ask:not(.uip-ask--input)",
     );
+  const opened = (shape: Shape): boolean => {
+    const d = dialogOf(shape);
+    return d !== null && (d.open || w.opening(d));
+  };
+  const showing = (shape: Shape): boolean => phase[shape] === "open" || phase[shape] === "pending";
 
   // ask arms a question's gestures in the pass that writes its view, so a gesture
   // answers the live question only while its dialog shows it.
@@ -112,7 +124,7 @@ function scenario(w: World<Ev>): Scenario<Step> {
   const settleCurrent = (value: boolean | string | null): void => {
     if (current !== null) {
       current.want = value;
-      if (phase[current.shape] === "open") {
+      if (showing(current.shape)) {
         leave(current.shape);
       }
       current = null;
@@ -123,9 +135,9 @@ function scenario(w: World<Ev>): Scenario<Step> {
       current.want = cancelValue(current);
     }
     current = q;
-    phase[q.shape] = "open";
+    phase[q.shape] = opened(q.shape) ? "open" : "pending";
     const other: Shape = q.shape === "input" ? "boolean" : "input";
-    if (phase[other] === "open") {
+    if (showing(other)) {
       leave(other);
     }
   };
@@ -380,6 +392,24 @@ describe("ask: re-entry property", () => {
         numRuns: 150,
         // Counterexamples found earlier, kept as regressions.
         examples: [
+          [
+            {
+              script: [
+                { k: "ask", shape: "input" },
+                { k: "platformClose", kind: "closeWatcher" },
+              ],
+              injections: [
+                {
+                  at: 247,
+                  actions: [
+                    { k: "platformClose", kind: "close" },
+                    { k: "ask", shape: "boolean" },
+                  ],
+                },
+                { at: 235, actions: [{ k: "ask", shape: "input" }] },
+              ],
+            },
+          ],
           [
             {
               script: [
