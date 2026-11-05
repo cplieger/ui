@@ -217,8 +217,7 @@ function createSlot(shape: Shape): Slot {
     if (input !== null) {
       input.form.addEventListener(
         "submit",
-        (e) => {
-          e.preventDefault();
+        () => {
           answer(slot, q.id, input.input.value);
         },
         { signal },
@@ -346,6 +345,11 @@ function buildInput(): AskInputRefs {
   const { ok, cancel, row } = buildActions();
   ok.type = "submit";
   const form = el("form", { className: "uip-ask-form" }, message, input, row) as HTMLFormElement;
+  // Never the form's own submission: a submit after the answer, while the
+  // dialog fades out, would otherwise reload the page.
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+  });
   const dialog = el(
     "dialog",
     { className: "uip-ask uip-ask--input" },
