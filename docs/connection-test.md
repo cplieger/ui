@@ -25,7 +25,7 @@ const test = createConnectionTest(
 
 ## API
 
-- `createConnectionTest(button, status, opts, root?)` returns `{ state(), start(), reset(), dispose() }`. It throws a `TypeError` when `button` is not a `<button>`, `status` contains it, or another live control already writes `status` or `root`.
+- `createConnectionTest(button, status, opts, root?)` returns `{ state(), start(), reset(), dispose() }`. It throws a `TypeError` when `button` is not a `<button>`, `status` or `root` is not an element, `status` contains the button, or another live control already writes `status` or `root`.
 - `opts.run(signal)` resolves with `{ ok: true, message }` or `{ ok: false, message, field? }`. Reject only for a failure you did not turn into an answer, such as a network error. A `run` that throws is a failure, as a rejection is. A `field` that is null, or set on a pass, is ignored.
 - `opts.errorMessage(error)` words a rejected `run`. Without it the error's `message` is used, or "The test could not run."
 - `opts.fields` maps a field name, as your server names it, to `{ input?, mark? }`.
@@ -35,10 +35,10 @@ const test = createConnectionTest(
 ## Notes
 
 - `status` and `root` carry `data-state` (`idle`, `busy`, `passed`, `failed`) for your CSS. `status` never gets `aria-busy`, because a screen reader may skip a busy live region's changes and would miss "Testing…".
-- A button with no `type` gets `type="button"`, so it never submits the form around it, and Enter in a field goes to the form's own submit button; dispose removes the type it added. While busy the button gets `aria-disabled="true"` and a click does nothing, a submit button you typed yourself included; it is never given `disabled`, which would move focus off it. Outside busy, `aria-disabled` is yours: the value you set is put back when the test ends.
+- A button with no valid `type` (none, or a value HTML does not know, either of which makes a submit button) gets `type="button"`, so it never submits the form around it, and Enter in a field goes to the form's own submit button; dispose puts back the `type` it replaced. While busy the button gets `aria-disabled="true"` and a click does nothing, a submit button you typed yourself included; it is never given `disabled`, which would move focus off it. Outside busy, `aria-disabled` is yours: the value you set is put back when the test ends.
 - `status` becomes a polite live region (`role="status"`) unless it already has a role. With `live: "none"` no role is written, and you announce from `onChange` yourself.
 - Draw the glyph and colour from `data-state`, so the state is text, glyph and colour together. Busy always has its text.
-- A failure naming a field in `fields` sets `aria-invalid="true"` on its input and adds the status element's id to the input's `aria-describedby`, giving `status` an id if it has none. Clearing removes only that id, and once no control marks the input any more, restores the `aria-invalid` it had before the first mark. `mark(message)` is called on marking and `mark(null)` on clearing. A failure naming no field you passed still shows its message.
+- A failure naming a field in `fields` sets `aria-invalid="true"` on its input and adds the status element's id to the input's `aria-describedby`, giving `status` an id whenever it has none. Keep that id stable while a field is marked, since the input names the id it had at the failure. Clearing removes only that id, and once no control marks the input any more, restores the `aria-invalid` it had before the first mark. `mark(message)` is called on marking and `mark(null)` on clearing. A failure naming no field you passed still shows its message.
 - An edit, a new test, `reset()` or `dispose()` aborts a running test's `signal`, and its late answer is dropped. A `run` rejecting with an `AbortError` returns the control to idle.
 - An answer of the wrong shape fails with "The test returned no answer." and is logged with `console.error`. An `errorMessage` that throws is logged and replaced by the default message.
 - `dispose()` aborts, removes everything the control added and calls neither `onChange` nor `mark`, so clear your own marking from your owner's cleanup. After it, `start` and `reset` do nothing and `state()` reports `"idle"`. A control made under an owner ends with that owner.

@@ -98,6 +98,15 @@ const NO_ANSWER = "The test returned no answer.";
  *  `message`. A field is kept only on a failure and only as a string, since a
  *  server may encode "no field" as null. */
 function toResult(r: unknown): ConnectionTestResult | null {
+  // A getter or Proxy trap that throws is a wrong shape too, never a stranded control.
+  try {
+    return readResult(r);
+  } catch {
+    return null;
+  }
+}
+
+function readResult(r: unknown): ConnectionTestResult | null {
   if (typeof r !== "object" || r === null) {
     return null;
   }
@@ -122,8 +131,9 @@ function tokens(value: string | null): string[] {
 
 /** Wire `button` to run the check and `status` to show its state. `root`, when
  *  given, also carries `data-state` and scopes the default `watch`. Throws a
- *  `TypeError` when `button` is not a `<button>`, `status` contains it, or a
- *  live control already writes `status`. */
+ *  `TypeError` when `button` is not a `<button>`, `status` or `root` is not an
+ *  element, `status` contains the button, or a live control already writes
+ *  `status` or `root`. */
 export function createConnectionTest(
   button: HTMLButtonElement,
   status: HTMLElement,
@@ -132,6 +142,10 @@ export function createConnectionTest(
 ): ConnectionTestController {
   if (!(button instanceof HTMLButtonElement)) {
     throw new TypeError("@cplieger/ui/connection-test: button must be a <button>");
+  }
+  // Checked before anything is claimed: a claim the constructor cannot finish is never released.
+  if (!(status instanceof HTMLElement) || (root !== undefined && !(root instanceof HTMLElement))) {
+    throw new TypeError("@cplieger/ui/connection-test: status and root must be elements");
   }
   if (status === button || status.contains(button)) {
     throw new TypeError("@cplieger/ui/connection-test: status must not contain the button");
@@ -156,9 +170,10 @@ export function createConnectionTest(
     if (root !== undefined) {
       claimed.add(root);
     }
-    // A button with no type submits its form, and implicit submission (Enter in a
-    // field) clicks the first one; so it becomes type="button", given back on dispose.
-    const addedType = !button.hasAttribute("type");
+    // A missing or invalid type is a submit button, and implicit submission (Enter
+    // in a field) clicks the first one; so it becomes type="button", given back on dispose.
+    const priorType = button.getAttribute("type");
+    const addedType = priorType?.toLowerCase() !== button.type;
     if (addedType) {
       button.type = "button";
     }
@@ -170,8 +185,9 @@ export function createConnectionTest(
       result: null,
     };
     let markedReported: { readonly name: string; readonly message: string } | null = null;
-    // What the control added, so terminal gives back exactly that.
-    const addedId = status.id === "" ? `uip-connection-test-${(++idSeq).toString()}` : null;
+    // What the control added, so terminal gives back exactly that. The id is made
+    // the first time status has none, which a host can cause after construction.
+    let addedId: string | null = null;
     const addedRole = o.live === "status" && !status.hasAttribute("role");
     // The host's own aria-disabled, held while busy and put back after.
     let held: { readonly prior: string | null } | null = null;
@@ -380,7 +396,8 @@ export function createConnectionTest(
       initial: { phase: "idle", result: null, run: 0 },
       realize(fx, s) {
         listen(true);
-        if (addedId !== null && status.id === "") {
+        if (status.id === "") {
+          addedId ??= `uip-connection-test-${(++idSeq).toString()}`;
           fx.setProp(status, "id", addedId);
         }
         if (addedRole) {
@@ -441,7 +458,11 @@ export function createConnectionTest(
           claimed.delete(root);
         }
         if (addedType && button.getAttribute("type") === "button") {
-          fx.removeAttr(button, "type");
+          if (priorType === null) {
+            fx.removeAttr(button, "type");
+          } else {
+            fx.setAttr(button, "type", priorType);
+          }
         }
         listen(false);
         abort();
@@ -453,7 +474,7 @@ export function createConnectionTest(
         if (status.textContent !== "") {
           status.textContent = "";
         }
-        if (addedRole) {
+        if (addedRole && status.getAttribute("role") === "status") {
           fx.removeAttr(status, "role");
         }
         if (addedId !== null && status.id === addedId) {

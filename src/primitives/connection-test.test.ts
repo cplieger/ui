@@ -932,4 +932,110 @@ describe("connection test in a form and with host attributes", () => {
       createConnectionTest(second, extra, { run: deferredRun().run }, f.root),
     ).not.toThrow();
   });
+
+  it("refuses a status or root that is no element and claims nothing", () => {
+    const f = fixture();
+    const run = deferredRun().run;
+    const notElement = null as unknown as HTMLElement;
+    expect(() => createConnectionTest(f.button, f.status, { run }, notElement)).toThrow(
+      "status and root must be elements",
+    );
+    expect(() => createConnectionTest(f.button, notElement, { run })).toThrow(TypeError);
+    expect(() => createConnectionTest(f.button, f.status, { run }, f.root)).not.toThrow();
+  });
+
+  it("treats an empty or unknown type as a submit button and types it", async () => {
+    for (const type of ["", "submitt", "Button "]) {
+      document.body.replaceChildren();
+      const f = fixture();
+      const submits = inForm(f);
+      f.button.setAttribute("type", type);
+      const d = deferredRun();
+      const c = createConnectionTest(f.button, f.status, { run: d.run });
+      expect(f.button.type).toBe("button");
+      f.url.focus();
+      await userEvent.keyboard("{Enter}");
+      expect(submits()).toBe(1);
+      expect(d.calls).toHaveLength(0);
+      c.dispose();
+      expect(f.button.getAttribute("type")).toBe(type);
+    }
+  });
+
+  it("keeps a type the host set while the control lived", () => {
+    const f = fixture();
+    const c = createConnectionTest(f.button, f.status, { run: deferredRun().run });
+    f.button.type = "submit";
+    c.dispose();
+    expect(f.button.getAttribute("type")).toBe("submit");
+  });
+
+  it("gives back the host's aria-disabled after busy is realized twice in one pass", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    let again = true;
+    const c: ReturnType<typeof createConnectionTest> = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      onChange: (state) => {
+        if (state === "busy" && again) {
+          again = false;
+          c.reset();
+          c.start();
+        }
+      },
+    });
+    c.start();
+    d.resolve({ ok: true, message: "ok" });
+    await settled();
+    expect(c.state()).toBe("passed");
+    expect(f.button.hasAttribute("aria-disabled")).toBe(false);
+  });
+
+  it("fails with the no-answer text for a result whose fields throw when read", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const c = createConnectionTest(f.button, f.status, { run: d.run });
+    c.start();
+    d.resolve({
+      get ok(): boolean {
+        throw new Error("getter");
+      },
+      message: "m",
+    });
+    await settled();
+    expect(c.state()).toBe("failed");
+    expect(f.status.textContent).toBe("The test returned no answer.");
+    expect(f.button.hasAttribute("aria-disabled")).toBe(false);
+    expect(errorLog).toHaveBeenCalled();
+    errorLog.mockRestore();
+  });
+
+  it("keeps a role the host set after construction", () => {
+    const f = fixture();
+    const c = createConnectionTest(f.button, f.status, { run: deferredRun().run });
+    f.status.setAttribute("role", "alert");
+    c.dispose();
+    expect(f.status.getAttribute("role")).toBe("alert");
+  });
+
+  it("gives status an id when the host removed its own, so a mark is never empty", async () => {
+    const f = fixture();
+    f.status.id = "host-status";
+    f.url.setAttribute("aria-describedby", "hint");
+    const d = deferredRun();
+    const c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      fields: { url: { input: f.url } },
+    });
+    f.status.removeAttribute("id");
+    c.start();
+    d.resolve({ ok: false, message: "bad", field: "url" });
+    await settled();
+    expect(f.status.id).toMatch(/^uip-connection-test-\d+$/);
+    expect(f.url.getAttribute("aria-describedby")).toBe(`hint ${f.status.id}`);
+    c.dispose();
+    expect(f.url.getAttribute("aria-describedby")).toBe("hint");
+    expect(f.status.hasAttribute("id")).toBe(false);
+  });
 });
