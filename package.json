@@ -31,6 +31,7 @@
     "./dialog": "./src/primitives/dialog.ts",
     "./modal": "./src/primitives/modal.ts",
     "./ask": "./src/primitives/ask.ts",
+    "./connection-test": "./src/primitives/connection-test.ts",
     "./disclosure": "./src/primitives/disclosure.ts",
     "./focus-trap": "./src/primitives/focus-trap.ts",
     "./roving-focus": "./src/primitives/roving-focus.ts",

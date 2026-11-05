@@ -1,0 +1,402 @@
+/**
+ * connection-test.ts — the state machine behind a "Test connection" button:
+ * idle, busy, passed, failed. It runs a check the host supplies, writes the
+ * answer into a status element the host renders, and marks the field a failure
+ * names. The host owns every visual, drawn from `data-state`; nothing fades.
+ *
+ * @module
+ */
+
+import { untracked } from "../signal/signal.js";
+import type { Fx } from "./fx.js";
+import { createDriver, ownedBinding } from "./owner.js";
+
+/** Where the control stands. */
+export type ConnectionTestState = "idle" | "busy" | "passed" | "failed";
+
+/** A check's answer. `field` names the field a failure is about, by the key the
+ *  host gave it in `fields`. */
+export type ConnectionTestResult =
+  | { readonly ok: true; readonly message: string }
+  | { readonly ok: false; readonly message: string; readonly field?: string };
+
+/** How a failure marks one field. */
+export interface ConnectionTestField {
+  /** An input to mark with `aria-invalid` and describe by the message. Its
+   *  prior `aria-invalid` is restored on clear. A host whose form engine owns
+   *  field errors passes `mark` alone. */
+  readonly input?: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+  /** Called with the message when the field is marked and with null when it is
+   *  cleared, beside or instead of the input marking. */
+  readonly mark?: (message: string | null) => void;
+}
+
+/** The check and how the control reports it. Only `run` is required. */
+export interface ConnectionTestOptions {
+  /** Runs the check. Resolve with the answer; reject only for a failure the host
+   *  did not turn into an answer. `signal` aborts when the test is superseded. */
+  readonly run: (signal: AbortSignal) => Promise<ConnectionTestResult>;
+  /** Message for a rejected `run`. Default: the error's `message`, else
+   *  "The test could not run." */
+  readonly errorMessage?: (error: unknown) => string;
+  /** Fields a failure may name, by the name the server uses. */
+  readonly fields?: Readonly<Record<string, ConnectionTestField>>;
+  /** Elements whose `input` or `change` returns the control to idle. Default:
+   *  every such event bubbling from inside `root`, or without `root` every
+   *  `fields[*].input`. */
+  readonly watch?: readonly HTMLElement[];
+  /** Text written into `status` while busy. Default "Testing…". */
+  readonly busyMessage?: string;
+  /** "status" (default) makes `status` a polite live region, unless the host
+   *  gave it a role; "none" writes no role, for a host that announces itself. */
+  readonly live?: "status" | "none";
+  /** Called on every state change. */
+  readonly onChange?: (state: ConnectionTestState, result: ConnectionTestResult | null) => void;
+}
+
+/** Handle on a wired control. After `dispose()`, `start` and `reset` do
+ *  nothing and `state` reports `"idle"`. */
+export interface ConnectionTestController {
+  state(): ConnectionTestState;
+  /** Start a test, as a click does. Ignored while busy. */
+  start(): void;
+  /** Back to idle: abort a running test, clear the message and any marking. */
+  reset(): void;
+  /** Abort a running test and remove what the control added, with no
+   *  `onChange` or `mark` call. Idempotent. */
+  dispose(): void;
+}
+
+interface State {
+  readonly phase: ConnectionTestState;
+  readonly result: ConnectionTestResult | null;
+  /** The run this state belongs to; a result from any other run is dropped. */
+  readonly run: number;
+}
+
+/** A field the realized state marks, with what to give back on clear. */
+interface Marked {
+  readonly name: string;
+  readonly message: string;
+  readonly input: ConnectionTestField["input"];
+  readonly priorInvalid: string | null;
+  readonly addedToken: boolean;
+}
+
+let idSeq = 0;
+
+const NO_ANSWER = "The test returned no answer.";
+
+function isResult(r: unknown): r is ConnectionTestResult {
+  if (typeof r !== "object" || r === null) {
+    return false;
+  }
+  const o = r as Record<string, unknown>;
+  return (
+    typeof o["ok"] === "boolean" &&
+    typeof o["message"] === "string" &&
+    (o["field"] === undefined || (!o["ok"] && typeof o["field"] === "string"))
+  );
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function tokens(value: string | null): string[] {
+  return (value ?? "").split(/\s+/).filter((t) => t !== "");
+}
+
+/** Wire `button` to run the check and `status` to show its state. `root`, when
+ *  given, also carries `data-state` and scopes the default `watch`. Throws a
+ *  `TypeError` when `button` is not a `<button>` or `status` contains it. */
+export function createConnectionTest(
+  button: HTMLButtonElement,
+  status: HTMLElement,
+  opts: ConnectionTestOptions,
+  root?: HTMLElement,
+): ConnectionTestController {
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new TypeError("@cplieger/ui/connection-test: button must be a <button>");
+  }
+  if (status === button || status.contains(button)) {
+    throw new TypeError("@cplieger/ui/connection-test: status must not contain the button");
+  }
+  const o = untracked(() => ({
+    run: opts.run,
+    errorMessage: opts.errorMessage,
+    fields: { ...(opts.fields ?? {}) },
+    watch: opts.watch === undefined ? null : [...opts.watch],
+    busyMessage: opts.busyMessage ?? "Testing…",
+    live: opts.live ?? "status",
+    onChange: opts.onChange,
+  }));
+
+  return ownedBinding((binding) => {
+    let runId = 0;
+    let aborter: AbortController | null = null;
+    let marked: Marked | null = null;
+    let reported: { phase: ConnectionTestState; result: ConnectionTestResult | null } = {
+      phase: "idle",
+      result: null,
+    };
+    let markedReported: { readonly name: string; readonly message: string } | null = null;
+    // What the control added, so terminal gives back exactly that.
+    const addedId = status.id === "" ? `uip-connection-test-${(++idSeq).toString()}` : null;
+    const addedRole = o.live === "status" && !status.hasAttribute("role");
+    let listening = false;
+
+    const abort = (): void => {
+      aborter?.abort();
+      aborter = null;
+    };
+    const toIdle = (): void => {
+      if (binding.ended) {
+        return;
+      }
+      abort();
+      runId++;
+      driver.commit({ phase: "idle", result: null, run: runId });
+    };
+    const answer = (id: number, outcome: { value: unknown } | { error: unknown }): void => {
+      // A function, not a condition: host code below can supersede the run.
+      const stale = (): boolean => binding.ended || id !== runId;
+      if (stale()) {
+        return;
+      }
+      let result: ConnectionTestResult;
+      if ("value" in outcome) {
+        if (isResult(outcome.value)) {
+          result = outcome.value;
+        } else {
+          console.error(
+            "@cplieger/ui/connection-test: run resolved with no ConnectionTestResult:",
+            outcome.value,
+          );
+          result = { ok: false, message: NO_ANSWER };
+        }
+      } else if (isAbort(outcome.error)) {
+        toIdle();
+        return;
+      } else {
+        result = { ok: false, message: messageFor(outcome.error) };
+        if (stale()) {
+          return;
+        }
+      }
+      aborter = null;
+      driver.commit({ phase: result.ok ? "passed" : "failed", result, run: id });
+    };
+    const messageFor = (error: unknown): string => {
+      if (o.errorMessage !== undefined) {
+        try {
+          return o.errorMessage(error);
+        } catch (thrown) {
+          console.error("@cplieger/ui/connection-test: errorMessage threw:", thrown);
+        }
+      }
+      return error instanceof Error && error.message !== ""
+        ? error.message
+        : "The test could not run.";
+    };
+    const start = (): void => {
+      if (binding.ended || driver.state.phase === "busy") {
+        return;
+      }
+      abort();
+      const id = ++runId;
+      const controller = new AbortController();
+      aborter = controller;
+      driver.commit({ phase: "busy", result: null, run: id });
+      if (id !== runId) {
+        return; // onChange superseded it
+      }
+      let pending: Promise<ConnectionTestResult>;
+      try {
+        pending = untracked(() => o.run(controller.signal));
+      } catch (error) {
+        pending = Promise.reject(error instanceof Error ? error : new Error(String(error)));
+      }
+      Promise.resolve(pending).then(
+        (value: unknown) => {
+          answer(id, { value });
+        },
+        (error: unknown) => {
+          answer(id, { error });
+        },
+      );
+    };
+
+    const onClick = (): void => {
+      start();
+    };
+    const onEdit = (): void => {
+      toIdle();
+    };
+    const watched = (): readonly HTMLElement[] =>
+      o.watch ??
+      (root === undefined
+        ? Object.values(o.fields).flatMap((f) => (f.input === undefined ? [] : [f.input]))
+        : [root]);
+    const listen = (on: boolean): void => {
+      if (listening === on) {
+        return;
+      }
+      listening = on;
+      const method = on ? "addEventListener" : "removeEventListener";
+      button[method]("click", onClick);
+      for (const el of watched()) {
+        el[method]("input", onEdit);
+        el[method]("change", onEdit);
+      }
+    };
+
+    const unmark = (fx: Fx): void => {
+      const m = marked;
+      if (m === null) {
+        return;
+      }
+      marked = null;
+      if (m.input === undefined) {
+        return;
+      }
+      if (m.priorInvalid === null) {
+        fx.removeAttr(m.input, "aria-invalid");
+      } else {
+        fx.setAttr(m.input, "aria-invalid", m.priorInvalid);
+      }
+      if (m.addedToken) {
+        const rest = tokens(m.input.getAttribute("aria-describedby")).filter(
+          (t) => t !== status.id,
+        );
+        if (rest.length === 0) {
+          fx.removeAttr(m.input, "aria-describedby");
+        } else {
+          fx.setAttr(m.input, "aria-describedby", rest.join(" "));
+        }
+      }
+    };
+    const markField = (fx: Fx, name: string, message: string): void => {
+      if (marked?.name === name && marked.message === message) {
+        return;
+      }
+      unmark(fx);
+      const input = o.fields[name]?.input;
+      if (input === undefined) {
+        marked = { name, message, input, priorInvalid: null, addedToken: false };
+        return;
+      }
+      const described = tokens(input.getAttribute("aria-describedby"));
+      marked = {
+        name,
+        message,
+        input,
+        priorInvalid: input.getAttribute("aria-invalid"),
+        addedToken: !described.includes(status.id),
+      };
+      fx.setAttr(input, "aria-invalid", "true");
+      if (marked.addedToken) {
+        fx.setAttr(input, "aria-describedby", [...described, status.id].join(" "));
+      }
+    };
+    const failedField = (s: State): string | null => {
+      const field = s.result !== null && !s.result.ok ? s.result.field : undefined;
+      return field !== undefined && Object.hasOwn(o.fields, field) ? field : null;
+    };
+
+    const driver = createDriver<State>({
+      initial: { phase: "idle", result: null, run: 0 },
+      realize(fx, s) {
+        listen(true);
+        if (addedId !== null) {
+          fx.setProp(status, "id", addedId);
+        }
+        if (addedRole) {
+          fx.setAttr(status, "role", "status");
+        }
+        if (s.phase === "busy") {
+          fx.setAttr(button, "aria-disabled", "true");
+        } else {
+          fx.removeAttr(button, "aria-disabled");
+        }
+        fx.setAttr(status, "aria-busy", s.phase === "busy" ? "true" : "false");
+        const text = s.phase === "busy" ? o.busyMessage : (s.result?.message ?? "");
+        if (status.textContent !== text) {
+          status.textContent = text;
+        }
+        for (const el of root === undefined ? [status] : [status, root]) {
+          fx.setAttr(el, "data-state", s.phase);
+        }
+        const field = failedField(s);
+        if (field === null) {
+          unmark(fx);
+        } else {
+          markField(fx, field, s.result?.message ?? "");
+        }
+      },
+      notify(fx, s) {
+        const name = failedField(s);
+        const message = s.result?.message ?? "";
+        const had = markedReported;
+        if ((had?.name ?? null) !== name || (had !== null && had.message !== message)) {
+          markedReported = name === null ? null : { name, message };
+          const before = had === null ? undefined : o.fields[had.name]?.mark;
+          const after = name === null ? undefined : o.fields[name]?.mark;
+          if (before !== undefined && had?.name !== name) {
+            fx.call(() => {
+              before(null);
+            });
+          }
+          if (after !== undefined) {
+            fx.call(() => {
+              after(message);
+            });
+          }
+        }
+        if (reported.phase !== s.phase || reported.result !== s.result) {
+          reported = { phase: s.phase, result: s.result };
+          const onChange = o.onChange;
+          if (onChange !== undefined) {
+            fx.call(() => {
+              onChange(s.phase, s.result);
+            });
+          }
+        }
+      },
+      terminal(fx) {
+        listen(false);
+        abort();
+        unmark(fx);
+        fx.removeAttr(button, "aria-disabled");
+        fx.removeAttr(status, "aria-busy");
+        for (const el of root === undefined ? [status] : [status, root]) {
+          fx.removeAttr(el, "data-state");
+        }
+        if (status.textContent !== "") {
+          status.textContent = "";
+        }
+        if (addedRole) {
+          fx.removeAttr(status, "role");
+        }
+        if (addedId !== null) {
+          fx.removeAttr(status, "id");
+        }
+      },
+    });
+
+    return {
+      controller: {
+        state: () => (binding.ended ? "idle" : driver.state.phase),
+        start,
+        reset: toIdle,
+        dispose: binding.dispose,
+      },
+      start: () => {
+        driver.flush();
+      },
+      release: () => {
+        driver.release();
+      },
+    };
+  });
+}
