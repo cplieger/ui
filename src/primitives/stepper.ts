@@ -9,7 +9,7 @@
  */
 
 import { untracked } from "../signal/signal.js";
-import { ownedBinding } from "./owner.js";
+import { createDriver, ownedBinding } from "./owner.js";
 
 /** Where a step stands. */
 export type StepState = "done" | "current" | "todo";
@@ -44,7 +44,10 @@ export interface StepperLabels {
 export interface StepperController {
   /** Replace the steps. Throws a `TypeError` on a list that breaks the contract
    *  (no step, not exactly one `current` step, a duplicate `id`, an empty
-   *  `label`) and leaves the previous list rendered. */
+   *  `label`, a field of the wrong type) and leaves the previous list rendered. Called while another
+   *  `update` renders, as from a focusout handler that removal fires, it
+   *  returns at once and the running one draws the newest list; one that
+   *  keeps restarting the render past 50 times throws an `Error`. */
   update(steps: readonly StepperStep[]): void;
   /** The heading for the current steps, for the host's `<h1>`. */
   heading(): string;
@@ -66,9 +69,35 @@ interface Rendered {
   readonly href: string | null;
 }
 
-/** The host's steps copied field by field, so no getter is read later or tracked. */
+/** `value` when it is a string; the render writes it into the DOM, where any
+ *  other value would run the host's `toString` mid-render. */
+function text(value: unknown, what: string): string {
+  if (typeof value !== "string") {
+    throw new TypeError(`@cplieger/ui/stepper: ${what} is not a string`);
+  }
+  return value;
+}
+
+/** The host's steps copied field by field and type-checked, so no getter of
+ *  the host's is read later, mid-render, or tracked. */
 function snapshot(steps: readonly StepperStep[]): StepperStep[] {
-  return untracked(() => steps.map(({ id, label, state, href }) => ({ id, label, state, href })));
+  return untracked(() =>
+    steps.map((step) => {
+      const { id, label, state, href } = step as { readonly [K in keyof StepperStep]: unknown };
+      const name = text(id, "a step id");
+      if (state !== "done" && state !== "current" && state !== "todo") {
+        throw new TypeError(
+          `@cplieger/ui/stepper: step ${JSON.stringify(name)} has no valid state`,
+        );
+      }
+      return {
+        id: name,
+        label: text(label, `the label of step ${JSON.stringify(name)}`),
+        state,
+        href: href === null ? null : text(href, `the href of step ${JSON.stringify(name)}`),
+      };
+    }),
+  );
 }
 
 /** The index of the current step, after checking the list keeps the contract. */
@@ -173,31 +202,37 @@ export function createStepper(
     list.className = "uip-stepper";
     list.setAttribute("aria-label", words.list);
     let shown = first;
+    // The items of the last pass that finished: a pass a restart cuts off
+    // diffs nothing, so the next one starts from what is really on screen.
     let rendered = new Map<string, Rendered>();
-    // Removing a focused item fires focusout, whose handler may call update:
-    // that list waits for the running render, which renders it next.
-    let rendering = false;
-    let pending: readonly StepperStep[] | null = null;
 
-    const render = (next: readonly StepperStep[]): void => {
-      const kept = new Map<string, Rendered>();
-      const nodes = next.map((s) => {
-        const was = rendered.get(s.id);
-        const same = was?.label === s.label && was.state === s.state && was.href === s.href;
-        const r: Rendered = same
-          ? was
-          : { node: renderItem(s, words), label: s.label, state: s.state, href: s.href };
-        kept.set(s.id, r);
-        return r.node;
-      });
-      for (const [id, r] of rendered) {
-        if (kept.get(id)?.node !== r.node) {
-          r.node.remove();
+    // Removing a focused item fires focusout, whose handler may call update or
+    // dispose; fx.remove then restarts the pass from the newest list.
+    const driver = createDriver<readonly StepperStep[]>({
+      initial: first,
+      realize(fx, next) {
+        const kept = new Map<string, Rendered>();
+        const nodes = next.map((s) => {
+          const was = rendered.get(s.id);
+          const same = was?.label === s.label && was.state === s.state && was.href === s.href;
+          const r: Rendered = same
+            ? was
+            : { node: renderItem(s, words), label: s.label, state: s.state, href: s.href };
+          kept.set(s.id, r);
+          return r.node;
+        });
+        for (const [id, r] of rendered) {
+          if (kept.get(id)?.node !== r.node) {
+            fx.remove(r.node);
+          }
         }
-      }
-      place(list, nodes);
-      rendered = kept;
-    };
+        place(list, nodes);
+        rendered = kept;
+      },
+      terminal(fx) {
+        fx.remove(list);
+      },
+    });
 
     return {
       controller: {
@@ -209,24 +244,7 @@ export function createStepper(
           const index = currentIndex(next);
           shown = next;
           current = index;
-          if (rendering) {
-            pending = next;
-            return;
-          }
-          rendering = true;
-          try {
-            // A function, not a condition: a focusout handler can dispose mid-render.
-            const live = (): boolean => !binding.ended;
-            let list: readonly StepperStep[] | null = next;
-            while (list !== null) {
-              render(list);
-              list = live() ? pending : null;
-              pending = null;
-            }
-          } finally {
-            rendering = false;
-            pending = null;
-          }
+          driver.commit(next);
         },
         heading(): string {
           const step = shown[current];
@@ -237,11 +255,11 @@ export function createStepper(
         dispose: binding.dispose,
       },
       start: () => {
-        render(first);
+        driver.flush();
         root.append(list);
       },
       release: () => {
-        list.remove();
+        driver.release();
       },
     };
   });

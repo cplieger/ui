@@ -23,6 +23,47 @@ function items(root: HTMLElement): HTMLLIElement[] {
   return [...root.querySelectorAll<HTMLLIElement>("ol.uip-stepper > li")];
 }
 
+/** `setup` with step `at` current, the ones before it done and the rest to do. */
+function currentAt(at: number): StepperStep[] {
+  return setup.map((step, i) => ({
+    ...step,
+    state: i < at ? "done" : i === at ? "current" : "todo",
+  }));
+}
+
+interface Drawn {
+  readonly id: string | undefined;
+  readonly state: string | undefined;
+  readonly current: string | null;
+  readonly href: string | null;
+  readonly label: string | null | undefined;
+}
+
+/** What one step should look like on screen. */
+function drawn(step: StepperStep): Drawn {
+  return {
+    id: step.id,
+    state: step.state,
+    current: step.state === "current" ? "step" : null,
+    href: step.state === "current" ? null : step.href,
+    label: step.label,
+  };
+}
+
+/** What each item shows, in the shape `drawn` gives. */
+function shown(root: HTMLElement): Drawn[] {
+  return items(root).map((li) => {
+    const a = li.querySelector("a");
+    return {
+      id: li.dataset["step"],
+      state: li.dataset["state"],
+      current: li.getAttribute("aria-current"),
+      href: a?.getAttribute("href") ?? null,
+      label: (a ?? li).firstChild?.textContent,
+    };
+  });
+}
+
 // The base stylesheet, so the tree is read with .uip-visually-hidden styled.
 beforeAll(async () => {
   const link = document.createElement("link");
@@ -428,6 +469,107 @@ describe("stepper re-entry", () => {
     expect(s.heading()).toBe("Step 2 of 5: Media paths");
   });
 
+  it("draws the newest of two updates one focusout handler makes", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    items(root)[0]?.querySelector("a")?.focus();
+    const third = currentAt(3);
+    const first = setup.map((step, i) => ({
+      ...step,
+      state: i === 0 ? "current" : "todo",
+      label: step.id === "review" ? "Check" : step.label,
+    })) satisfies StepperStep[];
+    items(root)[0]
+      ?.querySelector("a")
+      ?.addEventListener(
+        "focusout",
+        () => {
+          s.update(third);
+          s.update(first);
+        },
+        { once: true },
+      );
+    s.update(setup.map((step) => (step.id === "connect" ? { ...step, label: "Start" } : step)));
+    expect(shown(root)).toEqual(first.map(drawn));
+    expect(s.heading()).toBe("Step 1 of 5: Connect");
+  });
+
+  it("draws a list a focusout during a restarted render asks for", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    items(root)[0]?.querySelector("a")?.focus();
+    const inner = currentAt(2);
+    const last = currentAt(3).map((step) =>
+      step.id === "providers" ? { ...step, label: "Sources" } : step,
+    );
+    let second = 0;
+    items(root)[0]
+      ?.querySelector("a")
+      ?.addEventListener(
+        "focusout",
+        () => {
+          const languages = items(root)[2]?.querySelector("a");
+          languages?.focus();
+          languages?.addEventListener(
+            "focusout",
+            () => {
+              second++;
+              s.update(last);
+            },
+            { once: true },
+          );
+          // Languages turns current, so this render removes the link just focused.
+          s.update(inner);
+        },
+        { once: true },
+      );
+    s.update(setup.map((step) => (step.id === "connect" ? { ...step, label: "Start" } : step)));
+    expect(second).toBe(1);
+    expect(shown(root)).toEqual(last.map(drawn));
+    expect(s.heading()).toBe("Step 4 of 5: Sources");
+  });
+
+  it("settles when every focusout moves focus to another link and updates it", () => {
+    const root = host();
+    const linked = setup.map((step) => ({ ...step, href: `/setup/${step.id}` }));
+    const s = createStepper(root, linked);
+    let latest: StepperStep[] = linked;
+    let calls = 0;
+    const hop = (link: HTMLAnchorElement): void => {
+      link.addEventListener(
+        "focusout",
+        () => {
+          calls++;
+          const other = [...root.querySelectorAll<HTMLAnchorElement>("li a")].find(
+            (a) => a !== link && a.isConnected,
+          );
+          if (other === undefined) {
+            return;
+          }
+          other.focus();
+          hop(other);
+          const id = other.closest("li")?.dataset["step"];
+          latest = latest.map((step) =>
+            step.id === id ? { ...step, href: `${step.href ?? ""}?${String(calls)}` } : step,
+          );
+          s.update(latest);
+        },
+        { once: true },
+      );
+    };
+    const start = items(root)[0]?.querySelector("a");
+    if (start === null || start === undefined) {
+      throw new Error("no link");
+    }
+    start.focus();
+    hop(start);
+    latest = latest.map((step) => (step.id === "connect" ? { ...step, href: "/again" } : step));
+    s.update(latest);
+    expect(calls).toBeGreaterThan(1);
+    expect(calls).toBeLessThanOrEqual(linked.length);
+    expect(shown(root)).toEqual(latest.map(drawn));
+  });
+
   it("calls labels.heading untracked", () => {
     const word = signal("Step");
     const s = createStepper(host(), setup, {
@@ -498,6 +640,39 @@ describe("stepper contract", () => {
     expect(items(root)).toEqual(before);
     expect(s.heading()).toBe("Step 2 of 5: Media paths");
   });
+
+  it("update refuses a field of the wrong type before running its toString", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const before = items(root);
+    let read = 0;
+    const odd = {
+      toString(): string {
+        read++;
+        return "/odd";
+      },
+    } as unknown as string;
+    const lists: [string, StepperStep[]][] = [
+      ['href of step "connect"', setup.map((x, i) => (i === 0 ? { ...x, href: odd } : x))],
+      ['label of step "connect"', setup.map((x, i) => (i === 0 ? { ...x, label: odd } : x))],
+      ["step id", setup.map((x, i) => (i === 0 ? { ...x, id: odd } : x))],
+      [
+        "no valid state",
+        setup.map((x, i) => (i === 0 ? { ...x, state: "skipped" as StepState } : x)),
+      ],
+    ];
+    for (const [message, steps] of lists) {
+      expect(() => {
+        s.update(steps);
+      }).toThrow(TypeError);
+      expect(() => {
+        s.update(steps);
+      }).toThrow(message);
+    }
+    expect(read).toBe(0);
+    expect(items(root)).toEqual(before);
+    expect(s.heading()).toBe("Step 2 of 5: Media paths");
+  });
 });
 
 describe("stepper lifecycle", () => {
@@ -508,6 +683,23 @@ describe("stepper lifecycle", () => {
     s.dispose();
     expect(root.childNodes).toHaveLength(0);
     s.update(setup.map((step) => ({ ...step, label: `${step.label}!` })));
+    expect(root.childNodes).toHaveLength(0);
+    expect(s.heading()).toBe("Step 2 of 5: Media paths");
+  });
+
+  it("a dispose from a focusout handler mid-update removes the list", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const link = items(root)[0]?.querySelector("a");
+    link?.focus();
+    link?.addEventListener(
+      "focusout",
+      () => {
+        s.dispose();
+      },
+      { once: true },
+    );
+    s.update(setup.map((step) => (step.id === "connect" ? { ...step, label: "Start" } : step)));
     expect(root.childNodes).toHaveLength(0);
     expect(s.heading()).toBe("Step 2 of 5: Media paths");
   });
