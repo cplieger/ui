@@ -79,24 +79,36 @@ interface Marked {
   readonly name: string;
   readonly message: string;
   readonly input: ConnectionTestField["input"];
-  readonly priorInvalid: string | null;
   readonly addedToken: boolean;
 }
 
 let idSeq = 0;
 
+/** Every input a live control marks: one record per input, so the last clear
+ *  restores what the input carried before the first mark. */
+const inputMarks = new WeakMap<Element, { count: number; readonly prior: string | null }>();
+
+/** Every status element a live control writes. */
+const statuses = new WeakSet<Element>();
+
 const NO_ANSWER = "The test returned no answer.";
 
-function isResult(r: unknown): r is ConnectionTestResult {
+/** The answer in `r`, or null when it has no boolean `ok` and string
+ *  `message`. A field is kept only on a failure and only as a string, since a
+ *  server may encode "no field" as null. */
+function toResult(r: unknown): ConnectionTestResult | null {
   if (typeof r !== "object" || r === null) {
-    return false;
+    return null;
   }
   const o = r as Record<string, unknown>;
-  return (
-    typeof o["ok"] === "boolean" &&
-    typeof o["message"] === "string" &&
-    (o["field"] === undefined || (!o["ok"] && typeof o["field"] === "string"))
-  );
+  const { ok, message, field } = { ok: o["ok"], message: o["message"], field: o["field"] };
+  if (typeof ok !== "boolean" || typeof message !== "string") {
+    return null;
+  }
+  if (ok) {
+    return { ok, message };
+  }
+  return typeof field === "string" ? { ok, message, field } : { ok, message };
 }
 
 function isAbort(error: unknown): boolean {
@@ -109,7 +121,8 @@ function tokens(value: string | null): string[] {
 
 /** Wire `button` to run the check and `status` to show its state. `root`, when
  *  given, also carries `data-state` and scopes the default `watch`. Throws a
- *  `TypeError` when `button` is not a `<button>` or `status` contains it. */
+ *  `TypeError` when `button` is not a `<button>`, `status` contains it, or a
+ *  live control already writes `status`. */
 export function createConnectionTest(
   button: HTMLButtonElement,
   status: HTMLElement,
@@ -122,6 +135,9 @@ export function createConnectionTest(
   if (status === button || status.contains(button)) {
     throw new TypeError("@cplieger/ui/connection-test: status must not contain the button");
   }
+  if (statuses.has(status)) {
+    throw new TypeError("@cplieger/ui/connection-test: status already shows another control");
+  }
   const o = untracked(() => ({
     run: opts.run,
     errorMessage: opts.errorMessage,
@@ -133,6 +149,7 @@ export function createConnectionTest(
   }));
 
   return ownedBinding((binding) => {
+    statuses.add(status);
     let runId = 0;
     let aborter: AbortController | null = null;
     let marked: Marked | null = null;
@@ -144,6 +161,14 @@ export function createConnectionTest(
     // What the control added, so terminal gives back exactly that.
     const addedId = status.id === "" ? `uip-connection-test-${(++idSeq).toString()}` : null;
     const addedRole = o.live === "status" && !status.hasAttribute("role");
+    const hostDisabled = button.getAttribute("aria-disabled");
+    const restoreDisabled = (fx: Fx): void => {
+      if (hostDisabled === null) {
+        fx.removeAttr(button, "aria-disabled");
+      } else {
+        fx.setAttr(button, "aria-disabled", hostDisabled);
+      }
+    };
     let listening = false;
 
     const abort = (): void => {
@@ -166,14 +191,18 @@ export function createConnectionTest(
       }
       let result: ConnectionTestResult;
       if ("value" in outcome) {
-        if (isResult(outcome.value)) {
-          result = outcome.value;
+        const answered = toResult(outcome.value);
+        if (answered !== null) {
+          result = answered;
         } else {
           console.error(
             "@cplieger/ui/connection-test: run resolved with no ConnectionTestResult:",
             outcome.value,
           );
           result = { ok: false, message: NO_ANSWER };
+          if (stale()) {
+            return;
+          }
         }
       } else if (isAbort(outcome.error)) {
         toIdle();
@@ -207,17 +236,34 @@ export function createConnectionTest(
       const id = ++runId;
       const controller = new AbortController();
       aborter = controller;
-      driver.commit({ phase: "busy", result: null, run: id });
-      if (id !== runId) {
-        return; // onChange superseded it
-      }
-      let pending: Promise<ConnectionTestResult>;
+      // A throwing onChange or mark must not leave the control busy with no run.
+      let hookError: { readonly error: unknown } | null = null;
       try {
-        pending = untracked(() => o.run(controller.signal));
+        driver.commit({ phase: "busy", result: null, run: id });
       } catch (error) {
-        pending = Promise.reject(error instanceof Error ? error : new Error(String(error)));
+        hookError = { error };
       }
-      Promise.resolve(pending).then(
+      // A function, not a condition: the hooks above can dispose or supersede.
+      const live = (): boolean => !binding.ended && id === runId;
+      if (live()) {
+        send(id, controller.signal);
+      }
+      if (hookError !== null) {
+        throw hookError.error;
+      }
+    };
+    const send = (id: number, signal: AbortSignal): void => {
+      let pending: Promise<unknown>;
+      try {
+        pending = Promise.resolve(untracked(() => o.run(signal)));
+      } catch (error) {
+        // The thrown value as is, so it reaches errorMessage as a rejection's would.
+        queueMicrotask(() => {
+          answer(id, { error });
+        });
+        return;
+      }
+      pending.then(
         (value: unknown) => {
           answer(id, { value });
         },
@@ -227,7 +273,9 @@ export function createConnectionTest(
       );
     };
 
-    const onClick = (): void => {
+    const onClick = (e: Event): void => {
+      // The button tests; it never submits the form around it.
+      e.preventDefault();
       start();
     };
     const onEdit = (): void => {
@@ -260,10 +308,14 @@ export function createConnectionTest(
       if (m.input === undefined) {
         return;
       }
-      if (m.priorInvalid === null) {
-        fx.removeAttr(m.input, "aria-invalid");
-      } else {
-        fx.setAttr(m.input, "aria-invalid", m.priorInvalid);
+      const rec = inputMarks.get(m.input);
+      if (rec !== undefined && --rec.count === 0) {
+        inputMarks.delete(m.input);
+        if (rec.prior === null) {
+          fx.removeAttr(m.input, "aria-invalid");
+        } else {
+          fx.setAttr(m.input, "aria-invalid", rec.prior);
+        }
       }
       if (m.addedToken) {
         const rest = tokens(m.input.getAttribute("aria-describedby")).filter(
@@ -283,17 +335,17 @@ export function createConnectionTest(
       unmark(fx);
       const input = o.fields[name]?.input;
       if (input === undefined) {
-        marked = { name, message, input, priorInvalid: null, addedToken: false };
+        marked = { name, message, input, addedToken: false };
         return;
       }
       const described = tokens(input.getAttribute("aria-describedby"));
-      marked = {
-        name,
-        message,
-        input,
-        priorInvalid: input.getAttribute("aria-invalid"),
-        addedToken: !described.includes(status.id),
-      };
+      const rec = inputMarks.get(input);
+      if (rec === undefined) {
+        inputMarks.set(input, { count: 1, prior: input.getAttribute("aria-invalid") });
+      } else {
+        rec.count++;
+      }
+      marked = { name, message, input, addedToken: !described.includes(status.id) };
       fx.setAttr(input, "aria-invalid", "true");
       if (marked.addedToken) {
         fx.setAttr(input, "aria-describedby", [...described, status.id].join(" "));
@@ -308,7 +360,7 @@ export function createConnectionTest(
       initial: { phase: "idle", result: null, run: 0 },
       realize(fx, s) {
         listen(true);
-        if (addedId !== null) {
+        if (addedId !== null && status.id === "") {
           fx.setProp(status, "id", addedId);
         }
         if (addedRole) {
@@ -317,9 +369,8 @@ export function createConnectionTest(
         if (s.phase === "busy") {
           fx.setAttr(button, "aria-disabled", "true");
         } else {
-          fx.removeAttr(button, "aria-disabled");
+          restoreDisabled(fx);
         }
-        fx.setAttr(status, "aria-busy", s.phase === "busy" ? "true" : "false");
         const text = s.phase === "busy" ? o.busyMessage : (s.result?.message ?? "");
         if (status.textContent !== text) {
           status.textContent = text;
@@ -364,11 +415,11 @@ export function createConnectionTest(
         }
       },
       terminal(fx) {
+        statuses.delete(status);
         listen(false);
         abort();
         unmark(fx);
-        fx.removeAttr(button, "aria-disabled");
-        fx.removeAttr(status, "aria-busy");
+        restoreDisabled(fx);
         for (const el of root === undefined ? [status] : [status, root]) {
           fx.removeAttr(el, "data-state");
         }
@@ -378,7 +429,7 @@ export function createConnectionTest(
         if (addedRole) {
           fx.removeAttr(status, "role");
         }
-        if (addedId !== null) {
+        if (addedId !== null && status.id === addedId) {
           fx.removeAttr(status, "id");
         }
       },

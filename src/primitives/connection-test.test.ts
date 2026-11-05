@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fc from "fast-check";
 
+import { cdp } from "vitest/browser";
+
 import { createRoot } from "../signal/signal.js";
 import {
   createConnectionTest,
@@ -73,20 +75,19 @@ describe("connection test states", () => {
     expect(c.state()).toBe("idle");
     expect(f.status.dataset["state"]).toBe("idle");
     expect(f.root.dataset["state"]).toBe("idle");
-    expect(f.status.getAttribute("aria-busy")).toBe("false");
     expect(f.status.textContent).toBe("");
     f.button.click();
     expect(c.state()).toBe("busy");
     expect(f.button.getAttribute("aria-disabled")).toBe("true");
     expect(f.button.disabled).toBe(false);
-    expect(f.status.getAttribute("aria-busy")).toBe("true");
+    // aria-busy on the live region would let a screen reader skip "Testing…".
+    expect(f.status.hasAttribute("aria-busy")).toBe(false);
     expect(f.status.textContent).toBe("Testing…");
     expect(f.root.dataset["state"]).toBe("busy");
     d.resolve({ ok: true, message: "Passed: Sonarr 4.0.15" });
     await settled();
     expect(c.state()).toBe("passed");
     expect(f.button.hasAttribute("aria-disabled")).toBe(false);
-    expect(f.status.getAttribute("aria-busy")).toBe("false");
     expect(f.status.textContent).toBe("Passed: Sonarr 4.0.15");
     expect(f.status.dataset["state"]).toBe("passed");
   });
@@ -442,7 +443,7 @@ describe("connection test wiring and lifecycle", () => {
     c.dispose();
     c.dispose();
     expect(d.calls[1]?.aborted).toBe(true);
-    for (const attr of ["aria-busy", "data-state", "role", "id"]) {
+    for (const attr of ["data-state", "role", "id"]) {
       expect(f.status.hasAttribute(attr)).toBe(false);
     }
     expect(f.root.hasAttribute("data-state")).toBe(false);
@@ -471,5 +472,340 @@ describe("connection test wiring and lifecycle", () => {
     dispose();
     expect(d.calls[0]?.aborted).toBe(true);
     expect(f.status.hasAttribute("data-state")).toBe(false);
+  });
+});
+
+/** Whether Chromium's accessibility tree reports the button disabled. */
+async function buttonReportedDisabled(name: string): Promise<boolean> {
+  const { frameTree } = (await cdp().send("Page.getFrameTree", {})) as {
+    frameTree: { childFrames?: readonly { frame: { id: string } }[] };
+  };
+  const frameId = frameTree.childFrames?.[0]?.frame.id;
+  if (frameId === undefined) {
+    throw new Error("no runner iframe");
+  }
+  const { nodes } = (await cdp().send("Accessibility.getFullAXTree", { frameId })) as {
+    nodes: {
+      role?: { value: string };
+      name?: { value: string };
+      properties?: { name: string; value: { value: unknown } }[];
+    }[];
+  };
+  const button = nodes.find((n) => n.role?.value === "button" && n.name?.value === name);
+  if (button === undefined) {
+    throw new Error(`no button named ${name}`);
+  }
+  return button.properties?.some((p) => p.name === "disabled" && p.value.value === true) ?? false;
+}
+
+describe("connection test review cases", () => {
+  it("reports the button disabled to assistive technology while busy", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    createConnectionTest(f.button, f.status, { run: d.run });
+    expect(await buttonReportedDisabled("Test connection")).toBe(false);
+    f.button.click();
+    expect(await buttonReportedDisabled("Test connection")).toBe(true);
+  });
+
+  it("never submits the host's form", () => {
+    const f = fixture();
+    const form = document.createElement("form");
+    form.append(f.button);
+    document.body.append(form);
+    let submits = 0;
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      submits++;
+    });
+    createConnectionTest(f.button, f.status, { run: deferredRun().run });
+    f.button.click();
+    f.button.click();
+    expect(submits).toBe(0);
+  });
+
+  it("calls no run after a dispose from onChange on the busy transition", () => {
+    const f = fixture();
+    const d = deferredRun();
+    let c: ReturnType<typeof createConnectionTest> | null = null;
+    c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      onChange: (state) => (state === "busy" ? c?.dispose() : undefined),
+    });
+    c.start();
+    expect(d.calls).toHaveLength(0);
+  });
+
+  it("calls no run after a dispose from mark(null) as the next test starts", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    let c: ReturnType<typeof createConnectionTest> | null = null;
+    c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      fields: { url: { mark: (m) => (m === null ? c?.dispose() : undefined) } },
+    });
+    c.start();
+    d.resolve({ ok: false, message: "bad", field: "url" });
+    await settled();
+    c.start();
+    expect(d.calls).toHaveLength(1);
+  });
+
+  it("calls no run after a reset from onChange on the busy transition", () => {
+    const f = fixture();
+    const d = deferredRun();
+    let c: ReturnType<typeof createConnectionTest> | null = null;
+    c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      onChange: (state) => (state === "busy" ? c?.reset() : undefined),
+    });
+    c.start();
+    expect(d.calls).toHaveLength(0);
+    expect(c.state()).toBe("idle");
+  });
+
+  it("keeps a reset made inside errorMessage", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    let c: ReturnType<typeof createConnectionTest> | null = null;
+    c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      errorMessage: () => {
+        c?.reset();
+        return "unreachable";
+      },
+    });
+    c.start();
+    d.reject(new Error("down"));
+    await settled();
+    expect(c.state()).toBe("idle");
+    expect(f.status.textContent).toBe("");
+  });
+
+  it("still runs the check when onChange throws on busy", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    const c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      onChange: (state) => {
+        if (state === "busy") {
+          throw new Error("host bug");
+        }
+      },
+    });
+    expect(() => {
+      c.start();
+    }).toThrow("host bug");
+    expect(d.calls).toHaveLength(1);
+    d.resolve({ ok: true, message: "Connected" });
+    await settled();
+    expect(c.state()).toBe("passed");
+  });
+
+  it("hands errorMessage the value a run threw, as a rejection would", async () => {
+    const f = fixture();
+    const seen: unknown[] = [];
+    const thrown = { code: 5 };
+    const c = createConnectionTest(f.button, f.status, {
+      run: () => {
+        throw thrown;
+      },
+      errorMessage: (e) => {
+        seen.push(e);
+        return "failed";
+      },
+    });
+    c.start();
+    await settled();
+    expect(seen).toEqual([thrown]);
+    expect(seen[0]).toBe(thrown);
+    const g = fixture();
+    const plain = createConnectionTest(g.button, g.status, {
+      run: () => {
+        throw thrown;
+      },
+    });
+    plain.start();
+    await settled();
+    expect(g.status.textContent).toBe("The test could not run.");
+  });
+
+  it("keeps a valid answer whose field is null, empty, or set on a pass", async () => {
+    const cases: [unknown, ConnectionTestState, string][] = [
+      [{ ok: true, message: "Connected", field: "" }, "passed", "Connected"],
+      [{ ok: true, message: "Connected", field: "url" }, "passed", "Connected"],
+      [
+        { ok: false, message: "The API key was rejected (HTTP 401)", field: null },
+        "failed",
+        "The API key was rejected (HTTP 401)",
+      ],
+    ];
+    for (const [answer, state, text] of cases) {
+      document.body.replaceChildren();
+      const f = fixture();
+      const d = deferredRun();
+      const c = createConnectionTest(f.button, f.status, {
+        run: d.run,
+        fields: { url: { input: f.url } },
+      });
+      c.start();
+      d.resolve(answer);
+      await settled();
+      expect(c.state()).toBe(state);
+      expect(f.status.textContent).toBe(text);
+      expect(f.url.hasAttribute("aria-invalid")).toBe(false);
+    }
+  });
+
+  it("removes its listeners from root on dispose", () => {
+    const f = fixture();
+    const removed: string[] = [];
+    const original = f.root.removeEventListener.bind(f.root);
+    f.root.removeEventListener = (
+      type: string,
+      ...rest: [EventListenerOrEventListenerObject, (boolean | EventListenerOptions)?]
+    ) => {
+      removed.push(type);
+      original(type, ...rest);
+    };
+    const c = createConnectionTest(f.button, f.status, { run: deferredRun().run }, f.root);
+    c.dispose();
+    expect(removed.toSorted()).toEqual(["change", "input"]);
+  });
+
+  it("marks no prototype input for an inherited field name", async () => {
+    const f = fixture();
+    const decoy = document.createElement("input");
+    document.body.append(decoy);
+    Object.defineProperty(Object.prototype, "input", { value: decoy, configurable: true });
+    try {
+      const d = deferredRun();
+      const c = createConnectionTest(f.button, f.status, {
+        run: d.run,
+        fields: { url: { input: f.url } },
+      });
+      c.start();
+      d.resolve({ ok: false, message: "odd", field: "constructor" });
+      await settled();
+      expect(decoy.hasAttribute("aria-invalid")).toBe(false);
+    } finally {
+      delete (Object.prototype as { input?: unknown }).input;
+    }
+  });
+
+  it("keeps an id or aria-disabled the host set", () => {
+    const f = fixture();
+    f.button.setAttribute("aria-disabled", "true");
+    const c = createConnectionTest(f.button, f.status, { run: deferredRun().run });
+    expect(f.button.getAttribute("aria-disabled")).toBe("true");
+    f.status.id = "host-status";
+    c.reset();
+    c.dispose();
+    expect(f.status.id).toBe("host-status");
+    expect(f.button.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("gives back everything through an owner dispose while failed", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    const seen: ConnectionTestState[] = [];
+    const marks: (string | null)[] = [];
+    let c: ReturnType<typeof createConnectionTest> | undefined;
+    const dispose = createRoot((disposeRoot) => {
+      c = createConnectionTest(f.button, f.status, {
+        run: d.run,
+        onChange: (state) => seen.push(state),
+        fields: { url: { input: f.url, mark: (m) => marks.push(m) } },
+      });
+      return disposeRoot;
+    });
+    c?.start();
+    d.resolve({ ok: false, message: "bad", field: "url" });
+    await settled();
+    seen.length = 0;
+    marks.length = 0;
+    dispose();
+    for (const attr of ["data-state", "role", "id"]) {
+      expect(f.status.hasAttribute(attr)).toBe(false);
+    }
+    expect(f.status.textContent).toBe("");
+    expect(f.button.hasAttribute("aria-disabled")).toBe(false);
+    expect(f.url.attributes).toHaveLength(0);
+    expect(seen).toEqual([]);
+    expect(marks).toEqual([]);
+  });
+});
+
+describe("connection test shared elements", () => {
+  it("restores an input two controls marked once neither marks it", async () => {
+    const f = fixture();
+    const other = fixture();
+    const a = deferredRun();
+    const b = deferredRun();
+    const ca = createConnectionTest(f.button, f.status, {
+      run: a.run,
+      fields: { url: { input: f.url } },
+    });
+    const cb = createConnectionTest(other.button, other.status, {
+      run: b.run,
+      fields: { url: { input: f.url } },
+    });
+    ca.start();
+    a.resolve({ ok: false, message: "bad", field: "url" });
+    await settled();
+    cb.start();
+    b.resolve({ ok: false, message: "bad too", field: "url" });
+    await settled();
+    ca.reset();
+    expect(f.url.getAttribute("aria-invalid")).toBe("true");
+    cb.reset();
+    expect(f.url.hasAttribute("aria-invalid")).toBe(false);
+    expect(f.url.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("refuses a status another live control writes, and accepts it after dispose", () => {
+    const f = fixture();
+    const first = createConnectionTest(f.button, f.status, { run: deferredRun().run });
+    const second = document.createElement("button");
+    f.root.append(second);
+    expect(() => createConnectionTest(second, f.status, { run: deferredRun().run })).toThrow(
+      TypeError,
+    );
+    first.dispose();
+    expect(() => createConnectionTest(second, f.status, { run: deferredRun().run })).not.toThrow();
+    expect(f.status.getAttribute("role")).toBe("status");
+  });
+
+  it("keeps a reset made inside console.error for a wrong-shape answer", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    let c: ReturnType<typeof createConnectionTest> | null = null;
+    const error = vi.spyOn(console, "error").mockImplementation(() => {
+      c?.reset();
+    });
+    c = createConnectionTest(f.button, f.status, { run: d.run });
+    c.start();
+    d.resolve({ ok: "yes" });
+    await settled();
+    expect(c.state()).toBe("idle");
+    error.mockRestore();
+  });
+
+  it("logs a throwing errorMessage and shows the default", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const f = fixture();
+    const d = deferredRun();
+    const c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      errorMessage: () => {
+        throw new Error("words failed");
+      },
+    });
+    c.start();
+    d.reject(new Error("down"));
+    await settled();
+    expect(f.status.textContent).toBe("down");
+    expect(error).toHaveBeenCalledOnce();
+    error.mockRestore();
   });
 });

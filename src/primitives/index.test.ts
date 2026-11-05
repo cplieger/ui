@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import * as announce from "@cplieger/ui/announce";
 import * as ask from "@cplieger/ui/ask";
+import * as connectionTest from "@cplieger/ui/connection-test";
 import * as dialog from "@cplieger/ui/dialog";
 import * as disclosure from "@cplieger/ui/disclosure";
 import * as focusTrap from "@cplieger/ui/focus-trap";
@@ -19,6 +20,7 @@ import * as viewTransition from "@cplieger/ui/view-transition";
 const api = {
   ...announce,
   ...ask,
+  ...connectionTest,
   ...dialog,
   ...disclosure,
   ...focusTrap,
@@ -41,6 +43,7 @@ describe("public surface", () => {
     expect(typeof api.cancelTransition).toBe("function");
     expect(typeof api.trapFocus).toBe("function");
     expect(typeof api.announce).toBe("function");
+    expect(typeof api.createConnectionTest).toBe("function");
     expect(typeof api.mountLiveRegions).toBe("function");
     expect(typeof api.createTheme).toBe("function");
     expect(typeof api.themeInitSnippet).toBe("function");
