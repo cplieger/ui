@@ -1629,3 +1629,92 @@ describe("createDialog: a page open and close in the beforetoggle of its own sho
     expect(existingEngine(d)?.state.phase).toBe("open");
   });
 });
+
+describe("createDialog: a teardown inside a later open the page refuses", () => {
+  it("keeps the callbacks it found, since no fade was cut", async () => {
+    const d = makeDialog();
+    const ctl = createDialog(d);
+    ctl.open();
+    await nextTask();
+    ctl.close();
+    await vi.runAllTimersAsync();
+    await nextTask();
+    expect(d.open).toBe(false);
+    const cb = vi.fn();
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          closeDialog(d, cb);
+          ctl.dispose();
+          e.preventDefault();
+        }
+      },
+      { once: true },
+    );
+    ctl.open();
+    await nextTask();
+    await nextTask();
+    expect(d.open).toBe(false);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createDialog: page edges around its own showModal's write", () => {
+  function staged(): {
+    d: HTMLDialogElement;
+    ctl: ReturnType<typeof createDialog>;
+    inner: HTMLButtonElement;
+  } {
+    const { d, form } = stage();
+    const inner = form.querySelector("button");
+    if (inner === null) {
+      throw new Error("no inner button");
+    }
+    return { d, ctl: createDialog(d), inner };
+  }
+  const reopen = (d: HTMLDialogElement) => (): void => {
+    d.close();
+    d.showModal();
+  };
+
+  it("ends closed when the page's last edge before the write is a close", async () => {
+    const { d, ctl, inner } = staged();
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          ctl.close();
+          // The nested showModal's focus steps run the handler, before the close below.
+          inner.addEventListener("focus", reopen(d), { once: true });
+          d.showModal();
+          d.close();
+        }
+      },
+      { once: true },
+    );
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(false);
+  });
+
+  it("lets a page reopen after the write stand", async () => {
+    const { d, ctl, inner } = staged();
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          ctl.close();
+          d.showModal();
+          d.close();
+          // Added after the page's own showModal, so the engine's focus steps run it.
+          inner.addEventListener("focus", reopen(d), { once: true });
+        }
+      },
+      { once: true },
+    );
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(true);
+  });
+});
