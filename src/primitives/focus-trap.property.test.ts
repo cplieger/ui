@@ -88,7 +88,6 @@ const scenarioFor =
     let entered = false;
     // A Tab's own redirect focus is not the entry focus.
     let tabbing = 0;
-    let starting = false;
     // The release's focus restore runs at once, or, from code a call of the trap's
     // reaches (its entry focus, a Tab redirect), when that call returns. It lands at
     // the return target's own focus hit, or changes nothing when focus is already there.
@@ -132,12 +131,7 @@ const scenarioFor =
       w.entry(null, () => {
         if (!m.ended) {
           m.ended = true;
-          if (
-            returnTo !== null &&
-            tabbing === 0 &&
-            !starting &&
-            document.activeElement === returnTo
-          ) {
+          if (returnTo !== null && document.activeElement === returnTo) {
             m.active = returnTo;
           } else {
             m.restoring = true;
@@ -182,7 +176,6 @@ const scenarioFor =
 
     return {
       start(): void {
-        starting = true;
         w.entry(null, () => {
           const [d, parent] = createRoot((dispose, owner) => [dispose, owner] as const);
           disposeParent = d;
@@ -190,7 +183,6 @@ const scenarioFor =
             trapFocus(container, { returnFocus: returnTo === opener ? true : (returnTo ?? false) }),
           );
         });
-        starting = false;
       },
       act(s: Step): undefined {
         switch (s.k) {
@@ -276,8 +268,9 @@ describe("trapFocus: re-entry property", () => {
               ],
             },
           ],
-          // An owner released from a focus handler the Shift+Tab redirect reaches, which
-          // then moves focus inside: the restore runs once the redirect returns.
+          // An owner released from a focus handler the Shift+Tab redirect reaches, with focus
+          // already on the return target: that settles the restore, and the handler's later
+          // focus inside stays.
           [
             {
               empty: false,
@@ -290,6 +283,19 @@ describe("trapFocus: re-entry property", () => {
                   actions: [{ k: "focusOutside" }, { k: "focusMiddle" }],
                 },
                 { at: 0, hit: "focus@outside", actions: [{ k: "owner" }] },
+              ],
+            },
+          ],
+          // A dispose inside the Shift+Tab redirect, then focus outside and back inside: the
+          // restore the redirect deferred finds the return target reached and leaves focus.
+          [
+            {
+              empty: false,
+              returnFocus: "outside",
+              script: [{ k: "shiftTab" }],
+              injections: [
+                { at: 294, actions: [{ k: "dispose" }, { k: "focusOutside" }] },
+                { at: 59, actions: [{ k: "focusMiddle" }, { k: "tab" }] },
               ],
             },
           ],
