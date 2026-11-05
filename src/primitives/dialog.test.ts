@@ -1404,6 +1404,29 @@ describe("createDialog: an open() inside the closing beforetoggle of its settle"
     vi.advanceTimersByTime(400);
     expect(d.open).toBe(false);
   });
+
+  it("a page show() there does not stand: the browser removes open after the listeners", async () => {
+    const d = makeDialog();
+    const onClose = vi.fn();
+    const ctrl = createDialog(d, { onClose });
+    ctrl.open();
+    ctrl.close();
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "closed") {
+          d.removeAttribute("open");
+          d.show();
+        }
+      },
+      { once: true },
+    );
+    vi.advanceTimersByTime(400);
+    await nextTask();
+
+    expect(d.open).toBe(false);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("dialog: the page opens and closes it before an open() is realized", () => {
