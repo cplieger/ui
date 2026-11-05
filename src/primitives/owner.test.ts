@@ -464,3 +464,35 @@ describe("driver: guards, acts and edges", () => {
     expect(d.state).toBe(0);
   });
 });
+
+describe("fx: a move a blur handler interrupts", () => {
+  it("append finishes after the handler moved the child elsewhere", () => {
+    const parent = document.createElement("div");
+    const aside = document.createElement("div");
+    const holder = document.createElement("div");
+    const child = document.createElement("div");
+    const button = document.createElement("button");
+    child.append(button);
+    holder.append(child);
+    document.body.append(holder, parent, aside);
+    button.focus();
+    button.addEventListener(
+      "focusout",
+      () => {
+        aside.append(child);
+      },
+      { once: true },
+    );
+    const d = createDriver<number>({
+      initial: 0,
+      realize(fx) {
+        fx.append(parent, child);
+      },
+    });
+    expect(() => {
+      d.flush();
+    }).not.toThrow();
+    expect(child.parentNode).toBe(parent);
+    document.body.replaceChildren();
+  });
+});

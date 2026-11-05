@@ -21,6 +21,7 @@
     "./focus-trap": "./src/primitives/focus-trap.ts",
     "./roving-focus": "./src/primitives/roving-focus.ts",
     "./skeleton": "./src/primitives/skeleton.ts",
+    "./stepper": "./src/primitives/stepper.ts",
     "./theme": "./src/primitives/theme.ts",
     "./view-transition": "./src/primitives/view-transition.ts",
     "./transition": "./src/primitives/transition.ts",

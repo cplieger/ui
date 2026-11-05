@@ -25,6 +25,7 @@ const PURE = [
   "/icons",
   "/roving-focus",
   "/skeleton",
+  "/stepper",
   "/theme",
   "/transition",
   "/view-transition",
