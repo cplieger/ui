@@ -720,6 +720,50 @@ describe("stepper re-entry", () => {
     expect(blurs).toBe(0);
   });
 
+  it("reads focus again once when each put-back item's handler exiles and focuses another", () => {
+    const root = host();
+    const linked = setup.map((step) => ({ ...step, href: `/setup/${step.id}` }));
+    const s = createStepper(root, linked);
+    const aside = document.createElement("div");
+    document.body.append(aside);
+    let calls = 0;
+    const exile = (link: HTMLAnchorElement): void => {
+      link.addEventListener(
+        "focusout",
+        () => {
+          calls++;
+          const last = root.querySelector("ol")?.lastElementChild;
+          const next = last?.querySelector("a");
+          if (
+            calls >= 10 ||
+            last === null ||
+            last === undefined ||
+            next === null ||
+            next === undefined
+          ) {
+            return;
+          }
+          aside.append(last);
+          next.focus();
+          exile(next);
+        },
+        { once: true },
+      );
+    };
+    const item = items(root)[0];
+    const start = item?.querySelector("a");
+    if (item === undefined || start === null || start === undefined) {
+      throw new Error("no link");
+    }
+    aside.append(item);
+    start.focus();
+    exile(start);
+    expect(() => {
+      s.update(linked);
+    }).not.toThrow();
+    expect(calls).toBeLessThanOrEqual(2);
+  });
+
   it("settles when every focusout moves focus to another link and updates it", () => {
     const root = host();
     const linked = setup.map((step) => ({ ...step, href: `/setup/${step.id}` }));
