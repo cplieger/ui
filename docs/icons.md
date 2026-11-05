@@ -40,14 +40,14 @@ Then add the rule below to your own stylesheet. The package ships no CSS for the
 /* ui, lg and hero take your own sizes, such as 20px, 24px and 48px. */
 
 @media (forced-colors: active) {
-  .uip-icon { forced-color-adjust: none; background-color: CanvasText; }
+  .uip-icon { forced-color-adjust: none; }
   @supports (forced-color-adjust: preserve-parent-color) {
-    .uip-icon { forced-color-adjust: preserve-parent-color; background-color: currentColor; }
+    .uip-icon { forced-color-adjust: preserve-parent-color; }
   }
 }
 ```
 
-In forced colours the browser replaces `background-color` with a system colour, which paints the mask in the page's background colour, so the icon would vanish. `preserve-parent-color` keeps the icon in the forced text colour of its button or link. Where it is unsupported, the icon falls back to `CanvasText`. `forced-color-adjust: none` alone is not enough: the icon's own `color` then inherits the parent's unforced colour.
+In forced colours the browser replaces `background-color` with a system colour, which paints the mask in the page's background colour, so the icon would vanish. The rule opts the icon out, so it keeps `currentColor`, and the two engines then differ. Firefox forces colours during the cascade, so with `none` the icon's own `color` is already the forced colour of its button, link or selected row. Chromium forces them afterwards, so with `none` the icon would inherit the author's colour, and `preserve-parent-color` is what makes it inherit the forced one. Firefox does not support that value, so the `@supports` block applies only where it is needed.
 
 ## API
 

@@ -17,9 +17,9 @@ const REFERENCE_CSS = `
 .uip-icon[data-uip-icon-size="inline"] { --icon-size: 1em; }
 .uip-icon[data-uip-icon-size="ui"] { --icon-size: 20px; }
 @media (forced-colors: active) {
-  .uip-icon { forced-color-adjust: none; background-color: CanvasText; }
+  .uip-icon { forced-color-adjust: none; }
   @supports (forced-color-adjust: preserve-parent-color) {
-    .uip-icon { forced-color-adjust: preserve-parent-color; background-color: currentColor; }
+    .uip-icon { forced-color-adjust: preserve-parent-color; }
   }
 }
 `;
@@ -157,8 +157,8 @@ describe("the reference rule", () => {
     }
   });
 
-  // forced-color-adjust: none would paint the author colour: the span's own
-  // color then inherits the parent's unforced value (measured in Chromium).
+  // Under forced-color-adjust: none, Chromium's span inherits the parent's
+  // unforced colour; preserve-parent-color is what this test holds to.
   it("keeps the icon in the forced text colour under forced colours", async () => {
     styled();
     await cdp().send("Emulation.setEmulatedMedia", {
@@ -168,8 +168,8 @@ describe("the reference rule", () => {
     const { button: b, span } = button("rgb(255, 0, 0)");
     expect(getComputedStyle(b).color).not.toBe("rgb(255, 0, 0)");
     expect(getComputedStyle(span).backgroundColor).toBe(getComputedStyle(b).color);
-    // A link's forced LinkText differs from CanvasText, the fallback's colour,
-    // so this holds only where preserve-parent-color applies.
+    // A link's forced LinkText differs from the button's ButtonText, so this
+    // holds only where the icon inherits its own parent's forced colour.
     const link = document.createElement("a");
     link.href = "#icons";
     link.style.color = "rgb(255, 0, 0)";
@@ -177,7 +177,13 @@ describe("the reference rule", () => {
     link.append(inLink, "More");
     mount(link);
     const linkColor = getComputedStyle(link).color;
-    expect(linkColor).not.toBe(getComputedStyle(document.body).color);
+    expect(linkColor).not.toBe(getComputedStyle(b).color);
     expect(getComputedStyle(inLink).backgroundColor).toBe(linkColor);
+    const selected = document.createElement("div");
+    selected.style.cssText = "background: Highlight; color: HighlightText";
+    const inSelected = createIcons<"box">({ url: () => svg }).icon("box");
+    selected.append(inSelected, "Selected");
+    mount(selected);
+    expect(getComputedStyle(inSelected).backgroundColor).toBe(getComputedStyle(selected).color);
   });
 });
