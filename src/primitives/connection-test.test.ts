@@ -940,7 +940,13 @@ describe("connection test in a form and with host attributes", () => {
     expect(() => createConnectionTest(f.button, f.status, { run }, notElement)).toThrow(
       "status and root must be elements",
     );
-    expect(() => createConnectionTest(f.button, notElement, { run })).toThrow(TypeError);
+    expect(() => createConnectionTest(f.button, notElement, { run })).toThrow(
+      "status and root must be elements",
+    );
+    const text = document.createTextNode("status") as unknown as HTMLElement;
+    expect(() => createConnectionTest(f.button, text, { run })).toThrow(
+      "status and root must be elements",
+    );
     expect(() => createConnectionTest(f.button, f.status, { run }, f.root)).not.toThrow();
   });
 
@@ -957,6 +963,18 @@ describe("connection test in a form and with host attributes", () => {
       await userEvent.keyboard("{Enter}");
       expect(submits()).toBe(1);
       expect(d.calls).toHaveLength(0);
+      c.dispose();
+      expect(f.button.getAttribute("type")).toBe(type);
+    }
+  });
+
+  it("keeps a valid type the host wrote in any case", () => {
+    for (const type of ["SUBMIT", "Reset", "BUTTON"]) {
+      document.body.replaceChildren();
+      const f = fixture();
+      f.button.setAttribute("type", type);
+      const c = createConnectionTest(f.button, f.status, { run: deferredRun().run });
+      expect(f.button.getAttribute("type")).toBe(type);
       c.dispose();
       expect(f.button.getAttribute("type")).toBe(type);
     }
@@ -1011,7 +1029,7 @@ describe("connection test in a form and with host attributes", () => {
     errorLog.mockRestore();
   });
 
-  it("keeps a role the host set after construction", () => {
+  it("leaves a role the host wrote after the last state change", () => {
     const f = fixture();
     const c = createConnectionTest(f.button, f.status, { run: deferredRun().run });
     f.status.setAttribute("role", "alert");
@@ -1034,6 +1052,31 @@ describe("connection test in a form and with host attributes", () => {
     await settled();
     expect(f.status.id).toMatch(/^uip-connection-test-\d+$/);
     expect(f.url.getAttribute("aria-describedby")).toBe(`hint ${f.status.id}`);
+    c.dispose();
+    expect(f.url.getAttribute("aria-describedby")).toBe("hint");
+    expect(f.status.hasAttribute("id")).toBe(false);
+  });
+
+  it("gives status its generated id again when the host removed it", async () => {
+    const f = fixture();
+    f.url.setAttribute("aria-describedby", "hint");
+    const d = deferredRun();
+    const c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      fields: { url: { input: f.url } },
+    });
+    c.start();
+    d.resolve({ ok: false, message: "bad", field: "url" });
+    await settled();
+    const generated = f.status.id;
+    expect(generated).toMatch(/^uip-connection-test-\d+$/);
+    f.status.removeAttribute("id");
+    c.reset();
+    c.start();
+    d.resolve({ ok: false, message: "bad", field: "url" });
+    await settled();
+    expect(f.status.id).toBe(generated);
+    expect(f.url.getAttribute("aria-describedby")).toBe(`hint ${generated}`);
     c.dispose();
     expect(f.url.getAttribute("aria-describedby")).toBe("hint");
     expect(f.status.hasAttribute("id")).toBe(false);
