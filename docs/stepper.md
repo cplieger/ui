@@ -33,7 +33,7 @@ heading.textContent = stepper.heading();
 - Each item carries `data-step` and `data-state`; the current one also has `aria-current="step"`. The state word is in each item's accessible text, after a comma, in a `.uip-visually-hidden` span, so the state never rests on a glyph or a colour.
 - The stepper ships no CSS and draws no glyph. Draw your ✓, ● and ○ from `data-state`, and hide `.uip-stepper` in your own container query at the width where only the heading should show.
 - Links are plain `<a href>`, with no click handler: your router handles them like any other same-origin link.
-- `update` keeps the node of every item whose label, state and link are unchanged, and never moves the item holding focus, so a focused link keeps focus.
+- `update` keeps the node of every item whose label, state and link are unchanged, and never moves the item holding focus, so a focused link keeps focus. An item whose label, state or link changes is replaced, so focus inside it moves to the page: move focus to your `<h1>` on navigation, as for any route change.
 - `createStepper` and `update` throw a `TypeError` naming the fault for no step, not exactly one current step, a duplicate `id` or an empty `label`. These are programming errors. A refused `update` leaves the previous list on screen.
 - There is no draft: the stepper holds no state of its own, so persist your form's state yourself if you need it.
 - `dispose()` removes the list; after it `update` does nothing and `heading()` returns the last heading. A stepper made under an owner ends with that owner.

@@ -66,6 +66,11 @@ interface Rendered {
   readonly href: string | null;
 }
 
+/** The host's steps copied field by field, so no getter is read later or tracked. */
+function snapshot(steps: readonly StepperStep[]): StepperStep[] {
+  return untracked(() => steps.map(({ id, label, state, href }) => ({ id, label, state, href })));
+}
+
 /** The index of the current step, after checking the list keeps the contract. */
 function currentIndex(steps: readonly StepperStep[]): number {
   if (steps.length === 0) {
@@ -118,8 +123,9 @@ function renderItem(step: StepperStep, words: Words): HTMLLIElement {
 /** Put `nodes` in `list` in order, never moving the one holding focus: any
  *  re-seat of a node blurs what is focused inside it. */
 function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
-  const focus = document.activeElement;
-  const at = nodes.findIndex((n) => n.parentNode === list && focus !== null && n.contains(focus));
+  // The root's own active element: inside a shadow root, document's is the host.
+  const focus = (list.getRootNode() as Document | ShadowRoot).activeElement;
+  const at = nodes.findIndex((n) => n.contains(focus));
   if (at === -1) {
     for (const [i, node] of nodes.entries()) {
       const here = list.children[i] ?? null;
@@ -159,7 +165,7 @@ export function createStepper(
     },
     list: labels?.list ?? "Progress",
   }));
-  const first = untracked(() => [...steps]);
+  const first = snapshot(steps);
   let current = currentIndex(first);
 
   return ownedBinding((binding) => {
@@ -195,7 +201,7 @@ export function createStepper(
           if (binding.ended) {
             return;
           }
-          const next = [...steps];
+          const next = snapshot(steps);
           const index = currentIndex(next);
           render(next);
           shown = next;

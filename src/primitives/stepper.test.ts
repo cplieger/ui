@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cdp } from "vitest/browser";
 import fc from "fast-check";
 
-import { createRoot } from "../signal/signal.js";
+import { createRoot, effect, signal } from "../signal/signal.js";
 import { createStepper, type StepperStep, type StepState } from "./stepper.js";
 
 const setup: StepperStep[] = [
@@ -23,6 +23,22 @@ function items(root: HTMLElement): HTMLLIElement[] {
   return [...root.querySelectorAll<HTMLLIElement>("ol.uip-stepper > li")];
 }
 
+// The base stylesheet, so the tree is read with .uip-visually-hidden styled.
+beforeAll(async () => {
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/css/ui-primitives.css";
+  await new Promise<void>((resolve, reject) => {
+    link.onload = () => {
+      resolve();
+    };
+    link.onerror = () => {
+      reject(new Error("could not load /css/ui-primitives.css"));
+    };
+    document.head.append(link);
+  });
+});
+
 afterEach(() => {
   document.body.replaceChildren();
 });
@@ -34,16 +50,33 @@ interface AXNode {
   readonly childIds?: readonly string[];
 }
 
-/** The text the accessibility tree exposes for each list item, in order. */
-async function accessibleItems(): Promise<string[]> {
-  // The test runs in the runner's iframe, so ask for that frame's tree.
+/** The accessibility tree of the runner's iframe, which the test runs in. */
+async function axNodes(): Promise<AXNode[]> {
   const { frameTree } = (await cdp().send("Page.getFrameTree", {})) as {
     frameTree: { childFrames?: readonly { frame: { id: string } }[] };
   };
   const frameId = frameTree.childFrames?.[0]?.frame.id;
+  if (frameId === undefined) {
+    throw new Error("no runner iframe");
+  }
   const { nodes } = (await cdp().send("Accessibility.getFullAXTree", { frameId })) as {
     nodes: AXNode[];
   };
+  return nodes;
+}
+
+/** The accessible names of the links in the list, in order. Chromium puts a
+ *  space before the hidden span, which it lays out as a block; a screen reader
+ *  does not voice a space before a comma, so it is dropped here. */
+async function linkNames(): Promise<string[]> {
+  return (await axNodes())
+    .filter((n) => n.role?.value === "link")
+    .map((n) => (n.name?.value ?? "").replace(/\s+,/g, ","));
+}
+
+/** The text the accessibility tree exposes for each list item, in order. */
+async function accessibleItems(): Promise<string[]> {
+  const nodes = await axNodes();
   const byId = new Map(nodes.map((n) => [n.nodeId, n]));
   const text = (n: AXNode): string =>
     n.role?.value === "StaticText"
@@ -87,6 +120,35 @@ describe("stepper markup", () => {
       "Providers, not started",
       "Review, not started",
     ]);
+    // A user tabbing through links hears the link's own name.
+    expect(await linkNames()).toEqual(["Connect, done", "Languages, not started"]);
+  });
+
+  it("reads host input untracked, so an enclosing effect does not rerun", () => {
+    const root = host();
+    const state = signal<"done" | "todo">("done");
+    const steps: StepperStep[] = [
+      {
+        id: "a",
+        label: "A",
+        get state() {
+          return state.value;
+        },
+        href: "/a",
+      },
+      { id: "b", label: "B", state: "current", href: null },
+    ];
+    let runs = 0;
+    const dispose = createRoot((d) => {
+      effect(() => {
+        runs++;
+        createStepper(root, steps);
+      });
+      return d;
+    });
+    state.value = "todo";
+    expect(runs).toBe(1);
+    dispose();
   });
 
   it("uses the host's words and list name", async () => {
@@ -224,7 +286,9 @@ describe("stepper update", () => {
         const link = root.querySelector<HTMLAnchorElement>('li[data-step="focus"] a');
         link?.focus();
         expect(document.activeElement).toBe(link);
-        s.update(withCurrent(place(after, c), f));
+        const next = withCurrent(place(after, c), f);
+        s.update(next);
+        expect(items(root).map((li) => li.dataset["step"])).toEqual(next.map((x) => x.id));
         expect(root.querySelector('li[data-step="focus"] a')).toBe(link);
         expect(document.activeElement).toBe(link);
       }),
