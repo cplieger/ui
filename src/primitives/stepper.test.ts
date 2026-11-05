@@ -650,6 +650,35 @@ describe("stepper re-entry", () => {
     expect(items(root)[0]).toBe(item);
   });
 
+  it("puts back a focused item though its handler moves an earlier item out of the list", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const item = items(root)[2];
+    const link = item?.querySelector("a");
+    if (item === undefined || link === null || link === undefined) {
+      throw new Error("no link");
+    }
+    const aside = document.createElement("div");
+    document.body.append(aside);
+    aside.append(item);
+    link.focus();
+    link.addEventListener(
+      "focusout",
+      () => {
+        const first = root.querySelector("ol")?.firstElementChild;
+        if (first !== null && first !== undefined) {
+          document.body.append(first);
+        }
+      },
+      { once: true },
+    );
+    expect(() => {
+      s.update(setup);
+    }).not.toThrow();
+    expect(shown(root)).toEqual(setup.map(drawn));
+    expect(items(root)[2]).toBe(item);
+  });
+
   it("settles when every focusout moves focus to another link and updates it", () => {
     const root = host();
     const linked = setup.map((step) => ({ ...step, href: `/setup/${step.id}` }));
@@ -759,10 +788,19 @@ describe("stepper contract", () => {
 
   it("treats null labels as unset", () => {
     const root = host();
-    const labels = { heading: null, done: null } as unknown as StepperLabels;
+    const labels = {
+      heading: null,
+      done: null,
+      current: null,
+      todo: null,
+      list: null,
+    } as unknown as StepperLabels;
     const s = createStepper(root, setup, labels);
     expect(s.heading()).toBe("Step 2 of 5: Media paths");
-    expect(items(root)[0]?.querySelector(".uip-visually-hidden")?.textContent).toBe(", done");
+    const word = (i: number): string | null | undefined =>
+      items(root)[i]?.querySelector(".uip-visually-hidden")?.textContent;
+    expect([word(0), word(1), word(2)]).toEqual([", done", ", current step", ", not started"]);
+    expect(root.querySelector("ol")?.getAttribute("aria-label")).toBe("Progress");
   });
 
   it("createStepper refuses labels of the wrong type and adds nothing", () => {

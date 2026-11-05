@@ -178,10 +178,18 @@ function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
   // A focused item a host moved out of the list is put back like any other.
   const at = nodes.findIndex((n) => n.contains(focus) && n.parentNode === list);
   if (at === -1) {
-    for (const [i, node] of nodes.entries()) {
-      const here = list.children[i] ?? null;
-      if (here !== node) {
-        seat(list, node, () => list.children[i] ?? null);
+    // Seating the focused item blurs it, and its handler may move another item out;
+    // nothing is focused after that, so one more walk puts that item back too.
+    for (let walk = 0; walk < 2; walk++) {
+      let moved = false;
+      for (const [i, node] of nodes.entries()) {
+        if (list.children[i] !== node) {
+          seat(list, node, () => list.children[i] ?? null);
+          moved = true;
+        }
+      }
+      if (!moved) {
+        return;
       }
     }
     return;
