@@ -63,6 +63,15 @@ export function trapFocus(container: HTMLElement, opts?: FocusTrapOptions): () =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     let listening = false;
     let entered = false;
+    const returnTarget =
+      o.returnFocus === true ? previousFocus : o.returnFocus === false ? null : o.returnFocus;
+    // A release requested inside a Tab redirect restores once that call returns;
+    // focus that reached the return target meanwhile settles it, so a later
+    // focus elsewhere is not taken back.
+    let reached = false;
+    const onReached = (): void => {
+      reached = true;
+    };
 
     /** Where Tab must go instead of the browser's default, or null to leave it. */
     const redirect = (e: KeyboardEvent): HTMLElement | null => {
@@ -111,6 +120,11 @@ export function trapFocus(container: HTMLElement, opts?: FocusTrapOptions): () =
 
     const driver = createDriver<null>({
       initial: null,
+      derive(_s, released) {
+        if (released) {
+          returnTarget?.addEventListener("focus", onReached);
+        }
+      },
       realize(fx) {
         listen(true);
         if (entered) {
@@ -135,11 +149,10 @@ export function trapFocus(container: HTMLElement, opts?: FocusTrapOptions): () =
       },
       terminal(fx) {
         listen(false);
-        const target =
-          o.returnFocus === true ? previousFocus : o.returnFocus === false ? null : o.returnFocus;
+        returnTarget?.removeEventListener("focus", onReached);
         // Focusing a detached node throws in some engines and no-ops in others.
-        if (target?.isConnected === true) {
-          fx.focus(target);
+        if (!reached && returnTarget?.isConnected === true) {
+          fx.focus(returnTarget);
         }
       },
     });

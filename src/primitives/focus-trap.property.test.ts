@@ -293,6 +293,19 @@ describe("trapFocus: re-entry property", () => {
               ],
             },
           ],
+          // A dispose inside the Shift+Tab redirect, then focus outside and back inside: the
+          // restore the redirect deferred finds the return target reached and leaves focus.
+          [
+            {
+              empty: false,
+              returnFocus: "outside",
+              script: [{ k: "shiftTab" }],
+              injections: [
+                { at: 294, actions: [{ k: "dispose" }, { k: "focusOutside" }] },
+                { at: 59, actions: [{ k: "focusMiddle" }, { k: "tab" }] },
+              ],
+            },
+          ],
           // An owner release at the container's tabindex write leaves focus where the release put it.
           [
             {
