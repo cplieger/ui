@@ -268,7 +268,13 @@ export function createPopupCore<C extends PopupConfig>(
     let revealed = false;
     let annotated: HTMLElement | null = null;
     let joined: string | null = null;
-    let armed: { readonly outside: boolean; readonly escape: boolean } | null = null;
+    // forShow is the show the listeners were armed for: a hide and a show that
+    // one pass coalesces still defer them again.
+    let armed: {
+      readonly outside: boolean;
+      readonly escape: boolean;
+      readonly forShow: number;
+    } | null = null;
     let armTimer: ReturnType<typeof setTimeout> | null = null;
     let listening = false;
     let leave: { readonly forHide: number; readonly cancel: () => void } | null = null;
@@ -347,7 +353,11 @@ export function createPopupCore<C extends PopupConfig>(
         layer.listeners?.(false);
       }
     };
-    const arm = (flags: { readonly outside: boolean; readonly escape: boolean }): void => {
+    const arm = (flags: {
+      readonly outside: boolean;
+      readonly escape: boolean;
+      readonly forShow: number;
+    }): void => {
       disarm();
       armed = flags;
       // Deferred so the click that opened the popup doesn't immediately self-close.
@@ -449,8 +459,12 @@ export function createPopupCore<C extends PopupConfig>(
               fx.focus(c.initialFocus);
             }
           }
-          if (armed?.outside !== c.closeOnOutside || armed.escape !== c.closeOnEscape) {
-            arm({ outside: c.closeOnOutside, escape: c.closeOnEscape });
+          if (
+            armed?.forShow !== d.shows ||
+            armed.outside !== c.closeOnOutside ||
+            armed.escape !== c.closeOnEscape
+          ) {
+            arm({ outside: c.closeOnOutside, escape: c.closeOnEscape, forShow: d.shows });
           }
           return;
         }
