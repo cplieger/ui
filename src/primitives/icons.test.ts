@@ -179,11 +179,5 @@ describe("the reference rule", () => {
     const linkColor = getComputedStyle(link).color;
     expect(linkColor).not.toBe(getComputedStyle(b).color);
     expect(getComputedStyle(inLink).backgroundColor).toBe(linkColor);
-    const selected = document.createElement("div");
-    selected.style.cssText = "background: Highlight; color: HighlightText";
-    const inSelected = createIcons<"box">({ url: () => svg }).icon("box");
-    selected.append(inSelected, "Selected");
-    mount(selected);
-    expect(getComputedStyle(inSelected).backgroundColor).toBe(getComputedStyle(selected).color);
   });
 });

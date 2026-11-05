@@ -15,8 +15,9 @@ const RELEASE = join(PINNED, "icons");
 
 /**
  * What keeps `dir`, and the LICENSE-lucide beside it, from being the pinned
- * lucide-static release of exactly iconNames. With ICONS_SYNC=1 (`npm run icons:sync`) it rewrites `dir` to
- * match instead and reports only names the release lacks.
+ * lucide-static release of exactly iconNames. With ICONS_SYNC=1
+ * (`npm run icons:sync`) it rewrites them to match instead and reports only
+ * names the release lacks.
  */
 async function drift(dir: string, sync = false): Promise<string[]> {
   const problems: string[] = [];
@@ -72,7 +73,7 @@ describe("the shipped icon set", () => {
     expect(await drift(SHIPPED, process.env["ICONS_SYNC"] === "1")).toEqual([]);
   });
 
-  it("reports a changed, a missing and an extra file", async () => {
+  it("reports a changed, a missing and an extra file and a stale licence", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ui-icons-"));
     try {
       await cp(join(ROOT, "icons"), dir, { recursive: true });
