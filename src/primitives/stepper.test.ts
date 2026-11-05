@@ -529,6 +529,70 @@ describe("stepper re-entry", () => {
     expect(s.heading()).toBe("Step 4 of 5: Sources");
   });
 
+  it("diffs a restarted render against what is on screen, not the pass it cut off", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const link = items(root)[0]?.querySelector("a");
+    link?.focus();
+    const newest = setup.map((step) =>
+      step.id === "languages" ? { ...step, label: "Audio2" } : step,
+    );
+    link?.addEventListener(
+      "focusout",
+      () => {
+        s.update(newest);
+      },
+      { once: true },
+    );
+    // The cut-off pass builds a Languages node of its own and never places it.
+    s.update(
+      setup.map((step) =>
+        step.id === "connect"
+          ? { ...step, label: "Start" }
+          : step.id === "languages"
+            ? { ...step, label: "Audio" }
+            : step,
+      ),
+    );
+    expect(shown(root)).toEqual(newest.map(drawn));
+  });
+
+  it("draws the list when a focusout handler moves the item being removed", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const old = items(root)[0];
+    old?.querySelector("a")?.focus();
+    old?.querySelector("a")?.addEventListener(
+      "focusout",
+      () => {
+        if (old !== undefined) {
+          document.body.append(old);
+        }
+      },
+      { once: true },
+    );
+    const next = setup.map((step) => (step.id === "connect" ? { ...step, label: "Start" } : step));
+    expect(() => {
+      s.update(next);
+    }).not.toThrow();
+    expect(shown(root)).toEqual(next.map(drawn));
+  });
+
+  it("puts back a focused item a host moved out of the list", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const item = items(root)[0];
+    const link = item?.querySelector("a");
+    if (item === undefined || link === null || link === undefined) {
+      throw new Error("no link");
+    }
+    document.body.append(item);
+    link.focus();
+    s.update(setup);
+    expect(items(root)[0]).toBe(item);
+    expect(shown(root)).toEqual(setup.map(drawn));
+  });
+
   it("settles when every focusout moves focus to another link and updates it", () => {
     const root = host();
     const linked = setup.map((step) => ({ ...step, href: `/setup/${step.id}` }));
@@ -622,6 +686,29 @@ describe("stepper contract", () => {
     ],
     ["an empty label", setup.map((s, i) => (i === 0 ? { ...s, label: " " } : s)), "empty label"],
   ];
+
+  it("createStepper refuses labels of the wrong type and adds nothing", () => {
+    const root = host();
+    let read = 0;
+    const odd = {
+      toString(): string {
+        read++;
+        return "odd";
+      },
+    } as unknown as string;
+    for (const [labels, message] of [
+      [{ done: odd }, "labels.done"],
+      [{ current: odd }, "labels.current"],
+      [{ todo: odd }, "labels.todo"],
+      [{ list: odd }, "labels.list"],
+      [{ heading: "Step" as unknown as () => string }, "labels.heading"],
+    ] as const) {
+      expect(() => createStepper(root, setup, labels)).toThrow(TypeError);
+      expect(() => createStepper(root, setup, labels)).toThrow(message);
+    }
+    expect(read).toBe(0);
+    expect(root.childNodes).toHaveLength(0);
+  });
 
   it.each(cases)("createStepper refuses %s and adds nothing", (_name, steps, message) => {
     const root = host();

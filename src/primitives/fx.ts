@@ -128,8 +128,20 @@ export function fxAt(pass: Pass): Fx {
       }
     },
     remove(node) {
-      if (node.parentNode !== null) {
-        node.remove();
+      const parent = node.parentNode;
+      if (parent !== null) {
+        try {
+          node.remove();
+        } catch (error) {
+          // Chromium blurs a focused node before removing it, and a blur handler that
+          // moves it elsewhere makes the removal throw NotFoundError: it is gone anyway.
+          if (
+            !(error instanceof DOMException && error.name === "NotFoundError") ||
+            node.parentNode === parent
+          ) {
+            throw error;
+          }
+        }
         pass.check();
       }
     },

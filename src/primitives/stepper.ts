@@ -46,8 +46,8 @@ export interface StepperController {
    *  (no step, not exactly one `current` step, a duplicate `id`, an empty
    *  `label`, a field of the wrong type) and leaves the previous list rendered. Called while another
    *  `update` renders, as from a focusout handler that removal fires, it
-   *  returns at once and the running one draws the newest list; one that
-   *  keeps restarting the render past 50 times throws an `Error`. */
+   *  returns at once and the running one draws the newest list. The outer
+   *  `update` throws an `Error` after 50 such restarts. */
   update(steps: readonly StepperStep[]): void;
   /** The heading for the current steps, for the host's `<h1>`. */
   heading(): string;
@@ -154,7 +154,8 @@ function renderItem(step: StepperStep, words: Words): HTMLLIElement {
 function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
   // The root's own active element: inside a shadow root, document's is the host.
   const focus = (list.getRootNode() as Document | ShadowRoot).activeElement;
-  const at = nodes.findIndex((n) => n.contains(focus));
+  // A focused item a host moved out of the list is put back like any other.
+  const at = nodes.findIndex((n) => n.contains(focus) && n.parentNode === list);
   if (at === -1) {
     for (const [i, node] of nodes.entries()) {
       const here = list.children[i] ?? null;
@@ -185,15 +186,21 @@ export function createStepper(
   steps: readonly StepperStep[],
   labels?: StepperLabels,
 ): StepperController {
-  const words: Words = untracked(() => ({
-    heading: labels?.heading ?? ((n, m, label) => `Step ${String(n)} of ${String(m)}: ${label}`),
-    state: {
-      done: labels?.done ?? "done",
-      current: labels?.current ?? "current step",
-      todo: labels?.todo ?? "not started",
-    },
-    list: labels?.list ?? "Progress",
-  }));
+  const words: Words = untracked(() => {
+    const heading: unknown = labels?.heading;
+    if (heading !== undefined && typeof heading !== "function") {
+      throw new TypeError("@cplieger/ui/stepper: labels.heading is not a function");
+    }
+    return {
+      heading: labels?.heading ?? ((n, m, label) => `Step ${String(n)} of ${String(m)}: ${label}`),
+      state: {
+        done: text(labels?.done ?? "done", "labels.done"),
+        current: text(labels?.current ?? "current step", "labels.current"),
+        todo: text(labels?.todo ?? "not started", "labels.todo"),
+      },
+      list: text(labels?.list ?? "Progress", "labels.list"),
+    };
+  });
   const first = snapshot(steps);
   let current = currentIndex(first);
 
@@ -202,8 +209,9 @@ export function createStepper(
     list.className = "uip-stepper";
     list.setAttribute("aria-label", words.list);
     let shown = first;
-    // The items of the last pass that finished: a pass a restart cuts off
-    // diffs nothing, so the next one starts from what is really on screen.
+    // The items of the last pass that finished. A restart returns before this is
+    // replaced, so the next pass still holds them, detached ones included, and
+    // place puts back the ones it keeps.
     let rendered = new Map<string, Rendered>();
 
     // Removing a focused item fires focusout, whose handler may call update or
