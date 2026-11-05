@@ -174,6 +174,10 @@ export function createStepper(
     list.setAttribute("aria-label", words.list);
     let shown = first;
     let rendered = new Map<string, Rendered>();
+    // Removing a focused item fires focusout, whose handler may call update:
+    // that list waits for the running render, which renders it next.
+    let rendering = false;
+    let pending: readonly StepperStep[] | null = null;
 
     const render = (next: readonly StepperStep[]): void => {
       const kept = new Map<string, Rendered>();
@@ -203,13 +207,32 @@ export function createStepper(
           }
           const next = snapshot(steps);
           const index = currentIndex(next);
-          render(next);
           shown = next;
           current = index;
+          if (rendering) {
+            pending = next;
+            return;
+          }
+          rendering = true;
+          try {
+            // A function, not a condition: a focusout handler can dispose mid-render.
+            const live = (): boolean => !binding.ended;
+            let list: readonly StepperStep[] | null = next;
+            while (list !== null) {
+              render(list);
+              list = live() ? pending : null;
+              pending = null;
+            }
+          } finally {
+            rendering = false;
+            pending = null;
+          }
         },
         heading(): string {
           const step = shown[current];
-          return step === undefined ? "" : words.heading(current + 1, shown.length, step.label);
+          return step === undefined
+            ? ""
+            : untracked(() => words.heading(current + 1, shown.length, step.label));
         },
         dispose: binding.dispose,
       },

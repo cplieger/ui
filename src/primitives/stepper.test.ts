@@ -345,6 +345,108 @@ describe("stepper update", () => {
   });
 });
 
+describe("stepper update of a changed item", () => {
+  it("moves current to another step: aria-current, data-state and links follow", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    s.update(
+      setup.map((step, i) => ({ ...step, state: i < 2 ? "done" : i === 2 ? "current" : "todo" })),
+    );
+    expect(items(root).map((li) => li.getAttribute("aria-current"))).toEqual([
+      null,
+      null,
+      "step",
+      null,
+      null,
+    ]);
+    expect(items(root).map((li) => li.dataset["state"])).toEqual([
+      "done",
+      "done",
+      "current",
+      "todo",
+      "todo",
+    ]);
+    expect(items(root).map((li) => li.querySelector("a")?.getAttribute("href") ?? null)).toEqual([
+      "/setup/connect",
+      "/setup/paths",
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it("follows a changed href", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    s.update(
+      setup.map((step) =>
+        step.id === "connect" ? { ...step, href: "/setup/connect?again" } : step,
+      ),
+    );
+    expect(items(root)[0]?.querySelector("a")?.getAttribute("href")).toBe("/setup/connect?again");
+    s.update(setup.map((step) => (step.id === "connect" ? { ...step, href: null } : step)));
+    expect(items(root)[0]?.querySelector("a")).toBeNull();
+  });
+
+  it("puts each state word in one visually hidden span", () => {
+    const root = host();
+    createStepper(root, setup);
+    expect(
+      items(root).map((li) =>
+        [...li.querySelectorAll(".uip-visually-hidden")].map((e) => e.textContent),
+      ),
+    ).toEqual([
+      [", done"],
+      [", current step"],
+      [", not started"],
+      [", not started"],
+      [", not started"],
+    ]);
+  });
+});
+
+describe("stepper re-entry", () => {
+  it("renders the newest list when a focusout handler updates mid-render", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const link = items(root)[0]?.querySelector("a");
+    link?.focus();
+    const inner = setup.map((step) =>
+      step.id === "languages" ? { ...step, label: "Audio" } : step,
+    );
+    link?.addEventListener(
+      "focusout",
+      () => {
+        s.update(inner);
+      },
+      { once: true },
+    );
+    s.update(setup.map((step) => (step.id === "connect" ? { ...step, label: "Start" } : step)));
+    expect(items(root).map((li) => li.dataset["step"])).toEqual(setup.map((x) => x.id));
+    expect(items(root)[2]?.textContent).toContain("Audio");
+    expect(items(root)[0]?.textContent).toContain("Connect");
+    expect(s.heading()).toBe("Step 2 of 5: Media paths");
+  });
+
+  it("calls labels.heading untracked", () => {
+    const word = signal("Step");
+    const s = createStepper(host(), setup, {
+      heading: (n, m, label) => `${word.value} ${String(n)}/${String(m)} ${label}`,
+    });
+    let runs = 0;
+    const dispose = createRoot((d) => {
+      effect(() => {
+        runs++;
+        s.heading();
+      });
+      return d;
+    });
+    word.value = "Étape";
+    expect(runs).toBe(1);
+    dispose();
+  });
+});
+
 describe("stepper in a shadow root", () => {
   it("keeps focus on a link it moves around", () => {
     const shadow = host().attachShadow({ mode: "open" });
