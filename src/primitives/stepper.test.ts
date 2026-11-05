@@ -576,6 +576,7 @@ describe("stepper re-entry", () => {
       s.update(next);
     }).not.toThrow();
     expect(shown(root)).toEqual(next.map(drawn));
+    expect(old?.isConnected).toBe(false);
   });
 
   it("puts back a focused item a host moved out of the list", () => {
@@ -591,6 +592,33 @@ describe("stepper re-entry", () => {
     s.update(setup);
     expect(items(root)[0]).toBe(item);
     expect(shown(root)).toEqual(setup.map(drawn));
+  });
+
+  it("puts back a focused item though putting it back makes a handler move it again", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const item = items(root)[0];
+    const link = item?.querySelector("a");
+    if (item === undefined || link === null || link === undefined) {
+      throw new Error("no link");
+    }
+    const aside = document.createElement("div");
+    document.body.append(aside);
+    aside.append(item);
+    link.focus();
+    link.addEventListener(
+      "focusout",
+      () => {
+        document.body.append(item);
+      },
+      { once: true },
+    );
+    const next = setup.map((step) => (step.id === "review" ? { ...step, label: "Check" } : step));
+    expect(() => {
+      s.update(next);
+    }).not.toThrow();
+    expect(shown(root)).toEqual(next.map(drawn));
+    expect(items(root)[0]).toBe(item);
   });
 
   it("settles when every focusout moves focus to another link and updates it", () => {
@@ -687,6 +715,19 @@ describe("stepper contract", () => {
     ["an empty label", setup.map((s, i) => (i === 0 ? { ...s, label: " " } : s)), "empty label"],
   ];
 
+  it("reads labels.heading once", () => {
+    let reads = 0;
+    const labels = {
+      get heading(): (n: number, m: number, label: string) => string {
+        reads++;
+        return reads === 1 ? (n, m, label) => `${String(n)}/${String(m)} ${label}` : ("x" as never);
+      },
+    };
+    const s = createStepper(host(), setup, labels);
+    expect(s.heading()).toBe("2/5 Media paths");
+    expect(reads).toBe(1);
+  });
+
   it("createStepper refuses labels of the wrong type and adds nothing", () => {
     const root = host();
     let read = 0;
@@ -772,6 +813,29 @@ describe("stepper lifecycle", () => {
     s.update(setup.map((step) => ({ ...step, label: `${step.label}!` })));
     expect(root.childNodes).toHaveLength(0);
     expect(s.heading()).toBe("Step 2 of 5: Media paths");
+  });
+
+  it("dispose detaches the list though a focusout handler moves it", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const list = root.querySelector("ol");
+    const aside = document.createElement("div");
+    document.body.append(aside);
+    items(root)[0]?.querySelector("a")?.focus();
+    items(root)[0]
+      ?.querySelector("a")
+      ?.addEventListener(
+        "focusout",
+        () => {
+          if (list !== null) {
+            aside.append(list);
+          }
+        },
+        { once: true },
+      );
+    s.dispose();
+    expect(root.childNodes).toHaveLength(0);
+    expect(list?.isConnected).toBe(false);
   });
 
   it("a dispose from a focusout handler mid-update removes the list", () => {

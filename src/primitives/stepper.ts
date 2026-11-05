@@ -9,6 +9,7 @@
  */
 
 import { untracked } from "../signal/signal.js";
+import { movedByBlurHandler } from "./fx.js";
 import { createDriver, ownedBinding } from "./owner.js";
 
 /** Where a step stands. */
@@ -149,6 +150,24 @@ function renderItem(step: StepperStep, words: Words): HTMLLIElement {
   return li;
 }
 
+/** Insert `node` before `before`, once more after a blur handler moved it on the
+ *  way; one it moves again stays where the host put it until the next update. */
+function seat(list: HTMLOListElement, node: Node, before: Node | null): void {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      list.insertBefore(node, before);
+      return;
+    } catch (error) {
+      if (!movedByBlurHandler(error)) {
+        throw error;
+      }
+      if (attempt === 1) {
+        return;
+      }
+    }
+  }
+}
+
 /** Put `nodes` in `list` in order, never moving the one holding focus: any
  *  re-seat of a node blurs what is focused inside it. */
 function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
@@ -160,7 +179,7 @@ function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
     for (const [i, node] of nodes.entries()) {
       const here = list.children[i] ?? null;
       if (here !== node) {
-        list.insertBefore(node, here);
+        seat(list, node, here);
       }
     }
     return;
@@ -168,13 +187,13 @@ function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
   for (let i = at - 1; i >= 0; i--) {
     const [node, after] = [nodes[i], nodes[i + 1]];
     if (node !== undefined && after !== undefined && node.nextSibling !== after) {
-      list.insertBefore(node, after);
+      seat(list, node, after);
     }
   }
   for (let i = at + 1; i < nodes.length; i++) {
     const [before, node] = [nodes[i - 1], nodes[i]];
     if (before !== undefined && node !== undefined && before.nextSibling !== node) {
-      list.insertBefore(node, before.nextSibling);
+      seat(list, node, before.nextSibling);
     }
   }
 }
@@ -188,11 +207,13 @@ export function createStepper(
 ): StepperController {
   const words: Words = untracked(() => {
     const heading: unknown = labels?.heading;
-    if (heading !== undefined && typeof heading !== "function") {
+    if (heading != null && typeof heading !== "function") {
       throw new TypeError("@cplieger/ui/stepper: labels.heading is not a function");
     }
     return {
-      heading: labels?.heading ?? ((n, m, label) => `Step ${String(n)} of ${String(m)}: ${label}`),
+      heading:
+        (heading as Words["heading"] | null | undefined) ??
+        ((n, m, label) => `Step ${String(n)} of ${String(m)}: ${label}`),
       state: {
         done: text(labels?.done ?? "done", "labels.done"),
         current: text(labels?.current ?? "current step", "labels.current"),
@@ -214,8 +235,9 @@ export function createStepper(
     // place puts back the ones it keeps.
     let rendered = new Map<string, Rendered>();
 
-    // Removing a focused item fires focusout, whose handler may call update or
-    // dispose; fx.remove then restarts the pass from the newest list.
+    // Removing a focused item, or putting back one the host moved out, fires
+    // focusout, whose handler may call update or dispose; fx.remove's check or the
+    // drive's end-of-pass check then restarts from the newest list.
     const driver = createDriver<readonly StepperStep[]>({
       initial: first,
       realize(fx, next) {

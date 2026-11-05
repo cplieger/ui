@@ -73,6 +73,13 @@ function serialized(prop: StyleProp, value: string): string {
   return out;
 }
 
+/** Chromium blurs a focused node before it moves or removes it, and a blur handler
+ *  that moves the node, or the reference node, makes the call throw NotFoundError.
+ *  The node has blurred by then, so the same call once more completes. */
+export function movedByBlurHandler(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "NotFoundError";
+}
+
 /** The `Fx` of one pass: every method diffs, performs, then checks `pass`. */
 export function fxAt(pass: Pass): Fx {
   const fx: Fx = {
@@ -123,24 +130,26 @@ export function fxAt(pass: Pass): Fx {
     },
     append(parent, child) {
       if (child.parentNode !== parent) {
-        parent.appendChild(child);
+        try {
+          parent.appendChild(child);
+        } catch (error) {
+          if (!movedByBlurHandler(error)) {
+            throw error;
+          }
+          parent.appendChild(child);
+        }
         pass.check();
       }
     },
     remove(node) {
-      const parent = node.parentNode;
-      if (parent !== null) {
+      if (node.parentNode !== null) {
         try {
           node.remove();
         } catch (error) {
-          // Chromium blurs a focused node before removing it, and a blur handler that
-          // moves it elsewhere makes the removal throw NotFoundError: it is gone anyway.
-          if (
-            !(error instanceof DOMException && error.name === "NotFoundError") ||
-            node.parentNode === parent
-          ) {
+          if (!movedByBlurHandler(error)) {
             throw error;
           }
+          node.remove();
         }
         pass.check();
       }
