@@ -23,7 +23,8 @@
     "./theme": "./src/primitives/theme.ts",
     "./view-transition": "./src/primitives/view-transition.ts",
     "./transition": "./src/primitives/transition.ts",
-    "./announce": "./src/primitives/announce.ts"
+    "./announce": "./src/primitives/announce.ts",
+    "./icons": "./src/primitives/icons.ts"
   },
   "publish": {
     "include": [
@@ -33,6 +34,8 @@
       "THIRD_PARTY_NOTICES.md",
       "src/**/*.ts",
       "css/**/*.css",
+      "icons/svg/*.svg",
+      "icons/LICENSE-lucide",
       "jsr.json"
     ],
     "exclude": ["src/**/*.test.ts", "src/**/*-setup.ts", "src/**/test-helpers/**"]

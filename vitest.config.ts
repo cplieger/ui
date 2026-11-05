@@ -59,7 +59,7 @@ export default defineConfig({
         test: {
           name: "reactive",
           isolate: true,
-          exclude: EXCLUDE,
+          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
           include: ["src/index.exports.test.ts", "src/signal/**/*.test.ts", "src/dom/**/*.test.ts"],
           browser: chromium(),
         },
@@ -68,7 +68,7 @@ export default defineConfig({
         test: {
           name: "fetch",
           isolate: true,
-          exclude: EXCLUDE,
+          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
           include: ["src/fetch/**/*.test.ts"],
           browser: chromium(),
         },
@@ -78,7 +78,7 @@ export default defineConfig({
           ...strict,
           name: "primitives",
           isolate: true,
-          exclude: EXCLUDE,
+          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
           include: ["src/primitives/**/*.test.ts"],
           setupFiles: ["./src/primitives/fc-strict-setup.ts"],
           browser: chromium(),
