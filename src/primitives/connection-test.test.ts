@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fc from "fast-check";
 
-import { cdp } from "vitest/browser";
+import { cdp, userEvent } from "vitest/browser";
 
 import { createRoot } from "../signal/signal.js";
 import {
@@ -644,9 +644,13 @@ describe("connection test review cases", () => {
       document.body.replaceChildren();
       const f = fixture();
       const d = deferredRun();
+      let reported: ConnectionTestResult | null = null;
       const c = createConnectionTest(f.button, f.status, {
         run: d.run,
         fields: { url: { input: f.url } },
+        onChange: (_s, r) => {
+          reported = r;
+        },
       });
       c.start();
       d.resolve(answer);
@@ -654,6 +658,9 @@ describe("connection test review cases", () => {
       expect(c.state()).toBe(state);
       expect(f.status.textContent).toBe(text);
       expect(f.url.hasAttribute("aria-invalid")).toBe(false);
+      // The host receives a ConnectionTestResult: no field key on these answers.
+      expect(reported).toEqual({ ok: state === "passed", message: text });
+      expect(reported !== null && Object.hasOwn(reported, "field")).toBe(false);
     }
   });
 
@@ -668,9 +675,19 @@ describe("connection test review cases", () => {
       removed.push(type);
       original(type, ...rest);
     };
+    const fromButton: string[] = [];
+    const originalButton = f.button.removeEventListener.bind(f.button);
+    f.button.removeEventListener = (
+      type: string,
+      ...rest: [EventListenerOrEventListenerObject, (boolean | EventListenerOptions)?]
+    ) => {
+      fromButton.push(type);
+      originalButton(type, ...rest);
+    };
     const c = createConnectionTest(f.button, f.status, { run: deferredRun().run }, f.root);
     c.dispose();
     expect(removed.toSorted()).toEqual(["change", "input"]);
+    expect(fromButton).toEqual(["click"]);
   });
 
   it("marks no prototype input for an inherited field name", async () => {
@@ -807,5 +824,112 @@ describe("connection test shared elements", () => {
     expect(f.status.textContent).toBe("down");
     expect(error).toHaveBeenCalledOnce();
     error.mockRestore();
+  });
+});
+
+describe("connection test in a form and with host attributes", () => {
+  function inForm(f: Fixture): () => number {
+    const el = document.createElement("form");
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.textContent = "Save";
+    el.append(f.url, f.button, f.status, save);
+    document.body.append(el);
+    let n = 0;
+    el.addEventListener("submit", (e) => {
+      e.preventDefault();
+      n++;
+    });
+    return () => n;
+  }
+
+  it("leaves Enter in a field to the form's Save, not the Test button", async () => {
+    const f = fixture();
+    const submits = inForm(f);
+    const d = deferredRun();
+    createConnectionTest(f.button, f.status, { run: d.run });
+    f.url.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(submits()).toBe(1);
+    expect(d.calls).toHaveLength(0);
+    f.button.click();
+    expect(submits()).toBe(1);
+    expect(d.calls).toHaveLength(1);
+  });
+
+  it("keeps a host's submit button from submitting while busy", () => {
+    const f = fixture();
+    const submits = inForm(f);
+    f.button.type = "submit";
+    createConnectionTest(f.button, f.status, { run: deferredRun().run });
+    f.button.click();
+    expect(submits()).toBe(1);
+    f.button.click();
+    expect(submits()).toBe(1);
+  });
+
+  it("gives back the button type it added, and keeps one the host set", () => {
+    const f = fixture();
+    const c = createConnectionTest(f.button, f.status, { run: deferredRun().run });
+    expect(f.button.getAttribute("type")).toBe("button");
+    c.dispose();
+    expect(f.button.hasAttribute("type")).toBe(false);
+    const g = fixture();
+    g.button.type = "submit";
+    const d = createConnectionTest(g.button, g.status, { run: deferredRun().run });
+    expect(g.button.getAttribute("type")).toBe("submit");
+    d.dispose();
+    expect(g.button.getAttribute("type")).toBe("submit");
+  });
+
+  it("follows the host's aria-disabled outside busy", async () => {
+    const f = fixture();
+    f.button.setAttribute("aria-disabled", "true");
+    const d = deferredRun();
+    const c = createConnectionTest(f.button, f.status, { run: d.run }, f.root);
+    f.url.addEventListener("input", () => {
+      f.button.removeAttribute("aria-disabled");
+    });
+    f.url.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(f.button.hasAttribute("aria-disabled")).toBe(false);
+    f.button.setAttribute("aria-disabled", "true");
+    c.reset();
+    expect(f.button.getAttribute("aria-disabled")).toBe("true");
+    f.button.removeAttribute("aria-disabled");
+    c.start();
+    expect(f.button.getAttribute("aria-disabled")).toBe("true");
+    d.resolve({ ok: true, message: "ok" });
+    await settled();
+    expect(f.button.hasAttribute("aria-disabled")).toBe(false);
+  });
+
+  it("removes the describedby token it added though the status id changed since", async () => {
+    const f = fixture();
+    const d = deferredRun();
+    const c = createConnectionTest(f.button, f.status, {
+      run: d.run,
+      fields: { url: { input: f.url } },
+    });
+    c.start();
+    d.resolve({ ok: false, message: "bad", field: "url" });
+    await settled();
+    f.status.id = "host-status";
+    c.reset();
+    expect(f.url.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("refuses a root another live control writes", () => {
+    const f = fixture();
+    const extra = document.createElement("p");
+    const second = document.createElement("button");
+    f.root.append(extra, second);
+    const first = createConnectionTest(f.button, f.status, { run: deferredRun().run }, f.root);
+    expect(() => createConnectionTest(second, extra, { run: deferredRun().run }, f.root)).toThrow(
+      TypeError,
+    );
+    first.dispose();
+    expect(() =>
+      createConnectionTest(second, extra, { run: deferredRun().run }, f.root),
+    ).not.toThrow();
   });
 });

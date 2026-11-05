@@ -79,7 +79,8 @@ interface Marked {
   readonly name: string;
   readonly message: string;
   readonly input: ConnectionTestField["input"];
-  readonly addedToken: boolean;
+  /** The status id this control added to the input's aria-describedby, or null. */
+  readonly token: string | null;
 }
 
 let idSeq = 0;
@@ -88,8 +89,8 @@ let idSeq = 0;
  *  restores what the input carried before the first mark. */
 const inputMarks = new WeakMap<Element, { count: number; readonly prior: string | null }>();
 
-/** Every status element a live control writes. */
-const statuses = new WeakSet<Element>();
+/** Every status and root element a live control writes. */
+const claimed = new WeakSet<Element>();
 
 const NO_ANSWER = "The test returned no answer.";
 
@@ -135,8 +136,10 @@ export function createConnectionTest(
   if (status === button || status.contains(button)) {
     throw new TypeError("@cplieger/ui/connection-test: status must not contain the button");
   }
-  if (statuses.has(status)) {
-    throw new TypeError("@cplieger/ui/connection-test: status already shows another control");
+  if (claimed.has(status) || (root !== undefined && claimed.has(root))) {
+    throw new TypeError(
+      "@cplieger/ui/connection-test: status or root already shows another control",
+    );
   }
   const o = untracked(() => ({
     run: opts.run,
@@ -149,7 +152,16 @@ export function createConnectionTest(
   }));
 
   return ownedBinding((binding) => {
-    statuses.add(status);
+    claimed.add(status);
+    if (root !== undefined) {
+      claimed.add(root);
+    }
+    // A button with no type submits its form, and implicit submission (Enter in a
+    // field) clicks the first one; so it becomes type="button", given back on dispose.
+    const addedType = !button.hasAttribute("type");
+    if (addedType) {
+      button.type = "button";
+    }
     let runId = 0;
     let aborter: AbortController | null = null;
     let marked: Marked | null = null;
@@ -161,12 +173,18 @@ export function createConnectionTest(
     // What the control added, so terminal gives back exactly that.
     const addedId = status.id === "" ? `uip-connection-test-${(++idSeq).toString()}` : null;
     const addedRole = o.live === "status" && !status.hasAttribute("role");
-    const hostDisabled = button.getAttribute("aria-disabled");
+    // The host's own aria-disabled, held while busy and put back after.
+    let held: { readonly prior: string | null } | null = null;
     const restoreDisabled = (fx: Fx): void => {
-      if (hostDisabled === null) {
+      if (held === null) {
+        return;
+      }
+      const { prior } = held;
+      held = null;
+      if (prior === null) {
         fx.removeAttr(button, "aria-disabled");
       } else {
-        fx.setAttr(button, "aria-disabled", hostDisabled);
+        fx.setAttr(button, "aria-disabled", prior);
       }
     };
     let listening = false;
@@ -274,8 +292,11 @@ export function createConnectionTest(
     };
 
     const onClick = (e: Event): void => {
-      // The button tests; it never submits the form around it.
-      e.preventDefault();
+      if (driver.state.phase === "busy") {
+        // aria-disabled: the activation does nothing, a submit button's included.
+        e.preventDefault();
+        return;
+      }
       start();
     };
     const onEdit = (): void => {
@@ -317,10 +338,9 @@ export function createConnectionTest(
           fx.setAttr(m.input, "aria-invalid", rec.prior);
         }
       }
-      if (m.addedToken) {
-        const rest = tokens(m.input.getAttribute("aria-describedby")).filter(
-          (t) => t !== status.id,
-        );
+      if (m.token !== null) {
+        const token = m.token;
+        const rest = tokens(m.input.getAttribute("aria-describedby")).filter((t) => t !== token);
         if (rest.length === 0) {
           fx.removeAttr(m.input, "aria-describedby");
         } else {
@@ -335,7 +355,7 @@ export function createConnectionTest(
       unmark(fx);
       const input = o.fields[name]?.input;
       if (input === undefined) {
-        marked = { name, message, input, addedToken: false };
+        marked = { name, message, input, token: null };
         return;
       }
       const described = tokens(input.getAttribute("aria-describedby"));
@@ -345,9 +365,9 @@ export function createConnectionTest(
       } else {
         rec.count++;
       }
-      marked = { name, message, input, addedToken: !described.includes(status.id) };
+      marked = { name, message, input, token: described.includes(status.id) ? null : status.id };
       fx.setAttr(input, "aria-invalid", "true");
-      if (marked.addedToken) {
+      if (marked.token !== null) {
         fx.setAttr(input, "aria-describedby", [...described, status.id].join(" "));
       }
     };
@@ -367,6 +387,7 @@ export function createConnectionTest(
           fx.setAttr(status, "role", "status");
         }
         if (s.phase === "busy") {
+          held ??= { prior: button.getAttribute("aria-disabled") };
           fx.setAttr(button, "aria-disabled", "true");
         } else {
           restoreDisabled(fx);
@@ -415,7 +436,13 @@ export function createConnectionTest(
         }
       },
       terminal(fx) {
-        statuses.delete(status);
+        claimed.delete(status);
+        if (root !== undefined) {
+          claimed.delete(root);
+        }
+        if (addedType && button.getAttribute("type") === "button") {
+          fx.removeAttr(button, "type");
+        }
         listen(false);
         abort();
         unmark(fx);
