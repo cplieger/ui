@@ -1404,6 +1404,115 @@ describe("dialog: re-entry property", () => {
               ],
             },
           ],
+          // A teardown inside the engine's own showModal whose open goes through cuts a
+          // fade, even when the open's focus steps close the dialog again.
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [{ k: "helperClose", cb: "log" }, { k: "dispose" }],
+                },
+              ],
+            },
+          ],
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [{ k: "helperClose", cb: "log" }, { k: "dispose" }],
+                },
+                { at: 0, hit: "focus@inner", actions: [{ k: "platformClose", kind: "close" }] },
+              ],
+            },
+          ],
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [{ k: "helperClose", cb: "log" }, { k: "dispose" }],
+                },
+                { at: 0, hit: "focus@inner", actions: [{ k: "platformClose", kind: "form" }] },
+              ],
+            },
+          ],
+          // A page reopen after the engine's own superseded open write stands, and a
+          // reopen before it drops the fade's callbacks.
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [
+                    { k: "close" },
+                    { k: "platformOpen" },
+                    { k: "platformClose", kind: "close" },
+                  ],
+                },
+                {
+                  at: 1,
+                  hit: "focus@inner",
+                  actions: [{ k: "platformOther", kind: "reopenModal" }],
+                },
+              ],
+            },
+          ],
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [
+                    { k: "helperClose", cb: "log" },
+                    { k: "platformOpen" },
+                    { k: "platformClose", kind: "close" },
+                  ],
+                },
+                {
+                  at: 0,
+                  hit: "focus@inner",
+                  actions: [{ k: "platformOther", kind: "reopenModal" }],
+                },
+              ],
+            },
+          ],
         ],
       },
     );

@@ -1564,3 +1564,68 @@ describe("createDialog: the page closes and shows the dialog again in one task",
     expect(d.classList.contains("is-leaving")).toBe(false);
   });
 });
+
+describe("createDialog: a page open and close in the beforetoggle of its own showModal", () => {
+  function closedInsideOpen(dispose: boolean): {
+    d: HTMLDialogElement;
+    ctl: ReturnType<typeof createDialog>;
+  } {
+    const d = stage().d;
+    const ctl = createDialog(d);
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          if (dispose) {
+            ctl.dispose();
+          }
+          d.showModal();
+          d.close();
+        }
+      },
+      { once: true },
+    );
+    return { d, ctl };
+  }
+
+  it("keeps a dispose made there: the dialog ends closed", async () => {
+    const { d, ctl } = closedInsideOpen(true);
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(false);
+    expect(existingEngine(d)?.state.phase).toBe("closed");
+  });
+
+  it("lets a page close there complete a close() made there, and only that one", async () => {
+    const d = stage().d;
+    const ctl = createDialog(d);
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          ctl.close();
+          d.showModal();
+          d.close();
+        }
+      },
+      { once: true },
+    );
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(false);
+    ctl.open();
+    await nextTask();
+    ctl.close();
+    await nextTask();
+    expect(d.open).toBe(true);
+    expect(d.classList.contains("is-leaving")).toBe(true);
+  });
+
+  it("lets the open it interrupted stand: the dialog ends open", async () => {
+    const { d, ctl } = closedInsideOpen(false);
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(true);
+    expect(existingEngine(d)?.state.phase).toBe("open");
+  });
+});

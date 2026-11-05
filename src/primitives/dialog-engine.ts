@@ -131,9 +131,13 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
   let reopened = false;
   // The element has been open at some moment since the record.
   let seenOpen = dialog.open;
-  // The engine's own open wrote `open` after a page close since the record: the
-  // close is the page's newest edge, and a leave it completed stays complete.
+  // The engine's own open wrote `open` after a page close since the record, and no
+  // page open followed: the close is the page's newest edge, so a leave or a teardown
+  // it completed stays complete.
   let closedUnderOwn = false;
+  // The engine's own showModal under way has written `open`: its focus steps may
+  // close the dialog again before the call returns.
+  let ownOpened = false;
   // The edge the engine's own showModal (true) or close (false) writes next, from the
   // end of its `beforetoggle` dispatch until a record makes it (`own`). The write follows
   // at once and fx's check after the call takes its record, so it is null again when
@@ -152,10 +156,12 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
       const after = next === undefined ? dialog.open : next.oldValue !== null;
       if (before !== after && expected === after) {
         expected = null;
+        ownOpened ||= after;
         closedUnderOwn ||= after && pageClosed;
       } else {
         page = true;
         if (!before && after) {
+          closedUnderOwn = false;
           pageOpened = true;
           reopened ||= seenOpen;
         } else if (before && !after) {
@@ -213,6 +219,7 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
   const own = <R>(edge: boolean, fn: () => R): [R, boolean] => {
     const mine: OwnCall = { state: edge ? "open" : "closed", event: null };
     call = mine;
+    ownOpened = false;
     listenForStarts(dialog);
     // Added again so it runs after every listener the page added since.
     dialog.removeEventListener("beforetoggle", onEnd);
@@ -224,7 +231,7 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
       call = null;
       const waiting = cut;
       cut = null;
-      if (waiting !== null && dialog.open) {
+      if (waiting !== null && (dialog.open || ownOpened)) {
         // The open went through, so the teardown cut a fade: drop its callbacks.
         for (const w of waiting) {
           const i = outbox.indexOf(w);
@@ -251,7 +258,14 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
     if (d.retired) {
       return d;
     }
-    if (!dialog.open || (closedUnderOwn && d.phase === "leaving")) {
+    if (dialog.open && closedUnderOwn && d.phase !== "open") {
+      // The open is the engine's own superseded write: the page's close before it
+      // stands, and a page reopen before that drops the fade's callbacks.
+      return d.phase === "closed"
+        ? d
+        : { ...d, phase: "closed", cycle: reopened ? d.cycle + 1 : d.cycle };
+    }
+    if (!dialog.open) {
       // The page's close is the newest edge, whatever D intends. The cycle stays:
       // the callbacks waiting for that close are due.
       return pageClosed && d.phase !== "closed" ? { ...d, phase: "closed" } : d;
@@ -457,7 +471,7 @@ function createEngine(dialog: HTMLDialogElement): DialogEngine {
       const cuts = d.phase !== "closed";
       const deferred = cuts && call?.state === "open";
       if (deferred) {
-        cut = [...(cut ?? []), ...outbox.filter((w) => w.cycle === d.cycle && !w.due)];
+        cut = outbox.filter((w) => w.cycle === d.cycle && !w.due);
       }
       return {
         ...d,
