@@ -150,19 +150,21 @@ function renderItem(step: StepperStep, words: Words): HTMLLIElement {
   return li;
 }
 
-/** Insert `node` before `before`, once more after a blur handler moved it on the
- *  way; one it moves again stays where the host put it until the next update. */
-function seat(list: HTMLOListElement, node: Node, before: Node | null): void {
-  for (let attempt = 0; ; attempt++) {
+/** Insert `node` before the node `at` reads, once more, reading it again, after a
+ *  blur handler moved either on the way; one it moves again stays where the host
+ *  put it until the next update. */
+function seat(list: HTMLOListElement, node: Node, at: () => Node | null): void {
+  try {
+    list.insertBefore(node, at());
+  } catch (error) {
+    if (!movedByBlurHandler(error)) {
+      throw error;
+    }
     try {
-      list.insertBefore(node, before);
-      return;
-    } catch (error) {
-      if (!movedByBlurHandler(error)) {
-        throw error;
-      }
-      if (attempt === 1) {
-        return;
+      list.insertBefore(node, at());
+    } catch (again) {
+      if (!movedByBlurHandler(again)) {
+        throw again;
       }
     }
   }
@@ -179,7 +181,7 @@ function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
     for (const [i, node] of nodes.entries()) {
       const here = list.children[i] ?? null;
       if (here !== node) {
-        seat(list, node, here);
+        seat(list, node, () => list.children[i] ?? null);
       }
     }
     return;
@@ -187,13 +189,13 @@ function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
   for (let i = at - 1; i >= 0; i--) {
     const [node, after] = [nodes[i], nodes[i + 1]];
     if (node !== undefined && after !== undefined && node.nextSibling !== after) {
-      seat(list, node, after);
+      seat(list, node, () => after);
     }
   }
   for (let i = at + 1; i < nodes.length; i++) {
     const [before, node] = [nodes[i - 1], nodes[i]];
     if (before !== undefined && node !== undefined && before.nextSibling !== node) {
-      seat(list, node, before.nextSibling);
+      seat(list, node, () => before.nextSibling);
     }
   }
 }

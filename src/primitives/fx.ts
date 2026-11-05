@@ -75,7 +75,8 @@ function serialized(prop: StyleProp, value: string): string {
 
 /** Chromium blurs a focused node before it moves or removes it, and a blur handler
  *  that moves the node, or the reference node, makes the call throw NotFoundError.
- *  The node has blurred by then, so the same call once more completes. */
+ *  The node has blurred by then, so a second try, with the reference read again,
+ *  completes. */
 export function movedByBlurHandler(error: unknown): boolean {
   return error instanceof DOMException && error.name === "NotFoundError";
 }

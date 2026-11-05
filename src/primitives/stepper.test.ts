@@ -3,7 +3,7 @@ import { cdp } from "vitest/browser";
 import fc from "fast-check";
 
 import { createRoot, effect, signal } from "../signal/signal.js";
-import { createStepper, type StepperStep, type StepState } from "./stepper.js";
+import { createStepper, type StepperLabels, type StepperStep, type StepState } from "./stepper.js";
 
 const setup: StepperStep[] = [
   { id: "connect", label: "Connect", state: "done", href: "/setup/connect" },
@@ -621,6 +621,35 @@ describe("stepper re-entry", () => {
     expect(items(root)[0]).toBe(item);
   });
 
+  it("puts back a focused item though a handler moves the item it is placed before", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const item = items(root)[0];
+    const link = item?.querySelector("a");
+    if (item === undefined || link === null || link === undefined) {
+      throw new Error("no link");
+    }
+    const aside = document.createElement("div");
+    document.body.append(aside);
+    aside.append(item);
+    link.focus();
+    link.addEventListener(
+      "focusout",
+      () => {
+        const reference = items(root)[0];
+        if (reference !== undefined) {
+          document.body.append(reference);
+        }
+      },
+      { once: true },
+    );
+    expect(() => {
+      s.update(setup);
+    }).not.toThrow();
+    expect(shown(root)).toEqual(setup.map(drawn));
+    expect(items(root)[0]).toBe(item);
+  });
+
   it("settles when every focusout moves focus to another link and updates it", () => {
     const root = host();
     const linked = setup.map((step) => ({ ...step, href: `/setup/${step.id}` }));
@@ -726,6 +755,14 @@ describe("stepper contract", () => {
     const s = createStepper(host(), setup, labels);
     expect(s.heading()).toBe("2/5 Media paths");
     expect(reads).toBe(1);
+  });
+
+  it("treats null labels as unset", () => {
+    const root = host();
+    const labels = { heading: null, done: null } as unknown as StepperLabels;
+    const s = createStepper(root, setup, labels);
+    expect(s.heading()).toBe("Step 2 of 5: Media paths");
+    expect(items(root)[0]?.querySelector(".uip-visually-hidden")?.textContent).toBe(", done");
   });
 
   it("createStepper refuses labels of the wrong type and adds nothing", () => {
