@@ -679,6 +679,47 @@ describe("stepper re-entry", () => {
     expect(items(root)[2]).toBe(item);
   });
 
+  it("keeps focus where a put-back item's handler moved it", () => {
+    const root = host();
+    const s = createStepper(root, setup);
+    const item = items(root)[0];
+    const link = item?.querySelector("a");
+    const other = items(root)[2]?.querySelector("a");
+    if (
+      item === undefined ||
+      link === null ||
+      link === undefined ||
+      other === null ||
+      other === undefined
+    ) {
+      throw new Error("no link");
+    }
+    const aside = document.createElement("div");
+    document.body.append(aside);
+    aside.append(item);
+    link.focus();
+    link.addEventListener(
+      "focusout",
+      () => {
+        const list = root.querySelector("ol");
+        const [second, third] = [items(root)[1], items(root)[2]];
+        if (list !== null && second !== undefined && third !== undefined) {
+          list.insertBefore(third, second);
+        }
+        other.focus();
+      },
+      { once: true },
+    );
+    let blurs = 0;
+    other.addEventListener("blur", () => {
+      blurs++;
+    });
+    s.update(setup);
+    expect(shown(root)).toEqual(setup.map(drawn));
+    expect(document.activeElement).toBe(other);
+    expect(blurs).toBe(0);
+  });
+
   it("settles when every focusout moves focus to another link and updates it", () => {
     const root = host();
     const linked = setup.map((step) => ({ ...step, href: `/setup/${step.id}` }));

@@ -172,24 +172,22 @@ function seat(list: HTMLOListElement, node: Node, at: () => Node | null): void {
 
 /** Put `nodes` in `list` in order, never moving the one holding focus: any
  *  re-seat of a node blurs what is focused inside it. */
-function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[]): void {
+function place(list: HTMLOListElement, nodes: readonly HTMLLIElement[], again = true): void {
   // The root's own active element: inside a shadow root, document's is the host.
   const focus = (list.getRootNode() as Document | ShadowRoot).activeElement;
   // A focused item a host moved out of the list is put back like any other.
   const at = nodes.findIndex((n) => n.contains(focus) && n.parentNode === list);
   if (at === -1) {
-    // Seating the focused item blurs it, and its handler may move another item out;
-    // nothing is focused after that, so one more walk puts that item back too.
-    for (let walk = 0; walk < 2; walk++) {
-      let moved = false;
-      for (const [i, node] of nodes.entries()) {
-        if (list.children[i] !== node) {
-          seat(list, node, () => list.children[i] ?? null);
-          moved = true;
+    for (const [i, node] of nodes.entries()) {
+      if (list.children[i] !== node) {
+        const blurs = node.contains(focus);
+        seat(list, node, () => list.children[i] ?? null);
+        // Seating the focused item blurs it, and its handler may move another item or
+        // focus one: the rest is placed by one fresh pass that reads focus again.
+        if (blurs && again) {
+          place(list, nodes, false);
+          return;
         }
-      }
-      if (!moved) {
-        return;
       }
     }
     return;
