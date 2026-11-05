@@ -446,7 +446,7 @@ describe("ask — an ask that is over owns nothing on the shared dialog", () => 
     await expect(p2).resolves.toBe(false);
   });
 
-  it("detaches the input shape's submit handler when the value resolves", async () => {
+  it("detaches the input shape's submit handler when the value resolves, and a late submit stays prevented", async () => {
     const p0 = ask("warm up", { input: true });
     const d = inputDlg();
     click(d, ".uip-ask-cancel");
@@ -467,7 +467,7 @@ describe("ask — an ask that is over owns nothing on the shared dialog", () => 
     const late = new Event("submit", { cancelable: true });
     form.dispatchEvent(late);
     expect(ran).toEqual([]);
-    expect(late.defaultPrevented).toBe(false);
+    expect(late.defaultPrevented).toBe(true);
   });
 });
 
