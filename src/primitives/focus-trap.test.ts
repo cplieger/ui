@@ -475,4 +475,32 @@ describe("trapFocus: released from a focus handler its Tab redirect reaches", ()
 
     expect(document.activeElement).toBe(outside);
   });
+
+  // Focus on or reaching the return target before the handler returns settles the
+  // restore, in either order, so the handler's later focus stays where it put it.
+  for (const order of ["target, then release", "release, then target"] as const) {
+    it(`leaves the handler's later focus after ${order}`, () => {
+      const { container, buttons } = mount("a", "b", "c");
+      const outside = makeButton("outside");
+      document.body.append(outside);
+      const release = trapFocus(container, { returnFocus: outside });
+      buttons[2]!.addEventListener(
+        "focus",
+        () => {
+          if (order === "target, then release") {
+            outside.focus();
+            release();
+          } else {
+            release();
+            outside.focus();
+          }
+          buttons[1]!.focus();
+        },
+        { once: true },
+      );
+      buttons[0]!.dispatchEvent(tabEvent(true));
+
+      expect(document.activeElement).toBe(buttons[1]);
+    });
+  }
 });

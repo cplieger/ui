@@ -65,9 +65,9 @@ export function trapFocus(container: HTMLElement, opts?: FocusTrapOptions): () =
     let entered = false;
     const returnTarget =
       o.returnFocus === true ? previousFocus : o.returnFocus === false ? null : o.returnFocus;
-    // A release requested inside a Tab redirect restores once that call returns;
-    // focus that reached the return target meanwhile settles it, so a later
-    // focus elsewhere is not taken back.
+    // A release from code the trap is calling (its entry focus, a Tab redirect)
+    // restores once that call returns; focus on or reaching the return target
+    // meanwhile settles it, so a later focus elsewhere is not taken back.
     let reached = false;
     const onReached = (): void => {
       reached = true;
@@ -120,11 +120,6 @@ export function trapFocus(container: HTMLElement, opts?: FocusTrapOptions): () =
 
     const driver = createDriver<null>({
       initial: null,
-      derive(_s, released) {
-        if (released) {
-          returnTarget?.addEventListener("focus", onReached);
-        }
-      },
       realize(fx) {
         listen(true);
         if (entered) {
@@ -163,6 +158,8 @@ export function trapFocus(container: HTMLElement, opts?: FocusTrapOptions): () =
         driver.flush();
       },
       release: () => {
+        reached = returnTarget !== null && document.activeElement === returnTarget;
+        returnTarget?.addEventListener("focus", onReached);
         driver.release();
       },
     };
