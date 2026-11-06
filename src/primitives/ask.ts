@@ -46,12 +46,19 @@ export interface AskOptions {
    *  `<label>`) and resolves `string | null` instead of `boolean`. Pass a
    *  configuration object or `true` for a default text input. */
   input?: AskInput | true;
+  /** Facts shown under the message as a label and value list, in order, as
+   *  text. An empty list shows nothing. A non-array, or an entry whose label
+   *  or value is not a string, throws a `TypeError` before the dialog opens. */
+  details?: readonly { label: string; value: string }[];
 }
 
 interface AskRefs {
   dialog: HTMLDialogElement;
   title: HTMLElement;
   message: HTMLElement;
+  /** Kept out of the document while the question has no details, so its id
+   *  never dangles. */
+  details: HTMLElement;
   ok: HTMLButtonElement;
   cancel: HTMLButtonElement;
 }
@@ -73,6 +80,7 @@ interface View {
   readonly confirmLabel: string;
   readonly cancelLabel: string;
   readonly destructive: boolean;
+  readonly details: readonly { readonly label: string; readonly value: string }[];
   readonly input: {
     readonly type: "text" | "password";
     readonly initialValue: string;
@@ -120,6 +128,26 @@ function replaceCurrent(
   }
 }
 
+function detailsOf(value: unknown): View["details"] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new TypeError("@cplieger/ui/ask: details is not an array");
+  }
+  // Array.from, not map: a hole is an entry too, and is refused.
+  return Array.from(value as readonly unknown[], (entry, i) => {
+    const { label, value: text } = (entry ?? {}) as {
+      readonly label?: unknown;
+      readonly value?: unknown;
+    };
+    if (typeof label !== "string" || typeof text !== "string") {
+      throw new TypeError(`@cplieger/ui/ask: details[${String(i)}] needs a string label and value`);
+    }
+    return { label, value: text };
+  });
+}
+
 function snapshot(message: string, opts: AskOptions | undefined): View {
   const inputOpt = opts?.input;
   const input = inputOpt === undefined ? null : inputOpt === true ? {} : inputOpt;
@@ -129,6 +157,7 @@ function snapshot(message: string, opts: AskOptions | undefined): View {
     confirmLabel: opts?.confirmLabel ?? (input !== null ? "OK" : "Confirm"),
     cancelLabel: opts?.cancelLabel ?? "Cancel",
     destructive: (opts?.variant ?? "normal") === "destructive",
+    details: detailsOf(opts?.details),
     input:
       input === null
         ? null
@@ -143,20 +172,34 @@ function snapshot(message: string, opts: AskOptions | undefined): View {
 }
 
 function writeView(refs: AskRefs, input: AskInputRefs | null, view: View): void {
+  const describedBy: string[] = [];
   if (view.title !== "") {
     // With a title, the dialog's accessible NAME is the concise title and its
     // DESCRIPTION is the message body (alertdialog wants a short name + body).
     refs.title.textContent = view.title;
     refs.title.hidden = false;
     refs.dialog.setAttribute("aria-labelledby", refs.title.id);
-    refs.dialog.setAttribute("aria-describedby", refs.message.id);
+    describedBy.push(refs.message.id);
   } else {
     refs.title.textContent = "";
     refs.title.hidden = true;
     refs.dialog.setAttribute("aria-labelledby", refs.message.id);
-    refs.dialog.removeAttribute("aria-describedby");
   }
   refs.message.textContent = view.message;
+  refs.details.replaceChildren(
+    ...view.details.flatMap((d) => [el("dt", null, d.label), el("dd", null, d.value)]),
+  );
+  if (view.details.length > 0) {
+    refs.message.after(refs.details);
+    describedBy.push(refs.details.id);
+  } else {
+    refs.details.remove();
+  }
+  if (describedBy.length > 0) {
+    refs.dialog.setAttribute("aria-describedby", describedBy.join(" "));
+  } else {
+    refs.dialog.removeAttribute("aria-describedby");
+  }
   refs.ok.textContent = view.confirmLabel;
   refs.cancel.textContent = view.cancelLabel;
   if (view.destructive) {
@@ -327,9 +370,10 @@ function buildActions(): { ok: HTMLButtonElement; cancel: HTMLButtonElement; row
 function buildBoolean(): AskRefs {
   const title = el("h2", { className: "uip-ask-title", id: "uip-ask-title" });
   const message = el("p", { className: "uip-ask-msg", id: "uip-ask-msg" });
+  const details = el("dl", { className: "uip-ask-details", id: "uip-ask-details" });
   const { ok, cancel, row } = buildActions();
   const dialog = el("dialog", { className: "uip-ask" }, title, message, row) as HTMLDialogElement;
-  return { dialog, title, message, ok, cancel };
+  return { dialog, title, message, details, ok, cancel };
 }
 
 function buildInput(): AskInputRefs {
@@ -341,6 +385,7 @@ function buildInput(): AskInputRefs {
     id: "uip-ask-input-msg",
     for: INPUT_ID,
   }) as HTMLLabelElement;
+  const details = el("dl", { className: "uip-ask-details", id: "uip-ask-input-details" });
   const input = el("input", { className: "uip-ask-input", id: INPUT_ID }) as HTMLInputElement;
   const { ok, cancel, row } = buildActions();
   ok.type = "submit";
@@ -356,7 +401,7 @@ function buildInput(): AskInputRefs {
     title,
     form,
   ) as HTMLDialogElement;
-  return { dialog, title, message, input, form, ok, cancel };
+  return { dialog, title, message, details, input, form, ok, cancel };
 }
 
 /** Show a question dialog. Without `input`, resolves `true` on confirm and

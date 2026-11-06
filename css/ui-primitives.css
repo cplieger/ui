@@ -196,6 +196,20 @@
   opacity: 0;
 }
 
+/* The ask's details list: labels in a column capped at half the width, values
+ * beside them, wrapping anywhere so a long path or id cannot widen the dialog. */
+.uip-ask-details {
+  display: grid;
+  grid-template-columns: fit-content(50%) minmax(0, 1fr);
+  gap: 0.25rem 1rem;
+}
+
+.uip-ask-details > dt,
+.uip-ask-details > dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 /* ===== Modal (native <dialog>) ========================================== */
 
 /* Built on the platform <dialog>: the top layer, ::backdrop, focus containment,

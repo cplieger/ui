@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import { ask, _resetForTest } from "./ask.js";
+import { ask, _resetForTest, type AskOptions } from "./ask.js";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -598,5 +598,150 @@ describe("ask — a close the browser makes", () => {
     await Promise.resolve();
 
     expect(settled).toBe(false);
+  });
+});
+
+type Details = NonNullable<AskOptions["details"]>;
+
+describe("ask — details", () => {
+  const facts = [
+    { label: "Turns removed", value: "4" },
+    { label: "Files restored", value: "2" },
+    { label: "Branch", value: "main" },
+  ];
+
+  function pairs(d: HTMLDialogElement): string[][] {
+    const list = d.querySelector(".uip-ask-details")!;
+    return [...list.children].map((c) => [c.tagName, c.textContent]);
+  }
+
+  it("renders each entry in order as a dt and dd pair after the message", () => {
+    void ask("Rewind?", { details: facts });
+    const d = booleanDlg();
+    expect(pairs(d)).toEqual([
+      ["DT", "Turns removed"],
+      ["DD", "4"],
+      ["DT", "Files restored"],
+      ["DD", "2"],
+      ["DT", "Branch"],
+      ["DD", "main"],
+    ]);
+    const list = d.querySelector(".uip-ask-details")!;
+    expect(list.tagName).toBe("DL");
+    expect(list.previousElementSibling).toBe(d.querySelector(".uip-ask-msg"));
+  });
+
+  it("puts the input shape's list between its label and its input", () => {
+    void ask("New name?", { input: true, details: facts });
+    const list = inputDlg().querySelector(".uip-ask-details")!;
+    expect(list.previousElementSibling).toBe(inputDlg().querySelector("label.uip-ask-msg"));
+    expect(list.nextElementSibling).toBe(inputDlg().querySelector(".uip-ask-input"));
+  });
+
+  it.each([
+    ["absent", undefined],
+    ["empty", []],
+  ])("renders nothing and leaves no stray id when details are %s", (_name, details) => {
+    void ask("Rewind?", { title: "Rewind", ...(details === undefined ? {} : { details }) });
+    const d = booleanDlg();
+    expect(d.querySelector("dl")).toBeNull();
+    expect(document.getElementById("uip-ask-details")).toBeNull();
+    expect(d.getAttribute("aria-describedby")).toBe("uip-ask-msg");
+  });
+
+  it("drops a previous ask's list when the next one has none", () => {
+    void ask("first", { details: facts });
+    void ask("second");
+    const d = booleanDlg();
+    expect(d.querySelector("dl")).toBeNull();
+    expect(document.getElementById("uip-ask-details")).toBeNull();
+    expect(d.getAttribute("aria-describedby")).toBeNull();
+  });
+
+  it.each([
+    [
+      "boolean with a title",
+      () => ask("Rewind?", { title: "T", details: facts }),
+      booleanDlg,
+      "uip-ask-msg uip-ask-details",
+    ],
+    [
+      "boolean without a title",
+      () => ask("Rewind?", { details: facts }),
+      booleanDlg,
+      "uip-ask-details",
+    ],
+    [
+      "input with a title",
+      () => ask("Rewind?", { title: "T", input: true, details: facts }),
+      inputDlg,
+      "uip-ask-input-msg uip-ask-input-details",
+    ],
+    [
+      "input without a title",
+      () => ask("Rewind?", { input: true, details: facts }),
+      inputDlg,
+      "uip-ask-input-details",
+    ],
+  ] as const)(
+    "describes the %s dialog by the message, then the details",
+    (_name, open, dlg, expected) => {
+      void open();
+      const d = dlg();
+      expect(d.getAttribute("aria-describedby")).toBe(expected);
+      for (const id of expected.split(" ")) {
+        expect(d.querySelector(`#${id}`)).not.toBeNull();
+      }
+    },
+  );
+
+  it.each([
+    ["a string", "Turns removed: 4"],
+    ["an object", { label: "Turns", value: "4" }],
+    ["null", null],
+    ["a null entry", [null]],
+    ["a string entry", ["Turns removed"]],
+    ["a number label", [{ label: 4, value: "4" }]],
+    ["a missing value", [{ label: "Turns" }]],
+    ["a number value", [{ label: "Turns", value: 4 }]],
+    ["a hole", new Array<unknown>(1)],
+    [
+      "a bad later entry",
+      [
+        { label: "Turns", value: "4" },
+        { label: "Files", value: 2 },
+      ],
+    ],
+  ])(
+    "throws a TypeError naming details for %s, before the dialog opens",
+    async (_name, details) => {
+      const live = ask("Still here?");
+      const call = (): unknown => ask("Rewind?", { details: details as unknown as Details });
+      expect(call).toThrow(TypeError);
+      expect(call).toThrow(/details/);
+      expect(booleanDlg().querySelector(".uip-ask-msg")!.textContent).toBe("Still here?");
+      click(booleanDlg(), ".uip-ask-ok");
+      await expect(live).resolves.toBe(true);
+    },
+  );
+
+  it("opens no dialog when the first ask's details are refused", () => {
+    expect(() =>
+      ask("Rewind?", {
+        details: [{ label: "Turns", value: 4 }] as unknown as Details,
+      }),
+    ).toThrow(TypeError);
+    expect(document.querySelector("dialog")).toBeNull();
+  });
+
+  it("sets markup in a label or value as text", () => {
+    const markup = '<img src="x" onerror="alert(1)"><b>bold</b>';
+    void ask("Rewind?", { details: [{ label: markup, value: markup }] });
+    const list = booleanDlg().querySelector(".uip-ask-details")!;
+    expect(list.querySelector("img, b")).toBeNull();
+    expect(pairs(booleanDlg())).toEqual([
+      ["DT", markup],
+      ["DD", markup],
+    ]);
   });
 });
