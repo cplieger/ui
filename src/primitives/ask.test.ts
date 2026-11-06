@@ -683,17 +683,14 @@ describe("ask — details", () => {
       inputDlg,
       "uip-ask-input-details",
     ],
-  ] as const)(
-    "describes the %s dialog by the message, then the details",
-    (_name, open, dlg, expected) => {
-      void open();
-      const d = dlg();
-      expect(d.getAttribute("aria-describedby")).toBe(expected);
-      for (const id of expected.split(" ")) {
-        expect(d.querySelector(`#${id}`)).not.toBeNull();
-      }
-    },
-  );
+  ] as const)("describes the %s dialog by the ids listed", (_name, open, dlg, expected) => {
+    void open();
+    const d = dlg();
+    expect(d.getAttribute("aria-describedby")).toBe(expected);
+    for (const id of expected.split(" ")) {
+      expect(d.querySelector(`#${id}`)).not.toBeNull();
+    }
+  });
 
   it.each([
     ["a string", "Turns removed: 4"],
