@@ -722,6 +722,49 @@ describe("ask — details", () => {
     },
   );
 
+  it("reads no other option when the details are refused", () => {
+    const live = ask("Still here?");
+    let inner: Promise<boolean> | undefined;
+    expect(() =>
+      ask("Rewind?", {
+        get title(): string {
+          inner ??= ask("inner");
+          return "T";
+        },
+        details: "Turns removed: 4" as unknown as Details,
+      }),
+    ).toThrow(TypeError);
+    expect(inner).toBeUndefined();
+    expect(booleanDlg().querySelector(".uip-ask-msg")!.textContent).toBe("Still here?");
+    click(booleanDlg(), ".uip-ask-ok");
+    return expect(live).resolves.toBe(true);
+  });
+
+  it("reads each entry once, at the call", () => {
+    const reads = { label: 0, value: 0 };
+    const entry = {
+      get label(): string {
+        reads.label++;
+        return "Turns removed";
+      },
+      get value(): string {
+        reads.value++;
+        return "4";
+      },
+    };
+    const later = { label: "Branch", value: "main" };
+    void ask("Rewind?", { details: [entry, later] });
+    later.label = "changed";
+    later.value = "changed";
+    expect(reads).toEqual({ label: 1, value: 1 });
+    expect(pairs(booleanDlg())).toEqual([
+      ["DT", "Turns removed"],
+      ["DD", "4"],
+      ["DT", "Branch"],
+      ["DD", "main"],
+    ]);
+  });
+
   it("opens no dialog when the first ask's details are refused", () => {
     expect(() =>
       ask("Rewind?", {

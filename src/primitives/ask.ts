@@ -149,6 +149,8 @@ function detailsOf(value: unknown): View["details"] {
 }
 
 function snapshot(message: string, opts: AskOptions | undefined): View {
+  // First, so a refused list throws before any other option getter runs.
+  const details = detailsOf(opts?.details);
   const inputOpt = opts?.input;
   const input = inputOpt === undefined ? null : inputOpt === true ? {} : inputOpt;
   return {
@@ -157,7 +159,7 @@ function snapshot(message: string, opts: AskOptions | undefined): View {
     confirmLabel: opts?.confirmLabel ?? (input !== null ? "OK" : "Confirm"),
     cancelLabel: opts?.cancelLabel ?? "Cancel",
     destructive: (opts?.variant ?? "normal") === "destructive",
-    details: detailsOf(opts?.details),
+    details,
     input:
       input === null
         ? null
