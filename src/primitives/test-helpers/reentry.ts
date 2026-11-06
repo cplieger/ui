@@ -8,7 +8,7 @@
 import { setEffectErrorHandler } from "../../index.js";
 import { vi } from "vitest";
 
-export const OBSERVED = [
+const OBSERVED = [
   "class",
   "hidden",
   "inert",
@@ -24,21 +24,21 @@ export const OBSERVED = [
 ] as const;
 
 /** A thrown test error the harness counts: each must be observed exactly once. */
-export class Sentinel extends Error {
+class Sentinel extends Error {
   constructor(readonly id: number) {
     super(`sentinel ${id.toString()}`);
   }
 }
 
-export type Channel = "entry" | "window" | "timer" | "handler" | "platform";
+type Channel = "entry" | "window" | "timer" | "handler" | "platform";
 
-export interface Observed {
+interface Observed {
   readonly error: unknown;
   readonly channel: Channel;
 }
 
 /** One write a probe saw, with the entry sequence number current at the time. */
-export interface Effect {
+interface Effect {
   readonly probe: string;
   readonly kind: string;
   readonly value: string | null;
@@ -46,7 +46,7 @@ export interface Effect {
 }
 
 /** An attribute write, or a focus (`name` "focus"), a probe saw inside an effect window. */
-export interface Write {
+interface Write {
   readonly el: Element;
   readonly name: string;
   readonly old: string | null;
@@ -282,7 +282,7 @@ export type PlatformKind =
   | "reopenModal"
   | "reopenShow";
 
-export interface WorldOptions<E> {
+interface WorldOptions<E> {
   /** A platform change made by a raw call, observed at the next hit or when the call
    *  returns; `opening`: a showModal or show whose `beforetoggle` ran is still to write `open`;
    *  `closing`: a close the library made is in its `beforetoggle` and will remove `open`. */
@@ -1070,7 +1070,7 @@ function inadmissible(w: Write): string | null {
 }
 
 /** A real task (fake timers leave MessageChannel alone). */
-export function queueTask(fn: () => void): void {
+function queueTask(fn: () => void): void {
   const channel = new MessageChannel();
   channel.port1.onmessage = (): void => {
     channel.port1.close();
@@ -1124,7 +1124,7 @@ export function isInvalidState(error: unknown): boolean {
 }
 
 /** Map a generated position onto a trace of length `n`. */
-export function placeAt(at: number, n: number): number {
+function placeAt(at: number, n: number): number {
   return n === 0 ? 0 : at % n;
 }
 
