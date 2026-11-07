@@ -1404,6 +1404,29 @@ describe("createDialog: an open() inside the closing beforetoggle of its settle"
     vi.advanceTimersByTime(400);
     expect(d.open).toBe(false);
   });
+
+  it("a page show() there does not stand: the browser removes open after the listeners", async () => {
+    const d = makeDialog();
+    const onClose = vi.fn();
+    const ctrl = createDialog(d, { onClose });
+    ctrl.open();
+    ctrl.close();
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "closed") {
+          d.removeAttribute("open");
+          d.show();
+        }
+      },
+      { once: true },
+    );
+    vi.advanceTimersByTime(400);
+    await nextTask();
+
+    expect(d.open).toBe(false);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("dialog: the page opens and closes it before an open() is realized", () => {
@@ -1562,5 +1585,159 @@ describe("createDialog: the page closes and shows the dialog again in one task",
     expect(d.open).toBe(true);
     expect(d.matches(":modal")).toBe(false);
     expect(d.classList.contains("is-leaving")).toBe(false);
+  });
+});
+
+describe("createDialog: a page open and close in the beforetoggle of its own showModal", () => {
+  function closedInsideOpen(dispose: boolean): {
+    d: HTMLDialogElement;
+    ctl: ReturnType<typeof createDialog>;
+  } {
+    const d = stage().d;
+    const ctl = createDialog(d);
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          if (dispose) {
+            ctl.dispose();
+          }
+          d.showModal();
+          d.close();
+        }
+      },
+      { once: true },
+    );
+    return { d, ctl };
+  }
+
+  it("keeps a dispose made there: the dialog ends closed", async () => {
+    const { d, ctl } = closedInsideOpen(true);
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(false);
+    expect(existingEngine(d)?.state.phase).toBe("closed");
+  });
+
+  it("lets a page close there complete a close() made there, and only that one", async () => {
+    const d = stage().d;
+    const ctl = createDialog(d);
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          ctl.close();
+          d.showModal();
+          d.close();
+        }
+      },
+      { once: true },
+    );
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(false);
+    ctl.open();
+    await nextTask();
+    ctl.close();
+    await nextTask();
+    expect(d.open).toBe(true);
+    expect(d.classList.contains("is-leaving")).toBe(true);
+  });
+
+  it("lets the open it interrupted stand: the dialog ends open", async () => {
+    const { d, ctl } = closedInsideOpen(false);
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(true);
+    expect(existingEngine(d)?.state.phase).toBe("open");
+  });
+});
+
+describe("createDialog: a teardown inside a later open the page refuses", () => {
+  it("keeps the callbacks it found, since no fade was cut", async () => {
+    const d = makeDialog();
+    const ctl = createDialog(d);
+    ctl.open();
+    await nextTask();
+    ctl.close();
+    await vi.runAllTimersAsync();
+    await nextTask();
+    expect(d.open).toBe(false);
+    const cb = vi.fn();
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          closeDialog(d, cb);
+          ctl.dispose();
+          e.preventDefault();
+        }
+      },
+      { once: true },
+    );
+    ctl.open();
+    await nextTask();
+    await nextTask();
+    expect(d.open).toBe(false);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createDialog: page edges around its own showModal's write", () => {
+  function staged(): {
+    d: HTMLDialogElement;
+    ctl: ReturnType<typeof createDialog>;
+    inner: HTMLButtonElement;
+  } {
+    const { d, form } = stage();
+    const inner = form.querySelector("button");
+    if (inner === null) {
+      throw new Error("no inner button");
+    }
+    return { d, ctl: createDialog(d), inner };
+  }
+  const reopen = (d: HTMLDialogElement) => (): void => {
+    d.close();
+    d.showModal();
+  };
+
+  it("ends closed when the page's last edge before the write is a close", async () => {
+    const { d, ctl, inner } = staged();
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          ctl.close();
+          // The nested showModal's focus steps run the handler, before the close below.
+          inner.addEventListener("focus", reopen(d), { once: true });
+          d.showModal();
+          d.close();
+        }
+      },
+      { once: true },
+    );
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(false);
+  });
+
+  it("lets a page reopen after the write stand", async () => {
+    const { d, ctl, inner } = staged();
+    d.addEventListener(
+      "beforetoggle",
+      (e) => {
+        if ((e as ToggleEvent).newState === "open") {
+          ctl.close();
+          d.showModal();
+          d.close();
+          // Added after the page's own showModal, so the engine's focus steps run it.
+          inner.addEventListener("focus", reopen(d), { once: true });
+        }
+      },
+      { once: true },
+    );
+    ctl.open();
+    await nextTask();
+    expect(d.open).toBe(true);
   });
 });

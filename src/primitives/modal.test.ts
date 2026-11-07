@@ -883,3 +883,31 @@ describe("createModal: a raw close with no later call", () => {
     expect(unlocked()).toBe(true);
   });
 });
+
+describe("createModal: content a focusout handler moves", () => {
+  it("opens when moving its focused content makes a handler move it again", () => {
+    const content = document.createElement("div");
+    const button = document.createElement("button");
+    content.append(button);
+    const page = document.createElement("div");
+    page.append(content);
+    document.body.append(page);
+    button.focus();
+    const aside = document.createElement("div");
+    document.body.append(aside);
+    button.addEventListener(
+      "focusout",
+      () => {
+        aside.append(content);
+      },
+      { once: true },
+    );
+    const m = createModal(content);
+    expect(() => {
+      m.open();
+    }).not.toThrow();
+    expect(m.isOpen).toBe(true);
+    expect(m.el.contains(content)).toBe(true);
+    m.dispose();
+  });
+});

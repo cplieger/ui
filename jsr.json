@@ -16,14 +16,17 @@
     "./dialog": "./src/primitives/dialog.ts",
     "./modal": "./src/primitives/modal.ts",
     "./ask": "./src/primitives/ask.ts",
+    "./connection-test": "./src/primitives/connection-test.ts",
     "./disclosure": "./src/primitives/disclosure.ts",
     "./focus-trap": "./src/primitives/focus-trap.ts",
     "./roving-focus": "./src/primitives/roving-focus.ts",
     "./skeleton": "./src/primitives/skeleton.ts",
+    "./stepper": "./src/primitives/stepper.ts",
     "./theme": "./src/primitives/theme.ts",
     "./view-transition": "./src/primitives/view-transition.ts",
     "./transition": "./src/primitives/transition.ts",
-    "./announce": "./src/primitives/announce.ts"
+    "./announce": "./src/primitives/announce.ts",
+    "./icons": "./src/primitives/icons.ts"
   },
   "publish": {
     "include": [
@@ -33,6 +36,8 @@
       "THIRD_PARTY_NOTICES.md",
       "src/**/*.ts",
       "css/**/*.css",
+      "icons/svg/*.svg",
+      "icons/LICENSE-lucide",
       "jsr.json"
     ],
     "exclude": ["src/**/*.test.ts", "src/**/*-setup.ts", "src/**/test-helpers/**"]

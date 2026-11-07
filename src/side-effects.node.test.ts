@@ -19,10 +19,13 @@ const PURE = [
   "/fetch",
   "/actions",
   "/actions/testing",
+  "/connection-test",
   "/disclosure",
   "/focus-trap",
+  "/icons",
   "/roving-focus",
   "/skeleton",
+  "/stepper",
   "/theme",
   "/transition",
   "/view-transition",
@@ -77,7 +80,7 @@ it("classifies every exported subpath as observing or pure", async () => {
     exports: Record<string, unknown>;
   };
   const exported = Object.keys(pkg.exports)
-    .filter((key) => key !== "./css")
+    .filter((key) => key !== "./css" && key !== "./icons/svg/*")
     .map((key) => key.slice(1));
   expect(exported.toSorted()).toEqual([...PURE, ...OBSERVES.map((name) => `/${name}`)].toSorted());
 });

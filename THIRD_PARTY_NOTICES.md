@@ -1,6 +1,8 @@
 # Third-party notices
 
-No third-party code is included in this repository. The signal engine is a re-derivation of an upstream design, not a copy of its source, so no license text is reproduced here.
+The drawings under `icons/svg/` are copied unchanged from [Lucide](https://github.com/lucide-icons/lucide)'s `lucide-static` release (ISC). Some of them derive from [Feather](https://github.com/feathericons/feather) (MIT). Both notices are reproduced in `icons/LICENSE-lucide`, which ships with the package.
+
+No other third-party source is included in this repository. The signal engine is a re-derivation of an upstream design, not a copy of its source, so no license text is reproduced for it.
 
 Two designs are followed:
 

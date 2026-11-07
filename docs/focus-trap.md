@@ -18,7 +18,7 @@ release(); // restores focus to the previously-focused element
 
 - `trapFocus(container, opts?)` returns a release function.
 - A trap made under an [owner](signals.md#owners), such as `createRoot`, a `bindList` row or an effect created under one, ends with that owner as `release()` would, and a later `release()` does nothing. Setup and `release()` run untracked, never under that owner. When the owner ends a trap, the handlers its teardown reaches run inside the owner's disposal, where creating an effect throws.
-- A `release()` from code the trap is calling, such as a focus handler its initial focus reaches, ends the trap at once, and its teardown completes as soon as your code returns.
+- A `release()` from code the trap is calling, such as a focus handler its initial focus reaches, ends the trap at once, and its teardown completes as soon as your code returns. If focus reaches the return target before then, the teardown leaves focus where your code put it.
 - `FocusTrapOptions` = `{ initialFocus?: HTMLElement | null; returnFocus?: boolean | HTMLElement }`.
 
 ## Notes

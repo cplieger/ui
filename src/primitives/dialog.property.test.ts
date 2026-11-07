@@ -60,7 +60,12 @@ type Ev =
   | { readonly t: "rollback"; readonly movable: number }
   | { readonly t: "guard-start" | "guard-throw" }
   | { readonly t: "guard-end"; readonly answer: boolean; readonly shown: boolean }
-  | { readonly t: "edge"; readonly open: boolean; readonly opening: boolean };
+  | {
+      readonly t: "edge";
+      readonly open: boolean;
+      readonly opening: boolean;
+      readonly closing: boolean;
+    };
 
 type Phase = "open" | "leaving" | "closed";
 
@@ -237,6 +242,11 @@ class Model {
         }
         return;
       case "edge":
+        if (ev.open && ev.closing) {
+          // The engine's close in flight removes `open` after its listeners: the
+          // page's open there never stands.
+          return;
+        }
         if (!ev.open && ev.opening && this.phase !== "closed") {
           this.closePending = true;
         } else if (!ev.open && this.phase !== "closed") {
@@ -377,7 +387,9 @@ interface Outcome {
 }
 
 async function runCase(c: Case, traceLength: number | null): Promise<Outcome> {
-  const w = new World<Ev>({ onEdge: (_d, open, opening) => ({ t: "edge", open, opening }) });
+  const w = new World<Ev>({
+    onEdge: (_d, open, opening, closing) => ({ t: "edge", open, opening, closing }),
+  });
   let m = new Model(c);
   // The events emitted when the last sentinel was thrown.
   let thrownAt = 0;
@@ -1368,6 +1380,230 @@ describe("dialog: re-entry property", () => {
                 { k: "helperClose", cb: "log" },
               ],
               injections: [],
+            },
+          ],
+          // A closeDialog() and a dispose() from the beforetoggle of an open the page
+          // then refuses: no fade was cut, so the callback runs.
+          [
+            {
+              guard: "none",
+              cancelWorld: true,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }, { k: "platformOther", kind: "show" }],
+              injections: [
+                { at: 0, actions: [{ k: "platformOpen" }] },
+                { at: 2, actions: [{ k: "helperClose", cb: "log" }, { k: "dispose" }] },
+              ],
+            },
+          ],
+          // A dismissal and a browser close inside the engine's own showModal, which then
+          // writes open again: the close completed the leave, so the dialog ends closed.
+          [
+            {
+              guard: "allow",
+              cancelWorld: false,
+              onCloseDisposes: true,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }, { k: "platformClose", kind: "closeWatcher" }],
+              injections: [
+                {
+                  at: 49,
+                  actions: [{ k: "platformOpen" }, { k: "platformClose", kind: "closeWatcher" }],
+                },
+              ],
+            },
+          ],
+          // A teardown inside the engine's own showModal whose open goes through cuts a
+          // fade, even when the open's focus steps close the dialog again.
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [{ k: "helperClose", cb: "log" }, { k: "dispose" }],
+                },
+              ],
+            },
+          ],
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [{ k: "helperClose", cb: "log" }, { k: "dispose" }],
+                },
+                { at: 0, hit: "focus@inner", actions: [{ k: "platformClose", kind: "close" }] },
+              ],
+            },
+          ],
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [{ k: "helperClose", cb: "log" }, { k: "dispose" }],
+                },
+                { at: 0, hit: "focus@inner", actions: [{ k: "platformClose", kind: "form" }] },
+              ],
+            },
+          ],
+          // A page reopen after the engine's own superseded open write stands, and a
+          // reopen before it drops the fade's callbacks.
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [
+                    { k: "close" },
+                    { k: "platformOpen" },
+                    { k: "platformClose", kind: "close" },
+                  ],
+                },
+                {
+                  at: 1,
+                  hit: "focus@inner",
+                  actions: [{ k: "platformOther", kind: "reopenModal" }],
+                },
+              ],
+            },
+          ],
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [
+                    { k: "helperClose", cb: "log" },
+                    { k: "platformOpen" },
+                    { k: "platformClose", kind: "close" },
+                  ],
+                },
+                {
+                  at: 0,
+                  hit: "focus@inner",
+                  actions: [{ k: "platformOther", kind: "reopenModal" }],
+                },
+              ],
+            },
+          ],
+          // The same reopens, then a page close in the engine's own showModal's focus
+          // steps: the reopen before the own write still dropped the fade's callbacks.
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [
+                    { k: "helperClose", cb: "log" },
+                    { k: "platformOpen" },
+                    { k: "platformClose", kind: "close" },
+                    { k: "platformOpen" },
+                    { k: "platformClose", kind: "close" },
+                  ],
+                },
+                { at: 2, hit: "focus@inner", actions: [{ k: "platformClose", kind: "close" }] },
+              ],
+            },
+          ],
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [{ k: "open" }],
+              injections: [
+                {
+                  at: 0,
+                  hit: "beforetoggle:open@dialog",
+                  actions: [
+                    { k: "helperClose", cb: "log" },
+                    { k: "platformOpen" },
+                    { k: "platformClose", kind: "close" },
+                  ],
+                },
+                {
+                  at: 0,
+                  hit: "focus@inner",
+                  actions: [{ k: "platformOther", kind: "reopenModal" }],
+                },
+                { at: 2, hit: "focus@inner", actions: [{ k: "platformClose", kind: "close" }] },
+              ],
+            },
+          ],
+          // A dispose() in the focus steps of a page showModal(), then a page close and
+          // show() in the dispose's own beforetoggle: the dispose's close removes `open`
+          // after its listeners, so the dialog ends closed.
+          [
+            {
+              guard: "none",
+              cancelWorld: false,
+              onCloseDisposes: false,
+              onCloseThrows: false,
+              closeOnBackdrop: false,
+              script: [
+                { k: "helperClose", cb: "log" },
+                { k: "platformOpen" },
+                { k: "helperClose", cb: "log" },
+              ],
+              injections: [
+                { at: 0, hit: "focus@inner", actions: [{ k: "dispose" }] },
+                {
+                  at: 0,
+                  hit: "beforetoggle:closed@dialog",
+                  actions: [
+                    { k: "platformOther", kind: "removeOpen" },
+                    { k: "platformOther", kind: "show" },
+                  ],
+                },
+              ],
             },
           ],
         ],
