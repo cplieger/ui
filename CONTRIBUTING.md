@@ -8,7 +8,7 @@ The actions module ships no notification display and no streaming transport. An 
 
 ## Rules
 
-- A subpath added, renamed or removed changes `exports` in both `package.json` and `jsr.json`, its `docs/` page, the README `## Subpaths` and `## API` lists, and its list in `src/side-effects.node.test.ts`. `./css` stays npm only.
+- A subpath added, renamed or removed changes `exports` in both `package.json` and `jsr.json`, its `docs/` page, the README `## Subpaths` and `## API` lists, and its list in `src/side-effects.node.test.ts`. `./css`, `./css/system`, `./fonts/*` and `./icons/svg/*` stay npm only.
 - An export, a `FetchConfig` setting, a `RequestOptions` field or a `/fetch` error code that changes also changes the README `## API` list and its `docs/` page table. No check compares them.
 - A subpath whose import reaches `modal-host.ts` lists every published module on that path in `package.json` `sideEffects`, and goes into `OBSERVES`, plus `LISTENS` when it reaches `dialog-engine.ts`. Listed in `PURE`, a dropped watcher still passes.
 - Relative imports end in `.js`. Consumers type-check this source under `nodenext`, which rejects an extensionless import that the local `bundler` setting accepts.

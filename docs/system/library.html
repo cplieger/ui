@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html
+  lang="en"
+  class="cp"
+  data-app="library"
+>
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1">
+    <title>Reference screen: a library</title>
+    <link
+      rel="stylesheet"
+      href="../../css/ui-primitives.css">
+    <link
+      rel="stylesheet"
+      href="../../css/system.css">
+    <link
+      rel="stylesheet"
+      href="specimen.css">
+  </head>
+  <body>
+    <!-- A library screen: a filter rail, a heading row, a notice and a table. -->
+    <div class="cp-app">
+      <header class="cp-header">
+        <a
+          class="cp-wordmark"
+          href="#"
+          ><span
+            class="cp-mark"
+            aria-hidden="true"
+            >R</span
+          ><span class="cp-hidden-narrow">Release tracker</span></a
+        >
+        <nav
+          class="cp-nav"
+          aria-label="Main"
+        >
+          <a
+            class="cp-nav-item"
+            href="#"
+            ><span
+              class="uip-icon"
+              data-uip-icon="layout-dashboard"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Overview</span></a
+          >
+          <a
+            class="cp-nav-item"
+            href="#"
+            aria-current="page"
+            ><span
+              class="uip-icon"
+              data-uip-icon="library"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Library</span></a
+          >
+          <a
+            class="cp-nav-item"
+            href="#"
+            ><span
+              class="uip-icon"
+              data-uip-icon="radio-tower"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Releases</span></a
+          >
+        </nav>
+        <div class="cp-toolbar">
+          <span
+            class="cp-chip"
+            data-tone="neutral"
+            ><span
+              class="uip-icon"
+              data-uip-icon="refresh-cw"
+              aria-hidden="true"
+            ></span
+            >Full check 3 of 8</span
+          >
+          <button
+            class="cp-button"
+            data-variant="quiet"
+            type="button"
+            aria-label="Theme"
+          >
+            <span
+              class="uip-icon"
+              data-uip-icon="sun-moon"
+              aria-hidden="true"
+            ></span>
+          </button>
+          <button
+            class="cp-button"
+            data-variant="quiet"
+            type="button"
+            aria-label="Settings"
+          >
+            <span
+              class="uip-icon"
+              data-uip-icon="settings"
+              aria-hidden="true"
+            ></span>
+          </button>
+          <button
+            class="cp-button"
+            data-variant="quiet"
+            type="button"
+            aria-label="Account"
+          >
+            <span
+              class="uip-icon"
+              data-uip-icon="user"
+              aria-hidden="true"
+            ></span>
+          </button>
+        </div>
+      </header>
+
+      <aside
+        class="cp-rail"
+        aria-label="Filters"
+      >
+        <div class="cp-filter-group">
+          <div class="cp-filter-title">Verdict</div>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="true"
+          >
+            All entries<span class="cp-count">412</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+            data-tone="best"
+          >
+            <span class="cp-swatch"></span>On the best<span class="cp-count">268</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+            data-tone="alt"
+          >
+            <span class="cp-swatch"></span>On an alt<span class="cp-count">41</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+            data-tone="older"
+          >
+            <span class="cp-swatch"></span>Older revision<span class="cp-count">17</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+            data-tone="worse"
+          >
+            <span class="cp-swatch"></span>Not the best<span class="cp-count">33</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+            data-tone="missing"
+          >
+            <span class="cp-swatch"></span>Missing<span class="cp-count">9</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+            data-tone="neutral"
+          >
+            <span class="cp-swatch"></span>Not listed<span class="cp-count">44</span>
+          </button>
+        </div>
+        <div class="cp-filter-group">
+          <div class="cp-filter-title">Source</div>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+          >
+            Sonarr<span class="cp-count">351</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+          >
+            Radarr<span class="cp-count">61</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="cp-main">
+        <div class="cp-heading-row">
+          <div class="cp-stack">
+            <h1>Library</h1>
+            <p class="cp-meta">412 series and films. Last full check at 14:02, 6 minutes ago.</p>
+          </div>
+          <div class="cp-toolbar">
+            <button
+              class="cp-button cp-rail-toggle"
+              type="button"
+            >
+              <span
+                class="uip-icon"
+                data-uip-icon="funnel"
+                aria-hidden="true"
+              ></span
+              >Filters
+            </button>
+            <input
+              class="cp-input"
+              type="search"
+              placeholder="Search titles…"
+              aria-label="Search titles">
+            <button
+              class="cp-button"
+              type="button"
+            >
+              <span
+                class="uip-icon"
+                data-uip-icon="refresh-cw"
+                aria-hidden="true"
+              ></span
+              >Quick check
+            </button>
+          </div>
+        </div>
+
+        <div class="cp-stack">
+          <div
+            class="cp-notice"
+            data-tone="warning"
+            role="status"
+          >
+            <span
+              class="uip-icon"
+              data-uip-icon="triangle-alert"
+              aria-hidden="true"
+            ></span>
+            <div>
+              AniList answered with too many requests at 14:02. The refresh resumes at 14:10, and
+              verdicts stay as they are until then.
+            </div>
+          </div>
+
+          <section
+            class="cp-batchbar"
+            aria-label="Selected entries"
+          >
+            <span class="cp-batch-count">2 selected</span>
+            <button
+              class="cp-button"
+              data-size="sm"
+              data-variant="quiet"
+              type="button"
+            >
+              Select all 412 entries
+            </button>
+            <button
+              class="cp-button"
+              data-size="sm"
+              type="button"
+            >
+              Clear
+            </button>
+            <button
+              class="cp-button"
+              data-size="sm"
+              data-variant="primary"
+              type="button"
+            >
+              <span
+                class="uip-icon"
+                data-uip-icon="download"
+                aria-hidden="true"
+              ></span
+              >Grab 2
+            </button>
+          </section>
+
+          <div
+            class="cp-panel"
+            data-flush
+          >
+            <table class="cp-table">
+              <thead>
+                <tr>
+                  <th
+                    scope="col"
+                    data-col="select"
+                  >
+                    <label
+                      ><input
+                        type="checkbox"
+                        aria-label="Select all 6 entries on this page"
+                        data-mixed></label>
+                  </th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Verdict</th>
+                  <th
+                    scope="col"
+                    data-priority="mid"
+                  >
+                    Your copy
+                  </th>
+                  <th
+                    scope="col"
+                    data-priority="low"
+                  >
+                    Best release
+                  </th>
+                  <th
+                    scope="col"
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    Size
+                  </th>
+                  <th
+                    scope="col"
+                    data-col="actions"
+                  >
+                    <span class="uip-visually-hidden">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td data-col="select">
+                    <label
+                      ><input
+                        type="checkbox"
+                        aria-label="Select Frieren: Beyond Journey's End"></label>
+                  </td>
+                  <td>
+                    <div class="cp-cell-stack">
+                      Frieren: Beyond Journey's End<small>TV, 2023, 28 episodes</small>
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="best"
+                      ><span
+                        class="uip-icon"
+                        data-uip-icon="circle-check"
+                        aria-hidden="true"
+                      ></span
+                      >On the best</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span class="cp-mono cp-truncate cp-meta"
+                      >Frieren.S01.1080p.BluRay.Opus2.0.x265-Arid</span
+                    >
+                  </td>
+                  <td data-priority="low">
+                    <span class="cp-mono cp-truncate cp-meta">Arid (BD, dual audio)</span>
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    31.4 GB
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Search Frieren: Beyond Journey's End"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Search
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-col="select">
+                    <label
+                      ><input
+                        type="checkbox"
+                        aria-label="Select Delicious in Dungeon"
+                        checked></label>
+                  </td>
+                  <td>
+                    <div class="cp-cell-stack">
+                      Delicious in Dungeon<small>TV, 2024, 24 episodes</small>
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="worse"
+                      ><span
+                        class="uip-icon"
+                        data-uip-icon="circle-alert"
+                        aria-hidden="true"
+                      ></span
+                      >Not the best</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span class="cp-mono cp-truncate cp-meta"
+                      >[SubsPlease] Dungeon Meshi - 01-24 (1080p)</span
+                    >
+                  </td>
+                  <td data-priority="low">
+                    <span class="cp-mono cp-truncate cp-meta"
+                      >[Okay-Subs] Dungeon Meshi (BD 1080p)</span
+                    >
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    33.0 GB
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Grab Delicious in Dungeon"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Grab
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-col="select">
+                    <label
+                      ><input
+                        type="checkbox"
+                        aria-label="Select Mushishi"></label>
+                  </td>
+                  <td>
+                    <div class="cp-cell-stack">Mushishi<small>TV, 2005, 26 episodes</small></div>
+                  </td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="alt"
+                      ><span
+                        class="uip-icon"
+                        data-uip-icon="check"
+                        aria-hidden="true"
+                      ></span
+                      >On an alt</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span class="cp-mono cp-truncate cp-meta"
+                      >[Beatrice-Raws] Mushishi (BDRip 1920x1080 HEVC FLAC)</span
+                    >
+                  </td>
+                  <td data-priority="low">
+                    <span class="cp-mono cp-truncate cp-meta">[Kametsu] Mushishi (BD 1080p)</span>
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    44.8 GB
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Search Mushishi"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Search
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-col="select">
+                    <label
+                      ><input
+                        type="checkbox"
+                        aria-label="Select Vinland Saga"></label>
+                  </td>
+                  <td>
+                    <div class="cp-cell-stack">
+                      Vinland Saga<small>TV, 2019, 24 episodes</small>
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="older"
+                      ><span
+                        class="uip-icon"
+                        data-uip-icon="history"
+                        aria-hidden="true"
+                      ></span
+                      >Older revision</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span class="cp-mono cp-truncate cp-meta"
+                      >[Judas] Vinland Saga S1 (BD 1080p) v1</span
+                    >
+                  </td>
+                  <td data-priority="low">
+                    <span class="cp-mono cp-truncate cp-meta"
+                      >[Judas] Vinland Saga S1 (BD 1080p) v2</span
+                    >
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    18.2 GB
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Grab Vinland Saga"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Grab
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-col="select">
+                    <label
+                      ><input
+                        type="checkbox"
+                        aria-label="Select Ping Pong the Animation"
+                        checked></label>
+                  </td>
+                  <td>
+                    <div class="cp-cell-stack">
+                      Ping Pong the Animation<small>TV, 2014, 11 episodes</small>
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="missing"
+                      ><span
+                        class="uip-icon"
+                        data-uip-icon="circle-x"
+                        aria-hidden="true"
+                      ></span
+                      >Missing</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span class="cp-meta">Not in the library folder</span>
+                  </td>
+                  <td data-priority="low">
+                    <span class="cp-mono cp-truncate cp-meta"
+                      >[Moxie] Ping Pong the Animation (BD 1080p)</span
+                    >
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    <span class="cp-meta">None</span>
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Grab Ping Pong the Animation"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Grab
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-col="select">
+                    <label
+                      ><input
+                        type="checkbox"
+                        aria-label="Select Odd Taxi"></label>
+                  </td>
+                  <td>
+                    <div class="cp-cell-stack">Odd Taxi<small>TV, 2021, 13 episodes</small></div>
+                  </td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="neutral"
+                      ><span
+                        class="uip-icon"
+                        data-uip-icon="circle-dashed"
+                        aria-hidden="true"
+                      ></span
+                      >Not listed</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span class="cp-mono cp-truncate cp-meta"
+                      >Odd.Taxi.S01.1080p.CR.WEB-DL.AAC2.0.H.264</span
+                    >
+                  </td>
+                  <td data-priority="low"><span class="cp-meta">No entry</span></td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    16.9 GB
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Open Odd Taxi"
+                      class="cp-button"
+                      data-size="sm"
+                      data-variant="quiet"
+                      type="button"
+                    >
+                      Open
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <nav
+              class="cp-pager"
+              aria-label="Pages"
+            >
+              <span>1 to 6 of 412</span>
+              <a
+                class="cp-button"
+                data-size="sm"
+                aria-disabled="true"
+                >Previous</a
+              >
+              <a
+                class="cp-button"
+                data-size="sm"
+                href="#page-2"
+                >Next</a
+              >
+            </nav>
+          </div>
+        </div>
+      </main>
+
+      <footer class="cp-status">
+        <span>412 entries</span><span>All sources reachable</span
+        ><span>Next quick check at 14:30</span>
+      </footer>
+    </div>
+  </body>
+</html>

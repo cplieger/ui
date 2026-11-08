@@ -2,3 +2,5 @@ node_modules/
 dist/
 .vitest-cache/
 coverage/
+# html-validate owns these pages' style (void elements, doctype case).
+docs/system/*.html

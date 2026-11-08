@@ -1,86 +1,187 @@
 /**
- * icons.ts — a curated set of Lucide drawings, shipped as files under the
- * package's `icons/svg/`, and a factory that paints one through a CSS mask in
- * `currentColor`. The host serves the files and owns the CSS; the factory only
- * builds the element.
+ * icons.ts — a curated set of Lucide's drawings and two of the package's own,
+ * shipped as files under `icons/svg/`, and a factory that paints one through a
+ * CSS mask in `currentColor`. The host serves the files and owns the CSS; the
+ * factory only builds the element.
  *
  * @module
  */
 
 import { el } from "../dom/el.js";
 
-/** A drawing the package ships, one `icons/svg/<name>.svg` file each. */
-export type IconName =
+/** A Lucide drawing the package ships, one `icons/svg/<name>.svg` file each. */
+export type LucideIconName =
   | "arrow-left-right"
+  | "arrow-right"
   | "arrow-up"
   | "ban"
+  | "book-open"
+  | "bug"
+  | "captions"
+  | "chart-gantt"
   | "check"
   | "check-check"
+  | "chevron-down"
   | "chevron-right"
+  | "chevron-up"
   | "circle-alert"
   | "circle-check"
+  | "circle-dashed"
   | "circle-minus"
+  | "circle-x"
+  | "clock"
+  | "code"
   | "copy"
   | "download"
   | "external-link"
+  | "eye"
   | "eye-off"
+  | "file-text"
+  | "folder"
   | "funnel"
   | "funnel-x"
+  | "git-branch"
+  | "git-commit-horizontal"
+  | "git-merge"
+  | "globe"
   | "hard-drive"
+  | "history"
+  | "hourglass"
   | "info"
+  | "languages"
+  | "layers-2"
   | "layout-dashboard"
   | "library"
+  | "link"
+  | "list"
   | "list-checks"
+  | "list-tree"
+  | "maximize-2"
+  | "message-square"
+  | "minus"
   | "monitor"
   | "moon"
+  | "octagon-alert"
+  | "pause"
   | "pencil"
+  | "pin"
+  | "play"
   | "plus"
+  | "radio-tower"
   | "refresh-cw"
+  | "rotate-cw"
   | "rss"
+  | "scale"
   | "search"
+  | "send-horizontal"
   | "settings"
+  | "smartphone"
+  | "split"
+  | "square"
   | "sun"
+  | "sun-moon"
+  | "tablet"
+  | "terminal"
+  | "timer"
+  | "trash-2"
   | "triangle-alert"
+  | "undo-2"
+  | "user"
   | "wifi-off"
   | "x"
   | "zap";
 
-/** Every shipped drawing's name, sorted. */
-export const iconNames: readonly IconName[] = [
+/** A drawing of the package's own, on the same grid and stroke, for a concept Lucide lacks. */
+export type OwnIconName = "pin-filled" | "spinner-arc";
+
+/** Every drawing the package ships under `icons/svg/`. */
+export type IconName = LucideIconName | OwnIconName;
+
+/** The Lucide drawings' names, sorted; `npm run icons:sync` copies exactly these. */
+export const iconNames: readonly LucideIconName[] = [
   "arrow-left-right",
+  "arrow-right",
   "arrow-up",
   "ban",
+  "book-open",
+  "bug",
+  "captions",
+  "chart-gantt",
   "check",
   "check-check",
+  "chevron-down",
   "chevron-right",
+  "chevron-up",
   "circle-alert",
   "circle-check",
+  "circle-dashed",
   "circle-minus",
+  "circle-x",
+  "clock",
+  "code",
   "copy",
   "download",
   "external-link",
+  "eye",
   "eye-off",
+  "file-text",
+  "folder",
   "funnel",
   "funnel-x",
+  "git-branch",
+  "git-commit-horizontal",
+  "git-merge",
+  "globe",
   "hard-drive",
+  "history",
+  "hourglass",
   "info",
+  "languages",
+  "layers-2",
   "layout-dashboard",
   "library",
+  "link",
+  "list",
   "list-checks",
+  "list-tree",
+  "maximize-2",
+  "message-square",
+  "minus",
   "monitor",
   "moon",
+  "octagon-alert",
+  "pause",
   "pencil",
+  "pin",
+  "play",
   "plus",
+  "radio-tower",
   "refresh-cw",
+  "rotate-cw",
   "rss",
+  "scale",
   "search",
+  "send-horizontal",
   "settings",
+  "smartphone",
+  "split",
+  "square",
   "sun",
+  "sun-moon",
+  "tablet",
+  "terminal",
+  "timer",
+  "trash-2",
   "triangle-alert",
+  "undo-2",
+  "user",
   "wifi-off",
   "x",
   "zap",
 ];
+
+/** The package's own drawings' names, sorted; no pinned Lucide release has them. */
+export const ownIconNames: readonly OwnIconName[] = ["pin-filled", "spinner-arc"];
 
 /** The size tier `icon` writes as `data-uip-icon-size`; the host's CSS gives each its size. */
 export type IconSize = "inline" | "ui" | "lg" | "hero";

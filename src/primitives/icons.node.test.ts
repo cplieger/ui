@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { iconNames } from "./icons.js";
+import { iconNames, ownIconNames } from "./icons.js";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const SHIPPED = join(ROOT, "icons", "svg");
@@ -51,13 +51,13 @@ async function drift(dir: string, sync = false): Promise<string[]> {
       problems.push("LICENSE-lucide: differs from the pinned lucide-static LICENSE");
     }
   }
-  const names = new Set<string>(iconNames);
+  const names = new Set<string>([...iconNames, ...ownIconNames]);
   for (const file of await readdir(dir)) {
     if (file.endsWith(".svg") && !names.has(file.slice(0, -4))) {
       if (sync) {
         await rm(join(dir, file));
       } else {
-        problems.push(`${file}: no name in iconNames`);
+        problems.push(`${file}: no name in iconNames or ownIconNames`);
       }
     }
   }
@@ -67,10 +67,43 @@ async function drift(dir: string, sync = false): Promise<string[]> {
 describe("the shipped icon set", () => {
   it("lists each name once, sorted", () => {
     expect([...iconNames]).toEqual([...new Set(iconNames)].sort());
+    expect([...ownIconNames]).toEqual([...new Set(ownIconNames)].sort());
+  });
+
+  it("draws its own icons on Lucide's grid and stroke, under names no pinned Lucide has", async () => {
+    const lucide = new Set((await readdir(RELEASE)).map((f) => f.replace(/\.svg$/, "")));
+    for (const name of ownIconNames) {
+      expect(lucide.has(name), `${name} shadows a Lucide drawing`).toBe(false);
+      expect(iconNames as readonly string[]).not.toContain(name);
+      const root =
+        /<svg\b[^>]*>/.exec(await readFile(join(SHIPPED, `${name}.svg`), "utf8"))?.[0] ?? "";
+      for (const attr of [
+        'viewBox="0 0 24 24"',
+        'stroke="currentColor"',
+        'stroke-width="2"',
+        'stroke-linecap="round"',
+        'stroke-linejoin="round"',
+      ]) {
+        expect(root, `${name}.svg`).toContain(attr);
+      }
+    }
   });
 
   it("has exactly one file per name, byte-identical to the pinned lucide-static", async () => {
     expect(await drift(SHIPPED, process.env["ICONS_SYNC"] === "1")).toEqual([]);
+  });
+
+  it("keeps its own drawings through a sync", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ui-icons-"));
+    try {
+      await cp(join(ROOT, "icons"), dir, { recursive: true });
+      expect(await drift(join(dir, "svg"), true)).toEqual([]);
+      for (const name of ownIconNames) {
+        await expect(readFile(join(dir, "svg", `${name}.svg`))).resolves.toBeInstanceOf(Buffer);
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("reports a changed, a missing and an extra file and a stale licence", async () => {
@@ -84,7 +117,7 @@ describe("the shipped icon set", () => {
       await writeFile(join(svg, "extra.svg"), "<svg/>");
       expect((await drift(svg)).sort()).toEqual([
         "LICENSE-lucide: differs from the pinned lucide-static LICENSE",
-        "extra.svg: no name in iconNames",
+        "extra.svg: no name in iconNames or ownIconNames",
         "x.svg: differs from the pinned lucide-static",
         "zap.svg: missing",
       ]);

@@ -35,6 +35,8 @@
     "./disclosure": "./src/primitives/disclosure.ts",
     "./focus-trap": "./src/primitives/focus-trap.ts",
     "./roving-focus": "./src/primitives/roving-focus.ts",
+    "./press": "./src/primitives/press.ts",
+    "./pointer": "./src/primitives/pointer.ts",
     "./skeleton": "./src/primitives/skeleton.ts",
     "./stepper": "./src/primitives/stepper.ts",
     "./theme": "./src/primitives/theme.ts",
@@ -43,12 +45,16 @@
     "./announce": "./src/primitives/announce.ts",
     "./icons": "./src/primitives/icons.ts",
     "./icons/svg/*": "./icons/svg/*",
-    "./css": "./css/ui-primitives.css"
+    "./fonts/*": "./fonts/*",
+    "./css": "./css/ui-primitives.css",
+    "./css/system": "./css/system.css"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "icons:sync": "ICONS_SYNC=1 vitest --run --project node src/primitives/icons.node.test.ts",
+    "system:sync": "SYSTEM_SYNC=1 vitest --run --project node src/system/system-css.node.test.ts",
+    "system:screens": "SYSTEM_SCREENS=1 vitest --run --project node src/system/system-screens.node.test.ts",
     "test": "vitest --run",
     "test:coverage": "vitest --run --coverage",
     "lint:eslint": "eslint .",
@@ -59,6 +65,8 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@fontsource-variable/atkinson-hyperlegible-mono": "5.3.0",
+    "@fontsource-variable/atkinson-hyperlegible-next": "5.3.0",
     "@stryker-mutator/core": "10.1.1",
     "@stryker-mutator/typescript-checker": "10.1.1",
     "@stryker-mutator/vitest-runner": "10.1.1",
@@ -88,6 +96,7 @@
     "src/",
     "css/",
     "icons/",
+    "fonts/",
     "jsr.json",
     "LICENSE",
     "NOTICE",

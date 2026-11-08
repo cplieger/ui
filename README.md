@@ -14,7 +14,8 @@ It replaces the change listeners, focus handling, `try`/`catch` blocks and loadi
 
 - A signal write runs every effect that depends on it before it returns, and every subpath shares that one signal graph.
 - `bindList` repaints only the row of a changed item, and `el` builds elements without HTML strings.
-- The 15 widgets ship behavior and ARIA wiring with no colors or fonts, styled through `--uip-*` properties and `.uip-*` classes.
+- The widgets ship behavior and ARIA wiring with no colors or fonts, styled through `--uip-*` properties and `.uip-*` classes.
+- `@cplieger/ui/css/system` is an opt-in design language, with colour from a few seeds in light and dark, two bundled fonts and `.cp-*` component classes.
 - Requests never throw, and actions add optimistic updates, rollback and retry for failures you mark as transient.
 - A bundler drops every subpath you do not import.
 
@@ -90,10 +91,12 @@ Import each part from its own subpath. Code that imports one of the earlier pack
 | `@cplieger/ui/actions` | server actions |
 | `@cplieger/ui/actions/testing` | `resetActionFramework` for tests |
 | `@cplieger/ui/<widget>` | one widget, such as `@cplieger/ui/dialog` |
-| `@cplieger/ui/icons` | a set of Lucide drawings and the factory that paints them |
+| `@cplieger/ui/icons` | a set of Lucide drawings, two drawings of its own, and the factory that paints them |
 | `@cplieger/ui/css` | the base stylesheet, on npm only |
+| `@cplieger/ui/css/system` | an opt-in design language: colour from a few seeds in light and dark, type, layout and component classes, on npm only |
+| `@cplieger/ui/fonts/*` | the two fonts the design language uses, on npm only |
 
-The widget subpaths are `toast`, `tooltip`, `popover`, `popup`, `dialog`, `modal`, `ask`, `connection-test`, `disclosure`, `focus-trap`, `roving-focus`, `skeleton`, `stepper`, `theme`, `view-transition`, `transition` and `announce`.
+The widget subpaths are `toast`, `tooltip`, `popover`, `popup`, `dialog`, `modal`, `ask`, `connection-test`, `disclosure`, `focus-trap`, `roving-focus`, `pointer`, `press`, `skeleton`, `stepper`, `theme`, `view-transition`, `transition` and `announce`.
 
 Eight widget subpaths start watching the `open` attribute of dialogs when they load, so they need a DOM at import: `dialog`, `modal`, `ask`, `announce`, `toast`, `popup`, `popover` and `tooltip`. The package root, `icons` and every other subpath touch no DOM at import, so they also run under Node, Deno, Bun or Workers. `package.json` marks the watching modules as side effects, so `import "@cplieger/ui/dialog"` keeps its watcher in a bundle.
 
@@ -104,8 +107,9 @@ Eight widget subpaths start watching the `open` attribute of dialogs when they l
 - DOM, from `/dom` or the root: `el`, `reconcile`, `KEY_ATTR`, `bindList`, `patch` and `trackHandler`.
 - Requests, from `/fetch`: `createFetch` with its `apiGet`, `apiPost`, `apiPut`, `apiPatch` and `apiDelete` helpers, `withTimeout` and `API_TIMEOUT_MS`.
 - Actions, from `/actions`: `configure`, `configureApi`, `configureTransport`, `defineAction`, `apiAction`, `transportAction`, the helpers `debouncedDispatch`, `pollAction`, `pollUntil`, `bindLoadingState`, `withAsyncFeedback` and `registerCleanup`, and the state reads `isPending`, `pendingCount`, `subscribeToActions`, `subscribeByName` and `getActionLog`.
-- Widgets, one subpath each: [toast](docs/toast.md), [announce](docs/announce.md), [tooltip](docs/tooltip.md), [popover](docs/popover.md), [popup](docs/popup.md), [dialog](docs/dialog.md), [modal](docs/modal.md), [ask](docs/ask.md), [connection-test](docs/connection-test.md), [focus-trap](docs/focus-trap.md), [roving-focus](docs/roving-focus.md), [disclosure](docs/disclosure.md), [theme](docs/theme.md), [view-transition](docs/view-transition.md), [transition](docs/transition.md), [skeleton](docs/skeleton.md) and [stepper](docs/stepper.md).
-- Icons, from `/icons`: `createIcons` and `iconNames` ([icons](docs/icons.md)).
+- Widgets, one subpath each: [toast](docs/toast.md), [announce](docs/announce.md), [tooltip](docs/tooltip.md), [popover](docs/popover.md), [popup](docs/popup.md), [dialog](docs/dialog.md), [modal](docs/modal.md), [ask](docs/ask.md), [connection-test](docs/connection-test.md), [focus-trap](docs/focus-trap.md), [roving-focus](docs/roving-focus.md), [pointer](docs/pointer.md), [press](docs/press.md), [disclosure](docs/disclosure.md), [theme](docs/theme.md), [view-transition](docs/view-transition.md), [transition](docs/transition.md), [skeleton](docs/skeleton.md) and [stepper](docs/stepper.md).
+- Icons, from `/icons`: `createIcons`, `iconNames` and `ownIconNames` ([icons](docs/icons.md)).
+- The [design language](docs/design.md) from `/css/system`, with its [components](docs/design-components.md), [patterns](docs/design-patterns.md), seeds, `data-tone`, `data-theme`, `data-pointer` and `.cp-*` classes.
 
 The full reference, generated from the doc comments, is on [JSR](https://jsr.io/@cplieger/ui/doc).
 
@@ -152,7 +156,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 This project is built with care and follows security best practices, but it is intended for personal / self-hosted use. No guarantees of fitness for production environments. Use at your own risk.
 
-This project was built with AI-assisted tooling using [Claude](https://claude.com), [GPT](https://openai.com), and [Kiro](https://kiro.dev). The human maintainer defines architecture, supervises implementation, and makes all final decisions.
+This project was built with AI assistance. The human maintainer defines architecture, supervises implementation, and makes all final decisions.
 
 ## License
 

@@ -23,6 +23,8 @@ const PURE = [
   "/disclosure",
   "/focus-trap",
   "/icons",
+  "/pointer",
+  "/press",
   "/roving-focus",
   "/skeleton",
   "/stepper",
@@ -79,9 +81,10 @@ it("classifies every exported subpath as observing or pure", async () => {
   const pkg = JSON.parse(await readFile(join(PACKAGE_ROOT, "package.json"), "utf8")) as {
     exports: Record<string, unknown>;
   };
-  const exported = Object.keys(pkg.exports)
-    .filter((key) => key !== "./css" && key !== "./icons/svg/*")
-    .map((key) => key.slice(1));
+  // Stylesheets, fonts and icon files are exports but not modules.
+  const exported = Object.entries(pkg.exports)
+    .filter(([, target]) => typeof target === "string" && target.endsWith(".ts"))
+    .map(([key]) => key.slice(1));
   expect(exported.toSorted()).toEqual([...PURE, ...OBSERVES.map((name) => `/${name}`)].toSorted());
 });
 

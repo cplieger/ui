@@ -20,6 +20,8 @@
     "./disclosure": "./src/primitives/disclosure.ts",
     "./focus-trap": "./src/primitives/focus-trap.ts",
     "./roving-focus": "./src/primitives/roving-focus.ts",
+    "./press": "./src/primitives/press.ts",
+    "./pointer": "./src/primitives/pointer.ts",
     "./skeleton": "./src/primitives/skeleton.ts",
     "./stepper": "./src/primitives/stepper.ts",
     "./theme": "./src/primitives/theme.ts",
@@ -38,6 +40,8 @@
       "css/**/*.css",
       "icons/svg/*.svg",
       "icons/LICENSE-lucide",
+      "fonts/LICENSE-*",
+      "fonts/*.woff2",
       "jsr.json"
     ],
     "exclude": ["src/**/*.test.ts", "src/**/*-setup.ts", "src/**/test-helpers/**"]

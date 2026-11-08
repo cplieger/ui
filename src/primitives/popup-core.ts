@@ -147,14 +147,11 @@ export function normalizePopupOptions(opts: PopupOptions | undefined): PopupConf
 }
 
 /** A patch read once: each own enumerable key's normalized value. */
-export type ReadPatch = readonly (readonly [string, unknown])[];
+type ReadPatch = readonly (readonly [string, unknown])[];
 
 /** Read `patch`'s own enumerable keys once each, normalized; keys `normalize`
  *  does not know are dropped. An explicit `undefined` resets a key to its default. */
-export function readPatch(
-  patch: object,
-  normalize: (key: string, value: unknown) => unknown,
-): ReadPatch {
+function readPatch(patch: object, normalize: (key: string, value: unknown) => unknown): ReadPatch {
   const source = patch as Record<string, unknown>;
   const out: (readonly [string, unknown])[] = [];
   for (const key of Object.keys(source)) {
@@ -167,7 +164,7 @@ export function readPatch(
 }
 
 /** `current` with `entries` applied, or `current` itself when no field differs under Object.is. */
-export function mergeOptions<C extends object>(current: C, entries: ReadPatch): C {
+function mergeOptions<C extends object>(current: C, entries: ReadPatch): C {
   let next: Record<string, unknown> | null = null;
   for (const [key, value] of entries) {
     if (!Object.is((current as Record<string, unknown>)[key], value)) {

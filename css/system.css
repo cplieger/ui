@@ -1,0 +1,2006 @@
+/* system.css — the cplieger design language for @cplieger/ui apps.
+ *
+ * Opt-in. On import it sets custom properties and two @font-face rules.
+ * color-scheme, element defaults and the widget skins apply only with class
+ * "cp" (put it on <html>); the .cp-* component classes apply where markup
+ * uses them. docs/design.md is the
+ * contract; the colour block is written by `npm run system:sync`. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("../fonts/atkinson-hyperlegible-next-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("../fonts/atkinson-hyperlegible-next-latin-ext.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  src: url("../fonts/atkinson-hyperlegible-mono-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  src: url("../fonts/atkinson-hyperlegible-mono-latin-ext.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+/* Seeds: the only colour values an app chooses, in its own unlayered :root.
+ * Hue in degrees, chroma in oklch units, under docs/design.md's envelope. */
+:root {
+  --cp-neutral-h: 260;
+  --cp-neutral-c: 0.008;
+  --cp-accent-h: 255;
+  --cp-accent-c: 0.13;
+  --cp-brand-h: var(--cp-accent-h);
+  --cp-brand-c: var(--cp-accent-c);
+  --cp-danger-h: 27;
+  --cp-danger-c: 0.15;
+  --cp-warning-h: 75;
+  --cp-warning-c: 0.12;
+  --cp-success-h: 150;
+  --cp-success-c: 0.12;
+  --cp-tone-h: var(--cp-accent-h);
+  --cp-tone-c: var(--cp-accent-c);
+}
+
+:root.cp[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root.cp[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-tone="accent"] {
+  --cp-tone-h: var(--cp-accent-h);
+  --cp-tone-c: var(--cp-accent-c);
+}
+
+[data-tone="neutral"] {
+  --cp-tone-h: var(--cp-neutral-h);
+  --cp-tone-c: calc(var(--cp-neutral-c) * 2);
+}
+
+[data-tone="danger"] {
+  --cp-tone-h: var(--cp-danger-h);
+  --cp-tone-c: var(--cp-danger-c);
+}
+
+[data-tone="warning"] {
+  --cp-tone-h: var(--cp-warning-h);
+  --cp-tone-c: var(--cp-warning-c);
+}
+
+[data-tone="success"] {
+  --cp-tone-h: var(--cp-success-h);
+  --cp-tone-c: var(--cp-success-c);
+}
+
+/* colour:start */
+/* Written by npm run system:sync from src/system/system-css.node.test.ts. */
+:root {
+  --cp-solid-hover-mix: 12%;
+  --cp-brand-l: 56%;
+  --cp-shell-dark-l: 34%;
+  --cp-shell-dark-k: 0.7;
+  --cp-shell-ink-l: 96%;
+  --cp-shell-ink-k: 0.15;
+  --cp-neutral-1: light-dark(
+    oklch(99.3% calc(var(--cp-neutral-c) * 0.35) var(--cp-neutral-h)),
+    oklch(18.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-2: light-dark(
+    oklch(97.5% calc(var(--cp-neutral-c) * 0.55) var(--cp-neutral-h)),
+    oklch(21.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-3: light-dark(
+    oklch(95.5% calc(var(--cp-neutral-c) * 0.75) var(--cp-neutral-h)),
+    oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-4: light-dark(
+    oklch(93.2% calc(var(--cp-neutral-c) * 0.9) var(--cp-neutral-h)),
+    oklch(28.2% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-5: light-dark(
+    oklch(90.8% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(31.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-6: light-dark(
+    oklch(88% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(35% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-7: light-dark(
+    oklch(82% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(42% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-8: light-dark(
+    oklch(62% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-9: light-dark(
+    oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(64% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-10: color-mix(
+    in oklab,
+    var(--cp-neutral-9),
+    contrast-color(contrast-color(var(--cp-neutral-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-neutral-11: light-dark(
+    oklch(47.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(79% calc(var(--cp-neutral-c) * 0.6) var(--cp-neutral-h))
+  );
+  --cp-neutral-12: light-dark(
+    oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(94.5% calc(var(--cp-neutral-c) * 0.3) var(--cp-neutral-h))
+  );
+  --cp-neutral-on: contrast-color(var(--cp-neutral-9));
+  --cp-accent-1: light-dark(
+    oklch(99.3% calc(var(--cp-accent-c) * 0.04) var(--cp-accent-h)),
+    oklch(18.5% calc(var(--cp-accent-c) * 0.1) var(--cp-accent-h))
+  );
+  --cp-accent-2: light-dark(
+    oklch(97.5% calc(var(--cp-accent-c) * 0.08) var(--cp-accent-h)),
+    oklch(21.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h))
+  );
+  --cp-accent-3: light-dark(
+    oklch(95.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h)),
+    oklch(25% calc(var(--cp-accent-c) * 0.17) var(--cp-accent-h))
+  );
+  --cp-accent-4: light-dark(
+    oklch(93.2% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h)),
+    oklch(28.2% calc(var(--cp-accent-c) * 0.21) var(--cp-accent-h))
+  );
+  --cp-accent-5: light-dark(
+    oklch(90.8% calc(var(--cp-accent-c) * 0.24) var(--cp-accent-h)),
+    oklch(31.5% calc(var(--cp-accent-c) * 0.26) var(--cp-accent-h))
+  );
+  --cp-accent-6: light-dark(
+    oklch(88% calc(var(--cp-accent-c) * 0.3) var(--cp-accent-h)),
+    oklch(35% calc(var(--cp-accent-c) * 0.32) var(--cp-accent-h))
+  );
+  --cp-accent-7: light-dark(
+    oklch(82% calc(var(--cp-accent-c) * 0.4) var(--cp-accent-h)),
+    oklch(42% calc(var(--cp-accent-c) * 0.42) var(--cp-accent-h))
+  );
+  --cp-accent-8: light-dark(
+    oklch(62% calc(var(--cp-accent-c) * 0.7) var(--cp-accent-h)),
+    oklch(56% calc(var(--cp-accent-c) * 0.65) var(--cp-accent-h))
+  );
+  --cp-accent-9: light-dark(
+    oklch(56% calc(var(--cp-accent-c) * 1) var(--cp-accent-h)),
+    oklch(64% calc(var(--cp-accent-c) * 1) var(--cp-accent-h))
+  );
+  --cp-accent-10: color-mix(
+    in oklab,
+    var(--cp-accent-9),
+    contrast-color(contrast-color(var(--cp-accent-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-accent-11: light-dark(
+    oklch(47.5% calc(var(--cp-accent-c) * 0.85) var(--cp-accent-h)),
+    oklch(79% calc(var(--cp-accent-c) * 0.55) var(--cp-accent-h))
+  );
+  --cp-accent-12: light-dark(
+    oklch(25% calc(var(--cp-accent-c) * 0.35) var(--cp-accent-h)),
+    oklch(94.5% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h))
+  );
+  --cp-accent-on: contrast-color(var(--cp-accent-9));
+  --cp-danger-1: light-dark(
+    oklch(99.3% calc(var(--cp-danger-c) * 0.04) var(--cp-danger-h)),
+    oklch(18.5% calc(var(--cp-danger-c) * 0.1) var(--cp-danger-h))
+  );
+  --cp-danger-2: light-dark(
+    oklch(97.5% calc(var(--cp-danger-c) * 0.08) var(--cp-danger-h)),
+    oklch(21.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h))
+  );
+  --cp-danger-3: light-dark(
+    oklch(95.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h)),
+    oklch(25% calc(var(--cp-danger-c) * 0.17) var(--cp-danger-h))
+  );
+  --cp-danger-4: light-dark(
+    oklch(93.2% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h)),
+    oklch(28.2% calc(var(--cp-danger-c) * 0.21) var(--cp-danger-h))
+  );
+  --cp-danger-5: light-dark(
+    oklch(90.8% calc(var(--cp-danger-c) * 0.24) var(--cp-danger-h)),
+    oklch(31.5% calc(var(--cp-danger-c) * 0.26) var(--cp-danger-h))
+  );
+  --cp-danger-6: light-dark(
+    oklch(88% calc(var(--cp-danger-c) * 0.3) var(--cp-danger-h)),
+    oklch(35% calc(var(--cp-danger-c) * 0.32) var(--cp-danger-h))
+  );
+  --cp-danger-7: light-dark(
+    oklch(82% calc(var(--cp-danger-c) * 0.4) var(--cp-danger-h)),
+    oklch(42% calc(var(--cp-danger-c) * 0.42) var(--cp-danger-h))
+  );
+  --cp-danger-8: light-dark(
+    oklch(62% calc(var(--cp-danger-c) * 0.7) var(--cp-danger-h)),
+    oklch(56% calc(var(--cp-danger-c) * 0.65) var(--cp-danger-h))
+  );
+  --cp-danger-9: light-dark(
+    oklch(56% calc(var(--cp-danger-c) * 1) var(--cp-danger-h)),
+    oklch(64% calc(var(--cp-danger-c) * 1) var(--cp-danger-h))
+  );
+  --cp-danger-10: color-mix(
+    in oklab,
+    var(--cp-danger-9),
+    contrast-color(contrast-color(var(--cp-danger-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-danger-11: light-dark(
+    oklch(47.5% calc(var(--cp-danger-c) * 0.85) var(--cp-danger-h)),
+    oklch(79% calc(var(--cp-danger-c) * 0.55) var(--cp-danger-h))
+  );
+  --cp-danger-12: light-dark(
+    oklch(25% calc(var(--cp-danger-c) * 0.35) var(--cp-danger-h)),
+    oklch(94.5% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h))
+  );
+  --cp-danger-on: contrast-color(var(--cp-danger-9));
+  --cp-warning-1: light-dark(
+    oklch(99.3% calc(var(--cp-warning-c) * 0.04) var(--cp-warning-h)),
+    oklch(18.5% calc(var(--cp-warning-c) * 0.1) var(--cp-warning-h))
+  );
+  --cp-warning-2: light-dark(
+    oklch(97.5% calc(var(--cp-warning-c) * 0.08) var(--cp-warning-h)),
+    oklch(21.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h))
+  );
+  --cp-warning-3: light-dark(
+    oklch(95.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h)),
+    oklch(25% calc(var(--cp-warning-c) * 0.17) var(--cp-warning-h))
+  );
+  --cp-warning-4: light-dark(
+    oklch(93.2% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h)),
+    oklch(28.2% calc(var(--cp-warning-c) * 0.21) var(--cp-warning-h))
+  );
+  --cp-warning-5: light-dark(
+    oklch(90.8% calc(var(--cp-warning-c) * 0.24) var(--cp-warning-h)),
+    oklch(31.5% calc(var(--cp-warning-c) * 0.26) var(--cp-warning-h))
+  );
+  --cp-warning-6: light-dark(
+    oklch(88% calc(var(--cp-warning-c) * 0.3) var(--cp-warning-h)),
+    oklch(35% calc(var(--cp-warning-c) * 0.32) var(--cp-warning-h))
+  );
+  --cp-warning-7: light-dark(
+    oklch(82% calc(var(--cp-warning-c) * 0.4) var(--cp-warning-h)),
+    oklch(42% calc(var(--cp-warning-c) * 0.42) var(--cp-warning-h))
+  );
+  --cp-warning-8: light-dark(
+    oklch(62% calc(var(--cp-warning-c) * 0.7) var(--cp-warning-h)),
+    oklch(56% calc(var(--cp-warning-c) * 0.65) var(--cp-warning-h))
+  );
+  --cp-warning-9: light-dark(
+    oklch(56% calc(var(--cp-warning-c) * 1) var(--cp-warning-h)),
+    oklch(64% calc(var(--cp-warning-c) * 1) var(--cp-warning-h))
+  );
+  --cp-warning-10: color-mix(
+    in oklab,
+    var(--cp-warning-9),
+    contrast-color(contrast-color(var(--cp-warning-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-warning-11: light-dark(
+    oklch(47.5% calc(var(--cp-warning-c) * 0.85) var(--cp-warning-h)),
+    oklch(79% calc(var(--cp-warning-c) * 0.55) var(--cp-warning-h))
+  );
+  --cp-warning-12: light-dark(
+    oklch(25% calc(var(--cp-warning-c) * 0.35) var(--cp-warning-h)),
+    oklch(94.5% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h))
+  );
+  --cp-warning-on: contrast-color(var(--cp-warning-9));
+  --cp-success-1: light-dark(
+    oklch(99.3% calc(var(--cp-success-c) * 0.04) var(--cp-success-h)),
+    oklch(18.5% calc(var(--cp-success-c) * 0.1) var(--cp-success-h))
+  );
+  --cp-success-2: light-dark(
+    oklch(97.5% calc(var(--cp-success-c) * 0.08) var(--cp-success-h)),
+    oklch(21.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h))
+  );
+  --cp-success-3: light-dark(
+    oklch(95.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h)),
+    oklch(25% calc(var(--cp-success-c) * 0.17) var(--cp-success-h))
+  );
+  --cp-success-4: light-dark(
+    oklch(93.2% calc(var(--cp-success-c) * 0.18) var(--cp-success-h)),
+    oklch(28.2% calc(var(--cp-success-c) * 0.21) var(--cp-success-h))
+  );
+  --cp-success-5: light-dark(
+    oklch(90.8% calc(var(--cp-success-c) * 0.24) var(--cp-success-h)),
+    oklch(31.5% calc(var(--cp-success-c) * 0.26) var(--cp-success-h))
+  );
+  --cp-success-6: light-dark(
+    oklch(88% calc(var(--cp-success-c) * 0.3) var(--cp-success-h)),
+    oklch(35% calc(var(--cp-success-c) * 0.32) var(--cp-success-h))
+  );
+  --cp-success-7: light-dark(
+    oklch(82% calc(var(--cp-success-c) * 0.4) var(--cp-success-h)),
+    oklch(42% calc(var(--cp-success-c) * 0.42) var(--cp-success-h))
+  );
+  --cp-success-8: light-dark(
+    oklch(62% calc(var(--cp-success-c) * 0.7) var(--cp-success-h)),
+    oklch(56% calc(var(--cp-success-c) * 0.65) var(--cp-success-h))
+  );
+  --cp-success-9: light-dark(
+    oklch(56% calc(var(--cp-success-c) * 1) var(--cp-success-h)),
+    oklch(64% calc(var(--cp-success-c) * 1) var(--cp-success-h))
+  );
+  --cp-success-10: color-mix(
+    in oklab,
+    var(--cp-success-9),
+    contrast-color(contrast-color(var(--cp-success-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-success-11: light-dark(
+    oklch(47.5% calc(var(--cp-success-c) * 0.85) var(--cp-success-h)),
+    oklch(79% calc(var(--cp-success-c) * 0.55) var(--cp-success-h))
+  );
+  --cp-success-12: light-dark(
+    oklch(25% calc(var(--cp-success-c) * 0.35) var(--cp-success-h)),
+    oklch(94.5% calc(var(--cp-success-c) * 0.18) var(--cp-success-h))
+  );
+  --cp-success-on: contrast-color(var(--cp-success-9));
+}
+:root,
+[data-tone] {
+  --cp-tone-1: light-dark(
+    oklch(99.3% calc(var(--cp-tone-c) * 0.04) var(--cp-tone-h)),
+    oklch(18.5% calc(var(--cp-tone-c) * 0.1) var(--cp-tone-h))
+  );
+  --cp-tone-2: light-dark(
+    oklch(97.5% calc(var(--cp-tone-c) * 0.08) var(--cp-tone-h)),
+    oklch(21.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h))
+  );
+  --cp-tone-3: light-dark(
+    oklch(95.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h)),
+    oklch(25% calc(var(--cp-tone-c) * 0.17) var(--cp-tone-h))
+  );
+  --cp-tone-4: light-dark(
+    oklch(93.2% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h)),
+    oklch(28.2% calc(var(--cp-tone-c) * 0.21) var(--cp-tone-h))
+  );
+  --cp-tone-5: light-dark(
+    oklch(90.8% calc(var(--cp-tone-c) * 0.24) var(--cp-tone-h)),
+    oklch(31.5% calc(var(--cp-tone-c) * 0.26) var(--cp-tone-h))
+  );
+  --cp-tone-6: light-dark(
+    oklch(88% calc(var(--cp-tone-c) * 0.3) var(--cp-tone-h)),
+    oklch(35% calc(var(--cp-tone-c) * 0.32) var(--cp-tone-h))
+  );
+  --cp-tone-7: light-dark(
+    oklch(82% calc(var(--cp-tone-c) * 0.4) var(--cp-tone-h)),
+    oklch(42% calc(var(--cp-tone-c) * 0.42) var(--cp-tone-h))
+  );
+  --cp-tone-8: light-dark(
+    oklch(62% calc(var(--cp-tone-c) * 0.7) var(--cp-tone-h)),
+    oklch(56% calc(var(--cp-tone-c) * 0.65) var(--cp-tone-h))
+  );
+  --cp-tone-9: light-dark(
+    oklch(56% calc(var(--cp-tone-c) * 1) var(--cp-tone-h)),
+    oklch(64% calc(var(--cp-tone-c) * 1) var(--cp-tone-h))
+  );
+  --cp-tone-10: color-mix(
+    in oklab,
+    var(--cp-tone-9),
+    contrast-color(contrast-color(var(--cp-tone-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-tone-11: light-dark(
+    oklch(47.5% calc(var(--cp-tone-c) * 0.85) var(--cp-tone-h)),
+    oklch(79% calc(var(--cp-tone-c) * 0.55) var(--cp-tone-h))
+  );
+  --cp-tone-12: light-dark(
+    oklch(25% calc(var(--cp-tone-c) * 0.35) var(--cp-tone-h)),
+    oklch(94.5% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h))
+  );
+  --cp-tone-on: contrast-color(var(--cp-tone-9));
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --cp-brand-l: 43%;
+    --cp-shell-dark-l: 30%;
+    --cp-shell-dark-k: 0.7;
+    --cp-shell-ink-l: 98.5%;
+    --cp-shell-ink-k: 0.06;
+    --cp-neutral-1: light-dark(
+      oklch(99.3% calc(var(--cp-neutral-c) * 0.35) var(--cp-neutral-h)),
+      oklch(18.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-2: light-dark(
+      oklch(97.5% calc(var(--cp-neutral-c) * 0.55) var(--cp-neutral-h)),
+      oklch(21.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-3: light-dark(
+      oklch(95.5% calc(var(--cp-neutral-c) * 0.75) var(--cp-neutral-h)),
+      oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-4: light-dark(
+      oklch(93.2% calc(var(--cp-neutral-c) * 0.9) var(--cp-neutral-h)),
+      oklch(28.2% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-5: light-dark(
+      oklch(90.8% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(31.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-6: light-dark(
+      oklch(86% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(42% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-7: light-dark(
+      oklch(70% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-8: light-dark(
+      oklch(50% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(70% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-9: light-dark(
+      oklch(43% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(72% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-10: color-mix(
+      in oklab,
+      var(--cp-neutral-9),
+      contrast-color(contrast-color(var(--cp-neutral-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-neutral-11: light-dark(
+      oklch(38% calc(var(--cp-neutral-c) * 0.4) var(--cp-neutral-h)),
+      oklch(88% calc(var(--cp-neutral-c) * 0.24) var(--cp-neutral-h))
+    );
+    --cp-neutral-12: light-dark(
+      oklch(18% calc(var(--cp-neutral-c) * 0.4) var(--cp-neutral-h)),
+      oklch(96.5% calc(var(--cp-neutral-c) * 0.12) var(--cp-neutral-h))
+    );
+    --cp-neutral-on: contrast-color(var(--cp-neutral-9));
+    --cp-accent-1: light-dark(
+      oklch(99.3% calc(var(--cp-accent-c) * 0.04) var(--cp-accent-h)),
+      oklch(18.5% calc(var(--cp-accent-c) * 0.1) var(--cp-accent-h))
+    );
+    --cp-accent-2: light-dark(
+      oklch(97.5% calc(var(--cp-accent-c) * 0.08) var(--cp-accent-h)),
+      oklch(21.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h))
+    );
+    --cp-accent-3: light-dark(
+      oklch(95.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h)),
+      oklch(25% calc(var(--cp-accent-c) * 0.17) var(--cp-accent-h))
+    );
+    --cp-accent-4: light-dark(
+      oklch(93.2% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h)),
+      oklch(28.2% calc(var(--cp-accent-c) * 0.21) var(--cp-accent-h))
+    );
+    --cp-accent-5: light-dark(
+      oklch(90.8% calc(var(--cp-accent-c) * 0.24) var(--cp-accent-h)),
+      oklch(31.5% calc(var(--cp-accent-c) * 0.26) var(--cp-accent-h))
+    );
+    --cp-accent-6: light-dark(
+      oklch(86% calc(var(--cp-accent-c) * 0.3) var(--cp-accent-h)),
+      oklch(42% calc(var(--cp-accent-c) * 0.32) var(--cp-accent-h))
+    );
+    --cp-accent-7: light-dark(
+      oklch(70% calc(var(--cp-accent-c) * 0.4) var(--cp-accent-h)),
+      oklch(56% calc(var(--cp-accent-c) * 0.42) var(--cp-accent-h))
+    );
+    --cp-accent-8: light-dark(
+      oklch(50% calc(var(--cp-accent-c) * 0.7) var(--cp-accent-h)),
+      oklch(70% calc(var(--cp-accent-c) * 0.65) var(--cp-accent-h))
+    );
+    --cp-accent-9: light-dark(
+      oklch(43% calc(var(--cp-accent-c) * 1) var(--cp-accent-h)),
+      oklch(72% calc(var(--cp-accent-c) * 1) var(--cp-accent-h))
+    );
+    --cp-accent-10: color-mix(
+      in oklab,
+      var(--cp-accent-9),
+      contrast-color(contrast-color(var(--cp-accent-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-accent-11: light-dark(
+      oklch(38% calc(var(--cp-accent-c) * 0.34) var(--cp-accent-h)),
+      oklch(88% calc(var(--cp-accent-c) * 0.22) var(--cp-accent-h))
+    );
+    --cp-accent-12: light-dark(
+      oklch(18% calc(var(--cp-accent-c) * 0.14) var(--cp-accent-h)),
+      oklch(96.5% calc(var(--cp-accent-c) * 0.072) var(--cp-accent-h))
+    );
+    --cp-accent-on: contrast-color(var(--cp-accent-9));
+    --cp-danger-1: light-dark(
+      oklch(99.3% calc(var(--cp-danger-c) * 0.04) var(--cp-danger-h)),
+      oklch(18.5% calc(var(--cp-danger-c) * 0.1) var(--cp-danger-h))
+    );
+    --cp-danger-2: light-dark(
+      oklch(97.5% calc(var(--cp-danger-c) * 0.08) var(--cp-danger-h)),
+      oklch(21.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h))
+    );
+    --cp-danger-3: light-dark(
+      oklch(95.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h)),
+      oklch(25% calc(var(--cp-danger-c) * 0.17) var(--cp-danger-h))
+    );
+    --cp-danger-4: light-dark(
+      oklch(93.2% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h)),
+      oklch(28.2% calc(var(--cp-danger-c) * 0.21) var(--cp-danger-h))
+    );
+    --cp-danger-5: light-dark(
+      oklch(90.8% calc(var(--cp-danger-c) * 0.24) var(--cp-danger-h)),
+      oklch(31.5% calc(var(--cp-danger-c) * 0.26) var(--cp-danger-h))
+    );
+    --cp-danger-6: light-dark(
+      oklch(86% calc(var(--cp-danger-c) * 0.3) var(--cp-danger-h)),
+      oklch(42% calc(var(--cp-danger-c) * 0.32) var(--cp-danger-h))
+    );
+    --cp-danger-7: light-dark(
+      oklch(70% calc(var(--cp-danger-c) * 0.4) var(--cp-danger-h)),
+      oklch(56% calc(var(--cp-danger-c) * 0.42) var(--cp-danger-h))
+    );
+    --cp-danger-8: light-dark(
+      oklch(50% calc(var(--cp-danger-c) * 0.7) var(--cp-danger-h)),
+      oklch(70% calc(var(--cp-danger-c) * 0.65) var(--cp-danger-h))
+    );
+    --cp-danger-9: light-dark(
+      oklch(43% calc(var(--cp-danger-c) * 1) var(--cp-danger-h)),
+      oklch(72% calc(var(--cp-danger-c) * 1) var(--cp-danger-h))
+    );
+    --cp-danger-10: color-mix(
+      in oklab,
+      var(--cp-danger-9),
+      contrast-color(contrast-color(var(--cp-danger-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-danger-11: light-dark(
+      oklch(38% calc(var(--cp-danger-c) * 0.34) var(--cp-danger-h)),
+      oklch(88% calc(var(--cp-danger-c) * 0.22) var(--cp-danger-h))
+    );
+    --cp-danger-12: light-dark(
+      oklch(18% calc(var(--cp-danger-c) * 0.14) var(--cp-danger-h)),
+      oklch(96.5% calc(var(--cp-danger-c) * 0.072) var(--cp-danger-h))
+    );
+    --cp-danger-on: contrast-color(var(--cp-danger-9));
+    --cp-warning-1: light-dark(
+      oklch(99.3% calc(var(--cp-warning-c) * 0.04) var(--cp-warning-h)),
+      oklch(18.5% calc(var(--cp-warning-c) * 0.1) var(--cp-warning-h))
+    );
+    --cp-warning-2: light-dark(
+      oklch(97.5% calc(var(--cp-warning-c) * 0.08) var(--cp-warning-h)),
+      oklch(21.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h))
+    );
+    --cp-warning-3: light-dark(
+      oklch(95.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h)),
+      oklch(25% calc(var(--cp-warning-c) * 0.17) var(--cp-warning-h))
+    );
+    --cp-warning-4: light-dark(
+      oklch(93.2% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h)),
+      oklch(28.2% calc(var(--cp-warning-c) * 0.21) var(--cp-warning-h))
+    );
+    --cp-warning-5: light-dark(
+      oklch(90.8% calc(var(--cp-warning-c) * 0.24) var(--cp-warning-h)),
+      oklch(31.5% calc(var(--cp-warning-c) * 0.26) var(--cp-warning-h))
+    );
+    --cp-warning-6: light-dark(
+      oklch(86% calc(var(--cp-warning-c) * 0.3) var(--cp-warning-h)),
+      oklch(42% calc(var(--cp-warning-c) * 0.32) var(--cp-warning-h))
+    );
+    --cp-warning-7: light-dark(
+      oklch(70% calc(var(--cp-warning-c) * 0.4) var(--cp-warning-h)),
+      oklch(56% calc(var(--cp-warning-c) * 0.42) var(--cp-warning-h))
+    );
+    --cp-warning-8: light-dark(
+      oklch(50% calc(var(--cp-warning-c) * 0.7) var(--cp-warning-h)),
+      oklch(70% calc(var(--cp-warning-c) * 0.65) var(--cp-warning-h))
+    );
+    --cp-warning-9: light-dark(
+      oklch(43% calc(var(--cp-warning-c) * 1) var(--cp-warning-h)),
+      oklch(72% calc(var(--cp-warning-c) * 1) var(--cp-warning-h))
+    );
+    --cp-warning-10: color-mix(
+      in oklab,
+      var(--cp-warning-9),
+      contrast-color(contrast-color(var(--cp-warning-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-warning-11: light-dark(
+      oklch(38% calc(var(--cp-warning-c) * 0.34) var(--cp-warning-h)),
+      oklch(88% calc(var(--cp-warning-c) * 0.22) var(--cp-warning-h))
+    );
+    --cp-warning-12: light-dark(
+      oklch(18% calc(var(--cp-warning-c) * 0.14) var(--cp-warning-h)),
+      oklch(96.5% calc(var(--cp-warning-c) * 0.072) var(--cp-warning-h))
+    );
+    --cp-warning-on: contrast-color(var(--cp-warning-9));
+    --cp-success-1: light-dark(
+      oklch(99.3% calc(var(--cp-success-c) * 0.04) var(--cp-success-h)),
+      oklch(18.5% calc(var(--cp-success-c) * 0.1) var(--cp-success-h))
+    );
+    --cp-success-2: light-dark(
+      oklch(97.5% calc(var(--cp-success-c) * 0.08) var(--cp-success-h)),
+      oklch(21.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h))
+    );
+    --cp-success-3: light-dark(
+      oklch(95.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h)),
+      oklch(25% calc(var(--cp-success-c) * 0.17) var(--cp-success-h))
+    );
+    --cp-success-4: light-dark(
+      oklch(93.2% calc(var(--cp-success-c) * 0.18) var(--cp-success-h)),
+      oklch(28.2% calc(var(--cp-success-c) * 0.21) var(--cp-success-h))
+    );
+    --cp-success-5: light-dark(
+      oklch(90.8% calc(var(--cp-success-c) * 0.24) var(--cp-success-h)),
+      oklch(31.5% calc(var(--cp-success-c) * 0.26) var(--cp-success-h))
+    );
+    --cp-success-6: light-dark(
+      oklch(86% calc(var(--cp-success-c) * 0.3) var(--cp-success-h)),
+      oklch(42% calc(var(--cp-success-c) * 0.32) var(--cp-success-h))
+    );
+    --cp-success-7: light-dark(
+      oklch(70% calc(var(--cp-success-c) * 0.4) var(--cp-success-h)),
+      oklch(56% calc(var(--cp-success-c) * 0.42) var(--cp-success-h))
+    );
+    --cp-success-8: light-dark(
+      oklch(50% calc(var(--cp-success-c) * 0.7) var(--cp-success-h)),
+      oklch(70% calc(var(--cp-success-c) * 0.65) var(--cp-success-h))
+    );
+    --cp-success-9: light-dark(
+      oklch(43% calc(var(--cp-success-c) * 1) var(--cp-success-h)),
+      oklch(72% calc(var(--cp-success-c) * 1) var(--cp-success-h))
+    );
+    --cp-success-10: color-mix(
+      in oklab,
+      var(--cp-success-9),
+      contrast-color(contrast-color(var(--cp-success-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-success-11: light-dark(
+      oklch(38% calc(var(--cp-success-c) * 0.34) var(--cp-success-h)),
+      oklch(88% calc(var(--cp-success-c) * 0.22) var(--cp-success-h))
+    );
+    --cp-success-12: light-dark(
+      oklch(18% calc(var(--cp-success-c) * 0.14) var(--cp-success-h)),
+      oklch(96.5% calc(var(--cp-success-c) * 0.072) var(--cp-success-h))
+    );
+    --cp-success-on: contrast-color(var(--cp-success-9));
+  }
+  :root,
+  [data-tone] {
+    --cp-tone-1: light-dark(
+      oklch(99.3% calc(var(--cp-tone-c) * 0.04) var(--cp-tone-h)),
+      oklch(18.5% calc(var(--cp-tone-c) * 0.1) var(--cp-tone-h))
+    );
+    --cp-tone-2: light-dark(
+      oklch(97.5% calc(var(--cp-tone-c) * 0.08) var(--cp-tone-h)),
+      oklch(21.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h))
+    );
+    --cp-tone-3: light-dark(
+      oklch(95.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h)),
+      oklch(25% calc(var(--cp-tone-c) * 0.17) var(--cp-tone-h))
+    );
+    --cp-tone-4: light-dark(
+      oklch(93.2% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h)),
+      oklch(28.2% calc(var(--cp-tone-c) * 0.21) var(--cp-tone-h))
+    );
+    --cp-tone-5: light-dark(
+      oklch(90.8% calc(var(--cp-tone-c) * 0.24) var(--cp-tone-h)),
+      oklch(31.5% calc(var(--cp-tone-c) * 0.26) var(--cp-tone-h))
+    );
+    --cp-tone-6: light-dark(
+      oklch(86% calc(var(--cp-tone-c) * 0.3) var(--cp-tone-h)),
+      oklch(42% calc(var(--cp-tone-c) * 0.32) var(--cp-tone-h))
+    );
+    --cp-tone-7: light-dark(
+      oklch(70% calc(var(--cp-tone-c) * 0.4) var(--cp-tone-h)),
+      oklch(56% calc(var(--cp-tone-c) * 0.42) var(--cp-tone-h))
+    );
+    --cp-tone-8: light-dark(
+      oklch(50% calc(var(--cp-tone-c) * 0.7) var(--cp-tone-h)),
+      oklch(70% calc(var(--cp-tone-c) * 0.65) var(--cp-tone-h))
+    );
+    --cp-tone-9: light-dark(
+      oklch(43% calc(var(--cp-tone-c) * 1) var(--cp-tone-h)),
+      oklch(72% calc(var(--cp-tone-c) * 1) var(--cp-tone-h))
+    );
+    --cp-tone-10: color-mix(
+      in oklab,
+      var(--cp-tone-9),
+      contrast-color(contrast-color(var(--cp-tone-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-tone-11: light-dark(
+      oklch(38% calc(var(--cp-tone-c) * 0.34) var(--cp-tone-h)),
+      oklch(88% calc(var(--cp-tone-c) * 0.22) var(--cp-tone-h))
+    );
+    --cp-tone-12: light-dark(
+      oklch(18% calc(var(--cp-tone-c) * 0.14) var(--cp-tone-h)),
+      oklch(96.5% calc(var(--cp-tone-c) * 0.072) var(--cp-tone-h))
+    );
+    --cp-tone-on: contrast-color(var(--cp-tone-9));
+  }
+}
+/* colour:end */
+
+/* Roles. App CSS reads these; component classes read a tone's or a family's steps. */
+:root {
+  --cp-surface-page: light-dark(var(--cp-neutral-2), var(--cp-neutral-1));
+  --cp-surface-raised: light-dark(var(--cp-neutral-1), var(--cp-neutral-2));
+  --cp-surface-sunken: light-dark(
+    var(--cp-neutral-3),
+    oklch(16% calc(var(--cp-neutral-c) * 0.8) var(--cp-neutral-h))
+  );
+  --cp-surface-overlay: light-dark(
+    oklch(99.6% calc(var(--cp-neutral-c) * 0.5) var(--cp-neutral-h)),
+    var(--cp-neutral-3)
+  );
+  --cp-fill: var(--cp-neutral-3);
+  --cp-fill-hover: var(--cp-neutral-4);
+  --cp-fill-active: var(--cp-neutral-5);
+  --cp-line: var(--cp-neutral-6);
+  --cp-border: var(--cp-neutral-7);
+  --cp-border-strong: var(--cp-neutral-8);
+  --cp-ink: var(--cp-neutral-12);
+  --cp-ink-muted: var(--cp-neutral-11);
+  --cp-ink-disabled: color-mix(in oklab, var(--cp-neutral-11), transparent 45%);
+  --cp-accent: var(--cp-accent-9);
+  --cp-accent-hover: var(--cp-accent-10);
+  --cp-on-accent: var(--cp-accent-on);
+  --cp-accent-ink: var(--cp-accent-11);
+  --cp-accent-wash: var(--cp-accent-3);
+  --cp-selected: var(--cp-accent-4);
+  --cp-focus-ring: var(--cp-accent-9);
+  --cp-selection-bg: var(--cp-accent-5);
+  --cp-brand: oklch(var(--cp-brand-l) var(--cp-brand-c) var(--cp-brand-h));
+  --cp-on-brand: contrast-color(var(--cp-brand));
+  --cp-backdrop: oklch(from var(--cp-neutral-12) 15% c h / 45%);
+
+  /* The shell carries the app's brand: the solid brand in light, a deep tone
+   * of it in dark. Its hover and current fills move away from its ink. */
+  --cp-shell-bg: light-dark(
+    var(--cp-brand),
+    oklch(var(--cp-shell-dark-l) calc(var(--cp-brand-c) * var(--cp-shell-dark-k)) var(--cp-brand-h))
+  );
+  --cp-shell-ink: light-dark(
+    var(--cp-on-brand),
+    oklch(var(--cp-shell-ink-l) calc(var(--cp-brand-c) * var(--cp-shell-ink-k)) var(--cp-brand-h))
+  );
+  --cp-shell-current: color-mix(
+    in oklab,
+    var(--cp-shell-bg),
+    contrast-color(var(--cp-shell-ink)) 24%
+  );
+  --cp-shell-hover: color-mix(
+    in oklab,
+    var(--cp-shell-bg),
+    contrast-color(var(--cp-shell-ink)) 12%
+  );
+}
+
+/* Type: one family for text, its mono for machine text (file and release
+ * names, hashes, offsets). Sizes step by about 1.2. */
+:root {
+  --cp-font-body: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --cp-font-display: var(--cp-font-body);
+  --cp-font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+  --cp-text-xs: 0.8125rem;
+  --cp-text-sm: 0.875rem;
+  --cp-text-md: 1rem;
+  --cp-text-lg: 1.1875rem;
+  --cp-text-xl: 1.4375rem;
+  --cp-text-2xl: 1.75rem;
+  --cp-text-3xl: 2.125rem;
+  --cp-text-ui: var(--cp-text-sm);
+  --cp-leading-tight: 1.2;
+  --cp-leading-ui: 1.35;
+  --cp-leading-body: 1.55;
+  --cp-weight-body: 400;
+  --cp-weight-medium: 500;
+  --cp-weight-strong: 600;
+  --cp-weight-heading: 700;
+  --cp-tracking-display: -0.01em;
+  --cp-measure: 68ch;
+}
+
+/* Space: a 4px grid. Tight inside a group, wide between groups. */
+:root {
+  --cp-space-1: 0.25rem;
+  --cp-space-2: 0.5rem;
+  --cp-space-3: 0.75rem;
+  --cp-space-4: 1rem;
+  --cp-space-5: 1.25rem;
+  --cp-space-6: 1.5rem;
+  --cp-space-8: 2rem;
+  --cp-space-10: 2.5rem;
+  --cp-space-12: 3rem;
+  --cp-space-16: 4rem;
+  --cp-page-max: 90rem;
+  --cp-page-gutter: clamp(var(--cp-space-4), 3vw, var(--cp-space-8));
+}
+
+/* Geometry: one radius per nesting level; a child inside a padded parent
+ * takes the parent's radius minus the inset. */
+:root {
+  --cp-radius-control: 0.25rem;
+  --cp-radius-surface: 0.375rem;
+  --cp-radius-overlay: 0.5rem;
+  --cp-radius-chip: 0.25rem;
+  --cp-radius-round: 999px;
+  --cp-line-w: 1px;
+  --cp-control-h: 2rem;
+  --cp-control-h-sm: 1.625rem;
+  --cp-control-pad-x: 0.75rem;
+  --cp-hit-min: 24px;
+  --cp-row-h: 2.25rem;
+  --cp-focus-w: 2px;
+  --cp-focus-offset: 2px;
+  --cp-icon-ui: 1.125rem;
+  --cp-rail-w: 15rem;
+}
+
+/* Pointer tier: the app sets data-pointer from the last real
+ * PointerEvent.pointerType; until then the media query guesses. A tablet
+ * with a trackpad is fine, a laptop touchscreen being tapped is coarse. */
+:root[data-pointer="coarse"] {
+  --cp-control-h: 2.75rem;
+  --cp-control-h-sm: 2.75rem;
+  --cp-hit-min: 44px;
+  --cp-row-h: 3rem;
+}
+
+@media (pointer: coarse) {
+  :root:not([data-pointer]) {
+    --cp-control-h: 2.75rem;
+    --cp-control-h-sm: 2.75rem;
+    --cp-hit-min: 44px;
+    --cp-row-h: 3rem;
+  }
+}
+
+/* Motion: enter eases out; exit is shorter and eases in; colour changes are
+ * micro. Reduced motion keeps fades and removes movement. */
+:root {
+  --cp-dur-micro: 90ms;
+  --cp-dur-short: 160ms;
+  --cp-dur-medium: 240ms;
+  --cp-dur-long: 360ms;
+  --cp-dur-exit: 120ms;
+  --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --cp-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --cp-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  --cp-press-scale: 0.97;
+  --cp-skeleton-dur: 1.6s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cp-press-scale: 1;
+    --cp-dur-medium: var(--cp-dur-short);
+    --cp-dur-long: var(--cp-dur-short);
+  }
+}
+
+/* Depth: a shadow marks a gesture-summoned overlay only, tinted by the
+ * neutral hue; in-flow surfaces separate by a fill or one line, never both. */
+:root {
+  --cp-shadow-overlay:
+    0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 12%),
+    0 8px 24px -4px oklch(from var(--cp-neutral-12) 20% c h / 18%);
+  --cp-z-sticky: 100;
+  --cp-z-popover: 1100;
+}
+
+/* The widgets' own properties, mapped onto the language. :root.cp outranks
+ * the base stylesheet's :root, whichever loads first. */
+:root.cp {
+  --uip-backdrop: var(--cp-backdrop);
+  --uip-toast-enter-duration: var(--cp-dur-medium);
+  --uip-toast-enter-easing: var(--cp-ease-out);
+  --uip-toast-leave-duration: var(--cp-dur-exit);
+  --uip-toast-leave-easing: var(--cp-ease-in);
+  --uip-tooltip-fade-duration: var(--cp-dur-micro);
+  --uip-tooltip-fade-easing: var(--cp-ease-out);
+  --uip-dialog-leave-duration: var(--cp-dur-exit);
+  --uip-dialog-leave-easing: var(--cp-ease-in);
+  --uip-modal-leave-duration: var(--cp-dur-exit);
+  --uip-modal-leave-easing: var(--cp-ease-in);
+  --uip-popover-enter-duration: var(--cp-dur-short);
+  --uip-popover-enter-easing: var(--cp-ease-out);
+  --uip-popover-leave-duration: var(--cp-dur-exit);
+  --uip-popover-leave-easing: var(--cp-ease-in);
+  --uip-z-popover: var(--cp-z-popover);
+}
+
+/* Element defaults, inside .cp only. */
+:where(.cp) {
+  color-scheme: light dark;
+  background: var(--cp-surface-page);
+  color: var(--cp-ink);
+  font-family: var(--cp-font-body);
+  line-height: var(--cp-leading-ui);
+  font-weight: var(--cp-weight-body);
+  font-synthesis-weight: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  accent-color: var(--cp-accent);
+  caret-color: var(--cp-accent-ink);
+  scrollbar-color: var(--cp-border-strong) transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The interface size goes on body, never on html, where it would rescale
+ * every rem in the language. */
+:where(html.cp) :where(body),
+:where(.cp:not(html)) {
+  font-size: var(--cp-text-ui);
+}
+
+@media (pointer: fine) {
+  :where(html.cp) {
+    overscroll-behavior: none;
+  }
+}
+
+:where(.cp) :where(body) {
+  margin: 0;
+}
+
+:where(.cp),
+:where(.cp) *,
+:where(.cp) ::before,
+:where(.cp) ::after {
+  box-sizing: border-box;
+}
+
+:where(.cp) :where(button, input, select, textarea) {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* At width=device-width WebKit drops double-tap zoom only at the initial
+ * scale; this keeps a fast second tap on a control a tap once the page is
+ * zoomed (webkit.org/blog/5610/more-responsive-tapping-on-ios). */
+:where(.cp) :where(a, button, label, summary, select, [role="button"], [role="tab"]) {
+  touch-action: manipulation;
+}
+
+:where(.cp) :where(h1, h2, h3, h4) {
+  margin: 0;
+  font-family: var(--cp-font-display);
+  font-weight: var(--cp-weight-heading);
+  line-height: var(--cp-leading-tight);
+  letter-spacing: var(--cp-tracking-display);
+  text-wrap: balance;
+}
+
+:where(.cp) :where(h1) {
+  font-size: var(--cp-text-xl);
+}
+
+:where(.cp) :where(h2) {
+  font-size: var(--cp-text-lg);
+}
+
+:where(.cp) :where(h3) {
+  font-size: var(--cp-text-md);
+}
+
+:where(.cp) :where(h4) {
+  font-size: var(--cp-text-sm);
+}
+
+:where(.cp) :where(p) {
+  margin: 0;
+  max-inline-size: var(--cp-measure);
+}
+
+:where(.cp) :where(a) {
+  color: var(--cp-accent-ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: color-mix(in oklab, currentcolor, transparent 55%);
+  transition: text-decoration-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* Hover follows the pointer tier: a tablet being tapped keeps no hover. */
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    /* :scope names the root, so .cp on <html> matches as well as a .cp subtree. */
+    :scope.cp :where(a):hover,
+    .cp :where(a):hover {
+      text-decoration-color: currentcolor;
+    }
+  }
+}
+
+:where(.cp) :where(code, kbd, samp, pre) {
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+}
+
+:where(.cp) :where(pre) {
+  margin: 0;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  background: var(--cp-surface-sunken);
+  border-radius: var(--cp-radius-control);
+  overflow-x: auto;
+}
+
+:where(.cp) :where(hr) {
+  border: 0;
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  margin: var(--cp-space-6) 0;
+}
+
+:where(.cp) :where(table) {
+  border-collapse: collapse;
+}
+
+:where(.cp) :where(time, data, output) {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.cp) ::selection {
+  background: var(--cp-selection-bg);
+  color: var(--cp-ink);
+}
+
+:where(.cp) ::placeholder {
+  color: var(--cp-ink-muted);
+  opacity: 1;
+}
+
+:where(.cp) :where(:focus-visible) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* A route change cross-fades at the long duration, which reduced motion
+ * shortens. */
+:root.cp::view-transition-group(*),
+:root.cp::view-transition-old(*),
+:root.cp::view-transition-new(*) {
+  animation-duration: var(--cp-dur-long);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(html.cp) {
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.cp) :where(:focus-visible) {
+    outline-color: Highlight;
+  }
+}
+
+/* App frame: a header, an optional rail, the work area, a status line. */
+.cp-app {
+  display: grid;
+  grid-template:
+    "header header" auto
+    "rail main" 1fr
+    "status status" auto / auto minmax(0, 1fr);
+  min-block-size: 100dvh;
+}
+
+.cp-header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-4);
+  min-inline-size: 0;
+  min-block-size: 3.25rem;
+  padding-inline: var(--cp-page-gutter);
+  background: var(--cp-shell-bg);
+  color: var(--cp-shell-ink);
+}
+
+.cp-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-6);
+  inline-size: var(--cp-rail-w);
+  padding: var(--cp-space-4) var(--cp-space-3);
+  background: light-dark(var(--cp-accent-2), var(--cp-accent-1));
+  border-inline-end: var(--cp-line-w) solid var(--cp-line);
+  overflow-y: auto;
+}
+
+.cp-main {
+  grid-area: main;
+  min-inline-size: 0;
+  container-type: inline-size;
+  padding: var(--cp-space-6) var(--cp-page-gutter) var(--cp-space-10);
+}
+
+.cp-status {
+  grid-area: status;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--cp-space-4);
+  min-block-size: 1.875rem;
+  padding-inline: var(--cp-page-gutter);
+  font-size: var(--cp-text-xs);
+  color: var(--cp-ink-muted);
+  background: var(--cp-surface-raised);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
+ * held upright), expanded above. The rail leaves at medium. */
+@media (width < 60rem) {
+  .cp-app {
+    grid-template:
+      "header" auto
+      "main" 1fr
+      "status" auto / minmax(0, 1fr);
+  }
+
+  .cp-rail {
+    display: none;
+  }
+}
+
+.cp-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-family: var(--cp-font-display);
+  font-weight: var(--cp-weight-heading);
+  font-size: var(--cp-text-md);
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cp-mark {
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-shell-ink);
+  color: var(--cp-shell-bg);
+  font-size: var(--cp-text-xs);
+  font-weight: 700;
+}
+
+/* Visually hidden, still named: a label that a narrow screen drops. */
+.cp-hidden-narrow {
+  white-space: nowrap;
+}
+
+@media (width < 40rem) {
+  .cp-hidden-narrow {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* Navigation: destinations read as navigation; the current one is a fill
+ * and weight, never an edge. */
+.cp-nav {
+  display: flex;
+  gap: var(--cp-space-1);
+}
+
+.cp-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: inherit;
+  text-decoration: none;
+  font-weight: var(--cp-weight-medium);
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-nav-item[aria-current] {
+  background: var(--cp-shell-current);
+  font-weight: var(--cp-weight-strong);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-nav-item:not([aria-current]):hover {
+      background: var(--cp-shell-hover);
+    }
+  }
+}
+
+/* Below the expanded tier a destination keeps its icon and its name, and
+ * drops only the visible word. */
+@media (width < 60rem) {
+  .cp-nav-label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.cp-header > .cp-toolbar {
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+@media (width < 40rem) {
+  .cp-header {
+    flex-wrap: wrap;
+    row-gap: var(--cp-space-1);
+    padding-block: var(--cp-space-2);
+  }
+
+  .cp-header > .cp-toolbar {
+    justify-content: end;
+  }
+}
+
+.cp-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+  margin-block-end: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-crumbs a {
+  color: inherit;
+}
+
+/* Buttons: one primary per surface; danger is data-tone="danger". */
+.cp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  min-inline-size: var(--cp-hit-min);
+  padding-inline: var(--cp-control-pad-x);
+  border: var(--cp-line-w) solid transparent;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-fill);
+  color: var(--cp-ink);
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+  font-size: var(--cp-text-ui);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* data-uip-pressed comes from @cplieger/ui/press, for a finger :active misses. */
+.cp-button:active:not(:disabled),
+.cp-button[data-uip-pressed]:not(:disabled) {
+  transform: scale(var(--cp-press-scale));
+}
+
+.cp-button[data-variant="primary"] {
+  background: var(--cp-tone-9);
+  color: var(--cp-tone-on);
+}
+
+.cp-button[data-variant="quiet"] {
+  background: transparent;
+  color: var(--cp-ink-muted);
+}
+
+.cp-header .cp-button[data-variant="quiet"]:not(:disabled) {
+  color: inherit;
+}
+
+.cp-button[data-size="sm"] {
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  font-size: var(--cp-text-xs);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-button:hover:not(:disabled) {
+      background: var(--cp-fill-hover);
+    }
+
+    .cp-button[data-variant="primary"]:hover:not(:disabled) {
+      background: var(--cp-tone-10);
+    }
+
+    .cp-button[data-variant="quiet"]:hover:not(:disabled) {
+      background: var(--cp-fill);
+      color: var(--cp-ink);
+    }
+
+    :where(.cp-header) .cp-button[data-variant="quiet"]:hover:enabled {
+      background: var(--cp-shell-hover);
+      color: inherit;
+    }
+  }
+}
+
+.cp-button[aria-disabled="true"] {
+  pointer-events: none;
+  color: var(--cp-ink-disabled);
+  background: var(--cp-fill);
+}
+
+.cp-button:disabled {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
+  background: var(--cp-fill);
+}
+
+/* Fields: the boundary is the 3:1 step, so a field is findable without its
+ * label. Inputs stay 16px on touch so iOS does not zoom. */
+.cp-field {
+  display: grid;
+  gap: var(--cp-space-1);
+}
+
+.cp-label {
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-help {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-input {
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+  font: inherit;
+  font-size: max(16px, var(--cp-text-ui));
+}
+
+:root[data-pointer="fine"] .cp-input {
+  font-size: var(--cp-text-ui);
+}
+
+.cp-input:user-invalid,
+.cp-input[aria-invalid="true"] {
+  border-color: var(--cp-danger-8);
+}
+
+/* A field's error: text under the field, tied to it by aria-describedby. */
+.cp-field-error {
+  display: flex;
+  gap: var(--cp-space-1);
+  align-items: start;
+  color: var(--cp-danger-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-field-error > .uip-icon {
+  --cp-icon-size: 0.875rem;
+
+  margin-block-start: 0.0625rem;
+}
+
+/* A list inside a notice, such as an error summary's links to its fields. */
+.cp-notice :where(ul, ol) {
+  margin: var(--cp-space-1) 0 0;
+  padding-inline-start: 1.25em;
+}
+
+.cp-notice :where(a) {
+  color: inherit;
+}
+
+/* Data table: rows are never interactive; actions are buttons in a cell.
+ * A column carries its priority, and a narrow container drops low, then mid. */
+.cp-table {
+  inline-size: 100%;
+  font-size: var(--cp-text-ui);
+}
+
+.cp-table th {
+  text-align: start;
+  font-weight: var(--cp-weight-medium);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+  white-space: nowrap;
+}
+
+.cp-table td {
+  padding: 0 var(--cp-space-3);
+  block-size: var(--cp-row-h);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+  vertical-align: middle;
+}
+
+.cp-table tr:last-child td {
+  border-block-end: 0;
+}
+
+.cp-table [data-col="num"] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Row selection: a native checkbox in a label that fills its cell, so the
+ * hit area reaches the tier's minimum. */
+.cp-table [data-col="select"] {
+  inline-size: 1%;
+  padding: 0;
+}
+
+.cp-table [data-col="select"] > label {
+  display: flex;
+  align-items: center;
+  min-inline-size: var(--cp-hit-min);
+  min-block-size: max(var(--cp-hit-min), var(--cp-row-h));
+  padding-inline: var(--cp-space-3) var(--cp-space-2);
+  cursor: pointer;
+}
+
+.cp-table [data-col="select"] input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin: 0;
+}
+
+.cp-table tr:has(> [data-col="select"] input:checked) > td {
+  background: var(--cp-selected);
+}
+
+/* The actions for the selected rows, above the table, with their count. */
+.cp-batchbar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--cp-z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-accent-wash);
+  color: var(--cp-accent-12);
+}
+
+/* Pagination under a table: where the person is, and the way to the pages
+ * around it. */
+.cp-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-pager > :first-child {
+  margin-inline-end: auto;
+}
+
+/* The trigger for the rail's filters, shown only once the rail leaves. */
+.cp-rail-toggle {
+  display: none;
+}
+
+@media (width < 60rem) {
+  .cp-rail-toggle {
+    display: inline-flex;
+  }
+}
+
+.cp-batch-count {
+  margin-inline-end: auto;
+  font-weight: var(--cp-weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-table [data-col="actions"] > .cp-button:only-child {
+  inline-size: 100%;
+}
+
+.cp-table [data-col="actions"] {
+  text-align: end;
+  inline-size: 1%;
+  white-space: nowrap;
+}
+
+.cp-table [data-col="actions"] > .cp-toolbar {
+  flex-wrap: nowrap;
+  justify-content: end;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-table tbody tr:hover td {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+@container (width < 64rem) {
+  .cp-table [data-priority="low"] {
+    display: none;
+  }
+}
+
+@container (width < 44rem) {
+  .cp-table [data-priority="mid"] {
+    display: none;
+  }
+}
+
+.cp-mono {
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+}
+
+/* One line, cut with an ellipsis; give the full text a title or a tooltip. */
+.cp-truncate {
+  display: block;
+  max-inline-size: var(--cp-truncate-w, 14rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A cell's main text over a muted second line. */
+.cp-cell-stack {
+  display: grid;
+  justify-items: start;
+  gap: 0.125rem;
+  min-inline-size: 13rem;
+  padding-block: var(--cp-space-2);
+}
+
+.cp-cell-stack > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+@container (width < 44rem) {
+  .cp-cell-stack {
+    min-inline-size: 0;
+  }
+}
+
+/* Chip: a tone's wash, its glyph and its word; colour is never alone. */
+.cp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-block-size: 1.375rem;
+  padding-inline: var(--cp-space-2);
+  border-radius: var(--cp-radius-chip);
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+  white-space: nowrap;
+}
+
+.cp-header .cp-chip[data-tone="neutral"] {
+  background: var(--cp-shell-hover);
+  color: var(--cp-shell-ink);
+}
+
+.cp-chip .uip-icon {
+  --cp-icon-size: 0.875rem;
+}
+
+.cp-count {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Notice: the state's wash over its container, a glyph and text. */
+.cp-notice {
+  display: flex;
+  gap: var(--cp-space-3);
+  align-items: start;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-12);
+}
+
+.cp-notice > .uip-icon {
+  color: var(--cp-tone-11);
+  margin-block-start: 0.0625rem;
+}
+
+/* Panel: an in-flow surface outlined by one line. A flush panel scrolls a
+ * wide table inside itself so the page never scrolls sideways. */
+.cp-panel {
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  padding: var(--cp-space-4);
+}
+
+.cp-panel[data-flush] {
+  position: relative;
+  padding: 0;
+  overflow-x: auto;
+}
+
+.cp-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+.cp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--cp-space-3) var(--cp-space-6);
+  margin-block-end: var(--cp-space-5);
+}
+
+.cp-heading-row > :first-child {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+.cp-heading-row > .cp-toolbar {
+  flex: 0 1 auto;
+  justify-content: end;
+}
+
+/* A stack's gap is its children's spacing. */
+.cp-stack > hr,
+.cp-stack > .cp-heading-row {
+  margin-block: 0;
+}
+
+@media (width < 40rem) {
+  .cp-heading-row > .cp-toolbar {
+    flex: 1 1 100%;
+    justify-content: start;
+  }
+
+  .cp-heading-row > .cp-toolbar > .cp-input {
+    flex: 1 1 8rem;
+    min-inline-size: 0;
+  }
+}
+
+.cp-meta {
+  color: var(--cp-ink-muted);
+}
+
+/* Filter list: a rail section of options with counts. */
+.cp-filter-group {
+  display: grid;
+  gap: 1px;
+}
+
+.cp-filter-title {
+  margin: 0;
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+  color: var(--cp-ink);
+  padding: 0 var(--cp-space-2) var(--cp-space-2);
+}
+
+.cp-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-filter[aria-pressed="true"] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-weight: var(--cp-weight-medium);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-filter:not([aria-pressed="true"]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+.cp-swatch {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: 0.1875rem;
+  background: var(--cp-tone-9);
+}
+
+/* Tabs: ARIA tabs; the selected tab is a raised fill. */
+.cp-tabs {
+  display: flex;
+  gap: var(--cp-space-1);
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  padding: var(--cp-space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--cp-fill);
+  border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
+}
+
+.cp-tab {
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-3);
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: transparent;
+  color: var(--cp-ink-muted);
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cp-tab[aria-selected="true"] {
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+}
+
+/* Progress: a track and a fill in the tone. */
+.cp-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--cp-ink-muted);
+}
+
+.cp-progress-track {
+  inline-size: 5rem;
+  block-size: 0.375rem;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-4);
+  overflow: clip;
+}
+
+.cp-progress-fill {
+  block-size: 100%;
+  background: var(--cp-tone-9);
+  border-radius: inherit;
+}
+
+/* Skeleton: the shape of what is coming, with a slow opacity beat that stops
+ * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
+.cp-skeleton {
+  display: block;
+  block-size: 0.75em;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-fill-hover);
+  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
+}
+
+@keyframes cp-skeleton {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-skeleton {
+    animation: none;
+  }
+}
+
+/* Empty state: what belongs here and the one action that fills it. */
+.cp-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-8) var(--cp-space-6);
+  color: var(--cp-ink-muted);
+}
+
+/* Widget skins, inside .cp only. @cplieger/ui/icons paints a drawing
+ * through a mask in currentcolor. Overlays are the only shadowed surfaces. */
+:where(.cp) .uip-icon {
+  display: inline-block;
+  flex: none;
+  inline-size: var(--cp-icon-size, var(--cp-icon-ui));
+  block-size: var(--cp-icon-size, var(--cp-icon-ui));
+  background-color: currentcolor;
+  mask: var(--uip-icon, none) center / contain no-repeat;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="inline"] {
+  --cp-icon-size: 1em;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="lg"] {
+  --cp-icon-size: 1.5rem;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="hero"] {
+  --cp-icon-size: 3rem;
+}
+
+:where(.cp) .uip-tooltip {
+  padding: var(--cp-space-1) var(--cp-space-2);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-neutral-12);
+  color: var(--cp-neutral-1);
+  font-size: var(--cp-text-xs);
+}
+
+:where(.cp) :is(.uip-popover, .uip-popup, .uip-toast) {
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-overlay);
+  box-shadow: var(--cp-shadow-overlay);
+}
+
+:where(.cp) .uip-toast {
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+:where(.cp) :is(.uip-modal, .uip-dialog) {
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  border: 0;
+  border-radius: var(--cp-radius-overlay);
+  box-shadow: var(--cp-shadow-overlay);
+}
+
+/* A sheet: modal content marked .cp-sheet opens at the inline end at full
+ * height, and across the whole screen in the compact tier. */
+:where(.cp) .uip-modal:has(> .cp-sheet) {
+  inset-block: 0;
+  inline-size: min(24rem, 100vw);
+  max-inline-size: 100vw;
+  block-size: 100dvh;
+  max-block-size: none;
+  margin: 0;
+  margin-inline-start: auto;
+  border-radius: 0;
+  padding: 0;
+}
+
+@media (width < 40rem) {
+  :where(.cp) .uip-modal:has(> .cp-sheet) {
+    inline-size: 100vw;
+  }
+}
+
+.cp-sheet {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  block-size: 100%;
+}
+
+.cp-sheet-head,
+.cp-sheet-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.cp-sheet-head {
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+}
+
+.cp-sheet-head > :first-child {
+  margin-inline-end: auto;
+}
+
+.cp-sheet-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--cp-space-4);
+}
+
+.cp-sheet-foot {
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* A busy control keeps its label beside a turning spinner-arc. */
+.cp-button[aria-busy="true"] {
+  cursor: progress;
+}
+
+:where(.cp) .uip-icon[data-uip-icon="spinner-arc"] {
+  animation: cp-spin 0.8s linear infinite;
+}
+
+@keyframes cp-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* A drawing that points along the line of text faces the other way in a
+ * right-to-left context. */
+:where(.cp) .uip-icon:dir(rtl):is([data-uip-icon$="-right"], [data-uip-icon$="-left"]) {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.cp) .uip-icon[data-uip-icon="spinner-arc"] {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-button,
+  .cp-chip,
+  .cp-notice,
+  .cp-filter[aria-pressed="true"],
+  .cp-tab[aria-selected="true"],
+  .cp-nav-item[aria-current],
+  .cp-pager,
+  .cp-batchbar {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+
+  :where(.cp) .uip-icon {
+    forced-color-adjust: none;
+  }
+
+  @supports (forced-color-adjust: preserve-parent-color) {
+    :where(.cp) .uip-icon {
+      forced-color-adjust: preserve-parent-color;
+    }
+  }
+}

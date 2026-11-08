@@ -2,5 +2,7 @@ ui
 Copyright 2026 cplieger
 https://github.com/cplieger/ui
 
-The drawings under icons/svg/ are from Lucide (https://lucide.dev), ISC License,
-with some derived from Feather, MIT License. Both notices are in icons/LICENSE-lucide.
+The drawings under icons/svg/ named in iconNames are from Lucide
+(https://lucide.dev), ISC License, with some derived from Feather, MIT License.
+Both notices are in icons/LICENSE-lucide. pin-filled is Lucide's pin with its
+head filled, under the same notices. spinner-arc is this package's own.
