@@ -9,6 +9,8 @@ import * as focusTrap from "@cplieger/ui/focus-trap";
 import * as modal from "@cplieger/ui/modal";
 import * as popover from "@cplieger/ui/popover";
 import * as popup from "@cplieger/ui/popup";
+import * as pointer from "@cplieger/ui/pointer";
+import * as press from "@cplieger/ui/press";
 import * as rovingFocus from "@cplieger/ui/roving-focus";
 import * as skeleton from "@cplieger/ui/skeleton";
 import * as theme from "@cplieger/ui/theme";
@@ -27,6 +29,8 @@ const api = {
   ...modal,
   ...popover,
   ...popup,
+  ...pointer,
+  ...press,
   ...rovingFocus,
   ...skeleton,
   ...theme,
@@ -42,6 +46,9 @@ describe("public surface", () => {
     expect(typeof api.runTransition).toBe("function");
     expect(typeof api.cancelTransition).toBe("function");
     expect(typeof api.trapFocus).toBe("function");
+    expect(typeof api.installPress).toBe("function");
+    expect(typeof api.applyPointerTier).toBe("function");
+    expect(typeof api.installPointerTier).toBe("function");
     expect(typeof api.announce).toBe("function");
     expect(typeof api.createConnectionTest).toBe("function");
     expect(typeof api.mountLiveRegions).toBe("function");

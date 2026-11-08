@@ -12,6 +12,8 @@ import "@cplieger/ui/css";
 
 The `/css` import works on npm. JSR exports only modules, so a JSR install has no `/css` export. Load the stylesheet from the package file `css/ui-primitives.css` instead.
 
+To give the widgets a ready look instead of writing your own skin, also import `@cplieger/ui/css/system` and put `class="cp"` on `<html>`. [Design language](design.md) covers it.
+
 ## What you supply
 
 The base stylesheet sets only layout and motion. You supply the rest in two ways:
@@ -42,6 +44,9 @@ Everything the widgets own is namespaced, so it never collides with your app's n
 - custom properties: `--uip-*`, such as `--uip-toast-duration`
 - trigger attributes: `data-uip-*`, such as `data-uip-tooltip`
 - state classes: `is-*` on a widget element, such as `.uip-toast.is-entering`, `.is-shown` and `.is-leaving`
+- state attributes: `data-uip-*` on an element of yours that a widget manages, such as `data-uip-pressed` from [press](press.md)
+
+The page's own state on `<html>` is the exception, because `@cplieger/ui/css/system` and your CSS key off it and an app may set it itself. [theme](theme.md) writes `data-theme` unless you give it another `attribute`, and [pointer](pointer.md) writes `data-pointer`.
 
 Each widget's reference page lists its own classes, state classes and custom properties.
 

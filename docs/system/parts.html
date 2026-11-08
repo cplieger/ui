@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html
+  lang="en"
+  class="cp"
+  data-app="library"
+>
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1">
+    <title>Reference screen: the components</title>
+    <link
+      rel="stylesheet"
+      href="../../css/ui-primitives.css">
+    <link
+      rel="stylesheet"
+      href="../../css/system.css">
+    <link
+      rel="stylesheet"
+      href="specimen.css">
+  </head>
+  <body>
+    <!-- The parts: every component in its states. -->
+    <div class="cp-app">
+      <header class="cp-header">
+        <a
+          class="cp-wordmark"
+          href="#"
+          ><span
+            class="cp-mark"
+            aria-hidden="true"
+            >C</span
+          ><span class="cp-hidden-narrow">Components</span></a
+        >
+      </header>
+      <main class="cp-main">
+        <div class="cp-heading-row">
+          <h1>Components</h1>
+        </div>
+        <div class="parts">
+          <section>
+            <h2>Buttons</h2>
+            <div class="cp-toolbar">
+              <button
+                class="cp-button"
+                data-variant="primary"
+                type="button"
+              >
+                Save changes
+              </button>
+              <button
+                class="cp-button"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                class="cp-button"
+                data-variant="quiet"
+                type="button"
+              >
+                Reset
+              </button>
+              <button
+                class="cp-button"
+                data-variant="primary"
+                data-tone="danger"
+                type="button"
+              >
+                <span
+                  class="uip-icon"
+                  data-uip-icon="trash-2"
+                  aria-hidden="true"
+                ></span
+                >Delete
+              </button>
+              <button
+                class="cp-button"
+                type="button"
+                disabled
+              >
+                Disabled
+              </button>
+              <button
+                class="cp-button"
+                data-size="sm"
+                type="button"
+              >
+                Small
+              </button>
+              <button
+                class="cp-button"
+                type="button"
+                aria-busy="true"
+              >
+                <span
+                  class="uip-icon"
+                  data-uip-icon="spinner-arc"
+                  aria-hidden="true"
+                ></span
+                >Saving…
+              </button>
+            </div>
+          </section>
+          <section>
+            <h2>Fields</h2>
+            <div class="cp-stack">
+              <div class="cp-field">
+                <label
+                  class="cp-label"
+                  for="api-key"
+                  >API key</label
+                >
+                <input
+                  class="cp-input"
+                  id="api-key"
+                  type="text"
+                  value="sk-01234"
+                  spellcheck="false"
+                  aria-invalid="true"
+                  aria-describedby="api-key-help api-key-error"
+                >
+                <span
+                  class="cp-help"
+                  id="api-key-help"
+                  >Settings, then API, in the source app.</span
+                >
+                <span
+                  class="cp-field-error"
+                  id="api-key-error"
+                  ><span
+                    class="uip-icon"
+                    data-uip-icon="circle-alert"
+                    aria-hidden="true"
+                  ></span
+                  >Paste the whole key, 32 characters.</span
+                >
+              </div>
+              <div class="cp-field">
+                <label
+                  class="cp-label"
+                  for="check-every"
+                  >Check every</label
+                >
+                <input
+                  class="cp-input"
+                  id="check-every"
+                  type="text"
+                  value="3 seconds"
+                  aria-invalid="true"
+                  aria-describedby="check-every-error">
+                <span
+                  class="cp-field-error"
+                  id="check-every-error"
+                  ><span
+                    class="uip-icon"
+                    data-uip-icon="circle-alert"
+                    aria-hidden="true"
+                  ></span
+                  >Enter 5 minutes or more.</span
+                >
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2>Chips</h2>
+            <div class="cp-toolbar">
+              <span
+                class="cp-chip"
+                data-tone="success"
+                ><span
+                  class="uip-icon"
+                  data-uip-icon="circle-check"
+                  aria-hidden="true"
+                ></span
+                >Up</span
+              >
+              <span
+                class="cp-chip"
+                data-tone="warning"
+                ><span
+                  class="uip-icon"
+                  data-uip-icon="triangle-alert"
+                  aria-hidden="true"
+                ></span
+                >Slow</span
+              >
+              <span
+                class="cp-chip"
+                data-tone="danger"
+                ><span
+                  class="uip-icon"
+                  data-uip-icon="circle-x"
+                  aria-hidden="true"
+                ></span
+                >Down</span
+              >
+              <span
+                class="cp-chip"
+                data-tone="neutral"
+                ><span
+                  class="uip-icon"
+                  data-uip-icon="circle-dashed"
+                  aria-hidden="true"
+                ></span
+                >Paused</span
+              >
+              <span
+                class="cp-chip"
+                data-tone="best"
+                ><span
+                  class="uip-icon"
+                  data-uip-icon="check"
+                  aria-hidden="true"
+                ></span
+                >An app tone</span
+              >
+            </div>
+          </section>
+          <section>
+            <h2>Notices</h2>
+            <div class="cp-stack">
+              <div
+                class="cp-notice"
+                data-tone="danger"
+                role="alert"
+              >
+                <span
+                  class="uip-icon"
+                  data-uip-icon="octagon-alert"
+                  aria-hidden="true"
+                ></span>
+                <div>Sonarr rejected the API key. Paste a new key in Settings, then Sources.</div>
+              </div>
+              <div
+                class="cp-notice"
+                data-tone="danger"
+                role="alert"
+                tabindex="-1"
+                aria-labelledby="summary-title"
+              >
+                <span
+                  class="uip-icon"
+                  data-uip-icon="circle-x"
+                  aria-hidden="true"
+                ></span>
+                <div>
+                  <h3 id="summary-title">2 settings need a fix before they save</h3>
+                  <ul>
+                    <li><a href="#api-key">API key</a></li>
+                    <li><a href="#check-every">Check every</a></li>
+                  </ul>
+                </div>
+              </div>
+              <div
+                class="cp-notice"
+                data-tone="success"
+                role="status"
+              >
+                <span
+                  class="uip-icon"
+                  data-uip-icon="circle-check"
+                  aria-hidden="true"
+                ></span>
+                <div>Saved. The next check uses the new interval.</div>
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2>Tabs and progress</h2>
+            <div class="cp-stack">
+              <div
+                class="cp-tabs"
+                role="tablist"
+                aria-label="Example"
+              >
+                <button
+                  class="cp-tab"
+                  role="tab"
+                  type="button"
+                  aria-selected="true"
+                >
+                  General
+                </button>
+                <button
+                  class="cp-tab"
+                  role="tab"
+                  type="button"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  Sources
+                </button>
+                <button
+                  class="cp-tab"
+                  role="tab"
+                  type="button"
+                  aria-selected="false"
+                  tabindex="-1"
+                >
+                  Access
+                </button>
+              </div>
+              <span class="cp-progress"
+                ><span class="cp-progress-track"
+                  ><span class="cp-progress-fill progress-58"></span></span
+                >58%</span
+              >
+            </div>
+          </section>
+          <section>
+            <h2>Loading and empty</h2>
+            <div class="cp-panel">
+              <div class="cp-stack">
+                <span class="cp-skeleton"></span><span class="cp-skeleton"></span>
+              </div>
+            </div>
+            <div class="cp-empty">
+              <span
+                class="uip-icon"
+                data-uip-icon="library"
+                data-uip-icon-size="hero"
+                aria-hidden="true"
+              ></span>
+              <p>No series yet. Connect Sonarr to fill the library.</p>
+              <button
+                class="cp-button"
+                data-variant="primary"
+                type="button"
+              >
+                Connect Sonarr
+              </button>
+            </div>
+          </section>
+          <section>
+            <h2>Sheet</h2>
+            <div class="sheet-frame">
+              <div
+                class="cp-sheet"
+                role="group"
+                aria-labelledby="sheet-title"
+              >
+                <div class="cp-sheet-head">
+                  <h3 id="sheet-title">Filters</h3>
+                  <button
+                    class="cp-button"
+                    data-variant="quiet"
+                    type="button"
+                    aria-label="Close filters"
+                  >
+                    <span
+                      class="uip-icon"
+                      data-uip-icon="x"
+                      aria-hidden="true"
+                    ></span>
+                  </button>
+                </div>
+                <div class="cp-sheet-body">
+                  <div class="cp-filter-group">
+                    <div class="cp-filter-title">Verdict</div>
+                    <button
+                      class="cp-filter"
+                      type="button"
+                      aria-pressed="false"
+                    >
+                      All entries<span class="cp-count">412</span>
+                    </button>
+                    <button
+                      class="cp-filter"
+                      type="button"
+                      aria-pressed="true"
+                      data-tone="worse"
+                    >
+                      <span class="cp-swatch"></span>Not the best<span class="cp-count">33</span>
+                    </button>
+                    <button
+                      class="cp-filter"
+                      type="button"
+                      aria-pressed="true"
+                      data-tone="missing"
+                    >
+                      <span class="cp-swatch"></span>Missing<span class="cp-count">9</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="cp-sheet-foot">
+                  <button
+                    class="cp-button"
+                    data-variant="quiet"
+                    type="button"
+                  >
+                    Clear all
+                  </button>
+                  <button
+                    class="cp-button"
+                    data-variant="primary"
+                    type="button"
+                  >
+                    Show 42 results
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
