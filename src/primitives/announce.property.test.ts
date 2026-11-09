@@ -265,9 +265,9 @@ async function run(steps: readonly Step[]): Promise<void> {
           if (into === null) {
             continue;
           }
-          // Chromium 153 to 158 segfault the renderer when moveBefore() puts a
-          // dialog open by show() straight into a ShadowRoot: a browser bug,
-          // which no announce or dialog code path takes.
+          // Chromium segfaults the renderer when moveBefore() puts a dialog open
+          // by show() straight into a ShadowRoot (crbug.com/583431475); no
+          // announce or dialog code path takes it. Remove once that is fixed.
           if (step.method === "moveBefore" && into === shadow && el.open && !el.matches(":modal")) {
             continue;
           }
