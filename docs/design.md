@@ -22,7 +22,7 @@ The stylesheet fixes the controls, the navigation, the type, the spacing, the ra
 3. Set your seeds in your own unlayered `:root`, after the import. The steps are computed on `:root`, so a seed set on another element changes nothing there. To colour one region differently, give it a tone.
 4. Set `data-theme="light"` or `data-theme="dark"` on `<html>` before first paint from an external blocking script. `@cplieger/ui/theme` writes this attribute. With no attribute, the page follows the operating system.
 5. Set `data-pointer` with [`@cplieger/ui/pointer`](pointer.md), as [Touch and mouse](#touch-and-mouse) shows.
-6. Call `installPress()` from [`@cplieger/ui/press`](press.md) at startup, so a press shows under a finger too.
+6. Call `installPress()` from [`@cplieger/ui/press`](press.md) at startup, so a press shows under a finger too, and `installRadioFocus()` from [`@cplieger/ui/radio-focus`](core/radio-focus.md), so Safari keeps the focus ring on a radio the arrow keys reach.
 7. Set `lang` on `<html>`, and `dir` when the interface language reads right to left.
 
 ```css

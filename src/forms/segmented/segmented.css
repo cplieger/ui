@@ -37,6 +37,9 @@
 .cp-segmented > label > input {
   position: absolute;
   inset: 0;
+  /* WebKit keeps a radio at its own size under inset: 0. */
+  inline-size: 100%;
+  block-size: 100%;
   margin: 0;
   opacity: 0;
   cursor: inherit;
@@ -47,7 +50,9 @@
   color: var(--cp-ink);
 }
 
-.cp-segmented > label:has(:focus-visible) {
+/* [data-uip-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
+ * arrow keys reached where WebKit drops :focus-visible. */
+.cp-segmented > label:has(:focus-visible, [data-uip-focus-ring]:focus) {
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }

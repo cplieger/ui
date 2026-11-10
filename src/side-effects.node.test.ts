@@ -25,6 +25,7 @@ const PURE = [
   "/icons",
   "/pointer",
   "/press",
+  "/radio-focus",
   "/roving-focus",
   "/skeleton",
   "/stepper",

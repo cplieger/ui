@@ -1,5 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cdp, page, userEvent } from "vitest/browser";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished } from "vitest";
+import { cdp, page, server, userEvent } from "vitest/browser";
+
+import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
 
 const root = document.documentElement;
 let sheet: HTMLLinkElement;
@@ -25,8 +27,14 @@ beforeEach(async () => {
   sheet = await link("system.css");
 });
 
+// Media emulation goes through the Chrome DevTools Protocol, which only
+// Chromium speaks; Firefox and WebKit skip the tests that need it.
+const emulates = server.browser === "chromium";
+
 afterEach(async () => {
-  await cdp().send("Emulation.setEmulatedMedia", { features: [] });
+  if (emulates) {
+    await cdp().send("Emulation.setEmulatedMedia", { features: [] });
+  }
   await page.viewport(1280, 720);
   sheet.remove();
   base?.remove();
@@ -337,9 +345,18 @@ describe("css/system.css", () => {
     }
     const scale = (b: Element | undefined) =>
       new DOMMatrix(getComputedStyle(b as Element).transform).a;
-    expect([scale(on), scale(off), scale(full)]).toEqual([0.97, 1, 1]);
+    // Firefox keeps the scale as a float32, 0.9700000286.
+    expect(scale(on)).toBeCloseTo(0.97, 6);
+    expect([scale(off), scale(full)]).toEqual([1, 1]);
+  });
+
+  it.skipIf(!emulates)("does not scale a press under reduced motion", async () => {
+    theme("light");
+    const el = build('<button class="cp-button" type="button" data-uip-pressed="">Go</button>');
+    const button = el.querySelector("button") as HTMLElement;
+    button.style.transition = "none";
     await media("prefers-reduced-motion", "reduce");
-    expect(scale(on)).toBe(1);
+    expect(new DOMMatrix(getComputedStyle(button).transform).a).toBe(1);
   });
 
   it("keeps a fast second tap on a control a tap, and leaves text fields alone", () => {
@@ -460,7 +477,7 @@ describe("css/system.css", () => {
     expect(travel(ltr)).toEqual([48, 28, 20]);
   });
 
-  it("keeps a switch's state in forced colours", async () => {
+  it.skipIf(!emulates)("keeps a switch's state in forced colours", async () => {
     theme("light");
     await media("forced-colors", "active");
     const el = build('<input class="cp-switch" type="checkbox" role="switch" checked>');
@@ -472,6 +489,9 @@ describe("css/system.css", () => {
   });
 
   it("fills the chosen segment and rings it when its radio has keyboard focus", async () => {
+    const life = new AbortController();
+    onTestFinished(() => life.abort());
+    installRadioFocus({ signal: life.signal });
     theme("light");
     const el = build(
       '<div class="cp-segmented" role="radiogroup" aria-label="Theme"><label><input type="radio" name="t" value="s">System</label><label><input type="radio" name="t" value="l" checked>Light</label></div>',
@@ -488,6 +508,7 @@ describe("css/system.css", () => {
     expect([box.width, box.height]).toEqual([label.width, label.height]);
     radio.focus();
     await userEvent.keyboard("{ArrowLeft}");
+    await new Promise((resolve) => setTimeout(resolve));
     expect((system as HTMLLabelElement).querySelector("input")?.checked).toBe(true);
     expect(fill(system)).not.toBe(fill(light));
     expect(getComputedStyle(system as Element).outlineStyle).toBe("solid");
@@ -685,7 +706,7 @@ describe("css/system.css", () => {
       b.style.transition = "none";
       return getComputedStyle(b);
     });
-    expect(new DOMMatrix(worded?.transform).a).toBe(0.97);
+    expect(new DOMMatrix(worded?.transform).a).toBeCloseTo(0.97, 6);
     expect(new DOMMatrix(icon?.transform).a).toBe(1);
     expect(icon?.backgroundColor).not.toBe(worded?.backgroundColor);
   });
@@ -811,7 +832,8 @@ describe("css/system.css", () => {
     );
     const [pw, text] = [...el.querySelectorAll("input")].map((n) => getComputedStyle(n).fontFamily);
     expect(pw).toBe("system-ui, sans-serif");
-    expect(text).toMatch(/^"Atkinson Hyperlegible Next"/);
+    // Chromium quotes a family name with spaces; Firefox and WebKit do not.
+    expect(text).toMatch(/^"?Atkinson Hyperlegible Next"?,/);
   });
 
   it("hides an element with the hidden attribute whatever display its class sets", () => {
@@ -881,16 +903,18 @@ describe("css/system.css", () => {
   });
 
   for (const t of ["light", "dark"] as const) {
-    it(`fills the header with the brand and inks it at 4.5:1, or 7:1 with more contrast, in ${t}`, async () => {
+    it(`fills the header with the brand and inks it at 4.5:1 in ${t}`, () => {
+      theme(t);
+      const cs = getComputedStyle(host("cp-header"));
+      expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it.skipIf(!emulates)(`inks the header at 7:1 with more contrast in ${t}`, async () => {
       theme(t);
       const header = host("cp-header");
-      const ratio = () => {
-        const cs = getComputedStyle(header);
-        return contrast(cs.color, cs.backgroundColor);
-      };
-      expect(ratio()).toBeGreaterThanOrEqual(4.5);
       await media("prefers-contrast", "more");
-      expect(ratio()).toBeGreaterThanOrEqual(7);
+      const cs = getComputedStyle(header);
+      expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(7);
     });
 
     it(`writes a field's error text at 4.5:1 on the page in ${t}`, () => {
@@ -901,7 +925,7 @@ describe("css/system.css", () => {
     });
   }
 
-  it("borders chips in forced colours", async () => {
+  it.skipIf(!emulates)("borders chips in forced colours", async () => {
     theme("light");
     const chip = host("cp-chip");
     expect(getComputedStyle(chip).borderTopWidth).toBe("0px");
@@ -1037,7 +1061,7 @@ describe("css/system.css", () => {
     expect(invalid).not.toBe(valid);
   });
 
-  it("borders the current destination in forced colours", async () => {
+  it.skipIf(!emulates)("borders the current destination in forced colours", async () => {
     theme("light");
     const el = build('<a class="cp-nav-item" href="#" aria-current="page">Library</a>');
     await media("forced-colors", "active");
