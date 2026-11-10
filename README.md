@@ -96,7 +96,7 @@ Import each part from its own subpath. Code that imports one of the earlier pack
 | `@cplieger/ui/css/system` | an opt-in design language: colour from a few seeds in light and dark, type, layout and component classes, on npm only |
 | `@cplieger/ui/fonts/*` | the two fonts the design language uses, on npm only |
 
-The widget subpaths are `toast`, `tooltip`, `popover`, `popup`, `dialog`, `modal`, `ask`, `connection-test`, `disclosure`, `focus-trap`, `roving-focus`, `pointer`, `press`, `skeleton`, `stepper`, `theme`, `view-transition`, `transition` and `announce`.
+The widget subpaths are `toast`, `tooltip`, `popover`, `popup`, `dialog`, `modal`, `ask`, `connection-test`, `disclosure`, `focus-trap`, `roving-focus`, `pointer`, `press`, `radio-focus`, `list-detail`, `confirm`, `toggle`, `turn`, `roll`, `pill`, `skeleton`, `stepper`, `theme`, `view-transition`, `transition` and `announce`.
 
 Eight widget subpaths start watching the `open` attribute of dialogs when they load, so they need a DOM at import: `dialog`, `modal`, `ask`, `announce`, `toast`, `popup`, `popover` and `tooltip`. The package root, `icons` and every other subpath touch no DOM at import, so they also run under Node, Deno, Bun or Workers. `package.json` marks the watching modules as side effects, so `import "@cplieger/ui/dialog"` keeps its watcher in a bundle.
 

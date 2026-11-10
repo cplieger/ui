@@ -34,7 +34,7 @@ button.addEventListener("click", async () => {
 });
 ```
 
-- `run(work)` resolves `true` once the button shows its done state. It resolves `false`, without calling `work`, while a cycle is already running, so a second press never starts an action the button cannot show.
+- `run(work)` resolves `true` once the button shows its done state. It resolves `false`, without calling `work`, while a cycle is already running or after `signal` aborts, so a second press never starts an action the button cannot show. It also resolves `false` when `signal` aborts before `work` ends.
 - When `work` rejects, the button returns to rest at once and the rejection passes through. Show the error with a notice or a toast.
 - Work that ends within 150ms skips the busy state. A busy state that shows lasts at least 400ms, so it never flashes.
 - The button returns to the words it had when it was pressed, so a label such as "Grab 3" that follows a selection comes back right.

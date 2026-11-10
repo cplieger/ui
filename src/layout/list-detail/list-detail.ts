@@ -18,15 +18,22 @@ export interface ListDetailOptions {
   readonly onDismiss?: () => void;
 }
 
+export interface OpenOptions {
+  /** Shows the detail without its entrance, as for a page that loads with
+   *  an entry open, since nothing animates on load. Default false. */
+  readonly still?: boolean;
+}
+
 export interface ListDetail {
   /** Shows the detail, docked or in its dialog, and focuses its heading. */
-  open(): void;
+  open(options?: OpenOptions): void;
   /** Hides the detail and returns focus to what had it before `open()`. */
   close(): void;
 }
 
 const DOCKED = "data-uip-docked";
 const CLOSE = "[data-uip-detail-close]";
+const STILL = "data-uip-still";
 
 function remPx(): number {
   return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -93,12 +100,25 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     }
   };
 
+  let still = 0;
   const api: ListDetail = {
-    open() {
+    open(opts = {}) {
       if (!shown) {
         shown = true;
         opener = document.activeElement;
         detail.hidden = false;
+        if (opts.still === true) {
+          detail.setAttribute(STILL, "");
+          dialog.setAttribute(STILL, "");
+          cancelAnimationFrame(still);
+          // Two frames: the still state paints before the motion returns.
+          still = requestAnimationFrame(() => {
+            still = requestAnimationFrame(() => {
+              detail.removeAttribute(STILL);
+              dialog.removeAttribute(STILL);
+            });
+          });
+        }
       }
       place(true);
     },
@@ -163,6 +183,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   const teardown = (): void => {
     resize.disconnect();
     cancelAnimationFrame(frame);
+    cancelAnimationFrame(still);
     api.close();
     dialog.remove();
   };

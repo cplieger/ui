@@ -14,6 +14,13 @@
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
 }
 
+/* The open entry: its row in a table, or its own element in a list, carries
+ * aria-current="true". */
+.cp-list-detail tr:has([aria-current="true"]) > td,
+.cp-list-detail [aria-current="true"]:not(td *) {
+  background: var(--cp-selected);
+}
+
 .cp-detail {
   display: grid;
   align-content: start;
@@ -45,6 +52,10 @@
   flex: 1;
   min-inline-size: 0;
   font-size: var(--cp-text-md);
+}
+
+.cp-list-detail > .cp-detail[data-uip-still] {
+  animation: none;
 }
 
 @keyframes cp-detail-in {

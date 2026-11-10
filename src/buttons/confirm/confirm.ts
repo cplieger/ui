@@ -37,9 +37,10 @@ export interface ConfirmOptions {
 export interface Confirm {
   /**
    * Runs `work` through the cycle. Resolves true once the button shows its
-   * done state, and false without calling `work` while a cycle is already
-   * running. When `work` rejects, the button returns to rest and the
-   * rejection passes through.
+   * done state. Resolves false without calling `work` while a cycle is
+   * already running or after `signal` aborts, and false when `signal`
+   * aborts before `work` ends. When `work` rejects, the button returns to
+   * rest and the rejection passes through.
    */
   run(work: () => Promise<unknown>): Promise<boolean>;
 }
@@ -155,7 +156,7 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
         await wait(Math.max(0, busyMin - (performance.now() - shownAt)));
       }
       if (mine !== cycle) {
-        return true;
+        return false;
       }
       show("done", done);
       back = setTimeout(() => {

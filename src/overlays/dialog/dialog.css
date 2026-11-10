@@ -38,6 +38,12 @@
   }
 }
 
+/* Opened without its entrance, as on a page that loads with it open. */
+.cp-dialog[data-uip-still],
+.cp-dialog[data-uip-still]::backdrop {
+  transition: none;
+}
+
 .cp-dialog::backdrop {
   background: oklch(from var(--cp-neutral-12) 15% c h / 0%);
   transition:

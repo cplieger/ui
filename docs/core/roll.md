@@ -2,7 +2,7 @@
 
 `@cplieger/ui/roll`
 
-Words or a number that change by sliding. The old line slides out, the new one slides in, and the window's width glides to the new line's. Words roll up on a spring. A number rolls up when it grows and down when it shrinks. Under reduced motion the text changes at once.
+Words or a number that change by sliding. The old line slides out, the new one slides in, and the window's width glides to the new line's. Words roll up on a spring. A number rolls up and eases out, and rolls down when you pass `{ down: true }`, as a shrinking number should. Under reduced motion the text changes at once.
 
 ```html
 <span class="cp-roll">Grab</span>

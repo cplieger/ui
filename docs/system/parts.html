@@ -104,6 +104,63 @@
             </div>
           </section>
           <section>
+            <h2>Groups, toggles and confirming</h2>
+            <div class="cp-cluster">
+              <div class="cp-split" role="group" aria-label="Grab">
+                <button class="cp-button" data-variant="primary" type="button">
+                  <span class="uip-icon" data-uip-icon="download" aria-hidden="true"></span>Grab the best
+                </button>
+                <button class="cp-button" data-variant="primary" type="button" aria-label="More grab choices">
+                  <span class="uip-icon" data-uip-icon="chevron-down" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="cp-group" role="group" aria-label="Zoom">
+                <button class="cp-button" type="button" aria-label="Zoom out">−</button>
+                <button class="cp-button" type="button"><span class="cp-roll" data-uip-roll="number">100%</span></button>
+                <button class="cp-button" type="button" aria-label="Zoom in">+</button>
+              </div>
+              <button class="cp-button cp-toggle" data-variant="quiet" data-kind="pin" aria-pressed="true" aria-label="Pin" type="button">
+                <span class="uip-icon" data-uip-icon="pin" aria-hidden="true"></span>
+                <span class="uip-icon" data-uip-icon="pin-filled" data-uip-part="on" aria-hidden="true"></span>
+              </button>
+              <button class="cp-button cp-toggle" data-variant="quiet" data-kind="favourite" aria-pressed="true" aria-label="Favourite" type="button">
+                <span class="uip-icon" data-uip-icon="heart" aria-hidden="true"></span>
+                <span class="uip-icon" data-uip-icon="heart-filled" data-uip-part="on" aria-hidden="true"></span>
+              </button>
+              <button class="cp-button" data-variant="primary" data-uip-confirm="glide" data-uip-state="done" type="button">
+                <span class="uip-icon" data-uip-icon="save" aria-hidden="true"></span>
+                <span class="uip-icon" data-uip-icon="spinner-arc" data-uip-part="busy" aria-hidden="true"></span>
+                <span class="uip-icon" data-uip-icon="check" data-uip-part="done" aria-hidden="true"></span>
+                <span class="cp-roll">Saved</span>
+              </button>
+              <div class="cp-segmented" data-variant="icons" role="radiogroup" aria-label="View">
+                <label><input type="radio" name="parts-view" aria-label="List" checked><span class="uip-icon" data-uip-icon="list" aria-hidden="true"></span></label>
+                <label><input type="radio" name="parts-view" aria-label="Grid"><span class="uip-icon" data-uip-icon="layout-grid" aria-hidden="true"></span></label>
+              </div>
+            </div>
+          </section>
+          <section class="wide">
+            <h2>List and detail</h2>
+            <div class="cp-list-detail" data-uip-docked>
+              <div class="cp-panel" data-flush>
+                <table class="cp-table">
+                  <thead><tr><th>Source</th><th data-col="num">Entries</th></tr></thead>
+                  <tbody>
+                    <tr><td><div class="cp-cell-stack"><a href="#sonarr" aria-current="true">Sonarr</a><span class="cp-meta">Series</span></div></td><td data-col="num">412</td></tr>
+                    <tr><td><div class="cp-cell-stack"><a href="#radarr">Radarr</a><span class="cp-meta">Films</span></div></td><td data-col="num">1,208</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <section class="cp-detail" aria-labelledby="parts-detail-title" data-uip-still>
+                <header><h3 id="parts-detail-title">Sonarr</h3></header>
+                <div class="cp-detail-body">
+                  <p class="cp-meta">Answered 2 minutes ago</p>
+                  <div class="cp-cluster"><span class="cp-chip" data-tone="success">Up</span><span class="cp-chip">412 entries</span></div>
+                </div>
+              </section>
+            </div>
+          </section>
+          <section>
             <h2>Fields</h2>
             <div class="cp-stack">
               <div class="cp-field">

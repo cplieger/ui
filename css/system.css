@@ -989,10 +989,9 @@
   --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
   --cp-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --cp-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
-  /* Two damped springs sampled into linear(): a soft settle that overshoots
-   * about 13%, for a switch's thumb or a sliding pill, and a bouncier one
-   * that overshoots about 27%, for a mark that pops in. Both run for
-   * --cp-dur-spring. Never on an undo path, which eases out instead. */
+  /* A damped spring sampled into linear(), overshooting about 13%, for
+   * something that travels or settles, such as a sliding pill or a dialog.
+   * Never on an undo path, which eases out instead. */
   --cp-ease-spring: linear(
     0,
     0.052,
@@ -1028,50 +1027,6 @@
     1.002,
     1
   );
-  --cp-ease-bounce: linear(
-    0,
-    0.048,
-    0.174,
-    0.349,
-    0.546,
-    0.742,
-    0.919,
-    1.065,
-    1.173,
-    1.241,
-    1.272,
-    1.271,
-    1.245,
-    1.202,
-    1.15,
-    1.095,
-    1.043,
-    0.999,
-    0.964,
-    0.941,
-    0.928,
-    0.924,
-    0.929,
-    0.939,
-    0.952,
-    0.967,
-    0.982,
-    0.995,
-    1.006,
-    1.014,
-    1.019,
-    1.021,
-    1.02,
-    1.018,
-    1.015,
-    1.011,
-    1.007,
-    1.003,
-    1,
-    0.997,
-    1
-  );
-  --cp-dur-spring: 520ms;
   --cp-press-scale: 0.97;
   --cp-skeleton-dur: 1.6s;
 }
@@ -1081,9 +1036,7 @@
     --cp-press-scale: 1;
     --cp-dur-medium: var(--cp-dur-short);
     --cp-dur-long: var(--cp-dur-short);
-    --cp-dur-spring: var(--cp-dur-short);
     --cp-ease-spring: var(--cp-ease-out);
-    --cp-ease-bounce: var(--cp-ease-out);
   }
 }
 
@@ -2593,6 +2546,13 @@ input.cp-input:is([type^="date"], [type="time"]) {
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
 }
 
+/* The open entry: its row in a table, or its own element in a list, carries
+ * aria-current="true". */
+.cp-list-detail tr:has([aria-current="true"]) > td,
+.cp-list-detail [aria-current="true"]:not(td *) {
+  background: var(--cp-selected);
+}
+
 .cp-detail {
   display: grid;
   align-content: start;
@@ -2624,6 +2584,10 @@ input.cp-input:is([type^="date"], [type="time"]) {
   flex: 1;
   min-inline-size: 0;
   font-size: var(--cp-text-md);
+}
+
+.cp-list-detail > .cp-detail[data-uip-still] {
+  animation: none;
 }
 
 @keyframes cp-detail-in {
@@ -2946,6 +2910,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
     opacity: 0;
     scale: 0.96;
   }
+}
+
+/* Opened without its entrance, as on a page that loads with it open. */
+.cp-dialog[data-uip-still],
+.cp-dialog[data-uip-still]::backdrop {
+  transition: none;
 }
 
 .cp-dialog::backdrop {

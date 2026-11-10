@@ -170,12 +170,14 @@ describe("enhanceConfirm", () => {
     const life = new AbortController();
     const b = button();
     const c = confirm(b, { signal: life.signal });
-    void c.run(() => sleep(200));
+    const run = c.run(() => sleep(200));
     await sleep(40);
     expect(b.dataset["uipState"]).toBe("busy");
     life.abort();
     expect(b.hasAttribute("data-uip-state")).toBe(false);
     expect(b.hasAttribute("aria-busy")).toBe(false);
+    await expect(run, "never shows done once aborted").resolves.toBe(false);
+    expect(b.hasAttribute("data-uip-state")).toBe(false);
     await expect(c.run(() => Promise.resolve())).resolves.toBe(false);
   });
 

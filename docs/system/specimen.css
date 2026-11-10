@@ -144,6 +144,26 @@
   --uip-icon: url("../../icons/svg/shield-check.svg");
 }
 
+[data-uip-icon="chevron-down"] {
+  --uip-icon: url("../../icons/svg/chevron-down.svg");
+}
+
+[data-uip-icon="heart"] {
+  --uip-icon: url("../../icons/svg/heart.svg");
+}
+
+[data-uip-icon="heart-filled"] {
+  --uip-icon: url("../../icons/svg/heart-filled.svg");
+}
+
+[data-uip-icon="save"] {
+  --uip-icon: url("../../icons/svg/save.svg");
+}
+
+[data-uip-icon="layout-grid"] {
+  --uip-icon: url("../../icons/svg/layout-grid.svg");
+}
+
 /* Example seeds for the reference screens: an app's colour identity is
  * these values and nothing else. */
 [data-app="library"] {
@@ -203,6 +223,11 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   gap: var(--cp-space-6);
   align-items: start;
+}
+
+/* A part that needs the page's width, such as a docked detail. */
+.parts > .wide {
+  grid-column: 1 / -1;
 }
 
 .parts h2 {

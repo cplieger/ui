@@ -27,7 +27,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-side-main` | a side column of `--cp-side-width` (16rem) beside the rest, stacking above it once the rest would be narrower than half the box |
 | `.cp-grid` | as many columns of at least `--cp-grid-min` (14rem) as fit, for cards and covers |
 | `.cp-list-detail`, `.cp-detail`, `.cp-detail-body` | a list with its entry's detail docked beside it, or in a dialog when the box is narrow, as [List and detail](layout/list-detail.md) describes |
-| `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`: its header, a body that scrolls and a footer of buttons, rising from the bottom on a phone |
+| `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`, holding a `<form method="dialog">` with its header, a `.cp-dialog-body` that scrolls and a footer of buttons, rising from the bottom on a phone. [announce](announce.md) does not reach a dialog no helper drives |
 | `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed` |
 | `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes |
 | `.cp-sheet`, `.cp-sheet-head`, `.cp-sheet-body`, `.cp-sheet-foot` | modal content that opens as a sheet at the inline end |

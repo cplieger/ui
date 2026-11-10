@@ -98,6 +98,19 @@ describe("enhanceListDetail", () => {
     expect(root.hasAttribute("data-uip-docked")).toBe(true);
   });
 
+  it("opens still, without its entrance, and lets the motion return after it paints", async () => {
+    const { detail, dialog, api } = mount(400);
+    api.open({ still: true });
+    expect(detail.hasAttribute("data-uip-still")).toBe(true);
+    expect(dialog.hasAttribute("data-uip-still")).toBe(true);
+    await frames(3);
+    expect(detail.hasAttribute("data-uip-still")).toBe(false);
+    expect(dialog.hasAttribute("data-uip-still")).toBe(false);
+    api.close();
+    api.open();
+    expect(detail.hasAttribute("data-uip-still")).toBe(false);
+  });
+
   it("closes back into the box and returns focus to the opener", () => {
     const { root, opener, detail, dialog, api } = mount(400);
     api.open();
