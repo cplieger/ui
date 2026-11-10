@@ -1,0 +1,22 @@
+/* A side column beside the rest, such as a poster beside its facts or a
+ * form's help beside the form. It stacks above the rest once the rest would
+ * be narrower than half the box, with no media or container query: the
+ * element sizes to whatever holds it. The side's width is --cp-side-width. */
+.cp-side-main {
+  --cp-side-width: 16rem;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-4);
+}
+
+.cp-side-main > :first-child {
+  flex-grow: 1;
+  flex-basis: var(--cp-side-width);
+}
+
+.cp-side-main > :last-child {
+  flex-grow: 999;
+  flex-basis: 0;
+  min-inline-size: 50%;
+}

@@ -1,0 +1,10 @@
+/* An auto grid: as many columns as fit at --cp-grid-min each, filling the
+ * row, and one column on a phone with no breakpoint. For cards, card links
+ * and covers. */
+.cp-grid {
+  --cp-grid-min: 14rem;
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cp-grid-min)), 1fr));
+  gap: var(--cp-space-3);
+}

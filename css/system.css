@@ -989,6 +989,44 @@
   --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
   --cp-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --cp-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  /* A damped spring sampled into linear(), overshooting about 13%, for
+   * something that travels or settles, such as a sliding pill or a dialog.
+   * Never on an undo path, which eases out instead. */
+  --cp-ease-spring: linear(
+    0,
+    0.052,
+    0.18,
+    0.347,
+    0.526,
+    0.694,
+    0.839,
+    0.954,
+    1.038,
+    1.091,
+    1.119,
+    1.126,
+    1.119,
+    1.103,
+    1.081,
+    1.059,
+    1.038,
+    1.019,
+    1.005,
+    0.995,
+    0.988,
+    0.985,
+    0.984,
+    0.985,
+    0.987,
+    0.99,
+    0.993,
+    0.995,
+    0.998,
+    0.999,
+    1.001,
+    1.002,
+    1
+  );
   --cp-press-scale: 0.97;
   --cp-skeleton-dur: 1.6s;
 }
@@ -998,6 +1036,14 @@
     --cp-press-scale: 1;
     --cp-dur-medium: var(--cp-dur-short);
     --cp-dur-long: var(--cp-dur-short);
+    --cp-ease-spring: var(--cp-ease-out);
+  }
+}
+
+/* The fade every entrance falls back to under reduced motion. */
+@keyframes cp-fade-in {
+  from {
+    opacity: 0;
   }
 }
 
@@ -1475,6 +1521,14 @@
   margin: 0;
   opacity: 0;
   cursor: inherit;
+}
+
+/* An icon-only choice, such as a List, Grid or Compact view: square
+ * segments, each named by its radio's aria-label. */
+.cp-segmented[data-variant="icons"] > label {
+  inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: 0;
+  padding-inline: 0;
 }
 
 .cp-segmented > label:has(:checked) {
@@ -2157,9 +2211,9 @@ input.cp-input:is([type^="date"], [type="time"]) {
     }
 
     /* A plain button in a row shares the row's hover fill and would vanish;
-     * lift it to the raised surface. Only a resting button: one with a
-     * data-state (busy, done) keeps the fill its state gives it. */
-    .cp-table tr:hover .cp-button:not([data-variant], [data-state]) {
+     * lift it to the raised surface. Only a resting button: one that
+     * confirms in place keeps the fill its busy or done state gives it. */
+    .cp-table tr:hover .cp-button:not([data-variant], [data-uip-state]) {
       background: var(--cp-surface-raised);
     }
   }
@@ -2427,6 +2481,126 @@ input.cp-input:is([type^="date"], [type="time"]) {
 .cp-stack > hr,
 .cp-stack > .cp-heading-row {
   margin-block: 0;
+}
+
+/* A cluster: a row of small things, such as chips, buttons or facts, that
+ * wraps onto the next line instead of overflowing. */
+.cp-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+}
+
+.cp-cluster[data-gap="tight"] {
+  gap: var(--cp-space-1) var(--cp-space-2);
+}
+
+/* A side column beside the rest, such as a poster beside its facts or a
+ * form's help beside the form. It stacks above the rest once the rest would
+ * be narrower than half the box, with no media or container query: the
+ * element sizes to whatever holds it. The side's width is --cp-side-width. */
+.cp-side-main {
+  --cp-side-width: 16rem;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-4);
+}
+
+.cp-side-main > :first-child {
+  flex-grow: 1;
+  flex-basis: var(--cp-side-width);
+}
+
+.cp-side-main > :last-child {
+  flex-grow: 999;
+  flex-basis: 0;
+  min-inline-size: 50%;
+}
+
+/* An auto grid: as many columns as fit at --cp-grid-min each, filling the
+ * row, and one column on a phone with no breakpoint. For cards, card links
+ * and covers. */
+.cp-grid {
+  --cp-grid-min: 14rem;
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cp-grid-min)), 1fr));
+  gap: var(--cp-space-3);
+}
+
+/* List and detail: a list with the chosen entry's detail docked beside it
+ * once the box is wide enough, and the same detail in a modal dialog below
+ * that. enhanceListDetail (@cplieger/ui/list-detail) moves the detail; the
+ * app's route opens and closes it, so Back closes it. */
+.cp-list-detail {
+  --cp-detail-w: minmax(18rem, 24rem);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+.cp-list-detail[data-uip-docked] {
+  grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
+}
+
+/* The open entry: its row in a table, or its own element in a list, carries
+ * aria-current="true". */
+.cp-list-detail tr:has([aria-current="true"]) > td,
+.cp-list-detail [aria-current="true"]:not(td *) {
+  background: var(--cp-selected);
+}
+
+.cp-detail {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-3);
+  min-inline-size: 0;
+}
+
+.cp-list-detail > .cp-detail {
+  padding: var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+  animation: cp-detail-in var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+.cp-detail-body {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-3);
+}
+
+.cp-detail > header {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-detail > header > :is(h2, h3) {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--cp-text-md);
+}
+
+.cp-list-detail > .cp-detail[data-uip-still] {
+  animation: none;
+}
+
+@keyframes cp-detail-in {
+  from {
+    opacity: 0;
+    translate: var(--cp-space-4) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-list-detail > .cp-detail {
+    animation-name: cp-fade-in;
+  }
 }
 
 /* Filter list: a rail section of options with counts. */
@@ -2698,6 +2872,159 @@ input.cp-input:is([type^="date"], [type="time"]) {
   border-block-start: var(--cp-line-w) solid var(--cp-line);
 }
 
+/* A dialog: a native <dialog> opened with showModal(), so focus moves in,
+ * the page goes inert and Escape closes it. It fades and settles in the
+ * middle, and on a phone it rises from the bottom edge. Its parts are a
+ * header, a body that scrolls and a footer of buttons, usually inside a
+ * <form method="dialog">. */
+.cp-dialog {
+  overflow: hidden;
+  inline-size: min(32rem, calc(100vw - 2rem));
+  max-block-size: calc(100dvh - 4rem);
+  margin: auto;
+  padding: 0;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-overlay);
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  box-shadow: var(--cp-shadow-overlay);
+  opacity: 0;
+  scale: 0.96;
+  transition:
+    opacity var(--cp-dur-short) var(--cp-ease-out),
+    scale var(--cp-dur-short) var(--cp-ease-out),
+    translate var(--cp-dur-short) var(--cp-ease-out),
+    overlay var(--cp-dur-short) allow-discrete,
+    display var(--cp-dur-short) allow-discrete;
+}
+
+.cp-dialog[open] {
+  opacity: 1;
+  scale: 1;
+  transition-duration: var(--cp-dur-medium);
+  transition-timing-function: var(--cp-ease-spring);
+}
+
+@starting-style {
+  .cp-dialog[open] {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+/* Opened without its entrance, as on a page that loads with it open. */
+.cp-dialog[data-uip-still],
+.cp-dialog[data-uip-still]::backdrop {
+  transition: none;
+}
+
+.cp-dialog::backdrop {
+  background: oklch(from var(--cp-neutral-12) 15% c h / 0%);
+  transition:
+    background-color 200ms var(--cp-ease-out),
+    overlay 200ms allow-discrete,
+    display 200ms allow-discrete;
+}
+
+.cp-dialog[open]::backdrop {
+  background: oklch(from var(--cp-neutral-12) 15% c h / 45%);
+}
+
+@starting-style {
+  .cp-dialog[open]::backdrop {
+    background: oklch(from var(--cp-neutral-12) 15% c h / 0%);
+  }
+}
+
+.cp-dialog > form,
+.cp-dialog > .cp-detail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-block-size: inherit;
+}
+
+.cp-dialog :is(form, .cp-detail) > :is(header, footer) {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-4) var(--cp-space-5);
+}
+
+/* The body scrolls, so it keeps 4px above its first control for a focus
+ * ring, which its overflow would clip; the header gives those 4px back. */
+.cp-dialog :is(form, .cp-detail) > header {
+  padding-block-end: calc(var(--cp-space-4) - var(--cp-space-1));
+}
+
+.cp-dialog :is(form, .cp-detail) > header > :is(h2, h3) {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--cp-text-lg);
+}
+
+.cp-dialog :is(form, .cp-detail) > footer {
+  flex-wrap: wrap;
+  justify-content: end;
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+.cp-dialog-body,
+.cp-dialog .cp-detail-body {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-4);
+  padding: var(--cp-space-1) var(--cp-space-5) var(--cp-space-5);
+  overflow: auto;
+  overscroll-behavior: contain;
+  line-height: var(--cp-leading-body);
+}
+
+:is(.cp-dialog-body, .cp-dialog .cp-detail-body) > .cp-button {
+  justify-self: start;
+}
+
+@media (width < 40rem) {
+  .cp-dialog {
+    inline-size: 100vw;
+    max-inline-size: 100vw;
+    margin: auto 0 0;
+    border-radius: var(--cp-radius-overlay) var(--cp-radius-overlay) 0 0;
+    scale: 1;
+    translate: 0 100%;
+    opacity: 1;
+  }
+
+  .cp-dialog[open] {
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .cp-dialog[open] {
+      translate: 0 100%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-dialog {
+    opacity: 0;
+    scale: 1;
+    translate: 0 0;
+  }
+
+  .cp-dialog[open] {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .cp-dialog[open] {
+      opacity: 0;
+      translate: 0 0;
+    }
+  }
+}
+
 /* A busy control keeps its label beside a turning spinner-arc. */
 .cp-button[aria-busy="true"] {
   cursor: progress;
@@ -2711,6 +3038,402 @@ input.cp-input:is([type^="date"], [type="time"]) {
   to {
     transform: rotate(1turn);
   }
+}
+
+/* A button that confirms its own action in place (@cplieger/ui/confirm):
+ * busy with the spinner-arc and its busy words, then a green fill, a check
+ * that draws and its done words, then back at rest. The fill fades back
+ * slowly and flashes in fast. A danger button stays red as it confirms. */
+.cp-button[data-uip-confirm] {
+  /* A green dark enough for white words in both themes, about 5:1. */
+  --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
+
+  position: relative;
+  overflow: hidden;
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end 300ms var(--cp-ease-out);
+}
+
+/* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
+ * that win a tie by scope proximity. Inside a split button the split paints
+ * the fill, so it sets --cp-done-paint to transparent for its parts. */
+button.cp-button[data-uip-confirm][data-uip-state="done"]:not(:disabled) {
+  background: var(--cp-done-paint, var(--cp-done-fill));
+  color: oklch(100% 0 0deg);
+  transition-duration: 160ms, 160ms, var(--cp-dur-press), 300ms;
+}
+
+button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
+  background: var(--cp-done-paint, var(--cp-danger-9));
+  color: var(--cp-danger-on);
+}
+
+:where(.cp-button[data-uip-confirm]) > .uip-icon[data-uip-part],
+[data-uip-state="busy"] > .uip-icon:not([data-uip-part="busy"]),
+[data-uip-state="done"] > .uip-icon:not([data-uip-part="done"]) {
+  display: none;
+}
+
+[data-uip-state="busy"] > .uip-icon[data-uip-part="busy"] {
+  display: inline-block;
+  animation: cp-spin 0.8s linear infinite;
+}
+
+[data-uip-state="done"] > .uip-icon[data-uip-part="done"] {
+  display: inline-block;
+  animation: cp-check-draw 320ms var(--cp-ease-out);
+}
+
+/* A busy or done button takes no second press, so it never starts an action
+ * it cannot show. */
+.cp-button[data-uip-state="busy"],
+.cp-button[data-uip-state="done"] {
+  cursor: default;
+}
+
+@keyframes cp-check-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-uip-state="busy"] > .uip-icon[data-uip-part],
+  [data-uip-state="done"] > .uip-icon[data-uip-part] {
+    animation: none;
+  }
+}
+
+/* A button group: buttons joined into one control, a thin line between them,
+ * the outer corners rounded. It presses as one, because a part that scaled
+ * alone would open a gap at its seam. */
+:is(.cp-group, .cp-split) {
+  display: inline-flex;
+  transition: transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+:is(.cp-group, .cp-split) > .cp-button {
+  --cp-press-scale: 1;
+
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+:is(.cp-group, .cp-split) > .cp-button:first-child {
+  border-start-start-radius: var(--cp-radius-control);
+  border-end-start-radius: var(--cp-radius-control);
+}
+
+:is(.cp-group, .cp-split) > .cp-button:last-child {
+  border-start-end-radius: var(--cp-radius-control);
+  border-end-end-radius: var(--cp-radius-control);
+}
+
+:is(.cp-group, .cp-split) > .cp-button + .cp-button {
+  border-inline-start: 1px solid oklch(from currentcolor l c h / 25%);
+}
+
+/* @cplieger/ui/press never marks a disabled control, and a disabled button
+ * is never :active. */
+.cp-group:has(> [data-uip-pressed]),
+.cp-split:has(> [data-uip-pressed]),
+.cp-group:has(> :active:not([aria-disabled="true"])),
+.cp-split:has(> :active:not([aria-disabled="true"])) {
+  transform: scale(var(--cp-press-scale));
+}
+
+/* A split button: a primary action and a caret that opens its other
+ * choices. It is one shape: the split paints the fill, its corners and its
+ * state's colour, and its parts paint nothing at rest, so its edges are drawn
+ * once and cannot disagree between the parts at a fractional offset. A part
+ * paints only its own hover or press, inside the shape, and the split does
+ * not clip, so a part's focus ring still shows outside it. */
+.cp-split {
+  --cp-caret-w: 2.25rem;
+  --cp-done-paint: transparent;
+
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-tone-9);
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.cp-split:has(> [data-uip-state="done"]) {
+  background: oklch(from var(--cp-success-9) min(l, 0.52) c h);
+  transition:
+    background-color 160ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* A part's hover or press fill stops inside its transparent 1px border, so
+ * it never paints over the shape's own anti-aliased edge, which would make
+ * the hovered part's edge heavier than its neighbour's. A button's own hover
+ * and press rules set the background shorthand, which resets the clip, so
+ * each split rule restates it. */
+.cp-split > .cp-button {
+  background-color: transparent;
+  background-clip: padding-box;
+  color: var(--cp-tone-on);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-split > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-uip-state]) {
+      background-color: var(--cp-tone-10);
+      background-clip: padding-box;
+    }
+  }
+}
+
+.cp-split > .cp-button[data-uip-pressed]:not([data-uip-state]),
+.cp-split > .cp-button:active:not(:disabled, [data-uip-state]) {
+  background-color: var(--cp-tone-10);
+  background-clip: padding-box;
+}
+
+.cp-split > .cp-button:last-child {
+  inline-size: var(--cp-caret-w);
+  min-inline-size: 0;
+  padding-inline: 0;
+  transition:
+    visibility 0s,
+    border-color 120ms var(--cp-ease-out) 120ms,
+    background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* While the main action works it grows over its caret: its end slides
+ * across the caret, its rounded corners travel at that end over the same
+ * colour, and the split keeps one width. Once done it slides back and
+ * squares its corners when its end reaches the seam. The covered caret
+ * leaves the tab order, and its line and chevron fade so the parts read as
+ * one button. */
+.cp-split > .cp-button:first-child {
+  z-index: 1;
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    padding-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    border-radius 0s var(--cp-dur-medium);
+}
+
+.cp-split:has(> [data-uip-state]) > .cp-button:first-child {
+  margin-inline-end: calc(-1 * var(--cp-caret-w));
+  padding-inline-end: calc(var(--cp-control-pad-x) + var(--cp-caret-w));
+  border-start-end-radius: var(--cp-radius-control);
+  border-end-end-radius: var(--cp-radius-control);
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    padding-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    border-radius 0s;
+}
+
+.cp-split:has(> [data-uip-state]) > .cp-button:last-child {
+  visibility: hidden;
+  border-inline-start-color: transparent;
+  transition:
+    visibility 0s var(--cp-dur-medium),
+    border-color 160ms var(--cp-ease-out);
+}
+
+/* The chevron fades ahead of the sliding edge, so half a chevron never
+ * shows, and returns once the edge has passed back over it. */
+.cp-split > .cp-button:last-child > .uip-icon {
+  transition: opacity 120ms var(--cp-ease-out) 120ms;
+}
+
+.cp-split:has(> [data-uip-state]) > :last-child > .uip-icon {
+  opacity: 0;
+  transition: opacity 90ms var(--cp-ease-out);
+}
+
+/* A toggle (@cplieger/ui/toggle): a quiet icon button that is on or off,
+ * such as Pin or Favourite. While on it shows its filled drawing in its own
+ * colour, the accent for a pin and a red for a favourite, and a change plays
+ * the drawing's motion: a pin drops in as if into a board and lifts out, a
+ * heart beats. Under a mouse a pin lifts 2px and an off heart tints, as a
+ * hint of what a press does. */
+.cp-toggle {
+  --cp-toggle-on: var(--cp-accent);
+}
+
+.cp-toggle[data-kind="favourite"] {
+  --cp-toggle-on: oklch(62% 0.21 20deg);
+}
+
+.cp-toggle > .uip-icon[data-uip-part="on"],
+.cp-toggle[aria-pressed="true"] > .uip-icon:not([data-uip-part="on"]) {
+  display: none;
+}
+
+.cp-toggle[aria-pressed="true"] > .uip-icon[data-uip-part="on"] {
+  display: inline-block;
+}
+
+/* (0,4,1) lifts the colour over a quiet button's hover ink, a (0,4,0)
+ * scoped rule that wins a tie by proximity. */
+button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
+  color: var(--cp-toggle-on);
+}
+
+.cp-toggle[data-kind="pin"] > .uip-icon {
+  transition: translate 180ms var(--cp-ease-out);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .uip-icon {
+      translate: 0 -2px;
+    }
+
+    button.cp-toggle[data-kind="favourite"]:hover:enabled {
+      color: var(--cp-toggle-on);
+    }
+  }
+}
+
+/* The keyframes name no first or last frame, so the arc starts and ends at
+ * the pin's own position: lifted under a mouse, at rest under a finger. */
+.cp-toggle[data-kind="pin"][data-uip-toggled="on"] > .uip-icon {
+  animation: cp-pin-drop 640ms;
+}
+
+.cp-toggle[data-kind="pin"][data-uip-toggled="off"] > .uip-icon {
+  animation: cp-pin-lift 360ms var(--cp-ease-out);
+}
+
+.cp-toggle[data-kind="favourite"][data-uip-toggled="on"] > .uip-icon {
+  animation: cp-heart-beat 1100ms var(--cp-ease-out);
+}
+
+@keyframes cp-pin-drop {
+  30% {
+    translate: 0 -7px;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+
+  62% {
+    translate: 0 3px;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+  }
+
+  82% {
+    translate: 0 -1px;
+    animation-timing-function: ease-in-out;
+  }
+}
+
+@keyframes cp-pin-lift {
+  40% {
+    translate: 0 -5px;
+  }
+}
+
+@keyframes cp-heart-beat {
+  0% {
+    scale: 1;
+  }
+
+  15% {
+    scale: 1.35;
+  }
+
+  30% {
+    scale: 0.92;
+  }
+
+  45% {
+    scale: 1.15;
+  }
+
+  100% {
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-toggle[data-uip-toggled] > .uip-icon {
+    animation: none;
+  }
+}
+
+/* A roll: words or a number that change by sliding, the old line out and the
+ * new one in, inside a one-line window. @cplieger/ui/roll writes the lines
+ * and the window's width, which glides to the new line's. */
+.cp-roll {
+  display: inline-grid;
+  grid-template-columns: max-content;
+  block-size: 1lh;
+  overflow: hidden;
+  vertical-align: top;
+  text-align: start;
+  transition: inline-size var(--cp-dur-long) var(--cp-ease-out);
+}
+
+.cp-roll > * {
+  grid-area: 1 / 1;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.cp-roll[data-uip-roll="number"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The pill @cplieger/ui/pill slides under a segmented choice's chosen
+ * segment. Placed by row and column, so a wrapped choice slides to its
+ * line. Once it is there, the segments paint no fill of their own. */
+.cp-segmented:has(> .cp-pill) {
+  position: relative;
+}
+
+.cp-pill {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: var(--cp-pill-w, 0);
+  block-size: var(--cp-pill-h, 0);
+  translate: var(--cp-pill-x, 0) var(--cp-pill-y, 0);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
+  pointer-events: none;
+  transition:
+    translate 460ms var(--cp-ease-spring),
+    inline-size 460ms var(--cp-ease-spring),
+    block-size 460ms var(--cp-ease-spring);
+}
+
+.cp-pill[data-uip-still] {
+  transition: none;
+}
+
+.cp-pill[hidden] {
+  display: none;
+}
+
+/* offsetLeft is measured from the left edge in either direction. */
+.cp-pill:dir(rtl) {
+  inset-inline-start: auto;
+  left: 0;
+}
+
+.cp-segmented:has(> .cp-pill) > label {
+  z-index: 1;
+}
+
+.cp-segmented:has(> .cp-pill) > label:has(:checked) {
+  background: transparent;
+  box-shadow: none;
 }
 
 /* A drawing that points along the line of text faces the other way in a

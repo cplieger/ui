@@ -11,6 +11,44 @@
   --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
   --cp-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --cp-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  /* A damped spring sampled into linear(), overshooting about 13%, for
+   * something that travels or settles, such as a sliding pill or a dialog.
+   * Never on an undo path, which eases out instead. */
+  --cp-ease-spring: linear(
+    0,
+    0.052,
+    0.18,
+    0.347,
+    0.526,
+    0.694,
+    0.839,
+    0.954,
+    1.038,
+    1.091,
+    1.119,
+    1.126,
+    1.119,
+    1.103,
+    1.081,
+    1.059,
+    1.038,
+    1.019,
+    1.005,
+    0.995,
+    0.988,
+    0.985,
+    0.984,
+    0.985,
+    0.987,
+    0.99,
+    0.993,
+    0.995,
+    0.998,
+    0.999,
+    1.001,
+    1.002,
+    1
+  );
   --cp-press-scale: 0.97;
   --cp-skeleton-dur: 1.6s;
 }
@@ -20,5 +58,13 @@
     --cp-press-scale: 1;
     --cp-dur-medium: var(--cp-dur-short);
     --cp-dur-long: var(--cp-dur-short);
+    --cp-ease-spring: var(--cp-ease-out);
+  }
+}
+
+/* The fade every entrance falls back to under reduced motion. */
+@keyframes cp-fade-in {
+  from {
+    opacity: 0;
   }
 }

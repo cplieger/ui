@@ -604,10 +604,10 @@ describe("css/system.css", () => {
     const el = build(
       '<table class="cp-table"><tbody><tr><td>Frieren</td><td data-col="actions">' +
         '<button class="cp-button" type="button" id="plain">Grab</button>' +
-        '<button class="cp-button" type="button" id="done" data-state="done">Grabbed</button>' +
+        '<button class="cp-button" type="button" id="done" data-uip-state="done">Grabbed</button>' +
         '<button class="cp-button" data-variant="quiet" type="button" id="quiet">More</button>' +
         "</td></tr></tbody></table>" +
-        '<style>.cp-button[data-state="done"] { background: rgb(0, 128, 0); }</style>',
+        '<style>.cp-button[data-uip-state="done"] { background: rgb(0, 128, 0); }</style>',
     );
     const fill = (id: string) =>
       getComputedStyle(el.querySelector(`#${id}`) as Element).backgroundColor;
@@ -1093,5 +1093,161 @@ describe("css/system.css", () => {
     );
     const [a, b] = [...el.querySelectorAll("button")].map((x) => x.getBoundingClientRect().width);
     expect(a).toBe(b);
+  });
+});
+
+describe("css/system.css buttons and arrangements", () => {
+  for (const t of ["light", "dark"] as const) {
+    it(`writes a confirmed button's done words at 4.5:1 on its green in ${t}`, () => {
+      theme(t);
+      const el = build(
+        '<button class="cp-button" data-variant="primary" data-uip-confirm="glide" data-uip-state="done" type="button"><span class="cp-roll">Saved</span></button>',
+      );
+      const b = el.querySelector("button") as HTMLElement;
+      b.style.transition = "none";
+      const cs = getComputedStyle(b);
+      expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+
+  it("shows a confirmed button's busy and done drawings only in their state", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button" data-uip-confirm="glide" type="button"><span class="uip-icon" data-uip-icon="save"></span><span class="uip-icon" data-uip-part="busy"></span><span class="uip-icon" data-uip-part="done"></span><span class="cp-roll">Save</span></button>',
+    );
+    const b = el.querySelector("button") as HTMLElement;
+    const shown = () =>
+      [...b.querySelectorAll(".uip-icon")].map((i) => getComputedStyle(i).display !== "none");
+    expect(shown()).toEqual([true, false, false]);
+    b.dataset["uipState"] = "busy";
+    expect(shown()).toEqual([false, true, false]);
+    b.dataset["uipState"] = "done";
+    expect(shown()).toEqual([false, false, true]);
+    b.dataset["uipState"] = "pending";
+    expect(shown()).toEqual([true, false, false]);
+  });
+
+  it("keeps a confirmed delete red", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button" data-tone="danger" data-uip-confirm="glide" type="button">Delete</button><button class="cp-button" data-tone="danger" data-uip-confirm="glide" data-uip-state="done" type="button">Deleted</button>',
+    );
+    const [rest, done] = [...el.querySelectorAll("button")] as HTMLElement[];
+    for (const b of [rest, done]) {
+      (b as HTMLElement).style.transition = "none";
+    }
+    const tone = host("", { "data-tone": "danger" });
+    tone.style.color = "var(--cp-danger-9)";
+    expect(getComputedStyle(done as Element).backgroundColor).toBe(getComputedStyle(tone).color);
+  });
+
+  it("paints a split button as one shape, its parts clear, and grows the action over its caret while it works", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-split" role="group"><button class="cp-button" data-variant="primary" type="button">Grab the best</button><button class="cp-button" data-variant="primary" type="button" aria-label="More grab choices"><span class="uip-icon"></span></button></div>',
+    );
+    const split = el.querySelector(".cp-split") as HTMLElement;
+    const [main, caret] = [...split.querySelectorAll("button")] as HTMLElement[];
+    for (const n of [split, main, caret]) {
+      (n as HTMLElement).style.transition = "none";
+    }
+    const accent = host("");
+    accent.style.color = "var(--cp-tone-9)";
+    expect(getComputedStyle(split).backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(main as Element).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(caret as Element).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    const width = split.getBoundingClientRect().width;
+    (main as HTMLElement).dataset["uipState"] = "busy";
+    expect(getComputedStyle(main as Element).marginInlineEnd).toBe(
+      `-${getComputedStyle(caret as Element).inlineSize}`,
+    );
+    expect(getComputedStyle(caret as Element).visibility).toBe("hidden");
+    expect(split.getBoundingClientRect().width).toBeCloseTo(width, 0);
+  });
+
+  it("joins a group's buttons with one line and rounds only its outer corners", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-group" role="group" aria-label="Zoom"><button class="cp-button" type="button">−</button><button class="cp-button" type="button">100%</button><button class="cp-button" type="button">+</button></div>',
+    );
+    const [a, b, c] = [...el.querySelectorAll("button")].map((n) => getComputedStyle(n));
+    expect([a?.borderStartEndRadius, b?.borderStartStartRadius, c?.borderStartStartRadius]).toEqual(
+      ["0px", "0px", "0px"],
+    );
+    expect(a?.borderStartStartRadius).not.toBe("0px");
+    expect(c?.borderStartEndRadius).not.toBe("0px");
+    expect([a?.borderInlineStartStyle, b?.borderInlineStartStyle]).toEqual(["solid", "solid"]);
+    expect(b?.borderInlineStartWidth).toBe("1px");
+  });
+
+  it("colours a toggle that is on, and shows its filled drawing only then", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button cp-toggle" data-variant="quiet" data-kind="pin" aria-pressed="false" aria-label="Pin" type="button"><span class="uip-icon"></span><span class="uip-icon" data-uip-part="on"></span></button>',
+    );
+    const b = el.querySelector("button") as HTMLElement;
+    b.style.transition = "none";
+    const shown = () =>
+      [...b.querySelectorAll(".uip-icon")].map((i) => getComputedStyle(i).display !== "none");
+    expect(shown()).toEqual([true, false]);
+    const off = getComputedStyle(b).color;
+    b.setAttribute("aria-pressed", "true");
+    expect(shown()).toEqual([false, true]);
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    expect(getComputedStyle(b).color).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(b).color).not.toBe(off);
+  });
+
+  it("makes an icon segmented choice's segments square", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-segmented" data-variant="icons" role="radiogroup" aria-label="View"><label><input type="radio" name="v" aria-label="List" checked><span class="uip-icon"></span></label><label><input type="radio" name="v" aria-label="Grid"><span class="uip-icon"></span></label></div>',
+    );
+    const box = (el.querySelector("label") as HTMLElement).getBoundingClientRect();
+    expect(box.width).toBeCloseTo(box.height, 0);
+  });
+
+  it("wraps a cluster, stacks a side column once the rest would be narrow, and fits a grid's columns to its box", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-cluster"><span>one</span><span>two</span></div>' +
+        '<div class="cp-side-main"><div>side</div><div>main</div></div>' +
+        '<div class="cp-grid"><div>a</div><div>b</div><div>c</div></div>',
+    );
+    const [cluster, side, grid] = [...el.children] as HTMLElement[];
+    expect(getComputedStyle(cluster as Element).flexWrap).toBe("wrap");
+    (side as HTMLElement).style.inlineSize = "900px";
+    const [s1, m1] = [...(side as HTMLElement).children].map((c) => c.getBoundingClientRect());
+    expect(s1?.top).toBe(m1?.top);
+    (side as HTMLElement).style.inlineSize = "400px";
+    const [s2, m2] = [...(side as HTMLElement).children].map((c) => c.getBoundingClientRect());
+    expect(m2?.top).toBeGreaterThan(s2?.top ?? 0);
+    // 14rem columns and 12px gaps: four fit in 1000px (932px), three in 900px.
+    (grid as HTMLElement).style.inlineSize = "1000px";
+    expect(getComputedStyle(grid as Element).gridTemplateColumns.split(" ")).toHaveLength(4);
+    (grid as HTMLElement).style.inlineSize = "900px";
+    expect(getComputedStyle(grid as Element).gridTemplateColumns.split(" ")).toHaveLength(3);
+    (grid as HTMLElement).style.inlineSize = "300px";
+    expect(getComputedStyle(grid as Element).gridTemplateColumns.split(" ")).toHaveLength(1);
+  });
+
+  it("gives a docked list-and-detail two columns, and a native dialog the overlay surface", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-list-detail"><ul><li>a</li></ul><section class="cp-detail"><header><h2>A</h2></header></section></div>',
+    );
+    const ld = el.firstElementChild as HTMLElement;
+    ld.style.inlineSize = "1000px";
+    expect(getComputedStyle(ld).gridTemplateColumns.split(" ")).toHaveLength(1);
+    ld.setAttribute("data-uip-docked", "");
+    expect(getComputedStyle(ld).gridTemplateColumns.split(" ")).toHaveLength(2);
+    const dialog = document.createElement("dialog");
+    dialog.className = "cp-dialog";
+    hosts.push(dialog as unknown as HTMLElement);
+    document.body.append(dialog);
+    const overlay = host("");
+    overlay.style.color = "var(--cp-surface-overlay)";
+    expect(getComputedStyle(dialog).backgroundColor).toBe(getComputedStyle(overlay).color);
   });
 });

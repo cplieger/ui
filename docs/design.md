@@ -111,11 +111,12 @@ Motion shows what changed.
 | `--cp-dur-exit` | 120ms | anything leaving |
 
 - Entrances ease out (`--cp-ease-out`), exits ease in (`--cp-ease-in`) and are shorter, and moves between two places use `--cp-ease-move`.
+- `--cp-ease-spring` is a spring sampled into `linear()` that overshoots about 13%, for something that travels or settles, such as a sliding pill or a dialog. A spring never plays on an undo path, which eases out instead.
 - Movement animates `transform` and `opacity`. Colour, fill and border changes take `--cp-dur-micro`. List the properties, never `transition: all`.
-- Nothing animates on load, on scroll, or on an action repeated all day, such as typing or switching tabs.
-- A dialog or a sheet appears at once and fades out at `--cp-dur-exit`. A popover opens at `--cp-dur-short`.
+- Nothing animates on load, on scroll, or on an action repeated all day, such as typing or switching tabs. A detail or dialog a page loads with already open appears without its entrance, as [List and detail](layout/list-detail.md) shows.
+- A `.cp-dialog` fades in and settles from 96% on `--cp-ease-spring` over `--cp-dur-medium`, rising from the bottom edge in the compact tier, and fades out over `--cp-dur-short`. A docked detail slides in from the inline end over `--cp-dur-medium`. A sheet appears at once and fades out at `--cp-dur-exit`. A popover opens at `--cp-dur-short`.
 - A route change cross-fades through `@cplieger/ui/view-transition`. Inside `.cp`, the stylesheet gives it `--cp-dur-long`.
-- Under `prefers-reduced-motion: reduce`, presses do not scale, the skeleton and `spinner-arc` stand still, and medium and long durations drop to `--cp-dur-short`. A loop that runs longer than 5 seconds has a pause control.
+- Under `prefers-reduced-motion: reduce`, presses do not scale, the skeleton and `spinner-arc` stand still, medium and long durations drop to `--cp-dur-short`, the spring eases out, and a dialog or a docked detail only fades. A loop that runs longer than 5 seconds has a pause control.
 - A pulsing or beating mark is for something that is live right now, such as a running check. A static state stays still.
 
 ## Components

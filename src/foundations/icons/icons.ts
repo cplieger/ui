@@ -5,8 +5,6 @@
  * @module
  */
 
-import { el } from "../../dom/el.js";
-
 /** A Lucide drawing the package ships, one `icons/svg/<name>.svg` file each. */
 export type LucideIconName =
   | "activity"
@@ -300,12 +298,11 @@ export function createIcons<N extends string = IconName>(opts: IconsOptions<N>):
   const resolve = resolver(opts);
   return {
     icon(name, size = "ui") {
-      const span = el("span", {
-        className: "uip-icon",
-        "data-uip-icon": name,
-        "data-uip-icon-size": size,
-        "aria-hidden": "true",
-      });
+      const span = document.createElement("span");
+      span.className = "uip-icon";
+      span.setAttribute("data-uip-icon", name);
+      span.setAttribute("data-uip-icon-size", size);
+      span.setAttribute("aria-hidden", "true");
       span.style.setProperty("--uip-icon", `url("${cssString(resolve(name))}")`);
       return span;
     },

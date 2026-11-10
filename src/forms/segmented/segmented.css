@@ -45,6 +45,14 @@
   cursor: inherit;
 }
 
+/* An icon-only choice, such as a List, Grid or Compact view: square
+ * segments, each named by its radio's aria-label. */
+.cp-segmented[data-variant="icons"] > label {
+  inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: 0;
+  padding-inline: 0;
+}
+
 .cp-segmented > label:has(:checked) {
   background: var(--cp-surface-raised);
   color: var(--cp-ink);

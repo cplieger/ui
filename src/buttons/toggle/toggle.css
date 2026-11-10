@@ -1,0 +1,109 @@
+/* A toggle (@cplieger/ui/toggle): a quiet icon button that is on or off,
+ * such as Pin or Favourite. While on it shows its filled drawing in its own
+ * colour, the accent for a pin and a red for a favourite, and a change plays
+ * the drawing's motion: a pin drops in as if into a board and lifts out, a
+ * heart beats. Under a mouse a pin lifts 2px and an off heart tints, as a
+ * hint of what a press does. */
+.cp-toggle {
+  --cp-toggle-on: var(--cp-accent);
+}
+
+.cp-toggle[data-kind="favourite"] {
+  --cp-toggle-on: oklch(62% 0.21 20deg);
+}
+
+.cp-toggle > .uip-icon[data-uip-part="on"],
+.cp-toggle[aria-pressed="true"] > .uip-icon:not([data-uip-part="on"]) {
+  display: none;
+}
+
+.cp-toggle[aria-pressed="true"] > .uip-icon[data-uip-part="on"] {
+  display: inline-block;
+}
+
+/* (0,4,1) lifts the colour over a quiet button's hover ink, a (0,4,0)
+ * scoped rule that wins a tie by proximity. */
+button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
+  color: var(--cp-toggle-on);
+}
+
+.cp-toggle[data-kind="pin"] > .uip-icon {
+  transition: translate 180ms var(--cp-ease-out);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .uip-icon {
+      translate: 0 -2px;
+    }
+
+    button.cp-toggle[data-kind="favourite"]:hover:enabled {
+      color: var(--cp-toggle-on);
+    }
+  }
+}
+
+/* The keyframes name no first or last frame, so the arc starts and ends at
+ * the pin's own position: lifted under a mouse, at rest under a finger. */
+.cp-toggle[data-kind="pin"][data-uip-toggled="on"] > .uip-icon {
+  animation: cp-pin-drop 640ms;
+}
+
+.cp-toggle[data-kind="pin"][data-uip-toggled="off"] > .uip-icon {
+  animation: cp-pin-lift 360ms var(--cp-ease-out);
+}
+
+.cp-toggle[data-kind="favourite"][data-uip-toggled="on"] > .uip-icon {
+  animation: cp-heart-beat 1100ms var(--cp-ease-out);
+}
+
+@keyframes cp-pin-drop {
+  30% {
+    translate: 0 -7px;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+
+  62% {
+    translate: 0 3px;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+  }
+
+  82% {
+    translate: 0 -1px;
+    animation-timing-function: ease-in-out;
+  }
+}
+
+@keyframes cp-pin-lift {
+  40% {
+    translate: 0 -5px;
+  }
+}
+
+@keyframes cp-heart-beat {
+  0% {
+    scale: 1;
+  }
+
+  15% {
+    scale: 1.35;
+  }
+
+  30% {
+    scale: 0.92;
+  }
+
+  45% {
+    scale: 1.15;
+  }
+
+  100% {
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-toggle[data-uip-toggled] > .uip-icon {
+    animation: none;
+  }
+}

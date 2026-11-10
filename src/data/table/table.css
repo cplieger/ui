@@ -107,9 +107,9 @@
     }
 
     /* A plain button in a row shares the row's hover fill and would vanish;
-     * lift it to the raised surface. Only a resting button: one with a
-     * data-state (busy, done) keeps the fill its state gives it. */
-    .cp-table tr:hover .cp-button:not([data-variant], [data-state]) {
+     * lift it to the raised surface. Only a resting button: one that
+     * confirms in place keeps the fill its busy or done state gives it. */
+    .cp-table tr:hover .cp-button:not([data-variant], [data-uip-state]) {
       background: var(--cp-surface-raised);
     }
   }

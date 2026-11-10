@@ -35,6 +35,10 @@ feedback/chip/chip.css
 feedback/notice/notice.css
 layout/panel/panel.css
 layout/stack/stack.css
+layout/cluster/cluster.css
+layout/side-main/side-main.css
+layout/grid/grid.css
+layout/list-detail/list-detail.css
 navigation/rail/filters.css
 navigation/tabs/tabs.css
 feedback/progress/progress.css
@@ -42,5 +46,11 @@ feedback/skeleton/skeleton.css
 feedback/empty/empty.css
 overlays/widget-skins/widget-skins.css
 overlays/sheet/sheet.css
+overlays/dialog/dialog.css
 buttons/button/busy.css
+buttons/confirm/confirm.css
+buttons/group/group.css
+buttons/toggle/toggle.css
+core/roll/roll.css
+core/pill/pill.css
 foundations/icons/icons.css

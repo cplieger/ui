@@ -1,0 +1,66 @@
+/* A button that confirms its own action in place (@cplieger/ui/confirm):
+ * busy with the spinner-arc and its busy words, then a green fill, a check
+ * that draws and its done words, then back at rest. The fill fades back
+ * slowly and flashes in fast. A danger button stays red as it confirms. */
+.cp-button[data-uip-confirm] {
+  /* A green dark enough for white words in both themes, about 5:1. */
+  --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
+
+  position: relative;
+  overflow: hidden;
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end 300ms var(--cp-ease-out);
+}
+
+/* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
+ * that win a tie by scope proximity. Inside a split button the split paints
+ * the fill, so it sets --cp-done-paint to transparent for its parts. */
+button.cp-button[data-uip-confirm][data-uip-state="done"]:not(:disabled) {
+  background: var(--cp-done-paint, var(--cp-done-fill));
+  color: oklch(100% 0 0deg);
+  transition-duration: 160ms, 160ms, var(--cp-dur-press), 300ms;
+}
+
+button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
+  background: var(--cp-done-paint, var(--cp-danger-9));
+  color: var(--cp-danger-on);
+}
+
+:where(.cp-button[data-uip-confirm]) > .uip-icon[data-uip-part],
+[data-uip-state="busy"] > .uip-icon:not([data-uip-part="busy"]),
+[data-uip-state="done"] > .uip-icon:not([data-uip-part="done"]) {
+  display: none;
+}
+
+[data-uip-state="busy"] > .uip-icon[data-uip-part="busy"] {
+  display: inline-block;
+  animation: cp-spin 0.8s linear infinite;
+}
+
+[data-uip-state="done"] > .uip-icon[data-uip-part="done"] {
+  display: inline-block;
+  animation: cp-check-draw 320ms var(--cp-ease-out);
+}
+
+/* A busy or done button takes no second press, so it never starts an action
+ * it cannot show. */
+.cp-button[data-uip-state="busy"],
+.cp-button[data-uip-state="done"] {
+  cursor: default;
+}
+
+@keyframes cp-check-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-uip-state="busy"] > .uip-icon[data-uip-part],
+  [data-uip-state="done"] > .uip-icon[data-uip-part] {
+    animation: none;
+  }
+}
