@@ -37,13 +37,14 @@ const ringed = (el: Element): boolean => el.matches(`:is(:focus-visible, [${ATTR
 
 const task = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
 
-/** What WebKit does on an arrow key: focus the next radio with no ring. */
-async function webkitArrow(from: HTMLInputElement, to: HTMLInputElement): Promise<void> {
+/** What WebKit does on an arrow key: focus the next radio with no ring,
+ *  inside the keydown's own task. The mark is read straight after, with no
+ *  task in between, because a timer would wait behind a busy page. */
+function webkitArrow(from: HTMLInputElement, to: HTMLInputElement): void {
   from.dispatchEvent(
     new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, composed: true }),
   );
   to.focus({ focusVisible: false });
-  await task();
 }
 
 describe("installRadioFocus", () => {
@@ -68,7 +69,7 @@ describe("installRadioFocus", () => {
       HTMLInputElement,
     ];
     light.focus();
-    await webkitArrow(light, dark);
+    webkitArrow(light, dark);
     expect(dark.matches(":focus-visible")).toBe(false);
     expect(dark.hasAttribute(ATTR)).toBe(true);
   });
@@ -78,8 +79,8 @@ describe("installRadioFocus", () => {
     const { before, radios } = group();
     const [system, light, dark] = radios as [HTMLInputElement, HTMLInputElement, HTMLInputElement];
     light.focus();
-    await webkitArrow(light, dark);
-    await webkitArrow(dark, system);
+    webkitArrow(light, dark);
+    webkitArrow(dark, system);
     expect([dark.hasAttribute(ATTR), system.hasAttribute(ATTR)]).toEqual([false, true]);
     before.focus();
     expect(system.hasAttribute(ATTR)).toBe(false);
@@ -104,12 +105,26 @@ describe("installRadioFocus", () => {
     expect(light.hasAttribute(ATTR)).toBe(false);
   });
 
+  it("marks nothing for a focus move that follows an arrow which moved nothing", () => {
+    installRadioFocus({ signal: life.signal });
+    const [, light, dark] = group().radios as [
+      HTMLInputElement,
+      HTMLInputElement,
+      HTMLInputElement,
+    ];
+    light.focus();
+    light.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    light.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowRight", bubbles: true }));
+    dark.focus({ focusVisible: false });
+    expect(dark.hasAttribute(ATTR)).toBe(false);
+  });
+
   it("clears the mark on a press anywhere", async () => {
     installRadioFocus({ signal: life.signal });
     const { before, radios } = group();
     const [, light, dark] = radios as [HTMLInputElement, HTMLInputElement, HTMLInputElement];
     light.focus();
-    await webkitArrow(light, dark);
+    webkitArrow(light, dark);
     before.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true }));
     expect(dark.hasAttribute(ATTR)).toBe(false);
   });
@@ -125,11 +140,11 @@ describe("installRadioFocus", () => {
     ];
     first.abort();
     light.focus();
-    await webkitArrow(light, dark);
+    webkitArrow(light, dark);
     expect(dark.hasAttribute(ATTR)).toBe(true);
     life.abort();
     expect(dark.hasAttribute(ATTR), "aborting clears the mark").toBe(false);
-    await webkitArrow(dark, system);
+    webkitArrow(dark, system);
     expect(system.hasAttribute(ATTR)).toBe(false);
   });
 
@@ -141,7 +156,7 @@ describe("installRadioFocus", () => {
       HTMLInputElement,
     ];
     light.focus();
-    await webkitArrow(light, dark);
+    webkitArrow(light, dark);
     expect(dark.hasAttribute(ATTR)).toBe(false);
   });
 });

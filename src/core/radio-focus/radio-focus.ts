@@ -26,43 +26,41 @@ function isRadio(el: unknown): el is HTMLInputElement {
   return el instanceof HTMLInputElement && el.type === "radio";
 }
 
-/** The focused element, inside open shadow roots too. */
-function focused(): Element | null {
-  let el = document.activeElement;
-  while (el?.shadowRoot?.activeElement) {
-    el = el.shadowRoot.activeElement;
-  }
-  return el;
-}
-
 function clear(): void {
   ringed?.removeAttribute(ATTR);
   ringed = null;
 }
 
 function listen(signal: AbortSignal): void {
+  // Set by an arrow keydown on a radio and read by the focusin its default
+  // action fires, so the mark lands in the same task: a timer would wait
+  // behind a busy page's other tasks while the radio sits unringed.
+  let arrow = false;
   document.addEventListener(
     "keydown",
     (e) => {
-      if (
-        !ARROWS.has(e.key) ||
-        e.altKey ||
-        e.ctrlKey ||
-        e.metaKey ||
-        !isRadio(e.composedPath()[0])
-      ) {
-        return;
+      arrow =
+        ARROWS.has(e.key) && !e.altKey && !e.ctrlKey && !e.metaKey && isRadio(e.composedPath()[0]);
+    },
+    { capture: true, signal },
+  );
+  document.addEventListener(
+    "focusin",
+    (e) => {
+      const el = e.composedPath()[0];
+      if (arrow && isRadio(el) && el !== ringed && !el.matches(":focus-visible")) {
+        clear();
+        el.setAttribute(ATTR, "");
+        ringed = el;
       }
-      // The browser moves focus in the keydown's default action, after
-      // every listener has run.
-      setTimeout(() => {
-        const el = focused();
-        if (isRadio(el) && el !== ringed && !el.matches(":focus-visible")) {
-          clear();
-          el.setAttribute(ATTR, "");
-          ringed = el;
-        }
-      });
+      arrow = false;
+    },
+    { capture: true, signal },
+  );
+  document.addEventListener(
+    "keyup",
+    () => {
+      arrow = false;
     },
     { capture: true, signal },
   );
@@ -75,7 +73,14 @@ function listen(signal: AbortSignal): void {
     },
     { capture: true, signal },
   );
-  document.addEventListener("pointerdown", clear, { capture: true, signal });
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      arrow = false;
+      clear();
+    },
+    { capture: true, signal },
+  );
   signal.addEventListener("abort", clear, { once: true });
 }
 
