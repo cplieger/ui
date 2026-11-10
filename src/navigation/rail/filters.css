@@ -1,0 +1,65 @@
+/* Filter list: a rail section of options with counts. */
+.cp-filter-group {
+  display: grid;
+  gap: 1px;
+}
+
+.cp-filter-title {
+  margin: 0;
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+  color: var(--cp-ink);
+  padding: 0 var(--cp-space-2) var(--cp-space-2);
+}
+
+.cp-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-filter[aria-pressed="true"] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-weight: var(--cp-weight-medium);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-filter:not([aria-pressed="true"]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+.cp-swatch {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: 0.1875rem;
+  background: var(--cp-tone-9);
+}
+
+/* A count beside a filter. */
+.cp-count {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (forced-colors: active) {
+  .cp-filter[aria-pressed="true"] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

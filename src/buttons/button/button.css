@@ -1,0 +1,115 @@
+/* Buttons: one primary per surface; danger is data-tone="danger". */
+.cp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  min-inline-size: var(--cp-hit-min);
+  padding-inline: var(--cp-control-pad-x);
+  border: var(--cp-line-w) solid transparent;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-fill);
+  color: var(--cp-ink);
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+  font-size: var(--cp-text-ui);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* data-uip-pressed comes from @cplieger/ui/press, for a finger :active misses. */
+.cp-button:active:not(:disabled, [aria-disabled="true"]),
+.cp-button[data-uip-pressed]:not(:disabled, [aria-disabled="true"]) {
+  transform: scale(var(--cp-press-scale));
+}
+
+/* An icon-only button, named by aria-label and holding only icons, presses
+ * by its fill: a scaled 18px icon is resampled and blurs on a 1x screen. */
+.cp-button[aria-label]:not(:has(> :not(.uip-icon))) {
+  --cp-press-scale: 1;
+}
+
+.cp-button[aria-label][data-uip-pressed]:not(:has(> :not(.uip-icon))) {
+  background: var(--cp-fill-active);
+}
+
+/* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
+.cp-button[aria-label]:active:not(:has(> :not(.uip-icon))) {
+  background: var(--cp-fill-active);
+}
+
+.cp-button[data-variant="primary"] {
+  background: var(--cp-tone-9);
+  color: var(--cp-tone-on);
+}
+
+.cp-button[data-variant="quiet"] {
+  background: transparent;
+  color: var(--cp-ink-muted);
+}
+
+.cp-header .cp-button[data-variant="quiet"]:not(:disabled, [aria-disabled="true"]) {
+  color: inherit;
+}
+
+.cp-button[data-size="sm"] {
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  font-size: var(--cp-text-xs);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-button:hover:not(:disabled, [aria-disabled="true"]) {
+      background: var(--cp-fill-hover);
+    }
+
+    .cp-button[data-variant="primary"]:hover:not(:disabled, [aria-disabled="true"]) {
+      background: var(--cp-tone-10);
+    }
+
+    .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
+      background: var(--cp-fill);
+      color: var(--cp-ink);
+    }
+
+    :where(.cp-header) .cp-button[data-variant="quiet"]:hover:enabled {
+      background: var(--cp-shell-hover);
+      color: inherit;
+    }
+  }
+}
+
+/* aria-disabled keeps the control focusable and under the pointer, so a
+ * press on it keeps focus there; it takes no press and no hover. */
+.cp-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
+  background: var(--cp-fill);
+}
+
+.cp-button:disabled {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
+  background: var(--cp-fill);
+}
+
+/* A quiet button has no fill, unavailable or not: a grey fill would read as
+ * pressed or chosen rather than out of reach. */
+.cp-button[data-variant="quiet"]:is(:disabled, [aria-disabled="true"]) {
+  background: transparent;
+}
+
+@media (forced-colors: active) {
+  .cp-button {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

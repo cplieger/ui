@@ -1,0 +1,87 @@
+/* A switch is a native checkbox with role="switch": it keeps its label, its
+ * keys and its form value. */
+.cp-switch {
+  --cp-switch-w: 2.25rem;
+  --cp-switch-h: 1.25rem;
+  --cp-switch-dir: 1;
+
+  appearance: none;
+  position: relative;
+  flex: none;
+  inline-size: var(--cp-switch-w);
+  block-size: var(--cp-switch-h);
+  margin: 0;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-border-strong);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+:root[data-pointer="coarse"] .cp-switch {
+  --cp-switch-w: 3rem;
+  --cp-switch-h: 1.75rem;
+}
+
+.cp-switch:dir(rtl) {
+  --cp-switch-dir: -1;
+}
+
+.cp-switch::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0.125rem;
+  inset-inline-start: 0.125rem;
+  inline-size: calc(var(--cp-switch-h) - 0.25rem);
+  block-size: calc(var(--cp-switch-h) - 0.25rem);
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-surface-raised);
+  transition: translate var(--cp-dur-short) var(--cp-ease-move);
+}
+
+.cp-switch:checked {
+  background: var(--cp-accent);
+}
+
+.cp-switch:checked::before {
+  translate: calc((var(--cp-switch-w) - var(--cp-switch-h)) * var(--cp-switch-dir)) 0;
+  background: var(--cp-on-accent);
+}
+
+.cp-switch:disabled {
+  cursor: not-allowed;
+  background: var(--cp-fill);
+}
+
+.cp-switch:disabled::before {
+  background: var(--cp-ink-disabled);
+}
+
+/* System colours paint the switch, so its state survives the forced palette. */
+@media (forced-colors: active) {
+  .cp-switch {
+    forced-color-adjust: none;
+    border: var(--cp-line-w) solid CanvasText;
+    background: Canvas;
+  }
+
+  .cp-switch::before {
+    background: CanvasText;
+  }
+
+  .cp-switch:checked {
+    background: Highlight;
+  }
+
+  .cp-switch:checked::before {
+    background: HighlightText;
+  }
+
+  .cp-switch:disabled {
+    border-color: GrayText;
+  }
+
+  .cp-switch:disabled::before {
+    background: GrayText;
+  }
+}

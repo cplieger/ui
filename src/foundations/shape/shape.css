@@ -1,0 +1,19 @@
+/* Geometry: one radius per nesting level; a child inside a padded parent
+ * takes the parent's radius minus the inset. */
+:root {
+  --cp-radius-control: 0.25rem;
+  --cp-radius-surface: 0.375rem;
+  --cp-radius-overlay: 0.5rem;
+  --cp-radius-chip: 0.25rem;
+  --cp-radius-round: 999px;
+  --cp-line-w: 1px;
+  --cp-control-h: 2rem;
+  --cp-control-h-sm: 1.625rem;
+  --cp-control-pad-x: 0.75rem;
+  --cp-hit-min: 24px;
+  --cp-row-h: 2.25rem;
+  --cp-focus-w: 2px;
+  --cp-focus-offset: 2px;
+  --cp-icon-ui: 1.125rem;
+  --cp-rail-w: 15rem;
+}

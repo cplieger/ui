@@ -1,0 +1,24 @@
+/* Type: one family for text, its mono for machine text (file and release
+ * names, hashes, offsets). Sizes step by about 1.2. */
+:root {
+  --cp-font-body: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --cp-font-display: var(--cp-font-body);
+  --cp-font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+  --cp-text-xs: 0.8125rem;
+  --cp-text-sm: 0.875rem;
+  --cp-text-md: 1rem;
+  --cp-text-lg: 1.1875rem;
+  --cp-text-xl: 1.4375rem;
+  --cp-text-2xl: 1.75rem;
+  --cp-text-3xl: 2.125rem;
+  --cp-text-ui: var(--cp-text-sm);
+  --cp-leading-tight: 1.2;
+  --cp-leading-ui: 1.35;
+  --cp-leading-body: 1.55;
+  --cp-weight-body: 400;
+  --cp-weight-medium: 500;
+  --cp-weight-strong: 600;
+  --cp-weight-heading: 700;
+  --cp-tracking-display: -0.01em;
+  --cp-measure: 68ch;
+}

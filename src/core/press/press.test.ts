@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cdp, userEvent } from "vitest/browser";
+import { cdp, server, userEvent } from "vitest/browser";
 
 import { installPress } from "./press.js";
 
@@ -484,7 +484,8 @@ describe("installPress lifecycle", () => {
 });
 
 // Real input from the browser, so the events above are the ones it sends.
-describe("installPress with real input", () => {
+// Real touches are dispatched through Chromium's debugging protocol only.
+describe.skipIf(server.browser !== "chromium")("installPress with real input", () => {
   // CDP takes page coordinates; the test page is a frame inside the runner.
   function pageCentre(el: Element): { x: number; y: number } {
     const r = el.getBoundingClientRect();

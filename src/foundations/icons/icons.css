@@ -1,0 +1,23 @@
+/* A drawing that points along the line of text faces the other way in a
+ * right-to-left context. */
+:where(.cp) .uip-icon:dir(rtl):is([data-uip-icon$="-right"], [data-uip-icon$="-left"]) {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.cp) .uip-icon[data-uip-icon="spinner-arc"] {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.cp) .uip-icon {
+    forced-color-adjust: none;
+  }
+
+  @supports (forced-color-adjust: preserve-parent-color) {
+    :where(.cp) .uip-icon {
+      forced-color-adjust: preserve-parent-color;
+    }
+  }
+}

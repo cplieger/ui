@@ -1,0 +1,188 @@
+/* Element defaults, inside .cp only. */
+:where(.cp) {
+  color-scheme: light dark;
+  background: var(--cp-surface-page);
+  color: var(--cp-ink);
+  font-family: var(--cp-font-body);
+  line-height: var(--cp-leading-ui);
+  font-weight: var(--cp-weight-body);
+  font-synthesis-weight: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  accent-color: var(--cp-accent);
+  caret-color: var(--cp-accent-ink);
+  scrollbar-color: var(--cp-border-strong) transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The interface size goes on body, never on html, where it would rescale
+ * every rem in the language. */
+:where(html.cp) :where(body),
+:where(.cp:not(html)) {
+  font-size: var(--cp-text-ui);
+}
+
+@media (pointer: fine) {
+  :where(html.cp) {
+    overscroll-behavior: none;
+  }
+}
+
+:where(.cp) :where(body) {
+  margin: 0;
+}
+
+:where(.cp),
+:where(.cp) *,
+:where(.cp) ::before,
+:where(.cp) ::after {
+  box-sizing: border-box;
+}
+
+/* A class that sets display outranks the UA's [hidden] rule, so hidden
+ * would stop hiding it; until-found keeps the UA's own behaviour. The same
+ * rule as Bootstrap's reboot and Tailwind's preflight. */
+:where(.cp) [hidden]:where(:not([hidden="until-found"])) {
+  /* stylelint-disable-next-line declaration-no-important -- must outrank every class that sets display */
+  display: none !important;
+}
+
+:where(.cp) :where(button, input, select, textarea) {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* A heading or caption that takes focus by script, so a screen reader
+ * lands on a new step or page, is no control: it draws no ring. */
+:where(.cp) :where(h1, h2, h3, h4, caption)[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* The mask is drawn in the platform's font: iOS masks with U+25CF, which
+ * the body font lacks, and Cocoa swaps in its own dot only when the field's
+ * font is the system one (WebKit RenderText::setRenderedText,
+ * RenderBlock::updateSecurityDiscCharacters). Outranks .cp-input's font. */
+:where(.cp) input[type="password"] {
+  font-family: system-ui, sans-serif;
+}
+
+/* At width=device-width WebKit drops double-tap zoom only at the initial
+ * scale; this keeps a fast second tap on a control a tap once the page is
+ * zoomed (webkit.org/blog/5610/more-responsive-tapping-on-ios). */
+:where(.cp) :where(a, button, label, summary, select, [role="button"], [role="tab"]) {
+  touch-action: manipulation;
+}
+
+:where(.cp) :where(h1, h2, h3, h4) {
+  margin: 0;
+  font-family: var(--cp-font-display);
+  font-weight: var(--cp-weight-heading);
+  line-height: var(--cp-leading-tight);
+  letter-spacing: var(--cp-tracking-display);
+  text-wrap: balance;
+}
+
+:where(.cp) :where(h1) {
+  font-size: var(--cp-text-xl);
+}
+
+:where(.cp) :where(h2) {
+  font-size: var(--cp-text-lg);
+}
+
+:where(.cp) :where(h3) {
+  font-size: var(--cp-text-md);
+}
+
+:where(.cp) :where(h4) {
+  font-size: var(--cp-text-sm);
+}
+
+:where(.cp) :where(p) {
+  margin: 0;
+  max-inline-size: var(--cp-measure);
+}
+
+:where(.cp) :where(a) {
+  color: var(--cp-accent-ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: color-mix(in oklab, currentcolor, transparent 55%);
+  transition: text-decoration-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* Hover follows the pointer tier: a tablet being tapped keeps no hover. */
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    /* :scope names the root, so .cp on <html> matches as well as a .cp subtree. */
+    :scope.cp :where(a):hover,
+    .cp :where(a):hover {
+      text-decoration-color: currentcolor;
+    }
+  }
+}
+
+:where(.cp) :where(code, kbd, samp, pre) {
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+}
+
+:where(.cp) :where(pre) {
+  margin: 0;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  background: var(--cp-surface-sunken);
+  border-radius: var(--cp-radius-control);
+  overflow-x: auto;
+}
+
+:where(.cp) :where(hr) {
+  border: 0;
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  margin: var(--cp-space-6) 0;
+}
+
+:where(.cp) :where(table) {
+  border-collapse: collapse;
+}
+
+:where(.cp) :where(time, data, output) {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.cp) ::selection {
+  background: var(--cp-selection-bg);
+  color: var(--cp-ink);
+}
+
+:where(.cp) ::placeholder {
+  color: var(--cp-ink-muted);
+  opacity: 1;
+}
+
+:where(.cp) :where(:focus-visible) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* A route change cross-fades at the long duration, which reduced motion
+ * shortens. */
+:root.cp::view-transition-group(*),
+:root.cp::view-transition-old(*),
+:root.cp::view-transition-new(*) {
+  animation-duration: var(--cp-dur-long);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(html.cp) {
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.cp) :where(:focus-visible) {
+    outline-color: Highlight;
+  }
+}

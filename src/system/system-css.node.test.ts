@@ -7,6 +7,11 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CSS = join(ROOT, "css", "system.css");
+// The colour block lives in its own element file; css/system.css is built
+// from every element file in src/system/manifest.txt.
+const COLOUR = join(ROOT, "src", "foundations", "colour", "ladders.css");
+const MANIFEST = join(ROOT, "src", "system", "manifest.txt");
+const HEADER = join(ROOT, "src", "system", "header.css");
 const DESIGN = join(ROOT, "docs", "design-colour.md");
 const FONTS = join(ROOT, "fonts");
 const require = createRequire(import.meta.url);
@@ -262,7 +267,9 @@ function markers(current: string): [number, number] {
   const a = current.indexOf(START);
   const b = current.indexOf(END);
   if (a < 0 || b < a) {
-    throw new Error(`css/system.css: the ${START} and ${END} markers are missing`);
+    throw new Error(
+      `src/foundations/colour/ladders.css: the ${START} and ${END} markers are missing`,
+    );
   }
   return [a, b + END.length];
 }
@@ -271,8 +278,8 @@ function markers(current: string): [number, number] {
 async function synced(current: string): Promise<string> {
   const [a, b] = markers(current);
   const spliced = current.slice(0, a) + colourBlock() + current.slice(b);
-  const options = (await prettier.resolveConfig(CSS)) ?? {};
-  return prettier.format(spliced, { ...options, filepath: CSS });
+  const options = (await prettier.resolveConfig(COLOUR)) ?? {};
+  return prettier.format(spliced, { ...options, filepath: COLOUR });
 }
 
 // Whitespace prettier may add or remove, so the check needs no formatter.
@@ -457,15 +464,59 @@ function envelopeTable(): string {
   return `<!-- envelope:start -->\n${rows.join("\n")}\n<!-- envelope:end -->`;
 }
 
+// The element files src/system/manifest.txt lists, in its order.
+async function manifest(): Promise<string[]> {
+  return (await readFile(MANIFEST, "utf8"))
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "" && !l.startsWith("#"));
+}
+
+// css/system.css: the header, then every element file in the manifest's order.
+async function built(): Promise<string> {
+  const parts = await Promise.all(
+    (await manifest()).map((f) => readFile(join(ROOT, "src", f), "utf8")),
+  );
+  return [await readFile(HEADER, "utf8"), ...parts].join("\n");
+}
+
 describe("css/system.css", () => {
   it("carries the colour block the ladder writes", async () => {
-    const current = await readFile(CSS, "utf8");
+    const current = await readFile(COLOUR, "utf8");
     if (process.env["SYSTEM_SYNC"] === "1") {
-      await writeFile(CSS, await synced(current));
+      await writeFile(COLOUR, await synced(current));
     }
-    const now = await readFile(CSS, "utf8");
+    const now = await readFile(COLOUR, "utf8");
     const [a, b] = markers(now);
     expect(squash(now.slice(a, b)), "run npm run system:sync").toBe(squash(colourBlock()));
+  });
+
+  it("is built from the element files the manifest lists, in its order", async () => {
+    if (process.env["SYSTEM_SYNC"] === "1") {
+      await writeFile(CSS, await built());
+    }
+    expect(
+      await readFile(CSS, "utf8"),
+      "css/system.css is built: edit the element files src/system/manifest.txt lists, then run npm run system:sync",
+    ).toBe(await built());
+  });
+
+  it("lists every element file once, and no file the tree lacks", async () => {
+    const listed = await manifest();
+    const onDisk: string[] = [];
+    const walk = async (dir: string, rel: string): Promise<void> => {
+      for (const e of await readdir(dir, { withFileTypes: true })) {
+        const r = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory()) {
+          await walk(join(dir, e.name), r);
+        } else if (e.name.endsWith(".css") && r !== "system/header.css") {
+          onDisk.push(r);
+        }
+      }
+    };
+    await walk(join(ROOT, "src"), "");
+    expect(new Set(listed).size, "a file listed twice").toBe(listed.length);
+    expect([...listed].sort()).toEqual(onDisk.sort());
   });
 
   it("documents the envelope the ladder gives", async () => {

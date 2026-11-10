@@ -1,0 +1,5 @@
+/* A stack's gap is its children's spacing. */
+.cp-stack > hr,
+.cp-stack > .cp-heading-row {
+  margin-block: 0;
+}

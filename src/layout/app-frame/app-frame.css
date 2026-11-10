@@ -1,0 +1,70 @@
+/* App frame: a header, an optional rail, the work area, a status line. */
+.cp-app {
+  display: grid;
+  grid-template:
+    "header header" auto
+    "rail main" 1fr
+    "status status" auto / auto minmax(0, 1fr);
+  min-block-size: 100dvh;
+}
+
+.cp-header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-4);
+  min-inline-size: 0;
+  min-block-size: 3.25rem;
+  padding-inline: var(--cp-page-gutter);
+  background: var(--cp-shell-bg);
+  color: var(--cp-shell-ink);
+}
+
+.cp-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-6);
+  inline-size: var(--cp-rail-w);
+  /* The same top as main's, so the rail's first line meets main's. */
+  padding: var(--cp-space-6) var(--cp-space-3) var(--cp-space-4);
+  background: light-dark(var(--cp-accent-2), var(--cp-accent-1));
+  border-inline-end: var(--cp-line-w) solid var(--cp-line);
+  overflow-y: auto;
+}
+
+.cp-main {
+  grid-area: main;
+  min-inline-size: 0;
+  container-type: inline-size;
+  padding: var(--cp-space-6) var(--cp-page-gutter) var(--cp-space-10);
+}
+
+.cp-status {
+  grid-area: status;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--cp-space-4);
+  min-block-size: 1.875rem;
+  padding-inline: var(--cp-page-gutter);
+  font-size: var(--cp-text-xs);
+  color: var(--cp-ink-muted);
+  background: var(--cp-surface-raised);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
+ * held upright), expanded above. The rail leaves at medium. */
+@media (width < 60rem) {
+  .cp-app {
+    grid-template:
+      "header" auto
+      "main" 1fr
+      "status" auto / minmax(0, 1fr);
+  }
+
+  .cp-rail {
+    display: none;
+  }
+}

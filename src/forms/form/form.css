@@ -1,0 +1,11 @@
+/* A column of fields, never wider than what a field holds. */
+.cp-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+  max-inline-size: 32rem;
+}
+
+.cp-form > .cp-button {
+  justify-self: start;
+}

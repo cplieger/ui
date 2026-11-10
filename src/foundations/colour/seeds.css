@@ -1,0 +1,51 @@
+/* Seeds: the only colour values an app chooses, in its own unlayered :root.
+ * Hue in degrees, chroma in oklch units, under docs/design.md's envelope. */
+:root {
+  --cp-neutral-h: 260;
+  --cp-neutral-c: 0.008;
+  --cp-accent-h: 255;
+  --cp-accent-c: 0.13;
+  --cp-brand-h: var(--cp-accent-h);
+  --cp-brand-c: var(--cp-accent-c);
+  --cp-danger-h: 27;
+  --cp-danger-c: 0.15;
+  --cp-warning-h: 75;
+  --cp-warning-c: 0.12;
+  --cp-success-h: 150;
+  --cp-success-c: 0.12;
+  --cp-tone-h: var(--cp-accent-h);
+  --cp-tone-c: var(--cp-accent-c);
+}
+
+:root.cp[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root.cp[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-tone="accent"] {
+  --cp-tone-h: var(--cp-accent-h);
+  --cp-tone-c: var(--cp-accent-c);
+}
+
+[data-tone="neutral"] {
+  --cp-tone-h: var(--cp-neutral-h);
+  --cp-tone-c: calc(var(--cp-neutral-c) * 2);
+}
+
+[data-tone="danger"] {
+  --cp-tone-h: var(--cp-danger-h);
+  --cp-tone-c: var(--cp-danger-c);
+}
+
+[data-tone="warning"] {
+  --cp-tone-h: var(--cp-warning-h);
+  --cp-tone-c: var(--cp-warning-c);
+}
+
+[data-tone="success"] {
+  --cp-tone-h: var(--cp-success-h);
+  --cp-tone-c: var(--cp-success-c);
+}

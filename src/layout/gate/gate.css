@@ -1,0 +1,35 @@
+/* A page outside the app frame for one short task, such as sign-in, setup,
+ * an invite or a recovery link: the app's mark and name over one panel. */
+.cp-gate {
+  display: grid;
+  grid-template-columns: minmax(0, 24rem);
+  place-content: start center;
+  justify-items: center;
+  gap: var(--cp-space-5);
+  min-block-size: 100dvh;
+  padding: clamp(var(--cp-space-6), 12vh, 8rem) var(--cp-page-gutter) var(--cp-space-8);
+}
+
+.cp-gate > .cp-wordmark {
+  font-size: var(--cp-text-lg);
+}
+
+.cp-gate .cp-mark {
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-shell-bg);
+  color: var(--cp-shell-ink);
+  font-size: var(--cp-text-md);
+}
+
+.cp-gate > .cp-panel {
+  justify-self: stretch;
+  padding: var(--cp-space-6);
+  background: var(--cp-surface-raised);
+}
+
+.cp-gate > :not(.cp-wordmark, .cp-panel) {
+  justify-self: stretch;
+  text-align: center;
+}
