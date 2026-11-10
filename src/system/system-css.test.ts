@@ -1251,3 +1251,86 @@ describe("css/system.css buttons and arrangements", () => {
     expect(getComputedStyle(dialog).backgroundColor).toBe(getComputedStyle(overlay).color);
   });
 });
+
+describe("css/system.css overlays", () => {
+  afterEach(() => {
+    for (const p of document.querySelectorAll<HTMLElement>(":popover-open")) {
+      p.hidePopover();
+    }
+  });
+
+  it("places a popover under the button its anchor names, and flips it above near the window's foot", async () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button" type="button" id="opener">Actions</button>' +
+        '<div class="cp-popover cp-menu" popover id="pop" role="menu"><button role="menuitem" type="button">Edit</button></div>',
+    );
+    const b = el.querySelector("#opener") as HTMLElement;
+    const pop = el.querySelector("#pop") as HTMLElement;
+    pop.style.transition = "none";
+    b.style.setProperty("anchor-name", "--t-opener");
+    pop.style.setProperty("position-anchor", "--t-opener");
+    pop.showPopover();
+    const below = b.getBoundingClientRect();
+    expect(pop.getBoundingClientRect().top).toBeGreaterThanOrEqual(below.bottom);
+    pop.hidePopover();
+    b.style.position = "fixed";
+    b.style.bottom = "4px";
+    pop.showPopover();
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(pop.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      b.getBoundingClientRect().top + 1,
+    );
+  });
+
+  it("turns a checked menu item's box into an accent circle and shows a radio item's tick only when checked", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-menu" role="menu"><button role="menuitemcheckbox" aria-checked="true" type="button">Posters</button>' +
+        '<button role="menuitemradio" aria-checked="false" type="button">By name</button></div>',
+    );
+    const [check, radio] = [...el.querySelectorAll("button")] as HTMLElement[];
+    const box = getComputedStyle(check as Element, "::before");
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    expect(box.borderRadius).toBe("50%");
+    expect(box.backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(radio as Element, "::after").visibility).toBe("hidden");
+    (radio as HTMLElement).setAttribute("aria-checked", "true");
+    expect(getComputedStyle(radio as Element, "::after").visibility).toBe("visible");
+  });
+
+  it("opens a sheet the window's height at the inline end, and a confirmation narrower than a dialog", () => {
+    theme("light");
+    const sheet = document.createElement("dialog");
+    sheet.className = "cp-dialog";
+    sheet.dataset["variant"] = "sheet";
+    sheet.style.transition = "none";
+    const confirm = document.createElement("dialog");
+    confirm.className = "cp-dialog";
+    confirm.dataset["variant"] = "confirm";
+    hosts.push(sheet as unknown as HTMLElement, confirm as unknown as HTMLElement);
+    document.body.append(sheet, confirm);
+    sheet.showModal();
+    const r = sheet.getBoundingClientRect();
+    expect(r.height).toBeCloseTo(innerHeight, 0);
+    expect(r.right).toBeCloseTo(document.documentElement.clientWidth, 0);
+    sheet.close();
+    confirm.showModal();
+    expect(confirm.getBoundingClientRect().width).toBeLessThanOrEqual(26 * 16 + 1);
+    confirm.close();
+  });
+
+  it("stops the page scrolling while a modal dialog is open", () => {
+    theme("light");
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog";
+    hosts.push(d as unknown as HTMLElement);
+    document.body.append(d);
+    expect(getComputedStyle(root).overflow).not.toBe("hidden");
+    d.showModal();
+    expect(getComputedStyle(root).overflow).toBe("hidden");
+    d.close();
+    expect(getComputedStyle(root).overflow).not.toBe("hidden");
+  });
+});

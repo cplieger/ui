@@ -39,6 +39,8 @@
     "./pointer": "./src/core/pointer/pointer.ts",
     "./radio-focus": "./src/core/radio-focus/radio-focus.ts",
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
+    "./anchor": "./src/overlays/anchor/anchor.ts",
+    "./menu": "./src/overlays/menu/menu.ts",
     "./confirm": "./src/buttons/confirm/confirm.ts",
     "./pill": "./src/core/pill/pill.ts",
     "./roll": "./src/core/roll/roll.ts",

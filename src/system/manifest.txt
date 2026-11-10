@@ -47,6 +47,8 @@ feedback/empty/empty.css
 overlays/widget-skins/widget-skins.css
 overlays/sheet/sheet.css
 overlays/dialog/dialog.css
+overlays/popover/popover.css
+overlays/menu/menu.css
 buttons/button/busy.css
 buttons/confirm/confirm.css
 buttons/group/group.css
