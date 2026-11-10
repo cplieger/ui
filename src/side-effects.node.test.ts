@@ -14,6 +14,7 @@ const OBSERVES = ["dialog", "modal", "ask", "announce", "toast", "popup", "popov
 const LISTENS = new Set(["dialog", "modal", "ask"]);
 const PURE = [
   "",
+  "/anchor",
   "/signal",
   "/dom",
   "/fetch",
@@ -25,6 +26,7 @@ const PURE = [
   "/focus-trap",
   "/icons",
   "/list-detail",
+  "/menu",
   "/pill",
   "/pointer",
   "/press",

@@ -49,6 +49,52 @@
     1.002,
     1
   );
+  /* A bouncier spring, overshooting about 27%, for a mark that pops in, and
+   * the length both springs run for. */
+  --cp-ease-bounce: linear(
+    0,
+    0.048,
+    0.174,
+    0.349,
+    0.546,
+    0.742,
+    0.919,
+    1.065,
+    1.173,
+    1.241,
+    1.272,
+    1.271,
+    1.245,
+    1.202,
+    1.15,
+    1.095,
+    1.043,
+    0.999,
+    0.964,
+    0.941,
+    0.928,
+    0.924,
+    0.929,
+    0.939,
+    0.952,
+    0.967,
+    0.982,
+    0.995,
+    1.006,
+    1.014,
+    1.019,
+    1.021,
+    1.02,
+    1.018,
+    1.015,
+    1.011,
+    1.007,
+    1.003,
+    1,
+    0.997,
+    1
+  );
+  --cp-dur-spring: 520ms;
   --cp-press-scale: 0.97;
   --cp-skeleton-dur: 1.6s;
 }
@@ -59,6 +105,8 @@
     --cp-dur-medium: var(--cp-dur-short);
     --cp-dur-long: var(--cp-dur-short);
     --cp-ease-spring: var(--cp-ease-out);
+    --cp-ease-bounce: var(--cp-ease-out);
+    --cp-dur-spring: var(--cp-dur-short);
   }
 }
 
