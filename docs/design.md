@@ -17,12 +17,12 @@ The stylesheet fixes the controls, the navigation, the type, the spacing, the ra
 
 ## Set up
 
-1. Import `@cplieger/ui/css` and `@cplieger/ui/css/system`, in either order. The `@font-face` rules point at `../fonts/` and the breadcrumb chevron at `../icons/svg/`, so a bundler that follows `url()`, such as esbuild or Vite, copies those files with the CSS.
+1. Import `@cplieger/ui/css/system`. Its `@font-face` rules point at `../fonts/` and its drawn glyphs at `../icons/`, so a bundler that follows `url()`, such as esbuild or Vite, copies those files with the CSS.
 2. Put `class="cp"` on `<html>`. Without it the file defines custom properties and fonts and styles only the `.cp-*` classes your markup uses, so an app can adopt it one subtree at a time. Inside `.cp`, the `hidden` attribute always hides, even on a class that sets `display`.
 3. Set your seeds in your own unlayered `:root`, after the import. The steps are computed on `:root`, so a seed set on another element changes nothing there. To colour one region differently, give it a tone.
 4. Set `data-theme="light"` or `data-theme="dark"` on `<html>` before first paint from an external blocking script. `@cplieger/ui/theme` writes this attribute. With no attribute, the page follows the operating system.
-5. Set `data-pointer` with [`@cplieger/ui/pointer`](pointer.md), as [Touch and mouse](#touch-and-mouse) shows.
-6. Call `installPress()` from [`@cplieger/ui/press`](press.md) at startup, so a press shows under a finger too, and `installRadioFocus()` from [`@cplieger/ui/radio-focus`](core/radio-focus.md), so Safari keeps the focus ring on a radio the arrow keys reach.
+5. Set `data-pointer` with [`@cplieger/ui/pointer`](core/pointer.md), as [Touch and mouse](#touch-and-mouse) shows.
+6. Call `installPress()` from [`@cplieger/ui/press`](core/press.md) at startup, so a press shows under a finger too, and `installRadioFocus()` from [`@cplieger/ui/radio-focus`](core/radio-focus.md), so Safari keeps the focus ring on a radio the arrow keys reach.
 7. Set `lang` on `<html>`, and `dir` when the interface language reads right to left.
 
 ```css
@@ -79,7 +79,7 @@ Width and input are separate, since a tablet can have a trackpad and a laptop a 
 | `fine` | 32px, 26px small | 36px | 24px at least |
 | `coarse` | 44px, small too | 48px | 44px at least |
 
-[`@cplieger/ui/pointer`](pointer.md) sets it. `applyPointerTier` writes a first value from the pre-paint script, and `installPointerTier` follows each real pointer, a mouse or a trackpad as `fine` and a finger or a pen as `coarse`:
+[`@cplieger/ui/pointer`](core/pointer.md) sets it. `applyPointerTier` writes a first value from the pre-paint script, and `installPointerTier` follows each real pointer, a mouse or a trackpad as `fine` and a finger or a pen as `coarse`:
 
 ```ts
 applyPointerTier({ storageKey: "app.pointer" }); // pre-paint
@@ -88,7 +88,7 @@ installPointerTier({ storageKey: "app.pointer" }); // at startup
 
 Hover styles apply under `@media (any-hover: hover)` while `data-pointer` is not `coarse`, so a tapped control keeps no hover fill. Pressed and focus styles apply on every tier. A press scales the control to 97%, except an icon-only button, which takes the pressed fill instead, since a scaled 18px icon blurs on a 1x screen. On touch an input stays at 16px so iOS does not zoom.
 
-A press is drawn from `:active` and from the `data-uip-pressed` that [press](press.md) sets, since iOS Safari gives a tapped control no `:active`. Controls take `touch-action: manipulation`, so a fast second tap never zooms the page.
+A press is drawn from `:active` and from the `data-uip-pressed` that [press](core/press.md) sets, since iOS Safari gives a tapped control no `:active`. Controls take `touch-action: manipulation`, so a fast second tap never zooms the page.
 
 ## Shape and depth
 

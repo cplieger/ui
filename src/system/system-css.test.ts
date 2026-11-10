@@ -21,8 +21,6 @@ async function link(file: string): Promise<HTMLLinkElement> {
   return el;
 }
 
-let base: HTMLLinkElement | null = null;
-
 beforeEach(async () => {
   sheet = await link("system.css");
 });
@@ -37,8 +35,6 @@ afterEach(async () => {
   }
   await page.viewport(1280, 720);
   sheet.remove();
-  base?.remove();
-  base = null;
   for (const d of document.querySelectorAll("dialog")) {
     d.remove();
   }
@@ -1012,16 +1008,15 @@ describe("css/system.css", () => {
   it("opens a sheet at the inline end at full height, across the window when compact", async () => {
     theme("light");
     const dialog = document.createElement("dialog");
-    dialog.className = "uip-modal";
-    const content = document.createElement("div");
-    content.className = "cp-sheet";
-    dialog.append(content);
+    dialog.className = "cp-dialog";
+    dialog.dataset["variant"] = "sheet";
+    dialog.style.transition = "none";
     document.body.append(dialog);
     dialog.showModal();
     const rect = () => dialog.getBoundingClientRect();
     expect([rect().right, rect().width, rect().top, rect().height]).toEqual([
       innerWidth,
-      384,
+      416,
       0,
       innerHeight,
     ]);
@@ -1031,14 +1026,6 @@ describe("css/system.css", () => {
     await page.viewport(375, 700);
     expect(rect().width).toBe(375);
     dialog.close();
-  });
-
-  it("closes a modal at the exit duration", () => {
-    theme("light");
-    const dialog = document.createElement("dialog");
-    dialog.className = "uip-modal";
-    document.body.append(dialog);
-    expect(getComputedStyle(dialog).getPropertyValue("--uip-modal-leave-duration")).toBe("120ms");
   });
 
   it("mirrors a drawing that points along the text in a right-to-left context", () => {
@@ -1069,12 +1056,11 @@ describe("css/system.css", () => {
   });
 
   it("keeps the page inside a 320px window with a wide table and its hidden actions label", async () => {
-    base = await link("ui-primitives.css");
     theme("light");
     await page.viewport(320, 700);
     build(
       '<div class="cp-panel" data-flush><table class="cp-table"><thead><tr><th>Title</th><th>Your copy</th>' +
-        '<th data-col="actions"><span class="uip-visually-hidden">Actions</span></th></tr></thead>' +
+        '<th data-col="actions"><span class="cp-visually-hidden">Actions</span></th></tr></thead>' +
         '<tbody><tr><td>A very long title that keeps going</td><td class="cp-mono">Some.Release.Name.1080p.BluRay.x265</td>' +
         '<td data-col="actions"><button class="cp-button" type="button">Grab</button></td></tr></tbody></table></div>',
     );
@@ -1332,5 +1318,70 @@ describe("css/system.css overlays", () => {
     expect(getComputedStyle(root).overflow).toBe("hidden");
     d.close();
     expect(getComputedStyle(root).overflow).not.toBe("hidden");
+  });
+});
+
+describe("css/system.css feedback and steps", () => {
+  it("draws each toast kind's glyph in its tone, and drains a passing toast's line", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-toast" data-kind="error"><span class="cp-toast-lead"></span><div class="cp-toast-text"><strong>No</strong></div></div>' +
+        '<div class="cp-toast" data-kind="success"><span class="cp-toast-lead"></span><div class="cp-toast-text"><strong>Yes</strong></div><span class="cp-toast-time"></span></div>',
+    );
+    const [error, success] = [...el.querySelectorAll<HTMLElement>(".cp-toast")];
+    const lead = (t: HTMLElement | undefined) =>
+      getComputedStyle(t?.querySelector(".cp-toast-lead") as Element);
+    const danger = host("");
+    danger.style.color = "var(--cp-danger-9)";
+    expect(lead(error).backgroundColor).toBe(getComputedStyle(danger).color);
+    // The dev server inlines each drawing, so the glyphs are told apart, not named.
+    expect(lead(error).maskImage).toMatch(/^url\(/);
+    expect(lead(error).maskImage).not.toBe(lead(success).maskImage);
+    expect(
+      getComputedStyle(success?.querySelector(".cp-toast-time") as Element).animationName,
+    ).toBe("cp-toast-drain");
+  });
+
+  it("puts a tooltip above its control by the anchor the tooltip script names", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button" type="button" id="tipped">Go</button><div class="cp-tooltip" popover="manual">Go there</div>',
+    );
+    const b = el.querySelector("#tipped") as HTMLElement;
+    const tip = el.querySelector(".cp-tooltip") as HTMLElement;
+    tip.style.transition = "none";
+    b.style.setProperty("anchor-name", "--cp-tip-anchor");
+    b.style.marginBlockStart = "120px";
+    tip.showPopover();
+    expect(tip.getBoundingClientRect().bottom).toBeLessThanOrEqual(b.getBoundingClientRect().top);
+    tip.hidePopover();
+  });
+
+  it("fills the current step, ticks a done one, and hides text from the eye but keeps it for a reader", () => {
+    theme("light");
+    const el = build(
+      '<ol class="cp-steps"><li data-state="done">Account<span class="cp-visually-hidden">, done</span></li><li data-state="current" aria-current="step">Sonarr</li><li data-state="todo">Check</li></ol>',
+    );
+    const [done, current, todo] = [...el.querySelectorAll("li")].map((l) =>
+      getComputedStyle(l, "::before"),
+    );
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    expect(current?.backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(done?.maskImage).toMatch(/^url\(/);
+    expect(todo?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    const hidden = el.querySelector(".cp-visually-hidden") as HTMLElement;
+    expect([hidden.getBoundingClientRect().width, hidden.getBoundingClientRect().height]).toEqual([
+      1, 1,
+    ]);
+    expect(hidden.textContent).toBe(", done");
+  });
+
+  it("twirls a loader through the harmony colours", () => {
+    theme("light");
+    const el = build('<span class="cp-loader" aria-hidden="true"><span></span></span>');
+    expect(getComputedStyle(el.querySelector(".cp-loader > span") as Element).animationName).toBe(
+      "cp-twirl-loop",
+    );
   });
 });

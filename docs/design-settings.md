@@ -28,11 +28,11 @@ A save says what it did or when it takes effect, such as "Saved. 6 copies change
 - A number with a unit names the unit in its label or its help, such as "Check every (minutes)".
 - A setting the server takes only from its config file shows its value as text, with the help "Set in the config file. Changes when the app restarts."
 - A stored secret, such as an API key, shows "Saved" and "Replace". Replace opens an empty field with a Show button inside it, in a `.cp-input-wrap`, and "Keep saved value" puts the saved one back. A save sends nothing for a kept secret.
-- A service the app reaches gets "Test connection" from [`@cplieger/ui/connection-test`](connection-test.md), which marks the field at fault.
+- A service the app reaches gets "Test connection" from [`@cplieger/ui/connection-test`](forms/connection-test.md), which marks the field at fault.
 
 ## Appearance
 
-- The theme is a `.cp-segmented` choice of System, Light and Dark, saved at once through [`@cplieger/ui/theme`](theme.md). While System is chosen, its label says what the system shows now, such as "System (now dark)", which `onSystemChange` keeps true.
+- The theme is a `.cp-segmented` choice of System, Light and Dark, saved at once through [`@cplieger/ui/theme`](core/theme.md). While System is chosen, its label says what the system shows now, such as "System (now dark)", which `onSystemChange` keeps true.
 - The header may carry the same choice as one icon button that steps through the three, with the choice in its accessible name and tooltip, such as "Theme: System".
 
 ## Words

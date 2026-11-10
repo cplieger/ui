@@ -1,3 +1,26 @@
+/* @cplieger/ui/icons paints a drawing through a mask in currentcolor, at
+ * the size its data-uip-icon-size names. */
+:where(.cp) .uip-icon {
+  display: inline-block;
+  flex: none;
+  inline-size: var(--cp-icon-size, var(--cp-icon-ui));
+  block-size: var(--cp-icon-size, var(--cp-icon-ui));
+  background-color: currentcolor;
+  mask: var(--uip-icon, none) center / contain no-repeat;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="inline"] {
+  --cp-icon-size: 1em;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="lg"] {
+  --cp-icon-size: 1.5rem;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="hero"] {
+  --cp-icon-size: 3rem;
+}
+
 /* A drawing that points along the line of text faces the other way in a
  * right-to-left context. */
 :where(.cp) .uip-icon:dir(rtl):is([data-uip-icon$="-right"], [data-uip-icon$="-left"]) {

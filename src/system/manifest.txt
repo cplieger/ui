@@ -10,7 +10,6 @@ foundations/shape/shape.css
 core/pointer/pointer.css
 foundations/motion/motion.css
 foundations/depth/depth.css
-foundations/widget-tokens/widget-tokens.css
 foundations/base/base.css
 layout/app-frame/app-frame.css
 layout/gate/gate.css
@@ -44,11 +43,13 @@ navigation/tabs/tabs.css
 feedback/progress/progress.css
 feedback/skeleton/skeleton.css
 feedback/empty/empty.css
-overlays/widget-skins/widget-skins.css
-overlays/sheet/sheet.css
+feedback/loader/loader.css
+feedback/toast/toast.css
+navigation/steps/steps.css
 overlays/dialog/dialog.css
 overlays/popover/popover.css
 overlays/menu/menu.css
+overlays/tooltip/tooltip.css
 buttons/button/busy.css
 buttons/confirm/confirm.css
 buttons/group/group.css

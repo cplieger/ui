@@ -1,7 +1,6 @@
-// One project per source package, so each suite keeps the settings it passed
-// under. reactive and fetch never set the strict options, and a root-level
-// `expect.requireAssertions` reaches every project, `extends` or not, so they
-// are spread only into the projects that had them.
+// The element folders, the design language's computed-style checks, and the
+// Node tests. A root-level `expect.requireAssertions` would reach every
+// project, `extends` or not, so the strict options are spread into each.
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
@@ -89,41 +88,12 @@ export default defineConfig({
     projects: [
       {
         test: {
-          name: "reactive",
-          isolate: true,
-          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
-          include: ["src/index.exports.test.ts", "src/signal/**/*.test.ts", "src/dom/**/*.test.ts"],
-          browser: chromium(),
-        },
-      },
-      {
-        test: {
-          name: "fetch",
-          isolate: true,
-          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
-          include: ["src/fetch/**/*.test.ts"],
-          browser: chromium(),
-        },
-      },
-      {
-        test: {
-          ...strict,
-          name: "primitives",
-          isolate: true,
-          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
-          include: ["src/primitives/**/*.test.ts"],
-          setupFiles: ["./src/primitives/fc-strict-setup.ts"],
-          browser: chromium(),
-        },
-      },
-      {
-        test: {
           ...strict,
           name: "elements",
           isolate: true,
           exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
           include: CATEGORIES.map((c) => `src/${c}/**/*.test.ts`),
-          setupFiles: ["./src/primitives/fc-strict-setup.ts"],
+          setupFiles: ["./src/fc-strict-setup.ts"],
           browser: engines(),
         },
       },
@@ -135,16 +105,6 @@ export default defineConfig({
           isolate: true,
           exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
           browser: engines(),
-        },
-      },
-      {
-        test: {
-          ...strict,
-          name: "actions",
-          include: ["src/actions/**/*.test.ts"],
-          isolate: true,
-          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
-          browser: chromium(),
         },
       },
       {

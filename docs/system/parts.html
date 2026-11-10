@@ -12,9 +12,6 @@
     <title>Reference screen: the components</title>
     <link
       rel="stylesheet"
-      href="../../css/ui-primitives.css">
-    <link
-      rel="stylesheet"
       href="../../css/system.css">
     <link
       rel="stylesheet"
@@ -485,11 +482,13 @@
             <h2>Sheet</h2>
             <div class="sheet-frame">
               <div
-                class="cp-sheet"
+                class="cp-dialog"
+                data-variant="sheet"
                 role="group"
                 aria-labelledby="sheet-title"
               >
-                <div class="cp-sheet-head">
+                <form method="dialog">
+                <header>
                   <h3 id="sheet-title">Filters</h3>
                   <button
                     class="cp-button"
@@ -503,8 +502,8 @@
                       aria-hidden="true"
                     ></span>
                   </button>
-                </div>
-                <div class="cp-sheet-body">
+                </header>
+                <div class="cp-dialog-body">
                   <div class="cp-filter-group">
                     <div class="cp-filter-title">Verdict</div>
                     <button
@@ -532,7 +531,7 @@
                     </button>
                   </div>
                 </div>
-                <div class="cp-sheet-foot">
+                <footer>
                   <button
                     class="cp-button"
                     data-variant="quiet"
@@ -547,7 +546,8 @@
                   >
                     Show 42 results
                   </button>
-                </div>
+                </footer>
+                </form>
               </div>
             </div>
           </section>

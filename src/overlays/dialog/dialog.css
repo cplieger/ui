@@ -53,7 +53,7 @@
 }
 
 .cp-dialog[open]::backdrop {
-  background: oklch(from var(--cp-neutral-12) 15% c h / 45%);
+  background: var(--cp-backdrop);
 }
 
 @starting-style {

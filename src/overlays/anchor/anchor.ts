@@ -37,13 +37,41 @@ function target(opener: Element): HTMLElement | null {
   return el instanceof HTMLElement && el.hasAttribute("popover") ? el : null;
 }
 
-function nameOf(opener: HTMLElement): string {
-  const own = opener.style.getPropertyValue("anchor-name");
-  if (own !== "") {
-    return own;
+const names = new WeakMap<HTMLElement, string>();
+
+/** Adds `name` to `el`'s `anchor-name` list, beside the names it has. */
+export function addAnchorName(el: HTMLElement, name: string): void {
+  const list = el.style
+    .getPropertyValue("anchor-name")
+    .split(",")
+    .map((n) => n.trim())
+    .filter((n) => n !== "");
+  if (!list.includes(name)) {
+    el.style.setProperty("anchor-name", [...list, name].join(", "));
   }
-  const name = `--cp-anchor-${String(++seq)}`;
-  opener.style.setProperty("anchor-name", name);
+}
+
+/** Takes `name` out of `el`'s `anchor-name` list, leaving the others. */
+export function removeAnchorName(el: HTMLElement, name: string): void {
+  const list = el.style
+    .getPropertyValue("anchor-name")
+    .split(",")
+    .map((n) => n.trim())
+    .filter((n) => n !== "" && n !== name);
+  if (list.length === 0) {
+    el.style.removeProperty("anchor-name");
+  } else {
+    el.style.setProperty("anchor-name", list.join(", "));
+  }
+}
+
+function nameOf(opener: HTMLElement): string {
+  let name = names.get(opener);
+  if (name === undefined) {
+    name = `--cp-anchor-${String(++seq)}`;
+    names.set(opener, name);
+  }
+  addAnchorName(opener, name);
   return name;
 }
 

@@ -1,31 +1,33 @@
-# Moving from the earlier packages
+# Moving from the earlier subpaths
 
-`@cplieger/ui` holds what four packages held: `@cplieger/reactive`, `@cplieger/ui-primitives`, `@cplieger/actions` and `@cplieger/fetch`. This page is for code that imports one of them.
+`@cplieger/ui` is the cplieger design language and the components built on it. Its earlier releases also carried a general foundation for signals, DOM rendering, requests and actions, and a set of widgets built on that foundation. The foundation now lives in `@cplieger/reactive`, and each widget has a replacement here, often the browser's own element. This page is for code that imports one of them.
 
-## Imports
+## The foundation
 
 | Earlier import | Import from |
 | --- | --- |
-| `@cplieger/reactive` | `@cplieger/ui`, or `@cplieger/ui/signal` and `@cplieger/ui/dom` |
-| `@cplieger/fetch` | `@cplieger/ui/fetch` |
-| `@cplieger/actions` | `@cplieger/ui/actions` |
-| `@cplieger/actions/testing` | `@cplieger/ui/actions/testing` |
-| `@cplieger/ui-primitives/<widget>` | `@cplieger/ui/<widget>` |
-| `@cplieger/ui-primitives` | the widget subpath of the same topic, such as `@cplieger/ui/dialog` for `createDialog` |
-| `@cplieger/ui-primitives/css` | `@cplieger/ui/css`, on npm only |
+| `@cplieger/ui`, `@cplieger/ui/signal`, `@cplieger/ui/dom` | `@cplieger/reactive`, `@cplieger/reactive/signal`, `@cplieger/reactive/dom` |
+| `@cplieger/ui/fetch` | `@cplieger/reactive/fetch` |
+| `@cplieger/ui/actions`, `@cplieger/ui/actions/testing` | `@cplieger/reactive/actions`, `@cplieger/reactive/actions/testing` |
+| `@cplieger/ui/css` | `@cplieger/ui/css/system`, which styles every component itself |
 
-The exported names are the same.
+The components here need no foundation. Each takes an `AbortSignal` for its lifetime, so an app on `@cplieger/reactive` passes its owner's `signal`.
 
-## What behaves differently
+## The widgets
 
-These differences are against the last stable release of each earlier package.
+| Earlier subpath | Replacement |
+| --- | --- |
+| `dialog`, `modal`, `focus-trap` | A native `<dialog class="cp-dialog">` opened with `commandfor` or `showModal()`. The modal dialog moves focus in, makes the page inert and returns focus. [dialog](overlays/dialog.md) adds a press outside, the keep-typed shake and the exit animation where an engine lacks them, and the stylesheet stops the page scrolling. |
+| `ask` | [ask](overlays/ask.md), with the same `ask(message, options)` call over a `.cp-dialog`. |
+| `popover`, `popup` | A native `popover` opened by `popovertarget`, placed by CSS anchor positioning in `.cp-popover`, which closes on Escape and on a press outside by itself. [anchor](overlays/anchor.md) names each opener and panel pair and opens a panel at a point. A menu is [menu](overlays/menu.md). |
+| `tooltip` | [tooltip](overlays/tooltip.md): `data-uip-tip` on the control and `installTooltips()` once. |
+| `toast` | [toast](feedback/toast.md): `toast({ kind, title, body, actions })`, returning `{ dismiss, update }`. |
+| `announce` | [announce](feedback/announce.md): `installAnnouncer()` once, then `announce(message, politeness)`, which reaches any open modal dialog. |
+| `disclosure` | A native `<details>`, with a shared `name` for one at a time, and [disclosure](navigation/disclosure.md) for the height glide in every engine. |
+| `roving-focus` | [roving-focus](core/roving-focus.md): `enhanceRovingFocus(group, options)`. |
+| `connection-test` | [connection-test](forms/connection-test.md): `enhanceConnectionTest(button, status, options)`. |
+| `stepper` | `.cp-steps`, an `<ol>` of steps with `data-state` and `aria-current="step"`, styled by the stylesheet with no script. |
+| `transition` | CSS transitions and `@starting-style`, which every component here uses. |
+| `theme`, `skeleton`, `view-transition` | The same modules: [theme](core/theme.md), [skeleton](feedback/skeleton.md) and [view-transition](core/view-transition.md). |
 
-- The errors the package throws, and the message it logs when an `onError` callback throws, begin with `@cplieger/ui:` instead of `reactive:`, `ui-primitives:` or `@cplieger/fetch:`.
-- `@cplieger/ui/dialog`, `/modal`, `/ask`, `/announce`, `/toast`, `/popup`, `/popover` and `/tooltip` watch the `open` attribute of dialogs from import, so they need a DOM at import and throw in Node or during server rendering. The package root and every other subpath touch no DOM at import.
-- The supported browsers are Chrome or Edge 132, Firefox 133 and Safari 26 or later.
-- A dialog, modal, disclosure, focus trap, popover, popup, roving focus or backdrop binding made under an owner, such as `createRoot`, a `bindList` row or an effect created under one, ends when that owner is disposed, even in the middle of an open, a close or a fade. Its own `dispose()`, `release()` or cleanup still works, and a second call does nothing.
-- `createDialog` on a dialog that already has a live controller, or on a modal's `el`, throws an `InvalidStateError`. So does `open()` on a disposed dialog controller, and `openDialog(modal.el)` on a disposed modal.
-- `isOpen` reports the state the controller last saw. After a change the browser makes, it updates at the next microtask or at your next call on the controller.
-- A popup's or popover's `dispose()` no longer calls `onClose`.
-- After `dispose()`, a disclosure's `open()`, `close()` and `toggle()`, and roving focus's `focusFirst()` and `refresh()`, do nothing.
-- A dialog's live-region pair stays after the dialog closes and after `dispose()`, and announcements reach every open modal the helpers drive as well as the root.
+Each replacement is a function you call with an element, or one install at startup, and none of them does anything as it loads.

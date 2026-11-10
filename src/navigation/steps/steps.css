@@ -1,0 +1,101 @@
+/* A multi-step flow's progress: numbered steps in an <ol>, the current one
+ * filled with aria-current="step", the done ones ticked, a line joining
+ * them. Each step carries data-state ("done", "current" or "todo") and a
+ * visually hidden word for it, so the state is never the glyph alone. In a
+ * box under 24rem the list gives way to .cp-steps-compact, "Step 2 of 3". */
+.cp-steps {
+  display: flex;
+  gap: var(--cp-space-2);
+  margin: 0 0 var(--cp-space-5);
+  padding: 0;
+  list-style: none;
+  counter-reset: cp-step;
+}
+
+.cp-steps > li {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  counter-increment: cp-step;
+}
+
+.cp-steps > li::before {
+  content: counter(cp-step);
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--cp-border-strong);
+  font-weight: var(--cp-weight-medium);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 200ms var(--cp-ease-out),
+    box-shadow 200ms var(--cp-ease-out),
+    color 200ms var(--cp-ease-out);
+}
+
+.cp-steps > li:not(:last-child)::after {
+  content: "";
+  flex: 1;
+  min-inline-size: 1rem;
+  border-block-start: 2px solid var(--cp-line);
+}
+
+.cp-steps > li[data-state="current"] {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-steps > li[data-state="current"]::before {
+  background: var(--cp-accent);
+  box-shadow: inset 0 0 0 2px var(--cp-accent);
+  color: var(--cp-on-accent);
+}
+
+.cp-steps > li[data-state="done"]::before {
+  content: "";
+  background: var(--cp-accent-11);
+  box-shadow: none;
+  mask:
+    url("../icons/marks/check.svg") center / 1rem no-repeat,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.cp-steps > li[data-state="done"]::after {
+  border-color: var(--cp-accent);
+}
+
+.cp-steps-compact {
+  display: none;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+}
+
+@container (width < 24rem) {
+  .cp-steps {
+    display: none;
+  }
+
+  .cp-steps-compact {
+    display: block;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-steps > li::before {
+    forced-color-adjust: none;
+    border: 2px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .cp-steps > li[data-state="current"]::before {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
