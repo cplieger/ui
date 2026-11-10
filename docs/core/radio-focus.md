@@ -2,7 +2,7 @@
 
 `@cplieger/ui/radio-focus`
 
-Keeps the focus ring on a radio that the arrow keys move to. Safari moves focus between the radios of a group without counting the move as keyboard focus, so `:focus-visible` stops matching and the ring disappears after the first arrow press. `installRadioFocus()` puts `data-uip-focus-ring` on that radio, and `@cplieger/ui/css/system` rings it like `:focus-visible`. Chromium and Firefox already match `:focus-visible` there, so the attribute never appears in them.
+Keeps the focus ring on a radio that the arrow keys move to. Safari moves focus between the radios of a group without counting the move as keyboard focus, so `:focus-visible` stops matching and the ring disappears after the first arrow press. `installRadioFocus()` puts `data-cp-focus-ring` on that radio, and `@cplieger/ui/css/system` rings it like `:focus-visible`. Chromium and Firefox already match `:focus-visible` there, so the attribute never appears in them.
 
 ## Usage
 
@@ -16,7 +16,7 @@ installRadioFocus({ signal: page.signal }); // at startup
 A stylesheet of your own that rings radios matches both:
 
 ```css
-.my-choice:has(:focus-visible, [data-uip-focus-ring]:focus) {
+.my-choice:has(:focus-visible, [data-cp-focus-ring]:focus) {
   outline: 2px solid Highlight;
 }
 ```

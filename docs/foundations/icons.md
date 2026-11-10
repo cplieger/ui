@@ -28,21 +28,21 @@ const { icon } = createIcons<AppIcon>({ url: (name) => assetURL[`${name}.svg`] }
 Without `@cplieger/ui/css/system`, which carries this rule, add the rule below to your own stylesheet.
 
 ```css
-.uip-icon {
+.cp-icon {
   display: inline-block;
   flex: none;
   inline-size: var(--icon-size);
   block-size: var(--icon-size);
   background-color: currentColor;
-  mask: var(--uip-icon) center / contain no-repeat;
+  mask: var(--cp-icon-image) center / contain no-repeat;
 }
-.uip-icon[data-uip-icon-size="inline"] { --icon-size: 1em; }
+.cp-icon[data-cp-icon-size="inline"] { --icon-size: 1em; }
 /* ui, lg and hero take your own sizes, such as 20px, 24px and 48px. */
 
 @media (forced-colors: active) {
-  .uip-icon { forced-color-adjust: none; }
+  .cp-icon { forced-color-adjust: none; }
   @supports (forced-color-adjust: preserve-parent-color) {
-    .uip-icon { forced-color-adjust: preserve-parent-color; }
+    .cp-icon { forced-color-adjust: preserve-parent-color; }
   }
 }
 ```
@@ -52,17 +52,17 @@ In forced colours Chromium replaces `background-color` with a system colour, whi
 ## API
 
 - `createIcons(opts)` returns `{ icon(name, size?) }`. Give exactly one of `opts.url`, a function from a name to its file's URL, and `opts.base`, a URL prefix ending in `/` that `name + ".svg"` is appended to. Any other `opts` throws a `TypeError`.
-- `icon(name, size = "ui")` returns a new `<span class="uip-icon" aria-hidden="true">` with `data-uip-icon` set to the name and `data-uip-icon-size` set to the size. It sets `--uip-icon: url("…")` through the CSSOM, which a `style-src` without `'unsafe-inline'` allows.
+- `icon(name, size = "ui")` returns a new `<span class="cp-icon" aria-hidden="true">` with `data-cp-icon` set to the name and `data-cp-icon-size` set to the size. It sets `--cp-icon-image: url("…")` through the CSSOM, which a `style-src` without `'unsafe-inline'` allows.
 - `iconNames` lists the Lucide drawings, typed `LucideIconName`, and `ownIconNames` the package's own, typed `OwnIconName`. Each list is sorted. Together they name every shipped file, and `IconName` is their union.
 - `IconSize` is `"inline" | "ui" | "lg" | "hero"`.
 
 ## Notes
 
 - The icon is decorative. Give the control that holds it its accessible name: visible text, or an `aria-label` on an icon-only button.
-- `--icon-size` is yours to declare. The package neither reads nor sets it, so it has no `--uip-` prefix.
+- `--icon-size` is yours to declare. The package neither reads nor sets it, so it has no `--cp-` prefix.
 - A mask paints the file's alpha, so the stroke is part of each drawing, 2.25 units on the 24-unit grid, and scales with the size.
 - A file your server does not serve paints nothing. Check the copied names in your build.
 - The Lucide drawings keep the pinned `lucide-static` release's lines and take the package's own style: a 2.25-unit stroke, round caps and joins, and one root element. `npm run icons:sync` writes the names in `iconNames` from that release in this style, and a test fails when a shipped file differs from what it would write. A drawing is added when an app needs it. Lucide's ISC notice, with the MIT notice for the drawings derived from Feather, ships as `icons/LICENSE-lucide`, and each file keeps Lucide's licence line.
 - The set covers the generic actions, states and objects the cplieger apps share.
 - Five drawings are the package's own, for states and motions Lucide lacks. `pin-filled`, `heart-filled`, `funnel-filled` and `tag-filled` are Lucide's `pin`, `heart`, `funnel` and `tag` filled, for an on state that reads as the same mark. `spinner-arc` is a quarter arc for a button's busy state. All use the same grid and stroke, and a test fails if a Lucide release ever ships one of their names.
-- `@cplieger/ui/css/system` carries the `.uip-icon` rule inside `class="cp"`, with sizes of 1em, 18px, 24px and 48px.
+- `@cplieger/ui/css/system` carries the `.cp-icon` rule inside `class="cp"`, with sizes of 1em, 18px, 24px and 48px.

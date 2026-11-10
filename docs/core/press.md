@@ -2,7 +2,7 @@
 
 `@cplieger/ui/press`
 
-One pressed state for a mouse, a finger, a pen and the keyboard. It puts `data-uip-pressed` on the control being pressed, so a stylesheet can draw a press that also shows under a finger. `:active` alone cannot, because iOS Safari applies it only where a page listens for `touchstart`, and a quick tap in any browser holds it for a frame or two.
+One pressed state for a mouse, a finger, a pen and the keyboard. It puts `data-cp-pressed` on the control being pressed, so a stylesheet can draw a press that also shows under a finger. `:active` alone cannot, because iOS Safari applies it only where a page listens for `touchstart`, and a quick tap in any browser holds it for a frame or two.
 
 ## Usage
 
@@ -11,11 +11,11 @@ import { installPress } from "@cplieger/ui/press";
 
 const page = new AbortController();
 installPress({ signal: page.signal }); // at startup
-page.abort(); // removes the listeners and every data-uip-pressed they set
+page.abort(); // removes the listeners and every data-cp-pressed they set
 ```
 
 ```css
-.my-button:is(:active, [data-uip-pressed]) {
+.my-button:is(:active, [data-cp-pressed]) {
   transform: scale(0.97);
 }
 ```
@@ -25,7 +25,7 @@ page.abort(); // removes the listeners and every data-uip-pressed they set
 ## API
 
 - `installPress(opts?)` starts listening on `document`. Every call shares one set of listeners.
-- `PressOptions` = `{ signal? }`, an `AbortSignal` that ends the call's hold on the listeners. Once no call holds them, they go, with every `data-uip-pressed` they set. A call without a signal holds them for the page's life. A call whose signal has already aborted installs nothing.
+- `PressOptions` = `{ signal? }`, an `AbortSignal` that ends the call's hold on the listeners. Once no call holds them, they go, with every `data-cp-pressed` they set. A call without a signal holds them for the page's life. A call whose signal has already aborted installs nothing.
 - An app on `@cplieger/reactive` passes its owner's `signal` (`createRoot((dispose, owner) => …)`), so the press ends with that owner.
 
 ## What it presses

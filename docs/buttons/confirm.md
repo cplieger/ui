@@ -8,9 +8,9 @@ A button that confirms its own action in place. While the work runs it turns bus
 
 ```html
 <button class="cp-button" data-variant="primary" type="button" id="save">
-  <span class="uip-icon" data-uip-icon="save" aria-hidden="true"></span>
-  <span class="uip-icon" data-uip-icon="spinner-arc" data-uip-part="busy" aria-hidden="true"></span>
-  <span class="uip-icon" data-uip-icon="check" data-uip-part="done" aria-hidden="true"></span>
+  <span class="cp-icon" data-cp-icon="save" aria-hidden="true"></span>
+  <span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span>
+  <span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span>
   <span class="cp-roll">Save changes</span>
 </button>
 ```

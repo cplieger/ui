@@ -14,8 +14,8 @@ The app's route decides when the detail shows. A link on each entry changes the 
   <section class="cp-detail" hidden aria-labelledby="source-title">
     <header>
       <h2 id="source-title" tabindex="-1">Sonarr</h2>
-      <button class="cp-button" data-variant="quiet" type="button" data-uip-detail-close aria-label="Close">
-        <span class="uip-icon" data-uip-icon="x" aria-hidden="true"></span>
+      <button class="cp-button" data-variant="quiet" type="button" data-detail-close aria-label="Close">
+        <span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span>
       </button>
     </header>
     <div class="cp-detail-body">…</div>

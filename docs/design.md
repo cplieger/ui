@@ -88,7 +88,7 @@ installPointerTier({ storageKey: "app.pointer" }); // at startup
 
 Hover styles apply under `@media (any-hover: hover)` while `data-pointer` is not `coarse`, so a tapped control keeps no hover fill. Pressed and focus styles apply on every tier. A press scales the control to 97%, except an icon-only button, which takes the pressed fill instead, since a scaled 18px icon blurs on a 1x screen. On touch an input stays at 16px so iOS does not zoom.
 
-A press is drawn from `:active` and from the `data-uip-pressed` that [press](core/press.md) sets, since iOS Safari gives a tapped control no `:active`. Controls take `touch-action: manipulation`, so a fast second tap never zooms the page.
+A press is drawn from `:active` and from the `data-cp-pressed` that [press](core/press.md) sets, since iOS Safari gives a tapped control no `:active`. Controls take `touch-action: manipulation`, so a fast second tap never zooms the page.
 
 ## Shape and depth
 
