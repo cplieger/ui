@@ -56,3 +56,32 @@
 .cp-switch:disabled::before {
   background: var(--cp-ink-disabled);
 }
+
+/* System colours paint the switch, so its state survives the forced palette. */
+@media (forced-colors: active) {
+  .cp-switch {
+    forced-color-adjust: none;
+    border: var(--cp-line-w) solid CanvasText;
+    background: Canvas;
+  }
+
+  .cp-switch::before {
+    background: CanvasText;
+  }
+
+  .cp-switch:checked {
+    background: Highlight;
+  }
+
+  .cp-switch:checked::before {
+    background: HighlightText;
+  }
+
+  .cp-switch:disabled {
+    border-color: GrayText;
+  }
+
+  .cp-switch:disabled::before {
+    background: GrayText;
+  }
+}

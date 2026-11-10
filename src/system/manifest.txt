@@ -7,7 +7,7 @@ foundations/colour/roles.css
 foundations/type/type.css
 foundations/space/space.css
 foundations/shape/shape.css
-foundations/pointer/pointer.css
+core/pointer/pointer.css
 foundations/motion/motion.css
 foundations/depth/depth.css
 foundations/widget-tokens/widget-tokens.css
@@ -22,6 +22,7 @@ forms/field/input-row.css
 forms/file/file.css
 forms/field/input-wrap.css
 layout/tiers/tiers.css
+navigation/wordmark/wordmark.css
 foundations/base/hidden-narrow.css
 navigation/nav/nav.css
 navigation/breadcrumbs/breadcrumbs.css

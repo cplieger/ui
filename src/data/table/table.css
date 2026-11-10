@@ -72,3 +72,9 @@
   background: var(--cp-accent-wash);
   color: var(--cp-accent-12);
 }
+
+@media (forced-colors: active) {
+  .cp-batchbar {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

@@ -102,6 +102,8 @@
     "NOTICE",
     "THIRD_PARTY_NOTICES.md",
     "!src/**/*.test.ts",
+    "!src/**/*.css",
+    "!src/**/*.txt",
     "!src/**/*-setup.ts",
     "!src/**/test-helpers/**"
   ],

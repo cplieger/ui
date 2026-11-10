@@ -1,10 +1,11 @@
 /* system.css — the cplieger design language for @cplieger/ui apps.
  *
- * Opt-in. On import it sets custom properties and two @font-face rules.
- * color-scheme, element defaults and the widget skins apply only with class
- * "cp" (put it on <html>); the .cp-* component classes apply where markup
- * uses them. docs/design.md is the
- * contract; the colour block is written by `npm run system:sync`. */
+ * Opt-in. On import it sets custom properties and the @font-face rules of
+ * its two fonts. color-scheme, element defaults and the widget skins apply
+ * only with class "cp" (put it on <html>); the .cp-* component classes apply
+ * where markup uses them. docs/design.md is the contract.
+ * `npm run system:sync` builds this file from src/system/header.css and the
+ * files src/system/manifest.txt lists, so edit those, never this file. */
 
 @font-face {
   font-family: "Atkinson Hyperlegible Next";

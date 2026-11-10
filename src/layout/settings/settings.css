@@ -97,3 +97,18 @@
 .cp-savebar > :first-child {
   flex: 1 1 auto;
 }
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-settings-nav > a:not([aria-current]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-savebar,
+  .cp-settings-nav > a[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

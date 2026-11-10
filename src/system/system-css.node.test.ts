@@ -495,7 +495,10 @@ describe("css/system.css", () => {
     if (process.env["SYSTEM_SYNC"] === "1") {
       await writeFile(CSS, await built());
     }
-    expect(await readFile(CSS, "utf8"), "run npm run system:sync").toBe(await built());
+    expect(
+      await readFile(CSS, "utf8"),
+      "css/system.css is built: edit the element files src/system/manifest.txt lists, then run npm run system:sync",
+    ).toBe(await built());
   });
 
   it("lists every element file once, and no file the tree lacks", async () => {

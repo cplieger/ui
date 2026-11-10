@@ -28,3 +28,9 @@
   font-size: var(--cp-text-xs);
   font-variant-numeric: tabular-nums;
 }
+
+@media (forced-colors: active) {
+  .cp-chip {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

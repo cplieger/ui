@@ -77,3 +77,9 @@
 .cp-crumbs a {
   color: inherit;
 }
+
+@media (forced-colors: active) {
+  .cp-nav-item[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

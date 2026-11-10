@@ -1,10 +1,11 @@
 /* system.css — the cplieger design language for @cplieger/ui apps.
  *
- * Opt-in. On import it sets custom properties and two @font-face rules.
- * color-scheme, element defaults and the widget skins apply only with class
- * "cp" (put it on <html>); the .cp-* component classes apply where markup
- * uses them. docs/design.md is the
- * contract; the colour block is written by `npm run system:sync`. */
+ * Opt-in. On import it sets custom properties and the @font-face rules of
+ * its two fonts. color-scheme, element defaults and the widget skins apply
+ * only with class "cp" (put it on <html>); the .cp-* component classes apply
+ * where markup uses them. docs/design.md is the contract.
+ * `npm run system:sync` builds this file from src/system/header.css and the
+ * files src/system/manifest.txt lists, so edit those, never this file. */
 
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
@@ -1406,6 +1407,35 @@
   background: var(--cp-ink-disabled);
 }
 
+/* System colours paint the switch, so its state survives the forced palette. */
+@media (forced-colors: active) {
+  .cp-switch {
+    forced-color-adjust: none;
+    border: var(--cp-line-w) solid CanvasText;
+    background: Canvas;
+  }
+
+  .cp-switch::before {
+    background: CanvasText;
+  }
+
+  .cp-switch:checked {
+    background: Highlight;
+  }
+
+  .cp-switch:checked::before {
+    background: HighlightText;
+  }
+
+  .cp-switch:disabled {
+    border-color: GrayText;
+  }
+
+  .cp-switch:disabled::before {
+    background: GrayText;
+  }
+}
+
 /* One choice of a few, such as a theme: native radios in labels, so the
  * arrow keys move the choice with no script. */
 .cp-segmented {
@@ -1475,10 +1505,12 @@
     .cp-segmented > label:has(:disabled):hover {
       color: var(--cp-ink-disabled);
     }
+  }
+}
 
-    .cp-settings-nav > a:not([aria-current]):hover {
-      background: var(--cp-fill);
-    }
+@media (forced-colors: active) {
+  .cp-segmented > label:has(:checked) {
+    border: var(--cp-line-w) solid CanvasText;
   }
 }
 
@@ -1582,6 +1614,21 @@
   flex: 1 1 auto;
 }
 
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-settings-nav > a:not([aria-current]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-savebar,
+  .cp-settings-nav > a[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 /* A field with a control beside it, such as Show password or Copy. */
 .cp-input-row {
   display: flex;
@@ -1654,6 +1701,7 @@
   }
 }
 
+/* The app's name and its mark, in the header and on a gate page. */
 .cp-wordmark {
   display: inline-flex;
   align-items: center;
@@ -1771,6 +1819,12 @@
 
 .cp-crumbs a {
   color: inherit;
+}
+
+@media (forced-colors: active) {
+  .cp-nav-item[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
 }
 
 /* A chevron between levels, drawn by CSS so it is never read aloud, and
@@ -1899,6 +1953,12 @@
  * pressed or chosen rather than out of reach. */
 .cp-button[data-variant="quiet"]:is(:disabled, [aria-disabled="true"]) {
   background: transparent;
+}
+
+@media (forced-colors: active) {
+  .cp-button {
+    border: var(--cp-line-w) solid CanvasText;
+  }
 }
 
 /* Fields: the boundary is the 3:1 step, so a field is findable without its
@@ -2088,6 +2148,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
   color: var(--cp-accent-12);
 }
 
+@media (forced-colors: active) {
+  .cp-batchbar {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 /* Pagination under a table: where the person is, and the way to the pages
  * around it. */
 .cp-pager {
@@ -2104,6 +2170,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 .cp-pager > :first-child {
   margin-inline-end: auto;
+}
+
+@media (forced-colors: active) {
+  .cp-pager {
+    border: var(--cp-line-w) solid CanvasText;
+  }
 }
 
 /* The trigger for the rail's filters, shown only once the rail leaves. */
@@ -2231,6 +2303,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
   font-variant-numeric: tabular-nums;
 }
 
+@media (forced-colors: active) {
+  .cp-chip {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 /* Notice: the state's wash over its container, a glyph and text. */
 .cp-notice {
   display: flex;
@@ -2273,6 +2351,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
     .cp-notice .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover {
       background: var(--cp-tone-2);
     }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-notice {
+    border: var(--cp-line-w) solid CanvasText;
   }
 }
 
@@ -2396,6 +2480,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
   background: var(--cp-tone-9);
 }
 
+@media (forced-colors: active) {
+  .cp-filter[aria-pressed="true"] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 /* Tabs: ARIA tabs; the selected tab is a raised fill. */
 .cp-tabs {
   display: flex;
@@ -2432,6 +2522,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
     .cp-tab:not([aria-selected="true"]):hover {
       color: var(--cp-ink);
     }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-tab[aria-selected="true"] {
+    border: var(--cp-line-w) solid CanvasText;
   }
 }
 
@@ -2621,47 +2717,6 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 @media (forced-colors: active) {
-  .cp-button,
-  .cp-chip,
-  .cp-notice,
-  .cp-filter[aria-pressed="true"],
-  .cp-tab[aria-selected="true"],
-  .cp-nav-item[aria-current],
-  .cp-pager,
-  .cp-batchbar,
-  .cp-savebar,
-  .cp-segmented > label:has(:checked),
-  .cp-settings-nav > a[aria-current] {
-    border: var(--cp-line-w) solid CanvasText;
-  }
-
-  /* System colours paint the switch, so its state survives the forced palette. */
-  .cp-switch {
-    forced-color-adjust: none;
-    border: var(--cp-line-w) solid CanvasText;
-    background: Canvas;
-  }
-
-  .cp-switch::before {
-    background: CanvasText;
-  }
-
-  .cp-switch:checked {
-    background: Highlight;
-  }
-
-  .cp-switch:checked::before {
-    background: HighlightText;
-  }
-
-  .cp-switch:disabled {
-    border-color: GrayText;
-  }
-
-  .cp-switch:disabled::before {
-    background: GrayText;
-  }
-
   :where(.cp) .uip-icon {
     forced-color-adjust: none;
   }

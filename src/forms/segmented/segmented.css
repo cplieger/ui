@@ -67,9 +67,11 @@
     .cp-segmented > label:has(:disabled):hover {
       color: var(--cp-ink-disabled);
     }
+  }
+}
 
-    .cp-settings-nav > a:not([aria-current]):hover {
-      background: var(--cp-fill);
-    }
+@media (forced-colors: active) {
+  .cp-segmented > label:has(:checked) {
+    border: var(--cp-line-w) solid CanvasText;
   }
 }

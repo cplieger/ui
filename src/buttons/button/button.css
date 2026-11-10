@@ -107,3 +107,9 @@
 .cp-button[data-variant="quiet"]:is(:disabled, [aria-disabled="true"]) {
   background: transparent;
 }
+
+@media (forced-colors: active) {
+  .cp-button {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
