@@ -2,151 +2,102 @@
 
 [![npm](https://img.shields.io/npm/v/@cplieger/ui)](https://www.npmjs.com/package/@cplieger/ui) [![JSR](https://jsr.io/badges/@cplieger/ui)](https://jsr.io/@cplieger/ui) [![Mutation (TS)](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/cplieger/ui/badges/mutation-ts.json)](https://github.com/cplieger/ui/issues?q=label%3Astryker-tracker)
 
-`@cplieger/ui` lets you build a TypeScript browser UI without a framework, from signals, accessible widgets, typed JSON requests and server actions.
+`@cplieger/ui` is a design language and the components built on it, for browser apps that draw their interface with plain HTML and DOM code.
 
-![A demo settings page built with the widgets and an example skin, showing an open modal with a popover menu, a tooltip, two toasts, an expanded disclosure, a theme switch and skeleton rows](docs/images/header.png)
+![A library screen in the design language: a coloured header with destinations, a rail of filters with counts, a table of entries with posters, chips and row actions, and a status line](docs/images/system-library-dark.png)
 
-It replaces the change listeners, focus handling, `try`/`catch` blocks and loading flags you would otherwise write by hand. It has no runtime dependencies and ships as ESM-only TypeScript source, so it needs a bundler that compiles TypeScript 6 or later. The widgets need Chrome or Edge 132, Firefox 133 or Safari 26 or later. It is licensed under Apache-2.0.
+The stylesheet styles the browser's own elements and a set of `.cp-*` classes, in light and dark, from a few colour seeds each app sets. Each script adds only what the browser lacks, such as a menu's keys or a toast's queue, and starts from a call you make. It has no runtime dependencies and ships as ESM-only TypeScript source, so it needs a bundler that compiles TypeScript 6 or later. It needs Chrome or Edge 147, Firefox 147 or Safari 26.4 or later. It is licensed under Apache-2.0.
 
 ## Why use it
 
-`@cplieger/ui` is built for apps that draw their interface with plain DOM code and keep their own look.
+- Dialogs, popovers and disclosures are the browser's own `<dialog>`, `popover` and `<details>`, so focus, Escape, a press outside a popover and the top layer work with no script.
+- Every control is one height and sizes itself for a mouse or a finger from the last real pointer, so a row of fields and buttons lines up on a desktop and under a thumb.
+- Colour comes from an accent hue and a neutral hue. The stylesheet computes every step, both themes and the harmony colours from them, and a test holds each pair of text and fill to its contrast.
+- Each component starts from a call you make and touches nothing as it loads, so a bundler drops what you do not import. One that stays on the page takes an `AbortSignal` for its lifetime.
 
-- A signal write runs every effect that depends on it before it returns, and every subpath shares that one signal graph.
-- `bindList` repaints only the row of a changed item, and `el` builds elements without HTML strings.
-- The widgets ship behavior and ARIA wiring with no colors or fonts, styled through `--uip-*` properties and `.uip-*` classes.
-- `@cplieger/ui/css/system` is an opt-in design language, with colour from a few seeds in light and dark, two bundled fonts and `.cp-*` component classes.
-- Requests never throw, and actions add optimistic updates, rollback and retry for failures you mark as transient.
-- A bundler drops every subpath you do not import.
-
-Consider [Solid](https://github.com/solidjs/solid) if you want components, JSX and server-side rendering. Consider [TanStack Query](https://tanstack.com/query/latest) if you also need a server-state cache.
+Consider [Pico CSS](https://picocss.com) if you want classless styles for content pages, or [Shoelace](https://shoelace.style) if you want web components.
 
 ## Install
 
 ```sh
-npx jsr add @cplieger/ui
-# or
 npm i @cplieger/ui
+# or
+npx jsr add @cplieger/ui
 ```
 
 ## Usage
 
-A signal holds a value, and an effect re-runs when what it read changes. `el` builds the elements:
+Import the stylesheet, put `class="cp"` on `<html>` and set the seeds:
 
 ```typescript
-import { effect, el, signal } from "@cplieger/ui";
-
-const count = signal(0);
-const label = el("output");
-const button = el("button", { onclick: () => count.value++ }, "Add one");
-document.body.append(button, label);
-
-effect(() => {
-  label.textContent = `Clicked ${count.value} times`;
-});
+import "@cplieger/ui/css/system";
 ```
 
-Connect the toasts to the actions once at startup, then define each action at module scope and dispatch it from your event handlers:
-
-```typescript
-import { apiAction, configure, retryNetwork } from "@cplieger/ui/actions";
-import { error, success } from "@cplieger/ui/toast";
-import "@cplieger/ui/css";
-
-configure({ success, error });
-
-const deleteItem = apiAction<string>({
-  name: "items.delete",
-  request: (id) => ({ method: "DELETE", path: `/api/items/${id}` }),
-  error: "Could not delete the item",
-  retryable: retryNetwork,
-  retry: { count: 2, delay: 300 },
-});
-
-await deleteItem.dispatch("item-1"); // the result, or null after the error toast
+```css
+:root {
+  --cp-accent-h: 255;
+  --cp-accent-c: 0.137;
+}
 ```
 
-To call a JSON API directly, create one instance per backend and branch on the result:
+Build with its classes and the browser's elements, then add the scripts the page needs once at startup:
+
+```html
+<button class="cp-button" type="button" popovertarget="sort">Sort</button>
+<div class="cp-popover cp-menu" popover id="sort" role="menu">
+  <button role="menuitemradio" aria-checked="true" type="button">Name</button>
+  <button role="menuitemradio" aria-checked="false" type="button">Added</button>
+</div>
+```
 
 ```typescript
-import { createFetch } from "@cplieger/ui/fetch";
+import { installAnchors } from "@cplieger/ui/anchor";
+import { enhanceMenu } from "@cplieger/ui/menu";
+import { installPress } from "@cplieger/ui/press";
+import { toast } from "@cplieger/ui/toast";
 
-const api = createFetch({ baseUrl: "https://api.example.com/v1" });
+const page = new AbortController();
+installPress({ signal: page.signal });
+installAnchors({ signal: page.signal });
+enhanceMenu(sortButton, sortMenu, { signal: page.signal, onSelect: (item) => sortBy(item.textContent) });
 
-const res = await api.apiGetRaw<{ name: string }>("/users/me");
-if (res.ok) console.log(res.data.name);
-else console.error(res.status, res.code, res.error);
+toast({ kind: "success", title: "Saved" });
 ```
 
 ## Subpaths
 
-Import each part from its own subpath. Code that imports one of the earlier packages, `@cplieger/reactive`, `@cplieger/ui-primitives`, `@cplieger/actions` or `@cplieger/fetch`, moves by the table in [Moving from the earlier packages](docs/migrating.md).
-
 | Import from | What it holds |
 | --- | --- |
-| `@cplieger/ui` | everything in `/signal` and `/dom` |
-| `@cplieger/ui/signal` | signals, computed values, effects, owners, resources, stores, collections and the event bus |
-| `@cplieger/ui/dom` | `el`, `reconcile`, `bindList`, `patch` and `trackHandler` |
-| `@cplieger/ui/fetch` | typed JSON requests |
-| `@cplieger/ui/actions` | server actions |
-| `@cplieger/ui/actions/testing` | `resetActionFramework` for tests |
-| `@cplieger/ui/<widget>` | one widget, such as `@cplieger/ui/dialog` |
+| `@cplieger/ui/css/system` | the design language's stylesheet, on npm only |
+| `@cplieger/ui/fonts/*` | its two fonts, on npm only |
 | `@cplieger/ui/icons` | Lucide's lines in the package's own stroke, a few drawings of its own, and the factory that paints them |
-| `@cplieger/ui/css` | the base stylesheet, on npm only |
-| `@cplieger/ui/css/system` | an opt-in design language: colour from a few seeds in light and dark, type, layout and component classes, on npm only |
-| `@cplieger/ui/fonts/*` | the two fonts the design language uses, on npm only |
-
-The widget subpaths are `toast`, `tooltip`, `popover`, `popup`, `dialog`, `modal`, `ask`, `connection-test`, `disclosure`, `focus-trap`, `roving-focus`, `pointer`, `press`, `radio-focus`, `list-detail`, `confirm`, `toggle`, `turn`, `roll`, `pill`, `anchor`, `menu`, `skeleton`, `stepper`, `theme`, `view-transition`, `transition` and `announce`.
-
-Eight widget subpaths start watching the `open` attribute of dialogs when they load, so they need a DOM at import: `dialog`, `modal`, `ask`, `announce`, `toast`, `popup`, `popover` and `tooltip`. The package root, `icons` and every other subpath touch no DOM at import, so they also run under Node, Deno, Bun or Workers. `package.json` marks the watching modules as side effects, so `import "@cplieger/ui/dialog"` keeps its watcher in a bundle.
+| `@cplieger/ui/<module>` | one component's script |
 
 ## API
 
-- Signals, from `/signal` or the root: `signal`, `computed`, `effect`, `batch`, `untracked`, `touch`, `on`, `subscribe`, `isSignal`, `isComputed`, `setEffectErrorHandler`, `createRoot`, `runWithOwner` and `resource`.
-- State, from `/signal` or the root: `createStore`, `SignalMap`, `createCollection` and `createBus`.
-- DOM, from `/dom` or the root: `el`, `reconcile`, `KEY_ATTR`, `bindList`, `patch` and `trackHandler`.
-- Requests, from `/fetch`: `createFetch` with its `apiGet`, `apiPost`, `apiPut`, `apiPatch` and `apiDelete` helpers, `withTimeout` and `API_TIMEOUT_MS`.
-- Actions, from `/actions`: `configure`, `configureApi`, `configureTransport`, `defineAction`, `apiAction`, `transportAction`, the helpers `debouncedDispatch`, `pollAction`, `pollUntil`, `bindLoadingState`, `withAsyncFeedback` and `registerCleanup`, and the state reads `isPending`, `pendingCount`, `subscribeToActions`, `subscribeByName` and `getActionLog`.
-- Widgets, one subpath each: [toast](docs/toast.md), [announce](docs/announce.md), [tooltip](docs/tooltip.md), [popover](docs/popover.md), [popup](docs/popup.md), [dialog](docs/dialog.md), [modal](docs/modal.md), [ask](docs/ask.md), [connection-test](docs/connection-test.md), [focus-trap](docs/focus-trap.md), [roving-focus](docs/roving-focus.md), [pointer](docs/pointer.md), [press](docs/press.md), [radio-focus](docs/core/radio-focus.md), [list-detail](docs/layout/list-detail.md), [confirm](docs/buttons/confirm.md), [toggle](docs/buttons/toggle.md), [turn](docs/buttons/turn.md), [roll](docs/core/roll.md), [pill](docs/core/pill.md), [anchor](docs/overlays/anchor.md), [menu](docs/overlays/menu.md), [disclosure](docs/disclosure.md), [theme](docs/theme.md), [view-transition](docs/view-transition.md), [transition](docs/transition.md), [skeleton](docs/skeleton.md) and [stepper](docs/stepper.md).
-- Icons, from `/icons`: `createIcons`, `iconNames` and `ownIconNames` ([icons](docs/icons.md)).
-- The [design language](docs/design.md) from `/css/system`, its [colour](docs/design-colour.md), [components](docs/design-components.md), [patterns](docs/design-patterns.md), [settings](docs/design-settings.md) and [account screens](docs/design-account.md).
+Each module is one subpath, grouped here by what it is for:
 
-The full reference, generated from the doc comments, is on [JSR](https://jsr.io/@cplieger/ui/doc).
+- Overlays: [dialog](docs/overlays/dialog.md), [ask](docs/overlays/ask.md), [anchor](docs/overlays/anchor.md), [menu](docs/overlays/menu.md) and [tooltip](docs/overlays/tooltip.md).
+- Feedback: [toast](docs/feedback/toast.md), [announce](docs/feedback/announce.md) and [skeleton](docs/feedback/skeleton.md).
+- Buttons: [confirm](docs/buttons/confirm.md), [toggle](docs/buttons/toggle.md) and [turn](docs/buttons/turn.md).
+- Forms and navigation: [connection-test](docs/forms/connection-test.md), [disclosure](docs/navigation/disclosure.md) and [list-detail](docs/layout/list-detail.md).
+- Behaviour every page shares: [press](docs/core/press.md), [pointer](docs/core/pointer.md), [radio-focus](docs/core/radio-focus.md), [roving-focus](docs/core/roving-focus.md), [roll](docs/core/roll.md), [pill](docs/core/pill.md), [theme](docs/core/theme.md) and [view-transition](docs/core/view-transition.md).
+- [icons](docs/foundations/icons.md): `createIcons`, `iconNames` and `ownIconNames`.
 
-## A write runs its effects before it returns
-
-When `count.value = 1` returns, every effect that depends on `count` has already run, so the next line reads the DOM those effects wrote. There is no queue and no pending state to wait for.
-
-`batch(fn)` is the only way to defer. Writes inside it coalesce, and the held effects run once, synchronously, when the outermost batch returns, even when the body throws. To run effects on a later task, make the write on a later task. [Signals, stores and collections](docs/signals.md) has the full rules.
-
-## Server text is untrusted
-
-- With an absolute `baseUrl`, a request path cannot reach another origin. Without one, the path goes to `fetch()` unchanged, so never build a whole path from untrusted text.
-- An error message can carry text from the server's response. Your `configure` adapter renders it as text, never as HTML. The toasts do that.
-- A failed response's `body` and `code` come from the server. Check their shape and the `status` before you act on them.
-- Set `sensitive: true` on an action whose arguments or result carry a secret, a token or personal data, so the action log keeps none of them.
-
-[Base URLs and untrusted responses](docs/security-model.md) and [Sensitive actions](docs/lifecycle.md#sensitive-actions) cover each rule.
-
-## Unsupported by design
-
-- The signal and DOM modules leave out ownership outside a root, an `onMount` lifecycle, server-side rendering, Suspense, a custom scheduler, a flush barrier such as `flushSync`, and controlled form inputs. [What the signal and DOM modules leave out](docs/signal-non-goals.md) gives the reasons.
-- The fetch module leaves out retries, interceptor chains, response caching, global settings and streamed responses. [What the fetch module leaves out](docs/fetch-non-goals.md) gives the reasons.
-- The actions module leaves out a query cache, framework adapters, a throttle helper and batch dispatch. [What the actions module leaves out](docs/actions-non-goals.md) gives the reasons.
+The full reference, generated from the doc comments, is on [JSR](https://jsr.io/@cplieger/ui/doc). For signals, keyed DOM rendering, requests and server actions, use [`@cplieger/reactive`](https://github.com/cplieger/reactive). An app on it passes its owner's `signal` to each component here.
 
 ## Documentation
 
-- [Signals, stores and collections](docs/signals.md) and [Building and updating the DOM](docs/dom.md) cover `/signal` and `/dom`.
-- [Results and errors](docs/results.md), [Requests, timeouts and runtimes](docs/requests.md) and [Base URLs and untrusted responses](docs/security-model.md) cover `/fetch`.
-- [Dispatch lifecycle](docs/lifecycle.md), [HTTP and streaming actions](docs/http.md) and [UI and polling helpers](docs/helpers.md) cover `/actions`.
-- [CSS contract](docs/css.md) covers the base stylesheet and the names you style. The [API](#api) list links each widget's page.
-- [Moving from the earlier packages](docs/migrating.md) maps each import of `@cplieger/reactive`, `@cplieger/ui-primitives`, `@cplieger/actions` and `@cplieger/fetch` and lists what behaves differently.
+- The [design language](docs/design.md) covers type, layout, touch, shape and motion, and [colour](docs/design-colour.md) the seeds, steps, tones and harmony colours.
+- [Components](docs/design-components.md) lists every class the stylesheet ships.
+- [Design patterns](docs/design-patterns.md) covers loading, forms, tables, tabs, dialogs, notifications, first run, navigation and words, with [settings](docs/design-settings.md) and [account screens](docs/design-account.md) on their own pages.
+- [Moving from the earlier subpaths](docs/migrating.md) maps each subpath earlier releases carried to its replacement.
 
 ## Credits
 
-- The signal engine follows the design of [@preact/signals-core](https://github.com/preactjs/signals) in its dependency graph, its glitch-free computed refresh, its run-on-write effects and its untracked `subscribe` callback.
-- The `on()` helper follows [Solid](https://github.com/solidjs/solid)'s `on()`, and `untracked()` is Solid's `untrack()` under the name Preact gives it. `createRoot`, `runWithOwner` and owned nested effects follow Solid's ownership model.
-- `onSuccess`, `onError` and `onSettled` follow TanStack Query's mutation callbacks, and `configureApi` follows RTK Query's `fetchBaseQuery`.
+- The icons are [Lucide](https://lucide.dev)'s, redrawn in the package's stroke.
+- The fonts are [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) and [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono).
+- The harmony colours follow the method of [pro-color-harmonies](https://github.com/meodai/pro-color-harmonies).
 
 ## Contributing
 

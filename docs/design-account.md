@@ -105,7 +105,7 @@ A recovery link opens a gate page that sends its token at once, with the panel b
 
 ## Step-up
 
-An action that needs a recent sign-in runs through `withStepUp`. When the server asks for one, a dialog from `@cplieger/ui/modal` opens:
+An action that needs a recent sign-in runs through `withStepUp`. When the server asks for one, a `.cp-dialog` opens:
 
 1. Its title is "Confirm it is you", and its sentence names the action, such as "Revoking a key needs a recent sign-in."
 2. It offers only the methods the account holds, from a password field with the primary "Confirm" to "Use a passkey" and "Use Authelia". With a password, focus starts in the field. Otherwise it starts on the first method.

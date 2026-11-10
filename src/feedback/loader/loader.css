@@ -1,0 +1,75 @@
+/* A loader for work of unknown length, about the size of a 24px icon, so it
+ * sits beside words or alone in a panel: the checkbox's rounded square
+ * turns a quarter at a time, rounding into a circle and back, through the
+ * harmony colours. Markup: <span class="cp-loader" aria-hidden="true"><span></span></span>,
+ * beside words that say what is loading. */
+.cp-loader {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+}
+
+.cp-loader > span {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  border-radius: 30%;
+  background: var(--cp-harmony-2);
+  animation: cp-twirl-loop 2.4s cubic-bezier(0.6, 0, 0.3, 1.25) infinite;
+}
+
+/* A loader beside words: the words say what is loading. */
+.cp-inline-load {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+}
+
+@keyframes cp-twirl-loop {
+  0% {
+    rotate: 0deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-2);
+  }
+
+  25% {
+    rotate: 90deg;
+    border-radius: 50%;
+    background: var(--cp-harmony-3);
+  }
+
+  50% {
+    rotate: 180deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-1);
+  }
+
+  75% {
+    rotate: 270deg;
+    border-radius: 50%;
+    background: var(--cp-harmony-4);
+  }
+
+  100% {
+    rotate: 360deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-2);
+  }
+}
+
+/* It still reads as busy under reduced motion, so it pulses instead. */
+@keyframes cp-loader-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-loader > span {
+    animation: cp-loader-pulse 2s ease-in-out infinite;
+  }
+}

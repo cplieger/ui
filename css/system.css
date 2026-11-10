@@ -1101,29 +1101,8 @@
   --cp-shadow-overlay:
     0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 12%),
     0 8px 24px -4px oklch(from var(--cp-neutral-12) 20% c h / 18%);
+  /* A sticky bar over the page; anything floating is in the top layer. */
   --cp-z-sticky: 100;
-  --cp-z-popover: 1100;
-}
-
-/* The widgets' own properties, mapped onto the language. :root.cp outranks
- * the base stylesheet's :root, whichever loads first. */
-:root.cp {
-  --uip-backdrop: var(--cp-backdrop);
-  --uip-toast-enter-duration: var(--cp-dur-medium);
-  --uip-toast-enter-easing: var(--cp-ease-out);
-  --uip-toast-leave-duration: var(--cp-dur-exit);
-  --uip-toast-leave-easing: var(--cp-ease-in);
-  --uip-tooltip-fade-duration: var(--cp-dur-micro);
-  --uip-tooltip-fade-easing: var(--cp-ease-out);
-  --uip-dialog-leave-duration: var(--cp-dur-exit);
-  --uip-dialog-leave-easing: var(--cp-ease-in);
-  --uip-modal-leave-duration: var(--cp-dur-exit);
-  --uip-modal-leave-easing: var(--cp-ease-in);
-  --uip-popover-enter-duration: var(--cp-dur-short);
-  --uip-popover-enter-easing: var(--cp-ease-out);
-  --uip-popover-leave-duration: var(--cp-dur-exit);
-  --uip-popover-leave-easing: var(--cp-ease-in);
-  --uip-z-popover: var(--cp-z-popover);
 }
 
 /* Element defaults, inside .cp only. */
@@ -1315,6 +1294,20 @@
   :where(.cp) :where([data-uip-focus-ring]:focus) {
     outline-color: Highlight;
   }
+}
+
+/* Text a screen reader reads and the eye does not see, such as a state word
+ * beside its glyph. */
+.cp-visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  white-space: nowrap;
+  border: 0;
 }
 
 /* App frame: a header, an optional rail, the work area, a status line. */
@@ -2817,107 +2810,381 @@ input.cp-input:is([type^="date"], [type="time"]) {
   color: var(--cp-ink-muted);
 }
 
-/* Widget skins, inside .cp only. @cplieger/ui/icons paints a drawing
- * through a mask in currentcolor. Overlays are the only shadowed surfaces. */
-:where(.cp) .uip-icon {
-  display: inline-block;
+/* A loader for work of unknown length, about the size of a 24px icon, so it
+ * sits beside words or alone in a panel: the checkbox's rounded square
+ * turns a quarter at a time, rounding into a circle and back, through the
+ * harmony colours. Markup: <span class="cp-loader" aria-hidden="true"><span></span></span>,
+ * beside words that say what is loading. */
+.cp-loader {
+  position: relative;
+  display: inline-grid;
   flex: none;
-  inline-size: var(--cp-icon-size, var(--cp-icon-ui));
-  block-size: var(--cp-icon-size, var(--cp-icon-ui));
-  background-color: currentcolor;
-  mask: var(--uip-icon, none) center / contain no-repeat;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
 }
 
-:where(.cp) .uip-icon[data-uip-icon-size="inline"] {
-  --cp-icon-size: 1em;
+.cp-loader > span {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  border-radius: 30%;
+  background: var(--cp-harmony-2);
+  animation: cp-twirl-loop 2.4s cubic-bezier(0.6, 0, 0.3, 1.25) infinite;
 }
 
-:where(.cp) .uip-icon[data-uip-icon-size="lg"] {
-  --cp-icon-size: 1.5rem;
+/* A loader beside words: the words say what is loading. */
+.cp-inline-load {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
 }
 
-:where(.cp) .uip-icon[data-uip-icon-size="hero"] {
-  --cp-icon-size: 3rem;
-}
+@keyframes cp-twirl-loop {
+  0% {
+    rotate: 0deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-2);
+  }
 
-:where(.cp) .uip-tooltip {
-  padding: var(--cp-space-1) var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-neutral-12);
-  color: var(--cp-neutral-1);
-  font-size: var(--cp-text-xs);
-}
+  25% {
+    rotate: 90deg;
+    border-radius: 50%;
+    background: var(--cp-harmony-3);
+  }
 
-:where(.cp) :is(.uip-popover, .uip-popup, .uip-toast) {
-  background: var(--cp-surface-overlay);
-  color: var(--cp-ink);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-overlay);
-  box-shadow: var(--cp-shadow-overlay);
-}
+  50% {
+    rotate: 180deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-1);
+  }
 
-:where(.cp) .uip-toast {
-  padding: var(--cp-space-3) var(--cp-space-4);
-}
+  75% {
+    rotate: 270deg;
+    border-radius: 50%;
+    background: var(--cp-harmony-4);
+  }
 
-:where(.cp) :is(.uip-modal, .uip-dialog) {
-  background: var(--cp-surface-overlay);
-  color: var(--cp-ink);
-  border: 0;
-  border-radius: var(--cp-radius-overlay);
-  box-shadow: var(--cp-shadow-overlay);
-}
-
-/* A sheet: modal content marked .cp-sheet opens at the inline end at full
- * height, and across the whole screen in the compact tier. */
-:where(.cp) .uip-modal:has(> .cp-sheet) {
-  inset-block: 0;
-  inline-size: min(24rem, 100vw);
-  max-inline-size: 100vw;
-  block-size: 100dvh;
-  max-block-size: none;
-  margin: 0;
-  margin-inline-start: auto;
-  border-radius: 0;
-  padding: 0;
-}
-
-@media (width < 40rem) {
-  :where(.cp) .uip-modal:has(> .cp-sheet) {
-    inline-size: 100vw;
+  100% {
+    rotate: 360deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-2);
   }
 }
 
-.cp-sheet {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  block-size: 100%;
+/* It still reads as busy under reduced motion, so it pulses instead. */
+@keyframes cp-loader-pulse {
+  50% {
+    opacity: 0.35;
+  }
 }
 
-.cp-sheet-head,
-.cp-sheet-foot {
+@media (prefers-reduced-motion: reduce) {
+  .cp-loader > span {
+    animation: cp-loader-pulse 2s ease-in-out infinite;
+  }
+}
+
+/* Toasts (@cplieger/ui/toast): a stack at the window's inline-end corner,
+ * newest at the foot, each springing up into place. A passing toast keeps a
+ * thin line that drains as its time runs out and stops while a pointer or
+ * focus is on the stack. Each toast's glyph says its kind, and the whole
+ * toast is its dismiss under a pointer. */
+.cp-toaster {
+  position: fixed;
+  inset: auto var(--cp-space-4) calc(var(--cp-space-3) + 3.25rem) auto;
+  display: grid;
+  inline-size: min(24rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cp-toaster:dir(rtl) {
+  inset-inline: auto var(--cp-space-4);
+}
+
+/* Each toast sits in a slot whose row closes when it leaves, so the ones
+ * above slide down instead of jumping. */
+.cp-toast-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.cp-toast-wrap {
+  min-block-size: 0;
+  padding-block-start: var(--cp-space-2);
+}
+
+.cp-toast-slot[data-uip-closing] > .cp-toast-wrap {
+  overflow: hidden;
+}
+
+.cp-toast {
+  --cp-toast-tone: var(--cp-accent-9);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--cp-space-1) var(--cp-space-3);
+  align-items: start;
+  padding: var(--cp-space-3);
+  padding-inline-start: var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  box-shadow: var(--cp-shadow-overlay);
+  overflow: hidden;
+  pointer-events: auto;
+  touch-action: pan-y;
+  cursor: pointer;
+  animation: cp-toast-in 560ms var(--cp-ease-spring);
+}
+
+.cp-toast[data-kind="success"] {
+  --cp-toast-tone: var(--cp-success-9);
+}
+
+.cp-toast[data-kind="warning"] {
+  --cp-toast-tone: var(--cp-warning-9);
+}
+
+.cp-toast[data-kind="error"] {
+  --cp-toast-tone: var(--cp-danger-9);
+}
+
+.cp-toast-lead:not(.cp-loader) {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-block-start: 0.0625rem;
+  background: var(--cp-toast-tone);
+  mask: url("../icons/svg/info.svg") center / contain no-repeat;
+}
+
+.cp-toast[data-kind="success"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/circle-check.svg");
+}
+
+.cp-toast[data-kind="warning"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/triangle-alert.svg");
+}
+
+.cp-toast[data-kind="error"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/octagon-alert.svg");
+}
+
+.cp-toast > .cp-loader {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+.cp-toast > .cp-loader > span {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+}
+
+.cp-toast-text :is(p, strong) {
+  cursor: text;
+}
+
+.cp-toast-text strong {
+  display: block;
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-toast-text p {
+  margin: 0.125rem 0 0;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-toast-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+  margin-block-start: var(--cp-space-2);
+}
+
+.cp-toast-close {
+  min-block-size: 1.75rem;
+  min-inline-size: 1.75rem;
+  margin-block: -0.25rem;
+  padding: 0;
+}
+
+.cp-toast-close::before {
+  content: "";
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/x.svg") center / contain no-repeat;
+}
+
+/* The draining line: a scale, so it runs on the compositor. */
+.cp-toast-time {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 2px;
+  background: var(--cp-toast-tone);
+  opacity: 0.55;
+  transform-origin: left;
+  animation: cp-toast-drain var(--cp-toast-life, 7s) linear forwards;
+}
+
+.cp-toast-time:dir(rtl) {
+  transform-origin: right;
+}
+
+.cp-toaster:is(:hover, :focus-within) .cp-toast-time {
+  animation-play-state: paused;
+}
+
+@keyframes cp-toast-in {
+  from {
+    translate: 0 1.5rem;
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes cp-toast-drain {
+  to {
+    scale: 0 1;
+  }
+}
+
+@media (width < 40rem) {
+  .cp-toaster {
+    inset-inline: var(--cp-space-3);
+    inline-size: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-toast {
+    animation-name: cp-fade-in;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-toast {
+    border-color: CanvasText;
+  }
+
+  .cp-toast-lead:not(.cp-loader),
+  .cp-toast-close::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
+/* A multi-step flow's progress: numbered steps in an <ol>, the current one
+ * filled with aria-current="step", the done ones ticked, a line joining
+ * them. Each step carries data-state ("done", "current" or "todo") and a
+ * visually hidden word for it, so the state is never the glyph alone. In a
+ * box under 24rem the list gives way to .cp-steps-compact, "Step 2 of 3". */
+.cp-steps {
+  display: flex;
+  gap: var(--cp-space-2);
+  margin: 0 0 var(--cp-space-5);
+  padding: 0;
+  list-style: none;
+  counter-reset: cp-step;
+}
+
+.cp-steps > li {
+  display: flex;
+  flex: 1;
   align-items: center;
   gap: var(--cp-space-2);
-  padding: var(--cp-space-3) var(--cp-space-4);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  counter-increment: cp-step;
 }
 
-.cp-sheet-head {
-  border-block-end: var(--cp-line-w) solid var(--cp-line);
+.cp-steps > li::before {
+  content: counter(cp-step);
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--cp-border-strong);
+  font-weight: var(--cp-weight-medium);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 200ms var(--cp-ease-out),
+    box-shadow 200ms var(--cp-ease-out),
+    color 200ms var(--cp-ease-out);
 }
 
-.cp-sheet-head > :first-child {
-  margin-inline-end: auto;
+.cp-steps > li:not(:last-child)::after {
+  content: "";
+  flex: 1;
+  min-inline-size: 1rem;
+  border-block-start: 2px solid var(--cp-line);
 }
 
-.cp-sheet-body {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--cp-space-4);
+.cp-steps > li[data-state="current"] {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
 }
 
-.cp-sheet-foot {
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
+.cp-steps > li[data-state="current"]::before {
+  background: var(--cp-accent);
+  box-shadow: inset 0 0 0 2px var(--cp-accent);
+  color: var(--cp-on-accent);
+}
+
+.cp-steps > li[data-state="done"]::before {
+  content: "";
+  background: var(--cp-accent-11);
+  box-shadow: none;
+  mask:
+    url("../icons/marks/check.svg") center / 1rem no-repeat,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.cp-steps > li[data-state="done"]::after {
+  border-color: var(--cp-accent);
+}
+
+.cp-steps-compact {
+  display: none;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+}
+
+@container (width < 24rem) {
+  .cp-steps {
+    display: none;
+  }
+
+  .cp-steps-compact {
+    display: block;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-steps > li::before {
+    forced-color-adjust: none;
+    border: 2px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .cp-steps > li[data-state="current"]::before {
+    background: Highlight;
+    color: HighlightText;
+  }
 }
 
 /* A dialog: a native <dialog> opened with showModal(), so focus moves in,
@@ -2975,7 +3242,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 .cp-dialog[open]::backdrop {
-  background: oklch(from var(--cp-neutral-12) 15% c h / 45%);
+  background: var(--cp-backdrop);
 }
 
 @starting-style {
@@ -3433,6 +3700,64 @@ input.cp-input:is([type^="date"], [type="time"]) {
   }
 }
 
+/* A tooltip (@cplieger/ui/tooltip): dark and small, above its control,
+ * flipping below near the window's top, fading up a quarter rem as it
+ * shows. It names or hints; the control keeps its own name. */
+.cp-tooltip {
+  position: fixed;
+  inset: auto;
+  max-inline-size: 18rem;
+  margin: 0 0 var(--cp-space-2);
+  padding: var(--cp-space-1) var(--cp-space-2);
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-neutral-12);
+  color: var(--cp-neutral-1);
+  font-size: var(--cp-text-xs);
+  position-anchor: --cp-tip-anchor;
+  position-area: block-start;
+  position-try-fallbacks: flip-block;
+  pointer-events: none;
+  opacity: 0;
+  translate: 0 0.25rem;
+  transition:
+    opacity 120ms var(--cp-ease-out),
+    translate 120ms var(--cp-ease-out),
+    overlay 120ms allow-discrete,
+    display 120ms allow-discrete;
+}
+
+.cp-tooltip:popover-open {
+  opacity: 1;
+  translate: 0 0;
+}
+
+@starting-style {
+  .cp-tooltip:popover-open {
+    opacity: 0;
+    translate: 0 0.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-tooltip,
+  .cp-tooltip:popover-open {
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .cp-tooltip:popover-open {
+      translate: 0 0;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-tooltip {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 /* A busy control keeps its label beside a turning spinner-arc. */
 .cp-button[aria-busy="true"] {
   cursor: progress;
@@ -3842,6 +4167,29 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 .cp-segmented:has(> .cp-pill) > label:has(:checked) {
   background: transparent;
   box-shadow: none;
+}
+
+/* @cplieger/ui/icons paints a drawing through a mask in currentcolor, at
+ * the size its data-uip-icon-size names. */
+:where(.cp) .uip-icon {
+  display: inline-block;
+  flex: none;
+  inline-size: var(--cp-icon-size, var(--cp-icon-ui));
+  block-size: var(--cp-icon-size, var(--cp-icon-ui));
+  background-color: currentcolor;
+  mask: var(--uip-icon, none) center / contain no-repeat;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="inline"] {
+  --cp-icon-size: 1em;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="lg"] {
+  --cp-icon-size: 1.5rem;
+}
+
+:where(.cp) .uip-icon[data-uip-icon-size="hero"] {
+  --cp-icon-size: 3rem;
 }
 
 /* A drawing that points along the line of text faces the other way in a

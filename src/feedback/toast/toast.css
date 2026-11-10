@@ -1,0 +1,198 @@
+/* Toasts (@cplieger/ui/toast): a stack at the window's inline-end corner,
+ * newest at the foot, each springing up into place. A passing toast keeps a
+ * thin line that drains as its time runs out and stops while a pointer or
+ * focus is on the stack. Each toast's glyph says its kind, and the whole
+ * toast is its dismiss under a pointer. */
+.cp-toaster {
+  position: fixed;
+  inset: auto var(--cp-space-4) calc(var(--cp-space-3) + 3.25rem) auto;
+  display: grid;
+  inline-size: min(24rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cp-toaster:dir(rtl) {
+  inset-inline: auto var(--cp-space-4);
+}
+
+/* Each toast sits in a slot whose row closes when it leaves, so the ones
+ * above slide down instead of jumping. */
+.cp-toast-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.cp-toast-wrap {
+  min-block-size: 0;
+  padding-block-start: var(--cp-space-2);
+}
+
+.cp-toast-slot[data-uip-closing] > .cp-toast-wrap {
+  overflow: hidden;
+}
+
+.cp-toast {
+  --cp-toast-tone: var(--cp-accent-9);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--cp-space-1) var(--cp-space-3);
+  align-items: start;
+  padding: var(--cp-space-3);
+  padding-inline-start: var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  box-shadow: var(--cp-shadow-overlay);
+  overflow: hidden;
+  pointer-events: auto;
+  touch-action: pan-y;
+  cursor: pointer;
+  animation: cp-toast-in 560ms var(--cp-ease-spring);
+}
+
+.cp-toast[data-kind="success"] {
+  --cp-toast-tone: var(--cp-success-9);
+}
+
+.cp-toast[data-kind="warning"] {
+  --cp-toast-tone: var(--cp-warning-9);
+}
+
+.cp-toast[data-kind="error"] {
+  --cp-toast-tone: var(--cp-danger-9);
+}
+
+.cp-toast-lead:not(.cp-loader) {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-block-start: 0.0625rem;
+  background: var(--cp-toast-tone);
+  mask: url("../icons/svg/info.svg") center / contain no-repeat;
+}
+
+.cp-toast[data-kind="success"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/circle-check.svg");
+}
+
+.cp-toast[data-kind="warning"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/triangle-alert.svg");
+}
+
+.cp-toast[data-kind="error"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/octagon-alert.svg");
+}
+
+.cp-toast > .cp-loader {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+.cp-toast > .cp-loader > span {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+}
+
+.cp-toast-text :is(p, strong) {
+  cursor: text;
+}
+
+.cp-toast-text strong {
+  display: block;
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-toast-text p {
+  margin: 0.125rem 0 0;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+  margin-block-start: var(--cp-space-2);
+}
+
+.cp-toast-close {
+  min-block-size: 1.75rem;
+  min-inline-size: 1.75rem;
+  margin-block: -0.25rem;
+  padding: 0;
+}
+
+.cp-toast-close::before {
+  content: "";
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/x.svg") center / contain no-repeat;
+}
+
+/* The draining line: a scale, so it runs on the compositor. */
+.cp-toast-time {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 2px;
+  background: var(--cp-toast-tone);
+  opacity: 0.55;
+  transform-origin: left;
+  animation: cp-toast-drain var(--cp-toast-life, 7s) linear forwards;
+}
+
+.cp-toast-time:dir(rtl) {
+  transform-origin: right;
+}
+
+.cp-toaster:is(:hover, :focus-within) .cp-toast-time {
+  animation-play-state: paused;
+}
+
+@keyframes cp-toast-in {
+  from {
+    translate: 0 1.5rem;
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes cp-toast-drain {
+  to {
+    scale: 0 1;
+  }
+}
+
+@media (width < 40rem) {
+  .cp-toaster {
+    inset-inline: var(--cp-space-3);
+    inline-size: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-toast {
+    animation-name: cp-fade-in;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-toast {
+    border-color: CanvasText;
+  }
+
+  .cp-toast-lead:not(.cp-loader),
+  .cp-toast-close::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}

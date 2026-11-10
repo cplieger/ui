@@ -19,7 +19,7 @@ Every region that loads data has four designed states, for loading, empty, error
 - Mark the loading region `aria-busy="true"` while it loads, and set `aria-busy="false"` once it settles into empty, error or full. Announce the outcome, such as "12 results" or "Check failed", through `@cplieger/ui/announce`, whose regions are on the page before the load starts.
 - A busy button keeps its label and reads as work in progress with an ellipsis, such as "Saving…".
 - Empty says what belongs here and offers the one action that fills it (`.cp-empty`). Error says what broke and what to do next, in a notice where the region would be. It never apologises and never stays vague.
-- A change that will most likely succeed shows at once and rolls back on failure, through `@cplieger/ui/actions`. A destructive action asks first or offers an Undo.
+- A change that will most likely succeed shows at once and rolls back on failure, through `@cplieger/reactive/actions`. A destructive action asks first or offers an Undo.
 
 ## Forms
 
@@ -73,11 +73,11 @@ Tabs follow the WAI-ARIA tabs pattern:
 
 A dialog is the last answer, after inline editing and disclosure. When one is needed:
 
-- Open it with `@cplieger/ui/modal`, which traps focus, closes on Escape and returns focus to the control that opened it.
+- Make it a native `<dialog class="cp-dialog">` opened with `commandfor` or `showModal()`, as [dialog](overlays/dialog.md) describes. The modal dialog makes the page inert, closes on Escape and returns focus to the control that opened it.
 - Move focus by what the dialog holds. A form focuses its first field. A confirmation focuses its least destructive action. A dialog of content to read focuses its heading.
 - A destructive confirmation names the action and its object on its button, such as "Delete 3 subtitles", and uses `data-tone="danger"` on it.
 
-A sheet is modal content marked `.cp-sheet`, with `.cp-sheet-head`, `.cp-sheet-body` and `.cp-sheet-foot`. It opens at the inline end at full height, and across the whole window in the compact tier. The filter sheet is the standard one:
+A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, body and footer. It opens at the inline end at full height, and across the whole window in the compact tier. The filter sheet is the standard one:
 
 1. Below 60rem, a Filters button in the page toolbar, with class `.cp-rail-toggle`, opens the rail's filters in a sheet. The stylesheet shows it only once the rail is gone. Its label carries the count of active filters, such as "Filters, 2", and while any filter is active, a "Clear filters" button sits beside it.
 2. The head holds the title "Filters" and a Close button.
@@ -96,7 +96,7 @@ A sheet is modal content marked `.cp-sheet`, with `.cp-sheet-head`, `.cp-sheet-b
 | A failure of the person's own action | a toast, with Retry when it can be retried | until dismissed |
 | The outcome of background work, such as a finished check | the app's activity history, and a toast only when the person started it | in the history |
 
-- Create the app's toaster with `createToaster({ defaultDuration: 7000 })` from `@cplieger/ui/toast`. An error toast stays until dismissed on its own. Give any other toast with an action, such as Undo, `duration: 0`.
+- Show each toast with `toast()` from `@cplieger/ui/toast`. A passing toast stays 7 seconds, and an error or a toast with an action, such as Undo, stays until dismissed on its own.
 - Toasts announce themselves, confirmations politely and errors assertively, so use an error toast only for a failure of what the person just did. A failure of background work, such as a refresh, is a notice, announced politely.
 - A notice that appears announces through `@cplieger/ui/announce`, politely, and only one that blocks the person's current task uses `role="alert"`.
 - One message per event. A problem shown in a notice is not also a toast.

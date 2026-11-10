@@ -248,3 +248,14 @@
   box-shadow: var(--cp-shadow-overlay);
   overflow: hidden;
 }
+
+/* A sheet drawn in place, without opening it: what the dialog's open state
+ * and the top layer would give it. */
+.sheet-frame > .cp-dialog {
+  position: static;
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  opacity: 1;
+  translate: none;
+}

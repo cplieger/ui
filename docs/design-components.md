@@ -27,16 +27,20 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-side-main` | a side column of `--cp-side-width` (16rem) beside the rest, stacking above it once the rest would be narrower than half the box |
 | `.cp-grid` | as many columns of at least `--cp-grid-min` (14rem) as fit, for cards and covers |
 | `.cp-list-detail`, `.cp-detail`, `.cp-detail-body` | a list with its entry's detail docked beside it, or in a dialog when the box is narrow, as [List and detail](layout/list-detail.md) describes |
-| `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`, holding a `<form method="dialog">` with its header, a `.cp-dialog-body` that scrolls and a footer of buttons, rising from the bottom on a phone, with `data-variant="confirm"` for a short confirmation led by its icon and `"sheet"` for the window's height at the inline end. The page does not scroll under it. [announce](announce.md) does not reach a dialog no helper drives |
+| `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`, holding a `<form method="dialog">` with its header, a `.cp-dialog-body` that scrolls and a footer of buttons, rising from the bottom on a phone, with `data-variant="confirm"` for a short confirmation led by its icon and `"sheet"` for the window's height at the inline end. The page does not scroll under it, as [dialog](overlays/dialog.md) describes |
 | `.cp-popover` | a native popover by the button that opens it, as [anchor](overlays/anchor.md) describes, with `data-variant="panel"` for a panel of controls |
 | `.cp-menu`, `.cp-menu-label`, `.cp-menu-tag` | a menu of `menuitem`, `menuitemcheckbox` and `menuitemradio` buttons or links, a group's heading and a word at an item's end, as [menu](overlays/menu.md) describes |
 | `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed` |
 | `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes |
-| `.cp-sheet`, `.cp-sheet-head`, `.cp-sheet-body`, `.cp-sheet-foot` | modal content that opens as a sheet at the inline end |
 | `.cp-progress`, `.cp-progress-track`, `.cp-progress-fill` | a progress bar in a tone |
 | `.cp-skeleton`, `.cp-empty` | the loading and empty states |
+| `.cp-loader`, `.cp-inline-load` | a loader for work of unknown length, the checkbox's square twirling through the harmony colours, alone or beside words that say what is loading |
+| `.cp-toaster`, `.cp-toast` | the toast stack and a toast, as [toast](feedback/toast.md) describes |
+| `.cp-tooltip` | a control's tip, as [tooltip](overlays/tooltip.md) describes |
+| `.cp-steps`, `.cp-steps-compact` | a multi-step flow's progress: an `<ol>` of steps, each with `data-state` of `"done"`, `"current"` or `"todo"` and a visually hidden word for it, and "Step 2 of 3" in a box under 24rem |
+| `.cp-visually-hidden` | text a screen reader reads and the eye does not see |
 | `.cp-mono`, `.cp-truncate`, `.cp-cell-stack` | machine text, one line cut with an ellipsis, and a title over a muted line |
 
-Inside `.cp`, this package's tooltip, popover, popup, dialog, modal, toast and icons take the language's surfaces, radii, shadows and motion.
+Inside `.cp`, the icons from `@cplieger/ui/icons` take the language's sizes.
 
 ![Every component in the light theme: buttons including a busy one, fields with errors, chips, notices including an error summary, tabs, a progress bar, a skeleton, an empty state and a filter sheet](images/system-parts-light.png)

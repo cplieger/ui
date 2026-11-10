@@ -169,10 +169,10 @@ async function sourcesHash(): Promise<string> {
   const hash = createHash("sha256");
   for (const file of [
     join(ROOT, "css", "system.css"),
-    join(ROOT, "css", "ui-primitives.css"),
     ...(await under("docs", "system")),
     ...(await under("fonts")),
     ...(await under("icons", "svg")),
+    ...(await under("icons", "marks")),
   ]) {
     hash.update(file.slice(ROOT.length)).update(await readFile(file));
   }

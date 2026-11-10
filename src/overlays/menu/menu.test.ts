@@ -145,7 +145,7 @@ describe("enhanceMenu", () => {
     expect(open(panel)).toBe(true);
   });
 
-  it("keeps the menu open for check and radio items, and checks one radio of a group", async () => {
+  it("keeps the menu open for check and radio items, checks one radio of a group, and reports each choice", async () => {
     const { button, panel } = menu([]);
     const check = item("Show posters", "menuitemcheckbox");
     check.setAttribute("aria-checked", "false");
@@ -156,7 +156,11 @@ describe("enhanceMenu", () => {
     byDate.setAttribute("aria-checked", "false");
     group.append(byName, byDate);
     panel.append(check, group);
-    enhanceMenu(button, panel, { signal: life.signal });
+    const chosen: string[] = [];
+    enhanceMenu(button, panel, {
+      signal: life.signal,
+      onSelect: (i) => chosen.push(`${i.textContent} ${String(i.getAttribute("aria-checked"))}`),
+    });
     await userEvent.click(button);
     await userEvent.click(check);
     expect(check.getAttribute("aria-checked")).toBe("true");
@@ -166,6 +170,7 @@ describe("enhanceMenu", () => {
       "true",
     ]);
     expect(open(panel)).toBe(true);
+    expect(chosen).toEqual(["Show posters true", "By date true"]);
   });
 
   it("closes on a press outside", async () => {

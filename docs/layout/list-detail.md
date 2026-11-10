@@ -57,4 +57,4 @@ function route(entry: string | null): void {
 
 The script measures the box, not the window, so the frame works in any region that gives it room. Mark the open entry's link with `aria-current="true"`, so a screen reader hears which entry the detail shows and the list fills its row.
 
-While the detail is in its dialog, the rest of the page is inert, and [announce](../announce.md) does not reach a dialog no helper drives.
+While the detail is in its dialog, the rest of the page is inert. [announce](../feedback/announce.md) speaks from inside the dialog then.
