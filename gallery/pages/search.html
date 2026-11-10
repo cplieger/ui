@@ -1,0 +1,25 @@
+<main class="play">
+  <div class="g-search-head">
+    <h1>Search</h1>
+    <div class="g-tokens" data-tokens="search"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Search the library and releases" placeholder="Search titles, groups and files" autofocus></div>
+    <div class="g-search-meta">
+      <div class="g-chips" role="group" aria-label="Show only">
+        <button class="g-chip" type="button" aria-pressed="false" data-facet="tv"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Series</button>
+        <button class="g-chip" type="button" aria-pressed="false" data-facet="film"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Films</button>
+        <button class="g-chip" type="button" aria-pressed="false" data-facet="release"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Releases</button>
+      </div>
+      <span role="status"><span id="result-count"></span></span>
+    </div>
+  </div>
+  <div class="g-results" id="results" aria-live="polite">
+    <article class="g-result" data-kind="tv"><h3>Frieren: Beyond Journey's End</h3><p>Series, 2023, 28 episodes. On the best release, Arid's BD remux with dual audio.</p></article>
+    <article class="g-result" data-kind="tv"><h3>Delicious in Dungeon</h3><p>Series, 2024, 24 episodes. Not the best: Okay-Subs has a better encode.</p></article>
+    <article class="g-result" data-kind="tv"><h3>Mushishi</h3><p>Series, 2005, 26 episodes. On an alt release by Beatrice-Raws.</p></article>
+    <article class="g-result" data-kind="film"><h3>The Boy and the Heron</h3><p>Film, 2023. On the best release, the BD remux.</p></article>
+    <article class="g-result" data-kind="film"><h3>Spirited Away</h3><p>Film, 2001. Missing from the library folder.</p></article>
+    <article class="g-result" data-kind="release"><h3>[Arid] Frieren S01 (BD 1080p, dual audio)</h3><p>Release, 31.4 GB, 412 seeders. SeaDex's best for Frieren.</p></article>
+    <article class="g-result" data-kind="release"><h3>[Okay-Subs] Dungeon Meshi (BD 1080p)</h3><p>Release, 33.0 GB, 96 seeders. Better than the copy in the library.</p></article>
+    <article class="g-result" data-kind="release"><h3>[Kametsu] Mushishi (BD 1080p, dual audio)</h3><p>Release, 44.8 GB, 31 seeders. An alt for Mushishi.</p></article>
+  </div>
+  <div class="cp-empty" id="no-results" hidden><span class="cp-icon g-hero-icon" data-cp-icon="telescope" aria-hidden="true"></span><strong>Nothing matches</strong><span>Try fewer words, or clear the filters.</span><button class="cp-button" type="button" id="clear-search">Clear the search</button></div>
+</main>

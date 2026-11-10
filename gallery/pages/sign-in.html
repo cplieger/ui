@@ -1,0 +1,16 @@
+<main class="cp-gate">
+  <div class="cp-wordmark"><span class="cp-mark" aria-hidden="true">R</span>Release tracker</div>
+  <div class="cp-panel">
+    <form class="cp-form" data-sign-in novalidate>
+      <h1 class="g-h1">Sign in</h1>
+      <div class="cp-notice" data-tone="danger" id="si-refused" role="alert" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><span>The username or password is wrong.</span></div>
+      <button class="cp-button g-wide-button" type="button"><span class="cp-icon" data-cp-icon="fingerprint" aria-hidden="true"></span>Sign in with a passkey</button>
+      <div class="g-divider">or with your password</div>
+      <div class="cp-field"><label class="cp-label" for="si-user">Username</label><input class="cp-input" id="si-user" name="username" autocomplete="username webauthn" value="cplieger"></div>
+      <div class="cp-field"><label class="cp-label" for="si-pw">Password</label><div class="cp-input-wrap"><input class="cp-input" id="si-pw" name="password" type="password" autocomplete="current-password" aria-describedby="si-pw-error"><button class="cp-button" data-variant="quiet" type="button" data-reveal="si-pw" aria-pressed="false" aria-label="Show password"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span></button></div><span class="cp-field-error" id="si-pw-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Enter your password.</span></div>
+      <button class="cp-button btn-done g-wide-button" data-variant="primary" type="submit"><span class="cp-icon" data-cp-icon="log-in" aria-hidden="true"></span><span class="label">Sign in</span></button>
+      <a href="#" class="g-gate-note">Forgot your password?</a>
+    </form>
+  </div>
+  <p class="g-gate-note">Leave the password empty to see a missing field, or type "wrong" to see a refused sign-in.</p>
+</main>

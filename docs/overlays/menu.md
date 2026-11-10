@@ -19,19 +19,21 @@ The [menu button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/)
 ```
 
 ```ts
-import { installAnchors } from "@cplieger/ui/anchor";
 import { enhanceMenu } from "@cplieger/ui/menu";
 
-installAnchors({ signal: page.signal });
-enhanceMenu(button, menu, { onSelect: (item) => run(item), signal: page.signal });
+enhanceMenu(menu, { onSelect: (item) => run(item), signal: page.signal });
 ```
 
-- The menu opens with focus on its first item, and ArrowDown and ArrowUp on the button open it at the first or the last item.
+- `enhanceMenu` is called once per menu, however many buttons open it. Every element whose `popovertarget` or `commandfor` names the menu is an opener, including rows added later, so one menu can serve every row of a list. The menu sits by the opener pressed, and only that opener reads as expanded.
+- The menu opens with focus on its first item, and ArrowDown and ArrowUp on an opener open it at the first or the last item.
 - The arrow keys wrap through the items, Home and End go to the ends, and typed letters jump to the item they start. The same letter again steps through the items it starts.
 - A `menuitem` that is chosen closes the menu and calls `onSelect`. A `menuitemcheckbox` toggles its `aria-checked`, and a `menuitemradio` checks itself and unchecks the others in its `role="group"`. Both keep the menu open and then call `onSelect`.
 - An item with `aria-disabled="true"` takes focus but cannot be chosen.
-- Aborting `signal` closes the menu and removes the button's ARIA.
+- A `popover="manual"` menu closes on Escape and on a press outside it and its openers, as an automatic popover does by itself.
+- Aborting `signal` removes the listeners and the openers' ARIA, and closes the menu if this call opened it.
 
 ## Context menu
 
 `enhanceContextMenu(zone, menu, { onOpen, onSelect, hold, signal })` opens a `popover="manual"` menu at the pointer on a right click inside `zone`, or on a finger held still for `hold` ms (500 by default). `onOpen` gets the element pressed, so the menu can be filled for that row. A press outside or Escape closes it. The hold selects no text and opens no browser menu, and the lift that ends it clicks nothing.
+
+One `popover="manual"` menu can take both calls, so a row's ⋯ button and a right click on the row open the same menu. The menu keeps one set of item listeners, so a key moves once and a check toggles once, and the call that opened it last closes it and gets `onSelect`.

@@ -1,0 +1,132 @@
+<main class="play">
+  <header>
+    <h1>Layouts and screens</h1>
+    <p>Frames without content: the regions an app fills, how each moves between a phone, a tablet and a desktop, and the few arrangements used inside a region. A component never knows which region holds it; it sizes to its container, so it moves between regions unchanged.</p>
+  </header>
+
+  <nav class="g-index" aria-label="On this page"><a href="#frames">Frames</a><a href="#inside">Inside a region</a><a href="#screens">Screens</a></nav>
+
+  <section class="g-section" id="frames">
+    <h2>Frames</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <h2>App frame</h2>
+        <div class="g-shell" data-frame-name="The app frame">
+          <div class="g-shell-view"><div class="g-shell-page">
+            <div class="cp-app">
+              <div class="cp-header"><span class="f-box">Header<small>mark, destinations, status, account</small></span></div>
+              <div class="cp-rail"><span class="f-box f-tall">Rail<small>filters and sections; leaves under 60rem for a Filters sheet</small></span></div>
+              <div class="cp-main"><div class="f-box f-tall">Main<small>the page; a container, so what is in it sizes to it</small></div></div>
+              <div class="cp-status"><span class="f-box">Status line<small>the tool's footer</small></span></div>
+            </div>
+          </div></div>
+        </div>
+        <footer><code>.cp-app</code>: header across the top, the rail beside main, the status line at the foot. Under 60rem the rail leaves and a Filters button opens its contents in a sheet; under 40rem the header keeps only icons. A tool has no page footer: the status line is its foot.</footer>
+      </div>
+      <div class="card g-wide">
+        <h2>List and detail</h2>
+        <div class="g-shell" data-frame-name="List and detail">
+          <div class="g-shell-view"><div class="g-shell-page">
+            <div class="cp-app">
+              <div class="cp-header"><span class="f-box">Header</span></div>
+              <div class="cp-rail"><span class="f-box f-tall">Rail</span></div>
+              <div class="cp-main">
+                <div class="f-md">
+                  <div class="f-box f-tall">List<small>the rows; a row's link opens its detail</small></div>
+                  <div class="f-box f-tall f-detail">Detail<small>docked beside the list from 52rem of main</small></div>
+                  <div class="f-box f-note">Detail<small>under 52rem of main, a full-screen dialog over the list</small></div>
+                </div>
+              </div>
+              <div class="cp-status"><span class="f-box">Status line</span></div>
+            </div>
+          </div></div>
+        </div>
+        <footer>Inside main, the detail docks beside the list once main is 52rem wide, and opens as a full-screen dialog below that, with Back closing it. It keys on main's width, not the window's, so it works with or without the rail.</footer>
+      </div>
+      <div class="card g-wide">
+        <h2>Settings</h2>
+        <div class="g-shell" data-frame-name="Settings">
+          <div class="g-shell-view"><div class="g-shell-page">
+            <div class="cp-app">
+              <div class="cp-header"><span class="f-box">Header</span></div>
+              <div class="cp-main">
+                <div class="cp-settings">
+                  <div class="cp-settings-nav"><span class="f-box f-tall">Categories<small>beside the form; a row above it under 48rem</small></span></div>
+                  <div class="f-box f-tall">Form<small>one category's settings, 32rem at most</small></div>
+                </div>
+              </div>
+              <div class="cp-status"><span class="f-box">Status line</span></div>
+            </div>
+          </div></div>
+        </div>
+        <footer><code>.cp-settings</code>: categories beside one category's form, then a row of categories above it under 48rem.</footer>
+      </div>
+      <div class="card g-wide">
+        <h2>Gate page</h2>
+        <div class="g-shell" data-frame-name="The gate page">
+          <div class="g-shell-view"><div class="g-shell-page">
+            <div class="cp-gate">
+              <span class="f-box">Mark and app name</span>
+              <div class="cp-panel"><span class="f-box f-tall">One panel<small>sign-in, setup, an invite or a recovery link; 24rem at most</small></span></div>
+              <span class="f-box">A link back, or help</span>
+            </div>
+          </div></div>
+        </div>
+        <footer><code>.cp-gate</code>: a page outside the frame for one short task, its mark and name over one panel.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="inside">
+    <h2>Inside a region</h2>
+    <p class="g-note">Drag a box's corner to narrow it: each arrangement answers to its own width, never to the window's.</p>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Stack</h2>
+        <div class="g-resizable"><div class="cp-stack"><span class="f-box">Heading row</span><span class="f-box">Content</span><span class="f-box">Content</span></div></div>
+        <footer><code>.cp-stack</code>: one column, one gap, a rule or a heading row spaced by that gap alone.</footer>
+      </div>
+      <div class="card">
+        <h2>Cluster</h2>
+        <div class="g-resizable"><div class="g-cluster"><span class="f-box">Chip</span><span class="f-box">A longer chip</span><span class="f-box">Chip</span><span class="f-box">Button</span><span class="f-box">Chip</span></div></div>
+        <footer>A row that wraps: chips, buttons, facts on a line. It replaces each piece's own flex row.</footer>
+      </div>
+      <div class="card">
+        <h2>Side and main</h2>
+        <div class="g-resizable"><div class="g-split"><span class="f-box">Side</span><span class="f-box f-mid">Main</span></div></div>
+        <footer>A fixed side column beside the rest, stacking above it once the box is under 40rem: a poster beside its facts, a form's help beside it.</footer>
+      </div>
+      <div class="card">
+        <h2>Auto grid</h2>
+        <div class="g-resizable"><div class="g-autogrid"><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span></div></div>
+        <footer>As many columns as fit at a minimum width each: cards, card links, covers. One column on a phone without a breakpoint.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="screens">
+    <h2>Screens</h2>
+    <p class="g-note">Whole screens put together from the elements on the other pages, each once.</p>
+    <div class="g-grid">
+      <div class="card">
+        <h2><a href="sign-in.html">Sign-in</a></h2>
+        <p>A gate page outside the app frame: username and password the same width, Show inside the password, a refusal that names neither half.</p>
+      </div>
+      <div class="card">
+        <h2><a href="setup.html">First-run setup</a></h2>
+        <p>Three steps with a step track, a connection test that blames the field at fault, and a finish worth marking once.</p>
+      </div>
+      <div class="card">
+        <h2><a href="settings.html">Settings</a></h2>
+        <p>Categories beside one category's form, settings that save at once, and a save bar that counts what is unsaved.</p>
+      </div>
+      <div class="card">
+        <h2><a href="search.html">Search</a></h2>
+        <p>Results that narrow as you type, with the matches marked and filters by kind; the twirl takes the magnifier's place while it searches.</p>
+      </div>
+      <div class="card">
+        <h2><a href="not-found.html">Not found</a></h2>
+        <p>A page that does not exist: what happened, and the one way back.</p>
+      </div>
+    </div>
+  </section>
+</main>

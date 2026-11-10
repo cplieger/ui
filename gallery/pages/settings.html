@@ -1,0 +1,88 @@
+<main class="play">
+  <header>
+    <h1>Settings</h1>
+    <p>The settings page every app shares: categories beside the open one (a select on a phone), one setting per row, a save bar that holds unsaved changes with a dot on each changed category, and the appearance choices with a theme change that reveals itself from the button you pressed. Empty the display name and save to see the summary link across sections; <button class="cp-button" data-size="sm" type="button" data-elsewhere>simulate a change elsewhere</button>.</p>
+  </header>
+  <div class="cp-settings">
+    <nav class="cp-settings-nav" aria-label="Settings">
+      <a href="#st-appearance" aria-current="page"><span class="cp-icon" data-cp-icon="palette" aria-hidden="true"></span>Appearance</a>
+      <a href="#st-checks"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Checks</a>
+      <a href="#st-notify"><span class="cp-icon" data-cp-icon="bell" aria-hidden="true"></span>Notifications</a>
+      <a href="#st-sources"><span class="cp-icon" data-cp-icon="server" aria-hidden="true"></span>Sources</a>
+      <a href="#st-account"><span class="cp-icon" data-cp-icon="shield-check" aria-hidden="true"></span>Account and security</a>
+    </nav>
+    <div class="cp-field g-cat-select"><label class="cp-label" for="st-cat">Category</label><div class="g-select"><select class="cp-input" id="st-cat"><option value="st-appearance">Appearance</option><option value="st-checks">Checks</option><option value="st-notify">Notifications</option><option value="st-sources">Sources</option><option value="st-account">Account and security</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div></div>
+    <form class="cp-stack" data-settings novalidate>
+      <div class="g-banner" data-tone="warning" id="st-elsewhere" role="status" hidden><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>These settings changed on another device while you were editing.</span><button class="cp-button" data-size="sm" type="button" data-keep-mine>Load the latest and keep my changes</button></div>
+      <div class="cp-notice" data-tone="danger" role="alert" id="st-summary" tabindex="-1" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div><strong>1 setting needs a fix before this saves</strong><ul><li><a href="#st-name">Account and security: Display name</a></li></ul></div></div>
+      <section class="cp-panel cp-stack" id="st-appearance" aria-labelledby="st-appearance-h">
+        <h2 id="st-appearance-h">Appearance</h2>
+        <fieldset class="g-choices"><legend class="cp-label">Theme</legend>
+          <div class="g-themes">
+            <label class="g-theme"><input type="radio" name="g-theme" value="system"><span class="g-shot" data-look="system" aria-hidden="true"></span>System</label>
+            <label class="g-theme"><input type="radio" name="g-theme" value="light" checked><span class="g-shot" data-look="light" aria-hidden="true"></span>Light</label>
+            <label class="g-theme"><input type="radio" name="g-theme" value="dark"><span class="g-shot" data-look="dark" aria-hidden="true"></span>Dark</label>
+          </div>
+        </fieldset>
+        <fieldset class="g-choices"><legend class="cp-label">Accent colour</legend>
+          <div class="g-swatches">
+            <label data-hue="255" aria-label="Blue"><input type="radio" name="g-accent" value="255" checked></label>
+            <label data-hue="162" aria-label="Green"><input type="radio" name="g-accent" value="162"></label>
+            <label data-hue="27" aria-label="Terracotta"><input type="radio" name="g-accent" value="27"></label>
+            <label data-hue="300" aria-label="Violet"><input type="radio" name="g-accent" value="300"></label>
+            <label data-hue="350" aria-label="Pink"><input type="radio" name="g-accent" value="350"></label>
+            <label data-hue="200" aria-label="Teal"><input type="radio" name="g-accent" value="200"></label>
+          </div>
+          <div class="g-row-inline"><span class="g-note">Its harmony colours</span><div class="g-harmony"><span data-h="1">1</span><span data-h="2">2</span><span data-h="3">3</span><span data-h="4">4</span></div></div>
+        </fieldset>
+        <p class="g-note">The theme and the accent apply at once and stay on this device; they never wait for Save.</p>
+      </section>
+
+      <section class="cp-panel cp-stack" id="st-checks" aria-labelledby="st-checks-h">
+        <h2 id="st-checks-h">Checks</h2>
+        <div class="cp-setting"><div><label class="cp-label" for="st-interval">Check every</label><span class="cp-help">How often each series is compared with SeaDex.</span></div><div class="g-select"><select class="cp-input" id="st-interval" name="interval"><option>15 minutes</option><option selected>hour</option><option>6 hours</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-night">Full check at night</label><span class="cp-help">At 03:00, every series, even unchanged ones.</span></div><input class="box box-twirl" id="st-night" name="night" type="checkbox" checked></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-seed">Minimum seeders</label></div><div class="g-range-row g-range-wide"><input class="g-range" id="st-seed" name="seeders" type="range" min="0" max="50" value="5" data-out="st-seed-out"><output id="st-seed-out" for="st-seed"></output></div></div>
+      </section>
+
+      <section class="cp-panel cp-stack" id="st-notify" aria-labelledby="st-notify-h">
+        <h2 id="st-notify-h">Notifications</h2>
+        <div class="cp-setting"><div><label class="cp-label" for="st-n1">A better release is found</label></div><input class="box box-twirl" id="st-n1" name="n1" type="checkbox" checked></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-n2">A source stops answering</label><span class="cp-help">After three failed checks in a row.</span></div><input class="box box-twirl" id="st-n2" name="n2" type="checkbox" checked></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-n3">A weekly summary</label></div><input class="box box-twirl" id="st-n3" name="n3" type="checkbox"></div>
+      </section>
+
+      <section class="cp-panel cp-stack" id="st-sources" aria-labelledby="st-sources-h">
+        <div class="cp-heading-row"><h2 id="st-sources-h">Sources</h2><div class="cp-toolbar"><button class="cp-button" type="button" data-toast-kind="info"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span>Add a source</button></div></div>
+        <ul class="g-list">
+          <li><div class="g-row"><span class="cp-icon" data-cp-icon="server" aria-hidden="true"></span><span>Sonarr<small><span class="g-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Answering</span> · http://sonarr.lan:8989, 351 series</small></span><button class="cp-button" data-size="sm" type="button">Edit</button></div></li>
+          <li><div class="g-row"><span class="cp-icon" data-cp-icon="server" aria-hidden="true"></span><span>Radarr<small><span class="g-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Not answering</span> since <time data-ago="5400"></time></small></span><button class="cp-button" data-size="sm" type="button">Edit</button></div></li>
+        </ul>
+      </section>
+
+      <section class="cp-panel cp-stack" id="st-account" aria-labelledby="st-account-h">
+        <h2 id="st-account-h">Account and security</h2>
+        <div class="cp-field"><label class="cp-label" for="st-name">Display name</label><input class="cp-input" id="st-name" name="name" value="Christophe" aria-describedby="st-name-error"><span class="cp-field-error" id="st-name-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Enter a name: it shows on your sessions.</span></div>
+        <h3 class="cp-label">Passkeys</h3>
+        <ul class="g-list">
+          <li><div class="g-row"><span class="cp-icon" data-cp-icon="key-round" aria-hidden="true"></span><span>This Mac<small>Added <time data-ago="2592000"></time></small></span><button class="cp-button" data-size="sm" type="button">Remove</button></div></li>
+        </ul>
+        <div><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span>Add a passkey</button></div>
+        <h3 class="cp-label">Sessions</h3>
+        <ul class="g-list">
+          <li><div class="g-row"><span class="cp-icon" data-cp-icon="monitor" aria-hidden="true"></span><span>Firefox on Linux<small>This device</small></span></div></li>
+          <li><div class="g-row"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span>Safari on iPad<small>Last active <time data-ago="10800"></time></small></span><button class="cp-button" data-size="sm" type="button">Sign out</button></div></li>
+        </ul>
+        <div><button class="cp-button" data-variant="primary" data-tone="danger" type="button" commandfor="d-others" command="show-modal">Sign out every other session…</button></div>
+      </section>
+
+      <div class="cp-savebar" hidden><span class="g-dirty">0 unsaved changes</span><button class="cp-button" data-variant="quiet" type="button" data-discard>Discard</button><button class="cp-button btn-done" data-variant="primary" type="submit"><span class="cp-icon" data-cp-icon="save" aria-hidden="true"></span><span class="roll"><span>Save changes</span><span aria-hidden="true">Saved</span></span></button></div>
+    </form>
+  </div>
+  <dialog class="g-dialog g-confirm" id="d-others" data-says="1 other session signed out" role="alertdialog" aria-labelledby="d-others-title">
+    <form method="dialog">
+      <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-others-title">Sign out 1 other session?</h2><p>Safari on iPad will need to sign in again.</p></div></div>
+      <footer><button class="cp-button" value="cancel" autofocus>Keep it</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Sign it out</button></footer>
+    </form>
+  </dialog>
+</main>

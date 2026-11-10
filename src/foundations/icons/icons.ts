@@ -9,15 +9,22 @@
 export type LucideIconName =
   | "activity"
   | "arrow-down"
+  | "arrow-left"
   | "arrow-left-right"
   | "arrow-right"
   | "arrow-up"
   | "arrow-up-down"
+  | "badge-check"
   | "ban"
   | "bell"
+  | "bell-ring"
   | "book-open"
+  | "bookmark"
   | "bug"
+  | "calendar"
+  | "calendar-clock"
   | "captions"
+  | "chart-column"
   | "chart-gantt"
   | "check"
   | "check-check"
@@ -25,13 +32,16 @@ export type LucideIconName =
   | "chevron-left"
   | "chevron-right"
   | "chevron-up"
+  | "chevrons-up-down"
   | "circle-alert"
   | "circle-check"
   | "circle-dashed"
+  | "circle-dot"
   | "circle-help"
   | "circle-minus"
   | "circle-x"
   | "clock"
+  | "clock-3"
   | "cloud-upload"
   | "code"
   | "columns-3"
@@ -43,8 +53,10 @@ export type LucideIconName =
   | "eye"
   | "eye-off"
   | "file-text"
+  | "file-up"
   | "film"
   | "fingerprint"
+  | "flag"
   | "folder"
   | "funnel"
   | "funnel-x"
@@ -54,9 +66,12 @@ export type LucideIconName =
   | "globe"
   | "grip-vertical"
   | "hard-drive"
+  | "hash"
   | "heart"
   | "history"
   | "hourglass"
+  | "image"
+  | "inbox"
   | "info"
   | "key"
   | "key-round"
@@ -74,11 +89,15 @@ export type LucideIconName =
   | "lock"
   | "log-in"
   | "log-out"
+  | "mail"
   | "maximize-2"
+  | "menu"
   | "message-square"
   | "minus"
   | "monitor"
   | "moon"
+  | "mouse-pointer-click"
+  | "move"
   | "octagon-alert"
   | "package-open"
   | "palette"
@@ -91,6 +110,7 @@ export type LucideIconName =
   | "plus"
   | "radio-tower"
   | "refresh-cw"
+  | "rotate-ccw"
   | "rotate-cw"
   | "rows-3"
   | "rss"
@@ -101,11 +121,13 @@ export type LucideIconName =
   | "server"
   | "settings"
   | "shield-check"
+  | "sliders-horizontal"
   | "smartphone"
   | "sparkles"
   | "split"
   | "square"
   | "square-pen"
+  | "star"
   | "sun"
   | "sun-moon"
   | "tablet"
@@ -113,6 +135,7 @@ export type LucideIconName =
   | "telescope"
   | "terminal"
   | "timer"
+  | "trash"
   | "trash-2"
   | "triangle-alert"
   | "tv"
@@ -136,15 +159,22 @@ export type IconName = LucideIconName | OwnIconName;
 export const iconNames: readonly LucideIconName[] = [
   "activity",
   "arrow-down",
+  "arrow-left",
   "arrow-left-right",
   "arrow-right",
   "arrow-up",
   "arrow-up-down",
+  "badge-check",
   "ban",
   "bell",
+  "bell-ring",
   "book-open",
+  "bookmark",
   "bug",
+  "calendar",
+  "calendar-clock",
   "captions",
+  "chart-column",
   "chart-gantt",
   "check",
   "check-check",
@@ -152,13 +182,16 @@ export const iconNames: readonly LucideIconName[] = [
   "chevron-left",
   "chevron-right",
   "chevron-up",
+  "chevrons-up-down",
   "circle-alert",
   "circle-check",
   "circle-dashed",
+  "circle-dot",
   "circle-help",
   "circle-minus",
   "circle-x",
   "clock",
+  "clock-3",
   "cloud-upload",
   "code",
   "columns-3",
@@ -170,8 +203,10 @@ export const iconNames: readonly LucideIconName[] = [
   "eye",
   "eye-off",
   "file-text",
+  "file-up",
   "film",
   "fingerprint",
+  "flag",
   "folder",
   "funnel",
   "funnel-x",
@@ -181,9 +216,12 @@ export const iconNames: readonly LucideIconName[] = [
   "globe",
   "grip-vertical",
   "hard-drive",
+  "hash",
   "heart",
   "history",
   "hourglass",
+  "image",
+  "inbox",
   "info",
   "key",
   "key-round",
@@ -201,11 +239,15 @@ export const iconNames: readonly LucideIconName[] = [
   "lock",
   "log-in",
   "log-out",
+  "mail",
   "maximize-2",
+  "menu",
   "message-square",
   "minus",
   "monitor",
   "moon",
+  "mouse-pointer-click",
+  "move",
   "octagon-alert",
   "package-open",
   "palette",
@@ -218,6 +260,7 @@ export const iconNames: readonly LucideIconName[] = [
   "plus",
   "radio-tower",
   "refresh-cw",
+  "rotate-ccw",
   "rotate-cw",
   "rows-3",
   "rss",
@@ -228,11 +271,13 @@ export const iconNames: readonly LucideIconName[] = [
   "server",
   "settings",
   "shield-check",
+  "sliders-horizontal",
   "smartphone",
   "sparkles",
   "split",
   "square",
   "square-pen",
+  "star",
   "sun",
   "sun-moon",
   "tablet",
@@ -240,6 +285,7 @@ export const iconNames: readonly LucideIconName[] = [
   "telescope",
   "terminal",
   "timer",
+  "trash",
   "trash-2",
   "triangle-alert",
   "tv",

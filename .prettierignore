@@ -4,3 +4,7 @@ dist/
 coverage/
 # html-validate owns these pages' style (void elements, doctype case).
 docs/system/*.html
+# The gallery's pages are fragments its build assembles, and legacy/ leaves
+# as each element moves into src/.
+gallery/pages/
+gallery/legacy/

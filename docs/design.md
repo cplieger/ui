@@ -1,6 +1,6 @@
 # Design language
 
-This page covers the foundations of the design language that `@cplieger/ui/css/system` implements, for type, layout, touch, shape and motion. [Colour](design-colour.md) covers its colours and [Components](design-components.md) its classes. [Design patterns](design-patterns.md) covers loading, forms, tables, tabs, dialogs, notifications, first run, navigation and language, [Settings](design-settings.md) the settings page, and [Account and sign-in](design-account.md) the screens around accounts. Read this page and the patterns before you build a screen with the stylesheet.
+This page covers the foundations of the design language that `@cplieger/ui/css/system` implements, for type, layout, touch, shape and motion. [Colour](design-colour.md) covers its colours and [Components](design-components.md) its classes. [Design patterns](design-patterns.md) covers loading, forms, tables, tabs, dialogs, notifications, first run, navigation and language, [Settings](design-settings.md) the settings page, and [Account and sign-in](design-account.md) the screens around accounts. Read this page and the patterns before you build a screen with the stylesheet. [Principles](principles.md) covers how the parts are built.
 
 The language is for screens someone works in, such as libraries, queues, settings and logs, so the layout, the navigation and the controls stay the ones people already know.
 

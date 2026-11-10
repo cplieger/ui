@@ -8,7 +8,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-wordmark`, `.cp-mark`, `.cp-hidden-narrow` | the app's name and mark, and a word the compact tier drops |
 | `.cp-nav`, `.cp-nav-item`, `.cp-nav-label` | destinations in the header, the current one filled and in a stronger weight, and a word hidden from sight below 60rem |
 | `.cp-rail-toggle` | the Filters button that shows only once the rail leaves |
-| `.cp-button` | `data-variant="primary"` or `"quiet"`, `data-size="sm"`, `data-tone`, `aria-busy="true"` while working, and `aria-disabled="true"` on a link without `href`; one that confirms in place with [confirm](buttons/confirm.md), and one whose icon turns with [turn](buttons/turn.md) |
+| `.cp-button` | `data-variant="primary"` or `"quiet"`, `data-size="sm"`, `data-tone`, `aria-busy="true"` while working, and `aria-disabled="true"` on a link without `href`. One that confirms in place with [confirm](buttons/confirm.md), and one whose icon turns with [turn](buttons/turn.md) |
 | `.cp-group`, `.cp-split` | buttons joined into one control, and a split button: an action and a caret, one shape, the action growing over the caret while it works |
 | `.cp-toggle` | a quiet icon button that is on or off, with `data-kind="pin"` or `"favourite"`, as [toggle](buttons/toggle.md) describes |
 | `.cp-roll` | words or a number that change by sliding, as [roll](core/roll.md) describes |

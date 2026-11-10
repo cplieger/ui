@@ -52,7 +52,7 @@ In forced colours Chromium replaces `background-color` with a system colour, whi
 ## API
 
 - `createIcons(opts)` returns `{ icon(name, size?) }`. Give exactly one of `opts.url`, a function from a name to its file's URL, and `opts.base`, a URL prefix ending in `/` that `name + ".svg"` is appended to. Any other `opts` throws a `TypeError`.
-- `icon(name, size = "ui")` returns a new `<span class="cp-icon" aria-hidden="true">` with `data-cp-icon` set to the name and `data-cp-icon-size` set to the size. It sets `--cp-icon-image: url("…")` through the CSSOM, which a `style-src` without `'unsafe-inline'` allows.
+- `icon(name, size = "ui")` returns a new `<span class="cp-icon" aria-hidden="true">` with `data-cp-icon` set to the name and `data-cp-icon-size` set to the size. It sets `--cp-icon-image: url("…")` through the CSSOM, which a `style-src` without `'unsafe-inline'` allows. A page that runs no script writes the same span and sets `--cp-icon-image` from a class in its own stylesheet, since that policy blocks a `style` attribute.
 - `iconNames` lists the Lucide drawings, typed `LucideIconName`, and `ownIconNames` the package's own, typed `OwnIconName`. Each list is sorted. Together they name every shipped file, and `IconName` is their union.
 - `IconSize` is `"inline" | "ui" | "lg" | "hero"`.
 

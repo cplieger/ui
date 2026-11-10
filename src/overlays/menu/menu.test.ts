@@ -50,7 +50,7 @@ const open = (p: HTMLElement) => p.matches(":popover-open");
 describe("enhanceMenu", () => {
   it("ties the button to its menu and says whether it is open", async () => {
     const { button, panel } = menu();
-    enhanceMenu(button, panel, { signal: life.signal });
+    enhanceMenu(panel, { signal: life.signal });
     expect(button.getAttribute("aria-haspopup")).toBe("menu");
     expect(button.getAttribute("aria-controls")).toBe("actions");
     expect(button.getAttribute("aria-expanded")).toBe("false");
@@ -61,7 +61,7 @@ describe("enhanceMenu", () => {
 
   it("opens with focus on the first item, and returns focus to the button on Escape", async () => {
     const { button, panel, items } = menu();
-    enhanceMenu(button, panel, { signal: life.signal });
+    enhanceMenu(panel, { signal: life.signal });
     button.focus();
     await userEvent.keyboard("{Enter}");
     expect(document.activeElement).toBe(items[0]);
@@ -72,7 +72,7 @@ describe("enhanceMenu", () => {
 
   it("opens on ArrowDown at the first item and on ArrowUp at the last", async () => {
     const { button, panel, items } = menu();
-    enhanceMenu(button, panel, { signal: life.signal });
+    enhanceMenu(panel, { signal: life.signal });
     button.focus();
     await userEvent.keyboard("{ArrowUp}");
     expect(open(panel)).toBe(true);
@@ -85,7 +85,7 @@ describe("enhanceMenu", () => {
 
   it("moves between items with the arrows, wrapping, and with Home and End", async () => {
     const { button, panel, items } = menu();
-    enhanceMenu(button, panel, { signal: life.signal });
+    enhanceMenu(panel, { signal: life.signal });
     await userEvent.click(button);
     await userEvent.keyboard("{ArrowUp}");
     expect(document.activeElement).toBe(items[3]);
@@ -99,7 +99,7 @@ describe("enhanceMenu", () => {
 
   it("jumps by typed letters, and steps through the items one letter starts", async () => {
     const { button, panel, items } = menu(["Edit", "Export", "Archive", "Delete", "Erase"]);
-    enhanceMenu(button, panel, { signal: life.signal });
+    enhanceMenu(panel, { signal: life.signal });
     await userEvent.click(button);
     await userEvent.keyboard("e");
     expect(document.activeElement).toBe(items[1]);
@@ -115,7 +115,7 @@ describe("enhanceMenu", () => {
   it("chooses an item: closes, gives focus back and tells the host", async () => {
     const chosen: string[] = [];
     const { button, panel, items } = menu();
-    enhanceMenu(button, panel, {
+    enhanceMenu(panel, {
       signal: life.signal,
       onSelect: (i) => chosen.push(i.textContent),
     });
@@ -133,7 +133,7 @@ describe("enhanceMenu", () => {
     const chosen: string[] = [];
     const { button, panel, items } = menu();
     (items[1] as HTMLElement).setAttribute("aria-disabled", "true");
-    enhanceMenu(button, panel, {
+    enhanceMenu(panel, {
       signal: life.signal,
       onSelect: (i) => chosen.push(i.textContent),
     });
@@ -157,7 +157,7 @@ describe("enhanceMenu", () => {
     group.append(byName, byDate);
     panel.append(check, group);
     const chosen: string[] = [];
-    enhanceMenu(button, panel, {
+    enhanceMenu(panel, {
       signal: life.signal,
       onSelect: (i) => chosen.push(`${i.textContent} ${String(i.getAttribute("aria-checked"))}`),
     });
@@ -175,19 +175,116 @@ describe("enhanceMenu", () => {
 
   it("closes on a press outside", async () => {
     const { button, panel } = menu();
-    enhanceMenu(button, panel, { signal: life.signal });
+    enhanceMenu(panel, { signal: life.signal });
     await userEvent.click(button);
     await userEvent.click(document.body, { position: { x: 600, y: 600 } });
     expect(open(panel)).toBe(false);
   });
 
+  it("serves every opener that names it, a row added later included, and sits by the one pressed", async () => {
+    const { button, panel } = menu();
+    enhanceMenu(panel, { signal: life.signal });
+    const later = document.createElement("button");
+    later.type = "button";
+    later.textContent = "Row actions";
+    later.setAttribute("popovertarget", "actions");
+    document.body.prepend(later);
+    await userEvent.click(later);
+    expect(open(panel)).toBe(true);
+    expect(later.getAttribute("aria-haspopup")).toBe("menu");
+    expect(later.getAttribute("aria-expanded")).toBe("true");
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(panel.style.getPropertyValue("position-anchor")).toBe(
+      later.style.getPropertyValue("anchor-name"),
+    );
+    panel.hidePopover();
+    // The toggle event that reports the close runs in a later task.
+    await expect.poll(() => later.getAttribute("aria-expanded")).toBe("false");
+    button.focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(later.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("closes a manual menu on Escape and on a press outside, but not on its own opener's press", async () => {
+    const { button, panel } = menu(["Pin"], "manual");
+    enhanceMenu(panel, { signal: life.signal });
+    await userEvent.click(button);
+    expect(open(panel)).toBe(true);
+    await userEvent.keyboard("{Escape}");
+    expect(open(panel)).toBe(false);
+    await userEvent.click(button);
+    await userEvent.click(document.body, { position: { x: 600, y: 600 } });
+    expect(open(panel)).toBe(false);
+    await userEvent.click(button);
+    await userEvent.click(button);
+    expect(open(panel)).toBe(false);
+  });
+
   it("removes its ARIA and closes once its signal aborts", async () => {
     const { button, panel } = menu();
-    enhanceMenu(button, panel, { signal: life.signal });
+    enhanceMenu(panel, { signal: life.signal });
     await userEvent.click(button);
     life.abort();
     expect(open(panel)).toBe(false);
     expect(button.hasAttribute("aria-haspopup")).toBe(false);
+  });
+});
+
+describe("one menu that a button and a right click both open", () => {
+  it("moves once per key, toggles a check once, and tells the enhancement that opened it", async () => {
+    const { button, panel, items } = menu(["Edit", "Export"], "manual");
+    const check = item("Pinned", "menuitemcheckbox");
+    check.setAttribute("aria-checked", "false");
+    panel.append(check);
+    const zone = document.createElement("div");
+    zone.textContent = "Frieren";
+    Object.assign(zone.style, { inlineSize: "300px", blockSize: "100px" });
+    document.body.prepend(zone);
+    const heard: string[] = [];
+    enhanceMenu(panel, {
+      signal: life.signal,
+      onSelect: (i) => heard.push(`button ${i.textContent}`),
+    });
+    enhanceContextMenu(zone, panel, {
+      signal: life.signal,
+      onSelect: (i) => heard.push(`zone ${i.textContent}`),
+    });
+    await userEvent.click(button);
+    expect(document.activeElement).toBe(items[0]);
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(items[1]);
+    await userEvent.click(check);
+    expect(check.getAttribute("aria-checked")).toBe("true");
+    expect(heard).toEqual(["button Pinned"]);
+    await userEvent.keyboard("{Escape}");
+    expect(open(panel)).toBe(false);
+
+    zone.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 30 }),
+    );
+    expect(open(panel)).toBe(true);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(items[1] as HTMLElement);
+    expect(heard).toEqual(["button Pinned", "zone Export"]);
+    expect(open(panel)).toBe(false);
+  });
+
+  it("keeps the other enhancement working once one's signal aborts", async () => {
+    const { panel, items } = menu(["Edit", "Export"], "manual");
+    const zone = document.createElement("div");
+    zone.textContent = "Frieren";
+    document.body.prepend(zone);
+    const first = new AbortController();
+    enhanceMenu(panel, { signal: first.signal });
+    enhanceContextMenu(zone, panel, { signal: life.signal });
+    first.abort();
+    zone.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 30 }),
+    );
+    expect(document.activeElement).toBe(items[0]);
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(items[1]);
   });
 });
 

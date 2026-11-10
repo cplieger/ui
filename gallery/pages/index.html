@@ -1,0 +1,109 @@
+<main class="play">
+  <header>
+    <h1>Foundations</h1>
+    <p>What every element below is made of: the colour steps and roles, the harmony colours, type, space, shape, focus and the icons. Change the hue and the theme in the bar at the bottom: everything here follows the seed.</p>
+  </header>
+
+  <nav class="g-index" aria-label="On this page">
+    <a href="#colour">Colour</a><a href="#harmony">Harmony colours</a><a href="#type">Type</a><a href="#shape">Space and shape</a><a href="#icons">Icons</a>
+  </nav>
+
+  <section class="g-section" id="colour">
+    <h2>Colour steps and tones</h2>
+    <p>Twelve steps per family, the lightness fixed by the stylesheet in each theme and the hue and chroma from the seed. Steps 1 and 2 are surfaces, 3 to 5 control fills, 6 to 8 lines and borders, 9 and 10 solids, 11 and 12 text.</p>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <h2>Ladders</h2>
+        <div class="g-ladders" data-ladder="accent neutral danger warning success"></div>
+        <footer>Each square is one step, numbered; the last column is the solid's ink.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="harmony">
+    <h2>Harmony colours</h2>
+    <p>The accent's split complement, tuned for the eye: for chart series, tags, avatars, loaders and every surprise. Take the first two, three or four; never pick a hue by hand.</p>
+    <div class="g-grid">
+      <div class="card">
+        <h2>The four, with their ink</h2>
+        <div class="g-harmony">
+          <span style="background: var(--cp-harmony-1); color: var(--cp-harmony-1-on)">1</span>
+          <span style="background: var(--cp-harmony-2); color: var(--cp-harmony-2-on)">2</span>
+          <span style="background: var(--cp-harmony-3); color: var(--cp-harmony-3-on)">3</span>
+          <span style="background: var(--cp-harmony-4); color: var(--cp-harmony-4-on)">4</span>
+        </div>
+        <footer>1 the accent's solid, 2 and 3 its partners at 150 and 210 degrees, 4 a lighter accent.</footer>
+      </div>
+      <div class="card">
+        <h2>In use: a series</h2>
+        <div class="g-bars" aria-label="Checks per week, by source" role="img">
+          <span style="--v: 72%; background: var(--cp-harmony-1)"></span>
+          <span style="--v: 48%; background: var(--cp-harmony-2)"></span>
+          <span style="--v: 88%; background: var(--cp-harmony-3)"></span>
+          <span style="--v: 35%; background: var(--cp-harmony-4)"></span>
+        </div>
+        <footer>A thin mark on its own also needs a label or an outline, since a yellow partner sits close to the page.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="type">
+    <h2>Type</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <h2>Scale</h2>
+        <div class="g-type">
+          <p style="font-size: var(--cp-text-3xl); font-weight: var(--cp-weight-heading)">34 Library</p>
+          <p style="font-size: var(--cp-text-2xl); font-weight: var(--cp-weight-heading)">28 The Apothecary Diaries</p>
+          <p style="font-size: var(--cp-text-xl); font-weight: var(--cp-weight-heading)">23 Heading 1</p>
+          <p style="font-size: var(--cp-text-lg); font-weight: var(--cp-weight-heading)">19 Heading 2</p>
+          <p style="font-size: var(--cp-text-md)">16 Body text for reading, with a 68-character measure.</p>
+          <p style="font-size: var(--cp-text-ui)">14 Interface text: labels, buttons, table cells.</p>
+          <p style="font-size: var(--cp-text-xs); color: var(--cp-ink-muted)">13 Metadata, help and captions.</p>
+          <p><code class="cp-mono">Frieren.S01.1080p.BluRay</code> machine text in the mono face</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="shape">
+    <h2>Space, shape and focus</h2>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Radii</h2>
+        <div class="stage">
+          <span class="variant"><span class="g-shape" style="border-radius: var(--cp-radius-control)"></span>Control</span>
+          <span class="variant"><span class="g-shape" style="border-radius: var(--cp-radius-surface)"></span>Surface</span>
+          <span class="variant"><span class="g-shape" style="border-radius: var(--cp-radius-overlay)"></span>Overlay</span>
+          <span class="variant"><span class="g-shape" style="border-radius: var(--cp-radius-round)"></span>Round</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Depth</h2>
+        <div class="stage">
+          <span class="variant"><span class="g-shape" style="background: var(--cp-surface-raised); box-shadow: inset 0 0 0 1px var(--cp-line)"></span>In flow: a line</span>
+          <span class="variant"><span class="g-shape" style="background: var(--cp-surface-overlay); box-shadow: var(--cp-shadow-overlay)"></span>Overlay: a shadow</span>
+        </div>
+        <footer>Only overlays cast a shadow.</footer>
+      </div>
+      <div class="card">
+        <h2>Focus</h2>
+        <div class="stage">
+          <button class="cp-button g-focus-demo" type="button">Focused</button>
+          <input class="cp-input g-focus-demo" value="Focused field" aria-label="Focused field">
+        </div>
+        <footer>The ring shows for the keyboard, never for a pointer, in every theme.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="icons">
+    <h2>Icons</h2>
+    <p>Lucide's lines at the language's 2.25-unit stroke, 1.7px at the 18px size, so they stay solid on a 1x screen. Marks drawn inside controls, such as the check, have their own heavier drawing.</p>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <div class="g-icons" data-icon-grid></div>
+      </div>
+    </div>
+  </section>
+</main>
