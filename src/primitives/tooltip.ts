@@ -1,24 +1,9 @@
 /**
- * tooltip.ts — One delegated tooltip controller on `document`. Replaces bare
- * `title` attributes with positioned, delay-aware, accessible tooltips.
- *
- * BY DEFAULT `delayWarm` IS `delayCold`, so every hover waits the same time —
- * matching native `title` behavior. A warm group (peers appearing faster once
- * one has shown) is opt-in through an explicit smaller `delayWarm`.
- *
- * Scroll HIDES the tooltip rather than repositioning it, unlike popover:
- * once the user scrolls, the pointer is no longer meaningfully over the
- * anchor, matching native `title`; a popover is an opened surface the user is
- * interacting with and must follow its anchor instead.
- *
- * A TRIGGER'S HIT BOX IS NOT ALWAYS THE INK THE TOOLTIP IS ABOUT, so the trigger
- * may name that ink with `<attribute>-anchor` on a descendant and the tip is
- * placed against the MARK while hover, focus and `aria-describedby` stay on the
- * trigger. Without it a row-wide trigger anchors the tip at the centre of its own
- * box, which is empty space: measured on a consumer, a 570px disclosure row whose
- * only ink is a 16px leading glyph put the tip 269px to the right of that glyph,
- * and a 546px file row whose name sits at its leading edge 243px away.
- *
+ * tooltip.ts — One delegated tooltip controller on `document` for every
+ * `data-uip-tooltip` trigger, with native `title` timing by default. A scroll
+ * hides a tip rather than moving it. `-anchor` names the ink a tip points at,
+ * `-ref` takes the text from a description in the page, and `-toggle` pins it
+ * on a tap, since a touch pointer never starts a hover tip.
  * @module
  */
 
@@ -55,7 +40,15 @@ type TooltipState =
       readonly anchor: HTMLElement;
       readonly timer: ReturnType<typeof setTimeout>;
     }
-  | { readonly kind: "visible"; readonly anchor: HTMLElement; readonly tip: HTMLElement }
+  | {
+      readonly kind: "visible";
+      readonly anchor: HTMLElement;
+      readonly tip: HTMLElement;
+      /** Opened by a click on a toggle trigger: hover leaving does not close it. */
+      readonly pinned: boolean;
+      /** The tip's id is in the trigger's aria-describedby (no `-ref`). */
+      readonly described: boolean;
+    }
   | { readonly kind: "fading"; readonly tip: HTMLElement };
 
 let tipIdSeq = 0;
@@ -64,16 +57,53 @@ class TooltipController {
   private warmUntil = 0;
   private readonly attribute: string;
   private readonly selector: string;
+  private readonly refAttribute: string;
+  private readonly toggleAttribute: string;
   private readonly markSelector: string;
   private readonly delayCold: number;
   private readonly delayWarm: number;
   private readonly cooldown: number;
 
   private readonly onPointerOver = (e: Event): void => {
+    // A finger has no hover: a tip from it would cover what it is about to tap.
+    if ((e as Partial<PointerEvent>).pointerType === "touch") {
+      return;
+    }
     this.onEnter(e);
   };
   private readonly onPointerOut = (e: Event): void => {
+    if (this.state.kind === "visible" && this.state.pinned) {
+      return;
+    }
     this.onLeave(e);
+  };
+  private readonly onClick = (e: Event): void => {
+    const anchor = this.closestAnchor(e.target);
+    if (anchor?.hasAttribute(this.toggleAttribute) !== true) {
+      return;
+    }
+    const text = this.refText(anchor);
+    if (text === null) {
+      return;
+    }
+    if (this.state.kind === "visible" && this.state.pinned && this.state.anchor === anchor) {
+      this.hide();
+      return;
+    }
+    this.show(anchor, text, true);
+  };
+  private readonly onPointerDown = (e: Event): void => {
+    if (this.state.kind !== "visible" || !this.state.pinned) {
+      return;
+    }
+    const target = e.target;
+    if (
+      target instanceof Node &&
+      (this.state.anchor.contains(target) || this.state.tip.contains(target))
+    ) {
+      return;
+    }
+    this.hide();
   };
   private readonly onFocusIn = (e: Event): void => {
     // :focus-visible gate: a bare focusin also fires on programmatic focus
@@ -101,7 +131,9 @@ class TooltipController {
 
   constructor(opts: TooltipOptions) {
     this.attribute = opts.attribute ?? "data-uip-tooltip";
-    this.selector = `[${this.attribute}]`;
+    this.refAttribute = `${this.attribute}-ref`;
+    this.toggleAttribute = `${this.attribute}-toggle`;
+    this.selector = `[${this.attribute}], [${this.refAttribute}]`;
     // Derived rather than a second option: one trigger vocabulary, so an app
     // renaming the text attribute cannot end up with a mark attribute in the
     // library's namespace and a trigger attribute in its own.
@@ -120,6 +152,8 @@ class TooltipController {
     document.addEventListener("focusout", this.onFocusOut);
     document.addEventListener("keydown", this.onKeyDown);
     document.addEventListener("scroll", this.onScroll, true);
+    document.addEventListener("click", this.onClick);
+    document.addEventListener("pointerdown", this.onPointerDown, true);
     window.addEventListener("blur", this.onWindowBlur);
   }
 
@@ -130,6 +164,8 @@ class TooltipController {
     document.removeEventListener("focusout", this.onFocusOut);
     document.removeEventListener("keydown", this.onKeyDown);
     document.removeEventListener("scroll", this.onScroll, true);
+    document.removeEventListener("click", this.onClick);
+    document.removeEventListener("pointerdown", this.onPointerDown, true);
     window.removeEventListener("blur", this.onWindowBlur);
     this.teardown();
   }
@@ -142,12 +178,28 @@ class TooltipController {
     return anchor instanceof HTMLElement ? anchor : null;
   }
 
+  /** The text a `-ref` trigger names, or null for a trigger without one or a
+   *  reference to nothing or to an empty element. */
+  private refText(anchor: HTMLElement): string | null {
+    const id = anchor.getAttribute(this.refAttribute);
+    if (id === null) {
+      return null;
+    }
+    const root = anchor.getRootNode();
+    const target =
+      root instanceof Document || root instanceof ShadowRoot ? root.getElementById(id) : null;
+    const text = target?.textContent ?? "";
+    return text === "" ? null : text;
+  }
+
   private onEnter(e: Event): void {
     const anchor = this.closestAnchor(e.target);
     if (anchor === null) {
       return;
     }
-    const text = anchor.getAttribute(this.attribute) ?? "";
+    const text = anchor.hasAttribute(this.refAttribute)
+      ? (this.refText(anchor) ?? "")
+      : (anchor.getAttribute(this.attribute) ?? "");
     if (text === "") {
       return;
     }
@@ -180,30 +232,43 @@ class TooltipController {
     if (related instanceof Node && anchor.contains(related)) {
       return;
     }
+    if (
+      this.state.kind === "visible" &&
+      this.state.pinned &&
+      related instanceof Node &&
+      this.state.tip.contains(related)
+    ) {
+      return;
+    }
     this.hide();
   }
 
-  private show(anchor: HTMLElement, text: string): void {
+  private show(anchor: HTMLElement, text: string, pinned = false): void {
     if (!anchor.isConnected) {
       this.state = { kind: "idle" };
       return;
     }
     this.teardown();
+    // A referenced text is already the trigger's description: the painted
+    // copy stays out of the tree, and the host's aria-describedby is left as set.
+    const described = !anchor.hasAttribute(this.refAttribute);
 
     const tipId = `uip-tip-${(++tipIdSeq).toString()}`;
-    const tip = el(
-      "div",
-      { className: "uip-tooltip", role: "tooltip", id: tipId },
-      ...renderLines(text),
-    );
+    const tip = el("div", { className: "uip-tooltip", role: "tooltip", id: tipId });
+    tip.append(...renderLines(text));
     // Shares the dialog's top-layer context; body-appended would paint behind a modal.
     const host: Element = anchor.closest("dialog[open]") ?? document.body;
+    if (!described) {
+      tip.setAttribute("aria-hidden", "true");
+    }
     host.appendChild(tip);
-    addDescribedBy(anchor, tipId);
+    if (described) {
+      addDescribedBy(anchor, tipId);
+    }
 
     this.position(anchor, tip);
 
-    this.state = { kind: "visible", anchor, tip };
+    this.state = { kind: "visible", anchor, tip, pinned, described };
     // Keep the group warm long enough to cover a cold-delay hover of a peer.
     this.warmUntil = Date.now() + this.cooldown + this.delayCold;
   }
@@ -266,8 +331,10 @@ class TooltipController {
     if (this.state.kind !== "visible") {
       return;
     }
-    const { anchor, tip } = this.state;
-    removeDescribedBy(anchor, tip.id);
+    const { anchor, tip, described } = this.state;
+    if (described) {
+      removeDescribedBy(anchor, tip.id);
+    }
     this.state = { kind: "fading", tip };
     this.warmUntil = Date.now() + this.cooldown;
 
@@ -288,7 +355,9 @@ class TooltipController {
         clearTimeout(this.state.timer);
         break;
       case "visible":
-        removeDescribedBy(this.state.anchor, this.state.tip.id);
+        if (this.state.described) {
+          removeDescribedBy(this.state.anchor, this.state.tip.id);
+        }
         this.state.tip.remove();
         break;
       case "fading":

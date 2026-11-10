@@ -12,16 +12,27 @@ function down(pointerType: string, target: EventTarget = document.body): void {
   );
 }
 
+function move(pointerType: string): void {
+  document.body.dispatchEvent(
+    new PointerEvent("pointermove", { bubbles: true, composed: true, pointerType }),
+  );
+}
+
 function touchPoints(n: number): void {
   Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, get: () => n });
 }
 
-function coarseQuery(matches: boolean): void {
+/** The device's answers: every pointer and hover query matches only if listed. */
+function device(...matching: string[]): void {
   const real = globalThis.matchMedia.bind(globalThis);
   vi.stubGlobal("matchMedia", (q: string) =>
-    q === "(any-pointer: coarse)" ? ({ matches } as MediaQueryList) : real(q),
+    /^\(any-(pointer|hover):/.test(q)
+      ? ({ matches: matching.includes(q) } as MediaQueryList)
+      : real(q),
   );
 }
+
+const MOUSE = ["(any-pointer: fine)", "(any-hover: hover)"];
 
 afterEach(() => {
   follow.abort();
@@ -35,29 +46,38 @@ afterEach(() => {
 
 describe("applyPointerTier", () => {
   it("guesses fine on a device that reports no touch", () => {
-    coarseQuery(false);
+    device(...MOUSE);
     touchPoints(0);
     expect(applyPointerTier()).toBe("fine");
     expect(root.dataset["pointer"]).toBe("fine");
   });
 
-  it("guesses coarse wherever touch is reported, by query or by touch points", () => {
-    coarseQuery(true);
+  it("guesses coarse wherever touch is reported and no hovering fine pointer is", () => {
+    device("(any-pointer: coarse)");
     touchPoints(0);
     expect(applyPointerTier()).toBe("coarse");
-    coarseQuery(false);
+    device();
     touchPoints(5);
+    expect(applyPointerTier()).toBe("coarse");
+    // a touchscreen laptop whose browser hides the mouse's hover (crbug.com/398065927)
+    device("(any-pointer: fine)", "(any-pointer: coarse)");
     expect(applyPointerTier()).toBe("coarse");
   });
 
+  it("guesses fine on a touchscreen with a trackpad or mouse attached, as an iPad on a Magic Keyboard", () => {
+    device(...MOUSE, "(any-pointer: coarse)");
+    touchPoints(5);
+    expect(applyPointerTier()).toBe("fine");
+  });
+
   it("starts on the kept tier over the guess", () => {
-    coarseQuery(true);
+    device("(any-pointer: coarse)");
     localStorage.setItem(KEY, "fine");
     expect(applyPointerTier({ storageKey: KEY })).toBe("fine");
   });
 
   it("ignores a kept value it does not know, and storage that throws", () => {
-    coarseQuery(false);
+    device(...MOUSE);
     touchPoints(0);
     localStorage.setItem(KEY, "huge");
     expect(applyPointerTier({ storageKey: KEY })).toBe("fine");
@@ -90,6 +110,23 @@ describe("installPointerTier", () => {
     expect(root.dataset["pointer"]).toBe("fine");
   });
 
+  it("takes a mouse or trackpad that only hovers as fine, and keeps it", () => {
+    installPointerTier({ storageKey: KEY, signal: follow.signal });
+    down("touch");
+    move("mouse");
+    expect([root.dataset["pointer"], localStorage.getItem(KEY)]).toEqual(["fine", "fine"]);
+  });
+
+  it.each(["touch", "pen", ""])("leaves the tier alone when a %s pointer moves", (kind) => {
+    installPointerTier({ signal: follow.signal });
+    down("mouse");
+    move(kind);
+    expect(root.dataset["pointer"]).toBe("fine");
+    down("touch");
+    move(kind);
+    expect(root.dataset["pointer"]).toBe("coarse");
+  });
+
   it("sees a press the page stops", () => {
     installPointerTier({ signal: follow.signal });
     const b = document.createElement("button");
@@ -106,6 +143,7 @@ describe("installPointerTier", () => {
     down("touch");
     follow.abort();
     down("mouse");
+    move("mouse");
     expect(root.dataset["pointer"]).toBe("coarse");
   });
 

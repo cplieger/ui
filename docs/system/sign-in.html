@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html
+  lang="en"
+  class="cp"
+  data-app="library"
+>
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1">
+    <title>Reference screen: sign-in</title>
+    <link
+      rel="stylesheet"
+      href="../../css/ui-primitives.css">
+    <link
+      rel="stylesheet"
+      href="../../css/system.css">
+    <link
+      rel="stylesheet"
+      href="specimen.css">
+  </head>
+  <body>
+    <!-- A sign-in gate page: the app's mark and name, one panel, one line under it. -->
+    <main class="cp-gate">
+      <div class="cp-wordmark">
+        <span
+          class="cp-mark"
+          aria-hidden="true"
+          >R</span
+        >Release tracker
+      </div>
+      <section
+        class="cp-panel"
+        aria-labelledby="sign-in-title"
+      >
+        <div class="cp-stack">
+          <h1 id="sign-in-title">Sign in</h1>
+          <div
+            class="cp-notice"
+            data-tone="neutral"
+            role="status"
+          >
+            <span
+              class="uip-icon"
+              data-uip-icon="info"
+              aria-hidden="true"
+            ></span>
+            <div>Your session ended. Sign in to continue.</div>
+          </div>
+          <form
+            class="cp-stack"
+            action="#"
+            method="post"
+          >
+            <div class="cp-field">
+              <label
+                class="cp-label"
+                for="username"
+                >Username</label
+              >
+              <input
+                class="cp-input"
+                id="username"
+                name="username"
+                type="text"
+                autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
+                value="mika"
+              >
+            </div>
+            <div class="cp-field">
+              <label
+                class="cp-label"
+                for="password"
+                >Password</label
+              >
+              <div class="cp-input-wrap">
+                <input
+                  class="cp-input"
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  value="lantern harbour quietly"
+                >
+                <button
+                  class="cp-button"
+                  data-variant="quiet"
+                  type="button"
+                  aria-pressed="false"
+                  aria-label="Show password"
+                >
+                  <span
+                    class="uip-icon"
+                    data-uip-icon="eye"
+                    aria-hidden="true"
+                  ></span>
+                </button>
+              </div>
+            </div>
+            <button
+              class="cp-button"
+              data-variant="primary"
+              type="submit"
+            >
+              Sign in
+            </button>
+          </form>
+          <hr>
+          <div class="cp-stack">
+            <button
+              class="cp-button"
+              type="button"
+            >
+              <span
+                class="uip-icon"
+                data-uip-icon="key-round"
+                aria-hidden="true"
+              ></span
+              >Sign in with a passkey
+            </button>
+            <button
+              class="cp-button"
+              type="button"
+            >
+              <span
+                class="uip-icon"
+                data-uip-icon="log-in"
+                aria-hidden="true"
+              ></span
+              >Continue with Authelia
+            </button>
+          </div>
+        </div>
+      </section>
+      <p class="cp-meta">Lost access? Ask an admin for a recovery link.</p>
+    </main>
+  </body>
+</html>

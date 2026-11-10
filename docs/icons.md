@@ -2,7 +2,7 @@
 
 `@cplieger/ui/icons`
 
-A small set of [Lucide](https://lucide.dev) drawings and two drawings of its own, shipped as SVG files, and a factory that paints one through a CSS mask in the text colour of the element around it. The factory builds the element. Your app serves the files and owns the CSS.
+A small set of [Lucide](https://lucide.dev)'s drawings in the package's own stroke, and a few drawings of its own, shipped as SVG files, and a factory that paints one through a CSS mask in the text colour of the element around it. The factory builds the element. Your app serves the files and owns the CSS.
 
 ## Usage
 
@@ -60,9 +60,9 @@ In forced colours Chromium replaces `background-color` with a system colour, whi
 
 - The icon is decorative. Give the control that holds it its accessible name: visible text, or an `aria-label` on an icon-only button.
 - `--icon-size` is yours to declare. The package neither reads nor sets it, so it has no `--uip-` prefix.
-- A mask paints the file's alpha, so the stroke is part of each drawing, 2 units on Lucide's 24-unit grid, and scales with the size.
+- A mask paints the file's alpha, so the stroke is part of each drawing, 2.25 units on the 24-unit grid, and scales with the size.
 - A file your server does not serve paints nothing. Check the copied names in your build.
-- The Lucide drawings are byte-for-byte the pinned `lucide-static` release. `npm run icons:sync` copies the names in `iconNames` from it, and a test fails when a shipped file differs from it. A drawing is added when an app needs it. Lucide's ISC notice, with the MIT notice for the drawings derived from Feather, ships as `icons/LICENSE-lucide`.
+- The Lucide drawings keep the pinned `lucide-static` release's lines and take the package's own style: a 2.25-unit stroke, round caps and joins, and one root element. `npm run icons:sync` writes the names in `iconNames` from that release in this style, and a test fails when a shipped file differs from what it would write. A drawing is added when an app needs it. Lucide's ISC notice, with the MIT notice for the drawings derived from Feather, ships as `icons/LICENSE-lucide`, and each file keeps Lucide's licence line.
 - The set covers the generic actions, states and objects the cplieger apps share.
-- Two drawings are the package's own, for concepts Lucide lacks. `pin-filled` is Lucide's `pin` with its head filled, for a pinned state that reads as the same mark. `spinner-arc` is a quarter arc for a button's busy state. Both use the same grid and stroke, and a test fails if a Lucide release ever ships either name.
+- Five drawings are the package's own, for states and motions Lucide lacks. `pin-filled`, `heart-filled`, `funnel-filled` and `tag-filled` are Lucide's `pin`, `heart`, `funnel` and `tag` filled, for an on state that reads as the same mark. `spinner-arc` is a quarter arc for a button's busy state. All use the same grid and stroke, and a test fails if a Lucide release ever ships one of their names.
 - `@cplieger/ui/css/system` carries the `.uip-icon` rule inside `class="cp"`, with sizes of 1em, 18px, 24px and 48px.

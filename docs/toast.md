@@ -42,6 +42,11 @@ widgetToast.info("Copied");
 | --- | --- | --- |
 | `--uip-z-toast` | toast stack z-index | `9999` |
 | `--uip-toast-offset` | toast stack inset from the viewport edge | `1rem` |
+| `--uip-toast-inset-block-start` | the stack's top inset, not declared in `:root`, so set it from any layer | `--uip-toast-offset` |
+| `--uip-toast-inset-block-end` | the stack's bottom inset, not declared in `:root` | `auto` |
+| `--uip-toast-inset-inline-start` | the stack's start inset, not declared in `:root` | `auto` |
+| `--uip-toast-inset-inline-end` | the stack's end inset, not declared in `:root` | `--uip-toast-offset` |
+| `--uip-toast-shift` | how far a toast moves as it enters and leaves, not declared in `:root` | `-8px` |
 | `--uip-toast-gap` | gap between stacked toasts | `0.5rem` |
 | `--uip-toast-row-gap` | gap between a toast's message and its action row | `0.5rem` |
 | `--uip-toast-max-width` | toast stack max inline size | `24rem` |

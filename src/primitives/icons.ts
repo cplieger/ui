@@ -1,8 +1,6 @@
 /**
- * icons.ts — a curated set of Lucide's drawings and two of the package's own,
- * shipped as files under `icons/svg/`, and a factory that paints one through a
- * CSS mask in `currentColor`. The host serves the files and owns the CSS; the
- * factory only builds the element.
+ * icons.ts — Lucide's drawings in the package's stroke, a few of its own, all
+ * under `icons/svg/`, and a factory that paints one as a `currentColor` mask.
  *
  * @module
  */
@@ -11,10 +9,14 @@ import { el } from "../dom/el.js";
 
 /** A Lucide drawing the package ships, one `icons/svg/<name>.svg` file each. */
 export type LucideIconName =
+  | "activity"
+  | "arrow-down"
   | "arrow-left-right"
   | "arrow-right"
   | "arrow-up"
+  | "arrow-up-down"
   | "ban"
+  | "bell"
   | "book-open"
   | "bug"
   | "captions"
@@ -22,21 +24,29 @@ export type LucideIconName =
   | "check"
   | "check-check"
   | "chevron-down"
+  | "chevron-left"
   | "chevron-right"
   | "chevron-up"
   | "circle-alert"
   | "circle-check"
   | "circle-dashed"
+  | "circle-help"
   | "circle-minus"
   | "circle-x"
   | "clock"
+  | "cloud-upload"
   | "code"
+  | "columns-3"
+  | "command"
   | "copy"
   | "download"
+  | "ellipsis"
   | "external-link"
   | "eye"
   | "eye-off"
   | "file-text"
+  | "film"
+  | "fingerprint"
   | "folder"
   | "funnel"
   | "funnel-x"
@@ -44,24 +54,38 @@ export type LucideIconName =
   | "git-commit-horizontal"
   | "git-merge"
   | "globe"
+  | "grip-vertical"
   | "hard-drive"
+  | "heart"
   | "history"
   | "hourglass"
   | "info"
+  | "key"
+  | "key-round"
+  | "keyboard"
   | "languages"
+  | "layers"
   | "layers-2"
   | "layout-dashboard"
+  | "layout-grid"
   | "library"
   | "link"
   | "list"
   | "list-checks"
   | "list-tree"
+  | "lock"
+  | "log-in"
+  | "log-out"
   | "maximize-2"
   | "message-square"
   | "minus"
   | "monitor"
   | "moon"
   | "octagon-alert"
+  | "package-open"
+  | "palette"
+  | "panel-left"
+  | "panel-right"
   | "pause"
   | "pencil"
   | "pin"
@@ -70,39 +94,56 @@ export type LucideIconName =
   | "radio-tower"
   | "refresh-cw"
   | "rotate-cw"
+  | "rows-3"
   | "rss"
+  | "save"
   | "scale"
   | "search"
   | "send-horizontal"
+  | "server"
   | "settings"
+  | "shield-check"
   | "smartphone"
+  | "sparkles"
   | "split"
   | "square"
+  | "square-pen"
   | "sun"
   | "sun-moon"
   | "tablet"
+  | "tag"
+  | "telescope"
   | "terminal"
   | "timer"
   | "trash-2"
   | "triangle-alert"
+  | "tv"
   | "undo-2"
+  | "upload"
   | "user"
+  | "user-plus"
+  | "users"
   | "wifi-off"
   | "x"
   | "zap";
 
 /** A drawing of the package's own, on the same grid and stroke, for a concept Lucide lacks. */
-export type OwnIconName = "pin-filled" | "spinner-arc";
+export type OwnIconName =
+  "funnel-filled" | "heart-filled" | "pin-filled" | "spinner-arc" | "tag-filled";
 
 /** Every drawing the package ships under `icons/svg/`. */
 export type IconName = LucideIconName | OwnIconName;
 
-/** The Lucide drawings' names, sorted; `npm run icons:sync` copies exactly these. */
+/** The Lucide drawings' names, sorted; `npm run icons:sync` restyles exactly these. */
 export const iconNames: readonly LucideIconName[] = [
+  "activity",
+  "arrow-down",
   "arrow-left-right",
   "arrow-right",
   "arrow-up",
+  "arrow-up-down",
   "ban",
+  "bell",
   "book-open",
   "bug",
   "captions",
@@ -110,21 +151,29 @@ export const iconNames: readonly LucideIconName[] = [
   "check",
   "check-check",
   "chevron-down",
+  "chevron-left",
   "chevron-right",
   "chevron-up",
   "circle-alert",
   "circle-check",
   "circle-dashed",
+  "circle-help",
   "circle-minus",
   "circle-x",
   "clock",
+  "cloud-upload",
   "code",
+  "columns-3",
+  "command",
   "copy",
   "download",
+  "ellipsis",
   "external-link",
   "eye",
   "eye-off",
   "file-text",
+  "film",
+  "fingerprint",
   "folder",
   "funnel",
   "funnel-x",
@@ -132,24 +181,38 @@ export const iconNames: readonly LucideIconName[] = [
   "git-commit-horizontal",
   "git-merge",
   "globe",
+  "grip-vertical",
   "hard-drive",
+  "heart",
   "history",
   "hourglass",
   "info",
+  "key",
+  "key-round",
+  "keyboard",
   "languages",
+  "layers",
   "layers-2",
   "layout-dashboard",
+  "layout-grid",
   "library",
   "link",
   "list",
   "list-checks",
   "list-tree",
+  "lock",
+  "log-in",
+  "log-out",
   "maximize-2",
   "message-square",
   "minus",
   "monitor",
   "moon",
   "octagon-alert",
+  "package-open",
+  "palette",
+  "panel-left",
+  "panel-right",
   "pause",
   "pencil",
   "pin",
@@ -158,30 +221,48 @@ export const iconNames: readonly LucideIconName[] = [
   "radio-tower",
   "refresh-cw",
   "rotate-cw",
+  "rows-3",
   "rss",
+  "save",
   "scale",
   "search",
   "send-horizontal",
+  "server",
   "settings",
+  "shield-check",
   "smartphone",
+  "sparkles",
   "split",
   "square",
+  "square-pen",
   "sun",
   "sun-moon",
   "tablet",
+  "tag",
+  "telescope",
   "terminal",
   "timer",
   "trash-2",
   "triangle-alert",
+  "tv",
   "undo-2",
+  "upload",
   "user",
+  "user-plus",
+  "users",
   "wifi-off",
   "x",
   "zap",
 ];
 
 /** The package's own drawings' names, sorted; no pinned Lucide release has them. */
-export const ownIconNames: readonly OwnIconName[] = ["pin-filled", "spinner-arc"];
+export const ownIconNames: readonly OwnIconName[] = [
+  "funnel-filled",
+  "heart-filled",
+  "pin-filled",
+  "spinner-arc",
+  "tag-filled",
+];
 
 /** The size tier `icon` writes as `data-uip-icon-size`; the host's CSS gives each its size. */
 export type IconSize = "inline" | "ui" | "lg" | "hero";
@@ -202,10 +283,9 @@ export type IconsOptions<N extends string = IconName> =
 /** What `createIcons` returns. */
 export interface Icons<N extends string = IconName> {
   /**
-   * A decorative `<span class="uip-icon" aria-hidden="true">` carrying
-   * `data-uip-icon` and `data-uip-icon-size` (default `"ui"`), with
-   * `--uip-icon: url("…")` set through the CSSOM, which a strict `style-src`
-   * allows. The control that holds it carries the accessible name.
+   * A decorative `<span class="uip-icon" aria-hidden="true">` with `data-uip-icon` and
+   * `data-uip-icon-size` (default `"ui"`), its `--uip-icon: url("…")` set through the CSSOM,
+   * which a strict `style-src` allows. The control that holds it carries the accessible name.
    */
   icon(name: N, size?: IconSize): HTMLSpanElement;
 }

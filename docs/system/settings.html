@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html
+  lang="en"
+  class="cp"
+  data-app="library"
+>
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1">
+    <title>Reference screen: settings</title>
+    <link
+      rel="stylesheet"
+      href="../../css/ui-primitives.css">
+    <link
+      rel="stylesheet"
+      href="../../css/system.css">
+    <link
+      rel="stylesheet"
+      href="specimen.css">
+  </head>
+  <body>
+    <!-- A settings page: the categories beside a category that saves with Save, two
+         unsaved changes waiting in the bar. -->
+    <div class="cp-app">
+      <header class="cp-header">
+        <a
+          class="cp-wordmark"
+          href="#"
+          ><span
+            class="cp-mark"
+            aria-hidden="true"
+            >R</span
+          ><span class="cp-hidden-narrow">Release tracker</span></a
+        >
+        <nav
+          class="cp-nav"
+          aria-label="Main"
+        >
+          <a
+            class="cp-nav-item"
+            href="#"
+            ><span
+              class="uip-icon"
+              data-uip-icon="library"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Library</span></a
+          >
+          <a
+            class="cp-nav-item"
+            href="#"
+            ><span
+              class="uip-icon"
+              data-uip-icon="radio-tower"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Releases</span></a
+          >
+          <a
+            class="cp-nav-item"
+            href="#"
+            aria-current="page"
+            ><span
+              class="uip-icon"
+              data-uip-icon="settings"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Settings</span></a
+          >
+        </nav>
+        <div class="cp-toolbar">
+          <button
+            class="cp-button"
+            data-variant="quiet"
+            type="button"
+            aria-label="Theme: System"
+          >
+            <span
+              class="uip-icon"
+              data-uip-icon="sun-moon"
+              aria-hidden="true"
+            ></span>
+          </button>
+        </div>
+      </header>
+
+      <main class="cp-main">
+        <div class="cp-heading-row">
+          <h1>Settings</h1>
+        </div>
+        <div class="cp-settings">
+          <nav
+            class="cp-settings-nav"
+            aria-label="Settings"
+          >
+            <a
+              href="#"
+              aria-current="page"
+              >Connections<span
+                class="cp-swatch"
+                aria-hidden="true"
+              ></span
+              ><span class="uip-visually-hidden">, unsaved changes</span></a
+            >
+            <a href="#">Checks</a>
+            <a href="#">Filters</a>
+            <a href="#">Display</a>
+            <a href="#">Sign-in</a>
+          </nav>
+          <form
+            class="cp-stack"
+            action="#"
+            method="post"
+          >
+            <h2>Connections</h2>
+            <section
+              class="cp-stack"
+              aria-labelledby="sonarr-title"
+            >
+              <h3 id="sonarr-title">Sonarr</h3>
+              <div class="cp-panel">
+                <div class="cp-setting">
+                  <div>
+                    <label
+                      class="cp-label"
+                      for="sonarr-url"
+                      >Address</label
+                    >
+                    <span
+                      class="cp-help"
+                      id="sonarr-url-help"
+                      >Where the app reaches Sonarr, with its port.</span
+                    >
+                  </div>
+                  <input
+                    class="cp-input"
+                    id="sonarr-url"
+                    type="url"
+                    value="http://sonarr:8989"
+                    spellcheck="false"
+                    aria-describedby="sonarr-url-help"
+                  >
+                </div>
+                <div class="cp-setting">
+                  <div>
+                    <span
+                      class="cp-label"
+                      id="sonarr-key-label"
+                      >API key</span
+                    >
+                    <span class="cp-help">Settings, then General, in Sonarr.</span>
+                  </div>
+                  <div
+                    class="cp-toolbar"
+                    role="group"
+                    aria-labelledby="sonarr-key-label"
+                  >
+                    <span
+                      class="cp-chip"
+                      data-tone="success"
+                      ><span
+                        class="uip-icon"
+                        data-uip-icon="circle-check"
+                        aria-hidden="true"
+                      ></span
+                      >Saved</span
+                    >
+                    <button
+                      class="cp-button"
+                      type="button"
+                    >
+                      Replace
+                    </button>
+                  </div>
+                </div>
+                <div class="cp-setting">
+                  <div>
+                    <label
+                      class="cp-label"
+                      for="check-every"
+                      >Check every (minutes)</label
+                    >
+                  </div>
+                  <input
+                    class="cp-input"
+                    id="check-every"
+                    type="number"
+                    value="30"
+                    min="5"
+                  >
+                </div>
+              </div>
+            </section>
+            <section
+              class="cp-stack"
+              aria-labelledby="scans-title"
+            >
+              <h3 id="scans-title">Scans</h3>
+              <div class="cp-panel">
+                <div class="cp-setting">
+                  <div>
+                    <label
+                      class="cp-label"
+                      for="scan-new"
+                      >Scan a series Sonarr adds</label
+                    >
+                    <span
+                      class="cp-help"
+                      id="scan-new-help"
+                      >Checks it at once instead of at the next full check.</span
+                    >
+                  </div>
+                  <input
+                    id="scan-new"
+                    type="checkbox"
+                    checked
+                    aria-describedby="scan-new-help"
+                  >
+                </div>
+              </div>
+            </section>
+            <section
+              class="cp-savebar"
+              aria-label="Unsaved changes"
+            >
+              <span>2 unsaved changes</span>
+              <button
+                class="cp-button"
+                type="reset"
+              >
+                Discard
+              </button>
+              <button
+                class="cp-button"
+                data-variant="primary"
+                type="submit"
+              >
+                Save changes
+              </button>
+            </section>
+          </form>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

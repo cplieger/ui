@@ -13,6 +13,26 @@ const require = createRequire(import.meta.url);
 const PINNED = dirname(require.resolve("lucide-static/package.json"));
 const RELEASE = join(PINNED, "icons");
 
+/** The package's stroke on the 24-unit grid: 2.25 units is 1.7px at the 18px
+ *  `ui` size, which a 1x screen still draws solid, where 2 thins to grey. */
+const STROKE = "2.25";
+const SHAPE = /<(?:path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*?\/>/gs;
+
+/** A Lucide drawing in the package's style: the same lines, its own stroke, and
+ *  one fixed root element, under Lucide's licence line. */
+function restyle(lucide: string): string {
+  const licence = /<!--[^>]*@license[^>]*-->/.exec(lucide)?.[0] ?? "";
+  const shapes = [...lucide.matchAll(SHAPE)].map((m) => `  ${m[0].replace(/\s+/g, " ")}`);
+  return [
+    licence,
+    "<!-- Restyled by @cplieger/ui: the same lines with its own stroke. -->",
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${STROKE}" stroke-linecap="round" stroke-linejoin="round">`,
+    ...shapes,
+    "</svg>",
+    "",
+  ].join("\n");
+}
+
 /**
  * What keeps `dir`, and the LICENSE-lucide beside it, from being the pinned
  * lucide-static release of exactly iconNames. With ICONS_SYNC=1
@@ -24,7 +44,7 @@ async function drift(dir: string, sync = false): Promise<string[]> {
   for (const name of iconNames) {
     let want: Buffer;
     try {
-      want = await readFile(join(RELEASE, `${name}.svg`));
+      want = Buffer.from(restyle(await readFile(join(RELEASE, `${name}.svg`), "utf8")));
     } catch {
       problems.push(`${name}: not in the pinned lucide-static`);
       continue;
@@ -37,7 +57,7 @@ async function drift(dir: string, sync = false): Promise<string[]> {
       await writeFile(join(dir, `${name}.svg`), want);
     } else {
       problems.push(
-        `${name}.svg: ${have === null ? "missing" : "differs from the pinned lucide-static"}`,
+        `${name}.svg: ${have === null ? "missing" : "differs from the restyled pinned lucide-static"}`,
       );
     }
   }
@@ -70,7 +90,7 @@ describe("the shipped icon set", () => {
     expect([...ownIconNames]).toEqual([...new Set(ownIconNames)].sort());
   });
 
-  it("draws its own icons on Lucide's grid and stroke, under names no pinned Lucide has", async () => {
+  it("draws its own icons on the same grid and stroke, under names no pinned Lucide has", async () => {
     const lucide = new Set((await readdir(RELEASE)).map((f) => f.replace(/\.svg$/, "")));
     for (const name of ownIconNames) {
       expect(lucide.has(name), `${name} shadows a Lucide drawing`).toBe(false);
@@ -80,7 +100,7 @@ describe("the shipped icon set", () => {
       for (const attr of [
         'viewBox="0 0 24 24"',
         'stroke="currentColor"',
-        'stroke-width="2"',
+        `stroke-width="${STROKE}"`,
         'stroke-linecap="round"',
         'stroke-linejoin="round"',
       ]) {
@@ -89,7 +109,7 @@ describe("the shipped icon set", () => {
     }
   });
 
-  it("has exactly one file per name, byte-identical to the pinned lucide-static", async () => {
+  it("has exactly one file per name, the pinned lucide-static drawing restyled", async () => {
     expect(await drift(SHIPPED, process.env["ICONS_SYNC"] === "1")).toEqual([]);
   });
 
@@ -118,7 +138,7 @@ describe("the shipped icon set", () => {
       expect((await drift(svg)).sort()).toEqual([
         "LICENSE-lucide: differs from the pinned lucide-static LICENSE",
         "extra.svg: no name in iconNames or ownIconNames",
-        "x.svg: differs from the pinned lucide-static",
+        "x.svg: differs from the restyled pinned lucide-static",
         "zap.svg: missing",
       ]);
     } finally {
@@ -144,5 +164,17 @@ describe("the shipped icon set", () => {
     );
     expect(await readFile(join(ROOT, "icons", "LICENSE-lucide"), "utf8")).toMatch(/^ISC License/);
     expect(await readFile(join(ROOT, "NOTICE"), "utf8")).toContain("icons/LICENSE-lucide");
+  });
+});
+
+describe("the restyle", () => {
+  it("keeps every line of the drawing and the licence, and sets only the stroke", async () => {
+    const lucide = await readFile(join(RELEASE, "folder.svg"), "utf8");
+    const ours = restyle(lucide);
+    const lines = (svg: string) => [...svg.matchAll(SHAPE)].map((m) => m[0].replace(/\s+/g, " "));
+    expect(lines(ours)).toEqual(lines(lucide));
+    expect(ours).toContain("@license lucide-static");
+    expect(ours).toContain('stroke-width="2.25"');
+    expect(ours).not.toContain('stroke-width="2"');
   });
 });

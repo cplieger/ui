@@ -104,7 +104,7 @@
 /* Written by npm run system:sync from src/system/system-css.node.test.ts. */
 :root {
   --cp-solid-hover-mix: 12%;
-  --cp-brand-l: 56%;
+  --cp-brand-l: 54.8%;
   --cp-shell-dark-l: 34%;
   --cp-shell-dark-k: 0.7;
   --cp-shell-ink-l: 96%;
@@ -142,7 +142,10 @@
     oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
   );
   --cp-neutral-9: light-dark(
-    oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-neutral-h) - 189) * 1deg)), 4))
+        calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)
+    ),
     oklch(64% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
   );
   --cp-neutral-10: color-mix(
@@ -192,7 +195,10 @@
     oklch(56% calc(var(--cp-accent-c) * 0.65) var(--cp-accent-h))
   );
   --cp-accent-9: light-dark(
-    oklch(56% calc(var(--cp-accent-c) * 1) var(--cp-accent-h)),
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-accent-h) - 189) * 1deg)), 4))
+        calc(var(--cp-accent-c) * 1) var(--cp-accent-h)
+    ),
     oklch(64% calc(var(--cp-accent-c) * 1) var(--cp-accent-h))
   );
   --cp-accent-10: color-mix(
@@ -242,7 +248,10 @@
     oklch(56% calc(var(--cp-danger-c) * 0.65) var(--cp-danger-h))
   );
   --cp-danger-9: light-dark(
-    oklch(56% calc(var(--cp-danger-c) * 1) var(--cp-danger-h)),
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-danger-h) - 189) * 1deg)), 4))
+        calc(var(--cp-danger-c) * 1) var(--cp-danger-h)
+    ),
     oklch(64% calc(var(--cp-danger-c) * 1) var(--cp-danger-h))
   );
   --cp-danger-10: color-mix(
@@ -292,7 +301,10 @@
     oklch(56% calc(var(--cp-warning-c) * 0.65) var(--cp-warning-h))
   );
   --cp-warning-9: light-dark(
-    oklch(56% calc(var(--cp-warning-c) * 1) var(--cp-warning-h)),
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-warning-h) - 189) * 1deg)), 4))
+        calc(var(--cp-warning-c) * 1) var(--cp-warning-h)
+    ),
     oklch(64% calc(var(--cp-warning-c) * 1) var(--cp-warning-h))
   );
   --cp-warning-10: color-mix(
@@ -342,7 +354,10 @@
     oklch(56% calc(var(--cp-success-c) * 0.65) var(--cp-success-h))
   );
   --cp-success-9: light-dark(
-    oklch(56% calc(var(--cp-success-c) * 1) var(--cp-success-h)),
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-success-h) - 189) * 1deg)), 4))
+        calc(var(--cp-success-c) * 1) var(--cp-success-h)
+    ),
     oklch(64% calc(var(--cp-success-c) * 1) var(--cp-success-h))
   );
   --cp-success-10: color-mix(
@@ -395,7 +410,10 @@
     oklch(56% calc(var(--cp-tone-c) * 0.65) var(--cp-tone-h))
   );
   --cp-tone-9: light-dark(
-    oklch(56% calc(var(--cp-tone-c) * 1) var(--cp-tone-h)),
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-tone-h) - 189) * 1deg)), 4))
+        calc(var(--cp-tone-c) * 1) var(--cp-tone-h)
+    ),
     oklch(64% calc(var(--cp-tone-c) * 1) var(--cp-tone-h))
   );
   --cp-tone-10: color-mix(
@@ -726,6 +744,98 @@
     --cp-tone-on: contrast-color(var(--cp-tone-9));
   }
 }
+
+@property --cp-harmony-2-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-harmony-3-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+:root {
+  --cp-harmony-2-h: calc(
+    mod(calc(var(--cp-accent-h) + 150), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 150), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 150), 360))
+  );
+  --cp-harmony-3-h: calc(
+    mod(calc(var(--cp-accent-h) + 210), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 210), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 210), 360))
+  );
+  --cp-harmony-1: var(--cp-accent-9);
+  --cp-harmony-2: light-dark(
+    oklch(
+      max(0.56, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 3))
+        )
+        var(--cp-harmony-2-h)
+    ),
+    oklch(
+      max(0.64, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 4))
+        )
+        var(--cp-harmony-2-h)
+    )
+  );
+  --cp-harmony-3: light-dark(
+    oklch(
+      max(0.56, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 3))
+        )
+        var(--cp-harmony-3-h)
+    ),
+    oklch(
+      max(0.64, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 4))
+        )
+        var(--cp-harmony-3-h)
+    )
+  );
+  --cp-harmony-4: light-dark(
+    oklch(
+      70%
+        min(
+          var(--cp-accent-c),
+          calc(0.154 - 0.034 * pow(max(0, cos((var(--cp-accent-h) - 200) * 1deg)), 8))
+        )
+        var(--cp-accent-h)
+    ),
+    oklch(
+      78%
+        min(
+          var(--cp-accent-c),
+          calc(0.131 - 0.02 * pow(max(0, cos((var(--cp-accent-h) - 265) * 1deg)), 8))
+        )
+        var(--cp-accent-h)
+    )
+  );
+  --cp-harmony-1-on: contrast-color(var(--cp-harmony-1));
+  --cp-harmony-2-on: contrast-color(var(--cp-harmony-2));
+  --cp-harmony-3-on: contrast-color(var(--cp-harmony-3));
+  --cp-harmony-4-on: contrast-color(var(--cp-harmony-4));
+}
 /* colour:end */
 
 /* Roles. App CSS reads these; component classes read a tone's or a family's steps. */
@@ -740,9 +850,11 @@
     oklch(99.6% calc(var(--cp-neutral-c) * 0.5) var(--cp-neutral-h)),
     var(--cp-neutral-3)
   );
-  --cp-fill: var(--cp-neutral-3);
-  --cp-fill-hover: var(--cp-neutral-4);
-  --cp-fill-active: var(--cp-neutral-5);
+  /* Step 4, not 3: a grey fill on a raised surface stays findable on a
+   * 1x screen (about 1.2:1 in both themes, where step 3 is 1.1). */
+  --cp-fill: var(--cp-neutral-4);
+  --cp-fill-hover: var(--cp-neutral-5);
+  --cp-fill-active: var(--cp-neutral-6);
   --cp-line: var(--cp-neutral-6);
   --cp-border: var(--cp-neutral-7);
   --cp-border-strong: var(--cp-neutral-8);
@@ -867,6 +979,8 @@
  * micro. Reduced motion keeps fades and removes movement. */
 :root {
   --cp-dur-micro: 90ms;
+  /* A press goes down and comes back fast enough to feel like a click. */
+  --cp-dur-press: 60ms;
   --cp-dur-short: 160ms;
   --cp-dur-medium: 240ms;
   --cp-dur-long: 360ms;
@@ -958,10 +1072,32 @@
   box-sizing: border-box;
 }
 
+/* A class that sets display outranks the UA's [hidden] rule, so hidden
+ * would stop hiding it; until-found keeps the UA's own behaviour. The same
+ * rule as Bootstrap's reboot and Tailwind's preflight. */
+:where(.cp) [hidden]:where(:not([hidden="until-found"])) {
+  /* stylelint-disable-next-line declaration-no-important -- must outrank every class that sets display */
+  display: none !important;
+}
+
 :where(.cp) :where(button, input, select, textarea) {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
+}
+
+/* A heading or caption that takes focus by script, so a screen reader
+ * lands on a new step or page, is no control: it draws no ring. */
+:where(.cp) :where(h1, h2, h3, h4, caption)[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* The mask is drawn in the platform's font: iOS masks with U+25CF, which
+ * the body font lacks, and Cocoa swaps in its own dot only when the field's
+ * font is the system one (WebKit RenderText::setRenderedText,
+ * RenderBlock::updateSecurityDiscCharacters). Outranks .cp-input's font. */
+:where(.cp) input[type="password"] {
+  font-family: system-ui, sans-serif;
 }
 
 /* At width=device-width WebKit drops double-tap zoom only at the initial
@@ -1017,6 +1153,29 @@
     :scope.cp :where(a):hover,
     .cp :where(a):hover {
       text-decoration-color: currentcolor;
+    }
+  }
+}
+
+/* A link that is a row's title names a thing, not a sentence: it reads as
+ * the row's name, in ink at a medium weight, and takes the accent and its
+ * underline under a mouse or the keyboard. A link inside a sentence keeps
+ * its colour and underline (WCAG 1.4.1). */
+.cp-cell-stack > a:first-child {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-cell-stack > a:first-child:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-cell-stack > a:first-child:hover {
+      color: var(--cp-accent-ink);
     }
   }
 }
@@ -1112,7 +1271,8 @@
   flex-direction: column;
   gap: var(--cp-space-6);
   inline-size: var(--cp-rail-w);
-  padding: var(--cp-space-4) var(--cp-space-3);
+  /* The same top as main's, so the rail's first line meets main's. */
+  padding: var(--cp-space-6) var(--cp-space-3) var(--cp-space-4);
   background: light-dark(var(--cp-accent-2), var(--cp-accent-1));
   border-inline-end: var(--cp-line-w) solid var(--cp-line);
   overflow-y: auto;
@@ -1137,6 +1297,346 @@
   color: var(--cp-ink-muted);
   background: var(--cp-surface-raised);
   border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* A page outside the app frame for one short task, such as sign-in, setup,
+ * an invite or a recovery link: the app's mark and name over one panel. */
+.cp-gate {
+  display: grid;
+  grid-template-columns: minmax(0, 24rem);
+  place-content: start center;
+  justify-items: center;
+  gap: var(--cp-space-5);
+  min-block-size: 100dvh;
+  padding: clamp(var(--cp-space-6), 12vh, 8rem) var(--cp-page-gutter) var(--cp-space-8);
+}
+
+.cp-gate > .cp-wordmark {
+  font-size: var(--cp-text-lg);
+}
+
+.cp-gate .cp-mark {
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-shell-bg);
+  color: var(--cp-shell-ink);
+  font-size: var(--cp-text-md);
+}
+
+.cp-gate > .cp-panel {
+  justify-self: stretch;
+  padding: var(--cp-space-6);
+  background: var(--cp-surface-raised);
+}
+
+.cp-gate > :not(.cp-wordmark, .cp-panel) {
+  justify-self: stretch;
+  text-align: center;
+}
+
+/* A column of fields, never wider than what a field holds. */
+.cp-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+  max-inline-size: 32rem;
+}
+
+.cp-form > .cp-button {
+  justify-self: start;
+}
+
+/* A switch is a native checkbox with role="switch": it keeps its label, its
+ * keys and its form value. */
+.cp-switch {
+  --cp-switch-w: 2.25rem;
+  --cp-switch-h: 1.25rem;
+  --cp-switch-dir: 1;
+
+  appearance: none;
+  position: relative;
+  flex: none;
+  inline-size: var(--cp-switch-w);
+  block-size: var(--cp-switch-h);
+  margin: 0;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-border-strong);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+:root[data-pointer="coarse"] .cp-switch {
+  --cp-switch-w: 3rem;
+  --cp-switch-h: 1.75rem;
+}
+
+.cp-switch:dir(rtl) {
+  --cp-switch-dir: -1;
+}
+
+.cp-switch::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0.125rem;
+  inset-inline-start: 0.125rem;
+  inline-size: calc(var(--cp-switch-h) - 0.25rem);
+  block-size: calc(var(--cp-switch-h) - 0.25rem);
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-surface-raised);
+  transition: translate var(--cp-dur-short) var(--cp-ease-move);
+}
+
+.cp-switch:checked {
+  background: var(--cp-accent);
+}
+
+.cp-switch:checked::before {
+  translate: calc((var(--cp-switch-w) - var(--cp-switch-h)) * var(--cp-switch-dir)) 0;
+  background: var(--cp-on-accent);
+}
+
+.cp-switch:disabled {
+  cursor: not-allowed;
+  background: var(--cp-fill);
+}
+
+.cp-switch:disabled::before {
+  background: var(--cp-ink-disabled);
+}
+
+/* One choice of a few, such as a theme: native radios in labels, so the
+ * arrow keys move the choice with no script. */
+.cp-segmented {
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  /* One control height overall, so a segmented sits level with inputs and
+   * buttons in a row; the pill track is this height less its padding. */
+  min-block-size: var(--cp-control-h);
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-1);
+  border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
+  background: var(--cp-fill);
+}
+
+.cp-segmented > label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: var(--cp-hit-min);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink-muted);
+  font-weight: var(--cp-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-segmented > label > input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.cp-segmented > label:has(:checked) {
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+}
+
+.cp-segmented > label:has(:focus-visible) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-segmented > label:has(:disabled) {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-segmented > label:hover {
+      color: var(--cp-ink);
+    }
+
+    /* A scoped rule outranks an unscoped one before specificity counts. */
+    .cp-segmented > label:has(:disabled):hover {
+      color: var(--cp-ink-disabled);
+    }
+
+    .cp-settings-nav > a:not([aria-current]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+/* A settings page: its categories as links beside the open one's form, and
+ * the categories in a row above it under 48rem. */
+.cp-settings {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  gap: var(--cp-space-8);
+  align-items: start;
+}
+
+.cp-settings-nav {
+  display: grid;
+  gap: var(--cp-space-1);
+}
+
+.cp-settings-nav > a {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink);
+  text-decoration: none;
+}
+
+.cp-settings-nav > a[aria-current] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-weight: var(--cp-weight-medium);
+}
+
+@media (width < 48rem) {
+  .cp-settings {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cp-space-5);
+  }
+
+  .cp-settings-nav {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .cp-settings-nav > a {
+    flex: none;
+  }
+}
+
+/* One setting: its label and help at the start, its control at the end, and
+ * a line between neighbours. A wide control wraps under the words. */
+.cp-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-2) var(--cp-space-6);
+  padding-block: var(--cp-space-3);
+}
+
+.cp-setting + .cp-setting {
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* The rows' padding is between neighbours; the panel pads the outer edges. */
+.cp-setting:first-child {
+  padding-block-start: 0;
+}
+
+.cp-setting:last-child {
+  padding-block-end: 0;
+}
+
+.cp-setting > :first-child {
+  display: grid;
+  gap: var(--cp-space-1);
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+/* Unsaved changes: a bar that stays in view at the bottom of the form while
+ * any change waits. */
+.cp-savebar {
+  position: sticky;
+  inset-block-end: var(--cp-space-3);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-overlay);
+  background: var(--cp-surface-overlay);
+  box-shadow: var(--cp-shadow-overlay);
+}
+
+.cp-savebar > :first-child {
+  flex: 1 1 auto;
+}
+
+/* A field with a control beside it, such as Show password or Copy. */
+.cp-input-row {
+  display: flex;
+  gap: var(--cp-space-2);
+}
+
+.cp-input-row > .cp-input {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* A file field is a button and a filename, not a text input: no field box,
+ * just the styled Browse button with its label beside it, vertically centred. */
+.cp-input[type="file"] {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--cp-control-h);
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+}
+
+.cp-input[type="file"]::file-selector-button {
+  min-block-size: calc(var(--cp-control-h) - 0.25rem);
+  margin: 0 var(--cp-space-3) 0 0;
+  padding: 0 var(--cp-space-3);
+  border: 0;
+  border-radius: calc(var(--cp-radius-control) - 0.125rem);
+  background: var(--cp-fill);
+  color: var(--cp-ink);
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+  cursor: pointer;
+}
+
+/* A field that holds a quiet control inside its end, such as Show on a
+ * password: the field keeps the column's full width, as the fields above
+ * and below it do, and its text stops short of the control. */
+.cp-input-wrap {
+  position: relative;
+  display: grid;
+}
+
+.cp-input-wrap > .cp-input {
+  padding-inline-end: var(--cp-control-h);
+}
+
+.cp-input-wrap > .cp-button {
+  position: absolute;
+  inset-block: 0.1875rem;
+  inset-inline-end: 0.1875rem;
+  min-block-size: 0;
+  min-inline-size: 0;
+  aspect-ratio: 1;
+  padding: 0;
 }
 
 /* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
@@ -1200,11 +1700,14 @@
   gap: var(--cp-space-1);
 }
 
+/* Positioned, so a label hidden under 60rem stays inside its link and a
+ * nav that scrolls on a phone keeps it there instead of widening the page. */
 .cp-nav-item {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
+  min-block-size: var(--cp-control-h);
   padding-inline: var(--cp-space-3);
   border-radius: var(--cp-radius-control);
   color: inherit;
@@ -1270,6 +1773,24 @@
   color: inherit;
 }
 
+/* A chevron between levels, drawn by CSS so it is never read aloud, and
+ * turned to point the reading way. */
+.cp-crumbs > :not(:first-child)::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  margin-inline-end: var(--cp-space-2);
+  vertical-align: -0.0625rem;
+  background: currentcolor;
+  opacity: 0.7;
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+}
+
+.cp-crumbs > :not(:first-child):dir(rtl)::before {
+  scale: -1 1;
+}
+
 /* Buttons: one primary per surface; danger is data-tone="danger". */
 .cp-button {
   display: inline-flex;
@@ -1294,13 +1815,28 @@
   transition:
     background-color var(--cp-dur-micro) var(--cp-ease-out),
     color var(--cp-dur-micro) var(--cp-ease-out),
-    transform var(--cp-dur-micro) var(--cp-ease-out);
+    transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
 /* data-uip-pressed comes from @cplieger/ui/press, for a finger :active misses. */
-.cp-button:active:not(:disabled),
-.cp-button[data-uip-pressed]:not(:disabled) {
+.cp-button:active:not(:disabled, [aria-disabled="true"]),
+.cp-button[data-uip-pressed]:not(:disabled, [aria-disabled="true"]) {
   transform: scale(var(--cp-press-scale));
+}
+
+/* An icon-only button, named by aria-label and holding only icons, presses
+ * by its fill: a scaled 18px icon is resampled and blurs on a 1x screen. */
+.cp-button[aria-label]:not(:has(> :not(.uip-icon))) {
+  --cp-press-scale: 1;
+}
+
+.cp-button[aria-label][data-uip-pressed]:not(:has(> :not(.uip-icon))) {
+  background: var(--cp-fill-active);
+}
+
+/* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
+.cp-button[aria-label]:active:not(:has(> :not(.uip-icon))) {
+  background: var(--cp-fill-active);
 }
 
 .cp-button[data-variant="primary"] {
@@ -1313,7 +1849,7 @@
   color: var(--cp-ink-muted);
 }
 
-.cp-header .cp-button[data-variant="quiet"]:not(:disabled) {
+.cp-header .cp-button[data-variant="quiet"]:not(:disabled, [aria-disabled="true"]) {
   color: inherit;
 }
 
@@ -1325,15 +1861,15 @@
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-button:hover:not(:disabled) {
+    .cp-button:hover:not(:disabled, [aria-disabled="true"]) {
       background: var(--cp-fill-hover);
     }
 
-    .cp-button[data-variant="primary"]:hover:not(:disabled) {
+    .cp-button[data-variant="primary"]:hover:not(:disabled, [aria-disabled="true"]) {
       background: var(--cp-tone-10);
     }
 
-    .cp-button[data-variant="quiet"]:hover:not(:disabled) {
+    .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
       background: var(--cp-fill);
       color: var(--cp-ink);
     }
@@ -1345,8 +1881,10 @@
   }
 }
 
+/* aria-disabled keeps the control focusable and under the pointer, so a
+ * press on it keeps focus there; it takes no press and no hover. */
 .cp-button[aria-disabled="true"] {
-  pointer-events: none;
+  cursor: not-allowed;
   color: var(--cp-ink-disabled);
   background: var(--cp-fill);
 }
@@ -1357,10 +1895,19 @@
   background: var(--cp-fill);
 }
 
+/* A quiet button has no fill, unavailable or not: a grey fill would read as
+ * pressed or chosen rather than out of reach. */
+.cp-button[data-variant="quiet"]:is(:disabled, [aria-disabled="true"]) {
+  background: transparent;
+}
+
 /* Fields: the boundary is the 3:1 step, so a field is findable without its
  * label. Inputs stay 16px on touch so iOS does not zoom. */
+/* One column no child can widen: a row of a field and a button shrinks
+ * the field instead of pushing past a phone's width. */
 .cp-field {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-1);
 }
 
@@ -1388,9 +1935,56 @@
   font-size: var(--cp-text-ui);
 }
 
+/* A date or time field is exactly one control tall: its edit fields and
+ * picker button size themselves per engine and platform, so a minimum alone
+ * lets it outgrow the controls beside it. */
+input.cp-input:is([type^="date"], [type="time"]) {
+  block-size: var(--cp-control-h);
+  padding-block: 0;
+}
+
 .cp-input:user-invalid,
 .cp-input[aria-invalid="true"] {
   border-color: var(--cp-danger-8);
+}
+
+.cp-input[data-tone="warning"] {
+  border-color: var(--cp-warning-8);
+}
+
+/* A focused field reads like a focused button: a ring sitting outside the
+ * field with a gap, in the accent (or the state's colour for an error or a
+ * warning). The field keeps its own border, so the ring is a halo, not a
+ * doubled line at the edge. */
+.cp-input:focus-visible {
+  --cp-field-ring: var(--cp-focus-ring);
+
+  outline: var(--cp-focus-w) solid var(--cp-field-ring);
+  outline-offset: var(--cp-focus-offset);
+  border-color: var(--cp-field-ring);
+}
+
+.cp-input:is(:user-invalid, [aria-invalid="true"]):focus-visible {
+  --cp-field-ring: var(--cp-danger-9);
+}
+
+.cp-input[data-tone="warning"]:focus-visible {
+  --cp-field-ring: var(--cp-warning-9);
+}
+
+@media (forced-colors: active) {
+  .cp-input:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* A field that takes no input reads as such: a sunken fill, a quiet edge
+ * and disabled ink, the same as a disabled segment. */
+.cp-input:disabled {
+  border-color: var(--cp-line);
+  background: var(--cp-fill);
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
 }
 
 /* A field's error: text under the field, tied to it by aria-describedby. */
@@ -1482,7 +2076,7 @@
 /* The actions for the selected rows, above the table, with their count. */
 .cp-batchbar {
   position: sticky;
-  inset-block-start: 0;
+  inset-block-start: var(--cp-sticky-top, 0);
   z-index: var(--cp-z-sticky);
   display: flex;
   flex-wrap: wrap;
@@ -1548,6 +2142,13 @@
   @scope (:root:not([data-pointer="coarse"])) {
     .cp-table tbody tr:hover td {
       background: var(--cp-fill);
+    }
+
+    /* A plain button in a row shares the row's hover fill and would vanish;
+     * lift it to the raised surface. Only a resting button: one with a
+     * data-state (busy, done) keeps the fill its state gives it. */
+    .cp-table tr:hover .cp-button:not([data-variant], [data-state]) {
+      background: var(--cp-surface-raised);
     }
   }
 }
@@ -1641,9 +2242,38 @@
   color: var(--cp-tone-12);
 }
 
+/* An action notice carries a button, so its row is button-height; centre the
+ * icon and text with the button instead of leaving them at the top. A notice
+ * without a button keeps its icon aligned to the first line of its text. */
+.cp-notice:has(> .cp-button) {
+  align-items: center;
+}
+
+/* The text sits left, the button is pushed to the end of the row. */
+.cp-notice > .cp-button {
+  margin-inline-start: auto;
+}
+
 .cp-notice > .uip-icon {
   color: var(--cp-tone-11);
   margin-block-start: 0.0625rem;
+}
+
+/* On a tone's wash the grey fill of a plain button disappears into a warm
+ * or cold tint; it rises off the wash instead, edged with the tone's 3:1
+ * step, and its words take the tone's ink. */
+.cp-notice .cp-button:not([data-variant="primary"]) {
+  border: var(--cp-line-w) solid var(--cp-tone-8);
+  background: var(--cp-surface-raised);
+  color: var(--cp-tone-12);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-notice .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover {
+      background: var(--cp-tone-2);
+    }
+  }
 }
 
 /* Panel: an in-flow surface outlined by one line. A flush panel scrolls a
@@ -1795,6 +2425,14 @@
 .cp-tab[aria-selected="true"] {
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-tab:not([aria-selected="true"]):hover {
+      color: var(--cp-ink);
+    }
+  }
 }
 
 /* Progress: a track and a fill in the tone. */
@@ -1990,8 +2628,38 @@
   .cp-tab[aria-selected="true"],
   .cp-nav-item[aria-current],
   .cp-pager,
-  .cp-batchbar {
+  .cp-batchbar,
+  .cp-savebar,
+  .cp-segmented > label:has(:checked),
+  .cp-settings-nav > a[aria-current] {
     border: var(--cp-line-w) solid CanvasText;
+  }
+
+  /* System colours paint the switch, so its state survives the forced palette. */
+  .cp-switch {
+    forced-color-adjust: none;
+    border: var(--cp-line-w) solid CanvasText;
+    background: Canvas;
+  }
+
+  .cp-switch::before {
+    background: CanvasText;
+  }
+
+  .cp-switch:checked {
+    background: Highlight;
+  }
+
+  .cp-switch:checked::before {
+    background: HighlightText;
+  }
+
+  .cp-switch:disabled {
+    border-color: GrayText;
+  }
+
+  .cp-switch:disabled::before {
+    background: GrayText;
   }
 
   :where(.cp) .uip-icon {

@@ -1,6 +1,6 @@
 # Design patterns
 
-This page covers the patterns of the design language in `@cplieger/ui/css/system`, for loading, forms, tables, tabs, dialogs, notifications, first run, navigation, language and words. It builds on [Design language](design.md), which covers colour, type, layout, touch and motion, and on [Components](design-components.md), which lists the classes.
+This page covers the patterns of the design language in `@cplieger/ui/css/system`, for loading, forms, tables, tabs, dialogs, notifications, first run, navigation, language and words. It builds on [Design language](design.md), which covers type, layout, touch and motion, on [Colour](design-colour.md), and on [Components](design-components.md), which lists the classes. [Settings](design-settings.md) covers the settings page, and [Account and sign-in](design-account.md) the screens around an app's accounts.
 
 ## Loading
 
@@ -27,7 +27,7 @@ A form never loses what the person typed, and every error is text that says how 
 
 1. Each control has a visible `<label>`, with `.cp-help` under it when a format or a source needs saying. A search field in a toolbar is the one exception. It may go without a label when its placeholder starts with "Search" and names what it searches, such as "Search titles…", and its accessible name is the same words.
 2. Validate a field when it loses focus and when the form submits, never on every keystroke. Keep submit enabled, so a submit shows what is missing.
-3. A field with an error gets `aria-invalid="true"` and a `.cp-field-error` under it, with a `circle-alert` icon and a sentence that names the fix, such as "Enter 5 minutes or more". Tie the error to the field with `aria-describedby`.
+3. A field with an error gets `aria-invalid="true"` and a `.cp-field-error` under it, with a `circle-x` icon and a sentence that names the fix, such as "Enter 5 minutes or more". Tie the error to the field with `aria-describedby`.
 4. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it.
 5. Clear a field's error as soon as its value is valid. Never clear what the person typed.
 6. While the form saves, the submit button is busy, and the fields stay as they are.
@@ -150,5 +150,5 @@ The interface may ship in one language and still show titles, names and file nam
 
 The language decides these when an app first needs them, and adds them here:
 
-- Charts. Until then, show the numbers in a table, label series directly, and never use colour as the only way to tell series apart.
+- Charts. Until then, show the numbers in a table, label series directly, take series colours from the [harmony colours](design-colour.md#harmony-colours), and never use colour as the only way to tell series apart.
 - Print styles.

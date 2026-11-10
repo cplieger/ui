@@ -1,6 +1,6 @@
 # Design language
 
-This page covers the foundations of the design language that `@cplieger/ui/css/system` implements, for colour, type, layout, touch, shape and motion. [Components](design-components.md) lists its classes. [Design patterns](design-patterns.md) covers loading, forms, tables, tabs, dialogs, notifications, first run, navigation and language. Read this page and the patterns before you build a screen with the stylesheet.
+This page covers the foundations of the design language that `@cplieger/ui/css/system` implements, for type, layout, touch, shape and motion. [Colour](design-colour.md) covers its colours and [Components](design-components.md) its classes. [Design patterns](design-patterns.md) covers loading, forms, tables, tabs, dialogs, notifications, first run, navigation and language, [Settings](design-settings.md) the settings page, and [Account and sign-in](design-account.md) the screens around accounts. Read this page and the patterns before you build a screen with the stylesheet.
 
 The language is for screens someone works in, such as libraries, queues, settings and logs, so the layout, the navigation and the controls stay the ones people already know.
 
@@ -17,8 +17,8 @@ The stylesheet fixes the controls, the navigation, the type, the spacing, the ra
 
 ## Set up
 
-1. Import `@cplieger/ui/css` and `@cplieger/ui/css/system`, in either order. The `@font-face` rules point at `../fonts/`, so a bundler that follows `url()`, such as esbuild or Vite, copies the font files with the CSS.
-2. Put `class="cp"` on `<html>`. Without it the file defines custom properties and fonts and styles only the `.cp-*` classes your markup uses, so an app can adopt it one subtree at a time.
+1. Import `@cplieger/ui/css` and `@cplieger/ui/css/system`, in either order. The `@font-face` rules point at `../fonts/` and the breadcrumb chevron at `../icons/svg/`, so a bundler that follows `url()`, such as esbuild or Vite, copies those files with the CSS.
+2. Put `class="cp"` on `<html>`. Without it the file defines custom properties and fonts and styles only the `.cp-*` classes your markup uses, so an app can adopt it one subtree at a time. Inside `.cp`, the `hidden` attribute always hides, even on a class that sets `display`.
 3. Set your seeds in your own unlayered `:root`, after the import. The steps are computed on `:root`, so a seed set on another element changes nothing there. To colour one region differently, give it a tone.
 4. Set `data-theme="light"` or `data-theme="dark"` on `<html>` before first paint from an external blocking script. `@cplieger/ui/theme` writes this attribute. With no attribute, the page follows the operating system.
 5. Set `data-pointer` with [`@cplieger/ui/pointer`](pointer.md), as [Touch and mouse](#touch-and-mouse) shows.
@@ -39,117 +39,7 @@ The stylesheet needs `contrast-color()`, `light-dark()`, relative `oklch()`, `co
 
 ## Colour
 
-### Seeds
-
-Every colour comes from a seed, a hue in degrees and a chroma in OKLCH units:
-
-| Seed | Default | Paints |
-| --- | --- | --- |
-| `--cp-accent-h`, `--cp-accent-c` | 255, 0.13 | the primary action, the current selection, links, the focus ring |
-| `--cp-neutral-h`, `--cp-neutral-c` | 260, 0.008 | every surface, line and text colour |
-| `--cp-brand-h`, `--cp-brand-c` | the accent's | the header and the mark |
-| `--cp-danger-h`, `--cp-danger-c` | 27, 0.15 | errors and destructive actions |
-| `--cp-warning-h`, `--cp-warning-c` | 75, 0.12 | states that need attention soon |
-| `--cp-success-h`, `--cp-success-c` | 150, 0.12 | states that are fine |
-
-The accent never paints a status. A chip, a notice or a badge takes a tone instead, so the colour of an action never reads as a state, and every state carries a glyph and a word as well. Two starting points help the accent read as an action:
-
-- Keep it about 30 degrees or more from every status hue on the same screen. If your brand is red, near hue 29, move your danger hue, for example to 355, or give the accent another hue and keep the brand for the header. A yellow brand moves the warning hue the same way, and a green one the success hue.
-- Give it chroma 0.06 or more. Below that, the primary button and the current selection stop standing out from the neutrals.
-
-These are rules of thumb. Before you settle on an accent, compare a primary button, a selected row and each status chip in both themes and in a colour-vision simulation.
-
-### Steps and roles
-
-Each family has 12 steps. The stylesheet fixes each step's lightness in each theme and takes the hue and chroma from the seed:
-
-| Steps | Role |
-| --- | --- |
-| 1 and 2 | page and raised surfaces |
-| 3, 4 and 5 | a control's fill at rest, on hover and when pressed, and the accent's step 4 is the selected fill |
-| 6 and 7 | hairlines and borders |
-| 8 | a control's boundary |
-| 9 and 10 | a solid fill and its hover, and the accent's step 9 is also the focus ring |
-| 11 and 12 | secondary and primary text |
-
-App CSS reads role names, and the component classes read a tone's steps. The role names are:
-
-- Surfaces: `--cp-surface-page`, `--cp-surface-raised`, `--cp-surface-sunken`, `--cp-surface-overlay`.
-- Fills and lines: `--cp-fill`, `--cp-fill-hover`, `--cp-fill-active`, `--cp-selected`, `--cp-selection-bg`, `--cp-line`, `--cp-border`, `--cp-border-strong`.
-- Text: `--cp-ink`, `--cp-ink-muted`, `--cp-ink-disabled`.
-- Accent: `--cp-accent`, `--cp-accent-hover`, `--cp-on-accent`, `--cp-accent-ink`, `--cp-accent-wash`, `--cp-focus-ring`.
-- Brand and header: `--cp-brand`, `--cp-on-brand`, `--cp-shell-bg`, `--cp-shell-ink`, `--cp-shell-current`, `--cp-shell-hover`.
-- Overlays: `--cp-backdrop`, `--cp-shadow-overlay`.
-
-Ink on a solid fill is `contrast-color()` of that fill, so it is black or white, whichever has more contrast. The three engines choose by the WCAG 2 ratio today, which the CSS specification leaves to the browser. A hover on a solid moves away from its ink, so the contrast rises when the pointer arrives.
-
-### Light and dark
-
-Each step is a `light-dark()` pair, so `color-scheme` picks the theme. The dark theme is designed, not inverted. Surfaces get lighter as they rise, text is never pure white, and the header turns into a deep tone of the brand.
-
-A token resolves on the element that uses it, so a region with `color-scheme: dark` turns dark inside a light page.
-
-Under `prefers-contrast: more`, text moves further from its surface, boundaries get stronger and the header darkens. Under `forced-colors: active`, the system colours apply, and every chip, notice, batch bar and selected control keeps a visible border.
-
-### Contrast
-
-The stylesheet owns lightness, and a test checks every hue at every chroma in the envelope below. These pairs hold in both themes for any seed inside it:
-
-| Pair | Floor | With `prefers-contrast: more` |
-| --- | --- | --- |
-| primary text on steps 1 to 3 | 7:1 | 7:1 |
-| primary and secondary text on steps 1 to 5 | 4.5:1 | 7:1 |
-| a boundary on steps 1 to 3 | 3:1 | 4.5:1 |
-| ink on a solid fill, at rest and on hover | 4.5:1 | 7:1 |
-| header text on the header | 4.5:1 | 7:1 |
-
-WCAG 2.2 is the floor. APCA scores can help compare two candidate seeds, but they never replace it.
-
-The envelope is the highest chroma a hue can take while every step stays inside sRGB and every pair clears its floor. An accent or a tone at chroma 0.09 or less passes at every hue, and so does a neutral at 0.015 or less. Above that, each row of this table holds for every hue it names:
-
-<!-- envelope:start -->
-| Hues | Accent or tone | Neutral |
-| --- | --- | --- |
-| 0 to 14 | 0.155 | 0.015 |
-| 15 to 29 | 0.150 | 0.015 |
-| 30 to 44 | 0.155 | 0.015 |
-| 45 to 59 | 0.145 | 0.020 |
-| 60 to 74 | 0.130 | 0.020 |
-| 75 to 89 | 0.120 | 0.030 |
-| 90 to 104 | 0.120 | 0.045 |
-| 105 to 119 | 0.125 | 0.060 |
-| 120 to 134 | 0.140 | 0.070 |
-| 135 to 149 | 0.150 | 0.060 |
-| 150 to 164 | 0.115 | 0.055 |
-| 165 to 179 | 0.095 | 0.045 |
-| 180 to 194 | 0.090 | 0.045 |
-| 195 to 209 | 0.090 | 0.030 |
-| 210 to 224 | 0.095 | 0.025 |
-| 225 to 239 | 0.100 | 0.020 |
-| 240 to 254 | 0.125 | 0.015 |
-| 255 to 269 | 0.145 | 0.015 |
-| 270 to 284 | 0.145 | 0.015 |
-| 285 to 299 | 0.150 | 0.015 |
-| 300 to 314 | 0.170 | 0.020 |
-| 315 to 329 | 0.215 | 0.025 |
-| 330 to 344 | 0.195 | 0.020 |
-| 345 to 359 | 0.165 | 0.020 |
-<!-- envelope:end -->
-
-### Tones
-
-A tone is a colour family on one element: `data-tone="accent"`, `"neutral"`, `"danger"`, `"warning"` or `"success"`. Inside it, `--cp-tone-1` to `--cp-tone-12` and `--cp-tone-on` follow the tone's hue. Chips, notices, swatches, progress bars and primary buttons read the tone, so `data-tone="danger"` on a primary button makes it a destructive one.
-
-An app adds its own tones with two seeds:
-
-```css
-[data-tone="best"] {
-  --cp-tone-h: 162;
-  --cp-tone-c: 0.11;
-}
-```
-
-A tone is never the only signal. Every chip and notice carries a glyph and a word, so a colour-blind reader and a screen reader get the same state. Two tones on one screen differ in their glyph and their word, whatever their hues.
+[Colour](design-colour.md) covers the seeds an app sets, the 12 steps and their roles, light and dark, contrast, tones and harmony colours.
 
 ## Type
 
@@ -189,14 +79,14 @@ Width and input are separate, since a tablet can have a trackpad and a laptop a 
 | `fine` | 32px, 26px small | 36px | 24px at least |
 | `coarse` | 44px, small too | 48px | 44px at least |
 
-[`@cplieger/ui/pointer`](pointer.md) sets it. `applyPointerTier` writes a first value from the pre-paint script, and `installPointerTier` follows each real pointer, a mouse as `fine` and a finger or a pen as `coarse`:
+[`@cplieger/ui/pointer`](pointer.md) sets it. `applyPointerTier` writes a first value from the pre-paint script, and `installPointerTier` follows each real pointer, a mouse or a trackpad as `fine` and a finger or a pen as `coarse`:
 
 ```ts
 applyPointerTier({ storageKey: "app.pointer" }); // pre-paint
 installPointerTier({ storageKey: "app.pointer" }); // at startup
 ```
 
-Hover styles apply under `@media (any-hover: hover)` while `data-pointer` is not `coarse`, so a tapped control keeps no hover fill. Pressed and focus styles apply on every tier. A press scales the control to 97%, and on touch an input stays at 16px so iOS does not zoom.
+Hover styles apply under `@media (any-hover: hover)` while `data-pointer` is not `coarse`, so a tapped control keeps no hover fill. Pressed and focus styles apply on every tier. A press scales the control to 97%, except an icon-only button, which takes the pressed fill instead, since a scaled 18px icon blurs on a 1x screen. On touch an input stays at 16px so iOS does not zoom.
 
 A press is drawn from `:active` and from the `data-uip-pressed` that [press](press.md) sets, since iOS Safari gives a tapped control no `:active`. Controls take `touch-action: manipulation`, so a fast second tap never zooms the page.
 
@@ -214,6 +104,7 @@ Motion shows what changed.
 | Token | Value | Use |
 | --- | --- | --- |
 | `--cp-dur-micro` | 90ms | colour and fill changes |
+| `--cp-dur-press` | 60ms | a press going down and coming back |
 | `--cp-dur-short` | 160ms | small movements, a popover opening |
 | `--cp-dur-medium` | 240ms | a toast entering |
 | `--cp-dur-long` | 360ms | a view transition between screens |
@@ -233,11 +124,11 @@ Motion shows what changed.
 
 ## Icons
 
-Icons come from `@cplieger/ui/icons`, which holds Lucide's drawings plus `pin-filled` and `spinner-arc`, all drawn with a 2-unit stroke on a 24-unit grid and painted in the text colour. Sizes are `inline` (1em), `ui` (18px), `lg` (24px) and `hero` (48px). An icon is decorative. The control that holds it carries the name, and every icon-only control, links and tabs included, has an accessible name and a tooltip with the same words. A drawing whose name ends in `-left` or `-right` faces the other way in a right-to-left context.
+Icons come from `@cplieger/ui/icons`, which holds Lucide's drawings plus a few of its own (filled pin, heart, funnel and tag, and `spinner-arc`), all drawn with a 2.25-unit stroke on a 24-unit grid and painted in the text colour. At the 18px `ui` size that stroke is 1.7px, which a 1x screen still draws solid, so an icon holds the weight of a medium label beside it. Sizes are `inline` (1em), `ui` (18px), `lg` (24px) and `hero` (48px). An icon is decorative. The control that holds it carries the name, and every icon-only control, links and tabs included, has an accessible name and a tooltip with the same words. A drawing whose name ends in `-left` or `-right` faces the other way in a right-to-left context.
 
 ## Reference screens
 
-The pages in `docs/system/` render the screens on these pages from the shipped stylesheet, with no script. After a change to either stylesheet, the pages, the fonts or the icons, run `npm run system:screens` to capture them again into `docs/images/`, and a test fails until you do.
+The pages in `docs/system/` render the screens on these pages, on [Settings](design-settings.md) and on [Account and sign-in](design-account.md) from the shipped stylesheet, with no script. After a change to either stylesheet, the pages, the fonts or the icons, run `npm run system:screens` to capture them again into `docs/images/`, and a test fails until you do.
 
 ![A subtitle item page in the light theme: a terracotta header, breadcrumbs, tabs, a neutral notice and a table of episodes with subtitle states and skeleton rows](images/system-item-light.png)
 

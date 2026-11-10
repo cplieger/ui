@@ -105,6 +105,98 @@ const theme = (t: "light" | "dark") => {
   root.setAttribute("data-theme", t);
 };
 
+// A harmony colour as the browser resolves it: [lightness 0 to 1, chroma, hue].
+function harmonyAt(n: number, accentHue: number, accentChroma = 0.137): [number, number, number] {
+  root.style.setProperty("--cp-accent-h", String(accentHue));
+  root.style.setProperty("--cp-accent-c", String(accentChroma));
+  const el = host("");
+  el.style.color = `var(--cp-harmony-${String(n)})`;
+  const m = /oklch\(([\d.]+) ([\d.]+) ([\d.]+)/.exec(getComputedStyle(el).color);
+  if (m === null) {
+    throw new Error(`harmony ${String(n)} resolved to ${getComputedStyle(el).color}`);
+  }
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+describe("css/system.css harmony colours", () => {
+  it("leads with the accent's solid and turns its hue 150 and 210 degrees for the partners", () => {
+    theme("light");
+    const lead = harmonyAt(1, 255);
+    const el = host("");
+    el.style.color = "var(--cp-accent-9)";
+    // Step 9 is 54.8% less the green dip's tail at hue 255.
+    const l9 = 0.548 - 0.024 * Math.cos((66 * Math.PI) / 180) ** 4;
+    expect(lead[0]).toBeCloseTo(l9, 5);
+    expect(lead.slice(1)).toEqual([0.137, 255]);
+    expect(getComputedStyle(el).color).toBe(`oklch(${String(lead[0])} 0.137 255)`);
+    expect(harmonyAt(2, 255)[2]).toBeCloseTo(45, 3);
+    expect(harmonyAt(3, 220)[2]).toBeCloseTo(70, 3);
+    expect(harmonyAt(4, 255)[2]).toBeCloseTo(255, 3);
+  });
+
+  it("wraps a turn past 360 degrees round to the start of the wheel", () => {
+    theme("light");
+    expect(harmonyAt(3, 300)[2]).toBeCloseTo(150, 3);
+  });
+
+  it("moves a partner out of the yellow-greens, to 95 below 117.5 and to 142 from there", () => {
+    theme("light");
+    // 320 + 150 = 470, which is 110; 340 + 150 = 490, which is 130.
+    expect(harmonyAt(2, 320)[2]).toBeCloseTo(95, 3);
+    expect(harmonyAt(2, 340)[2]).toBeCloseTo(142, 3);
+    // 327.5 + 150 is 117.5, the first hue of the upper half
+    expect(harmonyAt(2, 327.5)[2]).toBeCloseTo(142, 3);
+    expect(harmonyAt(2, 310)[2]).toBeCloseTo(100, 3);
+  });
+
+  it("lifts a yellow partner above the accent, and keeps the others at its lightness", () => {
+    theme("light");
+    const [yellowL] = harmonyAt(2, 305);
+    const [blueL] = harmonyAt(2, 110);
+    // the floor's peak, 50% + 32%, and step 9's 56% for a blue
+    expect(yellowL).toBeCloseTo(0.82, 2);
+    expect(blueL).toBeCloseTo(0.56, 2);
+    for (const hue of [0, 60, 120, 180, 240, 300]) {
+      expect(harmonyAt(2, hue)[0]).toBeGreaterThanOrEqual(harmonyAt(1, hue)[0]);
+    }
+  });
+
+  it("gives a partner a fifth more chroma than the accent, so a muted accent's stay muted, and caps a vivid one's", () => {
+    theme("light");
+    expect(harmonyAt(2, 255)[1]).toBeCloseTo(0.1644, 3);
+    expect(harmonyAt(2, 255, 0.05)[1]).toBeCloseTo(0.06, 3);
+    // a cyan partner holds less chroma inside sRGB than a vivid seed asks for
+    expect(harmonyAt(3, 350, 0.2)[1]).toBeLessThan(0.107);
+  });
+
+  it("inks an orange partner of the default blue in white, as the accent", () => {
+    theme("light");
+    root.style.setProperty("--cp-accent-h", "255");
+    const el = host("");
+    el.style.color = "var(--cp-harmony-2-on)";
+    expect(rgb(getComputedStyle(el).color)).toEqual([255, 255, 255]);
+  });
+
+  for (const t of ["light", "dark"] as const) {
+    it(`inks every harmony colour at 4.5:1 or more in ${t}`, () => {
+      theme(t);
+      for (const hue of [0, 45, 95, 150, 200, 255, 310]) {
+        root.style.setProperty("--cp-accent-h", String(hue));
+        for (const n of [1, 2, 3, 4]) {
+          const el = host("");
+          el.style.color = `var(--cp-harmony-${String(n)}-on)`;
+          el.style.backgroundColor = `var(--cp-harmony-${String(n)})`;
+          const cs = getComputedStyle(el);
+          expect(
+            contrast(cs.color, cs.backgroundColor),
+            `hue ${String(hue)} harmony ${String(n)}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    });
+  }
+});
+
 describe("css/system.css", () => {
   it("styles nothing and sets no colour scheme until an element opts in with cp", () => {
     root.setAttribute("data-theme", "dark");
@@ -214,18 +306,38 @@ describe("css/system.css", () => {
     expect(sizes()).toEqual([44, 48]);
   });
 
+  it("sizes a segmented control and date and time fields to one control height, level with an input and a button", () => {
+    theme("light");
+    const el = build(
+      '<input class="cp-input" id="t"><button class="cp-button" type="button">Go</button>' +
+        '<input class="cp-input" type="date"><input class="cp-input" type="time">' +
+        '<div class="cp-segmented"><label>A<input type="radio" name="s" checked></label>' +
+        '<label>B<input type="radio" name="s"></label></div>',
+    );
+    const h = (sel: string) =>
+      (el.querySelector(sel) as HTMLElement).getBoundingClientRect().height;
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const line = h("#t");
+      expect(h(".cp-button")).toBe(line);
+      expect(h(".cp-segmented")).toBe(line);
+      expect(h('[type="date"]')).toBe(line);
+      expect(h('[type="time"]')).toBe(line);
+    }
+  });
+
   it("presses a button by data-uip-pressed as well as :active, and never a disabled one", async () => {
     theme("light");
     const el = build(
-      '<button class="cp-button" type="button" data-uip-pressed="">Go</button><button class="cp-button" type="button" data-uip-pressed="" disabled>No</button>',
+      '<button class="cp-button" type="button" data-uip-pressed="">Go</button><button class="cp-button" type="button" data-uip-pressed="" disabled>No</button><button class="cp-button" type="button" data-uip-pressed="" aria-disabled="true">Full</button>',
     );
-    const [on, off] = [...el.querySelectorAll("button")];
-    for (const b of [on, off]) {
+    const [on, off, full] = [...el.querySelectorAll("button")];
+    for (const b of [on, off, full]) {
       (b as HTMLElement).style.transition = "none";
     }
     const scale = (b: Element | undefined) =>
       new DOMMatrix(getComputedStyle(b as Element).transform).a;
-    expect([scale(on), scale(off)]).toEqual([0.97, 1]);
+    expect([scale(on), scale(off), scale(full)]).toEqual([0.97, 1, 1]);
     await media("prefers-reduced-motion", "reduce");
     expect(scale(on)).toBe(1);
   });
@@ -242,6 +354,40 @@ describe("css/system.css", () => {
     expect(getComputedStyle(el.querySelector('input[type="text"]') as Element).touchAction).toBe(
       "auto",
     );
+  });
+
+  it("centres a gate page's panel in a column at most 24rem wide, inside a 320px window too", async () => {
+    theme("light");
+    const markup =
+      '<main class="cp-gate"><div class="cp-wordmark"><span class="cp-mark">R</span>Release tracker</div>' +
+      '<section class="cp-panel"><h1>Sign in</h1><input class="cp-input"></section><p>Lost access?</p></main>';
+    await page.viewport(1280, 720);
+    const wide = (build(markup).querySelector(".cp-panel") as HTMLElement).getBoundingClientRect();
+    expect([wide.width, wide.left + wide.width / 2]).toEqual([384, 640]);
+    await page.viewport(320, 700);
+    const el = build(markup);
+    const narrow = (el.querySelector(".cp-panel") as HTMLElement).getBoundingClientRect();
+    expect(narrow.width).toBeLessThan(320);
+    expect(
+      [...el.querySelectorAll("*")].filter((n) => n.getBoundingClientRect().right > 320.5),
+    ).toEqual([]);
+  });
+
+  it("keeps a form's fields at most 32rem wide with its button at the start, and grows an input beside its control", () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      '<form class="cp-form"><div class="cp-field"><label class="cp-label" for="f">Name</label>' +
+        '<div class="cp-input-row"><input class="cp-input" id="f"><button class="cp-button" type="button">Copy</button></div></div>' +
+        '<button class="cp-button" type="submit">Save</button></form>',
+    );
+    const box = (sel: string) => (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
+    expect(box(".cp-form").width).toBe(512);
+    expect(box('[type="submit"]').width).toBeLessThan(200);
+    const row = box(".cp-input-row");
+    const [input, copy] = [box(".cp-input"), box('[type="button"]')];
+    expect(input.width + 8 + copy.width).toBeCloseTo(row.width, 0);
+    expect(input.width).toBeGreaterThan(copy.width);
   });
 
   it("keeps a row's actions on one line and a chip in a cell stack at its own width", () => {
@@ -269,6 +415,412 @@ describe("css/system.css", () => {
     expect(margins(el.querySelector(".cp-stack > hr"))).toEqual(["0px", "0px"]);
     expect(margins(el.querySelector(".cp-stack > .cp-heading-row"))).toEqual(["0px", "0px"]);
     expect(margins(el.querySelector(".cp-heading-row"))[1]).toBe("20px");
+  });
+
+  for (const t of ["light", "dark"] as const) {
+    it(`draws a switch whose track and thumb clear 3:1 on and off in ${t}`, () => {
+      theme(t);
+      const el = build(
+        '<input class="cp-switch" type="checkbox" role="switch"><input class="cp-switch" type="checkbox" role="switch" checked>',
+      );
+      const page = getComputedStyle(root).backgroundColor;
+      for (const sw of el.querySelectorAll("input")) {
+        sw.style.transition = "none";
+        const track = getComputedStyle(sw).backgroundColor;
+        const thumb = getComputedStyle(sw, "::before").backgroundColor;
+        expect(contrast(track, page), `track ${sw.checked ? "on" : "off"}`).toBeGreaterThanOrEqual(
+          3,
+        );
+        expect(contrast(thumb, track), `thumb ${sw.checked ? "on" : "off"}`).toBeGreaterThanOrEqual(
+          3,
+        );
+      }
+    });
+  }
+
+  it("moves a switch's thumb to the end when on, towards the left in right-to-left, and grows it for a finger", () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      '<input class="cp-switch" type="checkbox" role="switch" checked><div dir="rtl"><input class="cp-switch" type="checkbox" role="switch" checked></div>',
+    );
+    const [ltr, rtl] = [...el.querySelectorAll("input")] as HTMLInputElement[];
+    const travel = (sw: HTMLInputElement | undefined) => {
+      const box = (sw as HTMLInputElement).getBoundingClientRect();
+      // The thumb is a pseudo-element with its own transition.
+      for (const a of document.getAnimations()) {
+        a.finish();
+      }
+      const tx = Number.parseFloat(getComputedStyle(sw as Element, "::before").translate);
+      return [box.width, box.height, tx];
+    };
+    expect(travel(ltr)).toEqual([36, 20, 16]);
+    expect(travel(rtl)).toEqual([36, 20, -16]);
+    root.dataset["pointer"] = "coarse";
+    expect(travel(ltr)).toEqual([48, 28, 20]);
+  });
+
+  it("keeps a switch's state in forced colours", async () => {
+    theme("light");
+    await media("forced-colors", "active");
+    const el = build('<input class="cp-switch" type="checkbox" role="switch" checked>');
+    const sw = el.querySelector("input") as HTMLInputElement;
+    sw.style.transition = "none";
+    const cs = getComputedStyle(sw);
+    expect(cs.borderStyle).toBe("solid");
+    expect(cs.backgroundColor).not.toBe(getComputedStyle(sw, "::before").backgroundColor);
+  });
+
+  it("fills the chosen segment and rings it when its radio has keyboard focus", async () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-segmented" role="radiogroup" aria-label="Theme"><label><input type="radio" name="t" value="s">System</label><label><input type="radio" name="t" value="l" checked>Light</label></div>',
+    );
+    const [system, light] = [...el.querySelectorAll("label")] as HTMLLabelElement[];
+    for (const l of [system, light]) {
+      (l as HTMLElement).style.transition = "none";
+    }
+    const fill = (l: Element | undefined) => getComputedStyle(l as Element).backgroundColor;
+    expect(fill(light)).not.toBe(fill(system));
+    const radio = (light as HTMLLabelElement).querySelector("input") as HTMLInputElement;
+    const box = radio.getBoundingClientRect();
+    const label = (light as HTMLLabelElement).getBoundingClientRect();
+    expect([box.width, box.height]).toEqual([label.width, label.height]);
+    radio.focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect((system as HTMLLabelElement).querySelector("input")?.checked).toBe(true);
+    expect(fill(system)).not.toBe(fill(light));
+    expect(getComputedStyle(system as Element).outlineStyle).toBe("solid");
+  });
+
+  it("lays settings categories beside the form, and in a row above it on a narrow screen", async () => {
+    theme("light");
+    const markup =
+      '<div class="cp-settings"><nav class="cp-settings-nav" aria-label="Settings"><a href="#c" aria-current="page">Connections</a><a href="#l">Languages</a><a href="#s">System</a></nav>' +
+      '<div><div class="cp-setting"><div><label class="cp-label" for="n">Notifications</label><span class="cp-help">When a check ends</span></div><input class="cp-switch" id="n" type="checkbox" role="switch"></div></div></div>';
+    await page.viewport(1280, 720);
+    const wide = build(markup);
+    const box = (el: HTMLElement, sel: string) =>
+      (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
+    expect(box(wide, ".cp-settings-nav").right).toBeLessThan(box(wide, ".cp-setting").left);
+    const row = box(wide, ".cp-setting");
+    expect(box(wide, ".cp-switch").right).toBeCloseTo(row.right, 0);
+    await page.viewport(600, 800);
+    const narrow = build(markup);
+    const links = [...narrow.querySelectorAll(".cp-settings-nav > a")].map(
+      (a) => a.getBoundingClientRect().top,
+    );
+    expect(new Set(links).size).toBe(1);
+    expect(box(narrow, ".cp-settings-nav").bottom).toBeLessThanOrEqual(
+      box(narrow, ".cp-setting").top,
+    );
+  });
+
+  it("keeps the save bar in view at the bottom of a long form, and gone while hidden", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-savebar"><span>3 unsaved changes</span></div><div class="cp-savebar" hidden></div>',
+    );
+    const [shown, gone] = [...el.querySelectorAll(".cp-savebar")].map((n) => getComputedStyle(n));
+    expect([shown?.position, shown?.insetBlockEnd]).toEqual(["sticky", "12px"]);
+    expect(gone?.display).toBe("none");
+  });
+
+  it("keeps an aria-disabled button under the pointer, so a press on it keeps focus", async () => {
+    theme("light");
+    const el = build('<button class="cp-button" type="button" aria-disabled="true">Full</button>');
+    const b = el.querySelector("button");
+    expect(b && getComputedStyle(b).pointerEvents).toBe("auto");
+    expect(b && getComputedStyle(b).cursor).toBe("not-allowed");
+    b?.focus();
+    const r = b?.getBoundingClientRect();
+    expect(r && document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)).toBe(b);
+  });
+
+  it.each(["light", "dark"] as const)(
+    "raises a plain button off a notice's wash, edged at 3:1, in %s",
+    (t) => {
+      theme(t);
+      const el = build(
+        '<div class="cp-notice" data-tone="warning"><span>Lost.</span><button class="cp-button" type="button">Retry</button></div>',
+      );
+      const notice = el.querySelector(".cp-notice");
+      const b = el.querySelector("button");
+      const [wash, edge, fill] =
+        notice && b
+          ? [
+              getComputedStyle(notice).backgroundColor,
+              getComputedStyle(b).borderTopColor,
+              getComputedStyle(b).backgroundColor,
+            ]
+          : ["", "", ""];
+      expect(fill).not.toBe(wash);
+      expect(contrast(edge, wash)).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it.each(["light", "dark"] as const)(
+    "keeps a grey fill findable on a raised surface in %s",
+    (t) => {
+      theme(t);
+      const el = build(
+        '<button class="cp-button" type="button">Next</button><span class="probe"></span>',
+      );
+      const b = el.querySelector("button");
+      const probe = el.querySelector<HTMLElement>(".probe");
+      probe?.style.setProperty("background-color", "var(--cp-surface-raised)");
+      const [fill, raised] =
+        b && probe
+          ? [getComputedStyle(b).backgroundColor, getComputedStyle(probe).backgroundColor]
+          : ["", ""];
+      expect(contrast(fill, raised)).toBeGreaterThanOrEqual(1.18);
+    },
+  );
+
+  it("keeps a plain row action visible on a hovered row, and lets the button's own state fill win", async () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      '<table class="cp-table"><tbody><tr><td>Frieren</td><td data-col="actions">' +
+        '<button class="cp-button" type="button" id="plain">Grab</button>' +
+        '<button class="cp-button" type="button" id="done" data-state="done">Grabbed</button>' +
+        '<button class="cp-button" data-variant="quiet" type="button" id="quiet">More</button>' +
+        "</td></tr></tbody></table>" +
+        '<style>.cp-button[data-state="done"] { background: rgb(0, 128, 0); }</style>',
+    );
+    const fill = (id: string) =>
+      getComputedStyle(el.querySelector(`#${id}`) as Element).backgroundColor;
+    const cell = el.querySelector("td") as HTMLElement;
+    const rest = fill("plain");
+    await userEvent.hover(cell);
+    const row = getComputedStyle(cell).backgroundColor;
+    expect(fill("plain")).not.toBe(row);
+    expect(fill("plain")).not.toBe(rest);
+    expect(fill("done")).toBe("rgb(0, 128, 0)");
+    expect(fill("quiet")).toBe("rgba(0, 0, 0, 0)");
+    await userEvent.unhover(cell);
+  });
+
+  it("leaves an unavailable quiet button without a fill and greys a plain one", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button" data-variant="quiet" type="button" aria-disabled="true" id="qa">Up</button>' +
+        '<button class="cp-button" data-variant="quiet" type="button" disabled id="qd">Up</button>' +
+        '<button class="cp-button" type="button" disabled id="pd">Save</button>',
+    );
+    const fill = (id: string) =>
+      getComputedStyle(el.querySelector(`#${id}`) as Element).backgroundColor;
+    expect(fill("qa")).toBe("rgba(0, 0, 0, 0)");
+    expect(fill("qd")).toBe("rgba(0, 0, 0, 0)");
+    expect(fill("pd")).not.toBe("rgba(0, 0, 0, 0)");
+  });
+
+  it("separates breadcrumb levels with a mark that is not read, pointing the reading way", () => {
+    theme("light");
+    const el = build(
+      '<nav class="cp-crumbs"><a href="#">Library</a><a href="#">Frieren</a><span>Season 1</span></nav><nav class="cp-crumbs" dir="rtl"><a href="#">a</a><span>b</span></nav>',
+    );
+    const [ltr, rtl] = [...el.querySelectorAll(".cp-crumbs")];
+    const mark = (n: Element | null | undefined) => (n ? getComputedStyle(n, "::before") : null);
+    const items = ltr ? [...ltr.children] : [];
+    expect(items.map((n) => mark(n)?.content)).toEqual(["none", '""', '""']);
+    expect(mark(items[1])?.maskImage).toMatch(/^url\(".*svg/);
+    expect(ltr?.textContent).toBe("LibraryFrierenSeason 1");
+    expect(mark(rtl?.children[1])?.scale).toBe("-1 1");
+  });
+
+  it("draws a plain button beside a field at the field's full height", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-input-row"><input class="cp-input"><button class="cp-button" type="button">Search</button></div>',
+    );
+    const [f, b] = [el.querySelector("input"), el.querySelector("button")];
+    expect(b && getComputedStyle(b).backgroundClip).toBe("border-box");
+    expect(b?.getBoundingClientRect().height).toBe(f?.getBoundingClientRect().height);
+  });
+
+  it("draws no ring on a heading that takes focus by script, and keeps a control's", () => {
+    theme("light");
+    const el = build(
+      '<h1 tabindex="-1">Step 2 of 3</h1><button class="cp-button" type="button">Next</button>',
+    );
+    const h = el.querySelector("h1");
+    h?.focus();
+    expect(h && getComputedStyle(h).outlineStyle).toBe("none");
+    const b = el.querySelector("button");
+    b?.focus();
+    expect(b && getComputedStyle(b).outlineStyle).not.toBe("none");
+  });
+
+  it("rings a focused field outside with a gap, like a button, in the field's state colour", () => {
+    theme("light");
+    const el = build(
+      '<input class="cp-input" id="a"><input class="cp-input" id="b" aria-invalid="true"><input class="cp-input" id="c" data-tone="warning"><span class="probe"></span>',
+    );
+    const probe = el.querySelector<HTMLElement>(".probe");
+    const colour = (v: string) => {
+      probe?.style.setProperty("color", v);
+      return probe ? getComputedStyle(probe).color : "";
+    };
+    const ring = (id: string) => {
+      const f = el.querySelector<HTMLInputElement>(`#${id}`);
+      f?.focus();
+      const cs = f ? getComputedStyle(f) : null;
+      return [cs?.outlineColor, cs?.borderTopColor, parseFloat(cs?.outlineOffset ?? "0")];
+    };
+    const a = ring("a");
+    expect(a[0]).toBe(colour("var(--cp-focus-ring)"));
+    expect(a[1]).toBe(colour("var(--cp-focus-ring)"));
+    expect(a[2]).toBeGreaterThan(0);
+    expect(ring("b")[0]).toBe(colour("var(--cp-danger-9)"));
+    expect(ring("c")[0]).toBe(colour("var(--cp-warning-9)"));
+  });
+
+  it("presses an icon-only button by its fill, never by scale, and a worded one by scale", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button" type="button" data-uip-pressed="">Go</button><button class="cp-button" type="button" aria-label="Settings" data-uip-pressed=""><span class="uip-icon"></span></button>',
+    );
+    const [worded, icon] = [...el.querySelectorAll("button")].map((b) => {
+      b.style.transition = "none";
+      return getComputedStyle(b);
+    });
+    expect(new DOMMatrix(worded?.transform).a).toBe(0.97);
+    expect(new DOMMatrix(icon?.transform).a).toBe(1);
+    expect(icon?.backgroundColor).not.toBe(worded?.backgroundColor);
+  });
+
+  it("draws a row's title link in ink without an underline, and the accent under a mouse; a link in a sentence keeps both", async () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      '<p>See <a href="#" id="s">the guide</a>.</p><div class="cp-cell-stack"><a href="#" id="t">Mushishi</a><span>TV</span></div>' +
+        '<span class="probe"></span>',
+    );
+    const probe = el.querySelector<HTMLElement>(".probe");
+    const colour = (v: string) => {
+      probe?.style.setProperty("color", v);
+      return probe ? getComputedStyle(probe).color : "";
+    };
+    const link = (id: string) => getComputedStyle(el.querySelector(`#${id}`) as Element);
+    expect(link("t").textDecorationColor).toBe("rgba(0, 0, 0, 0)");
+    expect(link("t").color).toBe(colour("var(--cp-ink)"));
+    expect(link("s").textDecorationColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(link("s").color).toBe(colour("var(--cp-accent-ink)"));
+    const title = el.querySelector("#t") as HTMLElement;
+    await userEvent.hover(title);
+    expect(link("t").color).toBe(colour("var(--cp-accent-ink)"));
+    expect(link("t").textDecorationColor).not.toBe("rgba(0, 0, 0, 0)");
+    await userEvent.unhover(title);
+  });
+
+  it("keeps a segmented choice as wide as its options inside a grid", () => {
+    theme("light");
+    const el = build(
+      '<div style="display:grid;inline-size:40rem"><div class="cp-segmented"><label><input type="radio" name="x" checked>Today</label><label><input type="radio" name="x">7 days</label></div></div>',
+    );
+    const seg = el.querySelector(".cp-segmented")?.getBoundingClientRect();
+    expect(seg && seg.width < 300).toBe(true);
+  });
+
+  it("gives a file field's chooser the plain button's fill, centred in the field", () => {
+    theme("light");
+    const el = build(
+      '<input class="cp-input" type="file"><button class="cp-button" type="button">B</button>',
+    );
+    const f = el.querySelector("input");
+    const chooser = f ? getComputedStyle(f, "::file-selector-button") : null;
+    const button = el.querySelector("button");
+    expect(chooser?.backgroundColor).toBe(button ? getComputedStyle(button).backgroundColor : "");
+    expect(f && getComputedStyle(f).alignItems).toBe("center");
+  });
+
+  it.each(["light", "dark"] as const)("inks a success solid as the accent's in %s", (t) => {
+    theme(t);
+    const el = build('<span class="probe"></span><span class="probe2"></span>');
+    const [a, b] = [
+      el.querySelector<HTMLElement>(".probe"),
+      el.querySelector<HTMLElement>(".probe2"),
+    ];
+    a?.style.setProperty("color", "var(--cp-success-on)");
+    b?.style.setProperty("color", "var(--cp-accent-on)");
+    const ink = a ? getComputedStyle(a).color : "";
+    expect(ink).toBe(b ? getComputedStyle(b).color : "-");
+    if (t === "light") {
+      expect(ink).toBe("rgb(255, 255, 255)");
+    }
+  });
+
+  it("starts the rail's content at main's height", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-app"><header class="cp-header">H</header><nav class="cp-rail"><p>R</p></nav><main class="cp-main"><p>M</p></main></div>',
+    );
+    const [r, m] = [...el.querySelectorAll("p")].map((p) => p.getBoundingClientRect().top);
+    expect(r).toBe(m);
+  });
+
+  it("shrinks a field and the button beside it to a narrow column", () => {
+    theme("light");
+    const el = build(
+      '<div style="inline-size:15rem"><div class="cp-field"><label class="cp-label">Search</label><div class="cp-input-row"><span style="display:flex;flex:1;min-inline-size:0"><input class="cp-input" size="40" style="flex:1;min-inline-size:0"></span><button class="cp-button" type="button">Search</button></div></div></div>',
+    );
+    const row = el.querySelector(".cp-input-row")?.getBoundingClientRect();
+    expect(row?.width).toBe(240);
+  });
+
+  it("keeps a header link's hidden label inside a nav that scrolls", () => {
+    theme("light");
+    const el = build(
+      '<nav class="cp-nav" style="inline-size:6rem;overflow-x:auto"><a class="cp-nav-item" href="#"><span>A</span><span class="cp-nav-label" style="position:absolute;inset-inline-start:30rem">Library</span></a></nav>',
+    );
+    const label = el.querySelector(".cp-nav-label");
+    expect(label?.parentElement && getComputedStyle(label.parentElement).position).toBe("relative");
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
+  });
+
+  it("gives a header destination a whole control's height under a mouse", () => {
+    theme("light");
+    document.documentElement.dataset["pointer"] = "fine";
+    const el = build(
+      '<a class="cp-nav-item" href="#">Library</a><button class="cp-button" type="button">Go</button>',
+    );
+    const [a, b] = [el.querySelector("a"), el.querySelector("button")];
+    expect(a?.getBoundingClientRect().height).toBe(b?.getBoundingClientRect().height);
+    delete document.documentElement.dataset["pointer"];
+  });
+
+  it("draws a disabled field in the disabled ink on a sunken fill", () => {
+    theme("light");
+    const el = build(
+      '<select class="cp-input" disabled><option>HD</option></select><select class="cp-input"><option>HD</option></select><span class="probe"></span>',
+    );
+    const [off, on] = [...el.querySelectorAll("select")].map((n) => getComputedStyle(n));
+    const probe = el.querySelector<HTMLElement>(".probe");
+    probe?.style.setProperty("color", "var(--cp-ink-disabled)");
+    probe?.style.setProperty("background-color", "var(--cp-fill)");
+    const want = probe ? getComputedStyle(probe) : null;
+    expect([off?.color, off?.backgroundColor]).toEqual([want?.color, want?.backgroundColor]);
+    expect(on?.color).not.toBe(off?.color);
+  });
+
+  it("masks a password in the platform's font, and shows typed text in the body font", () => {
+    theme("light");
+    const el = build(
+      '<input class="cp-input" type="password"><input class="cp-input" type="text">',
+    );
+    const [pw, text] = [...el.querySelectorAll("input")].map((n) => getComputedStyle(n).fontFamily);
+    expect(pw).toBe("system-ui, sans-serif");
+    expect(text).toMatch(/^"Atkinson Hyperlegible Next"/);
+  });
+
+  it("hides an element with the hidden attribute whatever display its class sets", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-field-error" hidden>Wrong</span><section class="cp-batchbar" hidden></section><div class="cp-stack" hidden></div><span class="cp-field-error">Shown</span>',
+    );
+    const shown = [...el.children].map((n) => getComputedStyle(n).display);
+    expect(shown).toEqual(["none", "none", "none", "flex"]);
   });
 
   it("drops low-priority columns under 64rem of container, and mid ones under 44rem", () => {
