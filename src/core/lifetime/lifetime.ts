@@ -12,7 +12,7 @@ interface LifetimeOptions {
   readonly signal?: AbortSignal;
 }
 
-export interface Shared<O> {
+interface Shared<O> {
   /** Starts the listeners on the first call, and holds them until this
    *  call's signal aborts. A call whose signal has already aborted does
    *  nothing. The first call's other options hold. */
