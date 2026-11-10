@@ -19,4 +19,5 @@ showPopoverAt(menu, event.clientX, event.clientY); // a context menu
 - `installAnchors(opts?)` names each button and the popover it opens as a pair when the button is pressed, so CSS can place one by the other. A popover several buttons share, such as one menu for every row, follows the one pressed. It covers `popovertarget` and a `commandfor` button with a popover command. Every call shares one listener, which stays until every caller's `signal` has aborted.
 - `anchorTo(popover, opener)` names one pair by hand, for a popover your code opens.
 - `showPopoverAt(popover, x, y)` opens a popover with its corner at a point in viewport pixels, moved in so it stays inside the window.
+- `addAnchorName(el, name)` and `removeAnchorName(el, name)` add or take out one name in an element's `anchor-name` list and keep its others, so a control can anchor its own popover and its tooltip at once.
 - `.cp-popover[data-variant="panel"]` is a panel of controls rather than a list of choices.

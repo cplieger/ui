@@ -25,6 +25,6 @@ check.update({ kind: "success", title: "Check finished" });
 
 - `toast()` returns `{ dismiss, update }`. `update` takes the same options.
 - A press anywhere on a toast but its buttons dismisses it, and a finger can swipe it away. It leaves by sliding out and fading, then its row closes so the toasts above settle.
-- Four show at once. The oldest passing one makes room.
+- Four show at once. The oldest passing one makes room, or the oldest of all when every one stays.
 - The stack is a popover, kept inside the topmost modal dialog while one is open, since the dialog makes the rest of the page inert.
 - Each toast is a live region, so it is said as it appears.

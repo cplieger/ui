@@ -35,7 +35,7 @@ Where the page allows an inline script, `themeInitSnippet` gives the same as a s
 ## API
 
 - `createTheme(opts)` returns a `ThemeController` with `get()`, `set(choice)`, `resolved()`, `cycle()`, `getSystem()` and `dispose()`.
-- `ThemeOptions` = `{ storageKey; storage?; attribute?; onChange?; onSystemChange? }`. `attribute` defaults to `data-theme` and is set on `<html>` with the resolved value. `onSystemChange(system)` runs on every OS change, whatever the choice, so a label such as "System (now dark)" stays true.
+- `ThemeOptions` = `{ storageKey; storage?; attribute?; onChange?; onSystemChange?; signal? }`. Aborting `signal` does what `dispose()` does. `attribute` defaults to `data-theme` and is set on `<html>` with the resolved value. `onSystemChange(system)` runs on every OS change, whatever the choice, so a label such as "System (now dark)" stays true.
 - `applyTheme({ storageKey, storage?, attribute? })` resolves the stored choice once, writes the attribute and returns the value, leaving no listener. It never throws: a storage error or an unknown value resolves as `system`, and a missing `matchMedia` as `light`. It and `createTheme` resolve the same stored value the same way.
 - `themeInitSnippet(storageKey, attribute?)` returns a self-contained script as a string. Inline it in a blocking `<head>` script so the right theme paints before stylesheets load, a place where a real import cannot run.
 - `themeInitSnippetFromJSON(storageKey, field, attribute?)` does the same when the theme is a field of a JSON value. The inline script reads `localStorage[storageKey]`, parses it, takes `field`, and applies the resolved theme before the first paint.

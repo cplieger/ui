@@ -33,7 +33,7 @@ The stylesheet fixes the controls, the navigation, the type, the spacing, the ra
 }
 ```
 
-A JSR install reads the stylesheets, fonts and icons from the package files `css/`, `fonts/` and `icons/svg/`.
+A JSR install reads the stylesheet, fonts and icons from the package files `css/`, `fonts/`, `icons/svg/` and `icons/marks/`.
 
 The stylesheet needs `contrast-color()`, `light-dark()`, relative `oklch()`, `color-mix()`, `@scope` and container queries, which ship in Chrome 147, Firefox 146 and Safari 26.4 and later.
 
@@ -129,7 +129,7 @@ Icons come from `@cplieger/ui/icons`, which holds Lucide's drawings plus a few o
 
 ## Reference screens
 
-The pages in `docs/system/` render the screens on these pages, on [Settings](design-settings.md) and on [Account and sign-in](design-account.md) from the shipped stylesheet, with no script. After a change to either stylesheet, the pages, the fonts or the icons, run `npm run system:screens` to capture them again into `docs/images/`, and a test fails until you do.
+The pages in `docs/system/` render the screens on these pages, on [Settings](design-settings.md) and on [Account and sign-in](design-account.md) from the shipped stylesheet, with no script. After a change to the stylesheet, the pages, the fonts or the icons, run `npm run system:screens` to capture them again into `docs/images/`, and a test fails until you do.
 
 ![A subtitle item page in the light theme: a terracotta header, breadcrumbs, tabs, a neutral notice and a table of episodes with subtitle states and skeleton rows](images/system-item-light.png)
 

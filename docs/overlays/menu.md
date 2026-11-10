@@ -28,7 +28,7 @@ enhanceMenu(button, menu, { onSelect: (item) => run(item), signal: page.signal }
 
 - The menu opens with focus on its first item, and ArrowDown and ArrowUp on the button open it at the first or the last item.
 - The arrow keys wrap through the items, Home and End go to the ends, and typed letters jump to the item they start. The same letter again steps through the items it starts.
-- A `menuitem` that is chosen closes the menu and calls `onSelect`. A `menuitemcheckbox` toggles its `aria-checked`, and a `menuitemradio` checks itself and unchecks the others in its `role="group"`. Both keep the menu open.
+- A `menuitem` that is chosen closes the menu and calls `onSelect`. A `menuitemcheckbox` toggles its `aria-checked`, and a `menuitemradio` checks itself and unchecks the others in its `role="group"`. Both keep the menu open and then call `onSelect`.
 - An item with `aria-disabled="true"` takes focus but cannot be chosen.
 - Aborting `signal` closes the menu and removes the button's ARIA.
 

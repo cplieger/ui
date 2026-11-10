@@ -23,8 +23,8 @@ export interface AskOptions {
   readonly confirmLabel?: string;
   /** The declining button's words. Default "Cancel". */
   readonly cancelLabel?: string;
-  /** `"destructive"` paints the answer in the danger tone, leads with
-   *  `icon` and puts focus on the declining button. Default `"normal"`. */
+  /** `"destructive"` paints the answer in the danger tone and puts focus
+   *  on the declining button. Default `"normal"`. */
   readonly variant?: "normal" | "destructive";
   /** A drawing from `@cplieger/ui/icons` to lead the question with. */
   readonly icon?: Element;

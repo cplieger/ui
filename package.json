@@ -92,7 +92,7 @@
     "!src/**/*-setup.ts",
     "!src/**/test-helpers/**"
   ],
-  "description": "Build framework-free TypeScript browser UIs with signals, accessible widgets, typed requests and server actions",
+  "description": "A design language and the components built on it, for browser apps that draw their interface with plain HTML and DOM code",
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"

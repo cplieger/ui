@@ -13,8 +13,9 @@
 import { anchorTo, showPopoverAt } from "../anchor/anchor.js";
 
 export interface MenuOptions {
-  /** The person chose an item, after the menu closed. Not called for a
-   *  `menuitemcheckbox` or `menuitemradio`, which keep the menu open. */
+  /** The person chose an item: a `menuitem` after the menu closed, a
+   *  `menuitemcheckbox` or `menuitemradio` after its `aria-checked` changed,
+   *  with the menu still open. */
   readonly onSelect?: (item: HTMLElement) => void;
   /** Removes the listeners and the button's ARIA. */
   readonly signal?: AbortSignal;
@@ -102,6 +103,7 @@ function wireItems(
       const role = item.getAttribute("role");
       if (role === "menuitemcheckbox") {
         item.setAttribute("aria-checked", String(item.getAttribute("aria-checked") !== "true"));
+        onSelect?.(item);
         return;
       }
       if (role === "menuitemradio") {
@@ -109,6 +111,7 @@ function wireItems(
         for (const r of group.querySelectorAll('[role="menuitemradio"]')) {
           r.setAttribute("aria-checked", String(r === item));
         }
+        onSelect?.(item);
         return;
       }
       close();

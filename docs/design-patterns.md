@@ -96,7 +96,7 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 | A failure of the person's own action | a toast, with Retry when it can be retried | until dismissed |
 | The outcome of background work, such as a finished check | the app's activity history, and a toast only when the person started it | in the history |
 
-- Create the app's toaster with `createToaster({ defaultDuration: 7000 })` from `@cplieger/ui/toast`. An error toast stays until dismissed on its own. Give any other toast with an action, such as Undo, `duration: 0`.
+- Show each toast with `toast()` from `@cplieger/ui/toast`. A passing toast stays 7 seconds, and an error or a toast with an action, such as Undo, stays until dismissed on its own.
 - Toasts announce themselves, confirmations politely and errors assertively, so use an error toast only for a failure of what the person just did. A failure of background work, such as a refresh, is a notice, announced politely.
 - A notice that appears announces through `@cplieger/ui/announce`, politely, and only one that blocks the person's current task uses `role="alert"`.
 - One message per event. A problem shown in a notice is not also a toast.

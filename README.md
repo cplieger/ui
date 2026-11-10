@@ -4,16 +4,16 @@
 
 `@cplieger/ui` is a design language and the components built on it, for browser apps that draw their interface with plain HTML and DOM code.
 
-![A library screen in the design language: a coloured header with destinations, a rail of filters with counts, a table of entries with posters, chips and row actions, and a status line](docs/images/system-library-light.png)
+![A library screen in the design language: a coloured header with destinations, a rail of filters with counts, a table of entries with posters, chips and row actions, and a status line](docs/images/system-library-dark.png)
 
-The stylesheet styles the browser's own elements and a set of `.cp-*` classes, in light and dark, from a few colour seeds each app sets. Each script adds only what the browser lacks, such as a menu's keys or a toast's queue, and starts from a call you make. It has no runtime dependencies and ships as ESM-only TypeScript source, so it needs a bundler that compiles TypeScript 6 or later. It needs Chrome or Edge 135, Firefox 147 or Safari 26.2 or later. It is licensed under Apache-2.0.
+The stylesheet styles the browser's own elements and a set of `.cp-*` classes, in light and dark, from a few colour seeds each app sets. Each script adds only what the browser lacks, such as a menu's keys or a toast's queue, and starts from a call you make. It has no runtime dependencies and ships as ESM-only TypeScript source, so it needs a bundler that compiles TypeScript 6 or later. It needs Chrome or Edge 147, Firefox 147 or Safari 26.4 or later. It is licensed under Apache-2.0.
 
 ## Why use it
 
-- Dialogs, popovers and disclosures are the browser's own `<dialog>`, `popover` and `<details>`, so focus, Escape, a press outside and the top layer work with no script.
+- Dialogs, popovers and disclosures are the browser's own `<dialog>`, `popover` and `<details>`, so focus, Escape, a press outside a popover and the top layer work with no script.
 - Every control is one height and sizes itself for a mouse or a finger from the last real pointer, so a row of fields and buttons lines up on a desktop and under a thumb.
 - Colour comes from an accent hue and a neutral hue. The stylesheet computes every step, both themes and the harmony colours from them, and a test holds each pair of text and fill to its contrast.
-- Each component takes an `AbortSignal` for its lifetime and touches nothing as it loads, so a bundler drops what you do not import.
+- Each component starts from a call you make and touches nothing as it loads, so a bundler drops what you do not import. One that stays on the page takes an `AbortSignal` for its lifetime.
 
 Consider [Pico CSS](https://picocss.com) if you want classless styles for content pages, or [Shoelace](https://shoelace.style) if you want web components.
 

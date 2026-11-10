@@ -25,7 +25,7 @@ type AppIcon = "star" | "star-off";
 const { icon } = createIcons<AppIcon>({ url: (name) => assetURL[`${name}.svg`] });
 ```
 
-Then add the rule below to your own stylesheet. The base stylesheet ships no CSS for the icon.
+Without `@cplieger/ui/css/system`, which carries this rule, add the rule below to your own stylesheet.
 
 ```css
 .uip-icon {
