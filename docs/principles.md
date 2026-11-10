@@ -11,7 +11,7 @@ The browser's own elements do the behaviour:
 - `<details>` for sections that open and close
 - native checkboxes, radios and selects for choices
 
-A script exists only for what the platform lacks, such as a menu's keys, a toast's queue or a press under a finger. It works on the element already in the page instead of replacing it, so the markup keeps working when the script has not loaded.
+A script exists only for what the platform lacks, such as a menu's keys, a toast's queue or a press under a finger. It works on the element already in the page instead of replacing it, so the markup keeps working when the script has not loaded. A feature one engine lacks is used only where its absence still leaves something usable.
 
 ## Nothing runs on import
 
