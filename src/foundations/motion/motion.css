@@ -11,6 +11,89 @@
   --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
   --cp-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --cp-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Two damped springs sampled into linear(): a soft settle that overshoots
+   * about 13%, for a switch's thumb or a sliding pill, and a bouncier one
+   * that overshoots about 27%, for a mark that pops in. Both run for
+   * --cp-dur-spring. Never on an undo path, which eases out instead. */
+  --cp-ease-spring: linear(
+    0,
+    0.052,
+    0.18,
+    0.347,
+    0.526,
+    0.694,
+    0.839,
+    0.954,
+    1.038,
+    1.091,
+    1.119,
+    1.126,
+    1.119,
+    1.103,
+    1.081,
+    1.059,
+    1.038,
+    1.019,
+    1.005,
+    0.995,
+    0.988,
+    0.985,
+    0.984,
+    0.985,
+    0.987,
+    0.99,
+    0.993,
+    0.995,
+    0.998,
+    0.999,
+    1.001,
+    1.002,
+    1
+  );
+  --cp-ease-bounce: linear(
+    0,
+    0.048,
+    0.174,
+    0.349,
+    0.546,
+    0.742,
+    0.919,
+    1.065,
+    1.173,
+    1.241,
+    1.272,
+    1.271,
+    1.245,
+    1.202,
+    1.15,
+    1.095,
+    1.043,
+    0.999,
+    0.964,
+    0.941,
+    0.928,
+    0.924,
+    0.929,
+    0.939,
+    0.952,
+    0.967,
+    0.982,
+    0.995,
+    1.006,
+    1.014,
+    1.019,
+    1.021,
+    1.02,
+    1.018,
+    1.015,
+    1.011,
+    1.007,
+    1.003,
+    1,
+    0.997,
+    1
+  );
+  --cp-dur-spring: 520ms;
   --cp-press-scale: 0.97;
   --cp-skeleton-dur: 1.6s;
 }
@@ -20,5 +103,15 @@
     --cp-press-scale: 1;
     --cp-dur-medium: var(--cp-dur-short);
     --cp-dur-long: var(--cp-dur-short);
+    --cp-dur-spring: var(--cp-dur-short);
+    --cp-ease-spring: var(--cp-ease-out);
+    --cp-ease-bounce: var(--cp-ease-out);
+  }
+}
+
+/* The fade every entrance falls back to under reduced motion. */
+@keyframes cp-fade-in {
+  from {
+    opacity: 0;
   }
 }

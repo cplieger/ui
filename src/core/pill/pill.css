@@ -1,0 +1,46 @@
+/* The pill @cplieger/ui/pill slides under a segmented choice's chosen
+ * segment. Placed by row and column, so a wrapped choice slides to its
+ * line. Once it is there, the segments paint no fill of their own. */
+.cp-segmented:has(> .cp-pill) {
+  position: relative;
+}
+
+.cp-pill {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: var(--cp-pill-w, 0);
+  block-size: var(--cp-pill-h, 0);
+  translate: var(--cp-pill-x, 0) var(--cp-pill-y, 0);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
+  pointer-events: none;
+  transition:
+    translate 460ms var(--cp-ease-spring),
+    inline-size 460ms var(--cp-ease-spring),
+    block-size 460ms var(--cp-ease-spring);
+}
+
+.cp-pill[data-uip-still] {
+  transition: none;
+}
+
+.cp-pill[hidden] {
+  display: none;
+}
+
+/* offsetLeft is measured from the left edge in either direction. */
+.cp-pill:dir(rtl) {
+  inset-inline-start: auto;
+  left: 0;
+}
+
+.cp-segmented:has(> .cp-pill) > label {
+  z-index: 1;
+}
+
+.cp-segmented:has(> .cp-pill) > label:has(:checked) {
+  background: transparent;
+  box-shadow: none;
+}
