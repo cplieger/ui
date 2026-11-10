@@ -17,6 +17,6 @@
   white-space: nowrap;
 }
 
-.cp-roll[data-uip-roll="number"] {
+.cp-roll[data-kind="number"] {
   font-variant-numeric: tabular-nums;
 }

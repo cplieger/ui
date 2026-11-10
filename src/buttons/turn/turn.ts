@@ -7,20 +7,18 @@
  * @module
  */
 
+import { reducedMotion } from "../../core/lifetime/lifetime.js";
+
 /** At most about 1.8 turns a second at its fastest. */
 const TURN: KeyframeAnimationOptions = { duration: 900, easing: "cubic-bezier(0.55, 0, 0.3, 1)" };
 const PULSE: KeyframeAnimationOptions = { duration: 2000 };
 
-function reduced(): boolean {
-  return matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 function icon(button: Element): HTMLElement | null {
-  return button.querySelector<HTMLElement>(":scope > .uip-icon");
+  return button.querySelector<HTMLElement>(":scope > .cp-icon");
 }
 
 function play(target: HTMLElement, iterations: number): Animation {
-  return reduced()
+  return reducedMotion()
     ? target.animate([{ opacity: 1 }, { opacity: 0.45 }, { opacity: 1 }], { ...PULSE, iterations })
     : target.animate([{ rotate: "0turn" }, { rotate: "1turn" }], { ...TURN, iterations });
 }

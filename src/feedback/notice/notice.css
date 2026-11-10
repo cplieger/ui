@@ -21,7 +21,7 @@
   margin-inline-start: auto;
 }
 
-.cp-notice > .uip-icon {
+.cp-notice > .cp-icon {
   color: var(--cp-tone-11);
   margin-block-start: 0.0625rem;
 }

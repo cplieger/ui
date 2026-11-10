@@ -1,14 +1,15 @@
 /**
- * tooltip.ts — a short name or hint for a control, from its `data-uip-tip`,
+ * tooltip.ts — a short name or hint for a control, from its `data-cp-tip`,
  * in one `popover="manual"` placed by CSS anchor positioning. A mouse waits
  * half a second, keyboard focus shows it at once, and a finger toggles it on
- * a control marked `data-uip-tip-toggle`. The tip's words are never the only
+ * a control marked `data-cp-tip-toggle`. The tip's words are never the only
  * place they live: an icon-only control keeps its `aria-label`, and a tip
  * that says more than that label describes the control.
  * @module
  */
 
 import { addAnchorName, removeAnchorName } from "../anchor/anchor.js";
+import { shared } from "../../core/lifetime/lifetime.js";
 
 export interface TooltipOptions {
   /** How long a mouse rests on a control before its tip shows, in ms.
@@ -18,11 +19,8 @@ export interface TooltipOptions {
   readonly signal?: AbortSignal;
 }
 
-const TIP = "[data-uip-tip]";
+const TIP = "[data-cp-tip]";
 const NAME = "--cp-tip-anchor";
-
-let installed: AbortController | null = null;
-let holds = 0;
 
 function target(e: Event): HTMLElement | null {
   const t = e.composedPath()[0];
@@ -57,7 +55,7 @@ function listen(signal: AbortSignal, delay: number): void {
     if (shownFor !== el) {
       hide();
     }
-    const words = el.dataset["uipTip"] ?? "";
+    const words = el.dataset["cpTip"] ?? "";
     if (words === "" || !el.isConnected) {
       return;
     }
@@ -143,7 +141,7 @@ function listen(signal: AbortSignal, delay: number): void {
         hide();
         return;
       }
-      if (el?.hasAttribute("data-uip-tip-toggle") === true) {
+      if (el?.hasAttribute("data-cp-tip-toggle") === true) {
         if (el === shownFor) {
           hide();
         } else {
@@ -165,30 +163,15 @@ function listen(signal: AbortSignal, delay: number): void {
   );
 }
 
+const page = shared<{ readonly delay?: number }>((signal, o) => {
+  listen(signal, o.delay ?? 500);
+});
+
 /**
  * Starts the tips, once for the page however many parts of it call this.
  * They stay until every caller's signal has aborted; a caller with no
  * signal holds them for the page's life. The first call's `delay` holds.
  */
 export function installTooltips(options: TooltipOptions = {}): void {
-  const { signal } = options;
-  if (signal?.aborted === true) {
-    return;
-  }
-  holds += 1;
-  if (installed === null) {
-    installed = new AbortController();
-    listen(installed.signal, options.delay ?? 500);
-  }
-  signal?.addEventListener(
-    "abort",
-    () => {
-      holds -= 1;
-      if (holds === 0) {
-        installed?.abort();
-        installed = null;
-      }
-    },
-    { once: true },
-  );
+  page.install(options);
 }

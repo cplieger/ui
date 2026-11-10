@@ -8,13 +8,14 @@
  * @module
  */
 
+import { reducedMotion, until } from "../../core/lifetime/lifetime.js";
+
 export interface DisclosureOptions {
   /** Removes the listener and stops the glide. */
   readonly signal?: AbortSignal;
 }
 
-const CLOSING = "data-uip-closing";
-const reduced = (): boolean => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const CLOSING = "data-cp-closing";
 const EASE_OUT = "cubic-bezier(0.2, 0, 0, 1)";
 const EASE_IN = "cubic-bezier(0.4, 0, 1, 1)";
 
@@ -29,7 +30,7 @@ function glide(el: HTMLElement, from: number, to: number, done?: () => void): vo
       { blockSize: `${String(from)}px`, overflow: "clip" },
       { blockSize: `${String(to)}px`, overflow: "clip" },
     ],
-    { duration: reduced() ? 0 : 240, easing: EASE_OUT, fill: "forwards" },
+    { duration: reducedMotion() ? 0 : 240, easing: EASE_OUT, fill: "forwards" },
   );
   glides.set(el, run);
   void run.finished.then(
@@ -62,7 +63,7 @@ function shut(d: HTMLDetailsElement): void {
  * Glides `details` open and shut on a press of its summary. A `name` it
  * shares with other sections makes them one at a time: the browser's own
  * group would force shut the section just opened while a sibling is still
- * gliding, so the group is kept here under `data-uip-group`.
+ * gliding, so the group is kept here under `data-cp-group`.
  */
 export function enhanceDisclosure(
   details: HTMLDetailsElement,
@@ -76,7 +77,7 @@ export function enhanceDisclosure(
   const name = details.getAttribute("name");
   if (name !== null) {
     details.removeAttribute("name");
-    details.dataset["uipGroup"] = name;
+    details.dataset["cpGroup"] = name;
   }
   summary.addEventListener(
     "click",
@@ -88,13 +89,13 @@ export function enhanceDisclosure(
       }
       const from = details.getBoundingClientRect().height;
       details.removeAttribute(CLOSING);
-      const group = details.dataset["uipGroup"];
+      const group = details.dataset["cpGroup"];
       if (group !== undefined) {
         const root = details.getRootNode() as Document | ShadowRoot;
-        for (const other of root.querySelectorAll<HTMLDetailsElement>("details[data-uip-group]")) {
+        for (const other of root.querySelectorAll<HTMLDetailsElement>("details[data-cp-group]")) {
           if (
             other !== details &&
-            other.dataset["uipGroup"] === group &&
+            other.dataset["cpGroup"] === group &&
             other.open &&
             !other.hasAttribute(CLOSING)
           ) {
@@ -105,7 +106,7 @@ export function enhanceDisclosure(
       details.open = true;
       glide(details, from, details.getBoundingClientRect().height);
     },
-    signal === undefined ? {} : { signal },
+    until(signal),
   );
   signal?.addEventListener(
     "abort",
@@ -113,7 +114,7 @@ export function enhanceDisclosure(
       glides.get(details)?.finish();
       if (name !== null) {
         details.setAttribute("name", name);
-        delete details.dataset["uipGroup"];
+        delete details.dataset["cpGroup"];
       }
     },
     { once: true },
@@ -135,7 +136,7 @@ export function glideShow(el: HTMLElement, show: boolean): void {
         { blockSize: "0px", opacity: 0, overflow: "clip" },
         { blockSize: `${String(to)}px`, opacity: 1, overflow: "clip" },
       ],
-      { duration: reduced() ? 0 : 240, easing: EASE_OUT },
+      { duration: reducedMotion() ? 0 : 240, easing: EASE_OUT },
     );
     glides.set(el, run);
     void run.finished.then(
@@ -151,7 +152,7 @@ export function glideShow(el: HTMLElement, show: boolean): void {
       { blockSize: `${String(from)}px`, opacity: 1, overflow: "clip" },
       { blockSize: "0px", opacity: 0, overflow: "clip" },
     ],
-    { duration: reduced() ? 0 : 240, easing: EASE_IN },
+    { duration: reducedMotion() ? 0 : 240, easing: EASE_IN },
   );
   glides.set(el, run);
   void run.finished.then(

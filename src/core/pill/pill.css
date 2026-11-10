@@ -22,7 +22,7 @@
     block-size 460ms var(--cp-ease-spring);
 }
 
-.cp-pill[data-uip-still] {
+.cp-pill[data-cp-still] {
   transition: none;
 }
 

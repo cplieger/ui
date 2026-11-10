@@ -51,10 +51,10 @@ describe("enhancePill", () => {
     const pill = pillOf(group);
     expect(pill.getAttribute("aria-hidden")).toBe("true");
     expect(at(pill)).toEqual(box(labels[1] as HTMLElement));
-    expect(pill.hasAttribute("data-uip-still")).toBe(true);
+    expect(pill.hasAttribute("data-cp-still")).toBe(true);
     // The resize observer's first call lands it still once more.
     await frames(6);
-    expect(pill.hasAttribute("data-uip-still")).toBe(false);
+    expect(pill.hasAttribute("data-cp-still")).toBe(false);
   });
 
   it("slides to a new choice", async () => {
@@ -64,7 +64,7 @@ describe("enhancePill", () => {
     await userEvent.click(labels[2] as HTMLElement);
     const pill = pillOf(group);
     expect(at(pill)).toEqual(box(labels[2] as HTMLElement));
-    expect(pill.hasAttribute("data-uip-still")).toBe(false);
+    expect(pill.hasAttribute("data-cp-still")).toBe(false);
   });
 
   it("hides the pill while nothing is chosen", () => {

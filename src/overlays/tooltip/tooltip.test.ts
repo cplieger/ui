@@ -15,7 +15,7 @@ function control(tip: string, label?: string): HTMLButtonElement {
   const b = document.createElement("button");
   b.type = "button";
   b.textContent = "⚙";
-  b.dataset["uipTip"] = tip;
+  b.dataset["cpTip"] = tip;
   if (label !== undefined) {
     b.setAttribute("aria-label", label);
   }
@@ -74,7 +74,7 @@ describe("installTooltips", () => {
   it("toggles the tip with a tap on a control marked for it, and leaves other taps alone", () => {
     installTooltips({ signal: life.signal });
     const b = control("What this means", "Help");
-    b.dataset["uipTipToggle"] = "";
+    b.dataset["cpTipToggle"] = "";
     const tap = () => {
       b.dispatchEvent(
         new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "touch" }),
@@ -84,7 +84,7 @@ describe("installTooltips", () => {
     expect(showing()).toBe(true);
     tap();
     expect(showing()).toBe(false);
-    delete b.dataset["uipTipToggle"];
+    delete b.dataset["cpTipToggle"];
     tap();
     expect(showing()).toBe(false);
   });
@@ -104,7 +104,7 @@ describe("installTooltips", () => {
     const b = control("Switch to dark", "Theme");
     b.focus({ focusVisible: true });
     b.blur();
-    b.dataset["uipTip"] = "Switch to light";
+    b.dataset["cpTip"] = "Switch to light";
     b.focus({ focusVisible: true });
     expect(tip().textContent).toBe("Switch to light");
     life.abort();

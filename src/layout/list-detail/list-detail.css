@@ -10,7 +10,7 @@
   gap: var(--cp-space-4);
 }
 
-.cp-list-detail[data-uip-docked] {
+.cp-list-detail[data-cp-docked] {
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
 }
 
@@ -54,7 +54,7 @@
   font-size: var(--cp-text-md);
 }
 
-.cp-list-detail > .cp-detail[data-uip-still] {
+.cp-list-detail > .cp-detail[data-cp-still] {
   animation: none;
 }
 

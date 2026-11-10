@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 
 import { installRadioFocus } from "./radio-focus.js";
 
-const ATTR = "data-uip-focus-ring";
+const ATTR = "data-cp-focus-ring";
 let life = new AbortController();
 
 afterEach(() => {

@@ -5,6 +5,8 @@
  * @module
  */
 
+import { until } from "../lifetime/lifetime.js";
+
 export interface RovingFocusOptions {
   /** The items, matched inside the group at each key. Default: its
    *  buttons, links and `[role="option"]`s. */
@@ -33,7 +35,7 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
     [...group.querySelectorAll<HTMLElement>(selector)].filter(
       (i) => !i.hidden && !(i as HTMLButtonElement).disabled,
     );
-  const listen: AddEventListenerOptions = signal === undefined ? {} : { signal };
+  const listen = until(signal);
 
   /** One item takes Tab: the one given, else the one that had it, else the first. */
   const settle = (current?: HTMLElement): void => {

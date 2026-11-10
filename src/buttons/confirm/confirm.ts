@@ -45,14 +45,14 @@ export interface Confirm {
   run(work: () => Promise<unknown>): Promise<boolean>;
 }
 
-const STATE = "data-uip-state";
+const STATE = "data-cp-state";
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * `button` holds a `.cp-roll` with its words at rest and, beside its icon at
- * rest, two `.uip-icon`s marked `data-uip-part="busy"` (the spinner-arc) and
- * `data-uip-part="done"` (the check). Throws a TypeError without the
+ * rest, two `.cp-icon`s marked `data-part="busy"` (the spinner-arc) and
+ * `data-part="done"` (the check). Throws a TypeError without the
  * `.cp-roll`.
  */
 export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOptions): Confirm {
@@ -71,7 +71,7 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
       : button.closest('[data-col="actions"]') !== null
         ? "footprint"
         : "glide");
-  button.setAttribute("data-uip-confirm", width);
+  button.setAttribute("data-cp-confirm", width);
 
   let rest = rollText(words);
   let cycle = 0;

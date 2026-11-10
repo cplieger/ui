@@ -30,8 +30,8 @@
 
 /* @cplieger/ui/press never marks a disabled control, and a disabled button
  * is never :active. */
-.cp-group:has(> [data-uip-pressed]),
-.cp-split:has(> [data-uip-pressed]),
+.cp-group:has(> [data-cp-pressed]),
+.cp-split:has(> [data-cp-pressed]),
 .cp-group:has(> :active:not([aria-disabled="true"])),
 .cp-split:has(> :active:not([aria-disabled="true"])) {
   transform: scale(var(--cp-press-scale));
@@ -54,7 +54,7 @@
     transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
-.cp-split:has(> [data-uip-state="done"]) {
+.cp-split:has(> [data-cp-state="done"]) {
   background: oklch(from var(--cp-success-9) min(l, 0.52) c h);
   transition:
     background-color 160ms var(--cp-ease-out),
@@ -74,15 +74,15 @@
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-split > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-uip-state]) {
+    .cp-split > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-cp-state]) {
       background-color: var(--cp-tone-10);
       background-clip: padding-box;
     }
   }
 }
 
-.cp-split > .cp-button[data-uip-pressed]:not([data-uip-state]),
-.cp-split > .cp-button:active:not(:disabled, [data-uip-state]) {
+.cp-split > .cp-button[data-cp-pressed]:not([data-cp-state]),
+.cp-split > .cp-button:active:not(:disabled, [data-cp-state]) {
   background-color: var(--cp-tone-10);
   background-clip: padding-box;
 }
@@ -114,7 +114,7 @@
     border-radius 0s var(--cp-dur-medium);
 }
 
-.cp-split:has(> [data-uip-state]) > .cp-button:first-child {
+.cp-split:has(> [data-cp-state]) > .cp-button:first-child {
   margin-inline-end: calc(-1 * var(--cp-caret-w));
   padding-inline-end: calc(var(--cp-control-pad-x) + var(--cp-caret-w));
   border-start-end-radius: var(--cp-radius-control);
@@ -128,7 +128,7 @@
     border-radius 0s;
 }
 
-.cp-split:has(> [data-uip-state]) > .cp-button:last-child {
+.cp-split:has(> [data-cp-state]) > .cp-button:last-child {
   visibility: hidden;
   border-inline-start-color: transparent;
   transition:
@@ -138,11 +138,11 @@
 
 /* The chevron fades ahead of the sliding edge, so half a chevron never
  * shows, and returns once the edge has passed back over it. */
-.cp-split > .cp-button:last-child > .uip-icon {
+.cp-split > .cp-button:last-child > .cp-icon {
   transition: opacity 120ms var(--cp-ease-out) 120ms;
 }
 
-.cp-split:has(> [data-uip-state]) > :last-child > .uip-icon {
+.cp-split:has(> [data-cp-state]) > :last-child > .cp-icon {
   opacity: 0;
   transition: opacity 90ms var(--cp-ease-out);
 }

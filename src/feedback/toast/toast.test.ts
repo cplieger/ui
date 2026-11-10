@@ -12,7 +12,7 @@ afterEach(() => {
 
 const stack = () => document.querySelector(".cp-toaster") as HTMLElement;
 const toasts = () => [
-  ...document.querySelectorAll<HTMLElement>(".cp-toast-slot:not([data-uip-leaving]) .cp-toast"),
+  ...document.querySelectorAll<HTMLElement>(".cp-toast-slot:not([data-cp-leaving]) .cp-toast"),
 ];
 const gone = () => new Promise((r) => setTimeout(r, 700));
 

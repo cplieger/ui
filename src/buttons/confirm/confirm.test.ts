@@ -17,13 +17,13 @@ function button(words = "Save changes", parent: HTMLElement = document.body): HT
   b.className = "cp-button";
   b.type = "button";
   const rest = document.createElement("span");
-  rest.className = "uip-icon";
+  rest.className = "cp-icon";
   const busy = document.createElement("span");
-  busy.className = "uip-icon";
-  busy.dataset["uipPart"] = "busy";
+  busy.className = "cp-icon";
+  busy.dataset["part"] = "busy";
   const done = document.createElement("span");
-  done.className = "uip-icon";
-  done.dataset["uipPart"] = "done";
+  done.className = "cp-icon";
+  done.dataset["part"] = "done";
   const roll = document.createElement("span");
   roll.className = "cp-roll";
   // The stylesheet's window, inline, so the test needs no css/system.
@@ -55,16 +55,16 @@ describe("enhanceConfirm", () => {
     };
     const run = c.run(() => work.promise);
     await sleep(40);
-    expect(b.dataset["uipState"]).toBe("busy");
+    expect(b.dataset["cpState"]).toBe("busy");
     expect(b.getAttribute("aria-busy")).toBe("true");
     expect(words(b)).toBe("Saving…");
     finish();
     await expect(run).resolves.toBe(true);
-    expect(b.dataset["uipState"]).toBe("done");
+    expect(b.dataset["cpState"]).toBe("done");
     expect(b.hasAttribute("aria-busy")).toBe(false);
     expect(words(b)).toBe("Saved");
     await sleep(QUICK.hold + 20);
-    expect(b.hasAttribute("data-uip-state")).toBe(false);
+    expect(b.hasAttribute("data-cp-state")).toBe(false);
     expect(words(b)).toBe("Save changes");
   });
 
@@ -78,7 +78,7 @@ describe("enhanceConfirm", () => {
     await confirm(b).run(() => Promise.resolve());
     await sleep(0);
     expect(seen).toEqual([]);
-    expect(b.dataset["uipState"]).toBe("done");
+    expect(b.dataset["cpState"]).toBe("done");
   });
 
   it("keeps a busy state that showed for at least busyMin", async () => {
@@ -86,7 +86,7 @@ describe("enhanceConfirm", () => {
     const run = confirm(b).run(() => sleep(30));
     await sleep(25);
     const shown = performance.now();
-    expect(b.dataset["uipState"]).toBe("busy");
+    expect(b.dataset["cpState"]).toBe("busy");
     await run;
     expect(performance.now() - shown).toBeGreaterThanOrEqual(QUICK.busyMin - 25);
   });
@@ -112,7 +112,7 @@ describe("enhanceConfirm", () => {
     const c = confirm(b);
     const boom = new Error("Sonarr did not answer");
     await expect(c.run(() => sleep(40).then(() => Promise.reject(boom)))).rejects.toBe(boom);
-    expect(b.hasAttribute("data-uip-state")).toBe(false);
+    expect(b.hasAttribute("data-cp-state")).toBe(false);
     expect(b.hasAttribute("aria-busy")).toBe(false);
     expect(words(b)).toBe("Save changes");
     await expect(c.run(() => Promise.resolve())).resolves.toBe(true);
@@ -133,7 +133,7 @@ describe("enhanceConfirm", () => {
     document.body.append(cell);
     const b = button("Grab", cell);
     const c = confirm(b, { busy: "Grabbing…", done: "Grabbed" });
-    expect(b.dataset["uipConfirm"]).toBe("footprint");
+    expect(b.dataset["cpConfirm"]).toBe("footprint");
     const footprint = () =>
       (b.querySelector(".cp-roll") as HTMLElement).getBoundingClientRect().width +
       Number.parseFloat(b.style.marginInlineEnd);
@@ -151,19 +151,19 @@ describe("enhanceConfirm", () => {
     document.body.append(split);
     const b = button("Grab the best", split);
     confirm(b, { busy: "Grabbing…", done: "Grabbed" });
-    expect(b.dataset["uipConfirm"]).toBe("fixed");
+    expect(b.dataset["cpConfirm"]).toBe("fixed");
     const roll = b.querySelector(".cp-roll") as HTMLElement;
     expect(Number.parseFloat(roll.style.minInlineSize)).toBeGreaterThan(0);
   });
 
   it("glides elsewhere, and takes the width mode it is given", () => {
-    expect(button().dataset["uipConfirm"]).toBeUndefined();
+    expect(button().dataset["cpConfirm"]).toBeUndefined();
     const b = button();
     confirm(b);
-    expect(b.dataset["uipConfirm"]).toBe("glide");
+    expect(b.dataset["cpConfirm"]).toBe("glide");
     const f = button();
     confirm(f, { width: "fixed" });
-    expect(f.dataset["uipConfirm"]).toBe("fixed");
+    expect(f.dataset["cpConfirm"]).toBe("fixed");
   });
 
   it("puts the button back at rest when its signal aborts mid-cycle", async () => {
@@ -172,12 +172,12 @@ describe("enhanceConfirm", () => {
     const c = confirm(b, { signal: life.signal });
     const run = c.run(() => sleep(200));
     await sleep(40);
-    expect(b.dataset["uipState"]).toBe("busy");
+    expect(b.dataset["cpState"]).toBe("busy");
     life.abort();
-    expect(b.hasAttribute("data-uip-state")).toBe(false);
+    expect(b.hasAttribute("data-cp-state")).toBe(false);
     expect(b.hasAttribute("aria-busy")).toBe(false);
     await expect(run, "never shows done once aborted").resolves.toBe(false);
-    expect(b.hasAttribute("data-uip-state")).toBe(false);
+    expect(b.hasAttribute("data-cp-state")).toBe(false);
     await expect(c.run(() => Promise.resolve())).resolves.toBe(false);
   });
 

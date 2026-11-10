@@ -7,6 +7,8 @@
  * @module
  */
 
+import { reducedMotion } from "../lifetime/lifetime.js";
+
 export interface RollOptions {
   /** Roll down instead of up, as a number that shrinks does. Default false. */
   readonly down?: boolean;
@@ -16,10 +18,6 @@ export interface RollOptions {
 const SPRING =
   "linear(0, 0.052, 0.18, 0.347, 0.526, 0.694, 0.839, 0.954, 1.038, 1.091, 1.119, 1.126, 1.119, 1.103, 1.081, 1.059, 1.038, 1.019, 1.005, 0.995, 0.988, 0.985, 0.984, 0.985, 0.987, 0.99, 0.993, 0.995, 0.998, 0.999, 1.001, 1.002, 1)";
 const EASE_OUT = "cubic-bezier(0.2, 0, 0, 1)";
-
-function reduced(): boolean {
-  return matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 /** The line on show: the window's last child, made from its text if bare. */
 function current(host: HTMLElement): HTMLElement {
@@ -69,7 +67,7 @@ export function roll(host: HTMLElement, text: string, options: RollOptions = {})
   }
   const to = document.createElement("span");
   to.textContent = text;
-  if (reduced() || !host.isConnected) {
+  if (reducedMotion() || !host.isConnected) {
     host.replaceChildren(to);
     host.style.removeProperty("inline-size");
     return;
@@ -82,7 +80,7 @@ export function roll(host: HTMLElement, text: string, options: RollOptions = {})
   host.getBoundingClientRect();
   host.style.inlineSize = `${String(end)}px`;
 
-  const number = host.dataset["uipRoll"] === "number";
+  const number = host.dataset["kind"] === "number";
   const timing = { duration: number ? 260 : 360, easing: number ? EASE_OUT : SPRING };
   const sign = options.down === true ? -1 : 1;
   from.animate(

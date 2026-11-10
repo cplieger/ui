@@ -7,6 +7,8 @@
  * @module
  */
 
+import { until, whenAborted } from "../../core/lifetime/lifetime.js";
+
 export interface ListDetailOptions {
   /** Closes the detail and removes the listeners and the dialog. Default:
    *  none, kept for the page's life. */
@@ -31,9 +33,9 @@ export interface ListDetail {
   close(): void;
 }
 
-const DOCKED = "data-uip-docked";
-const CLOSE = "[data-uip-detail-close]";
-const STILL = "data-uip-still";
+const DOCKED = "data-cp-docked";
+const CLOSE = "[data-detail-close]";
+const STILL = "data-cp-still";
 
 function remPx(): number {
   return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -41,7 +43,7 @@ function remPx(): number {
 
 /**
  * `root` is a `.cp-list-detail` whose `.cp-detail` child holds a header with
- * its heading and any `[data-uip-detail-close]` buttons, and starts `hidden`.
+ * its heading and any `[data-detail-close]` buttons, and starts `hidden`.
  * Throws a TypeError when `root` has no such child.
  */
 export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions = {}): ListDetail {
@@ -50,7 +52,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     throw new TypeError("enhanceListDetail: root has no .cp-detail child");
   }
   const { signal, onDismiss } = options;
-  const listen: AddEventListenerOptions = signal === undefined ? {} : { signal };
+  const listen = until(signal);
   const dockAt = options.dockAt ?? 52;
 
   const dialog = document.createElement("dialog");
@@ -187,11 +189,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     api.close();
     dialog.remove();
   };
-  if (signal?.aborted === true) {
-    teardown();
-  } else {
-    signal?.addEventListener("abort", teardown, { once: true });
-  }
+  whenAborted(signal, teardown);
 
   return api;
 }

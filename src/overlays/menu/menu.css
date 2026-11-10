@@ -51,12 +51,12 @@
   font-size: var(--cp-text-xs);
 }
 
-.cp-menu [role^="menuitem"] > .uip-icon {
+.cp-menu [role^="menuitem"] > .cp-icon {
   color: var(--cp-ink-muted);
 }
 
 .cp-menu [data-tone="danger"],
-.cp-menu [data-tone="danger"] > .uip-icon {
+.cp-menu [data-tone="danger"] > .cp-icon {
   color: var(--cp-danger-11);
 }
 

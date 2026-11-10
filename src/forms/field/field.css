@@ -94,7 +94,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   font-weight: var(--cp-weight-medium);
 }
 
-.cp-field-error > .uip-icon {
+.cp-field-error > .cp-icon {
   --cp-icon-size: 0.875rem;
 
   margin-block-start: 0.0625rem;

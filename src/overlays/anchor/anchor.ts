@@ -8,16 +8,16 @@
  * @module
  */
 
+import { shared } from "../../core/lifetime/lifetime.js";
+
 export interface AnchorOptions {
   /** Ends this call's hold on the listener. Default: none, held for the
    *  page's life. */
   readonly signal?: AbortSignal;
 }
 
-const AT = "data-uip-at";
+const AT = "data-cp-at";
 let seq = 0;
-let holds = 0;
-let listening: AbortController | null = null;
 
 /** The popover `opener` opens: by `popovertarget`, or by `commandfor` with a
  *  popover command. */
@@ -124,30 +124,15 @@ function listen(signal: AbortSignal): void {
   );
 }
 
+const page = shared((signal) => {
+  listen(signal);
+});
+
 /**
  * Starts naming opener and popover pairs, once for the page however many
  * parts of it call this. The listener stays until every caller's signal has
  * aborted; a caller with no signal holds it for the page's life.
  */
 export function installAnchors(options: AnchorOptions = {}): void {
-  const { signal } = options;
-  if (signal?.aborted === true) {
-    return;
-  }
-  holds += 1;
-  if (listening === null) {
-    listening = new AbortController();
-    listen(listening.signal);
-  }
-  signal?.addEventListener(
-    "abort",
-    () => {
-      holds -= 1;
-      if (holds === 0) {
-        listening?.abort();
-        listening = null;
-      }
-    },
-    { once: true },
-  );
+  page.install(options);
 }

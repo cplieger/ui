@@ -163,7 +163,7 @@
 }
 
 :where(.cp) :where(:focus-visible),
-:where(.cp) :where([data-uip-focus-ring]:focus) {
+:where(.cp) :where([data-cp-focus-ring]:focus) {
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }
@@ -184,7 +184,7 @@
 
 @media (forced-colors: active) {
   :where(.cp) :where(:focus-visible),
-  :where(.cp) :where([data-uip-focus-ring]:focus) {
+  :where(.cp) :where([data-cp-focus-ring]:focus) {
     outline-color: Highlight;
   }
 }

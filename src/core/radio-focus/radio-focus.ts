@@ -1,5 +1,5 @@
 /**
- * radio-focus.ts — `installRadioFocus()` puts `data-uip-focus-ring` on a
+ * radio-focus.ts — `installRadioFocus()` puts `data-cp-focus-ring` on a
  * radio the arrow keys moved focus to when the browser does not match
  * `:focus-visible` there, so the stylesheet still rings it. WebKit's radio
  * arrow handler focuses the next radio without a keyboard focus trigger
@@ -9,17 +9,17 @@
  * @module
  */
 
+import { shared } from "../lifetime/lifetime.js";
+
 export interface RadioFocusOptions {
   /** Ends this call's hold on the listeners. Default: none, held for the
    *  page's life. */
   readonly signal?: AbortSignal;
 }
 
-const ATTR = "data-uip-focus-ring";
+const ATTR = "data-cp-focus-ring";
 const ARROWS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
-let holds = 0;
-let listening: AbortController | null = null;
 let ringed: Element | null = null;
 
 function isRadio(el: unknown): el is HTMLInputElement {
@@ -84,30 +84,15 @@ function listen(signal: AbortSignal): void {
   signal.addEventListener("abort", clear, { once: true });
 }
 
+const page = shared((signal) => {
+  listen(signal);
+});
+
 /**
  * Starts the repair, once for the page however many parts of it call this.
  * The listeners stay until every caller's signal has aborted; a caller with
  * no signal holds them for the page's life.
  */
 export function installRadioFocus(options: RadioFocusOptions = {}): void {
-  const { signal } = options;
-  if (signal?.aborted === true) {
-    return;
-  }
-  holds += 1;
-  if (listening === null) {
-    listening = new AbortController();
-    listen(listening.signal);
-  }
-  signal?.addEventListener(
-    "abort",
-    () => {
-      holds -= 1;
-      if (holds === 0) {
-        listening?.abort();
-        listening = null;
-      }
-    },
-    { once: true },
-  );
+  page.install(options);
 }
