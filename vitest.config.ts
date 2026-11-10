@@ -134,7 +134,7 @@ export default defineConfig({
           include: ["src/system/**/*.test.ts"],
           isolate: true,
           exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
-          browser: chromium(),
+          browser: engines(),
         },
       },
       {
