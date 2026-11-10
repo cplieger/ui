@@ -1,3 +1,18 @@
+/* Breadcrumbs: the levels above the page, muted and small. */
+.cp-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+  margin-block-end: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-crumbs a {
+  color: inherit;
+}
+
 /* A chevron between levels, drawn by CSS so it is never read aloud, and
  * turned to point the reading way. */
 .cp-crumbs > :not(:first-child)::before {

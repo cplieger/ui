@@ -78,3 +78,51 @@
     border: var(--cp-line-w) solid CanvasText;
   }
 }
+
+.cp-batch-count {
+  margin-inline-end: auto;
+  font-weight: var(--cp-weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-table [data-col="actions"] > .cp-button:only-child {
+  inline-size: 100%;
+}
+
+.cp-table [data-col="actions"] {
+  text-align: end;
+  inline-size: 1%;
+  white-space: nowrap;
+}
+
+.cp-table [data-col="actions"] > .cp-toolbar {
+  flex-wrap: nowrap;
+  justify-content: end;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-table tbody tr:hover td {
+      background: var(--cp-fill);
+    }
+
+    /* A plain button in a row shares the row's hover fill and would vanish;
+     * lift it to the raised surface. Only a resting button: one with a
+     * data-state (busy, done) keeps the fill its state gives it. */
+    .cp-table tr:hover .cp-button:not([data-variant], [data-state]) {
+      background: var(--cp-surface-raised);
+    }
+  }
+}
+
+@container (width < 64rem) {
+  .cp-table [data-priority="low"] {
+    display: none;
+  }
+}
+
+@container (width < 44rem) {
+  .cp-table [data-priority="mid"] {
+    display: none;
+  }
+}

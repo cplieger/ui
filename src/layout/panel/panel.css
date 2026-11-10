@@ -43,3 +43,15 @@
   flex: 0 1 auto;
   justify-content: end;
 }
+
+@media (width < 40rem) {
+  .cp-heading-row > .cp-toolbar {
+    flex: 1 1 100%;
+    justify-content: start;
+  }
+
+  .cp-heading-row > .cp-toolbar > .cp-input {
+    flex: 1 1 8rem;
+    min-inline-size: 0;
+  }
+}

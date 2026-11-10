@@ -64,20 +64,6 @@
   }
 }
 
-.cp-crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2);
-  margin-block-end: var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.cp-crumbs a {
-  color: inherit;
-}
-
 @media (forced-colors: active) {
   .cp-nav-item[aria-current] {
     border: var(--cp-line-w) solid CanvasText;

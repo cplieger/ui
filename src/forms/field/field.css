@@ -99,13 +99,3 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
   margin-block-start: 0.0625rem;
 }
-
-/* A list inside a notice, such as an error summary's links to its fields. */
-.cp-notice :where(ul, ol) {
-  margin: var(--cp-space-1) 0 0;
-  padding-inline-start: 1.25em;
-}
-
-.cp-notice :where(a) {
-  color: inherit;
-}

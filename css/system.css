@@ -1158,29 +1158,6 @@
   }
 }
 
-/* A link that is a row's title names a thing, not a sentence: it reads as
- * the row's name, in ink at a medium weight, and takes the accent and its
- * underline under a mouse or the keyboard. A link inside a sentence keeps
- * its colour and underline (WCAG 1.4.1). */
-.cp-cell-stack > a:first-child {
-  color: var(--cp-ink);
-  font-weight: var(--cp-weight-medium);
-  text-decoration-color: transparent;
-}
-
-.cp-cell-stack > a:first-child:focus-visible {
-  color: var(--cp-accent-ink);
-  text-decoration-color: currentcolor;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-cell-stack > a:first-child:hover {
-      color: var(--cp-accent-ink);
-    }
-  }
-}
-
 :where(.cp) :where(code, kbd, samp, pre) {
   font-family: var(--cp-font-mono);
   font-size: 0.92em;
@@ -1298,6 +1275,21 @@
   color: var(--cp-ink-muted);
   background: var(--cp-surface-raised);
   border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
+ * held upright), expanded above. The rail leaves at medium. */
+@media (width < 60rem) {
+  .cp-app {
+    grid-template:
+      "header" auto
+      "main" 1fr
+      "status" auto / minmax(0, 1fr);
+  }
+
+  .cp-rail {
+    display: none;
+  }
 }
 
 /* A page outside the app frame for one short task, such as sign-in, setup,
@@ -1686,21 +1678,6 @@
   padding: 0;
 }
 
-/* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
- * held upright), expanded above. The rail leaves at medium. */
-@media (width < 60rem) {
-  .cp-app {
-    grid-template:
-      "header" auto
-      "main" 1fr
-      "status" auto / minmax(0, 1fr);
-  }
-
-  .cp-rail {
-    display: none;
-  }
-}
-
 /* The app's name and its mark, in the header and on a gate page. */
 .cp-wordmark {
   display: inline-flex;
@@ -1807,6 +1784,13 @@
   }
 }
 
+@media (forced-colors: active) {
+  .cp-nav-item[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* Breadcrumbs: the levels above the page, muted and small. */
 .cp-crumbs {
   display: flex;
   flex-wrap: wrap;
@@ -1819,12 +1803,6 @@
 
 .cp-crumbs a {
   color: inherit;
-}
-
-@media (forced-colors: active) {
-  .cp-nav-item[aria-current] {
-    border: var(--cp-line-w) solid CanvasText;
-  }
 }
 
 /* A chevron between levels, drawn by CSS so it is never read aloud, and
@@ -2063,16 +2041,6 @@ input.cp-input:is([type^="date"], [type="time"]) {
   margin-block-start: 0.0625rem;
 }
 
-/* A list inside a notice, such as an error summary's links to its fields. */
-.cp-notice :where(ul, ol) {
-  margin: var(--cp-space-1) 0 0;
-  padding-inline-start: 1.25em;
-}
-
-.cp-notice :where(a) {
-  color: inherit;
-}
-
 /* Data table: rows are never interactive; actions are buttons in a cell.
  * A column carries its priority, and a narrow container drops low, then mid. */
 .cp-table {
@@ -2154,41 +2122,6 @@ input.cp-input:is([type^="date"], [type="time"]) {
   }
 }
 
-/* Pagination under a table: where the person is, and the way to the pages
- * around it. */
-.cp-pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2) var(--cp-space-3);
-  padding: var(--cp-space-2) var(--cp-space-3);
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.cp-pager > :first-child {
-  margin-inline-end: auto;
-}
-
-@media (forced-colors: active) {
-  .cp-pager {
-    border: var(--cp-line-w) solid CanvasText;
-  }
-}
-
-/* The trigger for the rail's filters, shown only once the rail leaves. */
-.cp-rail-toggle {
-  display: none;
-}
-
-@media (width < 60rem) {
-  .cp-rail-toggle {
-    display: inline-flex;
-  }
-}
-
 .cp-batch-count {
   margin-inline-end: auto;
   font-weight: var(--cp-weight-strong);
@@ -2237,10 +2170,39 @@ input.cp-input:is([type^="date"], [type="time"]) {
   }
 }
 
-.cp-mono {
-  font-family: var(--cp-font-mono);
-  font-size: 0.92em;
-  font-variant-ligatures: none;
+/* Pagination under a table: where the person is, and the way to the pages
+ * around it. */
+.cp-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-pager > :first-child {
+  margin-inline-end: auto;
+}
+
+@media (forced-colors: active) {
+  .cp-pager {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* The trigger for the rail's filters, shown only once the rail leaves. */
+.cp-rail-toggle {
+  display: none;
+}
+
+@media (width < 60rem) {
+  .cp-rail-toggle {
+    display: inline-flex;
+  }
 }
 
 /* One line, cut with an ellipsis; give the full text a title or a tooltip. */
@@ -2272,6 +2234,39 @@ input.cp-input:is([type^="date"], [type="time"]) {
   }
 }
 
+.cp-mono {
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+}
+
+.cp-meta {
+  color: var(--cp-ink-muted);
+}
+
+/* A link that is a row's title names a thing, not a sentence: it reads as
+ * the row's name, in ink at a medium weight, and takes the accent and its
+ * underline under a mouse or the keyboard. A link inside a sentence keeps
+ * its colour and underline (WCAG 1.4.1). */
+.cp-cell-stack > a:first-child {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-cell-stack > a:first-child:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-cell-stack > a:first-child:hover {
+      color: var(--cp-accent-ink);
+    }
+  }
+}
+
 /* Chip: a tone's wash, its glyph and its word; colour is never alone. */
 .cp-chip {
   display: inline-flex;
@@ -2294,13 +2289,6 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 .cp-chip .uip-icon {
   --cp-icon-size: 0.875rem;
-}
-
-.cp-count {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-variant-numeric: tabular-nums;
 }
 
 @media (forced-colors: active) {
@@ -2352,6 +2340,16 @@ input.cp-input:is([type^="date"], [type="time"]) {
       background: var(--cp-tone-2);
     }
   }
+}
+
+/* A list inside a notice, such as an error summary's links to its fields. */
+.cp-notice :where(ul, ol) {
+  margin: var(--cp-space-1) 0 0;
+  padding-inline-start: 1.25em;
+}
+
+.cp-notice :where(a) {
+  color: inherit;
 }
 
 @media (forced-colors: active) {
@@ -2406,12 +2404,6 @@ input.cp-input:is([type^="date"], [type="time"]) {
   justify-content: end;
 }
 
-/* A stack's gap is its children's spacing. */
-.cp-stack > hr,
-.cp-stack > .cp-heading-row {
-  margin-block: 0;
-}
-
 @media (width < 40rem) {
   .cp-heading-row > .cp-toolbar {
     flex: 1 1 100%;
@@ -2424,8 +2416,10 @@ input.cp-input:is([type^="date"], [type="time"]) {
   }
 }
 
-.cp-meta {
-  color: var(--cp-ink-muted);
+/* A stack's gap is its children's spacing. */
+.cp-stack > hr,
+.cp-stack > .cp-heading-row {
+  margin-block: 0;
 }
 
 /* Filter list: a rail section of options with counts. */
@@ -2478,6 +2472,14 @@ input.cp-input:is([type^="date"], [type="time"]) {
   block-size: 0.625rem;
   border-radius: 0.1875rem;
   background: var(--cp-tone-9);
+}
+
+/* A count beside a filter. */
+.cp-count {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (forced-colors: active) {

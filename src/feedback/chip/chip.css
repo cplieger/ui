@@ -22,13 +22,6 @@
   --cp-icon-size: 0.875rem;
 }
 
-.cp-count {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-variant-numeric: tabular-nums;
-}
-
 @media (forced-colors: active) {
   .cp-chip {
     border: var(--cp-line-w) solid CanvasText;

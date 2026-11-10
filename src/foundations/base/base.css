@@ -124,29 +124,6 @@
   }
 }
 
-/* A link that is a row's title names a thing, not a sentence: it reads as
- * the row's name, in ink at a medium weight, and takes the accent and its
- * underline under a mouse or the keyboard. A link inside a sentence keeps
- * its colour and underline (WCAG 1.4.1). */
-.cp-cell-stack > a:first-child {
-  color: var(--cp-ink);
-  font-weight: var(--cp-weight-medium);
-  text-decoration-color: transparent;
-}
-
-.cp-cell-stack > a:first-child:focus-visible {
-  color: var(--cp-accent-ink);
-  text-decoration-color: currentcolor;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-cell-stack > a:first-child:hover {
-      color: var(--cp-accent-ink);
-    }
-  }
-}
-
 :where(.cp) :where(code, kbd, samp, pre) {
   font-family: var(--cp-font-mono);
   font-size: 0.92em;
