@@ -1,0 +1,17 @@
+/* A chevron between levels, drawn by CSS so it is never read aloud, and
+ * turned to point the reading way. */
+.cp-crumbs > :not(:first-child)::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  margin-inline-end: var(--cp-space-2);
+  vertical-align: -0.0625rem;
+  background: currentcolor;
+  opacity: 0.7;
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+}
+
+.cp-crumbs > :not(:first-child):dir(rtl)::before {
+  scale: -1 1;
+}

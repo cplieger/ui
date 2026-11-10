@@ -1,0 +1,44 @@
+/* Notice: the state's wash over its container, a glyph and text. */
+.cp-notice {
+  display: flex;
+  gap: var(--cp-space-3);
+  align-items: start;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-12);
+}
+
+/* An action notice carries a button, so its row is button-height; centre the
+ * icon and text with the button instead of leaving them at the top. A notice
+ * without a button keeps its icon aligned to the first line of its text. */
+.cp-notice:has(> .cp-button) {
+  align-items: center;
+}
+
+/* The text sits left, the button is pushed to the end of the row. */
+.cp-notice > .cp-button {
+  margin-inline-start: auto;
+}
+
+.cp-notice > .uip-icon {
+  color: var(--cp-tone-11);
+  margin-block-start: 0.0625rem;
+}
+
+/* On a tone's wash the grey fill of a plain button disappears into a warm
+ * or cold tint; it rises off the wash instead, edged with the tone's 3:1
+ * step, and its words take the tone's ink. */
+.cp-notice .cp-button:not([data-variant="primary"]) {
+  border: var(--cp-line-w) solid var(--cp-tone-8);
+  background: var(--cp-surface-raised);
+  color: var(--cp-tone-12);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-notice .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover {
+      background: var(--cp-tone-2);
+    }
+  }
+}

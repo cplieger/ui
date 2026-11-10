@@ -1,0 +1,79 @@
+/* Navigation: destinations read as navigation; the current one is a fill
+ * and weight, never an edge. */
+.cp-nav {
+  display: flex;
+  gap: var(--cp-space-1);
+}
+
+/* Positioned, so a label hidden under 60rem stays inside its link and a
+ * nav that scrolls on a phone keeps it there instead of widening the page. */
+.cp-nav-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: inherit;
+  text-decoration: none;
+  font-weight: var(--cp-weight-medium);
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-nav-item[aria-current] {
+  background: var(--cp-shell-current);
+  font-weight: var(--cp-weight-strong);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-nav-item:not([aria-current]):hover {
+      background: var(--cp-shell-hover);
+    }
+  }
+}
+
+/* Below the expanded tier a destination keeps its icon and its name, and
+ * drops only the visible word. */
+@media (width < 60rem) {
+  .cp-nav-label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.cp-header > .cp-toolbar {
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+@media (width < 40rem) {
+  .cp-header {
+    flex-wrap: wrap;
+    row-gap: var(--cp-space-1);
+    padding-block: var(--cp-space-2);
+  }
+
+  .cp-header > .cp-toolbar {
+    justify-content: end;
+  }
+}
+
+.cp-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+  margin-block-end: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-crumbs a {
+  color: inherit;
+}

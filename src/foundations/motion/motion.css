@@ -1,0 +1,24 @@
+/* Motion: enter eases out; exit is shorter and eases in; colour changes are
+ * micro. Reduced motion keeps fades and removes movement. */
+:root {
+  --cp-dur-micro: 90ms;
+  /* A press goes down and comes back fast enough to feel like a click. */
+  --cp-dur-press: 60ms;
+  --cp-dur-short: 160ms;
+  --cp-dur-medium: 240ms;
+  --cp-dur-long: 360ms;
+  --cp-dur-exit: 120ms;
+  --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --cp-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --cp-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  --cp-press-scale: 0.97;
+  --cp-skeleton-dur: 1.6s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cp-press-scale: 1;
+    --cp-dur-medium: var(--cp-dur-short);
+    --cp-dur-long: var(--cp-dur-short);
+  }
+}

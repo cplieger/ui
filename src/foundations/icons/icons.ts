@@ -5,7 +5,7 @@
  * @module
  */
 
-import { el } from "../dom/el.js";
+import { el } from "../../dom/el.js";
 
 /** A Lucide drawing the package ships, one `icons/svg/<name>.svg` file each. */
 export type LucideIconName =

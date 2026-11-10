@@ -1,6 +1,6 @@
 /// <reference types="@vitest/browser-playwright" />
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cdp } from "vitest/browser";
+import { cdp, server } from "vitest/browser";
 
 import { type IconName, createIcons, iconNames } from "./icons.js";
 
@@ -30,8 +30,20 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) {
     cleanup();
   }
-  await cdp().send("Emulation.setEmulatedMedia", { features: [] });
+  // Media emulation goes through Chromium's debugging protocol only.
+  if (server.browser === "chromium") {
+    await cdp().send("Emulation.setEmulatedMedia", { features: [] });
+  }
 });
+
+// A CSS string's escapes, decoded: `\22 ` is a quote, `\5c ` a backslash.
+function decodeCss(s: string): string {
+  return s.replace(
+    /\\([0-9a-fA-F]{1,6}) ?|\\([^0-9a-fA-F])/gu,
+    (_, hex: string | undefined, ch: string | undefined) =>
+      hex === undefined ? (ch ?? "") : String.fromCodePoint(Number.parseInt(hex, 16)),
+  );
+}
 
 function mount(...nodes: Node[]): void {
   const host = document.createElement("div");
@@ -101,9 +113,12 @@ describe("createIcons", () => {
     const span = icon("a");
     mount(span);
     expect(span.style.getPropertyValue("background")).toBe("");
-    expect(span.style.getPropertyValue("--uip-icon")).toBe(
-      String.raw`url("/x\22 ); background: red; (\22 \5c \a .svg")`,
-    );
+    // Engines serialise the escapes differently; what holds everywhere is one
+    // url() whose string decodes back to exactly what the resolver returned.
+    const value = span.style.getPropertyValue("--uip-icon");
+    const inner = /^url\("(.*)"\)$/su.exec(value)?.[1];
+    expect(inner, value).toBeDefined();
+    expect(decodeCss(inner ?? "")).toBe('/x"); background: red; ("\\\n.svg');
   });
 
   it("throws a TypeError unless exactly one of url and base is given", () => {
@@ -159,25 +174,29 @@ describe("the reference rule", () => {
 
   // Under forced-color-adjust: none, Chromium's span inherits the parent's
   // unforced colour; preserve-parent-color is what this test holds to.
-  it("keeps the icon in the forced text colour under forced colours", async () => {
-    styled();
-    await cdp().send("Emulation.setEmulatedMedia", {
-      features: [{ name: "forced-colors", value: "active" }],
-    });
-    expect(matchMedia("(forced-colors: active)").matches).toBe(true);
-    const { button: b, span } = button("rgb(255, 0, 0)");
-    expect(getComputedStyle(b).color).not.toBe("rgb(255, 0, 0)");
-    expect(getComputedStyle(span).backgroundColor).toBe(getComputedStyle(b).color);
-    // A link's forced LinkText differs from the button's ButtonText, so this
-    // holds only where the icon inherits its own parent's forced colour.
-    const link = document.createElement("a");
-    link.href = "#icons";
-    link.style.color = "rgb(255, 0, 0)";
-    const inLink = createIcons<"box">({ url: () => svg }).icon("box");
-    link.append(inLink, "More");
-    mount(link);
-    const linkColor = getComputedStyle(link).color;
-    expect(linkColor).not.toBe(getComputedStyle(b).color);
-    expect(getComputedStyle(inLink).backgroundColor).toBe(linkColor);
-  });
+  // Forced colours are emulated through Chromium's debugging protocol only.
+  it.skipIf(server.browser !== "chromium")(
+    "keeps the icon in the forced text colour under forced colours",
+    async () => {
+      styled();
+      await cdp().send("Emulation.setEmulatedMedia", {
+        features: [{ name: "forced-colors", value: "active" }],
+      });
+      expect(matchMedia("(forced-colors: active)").matches).toBe(true);
+      const { button: b, span } = button("rgb(255, 0, 0)");
+      expect(getComputedStyle(b).color).not.toBe("rgb(255, 0, 0)");
+      expect(getComputedStyle(span).backgroundColor).toBe(getComputedStyle(b).color);
+      // A link's forced LinkText differs from the button's ButtonText, so this
+      // holds only where the icon inherits its own parent's forced colour.
+      const link = document.createElement("a");
+      link.href = "#icons";
+      link.style.color = "rgb(255, 0, 0)";
+      const inLink = createIcons<"box">({ url: () => svg }).icon("box");
+      link.append(inLink, "More");
+      mount(link);
+      const linkColor = getComputedStyle(link).color;
+      expect(linkColor).not.toBe(getComputedStyle(b).color);
+      expect(getComputedStyle(inLink).backgroundColor).toBe(linkColor);
+    },
+  );
 });

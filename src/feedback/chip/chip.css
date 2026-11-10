@@ -1,0 +1,30 @@
+/* Chip: a tone's wash, its glyph and its word; colour is never alone. */
+.cp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-block-size: 1.375rem;
+  padding-inline: var(--cp-space-2);
+  border-radius: var(--cp-radius-chip);
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+  white-space: nowrap;
+}
+
+.cp-header .cp-chip[data-tone="neutral"] {
+  background: var(--cp-shell-hover);
+  color: var(--cp-shell-ink);
+}
+
+.cp-chip .uip-icon {
+  --cp-icon-size: 0.875rem;
+}
+
+.cp-count {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}

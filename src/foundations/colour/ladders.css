@@ -1,0 +1,737 @@
+/* colour:start */
+/* Written by npm run system:sync from src/system/system-css.node.test.ts. */
+:root {
+  --cp-solid-hover-mix: 12%;
+  --cp-brand-l: 54.8%;
+  --cp-shell-dark-l: 34%;
+  --cp-shell-dark-k: 0.7;
+  --cp-shell-ink-l: 96%;
+  --cp-shell-ink-k: 0.15;
+  --cp-neutral-1: light-dark(
+    oklch(99.3% calc(var(--cp-neutral-c) * 0.35) var(--cp-neutral-h)),
+    oklch(18.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-2: light-dark(
+    oklch(97.5% calc(var(--cp-neutral-c) * 0.55) var(--cp-neutral-h)),
+    oklch(21.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-3: light-dark(
+    oklch(95.5% calc(var(--cp-neutral-c) * 0.75) var(--cp-neutral-h)),
+    oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-4: light-dark(
+    oklch(93.2% calc(var(--cp-neutral-c) * 0.9) var(--cp-neutral-h)),
+    oklch(28.2% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-5: light-dark(
+    oklch(90.8% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(31.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-6: light-dark(
+    oklch(88% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(35% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-7: light-dark(
+    oklch(82% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(42% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-8: light-dark(
+    oklch(62% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-neutral-h) - 189) * 1deg)), 4))
+        calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)
+    ),
+    oklch(64% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-10: color-mix(
+    in oklab,
+    var(--cp-neutral-9),
+    contrast-color(contrast-color(var(--cp-neutral-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-neutral-11: light-dark(
+    oklch(47.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(79% calc(var(--cp-neutral-c) * 0.6) var(--cp-neutral-h))
+  );
+  --cp-neutral-12: light-dark(
+    oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(94.5% calc(var(--cp-neutral-c) * 0.3) var(--cp-neutral-h))
+  );
+  --cp-neutral-on: contrast-color(var(--cp-neutral-9));
+  --cp-accent-1: light-dark(
+    oklch(99.3% calc(var(--cp-accent-c) * 0.04) var(--cp-accent-h)),
+    oklch(18.5% calc(var(--cp-accent-c) * 0.1) var(--cp-accent-h))
+  );
+  --cp-accent-2: light-dark(
+    oklch(97.5% calc(var(--cp-accent-c) * 0.08) var(--cp-accent-h)),
+    oklch(21.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h))
+  );
+  --cp-accent-3: light-dark(
+    oklch(95.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h)),
+    oklch(25% calc(var(--cp-accent-c) * 0.17) var(--cp-accent-h))
+  );
+  --cp-accent-4: light-dark(
+    oklch(93.2% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h)),
+    oklch(28.2% calc(var(--cp-accent-c) * 0.21) var(--cp-accent-h))
+  );
+  --cp-accent-5: light-dark(
+    oklch(90.8% calc(var(--cp-accent-c) * 0.24) var(--cp-accent-h)),
+    oklch(31.5% calc(var(--cp-accent-c) * 0.26) var(--cp-accent-h))
+  );
+  --cp-accent-6: light-dark(
+    oklch(88% calc(var(--cp-accent-c) * 0.3) var(--cp-accent-h)),
+    oklch(35% calc(var(--cp-accent-c) * 0.32) var(--cp-accent-h))
+  );
+  --cp-accent-7: light-dark(
+    oklch(82% calc(var(--cp-accent-c) * 0.4) var(--cp-accent-h)),
+    oklch(42% calc(var(--cp-accent-c) * 0.42) var(--cp-accent-h))
+  );
+  --cp-accent-8: light-dark(
+    oklch(62% calc(var(--cp-accent-c) * 0.7) var(--cp-accent-h)),
+    oklch(56% calc(var(--cp-accent-c) * 0.65) var(--cp-accent-h))
+  );
+  --cp-accent-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-accent-h) - 189) * 1deg)), 4))
+        calc(var(--cp-accent-c) * 1) var(--cp-accent-h)
+    ),
+    oklch(64% calc(var(--cp-accent-c) * 1) var(--cp-accent-h))
+  );
+  --cp-accent-10: color-mix(
+    in oklab,
+    var(--cp-accent-9),
+    contrast-color(contrast-color(var(--cp-accent-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-accent-11: light-dark(
+    oklch(47.5% calc(var(--cp-accent-c) * 0.85) var(--cp-accent-h)),
+    oklch(79% calc(var(--cp-accent-c) * 0.55) var(--cp-accent-h))
+  );
+  --cp-accent-12: light-dark(
+    oklch(25% calc(var(--cp-accent-c) * 0.35) var(--cp-accent-h)),
+    oklch(94.5% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h))
+  );
+  --cp-accent-on: contrast-color(var(--cp-accent-9));
+  --cp-danger-1: light-dark(
+    oklch(99.3% calc(var(--cp-danger-c) * 0.04) var(--cp-danger-h)),
+    oklch(18.5% calc(var(--cp-danger-c) * 0.1) var(--cp-danger-h))
+  );
+  --cp-danger-2: light-dark(
+    oklch(97.5% calc(var(--cp-danger-c) * 0.08) var(--cp-danger-h)),
+    oklch(21.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h))
+  );
+  --cp-danger-3: light-dark(
+    oklch(95.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h)),
+    oklch(25% calc(var(--cp-danger-c) * 0.17) var(--cp-danger-h))
+  );
+  --cp-danger-4: light-dark(
+    oklch(93.2% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h)),
+    oklch(28.2% calc(var(--cp-danger-c) * 0.21) var(--cp-danger-h))
+  );
+  --cp-danger-5: light-dark(
+    oklch(90.8% calc(var(--cp-danger-c) * 0.24) var(--cp-danger-h)),
+    oklch(31.5% calc(var(--cp-danger-c) * 0.26) var(--cp-danger-h))
+  );
+  --cp-danger-6: light-dark(
+    oklch(88% calc(var(--cp-danger-c) * 0.3) var(--cp-danger-h)),
+    oklch(35% calc(var(--cp-danger-c) * 0.32) var(--cp-danger-h))
+  );
+  --cp-danger-7: light-dark(
+    oklch(82% calc(var(--cp-danger-c) * 0.4) var(--cp-danger-h)),
+    oklch(42% calc(var(--cp-danger-c) * 0.42) var(--cp-danger-h))
+  );
+  --cp-danger-8: light-dark(
+    oklch(62% calc(var(--cp-danger-c) * 0.7) var(--cp-danger-h)),
+    oklch(56% calc(var(--cp-danger-c) * 0.65) var(--cp-danger-h))
+  );
+  --cp-danger-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-danger-h) - 189) * 1deg)), 4))
+        calc(var(--cp-danger-c) * 1) var(--cp-danger-h)
+    ),
+    oklch(64% calc(var(--cp-danger-c) * 1) var(--cp-danger-h))
+  );
+  --cp-danger-10: color-mix(
+    in oklab,
+    var(--cp-danger-9),
+    contrast-color(contrast-color(var(--cp-danger-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-danger-11: light-dark(
+    oklch(47.5% calc(var(--cp-danger-c) * 0.85) var(--cp-danger-h)),
+    oklch(79% calc(var(--cp-danger-c) * 0.55) var(--cp-danger-h))
+  );
+  --cp-danger-12: light-dark(
+    oklch(25% calc(var(--cp-danger-c) * 0.35) var(--cp-danger-h)),
+    oklch(94.5% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h))
+  );
+  --cp-danger-on: contrast-color(var(--cp-danger-9));
+  --cp-warning-1: light-dark(
+    oklch(99.3% calc(var(--cp-warning-c) * 0.04) var(--cp-warning-h)),
+    oklch(18.5% calc(var(--cp-warning-c) * 0.1) var(--cp-warning-h))
+  );
+  --cp-warning-2: light-dark(
+    oklch(97.5% calc(var(--cp-warning-c) * 0.08) var(--cp-warning-h)),
+    oklch(21.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h))
+  );
+  --cp-warning-3: light-dark(
+    oklch(95.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h)),
+    oklch(25% calc(var(--cp-warning-c) * 0.17) var(--cp-warning-h))
+  );
+  --cp-warning-4: light-dark(
+    oklch(93.2% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h)),
+    oklch(28.2% calc(var(--cp-warning-c) * 0.21) var(--cp-warning-h))
+  );
+  --cp-warning-5: light-dark(
+    oklch(90.8% calc(var(--cp-warning-c) * 0.24) var(--cp-warning-h)),
+    oklch(31.5% calc(var(--cp-warning-c) * 0.26) var(--cp-warning-h))
+  );
+  --cp-warning-6: light-dark(
+    oklch(88% calc(var(--cp-warning-c) * 0.3) var(--cp-warning-h)),
+    oklch(35% calc(var(--cp-warning-c) * 0.32) var(--cp-warning-h))
+  );
+  --cp-warning-7: light-dark(
+    oklch(82% calc(var(--cp-warning-c) * 0.4) var(--cp-warning-h)),
+    oklch(42% calc(var(--cp-warning-c) * 0.42) var(--cp-warning-h))
+  );
+  --cp-warning-8: light-dark(
+    oklch(62% calc(var(--cp-warning-c) * 0.7) var(--cp-warning-h)),
+    oklch(56% calc(var(--cp-warning-c) * 0.65) var(--cp-warning-h))
+  );
+  --cp-warning-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-warning-h) - 189) * 1deg)), 4))
+        calc(var(--cp-warning-c) * 1) var(--cp-warning-h)
+    ),
+    oklch(64% calc(var(--cp-warning-c) * 1) var(--cp-warning-h))
+  );
+  --cp-warning-10: color-mix(
+    in oklab,
+    var(--cp-warning-9),
+    contrast-color(contrast-color(var(--cp-warning-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-warning-11: light-dark(
+    oklch(47.5% calc(var(--cp-warning-c) * 0.85) var(--cp-warning-h)),
+    oklch(79% calc(var(--cp-warning-c) * 0.55) var(--cp-warning-h))
+  );
+  --cp-warning-12: light-dark(
+    oklch(25% calc(var(--cp-warning-c) * 0.35) var(--cp-warning-h)),
+    oklch(94.5% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h))
+  );
+  --cp-warning-on: contrast-color(var(--cp-warning-9));
+  --cp-success-1: light-dark(
+    oklch(99.3% calc(var(--cp-success-c) * 0.04) var(--cp-success-h)),
+    oklch(18.5% calc(var(--cp-success-c) * 0.1) var(--cp-success-h))
+  );
+  --cp-success-2: light-dark(
+    oklch(97.5% calc(var(--cp-success-c) * 0.08) var(--cp-success-h)),
+    oklch(21.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h))
+  );
+  --cp-success-3: light-dark(
+    oklch(95.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h)),
+    oklch(25% calc(var(--cp-success-c) * 0.17) var(--cp-success-h))
+  );
+  --cp-success-4: light-dark(
+    oklch(93.2% calc(var(--cp-success-c) * 0.18) var(--cp-success-h)),
+    oklch(28.2% calc(var(--cp-success-c) * 0.21) var(--cp-success-h))
+  );
+  --cp-success-5: light-dark(
+    oklch(90.8% calc(var(--cp-success-c) * 0.24) var(--cp-success-h)),
+    oklch(31.5% calc(var(--cp-success-c) * 0.26) var(--cp-success-h))
+  );
+  --cp-success-6: light-dark(
+    oklch(88% calc(var(--cp-success-c) * 0.3) var(--cp-success-h)),
+    oklch(35% calc(var(--cp-success-c) * 0.32) var(--cp-success-h))
+  );
+  --cp-success-7: light-dark(
+    oklch(82% calc(var(--cp-success-c) * 0.4) var(--cp-success-h)),
+    oklch(42% calc(var(--cp-success-c) * 0.42) var(--cp-success-h))
+  );
+  --cp-success-8: light-dark(
+    oklch(62% calc(var(--cp-success-c) * 0.7) var(--cp-success-h)),
+    oklch(56% calc(var(--cp-success-c) * 0.65) var(--cp-success-h))
+  );
+  --cp-success-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-success-h) - 189) * 1deg)), 4))
+        calc(var(--cp-success-c) * 1) var(--cp-success-h)
+    ),
+    oklch(64% calc(var(--cp-success-c) * 1) var(--cp-success-h))
+  );
+  --cp-success-10: color-mix(
+    in oklab,
+    var(--cp-success-9),
+    contrast-color(contrast-color(var(--cp-success-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-success-11: light-dark(
+    oklch(47.5% calc(var(--cp-success-c) * 0.85) var(--cp-success-h)),
+    oklch(79% calc(var(--cp-success-c) * 0.55) var(--cp-success-h))
+  );
+  --cp-success-12: light-dark(
+    oklch(25% calc(var(--cp-success-c) * 0.35) var(--cp-success-h)),
+    oklch(94.5% calc(var(--cp-success-c) * 0.18) var(--cp-success-h))
+  );
+  --cp-success-on: contrast-color(var(--cp-success-9));
+}
+:root,
+[data-tone] {
+  --cp-tone-1: light-dark(
+    oklch(99.3% calc(var(--cp-tone-c) * 0.04) var(--cp-tone-h)),
+    oklch(18.5% calc(var(--cp-tone-c) * 0.1) var(--cp-tone-h))
+  );
+  --cp-tone-2: light-dark(
+    oklch(97.5% calc(var(--cp-tone-c) * 0.08) var(--cp-tone-h)),
+    oklch(21.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h))
+  );
+  --cp-tone-3: light-dark(
+    oklch(95.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h)),
+    oklch(25% calc(var(--cp-tone-c) * 0.17) var(--cp-tone-h))
+  );
+  --cp-tone-4: light-dark(
+    oklch(93.2% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h)),
+    oklch(28.2% calc(var(--cp-tone-c) * 0.21) var(--cp-tone-h))
+  );
+  --cp-tone-5: light-dark(
+    oklch(90.8% calc(var(--cp-tone-c) * 0.24) var(--cp-tone-h)),
+    oklch(31.5% calc(var(--cp-tone-c) * 0.26) var(--cp-tone-h))
+  );
+  --cp-tone-6: light-dark(
+    oklch(88% calc(var(--cp-tone-c) * 0.3) var(--cp-tone-h)),
+    oklch(35% calc(var(--cp-tone-c) * 0.32) var(--cp-tone-h))
+  );
+  --cp-tone-7: light-dark(
+    oklch(82% calc(var(--cp-tone-c) * 0.4) var(--cp-tone-h)),
+    oklch(42% calc(var(--cp-tone-c) * 0.42) var(--cp-tone-h))
+  );
+  --cp-tone-8: light-dark(
+    oklch(62% calc(var(--cp-tone-c) * 0.7) var(--cp-tone-h)),
+    oklch(56% calc(var(--cp-tone-c) * 0.65) var(--cp-tone-h))
+  );
+  --cp-tone-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-tone-h) - 189) * 1deg)), 4))
+        calc(var(--cp-tone-c) * 1) var(--cp-tone-h)
+    ),
+    oklch(64% calc(var(--cp-tone-c) * 1) var(--cp-tone-h))
+  );
+  --cp-tone-10: color-mix(
+    in oklab,
+    var(--cp-tone-9),
+    contrast-color(contrast-color(var(--cp-tone-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-tone-11: light-dark(
+    oklch(47.5% calc(var(--cp-tone-c) * 0.85) var(--cp-tone-h)),
+    oklch(79% calc(var(--cp-tone-c) * 0.55) var(--cp-tone-h))
+  );
+  --cp-tone-12: light-dark(
+    oklch(25% calc(var(--cp-tone-c) * 0.35) var(--cp-tone-h)),
+    oklch(94.5% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h))
+  );
+  --cp-tone-on: contrast-color(var(--cp-tone-9));
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --cp-brand-l: 43%;
+    --cp-shell-dark-l: 30%;
+    --cp-shell-dark-k: 0.7;
+    --cp-shell-ink-l: 98.5%;
+    --cp-shell-ink-k: 0.06;
+    --cp-neutral-1: light-dark(
+      oklch(99.3% calc(var(--cp-neutral-c) * 0.35) var(--cp-neutral-h)),
+      oklch(18.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-2: light-dark(
+      oklch(97.5% calc(var(--cp-neutral-c) * 0.55) var(--cp-neutral-h)),
+      oklch(21.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-3: light-dark(
+      oklch(95.5% calc(var(--cp-neutral-c) * 0.75) var(--cp-neutral-h)),
+      oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-4: light-dark(
+      oklch(93.2% calc(var(--cp-neutral-c) * 0.9) var(--cp-neutral-h)),
+      oklch(28.2% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-5: light-dark(
+      oklch(90.8% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(31.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-6: light-dark(
+      oklch(86% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(42% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-7: light-dark(
+      oklch(70% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-8: light-dark(
+      oklch(50% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(70% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-9: light-dark(
+      oklch(43% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(72% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-10: color-mix(
+      in oklab,
+      var(--cp-neutral-9),
+      contrast-color(contrast-color(var(--cp-neutral-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-neutral-11: light-dark(
+      oklch(38% calc(var(--cp-neutral-c) * 0.4) var(--cp-neutral-h)),
+      oklch(88% calc(var(--cp-neutral-c) * 0.24) var(--cp-neutral-h))
+    );
+    --cp-neutral-12: light-dark(
+      oklch(18% calc(var(--cp-neutral-c) * 0.4) var(--cp-neutral-h)),
+      oklch(96.5% calc(var(--cp-neutral-c) * 0.12) var(--cp-neutral-h))
+    );
+    --cp-neutral-on: contrast-color(var(--cp-neutral-9));
+    --cp-accent-1: light-dark(
+      oklch(99.3% calc(var(--cp-accent-c) * 0.04) var(--cp-accent-h)),
+      oklch(18.5% calc(var(--cp-accent-c) * 0.1) var(--cp-accent-h))
+    );
+    --cp-accent-2: light-dark(
+      oklch(97.5% calc(var(--cp-accent-c) * 0.08) var(--cp-accent-h)),
+      oklch(21.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h))
+    );
+    --cp-accent-3: light-dark(
+      oklch(95.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h)),
+      oklch(25% calc(var(--cp-accent-c) * 0.17) var(--cp-accent-h))
+    );
+    --cp-accent-4: light-dark(
+      oklch(93.2% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h)),
+      oklch(28.2% calc(var(--cp-accent-c) * 0.21) var(--cp-accent-h))
+    );
+    --cp-accent-5: light-dark(
+      oklch(90.8% calc(var(--cp-accent-c) * 0.24) var(--cp-accent-h)),
+      oklch(31.5% calc(var(--cp-accent-c) * 0.26) var(--cp-accent-h))
+    );
+    --cp-accent-6: light-dark(
+      oklch(86% calc(var(--cp-accent-c) * 0.3) var(--cp-accent-h)),
+      oklch(42% calc(var(--cp-accent-c) * 0.32) var(--cp-accent-h))
+    );
+    --cp-accent-7: light-dark(
+      oklch(70% calc(var(--cp-accent-c) * 0.4) var(--cp-accent-h)),
+      oklch(56% calc(var(--cp-accent-c) * 0.42) var(--cp-accent-h))
+    );
+    --cp-accent-8: light-dark(
+      oklch(50% calc(var(--cp-accent-c) * 0.7) var(--cp-accent-h)),
+      oklch(70% calc(var(--cp-accent-c) * 0.65) var(--cp-accent-h))
+    );
+    --cp-accent-9: light-dark(
+      oklch(43% calc(var(--cp-accent-c) * 1) var(--cp-accent-h)),
+      oklch(72% calc(var(--cp-accent-c) * 1) var(--cp-accent-h))
+    );
+    --cp-accent-10: color-mix(
+      in oklab,
+      var(--cp-accent-9),
+      contrast-color(contrast-color(var(--cp-accent-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-accent-11: light-dark(
+      oklch(38% calc(var(--cp-accent-c) * 0.34) var(--cp-accent-h)),
+      oklch(88% calc(var(--cp-accent-c) * 0.22) var(--cp-accent-h))
+    );
+    --cp-accent-12: light-dark(
+      oklch(18% calc(var(--cp-accent-c) * 0.14) var(--cp-accent-h)),
+      oklch(96.5% calc(var(--cp-accent-c) * 0.072) var(--cp-accent-h))
+    );
+    --cp-accent-on: contrast-color(var(--cp-accent-9));
+    --cp-danger-1: light-dark(
+      oklch(99.3% calc(var(--cp-danger-c) * 0.04) var(--cp-danger-h)),
+      oklch(18.5% calc(var(--cp-danger-c) * 0.1) var(--cp-danger-h))
+    );
+    --cp-danger-2: light-dark(
+      oklch(97.5% calc(var(--cp-danger-c) * 0.08) var(--cp-danger-h)),
+      oklch(21.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h))
+    );
+    --cp-danger-3: light-dark(
+      oklch(95.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h)),
+      oklch(25% calc(var(--cp-danger-c) * 0.17) var(--cp-danger-h))
+    );
+    --cp-danger-4: light-dark(
+      oklch(93.2% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h)),
+      oklch(28.2% calc(var(--cp-danger-c) * 0.21) var(--cp-danger-h))
+    );
+    --cp-danger-5: light-dark(
+      oklch(90.8% calc(var(--cp-danger-c) * 0.24) var(--cp-danger-h)),
+      oklch(31.5% calc(var(--cp-danger-c) * 0.26) var(--cp-danger-h))
+    );
+    --cp-danger-6: light-dark(
+      oklch(86% calc(var(--cp-danger-c) * 0.3) var(--cp-danger-h)),
+      oklch(42% calc(var(--cp-danger-c) * 0.32) var(--cp-danger-h))
+    );
+    --cp-danger-7: light-dark(
+      oklch(70% calc(var(--cp-danger-c) * 0.4) var(--cp-danger-h)),
+      oklch(56% calc(var(--cp-danger-c) * 0.42) var(--cp-danger-h))
+    );
+    --cp-danger-8: light-dark(
+      oklch(50% calc(var(--cp-danger-c) * 0.7) var(--cp-danger-h)),
+      oklch(70% calc(var(--cp-danger-c) * 0.65) var(--cp-danger-h))
+    );
+    --cp-danger-9: light-dark(
+      oklch(43% calc(var(--cp-danger-c) * 1) var(--cp-danger-h)),
+      oklch(72% calc(var(--cp-danger-c) * 1) var(--cp-danger-h))
+    );
+    --cp-danger-10: color-mix(
+      in oklab,
+      var(--cp-danger-9),
+      contrast-color(contrast-color(var(--cp-danger-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-danger-11: light-dark(
+      oklch(38% calc(var(--cp-danger-c) * 0.34) var(--cp-danger-h)),
+      oklch(88% calc(var(--cp-danger-c) * 0.22) var(--cp-danger-h))
+    );
+    --cp-danger-12: light-dark(
+      oklch(18% calc(var(--cp-danger-c) * 0.14) var(--cp-danger-h)),
+      oklch(96.5% calc(var(--cp-danger-c) * 0.072) var(--cp-danger-h))
+    );
+    --cp-danger-on: contrast-color(var(--cp-danger-9));
+    --cp-warning-1: light-dark(
+      oklch(99.3% calc(var(--cp-warning-c) * 0.04) var(--cp-warning-h)),
+      oklch(18.5% calc(var(--cp-warning-c) * 0.1) var(--cp-warning-h))
+    );
+    --cp-warning-2: light-dark(
+      oklch(97.5% calc(var(--cp-warning-c) * 0.08) var(--cp-warning-h)),
+      oklch(21.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h))
+    );
+    --cp-warning-3: light-dark(
+      oklch(95.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h)),
+      oklch(25% calc(var(--cp-warning-c) * 0.17) var(--cp-warning-h))
+    );
+    --cp-warning-4: light-dark(
+      oklch(93.2% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h)),
+      oklch(28.2% calc(var(--cp-warning-c) * 0.21) var(--cp-warning-h))
+    );
+    --cp-warning-5: light-dark(
+      oklch(90.8% calc(var(--cp-warning-c) * 0.24) var(--cp-warning-h)),
+      oklch(31.5% calc(var(--cp-warning-c) * 0.26) var(--cp-warning-h))
+    );
+    --cp-warning-6: light-dark(
+      oklch(86% calc(var(--cp-warning-c) * 0.3) var(--cp-warning-h)),
+      oklch(42% calc(var(--cp-warning-c) * 0.32) var(--cp-warning-h))
+    );
+    --cp-warning-7: light-dark(
+      oklch(70% calc(var(--cp-warning-c) * 0.4) var(--cp-warning-h)),
+      oklch(56% calc(var(--cp-warning-c) * 0.42) var(--cp-warning-h))
+    );
+    --cp-warning-8: light-dark(
+      oklch(50% calc(var(--cp-warning-c) * 0.7) var(--cp-warning-h)),
+      oklch(70% calc(var(--cp-warning-c) * 0.65) var(--cp-warning-h))
+    );
+    --cp-warning-9: light-dark(
+      oklch(43% calc(var(--cp-warning-c) * 1) var(--cp-warning-h)),
+      oklch(72% calc(var(--cp-warning-c) * 1) var(--cp-warning-h))
+    );
+    --cp-warning-10: color-mix(
+      in oklab,
+      var(--cp-warning-9),
+      contrast-color(contrast-color(var(--cp-warning-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-warning-11: light-dark(
+      oklch(38% calc(var(--cp-warning-c) * 0.34) var(--cp-warning-h)),
+      oklch(88% calc(var(--cp-warning-c) * 0.22) var(--cp-warning-h))
+    );
+    --cp-warning-12: light-dark(
+      oklch(18% calc(var(--cp-warning-c) * 0.14) var(--cp-warning-h)),
+      oklch(96.5% calc(var(--cp-warning-c) * 0.072) var(--cp-warning-h))
+    );
+    --cp-warning-on: contrast-color(var(--cp-warning-9));
+    --cp-success-1: light-dark(
+      oklch(99.3% calc(var(--cp-success-c) * 0.04) var(--cp-success-h)),
+      oklch(18.5% calc(var(--cp-success-c) * 0.1) var(--cp-success-h))
+    );
+    --cp-success-2: light-dark(
+      oklch(97.5% calc(var(--cp-success-c) * 0.08) var(--cp-success-h)),
+      oklch(21.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h))
+    );
+    --cp-success-3: light-dark(
+      oklch(95.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h)),
+      oklch(25% calc(var(--cp-success-c) * 0.17) var(--cp-success-h))
+    );
+    --cp-success-4: light-dark(
+      oklch(93.2% calc(var(--cp-success-c) * 0.18) var(--cp-success-h)),
+      oklch(28.2% calc(var(--cp-success-c) * 0.21) var(--cp-success-h))
+    );
+    --cp-success-5: light-dark(
+      oklch(90.8% calc(var(--cp-success-c) * 0.24) var(--cp-success-h)),
+      oklch(31.5% calc(var(--cp-success-c) * 0.26) var(--cp-success-h))
+    );
+    --cp-success-6: light-dark(
+      oklch(86% calc(var(--cp-success-c) * 0.3) var(--cp-success-h)),
+      oklch(42% calc(var(--cp-success-c) * 0.32) var(--cp-success-h))
+    );
+    --cp-success-7: light-dark(
+      oklch(70% calc(var(--cp-success-c) * 0.4) var(--cp-success-h)),
+      oklch(56% calc(var(--cp-success-c) * 0.42) var(--cp-success-h))
+    );
+    --cp-success-8: light-dark(
+      oklch(50% calc(var(--cp-success-c) * 0.7) var(--cp-success-h)),
+      oklch(70% calc(var(--cp-success-c) * 0.65) var(--cp-success-h))
+    );
+    --cp-success-9: light-dark(
+      oklch(43% calc(var(--cp-success-c) * 1) var(--cp-success-h)),
+      oklch(72% calc(var(--cp-success-c) * 1) var(--cp-success-h))
+    );
+    --cp-success-10: color-mix(
+      in oklab,
+      var(--cp-success-9),
+      contrast-color(contrast-color(var(--cp-success-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-success-11: light-dark(
+      oklch(38% calc(var(--cp-success-c) * 0.34) var(--cp-success-h)),
+      oklch(88% calc(var(--cp-success-c) * 0.22) var(--cp-success-h))
+    );
+    --cp-success-12: light-dark(
+      oklch(18% calc(var(--cp-success-c) * 0.14) var(--cp-success-h)),
+      oklch(96.5% calc(var(--cp-success-c) * 0.072) var(--cp-success-h))
+    );
+    --cp-success-on: contrast-color(var(--cp-success-9));
+  }
+  :root,
+  [data-tone] {
+    --cp-tone-1: light-dark(
+      oklch(99.3% calc(var(--cp-tone-c) * 0.04) var(--cp-tone-h)),
+      oklch(18.5% calc(var(--cp-tone-c) * 0.1) var(--cp-tone-h))
+    );
+    --cp-tone-2: light-dark(
+      oklch(97.5% calc(var(--cp-tone-c) * 0.08) var(--cp-tone-h)),
+      oklch(21.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h))
+    );
+    --cp-tone-3: light-dark(
+      oklch(95.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h)),
+      oklch(25% calc(var(--cp-tone-c) * 0.17) var(--cp-tone-h))
+    );
+    --cp-tone-4: light-dark(
+      oklch(93.2% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h)),
+      oklch(28.2% calc(var(--cp-tone-c) * 0.21) var(--cp-tone-h))
+    );
+    --cp-tone-5: light-dark(
+      oklch(90.8% calc(var(--cp-tone-c) * 0.24) var(--cp-tone-h)),
+      oklch(31.5% calc(var(--cp-tone-c) * 0.26) var(--cp-tone-h))
+    );
+    --cp-tone-6: light-dark(
+      oklch(86% calc(var(--cp-tone-c) * 0.3) var(--cp-tone-h)),
+      oklch(42% calc(var(--cp-tone-c) * 0.32) var(--cp-tone-h))
+    );
+    --cp-tone-7: light-dark(
+      oklch(70% calc(var(--cp-tone-c) * 0.4) var(--cp-tone-h)),
+      oklch(56% calc(var(--cp-tone-c) * 0.42) var(--cp-tone-h))
+    );
+    --cp-tone-8: light-dark(
+      oklch(50% calc(var(--cp-tone-c) * 0.7) var(--cp-tone-h)),
+      oklch(70% calc(var(--cp-tone-c) * 0.65) var(--cp-tone-h))
+    );
+    --cp-tone-9: light-dark(
+      oklch(43% calc(var(--cp-tone-c) * 1) var(--cp-tone-h)),
+      oklch(72% calc(var(--cp-tone-c) * 1) var(--cp-tone-h))
+    );
+    --cp-tone-10: color-mix(
+      in oklab,
+      var(--cp-tone-9),
+      contrast-color(contrast-color(var(--cp-tone-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-tone-11: light-dark(
+      oklch(38% calc(var(--cp-tone-c) * 0.34) var(--cp-tone-h)),
+      oklch(88% calc(var(--cp-tone-c) * 0.22) var(--cp-tone-h))
+    );
+    --cp-tone-12: light-dark(
+      oklch(18% calc(var(--cp-tone-c) * 0.14) var(--cp-tone-h)),
+      oklch(96.5% calc(var(--cp-tone-c) * 0.072) var(--cp-tone-h))
+    );
+    --cp-tone-on: contrast-color(var(--cp-tone-9));
+  }
+}
+
+@property --cp-harmony-2-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-harmony-3-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+:root {
+  --cp-harmony-2-h: calc(
+    mod(calc(var(--cp-accent-h) + 150), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 150), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 150), 360))
+  );
+  --cp-harmony-3-h: calc(
+    mod(calc(var(--cp-accent-h) + 210), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 210), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 210), 360))
+  );
+  --cp-harmony-1: var(--cp-accent-9);
+  --cp-harmony-2: light-dark(
+    oklch(
+      max(0.56, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 3))
+        )
+        var(--cp-harmony-2-h)
+    ),
+    oklch(
+      max(0.64, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 4))
+        )
+        var(--cp-harmony-2-h)
+    )
+  );
+  --cp-harmony-3: light-dark(
+    oklch(
+      max(0.56, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 3))
+        )
+        var(--cp-harmony-3-h)
+    ),
+    oklch(
+      max(0.64, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 4))
+        )
+        var(--cp-harmony-3-h)
+    )
+  );
+  --cp-harmony-4: light-dark(
+    oklch(
+      70%
+        min(
+          var(--cp-accent-c),
+          calc(0.154 - 0.034 * pow(max(0, cos((var(--cp-accent-h) - 200) * 1deg)), 8))
+        )
+        var(--cp-accent-h)
+    ),
+    oklch(
+      78%
+        min(
+          var(--cp-accent-c),
+          calc(0.131 - 0.02 * pow(max(0, cos((var(--cp-accent-h) - 265) * 1deg)), 8))
+        )
+        var(--cp-accent-h)
+    )
+  );
+  --cp-harmony-1-on: contrast-color(var(--cp-harmony-1));
+  --cp-harmony-2-on: contrast-color(var(--cp-harmony-2));
+  --cp-harmony-3-on: contrast-color(var(--cp-harmony-3));
+  --cp-harmony-4-on: contrast-color(var(--cp-harmony-4));
+}
+/* colour:end */

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { iconNames, ownIconNames } from "./icons.js";
 
-const ROOT = resolve(import.meta.dirname, "../..");
+const ROOT = resolve(import.meta.dirname, "../../..");
 const SHIPPED = join(ROOT, "icons", "svg");
 const require = createRequire(import.meta.url);
 const PINNED = dirname(require.resolve("lucide-static/package.json"));
@@ -152,13 +152,13 @@ describe("the shipped icon set", () => {
       exports: Record<string, string>;
     };
     expect(pkg.files).toContain("icons/");
-    expect(pkg.exports["./icons"]).toBe("./src/primitives/icons.ts");
+    expect(pkg.exports["./icons"]).toBe("./src/foundations/icons/icons.ts");
     expect(pkg.exports["./icons/svg/*"]).toBe("./icons/svg/*");
     const jsr = JSON.parse(await readFile(join(ROOT, "jsr.json"), "utf8")) as {
       exports: Record<string, string>;
       publish: { include: string[] };
     };
-    expect(jsr.exports["./icons"]).toBe("./src/primitives/icons.ts");
+    expect(jsr.exports["./icons"]).toBe("./src/foundations/icons/icons.ts");
     expect(jsr.publish.include).toEqual(
       expect.arrayContaining(["icons/svg/*.svg", "icons/LICENSE-lucide"]),
     );

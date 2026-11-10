@@ -1,0 +1,111 @@
+/* Fields: the boundary is the 3:1 step, so a field is findable without its
+ * label. Inputs stay 16px on touch so iOS does not zoom. */
+/* One column no child can widen: a row of a field and a button shrinks
+ * the field instead of pushing past a phone's width. */
+.cp-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-1);
+}
+
+.cp-label {
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-help {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-input {
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+  font: inherit;
+  font-size: max(16px, var(--cp-text-ui));
+}
+
+:root[data-pointer="fine"] .cp-input {
+  font-size: var(--cp-text-ui);
+}
+
+/* A date or time field is exactly one control tall: its edit fields and
+ * picker button size themselves per engine and platform, so a minimum alone
+ * lets it outgrow the controls beside it. */
+input.cp-input:is([type^="date"], [type="time"]) {
+  block-size: var(--cp-control-h);
+  padding-block: 0;
+}
+
+.cp-input:user-invalid,
+.cp-input[aria-invalid="true"] {
+  border-color: var(--cp-danger-8);
+}
+
+.cp-input[data-tone="warning"] {
+  border-color: var(--cp-warning-8);
+}
+
+/* A focused field reads like a focused button: a ring sitting outside the
+ * field with a gap, in the accent (or the state's colour for an error or a
+ * warning). The field keeps its own border, so the ring is a halo, not a
+ * doubled line at the edge. */
+.cp-input:focus-visible {
+  --cp-field-ring: var(--cp-focus-ring);
+
+  outline: var(--cp-focus-w) solid var(--cp-field-ring);
+  outline-offset: var(--cp-focus-offset);
+  border-color: var(--cp-field-ring);
+}
+
+.cp-input:is(:user-invalid, [aria-invalid="true"]):focus-visible {
+  --cp-field-ring: var(--cp-danger-9);
+}
+
+.cp-input[data-tone="warning"]:focus-visible {
+  --cp-field-ring: var(--cp-warning-9);
+}
+
+@media (forced-colors: active) {
+  .cp-input:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* A field that takes no input reads as such: a sunken fill, a quiet edge
+ * and disabled ink, the same as a disabled segment. */
+.cp-input:disabled {
+  border-color: var(--cp-line);
+  background: var(--cp-fill);
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+/* A field's error: text under the field, tied to it by aria-describedby. */
+.cp-field-error {
+  display: flex;
+  gap: var(--cp-space-1);
+  align-items: start;
+  color: var(--cp-danger-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-field-error > .uip-icon {
+  --cp-icon-size: 0.875rem;
+
+  margin-block-start: 0.0625rem;
+}
+
+/* A list inside a notice, such as an error summary's links to its fields. */
+.cp-notice :where(ul, ol) {
+  margin: var(--cp-space-1) 0 0;
+  padding-inline-start: 1.25em;
+}
+
+.cp-notice :where(a) {
+  color: inherit;
+}

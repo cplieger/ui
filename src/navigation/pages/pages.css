@@ -1,0 +1,17 @@
+/* Pagination under a table: where the person is, and the way to the pages
+ * around it. */
+.cp-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-pager > :first-child {
+  margin-inline-end: auto;
+}

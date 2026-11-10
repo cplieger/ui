@@ -1,0 +1,18 @@
+/* Pointer tier: the app sets data-pointer from the last real
+ * PointerEvent.pointerType; until then the media query guesses. A tablet
+ * with a trackpad is fine, a laptop touchscreen being tapped is coarse. */
+:root[data-pointer="coarse"] {
+  --cp-control-h: 2.75rem;
+  --cp-control-h-sm: 2.75rem;
+  --cp-hit-min: 44px;
+  --cp-row-h: 3rem;
+}
+
+@media (pointer: coarse) {
+  :root:not([data-pointer]) {
+    --cp-control-h: 2.75rem;
+    --cp-control-h-sm: 2.75rem;
+    --cp-hit-min: 44px;
+    --cp-row-h: 3rem;
+  }
+}

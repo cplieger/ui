@@ -1,0 +1,21 @@
+/* Skeleton: the shape of what is coming, with a slow opacity beat that stops
+ * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
+.cp-skeleton {
+  display: block;
+  block-size: 0.75em;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-fill-hover);
+  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
+}
+
+@keyframes cp-skeleton {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-skeleton {
+    animation: none;
+  }
+}

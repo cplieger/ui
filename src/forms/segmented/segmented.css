@@ -1,0 +1,75 @@
+/* One choice of a few, such as a theme: native radios in labels, so the
+ * arrow keys move the choice with no script. */
+.cp-segmented {
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  /* One control height overall, so a segmented sits level with inputs and
+   * buttons in a row; the pill track is this height less its padding. */
+  min-block-size: var(--cp-control-h);
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-1);
+  border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
+  background: var(--cp-fill);
+}
+
+.cp-segmented > label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: var(--cp-hit-min);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink-muted);
+  font-weight: var(--cp-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-segmented > label > input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.cp-segmented > label:has(:checked) {
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+}
+
+.cp-segmented > label:has(:focus-visible) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-segmented > label:has(:disabled) {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-segmented > label:hover {
+      color: var(--cp-ink);
+    }
+
+    /* A scoped rule outranks an unscoped one before specificity counts. */
+    .cp-segmented > label:has(:disabled):hover {
+      color: var(--cp-ink-disabled);
+    }
+
+    .cp-settings-nav > a:not([aria-current]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}

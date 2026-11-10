@@ -1,0 +1,28 @@
+/* One line, cut with an ellipsis; give the full text a title or a tooltip. */
+.cp-truncate {
+  display: block;
+  max-inline-size: var(--cp-truncate-w, 14rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A cell's main text over a muted second line. */
+.cp-cell-stack {
+  display: grid;
+  justify-items: start;
+  gap: 0.125rem;
+  min-inline-size: 13rem;
+  padding-block: var(--cp-space-2);
+}
+
+.cp-cell-stack > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+@container (width < 44rem) {
+  .cp-cell-stack {
+    min-inline-size: 0;
+  }
+}

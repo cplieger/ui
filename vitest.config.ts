@@ -22,6 +22,38 @@ function chromium() {
   };
 }
 
+// The element libraries' engines: UI_ENGINES=chromium,firefox,webkit runs all
+// three. Chromium alone by default, the one browser CI installs today.
+const ENGINES = (process.env["UI_ENGINES"] ?? "chromium").split(",") as (
+  "chromium" | "firefox" | "webkit"
+)[];
+
+function engines() {
+  return {
+    ...chromium(),
+    instances: ENGINES.map((browser) =>
+      browser === "chromium"
+        ? { browser }
+        : { browser, provider: playwright({ launchOptions: {} }) },
+    ),
+  };
+}
+
+// The design language's element folders, one per purpose.
+const CATEGORIES = [
+  "core",
+  "foundations",
+  "layout",
+  "forms",
+  "buttons",
+  "feedback",
+  "overlays",
+  "navigation",
+  "data",
+  "media",
+  "screens",
+];
+
 const EXCLUDE = ["**/node_modules/**", "**/.stryker-tmp/**"];
 
 const strict = {
@@ -82,6 +114,17 @@ export default defineConfig({
           include: ["src/primitives/**/*.test.ts"],
           setupFiles: ["./src/primitives/fc-strict-setup.ts"],
           browser: chromium(),
+        },
+      },
+      {
+        test: {
+          ...strict,
+          name: "elements",
+          isolate: true,
+          exclude: [...EXCLUDE, "src/**/*.node.test.ts"],
+          include: CATEGORIES.map((c) => `src/${c}/**/*.test.ts`),
+          setupFiles: ["./src/primitives/fc-strict-setup.ts"],
+          browser: engines(),
         },
       },
       {

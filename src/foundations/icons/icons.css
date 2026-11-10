@@ -1,0 +1,64 @@
+/* A drawing that points along the line of text faces the other way in a
+ * right-to-left context. */
+:where(.cp) .uip-icon:dir(rtl):is([data-uip-icon$="-right"], [data-uip-icon$="-left"]) {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.cp) .uip-icon[data-uip-icon="spinner-arc"] {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-button,
+  .cp-chip,
+  .cp-notice,
+  .cp-filter[aria-pressed="true"],
+  .cp-tab[aria-selected="true"],
+  .cp-nav-item[aria-current],
+  .cp-pager,
+  .cp-batchbar,
+  .cp-savebar,
+  .cp-segmented > label:has(:checked),
+  .cp-settings-nav > a[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+
+  /* System colours paint the switch, so its state survives the forced palette. */
+  .cp-switch {
+    forced-color-adjust: none;
+    border: var(--cp-line-w) solid CanvasText;
+    background: Canvas;
+  }
+
+  .cp-switch::before {
+    background: CanvasText;
+  }
+
+  .cp-switch:checked {
+    background: Highlight;
+  }
+
+  .cp-switch:checked::before {
+    background: HighlightText;
+  }
+
+  .cp-switch:disabled {
+    border-color: GrayText;
+  }
+
+  .cp-switch:disabled::before {
+    background: GrayText;
+  }
+
+  :where(.cp) .uip-icon {
+    forced-color-adjust: none;
+  }
+
+  @supports (forced-color-adjust: preserve-parent-color) {
+    :where(.cp) .uip-icon {
+      forced-color-adjust: preserve-parent-color;
+    }
+  }
+}
