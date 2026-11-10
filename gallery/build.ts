@@ -108,7 +108,9 @@ export async function buildGallery(out = join(HERE, "dist")): Promise<void> {
     await writeFile(join(out, `${page}.html`), frame(title, page, body));
   }
   await build({
-    entryPoints: [join(HERE, "main.ts")],
+    // Against the repo root, where npm runs the script, and a literal, so a
+    // tool that traces bundler entries reaches main.ts.
+    entryPoints: ["gallery/main.ts"],
     bundle: true,
     format: "esm",
     platform: "browser",
