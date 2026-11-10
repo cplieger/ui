@@ -147,6 +147,20 @@ describe("installPointerTier", () => {
     expect(root.dataset["pointer"]).toBe("coarse");
   });
 
+  it("shares one set of listeners, kept until every caller's signal has aborted", () => {
+    const part = new AbortController();
+    installPointerTier({ storageKey: KEY, signal: follow.signal });
+    installPointerTier({ storageKey: "other", signal: part.signal });
+    down("touch");
+    part.abort();
+    down("mouse");
+    expect([
+      root.dataset["pointer"],
+      localStorage.getItem(KEY),
+      localStorage.getItem("other"),
+    ]).toEqual(["fine", "fine", null]);
+  });
+
   it("keeps following when storage refuses the write", () => {
     vi.stubGlobal("localStorage", {
       setItem: () => {

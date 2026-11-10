@@ -23,7 +23,7 @@ export interface ConnectionTestOptions {
   readonly fields?: Readonly<
     Record<string, { readonly input?: HTMLElement; readonly mark?: HTMLElement }>
   >;
-  /** The element that carries `data-state` beside the status and scopes
+  /** The element that carries `data-cp-state` beside the status and scopes
    *  the edits that reset the test. Default: the button's form. */
   readonly root?: HTMLElement;
   /** The words while it runs. Default "Testing…". */
@@ -95,9 +95,9 @@ export function enhanceConnectionTest(
     quiet = false,
   ): void => {
     state = next;
-    status.dataset["state"] = next;
+    status.dataset["cpState"] = next;
     if (root !== null) {
-      root.dataset["state"] = next;
+      root.dataset["cpState"] = next;
     }
     status.textContent = message;
     if (next === "busy") {

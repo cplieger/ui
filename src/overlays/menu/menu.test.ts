@@ -189,9 +189,11 @@ describe("enhanceMenu", () => {
     later.textContent = "Row actions";
     later.setAttribute("popovertarget", "actions");
     document.body.prepend(later);
+    later.focus();
+    expect(later.getAttribute("aria-haspopup")).toBe("menu");
+    expect(later.getAttribute("aria-controls")).toBe("actions");
     await userEvent.click(later);
     expect(open(panel)).toBe(true);
-    expect(later.getAttribute("aria-haspopup")).toBe("menu");
     expect(later.getAttribute("aria-expanded")).toBe("true");
     expect(button.getAttribute("aria-expanded")).toBe("false");
     expect(panel.style.getPropertyValue("position-anchor")).toBe(
@@ -268,6 +270,19 @@ describe("one menu that a button and a right click both open", () => {
     await userEvent.click(items[1] as HTMLElement);
     expect(heard).toEqual(["button Pinned", "zone Export"]);
     expect(open(panel)).toBe(false);
+  });
+
+  it("leaves an open menu with the enhancement that opened it when another enhances it", async () => {
+    const { button, panel } = menu(["Edit"], "manual");
+    const zone = document.createElement("div");
+    document.body.prepend(zone);
+    enhanceMenu(panel, { signal: life.signal });
+    await userEvent.click(button);
+    const late = new AbortController();
+    enhanceContextMenu(zone, panel, { signal: late.signal });
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    late.abort();
+    expect(open(panel)).toBe(true);
   });
 
   it("keeps the other enhancement working once one's signal aborts", async () => {

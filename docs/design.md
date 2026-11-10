@@ -62,13 +62,13 @@ The width tiers follow the space in the window, not the device:
 
 | Tier | Window width | Layout | Usually |
 | --- | --- | --- | --- |
-| Compact | under 40rem | one column, the header's toolbar on a second row, the full-width page toolbar, and only the mark of the wordmark | a phone, or a narrow split window |
+| Compact | under 40rem | one column, the header's toolbar on a second row, and only the mark of the wordmark | a phone, or a narrow split window |
 | Medium | 40rem to 60rem | no rail, and destinations show their icons without their words | a tablet held upright |
 | Expanded | 60rem and up | header, rail, work area and status line | a tablet held sideways, a laptop or a desktop |
 
 Below 60rem, the rail's filters move into a sheet behind a Filters button, as [Design patterns](design-patterns.md#dialogs-and-sheets) describes.
 
-A table column carries its priority. In a container under 64rem, `data-priority="low"` columns leave. Under 44rem, `data-priority="mid"` columns leave too. The selection box, the title, the state and the row's action never leave. A table wider than its panel scrolls inside `.cp-panel[data-flush]`. Nothing else is wider than the window at 320px, and nothing is clipped.
+Inside a region, an element follows its own box. A heading row's toolbar takes a line of its own once the row is under 40rem wide, in a narrow detail panel as on a phone. A table column carries its priority. In a container under 64rem, `data-priority="low"` columns leave. Under 44rem, `data-priority="mid"` columns leave too. The selection box, the title, the state and the row's action never leave. A table wider than its panel scrolls inside `.cp-panel[data-flush]`. Nothing else is wider than the window at 320px, and nothing is clipped.
 
 ## Touch and mouse
 

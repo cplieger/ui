@@ -1,10 +1,10 @@
-/* Delight playground: candidate motion and personality for the cplieger
- * language. Everything reads the system's tokens; every effect stops under
+/* Motion and personality for the gallery's cards. Everything reads the
+ * system's tokens; every effect stops under
  * prefers-reduced-motion or the page's "Reduced motion" switch.
  *
  * Every effect starts from a press, a change or a selection, so a finger,
  * a mouse and a key all get it. Hover only ever adds to a mouse; nothing
- * depends on it. A press is [data-cp-pressed], which delight.js sets for every
+ * depends on it. A press is [data-cp-pressed], which gallery.js sets for every
  * input, because :active fails under a finger on iOS. */
 
 :root {
@@ -893,7 +893,7 @@
   animation-delay: -1.2s;
 }
 
-/* Random: delight.js plays every move once it loads, and the plain wave,
+/* Random: gallery.js plays every move once it loads, and the plain wave,
  * or the single loader's colour twirl, runs until then. */
 :is(.boot-random, .load-twirl).is-random > span {
   animation: none;
@@ -1024,9 +1024,8 @@
 }
 
 /* Gallery: the recurring elements and the standard layouts, built on
- * css/system and the motion picks in delight.css. Each piece is a candidate
- * for @cplieger/ui 2: native elements first, CSS for the look, script only
- * where the platform has no behaviour. */
+ * css/system and the motion above: native elements first, CSS for the
+ * look, script only where the platform has no behaviour. */
 
 /* Page frame: a header nav shared by every gallery page */
 

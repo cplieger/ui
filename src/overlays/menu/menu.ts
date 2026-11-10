@@ -1,12 +1,15 @@
 /**
  * menu.ts — the WAI-ARIA menu button over a native popover
- * (https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/). The button opens
- * the `role="menu"` popover by its `popovertarget`, and the popover closes
- * on Escape and on a press outside by itself, returning focus to the button.
- * `enhanceMenu()` adds what the platform lacks: focus on the first item as
- * it opens, the arrow keys, Home, End and typeahead among the items, check
- * and radio items that keep it open, and closing once an item is chosen.
- * `enhanceContextMenu()` opens one at the pointer instead.
+ * (https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/). Every button whose
+ * `popovertarget` or `commandfor` names the `role="menu"` popover opens it,
+ * and an automatic popover closes on Escape and on a press outside by
+ * itself, returning focus to the button. `enhanceMenu()` adds what the
+ * platform lacks: one call for every button that opens the menu, the menu
+ * placed by the one pressed, focus on the first item as it opens, the arrow
+ * keys, Home, End and typeahead among the items, check and radio items that
+ * keep it open, closing once an item is chosen, and the Escape and outside
+ * press a `popover="manual"` menu lacks. `enhanceContextMenu()` opens one at
+ * the pointer instead, and one manual menu can take both.
  * @module
  */
 
@@ -193,7 +196,8 @@ function listenItems(menu: HTMLElement, signal: AbortSignal): void {
 }
 
 /** Starts `menu`'s one set of item listeners, held until every
- *  enhancement's signal has aborted, and makes `owner` answer for it. */
+ *  enhancement's signal has aborted; `owner` answers for it until another
+ *  enhancement opens it, unless one already does. */
 function wireItems(menu: HTMLElement, owner: Owner, signal: AbortSignal | undefined): void {
   let wiring = wirings.get(menu);
   if (wiring === undefined) {
@@ -203,7 +207,9 @@ function wireItems(menu: HTMLElement, owner: Owner, signal: AbortSignal | undefi
     wirings.set(menu, wiring);
   }
   wiring.install(signal === undefined ? {} : { signal });
-  own(menu, owner);
+  if (!owners.has(menu)) {
+    owners.set(menu, owner);
+  }
 }
 
 /** Ends `owner`'s hold on `menu`, closing it if `owner` opened it. */
@@ -270,6 +276,17 @@ export function enhanceMenu(menu: HTMLElement, options: MenuOptions = {}): void 
     anchorTo(menu, b);
   };
 
+  // An opener added later is named one as focus or a press reaches it.
+  root.addEventListener(
+    "focusin",
+    (e) => {
+      const b = openerOf(e.target);
+      if (b !== null) {
+        mark(b);
+      }
+    },
+    capture,
+  );
   // A click runs before the opener's default action opens the popover.
   root.addEventListener(
     "click",

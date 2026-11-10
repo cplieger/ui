@@ -1,4 +1,4 @@
-// Delight playground behaviour. Plain DOM, no dependencies.
+// The gallery's own behaviour for the cards that do not run on src/ yet. Plain DOM, no dependencies.
 const root = document.documentElement;
 
 // What @cplieger/ui/icons' createIcons does: an absolute URL per icon, so
@@ -537,8 +537,8 @@ controls.addEventListener("input", () => {
 root.dataset.motion = "full";
 
 // Gallery behaviour: what the platform lacks, one small enhancer each, with
-// no dependency. delight.js runs first and provides paintIcon, sparkle,
-// reduced and coarse.
+// no dependency. The code above runs first and provides paintIcon,
+// sparkle, reduced and coarse.
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const el = (tag, attrs = {}, ...kids) => {
@@ -1295,8 +1295,8 @@ for (const bar of $$("[data-batch]")) {
   said = "Selection cleared";
   update();
 }
-// A row's Grab answers in its own cell, with no toast: delight.js plays
-// Save's cycle on it, and this says it once a press.
+// A row's Grab answers in its own cell, with no toast: the Save cycle
+// above plays on it, and this says it once a press.
 for (const b of $$("[data-grab-row]")) {
   b.addEventListener("click", () => {
     if (b.dataset.said) return;
@@ -1920,7 +1920,7 @@ if (snav) {
   }
 }
 
-// ===================================================== app-requested pieces
+// ===================================================== pieces for app screens
 
 // ------------------------------------------------------- the announcer
 // One polite and one assertive region at the root, and a pair inside each

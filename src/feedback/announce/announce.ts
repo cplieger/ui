@@ -40,7 +40,7 @@ function pairIn(host: Element): HTMLElement {
     const region = document.createElement("div");
     region.setAttribute("aria-live", politeness);
     region.setAttribute("aria-atomic", "true");
-    region.dataset["politeness"] = politeness;
+    region.dataset["cpPoliteness"] = politeness;
     pair.append(region);
   }
   host.append(pair);
@@ -64,7 +64,7 @@ export function announce(message: string, politeness: Politeness = "polite"): vo
   if (host === null) {
     return;
   }
-  const region = pairIn(host).querySelector<HTMLElement>(`[data-politeness="${politeness}"]`);
+  const region = pairIn(host).querySelector<HTMLElement>(`[data-cp-politeness="${politeness}"]`);
   if (region === null) {
     return;
   }
