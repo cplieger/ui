@@ -49,8 +49,11 @@ describe("enhanceConfirm", () => {
   it("shows busy while slow work runs, then done, then rest by itself", async () => {
     const b = button();
     const c = confirm(b);
-    let finish = () => {};
-    const run = c.run(() => new Promise<void>((resolve) => (finish = resolve)));
+    const work = Promise.withResolvers<undefined>();
+    const finish = () => {
+      work.resolve(undefined);
+    };
+    const run = c.run(() => work.promise);
     await sleep(40);
     expect(b.dataset["uipState"]).toBe("busy");
     expect(b.getAttribute("aria-busy")).toBe("true");

@@ -604,10 +604,10 @@ describe("css/system.css", () => {
     const el = build(
       '<table class="cp-table"><tbody><tr><td>Frieren</td><td data-col="actions">' +
         '<button class="cp-button" type="button" id="plain">Grab</button>' +
-        '<button class="cp-button" type="button" id="done" data-state="done">Grabbed</button>' +
+        '<button class="cp-button" type="button" id="done" data-uip-state="done">Grabbed</button>' +
         '<button class="cp-button" data-variant="quiet" type="button" id="quiet">More</button>' +
         "</td></tr></tbody></table>" +
-        '<style>.cp-button[data-state="done"] { background: rgb(0, 128, 0); }</style>',
+        '<style>.cp-button[data-uip-state="done"] { background: rgb(0, 128, 0); }</style>',
     );
     const fill = (id: string) =>
       getComputedStyle(el.querySelector(`#${id}`) as Element).backgroundColor;

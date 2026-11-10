@@ -105,6 +105,6 @@ export function roll(host: HTMLElement, text: string, options: RollOptions = {})
       }
     },
     // A later roll cancelled this one and has already removed `from`.
-    () => {},
+    () => undefined,
   );
 }

@@ -45,8 +45,9 @@ describe("turn", () => {
 describe("turnWhile", () => {
   it("turns while the work runs, marked busy, then finishes the turn in progress", async () => {
     const { button, icon } = refresh();
-    let finish = (_: number) => {};
-    const run = turnWhile(button, new Promise<number>((resolve) => (finish = resolve)));
+    const work = Promise.withResolvers<number>();
+    const finish = work.resolve;
+    const run = turnWhile(button, work.promise);
     const [a] = icon.getAnimations();
     expect(a?.effect?.getTiming().iterations).toBe(Infinity);
     expect(button.getAttribute("aria-busy")).toBe("true");
@@ -72,7 +73,7 @@ describe("turnWhile", () => {
       (q: string) => ({ matches: q.includes("reduce") }) as MediaQueryList,
     );
     const { button, icon } = refresh();
-    void turnWhile(button, new Promise(() => {}));
+    void turnWhile(button, Promise.withResolvers<never>().promise);
     const keys = (icon.getAnimations()[0]?.effect as KeyframeEffect).getKeyframes();
     expect(keys.map((k) => k["opacity"])).toEqual(["1", "0.45", "1"]);
   });
