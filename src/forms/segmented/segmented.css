@@ -58,9 +58,9 @@
   color: var(--cp-ink);
 }
 
-/* [data-uip-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
+/* [data-cp-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
  * arrow keys reached where WebKit drops :focus-visible. */
-.cp-segmented > label:has(:focus-visible, [data-uip-focus-ring]:focus) {
+.cp-segmented > label:has(:focus-visible, [data-cp-focus-ring]:focus) {
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }

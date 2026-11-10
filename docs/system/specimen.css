@@ -1,167 +1,167 @@
 /* What @cplieger/ui/icons' createIcons sets on each icon it builds, written
  * as rules so the page needs no script. */
-[data-uip-icon="funnel"] {
-  --uip-icon: url("../../icons/svg/funnel.svg");
+[data-cp-icon="funnel"] {
+  --cp-icon-image: url("../../icons/svg/funnel.svg");
 }
 
-[data-uip-icon="check"] {
-  --uip-icon: url("../../icons/svg/check.svg");
+[data-cp-icon="check"] {
+  --cp-icon-image: url("../../icons/svg/check.svg");
 }
 
-[data-uip-icon="chevron-right"] {
-  --uip-icon: url("../../icons/svg/chevron-right.svg");
+[data-cp-icon="chevron-right"] {
+  --cp-icon-image: url("../../icons/svg/chevron-right.svg");
 }
 
-[data-uip-icon="circle-alert"] {
-  --uip-icon: url("../../icons/svg/circle-alert.svg");
+[data-cp-icon="circle-alert"] {
+  --cp-icon-image: url("../../icons/svg/circle-alert.svg");
 }
 
-[data-uip-icon="circle-check"] {
-  --uip-icon: url("../../icons/svg/circle-check.svg");
+[data-cp-icon="circle-check"] {
+  --cp-icon-image: url("../../icons/svg/circle-check.svg");
 }
 
-[data-uip-icon="circle-dashed"] {
-  --uip-icon: url("../../icons/svg/circle-dashed.svg");
+[data-cp-icon="circle-dashed"] {
+  --cp-icon-image: url("../../icons/svg/circle-dashed.svg");
 }
 
-[data-uip-icon="circle-x"] {
-  --uip-icon: url("../../icons/svg/circle-x.svg");
+[data-cp-icon="circle-x"] {
+  --cp-icon-image: url("../../icons/svg/circle-x.svg");
 }
 
-[data-uip-icon="clock"] {
-  --uip-icon: url("../../icons/svg/clock.svg");
+[data-cp-icon="clock"] {
+  --cp-icon-image: url("../../icons/svg/clock.svg");
 }
 
-[data-uip-icon="download"] {
-  --uip-icon: url("../../icons/svg/download.svg");
+[data-cp-icon="download"] {
+  --cp-icon-image: url("../../icons/svg/download.svg");
 }
 
-[data-uip-icon="history"] {
-  --uip-icon: url("../../icons/svg/history.svg");
+[data-cp-icon="history"] {
+  --cp-icon-image: url("../../icons/svg/history.svg");
 }
 
-[data-uip-icon="layout-dashboard"] {
-  --uip-icon: url("../../icons/svg/layout-dashboard.svg");
+[data-cp-icon="layout-dashboard"] {
+  --cp-icon-image: url("../../icons/svg/layout-dashboard.svg");
 }
 
-[data-uip-icon="library"] {
-  --uip-icon: url("../../icons/svg/library.svg");
+[data-cp-icon="library"] {
+  --cp-icon-image: url("../../icons/svg/library.svg");
 }
 
-[data-uip-icon="list"] {
-  --uip-icon: url("../../icons/svg/list.svg");
+[data-cp-icon="list"] {
+  --cp-icon-image: url("../../icons/svg/list.svg");
 }
 
-[data-uip-icon="octagon-alert"] {
-  --uip-icon: url("../../icons/svg/octagon-alert.svg");
+[data-cp-icon="octagon-alert"] {
+  --cp-icon-image: url("../../icons/svg/octagon-alert.svg");
 }
 
-[data-uip-icon="pin"] {
-  --uip-icon: url("../../icons/svg/pin.svg");
+[data-cp-icon="pin"] {
+  --cp-icon-image: url("../../icons/svg/pin.svg");
 }
 
-[data-uip-icon="pin-filled"] {
-  --uip-icon: url("../../icons/svg/pin-filled.svg");
+[data-cp-icon="pin-filled"] {
+  --cp-icon-image: url("../../icons/svg/pin-filled.svg");
 }
 
-[data-uip-icon="radio-tower"] {
-  --uip-icon: url("../../icons/svg/radio-tower.svg");
+[data-cp-icon="radio-tower"] {
+  --cp-icon-image: url("../../icons/svg/radio-tower.svg");
 }
 
-[data-uip-icon="refresh-cw"] {
-  --uip-icon: url("../../icons/svg/refresh-cw.svg");
+[data-cp-icon="refresh-cw"] {
+  --cp-icon-image: url("../../icons/svg/refresh-cw.svg");
 }
 
-[data-uip-icon="search"] {
-  --uip-icon: url("../../icons/svg/search.svg");
+[data-cp-icon="search"] {
+  --cp-icon-image: url("../../icons/svg/search.svg");
 }
 
-[data-uip-icon="settings"] {
-  --uip-icon: url("../../icons/svg/settings.svg");
+[data-cp-icon="settings"] {
+  --cp-icon-image: url("../../icons/svg/settings.svg");
 }
 
-[data-uip-icon="spinner-arc"] {
-  --uip-icon: url("../../icons/svg/spinner-arc.svg");
+[data-cp-icon="spinner-arc"] {
+  --cp-icon-image: url("../../icons/svg/spinner-arc.svg");
 }
 
-[data-uip-icon="x"] {
-  --uip-icon: url("../../icons/svg/x.svg");
+[data-cp-icon="x"] {
+  --cp-icon-image: url("../../icons/svg/x.svg");
 }
 
-[data-uip-icon="sun-moon"] {
-  --uip-icon: url("../../icons/svg/sun-moon.svg");
+[data-cp-icon="sun-moon"] {
+  --cp-icon-image: url("../../icons/svg/sun-moon.svg");
 }
 
-[data-uip-icon="timer"] {
-  --uip-icon: url("../../icons/svg/timer.svg");
+[data-cp-icon="timer"] {
+  --cp-icon-image: url("../../icons/svg/timer.svg");
 }
 
-[data-uip-icon="trash-2"] {
-  --uip-icon: url("../../icons/svg/trash-2.svg");
+[data-cp-icon="trash-2"] {
+  --cp-icon-image: url("../../icons/svg/trash-2.svg");
 }
 
-[data-uip-icon="triangle-alert"] {
-  --uip-icon: url("../../icons/svg/triangle-alert.svg");
+[data-cp-icon="triangle-alert"] {
+  --cp-icon-image: url("../../icons/svg/triangle-alert.svg");
 }
 
-[data-uip-icon="user"] {
-  --uip-icon: url("../../icons/svg/user.svg");
+[data-cp-icon="user"] {
+  --cp-icon-image: url("../../icons/svg/user.svg");
 }
 
-[data-uip-icon="copy"] {
-  --uip-icon: url("../../icons/svg/copy.svg");
+[data-cp-icon="copy"] {
+  --cp-icon-image: url("../../icons/svg/copy.svg");
 }
 
-[data-uip-icon="eye"] {
-  --uip-icon: url("../../icons/svg/eye.svg");
+[data-cp-icon="eye"] {
+  --cp-icon-image: url("../../icons/svg/eye.svg");
 }
 
-[data-uip-icon="info"] {
-  --uip-icon: url("../../icons/svg/info.svg");
+[data-cp-icon="info"] {
+  --cp-icon-image: url("../../icons/svg/info.svg");
 }
 
-[data-uip-icon="key-round"] {
-  --uip-icon: url("../../icons/svg/key-round.svg");
+[data-cp-icon="key-round"] {
+  --cp-icon-image: url("../../icons/svg/key-round.svg");
 }
 
-[data-uip-icon="lock"] {
-  --uip-icon: url("../../icons/svg/lock.svg");
+[data-cp-icon="lock"] {
+  --cp-icon-image: url("../../icons/svg/lock.svg");
 }
 
-[data-uip-icon="log-in"] {
-  --uip-icon: url("../../icons/svg/log-in.svg");
+[data-cp-icon="log-in"] {
+  --cp-icon-image: url("../../icons/svg/log-in.svg");
 }
 
-[data-uip-icon="log-out"] {
-  --uip-icon: url("../../icons/svg/log-out.svg");
+[data-cp-icon="log-out"] {
+  --cp-icon-image: url("../../icons/svg/log-out.svg");
 }
 
-[data-uip-icon="plus"] {
-  --uip-icon: url("../../icons/svg/plus.svg");
+[data-cp-icon="plus"] {
+  --cp-icon-image: url("../../icons/svg/plus.svg");
 }
 
-[data-uip-icon="shield-check"] {
-  --uip-icon: url("../../icons/svg/shield-check.svg");
+[data-cp-icon="shield-check"] {
+  --cp-icon-image: url("../../icons/svg/shield-check.svg");
 }
 
-[data-uip-icon="chevron-down"] {
-  --uip-icon: url("../../icons/svg/chevron-down.svg");
+[data-cp-icon="chevron-down"] {
+  --cp-icon-image: url("../../icons/svg/chevron-down.svg");
 }
 
-[data-uip-icon="heart"] {
-  --uip-icon: url("../../icons/svg/heart.svg");
+[data-cp-icon="heart"] {
+  --cp-icon-image: url("../../icons/svg/heart.svg");
 }
 
-[data-uip-icon="heart-filled"] {
-  --uip-icon: url("../../icons/svg/heart-filled.svg");
+[data-cp-icon="heart-filled"] {
+  --cp-icon-image: url("../../icons/svg/heart-filled.svg");
 }
 
-[data-uip-icon="save"] {
-  --uip-icon: url("../../icons/svg/save.svg");
+[data-cp-icon="save"] {
+  --cp-icon-image: url("../../icons/svg/save.svg");
 }
 
-[data-uip-icon="layout-grid"] {
-  --uip-icon: url("../../icons/svg/layout-grid.svg");
+[data-cp-icon="layout-grid"] {
+  --cp-icon-image: url("../../icons/svg/layout-grid.svg");
 }
 
 /* Example seeds for the reference screens: an app's colour identity is

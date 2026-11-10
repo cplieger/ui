@@ -262,7 +262,7 @@ export const ownIconNames: readonly OwnIconName[] = [
   "tag-filled",
 ];
 
-/** The size tier `icon` writes as `data-uip-icon-size`; the host's CSS gives each its size. */
+/** The size tier `icon` writes as `data-cp-icon-size`; the host's CSS gives each its size. */
 export type IconSize = "inline" | "ui" | "lg" | "hero";
 
 /** Where the host serves each drawing. Give exactly one of `url` and `base`. */
@@ -281,8 +281,8 @@ export type IconsOptions<N extends string = IconName> =
 /** What `createIcons` returns. */
 export interface Icons<N extends string = IconName> {
   /**
-   * A decorative `<span class="uip-icon" aria-hidden="true">` with `data-uip-icon` and
-   * `data-uip-icon-size` (default `"ui"`), its `--uip-icon: url("…")` set through the CSSOM,
+   * A decorative `<span class="cp-icon" aria-hidden="true">` with `data-cp-icon` and
+   * `data-cp-icon-size` (default `"ui"`), its `--cp-icon-image: url("…")` set through the CSSOM,
    * which a strict `style-src` allows. The control that holds it carries the accessible name.
    */
   icon(name: N, size?: IconSize): HTMLSpanElement;
@@ -299,11 +299,11 @@ export function createIcons<N extends string = IconName>(opts: IconsOptions<N>):
   return {
     icon(name, size = "ui") {
       const span = document.createElement("span");
-      span.className = "uip-icon";
-      span.setAttribute("data-uip-icon", name);
-      span.setAttribute("data-uip-icon-size", size);
+      span.className = "cp-icon";
+      span.setAttribute("data-cp-icon", name);
+      span.setAttribute("data-cp-icon-size", size);
       span.setAttribute("aria-hidden", "true");
-      span.style.setProperty("--uip-icon", `url("${cssString(resolve(name))}")`);
+      span.style.setProperty("--cp-icon-image", `url("${cssString(resolve(name))}")`);
       return span;
     },
   };

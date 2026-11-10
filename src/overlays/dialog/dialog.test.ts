@@ -50,13 +50,13 @@ describe("installDialogs", () => {
 
   it("shakes a dialog holding typed changes instead of closing it, and closes it once they are gone", async () => {
     installDialogs({ signal: life.signal });
-    const d = dialog({ "data-uip-keep-typed": "" }, '<input value="Sonarr">');
+    const d = dialog({ "data-keep-typed": "" }, '<input value="Sonarr">');
     d.showModal();
     const field = d.querySelector("input") as HTMLInputElement;
     field.value = "Sonarr 4K";
     await userEvent.click(document.body, { position: { x: 5, y: 5 } });
     expect(d.open).toBe(true);
-    expect(d.hasAttribute("data-uip-refused")).toBe(true);
+    expect(d.hasAttribute("data-cp-refused")).toBe(true);
     field.value = "Sonarr";
     await userEvent.click(document.body, { position: { x: 5, y: 5 } });
     await settled();

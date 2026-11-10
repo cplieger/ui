@@ -6,6 +6,8 @@
  * @module
  */
 
+import { until } from "../../core/lifetime/lifetime.js";
+
 export interface ToggleOptions {
   /** Runs after each press with the new state. */
   readonly onChange?: (on: boolean) => void;
@@ -20,16 +22,16 @@ export interface Toggle {
   set(on: boolean): void;
 }
 
-const MOTION = "data-uip-toggled";
+const MOTION = "data-cp-toggled";
 
 /**
- * `button` carries `aria-pressed` and two `.uip-icon`s: the drawing at rest
- * and the one marked `data-uip-part="on"`. A missing `aria-pressed` starts
+ * `button` carries `aria-pressed` and two `.cp-icon`s: the drawing at rest
+ * and the one marked `data-part="on"`. A missing `aria-pressed` starts
  * it off.
  */
 export function enhanceToggle(button: HTMLButtonElement, options: ToggleOptions = {}): Toggle {
   const { onChange, signal } = options;
-  const listen: AddEventListenerOptions = signal === undefined ? {} : { signal };
+  const listen = until(signal);
   const state = (): boolean => button.getAttribute("aria-pressed") === "true";
   button.setAttribute("aria-pressed", String(state()));
 
@@ -49,7 +51,7 @@ export function enhanceToggle(button: HTMLButtonElement, options: ToggleOptions 
   button.addEventListener(
     "animationend",
     (e) => {
-      if (e.target instanceof Element && e.target.closest(".uip-icon") !== null) {
+      if (e.target instanceof Element && e.target.closest(".cp-icon") !== null) {
         button.removeAttribute(MOTION);
       }
     },

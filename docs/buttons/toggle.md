@@ -6,8 +6,8 @@ An on and off button such as Pin or Favourite. A press flips `aria-pressed`. Whi
 
 ```html
 <button class="cp-button cp-toggle" data-variant="quiet" data-kind="pin" aria-pressed="false" aria-label="Pin" type="button">
-  <span class="uip-icon" data-uip-icon="pin" aria-hidden="true"></span>
-  <span class="uip-icon" data-uip-icon="pin-filled" data-uip-part="on" aria-hidden="true"></span>
+  <span class="cp-icon" data-cp-icon="pin" aria-hidden="true"></span>
+  <span class="cp-icon" data-cp-icon="pin-filled" data-part="on" aria-hidden="true"></span>
 </button>
 ```
 

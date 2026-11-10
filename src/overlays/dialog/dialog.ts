@@ -3,11 +3,13 @@
  * engines. Buttons open and close it with `commandfor`, and the modal dialog
  * itself moves focus in, makes the page inert and returns focus. This adds:
  * a press outside closes a dialog marked `closedby="any"` where the engine
- * does not, a dialog marked `data-uip-keep-typed` that holds typed changes
+ * does not, a dialog marked `data-keep-typed` that holds typed changes
  * shakes instead of closing on that press, and the exit animation runs in
  * an engine that cannot animate a dialog leaving the top layer.
  * @module
  */
+
+import { reducedMotion, shared } from "../../core/lifetime/lifetime.js";
 
 export interface DialogOptions {
   /** Ends this call's hold on the listeners. Default: none, held for the
@@ -15,18 +17,14 @@ export interface DialogOptions {
   readonly signal?: AbortSignal;
 }
 
-const KEEP = "data-uip-keep-typed";
-const LEAVING = "data-uip-leaving";
-const REFUSED = "data-uip-refused";
-
-let holds = 0;
-let listening: AbortController | null = null;
+const KEEP = "data-keep-typed";
+const LEAVING = "data-cp-leaving";
+const REFUSED = "data-cp-refused";
 
 const nativeClosedBy = (): boolean => "closedBy" in HTMLDialogElement.prototype;
 /** Chromium animates a dialog out of the top layer in CSS; Firefox and
  *  WebKit drop it at once, so the exit runs in script there. */
 const cssExit = (): boolean => CSS.supports("overlay", "auto");
-const reduced = (): boolean => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function dialogOf(e: Event): HTMLDialogElement | null {
   const t = e.composedPath()[0];
@@ -72,7 +70,7 @@ export function closeDialog(dialog: HTMLDialogElement, value?: string): void {
   if (!dialog.open || dialog.hasAttribute(LEAVING)) {
     return;
   }
-  if (cssExit() || reduced() || !dialog.isConnected) {
+  if (cssExit() || reducedMotion() || !dialog.isConnected) {
     dialog.close(value);
     return;
   }
@@ -174,7 +172,7 @@ function listen(signal: AbortSignal): void {
     "cancel",
     (e) => {
       const d = dialogOf(e);
-      if (d !== null && !reduced()) {
+      if (d !== null && !reducedMotion()) {
         e.preventDefault();
         closeDialog(d, "cancel");
       }
@@ -185,7 +183,7 @@ function listen(signal: AbortSignal): void {
     "submit",
     (e) => {
       const form = e.target;
-      if (!(form instanceof HTMLFormElement) || form.method !== "dialog" || reduced()) {
+      if (!(form instanceof HTMLFormElement) || form.method !== "dialog" || reducedMotion()) {
         return;
       }
       const d = form.closest("dialog");
@@ -201,7 +199,11 @@ function listen(signal: AbortSignal): void {
     "command",
     (e) => {
       const d = dialogOf(e);
-      if (d !== null && (e as Event & { command?: string }).command === "close" && !reduced()) {
+      if (
+        d !== null &&
+        (e as Event & { command?: string }).command === "close" &&
+        !reducedMotion()
+      ) {
         e.preventDefault();
         closeDialog(d, "");
       }
@@ -210,30 +212,15 @@ function listen(signal: AbortSignal): void {
   );
 }
 
+const page = shared((signal) => {
+  listen(signal);
+});
+
 /**
  * Starts the dialog fill-ins, once for the page however many parts of it
  * call this. The listeners stay until every caller's signal has aborted; a
  * caller with no signal holds them for the page's life.
  */
 export function installDialogs(options: DialogOptions = {}): void {
-  const { signal } = options;
-  if (signal?.aborted === true) {
-    return;
-  }
-  holds += 1;
-  if (listening === null) {
-    listening = new AbortController();
-    listen(listening.signal);
-  }
-  signal?.addEventListener(
-    "abort",
-    () => {
-      holds -= 1;
-      if (holds === 0) {
-        listening?.abort();
-        listening = null;
-      }
-    },
-    { once: true },
-  );
+  page.install(options);
 }

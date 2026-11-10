@@ -6,7 +6,7 @@ Words or a number that change by sliding. The old line slides out, the new one s
 
 ```html
 <span class="cp-roll">Grab</span>
-<span class="cp-roll" data-uip-roll="number">100%</span>
+<span class="cp-roll" data-kind="number">100%</span>
 ```
 
 ```ts

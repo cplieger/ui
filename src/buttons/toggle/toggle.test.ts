@@ -16,10 +16,10 @@ function pin(pressed?: "true" | "false"): HTMLButtonElement {
     b.setAttribute("aria-pressed", pressed);
   }
   const off = document.createElement("span");
-  off.className = "uip-icon";
+  off.className = "cp-icon";
   const on = document.createElement("span");
-  on.className = "uip-icon";
-  on.dataset["uipPart"] = "on";
+  on.className = "cp-icon";
+  on.dataset["part"] = "on";
   b.append(off, on);
   document.body.append(b);
   return b;
@@ -48,21 +48,21 @@ describe("enhanceToggle", () => {
   it("marks the motion only on a press, never on a toggle that starts on", () => {
     const b = pin("true");
     enhanceToggle(b);
-    expect(b.hasAttribute("data-uip-toggled")).toBe(false);
+    expect(b.hasAttribute("data-cp-toggled")).toBe(false);
     b.click();
-    expect(b.dataset["uipToggled"]).toBe("off");
+    expect(b.dataset["cpToggled"]).toBe("off");
     b.click();
-    expect(b.dataset["uipToggled"]).toBe("on");
+    expect(b.dataset["cpToggled"]).toBe("on");
   });
 
   it("clears the motion once the drawing's animation ends", () => {
     const b = pin("false");
     enhanceToggle(b);
     b.click();
-    b.querySelector(".uip-icon")?.dispatchEvent(
+    b.querySelector(".cp-icon")?.dispatchEvent(
       new AnimationEvent("animationend", { bubbles: true }),
     );
-    expect(b.hasAttribute("data-uip-toggled")).toBe(false);
+    expect(b.hasAttribute("data-cp-toggled")).toBe(false);
   });
 
   it("sets the state without the motion", () => {
@@ -71,7 +71,7 @@ describe("enhanceToggle", () => {
     b.click();
     t.set(false);
     expect(b.getAttribute("aria-pressed")).toBe("false");
-    expect(b.hasAttribute("data-uip-toggled")).toBe(false);
+    expect(b.hasAttribute("data-cp-toggled")).toBe(false);
   });
 
   it("stops listening when its signal aborts", () => {

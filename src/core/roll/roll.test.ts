@@ -11,7 +11,7 @@ function windowOf(text: string, number = false): HTMLElement {
   const host = document.createElement("span");
   host.className = "cp-roll";
   if (number) {
-    host.dataset["uipRoll"] = "number";
+    host.dataset["kind"] = "number";
   }
   // The stylesheet's window, inline, so the test needs no css/system.
   Object.assign(host.style, {

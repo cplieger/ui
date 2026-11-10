@@ -6,12 +6,14 @@
  * @module
  */
 
+import { until } from "../lifetime/lifetime.js";
+
 export interface PillOptions {
   /** Removes the pill and its listeners. */
   readonly signal?: AbortSignal;
 }
 
-const STILL = "data-uip-still";
+const STILL = "data-cp-still";
 
 /** The label of the checked radio, or null when none is. */
 function chosen(group: HTMLElement): HTMLElement | null {
@@ -21,7 +23,7 @@ function chosen(group: HTMLElement): HTMLElement | null {
 /** Adds the pill to `group`, a `.cp-segmented`, once. */
 export function enhancePill(group: HTMLElement, options: PillOptions = {}): void {
   const { signal } = options;
-  const listen: AddEventListenerOptions = signal === undefined ? {} : { signal };
+  const listen = until(signal);
   if (signal?.aborted === true || group.querySelector(":scope > .cp-pill") !== null) {
     return;
   }

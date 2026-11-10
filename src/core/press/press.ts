@@ -1,5 +1,5 @@
 /**
- * press.ts — `installPress()` puts `data-uip-pressed` on the button, link or
+ * press.ts — `installPress()` puts `data-cp-pressed` on the button, link or
  * checkbox label a mouse, a finger, a pen or a key is pressing, so a
  * stylesheet draws a press that shows on touch too. `:active` cannot: iOS
  * Safari applies it only under a touchstart listener, and a quick tap holds
@@ -7,13 +7,15 @@
  * @module
  */
 
+import { shared } from "../lifetime/lifetime.js";
+
 export interface PressOptions {
   /** Ends this call's hold on the listeners. Default: none, held for the
    *  page's life. */
   readonly signal?: AbortSignal;
 }
 
-const ATTR = "data-uip-pressed";
+const ATTR = "data-cp-pressed";
 
 /** What Space activates; Enter activates the same and links. */
 const SPACE = [
@@ -241,30 +243,13 @@ function listen(): () => void {
   };
 }
 
-/** One set of listeners for the page, shared by every call: a second set
- *  would clear a press the first still shows when its signal ends. */
-let shared: { holders: number; stop: () => void } | null = null;
+const page = shared((signal) => {
+  signal.addEventListener("abort", listen(), { once: true });
+});
 
-/** Set `data-uip-pressed` on whatever is being pressed, by any input. Calls
+/** Set `data-cp-pressed` on whatever is being pressed, by any input. Calls
  *  share one set of listeners, which stays until every call's signal has
  *  aborted and then clears every press it set. */
 export function installPress(opts?: PressOptions): void {
-  const signal = opts?.signal;
-  if (signal?.aborted === true) {
-    return;
-  }
-  shared ??= { holders: 0, stop: listen() };
-  const s = shared;
-  s.holders += 1;
-  signal?.addEventListener(
-    "abort",
-    () => {
-      s.holders -= 1;
-      if (s.holders === 0) {
-        s.stop();
-        shared = null;
-      }
-    },
-    { once: true },
-  );
+  page.install(opts);
 }

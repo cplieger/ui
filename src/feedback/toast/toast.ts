@@ -9,6 +9,8 @@
  * @module
  */
 
+import { reducedMotion } from "../../core/lifetime/lifetime.js";
+
 export type ToastKind = "info" | "success" | "warning" | "error";
 
 export interface ToastAction {
@@ -46,8 +48,6 @@ const MAX = 4;
 const SWIPE_PX = 80;
 
 let stack: HTMLElement | null = null;
-
-const reduced = (): boolean => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function node(tag: string, className: string, text?: string): HTMLElement {
   const n = document.createElement(tag);
@@ -104,16 +104,16 @@ function theStack(): HTMLElement {
 /** Leaves in two beats: slides out toward its edge and fades, then its row
  *  closes so the toasts above settle. Reduced motion only fades. */
 function leave(slot: HTMLElement): void {
-  if (slot.hasAttribute("data-uip-leaving")) {
+  if (slot.hasAttribute("data-cp-leaving")) {
     return;
   }
-  slot.setAttribute("data-uip-leaving", "");
-  const out = reduced() ? 120 : 280;
+  slot.setAttribute("data-cp-leaving", "");
+  const out = reducedMotion() ? 120 : 280;
   const toast = slot.firstElementChild?.firstElementChild;
   const finish = (): void => {
-    slot.setAttribute("data-uip-closing", "");
+    slot.setAttribute("data-cp-closing", "");
     const row = slot.animate([{ gridTemplateRows: "1fr" }, { gridTemplateRows: "0fr" }], {
-      duration: reduced() ? 0 : 220,
+      duration: reducedMotion() ? 0 : 220,
       easing: "cubic-bezier(0.2, 0, 0, 1)",
       fill: "forwards",
     });
@@ -136,7 +136,7 @@ function leave(slot: HTMLElement): void {
           {},
           {
             opacity: 0,
-            translate: reduced()
+            translate: reducedMotion()
               ? "0 0"
               : toast.matches(":dir(rtl)")
                 ? "calc(-100% - 1rem) 0"
@@ -270,7 +270,7 @@ export function toast(options: ToastOptions): ToastHandle {
   swipeAway(el, dismiss);
   s.append(slot);
   rehome(s);
-  const showing = [...s.querySelectorAll<HTMLElement>(".cp-toast-slot:not([data-uip-leaving])")];
+  const showing = [...s.querySelectorAll<HTMLElement>(".cp-toast-slot:not([data-cp-leaving])")];
   if (showing.length > MAX) {
     const passing = showing.find((x) => x.querySelector(".cp-toast-time") !== null) ?? showing[0];
     if (passing !== undefined) {

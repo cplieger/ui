@@ -55,8 +55,8 @@ function mount<T extends Element>(markup: string, selector: string): T {
   return el;
 }
 
-const pressed = (el: Element): boolean => el.hasAttribute("data-uip-pressed");
-const anyPressed = (): Element | null => document.querySelector("[data-uip-pressed]");
+const pressed = (el: Element): boolean => el.hasAttribute("data-cp-pressed");
+const anyPressed = (): Element | null => document.querySelector("[data-cp-pressed]");
 
 let installs: AbortController[] = [];
 function install(): AbortController {
@@ -440,9 +440,9 @@ describe("installPress lifecycle", () => {
     expect(pressed(b)).toBe(false);
   });
 
-  it("leaves a data-uip-pressed the page set itself", () => {
+  it("leaves a data-cp-pressed the page set itself", () => {
     const ac = install();
-    const own = mount<HTMLElement>('<div data-uip-pressed=""></div>', "div");
+    const own = mount<HTMLElement>('<div data-cp-pressed=""></div>', "div");
     const b = mount<HTMLButtonElement>("<button>Go</button>", "button");
     pointer("pointerdown", b);
     ac.abort();
@@ -497,7 +497,7 @@ describe.skipIf(server.browser !== "chromium")("installPress with real input", (
     const seen = { ever: false };
     new MutationObserver(() => {
       seen.ever ||= pressed(el);
-    }).observe(el, { attributes: true, attributeFilter: ["data-uip-pressed"] });
+    }).observe(el, { attributes: true, attributeFilter: ["data-cp-pressed"] });
     return seen;
   }
 

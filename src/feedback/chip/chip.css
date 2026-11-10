@@ -18,7 +18,7 @@
   color: var(--cp-shell-ink);
 }
 
-.cp-chip .uip-icon {
+.cp-chip .cp-icon {
   --cp-icon-size: 0.875rem;
 }
 

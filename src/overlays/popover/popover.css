@@ -42,7 +42,7 @@
 }
 
 /* Opened at a point (showPopoverAt), its corner sits where the press was. */
-.cp-popover[data-uip-at] {
+.cp-popover[data-cp-at] {
   position-area: none;
   margin: 0;
 }

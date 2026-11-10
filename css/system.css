@@ -1270,7 +1270,7 @@
 }
 
 :where(.cp) :where(:focus-visible),
-:where(.cp) :where([data-uip-focus-ring]:focus) {
+:where(.cp) :where([data-cp-focus-ring]:focus) {
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }
@@ -1291,7 +1291,7 @@
 
 @media (forced-colors: active) {
   :where(.cp) :where(:focus-visible),
-  :where(.cp) :where([data-uip-focus-ring]:focus) {
+  :where(.cp) :where([data-cp-focus-ring]:focus) {
     outline-color: Highlight;
   }
 }
@@ -1577,9 +1577,9 @@
   color: var(--cp-ink);
 }
 
-/* [data-uip-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
+/* [data-cp-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
  * arrow keys reached where WebKit drops :focus-visible. */
-.cp-segmented > label:has(:focus-visible, [data-uip-focus-ring]:focus) {
+.cp-segmented > label:has(:focus-visible, [data-cp-focus-ring]:focus) {
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
 }
@@ -1952,24 +1952,24 @@
     transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
-/* data-uip-pressed comes from @cplieger/ui/press, for a finger :active misses. */
+/* data-cp-pressed comes from @cplieger/ui/press, for a finger :active misses. */
 .cp-button:active:not(:disabled, [aria-disabled="true"]),
-.cp-button[data-uip-pressed]:not(:disabled, [aria-disabled="true"]) {
+.cp-button[data-cp-pressed]:not(:disabled, [aria-disabled="true"]) {
   transform: scale(var(--cp-press-scale));
 }
 
 /* An icon-only button, named by aria-label and holding only icons, presses
  * by its fill: a scaled 18px icon is resampled and blurs on a 1x screen. */
-.cp-button[aria-label]:not(:has(> :not(.uip-icon))) {
+.cp-button[aria-label]:not(:has(> :not(.cp-icon))) {
   --cp-press-scale: 1;
 }
 
-.cp-button[aria-label][data-uip-pressed]:not(:has(> :not(.uip-icon))) {
+.cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
   background: var(--cp-fill-active);
 }
 
 /* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
-.cp-button[aria-label]:active:not(:has(> :not(.uip-icon))) {
+.cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
   background: var(--cp-fill-active);
 }
 
@@ -2137,7 +2137,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   font-weight: var(--cp-weight-medium);
 }
 
-.cp-field-error > .uip-icon {
+.cp-field-error > .cp-icon {
   --cp-icon-size: 0.875rem;
 
   margin-block-start: 0.0625rem;
@@ -2254,7 +2254,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
     /* A plain button in a row shares the row's hover fill and would vanish;
      * lift it to the raised surface. Only a resting button: one that
      * confirms in place keeps the fill its busy or done state gives it. */
-    .cp-table tr:hover .cp-button:not([data-variant], [data-uip-state]) {
+    .cp-table tr:hover .cp-button:not([data-variant], [data-cp-state]) {
       background: var(--cp-surface-raised);
     }
   }
@@ -2389,7 +2389,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   color: var(--cp-shell-ink);
 }
 
-.cp-chip .uip-icon {
+.cp-chip .cp-icon {
   --cp-icon-size: 0.875rem;
 }
 
@@ -2422,7 +2422,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   margin-inline-start: auto;
 }
 
-.cp-notice > .uip-icon {
+.cp-notice > .cp-icon {
   color: var(--cp-tone-11);
   margin-block-start: 0.0625rem;
 }
@@ -2583,7 +2583,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   gap: var(--cp-space-4);
 }
 
-.cp-list-detail[data-uip-docked] {
+.cp-list-detail[data-cp-docked] {
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
 }
 
@@ -2627,7 +2627,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   font-size: var(--cp-text-md);
 }
 
-.cp-list-detail > .cp-detail[data-uip-still] {
+.cp-list-detail > .cp-detail[data-cp-still] {
   animation: none;
 }
 
@@ -2920,7 +2920,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   padding-block-start: var(--cp-space-2);
 }
 
-.cp-toast-slot[data-uip-closing] > .cp-toast-wrap {
+.cp-toast-slot[data-cp-closing] > .cp-toast-wrap {
   overflow: hidden;
 }
 
@@ -3228,8 +3228,8 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 /* Opened without its entrance, as on a page that loads with it open. */
-.cp-dialog[data-uip-still],
-.cp-dialog[data-uip-still]::backdrop {
+.cp-dialog[data-cp-still],
+.cp-dialog[data-cp-still]::backdrop {
   transition: none;
 }
 
@@ -3309,7 +3309,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   padding-block-start: var(--cp-space-5);
 }
 
-.cp-dialog[data-variant="confirm"] .cp-dialog-body > .uip-icon {
+.cp-dialog[data-variant="confirm"] .cp-dialog-body > .cp-icon {
   --cp-icon-size: 1.5rem;
 
   color: var(--cp-danger-9);
@@ -3369,7 +3369,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 /* A dialog that keeps typed changes says no to a press outside. */
-.cp-dialog[data-uip-refused] {
+.cp-dialog[data-cp-refused] {
   animation: cp-refuse 420ms var(--cp-ease-out);
 }
 
@@ -3427,7 +3427,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cp-dialog[data-uip-refused] {
+  .cp-dialog[data-cp-refused] {
     animation: none;
   }
 
@@ -3494,7 +3494,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 /* Opened at a point (showPopoverAt), its corner sits where the press was. */
-.cp-popover[data-uip-at] {
+.cp-popover[data-cp-at] {
   position-area: none;
   margin: 0;
 }
@@ -3577,12 +3577,12 @@ input.cp-input:is([type^="date"], [type="time"]) {
   font-size: var(--cp-text-xs);
 }
 
-.cp-menu [role^="menuitem"] > .uip-icon {
+.cp-menu [role^="menuitem"] > .cp-icon {
   color: var(--cp-ink-muted);
 }
 
 .cp-menu [data-tone="danger"],
-.cp-menu [data-tone="danger"] > .uip-icon {
+.cp-menu [data-tone="danger"] > .cp-icon {
   color: var(--cp-danger-11);
 }
 
@@ -3763,7 +3763,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   cursor: progress;
 }
 
-:where(.cp) .uip-icon[data-uip-icon="spinner-arc"] {
+:where(.cp) .cp-icon[data-cp-icon="spinner-arc"] {
   animation: cp-spin 0.8s linear infinite;
 }
 
@@ -3777,7 +3777,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
  * busy with the spinner-arc and its busy words, then a green fill, a check
  * that draws and its done words, then back at rest. The fill fades back
  * slowly and flashes in fast. A danger button stays red as it confirms. */
-.cp-button[data-uip-confirm] {
+.cp-button[data-cp-confirm] {
   /* A green dark enough for white words in both themes, about 5:1. */
   --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
 
@@ -3793,37 +3793,37 @@ input.cp-input:is([type^="date"], [type="time"]) {
 /* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
  * that win a tie by scope proximity. Inside a split button the split paints
  * the fill, so it sets --cp-done-paint to transparent for its parts. */
-button.cp-button[data-uip-confirm][data-uip-state="done"]:not(:disabled) {
+button.cp-button[data-cp-confirm][data-cp-state="done"]:not(:disabled) {
   background: var(--cp-done-paint, var(--cp-done-fill));
   color: oklch(100% 0 0deg);
   transition-duration: 160ms, 160ms, var(--cp-dur-press), 300ms;
 }
 
-button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
+button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
   background: var(--cp-done-paint, var(--cp-danger-9));
   color: var(--cp-danger-on);
 }
 
-:where(.cp-button[data-uip-confirm]) > .uip-icon[data-uip-part],
-[data-uip-state="busy"] > .uip-icon:not([data-uip-part="busy"]),
-[data-uip-state="done"] > .uip-icon:not([data-uip-part="done"]) {
+:where(.cp-button[data-cp-confirm]) > .cp-icon[data-part],
+[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
+[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
   display: none;
 }
 
-[data-uip-state="busy"] > .uip-icon[data-uip-part="busy"] {
+[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
   display: inline-block;
   animation: cp-spin 0.8s linear infinite;
 }
 
-[data-uip-state="done"] > .uip-icon[data-uip-part="done"] {
+[data-cp-state="done"] > .cp-icon[data-part="done"] {
   display: inline-block;
   animation: cp-check-draw 320ms var(--cp-ease-out);
 }
 
 /* A busy or done button takes no second press, so it never starts an action
  * it cannot show. */
-.cp-button[data-uip-state="busy"],
-.cp-button[data-uip-state="done"] {
+.cp-button[data-cp-state="busy"],
+.cp-button[data-cp-state="done"] {
   cursor: default;
 }
 
@@ -3834,8 +3834,8 @@ button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-uip-state="busy"] > .uip-icon[data-uip-part],
-  [data-uip-state="done"] > .uip-icon[data-uip-part] {
+  [data-cp-state="busy"] > .cp-icon[data-part],
+  [data-cp-state="done"] > .cp-icon[data-part] {
     animation: none;
   }
 }
@@ -3872,8 +3872,8 @@ button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
 
 /* @cplieger/ui/press never marks a disabled control, and a disabled button
  * is never :active. */
-.cp-group:has(> [data-uip-pressed]),
-.cp-split:has(> [data-uip-pressed]),
+.cp-group:has(> [data-cp-pressed]),
+.cp-split:has(> [data-cp-pressed]),
 .cp-group:has(> :active:not([aria-disabled="true"])),
 .cp-split:has(> :active:not([aria-disabled="true"])) {
   transform: scale(var(--cp-press-scale));
@@ -3896,7 +3896,7 @@ button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
     transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
-.cp-split:has(> [data-uip-state="done"]) {
+.cp-split:has(> [data-cp-state="done"]) {
   background: oklch(from var(--cp-success-9) min(l, 0.52) c h);
   transition:
     background-color 160ms var(--cp-ease-out),
@@ -3916,15 +3916,15 @@ button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-split > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-uip-state]) {
+    .cp-split > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-cp-state]) {
       background-color: var(--cp-tone-10);
       background-clip: padding-box;
     }
   }
 }
 
-.cp-split > .cp-button[data-uip-pressed]:not([data-uip-state]),
-.cp-split > .cp-button:active:not(:disabled, [data-uip-state]) {
+.cp-split > .cp-button[data-cp-pressed]:not([data-cp-state]),
+.cp-split > .cp-button:active:not(:disabled, [data-cp-state]) {
   background-color: var(--cp-tone-10);
   background-clip: padding-box;
 }
@@ -3956,7 +3956,7 @@ button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
     border-radius 0s var(--cp-dur-medium);
 }
 
-.cp-split:has(> [data-uip-state]) > .cp-button:first-child {
+.cp-split:has(> [data-cp-state]) > .cp-button:first-child {
   margin-inline-end: calc(-1 * var(--cp-caret-w));
   padding-inline-end: calc(var(--cp-control-pad-x) + var(--cp-caret-w));
   border-start-end-radius: var(--cp-radius-control);
@@ -3970,7 +3970,7 @@ button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
     border-radius 0s;
 }
 
-.cp-split:has(> [data-uip-state]) > .cp-button:last-child {
+.cp-split:has(> [data-cp-state]) > .cp-button:last-child {
   visibility: hidden;
   border-inline-start-color: transparent;
   transition:
@@ -3980,11 +3980,11 @@ button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
 
 /* The chevron fades ahead of the sliding edge, so half a chevron never
  * shows, and returns once the edge has passed back over it. */
-.cp-split > .cp-button:last-child > .uip-icon {
+.cp-split > .cp-button:last-child > .cp-icon {
   transition: opacity 120ms var(--cp-ease-out) 120ms;
 }
 
-.cp-split:has(> [data-uip-state]) > :last-child > .uip-icon {
+.cp-split:has(> [data-cp-state]) > :last-child > .cp-icon {
   opacity: 0;
   transition: opacity 90ms var(--cp-ease-out);
 }
@@ -4003,12 +4003,12 @@ button.cp-button[data-tone="danger"][data-uip-state="done"]:not(:disabled) {
   --cp-toggle-on: oklch(62% 0.21 20deg);
 }
 
-.cp-toggle > .uip-icon[data-uip-part="on"],
-.cp-toggle[aria-pressed="true"] > .uip-icon:not([data-uip-part="on"]) {
+.cp-toggle > .cp-icon[data-part="on"],
+.cp-toggle[aria-pressed="true"] > .cp-icon:not([data-part="on"]) {
   display: none;
 }
 
-.cp-toggle[aria-pressed="true"] > .uip-icon[data-uip-part="on"] {
+.cp-toggle[aria-pressed="true"] > .cp-icon[data-part="on"] {
   display: inline-block;
 }
 
@@ -4018,13 +4018,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   color: var(--cp-toggle-on);
 }
 
-.cp-toggle[data-kind="pin"] > .uip-icon {
+.cp-toggle[data-kind="pin"] > .cp-icon {
   transition: translate 180ms var(--cp-ease-out);
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .uip-icon {
+    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .cp-icon {
       translate: 0 -2px;
     }
 
@@ -4036,15 +4036,15 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 /* The keyframes name no first or last frame, so the arc starts and ends at
  * the pin's own position: lifted under a mouse, at rest under a finger. */
-.cp-toggle[data-kind="pin"][data-uip-toggled="on"] > .uip-icon {
+.cp-toggle[data-kind="pin"][data-cp-toggled="on"] > .cp-icon {
   animation: cp-pin-drop 640ms;
 }
 
-.cp-toggle[data-kind="pin"][data-uip-toggled="off"] > .uip-icon {
+.cp-toggle[data-kind="pin"][data-cp-toggled="off"] > .cp-icon {
   animation: cp-pin-lift 360ms var(--cp-ease-out);
 }
 
-.cp-toggle[data-kind="favourite"][data-uip-toggled="on"] > .uip-icon {
+.cp-toggle[data-kind="favourite"][data-cp-toggled="on"] > .cp-icon {
   animation: cp-heart-beat 1100ms var(--cp-ease-out);
 }
 
@@ -4094,7 +4094,7 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cp-toggle[data-uip-toggled] > .uip-icon {
+  .cp-toggle[data-cp-toggled] > .cp-icon {
     animation: none;
   }
 }
@@ -4118,7 +4118,7 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   white-space: nowrap;
 }
 
-.cp-roll[data-uip-roll="number"] {
+.cp-roll[data-kind="number"] {
   font-variant-numeric: tabular-nums;
 }
 
@@ -4146,7 +4146,7 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     block-size 460ms var(--cp-ease-spring);
 }
 
-.cp-pill[data-uip-still] {
+.cp-pill[data-cp-still] {
   transition: none;
 }
 
@@ -4170,47 +4170,47 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* @cplieger/ui/icons paints a drawing through a mask in currentcolor, at
- * the size its data-uip-icon-size names. */
-:where(.cp) .uip-icon {
+ * the size its data-cp-icon-size names. */
+:where(.cp) .cp-icon {
   display: inline-block;
   flex: none;
   inline-size: var(--cp-icon-size, var(--cp-icon-ui));
   block-size: var(--cp-icon-size, var(--cp-icon-ui));
   background-color: currentcolor;
-  mask: var(--uip-icon, none) center / contain no-repeat;
+  mask: var(--cp-icon-image, none) center / contain no-repeat;
 }
 
-:where(.cp) .uip-icon[data-uip-icon-size="inline"] {
+:where(.cp) .cp-icon[data-cp-icon-size="inline"] {
   --cp-icon-size: 1em;
 }
 
-:where(.cp) .uip-icon[data-uip-icon-size="lg"] {
+:where(.cp) .cp-icon[data-cp-icon-size="lg"] {
   --cp-icon-size: 1.5rem;
 }
 
-:where(.cp) .uip-icon[data-uip-icon-size="hero"] {
+:where(.cp) .cp-icon[data-cp-icon-size="hero"] {
   --cp-icon-size: 3rem;
 }
 
 /* A drawing that points along the line of text faces the other way in a
  * right-to-left context. */
-:where(.cp) .uip-icon:dir(rtl):is([data-uip-icon$="-right"], [data-uip-icon$="-left"]) {
+:where(.cp) .cp-icon:dir(rtl):is([data-cp-icon$="-right"], [data-cp-icon$="-left"]) {
   transform: scaleX(-1);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :where(.cp) .uip-icon[data-uip-icon="spinner-arc"] {
+  :where(.cp) .cp-icon[data-cp-icon="spinner-arc"] {
     animation: none;
   }
 }
 
 @media (forced-colors: active) {
-  :where(.cp) .uip-icon {
+  :where(.cp) .cp-icon {
     forced-color-adjust: none;
   }
 
   @supports (forced-color-adjust: preserve-parent-color) {
-    :where(.cp) .uip-icon {
+    :where(.cp) .cp-icon {
       forced-color-adjust: preserve-parent-color;
     }
   }

@@ -6,6 +6,8 @@
  * @module
  */
 
+import { until } from "../../core/lifetime/lifetime.js";
+
 export type ConnectionTestState = "idle" | "busy" | "passed" | "failed";
 
 export type ConnectionTestResult =
@@ -154,7 +156,7 @@ export function enhanceConnectionTest(
     },
   };
 
-  const listen: AddEventListenerOptions = signal === undefined ? {} : { signal };
+  const listen = until(signal);
   button.addEventListener(
     "click",
     (e) => {

@@ -11,6 +11,7 @@
  */
 
 import { anchorTo, showPopoverAt } from "../anchor/anchor.js";
+import { until } from "../../core/lifetime/lifetime.js";
 
 export interface MenuOptions {
   /** The person chose an item: a `menuitem` after the menu closed, a
@@ -136,7 +137,7 @@ export function enhanceMenu(
   if (signal?.aborted === true) {
     return;
   }
-  const listen: AddEventListenerOptions = signal === undefined ? {} : { signal };
+  const listen = until(signal);
   button.setAttribute("aria-haspopup", "menu");
   button.setAttribute("aria-controls", ensureId(menu));
   button.setAttribute("aria-expanded", "false");
@@ -156,7 +157,7 @@ export function enhanceMenu(
     (e) => {
       const open = e.newState === "open";
       button.setAttribute("aria-expanded", String(open));
-      if (open && !menu.hasAttribute("data-uip-at")) {
+      if (open && !menu.hasAttribute("data-cp-at")) {
         (focusLast ? last() : first())?.focus();
       }
       focusLast = false;
@@ -218,8 +219,8 @@ export function enhanceContextMenu(
     return;
   }
   const holdMs = options.hold ?? 500;
-  const listen: AddEventListenerOptions = signal === undefined ? {} : { signal };
-  const capture: AddEventListenerOptions = { ...listen, capture: true };
+  const listen = until(signal);
+  const capture = until(signal, true);
   let opener: Element | null = null;
   const open = (x: number, y: number, at: Element): void => {
     onOpen?.(at);

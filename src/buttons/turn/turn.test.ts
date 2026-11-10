@@ -12,7 +12,7 @@ function refresh(): { button: HTMLButtonElement; icon: HTMLElement } {
   button.type = "button";
   button.setAttribute("aria-label", "Refresh");
   const icon = document.createElement("span");
-  icon.className = "uip-icon";
+  icon.className = "cp-icon";
   icon.style.display = "inline-block";
   button.append(icon);
   document.body.append(button);

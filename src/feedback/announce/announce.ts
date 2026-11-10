@@ -10,6 +10,8 @@
  * @module
  */
 
+import { shared } from "../../core/lifetime/lifetime.js";
+
 export type Politeness = "polite" | "assertive";
 
 export interface AnnouncerOptions {
@@ -22,8 +24,6 @@ const PAIR = "cp-live-regions";
  *  message twice is read twice. */
 const GAP_MS = 100;
 
-let installed: AbortController | null = null;
-let holds = 0;
 const pending = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
 
 /** The pair of regions directly inside `host`, made if it has none. */
@@ -60,7 +60,7 @@ function topModal(): HTMLDialogElement | null {
  * and no dialog open, it does nothing.
  */
 export function announce(message: string, politeness: Politeness = "polite"): void {
-  const host = topModal() ?? (installed === null ? null : document.body);
+  const host = topModal() ?? (page.active ? document.body : null);
   if (host === null) {
     return;
   }
@@ -79,65 +79,56 @@ export function announce(message: string, politeness: Politeness = "polite"): vo
   );
 }
 
+const page = shared((signal) => {
+  pairIn(document.body);
+  for (const d of document.querySelectorAll("dialog")) {
+    pairIn(d);
+  }
+  // A dialog's pair exists before it opens: its beforetoggle fires first.
+  document.addEventListener(
+    "beforetoggle",
+    (e) => {
+      const t = e.target;
+      if (t instanceof HTMLDialogElement && e.newState === "open") {
+        pairIn(t);
+      }
+    },
+    { capture: true, signal },
+  );
+  // A dialog's close empties its regions, so a message never waits there to
+  // be read again when it next opens.
+  document.addEventListener(
+    "close",
+    (e) => {
+      const t = e.target;
+      if (t instanceof HTMLDialogElement) {
+        for (const r of pairIn(t).children) {
+          r.textContent = "";
+        }
+      }
+    },
+    { capture: true, signal },
+  );
+  signal.addEventListener(
+    "abort",
+    () => {
+      for (const t of pending.values()) {
+        clearTimeout(t);
+      }
+      pending.clear();
+      for (const pair of document.querySelectorAll(`.${PAIR}`)) {
+        pair.remove();
+      }
+    },
+    { once: true },
+  );
+});
+
 /**
  * Makes the page's regions and gives every modal dialog its own pair before
  * it opens, once for the page however many parts of it call this. The
  * regions stay until every caller's signal has aborted.
  */
 export function installAnnouncer(options: AnnouncerOptions = {}): void {
-  const { signal } = options;
-  if (signal?.aborted === true) {
-    return;
-  }
-  holds += 1;
-  if (installed === null) {
-    installed = new AbortController();
-    pairIn(document.body);
-    for (const d of document.querySelectorAll("dialog")) {
-      pairIn(d);
-    }
-    // A dialog's pair exists before it opens: its beforetoggle fires first.
-    document.addEventListener(
-      "beforetoggle",
-      (e) => {
-        const t = e.target;
-        if (t instanceof HTMLDialogElement && e.newState === "open") {
-          pairIn(t);
-        }
-      },
-      { capture: true, signal: installed.signal },
-    );
-    // A dialog's close empties its regions, so a message never waits there to
-    // be read again when it next opens.
-    document.addEventListener(
-      "close",
-      (e) => {
-        const t = e.target;
-        if (t instanceof HTMLDialogElement) {
-          for (const r of pairIn(t).children) {
-            r.textContent = "";
-          }
-        }
-      },
-      { capture: true, signal: installed.signal },
-    );
-  }
-  signal?.addEventListener(
-    "abort",
-    () => {
-      holds -= 1;
-      if (holds === 0 && installed !== null) {
-        installed.abort();
-        installed = null;
-        for (const t of pending.values()) {
-          clearTimeout(t);
-        }
-        pending.clear();
-        for (const pair of document.querySelectorAll(`.${PAIR}`)) {
-          pair.remove();
-        }
-      }
-    },
-    { once: true },
-  );
+  page.install(options);
 }

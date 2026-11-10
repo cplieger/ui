@@ -51,10 +51,10 @@ describe("enhanceDisclosure", () => {
     await settle();
     await userEvent.click(summary);
     expect(d.open).toBe(true);
-    expect(d.hasAttribute("data-uip-closing")).toBe(true);
+    expect(d.hasAttribute("data-cp-closing")).toBe(true);
     await settle();
     expect(d.open).toBe(false);
-    expect(d.hasAttribute("data-uip-closing")).toBe(false);
+    expect(d.hasAttribute("data-cp-closing")).toBe(false);
   });
 
   it("opens a section that shares a name and glides the open one shut, one at a time", async () => {

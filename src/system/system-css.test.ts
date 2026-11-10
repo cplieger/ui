@@ -275,10 +275,10 @@ describe("css/system.css", () => {
 
   it("leaves elements and widgets as the browser draws them until cp is set", () => {
     const el = build(
-      '<a href="#x">link</a><h1>title</h1><pre>pre</pre><span class="uip-icon"></span>',
+      '<a href="#x">link</a><h1>title</h1><pre>pre</pre><span class="cp-icon"></span>',
     );
     const read = () =>
-      ["a", "h1", "pre", ".uip-icon"].map((sel) => {
+      ["a", "h1", "pre", ".cp-icon"].map((sel) => {
         const cs = getComputedStyle(el.querySelector(sel) as Element);
         return [
           cs.color,
@@ -330,10 +330,10 @@ describe("css/system.css", () => {
     }
   });
 
-  it("presses a button by data-uip-pressed as well as :active, and never a disabled one", async () => {
+  it("presses a button by data-cp-pressed as well as :active, and never a disabled one", async () => {
     theme("light");
     const el = build(
-      '<button class="cp-button" type="button" data-uip-pressed="">Go</button><button class="cp-button" type="button" data-uip-pressed="" disabled>No</button><button class="cp-button" type="button" data-uip-pressed="" aria-disabled="true">Full</button>',
+      '<button class="cp-button" type="button" data-cp-pressed="">Go</button><button class="cp-button" type="button" data-cp-pressed="" disabled>No</button><button class="cp-button" type="button" data-cp-pressed="" aria-disabled="true">Full</button>',
     );
     const [on, off, full] = [...el.querySelectorAll("button")];
     for (const b of [on, off, full]) {
@@ -348,7 +348,7 @@ describe("css/system.css", () => {
 
   it.skipIf(!emulates)("does not scale a press under reduced motion", async () => {
     theme("light");
-    const el = build('<button class="cp-button" type="button" data-uip-pressed="">Go</button>');
+    const el = build('<button class="cp-button" type="button" data-cp-pressed="">Go</button>');
     const button = el.querySelector("button") as HTMLElement;
     button.style.transition = "none";
     await media("prefers-reduced-motion", "reduce");
@@ -600,10 +600,10 @@ describe("css/system.css", () => {
     const el = build(
       '<table class="cp-table"><tbody><tr><td>Frieren</td><td data-col="actions">' +
         '<button class="cp-button" type="button" id="plain">Grab</button>' +
-        '<button class="cp-button" type="button" id="done" data-uip-state="done">Grabbed</button>' +
+        '<button class="cp-button" type="button" id="done" data-cp-state="done">Grabbed</button>' +
         '<button class="cp-button" data-variant="quiet" type="button" id="quiet">More</button>' +
         "</td></tr></tbody></table>" +
-        '<style>.cp-button[data-uip-state="done"] { background: rgb(0, 128, 0); }</style>',
+        '<style>.cp-button[data-cp-state="done"] { background: rgb(0, 128, 0); }</style>',
     );
     const fill = (id: string) =>
       getComputedStyle(el.querySelector(`#${id}`) as Element).backgroundColor;
@@ -696,7 +696,7 @@ describe("css/system.css", () => {
   it("presses an icon-only button by its fill, never by scale, and a worded one by scale", () => {
     theme("light");
     const el = build(
-      '<button class="cp-button" type="button" data-uip-pressed="">Go</button><button class="cp-button" type="button" aria-label="Settings" data-uip-pressed=""><span class="uip-icon"></span></button>',
+      '<button class="cp-button" type="button" data-cp-pressed="">Go</button><button class="cp-button" type="button" aria-label="Settings" data-cp-pressed=""><span class="cp-icon"></span></button>',
     );
     const [worded, icon] = [...el.querySelectorAll("button")].map((b) => {
       b.style.transition = "none";
@@ -877,11 +877,11 @@ describe("css/system.css", () => {
         ["Overview", "Library", "Releases"]
           .map(
             (w) =>
-              `<a class="cp-nav-item" href="#"><span class="uip-icon"></span><span class="cp-nav-label">${w}</span></a>`,
+              `<a class="cp-nav-item" href="#"><span class="cp-icon"></span><span class="cp-nav-label">${w}</span></a>`,
           )
           .join("") +
         '</nav><div class="cp-toolbar"><span class="cp-chip">Full check 3 of 8</span>' +
-        '<button class="cp-button" data-variant="quiet" type="button" aria-label="Theme"><span class="uip-icon"></span></button>'.repeat(
+        '<button class="cp-button" data-variant="quiet" type="button" aria-label="Theme"><span class="cp-icon"></span></button>'.repeat(
           3,
         ) +
         "</div></header></div>",
@@ -1031,7 +1031,7 @@ describe("css/system.css", () => {
   it("mirrors a drawing that points along the text in a right-to-left context", () => {
     theme("light");
     const el = build(
-      '<span class="uip-icon" data-uip-icon="arrow-right"></span><span class="uip-icon" data-uip-icon="chevron-up"></span>',
+      '<span class="cp-icon" data-cp-icon="arrow-right"></span><span class="cp-icon" data-cp-icon="chevron-up"></span>',
     );
     el.dir = "rtl";
     const [along, up] = [...el.querySelectorAll("span")].map((i) => getComputedStyle(i).transform);
@@ -1087,7 +1087,7 @@ describe("css/system.css buttons and arrangements", () => {
     it(`writes a confirmed button's done words at 4.5:1 on its green in ${t}`, () => {
       theme(t);
       const el = build(
-        '<button class="cp-button" data-variant="primary" data-uip-confirm="glide" data-uip-state="done" type="button"><span class="cp-roll">Saved</span></button>',
+        '<button class="cp-button" data-variant="primary" data-cp-confirm="glide" data-cp-state="done" type="button"><span class="cp-roll">Saved</span></button>',
       );
       const b = el.querySelector("button") as HTMLElement;
       b.style.transition = "none";
@@ -1099,24 +1099,24 @@ describe("css/system.css buttons and arrangements", () => {
   it("shows a confirmed button's busy and done drawings only in their state", () => {
     theme("light");
     const el = build(
-      '<button class="cp-button" data-uip-confirm="glide" type="button"><span class="uip-icon" data-uip-icon="save"></span><span class="uip-icon" data-uip-part="busy"></span><span class="uip-icon" data-uip-part="done"></span><span class="cp-roll">Save</span></button>',
+      '<button class="cp-button" data-cp-confirm="glide" type="button"><span class="cp-icon" data-cp-icon="save"></span><span class="cp-icon" data-part="busy"></span><span class="cp-icon" data-part="done"></span><span class="cp-roll">Save</span></button>',
     );
     const b = el.querySelector("button") as HTMLElement;
     const shown = () =>
-      [...b.querySelectorAll(".uip-icon")].map((i) => getComputedStyle(i).display !== "none");
+      [...b.querySelectorAll(".cp-icon")].map((i) => getComputedStyle(i).display !== "none");
     expect(shown()).toEqual([true, false, false]);
-    b.dataset["uipState"] = "busy";
+    b.dataset["cpState"] = "busy";
     expect(shown()).toEqual([false, true, false]);
-    b.dataset["uipState"] = "done";
+    b.dataset["cpState"] = "done";
     expect(shown()).toEqual([false, false, true]);
-    b.dataset["uipState"] = "pending";
+    b.dataset["cpState"] = "pending";
     expect(shown()).toEqual([true, false, false]);
   });
 
   it("keeps a confirmed delete red", () => {
     theme("light");
     const el = build(
-      '<button class="cp-button" data-tone="danger" data-uip-confirm="glide" type="button">Delete</button><button class="cp-button" data-tone="danger" data-uip-confirm="glide" data-uip-state="done" type="button">Deleted</button>',
+      '<button class="cp-button" data-tone="danger" data-cp-confirm="glide" type="button">Delete</button><button class="cp-button" data-tone="danger" data-cp-confirm="glide" data-cp-state="done" type="button">Deleted</button>',
     );
     const [rest, done] = [...el.querySelectorAll("button")] as HTMLElement[];
     for (const b of [rest, done]) {
@@ -1130,7 +1130,7 @@ describe("css/system.css buttons and arrangements", () => {
   it("paints a split button as one shape, its parts clear, and grows the action over its caret while it works", () => {
     theme("light");
     const el = build(
-      '<div class="cp-split" role="group"><button class="cp-button" data-variant="primary" type="button">Grab the best</button><button class="cp-button" data-variant="primary" type="button" aria-label="More grab choices"><span class="uip-icon"></span></button></div>',
+      '<div class="cp-split" role="group"><button class="cp-button" data-variant="primary" type="button">Grab the best</button><button class="cp-button" data-variant="primary" type="button" aria-label="More grab choices"><span class="cp-icon"></span></button></div>',
     );
     const split = el.querySelector(".cp-split") as HTMLElement;
     const [main, caret] = [...split.querySelectorAll("button")] as HTMLElement[];
@@ -1143,7 +1143,7 @@ describe("css/system.css buttons and arrangements", () => {
     expect(getComputedStyle(main as Element).backgroundColor).toBe("rgba(0, 0, 0, 0)");
     expect(getComputedStyle(caret as Element).backgroundColor).toBe("rgba(0, 0, 0, 0)");
     const width = split.getBoundingClientRect().width;
-    (main as HTMLElement).dataset["uipState"] = "busy";
+    (main as HTMLElement).dataset["cpState"] = "busy";
     expect(getComputedStyle(main as Element).marginInlineEnd).toBe(
       `-${getComputedStyle(caret as Element).inlineSize}`,
     );
@@ -1169,12 +1169,12 @@ describe("css/system.css buttons and arrangements", () => {
   it("colours a toggle that is on, and shows its filled drawing only then", () => {
     theme("light");
     const el = build(
-      '<button class="cp-button cp-toggle" data-variant="quiet" data-kind="pin" aria-pressed="false" aria-label="Pin" type="button"><span class="uip-icon"></span><span class="uip-icon" data-uip-part="on"></span></button>',
+      '<button class="cp-button cp-toggle" data-variant="quiet" data-kind="pin" aria-pressed="false" aria-label="Pin" type="button"><span class="cp-icon"></span><span class="cp-icon" data-part="on"></span></button>',
     );
     const b = el.querySelector("button") as HTMLElement;
     b.style.transition = "none";
     const shown = () =>
-      [...b.querySelectorAll(".uip-icon")].map((i) => getComputedStyle(i).display !== "none");
+      [...b.querySelectorAll(".cp-icon")].map((i) => getComputedStyle(i).display !== "none");
     expect(shown()).toEqual([true, false]);
     const off = getComputedStyle(b).color;
     b.setAttribute("aria-pressed", "true");
@@ -1188,7 +1188,7 @@ describe("css/system.css buttons and arrangements", () => {
   it("makes an icon segmented choice's segments square", () => {
     theme("light");
     const el = build(
-      '<div class="cp-segmented" data-variant="icons" role="radiogroup" aria-label="View"><label><input type="radio" name="v" aria-label="List" checked><span class="uip-icon"></span></label><label><input type="radio" name="v" aria-label="Grid"><span class="uip-icon"></span></label></div>',
+      '<div class="cp-segmented" data-variant="icons" role="radiogroup" aria-label="View"><label><input type="radio" name="v" aria-label="List" checked><span class="cp-icon"></span></label><label><input type="radio" name="v" aria-label="Grid"><span class="cp-icon"></span></label></div>',
     );
     const box = (el.querySelector("label") as HTMLElement).getBoundingClientRect();
     expect(box.width).toBeCloseTo(box.height, 0);
@@ -1226,7 +1226,7 @@ describe("css/system.css buttons and arrangements", () => {
     const ld = el.firstElementChild as HTMLElement;
     ld.style.inlineSize = "1000px";
     expect(getComputedStyle(ld).gridTemplateColumns.split(" ")).toHaveLength(1);
-    ld.setAttribute("data-uip-docked", "");
+    ld.setAttribute("data-cp-docked", "");
     expect(getComputedStyle(ld).gridTemplateColumns.split(" ")).toHaveLength(2);
     const dialog = document.createElement("dialog");
     dialog.className = "cp-dialog";

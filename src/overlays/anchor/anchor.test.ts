@@ -93,12 +93,12 @@ describe("anchorTo and showPopoverAt", () => {
     pop.style.margin = "0";
     showPopoverAt(pop, innerWidth - 10, 40);
     expect(pop.matches(":popover-open")).toBe(true);
-    expect(pop.hasAttribute("data-uip-at")).toBe(true);
+    expect(pop.hasAttribute("data-cp-at")).toBe(true);
     const box = pop.getBoundingClientRect();
     expect(box.right).toBeLessThanOrEqual(innerWidth);
     expect(box.top).toBeCloseTo(40, 0);
     anchorTo(pop, buttons[0] as HTMLButtonElement);
-    expect(pop.hasAttribute("data-uip-at")).toBe(false);
+    expect(pop.hasAttribute("data-cp-at")).toBe(false);
     expect(pop.style.left).toBe("");
   });
 });

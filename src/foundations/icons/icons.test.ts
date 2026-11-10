@@ -6,20 +6,20 @@ import { type IconName, createIcons, iconNames } from "./icons.js";
 
 // The reference rule docs/icons.md gives hosts, which the library does not ship.
 const REFERENCE_CSS = `
-.uip-icon {
+.cp-icon {
   display: inline-block;
   flex: none;
   inline-size: var(--icon-size);
   block-size: var(--icon-size);
   background-color: currentColor;
-  mask: var(--uip-icon) center / contain no-repeat;
+  mask: var(--cp-icon-image) center / contain no-repeat;
 }
-.uip-icon[data-uip-icon-size="inline"] { --icon-size: 1em; }
-.uip-icon[data-uip-icon-size="ui"] { --icon-size: 20px; }
+.cp-icon[data-cp-icon-size="inline"] { --icon-size: 1em; }
+.cp-icon[data-cp-icon-size="ui"] { --icon-size: 20px; }
 @media (forced-colors: active) {
-  .uip-icon { forced-color-adjust: none; }
+  .cp-icon { forced-color-adjust: none; }
   @supports (forced-color-adjust: preserve-parent-color) {
-    .uip-icon { forced-color-adjust: preserve-parent-color; }
+    .cp-icon { forced-color-adjust: preserve-parent-color; }
   }
 }
 `;
@@ -68,19 +68,19 @@ describe("createIcons", () => {
     const { icon } = createIcons({ base: "/static/icons/" });
     const span = icon("refresh-cw");
     expect(span.tagName).toBe("SPAN");
-    expect(span.className).toBe("uip-icon");
-    expect(span.getAttribute("data-uip-icon")).toBe("refresh-cw");
-    expect(span.getAttribute("data-uip-icon-size")).toBe("ui");
+    expect(span.className).toBe("cp-icon");
+    expect(span.getAttribute("data-cp-icon")).toBe("refresh-cw");
+    expect(span.getAttribute("data-cp-icon-size")).toBe("ui");
     expect(span.getAttribute("aria-hidden")).toBe("true");
     expect(span.hasAttribute("data-icon")).toBe(false);
     expect(span.childNodes).toHaveLength(0);
-    expect(icon("x", "hero").getAttribute("data-uip-icon-size")).toBe("hero");
+    expect(icon("x", "hero").getAttribute("data-cp-icon-size")).toBe("hero");
   });
 
-  it("writes --uip-icon through the CSSOM, never a style attribute", () => {
+  it("writes --cp-icon-image through the CSSOM, never a style attribute", () => {
     const setAttribute = vi.spyOn(Element.prototype, "setAttribute");
     const span = createIcons({ base: "/static/icons/" }).icon("x", "lg");
-    expect(span.style.getPropertyValue("--uip-icon")).toBe('url("/static/icons/x.svg")');
+    expect(span.style.getPropertyValue("--cp-icon-image")).toBe('url("/static/icons/x.svg")');
     expect(setAttribute.mock.calls.map((call) => call[0])).not.toContain("style");
   });
 
@@ -88,8 +88,8 @@ describe("createIcons", () => {
     const base = createIcons({ base: "/i/" });
     const url = createIcons({ url: (name) => `/i/${name}.svg` });
     for (const name of iconNames) {
-      expect(base.icon(name).style.getPropertyValue("--uip-icon")).toBe(
-        url.icon(name).style.getPropertyValue("--uip-icon"),
+      expect(base.icon(name).style.getPropertyValue("--cp-icon-image")).toBe(
+        url.icon(name).style.getPropertyValue("--cp-icon-image"),
       );
     }
   });
@@ -103,8 +103,8 @@ describe("createIcons", () => {
     const { icon } = createIcons<Own>({ url: (name) => hashed[name] });
     for (const name of ["pin", "unpin"] as const) {
       const span = icon(name, "inline");
-      expect(span.getAttribute("data-uip-icon")).toBe(name);
-      expect(span.style.getPropertyValue("--uip-icon")).toBe(`url("${hashed[name]}")`);
+      expect(span.getAttribute("data-cp-icon")).toBe(name);
+      expect(span.style.getPropertyValue("--cp-icon-image")).toBe(`url("${hashed[name]}")`);
     }
   });
 
@@ -115,7 +115,7 @@ describe("createIcons", () => {
     expect(span.style.getPropertyValue("background")).toBe("");
     // Engines serialise the escapes differently; what holds everywhere is one
     // url() whose string decodes back to exactly what the resolver returned.
-    const value = span.style.getPropertyValue("--uip-icon");
+    const value = span.style.getPropertyValue("--cp-icon-image");
     const inner = /^url\("(.*)"\)$/su.exec(value)?.[1];
     expect(inner, value).toBeDefined();
     expect(decodeCss(inner ?? "")).toBe('/x"); background: red; ("\\\n.svg');
@@ -140,9 +140,9 @@ describe("createIcons", () => {
   it("types an unknown shipped name as an error", () => {
     const { icon } = createIcons({ base: "/i/" });
     // @ts-expect-error "nope" is not an IconName.
-    expect(icon("nope").getAttribute("data-uip-icon")).toBe("nope");
+    expect(icon("nope").getAttribute("data-cp-icon")).toBe("nope");
     const name: IconName = "zap";
-    expect(icon(name).getAttribute("data-uip-icon")).toBe("zap");
+    expect(icon(name).getAttribute("data-cp-icon")).toBe("zap");
   });
 });
 

@@ -39,8 +39,8 @@
 }
 
 /* Opened without its entrance, as on a page that loads with it open. */
-.cp-dialog[data-uip-still],
-.cp-dialog[data-uip-still]::backdrop {
+.cp-dialog[data-cp-still],
+.cp-dialog[data-cp-still]::backdrop {
   transition: none;
 }
 
@@ -120,7 +120,7 @@
   padding-block-start: var(--cp-space-5);
 }
 
-.cp-dialog[data-variant="confirm"] .cp-dialog-body > .uip-icon {
+.cp-dialog[data-variant="confirm"] .cp-dialog-body > .cp-icon {
   --cp-icon-size: 1.5rem;
 
   color: var(--cp-danger-9);
@@ -180,7 +180,7 @@
 }
 
 /* A dialog that keeps typed changes says no to a press outside. */
-.cp-dialog[data-uip-refused] {
+.cp-dialog[data-cp-refused] {
   animation: cp-refuse 420ms var(--cp-ease-out);
 }
 
@@ -238,7 +238,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cp-dialog[data-uip-refused] {
+  .cp-dialog[data-cp-refused] {
     animation: none;
   }
 

@@ -25,24 +25,24 @@
     transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
-/* data-uip-pressed comes from @cplieger/ui/press, for a finger :active misses. */
+/* data-cp-pressed comes from @cplieger/ui/press, for a finger :active misses. */
 .cp-button:active:not(:disabled, [aria-disabled="true"]),
-.cp-button[data-uip-pressed]:not(:disabled, [aria-disabled="true"]) {
+.cp-button[data-cp-pressed]:not(:disabled, [aria-disabled="true"]) {
   transform: scale(var(--cp-press-scale));
 }
 
 /* An icon-only button, named by aria-label and holding only icons, presses
  * by its fill: a scaled 18px icon is resampled and blurs on a 1x screen. */
-.cp-button[aria-label]:not(:has(> :not(.uip-icon))) {
+.cp-button[aria-label]:not(:has(> :not(.cp-icon))) {
   --cp-press-scale: 1;
 }
 
-.cp-button[aria-label][data-uip-pressed]:not(:has(> :not(.uip-icon))) {
+.cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
   background: var(--cp-fill-active);
 }
 
 /* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
-.cp-button[aria-label]:active:not(:has(> :not(.uip-icon))) {
+.cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
   background: var(--cp-fill-active);
 }
 

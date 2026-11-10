@@ -32,7 +32,7 @@
   padding-block-start: var(--cp-space-2);
 }
 
-.cp-toast-slot[data-uip-closing] > .cp-toast-wrap {
+.cp-toast-slot[data-cp-closing] > .cp-toast-wrap {
   overflow: hidden;
 }
 

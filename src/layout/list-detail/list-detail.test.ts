@@ -42,7 +42,7 @@ function mount(width: number, options: Omit<ListDetailOptions, "signal"> = {}) {
   heading.textContent = "Entry";
   const close = document.createElement("button");
   close.type = "button";
-  close.setAttribute("data-uip-detail-close", "");
+  close.setAttribute("data-detail-close", "");
   close.setAttribute("aria-label", "Close");
   header.append(heading, close);
   detail.append(header);
@@ -60,7 +60,7 @@ describe("enhanceListDetail", () => {
     api.open();
     expect(detail.hidden).toBe(false);
     expect(detail.parentElement).toBe(root);
-    expect(root.hasAttribute("data-uip-docked")).toBe(true);
+    expect(root.hasAttribute("data-cp-docked")).toBe(true);
     expect(dialog.open).toBe(false);
     expect(document.activeElement).toBe(heading);
   });
@@ -72,7 +72,7 @@ describe("enhanceListDetail", () => {
     expect(dialog.matches(":modal")).toBe(true);
     expect(dialog.getAttribute("aria-labelledby")).toBe("detail-title");
     expect(detail.parentElement).toBe(dialog);
-    expect(root.hasAttribute("data-uip-docked")).toBe(false);
+    expect(root.hasAttribute("data-cp-docked")).toBe(false);
     expect(document.activeElement).toBe(heading);
   });
 
@@ -95,20 +95,20 @@ describe("enhanceListDetail", () => {
   it("docks from the width dockAt names", () => {
     const { root, api } = mount(700, { dockAt: 40 });
     api.open();
-    expect(root.hasAttribute("data-uip-docked")).toBe(true);
+    expect(root.hasAttribute("data-cp-docked")).toBe(true);
   });
 
   it("opens still, without its entrance, and lets the motion return after it paints", async () => {
     const { detail, dialog, api } = mount(400);
     api.open({ still: true });
-    expect(detail.hasAttribute("data-uip-still")).toBe(true);
-    expect(dialog.hasAttribute("data-uip-still")).toBe(true);
+    expect(detail.hasAttribute("data-cp-still")).toBe(true);
+    expect(dialog.hasAttribute("data-cp-still")).toBe(true);
     await frames(3);
-    expect(detail.hasAttribute("data-uip-still")).toBe(false);
-    expect(dialog.hasAttribute("data-uip-still")).toBe(false);
+    expect(detail.hasAttribute("data-cp-still")).toBe(false);
+    expect(dialog.hasAttribute("data-cp-still")).toBe(false);
     api.close();
     api.open();
-    expect(detail.hasAttribute("data-uip-still")).toBe(false);
+    expect(detail.hasAttribute("data-cp-still")).toBe(false);
   });
 
   it("closes back into the box and returns focus to the opener", () => {

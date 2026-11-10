@@ -12,12 +12,12 @@
   --cp-toggle-on: oklch(62% 0.21 20deg);
 }
 
-.cp-toggle > .uip-icon[data-uip-part="on"],
-.cp-toggle[aria-pressed="true"] > .uip-icon:not([data-uip-part="on"]) {
+.cp-toggle > .cp-icon[data-part="on"],
+.cp-toggle[aria-pressed="true"] > .cp-icon:not([data-part="on"]) {
   display: none;
 }
 
-.cp-toggle[aria-pressed="true"] > .uip-icon[data-uip-part="on"] {
+.cp-toggle[aria-pressed="true"] > .cp-icon[data-part="on"] {
   display: inline-block;
 }
 
@@ -27,13 +27,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   color: var(--cp-toggle-on);
 }
 
-.cp-toggle[data-kind="pin"] > .uip-icon {
+.cp-toggle[data-kind="pin"] > .cp-icon {
   transition: translate 180ms var(--cp-ease-out);
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .uip-icon {
+    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .cp-icon {
       translate: 0 -2px;
     }
 
@@ -45,15 +45,15 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 /* The keyframes name no first or last frame, so the arc starts and ends at
  * the pin's own position: lifted under a mouse, at rest under a finger. */
-.cp-toggle[data-kind="pin"][data-uip-toggled="on"] > .uip-icon {
+.cp-toggle[data-kind="pin"][data-cp-toggled="on"] > .cp-icon {
   animation: cp-pin-drop 640ms;
 }
 
-.cp-toggle[data-kind="pin"][data-uip-toggled="off"] > .uip-icon {
+.cp-toggle[data-kind="pin"][data-cp-toggled="off"] > .cp-icon {
   animation: cp-pin-lift 360ms var(--cp-ease-out);
 }
 
-.cp-toggle[data-kind="favourite"][data-uip-toggled="on"] > .uip-icon {
+.cp-toggle[data-kind="favourite"][data-cp-toggled="on"] > .cp-icon {
   animation: cp-heart-beat 1100ms var(--cp-ease-out);
 }
 
@@ -103,7 +103,7 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cp-toggle[data-uip-toggled] > .uip-icon {
+  .cp-toggle[data-cp-toggled] > .cp-icon {
     animation: none;
   }
 }
