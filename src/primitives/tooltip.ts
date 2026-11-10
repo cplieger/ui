@@ -254,11 +254,8 @@ class TooltipController {
     const described = !anchor.hasAttribute(this.refAttribute);
 
     const tipId = `uip-tip-${(++tipIdSeq).toString()}`;
-    const tip = el(
-      "div",
-      { className: "uip-tooltip", role: "tooltip", id: tipId },
-      ...renderLines(text),
-    );
+    const tip = el("div", { className: "uip-tooltip", role: "tooltip", id: tipId });
+    tip.append(...renderLines(text));
     // Shares the dialog's top-layer context; body-appended would paint behind a modal.
     const host: Element = anchor.closest("dialog[open]") ?? document.body;
     if (!described) {
