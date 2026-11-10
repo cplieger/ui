@@ -14,7 +14,7 @@ const MANIFEST = join(IMAGES, "system-screens.json");
 
 interface Shot {
   readonly image: string;
-  readonly page: "library" | "item" | "parts";
+  readonly page: "library" | "item" | "parts" | "sign-in" | "security" | "settings";
   readonly theme: "light" | "dark";
   readonly pointer: "fine" | "coarse";
   readonly size: readonly [number, number];
@@ -62,6 +62,36 @@ const SHOTS: readonly Shot[] = [
     theme: "light",
     pointer: "coarse",
     size: [820, 1180],
+  },
+  {
+    image: "system-sign-in-light",
+    page: "sign-in",
+    theme: "light",
+    pointer: "fine",
+    size: [1280, 800],
+  },
+  {
+    image: "system-sign-in-phone",
+    page: "sign-in",
+    theme: "dark",
+    pointer: "coarse",
+    size: [390, 844],
+    scale: 2,
+  },
+  {
+    image: "system-settings-light",
+    page: "settings",
+    theme: "light",
+    pointer: "fine",
+    size: [1440, 900],
+  },
+  {
+    image: "system-security-dark",
+    page: "security",
+    theme: "dark",
+    pointer: "fine",
+    size: [1440, 900],
+    full: true,
   },
 ];
 
@@ -164,9 +194,13 @@ describe("the reference screens", () => {
       await writeFile(MANIFEST, `${JSON.stringify({ sources: await sourcesHash() }, null, 2)}\n`);
     }
     const docs = await Promise.all(
-      ["design.md", "design-components.md", "design-patterns.md"].map((f) =>
-        readFile(join(ROOT, "docs", f), "utf8"),
-      ),
+      [
+        "design.md",
+        "design-components.md",
+        "design-patterns.md",
+        "design-settings.md",
+        "design-account.md",
+      ].map((f) => readFile(join(ROOT, "docs", f), "utf8")),
     );
     const shown = new Set(
       docs.flatMap((doc) =>

@@ -841,3 +841,153 @@ describe("a marked mark inside the trigger", () => {
     expect(tipCenterX(tip()!)).toBeCloseTo(120, 0);
   });
 });
+
+describe("tooltips for touch", () => {
+  function refTrigger(
+    text: string,
+    opts: { toggle?: boolean; describedBy?: string; attr?: string } = {},
+  ): HTMLElement {
+    const attr = opts.attr ?? "data-uip-tooltip";
+    const desc = document.createElement("span");
+    desc.id = `tip-${String(Math.random()).slice(2)}`;
+    desc.hidden = true;
+    desc.textContent = text;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute(`${attr}-ref`, desc.id);
+    b.setAttribute("aria-describedby", opts.describedBy ?? desc.id);
+    if (opts.toggle === true) {
+      b.setAttribute(`${attr}-toggle`, "");
+    }
+    document.body.append(desc, b);
+    return b;
+  }
+
+  function touch(type: string, el: EventTarget, related: EventTarget | null = null): void {
+    el.dispatchEvent(
+      new PointerEvent(type, {
+        bubbles: true,
+        pointerType: "touch",
+        relatedTarget: related as Element | null,
+      }),
+    );
+  }
+
+  it("shows a referenced text on hover, out of the tree, and leaves aria-describedby as the host set it", () => {
+    initTooltips();
+    const b = refTrigger("Starts a full check.\nTakes a minute.", { describedBy: "intro  tip-x" });
+    pointerOver(b);
+    vi.advanceTimersByTime(500);
+    expect(liveTip()?.innerHTML).toBe("Starts a full check.<br>Takes a minute.");
+    expect(liveTip()?.getAttribute("aria-hidden")).toBe("true");
+    expect(b.getAttribute("aria-describedby")).toBe("intro  tip-x");
+    pointerOut(b);
+    vi.runAllTimers();
+    expect(b.getAttribute("aria-describedby")).toBe("intro  tip-x");
+  });
+
+  it("shows nothing for a reference to nothing or to an empty element, and prefers the reference over text", () => {
+    initTooltips();
+    const missing = document.createElement("button");
+    missing.setAttribute("data-uip-tooltip-ref", "no-such-id");
+    document.body.append(missing);
+    pointerOver(missing);
+    vi.advanceTimersByTime(500);
+    expect(tip()).toBeNull();
+    const both = refTrigger("From the reference");
+    both.setAttribute("data-uip-tooltip", "From the attribute");
+    pointerOver(both);
+    vi.advanceTimersByTime(500);
+    expect(liveTip()?.textContent).toBe("From the reference");
+  });
+
+  it("derives the reference and toggle attributes from a renamed attribute", () => {
+    initTooltips({ attribute: "data-tip" });
+    const b = refTrigger("Renamed", { toggle: true, attr: "data-tip" });
+    b.click();
+    expect(liveTip()?.textContent).toBe("Renamed");
+  });
+
+  it("opens a toggle's tip at once on a click and pins it, and closes it on the second", () => {
+    initTooltips();
+    const b = refTrigger("About quick checks", { toggle: true });
+    b.click();
+    expect(liveTip()?.textContent).toBe("About quick checks");
+    pointerOut(b);
+    vi.advanceTimersByTime(1000);
+    expect(liveTip()).not.toBeNull();
+    b.click();
+    expect(liveTip()).toBeNull();
+  });
+
+  it("keeps a tapped tip open through the whole touch sequence", () => {
+    initTooltips();
+    const b = refTrigger("About quick checks", { toggle: true });
+    for (const t of ["pointerover", "pointerdown", "pointerup", "pointerout"]) {
+      touch(t, b);
+    }
+    b.click();
+    vi.advanceTimersByTime(1000);
+    expect(liveTip()?.textContent).toBe("About quick checks");
+  });
+
+  it.each([
+    ["Escape", () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))],
+    ["a press outside", () => touch("pointerdown", document.body)],
+    ["a scroll", () => document.dispatchEvent(new Event("scroll"))],
+    ["the window losing focus", () => window.dispatchEvent(new Event("blur"))],
+  ])("closes a pinned tip on %s", (_, close) => {
+    initTooltips();
+    const b = refTrigger("Pinned", { toggle: true });
+    b.click();
+    close();
+    expect(liveTip()).toBeNull();
+  });
+
+  it("closes a pinned tip when focus moves elsewhere, or another tip opens, but not on a press inside it", () => {
+    initTooltips();
+    const b = refTrigger("Pinned", { toggle: true });
+    const other = anchor("Other");
+    b.click();
+    touch("pointerdown", liveTip() as HTMLElement);
+    expect(liveTip()?.textContent).toBe("Pinned");
+    b.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: other }));
+    expect(liveTip()).toBeNull();
+    b.click();
+    pointerOver(other);
+    vi.advanceTimersByTime(500);
+    expect(liveTip()?.textContent).toBe("Other");
+    expect(tipCount()).toBeLessThanOrEqual(2);
+  });
+
+  it("opens nothing on a click of a toggle with no reference", () => {
+    initTooltips();
+    const b = anchor("Text only");
+    b.setAttribute("data-uip-tooltip-toggle", "");
+    b.click();
+    expect(tip()).toBeNull();
+  });
+
+  it("starts no hover tip from a finger, and still from a mouse or a pen", () => {
+    initTooltips();
+    const b = anchor("Hover text");
+    touch("pointerover", b);
+    vi.advanceTimersByTime(1000);
+    expect(tip()).toBeNull();
+    for (const pointerType of ["mouse", "pen"]) {
+      b.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType }));
+      vi.advanceTimersByTime(500);
+      expect(liveTip()?.textContent, pointerType).toBe("Hover text");
+      pointerOut(b);
+      vi.runAllTimers();
+    }
+  });
+
+  it("removes a pinned tip on teardown and leaves the host's aria-describedby", () => {
+    initTooltips();
+    const b = refTrigger("Pinned", { toggle: true, describedBy: "help-1 help-2" });
+    b.click();
+    _resetForTest();
+    expect([tip(), b.getAttribute("aria-describedby")]).toEqual([null, "help-1 help-2"]);
+  });
+});

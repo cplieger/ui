@@ -108,6 +108,42 @@
   --uip-icon: url("../../icons/svg/user.svg");
 }
 
+[data-uip-icon="copy"] {
+  --uip-icon: url("../../icons/svg/copy.svg");
+}
+
+[data-uip-icon="eye"] {
+  --uip-icon: url("../../icons/svg/eye.svg");
+}
+
+[data-uip-icon="info"] {
+  --uip-icon: url("../../icons/svg/info.svg");
+}
+
+[data-uip-icon="key-round"] {
+  --uip-icon: url("../../icons/svg/key-round.svg");
+}
+
+[data-uip-icon="lock"] {
+  --uip-icon: url("../../icons/svg/lock.svg");
+}
+
+[data-uip-icon="log-in"] {
+  --uip-icon: url("../../icons/svg/log-in.svg");
+}
+
+[data-uip-icon="log-out"] {
+  --uip-icon: url("../../icons/svg/log-out.svg");
+}
+
+[data-uip-icon="plus"] {
+  --uip-icon: url("../../icons/svg/plus.svg");
+}
+
+[data-uip-icon="shield-check"] {
+  --uip-icon: url("../../icons/svg/shield-check.svg");
+}
+
 /* Example seeds for the reference screens: an app's colour identity is
  * these values and nothing else. */
 [data-app="library"] {

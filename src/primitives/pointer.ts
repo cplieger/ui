@@ -43,34 +43,40 @@ function guess(): PointerTier {
     readonly matchMedia?: (q: string) => MediaQueryList;
     readonly navigator?: { readonly maxTouchPoints?: number };
   };
-  const coarse = g.matchMedia?.("(any-pointer: coarse)").matches ?? false;
-  return coarse || (g.navigator?.maxTouchPoints ?? 0) > 0 ? "coarse" : "fine";
+  const query = (q: string): boolean => g.matchMedia?.(q).matches ?? false;
+  // A touchscreen with a hovering fine pointer beside it, such as an iPad on
+  // a Magic Keyboard, is driven by that pointer.
+  if (query("(any-pointer: fine)") && query("(any-hover: hover)")) {
+    return "fine";
+  }
+  return query("(any-pointer: coarse)") || (g.navigator?.maxTouchPoints ?? 0) > 0
+    ? "coarse"
+    : "fine";
 }
 
 /** Write the first `data-pointer` before paint: the kept tier when there is
- *  one, else "coarse" wherever the device reports touch, else "fine". Never
- *  throws, and leaves no listener. Returns the value written. */
+ *  one, else "fine" wherever a hovering fine pointer is attached, else
+ *  "coarse" wherever the device reports touch, else "fine". Never throws,
+ *  and leaves no listener. Returns the value written. */
 export function applyPointerTier(opts?: PointerTierOptions): PointerTier {
   const tier = cached(opts?.storageKey) ?? guess();
   document.documentElement.setAttribute(ATTR, tier);
   return tier;
 }
 
-/** Follow each real pointer: a pointerdown sets `data-pointer` to its tier and
- *  keeps it under `storageKey`. Call it after `applyPointerTier`; a second
- *  call adds a listener that writes the same values. */
+/** Follow each real pointer: a press of any pointer, or a mouse or trackpad
+ *  that moves without one, sets `data-pointer` to its tier and keeps it
+ *  under `storageKey`. Call it after `applyPointerTier`; a second call adds
+ *  listeners that write the same values. */
 export function installPointerTier(opts?: PointerTierFollowOptions): void {
   const key = opts?.storageKey;
   const signal = opts?.signal;
-  const onDown = (e: PointerEvent): void => {
-    if (e.pointerType === "") {
+  const root = document.documentElement;
+  const set = (tier: PointerTier): void => {
+    if (root.getAttribute(ATTR) === tier) {
       return;
     }
-    const tier: PointerTier = e.pointerType === "mouse" ? "fine" : "coarse";
-    const root = document.documentElement;
-    if (root.getAttribute(ATTR) !== tier) {
-      root.setAttribute(ATTR, tier);
-    }
+    root.setAttribute(ATTR, tier);
     if (key !== undefined) {
       try {
         globalThis.localStorage.setItem(key, tier);
@@ -79,10 +85,24 @@ export function installPointerTier(opts?: PointerTierFollowOptions): void {
       }
     }
   };
+  const onDown = (e: PointerEvent): void => {
+    if (e.pointerType !== "") {
+      set(e.pointerType === "mouse" ? "fine" : "coarse");
+    }
+  };
+  // A trackpad on an iPad moves the pointer long before it clicks; a finger
+  // or a pen sends no move without a press first.
+  const onMove = (e: PointerEvent): void => {
+    if (e.pointerType === "mouse") {
+      set("fine");
+    }
+  };
   // Capture, so a page handler that stops the event cannot hide the input.
-  globalThis.addEventListener("pointerdown", onDown, {
+  const options: AddEventListenerOptions = {
     capture: true,
     passive: true,
     ...(signal === undefined ? {} : { signal }),
-  });
+  };
+  globalThis.addEventListener("pointerdown", onDown, options);
+  globalThis.addEventListener("pointermove", onMove, options);
 }

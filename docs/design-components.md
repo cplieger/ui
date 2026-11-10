@@ -9,9 +9,14 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-nav`, `.cp-nav-item`, `.cp-nav-label` | destinations in the header, the current one filled and in a stronger weight, and a word hidden from sight below 60rem |
 | `.cp-rail-toggle` | the Filters button that shows only once the rail leaves |
 | `.cp-button` | `data-variant="primary"` or `"quiet"`, `data-size="sm"`, `data-tone`, `aria-busy="true"` while working, and `aria-disabled="true"` on a link without `href` |
-| `.cp-field`, `.cp-label`, `.cp-input`, `.cp-help`, `.cp-field-error` | a labelled field, its help and its error, with the danger border on `aria-invalid="true"` and `:user-invalid` |
+| `.cp-field`, `.cp-label`, `.cp-input`, `.cp-help`, `.cp-field-error` | a labelled field, its help and its error, with the danger border on `aria-invalid="true"` and `:user-invalid`, and the warning border on `data-tone="warning"` |
+| `.cp-form`, `.cp-input-row`, `.cp-input-wrap` | a column of fields at most 32rem wide, a field with a control beside it, and a field with a quiet control inside its end |
+| `.cp-switch` | a native checkbox with `role="switch"`, its thumb at the end when on |
+| `.cp-segmented` | one choice of a few, such as a theme, as native radios in labels |
+| `.cp-settings`, `.cp-settings-nav`, `.cp-setting`, `.cp-savebar` | a settings page: its categories beside the open one, one setting per row, and the bar that holds unsaved changes, as [Settings](design-settings.md) describes |
+| `.cp-gate` | a page outside the frame for one short task, such as sign-in, as [Account and sign-in](design-account.md#the-gate-page) describes |
 | `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority` |
-| `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count |
+| `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height |
 | `.cp-pager` | the range and the Previous and Next links under a table |
 | `.cp-chip`, `.cp-notice`, `.cp-swatch`, `.cp-count` | states in a tone, and a count beside a filter |
 | `.cp-panel`, `.cp-stack`, `.cp-toolbar`, `.cp-heading-row`, `.cp-crumbs`, `.cp-meta` | surfaces and layout |

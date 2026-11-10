@@ -1,11 +1,8 @@
 /**
- * theme.ts — Persisted tri-state theme controller (light / dark / system).
- * While the choice is "system" it follows the OS preference live via
- * matchMedia; concrete choices are pinned. The resolved concrete value is
- * written to a document-element attribute (default `data-theme`) so CSS can
- * key off it. `themeInitSnippet` produces an inline blocking-script string for
- * paint-time application (a real import can't run before first paint).
- *
+ * theme.ts — The stored theme choice, light, dark or system, written to an
+ * attribute on `<html>` as the concrete theme and following the OS while it
+ * is system. `applyTheme` and `themeInitSnippet` apply it before first paint;
+ * the module imports nothing, so a pre-paint bundle loads it alone.
  * @module
  */
 
@@ -23,6 +20,10 @@ export interface ThemeStorage {
   get(): string | null;
   /** Persist the preference value. */
   set(value: string): void;
+  /** Call `onExternalChange` when the stored value changes outside this
+   *  controller, as in another tab. Returns an unsubscribe. The default adapter
+   *  implements it over the `storage` event. */
+  subscribe?(onExternalChange: () => void): () => void;
 }
 
 /** Where the preference is persisted, which attribute carries the resolved
@@ -44,6 +45,9 @@ export interface ThemeOptions {
   attribute?: string;
   /** Called with the resolved concrete theme whenever it changes/applies. */
   onChange?: (resolved: Resolved) => void;
+  /** Called when the OS preference changes, whatever the choice, so a label
+   *  such as "System (now dark)" stays true. */
+  onSystemChange?: (system: Resolved) => void;
 }
 
 /** A live theme controller. The preference (`get`) and the theme actually
@@ -60,7 +64,7 @@ export interface ThemeController {
   cycle(): void;
   /** The current OS preference. */
   getSystem(): Resolved;
-  /** Remove the matchMedia listener. */
+  /** Remove the matchMedia and storage listeners. */
   dispose(): void;
 }
 
@@ -71,34 +75,85 @@ function isChoice(value: string | null): value is ThemeChoice {
   return value === "light" || value === "dark" || value === "system";
 }
 
+/** The bare-localStorage adapter. Reads and writes may throw where storage is
+ *  blocked; the callers catch. */
+function defaultStorage(storageKey: string): ThemeStorage {
+  return {
+    get: () => window.localStorage.getItem(storageKey),
+    set: (value) => {
+      window.localStorage.setItem(storageKey, value);
+    },
+    subscribe: (onExternalChange) => {
+      // The storage event fires only in other documents of the origin, so a
+      // tab's own write never calls back (HTML "The storage event").
+      const onStorage = (e: StorageEvent): void => {
+        let ours: boolean;
+        try {
+          ours = e.storageArea === window.localStorage;
+        } catch {
+          // Reading localStorage throws where storage is blocked.
+          ours = false;
+        }
+        if (ours && (e.key === storageKey || e.key === null)) {
+          onExternalChange();
+        }
+      };
+      window.addEventListener("storage", onStorage);
+      return () => {
+        window.removeEventListener("storage", onStorage);
+      };
+    },
+  };
+}
+
+function readChoice(storage: ThemeStorage): ThemeChoice {
+  let stored: string | null;
+  try {
+    stored = storage.get();
+  } catch {
+    stored = null;
+  }
+  return isChoice(stored) ? stored : "system";
+}
+
+function systemTheme(): Resolved {
+  const match = (window as { matchMedia?: (q: string) => MediaQueryList }).matchMedia;
+  return typeof match === "function" && match.call(window, DARK_QUERY).matches ? "dark" : "light";
+}
+
+function resolve(choice: ThemeChoice, system: Resolved): Resolved {
+  return choice === "system" ? system : choice;
+}
+
+/** Resolve the stored choice once and write the attribute, leaving no
+ *  listener: the call for an external blocking pre-paint script. Never throws:
+ *  a storage error or an unknown stored value resolves as "system", and a
+ *  missing `matchMedia` as "light". Returns the value written. */
+export function applyTheme(
+  opts: Pick<ThemeOptions, "storageKey" | "storage" | "attribute">,
+): Resolved {
+  const value = resolve(readChoice(opts.storage ?? defaultStorage(opts.storageKey)), systemTheme());
+  try {
+    document.documentElement.setAttribute(opts.attribute ?? DEFAULT_ATTRIBUTE, value);
+  } catch {
+    // An attribute name the DOM refuses leaves the page on its default theme.
+  }
+  return value;
+}
+
 /** Create a theme controller bound to the given storage key. Applies the
  *  resolved theme immediately and starts following the OS while in "system". */
 export function createTheme(opts: ThemeOptions): ThemeController {
   const attribute = opts.attribute ?? DEFAULT_ATTRIBUTE;
-  // Lazy + try/catch-wrapped below, so blocked/absent storage degrades to
+  // try/catch-wrapped below, so blocked or absent storage degrades to
   // in-memory rather than throwing at construction.
-  const storage: ThemeStorage = opts.storage ?? {
-    get: () => window.localStorage.getItem(opts.storageKey),
-    set: (value) => {
-      window.localStorage.setItem(opts.storageKey, value);
-    },
-  };
+  const storage: ThemeStorage = opts.storage ?? defaultStorage(opts.storageKey);
   const mql = typeof window.matchMedia === "function" ? window.matchMedia(DARK_QUERY) : null;
 
-  const readChoice = (): ThemeChoice => {
-    let stored: string | null;
-    try {
-      stored = storage.get();
-    } catch {
-      stored = null;
-    }
-    return isChoice(stored) ? stored : "system";
-  };
-
-  let choice: ThemeChoice = readChoice();
+  let choice: ThemeChoice = readChoice(storage);
 
   const getSystem = (): Resolved => (mql?.matches === true ? "dark" : "light");
-  const resolved = (): Resolved => (choice === "system" ? getSystem() : choice);
+  const resolved = (): Resolved => resolve(choice, getSystem());
 
   const apply = (): void => {
     const value = resolved();
@@ -124,8 +179,16 @@ export function createTheme(opts: ThemeOptions): ThemeController {
     if (choice === "system") {
       apply();
     }
+    opts.onSystemChange?.(getSystem());
   };
   mql?.addEventListener("change", onSystemChange);
+
+  // Another tab's choice re-applies here without writing it back, so two tabs
+  // never echo each other.
+  const unsubscribe = storage.subscribe?.(() => {
+    choice = readChoice(storage);
+    apply();
+  });
 
   apply();
 
@@ -137,6 +200,7 @@ export function createTheme(opts: ThemeOptions): ThemeController {
     getSystem,
     dispose: () => {
       mql?.removeEventListener("change", onSystemChange);
+      unsubscribe?.();
     },
   };
 }

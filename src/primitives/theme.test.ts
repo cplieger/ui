@@ -1,6 +1,7 @@
+import fc from "fast-check";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import { createTheme, themeInitSnippet, themeInitSnippetFromJSON } from "./theme.js";
+import { applyTheme, createTheme, themeInitSnippet, themeInitSnippetFromJSON } from "./theme.js";
 import type { ThemeStorage } from "./theme.js";
 
 interface MediaState {
@@ -370,5 +371,141 @@ describe("createTheme: an engine with no matchMedia", () => {
     expect(t.resolved()).toBe("light");
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     t.dispose();
+  });
+});
+
+describe("applyTheme", () => {
+  const KEY = "apply-theme-test";
+  afterEach(() => {
+    localStorage.removeItem(KEY);
+  });
+
+  it.each([
+    ["light", false, "light"],
+    ["light", true, "light"],
+    ["dark", false, "dark"],
+    ["system", true, "dark"],
+    ["system", false, "light"],
+    ["garbage", true, "dark"],
+    [null, false, "light"],
+  ])("writes %s with a dark OS %s as %s, and leaves no listener", (stored, dark, written) => {
+    if (stored !== null) {
+      localStorage.setItem(KEY, stored);
+    }
+    media.matches = dark;
+    expect(applyTheme({ storageKey: KEY })).toBe(written);
+    expect(document.documentElement.getAttribute("data-theme")).toBe(written);
+    expect(media.listeners.size).toBe(0);
+  });
+
+  it("resolves as system when the adapter throws, and as light with no matchMedia", () => {
+    media.matches = true;
+    const throwing: ThemeStorage = {
+      get: () => {
+        throw new Error("blocked");
+      },
+      set: () => undefined,
+    };
+    expect(applyTheme({ storageKey: KEY, storage: throwing, attribute: "data-mode" })).toBe("dark");
+    expect(document.documentElement.getAttribute("data-mode")).toBe("dark");
+    (window as { matchMedia?: unknown }).matchMedia = undefined;
+    expect(applyTheme({ storageKey: KEY, storage: throwing })).toBe("light");
+  });
+
+  it("agrees with a live controller for any stored value and OS preference", () => {
+    fc.assert(
+      fc.property(
+        fc.oneof(fc.constantFrom("light", "dark", "system"), fc.string()),
+        fc.boolean(),
+        (stored, dark) => {
+          const storage = memoryStorage();
+          storage.set(stored);
+          media.matches = dark;
+          const live = createTheme({ storageKey: KEY, storage });
+          const expected = live.resolved();
+          live.dispose();
+          expect(applyTheme({ storageKey: KEY, storage })).toBe(expected);
+        },
+      ),
+    );
+  });
+});
+
+describe("createTheme: other tabs", () => {
+  const KEY = "theme-tabs-test";
+  afterEach(() => {
+    localStorage.removeItem(KEY);
+  });
+
+  function otherTab(key: string | null, value: string | null, area: Storage = localStorage): void {
+    if (key !== null && area === localStorage) {
+      if (value === null) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, value);
+      }
+    }
+    window.dispatchEvent(new StorageEvent("storage", { key, newValue: value, storageArea: area }));
+  }
+
+  it("follows a choice another tab stored, without writing it back", () => {
+    const changes: string[] = [];
+    const theme = createTheme({ storageKey: KEY, onChange: (r) => changes.push(r) });
+    changes.length = 0;
+    otherTab(KEY, "dark");
+    expect([theme.get(), document.documentElement.getAttribute("data-theme"), changes]).toEqual([
+      "dark",
+      "dark",
+      ["dark"],
+    ]);
+    expect(localStorage.getItem(KEY)).toBe("dark");
+    theme.dispose();
+  });
+
+  it("re-reads after another tab clears storage", () => {
+    localStorage.setItem(KEY, "dark");
+    const theme = createTheme({ storageKey: KEY });
+    localStorage.clear();
+    otherTab(null, null);
+    expect([theme.get(), localStorage.getItem(KEY)]).toEqual(["system", null]);
+    theme.dispose();
+  });
+
+  it("ignores another key, session storage, and everything once disposed", () => {
+    const theme = createTheme({ storageKey: KEY });
+    localStorage.setItem(KEY, "dark");
+    otherTab("another-key", "dark");
+    otherTab(KEY, "dark", sessionStorage);
+    expect(theme.get()).toBe("system");
+    theme.dispose();
+    otherTab(KEY, "dark");
+    expect(theme.get()).toBe("system");
+  });
+
+  it("follows a custom adapter that subscribes", () => {
+    const storage = memoryStorage();
+    let notify: () => void = () => undefined;
+    const theme = createTheme({
+      storageKey: KEY,
+      storage: { ...storage, subscribe: (cb) => ((notify = cb), () => undefined) },
+    });
+    storage.set("dark");
+    notify();
+    expect(theme.get()).toBe("dark");
+    theme.dispose();
+  });
+});
+
+describe("createTheme: onSystemChange", () => {
+  it("reports an OS change while pinned and while following it", () => {
+    const seen: string[] = [];
+    const storage = memoryStorage();
+    const theme = createTheme({ storageKey: "k", storage, onSystemChange: (s) => seen.push(s) });
+    fireSystemChange(true);
+    theme.set("light");
+    fireSystemChange(false);
+    expect(seen).toEqual(["dark", "light"]);
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    theme.dispose();
   });
 });

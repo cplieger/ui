@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const CSS = join(ROOT, "css", "system.css");
-const DESIGN = join(ROOT, "docs", "design.md");
+const DESIGN = join(ROOT, "docs", "design-colour.md");
 const FONTS = join(ROOT, "fonts");
 const require = createRequire(import.meta.url);
 // Literal specifiers, so knip sees the two devDependencies in use.
@@ -26,16 +26,18 @@ const START = "/* colour:start */";
 const END = "/* colour:end */";
 
 type Theme = "light" | "dark";
+type Colour = [number, number, number];
 type Mode = "normal" | "more";
 type Shape = "neutral" | "accent";
 
-// Lightness per step. Steps: 1 page, 2 raised, 3 control, 4 hover, 5 pressed
-// or selected, 6 hairline, 7 border, 8 strong border and focus, 9 solid,
-// 10 solid hover (derived from 9, so its value here is unused), 11 secondary
-// text, 12 primary text. "more" serves prefers-contrast: more.
+// Lightness per step. Steps: 1 page, 2 raised, 3 sunken and a tone's tint,
+// 4 control, 5 its hover, 6 pressed and the hairline, 7 border, 8 strong
+// border and focus, 9 solid, 10 solid hover (derived from 9, so its value here
+// is unused), 11 secondary text, 12 primary text. "more" serves
+// prefers-contrast: more.
 const LADDER: Record<"normal" | "more", Record<"light" | "dark", readonly number[]>> = {
   normal: {
-    light: [0.993, 0.975, 0.955, 0.932, 0.908, 0.88, 0.82, 0.62, 0.56, 0.515, 0.475, 0.25],
+    light: [0.993, 0.975, 0.955, 0.932, 0.908, 0.88, 0.82, 0.62, 0.548, 0.515, 0.475, 0.25],
     dark: [0.185, 0.215, 0.25, 0.282, 0.315, 0.35, 0.42, 0.56, 0.64, 0.69, 0.79, 0.945],
   },
   more: {
@@ -58,6 +60,19 @@ const CHROMA: Record<Shape, Record<Theme, readonly number[]>> = {
 };
 
 const MORE_TEXT_CHROMA = 0.4;
+
+// A light solid takes white ink at any hue and chroma up to 0.15: 54.8% is
+// where white overtakes black on a grey, and greens and teals, which are the
+// brightest at a given lightness, dip by up to SOLID_DIP more, centred on
+// SOLID_DIP_HUE. Fitted to contrast-color() over every hue.
+const SOLID_DIP = 0.024;
+const SOLID_DIP_HUE = 189;
+const SOLID_DIP_POWER = 4;
+
+function lightSolidL(hue: number): number {
+  const w = Math.max(0, Math.cos(((hue - SOLID_DIP_HUE) * Math.PI) / 180)) ** SOLID_DIP_POWER;
+  return (LADDER.normal.light[8] ?? 0) - SOLID_DIP * w;
+}
 const SOLID_HOVER_MIX = 0.12;
 
 // The header: the brand at step 9's light lightness in the light theme; in
@@ -78,7 +93,7 @@ const ROOT_FAMILIES: readonly (readonly [string, string, string, Shape])[] = [
 ];
 const TONE = ["cp-tone", "--cp-tone-h", "--cp-tone-c", "accent"] as const;
 
-// The chroma every hue may take, in docs/design.md's words.
+// The chroma every hue may take, in docs/design-colour.md's words.
 const ENVELOPE = { accent: 0.09, neutral: 0.015 } as const;
 
 function factor(shape: Shape, theme: Theme, mode: Mode, i: number): number {
@@ -90,7 +105,10 @@ function factor(shape: Shape, theme: Theme, mode: Mode, i: number): number {
 const pct = (v: number) => `${String(Number((v * 100).toFixed(1)))}%`;
 
 function stepExpr(shape: Shape, i: number, theme: Theme, mode: Mode, h: string, c: string) {
-  const l = pct(LADDER[mode][theme][i] ?? 0);
+  const dips = i === 8 && theme === "light" && mode === "normal";
+  const l = dips
+    ? `calc(${pct(LADDER[mode][theme][i] ?? 0)} - ${pct(SOLID_DIP)} * pow(max(0, cos((var(${h}) - ${String(SOLID_DIP_HUE)}) * 1deg)), ${String(SOLID_DIP_POWER)}))`
+    : pct(LADDER[mode][theme][i] ?? 0);
   return `oklch(${l} calc(var(${c}) * ${String(factor(shape, theme, mode, i))}) var(${h}))`;
 }
 
@@ -124,11 +142,120 @@ function shell(mode: Mode): string {
   ].join(" ");
 }
 
+// Harmony colours, the accent's split complement tuned after the method of
+// pro-color-harmonies (docs/design-colour.md states the rules). A partner
+// sits at step 9's lightness before its white-ink dip, with its own ink,
+// unless its hue needs more to look clean; it leaves the sickly yellow-greens; and it
+// carries more chroma than the accent, so an orange is vivid, not brown,
+// under a cap that keeps it in sRGB. The gamut test checks the fitted caps.
+const HARMONY = {
+  // the lightness the partners and their gamut caps were fitted at: step 9's
+  // before the white-ink dip, which the partners do not follow
+  l9: { light: 0.56, dark: 0.64 },
+  turns: [150, 210],
+  chroma: 1.2,
+  // lightness floor: base + amp * max(0, cos(h - peak))^power, which only
+  // the yellows and ambers rise above step 9
+  floor: { base: 0.5, amp: 0.32, peak: 95, power: 4 },
+  // the yellow-green band and where its two halves move to
+  band: { from: 100, to: 135, split: 117.5, low: 95, high: 142 },
+  // the lighter accent sits this far above step 9
+  lighter: 0.14,
+  // chroma cap: a - b * max(0, cos(h - centre))^power
+  cap: {
+    light: { partner: [0.166, 0.066, 200, 3], lighter: [0.154, 0.034, 200, 8] },
+    dark: { partner: [0.166, 0.056, 200, 4], lighter: [0.131, 0.02, 265, 8] },
+  },
+} as const;
+
+type Cap = readonly [number, number, number, number];
+
+/** The harmony colours as OKLCH triples, the reference the CSS computes. */
+function harmony(hue: number, chroma: number, theme: Theme): Colour[] {
+  const l9 = HARMONY.l9[theme];
+  const { floor, band } = HARMONY;
+  const cos = (deg: number) => Math.cos((deg * Math.PI) / 180);
+  const capOf = ([a, b, centre, power]: Cap, h: number) =>
+    a - b * Math.max(0, cos(h - centre)) ** power;
+  const partner = (turn: number): Colour => {
+    let h = (((hue + turn) % 360) + 360) % 360;
+    if (h > band.from && h < band.split) {
+      h = band.low;
+    } else if (h >= band.split && h < band.to) {
+      h = band.high;
+    }
+    const l = Math.max(
+      l9,
+      floor.base + floor.amp * Math.max(0, cos(h - floor.peak)) ** floor.power,
+    );
+    return [l, Math.min(chroma * HARMONY.chroma, capOf(HARMONY.cap[theme].partner, h)), h];
+  };
+  // The lead is the accent's own step 9, white-ink dip included.
+  const lead = theme === "light" ? lightSolidL(hue) : (LADDER.normal.dark[8] ?? 0);
+  return [
+    [lead, chroma, hue],
+    ...HARMONY.turns.map(partner),
+    [l9 + HARMONY.lighter, Math.min(chroma, capOf(HARMONY.cap[theme].lighter, hue)), hue],
+  ];
+}
+
+const num = (v: number) => String(Number(v.toFixed(4)));
+
+// A partner's hue as CSS: the turn wrapped into 0 to 360, then the band's
+// two halves moved to their edges. clamp(0, x * 1e5, 1) is 0 for x <= 0 and
+// 1 from x = 1e-5; adding 1 makes it 1 at x = 0 too, for the closed edge.
+function partnerHueCss(turn: number): string {
+  const { band } = HARMONY;
+  const raw = `mod(calc(var(--cp-accent-h) + ${String(turn)}), 360)`;
+  const step = (x: string, closed = false) => `clamp(0, (${x}) * 100000${closed ? " + 1" : ""}, 1)`;
+  const lowHalf = `${step(`${raw} - ${num(band.from)}`)} * ${step(`${num(band.split)} - ${raw}`)}`;
+  const highHalf = `${step(`${raw} - ${num(band.split)}`, true)} * ${step(`${num(band.to)} - ${raw}`)}`;
+  return `calc(${raw} + ${lowHalf} * (${num(band.low)} - ${raw}) + ${highHalf} * (${num(band.high)} - ${raw}))`;
+}
+
+function capCss([a, b, centre, power]: Cap, h: string): string {
+  return `calc(${num(a)} - ${num(b)} * pow(max(0, cos((${h} - ${String(centre)}) * 1deg)), ${String(power)}))`;
+}
+
+function partnerCss(theme: Theme, h: string): string {
+  const { floor } = HARMONY;
+  const l9 = HARMONY.l9[theme];
+  const l = `max(${num(l9)}, calc(${num(floor.base)} + ${num(floor.amp)} * pow(max(0, cos((${h} - ${String(floor.peak)}) * 1deg)), ${String(floor.power)})))`;
+  const c = `min(calc(var(--cp-accent-c) * ${num(HARMONY.chroma)}), ${capCss(HARMONY.cap[theme].partner, h)})`;
+  return `oklch(${l} ${c} ${h})`;
+}
+
+function lighterCss(theme: Theme): string {
+  const l9 = HARMONY.l9[theme];
+  const c = `min(var(--cp-accent-c), ${capCss(HARMONY.cap[theme].lighter, "var(--cp-accent-h)")})`;
+  return `oklch(${pct(l9 + HARMONY.lighter)} ${c} var(--cp-accent-h))`;
+}
+
+function harmonyBlock(): string {
+  const hueProps = HARMONY.turns.map((_, i) => `--cp-harmony-${String(i + 2)}-h`);
+  const registered = hueProps
+    .map((p) => `@property ${p} { syntax: "<number>"; inherits: true; initial-value: 0; }`)
+    .join("\n\n");
+  const decls = [
+    ...HARMONY.turns.map((t, i) => `${hueProps[i] ?? ""}: ${partnerHueCss(t)};`),
+    `--cp-harmony-1: var(--cp-accent-9);`,
+    ...hueProps.map(
+      (p, i) =>
+        `--cp-harmony-${String(i + 2)}: light-dark(${partnerCss("light", `var(${p})`)}, ${partnerCss("dark", `var(${p})`)});`,
+    ),
+    `--cp-harmony-4: light-dark(${lighterCss("light")}, ${lighterCss("dark")});`,
+    ...[1, 2, 3, 4].map(
+      (n) => `--cp-harmony-${String(n)}-on: contrast-color(var(--cp-harmony-${String(n)}));`,
+    ),
+  ];
+  return `${registered}\n\n:root { ${decls.join(" ")} }`;
+}
+
 function colourBlock(): string {
   const rules = (mode: Mode): string =>
     `:root { ${mode === "normal" ? `--cp-solid-hover-mix: ${String(SOLID_HOVER_MIX * 100)}%;` : ""} ${shell(mode)} ${ROOT_FAMILIES.flatMap((f) => ladder(f, mode)).join(" ")} }
      :root, [data-tone] { ${ladder(TONE, mode).join(" ")} }`;
-  return `${START}\n/* Written by npm run system:sync from src/system/system-css.node.test.ts. */\n${rules("normal")}\n\n@media (prefers-contrast: more) { ${rules("more")} }\n${END}`;
+  return `${START}\n/* Written by npm run system:sync from src/system/system-css.node.test.ts. */\n${rules("normal")}\n\n@media (prefers-contrast: more) { ${rules("more")} }\n\n${harmonyBlock()}\n${END}`;
 }
 
 function markers(current: string): [number, number] {
@@ -178,8 +305,6 @@ const luminance = ([r, g, b]: readonly number[]) =>
   0.2126 * clamp(r ?? 0) + 0.7152 * clamp(g ?? 0) + 0.0722 * clamp(b ?? 0);
 const ratio = (y1: number, y2: number) => (Math.max(y1, y2) + 0.05) / (Math.min(y1, y2) + 0.05);
 
-type Colour = [number, number, number];
-
 type Ladder = Record<Mode, Record<Theme, readonly number[]>>;
 
 function steps(
@@ -192,7 +317,11 @@ function steps(
 ): Colour[] {
   const out: Colour[] = [];
   for (let i = 0; i < 12; i++) {
-    out.push([lad[mode][theme][i] ?? 0, chroma * factor(shape, theme, mode, i), hue]);
+    const l =
+      i === 8 && theme === "light" && mode === "normal" && lad === LADDER
+        ? lightSolidL(hue)
+        : (lad[mode][theme][i] ?? 0);
+    out.push([l, chroma * factor(shape, theme, mode, i), hue]);
   }
   // Step 10: step 9 mixed in oklab toward white or black, away from its ink.
   const [l, c, h] = out[8] as Colour;
@@ -214,6 +343,8 @@ const PAIRS: readonly (readonly [number | "on", number, number])[] = [
   [12, 3, 7],
   [12, 4, 4.5],
   [12, 5, 4.5],
+  // a control's label on its pressed fill
+  [12, 6, 4.5],
   ...[1, 2, 3, 4, 5].map((b) => [11, b, 4.5] as const),
   ...[1, 2, 3].map((b) => [8, b, 3] as const),
   ["on", 9, 4.5],
@@ -314,7 +445,7 @@ function limit(shape: Shape, hue: number): number {
   return c;
 }
 
-// docs/design.md's envelope table: each row is the lowest limit of every
+// docs/design-colour.md's envelope table: each row is the lowest limit of every
 // whole degree from its hue up to the next row's, so a row holds for all of them.
 function envelopeTable(): string {
   const rows = ["| Hues | Accent or tone | Neutral |", "| --- | --- | --- |"];
@@ -358,6 +489,19 @@ describe("css/system.css", () => {
     expect(report).toEqual([]);
   });
 
+  it("inks every light solid white, at every hue and at chromas up to 0.15", () => {
+    const black: string[] = [];
+    for (let hue = 0; hue < 360; hue++) {
+      for (const chroma of [0, 0.015, 0.03, 0.06, 0.09, 0.12, 0.15]) {
+        const solid = steps("accent", "light", "normal", hue, chroma, LADDER)[8] as Colour;
+        if (!inkIsWhite(solid)) {
+          black.push(`${String(hue)} at ${String(chroma)}`);
+        }
+      }
+    }
+    expect(black).toEqual([]);
+  });
+
   it("passes with its own default seeds", () => {
     expect(failures("neutral", 260, 0.008)).toEqual([]);
     for (const [h, c] of [
@@ -378,6 +522,46 @@ describe("css/system.css", () => {
     expect(failures("neutral", 0, 0, faint)).toContain(
       "light normal 11 on 1 is 2.62:1, needs 4.5:1",
     );
+  });
+
+  it("keeps every harmony colour inside sRGB, its ink over 4.5:1 and its hue out of the yellow-greens", () => {
+    const report: string[] = [];
+    for (let hue = 0; hue < 360; hue++) {
+      for (const chroma of [0.02, 0.09, 0.137, 0.2]) {
+        for (const theme of ["light", "dark"] as const) {
+          harmony(hue, chroma, theme).forEach((colour, i) => {
+            const at = `${theme} hue ${String(hue)} chroma ${String(chroma)} harmony ${String(i + 1)}`;
+            // 1 is the accent's step 9, which the ladder checks at its own seeds.
+            if (i > 0 && !inGamut(linearSrgb(...colour))) {
+              report.push(`${at} is outside sRGB`);
+            }
+            const y = luminance(linearSrgb(...colour));
+            if (i > 0 && Math.max(ratio(1, y), ratio(0, y)) < 4.5) {
+              report.push(`${at} has no ink at 4.5:1`);
+            }
+            // 4 is the accent's own hue, which is the app's to choose.
+            if (
+              (i === 1 || i === 2) &&
+              colour[2] > HARMONY.band.from &&
+              colour[2] < HARMONY.band.to
+            ) {
+              report.push(`${at} sits in the yellow-greens at hue ${colour[2].toFixed(1)}`);
+            }
+          });
+        }
+      }
+    }
+    expect(report).toEqual([]);
+  });
+
+  it("keeps an orange partner at the accent's lightness but vivid, and lifts a yellow one", () => {
+    const [lead, orange, yellow] = harmony(255, 0.137, "light");
+    // At 56% and the accent's own chroma, hue 45 reads brown.
+    expect(orange?.[0]).toBe(HARMONY.l9.light);
+    expect(lead?.[0]).toBeCloseTo(0.548 - 0.024 * Math.cos((66 * Math.PI) / 180) ** 4, 5);
+    expect(orange?.[1]).toBeCloseTo(0.137 * HARMONY.chroma, 5);
+    expect(yellow?.[2]).toBe(HARMONY.band.low);
+    expect(yellow?.[0]).toBeCloseTo(HARMONY.floor.base + HARMONY.floor.amp, 5);
   });
 
   it("ships fonts byte-identical to the pinned Fontsource release", async () => {

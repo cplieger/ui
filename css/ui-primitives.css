@@ -61,11 +61,16 @@
 
 /* ===== Toast ============================================================= */
 
+/* The four insets and the shift are read with today's values as fallbacks and
+ * never declared in :root, because this sheet is unlayered: a host's layered
+ * declaration is then the only one, and applies. */
 .uip-toast-stack {
   position: fixed;
   z-index: var(--uip-z-toast, 9999);
-  inset-block-start: var(--uip-toast-offset, 1rem);
-  inset-inline-end: var(--uip-toast-offset, 1rem);
+  inset-block: var(--uip-toast-inset-block-start, var(--uip-toast-offset, 1rem))
+    var(--uip-toast-inset-block-end, auto);
+  inset-inline: var(--uip-toast-inset-inline-start, auto)
+    var(--uip-toast-inset-inline-end, var(--uip-toast-offset, 1rem));
   display: flex;
   flex-direction: column;
   gap: var(--uip-toast-gap, 0.5rem);
@@ -90,7 +95,7 @@
   pointer-events: auto;
   cursor: pointer;
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(var(--uip-toast-shift, -8px));
   transition:
     opacity var(--uip-toast-enter-duration, 250ms) var(--uip-toast-enter-easing, ease),
     transform var(--uip-toast-enter-duration, 250ms) var(--uip-toast-enter-easing, ease);
@@ -103,7 +108,7 @@
 
 .uip-toast.is-leaving {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(var(--uip-toast-shift, -8px));
   transition:
     opacity var(--uip-toast-leave-duration, 150ms) var(--uip-toast-leave-easing, ease),
     transform var(--uip-toast-leave-duration, 150ms) var(--uip-toast-leave-easing, ease);

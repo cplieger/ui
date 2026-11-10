@@ -91,7 +91,7 @@ Import each part from its own subpath. Code that imports one of the earlier pack
 | `@cplieger/ui/actions` | server actions |
 | `@cplieger/ui/actions/testing` | `resetActionFramework` for tests |
 | `@cplieger/ui/<widget>` | one widget, such as `@cplieger/ui/dialog` |
-| `@cplieger/ui/icons` | a set of Lucide drawings, two drawings of its own, and the factory that paints them |
+| `@cplieger/ui/icons` | Lucide's lines in the package's own stroke, a few drawings of its own, and the factory that paints them |
 | `@cplieger/ui/css` | the base stylesheet, on npm only |
 | `@cplieger/ui/css/system` | an opt-in design language: colour from a few seeds in light and dark, type, layout and component classes, on npm only |
 | `@cplieger/ui/fonts/*` | the two fonts the design language uses, on npm only |
@@ -109,7 +109,7 @@ Eight widget subpaths start watching the `open` attribute of dialogs when they l
 - Actions, from `/actions`: `configure`, `configureApi`, `configureTransport`, `defineAction`, `apiAction`, `transportAction`, the helpers `debouncedDispatch`, `pollAction`, `pollUntil`, `bindLoadingState`, `withAsyncFeedback` and `registerCleanup`, and the state reads `isPending`, `pendingCount`, `subscribeToActions`, `subscribeByName` and `getActionLog`.
 - Widgets, one subpath each: [toast](docs/toast.md), [announce](docs/announce.md), [tooltip](docs/tooltip.md), [popover](docs/popover.md), [popup](docs/popup.md), [dialog](docs/dialog.md), [modal](docs/modal.md), [ask](docs/ask.md), [connection-test](docs/connection-test.md), [focus-trap](docs/focus-trap.md), [roving-focus](docs/roving-focus.md), [pointer](docs/pointer.md), [press](docs/press.md), [disclosure](docs/disclosure.md), [theme](docs/theme.md), [view-transition](docs/view-transition.md), [transition](docs/transition.md), [skeleton](docs/skeleton.md) and [stepper](docs/stepper.md).
 - Icons, from `/icons`: `createIcons`, `iconNames` and `ownIconNames` ([icons](docs/icons.md)).
-- The [design language](docs/design.md) from `/css/system`, with its [components](docs/design-components.md), [patterns](docs/design-patterns.md), seeds, `data-tone`, `data-theme`, `data-pointer` and `.cp-*` classes.
+- The [design language](docs/design.md) from `/css/system`, its [colour](docs/design-colour.md), [components](docs/design-components.md), [patterns](docs/design-patterns.md), [settings](docs/design-settings.md) and [account screens](docs/design-account.md).
 
 The full reference, generated from the doc comments, is on [JSR](https://jsr.io/@cplieger/ui/doc).
 
@@ -136,10 +136,10 @@ When `count.value = 1` returns, every effect that depends on `count` has already
 
 ## Documentation
 
-- [Signals, stores and collections](docs/signals.md) and [Building and updating the DOM](docs/dom.md) give the exact rules of `/signal` and `/dom`.
+- [Signals, stores and collections](docs/signals.md) and [Building and updating the DOM](docs/dom.md) cover `/signal` and `/dom`.
 - [Results and errors](docs/results.md), [Requests, timeouts and runtimes](docs/requests.md) and [Base URLs and untrusted responses](docs/security-model.md) cover `/fetch`.
 - [Dispatch lifecycle](docs/lifecycle.md), [HTTP and streaming actions](docs/http.md) and [UI and polling helpers](docs/helpers.md) cover `/actions`.
-- [CSS contract](docs/css.md) covers the base stylesheet and the names you style. Each widget's page is linked from the [API](#api) list.
+- [CSS contract](docs/css.md) covers the base stylesheet and the names you style. The [API](#api) list links each widget's page.
 - [Moving from the earlier packages](docs/migrating.md) maps each import of `@cplieger/reactive`, `@cplieger/ui-primitives`, `@cplieger/actions` and `@cplieger/fetch` and lists what behaves differently.
 
 ## Credits

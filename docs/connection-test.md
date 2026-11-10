@@ -2,7 +2,7 @@
 
 `@cplieger/ui/connection-test`
 
-The state machine behind a "Test connection" button: idle, busy, passed, failed. It runs a check you supply, writes the answer into a status element you render, and marks the field a failure names, so the message sits next to what needs fixing. You own every visual; nothing animates or fades.
+The state machine behind a "Test connection" button: idle, busy, passed, failed. It runs a check you supply, writes the answer into a status element you render, and marks the field a failure names, so the message sits next to what needs fixing. You own every visual, and nothing animates or fades.
 
 ## Usage
 
@@ -35,7 +35,7 @@ const test = createConnectionTest(
 ## Notes
 
 - `status` and `root` carry `data-state` (`idle`, `busy`, `passed`, `failed`) for your CSS. `status` never gets `aria-busy`, because a screen reader may skip a busy live region's changes and would miss "Testing…".
-- A button with no valid `type` (none, or a value HTML does not know, either of which makes a submit button) gets `type="button"`, so it never submits the form around it, and Enter in a field goes to the form's own submit button; dispose puts back the `type` it replaced. While busy the button gets `aria-disabled="true"` and a click does nothing, a submit button you typed yourself included; it is never given `disabled`, which would move focus off it. Outside busy, `aria-disabled` is yours: the value you set is put back when the test ends.
+- A button with no valid `type` (none, or a value HTML does not know, either of which makes a submit button) gets `type="button"`, so it never submits the form around it, and Enter in a field goes to the form's own submit button. Dispose puts back the `type` it replaced. While busy the button gets `aria-disabled="true"` and a click does nothing, a submit button you typed yourself included. It is never given `disabled`, which would move focus off it. Outside busy, `aria-disabled` is yours: the value you set is put back when the test ends.
 - `status` becomes a polite live region (`role="status"`) unless it already has a role, and keeps that role while the control lives. With `live: "none"` no role is written, and you announce from `onChange` yourself.
 - Draw the glyph and colour from `data-state`, so the state is text, glyph and colour together. Busy always has its text.
 - A failure naming a field in `fields` sets `aria-invalid="true"` on its input and adds the status element's id to the input's `aria-describedby`, giving `status` an id whenever it has none. Keep that id stable while a field is marked, since the input names the id it had at the failure. Clearing removes only that id, and once no control marks the input any more, restores the `aria-invalid` it had before the first mark. `mark(message)` is called on marking and `mark(null)` on clearing. A failure naming no field you passed still shows its message.
