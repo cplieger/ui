@@ -4422,3 +4422,16 @@ html:has(.g-header) {
     padding-block-end: 3.5rem;
   }
 }
+
+/* A card whose design waits for the owner's review says so by its title. */
+.card[data-new] > h2::after {
+  content: "New";
+  margin-inline-start: var(--cp-space-2);
+  padding: 0.0625rem var(--cp-space-2);
+  border-radius: var(--cp-radius-chip);
+  background: var(--cp-accent-3);
+  color: var(--cp-accent-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+  vertical-align: middle;
+}
