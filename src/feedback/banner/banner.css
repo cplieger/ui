@@ -17,6 +17,36 @@
   color: var(--cp-tone-11);
 }
 
+/* A banner with reasons stacks its head (a <strong> with its glyph), the
+ * list, and a <small> foot holding its one way to act. */
+.cp-banner:has(> ul) {
+  display: grid;
+  gap: var(--cp-space-2);
+  padding-block: var(--cp-space-3);
+}
+
+.cp-banner > strong {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-banner > strong > .cp-icon {
+  color: var(--cp-tone-11);
+}
+
+.cp-banner > ul {
+  margin: 0;
+  padding-inline-start: 1.75rem;
+  font-size: var(--cp-text-sm);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-banner > small {
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+}
+
 .cp-banner > .cp-button {
   margin-inline-start: auto;
 }

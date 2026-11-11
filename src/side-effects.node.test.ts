@@ -14,6 +14,7 @@ const PURE = [
   "/announce",
   "/ask",
   "/checkbox",
+  "/chip",
   "/choice",
   "/combobox",
   "/confirm",

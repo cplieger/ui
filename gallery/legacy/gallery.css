@@ -334,21 +334,6 @@
   100% { scale: 1; }
 }
 
-/* Colour pops: a state change flashes its tone's solid, then fades to its
- * wash from the first fifth of the animation on. */
-
-.chip-pop.popped {
-  animation: chip-pop 900ms var(--cp-ease-out);
-}
-
-@keyframes chip-pop {
-  0%,
-  18% {
-    background: var(--cp-tone-9);
-    color: var(--cp-tone-on);
-  }
-}
-
 /* Sparkles: small stars that leave a point, spin and fade. */
 
 .sparkle {
@@ -361,14 +346,6 @@
   background: var(--sparkle, var(--pop-1));
   /* a four-point sparkle */
   clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
-}
-
-.chip-pop {
-  border: 0;
-  font: inherit;
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-medium);
-  cursor: pointer;
 }
 
 /* Count roll: each digit is a column that slides to its number. */
@@ -2372,38 +2349,6 @@ html:has(.g-header) {
   to {
     background-position: 140% 0;
   }
-}
-
-/* A banner with reasons. */
-.g-banner-reasons {
-  display: grid;
-  gap: var(--cp-space-2);
-  padding: var(--cp-space-3) var(--cp-space-4);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-warning-3);
-  color: var(--cp-warning-12);
-}
-
-.g-banner-reasons > strong {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-banner-reasons > strong > .cp-icon {
-  color: var(--cp-warning-11);
-}
-
-.g-banner-reasons ul {
-  margin: 0;
-  padding-inline-start: 1.75rem;
-  font-size: var(--cp-text-sm);
-  line-height: var(--cp-leading-body);
-}
-
-.g-banner-reasons small {
-  color: var(--cp-warning-11);
-  font-size: var(--cp-text-xs);
 }
 
 /* A grouped-count confirmation: groups to choose, none chosen for you. */

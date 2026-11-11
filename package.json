@@ -10,6 +10,7 @@
     "./announce": "./src/feedback/announce/announce.ts",
     "./ask": "./src/overlays/ask/ask.ts",
     "./checkbox": "./src/forms/checkbox/checkbox.ts",
+    "./chip": "./src/feedback/chip/chip.ts",
     "./choice": "./src/forms/choice/choice.ts",
     "./combobox": "./src/forms/combobox/combobox.ts",
     "./confirm": "./src/buttons/confirm/confirm.ts",

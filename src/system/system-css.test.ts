@@ -2059,6 +2059,76 @@ describe("css/system.css feedback and steps", () => {
     ).toBe("cp-toast-drain");
   });
 
+  it("stacks a banner's head, its reasons and its foot, the foot in the tone's ink", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-banner" data-tone="warning"><span>Update ready.</span><button class="cp-button" type="button">Reload</button></div>' +
+        '<div class="cp-banner" data-tone="warning"><strong><span class="cp-icon"></span>Reachable from the internet</strong><ul><li>It answers on a public address.</li></ul><small>Seen today. <a href="#a">How to limit access</a></small></div>',
+    );
+    const [plain, reasons] = [...el.querySelectorAll<HTMLElement>(".cp-banner")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect(getComputedStyle(plain).display).toBe("flex");
+    expect(getComputedStyle(plain).paddingBlockStart).toBe("8px");
+    const box = getComputedStyle(reasons);
+    expect([box.display, box.paddingBlockStart, box.paddingInlineStart]).toEqual([
+      "grid",
+      "12px",
+      "16px",
+    ]);
+    const head = reasons.querySelector("strong") as HTMLElement;
+    const list = reasons.querySelector("ul") as HTMLElement;
+    expect(list.getBoundingClientRect().top - head.getBoundingClientRect().bottom).toBe(8);
+    expect(getComputedStyle(list).paddingInlineStart).toBe("28px");
+    expect(getComputedStyle(head).display).toBe("flex");
+    const ink = host("");
+    ink.style.color = "var(--cp-warning-11)";
+    const words = host("");
+    words.style.color = "var(--cp-warning-12)";
+    const foot = getComputedStyle(reasons.querySelector("small") as Element);
+    expect([foot.color, foot.fontSize]).toEqual([getComputedStyle(ink).color, "13px"]);
+    expect(getComputedStyle(reasons.querySelector(".cp-icon") as Element).color).toBe(
+      getComputedStyle(ink).color,
+    );
+    expect(box.color).toBe(getComputedStyle(words).color);
+  });
+
+  it("flashes a chip's solid at 110% and fades it back to its wash from the first fifth", () => {
+    theme("light");
+    const el = build('<span class="cp-chip" data-tone="danger" data-cp-flash="">Down</span>');
+    const chip = el.querySelector(".cp-chip") as HTMLElement;
+    const at = (ms: number) => {
+      for (const a of chip.getAnimations()) {
+        a.pause();
+        a.currentTime = ms;
+      }
+      return getComputedStyle(chip);
+    };
+    const solid = host("", { "data-tone": "danger" });
+    solid.style.cssText = "background: var(--cp-tone-9); color: var(--cp-tone-on)";
+    const wash = host("");
+    wash.style.background = "var(--cp-danger-3)";
+    // An animated colour reads back in its interpolation space, so compare pixels.
+    const solidBg = rgb(getComputedStyle(solid).backgroundColor);
+    const on = rgb(getComputedStyle(solid).color);
+    expect([rgb(at(0).backgroundColor), rgb(at(0).color)]).toEqual([solidBg, on]);
+    expect([rgb(at(162).backgroundColor), at(162).scale]).toEqual([solidBg, "1.1"]);
+    expect(rgb(at(600).backgroundColor)).not.toEqual(solidBg);
+    expect(Number(at(600).scale)).toBeLessThan(1.1);
+    chip.removeAttribute("data-cp-flash");
+    expect(getComputedStyle(chip).backgroundColor).toBe(getComputedStyle(wash).backgroundColor);
+  });
+
+  it.skipIf(!emulates)("keeps a chip's flash but not its growth under reduced motion", async () => {
+    theme("light");
+    const el = build('<span class="cp-chip" data-tone="success" data-cp-flash="">Up</span>');
+    await media("prefers-reduced-motion", "reduce");
+    expect(getComputedStyle(el.querySelector(".cp-chip") as Element).animationName).toBe(
+      "cp-chip-flash",
+    );
+  });
+
   it("puts a tooltip above its control by the anchor the tooltip script names", () => {
     theme("light");
     const el = build(

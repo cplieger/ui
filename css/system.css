@@ -4173,6 +4173,35 @@ textarea.cp-input {
   --cp-icon-size: 0.875rem;
 }
 
+/* flashChip() sets data-cp-flash and removes it when the flash ends. The
+ * keyframes read the tone, so a chip whose tone changes mid-flash flashes
+ * its new one. */
+.cp-chip[data-cp-flash] {
+  animation:
+    cp-chip-flash 900ms var(--cp-ease-out),
+    cp-chip-pop 900ms var(--cp-ease-out);
+}
+
+@keyframes cp-chip-flash {
+  0%,
+  18% {
+    background: var(--cp-tone-9);
+    color: var(--cp-tone-on);
+  }
+}
+
+@keyframes cp-chip-pop {
+  18% {
+    scale: 1.1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-chip[data-cp-flash] {
+    animation: cp-chip-flash 900ms var(--cp-ease-out);
+  }
+}
+
 @media (forced-colors: active) {
   .cp-chip {
     border: var(--cp-line-w) solid CanvasText;
@@ -4294,6 +4323,36 @@ textarea.cp-input {
 
 .cp-banner > .cp-icon {
   color: var(--cp-tone-11);
+}
+
+/* A banner with reasons stacks its head (a <strong> with its glyph), the
+ * list, and a <small> foot holding its one way to act. */
+.cp-banner:has(> ul) {
+  display: grid;
+  gap: var(--cp-space-2);
+  padding-block: var(--cp-space-3);
+}
+
+.cp-banner > strong {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-banner > strong > .cp-icon {
+  color: var(--cp-tone-11);
+}
+
+.cp-banner > ul {
+  margin: 0;
+  padding-inline-start: 1.75rem;
+  font-size: var(--cp-text-sm);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-banner > small {
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
 }
 
 .cp-banner > .cp-button {

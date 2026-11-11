@@ -2,10 +2,12 @@
  * nav-feedback.ts — the gallery's wiring for the navigation and feedback
  * cards that run on the library: the header's account menu and its status
  * demo, the jump field, the rail's filters, the content tabs, the
- * accordion, and the look of the frames that show the bottom bar.
+ * accordion, the toasts, the status chip that changes, and the look of the
+ * frames that show the bottom bar.
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
+import { flashChip } from "@cplieger/ui/chip";
 import { enhanceCombobox } from "@cplieger/ui/combobox";
 import { enhanceDisclosure, groupDisclosures } from "@cplieger/ui/disclosure";
 import { enhanceMenu } from "@cplieger/ui/menu";
@@ -224,6 +226,31 @@ document.querySelector("[data-toast-busy]")?.addEventListener("click", () => {
     });
   }, 600);
 });
+
+const CHIP_STATES = [
+  { tone: "success", icon: "check", word: "Up" },
+  { tone: "warning", icon: "clock", word: "Slow" },
+  { tone: "danger", icon: "x", word: "Down" },
+] as const;
+
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-chip-next]")) {
+  const chip = button.closest(".card")?.querySelector<HTMLElement>("[data-chip-demo]");
+  const icon = chip?.querySelector<HTMLElement>(".cp-icon");
+  const word = icon?.nextElementSibling;
+  if (!chip || !icon || !word) {
+    continue;
+  }
+  let at = 0;
+  button.addEventListener("click", () => {
+    at = (at + 1) % CHIP_STATES.length;
+    const next = CHIP_STATES[at] ?? CHIP_STATES[0];
+    chip.dataset["tone"] = next.tone;
+    icon.dataset["cpIcon"] = next.icon;
+    word.textContent = next.word;
+    flashChip(chip);
+    announce(next.word);
+  });
+}
 
 // A frame takes the gallery's look by message (frame.ts owns why): sent
 // when the frame asks and on every change.

@@ -78,7 +78,7 @@ toast({ kind: "success", title: "Source added" });
 Each module is one subpath, grouped here by what it is for:
 
 - Overlays: [dialog](docs/overlays/dialog.md), [ask](docs/overlays/ask.md), [anchor](docs/overlays/anchor.md), [menu](docs/overlays/menu.md), [panel](docs/overlays/panel.md) and [tooltip](docs/overlays/tooltip.md).
-- Feedback: [toast](docs/feedback/toast.md), [announce](docs/feedback/announce.md) and [skeleton](docs/feedback/skeleton.md).
+- Feedback: [toast](docs/feedback/toast.md), [announce](docs/feedback/announce.md), [skeleton](docs/feedback/skeleton.md) and [chip](docs/feedback/chip.md).
 - Buttons: [confirm](docs/buttons/confirm.md), [toggle](docs/buttons/toggle.md) and [turn](docs/buttons/turn.md).
 - Forms: [form](docs/forms/form.md), [checkbox](docs/forms/checkbox.md), [choice](docs/forms/choice.md), [stepper](docs/forms/stepper.md), [secret](docs/forms/secret.md), [copy](docs/forms/copy.md), [tokens](docs/forms/tokens.md), [combobox](docs/forms/combobox.md), [search](docs/forms/search.md), [textarea](docs/forms/textarea.md), [range](docs/forms/range.md), [date-range](docs/forms/date-range.md), [file](docs/forms/file.md), [rules](docs/forms/rules.md), [pairs](docs/forms/pairs.md) and [connection-test](docs/forms/connection-test.md).
 - Navigation and layout: [disclosure](docs/navigation/disclosure.md), [tabs](docs/navigation/tabs.md) and [list-detail](docs/layout/list-detail.md).

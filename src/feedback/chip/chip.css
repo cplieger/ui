@@ -22,6 +22,35 @@
   --cp-icon-size: 0.875rem;
 }
 
+/* flashChip() sets data-cp-flash and removes it when the flash ends. The
+ * keyframes read the tone, so a chip whose tone changes mid-flash flashes
+ * its new one. */
+.cp-chip[data-cp-flash] {
+  animation:
+    cp-chip-flash 900ms var(--cp-ease-out),
+    cp-chip-pop 900ms var(--cp-ease-out);
+}
+
+@keyframes cp-chip-flash {
+  0%,
+  18% {
+    background: var(--cp-tone-9);
+    color: var(--cp-tone-on);
+  }
+}
+
+@keyframes cp-chip-pop {
+  18% {
+    scale: 1.1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-chip[data-cp-flash] {
+    animation: cp-chip-flash 900ms var(--cp-ease-out);
+  }
+}
+
 @media (forced-colors: active) {
   .cp-chip {
     border: var(--cp-line-w) solid CanvasText;

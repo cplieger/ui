@@ -240,26 +240,6 @@ for (const b of document.querySelectorAll("[data-toggle]")) {
   b.addEventListener("animationend", () => b.classList.remove("unpinned"));
 }
 
-// Colour pops: a chip cycles through states and flashes on each change.
-const states = [
-  ["success", "check", "Up"],
-  ["warning", "clock", "Slow"],
-  ["danger", "x", "Down"],
-];
-for (const c of document.querySelectorAll(".chip-pop")) {
-  let i = 0;
-  c.addEventListener("click", () => {
-    i = (i + 1) % states.length;
-    const [tone, icon, word] = states[i];
-    c.dataset.tone = tone;
-    c.querySelector(".cp-icon").dataset.cpIcon = icon;
-    c.querySelector(".word").textContent = word;
-    c.classList.remove("popped");
-    void c.offsetWidth;
-    c.classList.add("popped");
-  });
-}
-
 // Odometer
 function setOdometer(el, value) {
   const digits = String(value).padStart(el.children.length, "0");

@@ -14,7 +14,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-cover` | an entry's cover at 2:3, its art an `<img>` that fills it, or while there is none a glyph on one flat harmony colour, `data-harmony` of `"1"` to `"4"`, the first by default |
 | `.cp-badge` | a count beside a destination or a filter, such as the new entries behind a destination: solid in the accent, in the header's ink on the header, and at its icon's corner in the bar under 40rem, or `data-variant="quiet"` for a count that only informs. Give the number its words for a screen reader in a `.cp-visually-hidden` span, such as "new" |
 | `.cp-skip` | the link that takes a keyboard past the header to `.cp-main`, shown only while it has focus |
-| `.cp-banner` | a condition that stops the person's work on every screen, such as an update that needs a reload, or a lost connection in an app with no header status, at the top of `.cp-main` in a `data-tone`, its words first and its one action at the end, with no dismiss |
+| `.cp-banner` | a condition that stops the person's work on every screen, such as an update that needs a reload, or a lost connection in an app with no header status, at the top of `.cp-main` in a `data-tone`, its words first and its one action at the end, with no dismiss; with reasons, a `<strong>` head with its glyph, a `<ul>` of the reasons and a `<small>` foot holding the one way to act |
 | `.cp-rail-toggle` | the Filters button that shows only once the rail leaves |
 | `.cp-button` | `data-variant="primary"` or `"quiet"`, `data-size="sm"`, `data-tone`, `aria-busy="true"` while working, and `aria-disabled="true"` on a link without `href`. One that confirms in place with [confirm](buttons/confirm.md), and one whose icon turns with [turn](buttons/turn.md) |
 | `.cp-group`, `.cp-split` | buttons joined into one control, and a split button: an action and a caret, one shape, the action growing over the caret while it works |
@@ -48,6 +48,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height |
 | `.cp-pager` | the range and the Previous and Next links under a table |
 | `.cp-chip`, `.cp-notice`, `.cp-swatch` | states in a tone, and a filter's tone square |
+| `.cp-chip[data-cp-flash]` | a chip whose state changed while the person watched, set and cleared by `flashChip` from `@cplieger/ui/chip` |
 | `.cp-panel`, `.cp-stack`, `.cp-toolbar`, `.cp-heading-row`, `.cp-crumbs`, `.cp-meta` | surfaces and layout |
 | `.cp-cluster` | a row of small things, such as chips or buttons, that wraps instead of overflowing, with `data-gap="tight"` for less space |
 | `.cp-side-main` | a side column of `--cp-side-width` (16rem) beside the rest, stacking above it once the rest would be narrower than half the box |
