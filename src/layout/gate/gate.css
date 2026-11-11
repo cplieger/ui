@@ -36,8 +36,8 @@
 
 /* A setup of several steps: a wider column whose panel is the steps'
  * container, so .cp-steps turns compact by the panel's own width. A step's
- * buttons share one row, Back at the start and the primary at the end, so
- * the primary keeps its place from step to step. */
+ * buttons share one row, Back at the start and the primary, the row's last
+ * child, at the end, so it keeps its place from step to step. */
 .cp-gate[data-variant="steps"] {
   grid-template-columns: minmax(0, 28rem);
 }
@@ -58,6 +58,6 @@
   gap: var(--cp-space-2) var(--cp-space-3);
 }
 
-.cp-gate[data-variant="steps"] [data-part="actions"] > [data-variant="primary"] {
+.cp-gate[data-variant="steps"] [data-part="actions"] > :last-child {
   margin-inline-start: auto;
 }

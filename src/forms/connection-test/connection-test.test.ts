@@ -144,7 +144,10 @@ describe("enhanceConnectionTest", () => {
     await tick();
     const error = url.nextElementSibling as HTMLElement;
     expect(error.classList.contains("cp-field-error")).toBe(true);
-    expect([error.textContent, url.getAttribute("aria-describedby")]).toEqual(["No answer.", error.id]);
+    expect([error.textContent, url.getAttribute("aria-describedby")]).toEqual([
+      "No answer.",
+      error.id,
+    ]);
   });
 
   it("ignores a field it was not given, inherited names included", async () => {

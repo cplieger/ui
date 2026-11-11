@@ -15,7 +15,7 @@ import { enhanceReveal, enhanceSecret } from "@cplieger/ui/secret";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceStepper } from "@cplieger/ui/stepper";
 import { enhanceTextarea } from "@cplieger/ui/textarea";
-import { enhanceTokens } from "@cplieger/ui/tokens";
+import { createTokenLimit, enhanceTokens, type TokenLimit } from "@cplieger/ui/tokens";
 import { enhanceToggle } from "@cplieger/ui/toggle";
 import { installTooltips } from "@cplieger/ui/tooltip";
 import { viewTransition } from "@cplieger/ui/view-transition";
@@ -56,8 +56,9 @@ for (const button of all<HTMLButtonElement>(".cp-code > .cp-copy")) {
   }
 }
 // A token field names its suggestions by data-suggest, its limit by
-// data-max and its note by data-note, and data-free takes new words. The
-// search page listens for "tokens".
+// data-max, a limit it shares by data-limit and its note by data-note, and
+// data-free takes new words. The search page listens for "tokens".
+const limits = new Map<string, TokenLimit>([["hidden-tags", createTokenLimit(4)]]);
 for (const box of all<HTMLElement>("[data-tokens]")) {
   const byId = (key: string): HTMLElement | undefined => {
     const id = box.dataset[key];
@@ -66,10 +67,12 @@ for (const box of all<HTMLElement>("[data-tokens]")) {
   const suggestions = byId("suggest");
   const note = byId("note");
   const max = box.dataset["max"];
+  const limit = limits.get(box.dataset["limit"] ?? "");
   enhanceTokens(box, {
     ...(suggestions === undefined ? {} : { suggestions, allowNew: box.hasAttribute("data-free") }),
     ...(note === undefined ? {} : { note }),
     ...(max === undefined ? {} : { max: Number(max) }),
+    ...(limit === undefined ? {} : { limit }),
     onChange: () => box.dispatchEvent(new CustomEvent("tokens", { bubbles: true })),
   });
 }
@@ -130,12 +133,16 @@ for (const button of all<HTMLButtonElement>("button[data-test]")) {
           done(
             /^https?:\/\/\S+:\d+/.test(url.value)
               ? { ok: true, message: "Connected, Sonarr 4.0.9" }
-              : { ok: false, message: "Sonarr did not answer at this address and port.", field: "url" },
+              : {
+                  ok: false,
+                  message: "Sonarr did not answer at this address and port.",
+                  field: "url",
+                },
           );
         }, 1100);
         signal.addEventListener("abort", () => {
           clearTimeout(timer);
-          fail(signal.reason);
+          fail(new DOMException("The check was ended.", "AbortError"));
         });
       }),
     fields: { url: { input: url, mark } },

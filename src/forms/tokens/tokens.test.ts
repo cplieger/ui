@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
-import { enhanceTokens, type TokensOptions } from "./tokens.js";
+import { createTokenLimit, enhanceTokens, type TokensOptions } from "./tokens.js";
 
 let life = new AbortController();
 
@@ -156,6 +156,68 @@ describe("enhanceTokens", () => {
     await userEvent.keyboard("{Backspace}{Backspace}");
     expect([t.values, f.input.readOnly, note.hidden]).toEqual([["a"], false, true]);
     expect(f.input.placeholder).toBe("Add a tag");
+  });
+
+  it("shares one limit of distinct values across fields, a value in two counted once", () => {
+    installAnnouncer({ signal: life.signal });
+    const limit = createTokenLimit(3);
+    const a = field(["a", "b"]);
+    const b = field(["c"]);
+    const ta = make(a, { limit }).t;
+    const tb = make(b, { limit }).t;
+    const noteOf = (f: ReturnType<typeof field>) =>
+      document.getElementById(f.input.getAttribute("aria-describedby") ?? "") as HTMLElement;
+    expect([limit.size, limit.max]).toEqual([3, 3]);
+    // At the limit both fields can still take what the other holds.
+    expect([a.input.readOnly, b.input.readOnly]).toEqual([false, false]);
+    expect(noteOf(b).textContent).toBe(
+      "3 chosen, the most allowed. One already chosen can still be added.",
+    );
+    expect(tb.add("d")).toBe(false);
+    expect(tb.add("A")).toBe(true);
+    expect(limit.size).toBe(3);
+    // A holds every value counted, so it can take nothing more.
+    expect(ta.add("c")).toBe(true);
+    expect([a.input.readOnly, noteOf(a).textContent]).toEqual([
+      true,
+      "3 chosen, the most allowed.",
+    ]);
+    expect(b.input.readOnly).toBe(false);
+    // Below the limit again, every field opens and its note hides.
+    tb.remove("c");
+    ta.remove("c");
+    expect(limit.size).toBe(2);
+    expect([a.input.readOnly, noteOf(a).hidden, noteOf(b).hidden]).toEqual([false, true, true]);
+    expect(tb.add("d")).toBe(true);
+  });
+
+  it("at a shared limit offers only the suggestions another field holds", async () => {
+    const limit = createTokenLimit(2);
+    const a = field(["English", "French"]);
+    make(a, { limit });
+    const b = field([], ["English", "French", "German"]);
+    make(b, { limit, allowNew: true });
+    b.input.focus();
+    const shown = () =>
+      [...(b.suggestions as HTMLElement).querySelectorAll<HTMLElement>("li:not([hidden])")].map(
+        (l) => l.firstChild?.textContent,
+      );
+    expect(shown()).toEqual(["English", "French"]);
+    await userEvent.keyboard("ger");
+    expect(shown()).toEqual([]);
+  });
+
+  it("lets go of a shared limit once its signal aborts", () => {
+    const limit = createTokenLimit(2);
+    const own = new AbortController();
+    const a = field(["a", "b"]);
+    enhanceTokens(a.box, { limit, signal: own.signal });
+    const b = field([]);
+    const tb = make(b, { limit }).t;
+    expect(tb.add("c")).toBe(false);
+    own.abort();
+    expect(limit.size).toBe(0);
+    expect(tb.add("c")).toBe(true);
   });
 
   it("sends each value under its name in the form, the markup's chips included", () => {

@@ -5,7 +5,8 @@
  * a press or Enter takes an option. Left or Backspace from the field reaches
  * the chips, where Left and Right move and Backspace or Delete removes one.
  * A value already there shakes instead of doubling, and past `max` the field
- * says so and takes no more.
+ * says so and takes no more. `createTokenLimit()` gives several fields one
+ * limit of distinct values.
  * @module
  */
 
@@ -26,11 +27,63 @@ export interface TokensWords {
   readonly addNew?: (text: string) => string;
   /** Under the field at the limit. Default "{max} chosen, the most allowed." */
   readonly full?: (max: number) => string;
+  /** Under a field at a shared limit that can still take a value another
+   *  field holds. Default "{max} chosen, the most allowed. One already chosen
+   *  can still be added." */
+  readonly limited?: (max: number) => string;
+}
+
+/** One limit of distinct values shared by several token fields, from
+ *  `createTokenLimit()`. */
+export interface TokenLimit {
+  /** The most distinct values the fields hold together. */
+  readonly max: number;
+  /** The distinct values they hold now, a value in two fields counted once. */
+  readonly size: number;
+}
+
+interface Member {
+  readonly values: () => readonly string[];
+  readonly refresh: () => void;
+}
+
+const members = new WeakMap<TokenLimit, Set<Member>>();
+
+/** The distinct values, in lower case, that `limit`'s fields hold. */
+function counted(limit: TokenLimit): Set<string> {
+  const all = new Set<string>();
+  for (const m of members.get(limit) ?? []) {
+    for (const v of m.values()) {
+      all.add(v.toLowerCase());
+    }
+  }
+  return all;
+}
+
+/**
+ * A limit of `max` distinct values that every token field given it as
+ * `limit` shares. A value counts once, whichever fields hold it, and a field
+ * can always take a value another already holds, since that adds nothing to
+ * the count.
+ */
+export function createTokenLimit(max: number): TokenLimit {
+  const limit: TokenLimit = {
+    max,
+    get size() {
+      return counted(limit).size;
+    },
+  };
+  members.set(limit, new Set());
+  return limit;
 }
 
 export interface TokensOptions {
   /** The most chips the field holds. Default: no limit. */
   readonly max?: number;
+  /** A limit this field shares with others, from `createTokenLimit()`. At
+   *  it the field takes only a value another field holds, and turns
+   *  read-only once it holds every value counted. */
+  readonly limit?: TokenLimit;
   /** Each chip carries a hidden input of this name, so a form sends the
    *  values. */
   readonly name?: string;
@@ -53,7 +106,7 @@ export interface Tokens {
   /** The values, in order. */
   readonly values: readonly string[];
   /** Adds `value` as a press would. False when it is empty, already there
-   *  or past the limit. */
+   *  or past a limit. */
   add(value: string): boolean;
   /** Removes the chip of `value`, if there is one. */
   remove(value: string): void;
@@ -81,6 +134,7 @@ function valueOf(option: HTMLElement): string {
  */
 export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): Tokens {
   const { max = Infinity, name, suggestions, signal } = options;
+  const shared = options.limit;
   const allowNew = options.allowNew ?? suggestions === undefined;
   const words = {
     remove: options.words?.remove ?? ((v: string) => `Remove ${v}`),
@@ -88,6 +142,10 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
     removed: options.words?.removed ?? ((v: string) => `${v} removed`),
     addNew: options.words?.addNew ?? ((t: string) => `Add “${t}”`),
     full: options.words?.full ?? ((n: number) => `${String(n)} chosen, the most allowed.`),
+    limited:
+      options.words?.limited ??
+      ((n: number) =>
+        `${String(n)} chosen, the most allowed. One already chosen can still be added.`),
   };
   const input = box.querySelector<HTMLInputElement>(":scope > input");
   if (input === null) {
@@ -100,14 +158,31 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
   const values = (): string[] => chips().map((c) => c.dataset["value"] ?? "");
   const has = (v: string): HTMLElement | undefined =>
     chips().find((c) => (c.dataset["value"] ?? "").toLowerCase() === v.toLowerCase());
-  const full = (): boolean => chips().length >= max;
+  const together = (): Set<string> => (shared === undefined ? new Set() : counted(shared));
+  /** At the shared limit: true once its fields hold `limit.max` values. */
+  const atShared = (): boolean => shared !== undefined && together().size >= shared.max;
+  /** Whether `v` could join the field, whatever it holds now. */
+  const room = (v: string): boolean =>
+    chips().length < max && (!atShared() || together().has(v.toLowerCase()));
+  /** The field can take nothing more: its own limit, or the shared one
+   *  with every counted value already here. */
+  const full = (): boolean => {
+    if (chips().length >= max) {
+      return true;
+    }
+    if (!atShared()) {
+      return false;
+    }
+    const mine = new Set(values().map((v) => v.toLowerCase()));
+    return [...together()].every((v) => mine.has(v));
+  };
   const tell = (): void => {
     options.onChange?.(values());
   };
 
   let note = options.note;
   const made = note === undefined;
-  if (note === undefined && Number.isFinite(max)) {
+  if (note === undefined && (Number.isFinite(max) || shared !== undefined)) {
     note = document.createElement("span");
     note.className = "cp-help";
     note.hidden = true;
@@ -122,19 +197,37 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
   }
   const placeholder = input.placeholder;
   let wasFull = false;
-  const limit = (): void => {
+  let wasLimited = false;
+  /** Writes the limit's state; `quiet` for a change another field made. */
+  const limit = (quiet = false): void => {
     const f = full();
+    const ownFull = chips().length >= max;
+    const limited = !f && atShared();
     input.readOnly = f;
     input.setAttribute("aria-disabled", String(f));
     input.placeholder = f ? "" : placeholder;
+    const most = ownFull || shared === undefined ? max : shared.max;
+    const said = f ? words.full(most) : limited ? words.limited(most) : "";
     if (note !== undefined) {
-      note.textContent = f ? words.full(max) : "";
-      note.hidden = !f;
+      note.textContent = said;
+      note.hidden = said === "";
     }
-    if (f && !wasFull) {
-      announce(words.full(max));
+    if (!quiet && ((f && !wasFull) || (limited && !wasLimited))) {
+      announce(said);
     }
     wasFull = f;
+    wasLimited = limited;
+  };
+  /** After this field's change: every field sharing its limit rewrites. */
+  const changed = (): void => {
+    limit();
+    if (shared !== undefined) {
+      for (const m of members.get(shared) ?? []) {
+        if (m !== self) {
+          m.refresh();
+        }
+      }
+    }
   };
 
   const dress = (chip: HTMLElement): void => {
@@ -160,7 +253,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
 
   const add = (raw: string): boolean => {
     const v = raw.trim();
-    if (v === "" || full()) {
+    if (v === "") {
       return false;
     }
     const same = has(v);
@@ -169,6 +262,12 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
       // Read layout so the shake restarts.
       same.getBoundingClientRect();
       same.setAttribute(AGAIN, "");
+      return false;
+    }
+    if (!room(v)) {
+      if (note !== undefined && note.textContent !== "") {
+        announce(note.textContent);
+      }
       return false;
     }
     const chip = document.createElement("span");
@@ -181,7 +280,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
     dress(chip);
     input.before(chip);
     announce(words.added(v));
-    limit();
+    changed();
     tell();
     return true;
   };
@@ -195,7 +294,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
     };
     void Promise.all(chip.getAnimations({ subtree: true }).map((a) => a.finished)).then(gone, gone);
     announce(words.removed(v));
-    limit();
+    changed();
     tell();
   };
   const buttonOf = (chip: HTMLElement | undefined): HTMLElement | undefined =>
@@ -205,6 +304,17 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
     return { values: [], add: () => false, remove: () => undefined };
   }
   const listen = until(signal);
+  let combo: { refresh(): void } | undefined;
+  const self: Member = {
+    values,
+    refresh: () => {
+      limit(true);
+      combo?.refresh();
+    },
+  };
+  if (shared !== undefined) {
+    members.get(shared)?.add(self);
+  }
 
   box.addEventListener(
     "click",
@@ -292,7 +402,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
       // Last, so Enter takes a match before it makes a new value.
       suggestions.append(fresh);
     }
-    const combo = enhanceCombobox(input, suggestions, {
+    combo = enhanceCombobox(input, suggestions, {
       anchor: box,
       openOnFocus: true,
       autoActivate: true,
@@ -306,10 +416,10 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
           const v = valueOf(o).toLowerCase();
           exact ||= v === q;
           o.hidden =
-            full() || taken.has(v) || (q !== "" && !o.textContent.toLowerCase().includes(q));
+            taken.has(v) || !room(v) || (q !== "" && !o.textContent.toLowerCase().includes(q));
         }
         if (fresh !== null) {
-          fresh.hidden = full() || q === "" || exact || taken.has(q);
+          fresh.hidden = q === "" || exact || taken.has(q) || !room(q);
           fresh.dataset["value"] = text.trim();
           fresh.textContent = words.addNew(text.trim());
         }
@@ -318,7 +428,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
         if (add(valueOf(option))) {
           input.value = "";
         }
-        combo.refresh();
+        combo?.refresh();
       },
       onText: () => undefined,
       ...(signal === undefined ? {} : { signal }),
@@ -337,12 +447,25 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
       if (made) {
         note?.remove();
       }
+      if (shared !== undefined) {
+        members.get(shared)?.delete(self);
+        for (const m of members.get(shared) ?? []) {
+          m.refresh();
+        }
+      }
     },
     { once: true },
   );
-  limit();
-  // The opening state is no change, so it says nothing.
-  wasFull = full();
+  // The opening state is no change, so it says nothing, and a field joining
+  // a shared limit rewrites the others it may have filled.
+  limit(true);
+  if (shared !== undefined) {
+    for (const m of members.get(shared) ?? []) {
+      if (m !== self) {
+        m.refresh();
+      }
+    }
+  }
 
   return {
     get values() {

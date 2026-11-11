@@ -1,28 +1,30 @@
 <main class="cp-gate" data-variant="steps">
   <div class="cp-wordmark"><span class="cp-mark" aria-hidden="true">R</span>Release tracker</div>
   <div class="cp-panel" data-steps data-current="0">
-    <ol class="cp-steps" aria-label="Setup steps">
-      <li data-name="Account">Account</li>
-      <li data-name="Sonarr">Sonarr</li>
-      <li data-name="Check">Check</li>
-    </ol>
-    <p class="cp-steps-compact"></p>
-    <h1 tabindex="-1" data-step-title></h1>
-    <section class="cp-stack" data-step data-title="Create the owner account">
-      <div class="cp-field"><label class="cp-label" for="su-user">Username</label><input class="cp-input" id="su-user" autocomplete="username" value="cplieger"></div>
-      <div class="cp-field"><label class="cp-label" for="su-pw">Password</label><div class="cp-input-wrap"><input class="cp-input" id="su-pw" type="password" autocomplete="new-password" aria-describedby="su-pw-help"><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Show password"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="eye-off" data-part="on" aria-hidden="true"></span></button></div><span class="cp-help" id="su-pw-help">At least 12 characters. A passkey can replace it later.</span></div>
-      <div data-part="actions"><button class="cp-button" data-variant="primary" type="button" data-next>Next</button></div>
-    </section>
-    <section class="cp-stack" data-step data-title="Connect Sonarr" hidden>
-      <div class="cp-field"><label class="cp-label" for="su-url">Address</label><input class="cp-input" id="su-url" type="url" value="http://sonarr.lan:8989" aria-describedby="su-url-error"><span class="cp-field-error" id="su-url-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>No answer at this address and port.</span></div>
-      <div class="cp-field"><label class="cp-label" for="su-key">API key</label><input class="cp-input" id="su-key" value="0a1b2c3d4e5f"><span class="cp-help">In Sonarr: Settings, then General.</span></div>
-      <div class="cp-cluster"><button class="cp-button" type="button" data-test="su-verdict" data-url="su-url"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-test-status" id="su-verdict"></span></div>
-      <div data-part="actions"><button class="cp-button" data-variant="quiet" type="button" data-back>Back</button><button class="cp-button" data-variant="primary" type="button" data-next>Next</button></div>
-    </section>
-    <section class="cp-stack" data-step data-title="Run the first check" hidden>
-      <p class="cp-meta">It reads every series in Sonarr and compares each with SeaDex. This takes about a minute for 400 series.</p>
-      <div data-part="actions"><button class="cp-button" data-variant="quiet" type="button" data-back>Back</button><button class="cp-button" data-variant="primary" type="button" data-next><span class="label">Start the check</span></button></div>
-    </section>
+    <div class="cp-stack">
+      <ol class="cp-steps" aria-label="Setup steps">
+        <li data-name="Account">Account</li>
+        <li data-name="Sonarr">Sonarr</li>
+        <li data-name="Check">Check</li>
+      </ol>
+      <p class="cp-steps-compact"></p>
+      <h1 tabindex="-1" data-step-title></h1>
+      <section class="cp-stack" data-step data-title="Create the owner account">
+        <div class="cp-field"><label class="cp-label" for="su-user">Username</label><input class="cp-input" id="su-user" autocomplete="username" value="cplieger"></div>
+        <div class="cp-field"><label class="cp-label" for="su-pw">Password</label><div class="cp-input-wrap"><input class="cp-input" id="su-pw" type="password" autocomplete="new-password" aria-describedby="su-pw-help"><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Show password"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="eye-off" data-part="on" aria-hidden="true"></span></button></div><span class="cp-help" id="su-pw-help">At least 12 characters. A passkey can replace it later.</span></div>
+        <div data-part="actions"><button class="cp-button" data-variant="primary" type="button" data-next>Next</button></div>
+      </section>
+      <section class="cp-stack" data-step data-title="Connect Sonarr" hidden>
+        <div class="cp-field"><label class="cp-label" for="su-url">Address</label><input class="cp-input" id="su-url" type="url" value="http://sonarr.lan:8989" aria-describedby="su-url-error"><span class="cp-field-error" id="su-url-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>No answer at this address and port.</span></div>
+        <div class="cp-field"><label class="cp-label" for="su-key">API key</label><input class="cp-input" id="su-key" value="0a1b2c3d4e5f"><span class="cp-help">In Sonarr: Settings, then General.</span></div>
+        <div class="cp-cluster"><button class="cp-button" type="button" data-test="su-verdict" data-url="su-url"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-test-status" id="su-verdict"></span></div>
+        <div data-part="actions"><button class="cp-button" data-variant="quiet" type="button" data-back>Back</button><button class="cp-button" data-variant="primary" type="button" data-next>Next</button></div>
+      </section>
+      <section class="cp-stack" data-step data-title="Run the first check" hidden>
+        <p class="cp-meta">It reads every series in Sonarr and compares each with SeaDex. This takes about a minute for 400 series.</p>
+        <div data-part="actions"><button class="cp-button" data-variant="quiet" type="button" data-back>Back</button><button class="cp-button" data-variant="primary" type="button" data-next><span class="label">Start the check</span></button></div>
+      </section>
+    </div>
   </div>
   <p class="cp-meta">Clear the port from the address to see a failed test.</p>
 </main>
