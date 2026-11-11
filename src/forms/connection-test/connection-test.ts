@@ -7,6 +7,7 @@
  */
 
 import { until } from "../../core/lifetime/lifetime.js";
+import { clearError, isControl, showError, writeError } from "../form/field-error.js";
 
 export type ConnectionTestState = "idle" | "busy" | "passed" | "failed";
 
@@ -19,7 +20,9 @@ export interface ConnectionTestOptions {
    *  not turn into one, such as a network error. */
   readonly run: (signal: AbortSignal) => Promise<ConnectionTestResult>;
   /** The fields a failure can name, as the server names them: the input
-   *  that gets `aria-invalid`, and the element whose text says why. */
+   *  marked invalid, and the `.cp-field-error` that says why, whose icon
+   *  stays. A field without `mark` gets its error as `./form` finds or
+   *  makes one. */
   readonly fields?: Readonly<
     Record<string, { readonly input?: HTMLElement; readonly mark?: HTMLElement }>
   >;
@@ -77,11 +80,12 @@ export function enhanceConnectionTest(
   let marked: string | null = null;
 
   const unmark = (): void => {
-    if (marked !== null) {
-      const f = fields[marked];
+    const f = marked === null ? undefined : fields[marked];
+    if (f?.input !== undefined && isControl(f.input)) {
+      clearError(f.input);
+    } else {
       f?.input?.removeAttribute("aria-invalid");
       if (f?.mark !== undefined) {
-        f.mark.textContent = "";
         f.mark.hidden = true;
       }
     }
@@ -129,10 +133,13 @@ export function enhanceConnectionTest(
           if (!result.ok && result.field !== undefined && Object.hasOwn(fields, result.field)) {
             const f = fields[result.field];
             marked = result.field;
-            f?.input?.setAttribute("aria-invalid", "true");
-            if (f?.mark !== undefined) {
-              f.mark.textContent = result.message;
-              f.mark.hidden = false;
+            if (f?.input !== undefined && isControl(f.input)) {
+              showError(f.input, result.message, f.mark);
+            } else {
+              f?.input?.setAttribute("aria-invalid", "true");
+              if (f?.mark !== undefined) {
+                writeError(f.mark, result.message);
+              }
             }
           }
           set(result.ok ? "passed" : "failed", result.message, result);

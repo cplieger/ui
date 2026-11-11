@@ -29,11 +29,12 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-textarea-count` | a text area's count under it, red past its limit, as [textarea](forms/textarea.md) describes. A `textarea.cp-input` grows from three lines to ten |
 | `.cp-range`, `.cp-range-row` | a slider in the accent and its row with an `<output>`. [range](forms/range.md) fills the track to the thumb and writes the value |
 | `.cp-tokens`, `.cp-token` | a field of chosen values as chips, one control tall on one line, as [tokens](forms/tokens.md) describes |
+| `.cp-test-status` | the connection test's answer, its glyph and tone drawn from `data-cp-state`: the spinner while busy, `circle-check` in the success tone once passed and `circle-x` in the danger tone once failed, as [connection-test](forms/connection-test.md) describes |
 | `.cp-listbox` | the options under a combobox, on a `.cp-popover` as wide as its field, the active one filled, as [combobox](forms/combobox.md) describes |
 | `.cp-state` | a short state word in its `data-tone`, after a `.cp-icon` with the tone's glyph, such as `circle-check` for `success` |
 | `.cp-segmented` | one choice of a few, such as a theme, as native radios in labels, with `data-variant="icons"` for square icon segments named by each radio's `aria-label`, and a pill that slides under the choice with [pill](core/pill.md) |
 | `.cp-settings`, `.cp-settings-nav`, `.cp-setting`, `.cp-savebar` | a settings page: its categories beside the open one, one setting per row, and the bar that holds unsaved changes, as [Settings](design-settings.md) describes |
-| `.cp-gate` | a page outside the frame for one short task, such as sign-in, as [Account and sign-in](design-account.md#the-gate-page) describes |
+| `.cp-gate` | a page outside the frame for one short task, such as sign-in, as [Account and sign-in](design-account.md#the-gate-page) describes. `data-variant="steps"` is a setup of several steps: a 28rem column whose panel is the steps' container, and a `data-part="actions"` row with Back first and the primary last |
 | `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority` |
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height |
 | `.cp-pager` | the range and the Previous and Next links under a table |
@@ -53,7 +54,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-loader`, `.cp-inline-load` | a loader for work of unknown length, the checkbox's square twirling through the harmony colours, alone or beside words that say what is loading |
 | `.cp-toaster`, `.cp-toast` | the toast stack and a toast, as [toast](feedback/toast.md) describes |
 | `.cp-tooltip` | a control's tip, as [tooltip](overlays/tooltip.md) describes |
-| `.cp-steps`, `.cp-steps-compact` | a multi-step flow's progress: an `<ol>` of steps, each with `data-state` of `"done"`, `"current"` or `"todo"` and a visually hidden word for it, and "Step 2 of 3" in a box under 24rem |
+| `.cp-steps`, `.cp-steps-compact` | a multi-step flow's progress: an `<ol>` of steps, each with `data-state` of `"done"`, `"current"` or `"todo"` and a visually hidden word for it, a done step holding an `<a href>` back to it, and "Step 2 of 3" in a box under 24rem |
 | `.cp-visually-hidden` | text a screen reader reads and the eye does not see |
 | `.cp-mono`, `.cp-truncate`, `.cp-cell-stack` | machine text, one line cut with an ellipsis, and a title over a muted line |
 
