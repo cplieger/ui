@@ -208,17 +208,29 @@ describe("enhanceMenu", () => {
     expect(later.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("closes a manual menu on Escape and on a press outside, but not on its own opener's press", async () => {
+  it("closes a manual menu on Escape", async () => {
     const { button, panel } = menu(["Pin"], "manual");
     enhanceMenu(panel, { signal: life.signal });
     await userEvent.click(button);
     expect(open(panel)).toBe(true);
     await userEvent.keyboard("{Escape}");
     expect(open(panel)).toBe(false);
+  });
+
+  it("closes a manual menu on a press outside", async () => {
+    const { button, panel } = menu(["Pin"], "manual");
+    enhanceMenu(panel, { signal: life.signal });
     await userEvent.click(button);
+    expect(open(panel)).toBe(true);
     await userEvent.click(document.body, { position: { x: 600, y: 600 } });
     expect(open(panel)).toBe(false);
+  });
+
+  it("closes a manual menu on its own opener's press, as a toggle", async () => {
+    const { button, panel } = menu(["Pin"], "manual");
+    enhanceMenu(panel, { signal: life.signal });
     await userEvent.click(button);
+    expect(open(panel)).toBe(true);
     await userEvent.click(button);
     expect(open(panel)).toBe(false);
   });
