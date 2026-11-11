@@ -1771,6 +1771,16 @@ describe("css/system.css overlays", () => {
     },
   );
 
+  it("stops a context menu zone selecting text under a finger, not under a mouse", () => {
+    theme("light");
+    const zone = host("", { "data-cp-context": "" });
+    zone.textContent = "Frieren";
+    root.dataset["pointer"] = "fine";
+    expect(getComputedStyle(zone).userSelect).not.toBe("none");
+    root.dataset["pointer"] = "coarse";
+    expect(getComputedStyle(zone).userSelect).toBe("none");
+  });
+
   it("checks a select panel option with a menu check item's box", () => {
     theme("light");
     const el = build(

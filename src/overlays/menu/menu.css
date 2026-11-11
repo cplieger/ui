@@ -26,6 +26,14 @@
   min-block-size: var(--cp-control-h);
 }
 
+/* A zone enhanceContextMenu opens a menu in: under a finger a hold opens it,
+ * so the hold selects no text and raises no callout. A mouse still selects. */
+:root[data-pointer="coarse"] [data-cp-context] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .cp-menu [role^="menuitem"]:focus {
   outline: none;
   background: var(--cp-fill);

@@ -711,8 +711,6 @@
     transition-duration: 1ms !important;
   }
 
-  /* design.md "Motion": presses do not scale */
-
   /* a loader still has to read as busy, so it pulses slowly instead */
   :root:not([data-motion="full"]) :is(.loader, .boot-shape) {
     animation: loop-pulse 2s ease-in-out infinite !important;
@@ -1452,10 +1450,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   }
 }
 
-/* Filter chips: a toggle each; turning one on slides its check in. */
-
-/* On, a chip fills with the accent like every chosen control. */
-
 /* Layouts */
 
 .g-gate-note {
@@ -1962,8 +1956,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   font-size: var(--cp-text-sm);
   line-height: var(--cp-leading-body);
 }
-
-/* The command palette: a dialog at the top third with a field over a list. */
 
 /* A rail of destinations with sections and counts. */
 .g-rail {
@@ -2481,26 +2473,6 @@ html:has(.g-header) {
 .g-problems {
   container-type: inline-size;
 }
-
-/* A signed decimal with nudges. */
-
-/* Rules as table columns: condition, verb, languages, buttons. Each row
- * is a subgrid of the list, so a column lines up however long its words. */
-
-/* One language and its remove, kept together when the row wraps. */
-
-/* The row's own buttons in the last column: + first, so every rule's + lines
- * up, then the rule's remove where it has one. */
-
-/* A row that arrives fades in and settles 4px; nothing bounces. */
-@keyframes row-in {
-  from {
-    opacity: 0;
-    translate: 0 -0.25rem;
-  }
-}
-
-/* Pairs of fields with an arrow between. */
 
 /* The refreshing region is a panel, and its line runs along the panel's
  * top edge, inside the border, so it belongs to what it refreshes. */
@@ -3326,15 +3298,6 @@ html:has(.g-header) {
   position: relative;
 }
 
-/* A popover that holds a listbox and a status line beside it. */
-
-.g-bullets {
-  display: grid;
-  gap: var(--cp-space-2);
-  margin: 0;
-  padding-inline-start: 1.25rem;
-}
-
 /* ===== Layouts: frames at three widths, and arrangements inside a region ===== */
 .g-shell {
   display: grid;
@@ -3442,14 +3405,6 @@ html:has(.g-header) {
 
 .cp-field > .cp-input[data-width="fill"] {
   justify-self: stretch;
-}
-
-/* A zone with a context menu: under a finger, a hold opens the menu, so it
- * selects no text and raises no callout. A mouse still selects. */
-:root[data-pointer="coarse"] [data-context] {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
 }
 
 /* The account button is the avatar: no square behind it, a ring of the

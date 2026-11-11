@@ -385,6 +385,16 @@ describe("enhanceContextMenu", () => {
     expect(clicked).toBe(0);
   });
 
+  it("marks its zone for the stylesheet until its signal aborts", () => {
+    const { panel } = menu(["Pin"], "manual");
+    const z = zone();
+    const own = new AbortController();
+    enhanceContextMenu(z, panel, { signal: own.signal });
+    expect(z.hasAttribute("data-cp-context")).toBe(true);
+    own.abort();
+    expect(z.hasAttribute("data-cp-context")).toBe(false);
+  });
+
   it("opens nothing for a finger that moves, which is a scroll", async () => {
     const { panel } = menu(["Pin"], "manual");
     const z = zone();

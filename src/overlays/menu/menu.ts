@@ -483,11 +483,14 @@ export function enhanceContextMenu(
     },
     listen,
   );
+  // menu.css stops a hold here raising iOS's link callout, which no event cancels.
+  zone.toggleAttribute("data-cp-context", true);
   wireItems(menu, me, signal);
   signal?.addEventListener(
     "abort",
     () => {
       drop();
+      zone.removeAttribute("data-cp-context");
       disown(menu, me);
     },
     { once: true },

@@ -34,6 +34,6 @@ enhanceMenu(menu, { onSelect: (item) => run(item), signal: page.signal });
 
 ## Context menu
 
-`enhanceContextMenu(zone, menu, { onOpen, onSelect, hold, signal })` opens a `popover="manual"` menu at the pointer on a right click inside `zone`, or on a finger held still for `hold` ms (500 by default). `onOpen` gets the element pressed, so the menu can be filled for that row. A press outside or Escape closes it. The hold selects no text and opens no browser menu, and the lift that ends it clicks nothing.
+`enhanceContextMenu(zone, menu, { onOpen, onSelect, hold, signal })` opens a `popover="manual"` menu at the pointer on a right click inside `zone`, or on a finger held still for `hold` ms (500 by default). `onOpen` gets the element pressed, so the menu can be filled for that row. A press outside or Escape closes it. The hold selects no text and opens no browser menu, and the lift that ends it clicks nothing. The call marks `zone` with `data-cp-context`, so under `data-pointer="coarse"` the stylesheet turns off text selection and iOS's link callout there; a mouse still selects. Aborting `signal` removes the mark.
 
 One `popover="manual"` menu can take both calls, so a row's ⋯ button and a right click on the row open the same menu. The menu keeps one set of item listeners, so a key moves once and a check toggles once, and the call that opened it last closes it and gets `onSelect`.
