@@ -23,6 +23,24 @@
   font-size: var(--cp-text-xs);
 }
 
+.cp-figure > [data-part="label"]:has(> .cp-icon) {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+}
+
+/* 1rem keeps the glyph inside the 13px label's line, so a card with a glyph
+ * stands as tall as one without. */
+.cp-figure > [data-part="label"] > .cp-icon {
+  --cp-icon-size: 1rem;
+}
+
+/* A card link's badges: any number of chips under the number. */
+.cp-figure > .cp-cluster {
+  grid-column: 1;
+  justify-self: start;
+}
+
 /* The number's line, its unit on the same baseline; the stylesheet draws a
  * state tone's glyph before it, so the tone is never colour alone. */
 .cp-figure > [data-part="value"] {

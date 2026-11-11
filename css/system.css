@@ -5050,6 +5050,24 @@ textarea.cp-input {
   font-size: var(--cp-text-xs);
 }
 
+.cp-figure > [data-part="label"]:has(> .cp-icon) {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+}
+
+/* 1rem keeps the glyph inside the 13px label's line, so a card with a glyph
+ * stands as tall as one without. */
+.cp-figure > [data-part="label"] > .cp-icon {
+  --cp-icon-size: 1rem;
+}
+
+/* A card link's badges: any number of chips under the number. */
+.cp-figure > .cp-cluster {
+  grid-column: 1;
+  justify-self: start;
+}
+
 /* The number's line, its unit on the same baseline; the stylesheet draws a
  * state tone's glyph before it, so the tone is never colour alone. */
 .cp-figure > [data-part="value"] {
@@ -5360,6 +5378,101 @@ button.cp-figure[aria-expanded="true"]::after {
   .cp-table [data-bar] > [data-part="bar"] > span {
     forced-color-adjust: none;
     background: CanvasText;
+  }
+}
+
+/* A media card: a cover over the work's title and its facts, the whole card
+ * one link. A cover is the work's own image, or a stand-in in a harmony
+ * colour with the kind's glyph. */
+.cp-media {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-2);
+  color: var(--cp-ink);
+  text-decoration: none;
+}
+
+.cp-media > [data-part="title"] {
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-heading);
+  line-height: 1.3;
+}
+
+.cp-media > [data-part="meta"] {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-harmony-2);
+  color: var(--cp-harmony-2-on);
+  overflow: hidden;
+  transition:
+    scale var(--cp-dur-medium) var(--cp-ease-spring),
+    box-shadow var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+.cp-cover[data-harmony="1"] {
+  background: var(--cp-harmony-1);
+  color: var(--cp-harmony-1-on);
+}
+
+.cp-cover[data-harmony="3"] {
+  background: var(--cp-harmony-3);
+  color: var(--cp-harmony-3-on);
+}
+
+.cp-cover[data-harmony="4"] {
+  background: var(--cp-harmony-4);
+  color: var(--cp-harmony-4-on);
+}
+
+.cp-cover > .cp-icon {
+  --cp-icon-size: 2rem;
+}
+
+/* Over the stand-in, which shows until the image has loaded. */
+.cp-cover > img {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.cp-cover > .cp-chip {
+  position: absolute;
+  inset-block-start: var(--cp-space-2);
+  inset-inline-start: var(--cp-space-2);
+}
+
+/* The ring goes round the cover, the card's shape, and not round its words. */
+a.cp-media:focus-visible {
+  outline: none;
+}
+
+a.cp-media:focus-visible > .cp-cover {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    a.cp-media:hover > .cp-cover {
+      scale: 1.03;
+      box-shadow: var(--cp-shadow-overlay);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-cover {
+    border: var(--cp-line-w) solid CanvasText;
   }
 }
 

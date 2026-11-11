@@ -65,6 +65,7 @@ data/sparkline/sparkline.css
 data/figure/figure.css
 data/meter/meter.css
 data/ranked-bars/ranked-bars.css
+data/media-card/media-card.css
 feedback/skeleton/skeleton.css
 feedback/empty/empty.css
 feedback/loader/loader.css

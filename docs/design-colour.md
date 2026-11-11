@@ -120,7 +120,7 @@ A tone is never the only signal. Every chip and notice carries a glyph and a wor
 
 ## Harmony colours
 
-When a screen needs a few colours that belong together, such as avatars, a loader or a celebration, take them from `--cp-harmony-1` to `--cp-harmony-4` instead of picking hues by hand. Each has its ink, such as `--cp-harmony-2-on`. Categories in data, such as verdicts or a chart's series, take the [series colours](#series-colours) instead.
+When a screen needs a few colours that belong together, such as avatars, a loader, a celebration or the stand-in of a `.cp-cover`, take them from `--cp-harmony-1` to `--cp-harmony-4` instead of picking hues by hand. Each has its ink, such as `--cp-harmony-2-on`. Categories in data, such as verdicts or a chart's series, take the [series colours](#series-colours) instead.
 
 - 1 is the accent's solid.
 - 2 and 3 are its split complement, the accent's hue turned 150 and 210 degrees.

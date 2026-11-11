@@ -264,33 +264,6 @@ for (const f of document.querySelectorAll(".filter-fade")) {
   f.addEventListener("click", () => f.setAttribute("aria-pressed", String(f.getAttribute("aria-pressed") !== "true")));
 }
 
-// Odometer
-function setOdometer(el, value) {
-  const digits = String(value).padStart(el.children.length, "0");
-  [...el.children].forEach((col, i) => {
-    col.style.setProperty("--odo-y", `-${Number(digits[i])}em`);
-  });
-}
-for (const o of document.querySelectorAll(".odometer")) {
-  for (let i = 0; i < Number(o.dataset.digits); i++) {
-    const col = document.createElement("span");
-    col.className = "col";
-    for (let d = 0; d < 10; d++) {
-      const s = document.createElement("span");
-      s.textContent = String(d);
-      col.append(s);
-    }
-    o.append(col);
-  }
-  let v = Number(o.dataset.value);
-  setOdometer(o, v);
-  document.querySelector(`[data-bump="${o.id}"]`)?.addEventListener("click", () => {
-    v += 1 + Math.floor(Math.random() * 37);
-    setOdometer(o, v % 10 ** o.children.length);
-    o.setAttribute("aria-label", String(v));
-  });
-}
-
 // Sliding tab pill
 for (const list of document.querySelectorAll(".slide-tabs")) {
   const pill = list.querySelector(".pill");

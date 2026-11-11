@@ -1,10 +1,12 @@
 /**
  * data-figures.ts — the gallery wiring for the series colours, figures,
- * sparklines, meters, share bars and card links on the Data page.
+ * sparklines, meters, share bars, card links and media cards on the Data
+ * page.
  */
 
 import { enhanceMeter } from "@cplieger/ui/meter";
 import { enhanceRankedBars } from "@cplieger/ui/ranked-bars";
+import { roll } from "@cplieger/ui/roll";
 import { enhanceShareBar } from "@cplieger/ui/share-bar";
 import { renderSparkline, type SparklineOptions } from "@cplieger/ui/sparkline";
 
@@ -268,5 +270,18 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-ranked-
     body.append(...[...body.rows].sort((a, b) => count(b) - count(a)));
     sent60 = !sent60;
     button.textContent = sent60 ? "Take the 60 back" : "@alan sends 60";
+  });
+}
+
+// Run a check finds a few more upgrades, and the card link's number rolls up to them.
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-roll-figure]")) {
+  const figure = document.getElementById(button.dataset["rollFigure"] ?? "");
+  if (!(figure instanceof HTMLDataElement)) {
+    continue;
+  }
+  button.addEventListener("click", () => {
+    const n = String(Number(figure.value) + 1 + Math.floor(Math.random() * 37));
+    figure.value = n;
+    roll(figure, n);
   });
 }

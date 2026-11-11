@@ -291,25 +291,25 @@
   <section class="g-section" id="cards">
     <h2>Cards and numbers</h2>
     <div class="g-grid">
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Card links</h2>
-        <div class="g-cardlinks">
-          <a class="g-cardlink" href="#cards"><span>Not the best</span><strong><span class="odometer" id="odo" data-digits="2" data-value="33" role="img" aria-label="33"></span></strong><span class="cp-chip" data-tone="warning">3 new</span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a>
-          <a class="g-cardlink" href="#cards"><span>Missing</span><strong>9</strong><span class="cp-chip" data-tone="neutral">Unchanged</span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a>
-          <a class="g-cardlink" href="#cards"><span>Last check</span><strong><time data-ago="360" data-style="narrow"></time></strong><span class="cp-chip" data-tone="success">All answered</span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a>
+        <div class="cp-grid" style="--cp-grid-min: 12rem">
+          <a class="cp-figure" href="#cards"><span data-part="label"><span class="cp-icon" data-cp-icon="arrow-up" aria-hidden="true"></span>New upgrades</span><span data-part="value"><data class="cp-roll" data-kind="number" id="odo" value="33">33</data></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="warning">3 new</span><span class="cp-chip" data-tone="neutral">Kept from 03:00</span></span></a>
+          <a class="cp-figure" href="#cards"><span data-part="label">Missing</span><span data-part="value"><data value="9">9</data></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="neutral">Unchanged</span></span></a>
+          <a class="cp-figure" href="#cards"><span data-part="label">Last check</span><span data-part="value"><time data-ago="360" data-style="narrow"></time></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="success">All answered</span></span></a>
         </div>
-        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-bump="odo">Run a check</button></div>
-        <footer>The whole box is one link, named in reading order: label, figure, badge, at one width for every card. A time is the narrow form, "6m ago". A figure that changes while the page is open rolls to its new value, as Run a check shows. A card holds no button: an action such as Run now lives on the page the card opens.</footer>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-roll-figure="odo">Run a check</button></div>
+        <footer>A card link is a figure that is a link: the whole box is one link, named in reading order (glyph, label, figure, badges), at one width for every card. A leading glyph tells the groups apart, and the badges are a cluster of any number of chips, as New upgrades shows with a count from an earlier pass beside its new count. A time is the narrow form, "6m ago". A figure that changes while the page is open rolls to its new value, as Run a check shows. A card holds no button: an action such as Run now lives on the page the card opens.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Media cards</h2>
-        <div class="g-cards">
-          <a class="g-card" href="#cards"><span class="g-cover" data-h="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><strong>Frieren: Beyond Journey's End</strong><small>2023, 28 episodes</small></a>
-          <a class="g-card" href="#cards"><span class="g-cover" data-h="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not best</span></span><strong>Delicious in Dungeon</strong><small>2024, 24 episodes</small></a>
-          <a class="g-card" href="#cards"><span class="g-cover" data-h="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong>The Boy and the Heron</strong><small>2023, film</small></a>
-          <a class="g-card" href="#cards"><span class="g-cover" data-h="4"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></span><strong>Ping Pong the Animation</strong><small>2014, 11 episodes</small></a>
+        <div class="cp-grid" style="--cp-grid-min: 9.5rem">
+          <a class="cp-media" href="#cards"><span class="cp-cover"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><strong data-part="title">Frieren: Beyond Journey's End</strong><small data-part="meta">2023, 28 episodes</small></a>
+          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not best</span></span><strong data-part="title">Delicious in Dungeon</strong><small data-part="meta">2024, 24 episodes</small></a>
+          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong data-part="title">The Boy and the Heron</strong><small data-part="meta">2023, film</small></a>
+          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></span><strong data-part="title">Ping Pong the Animation</strong><small data-part="meta">2014, 11 episodes</small></a>
         </div>
-        <footer>Where the covers carry the meaning, a grid of cards; without covers, the stand-in is a harmony gradient and the kind's icon. The card grows a little under a mouse.</footer>
+        <footer>Where the covers carry the meaning, a grid of cards. A cover is the work's own image; without one, the stand-in is a harmony colour and the kind's glyph. The cover grows a little under a mouse, and the focus ring goes round it.</footer>
       </div>
       <div class="card" data-new>
         <h2>Segmented meter</h2>

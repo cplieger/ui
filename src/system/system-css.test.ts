@@ -71,7 +71,12 @@ function host(
 
 // The rendered sRGB of an opaque CSS colour, read back through a canvas pixel;
 // a transparent one (an unresolved token) throws instead of reading as black.
+const readings = new Map<string, [number, number, number]>();
 function rgb(colour: string): [number, number, number] {
+  const known = readings.get(colour);
+  if (known !== undefined) {
+    return known;
+  }
   const ctx = new OffscreenCanvas(1, 1).getContext("2d");
   if (ctx === null) {
     throw new Error("no 2d context");
@@ -82,6 +87,7 @@ function rgb(colour: string): [number, number, number] {
   if (a !== 255) {
     throw new Error(`${colour} is not opaque`);
   }
+  readings.set(colour, [r, g, b]);
   return [r, g, b];
 }
 
@@ -248,20 +254,25 @@ describe("css/system.css series slots", () => {
   for (const t of ["light", "dark"] as const) {
     it(`holds every slot at 3:1 on the page, raised, sunken and overlay surfaces in ${t}`, () => {
       theme(t);
-      const surfaces = ["page", "raised", "sunken", "overlay"];
+      // Probes built once, so each hue costs one style pass, not one per probe.
+      const probes = host("");
+      const pairs = ["page", "raised", "sunken", "overlay"].flatMap((s) =>
+        [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+          const el = document.createElement("span");
+          el.style.color = `var(--cp-series-${String(n)})`;
+          el.style.backgroundColor = `var(--cp-surface-${s})`;
+          probes.append(el);
+          return { el, name: `slot ${String(n)} on ${s}` };
+        }),
+      );
       for (let hue = 0; hue < 360; hue += 15) {
         root.style.setProperty("--cp-accent-h", String(hue));
-        for (let n = 1; n <= 9; n++) {
-          const el = host("");
-          el.style.color = `var(--cp-series-${String(n)})`;
-          for (const s of surfaces) {
-            el.style.backgroundColor = `var(--cp-surface-${s})`;
-            const cs = getComputedStyle(el);
-            expect(
-              contrast(cs.color, cs.backgroundColor),
-              `hue ${String(hue)} slot ${String(n)} on ${s}`,
-            ).toBeGreaterThanOrEqual(3);
-          }
+        for (const { el, name } of pairs) {
+          const cs = getComputedStyle(el);
+          expect(
+            contrast(cs.color, cs.backgroundColor),
+            `hue ${String(hue)} ${name}`,
+          ).toBeGreaterThanOrEqual(3);
         }
       }
     });
@@ -553,6 +564,143 @@ describe("css/system.css figure", () => {
     root.setAttribute("data-pointer", "coarse");
     expect(getComputedStyle(fig).borderColor).toBe(ink("--cp-line"));
   });
+
+  it("leads a card link's label with its glyph, at the label's own height", () => {
+    const plain = figure("", "a").querySelector('[data-part="label"]') as HTMLElement;
+    const card = figure("", "a");
+    const label = card.querySelector('[data-part="label"]') as HTMLElement;
+    label.prepend(
+      build('<span class="cp-icon" data-cp-icon="arrow-up"></span>').firstChild as Node,
+    );
+    const icon = label.querySelector(".cp-icon") as Element;
+    expect([box(icon).width, box(icon).height]).toEqual([16, 16]);
+    expect(getComputedStyle(icon).backgroundColor).toBe(ink("--cp-ink-muted"));
+    const words = document.createRange();
+    words.selectNodeContents(label.lastChild as Node);
+    expect(words.getBoundingClientRect().left - box(icon).right).toBe(4);
+    expect(box(icon).left).toBe(box(card).left + 17);
+    // Firefox lays out in 1/60 px, so heights agree to a hundredth.
+    expect(box(label).height).toBeCloseTo(box(plain).height, 2);
+  });
+
+  it("sets a card link's badges as a row of chips under its number, at the start", () => {
+    const chips = '<span class="cp-chip">3 new</span><span class="cp-chip">Kept from 03:00</span>';
+    const card = figure("", "a", `<span class="cp-cluster" data-gap="tight">${chips}</span>`);
+    const value = card.querySelector('[data-part="value"]') as Element;
+    const [first, second] = [...card.querySelectorAll(".cp-chip")] as [Element, Element];
+    expect(box(first).top).toBeGreaterThanOrEqual(box(value).bottom);
+    expect(box(first).left).toBe(box(value).left);
+    expect(box(second).top).toBe(box(first).top);
+    expect(box(second).left - box(first).right).toBe(8);
+    // The chevron still spans the label and number rows, beside them.
+    expect(getComputedStyle(card, "::after").gridRowStart).toBe("1");
+    expect(getComputedStyle(card, "::after").gridColumnStart).toBe("2");
+  });
+});
+
+describe("css/system.css media card", () => {
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const paint = (token: string) => {
+    const probe = host("");
+    probe.style.color = `var(${token})`;
+    return getComputedStyle(probe).color;
+  };
+  const card = (cover = "", title = "Frieren") =>
+    `<a class="cp-media" href="#x"><span class="cp-cover"${cover}><span class="cp-icon" data-cp-icon="tv"></span><span class="cp-chip">Best</span></span><strong data-part="title">${title}</strong><small data-part="meta">2023, 28 episodes</small></a>`;
+  function grid(...cards: string[]): HTMLElement {
+    theme("light");
+    return build(
+      `<div class="cp-grid" style="inline-size: 40rem; --cp-grid-min: 9.5rem">${cards.join("")}</div>`,
+    );
+  }
+
+  it("draws a 2:3 cover over a bold title and its muted facts, the card one link", () => {
+    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+    const cover = a.querySelector(".cp-cover") as Element;
+    const title = a.querySelector('[data-part="title"]') as Element;
+    const meta = a.querySelector('[data-part="meta"]') as Element;
+    expect(box(cover).height).toBeCloseTo((box(cover).width * 3) / 2, 0);
+    expect(getComputedStyle(cover).borderRadius).toBe("4px");
+    expect(box(title).top - box(cover).bottom).toBeCloseTo(8, 2);
+    expect(box(meta).top - box(title).bottom).toBeCloseTo(8, 2);
+    const t = getComputedStyle(title);
+    expect([t.fontSize, t.fontWeight, t.color]).toEqual(["14px", "700", paint("--cp-ink")]);
+    const m = getComputedStyle(meta);
+    expect([m.fontSize, m.color]).toEqual(["13px", paint("--cp-ink-muted")]);
+    expect(getComputedStyle(a).textDecorationLine).toBe("none");
+  });
+
+  it("keeps each title under its cover when a neighbour's title wraps", () => {
+    const long = "Frieren: Beyond Journey's End, the second season and its specials";
+    const [, short] = [...grid(card("", long), card()).querySelectorAll(".cp-media")] as [
+      Element,
+      Element,
+    ];
+    const cover = short.querySelector(".cp-cover") as Element;
+    expect(box(short.querySelector('[data-part="title"]')).top - box(cover).bottom).toBeCloseTo(
+      8,
+      2,
+    );
+  });
+
+  it("fills a stand-in in a harmony colour with its glyph centred, and a chip at the top start", () => {
+    for (const n of ["1", "2", "3", "4"]) {
+      const cover = grid(card(` data-harmony="${n}"`)).querySelector(".cp-cover") as Element;
+      expect(getComputedStyle(cover).backgroundColor, n).toBe(paint(`--cp-harmony-${n}`));
+      expect(getComputedStyle(cover).color, n).toBe(paint(`--cp-harmony-${n}-on`));
+    }
+    const cover = grid(card()).querySelector(".cp-cover") as Element;
+    expect(getComputedStyle(cover).backgroundColor).toBe(paint("--cp-harmony-2"));
+    const icon = box(cover.querySelector(".cp-icon"));
+    expect([icon.width, icon.height]).toEqual([32, 32]);
+    const c = box(cover);
+    expect(icon.left + 16).toBeCloseTo(c.left + c.width / 2, 0);
+    expect(icon.top + 16).toBeCloseTo(c.top + c.height / 2, 0);
+    const chip = box(cover.querySelector(".cp-chip"));
+    expect([chip.top - c.top, chip.left - c.left]).toEqual([8, 8]);
+    const rtl = grid(card(' dir="rtl"')).querySelector(".cp-cover") as Element;
+    expect(box(rtl).right - box(rtl.querySelector(".cp-chip")).right).toBe(8);
+  });
+
+  it("fills the cover with the work's own image", () => {
+    const img =
+      '<img alt="" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22/%3E">';
+    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+    const cover = a.querySelector(".cp-cover") as Element;
+    cover.prepend(build(img).firstChild as Node);
+    const pic = cover.querySelector("img") as Element;
+    expect(box(pic).toJSON()).toEqual(box(cover).toJSON());
+    expect(getComputedStyle(pic).objectFit).toBe("cover");
+  });
+
+  it("lifts the cover under a mouse, not a finger, and rings the cover on focus", async () => {
+    root.setAttribute("data-pointer", "fine");
+    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+    const cover = a.querySelector(".cp-cover") as HTMLElement;
+    cover.style.transition = "none";
+    expect(getComputedStyle(cover).boxShadow).toBe("none");
+    await userEvent.hover(a);
+    expect(getComputedStyle(cover).scale).toBe("1.03");
+    expect(getComputedStyle(cover).boxShadow).not.toBe("none");
+    root.setAttribute("data-pointer", "coarse");
+    expect(getComputedStyle(cover).scale).toBe("none");
+    a.focus({ focusVisible: true });
+    expect(getComputedStyle(a).outlineStyle).toBe("none");
+    const ring = getComputedStyle(cover);
+    expect([ring.outlineStyle, ring.outlineOffset]).toEqual(["solid", "2px"]);
+    expect(ring.outlineColor).toBe(paint("--cp-focus-ring"));
+  });
+
+  it.skipIf(!emulates)(
+    "outlines a stand-in in forced colours, where its fill is gone",
+    async () => {
+      await media("forced-colors", "active");
+      const cover = grid(card()).querySelector(".cp-cover") as Element;
+      const cs = getComputedStyle(cover);
+      expect([cs.borderStyle, cs.borderWidth]).toEqual(["solid", "1px"]);
+      expect(cs.borderColor).toBe(paint("CanvasText"));
+    },
+  );
 });
 
 describe("css/system.css meter", () => {
