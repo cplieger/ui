@@ -267,6 +267,40 @@ function column_alignments(cells: string[]): string {
   return out.some((align) => align !== "") ? out.join(",") : "";
 }
 
+/** The columns the open list items take, which a line's indent counts from. */
+function open_columns(p: Parser): number {
+  let n = 0;
+  for (let i = 0; i <= p.len; i += 1) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    n += p.spaces[i]!;
+  }
+  return n;
+}
+
+/** Opens the fence `pending` holds, `fence_start` characters of `ch` then
+ *  its info string, at the line's indent past its containers. */
+function open_fence(p: Parser, ch: "`" | "~", pending_with_char: string): void {
+  end_tokens_to_indent(p, p.indent_len);
+  const indent = Math.max(0, p.indent_len - open_columns(p));
+  if (!add_token(p, CODE_FENCE)) {
+    // The info string must not be emitted here: with no fence to carry it the attribute lands
+    // on the enclosing element as its `class`.
+    p.textBuf += p.indent + pending_with_char;
+    clear_root_pending(p);
+    p.fence_start = 0;
+    return;
+  }
+  p.delims[p.len] = ch.repeat(p.fence_start);
+  p.fence_indent = indent;
+  const lang = fence_lang(p.pending.slice(p.fence_start));
+  if (lang !== "") {
+    p.sink.attr(LANG, lang);
+  }
+  clear_root_pending(p);
+  p.fence_end = 0;
+  p.token = NEWLINE;
+}
+
 export function handleRootContext(p: Parser, char: string, pending_with_char: string): boolean {
   switch (pending_head(p)) {
     case undefined:
@@ -283,10 +317,10 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
       p.indent_len += 4;
       return true;
     case "\n":
-      // Lists can have an empty line between items.
+      // A blank line in a list item: the next line decides whether the item goes on (CommonMark 5.2).
       if (p.tokens[p.len] === LIST_ITEM && p.token === LINE_BREAK) {
-        end_token(p);
         clear_root_pending(p);
+        p.item_gap = true;
         p.pending = char;
         return true;
       }
@@ -342,7 +376,8 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
         p.blockquote_idx = next_blockquote_idx;
       }
       clear_root_pending(p);
-      p.pending = char;
+      // The one space after `>` belongs to the marker, not to the line's indent (CommonMark 5.1).
+      p.pending = char === " " ? "" : char;
       return true;
     }
     case "-":
@@ -414,27 +449,31 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
         return true;
       }
       if (char === "\n") {
-        end_tokens_to_indent(p, p.indent_len);
-        if (!add_token(p, CODE_FENCE)) {
-          // The info string must not be emitted here: with no fence to carry it the attribute lands
-          // on the enclosing element as its `class`.
-          p.textBuf += p.indent + pending_with_char;
-          clear_root_pending(p);
-          p.fence_start = 0;
-          return true;
-        }
-        p.delims[p.len] = "`".repeat(p.fence_start);
-        const lang = fence_lang(p.pending.slice(p.fence_start));
-        if (lang !== "") {
-          p.sink.attr(LANG, lang);
-        }
-        clear_root_pending(p);
-        p.fence_end = 0;
-        p.token = NEWLINE;
+        open_fence(p, "`", pending_with_char);
         return true;
       }
       hold(p, char);
       return true;
+    case "~": {
+      // A tilde fence's info string may hold anything, backticks and tildes included.
+      const run = p.pending.length === 1 ? 1 : p.fence_start;
+      if (char === "~" && p.pending.length === run) {
+        hold(p, char);
+        p.fence_start = p.pending.length;
+        return true;
+      }
+      if (run < 3) {
+        p.fence_start = 0;
+        break;
+      }
+      p.fence_start = run;
+      if (char === "\n") {
+        open_fence(p, "~", pending_with_char);
+        return true;
+      }
+      hold(p, char);
+      return true;
+    }
     case "+":
       if (char !== " ") {
         break;
@@ -525,10 +564,16 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
   // Fallthrough: promote pending to a paragraph or code block.
   let to_write = pending_with_char;
   let pushed = true;
-  if (p.token === LINE_BREAK) {
+  if (p.token === LINE_BREAK && !p.item_gap) {
     p.token = p.tokens[p.len] as Token;
     emit_leaf(p, LINE_BREAK);
   } else {
+    if (p.item_gap) {
+      p.token = p.tokens[p.len] as Token;
+      end_tokens_to_indent(p, p.indent_len);
+      p.indent_len = Math.max(0, p.indent_len - open_columns(p));
+      p.indent = " ".repeat(p.indent_len);
+    }
     if (p.indent_len >= 4) {
       let code_start = 0;
       for (; code_start < 4; code_start += 1) {
@@ -746,9 +791,9 @@ export function handleCodeBlock(p: Parser, char: string, pending_with_char: stri
 }
 
 /** Whether a held line is a closing fence per CommonMark 4.5: at most three spaces of indent,
- *  then a run of at least `fence_start` backticks, then nothing but spaces and tabs. `line` may
- *  carry the newline that started it. */
-function is_fence_close(line: string, fence_start: number): boolean {
+ *  then a run of at least `fence_start` of the fence's character, then nothing but spaces and
+ *  tabs. `line` may carry the newline that started it. */
+function is_fence_close(line: string, ch: string, fence_start: number): boolean {
   let i = line.startsWith("\n") ? 1 : 0;
   const indent_start = i;
   while (line[i] === " ") {
@@ -758,7 +803,7 @@ function is_fence_close(line: string, fence_start: number): boolean {
     return false;
   }
   const run_start = i;
-  while (line[i] === "`") {
+  while (line[i] === ch) {
     i += 1;
   }
   if (i - run_start < fence_start) {
@@ -776,15 +821,16 @@ function is_fence_close(line: string, fence_start: number): boolean {
 export function handleCodeFence(p: Parser, char: string, pending_with_char: string): void {
   // `p.fence_end` is the current line's verdict: 0 while the line could still be the closing fence,
   // 1 once a character ruled it out.
+  const ch = p.delims[p.len]?.charAt(0) ?? "`";
   if (p.fence_end === 0) {
     switch (char) {
-      case "`":
+      case ch:
       case " ":
       case "\t":
         p.pending = pending_with_char;
         return;
       case "\n":
-        if (is_fence_close(p.pending, p.fence_start)) {
+        if (is_fence_close(p.pending, ch, p.fence_start)) {
           add_text(p);
           end_token(p);
           p.pending = "";
@@ -1246,9 +1292,8 @@ function splitRawURLTail(pending: string): { url: string; tail: string } {
 function endRawURL(p: Parser, trailing: string): void {
   const { url, tail } = splitRawURLTail(p.pending);
   p.sink.attr(HREF, url);
-  // `textBuf` holds only the href half already (see below), so the visible text is cut at the SAME
-  // point as the href — a link whose label shows a `**` its href no longer carries would be worse
-  // than the bug.
+  // `textBuf` holds only the href half (see below), so the label is cut at the same point as the
+  // href.
   add_text(p);
   end_token(p);
   p.pending = "";
@@ -1308,8 +1353,8 @@ function can_continue_angle(pending: string, char: string): boolean {
   return char !== "\t" && char !== "\n" && char !== "<";
 }
 
-/** Hold an angle-bracket run until the `>` decides what it is: a line break, an autolink, or —
- *  as every such run was before — escaped text. */
+/** Hold an angle-bracket run until the `>` decides what it is: a line break, an autolink, or
+ *  escaped text. */
 export function handleMaybeAngle(p: Parser, char: string, pending_with_char: string): boolean {
   if (char === ">") {
     if (BR_CANDIDATE.test(p.pending)) {
@@ -1462,9 +1507,8 @@ export function handleCommon(p: Parser, char: string, pending_with_char: string)
         break;
       }
       if (char === "\n") {
-        // A code span cannot open on the last character of a line, so the held backticks are
-        // literal text. Without this they were consumed into a token that never received any
-        // content.
+        // A code span cannot open on a line's last character, so the held backticks are literal
+        // text.
         p.fence_start = 0;
         break;
       }
@@ -1548,9 +1592,8 @@ export function handleCommon(p: Parser, char: string, pending_with_char: string)
       }
       break;
     case "$":
-      // The equation guard every sibling case in this switch already carries, and its absence was a
-      // real defect: inside an OPEN equation the closing `$$` fell through to the opener below,
-      // re-entered MAYBE_EQ_BLOCK and opened a nested block that never closed.
+      // Inside an open equation a closing `$$` must not reach the opener below, which would open a
+      // nested block that never closes.
       if (
         p.token !== IMAGE &&
         p.token !== STRIKE &&

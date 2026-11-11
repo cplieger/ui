@@ -211,6 +211,187 @@ describe("fence language", () => {
   });
 });
 
+describe("fences, quotes and list items, CommonMark 4.5, 5.1 and 5.2", () => {
+  /** The operations with text joined per run, so a chunked parse compares whole. */
+  function ops(input: string, chunkLen?: number): string[] {
+    const merged: string[] = [];
+    for (const op of trace(input, chunkLen).ops) {
+      const last = merged[merged.length - 1];
+      if (op.startsWith("text:") && last?.startsWith("text:") === true) {
+        merged[merged.length - 1] = last + op.slice(5);
+      } else {
+        merged.push(op);
+      }
+    }
+    return merged;
+  }
+
+  const cases: [string, string, string[]][] = [
+    [
+      "an indented fence loses its indent from each line",
+      "  ```py\n  def f():\n      return 1\n  ```\n",
+      ["open:code", "attr:lang=py", "text:def f():\n    return 1", "close"],
+    ],
+    [
+      "a line indented less than the fence loses what it has",
+      "   ```\n a\n     b\n```\n",
+      ["open:code", "text:a\n  b", "close"],
+    ],
+    [
+      "a fence after a blank line stays in its list item, the list whole",
+      "1. Install:\n\n   ```sh\n   npm i x\n   ```\n2. Run it\n",
+      [
+        "open:list-ordered",
+        "open:list-item",
+        "text:Install:",
+        "open:code",
+        "attr:lang=sh",
+        "text:npm i x",
+        "close",
+        "close",
+        "open:list-item",
+        "text:Run it",
+        "close",
+        "close",
+      ],
+    ],
+    [
+      "text at the content column after a blank line is a paragraph in the item",
+      "1. a\n\n   b\n2. c\n",
+      [
+        "open:list-ordered",
+        "open:list-item",
+        "text:a",
+        "open:paragraph",
+        "text:b",
+        "close",
+        "close",
+        "open:list-item",
+        "text:c",
+        "close",
+        "close",
+      ],
+    ],
+    [
+      "text left of the content column after a blank line ends the list",
+      "- a\n\nb\n",
+      [
+        "open:list-unordered",
+        "open:list-item",
+        "text:a",
+        "close",
+        "close",
+        "open:paragraph",
+        "text:b",
+        "close",
+      ],
+    ],
+    [
+      "a blank line inside a fence in a list item is code",
+      "1. a\n   ```\n   x\n\n   y\n   ```\n2. b\n",
+      [
+        "open:list-ordered",
+        "open:list-item",
+        "text:a",
+        "open:code",
+        "text:x\n\ny",
+        "close",
+        "close",
+        "open:list-item",
+        "text:b",
+        "close",
+        "close",
+      ],
+    ],
+    [
+      "a tilde fence is a fence",
+      "~~~py\nx\n~~~\n",
+      ["open:code", "attr:lang=py", "text:x", "close"],
+    ],
+    [
+      "a tilde fence closes only on tildes, and as many",
+      "~~~ py `x`\na\n```\n~~\n~~~~\nafter\n",
+      [
+        "open:code",
+        "attr:lang=py",
+        "text:a\n```\n~~",
+        "close",
+        "open:paragraph",
+        "text:after",
+        "close",
+      ],
+    ],
+    [
+      "a fence in a quote drops the quote's markers",
+      "> ```\n> x\n>  y\n> ```\n> after\n",
+      [
+        "open:blockquote",
+        "open:code",
+        "text:x\n y",
+        "close",
+        "open:paragraph",
+        "text:after",
+        "close",
+        "close",
+      ],
+    ],
+    [
+      "a fence in a nested quote drops both markers",
+      "> > ```\n> > x\n> > ```\n",
+      ["open:blockquote", "open:blockquote", "open:code", "text:x", "close", "close", "close"],
+    ],
+    [
+      "a line without the quote's marker ends the quote and its fence",
+      "> ```\n> x\nlazy\n",
+      [
+        "open:blockquote",
+        "open:code",
+        "text:x",
+        "attr:unclosed=```",
+        "close",
+        "close",
+        "open:paragraph",
+        "text:lazy",
+        "close",
+      ],
+    ],
+    [
+      "a list item before a quote lends the quote's fence no column",
+      "- a\n\n> ```\n> x\n> ```\n",
+      [
+        "open:list-unordered",
+        "open:list-item",
+        "text:a",
+        "close",
+        "close",
+        "open:blockquote",
+        "open:code",
+        "text:x",
+        "close",
+        "close",
+      ],
+    ],
+  ];
+
+  it.each(cases)("%s", (_name, input, expected) => {
+    expect(ops(input)).toEqual(expected);
+    for (let chunkLen = 1; chunkLen <= 7; chunkLen += 1) {
+      expect(ops(input, chunkLen)).toEqual(expected);
+    }
+  });
+
+  it("keeps a strike at the start of a line", () => {
+    expect(ops("~~a~~ b")).toEqual([
+      "open:paragraph",
+      "open:strike",
+      "text:a",
+      "close",
+      "text: b",
+      "close",
+    ]);
+  });
+});
+
 describe("table alignment", () => {
   it("emits start, center, end and empty per column", () => {
     const t = trace("| a | b | c | d |\n| :- | :-: | -: | - |\n| 1 | 2 | 3 | 4 |");
@@ -412,7 +593,8 @@ describe("token-stack saturation", () => {
     expect(trace(">".repeat(23) + " x").texts.join("")).toContain("x");
   });
 
-  // Past the cap no block opens, so the whole line is text, markers included.
+  // Past the cap no block opens, so the whole line is text, markers included; the space after
+  // the last `>` belongs to that marker (CommonMark 5.1).
   const AT_CAP = ">".repeat(23) + " ";
   const bodies = [
     "## head",
@@ -434,7 +616,7 @@ describe("token-stack saturation", () => {
 
   it.each(bodies)("keeps every character of %j as text at the cap", (body) => {
     const t = trace(AT_CAP + body);
-    expect(t.texts.join("").replace(/\n+$/u, "")).toBe(" " + body);
+    expect(t.texts.join("").replace(/\n+$/u, "")).toBe(body);
     expect(t.kinds).toEqual(new Array<Kind>(23).fill("blockquote"));
     // A refused token's attribute would land on the enclosing blockquote.
     expect(t.attrs).toEqual([]);

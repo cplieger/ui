@@ -213,37 +213,38 @@ describe("gate: relative destinations", () => {
     expect(href("https://e.example/", new URL("file:///home/u/"))).toBe("https://e.example/");
   });
 
-  it("marks only a bare fragment as fragment-only", () => {
-    const only = gate("#section", BASE);
-    const page = gate("page#section", BASE);
-    const absolute = gate("https://app.example/chat/1#section", BASE);
-    expect(only !== null && fragmentOnly(only)).toBe(true);
-    expect(page !== null && fragmentOnly(page)).toBe(false);
-    expect(absolute !== null && fragmentOnly(absolute)).toBe(false);
+  it.each([
+    ["#section", BASE, BASE, true],
+    ["#", BASE, BASE, true],
+    ["https://app.example/chat/1#section", BASE, BASE, true],
+    ["https://app.example/chat/1#a", BASE, new URL("https://app.example/chat/1#b"), true],
+    ["page#section", BASE, BASE, false],
+    ["https://app.example/chat/1", BASE, BASE, false],
+    ["#section", new URL("https://app.example/other/"), BASE, false],
+    ["#section", new URL("https://forge.example/o/r/"), BASE, false],
+    ["#section", new URL("https://app.example/chat/1?q=1"), BASE, false],
+  ])("judges %j against base %s on page %s as fragment-only: %s", (raw, base, page, only) => {
+    const g = gate(raw, base);
+    expect(g === null ? null : fragmentOnly(g, page)).toBe(only);
   });
 });
 
 describe("written", () => {
   it("writes an absolute destination as the gate serialized it", () => {
     const g = gate(" HTTPS://E.example/a b ", BASE);
-    expect(g === null ? null : written(g, BASE.href)).toBe("https://e.example/a%20b");
+    expect(g === null ? null : written(g, BASE)).toBe("https://e.example/a%20b");
   });
 
   it("keeps a relative destination's own text when the document base agrees", () => {
     const g = gate(" docs/a%20b.md ", BASE);
-    expect(g === null ? null : written(g, BASE.href)).toBe("docs/a%20b.md");
+    expect(g === null ? null : written(g, BASE)).toBe("docs/a%20b.md");
   });
 
   it("writes the resolved URL when the document base would resolve elsewhere", () => {
     const g = gate("docs/a.md", new URL("https://forge.example/o/r/blob/main/"));
-    expect(g === null ? null : written(g, "https://app.example/chat/1")).toBe(
+    expect(g === null ? null : written(g, new URL("https://app.example/chat/1"))).toBe(
       "https://forge.example/o/r/blob/main/docs/a.md",
     );
-  });
-
-  it("writes the resolved URL against a document base that does not parse", () => {
-    const g = gate("docs/a.md", BASE);
-    expect(g === null ? null : written(g, "not a url")).toBe("https://app.example/chat/docs/a.md");
   });
 
   // The pieces a destination is built from, chosen to hit the scheme, host
@@ -287,8 +288,9 @@ describe("written", () => {
           return;
         }
         expect(["http:", "https:", "mailto:"]).toContain(g.url.protocol);
-        expect(new URL(written(g, BASE.href), BASE).href).toBe(g.url.href);
-        expect(new URL(written(g, "https://other.example/"), BASE).href).toBe(g.url.href);
+        const other = new URL("https://other.example/");
+        expect(new URL(written(g, BASE), BASE).href).toBe(g.url.href);
+        expect(new URL(written(g, other), other).href).toBe(g.url.href);
       }),
       { numRuns: 3000 },
     );

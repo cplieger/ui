@@ -113,6 +113,8 @@ const SAFETY: Record<string, string> = {
 
 const TEXTS = new Map<string, string>([
   ["prose", PROSE],
+  ["cut", PROSE],
+  ["image-load", "The sync graph for the last ten runs:\n\n![The sync graph](media/graph.svg)"],
   ["table", TABLE],
   ...Object.entries(CODE).map(([k, v]): [string, string] => [`code-${k}`, v]),
   ...Object.entries(SAFETY).map(([k, v]): [string, string] => [
@@ -152,9 +154,12 @@ for (const host of document.querySelectorAll<HTMLElement>("[data-markdown]")) {
   if (text === undefined) {
     continue;
   }
+  const key = host.dataset["markdown"];
   const options: RenderOptions = {
     headingLevel: host.dataset["level"] === "4" ? 4 : 2,
-    ...(host.dataset["markdown"] === "code-action"
+    ...(key === "cut" ? { maxBytes: 640 } : {}),
+    ...(key === "image-load" ? { images: "load", base: location.href } : {}),
+    ...(key === "code-action"
       ? {
           hooks: {
             code: (n, block) => {

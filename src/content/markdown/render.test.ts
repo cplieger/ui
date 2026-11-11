@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createDomSink, createParser, payloadShaped, renderMarkdown } from "./markdown.js";
 import type { Hooks, Kind, RenderOptions } from "./markdown.js";
+import { byteBudget } from "./render.js";
 
 const hosts: HTMLElement[] = [];
 
@@ -105,6 +106,56 @@ describe("the element vocabulary", () => {
       ["TD", "end", "6"],
     ]);
     expect(el.querySelector("[style]")).toBeNull();
+  });
+
+  it("pads a short body row and drops a long one's extra cells, as GFM 4.10 says", () => {
+    const el = render("| a | b | c |\n|:-:|--:|---|\n| 1 |\n| 1 | 2 | 3 | 4 |");
+    const rows = [...el.querySelectorAll("tbody > tr")].map((tr) =>
+      [...tr.children].map((c) => [c.tagName, c.getAttribute("data-align"), c.textContent.trim()]),
+    );
+    expect(rows).toEqual([
+      [
+        ["TD", "center", "1"],
+        ["TD", "end", ""],
+        ["TD", null, ""],
+      ],
+      [
+        ["TD", "center", "1"],
+        ["TD", "end", "2"],
+        ["TD", null, "3"],
+      ],
+    ]);
+    expect(el.textContent).not.toContain("4");
+  });
+
+  it("keeps a replayed body row to the header's cells", () => {
+    const el = host();
+    const sink = createDomSink(el);
+    const cell = (text: string): void => {
+      sink.open("table-cell");
+      sink.text(text);
+      sink.close();
+    };
+    sink.open("table");
+    sink.open("table-row");
+    cell("a");
+    cell("b");
+    sink.close();
+    sink.open("table-row");
+    cell("1");
+    cell("2");
+    cell("3");
+    sink.close();
+    sink.open("table-row");
+    sink.close();
+    sink.end();
+    const body = [...el.querySelectorAll("tbody > tr")].map((tr) =>
+      [...tr.children].map((c) => c.textContent),
+    );
+    expect(body).toEqual([
+      ["1", "2"],
+      ["", ""],
+    ]);
   });
 
   it("leaves an unaligned column without data-align", () => {
@@ -232,6 +283,28 @@ describe("links", () => {
   it("keeps a fragment link in this tab", () => {
     const a = render("[x](#section)", { base: document.baseURI }).querySelector("a");
     expect(attrSet(a)).toEqual({ href: "#section", rel: REL });
+  });
+
+  it("opens a new tab for a fragment of a base that is not the page", () => {
+    const a = render("[x](#section)", { base: "https://forge.example/o/r/" }).querySelector("a");
+    expect(attrSet(a)).toEqual({
+      href: "https://forge.example/o/r/#section",
+      rel: REL,
+      target: "_blank",
+    });
+  });
+
+  it("opens a new tab for a fragment a <base> element sends to another document", () => {
+    const tag = document.createElement("base");
+    tag.href = new URL("/elsewhere/", location.href).href;
+    document.head.append(tag);
+    try {
+      const a = render("[x](#section)", { base: document.baseURI }).querySelector("a");
+      expect(a?.getAttribute("target")).toBe("_blank");
+      expect(a?.href).toBe(new URL("/elsewhere/#section", location.href).href);
+    } finally {
+      tag.remove();
+    }
   });
 
   it.each(["../up", "a/./b", "a/%2e%2e/b", "a\\\\..\\\\b"])(
@@ -579,6 +652,30 @@ describe("images", () => {
     expect(el.textContent).toContain("[card]");
   });
 
+  it("loads an img a hook wraps", () => {
+    const el = render("![a](https://e.example/c.png)", {
+      images: "load",
+      hooks: {
+        image: (_n, img) => {
+          const figure = document.createElement("figure");
+          figure.append(img);
+          return figure;
+        },
+      },
+    });
+    expect(el.querySelector("p > figure > img")?.getAttribute("src")).toBe(
+      "https://e.example/c.png",
+    );
+  });
+
+  it("loads an img a hook returns itself", () => {
+    const el = render("![a](https://e.example/c.png)", {
+      images: "load",
+      hooks: { image: (_n, img) => img },
+    });
+    expect(el.querySelector("img")?.getAttribute("src")).toBe("https://e.example/c.png");
+  });
+
   it("gives no src to an img a hook detached and kept nothing in place of", () => {
     let held: Element | null = null;
     render("![a](https://e.example/c.png)", {
@@ -824,12 +921,37 @@ describe("code blocks", () => {
     expect(el.querySelector("code")?.textContent).toBe("<script>alert(1)</script>");
   });
 
-  it("take a tab stop only while the pre overflows", () => {
+  it("take a tab stop only while the pre overflows", async () => {
     const narrow = host(200);
     renderMarkdown(narrow, `\`\`\`\n${"x".repeat(400)}\n\`\`\`\n\n\`\`\`\nshort\n\`\`\``);
+    await frame();
+    await frame();
     const [long, short] = narrow.querySelectorAll("pre");
     expect(long?.getAttribute("tabindex")).toBe("0");
     expect(short?.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("strip an indented fence's indent from its lines, so Copy takes the code as written", async () => {
+    const written: string[] = [];
+    clipboard((text) => {
+      written.push(text);
+      return Promise.resolve();
+    });
+    const el = render("  ```py\n  def f():\n      return 1\n  ```");
+    expect(el.querySelector("code")?.textContent).toBe("def f():\n    return 1");
+    const copy = el.querySelector<HTMLButtonElement>(".cp-copy");
+    copy?.click();
+    await expect.poll(() => copy?.dataset["cpState"]).toBe("done");
+    expect(written).toEqual(["def f():\n    return 1"]);
+  });
+
+  it("stay in a list item after a blank line, the list whole", () => {
+    const el = render("1. Install:\n\n   ```sh\n   npm i x\n   ```\n2. Run it");
+    expect(el.children).toHaveLength(1);
+    const items = el.querySelectorAll("ol > li");
+    expect(items).toHaveLength(2);
+    expect(items[0]?.querySelector(".cp-code code")?.textContent).toBe("npm i x");
+    expect(items[1]?.textContent).toBe("Run it");
   });
 
   function clipboard(write: (text: string) => Promise<void>): void {
@@ -870,9 +992,11 @@ describe("code blocks", () => {
 describe("the table region", () => {
   const wide = `| ${Array.from({ length: 30 }, (_, i) => `column ${String(i)}`).join(" | ")} |\n|${"---|".repeat(30)}\n| ${"x | ".repeat(30)}`;
 
-  it("is a named, focusable region only while the table overflows", () => {
+  it("is a named, focusable region only while the table overflows", async () => {
     const narrow = host(200);
     renderMarkdown(narrow, `${wide}\n\nbetween\n\n| a |\n|---|\n| 1 |`);
+    await frame();
+    await frame();
     const [over, fits] = narrow.querySelectorAll(".cp-table-scroll");
     expect(attrSet(over ?? null)).toEqual({
       class: "cp-table-scroll",
@@ -889,6 +1013,8 @@ describe("the table region", () => {
     const aborted = new AbortController();
     const still = host(200);
     renderMarkdown(still, wide, { signal: aborted.signal });
+    await frame();
+    await frame();
     aborted.abort();
     // An aborted render still rendered: the signal stops what follows, not what was done.
     expect(still.querySelector(".cp-table-scroll")?.getAttribute("role")).toBe("region");
@@ -948,6 +1074,11 @@ describe("maxBytes", () => {
     expect(calls).toEqual(["a".repeat(10), "b".repeat(8)]);
   });
 
+  it("names a limit under a kilobyte in bytes", () => {
+    const line = render("a".repeat(30), { maxBytes: 20 }).querySelector("[data-cp-truncated]");
+    expect(line?.textContent).toBe("The text stops here, after its first 20 bytes.");
+  });
+
   it("counts UTF-8 bytes and never splits a code point", () => {
     // "é" is 2 bytes, "😀" 4: 3 + 2 + 4 = 9 fit in 10, the next "😀" does not.
     const el = render("abcé😀😀", { maxBytes: 10 });
@@ -964,6 +1095,31 @@ describe("maxBytes", () => {
     expect(cut.querySelector("[data-cp-truncated]")).not.toBeNull();
   });
 
+  it("keeps a lone lead surrogate that fits as U+FFFD's 3 bytes", () => {
+    expect(new TextEncoder().encode("A\uD800")).toHaveLength(4);
+    expect(render("\uD800", { maxBytes: 3 }).textContent).toBe("\uD800");
+    const after = render("A\uD800", { maxBytes: 4 });
+    expect(after.textContent).toBe("A\uD800");
+    expect(after.querySelector("[data-cp-truncated]")).toBeNull();
+    const over = render("A\uD800", { maxBytes: 3 });
+    expect(over.firstElementChild?.textContent).toBe("A");
+    expect(over.querySelector("[data-cp-truncated]")).not.toBeNull();
+  });
+
+  it("charges a pair split across chunks its 4 bytes, and cuts before it whole", () => {
+    const fits = byteBudget(4);
+    expect(fits.take("\uD83D") + fits.take("\uDE00") + fits.flush()).toBe("\uD83D\uDE00");
+    expect(fits.cut).toBe(false);
+    expect(fits.take("a")).toBe("");
+    expect(fits.cut).toBe(true);
+    const short = byteBudget(3);
+    expect(short.take("\uD83D") + short.take("\uDE00") + short.flush()).toBe("");
+    expect(short.cut).toBe(true);
+    const lone = byteBudget(4);
+    expect(lone.take("\uD800") + lone.take("a") + lone.flush()).toBe("\uD800a");
+    expect(lone.cut).toBe(false);
+  });
+
   it("shows no line when the text fits exactly", () => {
     const el = render("abcé😀", { maxBytes: 9 });
     expect(el.querySelector("[data-cp-truncated]")).toBeNull();
@@ -977,7 +1133,9 @@ describe("maxBytes", () => {
     const under = render(exact);
     expect(under.querySelector("[data-cp-truncated]")).toBeNull();
     const over = render(`${exact}a`);
-    expect(over.querySelector("[data-cp-truncated]")).not.toBeNull();
+    expect(over.querySelector("[data-cp-truncated]")?.textContent).toBe(
+      "The text stops here, after its first 1 MB.",
+    );
     expect(over.firstElementChild?.textContent).toBe(exact);
   });
 

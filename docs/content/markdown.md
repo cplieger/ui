@@ -45,11 +45,11 @@ A `headingLevel` or `maxBytes` out of range throws a `RangeError`, and a `base` 
 | paragraph, heading, blockquote, rule, line break | `p`, `h1` to `h6`, `blockquote`, `hr`, `br` |
 | emphasis, strong, strike, inline code | `em`, `strong`, `del`, `code` |
 | list, task | `ul`, or `ol` with `start`; a task's box is a disabled `input type="checkbox"` named "Task item" |
-| table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"` |
+| table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"`; every body row has the header's cell count, padded with empty cells or cut |
 | link, bare URL, email | `a` |
 | image | `a`, or `img` in `"load"` mode |
 | equation | `code` with `data-math="inline"` or `"block"`, the TeX as its text |
-| fenced or indented code | the code block |
+| fenced or indented code | the code block; a fence is three or more backticks or tildes |
 
 Raw HTML in the text is shown as text. A character reference is decoded once, HTML 4.01's named set, and never read again as markup.
 
@@ -67,6 +67,7 @@ Raw HTML in the text is shown as text. A character reference is decoded once, HT
 ```
 
 - The block is built when the fence opens, and its text streams into `code`. It is coloured once, when the fence closes or at the end.
+- An indented fence's indent is taken off each of its lines, so the code and what Copy copies are the code as written. A fence in a list item or a blockquote stays in it, across blank lines in the item.
 - The fence's language is the first word of its info string, kept only if it matches `[A-Za-z0-9_+.#-]{1,32}`. The label is the language's name, such as "TypeScript" for `ts`, or the tag as written when the highlighter does not know it. A fence with no tag is coloured and labelled by [`detectLanguage`](highlight.md#detection), and stays plain when detection is unsure.
 - Copy is [copy](../forms/copy.md) on the block's code. Its hint is inside the block, so a hook that replaces the block takes it too.
 - Add an app's buttons to `[data-part="actions"]`, each a `.cp-button` with `data-variant="quiet"` and `data-size="sm"`, from the `code` hook.
@@ -81,7 +82,7 @@ A table sits in a `div.cp-table-scroll` that scrolls it inside its own box. Whil
 - Every `href` and `src` goes through the gate before anything resolves it. The gate strips surrounding whitespace and every C0 control, then admits `http:`, `https:` and `mailto:`, and reads `//host/x` as `https:`.
 - A relative destination is admitted only with `base`, and only when no segment of it is `.` or `..`, written plainly, percent-encoded or with backslashes. The element gets the URL the gate checked. A relative destination keeps its own text when the document's base resolves it to the same URL.
 - A refused destination gets no `href` and no `src`, so the link's words are plain text. `.cp-prose` styles an `a` without `href` as body text, so it never looks live.
-- Links get `rel="noopener noreferrer nofollow"`. Every `http:` or `https:` link opens in a new tab, unless it is only a fragment, so a click never loses a live feed or an unsent draft.
+- Links get `rel="noopener noreferrer nofollow"`. Every `http:` or `https:` link opens in a new tab, unless it only moves within the page it is on, so a click never loses a live feed or an unsent draft. A fragment that `base` or a `<base>` element sends to another document opens a new tab too.
 - No path in either subpath turns a string into markup, and a test fails on any.
 - Parsing takes time in line with the text's length, whatever its shape.
 - Send `X-DNS-Prefetch-Control: off` with a page that renders agent text, since a browser may resolve a link's host before any click.
@@ -95,7 +96,7 @@ The default, `payloadShaped(url)`, is exported. It flags a query and fragment, o
 ### Images
 
 - In `"link"` mode an image is a link to its source, named by its alt text, or by the source's host and path when alt is empty.
-- In `"load"` mode the gate, `urls`, `withhold` and the `image` hook decide before the `img` gets a `src`, so an image a hook replaces is never fetched. A kept `img` has `referrerpolicy="no-referrer"` and `loading="lazy"`. A source `urls` refuses as `"src"` renders the link form, its `href` checked again as `"href"`. A withheld source renders the withheld link form.
+- In `"load"` mode the gate, `urls`, `withhold` and the `image` hook decide before the `img` gets a `src`, so an image a hook replaces is never fetched. The `img` gets its `src` when the hook keeps it, returns it or returns a wrapper holding it. A kept `img` has `referrerpolicy="no-referrer"` and `loading="lazy"`. A source `urls` refuses as `"src"` renders the link form, its `href` checked again as `"href"`. A withheld source renders the withheld link form.
 - A source the gate refuses renders its alt text, or "Image", as plain text.
 
 ## Hooks
@@ -140,6 +141,7 @@ renderMarkdown(answer, text, {
 - What is queued is parsed in slices of 4096 characters, one task each, so a large flush never holds a frame. `flush()` parses the first slice at once.
 - Emitted content never changes, and a completed block is never rendered again.
 - `end()` parses what is queued, closes every token and shows the truncation line if `maxBytes` cut the text. A second `end()` does nothing.
+- A hook may call `write` or `end`. A write is queued after the text being parsed, and an `end` runs once that text is parsed.
 
 ## In a worker
 

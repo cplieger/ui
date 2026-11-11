@@ -69,7 +69,12 @@ export function createMarkdownStream(host: Element, options: StreamOptions = {})
   let buffer = "";
   let queued = "";
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // `draining` holds from a slice's parse until the queue is empty, so a
+  // write from a hook only queues; `parsing` defers an `end` a hook asks for
+  // until the slice it interrupts is parsed.
   let draining = false;
+  let parsing = false;
+  let endAsked = false;
   let ended = false;
 
   function stop(): void {
@@ -82,14 +87,44 @@ export function createMarkdownStream(host: Element, options: StreamOptions = {})
     channel.port2.close();
   }
 
+  function finish(): void {
+    const rest = queued + buffer + budget.flush();
+    stop();
+    signal?.removeEventListener("abort", stop);
+    parser.write(rest);
+    parser.end();
+    sink.end();
+    if (budget.cut) {
+      host.append(truncationLine(host.ownerDocument, max));
+    }
+  }
+
+  function isEnded(): boolean {
+    return ended;
+  }
+
   function drain(): void {
     if (ended) {
       return;
     }
     const end = sliceEnd(queued);
-    parser.write(queued.slice(0, end));
+    const slice = queued.slice(0, end);
     queued = queued.slice(end);
-    sink.sync();
+    draining = true;
+    parsing = true;
+    try {
+      parser.write(slice);
+    } finally {
+      parsing = false;
+    }
+    // A hook or an abort listener may have ended the stream during the parse.
+    if (isEnded()) {
+      return;
+    }
+    if (endAsked) {
+      finish();
+      return;
+    }
     options.onSlice?.(host);
     draining = queued !== "" && !ended;
     if (draining) {
@@ -134,15 +169,11 @@ export function createMarkdownStream(host: Element, options: StreamOptions = {})
       if (ended) {
         return;
       }
-      const rest = queued + buffer;
-      stop();
-      signal?.removeEventListener("abort", stop);
-      parser.write(rest);
-      parser.end();
-      sink.end();
-      if (budget.cut) {
-        host.append(truncationLine(host.ownerDocument, max));
+      if (parsing) {
+        endAsked = true;
+        return;
       }
+      finish();
     },
   };
 }

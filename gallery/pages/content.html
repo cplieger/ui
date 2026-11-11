@@ -111,6 +111,16 @@
         <div class="cp-prose" data-markdown="safety-html"></div>
         <footer>Tags in the text are shown as the characters they are; nothing in the text becomes markup.</footer>
       </div>
+      <div class="card" data-new>
+        <h2>A cut text</h2>
+        <div class="cp-prose" data-markdown="cut"></div>
+        <footer>Past <code>maxBytes</code>, here 640 bytes, the text stops where it was cut, what was open is closed, and one line says so.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>An image the app loads</h2>
+        <div class="cp-prose" data-markdown="image-load"></div>
+        <footer>With <code>images: "load"</code> an image is fetched with no referrer and lazily, and fits the column with the prose's corner radius.</footer>
+      </div>
     </div>
   </section>
 </main>

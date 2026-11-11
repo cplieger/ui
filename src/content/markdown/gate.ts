@@ -73,19 +73,26 @@ export function gate(raw: string, base: URL | null): Gated | null {
  * base resolves that text to the same URL, so the browser follows what the
  * gate checked either way.
  */
-export function written(gated: Gated, documentBase: string): string {
-  if (
-    gated.relative &&
-    parse(gated.text, parse(documentBase) ?? undefined)?.href === gated.url.href
-  ) {
+export function written(gated: Gated, documentBase: URL): string {
+  if (gated.relative && parse(gated.text, documentBase)?.href === gated.url.href) {
     return gated.text;
   }
   return gated.url.href;
 }
 
-/** Whether a destination is only a fragment of the page it sits on. */
-export function fragmentOnly(gated: Gated): boolean {
-  return gated.relative && gated.text.startsWith("#");
+function beforeHash(href: string): string {
+  const at = href.indexOf("#");
+  return at < 0 ? href : href.slice(0, at);
+}
+
+/**
+ * Whether following a destination stays in `page`'s document: it carries a
+ * fragment, `#` alone included, and is `page` once fragments are set aside
+ * (the HTML Standard's fragment navigation).
+ */
+export function fragmentOnly(gated: Gated, page: URL): boolean {
+  const href = gated.url.href;
+  return href.includes("#") && beforeHash(href) === beforeHash(page.href);
 }
 
 /**

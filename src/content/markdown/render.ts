@@ -55,7 +55,8 @@ export interface MathNode {
 export interface Hooks {
   link?(n: LinkNode, el: HTMLAnchorElement): Node | undefined;
   /** `el` is the image's link form, or in `"load"` mode an `img` with no
-   *  `src` yet, which it gets only if the hook keeps it in place. */
+   *  `src` yet, which it gets only if what the hook leaves holds it: kept
+   *  in place, returned, or wrapped. */
   image?(n: ImageNode, el: Element): Node | undefined;
   /** `el` is the `.cp-code` block, coloured already. */
   code?(n: CodeNode, el: HTMLElement): Node | undefined;
@@ -92,11 +93,6 @@ export interface SinkExtras {
 
 /** A sink that renders into its host; `end` closes what is still open. */
 export type DomSink = Sink & { end(): void };
-
-/** The sink and the overflow re-check a stream runs after each slice. */
-interface DomSinkInternals extends DomSink {
-  sync(): void;
-}
 
 const MIB = 1 << 20;
 const LANG = /^[A-Za-z0-9_+.#-]{1,32}$/;
@@ -173,7 +169,7 @@ export function domSink(
   host: Element,
   options: RenderOptions = {},
   extras: SinkExtras = {},
-): DomSinkInternals {
+): DomSink {
   const doc = host.ownerDocument;
   const hooks = options.hooks ?? {};
   const base = options.base === undefined ? null : new URL(options.base);
@@ -195,7 +191,6 @@ export function domSink(
   let done = signal?.aborted === true;
 
   const scrollers = new WeakMap<Element, Element>();
-  const watched = new Set<Element>();
   let observer: ResizeObserver | null = null;
   signal?.addEventListener(
     "abort",
@@ -203,7 +198,6 @@ export function domSink(
       done = true;
       observer?.disconnect();
       observer = null;
-      watched.clear();
     },
     { once: true },
   );
@@ -237,7 +231,8 @@ export function domSink(
   }
 
   /** Watches `targets` for the size changes that move `scroller`'s overflow:
-   *  the scroller's own box, and a table growing a row at a time. */
+   *  the scroller's own box, and its content growing a line or a row at a
+   *  time. The observer reads after layout, so a render forces none. */
   function watch(scroller: Element, ...targets: Element[]): void {
     const RO = (doc.defaultView as { readonly ResizeObserver?: typeof ResizeObserver } | null)
       ?.ResizeObserver;
@@ -256,7 +251,6 @@ export function domSink(
       scrollers.set(target, scroller);
       observer.observe(target);
     }
-    watched.add(scroller);
   }
 
   function push(kind: Kind | null, into: Element, node: Element | null): Frame {
@@ -314,7 +308,8 @@ export function domSink(
     enhanceCopy(copy, { source: code, hint });
     parent.into.append(block);
     push("code", code, block);
-    watch(pre);
+    // The code is max-content wide, so a widening line resizes it when the pre's box stays put.
+    watch(pre, code);
   }
 
   function openTable(parent: Frame): void {
@@ -342,20 +337,49 @@ export function domSink(
     push("table-row", tr, tr);
   }
 
+  /** The header row's cell count, which every body row keeps (GFM 4.10);
+   *  `null` for the header row itself. */
+  function columns(row: Element): number | null {
+    const head = row.closest("table")?.querySelector("thead > tr") ?? null;
+    return head === null || head === row ? null : head.children.length;
+  }
+
+  function appendCell(row: Frame, table: Frame): HTMLTableCellElement {
+    const cell = el(row.into.parentElement?.tagName === "THEAD" ? "th" : "td");
+    const align = table.align[row.column] ?? "";
+    row.column += 1;
+    if (ALIGNS.has(align)) {
+      cell.setAttribute("data-align", align);
+    }
+    row.into.append(cell);
+    return cell;
+  }
+
   function openCell(parent: Frame): void {
     const table = stack[stack.length - 2];
     if (parent.kind !== "table-row" || table === undefined) {
       push(null, parent.into, null);
       return;
     }
-    const cell = el(parent.into.parentElement?.tagName === "THEAD" ? "th" : "td");
-    const align = table.align[parent.column] ?? "";
-    parent.column += 1;
-    if (ALIGNS.has(align)) {
-      cell.setAttribute("data-align", align);
+    const count = columns(parent.into);
+    if (count !== null && parent.column >= count) {
+      // A cell past the header's count is dropped, its content with it.
+      push(null, el("td"), null);
+      return;
     }
-    parent.into.append(cell);
+    const cell = appendCell(parent, table);
     push("table-cell", cell, cell);
+  }
+
+  function closeRow(row: Frame): void {
+    const table = current();
+    const count = columns(row.into);
+    if (count === null || table.kind !== "table") {
+      return;
+    }
+    while (row.column < count) {
+      appendCell(row, table);
+    }
   }
 
   function open(kind: Kind): void {
@@ -468,17 +492,10 @@ export function domSink(
     return gated === null || options.urls?.(gated.url, raw, kind) === false ? null : gated;
   }
 
-  function pageOrigin(): string {
-    try {
-      return new URL(doc.URL).origin;
-    } catch {
-      return "null";
-    }
-  }
-
   /** Gives an anchor its destination, withheld or live; returns whether it was withheld. */
   function point(a: HTMLAnchorElement, gated: Gated): boolean {
-    if (withheld(gated, withhold, pageOrigin())) {
+    const page = new URL(doc.URL);
+    if (withheld(gated, withhold, page.origin)) {
       a.setAttribute("data-cp-withheld", "");
       const dest = el("span");
       dest.setAttribute("data-part", "dest");
@@ -486,11 +503,11 @@ export function domSink(
       a.append(dest);
       return true;
     }
-    a.setAttribute("href", written(gated, doc.baseURI));
+    a.setAttribute("href", written(gated, new URL(doc.baseURI)));
     a.setAttribute("rel", REL);
     const web = gated.url.protocol === "http:" || gated.url.protocol === "https:";
     // Both apps hold a live feed and an unsent draft a navigation would lose.
-    if (web && !fragmentOnly(gated)) {
+    if (web && !fragmentOnly(gated, page)) {
       a.setAttribute("target", "_blank");
     }
     return false;
@@ -517,7 +534,7 @@ export function domSink(
       gated !== null &&
       loadImages &&
       options.urls?.(gated.url, raw, "src") !== false &&
-      !withheld(gated, withhold, pageOrigin())
+      !withheld(gated, withhold, new URL(doc.URL).origin)
     ) {
       const img = el("img");
       img.setAttribute("alt", alt);
@@ -529,9 +546,13 @@ export function domSink(
       frame.into.append(img);
       return place(img, () => {
         const result = hooks.image?.(n(gated.url), img);
-        // Only an img still in place gets src, so a replaced one is never fetched.
-        if (result === undefined && img.parentNode !== null) {
-          img.setAttribute("src", written(gated, doc.baseURI));
+        // Only an img in what the library inserts gets src, so a replaced one is never fetched.
+        const kept =
+          result === undefined
+            ? img.parentNode !== null
+            : result === img || (result instanceof Node && result.contains(img));
+        if (kept) {
+          img.setAttribute("src", written(gated, new URL(doc.baseURI)));
         }
         return result;
       });
@@ -567,10 +588,6 @@ export function domSink(
       if (lang !== "") {
         highlightInto(code, source, lang);
       }
-    }
-    const pre = code.parentElement;
-    if (pre !== null) {
-      syncOverflow(pre);
     }
     const closed = !frame.attrs.has("unclosed");
     return place(block, () => hooks.code?.({ lang: tag, text: source, closed }, block));
@@ -619,10 +636,8 @@ export function domSink(
         const display = frame.kind === "equation-block";
         return place(math, () => hooks.math?.({ tex, display }, math));
       }
-      case "table":
-        if (node !== null) {
-          syncOverflow(node);
-        }
+      case "table-row":
+        closeRow(frame);
         return node;
       case "emphasis":
       case "strong":
@@ -677,13 +692,6 @@ export function domSink(
       }
       done = true;
     },
-    sync() {
-      for (const scroller of watched) {
-        if (scroller.isConnected) {
-          syncOverflow(scroller);
-        }
-      }
-    },
   };
 }
 
@@ -715,41 +723,72 @@ export function createDomSink(host: Element, options?: RenderOptions): DomSink {
 
 /** What `maxBytes` lets through of a text written in one or more chunks. */
 interface ByteBudget {
-  /** The part of `chunk` that fits, cut at a code point even when a
-   *  surrogate pair spans two chunks; "" once the budget is spent. */
+  /** The part of `chunk` that fits, cut at a code point; a lead surrogate
+   *  ending it waits for the next chunk to say what it costs. "" once the
+   *  budget is spent. */
   take(chunk: string): string;
+  /** What the last chunk held back, once no chunk follows. */
+  flush(): string;
   /** Some text did not fit. */
   readonly cut: boolean;
+}
+
+function isLead(c: number): boolean {
+  return c >= 0xd800 && c <= 0xdbff;
+}
+
+function isTrail(c: number): boolean {
+  return c >= 0xdc00 && c <= 0xdfff;
 }
 
 /** @internal */
 export function byteBudget(max: number): ByteBudget {
   let left = max;
   let cut = false;
-  // In UTF-8 bytes, a lead surrogate costs the pair's 4 and its trail 0; an
-  // unpaired lead is refunded to U+FFFD's 3.
-  let lead = false;
+  // In UTF-8 bytes a pair costs 4 and a lone surrogate U+FFFD's 3.
+  let held = "";
   return {
     take(chunk) {
       if (cut) {
         return "";
       }
-      for (let i = 0; i < chunk.length; i++) {
-        const c = chunk.charCodeAt(i);
-        const isLead = c >= 0xd800 && c <= 0xdbff;
-        const trails = lead && c >= 0xdc00 && c <= 0xdfff;
-        if (lead && !trails) {
-          left += 1;
+      const text = held + chunk;
+      held = "";
+      for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i);
+        let cost = c < 0x80 ? 1 : c < 0x800 ? 2 : 3;
+        if (isLead(c)) {
+          if (i + 1 === text.length) {
+            held = text.slice(i);
+            return text.slice(0, i);
+          }
+          if (isTrail(text.charCodeAt(i + 1))) {
+            cost = 4;
+          }
         }
-        const cost = trails ? 0 : c < 0x80 ? 1 : c < 0x800 ? 2 : isLead ? 4 : 3;
         if (cost > left) {
           cut = true;
-          return chunk.slice(0, i);
+          return text.slice(0, i);
         }
         left -= cost;
-        lead = isLead;
+        if (cost === 4) {
+          i += 1;
+        }
       }
-      return chunk;
+      return text;
+    },
+    flush() {
+      const lead = held;
+      held = "";
+      if (cut || lead === "") {
+        return "";
+      }
+      if (left < 3) {
+        cut = true;
+        return "";
+      }
+      left -= 3;
+      return lead;
     },
     get cut() {
       return cut;
@@ -761,13 +800,15 @@ export function byteBudget(max: number): ByteBudget {
 export function truncationLine(doc: Document, maxBytes: number): HTMLParagraphElement {
   const line = doc.createElement("p");
   line.setAttribute("data-cp-truncated", "");
+  const unit = maxBytes >= MIB ? "megabyte" : maxBytes >= 1024 ? "kilobyte" : "byte";
   const size = new Intl.NumberFormat(undefined, {
     style: "unit",
-    unit: maxBytes >= MIB ? "megabyte" : maxBytes >= 1024 ? "kilobyte" : "byte",
-    unitDisplay: "short",
+    unit,
+    // CLDR's short English byte is "byte" whatever the count; the long form is plural.
+    unitDisplay: unit === "byte" ? "long" : "short",
     maximumFractionDigits: 1,
   }).format(maxBytes >= MIB ? maxBytes / MIB : maxBytes >= 1024 ? maxBytes / 1024 : maxBytes);
-  line.textContent = `The text stops here: only its first ${size} is shown.`;
+  line.textContent = `The text stops here, after its first ${size}.`;
   return line;
 }
 
@@ -791,7 +832,7 @@ export function renderMarkdown(host: Element, text: string, options: RenderOptio
   const sink = domSink(host, options);
   const budget = byteBudget(max);
   const parser = createParser(sink);
-  parser.write(budget.take(text));
+  parser.write(budget.take(text) + budget.flush());
   parser.end();
   sink.end();
   if (budget.cut && options.signal?.aborted !== true) {

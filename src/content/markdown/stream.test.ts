@@ -74,6 +74,8 @@ const withCuts = markdownish.chain((md) =>
 );
 
 /** Paragraphs that each complete as a top-level block, `n` UTF-16 units in all. */
+const frame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
+
 function paragraphs(n: number): string {
   return "abcdefg\n\n".repeat(Math.ceil(n / 9)).slice(0, n);
 }
@@ -255,6 +257,93 @@ describe("createMarkdownStream", () => {
     expect(el.innerHTML).toBe(before.html);
     expect(calls).toHaveLength(before.calls);
     expect(el.querySelector("[data-cp-truncated]")).toBeNull();
+  });
+
+  it("runs no onSlice after an abort raised inside a slice", () => {
+    const ac = new AbortController();
+    let slicesSeen = 0;
+    let links = 0;
+    const stream = createMarkdownStream(host(), {
+      flushIntervalMs: 0,
+      signal: ac.signal,
+      onSlice: () => {
+        slicesSeen += 1;
+      },
+      hooks: {
+        link: () => {
+          links += 1;
+          ac.abort();
+          return undefined;
+        },
+      },
+    });
+    stream.write("[a](https://e.example/) [b](https://e.example/b)\n\nmore");
+    expect(links).toBe(1);
+    expect(slicesSeen).toBe(0);
+  });
+
+  it("queues a write a block hook makes, after the text being parsed", async () => {
+    const text = `Hello\n\n${"word ".repeat(2000)}\n\nWorld\n`;
+    const extra = "\n\nAFTER\n";
+    const el = host();
+    let wrote = false;
+    const stream = createMarkdownStream(el, {
+      flushIntervalMs: 0,
+      hooks: {
+        block: () => {
+          if (!wrote) {
+            wrote = true;
+            stream.write(extra);
+          }
+          return undefined;
+        },
+      },
+    });
+    stream.write(text);
+    await vi.waitFor(() => {
+      expect(el.textContent).toContain("AFTER");
+    });
+    stream.end();
+    expect(el.innerHTML).toBe(oneShot(text + extra));
+  });
+
+  it("ends after the slice a block hook calls end from", () => {
+    const text = "Hello\n\nWorld\n";
+    const el = host();
+    let ended = false;
+    const stream = createMarkdownStream(el, {
+      flushIntervalMs: 0,
+      hooks: {
+        block: () => {
+          if (!ended) {
+            ended = true;
+            stream.end();
+          }
+          return undefined;
+        },
+      },
+    });
+    stream.write(text);
+    expect(el.innerHTML).toBe(oneShot(text));
+    stream.write("ignored");
+    stream.end();
+    expect(el.innerHTML).toBe(oneShot(text));
+  });
+
+  it("gives a code block a tab stop once a streamed line overflows it", async () => {
+    const el = host();
+    el.style.inlineSize = "200px";
+    const stream = createMarkdownStream(el, { flushIntervalMs: 0 });
+    stream.write("```\nshort\n");
+    await frame();
+    await frame();
+    const pre = el.querySelector("pre");
+    expect(pre?.hasAttribute("tabindex")).toBe(false);
+    stream.write(`${"x".repeat(400)}\n`);
+    await frame();
+    await frame();
+    expect(pre?.getAttribute("tabindex")).toBe("0");
+    stream.end();
   });
 
   it("renders nothing for a signal aborted before it starts", () => {

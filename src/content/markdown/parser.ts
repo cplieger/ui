@@ -128,6 +128,10 @@ function parser(sink: Sink): Parser {
     hr_char: "",
     hr_chars: 0,
     fence_start: 0,
+    fence_indent: 0,
+    line_quotes: 0,
+    quote_space: false,
+    item_gap: false,
     spaces: new Uint8Array(TOKEN_ARRAY_CAP),
     indent: "",
     indent_len: 0,
@@ -257,22 +261,83 @@ const TOKEN_HANDLERS: Partial<Record<Token, TokenHandler>> = {
     handleMaybeEntity(p, char, pending) ? actionContinue : actionBreak,
 };
 
+function quote_count(p: Parser): number {
+  let n = 0;
+  for (let i = 1; i <= p.len; i += 1) {
+    if (p.tokens[i] === BLOCKQUOTE) {
+      n += 1;
+    }
+  }
+  return n;
+}
+
+/** Reads a fence line's indent and the `>` markers of the quotes around the
+ *  fence; false for the first character past them. */
+function fence_line_prefix(p: Parser, char: string): boolean {
+  switch (char) {
+    case " ":
+      if (p.quote_space) {
+        p.quote_space = false;
+      } else {
+        p.indent_len += 1;
+      }
+      return true;
+    case "\t":
+      p.indent_len += p.quote_space ? 3 : 4;
+      p.quote_space = false;
+      return true;
+    case ">":
+      if (p.indent_len > 3 || p.line_quotes >= quote_count(p)) {
+        return false;
+      }
+      p.line_quotes += 1;
+      p.indent_len = 0;
+      p.quote_space = true;
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** A fence line missing a quote's `>` ends that quote and the fence in it;
+ *  `blockquote_idx` names the deepest quote the line continued. */
+function end_unquoted(p: Parser): void {
+  let seen = 0;
+  let last = 0;
+  for (let i = 1; i <= p.len; i += 1) {
+    if (p.tokens[i] !== BLOCKQUOTE) {
+      continue;
+    }
+    if (seen === p.line_quotes) {
+      end_tokens_to_len(p, i - 1);
+      break;
+    }
+    seen += 1;
+    last = i;
+  }
+  p.blockquote_idx = last;
+}
+
 function parser_write(p: Parser, chunk: string): void {
   for (const char of chunk) {
     // The indent after a newline decides whether the previous block extends or a new one starts.
     if (p.token === NEWLINE) {
-      switch (char) {
-        case " ":
-          p.indent_len += 1;
-          continue;
-        case "\t":
-          p.indent_len += 4;
-          continue;
+      if (fence_line_prefix(p, char)) {
+        continue;
       }
-
-      const indent = end_tokens_to_indent(p, p.indent_len);
+      end_unquoted(p);
+      // A blank line neither ends a fence nor the list item holding it (CommonMark 5.2).
+      let indent =
+        char === "\n" && p.tokens[p.len] === CODE_FENCE
+          ? 0
+          : end_tokens_to_indent(p, p.indent_len, true);
       p.indent_len = 0;
+      p.line_quotes = 0;
+      p.quote_space = false;
       p.token = p.tokens[p.len] as Token;
+      if (p.token === CODE_FENCE) {
+        indent -= Math.min(indent, p.fence_indent);
+      }
 
       if (indent > 0) {
         parser_write(p, " ".repeat(indent));

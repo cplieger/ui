@@ -242,6 +242,15 @@ export interface Parser {
   indent_len: number;
   fence_end: number;
   fence_start: number;
+  /** The open fence's indent, stripped from each of its lines (CommonMark 4.5). */
+  fence_indent: number;
+  /** `>` markers read so far on a line inside an open fence. */
+  line_quotes: number;
+  /** The last `>` read there may still take its one following space. */
+  quote_space: boolean;
+  /** A blank line followed the text of the open list item, so what comes
+   *  next at its content column opens a block in it (CommonMark 5.2). */
+  item_gap: boolean;
   blockquote_idx: number;
   hr_char: string;
   hr_chars: number;
@@ -423,6 +432,8 @@ export function add_token(p: Parser, token: Openable): boolean {
   p.prev_is_word = false;
   p.len += 1;
   p.tokens[p.len] = token;
+  // Only a list item has a content column; a slot an item used before must not lend it one.
+  p.spaces[p.len] = 0;
   p.token = token;
   p.sink.open(KIND[token]);
   return true;
@@ -448,13 +459,18 @@ export function end_tokens_to_len(p: Parser, len: number): void {
   }
 }
 
-export function end_tokens_to_indent(p: Parser, indent: number): number {
+/** Closes what a line indented `indent` columns cannot continue; with
+ *  `keep_list`, a list whose item it leaves stays open for a next item. */
+export function end_tokens_to_indent(p: Parser, indent: number, keep_list = false): number {
   add_text(p);
   let idx = 0;
   for (let i = 0; i <= p.len; i += 1) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     indent -= p.spaces[i]!;
     if (indent < 0) {
+      if (keep_list && p.tokens[i] === LIST_ITEM) {
+        idx = i - 1;
+      }
       break;
     }
     switch (p.tokens[i]) {
@@ -531,6 +547,7 @@ export function add_list_item(p: Parser, prefix_length: number): void {
 export function clear_root_pending(p: Parser): void {
   p.indent = "";
   p.indent_len = 0;
+  p.item_gap = false;
   p.pending = "";
   p.prev_is_word = false;
   p.link_depth = 0;
