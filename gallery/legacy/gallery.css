@@ -1606,12 +1606,6 @@ html:has(.g-header) {
   font-variant-numeric: tabular-nums;
 }
 
-.g-report {
-  margin: var(--cp-space-2) 0 0;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-}
-
 /* A job row: what, where, how far, and Stop. */
 .g-job {
   display: grid;

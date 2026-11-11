@@ -1065,31 +1065,6 @@ for (const host of $$("[data-virtual]")) {
   draw();
 }
 
-// ------------------------------------------------------- batched action
-for (const b of $$("[data-batch-total]")) {
-  const total = Number(b.dataset.batchTotal);
-  const size = Number(b.dataset.batchSize);
-  const report = document.getElementById(b.dataset.report);
-  let started = 0;
-  const label = () => {
-    const left = total - started;
-    $(".label", b).textContent = started === 0 ? `Start the first ${Math.min(size, left)}` : left > size ? `Start the next ${size}` : `Start the remaining ${left}`;
-  };
-  b.addEventListener("click", () => {
-    const n = Math.min(size, total - started);
-    started += n;
-    const failed = started === total ? 2 : 0;
-    const left = total - started;
-    report.textContent = `Started ${started} of ${total}. ${left ? `${left} remain.` : "None remain."}${failed ? ` ${failed} couldn't start: no provider has their language.` : ""}`;
-    announce(report.textContent);
-    if (left === 0) {
-      b.disabled = true;
-      $(".label", b).textContent = `All ${total} started`;
-    } else label();
-  });
-  label();
-}
-
 // --------------------------------------------------------------- jobs
 for (const list of $$("[data-jobs]")) {
   const tick = () => {

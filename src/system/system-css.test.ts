@@ -3736,6 +3736,47 @@ describe("css/system.css data tables", () => {
     ]);
   });
 
+  const batchReport = () =>
+    '<div class="cp-batch-report">' +
+    "<p>Started 246 of 248. None remain. 2 couldn't start:</p><ul>" +
+    '<li><span>Kaiba, episode 4</span><span class="cp-state" data-tone="danger">No provider has Basque subtitles</span></li>' +
+    '<li><span>Kaiba, episode 12</span><span class="cp-state" data-tone="danger">The video file is missing</span></li>' +
+    "</ul></div>";
+
+  it("writes a batch report's summary muted and small, 8px under what runs it", () => {
+    theme("light");
+    const el = build(batchReport());
+    const report = el.querySelector(".cp-batch-report") as Element;
+    const style = getComputedStyle(report);
+    expect([style.color, style.fontSize]).toEqual([
+      resolve("var(--cp-ink-muted)"),
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-sm)" })).fontSize,
+    ]);
+    const summary = (report.querySelector("p") as Element).getBoundingClientRect();
+    expect(summary.top - report.getBoundingClientRect().top).toBe(0);
+    expect(style.marginTop).toBe("8px");
+    expect(getComputedStyle(report.querySelector("ul") as Element).listStyleType).toBe("none");
+  });
+
+  it("lines up each item that did not go beside its reason, stacking them on a phone", async () => {
+    theme("light");
+    const el = build(batchReport());
+    const [names, reasons] = [
+      [...el.querySelectorAll("li > span:first-child")],
+      [...el.querySelectorAll("li > .cp-state")],
+    ];
+    const items = [...el.querySelectorAll("li")];
+    const box = (e: Element | undefined) => (e as Element).getBoundingClientRect();
+    expect(box(reasons[0]).left).toBe(box(reasons[1]).left);
+    expect(box(reasons[0]).left - box(names[1]).right).toBeCloseTo(12, 1);
+    expect(box(items[1]).top - box(items[0]).bottom).toBeCloseTo(4, 1);
+    expect(getComputedStyle(names[0] as Element).color).toBe(resolve("var(--cp-ink)"));
+    await page.viewport(390, 800);
+    expect(box(reasons[0]).left).toBe(box(names[0]).left);
+    expect(box(reasons[0]).top).toBeCloseTo(box(names[0]).bottom, 1);
+    expect(box(items[1]).top - box(items[0]).bottom).toBeCloseTo(8, 1);
+  });
+
   it("lays facts in a muted label column beside their values, one column on a phone", async () => {
     theme("light");
     const el = build(

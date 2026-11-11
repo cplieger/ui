@@ -299,3 +299,49 @@ for (const host of all<HTMLElement>("[data-state-history]")) {
 for (const step of all<HTMLElement>(".cp-track > li[data-track-at]")) {
   step.style.setProperty("--cp-track-at", `${step.dataset["trackAt"] ?? ""}%`);
 }
+
+/** The episodes the gallery's last batch fails to start, with their reasons. */
+const UNSTARTED = [
+  ["Kaiba, episode 4", "No provider has Basque subtitles"],
+  ["Kaiba, episode 9", "The video file is missing"],
+] as const;
+
+// A batched action names its report by data-report, its total by
+// data-batch-total and a press's share by data-batch-size.
+for (const button of all<HTMLButtonElement>("button[data-batch-total]")) {
+  const report = document.getElementById(button.dataset["report"] ?? "");
+  const words = button.querySelector(":scope > span:not(.cp-icon)");
+  if (report === null || words === null) {
+    continue;
+  }
+  const total = Number(button.dataset["batchTotal"]);
+  const size = Number(button.dataset["batchSize"]);
+  let sent = 0;
+  button.addEventListener("click", () => {
+    sent += Math.min(size, total - sent);
+    const left = total - sent;
+    const failed = left === 0 ? UNSTARTED : [];
+    const line = make(
+      "p",
+      "",
+      `Started ${String(sent - failed.length)} of ${String(total)}. `,
+      left === 0 ? "None remain." : `${String(left)} remain.`,
+      failed.length === 0 ? "" : ` ${String(failed.length)} couldn't start:`,
+    );
+    const items = failed.map(([name, reason]) => {
+      const state = make("span", "cp-state", glyph("circle-x"), reason);
+      state.dataset["tone"] = "danger";
+      return make("li", "", make("span", "", name), state);
+    });
+    report.replaceChildren(line, ...(items.length === 0 ? [] : [make("ul", "", ...items)]));
+    announce(line.textContent);
+    if (left === 0) {
+      words.textContent = `All ${String(total)} started`;
+      button.disabled = true;
+      report.focus();
+    } else {
+      words.textContent =
+        left > size ? `Start the next ${String(size)}` : `Start the remaining ${String(left)}`;
+    }
+  });
+}
