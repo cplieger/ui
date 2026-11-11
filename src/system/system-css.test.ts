@@ -3658,6 +3658,123 @@ describe("css/system.css lists, feeds and counts", () => {
     }
   });
 
+  const job = (attrs = "") =>
+    `<ul class="cp-list"><li><div class="cp-list-row" data-variant="progress" ${attrs}><span class="cp-cell-stack"><strong>Finding subtitles</strong><a href="#j">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button">Stop</button><progress max="40" value="12" aria-label="Finding subtitles"></progress><small>12 of 40 · Searching providers</small></div></li><li class="cp-list-foot"><button class="cp-button" data-size="sm" type="button">Show all 5 running</button></li></ul>`;
+
+  it("lays a job row out as its words and action over a bar the row's width, then how far", () => {
+    theme("light");
+    const el = build(job());
+    el.style.inlineSize = "24rem";
+    const r = row(el);
+    const box = (s: string) => (r.querySelector(s) as Element).getBoundingClientRect();
+    const [text, stop, bar, far] = [".cp-cell-stack", "button", "progress", "small"].map(box) as [
+      DOMRect,
+      DOMRect,
+      DOMRect,
+      DOMRect,
+    ];
+    expect(bar.height).toBe(6);
+    expect(bar.left).toBeCloseTo(r.getBoundingClientRect().left + 16, 1);
+    expect(bar.right).toBeCloseTo(r.getBoundingClientRect().right - 16, 1);
+    expect(bar.top).toBeGreaterThanOrEqual(Math.max(text.bottom, stop.bottom));
+    expect(far.top).toBeGreaterThanOrEqual(bar.bottom);
+    expect(stop.right).toBeCloseTo(bar.right, 1);
+    expect([stop.top, stop.height]).toEqual([text.top, text.height]);
+    const link = getComputedStyle(r.querySelector("a") as Element);
+    expect([link.color, link.fontWeight]).toEqual([resolved("var(--cp-ink)"), "500"]);
+    const small = getComputedStyle(r.querySelector("small") as Element);
+    expect([small.color, small.fontSize]).toEqual([resolved("var(--cp-ink-muted)"), "13px"]);
+  });
+
+  it("mutes a job that ended and centres the list's foot action", () => {
+    theme("light");
+    const el = build(job("data-ended"));
+    expect(getComputedStyle(row(el)).color).toBe(resolved("var(--cp-ink-muted)"));
+    const foot = (el.querySelector(".cp-list-foot") as Element).getBoundingClientRect();
+    const more = (el.querySelector(".cp-list-foot > button") as Element).getBoundingClientRect();
+    expect(more.left - foot.left).toBeCloseTo(foot.right - more.right, 1);
+  });
+
+  it("draws a native progress as a round track in the tone with its solid for the value", () => {
+    theme("light");
+    const el = build(
+      '<progress max="4" value="1"></progress><progress data-tone="success" max="4" value="1"></progress>',
+    );
+    const [plain, toned] = [...el.querySelectorAll("progress")].map((p) => getComputedStyle(p)) as [
+      CSSStyleDeclaration,
+      CSSStyleDeclaration,
+    ];
+    expect(plain.appearance).toBe("none");
+    expect(plain.height).toBe("6px");
+    expect(plain.backgroundColor).toBe(resolved("var(--cp-accent-4)", "backgroundColor"));
+    expect(toned.backgroundColor).toBe(resolved("var(--cp-success-4)", "backgroundColor"));
+  });
+
+  it.skipIf(!emulates)(
+    "outlines a native progress in forced colours on Canvas, as the known-amount bar",
+    async () => {
+      theme("light");
+      await media("forced-colors", "active");
+      const el = build('<progress max="4" value="1"></progress>');
+      const cs = getComputedStyle(el.querySelector("progress") as Element);
+      expect(cs.outlineStyle).toBe("solid");
+      expect(cs.outlineColor).toBe(resolved("CanvasText"));
+      expect(cs.backgroundColor).toBe(resolved("Canvas", "backgroundColor"));
+    },
+  );
+
+  it("sets a long row's toned glyph on its first line, before its sentences and its one fix", () => {
+    theme("light");
+    const el = build(
+      '<ul class="cp-list"><li><div class="cp-list-row" data-variant="long"><span class="cp-icon" data-tone="warning"></span><div><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time>10 minutes ago</time></div><a href="#s">Open storage</a></div></li></ul>',
+    );
+    const r = row(el);
+    const glyph = r.querySelector(".cp-icon") as Element;
+    const [first, second] = [...r.querySelectorAll("p")].map((p) => p.getBoundingClientRect()) as [
+      DOMRect,
+      DOMRect,
+    ];
+    const g = glyph.getBoundingClientRect();
+    expect(Math.abs(g.top + g.height / 2 - (first.top + first.height / 2))).toBeLessThanOrEqual(1);
+    expect(second.top).toBeCloseTo(first.bottom, 1);
+    expect(getComputedStyle(glyph).color).toBe(resolved("var(--cp-warning-9)"));
+    expect(getComputedStyle(r).fontSize).toBe("14px");
+    const fix = (r.querySelector("a") as Element).getBoundingClientRect();
+    expect(fix.top).toBeCloseTo(first.top, 1);
+    expect(fix.right).toBeCloseTo(r.getBoundingClientRect().right - 16, 1);
+  });
+
+  it("scrolls a virtual list inside its own height, each placed row 48px with its count at 13px", () => {
+    theme("light");
+    const rows = Array.from(
+      { length: 20 },
+      (_, i) =>
+        `<div class="cp-list-row"><span class="cp-cell-stack"><a class="cp-truncate" href="#t${String(i)}">Frieren ${String(i)}</a></span><span data-part="end">3 of 26 episodes</span></div>`,
+    ).join("");
+    const el = build(
+      `<div class="cp-list" data-virtual><div data-part="spacer">${rows}</div></div>`,
+    );
+    const list = el.querySelector(".cp-list") as HTMLElement;
+    const spacer = list.firstElementChild as HTMLElement;
+    spacer.style.blockSize = "960px";
+    const placed = [...list.querySelectorAll<HTMLElement>(".cp-list-row")];
+    placed.forEach((r, i) => {
+      r.style.insetBlockStart = `${String(i * 48)}px`;
+    });
+    expect(list.getBoundingClientRect().height).toBe(352);
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+    const [one, two] = placed.map((r) => r.getBoundingClientRect()) as [DOMRect, DOMRect];
+    expect(getComputedStyle(placed[0] as Element).position).toBe("absolute");
+    expect([one.height, two.top - one.top]).toEqual([48, 48]);
+    expect(one.width).toBe(list.clientWidth);
+    list.scrollTop = 480;
+    expect(Math.round((placed[10] as Element).getBoundingClientRect().top)).toBe(
+      Math.round(list.getBoundingClientRect().top + 1),
+    );
+    const end = getComputedStyle(placed[0]?.querySelector('[data-part="end"]') as Element);
+    expect(end.fontSize).toBe("13px");
+  });
+
   it.skipIf(!emulates)(
     "outlines a selected row in forced colours, where its fill is dropped",
     async () => {

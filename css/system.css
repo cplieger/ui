@@ -4666,6 +4666,57 @@ textarea.cp-input {
   gap: var(--cp-space-2);
 }
 
+/* A link in the text column names what the row is about, in ink until it
+ * is pointed at, wherever it sits in the column. */
+.cp-list-row > .cp-cell-stack > a {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-list-row > .cp-cell-stack > a:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+.cp-list-row > .cp-icon[data-tone] {
+  color: var(--cp-tone-9);
+}
+
+.cp-list-row > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* A running job: what and where beside its action, a bar across the row,
+ * then how far it is. The action stretches to the text it sits beside. */
+.cp-list-row[data-variant="progress"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--cp-space-1) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.cp-list-row > progress {
+  grid-column: 1 / -1;
+  inline-size: 100%;
+}
+
+/* A row that runs to sentences: its glyph on the first line, the words,
+ * and one link to its fix at the end. */
+.cp-list-row[data-variant="long"] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-list-row[data-variant="long"] p {
+  margin: 0;
+}
+
 .cp-list-row[data-unread] > .cp-cell-stack {
   font-weight: var(--cp-weight-heading);
 }
@@ -4674,9 +4725,10 @@ textarea.cp-input {
   font-weight: var(--cp-weight-body);
 }
 
-/* A row the app could not refresh, kept beside its reason: muted ink, which
- * still passes AA where opacity would not. */
-.cp-list-row[data-kept] {
+/* A row the app could not refresh, kept beside its reason, or a job that
+ * ended, kept beside its outcome: muted ink, which still passes AA where
+ * opacity would not. */
+.cp-list-row:is([data-kept], [data-ended]) {
   color: var(--cp-ink-muted);
 }
 
@@ -4699,6 +4751,10 @@ textarea.cp-input {
       background: var(--cp-fill);
     }
 
+    .cp-list-row > .cp-cell-stack > a:hover {
+      color: var(--cp-accent-ink);
+    }
+
     /* A plain button shares the row's hover fill and would vanish; lift it
      * to the raised surface. One that confirms in place keeps its state's. */
     .cp-list-row:hover .cp-button:not([data-variant], [data-cp-state]) {
@@ -4717,6 +4773,39 @@ textarea.cp-input {
   padding: var(--cp-space-2) var(--cp-space-4);
   background: var(--cp-selected);
   color: var(--cp-accent-12);
+  font-size: var(--cp-text-sm);
+}
+
+/* The list's last item, holding one action for the whole list. */
+.cp-list-foot {
+  display: flex;
+  justify-content: center;
+  padding: var(--cp-space-2);
+}
+
+/* A list too long to draw: a scroller of --cp-list-h whose spacer a script
+ * sizes to every row, drawing only the rows in view at their offsets.
+ * Strict containment keeps each scroll's layout inside the list. */
+.cp-list[data-virtual] {
+  position: relative;
+  display: block;
+  block-size: var(--cp-list-h, 22rem);
+  overflow: auto;
+  contain: strict;
+}
+
+.cp-list[data-virtual] > [data-part="spacer"] {
+  position: relative;
+}
+
+/* The script places rows 3rem apart, so a row is exactly that tall. */
+.cp-list[data-virtual] .cp-list-row {
+  position: absolute;
+  inset-inline: 0;
+  block-size: 3rem;
+  min-block-size: 0;
+  padding-block: 0;
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
   font-size: var(--cp-text-sm);
 }
 
@@ -5628,6 +5717,55 @@ textarea.cp-input {
 
   .cp-progress::before {
     background: CanvasText;
+  }
+}
+
+/* A native <progress> wears the same track and fill. Each engine draws the
+ * value through its own pseudo-element, and one unknown pseudo-element
+ * drops a whole rule, so each gets its own. */
+:where(.cp) :where(progress) {
+  block-size: 0.375rem;
+  appearance: none;
+  border: 0;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-4);
+  overflow: hidden;
+}
+
+:where(.cp) :where(progress)::-webkit-progress-bar {
+  background: var(--cp-tone-4);
+}
+
+:where(.cp) :where(progress)::-webkit-progress-value {
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-9);
+  transition: inline-size var(--cp-dur-long) var(--cp-ease-out);
+}
+
+:where(.cp) :where(progress)::-moz-progress-bar {
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-9);
+}
+
+/* Forced colours drop a background, which would leave no bar at all; the
+ * native bar draws as the known-amount bar does. */
+@media (forced-colors: active) {
+  :where(.cp) :where(progress) {
+    forced-color-adjust: none;
+    background: Canvas;
+    outline: 1px solid CanvasText;
+  }
+
+  :where(.cp) :where(progress)::-webkit-progress-bar {
+    background: Canvas;
+  }
+
+  :where(.cp) :where(progress)::-webkit-progress-value {
+    background: Highlight;
+  }
+
+  :where(.cp) :where(progress)::-moz-progress-bar {
+    background: Highlight;
   }
 }
 

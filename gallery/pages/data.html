@@ -115,10 +115,10 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" data-size="sm" type="button" data-hold-push="hold-list">Three rows arrive</button></div>
         <footer>New rows never push the list under the reader: a line offers them, “3 newer rows · Show”, and Show puts them in and moves focus to the first. A row the app could not refresh stays, in muted ink with a clock and the reason.</footer>
       </div>
-        <div class="card g-wide">
+        <div class="card g-wide" data-new>
           <h2>A long list</h2>
         <div class="g-row-inline"><div class="cp-search g-grow"><input class="cp-input" id="v-filter" type="search" placeholder="Filter titles" aria-label="Filter titles"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><span id="v-count" role="status"></span><button class="cp-button" type="button" data-live-update="v-list">Live update</button></div>
-        <div class="g-virtual g-gap-top" id="v-list" data-virtual="20000" data-count="v-count" data-filter="v-filter"><div class="g-spacer"></div></div>
+        <div class="cp-list g-gap-top" id="v-list" data-virtual data-total="20000" data-count="v-count" data-filter="v-filter"><div data-part="spacer"></div></div>
         <footer>20,000 rows, of which only those in view are drawn, each keyed by its id, so a live update changes rows in place and keeps the scroll and the focus. A row's one interactive part is its title link. The count is announced after typing stops.</footer>
       </div>
     </div>
@@ -350,20 +350,20 @@
         <p class="g-report" id="batch-report" role="status">248 episodes need subtitles.</p>
         <footer>Each press sends the next batch and the button names what the next press does; a report line follows each press.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Jobs</h2>
-        <ul class="g-list" data-jobs>
-          <li class="g-job"><span class="g-job-what"><strong class="g-job-kind">Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span class="g-job-n">12 of 40</span> · <span class="g-job-phase">Searching providers</span></small></li>
-          <li class="g-job"><span class="g-job-what"><strong class="g-job-kind">Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span class="g-job-n">20 of 26</span> · <span class="g-job-phase">Matching cues to the audio</span></small></li>
-          <li class="g-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-more-jobs>Show all 5 running</button></li>
+        <ul class="cp-list" data-jobs>
+          <li><div class="cp-list-row" data-variant="progress"><span class="cp-cell-stack"><strong data-job-kind>Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-job-n>12 of 40</span> · <span data-job-phase>Searching providers</span></small></div></li>
+          <li><div class="cp-list-row" data-variant="progress"><span class="cp-cell-stack"><strong data-job-kind>Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-job-n>20 of 26</span> · <span data-job-phase>Matching cues to the audio</span></small></div></li>
+          <li class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-more-jobs>Show all 5 running</button></li>
         </ul>
         <footer>What, where as a link, how far, the phase, and Stop. An ended job keeps its outcome in words.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Problems</h2>
-        <ul class="g-list g-problems">
-          <li class="g-problem"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span><p>OpenSubtitles refused the API key, so 18 episodes are waiting.</p><time data-ago="5400"></time></span><a href="#steps">Fix the key</a></li>
-          <li class="g-problem"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time data-ago="600"></time></span><a href="#steps">Open storage</a></li>
+        <ul class="cp-list">
+          <li><div class="cp-list-row" data-variant="long"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>OpenSubtitles refused the API key, so 18 episodes are waiting.</p><time data-ago="5400"></time></div><a href="#steps">Fix the key</a></div></li>
+          <li><div class="cp-list-row" data-variant="long"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time data-ago="600"></time></div><a href="#steps">Open storage</a></div></li>
         </ul>
         <footer>A sentence, since when, and one link to its fix; one problem may need two sentences.</footer>
       </div>

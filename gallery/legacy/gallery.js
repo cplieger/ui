@@ -1107,61 +1107,6 @@ for (const md of $$("[data-md]")) {
   render();
 }
 
-// ------------------------------------------------------------ virtual list
-// 20,000 rows: only those in view, plus a few each side, are in the DOM,
-// each keyed by its id so a live update changes it in place. The focused
-// row stays drawn when it scrolls away, so focus never drops to the body.
-for (const host of $$("[data-virtual]")) {
-  const total = Number(host.dataset.virtual);
-  const H = 48;
-  const words = ["Frieren", "Mushishi", "Dungeon", "Heron", "Monogatari", "Ping Pong", "Haikyu", "Mob Psycho", "Odd Taxi", "Kaiju"];
-  let rows = Array.from({ length: total }, (_, i) => ({ id: `t${i}`, title: `${words[i % words.length]} ${Math.floor(i / words.length) + 1}`, n: (i * 7) % 26 }));
-  let view = rows;
-  const spacer = $(".g-spacer", host);
-  const drawn = new Map();
-  const count = document.getElementById(host.dataset.count);
-  const draw = () => {
-    spacer.style.blockSize = `${view.length * H}px`;
-    const first = Math.max(0, Math.floor(host.scrollTop / H) - 5);
-    const last = Math.min(view.length, Math.ceil((host.scrollTop + host.clientHeight) / H) + 5);
-    const keep = new Set(view.slice(first, last).map((r) => r.id));
-    const focused = document.activeElement?.closest?.(".g-vrow")?.dataset.id;
-    if (focused) keep.add(focused);
-    for (const [id, node] of drawn) if (!keep.has(id)) { node.remove(); drawn.delete(id); }
-    view.forEach((r, i) => {
-      if (!keep.has(r.id)) return;
-      let node = drawn.get(r.id);
-      if (!node) {
-        node = el("div", { class: "g-vrow", "data-id": r.id }, el("a", { href: `#${r.id}` }), el("small"));
-        drawn.set(r.id, node);
-        spacer.append(node);
-      }
-      node.style.top = `${i * H}px`;
-      node.firstChild.textContent = r.title;
-      node.lastChild.textContent = `${r.n} of 26 episodes`;
-    });
-  };
-  host.addEventListener("scroll", draw, { passive: true });
-  const filter = document.getElementById(host.dataset.filter);
-  filter?.addEventListener("input", () => {
-    const q = filter.value.trim().toLowerCase();
-    view = q ? rows.filter((r) => r.title.toLowerCase().includes(q)) : rows;
-    host.scrollTop = 0;
-    draw();
-    count.textContent = `${view.length.toLocaleString()} of ${rows.length.toLocaleString()} titles`;
-    clearTimeout(host.sayTimer);
-    host.sayTimer = setTimeout(() => announce(count.textContent), 500);
-  });
-  $(`[data-live-update="${host.id}"]`)?.addEventListener("click", () => {
-    rows = rows.map((r) => (Math.random() < 0.3 ? { ...r, n: Math.min(26, r.n + 1) } : r));
-    const ids = new Set(view.map((r) => r.id));
-    view = rows.filter((r) => ids.has(r.id));
-    draw();
-  });
-  count.textContent = `${total.toLocaleString()} of ${total.toLocaleString()} titles`;
-  draw();
-}
-
 // ------------------------------------------------------ inline outcomes
 for (const b of $$("[data-outcome]")) {
   let fail = b.dataset.outcome === "fail";
@@ -1229,44 +1174,6 @@ for (const b of $$("[data-batch-total]")) {
     } else label();
   });
   label();
-}
-
-// --------------------------------------------------------------- jobs
-for (const list of $$("[data-jobs]")) {
-  const tick = () => {
-    for (const j of $$(".g-job:not([data-ended])", list)) {
-      const p = $("progress", j);
-      p.value = Math.min(Number(p.max), Number(p.value) + 1);
-      $(".g-job-n", j).textContent = `${p.value} of ${p.max}`;
-      if (p.value === Number(p.max)) end(j, "Finished", "circle-check", "success");
-    }
-  };
-  const end = (j, words, ic, tone) => {
-    j.dataset.ended = "";
-    const phase = $(".g-job-phase", j);
-    phase.dataset.tone = tone;
-    phase.replaceChildren(icon(ic), words);
-    $("[data-stop]", j)?.remove();
-  };
-  list.addEventListener("click", (e) => {
-    const stop = e.target.closest("[data-stop]");
-    if (stop) {
-      const j = stop.closest(".g-job");
-      end(j, "Stopped by you", "circle-minus", "neutral");
-      announce(`${$(".g-job-kind", j).textContent} stopped`);
-    }
-    if (e.target.closest("[data-more-jobs]")) {
-      const tmpl = $(".g-job", list);
-      for (let k = 0; k < 3; k++) {
-        const c = tmpl.cloneNode(true);
-        delete c.dataset.ended;
-        $("progress", c).value = 0;
-        list.insertBefore(c, e.target.closest(".g-list-foot"));
-      }
-      e.target.closest(".g-list-foot").remove();
-    }
-  });
-  setInterval(tick, 700);
 }
 
 // ------------------------------------------------------------ pair rows
