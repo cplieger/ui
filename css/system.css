@@ -2123,6 +2123,18 @@
     background: none;
   }
 
+  /* A destination's badge sits on its icon's top end, off the word below. */
+  .cp-header > .cp-nav > .cp-nav-item > .cp-badge {
+    position: absolute;
+    inset-block-start: 0.25rem;
+    inset-inline-start: calc(50% + 0.25rem);
+  }
+
+  .cp-nav > .cp-nav-item > .cp-badge:not([data-variant]) {
+    background: var(--cp-accent);
+    color: var(--cp-on-accent);
+  }
+
   .cp-header > .cp-nav .cp-nav-label {
     position: static;
     inline-size: auto;
@@ -4026,6 +4038,48 @@ textarea.cp-input {
   }
 }
 
+/* An avatar: a person's initials on one flat harmony colour, which
+ * data-harmony picks from 1 to 4, so a list of people tells them apart
+ * without a hand-picked hue. */
+.cp-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 30%;
+  background: var(--cp-harmony-1);
+  color: var(--cp-harmony-1-on);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+}
+
+.cp-avatar[data-harmony="2"] {
+  background: var(--cp-harmony-2);
+  color: var(--cp-harmony-2-on);
+}
+
+.cp-avatar[data-harmony="3"] {
+  background: var(--cp-harmony-3);
+  color: var(--cp-harmony-3-on);
+}
+
+.cp-avatar[data-harmony="4"] {
+  background: var(--cp-harmony-4);
+  color: var(--cp-harmony-4-on);
+}
+
+.cp-avatar[data-size="sm"] {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+}
+
+@media (forced-colors: active) {
+  .cp-avatar {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 /* Chip: a tone's wash, its glyph and its word; colour is never alone. */
 .cp-chip {
   display: inline-flex;
@@ -4052,6 +4106,43 @@ textarea.cp-input {
 
 @media (forced-colors: active) {
   .cp-chip {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* A badge: a count beside a destination or a filter, such as 12 new
+ * releases. Solid for a count that asks to be seen, data-variant="quiet"
+ * for one that only informs. A count is not a state, so it takes the
+ * accent rather than a tone. */
+.cp-badge {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.25rem;
+  block-size: 1.25rem;
+  padding-inline: 0.375rem;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cp-badge[data-variant="quiet"] {
+  background: var(--cp-fill);
+  color: var(--cp-ink-muted);
+}
+
+/* The accent can be the header's own colour, so on the bar a solid badge
+ * takes the bar's ink, as the mark does. */
+.cp-header .cp-badge:not([data-variant]) {
+  background: var(--cp-shell-ink);
+  color: var(--cp-shell-bg);
+}
+
+@media (forced-colors: active) {
+  .cp-badge {
     border: var(--cp-line-w) solid CanvasText;
   }
 }
@@ -5262,6 +5353,35 @@ textarea.cp-input {
   }
 }
 
+/* The header status's panel: a .cp-popover[data-variant="panel"] whose
+ * heading repeats the state's words, over one <section> per fact, each a
+ * <strong> head with its glyph and a sentence, divided edge to edge. After
+ * popover.css, whose panel padding this replaces. */
+.cp-popover.cp-status-panel {
+  gap: 0;
+  inline-size: 20rem;
+  padding: 0;
+}
+
+.cp-status-panel > h2 {
+  padding: var(--cp-space-3) var(--cp-space-4);
+  font-size: var(--cp-text-md);
+}
+
+.cp-status-panel > section {
+  display: grid;
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-status-panel > section > strong {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
 /* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as
  * wide as its field, the active option filled, a muted word at an option's
  * end in a <small>. */
@@ -5965,6 +6085,36 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
+  }
+}
+
+/* The header's account button: the avatar alone, ringed in the header's
+ * ink so it stands off the bar whatever its harmony colour. The ring is
+ * its hover and its open state, so the button paints no fill. */
+.cp-button.cp-account {
+  padding: 0.1875rem;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.cp-account > .cp-avatar {
+  box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
+  transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-account[aria-expanded="true"] > .cp-avatar {
+  box-shadow: 0 0 0 3px var(--cp-shell-ink);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-button.cp-account:hover:enabled {
+      background: transparent;
+    }
+
+    .cp-account:hover > .cp-avatar {
+      box-shadow: 0 0 0 3px var(--cp-shell-ink);
+    }
   }
 }
 

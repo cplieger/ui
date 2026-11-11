@@ -1,0 +1,29 @@
+/* The header's account button: the avatar alone, ringed in the header's
+ * ink so it stands off the bar whatever its harmony colour. The ring is
+ * its hover and its open state, so the button paints no fill. */
+.cp-button.cp-account {
+  padding: 0.1875rem;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.cp-account > .cp-avatar {
+  box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
+  transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-account[aria-expanded="true"] > .cp-avatar {
+  box-shadow: 0 0 0 3px var(--cp-shell-ink);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-button.cp-account:hover:enabled {
+      background: transparent;
+    }
+
+    .cp-account:hover > .cp-avatar {
+      box-shadow: 0 0 0 3px var(--cp-shell-ink);
+    }
+  }
+}

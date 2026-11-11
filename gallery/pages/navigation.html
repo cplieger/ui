@@ -18,11 +18,11 @@
             <nav class="cp-nav" aria-label="Main">
               <a class="cp-nav-item" href="#frame"><span class="cp-icon" data-cp-icon="layout-dashboard" aria-hidden="true"></span><span class="cp-nav-label">Overview</span></a>
               <a class="cp-nav-item" href="#frame" aria-current="page"><span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span><span class="cp-nav-label">Library</span></a>
-              <a class="cp-nav-item" href="#frame"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-nav-label">Releases</span><span class="g-badge">12</span></a>
+              <a class="cp-nav-item" href="#frame"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-nav-label">Releases</span><span class="cp-badge">12<span class="cp-visually-hidden"> new</span></span></a>
             </nav>
             <div class="cp-toolbar">
               <button class="cp-header-status" type="button" data-state="ok" popovertarget="p-status"><span>All good</span></button>
-              <div class="cp-popover g-status-panel" data-variant="panel" id="p-status" popover role="dialog" aria-labelledby="p-status-h" data-status-panel>
+              <div class="cp-popover cp-status-panel" data-variant="panel" id="p-status" popover role="dialog" aria-labelledby="p-status-h" data-status-panel>
                 <h2 id="p-status-h" tabindex="-1">All good</h2>
                 <section><strong><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Sources</strong><span>Sonarr and Radarr answered <time data-ago="120"></time>.</span></section>
                 <section><strong><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Next check</strong><span>A full check runs <time data-ago="-1500"></time>.</span></section>
@@ -30,10 +30,10 @@
               <button class="cp-button cp-toggle" data-variant="quiet" data-kind="theme" type="button" aria-label="Dark theme" aria-pressed="false" data-cp-tip="Switch to dark" data-theme-toggle><span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="moon" data-part="on" aria-hidden="true"></span></button>
               <button class="cp-button" data-variant="quiet" type="button" aria-label="Search, Ctrl K" data-cp-tip="Search (Ctrl K)"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span></button>
               <button class="cp-button cog-turn" data-variant="quiet" type="button" aria-label="Settings" data-cp-tip="Settings"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span></button>
-              <button class="cp-button g-avatar-btn" data-variant="quiet" type="button" aria-label="Account" popovertarget="m-account" aria-haspopup="menu"><span class="g-avatar" data-size="sm" data-h="1">CP</span></button>
-              <div class="g-pop g-menu" id="m-account" popover role="menu" aria-label="Account">
-                <div class="g-menu-label">Signed in as cplieger</div>
-                <button role="menuitem" type="button" data-say="Account opened"><span class="cp-icon" data-cp-icon="user" aria-hidden="true"></span>Account and security</button>
+              <button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" popovertarget="m-account" aria-haspopup="menu"><span class="cp-avatar" data-size="sm">CP</span></button>
+              <div class="cp-popover cp-menu" id="m-account" popover role="menu" aria-label="Account">
+                <div class="cp-menu-label">Signed in as cplieger</div>
+                <a role="menuitem" href="#frame" data-say="Account opened"><span class="cp-icon" data-cp-icon="user" aria-hidden="true"></span>Account and security</a>
                 <hr>
                 <button role="menuitem" type="button" data-say="Signed out"><span class="cp-icon" data-cp-icon="log-out" aria-hidden="true"></span>Sign out</button>
               </div>
@@ -41,7 +41,7 @@
           </header>
         </div>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-status-demo>Next status</button></div>
-        <footer>The first Tab stop is Skip to the content, hidden until focused. The brand colour carries the header. Its status button opens a panel that does not trap focus: Tab past its end closes it. The theme button switches between light and dark in one press, its icon turning to the new one; System stays a choice in Settings. From 40rem to 60rem the destinations keep only their icons, and under 40rem they move to a bar at the window's foot, each an icon over its word. The account button is the avatar alone, ringed so it stands off the bar whatever its colour; its menu holds who is signed in and Sign out. The status is a tone, a glyph and a word: problems, Offline with a dashed edge, a warning, Working and All good, the first that holds winning; Next status steps through them. Only Working breathes, twice as it starts and then still, and not at all under reduced motion. At compact width the detail hides and waits in the panel, the state's words staying, and a change is announced politely. Press the mark five times for its flip.</footer>
+        <footer>The first Tab stop is Skip to the content, hidden until focused. The brand colour carries the header. Its status button opens a panel that does not trap focus: Tab past its end closes it. The theme button switches between light and dark in one press, its icon turning to the new one; System stays a choice in Settings. From 40rem to 60rem the destinations keep only their icons, and under 40rem they move to a bar at the window's foot, each an icon over its word. Releases carries a count of what is new in the bar's own ink, so it shows on any brand colour, and sits on its icon's corner in the bar under 40rem. The account button is the avatar alone, ringed so it stands off the bar whatever its colour; its menu holds who is signed in and Sign out. The status is a tone, a glyph and a word: problems, Offline with a dashed edge, a warning, Working and All good, the first that holds winning; Next status steps through them. Only Working breathes, twice as it starts and then still, and not at all under reduced motion. At compact width the detail hides and waits in the panel, the state's words staying, and a change is announced politely. Press the mark five times for its flip.</footer>
       </div>
       <div class="card g-wide">
         <h2>Jump to an entry</h2>

@@ -598,6 +598,78 @@ describe("css/system.css", () => {
     expect(getComputedStyle(detail).display).toBe("none");
   });
 
+  it("draws a destination's badge in the bar's ink, and on its icon's corner in the accent on a phone", async () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-app"><header class="cp-header"><nav class="cp-nav"><a class="cp-nav-item" href="#a"><span class="cp-icon"></span><span class="cp-nav-label">Releases</span><span class="cp-badge">12</span></a></nav><span class="cp-badge" data-variant="quiet">3</span></header></div>',
+    );
+    const header = getComputedStyle(el.querySelector(".cp-header") as Element);
+    const [badge, quiet] = [...el.querySelectorAll(".cp-badge")] as [HTMLElement, HTMLElement];
+    expect(getComputedStyle(badge).backgroundColor).toBe(header.color);
+    expect(getComputedStyle(badge).color).toBe(header.backgroundColor);
+    expect(getComputedStyle(badge).fontSize).toBe("13px");
+    expect(getComputedStyle(quiet).backgroundColor).not.toBe(header.color);
+    await page.viewport(390, 800);
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    expect(getComputedStyle(badge).backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(badge).position).toBe("absolute");
+    const item = (el.querySelector(".cp-nav-item") as Element).getBoundingClientRect();
+    const box = badge.getBoundingClientRect();
+    expect(box.left).toBeGreaterThan(item.left + item.width / 2);
+    expect(box.top).toBeLessThan(item.top + 8);
+  });
+
+  it("rings the account button's avatar in the bar's ink, wider while its menu is open", () => {
+    theme("light");
+    const el = build(
+      '<header class="cp-header"><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button></header>',
+    );
+    const button = el.querySelector("button") as HTMLElement;
+    const avatar = el.querySelector(".cp-avatar") as HTMLElement;
+    avatar.style.transition = "none";
+    expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(avatar.getBoundingClientRect().width).toBe(28);
+    expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 2px$/);
+    button.setAttribute("aria-expanded", "true");
+    expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 3px$/);
+  });
+
+  it("colours an avatar by its harmony colour, the first by default", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-avatar">AB</span><span class="cp-avatar" data-harmony="3">CD</span>',
+    );
+    const [first, third] = [...el.querySelectorAll(".cp-avatar")] as [Element, Element];
+    const harmony = (n: number) => {
+      const probe = host("");
+      probe.style.color = `var(--cp-harmony-${String(n)})`;
+      return getComputedStyle(probe).color;
+    };
+    expect(getComputedStyle(first).backgroundColor).toBe(harmony(1));
+    expect(getComputedStyle(third).backgroundColor).toBe(harmony(3));
+    const cs = getComputedStyle(third);
+    expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("lays the status panel's sections edge to edge over the panel's own padding", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-popover cp-status-panel" data-variant="panel" popover><h2>All good</h2><section><strong>Sources</strong><span>Sonarr answered.</span></section></div>',
+    );
+    const panel = el.querySelector(".cp-popover") as HTMLElement;
+    panel.style.transition = "none";
+    panel.showPopover();
+    const box = panel.getBoundingClientRect();
+    const section = (panel.querySelector("section") as Element).getBoundingClientRect();
+    expect(box.width).toBe(320);
+    expect(Math.round(section.left - box.left)).toBe(1);
+    expect(getComputedStyle(panel.querySelector("section") as Element).paddingInlineStart).toBe(
+      "16px",
+    );
+    panel.hidePopover();
+  });
+
   it("moves the header's destinations to a bar at the window's foot on a phone, and leaves room for it", async () => {
     theme("light");
     const el = build(

@@ -765,7 +765,7 @@ function menuKeys(menu) {
     if (item.dataset.say) toast({ kind: item.dataset.tone === "danger" ? "warning" : "info", title: item.dataset.say });
   });
 }
-$$("[role='menu'][popover]").forEach(menuKeys);
+$$("[role='menu'][popover]:not(.cp-menu)").forEach(menuKeys);
 
 // A context menu opens where the pointer is: a right click, or a finger held
 // still for half a second. The hold selects no text and opens no browser
@@ -1623,28 +1623,6 @@ for (const nav of $$(".g-bottom-nav")) {
     for (const x of $$("a", nav)) x.toggleAttribute("aria-current", x === a);
     for (const x of $$("a", nav)) if (x === a) x.setAttribute("aria-current", "page");
     $(".g-phone-body", nav.closest(".g-phone")).textContent = `${a.textContent.trim()}: this destination's screen.`;
-  });
-}
-
-// --------------------------------------------------------- header status
-// The worst state that holds: problems, offline, a warning, working, all
-// good. A change is announced politely, as the words of the button itself.
-const STATES = [
-  { state: "ok", words: "All good" },
-  { state: "working", words: "Working: 3" },
-  { state: "warning", words: "1 warning" },
-  { state: "problem", words: "2 problems", detail: "Full check 3 of 8" },
-  { state: "offline", words: "Offline" },
-];
-for (const s of $$("[data-status-demo]")) {
-  const link = $(".cp-header-status", s.closest(".card"));
-  let i = 0;
-  s.addEventListener("click", () => {
-    i = (i + 1) % STATES.length;
-    const st = STATES[i];
-    link.dataset.state = st.state;
-    link.replaceChildren(el("span", { text: st.words }), ...(st.detail ? [el("span", { "data-part": "detail", text: st.detail })] : []));
-    announce(st.words);
   });
 }
 

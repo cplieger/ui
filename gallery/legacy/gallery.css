@@ -2929,11 +2929,6 @@ html:has(.g-header) {
   --av-on: var(--cp-harmony-4-on);
 }
 
-.g-avatar[data-size="sm"] {
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-}
-
 .g-skel-40 {
   inline-size: 40%;
 }
@@ -2965,32 +2960,6 @@ html:has(.g-header) {
   padding-inline: var(--cp-space-1);
   margin-inline: calc(-1 * var(--cp-space-1));
   border-radius: var(--cp-radius-control);
-}
-
-/* The header status as a button with a non-modal panel. */
-
-.g-status-panel {
-  inline-size: 20rem;
-  padding: 0;
-}
-
-.g-status-panel > h2 {
-  padding: var(--cp-space-3) var(--cp-space-4);
-  font-size: var(--cp-text-md);
-}
-
-.g-status-panel > section {
-  display: grid;
-  gap: var(--cp-space-1);
-  padding: var(--cp-space-3) var(--cp-space-4);
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-  font-size: var(--cp-text-sm);
-}
-
-.g-status-panel > section > strong {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
 }
 
 /* A status line with a late state. */
@@ -3952,38 +3921,6 @@ html:has(.g-header) {
 .cp-button[data-active] > .g-badge {
   background: var(--cp-accent);
   color: var(--cp-on-accent);
-}
-
-/* The account button is the avatar: no square behind it, a ring of the
- * bar's ink that holds it off the bar whatever its colour, and a hover that
- * widens the ring. */
-.cp-header .cp-button.g-avatar-btn {
-  min-inline-size: 0;
-  padding: 0.1875rem;
-  border-radius: 50%;
-  background: transparent;
-}
-
-.cp-header .g-avatar-btn > .g-avatar {
-  box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
-  transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-header .cp-button.g-avatar-btn[data-variant="quiet"]:hover:enabled {
-      background: transparent;
-    }
-
-    .cp-header .g-avatar-btn:hover > .g-avatar {
-      box-shadow: 0 0 0 3px var(--cp-shell-ink);
-    }
-  }
-}
-
-.cp-header .g-avatar-btn[aria-expanded="true"] > .g-avatar,
-.cp-header .g-avatar-btn:has(+ :popover-open) > .g-avatar {
-  box-shadow: 0 0 0 3px var(--cp-shell-ink);
 }
 
 /* A job's phase and, once it ends, its outcome: a glyph at the words'
