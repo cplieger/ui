@@ -49,6 +49,7 @@ const CATEGORIES = [
   "overlays",
   "navigation",
   "data",
+  "content",
   "media",
   "screens",
 ];
