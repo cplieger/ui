@@ -50,6 +50,7 @@ const PURE = [
   "/share-bar",
   "/skeleton",
   "/sparkline",
+  "/state-history",
   "/stepper",
   "/table",
   "/tabs",

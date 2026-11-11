@@ -3596,6 +3596,72 @@ describe("css/system.css data tables", () => {
     expect([reach.position, reach.height]).toEqual(["absolute", "24px"]);
   });
 
+  const stateHistory = (open = "", dir = "ltr") =>
+    `<div class="cp-state-history" dir="${dir}"><svg viewBox="0 0 100 10" preserveAspectRatio="none">` +
+    '<rect x="0" width="50" height="10" data-tone="success"></rect>' +
+    '<rect x="50" width="50" height="10" data-tone="neutral"></rect></svg>' +
+    '<div data-part="legend"><span data-tone="success">Answered</span><span data-tone="neutral">Not checked</span></div>' +
+    `<details ${open}><summary>Show as a table</summary><div class="cp-panel" data-flush><p>Table</p></div></details></div>`;
+
+  it("draws a state history's cells in their tones, a not-checked one in the neutral line", () => {
+    theme("light");
+    const el = build(stateHistory());
+    const strip = (el.querySelector("svg") as Element).getBoundingClientRect();
+    expect([strip.width, strip.height]).toEqual([el.getBoundingClientRect().width, 28]);
+    const [answered, skipped] = [...el.querySelectorAll("rect")].map(
+      (r) => getComputedStyle(r).fill,
+    );
+    expect(rgb(answered as string)).toEqual(rgb(resolve("var(--cp-success-9)")));
+    expect(rgb(skipped as string)).toEqual(rgb(resolve("var(--cp-neutral-6)")));
+    expect(getComputedStyle(el.firstElementChild as Element).rowGap).toBe("8px");
+  });
+
+  it("pairs each state's word in the legend with a round swatch of its cells' colour", () => {
+    theme("dark");
+    const el = build(stateHistory());
+    const legend = getComputedStyle(el.querySelector('[data-part="legend"]') as Element);
+    expect([legend.display, legend.flexWrap, legend.rowGap, legend.columnGap]).toEqual([
+      "flex",
+      "wrap",
+      "4px",
+      "16px",
+    ]);
+    expect(legend.color).toBe(resolve("var(--cp-ink-muted)"));
+    expect(legend.fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
+    );
+    const [answered, skipped] = [...el.querySelectorAll('[data-part="legend"] > span')].map((k) =>
+      getComputedStyle(k, "::before"),
+    );
+    expect([answered?.width, answered?.height, answered?.borderRadius]).toEqual([
+      "8px",
+      "8px",
+      "50%",
+    ]);
+    expect(rgb(answered?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-success-9)")));
+    expect(rgb(skipped?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-neutral-6)")));
+  });
+
+  it("turns a state history's table chevron down in either direction, its summary reaching the minimum", () => {
+    theme("light");
+    const el = build(
+      stateHistory() +
+        stateHistory("open") +
+        stateHistory("open data-cp-closing") +
+        stateHistory("open", "rtl"),
+    );
+    const turns = [...el.querySelectorAll("summary")].map(
+      (s) => getComputedStyle(s, "::before").rotate,
+    );
+    expect(turns).toEqual(["none", "90deg", "none", "-90deg"]);
+    const summary = el.querySelector("summary") as Element;
+    const style = getComputedStyle(summary);
+    expect([style.color, style.fontSize]).toEqual([resolve("var(--cp-accent-11)"), "14px"]);
+    expect(getComputedStyle(summary, "::after").height).toBe("24px");
+    const panel = el.querySelectorAll(".cp-panel")[1] as Element;
+    expect(getComputedStyle(panel).marginTop).toBe("12px");
+  });
+
   it("lays facts in a muted label column beside their values, one column on a phone", async () => {
     theme("light");
     const el = build(

@@ -46,6 +46,7 @@
     "./share-bar": "./src/data/share-bar/share-bar.ts",
     "./skeleton": "./src/feedback/skeleton/skeleton.ts",
     "./sparkline": "./src/data/sparkline/sparkline.ts",
+    "./state-history": "./src/data/state-history/state-history.ts",
     "./stepper": "./src/forms/stepper/stepper.ts",
     "./table": "./src/data/table/table.ts",
     "./tabs": "./src/navigation/tabs/tabs.ts",

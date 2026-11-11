@@ -4785,6 +4785,130 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
+/* A state history, which @cplieger/ui/state-history builds: the strip of
+ * observations as an <svg> of one <rect> per observation in its data-tone,
+ * the legend (data-part="legend") of each state's word after its swatch,
+ * then a <details> holding the same observations as a table. */
+.cp-state-history {
+  display: grid;
+  gap: var(--cp-space-2);
+}
+
+.cp-state-history > svg {
+  inline-size: 100%;
+  block-size: 1.75rem;
+}
+
+.cp-state-history rect[data-tone] {
+  fill: var(--cp-tone-9);
+}
+
+.cp-state-history [data-tone="neutral"] {
+  --cp-tone-9: var(--cp-neutral-6);
+}
+
+.cp-state-history > [data-part="legend"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-1) var(--cp-space-4);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-state-history > [data-part="legend"] > [data-tone] {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+}
+
+.cp-state-history > [data-part="legend"] > [data-tone]::before {
+  content: "";
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: var(--cp-tone-9);
+}
+
+/* The summary keeps its line, so its hit area reaches past it, sized rather
+ * than inset so it never snaps under the minimum. */
+.cp-state-history > details > summary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--cp-accent-11);
+  font-size: var(--cp-text-sm);
+  list-style: none;
+  cursor: pointer;
+}
+
+.cp-state-history > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.cp-state-history > details > summary::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  block-size: var(--cp-hit-min);
+  translate: 0 -50%;
+}
+
+/* The chevron turns to point down, so a mirrored one turns the other way. */
+.cp-state-history > details > summary::before {
+  --cp-state-history-turn: 90deg;
+
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: currentcolor;
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+  transition: rotate 160ms var(--cp-ease-out);
+}
+
+.cp-state-history > details > summary:dir(rtl)::before {
+  --cp-state-history-turn: -90deg;
+
+  transform: scaleX(-1);
+}
+
+.cp-state-history > details[open]:not([data-cp-closing]) > summary::before {
+  rotate: var(--cp-state-history-turn);
+}
+
+.cp-state-history > details > .cp-panel {
+  margin-block-start: var(--cp-space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-state-history > details > summary::before {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-state-history > svg,
+  .cp-state-history > [data-part="legend"] > [data-tone]::before {
+    forced-color-adjust: none;
+  }
+
+  .cp-state-history rect[data-tone] {
+    stroke: CanvasText;
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .cp-state-history > [data-part="legend"] > [data-tone]::before {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+
+  .cp-state-history > details > summary::before {
+    background: CanvasText;
+  }
+}
+
 /* Pagination under a table: where the person is, and the way to the pages
  * around it. */
 .cp-pager {

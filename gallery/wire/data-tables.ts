@@ -9,6 +9,7 @@ import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceDisclosure } from "@cplieger/ui/disclosure";
 import { enhanceMenu } from "@cplieger/ui/menu";
 import { skeletonTiming } from "@cplieger/ui/skeleton";
+import { createStateHistory } from "@cplieger/ui/state-history";
 import { enhanceBatchBar, enhanceRowDetail, enhanceSort } from "@cplieger/ui/table";
 import { toast } from "@cplieger/ui/toast";
 
@@ -275,4 +276,22 @@ for (const button of all<HTMLButtonElement>("button[data-load-older]")) {
       button.replaceWith(make("p", "g-note", "That is the whole history."));
     }
   });
+}
+
+// A state history from one letter per check: s answered, w slow, d failed,
+// n not checked.
+const CHECKS = {
+  s: { tone: "success", word: "Answered" },
+  w: { tone: "warning", word: "Slow" },
+  d: { tone: "danger", word: "Failed" },
+  n: { tone: "neutral", word: "Not checked" },
+} as const;
+const isCheck = (c: string): c is keyof typeof CHECKS => Object.hasOwn(CHECKS, c);
+for (const host of all<HTMLElement>("[data-state-history]")) {
+  const points = [...(host.dataset["stateHistory"] ?? "")]
+    .filter(isCheck)
+    .map((state) => ({ state }));
+  host.replaceWith(
+    createStateHistory(points, { name: host.dataset["name"] ?? "", states: CHECKS }),
+  );
 }

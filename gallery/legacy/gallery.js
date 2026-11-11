@@ -1353,36 +1353,6 @@ for (const l of $$("label[data-hue]")) l.style.setProperty("--h", l.dataset.hue)
 // A current step's share of its bar, set through the CSSOM.
 for (const li of $$(".g-track > li[data-pct]")) li.style.setProperty("--pct", `${li.dataset.pct}%`);
 
-// A state history strip from one letter per check: s answered, w slow,
-// d failed, n not checked. The picture's name sums it up, and the same
-// checks open as a table.
-const STRIP = { s: ["success", "Answered"], w: ["warning", "Slow"], d: ["danger", "Failed"], n: ["neutral", "Not checked"] };
-for (const host of $$("[data-strip]")) {
-  const cells = [...host.dataset.strip];
-  const NS = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(NS, "svg");
-  const w = 100 / cells.length;
-  svg.setAttribute("viewBox", "0 0 100 10");
-  svg.setAttribute("preserveAspectRatio", "none");
-  svg.setAttribute("role", "img");
-  const tally = Object.fromEntries(Object.keys(STRIP).map((k) => [k, cells.filter((c) => c === k).length]));
-  const words = Object.entries(tally).filter(([, n]) => n).map(([k, n]) => `${n} ${STRIP[k][1].toLowerCase()}`);
-  svg.setAttribute("aria-label", `${host.dataset.stripName}: ${words.join(", ")}`);
-  cells.forEach((c, i) => {
-    const r = document.createElementNS(NS, "rect");
-    r.setAttribute("x", String(i * w + 0.15));
-    r.setAttribute("width", String(w - 0.3));
-    r.setAttribute("height", "10");
-    r.setAttribute("rx", "0.6");
-    r.dataset.tone = STRIP[c][0];
-    svg.append(r);
-  });
-  const legend = el("div", { class: "g-legend" }, ...Object.entries(STRIP).filter(([k]) => tally[k]).map(([, [tone, word]]) => el("span", {}, el("span", { class: "g-dot", "data-tone": tone }), word)));
-  const rows = cells.map((c, i) => el("tr", {}, el("td", { text: i === cells.length - 1 ? `Check ${i + 1}, the latest` : `Check ${i + 1}` }), el("td", { text: STRIP[c][1] }))).reverse();
-  const table = el("table", { class: "cp-table" }, el("thead", {}, el("tr", {}, el("th", { text: "Check" }), el("th", { text: "State" }))), el("tbody", {}, ...rows));
-  host.append(svg, legend, el("details", {}, el("summary", {}, icon("chevron-right"), "Show as a table"), el("div", { class: "cp-panel g-gap-top", "data-flush": "" }, table)));
-}
-
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to
 // fit its card; its own container queries do what the window's width would.
 const WIDTHS = [["Phone", 390], ["Tablet", 820], ["Desktop", 1280]];

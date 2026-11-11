@@ -1949,51 +1949,6 @@ html:has(.g-header) {
   font-size: var(--cp-text-xs);
 }
 
-/* A state history strip: one cell per check, its table beside it. */
-.g-strip-chart {
-  display: grid;
-  gap: var(--cp-space-2);
-}
-
-.g-strip-chart svg {
-  inline-size: 100%;
-  block-size: 1.75rem;
-}
-
-.g-strip-chart rect[data-tone="success"] {
-  fill: var(--cp-success-9);
-}
-
-.g-strip-chart rect[data-tone="warning"] {
-  fill: var(--cp-warning-9);
-}
-
-.g-strip-chart rect[data-tone="danger"] {
-  fill: var(--cp-danger-9);
-}
-
-.g-strip-chart rect[data-tone="neutral"] {
-  fill: var(--cp-neutral-6);
-}
-
-.g-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-1) var(--cp-space-4);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-legend .g-dot[data-tone="neutral"] {
-  background: var(--cp-neutral-6);
-}
-
-.g-legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-}
-
 
 /* The item hero: an alternative title in its own language, link chips. */
 .g-alt-title {
@@ -2122,31 +2077,6 @@ html:has(.g-header) {
 
 .g-file .cp-mono {
   overflow-wrap: anywhere;
-}
-
-/* The strip's table alternative. */
-.g-strip-chart details > summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  list-style: none;
-  color: var(--cp-accent-11);
-  font-size: var(--cp-text-sm);
-  cursor: pointer;
-}
-
-.g-strip-chart details > summary::-webkit-details-marker {
-  display: none;
-}
-
-.g-strip-chart details > summary > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  transition: rotate 160ms var(--cp-ease-out);
-}
-
-.g-strip-chart details[open]:not([data-closing]) > summary > .cp-icon {
-  rotate: 90deg;
 }
 
 .g-media-head h2 + .g-alt-title + .g-media-meta {
