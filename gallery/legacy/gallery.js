@@ -1492,31 +1492,6 @@ for (const box of $$("[data-active-filters]")) {
   update();
 }
 
-// A list that holds its place: changes that would move rows wait behind a
-// line that offers them, so nothing moves under the reader (WCAG 3.2.2).
-for (const list of $$("[data-hold]")) {
-  const line = el("div", { class: "g-hold-line", role: "status" });
-  let pending = 0;
-  $(`[data-hold-push="${list.id}"]`)?.addEventListener("click", () => {
-    pending += 3;
-    line.replaceChildren(`${pending} newer rows`, el("button", { class: "cp-button", "data-size": "sm", type: "button", text: "Show", onclick: () => {
-      let first = null;
-      for (let k = pending; k > 0; k--) {
-        first = el("li", { tabindex: "-1" }, el("div", { class: "g-row" }, icon("plus"), el("span", {}, `New grab ${k}`, el("small", { text: "just now" }))));
-        list.prepend(first);
-      }
-      pending = 0;
-      line.remove();
-      first?.focus();
-    } }));
-    if (!line.isConnected) {
-      line.hidden = true;
-      list.before(line);
-      glideShow(line, true);
-    }
-  });
-}
-
 // Values that come from data are set through the CSSOM, which a style-src
 // without 'unsafe-inline' allows, never as a style attribute.
 for (const l of $$("label[data-hue]")) l.style.setProperty("--h", l.dataset.hue);

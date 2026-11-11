@@ -2135,18 +2135,6 @@ html:has(.g-header) {
   animation: none;
 }
 
-/* A list that holds its place: a line offers the change instead. */
-.g-hold-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cp-space-2);
-  padding: var(--cp-space-2) var(--cp-space-4);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-sm);
-}
-
 .g-kept-tag {
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
@@ -2354,13 +2342,6 @@ html:has(.g-header) {
   --cp-icon-size: 0.875rem;
 }
 
-/* A kept row reads as old through muted ink, which still passes AA, never
- * through opacity, which would not. */
-.g-row[data-kept],
-.cp-table tr[data-kept] > td {
-  color: var(--cp-ink-muted);
-}
-
 /* History by day, with Load older at its foot. */
 .g-day {
   margin: var(--cp-space-4) 0 var(--cp-space-2);
@@ -2386,15 +2367,6 @@ html:has(.g-header) {
 .g-timeline details > p {
   margin: var(--cp-space-1) 0 0;
   color: var(--cp-ink-muted);
-}
-
-/* A file: its kind, its name, its facts, its download. */
-.g-file > .cp-icon:first-child {
-  color: var(--cp-ink-muted);
-}
-
-.g-file .cp-mono {
-  overflow-wrap: anywhere;
 }
 
 /* The strip's table alternative. */

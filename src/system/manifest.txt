@@ -50,6 +50,7 @@ navigation/rail/filters-trigger.css
 data/text/text.css
 data/avatar/avatar.css
 data/cover/cover.css
+data/list-row/list-row.css
 feedback/chip/chip.css
 feedback/badge/badge.css
 feedback/dot/dot.css

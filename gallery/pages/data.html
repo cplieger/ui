@@ -74,25 +74,25 @@
     <div class="g-grid">
       <div class="card">
         <h2>People</h2>
-        <ul class="g-list">
-          <li><a class="g-row" href="#lists" aria-current="true"><span class="g-avatar" data-h="1">CP</span><span>Christophe<small>Owner, signed in now</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
-          <li><a class="g-row" href="#lists"><span class="g-avatar" data-h="2">AM</span><span>Amélie<small>Member, last seen <time data-ago="7200"></time></small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
-          <li><a class="g-row" href="#lists"><span class="g-avatar" data-h="3">JN</span><span>Jonas<small>Invited, not joined yet</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+        <ul class="cp-list">
+          <li><a class="cp-list-row" href="#lists" aria-current="true"><span class="cp-avatar" data-harmony="1">CP</span><span class="cp-cell-stack">Christophe<small>Owner, signed in now</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-avatar" data-harmony="2">AM</span><span class="cp-cell-stack">Amélie<small>Member, last seen <time data-ago="7200"></time></small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-avatar" data-harmony="3">JN</span><span class="cp-cell-stack">Jonas<small>Invited, not joined yet</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
         </ul>
         <footer>Initials on a harmony colour, chosen by the name so each person keeps theirs. The whole row is the link.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Long names</h2>
-        <ul class="g-list">
-          <li><div class="g-row"><span class="cp-icon" data-cp-icon="folder" aria-hidden="true"></span><span><span class="cp-truncate" tabindex="0" data-cp-tip="/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01">/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01</span><small>28 files</small></span></div></li>
+        <ul class="cp-list">
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="folder" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate" tabindex="0" data-cp-tip="/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01">/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01</span><small>28 files</small></span></div></li>
         </ul>
-        <footer>One line cut with an ellipsis, as <code>.cp-truncate</code> does; the whole text is a focusable tooltip, so it reaches a keyboard and a finger as well as a mouse.</footer>
+        <footer>One line cut with an ellipsis at the row's edge, as <code>.cp-truncate</code> does in a row; the whole text is a focusable tooltip, so it reaches a keyboard and a finger as well as a mouse.</footer>
       </div>
       <div class="card">
         <h2>Files</h2>
-        <ul class="g-list">
-          <li><div class="g-row g-file"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span><code class="cp-mono">Frieren.S01E04.en.ass</code><small>English · ASS · 48 KB · added <time data-ago="7200"></time></small></span><a class="cp-button" data-size="sm" href="media/sample.vtt" download aria-label="Download Frieren.S01E04.en.ass"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Download</a></div></li>
-          <li><div class="g-row g-file"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span><code class="cp-mono">Frieren.S01E04.fr.srt</code><small>French · SRT · 31 KB · added <time data-ago="90000"></time></small></span><a class="cp-button" data-size="sm" href="media/sample.vtt" download aria-label="Download Frieren.S01E04.fr.srt"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Download</a></div></li>
+        <ul class="cp-list">
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><code class="cp-mono">Frieren.S01E04.en.ass</code><small>English · ASS · 48 KB · added <time data-ago="7200"></time></small></span><a class="cp-button" data-size="sm" href="media/sample.vtt" download aria-label="Download Frieren.S01E04.en.ass"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Download</a></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><code class="cp-mono">Frieren.S01E04.fr.srt</code><small>French · SRT · 31 KB · added <time data-ago="90000"></time></small></span><a class="cp-button" data-size="sm" href="media/sample.vtt" download aria-label="Download Frieren.S01E04.fr.srt"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Download</a></div></li>
         </ul>
         <footer>Component libraries list a file or attachment row; subflux's subtitles are exactly that. Its name in mono, then language, format, size and age, and a real download link.</footer>
       </div>
@@ -107,10 +107,10 @@
       </div>
       <div class="card">
         <h2>A list that holds its place</h2>
-        <ul class="g-list" id="hold-list" data-hold>
-          <li><div class="g-row"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span>Frieren, Season 1<small>Grabbed <time data-ago="900"></time></small></span></div></li>
-          <li><div class="g-row"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><span>Mushishi<small>Checked <time data-ago="2400"></time></small></span></div></li>
-          <li><div class="g-row" data-kept><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span>Radarr's queue<small class="g-kept-tag"><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Kept from 03:00: Radarr is not answering</small></span></div></li>
+        <ul class="cp-list" id="hold-list" data-hold>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-cell-stack">Frieren, Season 1<small>Grabbed <time data-ago="900"></time></small></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><span class="cp-cell-stack">Mushishi<small>Checked <time data-ago="2400"></time></small></span></div></li>
+          <li><div class="cp-list-row" data-kept><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-cell-stack">Radarr's queue<small><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Kept from 03:00: Radarr is not answering</small></span></div></li>
         </ul>
         <div class="g-row-inline g-gap-top"><button class="cp-button" data-size="sm" type="button" data-hold-push="hold-list">Three rows arrive</button></div>
         <footer>New rows never push the list under the reader: a line offers them, “3 newer rows · Show”, and Show puts them in and moves focus to the first. A row the app could not refresh stays, in muted ink with a clock and the reason.</footer>
