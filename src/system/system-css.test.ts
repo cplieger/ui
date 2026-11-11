@@ -651,6 +651,47 @@ describe("css/system.css", () => {
     expect(getComputedStyle(skip).opacity).toBe("1");
   });
 
+  it("draws a key as a cap in the body font, a combination as its keys' caps, and a menu item's key as words", () => {
+    theme("light");
+    const el = build(
+      '<p><kbd>?</kbd> <kbd><kbd>Ctrl</kbd> <kbd>K</kbd></kbd></p><div class="cp-menu"><button role="menuitem" type="button">Search<kbd>S</kbd></button></div>',
+    );
+    const [key, combo, ctrl] = [...el.querySelectorAll("p kbd")].map((k) => getComputedStyle(k));
+    const body = getComputedStyle(el).fontFamily;
+    for (const cap of [key, ctrl]) {
+      expect(cap?.fontFamily).toBe(body);
+      expect(cap?.fontSize).toBe("13px");
+      expect(cap?.borderBlockEndWidth).toBe("2px");
+      expect(cap?.borderInlineStartStyle).toBe("solid");
+    }
+    expect(combo?.borderInlineStartStyle).toBe("none");
+    expect(combo?.paddingInlineStart).toBe("0px");
+    const inMenu = getComputedStyle(el.querySelector(".cp-menu kbd") as Element);
+    expect(inMenu.borderInlineStartStyle).toBe("none");
+    expect(inMenu.paddingInlineStart).toBe("0px");
+  });
+
+  it("sets shortcut groups side by side, each key across from what it does, and the foot under them all", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-keys" style="inline-size: 30rem"><section><h3>Anywhere</h3><dl><dt>Search</dt><dd><kbd>/</kbd></dd></dl></section><section><h3>Library</h3><dl><dt>Next row</dt><dd><kbd>J</kbd></dd></dl></section><p>Version 3.0.0</p></div>',
+    );
+    const [a, b] = [...el.querySelectorAll("section")].map((s) => s.getBoundingClientRect());
+    expect((b as DOMRect).top).toBe((a as DOMRect).top);
+    expect((b as DOMRect).left).toBeGreaterThan((a as DOMRect).right);
+    const dt = (el.querySelector("dt") as Element).getBoundingClientRect();
+    const dd = (el.querySelector("dd") as Element).getBoundingClientRect();
+    expect(Math.abs(dd.top - dt.top)).toBeLessThan(4);
+    expect(dd.left).toBeGreaterThan(dt.left);
+    const foot = el.querySelector("p") as Element;
+    const box = foot.getBoundingClientRect();
+    expect(box.top).toBeGreaterThan((a as DOMRect).bottom);
+    expect(Math.round(box.width)).toBe(480);
+    expect(
+      contrast(getComputedStyle(foot).color, getComputedStyle(root).backgroundColor),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("shares a short row between a fitted grid's items, and stacks them when the box is narrow", () => {
     theme("light");
     const el = build(

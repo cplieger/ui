@@ -46,6 +46,8 @@
 
 .cp-menu [role^="menuitem"] > kbd {
   margin-inline-start: auto;
+  padding: 0;
+  border: 0;
   color: var(--cp-ink-muted);
   font: inherit;
   font-size: var(--cp-text-xs);

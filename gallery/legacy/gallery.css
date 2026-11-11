@@ -1157,6 +1157,8 @@ input.cp-input::-webkit-calendar-picker-indicator {
 
 .g-menu [role^="menuitem"] > kbd {
   margin-inline-start: auto;
+  padding: 0;
+  border: 0;
   color: var(--cp-ink-muted);
   font: inherit;
   font-size: var(--cp-text-xs);
@@ -2127,6 +2129,8 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 
 .g-option > kbd {
   margin-inline-start: auto;
+  padding: 0;
+  border: 0;
   color: var(--cp-ink-muted);
   font: inherit;
   font-size: var(--cp-text-xs);
@@ -2145,15 +2149,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   padding: var(--cp-space-6) var(--cp-space-4);
   color: var(--cp-ink-muted);
   text-align: center;
-}
-
-kbd.g-key {
-  padding: 0.0625rem 0.375rem;
-  border: var(--cp-line-w) solid var(--cp-border-strong);
-  border-block-end-width: 2px;
-  border-radius: 0.3125rem;
-  font-family: inherit;
-  font-size: var(--cp-text-xs);
 }
 
 /* A rail of destinations with sections and counts. */
@@ -3148,25 +3143,6 @@ html:has(.g-header) {
 
 .g-active > .cp-token {
   animation: none;
-}
-
-/* The shortcut list. */
-.g-keys {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--cp-space-5);
-}
-
-.g-keys dl {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--cp-space-2) var(--cp-space-3);
-  margin: var(--cp-space-2) 0 0;
-  font-size: var(--cp-text-sm);
-}
-
-.g-keys dd {
-  margin: 0;
 }
 
 /* A list that holds its place: a line offers the change instead. */

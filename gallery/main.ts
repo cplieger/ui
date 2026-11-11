@@ -27,6 +27,7 @@ import { viewTransition } from "@cplieger/ui/view-transition";
 
 import "./legacy/gallery.js";
 import { markCards } from "./review.js";
+import "./wire/overlays.js";
 
 const all = <E extends Element>(selector: string): E[] => [
   ...document.querySelectorAll<E>(selector),

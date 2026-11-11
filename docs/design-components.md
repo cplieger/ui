@@ -48,6 +48,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-grid` | as many columns of at least `--cp-grid-min` (14rem) as fit, for cards and covers. `data-variant="fit"` lets a short row's items share its width, so two children are equal halves that stack once the box is under twice `--cp-grid-min` |
 | `.cp-list-detail`, `.cp-detail`, `.cp-detail-body` | a list with its entry's detail docked beside it, or in a dialog when the box is narrow, as [List and detail](layout/list-detail.md) describes |
 | `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`, holding a `<form>` with its header, a `.cp-dialog-body` that scrolls and a footer of buttons, rising from the bottom on a phone, with `data-variant="confirm"` for a short confirmation led by its icon and `"sheet"` for the window's height at the inline end. The page does not scroll under it, as [dialog](overlays/dialog.md) describes |
+| `.cp-keys` | the keyboard shortcuts, in a `.cp-dialog-body`: a `<section>` per area, each a heading over a `<dl>` of what a key does and its `<kbd>` keys, set in as many columns as fit, and a last `<p>` across them for a muted line such as the build version |
 | `.cp-popover` | a native popover by the button that opens it, as [anchor](overlays/anchor.md) describes, with `data-variant="panel"` for a panel of controls, whose focus [panel](overlays/panel.md) gives |
 | `.cp-menu`, `.cp-menu-label`, `.cp-menu-tag` | a menu of `menuitem`, `menuitemcheckbox` and `menuitemradio` buttons or links, a group's heading and a word at an item's end, as [menu](overlays/menu.md) describes |
 | `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed` |
@@ -62,6 +63,6 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-visually-hidden` | text a screen reader reads and the eye does not see |
 | `.cp-mono`, `.cp-truncate`, `.cp-cell-stack` | machine text, one line cut with an ellipsis, and a title over a muted line |
 
-Inside `.cp`, the icons from `@cplieger/ui/icons` take the language's sizes.
+Inside `.cp`, the icons from `@cplieger/ui/icons` take the language's sizes. A `<kbd>` is a key cap in the body font, and a `<kbd>` of `<kbd>`s, such as Ctrl K, is one combination whose inner keys are the caps; in a menu item a key is muted words at its end.
 
 ![Every component in the light theme: buttons including a busy one, fields with errors, chips, notices including an error summary, tabs, a progress bar, a skeleton, an empty state and a filter sheet](images/system-parts-light.png)

@@ -1242,10 +1242,27 @@
   }
 }
 
-:where(.cp) :where(code, kbd, samp, pre) {
+:where(.cp) :where(code, samp, pre) {
   font-family: var(--cp-font-mono);
   font-size: 0.92em;
   font-variant-ligatures: none;
+}
+
+/* A key is a cap in the body font. A <kbd> of <kbd>s is one combination,
+ * whose keys are the caps. */
+:where(.cp) :where(kbd) {
+  padding: 0.0625rem 0.375rem;
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-block-end-width: 2px;
+  border-radius: 0.3125rem;
+  font-family: inherit;
+  font-size: var(--cp-text-xs);
+}
+
+:where(.cp) :where(kbd:has(kbd)) {
+  padding: 0;
+  border: 0;
+  font-size: inherit;
 }
 
 :where(.cp) :where(pre) {
@@ -5188,6 +5205,34 @@ textarea.cp-input {
   }
 }
 
+/* The keyboard shortcuts, in a dialog: groups by area, each a heading over
+ * a <dl> of what a key does and its <kbd> caps, as many columns as fit, and
+ * a last <p> across them all, such as the build version. */
+.cp-keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--cp-space-5);
+}
+
+.cp-keys dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  margin: var(--cp-space-2) 0 0;
+  font-size: var(--cp-text-sm);
+}
+
+.cp-keys dd {
+  margin: 0;
+}
+
+.cp-keys > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
 /* A popover: a menu or a panel in the top layer, so no z-index decides it,
  * placed by its opener with CSS anchor positioning (@cplieger/ui/anchor
  * names the pair) and flipping to stay in view. It grows out of the corner
@@ -5359,6 +5404,8 @@ textarea.cp-input {
 
 .cp-menu [role^="menuitem"] > kbd {
   margin-inline-start: auto;
+  padding: 0;
+  border: 0;
   color: var(--cp-ink-muted);
   font: inherit;
   font-size: var(--cp-text-xs);

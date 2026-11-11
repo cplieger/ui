@@ -179,15 +179,17 @@
   <section class="g-section" id="keys-sec">
     <h2>Keyboard shortcuts</h2>
     <div class="g-grid">
-      <div class="card">
-        <div class="stage"><button class="cp-button" type="button" commandfor="keys" command="show-modal"><span class="cp-icon" data-cp-icon="keyboard" aria-hidden="true"></span>Shortcuts, or press <kbd class="g-key">?</kbd></button></div>
-        <dialog class="g-dialog" id="keys" aria-labelledby="keys-title">
+      <div class="card" data-new>
+        <h2>Shortcut list</h2>
+        <div class="stage"><button class="cp-button" type="button" commandfor="keys" command="show-modal"><span class="cp-icon" data-cp-icon="keyboard" aria-hidden="true"></span>Shortcuts, or press <kbd>?</kbd></button></div>
+        <dialog class="cp-dialog" id="keys" aria-labelledby="keys-title" closedby="any">
           <form method="dialog">
             <header><h2 id="keys-title">Keyboard shortcuts</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="keys" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
-            <div class="g-body"><div class="g-keys">
-              <section><h3 class="cp-label">Anywhere</h3><dl><dt>Search</dt><dd><kbd class="g-key">/</kbd></dd><dt>Command palette</dt><dd><kbd class="g-key">Ctrl</kbd> <kbd class="g-key">K</kbd></dd><dt>This list</dt><dd><kbd class="g-key">?</kbd></dd></dl></section>
-              <section><h3 class="cp-label">Library</h3><dl><dt>Next row</dt><dd><kbd class="g-key">J</kbd></dd><dt>Previous row</dt><dd><kbd class="g-key">K</kbd></dd><dt>Grab the selected</dt><dd><kbd class="g-key">G</kbd></dd></dl></section>
-            </div><p class="g-note">Release tracker 3.0.0</p></div>
+            <div class="cp-dialog-body"><div class="cp-keys">
+              <section><h3 class="cp-label">Anywhere</h3><dl><dt>Search</dt><dd><kbd>/</kbd></dd><dt>Command palette</dt><dd><kbd><kbd>Ctrl</kbd> <kbd>K</kbd></kbd></dd><dt>This list</dt><dd><kbd>?</kbd></dd></dl></section>
+              <section><h3 class="cp-label">Library</h3><dl><dt>Next row</dt><dd><kbd>J</kbd></dd><dt>Previous row</dt><dd><kbd>K</kbd></dd><dt>Grab the selected</dt><dd><kbd>G</kbd></dd></dl></section>
+              <p>Release tracker 3.0.0</p>
+            </div></div>
           </form>
         </dialog>
         <footer>? opens the keys by area, with the version at the foot. Keys never fire while typing in a field.</footer>
@@ -200,7 +202,7 @@
     <div class="g-grid">
       <div class="card">
         <h2>Jump to anything</h2>
-        <div class="stage"><button class="cp-button" type="button" data-palette-open><span class="cp-icon" data-cp-icon="command" aria-hidden="true"></span>Open, or press <kbd class="g-key">Ctrl</kbd> <kbd class="g-key">K</kbd></button></div>
+        <div class="stage"><button class="cp-button" type="button" data-palette-open><span class="cp-icon" data-cp-icon="command" aria-hidden="true"></span>Open, or press <kbd>Ctrl</kbd> <kbd>K</kbd></button></div>
         <dialog class="g-dialog g-palette" id="palette" aria-label="Command palette">
           <div class="g-palette-field"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list" placeholder="Search actions and pages" autofocus></div>
           <ul role="listbox" id="palette-list" aria-label="Actions">

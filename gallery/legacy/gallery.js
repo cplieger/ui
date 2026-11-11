@@ -2099,15 +2099,6 @@ for (const box of $$("[data-active-filters]")) {
   update();
 }
 
-// The shortcut list: ? opens it anywhere outside a field.
-const keysDialog = $("#keys");
-if (keysDialog) {
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "?" || e.target.closest("input, textarea, select, [contenteditable]")) return;
-    keysDialog.showModal();
-  });
-}
-
 // A list that holds its place: changes that would move rows wait behind a
 // line that offers them, so nothing moves under the reader (WCAG 3.2.2).
 for (const list of $$("[data-hold]")) {
