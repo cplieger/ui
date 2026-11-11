@@ -33,3 +33,31 @@
   justify-self: stretch;
   text-align: center;
 }
+
+/* A setup of several steps: a wider column whose panel is the steps'
+ * container, so .cp-steps turns compact by the panel's own width. A step's
+ * buttons share one row, Back at the start and the primary, the row's last
+ * child, at the end, so it keeps its place from step to step. */
+.cp-gate[data-variant="steps"] {
+  grid-template-columns: minmax(0, 28rem);
+}
+
+.cp-gate[data-variant="steps"] > .cp-panel {
+  container-type: inline-size;
+}
+
+/* The step's title sits under the steps, one size down. */
+.cp-gate[data-variant="steps"] h1 {
+  font-size: var(--cp-text-lg);
+}
+
+.cp-gate[data-variant="steps"] [data-part="actions"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+}
+
+.cp-gate[data-variant="steps"] [data-part="actions"] > :last-child {
+  margin-inline-start: auto;
+}

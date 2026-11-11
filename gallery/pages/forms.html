@@ -239,6 +239,22 @@
         <footer>Like the language picker, and each tag says how many entries carry it. Words that match no tag end the list with Add “…”, so Enter takes a match first and a new tag only when nothing matches. Five is the limit.</footer>
       </div>
       <div class="card">
+        <h2>One limit across pickers</h2>
+        <div class="cp-stack">
+          <div class="cp-field">
+            <label class="cp-label" for="f-hide-findings">Hidden in Findings</label>
+            <div class="cp-tokens" data-tokens="hidden-findings" data-limit="hidden-tags" data-note="f-hide-findings-note"><span class="cp-token" data-value="dub only"><span>dub only</span><button type="button" aria-label="Remove dub only" tabindex="-1"></button></span><span class="cp-token" data-value="archived"><span>archived</span><button type="button" aria-label="Remove archived" tabindex="-1"></button></span><input id="f-hide-findings" placeholder="Add a tag"></div>
+            <span class="cp-help" id="f-hide-findings-note" hidden></span>
+          </div>
+          <div class="cp-field">
+            <label class="cp-label" for="f-hide-feed">Hidden in the feed</label>
+            <div class="cp-tokens" data-tokens="hidden-feed" data-limit="hidden-tags" data-note="f-hide-feed-note"><span class="cp-token" data-value="rewatch"><span>rewatch</span><button type="button" aria-label="Remove rewatch" tabindex="-1"></button></span><input id="f-hide-feed" placeholder="Add a tag"></div>
+            <span class="cp-help" id="f-hide-feed-note" hidden></span>
+          </div>
+        </div>
+        <footer>Two pickers fill one setting of at most four tags, so a tag counts once whichever picker holds it. Add one more tag to reach the limit. Then each picker still takes a tag the other holds, and turns read-only only once it holds all four.</footer>
+      </div>
+      <div class="card">
         <h2>Filter chips</h2>
         <div class="g-chips" role="group" aria-label="Show">
           <button class="g-chip" type="button" aria-pressed="true"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>TV</button>

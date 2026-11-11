@@ -7,24 +7,37 @@
  */
 
 import { until } from "../../core/lifetime/lifetime.js";
+import { clearError, isControl, showError, writeError } from "../form/field-error.js";
 
 export type ConnectionTestState = "idle" | "busy" | "passed" | "failed";
 
 export type ConnectionTestResult =
   | { readonly ok: true; readonly message: string }
-  | { readonly ok: false; readonly message: string; readonly field?: string };
+  | {
+      readonly ok: false;
+      /** What the service answered, said in the status. */
+      readonly message: string;
+      /** The field at fault, as `fields` names it. */
+      readonly field?: string;
+      /** The field's error, a sentence that names the fix. Default:
+       *  `message`. */
+      readonly fix?: string;
+    };
 
 export interface ConnectionTestOptions {
   /** The check. Resolve with the answer; reject only for a failure you did
    *  not turn into one, such as a network error. */
   readonly run: (signal: AbortSignal) => Promise<ConnectionTestResult>;
   /** The fields a failure can name, as the server names them: the input
-   *  that gets `aria-invalid`, and the element whose text says why. */
+   *  marked invalid, and the `.cp-field-error` that says why, whose icon
+   *  stays. An `<input>`, `<select>` or `<textarea>` is described by its
+   *  error, and without `mark` gets one as `./form` finds or makes it. */
   readonly fields?: Readonly<
     Record<string, { readonly input?: HTMLElement; readonly mark?: HTMLElement }>
   >;
   /** The element that carries `data-cp-state` beside the status and scopes
-   *  the edits that reset the test. Default: the button's form. */
+   *  the edits that reset the test. Default: the button's form. Without
+   *  either, only an edit inside the button's parent resets the test. */
   readonly root?: HTMLElement;
   /** The words while it runs. Default "Testing…". */
   readonly busyMessage?: string;
@@ -77,11 +90,12 @@ export function enhanceConnectionTest(
   let marked: string | null = null;
 
   const unmark = (): void => {
-    if (marked !== null) {
-      const f = fields[marked];
+    const f = marked === null ? undefined : fields[marked];
+    if (f?.input !== undefined && isControl(f.input)) {
+      clearError(f.input, "test");
+    } else {
       f?.input?.removeAttribute("aria-invalid");
       if (f?.mark !== undefined) {
-        f.mark.textContent = "";
         f.mark.hidden = true;
       }
     }
@@ -129,10 +143,13 @@ export function enhanceConnectionTest(
           if (!result.ok && result.field !== undefined && Object.hasOwn(fields, result.field)) {
             const f = fields[result.field];
             marked = result.field;
-            f?.input?.setAttribute("aria-invalid", "true");
-            if (f?.mark !== undefined) {
-              f.mark.textContent = result.message;
-              f.mark.hidden = false;
+            if (f?.input !== undefined && isControl(f.input)) {
+              showError(f.input, result.fix ?? result.message, f.mark, "test");
+            } else {
+              f?.input?.setAttribute("aria-invalid", "true");
+              if (f?.mark !== undefined) {
+                writeError(f.mark, result.fix ?? result.message);
+              }
             }
           }
           set(result.ok ? "passed" : "failed", result.message, result);

@@ -1,0 +1,62 @@
+/* The connection test's answer (@cplieger/ui/connection-test): its words
+ * after a glyph, in a tone drawn from data-cp-state: the spinner while busy,
+ * circle-check in the success tone once passed, circle-x in the danger tone
+ * once failed, and nothing at rest. */
+.cp-test-status {
+  --cp-test-glyph: none;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-test-status::before {
+  content: "";
+  display: none;
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: var(--cp-test-glyph) center / contain no-repeat;
+}
+
+.cp-test-status[data-cp-state="busy"] {
+  --cp-test-glyph: url("../icons/svg/spinner-arc.svg");
+}
+
+.cp-test-status[data-cp-state="busy"]::before {
+  display: block;
+  animation: cp-spin 0.8s linear infinite;
+}
+
+.cp-test-status[data-cp-state="passed"] {
+  --cp-test-glyph: url("../icons/svg/circle-check.svg");
+
+  color: var(--cp-success-11);
+}
+
+.cp-test-status[data-cp-state="failed"] {
+  --cp-test-glyph: url("../icons/svg/circle-x.svg");
+
+  color: var(--cp-danger-11);
+}
+
+.cp-test-status[data-cp-state="passed"]::before,
+.cp-test-status[data-cp-state="failed"]::before {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-test-status[data-cp-state="busy"]::before {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-test-status::before {
+    background: CanvasText;
+  }
+}

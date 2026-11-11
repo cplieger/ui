@@ -1442,6 +1442,34 @@
   text-align: center;
 }
 
+/* A setup of several steps: a wider column whose panel is the steps'
+ * container, so .cp-steps turns compact by the panel's own width. A step's
+ * buttons share one row, Back at the start and the primary, the row's last
+ * child, at the end, so it keeps its place from step to step. */
+.cp-gate[data-variant="steps"] {
+  grid-template-columns: minmax(0, 28rem);
+}
+
+.cp-gate[data-variant="steps"] > .cp-panel {
+  container-type: inline-size;
+}
+
+/* The step's title sits under the steps, one size down. */
+.cp-gate[data-variant="steps"] h1 {
+  font-size: var(--cp-text-lg);
+}
+
+.cp-gate[data-variant="steps"] [data-part="actions"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+}
+
+.cp-gate[data-variant="steps"] [data-part="actions"] > :last-child {
+  margin-inline-start: auto;
+}
+
 /* A column of fields, never wider than what a field holds. */
 .cp-form {
   display: grid;
@@ -3413,6 +3441,69 @@ textarea.cp-input {
   }
 }
 
+/* The connection test's answer (@cplieger/ui/connection-test): its words
+ * after a glyph, in a tone drawn from data-cp-state: the spinner while busy,
+ * circle-check in the success tone once passed, circle-x in the danger tone
+ * once failed, and nothing at rest. */
+.cp-test-status {
+  --cp-test-glyph: none;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-test-status::before {
+  content: "";
+  display: none;
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: var(--cp-test-glyph) center / contain no-repeat;
+}
+
+.cp-test-status[data-cp-state="busy"] {
+  --cp-test-glyph: url("../icons/svg/spinner-arc.svg");
+}
+
+.cp-test-status[data-cp-state="busy"]::before {
+  display: block;
+  animation: cp-spin 0.8s linear infinite;
+}
+
+.cp-test-status[data-cp-state="passed"] {
+  --cp-test-glyph: url("../icons/svg/circle-check.svg");
+
+  color: var(--cp-success-11);
+}
+
+.cp-test-status[data-cp-state="failed"] {
+  --cp-test-glyph: url("../icons/svg/circle-x.svg");
+
+  color: var(--cp-danger-11);
+}
+
+.cp-test-status[data-cp-state="passed"]::before,
+.cp-test-status[data-cp-state="failed"]::before {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-test-status[data-cp-state="busy"]::before {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-test-status::before {
+    background: CanvasText;
+  }
+}
+
 /* A state word: a short word in its tone, after the tone's glyph, such as
  * "set", "not set" or "rejected" beside a setting. */
 .cp-state {
@@ -3849,7 +3940,8 @@ textarea.cp-input {
 
 /* A stack's gap is its children's spacing. */
 .cp-stack > hr,
-.cp-stack > .cp-heading-row {
+.cp-stack > .cp-heading-row,
+.cp-stack > .cp-steps {
   margin-block: 0;
 }
 
@@ -4421,10 +4513,11 @@ textarea.cp-input {
 }
 
 /* A multi-step flow's progress: numbered steps in an <ol>, the current one
- * filled with aria-current="step", the done ones ticked, a line joining
- * them. Each step carries data-state ("done", "current" or "todo") and a
- * visually hidden word for it, so the state is never the glyph alone. In a
- * box under 24rem the list gives way to .cp-steps-compact, "Step 2 of 3". */
+ * filled and ringed with aria-current="step", the done ones ticked and each
+ * a link back, a line joining them. Each step carries data-state ("done",
+ * "current" or "todo") and a visually hidden word for it, so the state is
+ * never the glyph alone. In a box under 24rem the list gives way to
+ * .cp-steps-compact, "Step 2 of 3". */
 .cp-steps {
   display: flex;
   gap: var(--cp-space-2);
@@ -4474,6 +4567,8 @@ textarea.cp-input {
 }
 
 .cp-steps > li[data-state="current"]::before {
+  outline: 2px solid var(--cp-accent);
+  outline-offset: 2px;
   background: var(--cp-accent);
   box-shadow: inset 0 0 0 2px var(--cp-accent);
   color: var(--cp-on-accent);
@@ -4491,6 +4586,30 @@ textarea.cp-input {
 
 .cp-steps > li[data-state="done"]::after {
   border-color: var(--cp-accent);
+}
+
+/* A done step is a link back to it. Its hit area is the tier's minimum
+ * tall and takes in the step's number before it. */
+.cp-steps > li > a {
+  position: relative;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.cp-steps > li > a::after {
+  content: "";
+  position: absolute;
+  inset-block: calc((100% - var(--cp-hit-min)) / 2);
+  inset-inline: calc(-1.75rem - var(--cp-space-2)) 0;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-steps > li > a:hover {
+      color: var(--cp-ink);
+    }
+  }
 }
 
 .cp-steps-compact {
@@ -4519,6 +4638,10 @@ textarea.cp-input {
   .cp-steps > li[data-state="current"]::before {
     background: Highlight;
     color: HighlightText;
+  }
+
+  .cp-steps > li[data-state="done"]::before {
+    background: CanvasText;
   }
 }
 

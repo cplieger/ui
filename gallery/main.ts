@@ -7,6 +7,7 @@
 
 import { enhanceSelectAll } from "@cplieger/ui/checkbox";
 import { enhanceChoiceFields } from "@cplieger/ui/choice";
+import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 import { enhanceCopy } from "@cplieger/ui/copy";
 import { enhanceRange } from "@cplieger/ui/range";
 import { enhanceSearch } from "@cplieger/ui/search";
@@ -14,7 +15,7 @@ import { enhanceReveal, enhanceSecret } from "@cplieger/ui/secret";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceStepper } from "@cplieger/ui/stepper";
 import { enhanceTextarea } from "@cplieger/ui/textarea";
-import { enhanceTokens } from "@cplieger/ui/tokens";
+import { createTokenLimit, enhanceTokens, type TokenLimit } from "@cplieger/ui/tokens";
 import { enhanceToggle } from "@cplieger/ui/toggle";
 import { installTooltips } from "@cplieger/ui/tooltip";
 import { viewTransition } from "@cplieger/ui/view-transition";
@@ -55,8 +56,9 @@ for (const button of all<HTMLButtonElement>(".cp-code > .cp-copy")) {
   }
 }
 // A token field names its suggestions by data-suggest, its limit by
-// data-max and its note by data-note, and data-free takes new words. The
-// search page listens for "tokens".
+// data-max, a limit it shares by data-limit and its note by data-note, and
+// data-free takes new words. The search page listens for "tokens".
+const limits = new Map<string, TokenLimit>([["hidden-tags", createTokenLimit(4)]]);
 for (const box of all<HTMLElement>("[data-tokens]")) {
   const byId = (key: string): HTMLElement | undefined => {
     const id = box.dataset[key];
@@ -65,10 +67,12 @@ for (const box of all<HTMLElement>("[data-tokens]")) {
   const suggestions = byId("suggest");
   const note = byId("note");
   const max = box.dataset["max"];
+  const limit = limits.get(box.dataset["limit"] ?? "");
   enhanceTokens(box, {
     ...(suggestions === undefined ? {} : { suggestions, allowNew: box.hasAttribute("data-free") }),
     ...(note === undefined ? {} : { note }),
     ...(max === undefined ? {} : { max: Number(max) }),
+    ...(limit === undefined ? {} : { limit }),
     onChange: () => box.dispatchEvent(new CustomEvent("tokens", { bubbles: true })),
   });
 }
@@ -111,4 +115,37 @@ for (const button of all<HTMLButtonElement>("[data-theme-toggle]")) {
   };
   new MutationObserver(show).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   show();
+}
+// The setup card's test passes for an address with a port, after a second.
+for (const button of all<HTMLButtonElement>("button[data-test]")) {
+  const status = document.getElementById(button.dataset["test"] ?? "");
+  const url = document.getElementById(button.dataset["url"] ?? "");
+  const mark = document.getElementById(`${url?.id ?? ""}-error`);
+  const step = button.closest<HTMLElement>("[data-step]");
+  if (status === null || !(url instanceof HTMLInputElement) || mark === null || step === null) {
+    continue;
+  }
+  enhanceConnectionTest(button, status, {
+    root: step,
+    run: (signal) =>
+      new Promise((done, fail) => {
+        const timer = setTimeout(() => {
+          done(
+            /^https?:\/\/\S+:\d+/.test(url.value)
+              ? { ok: true, message: "Connected, Sonarr 4.0.9" }
+              : {
+                  ok: false,
+                  message: "Sonarr did not answer at this address and port.",
+                  field: "url",
+                  fix: "Check the address and its port, such as http://sonarr.lan:8989.",
+                },
+          );
+        }, 1100);
+        signal.addEventListener("abort", () => {
+          clearTimeout(timer);
+          fail(new DOMException("The check was ended.", "AbortError"));
+        });
+      }),
+    fields: { url: { input: url, mark } },
+  });
 }

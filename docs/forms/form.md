@@ -27,7 +27,7 @@ url.addEventListener("blur", () => (isValidUrl(url.value) ? clearError(url) : un
 ```
 
 - `reportErrors(form, errors, { summary, heading })` sets `aria-invalid="true"` on each field and writes its `message` into its error. That is a `.cp-field-error` the field's `aria-describedby` already names, else the element whose `id` is the field's `id` followed by `-error`, such as `url-error`. With neither, it makes a `.cp-field-error` at the end of the field's `.cp-field`, or right after a field outside one, and a field with no `id` gets one. The error joins the field's `aria-describedby`. An error the markup wrote keeps its icon, and one the call makes draws the danger glyph from the stylesheet.
-- Each call clears the errors an earlier call showed that it no longer names, and an empty list hides the summary.
+- Each call clears the errors an earlier call showed that it no longer names, and an empty list hides the summary. An error a [connection test](connection-test.md) showed stays until the test clears it or a call names its field.
 - With two or more errors, the summary's `[data-part="body"]`, or the summary itself, takes `heading(count)` and a list of links, each named by its field's label. A link moves focus to its field. The summary shows, takes `tabindex="-1"` and gets focus, so leave it without `role="alert"`, which would be read twice.
 - `clearError(field)` marks one field valid. Its error hides and no longer describes it. Call it as soon as the value is valid.
 - The checks are the app's, such as when to validate, what a valid value is and the sentence for each fix.

@@ -10,6 +10,8 @@ Sign-in, setup, invites and recovery links each open a gate page outside the app
 
 1. `.cp-gate` is the page's `<main>`. It holds the app's `.cp-wordmark` with its `.cp-mark`, one `.cp-panel` with the task, and at most one line under the panel.
 2. The panel starts with the screen's `<h1>`, then a notice slot, then the form. Its buttons sit in a `.cp-stack`, so they take the panel's width.
+
+   A setup of several steps is `.cp-gate[data-variant="steps"]`. Its panel starts with the `.cp-steps` list and its `.cp-steps-compact` line, each done step a link back to its address, then the step's `<h1>`, its notice slot and its form. The step's buttons sit in one `data-part="actions"` row: Back first, a link to the step before, and the primary last.
 3. One button on the page is primary, the main form's submit or else the only method.
 4. `<title>` is the screen and the app, such as "Sign in · Release tracker". The theme follows the person's choice from `@cplieger/ui/theme`, which needs no account.
 

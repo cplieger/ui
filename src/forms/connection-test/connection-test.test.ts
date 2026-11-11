@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { reportErrors } from "../form/form.js";
 import { enhanceConnectionTest, type ConnectionTestResult } from "./connection-test.js";
 
 let life = new AbortController();
@@ -23,7 +24,12 @@ function form(): {
   url.name = "url";
   url.value = "http://sonarr:8989";
   const mark = document.createElement("span");
+  mark.className = "cp-field-error";
   mark.hidden = true;
+  const icon = document.createElement("span");
+  icon.className = "cp-icon";
+  icon.dataset["cpIcon"] = "circle-x";
+  mark.append(icon, "Old words");
   const button = document.createElement("button");
   button.textContent = "Test connection";
   const status = document.createElement("p");
@@ -117,10 +123,32 @@ describe("enhanceConnectionTest", () => {
     expect(status.dataset["cpState"]).toBe("failed");
     expect(url.getAttribute("aria-invalid")).toBe("true");
     expect([mark.hidden, mark.textContent]).toEqual([false, "Nothing answered at that address."]);
+    expect(mark.querySelector(".cp-icon")?.getAttribute("data-cp-icon")).toBe("circle-x");
+    expect(url.getAttribute("aria-describedby")).toBe(mark.id);
     await userEvent.type(url, "0");
     expect(status.dataset["cpState"]).toBe("idle");
     expect(url.hasAttribute("aria-invalid")).toBe(false);
+    expect(url.hasAttribute("aria-describedby")).toBe(false);
     expect(mark.hidden).toBe(true);
+  });
+
+  it("makes the error of a field given no mark, as a form's errors are made", async () => {
+    const { url, button, status } = form();
+    const a = answer();
+    enhanceConnectionTest(button, status, {
+      run: a.run,
+      fields: { url: { input: url } },
+      signal: life.signal,
+    });
+    await userEvent.click(button);
+    a.give({ ok: false, message: "No answer.", field: "url" });
+    await tick();
+    const error = url.nextElementSibling as HTMLElement;
+    expect(error.classList.contains("cp-field-error")).toBe(true);
+    expect([error.textContent, url.getAttribute("aria-describedby")]).toEqual([
+      "No answer.",
+      error.id,
+    ]);
   });
 
   it("ignores a field it was not given, inherited names included", async () => {
@@ -150,5 +178,46 @@ describe("enhanceConnectionTest", () => {
     a.fail("nope");
     await tick();
     expect(status.textContent).toBe("The test could not run.");
+  });
+
+  it("puts a failure's fix on the field and its message in the status", async () => {
+    const { url, mark, button, status } = form();
+    const a = answer();
+    enhanceConnectionTest(button, status, {
+      run: a.run,
+      fields: { url: { input: url, mark } },
+      signal: life.signal,
+    });
+    await userEvent.click(button);
+    a.give({ ok: false, message: "Sonarr did not answer.", field: "url", fix: "Check the port." });
+    await tick();
+    expect([status.textContent, mark.textContent]).toEqual([
+      "Sonarr did not answer.",
+      "Check the port.",
+    ]);
+  });
+
+  it("leaves an error the form's own checks showed, and the form's checks leave the test's", async () => {
+    const { form: f, url, mark, button, status } = form();
+    const summary = document.createElement("div");
+    f.append(summary);
+    const a = answer();
+    enhanceConnectionTest(button, status, {
+      run: a.run,
+      fields: { url: { input: url, mark } },
+      signal: life.signal,
+    });
+    await userEvent.click(button);
+    a.give({ ok: false, message: "No answer.", field: "url" });
+    await tick();
+    reportErrors(f, [], { summary, heading: () => "" });
+    expect([url.getAttribute("aria-invalid"), mark.hidden]).toEqual(["true", false]);
+    reportErrors(f, [{ field: url, message: "Enter an address." }], { summary, heading: () => "" });
+    await userEvent.type(url, "x");
+    expect(status.dataset["cpState"]).toBe("idle");
+    expect([url.getAttribute("aria-invalid"), mark.textContent]).toEqual([
+      "true",
+      "Enter an address.",
+    ]);
   });
 });

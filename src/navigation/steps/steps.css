@@ -1,8 +1,9 @@
 /* A multi-step flow's progress: numbered steps in an <ol>, the current one
- * filled with aria-current="step", the done ones ticked, a line joining
- * them. Each step carries data-state ("done", "current" or "todo") and a
- * visually hidden word for it, so the state is never the glyph alone. In a
- * box under 24rem the list gives way to .cp-steps-compact, "Step 2 of 3". */
+ * filled and ringed with aria-current="step", the done ones ticked and each
+ * a link back, a line joining them. Each step carries data-state ("done",
+ * "current" or "todo") and a visually hidden word for it, so the state is
+ * never the glyph alone. In a box under 24rem the list gives way to
+ * .cp-steps-compact, "Step 2 of 3". */
 .cp-steps {
   display: flex;
   gap: var(--cp-space-2);
@@ -52,6 +53,8 @@
 }
 
 .cp-steps > li[data-state="current"]::before {
+  outline: 2px solid var(--cp-accent);
+  outline-offset: 2px;
   background: var(--cp-accent);
   box-shadow: inset 0 0 0 2px var(--cp-accent);
   color: var(--cp-on-accent);
@@ -69,6 +72,30 @@
 
 .cp-steps > li[data-state="done"]::after {
   border-color: var(--cp-accent);
+}
+
+/* A done step is a link back to it. Its hit area is the tier's minimum
+ * tall and takes in the step's number before it. */
+.cp-steps > li > a {
+  position: relative;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.cp-steps > li > a::after {
+  content: "";
+  position: absolute;
+  inset-block: calc((100% - var(--cp-hit-min)) / 2);
+  inset-inline: calc(-1.75rem - var(--cp-space-2)) 0;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-steps > li > a:hover {
+      color: var(--cp-ink);
+    }
+  }
 }
 
 .cp-steps-compact {
@@ -97,5 +124,9 @@
   .cp-steps > li[data-state="current"]::before {
     background: Highlight;
     color: HighlightText;
+  }
+
+  .cp-steps > li[data-state="done"]::before {
+    background: CanvasText;
   }
 }

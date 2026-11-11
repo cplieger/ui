@@ -29,7 +29,6 @@
   --done-bg: oklch(from var(--cp-success-9) min(l, 0.52) c h);
 }
 
-
 /* Page frame */
 
 .play {
@@ -145,34 +144,6 @@
   --press-ease: var(--cp-ease-out);
 }
 
-
-/* Checkboxes. Each is a native input with appearance: none, so labels,
- * keyboard and forms behave as usual.
- *
- * The outline is an inset shadow on a box with no border, so the box is one
- * painted shape. A border and a fill are two shapes, and a 1x screen shows the
- * light seam where their anti-aliased edges meet. Once a fill has grown, the
- * box's own background turns the same colour, so no light pixel is left under
- * the fill's rounded edge either. */
-
-/* The label is the target, so pressing its words squeezes the box too. */
-
-/* The mark is its own drawing: 3.25 units, 2.4px at this size, which a 1x
- * screen draws solid where the 2.25 icon stroke would blur. It spans 11 of
- * 24 units, half the box, and its centre of mass sits on the grid's middle,
- * so its bounds ride a little high: the low corner holds most of the ink. */
-
-/* Twirl: a rounded square that twirls a quarter turn into a circle. It
- * rests on the accent like every other chosen control; the surprise colour
- * only passes through during the turn. */
-
-
-/* The check's ink is the one its own colour needs, as on any solid. */
-
-/* Switches */
-
-/* about the size of an iOS switch under a finger */
-
 /* Saving: busy (the system's spinner-arc) for under a second, then a done
  * state that fades back by itself. */
 
@@ -247,10 +218,6 @@
     clip-path: inset(0 100% 0 0);
   }
 }
-
-
-
-/* Icon twirls */
 
 /* Refresh: one turn that speeds up and slows down, at most about 1.8 turns
  * a second at its fastest. */
@@ -367,7 +334,6 @@
   100% { scale: 1; }
 }
 
-
 /* Colour pops: a state change flashes its tone's solid, then fades to its
  * wash from the first fifth of the animation on. */
 
@@ -383,13 +349,11 @@
   }
 }
 
-
 /* A filter that turns on fades its wash in over the whole row, and out
  * again when it turns off. */
 .cp-filter.filter-fade {
   transition: background-color 240ms var(--cp-ease-out);
 }
-
 
 /* Sparkles: small stars that leave a point, spin and fade. */
 
@@ -412,7 +376,6 @@
   font-weight: var(--cp-weight-medium);
   cursor: pointer;
 }
-
 
 /* Count roll: each digit is a column that slides to its number. */
 
@@ -445,7 +408,6 @@
   block-size: 1em;
 }
 
-
 /* Tabs and nav with a pill that follows the selection. */
 
 .slide-tabs {
@@ -474,7 +436,6 @@
     translate 460ms var(--ease-spring),
     inline-size 460ms var(--ease-spring);
 }
-
 
 /* A segmented choice or a toggle group: the same pill slides to the chosen
  * one, under its words. Placed in rows and columns, so a wrapped choice
@@ -769,9 +730,7 @@
   animation: none;
 }
 
-
 /* A toast springs in (gallery.css .g-toast). */
-
 
 @keyframes toast-in {
   from {
@@ -780,7 +739,6 @@
     scale: 0.96;
   }
 }
-
 
 /* A wordmark's mark flips after five quick presses. */
 
@@ -801,8 +759,6 @@
     rotate: y 1turn;
   }
 }
-
-
 
 /* Empty state that floats: a Lucide drawing at the hero size drifts up and
  * down over a soft shadow that shrinks as it rises. */
@@ -843,7 +799,6 @@
     opacity: 0.6;
   }
 }
-
 
 /* Reduced motion: from the OS, or from the page's switch. */
 
@@ -949,9 +904,6 @@
   gap: var(--cp-space-4);
 }
 
-/* A field with an icon at its start, and a clear button at its end that
- * shows only while there is text to clear. */
-
 /* A textarea grows with its text, up to ten lines, where the engine sizes
  * fields to their content; elsewhere gallery.js grows it. */
 textarea.cp-input {
@@ -963,8 +915,6 @@ textarea.cp-input {
   field-sizing: content;
 }
 
-/* A native select with the package's chevron in place of the engine's. */
-
 /* Date and time stay native, so their pickers and keyboards are the
  * engine's own; only the box is ours. */
 input.cp-input:is([type="date"], [type="time"], [type="datetime-local"]) {
@@ -975,24 +925,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   opacity: 0.6;
   cursor: pointer;
 }
-
-/* Radio: an outlined circle that fills with the accent; its white dot
- * springs in from nothing. The same no-border shape as the checkbox, so a
- * 1x screen shows no seam. */
-
-/* A whole-pixel dot, centred in an even-pixel circle so its offset is whole
- * (22px box, 10px dot -> 6px; 26px -> 8px): a 40% dot is 8.8px, a sub-pixel
- * size that cannot sit on the grid, so it renders off-centre and the scale's
- * end-snap shifts it a pixel. */
-
-/* A checkbox in its mixed state: a dash, no turn. */
-
-/* Range: the track fills with the accent up to the thumb, which grows while
- * held. gallery.js keeps --fill at the value's share. */
-
-/* A stepper: a number between two buttons. */
-
-/* The value sits centred between the buttons, like the stepper's number. */
 
 /* A drop zone: the whole area is the file input's label. */
 .g-drop {
@@ -1685,11 +1617,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   }
 }
 
-/* Chosen items: a box of tokens with a field after them. */
-
-/* A field built of parts rings like a field: its own border, flush, when
- * its text input has focus; a chip's button keeps its own ring. */
-
 /* Backspace in an empty field marks the last token first, then removes it. */
 
 @keyframes token-in {
@@ -1697,19 +1624,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
     scale: 0.4;
     opacity: 0;
   }
-}
-
-@keyframes token-out {
-  to {
-    scale: 0.4;
-    opacity: 0;
-  }
-}
-
-@keyframes token-again {
-  25% { translate: -3px 0; }
-  50% { translate: 3px 0; }
-  75% { translate: -2px 0; }
 }
 
 /* Filter chips: a toggle each; turning one on slides its check in. */
@@ -2019,15 +1933,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   block-size: 0.875rem;
 }
 
-/* A banner across the top of the work area, for a state of the whole app
- * such as a lost connection. It is a notice, not a toast: it stays while
- * the state lasts. */
-
-/* As on a notice: a plain button rises off the wash, edged in its tone. */
-
-@media (any-hover: hover) {
-}
-
 /* A live status dot: only a state that is live right now pulses. */
 .g-dot {
   display: inline-block;
@@ -2068,104 +1973,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   color: var(--cp-ink-muted);
 }
 
-/* The stepper: numbered steps, the current one filled, the done ones
- * ticked; a line joins them. */
-.g-steps {
-  display: flex;
-  gap: var(--cp-space-2);
-  margin: 0 0 var(--cp-space-5);
-  padding: 0;
-  list-style: none;
-  counter-reset: step;
-}
-
-.g-steps > li {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  counter-increment: step;
-}
-
-.g-steps > li::before {
-  content: counter(step);
-  display: grid;
-  place-items: center;
-  flex: none;
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 2px var(--cp-border-strong);
-  font-weight: var(--cp-weight-medium);
-  font-variant-numeric: tabular-nums;
-  transition:
-    background-color 200ms var(--cp-ease-out),
-    box-shadow 200ms var(--cp-ease-out),
-    color 200ms var(--cp-ease-out);
-}
-
-.g-steps > li:not(:last-child)::after {
-  content: "";
-  flex: 1;
-  min-inline-size: 1rem;
-  border-block-start: 2px solid var(--cp-line);
-}
-
-.g-steps > li[data-state="current"] {
-  color: var(--cp-ink);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-steps > li[data-state="current"]::before {
-  background: var(--cp-accent);
-  box-shadow: inset 0 0 0 2px var(--cp-accent);
-  color: var(--cp-on-accent);
-}
-
-.g-steps > li[data-state="done"]::before {
-  content: "";
-  background: var(--cp-accent-11);
-  box-shadow: none;
-  mask: url("icons/marks/check.svg") center / 1rem no-repeat, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-
-.g-steps > li[data-state="done"]::after {
-  border-color: var(--cp-accent);
-}
-
-.g-step {
-  display: grid;
-  gap: var(--cp-space-4);
-  animation: step-in 260ms var(--cp-ease-out);
-}
-
-.g-step h2 {
-  font-size: var(--cp-text-lg);
-}
-
-.g-step h2:focus {
-  outline: none;
-}
-
-@keyframes step-in {
-  from {
-    opacity: 0;
-    translate: 1rem 0;
-  }
-}
-
-.g-verdict {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-tone-11);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-}
-
 /* Key and value pairs: the labels in one column, the values in the next,
  * stacking on a phone. */
 .g-kv {
@@ -2195,15 +2002,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
     margin-block-end: var(--cp-space-3);
   }
 }
-
-/* Machine text with its copy button: an address, a key, a command. */
-
-/* Copy as a segment of the box: flush with its end, a hairline before it,
- * and the box's corner less its border so the corners stay concentric. */
-
-/* A copy flashes the done green with a check in 120ms, then fades back. */
-
-/* :not(:disabled) lifts this over a quiet hover, which wins a tie by scope proximity. */
 
 /* A timeline of events: icon, words, time. */
 .g-timeline {
@@ -2468,9 +2266,6 @@ kbd.g-key {
   font-size: var(--cp-text-xs);
 }
 
-/* A suggestion list under a field: the combobox's listbox, anchored to the
- * field's box. */
-
 /* A rail of destinations with sections and counts. */
 .g-rail {
   display: grid;
@@ -2578,10 +2373,6 @@ kbd.g-key {
   border-radius: var(--cp-radius-surface);
 }
 
-.g-setup > .cp-panel {
-  padding: var(--cp-space-6);
-}
-
 .cp-settings {
   scroll-margin-block-start: 4.5rem;
 }
@@ -2593,10 +2384,6 @@ kbd.g-key {
 .cp-settings-nav {
   position: sticky;
   inset-block-start: 4.5rem;
-}
-
-.g-setup {
-  grid-template-columns: minmax(0, 28rem);
 }
 
 /* A card's contents keep their natural height at its top, however many
@@ -2625,8 +2412,6 @@ html:has(.g-header) {
   scroll-padding-block-start: 4.5rem;
 }
 
-/* The gallery's own nav has eleven stops: on a narrow screen it scrolls
- * sideways instead of running off the edge. */
 /* The gallery's own nav scrolls sideways on a phone rather than widening
  * the page. */
 .g-nav {
@@ -2772,7 +2557,6 @@ html:has(.g-header) {
   }
 }
 
-/* The header status: one link whose words are the state. */
 /* A virtual list: a fixed-height viewport, a spacer the height of every
  * row, and only the rows in view drawn inside it. */
 .g-virtual {
@@ -3136,11 +2920,6 @@ html:has(.g-header) {
   }
 }
 
-/* A saved secret: the stored value never comes back to the browser. */
-
-/* Lock and "Saved" group at the start; Replace is pushed to the end. */
-
-/* Stale content under a refresh: a thin line runs at the region's top. */
 /* The refreshing region is a panel, and its line runs along the panel's
  * top edge, inside the border, so it belongs to what it refreshes. */
 .g-refreshing {
@@ -3406,10 +3185,6 @@ html:has(.g-header) {
   font-size: var(--cp-text-lg);
 }
 
-/* A checked box is one accent shape, edged in its own fill, as a checked
- * radio and an on switch are: the accent's solid stands 3:1 off the page
- * without a darker outline. */
-
 /* Targets: a sort button fills its header cell; a token's remove button
  * is 28px, 44px under a finger; a switch's hit area reaches 44px. */
 .g-sort {
@@ -3419,63 +3194,7 @@ html:has(.g-header) {
   border-radius: var(--cp-radius-control);
 }
 
-/* The × sits inside its pill: 24px, the 2.2 minimum target, 2px from the
- * pill's end and edges; under a finger its hit area reaches 44px. */
-
-/* The stepper: the current step also differs by its ring and weight, and
- * says so in words; a done step is a link back. */
-.g-steps > li[data-state="current"]::before {
-  outline: 2px solid var(--cp-accent);
-  outline-offset: 2px;
-}
-
-.g-steps a,
-.g-steps button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-.g-steps-compact {
-  display: none;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-}
-
-@container (width < 24rem) {
-  .g-steps {
-    display: none;
-  }
-
-  .g-steps-compact {
-    display: block;
-  }
-}
-
-.g-setup > .cp-panel {
-  container-type: inline-size;
-}
-
-/* Connection test states. */
-[data-test][data-state="testing"] .cp-icon {
-  animation: cp-spin 0.8s linear infinite;
-}
-
 /* The header status as a button with a non-modal panel. */
-
-@keyframes status-breathe {
-  50% {
-    background-color: oklch(from var(--cp-shell-ink) l c h / 22%);
-  }
-}
 
 .g-status-panel {
   inline-size: 20rem;
@@ -3646,10 +3365,6 @@ html:has(.g-header) {
   font-weight: var(--cp-weight-medium);
 }
 
-/* A secret's state line. */
-
-/* A radio whose field is live only while it is chosen. */
-
 /* Active filters: chips that remove, a Clear, and the count. */
 .g-active {
   display: flex;
@@ -3805,7 +3520,6 @@ html:has(.g-header) {
   background-clip: padding-box;
 }
 
-
 .g-btngroup:has(> .cp-button:is(:active, [data-cp-pressed]):not(:disabled, [aria-disabled="true"])) {
   transform: scale(var(--cp-press-scale));
 }
@@ -3943,8 +3657,6 @@ html:has(.g-header) {
   flex: none;
 }
 
-/* A field with a prefix or a unit. */
-
 /* A page header: crumbs, title, description, actions. */
 .g-pagehead {
   display: grid;
@@ -4044,7 +3756,6 @@ html:has(.g-header) {
 .g-selectpanel [role="option"].active {
   background: var(--cp-fill);
 }
-/* A jump field: one value, options with a picture. */
 /* The list runs edge to edge: a poster sits flush with its row's start,
  * and 2px part one row's poster from the next. */
 
@@ -4189,9 +3900,6 @@ html:has(.g-header) {
   gap: var(--cp-space-1);
 }
 
-/* The twirl box keeps its own size in a table's select column, where the
- * system sizes a native checkbox to 1rem. */
-
 /* A card that is one link, and its row form with a button beside it. */
 .g-cardlinks {
   display: grid;
@@ -4334,9 +4042,6 @@ html:has(.g-header) {
 .g-media-head h2 + .g-alt-title + .g-media-meta {
   margin-block-start: var(--cp-space-2);
 }
-
-/* A state in words with its glyph, inside a line of facts. */
-/* The same scale as a field error, so a state and the error under it match. */
 
 /* Skip to the content: the first Tab stop, shown only while focused. */
 .g-mini-header {
@@ -4507,16 +4212,6 @@ html:has(.g-header) {
   color: var(--cp-on-accent);
 }
 
-/* The theme button's icon turns over as the theme changes. */
-
-@keyframes theme-flip {
-  from {
-    rotate: -120deg;
-    scale: 0.6;
-    opacity: 0;
-  }
-}
-
 /* The account button is the avatar: no square behind it, a ring of the
  * bar's ink that holds it off the bar whatever its colour, and a hover that
  * widens the ring. */
@@ -4592,8 +4287,6 @@ html:has(.g-header) {
   scale: -1 1;
 }
 
-/* A disabled choice: a sunken box, a quiet edge and faded words. */
-
 /* A control as wide as its parts, wherever it sits. */
 .g-toggles,
 .g-btngroup {
@@ -4623,8 +4316,6 @@ html:has(.g-header) {
   grid-area: 1 / 1;
 }
 
-/* A link that names a thing (a row's title, a job's place) is accent ink
- * alone, underlined under a mouse; a link in a sentence keeps its line. */
 /* A list's title link reads as the row's name, as a table's does: ink and
  * medium at rest, the accent and its underline under a mouse or the keyboard. */
 :is(.g-vrow, .g-job-what) a {
@@ -4724,22 +4415,6 @@ html:has(.g-header) {
 /* ===== Forced colours: the gallery's own controls keep their state ===== */
 @media (forced-colors: active) {
 
-  .g-steps > li::before {
-    forced-color-adjust: none;
-    border: 2px solid CanvasText;
-    background: Canvas;
-    color: CanvasText;
-  }
-
-  .g-steps > li[data-state="current"]::before {
-    background: Highlight;
-    color: HighlightText;
-  }
-
-  .g-steps > li[data-state="done"]::before {
-    background: CanvasText;
-  }
-
   .g-dot,
   .g-track > li::before {
     forced-color-adjust: none;
@@ -4780,9 +4455,6 @@ html:has(.g-header) {
   background: var(--cp-danger-9);
   color: var(--cp-danger-on);
 }
-
-
-/* A range shows its value over the thumb while it is held or moved by keys. */
 
 /* An expandable row opens on a chevron in its own first column. */
 .cp-table [data-col="expand"] {
@@ -4909,7 +4581,6 @@ html:has(.g-header) {
   padding: 0;
   list-style: none;
 }
-
 
 /* The header card is a frame inside a card, so its skip link sits at the
  * card's corner rather than the window's. */
