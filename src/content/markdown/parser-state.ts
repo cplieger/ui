@@ -250,6 +250,9 @@ export interface Parser {
   line_quotes: number;
   /** The last `>` read there may still take its one following space. */
   quote_space: boolean;
+  /** Blank lines read inside indented code, written only if a later line
+   *  continues the block (CommonMark 4.4). */
+  code_gap: string;
   /** A blank line followed the text of the open list item, so what comes
    *  next at its content column opens a block in it (CommonMark 5.2). */
   item_gap: boolean;

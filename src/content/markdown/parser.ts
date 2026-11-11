@@ -81,7 +81,7 @@ export interface MarkdownParser {
   end(): void;
 }
 
-/** CommonMark 2.2 ends a line at `\r\n` or a bare `\r` too; the parser
+/** CommonMark 2.1 ends a line at `\r\n` or a bare `\r` too; the parser
  *  reads only `\n`, and a `\r` ending a chunk may be half of a pair. */
 export function createParser(sink: Sink): MarkdownParser {
   const p = parser(sink);
@@ -145,6 +145,7 @@ function parser(sink: Sink): Parser {
     fence_indent: 0,
     line_quotes: 0,
     quote_space: false,
+    code_gap: "",
     item_gap: false,
     item_start: false,
     spaces: new Uint8Array(TOKEN_ARRAY_CAP),
@@ -353,6 +354,33 @@ function strip_columns(indent: string, columns: number): string {
   return "";
 }
 
+/** Reads `char`, the first past a line's prefix inside indented code. A
+ *  blank line is held and a line four columns past the open items goes on
+ *  in the block (CommonMark 4.4); false for a shallower line, which closes
+ *  the block, drops what was held and is read anew. */
+function code_block_line(p: Parser, char: string): boolean {
+  const base = open_columns(p);
+  const rest = p.indent_len - base >= 4 ? strip_columns(p.indent, base + 4) : "";
+  if (char === "\n") {
+    p.code_gap += rest + "\n";
+  } else if (p.indent_len - base >= 4) {
+    p.textBuf += p.pending + p.code_gap + rest + char;
+    p.code_gap = "";
+    p.pending = "";
+    p.token = CODE_BLOCK;
+  } else {
+    p.pending = "";
+    add_text(p);
+    end_token(p);
+    return false;
+  }
+  p.indent = "";
+  p.indent_len = 0;
+  p.line_quotes = 0;
+  p.quote_space = false;
+  return true;
+}
+
 function parser_write(p: Parser, chunk: string): void {
   for (const char of chunk) {
     // The indent after a newline decides whether the previous block extends or a new one starts.
@@ -361,6 +389,9 @@ function parser_write(p: Parser, chunk: string): void {
         continue;
       }
       end_unquoted(p);
+      if (p.tokens[p.len] === CODE_BLOCK && code_block_line(p, char)) {
+        continue;
+      }
       // A blank line neither ends a fence nor the list item holding it (CommonMark 5.2); out of a
       // fence, the root context's blank-line arm decides what it ends.
       const blank = char === "\n";

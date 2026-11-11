@@ -1036,6 +1036,13 @@ describe("lists", () => {
     expect(items[0]?.querySelector(".cp-code code")?.textContent).toBe("npm i x");
     expect(items[1]?.textContent).toBe("Run it");
   });
+
+  it("renders a table on the marker's line inside the item", () => {
+    const el = render("- | a |\n  |---|\n  | 1 |\n");
+    const table = el.querySelector("li > div.cp-table-scroll > table");
+    expect(table?.querySelector("th")?.textContent.trim()).toBe("a");
+    expect(table?.querySelector("td")?.textContent.trim()).toBe("1");
+  });
 });
 
 describe("a cell past the header's count", () => {

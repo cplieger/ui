@@ -392,6 +392,36 @@ describe("createMarkdownStream", () => {
     expect(el.textContent).toContain("third");
   });
 
+  it("ends the stream and passes the error on when a hook throws inside end", () => {
+    const el = host();
+    let threw = false;
+    const stream = createMarkdownStream(el, {
+      flushIntervalMs: 0,
+      maxBytes: 12,
+      hooks: {
+        block: (block) => {
+          if (!threw && block.textContent === "last") {
+            threw = true;
+            stream.write("\n\nTAIL\n");
+            throw new Error("boom");
+          }
+          return undefined;
+        },
+      },
+    });
+    // 12 bytes keep "first\n\nlast\n" and cut "more".
+    stream.write("first\n\nlast\nmore");
+    expect(() => {
+      stream.end();
+    }).toThrow("boom");
+    expect(el.lastElementChild?.hasAttribute("data-cp-truncated")).toBe(true);
+    const after = el.innerHTML;
+    stream.write("\n\nlater\n");
+    stream.flush();
+    stream.end();
+    expect(el.innerHTML).toBe(after);
+  });
+
   it("gives a code block a tab stop once a streamed line overflows it", async () => {
     const el = host();
     el.style.inlineSize = "200px";

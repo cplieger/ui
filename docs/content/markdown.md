@@ -143,6 +143,7 @@ renderMarkdown(answer, text, {
 - `end()` parses what is queued, closes every token and shows the truncation line if `maxBytes` cut the text. A second `end()` does nothing.
 - A hook may call `write` or `end`. A write is queued after the text being parsed, and an `end` runs once that text is parsed. Inside `end()` too, what a hook writes as the last block closes is parsed before `end()` returns.
 - A hook that throws ends its slice there, and the rest of that slice is dropped. The next write is parsed as usual.
+- A hook that throws inside `end()` ends the stream with what was rendered, and the error reaches the caller of `end()`. Later writes and `end()` calls do nothing.
 
 ## In a worker
 

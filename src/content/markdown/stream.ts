@@ -96,7 +96,8 @@ export function createMarkdownStream(host: Element, options: StreamOptions = {})
 
   /** Parses until nothing is queued, then closes every token. A hook that
    *  writes while the last block closes gets a new parser on the same sink,
-   *  since every block before its text is closed by then. */
+   *  since every block before its text is closed by then. Ends the stream
+   *  even when a hook throws, since the parser has ended by then. */
   function finish(): void {
     draining = true;
     parsing = true;
@@ -117,16 +118,15 @@ export function createMarkdownStream(host: Element, options: StreamOptions = {})
     } finally {
       draining = false;
       parsing = false;
-    }
-    // An abort during the parse stopped the stream where it was.
-    if (isEnded()) {
-      return;
-    }
-    stop();
-    signal?.removeEventListener("abort", stop);
-    sink.end();
-    if (budget.cut) {
-      host.append(truncationLine(host.ownerDocument, max));
+      // An abort during the parse stopped the stream where it was.
+      if (!isEnded()) {
+        stop();
+        signal?.removeEventListener("abort", stop);
+        sink.end();
+        if (budget.cut) {
+          host.append(truncationLine(host.ownerDocument, max));
+        }
+      }
     }
   }
 

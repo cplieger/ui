@@ -211,7 +211,7 @@ describe("fence language", () => {
   });
 });
 
-describe("fences, quotes and list items, CommonMark 4.5, 5.1 and 5.2", () => {
+describe("code, quotes, list items and tables, CommonMark 4.4 to 5.2 and GFM 4.10", () => {
   /** The operations with text joined per run, so a chunked parse compares whole. */
   function ops(input: string, chunkLen?: number): string[] {
     const merged: string[] = [];
@@ -603,6 +603,87 @@ describe("fences, quotes and list items, CommonMark 4.5, 5.1 and 5.2", () => {
       ],
     ],
     [
+      "a blank line inside indented code stays in the block",
+      "    a\n\n    b",
+      ["open:code", "text:a\n\nb", "close"],
+    ],
+    [
+      "two blank lines inside indented code stay in the block",
+      "    a\n\n\n    b",
+      ["open:code", "text:a\n\n\nb", "close"],
+    ],
+    [
+      "a blank line then unindented text ends indented code",
+      "    a\n\nb",
+      ["open:code", "text:a", "close", "open:paragraph", "text:b", "close"],
+    ],
+    [
+      "indented code keeps blank lines between chunks and drops trailing ones",
+      "    chunk1\n\n    chunk2\n  \n \n \n    chunk3\n\n\n",
+      ["open:code", "text:chunk1\n\nchunk2\n\n\n\nchunk3", "close"],
+    ],
+    [
+      "a blank line in indented code keeps the spaces past four columns",
+      "    chunk1\n      \n      chunk2\n",
+      ["open:code", "text:chunk1\n  \n  chunk2", "close"],
+    ],
+    [
+      "a blank line inside an item's indented code stays in the block",
+      "- a\n\n      code\n\n      more\n- b",
+      [
+        "open:list-unordered",
+        "open:list-item",
+        "text:a",
+        "open:code",
+        "text:code\n\nmore",
+        "close",
+        "close",
+        "open:list-item",
+        "text:b",
+        "close",
+        "close",
+      ],
+    ],
+    [
+      "a table on the marker's line is a table in the item",
+      "- | a |\n  |---|\n  | 1 |\n- b",
+      [
+        "open:list-unordered",
+        "open:list-item",
+        "open:table",
+        "open:table-row",
+        "open:table-cell",
+        "text: a ",
+        "close",
+        "close",
+        "open:table-row",
+        "open:table-cell",
+        "text: 1 ",
+        "close",
+        "close",
+        "close",
+        "close",
+        "open:list-item",
+        "text:b",
+        "close",
+        "close",
+      ],
+    ],
+    [
+      "a pipe on the marker's line with no delimiter row is the item's text",
+      "- | a\n- b",
+      [
+        "open:list-unordered",
+        "open:list-item",
+        "text:| a",
+        "close",
+        "open:list-item",
+        "text:b",
+        "close",
+        "close",
+      ],
+    ],
+    [
       "a marker after an item's indented code continues the list",
       "- a\n\n      code\n- b",
       [
@@ -634,7 +715,7 @@ describe("fences, quotes and list items, CommonMark 4.5, 5.1 and 5.2", () => {
       "Hello\n\n```js\nconst x = 1;\n```\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\nAfter\n",
     ],
     ["a list and a quote", "- a\n\n  b\n- c\n\n> q\n> r\n"],
-  ])("reads CRLF and a bare CR in %s as LF (CommonMark 2.2)", (_name, lf) => {
+  ])("reads CRLF and a bare CR in %s as LF (CommonMark 2.1)", (_name, lf) => {
     const expected = ops(lf);
     for (const ending of ["\r\n", "\r"]) {
       const input = lf.replaceAll("\n", ending);

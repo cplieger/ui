@@ -93,7 +93,7 @@ const DELIMITER_ROW_CHARS = new Set(["-", " ", "\t", "|", ":"]);
 
 /** What may open a block right after a list marker; the root context reads
  *  the rest of the line, and gives back to the item what opens none. */
-const ITEM_STARTS = new Set("`~#>-*+_0123456789".split(""));
+const ITEM_STARTS = new Set("`~#>-*+_|0123456789".split(""));
 
 /** A line after a table's rows that opens with one of these may start
  *  another block, which breaks the table; any other line is a row. */
@@ -566,6 +566,7 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
         p.pending = "";
         p.indent = "";
         p.indent_len = 0;
+        p.item_start = false;
         // Replayed through the row handlers rather than emitted here, so the header and the
         // delimiter row go through exactly the path they took before the deferral existed.
         p.write(p, header.slice(1) + "\n" + delim + "\n");
@@ -609,6 +610,7 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
       }
       to_write = p.indent.slice(code_start) + pending_with_char;
       pushed = add_token(p, CODE_BLOCK);
+      p.code_gap = "";
     } else {
       pushed = add_token(p, PARAGRAPH);
     }
@@ -796,38 +798,17 @@ export function handleTableCell(p: Parser, char: string): boolean {
   return false;
 }
 
+/** A newline hands the next line's prefix to the parser's line reader,
+ *  which decides whether the block goes on. */
 export function handleCodeBlock(p: Parser, char: string, pending_with_char: string): void {
-  switch (pending_with_char) {
-    case "\n    ":
-    case "\n   \t":
-    case "\n  \t":
-    case "\n \t":
-    case "\n\t":
-      p.textBuf += "\n";
-      p.pending = "";
-      return;
-    case "\n":
-    case "\n ":
-    case "\n  ":
-    case "\n   ":
-      p.pending = pending_with_char;
-      return;
-    default:
-      if (p.pending.length !== 0) {
-        add_text(p);
-        end_token(p);
-        // `pending` is the newline and the line's indent so far; the line is read again from its start.
-        const line = p.pending.slice(1) + char;
-        p.pending = "";
-        if (p.tokens[p.len] === LIST_ITEM) {
-          p.token = LINE_BREAK;
-          p.item_gap = true;
-        }
-        p.write(p, line);
-      } else {
-        p.textBuf += char;
-      }
+  if (char === "\n") {
+    p.textBuf += p.pending;
+    p.pending = char;
+    p.token = NEWLINE;
+    return;
   }
+  p.textBuf += pending_with_char;
+  p.pending = "";
 }
 
 /** Whether a held line is a closing fence per CommonMark 4.5: at most three spaces of indent,
