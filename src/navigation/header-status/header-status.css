@@ -63,12 +63,14 @@
   color: var(--cp-danger-on);
 }
 
-/* Working: the busy glyph held still while the button breathes, since a
- * status that spins all day is noise. */
+/* Working: the busy glyph held still while the button breathes twice as the
+ * work starts, then stands still. Two breaths stay under the 5 seconds after
+ * which a loop needs a pause control (WCAG 2.2.2), and a status that moves
+ * all day is noise. */
 .cp-header-status[data-state="working"] {
   --cp-status-glyph: url("../icons/svg/spinner-arc.svg");
 
-  animation: cp-status-breathe 2.4s ease-in-out infinite;
+  animation: cp-status-breathe 2.4s ease-in-out 2;
 }
 
 /* All good: a dot in the success tone, ringed so it reads on any shell. */

@@ -6,14 +6,14 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | --- | --- |
 | `.cp-app`, `.cp-header`, `.cp-rail`, `.cp-main`, `.cp-status` | the screen frame |
 | `.cp-wordmark`, `.cp-mark`, `.cp-hidden-narrow` | the app's name and mark, and a word the compact tier drops |
-| `.cp-nav`, `.cp-nav-item`, `.cp-nav-label` | destinations in the header, the current one filled and in a stronger weight, and a word hidden from sight below 60rem. Under 40rem the header's nav is the bottom bar |
-| `.cp-header-status` | the header's status button, `data-state` of `"problem"`, `"offline"`, `"warning"`, `"working"` or `"ok"`, worst first. The stylesheet draws each state's glyph and tone. It holds the state's words and an optional `<span data-part="detail">`, such as a running check, and opens its panel, which [panel](overlays/panel.md) gives its focus |
+| `.cp-nav`, `.cp-nav-item`, `.cp-nav-label` | destinations in the header, the current one filled and in a stronger weight, and a word hidden from sight below 60rem. Under 40rem the header's nav is a bar at the window's foot, each destination an icon over its word |
+| `.cp-header-status` | the header's status button, `data-state` of `"problem"`, `"offline"`, `"warning"`, `"working"` or `"ok"`, worst first. The stylesheet draws each state's glyph and tone. It holds the state's words and an optional `<span data-part="detail">`, such as a running check, and opens its panel, which [panel](overlays/panel.md) gives its focus. Say each change of state with [announce](feedback/announce.md), politely, in the state's words |
 | `.cp-skip` | the link that takes a keyboard past the header to `.cp-main`, shown only while it has focus |
-| `.cp-banner` | a condition that stops the person's work on every screen, such as an update that needs a reload, at the top of `.cp-main` in a `data-tone`, its words first and its one action at the end, with no dismiss |
+| `.cp-banner` | a condition that stops the person's work on every screen, such as an update that needs a reload, or a lost connection in an app with no header status, at the top of `.cp-main` in a `data-tone`, its words first and its one action at the end, with no dismiss |
 | `.cp-rail-toggle` | the Filters button that shows only once the rail leaves |
 | `.cp-button` | `data-variant="primary"` or `"quiet"`, `data-size="sm"`, `data-tone`, `aria-busy="true"` while working, and `aria-disabled="true"` on a link without `href`. One that confirms in place with [confirm](buttons/confirm.md), and one whose icon turns with [turn](buttons/turn.md) |
 | `.cp-group`, `.cp-split` | buttons joined into one control, and a split button: an action and a caret, one shape, the action growing over the caret while it works |
-| `.cp-toggle` | a quiet icon button that is on or off, with `data-kind="pin"` or `"favourite"`, as [toggle](buttons/toggle.md) describes |
+| `.cp-toggle` | a quiet icon button that is on or off, with `data-kind="pin"`, `"favourite"` or `"theme"`, as [toggle](buttons/toggle.md) describes |
 | `.cp-roll` | words or a number that change by sliding, as [roll](core/roll.md) describes |
 | `.cp-field`, `.cp-label`, `.cp-input`, `.cp-help`, `.cp-field-error` | a labelled field, its help and its error, with the danger border on `aria-invalid="true"` and `:user-invalid`, and the warning border on `data-tone="warning"` |
 | `.cp-form`, `.cp-input-row`, `.cp-input-wrap` | a column of fields at most 32rem wide, a field with a control beside it, and a field with a quiet control inside its end |
@@ -43,8 +43,8 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-side-main` | a side column of `--cp-side-width` (16rem) beside the rest, stacking above it once the rest would be narrower than half the box |
 | `.cp-grid` | as many columns of at least `--cp-grid-min` (14rem) as fit, for cards and covers. `data-variant="fit"` lets a short row's items share its width, so two children are equal halves that stack once the box is under twice `--cp-grid-min` |
 | `.cp-list-detail`, `.cp-detail`, `.cp-detail-body` | a list with its entry's detail docked beside it, or in a dialog when the box is narrow, as [List and detail](layout/list-detail.md) describes |
-| `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`, holding a `<form method="dialog">` with its header, a `.cp-dialog-body` that scrolls and a footer of buttons, rising from the bottom on a phone, with `data-variant="confirm"` for a short confirmation led by its icon and `"sheet"` for the window's height at the inline end. The page does not scroll under it, as [dialog](overlays/dialog.md) describes |
-| `.cp-popover` | a native popover by the button that opens it, as [anchor](overlays/anchor.md) describes, with `data-variant="panel"` for a panel of controls |
+| `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`, holding a `<form>` with its header, a `.cp-dialog-body` that scrolls and a footer of buttons, rising from the bottom on a phone, with `data-variant="confirm"` for a short confirmation led by its icon and `"sheet"` for the window's height at the inline end. The page does not scroll under it, as [dialog](overlays/dialog.md) describes |
+| `.cp-popover` | a native popover by the button that opens it, as [anchor](overlays/anchor.md) describes, with `data-variant="panel"` for a panel of controls, whose focus [panel](overlays/panel.md) gives |
 | `.cp-menu`, `.cp-menu-label`, `.cp-menu-tag` | a menu of `menuitem`, `menuitemcheckbox` and `menuitemradio` buttons or links, a group's heading and a word at an item's end, as [menu](overlays/menu.md) describes |
 | `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed` |
 | `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes |

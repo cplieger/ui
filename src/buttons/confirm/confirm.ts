@@ -33,8 +33,9 @@ export interface ConfirmOptions {
   readonly busyDelay?: number;
   /** A busy state that shows lasts at least this long, in ms. Default 400. */
   readonly busyMin?: number;
-  /** Runs each time the button is back at rest after a run, whether it
-   *  ended done, failed or was ended by a press or `signal`. */
+  /** Runs each time the button is back at rest after a run, whether its
+   *  done state ran out, its work failed or `signal` ended it. A run started
+   *  during the done state goes on without a rest, so this waits for it. */
   readonly onRest?: () => void;
   /** Ends the cycle and puts the button back at rest. */
   readonly signal?: AbortSignal;

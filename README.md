@@ -4,7 +4,7 @@
 
 `@cplieger/ui` is a design language and the components built on it, for browser apps that draw their interface with plain HTML and DOM code.
 
-![A library screen in the design language: a coloured header with destinations, a rail of filters with counts, a table of entries with posters, chips and row actions, and a status line](docs/images/system-library-dark.png)
+![A library screen in the design language: a coloured header with destinations and a status saying a full check is working, a rail of filters with counts, a table of entries with posters, chips and row actions, and a status line](docs/images/system-library-dark.png)
 
 The stylesheet styles the browser's own elements and a set of `.cp-*` classes, in light and dark, from a few colour seeds each app sets. Each script adds only what the browser lacks, such as a menu's keys or a toast's queue. It has no runtime dependencies and ships as ESM-only TypeScript source, so it needs a bundler that compiles TypeScript 6 or later. It needs Chrome or Edge 147, Firefox 147 or Safari 26.4 or later.
 

@@ -1,7 +1,8 @@
 /**
- * textarea.ts — `enhanceTextarea()` counts a text area's characters against
- * its limit, marks it invalid once past it, and grows it with its text where
- * the engine cannot size it to its content (`field-sizing`).
+ * textarea.ts — `enhanceTextarea()` counts a text area's characters, against
+ * its limit when it has one, marks it invalid once past it, and grows it
+ * with its text where the engine cannot size it to its content
+ * (`field-sizing`).
  * @module
  */
 

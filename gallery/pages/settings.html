@@ -82,7 +82,7 @@
   <dialog class="g-dialog g-confirm" id="d-others" data-says="1 other session signed out" role="alertdialog" aria-labelledby="d-others-title">
     <form method="dialog">
       <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-others-title">Sign out 1 other session?</h2><p>Safari on iPad will need to sign in again.</p></div></div>
-      <footer><button class="cp-button" value="cancel" autofocus>Keep it</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Sign it out</button></footer>
+      <footer><button class="cp-button" type="button" commandfor="d-others" command="close" autofocus>Keep it</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Sign it out</button></footer>
     </form>
   </dialog>
 </main>

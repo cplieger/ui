@@ -54,7 +54,7 @@
           <div class="g-row-inline"><button class="cp-button" data-size="sm" type="button" data-apply>Apply anyway…</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-discard-proposal>Discard</button></div>
         </div>
         <dialog class="g-dialog g-confirm" id="d-unverified" role="alertdialog" aria-labelledby="d-unverified-title">
-          <form method="dialog"><div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-unverified-title">Apply an unchecked change?</h2><p>Nothing confirmed that +0.400 s matches the audio.</p></div></div><footer><button class="cp-button" value="cancel" autofocus>Keep the current timing</button><button class="cp-button" data-variant="primary" value="apply">Apply</button></footer></form>
+          <form method="dialog"><div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-unverified-title">Apply an unchecked change?</h2><p>Nothing confirmed that +0.400 s matches the audio.</p></div></div><footer><button class="cp-button" type="button" commandfor="d-unverified" command="close" autofocus>Keep the current timing</button><button class="cp-button" data-variant="primary" value="apply">Apply</button></footer></form>
         </dialog>
         <footer>An unchecked proposal makes Apply the secondary button and asks first.</footer>
       </div>

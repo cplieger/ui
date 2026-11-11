@@ -94,7 +94,7 @@
     min-block-size: 3.5rem;
     padding: var(--cp-space-2) 0;
     border-radius: 0;
-    font-size: 0.6875rem;
+    font-size: var(--cp-text-xs);
   }
 
   .cp-header > .cp-nav > .cp-nav-item[aria-current] {
@@ -118,9 +118,11 @@
   .cp-header > .cp-nav .cp-nav-label {
     position: static;
     inline-size: auto;
+    max-inline-size: 100%;
     block-size: auto;
-    overflow: visible;
+    overflow: hidden;
     clip-path: none;
+    text-overflow: ellipsis;
   }
 }
 

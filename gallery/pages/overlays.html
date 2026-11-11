@@ -120,7 +120,7 @@
           <form method="dialog">
             <header><h2 id="d-rename-title">Rename the instance</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-rename" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
             <div class="g-body"><div class="cp-field"><label class="cp-label" for="d-rename-name">Name</label><input class="cp-input" id="d-rename-name" value="Release tracker" autofocus></div></div>
-            <footer><button class="cp-button" value="cancel">Cancel</button><button class="cp-button" data-variant="primary" value="save">Rename</button></footer>
+            <footer><button class="cp-button" type="button" commandfor="d-rename" command="close">Cancel</button><button class="cp-button" data-variant="primary" value="save">Rename</button></footer>
           </form>
         </dialog>
         <footer>Focus starts in the field it holds and returns to the button on close. A press outside closes it, unless the name was changed: then it shakes and keeps the words.</footer>
@@ -131,7 +131,7 @@
         <dialog class="g-dialog g-confirm" id="d-delete" data-says="3 entries removed" role="alertdialog" aria-labelledby="d-delete-title" aria-describedby="d-delete-body">
           <form method="dialog">
             <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-delete-title">Remove 3 entries?</h2><p id="d-delete-body">They leave the library here; the files and Sonarr stay as they are.</p></div></div>
-            <footer><button class="cp-button" value="cancel" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Remove</button></footer>
+            <footer><button class="cp-button" type="button" commandfor="d-delete" command="close" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Remove</button></footer>
           </form>
         </dialog>
         <footer>Its buttons say what they do. Focus starts on the safe one, and only Escape or a button closes it.</footer>
@@ -145,7 +145,7 @@
             <div class="g-body">
               <dl class="g-kv"><dt>File</dt><dd><code class="cp-mono">Frieren.S01E04.1080p.BluRay.mkv</code></dd><dt>Size</dt><dd>1.4 GB</dd><dt>Audio</dt><dd>Japanese, English</dd><dt>Subtitles</dt><dd>English (signs and songs), English</dd><dt>Checked</dt><dd><time data-ago="3600"></time></dd></dl>
             </div>
-            <footer><button class="cp-button" value="cancel">Close</button><button class="cp-button" data-variant="primary" value="ok">Grab the best</button></footer>
+            <footer><button class="cp-button" type="button" commandfor="d-sheet" command="close">Close</button><button class="cp-button" data-variant="primary" value="ok">Grab the best</button></footer>
           </form>
         </dialog>
         <footer>From the inline end, at full height; across the window on a phone. For detail that keeps the list in view. A press anywhere outside closes it.</footer>
@@ -230,7 +230,7 @@
                 <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-count="3"><span>3 managed files<small>Fetched by this app</small></span></label>
                 <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-count="1"><span>1 found on disk<small>Not fetched by this app</small></span></label>
               </div></div></div>
-            <footer><button class="cp-button" value="cancel" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Delete</button></footer>
+            <footer><button class="cp-button" type="button" commandfor="d-grouped" command="close" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Delete</button></footer>
           </form>
         </dialog>
         <footer>No group is chosen for you. The button says how many files it deletes, in two or three words, and stays disabled until something is chosen. A press outside closes it, deleting nothing.</footer>

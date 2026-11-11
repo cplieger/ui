@@ -69,14 +69,18 @@
         </nav>
         <div class="cp-toolbar">
           <button
-            class="cp-button"
+            class="cp-button cp-toggle"
             data-variant="quiet"
+            data-kind="theme"
             type="button"
-            aria-label="Theme"
+            aria-label="Dark theme"
+            aria-pressed="false"
           >
-            <span
+            <span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span
+            ><span
               class="cp-icon"
-              data-cp-icon="sun-moon"
+              data-cp-icon="moon"
+              data-part="on"
               aria-hidden="true"
             ></span>
           </button>

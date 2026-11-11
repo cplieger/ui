@@ -2,7 +2,7 @@
 
 `@cplieger/ui/secret`
 
-A saved secret, whose value never comes back to the browser, and the Show button of a password field.
+A saved secret, whose value never comes back to the browser, the Show button of a password field, and a new secret shown once.
 
 ```html
 <div class="cp-field cp-secret" data-cp-state="saved">

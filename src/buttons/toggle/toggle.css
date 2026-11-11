@@ -2,8 +2,9 @@
  * such as Pin, Favourite or the theme. While on it shows its other drawing,
  * in its own colour for a pin (the accent) and a favourite (a red), and a
  * change plays the drawing's motion: a pin drops in as if into a board and
- * lifts out, a heart beats, and the theme's sun turns over into a moon. Under a mouse a pin lifts 2px and an off heart tints, as a
- * hint of what a press does. */
+ * lifts out, a heart beats, and the theme's sun turns over into a moon.
+ * Under a mouse a pin lifts 2px and an off heart tints, as a hint of what a
+ * press does. */
 .cp-toggle {
   --cp-toggle-on: var(--cp-accent);
 }

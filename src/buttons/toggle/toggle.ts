@@ -1,8 +1,9 @@
 /**
  * toggle.ts — `enhanceToggle()` makes a button an on and off toggle such as
- * Pin or Favourite: a press flips `aria-pressed`, the stylesheet shows the
- * filled drawing while it is on, and the drawing plays its turn-on or
- * turn-off motion only on a change, never when the page first draws.
+ * Pin, Favourite or the theme: a press flips `aria-pressed`, the stylesheet
+ * shows the drawing marked `data-part="on"` while it is on, and the drawing
+ * plays its turn-on or turn-off motion only on a change, never when the page
+ * first draws.
  * @module
  */
 

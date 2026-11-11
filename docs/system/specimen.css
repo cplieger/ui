@@ -88,8 +88,12 @@
   --cp-icon-image: url("../../icons/svg/x.svg");
 }
 
-[data-cp-icon="sun-moon"] {
-  --cp-icon-image: url("../../icons/svg/sun-moon.svg");
+[data-cp-icon="sun"] {
+  --cp-icon-image: url("../../icons/svg/sun.svg");
+}
+
+[data-cp-icon="moon"] {
+  --cp-icon-image: url("../../icons/svg/moon.svg");
 }
 
 [data-cp-icon="timer"] {

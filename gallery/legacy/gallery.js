@@ -1669,13 +1669,13 @@ for (const nav of $$(".g-bottom-nav")) {
 }
 
 // --------------------------------------------------------- header status
-// The first state that holds: offline, problems, working, all good. A
-// change is announced politely, as the words of the link itself.
+// The worst state that holds: problems, offline, a warning, working, all
+// good. A change is announced politely, as the words of the button itself.
 const STATES = [
   { state: "ok", words: "All good" },
   { state: "working", words: "Working: 3" },
   { state: "warning", words: "1 warning" },
-  { state: "problem", words: "2 problems", detail: "Full check 3/8" },
+  { state: "problem", words: "2 problems", detail: "Full check 3 of 8" },
   { state: "offline", words: "Offline" },
 ];
 for (const s of $$("[data-status-demo]")) {

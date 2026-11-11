@@ -1965,7 +1965,7 @@
     min-block-size: 3.5rem;
     padding: var(--cp-space-2) 0;
     border-radius: 0;
-    font-size: 0.6875rem;
+    font-size: var(--cp-text-xs);
   }
 
   .cp-header > .cp-nav > .cp-nav-item[aria-current] {
@@ -1989,9 +1989,11 @@
   .cp-header > .cp-nav .cp-nav-label {
     position: static;
     inline-size: auto;
+    max-inline-size: 100%;
     block-size: auto;
-    overflow: visible;
+    overflow: hidden;
     clip-path: none;
+    text-overflow: ellipsis;
   }
 }
 
@@ -2066,12 +2068,14 @@
   color: var(--cp-danger-on);
 }
 
-/* Working: the busy glyph held still while the button breathes, since a
- * status that spins all day is noise. */
+/* Working: the busy glyph held still while the button breathes twice as the
+ * work starts, then stands still. Two breaths stay under the 5 seconds after
+ * which a loop needs a pause control (WCAG 2.2.2), and a status that moves
+ * all day is noise. */
 .cp-header-status[data-state="working"] {
   --cp-status-glyph: url("../icons/svg/spinner-arc.svg");
 
-  animation: cp-status-breathe 2.4s ease-in-out infinite;
+  animation: cp-status-breathe 2.4s ease-in-out 2;
 }
 
 /* All good: a dot in the success tone, ringed so it reads on any shell. */
@@ -4521,8 +4525,7 @@ textarea.cp-input {
 /* A dialog: a native <dialog> opened with showModal(), so focus moves in,
  * the page goes inert and Escape closes it. It fades and settles in the
  * middle, and on a phone it rises from the bottom edge. Its parts are a
- * header, a body that scrolls and a footer of buttons, usually inside a
- * <form method="dialog">. */
+ * header, a body that scrolls and a footer of buttons, inside a <form>. */
 .cp-dialog {
   overflow: hidden;
   inline-size: min(32rem, calc(100vw - 2rem));
@@ -5370,8 +5373,9 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
  * such as Pin, Favourite or the theme. While on it shows its other drawing,
  * in its own colour for a pin (the accent) and a favourite (a red), and a
  * change plays the drawing's motion: a pin drops in as if into a board and
- * lifts out, a heart beats, and the theme's sun turns over into a moon. Under a mouse a pin lifts 2px and an off heart tints, as a
- * hint of what a press does. */
+ * lifts out, a heart beats, and the theme's sun turns over into a moon.
+ * Under a mouse a pin lifts 2px and an off heart tints, as a hint of what a
+ * press does. */
 .cp-toggle {
   --cp-toggle-on: var(--cp-accent);
 }

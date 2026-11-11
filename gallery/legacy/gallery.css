@@ -4920,3 +4920,13 @@ html:has(.g-header) {
 .g-mini-header > .cp-skip {
   position: absolute;
 }
+
+/* Under 40rem the demo header's nav is the library's bottom bar. Layout
+ * containment makes the card its containing block, so the bar sits at the
+ * card's foot rather than over the gallery's own page. */
+@media (width < 40rem) {
+  .g-mini-header {
+    contain: layout;
+    padding-block-end: 3.5rem;
+  }
+}

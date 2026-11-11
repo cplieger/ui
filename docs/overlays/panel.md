@@ -21,6 +21,7 @@ installAnchors({ signal: page.signal });
 enhancePanel(panel, { signal: page.signal });
 ```
 
+- A panel with no `role` becomes a non-modal dialog, named by its first heading unless it has `aria-label` or `aria-labelledby`, so a reader hears what it is as focus lands in it.
 - As the panel opens, focus moves to its first heading, which takes `tabindex="-1"`, or else to its first control.
-- Tab past its last control closes it, and focus goes on from the button that opened it.
+- Tab past its last control, or past its heading when it has none, closes it, and focus goes on from the button that opened it.
 - `signal` removes the listeners.

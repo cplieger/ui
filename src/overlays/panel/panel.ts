@@ -2,8 +2,10 @@
  * panel.ts — `enhancePanel()` gives a panel of controls in a popover, such as
  * a header status's panel, the focus a non-modal panel needs: focus moves to
  * its first heading, or else its first control, as it opens, and Tab past its
- * last control closes it and moves on from the button that opened it. The
- * popover itself still closes on Escape and on a press outside.
+ * last control, or past its heading when it has none, closes it and moves on
+ * from the button that opened it. The popover itself still closes on Escape
+ * and on a press outside. A panel with no role is a non-modal dialog named
+ * by its heading.
  * @module
  */
 
@@ -13,6 +15,8 @@ export interface PanelOptions {
   /** Removes the listeners. */
   readonly signal?: AbortSignal;
 }
+
+let seq = 0;
 
 const TABBABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
@@ -25,22 +29,38 @@ export function enhancePanel(panel: HTMLElement, options: PanelOptions = {}): vo
     return;
   }
   const listen = until(signal);
-  const tabbable = (): HTMLElement[] =>
-    [...panel.querySelectorAll<HTMLElement>(TABBABLE)].filter((el) => el.checkVisibility());
+  const heading = (): HTMLElement | null =>
+    panel.querySelector<HTMLElement>("h1, h2, h3, h4, h5, h6");
+  const named = panel.hasAttribute("aria-label") || panel.hasAttribute("aria-labelledby");
+  const title = heading();
+  if (!panel.hasAttribute("role")) {
+    panel.setAttribute("role", "dialog");
+  }
+  if (!named && title !== null) {
+    if (title.id === "") {
+      title.id = `cp-panel-${String(++seq)}-heading`;
+    }
+    panel.setAttribute("aria-labelledby", title.id);
+  }
+  const last = (): HTMLElement | null | undefined =>
+    [...panel.querySelectorAll<HTMLElement>(TABBABLE)].findLast((el) => el.checkVisibility()) ??
+    heading();
+  const first = (): HTMLElement | undefined =>
+    [...panel.querySelectorAll<HTMLElement>(TABBABLE)].find((el) => el.checkVisibility());
   panel.addEventListener(
     "toggle",
     (e) => {
       if (e.newState !== "open") {
         return;
       }
-      const heading = panel.querySelector<HTMLElement>("h1, h2, h3, h4, h5, h6");
-      if (heading !== null) {
-        if (!heading.hasAttribute("tabindex")) {
-          heading.tabIndex = -1;
+      const h = heading();
+      if (h !== null) {
+        if (!h.hasAttribute("tabindex")) {
+          h.tabIndex = -1;
         }
-        heading.focus();
+        h.focus();
       } else {
-        tabbable()[0]?.focus();
+        first()?.focus();
       }
     },
     listen,
@@ -51,7 +71,7 @@ export function enhancePanel(panel: HTMLElement, options: PanelOptions = {}): vo
       if (e.key !== "Tab" || e.shiftKey || !panel.matches(":popover-open")) {
         return;
       }
-      if (e.target === tabbable().at(-1)) {
+      if (e.target === last()) {
         // Hiding returns focus to the opener, and the key's own move then
         // goes on from there.
         panel.hidePopover();
