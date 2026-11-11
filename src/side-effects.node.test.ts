@@ -25,6 +25,7 @@ const PURE = [
   "/disclosure",
   "/file",
   "/form",
+  "/highlight",
   "/icons",
   "/list-detail",
   "/menu",

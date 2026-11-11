@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
+import { costRatio } from "../test-helpers/cost-ratio.js";
 import { createParser } from "./parser.js";
 import type { Kind, Sink } from "./parser.js";
 
@@ -253,32 +254,10 @@ const noop: Sink = {
   },
 };
 
-/** Milliseconds for one parse, over enough parses to span 15 ms: some engines' timers tick at
- *  1 ms. */
-function batchCost(input: string): number {
-  let runs = 0;
-  const start = performance.now();
-  let now: number;
-  do {
-    const p = createParser(noop);
-    p.write(input);
-    p.end();
-    runs += 1;
-    now = performance.now();
-  } while (now - start < 15);
-  return (now - start) / runs;
-}
-
-/** How much more one parse of `large` costs than one of `small`. The samples alternate and each
- *  side keeps its fastest, so a burst of load from other work slows both or neither. */
-function costRatio(small: string, large: string): number {
-  let fastSmall = Infinity;
-  let fastLarge = Infinity;
-  for (let trial = 0; trial < 7; trial += 1) {
-    fastSmall = Math.min(fastSmall, batchCost(small));
-    fastLarge = Math.min(fastLarge, batchCost(large));
-  }
-  return fastLarge / fastSmall;
+function parse(input: string): void {
+  const p = createParser(noop);
+  p.write(input);
+  p.end();
 }
 
 describe("linear time", () => {
@@ -316,6 +295,6 @@ describe("linear time", () => {
   it.each(generators)("parses %s in time linear in its length", (_name, generate) => {
     // Sixteen times the input costs about sixteen times the work when linear and 256 times when
     // quadratic; the bound sits between them, at 16^1.5.
-    expect(costRatio(generate(4 * 1024), generate(64 * 1024))).toBeLessThan(64);
+    expect(costRatio(parse, generate(4 * 1024), generate(64 * 1024))).toBeLessThan(64);
   });
 });

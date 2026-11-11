@@ -18,6 +18,7 @@
     "./disclosure": "./src/navigation/disclosure/disclosure.ts",
     "./file": "./src/forms/file/file.ts",
     "./form": "./src/forms/form/form.ts",
+    "./highlight": "./src/content/highlight/highlight.ts",
     "./icons": "./src/foundations/icons/icons.ts",
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
     "./menu": "./src/overlays/menu/menu.ts",
