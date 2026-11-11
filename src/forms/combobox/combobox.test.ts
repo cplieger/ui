@@ -192,6 +192,26 @@ describe("enhanceCombobox", () => {
     await expect.poll(() => settled).toEqual(["Mon"]);
   });
 
+  it("keeps an inline list in place with its best match active, and leaves Escape to its holder", async () => {
+    const { input, list, form } = combo({ inline: true, autoActivate: true });
+    let escapes = 0;
+    form.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !e.defaultPrevented) {
+        escapes += 1;
+      }
+    });
+    expect(list.hasAttribute("popover")).toBe(false);
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    input.focus();
+    await userEvent.keyboard("M");
+    expect(active(input)).toBe("Mushishi");
+    await userEvent.keyboard("{Escape}");
+    expect(escapes).toBe(1);
+    expect(input.value).toBe("M");
+    input.blur();
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("removes its attributes and closes once its signal aborts", async () => {
     const { input, list } = combo();
     input.focus();

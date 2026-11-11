@@ -4,7 +4,8 @@
  * and a `role="listbox"` the host fills. Focus stays in the field while the
  * arrow keys move `aria-activedescendant` through the options, and Enter or
  * a press accepts one. The host owns which options show and what accepting
- * one does; the popup shows while it holds a visible option.
+ * one does; the popup shows while it holds a visible option, or the list
+ * stays in place when it is `inline`, as in a command palette.
  * @module
  */
 
@@ -35,6 +36,11 @@ export interface ComboboxOptions {
   readonly openOnFocus?: boolean;
   /** What the listbox sits under. Default: the field. */
   readonly anchor?: HTMLElement;
+  /** Keeps the listbox in place and shown, as in a command palette: it is
+   *  no popover, the field stays expanded, `autoActivate` makes the first
+   *  option active with no text too, and Escape is left to what holds the
+   *  field, such as its dialog. Default false. */
+  readonly inline?: boolean;
   /** Removes the listeners and the field's combobox attributes, and closes
    *  the popup. */
   readonly signal?: AbortSignal;
@@ -71,6 +77,7 @@ export function enhanceCombobox(
   const { onQuery, onAccept, onText, onSettle, signal } = options;
   const settleMs = options.settle ?? 250;
   const anchor = options.anchor ?? input;
+  const inline = options.inline === true;
   let active: HTMLElement | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -82,7 +89,7 @@ export function enhanceCombobox(
     [...listbox.querySelectorAll<HTMLElement>('[role="option"]')].filter(
       (o) => o.getAttribute("aria-disabled") !== "true" && shown(o),
     );
-  const isOpen = (): boolean => listbox.matches(":popover-open");
+  const isOpen = (): boolean => inline || listbox.matches(":popover-open");
   const mark = (option: HTMLElement | null): void => {
     active = option;
     for (const o of listbox.querySelectorAll<HTMLElement>('[role="option"]')) {
@@ -97,6 +104,9 @@ export function enhanceCombobox(
   };
   const close = (): void => {
     mark(null);
+    if (inline) {
+      return;
+    }
     input.setAttribute("aria-expanded", "false");
     if (isOpen()) {
       listbox.hidePopover();
@@ -124,6 +134,8 @@ export function enhanceCombobox(
       mark(null);
     }
   };
+  const best = (): "first" | "keep" =>
+    options.autoActivate === true && (inline || input.value.trim() !== "") ? "first" : "keep";
   const query = (): void => {
     onQuery?.(input.value);
   };
@@ -138,19 +150,19 @@ export function enhanceCombobox(
   const listen = until(signal);
   ensureId(listbox, "cp-listbox");
   listbox.setAttribute("role", "listbox");
-  if (!listbox.hasAttribute("popover")) {
+  if (!inline && !listbox.hasAttribute("popover")) {
     listbox.popover = "manual";
   }
   input.setAttribute("role", "combobox");
   input.setAttribute("aria-autocomplete", "list");
   input.setAttribute("aria-controls", listbox.id);
-  input.setAttribute("aria-expanded", "false");
+  input.setAttribute("aria-expanded", String(inline));
 
   input.addEventListener(
     "input",
     () => {
       query();
-      update(options.autoActivate === true && input.value.trim() !== "" ? "first" : "keep");
+      update(best());
       if (onSettle !== undefined) {
         clearTimeout(timer);
         // A pause in typing is a length of time, so a timer measures it.
@@ -206,7 +218,7 @@ export function enhanceCombobox(
           close();
           onText(input.value);
         }
-      } else if (e.key === "Escape") {
+      } else if (e.key === "Escape" && !inline) {
         // Handled here, so a dialog holding the field stays open.
         if (isOpen()) {
           e.preventDefault();
@@ -274,7 +286,7 @@ export function enhanceCombobox(
   return {
     refresh() {
       query();
-      update(options.autoActivate === true && input.value.trim() !== "" ? "first" : "keep");
+      update(best());
     },
     close,
   };

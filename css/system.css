@@ -5284,6 +5284,94 @@ textarea.cp-input {
   font-size: var(--cp-text-xs);
 }
 
+/* A command palette (@cplieger/ui/palette): a .cp-dialog near the top of
+ * the window, its search field above a list of actions, each with its icon
+ * and, at its end, the keys that run it. On a phone it rises from the
+ * bottom edge as every dialog does. */
+@media (width >= 40rem) {
+  .cp-palette {
+    inline-size: min(36rem, calc(100vw - 2rem));
+    margin-block-start: 12vh;
+  }
+}
+
+.cp-palette-field {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* Focus stays in the field while the palette is open, so a ring would mark
+ * nothing; the caret and the active option show where typing and Enter go. */
+.cp-palette-field > input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  font-size: var(--cp-text-md);
+  outline: none;
+}
+
+.cp-palette [role="listbox"] {
+  display: grid;
+  max-block-size: 20rem;
+  margin: 0;
+  padding: var(--cp-space-1);
+  overflow: auto;
+  list-style: none;
+}
+
+.cp-palette [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  cursor: pointer;
+}
+
+.cp-palette [role="option"] > .cp-icon {
+  color: var(--cp-ink-muted);
+}
+
+/* The keys that run an action are muted words at its end, as in a menu. */
+.cp-palette [role="option"] > kbd {
+  margin-inline-start: auto;
+  padding: 0;
+  border: 0;
+  color: var(--cp-ink-muted);
+  font: inherit;
+  font-size: var(--cp-text-xs);
+}
+
+.cp-palette [role="option"][aria-selected="true"] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+}
+
+.cp-palette [role="option"][aria-selected="true"] > .cp-icon {
+  color: inherit;
+}
+
+.cp-palette [data-part="empty"] {
+  margin: 0;
+  padding: var(--cp-space-6) var(--cp-space-4);
+  color: var(--cp-ink-muted);
+  text-align: center;
+}
+
+@media (forced-colors: active) {
+  .cp-palette [role="option"][aria-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
 /* A popover: a menu or a panel in the top layer, so no z-index decides it,
  * placed by its opener with CSS anchor positioning (@cplieger/ui/anchor
  * names the pair) and flipping to stay in view. It grows out of the corner

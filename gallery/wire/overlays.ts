@@ -7,6 +7,7 @@ import { announce, installAnnouncer } from "@cplieger/ui/announce";
 import { installAnchors } from "@cplieger/ui/anchor";
 import { closeDialog, installDialogs } from "@cplieger/ui/dialog";
 import { enhanceContextMenu, enhanceMenu } from "@cplieger/ui/menu";
+import { enhancePalette } from "@cplieger/ui/palette";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhancePopconfirm } from "@cplieger/ui/popconfirm";
 import { enhanceSelectPanel } from "@cplieger/ui/select-panel";
@@ -275,6 +276,16 @@ for (const d of document.querySelectorAll<HTMLDialogElement>("[data-filter-sheet
   });
   showApplied();
   recount();
+}
+
+// The palette's actions only say what they would do.
+const palette = document.getElementById("palette");
+if (palette instanceof HTMLDialogElement) {
+  enhancePalette(palette, {
+    onRun: (option) => {
+      toast({ kind: "info", title: option.querySelector("span:not(.cp-icon)")?.textContent ?? "" });
+    },
+  });
 }
 
 // A close command and Escape keep the last returnValue, so each close

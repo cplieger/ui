@@ -671,6 +671,25 @@ describe("css/system.css", () => {
     expect(inMenu.paddingInlineStart).toBe("0px");
   });
 
+  it("ends a palette's action with its keys as muted words, and fills the active action", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-palette"><ul role="listbox"><li role="option" aria-selected="true"><span>Go to the library</span><kbd>G L</kbd></li><li role="option" aria-selected="false"><span>Open settings</span><kbd>,</kbd></li></ul></div>',
+    );
+    const [on, off] = [...el.querySelectorAll("li")];
+    const keys = getComputedStyle((off as Element).querySelector("kbd") as Element);
+    expect(keys.borderInlineStartStyle).toBe("none");
+    expect(keys.paddingInlineStart).toBe("0px");
+    expect(keys.fontSize).toBe("13px");
+    const kbdBox = ((off as Element).querySelector("kbd") as Element).getBoundingClientRect();
+    expect(Math.round(kbdBox.right)).toBe(
+      Math.round((off as Element).getBoundingClientRect().right) - 12,
+    );
+    expect(getComputedStyle(on as Element).backgroundColor).not.toBe(
+      getComputedStyle(off as Element).backgroundColor,
+    );
+  });
+
   it("sets shortcut groups side by side, each key across from what it does, and the foot under them all", () => {
     theme("light");
     const el = build(

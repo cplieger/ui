@@ -24,6 +24,7 @@
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
     "./menu": "./src/overlays/menu/menu.ts",
     "./pairs": "./src/forms/pairs/pairs.ts",
+    "./palette": "./src/overlays/palette/palette.ts",
     "./panel": "./src/overlays/panel/panel.ts",
     "./pill": "./src/core/pill/pill.ts",
     "./pointer": "./src/core/pointer/pointer.ts",

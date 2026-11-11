@@ -792,57 +792,6 @@ for (const d of $$("dialog.g-dialog[data-says]")) {
   d.addEventListener("close", () => d.returnValue && d.returnValue !== "cancel" && toast({ kind: d.returnValue === "delete" ? "success" : "info", title: d.dataset.says }));
 }
 
-// --------------------------------------------------------- command palette
-const cmdPalette = $("#palette");
-if (cmdPalette) {
-  const input = $("input", cmdPalette);
-  const list = $("[role='listbox']", cmdPalette);
-  const all = $$("[role='option']", list);
-  const visible = () => all.filter((o) => !o.hidden);
-  const activate = (o) => {
-    for (const n of all) n.setAttribute("aria-selected", String(n === o));
-    if (o) {
-      input.setAttribute("aria-activedescendant", o.id);
-      o.scrollIntoView({ block: "nearest" });
-    }
-  };
-  input.addEventListener("input", () => {
-    const q = input.value.trim().toLowerCase();
-    for (const o of all) o.hidden = q !== "" && !o.textContent.toLowerCase().includes(q);
-    activate(visible()[0]);
-    $(".g-none", cmdPalette).hidden = visible().length > 0;
-  });
-  input.addEventListener("keydown", (e) => {
-    const v = visible();
-    const at = v.findIndex((o) => o.getAttribute("aria-selected") === "true");
-    if (e.key === "ArrowDown") activate(v[(at + 1) % v.length]);
-    else if (e.key === "ArrowUp") activate(v[(at - 1 + v.length) % v.length]);
-    else if (e.key === "Enter" && v[at]) run(v[at]);
-    else return;
-    e.preventDefault();
-  });
-  const run = (o) => {
-    cmdPalette.close();
-    toast({ kind: "info", title: o.querySelector("span:not(.cp-icon)").textContent });
-  };
-  list.addEventListener("click", (e) => {
-    const o = e.target.closest("[role='option']");
-    if (o) run(o);
-  });
-  const open = () => {
-    input.value = "";
-    input.dispatchEvent(new Event("input"));
-    cmdPalette.showModal();
-  };
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-      e.preventDefault();
-      open();
-    }
-  });
-  $("[data-palette-open]")?.addEventListener("click", open);
-}
-
 // --------------------------------------------------------------- fields
 // -------------------------------------------------------- relative time
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });

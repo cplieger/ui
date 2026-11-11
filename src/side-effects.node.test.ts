@@ -28,6 +28,7 @@ const PURE = [
   "/list-detail",
   "/menu",
   "/pairs",
+  "/palette",
   "/panel",
   "/pill",
   "/pointer",

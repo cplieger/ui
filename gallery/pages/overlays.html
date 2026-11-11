@@ -203,20 +203,20 @@
   <section class="g-section" id="palette-sec">
     <h2>Command palette</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Jump to anything</h2>
-        <div class="stage"><button class="cp-button" type="button" data-palette-open><span class="cp-icon" data-cp-icon="command" aria-hidden="true"></span>Open, or press <kbd>Ctrl</kbd> <kbd>K</kbd></button></div>
-        <dialog class="g-dialog g-palette" id="palette" aria-label="Command palette">
-          <div class="g-palette-field"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list" placeholder="Search actions and pages" autofocus></div>
+        <div class="stage"><button class="cp-button" type="button" commandfor="palette" command="show-modal"><span class="cp-icon" data-cp-icon="command" aria-hidden="true"></span>Open, or press <kbd>Ctrl</kbd> <kbd>K</kbd></button></div>
+        <dialog class="cp-dialog cp-palette" id="palette" aria-label="Command palette" closedby="any">
+          <div class="cp-palette-field"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Search actions and pages" placeholder="Search actions and pages"></div>
           <ul role="listbox" id="palette-list" aria-label="Actions">
-            <li class="g-option" role="option" id="pa-1"><span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span><span>Go to the library</span><kbd>G L</kbd></li>
-            <li class="g-option" role="option" id="pa-2"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span>Go to releases</span><kbd>G R</kbd></li>
-            <li class="g-option" role="option" id="pa-3"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span>Run a full check</span></li>
-            <li class="g-option" role="option" id="pa-4"><span class="cp-icon" data-cp-icon="sun-moon" aria-hidden="true"></span><span>Switch the theme</span></li>
-            <li class="g-option" role="option" id="pa-5"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span><span>Open settings</span><kbd>,</kbd></li>
-            <li class="g-option" role="option" id="pa-6"><span class="cp-icon" data-cp-icon="log-out" aria-hidden="true"></span><span>Sign out</span></li>
+            <li role="option" id="pa-1"><span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span><span>Go to the library</span><kbd>G L</kbd></li>
+            <li role="option" id="pa-2"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span>Go to releases</span><kbd>G R</kbd></li>
+            <li role="option" id="pa-3"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span>Run a full check</span></li>
+            <li role="option" id="pa-4"><span class="cp-icon" data-cp-icon="sun-moon" aria-hidden="true"></span><span>Switch the theme</span></li>
+            <li role="option" id="pa-5"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span><span>Open settings</span><kbd>,</kbd></li>
+            <li role="option" id="pa-6"><span class="cp-icon" data-cp-icon="log-out" aria-hidden="true"></span><span>Sign out</span></li>
           </ul>
-          <p class="g-none" hidden>No action matches.</p>
+          <p data-part="empty" hidden>No action matches.</p>
         </dialog>
         <footer>For an app with many places and actions. Typing narrows the list; arrows move; Enter runs.</footer>
       </div>
