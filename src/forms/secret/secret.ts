@@ -2,11 +2,13 @@
  * secret.ts — secrets in a form. `enhanceSecret()` drives a saved secret,
  * whose value never comes back to the browser: Replace opens an empty field,
  * and Keep saved value goes back to Saved with nothing sent. `enhanceReveal()`
- * makes a button show and hide a password field's text.
+ * makes a button show and hide a password field's text. `shownOnce()` holds
+ * a dialog that shows a new secret until it is copied, and clears it.
  * @module
  */
 
 import { until } from "../../core/lifetime/lifetime.js";
+import { holdDialog } from "../../overlays/dialog/dialog.js";
 
 export interface SecretOptions {
   /** Removes the listeners. */
@@ -84,4 +86,50 @@ export function enhanceReveal(
     },
     until(signal),
   );
+}
+
+export interface ShownOnceOptions {
+  /** The dialog the secret shows in, held open until it is copied. */
+  readonly dialog?: HTMLDialogElement;
+  /** Ends the hold and the clearing. */
+  readonly signal?: AbortSignal;
+}
+
+export interface ShownOnce {
+  /** The person copied the secret: the dialog closes as any other. */
+  copied(): void;
+}
+
+/**
+ * Shows `secret`, an element whose text is a new key or link, once. Until
+ * `copied()` runs, Escape and a press outside shake `dialog` and keep it;
+ * Done or Cancel still close it. The text is cleared when the dialog closes
+ * and when the page is hidden, so it never comes back from the back-forward
+ * cache. Pass `copied` as `enhanceCopy`'s `onCopy`.
+ */
+export function shownOnce(secret: HTMLElement, options: ShownOnceOptions = {}): ShownOnce {
+  const { dialog, signal } = options;
+  let isCopied = false;
+  const clear = (): void => {
+    if (secret instanceof HTMLInputElement || secret instanceof HTMLTextAreaElement) {
+      secret.value = "";
+      secret.defaultValue = "";
+    } else {
+      secret.textContent = "";
+    }
+  };
+  if (signal?.aborted === true) {
+    return { copied: () => undefined };
+  }
+  const listen = until(signal);
+  if (dialog !== undefined) {
+    holdDialog(dialog, () => !isCopied, signal === undefined ? {} : { signal });
+    dialog.addEventListener("close", clear, listen);
+  }
+  addEventListener("pagehide", clear, listen);
+  return {
+    copied() {
+      isCopied = true;
+    },
+  };
 }

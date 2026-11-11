@@ -1,0 +1,42 @@
+/* A banner at the top of main, for a condition that stops the person's work
+ * on every screen, such as an update that needs a reload: the words at the
+ * start and its one action at the end, with no dismiss. */
+.cp-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-4);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-12);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-banner > .cp-icon {
+  color: var(--cp-tone-11);
+}
+
+.cp-banner > .cp-button {
+  margin-inline-start: auto;
+}
+
+.cp-banner > .cp-button:not([data-variant="primary"]) {
+  border: var(--cp-line-w) solid var(--cp-tone-8);
+  background: var(--cp-surface-raised);
+  color: var(--cp-tone-12);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-banner > .cp-button:not([data-variant="primary"]):hover {
+      background: var(--cp-tone-2);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-banner {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

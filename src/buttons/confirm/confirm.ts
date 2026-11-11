@@ -2,7 +2,8 @@
  * confirm.ts — `enhanceConfirm()` turns a button into one that confirms its
  * own action in place: it turns busy while the work runs, then green with a
  * check and its done words, then back to rest by itself. Save, Grab and a
- * confirmed Delete all run this cycle.
+ * confirmed Delete all run this cycle. One run goes at a time; a press
+ * during the done state ends it and starts the next run.
  * @module
  */
 
@@ -14,8 +15,10 @@ export type ConfirmWidth = "glide" | "footprint" | "fixed";
 export interface ConfirmOptions {
   /** The words while the work runs, such as "Saving…". */
   readonly busy: string;
-  /** The words once it is done, such as "Saved". */
-  readonly done: string;
+  /** The words once it is done, such as "Saved", or false for a button
+   *  whose success replaces it, such as Create in a dialog that then shows
+   *  what it made: it goes from busy straight back to rest. */
+  readonly done: string | false;
   /**
    * `"glide"`: the button glides to each word's width. `"footprint"`: it
    * keeps the widest word's footprint, so the buttons after it never move.
@@ -30,6 +33,9 @@ export interface ConfirmOptions {
   readonly busyDelay?: number;
   /** A busy state that shows lasts at least this long, in ms. Default 400. */
   readonly busyMin?: number;
+  /** Runs each time the button is back at rest after a run, whether it
+   *  ended done, failed or was ended by a press or `signal`. */
+  readonly onRest?: () => void;
   /** Ends the cycle and puts the button back at rest. */
   readonly signal?: AbortSignal;
 }
@@ -37,10 +43,11 @@ export interface ConfirmOptions {
 export interface Confirm {
   /**
    * Runs `work` through the cycle. Resolves true once the button shows its
-   * done state. Resolves false without calling `work` while a cycle is
-   * already running or after `signal` aborts, and false when `signal`
-   * aborts before `work` ends. When `work` rejects, the button returns to
-   * rest and the rejection passes through.
+   * done state, or is back at rest when `done` is false. Resolves false
+   * without calling `work` while work is running or after `signal` aborts,
+   * and false when `signal` aborts before `work` ends. A run during the done
+   * state ends it and starts at once. When `work` rejects, the button
+   * returns to rest and the rejection passes through.
    */
   run(work: () => Promise<unknown>): Promise<boolean>;
 }
@@ -60,7 +67,7 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
   if (words === null) {
     throw new TypeError("enhanceConfirm: the button has no .cp-roll");
   }
-  const { busy, done, signal } = options;
+  const { busy, done, onRest, signal } = options;
   const hold = options.hold ?? 1600;
   const busyDelay = options.busyDelay ?? 150;
   const busyMin = options.busyMin ?? 400;
@@ -78,7 +85,9 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
   let back: ReturnType<typeof setTimeout> | undefined;
 
   const widest = (): number =>
-    Math.max(...[rest, busy, done].map((text) => measureRoll(words, text)));
+    Math.max(
+      ...[rest, busy, ...(done === false ? [] : [done])].map((text) => measureRoll(words, text)),
+    );
 
   /** Holds the footprint or the width the mode asks for, around `text`. */
   const fit = (text: string): void => {
@@ -98,6 +107,7 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
     button.removeAttribute("aria-busy");
     roll(words, rest, { down: true });
     fit(rest);
+    onRest?.();
   };
 
   const show = (state: "busy" | "done", text: string): void => {
@@ -127,13 +137,17 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
 
   return {
     async run(work) {
-      if (button.hasAttribute(STATE) || signal?.aborted === true) {
+      const state = button.getAttribute(STATE);
+      if ((state !== null && state !== "done") || signal?.aborted === true) {
         return false;
       }
       const mine = ++cycle;
       clearTimeout(back);
-      // Read at the press: a label such as "Grab 3" changes with the selection.
-      rest = rollText(words);
+      if (state === null) {
+        // Read at the press: a label such as "Grab 3" changes with the
+        // selection. During the done state the words are the done words.
+        rest = rollText(words);
+      }
       button.setAttribute(STATE, "pending");
       let shownAt = -1;
       const delay = setTimeout(() => {
@@ -157,6 +171,10 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
       }
       if (mine !== cycle) {
         return false;
+      }
+      if (done === false) {
+        toRest();
+        return true;
       }
       show("done", done);
       back = setTimeout(() => {

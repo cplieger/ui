@@ -8,9 +8,9 @@ A number between a minus and a plus. Each press steps the number field by its ow
 <div class="cp-field">
   <span class="cp-label" id="checks-l">Parallel checks</span>
   <div class="cp-stepper" role="group" aria-labelledby="checks-l">
-    <button class="cp-button" data-variant="quiet" type="button" data-step="-1" aria-label="Fewer">…</button>
+    <button class="cp-button" data-variant="quiet" type="button" data-step="-1" aria-label="Fewer" data-cp-tip="Fewer">…</button>
     <input type="number" min="1" max="8" value="3" aria-labelledby="checks-l">
-    <button class="cp-button" data-variant="quiet" type="button" data-step="1" aria-label="More">…</button>
+    <button class="cp-button" data-variant="quiet" type="button" data-step="1" aria-label="More" data-cp-tip="More">…</button>
   </div>
 </div>
 ```

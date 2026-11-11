@@ -2022,39 +2022,10 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 /* A banner across the top of the work area, for a state of the whole app
  * such as a lost connection. It is a notice, not a toast: it stays while
  * the state lasts. */
-.g-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2) var(--cp-space-3);
-  padding: var(--cp-space-2) var(--cp-space-4);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-tone-3);
-  color: var(--cp-tone-12);
-  font-size: var(--cp-text-sm);
-}
-
-.g-banner > .cp-icon {
-  color: var(--cp-tone-11);
-}
-
-.g-banner > .cp-button {
-  margin-inline-start: auto;
-}
 
 /* As on a notice: a plain button rises off the wash, edged in its tone. */
-.g-banner > .cp-button:not([data-variant="primary"]) {
-  border: var(--cp-line-w) solid var(--cp-tone-8);
-  background: var(--cp-surface-raised);
-  color: var(--cp-tone-12);
-}
 
 @media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-banner > .cp-button:not([data-variant="primary"]):hover {
-      background: var(--cp-tone-2);
-    }
-  }
 }
 
 /* A live status dot: only a state that is live right now pulses. */
@@ -2802,44 +2773,6 @@ html:has(.g-header) {
 }
 
 /* The header status: one link whose words are the state. */
-.g-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-round);
-  background: oklch(from var(--cp-shell-ink) l c h / 12%);
-  color: var(--cp-shell-ink);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-  text-decoration: none;
-}
-
-.g-status[data-state="problems"] {
-  background: var(--cp-warning-9);
-  color: var(--cp-warning-on);
-}
-
-.g-status[data-state="offline"] {
-  background: var(--cp-danger-9);
-  color: var(--cp-danger-on);
-}
-
-.g-status > .g-dot {
-  background: var(--cp-success-9);
-  box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 60%);
-}
-
-@container (width < 30rem) {
-  .g-status > .g-status-word {
-    position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-}
 /* A virtual list: a fixed-height viewport, a spacer the height of every
  * row, and only the rows in view drawn inside it. */
 .g-virtual {
@@ -3537,22 +3470,6 @@ html:has(.g-header) {
 }
 
 /* The header status as a button with a non-modal panel. */
-.g-status {
-  border: 0;
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-status[data-state="offline"] {
-  outline: 2px dashed oklch(from var(--cp-shell-ink) l c h / 70%);
-  outline-offset: -2px;
-}
-
-.g-status[data-state="working"] {
-  animation: status-breathe 2.4s ease-in-out infinite;
-}
 
 @keyframes status-breathe {
   50% {
@@ -4426,28 +4343,6 @@ html:has(.g-header) {
   position: relative;
 }
 
-.g-skip {
-  position: absolute;
-  inset-block-start: var(--cp-space-2);
-  inset-inline-start: var(--cp-space-2);
-  z-index: 1;
-  padding: var(--cp-space-2) var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-raised);
-  box-shadow: var(--cp-shadow-overlay);
-  color: var(--cp-ink);
-  font-weight: var(--cp-weight-medium);
-  translate: 0 -0.5rem;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.g-skip:focus-visible {
-  translate: 0 0;
-  opacity: 1;
-  pointer-events: auto;
-}
-
 /* A popover that holds a listbox and a status line beside it. */
 
 .g-bullets {
@@ -4613,9 +4508,6 @@ html:has(.g-header) {
 }
 
 /* The theme button's icon turns over as the theme changes. */
-.g-theme-toggle > .cp-icon.g-flip {
-  animation: theme-flip 420ms var(--ease-spring);
-}
 
 @keyframes theme-flip {
   from {
@@ -5018,3 +4910,13 @@ html:has(.g-header) {
   list-style: none;
 }
 
+
+/* The header card is a frame inside a card, so its skip link sits at the
+ * card's corner rather than the window's. */
+.g-mini-header {
+  position: relative;
+}
+
+.g-mini-header > .cp-skip {
+  position: absolute;
+}

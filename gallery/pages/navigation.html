@@ -12,7 +12,7 @@
       <div class="card g-wide">
         <h2>Header</h2>
         <div class="g-mini-header">
-          <a class="g-skip" href="#frame">Skip to the content</a>
+          <a class="cp-skip" href="#frame">Skip to the content</a>
           <header class="cp-header">
             <a class="cp-wordmark" href="#frame" data-five-press><span class="cp-mark" aria-hidden="true">R</span><span class="cp-hidden-narrow">Release tracker</span></a>
             <nav class="cp-nav" aria-label="Main">
@@ -21,13 +21,13 @@
               <a class="cp-nav-item" href="#frame"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-nav-label">Releases</span><span class="g-badge">12</span></a>
             </nav>
             <div class="cp-toolbar">
-              <button class="g-status" type="button" data-state="ok" popovertarget="p-status" aria-label="All good"><span class="g-dot"></span><span class="g-status-word">All good</span></button>
-              <div class="g-pop g-status-panel" id="p-status" popover role="dialog" aria-labelledby="p-status-h" data-status-panel>
+              <button class="cp-header-status" type="button" data-state="ok" popovertarget="p-status"><span>All good</span></button>
+              <div class="cp-popover g-status-panel" data-variant="panel" id="p-status" popover role="dialog" aria-labelledby="p-status-h" data-status-panel>
                 <h2 id="p-status-h" tabindex="-1">All good</h2>
                 <section><strong><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Sources</strong><span>Sonarr and Radarr answered <time data-ago="120"></time>.</span></section>
                 <section><strong><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Next check</strong><span>A full check runs <time data-ago="-1500"></time>.</span></section>
               </div>
-              <button class="cp-button g-theme-toggle" data-variant="quiet" type="button" aria-label="Dark theme" aria-pressed="false" data-cp-tip="Switch to dark" data-theme-toggle><span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span></button>
+              <button class="cp-button cp-toggle" data-variant="quiet" data-kind="theme" type="button" aria-label="Dark theme" aria-pressed="false" data-cp-tip="Switch to dark" data-theme-toggle><span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="moon" data-part="on" aria-hidden="true"></span></button>
               <button class="cp-button" data-variant="quiet" type="button" aria-label="Search, Ctrl K" data-cp-tip="Search (Ctrl K)"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span></button>
               <button class="cp-button cog-turn" data-variant="quiet" type="button" aria-label="Settings" data-cp-tip="Settings"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span></button>
               <button class="cp-button g-avatar-btn" data-variant="quiet" type="button" aria-label="Account" popovertarget="m-account" aria-haspopup="menu"><span class="g-avatar" data-size="sm" data-h="1">CP</span></button>

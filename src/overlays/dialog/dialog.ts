@@ -4,8 +4,9 @@
  * itself moves focus in, makes the page inert and returns focus. This adds:
  * a press outside closes a dialog marked `closedby="any"` where the engine
  * does not, a dialog marked `data-keep-typed` that holds typed changes
- * shakes instead of closing on that press, and the exit animation runs in
- * an engine that cannot animate a dialog leaving the top layer.
+ * shakes instead of closing on that press, a dialog `holdDialog` holds
+ * shakes instead of closing on Escape or that press, and the exit animation
+ * runs in an engine that cannot animate a dialog leaving the top layer.
  * @module
  */
 
@@ -30,6 +31,42 @@ function dialogOf(e: Event): HTMLDialogElement | null {
   const t = e.composedPath()[0];
   return t instanceof HTMLDialogElement && t.classList.contains("cp-dialog") ? t : null;
 }
+
+const holds = new WeakMap<HTMLDialogElement, () => boolean>();
+
+export interface HoldOptions {
+  /** Ends the hold. */
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * While `held()` is true, Escape and a press outside shake `dialog` and keep
+ * it open, as for a secret shown once that has not been copied. A close the
+ * person chooses, a `command="close"` button or a form's submit, still
+ * closes it. Needs `installDialogs()`.
+ */
+export function holdDialog(
+  dialog: HTMLDialogElement,
+  held: () => boolean,
+  options: HoldOptions = {},
+): void {
+  const { signal } = options;
+  if (signal?.aborted === true) {
+    return;
+  }
+  holds.set(dialog, held);
+  signal?.addEventListener(
+    "abort",
+    () => {
+      if (holds.get(dialog) === held) {
+        holds.delete(dialog);
+      }
+    },
+    { once: true },
+  );
+}
+
+const isHeld = (dialog: HTMLDialogElement): boolean => holds.get(dialog)?.() === true;
 
 /** Whether the person changed a field from the value it opened with. */
 export function holdsTypedChanges(dialog: HTMLDialogElement): boolean {
@@ -141,6 +178,10 @@ function listen(signal: AbortSignal): void {
         return;
       }
       startedOutside = null;
+      if (isHeld(d)) {
+        refuse(d);
+        return;
+      }
       if (d.hasAttribute(KEEP)) {
         if (holdsTypedChanges(d)) {
           refuse(d);
@@ -163,22 +204,46 @@ function listen(signal: AbortSignal): void {
     },
     on,
   );
-  if (cssExit()) {
-    return;
-  }
-  // Escape, a <form method="dialog"> and a close command end the dialog at
-  // once in these engines; each goes through closeDialog instead.
+  // Escape on a held dialog is refused before the engine turns it into a
+  // close request, in the bubble phase, so a field inside that took the key,
+  // such as a combobox closing its list, keeps it. The cancel below refuses
+  // light dismiss too.
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      const t = e.target;
+      const d = e.key === "Escape" && t instanceof Element ? t.closest("dialog") : null;
+      if (d instanceof HTMLDialogElement && d.open && !e.defaultPrevented && isHeld(d)) {
+        e.preventDefault();
+        refuse(d);
+      }
+    },
+    { signal },
+  );
   document.addEventListener(
     "cancel",
     (e) => {
       const d = dialogOf(e);
-      if (d !== null && !reducedMotion()) {
+      if (d === null) {
+        return;
+      }
+      if (isHeld(d)) {
+        e.preventDefault();
+        refuse(d);
+      } else if (!cssExit() && !reducedMotion()) {
+        // Escape ends the dialog at once in these engines; it goes through
+        // closeDialog instead, for the exit.
         e.preventDefault();
         closeDialog(d, "cancel");
       }
     },
     on,
   );
+  if (cssExit()) {
+    return;
+  }
+  // A <form method="dialog"> and a close command end the dialog at once in
+  // these engines; each goes through closeDialog instead.
   document.addEventListener(
     "submit",
     (e) => {

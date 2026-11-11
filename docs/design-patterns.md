@@ -91,7 +91,7 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 | --- | --- | --- |
 | A problem with one region, such as a source that failed to answer | a notice where the region is | until the problem ends |
 | A condition of the whole screen, such as a rate limit or a lost connection | a notice at the top of `.cp-main` | until the condition ends |
-| A confirmation on the control the person pressed, such as Saved on Save or Copied on Copy | the control itself, through [confirm](buttons/confirm.md) or [copy](forms/copy.md), which say it | 1.6 seconds |
+| A confirmation on the control the person pressed, such as Saved on Save or Copied on Copy | the control itself, through [confirm](buttons/confirm.md) or [copy](forms/copy.md). Copy announces its word, and a confirm's outcome is yours to announce | 1.6 seconds |
 | A short confirmation of the person's own action, such as "Source added", whose result stays visible on the screen or in the history | a toast | 7 seconds, paused while hovered or focused |
 | A confirmation whose result is not visible anywhere else | a toast | until dismissed |
 | A failure of the person's own action | a toast, with Retry when it can be retried | until dismissed |

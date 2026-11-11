@@ -1,0 +1,116 @@
+/* The header status: one button in the header that says how the app
+ * stands, worst first, and opens its panel. data-state names the state; the
+ * stylesheet draws its glyph and fill, and the words are the app's: the
+ * state's words, then an optional data-part="detail", such as a running
+ * check. A state that needs the person fills the button in its tone. */
+.cp-header-status {
+  --cp-status-glyph: none;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-3);
+  border: 0;
+  border-radius: var(--cp-radius-round);
+  background: oklch(from var(--cp-shell-ink) l c h / 12%);
+  color: var(--cp-shell-ink);
+  font: inherit;
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+  cursor: pointer;
+}
+
+.cp-header-status::before {
+  content: "";
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: var(--cp-status-glyph) center / contain no-repeat;
+}
+
+.cp-header-status > [data-part="detail"] {
+  font-weight: var(--cp-weight-body);
+}
+
+.cp-header-status > [data-part="detail"]::before {
+  content: "· ";
+}
+
+.cp-header-status[data-state="problem"] {
+  --cp-status-glyph: url("../icons/svg/circle-x.svg");
+
+  background: var(--cp-danger-9);
+  color: var(--cp-danger-on);
+}
+
+.cp-header-status[data-state="warning"] {
+  --cp-status-glyph: url("../icons/svg/triangle-alert.svg");
+
+  background: var(--cp-warning-9);
+  color: var(--cp-warning-on);
+}
+
+/* Offline: the danger fill with a dashed edge, the edge saying the link is
+ * gone. */
+.cp-header-status[data-state="offline"] {
+  --cp-status-glyph: url("../icons/svg/wifi-off.svg");
+
+  outline: 2px dashed oklch(from var(--cp-shell-ink) l c h / 70%);
+  outline-offset: -2px;
+  background: var(--cp-danger-9);
+  color: var(--cp-danger-on);
+}
+
+/* Working: the busy glyph held still while the button breathes, since a
+ * status that spins all day is noise. */
+.cp-header-status[data-state="working"] {
+  --cp-status-glyph: url("../icons/svg/spinner-arc.svg");
+
+  animation: cp-status-breathe 2.4s ease-in-out infinite;
+}
+
+/* All good: a dot in the success tone, ringed so it reads on any shell. */
+.cp-header-status[data-state="ok"]::before {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: var(--cp-success-9);
+  box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 60%);
+  mask: none;
+}
+
+@keyframes cp-status-breathe {
+  50% {
+    background-color: oklch(from var(--cp-shell-ink) l c h / 22%);
+  }
+}
+
+.cp-header-status:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-shell-ink);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* Compact: the glyph and the state's words; the detail waits in the panel. */
+@media (width < 40rem) {
+  .cp-header-status > [data-part="detail"] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-header-status[data-state="working"] {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-header-status {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+
+  .cp-header-status::before {
+    background: CanvasText;
+  }
+}

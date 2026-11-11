@@ -18,6 +18,6 @@ const pin = enhanceToggle(button, { onChange: (on) => api.setPinned(id, on), sig
 pin.set(false); // after the server refused, without the motion
 ```
 
-- `data-kind` is `"pin"` or `"favourite"`, and picks the colour and the motion.
+- `data-kind` is `"pin"`, `"favourite"` or `"theme"`, and picks the colour and the motion. A theme toggle is pressed while the theme is dark, keeps the ink it sits on, and turns its drawing over on a change, `sun` at rest and `moon` marked `data-part="on"`. Its `onChange` applies the theme inside `viewTransition(apply, { from: button })` from [view-transition](../core/view-transition.md), so the new look grows from the button.
 - `on` reads the state, and `set(on)` changes it without a press and without the motion.
 - `signal` removes the listeners.

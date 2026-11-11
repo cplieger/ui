@@ -108,6 +108,28 @@ describe("reportErrors", () => {
     expect([error.hidden, url.hasAttribute("aria-describedby")]).toEqual([true, false]);
   });
 
+  it("finds the markup's error again after a clear, so a later report makes no second one", () => {
+    const { form, summary, url } = source();
+    const error = document.createElement("span");
+    error.className = "cp-field-error";
+    error.id = "address-problem";
+    const icon = document.createElement("span");
+    icon.className = "cp-icon";
+    error.append(icon);
+    error.hidden = true;
+    url.after(error);
+    url.setAttribute("aria-describedby", "address-problem");
+    reportErrors(form, [{ field: url, message: "Enter the address." }], { summary, heading });
+    clearError(url);
+    reportErrors(form, [{ field: url, message: "Start with http://." }], { summary, heading });
+    expect(form.querySelectorAll(".cp-field-error")).toHaveLength(1);
+    expect([error.firstElementChild, error.textContent, error.hidden]).toEqual([
+      icon,
+      "Start with http://.",
+      false,
+    ]);
+  });
+
   it("keeps the icon an error was written with, and clears one field on request", () => {
     const { form, summary, url } = source();
     const error = document.createElement("span");

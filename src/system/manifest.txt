@@ -23,6 +23,8 @@ forms/field/input-wrap.css
 navigation/wordmark/wordmark.css
 foundations/base/hidden-narrow.css
 navigation/nav/nav.css
+navigation/header-status/header-status.css
+navigation/skip/skip.css
 navigation/breadcrumbs/breadcrumbs.css
 buttons/button/button.css
 forms/field/field.css
@@ -45,6 +47,7 @@ navigation/rail/filters-trigger.css
 data/text/text.css
 feedback/chip/chip.css
 feedback/notice/notice.css
+feedback/banner/banner.css
 layout/panel/panel.css
 layout/stack/stack.css
 layout/cluster/cluster.css

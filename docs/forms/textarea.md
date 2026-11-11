@@ -18,6 +18,6 @@ import { enhanceTextarea } from "@cplieger/ui/textarea";
 enhanceTextarea(note, { max: 140, count: noteCount, signal: page.signal });
 ```
 
-- `count` shows the count, by default "52 / 140", and describes the area through `aria-describedby`. `words(length, max)` gives other words.
-- Past `max`, the area carries `aria-invalid="true"` and the count turns red with `data-cp-over`. Both clear once the text is back within the limit, and nothing the person typed is cut.
+- `count` shows the count, by default "52 / 140" with `max` and "52" without, and describes the area through `aria-describedby`. `words(length, max)` gives other words.
+- Past `max`, the area carries `aria-invalid="true"` and the count turns red with `data-cp-over`. Both clear once the text is back within the limit, and nothing the person typed is cut. An `aria-invalid` the form's own checks set stays until those checks clear it.
 - `signal` removes the listener.

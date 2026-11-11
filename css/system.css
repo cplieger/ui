@@ -1285,6 +1285,14 @@
   animation-duration: var(--cp-dur-long);
 }
 
+/* A reveal from a point (viewTransition's from): the new look grows over
+ * the old one in a circle the script animates, with no cross-fade. */
+:root[data-cp-reveal]::view-transition-old(root),
+:root[data-cp-reveal]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :where(html.cp) {
     scroll-behavior: auto;
@@ -1347,11 +1355,26 @@
   overflow-y: auto;
 }
 
+/* Main's content keeps a measure on a wide window, centred, so a screen
+ * never stretches across a 1920px window; data-width="full" lets a screen
+ * that needs the window, such as a wide table, take it. */
 .cp-main {
+  --cp-main-max: 90rem;
+
   grid-area: main;
   min-inline-size: 0;
   container-type: inline-size;
-  padding: var(--cp-space-6) var(--cp-page-gutter) var(--cp-space-10);
+  padding: var(--cp-space-6) max(var(--cp-page-gutter), (100% - var(--cp-main-max)) / 2)
+    var(--cp-space-10);
+}
+
+.cp-main[data-width="full"] {
+  --cp-main-max: 100%;
+}
+
+/* A skip link's target takes focus without a ring. */
+.cp-main:focus {
+  outline: none;
 }
 
 .cp-status {
@@ -1799,6 +1822,13 @@
   padding: 0;
 }
 
+/* Under a finger, the control's target reaches the tier's minimum. */
+:root[data-pointer="coarse"] .cp-input-wrap > .cp-button::after {
+  content: "";
+  position: absolute;
+  inset: calc((100% - var(--cp-hit-min)) / 2);
+}
+
 /* The app's name and its mark, in the header and on a gate page. */
 .cp-wordmark {
   display: inline-flex;
@@ -1905,10 +1935,211 @@
   }
 }
 
+/* Compact: the header's destinations become the bottom bar, fixed at the
+ * window's foot, each an icon over its word, and the frame leaves room for
+ * it. */
+@media (width < 40rem) {
+  .cp-header > .cp-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 1;
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: 0;
+    padding-block-end: env(safe-area-inset-bottom);
+    border-block-start: var(--cp-line-w) solid var(--cp-line);
+    background: var(--cp-surface-raised);
+    color: var(--cp-ink-muted);
+  }
+
+  .cp-app:has(> .cp-header > .cp-nav) {
+    padding-block-end: calc(3.5rem + env(safe-area-inset-bottom));
+  }
+
+  .cp-header > .cp-nav > .cp-nav-item {
+    isolation: isolate;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.125rem;
+    min-block-size: 3.5rem;
+    padding: var(--cp-space-2) 0;
+    border-radius: 0;
+    font-size: 0.6875rem;
+  }
+
+  .cp-header > .cp-nav > .cp-nav-item[aria-current] {
+    background: none;
+    color: var(--cp-accent-11);
+  }
+
+  .cp-header > .cp-nav > .cp-nav-item[aria-current]::before {
+    content: "";
+    position: absolute;
+    inset: 0.25rem 0.375rem;
+    z-index: -1;
+    border-radius: var(--cp-radius-surface);
+    background: var(--cp-selected);
+  }
+
+  .cp-header > .cp-nav > .cp-nav-item:hover {
+    background: none;
+  }
+
+  .cp-header > .cp-nav .cp-nav-label {
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+}
+
 @media (forced-colors: active) {
   .cp-nav-item[aria-current] {
     border: var(--cp-line-w) solid CanvasText;
   }
+}
+
+/* The header status: one button in the header that says how the app
+ * stands, worst first, and opens its panel. data-state names the state; the
+ * stylesheet draws its glyph and fill, and the words are the app's: the
+ * state's words, then an optional data-part="detail", such as a running
+ * check. A state that needs the person fills the button in its tone. */
+.cp-header-status {
+  --cp-status-glyph: none;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-3);
+  border: 0;
+  border-radius: var(--cp-radius-round);
+  background: oklch(from var(--cp-shell-ink) l c h / 12%);
+  color: var(--cp-shell-ink);
+  font: inherit;
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+  cursor: pointer;
+}
+
+.cp-header-status::before {
+  content: "";
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: var(--cp-status-glyph) center / contain no-repeat;
+}
+
+.cp-header-status > [data-part="detail"] {
+  font-weight: var(--cp-weight-body);
+}
+
+.cp-header-status > [data-part="detail"]::before {
+  content: "· ";
+}
+
+.cp-header-status[data-state="problem"] {
+  --cp-status-glyph: url("../icons/svg/circle-x.svg");
+
+  background: var(--cp-danger-9);
+  color: var(--cp-danger-on);
+}
+
+.cp-header-status[data-state="warning"] {
+  --cp-status-glyph: url("../icons/svg/triangle-alert.svg");
+
+  background: var(--cp-warning-9);
+  color: var(--cp-warning-on);
+}
+
+/* Offline: the danger fill with a dashed edge, the edge saying the link is
+ * gone. */
+.cp-header-status[data-state="offline"] {
+  --cp-status-glyph: url("../icons/svg/wifi-off.svg");
+
+  outline: 2px dashed oklch(from var(--cp-shell-ink) l c h / 70%);
+  outline-offset: -2px;
+  background: var(--cp-danger-9);
+  color: var(--cp-danger-on);
+}
+
+/* Working: the busy glyph held still while the button breathes, since a
+ * status that spins all day is noise. */
+.cp-header-status[data-state="working"] {
+  --cp-status-glyph: url("../icons/svg/spinner-arc.svg");
+
+  animation: cp-status-breathe 2.4s ease-in-out infinite;
+}
+
+/* All good: a dot in the success tone, ringed so it reads on any shell. */
+.cp-header-status[data-state="ok"]::before {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: var(--cp-success-9);
+  box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 60%);
+  mask: none;
+}
+
+@keyframes cp-status-breathe {
+  50% {
+    background-color: oklch(from var(--cp-shell-ink) l c h / 22%);
+  }
+}
+
+.cp-header-status:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-shell-ink);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* Compact: the glyph and the state's words; the detail waits in the panel. */
+@media (width < 40rem) {
+  .cp-header-status > [data-part="detail"] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-header-status[data-state="working"] {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-header-status {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+
+  .cp-header-status::before {
+    background: CanvasText;
+  }
+}
+
+/* The first stop for Tab on a page: a link to the main region, shown only
+ * while it has focus. */
+.cp-skip {
+  position: fixed;
+  inset-block-start: var(--cp-space-2);
+  inset-inline-start: var(--cp-space-2);
+  z-index: 1;
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  box-shadow: var(--cp-shadow-overlay);
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  opacity: 0;
+  translate: 0 -0.5rem;
+  pointer-events: none;
+}
+
+.cp-skip:focus-visible {
+  opacity: 1;
+  translate: 0 0;
+  pointer-events: auto;
 }
 
 /* Breadcrumbs: the levels above the page, muted and small. */
@@ -2528,6 +2759,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 .cp-stepper > .cp-button {
+  position: relative;
   min-block-size: 0;
   border-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
 }
@@ -2582,6 +2814,14 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 .cp-stepper[data-cp-rolling] > input {
   color: transparent;
+}
+
+/* Under a finger, each button's target reaches the tier's minimum in
+ * height, which the border inside the control height takes from it. */
+:root[data-pointer="coarse"] .cp-stepper > .cp-button::after {
+  content: "";
+  position: absolute;
+  inset: calc((100% - var(--cp-hit-min)) / 2) 0;
 }
 
 @media (forced-colors: active) {
@@ -2788,7 +3028,8 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
   padding: 0;
   transition:
     opacity var(--cp-dur-micro) var(--cp-ease-out),
-    scale var(--cp-dur-micro) var(--cp-ease-out);
+    scale var(--cp-dur-micro) var(--cp-ease-out),
+    visibility var(--cp-dur-micro) allow-discrete;
 }
 
 .cp-search > .cp-button::before {
@@ -2799,7 +3040,10 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
   mask: url("../icons/svg/x.svg") center / contain no-repeat;
 }
 
+/* Hidden, not only clear, so an empty field has no clear button to tab to
+ * or to hear. */
 .cp-search:has(> .cp-input:placeholder-shown) > .cp-button {
+  visibility: hidden;
   opacity: 0;
   scale: 0.6;
   pointer-events: none;
@@ -2821,6 +3065,13 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
   position: absolute;
   inset-inline-start: var(--cp-space-3);
   pointer-events: none;
+}
+
+/* Under a finger, the clear button's target reaches the tier's minimum. */
+:root[data-pointer="coarse"] .cp-search > .cp-button::after {
+  content: "";
+  position: absolute;
+  inset: calc((100% - var(--cp-hit-min)) / 2);
 }
 
 /* A text area grows with its text up to ten lines, then scrolls. Where the
@@ -2962,6 +3213,10 @@ textarea.cp-input {
   transition: opacity var(--cp-dur-micro) var(--cp-ease-out);
 }
 
+.cp-range-row:dir(rtl) > .cp-range-tip {
+  translate: 50% 0;
+}
+
 .cp-range-row:is([data-cp-held], :has(> .cp-range:focus-visible)) > .cp-range-tip {
   opacity: 1;
 }
@@ -2972,10 +3227,29 @@ textarea.cp-input {
   }
 }
 
+/* One rule per engine's pseudo-elements: a list naming one an engine does
+ * not know drops the whole rule there. */
 @media (forced-colors: active) {
-  .cp-range::-webkit-slider-thumb,
+  .cp-range {
+    forced-color-adjust: none;
+  }
+
+  .cp-range::-webkit-slider-runnable-track {
+    background: GrayText;
+  }
+
+  .cp-range::-moz-range-track {
+    background: GrayText;
+  }
+
+  .cp-range::-webkit-slider-thumb {
+    background: ButtonText;
+    box-shadow: none;
+  }
+
   .cp-range::-moz-range-thumb {
     background: ButtonText;
+    box-shadow: none;
   }
 }
 
@@ -3467,6 +3741,49 @@ textarea.cp-input {
   }
 }
 
+/* A banner at the top of main, for a condition that stops the person's work
+ * on every screen, such as an update that needs a reload: the words at the
+ * start and its one action at the end, with no dismiss. */
+.cp-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-4);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-12);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-banner > .cp-icon {
+  color: var(--cp-tone-11);
+}
+
+.cp-banner > .cp-button {
+  margin-inline-start: auto;
+}
+
+.cp-banner > .cp-button:not([data-variant="primary"]) {
+  border: var(--cp-line-w) solid var(--cp-tone-8);
+  background: var(--cp-surface-raised);
+  color: var(--cp-tone-12);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-banner > .cp-button:not([data-variant="primary"]):hover {
+      background: var(--cp-tone-2);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-banner {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 /* Panel: an in-flow surface outlined by one line. A flush panel scrolls a
  * wide table inside itself so the page never scrolls sideways. */
 .cp-panel {
@@ -3577,6 +3894,12 @@ textarea.cp-input {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cp-grid-min)), 1fr));
   gap: var(--cp-space-3);
+}
+
+/* Fitted: a short row's items share its width, so two children are two
+ * equal halves that stack once the box is under twice --cp-grid-min. */
+.cp-grid[data-variant="fit"] {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--cp-grid-min)), 1fr));
 }
 
 /* List and detail: a list with the chosen entry's detail docked beside it
@@ -5044,10 +5367,10 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 }
 
 /* A toggle (@cplieger/ui/toggle): a quiet icon button that is on or off,
- * such as Pin or Favourite. While on it shows its filled drawing in its own
- * colour, the accent for a pin and a red for a favourite, and a change plays
- * the drawing's motion: a pin drops in as if into a board and lifts out, a
- * heart beats. Under a mouse a pin lifts 2px and an off heart tints, as a
+ * such as Pin, Favourite or the theme. While on it shows its other drawing,
+ * in its own colour for a pin (the accent) and a favourite (a red), and a
+ * change plays the drawing's motion: a pin drops in as if into a board and
+ * lifts out, a heart beats, and the theme's sun turns over into a moon. Under a mouse a pin lifts 2px and an off heart tints, as a
  * hint of what a press does. */
 .cp-toggle {
   --cp-toggle-on: var(--cp-accent);
@@ -5055,6 +5378,12 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 
 .cp-toggle[data-kind="favourite"] {
   --cp-toggle-on: oklch(62% 0.21 20deg);
+}
+
+/* The theme toggle keeps the ink it sits on, in the header or a page: its
+ * pressed state is dark, not a colour. */
+.cp-toggle[data-kind="theme"] {
+  --cp-toggle-on: currentcolor;
 }
 
 .cp-toggle > .cp-icon[data-part="on"],
@@ -5100,6 +5429,19 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 .cp-toggle[data-kind="favourite"][data-cp-toggled="on"] > .cp-icon {
   animation: cp-heart-beat 1100ms var(--cp-ease-out);
+}
+
+/* The drawing now shown turns over into place, so sun becomes moon. */
+.cp-toggle[data-kind="theme"][data-cp-toggled] > .cp-icon {
+  animation: cp-theme-turn 420ms var(--cp-ease-spring);
+}
+
+@keyframes cp-theme-turn {
+  from {
+    opacity: 0;
+    rotate: -120deg;
+    scale: 0.6;
+  }
 }
 
 @keyframes cp-pin-drop {

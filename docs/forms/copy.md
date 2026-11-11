@@ -7,7 +7,7 @@ A Copy button that says Copied only for a write that happened. The clipboard exi
 ```html
 <div class="cp-field">
   <span class="cp-label" id="key-l">API key, shown once</span>
-  <div class="cp-code" aria-labelledby="key-l">
+  <div class="cp-code" role="group" aria-labelledby="key-l">
     <code id="key">cpk_9a1f43b2e07d4c55a8</code>
     <button class="cp-button cp-copy" type="button">
       <span class="cp-icon" data-cp-icon="copy" aria-hidden="true"></span>

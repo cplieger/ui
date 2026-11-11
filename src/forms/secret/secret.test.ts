@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { enhanceReveal, enhanceSecret } from "./secret.js";
+import { installDialogs } from "../../overlays/dialog/dialog.js";
+import { enhanceReveal, enhanceSecret, shownOnce } from "./secret.js";
 
 let life = new AbortController();
 
 afterEach(() => {
   life.abort();
   life = new AbortController();
+  for (const d of document.querySelectorAll("dialog")) {
+    d.close();
+  }
   document.body.replaceChildren();
 });
 
@@ -79,5 +83,51 @@ describe("enhanceReveal", () => {
     await userEvent.click(button);
     expect([input.type, button.getAttribute("aria-pressed")]).toEqual(["password", "false"]);
     expect(button.getAttribute("aria-label")).toBe("Show password");
+  });
+});
+
+describe("shownOnce", () => {
+  function shown(): { d: HTMLDialogElement; code: HTMLElement } {
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog";
+    const code = document.createElement("code");
+    code.textContent = "cpk_test-key";
+    const done = document.createElement("button");
+    done.type = "button";
+    done.textContent = "Done";
+    done.addEventListener("click", () => d.close());
+    d.append(code, done);
+    document.body.append(d);
+    return { d, code };
+  }
+
+  it("keeps the dialog on Escape until the secret is copied", async () => {
+    installDialogs({ signal: life.signal });
+    const { d } = shown();
+    const once = shownOnce(d.querySelector("code") as HTMLElement, {
+      dialog: d,
+      signal: life.signal,
+    });
+    d.showModal();
+    await userEvent.keyboard("{Escape}");
+    expect(d.open).toBe(true);
+    once.copied();
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(() => d.open).toBe(false);
+  });
+
+  it("clears the secret when the dialog closes and when the page is hidden", () => {
+    const { d, code } = shown();
+    shownOnce(code, { dialog: d, signal: life.signal });
+    d.showModal();
+    (d.querySelector("button") as HTMLButtonElement).click();
+    return expect
+      .poll(() => code.textContent)
+      .toBe("")
+      .then(() => {
+        code.textContent = "cpk_again";
+        dispatchEvent(new PageTransitionEvent("pagehide"));
+        expect(code.textContent).toBe("");
+      });
   });
 });

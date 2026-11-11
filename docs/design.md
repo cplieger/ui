@@ -56,7 +56,7 @@ The stylesheet needs `contrast-color()`, `light-dark()`, relative `oklch()`, `co
 
 Spacing steps on a 4px grid, from `--cp-space-1` (4px) to `--cp-space-16` (64px). Space is tight inside a group, wide between groups, and larger above a heading than below it.
 
-`.cp-app` lays out a screen: `.cp-header` for the mark, the destinations and the global controls, `.cp-rail` for filters, `.cp-main` for the work and `.cp-status` for one line of facts about the whole screen.
+`.cp-app` lays out a screen: `.cp-header` for the mark, the destinations and the global controls, `.cp-rail` for filters, `.cp-main` for the work and `.cp-status` for one line of facts about the whole screen. Main's content keeps a measure of 90rem, centred on a wider window, and `data-width="full"` on `.cp-main` lets a screen that needs the window, such as a wide table, take it. Under 40rem the header's `.cp-nav` becomes a bar fixed at the window's foot, each destination an icon over its word, and the frame leaves room for it. A `.cp-skip` link, the first element of the page, takes a keyboard past the header to `.cp-main`, which carries an `id` and `tabindex="-1"`.
 
 The width tiers follow the space in the window, not the device:
 

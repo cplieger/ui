@@ -75,6 +75,38 @@ describe("viewTransition", () => {
     expect(fn).toHaveBeenCalledOnce();
   });
 
+  it("reveals the new look in a circle from an element, and marks the page only while it runs", async () => {
+    let marked = false;
+    (document as MutableDoc).startViewTransition = (cb: () => void) => {
+      marked = document.documentElement.hasAttribute("data-cp-reveal");
+      cb();
+      return {
+        finished: Promise.resolve(),
+        ready: Promise.resolve(),
+        updateCallbackDone: Promise.resolve(),
+        skipTransition: () => undefined,
+      };
+    };
+    const animate = vi.spyOn(document.documentElement, "animate");
+    const button = document.createElement("button");
+    Object.assign(button.style, {
+      position: "fixed",
+      left: "100px",
+      top: "20px",
+      width: "40px",
+      height: "40px",
+    });
+    document.body.append(button);
+    await viewTransition(() => undefined, { from: button });
+    expect(marked).toBe(true);
+    expect(document.documentElement.hasAttribute("data-cp-reveal")).toBe(false);
+    const [frames, timing] = animate.mock.calls[0] ?? [];
+    expect((timing as KeyframeAnimationOptions).pseudoElement).toBe("::view-transition-new(root)");
+    expect(String((frames as { clipPath: string[] }).clipPath[0])).toBe("circle(0 at 120px 40px)");
+    animate.mockRestore();
+    button.remove();
+  });
+
   it("resolves even when the transition's finished promise rejects", async () => {
     (document as MutableDoc).startViewTransition = (cb: () => void) => {
       cb();

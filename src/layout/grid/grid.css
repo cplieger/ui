@@ -8,3 +8,9 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cp-grid-min)), 1fr));
   gap: var(--cp-space-3);
 }
+
+/* Fitted: a short row's items share its width, so two children are two
+ * equal halves that stack once the box is under twice --cp-grid-min. */
+.cp-grid[data-variant="fit"] {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--cp-grid-min)), 1fr));
+}

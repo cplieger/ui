@@ -11,10 +11,13 @@ import { enhanceCopy } from "@cplieger/ui/copy";
 import { enhanceRange } from "@cplieger/ui/range";
 import { enhanceSearch } from "@cplieger/ui/search";
 import { enhanceReveal, enhanceSecret } from "@cplieger/ui/secret";
+import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceStepper } from "@cplieger/ui/stepper";
 import { enhanceTextarea } from "@cplieger/ui/textarea";
 import { enhanceTokens } from "@cplieger/ui/tokens";
+import { enhanceToggle } from "@cplieger/ui/toggle";
 import { installTooltips } from "@cplieger/ui/tooltip";
+import { viewTransition } from "@cplieger/ui/view-transition";
 
 import "./legacy/gallery.js";
 
@@ -81,4 +84,31 @@ for (const area of all<HTMLTextAreaElement>("textarea[data-max]")) {
 for (const range of all<HTMLInputElement>("input.cp-range")) {
   const output = document.getElementById(range.dataset["out"] ?? "");
   enhanceRange(range, output instanceof HTMLOutputElement ? { output } : {});
+}
+for (const panel of all<HTMLElement>(".cp-popover[data-variant='panel']")) {
+  enhancePanel(panel);
+}
+// The header's theme toggle: dark while pressed, the new look growing from
+// the button, and the tip naming the next press.
+const root = document.documentElement;
+for (const button of all<HTMLButtonElement>("[data-theme-toggle]")) {
+  const toggle = enhanceToggle(button, {
+    onChange: (dark) => {
+      void viewTransition(
+        () => {
+          root.dataset["theme"] = dark ? "dark" : "light";
+        },
+        { from: button },
+      );
+    },
+  });
+  const show = (): void => {
+    const dark = root.dataset["theme"] === "dark";
+    if (toggle.on !== dark) {
+      toggle.set(dark);
+    }
+    button.dataset["cpTip"] = dark ? "Switch to light" : "Switch to dark";
+  };
+  new MutationObserver(show).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+  show();
 }

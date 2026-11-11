@@ -61,7 +61,7 @@ installPress({ signal: page.signal });
 installAnchors({ signal: page.signal });
 enhanceMenu(sortMenu, { signal: page.signal, onSelect: (item) => sortBy(item.textContent) });
 
-toast({ kind: "success", title: "Saved" });
+toast({ kind: "success", title: "Source added" });
 ```
 
 ## Subpaths
@@ -77,7 +77,7 @@ toast({ kind: "success", title: "Saved" });
 
 Each module is one subpath, grouped here by what it is for:
 
-- Overlays: [dialog](docs/overlays/dialog.md), [ask](docs/overlays/ask.md), [anchor](docs/overlays/anchor.md), [menu](docs/overlays/menu.md) and [tooltip](docs/overlays/tooltip.md).
+- Overlays: [dialog](docs/overlays/dialog.md), [ask](docs/overlays/ask.md), [anchor](docs/overlays/anchor.md), [menu](docs/overlays/menu.md), [panel](docs/overlays/panel.md) and [tooltip](docs/overlays/tooltip.md).
 - Feedback: [toast](docs/feedback/toast.md), [announce](docs/feedback/announce.md) and [skeleton](docs/feedback/skeleton.md).
 - Buttons: [confirm](docs/buttons/confirm.md), [toggle](docs/buttons/toggle.md) and [turn](docs/buttons/turn.md).
 - Forms: [form](docs/forms/form.md), [checkbox](docs/forms/checkbox.md), [choice](docs/forms/choice.md), [stepper](docs/forms/stepper.md), [secret](docs/forms/secret.md), [copy](docs/forms/copy.md), [tokens](docs/forms/tokens.md), [combobox](docs/forms/combobox.md), [search](docs/forms/search.md), [textarea](docs/forms/textarea.md), [range](docs/forms/range.md) and [connection-test](docs/forms/connection-test.md).

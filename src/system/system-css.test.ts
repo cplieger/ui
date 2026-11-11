@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished } from "vit
 import { cdp, page, server, userEvent } from "vitest/browser";
 
 import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
+import { enhanceRange } from "../forms/range/range.js";
 
 const root = document.documentElement;
 let sheet: HTMLLinkElement;
@@ -375,6 +376,61 @@ describe("css/system.css", () => {
     }
   });
 
+  it("gives the small buttons inside fields a finger's target", () => {
+    theme("light");
+    root.dataset["pointer"] = "coarse";
+    const el = build(
+      '<div style="padding: 40px; inline-size: 20rem"><div class="cp-search"><input class="cp-input" type="search" placeholder="Search" value="x"><button class="cp-button" aria-label="Clear"></button></div></div>' +
+        '<div style="padding: 40px; inline-size: 20rem"><div class="cp-input-wrap"><input class="cp-input" type="password"><button class="cp-button" aria-label="Show"></button></div></div>' +
+        '<div style="padding: 40px"><div class="cp-stepper"><button class="cp-button" aria-label="Fewer">-</button><input type="number" value="3"><button class="cp-button" aria-label="More">+</button></div></div>',
+    );
+    for (const b of el.querySelectorAll("button")) {
+      b.style.transition = "none";
+      const box = b.getBoundingClientRect();
+      const mid = box.left + box.width / 2;
+      const reach = (44 - box.height) / 2 - 0.5;
+      expect(
+        document.elementFromPoint(mid, box.top - reach),
+        b.getAttribute("aria-label") ?? "",
+      ).toBe(b);
+    }
+  });
+
+  it("keeps its forced-colour rules for a range's track and thumb in every engine", () => {
+    // A selector list naming another engine's pseudo-element drops the whole
+    // rule, so each engine must keep at least its own thumb rule.
+    const forced = [...sheet.sheet!.cssRules].filter(
+      (r): r is CSSMediaRule =>
+        r instanceof CSSMediaRule && r.conditionText.includes("forced-colors"),
+    );
+    const selectors = forced.flatMap((m) =>
+      [...m.cssRules].map((r) => (r instanceof CSSStyleRule ? r.selectorText : "")),
+    );
+    expect(selectors.some((t) => /\.cp-range::-(webkit-slider|moz-range)-thumb$/.test(t))).toBe(
+      true,
+    );
+  });
+
+  it("puts a range's tip over its thumb, in a right-to-left page too", () => {
+    theme("light");
+    for (const dir of ["ltr", "rtl"]) {
+      const el = build(
+        `<div class="cp-range-row" dir="${dir}" style="inline-size: 300px; margin-block-start: 3rem"><input class="cp-range" type="range" min="0" max="50" value="0" aria-label="Seeders"><output></output></div>`,
+      );
+      const range = el.querySelector("input") as HTMLInputElement;
+      const life = new AbortController();
+      enhanceRange(range, { signal: life.signal });
+      const tip = el.querySelector(".cp-range-tip") as HTMLElement;
+      tip.style.transition = "none";
+      const box = range.getBoundingClientRect();
+      const t = tip.getBoundingClientRect();
+      const start = dir === "rtl" ? box.right - 9 : box.left + 9;
+      expect(Math.abs(t.left + t.width / 2 - start), dir).toBeLessThan(3);
+      life.abort();
+      el.remove();
+    }
+  });
+
   it("fills a chosen radio with the accent", () => {
     theme("light");
     const el = build(
@@ -483,6 +539,8 @@ describe("css/system.css", () => {
       expect((el.querySelector(".cp-affix") as Element).getBoundingClientRect().height).toBe(
         (el.querySelector("#line") as Element).getBoundingClientRect().height,
       );
+      (el.querySelector("#host") as HTMLElement).focus({ focusVisible: true });
+      expect(getComputedStyle(el.querySelector(".cp-affix") as Element).outlineStyle).toBe("solid");
     }
   });
 
@@ -495,6 +553,7 @@ describe("css/system.css", () => {
     const clear = el.querySelector("button") as HTMLElement;
     clear.style.transition = "none";
     expect(getComputedStyle(clear).opacity).toBe("0");
+    expect(getComputedStyle(clear).visibility).toBe("hidden");
     (el.querySelector("#q") as HTMLInputElement).value = "Frieren";
     expect(getComputedStyle(clear).opacity).toBe("1");
     expect(decodeURIComponent(getComputedStyle(search, "::before").maskImage)).toContain(
@@ -512,6 +571,109 @@ describe("css/system.css", () => {
     a.value = "line\n".repeat(30);
     a.style.blockSize = "auto";
     expect(h()).toBeLessThanOrEqual(lh * 10 + 32);
+  });
+
+  it("draws the header status's glyph by its state, a dot when all is good, and drops the detail on a phone", async () => {
+    theme("light");
+    const el = build(
+      '<header class="cp-header">' +
+        ["problem", "offline", "warning", "working", "ok"]
+          .map(
+            (st) =>
+              `<button class="cp-header-status" type="button" data-state="${st}"><span>${st}</span><span data-part="detail">Full check 3/8</span></button>`,
+          )
+          .join("") +
+        "</header>",
+    );
+    const glyph = (st: string) =>
+      decodeURIComponent(
+        getComputedStyle(el.querySelector(`[data-state="${st}"]`) as Element, "::before").maskImage,
+      );
+    expect(glyph("problem")).toContain("m15 9-6 6");
+    expect(glyph("warning")).toContain("m21.73 18");
+    expect(glyph("ok")).toBe("none");
+    const detail = el.querySelector('[data-part="detail"]') as Element;
+    expect(getComputedStyle(detail).display).not.toBe("none");
+    await page.viewport(390, 800);
+    expect(getComputedStyle(detail).display).toBe("none");
+  });
+
+  it("moves the header's destinations to a bar at the window's foot on a phone, and leaves room for it", async () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-app"><header class="cp-header"><nav class="cp-nav"><a class="cp-nav-item" href="#a" aria-current="page"><span class="cp-nav-label">Overview</span></a><a class="cp-nav-item" href="#b"><span class="cp-nav-label">Library</span></a></nav></header><main class="cp-main">Main</main></div>',
+    );
+    const nav = el.querySelector(".cp-nav") as HTMLElement;
+    expect(getComputedStyle(nav).position).toBe("static");
+    await page.viewport(390, 800);
+    expect(getComputedStyle(nav).position).toBe("fixed");
+    expect(Math.round(nav.getBoundingClientRect().bottom)).toBe(800);
+    const label = el.querySelector(".cp-nav-label") as Element;
+    expect(label.getBoundingClientRect().width).toBeGreaterThan(20);
+    expect(
+      Number.parseFloat(getComputedStyle(el.querySelector(".cp-app") as Element).paddingBlockEnd),
+    ).toBeGreaterThanOrEqual(56);
+  });
+
+  it("keeps main's content to a measure on a wide window, centred, unless the screen asks for the window", async () => {
+    theme("light");
+    await page.viewport(1920, 900);
+    const el = build(
+      '<div class="cp-app"><main class="cp-main"><div id="a">Text</div></main></div><div class="cp-app"><main class="cp-main" data-width="full"><div id="b">Text</div></main></div>',
+    );
+    const width = (id: string) =>
+      (el.querySelector(`#${id}`) as Element).getBoundingClientRect().width;
+    expect(width("a")).toBe(1440);
+    expect(width("b")).toBeGreaterThan(1800);
+  });
+
+  it("turns a theme toggle's drawing over on a change and keeps the ink it sits on", () => {
+    theme("light");
+    const el = build(
+      '<header class="cp-header"><button class="cp-button cp-toggle" data-variant="quiet" data-kind="theme" type="button" aria-pressed="true" data-cp-toggled="on"><span class="cp-icon"></span><span class="cp-icon" data-part="on"></span></button></header>',
+    );
+    const b = el.querySelector("button") as HTMLElement;
+    expect(getComputedStyle(b.querySelector('[data-part="on"]') as Element).animationName).toBe(
+      "cp-theme-turn",
+    );
+    expect(getComputedStyle(b).color).toBe(
+      getComputedStyle(el.querySelector("header") as Element).color,
+    );
+  });
+
+  it("shows the skip link only while it has focus", () => {
+    theme("light");
+    const el = build('<a class="cp-skip" href="#main">Skip to the content</a>');
+    const skip = el.querySelector("a") as HTMLAnchorElement;
+    skip.style.transition = "none";
+    expect(getComputedStyle(skip).opacity).toBe("0");
+    skip.focus({ focusVisible: true });
+    expect(getComputedStyle(skip).opacity).toBe("1");
+  });
+
+  it("shares a short row between a fitted grid's items, and stacks them when the box is narrow", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-grid" data-variant="fit" style="inline-size: 64rem"><div>A</div><div>B</div></div><div class="cp-grid" data-variant="fit" style="inline-size: 20rem"><div>A</div><div>B</div></div>',
+    );
+    const [wide, narrow] = [...el.querySelectorAll(".cp-grid")];
+    const [a, b] = [...(wide as Element).children].map((c) => c.getBoundingClientRect());
+    expect(Math.abs((a as DOMRect).width - (b as DOMRect).width)).toBeLessThan(1);
+    expect((a as DOMRect).width).toBeGreaterThan(400);
+    const [c, d] = [...(narrow as Element).children].map((x) => x.getBoundingClientRect());
+    expect((d as DOMRect).top).toBeGreaterThan((c as DOMRect).top);
+  });
+
+  it("puts a banner's action at its end and keeps its words readable", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-banner" data-tone="warning" style="inline-size: 40rem"><span>A new version is out.</span><button class="cp-button" type="button">Reload</button></div>',
+    );
+    const banner = (el.querySelector(".cp-banner") as Element).getBoundingClientRect();
+    const button = (el.querySelector("button") as Element).getBoundingClientRect();
+    expect(Math.round(banner.right - button.right)).toBe(16);
+    const cs = getComputedStyle(el.querySelector(".cp-banner") as Element);
+    expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("presses a button by data-cp-pressed as well as :active, and never a disabled one", async () => {

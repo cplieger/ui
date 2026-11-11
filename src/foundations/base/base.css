@@ -176,6 +176,14 @@
   animation-duration: var(--cp-dur-long);
 }
 
+/* A reveal from a point (viewTransition's from): the new look grows over
+ * the old one in a circle the script animates, with no cross-fade. */
+:root[data-cp-reveal]::view-transition-old(root),
+:root[data-cp-reveal]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :where(html.cp) {
     scroll-behavior: auto;
