@@ -95,4 +95,11 @@ describe("enhanceDateRange", () => {
     expect(seen).toEqual(["from=2026-11-15", "to=2026-11-15"]);
     expect(radio("1").checked).toBe(true);
   });
+
+  it("fills any time from the earliest day to today, and leaves it empty without one", async () => {
+    const { box, from, to, radio } = range();
+    enhanceDateRange(box, { today, earliest: new Date(2024, 2, 1), signal: life.signal });
+    await userEvent.click(radio("all"));
+    expect([from.value, to.value]).toEqual(["2024-03-01", "2026-11-15"]);
+  });
 });

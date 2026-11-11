@@ -15,6 +15,10 @@ export interface DateRangeOptions {
   readonly order?: string;
   /** Today, for the quick ranges. Default: the clock. */
   readonly today?: () => Date;
+  /** The first day the app has data for. With it, "all" fills the range
+   *  from that day to today, so the fields say what any time covers; without
+   *  it, "all" leaves both dates empty. */
+  readonly earliest?: Date;
   /** Removes the listener. */
   readonly signal?: AbortSignal;
 }
@@ -31,7 +35,7 @@ function day(d: Date): string {
  * up to today, or `"all"` for any time.
  */
 export function enhanceDateRange(range: HTMLElement, options: DateRangeOptions = {}): void {
-  const { signal, today = () => new Date() } = options;
+  const { signal, today = () => new Date(), earliest } = options;
   const order = options.order ?? "The end comes before the start.";
   const [from, to] = [...range.querySelectorAll<HTMLInputElement>('input[type="date"]')];
   if (from === undefined || to === undefined || signal?.aborted === true) {
@@ -50,7 +54,10 @@ export function enhanceDateRange(range: HTMLElement, options: DateRangeOptions =
   let filling = false;
   const fill = (value: string, tell = true): void => {
     const n = Number(value);
-    if (value === "all" || !Number.isFinite(n) || n < 1) {
+    if (value === "all" && earliest !== undefined) {
+      from.value = day(earliest);
+      to.value = day(today());
+    } else if (value === "all" || !Number.isFinite(n) || n < 1) {
       from.value = "";
       to.value = "";
     } else {

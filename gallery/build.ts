@@ -65,7 +65,13 @@ async function iconGrid(): Promise<string> {
   return `<div class="g-icons">${cells}</div>`;
 }
 
-function frame(title: string, page: string, body: string): string {
+/** The `g-` classes the gallery's own stylesheet draws, for review.ts. */
+async function galleryClasses(): Promise<string> {
+  const css = await readFile(join(HERE, "legacy", "gallery.css"), "utf8");
+  return [...new Set([...css.matchAll(/\.(g-[\w-]+)/g)].map((m) => m[1] ?? ""))].sort().join(" ");
+}
+
+function frame(title: string, page: string, body: string, classes: string): string {
   return `<!DOCTYPE html>
 <html lang="en" class="cp" data-theme="light">
 <head>
@@ -76,6 +82,7 @@ function frame(title: string, page: string, body: string): string {
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="css/system.css">
 <link rel="stylesheet" href="gallery.css">
+<meta name="gallery-classes" content="${classes}">
 </head>
 <body data-page="${page}">
 <header class="cp-header g-header">
@@ -102,11 +109,12 @@ export async function buildGallery(out = join(HERE, "dist")): Promise<void> {
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
   const grid = await iconGrid();
+  const classes = await galleryClasses();
   for (const [page, , , title] of PAGES) {
     const body = (await readFile(join(HERE, "pages", `${page}.html`), "utf8"))
       .trimEnd()
       .replace('<div class="g-icons" data-icon-grid></div>', grid);
-    await writeFile(join(out, `${page}.html`), frame(title, page, body));
+    await writeFile(join(out, `${page}.html`), frame(title, page, body, classes));
   }
   await build({
     // Against the repo root, where npm runs the script, and a literal, so a
