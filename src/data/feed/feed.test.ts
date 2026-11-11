@@ -228,7 +228,7 @@ describe("enhanceFeed", () => {
     expect(Math.abs(on.getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
   });
 
-  it("counts nothing while the feed is busy, and opens a loaded feed at its newest", async () => {
+  it("opens a feed loaded from skeletons at its newest, and counts nothing a later load adds", async () => {
     const c = conversation(0);
     c.feed.setAttribute("aria-busy", "true");
     const skeleton = entry({ "data-skeleton": "" });
@@ -242,15 +242,20 @@ describe("enhanceFeed", () => {
     c.feed.append(entry());
     c.feed.removeAttribute("aria-busy");
     await settle();
-    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    expect(c.box.scrollTop).toBe(0);
     expect(feed.unseen).toBe(0);
     expect(c.jump.hidden).toBe(true);
   });
 
-  it("leaves a scrolled-up reader in place when the feed is marked busy and settles", async () => {
+  it("moves no one when the feed is marked busy and settles with no entry added", async () => {
     const c = conversation();
     enhance(c);
     await settle();
+    c.feed.setAttribute("aria-busy", "true");
+    await settle();
+    c.feed.removeAttribute("aria-busy");
+    await settle();
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     await scrollTo(c.box, 200);
     c.feed.setAttribute("aria-busy", "true");
     await settle();
@@ -258,6 +263,77 @@ describe("enhanceFeed", () => {
     c.feed.removeAttribute("aria-busy");
     await settle();
     expect(c.box.scrollTop).toBe(200);
+  });
+
+  it("counts nothing a load adds when the feed is marked busy and cleared in one task", async () => {
+    const c = conversation();
+    const feed = enhance(c);
+    await settle();
+    await scrollTo(c.box, 200);
+    c.feed.setAttribute("aria-busy", "true");
+    c.feed.append(entry(), entry());
+    c.feed.removeAttribute("aria-busy");
+    await settle();
+    expect(c.box.scrollTop).toBe(200);
+    expect(feed.unseen).toBe(0);
+    expect(c.jump.hidden).toBe(true);
+    expect(polite()).not.toContain("new message");
+  });
+
+  it("keeps a reader at the end in place through a load that spans tasks", async () => {
+    const c = conversation();
+    const feed = enhance(c);
+    await settle();
+    const top = c.box.scrollTop;
+    c.feed.setAttribute("aria-busy", "true");
+    await settle();
+    c.feed.append(entry(), entry(), entry());
+    await settle();
+    expect(c.box.scrollTop).toBe(top);
+    expect(gap(c.box)).toBeGreaterThan(1);
+    c.feed.removeAttribute("aria-busy");
+    await settle();
+    expect(c.box.scrollTop).toBe(top);
+    expect(feed.unseen).toBe(0);
+    expect(c.jump.hidden).toBe(true);
+  });
+
+  it("keeps a reader at the end in place through a load set and cleared in one task", async () => {
+    const c = conversation();
+    const feed = enhance(c);
+    await settle();
+    const top = c.box.scrollTop;
+    c.feed.setAttribute("aria-busy", "true");
+    c.feed.append(entry(), entry(), entry());
+    c.feed.removeAttribute("aria-busy");
+    await settle();
+    expect(c.box.scrollTop).toBe(top);
+    expect(feed.unseen).toBe(0);
+  });
+
+  it("keeps the place and counts nothing when the entries are replaced whole", async () => {
+    const c = conversation();
+    const feed = enhance(c);
+    await settle();
+    await scrollTo(c.box, 200);
+    c.feed.replaceChildren(...Array.from({ length: 30 }, () => entry()));
+    await settle();
+    expect(c.box.scrollTop).toBe(200);
+    expect(feed.unseen).toBe(0);
+    expect(c.jump.hidden).toBe(true);
+  });
+
+  it("follows the person's own entry appended while a load is under way", async () => {
+    const c = conversation();
+    const feed = enhance(c);
+    await settle();
+    await scrollTo(c.box, 0);
+    c.feed.setAttribute("aria-busy", "true");
+    await settle();
+    c.feed.append(entry({ "data-own": "" }));
+    await settle();
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    expect(feed.unseen).toBe(0);
   });
 
   it("keeps the reader on the same entry through a busy load of older entries, counting nothing", async () => {

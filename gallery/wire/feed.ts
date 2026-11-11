@@ -724,8 +724,14 @@ if (msgRoot !== null && msgFeed instanceof HTMLOListElement && compose instanceo
       item.focus({ preventScroll: true });
       void deliver(item).then(
         () => {
-          if (item === kept && holds(item)) {
+          if (item !== kept) {
+            return;
+          }
+          if (holds(item)) {
             clear();
+          } else {
+            kept = null;
+            report([]);
           }
         },
         () => undefined,

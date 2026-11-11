@@ -110,9 +110,9 @@ compose.addEventListener("submit", async (e) => {
 - A feed that is hidden when it is wired, such as one in a detail not yet open, scrolls nothing until it shows, and then opens at its newest entry.
 - Within 2rem of the end counts as at the end. While the reader is there, new entries and entries that grow keep the newest in view.
 - Once the reader has scrolled up, the entry at the top of the view stays where it is when entries are shown above it, such as by "Show older", or when an entry above grows. The browser's own scroll anchoring is off in the feed, because the script keeps the place and the two would fight.
-- Entries added at the end while the reader is scrolled up are counted. A day separator or the marker added with them is not. The jump shows the count, and its words are said politely as it shows and as the count changes.
+- An arrival is an entry appended after the newest one while the feed is not `aria-busy="true"`. Arrivals while the reader is scrolled up are counted. A day separator or the marker added with them is not. The jump shows the count, and its words are said politely as it shows and as the count changes.
 - The jump hides once the reader reaches the end, by scrolling or by pressing it. A press scrolls to the newest, smoothly unless the person asked for less motion, and moves focus to the newest entry, which takes `tabindex="-1"` for it. Focus on the jump as it hides moves there too, so it never drops to the page.
-- The person's own entry always scrolls to the newest, wherever the reader was. So does anything added while the feed held no entry.
-- A load is the time the feed is `aria-busy="true"`. One that began with no entry or at the end, such as the first load, ends at the newest. Any other, such as "Show older", keeps the reader's place. Nothing a load adds is counted.
+- The person's own entry appended after the newest always scrolls there, wherever the reader was and even while a load is under way. So does anything added while the feed held no entry, such as the first load.
+- Every other entry is a load: entries shown above, such as by "Show older", a list replaced whole, and anything added while the feed is `aria-busy="true"`, even when the app sets and clears it in one go. A load keeps the reader's place, a reader at the end included, and is never counted. Marking the feed busy and clearing it moves nothing.
 - A pinch zoom also shrinks the visual viewport, so the keyboard inset is measured only at a scale of 1.
 - The module does nothing when it is imported.

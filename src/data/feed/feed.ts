@@ -75,14 +75,12 @@ function topOf(scroller: HTMLElement): number {
 }
 
 /**
- * Wires `feed`, a `.cp-feed` whose `li.cp-feed-entry` items run oldest
- * first, and scrolls it to its newest entry at once. The feed's scroller is
- * the nearest box around it that scrolls, found again whenever the feed
- * resizes or a box around it scrolls, so moving the feed into a dialog is
- * followed. An entry the app adds with `data-own`, anything added while the
- * feed held no entry, and a load (`aria-busy="true"`) that began with no
- * entry or at the end scroll to the newest. Any other load keeps the
- * reader's place, and nothing a load adds is counted.
+ * Wires `feed`, a `.cp-feed` of `li.cp-feed-entry` oldest first, in the
+ * nearest box that scrolls it (found again as it moves), at its newest entry.
+ * Entries appended after the newest while it is not `aria-busy="true"` are
+ * arrivals, followed by a reader at the end and else counted; an own
+ * (`data-own`) one there always goes to the newest. Any other entry is a
+ * load, which keeps the reader's place and is never counted.
  */
 export function enhanceFeed(
   feed: HTMLOListElement | HTMLUListElement,
@@ -107,11 +105,8 @@ export function enhanceFeed(
   /** The first child showing at the scroller's top, and its offset there. */
   let anchor: { readonly el: Element; readonly off: number } | null = null;
   const focusable = new Set<HTMLElement>();
-  const isBusy = (): boolean => feed.getAttribute("aria-busy") === "true";
-  let busy = isBusy();
-  /** The load under way began with no entry or at the end, so what it
-   *  brings scrolls to the newest; any other keeps the reader's place. */
-  let opening = true;
+  /** Whether the feed held an entry after the last batch of changes. */
+  let held = [...feed.children].some(isEntry);
 
   // Fires after layout and before paint, so a kept place never flickers.
   const resize = new ResizeObserver(() => {
@@ -219,17 +214,15 @@ export function enhanceFeed(
     }
     going = smooth;
     scroller.scrollTo({ top: scroller.scrollTop + gap(), behavior: smooth ? "smooth" : "instant" });
+    // A load at the end is measured against this before any scroll event.
+    if (!smooth) {
+      record();
+    }
   };
 
-  // After the feed, the foot or the scroller changed size: the reader at
-  // the end stays there, and one scrolled up keeps the child they were on
-  // where it was.
-  const keep = (): void => {
-    adopt();
-    if (atEnd) {
-      toEnd(going);
-      return;
-    }
+  // Puts the child the reader was on back where it was; with that child
+  // gone, as after a refill, the scroll position itself is the place.
+  const restore = (): void => {
     if (anchor?.el.parentElement !== feed) {
       record();
       return;
@@ -237,6 +230,27 @@ export function enhanceFeed(
     const by = anchor.el.getBoundingClientRect().top - topOf(scroller) - anchor.off;
     if (by !== 0) {
       scroller.scrollBy({ top: by, behavior: "instant" });
+    }
+  };
+
+  // After the feed, the foot or the scroller changed size: the reader at
+  // the end stays there, and one scrolled up keeps their place.
+  const keep = (): void => {
+    adopt();
+    if (atEnd) {
+      toEnd(going);
+    } else {
+      restore();
+    }
+  };
+
+  // A load moves no one, a reader at the end included, so the end is
+  // measured again once the place is kept. A press of the jump still
+  // heading to the newest goes on there, and a hidden feed has no place.
+  const hold = (): void => {
+    if (!going && feed.getClientRects().length > 0) {
+      restore();
+      atEnd = gap() <= END_REM * remPx();
     }
   };
 
@@ -273,42 +287,62 @@ export function enhanceFeed(
   };
 
   const added = new MutationObserver((records) => {
-    const fresh = new Set<Node>();
-    for (const r of records) {
+    // Each added node, with whether the feed was busy as it went in. Read
+    // back from the current state, each aria-busy record's old value is the
+    // state before it, so a load marked and unmarked in one task is seen.
+    const busyAt = new Map<Node, boolean>();
+    let busy = feed.getAttribute("aria-busy") === "true";
+    for (const r of [...records].reverse()) {
+      if (r.type === "attributes") {
+        busy = r.oldValue === "true";
+      }
       for (const n of r.addedNodes) {
-        fresh.add(n);
+        if (!busyAt.has(n)) {
+          busyAt.set(n, busy);
+        }
       }
     }
     const kids = [...feed.children];
-    const had = kids.some((k) => isEntry(k) && !fresh.has(k));
-    const was = busy;
-    busy = isBusy();
-    if (busy && !was) {
-      opening = !had || atEnd;
-    }
-    // The arrivals are the added children at the feed's end, so entries
-    // shown older, at its start, are never counted as new.
-    let arrived = 0;
-    let own = false;
-    for (let i = kids.length - 1; i >= 0 && fresh.has(kids[i] as Node); i -= 1) {
-      const k = kids[i];
-      if (isEntry(k)) {
-        arrived += 1;
-        own ||= k.hasAttribute("data-own");
-      }
+    const was = held;
+    held = kids.some(isEntry);
+    if (busyAt.size === 0) {
+      return;
     }
     adopt();
-    const load = busy || was;
-    if (!had || own || (load ? opening : atEnd)) {
+    // Into a feed with no entry, such as the first load, the feed opens.
+    if (!was) {
       toEnd(going);
       return;
     }
-    keep();
-    if (!load && arrived > 0) {
+    // The arrivals follow the newest entry that was already there, so a
+    // list replaced whole, a refill, has none. The person's own entry there
+    // was sent, so it is followed even while a load is under way.
+    let arrived = 0;
+    let own = false;
+    if (kids.some((k) => isEntry(k) && !busyAt.has(k))) {
+      for (let i = kids.length - 1; i >= 0 && busyAt.has(kids[i] as Node); i -= 1) {
+        const k = kids[i];
+        if (isEntry(k)) {
+          own ||= k.hasAttribute("data-own");
+          arrived += busyAt.get(k) === false ? 1 : 0;
+        }
+      }
+    }
+    if (own || (arrived > 0 && atEnd)) {
+      toEnd(going);
+      return;
+    }
+    hold();
+    if (arrived > 0) {
       show(unseen + arrived);
     }
   });
-  added.observe(feed, { childList: true, attributes: true, attributeFilter: ["aria-busy"] });
+  added.observe(feed, {
+    childList: true,
+    attributes: true,
+    attributeFilter: ["aria-busy"],
+    attributeOldValue: true,
+  });
 
   document.addEventListener(
     "scroll",
