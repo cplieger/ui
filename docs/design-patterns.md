@@ -11,6 +11,7 @@ Every region that loads data has four designed states, for loading, empty, error
 | The first load of content whose shape is known, such as a table or a list | a skeleton in that shape (`.cp-skeleton`) |
 | An action on one control, such as Save or Retry | `spinner-arc` in the control beside its label, with `aria-busy="true"` on it |
 | Work with known steps, such as a check of 8 sources | a progress bar (`.cp-progress`) and the step in words, such as "3 of 8" |
+| A job that moves through named stages, such as a grab that is found, sent, downloading and imported | a step track (`.cp-track`), in a table row its compact form (`.cp-track-compact`); when the job stops reporting, the track is kept grey with the time it was last known (`data-kept` and `.cp-kept`) |
 | Work with no known length, such as a full check that the server accepted | a status line that names the work, the time it started and its latest progress, with Cancel when the work can stop |
 | A request with no answer by its own deadline | the error state, with what to try next |
 

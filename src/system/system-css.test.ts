@@ -3662,6 +3662,80 @@ describe("css/system.css data tables", () => {
     expect(getComputedStyle(panel).marginTop).toBe("12px");
   });
 
+  const track = (attrs = "") =>
+    `<ol class="cp-track" ${attrs}><li data-state="done">Found</li>` +
+    '<li data-state="current" aria-current="step">Sent</li><li data-state="todo">Imported</li></ol>';
+  const bars = (el: Element) =>
+    [...el.querySelectorAll(".cp-track > li")].map((li) => getComputedStyle(li, "::before"));
+
+  it("fills a track's done steps, its current one to the share the app sets, from the line's start", () => {
+    theme("light");
+    const el = build(track() + track('dir="rtl"'));
+    const [ltr, rtl] = [...el.querySelectorAll(".cp-track")] as [HTMLElement, HTMLElement];
+    for (const list of [ltr, rtl]) {
+      (list.children[1] as HTMLElement).style.setProperty("--cp-track-at", "42%");
+    }
+    const [done, current, todo] = bars(ltr);
+    expect(rgb(done?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-accent)")));
+    expect(rgb(todo?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-fill)")));
+    expect([done?.height, done?.borderRadius]).toEqual([
+      "6px",
+      getComputedStyle(host("", { style: "border-radius: var(--cp-radius-round)" })).borderRadius,
+    ]);
+    expect(current?.backgroundImage).toMatch(/^linear-gradient\(to right, .+ 42%, .+ 42%\)$/);
+    expect(bars(rtl)[1]?.backgroundImage).toMatch(/^linear-gradient\(to left, /);
+    const names = [...ltr.children].map((li) => getComputedStyle(li));
+    expect(names.map((n) => n.color)).toEqual([
+      resolve("var(--cp-ink-muted)"),
+      resolve("var(--cp-ink)"),
+      resolve("var(--cp-ink-muted)"),
+    ]);
+    expect(names[1]?.fontWeight).toBe("500");
+    const [first, second] = [...ltr.children].map((li) => li.getBoundingClientRect());
+    expect(first?.width).toBe(second?.width);
+  });
+
+  it("greys a kept track, its current step solid, and dates it under a clock", () => {
+    theme("dark");
+    const el = build(track("data-kept") + '<p class="cp-kept">Last known at 14:02</p>');
+    const [done, current, todo] = bars(el);
+    const grey = rgb(resolve("var(--cp-neutral-8)"));
+    expect(rgb(done?.backgroundColor as string)).toEqual(grey);
+    expect(rgb(todo?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-neutral-5)")));
+    const stops = [...(current?.backgroundImage ?? "").matchAll(/rgb\([^)]+\)|oklch\([^)]+\)/g)];
+    expect(new Set(stops.map((m) => m[0]))).toHaveProperty("size", 1);
+    expect(getComputedStyle(el.querySelector("[aria-current]") as Element).color).toBe(
+      resolve("var(--cp-ink-muted)"),
+    );
+    const kept = el.querySelector(".cp-kept") as Element;
+    const style = getComputedStyle(kept);
+    expect([style.color, style.marginTop]).toEqual([resolve("var(--cp-ink-muted)"), "8px"]);
+    const clock = getComputedStyle(kept, "::before");
+    expect([clock.width, clock.height]).toEqual(["14px", "14px"]);
+    expect(decodeURIComponent(clock.maskImage)).toContain("M12 6v6l4 2");
+  });
+
+  it("sizes a compact track's button to the tier's minimum, in the accent", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-track-compact" type="button"><span class="cp-icon" data-cp-icon="download"></span>Downloading</button>',
+    );
+    const button = el.querySelector("button") as Element;
+    for (const [tier, h] of [
+      ["fine", 24],
+      ["coarse", 44],
+    ] as const) {
+      root.dataset["pointer"] = tier;
+      expect(button.getBoundingClientRect().height).toBe(h);
+    }
+    const style = getComputedStyle(button);
+    expect([style.color, style.fontWeight, style.backgroundColor]).toEqual([
+      resolve("var(--cp-accent-11)"),
+      "500",
+      "rgba(0, 0, 0, 0)",
+    ]);
+  });
+
   it("lays facts in a muted label column beside their values, one column on a phone", async () => {
     theme("light");
     const el = build(

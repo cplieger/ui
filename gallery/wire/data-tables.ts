@@ -295,3 +295,7 @@ for (const host of all<HTMLElement>("[data-state-history]")) {
     createStateHistory(points, { name: host.dataset["name"] ?? "", states: CHECKS }),
   );
 }
+
+for (const step of all<HTMLElement>(".cp-track > li[data-track-at]")) {
+  step.style.setProperty("--cp-track-at", `${step.dataset["trackAt"] ?? ""}%`);
+}

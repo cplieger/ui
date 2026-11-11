@@ -1351,7 +1351,6 @@ for (const list of $$("[data-hold]")) {
 for (const l of $$("label[data-hue]")) l.style.setProperty("--h", l.dataset.hue);
 
 // A current step's share of its bar, set through the CSSOM.
-for (const li of $$(".g-track > li[data-pct]")) li.style.setProperty("--pct", `${li.dataset.pct}%`);
 
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to
 // fit its card; its own container queries do what the window's width would.

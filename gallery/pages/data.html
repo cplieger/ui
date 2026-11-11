@@ -322,26 +322,24 @@
   <section class="g-section" id="steps">
     <h2>Progress and work</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Step track</h2>
-        <div class="g-track-wrap">
-          <ol class="g-track" aria-label="Grab progress, Frieren Season 1">
-            <li data-state="done">Found<span class="g-sr">, done</span></li>
-            <li data-state="done">Sent<span class="g-sr">, done</span></li>
-            <li data-state="current" data-pct="42" aria-current="step">Downloading<span class="g-sr">, 42 %</span></li>
-            <li data-state="todo">Imported<span class="g-sr">, to come</span></li>
+        <ol class="cp-track" aria-label="Grab progress, Frieren Season 1">
+          <li data-state="done">Found<span class="cp-visually-hidden">, done</span></li>
+          <li data-state="done">Sent<span class="cp-visually-hidden">, done</span></li>
+          <li data-state="current" data-track-at="42" aria-current="step">Downloading<span class="cp-visually-hidden">, 42 %</span></li>
+          <li data-state="todo">Imported<span class="cp-visually-hidden">, to come</span></li>
+        </ol>
+        <div class="g-gap-top">
+          <ol class="cp-track" data-kept aria-label="Grab progress, Mushishi, last known">
+            <li data-state="done">Found<span class="cp-visually-hidden">, done</span></li>
+            <li data-state="current" data-track-at="60" aria-current="step">Sent</li>
+            <li data-state="todo">Downloading<span class="cp-visually-hidden">, to come</span></li>
+            <li data-state="todo">Imported<span class="cp-visually-hidden">, to come</span></li>
           </ol>
+          <p class="cp-kept">Last known at 14:02: the download client is not answering</p>
         </div>
-        <div class="g-track-wrap g-gap-top">
-          <ol class="g-track" data-stale aria-label="Grab progress, Mushishi, last known">
-            <li data-state="done">Found<span class="g-sr">, done</span></li>
-            <li data-state="current" data-pct="60" aria-current="step">Sent</li>
-            <li data-state="todo">Downloading<span class="g-sr">, to come</span></li>
-            <li data-state="todo">Imported<span class="g-sr">, to come</span></li>
-          </ol>
-          <p class="g-kept-tag"><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Last known at 14:02: the download client is not answering</p>
-        </div>
-        <p class="g-gap-top">In a table row: <button class="g-step-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" aria-label="Downloading, 42 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></p>
+        <p class="g-gap-top">In a table row: <button class="cp-track-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Downloading, 42 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></p>
         <footer>Four named steps, each done, current or to come, in words for a screen reader as well as by fill; the current step's bar fills as it goes, and its percentage is read out, not shown. The kept form goes grey and says when it was true. The compact form shows the current step and puts the rest in a tooltip.</footer>
       </div>
       <div class="card">
