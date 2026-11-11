@@ -37,11 +37,11 @@ A form never loses what the person typed, and every error is text that says how 
 
 ## Tables
 
-Rows are never interactive. A row's actions are buttons in its last cell, and a destination is a link in the title cell.
+Rows are never interactive. A row's actions are buttons in its last cell, and a destination is a link in the title cell, beside its picture in a `.cp-title-cell`. The row that holds keyboard focus takes the fill a pointer gives a row, so a person tabbing through its actions sees which row they act on.
 
-**Row actions.** A row's action button has a visible word, such as "Grab", and an accessible name that starts with that word and adds the row, such as "Grab Delicious in Dungeon". A row with one action gives it the whole actions column, so a column of actions lines up.
+**Row actions.** A row's action button has a visible word, such as "Grab", and an accessible name that starts with that word and adds the row, such as "Grab Delicious in Dungeon". A row with one action gives it the whole actions column, so a column of actions lines up. More actions go in one `.cp-menu` that every row's ⋯ button opens, and an action that runs confirms in its own cell, with no toast.
 
-**Sorting.** A sortable column's header is a button that names the order it will apply. The current sort is in the URL and in `aria-sort` on its `<th>`.
+**Sorting.** A sortable column's header is a `.cp-sort` button that names the order it will apply, such as "Sort by Size, ascending". The current sort is in the URL and in `aria-sort` on its `<th>`. [table](data/table.md)'s `enhanceSort` names the buttons, moves `aria-sort` and announces the new order.
 
 **Selection.** A table whose rows take a bulk action has a first column, `data-col="select"`, of `.cp-checkbox` boxes:
 
@@ -50,7 +50,7 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 3. A selected row takes the selected fill. Space toggles the focused checkbox. Escape clears the selection while focus is in the table or the batch bar and no dialog or menu is open.
 4. With one row or more selected, a `.cp-batchbar` above the table, a `<section>` named by `aria-label`, shows the count, a Clear button and the bulk actions, which name their count, such as "Grab 2". Once the whole page is selected and more rows match, it also offers "Select all 412 entries", which selects every row the filters show on every page. With none selected, the bar is gone.
 5. Selection survives sorting and paging. A filter change that hides selected rows keeps them selected and says so in the count, such as "2 selected, 1 hidden by filters".
-6. Announce each change to the count through `@cplieger/ui/announce`, politely.
+6. Announce each change to the count through `@cplieger/ui/announce`, politely. [table](data/table.md)'s `enhanceBatchBar` runs the bar, its count, Escape and these announcements.
 7. A bulk action that changes or removes data asks first or offers an Undo, as a single action does. Its confirmation names the count.
 
 **Pages.** A list longer than one page has a `.cp-pager` under its table, inside the panel:

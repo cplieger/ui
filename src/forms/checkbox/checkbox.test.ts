@@ -61,6 +61,19 @@ describe("enhanceSelectAll", () => {
     expect(all.checked).toBe(false);
   });
 
+  it("checks every box of a group of several in one press", async () => {
+    const { all, boxes } = group(["off", "off", "off"]);
+    const told: number[] = [];
+    for (const [i, b] of boxes.entries()) {
+      b.addEventListener("change", () => told.push(i));
+    }
+    enhanceSelectAll(all, () => boxes, { signal: life.signal });
+    await userEvent.click(all);
+    expect(boxes.map((b) => b.checked)).toEqual([true, true, true]);
+    expect(told).toEqual([0, 1, 2]);
+    expect([all.checked, all.indeterminate]).toEqual([true, false]);
+  });
+
   it("reads the group at each change, and syncs on request after code changes it", async () => {
     const { all, boxes } = group(["on"]);
     const sync = enhanceSelectAll(all, () => boxes, { signal: life.signal });

@@ -29,6 +29,7 @@ import { viewTransition } from "@cplieger/ui/view-transition";
 import "./legacy/gallery.js";
 import { markCards } from "./review.js";
 import "./wire/data-figures.js";
+import "./wire/data-tables.js";
 import "./wire/nav-feedback.js";
 import "./wire/overlays.js";
 

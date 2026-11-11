@@ -931,41 +931,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
 
 /* Tables and lists */
 
-.g-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.g-sort > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  opacity: 0;
-  transition: rotate 260ms var(--ease-spring), opacity var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-th[aria-sort] .g-sort > .cp-icon {
-  opacity: 1;
-}
-
-th[aria-sort="descending"] .g-sort > .cp-icon {
-  rotate: 180deg;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    th:not([aria-sort]) .g-sort:hover > .cp-icon {
-      opacity: 0.4;
-    }
-  }
-}
-
 .g-avatar {
   display: inline-grid;
   place-items: center;
@@ -1049,21 +1014,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 .g-row:focus-visible {
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: -2px;
-}
-
-.g-skeleton-row td::after {
-  content: "";
-  display: block;
-  block-size: 0.75rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-fill);
-  animation: pulse-row 1.4s ease-in-out infinite;
-}
-
-@keyframes pulse-row {
-  50% {
-    opacity: 0.45;
-  }
 }
 
 /* Backspace in an empty field marks the last token first, then removes it. */
@@ -2067,29 +2017,12 @@ html:has(.g-header) {
   --av-on: var(--cp-harmony-4-on);
 }
 
-/* Positioned, so a visually hidden label inside its table stays in the
- * scroller rather than widening the page, as css/system's flush panel does. */
-.g-flush {
-  position: relative;
-  padding: 0;
-  overflow-x: auto;
-}
-
 .g-gap-top {
   margin-block-start: var(--cp-space-3);
 }
 
 .g-h1 {
   font-size: var(--cp-text-lg);
-}
-
-/* Targets: a sort button fills its header cell; a token's remove button
- * is 28px, 44px under a finger; a switch's hit area reaches 44px. */
-.g-sort {
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-1);
-  margin-inline: calc(-1 * var(--cp-space-1));
-  border-radius: var(--cp-radius-control);
 }
 
 /* The frame's status line out of its frame, boxed so its edges show. */
@@ -2272,49 +2205,6 @@ html:has(.g-header) {
 /* The panel is the table's container, so columns step aside by its width. */
 .g-tablebox {
   container-type: inline-size;
-}
-
-.g-caption {
-  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  text-align: start;
-}
-
-.g-titlecell {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-}
-
-/* A 2:3 thumbnail: the poster, or its stand-in with the title's initial.
- * In a table it fills its row less 1px each side, so posters stack 2px
- * apart as in the jump list; the text keeps its own padding. */
-.cp-table td:has(> .g-titlecell) {
-  padding-block: 1px;
-}
-
-.g-titlecell > .cp-cell-stack {
-  padding-block: var(--cp-space-2);
-}
-
-.g-thumb {
-  display: grid;
-  flex: none;
-  place-items: center;
-  inline-size: 2.25rem;
-  aspect-ratio: 2 / 3;
-  border-radius: calc(var(--cp-radius-control) - 0.125rem);
-  background: var(--av, var(--cp-harmony-2));
-  color: var(--av-on, var(--cp-harmony-2-on));
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-semibold);
-}
-
-.g-rowacts {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--cp-space-1);
 }
 
 /* The step track's words, and its compact and kept forms. */
@@ -2653,10 +2543,6 @@ html:has(.g-header) {
 }
 
 /* The stepper's number rolls in a window laid over its field. */
-
-.g-thumb > .cp-icon {
-  --cp-icon-size: 1rem;
-}
 
 /* ===== Forced colours: the gallery's own controls keep their state ===== */
 @media (forced-colors: active) {

@@ -48,9 +48,11 @@ export function enhanceSelectAll(
   all.addEventListener(
     "change",
     () => {
+      // Read once: each box told below syncs `all` to the part-done group.
+      const on = all.checked;
       for (const b of boxes()) {
-        if (!b.disabled && b.checked !== all.checked) {
-          b.checked = all.checked;
+        if (!b.disabled && b.checked !== on) {
+          b.checked = on;
           tell(b);
         }
       }

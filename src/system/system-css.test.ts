@@ -3399,3 +3399,105 @@ describe("css/system.css feedback and steps", () => {
     );
   });
 });
+
+describe("css/system.css data tables", () => {
+  const resolve = (value: string, property: "color" | "backgroundColor" = "color"): string => {
+    const h = host("");
+    h.style[property] = value;
+    return getComputedStyle(h)[property];
+  };
+
+  it("draws a sort button's arrow from the stylesheet, shown on the sorted column and turned over for descending", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><thead><tr>' +
+        '<th><button class="cp-sort" type="button">Title</button></th>' +
+        '<th aria-sort="ascending"><button class="cp-sort" type="button">Size</button></th>' +
+        '<th aria-sort="descending"><button class="cp-sort" type="button">Added</button></th>' +
+        "</tr></thead></table>",
+    );
+    const [off, up, down] = [...el.querySelectorAll(".cp-sort")].map((b) =>
+      getComputedStyle(b, "::after"),
+    );
+    expect(off?.maskImage).toMatch(/^url\(/);
+    expect([off?.opacity, up?.opacity, down?.opacity]).toEqual(["0", "1", "1"]);
+    expect([up?.rotate, down?.rotate]).toEqual(["none", "180deg"]);
+  });
+
+  it("gives a sort button a small control's height, a finger's under a coarse pointer", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><thead><tr><th><button class="cp-sort" type="button">Title</button></th></tr></thead></table>',
+    );
+    const button = el.querySelector(".cp-sort") as HTMLElement;
+    expect(button.getBoundingClientRect().height).toBe(26);
+    root.dataset["pointer"] = "coarse";
+    expect(button.getBoundingClientRect().height).toBe(44);
+  });
+
+  it.skipIf(!emulates)("keeps a sort arrow in the button's ink in forced colours", async () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><thead><tr><th aria-sort="ascending"><button class="cp-sort" type="button">Title</button></th></tr></thead></table>',
+    );
+    await media("forced-colors", "active");
+    const button = el.querySelector(".cp-sort") as HTMLElement;
+    expect(getComputedStyle(button, "::after").backgroundColor).toBe(
+      resolve("ButtonText", "backgroundColor"),
+    );
+  });
+
+  it("writes a caption small and muted at the table's start", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><caption>Library, 1 to 4 of 412 entries</caption></table>',
+    );
+    const caption = getComputedStyle(el.querySelector("caption") as Element);
+    expect([caption.color, caption.textAlign]).toEqual([resolve("var(--cp-ink-muted)"), "start"]);
+    expect(caption.fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
+    );
+  });
+
+  it("draws a thumbnail as a 2:3 tile in the harmony colour it names, the second by default", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-thumb"></span><span class="cp-thumb" data-harmony="1"></span><span class="cp-thumb" data-harmony="4"></span>',
+    );
+    const [plain, one, four] = [...el.querySelectorAll(".cp-thumb")];
+    const fill = (e: Element | undefined) => getComputedStyle(e as Element).backgroundColor;
+    expect(fill(plain)).toBe(resolve("var(--cp-harmony-2)", "backgroundColor"));
+    expect(fill(one)).toBe(resolve("var(--cp-harmony-1)", "backgroundColor"));
+    expect(fill(four)).toBe(resolve("var(--cp-harmony-4)", "backgroundColor"));
+    expect(getComputedStyle(four as Element).color).toBe(resolve("var(--cp-harmony-4-on)"));
+    const box = (plain as Element).getBoundingClientRect();
+    expect([box.width, box.height]).toEqual([36, 54]);
+  });
+
+  it("fills the row a keyboard is in, and keeps a selected row's fill", async () => {
+    theme("light");
+    const el = build(
+      '<button type="button" id="start">Start</button><table class="cp-table"><tbody>' +
+        '<tr><td>a</td><td data-col="actions"><button class="cp-button" type="button">Grab</button></td></tr>' +
+        '<tr><td data-col="select"><label><input type="checkbox" checked></label></td><td>b</td></tr>' +
+        "</tbody></table>",
+    );
+    const [plain, selected] = [...el.querySelectorAll("tr")].map(
+      (tr) => tr.cells[0] as HTMLElement,
+    );
+    const grab = el.querySelector(".cp-button") as HTMLElement;
+    const rest = getComputedStyle(grab).backgroundColor;
+    expect(getComputedStyle(plain as Element).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    (el.querySelector("#start") as HTMLElement).focus();
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(grab);
+    expect(getComputedStyle(plain as Element).backgroundColor).toBe(
+      resolve("var(--cp-fill)", "backgroundColor"),
+    );
+    expect(getComputedStyle(grab).backgroundColor).not.toBe(rest);
+    await userEvent.keyboard("{Tab}");
+    expect(getComputedStyle(selected as Element).backgroundColor).toBe(
+      resolve("var(--cp-selected)", "backgroundColor"),
+    );
+  });
+});

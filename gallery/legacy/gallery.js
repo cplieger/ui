@@ -529,125 +529,6 @@ function liveTimes() {
 liveTimes();
 setInterval(liveTimes, 30000);
 
-// ------------------------------------------------------------- tables
-// A sortable header sorts its column and the rows glide to their places.
-// Each sort button names what a press does: the other order on the sorted
-// column, ascending on the others.
-function sortNames(table) {
-  for (const b of $$(".g-sort", table)) {
-    const th = b.closest("th");
-    const now = th.getAttribute("aria-sort");
-    b.setAttribute("aria-label", `Sort by ${b.textContent.trim()}, ${now === "ascending" ? "descending" : "ascending"}`);
-  }
-}
-for (const table of $$("table[data-sortable]")) {
-  sortNames(table);
-  const all = $("[data-select-all]", table);
-  if (all) all.setAttribute("aria-label", `Select all ${$$("tbody tr", table).length} entries on this page`);
-  const body = $("tbody", table);
-  for (const btn of $$(".g-sort", table)) {
-    btn.addEventListener("click", () => {
-      const th = btn.closest("th");
-      const col = [...th.parentElement.children].indexOf(th);
-      const dir = th.getAttribute("aria-sort") === "ascending" ? "descending" : "ascending";
-      for (const h of $$("th", table)) h.removeAttribute("aria-sort");
-      th.setAttribute("aria-sort", dir);
-      const rows = $$("tr", body);
-      const before = new Map(rows.map((r) => [r, r.getBoundingClientRect().top]));
-      const key = (r) => r.children[col].dataset.sort ?? r.children[col].textContent.trim();
-      rows.sort((a, b) => {
-        const [x, y] = [key(a), key(b)];
-        const c = isNaN(x) || isNaN(y) ? x.localeCompare(y) : Number(x) - Number(y);
-        return dir === "ascending" ? c : -c;
-      });
-      body.append(...rows);
-      if (!reduced()) {
-        for (const r of rows) {
-          const dy = before.get(r) - r.getBoundingClientRect().top;
-          if (dy) r.animate([{ translate: `0 ${dy}px` }, { translate: "0 0" }], { duration: 260, easing: "cubic-bezier(0.2, 0, 0, 1)" });
-        }
-      }
-      sortNames(table);
-      say(`Sorted by ${btn.textContent.trim()}, ${dir}`);
-    });
-  }
-}
-// The bar counts the selection and names it on every bulk action. Once
-// this whole page is selected and more rows match, it offers them all;
-// Escape in the table or the bar clears, unless a menu or dialog is open.
-for (const bar of $$("[data-batch]")) {
-  const group = bar.dataset.batch;
-  const boxes = $$(`[data-group="${group}"]`);
-  const all = $(`[data-select-all="${group}"]`);
-  const count = $(".cp-batch-count", bar);
-  const every = $("[data-select-every]", bar);
-  const total = Number(bar.dataset.total ?? boxes.length);
-  let everything = false;
-  let said = "";
-  const update = () => {
-    const on = boxes.filter((b) => b.checked).length;
-    if (on < boxes.length) everything = false;
-    const n = everything ? total : on;
-    bar.hidden = n === 0;
-    count.textContent = `${n} selected`;
-    if (every) every.hidden = everything || on < boxes.length || total <= boxes.length;
-    for (const b of $$("[data-names-count]", bar)) {
-      const label = $(".roll > span:first-child", b) ?? b;
-      label.textContent = `${b.dataset.namesCount} ${n}`;
-    }
-    const words = n ? count.textContent : "Selection cleared";
-    if (words !== said) say(words);
-    said = words;
-  };
-  const clear = () => {
-    everything = false;
-    for (const b of boxes) b.checked = false;
-    boxes[0]?.dispatchEvent(new Event("change"));
-    update();
-  };
-  for (const b of [...boxes, all]) b?.addEventListener("change", update);
-  every?.addEventListener("click", () => {
-    everything = true;
-    update();
-    $("[data-clear]", bar).focus();
-  });
-  $("[data-clear]", bar)?.addEventListener("click", () => {
-    clear();
-    (all ?? boxes[0])?.focus();
-  });
-  const table = all?.closest("table");
-  for (const zone of [bar, table]) {
-    zone?.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape" || bar.hidden || document.querySelector(":popover-open:not(.cp-tooltip), dialog[open]")) return;
-      e.preventDefault();
-      clear();
-      (all ?? boxes[0])?.focus();
-    });
-  }
-  said = "Selection cleared";
-  update();
-}
-// A row's Grab answers in its own cell, with no toast: the Save cycle
-// above plays on it, and this says it once a press.
-for (const b of $$("[data-grab-row]")) {
-  b.addEventListener("click", () => {
-    if (b.dataset.said) return;
-    b.dataset.said = "";
-    say(`Grabbing ${b.dataset.grabRow}`);
-    setTimeout(() => delete b.dataset.said, 1600);
-  });
-}
-$("[data-load-table]")?.addEventListener("click", (e) => {
-  const table = document.getElementById(e.currentTarget.dataset.loadTable);
-  const body = $("tbody", table);
-  const keep = [...body.children];
-  table.setAttribute("aria-busy", "true");
-  body.replaceChildren(...keep.map(() => el("tr", { class: "g-skeleton-row" }, ...[...keep[0].children].map(() => el("td")))));
-  setTimeout(() => {
-    body.replaceChildren(...keep);
-    table.removeAttribute("aria-busy");
-  }, 1400);
-});
 
 // ---------------------------------------------------- reorderable list
 // A handle drags an item; Alt with an arrow key, or its Move up and Move
@@ -1603,7 +1484,7 @@ for (const host of $$("[data-strip]")) {
   const legend = el("div", { class: "g-legend" }, ...Object.entries(STRIP).filter(([k]) => tally[k]).map(([, [tone, word]]) => el("span", {}, el("span", { class: "g-dot", "data-tone": tone }), word)));
   const rows = cells.map((c, i) => el("tr", {}, el("td", { text: i === cells.length - 1 ? `Check ${i + 1}, the latest` : `Check ${i + 1}` }), el("td", { text: STRIP[c][1] }))).reverse();
   const table = el("table", { class: "cp-table" }, el("thead", {}, el("tr", {}, el("th", { text: "Check" }), el("th", { text: "State" }))), el("tbody", {}, ...rows));
-  host.append(svg, legend, el("details", {}, el("summary", {}, icon("chevron-right"), "Show as a table"), el("div", { class: "cp-panel g-flush g-gap-top" }, table)));
+  host.append(svg, legend, el("details", {}, el("summary", {}, icon("chevron-right"), "Show as a table"), el("div", { class: "cp-panel g-gap-top", "data-flush": "" }, table)));
 }
 
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to
@@ -1708,17 +1589,6 @@ function glideShow(node, show) {
     const from = node.getBoundingClientRect().height;
     node.animate([{ blockSize: `${from}px`, opacity: 1, overflow: "clip" }, { blockSize: "0px", opacity: 0, overflow: "clip" }], { duration: glideMs(), easing: "cubic-bezier(0.4, 0, 1, 1)" }).onfinish = () => (node.hidden = true);
   }
-}
-for (const bar of $$("[data-batch]")) {
-  // the batch script toggles hidden; this turns each toggle into a glide
-  let shown = !bar.hidden;
-  new MutationObserver(() => {
-    const now = !bar.hidden;
-    if (now === shown) return;
-    shown = now;
-    bar.hidden = !now;
-    glideShow(bar, now);
-  }).observe(bar, { attributes: true, attributeFilter: ["hidden"] });
 }
 
 // A dialog's exit: Chromium animates it in CSS (overlay and display allow

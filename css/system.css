@@ -4279,6 +4279,131 @@ textarea.cp-input {
   gap: var(--cp-space-1);
 }
 
+/* The caption names the table and its range, and takes focus after a sort
+ * or a page change. */
+.cp-table > caption {
+  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  text-align: start;
+}
+
+/* A sortable header's button (@cplieger/ui/table). Its arrow shows on the
+ * sorted column and turns over for descending. */
+.cp-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-block-size: var(--cp-control-h-sm);
+  padding: 0 var(--cp-space-1);
+  margin-inline: calc(-1 * var(--cp-space-1));
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cp-sort::after {
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: currentcolor;
+  mask: url("../icons/svg/arrow-up.svg") center / contain no-repeat;
+  opacity: 0;
+  transition:
+    rotate 260ms var(--cp-ease-spring),
+    opacity var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+th[aria-sort] > .cp-sort::after {
+  opacity: 1;
+}
+
+th[aria-sort="descending"] > .cp-sort::after {
+  rotate: 180deg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-sort::after {
+    transition: opacity var(--cp-dur-micro) var(--cp-ease-out);
+  }
+}
+
+/* The title cell: a picture or its stand-in beside the title and its line.
+ * The picture fills its row less 1px each side, so pictures in stacked rows
+ * sit 2px apart; the words keep their own padding. */
+.cp-title-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+}
+
+.cp-table td:has(> .cp-title-cell) {
+  padding-block: 1px;
+}
+
+.cp-title-cell > .cp-cell-stack {
+  padding-block: var(--cp-space-2);
+}
+
+/* A 2:3 tile in a flat harmony colour, holding the kind's icon until a
+ * picture loads over it. */
+.cp-thumb {
+  --cp-thumb: var(--cp-harmony-2);
+  --cp-thumb-on: var(--cp-harmony-2-on);
+
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 2.25rem;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: calc(var(--cp-radius-control) - 0.125rem);
+  background: var(--cp-thumb);
+  color: var(--cp-thumb-on);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-strong);
+}
+
+.cp-thumb[data-harmony="1"] {
+  --cp-thumb: var(--cp-harmony-1);
+  --cp-thumb-on: var(--cp-harmony-1-on);
+}
+
+.cp-thumb[data-harmony="3"] {
+  --cp-thumb: var(--cp-harmony-3);
+  --cp-thumb-on: var(--cp-harmony-3-on);
+}
+
+.cp-thumb[data-harmony="4"] {
+  --cp-thumb: var(--cp-harmony-4);
+  --cp-thumb-on: var(--cp-harmony-4-on);
+}
+
+.cp-thumb > .cp-icon {
+  --cp-icon-size: 1rem;
+}
+
+.cp-thumb > img {
+  grid-area: 1 / 1;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+/* The row a keyboard is in takes the fill a pointer gives it, so a person
+ * tabbing through a row's actions sees which row they act on. */
+.cp-table tbody tr:has(:focus-visible) > td {
+  background: var(--cp-fill);
+}
+
+.cp-table tbody tr:has(:focus-visible) .cp-button:not([data-variant], [data-cp-state]) {
+  background: var(--cp-surface-raised);
+}
+
 .cp-table [data-col="num"] {
   text-align: end;
   font-variant-numeric: tabular-nums;
@@ -4354,8 +4479,22 @@ textarea.cp-input {
   justify-content: end;
 }
 
+@media (forced-colors: active) {
+  .cp-sort::after {
+    background: ButtonText;
+  }
+
+  .cp-thumb {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
+    th:not([aria-sort]) > .cp-sort:hover::after {
+      opacity: 0.4;
+    }
+
     .cp-table tbody tr:hover :is(td, th) {
       background: var(--cp-fill);
     }

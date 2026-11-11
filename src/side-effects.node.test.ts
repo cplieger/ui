@@ -50,6 +50,7 @@ const PURE = [
   "/skeleton",
   "/sparkline",
   "/stepper",
+  "/table",
   "/tabs",
   "/textarea",
   "/theme",
