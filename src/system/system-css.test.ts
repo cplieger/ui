@@ -3862,4 +3862,184 @@ describe("css/system.css lists, feeds and counts", () => {
       expect(cs.outlineColor).toBe(resolved("CanvasText"));
     },
   );
+
+  const entry = (attrs = "", author = "@kiro", body = "The reservation is yours.") =>
+    `<li class="cp-feed-entry" ${attrs}><header><a href="#a">${author}</a><span class="cp-chip"><span class="cp-mono">internal/feed</span></span><time datetime="2026-11-11T10:00">4 min ago</time></header><h3>Feed scroll</h3><p class="cp-feed-text">${body}</p><footer><button class="cp-button" data-variant="quiet" data-size="sm" type="button">Read by 3 of 5</button></footer></li>`;
+  const foot =
+    '<div class="cp-feed-foot"><button class="cp-button cp-feed-jump" data-size="sm" type="button">2 new messages</button><form class="cp-form"><textarea class="cp-input" aria-label="Message"></textarea><button class="cp-button" data-variant="primary" type="submit">Send</button></form></div>';
+  // A conversation in a scroller 20rem tall, as the detail holds one.
+  const conversationIn = (entries: string, dir = "ltr") => {
+    const el = build(`<ol class="cp-feed" aria-label="Messages">${entries}</ol>${foot}`);
+    el.dir = dir;
+    el.style.blockSize = "20rem";
+    el.style.inlineSize = "30rem";
+    el.style.overflowY = "auto";
+    return el;
+  };
+  const box = (el: Element, selector: string) =>
+    (el.querySelector(selector) as Element).getBoundingClientRect();
+
+  it("sets the person's own entry on a sunken fill, its text on the same edge as everyone else's", () => {
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      const el = build(`<ol class="cp-feed">${entry()}${entry("data-own", "You")}</ol>`);
+      const [plain, own] = [...el.querySelectorAll(".cp-feed-entry")] as [Element, Element];
+      const fill = getComputedStyle(own).backgroundColor;
+      expect(getComputedStyle(plain).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+      expect(fill).toBe(resolved("var(--cp-surface-sunken)", "backgroundColor"));
+      expect(fill).not.toBe(resolved("var(--cp-surface-page)", "backgroundColor"));
+      for (const part of ["header > a", "h3", "p"]) {
+        expect(box(own, part).left).toBe(box(plain, part).left);
+      }
+      expect(contrast(resolved("var(--cp-ink-muted)"), fill)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("mutes an entry still sending, its author too, and keeps a failed one in ink", () => {
+    theme("light");
+    const el = build(
+      `<ol class="cp-feed">${entry('data-own data-state="sending" aria-busy="true"', "You")}${entry('data-own data-state="failed"', "You")}</ol>`,
+    );
+    const [sending, failed] = [...el.querySelectorAll(".cp-feed-entry")] as [Element, Element];
+    const muted = resolved("var(--cp-ink-muted)");
+    expect(getComputedStyle(sending).color).toBe(muted);
+    expect(getComputedStyle(sending.querySelector("a") as Element).color).toBe(muted);
+    expect(getComputedStyle(sending.querySelector("h3") as Element).color).toBe(muted);
+    expect(getComputedStyle(failed).color).toBe(resolved("var(--cp-ink)"));
+    expect(getComputedStyle(failed.querySelector("a") as Element).color).toBe(
+      resolved("var(--cp-ink)"),
+    );
+  });
+
+  it("keeps a plain-text body's line breaks and wraps a name with no break point", () => {
+    theme("light");
+    const el = build(
+      `<ol class="cp-feed">${entry("", "@kiro", "one line")}${entry("", "@kiro", "one line\ntwo lines")}${entry("", "@kiro", "x".repeat(400))}</ol>`,
+    );
+    el.style.inlineSize = "20rem";
+    const [one, two, long] = [...el.querySelectorAll("p")] as [
+      HTMLParagraphElement,
+      HTMLParagraphElement,
+      HTMLParagraphElement,
+    ];
+    expect(two.getBoundingClientRect().height).toBeCloseTo(
+      2 * one.getBoundingClientRect().height,
+      0,
+    );
+    expect(long.scrollWidth).toBeLessThanOrEqual(long.clientWidth);
+    expect(el.scrollWidth).toBeLessThanOrEqual(el.clientWidth);
+  });
+
+  it("pins the foot to the scroller's end, and at the end puts the last entry above it", () => {
+    theme("light");
+    const el = conversationIn(entry().repeat(10));
+    const end = () => el.getBoundingClientRect().bottom;
+    expect(box(el, ".cp-feed-foot").bottom).toBeCloseTo(end(), 0);
+    expect(getComputedStyle(el.querySelector(".cp-feed-foot") as Element).position).toBe("sticky");
+    el.scrollTop = el.scrollHeight;
+    expect(box(el, ".cp-feed-foot").bottom).toBeCloseTo(end(), 0);
+    const last = el.querySelector(".cp-feed-entry:last-child") as Element;
+    expect(last.getBoundingClientRect().bottom).toBeLessThanOrEqual(box(el, ".cp-feed-foot").top);
+  });
+
+  it("keeps the composer above the on-screen keyboard by the inset the script measures", () => {
+    theme("light");
+    const el = conversationIn(entry().repeat(10));
+    el.style.setProperty("--cp-keyboard-inset", "100px");
+    el.scrollTop = el.scrollHeight;
+    const bottom = el.getBoundingClientRect().bottom;
+    expect(box(el, ".cp-feed-foot").bottom).toBeCloseTo(bottom, 0);
+    expect(box(el, ".cp-form").bottom).toBeLessThanOrEqual(bottom - 100);
+    const last = el.querySelector(".cp-feed-entry:last-child") as Element;
+    expect(last.getBoundingClientRect().bottom).toBeLessThanOrEqual(box(el, ".cp-feed-foot").top);
+  });
+
+  it("centres New messages above the foot in either direction, and hides it by hidden", () => {
+    theme("light");
+    for (const dir of ["ltr", "rtl"]) {
+      const el = conversationIn(entry().repeat(10), dir);
+      const jump = box(el, ".cp-feed-jump");
+      const bar = box(el, ".cp-feed-foot");
+      expect(jump.left + jump.width / 2).toBeCloseTo(bar.left + bar.width / 2, 0);
+      expect(jump.width).toBeLessThan(bar.width / 2);
+      expect(jump.bottom).toBeCloseTo(bar.top - 8, 0);
+      const cs = getComputedStyle(el.querySelector(".cp-feed-jump") as Element);
+      expect(cs.backgroundColor).toBe(resolved("var(--cp-surface-raised)", "backgroundColor"));
+      expect(cs.borderTopStyle).toBe("solid");
+      expect(cs.boxShadow).toBe("none");
+      (el.querySelector(".cp-feed-jump") as HTMLElement).hidden = true;
+      expect(cs.display).toBe("none");
+    }
+  });
+
+  it("tells the new-since marker from a day by place and weight, not colour alone", () => {
+    theme("light");
+    const el = build(
+      '<ol class="cp-feed"><li class="cp-feed-day"><time datetime="2026-11-11">11 November</time></li><li class="cp-feed-marker">New since your last visit</li></ol>',
+    );
+    el.style.inlineSize = "30rem";
+    const [day, marker] = [...el.querySelectorAll("li")] as [HTMLLIElement, HTMLLIElement];
+    const date = box(day, "time");
+    const li = day.getBoundingClientRect();
+    expect(date.left + date.width / 2).toBeCloseTo(li.left + li.width / 2, 0);
+    const words = document.createRange();
+    words.selectNodeContents(marker);
+    expect(words.getBoundingClientRect().left).toBeCloseTo(marker.getBoundingClientRect().left, 0);
+    const [d, m] = [getComputedStyle(day), getComputedStyle(marker)];
+    expect(Number(m.fontWeight)).toBeGreaterThan(Number(d.fontWeight));
+    expect(parseFloat(m.fontSize)).toBeGreaterThan(parseFloat(d.fontSize));
+    expect(getComputedStyle(marker, "::after").borderTopColor).toBe(
+      resolved("var(--cp-border-strong)"),
+    );
+    expect(getComputedStyle(day, "::after").borderTopColor).toBe(resolved("var(--cp-line)"));
+  });
+
+  it("turns off scroll anchoring through the feed, whose script keeps the reader's place", () => {
+    theme("light");
+    const el = build(`<ol class="cp-feed">${entry()}</ol>`);
+    for (const part of [".cp-feed", ".cp-feed-entry", "p"]) {
+      expect(getComputedStyle(el.querySelector(part) as Element).overflowAnchor).toBe("none");
+    }
+  });
+
+  it("draws a loading entry's lines at 30, 50, 90 and 70 percent", () => {
+    theme("light");
+    const el = build(
+      '<ol class="cp-feed" aria-busy="true"><li class="cp-feed-entry" data-skeleton><span class="cp-skeleton"></span><span class="cp-skeleton"></span><span class="cp-skeleton"></span><span class="cp-skeleton"></span></li></ol>',
+    );
+    el.style.inlineSize = "432px";
+    const lines = [...el.querySelectorAll(".cp-skeleton")].map(
+      (s) => s.getBoundingClientRect().width,
+    );
+    expect(lines).toEqual([120, 200, 360, 280]);
+  });
+
+  it("lists who has read an entry without bullets, in a panel that scrolls when long", () => {
+    theme("light");
+    const el = build(
+      `<div class="cp-popover cp-feed-readers" data-variant="panel" popover="manual"><section><h4>Read</h4><ul>${'<li><a href="#a">@kiro</a></li>'.repeat(40)}</ul></section><section><h4>Not read yet</h4><ul><li><a href="#c">@codex</a></li></ul></section></div>`,
+    );
+    const panel = el.querySelector(".cp-feed-readers") as HTMLElement;
+    panel.showPopover();
+    onTestFinished(() => {
+      panel.hidePopover();
+    });
+    expect(getComputedStyle(panel.querySelector("ul") as Element).listStyleType).toBe("none");
+    expect(panel.getBoundingClientRect().height).toBeLessThanOrEqual(384);
+    expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+  });
+
+  it.skipIf(!emulates)(
+    "outlines the person's own entry in forced colours, where its fill is dropped",
+    async () => {
+      theme("light");
+      await media("forced-colors", "active");
+      const el = build(`<ol class="cp-feed">${entry("data-own", "You")}${entry()}</ol>`);
+      const [own, plain] = [...el.querySelectorAll(".cp-feed-entry")].map((e) =>
+        getComputedStyle(e),
+      ) as [CSSStyleDeclaration, CSSStyleDeclaration];
+      expect(own.outlineStyle).toBe("solid");
+      expect(plain.outlineStyle).toBe("none");
+    },
+  );
 });

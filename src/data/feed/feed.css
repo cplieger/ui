@@ -1,0 +1,194 @@
+/* An open conversation: its entries oldest first, with day separators and
+ * the marker of what is new since the last visit between them. The feed
+ * script keeps the reader's place in every engine, and WebKit has no scroll
+ * anchoring, so the browser's own anchoring would fight it. */
+.cp-feed {
+  display: grid;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-anchor: none;
+}
+
+.cp-feed * {
+  overflow-anchor: none;
+}
+
+/* Every entry has the same padding, so the person's own entries, on their
+ * fill, keep their text on the same edge as everyone else's. */
+.cp-feed-entry {
+  display: grid;
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-radius: var(--cp-radius-surface);
+}
+
+.cp-feed-entry > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1) var(--cp-space-2);
+}
+
+.cp-feed-entry > header > a {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-feed-entry > header > a:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+.cp-feed-entry > header > time {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-feed-entry > h3 {
+  max-inline-size: var(--cp-measure);
+}
+
+/* A body as its author typed it: its line breaks kept, and a path or a
+ * link with no break point wrapped rather than widening the feed. */
+.cp-feed-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cp-feed-entry > footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+  margin-block-start: var(--cp-space-1);
+}
+
+/* The person's own entry: a sunken fill, with "You" for its author. */
+.cp-feed-entry[data-own] {
+  background: var(--cp-surface-sunken);
+}
+
+.cp-feed-entry[data-state="sending"],
+.cp-feed-entry[data-state="sending"] > header > a {
+  color: var(--cp-ink-muted);
+}
+
+/* A day: its date centred between two hairlines. */
+.cp-feed-day {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  padding-block: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-feed-day::before,
+.cp-feed-day::after {
+  flex: 1;
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  content: "";
+}
+
+/* What is new since the last visit: its words at the start, in ink and a
+ * heavier weight than a day's, then a strong line to the end, so the two
+ * differ by place, weight and words as well as colour. */
+.cp-feed-marker {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  padding-block: var(--cp-space-2);
+  color: var(--cp-ink);
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-feed-marker::after {
+  flex: 1;
+  border-block-start: var(--cp-line-w) solid var(--cp-border-strong);
+  content: "";
+}
+
+.cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(1) {
+  inline-size: 30%;
+}
+
+.cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(2) {
+  inline-size: 50%;
+}
+
+.cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(3) {
+  inline-size: 90%;
+}
+
+.cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(4) {
+  inline-size: 70%;
+}
+
+/* Who has read an entry and who has not, in the popover its read summary
+ * opens: a heading over each list of names. */
+.cp-feed-readers {
+  max-block-size: min(24rem, 70dvb);
+  overflow-y: auto;
+}
+
+.cp-feed-readers > section {
+  display: grid;
+  gap: var(--cp-space-1);
+}
+
+.cp-feed-readers ul {
+  display: grid;
+  gap: var(--cp-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--cp-text-sm);
+}
+
+/* The composer and the New messages button, pinned to the scroller's end.
+ * --cp-keyboard-inset, which the feed script sets, is the part of the foot
+ * the on-screen keyboard covers: padding it keeps the controls above the
+ * keyboard while the foot stays in flow under the last entry. */
+.cp-feed-foot {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+  display: grid;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-3) var(--cp-space-4)
+    calc(var(--cp-space-3) + var(--cp-keyboard-inset, 0px));
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  background: var(--cp-surface-raised);
+}
+
+.cp-feed-foot > .cp-form {
+  max-inline-size: var(--cp-measure);
+}
+
+/* Centred above the foot by equal insets and auto margins, which hold in
+ * both directions where a translate by half its width would not. Its
+ * offset is from the foot's padding box, inside the foot's top line. */
+.cp-feed-jump {
+  position: absolute;
+  inset-block-end: calc(100% + var(--cp-line-w) + var(--cp-space-2));
+  inset-inline: 0;
+  inline-size: fit-content;
+  margin-inline: auto;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-surface-raised);
+}
+
+/* Forced colours drop the own entry's fill, so a line keeps it apart. */
+@media (forced-colors: active) {
+  .cp-feed-entry[data-own] {
+    outline: var(--cp-line-w) solid CanvasText;
+    outline-offset: calc(-1 * var(--cp-line-w));
+  }
+}
