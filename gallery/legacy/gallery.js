@@ -286,27 +286,6 @@ for (const o of document.querySelectorAll(".odometer")) {
   });
 }
 
-// Sliding tab pill
-for (const list of document.querySelectorAll(".slide-tabs")) {
-  const pill = list.querySelector(".pill");
-  const place = () => {
-    const sel = list.querySelector('[aria-selected="true"]');
-    pill.style.setProperty("--x", `${sel.offsetLeft}px`);
-    pill.style.setProperty("--w", `${sel.offsetWidth}px`);
-  };
-  const sizes = new ResizeObserver(place);
-  sizes.observe(list);
-  for (const tab of list.querySelectorAll(".cp-tab")) {
-    sizes.observe(tab);
-    tab.addEventListener("click", () => {
-      for (const t of list.querySelectorAll(".cp-tab")) t.setAttribute("aria-selected", String(t === tab));
-      place();
-      tab.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduced() ? "auto" : "smooth" });
-    });
-  }
-  place();
-}
-
 // Segmented choices and toggle groups: one pill under the chosen one. It
 // lands without motion on load and on a resize, and slides on a choice.
 for (const group of document.querySelectorAll(".cp-segmented, .g-toggles")) {
@@ -970,40 +949,6 @@ function liveTimes() {
 }
 liveTimes();
 setInterval(liveTimes, 30000);
-
-// -------------------------------------------------------- content tabs
-// Arrow keys move along the tabs and select, as the WAI-ARIA tabs pattern's
-// automatic activation does; each tab shows its panel.
-for (const list of $$("[data-tabs]")) {
-  const tabs = $$("[role='tab']", list);
-  const select = (tab) => {
-    for (const t of tabs) {
-      const on = t === tab;
-      t.setAttribute("aria-selected", String(on));
-      t.tabIndex = on ? 0 : -1;
-      const panel = document.getElementById(t.getAttribute("aria-controls"));
-      if (panel) panel.hidden = !on;
-    }
-    tab.click();
-  };
-  list.addEventListener("keydown", (e) => {
-    const at = tabs.indexOf(document.activeElement);
-    if (at < 0) return;
-    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs.length - 1 }[e.key];
-    if (next === undefined) return;
-    e.preventDefault();
-    const t = tabs[(next + tabs.length) % tabs.length];
-    t.focus();
-    select(t);
-  });
-  for (const t of tabs) t.addEventListener("click", () => {
-    for (const x of tabs) {
-      x.tabIndex = x === t ? 0 : -1;
-      const panel = document.getElementById(x.getAttribute("aria-controls"));
-      if (panel) panel.hidden = x !== t;
-    }
-  });
-}
 
 // ------------------------------------------------------------- tables
 // A sortable header sorts its column and the rows glide to their places.
@@ -1995,41 +1940,6 @@ for (const form of $$("form[data-settings]")) {
 
 // ======================================== hero icons, layouts and the rest of the scope
 
-// Tabs with manual activation: for panels that load on demand, the arrow
-// keys move focus only, and Enter or Space selects (design-patterns.md
-// "Tabs" rule 3).
-for (const list of $$("[data-tabs-manual]")) {
-  const tabs = $$("[role='tab']", list);
-  list.addEventListener("keydown", (e) => {
-    const at = tabs.indexOf(document.activeElement);
-    if (at < 0) return;
-    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs.length - 1 }[e.key];
-    if (next !== undefined) {
-      e.preventDefault();
-      tabs[(next + tabs.length) % tabs.length].focus();
-    }
-  });
-  for (const t of tabs) {
-    t.addEventListener("click", () => {
-      for (const x of tabs) {
-        x.setAttribute("aria-selected", String(x === t));
-        x.tabIndex = x === t ? 0 : -1;
-        const panel = document.getElementById(x.getAttribute("aria-controls"));
-        if (panel) panel.hidden = x !== t;
-      }
-      const panel = document.getElementById(t.getAttribute("aria-controls"));
-      panel.setAttribute("aria-busy", "true");
-      panel.textContent = "Loading…";
-      setTimeout(() => {
-        panel.removeAttribute("aria-busy");
-        panel.textContent = `${t.textContent}: loaded when selected.`;
-      }, 500);
-    });
-  }
-}
-
-// The header's theme button switches light and dark in one press: pressed
-// means dark, and its icon turns over to the theme it now shows.
 // Menu items that check: Space or a press toggles and keeps the menu open.
 for (const item of $$("[role='menuitemcheckbox']")) {
   const toggle = (e) => {

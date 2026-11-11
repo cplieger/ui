@@ -402,35 +402,6 @@
   block-size: 1em;
 }
 
-/* Tabs and nav with a pill that follows the selection. */
-
-.slide-tabs {
-  position: relative;
-}
-
-.slide-tabs .cp-tab {
-  position: relative;
-  z-index: 1;
-}
-
-.slide-tabs .cp-tab[aria-selected="true"] {
-  background: transparent;
-}
-
-.slide-tabs .pill {
-  position: absolute;
-  inset-block: var(--cp-space-1);
-  inset-inline-start: 0;
-  inline-size: var(--w, 0);
-  translate: var(--x, 0) 0;
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-raised);
-  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
-  transition:
-    translate 460ms var(--ease-spring),
-    inline-size 460ms var(--ease-spring);
-}
-
 /* A segmented choice or a toggle group: the same pill slides to the chosen
  * one, under its words. Placed in rows and columns, so a wrapped choice
  * slides to its line. */
@@ -1406,13 +1377,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
       translate: 0 100%;
     }
   }
-}
-
-.g-strip-panel {
-  padding: var(--cp-space-5);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  color: var(--cp-ink-muted);
 }
 
 /* Tables and lists */
@@ -3368,62 +3332,6 @@ html:has(.g-header) {
  * fits and a tight bar never squeezes More past its padding. */
 .g-overflow > :is([data-item], [data-more]) {
   flex: none;
-}
-
-/* A page header: crumbs, title, description, actions. */
-.g-pagehead {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--cp-space-2) var(--cp-space-4);
-  align-items: end;
-}
-
-.g-pagehead > .cp-crumbs {
-  grid-column: 1 / -1;
-}
-
-.g-pagehead p {
-  margin: var(--cp-space-1) 0 0;
-  color: var(--cp-ink-muted);
-}
-
-@media (width < 40rem) {
-  .g-pagehead {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* Tabs that are links to pages. */
-.g-linktabs {
-  display: flex;
-  gap: var(--cp-space-1);
-  border-block-end: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-linktabs > a {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-3);
-  color: var(--cp-ink-muted);
-  font-weight: var(--cp-weight-medium);
-  text-decoration: none;
-}
-
-.g-linktabs > a[aria-current="page"] {
-  color: var(--cp-ink);
-}
-
-.g-linktabs > a[aria-current="page"]::after {
-  content: "";
-  position: absolute;
-  inset-inline: var(--cp-space-2);
-  inset-block-end: -1px;
-  block-size: 2px;
-  border-radius: 2px;
-  background: var(--cp-accent);
 }
 
 /* A small confirmation anchored to its button. */

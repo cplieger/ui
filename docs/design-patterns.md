@@ -65,9 +65,10 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 Tabs follow the WAI-ARIA tabs pattern:
 
 1. The `.cp-tabs` container is `role="tablist"` with an `aria-label`. Each `.cp-tab` is `role="tab"` with an `id`, `aria-controls` naming its panel, and `aria-selected`. Each panel is `role="tabpanel"` with `aria-labelledby` naming its tab, and the panels of the other tabs are `hidden`.
-2. The tablist is one Tab stop. `@cplieger/ui/roving-focus` moves focus between tabs with the arrow keys, Home and End.
+2. The tablist is one Tab stop, the selected tab. [tabs](navigation/tabs.md) moves focus between tabs with the arrow keys, Home and End, and slides the pill under the selected one.
 3. Moving focus selects the tab when its panel is already loaded. When a panel loads on demand, Enter or Space selects it instead.
 4. The selected tab is in the URL.
+5. When each tab is its own address, the tabs are links in a `.cp-link-tabs` nav and the current one carries `aria-current="page"`.
 
 ## Dialogs and sheets
 
@@ -129,6 +130,7 @@ An app whose data comes from another service has these states before it shows an
 - A destination that shows only its icon, from 40rem to 60rem, keeps its word as its accessible name through `.cp-nav-label`, which the stylesheet hides from sight only, and a tooltip with the same word. Under 40rem the header's destinations move to a bar at the window's foot, each an icon over its word.
 - The header holds four destinations at most, so each keeps its word on one line in the bar under 40rem. Others go in a menu or on a screen of their own.
 - The current destination carries `aria-current="page"`, or `"true"` when the screen sits inside it, as an item sits inside its library.
+- A screen opens with its `.cp-crumbs`, then a `.cp-heading-row` holding the `<h1>` with its `.cp-meta` line of facts under it, and the screen's `.cp-toolbar` at its end.
 
 ## Language and direction
 

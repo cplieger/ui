@@ -1,0 +1,136 @@
+/**
+ * tabs.ts — `enhanceTabs()` runs a `.cp-tabs` tablist as the WAI-ARIA tabs
+ * pattern: the selected tab is the one Tab stop, the arrows, Home and End
+ * move along the tabs, each tab shows its own panel, and the pill from
+ * `@cplieger/ui/pill` slides under the selected tab.
+ * @module
+ */
+
+import { reducedMotion, until } from "../../core/lifetime/lifetime.js";
+import { enhancePill } from "../../core/pill/pill.js";
+import { enhanceRovingFocus } from "../../core/roving-focus/roving-focus.js";
+
+export interface TabsOptions {
+  /** `"automatic"` selects the tab focus moves to, for panels already on
+   *  the page. `"manual"` moves focus only, and Enter, Space or a press
+   *  selects, for a panel that loads once chosen. Default `"automatic"`. */
+  readonly activation?: "automatic" | "manual";
+  /** Runs when a press or a key selects another tab, with that tab's panel
+   *  (null when it has none), after the panel is shown. */
+  readonly onSelect?: (tab: HTMLElement, panel: HTMLElement | null) => void;
+  /** Removes the listeners and the pill. */
+  readonly signal?: AbortSignal;
+}
+
+export interface Tabs {
+  /** The selected tab, or null when the list holds none. */
+  readonly selected: HTMLElement | null;
+  /** Selects `tab` and shows its panel without `onSelect`, as when Back
+   *  restores the tab the URL names. A tab outside the list is ignored. */
+  select(tab: HTMLElement): void;
+}
+
+const TAB = ':scope > [role="tab"]';
+
+/**
+ * `list` is a `role="tablist"` whose `role="tab"` children name their
+ * panels by `aria-controls`. The tab marked `aria-selected="true"` starts
+ * selected, else the first; every other tab's panel is hidden.
+ */
+export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs {
+  const { onSelect, signal } = options;
+  const manual = options.activation === "manual";
+  const listen = until(signal);
+  const root = list.getRootNode() as Document | ShadowRoot;
+  const tabs = (): HTMLElement[] => [...list.querySelectorAll<HTMLElement>(TAB)];
+  const tabOf = (t: EventTarget | null): HTMLElement | null => {
+    const tab = t instanceof Element ? t.closest<HTMLElement>('[role="tab"]') : null;
+    return tab?.parentElement === list ? tab : null;
+  };
+  const panelOf = (tab: HTMLElement): HTMLElement | null => {
+    const id = tab.getAttribute("aria-controls");
+    return id === null ? null : root.getElementById(id);
+  };
+  const selected = (): HTMLElement | null =>
+    tabs().find((t) => t.getAttribute("aria-selected") === "true") ?? null;
+
+  const show = (tab: HTMLElement): void => {
+    for (const t of tabs()) {
+      const on = t === tab;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      const panel = panelOf(t);
+      if (panel !== null) {
+        panel.hidden = !on;
+      }
+    }
+  };
+  const choose = (tab: HTMLElement): void => {
+    if (tab === selected()) {
+      return;
+    }
+    show(tab);
+    tab.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+      behavior: reducedMotion() ? "auto" : "smooth",
+    });
+    onSelect?.(tab, panelOf(tab));
+  };
+
+  const first = selected() ?? tabs()[0];
+  if (first !== undefined) {
+    show(first);
+  }
+  enhanceRovingFocus(list, { items: TAB, ...(signal === undefined ? {} : { signal }) });
+  enhancePill(list, signal === undefined ? {} : { signal });
+
+  list.addEventListener(
+    "click",
+    (e) => {
+      const tab = tabOf(e.target);
+      if (tab !== null) {
+        choose(tab);
+      }
+    },
+    listen,
+  );
+  if (!manual) {
+    list.addEventListener(
+      "focusin",
+      (e) => {
+        const tab = tabOf(e.target);
+        if (tab !== null) {
+          choose(tab);
+        }
+      },
+      listen,
+    );
+  }
+  // Focus that comes back to the list lands on the selected tab, not on the
+  // one last arrowed to (https://www.w3.org/WAI/ARIA/apg/patterns/tabs/).
+  list.addEventListener(
+    "focusout",
+    (e) => {
+      const to = e.relatedTarget;
+      const tab = selected();
+      if (tab !== null && !(to instanceof Node && list.contains(to))) {
+        for (const t of tabs()) {
+          t.tabIndex = t === tab ? 0 : -1;
+        }
+      }
+    },
+    listen,
+  );
+
+  return {
+    get selected() {
+      return selected();
+    },
+    select(tab) {
+      if (tabOf(tab) === tab) {
+        show(tab);
+      }
+    },
+  };
+}

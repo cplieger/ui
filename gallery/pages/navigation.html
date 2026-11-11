@@ -81,40 +81,40 @@
   <section class="g-section" id="tabs">
     <h2>Content tabs</h2>
     <div class="g-grid">
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Tabs that slide</h2>
-        <div class="cp-tabs slide-tabs" role="tablist" aria-label="Item" data-tabs>
-          <span class="pill" aria-hidden="true"></span>
+        <div class="cp-tabs" role="tablist" aria-label="Item" data-tabs>
           <button class="cp-tab" role="tab" type="button" aria-selected="true" aria-controls="tp-1" id="t-1">Episodes</button>
           <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tp-2" id="t-2" tabindex="-1">Subtitles</button>
           <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tp-3" id="t-3" tabindex="-1">Timing</button>
           <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tp-4" id="t-4" tabindex="-1">History</button>
         </div>
-        <div class="g-strip-panel" role="tabpanel" id="tp-1" aria-labelledby="t-1">Episodes: 28, all on the best release.</div>
-        <div class="g-strip-panel" role="tabpanel" id="tp-2" aria-labelledby="t-2" hidden>Subtitles: English, French.</div>
-        <div class="g-strip-panel" role="tabpanel" id="tp-3" aria-labelledby="t-3" hidden>Timing: 0 cues out of sync.</div>
-        <div class="g-strip-panel" role="tabpanel" id="tp-4" aria-labelledby="t-4" hidden>History: 12 events this month.</div>
+        <div class="cp-panel" role="tabpanel" id="tp-1" aria-labelledby="t-1">Episodes: 28, all on the best release.</div>
+        <div class="cp-panel" role="tabpanel" id="tp-2" aria-labelledby="t-2" hidden>Subtitles: English, French.</div>
+        <div class="cp-panel" role="tabpanel" id="tp-3" aria-labelledby="t-3" hidden>Timing: 0 cues out of sync.</div>
+        <div class="cp-panel" role="tabpanel" id="tp-4" aria-labelledby="t-4" hidden>History: 12 events this month.</div>
         <p class="g-note g-gap-top">When a panel loads only once it is chosen, the same tabs move focus with the arrows and select on Enter or Space:</p>
-        <div class="cp-tabs slide-tabs" role="tablist" aria-label="Entry" data-tabs-manual>
-          <span class="pill" aria-hidden="true"></span>
+        <div class="cp-tabs" role="tablist" aria-label="Entry" data-tabs="manual">
           <button class="cp-tab" role="tab" type="button" aria-selected="true" aria-controls="tm-1" id="tm-t1">Overview</button>
           <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tm-2" id="tm-t2" tabindex="-1">Releases</button>
           <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tm-3" id="tm-t3" tabindex="-1">History</button>
         </div>
-        <div class="g-strip-panel" role="tabpanel" id="tm-1" aria-labelledby="tm-t1">Overview: loaded.</div>
-        <div class="g-strip-panel" role="tabpanel" id="tm-2" aria-labelledby="tm-t2" hidden></div>
-        <div class="g-strip-panel" role="tabpanel" id="tm-3" aria-labelledby="tm-t3" hidden></div>
+        <div class="cp-panel" role="tabpanel" id="tm-1" aria-labelledby="tm-t1">Overview: loaded.</div>
+        <div class="cp-panel" role="tabpanel" id="tm-2" aria-labelledby="tm-t2" hidden></div>
+        <div class="cp-panel" role="tabpanel" id="tm-3" aria-labelledby="tm-t3" hidden></div>
         <footer>One kind of tabs, with the sliding pill. When the panels are already on the page, the arrows move along the tabs and select. When a panel loads only once chosen, the arrows move focus and Enter or Space selects (the WAI-ARIA tabs pattern's manual activation), so arrowing past a tab never starts a load. The pill moves; the panels never animate.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Page header and tabs as links</h2>
-        <div class="g-pagehead">
+        <div>
           <nav class="cp-crumbs" aria-label="Breadcrumb"><a href="#tabs">Library</a><span aria-current="page">Frieren</span></nav>
-          <div><h3 class="g-h1">Frieren: Beyond Journey's End</h3><p>28 episodes, all on the best release.</p></div>
-          <div class="cp-toolbar"><button class="cp-button" type="button">Refresh</button><button class="cp-button" data-variant="primary" type="button">Find subtitles</button></div>
+          <div class="cp-heading-row">
+            <div><h3 class="g-h1">Frieren: Beyond Journey's End</h3><p class="cp-meta">28 episodes, all on the best release.</p></div>
+            <div class="cp-toolbar"><button class="cp-button" type="button">Refresh</button><button class="cp-button" data-variant="primary" type="button">Find subtitles</button></div>
+          </div>
+          <nav class="cp-link-tabs" aria-label="Frieren"><a href="#tabs" aria-current="page">Episodes</a><a href="#tabs">Subtitles</a><a href="#tabs">Timing</a><a href="#tabs">History</a></nav>
         </div>
-        <nav class="g-linktabs g-gap-top" aria-label="Frieren"><a href="#tabs" aria-current="page">Episodes</a><a href="#tabs">Subtitles</a><a href="#tabs">Timing</a><a href="#tabs">History</a></nav>
-        <footer>When each tab is its own address, the tabs are links in a nav, and the current one is aria-current; ARIA tabs are for panels on one page.</footer>
+        <footer>The crumbs, then the title with its line of facts against the screen's actions. When each tab is its own address, the tabs are links in a nav, and the current one is aria-current; ARIA tabs are for panels on one page.</footer>
       </div>
     </div>
   </section>

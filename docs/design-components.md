@@ -58,7 +58,8 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-menu`, `.cp-menu-label`, `.cp-menu-tag` | a menu of `menuitem`, `menuitemcheckbox` and `menuitemradio` buttons or links, a group's heading and a word at an item's end, as [menu](overlays/menu.md) describes |
 | `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed`, each filter's count a quiet `.cp-badge` at its end that turns solid in the accent while the filter is on. The selected wash fades in and out over 240ms |
 | `.cp-filter-chip` | a pill `<button>` that turns one filter on or off by `aria-pressed`, filled with the accent and its `check` icon sliding in while pressed. A row of them is a `.cp-cluster` with `role="group"` and a name. Your click handler sets `aria-pressed` from the filter's state |
-| `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes |
+| `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes, run by [tabs](navigation/tabs.md) with its sliding pill |
+| `.cp-link-tabs` | tabs that are links, one address each, the current one `aria-current="page"` |
 | `.cp-progress`, `.cp-progress-track`, `.cp-progress-fill` | a progress bar in a tone |
 | `.cp-skeleton`, `.cp-empty` | the loading and empty states |
 | `.cp-loader`, `.cp-inline-load` | a loader for work of unknown length, the checkbox's square twirling through the harmony colours, alone or beside words that say what is loading |

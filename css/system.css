@@ -4362,6 +4362,11 @@ textarea.cp-input {
   min-inline-size: 0;
 }
 
+/* A title's line of facts sits close under it, read as one block. */
+.cp-heading-row > :first-child > :is(h1, h2, h3) + p {
+  margin-block-start: var(--cp-space-1);
+}
+
 .cp-heading-row > .cp-toolbar {
   flex: 0 1 auto;
   justify-content: end;
@@ -4627,6 +4632,83 @@ textarea.cp-input {
 @media (forced-colors: active) {
   .cp-tab[aria-selected="true"] {
     border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* Tabs as links: a nav of links, one address each, the current one
+ * aria-current="page" and underlined in the accent. The strip scrolls when
+ * it is wider than its place, and a scroll box clips at its padding edge:
+ * its padding holds the focus rings, its negative margins take that room
+ * back out of the layout, and its line is drawn at the links' foot. */
+.cp-link-tabs {
+  --cp-link-tabs-room: calc(var(--cp-focus-w) + var(--cp-focus-offset));
+  --cp-link-tabs-line: var(--cp-line);
+
+  display: flex;
+  gap: var(--cp-space-1);
+  margin: calc(-1 * var(--cp-link-tabs-room));
+  margin-block-end: calc(var(--cp-line-w) - var(--cp-link-tabs-room));
+  padding: var(--cp-link-tabs-room);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: linear-gradient(var(--cp-link-tabs-line) 0 0) center bottom
+    calc(var(--cp-link-tabs-room) - var(--cp-line-w)) / calc(100% - 2 * var(--cp-link-tabs-room))
+    var(--cp-line-w) no-repeat;
+}
+
+.cp-link-tabs > a {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  color: var(--cp-ink-muted);
+  font-weight: var(--cp-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cp-link-tabs > a[aria-current="page"] {
+  color: var(--cp-ink);
+}
+
+/* Over the strip's line, so the current link's mark replaces it. */
+.cp-link-tabs > a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: var(--cp-space-2);
+  inset-block-end: calc(-1 * var(--cp-line-w));
+  block-size: 2px;
+  border-radius: 2px;
+  background: var(--cp-accent);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-link-tabs > a:not([aria-current="page"]):hover {
+      color: var(--cp-ink);
+    }
+  }
+}
+
+/* Forced colours drop the strip's line, a background image, unless the
+ * strip keeps its own colours; its links take the system's back. */
+@media (forced-colors: active) {
+  .cp-link-tabs {
+    --cp-link-tabs-line: CanvasText;
+
+    forced-color-adjust: none;
+  }
+
+  .cp-link-tabs > * {
+    forced-color-adjust: auto;
+  }
+
+  .cp-link-tabs > a[aria-current="page"]::after {
+    background: CanvasText;
+    forced-color-adjust: none;
   }
 }
 
@@ -6264,9 +6346,10 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* The pill @cplieger/ui/pill slides under a segmented choice's chosen
- * segment. Placed by row and column, so a wrapped choice slides to its
- * line. Once it is there, the segments paint no fill of their own. */
-.cp-segmented:has(> .cp-pill) {
+ * segment or a tab strip's selected tab. Placed by row and column, so a
+ * wrapped choice slides to its line. Once it is there, the choices paint
+ * no fill of their own. */
+:is(.cp-segmented, .cp-tabs):has(> .cp-pill) {
   position: relative;
 }
 
@@ -6301,11 +6384,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   left: 0;
 }
 
-.cp-segmented:has(> .cp-pill) > label {
+.cp-segmented:has(> .cp-pill) > label,
+.cp-tabs:has(> .cp-pill) > .cp-tab {
   z-index: 1;
 }
 
-.cp-segmented:has(> .cp-pill) > label:has(:checked) {
+.cp-segmented:has(> .cp-pill) > label:has(:checked),
+.cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"] {
   background: transparent;
   box-shadow: none;
 }

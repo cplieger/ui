@@ -41,6 +41,7 @@ const PURE = [
   "/secret",
   "/skeleton",
   "/stepper",
+  "/tabs",
   "/textarea",
   "/theme",
   "/toast",

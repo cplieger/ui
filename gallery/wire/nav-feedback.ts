@@ -1,12 +1,13 @@
 /**
  * nav-feedback.ts — the gallery's wiring for the navigation and feedback
  * cards that run on the library: the header's account menu and its status
- * demo, the jump field, and the rail's filters.
+ * demo, the jump field, the rail's filters and the content tabs.
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
 import { enhanceCombobox } from "@cplieger/ui/combobox";
 import { enhanceMenu } from "@cplieger/ui/menu";
+import { enhanceTabs } from "@cplieger/ui/tabs";
 import { toast } from "@cplieger/ui/toast";
 
 installAnnouncer();
@@ -116,4 +117,24 @@ for (const filter of document.querySelectorAll<HTMLButtonElement>(
   filter.addEventListener("click", () => {
     filter.setAttribute("aria-pressed", String(filter.getAttribute("aria-pressed") !== "true"));
   });
+}
+
+// data-tabs="manual" marks panels that load once chosen: each choice loads
+// its panel again, as an app that fetches it would.
+const load = (tab: HTMLElement, panel: HTMLElement | null): void => {
+  if (panel === null) {
+    return;
+  }
+  panel.setAttribute("aria-busy", "true");
+  panel.textContent = "Loading…";
+  setTimeout(() => {
+    panel.removeAttribute("aria-busy");
+    panel.textContent = `${tab.textContent.trim()}: loaded when selected.`;
+  }, 500);
+};
+for (const list of document.querySelectorAll<HTMLElement>(".cp-tabs[data-tabs]")) {
+  enhanceTabs(
+    list,
+    list.dataset["tabs"] === "manual" ? { activation: "manual", onSelect: load } : {},
+  );
 }

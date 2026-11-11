@@ -62,6 +62,7 @@ layout/grid/grid.css
 layout/list-detail/list-detail.css
 navigation/rail/filters.css
 navigation/tabs/tabs.css
+navigation/link-tabs/link-tabs.css
 feedback/progress/progress.css
 feedback/skeleton/skeleton.css
 feedback/empty/empty.css

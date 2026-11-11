@@ -922,6 +922,98 @@ describe("css/system.css", () => {
     expect(margins(el.querySelector(".cp-heading-row"))[1]).toBe("20px");
   });
 
+  it("sets a heading row's line of facts 4px under its title", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-heading-row"><div><h1>Frieren</h1><p class="cp-meta">28 episodes</p></div></div>',
+    );
+    const title = (el.querySelector("h1") as HTMLElement).getBoundingClientRect();
+    const line = (el.querySelector("p") as HTMLElement).getBoundingClientRect();
+    expect(line.top - title.bottom).toBeCloseTo(4, 0);
+  });
+
+  it("underlines the current link tab over the strip's line, and keeps its focus ring inside the scroll box", () => {
+    theme("light");
+    const el = build(
+      '<div style="display: flow-root; inline-size: 200px"><nav class="cp-link-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a><a href="#c">Timing</a></nav><p>Next</p></div>',
+    );
+    const nav = el.querySelector("nav") as HTMLElement;
+    const [current, other] = [...nav.querySelectorAll<HTMLElement>("a")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const mark = getComputedStyle(current, "::after");
+    const accent = build('<span style="color: var(--cp-accent)"></span>')
+      .firstElementChild as HTMLElement;
+    expect(mark.backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(other, "::after").content).toBe("none");
+    expect(getComputedStyle(nav).overflowX).toBe("auto");
+    expect(nav.scrollWidth).toBeGreaterThan(nav.clientWidth);
+    const box = nav.getBoundingClientRect();
+    const tab = current.getBoundingClientRect();
+    const frame = (nav.parentElement as HTMLElement).getBoundingClientRect();
+    const next = (el.querySelector("p") as HTMLElement).getBoundingClientRect();
+    expect(mark.blockSize).toBe("2px");
+    expect(mark.insetBlockEnd).toBe("-1px");
+    // Room for a 2px ring at a 2px offset on every side.
+    expect([tab.top - box.top, tab.left - box.left, box.bottom - tab.bottom]).toEqual([
+      expect.closeTo(4, 0),
+      expect.closeTo(4, 0),
+      expect.closeTo(4, 0),
+    ]);
+    // The margins take that room back: the tabs sit where an unpadded strip
+    // with a 1px line under it would put them.
+    expect([tab.top, tab.left]).toEqual([
+      expect.closeTo(frame.top, 0),
+      expect.closeTo(frame.left, 0),
+    ]);
+    expect(next.top - tab.bottom).toBeCloseTo(1, 0);
+    expect(getComputedStyle(current).color).not.toBe(getComputedStyle(other).color);
+  });
+
+  it("fills a selected tab itself until the pill is there, then paints the pill only", () => {
+    theme("light");
+    const strip = (pill: boolean) =>
+      `<div class="cp-tabs" role="tablist" aria-label="Item">${pill ? '<span class="cp-pill" aria-hidden="true"></span>' : ""}` +
+      '<button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button>' +
+      '<button class="cp-tab" role="tab" type="button" aria-selected="false">History</button></div>';
+    const el = build(strip(false) + strip(true));
+    const [bare, slid] = [...el.querySelectorAll<HTMLElement>(".cp-tabs")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const fill = (list: HTMLElement) =>
+      getComputedStyle(list.querySelector('[aria-selected="true"]') as HTMLElement).backgroundColor;
+    const pill = slid.querySelector(".cp-pill") as HTMLElement;
+    expect(fill(bare)).not.toBe("rgba(0, 0, 0, 0)");
+    expect(fill(slid)).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(pill).backgroundColor).toBe(fill(bare));
+    expect(getComputedStyle(pill).position).toBe("absolute");
+    expect(getComputedStyle(slid).position).toBe("relative");
+    expect(getComputedStyle(slid.querySelector(".cp-tab") as HTMLElement).zIndex).toBe("1");
+  });
+
+  it.skipIf(!emulates)(
+    "keeps the link tabs' line and the current mark in forced colours",
+    async () => {
+      theme("light");
+      await media("forced-colors", "active");
+      const el = build(
+        '<nav class="cp-link-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a></nav>',
+      );
+      const nav = el.querySelector("nav") as HTMLElement;
+      const mark = getComputedStyle(nav.querySelector("a") as HTMLElement, "::after");
+      const system = build('<span style="color: CanvasText"></span>')
+        .firstElementChild as HTMLElement;
+      const ink = getComputedStyle(system).color;
+      expect(getComputedStyle(nav).backgroundImage).toContain(ink);
+      expect(mark.backgroundColor).toBe(ink);
+      expect(getComputedStyle(nav.querySelector("a") as HTMLElement).forcedColorAdjust).toBe(
+        "auto",
+      );
+    },
+  );
+
   for (const t of ["light", "dark"] as const) {
     it(`draws a switch whose track and thumb clear 3:1 on and off in ${t}`, () => {
       theme(t);
