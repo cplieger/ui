@@ -47,6 +47,19 @@ function strip(selected: number | null = 0): {
   return { list, tabs, panels, after };
 }
 
+function narrow(list: HTMLElement, tabs: HTMLElement[]): void {
+  list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
+  for (const t of tabs) {
+    t.style.cssText = "flex: none; inline-size: 5rem";
+  }
+}
+
+function inView(list: HTMLElement, tab: HTMLElement | undefined): boolean {
+  const port = list.getBoundingClientRect();
+  const box = (tab as HTMLElement).getBoundingClientRect();
+  return box.left >= port.left - 0.5 && box.right <= port.right + 0.5;
+}
+
 const chosen = (tabs: HTMLElement[]) => tabs.map((t) => t.getAttribute("aria-selected"));
 const shown = (panels: HTMLElement[]) => panels.map((p) => !p.hidden);
 
@@ -139,26 +152,28 @@ describe("enhanceTabs", () => {
 
   it("scrolls a strip too narrow for its tabs to a tab pressed half out of view", async () => {
     const { list, tabs } = strip();
-    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
-    for (const t of tabs) {
-      t.style.cssText = "flex: none; inline-size: 5rem";
-    }
+    narrow(list, tabs);
     enhanceTabs(list, { signal: life.signal });
     await userEvent.click(tabs[1] as HTMLElement, { position: { x: 4, y: 4 } });
     await vi.waitFor(() => {
-      const port = list.getBoundingClientRect();
-      expect((tabs[1] as HTMLElement).getBoundingClientRect().right).toBeLessThanOrEqual(
-        port.right + 0.5,
-      );
+      expect(inView(list, tabs[1])).toBe(true);
+    });
+  });
+
+  it("scrolls a strip too narrow for its tabs to the tab a key selects", async () => {
+    const { list, tabs } = strip();
+    narrow(list, tabs);
+    enhanceTabs(list, { signal: life.signal });
+    tabs[0]?.focus();
+    await userEvent.keyboard("{End}");
+    await vi.waitFor(() => {
+      expect(inView(list, tabs[2])).toBe(true);
     });
   });
 
   it("scrolls a strip too narrow for its tabs to the one select() picks, never the page", () => {
     const { list, tabs } = strip();
-    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
-    for (const t of tabs) {
-      t.style.cssText = "flex: none; inline-size: 5rem";
-    }
+    narrow(list, tabs);
     const spacer = document.createElement("div");
     spacer.style.blockSize = "300vh";
     document.body.prepend(spacer);
@@ -166,45 +181,65 @@ describe("enhanceTabs", () => {
     page.scrollTop = 0;
     const api = enhanceTabs(list, { signal: life.signal });
     api.select(tabs[2] as HTMLElement);
-    const port = list.getBoundingClientRect();
-    const tab = (tabs[2] as HTMLElement).getBoundingClientRect();
-    expect(tab.left).toBeGreaterThanOrEqual(port.left - 0.5);
-    expect(tab.right).toBeLessThanOrEqual(port.right + 0.5);
+    expect(inView(list, tabs[2])).toBe(true);
     expect(page.scrollTop).toBe(0);
   });
 
-  it("starts with the selected tab in view in a strip too narrow for its tabs", () => {
+  it("starts with the selected tab in view in a strip too narrow for its tabs", async () => {
     const { list, tabs } = strip(2);
-    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
-    for (const t of tabs) {
-      t.style.cssText = "flex: none; inline-size: 5rem";
-    }
+    narrow(list, tabs);
     enhanceTabs(list, { signal: life.signal });
-    const port = list.getBoundingClientRect();
-    const tab = (tabs[2] as HTMLElement).getBoundingClientRect();
-    expect(tab.left).toBeGreaterThanOrEqual(port.left - 0.5);
-    expect(tab.right).toBeLessThanOrEqual(port.right + 0.5);
+    await vi.waitFor(() => {
+      expect(inView(list, tabs[2])).toBe(true);
+    });
   });
 
-  it("brings the selected tab into view once a strip hidden at the start is shown", async () => {
+  it("brings the selected tab into view once a strip in a hidden panel is shown", async () => {
     const { list, tabs } = strip(2);
     const wrap = document.createElement("div");
     wrap.hidden = true;
     document.body.append(wrap);
     wrap.append(list);
-    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
-    for (const t of tabs) {
-      t.style.cssText = "flex: none; inline-size: 5rem";
-    }
+    narrow(list, tabs);
     enhanceTabs(list, { signal: life.signal });
     wrap.hidden = false;
     await vi.waitFor(() => {
-      const port = list.getBoundingClientRect();
-      const tab = (tabs[2] as HTMLElement).getBoundingClientRect();
-      expect(tab.left).toBeGreaterThanOrEqual(port.left - 0.5);
-      expect(tab.right).toBeLessThanOrEqual(port.right + 0.5);
+      expect(inView(list, tabs[2])).toBe(true);
     });
   });
+
+  it("brings the selected tab into view once a strip in a closed dialog is opened", async () => {
+    const { list, tabs } = strip(0);
+    const dialog = document.createElement("dialog");
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "Close";
+    document.body.append(dialog);
+    dialog.append(close, list);
+    narrow(list, tabs);
+    const api = enhanceTabs(list, { signal: life.signal });
+    api.select(tabs[2] as HTMLElement);
+    dialog.showModal();
+    await vi.waitFor(() => {
+      expect(inView(list, tabs[2])).toBe(true);
+    });
+  });
+
+  it.each(["ltr", "rtl"])(
+    "keeps the selected tab in view when the strip narrows (%s)",
+    async (dir) => {
+      const { list, tabs } = strip(2);
+      list.dir = dir;
+      narrow(list, tabs);
+      list.style.inlineSize = "20rem";
+      enhanceTabs(list, { signal: life.signal });
+      await new Promise(requestAnimationFrame);
+      list.style.inlineSize = "6rem";
+      await vi.waitFor(() => {
+        expect(inView(list, tabs[2])).toBe(true);
+      });
+    },
+  );
 
   it.each([
     { dir: "ltr", scroll: 32, start: (r: DOMRect) => r.left },

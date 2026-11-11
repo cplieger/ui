@@ -66,28 +66,15 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
       }
     }
   };
-  let unseen: ResizeObserver | null = null;
-  whenAborted(signal, () => unseen?.disconnect());
   // Only the strip scrolls, never the page (as scrollIntoView would), so a
   // tab Back restores in a strip off screen leaves the page where it was.
-  // A restore or the start scrolls at once, since nothing animates on load
-  // (design.md "Motion"). A tab wider than the strip shows its reading start.
-  const reveal = (tab: HTMLElement, glide: boolean): void => {
-    if (list.clientWidth === 0) {
-      // A strip with no box (in a closed dialog or a hidden panel) measures
-      // 0 at both edges, so the reveal waits until it first has a width.
-      if (unseen === null && signal?.aborted !== true) {
-        const watch = new ResizeObserver(() => {
-          const now = selected();
-          if (list.clientWidth > 0 && now !== null) {
-            watch.disconnect();
-            unseen = null;
-            reveal(now, false);
-          }
-        });
-        unseen = watch;
-        watch.observe(list);
-      }
+  // Only a press or a key glides, since nothing animates on load (design.md
+  // "Motion"). A tab wider than the strip shows its reading start.
+  const reveal = (glide: boolean): void => {
+    const tab = selected();
+    // A strip with no box (in a closed dialog or a hidden panel) measures 0
+    // at both edges; the observer reveals once it has a width.
+    if (tab === null || list.clientWidth === 0) {
       return;
     }
     const left = list.getBoundingClientRect().left + list.clientLeft;
@@ -105,20 +92,31 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
       list.scrollBy({ left: dx, behavior: glide && !reducedMotion() ? "smooth" : "auto" });
     }
   };
+  const pick = (tab: HTMLElement, glide: boolean): void => {
+    show(tab);
+    reveal(glide);
+  };
   const choose = (tab: HTMLElement): void => {
     if (tab === selected()) {
       return;
     }
-    show(tab);
-    reveal(tab, true);
+    pick(tab, true);
     onSelect?.(tab, panelOf(tab));
   };
 
   const first = selected() ?? tabs()[0];
   if (first !== undefined) {
     show(first);
-    reveal(first, false);
   }
+  // The strip's first box, at the start or once it is first shown, and
+  // every resize after it, reveal the selected tab.
+  const sized = new ResizeObserver(() => {
+    reveal(false);
+  });
+  sized.observe(list);
+  whenAborted(signal, () => {
+    sized.disconnect();
+  });
   enhanceRovingFocus(list, { items: TAB, ...(signal === undefined ? {} : { signal }) });
   enhancePill(list, signal === undefined ? {} : { signal });
 
@@ -166,8 +164,7 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
     },
     select(tab) {
       if (tabOf(tab) === tab) {
-        show(tab);
-        reveal(tab, false);
+        pick(tab, false);
       }
     },
   };
