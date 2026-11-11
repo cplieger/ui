@@ -96,10 +96,10 @@
         <div class="stage">
           <button class="cp-button" type="button" popovertarget="p-filters"><span class="cp-icon" data-cp-icon="funnel" data-cp-icon-on="funnel-filled" aria-hidden="true"></span>Filters<span class="g-badge">2</span></button>
           <div class="g-pop g-panel" id="p-filters" popover aria-label="Filters" data-filter-panel>
-            <fieldset class="g-choices"><legend class="cp-label">Verdict</legend>
-              <label class="g-choice"><input class="box box-twirl" type="checkbox" checked><span>Not the best</span></label>
-              <label class="g-choice"><input class="box box-twirl" type="checkbox" checked><span>Missing</span></label>
-              <label class="g-choice"><input class="box box-twirl" type="checkbox"><span>On an alt</span></label>
+            <fieldset class="cp-choices"><legend class="cp-label">Verdict</legend>
+              <label class="cp-choice"><input class="cp-checkbox" type="checkbox" checked><span>Not the best</span></label>
+              <label class="cp-choice"><input class="cp-checkbox" type="checkbox" checked><span>Missing</span></label>
+              <label class="cp-choice"><input class="cp-checkbox" type="checkbox"><span>On an alt</span></label>
             </fieldset>
             <div class="g-row-inline"><button class="cp-button" data-variant="primary" data-size="sm" type="button" popovertarget="p-filters" popovertargetaction="hide" data-panel-show>Show 42</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-panel-clear>Clear</button></div>
           </div>
@@ -157,15 +157,15 @@
           <form method="dialog">
             <header><h2 id="d-filters-title">Filters</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-filters" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
             <div class="g-body cp-stack">
-              <fieldset class="g-choices"><legend class="cp-label">Verdict</legend>
-                <label class="g-choice"><input class="box box-twirl" type="checkbox" name="verdict" value="best"><span>On the best</span></label>
-                <label class="g-choice"><input class="box box-twirl" type="checkbox" name="verdict" value="not" checked><span>Not the best</span></label>
-                <label class="g-choice"><input class="box box-twirl" type="checkbox" name="verdict" value="missing"><span>Missing</span></label>
+              <fieldset class="cp-choices"><legend class="cp-label">Verdict</legend>
+                <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="verdict" value="best"><span>On the best</span></label>
+                <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="verdict" value="not" checked><span>Not the best</span></label>
+                <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="verdict" value="missing"><span>Missing</span></label>
               </fieldset>
-              <fieldset class="g-choices"><legend class="cp-label">Kind</legend>
-                <label class="g-choice"><input class="g-radio" type="radio" name="kind" value="all" checked><span>All</span></label>
-                <label class="g-choice"><input class="g-radio" type="radio" name="kind" value="tv"><span>TV</span></label>
-                <label class="g-choice"><input class="g-radio" type="radio" name="kind" value="film"><span>Films</span></label>
+              <fieldset class="cp-choices"><legend class="cp-label">Kind</legend>
+                <label class="cp-choice"><input class="cp-radio" type="radio" name="kind" value="all" checked><span>All</span></label>
+                <label class="cp-choice"><input class="cp-radio" type="radio" name="kind" value="tv"><span>TV</span></label>
+                <label class="cp-choice"><input class="cp-radio" type="radio" name="kind" value="film"><span>Films</span></label>
               </fieldset>
             </div>
             <footer><button class="cp-button" type="button" data-sheet-clear>Clear all</button><button class="cp-button" data-variant="primary" value="apply" data-sheet-apply>Show 33 results</button></footer>
@@ -227,8 +227,8 @@
           <form method="dialog">
             <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-grouped-title">Delete subtitles for 4 episodes?</h2><p>Choose which to delete. The files are removed from the disk.</p>
               <div class="g-groups">
-                <label class="g-choice"><input class="box box-twirl" type="checkbox" data-count="3"><span>3 managed files<small>Fetched by this app</small></span></label>
-                <label class="g-choice"><input class="box box-twirl" type="checkbox" data-count="1"><span>1 found on disk<small>Not fetched by this app</small></span></label>
+                <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-count="3"><span>3 managed files<small>Fetched by this app</small></span></label>
+                <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-count="1"><span>1 found on disk<small>Not fetched by this app</small></span></label>
               </div></div></div>
             <footer><button class="cp-button" value="cancel" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Delete</button></footer>
           </form>

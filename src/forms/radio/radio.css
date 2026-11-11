@@ -1,0 +1,97 @@
+/* A radio: the native input, a circle that fills with the accent as its
+ * dot springs in. The arrow keys move the choice, as the platform's do. */
+.cp-radio {
+  --cp-radio-size: 1.375rem;
+  --cp-radio-dot: 0.625rem;
+
+  appearance: none;
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--cp-radio-size);
+  block-size: var(--cp-radio-size);
+  margin: 0;
+  border-radius: 50%;
+  background: var(--cp-surface-raised);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
+  cursor: pointer;
+  transition:
+    box-shadow 160ms var(--cp-ease-out),
+    background-color 0s 120ms,
+    scale var(--cp-radio-press-dur, var(--cp-dur-spring))
+      var(--cp-radio-press-ease, var(--cp-ease-bounce));
+}
+
+/* Whole pixels at both sizes, so the dot sits centred, not a half pixel off. */
+:root[data-pointer="coarse"] .cp-radio {
+  --cp-radio-size: 1.625rem;
+  --cp-radio-dot: 0.75rem;
+}
+
+[data-cp-pressed] > .cp-radio:enabled {
+  --cp-radio-press-dur: var(--cp-dur-press);
+  --cp-radio-press-ease: var(--cp-ease-out);
+
+  scale: 0.88;
+}
+
+.cp-radio::before {
+  content: "";
+  inline-size: var(--cp-radio-dot);
+  block-size: var(--cp-radio-dot);
+  border-radius: 50%;
+  background: var(--cp-on-accent);
+  scale: 0;
+  transition: scale 140ms var(--cp-ease-out);
+}
+
+.cp-radio:checked {
+  background: var(--cp-accent);
+  box-shadow: inset 0 0 0 calc(var(--cp-radio-size) / 2) var(--cp-accent);
+}
+
+.cp-radio:checked::before {
+  scale: 1;
+  transition: scale var(--cp-dur-spring) var(--cp-ease-bounce) 80ms;
+}
+
+.cp-radio:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-radio:disabled {
+  background: var(--cp-fill);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-line);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-cp-pressed] > .cp-radio:enabled {
+    scale: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-radio {
+    forced-color-adjust: none;
+    border: 2px solid CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .cp-radio:checked {
+    border-color: Highlight;
+    background: Highlight;
+    box-shadow: none;
+  }
+
+  .cp-radio::before {
+    background: HighlightText;
+  }
+
+  .cp-radio:disabled {
+    border-color: GrayText;
+  }
+}

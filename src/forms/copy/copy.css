@@ -1,0 +1,54 @@
+/* Machine text to copy, such as a key shown once: the text in a box with
+ * Copy attached as one element, one control tall. */
+.cp-code {
+  display: flex;
+  align-items: stretch;
+  gap: var(--cp-space-2);
+  block-size: var(--cp-control-h);
+  padding-inline-start: var(--cp-space-3);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-page);
+}
+
+.cp-code > code {
+  flex: 1;
+  align-self: center;
+  min-inline-size: 0;
+  overflow-x: auto;
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
+.cp-code > .cp-copy {
+  flex: none;
+  min-block-size: 0;
+  border: 0;
+  border-inline-start: var(--cp-line-w) solid var(--cp-line);
+  border-radius: 0;
+  border-start-end-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
+  border-end-end-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
+}
+
+/* Copy keeps its word: a written copy turns it green with a check, then it
+ * fades back (@cplieger/ui/copy). */
+.cp-copy {
+  transition:
+    background-color 900ms var(--cp-ease-out),
+    color 900ms var(--cp-ease-out),
+    transform var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* (0,4,1) lifts the fill over a button's hover, a (0,4,0) rule. */
+button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
+  background: var(--cp-done-fill);
+  color: oklch(100% 0 0deg);
+  transition-duration: 120ms;
+}
+
+/* The check marked data-part="done" stands in for the drawing while done. */
+:where(.cp-copy) > .cp-icon[data-part] {
+  display: none;
+}

@@ -1,0 +1,34 @@
+/* A select: the native <select>, so its list and keys are the platform's,
+ * in the field's box with the language's chevron at its end. */
+.cp-select {
+  position: relative;
+  display: grid;
+}
+
+.cp-select > select.cp-input {
+  appearance: none;
+  padding-inline-end: calc(var(--cp-space-3) * 2 + 1rem);
+}
+
+.cp-select > select.cp-input:enabled {
+  cursor: pointer;
+}
+
+.cp-select::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: var(--cp-space-3);
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-block: auto;
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .cp-select::after {
+    background: CanvasText;
+  }
+}

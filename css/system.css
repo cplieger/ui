@@ -868,6 +868,8 @@
   --cp-accent-ink: var(--cp-accent-11);
   --cp-accent-wash: var(--cp-accent-3);
   --cp-selected: var(--cp-accent-4);
+  /* A done fill: a green dark enough for white words in both themes, about 5:1. */
+  --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
   --cp-focus-ring: var(--cp-accent-9);
   --cp-selection-bg: var(--cp-accent-5);
   --cp-brand: oklch(var(--cp-brand-l) var(--cp-brand-c) var(--cp-brand-h));
@@ -1430,10 +1432,12 @@
 }
 
 /* A switch is a native checkbox with role="switch": it keeps its label, its
- * keys and its form value. */
+ * keys and its form value. Its thumb springs across as it turns on. */
 .cp-switch {
-  --cp-switch-w: 2.25rem;
-  --cp-switch-h: 1.25rem;
+  --cp-switch-w: 2.75rem;
+  --cp-switch-h: 1.5rem;
+  --cp-switch-pad: 0.1875rem;
+  --cp-switch-thumb: calc(var(--cp-switch-h) - 2 * var(--cp-switch-pad));
   --cp-switch-dir: 1;
 
   appearance: none;
@@ -1443,40 +1447,53 @@
   block-size: var(--cp-switch-h);
   margin: 0;
   border-radius: var(--cp-radius-round);
+  /* The 3:1 step, so the switch and its off state are findable on any surface. */
   background: var(--cp-border-strong);
   cursor: pointer;
   touch-action: manipulation;
-  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+  transition: background-color 200ms var(--cp-ease-out);
 }
 
 :root[data-pointer="coarse"] .cp-switch {
-  --cp-switch-w: 3rem;
-  --cp-switch-h: 1.75rem;
+  --cp-switch-w: 3.25rem;
+  --cp-switch-h: 1.875rem;
 }
 
 .cp-switch:dir(rtl) {
   --cp-switch-dir: -1;
 }
 
+/* The hit area reaches past the track, which is shorter than a control. */
 .cp-switch::before {
   content: "";
   position: absolute;
-  inset-block-start: 0.125rem;
-  inset-inline-start: 0.125rem;
-  inline-size: calc(var(--cp-switch-h) - 0.25rem);
-  block-size: calc(var(--cp-switch-h) - 0.25rem);
+  inset: -0.4375rem -0.25rem;
+}
+
+.cp-switch::after {
+  content: "";
+  position: absolute;
+  inset-block-start: var(--cp-switch-pad);
+  inset-inline-start: var(--cp-switch-pad);
+  inline-size: var(--cp-switch-thumb);
+  block-size: var(--cp-switch-thumb);
   border-radius: var(--cp-radius-round);
-  background: var(--cp-surface-raised);
-  transition: translate var(--cp-dur-short) var(--cp-ease-move);
+  background: oklch(100% 0 0deg);
+  box-shadow: 0 1px 2px oklch(0% 0 0deg / 25%);
+  transition: translate var(--cp-dur-spring) var(--cp-ease-spring);
 }
 
 .cp-switch:checked {
   background: var(--cp-accent);
 }
 
-.cp-switch:checked::before {
+.cp-switch:checked::after {
   translate: calc((var(--cp-switch-w) - var(--cp-switch-h)) * var(--cp-switch-dir)) 0;
-  background: var(--cp-on-accent);
+}
+
+.cp-switch:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
 }
 
 .cp-switch:disabled {
@@ -1484,8 +1501,9 @@
   background: var(--cp-fill);
 }
 
-.cp-switch:disabled::before {
+.cp-switch:disabled::after {
   background: var(--cp-ink-disabled);
+  box-shadow: none;
 }
 
 /* System colours paint the switch, so its state survives the forced palette. */
@@ -1496,15 +1514,16 @@
     background: Canvas;
   }
 
-  .cp-switch::before {
+  .cp-switch::after {
     background: CanvasText;
+    box-shadow: none;
   }
 
   .cp-switch:checked {
     background: Highlight;
   }
 
-  .cp-switch:checked::before {
+  .cp-switch:checked::after {
     background: HighlightText;
   }
 
@@ -1512,7 +1531,7 @@
     border-color: GrayText;
   }
 
-  .cp-switch:disabled::before {
+  .cp-switch:disabled::after {
     background: GrayText;
   }
 }
@@ -2143,6 +2162,537 @@ input.cp-input:is([type^="date"], [type="time"]) {
   margin-block-start: 0.0625rem;
 }
 
+/* An error written without its icon, as @cplieger/ui/form writes one, draws
+ * the danger glyph itself. */
+.cp-field-error:not(:has(> .cp-icon))::before {
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  margin-block-start: 0.0625rem;
+  background: currentcolor;
+  mask: url("../icons/svg/circle-x.svg") center / contain no-repeat;
+}
+
+/* A checkbox: the native input, a rounded square that twirls into an accent
+ * circle as it checks while its mark draws in, and holds a dash for a group
+ * that is partly on (:indeterminate). */
+.cp-checkbox {
+  --cp-checkbox-size: 1.375rem;
+  /* 2px in from each side, a whole pixel, so the mask lands on the pixel
+   * grid the same way when the box turns. */
+  --cp-checkbox-mark: calc(var(--cp-checkbox-size) - 0.25rem);
+
+  appearance: none;
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--cp-checkbox-size);
+  block-size: var(--cp-checkbox-size);
+  margin: 0;
+  border: 0;
+  border-radius: 30%;
+  background: var(--cp-surface-raised);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
+  cursor: pointer;
+  transition:
+    border-radius var(--cp-dur-spring) var(--cp-ease-spring),
+    rotate var(--cp-dur-spring) var(--cp-ease-spring),
+    background-color 160ms var(--cp-ease-out),
+    box-shadow 160ms var(--cp-ease-out),
+    scale var(--cp-checkbox-press-dur, var(--cp-dur-spring))
+      var(--cp-checkbox-press-ease, var(--cp-ease-bounce));
+}
+
+:root[data-pointer="coarse"] .cp-checkbox {
+  --cp-checkbox-size: 1.625rem;
+}
+
+/* A press goes down fast and comes back on the spring. */
+[data-cp-pressed] > .cp-checkbox:enabled {
+  --cp-checkbox-press-dur: var(--cp-dur-press);
+  --cp-checkbox-press-ease: var(--cp-ease-out);
+
+  scale: 0.88;
+}
+
+.cp-checkbox::before {
+  content: "";
+  grid-area: 1 / 1;
+  z-index: 1;
+  inline-size: var(--cp-checkbox-mark);
+  block-size: var(--cp-checkbox-mark);
+  background: var(--cp-on-accent);
+  mask: url("../icons/marks/check.svg") center / contain no-repeat;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 120ms var(--cp-ease-out);
+}
+
+.cp-checkbox:is(:checked, :indeterminate) {
+  background: var(--cp-accent);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-accent);
+}
+
+.cp-checkbox:checked {
+  border-radius: 50%;
+  rotate: 90deg;
+}
+
+/* The box turns a quarter, so its mark turns back to stay upright. */
+.cp-checkbox:checked::before {
+  rotate: -90deg;
+  clip-path: inset(0);
+  transition: clip-path 200ms var(--cp-ease-out) 80ms;
+}
+
+.cp-checkbox:indeterminate::before {
+  clip-path: inset(0);
+  mask-image: url("../icons/marks/dash.svg");
+}
+
+.cp-checkbox:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-checkbox:disabled {
+  background: var(--cp-fill);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-line);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-cp-pressed] > .cp-checkbox:enabled {
+    scale: none;
+  }
+
+  .cp-checkbox:checked,
+  .cp-checkbox:checked::before {
+    rotate: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-checkbox {
+    forced-color-adjust: none;
+    border: 2px solid CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .cp-checkbox:is(:checked, :indeterminate) {
+    border-color: Highlight;
+    background: Highlight;
+    box-shadow: none;
+  }
+
+  .cp-checkbox::before {
+    background: HighlightText;
+  }
+
+  .cp-checkbox:disabled {
+    border-color: GrayText;
+  }
+}
+
+/* A radio: the native input, a circle that fills with the accent as its
+ * dot springs in. The arrow keys move the choice, as the platform's do. */
+.cp-radio {
+  --cp-radio-size: 1.375rem;
+  --cp-radio-dot: 0.625rem;
+
+  appearance: none;
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--cp-radio-size);
+  block-size: var(--cp-radio-size);
+  margin: 0;
+  border-radius: 50%;
+  background: var(--cp-surface-raised);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
+  cursor: pointer;
+  transition:
+    box-shadow 160ms var(--cp-ease-out),
+    background-color 0s 120ms,
+    scale var(--cp-radio-press-dur, var(--cp-dur-spring))
+      var(--cp-radio-press-ease, var(--cp-ease-bounce));
+}
+
+/* Whole pixels at both sizes, so the dot sits centred, not a half pixel off. */
+:root[data-pointer="coarse"] .cp-radio {
+  --cp-radio-size: 1.625rem;
+  --cp-radio-dot: 0.75rem;
+}
+
+[data-cp-pressed] > .cp-radio:enabled {
+  --cp-radio-press-dur: var(--cp-dur-press);
+  --cp-radio-press-ease: var(--cp-ease-out);
+
+  scale: 0.88;
+}
+
+.cp-radio::before {
+  content: "";
+  inline-size: var(--cp-radio-dot);
+  block-size: var(--cp-radio-dot);
+  border-radius: 50%;
+  background: var(--cp-on-accent);
+  scale: 0;
+  transition: scale 140ms var(--cp-ease-out);
+}
+
+.cp-radio:checked {
+  background: var(--cp-accent);
+  box-shadow: inset 0 0 0 calc(var(--cp-radio-size) / 2) var(--cp-accent);
+}
+
+.cp-radio:checked::before {
+  scale: 1;
+  transition: scale var(--cp-dur-spring) var(--cp-ease-bounce) 80ms;
+}
+
+.cp-radio:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-radio:disabled {
+  background: var(--cp-fill);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-line);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-cp-pressed] > .cp-radio:enabled {
+    scale: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-radio {
+    forced-color-adjust: none;
+    border: 2px solid CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .cp-radio:checked {
+    border-color: Highlight;
+    background: Highlight;
+    box-shadow: none;
+  }
+
+  .cp-radio::before {
+    background: HighlightText;
+  }
+
+  .cp-radio:disabled {
+    border-color: GrayText;
+  }
+}
+
+/* A list of choices: a fieldset of rows, each a whole-row label holding a
+ * checkbox or a radio and its words, with an optional line under them. */
+.cp-choices {
+  display: grid;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cp-choices > legend {
+  margin-block-end: var(--cp-space-2);
+  padding: 0;
+}
+
+.cp-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  min-block-size: var(--cp-control-h-sm);
+  cursor: pointer;
+}
+
+.cp-choice > span {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.cp-choice small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-choice:has(> :disabled) {
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+.cp-choice:has(> :disabled) small {
+  color: inherit;
+}
+
+/* A radio's own field, such as "Every [30] minutes": its words and the
+ * field read as one sentence, and the field is live only while its radio
+ * is chosen (@cplieger/ui/choice). */
+.cp-choice > .cp-choice-field {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-choice-field > .cp-input {
+  inline-size: 5rem;
+  min-block-size: var(--cp-control-h-sm);
+}
+
+.cp-choice-field > .cp-input[aria-disabled="true"] {
+  opacity: 0.55;
+}
+
+/* A select: the native <select>, so its list and keys are the platform's,
+ * in the field's box with the language's chevron at its end. */
+.cp-select {
+  position: relative;
+  display: grid;
+}
+
+.cp-select > select.cp-input {
+  appearance: none;
+  padding-inline-end: calc(var(--cp-space-3) * 2 + 1rem);
+}
+
+.cp-select > select.cp-input:enabled {
+  cursor: pointer;
+}
+
+.cp-select::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: var(--cp-space-3);
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-block: auto;
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .cp-select::after {
+    background: CanvasText;
+  }
+}
+
+/* A stepper: a number between a minus and a plus, one control tall, as wide
+ * as what it holds. The value is a number field, or for a value the buttons
+ * alone set, such as a zoom, a button that resets it. */
+.cp-stepper {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  /* Border-box: the border sits inside the control height, and stays
+   * visible behind a button's hover fill, which an inset shadow would not. */
+  block-size: var(--cp-control-h);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+}
+
+.cp-field > .cp-stepper {
+  justify-self: start;
+}
+
+.cp-stepper > .cp-button {
+  min-block-size: 0;
+  border-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
+}
+
+.cp-stepper > input {
+  inline-size: 4ch;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: textfield;
+}
+
+.cp-stepper > input::-webkit-inner-spin-button {
+  appearance: none;
+}
+
+.cp-stepper-value {
+  min-inline-size: 3.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus on its number rings the whole stepper, as a focused field is. */
+.cp-stepper:has(> input:focus-visible) {
+  border-color: var(--cp-focus-ring);
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* While a press rolls the number, the field's own text hides behind the
+ * roll that @cplieger/ui/stepper lays over it. */
+.cp-stepper-show {
+  position: absolute;
+  display: none;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.cp-stepper[data-cp-rolling] > .cp-stepper-show {
+  display: grid;
+}
+
+.cp-stepper[data-cp-rolling] > input {
+  color: transparent;
+}
+
+@media (forced-colors: active) {
+  .cp-stepper:has(> input:focus-visible) {
+    outline-color: Highlight;
+  }
+}
+
+/* A secret from the environment, such as an API key: its name, where it
+ * comes from and its state on one line, never its value. */
+.cp-secret-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1) var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-secret-source > strong {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+}
+
+/* A saved secret, whose value never comes back to the browser: Saved with
+ * Replace, or an empty field to type a new one (@cplieger/ui/secret). */
+.cp-secret[data-cp-state="saved"] > [data-part="edit"],
+.cp-secret:not([data-cp-state="saved"]) > [data-part="saved"] {
+  display: none;
+}
+
+.cp-secret > [data-part="saved"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3) 0.25rem;
+  border: var(--cp-line-w) dashed var(--cp-border-strong);
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink-muted);
+}
+
+.cp-secret > [data-part="saved"] > .cp-button {
+  margin-inline-start: auto;
+}
+
+.cp-secret > [data-part="edit"] {
+  display: grid;
+  gap: var(--cp-space-2);
+}
+
+/* Show and hide: the drawing marked data-part="on" shows while the field
+ * reads as text. */
+.cp-input-wrap > [aria-pressed] > [data-part="on"],
+.cp-input-wrap > [aria-pressed="true"] > .cp-icon:not([data-part="on"]) {
+  display: none;
+}
+
+.cp-input-wrap > [aria-pressed="true"] > [data-part="on"] {
+  display: inline-block;
+}
+
+/* Machine text to copy, such as a key shown once: the text in a box with
+ * Copy attached as one element, one control tall. */
+.cp-code {
+  display: flex;
+  align-items: stretch;
+  gap: var(--cp-space-2);
+  block-size: var(--cp-control-h);
+  padding-inline-start: var(--cp-space-3);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-page);
+}
+
+.cp-code > code {
+  flex: 1;
+  align-self: center;
+  min-inline-size: 0;
+  overflow-x: auto;
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
+.cp-code > .cp-copy {
+  flex: none;
+  min-block-size: 0;
+  border: 0;
+  border-inline-start: var(--cp-line-w) solid var(--cp-line);
+  border-radius: 0;
+  border-start-end-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
+  border-end-end-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
+}
+
+/* Copy keeps its word: a written copy turns it green with a check, then it
+ * fades back (@cplieger/ui/copy). */
+.cp-copy {
+  transition:
+    background-color 900ms var(--cp-ease-out),
+    color 900ms var(--cp-ease-out),
+    transform var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* (0,4,1) lifts the fill over a button's hover, a (0,4,0) rule. */
+button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
+  background: var(--cp-done-fill);
+  color: oklch(100% 0 0deg);
+  transition-duration: 120ms;
+}
+
+/* The check marked data-part="done" stands in for the drawing while done. */
+:where(.cp-copy) > .cp-icon[data-part] {
+  display: none;
+}
+
+/* A state word: a short word in its tone, after the tone's glyph, such as
+ * "set", "not set" or "rejected" beside a setting. */
+.cp-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-state > .cp-icon {
+  --cp-icon-size: 0.875rem;
+}
+
 /* Data table: rows are never interactive; actions are buttons in a cell.
  * A column carries its priority, and a narrow container drops low, then mid. */
 .cp-table {
@@ -2193,7 +2743,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   cursor: pointer;
 }
 
-.cp-table [data-col="select"] input {
+.cp-table [data-col="select"] input:not(.cp-checkbox) {
   inline-size: 1rem;
   block-size: 1rem;
   margin: 0;
@@ -3779,9 +4329,6 @@ input.cp-input:is([type^="date"], [type="time"]) {
  * that draws and its done words, then back at rest. The fill fades back
  * slowly and flashes in fast. A danger button stays red as it confirms. */
 .cp-button[data-cp-confirm] {
-  /* A green dark enough for white words in both themes, about 5:1. */
-  --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
-
   position: relative;
   overflow: hidden;
   transition:

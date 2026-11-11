@@ -1,0 +1,72 @@
+/**
+ * checkbox.ts — `enhanceSelectAll()` ties a checkbox that stands for a group,
+ * such as "All of these" or a table's header box, to the group's boxes: a
+ * press checks or clears every box that can change, and the box shows
+ * checked, a dash or empty as all, some or none of them are on.
+ * @module
+ */
+
+import { until } from "../../core/lifetime/lifetime.js";
+
+export interface SelectAllOptions {
+  /** Removes the listeners. */
+  readonly signal?: AbortSignal;
+}
+
+function tell(box: HTMLInputElement): void {
+  box.dispatchEvent(new Event("input", { bubbles: true }));
+  box.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
+ * `boxes` returns the group's checkboxes and is read at each change, so rows
+ * added or removed need no call. A disabled box keeps its state, and the
+ * state of `all` counts the boxes that can change, or every box when none
+ * can. Each box a press of `all` changes fires `input` and `change`, as a
+ * press of its own would. Returns `sync`, for code that changes the boxes
+ * itself.
+ */
+export function enhanceSelectAll(
+  all: HTMLInputElement,
+  boxes: () => Iterable<HTMLInputElement>,
+  options: SelectAllOptions = {},
+): () => void {
+  const { signal } = options;
+  const sync = (): void => {
+    const group = [...boxes()];
+    const live = group.filter((b) => !b.disabled);
+    const counted = live.length > 0 ? live : group;
+    const on = counted.filter((b) => b.checked).length;
+    all.checked = counted.length > 0 && on === counted.length;
+    all.indeterminate = on > 0 && on < counted.length;
+  };
+  if (signal?.aborted === true) {
+    return sync;
+  }
+  const listen = until(signal);
+  all.addEventListener(
+    "change",
+    () => {
+      for (const b of boxes()) {
+        if (!b.disabled && b.checked !== all.checked) {
+          b.checked = all.checked;
+          tell(b);
+        }
+      }
+      sync();
+    },
+    listen,
+  );
+  all.ownerDocument.addEventListener(
+    "change",
+    (e) => {
+      const t = e.target;
+      if (t !== all && t instanceof HTMLInputElement && [...boxes()].includes(t)) {
+        sync();
+      }
+    },
+    listen,
+  );
+  sync();
+  return sync;
+}

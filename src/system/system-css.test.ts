@@ -330,6 +330,107 @@ describe("css/system.css", () => {
     }
   });
 
+  it("twirls a checked checkbox into an accent circle, holds a dash for some, and keeps its size in a table", () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      '<i style="background: var(--cp-accent)"></i>' +
+        '<input class="cp-checkbox" type="checkbox" checked><input class="cp-checkbox" type="checkbox" id="some">' +
+        '<table class="cp-table"><tbody><tr><td data-col="select"><label><input class="cp-checkbox" type="checkbox"></label></td></tr></tbody></table>',
+    );
+    for (const i of el.querySelectorAll("input")) {
+      i.style.transition = "none";
+    }
+    (el.querySelector("#some") as HTMLInputElement).indeterminate = true;
+    const accent = getComputedStyle(el.querySelector("i") as Element).backgroundColor;
+    const [on, some, row] = [...el.querySelectorAll("input")] as HTMLInputElement[];
+    const cs = getComputedStyle(on as Element);
+    expect([cs.backgroundColor, cs.borderRadius, cs.rotate]).toEqual([accent, "50%", "90deg"]);
+    expect(getComputedStyle(some as Element).backgroundColor).toBe(accent);
+    expect(decodeURIComponent(getComputedStyle(some as Element, "::before").maskImage)).toContain(
+      "M7.5 12h9",
+    );
+    expect((row as Element).getBoundingClientRect().width).toBe(22);
+  });
+
+  it("fills a chosen radio with the accent", () => {
+    theme("light");
+    const el = build(
+      '<i style="background: var(--cp-accent)"></i><input class="cp-radio" type="radio" name="r" checked>',
+    );
+    const r = el.querySelector("input") as HTMLInputElement;
+    r.style.transition = "none";
+    expect(getComputedStyle(r).backgroundColor).toBe(
+      getComputedStyle(el.querySelector("i") as Element).backgroundColor,
+    );
+  });
+
+  it("draws a select's chevron from the stylesheet and keeps its text clear of it", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-select"><select class="cp-input"><option>Every hour</option></select></div>',
+    );
+    const wrap = el.querySelector(".cp-select") as Element;
+    expect(decodeURIComponent(getComputedStyle(wrap, "::after").maskImage)).toContain(
+      "m6 9 6 6 6-6",
+    );
+    expect(getComputedStyle(wrap.querySelector("select") as Element).paddingInlineEnd).toBe("40px");
+  });
+
+  it("keeps a stepper one control tall and as wide as what it holds", () => {
+    theme("light");
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<input class="cp-input" id="line"><div class="cp-field" style="inline-size: 30rem"><div class="cp-stepper"><button class="cp-button" type="button">-</button><input type="number" value="3"><button class="cp-button" type="button">+</button></div></div>',
+      );
+      const box = (el.querySelector(".cp-stepper") as Element).getBoundingClientRect();
+      expect(box.height).toBe(
+        (el.querySelector("#line") as Element).getBoundingClientRect().height,
+      );
+      expect(box.width).toBeLessThan(200);
+    }
+  });
+
+  it("shows a saved secret's Saved part or its field, never both", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-secret" data-cp-state="saved"><div data-part="saved">Saved</div><div data-part="edit">Field</div></div>',
+    );
+    const secret = el.firstElementChild as HTMLElement;
+    const shown = () => [...secret.children].map((c) => getComputedStyle(c).display !== "none");
+    expect(shown()).toEqual([true, false]);
+    secret.dataset["cpState"] = "edit";
+    expect(shown()).toEqual([false, true]);
+  });
+
+  it("draws the danger glyph for an error written without one, and not twice for one with it", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-field-error">Bare</span><span class="cp-field-error"><span class="cp-icon"></span>With</span>',
+    );
+    const [bare, withIcon] = [...el.querySelectorAll(".cp-field-error")];
+    expect(decodeURIComponent(getComputedStyle(bare as Element, "::before").maskImage)).toContain(
+      "m15 9-6 6",
+    );
+    expect(getComputedStyle(withIcon as Element, "::before").content).toBe("none");
+  });
+
+  it("turns a done Copy green with white words, and keeps the box one control tall", () => {
+    theme("light");
+    const el = build(
+      '<input class="cp-input" id="line"><div class="cp-code"><code>key</code><button class="cp-button cp-copy" type="button" data-cp-state="done">Copy</button></div>',
+    );
+    const copy = el.querySelector(".cp-copy") as HTMLElement;
+    copy.style.transition = "none";
+    const cs = getComputedStyle(copy);
+    expect(rgb(cs.color)).toEqual([255, 255, 255]);
+    expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+    expect((el.querySelector(".cp-code") as Element).getBoundingClientRect().height).toBe(
+      (el.querySelector("#line") as Element).getBoundingClientRect().height,
+    );
+  });
+
   it("presses a button by data-cp-pressed as well as :active, and never a disabled one", async () => {
     theme("light");
     const el = build(
@@ -452,7 +553,7 @@ describe("css/system.css", () => {
       for (const sw of el.querySelectorAll("input")) {
         sw.style.transition = "none";
         const track = getComputedStyle(sw).backgroundColor;
-        const thumb = getComputedStyle(sw, "::before").backgroundColor;
+        const thumb = getComputedStyle(sw, "::after").backgroundColor;
         expect(contrast(track, page), `track ${sw.checked ? "on" : "off"}`).toBeGreaterThanOrEqual(
           3,
         );
@@ -476,13 +577,13 @@ describe("css/system.css", () => {
       for (const a of document.getAnimations()) {
         a.finish();
       }
-      const tx = Number.parseFloat(getComputedStyle(sw as Element, "::before").translate);
+      const tx = Number.parseFloat(getComputedStyle(sw as Element, "::after").translate);
       return [box.width, box.height, tx];
     };
-    expect(travel(ltr)).toEqual([36, 20, 16]);
-    expect(travel(rtl)).toEqual([36, 20, -16]);
+    expect(travel(ltr)).toEqual([44, 24, 20]);
+    expect(travel(rtl)).toEqual([44, 24, -20]);
     root.dataset["pointer"] = "coarse";
-    expect(travel(ltr)).toEqual([48, 28, 20]);
+    expect(travel(ltr)).toEqual([52, 30, 22]);
   });
 
   it.skipIf(!emulates)("keeps a switch's state in forced colours", async () => {
@@ -493,7 +594,7 @@ describe("css/system.css", () => {
     sw.style.transition = "none";
     const cs = getComputedStyle(sw);
     expect(cs.borderStyle).toBe("solid");
-    expect(cs.backgroundColor).not.toBe(getComputedStyle(sw, "::before").backgroundColor);
+    expect(cs.backgroundColor).not.toBe(getComputedStyle(sw, "::after").backgroundColor);
   });
 
   it("fills the chosen segment and rings it when its radio has keyboard focus", async () => {

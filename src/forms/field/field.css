@@ -99,3 +99,15 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
   margin-block-start: 0.0625rem;
 }
+
+/* An error written without its icon, as @cplieger/ui/form writes one, draws
+ * the danger glyph itself. */
+.cp-field-error:not(:has(> .cp-icon))::before {
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  margin-block-start: 0.0625rem;
+  background: currentcolor;
+  mask: url("../icons/svg/circle-x.svg") center / contain no-repeat;
+}

@@ -3,9 +3,6 @@
  * that draws and its done words, then back at rest. The fill fades back
  * slowly and flashes in fast. A danger button stays red as it confirms. */
 .cp-button[data-cp-confirm] {
-  /* A green dark enough for white words in both themes, about 5:1. */
-  --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
-
   position: relative;
   overflow: hidden;
   transition:

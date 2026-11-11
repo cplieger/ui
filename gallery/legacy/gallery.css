@@ -155,153 +155,23 @@
  * box's own background turns the same colour, so no light pixel is left under
  * the fill's rounded edge either. */
 
-.box {
-  --box: 1.375rem;
-  /* 2px in from each side, a whole pixel, so the mask lands on the pixel
-   * grid the same way when the box turns */
-  --mark: calc(var(--box) - 0.25rem);
-  --line: var(--cp-line-w);
-  --on: var(--cp-accent);
-
-  appearance: none;
-  position: relative;
-  isolation: isolate;
-  inline-size: var(--box);
-  block-size: var(--box);
-  margin: 0;
-  cursor: pointer;
-  display: inline-grid;
-  place-items: center;
-  border: 0;
-  background: var(--cp-surface-raised);
-  box-shadow: inset 0 0 0 var(--line) var(--cp-border-strong);
-  transition:
-    box-shadow var(--cp-dur-micro) var(--cp-ease-out),
-    background-color 0s,
-    scale var(--press-dur, var(--dur-spring)) var(--press-ease, var(--ease-bounce));
-}
-
-:root[data-pointer="coarse"] .box {
-  --box: 1.625rem;
-}
-
 /* The label is the target, so pressing its words squeezes the box too. */
-[data-cp-pressed] > .box {
-  scale: 0.88;
-}
 
 /* The mark is its own drawing: 3.25 units, 2.4px at this size, which a 1x
  * screen draws solid where the 2.25 icon stroke would blur. It spans 11 of
  * 24 units, half the box, and its centre of mass sits on the grid's middle,
  * so its bounds ride a little high: the low corner holds most of the ink. */
-.box::before {
-  content: "";
-  grid-area: 1 / 1;
-  z-index: 1;
-  inline-size: var(--mark);
-  block-size: var(--mark);
-  background: var(--cp-on-accent);
-  mask: url("icons/marks/check.svg") center / contain no-repeat;
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 120ms var(--cp-ease-out);
-}
-
-.box:checked::before {
-  clip-path: inset(0 0 0 0);
-  transition: clip-path 200ms var(--cp-ease-out) 80ms;
-}
-
-.box:focus-visible {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
-}
 
 /* Twirl: a rounded square that twirls a quarter turn into a circle. It
  * rests on the accent like every other chosen control; the surprise colour
  * only passes through during the turn. */
-.box-twirl {
-  --on: var(--cp-accent);
-
-  border-radius: 30%;
-  transition:
-    border-radius var(--dur-spring) var(--ease-spring),
-    rotate var(--dur-spring) var(--ease-spring),
-    background-color 160ms var(--cp-ease-out),
-    box-shadow 160ms var(--cp-ease-out),
-    scale var(--press-dur, var(--dur-spring)) var(--press-ease, var(--ease-bounce));
-}
-
-.box-twirl:checked {
-  border-radius: 50%;
-  rotate: 90deg;
-  background: var(--on);
-  box-shadow: inset 0 0 0 var(--line) var(--on);
-}
 
 
 /* The check's ink is the one its own colour needs, as on any solid. */
-.box-twirl::before {
-  rotate: -90deg;
-  background: contrast-color(var(--on));
-}
-
-.box-twirl:not(:checked)::before {
-  rotate: 0deg;
-}
 
 /* Switches */
 
-.switch {
-  --sw-w: 2.75rem;
-  --sw-h: 1.5rem;
-  --sw-pad: 0.1875rem;
-  --sw-thumb: calc(var(--sw-h) - 2 * var(--sw-pad));
-  --sw-travel: calc(var(--sw-w) - var(--sw-h));
-  --sw-dir: 1;
-
-  appearance: none;
-  position: relative;
-  inline-size: var(--sw-w);
-  block-size: var(--sw-h);
-  margin: 0;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-neutral-6);
-  cursor: pointer;
-  transition: background-color 200ms var(--cp-ease-out);
-}
-
 /* about the size of an iOS switch under a finger */
-:root[data-pointer="coarse"] .switch {
-  --sw-w: 3.25rem;
-  --sw-h: 1.875rem;
-}
-
-.switch:dir(rtl) {
-  --sw-dir: -1;
-}
-
-.switch::after {
-  content: "";
-  position: absolute;
-  inset-block-start: var(--sw-pad);
-  inset-inline-start: var(--sw-pad);
-  inline-size: var(--sw-thumb);
-  block-size: var(--sw-thumb);
-  border-radius: var(--cp-radius-round);
-  background: white;
-  box-shadow: 0 1px 2px oklch(0% 0 0 / 25%);
-  transition:
-    translate var(--dur-spring) var(--ease-spring),
-    inline-size 140ms var(--cp-ease-out);
-}
-
-.switch:checked {
-  background: var(--cp-accent);
-}
-
-.switch:checked::after {
-  translate: calc(var(--sw-travel) * var(--sw-dir)) 0;
-}
 
 /* Saving: busy (the system's spinner-arc) for under a second, then a done
  * state that fades back by itself. */
@@ -987,9 +857,6 @@
   }
 
   /* design.md "Motion": presses do not scale */
-  :root:not([data-motion="full"]) [data-cp-pressed] > .box {
-    scale: none;
-  }
 
   /* a loader still has to read as busy, so it pulses slowly instead */
   :root:not([data-motion="full"]) :is(.loader, .boot-shape) {
@@ -1003,10 +870,6 @@
   animation-duration: 1ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 1ms !important;
-}
-
-:root[data-motion="reduced"] [data-cp-pressed] > .box {
-  scale: none;
 }
 
 :root[data-motion="reduced"] .cp-button:is(:active, [data-cp-pressed]) {
@@ -1153,28 +1016,6 @@ textarea.cp-input {
 }
 
 /* A native select with the package's chevron in place of the engine's. */
-.g-select {
-  position: relative;
-  display: grid;
-}
-
-.g-select > select.cp-input {
-  appearance: none;
-  padding-inline-end: calc(var(--cp-space-3) * 2 + 16px);
-}
-
-.g-select > select.cp-input:enabled {
-  cursor: pointer;
-}
-
-.g-select > .cp-icon {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: var(--cp-space-3);
-  margin-block: auto;
-  color: var(--cp-ink-muted);
-  pointer-events: none;
-}
 
 /* Date and time stay native, so their pickers and keyboards are the
  * engine's own; only the box is ours. */
@@ -1190,109 +1031,13 @@ input.cp-input::-webkit-calendar-picker-indicator {
 /* Radio: an outlined circle that fills with the accent; its white dot
  * springs in from nothing. The same no-border shape as the checkbox, so a
  * 1x screen shows no seam. */
-.g-radio {
-  --size: 1.375rem;
-  --dot: 0.625rem;
-
-  appearance: none;
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  inline-size: var(--size);
-  block-size: var(--size);
-  margin: 0;
-  border-radius: 50%;
-  background: var(--cp-surface-raised);
-  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
-  cursor: pointer;
-  transition:
-    box-shadow 160ms var(--cp-ease-out),
-    background-color 0s 120ms,
-    scale var(--press-dur, var(--dur-spring)) var(--press-ease, var(--ease-bounce));
-}
-
-:root[data-pointer="coarse"] .g-radio {
-  --size: 1.625rem;
-  --dot: 0.75rem;
-}
 
 /* A whole-pixel dot, centred in an even-pixel circle so its offset is whole
  * (22px box, 10px dot -> 6px; 26px -> 8px): a 40% dot is 8.8px, a sub-pixel
  * size that cannot sit on the grid, so it renders off-centre and the scale's
  * end-snap shifts it a pixel. */
-.g-radio::before {
-  content: "";
-  inline-size: var(--dot);
-  block-size: var(--dot);
-  border-radius: 50%;
-  background: var(--cp-on-accent);
-  scale: 0;
-  transition: scale 140ms var(--cp-ease-out);
-}
-
-.g-radio:checked {
-  background: var(--cp-accent);
-  box-shadow: inset 0 0 0 calc(var(--size) / 2) var(--cp-accent);
-}
-
-.g-radio:checked::before {
-  scale: 1;
-  transition: scale var(--dur-spring) var(--ease-bounce) 80ms;
-}
-
-[data-cp-pressed] > .g-radio {
-  scale: 0.88;
-}
-
-.g-radio:focus-visible {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
-}
-
-.g-choices {
-  display: grid;
-  gap: var(--cp-space-2);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.g-choices > legend {
-  margin-block-end: var(--cp-space-2);
-  padding: 0;
-}
-
-.g-choice {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  min-block-size: var(--cp-control-h-sm);
-  cursor: pointer;
-}
-
-.g-choice > span {
-  display: grid;
-  gap: 0.125rem;
-}
-
-.g-choice small {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
 
 /* A checkbox in its mixed state: a dash, no turn. */
-.box-twirl:indeterminate {
-  border-radius: 30%;
-  rotate: 0deg;
-  background: var(--on);
-  box-shadow: inset 0 0 0 var(--line) var(--on);
-}
-
-.box-twirl:indeterminate::before {
-  rotate: 0deg;
-  clip-path: inset(0 0 0 0);
-  mask-image: url("icons/marks/dash.svg");
-}
 
 /* Range: the track fills with the accent up to the thumb, which grows while
  * held. gallery.js keeps --fill at the value's share. */
@@ -1362,44 +1107,8 @@ input.cp-input::-webkit-calendar-picker-indicator {
 }
 
 /* A stepper: a number between two buttons. */
-.g-stepper {
-  display: inline-flex;
-  align-items: stretch;
-  /* One control height, border-box: the real border sits inside the 32px and
-   * never adds to it, and it stays visible behind a button's hover fill (an
-   * inset shadow would be painted over). */
-  block-size: var(--cp-control-h);
-  border: var(--cp-line-w) solid var(--cp-border-strong);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-raised);
-}
-
-.g-stepper > .cp-button {
-  min-block-size: 0;
-  border-radius: calc(var(--cp-radius-control) - 1px);
-}
 
 /* The value sits centred between the buttons, like the stepper's number. */
-.g-stepper-value {
-  min-inline-size: 3.5rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.g-stepper > input {
-  inline-size: 4ch;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  appearance: textfield;
-}
-
-.g-stepper > input::-webkit-inner-spin-button {
-  appearance: none;
-}
 
 /* A drop zone: the whole area is the file input's label. */
 .g-drop {
@@ -2111,8 +1820,7 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 
 /* A field built of parts rings like a field: its own border, flush, when
  * its text input has focus; a chip's button keeps its own ring. */
-.g-tokens:has(> input:focus-visible),
-.g-stepper:has(> input:focus-visible) {
+.g-tokens:has(> input:focus-visible) {
   outline: var(--cp-focus-w) solid transparent;
   outline-offset: calc(var(--cp-focus-w) * -1);
   border-color: var(--cp-focus-ring);
@@ -2727,60 +2435,13 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 }
 
 /* Machine text with its copy button: an address, a key, a command. */
-.g-code {
-  display: flex;
-  align-items: stretch;
-  gap: var(--cp-space-2);
-  /* One control height, border-box: a real border wraps the key and the Copy
-   * segment as one element and stays inside the 32px without adding to it. */
-  block-size: var(--cp-control-h);
-  padding-inline-start: var(--cp-space-3);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-page);
-}
 
 /* Copy as a segment of the box: flush with its end, a hairline before it,
  * and the box's corner less its border so the corners stay concentric. */
-.g-code > .g-copy {
-  flex: none;
-  min-block-size: 0;
-  border: 0;
-  border-inline-start: var(--cp-line-w) solid var(--cp-line);
-  border-radius: 0;
-  border-start-end-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
-  border-end-end-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
-}
 
 /* A copy flashes the done green with a check in 120ms, then fades back. */
-.g-copy {
-  transition:
-    background-color 900ms var(--cp-ease-out),
-    color 900ms var(--cp-ease-out),
-    transform var(--cp-dur-micro) var(--cp-ease-out);
-}
 
 /* :not(:disabled) lifts this over a quiet hover, which wins a tie by scope proximity. */
-:root .cp-button.g-copy[data-state="done"]:not(:disabled) {
-  background: var(--done-bg);
-  color: white;
-  transition-duration: 120ms;
-}
-
-.g-copy[data-state="done"] > .cp-icon {
-  animation: check-draw 320ms var(--cp-ease-out);
-}
-
-.g-code > code {
-  flex: 1;
-  align-self: center;
-  min-inline-size: 0;
-  overflow-x: auto;
-  font-family: var(--cp-font-mono);
-  font-size: 0.92em;
-  white-space: nowrap;
-  scrollbar-width: thin;
-}
 
 /* A timeline of events: icon, words, time. */
 .g-timeline {
@@ -3178,10 +2839,6 @@ kbd.g-key {
   font-size: 0.6875rem;
   text-align: center;
   overflow-wrap: anywhere;
-}
-
-.g-code .btn-done {
-  min-inline-size: 0;
 }
 
 .g-mini-header .cp-header {
@@ -3729,7 +3386,7 @@ html:has(.g-header) {
   padding-block: 0;
 }
 
-.g-rules .g-select {
+.g-rules .cp-select {
   display: inline-grid;
 }
 
@@ -3790,31 +3447,8 @@ html:has(.g-header) {
 }
 
 /* A saved secret: the stored value never comes back to the browser. */
-.g-secret[data-state="saved"] .g-secret-edit,
-.g-secret:not([data-state="saved"]) .g-secret-saved {
-  display: none;
-}
-
-.g-secret-saved {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-3) 0.25rem;
-  border: var(--cp-line-w) dashed var(--cp-border-strong);
-  border-radius: var(--cp-radius-control);
-  color: var(--cp-ink-muted);
-}
 
 /* Lock and "Saved" group at the start; Replace is pushed to the end. */
-.g-secret-saved > button {
-  margin-inline-start: auto;
-}
-
-.g-secret-edit {
-  display: grid;
-  gap: var(--cp-space-2);
-}
 
 /* Stale content under a refresh: a thin line runs at the region's top. */
 /* The refreshing region is a panel, and its line runs along the panel's
@@ -4085,10 +3719,6 @@ html:has(.g-header) {
 /* A checked box is one accent shape, edged in its own fill, as a checked
  * radio and an on switch are: the accent's solid stands 3:1 off the page
  * without a darker outline. */
-.box-twirl:checked,
-.box-twirl:indeterminate {
-  box-shadow: inset 0 0 0 var(--line) var(--on);
-}
 
 /* Targets: a sort button fills its header cell; a token's remove button
  * is 28px, 44px under a finger; a switch's hit area reaches 44px. */
@@ -4119,12 +3749,6 @@ html:has(.g-header) {
   content: "";
   position: absolute;
   inset: -0.5rem;
-}
-
-.switch::before {
-  content: "";
-  position: absolute;
-  inset: -0.4375rem -0.25rem;
 }
 
 .g-token:focus-within,
@@ -4374,36 +3998,8 @@ html:has(.g-header) {
 }
 
 /* A secret's state line. */
-.g-secret-line > strong {
-  color: var(--cp-ink);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-secret-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-1) var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-}
 
 /* A radio whose field is live only while it is chosen. */
-.g-choice > .g-choice-field {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-choice-field > input {
-  inline-size: 5rem;
-  min-block-size: var(--cp-control-h-sm);
-}
-
-.g-choice-field > input[aria-disabled="true"] {
-  opacity: 0.55;
-}
 
 /* Active filters: chips that remove, a Clear, and the count. */
 .g-active {
@@ -4986,10 +4582,6 @@ html:has(.g-header) {
 
 /* The twirl box keeps its own size in a table's select column, where the
  * system sizes a native checkbox to 1rem. */
-.cp-table [data-col="select"] input.box {
-  inline-size: var(--box);
-  block-size: var(--box);
-}
 
 /* A card that is one link, and its row form with a button beside it. */
 .g-cardlinks {
@@ -5136,18 +4728,6 @@ html:has(.g-header) {
 
 /* A state in words with its glyph, inside a line of facts. */
 /* The same scale as a field error, so a state and the error under it match. */
-.g-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--cp-tone-11);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-state > .cp-icon {
-  --cp-icon-size: 0.875rem;
-}
 
 /* Skip to the content: the first Tab stop, shown only while focused. */
 .g-mini-header {
@@ -5311,7 +4891,6 @@ html:has(.g-header) {
 
 /* A field whose value has a known length fits it: a stepper, a date, a
  * time. In a row of fields, data-width="fill" shares the row instead. */
-.cp-field > .g-stepper,
 .cp-field > .cp-input:is([type="date"], [type="time"]) {
   justify-self: start;
 }
@@ -5435,26 +5014,10 @@ html:has(.g-header) {
 }
 
 /* A disabled choice: a sunken box, a quiet edge and faded words. */
-.g-radio:disabled,
-.box:disabled {
-  background: var(--cp-fill);
-  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-line);
-  cursor: not-allowed;
-}
-
-.g-choice:has(> :disabled) {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
-.g-choice:has(> :disabled) small {
-  color: inherit;
-}
 
 /* A control as wide as its parts, wherever it sits. */
 .g-toggles,
-.g-btngroup,
-.g-stepper {
+.g-btngroup {
   inline-size: fit-content;
   max-inline-size: 100%;
 }
@@ -5574,21 +5137,6 @@ html:has(.g-header) {
 }
 
 /* The stepper's number rolls in a window laid over its field. */
-.g-stepper-show {
-  position: absolute;
-  display: none;
-  place-items: center;
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-}
-
-.g-stepper[data-rolling] > .g-stepper-show {
-  display: grid;
-}
-
-.g-stepper[data-rolling] > input {
-  color: transparent;
-}
 
 .g-thumb > .cp-icon {
   --cp-icon-size: 1rem;
@@ -5596,40 +5144,6 @@ html:has(.g-header) {
 
 /* ===== Forced colours: the gallery's own controls keep their state ===== */
 @media (forced-colors: active) {
-  .box,
-  .g-radio,
-  .switch {
-    forced-color-adjust: none;
-    border: 2px solid CanvasText;
-    background: Canvas;
-    box-shadow: none;
-  }
-
-  .box:checked,
-  .box:indeterminate,
-  .g-radio:checked,
-  .switch:checked {
-    border-color: Highlight;
-    background: Highlight;
-    box-shadow: none;
-  }
-
-  .box::before {
-    background: HighlightText;
-  }
-
-  .g-radio::before {
-    background: HighlightText;
-  }
-
-  .switch::after {
-    background: CanvasText;
-    box-shadow: none;
-  }
-
-  .switch:checked::after {
-    background: HighlightText;
-  }
 
   .g-steps > li::before {
     forced-color-adjust: none;

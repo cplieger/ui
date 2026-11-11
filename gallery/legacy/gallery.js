@@ -1,4 +1,6 @@
-// The gallery's own behaviour for the cards that do not run on src/ yet. Plain DOM, no dependencies.
+import { reportErrors } from "@cplieger/ui/form";
+
+// The gallery's own behaviour for the cards that do not run on src/ yet, in plain DOM.
 const root = document.documentElement;
 
 // What @cplieger/ui/icons' createIcons does: an absolute URL per icon, so
@@ -961,15 +963,6 @@ for (const f of $$(".g-search")) {
     input.focus();
   });
 }
-for (const b of $$("[data-reveal]")) {
-  const input = document.getElementById(b.dataset.reveal);
-  b.addEventListener("click", () => {
-    const show = input.type === "password";
-    input.type = show ? "text" : "password";
-    b.setAttribute("aria-pressed", String(show));
-    b.querySelector(".cp-icon").dataset.cpIcon = show ? "eye-off" : "eye";
-  });
-}
 // A textarea counts its characters and grows where the engine cannot size
 // it to its content.
 const sizesToContent = CSS.supports("field-sizing", "content");
@@ -1010,16 +1003,6 @@ for (const r of $$(".g-range")) {
   new ResizeObserver(update).observe(r);
   update();
 }
-for (const s of $$(".g-stepper:has(> input)")) {
-  const input = $("input", s);
-  for (const b of $$("button", s)) {
-    b.addEventListener("click", () => {
-      const v = Number(input.value) + Number(b.dataset.step);
-      input.value = String(Math.min(Number(input.max), Math.max(Number(input.min), v)));
-      say(input.value);
-    });
-  }
-}
 for (const z of $$(".g-drop")) {
   const input = $("input", z);
   const list = document.getElementById(z.dataset.list);
@@ -1039,71 +1022,6 @@ for (const z of $$(".g-drop")) {
   });
   input.addEventListener("change", () => show(input.files));
 }
-for (const all of $$("[data-select-all]")) {
-  const boxes = $$(`[data-group="${all.dataset.selectAll}"]`);
-  const sync = () => {
-    const on = boxes.filter((b) => b.checked).length;
-    all.checked = on === boxes.length;
-    all.indeterminate = on > 0 && on < boxes.length;
-  };
-  all.addEventListener("change", () => {
-    for (const b of boxes) b.checked = all.checked;
-    sync();
-  });
-  for (const b of boxes) b.addEventListener("change", sync);
-  sync();
-}
-
-// -------------------------------------------------------------- copy
-// The label stays Copy; the icon becomes a check and the fill flashes green,
-// then fades back. The result is said, not shown in new words.
-for (const b of $$("[data-copy]")) {
-  const source = b.dataset.copy.startsWith("#") ? $(b.dataset.copy) : null;
-  const text = () => source?.textContent ?? b.dataset.copy;
-  const ic = b.querySelector(".cp-icon");
-  // The hint for a copy the browser refused, under the field that holds the text.
-  const field = b.closest(".cp-field");
-  const hint = el("span", { class: "cp-help g-copy-hint", hidden: "" });
-  field?.append(hint);
-  b.addEventListener("click", async () => {
-    let wrote = false;
-    // The clipboard exists only in a secure context, and a write can still be
-    // refused: say Copied only for a write that happened.
-    if (globalThis.isSecureContext && navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(text());
-        wrote = true;
-      } catch {
-        wrote = false;
-      }
-    }
-    clearTimeout(b.copyTimer);
-    if (wrote) {
-      hint.hidden = true;
-      b.dataset.state = "done";
-      ic.dataset.cpIcon = "check";
-      say("Copied");
-      b.copyTimer = setTimeout(() => {
-        delete b.dataset.state;
-        ic.dataset.cpIcon = "copy";
-      }, 1600);
-      return;
-    }
-    // Refused or unavailable: select the text so the platform's own copy works.
-    if (source) {
-      const range = document.createRange();
-      range.selectNodeContents(source);
-      getSelection()?.removeAllRanges();
-      getSelection()?.addRange(range);
-    }
-    const keys = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘C" : "Ctrl+C";
-    hint.textContent = `Selected. Press ${keys} to copy.`;
-    hint.hidden = false;
-    say(`Selected. Press ${keys} to copy.`);
-    b.copyTimer = setTimeout(() => (hint.hidden = true), 6000);
-  });
-}
-
 // -------------------------------------------------------- relative time
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const rtfNarrow = new Intl.RelativeTimeFormat(undefined, { numeric: "always", style: "narrow" });
@@ -1835,34 +1753,18 @@ for (const host of $$("[data-ladder]")) {
 }
 
 // ------------------------------------------------------- form validation
-// A submit with errors puts a summary at the top that links each field,
-// moves focus to it, and marks each field with its own message; typed
-// values stay.
+// The gallery's own checks for Add a source; the library shows what they
+// find, and typed values stay.
 for (const form of $$("form.cp-form:not([data-sign-in])")) {
-  const summary = $(".cp-notice[role='alert']", form);
+  const summary = $("#f-summary", form);
   if (!summary) continue;
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const bad = $$("[required]", form).filter((f) => !f.value.trim() || (f.type === "url" && !/^https?:\/\/\S+/.test(f.value)));
-    for (const f of $$("[required]", form)) {
-      const id = `${f.id}-error`;
-      let err = document.getElementById(id);
-      const wrong = bad.includes(f);
-      f.setAttribute("aria-invalid", String(wrong));
-      if (wrong && !err) {
-        err = el("span", { class: "cp-field-error", id }, icon("circle-x"), f.type === "url" ? "Enter the address, starting with http:// or https://." : "Paste the key from Sonarr.");
-        f.after(err);
-        f.setAttribute("aria-describedby", id);
-      }
-      if (err) err.hidden = !wrong;
-    }
-    summary.hidden = bad.length === 0;
-    if (bad.length) {
-      $("strong", summary).textContent = `${bad.length} field${bad.length === 1 ? " needs" : "s need"} a fix before this saves`;
-      $("ul", summary).replaceChildren(...bad.map((f) => el("li", {}, el("a", { href: `#${f.id}`, text: form.querySelector(`label[for="${f.id}"]`).textContent }))));
-      summary.tabIndex = -1;
-      summary.focus();
-    } else toast({ kind: "success", title: "Source added" });
+    const errors = $$("[required]", form)
+      .filter((f) => !f.value.trim() || (f.type === "url" && !/^https?:\/\/\S+/.test(f.value)))
+      .map((field) => ({ field, message: field.type === "url" ? "Enter the address, starting with http:// or https://." : "Paste the key from Sonarr." }));
+    reportErrors(form, errors, { summary, heading: (n) => `${n} fields need a fix before this saves` });
+    if (errors.length === 0) toast({ kind: "success", title: "Source added" });
   });
 }
 
@@ -2204,7 +2106,7 @@ const LANGS = ["English", "English (signs and songs)", "French", "German", "Span
 const pickLang = (chosen = "English", when = "") => {
   const s = el("select", { class: "cp-input", "aria-label": when ? `Language ${when}` : "Language" }, ...[...LANGS, "nothing"].map((l) => el("option", { text: l })));
   s.value = chosen;
-  return el("span", { class: "g-select" }, s, icon("chevron-down"));
+  return el("span", { class: "cp-select" }, s);
 };
 for (const ed of $$("[data-sentences]")) {
   const list = $("ol", ed);
@@ -2276,7 +2178,7 @@ for (const ed of $$("[data-sentences]")) {
   if (first) {
     first.dataset.when = "by default";
     const targets = $(".g-targets", first);
-    for (const pick of $$(":scope > .g-select", targets)) targets.append(entry(first, pick));
+    for (const pick of $$(":scope > .cp-select", targets)) targets.append(entry(first, pick));
     first.append(el("span", { class: "g-rule-acts" }, plus(first)));
     sync(first);
   }
@@ -2315,22 +2217,6 @@ for (const ed of $$("[data-pairs]")) {
     }
     list.append(row);
     $("input", row).focus();
-  });
-}
-
-// -------------------------------------------------------- saved secret
-// The saved value never comes back: Replace opens an empty field; Keep
-// saved value returns to the saved state with nothing sent.
-for (const s of $$(".g-secret")) {
-  const input = $("input", s);
-  $("[data-replace]", s).addEventListener("click", () => {
-    s.dataset.state = "edit";
-    input.value = "";
-    input.focus();
-  });
-  $("[data-keep]", s).addEventListener("click", () => {
-    s.dataset.state = "saved";
-    $("[data-replace]", s).focus();
   });
 }
 
@@ -2599,27 +2485,6 @@ for (const item of $$("[role='menuitemcheckbox']")) {
   item.addEventListener("keydown", (e) => e.key === " " && toggle(e));
 }
 
-// A radio's own field: live only while its radio is chosen, and never
-// disabled while it has focus, so focus is never lost.
-for (const group of $$("[data-nested]")) {
-  const sync = () => {
-    for (const f of $$(".g-choice-field input:not([type='radio'])", group)) {
-      const own = f.closest(".g-choice").querySelector("input[type='radio']");
-      f.setAttribute("aria-disabled", String(!own.checked));
-      f.tabIndex = own.checked ? 0 : -1;
-    }
-  };
-  group.addEventListener("change", sync);
-  group.addEventListener("focusin", (e) => {
-    const f = e.target.closest(".g-choice-field input:not([type='radio'])");
-    if (f) {
-      f.closest(".g-choice").querySelector("input[type='radio']").checked = true;
-      sync();
-    }
-  });
-  sync();
-}
-
 // Active filters: chips that remove their filter, Clear, and "N of M"
 // announced once a change settles.
 for (const box of $$("[data-active-filters]")) {
@@ -2747,17 +2612,11 @@ for (const pop of $$("[data-delete-confirm]")) {
 
 // An action that confirms and keeps its word, as Copy does.
 for (const b of $$("[data-confirm-word]")) {
-  const ic = b.querySelector(".cp-icon");
-  const rest = ic.dataset.cpIcon;
   b.addEventListener("click", () => {
-    b.dataset.state = "done";
-    ic.dataset.cpIcon = "check";
+    b.dataset.cpState = "done";
     say(b.dataset.confirmWord);
     clearTimeout(b.confirmTimer);
-    b.confirmTimer = setTimeout(() => {
-      delete b.dataset.state;
-      ic.dataset.cpIcon = rest;
-    }, 1600);
+    b.confirmTimer = setTimeout(() => delete b.dataset.cpState, 1600);
   });
 }
 
@@ -3300,26 +3159,6 @@ function rollTo(host, text, up) {
   b.animate([{ translate: `0 ${up ? d : -d}px` }, { translate: "0 0" }], { duration: 260, easing: ease }).onfinish = () => {
     if (host.__rollVal === text) host.replaceChildren(text);
   };
-}
-for (const st of $$(".g-stepper:has(> input)")) {
-  const input = $("input", st);
-  const show = el("span", { class: "g-stepper-show", "aria-hidden": "true" });
-  st.style.position = "relative";
-  input.after(show);
-  let last = input.value;
-  for (const b of $$("button", st)) {
-    b.addEventListener("click", () => {
-      const next = input.value;
-      if (next === last) return;
-      show.textContent = last;
-      Object.assign(show.style, { left: `${input.offsetLeft}px`, top: `${input.offsetTop}px`, width: `${input.offsetWidth}px`, height: `${input.offsetHeight}px` });
-      st.dataset.rolling = "";
-      rollTo(show, next, Number(next) > Number(last));
-      setTimeout(() => delete st.dataset.rolling, reduced() ? 0 : 270);
-      last = next;
-    });
-  }
-  input.addEventListener("input", () => (last = input.value));
 }
 for (const g of $$("[role='group'][aria-label='Zoom']")) {
   const [out, label, inn] = $$("button", g);

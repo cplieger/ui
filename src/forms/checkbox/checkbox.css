@@ -1,0 +1,122 @@
+/* A checkbox: the native input, a rounded square that twirls into an accent
+ * circle as it checks while its mark draws in, and holds a dash for a group
+ * that is partly on (:indeterminate). */
+.cp-checkbox {
+  --cp-checkbox-size: 1.375rem;
+  /* 2px in from each side, a whole pixel, so the mask lands on the pixel
+   * grid the same way when the box turns. */
+  --cp-checkbox-mark: calc(var(--cp-checkbox-size) - 0.25rem);
+
+  appearance: none;
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--cp-checkbox-size);
+  block-size: var(--cp-checkbox-size);
+  margin: 0;
+  border: 0;
+  border-radius: 30%;
+  background: var(--cp-surface-raised);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
+  cursor: pointer;
+  transition:
+    border-radius var(--cp-dur-spring) var(--cp-ease-spring),
+    rotate var(--cp-dur-spring) var(--cp-ease-spring),
+    background-color 160ms var(--cp-ease-out),
+    box-shadow 160ms var(--cp-ease-out),
+    scale var(--cp-checkbox-press-dur, var(--cp-dur-spring))
+      var(--cp-checkbox-press-ease, var(--cp-ease-bounce));
+}
+
+:root[data-pointer="coarse"] .cp-checkbox {
+  --cp-checkbox-size: 1.625rem;
+}
+
+/* A press goes down fast and comes back on the spring. */
+[data-cp-pressed] > .cp-checkbox:enabled {
+  --cp-checkbox-press-dur: var(--cp-dur-press);
+  --cp-checkbox-press-ease: var(--cp-ease-out);
+
+  scale: 0.88;
+}
+
+.cp-checkbox::before {
+  content: "";
+  grid-area: 1 / 1;
+  z-index: 1;
+  inline-size: var(--cp-checkbox-mark);
+  block-size: var(--cp-checkbox-mark);
+  background: var(--cp-on-accent);
+  mask: url("../icons/marks/check.svg") center / contain no-repeat;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 120ms var(--cp-ease-out);
+}
+
+.cp-checkbox:is(:checked, :indeterminate) {
+  background: var(--cp-accent);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-accent);
+}
+
+.cp-checkbox:checked {
+  border-radius: 50%;
+  rotate: 90deg;
+}
+
+/* The box turns a quarter, so its mark turns back to stay upright. */
+.cp-checkbox:checked::before {
+  rotate: -90deg;
+  clip-path: inset(0);
+  transition: clip-path 200ms var(--cp-ease-out) 80ms;
+}
+
+.cp-checkbox:indeterminate::before {
+  clip-path: inset(0);
+  mask-image: url("../icons/marks/dash.svg");
+}
+
+.cp-checkbox:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-checkbox:disabled {
+  background: var(--cp-fill);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-line);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-cp-pressed] > .cp-checkbox:enabled {
+    scale: none;
+  }
+
+  .cp-checkbox:checked,
+  .cp-checkbox:checked::before {
+    rotate: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-checkbox {
+    forced-color-adjust: none;
+    border: 2px solid CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .cp-checkbox:is(:checked, :indeterminate) {
+    border-color: Highlight;
+    background: Highlight;
+    box-shadow: none;
+  }
+
+  .cp-checkbox::before {
+    background: HighlightText;
+  }
+
+  .cp-checkbox:disabled {
+    border-color: GrayText;
+  }
+}
