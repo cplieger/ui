@@ -2,7 +2,7 @@
 
 `@cplieger/ui/context-panel`
 
-A panel of what surrounds the main work, such as a thread's reservations, queue and followers beside its feed. Once the box holding both is 48rem wide, the panel docks as a 16rem column at the inline start, always open, with one line between it and the main column. Below that width it is a disclosure above the main column, which the person opens and shuts.
+A panel of what surrounds the main work, such as a thread's reservations, queue and followers beside its feed. Once the box holding both is 44rem wide, the panel docks as a 16rem column at the inline start, always open, with one line between it and the main column. Below that width it is a disclosure above the main column, which the person opens and shuts.
 
 ```html
 <div class="cp-context" id="thread-context">
@@ -47,7 +47,7 @@ enhanceContextPanel(document.getElementById("thread-context")!, { signal: page.s
 
 - `enhanceContextPanel(root, opts?)` wires a `.cp-context`. It throws a TypeError when the root's first child is not a `<details>` with a `<summary>`.
 - `ContextPanelOptions` = `{ dockAt?, signal? }`.
-  - `dockAt` is the box's width, in rem, from which the panel docks. Default 48, which leaves a 32rem main column beside the 16rem panel.
+  - `dockAt` is the box's width, in rem, from which the panel docks. Default 44, which leaves a 28rem main column beside the 16rem panel, so the panel docks in the wide detail of a 1440px window.
   - `signal` removes the observer and the listeners, and undocks the panel.
 
 ## Behaviour

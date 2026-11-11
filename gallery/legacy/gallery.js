@@ -1454,7 +1454,7 @@ function glideDetails(d) {
   });
   void run;
 }
-for (const d of $$("details:not(.cp-accordion details)")) glideDetails(d);
+for (const d of $$("details:not(.cp-accordion details, .cp-context-panel)")) glideDetails(d);
 
 // A bar that appears or leaves pushes the content under it, so it glides
 // open and shut instead of jumping.

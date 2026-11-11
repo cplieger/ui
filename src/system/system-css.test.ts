@@ -2516,20 +2516,20 @@ describe("css/system.css", () => {
       getComputedStyle(a).textDecorationColor,
       getComputedStyle(button).backgroundColor,
     ];
-    const hovered = async () => {
-      await userEvent.hover(a);
-      const link = getComputedStyle(a).textDecorationColor;
-      await userEvent.hover(button);
-      const fill = getComputedStyle(button).backgroundColor;
-      await userEvent.unhover(button);
-      return [link, fill];
+    // Each pointer move is a round trip to the browser that takes over a
+    // second under a loaded run, so the tier flips under a held hover.
+    const under = (pointer: string, read: () => string) => {
+      root.dataset["pointer"] = pointer;
+      return read();
     };
-    root.dataset["pointer"] = "fine";
-    const fine = await hovered();
-    expect(fine[0]).not.toBe(rest[0]);
-    expect(fine[1]).not.toBe(rest[1]);
-    root.dataset["pointer"] = "coarse";
-    expect(await hovered()).toEqual(rest);
+    const link = () => getComputedStyle(a).textDecorationColor;
+    const fill = () => getComputedStyle(button).backgroundColor;
+    await userEvent.hover(a);
+    expect(under("fine", link)).not.toBe(rest[0]);
+    expect(under("coarse", link)).toBe(rest[0]);
+    await userEvent.hover(button);
+    expect(under("coarse", fill)).toBe(rest[1]);
+    expect(under("fine", fill)).not.toBe(rest[1]);
   });
 
   it("opens a sheet at the inline end at full height, across the window when compact", async () => {
@@ -4124,6 +4124,34 @@ describe("css/system.css lists, feeds and counts", () => {
       (el.querySelector(".cp-feed-foot") as Element).getBoundingClientRect().bottom,
     ).toBeCloseTo(mainBox.bottom, 0);
     expect(panel.getBoundingClientRect().height).toBeCloseTo(mainBox.height, 0);
+  });
+
+  it("keeps a docked list's rows at their own height beside a taller detail, the wide list too", () => {
+    theme("light");
+    for (const variant of ["", ' data-variant="wide"']) {
+      const el = build(
+        `<div class="cp-list-detail"${variant} data-cp-docked><ul class="cp-list"><li><a class="cp-list-row" href="#a"><span class="cp-cell-stack">A</span></a></li><li><a class="cp-list-row" href="#b"><span class="cp-cell-stack">B</span></a></li></ul><section class="cp-detail"><header><h2>internal/feed</h2></header><div class="cp-detail-body"><div style="block-size: 40rem"></div></div></section></div>`,
+      );
+      el.style.inlineSize = "1200px";
+      const row = (el.querySelector(".cp-list-row") as Element).getBoundingClientRect().height;
+      expect(row, variant).toBeCloseTo(52, 0);
+      const [list, detail] = [".cp-list", ".cp-detail"].map(
+        (s) => (el.querySelector(s) as Element).getBoundingClientRect().height,
+      ) as [number, number];
+      // The default frame's columns share a height; the wide list hugs its rows.
+      expect(list, variant).toBeCloseTo(variant === "" ? detail : 2 * 52 + 3, 0);
+      el.remove();
+    }
+  });
+
+  it("wraps a path in a detail's heading rather than push its close button out", () => {
+    theme("light");
+    const el = build(
+      `<section class="cp-detail" style="inline-size: 16rem"><header><h2 class="cp-mono">/workspace/grelot/internal/feed/scroll/keeping</h2><button class="cp-button" data-variant="quiet" type="button" aria-label="Close">x</button></header></section>`,
+    );
+    const detail = (el.querySelector(".cp-detail") as Element).getBoundingClientRect();
+    const close = (el.querySelector("button") as Element).getBoundingClientRect();
+    expect(close.right).toBeLessThanOrEqual(detail.right + 0.5);
   });
 
   it("scrolls a conversation in a list-detail dialog with its panel above, the foot pinned edge to edge", () => {

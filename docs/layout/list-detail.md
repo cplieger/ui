@@ -27,7 +27,7 @@ The heading takes focus when the detail opens, so it needs `tabindex="-1"`. The 
 
 ## Wide
 
-`data-variant="wide"` is for a detail that is the work, such as an open conversation. Docked, the list takes 30% of the box, kept within 16rem and 22rem, and the detail takes the rest. The docked detail sticks under any sticky header, `--cp-sticky-top` from the top, and is at most the window's height less that header, so the list and the detail scroll apart. Its second child fills the rest of it and scrolls inside it: a `.cp-detail-body`, or a [context-panel](context-panel.md) whose feed keeps its foot pinned to the detail's end.
+`data-variant="wide"` is for a detail that is the work, such as an open conversation. Docked, the list takes 30% of the box, kept within 16rem and 22rem, at its own height, and the detail takes the rest. The docked detail sticks under any sticky header, `--cp-sticky-top` from the top, and is at most the window's height less that header, so the list and the detail scroll apart. Its second child fills the rest of it and scrolls inside it: a `.cp-detail-body`, or a [context-panel](context-panel.md) whose feed keeps its foot pinned to the detail's end.
 
 ```html
 <div class="cp-list-detail" data-variant="wide" id="messages">

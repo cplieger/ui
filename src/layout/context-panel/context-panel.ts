@@ -13,7 +13,7 @@ export interface ContextPanelOptions {
   /** Removes the observer and the listeners and undocks the panel. Default:
    *  none, kept for the page's life. */
   readonly signal?: AbortSignal;
-  /** The box's width, in rem, from which the panel docks. Default 48. */
+  /** The box's width, in rem, from which the panel docks. Default 44. */
   readonly dockAt?: number;
 }
 
@@ -41,7 +41,7 @@ export function enhanceContextPanel(root: HTMLElement, options: ContextPanelOpti
   if (signal?.aborted === true) {
     return;
   }
-  const dockAt = options.dockAt ?? 48;
+  const dockAt = options.dockAt ?? 44;
   enhanceDisclosure(panel, signal === undefined ? {} : { signal });
 
   /** The state the person chose for the disclosure. */

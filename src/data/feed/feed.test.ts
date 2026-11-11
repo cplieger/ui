@@ -364,6 +364,39 @@ describe("enhanceFeed", () => {
     expect(c.jump.hidden).toBe(false);
   });
 
+  it("on the page, ends at the foot's place under the feed, not at the page's end", async () => {
+    const c = conversation(60, "auto");
+    c.box.style.overflowY = "visible";
+    const after = document.createElement("div");
+    after.style.blockSize = "150vh";
+    document.body.append(after);
+    enhance(c);
+    await settle();
+    const end = c.feed.getBoundingClientRect().bottom + c.foot.offsetHeight;
+    expect(Math.abs(end - innerHeight)).toBeLessThanOrEqual(1);
+    expect(c.jump.hidden).toBe(true);
+    await scrollTo(document.documentElement, 0);
+    c.feed.append(entry());
+    await settle();
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(c.jump.hidden).toBe(false);
+  });
+
+  it("leaves the page alone while the feed is hidden, and opens at the newest once shown", async () => {
+    const tall = document.createElement("div");
+    tall.style.blockSize = "150vh";
+    document.body.append(tall);
+    const c = conversation();
+    c.box.hidden = true;
+    enhance(c);
+    await settle();
+    expect(document.documentElement.scrollTop).toBe(0);
+    c.box.hidden = false;
+    await settle();
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    expect(document.documentElement.scrollTop).toBe(0);
+  });
+
   it("scrolls to the newest on toNewest()", async () => {
     const c = conversation();
     const feed = enhance(c);

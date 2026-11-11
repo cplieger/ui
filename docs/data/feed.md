@@ -106,7 +106,8 @@ compose.addEventListener("submit", async (e) => {
 
 ## Behaviour
 
-- The feed's scroller is the nearest box around it that scrolls, else the page. It is found again as the feed moves, so a detail that moves from its docked place into a dialog keeps its feed followed.
+- The feed's scroller is the nearest box around it that scrolls, else the page. It is found again as the feed moves, so a detail that moves from its docked place into a dialog keeps its feed followed. On the page, the end is where the foot rests under the last entry, whatever follows the feed.
+- A feed that is hidden when it is wired, such as one in a detail not yet open, scrolls nothing until it shows, and then opens at its newest entry.
 - Within 2rem of the end counts as at the end. While the reader is there, new entries and entries that grow keep the newest in view.
 - Once the reader has scrolled up, the entry at the top of the view stays where it is when entries are shown above it, such as by "Show older", or when an entry above grows. The engines' own scroll anchoring is off in the feed, because WebKit has none and two anchorings would fight.
 - Entries added at the end while the reader is scrolled up are counted. A day separator or the marker added with them is not. The jump shows the count, and its words are said politely as it shows and as the count changes.

@@ -195,11 +195,23 @@ export function enhanceFeed(
     announce(text);
   };
 
+  // On the page, what follows the feed is not its end: the end is the
+  // foot's place under the last entry, where the sticky foot rests.
+  const gap = (): number =>
+    scroller === document.scrollingElement
+      ? feed.getBoundingClientRect().bottom + (foot?.offsetHeight ?? 0) - innerHeight
+      : scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+
+  // A hidden feed, such as one in a detail not yet open, has no end to
+  // reach: it goes there once it shows and the observer sees it resize.
   const toEnd = (smooth: boolean): void => {
     atEnd = true;
-    going = smooth;
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? "smooth" : "instant" });
     clear();
+    if (feed.getClientRects().length === 0) {
+      return;
+    }
+    going = smooth;
+    scroller.scrollTo({ top: scroller.scrollTop + gap(), behavior: smooth ? "smooth" : "instant" });
   };
 
   // After the feed, the foot or the scroller changed size: the reader at
@@ -222,8 +234,7 @@ export function enhanceFeed(
   };
 
   const read = (): void => {
-    const s = scroller;
-    const end = s.scrollHeight - s.scrollTop - s.clientHeight <= END_REM * remPx();
+    const end = gap() <= END_REM * remPx();
     if (going && !end) {
       return;
     }

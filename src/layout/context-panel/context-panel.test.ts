@@ -42,7 +42,7 @@ function frames(n = 3): Promise<void> {
   });
 }
 
-/** A context `width` pixels wide; 48rem is 768px. */
+/** A context `width` pixels wide; 44rem is 704px. */
 function mount(
   width: number,
   options: Omit<ContextPanelOptions, "signal"> = {},
@@ -210,6 +210,11 @@ describe("enhanceContextPanel", () => {
     hidden.hidden = false;
     await frames();
     expect(root.hasAttribute("data-cp-docked")).toBe(true);
+  });
+
+  it("docks from 44rem by default", () => {
+    expect(mount(704).root.hasAttribute("data-cp-docked")).toBe(true);
+    expect(mount(703).root.hasAttribute("data-cp-docked")).toBe(false);
   });
 
   it("docks from the width dockAt names", () => {

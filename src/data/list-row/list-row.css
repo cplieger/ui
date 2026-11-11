@@ -1,6 +1,9 @@
 /* A list: rows on one raised surface, a line between them. */
+/* Rows keep their height in a list stretched taller than them, such as
+ * beside a taller detail. */
 .cp-list {
   display: grid;
+  align-content: start;
   margin: 0;
   padding: 0;
   list-style: none;

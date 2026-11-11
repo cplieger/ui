@@ -4574,8 +4574,11 @@ textarea.cp-input {
 }
 
 /* A list: rows on one raised surface, a line between them. */
+/* Rows keep their height in a list stretched taller than them, such as
+ * beside a taller detail. */
 .cp-list {
   display: grid;
+  align-content: start;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -5517,18 +5520,19 @@ textarea.cp-input {
 }
 
 /* Wide: the detail is the work, such as an open conversation, and takes
- * the room left by a list of 30% of the box, kept within 16rem and 22rem. Docked, it sticks under any
- * sticky header and is at most the window's height less that header, so
- * the list and the detail scroll apart; its second child fills the rest
- * and scrolls inside it. */
+ * the room left by a list of 30% of the box, kept within 16rem and 22rem.
+ * Docked, it sticks under any sticky header and is at most the window's
+ * height less that header, so the list and the detail scroll apart; its
+ * second child fills the rest and scrolls inside it. The list keeps its own
+ * height beside that window-tall detail. */
 .cp-list-detail[data-variant="wide"][data-cp-docked] {
   grid-template-columns: clamp(16rem, 30%, 22rem) minmax(0, 1fr);
+  align-items: start;
 }
 
 .cp-list-detail[data-variant="wide"][data-cp-docked] > .cp-detail {
   position: sticky;
   inset-block-start: var(--cp-sticky-top, 0);
-  align-self: start;
   grid-template-rows: auto minmax(0, 1fr);
   max-block-size: calc(100dvb - var(--cp-sticky-top, 0px));
   overflow-y: auto;
@@ -5577,10 +5581,13 @@ textarea.cp-input {
   gap: var(--cp-space-2);
 }
 
+/* A name with no break point, such as a path, wraps rather than pushing the
+ * close button out of a narrow detail. */
 .cp-detail > header > :is(h2, h3) {
   flex: 1;
   min-inline-size: 0;
   font-size: var(--cp-text-md);
+  overflow-wrap: anywhere;
 }
 
 .cp-list-detail > .cp-detail[data-cp-still] {
