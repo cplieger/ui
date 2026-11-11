@@ -13,7 +13,7 @@
     </nav>
     <div class="cp-field g-cat-select"><label class="cp-label" for="st-cat">Category</label><div class="cp-select"><select class="cp-input" id="st-cat"><option value="st-appearance">Appearance</option><option value="st-checks">Checks</option><option value="st-notify">Notifications</option><option value="st-sources">Sources</option><option value="st-account">Account and security</option></select></div></div>
     <form class="cp-stack" data-settings novalidate>
-      <div class="g-banner" data-tone="warning" id="st-elsewhere" role="status" hidden><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>These settings changed on another device while you were editing.</span><button class="cp-button" data-size="sm" type="button" data-keep-mine>Load the latest and keep my changes</button></div>
+      <div class="cp-banner" data-tone="warning" id="st-elsewhere" role="status" hidden><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>These settings changed on another device while you were editing.</span><button class="cp-button" data-size="sm" type="button" data-keep-mine>Load the latest and keep my changes</button></div>
       <div class="cp-notice" data-tone="danger" role="alert" id="st-summary" tabindex="-1" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div><strong>1 setting needs a fix before this saves</strong><ul><li><a href="#st-name">Account and security: Display name</a></li></ul></div></div>
       <section class="cp-panel cp-stack" id="st-appearance" aria-labelledby="st-appearance-h">
         <h2 id="st-appearance-h">Appearance</h2>
@@ -82,7 +82,7 @@
   <dialog class="g-dialog g-confirm" id="d-others" data-says="1 other session signed out" role="alertdialog" aria-labelledby="d-others-title">
     <form method="dialog">
       <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-others-title">Sign out 1 other session?</h2><p>Safari on iPad will need to sign in again.</p></div></div>
-      <footer><button class="cp-button" value="cancel" autofocus>Keep it</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Sign it out</button></footer>
+      <footer><button class="cp-button" type="button" commandfor="d-others" command="close" autofocus>Keep it</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Sign it out</button></footer>
     </form>
   </dialog>
 </main>

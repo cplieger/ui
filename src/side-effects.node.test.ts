@@ -25,6 +25,7 @@ const PURE = [
   "/icons",
   "/list-detail",
   "/menu",
+  "/panel",
   "/pill",
   "/pointer",
   "/press",

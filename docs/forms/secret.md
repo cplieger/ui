@@ -2,7 +2,7 @@
 
 `@cplieger/ui/secret`
 
-A saved secret, whose value never comes back to the browser, and the Show button of a password field.
+A saved secret, whose value never comes back to the browser, the Show button of a password field, and a new secret shown once.
 
 ```html
 <div class="cp-field cp-secret" data-cp-state="saved">
@@ -14,7 +14,7 @@ A saved secret, whose value never comes back to the browser, and the Show button
   <div data-part="edit">
     <div class="cp-input-wrap">
       <input class="cp-input" name="key" type="password" aria-labelledby="key-l" autocomplete="new-password">
-      <button class="cp-button" data-variant="quiet" type="button" aria-label="Show OpenSubtitles API key">
+      <button class="cp-button" data-variant="quiet" type="button" aria-label="Show OpenSubtitles API key" data-cp-tip="Show the key">
         <span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span>
         <span class="cp-icon" data-cp-icon="eye-off" data-part="on" aria-hidden="true"></span>
       </button>
@@ -36,3 +36,16 @@ enhanceReveal(showButton, keyField, { signal: page.signal });
 - `enhanceReveal` switches the field between `password` and `text`. The button keeps its name, such as "Show password", and `aria-pressed` says whether the text shows, while the drawing marked `data-part="on"` stands in for the other.
 - A secret that comes from the environment shows only where it comes from and its state, never its value, in a `.cp-secret-source` line: `<strong>` with its name, then its source, then a `.cp-state` word.
 - `signal` removes the listeners.
+
+## Shown once
+
+```ts
+import { enhanceCopy } from "@cplieger/ui/copy";
+import { shownOnce } from "@cplieger/ui/secret";
+
+const once = shownOnce(keyElement, { dialog, signal: page.signal });
+enhanceCopy(copyButton, { source: keyElement, onCopy: once.copied, signal: page.signal });
+```
+
+- A new key or link shows once, in the `.cp-code` of the panel or dialog that made it. Until `copied()` runs, Escape and a press outside shake `dialog` and keep it open, while Done or Cancel still close it. It needs [`installDialogs()`](../overlays/dialog.md).
+- The text is cleared when the dialog closes and when the page is hidden, so it never comes back from the back-forward cache.

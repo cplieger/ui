@@ -90,8 +90,10 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 | Situation | Use | Stays |
 | --- | --- | --- |
 | A problem with one region, such as a source that failed to answer | a notice where the region is | until the problem ends |
-| A condition of the whole screen, such as a rate limit or a lost connection | a notice at the top of `.cp-main` | until the condition ends |
-| A confirmation on the control the person pressed, such as Saved on Save or Copied on Copy | the control itself, through [confirm](buttons/confirm.md) or [copy](forms/copy.md), which say it | 1.6 seconds |
+| A condition of one screen, such as a rate limit on the source it lists | a notice at the top of `.cp-main` | until the condition ends |
+| A condition that stops the person's work on every screen, such as an update that needs a reload, or a lost connection in an app with no header status | a `.cp-banner` at the top of `.cp-main`, with its one action and no dismiss | until the condition ends |
+| A lost connection in an app with a header status | the status's offline state alone, with its way to retry in the status's panel | until the connection is back |
+| A confirmation on the control the person pressed, such as Saved on Save or Copied on Copy | the control itself, through [confirm](buttons/confirm.md) or [copy](forms/copy.md). Copy announces its word, and a confirm's outcome is yours to announce | 1.6 seconds |
 | A short confirmation of the person's own action, such as "Source added", whose result stays visible on the screen or in the history | a toast | 7 seconds, paused while hovered or focused |
 | A confirmation whose result is not visible anywhere else | a toast | until dismissed |
 | A failure of the person's own action | a toast, with Retry when it can be retried | until dismissed |
@@ -124,7 +126,8 @@ An app whose data comes from another service has these states before it shows an
 - A route change moves focus to the new screen's `<h1>` and sets `<title>` to the screen's name.
 - A link to something that is gone, or a query value the app does not know, opens the nearest valid view with a notice that says what was dropped.
 - A destination is a link (`<a href>`), so a middle click, a new tab and a copied address all work. A button is for an action on this screen.
-- A destination that shows only its icon, below 60rem, keeps its word as its accessible name through `.cp-nav-label`, which the stylesheet hides from sight only, and a tooltip with the same word.
+- A destination that shows only its icon, from 40rem to 60rem, keeps its word as its accessible name through `.cp-nav-label`, which the stylesheet hides from sight only, and a tooltip with the same word. Under 40rem the header's destinations move to a bar at the window's foot, each an icon over its word.
+- The header holds four destinations at most, so each keeps its word on one line in the bar under 40rem. Others go in a menu or on a screen of their own.
 - The current destination carries `aria-current="page"`, or `"true"` when the screen sits inside it, as an item sits inside its library.
 
 ## Language and direction

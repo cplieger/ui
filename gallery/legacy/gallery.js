@@ -1669,25 +1669,23 @@ for (const nav of $$(".g-bottom-nav")) {
 }
 
 // --------------------------------------------------------- header status
-// The first state that holds: offline, problems, working, all good. A
-// change is announced politely, as the words of the link itself.
+// The worst state that holds: problems, offline, a warning, working, all
+// good. A change is announced politely, as the words of the button itself.
 const STATES = [
-  { state: "ok", words: "All good", icon: null },
-  { state: "working", words: "Working: 3", icon: "spinner-arc" },
-  { state: "problems", words: "2 problems", icon: "triangle-alert" },
-  { state: "offline", words: "Offline", icon: "wifi-off" },
+  { state: "ok", words: "All good" },
+  { state: "working", words: "Working: 3" },
+  { state: "warning", words: "1 warning" },
+  { state: "problem", words: "2 problems", detail: "Full check 3 of 8" },
+  { state: "offline", words: "Offline" },
 ];
 for (const s of $$("[data-status-demo]")) {
-  const link = $(".g-status", s.closest(".card"));
+  const link = $(".cp-header-status", s.closest(".card"));
   let i = 0;
   s.addEventListener("click", () => {
     i = (i + 1) % STATES.length;
     const st = STATES[i];
     link.dataset.state = st.state;
-    link.replaceChildren(st.icon ? icon(st.icon) : el("span", { class: "g-dot" }), el("span", { class: "g-status-word", text: st.words }));
-    // a busy glyph that does not spin: it says working without motion
-    if (st.icon === "spinner-arc") link.querySelector(".cp-icon").style.animation = "none";
-    link.setAttribute("aria-label", st.words);
+    link.replaceChildren(el("span", { text: st.words }), ...(st.detail ? [el("span", { "data-part": "detail", text: st.detail })] : []));
     announce(st.words);
   });
 }
@@ -2241,35 +2239,6 @@ for (const list of $$("[data-tabs-manual]")) {
 
 // The header's theme button switches light and dark in one press: pressed
 // means dark, and its icon turns over to the theme it now shows.
-for (const b of $$("[data-theme-toggle]")) {
-  const ic = $(".cp-icon", b);
-  const show = () => {
-    const dark = root.dataset.theme === "dark";
-    b.setAttribute("aria-pressed", String(dark));
-    ic.dataset.cpIcon = dark ? "moon" : "sun";
-    b.dataset.cpTip = dark ? "Switch to light" : "Switch to dark";
-  };
-  b.addEventListener("click", () => {
-    ic.classList.remove("g-flip");
-    void ic.offsetWidth;
-    ic.classList.add("g-flip");
-    applyTheme(root.dataset.theme === "dark" ? "light" : "dark", b);
-  });
-  new MutationObserver(show).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-  show();
-}
-
-// The header status as a button over a non-modal panel: it opens with focus
-// on its heading, and Tab past its end closes it.
-for (const pop of $$("[data-status-panel]")) {
-  pop.addEventListener("toggle", (e) => {
-    if (e.newState === "open") $("h2", pop).focus();
-  });
-  pop.addEventListener("focusout", (e) => {
-    if (pop.matches(":popover-open") && !pop.contains(e.relatedTarget)) pop.hidePopover();
-  });
-}
-
 // Menu items that check: Space or a press toggles and keeps the menu open.
 for (const item of $$("[role='menuitemcheckbox']")) {
   const toggle = (e) => {

@@ -69,14 +69,18 @@
         </nav>
         <div class="cp-toolbar">
           <button
-            class="cp-button"
+            class="cp-button cp-toggle"
             data-variant="quiet"
+            data-kind="theme"
             type="button"
-            aria-label="Theme: System"
+            aria-label="Dark theme"
+            aria-pressed="false"
           >
-            <span
+            <span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span
+            ><span
               class="cp-icon"
-              data-cp-icon="sun-moon"
+              data-cp-icon="moon"
+              data-part="on"
               aria-hidden="true"
             ></span>
           </button>
@@ -178,6 +182,29 @@
                           autocomplete="new-password"
                           disabled
                         >
+                        <button
+                          class="cp-button"
+                          data-variant="quiet"
+                          type="button"
+                          aria-label="Show the Sonarr API key"
+                        >
+                          <span
+                            class="cp-icon"
+                            data-cp-icon="eye"
+                            aria-hidden="true"
+                          ></span>
+                        </button>
+                      </div>
+                      <div>
+                        <button
+                          class="cp-button"
+                          data-variant="quiet"
+                          data-size="sm"
+                          type="button"
+                          data-part="keep"
+                        >
+                          Keep saved value
+                        </button>
                       </div>
                     </div>
                   </div>

@@ -20,6 +20,7 @@
 }
 
 .cp-stepper > .cp-button {
+  position: relative;
   min-block-size: 0;
   border-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
 }
@@ -74,6 +75,14 @@
 
 .cp-stepper[data-cp-rolling] > input {
   color: transparent;
+}
+
+/* Under a finger, each button's target reaches the tier's minimum in
+ * height, which the border inside the control height takes from it. */
+:root[data-pointer="coarse"] .cp-stepper > .cp-button::after {
+  content: "";
+  position: absolute;
+  inset: calc((100% - var(--cp-hit-min)) / 2) 0;
 }
 
 @media (forced-colors: active) {

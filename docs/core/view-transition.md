@@ -16,7 +16,8 @@ await viewTransition(() => {
 
 ## API
 
-- `viewTransition(fn)` returns a promise that resolves when the transition, or the direct run, finishes.
+- `viewTransition(fn, { from })` returns a promise that resolves when the transition, or the direct run, finishes.
+- `from` reveals the new look in a circle growing from that element's centre instead of the cross-fade, as a theme toggle does. Under reduced motion the cross-fade plays.
 
 ## Notes
 

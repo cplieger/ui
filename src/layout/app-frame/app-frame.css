@@ -33,11 +33,26 @@
   overflow-y: auto;
 }
 
+/* Main's content keeps a measure on a wide window, centred, so a screen
+ * never stretches across a 1920px window; data-width="full" lets a screen
+ * that needs the window, such as a wide table, take it. */
 .cp-main {
+  --cp-main-max: 90rem;
+
   grid-area: main;
   min-inline-size: 0;
   container-type: inline-size;
-  padding: var(--cp-space-6) var(--cp-page-gutter) var(--cp-space-10);
+  padding: var(--cp-space-6) max(var(--cp-page-gutter), (100% - var(--cp-main-max)) / 2)
+    var(--cp-space-10);
+}
+
+.cp-main[data-width="full"] {
+  --cp-main-max: 100%;
+}
+
+/* A skip link's target takes focus without a ring. */
+.cp-main:focus {
+  outline: none;
 }
 
 .cp-status {

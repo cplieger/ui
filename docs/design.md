@@ -4,7 +4,7 @@ This page covers the foundations of the design language that `@cplieger/ui/css/s
 
 The language is for screens someone works in, such as libraries, queues, settings and logs, so the layout, the navigation and the controls stay the ones people already know.
 
-![A library screen in the dark theme: a brand-coloured header, a filter sidebar with counts, a bar of actions for two selected rows, a notice and a table of entries with coloured verdict chips](images/system-library-dark.png)
+![A library screen in the dark theme: a brand-coloured header whose status says a full check is working, a filter sidebar with counts, a bar of actions for two selected rows, a notice and a table of entries with coloured verdict chips](images/system-library-dark.png)
 
 ## What an app chooses
 
@@ -56,13 +56,13 @@ The stylesheet needs `contrast-color()`, `light-dark()`, relative `oklch()`, `co
 
 Spacing steps on a 4px grid, from `--cp-space-1` (4px) to `--cp-space-16` (64px). Space is tight inside a group, wide between groups, and larger above a heading than below it.
 
-`.cp-app` lays out a screen: `.cp-header` for the mark, the destinations and the global controls, `.cp-rail` for filters, `.cp-main` for the work and `.cp-status` for one line of facts about the whole screen.
+`.cp-app` lays out a screen: `.cp-header` for the mark, the destinations and the global controls, `.cp-rail` for filters, `.cp-main` for the work and `.cp-status` for one line of facts about the whole screen. Main's content keeps a measure of 90rem, centred on a wider window, and `data-width="full"` on `.cp-main` lets a screen that needs the window, such as a wide table, take it. Under 40rem the header's `.cp-nav` becomes a bar fixed at the window's foot, each destination an icon over its word, and the frame leaves room for it. A `.cp-skip` link, the first element of the page, takes a keyboard past the header to `.cp-main`, which carries an `id` and `tabindex="-1"`.
 
 The width tiers follow the space in the window, not the device:
 
 | Tier | Window width | Layout | Usually |
 | --- | --- | --- | --- |
-| Compact | under 40rem | one column, the header's toolbar on a second row, and only the mark of the wordmark | a phone, or a narrow split window |
+| Compact | under 40rem | one column, only the mark of the wordmark with the header's toolbar beside it, on a second row when it does not fit, and the destinations in a bar at the window's foot | a phone, or a narrow split window |
 | Medium | 40rem to 60rem | no rail, and destinations show their icons without their words | a tablet held upright |
 | Expanded | 60rem and up | header, rail, work area and status line | a tablet held sideways, a laptop or a desktop |
 
@@ -116,7 +116,7 @@ Motion shows what changed.
 - Movement animates `transform` and `opacity`. Colour, fill and border changes take `--cp-dur-micro`, except a control's own state, whose colour follows its motion: a switch's track takes 200ms, and a checkbox's or radio's fill 160ms. A done fill flashes in within 160ms and fades back over 600ms, or 900ms on Copy. List the properties, never `transition: all`.
 - Nothing animates on load, on scroll, or on an action repeated all day, such as typing or switching tabs. A detail or dialog a page loads with already open appears without its entrance, as [List and detail](layout/list-detail.md) shows.
 - A `.cp-dialog` fades in and settles from 96% on `--cp-ease-spring` over `--cp-dur-medium`, rising from the bottom edge in the compact tier, and fades out over `--cp-dur-short`. A docked detail slides in from the inline end over `--cp-dur-medium`. A sheet slides in from the inline end over 300ms and out over 280ms. A popover grows out of its button in 180ms and shrinks back in 140ms.
-- A route change cross-fades through `@cplieger/ui/view-transition`. Inside `.cp`, the stylesheet gives it `--cp-dur-long`.
+- A route change cross-fades through `@cplieger/ui/view-transition`. Inside `.cp`, the stylesheet gives it `--cp-dur-long`. A theme change from a theme toggle grows the new look in a circle from the button over 480ms instead, through `viewTransition(fn, { from })`, and cross-fades under reduced motion.
 - Under `prefers-reduced-motion: reduce`, presses do not scale, the skeleton and `spinner-arc` stand still, medium, long and spring durations drop to `--cp-dur-short`, both springs ease out, and a dialog or a docked detail only fades. A loop that runs longer than 5 seconds has a pause control.
 - A pulsing or beating mark is for something that is live right now, such as a running check. A static state stays still.
 
@@ -134,7 +134,7 @@ The pages in `docs/system/` render the screens on these pages, on [Settings](des
 
 ![A subtitle item page in the light theme: a terracotta header, breadcrumbs, tabs, a neutral notice and a table of episodes with subtitle states and skeleton rows](images/system-item-light.png)
 
-![The library screen on a phone in the dark theme: the mark and icon destinations, the header's controls on a second row, a full-width toolbar and a table of title, verdict and action](images/system-library-phone.png)
+![The library screen on a phone in the dark theme: the mark, the status saying Working and the header's controls on one row, a full-width toolbar, a table of title, verdict and action, and the destinations in a bar at the foot, each an icon over its word](images/system-library-phone.png)
 
 ![The item page on a tablet held upright, with touch-sized controls and no sidebar](images/system-item-tablet.png)
 

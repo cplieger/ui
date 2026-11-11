@@ -1,8 +1,7 @@
 /* A dialog: a native <dialog> opened with showModal(), so focus moves in,
  * the page goes inert and Escape closes it. It fades and settles in the
  * middle, and on a phone it rises from the bottom edge. Its parts are a
- * header, a body that scrolls and a footer of buttons, usually inside a
- * <form method="dialog">. */
+ * header, a body that scrolls and a footer of buttons, inside a <form>. */
 .cp-dialog {
   overflow: hidden;
   inline-size: min(32rem, calc(100vw - 2rem));

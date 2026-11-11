@@ -155,7 +155,7 @@ A new API key, an invite link and a recovery link show once, at creation, and no
 
 1. Show it in the panel or dialog that made it, never in a toast, in a `.cp-code` with a `.cp-copy` button, as [copy](forms/copy.md) describes.
 2. Above it, a warning notice: "Copy it now. It will not be shown again."
-3. Hold it with `shownOnce`, which clears it on `pagehide`. "Done" dismisses it, and closing the dialog asks first while it has not been copied, which `enhanceCopy`'s `onCopy` tells the page.
+3. Hold it with [secret](forms/secret.md)'s `shownOnce`, which clears it when the dialog closes and on `pagehide`. "Done" dismisses it, and until it is copied, Escape and a press outside keep the dialog open.
 4. Announce "Key created. Copy it now." politely.
 
 ## Admin

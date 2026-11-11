@@ -20,4 +20,4 @@ showPopoverAt(menu, event.clientX, event.clientY); // a context menu
 - `anchorTo(popover, opener)` names one pair by hand, for a popover your code opens.
 - `showPopoverAt(popover, x, y)` opens a popover with its corner at a point in viewport pixels, moved in so it stays inside the window.
 - `addAnchorName(el, name)` and `removeAnchorName(el, name)` add or take out one name in an element's `anchor-name` list and keep its others, so a control can anchor its own popover and its tooltip at once.
-- `.cp-popover[data-variant="panel"]` is a panel of controls rather than a list of choices.
+- `.cp-popover[data-variant="panel"]` is a panel of controls rather than a list of choices, and [panel](panel.md) gives it its focus.

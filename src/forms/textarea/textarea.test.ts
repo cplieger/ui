@@ -46,12 +46,31 @@ describe("enhanceTextarea", () => {
     expect(count.textContent).toBe("6 / 6");
   });
 
+  it("counts with no limit, and gives each count its own id", () => {
+    const { a, count } = area("abc");
+    const second = area("de");
+    enhanceTextarea(a, { count, signal: life.signal });
+    enhanceTextarea(second.a, { count: second.count, signal: life.signal });
+    expect(count.textContent).toBe("3");
+    expect(count.id).not.toBe(second.count.id);
+    expect(second.a.getAttribute("aria-describedby")).toBe(second.count.id);
+  });
+
+  it("leaves an error a form check set while the text is within the limit", async () => {
+    const { a, count } = area("ok");
+    a.setAttribute("aria-invalid", "true");
+    enhanceTextarea(a, { max: 10, count, signal: life.signal });
+    a.focus();
+    await userEvent.keyboard("{End}!");
+    expect(a.getAttribute("aria-invalid")).toBe("true");
+  });
+
   it("takes the count's words from the caller", () => {
     const { a, count } = area("abc");
     enhanceTextarea(a, {
       max: 10,
       count,
-      words: (n, m) => `${String(m - n)} left`,
+      words: (n, m) => `${String((m ?? 0) - n)} left`,
       signal: life.signal,
     });
     expect(count.textContent).toBe("7 left");

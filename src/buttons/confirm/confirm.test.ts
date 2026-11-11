@@ -101,7 +101,7 @@ describe("enhanceConfirm", () => {
     expect(left - shown).toBeGreaterThanOrEqual(QUICK.busyMin - 1);
   });
 
-  it("ignores a second run while a cycle is running and never calls its work", async () => {
+  it("ignores a second run while the work runs and never calls its work", async () => {
     const b = button();
     const c = confirm(b);
     const first = c.run(() => sleep(10));
@@ -113,8 +113,52 @@ describe("enhanceConfirm", () => {
       }),
     ).resolves.toBe(false);
     await first;
-    await expect(c.run(() => Promise.resolve())).resolves.toBe(false);
     expect(called).toBe(false);
+  });
+
+  it("ends the done state and runs at once on a press during it, back to the words at rest", async () => {
+    const b = button();
+    const c = confirm(b, { hold: 5000 });
+    await c.run(() => Promise.resolve());
+    expect([b.dataset["cpState"], words(b)]).toEqual(["done", "Saved"]);
+    let called = false;
+    await expect(
+      c.run(() => {
+        called = true;
+        return Promise.resolve();
+      }),
+    ).resolves.toBe(true);
+    expect([called, b.dataset["cpState"]]).toEqual([true, "done"]);
+    c.run(() => Promise.reject(new Error("refused"))).catch(() => undefined);
+    await sleep(0);
+    await expect.poll(() => words(b)).toBe("Save changes");
+  });
+
+  it("goes from busy straight back to rest with no done state when done is false", async () => {
+    const b = button("Create");
+    const states: (string | null)[] = [];
+    new MutationObserver(() => states.push(b.getAttribute("data-cp-state"))).observe(b, {
+      attributes: true,
+      attributeFilter: ["data-cp-state"],
+    });
+    const c = confirm(b, { busy: "Creating…", done: false });
+    const run = c.run(() => sleep(40));
+    await expect(c.run(() => Promise.resolve())).resolves.toBe(false);
+    await expect(run).resolves.toBe(true);
+    expect(b.hasAttribute("data-cp-state")).toBe(false);
+    expect(states).not.toContain("done");
+    expect(states).toContain("busy");
+  });
+
+  it("tells the page each time it is back at rest", async () => {
+    const b = button();
+    let rests = 0;
+    const c = confirm(b, { hold: 30, onRest: () => (rests += 1) });
+    await c.run(() => Promise.resolve());
+    expect(rests).toBe(0);
+    await expect.poll(() => rests).toBe(1);
+    await c.run(() => Promise.reject(new Error("no"))).catch(() => undefined);
+    expect(rests).toBe(2);
   });
 
   it("returns to rest at once and passes the rejection through when the work fails", async () => {

@@ -36,7 +36,7 @@ A save says what it did or when it takes effect, such as "Saved. 6 copies change
 ## Appearance
 
 - The theme is a `.cp-segmented` choice of System, Light and Dark, saved at once through [`@cplieger/ui/theme`](core/theme.md). While System is chosen, its label says what the system shows now, such as "System (now dark)", which `onSystemChange` keeps true.
-- The header may carry the same choice as one icon button that steps through the three, with the choice in its accessible name and tooltip, such as "Theme: System".
+- The header may carry a theme toggle, a `.cp-toggle` with `data-kind="theme"` from [toggle](buttons/toggle.md), named "Dark theme" and pressed while the theme is dark, so one press switches between light and dark. System stays a choice on this page.
 
 ## Words
 

@@ -1,15 +1,22 @@
 /* A toggle (@cplieger/ui/toggle): a quiet icon button that is on or off,
- * such as Pin or Favourite. While on it shows its filled drawing in its own
- * colour, the accent for a pin and a red for a favourite, and a change plays
- * the drawing's motion: a pin drops in as if into a board and lifts out, a
- * heart beats. Under a mouse a pin lifts 2px and an off heart tints, as a
- * hint of what a press does. */
+ * such as Pin, Favourite or the theme. While on it shows its other drawing,
+ * in its own colour for a pin (the accent) and a favourite (a red), and a
+ * change plays the drawing's motion: a pin drops in as if into a board and
+ * lifts out, a heart beats, and the theme's sun turns over into a moon.
+ * Under a mouse a pin lifts 2px and an off heart tints, as a hint of what a
+ * press does. */
 .cp-toggle {
   --cp-toggle-on: var(--cp-accent);
 }
 
 .cp-toggle[data-kind="favourite"] {
   --cp-toggle-on: oklch(62% 0.21 20deg);
+}
+
+/* The theme toggle keeps the ink it sits on, in the header or a page: its
+ * pressed state is dark, not a colour. */
+.cp-toggle[data-kind="theme"] {
+  --cp-toggle-on: currentcolor;
 }
 
 .cp-toggle > .cp-icon[data-part="on"],
@@ -55,6 +62,19 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 .cp-toggle[data-kind="favourite"][data-cp-toggled="on"] > .cp-icon {
   animation: cp-heart-beat 1100ms var(--cp-ease-out);
+}
+
+/* The drawing now shown turns over into place, so sun becomes moon. */
+.cp-toggle[data-kind="theme"][data-cp-toggled] > .cp-icon {
+  animation: cp-theme-turn 420ms var(--cp-ease-spring);
+}
+
+@keyframes cp-theme-turn {
+  from {
+    opacity: 0;
+    rotate: -120deg;
+    scale: 0.6;
+  }
 }
 
 @keyframes cp-pin-drop {

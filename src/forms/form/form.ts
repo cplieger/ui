@@ -26,6 +26,9 @@ export interface ReportOptions {
 }
 
 const MARK = "data-cp-error";
+/** Each field's error once found or made, so a later call finds it again
+ *  after clearError took it out of the field's aria-describedby. */
+const known = new WeakMap<Control, HTMLElement>();
 let seq = 0;
 
 function idOf(field: Control): string {
@@ -56,6 +59,10 @@ function nameOf(field: Control): string {
 /** The field's error: a `.cp-field-error` its `aria-describedby` names,
  *  else the element whose id is the field's id followed by `-error`. */
 function errorOf(field: Control): HTMLElement | null {
+  const kept = known.get(field);
+  if (kept?.isConnected === true) {
+    return kept;
+  }
   const root = field.getRootNode() as Document | ShadowRoot;
   for (const id of (field.getAttribute("aria-describedby") ?? "").split(/\s+/)) {
     const el = id === "" ? null : root.getElementById(id);
@@ -98,6 +105,7 @@ function mark({ field, message }: FieldError): void {
   }
   error.append(message);
   error.hidden = false;
+  known.set(field, error);
   field.setAttribute("aria-invalid", "true");
   field.setAttribute(MARK, "");
   describedBy(field, error.id, true);

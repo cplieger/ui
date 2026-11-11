@@ -140,6 +140,9 @@ async function capture(): Promise<void> {
         ([theme, pointer]) => {
           document.documentElement.dataset["theme"] = theme;
           document.documentElement.dataset["pointer"] = pointer;
+          for (const t of document.querySelectorAll('[data-kind="theme"]')) {
+            t.setAttribute("aria-pressed", String(theme === "dark"));
+          }
           // A static page cannot declare a mixed checkbox; the app's code sets it.
           for (const box of document.querySelectorAll<HTMLInputElement>("[data-mixed]")) {
             box.indeterminate = true;

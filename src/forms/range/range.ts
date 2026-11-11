@@ -47,8 +47,12 @@ export function enhanceRange(range: HTMLInputElement, options: RangeOptions = {}
       const rem = Number.parseFloat(getComputedStyle(range.ownerDocument.documentElement).fontSize);
       const thumb =
         Number.parseFloat(getComputedStyle(range).getPropertyValue("--cp-range-thumb")) * rem;
-      const along = range.matches(":dir(rtl)") ? 1 - share : share;
-      const x = range.offsetLeft + thumb / 2 + along * (range.offsetWidth - thumb);
+      // From the row's inline start, where the slider's minimum is in either
+      // direction; the stylesheet places the tip by inset-inline-start.
+      const start = range.matches(":dir(rtl)")
+        ? row.clientWidth - range.offsetLeft - range.offsetWidth
+        : range.offsetLeft;
+      const x = start + thumb / 2 + share * (range.offsetWidth - thumb);
       tip.style.setProperty("--cp-range-tip-x", `${String(Math.round(x))}px`);
     }
   };

@@ -114,6 +114,10 @@
   transition: opacity var(--cp-dur-micro) var(--cp-ease-out);
 }
 
+.cp-range-row:dir(rtl) > .cp-range-tip {
+  translate: 50% 0;
+}
+
 .cp-range-row:is([data-cp-held], :has(> .cp-range:focus-visible)) > .cp-range-tip {
   opacity: 1;
 }
@@ -124,9 +128,28 @@
   }
 }
 
+/* One rule per engine's pseudo-elements: a list naming one an engine does
+ * not know drops the whole rule there. */
 @media (forced-colors: active) {
-  .cp-range::-webkit-slider-thumb,
+  .cp-range {
+    forced-color-adjust: none;
+  }
+
+  .cp-range::-webkit-slider-runnable-track {
+    background: GrayText;
+  }
+
+  .cp-range::-moz-range-track {
+    background: GrayText;
+  }
+
+  .cp-range::-webkit-slider-thumb {
+    background: ButtonText;
+    box-shadow: none;
+  }
+
   .cp-range::-moz-range-thumb {
     background: ButtonText;
+    box-shadow: none;
   }
 }

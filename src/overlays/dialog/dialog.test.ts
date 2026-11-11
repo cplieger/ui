@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { closeDialog, holdsTypedChanges, installDialogs } from "./dialog.js";
+import { closeDialog, holdDialog, holdsTypedChanges, installDialogs } from "./dialog.js";
 
 let life = new AbortController();
 
@@ -59,6 +59,43 @@ describe("installDialogs", () => {
     expect(d.hasAttribute("data-cp-refused")).toBe(true);
     field.value = "Sonarr";
     await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    await settled();
+    expect(d.open).toBe(false);
+  });
+
+  it("keeps a held dialog open on Escape and a press outside, shaking it, and closes it once released", async () => {
+    installDialogs({ signal: life.signal });
+    const d = dialog({ closedby: "any" }, '<button type="button" id="done">Done</button>');
+    let held = true;
+    holdDialog(d, () => held, { signal: life.signal });
+    d.showModal();
+    (d.querySelector("#done") as HTMLButtonElement).focus();
+    await userEvent.keyboard("{Escape}");
+    await settled();
+    expect(d.open).toBe(true);
+    expect(d.hasAttribute("data-cp-refused")).toBe(true);
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    await settled();
+    expect(d.open).toBe(true);
+    held = false;
+    await userEvent.keyboard("{Escape}");
+    await settled();
+    expect(d.open).toBe(false);
+  });
+
+  it("closes a held dialog when the person chooses to, by a close command", async () => {
+    installDialogs({ signal: life.signal });
+    const d = dialog({}, "");
+    d.id = "held";
+    const done = document.createElement("button");
+    done.type = "button";
+    done.setAttribute("commandfor", "held");
+    done.setAttribute("command", "close");
+    done.textContent = "Done";
+    d.append(done);
+    holdDialog(d, () => true, { signal: life.signal });
+    d.showModal();
+    await userEvent.click(done);
     await settled();
     expect(d.open).toBe(false);
   });
