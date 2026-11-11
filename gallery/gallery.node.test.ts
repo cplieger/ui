@@ -36,7 +36,9 @@ beforeAll(async () => {
     const framed = /^\/framed\/([\w-]+)$/.exec(path);
     if (framed !== null) {
       res.writeHead(200, { "content-type": "text/html" });
-      res.end(`<link rel="icon" href="data:,"><iframe sandbox="allow-scripts" src="/${framed[1] ?? ""}.html"></iframe>`);
+      res.end(
+        `<link rel="icon" href="data:,"><iframe sandbox="allow-scripts" src="/${framed[1] ?? ""}.html"></iframe>`,
+      );
       return;
     }
     // normalize() of a rooted path cannot climb above it, so the join stays under out.
