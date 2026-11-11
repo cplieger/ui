@@ -16,6 +16,7 @@
     "./date-range": "./src/forms/date-range/date-range.ts",
     "./dialog": "./src/overlays/dialog/dialog.ts",
     "./disclosure": "./src/navigation/disclosure/disclosure.ts",
+    "./feed": "./src/data/feed/feed.ts",
     "./file": "./src/forms/file/file.ts",
     "./form": "./src/forms/form/form.ts",
     "./icons": "./src/foundations/icons/icons.ts",

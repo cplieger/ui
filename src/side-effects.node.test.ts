@@ -23,6 +23,7 @@ const PURE = [
   "/date-range",
   "/dialog",
   "/disclosure",
+  "/feed",
   "/file",
   "/form",
   "/icons",

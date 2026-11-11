@@ -1,0 +1,116 @@
+# feed
+
+`@cplieger/ui/feed`
+
+An open conversation: its entries in time order, oldest at the top, with the composer pinned under them. The feed opens at the newest entry and follows new ones while the reader is there. Once the reader has scrolled up, nothing that arrives moves them: a New messages button above the composer counts the arrivals, and a press takes them to the newest. The stylesheet draws every part, and the script keeps the reader's place.
+
+```html
+<div class="cp-detail-body">
+  <ol class="cp-feed" aria-label="Messages">
+    <li class="cp-feed-day"><time datetime="2026-11-11">11 November</time></li>
+    <li class="cp-feed-entry">
+      <header>
+        <a href="#agent-kiro">@kiro</a>
+        <span class="cp-chip"><span class="cp-mono">internal/feed</span></span>
+        <time datetime="2026-11-11T10:02:00Z">10:02</time>
+      </header>
+      <h3>Feed scroll</h3>
+      <p class="cp-feed-text">The reservation is yours from now.</p>
+      <footer>
+        <button class="cp-button" data-variant="quiet" data-size="sm" type="button" popovertarget="read-41">Read by 3 of 5</button>
+      </footer>
+    </li>
+    <li class="cp-feed-marker">New since your last visit</li>
+    <li class="cp-feed-entry" data-own>…</li>
+  </ol>
+  <div class="cp-feed-foot">
+    <button class="cp-button cp-feed-jump" data-size="sm" type="button" hidden></button>
+    <form class="cp-form">…</form>
+  </div>
+</div>
+```
+
+```ts
+import { enhanceFeed } from "@cplieger/ui/feed";
+import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
+
+const feed = enhanceFeed(list, { foot, jump, signal: page.signal });
+for (const t of list.querySelectorAll("time[datetime*='T']")) {
+  enhanceRelativeTime(t, { signal: page.signal });
+}
+```
+
+## The parts
+
+- `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first, between `li.cp-feed-day` separators, each a `<time>` with the day, and at most one `li.cp-feed-marker`, "New since your last visit", before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full; the New messages button says what arrived.
+- An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, enhanced by [relative-time](relative-time.md). Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
+- `data-own` marks the person's own entry, whose author reads "You". It sits on the sunken fill, with its text on the same edge as everyone else's.
+- An own entry still sending carries `data-state="sending"` and `aria-busy="true"`, and its footer holds a `.cp-inline-load` "Sending…". One that failed carries `data-state="failed"`, and its footer holds a danger `.cp-state` "Not sent." and a small plain Retry button.
+- The read summary, "Read by 3 of 5", is a quiet small button opening a `.cp-popover.cp-feed-readers` with a `<section>` each for "Read" and "Not read yet", an `h4` over a list of links. While the names load, the popover holds a `.cp-inline-load`; when they fail, a danger `.cp-notice` with Retry.
+- While the entries load, the feed carries `aria-busy="true"` and holds `li.cp-feed-entry[data-skeleton]` items of four `.cp-skeleton` lines. With none, the detail says so in a sentence, such as "No messages in the last 72 hours.", in place of the feed.
+- `.cp-feed-foot` follows the feed in its scroller and stays pinned to the scroller's end. It holds `button.cp-feed-jump`, `hidden` until the script shows it, and the composer.
+
+## The composer
+
+The composer is a form like any other:
+
+```html
+<form class="cp-form" id="compose" novalidate>
+  <div class="cp-field">
+    <label class="cp-label" for="subject">Subject</label>
+    <input class="cp-input" id="subject" name="subject" required>
+  </div>
+  <div class="cp-field">
+    <label class="cp-label" for="body">Message</label>
+    <textarea class="cp-input" id="body" name="body" required></textarea>
+    <span class="cp-textarea-count" id="body-count"></span>
+  </div>
+  <button class="cp-button" data-variant="primary" type="submit" id="send">
+    <span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span>
+    <span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span>
+    <span class="cp-roll">Send</span>
+  </button>
+</form>
+```
+
+```ts
+import { enhanceConfirm } from "@cplieger/ui/confirm";
+import { reportErrors } from "@cplieger/ui/form";
+import { enhanceTextarea, utf8Length } from "@cplieger/ui/textarea";
+
+enhanceTextarea(body, { max: 65536, measure: utf8Length, count: bodyCount, submitOnModEnter: true, signal: page.signal });
+const send = enhanceConfirm(sendButton, { busy: "Sending…", done: false, signal: page.signal });
+compose.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errors = check(compose); // [{ field, message }]
+  reportErrors(compose, errors);
+  if (errors.length === 0) {
+    await send.run(() => api.send(compose)); // the own entry shows sending, then sent or failed
+  }
+});
+```
+
+- Send stays enabled with empty fields, so a press says what is missing, as every form does.
+- Ctrl+Enter, or Command+Enter on a Mac, sends from the message; Enter alone breaks the line.
+- Append the own entry with `data-state="sending"` as the send starts, so the feed scrolls to it, and keep the text in the fields until the send is done. A failed send leaves the entry failed with Retry, and the text stays.
+
+## API
+
+- `enhanceFeed(feed, opts?)` wires an `ol.cp-feed` or `ul.cp-feed`, scrolls it to its newest entry at once and returns a `Feed`.
+- `FeedOptions` = `{ foot?, jump?, words?, signal? }`.
+  - `foot` is the `.cp-feed-foot`. The script keeps the scroller's `scroll-padding-block-end` at the foot's height, so an entry that takes focus never lands under the composer, and sets the foot's `--cp-keyboard-inset` to the part of it an on-screen keyboard covers, measured on the visual viewport, so the composer rises above the keyboard.
+  - `jump` is the `.cp-feed-jump` button. Its words go in its `.cp-roll`, which rolls as the count grows, else they are its whole text.
+  - `words(n)` gives the jump's words for `n` new entries, by default "1 new message" and "3 new messages".
+  - `signal` removes the listeners and observers, hides the jump and puts back every property the script set.
+- `Feed` = `{ toNewest(), unseen }`. `toNewest()` scrolls to the newest entry at once and clears the count, such as after the app opens another conversation in the same feed. `unseen` is the number of entries counted since the reader last saw the end.
+
+## Behaviour
+
+- The feed's scroller is the nearest box around it that scrolls, else the page. It is found again as the feed moves, so a detail that moves from its docked place into a dialog keeps its feed followed.
+- Within 2rem of the end counts as at the end. While the reader is there, new entries and entries that grow keep the newest in view.
+- Once the reader has scrolled up, the entry at the top of the view stays where it is when entries are shown above it, such as by "Show older", or when an entry above grows. The engines' own scroll anchoring is off in the feed, because WebKit has none and two anchorings would fight.
+- Entries added at the end while the reader is scrolled up are counted. A day separator or the marker added with them is not. The jump shows the count, and its words are said politely as it shows and as the count changes.
+- The jump hides once the reader reaches the end, by scrolling or by pressing it. A press scrolls to the newest, smoothly unless the person asked for less motion, and moves focus to the newest entry, which takes `tabindex="-1"` for it. Focus on the jump as it hides moves there too, so it never drops to the page.
+- The person's own entry always scrolls to the newest, wherever the reader was. So does anything added while the feed is `aria-busy="true"` or held no entry, such as the first load, which counts nothing.
+- A pinch zoom also shrinks the visual viewport, so the keyboard inset is measured only at a scale of 1.
+- The module does nothing when it is imported.
