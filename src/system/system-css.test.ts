@@ -202,6 +202,83 @@ describe("css/system.css harmony colours", () => {
   }
 });
 
+// A series slot as the browser resolves it: [lightness 0 to 1, chroma, hue].
+function seriesAt(n: number, accentHue: number, accentChroma = 0.137): [number, number, number] {
+  root.style.setProperty("--cp-accent-h", String(accentHue));
+  root.style.setProperty("--cp-accent-c", String(accentChroma));
+  const el = host("");
+  el.style.color = `var(--cp-series-${String(n)})`;
+  const m = /oklch\(([\d.]+) ([\d.]+) ([\d.]+)/.exec(getComputedStyle(el).color);
+  if (m === null) {
+    throw new Error(`series ${String(n)} resolved to ${getComputedStyle(el).color}`);
+  }
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+describe("css/system.css series slots", () => {
+  it("keeps the accent's hue for slot 1 and turns the others as the harmony partners do", () => {
+    theme("light");
+    // 255 turned by 0, 150, 210, 30, 60, 90, 120, 240 and 270, with 105 moved
+    // out of the yellow-greens to 95
+    const hues = [255, 45, 95, 285, 315, 345, 15, 135, 165];
+    hues.forEach((h, i) => {
+      expect(seriesAt(i + 1, 255)[2], `slot ${String(i + 1)}`).toBeCloseTo(h, 3);
+    });
+    expect(seriesAt(1, 110)[2]).toBeCloseTo(110, 3);
+  });
+
+  it("puts odd slots on the bright level and even slots on the deep one, in each theme", () => {
+    theme("light");
+    expect([1, 2, 3].map((n) => seriesAt(n, 255)[0])).toEqual([0.61, 0.42, 0.61]);
+    theme("dark");
+    expect([1, 2, 3].map((n) => seriesAt(n, 255)[0])).toEqual([0.8, 0.6, 0.8]);
+  });
+
+  it("gives a muted accent's slots chroma 0.11 and caps a vivid accent's at 0.16", () => {
+    theme("light");
+    expect(seriesAt(1, 30, 0.05)[1]).toBeCloseTo(0.11, 4);
+    expect(seriesAt(1, 30, 0.12)[1]).toBeCloseTo(0.144, 4);
+    expect(seriesAt(1, 30, 0.2)[1]).toBeCloseTo(0.16, 4);
+  });
+
+  for (const t of ["light", "dark"] as const) {
+    it(`holds every slot at 3:1 on the page, raised, sunken and overlay surfaces in ${t}`, () => {
+      theme(t);
+      const surfaces = ["page", "raised", "sunken", "overlay"];
+      for (let hue = 0; hue < 360; hue += 15) {
+        root.style.setProperty("--cp-accent-h", String(hue));
+        for (let n = 1; n <= 9; n++) {
+          const el = host("");
+          el.style.color = `var(--cp-series-${String(n)})`;
+          for (const s of surfaces) {
+            el.style.backgroundColor = `var(--cp-surface-${s})`;
+            const cs = getComputedStyle(el);
+            expect(
+              contrast(cs.color, cs.backgroundColor),
+              `hue ${String(hue)} slot ${String(n)} on ${s}`,
+            ).toBeGreaterThanOrEqual(3);
+          }
+        }
+      }
+    });
+  }
+
+  it("puts a chip's tint and text and a swatch's fill on the slot data-series names", () => {
+    theme("light");
+    root.style.setProperty("--cp-accent-h", "255");
+    const chip = host("cp-chip", { "data-series": "2" }, "span");
+    const swatch = host("cp-swatch", { "data-series": "2" }, "span");
+    const plain = host("cp-chip", {}, "span");
+    const hueOf = (colour: string) => Number(/oklch\([\d.]+ [\d.]+ ([\d.]+)/.exec(colour)?.[1]);
+    expect(hueOf(getComputedStyle(chip).backgroundColor)).toBeCloseTo(45, 3);
+    expect(hueOf(getComputedStyle(chip).color)).toBeCloseTo(45, 3);
+    expect(hueOf(getComputedStyle(plain).backgroundColor)).toBeCloseTo(255, 3);
+    const slot = host("");
+    slot.style.color = "var(--cp-series-2)";
+    expect(getComputedStyle(swatch).backgroundColor).toBe(getComputedStyle(slot).color);
+  });
+});
+
 describe("css/system.css", () => {
   it("styles nothing and sets no colour scheme until an element opts in with cp", () => {
     root.setAttribute("data-theme", "dark");

@@ -90,7 +90,7 @@ The full reference, generated from the doc comments, is on [JSR](https://jsr.io/
 ## Documentation
 
 - The [principles](docs/principles.md) are the decisions every part follows.
-- The [design language](docs/design.md) covers type, layout, touch, shape and motion, and [colour](docs/design-colour.md) the seeds, steps, tones and harmony colours.
+- The [design language](docs/design.md) covers type, layout, touch, shape and motion, and [colour](docs/design-colour.md) the seeds, steps, tones, harmony colours and series colours.
 - [Components](docs/design-components.md) lists every class the stylesheet ships.
 - [Design patterns](docs/design-patterns.md) covers loading, forms, tables, tabs, dialogs, notifications, first run, navigation and words, with [settings](docs/design-settings.md) and [account screens](docs/design-account.md) on their own pages.
 - [Moving from the earlier subpaths](docs/migrating.md) maps each subpath earlier releases carried to its replacement.

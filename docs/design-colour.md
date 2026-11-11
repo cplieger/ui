@@ -114,11 +114,13 @@ An app adds its own tones with two seeds:
 }
 ```
 
+For categories in data rather than states, such as one colour per verdict, `data-series` puts an element on one of the nine [series colours](#series-colours) instead of a tone of the app's own.
+
 A tone is never the only signal. Every chip and notice carries a glyph and a word, so a colour-blind reader and a screen reader get the same state. A state with a glyph of its own, such as a pin or a lock, keeps it. Any other takes its tone's: `circle-check` for success, `triangle-alert` for warning, `circle-x` for danger and `info` for neutral news. No glyph serves two tones. Two tones on one screen differ in their glyph and their word, whatever their hues.
 
 ## Harmony colours
 
-When a screen needs a few colours that belong together, such as chart series, tags, avatars, a loader or a celebration, take them from `--cp-harmony-1` to `--cp-harmony-4` instead of picking hues by hand. Each has its ink, such as `--cp-harmony-2-on`.
+When a screen needs a few colours that belong together, such as avatars, a loader or a celebration, take them from `--cp-harmony-1` to `--cp-harmony-4` instead of picking hues by hand. Each has its ink, such as `--cp-harmony-2-on`. Categories in data, such as verdicts or a chart's series, take the [series colours](#series-colours) instead.
 
 - 1 is the accent's solid.
 - 2 and 3 are its split complement, the accent's hue turned 150 and 210 degrees.
@@ -127,3 +129,24 @@ When a screen needs a few colours that belong together, such as chart series, ta
 The partners are tuned for the eye, after the method of [pro-color-harmonies](https://github.com/meodai/pro-color-harmonies). Each sits at the lightness step 9 had before its white-ink dip, 56% in the light theme and the accent's 64% in the dark, and takes its own ink, `--cp-harmony-N-on`, which is black for many greens and teals. Yellows and ambers need more lightness to look clean, so they rise and never come out olive. A turn into the yellow-greens moves to the nearest clean yellow or green. Each partner carries a fifth more chroma than the accent, capped where a hue would leave sRGB. An orange is then vivid rather than brown, and a muted accent still gets muted partners. A test checks every hue in both themes.
 
 A yellow partner is lighter than the accent, so a mark that must stand out from the page by colour alone, such as a thin chart line, also needs an outline or a label.
+
+## Series colours
+
+`--cp-series-1` to `--cp-series-9` are nine colours for categories in data, such as a verdict's chip and its filter's swatch. `data-series="1"` to `"9"` on any element that reads a tone puts it on that slot, as `data-tone` does. A chip or a notice takes the slot's hue for its tint and text, and a swatch takes the slot itself for its fill. An app writes only which category takes which slot:
+
+```html
+<span class="cp-chip" data-series="3">On an alt</span>
+```
+
+The slots come from the accent by the harmony method:
+
+- Slot 1 is the accent's hue, and slots 2 and 3 are the harmony partners' hues.
+- Slots 4 to 9 are the accent turned 30, 60, 90, 120, 240 and 270 degrees, each moved out of the yellow-greens as a partner is.
+- Odd slots are bright and even slots deep: 61% and 42% lightness in the light theme, 80% and 60% in the dark. Two neighbours always differ in lightness, which every colour-vision deficiency keeps.
+- Each slot takes a fifth more chroma than the accent, between 0.11 and 0.16, and less where its hue would leave sRGB. A muted accent still gives slots that stand apart.
+
+Tests check every accent hue in both themes. Every slot is 3:1 or more on the page, raised, sunken and overlay surfaces. Neighbouring slots stay at least three just-noticeable differences apart in OKLab under simulated protanopia, deuteranopia and tritanopia, and any two slots do in full colour vision.
+
+Neighbouring slots are the most distinct, and the order means nothing more. Give your most common categories the low numbers, and categories that sit side by side, such as the segments of one bar, neighbouring slots. A slot is never the only signal: a chip keeps its word, and a bar its legend and its numbers.
+
+The deep level holds less colour, so a yellow on an even slot comes out a dark gold. A slot is meant for marks and fills, and words on one take `--cp-tone-on`.

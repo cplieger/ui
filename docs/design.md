@@ -11,7 +11,7 @@ The language is for screens someone works in, such as libraries, queues, setting
 The stylesheet fixes the controls, the navigation, the type, the spacing, the radii, the control sizes and the motion. An app chooses the rest:
 
 1. Its colour seeds, a hue and a chroma each for its accent, its neutrals and, if it differs, its brand.
-2. Its own tones, for states the built-in ones do not name, such as one hue per verdict.
+2. Which [series colour](design-colour.md#series-colours) each category in its data takes, such as one slot per verdict with `data-series`, and its own tones for states the built-in ones do not name.
 3. The shapes of its own information, built from the language's tokens, such as the verdict bar of a release tracker or the timing track of a subtitle editor. These carry most of an app's identity, so give each one a job in the task.
 4. Its words, so labels, buttons and messages use the app's own vocabulary.
 
@@ -39,7 +39,7 @@ The stylesheet needs `contrast-color()`, `light-dark()`, relative `oklch()`, `co
 
 ## Colour
 
-[Colour](design-colour.md) covers the seeds an app sets, the 12 steps and their roles, light and dark, contrast, tones and harmony colours.
+[Colour](design-colour.md) covers the seeds an app sets, the 12 steps and their roles, light and dark, contrast, tones, harmony colours and series colours.
 
 ## Type
 

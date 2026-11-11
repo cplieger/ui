@@ -175,20 +175,26 @@ const HARMONY = {
 
 type Cap = readonly [number, number, number, number];
 
+const cos = (deg: number) => Math.cos((deg * Math.PI) / 180);
+
+// The accent's hue turned, then moved out of the yellow-greens to the band's edges.
+function turned(hue: number, turn: number): number {
+  const { band } = HARMONY;
+  const h = (((hue + turn) % 360) + 360) % 360;
+  if (h > band.from && h < band.split) {
+    return band.low;
+  }
+  return h >= band.split && h < band.to ? band.high : h;
+}
+
 /** The harmony colours as OKLCH triples, the reference the CSS computes. */
 function harmony(hue: number, chroma: number, theme: Theme): Colour[] {
   const l9 = HARMONY.l9[theme];
-  const { floor, band } = HARMONY;
-  const cos = (deg: number) => Math.cos((deg * Math.PI) / 180);
+  const { floor } = HARMONY;
   const capOf = ([a, b, centre, power]: Cap, h: number) =>
     a - b * Math.max(0, cos(h - centre)) ** power;
   const partner = (turn: number): Colour => {
-    let h = (((hue + turn) % 360) + 360) % 360;
-    if (h > band.from && h < band.split) {
-      h = band.low;
-    } else if (h >= band.split && h < band.to) {
-      h = band.high;
-    }
+    const h = turned(hue, turn);
     const l = Math.max(
       l9,
       floor.base + floor.amp * Math.max(0, cos(h - floor.peak)) ** floor.power,
@@ -256,11 +262,95 @@ function harmonyBlock(): string {
   return `${registered}\n\n:root { ${decls.join(" ")} }`;
 }
 
+// Series slots: nine categorical colours turned from the accent as the
+// harmony partners are, slots 2 and 3 being harmony 2 and 3's hues. Odd slots
+// sit on a bright level and even slots on a deep one, so neighbours differ in
+// lightness, which every colour-vision deficiency keeps; both levels hold 3:1
+// on every surface of their theme. Chroma is the partners' fifth more than
+// the accent's, kept between min and max so a muted accent still gives slots
+// apart, under a gamut cap fitted per level. The tests below check the fits.
+const SERIES = {
+  turns: [0, 150, 210, 30, 60, 90, 120, 240, 270],
+  level: { light: { bright: 0.61, deep: 0.42 }, dark: { bright: 0.8, deep: 0.6 } },
+  chroma: { min: 0.11, max: 0.16 },
+  // a - b1 * max(0, cos(h - c1))^p1 - b2 * max(0, cos(h - c2))^p2
+  cap: {
+    light: {
+      bright: [0.184, 0.044, 90, 4, 0.078, 205, 2],
+      deep: [0.16, 0.04, 90, 6, 0.075, 195, 2],
+    },
+    dark: {
+      bright: [0.16, 0.06, 260, 1, 0.045, 20, 3],
+      deep: [0.188, 0.052, 90, 4, 0.086, 205, 2],
+    },
+  },
+} as const;
+
+type Level = "bright" | "deep";
+type SeriesCap = readonly [number, number, number, number, number, number, number];
+
+const levelOf = (slot: number): Level => (slot % 2 === 1 ? "bright" : "deep");
+
+/** The series slots as OKLCH triples, slot 1 first, the reference the CSS computes. */
+function series(hue: number, chroma: number, theme: Theme): Colour[] {
+  return SERIES.turns.map((turn, i) => {
+    const level = levelOf(i + 1);
+    // Slot 1 keeps the accent's own hue, which is the app's to choose.
+    const h = i === 0 ? hue : turned(hue, turn);
+    const [a, b1, c1, p1, b2, c2, p2]: SeriesCap = SERIES.cap[theme][level];
+    const cap = a - b1 * Math.max(0, cos(h - c1)) ** p1 - b2 * Math.max(0, cos(h - c2)) ** p2;
+    const want = Math.min(Math.max(chroma * HARMONY.chroma, SERIES.chroma.min), SERIES.chroma.max);
+    return [SERIES.level[theme][level], Math.min(want, cap), h];
+  });
+}
+
+function seriesCss(theme: Theme, slot: number): string {
+  const level = levelOf(slot);
+  const h = `var(--cp-series-${String(slot)}-h)`;
+  const [a, b1, c1, p1, b2, c2, p2]: SeriesCap = SERIES.cap[theme][level];
+  const trough = (b: number, centre: number, power: number) =>
+    `${num(b)} * pow(max(0, cos((${h} - ${String(centre)}) * 1deg)), ${String(power)})`;
+  const cap = `calc(${num(a)} - ${trough(b1, c1, p1)} - ${trough(b2, c2, p2)})`;
+  const want = `clamp(${num(SERIES.chroma.min)}, calc(var(--cp-accent-c) * ${num(HARMONY.chroma)}), ${num(SERIES.chroma.max)})`;
+  return `oklch(${pct(SERIES.level[theme][level])} min(${want}, ${cap}) ${h})`;
+}
+
+function seriesBlock(): string {
+  const slots = SERIES.turns.map((_, i) => i + 1);
+  const registered = slots
+    .map(
+      (n) =>
+        `@property --cp-series-${String(n)}-h { syntax: "<number>"; inherits: true; initial-value: 0; }`,
+    )
+    .join("\n\n");
+  const hue = (n: number, turn: number) => {
+    if (n === 1) {
+      return "var(--cp-accent-h)";
+    }
+    const k = HARMONY.turns.indexOf(turn as (typeof HARMONY.turns)[number]);
+    return k < 0 ? partnerHueCss(turn) : `var(--cp-harmony-${String(k + 2)}-h)`;
+  };
+  const decls = SERIES.turns.flatMap((turn, i) => {
+    const n = String(i + 1);
+    return [
+      `--cp-series-${n}-h: ${hue(i + 1, turn)};`,
+      `--cp-series-${n}: light-dark(${seriesCss("light", i + 1)}, ${seriesCss("dark", i + 1)});`,
+    ];
+  });
+  // A slot is a tone: its tint and text steps take the slot's hue at the chroma
+  // every hue may take, and its solid is the slot itself.
+  const tones = slots.map(
+    (n) =>
+      `[data-series="${String(n)}"] { --cp-tone-h: var(--cp-series-${String(n)}-h); --cp-tone-c: ${num(ENVELOPE.accent)}; --cp-tone-9: var(--cp-series-${String(n)}); }`,
+  );
+  return `${registered}\n\n:root { ${decls.join(" ")} }\n\n${tones.join("\n")}`;
+}
+
 function colourBlock(): string {
   const rules = (mode: Mode): string =>
     `:root { ${mode === "normal" ? `--cp-solid-hover-mix: ${String(SOLID_HOVER_MIX * 100)}%;` : ""} ${shell(mode)} ${ROOT_FAMILIES.flatMap((f) => ladder(f, mode)).join(" ")} }
-     :root, [data-tone] { ${ladder(TONE, mode).join(" ")} }`;
-  return `${START}\n/* Written by npm run system:sync from src/system/system-css.node.test.ts. */\n${rules("normal")}\n\n@media (prefers-contrast: more) { ${rules("more")} }\n\n${harmonyBlock()}\n${END}`;
+     :root, [data-tone], [data-series] { ${ladder(TONE, mode).join(" ")} }`;
+  return `${START}\n/* Written by npm run system:sync from src/system/system-css.node.test.ts. */\n${rules("normal")}\n\n@media (prefers-contrast: more) { ${rules("more")} }\n\n${harmonyBlock()}\n\n${seriesBlock()}\n${END}`;
 }
 
 function markers(current: string): [number, number] {
@@ -311,6 +401,63 @@ const clamp = (v: number) => Math.min(Math.max(v, 0), 1);
 const luminance = ([r, g, b]: readonly number[]) =>
   0.2126 * clamp(r ?? 0) + 0.7152 * clamp(g ?? 0) + 0.0722 * clamp(b ?? 0);
 const ratio = (y1: number, y2: number) => (Math.max(y1, y2) + 0.05) / (Math.min(y1, y2) + 0.05);
+
+// Linear sRGB to OKLab (Björn Ottosson's matrices), for distances between colours.
+function oklab([r = 0, g = 0, b = 0]: readonly number[]): Colour {
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
+
+const deltaE = (a: Colour, b: Colour) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+// Three just-noticeable differences: CSS Color 4 puts one at 0.02 in OKLab
+// (https://www.w3.org/TR/css-color-4/#gamut-mapping).
+const APART = 0.06;
+
+type Matrix = readonly [number, number, number, number, number, number, number, number, number];
+const apply = (m: Matrix, [r = 0, g = 0, b = 0]: readonly number[]): number[] => [
+  m[0] * r + m[1] * g + m[2] * b,
+  m[3] * r + m[4] * g + m[5] * b,
+  m[6] * r + m[7] * g + m[8] * b,
+];
+
+// Dichromat vision on linear sRGB, with libDaltonLens's public-domain matrices
+// and its choice of model: Viénot 1999 for protanopia and deuteranopia,
+// Brettel 1997 for tritanopia, whose two half-planes split at a normal
+// (https://github.com/DaltonLens/libDaltonLens/blob/master/libDaltonLens.c).
+const TRITAN = {
+  normal: [0.03901, -0.02788, -0.01113],
+  a: [1.01277, 0.13548, -0.14826, -0.01243, 0.86812, 0.14431, 0.07589, 0.805, 0.11911],
+  b: [0.93678, 0.18979, -0.12657, 0.06154, 0.81526, 0.1232, -0.37562, 1.12767, 0.24796],
+} as const;
+const VISIONS = {
+  protanopia: (c: readonly number[]) =>
+    apply([0.11238, 0.88762, 0, 0.11238, 0.88762, 0, 0.00401, -0.00401, 1], c),
+  deuteranopia: (c: readonly number[]) =>
+    apply([0.29275, 0.70725, 0, 0.29275, 0.70725, 0, -0.02234, 0.02234, 1], c),
+  tritanopia: (c: readonly number[]) => {
+    const [r = 0, g = 0, b = 0] = c;
+    const [nr, ng, nb] = TRITAN.normal;
+    return apply(r * nr + g * ng + b * nb >= 0 ? TRITAN.a : TRITAN.b, c);
+  },
+} as const;
+
+// The luminances of the page, raised, sunken and overlay surfaces;
+// the sunken dark and overlay light ones are roles.css's own.
+function surfacesOf(theme: Theme, hue: number, chroma: number): number[] {
+  const st = steps("neutral", theme, "normal", hue, chroma, LADDER);
+  const own: Colour[] =
+    theme === "light"
+      ? [st[0] as Colour, st[1] as Colour, st[2] as Colour, [0.996, chroma * 0.5, hue]]
+      : [st[0] as Colour, st[1] as Colour, [0.16, chroma * 0.8, hue], st[2] as Colour];
+  return own.map((c) => luminance(linearSrgb(...c)));
+}
 
 type Ladder = Record<Mode, Record<Theme, readonly number[]>>;
 
@@ -603,6 +750,103 @@ describe("css/system.css", () => {
       }
     }
     expect(report).toEqual([]);
+  });
+
+  it("keeps every series slot inside sRGB and at 3:1 on every surface of its theme", () => {
+    const report: string[] = [];
+    const neutrals: readonly (readonly [number, number])[] = [
+      [260, 0.008],
+      ...Array.from({ length: 12 }, (_, i) => [i * 30, ENVELOPE.neutral] as const),
+    ];
+    for (const theme of ["light", "dark"] as const) {
+      const surfaces = neutrals.flatMap(([h, c]) => surfacesOf(theme, h, c));
+      for (let hue = 0; hue < 360; hue++) {
+        for (const chroma of [0, 0.02, 0.09, 0.137, 0.2]) {
+          series(hue, chroma, theme).forEach((colour, i) => {
+            const at = `${theme} hue ${String(hue)} chroma ${String(chroma)} slot ${String(i + 1)}`;
+            const rgb = linearSrgb(...colour);
+            if (!inGamut(rgb)) {
+              report.push(`${at} is outside sRGB`);
+            }
+            const worst = Math.min(...surfaces.map((s) => ratio(luminance(rgb), s)));
+            if (worst < 3) {
+              report.push(`${at} is ${worst.toFixed(2)}:1 on a surface`);
+            }
+          });
+        }
+      }
+    }
+    expect(report).toEqual([]);
+  });
+
+  it("keeps neighbouring series slots apart under protanopia, deuteranopia and tritanopia", () => {
+    const report: string[] = [];
+    for (const theme of ["light", "dark"] as const) {
+      for (let hue = 0; hue < 360; hue++) {
+        for (const chroma of [0, 0.09, 0.137, 0.2]) {
+          const rgb = series(hue, chroma, theme).map((c) => linearSrgb(...c).map(clamp));
+          for (const [vision, simulate] of Object.entries(VISIONS)) {
+            const seen = rgb.map((c) => oklab(simulate(c)));
+            seen.forEach((c, i) => {
+              const next = seen[i + 1];
+              const d = next === undefined ? Infinity : deltaE(c, next);
+              if (d < APART) {
+                report.push(
+                  `${theme} hue ${String(hue)} chroma ${String(chroma)} ${vision}: slots ${String(i + 1)} and ${String(i + 2)} are ${d.toFixed(3)} apart`,
+                );
+              }
+            });
+          }
+        }
+      }
+    }
+    expect(report).toEqual([]);
+  });
+
+  it("keeps any two series slots apart in full colour vision", () => {
+    const report: string[] = [];
+    for (const theme of ["light", "dark"] as const) {
+      for (let hue = 0; hue < 360; hue++) {
+        for (const chroma of [0, 0.09, 0.137, 0.2]) {
+          const seen = series(hue, chroma, theme).map((c) => oklab(linearSrgb(...c).map(clamp)));
+          seen.forEach((a, i) => {
+            seen.slice(i + 1).forEach((b, j) => {
+              if (deltaE(a, b) < APART) {
+                report.push(
+                  `${theme} hue ${String(hue)} chroma ${String(chroma)}: slots ${String(i + 1)} and ${String(i + j + 2)}`,
+                );
+              }
+            });
+          });
+        }
+      }
+    }
+    expect(report).toEqual([]);
+  });
+
+  it("finds the pair each simulated vision confuses and full colour vision tells apart", () => {
+    const confused: Record<keyof typeof VISIONS, readonly [Colour, Colour]> = {
+      protanopia: [
+        [0.6, 0.1, 10],
+        [0.5, 0.1, 190],
+      ],
+      deuteranopia: [
+        [0.6, 0.15, 30],
+        [0.6, 0.15, 142],
+      ],
+      tritanopia: [
+        [0.5, 0.1, 80],
+        [0.5, 0.1, 340],
+      ],
+    };
+    for (const [vision, [a, b]] of Object.entries(confused)) {
+      const [x, y] = [a, b].map((c) => linearSrgb(...c).map(clamp));
+      const simulate = VISIONS[vision as keyof typeof VISIONS];
+      expect(deltaE(oklab(x ?? []), oklab(y ?? [])), vision).toBeGreaterThan(2 * APART);
+      expect(deltaE(oklab(simulate(x ?? [])), oklab(simulate(y ?? []))), vision).toBeLessThan(
+        APART,
+      );
+    }
   });
 
   it("keeps an orange partner at the accent's lightness but vivid, and lifts a yellow one", () => {

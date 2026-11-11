@@ -41,7 +41,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority` |
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height |
 | `.cp-pager` | the range and the Previous and Next links under a table |
-| `.cp-chip`, `.cp-notice`, `.cp-swatch`, `.cp-count` | states in a tone, and a count beside a filter |
+| `.cp-chip`, `.cp-notice`, `.cp-swatch`, `.cp-count` | states in a tone, or categories on a slot of the [series colours](design-colour.md#series-colours) with `data-series`, and a count beside a filter |
 | `.cp-panel`, `.cp-stack`, `.cp-toolbar`, `.cp-heading-row`, `.cp-crumbs`, `.cp-meta` | surfaces and layout |
 | `.cp-cluster` | a row of small things, such as chips or buttons, that wraps instead of overflowing, with `data-gap="tight"` for less space |
 | `.cp-side-main` | a side column of `--cp-side-width` (16rem) beside the rest, stacking above it once the rest would be narrower than half the box |

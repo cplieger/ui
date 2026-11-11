@@ -154,5 +154,5 @@ The interface may ship in one language and still show titles, names and file nam
 
 The language decides these when an app first needs them, and adds them here:
 
-- Charts. Until then, show the numbers in a table, label series directly, take series colours from the [harmony colours](design-colour.md#harmony-colours), and never use colour as the only way to tell series apart.
+- Charts. Until then, show the numbers in a table, label series directly, give each series a slot of the [series colours](design-colour.md#series-colours), and never use colour as the only way to tell series apart.
 - Print styles.
