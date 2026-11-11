@@ -8,8 +8,12 @@
 
 export type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
-/** The attribute on a field whose error is showing. */
+/** The attribute on a field whose error is showing, valued by who showed
+ * it, so `reportErrors` and a connection test each clear only their own. */
 export const MARK = "data-cp-error";
+
+/** Who showed a field's error. */
+export type Owner = "form" | "test";
 /** Each field's error once found or made, so a later call finds it again
  *  after clearError took it out of the field's aria-describedby. */
 const known = new WeakMap<Control, HTMLElement>();
@@ -72,8 +76,12 @@ export function writeError(error: HTMLElement, message: string): void {
   error.hidden = false;
 }
 
-/** Marks `field` valid: its error hides and no longer describes it. */
-export function clearError(field: Control): void {
+/** Marks `field` valid: its error hides and no longer describes it. With
+ *  `owner`, only an error that owner showed. */
+export function clearError(field: Control, owner?: Owner): void {
+  if (owner !== undefined && field.getAttribute(MARK) !== owner) {
+    return;
+  }
   const error = errorOf(field);
   field.removeAttribute("aria-invalid");
   field.removeAttribute(MARK);
@@ -86,7 +94,12 @@ export function clearError(field: Control): void {
 /** Shows `message` as `field`'s error, in `error` when given, else in the
  *  error clearError finds, else in one made at the end of its `.cp-field`,
  *  or after the field outside one. */
-export function showError(field: Control, message: string, error?: HTMLElement): void {
+export function showError(
+  field: Control,
+  message: string,
+  error?: HTMLElement,
+  owner: Owner = "form",
+): void {
   let el = error ?? errorOf(field);
   if (el === null) {
     el = document.createElement("span");
@@ -104,6 +117,6 @@ export function showError(field: Control, message: string, error?: HTMLElement):
   writeError(el, message);
   known.set(field, el);
   field.setAttribute("aria-invalid", "true");
-  field.setAttribute(MARK, "");
+  field.setAttribute(MARK, owner);
   describedBy(field, el.id, true);
 }

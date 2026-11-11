@@ -2,7 +2,8 @@
  * textarea.ts — `enhanceTextarea()` counts a text area's characters, or what
  * `measure` counts, against its limit when it has one, marks it invalid once
  * past it, grows it with its text where the engine cannot size it to its
- * content (`field-sizing`), and can send its form on Ctrl or ⌘ Enter.
+ * content (`field-sizing`), and can send its form on Ctrl+Enter or
+ * Command+Enter.
  * @module
  */
 
@@ -13,26 +14,25 @@ export interface TextareaOptions {
    *  invalid. */
   readonly max?: number;
   /** What the count and the limit count. Default: the text's length, as
-   *  `maxlength` counts it. `utf8Length` counts the bytes a server's body
-   *  limit sees. */
+   *  `maxlength` counts it. `utf8Length` counts its UTF-8 bytes. */
   readonly measure?: (text: string) => number;
-  /** Ctrl+Enter, or ⌘+Enter on a Mac, sends the area's form through its
-   *  first submit button, as Enter does in a field. Default false. */
+  /** Ctrl+Enter, or Command+Enter on a Mac, sends the area's form through
+   *  its first submit button, as Enter does in a field. Default false. */
   readonly submitOnModEnter?: boolean;
   /** Shows the count, "{length} / {max}" with a limit or "{length}"
    *  without, and describes the area. */
   readonly count?: HTMLElement;
   /** The count's words. Default as `count` says. */
   readonly words?: (length: number, max: number | undefined) => string;
-  /** Removes the listener. */
+  /** Removes the listeners. */
   readonly signal?: AbortSignal;
 }
 
 const OVER = "data-cp-over";
 let seq = 0;
 
-/** The length of `text` in UTF-8 bytes, as a server reading the body counts
- *  it, without encoding it. */
+/** The length of `text` in UTF-8 bytes, without encoding it. A form sends
+ *  each line break as CR and LF, where this counts one byte. */
 export function utf8Length(text: string): number {
   let n = 0;
   for (let i = 0; i < text.length; i++) {
@@ -51,7 +51,7 @@ export function utf8Length(text: string): number {
         n += 3;
       }
     } else {
-      // A lone surrogate is sent as U+FFFD, three bytes.
+      // U+0800 to U+FFFF, and a lone surrogate, sent as U+FFFD: three bytes.
       n += 3;
     }
   }
@@ -104,6 +104,11 @@ export function enhanceTextarea(area: HTMLTextAreaElement, options: TextareaOpti
       "keydown",
       (e) => {
         if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey) || e.isComposing) {
+          return;
+        }
+        // A held chord sends once.
+        if (e.repeat) {
+          e.preventDefault();
           return;
         }
         const form = area.form;

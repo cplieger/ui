@@ -7,10 +7,15 @@
  * @module
  */
 
-import { type Control, MARK, clearError, idOf, showError } from "./field-error.js";
+import { type Control, MARK, clearError as clear, idOf, showError } from "./field-error.js";
 
 export type { Control } from "./field-error.js";
-export { clearError } from "./field-error.js";
+
+/** Marks `field` valid: its error hides and no longer describes it, whoever
+ *  showed it. */
+export function clearError(field: Control): void {
+  clear(field);
+}
 
 export interface FieldError {
   readonly field: Control;
@@ -34,10 +39,12 @@ function nameOf(field: Control): string {
 
 /**
  * Shows `errors` on `form` and clears every error an earlier call showed
- * that `errors` no longer names. An empty list hides the summary. A field's
- * error is the `.cp-field-error` its `aria-describedby` names, else the
- * element whose id is its id followed by `-error`, else one made at the end
- * of its `.cp-field`, or after the field outside one.
+ * that `errors` no longer names. An error a connection test showed stays
+ * until the test clears it or this call names its field. An empty list hides
+ * the summary. A field's error is the `.cp-field-error` its
+ * `aria-describedby` names, else the element whose id is its id followed by
+ * `-error`, else one made at the end of its `.cp-field`, or after the field
+ * outside one.
  */
 export function reportErrors(
   form: HTMLFormElement,
@@ -46,9 +53,9 @@ export function reportErrors(
 ): void {
   const { summary } = options;
   const named = new Set(errors.map((e) => e.field));
-  for (const f of form.querySelectorAll<Control>(`[${MARK}]`)) {
+  for (const f of form.querySelectorAll<Control>(`[${MARK}="form"]`)) {
     if (!named.has(f)) {
-      clearError(f);
+      clear(f);
     }
   }
   for (const e of errors) {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { reportErrors } from "../form/form.js";
 import { enhanceConnectionTest, type ConnectionTestResult } from "./connection-test.js";
 
 let life = new AbortController();
@@ -177,5 +178,46 @@ describe("enhanceConnectionTest", () => {
     a.fail("nope");
     await tick();
     expect(status.textContent).toBe("The test could not run.");
+  });
+
+  it("puts a failure's fix on the field and its message in the status", async () => {
+    const { url, mark, button, status } = form();
+    const a = answer();
+    enhanceConnectionTest(button, status, {
+      run: a.run,
+      fields: { url: { input: url, mark } },
+      signal: life.signal,
+    });
+    await userEvent.click(button);
+    a.give({ ok: false, message: "Sonarr did not answer.", field: "url", fix: "Check the port." });
+    await tick();
+    expect([status.textContent, mark.textContent]).toEqual([
+      "Sonarr did not answer.",
+      "Check the port.",
+    ]);
+  });
+
+  it("leaves an error the form's own checks showed, and the form's checks leave the test's", async () => {
+    const { form: f, url, mark, button, status } = form();
+    const summary = document.createElement("div");
+    f.append(summary);
+    const a = answer();
+    enhanceConnectionTest(button, status, {
+      run: a.run,
+      fields: { url: { input: url, mark } },
+      signal: life.signal,
+    });
+    await userEvent.click(button);
+    a.give({ ok: false, message: "No answer.", field: "url" });
+    await tick();
+    reportErrors(f, [], { summary, heading: () => "" });
+    expect([url.getAttribute("aria-invalid"), mark.hidden]).toEqual(["true", false]);
+    reportErrors(f, [{ field: url, message: "Enter an address." }], { summary, heading: () => "" });
+    await userEvent.type(url, "x");
+    expect(status.dataset["cpState"]).toBe("idle");
+    expect([url.getAttribute("aria-invalid"), mark.textContent]).toEqual([
+      "true",
+      "Enter an address.",
+    ]);
   });
 });

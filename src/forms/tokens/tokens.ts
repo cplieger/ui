@@ -28,8 +28,8 @@ export interface TokensWords {
   /** Under the field at the limit. Default "{max} chosen, the most allowed." */
   readonly full?: (max: number) => string;
   /** Under a field at a shared limit that can still take a value another
-   *  field holds. Default "{max} chosen, the most allowed. One already chosen
-   *  can still be added." */
+   *  field holds. Default "{max} chosen, the most allowed. You can still add
+   *  one chosen in another field." */
   readonly limited?: (max: number) => string;
 }
 
@@ -38,7 +38,8 @@ export interface TokensWords {
 export interface TokenLimit {
   /** The most distinct values the fields hold together. */
   readonly max: number;
-  /** The distinct values they hold now, a value in two fields counted once. */
+  /** How many distinct values they hold now, a value in two fields counted
+   *  once. */
   readonly size: number;
 }
 
@@ -63,8 +64,8 @@ function counted(limit: TokenLimit): Set<string> {
 /**
  * A limit of `max` distinct values that every token field given it as
  * `limit` shares. A value counts once, whichever fields hold it, and a field
- * can always take a value another already holds, since that adds nothing to
- * the count.
+ * below its own `max` can always take a value another already holds, since
+ * that adds nothing to the count.
  */
 export function createTokenLimit(max: number): TokenLimit {
   const limit: TokenLimit = {
@@ -145,7 +146,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
     limited:
       options.words?.limited ??
       ((n: number) =>
-        `${String(n)} chosen, the most allowed. One already chosen can still be added.`),
+        `${String(n)} chosen, the most allowed. You can still add one chosen in another field.`),
   };
   const input = box.querySelector<HTMLInputElement>(":scope > input");
   if (input === null) {
@@ -161,7 +162,8 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
   const together = (): Set<string> => (shared === undefined ? new Set() : counted(shared));
   /** At the shared limit: true once its fields hold `limit.max` values. */
   const atShared = (): boolean => shared !== undefined && together().size >= shared.max;
-  /** Whether `v` could join the field, whatever it holds now. */
+  /** Whether the field's own limit and the shared one leave room for `v`. A
+   *  chip of `v` already here is the caller's check. */
   const room = (v: string): boolean =>
     chips().length < max && (!atShared() || together().has(v.toLowerCase()));
   /** The field can take nothing more: its own limit, or the shared one
@@ -198,7 +200,8 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
   const placeholder = input.placeholder;
   let wasFull = false;
   let wasLimited = false;
-  /** Writes the limit's state; `quiet` for a change another field made. */
+  /** Writes the limit's state. `quiet` says nothing, for the opening state
+   *  or a change another field made. */
   const limit = (quiet = false): void => {
     const f = full();
     const ownFull = chips().length >= max;

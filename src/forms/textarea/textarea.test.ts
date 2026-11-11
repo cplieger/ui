@@ -130,4 +130,25 @@ describe("enhanceTextarea", () => {
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
     expect(sent).toBe(0);
   });
+
+  it("sends once for a held Ctrl Enter", () => {
+    const form = document.createElement("form");
+    const { a } = area("Hello");
+    form.append(a, document.createElement("button"));
+    document.body.append(form);
+    let sent = 0;
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      sent++;
+    });
+    enhanceTextarea(a, { submitOnModEnter: true, signal: life.signal });
+    const key = (repeat: boolean) =>
+      a.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, repeat, cancelable: true }),
+      );
+    key(false);
+    expect(key(true)).toBe(false);
+    key(true);
+    expect(sent).toBe(1);
+  });
 });

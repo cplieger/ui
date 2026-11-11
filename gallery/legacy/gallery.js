@@ -1405,7 +1405,7 @@ for (const flow of $$("[data-steps]")) {
     marks.forEach((m, k) => {
       const name = m.dataset.name;
       m.dataset.state = k < i ? "done" : k === i ? "current" : "todo";
-      if (k < i) m.replaceChildren(el("a", { href: "#setup", "data-go": String(k), text: name }));
+      if (k < i) m.replaceChildren(el("a", { href: "#setup", "data-go": String(k), text: name }), el("span", { class: "cp-visually-hidden", text: ", done" }));
       else m.replaceChildren(name, ...(k === i ? [el("span", { class: "cp-visually-hidden", text: " (current step)" })] : []));
       if (k === i) m.setAttribute("aria-current", "step");
       else m.removeAttribute("aria-current");

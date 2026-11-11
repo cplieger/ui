@@ -1735,6 +1735,75 @@ describe("css/system.css feedback and steps", () => {
     expect(hidden.textContent).toBe(", done");
   });
 
+  it("gives a done step's link a hit area of the tier's minimum that takes in its number", () => {
+    theme("light");
+    for (const [tier, min] of [
+      ["fine", 24],
+      ["coarse", 44],
+    ] as const) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div style="padding: 40px; inline-size: 40rem"><ol class="cp-steps"><li data-state="done"><a href="#a">Account</a></li><li data-state="current" aria-current="step">Sonarr</li></ol></div>',
+      );
+      const a = el.querySelector("a") as HTMLAnchorElement;
+      const box = a.getBoundingClientRect();
+      const number = getComputedStyle(a.parentElement as Element, "::before");
+      const reach = (min - box.height) / 2 - 0.5;
+      expect(document.elementFromPoint(box.left + 4, box.top - reach)).toBe(a);
+      expect(document.elementFromPoint(box.left + 4, box.top - reach - 2)).not.toBe(a);
+      expect(
+        document.elementFromPoint(
+          box.left - Number.parseFloat(number.width) / 2,
+          box.top + box.height / 2,
+        ),
+      ).toBe(a);
+      el.remove();
+    }
+    delete root.dataset["pointer"];
+  });
+
+  it("widens a steps gate, makes its panel the steps' container, and puts the primary at the row's end", () => {
+    theme("light");
+    const el = build(
+      '<main class="cp-gate" data-variant="steps" style="min-block-size: 0"><div class="cp-panel"><div class="cp-stack"><ol class="cp-steps"><li data-state="current" aria-current="step">Account</li><li data-state="todo">Sonarr</li></ol><h1>Step 1 of 2</h1><div data-part="actions"><button class="cp-button" type="button">Back</button><button class="cp-button" data-variant="primary" type="button">Next</button></div></div></div></main>',
+    );
+    const panel = el.querySelector(".cp-panel") as HTMLElement;
+    expect(getComputedStyle(el.querySelector(".cp-gate") as Element).gridTemplateColumns).toBe(
+      "448px",
+    );
+    expect(getComputedStyle(panel).containerType).toBe("inline-size");
+    expect(getComputedStyle(el.querySelector(".cp-steps") as Element).marginBlockEnd).toBe("0px");
+    const [back, next] = [...el.querySelectorAll("button")].map((b) => b.getBoundingClientRect());
+    const row = (el.querySelector('[data-part="actions"]') as HTMLElement).getBoundingClientRect();
+    expect([back?.top, Math.round(back?.left ?? 0)]).toEqual([next?.top, Math.round(row.left)]);
+    expect(Math.round(next?.right ?? 0)).toBe(Math.round(row.right));
+    expect(getComputedStyle(el.querySelector("h1") as Element).fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-lg)" })).fontSize,
+    );
+  });
+
+  it("draws the connection test's glyph and tone by its state, and nothing at rest", () => {
+    theme("light");
+    const el = build(
+      ["idle", "busy", "passed", "failed"]
+        .map((s) => `<span class="cp-test-status" data-cp-state="${s}">Words</span>`)
+        .join(""),
+    );
+    const [idle, busy, passed, failed] = [...el.querySelectorAll(".cp-test-status")];
+    const before = (e: Element | undefined) => getComputedStyle(e as Element, "::before");
+    expect(before(idle).display).toBe("none");
+    expect(before(busy).animationName).toBe("cp-spin");
+    const tone = (v: string): string => {
+      const h = host("");
+      h.style.color = `var(${v})`;
+      return getComputedStyle(h).color;
+    };
+    expect(getComputedStyle(passed as Element).color).toBe(tone("--cp-success-11"));
+    expect(getComputedStyle(failed as Element).color).toBe(tone("--cp-danger-11"));
+    expect(before(passed).maskImage).toMatch(/^url\(/);
+    expect(before(passed).maskImage).not.toBe(before(failed).maskImage);
+  });
+
   it("twirls a loader through the harmony colours", () => {
     theme("light");
     const el = build('<span class="cp-loader" aria-hidden="true"><span></span></span>');

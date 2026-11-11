@@ -171,7 +171,7 @@ describe("enhanceTokens", () => {
     // At the limit both fields can still take what the other holds.
     expect([a.input.readOnly, b.input.readOnly]).toEqual([false, false]);
     expect(noteOf(b).textContent).toBe(
-      "3 chosen, the most allowed. One already chosen can still be added.",
+      "3 chosen, the most allowed. You can still add one chosen in another field.",
     );
     expect(tb.add("d")).toBe(false);
     expect(tb.add("A")).toBe(true);

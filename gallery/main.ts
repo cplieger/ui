@@ -137,6 +137,7 @@ for (const button of all<HTMLButtonElement>("button[data-test]")) {
                   ok: false,
                   message: "Sonarr did not answer at this address and port.",
                   field: "url",
+                  fix: "Check the address and its port, such as http://sonarr.lan:8989.",
                 },
           );
         }, 1100);
