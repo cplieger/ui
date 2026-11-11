@@ -39,7 +39,8 @@ export interface ToastHandle {
   /** Takes the toast away. */
   dismiss(): void;
   /** Gives the toast new words, a new kind or an outcome; a busy toast that
-   *  is updated without `busy` starts its time. */
+   *  is updated without `busy` starts its time. Buttons with the same labels
+   *  stay in place, so focus on one survives, and run the new `run`. */
   update(next: ToastOptions): void;
 }
 
@@ -213,36 +214,55 @@ export function toast(options: ToastOptions): ToastHandle {
     leave(slot);
   };
 
+  const title = node("strong", "");
+  const body = node("p", "");
+  text.append(title);
+  let actions: readonly ToastAction[] = [];
+  let row: HTMLElement | null = null;
+
+  // An update keeps every node whose part did not change, so a working
+  // toast that counts keeps its loader turning and focus on its buttons.
   const render = (o: ToastOptions): void => {
     const kind = o.kind ?? "info";
     el.dataset["kind"] = kind;
     el.setAttribute("role", kind === "error" ? "alert" : "status");
-    lead.replaceChildren();
-    lead.classList.toggle("cp-loader", o.busy === true);
-    if (o.busy === true) {
-      lead.append(document.createElement("span"));
+    if (lead.classList.contains("cp-loader") !== (o.busy === true)) {
+      lead.classList.toggle("cp-loader", o.busy === true);
+      lead.replaceChildren(...(o.busy === true ? [document.createElement("span")] : []));
     }
-    text.replaceChildren(node("strong", "", o.title));
+    title.textContent = o.title;
     if (o.body !== undefined && o.body !== "") {
-      text.append(node("p", "", o.body));
+      body.textContent = o.body;
+      title.after(body);
+    } else {
+      body.remove();
     }
-    const actions = o.actions ?? [];
-    if (actions.length > 0) {
-      const row = node("div", "cp-toast-actions");
-      for (const a of actions) {
-        const b = node("button", "cp-button", a.label) as HTMLButtonElement;
-        b.type = "button";
-        b.dataset["size"] = "sm";
-        b.addEventListener("click", () => {
-          a.run?.();
-          if (a.keep !== true) {
-            dismiss();
-          }
+    const labels = (list: readonly ToastAction[]): string =>
+      JSON.stringify(list.map((a) => a.label));
+    const next = o.actions ?? [];
+    if (row === null || labels(next) !== labels(actions)) {
+      row?.remove();
+      row = null;
+      if (next.length > 0) {
+        const buttons = next.map((a, i) => {
+          const b = node("button", "cp-button", a.label) as HTMLButtonElement;
+          b.type = "button";
+          b.dataset["size"] = "sm";
+          b.addEventListener("click", () => {
+            const now = actions[i];
+            now?.run?.();
+            if (now?.keep !== true) {
+              dismiss();
+            }
+          });
+          return b;
         });
-        row.append(b);
+        row = node("div", "cp-toast-actions");
+        row.append(...buttons);
+        text.append(row);
       }
-      text.append(row);
     }
+    actions = next;
     el.querySelector(".cp-toast-time")?.remove();
     const sticky = o.sticky ?? (kind === "error" || actions.length > 0);
     if (!sticky && o.busy !== true) {

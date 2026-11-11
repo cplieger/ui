@@ -695,16 +695,6 @@
   animation: none;
 }
 
-/* A toast springs in (gallery.css .g-toast). */
-
-@keyframes toast-in {
-  from {
-    translate: 0 1.5rem;
-    opacity: 0;
-    scale: 0.96;
-  }
-}
-
 /* A wordmark's mark flips after five quick presses. */
 
 [data-five-press] > .cp-mark {
@@ -886,168 +876,10 @@ input.cp-input::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
-/* Notifications: a stack in the inline-end corner, newest at the bottom. A
- * passing toast keeps a thin line that drains as its time runs out and
- * stops while a pointer or focus is on it. */
-
-.g-toaster {
-  position: fixed;
-  inset-block-end: calc(var(--cp-space-3) + 3.25rem);
-  inset-inline-end: var(--cp-space-4);
-  z-index: 90;
-  display: grid;
-  gap: 0;
-  inline-size: min(24rem, calc(100vw - 2rem));
-  pointer-events: none;
-}
-
-/* Each toast sits in a slot whose row collapses when it leaves, so the
- * ones above slide down instead of jumping. */
-.g-slot {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 220ms var(--cp-ease-out);
-}
-
-.g-slot.closing {
-  grid-template-rows: 0fr;
-}
-
-.g-slot > .g-toast-wrap {
-  min-block-size: 0;
-  overflow: visible;
-  padding-block-start: var(--cp-space-2);
-}
-
-.g-slot.closing > .g-toast-wrap {
-  overflow: hidden;
-}
-
-.g-toast {
-  --tone-9: var(--cp-accent-9);
-
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--cp-space-1) var(--cp-space-3);
-  align-items: start;
-  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-3) var(--cp-space-4);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-overlay);
-  box-shadow: var(--cp-shadow-overlay);
-  overflow: hidden;
-  pointer-events: auto;
-  touch-action: pan-y;
-  animation: toast-in 560ms var(--ease-spring);
-}
-
-.g-slot.leaving .g-toast {
-  opacity: 0;
-  translate: calc(100% + var(--cp-space-4)) 0;
-  transition:
-    opacity 280ms cubic-bezier(0.4, 0, 1, 1),
-    translate 280ms cubic-bezier(0.4, 0, 1, 1);
-}
-
-.g-slot.leaving .g-toast:dir(rtl) {
-  translate: calc(-100% - var(--cp-space-4)) 0;
-}
-
-/* Under a finger or a mouse, the whole toast is the dismiss. */
-.g-toast {
-  cursor: pointer;
-}
-
-.g-toast :is(p, strong) {
-  cursor: text;
-}
-
-.g-toast:dir(rtl) {
-  padding-inline: var(--cp-space-4) var(--cp-space-3);
-}
-
-.g-toast > .cp-icon {
-  margin-block-start: 0.0625rem;
-  color: var(--tone-9);
-}
-
-.g-toast[data-kind="success"] {
-  --tone-9: var(--cp-success-9);
-}
-
-.g-toast[data-kind="warning"] {
-  --tone-9: var(--cp-warning-9);
-}
-
-.g-toast[data-kind="error"] {
-  --tone-9: var(--cp-danger-9);
-}
-
-.g-toast strong {
-  display: block;
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-toast p {
-  margin: 0.125rem 0 0;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  line-height: var(--cp-leading-body);
-}
-
-.g-toast .g-toast-actions {
-  grid-column: 2;
-  display: flex;
-  gap: var(--cp-space-2);
-  margin-block-start: var(--cp-space-2);
-}
-
-.g-toast > .g-close {
-  min-block-size: 1.75rem;
-  min-inline-size: 1.75rem;
-  margin-block: -0.25rem;
-  padding: 0;
-}
-
-/* The draining line: a scale, so it runs on the compositor. */
-.g-toast > .g-time {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: 0;
-  block-size: 2px;
-  background: var(--tone-9);
-  opacity: 0.55;
-  transform-origin: left;
-  animation: drain var(--life, 5s) linear forwards;
-}
-
-.g-toast:dir(rtl) > .g-time {
-  transform-origin: right;
-}
-
-.g-toast:is(:hover, :focus-within) > .g-time,
-.g-toaster:is(:hover, :focus-within) .g-time {
-  animation-play-state: paused;
-}
-
-@keyframes drain {
-  to {
-    scale: 0 1;
-  }
-}
-
 .g-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: var(--cp-space-2);
-}
-
-@media (width < 40rem) {
-  .g-toaster {
-    inset-inline: var(--cp-space-3);
-    inline-size: auto;
-  }
 }
 
 /* Popovers: a menu or a panel anchored to its button with CSS anchor
@@ -1741,7 +1573,7 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-toast, .g-slot, .g-result) {
+  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-result) {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }

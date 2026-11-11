@@ -92,6 +92,36 @@ describe("toast", () => {
     expect(el.querySelector("strong")?.textContent).toBe("Check finished");
   });
 
+  it("counts a working toast in place, its loader and focused button kept", async () => {
+    const ran: string[] = [];
+    const actions = (n: number) => [
+      { label: "Open", keep: true, run: () => ran.push(`open ${String(n)}`) },
+      { label: "Cancel" },
+    ];
+    const t = toast({ title: "Checking 0 of 412 entries…", busy: true, actions: actions(0) });
+    const el = toasts()[0] as HTMLElement;
+    const loader = el.querySelector(".cp-loader");
+    const open = el.querySelector<HTMLButtonElement>(".cp-toast-actions button");
+    open?.focus();
+    t.update({ title: "Checking 103 of 412 entries…", busy: true, actions: actions(103) });
+    expect(el.querySelector("strong")?.textContent).toBe("Checking 103 of 412 entries…");
+    expect(el.querySelector(".cp-loader")).toBe(loader);
+    expect(el.querySelector(".cp-toast-actions button")).toBe(open);
+    expect(document.activeElement).toBe(open);
+    await userEvent.click(open as HTMLElement);
+    expect(ran).toEqual(["open 103"]);
+    t.update({
+      kind: "success",
+      title: "Check finished",
+      body: "33 entries have a better release.",
+    });
+    expect(el.querySelector(".cp-toast-actions")).toBeNull();
+    expect([...el.querySelectorAll(".cp-toast-text > *")].map((n) => n.tagName)).toEqual([
+      "STRONG",
+      "P",
+    ]);
+  });
+
   it("shows four at most, the oldest passing one making room", () => {
     toast({ kind: "error", title: "kept" });
     for (const n of [1, 2, 3, 4]) {

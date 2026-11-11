@@ -10,7 +10,7 @@ import { enhanceCombobox } from "@cplieger/ui/combobox";
 import { enhanceDisclosure, groupDisclosures } from "@cplieger/ui/disclosure";
 import { enhanceMenu } from "@cplieger/ui/menu";
 import { enhanceTabs } from "@cplieger/ui/tabs";
-import { toast } from "@cplieger/ui/toast";
+import { toast, type ToastKind, type ToastOptions } from "@cplieger/ui/toast";
 
 installAnnouncer();
 
@@ -158,6 +158,72 @@ for (const mode of document.querySelectorAll<HTMLElement>("[data-accordion-mode]
     groupDisclosures(sections, one ? group : null);
   });
 }
+
+const PRESETS: Record<ToastKind, ToastOptions> = {
+  info: { title: "The next check starts at 14:30" },
+  success: { kind: "success", title: "Saved", body: "The next check uses the new interval." },
+  warning: {
+    kind: "warning",
+    title: "AniList is slow to answer",
+    body: "Verdicts may be up to an hour old.",
+  },
+  error: {
+    kind: "error",
+    title: "Sonarr refused the API key",
+    body: "Paste a new key in Settings, then Sources.",
+  },
+};
+const isKind = (k: string | undefined): k is ToastKind =>
+  k !== undefined && Object.hasOwn(PRESETS, k);
+for (const button of document.querySelectorAll<HTMLElement>("[data-toast-kind]")) {
+  button.addEventListener("click", () => {
+    const kind = button.dataset["toastKind"];
+    if (isKind(kind)) {
+      toast(PRESETS[kind]);
+    }
+  });
+}
+document.querySelector("[data-toast-undo]")?.addEventListener("click", () => {
+  toast({
+    kind: "success",
+    title: "3 entries removed",
+    actions: [{ label: "Undo", run: () => toast({ title: "3 entries restored" }) }],
+  });
+});
+document.querySelector("[data-toast-sticky]")?.addEventListener("click", () => {
+  toast({
+    kind: "warning",
+    title: "Radarr is offline",
+    body: "Changes wait until it answers again.",
+    sticky: true,
+  });
+});
+// The check counts in steps of 103 until its 412 entries are done.
+document.querySelector("[data-toast-busy]")?.addEventListener("click", () => {
+  let done = 0;
+  const working = (): ToastOptions => ({
+    title: `Checking ${String(done)} of 412 entries…`,
+    busy: true,
+    actions: [
+      { label: "Open", keep: true, run: () => announce("Opening the check") },
+      { label: "Cancel", run: () => clearInterval(tick) },
+    ],
+  });
+  const check = toast(working());
+  const tick = setInterval(() => {
+    done = Math.min(412, done + 103);
+    if (done < 412) {
+      check.update(working());
+      return;
+    }
+    clearInterval(tick);
+    check.update({
+      kind: "success",
+      title: "Check finished",
+      body: "33 entries have a better release.",
+    });
+  }, 600);
+});
 
 // A frame takes the gallery's look by message (frame.ts owns why): sent
 // when the frame asks and on every change.
