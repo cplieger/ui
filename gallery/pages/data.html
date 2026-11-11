@@ -257,6 +257,16 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button><button class="cp-button" type="button" data-figure-refuse="refused">Refuse a post</button></div>
         <footer>A number now under its label, with its unit on its baseline. Live agents carries its last six hours as a sparkline in its slot. Oldest unread is past its hour, so it takes the warning tone with the tone's glyph, and a reader hears "over an hour". Refused posts and Failed pushes are buttons that open the events behind their count: neutral at 0, in the warning tone with a count. Refuse a post turns the first from 0 to 1 and back.</footer>
       </div>
+      <div class="card" data-new>
+        <h2>Meter</h2>
+        <div class="cp-meter" data-meter-unit="GB">
+          <label data-part="label" for="store-meter">Store used</label>
+          <div data-part="bar"><meter id="store-meter" min="0" max="500" low="400" high="450" optimum="0" value="420" aria-describedby="store-words">420 GB of 500 GB</meter></div>
+          <small data-part="words" id="store-words">420 GB of 500 GB, past the 80% mark</small>
+        </div>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-meter-step="store-meter" data-by="30">Add 30 GB</button><button class="cp-button" type="button" data-meter-step="store-meter" data-by="-150">Free 150 GB</button></div>
+        <footer>A native meter against its ceiling, marked at 80% and 90%. Past the first mark the fill turns to the warning tone and past the second to danger, each with its glyph before the words, which say the value and the mark it passed. Add 30 GB and Free 150 GB move it.</footer>
+      </div>
     </div>
   </section>
 
@@ -283,9 +293,9 @@
         </div>
         <footer>Where the covers carry the meaning, a grid of cards; without covers, the stand-in is a harmony gradient and the kind's icon. The card grows a little under a mouse.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Segmented meter</h2>
-        <div class="g-meter"><div class="g-segs" aria-hidden="true"><span data-of="12" data-fill="100" data-h="1"></span><span data-of="12" data-fill="25" data-h="2"></span></div><small>English 12 of 12 · French 3 of 12 · 2 pinned</small></div>
+        <div class="cp-meter"><div data-part="bar"><meter data-series="1" max="12" value="12" aria-label="English" aria-describedby="lang-words">12 of 12</meter><meter data-series="2" max="12" value="3" aria-label="French" aria-describedby="lang-words">3 of 12</meter></div><small data-part="words" id="lang-words">English 12 of 12 · French 3 of 12 · 2 pinned</small></div>
         <footer>One segment per target, filled in its share. The sentence is the meter's meaning and its text alternative; the colour is a second channel.</footer>
       </div>
     </div>

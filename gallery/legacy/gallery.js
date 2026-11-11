@@ -2330,10 +2330,6 @@ for (const box of $$("[data-jump]")) {
 
 // Values that come from data are set through the CSSOM, which a style-src
 // without 'unsafe-inline' allows, never as a style attribute.
-for (const s of $$(".g-segs > span[data-fill]")) {
-  s.style.setProperty("--of", s.dataset.of);
-  s.style.setProperty("--fill", `${s.dataset.fill}%`);
-}
 for (const l of $$("label[data-hue]")) l.style.setProperty("--h", l.dataset.hue);
 
 // A current step's share of its bar, set through the CSSOM.

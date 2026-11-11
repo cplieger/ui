@@ -2486,30 +2486,6 @@ html:has(.g-header) {
   font-variant-numeric: tabular-nums;
 }
 
-/* A segmented meter: one segment per target, filled in its share. The
- * sentence beside it is the meaning; colour is a second channel. */
-.g-meter {
-  display: grid;
-  gap: var(--cp-space-1);
-}
-
-.g-meter > .g-segs {
-  display: flex;
-  gap: 2px;
-  block-size: 0.5rem;
-}
-
-.g-meter > .g-segs > span {
-  flex: var(--of, 1);
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--seg, var(--cp-harmony-1)) var(--fill), var(--cp-fill) var(--fill));
-}
-
-.g-meter > small {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
 /* A group whose header holds an action menu outside its summary, so the
  * menu never opens or closes the group. */
 .g-group {
@@ -4172,10 +4148,6 @@ html:has(.g-header) {
 .g-harmony > span[data-h] {
   background: var(--av);
   color: var(--av-on);
-}
-
-.g-segs > span[data-h] {
-  --seg: var(--av);
 }
 
 .g-range-wide {

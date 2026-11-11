@@ -3,6 +3,7 @@
  * sparklines, meters, share bars and card links on the Data page.
  */
 
+import { enhanceMeter } from "@cplieger/ui/meter";
 import { enhanceShareBar } from "@cplieger/ui/share-bar";
 import { renderSparkline, type SparklineOptions } from "@cplieger/ui/sparkline";
 
@@ -216,5 +217,31 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-figure-
     table.hidden = count === 0;
     panel.toggleAttribute("data-flush", count !== 0);
     button.textContent = count === 0 ? "Refuse a post" : "Clear the refusal";
+  });
+}
+
+for (const meter of document.querySelectorAll<HTMLElement>(".cp-meter")) {
+  enhanceMeter(meter);
+}
+
+// The demo moves a store's use and writes its words, which name the mark it passed.
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-meter-step]")) {
+  const meter = document.getElementById(button.dataset["meterStep"] ?? "");
+  const host = meter?.closest<HTMLElement>(".cp-meter");
+  const words = host?.querySelector('[data-part="words"]');
+  if (!(meter instanceof HTMLMeterElement) || !host || !words) {
+    continue;
+  }
+  const unit = host.dataset["meterUnit"] ?? "";
+  button.addEventListener("click", () => {
+    const value = Math.min(
+      Math.max(meter.value + Number(button.dataset["by"]), meter.min),
+      meter.max,
+    );
+    const of = `${String(value)}\u00A0${unit} of ${String(meter.max)}\u00A0${unit}`;
+    const passed = value > meter.high ? 90 : value >= meter.low ? 80 : 0;
+    meter.value = value;
+    meter.textContent = of;
+    words.textContent = passed === 0 ? of : `${of}, past the ${String(passed)}% mark`;
   });
 }

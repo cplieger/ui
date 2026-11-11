@@ -3,6 +3,7 @@ import { cdp, page, server, userEvent } from "vitest/browser";
 
 import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
 import { enhanceShareBar } from "../data/share-bar/share-bar.js";
+import { enhanceMeter } from "../data/meter/meter.js";
 import { renderSparkline } from "../data/sparkline/sparkline.js";
 import { enhanceRange } from "../forms/range/range.js";
 
@@ -550,6 +551,132 @@ describe("css/system.css figure", () => {
     expect(box(fig).width).toBe(320);
     root.setAttribute("data-pointer", "coarse");
     expect(getComputedStyle(fig).borderColor).toBe(ink("--cp-line"));
+  });
+});
+
+describe("css/system.css meter", () => {
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const token = (name: string) => {
+    const probe = host("");
+    probe.style.color = `var(${name})`;
+    return getComputedStyle(probe).color;
+  };
+  function meter(bars: string, attrs = "", dir = "ltr"): HTMLElement {
+    theme("light");
+    const el = build(
+      `<div dir="${dir}" style="inline-size: 302px"><div class="cp-meter" ${attrs}><div data-part="bar">${bars}</div><small data-part="words">Store</small></div></div>`,
+    );
+    const m = el.querySelector(".cp-meter") as HTMLElement;
+    enhanceMeter(m);
+    return m;
+  }
+  // The element's paint from one screenshot, read back by CSS pixel.
+  async function paint(el: Element): Promise<(x: number, y: number) => string> {
+    const shot = await page.screenshot({ element: el, base64: true, save: false });
+    const png = await (await fetch(`data:image/png;base64,${shot}`)).blob();
+    const img = await createImageBitmap(png);
+    const ctx = new OffscreenCanvas(img.width, img.height).getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.drawImage(img, 0, 0);
+    const scale = img.width / box(el).width;
+    const px = ctx.getImageData(0, 0, img.width, img.height).data;
+    return (x, y) => {
+      const at = (Math.floor(y * scale) * img.width + Math.floor(x * scale)) * 4;
+      return px.slice(at, at + 3).join(",");
+    };
+  }
+
+  it("lays its meters out as one 8px bar, a 2px gap between them, each sized by its range", () => {
+    const el = meter('<meter max="12" value="12"></meter><meter max="6" value="3"></meter>');
+    const [a, b] = [...el.querySelectorAll("meter")].map(box) as [DOMRect, DOMRect];
+    expect([a.width, b.width, a.height, b.height]).toEqual([200, 100, 8, 8]);
+    expect(b.left - a.right).toBe(2);
+    const cs = getComputedStyle(el.querySelector("meter") as Element);
+    expect(cs.borderTopLeftRadius).toBe("2px");
+    expect(cs.backgroundColor).toBe(token("--cp-fill"));
+  });
+
+  it("paints the fill over the bar's whole height up to the value, from the start side", async () => {
+    theme("light");
+    const el = build(
+      ["ltr", "rtl"]
+        .map(
+          (dir) =>
+            `<div dir="${dir}" class="cp-meter" style="inline-size: 300px"><div data-part="bar"><meter max="100" value="50"></meter></div></div>`,
+        )
+        .join(""),
+    );
+    const at = await paint(el);
+    for (const [i, m] of [...el.querySelectorAll("meter")].entries()) {
+      const top = box(m).top - box(el).top;
+      const rows = (x: number) =>
+        new Set(Array.from({ length: 8 }, (_, y) => at(x, top + y + 0.5)));
+      const [near, far] = i === 0 ? [rows(50), rows(250)] : [rows(250), rows(50)];
+      expect(near.size, String(i)).toBe(1);
+      expect(far.size, String(i)).toBe(1);
+      expect([...near][0], String(i)).not.toBe([...far][0]);
+    }
+  });
+
+  it("fills in the accent, a series slot or tone, and the warning or danger past low or high", () => {
+    const store = '<meter max="500" low="400" high="450" optimum="0" value="300"></meter>';
+    const fill = (el: HTMLElement) => getComputedStyle(el.querySelector("meter") as Element).color;
+    expect(fill(meter(store))).toBe(token("--cp-accent"));
+    expect(fill(meter(store, 'data-series="2"'))).toBe(token("--cp-series-2"));
+    expect(fill(meter('<meter max="9" value="1" data-series="5"></meter>'))).toBe(
+      token("--cp-series-5"),
+    );
+    expect(fill(meter(store.replace("300", "420"), 'data-series="2"'))).toBe(
+      token("--cp-warning-9"),
+    );
+    expect(fill(meter(store.replace("300", "470")))).toBe(token("--cp-danger-9"));
+  });
+
+  it("draws a level past its optimum's glyph before the words, and none at the optimum", () => {
+    const store = '<meter max="500" low="400" high="450" optimum="0" value="300"></meter>';
+    const glyph = (el: HTMLElement) =>
+      decodeURIComponent(
+        getComputedStyle(el.querySelector('[data-part="words"]') as Element, "::before").maskImage,
+      );
+    expect(glyph(meter(store))).toBe("none");
+    expect(glyph(meter(store.replace("300", "420")))).toContain("M12 9v4");
+    expect(glyph(meter(store.replace("300", "470")))).toContain("m15 9-6 6");
+  });
+
+  it("puts each mark's tick over the bar at its point and its words under it", () => {
+    const el = meter(
+      '<meter max="10" value="1"></meter><meter max="30" low="15" high="27" value="1"></meter>',
+    );
+    const bar = box(el.querySelector('[data-part="bar"]'));
+    const marks = [...el.querySelectorAll('[data-part="marks"] > span')];
+    // 300px of shares after the gap: 75px, the gap, then 225px.
+    for (const [i, point] of [77 + 112.5, 77 + 202.5].entries()) {
+      const at = box(marks[i] as Element);
+      const tick = getComputedStyle(marks[i] as Element, "::before");
+      const end = at.bottom - parseFloat(tick.bottom);
+      expect(at.left + parseFloat(tick.left) + parseFloat(tick.width) / 2 - bar.left).toBeCloseTo(
+        point,
+        0,
+      );
+      expect(at.left - bar.left).toBeCloseTo(point, 0);
+      expect(at.top).toBeGreaterThanOrEqual(bar.bottom);
+      expect(end).toBeCloseTo(at.top, 1);
+      expect(end - parseFloat(tick.height)).toBeLessThanOrEqual(bar.top + 0.01);
+    }
+    const words = document.createRange();
+    words.selectNodeContents(marks[0] as Element);
+    const text = words.getBoundingClientRect();
+    expect(text.left + text.width / 2 - bar.left).toBeCloseTo(189.5, 0);
+    expect(getComputedStyle(marks[0] as Element).fontSize).toBe("13px");
+  });
+
+  it("measures marks from the end in a right-to-left page", () => {
+    const el = meter('<meter max="100" low="80" value="1"></meter>', "", "rtl");
+    const bar = box(el.querySelector('[data-part="bar"]'));
+    const mark = box(el.querySelector('[data-part="marks"] > span'));
+    expect(bar.right - (mark.left + mark.width / 2)).toBeCloseTo(302 * 0.8, 0);
   });
 });
 

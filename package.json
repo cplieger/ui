@@ -23,6 +23,7 @@
     "./icons": "./src/foundations/icons/icons.ts",
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
     "./menu": "./src/overlays/menu/menu.ts",
+    "./meter": "./src/data/meter/meter.ts",
     "./pairs": "./src/forms/pairs/pairs.ts",
     "./panel": "./src/overlays/panel/panel.ts",
     "./pill": "./src/core/pill/pill.ts",
