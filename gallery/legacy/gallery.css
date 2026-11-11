@@ -1735,42 +1735,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   padding: var(--cp-space-4);
 }
 
-/* A tooltip: dark, small, above its target, after a short wait for a
- * mouse and at once for focus. */
-.g-tip {
-  position: fixed;
-  inset: auto;
-  margin: 0 0 var(--cp-space-2);
-  padding: var(--cp-space-1) var(--cp-space-2);
-  border: 0;
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-neutral-12);
-  color: var(--cp-neutral-1);
-  font-size: var(--cp-text-xs);
-  position-area: block-start;
-  position-try-fallbacks: flip-block;
-  pointer-events: none;
-  opacity: 0;
-  translate: 0 0.25rem;
-  transition:
-    opacity 120ms var(--cp-ease-out),
-    translate 120ms var(--cp-ease-out),
-    overlay 120ms allow-discrete,
-    display 120ms allow-discrete;
-}
-
-.g-tip:popover-open {
-  opacity: 1;
-  translate: 0 0;
-}
-
-@starting-style {
-  .g-tip:popover-open {
-    opacity: 0;
-    translate: 0 0.25rem;
-  }
-}
-
 /* Dialogs: a modal in the middle, a confirmation, a sheet from the inline
  * end, and a full-screen one. All are native <dialog>, so focus moves in,
  * the page goes inert and Escape closes. They fade and settle in and fade
@@ -2516,7 +2480,7 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .g-tip, .g-toast, .g-slot, .g-result, .g-token) {
+  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-toast, .g-slot, .g-result, .g-token) {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }

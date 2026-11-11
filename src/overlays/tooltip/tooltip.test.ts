@@ -106,6 +106,31 @@ describe("installTooltips", () => {
     expect(b.style.getPropertyValue("anchor-name")).toBe("--cp-anchor-9");
   });
 
+  it("follows its control's words and name while it shows, as a button that changes face", async () => {
+    installTooltips({ signal: life.signal });
+    const b = control("Send", "Send");
+    b.focus({ focusVisible: true });
+    b.dataset["cpTip"] = "Stop dictation";
+    b.setAttribute("aria-label", "Stop dictation");
+    await expect.poll(() => tip().textContent).toBe("Stop dictation");
+    expect(showing()).toBe(true);
+    expect(b.hasAttribute("aria-describedby")).toBe(false);
+    b.dataset["cpTip"] = "Stop dictation and keep the words";
+    await expect.poll(() => b.getAttribute("aria-describedby")).toBe(tip().id);
+    expect(tip().textContent).toBe("Stop dictation and keep the words");
+    b.setAttribute("aria-label", "Stop dictation and keep the words");
+    await expect.poll(() => b.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("hides once its control's words are removed while it shows", async () => {
+    installTooltips({ signal: life.signal });
+    const b = control("Grab", "Grab");
+    b.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+    delete b.dataset["cpTip"];
+    await expect.poll(showing).toBe(false);
+  });
+
   it("reads the words at each showing, and removes the tip when its signal aborts", () => {
     installTooltips({ signal: life.signal });
     const b = control("Switch to dark", "Theme");

@@ -5,4 +5,8 @@
  * as an app does, and its legacy version goes.
  */
 
+import { installTooltips } from "@cplieger/ui/tooltip";
+
 import "./legacy/gallery.js";
+
+installTooltips();
