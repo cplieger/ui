@@ -68,13 +68,20 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
   };
   // Only the strip scrolls, never the page (as scrollIntoView would), so a
   // tab Back restores in a strip off screen leaves the page where it was.
-  // A restore scrolls at once: it needs no glide, and Firefox leaves a
-  // smooth scroll of a strip outside the viewport undone.
+  // A restore scrolls at once, since nothing glides into a strip the reader
+  // is not looking at. A tab wider than the strip shows its reading start.
   const reveal = (tab: HTMLElement, glide: boolean): void => {
-    const start = list.getBoundingClientRect().left + list.clientLeft;
-    const end = start + list.clientWidth;
+    const left = list.getBoundingClientRect().left + list.clientLeft;
+    const right = left + list.clientWidth;
     const box = tab.getBoundingClientRect();
-    const dx = box.left < start ? box.left - start : Math.max(0, box.right - end);
+    const past = box.right - right;
+    const before = box.left - left;
+    let dx: number;
+    if (list.matches(":dir(rtl)")) {
+      dx = past > 0 ? past : Math.min(0, Math.max(before, past));
+    } else {
+      dx = before < 0 ? before : Math.max(0, Math.min(past, before));
+    }
     if (dx !== 0) {
       list.scrollBy({ left: dx, behavior: glide && !reducedMotion() ? "smooth" : "auto" });
     }
@@ -91,6 +98,7 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
   const first = selected() ?? tabs()[0];
   if (first !== undefined) {
     show(first);
+    reveal(first, false);
   }
   enhanceRovingFocus(list, { items: TAB, ...(signal === undefined ? {} : { signal }) });
   enhancePill(list, signal === undefined ? {} : { signal });

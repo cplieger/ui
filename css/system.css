@@ -4877,11 +4877,13 @@ textarea.cp-input {
   initial-value: transparent;
 }
 
-/* It wraps, so the track's width is its narrowest and the words go under
- * it in a narrow box instead of overflowing. */
+/* It wraps and never outgrows its box, so in a narrow box the track
+ * shrinks toward its 5rem floor and the words go under it instead of
+ * overflowing. */
 .cp-progress {
   display: inline-flex;
   flex-wrap: wrap;
+  max-inline-size: 100%;
   align-items: center;
   gap: var(--cp-space-2);
   font-size: var(--cp-text-xs);
@@ -4950,6 +4952,26 @@ textarea.cp-input {
   transition:
     scale var(--cp-dur-spring) var(--cp-ease-bounce) 740ms,
     opacity 120ms linear 740ms;
+}
+
+/* The fill jumps to each step and the check only fades in, with no wait
+ * for a glide that no longer runs. */
+@media (prefers-reduced-motion: reduce) {
+  .cp-progress-fill,
+  .cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+    transition:
+      --cp-progress-from var(--cp-dur-short) var(--cp-ease-out),
+      --cp-progress-to var(--cp-dur-short) var(--cp-ease-out);
+  }
+
+  .cp-progress::before {
+    scale: 1;
+  }
+
+  .cp-progress::before,
+  .cp-progress[data-state="done"]::before {
+    transition: opacity var(--cp-dur-short) var(--cp-ease-out);
+  }
 }
 
 @media (forced-colors: active) {

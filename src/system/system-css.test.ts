@@ -2311,6 +2311,38 @@ describe("css/system.css feedback and steps", () => {
     expect(bar.getBoundingClientRect().height).toBeLessThan(24);
   });
 
+  it("shrinks a progress bar's track to fit a box narrower than the track", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>Series 120 of 351</span>',
+    );
+    el.style.inlineSize = "10rem";
+    const box = el.getBoundingClientRect();
+    const bar = (el.querySelector(".cp-progress") as HTMLElement).getBoundingClientRect();
+    const track = (el.querySelector(".cp-progress-track") as HTMLElement).getBoundingClientRect();
+    expect(bar.right).toBeLessThanOrEqual(box.right + 0.5);
+    expect(track.width).toBeLessThanOrEqual(160.5);
+    expect(track.width).toBeGreaterThanOrEqual(80);
+  });
+
+  it.skipIf(!emulates)(
+    "jumps a progress fill and fades its check in at once under reduced motion",
+    async () => {
+      theme("light");
+      const el = build(
+        '<span class="cp-progress" data-state="done"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>2 of 2</span>',
+      );
+      await media("prefers-reduced-motion", "reduce");
+      const fill = getComputedStyle(el.querySelector(".cp-progress-fill") as Element);
+      expect(fill.transitionProperty).not.toMatch(/clip-path/);
+      expect(fill.transitionDelay).toMatch(/^0s(, 0s)*$/);
+      const check = getComputedStyle(el.querySelector(".cp-progress") as Element, "::before");
+      expect(check.transitionProperty).toBe("opacity");
+      expect(check.transitionDelay).toBe("0s");
+      expect(check.scale).toBe("1");
+    },
+  );
+
   it("sizes a skeleton's heading and last lines, and leads an empty state with its glyph or loader", () => {
     theme("light");
     const el = build(

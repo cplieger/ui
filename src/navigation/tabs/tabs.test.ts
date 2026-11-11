@@ -173,6 +173,37 @@ describe("enhanceTabs", () => {
     expect(page.scrollTop).toBe(0);
   });
 
+  it("starts with the selected tab in view in a strip too narrow for its tabs", () => {
+    const { list, tabs } = strip(2);
+    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
+    for (const t of tabs) {
+      t.style.cssText = "flex: none; inline-size: 5rem";
+    }
+    enhanceTabs(list, { signal: life.signal });
+    const port = list.getBoundingClientRect();
+    const tab = (tabs[2] as HTMLElement).getBoundingClientRect();
+    expect(tab.left).toBeGreaterThanOrEqual(port.left - 0.5);
+    expect(tab.right).toBeLessThanOrEqual(port.right + 0.5);
+  });
+
+  it.each([
+    { dir: "ltr", scroll: 32, start: (r: DOMRect) => r.left },
+    { dir: "rtl", scroll: -32, start: (r: DOMRect) => r.right },
+  ])("shows a tab wider than the strip from its reading start ($dir)", ({ dir, scroll, start }) => {
+    const { list, tabs } = strip();
+    list.dir = dir;
+    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
+    const widths = ["4rem", "10rem", "4rem"];
+    tabs.forEach((t, i) => {
+      t.style.cssText = `flex: none; inline-size: ${widths[i] ?? ""}`;
+    });
+    const api = enhanceTabs(list, { signal: life.signal });
+    list.scrollLeft = scroll;
+    api.select(tabs[1] as HTMLElement);
+    const port = list.getBoundingClientRect();
+    expect(start((tabs[1] as HTMLElement).getBoundingClientRect())).toBeCloseTo(start(port), 0);
+  });
+
   it("slides a pill under the selected tab, and its signal removes the pill and the keys", async () => {
     const { list, tabs } = strip();
     enhanceTabs(list, { signal: life.signal });
