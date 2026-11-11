@@ -3784,4 +3784,82 @@ describe("css/system.css lists, feeds and counts", () => {
       expect(getComputedStyle(row(el)).outlineStyle).toBe("solid");
     },
   );
+
+  const ordered = (lifted = "") =>
+    `<ol class="cp-list cp-reorder"><li ${lifted}><div class="cp-list-row"><span data-part="handle"></span><span data-part="rank">1</span><span class="cp-cell-stack">Japanese</span><span data-part="move"><button class="cp-button" data-size="sm" type="button">Up</button></span></div></li><li><div class="cp-list-row">English</div></li></ol>`;
+
+  it("gives a reorder handle 28px under a mouse and the 44px hit floor under a finger", () => {
+    theme("light");
+    const el = build(ordered());
+    const handle = el.querySelector('[data-part="handle"]') as Element;
+    const size = (): number[] => {
+      const r = handle.getBoundingClientRect();
+      return [r.width, r.height];
+    };
+    expect(size()).toEqual([28, 28]);
+    expect(getComputedStyle(handle).touchAction).toBe("none");
+    expect(getComputedStyle(handle).cursor).toBe("grab");
+    root.setAttribute("data-pointer", "coarse");
+    expect(size()).toEqual([44, 44]);
+  });
+
+  it("puts a reorder item's moves at the end of its line and its rank in muted figures", () => {
+    theme("light");
+    const el = build(ordered());
+    const r = row(el);
+    const moves = (r.querySelector('[data-part="move"]') as Element).getBoundingClientRect();
+    expect(moves.right).toBeCloseTo(r.getBoundingClientRect().right - 16, 1);
+    const rank = getComputedStyle(r.querySelector('[data-part="rank"]') as Element);
+    expect(rank.color).toBe(resolved("var(--cp-ink-muted)"));
+    expect(rank.fontSize).toBe("13px");
+    expect(rank.fontVariantNumeric).toBe("tabular-nums");
+  });
+
+  it("slides reorder items on the move curve, and lifts a dragged one above the others", () => {
+    theme("light");
+    const el = build(ordered("data-cp-lifted"));
+    const [lifted, other] = [...el.querySelectorAll("li")].map((li) => getComputedStyle(li)) as [
+      CSSStyleDeclaration,
+      CSSStyleDeclaration,
+    ];
+    expect(other.transitionProperty).toBe("translate");
+    expect(other.transitionDuration).toBe("0.24s");
+    expect(other.transitionTimingFunction).toBe("cubic-bezier(0.4, 0, 0.2, 1)");
+    expect(lifted.transitionDuration).toBe("0s");
+    expect(lifted.boxShadow).not.toBe("none");
+    expect(lifted.backgroundColor).toBe(resolved("var(--cp-surface-raised)", "backgroundColor"));
+    expect(lifted.cursor).toBe("grabbing");
+    expect(Number(lifted.zIndex)).toBeGreaterThan(0);
+  });
+
+  it("rounds a lifted card, but not a lifted row of a list that clips its corners", () => {
+    theme("light");
+    const cards = build(
+      '<ol class="cp-stack cp-reorder"><li data-cp-lifted><section class="cp-panel">OpenSubtitles</section></li></ol>',
+    );
+    const card = getComputedStyle(cards.querySelector("li") as Element);
+    expect(card.listStyleType).toBe("none");
+    expect(card.borderTopLeftRadius).not.toBe("0px");
+    const rows = build(ordered("data-cp-lifted"));
+    expect(getComputedStyle(rows.querySelector("li") as Element).borderTopLeftRadius).toBe("0px");
+  });
+
+  it.skipIf(!emulates)("moves reorder items at once under reduced motion", async () => {
+    theme("light");
+    await media("prefers-reduced-motion", "reduce");
+    const el = build(ordered());
+    expect(getComputedStyle(el.querySelectorAll("li")[1] as Element).transitionDuration).toBe("0s");
+  });
+
+  it.skipIf(!emulates)(
+    "outlines a lifted item in forced colours, where its shadow is dropped",
+    async () => {
+      theme("light");
+      await media("forced-colors", "active");
+      const el = build(ordered("data-cp-lifted"));
+      const cs = getComputedStyle(el.querySelector("li") as Element);
+      expect(cs.outlineStyle).toBe("solid");
+      expect(cs.outlineColor).toBe(resolved("CanvasText"));
+    },
+  );
 });

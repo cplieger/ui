@@ -4838,6 +4838,79 @@ textarea.cp-input {
   }
 }
 
+/* A list the person puts in order, its items any content: rows when it is
+ * also a .cp-list, cards when it is a .cp-stack. */
+.cp-reorder {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The script sets each item's translate from where it showed and clears
+ * it, so the item slides to its new place. */
+.cp-reorder > li {
+  transition: translate var(--cp-dur-medium) var(--cp-ease-move);
+}
+
+/* The item a drag lifted follows the pointer, above the others. */
+.cp-reorder > li[data-cp-lifted] {
+  position: relative;
+  z-index: 2;
+  background: var(--cp-surface-raised);
+  box-shadow: var(--cp-shadow-overlay);
+  cursor: grabbing;
+  transition: none;
+}
+
+.cp-reorder:not(.cp-list) > li[data-cp-lifted] {
+  border-radius: var(--cp-radius-surface);
+}
+
+.cp-reorder [data-part="handle"] {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: max(1.75rem, var(--cp-hit-min));
+  block-size: max(1.75rem, var(--cp-hit-min));
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.cp-reorder [data-cp-lifted] [data-part="handle"] {
+  cursor: grabbing;
+}
+
+.cp-reorder [data-part="rank"] {
+  min-inline-size: 1.25rem;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Move up and Move down, at the end of the item's line. */
+.cp-reorder [data-part="move"] {
+  display: inline-flex;
+  flex: none;
+  gap: 0.125rem;
+  margin-inline-start: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-reorder > li {
+    transition: none;
+  }
+}
+
+/* Forced colours drop the shadow, so a line marks the lifted item. */
+@media (forced-colors: active) {
+  .cp-reorder > li[data-cp-lifted] {
+    outline: var(--cp-line-w) solid CanvasText;
+    outline-offset: calc(-1 * var(--cp-line-w));
+  }
+}
+
 /* Chip: a tone's wash, its glyph and its word; colour is never alone. */
 .cp-chip {
   display: inline-flex;

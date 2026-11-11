@@ -41,6 +41,7 @@ const PURE = [
   "/range",
   "/ranked-bars",
   "/relative-time",
+  "/reorder",
   "/roll",
   "/rules",
   "/roving-focus",

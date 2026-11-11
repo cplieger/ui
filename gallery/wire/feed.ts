@@ -3,8 +3,10 @@
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
+import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 import { glideShow } from "@cplieger/ui/disclosure";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
+import { enhanceReorder } from "@cplieger/ui/reorder";
 
 installAnnouncer();
 
@@ -258,5 +260,39 @@ for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
     foot.before(...added);
     added[0]?.querySelector("a")?.focus();
     foot.remove();
+  });
+}
+
+for (const list of document.querySelectorAll<HTMLOListElement>("ol[data-reorder]")) {
+  enhanceReorder(list);
+}
+
+// A provider's test passes after a second for any key, and fails for none.
+for (const button of document.querySelectorAll<HTMLButtonElement>("button[data-provider-test]")) {
+  const status = document.getElementById(button.dataset["providerTest"] ?? "");
+  const key = document.getElementById(button.dataset["key"] ?? "");
+  const mark = document.getElementById(`${key?.id ?? ""}-error`);
+  const card = button.closest<HTMLElement>("section");
+  const name = card?.closest<HTMLElement>("li")?.dataset["name"] ?? "The provider";
+  if (status === null || !(key instanceof HTMLInputElement) || mark === null || card === null) {
+    continue;
+  }
+  enhanceConnectionTest(button, status, {
+    root: card,
+    run: (signal) =>
+      new Promise((done, fail) => {
+        const timer = setTimeout(() => {
+          done(
+            key.value.trim() === ""
+              ? { ok: false, message: `${name} needs an API key.`, field: "key" }
+              : { ok: true, message: `Connected to ${name}` },
+          );
+        }, 1000);
+        signal.addEventListener("abort", () => {
+          clearTimeout(timer);
+          fail(new DOMException("The check was ended.", "AbortError"));
+        });
+      }),
+    fields: { key: { input: key, mark } },
   });
 }

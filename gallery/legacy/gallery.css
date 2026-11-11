@@ -1011,7 +1011,7 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
 }
 
-.g-row > span:not(.g-avatar, .cp-icon, .g-handle, .g-rank, .g-dot, .g-move) {
+.g-row > span:not(.g-avatar, .cp-icon, .g-dot) {
   display: grid;
   flex: 1;
   gap: 0.125rem;
@@ -1441,33 +1441,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 
 .g-cover > .cp-icon {
   --cp-icon-size: 2rem;
-}
-
-/* A reorderable list: a handle at the start of each row. */
-.g-handle {
-  display: grid;
-  place-items: center;
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-  border-radius: var(--cp-radius-control);
-  color: var(--cp-ink-muted);
-  cursor: grab;
-  touch-action: none;
-}
-
-.g-list > li.lifted {
-  position: relative;
-  z-index: 2;
-  background: var(--cp-surface-raised);
-  box-shadow: 0 6px 18px oklch(from var(--cp-neutral-12) 20% c h / 22%);
-  cursor: grabbing;
-}
-
-.g-rank {
-  min-inline-size: 1.25rem;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-variant-numeric: tabular-nums;
 }
 
 .g-list .g-row {
@@ -2509,14 +2482,6 @@ html:has(.g-header) {
 
 .g-why-in {
   padding-block: var(--cp-space-2);
-}
-
-/* A reorderable item's Move up and Move down sit at its end. */
-.g-move {
-  display: inline-flex;
-  flex: none;
-  gap: 0.125rem;
-  margin-inline-start: auto;
 }
 
 /* Content-free frames: each region is a labelled, dashed box. */

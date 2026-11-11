@@ -37,6 +37,7 @@
     "./range": "./src/forms/range/range.ts",
     "./ranked-bars": "./src/data/ranked-bars/ranked-bars.ts",
     "./relative-time": "./src/data/relative-time/relative-time.ts",
+    "./reorder": "./src/data/reorder/reorder.ts",
     "./roll": "./src/core/roll/roll.ts",
     "./roving-focus": "./src/core/roving-focus/roving-focus.ts",
     "./rules": "./src/forms/rules/rules.ts",
