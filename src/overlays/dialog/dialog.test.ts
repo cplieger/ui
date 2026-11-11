@@ -27,7 +27,11 @@ function dialog(attrs: Record<string, string> = {}, inner = ""): HTMLDialogEleme
   return d;
 }
 
-const settled = () => new Promise((r) => setTimeout(r, 400));
+// A dialog's exit ends on an animation frame, which a busy machine can hold past any fixed wait.
+const settled = async () => {
+  await Promise.allSettled(document.getAnimations().map((a) => a.finished));
+  await new Promise((r) => setTimeout(r, 0));
+};
 
 describe("installDialogs", () => {
   it("closes a dialog marked closedby=any on a press that starts and ends outside it", async () => {

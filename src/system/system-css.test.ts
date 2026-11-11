@@ -2505,7 +2505,7 @@ describe("css/system.css", () => {
     expect(sizes).toEqual(["23px", "19px", "16px", "14px"]);
   });
 
-  it("shows hover on a link and a button under a fine pointer and not under a coarse one", async () => {
+  const hoverLook = async (pointer: "fine" | "coarse") => {
     theme("light");
     const el = build('<a href="#h">link</a> <button class="cp-button" type="button">Go</button>');
     const a = el.querySelector("a") as HTMLElement;
@@ -2516,20 +2516,24 @@ describe("css/system.css", () => {
       getComputedStyle(a).textDecorationColor,
       getComputedStyle(button).backgroundColor,
     ];
-    const hovered = async () => {
-      await userEvent.hover(a);
-      const link = getComputedStyle(a).textDecorationColor;
-      await userEvent.hover(button);
-      const fill = getComputedStyle(button).backgroundColor;
-      await userEvent.unhover(button);
-      return [link, fill];
-    };
-    root.dataset["pointer"] = "fine";
-    const fine = await hovered();
-    expect(fine[0]).not.toBe(rest[0]);
-    expect(fine[1]).not.toBe(rest[1]);
-    root.dataset["pointer"] = "coarse";
-    expect(await hovered()).toEqual(rest);
+    root.dataset["pointer"] = pointer;
+    await userEvent.hover(a);
+    const link = getComputedStyle(a).textDecorationColor;
+    await userEvent.hover(button);
+    const fill = getComputedStyle(button).backgroundColor;
+    await userEvent.unhover(button);
+    return { rest, hovered: [link, fill] };
+  };
+
+  it("shows hover on a link and a button under a fine pointer", async () => {
+    const { rest, hovered } = await hoverLook("fine");
+    expect(hovered[0]).not.toBe(rest[0]);
+    expect(hovered[1]).not.toBe(rest[1]);
+  });
+
+  it("shows no hover on a link or a button under a coarse pointer", async () => {
+    const { rest, hovered } = await hoverLook("coarse");
+    expect(hovered).toEqual(rest);
   });
 
   it("opens a sheet at the inline end at full height, across the window when compact", async () => {

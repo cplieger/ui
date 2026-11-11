@@ -1,12 +1,8 @@
 /**
  * table.ts — the parts of a `.cp-table` that need a script. `enhanceSort()`
- * runs its sortable headers: each `.cp-sort` button names the order its
- * press applies, a press moves `aria-sort` and the rows glide to their new
- * places. `enhanceBatchBar()` runs the `.cp-batchbar` over its selection:
- * the count, Clear, the offer of every matching row, bulk actions that name
- * their count, Escape, the announcements and the bar gliding in and out.
- * `enhanceRowDetail()` opens and shuts the detail row under a row that
- * explains itself, gliding it as every disclosure glides.
+ * runs its sortable headers, `enhanceBatchBar()` the `.cp-batchbar` over its
+ * selection, and `enhanceRowDetail()` the detail row under a row that
+ * explains itself.
  * @module
  */
 

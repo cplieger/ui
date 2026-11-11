@@ -1,11 +1,8 @@
 /**
  * active-filters.ts — `enhanceActiveFilters()` runs a `.cp-active-filters`
- * row: a `.cp-token` chip for each filter in force, each with its Remove,
- * then Clear filters, shown only while a filter is on. A press ends its
- * filter and moves focus to the next chip, or to Clear while one is left,
- * or to the count once none is. The app owns the filters and the count, and
- * the count it writes through `setCount()` is announced once it stops
- * changing.
+ * row of `.cp-token` chips and its Clear filters. The app owns the filters
+ * and the count. A removed filter moves focus to the next chip, and the count
+ * written through `setCount()` is announced once it stops changing.
  * @module
  */
 
