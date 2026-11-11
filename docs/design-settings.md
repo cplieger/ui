@@ -23,11 +23,14 @@ A save says what it did or when it takes effect, such as "Saved. 6 copies change
 
 ## Controls
 
-- A `.cp-switch`, a native checkbox with `role="switch"`, is for an on or off that takes effect at once. Its label names the setting and stays the same in both states. In a category with Save, the same on or off is a checkbox, since a switch reads as already applied.
-- A `.cp-segmented` choice is for two to four short options, such as System, Light and Dark. More, or longer, options take a select.
+- A `.cp-switch`, a native checkbox with `role="switch"`, is for an on or off that takes effect at once. Its label names the setting and stays the same in both states. In a category with Save, the same on or off is a `.cp-checkbox`, since a switch reads as already applied.
+- A `.cp-segmented` choice is for two to four short options, such as System, Light and Dark. More, or longer, options take a `.cp-select`.
 - A number with a unit names the unit in its label or its help, such as "Check every (minutes)".
+- A small count with a short range, such as parallel checks from 1 to 8, is a `.cp-stepper` from [stepper](forms/stepper.md).
+- A radio that needs a value of its own, such as "Every 30 minutes", holds a `.cp-choice-field`, as [choice](forms/choice.md) describes.
 - A setting the server takes only from its config file shows its value as text, with the help "Set in the config file. Changes when the app restarts."
-- A stored secret, such as an API key, shows "Saved" and "Replace". Replace opens an empty field with a Show button inside it, in a `.cp-input-wrap`, and "Keep saved value" puts the saved one back. A save sends nothing for a kept secret.
+- A stored secret, such as an API key, shows "Saved" and "Replace". Replace opens an empty field with a Show button inside it, in a `.cp-input-wrap`, and "Keep saved value" puts the saved one back. A save sends nothing for a kept secret. [secret](forms/secret.md) drives Replace, Keep saved value and the Show button.
+- A secret the server takes from its environment shows its name, where it comes from and its state in a `.cp-secret-source` line, never its value.
 - A service the app reaches gets "Test connection" from [`@cplieger/ui/connection-test`](forms/connection-test.md), which marks the field at fault.
 
 ## Appearance

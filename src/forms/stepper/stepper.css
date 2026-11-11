@@ -1,0 +1,83 @@
+/* A stepper: a number between a minus and a plus, one control tall, as wide
+ * as what it holds. The value is a number field, or for a value the buttons
+ * alone set, such as a zoom, a button that resets it. */
+.cp-stepper {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  /* Border-box: the border sits inside the control height, and stays
+   * visible behind a button's hover fill, which an inset shadow would not. */
+  block-size: var(--cp-control-h);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+}
+
+.cp-field > .cp-stepper {
+  justify-self: start;
+}
+
+.cp-stepper > .cp-button {
+  min-block-size: 0;
+  border-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
+}
+
+.cp-stepper > input {
+  inline-size: 4ch;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  /* 16px on touch, so iOS does not zoom, as a field does. */
+  font-size: max(16px, var(--cp-text-ui));
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: textfield;
+}
+
+:root[data-pointer="fine"] .cp-stepper > input {
+  font-size: var(--cp-text-ui);
+}
+
+.cp-stepper > input::-webkit-inner-spin-button {
+  appearance: none;
+}
+
+.cp-stepper-value {
+  min-inline-size: 3.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus on its number rings the whole stepper, as a focused field is. */
+.cp-stepper:has(> input:focus-visible) {
+  border-color: var(--cp-focus-ring);
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* While a press rolls the number, the field's own text hides behind the
+ * roll that @cplieger/ui/stepper lays over it. */
+.cp-stepper-show {
+  position: absolute;
+  display: none;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.cp-stepper[data-cp-rolling] > .cp-stepper-show {
+  display: grid;
+}
+
+.cp-stepper[data-cp-rolling] > input {
+  color: transparent;
+}
+
+@media (forced-colors: active) {
+  .cp-stepper:has(> input:focus-visible) {
+    outline-color: Highlight;
+  }
+}

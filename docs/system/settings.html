@@ -150,26 +150,36 @@
                     <span class="cp-help">Settings, then General, in Sonarr.</span>
                   </div>
                   <div
-                    class="cp-toolbar"
-                    role="group"
-                    aria-labelledby="sonarr-key-label"
+                    class="cp-secret"
+                    data-cp-state="saved"
                   >
-                    <span
-                      class="cp-chip"
-                      data-tone="success"
-                      ><span
+                    <div data-part="saved">
+                      <span
                         class="cp-icon"
-                        data-cp-icon="circle-check"
+                        data-cp-icon="lock"
                         aria-hidden="true"
                       ></span
-                      >Saved</span
-                    >
-                    <button
-                      class="cp-button"
-                      type="button"
-                    >
-                      Replace
-                    </button>
+                      ><span>Saved</span>
+                      <button
+                        class="cp-button"
+                        data-size="sm"
+                        type="button"
+                        aria-describedby="sonarr-key-label"
+                      >
+                        Replace
+                      </button>
+                    </div>
+                    <div data-part="edit">
+                      <div class="cp-input-wrap">
+                        <input
+                          class="cp-input"
+                          type="password"
+                          aria-labelledby="sonarr-key-label"
+                          autocomplete="new-password"
+                          disabled
+                        >
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="cp-setting">
@@ -210,6 +220,7 @@
                     >
                   </div>
                   <input
+                    class="cp-checkbox"
                     id="scan-new"
                     type="checkbox"
                     checked

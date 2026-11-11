@@ -26,7 +26,7 @@ The components here need no foundation. Each takes an `AbortSignal` for its life
 | `disclosure` | A native `<details>`, with a shared `name` for one at a time, and [disclosure](navigation/disclosure.md) for the height glide in every engine. |
 | `roving-focus` | [roving-focus](core/roving-focus.md): `enhanceRovingFocus(group, options)`. |
 | `connection-test` | [connection-test](forms/connection-test.md): `enhanceConnectionTest(button, status, options)`. |
-| `stepper` | `.cp-steps`, an `<ol>` of steps with `data-state` and `aria-current="step"`, styled by the stylesheet with no script. |
+| `stepper` | `.cp-steps`, an `<ol>` of steps with `data-state` and `aria-current="step"`, styled by the stylesheet with no script. `@cplieger/ui/stepper` is now [stepper](forms/stepper.md), a number between a minus and a plus, with no `createStepper`. |
 | `transition` | CSS transitions and `@starting-style`, which every component here uses. |
 | `theme`, `skeleton`, `view-transition` | The same modules: [theme](core/theme.md), [skeleton](feedback/skeleton.md) and [view-transition](core/view-transition.md). |
 

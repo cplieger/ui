@@ -44,6 +44,7 @@ App CSS reads role names, and the component classes read a tone's steps. The rol
 - Accent: `--cp-accent`, `--cp-accent-hover`, `--cp-on-accent`, `--cp-accent-ink`, `--cp-accent-wash`, `--cp-focus-ring`.
 - Brand and header: `--cp-brand`, `--cp-on-brand`, `--cp-shell-bg`, `--cp-shell-ink`, `--cp-shell-current`, `--cp-shell-hover`.
 - Overlays: `--cp-backdrop`, `--cp-shadow-overlay`.
+- Confirmation: `--cp-done-fill`, the green a button fills with as it confirms, dark enough for white words in both themes.
 
 Ink on a solid fill is `contrast-color()` of that fill, so it is black or white, whichever has more contrast. In the light theme every solid is dark enough for white ink: step 9 sits at 54.8%, and greens and teals, the brightest hues at a given lightness, sit up to 2.4% lower. The three engines choose by the WCAG 2 ratio today, which the CSS specification leaves to the browser. A hover on a solid moves away from its ink, so the contrast rises when the pointer arrives.
 

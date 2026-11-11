@@ -1,0 +1,74 @@
+/* A search field: the glass at its start, and a clear button at its end
+ * that shows only while there is text (@cplieger/ui/search). The field needs
+ * a placeholder, which is how the stylesheet knows it is empty. */
+.cp-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.cp-search::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--cp-space-3);
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/search.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+
+.cp-search > .cp-input {
+  flex: 1;
+  min-inline-size: 0;
+  padding-inline: calc(var(--cp-space-3) * 2 + var(--cp-icon-ui))
+    calc(var(--cp-control-h) - 0.25rem);
+}
+
+.cp-search > .cp-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.cp-search > .cp-button {
+  position: absolute;
+  inset-inline-end: 0.25rem;
+  min-block-size: calc(var(--cp-control-h) - 0.5rem);
+  min-inline-size: calc(var(--cp-control-h) - 0.5rem);
+  padding: 0;
+  transition:
+    opacity var(--cp-dur-micro) var(--cp-ease-out),
+    scale var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-search > .cp-button::before {
+  content: "";
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/x.svg") center / contain no-repeat;
+}
+
+.cp-search:has(> .cp-input:placeholder-shown) > .cp-button {
+  opacity: 0;
+  scale: 0.6;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .cp-search::before,
+  .cp-search > .cp-button::before {
+    background: CanvasText;
+  }
+}
+
+/* A loader stands in for the glass while results load. */
+.cp-search:has(> .cp-inline-load, > .cp-loader)::before {
+  display: none;
+}
+
+.cp-search > :is(.cp-inline-load, .cp-loader) {
+  position: absolute;
+  inset-inline-start: var(--cp-space-3);
+  pointer-events: none;
+}

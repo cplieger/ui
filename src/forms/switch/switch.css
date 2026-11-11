@@ -1,8 +1,10 @@
 /* A switch is a native checkbox with role="switch": it keeps its label, its
- * keys and its form value. */
+ * keys and its form value. Its thumb springs across as it turns on. */
 .cp-switch {
-  --cp-switch-w: 2.25rem;
-  --cp-switch-h: 1.25rem;
+  --cp-switch-w: 2.75rem;
+  --cp-switch-h: 1.5rem;
+  --cp-switch-pad: 0.1875rem;
+  --cp-switch-thumb: calc(var(--cp-switch-h) - 2 * var(--cp-switch-pad));
   --cp-switch-dir: 1;
 
   appearance: none;
@@ -12,40 +14,53 @@
   block-size: var(--cp-switch-h);
   margin: 0;
   border-radius: var(--cp-radius-round);
+  /* The 3:1 step, so the switch and its off state are findable on any surface. */
   background: var(--cp-border-strong);
   cursor: pointer;
   touch-action: manipulation;
-  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+  transition: background-color 200ms var(--cp-ease-out);
 }
 
 :root[data-pointer="coarse"] .cp-switch {
-  --cp-switch-w: 3rem;
-  --cp-switch-h: 1.75rem;
+  --cp-switch-w: 3.25rem;
+  --cp-switch-h: 1.875rem;
 }
 
 .cp-switch:dir(rtl) {
   --cp-switch-dir: -1;
 }
 
+/* The hit area reaches past the track, which is shorter than a control. */
 .cp-switch::before {
   content: "";
   position: absolute;
-  inset-block-start: 0.125rem;
-  inset-inline-start: 0.125rem;
-  inline-size: calc(var(--cp-switch-h) - 0.25rem);
-  block-size: calc(var(--cp-switch-h) - 0.25rem);
+  inset: -0.4375rem -0.25rem;
+}
+
+.cp-switch::after {
+  content: "";
+  position: absolute;
+  inset-block-start: var(--cp-switch-pad);
+  inset-inline-start: var(--cp-switch-pad);
+  inline-size: var(--cp-switch-thumb);
+  block-size: var(--cp-switch-thumb);
   border-radius: var(--cp-radius-round);
-  background: var(--cp-surface-raised);
-  transition: translate var(--cp-dur-short) var(--cp-ease-move);
+  background: oklch(100% 0 0deg);
+  box-shadow: 0 1px 2px oklch(0% 0 0deg / 25%);
+  transition: translate var(--cp-dur-spring) var(--cp-ease-spring);
 }
 
 .cp-switch:checked {
   background: var(--cp-accent);
 }
 
-.cp-switch:checked::before {
+.cp-switch:checked::after {
   translate: calc((var(--cp-switch-w) - var(--cp-switch-h)) * var(--cp-switch-dir)) 0;
-  background: var(--cp-on-accent);
+}
+
+.cp-switch:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
 }
 
 .cp-switch:disabled {
@@ -53,8 +68,9 @@
   background: var(--cp-fill);
 }
 
-.cp-switch:disabled::before {
+.cp-switch:disabled::after {
   background: var(--cp-ink-disabled);
+  box-shadow: none;
 }
 
 /* System colours paint the switch, so its state survives the forced palette. */
@@ -65,15 +81,16 @@
     background: Canvas;
   }
 
-  .cp-switch::before {
+  .cp-switch::after {
     background: CanvasText;
+    box-shadow: none;
   }
 
   .cp-switch:checked {
     background: Highlight;
   }
 
-  .cp-switch:checked::before {
+  .cp-switch:checked::after {
     background: HighlightText;
   }
 
@@ -81,7 +98,7 @@
     border-color: GrayText;
   }
 
-  .cp-switch:disabled::before {
+  .cp-switch:disabled::after {
     background: GrayText;
   }
 }

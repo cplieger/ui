@@ -22,47 +22,47 @@
       <div class="card">
         <h2>Password and secrets</h2>
         <div class="g-form">
-          <div class="cp-field"><label class="cp-label" for="f-pw">Password</label><div class="cp-input-wrap"><input class="cp-input" id="f-pw" type="password" value="correct horse" autocomplete="current-password"><button class="cp-button" data-variant="quiet" type="button" data-reveal="f-pw" aria-pressed="false" aria-label="Show password" data-cp-tip="Show password"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span></button></div></div>
-          <div class="cp-field"><span class="cp-label" id="f-key-label">API key, shown once</span><div class="g-code" aria-labelledby="f-key-label"><code id="f-key">cpk_9a1f43b2e07d4c55a8</code><button class="cp-button g-copy" type="button" data-copy="#f-key"><span class="cp-icon" data-cp-icon="copy" aria-hidden="true"></span>Copy</button></div><span class="cp-help">Store it now: it cannot be shown again.</span></div>
+          <div class="cp-field"><label class="cp-label" for="f-pw">Password</label><div class="cp-input-wrap"><input class="cp-input" id="f-pw" type="password" value="correct horse" autocomplete="current-password"><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Show password" data-cp-tip="Show password"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="eye-off" data-part="on" aria-hidden="true"></span></button></div></div>
+          <div class="cp-field"><span class="cp-label" id="f-key-label">API key, shown once</span><div class="cp-code" aria-labelledby="f-key-label"><code id="f-key">cpk_9a1f43b2e07d4c55a8</code><button class="cp-button cp-copy" type="button"><span class="cp-icon" data-cp-icon="copy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span>Copy</button></div><span class="cp-help">Store it now: it cannot be shown again.</span></div>
         </div>
         <footer>Show and hide is a pressed toggle. A secret is machine text with Copy attached to its box: a press turns it green with a check, and it fades back to grey.</footer>
       </div>
       <div class="card">
         <h2>Search field</h2>
         <div class="g-form">
-          <div class="cp-field"><label class="cp-label" for="f-search">Search titles</label><div class="g-search"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input class="cp-input" id="f-search" type="search" placeholder="Search titles…" value="Frieren"><button class="cp-button g-clear" data-variant="quiet" type="button" aria-label="Clear search"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></div></div>
+          <div class="cp-field"><label class="cp-label" for="f-search">Search titles</label><div class="cp-search"><input class="cp-input" id="f-search" type="search" placeholder="Search titles…" value="Frieren"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear search"></button></div></div>
         </div>
         <footer>The clear button appears only while there is text, and gives focus back to the field.</footer>
       </div>
       <div class="card">
         <h2>Prefix and unit</h2>
         <div class="g-form">
-          <div class="cp-field"><label class="cp-label" for="f-host">Address</label><div class="g-affix"><span>https://</span><input class="cp-input" id="f-host" value="sonarr.lan:8989"></div></div>
-          <div class="cp-field"><label class="cp-label" for="f-cap">Size limit</label><div class="g-affix"><input class="cp-input" id="f-cap" type="number" value="40"><span>GB</span></div></div>
+          <div class="cp-field"><label class="cp-label" for="f-host">Address</label><div class="cp-affix"><span>https://</span><input class="cp-input" id="f-host" value="sonarr.lan:8989"></div></div>
+          <div class="cp-field"><label class="cp-label" for="f-cap">Size limit</label><div class="cp-affix"><input class="cp-input" id="f-cap" type="number" value="40"><span>GB</span></div></div>
         </div>
         <footer>A fixed part of the value sits beside the field, outside what you type.</footer>
       </div>
       <div class="card">
         <h2>A secret's state</h2>
         <div class="g-form">
-          <div class="g-secret-line"><strong>Sonarr API key</strong><span>from <code class="cp-mono">SONARR_API_KEY</code></span><span class="g-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>set</span></div>
-          <div class="g-secret-line"><strong>Radarr API key</strong><span>from <code class="cp-mono">RADARR_API_KEY</code></span><span class="g-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>not set</span></div>
-          <div class="cp-field"><div class="g-secret-line"><strong>Prowlarr API key</strong><span>from <code class="cp-mono">PROWLARR_API_KEY</code></span><span class="g-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>rejected</span></div><span class="cp-field-error"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Prowlarr refused this key: set a new one in the environment and restart.</span></div>
+          <div class="cp-secret-source"><strong>Sonarr API key</strong><span>from <code class="cp-mono">SONARR_API_KEY</code></span><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>set</span></div>
+          <div class="cp-secret-source"><strong>Radarr API key</strong><span>from <code class="cp-mono">RADARR_API_KEY</code></span><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>not set</span></div>
+          <div class="cp-field"><div class="cp-secret-source"><strong>Prowlarr API key</strong><span>from <code class="cp-mono">PROWLARR_API_KEY</code></span><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>rejected</span></div><span class="cp-field-error"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Prowlarr refused this key: set a new one in the environment and restart.</span></div>
         </div>
         <footer>A key that comes from the environment shows where it comes from and its state, never its value.</footer>
       </div>
       <div class="card">
         <h2>Saved secret</h2>
-        <div class="cp-field g-secret" data-state="saved"><span class="cp-label" id="sec-label">OpenSubtitles API key</span>
-          <div class="g-secret-saved"><span class="cp-icon" data-cp-icon="lock" aria-hidden="true"></span><span>Saved</span><button class="cp-button" data-size="sm" type="button" data-replace aria-describedby="sec-label">Replace</button></div>
-          <div class="g-secret-edit"><div class="cp-input-wrap"><input class="cp-input" id="sec-new" type="password" aria-labelledby="sec-label" autocomplete="off"><button class="cp-button" data-variant="quiet" type="button" data-reveal="sec-new" aria-pressed="false" aria-label="Show OpenSubtitles API key"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span></button></div><div><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-keep>Keep saved value</button></div></div>
+        <div class="cp-field cp-secret" data-cp-state="saved"><span class="cp-label" id="sec-label">OpenSubtitles API key</span>
+          <div data-part="saved"><span class="cp-icon" data-cp-icon="lock" aria-hidden="true"></span><span>Saved</span><button class="cp-button" data-size="sm" type="button" aria-describedby="sec-label">Replace</button></div>
+          <div data-part="edit"><div class="cp-input-wrap"><input class="cp-input" id="sec-new" type="password" aria-labelledby="sec-label" autocomplete="new-password"><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Show OpenSubtitles API key"><span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="eye-off" data-part="on" aria-hidden="true"></span></button></div><div><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-part="keep">Keep saved value</button></div></div>
         </div>
         <footer>The saved value never comes back to the browser. Replace opens an empty field; Keep saved value returns with nothing sent.</footer>
       </div>
       <div class="card">
         <h2>Text area</h2>
         <div class="g-form">
-          <div class="cp-field"><label class="cp-label" for="f-note">Note for this release</label><textarea class="cp-input" id="f-note" data-max="140" data-count="f-note-count" aria-describedby="f-note-count">Dual audio, the BD remux. Subtitles from the fansub.</textarea><span class="g-count" id="f-note-count"></span></div>
+          <div class="cp-field"><label class="cp-label" for="f-note">Note for this release</label><textarea class="cp-input" id="f-note" data-max="140" data-count="f-note-count" aria-describedby="f-note-count">Dual audio, the BD remux. Subtitles from the fansub.</textarea><span class="cp-textarea-count" id="f-note-count"></span></div>
         </div>
         <footer>It grows with its text up to ten lines, then scrolls. Past the limit the count turns red and the field is marked invalid.</footer>
       </div>
@@ -74,38 +74,38 @@
     <div class="g-grid">
       <div class="card">
         <h2>Checkboxes</h2>
-        <fieldset class="g-choices">
+        <fieldset class="cp-choices">
           <legend class="cp-label">Notify me when</legend>
-          <label class="g-choice"><input class="box box-twirl" type="checkbox" data-select-all="notify"><span>All of these</span></label>
-          <label class="g-choice"><input class="box box-twirl" type="checkbox" data-group="notify" checked><span>A check finds a better release</span></label>
-          <label class="g-choice"><input class="box box-twirl" type="checkbox" data-group="notify"><span>A source stops answering</span></label>
-          <label class="g-choice"><input class="box box-twirl" type="checkbox" data-group="notify" disabled><span>A grab finishes <small>Needs a download client</small></span></label>
+          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-select-all="notify"><span>All of these</span></label>
+          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-group="notify" checked><span>A check finds a better release</span></label>
+          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-group="notify"><span>A source stops answering</span></label>
+          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-group="notify" disabled><span>A grab finishes <small>Needs a download client</small></span></label>
         </fieldset>
         <footer>"All of these" shows a dash when some are on. The whole row is the label.</footer>
       </div>
       <div class="card">
         <h2>Radio group</h2>
-        <fieldset class="g-choices">
+        <fieldset class="cp-choices">
           <legend class="cp-label">Prefer releases from</legend>
-          <label class="g-choice"><input class="g-radio" type="radio" name="pref" checked><span>The best group for each title<small>Uses SeaDex's verdicts</small></span></label>
-          <label class="g-choice"><input class="g-radio" type="radio" name="pref"><span>The smallest that is not a re-encode</span></label>
-          <label class="g-choice"><input class="g-radio" type="radio" name="pref" disabled><span>Your own list<small>Set one up in Sources first</small></span></label>
+          <label class="cp-choice"><input class="cp-radio" type="radio" name="pref" checked><span>The best group for each title<small>Uses SeaDex's verdicts</small></span></label>
+          <label class="cp-choice"><input class="cp-radio" type="radio" name="pref"><span>The smallest that is not a re-encode</span></label>
+          <label class="cp-choice"><input class="cp-radio" type="radio" name="pref" disabled><span>Your own list<small>Set one up in Sources first</small></span></label>
         </fieldset>
         <footer>A circle that fills with the accent; its dot springs in. Arrow keys move the choice, as native radios do.</footer>
       </div>
       <div class="card">
         <h2>A choice with its own field</h2>
-        <fieldset class="g-choices" data-nested>
+        <fieldset class="cp-choices">
           <legend class="cp-label">Run checks</legend>
-          <div class="g-choice"><input class="g-radio" type="radio" name="cadence" id="cad-every" checked aria-labelledby="cad-every-l cad-min cad-every-u"><span class="g-choice-field"><label id="cad-every-l" for="cad-every">Every</label><input class="cp-input" id="cad-min" type="number" min="5" value="30" aria-label="Minutes between checks"><span id="cad-every-u">minutes</span></span></div>
-          <label class="g-choice"><input class="g-radio" type="radio" name="cadence"><span>Only when triggered<small>From Sonarr's webhook or the Run button</small></span></label>
+          <div class="cp-choice"><input class="cp-radio" type="radio" name="cadence" id="cad-every" checked aria-labelledby="cad-every-l cad-min cad-every-u"><span class="cp-choice-field"><label id="cad-every-l" for="cad-every">Every</label><input class="cp-input" id="cad-min" type="number" min="5" value="30" aria-label="Minutes between checks"><span id="cad-every-u">minutes</span></span></div>
+          <label class="cp-choice"><input class="cp-radio" type="radio" name="cadence"><span>Only when triggered<small>From Sonarr's webhook or the Run button</small></span></label>
         </fieldset>
         <footer>The number is live only while its choice is; focusing it chooses it, and it is never disabled while it has focus.</footer>
       </div>
       <div class="card">
         <h2>Switches and segments</h2>
         <div class="g-form">
-          <div class="cp-setting"><div><label class="cp-label" for="f-sw1">Check every night</label><span class="cp-help">At 03:00, when nobody is watching.</span></div><input class="switch" id="f-sw1" type="checkbox" role="switch" checked></div>
+          <div class="cp-setting"><div><label class="cp-label" for="f-sw1">Check every night</label><span class="cp-help">At 03:00, when nobody is watching.</span></div><input class="cp-switch" id="f-sw1" type="checkbox" role="switch" checked></div>
           <div class="cp-setting"><div><span class="cp-label" id="f-seg">Theme</span></div><div class="cp-segmented" role="radiogroup" aria-labelledby="f-seg"><label><input type="radio" name="seg" checked>System</label><label><input type="radio" name="seg">Light</label><label><input type="radio" name="seg">Dark</label></div></div>
         </div>
         <footer>A switch acts at once; a choice of two or three short words is a segmented control.</footer>
@@ -113,8 +113,8 @@
       <div class="card">
         <h2>Select</h2>
         <div class="g-form">
-          <div class="cp-field"><label class="cp-label" for="f-sel">Check interval</label><div class="g-select"><select class="cp-input" id="f-sel"><option>Every 15 minutes</option><option selected>Every hour</option><option>Every 6 hours</option><option>Every day</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div></div>
-          <div class="cp-field"><label class="cp-label" for="f-sel2">Quality profile</label><div class="g-select"><select class="cp-input" id="f-sel2" disabled aria-describedby="f-sel2-help"><option>HD-1080p</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div><span class="cp-help" id="f-sel2-help">Disabled, to show the state: Sonarr sets it.</span></div>
+          <div class="cp-field"><label class="cp-label" for="f-sel">Check interval</label><div class="cp-select"><select class="cp-input" id="f-sel"><option>Every 15 minutes</option><option selected>Every hour</option><option>Every 6 hours</option><option>Every day</option></select></div></div>
+          <div class="cp-field"><label class="cp-label" for="f-sel2">Quality profile</label><div class="cp-select"><select class="cp-input" id="f-sel2" disabled aria-describedby="f-sel2-help"><option>HD-1080p</option></select></div><span class="cp-help" id="f-sel2-help">Disabled, to show the state: Sonarr sets it.</span></div>
         </div>
         <footer>The native select, so its list and keyboard are the platform's; only its box and chevron are ours. Over about eight options, or when typing helps, use the suggestions field below.</footer>
       </div>
@@ -127,8 +127,8 @@
       <div class="card">
         <h2>Stepper and range</h2>
         <div class="g-form">
-          <div class="cp-field"><span class="cp-label" id="f-step-label">Parallel checks</span><div class="g-stepper" role="group" aria-labelledby="f-step-label"><button class="cp-button" data-variant="quiet" type="button" data-step="-1" aria-label="Fewer"><span class="cp-icon" data-cp-icon="minus" aria-hidden="true"></span></button><input type="number" min="1" max="8" value="3" aria-labelledby="f-step-label"><button class="cp-button" data-variant="quiet" type="button" data-step="1" aria-label="More"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></button></div></div>
-          <div class="cp-field"><label class="cp-label" for="f-range">Minimum seeders</label><div class="g-range-row"><input class="g-range" id="f-range" type="range" min="0" max="50" value="12" data-out="f-range-out"><output id="f-range-out" for="f-range"></output></div></div>
+          <div class="cp-field"><span class="cp-label" id="f-step-label">Parallel checks</span><div class="cp-stepper" role="group" aria-labelledby="f-step-label"><button class="cp-button" data-variant="quiet" type="button" data-step="-1" aria-label="Fewer"><span class="cp-icon" data-cp-icon="minus" aria-hidden="true"></span></button><input type="number" min="1" max="8" value="3" aria-labelledby="f-step-label"><button class="cp-button" data-variant="quiet" type="button" data-step="1" aria-label="More"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></button></div></div>
+          <div class="cp-field"><label class="cp-label" for="f-range">Minimum seeders</label><div class="cp-range-row"><input class="cp-range" id="f-range" type="range" min="0" max="50" value="12" data-out="f-range-out"><output id="f-range-out" for="f-range"></output></div></div>
         </div>
         <footer>A stepper for a small count, as wide as its buttons and number; a range when the exact number matters less than the feel, as wide as its column. The track fills to the thumb, which grows while held.</footer>
       </div>
@@ -150,7 +150,7 @@
       </div>
       <div class="card">
         <h2>Date range</h2>
-        <fieldset class="g-choices" data-range>
+        <fieldset class="cp-choices" data-range>
           <legend class="cp-label">Activity between</legend>
           <div class="cp-segmented" role="radiogroup" aria-label="Quick ranges"><label><input type="radio" name="range-preset" value="1">Today</label><label><input type="radio" name="range-preset" value="7" checked>7 days</label><label><input type="radio" name="range-preset" value="30">30 days</label><label><input type="radio" name="range-preset" value="all">Any time</label></div>
           <div class="g-form g-range-dates">
@@ -181,8 +181,8 @@
             <header><h2 id="d-upload-title">Add a subtitle file</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-upload" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
             <div class="g-body">
               <div class="cp-field"><label class="cp-label" for="up-file">File, .ass, .srt or .vtt</label><input class="cp-input" id="up-file" type="file" accept=".ass,.srt,.vtt" aria-describedby="up-file-error"><span class="g-note g-upload-name"></span><span class="cp-field-error" id="up-file-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Files over 10 MB can't be uploaded.</span></div>
-              <div class="cp-field"><label class="cp-label" for="up-lang">Language</label><div class="g-select"><select class="cp-input" id="up-lang"><option>English</option><option>French</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div></div>
-              <div class="cp-field"><label class="cp-label" for="up-kind">Kind</label><div class="g-select"><select class="cp-input" id="up-kind"><option>Full</option><option>Signs and songs</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div></div>
+              <div class="cp-field"><label class="cp-label" for="up-lang">Language</label><div class="cp-select"><select class="cp-input" id="up-lang"><option>English</option><option>French</option></select></div></div>
+              <div class="cp-field"><label class="cp-label" for="up-kind">Kind</label><div class="cp-select"><select class="cp-input" id="up-kind"><option>Full</option><option>Signs and songs</option></select></div></div>
             </div>
             <footer><button class="cp-button" value="cancel">Cancel</button><button class="cp-button" data-variant="primary" value="upload" disabled>Upload</button></footer>
           </form>
@@ -199,7 +199,7 @@
         <h2>Search terms</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-terms">Must contain</label>
-          <div class="g-tokens" data-tokens="terms"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><span class="g-token" data-value="1080p"><span>1080p</span><button type="button" aria-label="Remove 1080p" tabindex="-1"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></span><span class="g-token" data-value="dual audio"><span>dual audio</span><button type="button" aria-label="Remove dual audio" tabindex="-1"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></span><input id="f-terms" placeholder="Add a term"></div>
+          <div class="cp-tokens" data-tokens="terms"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><span class="cp-token" data-value="1080p"><span>1080p</span><button type="button" aria-label="Remove 1080p" tabindex="-1"></button></span><span class="cp-token" data-value="dual audio"><span>dual audio</span><button type="button" aria-label="Remove dual audio" tabindex="-1"></button></span><input id="f-terms" placeholder="Add a term"></div>
           <span class="cp-help">Enter or a comma adds a term. Left or Backspace from the field moves to the terms, where Backspace removes one.</span>
         </div>
         <footer>Each term pops in and shrinks away; a term already there shakes instead of doubling.</footer>
@@ -208,8 +208,8 @@
         <h2>Pick from suggestions</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-langs">Subtitle languages, in order</label>
-          <div class="g-tokens" data-tokens="langs" data-suggest="f-langs-list" data-max="3" data-note="f-langs-note"><span class="g-token" data-value="English"><span>English</span><button type="button" aria-label="Remove English" tabindex="-1"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></span><input id="f-langs" role="combobox" aria-expanded="false" aria-controls="f-langs-list" aria-autocomplete="list" placeholder="Add a language"></div>
-          <ul class="g-pop g-suggest" id="f-langs-list" role="listbox" popover="manual" aria-label="Languages">
+          <div class="cp-tokens" data-tokens="langs" data-suggest="f-langs-list" data-max="3" data-note="f-langs-note"><span class="cp-token" data-value="English"><span>English</span><button type="button" aria-label="Remove English" tabindex="-1"></button></span><input id="f-langs" placeholder="Add a language"></div>
+          <ul class="cp-popover cp-listbox" id="f-langs-list" role="listbox" popover="manual" aria-label="Languages">
             <li role="option" id="lang-fr" aria-label="French, fr">French<small>fr</small></li>
             <li role="option" id="lang-de" aria-label="German, de">German<small>de</small></li>
             <li role="option" id="lang-ja" aria-label="Japanese, ja">Japanese<small>ja</small></li>
@@ -218,7 +218,7 @@
             <li role="option" id="lang-it" aria-label="Italian, it">Italian<small>it</small></li>
             <li role="option" id="lang-en" aria-label="English, en">English<small>en</small></li>
           </ul>
-          <span class="cp-help" id="f-langs-note" role="status"></span>
+          <span class="cp-help" id="f-langs-note" hidden></span>
         </div>
         <footer>The combobox pattern: the list narrows as you type, Alt+Down opens it whole, arrows move through it and Enter takes one. A language already chosen leaves the list, and the list holds only real languages, so there is no free text. Three is the limit here, and the field says so.</footer>
       </div>
@@ -226,15 +226,15 @@
         <h2>Tags, with new ones</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-tags">Tags</label>
-          <div class="g-tokens" data-tokens="tags" data-suggest="f-tags-list" data-free data-max="5" data-note="f-tags-note"><span class="g-token" data-value="seasonal"><span>seasonal</span><button type="button" aria-label="Remove seasonal" tabindex="-1"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></span><input id="f-tags" role="combobox" aria-expanded="false" aria-controls="f-tags-list" aria-autocomplete="list" placeholder="Add a tag"></div>
-          <ul class="g-pop g-suggest" id="f-tags-list" role="listbox" popover="manual" aria-label="Tags in use">
+          <div class="cp-tokens" data-tokens="tags" data-suggest="f-tags-list" data-free data-max="5" data-note="f-tags-note"><span class="cp-token" data-value="seasonal"><span>seasonal</span><button type="button" aria-label="Remove seasonal" tabindex="-1"></button></span><input id="f-tags" placeholder="Add a tag"></div>
+          <ul class="cp-popover cp-listbox" id="f-tags-list" role="listbox" popover="manual" aria-label="Tags in use">
             <li role="option" id="tag-fav" data-value="favourite" aria-label="favourite, on 12 entries">favourite<small>12</small></li>
             <li role="option" id="tag-rewatch" data-value="rewatch" aria-label="rewatch, on 4 entries">rewatch<small>4</small></li>
             <li role="option" id="tag-dub" data-value="dub only" aria-label="dub only, on 7 entries">dub only<small>7</small></li>
             <li role="option" id="tag-seasonal" data-value="seasonal" aria-label="seasonal, on 21 entries">seasonal<small>21</small></li>
             <li role="option" id="tag-archived" data-value="archived" aria-label="archived, on 3 entries">archived<small>3</small></li>
           </ul>
-          <span class="cp-help" id="f-tags-note" role="status"></span>
+          <span class="cp-help" id="f-tags-note" hidden></span>
         </div>
         <footer>Like the language picker, and each tag says how many entries carry it. Words that match no tag end the list with Add “…”, so Enter takes a match first and a new tag only when nothing matches. Five is the limit.</footer>
       </div>
@@ -252,7 +252,7 @@
         <h2>Sentence editor</h2>
         <div class="g-rules-box" data-sentences>
           <ol class="g-rules g-bare">
-            <li><span class="g-rule-when">By default,</span><span class="g-rule-verb">fetch</span><span class="g-targets"><span class="g-select"><select class="cp-input" aria-label="Language by default"><option>English</option><option>English (signs and songs)</option><option>French</option><option>nothing</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></span></span></li>
+            <li><span class="g-rule-when">By default,</span><span class="g-rule-verb">fetch</span><span class="g-targets"><span class="cp-select"><select class="cp-input" aria-label="Language by default"><option>English</option><option>English (signs and songs)</option><option>French</option><option>nothing</option></select></span></span></li>
           </ol>
           <div><button class="cp-button" type="button" data-add-rule><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span>Add a rule for an audio language</button></div>
         </div>
@@ -268,8 +268,8 @@
       <div class="card g-wide">
         <h2>Add a source</h2>
         <form class="cp-form" novalidate>
-          <div class="cp-notice" data-tone="danger" role="alert" hidden id="f-summary"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div><strong>2 fields need a fix before this saves</strong><ul><li><a href="#f2-url">Address</a></li><li><a href="#f2-key">API key</a></li></ul></div></div>
-          <div class="cp-field"><label class="cp-label" for="f2-kind">Kind</label><div class="g-select"><select class="cp-input" id="f2-kind"><option>Sonarr</option><option>Radarr</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div></div>
+          <div class="cp-notice" data-tone="danger" hidden id="f-summary"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
+          <div class="cp-field"><label class="cp-label" for="f2-kind">Kind</label><div class="cp-select"><select class="cp-input" id="f2-kind"><option>Sonarr</option><option>Radarr</option></select></div></div>
           <div class="cp-field"><label class="cp-label" for="f2-url">Address</label><input class="cp-input" id="f2-url" type="url" placeholder="http://sonarr.lan:8989" required></div>
           <div class="cp-field"><label class="cp-label" for="f2-key">API key</label><input class="cp-input" id="f2-key" required><span class="cp-help">Settings, then General, in Sonarr.</span></div>
           <div class="g-row-inline"><button class="cp-button" data-variant="primary" type="submit" id="f2-save">Add source</button><button class="cp-button" data-variant="quiet" type="reset">Cancel</button></div>

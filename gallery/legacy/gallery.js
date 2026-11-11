@@ -1,4 +1,6 @@
-// The gallery's own behaviour for the cards that do not run on src/ yet. Plain DOM, no dependencies.
+import { reportErrors } from "@cplieger/ui/form";
+
+// The gallery's own behaviour for the cards that do not run on src/ yet, in plain DOM.
 const root = document.documentElement;
 
 // What @cplieger/ui/icons' createIcons does: an absolute URL per icon, so
@@ -953,73 +955,6 @@ if (cmdPalette) {
 }
 
 // --------------------------------------------------------------- fields
-for (const f of $$(".g-search")) {
-  const input = $("input", f);
-  $(".g-clear", f)?.addEventListener("click", () => {
-    input.value = "";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.focus();
-  });
-}
-for (const b of $$("[data-reveal]")) {
-  const input = document.getElementById(b.dataset.reveal);
-  b.addEventListener("click", () => {
-    const show = input.type === "password";
-    input.type = show ? "text" : "password";
-    b.setAttribute("aria-pressed", String(show));
-    b.querySelector(".cp-icon").dataset.cpIcon = show ? "eye-off" : "eye";
-  });
-}
-// A textarea counts its characters and grows where the engine cannot size
-// it to its content.
-const sizesToContent = CSS.supports("field-sizing", "content");
-for (const t of $$("textarea[data-max]")) {
-  const out = document.getElementById(t.dataset.count);
-  const max = Number(t.dataset.max);
-  const update = () => {
-    out.textContent = `${t.value.length} / ${max}`;
-    out.toggleAttribute("data-over", t.value.length > max);
-    t.setAttribute("aria-invalid", String(t.value.length > max));
-    if (!sizesToContent) {
-      t.style.height = "auto";
-      t.style.height = `${t.scrollHeight + 2}px`;
-    }
-  };
-  t.addEventListener("input", update);
-  update();
-}
-for (const r of $$(".g-range")) {
-  const out = document.getElementById(r.dataset.out);
-  const row = r.parentElement;
-  const tip = el("span", { class: "g-range-tip", "aria-hidden": "true" });
-  row.append(tip);
-  const update = () => {
-    const share = (r.value - r.min) / (r.max - r.min);
-    r.style.setProperty("--fill", `${share * 100}%`);
-    if (out) out.value = `${r.value}${r.dataset.unit ?? ""}`;
-    // the thumb's centre travels the track less its own width (18px)
-    const thumb = 18;
-    tip.style.setProperty("--tip-x", `${Math.round(r.offsetLeft + thumb / 2 + share * (r.offsetWidth - thumb))}px`);
-    tip.textContent = `${r.value}${r.dataset.unit ?? ""}`;
-  };
-  r.addEventListener("input", update);
-  r.addEventListener("pointerdown", () => {
-    row.dataset.held = "";
-    addEventListener("pointerup", () => delete row.dataset.held, { once: true });
-  });
-  new ResizeObserver(update).observe(r);
-  update();
-}
-for (const s of $$(".g-stepper:has(> input)")) {
-  const input = $("input", s);
-  for (const b of $$("button", s)) {
-    b.addEventListener("click", () => {
-      const v = Number(input.value) + Number(b.dataset.step);
-      input.value = String(Math.min(Number(input.max), Math.max(Number(input.min), v)));
-      say(input.value);
-    });
-  }
-}
 for (const z of $$(".g-drop")) {
   const input = $("input", z);
   const list = document.getElementById(z.dataset.list);
@@ -1039,71 +974,6 @@ for (const z of $$(".g-drop")) {
   });
   input.addEventListener("change", () => show(input.files));
 }
-for (const all of $$("[data-select-all]")) {
-  const boxes = $$(`[data-group="${all.dataset.selectAll}"]`);
-  const sync = () => {
-    const on = boxes.filter((b) => b.checked).length;
-    all.checked = on === boxes.length;
-    all.indeterminate = on > 0 && on < boxes.length;
-  };
-  all.addEventListener("change", () => {
-    for (const b of boxes) b.checked = all.checked;
-    sync();
-  });
-  for (const b of boxes) b.addEventListener("change", sync);
-  sync();
-}
-
-// -------------------------------------------------------------- copy
-// The label stays Copy; the icon becomes a check and the fill flashes green,
-// then fades back. The result is said, not shown in new words.
-for (const b of $$("[data-copy]")) {
-  const source = b.dataset.copy.startsWith("#") ? $(b.dataset.copy) : null;
-  const text = () => source?.textContent ?? b.dataset.copy;
-  const ic = b.querySelector(".cp-icon");
-  // The hint for a copy the browser refused, under the field that holds the text.
-  const field = b.closest(".cp-field");
-  const hint = el("span", { class: "cp-help g-copy-hint", hidden: "" });
-  field?.append(hint);
-  b.addEventListener("click", async () => {
-    let wrote = false;
-    // The clipboard exists only in a secure context, and a write can still be
-    // refused: say Copied only for a write that happened.
-    if (globalThis.isSecureContext && navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(text());
-        wrote = true;
-      } catch {
-        wrote = false;
-      }
-    }
-    clearTimeout(b.copyTimer);
-    if (wrote) {
-      hint.hidden = true;
-      b.dataset.state = "done";
-      ic.dataset.cpIcon = "check";
-      say("Copied");
-      b.copyTimer = setTimeout(() => {
-        delete b.dataset.state;
-        ic.dataset.cpIcon = "copy";
-      }, 1600);
-      return;
-    }
-    // Refused or unavailable: select the text so the platform's own copy works.
-    if (source) {
-      const range = document.createRange();
-      range.selectNodeContents(source);
-      getSelection()?.removeAllRanges();
-      getSelection()?.addRange(range);
-    }
-    const keys = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘C" : "Ctrl+C";
-    hint.textContent = `Selected. Press ${keys} to copy.`;
-    hint.hidden = false;
-    say(`Selected. Press ${keys} to copy.`);
-    b.copyTimer = setTimeout(() => (hint.hidden = true), 6000);
-  });
-}
-
 // -------------------------------------------------------- relative time
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const rtfNarrow = new Intl.RelativeTimeFormat(undefined, { numeric: "always", style: "narrow" });
@@ -1380,161 +1250,6 @@ for (const list of $$("[data-reorder]")) {
   list.addEventListener("pointercancel", end);
 }
 
-// ------------------------------------------------------- chosen items
-// Enter or a comma turns the typed words into a token, and a repeat shakes
-// the token already there. The chips are reachable from the field with the
-// arrow keys: Left from the field's start, or Backspace in an empty field,
-// moves focus to the last chip; Left and Right move between chips;
-// Backspace or Delete on a chip removes it. With suggestions (the combobox
-// pattern) the list narrows as you type, Alt+Down opens it whole, and with
-// data-free a last option offers to add the words as typed. data-max
-// sets a limit, after which the field says so and takes no more.
-function tokenBox(box) {
-  const input = $("input", box);
-  const name = box.dataset.tokens;
-  const list = box.dataset.suggest ? document.getElementById(box.dataset.suggest) : null;
-  const max = Number(box.dataset.max ?? Infinity);
-  const note = box.dataset.note ? document.getElementById(box.dataset.note) : null;
-  const tokens = () => $$(".g-token", box);
-  const labelOf = (o) => o.dataset.value ?? o.firstChild.textContent.trim();
-  const full = () => tokens().length >= max;
-  const limit = () => {
-    const f = full();
-    input.setAttribute("aria-disabled", String(f));
-    input.placeholder = f ? `${max} is the most: remove one to add another` : input.dataset.placeholder ?? input.placeholder;
-    if (note) note.textContent = f ? `${max} chosen, the most allowed.` : "";
-  };
-  input.dataset.placeholder ??= input.placeholder;
-  const add = (word) => {
-    const w = word.trim();
-    if (!w || full()) return;
-    const same = tokens().find((t) => t.dataset.value.toLowerCase() === w.toLowerCase());
-    if (same) {
-      same.classList.remove("again");
-      void same.offsetWidth;
-      same.classList.add("again");
-      return;
-    }
-    const t = el("span", { class: "g-token", "data-value": w }, el("span", { text: w }), el("button", { type: "button", "aria-label": `Remove ${w}`, tabindex: "-1" }, icon("x")));
-    input.before(t);
-    say(`${w} added`);
-    limit();
-    box.dispatchEvent(new CustomEvent("tokens", { bubbles: true }));
-  };
-  const remove = (t, focusNext = input) => {
-    t.classList.add("leaving");
-    const done = () => {
-      t.remove();
-      limit();
-      box.dispatchEvent(new CustomEvent("tokens", { bubbles: true }));
-    };
-    reduced() ? done() : t.addEventListener("animationend", done, { once: true });
-    say(`${t.dataset.value} removed`);
-    focusNext.focus();
-  };
-  box.addEventListener("click", (e) => {
-    const x = e.target.closest(".g-token > button");
-    if (x) return remove(x.parentElement);
-    if (!e.target.closest(".g-token")) input.focus();
-  });
-  box.addEventListener("keydown", (e) => {
-    const chip = e.target.closest(".g-token");
-    if (!chip) return;
-    const all = tokens();
-    const i = all.indexOf(chip);
-    if (e.key === "ArrowLeft") all[Math.max(0, i - 1)]?.querySelector("button").focus();
-    else if (e.key === "ArrowRight") (all[i + 1]?.querySelector("button") ?? input).focus();
-    else if (e.key === "Backspace" || e.key === "Delete") remove(chip, all[i + 1]?.querySelector("button") ?? all[i - 1]?.querySelector("button") ?? input);
-    else return;
-    e.preventDefault();
-  });
-  // suggestions
-  let active = -1;
-  const options = () => (list ? $$("[role='option']", list).filter((o) => !o.hidden) : []);
-  const mark = (i) => {
-    active = i;
-    options().forEach((o, k) => o.setAttribute("aria-selected", String(k === i)));
-    const o = options()[i];
-    if (o) {
-      input.setAttribute("aria-activedescendant", o.id);
-      o.scrollIntoView({ block: "nearest" });
-    } else input.removeAttribute("aria-activedescendant");
-  };
-  const freeOpt = list && box.hasAttribute("data-free") ? el("li", { role: "option", id: `${name}-free`, class: "g-free" }) : null;
-  // last, so Enter takes a match before it makes a new token
-  if (freeOpt) list.append(freeOpt);
-  const filter = (all = false) => {
-    if (!list) return;
-    const q = input.value.trim().toLowerCase();
-    const taken = new Set(tokens().map((t) => t.dataset.value.toLowerCase()));
-    for (const o of $$("[role='option']:not(.g-free)", list)) o.hidden = taken.has(labelOf(o).toLowerCase()) || (!all && q !== "" && !o.textContent.toLowerCase().includes(q));
-    if (freeOpt) {
-      const exact = $$("[role='option']:not(.g-free)", list).some((o) => labelOf(o).toLowerCase() === q);
-      freeOpt.hidden = q === "" || exact || taken.has(q);
-      freeOpt.dataset.value = input.value.trim();
-      freeOpt.textContent = `Add “${input.value.trim()}”`;
-    }
-    const any = options().length > 0 && !full();
-    const open = any && document.activeElement === input;
-    input.setAttribute("aria-expanded", String(open));
-    if (open) list.matches(":popover-open") || list.showPopover();
-    else if (list.matches(":popover-open")) list.hidePopover();
-    mark(q && any ? 0 : -1);
-  };
-  if (list) {
-    const anchorName = `--g-tokens-${name}`;
-    box.style.setProperty("anchor-name", anchorName);
-    list.style.setProperty("position-anchor", anchorName);
-    input.addEventListener("focus", () => filter());
-    input.addEventListener("blur", () => setTimeout(() => {
-      if (list.matches(":popover-open")) list.hidePopover();
-      input.setAttribute("aria-expanded", "false");
-    }, 120));
-    list.addEventListener("pointerdown", (e) => e.preventDefault());
-    list.addEventListener("click", (e) => {
-      const o = e.target.closest("[role='option']");
-      if (!o) return;
-      add(labelOf(o));
-      input.value = "";
-      filter();
-    });
-  }
-  input.addEventListener("input", () => {
-    if (input.value.includes(",")) {
-      for (const part of input.value.split(",").slice(0, -1)) add(part);
-      input.value = input.value.split(",").at(-1);
-    }
-    filter();
-  });
-  input.addEventListener("keydown", (e) => {
-    const opts = options();
-    if (e.key === "ArrowDown" && e.altKey && list) {
-      e.preventDefault();
-      filter(true);
-    } else if (e.key === "ArrowDown" && opts.length) {
-      e.preventDefault();
-      mark((active + 1) % opts.length);
-    } else if (e.key === "ArrowUp" && opts.length) {
-      e.preventDefault();
-      mark((active - 1 + opts.length) % opts.length);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      add(active >= 0 && opts[active] ? labelOf(opts[active]) : input.value);
-      input.value = "";
-      filter();
-    } else if (e.key === "Escape" && list?.matches(":popover-open")) {
-      list.hidePopover();
-      input.setAttribute("aria-expanded", "false");
-    } else if ((e.key === "Backspace" && input.value === "") || (e.key === "ArrowLeft" && input.selectionStart === 0 && input.selectionEnd === 0)) {
-      const last = tokens().at(-1);
-      if (!last) return;
-      e.preventDefault();
-      last.querySelector("button").focus();
-    }
-  });
-  limit();
-}
-$$("[data-tokens]").forEach(tokenBox);
 for (const c of $$(".g-chip")) {
   c.addEventListener("click", () => c.setAttribute("aria-pressed", String(c.getAttribute("aria-pressed") !== "true")));
 }
@@ -1759,7 +1474,7 @@ if (results) {
   const facets = $$("[data-facet]");
   const plain = new Map(all.map((r) => [r, [...r.childNodes].map((n) => n.cloneNode(true))]));
   let timer = 0;
-  const words = () => [...$$(".g-token", box).map((t) => t.dataset.value), input.value].map((w) => w.trim().toLowerCase()).filter(Boolean);
+  const words = () => [...$$(".cp-token", box).map((t) => t.dataset.value), input.value].map((w) => w.trim().toLowerCase()).filter(Boolean);
   const run = () => {
     const ws = words();
     const on = facets.filter((f) => f.getAttribute("aria-pressed") === "true").map((f) => f.dataset.facet);
@@ -1789,7 +1504,7 @@ if (results) {
   box.addEventListener("tokens", later);
   for (const f of facets) f.addEventListener("click", () => setTimeout(later));
   $("#clear-search")?.addEventListener("click", () => {
-    for (const t of $$(".g-token", box)) t.remove();
+    for (const t of $$(".cp-token", box)) t.remove();
     input.value = "";
     for (const f of facets) f.setAttribute("aria-pressed", "false");
     later();
@@ -1835,34 +1550,18 @@ for (const host of $$("[data-ladder]")) {
 }
 
 // ------------------------------------------------------- form validation
-// A submit with errors puts a summary at the top that links each field,
-// moves focus to it, and marks each field with its own message; typed
-// values stay.
+// The gallery's own checks for Add a source; the library shows what they
+// find, and typed values stay.
 for (const form of $$("form.cp-form:not([data-sign-in])")) {
-  const summary = $(".cp-notice[role='alert']", form);
+  const summary = $("#f-summary", form);
   if (!summary) continue;
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const bad = $$("[required]", form).filter((f) => !f.value.trim() || (f.type === "url" && !/^https?:\/\/\S+/.test(f.value)));
-    for (const f of $$("[required]", form)) {
-      const id = `${f.id}-error`;
-      let err = document.getElementById(id);
-      const wrong = bad.includes(f);
-      f.setAttribute("aria-invalid", String(wrong));
-      if (wrong && !err) {
-        err = el("span", { class: "cp-field-error", id }, icon("circle-x"), f.type === "url" ? "Enter the address, starting with http:// or https://." : "Paste the key from Sonarr.");
-        f.after(err);
-        f.setAttribute("aria-describedby", id);
-      }
-      if (err) err.hidden = !wrong;
-    }
-    summary.hidden = bad.length === 0;
-    if (bad.length) {
-      $("strong", summary).textContent = `${bad.length} field${bad.length === 1 ? " needs" : "s need"} a fix before this saves`;
-      $("ul", summary).replaceChildren(...bad.map((f) => el("li", {}, el("a", { href: `#${f.id}`, text: form.querySelector(`label[for="${f.id}"]`).textContent }))));
-      summary.tabIndex = -1;
-      summary.focus();
-    } else toast({ kind: "success", title: "Source added" });
+    const errors = $$("[required]", form)
+      .filter((f) => !f.value.trim() || (f.type === "url" && !/^https?:\/\/\S+/.test(f.value)))
+      .map((field) => ({ field, message: field.type === "url" ? "Enter the address, starting with http:// or https://." : "Paste the key from Sonarr." }));
+    reportErrors(form, errors, { summary, heading: (n) => `${n} fields need a fix before this saves` });
+    if (errors.length === 0) toast({ kind: "success", title: "Source added" });
   });
 }
 
@@ -2204,7 +1903,7 @@ const LANGS = ["English", "English (signs and songs)", "French", "German", "Span
 const pickLang = (chosen = "English", when = "") => {
   const s = el("select", { class: "cp-input", "aria-label": when ? `Language ${when}` : "Language" }, ...[...LANGS, "nothing"].map((l) => el("option", { text: l })));
   s.value = chosen;
-  return el("span", { class: "g-select" }, s, icon("chevron-down"));
+  return el("span", { class: "cp-select" }, s);
 };
 for (const ed of $$("[data-sentences]")) {
   const list = $("ol", ed);
@@ -2276,7 +1975,7 @@ for (const ed of $$("[data-sentences]")) {
   if (first) {
     first.dataset.when = "by default";
     const targets = $(".g-targets", first);
-    for (const pick of $$(":scope > .g-select", targets)) targets.append(entry(first, pick));
+    for (const pick of $$(":scope > .cp-select", targets)) targets.append(entry(first, pick));
     first.append(el("span", { class: "g-rule-acts" }, plus(first)));
     sync(first);
   }
@@ -2315,22 +2014,6 @@ for (const ed of $$("[data-pairs]")) {
     }
     list.append(row);
     $("input", row).focus();
-  });
-}
-
-// -------------------------------------------------------- saved secret
-// The saved value never comes back: Replace opens an empty field; Keep
-// saved value returns to the saved state with nothing sent.
-for (const s of $$(".g-secret")) {
-  const input = $("input", s);
-  $("[data-replace]", s).addEventListener("click", () => {
-    s.dataset.state = "edit";
-    input.value = "";
-    input.focus();
-  });
-  $("[data-keep]", s).addEventListener("click", () => {
-    s.dataset.state = "saved";
-    $("[data-replace]", s).focus();
   });
 }
 
@@ -2599,34 +2282,13 @@ for (const item of $$("[role='menuitemcheckbox']")) {
   item.addEventListener("keydown", (e) => e.key === " " && toggle(e));
 }
 
-// A radio's own field: live only while its radio is chosen, and never
-// disabled while it has focus, so focus is never lost.
-for (const group of $$("[data-nested]")) {
-  const sync = () => {
-    for (const f of $$(".g-choice-field input:not([type='radio'])", group)) {
-      const own = f.closest(".g-choice").querySelector("input[type='radio']");
-      f.setAttribute("aria-disabled", String(!own.checked));
-      f.tabIndex = own.checked ? 0 : -1;
-    }
-  };
-  group.addEventListener("change", sync);
-  group.addEventListener("focusin", (e) => {
-    const f = e.target.closest(".g-choice-field input:not([type='radio'])");
-    if (f) {
-      f.closest(".g-choice").querySelector("input[type='radio']").checked = true;
-      sync();
-    }
-  });
-  sync();
-}
-
 // Active filters: chips that remove their filter, Clear, and "N of M"
 // announced once a change settles.
 for (const box of $$("[data-active-filters]")) {
   const count = document.getElementById(box.dataset.count);
   const total = Number(box.dataset.total);
   const update = () => {
-    const n = $$(".g-token", box).length;
+    const n = $$(".cp-token", box).length;
     const shown = Math.round(total / (n + 1)) + (n ? 3 : 0);
     count.textContent = n ? `${shown} of ${total}` : `${total} titles`;
     $("[data-clear-filters]", box).hidden = n === 0;
@@ -2634,15 +2296,15 @@ for (const box of $$("[data-active-filters]")) {
     box.t = setTimeout(() => announce(count.textContent), 500);
   };
   box.addEventListener("click", (e) => {
-    const x = e.target.closest(".g-token > button");
+    const x = e.target.closest(".cp-token > button");
     if (x) {
-      const next = x.closest(".g-token").nextElementSibling?.querySelector("button") ?? $("[data-clear-filters]", box);
-      x.closest(".g-token").remove();
+      const next = x.closest(".cp-token").nextElementSibling?.querySelector("button") ?? $("[data-clear-filters]", box);
+      x.closest(".cp-token").remove();
       next?.focus();
       update();
     }
     if (e.target.closest("[data-clear-filters]")) {
-      for (const t of $$(".g-token", box)) t.remove();
+      for (const t of $$(".cp-token", box)) t.remove();
       update();
     }
   });
@@ -2747,17 +2409,11 @@ for (const pop of $$("[data-delete-confirm]")) {
 
 // An action that confirms and keeps its word, as Copy does.
 for (const b of $$("[data-confirm-word]")) {
-  const ic = b.querySelector(".cp-icon");
-  const rest = ic.dataset.cpIcon;
   b.addEventListener("click", () => {
-    b.dataset.state = "done";
-    ic.dataset.cpIcon = "check";
+    b.dataset.cpState = "done";
     say(b.dataset.confirmWord);
     clearTimeout(b.confirmTimer);
-    b.confirmTimer = setTimeout(() => {
-      delete b.dataset.state;
-      ic.dataset.cpIcon = rest;
-    }, 1600);
+    b.confirmTimer = setTimeout(() => delete b.dataset.cpState, 1600);
   });
 }
 
@@ -2918,9 +2574,9 @@ for (const b of $$("[data-load-older]")) {
 // Active filters: put the demo's chips back.
 for (const b of $$("[data-reset-filters]")) {
   const box = $("[data-active-filters]", b.closest(".card"));
-  const start = $$(".g-token", box).map((t) => t.cloneNode(true));
+  const start = $$(".cp-token", box).map((t) => t.cloneNode(true));
   b.addEventListener("click", () => {
-    for (const t of $$(".g-token", box)) t.remove();
+    for (const t of $$(".cp-token", box)) t.remove();
     $("[data-clear-filters]", box).before(...start.map((t) => t.cloneNode(true)));
     box.dispatchEvent(new Event("filters-reset"));
   });
@@ -3300,26 +2956,6 @@ function rollTo(host, text, up) {
   b.animate([{ translate: `0 ${up ? d : -d}px` }, { translate: "0 0" }], { duration: 260, easing: ease }).onfinish = () => {
     if (host.__rollVal === text) host.replaceChildren(text);
   };
-}
-for (const st of $$(".g-stepper:has(> input)")) {
-  const input = $("input", st);
-  const show = el("span", { class: "g-stepper-show", "aria-hidden": "true" });
-  st.style.position = "relative";
-  input.after(show);
-  let last = input.value;
-  for (const b of $$("button", st)) {
-    b.addEventListener("click", () => {
-      const next = input.value;
-      if (next === last) return;
-      show.textContent = last;
-      Object.assign(show.style, { left: `${input.offsetLeft}px`, top: `${input.offsetTop}px`, width: `${input.offsetWidth}px`, height: `${input.offsetHeight}px` });
-      st.dataset.rolling = "";
-      rollTo(show, next, Number(next) > Number(last));
-      setTimeout(() => delete st.dataset.rolling, reduced() ? 0 : 270);
-      last = next;
-    });
-  }
-  input.addEventListener("input", () => (last = input.value));
 }
 for (const g of $$("[role='group'][aria-label='Zoom']")) {
   const [out, label, inn] = $$("button", g);

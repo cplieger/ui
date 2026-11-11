@@ -1,0 +1,14 @@
+/* A state word: a short word in its tone, after the tone's glyph, such as
+ * "set", "not set" or "rejected" beside a setting. */
+.cp-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-state > .cp-icon {
+  --cp-icon-size: 0.875rem;
+}

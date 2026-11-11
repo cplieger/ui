@@ -11,20 +11,20 @@
       <a href="#st-sources"><span class="cp-icon" data-cp-icon="server" aria-hidden="true"></span>Sources</a>
       <a href="#st-account"><span class="cp-icon" data-cp-icon="shield-check" aria-hidden="true"></span>Account and security</a>
     </nav>
-    <div class="cp-field g-cat-select"><label class="cp-label" for="st-cat">Category</label><div class="g-select"><select class="cp-input" id="st-cat"><option value="st-appearance">Appearance</option><option value="st-checks">Checks</option><option value="st-notify">Notifications</option><option value="st-sources">Sources</option><option value="st-account">Account and security</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div></div>
+    <div class="cp-field g-cat-select"><label class="cp-label" for="st-cat">Category</label><div class="cp-select"><select class="cp-input" id="st-cat"><option value="st-appearance">Appearance</option><option value="st-checks">Checks</option><option value="st-notify">Notifications</option><option value="st-sources">Sources</option><option value="st-account">Account and security</option></select></div></div>
     <form class="cp-stack" data-settings novalidate>
       <div class="g-banner" data-tone="warning" id="st-elsewhere" role="status" hidden><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>These settings changed on another device while you were editing.</span><button class="cp-button" data-size="sm" type="button" data-keep-mine>Load the latest and keep my changes</button></div>
       <div class="cp-notice" data-tone="danger" role="alert" id="st-summary" tabindex="-1" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div><strong>1 setting needs a fix before this saves</strong><ul><li><a href="#st-name">Account and security: Display name</a></li></ul></div></div>
       <section class="cp-panel cp-stack" id="st-appearance" aria-labelledby="st-appearance-h">
         <h2 id="st-appearance-h">Appearance</h2>
-        <fieldset class="g-choices"><legend class="cp-label">Theme</legend>
+        <fieldset class="cp-choices"><legend class="cp-label">Theme</legend>
           <div class="g-themes">
             <label class="g-theme"><input type="radio" name="g-theme" value="system"><span class="g-shot" data-look="system" aria-hidden="true"></span>System</label>
             <label class="g-theme"><input type="radio" name="g-theme" value="light" checked><span class="g-shot" data-look="light" aria-hidden="true"></span>Light</label>
             <label class="g-theme"><input type="radio" name="g-theme" value="dark"><span class="g-shot" data-look="dark" aria-hidden="true"></span>Dark</label>
           </div>
         </fieldset>
-        <fieldset class="g-choices"><legend class="cp-label">Accent colour</legend>
+        <fieldset class="cp-choices"><legend class="cp-label">Accent colour</legend>
           <div class="g-swatches">
             <label data-hue="255" aria-label="Blue"><input type="radio" name="g-accent" value="255" checked></label>
             <label data-hue="162" aria-label="Green"><input type="radio" name="g-accent" value="162"></label>
@@ -40,23 +40,23 @@
 
       <section class="cp-panel cp-stack" id="st-checks" aria-labelledby="st-checks-h">
         <h2 id="st-checks-h">Checks</h2>
-        <div class="cp-setting"><div><label class="cp-label" for="st-interval">Check every</label><span class="cp-help">How often each series is compared with SeaDex.</span></div><div class="g-select"><select class="cp-input" id="st-interval" name="interval"><option>15 minutes</option><option selected>hour</option><option>6 hours</option></select><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></div></div>
-        <div class="cp-setting"><div><label class="cp-label" for="st-night">Full check at night</label><span class="cp-help">At 03:00, every series, even unchanged ones.</span></div><input class="box box-twirl" id="st-night" name="night" type="checkbox" checked></div>
-        <div class="cp-setting"><div><label class="cp-label" for="st-seed">Minimum seeders</label></div><div class="g-range-row g-range-wide"><input class="g-range" id="st-seed" name="seeders" type="range" min="0" max="50" value="5" data-out="st-seed-out"><output id="st-seed-out" for="st-seed"></output></div></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-interval">Check every</label><span class="cp-help">How often each series is compared with SeaDex.</span></div><div class="cp-select"><select class="cp-input" id="st-interval" name="interval"><option>15 minutes</option><option selected>hour</option><option>6 hours</option></select></div></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-night">Full check at night</label><span class="cp-help">At 03:00, every series, even unchanged ones.</span></div><input class="cp-checkbox" id="st-night" name="night" type="checkbox" checked></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-seed">Minimum seeders</label></div><div class="cp-range-row g-range-wide"><input class="cp-range" id="st-seed" name="seeders" type="range" min="0" max="50" value="5" data-out="st-seed-out"><output id="st-seed-out" for="st-seed"></output></div></div>
       </section>
 
       <section class="cp-panel cp-stack" id="st-notify" aria-labelledby="st-notify-h">
         <h2 id="st-notify-h">Notifications</h2>
-        <div class="cp-setting"><div><label class="cp-label" for="st-n1">A better release is found</label></div><input class="box box-twirl" id="st-n1" name="n1" type="checkbox" checked></div>
-        <div class="cp-setting"><div><label class="cp-label" for="st-n2">A source stops answering</label><span class="cp-help">After three failed checks in a row.</span></div><input class="box box-twirl" id="st-n2" name="n2" type="checkbox" checked></div>
-        <div class="cp-setting"><div><label class="cp-label" for="st-n3">A weekly summary</label></div><input class="box box-twirl" id="st-n3" name="n3" type="checkbox"></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-n1">A better release is found</label></div><input class="cp-checkbox" id="st-n1" name="n1" type="checkbox" checked></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-n2">A source stops answering</label><span class="cp-help">After three failed checks in a row.</span></div><input class="cp-checkbox" id="st-n2" name="n2" type="checkbox" checked></div>
+        <div class="cp-setting"><div><label class="cp-label" for="st-n3">A weekly summary</label></div><input class="cp-checkbox" id="st-n3" name="n3" type="checkbox"></div>
       </section>
 
       <section class="cp-panel cp-stack" id="st-sources" aria-labelledby="st-sources-h">
         <div class="cp-heading-row"><h2 id="st-sources-h">Sources</h2><div class="cp-toolbar"><button class="cp-button" type="button" data-toast-kind="info"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span>Add a source</button></div></div>
         <ul class="g-list">
-          <li><div class="g-row"><span class="cp-icon" data-cp-icon="server" aria-hidden="true"></span><span>Sonarr<small><span class="g-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Answering</span> · http://sonarr.lan:8989, 351 series</small></span><button class="cp-button" data-size="sm" type="button">Edit</button></div></li>
-          <li><div class="g-row"><span class="cp-icon" data-cp-icon="server" aria-hidden="true"></span><span>Radarr<small><span class="g-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Not answering</span> since <time data-ago="5400"></time></small></span><button class="cp-button" data-size="sm" type="button">Edit</button></div></li>
+          <li><div class="g-row"><span class="cp-icon" data-cp-icon="server" aria-hidden="true"></span><span>Sonarr<small><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Answering</span> · http://sonarr.lan:8989, 351 series</small></span><button class="cp-button" data-size="sm" type="button">Edit</button></div></li>
+          <li><div class="g-row"><span class="cp-icon" data-cp-icon="server" aria-hidden="true"></span><span>Radarr<small><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Not answering</span> since <time data-ago="5400"></time></small></span><button class="cp-button" data-size="sm" type="button">Edit</button></div></li>
         </ul>
       </section>
 

@@ -41,7 +41,7 @@ An app chooses its colour seeds, and every step, tone and harmony colour derives
 
 ## Every input, every engine
 
-Every element works with a finger, a mouse and a keyboard, and follows the last real input rather than a guess. CI tests each one in Chromium, and `CPLIEGER_BROWSERS=chromium,firefox,webkit npm test` runs the same tests in Firefox and WebKit before a change lands, apart from the few that need Chromium's DevTools protocol.
+Every element works with a finger, a mouse and a keyboard, and follows the last real input rather than a guess. CI tests each one in Chromium, Firefox and WebKit, apart from the few tests that need Chromium's DevTools protocol.
 
 ## The gallery is the finish line
 

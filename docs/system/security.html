@@ -522,28 +522,30 @@
                   <div>Copy it now. It will not be shown again.</div>
                 </div>
                 <div class="cp-field">
-                  <label
+                  <span
                     class="cp-label"
                     id="new-key-label"
-                    for="new-key"
-                    >New key for backup script</label
+                    >New key for backup script</span
                   >
-                  <div class="cp-input-row">
-                    <input
-                      class="cp-input cp-mono"
-                      id="new-key"
-                      type="text"
-                      readonly
-                      spellcheck="false"
-                      value="rt_example-shown-once"
-                    >
+                  <div
+                    class="cp-code"
+                    role="group"
+                    aria-labelledby="new-key-label"
+                  >
+                    <code id="new-key">rt_example-shown-once</code>
                     <button
-                      class="cp-button"
+                      class="cp-button cp-copy"
                       type="button"
                     >
                       <span
                         class="cp-icon"
                         data-cp-icon="copy"
+                        aria-hidden="true"
+                      ></span
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="check"
+                        data-part="done"
                         aria-hidden="true"
                       ></span
                       >Copy

@@ -48,7 +48,7 @@
   cursor: pointer;
 }
 
-.cp-table [data-col="select"] input {
+.cp-table [data-col="select"] input:not(.cp-checkbox) {
   inline-size: 1rem;
   block-size: 1rem;
   margin: 0;

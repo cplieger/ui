@@ -23,7 +23,7 @@ Every region that loads data has four designed states, for loading, empty, error
 
 ## Forms
 
-A form never loses what the person typed, and every error is text that says how to fix it.
+A form never loses what the person typed, and every error is text that says how to fix it. [form](forms/form.md) shows and clears the errors as steps 3 to 5 ask, from the app's own checks.
 
 1. Each control has a visible `<label>`, with `.cp-help` under it when a format or a source needs saying. A search field in a toolbar is the one exception. It may go without a label when its placeholder starts with "Search" and names what it searches, such as "Search titles…", and its accessible name is the same words.
 2. Validate a field when it loses focus and when the form submits, never on every keystroke. Keep submit enabled, so a submit shows what is missing.
@@ -43,10 +43,10 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 **Sorting.** A sortable column's header is a button that names the order it will apply. The current sort is in the URL and in `aria-sort` on its `<th>`.
 
-**Selection.** A table whose rows take a bulk action has a first column, `data-col="select"`, of native checkboxes:
+**Selection.** A table whose rows take a bulk action has a first column, `data-col="select"`, of `.cp-checkbox` boxes:
 
 1. Each row's checkbox has a name that includes its title, such as "Select Mushishi", inside a `<label>` that fills its cell.
-2. The header's checkbox selects the rows on this page, and its name says so, such as "Select all 25 entries on this page". It is mixed (`indeterminate`) while some of them are selected.
+2. The header's checkbox selects the rows on this page, and its name says so, such as "Select all 25 entries on this page". It is mixed (`indeterminate`) while some of them are selected. [checkbox](forms/checkbox.md)'s `enhanceSelectAll` does both.
 3. A selected row takes the selected fill. Space toggles the focused checkbox. Escape clears the selection while focus is in the table or the batch bar and no dialog or menu is open.
 4. With one row or more selected, a `.cp-batchbar` above the table, a `<section>` named by `aria-label`, shows the count, a Clear button and the bulk actions, which name their count, such as "Grab 2". Once the whole page is selected and more rows match, it also offers "Select all 412 entries", which selects every row the filters show on every page. With none selected, the bar is gone.
 5. Selection survives sorting and paging. A filter change that hides selected rows keeps them selected and says so in the count, such as "2 selected, 1 hidden by filters".
@@ -91,7 +91,8 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 | --- | --- | --- |
 | A problem with one region, such as a source that failed to answer | a notice where the region is | until the problem ends |
 | A condition of the whole screen, such as a rate limit or a lost connection | a notice at the top of `.cp-main` | until the condition ends |
-| A short confirmation of the person's own action, such as "Saved", whose result stays visible on the screen or in the history | a toast | 7 seconds, paused while hovered or focused |
+| A confirmation on the control the person pressed, such as Saved on Save or Copied on Copy | the control itself, through [confirm](buttons/confirm.md) or [copy](forms/copy.md), which say it | 1.6 seconds |
+| A short confirmation of the person's own action, such as "Source added", whose result stays visible on the screen or in the history | a toast | 7 seconds, paused while hovered or focused |
 | A confirmation whose result is not visible anywhere else | a toast | until dismissed |
 | A failure of the person's own action | a toast, with Retry when it can be retried | until dismissed |
 | The outcome of background work, such as a finished check | the app's activity history, and a toast only when the person started it | in the history |
