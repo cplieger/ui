@@ -1800,16 +1800,6 @@ kbd.g-key {
   font-size: var(--cp-text-xs);
 }
 
-/* A stand-in for the frame's rail, which the frame hides under 60rem. */
-.g-rail {
-  display: grid;
-  gap: var(--cp-space-4);
-  inline-size: 14rem;
-  padding: var(--cp-space-3);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-}
 
 /* Foundations page */
 
@@ -3165,20 +3155,6 @@ html:has(.g-header) {
 
 .g-media-head h2 + .g-alt-title + .g-media-meta {
   margin-block-start: var(--cp-space-2);
-}
-
-/* Skip to the content: the first Tab stop, shown only while focused. */
-.g-mini-header {
-  position: relative;
-}
-
-/* A popover that holds a listbox and a status line beside it. */
-
-.g-bullets {
-  display: grid;
-  gap: var(--cp-space-2);
-  margin: 0;
-  padding-inline-start: 1.25rem;
 }
 
 /* ===== Layouts: frames at three widths, and arrangements inside a region ===== */
