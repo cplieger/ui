@@ -1,8 +1,8 @@
 /**
  * nav-feedback.ts — the gallery's wiring for the navigation and feedback
  * cards that run on the library: the header's account menu and its status
- * demo, the jump field, the rail's filters, the content tabs and the
- * accordion.
+ * demo, the jump field, the rail's filters, the content tabs, the
+ * accordion, and the look of the frames that show the bottom bar.
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
@@ -157,4 +157,30 @@ for (const mode of document.querySelectorAll<HTMLElement>("[data-accordion-mode]
     const one = e.target instanceof HTMLInputElement && e.target.value === "one";
     groupDisclosures(sections, one ? group : null);
   });
+}
+
+// A frame takes the gallery's look by message (frame.ts owns why): sent
+// when the frame asks and on every change.
+const root = document.documentElement;
+for (const frame of document.querySelectorAll<HTMLIFrameElement>("iframe[data-frame]")) {
+  const send = (): void => {
+    frame.contentWindow?.postMessage(
+      {
+        theme: root.dataset["theme"],
+        accent: root.style.getPropertyValue("--cp-accent-h"),
+        neutral: root.style.getPropertyValue("--cp-neutral-h"),
+      },
+      "*",
+    );
+  };
+  addEventListener("message", (e) => {
+    if (e.source === frame.contentWindow && e.data === "frame:ready") {
+      send();
+    }
+  });
+  new MutationObserver(send).observe(root, {
+    attributes: true,
+    attributeFilter: ["data-theme", "style"],
+  });
+  send();
 }

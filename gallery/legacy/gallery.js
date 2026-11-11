@@ -1550,18 +1550,6 @@ for (const md of $$("[data-md]")) {
   render();
 }
 
-// ----------------------------------------------------------- bottom bar
-for (const nav of $$(".g-bottom-nav")) {
-  nav.addEventListener("click", (e) => {
-    const a = e.target.closest("a");
-    if (!a) return;
-    e.preventDefault();
-    for (const x of $$("a", nav)) x.toggleAttribute("aria-current", x === a);
-    for (const x of $$("a", nav)) if (x === a) x.setAttribute("aria-current", "page");
-    $(".g-phone-body", nav.closest(".g-phone")).textContent = `${a.textContent.trim()}: this destination's screen.`;
-  });
-}
-
 // ------------------------------------------------------------ virtual list
 // 20,000 rows: only those in view, plus a few each side, are in the DOM,
 // each keyed by its id so a live update changes it in place. The focused
