@@ -905,7 +905,7 @@ export function handleItalic(p: Parser, char: string, pending_with_char: string)
 }
 
 export function handleMaybeEqBlock(p: Parser, char: string): void {
-  if (char === "\n") {
+  if (char === "\n" && !p.at_end) {
     add_text(p);
     if (!add_token(p, EQUATION_BLOCK)) {
       // Past the cap the opener is literal text, and the token that would have consumed the rest of
@@ -918,11 +918,8 @@ export function handleMaybeEqBlock(p: Parser, char: string): void {
     p.pending = "";
   } else {
     p.token = p.tokens[p.len] as Token;
-    if (p.pending.startsWith("\\")) {
-      p.textBuf += "[";
-    } else {
-      p.textBuf += "$";
-    }
+    // `\[` is an escaped bracket; `$$` is two dollar signs.
+    p.textBuf += p.pending.startsWith("\\") ? "[" : p.pending;
     p.pending = "";
     p.write(p, char);
   }

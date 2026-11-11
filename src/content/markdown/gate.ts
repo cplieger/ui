@@ -124,13 +124,12 @@ function payloadText(text: string): boolean {
 }
 
 /**
- * The exfiltration heuristic `withhold` applies by default: whether a URL
- * carries an encoded payload in its query and fragment (200 characters, 21
- * percent escapes in a row, a 40-character base64 run or a credential
- * marker), its user info (the same), or its host (a label of 32 or more
- * letters and digits holding a digit, a credential marker, or a host over
- * 100 characters). The path is not read, since commit hashes and long paths
- * are ordinary there. A heuristic, outside the safety contract.
+ * The exfiltration heuristic `withhold` applies by default: whether the
+ * query and fragment, or the user info, carry 200 characters, 21 percent
+ * escapes in a row, a 40-character base64 run or a credential marker, or the
+ * host has a 32-character label of letters and digits holding a digit, a
+ * credential marker or over 100 characters. The path is not read: commit
+ * hashes and long paths are ordinary there. Outside the safety contract.
  */
 export function payloadShaped(url: URL): boolean {
   const tail = (url.search + url.hash).slice(1);

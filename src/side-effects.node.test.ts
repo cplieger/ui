@@ -28,6 +28,7 @@ const PURE = [
   "/highlight",
   "/icons",
   "/list-detail",
+  "/markdown",
   "/menu",
   "/pairs",
   "/panel",

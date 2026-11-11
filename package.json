@@ -24,6 +24,7 @@
     "./highlight": "./src/content/highlight/highlight.ts",
     "./icons": "./src/foundations/icons/icons.ts",
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
+    "./markdown": "./src/content/markdown/markdown.ts",
     "./menu": "./src/overlays/menu/menu.ts",
     "./pairs": "./src/forms/pairs/pairs.ts",
     "./panel": "./src/overlays/panel/panel.ts",

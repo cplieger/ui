@@ -480,6 +480,20 @@ describe("unresolved inline tokens report their delimiter", () => {
   });
 });
 
+describe("a `$$` that opens no equation block", () => {
+  it.each(["$$x$$", "a $$x$$ b", "cost $$5", "a\n$$"])("keeps both dollar signs of %j", (input) => {
+    for (let chunkLen = 1; chunkLen <= 3; chunkLen += 1) {
+      const t = trace(input, chunkLen);
+      expect(t.texts.join("")).toBe(input.replace("\n", ""));
+      expect(t.kinds).not.toContain("equation-block");
+    }
+  });
+
+  it("opens a block only with a newline after it", () => {
+    expect(trace("$$\nx\n$$\n").kinds).toEqual(["paragraph", "equation-block"]);
+  });
+});
+
 describe("a refused underscore close leaves the operations balanced", () => {
   const inputs = [
     "_foo_bar",
