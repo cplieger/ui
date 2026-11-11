@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { enhanceToggle, enhanceToggleGroup } from "./toggle.js";
+import { enhanceToggle } from "./toggle.js";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -90,66 +90,5 @@ describe("enhanceToggle", () => {
     life.abort();
     b.click();
     expect(b.getAttribute("aria-pressed")).toBe("false");
-  });
-});
-
-function views(pressed = 0): { group: HTMLElement; buttons: HTMLButtonElement[] } {
-  const group = document.createElement("div");
-  group.className = "cp-toggle-group";
-  group.setAttribute("role", "group");
-  const buttons = ["List", "Grid", "Compact"].map((name, i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "cp-button";
-    b.setAttribute("aria-label", name);
-    b.setAttribute("aria-pressed", String(i === pressed));
-    group.append(b);
-    return b;
-  });
-  document.body.append(group);
-  return { group, buttons };
-}
-
-describe("enhanceToggleGroup", () => {
-  it("presses the one pressed and lets go of the others, reporting it", () => {
-    const { group, buttons } = views(0);
-    const seen: string[] = [];
-    const g = enhanceToggleGroup(group, { onChange: (b) => seen.push(b.ariaLabel ?? "") });
-    buttons[2]?.click();
-    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
-    expect(g.pressed).toBe(buttons[2]);
-    expect(seen).toEqual(["Compact"]);
-  });
-
-  it("keeps the pressed one pressed on a second press, without a change", () => {
-    const { group, buttons } = views(1);
-    const seen: HTMLButtonElement[] = [];
-    enhanceToggleGroup(group, { onChange: (b) => seen.push(b) });
-    buttons[1]?.click();
-    expect(buttons[1]?.getAttribute("aria-pressed")).toBe("true");
-    expect(seen).toEqual([]);
-  });
-
-  it("sets the choice without onChange, and reads none while none is pressed", () => {
-    const { group, buttons } = views(-1);
-    const seen: HTMLButtonElement[] = [];
-    const g = enhanceToggleGroup(group, { onChange: (b) => seen.push(b) });
-    expect(g.pressed).toBeNull();
-    g.set(buttons[1] as HTMLButtonElement);
-    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "true", "false"]);
-    expect(seen).toEqual([]);
-  });
-
-  it("ignores a button without aria-pressed, and stops when its signal aborts", () => {
-    const { group, buttons } = views(0);
-    const other = document.createElement("button");
-    group.append(other);
-    const life = new AbortController();
-    enhanceToggleGroup(group, { signal: life.signal });
-    other.click();
-    expect(buttons[0]?.getAttribute("aria-pressed")).toBe("true");
-    life.abort();
-    buttons[1]?.click();
-    expect(buttons[1]?.getAttribute("aria-pressed")).toBe("false");
   });
 });

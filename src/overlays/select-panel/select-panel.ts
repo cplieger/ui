@@ -79,7 +79,8 @@ export function enhanceSelectPanel(panel: HTMLElement, options: SelectPanelOptio
       o.hidden = !words(o).includes(q);
     }
     const shown = all().filter(usable);
-    const none = shown.length === 0;
+    // A disabled option that matches still shows, so the list is not empty.
+    const none = !all().some((o) => !o.hidden);
     // Focus stays in the field, so the list going empty says nothing by
     // itself.
     if (empty !== null && empty.hidden === none) {

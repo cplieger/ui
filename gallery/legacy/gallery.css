@@ -339,43 +339,6 @@
     inline-size 460ms var(--ease-spring);
 }
 
-/* A segmented choice: the pill slides to the chosen one, under its
- * words. Placed in rows and columns, so a wrapped choice
- * slides to its line. */
-.cp-segmented:has(> .pill) {
-  position: relative;
-}
-
-.cp-segmented > .pill {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  inline-size: var(--w, 0);
-  block-size: var(--h, 0);
-  translate: var(--x, 0) var(--y, 0);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-raised);
-  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
-  pointer-events: none;
-  transition:
-    translate 460ms var(--ease-spring),
-    inline-size 460ms var(--ease-spring),
-    block-size 460ms var(--ease-spring);
-}
-
-.cp-segmented > .pill[data-still] {
-  transition: none;
-}
-
-.cp-segmented:has(> .pill) > label {
-  z-index: 1;
-}
-
-.cp-segmented:has(> .pill) > label:has(:checked) {
-  background: transparent;
-  box-shadow: none;
-}
-
 /* Progress. The fill is one gradient fixed to the track, the accent at the
  * start and a lighter accent at the end, and progress reveals more of it by
  * clipping less, so the lighter end only shows near the finish. Its two

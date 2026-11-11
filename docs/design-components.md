@@ -15,7 +15,6 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-group`, `.cp-split` | buttons joined into one control, and a split button: an action and a caret, one shape, the action growing over the caret while it works |
 | `.cp-toggle` | a quiet icon button that is on or off, with `data-kind="pin"`, `"favourite"` or `"theme"`, as [toggle](buttons/toggle.md) describes |
 | `.cp-overflow` | a toolbar of quiet small buttons that keeps to one line: the buttons that do not fit wait, in order, in its More menu, as [overflow](buttons/overflow.md) describes |
-| `.cp-toggle-group` | quiet icon buttons on one track with one pressed, for a choice among views such as List, Grid and Compact, the pressed one raised or a pill under it, as [toggle](buttons/toggle.md) describes |
 | `.cp-roll` | words or a number that change by sliding, as [roll](core/roll.md) describes |
 | `.cp-field`, `.cp-label`, `.cp-input`, `.cp-help`, `.cp-field-error` | a labelled field, its help and its error, with the danger border on `aria-invalid="true"` and `:user-invalid`, and the warning border on `data-tone="warning"` |
 | `.cp-form`, `.cp-input-row`, `.cp-input-wrap` | a column of fields at most 32rem wide, a field with a control beside it, and a field with a quiet control inside its end |
@@ -37,7 +36,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-test-status` | the connection test's answer, its glyph and tone drawn from `data-cp-state`: the spinner while busy, `circle-check` in the success tone once passed and `circle-x` in the danger tone once failed, as [connection-test](forms/connection-test.md) describes |
 | `.cp-listbox` | the options under a combobox, on a `.cp-popover` as wide as its field, the active one filled, as [combobox](forms/combobox.md) describes |
 | `.cp-state` | a short state word in its `data-tone`, after a `.cp-icon` with the tone's glyph, such as `circle-check` for `success` |
-| `.cp-segmented` | one choice of a few, such as a theme, as native radios in labels, with `data-variant="icons"` for square icon segments named by each radio's `aria-label`, and a pill that slides under the choice with [pill](core/pill.md) |
+| `.cp-segmented` | one choice of a few, such as a theme, as native radios in labels, with `data-variant="icons"` for square icon segments named by each radio's `aria-label` or by `.cp-visually-hidden` words in its label, a [tooltip](overlays/tooltip.md) on the label showing the name, and a pill that slides under the choice with [pill](core/pill.md) |
 | `.cp-settings`, `.cp-settings-nav`, `.cp-setting`, `.cp-savebar` | a settings page: its categories beside the open one, one setting per row, and the bar that holds unsaved changes, as [Settings](design-settings.md) describes |
 | `.cp-gate` | a page outside the frame for one short task, such as sign-in, as [Account and sign-in](design-account.md#the-gate-page) describes. `data-variant="steps"` is a setup of several steps: a 28rem column whose panel is the steps' container, and a `data-part="actions"` row with Back first and the primary last |
 | `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority` |

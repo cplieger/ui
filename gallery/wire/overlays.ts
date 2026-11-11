@@ -15,7 +15,7 @@ import { enhancePopconfirm } from "@cplieger/ui/popconfirm";
 import { enhanceSelectPanel } from "@cplieger/ui/select-panel";
 import { toast } from "@cplieger/ui/toast";
 import { enhancePill } from "@cplieger/ui/pill";
-import { enhanceToggle, enhanceToggleGroup } from "@cplieger/ui/toggle";
+import { enhanceToggle } from "@cplieger/ui/toggle";
 import { turn } from "@cplieger/ui/turn";
 
 installAnchors();
@@ -86,8 +86,7 @@ for (const b of document.querySelectorAll<HTMLButtonElement>(
 )) {
   enhanceToggle(b);
 }
-for (const g of document.querySelectorAll<HTMLElement>(".cp-toggle-group")) {
-  enhanceToggleGroup(g);
+for (const g of document.querySelectorAll<HTMLElement>(".cp-segmented")) {
   enhancePill(g);
 }
 

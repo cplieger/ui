@@ -290,31 +290,6 @@ for (const list of document.querySelectorAll(".slide-tabs")) {
   place();
 }
 
-// Segmented choices: one pill under the chosen one. It lands without motion
-// on load and on a resize, and slides on a choice.
-for (const group of document.querySelectorAll(".cp-segmented")) {
-  const pill = document.createElement("span");
-  pill.className = "pill";
-  pill.setAttribute("aria-hidden", "true");
-  pill.dataset.still = "";
-  group.prepend(pill);
-  const chosen = () => group.querySelector("label:has(:checked)");
-  const place = (still) => {
-    const c = chosen();
-    pill.hidden = !c;
-    if (!c) return;
-    if (still) pill.dataset.still = "";
-    pill.style.setProperty("--x", `${c.offsetLeft}px`);
-    pill.style.setProperty("--y", `${c.offsetTop}px`);
-    pill.style.setProperty("--w", `${c.offsetWidth}px`);
-    pill.style.setProperty("--h", `${c.offsetHeight}px`);
-    if (still) requestAnimationFrame(() => requestAnimationFrame(() => delete pill.dataset.still));
-  };
-  new ResizeObserver(() => place(true)).observe(group);
-  group.addEventListener("change", () => place(false));
-  place(true);
-}
-
 // Progress: small steps a little faster than the fill's 480ms glide, so it
 // never comes to rest between them; it turns green once the fill arrives.
 for (const b of document.querySelectorAll("[data-run]")) {

@@ -22,6 +22,11 @@ export interface TooltipOptions {
 const TIP = "[data-cp-tip]";
 const NAME = "--cp-tip-anchor";
 
+/** What a screen reader focuses for `el`: a tipped label's control. */
+function described(el: HTMLElement): HTMLElement {
+  return el instanceof HTMLLabelElement ? (el.control ?? el) : el;
+}
+
 function target(e: Event): HTMLElement | null {
   const t = e.composedPath()[0];
   return t instanceof Element ? t.closest<HTMLElement>(TIP) : null;
@@ -38,19 +43,21 @@ function listen(signal: AbortSignal, delay: number): void {
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   /** Writes `el`'s words into the tip, and describes `el` by them only
-   *  while they say more than its name. False when it has none to show. */
+   *  while they say more than its name: its `aria-label`, else its own
+   *  words, as a label's visually hidden ones. False when it has none. */
   const write = (el: HTMLElement): boolean => {
     const words = el.dataset["cpTip"] ?? "";
     if (words === "" || !el.isConnected) {
       return false;
     }
     tip.textContent = words;
-    if (el.getAttribute("aria-label") === words) {
-      if (el.getAttribute("aria-describedby") === tip.id) {
-        el.removeAttribute("aria-describedby");
+    const d = described(el);
+    if ((el.getAttribute("aria-label") ?? el.textContent.trim()) === words) {
+      if (d.getAttribute("aria-describedby") === tip.id) {
+        d.removeAttribute("aria-describedby");
       }
-    } else if (!el.hasAttribute("aria-describedby")) {
-      el.setAttribute("aria-describedby", tip.id);
+    } else if (!d.hasAttribute("aria-describedby")) {
+      d.setAttribute("aria-describedby", tip.id);
     }
     return true;
   };
@@ -67,8 +74,9 @@ function listen(signal: AbortSignal, delay: number): void {
     watch.disconnect();
     if (shownFor !== null) {
       removeAnchorName(shownFor, NAME);
-      if (shownFor.getAttribute("aria-describedby") === tip.id) {
-        shownFor.removeAttribute("aria-describedby");
+      const d = described(shownFor);
+      if (d.getAttribute("aria-describedby") === tip.id) {
+        d.removeAttribute("aria-describedby");
       }
     }
     shownFor = null;
@@ -128,8 +136,11 @@ function listen(signal: AbortSignal, delay: number): void {
   document.addEventListener(
     "focusin",
     (e) => {
+      // The focused control may sit inside the tipped one, as a radio in
+      // its label.
       const el = target(e);
-      if (el?.matches(":focus-visible") === true) {
+      const focused = e.composedPath()[0];
+      if (el !== null && focused instanceof Element && focused.matches(":focus-visible")) {
         show(el);
       }
     },

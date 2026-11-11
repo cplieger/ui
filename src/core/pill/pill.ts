@@ -1,7 +1,7 @@
 /**
  * pill.ts — `enhancePill()` slides one raised pill under the chosen segment
- * of a `.cp-segmented`, or the pressed button of a `.cp-toggle-group`, on a
- * spring, instead of each filling on its own. The pill lands without motion when the page first draws and when the
+ * of a `.cp-segmented`, on a spring, instead of each segment filling on its
+ * own. The pill lands without motion when the page first draws and when the
  * group resizes, and slides when the choice changes.
  * @module
  */
@@ -15,14 +15,12 @@ export interface PillOptions {
 
 const STILL = "data-cp-still";
 
-/** The label of the checked radio or the pressed button, or null. */
+/** The label of the checked radio, or null when none is. */
 function chosen(group: HTMLElement): HTMLElement | null {
-  return group.querySelector<HTMLElement>(
-    ':scope > label:has(> input:checked), :scope > button[aria-pressed="true"]',
-  );
+  return group.querySelector<HTMLElement>(":scope > label:has(> input:checked)");
 }
 
-/** Adds the pill to `group`, a `.cp-segmented` or a `.cp-toggle-group`, once. */
+/** Adds the pill to `group`, a `.cp-segmented`, once. */
 export function enhancePill(group: HTMLElement, options: PillOptions = {}): void {
   const { signal } = options;
   const listen = until(signal);
@@ -63,15 +61,24 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
     place(true);
   });
   resize.observe(group);
-  // A toggle group's choice fires no change event, and a host may set it.
-  const pressed = new MutationObserver(() => {
-    place(false);
-  });
-  pressed.observe(group, { attributeFilter: ["aria-pressed"], subtree: true });
-  group.addEventListener(
+  // Listened on the document, after the page's own listeners: a change
+  // elsewhere may clear the choice, as a typed date clears a date range's
+  // quick range, and setting `checked` fires nothing.
+  group.ownerDocument.addEventListener(
     "change",
     () => {
       place(false);
+    },
+    listen,
+  );
+  // A reset fires before the controls reset
+  // (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset).
+  group.ownerDocument.addEventListener(
+    "reset",
+    () => {
+      setTimeout(() => {
+        place(false);
+      }, 0);
     },
     listen,
   );
@@ -81,7 +88,6 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
     "abort",
     () => {
       resize.disconnect();
-      pressed.disconnect();
       cancelAnimationFrame(frame);
       pill.remove();
     },

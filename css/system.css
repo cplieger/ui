@@ -1660,8 +1660,9 @@
   cursor: inherit;
 }
 
-/* An icon-only choice, such as a List, Grid or Compact view: square
- * segments, each named by its radio's aria-label. */
+/* An icon-only choice, such as a List, Grid or Table view: square
+ * segments, each named by its radio's aria-label or by visually hidden
+ * words in its label. */
 .cp-segmented[data-variant="icons"] > label {
   inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
   min-inline-size: 0;
@@ -6240,48 +6241,6 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   }
 }
 
-/* A toggle group (@cplieger/ui/toggle): quiet icon buttons on one track, one
- * pressed, for a choice among views such as List, Grid and Compact. The
- * pressed one is raised, or the pill from @cplieger/ui/pill slides under
- * it; words would make it a segmented choice. */
-.cp-toggle-group {
-  display: inline-flex;
-  inline-size: fit-content;
-  max-inline-size: 100%;
-  gap: 0.125rem;
-  padding: 0.125rem;
-  border-radius: calc(var(--cp-radius-control) + 0.125rem);
-  background: var(--cp-fill);
-}
-
-.cp-toggle-group > .cp-button {
-  --cp-toggle-fill: transparent;
-}
-
-.cp-toggle-group > .cp-button[aria-pressed="true"] {
-  color: var(--cp-ink);
-}
-
-.cp-toggle-group:not(:has(> .cp-pill)) > .cp-button[aria-pressed="true"] {
-  --cp-toggle-fill: var(--cp-surface-raised);
-
-  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
-}
-
-/* (0,4,1) outranks a quiet button's hover fill and an icon-only button's
- * press fill, (0,4,0) each: the track is the fill, so a hover only darkens
- * the icon, and a press shows by the pill moving. */
-.cp-toggle-group > button.cp-button[aria-pressed]:enabled {
-  background: var(--cp-toggle-fill);
-}
-
-@media (forced-colors: active) {
-  .cp-toggle-group > button.cp-button[aria-pressed="true"]:enabled {
-    background: SelectedItem;
-    color: SelectedItemText;
-  }
-}
-
 /* A toolbar that keeps to one line (@cplieger/ui/overflow): the buttons
  * that do not fit wait in its More menu. Until its script runs it wraps,
  * as a .cp-toolbar does, so no button is ever out of reach. */
@@ -6392,10 +6351,9 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* The pill @cplieger/ui/pill slides under a segmented choice's chosen
- * segment, or a toggle group's pressed button. Placed by row and column,
- * so a wrapped choice slides to its line. Once it is there, the segments
- * paint no fill of their own. */
-:is(.cp-segmented, .cp-toggle-group):has(> .cp-pill) {
+ * segment. Placed by row and column, so a wrapped choice slides to its
+ * line. Once it is there, the segments paint no fill of their own. */
+.cp-segmented:has(> .cp-pill) {
   position: relative;
 }
 
@@ -6430,8 +6388,7 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   left: 0;
 }
 
-.cp-segmented:has(> .cp-pill) > label,
-.cp-toggle-group:has(> .cp-pill) > .cp-button {
+.cp-segmented:has(> .cp-pill) > label {
   z-index: 1;
 }
 

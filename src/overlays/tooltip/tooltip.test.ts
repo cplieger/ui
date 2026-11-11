@@ -31,14 +31,19 @@ describe("installTooltips", () => {
     installTooltips({ signal: life.signal, delay: 300 });
     const b = control("Settings", "Settings");
     // The rest is measured from the pointer's arrival to the tip's opening, so
-    // a busy machine that slows the hover cannot make it look early. Both ends
-    // read performance.now() in their listener: an input event's timeStamp is
-    // the occurrence's time (https://dom.spec.whatwg.org/#concept-event-create),
-    // which Firefox under load stamped 5s after the toggle it caused. This
-    // listener runs before the document's, which starts the delay.
+    // a busy machine that slows the hover cannot make it look early. Both are
+    // read from performance.now() as they run: under load Firefox gave an
+    // automated pointerover a timeStamp 1.1s after the toggle it caused. The
+    // window's capture listener runs before the tooltip's, which starts the
+    // timer; one millisecond allows for the clock's rounding.
     let arrived = 0;
     let opened = 0;
-    b.addEventListener("pointerover", () => (arrived ||= performance.now()));
+    const over = (e: PointerEvent): void => {
+      if (e.target === b) {
+        arrived ||= performance.now();
+      }
+    };
+    window.addEventListener("pointerover", over, { capture: true, signal: life.signal });
     tip().addEventListener("toggle", (e) => {
       if (e.newState === "open") {
         opened ||= performance.now();
@@ -46,7 +51,8 @@ describe("installTooltips", () => {
     });
     await userEvent.hover(b);
     await expect.poll(showing, { timeout: 3000 }).toBe(true);
-    expect(opened - arrived).toBeGreaterThanOrEqual(300);
+    expect(arrived).toBeGreaterThan(0);
+    expect(opened - arrived).toBeGreaterThanOrEqual(299);
     expect(tip().textContent).toBe("Settings");
     expect(tip().getAttribute("role")).toBe("tooltip");
     await userEvent.unhover(b);
@@ -80,6 +86,36 @@ describe("installTooltips", () => {
     expect(more.getAttribute("aria-describedby")).toBe(tip().id);
     more.blur();
     expect(more.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("does not describe a control whose own words, seen or visually hidden, repeat its tip", () => {
+    installTooltips({ signal: life.signal });
+    const label = document.createElement("label");
+    label.dataset["cpTip"] = "Grid";
+    label.innerHTML =
+      '<input type="radio" name="view"><span class="cp-visually-hidden">Grid</span>';
+    document.body.append(label);
+    const radio = label.querySelector("input") as HTMLInputElement;
+    radio.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+    expect(tip().textContent).toBe("Grid");
+    expect(label.hasAttribute("aria-describedby")).toBe(false);
+    expect(radio.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("describes a tipped label's control, not the label, by a tip that says more", () => {
+    installTooltips({ signal: life.signal });
+    const label = document.createElement("label");
+    label.dataset["cpTip"] = "Shows each item as a row";
+    label.innerHTML =
+      '<input type="radio" name="view"><span class="cp-visually-hidden">List</span>';
+    document.body.append(label);
+    const radio = label.querySelector("input") as HTMLInputElement;
+    radio.focus({ focusVisible: true });
+    expect(radio.getAttribute("aria-describedby")).toBe(tip().id);
+    expect(label.hasAttribute("aria-describedby")).toBe(false);
+    radio.blur();
+    expect(radio.hasAttribute("aria-describedby")).toBe(false);
   });
 
   it("toggles the tip with a tap on a control marked for it, and leaves other taps alone", () => {

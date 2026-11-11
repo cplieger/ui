@@ -84,6 +84,16 @@ describe("enhanceSelectPanel", () => {
     expect(field.hasAttribute("aria-activedescendant")).toBe(false);
   });
 
+  it("keeps its empty words hidden while only a disabled option matches", async () => {
+    const { opener, panel, field, options, empty } = page();
+    enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
+    await userEvent.click(opener);
+    await userEvent.keyboard("dub");
+    expect(options.map((o) => o.hidden)).toEqual([true, true, false, true]);
+    expect(empty.hidden).toBe(true);
+    expect(field.hasAttribute("aria-activedescendant")).toBe(false);
+  });
+
   it("says its empty words as the list goes empty, since focus stays in the field", async () => {
     installAnnouncer({ signal: life.signal });
     const { opener, panel, empty } = page();

@@ -25,7 +25,8 @@ let seq = 0;
  * `popovertarget` or `commandfor`, holding the question in a `<p>` and a
  * `<form>` with its submit button and a `type="button"` decline. Throws a
  * `TypeError` when it holds no form or no decline. Needs `installAnchors()`
- * for focus to come back to the opener in Safari.
+ * for focus to come back to the opener in Safari, after either answer or
+ * Escape.
  */
 export function enhancePopconfirm(popover: HTMLElement, options: PopconfirmOptions): void {
   const { onConfirm, signal } = options;
@@ -65,15 +66,31 @@ export function enhancePopconfirm(popover: HTMLElement, options: PopconfirmOptio
     },
     { once: true },
   );
+  // Safari focuses no button on a click, so hiding finds no opener to
+  // give focus back to (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#clicking_and_focus).
+  // Focus moved out first stays where it lands; a press outside that
+  // focused another control keeps it.
+  const giveBack = (): void => {
+    anchorOf(popover)?.focus();
+  };
   form.addEventListener(
     "submit",
     (e) => {
       e.preventDefault();
       popover.hidePopover();
-      // Safari focuses no button on a click, so hiding finds no opener to
-      // give focus back to (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#clicking_and_focus).
-      anchorOf(popover)?.focus();
+      giveBack();
       onConfirm();
+    },
+    listen,
+  );
+  // A click listener runs before the button's command hides the popover.
+  decline.addEventListener("click", giveBack, listen);
+  popover.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Escape" && popover.popover !== "manual" && popover.matches(":popover-open")) {
+        giveBack();
+      }
     },
     listen,
   );

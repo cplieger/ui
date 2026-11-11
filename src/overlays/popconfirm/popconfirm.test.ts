@@ -85,6 +85,33 @@ describe("enhancePopconfirm", () => {
     expect(document.activeElement).toBe(opener);
   });
 
+  it("gives focus back to the opener on the decline though the opener never had it", () => {
+    installAnchors({ signal: life.signal });
+    const { opener, pop, no } = page();
+    let confirmed = 0;
+    enhancePopconfirm(pop, { onConfirm: () => (confirmed += 1), signal: life.signal });
+    // As Safari does on a click: the popover opens with focus on the page.
+    opener.click();
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(pop.matches(":popover-open")).toBe(true);
+    no.click();
+    expect(pop.matches(":popover-open")).toBe(false);
+    expect(document.activeElement).toBe(opener);
+    expect(confirmed).toBe(0);
+  });
+
+  it("gives focus back to the opener on Escape though the opener never had it", async () => {
+    installAnchors({ signal: life.signal });
+    const { opener, pop, no } = page();
+    enhancePopconfirm(pop, { onConfirm: () => undefined, signal: life.signal });
+    opener.click();
+    (document.activeElement as HTMLElement | null)?.blur();
+    no.focus();
+    await userEvent.keyboard("{Escape}");
+    expect(pop.matches(":popover-open")).toBe(false);
+    expect(document.activeElement).toBe(opener);
+  });
+
   it("becomes an alertdialog named by its question, and keeps a role and name it has", () => {
     const a = page();
     enhancePopconfirm(a.pop, { onConfirm: () => undefined, signal: life.signal });
