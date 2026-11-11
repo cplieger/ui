@@ -49,6 +49,7 @@ navigation/pages/pages.css
 navigation/rail/filters-trigger.css
 data/text/text.css
 data/avatar/avatar.css
+data/cover/cover.css
 feedback/chip/chip.css
 feedback/badge/badge.css
 feedback/notice/notice.css

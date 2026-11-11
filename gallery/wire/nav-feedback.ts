@@ -1,10 +1,11 @@
 /**
  * nav-feedback.ts — the gallery's wiring for the navigation and feedback
  * cards that run on the library: the header's account menu and its status
- * demo.
+ * demo, and the jump field.
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
+import { enhanceCombobox } from "@cplieger/ui/combobox";
 import { enhanceMenu } from "@cplieger/ui/menu";
 import { toast } from "@cplieger/ui/toast";
 
@@ -57,5 +58,54 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-status-
       heading.textContent = next.words;
     }
     announce(next.words);
+  });
+}
+
+// The jump field: one value, its options filtered by what was typed, the
+// count or the no-match line said once typing stops.
+for (const row of document.querySelectorAll<HTMLElement>("[data-jump]")) {
+  const input = row.querySelector<HTMLInputElement>("input");
+  const popup = document.getElementById(row.dataset["jump"] ?? "");
+  if (input === null || popup === null) {
+    continue;
+  }
+  const listbox = popup.querySelector<HTMLElement>('[role="listbox"]');
+  const empty = popup.querySelector<HTMLElement>(".cp-listbox-empty");
+  if (listbox === null || empty === null) {
+    continue;
+  }
+  const options = [...listbox.querySelectorAll<HTMLElement>('[role="option"]')];
+  const matches = (): HTMLElement[] => options.filter((o) => !o.hidden);
+  const open = (option: HTMLElement): void => {
+    input.value = option.querySelector("strong")?.textContent ?? "";
+    toast({ kind: "info", title: `Opened ${input.value}` });
+  };
+  const combobox = enhanceCombobox(input, listbox, {
+    popup,
+    empty,
+    anchor: row,
+    autoActivate: true,
+    settle: 500,
+    onQuery: (text) => {
+      const q = text.trim().toLowerCase();
+      for (const o of options) {
+        o.hidden = q !== "" && !o.textContent.toLowerCase().includes(q);
+      }
+      empty.textContent = `No entry matches “${text.trim()}”`;
+    },
+    onAccept: open,
+    onSettle: () => {
+      const n = matches().length;
+      announce(n > 0 ? `${String(n)} entries` : empty.textContent);
+    },
+  });
+  row.querySelector("[data-jump-go]")?.addEventListener("click", () => {
+    const first = matches()[0];
+    if (first !== undefined && input.value.trim() !== "") {
+      open(first);
+      return;
+    }
+    input.focus();
+    combobox.refresh();
   });
 }

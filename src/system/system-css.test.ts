@@ -670,6 +670,68 @@ describe("css/system.css", () => {
     panel.hidePopover();
   });
 
+  it("runs a listbox's covered options edge to edge, a title over its facts, 2px apart", () => {
+    theme("light");
+    const option = (title: string) =>
+      `<li role="option"><span class="cp-cover" data-harmony="2"><span class="cp-icon"></span></span><strong>${title}</strong><small>2023 · TV</small></li>`;
+    const el = build(
+      `<div class="cp-popover cp-listbox" popover><ul role="listbox" aria-label="Entries">${option("Hidden")}${option("Frieren")}${option("Mushishi")}</ul><p class="cp-listbox-empty" hidden></p></div>`,
+    );
+    const popup = el.querySelector(".cp-listbox") as HTMLElement;
+    popup.style.transition = "none";
+    popup.showPopover();
+    const [hidden, first, second] = [...el.querySelectorAll("li")] as [
+      HTMLLIElement,
+      HTMLLIElement,
+      HTMLLIElement,
+    ];
+    hidden.hidden = true;
+    const box = popup.getBoundingClientRect();
+    const cover = (first.querySelector(".cp-cover") as Element).getBoundingClientRect();
+    expect(Math.round(cover.left - box.left)).toBe(1);
+    expect([cover.width, cover.height]).toEqual([32, 48]);
+    expect(first.getBoundingClientRect().top - box.top).toBe(1);
+    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(2);
+    const title = (first.querySelector("strong") as Element).getBoundingClientRect();
+    const facts = (first.querySelector("small") as Element).getBoundingClientRect();
+    expect(facts.top).toBeGreaterThanOrEqual(title.bottom);
+    expect(facts.left).toBe(title.left);
+    popup.hidePopover();
+  });
+
+  it("colours a cover by its harmony colour and fills it with its art", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-cover"></span><span class="cp-cover" data-harmony="4"><img alt="" width="10" height="10"></span>',
+    );
+    const [first, fourth] = [...el.querySelectorAll(".cp-cover")] as [HTMLElement, HTMLElement];
+    first.style.inlineSize = "4rem";
+    fourth.style.inlineSize = "4rem";
+    const harmony = (n: number) => {
+      const probe = host("");
+      probe.style.color = `var(--cp-harmony-${String(n)})`;
+      return getComputedStyle(probe).color;
+    };
+    expect(getComputedStyle(first).backgroundColor).toBe(harmony(1));
+    expect(getComputedStyle(fourth).backgroundColor).toBe(harmony(4));
+    expect(first.getBoundingClientRect().height).toBe(96);
+    const art = (fourth.querySelector("img") as Element).getBoundingClientRect();
+    expect([art.width, art.height]).toEqual([64, 96]);
+  });
+
+  it("lets a search field grow in an input row beside its button", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-input-row"><div class="cp-search"><input class="cp-input" placeholder="Title" aria-label="Title"></div><button class="cp-button" type="button">Search</button></div>',
+    );
+    el.style.inlineSize = "40rem";
+    const row = (el.querySelector(".cp-input-row") as Element).getBoundingClientRect();
+    const button = (el.querySelector("button") as Element).getBoundingClientRect();
+    const search = (el.querySelector(".cp-search") as Element).getBoundingClientRect();
+    expect(Math.round(button.right)).toBe(Math.round(row.right));
+    expect(Math.round(search.right + 8)).toBe(Math.round(button.left));
+  });
+
   it("moves the header's destinations to a bar at the window's foot on a phone, and leaves room for it", async () => {
     theme("light");
     const el = build(

@@ -43,17 +43,17 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-status-demo>Next status</button></div>
         <footer>The first Tab stop is Skip to the content, hidden until focused. The brand colour carries the header. Its status button opens a panel that does not trap focus: Tab past its end closes it. The theme button switches between light and dark in one press, its icon turning to the new one; System stays a choice in Settings. From 40rem to 60rem the destinations keep only their icons, and under 40rem they move to a bar at the window's foot, each an icon over its word. Releases carries a count of what is new in the bar's own ink, so it shows on any brand colour, and sits on its icon's corner in the bar under 40rem. The account button is the avatar alone, ringed so it stands off the bar whatever its colour; its menu holds who is signed in and Sign out. The status is a tone, a glyph and a word: problems, Offline with a dashed edge, a warning, Working and All good, the first that holds winning; Next status steps through them. Only Working breathes, twice as it starts and then still, and not at all under reduced motion. At compact width the detail hides and waits in the panel, the state's words staying, and a change is announced politely. Press the mark five times for its flip.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Jump to an entry</h2>
         <div class="cp-field"><label class="cp-label" for="jump-in">Search the library</label>
-          <div class="cp-input-row" data-jump="jump-list"><div class="cp-search g-grow"><input class="cp-input" id="jump-in" role="combobox" aria-expanded="false" aria-controls="jump-options" aria-autocomplete="list" placeholder="Title, year or group"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><button class="cp-button" type="button" data-jump-go>Search</button></div>
-          <div class="g-pop g-suggest g-jump" id="jump-list" popover="manual"><ul id="jump-options" role="listbox" aria-label="Entries">
-            <li role="option" id="j-1"><span class="g-cover" data-h="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><strong>Frieren: Beyond Journey's End</strong><small>2023 · TV · On the best</small></li>
-            <li role="option" id="j-2"><span class="g-cover" data-h="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><strong>Mushishi</strong><small>2005 · TV · On an alt</small></li>
-            <li role="option" id="j-3"><span class="g-cover" data-h="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong>The Boy and the Heron</strong><small>2023 · Film · On the best</small></li>
-          </ul><p role="status" hidden></p></div>
+          <div class="cp-input-row" data-jump="jump-list"><div class="cp-search"><input class="cp-input" id="jump-in" role="combobox" aria-expanded="false" aria-controls="jump-options" aria-autocomplete="list" placeholder="Title, year or group"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><button class="cp-button" type="button" data-jump-go>Search</button></div>
+          <div class="cp-popover cp-listbox" id="jump-list" popover="manual"><ul id="jump-options" role="listbox" aria-label="Entries">
+            <li role="option" id="j-1"><span class="cp-cover" data-harmony="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><strong>Frieren: Beyond Journey's End</strong><small>2023 · TV · On the best</small></li>
+            <li role="option" id="j-2"><span class="cp-cover" data-harmony="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><strong>Mushishi</strong><small>2005 · TV · On an alt</small></li>
+            <li role="option" id="j-3"><span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong>The Boy and the Heron</strong><small>2023 · Film · On the best</small></li>
+          </ul><p class="cp-listbox-empty" hidden></p></div>
         </div>
-        <footer>One value: options with a picture, a title and a line of facts. The first Escape closes the list, the second clears the field; the count is announced after typing stops.</footer>
+        <footer>One value: options with a cover, a title and a line of facts. The first Escape closes the list, the second clears the field; the count, or that nothing matches, is announced once typing stops. Search opens the first match.</footer>
       </div>
       <div class="card">
         <h2>Rail</h2>

@@ -2248,64 +2248,6 @@ for (const pop of $$("[data-selectpanel]")) {
   labelBtn();
 }
 
-// The single-value jump field: options with a picture; the first Escape
-// closes the list, the second clears the field; the count is announced.
-for (const box of $$("[data-jump]")) {
-  const input = $("input", box);
-  const list = document.getElementById(box.dataset.jump);
-  const opts = $$("[role='option']", list);
-  const none = $("[role='status']", list);
-  const anchorName = "--g-jump";
-  box.style.setProperty("anchor-name", anchorName);
-  list.style.setProperty("position-anchor", anchorName);
-  let at = -1;
-  let timer = 0;
-  const vis = () => opts.filter((o) => !o.hidden);
-  const mark = (i) => {
-    const v = vis();
-    at = v.length ? (i + v.length) % v.length : -1;
-    opts.forEach((o) => o.setAttribute("aria-selected", String(o === v[at])));
-    if (v[at]) input.setAttribute("aria-activedescendant", v[at].id);
-    else input.removeAttribute("aria-activedescendant");
-  };
-  const open = () => {
-    const q = input.value.trim().toLowerCase();
-    for (const o of opts) o.hidden = q !== "" && !o.textContent.toLowerCase().includes(q);
-    none.hidden = vis().length > 0;
-    none.textContent = `No entry matches “${input.value.trim()}”`;
-    if (!list.matches(":popover-open")) list.showPopover();
-    input.setAttribute("aria-expanded", "true");
-    mark(0);
-    clearTimeout(timer);
-    timer = setTimeout(() => announce(vis().length ? `${vis().length} entries` : none.textContent), 500);
-  };
-  const close = () => {
-    if (list.matches(":popover-open")) list.hidePopover();
-    input.setAttribute("aria-expanded", "false");
-  };
-  input.addEventListener("input", open);
-  input.addEventListener("blur", () => setTimeout(close, 120));
-  list.addEventListener("pointerdown", (e) => e.preventDefault());
-  const go = (o) => {
-    close();
-    input.value = o.querySelector("strong").textContent;
-    toast({ kind: "info", title: `Opened ${input.value}` });
-  };
-  list.addEventListener("click", (e) => {
-    const o = e.target.closest("[role='option']");
-    if (o) go(o);
-  });
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") (list.matches(":popover-open") ? mark(at + 1) : open());
-    else if (e.key === "ArrowUp") mark(at - 1);
-    else if (e.key === "Enter" && at >= 0 && list.matches(":popover-open")) go(vis()[at]);
-    else if (e.key === "Escape") (list.matches(":popover-open") ? close() : (input.value = ""));
-    else return;
-    e.preventDefault();
-  });
-  $("[data-jump-go]", box)?.addEventListener("click", () => (vis()[0] ? go(vis()[0]) : open()));
-}
-
 // Values that come from data are set through the CSSOM, which a style-src
 // without 'unsafe-inline' allows, never as a style attribute.
 for (const s of $$(".g-segs > span[data-fill]")) {
