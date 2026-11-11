@@ -259,11 +259,6 @@ for (const c of document.querySelectorAll(".chip-pop")) {
   });
 }
 
-// A filter row toggles; its wash fades in CSS.
-for (const f of document.querySelectorAll(".filter-fade")) {
-  f.addEventListener("click", () => f.setAttribute("aria-pressed", String(f.getAttribute("aria-pressed") !== "true")));
-}
-
 // Odometer
 function setOdometer(el, value) {
   const digits = String(value).padStart(el.children.length, "0");

@@ -1,7 +1,7 @@
 /**
  * nav-feedback.ts — the gallery's wiring for the navigation and feedback
  * cards that run on the library: the header's account menu and its status
- * demo, and the jump field.
+ * demo, the jump field, and the rail's filters.
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
@@ -107,5 +107,13 @@ for (const row of document.querySelectorAll<HTMLElement>("[data-jump]")) {
     }
     input.focus();
     combobox.refresh();
+  });
+}
+
+for (const filter of document.querySelectorAll<HTMLButtonElement>(
+  ".cp-filter-group > .cp-filter",
+)) {
+  filter.addEventListener("click", () => {
+    filter.setAttribute("aria-pressed", String(filter.getAttribute("aria-pressed") !== "true"));
   });
 }

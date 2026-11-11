@@ -55,24 +55,24 @@
         </div>
         <footer>One value: options with a cover, a title and a line of facts. The first Escape closes the list, the second clears the field; the count, or that nothing matches, is announced once typing stops. Search opens the first match.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Rail</h2>
         <div class="g-rail">
           <div class="cp-filter-group"><h3 class="cp-filter-title">Verdict</h3>
-            <button class="cp-filter filter-fade" type="button" aria-pressed="true"><span class="cp-swatch" data-tone="success"></span>On the best<span class="g-badge" data-quiet>268</span></button>
-            <button class="cp-filter filter-fade" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="warning"></span>Older revision<span class="g-badge" data-quiet>17</span></button>
-            <button class="cp-filter filter-fade" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="danger"></span>Missing<span class="g-badge" data-quiet>9</span></button>
+            <button class="cp-filter" type="button" aria-pressed="true"><span class="cp-swatch" data-tone="success"></span>On the best<span class="cp-badge" data-variant="quiet">268</span></button>
+            <button class="cp-filter" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="warning"></span>Older revision<span class="cp-badge" data-variant="quiet">17</span></button>
+            <button class="cp-filter" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="danger"></span>Missing<span class="cp-badge" data-variant="quiet">9</span></button>
           </div>
           <div class="cp-filter-group"><h3 class="cp-filter-title">Source</h3>
-            <button class="cp-filter filter-fade" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="accent"></span>Sonarr<span class="g-badge" data-quiet>351</span></button>
-            <button class="cp-filter filter-fade" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="neutral"></span>Radarr<span class="g-badge" data-quiet>61</span></button>
+            <button class="cp-filter" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="accent"></span>Sonarr<span class="cp-badge" data-variant="quiet">351</span></button>
+            <button class="cp-filter" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="neutral"></span>Radarr<span class="cp-badge" data-variant="quiet">61</span></button>
           </div>
         </div>
         <footer>Filters with their counts. Below 60rem the rail moves behind a Filters button and opens as a sheet.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Status line</h2>
-        <div class="g-statusline" role="status"><span>412 entries</span><span>All sources reachable</span><span data-late><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Late: the 14:00 check has not run</span></div>
+        <div class="cp-status g-statusline" role="status"><span>412 entries</span><span>All sources reachable</span><span data-state="late">Late: the 14:00 check has not run</span></div>
         <footer>The frame's last line: facts about the whole app, and a late state with its glyph and word.</footer>
       </div>
     </div>

@@ -47,7 +47,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority` |
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height |
 | `.cp-pager` | the range and the Previous and Next links under a table |
-| `.cp-chip`, `.cp-notice`, `.cp-swatch`, `.cp-count` | states in a tone, and a count beside a filter |
+| `.cp-chip`, `.cp-notice`, `.cp-swatch` | states in a tone, and a filter's tone square |
 | `.cp-panel`, `.cp-stack`, `.cp-toolbar`, `.cp-heading-row`, `.cp-crumbs`, `.cp-meta` | surfaces and layout |
 | `.cp-cluster` | a row of small things, such as chips or buttons, that wraps instead of overflowing, with `data-gap="tight"` for less space |
 | `.cp-side-main` | a side column of `--cp-side-width` (16rem) beside the rest, stacking above it once the rest would be narrower than half the box |
@@ -56,7 +56,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`, holding a `<form>` with its header, a `.cp-dialog-body` that scrolls and a footer of buttons, rising from the bottom on a phone, with `data-variant="confirm"` for a short confirmation led by its icon and `"sheet"` for the window's height at the inline end. The page does not scroll under it, as [dialog](overlays/dialog.md) describes |
 | `.cp-popover` | a native popover by the button that opens it, as [anchor](overlays/anchor.md) describes, with `data-variant="panel"` for a panel of controls, whose focus [panel](overlays/panel.md) gives |
 | `.cp-menu`, `.cp-menu-label`, `.cp-menu-tag` | a menu of `menuitem`, `menuitemcheckbox` and `menuitemradio` buttons or links, a group's heading and a word at an item's end, as [menu](overlays/menu.md) describes |
-| `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed` |
+| `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed`, each filter's count a quiet `.cp-badge` at its end that turns solid in the accent while the filter is on. The selected wash fades in and out over 240ms |
 | `.cp-filter-chip` | a pill `<button>` that turns one filter on or off by `aria-pressed`, filled with the accent and its `check` icon sliding in while pressed. A row of them is a `.cp-cluster` with `role="group"` and a name. Your click handler sets `aria-pressed` from the filter's state |
 | `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes |
 | `.cp-progress`, `.cp-progress-track`, `.cp-progress-fill` | a progress bar in a tone |

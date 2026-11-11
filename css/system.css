@@ -1391,13 +1391,32 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 var(--cp-space-4);
+  gap: var(--cp-space-1) var(--cp-space-4);
   min-block-size: 1.875rem;
-  padding-inline: var(--cp-page-gutter);
+  padding: var(--cp-space-1) var(--cp-page-gutter);
   font-size: var(--cp-text-xs);
   color: var(--cp-ink-muted);
   background: var(--cp-surface-raised);
   border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* A part for work that has not run when it should have: the warning ink and
+ * a clock, so the colour is not its only mark. */
+.cp-status > [data-state="late"] {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  color: var(--cp-warning-11);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-status > [data-state="late"]::before {
+  content: "";
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/clock.svg") center / contain no-repeat;
 }
 
 /* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
@@ -1412,6 +1431,12 @@
 
   .cp-rail {
     display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-status > [data-state="late"]::before {
+    background: CanvasText;
   }
 }
 
@@ -4514,7 +4539,8 @@ textarea.cp-input {
   font: inherit;
   text-align: start;
   cursor: pointer;
-  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+  /* Slower than a colour change: the wash turns the whole row on or off. */
+  transition: background-color var(--cp-dur-medium) var(--cp-ease-out);
 }
 
 .cp-filter[aria-pressed="true"] {
@@ -4539,12 +4565,18 @@ textarea.cp-input {
   background: var(--cp-tone-9);
 }
 
-/* A count beside a filter. */
-.cp-count {
+/* A filter's count, a quiet .cp-badge at the row's end, turns solid in the
+ * accent with its row. */
+.cp-filter > .cp-badge {
   margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--cp-dur-medium) var(--cp-ease-out),
+    color var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+.cp-filter[aria-pressed="true"] > .cp-badge {
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
 }
 
 @media (forced-colors: active) {

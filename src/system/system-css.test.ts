@@ -1269,6 +1269,61 @@ describe("css/system.css", () => {
     expect(r).toBe(m);
   });
 
+  it("ends a filter with its quiet count, solid in the accent while on, and fades the wash over 240ms", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-filter-group" style="inline-size:14rem">' +
+        '<button class="cp-filter" type="button" aria-pressed="true">On the best<span class="cp-badge" data-variant="quiet">268</span></button>' +
+        '<button class="cp-filter" type="button" aria-pressed="false">Missing<span class="cp-badge" data-variant="quiet">9</span></button></div>',
+    );
+    const [on, off] = [...el.querySelectorAll<HTMLElement>(".cp-filter")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const badge = (f: HTMLElement) => f.querySelector(".cp-badge") as HTMLElement;
+    for (const f of [on, off]) {
+      f.style.transition = "none";
+      badge(f).style.transition = "none";
+    }
+    const probe = host("");
+    probe.style.color = "var(--cp-accent)";
+    probe.style.backgroundColor = "var(--cp-fill)";
+    expect(getComputedStyle(badge(on)).backgroundColor).toBe(getComputedStyle(probe).color);
+    expect(getComputedStyle(badge(off)).backgroundColor).toBe(
+      getComputedStyle(probe).backgroundColor,
+    );
+    expect(Math.round(badge(off).getBoundingClientRect().right)).toBe(
+      Math.round(
+        off.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(off).paddingRight),
+      ),
+    );
+    off.style.removeProperty("transition");
+    expect(getComputedStyle(off).transitionDuration).toBe("0.24s");
+  });
+
+  it("marks a late part of the status line in the warning ink with a clock, and spaces its wrapped lines", () => {
+    theme("light");
+    const el = build(
+      '<footer class="cp-status" style="inline-size:12rem"><span>412 entries</span><span data-state="late">Late: the 14:00 check has not run</span></footer>',
+    );
+    const late = el.querySelector('[data-state="late"]') as HTMLElement;
+    const probe = host("");
+    probe.style.color = "var(--cp-warning-11)";
+    expect(getComputedStyle(late).color).toBe(getComputedStyle(probe).color);
+    expect(decodeURIComponent(getComputedStyle(late, "::before").maskImage)).toContain(
+      "M12 6v6l4 2",
+    );
+    const plain = late.previousElementSibling as Element;
+    expect(getComputedStyle(plain, "::before").content).toBe("none");
+    const status = el.querySelector(".cp-status") as HTMLElement;
+    const [first, second] = [...status.children].map((n) => n.getBoundingClientRect()) as [
+      DOMRect,
+      DOMRect,
+    ];
+    expect(second.top - first.bottom).toBeGreaterThanOrEqual(4);
+    expect(first.top - status.getBoundingClientRect().top).toBeGreaterThanOrEqual(4);
+  });
+
   it("shrinks a field and the button beside it to a narrow column", () => {
     theme("light");
     const el = build(

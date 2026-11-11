@@ -349,12 +349,6 @@
   }
 }
 
-/* A filter that turns on fades its wash in over the whole row, and out
- * again when it turns off. */
-.cp-filter.filter-fade {
-  transition: background-color 240ms var(--cp-ease-out);
-}
-
 /* Sparkles: small stars that leave a point, spin and fade. */
 
 .sparkle {
@@ -2156,7 +2150,7 @@ kbd.g-key {
   font-size: var(--cp-text-xs);
 }
 
-/* A rail of destinations with sections and counts. */
+/* A stand-in for the frame's rail, which the frame hides under 60rem. */
 .g-rail {
   display: grid;
   gap: var(--cp-space-4);
@@ -2165,15 +2159,6 @@ kbd.g-key {
   border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-surface);
   background: var(--cp-surface-raised);
-}
-
-.g-rail .cp-filter > .g-badge {
-  margin-inline-start: auto;
-}
-
-.g-rail .cp-filter[aria-pressed="true"] > .g-badge {
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
 }
 
 /* Foundations page */
@@ -2962,24 +2947,10 @@ html:has(.g-header) {
   border-radius: var(--cp-radius-control);
 }
 
-/* A status line with a late state. */
+/* The frame's status line out of its frame, boxed so its edges show. */
 .g-statusline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-1) var(--cp-space-4);
-  padding: var(--cp-space-2) var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-page);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-statusline [data-late] {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-warning-11);
-  font-weight: var(--cp-weight-medium);
 }
 
 /* Menus: a checkbox item and a link item with a tag. */
