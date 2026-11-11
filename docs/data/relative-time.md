@@ -41,7 +41,7 @@ formatRelative(at, { now: start, locale: "fr" }); // "dans 25 minutes"
 
 ## Keeping current
 
-- Every enhanced time on the page shares one timer, set to the next moment any of their words change, so a time reading "3 hours ago" next wakes the page half an hour later, and a feed of fifty times sets one timer, not fifty.
+- Every time `enhanceRelativeTime` keeps current shares one timer, set to the next moment any of their words change. A time reading "3 hours ago" next wakes the page half an hour later, and a feed of fifty times sets one timer, not fifty.
 - A page coming back into view brings every time up to date at once, since a hidden page's timers run late.
 - A time out of the page is kept current too, so one put back reads the present. A time the page drops is collected with its element.
 - The module does nothing when it is imported.

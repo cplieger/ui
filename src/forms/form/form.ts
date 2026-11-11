@@ -44,13 +44,12 @@ function nameOf(field: Control): string {
 }
 
 /**
- * Shows `errors` on `form` and clears every error an earlier call or
- * `showError` showed that `errors` no longer names. An error a connection
- * test, a date range or a file field showed stays until that module clears
- * it or this call names its field. An empty list hides the summary. A
- * field's error is the `.cp-field-error` its `aria-describedby` names, else
- * the element whose id is its id followed by `-error`, else one made at the
- * end of its `.cp-field`, or after the field outside one.
+ * Shows `errors` on `form` and clears each error an earlier call or
+ * `showError` showed that `errors` no longer names; one a connection test,
+ * date range or file field showed stays until that module clears it or this
+ * call names its field. An empty list hides the summary. A field's error is
+ * the `.cp-field-error` its `aria-describedby` names, else `#<its id>-error`,
+ * else one made at the end of its `.cp-field`, or after a bare field.
  */
 export function reportErrors(
   form: HTMLFormElement,

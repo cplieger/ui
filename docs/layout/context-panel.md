@@ -41,7 +41,7 @@ enhanceContextPanel(document.getElementById("thread-context")!, { signal: page.s
 - `details.cp-context-panel` holds a `<summary>` naming what it holds, then a `<section>` for each group, an `h3` over its content. The summary draws a chevron that turns as the panel opens.
 - `.cp-context-main` is the main column, such as a [feed](../data/feed.md) and its pinned foot.
 - While the groups load, a section holds `.cp-skeleton` lines and carries `aria-busy="true"`. An empty group says so in a `.cp-meta` line, such as "No reservations.".
-- Docked, the panel sticks under any sticky header, `--cp-sticky-top` from the top, and scrolls on its own when it is taller than the window. Inside a box of bounded height, a [list-detail](list-detail.md) dialog or the docked detail of its wide variant, the context fills the box: the main column scrolls inside it beside the docked panel, or the whole context scrolls below the open disclosure, so a feed's foot stays pinned to the box's end.
+- Docked, the panel sticks under any sticky header, `--cp-sticky-top` from the top, and scrolls on its own when it is taller than the window. Inside a box of bounded height, a [list-detail](list-detail.md) dialog or the docked detail of its wide variant, the context fills the box. The main column scrolls inside it beside the docked panel, or the whole context scrolls below the open disclosure, so a feed's foot stays pinned to the box's end.
 
 ## API
 

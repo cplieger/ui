@@ -87,7 +87,7 @@ A list is a column of rows that each open or name one thing, such as conversatio
 4. While the list loads, it carries `aria-busy="true"` and holds skeleton rows (`data-skeleton`) in the rows' shape. Empty, it is a `.cp-empty` that names what belongs there and offers the action that fills it, such as "No conversations in the last 72 hours." with New message.
 5. Rows that arrive while the person is in the list never push the rows they are reading. A `.cp-list-pending` line above the list says how many wait, and its Show puts them in and moves focus to the first.
 6. A row the app could not refresh carries `data-kept`, muted, with a `clock` and the reason in its second line, such as "Kept from 03:00: Radarr is not answering".
-7. A list too long to draw is a `.cp-list[data-virtual]` that holds only the rows in view, each keyed by its id, so a live update changes a row in place and the focused row stays drawn. When a filter narrows it, the count of matches is said once typing stops.
+7. A list too long to draw is a `.cp-list[data-virtual]` that holds only the rows in view. Each row is keyed by its id, so a live update changes a row in place and the focused row stays drawn. When a filter narrows it, the count of matches is said once typing stops.
 8. A list the person puts in order uses [reorder](data/reorder.md): every item has Move up and Move down, so a drag is never the only way, the others slide aside and the new place is said.
 
 ## Tabs

@@ -10,6 +10,7 @@
 const HARNESS = new Set([
   "g-row-inline",
   "g-gap-top",
+  "g-grow",
   "g-grid",
   "g-section",
   "g-wide",

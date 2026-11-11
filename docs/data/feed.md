@@ -42,8 +42,8 @@ for (const t of list.querySelectorAll("time[datetime*='T']")) {
 
 ## The parts
 
-- `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first, between `li.cp-feed-day` separators, each a `<time>` with the day, and at most one `li.cp-feed-marker`, "New since your last visit", before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full. The New messages button says what arrived.
-- An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, enhanced by [relative-time](relative-time.md). Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
+- `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first. `li.cp-feed-day` separators, each a `<time>` with the day, fall between them, and at most one `li.cp-feed-marker`, "New since your last visit", comes before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full. The New messages button says what arrived.
+- An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, which [relative-time](relative-time.md) keeps current. Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
 - `data-own` marks the person's own entry, whose author reads "You". It sits on the sunken fill, with its text on the same edge as everyone else's.
 - An own entry still sending carries `data-state="sending"` and `aria-busy="true"`, and its footer holds a `.cp-inline-load` "Sending…". One that failed carries `data-state="failed"`, and its footer holds a danger `.cp-state` "Not sent." and a small plain Retry button.
 - The read summary, "Read by 3 of 5", is a quiet small button opening a `.cp-popover.cp-feed-readers` with a `<section>` each for "Read" and "Not read yet", an `h4` over a list of links. While the names load, the popover holds a `.cp-inline-load`. When they fail, it holds a danger `.cp-notice` with Retry.
@@ -98,7 +98,7 @@ compose.addEventListener("submit", async (e) => {
 
 - `enhanceFeed(feed, opts?)` wires an `ol.cp-feed` or `ul.cp-feed`, scrolls it to its newest entry at once and returns a `Feed`.
 - `FeedOptions` = `{ foot?, jump?, words?, signal? }`.
-  - `foot` is the `.cp-feed-foot`. The script keeps the scroller's `scroll-padding-block-end` at the foot's height, so an entry that takes focus never lands under the composer, and sets the foot's `--cp-keyboard-inset` to the part of it an on-screen keyboard covers, measured on the visual viewport, so the composer rises above the keyboard.
+  - `foot` is the `.cp-feed-foot`. The script keeps the scroller's `scroll-padding-block-end` at the foot's height, so an entry that takes focus never lands under the composer. It also sets the foot's `--cp-keyboard-inset` to the part of it an on-screen keyboard covers, measured on the visual viewport, so the composer rises above the keyboard.
   - `jump` is the `.cp-feed-jump` button. Its words go in its `.cp-roll`, which rolls as the count grows, else they are its whole text.
   - `words(n)` gives the jump's words for `n` new entries, by default "1 new message" and "3 new messages".
   - `signal` removes the listeners and observers, hides the jump and puts back every property the script set.

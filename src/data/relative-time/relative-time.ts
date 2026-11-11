@@ -166,12 +166,11 @@ function refresh(all: boolean): void {
 
 /**
  * Writes how long ago `time`'s `datetime` is into it and keeps the words
- * current, at the pace its age needs: a minute-old time changes each
- * minute, a day-old one each day, through one timer for every time.
- * The exact time follows in a visually hidden span for a screen reader and
- * in `data-cp-tip` for the hover. The time's content is replaced. A second
- * call on the same time replaces the first. Throws a TypeError when
- * `datetime` does not parse.
+ * current at the pace its age needs, a minute-old time each minute and a
+ * day-old one each day, through one timer for every time. The exact time
+ * follows in a visually hidden span and in `data-cp-tip` for the hover. The
+ * content is replaced, and a second call on the same time replaces the
+ * first. Throws a TypeError when `datetime` does not parse.
  */
 export function enhanceRelativeTime(
   time: HTMLTimeElement,
