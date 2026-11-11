@@ -241,6 +241,31 @@ describe("enhanceTabs", () => {
     },
   );
 
+  it("keeps the selected tab in view when its tabs grow in a strip that keeps its size", async () => {
+    const { list, tabs } = strip(2);
+    list.style.cssText =
+      "display: flex; inline-size: 12rem; overflow-x: auto; scrollbar-width: none";
+    for (const t of tabs) {
+      t.style.cssText = "flex: none; inline-size: 3rem";
+    }
+    enhanceTabs(list, { signal: life.signal });
+    // Observers deliver in the order they were made, so once this one has
+    // run, so has the strip's first reveal.
+    await new Promise<void>((done) => {
+      const seen = new ResizeObserver(() => {
+        seen.disconnect();
+        done();
+      });
+      seen.observe(list);
+    });
+    for (const t of tabs) {
+      t.style.inlineSize = "5rem";
+    }
+    await vi.waitFor(() => {
+      expect(inView(list, tabs[2])).toBe(true);
+    });
+  });
+
   it.each([
     { dir: "ltr", scroll: 32, start: (r: DOMRect) => r.left },
     { dir: "rtl", scroll: -32, start: (r: DOMRect) => r.right },

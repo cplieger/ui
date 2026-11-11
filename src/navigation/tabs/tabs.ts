@@ -109,11 +109,16 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
     show(first);
   }
   // The strip's first box, at the start or once it is first shown, and
-  // every resize after it, reveal the selected tab.
+  // every resize after it, reveal the selected tab. Its tabs are observed
+  // too: a strip held to its width keeps its size while a tab grows, as
+  // when its font arrives.
   const sized = new ResizeObserver(() => {
     reveal(false);
   });
   sized.observe(list);
+  for (const t of tabs()) {
+    sized.observe(t);
+  }
   whenAborted(signal, () => {
     sized.disconnect();
   });
