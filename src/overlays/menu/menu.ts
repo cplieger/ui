@@ -109,6 +109,8 @@ function listenItems(menu: HTMLElement, signal: AbortSignal): void {
       } else if (e.key === "Tab") {
         close();
         return;
+      } else if (e.key === "Escape" && menu.popover === "auto") {
+        close();
       } else if (e.key.length === 1 && /\S/.test(e.key) && !e.altKey && !e.ctrlKey && !e.metaKey) {
         const k = e.key.toLowerCase();
         typed = e.timeStamp - typedAt < TYPEAHEAD_MS ? typed + k : k;
@@ -255,8 +257,14 @@ export function enhanceMenu(menu: HTMLElement, options: MenuOptions = {}): void 
   let opener: HTMLElement | null = null;
   let focusLast = false;
   const me: Owner = {
+    // Safari focuses no button on a click, so hiding can find no opener to
+    // give focus back to.
     close: () => {
+      const inside = menu.contains(document.activeElement);
       hide(menu);
+      if (inside && opener?.isConnected === true && document.activeElement !== opener) {
+        opener.focus();
+      }
     },
     onSelect,
     holds: (node) => node instanceof Element && openerOf(node) !== null,

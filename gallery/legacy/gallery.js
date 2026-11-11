@@ -206,8 +206,8 @@ for (const b of document.querySelectorAll(".btn-done[data-demo-save]")) {
 }
 
 
-// Icon twirls and toggles. The settings cog has six teeth, so a 60 degree
-// notch lands it looking as it started.
+// The settings cog has six teeth, so a 60 degree notch lands it looking as
+// it started.
 for (const b of document.querySelectorAll(".cog-turn")) {
   b.addEventListener("click", () => {
     b.classList.remove("turning");
@@ -215,27 +215,6 @@ for (const b of document.querySelectorAll(".cog-turn")) {
     b.classList.add("turning");
   });
   b.addEventListener("animationend", () => b.classList.remove("turning"));
-}
-
-for (const b of document.querySelectorAll(".twirl-click")) {
-  b.addEventListener("click", () => {
-    b.classList.remove("spun");
-    void b.offsetWidth;
-    b.classList.add("spun");
-  });
-}
-
-for (const b of document.querySelectorAll("[data-toggle]")) {
-  b.addEventListener("click", () => {
-    const on = b.getAttribute("aria-pressed") !== "true";
-    b.setAttribute("aria-pressed", String(on));
-    const icon = b.querySelector(".cp-icon");
-    if (b.dataset.toggle === "pin") {
-      icon.dataset.cpIcon = on ? "pin-filled" : "pin";
-      b.classList.toggle("unpinned", !on);
-    }
-  });
-  b.addEventListener("animationend", () => b.classList.remove("unpinned"));
 }
 
 // Colour pops: a chip cycles through states and flashes on each change.
@@ -1672,8 +1651,8 @@ for (const d of $$("[data-upload]")) {
   });
 }
 
-// A refresh that waits turns its own icon: Motion's one turn (.twirl-click),
-// repeated while busy. When the work ends, the turn in progress finishes, so
+// A refresh that waits turns its own icon: Motion's one turn, repeated
+// while busy. When the work ends, the turn in progress finishes, so
 // the icon always comes to rest upright. Reduced motion pulses it instead.
 const TURN = { duration: 900, easing: "cubic-bezier(0.55, 0, 0.3, 1)" };
 function turnWhileBusy(ic) {
@@ -1921,51 +1900,6 @@ for (const list of $$("[data-hold]")) {
       list.before(line);
       glideShow(line, true);
     }
-  });
-}
-
-// A toolbar that sends what does not fit into its More menu, in order.
-for (const bar of $$("[data-overflow]")) {
-  const items = $$("[data-item]", bar);
-  const more = $("[data-more]", bar);
-  const menu = document.getElementById(more.getAttribute("popovertarget"));
-  const fit = () => {
-    const wasHidden = new Set(items.filter((i) => i.hidden));
-    const moreWasHidden = more.hidden;
-    for (const i of items) i.hidden = false;
-    // Measure the More button's real width and reserve exactly that, so it is
-    // never clipped by the bar's overflow when it appears (a fixed 48px was
-    // narrower than the "… More" button).
-    more.hidden = false;
-    menu.replaceChildren();
-    const room = bar.clientWidth - more.offsetWidth - 4;
-    let used = 0;
-    const out = [];
-    for (const i of items) {
-      used += i.offsetWidth + 4;
-      if (used > room) out.push(i);
-    }
-    for (const i of out) {
-      i.hidden = true;
-      menu.append(el("button", { role: "menuitem", type: "button", "data-say": i.textContent.trim() }, icon(i.querySelector(".cp-icon").dataset.cpIcon), i.textContent.trim()));
-    }
-    more.hidden = out.length === 0;
-    // opacity only: a moving or scaling 18px icon blurs on a 1x screen
-    const fade = (n) => !reduced() && n.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" });
-    for (const i of items) if (!i.hidden && wasHidden.has(i)) fade(i);
-    if (!more.hidden && moreWasHidden) fade(more);
-  };
-  new ResizeObserver(fit).observe(bar);
-  fit();
-}
-
-// An action that confirms and keeps its word, as Copy does.
-for (const b of $$("[data-confirm-word]")) {
-  b.addEventListener("click", () => {
-    b.dataset.cpState = "done";
-    say(b.dataset.confirmWord);
-    clearTimeout(b.confirmTimer);
-    b.confirmTimer = setTimeout(() => delete b.dataset.cpState, 1600);
   });
 }
 

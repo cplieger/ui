@@ -8,6 +8,7 @@ import { anchorOf, installAnchors } from "@cplieger/ui/anchor";
 import { enhanceConfirm, type Confirm } from "@cplieger/ui/confirm";
 import { closeDialog, installDialogs } from "@cplieger/ui/dialog";
 import { enhanceContextMenu, enhanceMenu } from "@cplieger/ui/menu";
+import { enhanceOverflow } from "@cplieger/ui/overflow";
 import { enhancePalette } from "@cplieger/ui/palette";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhancePopconfirm } from "@cplieger/ui/popconfirm";
@@ -28,7 +29,10 @@ const say = (item: HTMLElement): void => {
     toast({ kind: item.dataset["tone"] === "danger" ? "warning" : "info", title });
   }
 };
-for (const menu of document.querySelectorAll<HTMLElement>(".cp-menu[popover]")) {
+// A toolbar's More menu is enhanced by enhanceOverflow, below.
+for (const menu of document.querySelectorAll<HTMLElement>(
+  ".cp-menu[popover]:not(.cp-overflow > *)",
+)) {
   enhanceMenu(menu, { onSelect: say });
 }
 // A list marked data-context opens the menu its rows' ⋯ buttons open.
@@ -42,12 +46,15 @@ for (const zone of document.querySelectorAll<HTMLElement>("[data-context]")) {
 
 // A button that confirms in place names its words by data-busy-words and
 // data-done-words, and what to announce once done by data-say; its work
-// here only waits.
+// here only waits, data-wait ms or 900.
 const confirms = new Map<Element, Confirm>();
 const confirmIn = (button: Element, said: string | undefined): void => {
   void confirms
     .get(button)
-    ?.run(() => new Promise((done) => setTimeout(done, 900)))
+    ?.run(
+      () =>
+        new Promise((done) => setTimeout(done, Number(button.getAttribute("data-wait") ?? 900))),
+    )
     .then((ok) => {
       if (ok && said !== undefined) {
         announce(said);
@@ -82,6 +89,16 @@ for (const b of document.querySelectorAll<HTMLButtonElement>(
 for (const g of document.querySelectorAll<HTMLElement>(".cp-toggle-group")) {
   enhanceToggleGroup(g);
   enhancePill(g);
+}
+
+// A toolbar's buttons marked data-toast only say their words.
+for (const bar of document.querySelectorAll<HTMLElement>(".cp-overflow")) {
+  enhanceOverflow(bar);
+  for (const b of bar.querySelectorAll<HTMLElement>("button[data-toast]")) {
+    b.addEventListener("click", () => {
+      toast({ kind: "info", title: b.textContent.trim() });
+    });
+  }
 }
 
 // A confirmation whose button confirms in place plays that button's cycle.

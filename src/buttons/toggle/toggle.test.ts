@@ -55,6 +55,15 @@ describe("enhanceToggle", () => {
     expect(b.dataset["cpToggled"]).toBe("on");
   });
 
+  it("marks no motion for a press while the button is not drawn, but still flips", () => {
+    const b = pin("false");
+    enhanceToggle(b);
+    b.hidden = true;
+    b.click();
+    expect(b.getAttribute("aria-pressed")).toBe("true");
+    expect(b.hasAttribute("data-cp-toggled")).toBe(false);
+  });
+
   it("clears the motion once the drawing's animation ends", () => {
     const b = pin("false");
     enhanceToggle(b);

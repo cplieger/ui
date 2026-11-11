@@ -81,6 +81,7 @@ buttons/confirm/confirm.css
 buttons/group/group.css
 buttons/toggle/toggle.css
 buttons/toggle/toggle-group.css
+buttons/overflow/overflow.css
 buttons/filter-chip/filter-chip.css
 core/roll/roll.css
 core/pill/pill.css

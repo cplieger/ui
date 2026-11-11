@@ -23,6 +23,7 @@
     "./icons": "./src/foundations/icons/icons.ts",
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
     "./menu": "./src/overlays/menu/menu.ts",
+    "./overflow": "./src/buttons/overflow/overflow.ts",
     "./pairs": "./src/forms/pairs/pairs.ts",
     "./palette": "./src/overlays/palette/palette.ts",
     "./panel": "./src/overlays/panel/panel.ts",

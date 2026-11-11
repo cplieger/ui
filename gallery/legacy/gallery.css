@@ -219,17 +219,6 @@
   }
 }
 
-/* Refresh: one turn that speeds up and slows down, at most about 1.8 turns
- * a second at its fastest. */
-.twirl-click .cp-icon {
-  transition: rotate 0ms;
-}
-
-.twirl-click.spun .cp-icon {
-  rotate: 1turn;
-  transition: rotate 900ms cubic-bezier(0.55, 0, 0.3, 1);
-}
-
 /* The cog turns one tooth, 60 degrees, and rests at 0, which its six
  * teeth make the same drawing: a resting turn that is not a multiple of 90
  * degrees resamples the icon and blurs it on a 1x screen. */
@@ -244,59 +233,6 @@
 
   to {
     rotate: 60deg;
-  }
-}
-
-/* Pin: a mouse lifts it 2px, as a hint. Pressing it carries it on up, then
- * down past its rest as if into a board, and back. The keyframes name no
- * first or last frame, so the arc starts and ends at the pin's own position:
- * lifted under a mouse, at rest under a finger. Pinned, it takes the accent
- * and its head fills. Unpinned, it lifts out. */
-.pin-drop .cp-icon {
-  transition: translate 180ms var(--cp-ease-out);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .pin-drop:hover .cp-icon {
-      translate: 0 -2px;
-    }
-  }
-}
-
-/* :root keeps the accent over any hover rule that inks the icon. */
-:root .cp-button.pin-drop[aria-pressed="true"]:not(:disabled) {
-  color: var(--cp-accent);
-}
-
-.pin-drop[aria-pressed="true"] .cp-icon {
-  animation: pin-drop 640ms;
-}
-
-@keyframes pin-drop {
-  30% {
-    translate: 0 -7px;
-    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
-  }
-
-  62% {
-    translate: 0 3px;
-    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
-  }
-
-  82% {
-    translate: 0 -1px;
-    animation-timing-function: ease-in-out;
-  }
-}
-
-.pin-drop.unpinned .cp-icon {
-  animation: pin-lift 360ms var(--cp-ease-out);
-}
-
-@keyframes pin-lift {
-  40% {
-    translate: 0 -5px;
   }
 }
 
@@ -3042,27 +2978,6 @@ html:has(.g-header) {
   gap: var(--cp-space-1);
 }
 
-/* A toolbar that moves what does not fit into a More menu. */
-.g-overflow {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  min-inline-size: 0;
-  overflow: hidden;
-  padding: var(--cp-space-1);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-control);
-  resize: horizontal;
-  inline-size: min(30rem, 100%);
-  max-inline-size: 100%;
-}
-
-/* Items and More keep their own width, so the measure counts what really
- * fits and a tight bar never squeezes More past its padding. */
-.g-overflow > :is([data-item], [data-more]) {
-  flex: none;
-}
-
 /* A page header: crumbs, title, description, actions. */
 .g-pagehead {
   display: grid;
@@ -3504,6 +3419,11 @@ html:has(.g-header) {
   border-radius: var(--cp-radius-surface);
   container-type: inline-size;
   resize: horizontal;
+}
+
+/* A frame that starts narrower than its card, so the card opens folded. */
+.g-resizable[data-start="narrow"] {
+  inline-size: min(30rem, 100%);
 }
 
 .cp-cluster > .f-box {

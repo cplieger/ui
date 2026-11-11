@@ -27,6 +27,7 @@ const PURE = [
   "/icons",
   "/list-detail",
   "/menu",
+  "/overflow",
   "/pairs",
   "/palette",
   "/panel",

@@ -25,7 +25,7 @@ enhanceMenu(menu, { onSelect: (item) => run(item), signal: page.signal });
 ```
 
 - `enhanceMenu` is called once per menu, however many buttons open it. Every element whose `popovertarget` or `commandfor` names the menu is an opener, including rows added later, so one menu can serve every row of a list. The menu sits by the opener pressed, and only that opener reads as expanded.
-- The menu opens with focus on its first item, and ArrowDown and ArrowUp on an opener open it at the first or the last item.
+- The menu opens with focus on its first item, and ArrowDown and ArrowUp on an opener open it at the first or the last item. Choosing an item and Escape give focus back to the opener, even in Safari, where a click focuses no button.
 - The arrow keys wrap through the items, Home and End go to the ends, and typed letters jump to the item they start. The same letter again steps through the items it starts.
 - A `menuitem` that is chosen closes the menu and calls `onSelect`. A `menuitemcheckbox` toggles its `aria-checked`, and a `menuitemradio` checks itself and unchecks the others in its `role="group"`. Both keep the menu open and then call `onSelect`.
 - An item with `aria-disabled="true"` takes focus but cannot be chosen.

@@ -129,6 +129,19 @@ describe("enhanceMenu", () => {
     expect(chosen).toEqual(["Export", "Archive"]);
   });
 
+  it("gives focus back to its button after a choice or Escape when a click gave it none", async () => {
+    const { button, panel } = menu();
+    enhanceMenu(panel, { signal: life.signal });
+    for (const key of ["{Enter}", "{Escape}"]) {
+      button.click();
+      await expect.poll(() => panel.contains(document.activeElement)).toBe(true);
+      await userEvent.keyboard(key);
+      expect(open(panel)).toBe(false);
+      expect(document.activeElement).toBe(button);
+      button.blur();
+    }
+  });
+
   it("lets a disabled item take focus but never run", async () => {
     const chosen: string[] = [];
     const { button, panel, items } = menu();

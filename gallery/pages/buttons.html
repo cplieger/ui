@@ -43,19 +43,21 @@
         <div class="cp-toggle-group" role="group" aria-label="View"><button class="cp-button" data-variant="quiet" type="button" aria-pressed="true" aria-label="List" data-cp-tip="List"><span class="cp-icon" data-cp-icon="list" aria-hidden="true"></span></button><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Grid" data-cp-tip="Grid"><span class="cp-icon" data-cp-icon="layout-grid" aria-hidden="true"></span></button><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Compact" data-cp-tip="Compact"><span class="cp-icon" data-cp-icon="rows-3" aria-hidden="true"></span></button></div>
         <footer>Pressed buttons for one choice among views; words would make it the segmented control.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Toolbar with More</h2>
-        <div class="g-overflow" data-overflow>
-          <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-item><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span>Search</button>
-          <button class="cp-button twirl-click" data-variant="quiet" data-size="sm" type="button" data-item><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh</button>
-          <button class="cp-button cp-copy" data-variant="quiet" data-size="sm" type="button" data-item data-confirm-word="Exported 412 entries"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span>Export</button>
-          <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-item><span class="cp-icon" data-cp-icon="tag" aria-hidden="true"></span>Label</button>
-          <button class="cp-button pin-drop" data-variant="quiet" data-size="sm" type="button" data-item aria-pressed="false" data-toggle="pin"><span class="cp-icon" data-cp-icon="pin" aria-hidden="true"></span>Pin</button>
-          <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-item><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove</button>
-          <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-more popovertarget="m-more" aria-haspopup="menu"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span>More</button>
+        <div class="g-resizable" data-start="narrow">
+          <div class="cp-overflow">
+            <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-toast><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span>Search</button>
+            <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-turn><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh</button>
+            <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-busy-words="Exporting…" data-done-words="Export" data-wait="0" data-say="Exported 412 entries"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span><span class="cp-roll">Export</span></button>
+            <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-toast><span class="cp-icon" data-cp-icon="tag" aria-hidden="true"></span>Label</button>
+            <button class="cp-button cp-toggle" data-variant="quiet" data-size="sm" data-kind="pin" type="button" aria-pressed="false"><span class="cp-icon" data-cp-icon="pin" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="pin-filled" data-part="on" aria-hidden="true"></span>Pin</button>
+            <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-toast><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove</button>
+            <button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-part="more" popovertarget="m-more" hidden><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span>More</button>
+            <div class="cp-popover cp-menu" id="m-more" popover role="menu" aria-label="More actions"></div>
+          </div>
         </div>
-        <div class="g-pop g-menu" id="m-more" popover role="menu" aria-label="More actions"></div>
-        <footer>Drag the toolbar's corner narrower: actions that no longer fit move, in order, into More, and fade back in as room returns. Each action moves as it does everywhere: Refresh turns, Export confirms with a check and keeps its word, Pin drops in and fills.</footer>
+        <footer>Drag the frame's corner narrower: actions that no longer fit move, in order, into More, and fade back in as room returns. Each action acts the same from More: Refresh turns, Export confirms with a check and keeps its word, Pin drops in and fills, and from More it is a check item.</footer>
       </div>
     </div>
   </section>

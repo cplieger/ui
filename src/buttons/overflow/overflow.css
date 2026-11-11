@@ -1,0 +1,20 @@
+/* A toolbar that keeps to one line (@cplieger/ui/overflow): the buttons
+ * that do not fit wait in its More menu. Until its script runs it wraps,
+ * as a .cp-toolbar does, so no button is ever out of reach. */
+.cp-overflow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-inline-size: 0;
+}
+
+.cp-overflow[data-cp-overflow] {
+  flex-wrap: nowrap;
+}
+
+/* Each button keeps its own width, so the fit counts what really fits and
+ * a tight bar never squeezes More. */
+.cp-overflow > * {
+  flex: none;
+}
