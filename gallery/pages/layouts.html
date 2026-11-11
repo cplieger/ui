@@ -88,17 +88,17 @@
       </div>
       <div class="card">
         <h2>Cluster</h2>
-        <div class="g-resizable"><div class="g-cluster"><span class="f-box">Chip</span><span class="f-box">A longer chip</span><span class="f-box">Chip</span><span class="f-box">Button</span><span class="f-box">Chip</span></div></div>
+        <div class="g-resizable"><div class="cp-cluster"><span class="f-box">Chip</span><span class="f-box">A longer chip</span><span class="f-box">Chip</span><span class="f-box">Button</span><span class="f-box">Chip</span></div></div>
         <footer>A row that wraps: chips, buttons, facts on a line. It replaces each piece's own flex row.</footer>
       </div>
       <div class="card">
         <h2>Side and main</h2>
-        <div class="g-resizable"><div class="g-split"><span class="f-box">Side</span><span class="f-box f-mid">Main</span></div></div>
-        <footer>A fixed side column beside the rest, stacking above it once the box is under 40rem: a poster beside its facts, a form's help beside it.</footer>
+        <div class="g-resizable"><div class="cp-side-main" style="--cp-side-width: 9rem"><span class="f-box">Side</span><span class="f-box f-mid">Main</span></div></div>
+        <footer>A side column beside the rest, stacking above it once the rest would be narrower than half the box, with no media or container query: a poster beside its facts, a form's help beside it.</footer>
       </div>
       <div class="card">
         <h2>Auto grid</h2>
-        <div class="g-resizable"><div class="g-autogrid"><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span></div></div>
+        <div class="g-resizable"><div class="cp-grid" style="--cp-grid-min: 7rem"><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span><span class="f-box">Card</span></div></div>
         <footer>As many columns as fit at a minimum width each: cards, card links, covers. One column on a phone without a breakpoint.</footer>
       </div>
     </div>
@@ -111,7 +111,7 @@
         <h2><a href="sign-in.html">Sign-in</a></h2>
         <p>A gate page outside the app frame: username and password the same width, Show inside the password, a refusal that names neither half.</p>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2><a href="setup.html">First-run setup</a></h2>
         <p>Three steps with a step track, a connection test that blames the field at fault, and a finish worth marking once.</p>
       </div>

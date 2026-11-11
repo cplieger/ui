@@ -26,12 +26,14 @@ import { installTooltips } from "@cplieger/ui/tooltip";
 import { viewTransition } from "@cplieger/ui/view-transition";
 
 import "./legacy/gallery.js";
+import { markCards } from "./review.js";
 
 const all = <E extends Element>(selector: string): E[] => [
   ...document.querySelectorAll<E>(selector),
 ];
 
 installTooltips();
+markCards();
 
 // The gallery names a group's boxes by data-group and its select-all box by
 // data-select-all.
