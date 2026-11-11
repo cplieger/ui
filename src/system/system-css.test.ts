@@ -4042,4 +4042,120 @@ describe("css/system.css lists, feeds and counts", () => {
       expect(plain.outlineStyle).toBe("none");
     },
   );
+
+  const contextPanel = (attrs = "") =>
+    `<details class="cp-context-panel" ${attrs}><summary>Reservations, queue and followers</summary><section><h3>Reservations</h3><ul><li><a href="#k">@kiro</a></li></ul></section></details>`;
+
+  it("gives the context panel's summary the tier's hit height, its chevron turning as it opens", () => {
+    theme("light");
+    const el = build(contextPanel());
+    const panel = el.querySelector("details") as HTMLDetailsElement;
+    const summary = el.querySelector("summary") as HTMLElement;
+    const chevron = () => getComputedStyle(summary, "::after");
+    expect(summary.getBoundingClientRect().height).toBeGreaterThanOrEqual(24);
+    const settle = () => {
+      for (const run of document.getAnimations()) {
+        run.finish();
+      }
+    };
+    expect(chevron().rotate).toBe("none");
+    panel.open = true;
+    settle();
+    expect(chevron().rotate).toBe("180deg");
+    panel.setAttribute("data-cp-closing", "");
+    settle();
+    expect(chevron().rotate).toBe("none");
+    root.dataset["pointer"] = "coarse";
+    expect(summary.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+  });
+
+  it("docks the context panel behind one line at its inline end, sticky under a sticky header", () => {
+    theme("light");
+    const el = build(
+      `<div class="cp-context" data-cp-docked>${contextPanel("open")}<div class="cp-context-main"></div></div>`,
+    );
+    el.style.setProperty("--cp-sticky-top", "56px");
+    const cs = getComputedStyle(el.querySelector("details") as Element);
+    expect(cs.position).toBe("sticky");
+    expect(cs.top).toBe("56px");
+    expect(cs.borderInlineEndStyle).toBe("solid");
+    expect(cs.borderInlineStartStyle).toBe("none");
+    expect(cs.borderTopStyle).toBe("none");
+    expect(getComputedStyle(el.querySelector("summary") as Element).display).toBe("none");
+  });
+
+  // A docked wide list and detail holding a conversation of `n` entries.
+  const wide = (n: number, width = 1200) => {
+    const el = build(
+      `<div class="cp-list-detail" data-variant="wide" data-cp-docked><ul class="cp-list"><li>Row</li></ul><section class="cp-detail"><header><h2>internal/feed</h2></header><div class="cp-context" data-cp-docked>${contextPanel("open")}<div class="cp-context-main"><ol class="cp-feed">${entry().repeat(n)}</ol>${foot}</div></div></section></div>`,
+    );
+    el.style.inlineSize = `${String(width)}px`;
+    return el;
+  };
+
+  it("gives the wide list 30% of the box within 16rem and 22rem, and its docked detail the rest", () => {
+    theme("light");
+    for (const [width, list] of [
+      [1400, 352],
+      [1000, 300],
+      [832, 256],
+    ] as const) {
+      const el = wide(2, width);
+      const [l, d] = [".cp-list", ".cp-detail"].map(
+        (s) => (el.querySelector(s) as Element).getBoundingClientRect().width,
+      ) as [number, number];
+      expect(l, `list at ${String(width)}`).toBeCloseTo(list, 0);
+      expect(d, `detail at ${String(width)}`).toBeCloseTo(width - list - 16, 0);
+    }
+  });
+
+  it("holds the wide docked detail to the window, scrolling the conversation inside it over its pinned foot", () => {
+    theme("light");
+    const el = wide(30);
+    const detail = el.querySelector(".cp-detail") as HTMLElement;
+    const main = el.querySelector(".cp-context-main") as HTMLElement;
+    const panel = el.querySelector(".cp-context-panel") as HTMLElement;
+    expect(getComputedStyle(detail).position).toBe("sticky");
+    expect(detail.getBoundingClientRect().height).toBeLessThanOrEqual(window.innerHeight + 0.5);
+    expect(main.scrollHeight).toBeGreaterThan(main.clientHeight);
+    expect(getComputedStyle(panel).position).toBe("static");
+    const mainBox = main.getBoundingClientRect();
+    expect(
+      (el.querySelector(".cp-feed-foot") as Element).getBoundingClientRect().bottom,
+    ).toBeCloseTo(mainBox.bottom, 0);
+    expect(panel.getBoundingClientRect().height).toBeCloseTo(mainBox.height, 0);
+  });
+
+  it("scrolls a conversation in a list-detail dialog with its panel above, the foot pinned edge to edge", () => {
+    theme("light");
+    const el = build(
+      `<dialog class="cp-dialog cp-detail-dialog"><section class="cp-detail"><header><h2>internal/feed</h2></header><div class="cp-context">${contextPanel()}<div class="cp-context-main"><ol class="cp-feed">${entry().repeat(30)}</ol>${foot}</div></div></section></dialog>`,
+    );
+    const dialog = el.querySelector("dialog") as HTMLDialogElement;
+    dialog.showModal();
+    // The entrance scales the dialog, which every rect below would carry.
+    for (const run of document.getAnimations()) {
+      run.finish();
+    }
+    const context = el.querySelector(".cp-context") as HTMLElement;
+    const footBox = (el.querySelector(".cp-feed-foot") as Element).getBoundingClientRect();
+    const dialogBox = dialog.getBoundingClientRect();
+    expect(context.scrollHeight).toBeGreaterThan(context.clientHeight);
+    expect(footBox.bottom).toBeCloseTo(context.getBoundingClientRect().bottom, 0);
+    expect(footBox.left).toBeCloseTo(dialogBox.left + 1, 0);
+    expect(footBox.right).toBeCloseTo(dialogBox.right - 1, 0);
+    const text = (el.querySelector(".cp-feed-text") as Element).getBoundingClientRect().left;
+    expect(
+      (el.querySelector(".cp-feed-foot .cp-form") as Element).getBoundingClientRect().left,
+    ).toBeCloseTo(text, 0);
+  });
+
+  it.skipIf(!emulates)("paints the context panel's chevron in forced colours", async () => {
+    theme("light");
+    await media("forced-colors", "active");
+    const el = build(contextPanel());
+    expect(
+      getComputedStyle(el.querySelector("summary") as Element, "::after").backgroundColor,
+    ).toBe(resolved("CanvasText", "backgroundColor"));
+  });
 });

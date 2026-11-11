@@ -12,6 +12,7 @@
     "./combobox": "./src/forms/combobox/combobox.ts",
     "./confirm": "./src/buttons/confirm/confirm.ts",
     "./connection-test": "./src/forms/connection-test/connection-test.ts",
+    "./context-panel": "./src/layout/context-panel/context-panel.ts",
     "./copy": "./src/forms/copy/copy.ts",
     "./date-range": "./src/forms/date-range/date-range.ts",
     "./dialog": "./src/overlays/dialog/dialog.ts",

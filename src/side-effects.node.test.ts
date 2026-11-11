@@ -19,6 +19,7 @@ const PURE = [
   "/combobox",
   "/confirm",
   "/connection-test",
+  "/context-panel",
   "/copy",
   "/date-range",
   "/dialog",

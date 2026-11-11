@@ -64,6 +64,7 @@ layout/cluster/cluster.css
 layout/side-main/side-main.css
 layout/grid/grid.css
 layout/list-detail/list-detail.css
+layout/context-panel/context-panel.css
 navigation/rail/filters.css
 navigation/tabs/tabs.css
 navigation/link-tabs/link-tabs.css
