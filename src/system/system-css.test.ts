@@ -1014,6 +1014,84 @@ describe("css/system.css", () => {
     },
   );
 
+  it("divides an accordion's sections, turns an open one's chevron, and pads its content", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-accordion" style="inline-size: 24rem">' +
+        '<details open><summary>Season 1<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details>' +
+        '<details open data-cp-closing><summary>Season 2<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>12 episodes</div></details>' +
+        '<details><summary>Specials<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>2 specials</div></details></div>',
+    );
+    const box = el.querySelector(".cp-accordion") as HTMLElement;
+    const [open, closing, shut] = [...box.querySelectorAll("details")] as [
+      HTMLDetailsElement,
+      HTMLDetailsElement,
+      HTMLDetailsElement,
+    ];
+    const chevron = (d: Element) => d.querySelector("summary > .cp-icon") as HTMLElement;
+    const summary = open.querySelector("summary") as HTMLElement;
+    const body = open.querySelector("div") as HTMLElement;
+    const raised = build('<span style="color: var(--cp-surface-raised)"></span>')
+      .firstElementChild as HTMLElement;
+    expect(getComputedStyle(box).backgroundColor).toBe(getComputedStyle(raised).color);
+    expect(getComputedStyle(box).borderTopWidth).toBe("1px");
+    expect(getComputedStyle(open).borderTopWidth).toBe("0px");
+    expect([closing, shut].map((d) => getComputedStyle(d).borderTopWidth)).toEqual(["1px", "1px"]);
+    expect(summary.getBoundingClientRect().height).toBeCloseTo(32, 0);
+    expect(getComputedStyle(summary).paddingLeft).toBe("16px");
+    expect(getComputedStyle(chevron(open)).rotate).toBe("180deg");
+    expect([closing, shut].map((d) => getComputedStyle(chevron(d)).rotate)).toEqual([
+      "none",
+      "none",
+    ]);
+    expect(chevron(open).getBoundingClientRect().right).toBeCloseTo(
+      summary.getBoundingClientRect().right - 16,
+      0,
+    );
+    const muted = build('<span style="color: var(--cp-ink-muted)"></span>')
+      .firstElementChild as HTMLElement;
+    expect(getComputedStyle(body).color).toBe(getComputedStyle(muted).color);
+    expect(getComputedStyle(body).padding).toBe("0px 16px 16px");
+  });
+
+  it("draws an accordion summary's focus ring inside it", async () => {
+    theme("light");
+    const el = build(
+      '<button type="button">Before</button><div class="cp-accordion"><details><summary>Season 1<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details></div>',
+    );
+    (el.querySelector("button") as HTMLElement).focus();
+    await userEvent.tab();
+    const summary = el.querySelector("summary") as HTMLElement;
+    expect(document.activeElement).toBe(summary);
+    expect(getComputedStyle(summary).outlineOffset).toBe("-2px");
+  });
+
+  it("puts a section's menu button beside its summary, before the chevron, and wraps a long title short of it", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-accordion" style="inline-size: 16rem"><div class="cp-accordion-section">' +
+        '<details><summary>Season 1 with a title too long for one line<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details>' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="Season 1 actions"><span class="cp-icon" data-cp-icon="ellipsis"></span></button></div></div>',
+    );
+    const summary = el.querySelector("summary") as HTMLElement;
+    const button = el.querySelector(".cp-button") as HTMLElement;
+    const chevron = summary.querySelector(".cp-icon") as HTMLElement;
+    const s = summary.getBoundingClientRect();
+    const b = button.getBoundingClientRect();
+    const words = document.createRange();
+    words.selectNodeContents(summary.firstChild as Text);
+    const lines = [...words.getClientRects()];
+    expect(b.top - s.top).toBeCloseTo(3, 0);
+    expect(s.right - b.right).toBeCloseTo(40, 0);
+    const c = chevron.getBoundingClientRect();
+    expect(b.right).toBeLessThan(c.left);
+    expect(c.top + c.height / 2).toBeCloseTo(b.top + b.height / 2, 0);
+    expect((lines[0] as DOMRect).top - s.top).toBeGreaterThanOrEqual(4);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(Math.max(...lines.map((r) => r.right))).toBeLessThanOrEqual(b.left);
+    expect(summary.contains(button)).toBe(false);
+  });
+
   for (const t of ["light", "dark"] as const) {
     it(`draws a switch whose track and thumb clear 3:1 on and off in ${t}`, () => {
       theme(t);

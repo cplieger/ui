@@ -1989,53 +1989,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   cursor: default;
 }
 
-/* An accordion of native <details name>, the arrow turning as it opens; an
- * engine that animates to auto sizes glides the body. */
-.g-accordion {
-  display: grid;
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-  overflow: hidden;
-  interpolate-size: allow-keywords;
-}
-
-.g-accordion > :is(details, .g-group) + :is(details, .g-group) {
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-accordion summary {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-4);
-  font-weight: var(--cp-weight-medium);
-  cursor: pointer;
-  list-style: none;
-}
-
-.g-accordion summary::-webkit-details-marker {
-  display: none;
-}
-
-.g-accordion summary > .cp-icon {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  transition: rotate 200ms var(--cp-ease-out);
-}
-
-.g-accordion details[open]:not([data-closing]) summary > .cp-icon {
-  rotate: 180deg;
-}
-
-.g-accordion .g-acc-body {
-  padding: 0 var(--cp-space-4) var(--cp-space-4);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  line-height: var(--cp-leading-body);
-}
-
 /* The command palette: a dialog at the top third with a field over a list. */
 .g-palette {
   inline-size: min(36rem, calc(100vw - 2rem));
@@ -2457,18 +2410,6 @@ html:has(.g-header) {
 .g-meter > small {
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
-}
-
-/* A group whose header holds an action menu outside its summary, so the
- * menu never opens or closes the group. */
-.g-group {
-  position: relative;
-}
-
-.g-group > .g-group-menu {
-  position: absolute;
-  inset-block-start: calc((var(--cp-control-h) - var(--cp-control-h-sm)) / 2);
-  inset-inline-end: calc(var(--cp-space-4) + 1.5rem);
 }
 
 /* An action that reports its own outcome in its cell. */

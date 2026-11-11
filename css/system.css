@@ -4712,6 +4712,95 @@ textarea.cp-input {
   }
 }
 
+/* An accordion: native <details> in one raised box, divided by lines. A
+ * section with its own menu is a .cp-accordion-section holding the details
+ * and the menu's button, which sits beside the summary and not in it, so
+ * pressing it never opens or shuts the section. */
+.cp-accordion {
+  display: grid;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+}
+
+.cp-accordion > :not(:first-child) {
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+.cp-accordion summary {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding: var(--cp-space-1) var(--cp-space-4);
+  border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
+  font-weight: var(--cp-weight-medium);
+  cursor: pointer;
+  list-style: none;
+}
+
+.cp-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A summary spans the box, so its ring is drawn inside it. */
+.cp-accordion summary:focus-visible {
+  outline-offset: calc(-1 * var(--cp-focus-w));
+}
+
+/* The chevron stays by a wrapped title's first line, level with a menu
+ * button. It turns as the press lands, shutting included: disclosure.ts
+ * keeps a closing section open, marked data-cp-closing, while it glides. */
+.cp-accordion summary > .cp-icon:last-child {
+  align-self: start;
+  margin-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2 - var(--cp-space-1));
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  transition: rotate 200ms var(--cp-ease-out);
+}
+
+:where(.cp-accordion) details[open]:not([data-cp-closing]) > summary > .cp-icon:last-child {
+  rotate: 180deg;
+}
+
+.cp-accordion details > summary + * {
+  padding: 0 var(--cp-space-4) var(--cp-space-4);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-accordion-section {
+  --cp-accordion-menu-w: max(
+    var(--cp-hit-min),
+    calc(var(--cp-icon-ui) + 2 * var(--cp-space-2) + 2 * var(--cp-line-w))
+  );
+
+  position: relative;
+}
+
+/* 1.5rem clears the chevron and leaves a gap before it. */
+.cp-accordion-section > .cp-button {
+  position: absolute;
+  inset-block-start: calc((var(--cp-control-h) - var(--cp-control-h-sm)) / 2);
+  inset-inline-end: calc(var(--cp-space-4) + 1.5rem);
+}
+
+/* Keeps the menu button's width free before the chevron, so a long title
+ * or chip wraps short of the button instead of running under it. */
+.cp-accordion-section > details > summary::after {
+  content: "";
+  flex: none;
+  order: 1;
+  inline-size: var(--cp-accordion-menu-w);
+  margin-inline-start: auto;
+}
+
+.cp-accordion-section > details > summary > .cp-icon:last-child {
+  order: 2;
+  margin-inline-start: 0;
+}
+
 /* Progress: a track and a fill in the tone. */
 .cp-progress {
   display: inline-flex;

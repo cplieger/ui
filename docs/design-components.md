@@ -60,6 +60,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-filter-chip` | a pill `<button>` that turns one filter on or off by `aria-pressed`, filled with the accent and its `check` icon sliding in while pressed. A row of them is a `.cp-cluster` with `role="group"` and a name. Your click handler sets `aria-pressed` from the filter's state |
 | `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes, run by [tabs](navigation/tabs.md) with its sliding pill |
 | `.cp-link-tabs` | tabs that are links, one address each, the current one `aria-current="page"` |
+| `.cp-accordion`, `.cp-accordion-section` | native `<details>` in one raised box divided by lines, each summary's chevron turning as it opens, and a section with a small quiet menu button beside its summary, outside it, as [disclosure](navigation/disclosure.md#accordion) describes. Sections sharing a `name` open one at a time |
 | `.cp-progress`, `.cp-progress-track`, `.cp-progress-fill` | a progress bar in a tone |
 | `.cp-skeleton`, `.cp-empty` | the loading and empty states |
 | `.cp-loader`, `.cp-inline-load` | a loader for work of unknown length, the checkbox's square twirling through the harmony colours, alone or beside words that say what is loading |

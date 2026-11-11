@@ -1,19 +1,21 @@
 /**
  * nav-feedback.ts — the gallery's wiring for the navigation and feedback
  * cards that run on the library: the header's account menu and its status
- * demo, the jump field, the rail's filters and the content tabs.
+ * demo, the jump field, the rail's filters, the content tabs and the
+ * accordion.
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
 import { enhanceCombobox } from "@cplieger/ui/combobox";
+import { enhanceDisclosure, groupDisclosures } from "@cplieger/ui/disclosure";
 import { enhanceMenu } from "@cplieger/ui/menu";
 import { enhanceTabs } from "@cplieger/ui/tabs";
 import { toast } from "@cplieger/ui/toast";
 
 installAnnouncer();
 
-// A header menu item names the toast it shows by data-say.
-for (const menu of document.querySelectorAll<HTMLElement>(".cp-header .cp-menu")) {
+// A menu item names the toast it shows by data-say.
+for (const menu of document.querySelectorAll<HTMLElement>(".cp-header .cp-menu, #m-season")) {
   enhanceMenu(menu, {
     onSelect: (item) => {
       const title = item.dataset["say"];
@@ -137,4 +139,22 @@ for (const list of document.querySelectorAll<HTMLElement>(".cp-tabs[data-tabs]")
     list,
     list.dataset["tabs"] === "manual" ? { activation: "manual", onSelect: load } : {},
   );
+}
+
+// data-accordion-mode names the accordion its One at a time and Any number
+// choice switches.
+for (const mode of document.querySelectorAll<HTMLElement>("[data-accordion-mode]")) {
+  const accordion = document.getElementById(mode.dataset["accordionMode"] ?? "");
+  if (accordion === null) {
+    continue;
+  }
+  const sections = [...accordion.querySelectorAll("details")];
+  const group = sections[0]?.getAttribute("name") ?? accordion.id;
+  for (const d of sections) {
+    enhanceDisclosure(d);
+  }
+  mode.addEventListener("change", (e) => {
+    const one = e.target instanceof HTMLInputElement && e.target.value === "one";
+    groupDisclosures(sections, one ? group : null);
+  });
 }

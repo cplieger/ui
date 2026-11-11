@@ -1171,10 +1171,6 @@ for (const list of $$("[data-reorder]")) {
   list.addEventListener("pointercancel", end);
 }
 
-// --------------------------------------------------------- disclosure
-// <details name> is the platform's accordion; an engine that sizes to auto
-// glides it open, and the others snap, which is usable.
-
 // ---------------------------------------------------------------- theme
 // The page's look follows the chosen theme, and the change reveals the new
 // look in a circle growing from the control that asked for it.
@@ -2405,23 +2401,7 @@ function glideDetails(d) {
   });
   void run;
 }
-for (const d of $$("details")) glideDetails(d);
-
-// An accordion's mode: One at a time groups its sections, so opening one
-// closes the others; Any number lets each open on its own. Switching to one
-// at a time keeps the first open section and closes the rest.
-for (const mode of $$("[data-acc-mode]")) {
-  const sections = $$("details", document.getElementById(mode.dataset.accMode));
-  const group = sections[0]?.dataset.group ?? "acc";
-  mode.addEventListener("change", (e) => {
-    const one = e.target.value === "one";
-    for (const s of sections) {
-      if (one) s.dataset.group = group;
-      else delete s.dataset.group;
-    }
-    if (one) for (const s of sections.filter((x) => x.open).slice(1)) $("summary", s).click();
-  });
-}
+for (const d of $$("details:not(.cp-accordion details)")) glideDetails(d);
 
 // A bar that appears or leaves pushes the content under it, so it glides
 // open and shut instead of jumping.
