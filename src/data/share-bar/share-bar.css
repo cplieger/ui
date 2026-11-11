@@ -38,8 +38,12 @@
   font-weight: var(--cp-weight-body);
 }
 
-.cp-share-legend a.cp-chip {
+/* A plain chip is a tap target too: it toggles its tip. */
+.cp-share-legend .cp-chip {
   min-block-size: var(--cp-hit-min);
+}
+
+.cp-share-legend a.cp-chip {
   text-decoration: none;
   transition:
     background-color var(--cp-dur-micro) var(--cp-ease-out),

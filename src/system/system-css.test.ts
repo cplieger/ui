@@ -340,13 +340,19 @@ describe("css/system.css share bar", () => {
     expect(getComputedStyle(empty).backgroundColor).toBe(getComputedStyle(fill).color);
   });
 
-  it("makes a legend link a chip with no underline and the hit area of the pointer", () => {
-    const el = shareBar(row("1", "best", 3));
+  it("makes a legend link a chip with no underline, and every chip the hit area of the pointer", () => {
+    const el = shareBar(
+      row("1", "best", 3) +
+        '<tr data-series="2"><th>plain</th><td><data value="1">1</data></td></tr>',
+    );
     const chip = el.querySelector(".cp-share-legend a.cp-chip") as HTMLElement;
+    const plain = el.querySelector(".cp-share-legend span.cp-chip") as HTMLElement;
     expect(getComputedStyle(chip).textDecorationLine).toBe("none");
     expect(chip.getBoundingClientRect().height).toBe(24);
+    expect(plain.getBoundingClientRect().height).toBe(24);
     root.setAttribute("data-pointer", "coarse");
     expect(chip.getBoundingClientRect().height).toBe(44);
+    expect(plain.getBoundingClientRect().height).toBe(44);
     expect(getComputedStyle(el.querySelector(".cp-share-legend") as Element).listStyleType).toBe(
       "none",
     );
@@ -367,6 +373,27 @@ describe("css/system.css share bar", () => {
     link.prepend(glyph);
     expect(getComputedStyle(link).display).toBe("inline-flex");
     expect(getComputedStyle(link).alignItems).toBe("center");
+  });
+
+  it("fills a row's header with its row, hovered or selected", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "fine");
+    const el = build(
+      '<table class="cp-table"><tbody><tr><th scope="row">best</th><td>3</td></tr></tbody></table>',
+    );
+    const [th, td] = [el.querySelector("th"), el.querySelector("td")] as HTMLElement[];
+    const fill = host("");
+    fill.style.color = "var(--cp-fill)";
+    await userEvent.hover(td as HTMLElement);
+    expect(getComputedStyle(td as Element).backgroundColor).toBe(getComputedStyle(fill).color);
+    expect(getComputedStyle(th as Element).backgroundColor).toBe(getComputedStyle(fill).color);
+    await userEvent.unhover(td as HTMLElement);
+    const pick = document.createElement("td");
+    pick.dataset["col"] = "select";
+    pick.setHTMLUnsafe('<label><input type="checkbox" checked aria-label="Pick"></label>');
+    th?.before(pick);
+    fill.style.color = "var(--cp-selected)";
+    expect(getComputedStyle(th as Element).backgroundColor).toBe(getComputedStyle(fill).color);
   });
 
   it("shows a segment's tip under a mouse", async () => {

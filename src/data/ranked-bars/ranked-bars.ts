@@ -26,7 +26,8 @@ function cells(table: HTMLTableElement): Cell[] {
         if (!cell.hasAttribute("data-bar") || !(count instanceof HTMLDataElement)) {
           continue;
         }
-        const value = count.value.trim() === "" ? Number.NaN : Number(count.value);
+        const read = count.value.trim() === "" ? Number.NaN : Number(count.value);
+        const value = Number.isFinite(read) ? read : Number.NaN;
         const name = cell.dataset["bar"] ?? "";
         out.push({ cell, group: name === "" ? `#${String(cell.cellIndex)}` : name, value });
       }
@@ -39,9 +40,9 @@ function cells(table: HTMLTableElement): Cell[] {
  * Each body cell marked `data-bar` holds its count as a `<data value>`. Its
  * bar is sized against the largest value among the cells of its column, or
  * among every cell sharing its `data-bar` name, such as sent and read posts.
- * A value of 0 or less, or one that is not a number, draws an empty track,
- * so the column still lines up. The bars are not read: the numbers are. They
- * follow every later change to the table.
+ * A value of 0 or less, or one that is not a finite number, draws an empty
+ * track, so the column still lines up. The bars are not read: the numbers
+ * are. They follow every later change to the table.
  */
 export function enhanceRankedBars(table: HTMLTableElement, options: RankedBarsOptions = {}): void {
   const { signal } = options;

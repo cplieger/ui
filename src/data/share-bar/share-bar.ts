@@ -74,12 +74,8 @@ function place<T>(
 
 // Only what differs is written: a link that loses its href for a moment,
 // even within one task, can lose focus. `owns` names what may be removed.
-function sync(
-  el: Element,
-  attrs: ReadonlyMap<string, string>,
-  owns: readonly string[] | "all",
-): void {
-  for (const name of owns === "all" ? el.getAttributeNames() : owns) {
+function sync(el: Element, attrs: ReadonlyMap<string, string>, owns: Iterable<string>): void {
+  for (const name of owns) {
     if (!attrs.has(name)) {
       el.removeAttribute(name);
     }
@@ -101,11 +97,15 @@ function tones(row: Element, into: Map<string, string>): Map<string, string> {
   return into;
 }
 
+// A part with a count never reads as 0%: one too small for the usual digits
+// shows its first significant digit.
 function percent(share: number, locale: string | undefined): string {
-  return new Intl.NumberFormat(locale, {
-    style: "percent",
-    maximumFractionDigits: share < 0.1 ? 1 : 0,
-  }).format(share);
+  const digits = share < 0.1 ? 1 : 0;
+  const format = (o: Intl.NumberFormatOptions) =>
+    new Intl.NumberFormat(locale, { style: "percent", ...o }).format(share);
+  const out = format({ maximumFractionDigits: digits });
+  const zero = new Intl.NumberFormat(locale, { style: "percent" }).format(0);
+  return share > 0 && out === zero ? format({ maximumSignificantDigits: 1 }) : out;
 }
 
 function words(el: Element): string {
@@ -134,6 +134,9 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
   legend.className = "cp-share-legend";
   view.before(bar, legend);
   installTooltips(signal === undefined ? {} : { signal });
+  // What each chip took from the last draw, the only names a redraw removes:
+  // the tip writes the chip's style (its anchor) and aria-describedby.
+  const written = new WeakMap<Element, readonly string[]>();
 
   const draw = (): void => {
     const all = shares(table);
@@ -177,6 +180,7 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
               attrs.set(name, s.link?.getAttribute(name) ?? "");
             }
             attrs.delete("id");
+            attrs.delete("style");
             attrs.set("class", "cp-chip");
             // A tap on a link chip follows it, so only a plain chip toggles.
             if (total > 0) {
@@ -185,7 +189,9 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
                 attrs.set("data-cp-tip-toggle", "");
               }
             }
-            sync(chip, tones(s.row, attrs), "all");
+            tones(s.row, attrs);
+            sync(chip, attrs, written.get(chip) ?? []);
+            written.set(chip, [...attrs.keys()]);
             const swatch = document.createElement("span");
             swatch.className = "cp-swatch";
             const label = [...(s.link ?? s.label).childNodes].map((n) => n.cloneNode(true));

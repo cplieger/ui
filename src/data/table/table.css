@@ -72,7 +72,8 @@
   margin: 0;
 }
 
-.cp-table tr:has(> [data-col="select"] input:checked) > td {
+/* A header row's select-all box is a th, so only a body row takes the fill. */
+.cp-table tr:has(> td[data-col="select"] input:checked) > :is(td, th) {
   background: var(--cp-selected);
 }
 
@@ -120,7 +121,7 @@
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-table tbody tr:hover td {
+    .cp-table tbody tr:hover :is(td, th) {
       background: var(--cp-fill);
     }
 

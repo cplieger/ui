@@ -146,6 +146,48 @@ describe("enhanceShareBar", () => {
     expect(best.hasAttribute("aria-describedby")).toBe(false);
   });
 
+  it("toggles a plain chip's tip with a tap", () => {
+    const { box } = share();
+    enhanceShareBar(box, { signal: life.signal });
+    const withheld = chips(box)[2] as HTMLElement;
+    const tap = () => {
+      withheld.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "touch" }),
+      );
+    };
+    const tip = () => document.querySelector(".cp-tooltip") as HTMLElement;
+    tap();
+    expect(tip().matches(":popover-open")).toBe(true);
+    expect(tip().textContent).toBe("Withheld: 9, 1.9%");
+    tap();
+    expect(tip().matches(":popover-open")).toBe(false);
+  });
+
+  it("keeps a showing tip anchored to its chip through a redraw, with the new words", async () => {
+    const { box, table } = share();
+    enhanceShareBar(box, { signal: life.signal });
+    const best = chips(box)[0] as HTMLElement;
+    best.focus({ focusVisible: true });
+    const tip = document.querySelector(".cp-tooltip") as HTMLElement;
+    const count = table.querySelector("data") as HTMLDataElement;
+    count.value = "500";
+    count.textContent = "500";
+    await expect.poll(() => tip.textContent).toBe("On the best: 500, 88%");
+    expect(chips(box)[0]).toBe(best);
+    expect(best.style.getPropertyValue("anchor-name")).toContain("--cp-tip-anchor");
+    expect(tip.matches(":popover-open")).toBe(true);
+  });
+
+  it("never writes a part with a count as 0%", () => {
+    const { box } = share(
+      '<tr><th>Most</th><td><data value="10000">10000</data></td></tr>' +
+        '<tr><th>One</th><td><data value="1">1</data></td></tr>',
+    );
+    enhanceShareBar(box, { signal: life.signal });
+    expect(segments(box)[1]?.dataset["cpTip"]).toBe("One: 1, 0.01%");
+    expect(chips(box)[1]?.textContent).toBe("One 1, 0.01%");
+  });
+
   it("switches to the table and back by the toggle, which it shows", async () => {
     const { box, toggle } = share();
     const view = box.querySelector(".wrap") as HTMLElement;

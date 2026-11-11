@@ -4252,7 +4252,8 @@ textarea.cp-input {
   margin: 0;
 }
 
-.cp-table tr:has(> [data-col="select"] input:checked) > td {
+/* A header row's select-all box is a th, so only a body row takes the fill. */
+.cp-table tr:has(> td[data-col="select"] input:checked) > :is(td, th) {
   background: var(--cp-selected);
 }
 
@@ -4300,7 +4301,7 @@ textarea.cp-input {
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-table tbody tr:hover td {
+    .cp-table tbody tr:hover :is(td, th) {
       background: var(--cp-fill);
     }
 
@@ -4923,8 +4924,12 @@ textarea.cp-input {
   font-weight: var(--cp-weight-body);
 }
 
-.cp-share-legend a.cp-chip {
+/* A plain chip is a tap target too: it toggles its tip. */
+.cp-share-legend .cp-chip {
   min-block-size: var(--cp-hit-min);
+}
+
+.cp-share-legend a.cp-chip {
   text-decoration: none;
   transition:
     background-color var(--cp-dur-micro) var(--cp-ease-out),

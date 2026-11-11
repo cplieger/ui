@@ -69,6 +69,17 @@ describe("enhanceRankedBars", () => {
     expect(el.querySelectorAll('[data-part="bar"]')).toHaveLength(7);
   });
 
+  it("draws no fill for a value past any number, and sizes the rest without it", () => {
+    const el = table(
+      `<tr><th>a</th>${cell("", "Infinity")}</tr>` +
+        `<tr><th>b</th>${cell("", "1e309")}</tr>` +
+        `<tr><th>c</th>${cell("", "8")}</tr>` +
+        `<tr><th>d</th>${cell("", "2")}</tr>`,
+    );
+    enhanceRankedBars(el, { signal: life.signal });
+    expect(fills(el)).toEqual(["", "", "100%", "25%"]);
+  });
+
   it("leaves a cell without data-bar or without a <data> alone", () => {
     const el = table(`<tr><th>a</th><td><data value="4">4</data></td><td data-bar>4</td></tr>`);
     enhanceRankedBars(el, { signal: life.signal });
