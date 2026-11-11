@@ -2069,18 +2069,6 @@ html:has(.g-header) {
   font-weight: var(--cp-weight-medium);
 }
 
-/* Active filters: chips that remove, a Clear, and the count. */
-.g-active {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-active > .cp-token {
-  animation: none;
-}
-
 /* A list that holds its place: a line offers the change instead. */
 .g-hold-line {
   display: flex;

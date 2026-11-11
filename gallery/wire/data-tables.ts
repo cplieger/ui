@@ -3,6 +3,7 @@
  * cards that run on the library.
  */
 
+import { enhanceActiveFilters } from "@cplieger/ui/active-filters";
 import { announce } from "@cplieger/ui/announce";
 import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceMenu } from "@cplieger/ui/menu";
@@ -67,6 +68,39 @@ for (const menu of all<HTMLElement>(".cp-menu[popover]")) {
       }
     },
   });
+}
+
+// A row of filters names its count by data-count and the titles matching
+// none by data-total. The gallery makes up a count for the filters left,
+// and Put them back restores the chips the page opened with.
+for (const row of all<HTMLElement>(".cp-active-filters[data-count]")) {
+  const count = document.getElementById(row.dataset["count"] ?? "");
+  if (count === null) {
+    continue;
+  }
+  const total = Number(row.dataset["total"]);
+  const counted = (n: number): string =>
+    n === 0
+      ? `${String(total)} titles`
+      : `${String(Math.round(total / (n + 1)) + 3)} of ${String(total)}`;
+  const active = enhanceActiveFilters(row, {
+    count,
+    onChange: (values) => {
+      active.setCount(counted(values.length));
+    },
+  });
+  const start = all<HTMLElement>(":scope > .cp-token", row).map((c) => c.cloneNode(true));
+  row
+    .closest(".card")
+    ?.querySelector("[data-reset-filters]")
+    ?.addEventListener("click", () => {
+      for (const c of all(":scope > .cp-token", row)) {
+        c.remove();
+      }
+      row.querySelector("[data-filters-clear]")?.before(...start.map((c) => c.cloneNode(true)));
+      active.sync();
+      active.setCount(counted(active.values.length));
+    });
 }
 
 // Show loading stands for a load of 1.4 seconds: the skeleton, then the rows.

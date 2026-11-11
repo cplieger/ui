@@ -4520,6 +4520,21 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
+/* The filters in force (@cplieger/ui/active-filters): a wrapping row of
+ * chips, each with its Remove, then Clear filters. */
+.cp-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+/* A filter's chip arrives with the page's results, not under a press here,
+ * so it does not pop in; it still shrinks away when removed. */
+.cp-active-filters > .cp-token:not([data-cp-leaving]) {
+  animation: none;
+}
+
 /* Pagination under a table: where the person is, and the way to the pages
  * around it. */
 .cp-pager {

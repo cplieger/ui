@@ -53,6 +53,8 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 6. Announce each change to the count through `@cplieger/ui/announce`, politely. [table](data/table.md)'s `enhanceBatchBar` runs the bar, its count, Escape and these announcements.
 7. A bulk action that changes or removes data asks first or offers an Undo, as a single action does. Its confirmation names the count.
 
+**Filters.** While a filter is on, the filters in force sit above the table as a `.cp-active-filters` row, one chip each with its Remove, then Clear filters, and the result count reads "140 of 412". Removing one moves focus to the next chip, or to Clear filters while one is left, and the new count is announced once the person stops removing. [active-filters](data/active-filters.md) runs the row.
+
 **Pages.** A list longer than one page has a `.cp-pager` under its table, inside the panel:
 
 1. It shows the range and the total, such as "1 to 25 of 412", then Previous and Next as links. At the first or the last page that link has `aria-disabled="true"` and no `href`.

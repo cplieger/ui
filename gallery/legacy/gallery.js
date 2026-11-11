@@ -1365,36 +1365,6 @@ for (const form of $$("form[data-settings]")) {
 
 // ======================================== hero icons, layouts and the rest of the scope
 
-// Active filters: chips that remove their filter, Clear, and "N of M"
-// announced once a change settles.
-for (const box of $$("[data-active-filters]")) {
-  const count = document.getElementById(box.dataset.count);
-  const total = Number(box.dataset.total);
-  const update = () => {
-    const n = $$(".cp-token", box).length;
-    const shown = Math.round(total / (n + 1)) + (n ? 3 : 0);
-    count.textContent = n ? `${shown} of ${total}` : `${total} titles`;
-    $("[data-clear-filters]", box).hidden = n === 0;
-    clearTimeout(box.t);
-    box.t = setTimeout(() => announce(count.textContent), 500);
-  };
-  box.addEventListener("click", (e) => {
-    const x = e.target.closest(".cp-token > button");
-    if (x) {
-      const next = x.closest(".cp-token").nextElementSibling?.querySelector("button") ?? $("[data-clear-filters]", box);
-      x.closest(".cp-token").remove();
-      next?.focus();
-      update();
-    }
-    if (e.target.closest("[data-clear-filters]")) {
-      for (const t of $$(".cp-token", box)) t.remove();
-      update();
-    }
-  });
-  box.addEventListener("filters-reset", update);
-  update();
-}
-
 // A list that holds its place: changes that would move rows wait behind a
 // line that offers them, so nothing moves under the reader (WCAG 3.2.2).
 for (const list of $$("[data-hold]")) {
@@ -1443,17 +1413,6 @@ for (const b of $$("[data-load-older]")) {
     if (round === 2) {
       b.replaceWith(el("p", { class: "g-note", text: "That is the whole history." }));
     }
-  });
-}
-
-// Active filters: put the demo's chips back.
-for (const b of $$("[data-reset-filters]")) {
-  const box = $("[data-active-filters]", b.closest(".card"));
-  const start = $$(".cp-token", box).map((t) => t.cloneNode(true));
-  b.addEventListener("click", () => {
-    for (const t of $$(".cp-token", box)) t.remove();
-    $("[data-clear-filters]", box).before(...start.map((t) => t.cloneNode(true)));
-    box.dispatchEvent(new Event("filters-reset"));
   });
 }
 

@@ -3474,6 +3474,24 @@ describe("css/system.css data tables", () => {
     expect([box.width, box.height]).toEqual([36, 54]);
   });
 
+  it("lays the filters in force in a wrapping row whose chips arrive still and shrink away", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-token" id="field-chip"><span>a</span><button type="button"></button></span>' +
+        '<div class="cp-active-filters"><span class="cp-token"><span>Kind: TV</span><button type="button"></button></span>' +
+        '<span class="cp-token" data-cp-leaving><span>Verdict: Best</span><button type="button"></button></span></div>',
+    );
+    const row = getComputedStyle(el.querySelector(".cp-active-filters") as Element);
+    expect([row.display, row.flexWrap, row.columnGap]).toEqual(["flex", "wrap", "8px"]);
+    const [still, leaving] = [...el.querySelectorAll(".cp-active-filters > .cp-token")].map(
+      (c) => getComputedStyle(c).animationName,
+    );
+    expect(getComputedStyle(el.querySelector("#field-chip") as Element).animationName).toBe(
+      "cp-token-in",
+    );
+    expect([still, leaving]).toEqual(["none", "cp-token-out"]);
+  });
+
   it("fills the row a keyboard is in, and keeps a selected row's fill", async () => {
     theme("light");
     const el = build(
