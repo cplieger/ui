@@ -1,0 +1,128 @@
+/* Data table: rows are never interactive; actions are buttons in a cell.
+ * A column carries its priority, and a narrow container drops low, then mid. */
+.cp-table {
+  inline-size: 100%;
+  font-size: var(--cp-text-ui);
+}
+
+.cp-table th {
+  text-align: start;
+  font-weight: var(--cp-weight-medium);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+  white-space: nowrap;
+}
+
+.cp-table td {
+  padding: 0 var(--cp-space-3);
+  block-size: var(--cp-row-h);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+  vertical-align: middle;
+}
+
+.cp-table tr:last-child td {
+  border-block-end: 0;
+}
+
+.cp-table [data-col="num"] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Row selection: a native checkbox in a label that fills its cell, so the
+ * hit area reaches the tier's minimum. */
+.cp-table [data-col="select"] {
+  inline-size: 1%;
+  padding: 0;
+}
+
+.cp-table [data-col="select"] > label {
+  display: flex;
+  align-items: center;
+  min-inline-size: var(--cp-hit-min);
+  min-block-size: max(var(--cp-hit-min), var(--cp-row-h));
+  padding-inline: var(--cp-space-3) var(--cp-space-2);
+  cursor: pointer;
+}
+
+.cp-table [data-col="select"] input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin: 0;
+}
+
+.cp-table tr:has(> [data-col="select"] input:checked) > td {
+  background: var(--cp-selected);
+}
+
+/* The actions for the selected rows, above the table, with their count. */
+.cp-batchbar {
+  position: sticky;
+  inset-block-start: var(--cp-sticky-top, 0);
+  z-index: var(--cp-z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-accent-wash);
+  color: var(--cp-accent-12);
+}
+
+@media (forced-colors: active) {
+  .cp-batchbar {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+.cp-batch-count {
+  margin-inline-end: auto;
+  font-weight: var(--cp-weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-table [data-col="actions"] > .cp-button:only-child {
+  inline-size: 100%;
+}
+
+.cp-table [data-col="actions"] {
+  text-align: end;
+  inline-size: 1%;
+  white-space: nowrap;
+}
+
+.cp-table [data-col="actions"] > .cp-toolbar {
+  flex-wrap: nowrap;
+  justify-content: end;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-table tbody tr:hover td {
+      background: var(--cp-fill);
+    }
+
+    /* A plain button in a row shares the row's hover fill and would vanish;
+     * lift it to the raised surface. Only a resting button: one that
+     * confirms in place keeps the fill its busy or done state gives it. */
+    .cp-table tr:hover .cp-button:not([data-variant], [data-cp-state]) {
+      background: var(--cp-surface-raised);
+    }
+  }
+}
+
+@container (width < 64rem) {
+  .cp-table [data-priority="low"] {
+    display: none;
+  }
+}
+
+@container (width < 44rem) {
+  .cp-table [data-priority="mid"] {
+    display: none;
+  }
+}

@@ -1,0 +1,148 @@
+/* A button group: buttons joined into one control, a thin line between them,
+ * the outer corners rounded. It presses as one, because a part that scaled
+ * alone would open a gap at its seam. */
+:is(.cp-group, .cp-split) {
+  display: inline-flex;
+  transition: transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+:is(.cp-group, .cp-split) > .cp-button {
+  --cp-press-scale: 1;
+
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+:is(.cp-group, .cp-split) > .cp-button:first-child {
+  border-start-start-radius: var(--cp-radius-control);
+  border-end-start-radius: var(--cp-radius-control);
+}
+
+:is(.cp-group, .cp-split) > .cp-button:last-child {
+  border-start-end-radius: var(--cp-radius-control);
+  border-end-end-radius: var(--cp-radius-control);
+}
+
+:is(.cp-group, .cp-split) > .cp-button + .cp-button {
+  border-inline-start: 1px solid oklch(from currentcolor l c h / 25%);
+}
+
+/* @cplieger/ui/press never marks a disabled control, and a disabled button
+ * is never :active. */
+.cp-group:has(> [data-cp-pressed]),
+.cp-split:has(> [data-cp-pressed]),
+.cp-group:has(> :active:not([aria-disabled="true"])),
+.cp-split:has(> :active:not([aria-disabled="true"])) {
+  transform: scale(var(--cp-press-scale));
+}
+
+/* A split button: a primary action and a caret that opens its other
+ * choices. It is one shape: the split paints the fill, its corners and its
+ * state's colour, and its parts paint nothing at rest, so its edges are drawn
+ * once and cannot disagree between the parts at a fractional offset. A part
+ * paints only its own hover or press, inside the shape, and the split does
+ * not clip, so a part's focus ring still shows outside it. */
+.cp-split {
+  --cp-caret-w: 2.25rem;
+  --cp-done-paint: transparent;
+
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-tone-9);
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.cp-split:has(> [data-cp-state="done"]) {
+  background: oklch(from var(--cp-success-9) min(l, 0.52) c h);
+  transition:
+    background-color 160ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* A part's hover or press fill stops inside its transparent 1px border, so
+ * it never paints over the shape's own anti-aliased edge, which would make
+ * the hovered part's edge heavier than its neighbour's. A button's own hover
+ * and press rules set the background shorthand, which resets the clip, so
+ * each split rule restates it. */
+.cp-split > .cp-button {
+  background-color: transparent;
+  background-clip: padding-box;
+  color: var(--cp-tone-on);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-split > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-cp-state]) {
+      background-color: var(--cp-tone-10);
+      background-clip: padding-box;
+    }
+  }
+}
+
+.cp-split > .cp-button[data-cp-pressed]:not([data-cp-state]),
+.cp-split > .cp-button:active:not(:disabled, [data-cp-state]) {
+  background-color: var(--cp-tone-10);
+  background-clip: padding-box;
+}
+
+.cp-split > .cp-button:last-child {
+  inline-size: var(--cp-caret-w);
+  min-inline-size: 0;
+  padding-inline: 0;
+  transition:
+    visibility 0s,
+    border-color 120ms var(--cp-ease-out) 120ms,
+    background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* While the main action works it grows over its caret: its end slides
+ * across the caret, its rounded corners travel at that end over the same
+ * colour, and the split keeps one width. Once done it slides back and
+ * squares its corners when its end reaches the seam. The covered caret
+ * leaves the tab order, and its line and chevron fade so the parts read as
+ * one button. */
+.cp-split > .cp-button:first-child {
+  z-index: 1;
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    padding-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    border-radius 0s var(--cp-dur-medium);
+}
+
+.cp-split:has(> [data-cp-state]) > .cp-button:first-child {
+  margin-inline-end: calc(-1 * var(--cp-caret-w));
+  padding-inline-end: calc(var(--cp-control-pad-x) + var(--cp-caret-w));
+  border-start-end-radius: var(--cp-radius-control);
+  border-end-end-radius: var(--cp-radius-control);
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    padding-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    border-radius 0s;
+}
+
+.cp-split:has(> [data-cp-state]) > .cp-button:last-child {
+  visibility: hidden;
+  border-inline-start-color: transparent;
+  transition:
+    visibility 0s var(--cp-dur-medium),
+    border-color 160ms var(--cp-ease-out);
+}
+
+/* The chevron fades ahead of the sliding edge, so half a chevron never
+ * shows, and returns once the edge has passed back over it. */
+.cp-split > .cp-button:last-child > .cp-icon {
+  transition: opacity 120ms var(--cp-ease-out) 120ms;
+}
+
+.cp-split:has(> [data-cp-state]) > :last-child > .cp-icon {
+  opacity: 0;
+  transition: opacity 90ms var(--cp-ease-out);
+}

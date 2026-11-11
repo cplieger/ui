@@ -1,0 +1,4218 @@
+/* system.css — the cplieger design language for @cplieger/ui apps.
+ *
+ * Opt-in. On import it sets custom properties and the @font-face rules of
+ * its two fonts. color-scheme, element defaults and the widget skins apply
+ * only with class "cp" (put it on <html>); the .cp-* component classes apply
+ * where markup uses them. docs/design.md is the contract.
+ * `npm run system:sync` builds this file from src/system/header.css and the
+ * files src/system/manifest.txt lists, so edit those, never this file. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("../fonts/atkinson-hyperlegible-next-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("../fonts/atkinson-hyperlegible-next-latin-ext.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  src: url("../fonts/atkinson-hyperlegible-mono-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  src: url("../fonts/atkinson-hyperlegible-mono-latin-ext.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+/* Seeds: the only colour values an app chooses, in its own unlayered :root.
+ * Hue in degrees, chroma in oklch units, under docs/design.md's envelope. */
+:root {
+  --cp-neutral-h: 260;
+  --cp-neutral-c: 0.008;
+  --cp-accent-h: 255;
+  --cp-accent-c: 0.13;
+  --cp-brand-h: var(--cp-accent-h);
+  --cp-brand-c: var(--cp-accent-c);
+  --cp-danger-h: 27;
+  --cp-danger-c: 0.15;
+  --cp-warning-h: 75;
+  --cp-warning-c: 0.12;
+  --cp-success-h: 150;
+  --cp-success-c: 0.12;
+  --cp-tone-h: var(--cp-accent-h);
+  --cp-tone-c: var(--cp-accent-c);
+}
+
+:root.cp[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root.cp[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-tone="accent"] {
+  --cp-tone-h: var(--cp-accent-h);
+  --cp-tone-c: var(--cp-accent-c);
+}
+
+[data-tone="neutral"] {
+  --cp-tone-h: var(--cp-neutral-h);
+  --cp-tone-c: calc(var(--cp-neutral-c) * 2);
+}
+
+[data-tone="danger"] {
+  --cp-tone-h: var(--cp-danger-h);
+  --cp-tone-c: var(--cp-danger-c);
+}
+
+[data-tone="warning"] {
+  --cp-tone-h: var(--cp-warning-h);
+  --cp-tone-c: var(--cp-warning-c);
+}
+
+[data-tone="success"] {
+  --cp-tone-h: var(--cp-success-h);
+  --cp-tone-c: var(--cp-success-c);
+}
+
+/* colour:start */
+/* Written by npm run system:sync from src/system/system-css.node.test.ts. */
+:root {
+  --cp-solid-hover-mix: 12%;
+  --cp-brand-l: 54.8%;
+  --cp-shell-dark-l: 34%;
+  --cp-shell-dark-k: 0.7;
+  --cp-shell-ink-l: 96%;
+  --cp-shell-ink-k: 0.15;
+  --cp-neutral-1: light-dark(
+    oklch(99.3% calc(var(--cp-neutral-c) * 0.35) var(--cp-neutral-h)),
+    oklch(18.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-2: light-dark(
+    oklch(97.5% calc(var(--cp-neutral-c) * 0.55) var(--cp-neutral-h)),
+    oklch(21.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-3: light-dark(
+    oklch(95.5% calc(var(--cp-neutral-c) * 0.75) var(--cp-neutral-h)),
+    oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-4: light-dark(
+    oklch(93.2% calc(var(--cp-neutral-c) * 0.9) var(--cp-neutral-h)),
+    oklch(28.2% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-5: light-dark(
+    oklch(90.8% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(31.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-6: light-dark(
+    oklch(88% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(35% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-7: light-dark(
+    oklch(82% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(42% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-8: light-dark(
+    oklch(62% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-neutral-h) - 189) * 1deg)), 4))
+        calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)
+    ),
+    oklch(64% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+  );
+  --cp-neutral-10: color-mix(
+    in oklab,
+    var(--cp-neutral-9),
+    contrast-color(contrast-color(var(--cp-neutral-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-neutral-11: light-dark(
+    oklch(47.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(79% calc(var(--cp-neutral-c) * 0.6) var(--cp-neutral-h))
+  );
+  --cp-neutral-12: light-dark(
+    oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+    oklch(94.5% calc(var(--cp-neutral-c) * 0.3) var(--cp-neutral-h))
+  );
+  --cp-neutral-on: contrast-color(var(--cp-neutral-9));
+  --cp-accent-1: light-dark(
+    oklch(99.3% calc(var(--cp-accent-c) * 0.04) var(--cp-accent-h)),
+    oklch(18.5% calc(var(--cp-accent-c) * 0.1) var(--cp-accent-h))
+  );
+  --cp-accent-2: light-dark(
+    oklch(97.5% calc(var(--cp-accent-c) * 0.08) var(--cp-accent-h)),
+    oklch(21.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h))
+  );
+  --cp-accent-3: light-dark(
+    oklch(95.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h)),
+    oklch(25% calc(var(--cp-accent-c) * 0.17) var(--cp-accent-h))
+  );
+  --cp-accent-4: light-dark(
+    oklch(93.2% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h)),
+    oklch(28.2% calc(var(--cp-accent-c) * 0.21) var(--cp-accent-h))
+  );
+  --cp-accent-5: light-dark(
+    oklch(90.8% calc(var(--cp-accent-c) * 0.24) var(--cp-accent-h)),
+    oklch(31.5% calc(var(--cp-accent-c) * 0.26) var(--cp-accent-h))
+  );
+  --cp-accent-6: light-dark(
+    oklch(88% calc(var(--cp-accent-c) * 0.3) var(--cp-accent-h)),
+    oklch(35% calc(var(--cp-accent-c) * 0.32) var(--cp-accent-h))
+  );
+  --cp-accent-7: light-dark(
+    oklch(82% calc(var(--cp-accent-c) * 0.4) var(--cp-accent-h)),
+    oklch(42% calc(var(--cp-accent-c) * 0.42) var(--cp-accent-h))
+  );
+  --cp-accent-8: light-dark(
+    oklch(62% calc(var(--cp-accent-c) * 0.7) var(--cp-accent-h)),
+    oklch(56% calc(var(--cp-accent-c) * 0.65) var(--cp-accent-h))
+  );
+  --cp-accent-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-accent-h) - 189) * 1deg)), 4))
+        calc(var(--cp-accent-c) * 1) var(--cp-accent-h)
+    ),
+    oklch(64% calc(var(--cp-accent-c) * 1) var(--cp-accent-h))
+  );
+  --cp-accent-10: color-mix(
+    in oklab,
+    var(--cp-accent-9),
+    contrast-color(contrast-color(var(--cp-accent-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-accent-11: light-dark(
+    oklch(47.5% calc(var(--cp-accent-c) * 0.85) var(--cp-accent-h)),
+    oklch(79% calc(var(--cp-accent-c) * 0.55) var(--cp-accent-h))
+  );
+  --cp-accent-12: light-dark(
+    oklch(25% calc(var(--cp-accent-c) * 0.35) var(--cp-accent-h)),
+    oklch(94.5% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h))
+  );
+  --cp-accent-on: contrast-color(var(--cp-accent-9));
+  --cp-danger-1: light-dark(
+    oklch(99.3% calc(var(--cp-danger-c) * 0.04) var(--cp-danger-h)),
+    oklch(18.5% calc(var(--cp-danger-c) * 0.1) var(--cp-danger-h))
+  );
+  --cp-danger-2: light-dark(
+    oklch(97.5% calc(var(--cp-danger-c) * 0.08) var(--cp-danger-h)),
+    oklch(21.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h))
+  );
+  --cp-danger-3: light-dark(
+    oklch(95.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h)),
+    oklch(25% calc(var(--cp-danger-c) * 0.17) var(--cp-danger-h))
+  );
+  --cp-danger-4: light-dark(
+    oklch(93.2% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h)),
+    oklch(28.2% calc(var(--cp-danger-c) * 0.21) var(--cp-danger-h))
+  );
+  --cp-danger-5: light-dark(
+    oklch(90.8% calc(var(--cp-danger-c) * 0.24) var(--cp-danger-h)),
+    oklch(31.5% calc(var(--cp-danger-c) * 0.26) var(--cp-danger-h))
+  );
+  --cp-danger-6: light-dark(
+    oklch(88% calc(var(--cp-danger-c) * 0.3) var(--cp-danger-h)),
+    oklch(35% calc(var(--cp-danger-c) * 0.32) var(--cp-danger-h))
+  );
+  --cp-danger-7: light-dark(
+    oklch(82% calc(var(--cp-danger-c) * 0.4) var(--cp-danger-h)),
+    oklch(42% calc(var(--cp-danger-c) * 0.42) var(--cp-danger-h))
+  );
+  --cp-danger-8: light-dark(
+    oklch(62% calc(var(--cp-danger-c) * 0.7) var(--cp-danger-h)),
+    oklch(56% calc(var(--cp-danger-c) * 0.65) var(--cp-danger-h))
+  );
+  --cp-danger-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-danger-h) - 189) * 1deg)), 4))
+        calc(var(--cp-danger-c) * 1) var(--cp-danger-h)
+    ),
+    oklch(64% calc(var(--cp-danger-c) * 1) var(--cp-danger-h))
+  );
+  --cp-danger-10: color-mix(
+    in oklab,
+    var(--cp-danger-9),
+    contrast-color(contrast-color(var(--cp-danger-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-danger-11: light-dark(
+    oklch(47.5% calc(var(--cp-danger-c) * 0.85) var(--cp-danger-h)),
+    oklch(79% calc(var(--cp-danger-c) * 0.55) var(--cp-danger-h))
+  );
+  --cp-danger-12: light-dark(
+    oklch(25% calc(var(--cp-danger-c) * 0.35) var(--cp-danger-h)),
+    oklch(94.5% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h))
+  );
+  --cp-danger-on: contrast-color(var(--cp-danger-9));
+  --cp-warning-1: light-dark(
+    oklch(99.3% calc(var(--cp-warning-c) * 0.04) var(--cp-warning-h)),
+    oklch(18.5% calc(var(--cp-warning-c) * 0.1) var(--cp-warning-h))
+  );
+  --cp-warning-2: light-dark(
+    oklch(97.5% calc(var(--cp-warning-c) * 0.08) var(--cp-warning-h)),
+    oklch(21.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h))
+  );
+  --cp-warning-3: light-dark(
+    oklch(95.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h)),
+    oklch(25% calc(var(--cp-warning-c) * 0.17) var(--cp-warning-h))
+  );
+  --cp-warning-4: light-dark(
+    oklch(93.2% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h)),
+    oklch(28.2% calc(var(--cp-warning-c) * 0.21) var(--cp-warning-h))
+  );
+  --cp-warning-5: light-dark(
+    oklch(90.8% calc(var(--cp-warning-c) * 0.24) var(--cp-warning-h)),
+    oklch(31.5% calc(var(--cp-warning-c) * 0.26) var(--cp-warning-h))
+  );
+  --cp-warning-6: light-dark(
+    oklch(88% calc(var(--cp-warning-c) * 0.3) var(--cp-warning-h)),
+    oklch(35% calc(var(--cp-warning-c) * 0.32) var(--cp-warning-h))
+  );
+  --cp-warning-7: light-dark(
+    oklch(82% calc(var(--cp-warning-c) * 0.4) var(--cp-warning-h)),
+    oklch(42% calc(var(--cp-warning-c) * 0.42) var(--cp-warning-h))
+  );
+  --cp-warning-8: light-dark(
+    oklch(62% calc(var(--cp-warning-c) * 0.7) var(--cp-warning-h)),
+    oklch(56% calc(var(--cp-warning-c) * 0.65) var(--cp-warning-h))
+  );
+  --cp-warning-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-warning-h) - 189) * 1deg)), 4))
+        calc(var(--cp-warning-c) * 1) var(--cp-warning-h)
+    ),
+    oklch(64% calc(var(--cp-warning-c) * 1) var(--cp-warning-h))
+  );
+  --cp-warning-10: color-mix(
+    in oklab,
+    var(--cp-warning-9),
+    contrast-color(contrast-color(var(--cp-warning-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-warning-11: light-dark(
+    oklch(47.5% calc(var(--cp-warning-c) * 0.85) var(--cp-warning-h)),
+    oklch(79% calc(var(--cp-warning-c) * 0.55) var(--cp-warning-h))
+  );
+  --cp-warning-12: light-dark(
+    oklch(25% calc(var(--cp-warning-c) * 0.35) var(--cp-warning-h)),
+    oklch(94.5% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h))
+  );
+  --cp-warning-on: contrast-color(var(--cp-warning-9));
+  --cp-success-1: light-dark(
+    oklch(99.3% calc(var(--cp-success-c) * 0.04) var(--cp-success-h)),
+    oklch(18.5% calc(var(--cp-success-c) * 0.1) var(--cp-success-h))
+  );
+  --cp-success-2: light-dark(
+    oklch(97.5% calc(var(--cp-success-c) * 0.08) var(--cp-success-h)),
+    oklch(21.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h))
+  );
+  --cp-success-3: light-dark(
+    oklch(95.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h)),
+    oklch(25% calc(var(--cp-success-c) * 0.17) var(--cp-success-h))
+  );
+  --cp-success-4: light-dark(
+    oklch(93.2% calc(var(--cp-success-c) * 0.18) var(--cp-success-h)),
+    oklch(28.2% calc(var(--cp-success-c) * 0.21) var(--cp-success-h))
+  );
+  --cp-success-5: light-dark(
+    oklch(90.8% calc(var(--cp-success-c) * 0.24) var(--cp-success-h)),
+    oklch(31.5% calc(var(--cp-success-c) * 0.26) var(--cp-success-h))
+  );
+  --cp-success-6: light-dark(
+    oklch(88% calc(var(--cp-success-c) * 0.3) var(--cp-success-h)),
+    oklch(35% calc(var(--cp-success-c) * 0.32) var(--cp-success-h))
+  );
+  --cp-success-7: light-dark(
+    oklch(82% calc(var(--cp-success-c) * 0.4) var(--cp-success-h)),
+    oklch(42% calc(var(--cp-success-c) * 0.42) var(--cp-success-h))
+  );
+  --cp-success-8: light-dark(
+    oklch(62% calc(var(--cp-success-c) * 0.7) var(--cp-success-h)),
+    oklch(56% calc(var(--cp-success-c) * 0.65) var(--cp-success-h))
+  );
+  --cp-success-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-success-h) - 189) * 1deg)), 4))
+        calc(var(--cp-success-c) * 1) var(--cp-success-h)
+    ),
+    oklch(64% calc(var(--cp-success-c) * 1) var(--cp-success-h))
+  );
+  --cp-success-10: color-mix(
+    in oklab,
+    var(--cp-success-9),
+    contrast-color(contrast-color(var(--cp-success-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-success-11: light-dark(
+    oklch(47.5% calc(var(--cp-success-c) * 0.85) var(--cp-success-h)),
+    oklch(79% calc(var(--cp-success-c) * 0.55) var(--cp-success-h))
+  );
+  --cp-success-12: light-dark(
+    oklch(25% calc(var(--cp-success-c) * 0.35) var(--cp-success-h)),
+    oklch(94.5% calc(var(--cp-success-c) * 0.18) var(--cp-success-h))
+  );
+  --cp-success-on: contrast-color(var(--cp-success-9));
+}
+:root,
+[data-tone] {
+  --cp-tone-1: light-dark(
+    oklch(99.3% calc(var(--cp-tone-c) * 0.04) var(--cp-tone-h)),
+    oklch(18.5% calc(var(--cp-tone-c) * 0.1) var(--cp-tone-h))
+  );
+  --cp-tone-2: light-dark(
+    oklch(97.5% calc(var(--cp-tone-c) * 0.08) var(--cp-tone-h)),
+    oklch(21.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h))
+  );
+  --cp-tone-3: light-dark(
+    oklch(95.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h)),
+    oklch(25% calc(var(--cp-tone-c) * 0.17) var(--cp-tone-h))
+  );
+  --cp-tone-4: light-dark(
+    oklch(93.2% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h)),
+    oklch(28.2% calc(var(--cp-tone-c) * 0.21) var(--cp-tone-h))
+  );
+  --cp-tone-5: light-dark(
+    oklch(90.8% calc(var(--cp-tone-c) * 0.24) var(--cp-tone-h)),
+    oklch(31.5% calc(var(--cp-tone-c) * 0.26) var(--cp-tone-h))
+  );
+  --cp-tone-6: light-dark(
+    oklch(88% calc(var(--cp-tone-c) * 0.3) var(--cp-tone-h)),
+    oklch(35% calc(var(--cp-tone-c) * 0.32) var(--cp-tone-h))
+  );
+  --cp-tone-7: light-dark(
+    oklch(82% calc(var(--cp-tone-c) * 0.4) var(--cp-tone-h)),
+    oklch(42% calc(var(--cp-tone-c) * 0.42) var(--cp-tone-h))
+  );
+  --cp-tone-8: light-dark(
+    oklch(62% calc(var(--cp-tone-c) * 0.7) var(--cp-tone-h)),
+    oklch(56% calc(var(--cp-tone-c) * 0.65) var(--cp-tone-h))
+  );
+  --cp-tone-9: light-dark(
+    oklch(
+      calc(54.8% - 2.4% * pow(max(0, cos((var(--cp-tone-h) - 189) * 1deg)), 4))
+        calc(var(--cp-tone-c) * 1) var(--cp-tone-h)
+    ),
+    oklch(64% calc(var(--cp-tone-c) * 1) var(--cp-tone-h))
+  );
+  --cp-tone-10: color-mix(
+    in oklab,
+    var(--cp-tone-9),
+    contrast-color(contrast-color(var(--cp-tone-9))) var(--cp-solid-hover-mix)
+  );
+  --cp-tone-11: light-dark(
+    oklch(47.5% calc(var(--cp-tone-c) * 0.85) var(--cp-tone-h)),
+    oklch(79% calc(var(--cp-tone-c) * 0.55) var(--cp-tone-h))
+  );
+  --cp-tone-12: light-dark(
+    oklch(25% calc(var(--cp-tone-c) * 0.35) var(--cp-tone-h)),
+    oklch(94.5% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h))
+  );
+  --cp-tone-on: contrast-color(var(--cp-tone-9));
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --cp-brand-l: 43%;
+    --cp-shell-dark-l: 30%;
+    --cp-shell-dark-k: 0.7;
+    --cp-shell-ink-l: 98.5%;
+    --cp-shell-ink-k: 0.06;
+    --cp-neutral-1: light-dark(
+      oklch(99.3% calc(var(--cp-neutral-c) * 0.35) var(--cp-neutral-h)),
+      oklch(18.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-2: light-dark(
+      oklch(97.5% calc(var(--cp-neutral-c) * 0.55) var(--cp-neutral-h)),
+      oklch(21.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-3: light-dark(
+      oklch(95.5% calc(var(--cp-neutral-c) * 0.75) var(--cp-neutral-h)),
+      oklch(25% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-4: light-dark(
+      oklch(93.2% calc(var(--cp-neutral-c) * 0.9) var(--cp-neutral-h)),
+      oklch(28.2% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-5: light-dark(
+      oklch(90.8% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(31.5% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-6: light-dark(
+      oklch(86% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(42% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-7: light-dark(
+      oklch(70% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(56% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-8: light-dark(
+      oklch(50% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(70% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-9: light-dark(
+      oklch(43% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h)),
+      oklch(72% calc(var(--cp-neutral-c) * 1) var(--cp-neutral-h))
+    );
+    --cp-neutral-10: color-mix(
+      in oklab,
+      var(--cp-neutral-9),
+      contrast-color(contrast-color(var(--cp-neutral-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-neutral-11: light-dark(
+      oklch(38% calc(var(--cp-neutral-c) * 0.4) var(--cp-neutral-h)),
+      oklch(88% calc(var(--cp-neutral-c) * 0.24) var(--cp-neutral-h))
+    );
+    --cp-neutral-12: light-dark(
+      oklch(18% calc(var(--cp-neutral-c) * 0.4) var(--cp-neutral-h)),
+      oklch(96.5% calc(var(--cp-neutral-c) * 0.12) var(--cp-neutral-h))
+    );
+    --cp-neutral-on: contrast-color(var(--cp-neutral-9));
+    --cp-accent-1: light-dark(
+      oklch(99.3% calc(var(--cp-accent-c) * 0.04) var(--cp-accent-h)),
+      oklch(18.5% calc(var(--cp-accent-c) * 0.1) var(--cp-accent-h))
+    );
+    --cp-accent-2: light-dark(
+      oklch(97.5% calc(var(--cp-accent-c) * 0.08) var(--cp-accent-h)),
+      oklch(21.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h))
+    );
+    --cp-accent-3: light-dark(
+      oklch(95.5% calc(var(--cp-accent-c) * 0.13) var(--cp-accent-h)),
+      oklch(25% calc(var(--cp-accent-c) * 0.17) var(--cp-accent-h))
+    );
+    --cp-accent-4: light-dark(
+      oklch(93.2% calc(var(--cp-accent-c) * 0.18) var(--cp-accent-h)),
+      oklch(28.2% calc(var(--cp-accent-c) * 0.21) var(--cp-accent-h))
+    );
+    --cp-accent-5: light-dark(
+      oklch(90.8% calc(var(--cp-accent-c) * 0.24) var(--cp-accent-h)),
+      oklch(31.5% calc(var(--cp-accent-c) * 0.26) var(--cp-accent-h))
+    );
+    --cp-accent-6: light-dark(
+      oklch(86% calc(var(--cp-accent-c) * 0.3) var(--cp-accent-h)),
+      oklch(42% calc(var(--cp-accent-c) * 0.32) var(--cp-accent-h))
+    );
+    --cp-accent-7: light-dark(
+      oklch(70% calc(var(--cp-accent-c) * 0.4) var(--cp-accent-h)),
+      oklch(56% calc(var(--cp-accent-c) * 0.42) var(--cp-accent-h))
+    );
+    --cp-accent-8: light-dark(
+      oklch(50% calc(var(--cp-accent-c) * 0.7) var(--cp-accent-h)),
+      oklch(70% calc(var(--cp-accent-c) * 0.65) var(--cp-accent-h))
+    );
+    --cp-accent-9: light-dark(
+      oklch(43% calc(var(--cp-accent-c) * 1) var(--cp-accent-h)),
+      oklch(72% calc(var(--cp-accent-c) * 1) var(--cp-accent-h))
+    );
+    --cp-accent-10: color-mix(
+      in oklab,
+      var(--cp-accent-9),
+      contrast-color(contrast-color(var(--cp-accent-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-accent-11: light-dark(
+      oklch(38% calc(var(--cp-accent-c) * 0.34) var(--cp-accent-h)),
+      oklch(88% calc(var(--cp-accent-c) * 0.22) var(--cp-accent-h))
+    );
+    --cp-accent-12: light-dark(
+      oklch(18% calc(var(--cp-accent-c) * 0.14) var(--cp-accent-h)),
+      oklch(96.5% calc(var(--cp-accent-c) * 0.072) var(--cp-accent-h))
+    );
+    --cp-accent-on: contrast-color(var(--cp-accent-9));
+    --cp-danger-1: light-dark(
+      oklch(99.3% calc(var(--cp-danger-c) * 0.04) var(--cp-danger-h)),
+      oklch(18.5% calc(var(--cp-danger-c) * 0.1) var(--cp-danger-h))
+    );
+    --cp-danger-2: light-dark(
+      oklch(97.5% calc(var(--cp-danger-c) * 0.08) var(--cp-danger-h)),
+      oklch(21.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h))
+    );
+    --cp-danger-3: light-dark(
+      oklch(95.5% calc(var(--cp-danger-c) * 0.13) var(--cp-danger-h)),
+      oklch(25% calc(var(--cp-danger-c) * 0.17) var(--cp-danger-h))
+    );
+    --cp-danger-4: light-dark(
+      oklch(93.2% calc(var(--cp-danger-c) * 0.18) var(--cp-danger-h)),
+      oklch(28.2% calc(var(--cp-danger-c) * 0.21) var(--cp-danger-h))
+    );
+    --cp-danger-5: light-dark(
+      oklch(90.8% calc(var(--cp-danger-c) * 0.24) var(--cp-danger-h)),
+      oklch(31.5% calc(var(--cp-danger-c) * 0.26) var(--cp-danger-h))
+    );
+    --cp-danger-6: light-dark(
+      oklch(86% calc(var(--cp-danger-c) * 0.3) var(--cp-danger-h)),
+      oklch(42% calc(var(--cp-danger-c) * 0.32) var(--cp-danger-h))
+    );
+    --cp-danger-7: light-dark(
+      oklch(70% calc(var(--cp-danger-c) * 0.4) var(--cp-danger-h)),
+      oklch(56% calc(var(--cp-danger-c) * 0.42) var(--cp-danger-h))
+    );
+    --cp-danger-8: light-dark(
+      oklch(50% calc(var(--cp-danger-c) * 0.7) var(--cp-danger-h)),
+      oklch(70% calc(var(--cp-danger-c) * 0.65) var(--cp-danger-h))
+    );
+    --cp-danger-9: light-dark(
+      oklch(43% calc(var(--cp-danger-c) * 1) var(--cp-danger-h)),
+      oklch(72% calc(var(--cp-danger-c) * 1) var(--cp-danger-h))
+    );
+    --cp-danger-10: color-mix(
+      in oklab,
+      var(--cp-danger-9),
+      contrast-color(contrast-color(var(--cp-danger-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-danger-11: light-dark(
+      oklch(38% calc(var(--cp-danger-c) * 0.34) var(--cp-danger-h)),
+      oklch(88% calc(var(--cp-danger-c) * 0.22) var(--cp-danger-h))
+    );
+    --cp-danger-12: light-dark(
+      oklch(18% calc(var(--cp-danger-c) * 0.14) var(--cp-danger-h)),
+      oklch(96.5% calc(var(--cp-danger-c) * 0.072) var(--cp-danger-h))
+    );
+    --cp-danger-on: contrast-color(var(--cp-danger-9));
+    --cp-warning-1: light-dark(
+      oklch(99.3% calc(var(--cp-warning-c) * 0.04) var(--cp-warning-h)),
+      oklch(18.5% calc(var(--cp-warning-c) * 0.1) var(--cp-warning-h))
+    );
+    --cp-warning-2: light-dark(
+      oklch(97.5% calc(var(--cp-warning-c) * 0.08) var(--cp-warning-h)),
+      oklch(21.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h))
+    );
+    --cp-warning-3: light-dark(
+      oklch(95.5% calc(var(--cp-warning-c) * 0.13) var(--cp-warning-h)),
+      oklch(25% calc(var(--cp-warning-c) * 0.17) var(--cp-warning-h))
+    );
+    --cp-warning-4: light-dark(
+      oklch(93.2% calc(var(--cp-warning-c) * 0.18) var(--cp-warning-h)),
+      oklch(28.2% calc(var(--cp-warning-c) * 0.21) var(--cp-warning-h))
+    );
+    --cp-warning-5: light-dark(
+      oklch(90.8% calc(var(--cp-warning-c) * 0.24) var(--cp-warning-h)),
+      oklch(31.5% calc(var(--cp-warning-c) * 0.26) var(--cp-warning-h))
+    );
+    --cp-warning-6: light-dark(
+      oklch(86% calc(var(--cp-warning-c) * 0.3) var(--cp-warning-h)),
+      oklch(42% calc(var(--cp-warning-c) * 0.32) var(--cp-warning-h))
+    );
+    --cp-warning-7: light-dark(
+      oklch(70% calc(var(--cp-warning-c) * 0.4) var(--cp-warning-h)),
+      oklch(56% calc(var(--cp-warning-c) * 0.42) var(--cp-warning-h))
+    );
+    --cp-warning-8: light-dark(
+      oklch(50% calc(var(--cp-warning-c) * 0.7) var(--cp-warning-h)),
+      oklch(70% calc(var(--cp-warning-c) * 0.65) var(--cp-warning-h))
+    );
+    --cp-warning-9: light-dark(
+      oklch(43% calc(var(--cp-warning-c) * 1) var(--cp-warning-h)),
+      oklch(72% calc(var(--cp-warning-c) * 1) var(--cp-warning-h))
+    );
+    --cp-warning-10: color-mix(
+      in oklab,
+      var(--cp-warning-9),
+      contrast-color(contrast-color(var(--cp-warning-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-warning-11: light-dark(
+      oklch(38% calc(var(--cp-warning-c) * 0.34) var(--cp-warning-h)),
+      oklch(88% calc(var(--cp-warning-c) * 0.22) var(--cp-warning-h))
+    );
+    --cp-warning-12: light-dark(
+      oklch(18% calc(var(--cp-warning-c) * 0.14) var(--cp-warning-h)),
+      oklch(96.5% calc(var(--cp-warning-c) * 0.072) var(--cp-warning-h))
+    );
+    --cp-warning-on: contrast-color(var(--cp-warning-9));
+    --cp-success-1: light-dark(
+      oklch(99.3% calc(var(--cp-success-c) * 0.04) var(--cp-success-h)),
+      oklch(18.5% calc(var(--cp-success-c) * 0.1) var(--cp-success-h))
+    );
+    --cp-success-2: light-dark(
+      oklch(97.5% calc(var(--cp-success-c) * 0.08) var(--cp-success-h)),
+      oklch(21.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h))
+    );
+    --cp-success-3: light-dark(
+      oklch(95.5% calc(var(--cp-success-c) * 0.13) var(--cp-success-h)),
+      oklch(25% calc(var(--cp-success-c) * 0.17) var(--cp-success-h))
+    );
+    --cp-success-4: light-dark(
+      oklch(93.2% calc(var(--cp-success-c) * 0.18) var(--cp-success-h)),
+      oklch(28.2% calc(var(--cp-success-c) * 0.21) var(--cp-success-h))
+    );
+    --cp-success-5: light-dark(
+      oklch(90.8% calc(var(--cp-success-c) * 0.24) var(--cp-success-h)),
+      oklch(31.5% calc(var(--cp-success-c) * 0.26) var(--cp-success-h))
+    );
+    --cp-success-6: light-dark(
+      oklch(86% calc(var(--cp-success-c) * 0.3) var(--cp-success-h)),
+      oklch(42% calc(var(--cp-success-c) * 0.32) var(--cp-success-h))
+    );
+    --cp-success-7: light-dark(
+      oklch(70% calc(var(--cp-success-c) * 0.4) var(--cp-success-h)),
+      oklch(56% calc(var(--cp-success-c) * 0.42) var(--cp-success-h))
+    );
+    --cp-success-8: light-dark(
+      oklch(50% calc(var(--cp-success-c) * 0.7) var(--cp-success-h)),
+      oklch(70% calc(var(--cp-success-c) * 0.65) var(--cp-success-h))
+    );
+    --cp-success-9: light-dark(
+      oklch(43% calc(var(--cp-success-c) * 1) var(--cp-success-h)),
+      oklch(72% calc(var(--cp-success-c) * 1) var(--cp-success-h))
+    );
+    --cp-success-10: color-mix(
+      in oklab,
+      var(--cp-success-9),
+      contrast-color(contrast-color(var(--cp-success-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-success-11: light-dark(
+      oklch(38% calc(var(--cp-success-c) * 0.34) var(--cp-success-h)),
+      oklch(88% calc(var(--cp-success-c) * 0.22) var(--cp-success-h))
+    );
+    --cp-success-12: light-dark(
+      oklch(18% calc(var(--cp-success-c) * 0.14) var(--cp-success-h)),
+      oklch(96.5% calc(var(--cp-success-c) * 0.072) var(--cp-success-h))
+    );
+    --cp-success-on: contrast-color(var(--cp-success-9));
+  }
+  :root,
+  [data-tone] {
+    --cp-tone-1: light-dark(
+      oklch(99.3% calc(var(--cp-tone-c) * 0.04) var(--cp-tone-h)),
+      oklch(18.5% calc(var(--cp-tone-c) * 0.1) var(--cp-tone-h))
+    );
+    --cp-tone-2: light-dark(
+      oklch(97.5% calc(var(--cp-tone-c) * 0.08) var(--cp-tone-h)),
+      oklch(21.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h))
+    );
+    --cp-tone-3: light-dark(
+      oklch(95.5% calc(var(--cp-tone-c) * 0.13) var(--cp-tone-h)),
+      oklch(25% calc(var(--cp-tone-c) * 0.17) var(--cp-tone-h))
+    );
+    --cp-tone-4: light-dark(
+      oklch(93.2% calc(var(--cp-tone-c) * 0.18) var(--cp-tone-h)),
+      oklch(28.2% calc(var(--cp-tone-c) * 0.21) var(--cp-tone-h))
+    );
+    --cp-tone-5: light-dark(
+      oklch(90.8% calc(var(--cp-tone-c) * 0.24) var(--cp-tone-h)),
+      oklch(31.5% calc(var(--cp-tone-c) * 0.26) var(--cp-tone-h))
+    );
+    --cp-tone-6: light-dark(
+      oklch(86% calc(var(--cp-tone-c) * 0.3) var(--cp-tone-h)),
+      oklch(42% calc(var(--cp-tone-c) * 0.32) var(--cp-tone-h))
+    );
+    --cp-tone-7: light-dark(
+      oklch(70% calc(var(--cp-tone-c) * 0.4) var(--cp-tone-h)),
+      oklch(56% calc(var(--cp-tone-c) * 0.42) var(--cp-tone-h))
+    );
+    --cp-tone-8: light-dark(
+      oklch(50% calc(var(--cp-tone-c) * 0.7) var(--cp-tone-h)),
+      oklch(70% calc(var(--cp-tone-c) * 0.65) var(--cp-tone-h))
+    );
+    --cp-tone-9: light-dark(
+      oklch(43% calc(var(--cp-tone-c) * 1) var(--cp-tone-h)),
+      oklch(72% calc(var(--cp-tone-c) * 1) var(--cp-tone-h))
+    );
+    --cp-tone-10: color-mix(
+      in oklab,
+      var(--cp-tone-9),
+      contrast-color(contrast-color(var(--cp-tone-9))) var(--cp-solid-hover-mix)
+    );
+    --cp-tone-11: light-dark(
+      oklch(38% calc(var(--cp-tone-c) * 0.34) var(--cp-tone-h)),
+      oklch(88% calc(var(--cp-tone-c) * 0.22) var(--cp-tone-h))
+    );
+    --cp-tone-12: light-dark(
+      oklch(18% calc(var(--cp-tone-c) * 0.14) var(--cp-tone-h)),
+      oklch(96.5% calc(var(--cp-tone-c) * 0.072) var(--cp-tone-h))
+    );
+    --cp-tone-on: contrast-color(var(--cp-tone-9));
+  }
+}
+
+@property --cp-harmony-2-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-harmony-3-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+:root {
+  --cp-harmony-2-h: calc(
+    mod(calc(var(--cp-accent-h) + 150), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 150), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 150), 360))
+  );
+  --cp-harmony-3-h: calc(
+    mod(calc(var(--cp-accent-h) + 210), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 210), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 210), 360))
+  );
+  --cp-harmony-1: var(--cp-accent-9);
+  --cp-harmony-2: light-dark(
+    oklch(
+      max(0.56, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 3))
+        )
+        var(--cp-harmony-2-h)
+    ),
+    oklch(
+      max(0.64, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-2-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-2-h) - 200) * 1deg)), 4))
+        )
+        var(--cp-harmony-2-h)
+    )
+  );
+  --cp-harmony-3: light-dark(
+    oklch(
+      max(0.56, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.066 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 3))
+        )
+        var(--cp-harmony-3-h)
+    ),
+    oklch(
+      max(0.64, calc(0.5 + 0.32 * pow(max(0, cos((var(--cp-harmony-3-h) - 95) * 1deg)), 4)))
+        min(
+          calc(var(--cp-accent-c) * 1.2),
+          calc(0.166 - 0.056 * pow(max(0, cos((var(--cp-harmony-3-h) - 200) * 1deg)), 4))
+        )
+        var(--cp-harmony-3-h)
+    )
+  );
+  --cp-harmony-4: light-dark(
+    oklch(
+      70%
+        min(
+          var(--cp-accent-c),
+          calc(0.154 - 0.034 * pow(max(0, cos((var(--cp-accent-h) - 200) * 1deg)), 8))
+        )
+        var(--cp-accent-h)
+    ),
+    oklch(
+      78%
+        min(
+          var(--cp-accent-c),
+          calc(0.131 - 0.02 * pow(max(0, cos((var(--cp-accent-h) - 265) * 1deg)), 8))
+        )
+        var(--cp-accent-h)
+    )
+  );
+  --cp-harmony-1-on: contrast-color(var(--cp-harmony-1));
+  --cp-harmony-2-on: contrast-color(var(--cp-harmony-2));
+  --cp-harmony-3-on: contrast-color(var(--cp-harmony-3));
+  --cp-harmony-4-on: contrast-color(var(--cp-harmony-4));
+}
+/* colour:end */
+
+/* Roles. App CSS reads these; component classes read a tone's or a family's steps. */
+:root {
+  --cp-surface-page: light-dark(var(--cp-neutral-2), var(--cp-neutral-1));
+  --cp-surface-raised: light-dark(var(--cp-neutral-1), var(--cp-neutral-2));
+  --cp-surface-sunken: light-dark(
+    var(--cp-neutral-3),
+    oklch(16% calc(var(--cp-neutral-c) * 0.8) var(--cp-neutral-h))
+  );
+  --cp-surface-overlay: light-dark(
+    oklch(99.6% calc(var(--cp-neutral-c) * 0.5) var(--cp-neutral-h)),
+    var(--cp-neutral-3)
+  );
+  /* Step 4, not 3: a grey fill on a raised surface stays findable on a
+   * 1x screen (about 1.2:1 in both themes, where step 3 is 1.1). */
+  --cp-fill: var(--cp-neutral-4);
+  --cp-fill-hover: var(--cp-neutral-5);
+  --cp-fill-active: var(--cp-neutral-6);
+  --cp-line: var(--cp-neutral-6);
+  --cp-border: var(--cp-neutral-7);
+  --cp-border-strong: var(--cp-neutral-8);
+  --cp-ink: var(--cp-neutral-12);
+  --cp-ink-muted: var(--cp-neutral-11);
+  --cp-ink-disabled: color-mix(in oklab, var(--cp-neutral-11), transparent 45%);
+  --cp-accent: var(--cp-accent-9);
+  --cp-accent-hover: var(--cp-accent-10);
+  --cp-on-accent: var(--cp-accent-on);
+  --cp-accent-ink: var(--cp-accent-11);
+  --cp-accent-wash: var(--cp-accent-3);
+  --cp-selected: var(--cp-accent-4);
+  --cp-focus-ring: var(--cp-accent-9);
+  --cp-selection-bg: var(--cp-accent-5);
+  --cp-brand: oklch(var(--cp-brand-l) var(--cp-brand-c) var(--cp-brand-h));
+  --cp-on-brand: contrast-color(var(--cp-brand));
+  --cp-backdrop: oklch(from var(--cp-neutral-12) 15% c h / 45%);
+
+  /* The shell carries the app's brand: the solid brand in light, a deep tone
+   * of it in dark. Its hover and current fills move away from its ink. */
+  --cp-shell-bg: light-dark(
+    var(--cp-brand),
+    oklch(var(--cp-shell-dark-l) calc(var(--cp-brand-c) * var(--cp-shell-dark-k)) var(--cp-brand-h))
+  );
+  --cp-shell-ink: light-dark(
+    var(--cp-on-brand),
+    oklch(var(--cp-shell-ink-l) calc(var(--cp-brand-c) * var(--cp-shell-ink-k)) var(--cp-brand-h))
+  );
+  --cp-shell-current: color-mix(
+    in oklab,
+    var(--cp-shell-bg),
+    contrast-color(var(--cp-shell-ink)) 24%
+  );
+  --cp-shell-hover: color-mix(
+    in oklab,
+    var(--cp-shell-bg),
+    contrast-color(var(--cp-shell-ink)) 12%
+  );
+}
+
+/* Type: one family for text, its mono for machine text (file and release
+ * names, hashes, offsets). Sizes step by about 1.2. */
+:root {
+  --cp-font-body: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --cp-font-display: var(--cp-font-body);
+  --cp-font-mono: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+  --cp-text-xs: 0.8125rem;
+  --cp-text-sm: 0.875rem;
+  --cp-text-md: 1rem;
+  --cp-text-lg: 1.1875rem;
+  --cp-text-xl: 1.4375rem;
+  --cp-text-2xl: 1.75rem;
+  --cp-text-3xl: 2.125rem;
+  --cp-text-ui: var(--cp-text-sm);
+  --cp-leading-tight: 1.2;
+  --cp-leading-ui: 1.35;
+  --cp-leading-body: 1.55;
+  --cp-weight-body: 400;
+  --cp-weight-medium: 500;
+  --cp-weight-strong: 600;
+  --cp-weight-heading: 700;
+  --cp-tracking-display: -0.01em;
+  --cp-measure: 68ch;
+}
+
+/* Space: a 4px grid. Tight inside a group, wide between groups. */
+:root {
+  --cp-space-1: 0.25rem;
+  --cp-space-2: 0.5rem;
+  --cp-space-3: 0.75rem;
+  --cp-space-4: 1rem;
+  --cp-space-5: 1.25rem;
+  --cp-space-6: 1.5rem;
+  --cp-space-8: 2rem;
+  --cp-space-10: 2.5rem;
+  --cp-space-12: 3rem;
+  --cp-space-16: 4rem;
+  --cp-page-max: 90rem;
+  --cp-page-gutter: clamp(var(--cp-space-4), 3vw, var(--cp-space-8));
+}
+
+/* Geometry: one radius per nesting level; a child inside a padded parent
+ * takes the parent's radius minus the inset. */
+:root {
+  --cp-radius-control: 0.25rem;
+  --cp-radius-surface: 0.375rem;
+  --cp-radius-overlay: 0.5rem;
+  --cp-radius-chip: 0.25rem;
+  --cp-radius-round: 999px;
+  --cp-line-w: 1px;
+  --cp-control-h: 2rem;
+  --cp-control-h-sm: 1.625rem;
+  --cp-control-pad-x: 0.75rem;
+  --cp-hit-min: 24px;
+  --cp-row-h: 2.25rem;
+  --cp-focus-w: 2px;
+  --cp-focus-offset: 2px;
+  --cp-icon-ui: 1.125rem;
+  --cp-rail-w: 15rem;
+}
+
+/* Pointer tier: the app sets data-pointer from the last real
+ * PointerEvent.pointerType; until then the media query guesses. A tablet
+ * with a trackpad is fine, a laptop touchscreen being tapped is coarse. */
+:root[data-pointer="coarse"] {
+  --cp-control-h: 2.75rem;
+  --cp-control-h-sm: 2.75rem;
+  --cp-hit-min: 44px;
+  --cp-row-h: 3rem;
+}
+
+@media (pointer: coarse) {
+  :root:not([data-pointer]) {
+    --cp-control-h: 2.75rem;
+    --cp-control-h-sm: 2.75rem;
+    --cp-hit-min: 44px;
+    --cp-row-h: 3rem;
+  }
+}
+
+/* Motion: enter eases out; exit is shorter and eases in; colour changes are
+ * micro. Reduced motion keeps fades and removes movement. */
+:root {
+  --cp-dur-micro: 90ms;
+  /* A press goes down and comes back fast enough to feel like a click. */
+  --cp-dur-press: 60ms;
+  --cp-dur-short: 160ms;
+  --cp-dur-medium: 240ms;
+  --cp-dur-long: 360ms;
+  --cp-dur-exit: 120ms;
+  --cp-ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --cp-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --cp-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  /* A damped spring sampled into linear(), overshooting about 13%, for
+   * something that travels or settles, such as a sliding pill or a dialog.
+   * Never on an undo path, which eases out instead. */
+  --cp-ease-spring: linear(
+    0,
+    0.052,
+    0.18,
+    0.347,
+    0.526,
+    0.694,
+    0.839,
+    0.954,
+    1.038,
+    1.091,
+    1.119,
+    1.126,
+    1.119,
+    1.103,
+    1.081,
+    1.059,
+    1.038,
+    1.019,
+    1.005,
+    0.995,
+    0.988,
+    0.985,
+    0.984,
+    0.985,
+    0.987,
+    0.99,
+    0.993,
+    0.995,
+    0.998,
+    0.999,
+    1.001,
+    1.002,
+    1
+  );
+  /* A bouncier spring, overshooting about 27%, for a mark that pops in, and
+   * the length both springs run for. */
+  --cp-ease-bounce: linear(
+    0,
+    0.048,
+    0.174,
+    0.349,
+    0.546,
+    0.742,
+    0.919,
+    1.065,
+    1.173,
+    1.241,
+    1.272,
+    1.271,
+    1.245,
+    1.202,
+    1.15,
+    1.095,
+    1.043,
+    0.999,
+    0.964,
+    0.941,
+    0.928,
+    0.924,
+    0.929,
+    0.939,
+    0.952,
+    0.967,
+    0.982,
+    0.995,
+    1.006,
+    1.014,
+    1.019,
+    1.021,
+    1.02,
+    1.018,
+    1.015,
+    1.011,
+    1.007,
+    1.003,
+    1,
+    0.997,
+    1
+  );
+  --cp-dur-spring: 520ms;
+  --cp-press-scale: 0.97;
+  --cp-skeleton-dur: 1.6s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cp-press-scale: 1;
+    --cp-dur-medium: var(--cp-dur-short);
+    --cp-dur-long: var(--cp-dur-short);
+    --cp-ease-spring: var(--cp-ease-out);
+    --cp-ease-bounce: var(--cp-ease-out);
+    --cp-dur-spring: var(--cp-dur-short);
+  }
+}
+
+/* The fade every entrance falls back to under reduced motion. */
+@keyframes cp-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Depth: a shadow marks a gesture-summoned overlay only, tinted by the
+ * neutral hue; in-flow surfaces separate by a fill or one line, never both. */
+:root {
+  --cp-shadow-overlay:
+    0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 12%),
+    0 8px 24px -4px oklch(from var(--cp-neutral-12) 20% c h / 18%);
+  /* A sticky bar over the page; anything floating is in the top layer. */
+  --cp-z-sticky: 100;
+}
+
+/* Element defaults, inside .cp only. */
+:where(.cp) {
+  color-scheme: light dark;
+  background: var(--cp-surface-page);
+  color: var(--cp-ink);
+  font-family: var(--cp-font-body);
+  line-height: var(--cp-leading-ui);
+  font-weight: var(--cp-weight-body);
+  font-synthesis-weight: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  accent-color: var(--cp-accent);
+  caret-color: var(--cp-accent-ink);
+  scrollbar-color: var(--cp-border-strong) transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The interface size goes on body, never on html, where it would rescale
+ * every rem in the language. */
+:where(html.cp) :where(body),
+:where(.cp:not(html)) {
+  font-size: var(--cp-text-ui);
+}
+
+@media (pointer: fine) {
+  :where(html.cp) {
+    overscroll-behavior: none;
+  }
+}
+
+:where(.cp) :where(body) {
+  margin: 0;
+}
+
+:where(.cp),
+:where(.cp) *,
+:where(.cp) ::before,
+:where(.cp) ::after {
+  box-sizing: border-box;
+}
+
+/* A class that sets display outranks the UA's [hidden] rule, so hidden
+ * would stop hiding it; until-found keeps the UA's own behaviour. The same
+ * rule as Bootstrap's reboot and Tailwind's preflight. */
+:where(.cp) [hidden]:where(:not([hidden="until-found"])) {
+  /* stylelint-disable-next-line declaration-no-important -- must outrank every class that sets display */
+  display: none !important;
+}
+
+:where(.cp) :where(button, input, select, textarea) {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* A heading or caption that takes focus by script, so a screen reader
+ * lands on a new step or page, is no control: it draws no ring. */
+:where(.cp) :where(h1, h2, h3, h4, caption)[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* The mask is drawn in the platform's font: iOS masks with U+25CF, which
+ * the body font lacks, and Cocoa swaps in its own dot only when the field's
+ * font is the system one (WebKit RenderText::setRenderedText,
+ * RenderBlock::updateSecurityDiscCharacters). Outranks .cp-input's font. */
+:where(.cp) input[type="password"] {
+  font-family: system-ui, sans-serif;
+}
+
+/* At width=device-width WebKit drops double-tap zoom only at the initial
+ * scale; this keeps a fast second tap on a control a tap once the page is
+ * zoomed (webkit.org/blog/5610/more-responsive-tapping-on-ios). */
+:where(.cp) :where(a, button, label, summary, select, [role="button"], [role="tab"]) {
+  touch-action: manipulation;
+}
+
+:where(.cp) :where(h1, h2, h3, h4) {
+  margin: 0;
+  font-family: var(--cp-font-display);
+  font-weight: var(--cp-weight-heading);
+  line-height: var(--cp-leading-tight);
+  letter-spacing: var(--cp-tracking-display);
+  text-wrap: balance;
+}
+
+:where(.cp) :where(h1) {
+  font-size: var(--cp-text-xl);
+}
+
+:where(.cp) :where(h2) {
+  font-size: var(--cp-text-lg);
+}
+
+:where(.cp) :where(h3) {
+  font-size: var(--cp-text-md);
+}
+
+:where(.cp) :where(h4) {
+  font-size: var(--cp-text-sm);
+}
+
+:where(.cp) :where(p) {
+  margin: 0;
+  max-inline-size: var(--cp-measure);
+}
+
+:where(.cp) :where(a) {
+  color: var(--cp-accent-ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: color-mix(in oklab, currentcolor, transparent 55%);
+  transition: text-decoration-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* Hover follows the pointer tier: a tablet being tapped keeps no hover. */
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    /* :scope names the root, so .cp on <html> matches as well as a .cp subtree. */
+    :scope.cp :where(a):hover,
+    .cp :where(a):hover {
+      text-decoration-color: currentcolor;
+    }
+  }
+}
+
+:where(.cp) :where(code, kbd, samp, pre) {
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+}
+
+:where(.cp) :where(pre) {
+  margin: 0;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  background: var(--cp-surface-sunken);
+  border-radius: var(--cp-radius-control);
+  overflow-x: auto;
+}
+
+:where(.cp) :where(hr) {
+  border: 0;
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  margin: var(--cp-space-6) 0;
+}
+
+:where(.cp) :where(table) {
+  border-collapse: collapse;
+}
+
+:where(.cp) :where(time, data, output) {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.cp) ::selection {
+  background: var(--cp-selection-bg);
+  color: var(--cp-ink);
+}
+
+:where(.cp) ::placeholder {
+  color: var(--cp-ink-muted);
+  opacity: 1;
+}
+
+:where(.cp) :where(:focus-visible),
+:where(.cp) :where([data-cp-focus-ring]:focus) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* A route change cross-fades at the long duration, which reduced motion
+ * shortens. */
+:root.cp::view-transition-group(*),
+:root.cp::view-transition-old(*),
+:root.cp::view-transition-new(*) {
+  animation-duration: var(--cp-dur-long);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(html.cp) {
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.cp) :where(:focus-visible),
+  :where(.cp) :where([data-cp-focus-ring]:focus) {
+    outline-color: Highlight;
+  }
+}
+
+/* Text a screen reader reads and the eye does not see, such as a state word
+ * beside its glyph. */
+.cp-visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  white-space: nowrap;
+  border: 0;
+}
+
+/* App frame: a header, an optional rail, the work area, a status line. */
+.cp-app {
+  display: grid;
+  grid-template:
+    "header header" auto
+    "rail main" 1fr
+    "status status" auto / auto minmax(0, 1fr);
+  min-block-size: 100dvh;
+}
+
+.cp-header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-4);
+  min-inline-size: 0;
+  min-block-size: 3.25rem;
+  padding-inline: var(--cp-page-gutter);
+  background: var(--cp-shell-bg);
+  color: var(--cp-shell-ink);
+}
+
+.cp-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-6);
+  inline-size: var(--cp-rail-w);
+  /* The same top as main's, so the rail's first line meets main's. */
+  padding: var(--cp-space-6) var(--cp-space-3) var(--cp-space-4);
+  background: light-dark(var(--cp-accent-2), var(--cp-accent-1));
+  border-inline-end: var(--cp-line-w) solid var(--cp-line);
+  overflow-y: auto;
+}
+
+.cp-main {
+  grid-area: main;
+  min-inline-size: 0;
+  container-type: inline-size;
+  padding: var(--cp-space-6) var(--cp-page-gutter) var(--cp-space-10);
+}
+
+.cp-status {
+  grid-area: status;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--cp-space-4);
+  min-block-size: 1.875rem;
+  padding-inline: var(--cp-page-gutter);
+  font-size: var(--cp-text-xs);
+  color: var(--cp-ink-muted);
+  background: var(--cp-surface-raised);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
+ * held upright), expanded above. The rail leaves at medium. */
+@media (width < 60rem) {
+  .cp-app {
+    grid-template:
+      "header" auto
+      "main" 1fr
+      "status" auto / minmax(0, 1fr);
+  }
+
+  .cp-rail {
+    display: none;
+  }
+}
+
+/* A page outside the app frame for one short task, such as sign-in, setup,
+ * an invite or a recovery link: the app's mark and name over one panel. */
+.cp-gate {
+  display: grid;
+  grid-template-columns: minmax(0, 24rem);
+  place-content: start center;
+  justify-items: center;
+  gap: var(--cp-space-5);
+  min-block-size: 100dvh;
+  padding: clamp(var(--cp-space-6), 12vh, 8rem) var(--cp-page-gutter) var(--cp-space-8);
+}
+
+.cp-gate > .cp-wordmark {
+  font-size: var(--cp-text-lg);
+}
+
+.cp-gate .cp-mark {
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-shell-bg);
+  color: var(--cp-shell-ink);
+  font-size: var(--cp-text-md);
+}
+
+.cp-gate > .cp-panel {
+  justify-self: stretch;
+  padding: var(--cp-space-6);
+  background: var(--cp-surface-raised);
+}
+
+.cp-gate > :not(.cp-wordmark, .cp-panel) {
+  justify-self: stretch;
+  text-align: center;
+}
+
+/* A column of fields, never wider than what a field holds. */
+.cp-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+  max-inline-size: 32rem;
+}
+
+.cp-form > .cp-button {
+  justify-self: start;
+}
+
+/* A switch is a native checkbox with role="switch": it keeps its label, its
+ * keys and its form value. */
+.cp-switch {
+  --cp-switch-w: 2.25rem;
+  --cp-switch-h: 1.25rem;
+  --cp-switch-dir: 1;
+
+  appearance: none;
+  position: relative;
+  flex: none;
+  inline-size: var(--cp-switch-w);
+  block-size: var(--cp-switch-h);
+  margin: 0;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-border-strong);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+:root[data-pointer="coarse"] .cp-switch {
+  --cp-switch-w: 3rem;
+  --cp-switch-h: 1.75rem;
+}
+
+.cp-switch:dir(rtl) {
+  --cp-switch-dir: -1;
+}
+
+.cp-switch::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0.125rem;
+  inset-inline-start: 0.125rem;
+  inline-size: calc(var(--cp-switch-h) - 0.25rem);
+  block-size: calc(var(--cp-switch-h) - 0.25rem);
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-surface-raised);
+  transition: translate var(--cp-dur-short) var(--cp-ease-move);
+}
+
+.cp-switch:checked {
+  background: var(--cp-accent);
+}
+
+.cp-switch:checked::before {
+  translate: calc((var(--cp-switch-w) - var(--cp-switch-h)) * var(--cp-switch-dir)) 0;
+  background: var(--cp-on-accent);
+}
+
+.cp-switch:disabled {
+  cursor: not-allowed;
+  background: var(--cp-fill);
+}
+
+.cp-switch:disabled::before {
+  background: var(--cp-ink-disabled);
+}
+
+/* System colours paint the switch, so its state survives the forced palette. */
+@media (forced-colors: active) {
+  .cp-switch {
+    forced-color-adjust: none;
+    border: var(--cp-line-w) solid CanvasText;
+    background: Canvas;
+  }
+
+  .cp-switch::before {
+    background: CanvasText;
+  }
+
+  .cp-switch:checked {
+    background: Highlight;
+  }
+
+  .cp-switch:checked::before {
+    background: HighlightText;
+  }
+
+  .cp-switch:disabled {
+    border-color: GrayText;
+  }
+
+  .cp-switch:disabled::before {
+    background: GrayText;
+  }
+}
+
+/* One choice of a few, such as a theme: native radios in labels, so the
+ * arrow keys move the choice with no script. */
+.cp-segmented {
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  /* One control height overall, so a segmented sits level with inputs and
+   * buttons in a row; the pill track is this height less its padding. */
+  min-block-size: var(--cp-control-h);
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-1);
+  border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
+  background: var(--cp-fill);
+}
+
+.cp-segmented > label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: var(--cp-hit-min);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink-muted);
+  font-weight: var(--cp-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-segmented > label > input {
+  position: absolute;
+  inset: 0;
+  /* WebKit keeps a radio at its own size under inset: 0. */
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+/* An icon-only choice, such as a List, Grid or Compact view: square
+ * segments, each named by its radio's aria-label. */
+.cp-segmented[data-variant="icons"] > label {
+  inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: 0;
+  padding-inline: 0;
+}
+
+.cp-segmented > label:has(:checked) {
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+}
+
+/* [data-cp-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
+ * arrow keys reached where WebKit drops :focus-visible. */
+.cp-segmented > label:has(:focus-visible, [data-cp-focus-ring]:focus) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-segmented > label:has(:disabled) {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-segmented > label:hover {
+      color: var(--cp-ink);
+    }
+
+    /* A scoped rule outranks an unscoped one before specificity counts. */
+    .cp-segmented > label:has(:disabled):hover {
+      color: var(--cp-ink-disabled);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-segmented > label:has(:checked) {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* A settings page: its categories as links beside the open one's form, and
+ * the categories in a row above it under 48rem. */
+.cp-settings {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  gap: var(--cp-space-8);
+  align-items: start;
+}
+
+.cp-settings-nav {
+  display: grid;
+  gap: var(--cp-space-1);
+}
+
+.cp-settings-nav > a {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink);
+  text-decoration: none;
+}
+
+.cp-settings-nav > a[aria-current] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-weight: var(--cp-weight-medium);
+}
+
+@media (width < 48rem) {
+  .cp-settings {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cp-space-5);
+  }
+
+  .cp-settings-nav {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .cp-settings-nav > a {
+    flex: none;
+  }
+}
+
+/* One setting: its label and help at the start, its control at the end, and
+ * a line between neighbours. A wide control wraps under the words. */
+.cp-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-2) var(--cp-space-6);
+  padding-block: var(--cp-space-3);
+}
+
+.cp-setting + .cp-setting {
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* The rows' padding is between neighbours; the panel pads the outer edges. */
+.cp-setting:first-child {
+  padding-block-start: 0;
+}
+
+.cp-setting:last-child {
+  padding-block-end: 0;
+}
+
+.cp-setting > :first-child {
+  display: grid;
+  gap: var(--cp-space-1);
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+/* Unsaved changes: a bar that stays in view at the bottom of the form while
+ * any change waits. */
+.cp-savebar {
+  position: sticky;
+  inset-block-end: var(--cp-space-3);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-overlay);
+  background: var(--cp-surface-overlay);
+  box-shadow: var(--cp-shadow-overlay);
+}
+
+.cp-savebar > :first-child {
+  flex: 1 1 auto;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-settings-nav > a:not([aria-current]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-savebar,
+  .cp-settings-nav > a[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* A field with a control beside it, such as Show password or Copy. */
+.cp-input-row {
+  display: flex;
+  gap: var(--cp-space-2);
+}
+
+.cp-input-row > .cp-input {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* A file field is a button and a filename, not a text input: no field box,
+ * just the styled Browse button with its label beside it, vertically centred. */
+.cp-input[type="file"] {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--cp-control-h);
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+}
+
+.cp-input[type="file"]::file-selector-button {
+  min-block-size: calc(var(--cp-control-h) - 0.25rem);
+  margin: 0 var(--cp-space-3) 0 0;
+  padding: 0 var(--cp-space-3);
+  border: 0;
+  border-radius: calc(var(--cp-radius-control) - 0.125rem);
+  background: var(--cp-fill);
+  color: var(--cp-ink);
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+  cursor: pointer;
+}
+
+/* A field that holds a quiet control inside its end, such as Show on a
+ * password: the field keeps the column's full width, as the fields above
+ * and below it do, and its text stops short of the control. */
+.cp-input-wrap {
+  position: relative;
+  display: grid;
+}
+
+.cp-input-wrap > .cp-input {
+  padding-inline-end: var(--cp-control-h);
+}
+
+.cp-input-wrap > .cp-button {
+  position: absolute;
+  inset-block: 0.1875rem;
+  inset-inline-end: 0.1875rem;
+  min-block-size: 0;
+  min-inline-size: 0;
+  aspect-ratio: 1;
+  padding: 0;
+}
+
+/* The app's name and its mark, in the header and on a gate page. */
+.cp-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-family: var(--cp-font-display);
+  font-weight: var(--cp-weight-heading);
+  font-size: var(--cp-text-md);
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cp-mark {
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-shell-ink);
+  color: var(--cp-shell-bg);
+  font-size: var(--cp-text-xs);
+  font-weight: 700;
+}
+
+/* Visually hidden, still named: a label that a narrow screen drops. */
+.cp-hidden-narrow {
+  white-space: nowrap;
+}
+
+@media (width < 40rem) {
+  .cp-hidden-narrow {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* Navigation: destinations read as navigation; the current one is a fill
+ * and weight, never an edge. */
+.cp-nav {
+  display: flex;
+  gap: var(--cp-space-1);
+}
+
+/* Positioned, so a label hidden under 60rem stays inside its link and a
+ * nav that scrolls on a phone keeps it there instead of widening the page. */
+.cp-nav-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: inherit;
+  text-decoration: none;
+  font-weight: var(--cp-weight-medium);
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-nav-item[aria-current] {
+  background: var(--cp-shell-current);
+  font-weight: var(--cp-weight-strong);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-nav-item:not([aria-current]):hover {
+      background: var(--cp-shell-hover);
+    }
+  }
+}
+
+/* Below the expanded tier a destination keeps its icon and its name, and
+ * drops only the visible word. */
+@media (width < 60rem) {
+  .cp-nav-label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.cp-header > .cp-toolbar {
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+
+@media (width < 40rem) {
+  .cp-header {
+    flex-wrap: wrap;
+    row-gap: var(--cp-space-1);
+    padding-block: var(--cp-space-2);
+  }
+
+  .cp-header > .cp-toolbar {
+    justify-content: end;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-nav-item[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* Breadcrumbs: the levels above the page, muted and small. */
+.cp-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+  margin-block-end: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-crumbs a {
+  color: inherit;
+}
+
+/* A chevron between levels, drawn by CSS so it is never read aloud, and
+ * turned to point the reading way. */
+.cp-crumbs > :not(:first-child)::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  margin-inline-end: var(--cp-space-2);
+  vertical-align: -0.0625rem;
+  background: currentcolor;
+  opacity: 0.7;
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+}
+
+.cp-crumbs > :not(:first-child):dir(rtl)::before {
+  scale: -1 1;
+}
+
+/* Buttons: one primary per surface; danger is data-tone="danger". */
+.cp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  min-inline-size: var(--cp-hit-min);
+  padding-inline: var(--cp-control-pad-x);
+  border: var(--cp-line-w) solid transparent;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-fill);
+  color: var(--cp-ink);
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+  font-size: var(--cp-text-ui);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* data-cp-pressed comes from @cplieger/ui/press, for a finger :active misses. */
+.cp-button:active:not(:disabled, [aria-disabled="true"]),
+.cp-button[data-cp-pressed]:not(:disabled, [aria-disabled="true"]) {
+  transform: scale(var(--cp-press-scale));
+}
+
+/* An icon-only button, named by aria-label and holding only icons, presses
+ * by its fill: a scaled 18px icon is resampled and blurs on a 1x screen. */
+.cp-button[aria-label]:not(:has(> :not(.cp-icon))) {
+  --cp-press-scale: 1;
+}
+
+.cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
+  background: var(--cp-fill-active);
+}
+
+/* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
+.cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
+  background: var(--cp-fill-active);
+}
+
+.cp-button[data-variant="primary"] {
+  background: var(--cp-tone-9);
+  color: var(--cp-tone-on);
+}
+
+.cp-button[data-variant="quiet"] {
+  background: transparent;
+  color: var(--cp-ink-muted);
+}
+
+.cp-header .cp-button[data-variant="quiet"]:not(:disabled, [aria-disabled="true"]) {
+  color: inherit;
+}
+
+.cp-button[data-size="sm"] {
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  font-size: var(--cp-text-xs);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-button:hover:not(:disabled, [aria-disabled="true"]) {
+      background: var(--cp-fill-hover);
+    }
+
+    .cp-button[data-variant="primary"]:hover:not(:disabled, [aria-disabled="true"]) {
+      background: var(--cp-tone-10);
+    }
+
+    .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
+      background: var(--cp-fill);
+      color: var(--cp-ink);
+    }
+
+    :where(.cp-header) .cp-button[data-variant="quiet"]:hover:enabled {
+      background: var(--cp-shell-hover);
+      color: inherit;
+    }
+  }
+}
+
+/* aria-disabled keeps the control focusable and under the pointer, so a
+ * press on it keeps focus there; it takes no press and no hover. */
+.cp-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
+  background: var(--cp-fill);
+}
+
+.cp-button:disabled {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
+  background: var(--cp-fill);
+}
+
+/* A quiet button has no fill, unavailable or not: a grey fill would read as
+ * pressed or chosen rather than out of reach. */
+.cp-button[data-variant="quiet"]:is(:disabled, [aria-disabled="true"]) {
+  background: transparent;
+}
+
+@media (forced-colors: active) {
+  .cp-button {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* Fields: the boundary is the 3:1 step, so a field is findable without its
+ * label. Inputs stay 16px on touch so iOS does not zoom. */
+/* One column no child can widen: a row of a field and a button shrinks
+ * the field instead of pushing past a phone's width. */
+.cp-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-1);
+}
+
+.cp-label {
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-help {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-input {
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+  font: inherit;
+  font-size: max(16px, var(--cp-text-ui));
+}
+
+:root[data-pointer="fine"] .cp-input {
+  font-size: var(--cp-text-ui);
+}
+
+/* A date or time field is exactly one control tall: its edit fields and
+ * picker button size themselves per engine and platform, so a minimum alone
+ * lets it outgrow the controls beside it. */
+input.cp-input:is([type^="date"], [type="time"]) {
+  block-size: var(--cp-control-h);
+  padding-block: 0;
+}
+
+.cp-input:user-invalid,
+.cp-input[aria-invalid="true"] {
+  border-color: var(--cp-danger-8);
+}
+
+.cp-input[data-tone="warning"] {
+  border-color: var(--cp-warning-8);
+}
+
+/* A focused field reads like a focused button: a ring sitting outside the
+ * field with a gap, in the accent (or the state's colour for an error or a
+ * warning). The field keeps its own border, so the ring is a halo, not a
+ * doubled line at the edge. */
+.cp-input:focus-visible {
+  --cp-field-ring: var(--cp-focus-ring);
+
+  outline: var(--cp-focus-w) solid var(--cp-field-ring);
+  outline-offset: var(--cp-focus-offset);
+  border-color: var(--cp-field-ring);
+}
+
+.cp-input:is(:user-invalid, [aria-invalid="true"]):focus-visible {
+  --cp-field-ring: var(--cp-danger-9);
+}
+
+.cp-input[data-tone="warning"]:focus-visible {
+  --cp-field-ring: var(--cp-warning-9);
+}
+
+@media (forced-colors: active) {
+  .cp-input:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* A field that takes no input reads as such: a sunken fill, a quiet edge
+ * and disabled ink, the same as a disabled segment. */
+.cp-input:disabled {
+  border-color: var(--cp-line);
+  background: var(--cp-fill);
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+/* A field's error: text under the field, tied to it by aria-describedby. */
+.cp-field-error {
+  display: flex;
+  gap: var(--cp-space-1);
+  align-items: start;
+  color: var(--cp-danger-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-field-error > .cp-icon {
+  --cp-icon-size: 0.875rem;
+
+  margin-block-start: 0.0625rem;
+}
+
+/* Data table: rows are never interactive; actions are buttons in a cell.
+ * A column carries its priority, and a narrow container drops low, then mid. */
+.cp-table {
+  inline-size: 100%;
+  font-size: var(--cp-text-ui);
+}
+
+.cp-table th {
+  text-align: start;
+  font-weight: var(--cp-weight-medium);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+  white-space: nowrap;
+}
+
+.cp-table td {
+  padding: 0 var(--cp-space-3);
+  block-size: var(--cp-row-h);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+  vertical-align: middle;
+}
+
+.cp-table tr:last-child td {
+  border-block-end: 0;
+}
+
+.cp-table [data-col="num"] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Row selection: a native checkbox in a label that fills its cell, so the
+ * hit area reaches the tier's minimum. */
+.cp-table [data-col="select"] {
+  inline-size: 1%;
+  padding: 0;
+}
+
+.cp-table [data-col="select"] > label {
+  display: flex;
+  align-items: center;
+  min-inline-size: var(--cp-hit-min);
+  min-block-size: max(var(--cp-hit-min), var(--cp-row-h));
+  padding-inline: var(--cp-space-3) var(--cp-space-2);
+  cursor: pointer;
+}
+
+.cp-table [data-col="select"] input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin: 0;
+}
+
+.cp-table tr:has(> [data-col="select"] input:checked) > td {
+  background: var(--cp-selected);
+}
+
+/* The actions for the selected rows, above the table, with their count. */
+.cp-batchbar {
+  position: sticky;
+  inset-block-start: var(--cp-sticky-top, 0);
+  z-index: var(--cp-z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-accent-wash);
+  color: var(--cp-accent-12);
+}
+
+@media (forced-colors: active) {
+  .cp-batchbar {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+.cp-batch-count {
+  margin-inline-end: auto;
+  font-weight: var(--cp-weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-table [data-col="actions"] > .cp-button:only-child {
+  inline-size: 100%;
+}
+
+.cp-table [data-col="actions"] {
+  text-align: end;
+  inline-size: 1%;
+  white-space: nowrap;
+}
+
+.cp-table [data-col="actions"] > .cp-toolbar {
+  flex-wrap: nowrap;
+  justify-content: end;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-table tbody tr:hover td {
+      background: var(--cp-fill);
+    }
+
+    /* A plain button in a row shares the row's hover fill and would vanish;
+     * lift it to the raised surface. Only a resting button: one that
+     * confirms in place keeps the fill its busy or done state gives it. */
+    .cp-table tr:hover .cp-button:not([data-variant], [data-cp-state]) {
+      background: var(--cp-surface-raised);
+    }
+  }
+}
+
+@container (width < 64rem) {
+  .cp-table [data-priority="low"] {
+    display: none;
+  }
+}
+
+@container (width < 44rem) {
+  .cp-table [data-priority="mid"] {
+    display: none;
+  }
+}
+
+/* Pagination under a table: where the person is, and the way to the pages
+ * around it. */
+.cp-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-3);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-pager > :first-child {
+  margin-inline-end: auto;
+}
+
+@media (forced-colors: active) {
+  .cp-pager {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* The trigger for the rail's filters, shown only once the rail leaves. */
+.cp-rail-toggle {
+  display: none;
+}
+
+@media (width < 60rem) {
+  .cp-rail-toggle {
+    display: inline-flex;
+  }
+}
+
+/* One line, cut with an ellipsis; give the full text a title or a tooltip. */
+.cp-truncate {
+  display: block;
+  max-inline-size: var(--cp-truncate-w, 14rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A cell's main text over a muted second line. */
+.cp-cell-stack {
+  display: grid;
+  justify-items: start;
+  gap: 0.125rem;
+  min-inline-size: 13rem;
+  padding-block: var(--cp-space-2);
+}
+
+.cp-cell-stack > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+@container (width < 44rem) {
+  .cp-cell-stack {
+    min-inline-size: 0;
+  }
+}
+
+.cp-mono {
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+}
+
+.cp-meta {
+  color: var(--cp-ink-muted);
+}
+
+/* A link that is a row's title names a thing, not a sentence: it reads as
+ * the row's name, in ink at a medium weight, and takes the accent and its
+ * underline under a mouse or the keyboard. A link inside a sentence keeps
+ * its colour and underline (WCAG 1.4.1). */
+.cp-cell-stack > a:first-child {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-cell-stack > a:first-child:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-cell-stack > a:first-child:hover {
+      color: var(--cp-accent-ink);
+    }
+  }
+}
+
+/* Chip: a tone's wash, its glyph and its word; colour is never alone. */
+.cp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-block-size: 1.375rem;
+  padding-inline: var(--cp-space-2);
+  border-radius: var(--cp-radius-chip);
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+  white-space: nowrap;
+}
+
+.cp-header .cp-chip[data-tone="neutral"] {
+  background: var(--cp-shell-hover);
+  color: var(--cp-shell-ink);
+}
+
+.cp-chip .cp-icon {
+  --cp-icon-size: 0.875rem;
+}
+
+@media (forced-colors: active) {
+  .cp-chip {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* Notice: the state's wash over its container, a glyph and text. */
+.cp-notice {
+  display: flex;
+  gap: var(--cp-space-3);
+  align-items: start;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-12);
+}
+
+/* An action notice carries a button, so its row is button-height; centre the
+ * icon and text with the button instead of leaving them at the top. A notice
+ * without a button keeps its icon aligned to the first line of its text. */
+.cp-notice:has(> .cp-button) {
+  align-items: center;
+}
+
+/* The text sits left, the button is pushed to the end of the row. */
+.cp-notice > .cp-button {
+  margin-inline-start: auto;
+}
+
+.cp-notice > .cp-icon {
+  color: var(--cp-tone-11);
+  margin-block-start: 0.0625rem;
+}
+
+/* On a tone's wash the grey fill of a plain button disappears into a warm
+ * or cold tint; it rises off the wash instead, edged with the tone's 3:1
+ * step, and its words take the tone's ink. */
+.cp-notice .cp-button:not([data-variant="primary"]) {
+  border: var(--cp-line-w) solid var(--cp-tone-8);
+  background: var(--cp-surface-raised);
+  color: var(--cp-tone-12);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-notice .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover {
+      background: var(--cp-tone-2);
+    }
+  }
+}
+
+/* A list inside a notice, such as an error summary's links to its fields. */
+.cp-notice :where(ul, ol) {
+  margin: var(--cp-space-1) 0 0;
+  padding-inline-start: 1.25em;
+}
+
+.cp-notice :where(a) {
+  color: inherit;
+}
+
+@media (forced-colors: active) {
+  .cp-notice {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* Panel: an in-flow surface outlined by one line. A flush panel scrolls a
+ * wide table inside itself so the page never scrolls sideways. */
+.cp-panel {
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  padding: var(--cp-space-4);
+}
+
+.cp-panel[data-flush] {
+  position: relative;
+  padding: 0;
+  overflow-x: auto;
+}
+
+.cp-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+.cp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-heading-row {
+  container: cp-heading / inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--cp-space-3) var(--cp-space-6);
+  margin-block-end: var(--cp-space-5);
+}
+
+.cp-heading-row > :first-child {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+.cp-heading-row > .cp-toolbar {
+  flex: 0 1 auto;
+  justify-content: end;
+}
+
+@container cp-heading (width < 40rem) {
+  .cp-heading-row > .cp-toolbar {
+    flex: 1 1 100%;
+    justify-content: start;
+  }
+
+  .cp-heading-row > .cp-toolbar > .cp-input {
+    flex: 1 1 8rem;
+    min-inline-size: 0;
+  }
+}
+
+/* A stack's gap is its children's spacing. */
+.cp-stack > hr,
+.cp-stack > .cp-heading-row {
+  margin-block: 0;
+}
+
+/* A cluster: a row of small things, such as chips, buttons or facts, that
+ * wraps onto the next line instead of overflowing. */
+.cp-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+}
+
+.cp-cluster[data-gap="tight"] {
+  gap: var(--cp-space-1) var(--cp-space-2);
+}
+
+/* A side column beside the rest, such as a poster beside its facts or a
+ * form's help beside the form. It stacks above the rest once the rest would
+ * be narrower than half the box, with no media or container query: the
+ * element sizes to whatever holds it. The side's width is --cp-side-width. */
+.cp-side-main {
+  --cp-side-width: 16rem;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-4);
+}
+
+.cp-side-main > :first-child {
+  flex-grow: 1;
+  flex-basis: var(--cp-side-width);
+}
+
+.cp-side-main > :last-child {
+  flex-grow: 999;
+  flex-basis: 0;
+  min-inline-size: 50%;
+}
+
+/* An auto grid: as many columns as fit at --cp-grid-min each, filling the
+ * row, and one column on a phone with no breakpoint. For cards, card links
+ * and covers. */
+.cp-grid {
+  --cp-grid-min: 14rem;
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cp-grid-min)), 1fr));
+  gap: var(--cp-space-3);
+}
+
+/* List and detail: a list with the chosen entry's detail docked beside it
+ * once the box is wide enough, and the same detail in a modal dialog below
+ * that. enhanceListDetail (@cplieger/ui/list-detail) moves the detail; the
+ * app's route opens and closes it, so Back closes it. */
+.cp-list-detail {
+  --cp-detail-w: minmax(18rem, 24rem);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+.cp-list-detail[data-cp-docked] {
+  grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
+}
+
+/* The open entry: its row in a table, or its own element in a list, carries
+ * aria-current="true". */
+.cp-list-detail tr:has([aria-current="true"]) > td,
+.cp-list-detail [aria-current="true"]:not(td *) {
+  background: var(--cp-selected);
+}
+
+.cp-detail {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-3);
+  min-inline-size: 0;
+}
+
+.cp-list-detail > .cp-detail {
+  padding: var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+  animation: cp-detail-in var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+.cp-detail-body {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-3);
+}
+
+.cp-detail > header {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-detail > header > :is(h2, h3) {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--cp-text-md);
+}
+
+.cp-list-detail > .cp-detail[data-cp-still] {
+  animation: none;
+}
+
+@keyframes cp-detail-in {
+  from {
+    opacity: 0;
+    translate: var(--cp-space-4) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-list-detail > .cp-detail {
+    animation-name: cp-fade-in;
+  }
+}
+
+/* Filter list: a rail section of options with counts. */
+.cp-filter-group {
+  display: grid;
+  gap: 1px;
+}
+
+.cp-filter-title {
+  margin: 0;
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+  color: var(--cp-ink);
+  padding: 0 var(--cp-space-2) var(--cp-space-2);
+}
+
+.cp-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-filter[aria-pressed="true"] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-weight: var(--cp-weight-medium);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-filter:not([aria-pressed="true"]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+.cp-swatch {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: 0.1875rem;
+  background: var(--cp-tone-9);
+}
+
+/* A count beside a filter. */
+.cp-count {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (forced-colors: active) {
+  .cp-filter[aria-pressed="true"] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* Tabs: ARIA tabs; the selected tab is a raised fill. */
+.cp-tabs {
+  display: flex;
+  gap: var(--cp-space-1);
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  padding: var(--cp-space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--cp-fill);
+  border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
+}
+
+.cp-tab {
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-3);
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: transparent;
+  color: var(--cp-ink-muted);
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cp-tab[aria-selected="true"] {
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-tab:not([aria-selected="true"]):hover {
+      color: var(--cp-ink);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-tab[aria-selected="true"] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* Progress: a track and a fill in the tone. */
+.cp-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--cp-ink-muted);
+}
+
+.cp-progress-track {
+  inline-size: 5rem;
+  block-size: 0.375rem;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-4);
+  overflow: clip;
+}
+
+.cp-progress-fill {
+  block-size: 100%;
+  background: var(--cp-tone-9);
+  border-radius: inherit;
+}
+
+/* Skeleton: the shape of what is coming, with a slow opacity beat that stops
+ * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
+.cp-skeleton {
+  display: block;
+  block-size: 0.75em;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-fill-hover);
+  animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
+}
+
+@keyframes cp-skeleton {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-skeleton {
+    animation: none;
+  }
+}
+
+/* Empty state: what belongs here and the one action that fills it. */
+.cp-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-8) var(--cp-space-6);
+  color: var(--cp-ink-muted);
+}
+
+/* A loader for work of unknown length, about the size of a 24px icon, so it
+ * sits beside words or alone in a panel: the checkbox's rounded square
+ * turns a quarter at a time, rounding into a circle and back, through the
+ * harmony colours. Markup: <span class="cp-loader" aria-hidden="true"><span></span></span>,
+ * beside words that say what is loading. */
+.cp-loader {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+}
+
+.cp-loader > span {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  border-radius: 30%;
+  background: var(--cp-harmony-2);
+  animation: cp-twirl-loop 2.4s cubic-bezier(0.6, 0, 0.3, 1.25) infinite;
+}
+
+/* A loader beside words: the words say what is loading. */
+.cp-inline-load {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+}
+
+@keyframes cp-twirl-loop {
+  0% {
+    rotate: 0deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-2);
+  }
+
+  25% {
+    rotate: 90deg;
+    border-radius: 50%;
+    background: var(--cp-harmony-3);
+  }
+
+  50% {
+    rotate: 180deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-1);
+  }
+
+  75% {
+    rotate: 270deg;
+    border-radius: 50%;
+    background: var(--cp-harmony-4);
+  }
+
+  100% {
+    rotate: 360deg;
+    border-radius: 30%;
+    background: var(--cp-harmony-2);
+  }
+}
+
+/* It still reads as busy under reduced motion, so it pulses instead. */
+@keyframes cp-loader-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-loader > span {
+    animation: cp-loader-pulse 2s ease-in-out infinite;
+  }
+}
+
+/* Toasts (@cplieger/ui/toast): a stack at the window's inline-end corner,
+ * newest at the foot, each springing up into place. A passing toast keeps a
+ * thin line that drains as its time runs out and stops while a pointer or
+ * focus is on the stack. Each toast's glyph says its kind, and the whole
+ * toast is its dismiss under a pointer. */
+.cp-toaster {
+  position: fixed;
+  inset: auto var(--cp-space-4) calc(var(--cp-space-3) + 3.25rem) auto;
+  display: grid;
+  inline-size: min(24rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cp-toaster:dir(rtl) {
+  inset-inline: auto var(--cp-space-4);
+}
+
+/* Each toast sits in a slot whose row closes when it leaves, so the ones
+ * above slide down instead of jumping. */
+.cp-toast-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.cp-toast-wrap {
+  min-block-size: 0;
+  padding-block-start: var(--cp-space-2);
+}
+
+.cp-toast-slot[data-cp-closing] > .cp-toast-wrap {
+  overflow: hidden;
+}
+
+.cp-toast {
+  --cp-toast-tone: var(--cp-accent-9);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--cp-space-1) var(--cp-space-3);
+  align-items: start;
+  padding: var(--cp-space-3);
+  padding-inline-start: var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  box-shadow: var(--cp-shadow-overlay);
+  overflow: hidden;
+  pointer-events: auto;
+  touch-action: pan-y;
+  cursor: pointer;
+  animation: cp-toast-in 560ms var(--cp-ease-spring);
+}
+
+.cp-toast[data-kind="success"] {
+  --cp-toast-tone: var(--cp-success-9);
+}
+
+.cp-toast[data-kind="warning"] {
+  --cp-toast-tone: var(--cp-warning-9);
+}
+
+.cp-toast[data-kind="error"] {
+  --cp-toast-tone: var(--cp-danger-9);
+}
+
+.cp-toast-lead:not(.cp-loader) {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-block-start: 0.0625rem;
+  background: var(--cp-toast-tone);
+  mask: url("../icons/svg/info.svg") center / contain no-repeat;
+}
+
+.cp-toast[data-kind="success"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/circle-check.svg");
+}
+
+.cp-toast[data-kind="warning"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/triangle-alert.svg");
+}
+
+.cp-toast[data-kind="error"] > .cp-toast-lead:not(.cp-loader) {
+  mask-image: url("../icons/svg/octagon-alert.svg");
+}
+
+.cp-toast > .cp-loader {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
+
+.cp-toast > .cp-loader > span {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+}
+
+.cp-toast-text :is(p, strong) {
+  cursor: text;
+}
+
+.cp-toast-text strong {
+  display: block;
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-toast-text p {
+  margin: 0.125rem 0 0;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+  margin-block-start: var(--cp-space-2);
+}
+
+.cp-toast-close {
+  min-block-size: 1.75rem;
+  min-inline-size: 1.75rem;
+  margin-block: -0.25rem;
+  padding: 0;
+}
+
+.cp-toast-close::before {
+  content: "";
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/x.svg") center / contain no-repeat;
+}
+
+/* The draining line: a scale, so it runs on the compositor. */
+.cp-toast-time {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 2px;
+  background: var(--cp-toast-tone);
+  opacity: 0.55;
+  transform-origin: left;
+  animation: cp-toast-drain var(--cp-toast-life, 7s) linear forwards;
+}
+
+.cp-toast-time:dir(rtl) {
+  transform-origin: right;
+}
+
+.cp-toaster:is(:hover, :focus-within) .cp-toast-time {
+  animation-play-state: paused;
+}
+
+@keyframes cp-toast-in {
+  from {
+    translate: 0 1.5rem;
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes cp-toast-drain {
+  to {
+    scale: 0 1;
+  }
+}
+
+@media (width < 40rem) {
+  .cp-toaster {
+    inset-inline: var(--cp-space-3);
+    inline-size: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-toast {
+    animation-name: cp-fade-in;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-toast {
+    border-color: CanvasText;
+  }
+
+  .cp-toast-lead:not(.cp-loader),
+  .cp-toast-close::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
+/* A multi-step flow's progress: numbered steps in an <ol>, the current one
+ * filled with aria-current="step", the done ones ticked, a line joining
+ * them. Each step carries data-state ("done", "current" or "todo") and a
+ * visually hidden word for it, so the state is never the glyph alone. In a
+ * box under 24rem the list gives way to .cp-steps-compact, "Step 2 of 3". */
+.cp-steps {
+  display: flex;
+  gap: var(--cp-space-2);
+  margin: 0 0 var(--cp-space-5);
+  padding: 0;
+  list-style: none;
+  counter-reset: cp-step;
+}
+
+.cp-steps > li {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  counter-increment: cp-step;
+}
+
+.cp-steps > li::before {
+  content: counter(cp-step);
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--cp-border-strong);
+  font-weight: var(--cp-weight-medium);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 200ms var(--cp-ease-out),
+    box-shadow 200ms var(--cp-ease-out),
+    color 200ms var(--cp-ease-out);
+}
+
+.cp-steps > li:not(:last-child)::after {
+  content: "";
+  flex: 1;
+  min-inline-size: 1rem;
+  border-block-start: 2px solid var(--cp-line);
+}
+
+.cp-steps > li[data-state="current"] {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-steps > li[data-state="current"]::before {
+  background: var(--cp-accent);
+  box-shadow: inset 0 0 0 2px var(--cp-accent);
+  color: var(--cp-on-accent);
+}
+
+.cp-steps > li[data-state="done"]::before {
+  content: "";
+  background: var(--cp-accent-11);
+  box-shadow: none;
+  mask:
+    url("../icons/marks/check.svg") center / 1rem no-repeat,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.cp-steps > li[data-state="done"]::after {
+  border-color: var(--cp-accent);
+}
+
+.cp-steps-compact {
+  display: none;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+}
+
+@container (width < 24rem) {
+  .cp-steps {
+    display: none;
+  }
+
+  .cp-steps-compact {
+    display: block;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-steps > li::before {
+    forced-color-adjust: none;
+    border: 2px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .cp-steps > li[data-state="current"]::before {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* A dialog: a native <dialog> opened with showModal(), so focus moves in,
+ * the page goes inert and Escape closes it. It fades and settles in the
+ * middle, and on a phone it rises from the bottom edge. Its parts are a
+ * header, a body that scrolls and a footer of buttons, usually inside a
+ * <form method="dialog">. */
+.cp-dialog {
+  overflow: hidden;
+  inline-size: min(32rem, calc(100vw - 2rem));
+  max-block-size: calc(100dvh - 4rem);
+  margin: auto;
+  padding: 0;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-overlay);
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  box-shadow: var(--cp-shadow-overlay);
+  opacity: 0;
+  scale: 0.96;
+  transition:
+    opacity var(--cp-dur-short) var(--cp-ease-out),
+    scale var(--cp-dur-short) var(--cp-ease-out),
+    translate var(--cp-dur-short) var(--cp-ease-out),
+    overlay var(--cp-dur-short) allow-discrete,
+    display var(--cp-dur-short) allow-discrete;
+}
+
+.cp-dialog[open] {
+  opacity: 1;
+  scale: 1;
+  transition-duration: var(--cp-dur-medium);
+  transition-timing-function: var(--cp-ease-spring);
+}
+
+@starting-style {
+  .cp-dialog[open] {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+/* Opened without its entrance, as on a page that loads with it open. */
+.cp-dialog[data-cp-still],
+.cp-dialog[data-cp-still]::backdrop {
+  transition: none;
+}
+
+.cp-dialog::backdrop {
+  background: oklch(from var(--cp-neutral-12) 15% c h / 0%);
+  transition:
+    background-color 200ms var(--cp-ease-out),
+    overlay 200ms allow-discrete,
+    display 200ms allow-discrete;
+}
+
+.cp-dialog[open]::backdrop {
+  background: var(--cp-backdrop);
+}
+
+@starting-style {
+  .cp-dialog[open]::backdrop {
+    background: oklch(from var(--cp-neutral-12) 15% c h / 0%);
+  }
+}
+
+.cp-dialog > form,
+.cp-dialog > .cp-detail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-block-size: inherit;
+}
+
+.cp-dialog :is(form, .cp-detail) > :is(header, footer) {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-4) var(--cp-space-5);
+}
+
+/* The body scrolls, so it keeps 4px above its first control for a focus
+ * ring, which its overflow would clip; the header gives those 4px back. */
+.cp-dialog :is(form, .cp-detail) > header {
+  padding-block-end: calc(var(--cp-space-4) - var(--cp-space-1));
+}
+
+.cp-dialog :is(form, .cp-detail) > header > :is(h2, h3) {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--cp-text-lg);
+}
+
+.cp-dialog :is(form, .cp-detail) > footer {
+  flex-wrap: wrap;
+  justify-content: end;
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+.cp-dialog-body,
+.cp-dialog .cp-detail-body {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-4);
+  padding: var(--cp-space-1) var(--cp-space-5) var(--cp-space-5);
+  overflow: auto;
+  overscroll-behavior: contain;
+  line-height: var(--cp-leading-body);
+}
+
+:is(.cp-dialog-body, .cp-dialog .cp-detail-body) > .cp-button {
+  justify-self: start;
+}
+
+/* A confirmation leads with its icon and keeps its words short. */
+.cp-dialog[data-variant="confirm"] {
+  inline-size: min(26rem, calc(100vw - 2rem));
+}
+
+.cp-dialog[data-variant="confirm"] .cp-dialog-body {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  padding-block-start: var(--cp-space-5);
+}
+
+.cp-dialog[data-variant="confirm"] .cp-dialog-body > .cp-icon {
+  --cp-icon-size: 1.5rem;
+
+  color: var(--cp-danger-9);
+}
+
+.cp-dialog[data-variant="confirm"] .cp-dialog-body :is(h2, h3) {
+  font-size: var(--cp-text-lg);
+}
+
+.cp-dialog[data-variant="confirm"] .cp-dialog-body p {
+  margin: var(--cp-space-1) 0 0;
+  color: var(--cp-ink-muted);
+}
+
+/* A sheet: the whole height at the inline end, sliding in, and sliding out
+ * as it came, over 280ms and speeding up. */
+.cp-dialog[data-variant="sheet"] {
+  inline-size: min(26rem, 100vw);
+  max-inline-size: 100vw;
+  block-size: 100dvh;
+  max-block-size: 100dvh;
+  margin: 0 0 0 auto;
+  border-block: 0;
+  border-inline-end: 0;
+  border-radius: 0;
+  scale: 1;
+  translate: 100% 0;
+  opacity: 1;
+  transition-duration: 280ms;
+  transition-timing-function: var(--cp-ease-in);
+}
+
+.cp-dialog[data-variant="sheet"]:dir(rtl) {
+  margin: 0 auto 0 0;
+  translate: -100% 0;
+}
+
+.cp-dialog[data-variant="sheet"][open] {
+  translate: 0 0;
+  transition-duration: 300ms;
+  transition-timing-function: var(--cp-ease-out);
+}
+
+@starting-style {
+  .cp-dialog[data-variant="sheet"][open] {
+    translate: 100% 0;
+  }
+
+  .cp-dialog[data-variant="sheet"][open]:dir(rtl) {
+    translate: -100% 0;
+  }
+}
+
+.cp-dialog[data-variant="sheet"] > form {
+  block-size: 100%;
+  max-block-size: none;
+}
+
+/* A dialog that keeps typed changes says no to a press outside. */
+.cp-dialog[data-cp-refused] {
+  animation: cp-refuse 420ms var(--cp-ease-out);
+}
+
+@keyframes cp-refuse {
+  20% {
+    translate: -6px 0;
+  }
+
+  40% {
+    translate: 5px 0;
+  }
+
+  60% {
+    translate: -3px 0;
+  }
+
+  80% {
+    translate: 2px 0;
+  }
+}
+
+/* The page under a modal dialog does not scroll. Its scrollbar goes, and
+ * --cp-scrollbar-w, the width @cplieger/ui/dialog measures, pads the page in
+ * its place so nothing shifts; a reserved gutter would instead stop a sheet
+ * and the backdrop short of the window's edge. */
+:root:has(dialog:modal) {
+  overflow: hidden;
+  padding-inline-end: var(--cp-scrollbar-w, 0);
+}
+
+@media (width < 40rem) {
+  .cp-dialog:not([data-variant="sheet"]) {
+    inline-size: 100vw;
+    max-inline-size: 100vw;
+    margin: auto 0 0;
+    border-radius: var(--cp-radius-overlay) var(--cp-radius-overlay) 0 0;
+    scale: 1;
+    translate: 0 100%;
+    opacity: 1;
+  }
+
+  .cp-dialog:not([data-variant="sheet"])[open] {
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .cp-dialog:not([data-variant="sheet"])[open] {
+      translate: 0 100%;
+    }
+  }
+
+  .cp-dialog[data-variant="sheet"] {
+    inline-size: 100vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-dialog[data-cp-refused] {
+    animation: none;
+  }
+
+  .cp-dialog {
+    opacity: 0;
+    scale: 1;
+    translate: 0 0;
+  }
+
+  .cp-dialog[open] {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .cp-dialog[open] {
+      opacity: 0;
+      translate: 0 0;
+    }
+  }
+}
+
+/* A popover: a menu or a panel in the top layer, so no z-index decides it,
+ * placed by its opener with CSS anchor positioning (@cplieger/ui/anchor
+ * names the pair) and flipping to stay in view. It grows out of the corner
+ * nearest its button, and a native popover closes on Escape and on a press
+ * outside by itself. */
+.cp-popover {
+  position: fixed;
+  inset: auto;
+  margin: var(--cp-space-1) 0;
+  padding: var(--cp-space-1);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-overlay);
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  box-shadow: var(--cp-shadow-overlay);
+  position-area: block-end span-inline-end;
+  position-try-fallbacks:
+    flip-block,
+    flip-inline,
+    flip-block flip-inline;
+  transform-origin: top left;
+  opacity: 0;
+  scale: 0.96;
+  transition:
+    opacity 140ms var(--cp-ease-out),
+    scale 140ms var(--cp-ease-out),
+    overlay 140ms allow-discrete,
+    display 140ms allow-discrete;
+}
+
+.cp-popover:popover-open {
+  opacity: 1;
+  scale: 1;
+  transition-duration: 180ms;
+}
+
+@starting-style {
+  .cp-popover:popover-open {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+/* Opened at a point (showPopoverAt), its corner sits where the press was. */
+.cp-popover[data-cp-at] {
+  position-area: none;
+  margin: 0;
+}
+
+/* A panel of controls rather than a list of choices. */
+.cp-popover[data-variant="panel"] {
+  display: grid;
+  gap: var(--cp-space-3);
+  inline-size: 18rem;
+  padding: var(--cp-space-4);
+}
+
+.cp-popover[data-variant="panel"]:not(:popover-open) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-popover,
+  .cp-popover:popover-open {
+    scale: 1;
+  }
+
+  @starting-style {
+    .cp-popover:popover-open {
+      scale: 1;
+    }
+  }
+}
+
+/* A menu: a .cp-popover with role="menu", its items buttons or links with a
+ * menuitem role. Focus is the highlight, so a key and a mouse land on the
+ * same row. */
+.cp-menu {
+  min-inline-size: 12rem;
+}
+
+.cp-menu [role^="menuitem"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  inline-size: 100%;
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2) var(--cp-space-3);
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+:root[data-pointer="coarse"] .cp-menu [role^="menuitem"] {
+  min-block-size: var(--cp-control-h);
+}
+
+.cp-menu [role^="menuitem"]:focus {
+  outline: none;
+  background: var(--cp-fill);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-menu [role^="menuitem"]:hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+.cp-menu [role^="menuitem"][aria-disabled="true"] {
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+.cp-menu [role^="menuitem"] > kbd {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font: inherit;
+  font-size: var(--cp-text-xs);
+}
+
+.cp-menu [role^="menuitem"] > .cp-icon {
+  color: var(--cp-ink-muted);
+}
+
+.cp-menu [data-tone="danger"],
+.cp-menu [data-tone="danger"] > .cp-icon {
+  color: var(--cp-danger-11);
+}
+
+.cp-menu hr {
+  margin: var(--cp-space-1) 0;
+  border: 0;
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* A group's heading: muted and small, so it never reads as an item. */
+.cp-menu-label {
+  padding: var(--cp-space-1) var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+}
+
+/* A count or a word at an item's end, such as a link's "New". */
+.cp-menu-tag {
+  margin-inline-start: auto;
+  padding: 0 var(--cp-space-2);
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+/* A radio item's tick: a single choice does not move. */
+.cp-menu [role="menuitemradio"]::after {
+  content: "";
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin-inline-start: auto;
+  background: var(--cp-accent);
+  mask: url("../icons/marks/check.svg") center / contain no-repeat;
+  visibility: hidden;
+}
+
+.cp-menu [role="menuitemradio"][aria-checked="true"]::after {
+  visibility: visible;
+}
+
+/* A check item's box: the form checkbox's twirl at the row's size, a
+ * rounded square with the field's edge that turns a quarter into an accent
+ * circle, its mark counter-turned so it lands upright. */
+.cp-menu [role="menuitemcheckbox"]::before {
+  --cp-mbox: 1.125rem;
+
+  content: "";
+  flex: none;
+  inline-size: var(--cp-mbox);
+  block-size: var(--cp-mbox);
+  border-radius: 30%;
+  background: var(--cp-surface-raised);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
+  transition:
+    border-radius var(--cp-dur-spring) var(--cp-ease-spring),
+    rotate var(--cp-dur-spring) var(--cp-ease-spring),
+    background-color 160ms var(--cp-ease-out),
+    box-shadow 160ms var(--cp-ease-out);
+}
+
+.cp-menu [role="menuitemcheckbox"] {
+  position: relative;
+}
+
+.cp-menu [role="menuitemcheckbox"]::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(var(--cp-space-2) + 0.125rem);
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: var(--cp-on-accent);
+  mask: url("../icons/marks/check.svg") center / contain no-repeat;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 120ms var(--cp-ease-out);
+}
+
+.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+  border-radius: 50%;
+  rotate: 90deg;
+  background-color: var(--cp-accent);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-accent);
+}
+
+.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::after {
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 200ms var(--cp-ease-out) 80ms;
+}
+
+@media (forced-colors: active) {
+  .cp-menu [role^="menuitem"]:focus {
+    outline: var(--cp-line-w) solid Highlight;
+  }
+
+  .cp-menu [role="menuitemcheckbox"]::before {
+    forced-color-adjust: none;
+    border: var(--cp-line-w) solid CanvasText;
+    background: Canvas;
+  }
+
+  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+    background: Highlight;
+  }
+
+  .cp-menu [role="menuitemcheckbox"]::after,
+  .cp-menu [role="menuitemradio"]::after {
+    forced-color-adjust: none;
+    background: HighlightText;
+  }
+
+  .cp-menu [role="menuitemradio"]::after {
+    background: CanvasText;
+  }
+}
+
+/* A tooltip (@cplieger/ui/tooltip): dark and small, above its control,
+ * flipping below near the window's top, fading up a quarter rem as it
+ * shows. It names or hints; the control keeps its own name. */
+.cp-tooltip {
+  position: fixed;
+  inset: auto;
+  max-inline-size: 18rem;
+  margin: 0 0 var(--cp-space-2);
+  padding: var(--cp-space-1) var(--cp-space-2);
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-neutral-12);
+  color: var(--cp-neutral-1);
+  font-size: var(--cp-text-xs);
+  position-anchor: --cp-tip-anchor;
+  position-area: block-start;
+  position-try-fallbacks: flip-block;
+  pointer-events: none;
+  opacity: 0;
+  translate: 0 0.25rem;
+  transition:
+    opacity 120ms var(--cp-ease-out),
+    translate 120ms var(--cp-ease-out),
+    overlay 120ms allow-discrete,
+    display 120ms allow-discrete;
+}
+
+.cp-tooltip:popover-open {
+  opacity: 1;
+  translate: 0 0;
+}
+
+@starting-style {
+  .cp-tooltip:popover-open {
+    opacity: 0;
+    translate: 0 0.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-tooltip,
+  .cp-tooltip:popover-open {
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .cp-tooltip:popover-open {
+      translate: 0 0;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-tooltip {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* A busy control keeps its label beside a turning spinner-arc. */
+.cp-button[aria-busy="true"] {
+  cursor: progress;
+}
+
+:where(.cp) .cp-icon[data-cp-icon="spinner-arc"] {
+  animation: cp-spin 0.8s linear infinite;
+}
+
+@keyframes cp-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* A button that confirms its own action in place (@cplieger/ui/confirm):
+ * busy with the spinner-arc and its busy words, then a green fill, a check
+ * that draws and its done words, then back at rest. The fill fades back
+ * slowly and flashes in fast. A danger button stays red as it confirms. */
+.cp-button[data-cp-confirm] {
+  /* A green dark enough for white words in both themes, about 5:1. */
+  --cp-done-fill: oklch(from var(--cp-success-9) min(l, 0.52) c h);
+
+  position: relative;
+  overflow: hidden;
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end 300ms var(--cp-ease-out);
+}
+
+/* (0,4,1) lifts this over the primary and quiet hover fills, (0,4,0) rules
+ * that win a tie by scope proximity. Inside a split button the split paints
+ * the fill, so it sets --cp-done-paint to transparent for its parts. */
+button.cp-button[data-cp-confirm][data-cp-state="done"]:not(:disabled) {
+  background: var(--cp-done-paint, var(--cp-done-fill));
+  color: oklch(100% 0 0deg);
+  transition-duration: 160ms, 160ms, var(--cp-dur-press), 300ms;
+}
+
+button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
+  background: var(--cp-done-paint, var(--cp-danger-9));
+  color: var(--cp-danger-on);
+}
+
+:where(.cp-button[data-cp-confirm]) > .cp-icon[data-part],
+[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
+[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
+  display: none;
+}
+
+[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
+  display: inline-block;
+  animation: cp-spin 0.8s linear infinite;
+}
+
+[data-cp-state="done"] > .cp-icon[data-part="done"] {
+  display: inline-block;
+  animation: cp-check-draw 320ms var(--cp-ease-out);
+}
+
+/* A busy or done button takes no second press, so it never starts an action
+ * it cannot show. */
+.cp-button[data-cp-state="busy"],
+.cp-button[data-cp-state="done"] {
+  cursor: default;
+}
+
+@keyframes cp-check-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-cp-state="busy"] > .cp-icon[data-part],
+  [data-cp-state="done"] > .cp-icon[data-part] {
+    animation: none;
+  }
+}
+
+/* A button group: buttons joined into one control, a thin line between them,
+ * the outer corners rounded. It presses as one, because a part that scaled
+ * alone would open a gap at its seam. */
+:is(.cp-group, .cp-split) {
+  display: inline-flex;
+  transition: transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+:is(.cp-group, .cp-split) > .cp-button {
+  --cp-press-scale: 1;
+
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+:is(.cp-group, .cp-split) > .cp-button:first-child {
+  border-start-start-radius: var(--cp-radius-control);
+  border-end-start-radius: var(--cp-radius-control);
+}
+
+:is(.cp-group, .cp-split) > .cp-button:last-child {
+  border-start-end-radius: var(--cp-radius-control);
+  border-end-end-radius: var(--cp-radius-control);
+}
+
+:is(.cp-group, .cp-split) > .cp-button + .cp-button {
+  border-inline-start: 1px solid oklch(from currentcolor l c h / 25%);
+}
+
+/* @cplieger/ui/press never marks a disabled control, and a disabled button
+ * is never :active. */
+.cp-group:has(> [data-cp-pressed]),
+.cp-split:has(> [data-cp-pressed]),
+.cp-group:has(> :active:not([aria-disabled="true"])),
+.cp-split:has(> :active:not([aria-disabled="true"])) {
+  transform: scale(var(--cp-press-scale));
+}
+
+/* A split button: a primary action and a caret that opens its other
+ * choices. It is one shape: the split paints the fill, its corners and its
+ * state's colour, and its parts paint nothing at rest, so its edges are drawn
+ * once and cannot disagree between the parts at a fractional offset. A part
+ * paints only its own hover or press, inside the shape, and the split does
+ * not clip, so a part's focus ring still shows outside it. */
+.cp-split {
+  --cp-caret-w: 2.25rem;
+  --cp-done-paint: transparent;
+
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-tone-9);
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.cp-split:has(> [data-cp-state="done"]) {
+  background: oklch(from var(--cp-success-9) min(l, 0.52) c h);
+  transition:
+    background-color 160ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* A part's hover or press fill stops inside its transparent 1px border, so
+ * it never paints over the shape's own anti-aliased edge, which would make
+ * the hovered part's edge heavier than its neighbour's. A button's own hover
+ * and press rules set the background shorthand, which resets the clip, so
+ * each split rule restates it. */
+.cp-split > .cp-button {
+  background-color: transparent;
+  background-clip: padding-box;
+  color: var(--cp-tone-on);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-split > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-cp-state]) {
+      background-color: var(--cp-tone-10);
+      background-clip: padding-box;
+    }
+  }
+}
+
+.cp-split > .cp-button[data-cp-pressed]:not([data-cp-state]),
+.cp-split > .cp-button:active:not(:disabled, [data-cp-state]) {
+  background-color: var(--cp-tone-10);
+  background-clip: padding-box;
+}
+
+.cp-split > .cp-button:last-child {
+  inline-size: var(--cp-caret-w);
+  min-inline-size: 0;
+  padding-inline: 0;
+  transition:
+    visibility 0s,
+    border-color 120ms var(--cp-ease-out) 120ms,
+    background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+/* While the main action works it grows over its caret: its end slides
+ * across the caret, its rounded corners travel at that end over the same
+ * colour, and the split keeps one width. Once done it slides back and
+ * squares its corners when its end reaches the seam. The covered caret
+ * leaves the tab order, and its line and chevron fade so the parts read as
+ * one button. */
+.cp-split > .cp-button:first-child {
+  z-index: 1;
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    padding-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    border-radius 0s var(--cp-dur-medium);
+}
+
+.cp-split:has(> [data-cp-state]) > .cp-button:first-child {
+  margin-inline-end: calc(-1 * var(--cp-caret-w));
+  padding-inline-end: calc(var(--cp-control-pad-x) + var(--cp-caret-w));
+  border-start-end-radius: var(--cp-radius-control);
+  border-end-end-radius: var(--cp-radius-control);
+  transition:
+    background-color 600ms var(--cp-ease-out),
+    color 600ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out),
+    margin-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    padding-inline-end var(--cp-dur-medium) var(--cp-ease-out),
+    border-radius 0s;
+}
+
+.cp-split:has(> [data-cp-state]) > .cp-button:last-child {
+  visibility: hidden;
+  border-inline-start-color: transparent;
+  transition:
+    visibility 0s var(--cp-dur-medium),
+    border-color 160ms var(--cp-ease-out);
+}
+
+/* The chevron fades ahead of the sliding edge, so half a chevron never
+ * shows, and returns once the edge has passed back over it. */
+.cp-split > .cp-button:last-child > .cp-icon {
+  transition: opacity 120ms var(--cp-ease-out) 120ms;
+}
+
+.cp-split:has(> [data-cp-state]) > :last-child > .cp-icon {
+  opacity: 0;
+  transition: opacity 90ms var(--cp-ease-out);
+}
+
+/* A toggle (@cplieger/ui/toggle): a quiet icon button that is on or off,
+ * such as Pin or Favourite. While on it shows its filled drawing in its own
+ * colour, the accent for a pin and a red for a favourite, and a change plays
+ * the drawing's motion: a pin drops in as if into a board and lifts out, a
+ * heart beats. Under a mouse a pin lifts 2px and an off heart tints, as a
+ * hint of what a press does. */
+.cp-toggle {
+  --cp-toggle-on: var(--cp-accent);
+}
+
+.cp-toggle[data-kind="favourite"] {
+  --cp-toggle-on: oklch(62% 0.21 20deg);
+}
+
+.cp-toggle > .cp-icon[data-part="on"],
+.cp-toggle[aria-pressed="true"] > .cp-icon:not([data-part="on"]) {
+  display: none;
+}
+
+.cp-toggle[aria-pressed="true"] > .cp-icon[data-part="on"] {
+  display: inline-block;
+}
+
+/* (0,4,1) lifts the colour over a quiet button's hover ink, a (0,4,0)
+ * scoped rule that wins a tie by proximity. */
+button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
+  color: var(--cp-toggle-on);
+}
+
+.cp-toggle[data-kind="pin"] > .cp-icon {
+  transition: translate 180ms var(--cp-ease-out);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .cp-icon {
+      translate: 0 -2px;
+    }
+
+    button.cp-toggle[data-kind="favourite"]:hover:enabled {
+      color: var(--cp-toggle-on);
+    }
+  }
+}
+
+/* The keyframes name no first or last frame, so the arc starts and ends at
+ * the pin's own position: lifted under a mouse, at rest under a finger. */
+.cp-toggle[data-kind="pin"][data-cp-toggled="on"] > .cp-icon {
+  animation: cp-pin-drop 640ms;
+}
+
+.cp-toggle[data-kind="pin"][data-cp-toggled="off"] > .cp-icon {
+  animation: cp-pin-lift 360ms var(--cp-ease-out);
+}
+
+.cp-toggle[data-kind="favourite"][data-cp-toggled="on"] > .cp-icon {
+  animation: cp-heart-beat 1100ms var(--cp-ease-out);
+}
+
+@keyframes cp-pin-drop {
+  30% {
+    translate: 0 -7px;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+
+  62% {
+    translate: 0 3px;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+  }
+
+  82% {
+    translate: 0 -1px;
+    animation-timing-function: ease-in-out;
+  }
+}
+
+@keyframes cp-pin-lift {
+  40% {
+    translate: 0 -5px;
+  }
+}
+
+@keyframes cp-heart-beat {
+  0% {
+    scale: 1;
+  }
+
+  15% {
+    scale: 1.35;
+  }
+
+  30% {
+    scale: 0.92;
+  }
+
+  45% {
+    scale: 1.15;
+  }
+
+  100% {
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-toggle[data-cp-toggled] > .cp-icon {
+    animation: none;
+  }
+}
+
+/* A roll: words or a number that change by sliding, the old line out and the
+ * new one in, inside a one-line window. @cplieger/ui/roll writes the lines
+ * and the window's width, which glides to the new line's. */
+.cp-roll {
+  display: inline-grid;
+  grid-template-columns: max-content;
+  block-size: 1lh;
+  overflow: hidden;
+  vertical-align: top;
+  text-align: start;
+  transition: inline-size var(--cp-dur-long) var(--cp-ease-out);
+}
+
+.cp-roll > * {
+  grid-area: 1 / 1;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.cp-roll[data-kind="number"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The pill @cplieger/ui/pill slides under a segmented choice's chosen
+ * segment. Placed by row and column, so a wrapped choice slides to its
+ * line. Once it is there, the segments paint no fill of their own. */
+.cp-segmented:has(> .cp-pill) {
+  position: relative;
+}
+
+.cp-pill {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: var(--cp-pill-w, 0);
+  block-size: var(--cp-pill-h, 0);
+  translate: var(--cp-pill-x, 0) var(--cp-pill-y, 0);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
+  pointer-events: none;
+  transition:
+    translate 460ms var(--cp-ease-spring),
+    inline-size 460ms var(--cp-ease-spring),
+    block-size 460ms var(--cp-ease-spring);
+}
+
+.cp-pill[data-cp-still] {
+  transition: none;
+}
+
+.cp-pill[hidden] {
+  display: none;
+}
+
+/* offsetLeft is measured from the left edge in either direction. */
+.cp-pill:dir(rtl) {
+  inset-inline-start: auto;
+  left: 0;
+}
+
+.cp-segmented:has(> .cp-pill) > label {
+  z-index: 1;
+}
+
+.cp-segmented:has(> .cp-pill) > label:has(:checked) {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* @cplieger/ui/icons paints a drawing through a mask in currentcolor, at
+ * the size its data-cp-icon-size names. */
+:where(.cp) .cp-icon {
+  display: inline-block;
+  flex: none;
+  inline-size: var(--cp-icon-size, var(--cp-icon-ui));
+  block-size: var(--cp-icon-size, var(--cp-icon-ui));
+  background-color: currentcolor;
+  mask: var(--cp-icon-image, none) center / contain no-repeat;
+}
+
+:where(.cp) .cp-icon[data-cp-icon-size="inline"] {
+  --cp-icon-size: 1em;
+}
+
+:where(.cp) .cp-icon[data-cp-icon-size="lg"] {
+  --cp-icon-size: 1.5rem;
+}
+
+:where(.cp) .cp-icon[data-cp-icon-size="hero"] {
+  --cp-icon-size: 3rem;
+}
+
+/* A drawing that points along the line of text faces the other way in a
+ * right-to-left context. */
+:where(.cp) .cp-icon:dir(rtl):is([data-cp-icon$="-right"], [data-cp-icon$="-left"]) {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.cp) .cp-icon[data-cp-icon="spinner-arc"] {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.cp) .cp-icon {
+    forced-color-adjust: none;
+  }
+
+  @supports (forced-color-adjust: preserve-parent-color) {
+    :where(.cp) .cp-icon {
+      forced-color-adjust: preserve-parent-color;
+    }
+  }
+}

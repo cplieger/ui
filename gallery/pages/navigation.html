@@ -1,0 +1,201 @@
+<main class="play">
+  <header>
+    <h1>Navigation</h1>
+    <p>How a person moves through an app: the header and the rail, content tabs, breadcrumbs, pages of results, and sections that open in place.</p>
+  </header>
+
+  <nav class="g-index" aria-label="On this page"><a href="#frame">Header, rail and status line</a><a href="#tabs">Tabs</a><a href="#paths">Breadcrumbs and pages</a><a href="#sections">Sections</a><a href="#detail">Master and detail</a><a href="#compact">Compact width</a></nav>
+
+  <section class="g-section" id="frame">
+    <h2>Header, rail and status line</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <h2>Header</h2>
+        <div class="g-mini-header">
+          <a class="g-skip" href="#frame">Skip to the content</a>
+          <header class="cp-header">
+            <a class="cp-wordmark" href="#frame" data-five-press><span class="cp-mark" aria-hidden="true">R</span><span class="cp-hidden-narrow">Release tracker</span></a>
+            <nav class="cp-nav" aria-label="Main">
+              <a class="cp-nav-item" href="#frame"><span class="cp-icon" data-cp-icon="layout-dashboard" aria-hidden="true"></span><span class="cp-nav-label">Overview</span></a>
+              <a class="cp-nav-item" href="#frame" aria-current="page"><span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span><span class="cp-nav-label">Library</span></a>
+              <a class="cp-nav-item" href="#frame"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-nav-label">Releases</span><span class="g-badge">12</span></a>
+            </nav>
+            <div class="cp-toolbar">
+              <button class="g-status" type="button" data-state="ok" popovertarget="p-status" aria-label="All good"><span class="g-dot"></span><span class="g-status-word">All good</span></button>
+              <div class="g-pop g-status-panel" id="p-status" popover role="dialog" aria-labelledby="p-status-h" data-status-panel>
+                <h2 id="p-status-h" tabindex="-1">All good</h2>
+                <section><strong><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Sources</strong><span>Sonarr and Radarr answered <time data-ago="120"></time>.</span></section>
+                <section><strong><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Next check</strong><span>A full check runs <time data-ago="-1500"></time>.</span></section>
+              </div>
+              <button class="cp-button g-theme-toggle" data-variant="quiet" type="button" aria-label="Dark theme" aria-pressed="false" data-cp-tip="Switch to dark" data-theme-toggle><span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span></button>
+              <button class="cp-button" data-variant="quiet" type="button" aria-label="Search, Ctrl K" data-cp-tip="Search (Ctrl K)"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span></button>
+              <button class="cp-button cog-turn" data-variant="quiet" type="button" aria-label="Settings" data-cp-tip="Settings"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span></button>
+              <button class="cp-button g-avatar-btn" data-variant="quiet" type="button" aria-label="Account" popovertarget="m-account" aria-haspopup="menu"><span class="g-avatar" data-size="sm" data-h="1">CP</span></button>
+              <div class="g-pop g-menu" id="m-account" popover role="menu" aria-label="Account">
+                <div class="g-menu-label">Signed in as cplieger</div>
+                <button role="menuitem" type="button" data-say="Account opened"><span class="cp-icon" data-cp-icon="user" aria-hidden="true"></span>Account and security</button>
+                <hr>
+                <button role="menuitem" type="button" data-say="Signed out"><span class="cp-icon" data-cp-icon="log-out" aria-hidden="true"></span>Sign out</button>
+              </div>
+            </div>
+          </header>
+        </div>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-status-demo>Next status</button></div>
+        <footer>The first Tab stop is Skip to the content, hidden until focused. The brand colour carries the header. Its status button opens a panel that does not trap focus: Tab past its end closes it. The theme button switches between light and dark in one press, its icon turning to the new one; System stays a choice in Settings. Under 60rem the destinations keep only their icons. The account button is the avatar alone, ringed so it stands off the bar whatever its colour; its menu holds who is signed in and Sign out. The status is a tone, a glyph and a word: All good, Working, problems, Offline with a dashed edge, in the order they win from the last; Next status steps through them. Only Working breathes, and it stands still under reduced motion. At compact width the word hides and stays the button's name, and a change is announced politely. Press the mark five times for its flip.</footer>
+      </div>
+      <div class="card g-wide">
+        <h2>Jump to an entry</h2>
+        <div class="cp-field"><label class="cp-label" for="jump-in">Search the library</label>
+          <div class="cp-input-row" data-jump="jump-list"><div class="g-search g-grow"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input class="cp-input" id="jump-in" role="combobox" aria-expanded="false" aria-controls="jump-options" aria-autocomplete="list" placeholder="Title, year or group"><button class="cp-button g-clear" data-variant="quiet" type="button" aria-label="Clear"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></div><button class="cp-button" type="button" data-jump-go>Search</button></div>
+          <div class="g-pop g-suggest g-jump" id="jump-list" popover="manual"><ul id="jump-options" role="listbox" aria-label="Entries">
+            <li role="option" id="j-1"><span class="g-cover" data-h="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><strong>Frieren: Beyond Journey's End</strong><small>2023 · TV · On the best</small></li>
+            <li role="option" id="j-2"><span class="g-cover" data-h="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><strong>Mushishi</strong><small>2005 · TV · On an alt</small></li>
+            <li role="option" id="j-3"><span class="g-cover" data-h="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong>The Boy and the Heron</strong><small>2023 · Film · On the best</small></li>
+          </ul><p role="status" hidden></p></div>
+        </div>
+        <footer>One value: options with a picture, a title and a line of facts. The first Escape closes the list, the second clears the field; the count is announced after typing stops.</footer>
+      </div>
+      <div class="card">
+        <h2>Rail</h2>
+        <div class="g-rail">
+          <div class="cp-filter-group"><h3 class="cp-filter-title">Verdict</h3>
+            <button class="cp-filter filter-fade" type="button" aria-pressed="true"><span class="cp-swatch" data-tone="success"></span>On the best<span class="g-badge" data-quiet>268</span></button>
+            <button class="cp-filter filter-fade" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="warning"></span>Older revision<span class="g-badge" data-quiet>17</span></button>
+            <button class="cp-filter filter-fade" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="danger"></span>Missing<span class="g-badge" data-quiet>9</span></button>
+          </div>
+          <div class="cp-filter-group"><h3 class="cp-filter-title">Source</h3>
+            <button class="cp-filter filter-fade" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="accent"></span>Sonarr<span class="g-badge" data-quiet>351</span></button>
+            <button class="cp-filter filter-fade" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="neutral"></span>Radarr<span class="g-badge" data-quiet>61</span></button>
+          </div>
+        </div>
+        <footer>Filters with their counts. Below 60rem the rail moves behind a Filters button and opens as a sheet.</footer>
+      </div>
+      <div class="card g-wide">
+        <h2>Status line</h2>
+        <div class="g-statusline" role="status"><span>412 entries</span><span>All sources reachable</span><span data-late><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Late: the 14:00 check has not run</span></div>
+        <footer>The frame's last line: facts about the whole app, and a late state with its glyph and word.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="tabs">
+    <h2>Content tabs</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <h2>Tabs that slide</h2>
+        <div class="cp-tabs slide-tabs" role="tablist" aria-label="Item" data-tabs>
+          <span class="pill" aria-hidden="true"></span>
+          <button class="cp-tab" role="tab" type="button" aria-selected="true" aria-controls="tp-1" id="t-1">Episodes</button>
+          <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tp-2" id="t-2" tabindex="-1">Subtitles</button>
+          <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tp-3" id="t-3" tabindex="-1">Timing</button>
+          <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tp-4" id="t-4" tabindex="-1">History</button>
+        </div>
+        <div class="g-strip-panel" role="tabpanel" id="tp-1" aria-labelledby="t-1">Episodes: 28, all on the best release.</div>
+        <div class="g-strip-panel" role="tabpanel" id="tp-2" aria-labelledby="t-2" hidden>Subtitles: English, French.</div>
+        <div class="g-strip-panel" role="tabpanel" id="tp-3" aria-labelledby="t-3" hidden>Timing: 0 cues out of sync.</div>
+        <div class="g-strip-panel" role="tabpanel" id="tp-4" aria-labelledby="t-4" hidden>History: 12 events this month.</div>
+        <p class="g-note g-gap-top">When a panel loads only once it is chosen, the same tabs move focus with the arrows and select on Enter or Space:</p>
+        <div class="cp-tabs slide-tabs" role="tablist" aria-label="Entry" data-tabs-manual>
+          <span class="pill" aria-hidden="true"></span>
+          <button class="cp-tab" role="tab" type="button" aria-selected="true" aria-controls="tm-1" id="tm-t1">Overview</button>
+          <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tm-2" id="tm-t2" tabindex="-1">Releases</button>
+          <button class="cp-tab" role="tab" type="button" aria-selected="false" aria-controls="tm-3" id="tm-t3" tabindex="-1">History</button>
+        </div>
+        <div class="g-strip-panel" role="tabpanel" id="tm-1" aria-labelledby="tm-t1">Overview: loaded.</div>
+        <div class="g-strip-panel" role="tabpanel" id="tm-2" aria-labelledby="tm-t2" hidden></div>
+        <div class="g-strip-panel" role="tabpanel" id="tm-3" aria-labelledby="tm-t3" hidden></div>
+        <footer>One kind of tabs, with the sliding pill. When the panels are already on the page, the arrows move along the tabs and select. When a panel loads only once chosen, the arrows move focus and Enter or Space selects (the WAI-ARIA tabs pattern's manual activation), so arrowing past a tab never starts a load. The pill moves; the panels never animate.</footer>
+      </div>
+      <div class="card g-wide">
+        <h2>Page header and tabs as links</h2>
+        <div class="g-pagehead">
+          <nav class="cp-crumbs" aria-label="Breadcrumb"><a href="#tabs">Library</a><span aria-current="page">Frieren</span></nav>
+          <div><h3 class="g-h1">Frieren: Beyond Journey's End</h3><p>28 episodes, all on the best release.</p></div>
+          <div class="cp-toolbar"><button class="cp-button" type="button">Refresh</button><button class="cp-button" data-variant="primary" type="button">Find subtitles</button></div>
+        </div>
+        <nav class="g-linktabs g-gap-top" aria-label="Frieren"><a href="#tabs" aria-current="page">Episodes</a><a href="#tabs">Subtitles</a><a href="#tabs">Timing</a><a href="#tabs">History</a></nav>
+        <footer>When each tab is its own address, the tabs are links in a nav, and the current one is aria-current; ARIA tabs are for panels on one page.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="paths">
+    <h2>Breadcrumbs and pages</h2>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Breadcrumbs</h2>
+        <nav class="cp-crumbs" aria-label="Breadcrumb"><a href="#paths">Library</a><a href="#paths">Frieren</a><span aria-current="page">Season 1</span></nav>
+        <footer>For a place two or more levels down.</footer>
+      </div>
+      <div class="card">
+        <h2>Pages</h2>
+        <nav class="cp-pager" aria-label="Pages"><span>21 to 40 of 412</span><a class="cp-button" data-size="sm" href="#paths">Previous</a><a class="cp-button" data-size="sm" href="#paths">Next</a></nav>
+        <footer>Previous and Next with the range, as links, so Back works.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="sections">
+    <h2>Sections that open in place</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <h2>Accordion</h2>
+        <div class="cp-segmented" role="radiogroup" aria-label="Sections open" data-acc-mode="acc-seasons"><label>One at a time<input type="radio" name="acc-mode" value="one" checked></label><label>Any number<input type="radio" name="acc-mode" value="any"></label></div>
+        <div class="g-accordion g-gap-top" id="acc-seasons">
+          <div class="g-group"><details name="seasons" open><summary>Season 1<span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></summary><div class="g-acc-body">28 episodes, BD remux, dual audio.</div></details><button class="cp-button g-group-menu" data-variant="quiet" data-size="sm" type="button" popovertarget="m-season" aria-label="Season 1 actions"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div>
+          <div class="g-group"><details name="seasons"><summary>Season 2<span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Older revision</span><span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></summary><div class="g-acc-body">12 episodes; a v2 release fixes the subtitles of episode 7.</div></details><button class="cp-button g-group-menu" data-variant="quiet" data-size="sm" type="button" popovertarget="m-season" aria-label="Season 2 actions"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div>
+          <div class="g-group"><details name="seasons"><summary>Specials<span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></summary><div class="g-acc-body">2 specials, not in Sonarr.</div></details><button class="cp-button g-group-menu" data-variant="quiet" data-size="sm" type="button" popovertarget="m-season" aria-label="Specials actions"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div>
+        </div>
+        <div class="g-pop g-menu" id="m-season" popover role="menu" aria-label="Season actions">
+          <button role="menuitem" type="button" data-say="Finding subtitles for the season"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span>Find subtitles</button>
+          <button role="menuitem" type="button" data-say="Timing check started"><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Fix timing…</button>
+          <button role="menuitem" type="button" data-say="Season refreshed"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh</button>
+        </div>
+        <footer>Native details. One at a time shares a name, so opening one closes the others; Any number lets each open and close on its own. Each glides open and shut, and its chevron turns with it. A section's menu sits beside its summary, not in it, so opening the menu never opens or closes the section.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="detail">
+    <h2>Master and detail</h2>
+    <p>A list with its selected item's detail docked beside it at wide width, and the same detail in a dialog below it. The route opens it, so Back closes it, and a link to it opens it.</p>
+    <div class="card g-wide">
+      <div class="g-md" data-md="md-dialog">
+        <ul class="g-list">
+          <li><a class="g-row" href="#md/frieren" data-title="Frieren: Beyond Journey's End" data-meta="TV, 2023, 28 episodes, on the best release"><span class="g-avatar" data-h="2">FR</span><span>Frieren: Beyond Journey's End<small>28 episodes</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="g-row" href="#md/mushishi" data-title="Mushishi" data-meta="TV, 2005, 26 episodes, on an alt release"><span class="g-avatar" data-h="3">MU</span><span>Mushishi<small>26 episodes</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="g-row" href="#md/heron" data-title="The Boy and the Heron" data-meta="Film, 2023, on the best release"><span class="g-avatar" data-h="1">BH</span><span>The Boy and the Heron<small>Film</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+        </ul>
+        <aside class="g-dock" aria-labelledby="md-dock-title" hidden>
+          <header><h3 id="md-dock-title" class="g-md-title" tabindex="-1"></h3><button class="cp-button" data-variant="quiet" type="button" data-md-close aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
+          <div class="g-dock-content"><p class="g-md-meta g-note"></p><div class="cp-tabs" role="tablist" aria-label="Detail"><button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button><button class="cp-tab" role="tab" type="button" aria-selected="false" tabindex="-1">Subtitles</button></div></div>
+        </aside>
+      </div>
+      <dialog class="g-dialog g-sheet" id="md-dialog" aria-labelledby="md-dialog-title">
+        <form method="dialog"><header><h2 id="md-dialog-title" class="g-md-title"></h2><button class="cp-button" data-variant="quiet" type="button" data-md-close aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header><div class="g-body"></div></form>
+      </dialog>
+      <footer>Opening focuses the panel's heading; Close, Escape or Back returns focus to the row's link. Narrow the window under 64rem to see the dialog.</footer>
+    </div>
+  </section>
+
+  <section class="g-section" id="compact">
+    <h2>At compact width</h2>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Bottom navigation</h2>
+        <div class="g-phone">
+          <div class="g-phone-head">Release tracker</div>
+          <div class="g-phone-body">Library: this destination's screen.</div>
+          <nav class="g-bottom-nav" aria-label="Main">
+            <a href="#compact"><span class="cp-icon" data-cp-icon="layout-dashboard" aria-hidden="true"></span>Overview</a>
+            <a href="#compact" aria-current="page"><span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span>Library</a>
+            <a href="#compact"><span class="cp-icon" data-cp-icon="activity" aria-hidden="true"></span>Activity</a>
+            <a href="#compact"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span>Settings</a>
+          </nav>
+        </div>
+        <footer>Below 40rem the main nav moves to the bottom, up to four destinations. The same nav is the header's or the rail's at wider widths.</footer>
+      </div>
+    </div>
+  </section>
+
+</main>

@@ -1,0 +1,261 @@
+/* What @cplieger/ui/icons' createIcons sets on each icon it builds, written
+ * as rules so the page needs no script. */
+[data-cp-icon="funnel"] {
+  --cp-icon-image: url("../../icons/svg/funnel.svg");
+}
+
+[data-cp-icon="check"] {
+  --cp-icon-image: url("../../icons/svg/check.svg");
+}
+
+[data-cp-icon="chevron-right"] {
+  --cp-icon-image: url("../../icons/svg/chevron-right.svg");
+}
+
+[data-cp-icon="circle-alert"] {
+  --cp-icon-image: url("../../icons/svg/circle-alert.svg");
+}
+
+[data-cp-icon="circle-check"] {
+  --cp-icon-image: url("../../icons/svg/circle-check.svg");
+}
+
+[data-cp-icon="circle-dashed"] {
+  --cp-icon-image: url("../../icons/svg/circle-dashed.svg");
+}
+
+[data-cp-icon="circle-x"] {
+  --cp-icon-image: url("../../icons/svg/circle-x.svg");
+}
+
+[data-cp-icon="clock"] {
+  --cp-icon-image: url("../../icons/svg/clock.svg");
+}
+
+[data-cp-icon="download"] {
+  --cp-icon-image: url("../../icons/svg/download.svg");
+}
+
+[data-cp-icon="history"] {
+  --cp-icon-image: url("../../icons/svg/history.svg");
+}
+
+[data-cp-icon="layout-dashboard"] {
+  --cp-icon-image: url("../../icons/svg/layout-dashboard.svg");
+}
+
+[data-cp-icon="library"] {
+  --cp-icon-image: url("../../icons/svg/library.svg");
+}
+
+[data-cp-icon="list"] {
+  --cp-icon-image: url("../../icons/svg/list.svg");
+}
+
+[data-cp-icon="octagon-alert"] {
+  --cp-icon-image: url("../../icons/svg/octagon-alert.svg");
+}
+
+[data-cp-icon="pin"] {
+  --cp-icon-image: url("../../icons/svg/pin.svg");
+}
+
+[data-cp-icon="pin-filled"] {
+  --cp-icon-image: url("../../icons/svg/pin-filled.svg");
+}
+
+[data-cp-icon="radio-tower"] {
+  --cp-icon-image: url("../../icons/svg/radio-tower.svg");
+}
+
+[data-cp-icon="refresh-cw"] {
+  --cp-icon-image: url("../../icons/svg/refresh-cw.svg");
+}
+
+[data-cp-icon="search"] {
+  --cp-icon-image: url("../../icons/svg/search.svg");
+}
+
+[data-cp-icon="settings"] {
+  --cp-icon-image: url("../../icons/svg/settings.svg");
+}
+
+[data-cp-icon="spinner-arc"] {
+  --cp-icon-image: url("../../icons/svg/spinner-arc.svg");
+}
+
+[data-cp-icon="x"] {
+  --cp-icon-image: url("../../icons/svg/x.svg");
+}
+
+[data-cp-icon="sun-moon"] {
+  --cp-icon-image: url("../../icons/svg/sun-moon.svg");
+}
+
+[data-cp-icon="timer"] {
+  --cp-icon-image: url("../../icons/svg/timer.svg");
+}
+
+[data-cp-icon="trash-2"] {
+  --cp-icon-image: url("../../icons/svg/trash-2.svg");
+}
+
+[data-cp-icon="triangle-alert"] {
+  --cp-icon-image: url("../../icons/svg/triangle-alert.svg");
+}
+
+[data-cp-icon="user"] {
+  --cp-icon-image: url("../../icons/svg/user.svg");
+}
+
+[data-cp-icon="copy"] {
+  --cp-icon-image: url("../../icons/svg/copy.svg");
+}
+
+[data-cp-icon="eye"] {
+  --cp-icon-image: url("../../icons/svg/eye.svg");
+}
+
+[data-cp-icon="info"] {
+  --cp-icon-image: url("../../icons/svg/info.svg");
+}
+
+[data-cp-icon="key-round"] {
+  --cp-icon-image: url("../../icons/svg/key-round.svg");
+}
+
+[data-cp-icon="lock"] {
+  --cp-icon-image: url("../../icons/svg/lock.svg");
+}
+
+[data-cp-icon="log-in"] {
+  --cp-icon-image: url("../../icons/svg/log-in.svg");
+}
+
+[data-cp-icon="log-out"] {
+  --cp-icon-image: url("../../icons/svg/log-out.svg");
+}
+
+[data-cp-icon="plus"] {
+  --cp-icon-image: url("../../icons/svg/plus.svg");
+}
+
+[data-cp-icon="shield-check"] {
+  --cp-icon-image: url("../../icons/svg/shield-check.svg");
+}
+
+[data-cp-icon="chevron-down"] {
+  --cp-icon-image: url("../../icons/svg/chevron-down.svg");
+}
+
+[data-cp-icon="heart"] {
+  --cp-icon-image: url("../../icons/svg/heart.svg");
+}
+
+[data-cp-icon="heart-filled"] {
+  --cp-icon-image: url("../../icons/svg/heart-filled.svg");
+}
+
+[data-cp-icon="save"] {
+  --cp-icon-image: url("../../icons/svg/save.svg");
+}
+
+[data-cp-icon="layout-grid"] {
+  --cp-icon-image: url("../../icons/svg/layout-grid.svg");
+}
+
+/* Example seeds for the reference screens: an app's colour identity is
+ * these values and nothing else. */
+[data-app="library"] {
+  --cp-accent-h: 255;
+  --cp-accent-c: 0.137;
+  --cp-neutral-h: 255;
+}
+
+[data-app="item"] {
+  --cp-accent-h: 32;
+  --cp-accent-c: 0.136;
+  --cp-neutral-h: 40;
+  --cp-neutral-c: 0.006;
+  --cp-danger-h: 0;
+}
+
+/* An app's own tones: one hue each, always with a glyph and a word. */
+[data-tone="best"] {
+  --cp-tone-h: 162;
+  --cp-tone-c: 0.11;
+}
+
+[data-tone="alt"] {
+  --cp-tone-h: 222;
+  --cp-tone-c: 0.095;
+}
+
+[data-tone="older"] {
+  --cp-tone-h: 98;
+  --cp-tone-c: 0.11;
+}
+
+[data-tone="worse"] {
+  --cp-tone-h: 55;
+  --cp-tone-c: 0.13;
+}
+
+[data-tone="missing"] {
+  --cp-tone-h: 27;
+  --cp-tone-c: 0.14;
+}
+
+[data-tone="pinned"] {
+  --cp-tone-h: 235;
+  --cp-tone-c: 0.1;
+}
+
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 3rem 1fr 6rem 6rem;
+  gap: var(--cp-space-4);
+  padding: var(--cp-space-3);
+}
+
+.parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: var(--cp-space-6);
+  align-items: start;
+}
+
+/* A part that needs the page's width, such as a docked detail. */
+.parts > .wide {
+  grid-column: 1 / -1;
+}
+
+.parts h2 {
+  font-size: var(--cp-text-md);
+  margin-block-end: var(--cp-space-3);
+}
+
+.progress-58 {
+  inline-size: 58%;
+}
+
+/* A sheet shown in place, at the size it opens at, for the reference only. */
+.sheet-frame {
+  block-size: 20rem;
+  inline-size: min(24rem, 100%);
+  border-radius: var(--cp-radius-overlay);
+  background: var(--cp-surface-overlay);
+  box-shadow: var(--cp-shadow-overlay);
+  overflow: hidden;
+}
+
+/* A sheet drawn in place, without opening it: what the dialog's open state
+ * and the top layer would give it. */
+.sheet-frame > .cp-dialog {
+  position: static;
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  opacity: 1;
+  translate: none;
+}

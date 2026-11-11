@@ -1,0 +1,63 @@
+<main class="play">
+  <header>
+    <h1>Media</h1>
+    <p>Pieces for the apps that show films and series: an item's hero, a video preview with its caption track, and a change shown before it applies.</p>
+  </header>
+
+  <section class="g-section" id="head">
+    <h2>Item hero</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <div class="g-media-head">
+          <span class="g-cover" data-h="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span>
+          <div>
+            <h2>Frieren: Beyond Journey's End</h2>
+            <p class="g-alt-title" lang="ja">葬送のフリーレン</p>
+            <div class="g-media-meta"><span>TV, 2023</span><span>28 episodes</span><span>Japanese audio</span></div>
+            <div class="g-row-inline"><button class="cp-button" data-variant="primary" type="button"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span>Find subtitles</button><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh</button></div>
+            <nav class="g-linkchips" aria-label="Frieren elsewhere"><a href="#head">Releases<span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a><a href="#head">Activity<span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a><a href="#head">Sonarr<span class="cp-icon" data-cp-icon="external-link" aria-hidden="true"></span><span class="g-sr">, opens Sonarr</span></a><a href="#head">AniList<span class="cp-icon" data-cp-icon="external-link" aria-hidden="true"></span><span class="g-sr">, opens AniList</span></a></nav>
+            <div class="g-row-inline g-gap-top"><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span><span class="cp-chip" data-tone="neutral"><span class="cp-icon" data-cp-icon="pin" aria-hidden="true"></span>Pinned</span></div>
+          </div>
+        </div>
+        <footer>Poster, title, the title in its own language, a line of facts, the page's actions, then links: a chevron stays in the app, the external mark leaves it. State chips close it. It wraps under the poster on a phone.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="video">
+    <h2>Video with one caption track</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <div class="g-player" data-offset="nudge-video">
+          <video src="media/sample.webm" preload="metadata" playsinline crossorigin="anonymous"><track kind="subtitles" src="media/sample.vtt" srclang="en" label="English" default></video>
+          <div class="g-player-bar"><button class="cp-button" data-variant="quiet" type="button" data-play aria-label="Play"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span></button><input class="g-range g-seek" type="range" min="0" max="12" step="0.01" value="0" aria-label="Seek"><span class="g-time-label">0:00 / 0:12</span></div>
+        </div>
+        <div class="cp-field g-gap-top"><label class="cp-label" for="nudge-video-input">Caption offset, previewed live</label><div class="g-nudge" id="nudge-video"><button class="cp-button" data-size="sm" type="button" data-nudge="-1">−1 s</button><button class="cp-button" data-size="sm" type="button" data-nudge="-0.1">−0.1 s</button><input class="cp-input" id="nudge-video-input" value="0.00" inputmode="decimal"><button class="cp-button" data-size="sm" type="button" data-nudge="0.1">+0.1 s</button><button class="cp-button" data-size="sm" type="button" data-nudge="1">+1 s</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-reset>Reset</button></div></div>
+        <footer>The native video under our controls: play and pause, a seek bar with both times, and one caption track that redraws the moment the offset changes.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="proposal">
+    <h2>A change shown before it applies</h2>
+    <div class="g-grid">
+      <div class="card">
+        <div class="g-proposal" data-applied="Applied: +1.250 s with drift corrected.">
+          <p><strong>Proposed:</strong> +1.250 s with drift corrected. Reference track confidence 82%.</p>
+          <div class="g-row-inline"><button class="cp-button" data-variant="primary" data-size="sm" type="button" data-apply>Apply</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-discard-proposal>Discard</button></div>
+        </div>
+        <footer>Preview first, then Apply or Discard.</footer>
+      </div>
+      <div class="card">
+        <div class="g-proposal" data-unverified data-confirm="d-unverified" data-applied="Applied: +0.400 s, not checked against a reference.">
+          <p><strong>Proposed, not checked:</strong> +0.400 s. No reference track was found to check it against.</p>
+          <div class="g-row-inline"><button class="cp-button" data-size="sm" type="button" data-apply>Apply anyway…</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-discard-proposal>Discard</button></div>
+        </div>
+        <dialog class="g-dialog g-confirm" id="d-unverified" role="alertdialog" aria-labelledby="d-unverified-title">
+          <form method="dialog"><div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-unverified-title">Apply an unchecked change?</h2><p>Nothing confirmed that +0.400 s matches the audio.</p></div></div><footer><button class="cp-button" value="cancel" autofocus>Keep the current timing</button><button class="cp-button" data-variant="primary" value="apply">Apply</button></footer></form>
+        </dialog>
+        <footer>An unchecked proposal makes Apply the secondary button and asks first.</footer>
+      </div>
+    </div>
+  </section>
+</main>

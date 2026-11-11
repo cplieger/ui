@@ -1,0 +1,58 @@
+/* Panel: an in-flow surface outlined by one line. A flush panel scrolls a
+ * wide table inside itself so the page never scrolls sideways. */
+.cp-panel {
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  padding: var(--cp-space-4);
+}
+
+.cp-panel[data-flush] {
+  position: relative;
+  padding: 0;
+  overflow-x: auto;
+}
+
+.cp-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+.cp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-heading-row {
+  container: cp-heading / inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--cp-space-3) var(--cp-space-6);
+  margin-block-end: var(--cp-space-5);
+}
+
+.cp-heading-row > :first-child {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+.cp-heading-row > .cp-toolbar {
+  flex: 0 1 auto;
+  justify-content: end;
+}
+
+@container cp-heading (width < 40rem) {
+  .cp-heading-row > .cp-toolbar {
+    flex: 1 1 100%;
+    justify-content: start;
+  }
+
+  .cp-heading-row > .cp-toolbar > .cp-input {
+    flex: 1 1 8rem;
+    min-inline-size: 0;
+  }
+}

@@ -8,26 +8,30 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const PACKAGE_ROOT = resolve(import.meta.dirname, "..");
 
-// Each subpath whose evaluation starts the dialog ranking observer, and the
-// subset that also installs the window `beforetoggle` capture listener.
-const OBSERVES = ["dialog", "modal", "ask", "announce", "toast", "popup", "popover", "tooltip"];
-const LISTENS = new Set(["dialog", "modal", "ask"]);
+// No subpath does anything as it loads: each starts its work from a call.
 const PURE = [
-  "",
-  "/signal",
-  "/dom",
-  "/fetch",
-  "/actions",
-  "/actions/testing",
+  "/anchor",
+  "/announce",
+  "/ask",
+  "/confirm",
   "/connection-test",
+  "/dialog",
   "/disclosure",
-  "/focus-trap",
   "/icons",
+  "/list-detail",
+  "/menu",
+  "/pill",
+  "/pointer",
+  "/press",
+  "/radio-focus",
+  "/roll",
   "/roving-focus",
   "/skeleton",
-  "/stepper",
   "/theme",
-  "/transition",
+  "/toast",
+  "/toggle",
+  "/tooltip",
+  "/turn",
   "/view-transition",
 ];
 
@@ -75,23 +79,18 @@ async function bundleEffectOnly(bundle: Bundle, subpath: string): Promise<string
   return bundle(entry);
 }
 
-it("classifies every exported subpath as observing or pure", async () => {
+it("lists every exported module", async () => {
   const pkg = JSON.parse(await readFile(join(PACKAGE_ROOT, "package.json"), "utf8")) as {
     exports: Record<string, unknown>;
   };
-  const exported = Object.keys(pkg.exports)
-    .filter((key) => key !== "./css" && key !== "./icons/svg/*")
-    .map((key) => key.slice(1));
-  expect(exported.toSorted()).toEqual([...PURE, ...OBSERVES.map((name) => `/${name}`)].toSorted());
+  // Stylesheets, fonts and icon files are exports but not modules.
+  const exported = Object.entries(pkg.exports)
+    .filter(([, target]) => typeof target === "string" && target.endsWith(".ts"))
+    .map(([key]) => key.slice(1));
+  expect(exported.toSorted()).toEqual(PURE.toSorted());
 });
 
 describe.each(Object.entries(bundlers))("sideEffects under %s", (_name, bundle) => {
-  it.each(OBSERVES)("an effect-only import of /%s keeps the import-time watchers", async (name) => {
-    const code = await bundleEffectOnly(bundle, `/${name}`);
-    expect(code).toContain(".observe(document,");
-    expect(/^\s*addEventListener\("beforetoggle",/m.test(code)).toBe(LISTENS.has(name));
-  });
-
   it.each(PURE)("an effect-only import of @cplieger/ui%s bundles to no code", async (subpath) => {
     const code = await bundleEffectOnly(bundle, subpath);
     expect(code.replaceAll(/\/\/.*$/gm, "").trim()).toBe("");

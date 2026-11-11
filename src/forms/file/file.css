@@ -1,0 +1,23 @@
+/* A file field is a button and a filename, not a text input: no field box,
+ * just the styled Browse button with its label beside it, vertically centred. */
+.cp-input[type="file"] {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--cp-control-h);
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+}
+
+.cp-input[type="file"]::file-selector-button {
+  min-block-size: calc(var(--cp-control-h) - 0.25rem);
+  margin: 0 var(--cp-space-3) 0 0;
+  padding: 0 var(--cp-space-3);
+  border: 0;
+  border-radius: calc(var(--cp-radius-control) - 0.125rem);
+  background: var(--cp-fill);
+  color: var(--cp-ink);
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+  cursor: pointer;
+}

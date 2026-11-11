@@ -1,0 +1,72 @@
+/* List and detail: a list with the chosen entry's detail docked beside it
+ * once the box is wide enough, and the same detail in a modal dialog below
+ * that. enhanceListDetail (@cplieger/ui/list-detail) moves the detail; the
+ * app's route opens and closes it, so Back closes it. */
+.cp-list-detail {
+  --cp-detail-w: minmax(18rem, 24rem);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+.cp-list-detail[data-cp-docked] {
+  grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
+}
+
+/* The open entry: its row in a table, or its own element in a list, carries
+ * aria-current="true". */
+.cp-list-detail tr:has([aria-current="true"]) > td,
+.cp-list-detail [aria-current="true"]:not(td *) {
+  background: var(--cp-selected);
+}
+
+.cp-detail {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-3);
+  min-inline-size: 0;
+}
+
+.cp-list-detail > .cp-detail {
+  padding: var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+  animation: cp-detail-in var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+.cp-detail-body {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-3);
+}
+
+.cp-detail > header {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-detail > header > :is(h2, h3) {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--cp-text-md);
+}
+
+.cp-list-detail > .cp-detail[data-cp-still] {
+  animation: none;
+}
+
+@keyframes cp-detail-in {
+  from {
+    opacity: 0;
+    translate: var(--cp-space-4) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-list-detail > .cp-detail {
+    animation-name: cp-fade-in;
+  }
+}

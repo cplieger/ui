@@ -1,0 +1,56 @@
+/* Roles. App CSS reads these; component classes read a tone's or a family's steps. */
+:root {
+  --cp-surface-page: light-dark(var(--cp-neutral-2), var(--cp-neutral-1));
+  --cp-surface-raised: light-dark(var(--cp-neutral-1), var(--cp-neutral-2));
+  --cp-surface-sunken: light-dark(
+    var(--cp-neutral-3),
+    oklch(16% calc(var(--cp-neutral-c) * 0.8) var(--cp-neutral-h))
+  );
+  --cp-surface-overlay: light-dark(
+    oklch(99.6% calc(var(--cp-neutral-c) * 0.5) var(--cp-neutral-h)),
+    var(--cp-neutral-3)
+  );
+  /* Step 4, not 3: a grey fill on a raised surface stays findable on a
+   * 1x screen (about 1.2:1 in both themes, where step 3 is 1.1). */
+  --cp-fill: var(--cp-neutral-4);
+  --cp-fill-hover: var(--cp-neutral-5);
+  --cp-fill-active: var(--cp-neutral-6);
+  --cp-line: var(--cp-neutral-6);
+  --cp-border: var(--cp-neutral-7);
+  --cp-border-strong: var(--cp-neutral-8);
+  --cp-ink: var(--cp-neutral-12);
+  --cp-ink-muted: var(--cp-neutral-11);
+  --cp-ink-disabled: color-mix(in oklab, var(--cp-neutral-11), transparent 45%);
+  --cp-accent: var(--cp-accent-9);
+  --cp-accent-hover: var(--cp-accent-10);
+  --cp-on-accent: var(--cp-accent-on);
+  --cp-accent-ink: var(--cp-accent-11);
+  --cp-accent-wash: var(--cp-accent-3);
+  --cp-selected: var(--cp-accent-4);
+  --cp-focus-ring: var(--cp-accent-9);
+  --cp-selection-bg: var(--cp-accent-5);
+  --cp-brand: oklch(var(--cp-brand-l) var(--cp-brand-c) var(--cp-brand-h));
+  --cp-on-brand: contrast-color(var(--cp-brand));
+  --cp-backdrop: oklch(from var(--cp-neutral-12) 15% c h / 45%);
+
+  /* The shell carries the app's brand: the solid brand in light, a deep tone
+   * of it in dark. Its hover and current fills move away from its ink. */
+  --cp-shell-bg: light-dark(
+    var(--cp-brand),
+    oklch(var(--cp-shell-dark-l) calc(var(--cp-brand-c) * var(--cp-shell-dark-k)) var(--cp-brand-h))
+  );
+  --cp-shell-ink: light-dark(
+    var(--cp-on-brand),
+    oklch(var(--cp-shell-ink-l) calc(var(--cp-brand-c) * var(--cp-shell-ink-k)) var(--cp-brand-h))
+  );
+  --cp-shell-current: color-mix(
+    in oklab,
+    var(--cp-shell-bg),
+    contrast-color(var(--cp-shell-ink)) 24%
+  );
+  --cp-shell-hover: color-mix(
+    in oklab,
+    var(--cp-shell-bg),
+    contrast-color(var(--cp-shell-ink)) 12%
+  );
+}

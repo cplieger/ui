@@ -1,0 +1,8 @@
+/* Empty state: what belongs here and the one action that fills it. */
+.cp-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-8) var(--cp-space-6);
+  color: var(--cp-ink-muted);
+}

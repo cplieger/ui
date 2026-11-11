@@ -2,5 +2,9 @@ ui
 Copyright 2026 cplieger
 https://github.com/cplieger/ui
 
-The drawings under icons/svg/ are from Lucide (https://lucide.dev), ISC License,
-with some derived from Feather, MIT License. Both notices are in icons/LICENSE-lucide.
+The drawings under icons/svg/ named in iconNames are derived from Lucide
+(https://lucide.dev), restyled with a 2.25-unit stroke, ISC License, with some
+derived from Feather, MIT License. Both notices are in icons/LICENSE-lucide.
+pin-filled, heart-filled, funnel-filled and tag-filled are Lucide's pin, heart,
+funnel and tag filled, under the same notices.
+spinner-arc is this package's own.

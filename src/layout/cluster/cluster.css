@@ -1,0 +1,12 @@
+/* A cluster: a row of small things, such as chips, buttons or facts, that
+ * wraps onto the next line instead of overflowing. */
+.cp-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+}
+
+.cp-cluster[data-gap="tight"] {
+  gap: var(--cp-space-1) var(--cp-space-2);
+}

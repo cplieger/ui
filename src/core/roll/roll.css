@@ -1,0 +1,22 @@
+/* A roll: words or a number that change by sliding, the old line out and the
+ * new one in, inside a one-line window. @cplieger/ui/roll writes the lines
+ * and the window's width, which glides to the new line's. */
+.cp-roll {
+  display: inline-grid;
+  grid-template-columns: max-content;
+  block-size: 1lh;
+  overflow: hidden;
+  vertical-align: top;
+  text-align: start;
+  transition: inline-size var(--cp-dur-long) var(--cp-ease-out);
+}
+
+.cp-roll > * {
+  grid-area: 1 / 1;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.cp-roll[data-kind="number"] {
+  font-variant-numeric: tabular-nums;
+}

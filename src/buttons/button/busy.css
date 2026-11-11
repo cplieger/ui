@@ -1,0 +1,14 @@
+/* A busy control keeps its label beside a turning spinner-arc. */
+.cp-button[aria-busy="true"] {
+  cursor: progress;
+}
+
+:where(.cp) .cp-icon[data-cp-icon="spinner-arc"] {
+  animation: cp-spin 0.8s linear infinite;
+}
+
+@keyframes cp-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}

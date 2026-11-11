@@ -1,0 +1,23 @@
+/* Progress: a track and a fill in the tone. */
+.cp-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--cp-ink-muted);
+}
+
+.cp-progress-track {
+  inline-size: 5rem;
+  block-size: 0.375rem;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-4);
+  overflow: clip;
+}
+
+.cp-progress-fill {
+  block-size: 100%;
+  background: var(--cp-tone-9);
+  border-radius: inherit;
+}

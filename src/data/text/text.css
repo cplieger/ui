@@ -1,0 +1,61 @@
+/* One line, cut with an ellipsis; give the full text a title or a tooltip. */
+.cp-truncate {
+  display: block;
+  max-inline-size: var(--cp-truncate-w, 14rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A cell's main text over a muted second line. */
+.cp-cell-stack {
+  display: grid;
+  justify-items: start;
+  gap: 0.125rem;
+  min-inline-size: 13rem;
+  padding-block: var(--cp-space-2);
+}
+
+.cp-cell-stack > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+@container (width < 44rem) {
+  .cp-cell-stack {
+    min-inline-size: 0;
+  }
+}
+
+.cp-mono {
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+}
+
+.cp-meta {
+  color: var(--cp-ink-muted);
+}
+
+/* A link that is a row's title names a thing, not a sentence: it reads as
+ * the row's name, in ink at a medium weight, and takes the accent and its
+ * underline under a mouse or the keyboard. A link inside a sentence keeps
+ * its colour and underline (WCAG 1.4.1). */
+.cp-cell-stack > a:first-child {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-cell-stack > a:first-child:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-cell-stack > a:first-child:hover {
+      color: var(--cp-accent-ink);
+    }
+  }
+}

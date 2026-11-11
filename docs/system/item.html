@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html
+  lang="en"
+  class="cp"
+  data-app="item"
+>
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1">
+    <title>Reference screen: an item page</title>
+    <link
+      rel="stylesheet"
+      href="../../css/system.css">
+    <link
+      rel="stylesheet"
+      href="specimen.css">
+  </head>
+  <body>
+    <!-- An item screen: breadcrumbs, tabs, a neutral notice, a table and skeleton rows. -->
+    <div class="cp-app">
+      <header class="cp-header">
+        <a
+          class="cp-wordmark"
+          href="#"
+          ><span
+            class="cp-mark"
+            aria-hidden="true"
+            >S</span
+          ><span class="cp-hidden-narrow">Subtitle manager</span></a
+        >
+        <nav
+          class="cp-nav"
+          aria-label="Main"
+        >
+          <a
+            class="cp-nav-item"
+            href="#"
+            aria-current="true"
+            ><span
+              class="cp-icon"
+              data-cp-icon="library"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Library</span></a
+          >
+          <a
+            class="cp-nav-item"
+            href="#"
+            ><span
+              class="cp-icon"
+              data-cp-icon="list"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Activity</span></a
+          >
+          <a
+            class="cp-nav-item"
+            href="#"
+            ><span
+              class="cp-icon"
+              data-cp-icon="settings"
+              aria-hidden="true"
+            ></span
+            ><span class="cp-nav-label">Settings</span></a
+          >
+        </nav>
+        <div class="cp-toolbar">
+          <span
+            class="cp-chip"
+            data-tone="success"
+            ><span
+              class="cp-icon"
+              data-cp-icon="circle-check"
+              aria-hidden="true"
+            ></span
+            >All sources up</span
+          >
+          <button
+            class="cp-button"
+            data-variant="quiet"
+            type="button"
+            aria-label="Account"
+          >
+            <span
+              class="cp-icon"
+              data-cp-icon="user"
+              aria-hidden="true"
+            ></span>
+          </button>
+        </div>
+      </header>
+
+      <aside
+        class="cp-rail"
+        aria-label="Library filters"
+      >
+        <div class="cp-filter-group">
+          <div class="cp-filter-title">Show</div>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+          >
+            Everything<span class="cp-count">1,204</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="true"
+          >
+            Needs subtitles<span class="cp-count">14</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+          >
+            Pinned<span class="cp-count">203</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+          >
+            Timing to fix<span class="cp-count">3</span>
+          </button>
+        </div>
+        <div class="cp-filter-group">
+          <div class="cp-filter-title">Languages</div>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+          >
+            English<span class="cp-count">1,190</span>
+          </button>
+          <button
+            class="cp-filter"
+            type="button"
+            aria-pressed="false"
+          >
+            French<span class="cp-count">812</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="cp-main">
+        <nav
+          class="cp-crumbs"
+          aria-label="Breadcrumb"
+        >
+          <a href="#">Library</a
+          ><span
+            class="cp-icon"
+            data-cp-icon="chevron-right"
+            data-cp-icon-size="inline"
+            aria-hidden="true"
+          ></span
+          ><span>Frieren: Beyond Journey's End</span>
+        </nav>
+        <div class="cp-heading-row">
+          <div class="cp-stack">
+            <h1>Frieren: Beyond Journey's End</h1>
+            <p class="cp-meta">Season 1, 28 episodes. English and French wanted.</p>
+          </div>
+          <div class="cp-toolbar">
+            <button
+              class="cp-button"
+              type="button"
+            >
+              <span
+                class="cp-icon"
+                data-cp-icon="refresh-cw"
+                aria-hidden="true"
+              ></span
+              >Resume automation
+            </button>
+            <button
+              class="cp-button"
+              data-variant="primary"
+              type="button"
+            >
+              <span
+                class="cp-icon"
+                data-cp-icon="search"
+                aria-hidden="true"
+              ></span
+              >Find subtitles
+            </button>
+          </div>
+        </div>
+
+        <div class="cp-stack">
+          <div
+            class="cp-tabs"
+            role="tablist"
+            aria-label="Item"
+          >
+            <button
+              class="cp-tab"
+              role="tab"
+              type="button"
+              aria-selected="true"
+              id="tab-subtitles"
+              aria-controls="panel-subtitles"
+            >
+              Subtitles
+            </button>
+            <button
+              class="cp-tab"
+              role="tab"
+              type="button"
+              aria-selected="false"
+              tabindex="-1"
+              id="tab-choose"
+              aria-controls="panel-choose"
+            >
+              Choose
+            </button>
+            <button
+              class="cp-tab"
+              role="tab"
+              type="button"
+              aria-selected="false"
+              tabindex="-1"
+              id="tab-timing"
+              aria-controls="panel-timing"
+            >
+              Timing
+            </button>
+            <button
+              class="cp-tab"
+              role="tab"
+              type="button"
+              aria-selected="false"
+              tabindex="-1"
+              id="tab-history"
+              aria-controls="panel-history"
+            >
+              History
+            </button>
+          </div>
+
+          <div
+            role="tabpanel"
+            id="panel-subtitles"
+            aria-labelledby="tab-subtitles"
+            class="cp-stack"
+          >
+            <div
+            class="cp-notice"
+            data-tone="neutral"
+            role="status"
+          >
+            <span
+              class="cp-icon"
+              data-cp-icon="pin"
+              aria-hidden="true"
+            ></span>
+            <div>
+              Automation skips the 3 episodes you pinned. Resume automation to let it replace them.
+            </div>
+          </div>
+
+          <div
+            class="cp-panel"
+            data-flush
+          >
+            <table class="cp-table">
+              <thead>
+                <tr>
+                  <th
+                    scope="col"
+                    data-col="num"
+                  >
+                    Ep
+                  </th>
+                  <th
+                    scope="col"
+                    data-priority="low"
+                  >
+                    Title
+                  </th>
+                  <th scope="col">English</th>
+                  <th
+                    scope="col"
+                    data-priority="mid"
+                  >
+                    French
+                  </th>
+                  <th
+                    scope="col"
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    Timing
+                  </th>
+                  <th
+                    scope="col"
+                    data-col="actions"
+                  >
+                    <span class="cp-visually-hidden">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td data-col="num">1</td>
+                  <td data-priority="low">The Journey's End</td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="pinned"
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="pin-filled"
+                        aria-hidden="true"
+                      ></span
+                      >Pinned</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span
+                      class="cp-chip"
+                      data-tone="success"
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="check"
+                        aria-hidden="true"
+                      ></span
+                      >Found on disk</span
+                    >
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    <span class="cp-mono">+0.42 s</span>
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Choose subtitle for episode 1"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Choose
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-col="num">2</td>
+                  <td data-priority="low">It Didn't Have to Be Magic…</td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="success"
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="check"
+                        aria-hidden="true"
+                      ></span
+                      >Managed</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span
+                      class="cp-chip"
+                      data-tone="warning"
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="clock"
+                        aria-hidden="true"
+                      ></span
+                      >Searching</span
+                    >
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    <span class="cp-mono">0.00 s</span>
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Choose subtitle for episode 2"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Choose
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-col="num">3</td>
+                  <td data-priority="low">Killing Magic</td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="danger"
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="circle-x"
+                        aria-hidden="true"
+                      ></span
+                      >No fitting subtitle</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span
+                      class="cp-chip"
+                      data-tone="neutral"
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="circle-dashed"
+                        aria-hidden="true"
+                      ></span
+                      >Not wanted</span
+                    >
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    <span class="cp-meta">None</span>
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Choose subtitle for episode 3"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Choose
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-col="num">4</td>
+                  <td data-priority="low">The Land Where Souls Rest</td>
+                  <td>
+                    <span
+                      class="cp-chip"
+                      data-tone="success"
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="check"
+                        aria-hidden="true"
+                      ></span
+                      >Managed</span
+                    >
+                  </td>
+                  <td data-priority="mid">
+                    <span
+                      class="cp-chip"
+                      data-tone="warning"
+                      ><span
+                        class="cp-icon"
+                        data-cp-icon="timer"
+                        aria-hidden="true"
+                      ></span
+                      >Timing to fix</span
+                    >
+                  </td>
+                  <td
+                    data-col="num"
+                    data-priority="low"
+                  >
+                    <span class="cp-mono">−1.85 s</span>
+                  </td>
+                  <td data-col="actions">
+                    <button
+                      aria-label="Fix timing for episode 4"
+                      class="cp-button"
+                      data-size="sm"
+                      type="button"
+                    >
+                      Fix timing
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div
+              class="skeleton-row"
+              aria-hidden="true"
+            >
+              <span class="cp-skeleton"></span><span class="cp-skeleton"></span
+              ><span class="cp-skeleton"></span><span class="cp-skeleton"></span>
+            </div>
+            <div
+              class="skeleton-row"
+              aria-hidden="true"
+            >
+              <span class="cp-skeleton"></span><span class="cp-skeleton"></span
+              ><span class="cp-skeleton"></span><span class="cp-skeleton"></span>
+            </div>
+          </div>
+          </div>
+          <div
+            role="tabpanel"
+            id="panel-choose"
+            aria-labelledby="tab-choose"
+            hidden
+          ></div>
+          <div
+            role="tabpanel"
+            id="panel-timing"
+            aria-labelledby="tab-timing"
+            hidden
+          ></div>
+          <div
+            role="tabpanel"
+            id="panel-history"
+            aria-labelledby="tab-history"
+            hidden
+          ></div>
+        </div>
+      </main>
+
+      <footer class="cp-status">
+        <span>28 episodes</span><span>3 pinned</span
+        ><span>Provider quota: 142 of 200 left today</span>
+      </footer>
+    </div>
+  </body>
+</html>

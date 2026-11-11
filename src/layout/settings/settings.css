@@ -1,0 +1,114 @@
+/* A settings page: its categories as links beside the open one's form, and
+ * the categories in a row above it under 48rem. */
+.cp-settings {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  gap: var(--cp-space-8);
+  align-items: start;
+}
+
+.cp-settings-nav {
+  display: grid;
+  gap: var(--cp-space-1);
+}
+
+.cp-settings-nav > a {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink);
+  text-decoration: none;
+}
+
+.cp-settings-nav > a[aria-current] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-weight: var(--cp-weight-medium);
+}
+
+@media (width < 48rem) {
+  .cp-settings {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--cp-space-5);
+  }
+
+  .cp-settings-nav {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .cp-settings-nav > a {
+    flex: none;
+  }
+}
+
+/* One setting: its label and help at the start, its control at the end, and
+ * a line between neighbours. A wide control wraps under the words. */
+.cp-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-2) var(--cp-space-6);
+  padding-block: var(--cp-space-3);
+}
+
+.cp-setting + .cp-setting {
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* The rows' padding is between neighbours; the panel pads the outer edges. */
+.cp-setting:first-child {
+  padding-block-start: 0;
+}
+
+.cp-setting:last-child {
+  padding-block-end: 0;
+}
+
+.cp-setting > :first-child {
+  display: grid;
+  gap: var(--cp-space-1);
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+/* Unsaved changes: a bar that stays in view at the bottom of the form while
+ * any change waits. */
+.cp-savebar {
+  position: sticky;
+  inset-block-end: var(--cp-space-3);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-overlay);
+  background: var(--cp-surface-overlay);
+  box-shadow: var(--cp-shadow-overlay);
+}
+
+.cp-savebar > :first-child {
+  flex: 1 1 auto;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-settings-nav > a:not([aria-current]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-savebar,
+  .cp-settings-nav > a[aria-current] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

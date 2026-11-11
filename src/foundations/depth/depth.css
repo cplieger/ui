@@ -1,0 +1,9 @@
+/* Depth: a shadow marks a gesture-summoned overlay only, tinted by the
+ * neutral hue; in-flow surfaces separate by a fill or one line, never both. */
+:root {
+  --cp-shadow-overlay:
+    0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 12%),
+    0 8px 24px -4px oklch(from var(--cp-neutral-12) 20% c h / 18%);
+  /* A sticky bar over the page; anything floating is in the top layer. */
+  --cp-z-sticky: 100;
+}

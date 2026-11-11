@@ -1,0 +1,10 @@
+/* The trigger for the rail's filters, shown only once the rail leaves. */
+.cp-rail-toggle {
+  display: none;
+}
+
+@media (width < 60rem) {
+  .cp-rail-toggle {
+    display: inline-flex;
+  }
+}

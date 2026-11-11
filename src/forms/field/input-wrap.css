@@ -1,0 +1,21 @@
+/* A field that holds a quiet control inside its end, such as Show on a
+ * password: the field keeps the column's full width, as the fields above
+ * and below it do, and its text stops short of the control. */
+.cp-input-wrap {
+  position: relative;
+  display: grid;
+}
+
+.cp-input-wrap > .cp-input {
+  padding-inline-end: var(--cp-control-h);
+}
+
+.cp-input-wrap > .cp-button {
+  position: absolute;
+  inset-block: 0.1875rem;
+  inset-inline-end: 0.1875rem;
+  min-block-size: 0;
+  min-inline-size: 0;
+  aspect-ratio: 1;
+  padding: 0;
+}

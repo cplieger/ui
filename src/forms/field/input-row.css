@@ -1,0 +1,10 @@
+/* A field with a control beside it, such as Show password or Copy. */
+.cp-input-row {
+  display: flex;
+  gap: var(--cp-space-2);
+}
+
+.cp-input-row > .cp-input {
+  flex: 1;
+  min-inline-size: 0;
+}

@@ -1,0 +1,73 @@
+/* A popover: a menu or a panel in the top layer, so no z-index decides it,
+ * placed by its opener with CSS anchor positioning (@cplieger/ui/anchor
+ * names the pair) and flipping to stay in view. It grows out of the corner
+ * nearest its button, and a native popover closes on Escape and on a press
+ * outside by itself. */
+.cp-popover {
+  position: fixed;
+  inset: auto;
+  margin: var(--cp-space-1) 0;
+  padding: var(--cp-space-1);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-overlay);
+  background: var(--cp-surface-overlay);
+  color: var(--cp-ink);
+  box-shadow: var(--cp-shadow-overlay);
+  position-area: block-end span-inline-end;
+  position-try-fallbacks:
+    flip-block,
+    flip-inline,
+    flip-block flip-inline;
+  transform-origin: top left;
+  opacity: 0;
+  scale: 0.96;
+  transition:
+    opacity 140ms var(--cp-ease-out),
+    scale 140ms var(--cp-ease-out),
+    overlay 140ms allow-discrete,
+    display 140ms allow-discrete;
+}
+
+.cp-popover:popover-open {
+  opacity: 1;
+  scale: 1;
+  transition-duration: 180ms;
+}
+
+@starting-style {
+  .cp-popover:popover-open {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+/* Opened at a point (showPopoverAt), its corner sits where the press was. */
+.cp-popover[data-cp-at] {
+  position-area: none;
+  margin: 0;
+}
+
+/* A panel of controls rather than a list of choices. */
+.cp-popover[data-variant="panel"] {
+  display: grid;
+  gap: var(--cp-space-3);
+  inline-size: 18rem;
+  padding: var(--cp-space-4);
+}
+
+.cp-popover[data-variant="panel"]:not(:popover-open) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-popover,
+  .cp-popover:popover-open {
+    scale: 1;
+  }
+
+  @starting-style {
+    .cp-popover:popover-open {
+      scale: 1;
+    }
+  }
+}
