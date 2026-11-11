@@ -102,7 +102,7 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 | A short confirmation of the person's own action, such as "Source added", whose result stays visible on the screen or in the history | a toast | 7 seconds, paused while hovered or focused |
 | A confirmation whose result is not visible anywhere else | a toast | until dismissed |
 | A failure of the person's own action | a toast, with Retry when it can be retried | until dismissed |
-| The outcome of background work, such as a finished check | the app's activity history, and a toast only when the person started it | in the history |
+| The outcome of background work, such as a finished check | the app's activity history (`.cp-history`), and a toast only when the person started it | in the history |
 
 - Show each toast with `toast()` from `@cplieger/ui/toast`. A passing toast stays 7 seconds, and an error or a toast with an action, such as Undo, stays until dismissed on its own.
 - Toasts announce themselves, confirmations politely and errors assertively, so use an error toast only for a failure of what the person just did. A failure of background work, such as a refresh, is a notice, announced politely.

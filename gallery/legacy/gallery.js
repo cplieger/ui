@@ -1353,25 +1353,6 @@ for (const l of $$("label[data-hue]")) l.style.setProperty("--h", l.dataset.hue)
 // A current step's share of its bar, set through the CSSOM.
 for (const li of $$(".g-track > li[data-pct]")) li.style.setProperty("--pct", `${li.dataset.pct}%`);
 
-// History: Load older adds the next days and focuses the first it added.
-for (const b of $$("[data-load-older]")) {
-  const host = $("[data-history]", b.closest(".card"));
-  let round = 0;
-  b.addEventListener("click", () => {
-    round += 1;
-    const day = el("h3", { class: "g-day", tabindex: "-1", text: round === 1 ? "Two weeks ago" : `${round + 1} weeks ago` });
-    const list = el("ol", { class: "g-timeline" },
-      el("li", {}, el("span", { class: "g-ev", "data-tone": "neutral" }, icon("search")), el("span", {}, el("strong", { text: "Checked" }), " against SeaDex"), el("time", { text: `${round + 1} weeks ago` })),
-      el("li", {}, el("span", { class: "g-ev", "data-tone": "success" }, icon("download")), el("span", {}, el("strong", { text: "Grabbed" }), " a web release"), el("time", { text: `${round + 1} weeks ago` })));
-    host.append(day, list);
-    day.focus();
-    say("2 older events loaded");
-    if (round === 2) {
-      b.replaceWith(el("p", { class: "g-note", text: "That is the whole history." }));
-    }
-  });
-}
-
 // A state history strip from one letter per check: s answered, w slow,
 // d failed, n not checked. The picture's name sums it up, and the same
 // checks open as a table.
@@ -1490,7 +1471,7 @@ function glideDetails(d) {
   });
   void run;
 }
-for (const d of $$("details:not(.cp-accordion details)")) glideDetails(d);
+for (const d of $$("details:not(.cp-accordion details, .cp-history details)")) glideDetails(d);
 
 // A bar that appears or leaves pushes the content under it, so it glides
 // open and shut instead of jumping.

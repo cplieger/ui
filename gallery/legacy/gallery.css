@@ -1317,49 +1317,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   color: var(--cp-ink-muted);
 }
 
-/* A timeline of events: icon, words, time. */
-.g-timeline {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.g-timeline > li {
-  position: relative;
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) auto;
-  gap: var(--cp-space-3);
-  align-items: start;
-  padding-block: var(--cp-space-2);
-  font-size: var(--cp-text-sm);
-}
-
-.g-timeline > li:not(:last-child)::before {
-  content: "";
-  position: absolute;
-  inset-block: 2.25rem 0;
-  inset-inline-start: calc(1rem - 1px);
-  border-inline-start: 2px solid var(--cp-line);
-}
-
-.g-timeline .g-ev {
-  display: grid;
-  place-items: center;
-  inline-size: 2rem;
-  block-size: 2rem;
-  border-radius: 50%;
-  background: var(--cp-tone-3);
-  color: var(--cp-tone-11);
-}
-
-.g-timeline time {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  white-space: nowrap;
-}
-
 /* A cover's stand-in: a harmony colour and the kind's glyph. */
 .g-cover {
   position: relative;
@@ -2158,33 +2115,6 @@ html:has(.g-header) {
   color: var(--cp-ink-muted);
 }
 
-/* History by day, with Load older at its foot. */
-.g-day {
-  margin: var(--cp-space-4) 0 var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-semibold);
-}
-
-.g-day:first-child {
-  margin-block-start: 0;
-}
-
-.g-timeline details {
-  grid-column: 2 / -1;
-  font-size: var(--cp-text-sm);
-}
-
-.g-timeline summary {
-  color: var(--cp-accent-11);
-  cursor: pointer;
-}
-
-.g-timeline details > p {
-  margin: var(--cp-space-1) 0 0;
-  color: var(--cp-ink-muted);
-}
-
 /* A file: its kind, its name, its facts, its download. */
 .g-file > .cp-icon:first-child {
   color: var(--cp-ink-muted);
@@ -2347,32 +2277,6 @@ html:has(.g-header) {
 .g-job-phase[data-tone] {
   color: var(--cp-tone-11);
   font-weight: var(--cp-weight-medium);
-}
-
-/* History: a disclosure that opens on a chevron and glides open. */
-.g-timeline details > summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  list-style: none;
-}
-
-.g-timeline details > summary::-webkit-details-marker {
-  display: none;
-}
-
-.g-timeline details > summary > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  transition: rotate 160ms var(--cp-ease-out);
-}
-
-.g-timeline details[open]:not([data-closing]) > summary > .cp-icon {
-  rotate: 90deg;
-}
-
-.g-timeline details > summary > .cp-icon:dir(rtl) {
-  scale: -1 1;
 }
 
 /* A date or a time holds its value and its picker button, never cut; a date's

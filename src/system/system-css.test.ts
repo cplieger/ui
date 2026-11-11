@@ -3192,6 +3192,7 @@ describe("css/system.css feedback and steps", () => {
       );
       const a = el.querySelector("a") as HTMLAnchorElement;
       const box = a.getBoundingClientRect();
+      expect(getComputedStyle(a, "::after").height).toBe(`${String(min)}px`);
       const number = getComputedStyle(a.parentElement as Element, "::before");
       const reach = (min - box.height) / 2 - 0.5;
       expect(document.elementFromPoint(box.left + 4, box.top - reach)).toBe(a);
@@ -3528,6 +3529,71 @@ describe("css/system.css data tables", () => {
     const title = (el.querySelector("strong") as Element).getBoundingClientRect();
     const fact = (el.querySelector("p") as Element).getBoundingClientRect();
     expect(fact.left).toBe(title.left);
+  });
+
+  const historyEvent = (tone: string, more = "") =>
+    `<li><span data-part="mark" data-tone="${tone}"><span class="cp-icon" data-cp-icon="plus"></span></span>` +
+    `<span><strong>Added</strong> from Sonarr${more}</span><time>today</time></li>`;
+
+  it("heads each day of a history small and muted, the first with no space above", () => {
+    theme("light");
+    const el = build(
+      `<div class="cp-history"><h3>Today</h3><ol>${historyEvent("neutral")}</ol>` +
+        `<h3>Last week</h3><ol>${historyEvent("neutral")}</ol></div>`,
+    );
+    const [first, second] = [...el.querySelectorAll("h3")].map((h) => getComputedStyle(h));
+    expect([first?.color, first?.fontWeight]).toEqual([resolve("var(--cp-ink-muted)"), "600"]);
+    expect(first?.fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
+    );
+    expect([first?.marginTop, first?.marginBottom]).toEqual(["0px", "8px"]);
+    expect(second?.marginTop).toBe("16px");
+  });
+
+  it("marks each event with a round in its tone, joined to the next by a line", () => {
+    theme("light");
+    const el = build(
+      `<div class="cp-history"><ol>${historyEvent("success")}${historyEvent("warning")}</ol></div>`,
+    );
+    const [mark] = [...el.querySelectorAll('[data-part="mark"]')];
+    const box = (mark as Element).getBoundingClientRect();
+    expect([box.width, box.height]).toEqual([32, 32]);
+    const style = getComputedStyle(mark as Element);
+    expect(style.borderRadius).toBe("50%");
+    expect(style.backgroundColor).toBe(
+      getComputedStyle(host("", { "data-tone": "success", style: "background: var(--cp-tone-3)" }))
+        .backgroundColor,
+    );
+    const [joined, last] = [...el.querySelectorAll("li")].map((li) =>
+      getComputedStyle(li, "::before"),
+    );
+    expect([joined?.borderInlineStartWidth, joined?.insetInlineStart, joined?.top]).toEqual([
+      "2px",
+      "15px",
+      "36px",
+    ]);
+    expect(last?.content).toBe("none");
+    const time = getComputedStyle(el.querySelector("time") as Element);
+    expect([time.color, time.whiteSpace]).toEqual([resolve("var(--cp-ink-muted)"), "nowrap"]);
+  });
+
+  it("turns an open event's chevron down in either direction, back as it starts to close", () => {
+    theme("light");
+    const more = (open: string, closing = "") =>
+      `<details ${open} ${closing}><summary><span class="cp-icon" data-cp-icon="chevron-right"></span>What changed</summary><p>Replaced</p></details>`;
+    const el = build(
+      `<div class="cp-history"><ol>${historyEvent("success", more(""))}${historyEvent("success", more("open"))}` +
+        `${historyEvent("success", more("open", "data-cp-closing"))}</ol>` +
+        `<ol dir="rtl">${historyEvent("success", more("open"))}</ol></div>`,
+    );
+    const turns = [...el.querySelectorAll("summary > .cp-icon")].map(
+      (i) => getComputedStyle(i).rotate,
+    );
+    expect(turns).toEqual(["none", "90deg", "none", "-90deg"]);
+    const summary = el.querySelector("summary") as Element;
+    expect(getComputedStyle(summary).color).toBe(resolve("var(--cp-accent-11)"));
+    const reach = getComputedStyle(summary, "::after");
+    expect([reach.position, reach.height]).toEqual(["absolute", "24px"]);
   });
 
   it("lays facts in a muted label column beside their values, one column on a phone", async () => {
