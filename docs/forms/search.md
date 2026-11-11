@@ -7,7 +7,7 @@ A search field with the glass at its start and a clear button at its end, which 
 ```html
 <div class="cp-search">
   <input class="cp-input" type="search" placeholder="Search titles…" aria-label="Search titles">
-  <button class="cp-button" data-variant="quiet" type="button" aria-label="Clear search" data-cp-tip="Clear search"></button>
+  <button class="cp-button" data-variant="quiet" type="button" aria-label="Clear search" data-cp-tip="Clear search" data-cp-tip="Clear search"></button>
 </div>
 ```
 

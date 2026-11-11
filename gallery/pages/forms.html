@@ -30,7 +30,7 @@
       <div class="card">
         <h2>Search field</h2>
         <div class="cp-form">
-          <div class="cp-field"><label class="cp-label" for="f-search">Search titles</label><div class="cp-search"><input class="cp-input" id="f-search" type="search" placeholder="Search titles…" value="Frieren"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear search"></button></div></div>
+          <div class="cp-field"><label class="cp-label" for="f-search">Search titles</label><div class="cp-search"><input class="cp-input" id="f-search" type="search" placeholder="Search titles…" value="Frieren"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear search" data-cp-tip="Clear search"></button></div></div>
         </div>
         <footer>The clear button appears only while there is text, and gives focus back to the field.</footer>
       </div>
@@ -134,7 +134,7 @@
       </div>
       <div class="card">
         <h2>Signed decimal with nudges</h2>
-        <div class="cp-field"><label class="cp-label" for="nudge-1" id="nudge-1-l">Offset, in seconds</label><div class="cp-stepper" data-variant="nudge" role="group" aria-labelledby="nudge-1-l"><button class="cp-button" type="button" data-step="-10" aria-label="1 second earlier">−1 s</button><button class="cp-button" type="button" data-step="-1" aria-label="0.1 seconds earlier">−0.1 s</button><input class="cp-input" id="nudge-1" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1" aria-describedby="nudge-help"><button class="cp-button" type="button" data-step="1" aria-label="0.1 seconds later">+0.1 s</button><button class="cp-button" type="button" data-step="10" aria-label="1 second later">+1 s</button><button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button></div><span class="cp-help" id="nudge-help">Arrow keys move 0.1 s, with Shift 1 s.</span></div>
+        <div class="cp-field"><label class="cp-label" for="nudge-1" id="nudge-1-l">Offset, in seconds</label><div class="cp-stepper" data-variant="nudge" role="group" aria-labelledby="nudge-1-l"><button class="cp-button" type="button" data-step="-10" data-cp-tip="1 second earlier">−1 s</button><button class="cp-button" type="button" data-step="-1" data-cp-tip="0.1 seconds earlier">−0.1 s</button><input class="cp-input" id="nudge-1" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1" aria-describedby="nudge-help"><button class="cp-button" type="button" data-step="1" data-cp-tip="0.1 seconds later">+0.1 s</button><button class="cp-button" type="button" data-step="10" data-cp-tip="1 second later">+1 s</button><button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button></div><span class="cp-help" id="nudge-help">Arrow keys move 0.1&nbsp;s, with Shift 1&nbsp;s.</span></div>
       </div>
       <div class="card">
         <h2>Date and time</h2>
@@ -298,9 +298,9 @@
       <div class="card g-wide">
         <h2>Pairs of fields</h2>
         <div data-pairs>
-          <span class="cp-label">Path mappings</span>
-          <ul class="cp-pairs">
-            <li><div class="cp-field"><input class="cp-input" id="pm-from-1" aria-label="Sonarr's path" placeholder="Sonarr's path" value="/tv" aria-describedby="pm-from-1-error"><span class="cp-field-error" id="pm-from-1-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with /</span></div><span class="cp-icon" data-cp-icon="arrow-right" aria-hidden="true"></span><div class="cp-field"><input class="cp-input" id="pm-to-1" aria-label="This app's path" placeholder="This app's path" value="/media/tv" aria-describedby="pm-to-1-error"><span class="cp-field-error" id="pm-to-1-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with /</span></div><button class="cp-button" data-variant="quiet" type="button" data-remove-pair aria-label="Remove this mapping"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></li>
+          <span class="cp-label" id="pm-l">Path mappings</span>
+          <ul class="cp-pairs" aria-labelledby="pm-l">
+            <li><div class="cp-field"><input class="cp-input" id="pm-from-1" aria-label="Sonarr's path" placeholder="Sonarr's path" value="/tv" aria-describedby="pm-from-1-error"><span class="cp-field-error" id="pm-from-1-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with /</span></div><span class="cp-icon" data-cp-icon="arrow-right" aria-hidden="true"></span><div class="cp-field"><input class="cp-input" id="pm-to-1" aria-label="This app's path" placeholder="This app's path" value="/media/tv" aria-describedby="pm-to-1-error"><span class="cp-field-error" id="pm-to-1-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Start with /</span></div><button class="cp-button" data-variant="quiet" type="button" data-remove-pair aria-label="Remove this mapping" data-cp-tip="Remove this mapping"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></li>
           </ul>
           <div class="g-gap-top"><button class="cp-button" data-size="sm" type="button" data-add-pair><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span>Add a mapping</button></div>
         </div>

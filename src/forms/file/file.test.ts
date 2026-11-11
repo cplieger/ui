@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { showError } from "../form/form.js";
 import { enhanceFiles, fileSize } from "./file.js";
 
 let life = new AbortController();
@@ -62,7 +63,7 @@ describe("fileSize", () => {
       fileSize(2048),
       fileSize(4.2 * 1024 * 1024),
       fileSize(3 * 1024 ** 3),
-    ]).toEqual(["1 KB", "2 KB", "4.2 MB", "3 GB"]);
+    ]).toEqual(["1\u00a0KB", "2\u00a0KB", "4.2\u00a0MB", "3\u00a0GB"]);
   });
 });
 
@@ -77,7 +78,10 @@ describe("enhanceFiles", () => {
       signal: life.signal,
     });
     choose(input, [file("a.ass"), file("b.SRT", 5000)]);
-    expect([...list.children].map((li) => li.textContent)).toEqual(["a.ass2 KB", "b.SRT5 KB"]);
+    expect([...list.children].map((li) => li.textContent)).toEqual([
+      "a.ass2\u00a0KB",
+      "b.SRT5\u00a0KB",
+    ]);
     expect(f.files.map((x) => x.name)).toEqual(["a.ass", "b.SRT"]);
     expect(seen).toEqual([["a.ass", "b.SRT"]]);
   });
@@ -94,7 +98,7 @@ describe("enhanceFiles", () => {
     ]);
     expect(input.getAttribute("aria-describedby")).toBe(error?.id);
     choose(input, [file("c.srt", 9000)]);
-    expect(error?.textContent).toBe("Files over 4 KB can't be added.");
+    expect(error?.textContent).toBe("Files over 4\u00a0KB cannot be added.");
     choose(input, [file("d.srt")]);
     expect([input.hasAttribute("aria-invalid"), (error as HTMLElement).hidden]).toEqual([
       false,
@@ -128,5 +132,26 @@ describe("enhanceFiles", () => {
     life.abort();
     drag(drop, "drop", [file("a.ass")]);
     expect(list.children.length).toBe(0);
+  });
+
+  it("says a refused file after the files taken, and a refusal alone", async () => {
+    installAnnouncer({ signal: life.signal });
+    const { drop, input } = zone();
+    enhanceFiles(input, { signal: life.signal });
+    const polite = () => document.querySelector('[aria-live="polite"]')?.textContent;
+    drag(drop, "drop", [file("a.ass"), file("b.mkv")]);
+    await expect.poll(polite).toBe("1 file chosen. Only .ass or .srt files can be added.");
+    drag(drop, "drop", [file("c.mkv")]);
+    await expect.poll(polite).toBe("Only .ass or .srt files can be added.");
+  });
+
+  it("clears a form's error on the field once a choice is taken whole, and keeps it otherwise", () => {
+    const { input } = zone();
+    enhanceFiles(input, { signal: life.signal });
+    showError(input, "Choose a file to upload.");
+    choose(input, [file("a.mkv")]);
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    choose(input, [file("a.ass")]);
+    expect(input.hasAttribute("aria-invalid")).toBe(false);
   });
 });

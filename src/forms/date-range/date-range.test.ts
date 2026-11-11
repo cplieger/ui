@@ -82,4 +82,17 @@ describe("enhanceDateRange", () => {
     to.dispatchEvent(new Event("change", { bubbles: true }));
     expect(to.getAttribute("aria-invalid")).toBe("true");
   });
+
+  it("tells a quick range's fill through both dates' events, and the opening fill through none", async () => {
+    const { box, from, to, radio } = range();
+    const seen: string[] = [];
+    for (const f of [from, to]) {
+      f.addEventListener("change", () => seen.push(`${f.id}=${f.value}`));
+    }
+    enhanceDateRange(box, { today, signal: life.signal });
+    expect(seen).toEqual([]);
+    await userEvent.click(radio("1"));
+    expect(seen).toEqual(["from=2026-11-15", "to=2026-11-15"]);
+    expect(radio("1").checked).toBe(true);
+  });
 });

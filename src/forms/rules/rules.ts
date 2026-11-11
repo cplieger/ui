@@ -14,10 +14,12 @@ import { until } from "../../core/lifetime/lifetime.js";
  *  as "when the audio is Japanese", and `name` a target's chosen text. */
 export interface RulesWords {
   /** A rule's + button. Default "Add another {when}", or at `max` "Add
-   *  another {when}: {max} is the most". */
+   *  another {when}. {max} is the most." */
   readonly add?: (when: string, full: boolean, max: number) => string;
   /** A target's remove. Default "Remove {name} {when}". */
   readonly removeTarget?: (name: string, when: string) => string;
+  /** A rule's own remove. Default "Remove the rule {when}". */
+  readonly removeRule?: (when: string) => string;
   /** Said when a target goes. Default "{name} removed". */
   readonly removed?: (name: string) => string;
   /** Said when a rule reaches `max`. Default "{max} is the most". */
@@ -42,6 +44,12 @@ export interface RulesOptions {
 }
 
 const ADDED = "data-cp-added";
+
+/** Names an icon-only button, and gives it the same words as its tip. */
+function name(b: Element, words: string): void {
+  b.setAttribute("aria-label", words);
+  b.setAttribute("data-cp-tip", words);
+}
 
 /** An empty quiet button, whose glyph the stylesheet draws by `part`. */
 function button(part: string): HTMLButtonElement {
@@ -80,9 +88,10 @@ export function enhanceRules(rules: HTMLElement, options: RulesOptions): void {
     add:
       options.words?.add ??
       ((when: string, full: boolean, n: number) =>
-        full ? `Add another ${when}: ${String(n)} is the most` : `Add another ${when}`),
+        full ? `Add another ${when}. ${String(n)} is the most.` : `Add another ${when}`),
     removeTarget:
       options.words?.removeTarget ?? ((name: string, when: string) => `Remove ${name} ${when}`),
+    removeRule: options.words?.removeRule ?? ((w: string) => `Remove the rule ${w}`),
     removed: options.words?.removed ?? ((name: string) => `${name} removed`),
     full: options.words?.full ?? ((n: number) => `${String(n)} is the most`),
   };
@@ -102,7 +111,7 @@ export function enhanceRules(rules: HTMLElement, options: RulesOptions): void {
       const x = t.querySelector<HTMLButtonElement>("[data-remove-target]");
       if (x !== null) {
         x.hidden = all.length < 2;
-        x.setAttribute("aria-label", words.removeTarget(nameOf(t), when(row)));
+        name(x, words.removeTarget(nameOf(t), when(row)));
       }
     }
     const add = row.querySelector<HTMLButtonElement>("[data-add-target]");
@@ -112,7 +121,7 @@ export function enhanceRules(rules: HTMLElement, options: RulesOptions): void {
       if (full) {
         add.setAttribute("aria-disabled", "true");
       }
-      add.setAttribute("aria-label", words.add(when(row), full, max));
+      name(add, words.add(when(row), full, max));
     }
   };
 
@@ -142,7 +151,9 @@ export function enhanceRules(rules: HTMLElement, options: RulesOptions): void {
       acts.append(button("data-remove-rule"));
     }
     const remove = acts.querySelector<HTMLButtonElement>("[data-remove-rule]");
-    remove?.setAttribute("aria-label", `Remove the rule ${when(row)}`);
+    if (remove !== null) {
+      name(remove, words.removeRule(when(row)));
+    }
     sync(row);
   };
 

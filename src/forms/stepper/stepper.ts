@@ -14,8 +14,8 @@ import { roll } from "../../core/roll/roll.js";
 
 export interface StepperOptions {
   /** How a text field shows its value. Default: a sign before it at the
-   *  step's decimals, "+1.25", "−1.25" or "0.00". A number field shows the
-   *  browser's own. */
+   *  step's or the markup's decimals, whichever is finer, "+1.25", "−1.25"
+   *  or "0.00". A number field shows the browser's own. */
   readonly format?: (value: number) => string;
   /** Removes the listeners. */
   readonly signal?: AbortSignal;
@@ -40,11 +40,11 @@ const ROLLING = "data-cp-rolling";
  * `stepper` holds a number `<input>` and buttons marked `data-step`, how many
  * of the field's steps a press moves: `"-1"` for the minus and `"1"` for the
  * plus. A text `<input>` takes its range and step from `data-min`,
- * `data-max` and `data-step`, steps on Up and Down, and a button marked
- * `data-reset` sets it to that attribute's value, or else back to the
- * markup's value. Shift with Up or Down
- * moves ten steps in either field. Each change fires `input` and `change` on
- * the field, as typing would, and is said through @cplieger/ui/announce.
+ * `data-max` and `data-step` and steps on Up and Down. Shift with Up or Down
+ * moves ten steps in either field. A button marked `data-reset` sets the
+ * field to that attribute's value, or else back to the markup's value. Each
+ * change fires `input` and `change` on the field, as typing would, and is
+ * said through @cplieger/ui/announce.
  */
 export function enhanceStepper(stepper: HTMLElement, options: StepperOptions = {}): void {
   const { signal } = options;

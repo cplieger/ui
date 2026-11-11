@@ -37,18 +37,18 @@ enhanceStepper(stepper, { signal: page.signal });
 <div class="cp-field">
   <label class="cp-label" for="offset" id="offset-l">Offset, in seconds</label>
   <div class="cp-stepper" data-variant="nudge" role="group" aria-labelledby="offset-l">
-    <button class="cp-button" type="button" data-step="-10" aria-label="1 second earlier">−1 s</button>
-    <button class="cp-button" type="button" data-step="-1" aria-label="0.1 seconds earlier">−0.1 s</button>
+    <button class="cp-button" type="button" data-step="-10" data-cp-tip="1 second earlier">−1 s</button>
+    <button class="cp-button" type="button" data-step="-1" data-cp-tip="0.1 seconds earlier">−0.1 s</button>
     <input class="cp-input" id="offset" value="+1.25" inputmode="decimal" data-min="-60" data-max="60" data-step="0.1" aria-describedby="offset-help">
-    <button class="cp-button" type="button" data-step="1" aria-label="0.1 seconds later">+0.1 s</button>
-    <button class="cp-button" type="button" data-step="10" aria-label="1 second later">+1 s</button>
+    <button class="cp-button" type="button" data-step="1" data-cp-tip="0.1 seconds later">+0.1 s</button>
+    <button class="cp-button" type="button" data-step="10" data-cp-tip="1 second later">+1 s</button>
     <button class="cp-button" data-variant="quiet" type="button" data-reset="0">Reset</button>
   </div>
-  <span class="cp-help" id="offset-help">Arrow keys move 0.1 s, with Shift 1 s.</span>
+  <span class="cp-help" id="offset-help">Arrow keys move 0.1&nbsp;s, with Shift 1&nbsp;s.</span>
 </div>
 ```
 
 - The field is a text `<input class="cp-input">`, since a number field can show no "+". It takes its range and step from `data-min`, `data-max` and `data-step`, and Up and Down step it.
-- It shows a sign before the value at the step's or the markup's decimals, whichever is finer: "+1.25", "−1.25" (a true minus) or "0.00". `format(value)` gives another form. A typed value settles to that form within the range once the field changes, and text that is no number puts back the last value.
+- It shows a sign before the value at the step's or the markup's decimals, whichever is finer, with a true minus: "+1.25", "−1.25" or "0.00". `format(value)` gives another form. A typed value settles to that form within the range once the field changes, and text that is no number puts back the last value.
 - A button marked `data-reset` sets the value to that attribute's value, or with no value back to the markup's value.
-- Name each button by what it does, such as "1 second earlier", since "−1 s" alone reads as "minus 1 s".
+- Give each button a tip that says what it does, such as `data-cp-tip="1 second earlier"`, since "−1 s" alone reads as "minus 1 s". The tip describes the button, and its name stays its visible words, so speech input reaches it by what it shows.

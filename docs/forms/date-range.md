@@ -28,5 +28,5 @@ enhanceDateRange(fieldset, { signal: page.signal });
 - The first `<input type="date">` is the start and the second the end. A quick range is a radio valued by the days it spans up to today, so `"7"` is the last seven days with today, or `"all"`, which clears both dates.
 - A checked quick range fills the dates as the range starts. A change of either date unchecks every quick range.
 - An end before the start marks the end field as [form](form.md)'s `reportErrors` does, with `order` as its words, by default "The end comes before the start." A `.cp-field-error` in the markup keeps its icon. The range clears only its own error, and `reportErrors` leaves it.
-- Every change reaches your code as the fields' and the radios' own `change` events.
+- Every change reaches your code as the fields' and the radios' own `change` events. A quick range the person picks fires `input` and `change` on both dates too. The fill as the range starts fires none.
 - `today()` gives the day the quick ranges end on, by default the clock's. `signal` removes the listener.

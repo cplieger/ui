@@ -2470,8 +2470,6 @@ for (const host of $$("[data-first-sync]")) {
   }, 900);
 }
 
-// A date range: a quick range fills both dates, a typed date clears it, and
-// an end before the start is an error on the end.
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to
 // fit its card; its own container queries do what the window's width would.
 const WIDTHS = [["Phone", 390], ["Tablet", 820], ["Desktop", 1280]];

@@ -1,7 +1,8 @@
 /**
- * field-error.ts — one field's error, shared by `./form` and
- * `./connection-test`: the field marked invalid, its sentence under it in a
- * `.cp-field-error`, tied by `aria-describedby`.
+ * field-error.ts — one field's error, shared by `./form`,
+ * `./connection-test`, `./date-range` and `./file`: the field marked
+ * invalid, its sentence under it in a `.cp-field-error`, tied by
+ * `aria-describedby`.
  * @internal
  * @module
  */

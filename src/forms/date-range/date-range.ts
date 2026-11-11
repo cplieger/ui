@@ -15,7 +15,7 @@ export interface DateRangeOptions {
   readonly order?: string;
   /** Today, for the quick ranges. Default: the clock. */
   readonly today?: () => Date;
-  /** Removes the listeners. */
+  /** Removes the listener. */
   readonly signal?: AbortSignal;
 }
 
@@ -47,7 +47,8 @@ export function enhanceDateRange(range: HTMLElement, options: DateRangeOptions =
       clearError(to, "date-range");
     }
   };
-  const fill = (value: string): void => {
+  let filling = false;
+  const fill = (value: string, tell = true): void => {
     const n = Number(value);
     if (value === "all" || !Number.isFinite(n) || n < 1) {
       from.value = "";
@@ -59,12 +60,22 @@ export function enhanceDateRange(range: HTMLElement, options: DateRangeOptions =
       to.value = day(end);
     }
     check();
+    if (!tell) {
+      return;
+    }
+    // A fill is a change of both dates, told as typing would tell it.
+    filling = true;
+    for (const f of [from, to]) {
+      f.dispatchEvent(new Event("input", { bubbles: true }));
+      f.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    filling = false;
   };
   range.addEventListener(
     "change",
     (e) => {
       const t = e.target;
-      if (!(t instanceof HTMLInputElement)) {
+      if (!(t instanceof HTMLInputElement) || filling) {
         return;
       }
       if (t.type === "radio" && t.checked) {
@@ -82,6 +93,6 @@ export function enhanceDateRange(range: HTMLElement, options: DateRangeOptions =
   if (chosen === undefined) {
     check();
   } else {
-    fill(chosen.value);
+    fill(chosen.value, false);
   }
 }

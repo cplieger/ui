@@ -224,7 +224,7 @@ for (const rules of all<HTMLElement>("[data-sentences]")) {
     },
     words: {
       add: (when, full, n) =>
-        full ? `Add a language ${when}: ${String(n)} is the most` : `Add a language ${when}`,
+        full ? `Add a language ${when}. ${String(n)} is the most.` : `Add a language ${when}`,
       full: (n) => `${String(n)} languages is the most`,
     },
   });

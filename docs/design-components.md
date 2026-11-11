@@ -21,7 +21,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-choices`, `.cp-choice`, `.cp-choice-field` | a fieldset of whole-row labels, each a checkbox or a radio, its words and a muted `<small>` line, and a radio's own field, such as "Every [30] minutes", as [choice](forms/choice.md) describes |
 | `.cp-switch` | a native checkbox with `role="switch"`, its thumb springing to the end when on |
 | `.cp-select` | a native `<select class="cp-input">` in a box that draws its chevron |
-| `.cp-stepper`, `.cp-stepper-value` | a number between a minus and a plus, as wide as what it holds, or with `data-variant="nudge"` a signed value between buttons of several sizes and a Reset, as [stepper](forms/stepper.md) describes, or a value button between them, such as a zoom |
+| `.cp-stepper`, `.cp-stepper-value` | a number between a minus and a plus, as wide as what it holds, or a value button between them, such as a zoom, as [stepper](forms/stepper.md) describes. With `data-variant="nudge"` it is a signed value between buttons of several sizes and a Reset |
 | `.cp-secret`, `.cp-secret-source` | a saved secret that is replaced, never shown, as [secret](forms/secret.md) describes, and a secret from the environment: its name, where it comes from and its state |
 | `.cp-code`, `.cp-copy` | machine text in a box with Copy attached, as [copy](forms/copy.md) describes |
 | `.cp-drop`, `.cp-files` | a file field's label as a dashed area that takes dropped files, and the list of the files a field took, as [file](forms/file.md) describes |

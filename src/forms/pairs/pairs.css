@@ -47,6 +47,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cp-pairs > li[data-cp-added] {
-    animation: none;
+    animation-name: cp-fade-in;
   }
 }

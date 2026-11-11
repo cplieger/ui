@@ -3722,7 +3722,7 @@ textarea.cp-input {
 
 @media (prefers-reduced-motion: reduce) {
   .cp-rules [data-cp-added] {
-    animation: none;
+    animation-name: cp-fade-in;
   }
 }
 
@@ -3781,7 +3781,7 @@ textarea.cp-input {
 
 @media (prefers-reduced-motion: reduce) {
   .cp-pairs > li[data-cp-added] {
-    animation: none;
+    animation-name: cp-fade-in;
   }
 }
 

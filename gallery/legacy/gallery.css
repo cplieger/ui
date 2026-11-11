@@ -921,60 +921,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
-/* A drop zone: the whole area is the file input's label. */
-.g-drop {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: var(--cp-space-2);
-  padding: var(--cp-space-6) var(--cp-space-4);
-  border: 2px dashed var(--cp-border-strong);
-  border-radius: var(--cp-radius-surface);
-  color: var(--cp-ink-muted);
-  text-align: center;
-  cursor: pointer;
-  transition:
-    border-color var(--cp-dur-micro) var(--cp-ease-out),
-    background-color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-.g-drop > .cp-icon {
-  --cp-icon-size: 1.5rem;
-
-  color: var(--cp-accent);
-  transition: translate 300ms var(--ease-spring);
-}
-
-.g-drop.over {
-  border-color: var(--cp-accent);
-  background: var(--cp-selected);
-}
-
-.g-drop.over > .cp-icon {
-  translate: 0 -0.25rem;
-}
-
-.g-drop > input {
-  position: absolute;
-  opacity: 0;
-  inline-size: 1px;
-  block-size: 1px;
-}
-
-.g-drop:has(:focus-visible) {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
-}
-
-.g-files {
-  display: grid;
-  gap: var(--cp-space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--cp-text-sm);
-}
-
 /* Notifications: a stack in the inline-end corner, newest at the bottom. A
  * passing toast keeps a thin line that drains as its time runs out and
  * stops while a pointer or focus is on it. */
@@ -4263,12 +4209,6 @@ html:has(.g-header) {
 
 .g-grow {
   flex: 1;
-}
-
-.g-bare {
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 /* A confirmed delete keeps its red as it confirms. */

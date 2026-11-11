@@ -87,7 +87,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cp-rules [data-cp-added] {
-    animation: none;
+    animation-name: cp-fade-in;
   }
 }
 

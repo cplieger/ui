@@ -93,7 +93,7 @@ describe("enhanceRules", () => {
     await userEvent.click(add);
     expect(box.querySelectorAll(".cp-rule-target")).toHaveLength(3);
     expect(add.getAttribute("aria-disabled")).toBe("true");
-    expect(add.getAttribute("aria-label")).toBe("Add another by default: 3 is the most");
+    expect(add.getAttribute("aria-label")).toBe("Add another by default. 3 is the most.");
     await expect
       .poll(() => document.querySelector('[aria-live="polite"]')?.textContent)
       .toBe("3 is the most");
@@ -147,5 +147,18 @@ describe("enhanceRules", () => {
     life.abort();
     q<HTMLButtonElement>(box, "[data-add-target]").click();
     expect(box.querySelectorAll(".cp-rule-target")).toHaveLength(2);
+  });
+
+  it("gives each button it makes its name as its tip, and takes a rule remove's words", async () => {
+    const { box, list, addRule } = rules();
+    make(box, { words: { removeRule: (w) => `Delete the rule ${w}` } });
+    const add = q<HTMLButtonElement>(box, "[data-add-target]");
+    expect(add.dataset["cpTip"]).toBe(add.getAttribute("aria-label"));
+    await userEvent.click(addRule);
+    const remove = q<HTMLButtonElement>(list.lastElementChild as Element, "[data-remove-rule]");
+    expect([remove.getAttribute("aria-label"), remove.dataset["cpTip"]]).toEqual([
+      "Delete the rule when the audio is Japanese",
+      "Delete the rule when the audio is Japanese",
+    ]);
   });
 });

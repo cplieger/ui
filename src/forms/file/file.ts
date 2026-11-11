@@ -12,7 +12,7 @@ import { clearError, showError } from "../form/field-error.js";
 
 /** The words the field writes and says. */
 export interface FilesWords {
-  /** A file over the limit. Default "Files over {max} can't be added." */
+  /** A file over the limit. Default "Files over {max} cannot be added." */
   readonly tooBig?: (max: string, file: File) => string;
   /** A file of another type. Default "Only {types} files can be added." */
   readonly wrongType?: (types: string, file: File) => string;
@@ -43,12 +43,12 @@ const OVER = "data-cp-over";
 export function fileSize(bytes: number): string {
   const n = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
   if (bytes < 1024 * 1024) {
-    return `${n.format(Math.max(1, Math.round(bytes / 1024)))} KB`;
+    return `${n.format(Math.max(1, Math.round(bytes / 1024)))}\u00a0KB`;
   }
   if (bytes < 1024 ** 3) {
-    return `${n.format(bytes / 1024 ** 2)} MB`;
+    return `${n.format(bytes / 1024 ** 2)}\u00a0MB`;
   }
-  return `${n.format(bytes / 1024 ** 3)} GB`;
+  return `${n.format(bytes / 1024 ** 3)}\u00a0GB`;
 }
 
 /** Whether `file` matches an `accept` list of extensions and MIME types. */
@@ -78,7 +78,7 @@ function either(items: readonly string[]): string {
 export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}): Files {
   const { maxSize = Infinity, list, onChange, signal } = options;
   const words = {
-    tooBig: options.words?.tooBig ?? ((max: string) => `Files over ${max} can't be added.`),
+    tooBig: options.words?.tooBig ?? ((max: string) => `Files over ${max} cannot be added.`),
     wrongType: options.words?.wrongType ?? ((types: string) => `Only ${types} files can be added.`),
     chosen:
       options.words?.chosen ??
@@ -114,10 +114,13 @@ export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}
       keep.items.add(f);
     }
     input.files = keep.files;
-    if (refusal === "") {
-      clearError(input, "file");
-    } else {
+    if (refusal !== "") {
       showError(input, refusal, undefined, "file");
+    } else if (kept.length > 0) {
+      // A choice the field took whole answers a form's "choose a file" too.
+      clearError(input);
+    } else {
+      clearError(input, "file");
     }
     if (list !== undefined) {
       list.replaceChildren(
@@ -132,8 +135,14 @@ export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}
         }),
       );
     }
-    if (kept.length > 0) {
-      announce(words.chosen(kept.length));
+    if (kept.length > 0 || refusal !== "") {
+      announce(
+        kept.length === 0
+          ? refusal
+          : refusal === ""
+            ? words.chosen(kept.length)
+            : `${words.chosen(kept.length)}. ${refusal}`,
+      );
     }
     onChange?.(kept);
   };
