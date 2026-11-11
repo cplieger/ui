@@ -237,7 +237,9 @@ export interface Parser {
   delims: string[];
   len: number;
   token: Token;
+  /** A list item's content column, counted from its enclosing item's. */
   spaces: Uint8Array;
+  /** The line's indent as written, and its width in columns. */
   indent: string;
   indent_len: number;
   fence_end: number;
@@ -251,6 +253,9 @@ export interface Parser {
   /** A blank line followed the text of the open list item, so what comes
    *  next at its content column opens a block in it (CommonMark 5.2). */
   item_gap: boolean;
+  /** The line after a list marker is read as a line start, so a fence can
+   *  open there; anything else goes back to the item as its text. */
+  item_start: boolean;
   blockquote_idx: number;
   hr_char: string;
   hr_chars: number;
@@ -459,12 +464,24 @@ export function end_tokens_to_len(p: Parser, len: number): void {
   }
 }
 
+/** The columns the list items inside the line's deepest quote take, which
+ *  the line's indent, read after that quote's `>`, counts from. */
+export function open_columns(p: Parser): number {
+  let n = 0;
+  for (let i = p.blockquote_idx + 1; i <= p.len; i += 1) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    n += p.spaces[i]!;
+  }
+  return n;
+}
+
 /** Closes what a line indented `indent` columns cannot continue; with
- *  `keep_list`, a list whose item it leaves stays open for a next item. */
+ *  `keep_list`, a list whose item it leaves stays open for a next item.
+ *  Returns the indent left past the open items. */
 export function end_tokens_to_indent(p: Parser, indent: number, keep_list = false): number {
   add_text(p);
-  let idx = 0;
-  for (let i = 0; i <= p.len; i += 1) {
+  let idx = p.blockquote_idx;
+  for (let i = p.blockquote_idx + 1; i <= p.len; i += 1) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     indent -= p.spaces[i]!;
     if (indent < 0) {
@@ -498,10 +515,12 @@ type ListOpen = "created" | "continued" | "no_room";
 export function continue_or_add_list(p: Parser, list_token: Openable, delim: string): ListOpen {
   let list_idx = -1;
   let item_idx = -1;
+  let columns = 0;
   for (let i = p.blockquote_idx + 1; i <= p.len; i += 1) {
     if (p.tokens[i] === LIST_ITEM) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      if (p.indent_len < p.spaces[i]!) {
+      columns += p.spaces[i]!;
+      if (p.indent_len < columns) {
         item_idx = -1;
         break;
       }
@@ -539,7 +558,8 @@ export function continue_or_add_list(p: Parser, list_token: Openable, delim: str
  *  which guarantees the push fits. */
 export function add_list_item(p: Parser, prefix_length: number): void {
   add_token(p, LIST_ITEM);
-  p.spaces[p.len] = p.indent_len + prefix_length;
+  const column = p.indent_len + prefix_length - open_columns(p);
+  p.spaces[p.len] = Math.min(255, Math.max(0, column));
   clear_root_pending(p);
   p.token = MAYBE_TASK;
 }
@@ -548,6 +568,7 @@ export function clear_root_pending(p: Parser): void {
   p.indent = "";
   p.indent_len = 0;
   p.item_gap = false;
+  p.item_start = false;
   p.pending = "";
   p.prev_is_word = false;
   p.link_depth = 0;

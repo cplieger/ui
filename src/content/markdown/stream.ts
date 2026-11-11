@@ -61,7 +61,7 @@ export function createMarkdownStream(host: Element, options: StreamOptions = {})
     ...(options.moved === undefined ? {} : { moved: options.moved }),
   };
   const sink = domSink(host, options, extras);
-  const parser = createParser(sink);
+  let parser = createParser(sink);
   const budget = byteBudget(max);
   const signal = options.signal;
   // One channel per stream: a posted message yields to the browser as a new task.
@@ -87,12 +87,43 @@ export function createMarkdownStream(host: Element, options: StreamOptions = {})
     channel.port2.close();
   }
 
-  function finish(): void {
+  function take(): string {
     const rest = queued + buffer + budget.flush();
+    queued = "";
+    buffer = "";
+    return rest;
+  }
+
+  /** Parses until nothing is queued, then closes every token. A hook that
+   *  writes while the last block closes gets a new parser on the same sink,
+   *  since every block before its text is closed by then. */
+  function finish(): void {
+    draining = true;
+    parsing = true;
+    try {
+      let rest = take();
+      while (!isEnded()) {
+        if (rest !== "") {
+          parser.write(rest);
+        } else {
+          parser.end();
+          if (queued === "" && buffer === "") {
+            break;
+          }
+          parser = createParser(sink);
+        }
+        rest = take();
+      }
+    } finally {
+      draining = false;
+      parsing = false;
+    }
+    // An abort during the parse stopped the stream where it was.
+    if (isEnded()) {
+      return;
+    }
     stop();
     signal?.removeEventListener("abort", stop);
-    parser.write(rest);
-    parser.end();
     sink.end();
     if (budget.cut) {
       host.append(truncationLine(host.ownerDocument, max));
@@ -114,6 +145,10 @@ export function createMarkdownStream(host: Element, options: StreamOptions = {})
     parsing = true;
     try {
       parser.write(slice);
+    } catch (error) {
+      // Nothing is posted after a throw, so the next flush must drain.
+      draining = false;
+      throw error;
     } finally {
       parsing = false;
     }

@@ -126,6 +126,8 @@ interface Frame {
   /** What stands for it in its parent; `null` while an image waits for its close. */
   readonly node: Element | null;
   readonly top: boolean;
+  /** A cut table cell or a token inside one: it builds nothing and runs no hook. */
+  readonly dropped: boolean;
   readonly attrs: Map<string, string>;
   /** An image's alt text, a table's column alignments, a row's next column. */
   alt: string;
@@ -182,6 +184,7 @@ export function domSink(
     into: host,
     node: host,
     top: false,
+    dropped: false,
     attrs: new Map(),
     alt: "",
     align: [],
@@ -253,12 +256,13 @@ export function domSink(
     }
   }
 
-  function push(kind: Kind | null, into: Element, node: Element | null): Frame {
+  function push(kind: Kind | null, into: Element, node: Element | null, dropped = false): Frame {
     const frame: Frame = {
       kind,
       into,
       node,
       top: stack.length === 1,
+      dropped,
       attrs: new Map(),
       alt: "",
       align: [],
@@ -364,7 +368,7 @@ export function domSink(
     const count = columns(parent.into);
     if (count !== null && parent.column >= count) {
       // A cell past the header's count is dropped, its content with it.
-      push(null, el("td"), null);
+      push(null, parent.into, null, true);
       return;
     }
     const cell = appendCell(parent, table);
@@ -384,6 +388,10 @@ export function domSink(
 
   function open(kind: Kind): void {
     const parent = current();
+    if (parent.dropped) {
+      push(null, parent.into, null, true);
+      return;
+    }
     const heading = HEADING.exec(kind);
     if (heading !== null) {
       const level = Math.min(6, Number(heading[1]) + shift);
@@ -452,7 +460,7 @@ export function domSink(
 
   function attr(name: AttrName, value: string): void {
     const frame = current();
-    if (frame === root) {
+    if (frame === root || frame.dropped) {
       return;
     }
     if (name === "lang" && frame.kind === "code") {
@@ -472,6 +480,9 @@ export function domSink(
 
   function text(s: string): void {
     const frame = current();
+    if (frame.dropped) {
+      return;
+    }
     if (frame.kind === "image") {
       frame.alt += s;
       return;
@@ -608,6 +619,9 @@ export function domSink(
   }
 
   function finish(frame: Frame): Node | null {
+    if (frame.dropped) {
+      return null;
+    }
     const node = frame.node;
     const delim = frame.attrs.get("unclosed");
     switch (frame.kind) {

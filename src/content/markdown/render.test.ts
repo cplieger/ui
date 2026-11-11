@@ -1027,6 +1027,33 @@ describe("the table region", () => {
   });
 });
 
+describe("lists", () => {
+  it("renders numbered steps split by blank lines as one list", () => {
+    const el = render("1. Install:\n\n   ```sh\n   npm i x\n   ```\n\n2. Run it");
+    expect(el.querySelectorAll("ol")).toHaveLength(1);
+    const items = el.querySelectorAll("ol > li");
+    expect(items).toHaveLength(2);
+    expect(items[0]?.querySelector(".cp-code code")?.textContent).toBe("npm i x");
+    expect(items[1]?.textContent).toBe("Run it");
+  });
+});
+
+describe("a cell past the header's count", () => {
+  it("builds nothing and runs no hook", () => {
+    const link = vi.fn(() => undefined);
+    const image = vi.fn(() => undefined);
+    const el = render(
+      "| a |\n|---|\n| x | ![i](https://e.example/drop.png) [l](https://e.example/l) |",
+      { images: "load", hooks: { link, image } },
+    );
+    expect(link).not.toHaveBeenCalled();
+    expect(image).not.toHaveBeenCalled();
+    expect(el.querySelector("img")).toBeNull();
+    expect(el.querySelectorAll("tbody td")).toHaveLength(1);
+    expect(el.querySelector("tbody td")?.textContent?.trim()).toBe("x");
+  });
+});
+
 describe("signal", () => {
   it("renders nothing when already aborted", () => {
     const el = render("# a\n\nb", { signal: AbortSignal.abort() });

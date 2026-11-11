@@ -38,6 +38,7 @@ import {
   HEADING_5,
   HEADING_6,
   LINE_BREAK,
+  LIST_ITEM,
   LIST_ORDERED,
   LIST_UNORDERED,
   NEWLINE,
@@ -67,6 +68,7 @@ import {
   end_token,
   end_tokens_to_indent,
   end_tokens_to_len,
+  open_columns,
   pending_head,
 } from "./parser-state.js";
 
@@ -79,18 +81,30 @@ export interface MarkdownParser {
   end(): void;
 }
 
+/** CommonMark 2.2 ends a line at `\r\n` or a bare `\r` too; the parser
+ *  reads only `\n`, and a `\r` ending a chunk may be half of a pair. */
 export function createParser(sink: Sink): MarkdownParser {
   const p = parser(sink);
   let ended = false;
+  let cr = false;
   return {
     write(chunk) {
-      if (!ended) {
-        parser_write(p, chunk);
+      if (ended || chunk === "") {
+        return;
       }
+      let text = cr ? "\r" + chunk : chunk;
+      cr = text.endsWith("\r");
+      if (cr) {
+        text = text.slice(0, -1);
+      }
+      parser_write(p, text.replace(/\r\n?/gu, "\n"));
     },
     end() {
       if (!ended) {
         ended = true;
+        if (cr) {
+          parser_write(p, "\n");
+        }
         parser_end(p);
       }
     },
@@ -132,6 +146,7 @@ function parser(sink: Sink): Parser {
     line_quotes: 0,
     quote_space: false,
     item_gap: false,
+    item_start: false,
     spaces: new Uint8Array(TOKEN_ARRAY_CAP),
     indent: "",
     indent_len: 0,
@@ -272,17 +287,20 @@ function quote_count(p: Parser): number {
 }
 
 /** Reads a fence line's indent and the `>` markers of the quotes around the
- *  fence; false for the first character past them. */
+ *  fence; false for the first character past them. A tab the marker's space
+ *  took a column of is kept as the spaces left (CommonMark 2.2). */
 function fence_line_prefix(p: Parser, char: string): boolean {
   switch (char) {
     case " ":
       if (p.quote_space) {
         p.quote_space = false;
       } else {
+        p.indent += " ";
         p.indent_len += 1;
       }
       return true;
     case "\t":
+      p.indent += p.quote_space ? "   " : "\t";
       p.indent_len += p.quote_space ? 3 : 4;
       p.quote_space = false;
       return true;
@@ -291,6 +309,7 @@ function fence_line_prefix(p: Parser, char: string): boolean {
         return false;
       }
       p.line_quotes += 1;
+      p.indent = "";
       p.indent_len = 0;
       p.quote_space = true;
       return true;
@@ -318,6 +337,22 @@ function end_unquoted(p: Parser): void {
   p.blockquote_idx = last;
 }
 
+/** `indent` past its first `columns` columns, a tab counting four; a tab
+ *  the cut splits leaves its remaining columns as spaces. */
+function strip_columns(indent: string, columns: number): string {
+  let column = 0;
+  for (let i = 0; i < indent.length; i += 1) {
+    if (column >= columns) {
+      return indent.slice(i);
+    }
+    column += indent[i] === "\t" ? 4 : 1;
+    if (column > columns) {
+      return " ".repeat(column - columns) + indent.slice(i + 1);
+    }
+  }
+  return "";
+}
+
 function parser_write(p: Parser, chunk: string): void {
   for (const char of chunk) {
     // The indent after a newline decides whether the previous block extends or a new one starts.
@@ -326,21 +361,32 @@ function parser_write(p: Parser, chunk: string): void {
         continue;
       }
       end_unquoted(p);
-      // A blank line neither ends a fence nor the list item holding it (CommonMark 5.2).
-      let indent =
-        char === "\n" && p.tokens[p.len] === CODE_FENCE
-          ? 0
-          : end_tokens_to_indent(p, p.indent_len, true);
+      // A blank line neither ends a fence nor the list item holding it (CommonMark 5.2); out of a
+      // fence, the root context's blank-line arm decides what it ends.
+      const blank = char === "\n";
+      let indent = blank
+        ? p.indent_len - open_columns(p)
+        : end_tokens_to_indent(p, p.indent_len, true);
+      const written = p.indent;
+      const width = p.indent_len;
+      p.indent = "";
       p.indent_len = 0;
       p.line_quotes = 0;
       p.quote_space = false;
       p.token = p.tokens[p.len] as Token;
       if (p.token === CODE_FENCE) {
         indent -= Math.min(indent, p.fence_indent);
+      } else if (blank) {
+        p.token = LINE_BREAK;
+      } else if (p.token === LIST_ITEM) {
+        // A closed fence is never continued lazily: the root context reads the whole line.
+        p.token = LINE_BREAK;
+        p.item_gap = true;
+        indent = width;
       }
 
       if (indent > 0) {
-        parser_write(p, " ".repeat(indent));
+        parser_write(p, strip_columns(written, width - indent));
       }
     }
 

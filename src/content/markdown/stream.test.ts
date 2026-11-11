@@ -330,6 +330,68 @@ describe("createMarkdownStream", () => {
     expect(el.innerHTML).toBe(oneShot(text));
   });
 
+  it("parses a write a block hook makes while end parses, at the default interval", () => {
+    const el = host();
+    let wrote = false;
+    const stream = createMarkdownStream(el, {
+      hooks: {
+        block: () => {
+          if (!wrote) {
+            wrote = true;
+            stream.write("\n\nEXTRA\n");
+          }
+          return undefined;
+        },
+      },
+    });
+    stream.write("Hello\n\n");
+    stream.end();
+    expect(el.innerHTML).toBe(oneShot("Hello\n\n\n\nEXTRA\n"));
+  });
+
+  it("parses a write a block hook makes as end closes the last block", () => {
+    const el = host();
+    const seen: string[] = [];
+    const stream = createMarkdownStream(el, {
+      flushIntervalMs: 0,
+      hooks: {
+        block: (block) => {
+          seen.push(block.textContent);
+          if (block.textContent === "last") {
+            stream.write("\n\nTAIL\n");
+          }
+          return undefined;
+        },
+      },
+    });
+    stream.write("first\n\nlast");
+    stream.end();
+    expect(el.innerHTML).toBe(oneShot("first\n\nlast\n\nTAIL\n"));
+    expect(seen).toEqual(["first", "last", "TAIL"]);
+  });
+
+  it("renders a later write without end after a hook threw", () => {
+    const el = host();
+    let threw = false;
+    const stream = createMarkdownStream(el, {
+      flushIntervalMs: 0,
+      hooks: {
+        block: () => {
+          if (!threw) {
+            threw = true;
+            throw new Error("boom");
+          }
+          return undefined;
+        },
+      },
+    });
+    expect(() => {
+      stream.write("first\n\nsecond\n\n");
+    }).toThrow("boom");
+    stream.write("third\n\n");
+    expect(el.textContent).toContain("third");
+  });
+
   it("gives a code block a tab stop once a streamed line overflows it", async () => {
     const el = host();
     el.style.inlineSize = "200px";

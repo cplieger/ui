@@ -49,6 +49,7 @@ import {
   idx_of_token,
   end_tokens_to_len,
   end_tokens_to_indent,
+  open_columns,
   continue_or_add_list,
   add_list_item,
   clear_root_pending,
@@ -89,6 +90,10 @@ const XML_ENTITIES: Readonly<Record<string, string>> = {
  *  held candidate to two lines. Must stay a superset of what
  *  `is_delimiter_row` accepts, or a valid table is lost. */
 const DELIMITER_ROW_CHARS = new Set(["-", " ", "\t", "|", ":"]);
+
+/** What may open a block right after a list marker; the root context reads
+ *  the rest of the line, and gives back to the item what opens none. */
+const ITEM_STARTS = new Set("`~#>-*+_0123456789".split(""));
 
 /** A line after a table's rows that opens with one of these may start
  *  another block, which breaks the table; any other line is a row. */
@@ -267,14 +272,16 @@ function column_alignments(cells: string[]): string {
   return out.some((align) => align !== "") ? out.join(",") : "";
 }
 
-/** The columns the open list items take, which a line's indent counts from. */
-function open_columns(p: Parser): number {
-  let n = 0;
-  for (let i = 0; i <= p.len; i += 1) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    n += p.spaces[i]!;
+/** The innermost list item a blank line keeps open, or -1: a quote the
+ *  line did not continue ends there, and everything in it. */
+function gap_item(p: Parser): number {
+  let item = -1;
+  for (let i = p.blockquote_idx + 1; i <= p.len && p.tokens[i] !== BLOCKQUOTE; i += 1) {
+    if (p.tokens[i] === LIST_ITEM) {
+      item = i;
+    }
   }
-  return n;
+  return item;
 }
 
 /** Opens the fence `pending` holds, `fence_start` characters of `ch` then
@@ -316,16 +323,22 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
       p.indent += "\t";
       p.indent_len += 4;
       return true;
-    case "\n":
+    case "\n": {
       // A blank line in a list item: the next line decides whether the item goes on (CommonMark 5.2).
-      if (p.tokens[p.len] === LIST_ITEM && p.token === LINE_BREAK) {
+      const item = p.token === LINE_BREAK ? gap_item(p) : -1;
+      if (item !== -1) {
+        end_tokens_to_len(p, item);
         clear_root_pending(p);
         p.item_gap = true;
+        p.blockquote_idx = 0;
+        // LIST_ITEM has no handler, so the next line must still reach this one.
+        p.token = LINE_BREAK;
         p.pending = char;
         return true;
       }
       end_tokens_to_len(p, p.blockquote_idx);
       clear_root_pending(p);
+      p.token = p.tokens[p.len] as Token;
       p.blockquote_idx = 0;
       p.fence_start = 0;
       if (!has_token_room(p.len, 1)) {
@@ -335,6 +348,7 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
       }
       p.pending = char;
       return true;
+    }
     case "#":
       // Heading: #..###### + space, or a bare run, which CommonMark 4.2 reads as an empty heading.
       if (char === "#") {
@@ -363,19 +377,23 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
     case ">": {
       const next_blockquote_idx = idx_of_token(p, BLOCKQUOTE, p.blockquote_idx + 1);
       if (next_blockquote_idx === -1) {
-        end_tokens_to_len(p, p.blockquote_idx);
+        end_tokens_to_indent(p, p.indent_len);
         if (!add_token(p, BLOCKQUOTE)) {
           // Past the cap the line is text, and so is the `>` that started it. `blockquote_idx`
           // stays put: advancing it past `len` leaves every later search for an enclosing block
           // starting above the stack.
           break;
         }
-        p.blockquote_idx += 1;
+        p.blockquote_idx = p.len;
         p.fence_start = 0;
+        clear_root_pending(p);
       } else {
         p.blockquote_idx = next_blockquote_idx;
+        // A blank quote line in an item leaves the next line to decide, past the quote's marker.
+        const gap = p.item_gap;
+        clear_root_pending(p);
+        p.item_gap = gap;
       }
-      clear_root_pending(p);
       // The one space after `>` belongs to the marker, not to the line's indent (CommonMark 5.1).
       p.pending = char === " " ? "" : char;
       return true;
@@ -437,6 +455,9 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
         if (p.pending.length === p.fence_start) {
           hold(p, char);
           p.fence_start = p.pending.length;
+        } else if (p.item_start) {
+          p.fence_start = 0;
+          break;
         } else if (add_token(p, PARAGRAPH)) {
           clear_root_pending(p);
           p.fence_start = 0;
@@ -529,7 +550,7 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
         if (!is_delimiter_row(delim, cells, table_row_cells(header).length)) {
           break;
         }
-        end_tokens_to_len(p, p.blockquote_idx);
+        end_tokens_to_indent(p, p.indent_len);
         // TABLE, TABLE_ROW and TABLE_CELL must ALL fit: a failed row or cell push leaves the cell
         // text as a text node directly inside the `<table>`, and `handleTableRow`'s default arm
         // re-feeds its character, so a failure there recurses without bound.
@@ -543,6 +564,8 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
         }
         add_token(p, TABLE_ROW);
         p.pending = "";
+        p.indent = "";
+        p.indent_len = 0;
         // Replayed through the row handlers rather than emitted here, so the header and the
         // delimiter row go through exactly the path they took before the deferral existed.
         p.write(p, header.slice(1) + "\n" + delim + "\n");
@@ -564,7 +587,9 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
   // Fallthrough: promote pending to a paragraph or code block.
   let to_write = pending_with_char;
   let pushed = true;
-  if (p.token === LINE_BREAK && !p.item_gap) {
+  if (p.item_start) {
+    p.token = p.tokens[p.len] as Token;
+  } else if (p.token === LINE_BREAK && !p.item_gap) {
     p.token = p.tokens[p.len] as Token;
     emit_leaf(p, LINE_BREAK);
   } else {
@@ -669,10 +694,13 @@ export function handleTable(p: Parser, char: string, pending_with_char: string):
   }
   // A line's first character decides at once whether it is a row, so the table never holds
   // text and where a stream is cut cannot move the line (GFM 0.29 examples 201 and 202).
+  if (p.table_state === 2 && p.pending === "" && (char === " " || char === "\t")) {
+    p.indent += char;
+    return true;
+  }
+  const indent = p.indent;
+  p.indent = "";
   if (p.table_state === 2 && p.pending === "" && char !== "|") {
-    if (char === " " || char === "\t") {
-      return true;
-    }
     if (!BREAKS_TABLE.has(char)) {
       add_token(p, TABLE_ROW);
       p.write(p, char);
@@ -680,7 +708,12 @@ export function handleTable(p: Parser, char: string, pending_with_char: string):
     }
     end_token(p);
     p.table_state = 0;
-    p.write(p, char);
+    if (p.tokens[p.len] === LIST_ITEM) {
+      // The line starts a block, in the item or past it, as after a blank line in the item.
+      p.token = LINE_BREAK;
+      p.item_gap = true;
+    }
+    p.write(p, indent + char);
     return true;
   }
   switch (p.pending) {
@@ -783,7 +816,14 @@ export function handleCodeBlock(p: Parser, char: string, pending_with_char: stri
       if (p.pending.length !== 0) {
         add_text(p);
         end_token(p);
-        p.pending = char;
+        // `pending` is the newline and the line's indent so far; the line is read again from its start.
+        const line = p.pending.slice(1) + char;
+        p.pending = "";
+        if (p.tokens[p.len] === LIST_ITEM) {
+          p.token = LINE_BREAK;
+          p.item_gap = true;
+        }
+        p.write(p, line);
       } else {
         p.textBuf += char;
       }
@@ -887,6 +927,14 @@ export function handleCodeInline(p: Parser, char: string, pending_with_char: str
 export function handleMaybeTask(p: Parser, char: string, pending_with_char: string): boolean {
   switch (p.pending.length) {
     case 0:
+      if (ITEM_STARTS.has(char)) {
+        // An item's first line may open a block: a fence, a heading, a quote, a list (CommonMark 5.2).
+        p.item_start = true;
+        p.indent_len = open_columns(p);
+        p.token = LINE_BREAK;
+        p.pending = char;
+        return true;
+      }
       if (char !== "[") {
         break;
       }
@@ -1466,12 +1514,20 @@ export function handleCommon(p: Parser, char: string, pending_with_char: string)
         case HEADING_3:
         case HEADING_4:
         case HEADING_5:
-        case HEADING_6:
+        case HEADING_6: {
           add_text(p);
-          end_tokens_to_len(p, p.blockquote_idx);
+          // A heading is never continued lazily, so in an item the next line decides as after a
+          // blank line.
+          const item = gap_item(p);
+          end_tokens_to_len(p, Math.max(p.blockquote_idx, item));
+          if (item !== -1) {
+            p.item_gap = true;
+            p.token = LINE_BREAK;
+          }
           p.blockquote_idx = 0;
           p.pending = char;
           return true;
+        }
         default:
           add_text(p);
           p.pending = char;
