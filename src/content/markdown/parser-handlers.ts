@@ -6,7 +6,7 @@
  * @module
  */
 
-import type { Parser, Token } from "./parser-state.js";
+import type { DestScan, Parser, Token } from "./parser-state.js";
 import {
   BLOCKQUOTE,
   CHECKBOX,
@@ -68,6 +68,10 @@ import {
   ALIGN,
   TITLE,
   MAYBE_ENTITY,
+  hold,
+  pending_head,
+  pending_has_newline,
+  pending_has_hash,
 } from "./parser-state.js";
 import { NAMED_ENTITIES, MAX_ENTITY_NAME_LENGTH } from "./entities.js";
 
@@ -237,7 +241,7 @@ function column_alignments(cells: string[]): string {
 }
 
 export function handleRootContext(p: Parser, char: string, pending_with_char: string): boolean {
-  switch (p.pending[0]) {
+  switch (pending_head(p)) {
     case undefined:
       p.pending = char;
       return true;
@@ -325,11 +329,11 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
       if (p.hr_chars > 0) {
         if (char === p.hr_char) {
           p.hr_chars += 1;
-          p.pending = pending_with_char;
+          hold(p, char);
           return true;
         }
         if (char === " ") {
-          p.pending = pending_with_char;
+          hold(p, char);
           return true;
         }
         if (char === "\n") {
@@ -346,7 +350,7 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
         p.hr_chars = 0;
       }
       // Unordered list: "* foo", "- foo", but not "_ foo"
-      if (!p.pending.startsWith("_") && p.pending[1] === " ") {
+      if (pending_head(p) !== "_" && p.pending[1] === " ") {
         if (continue_or_add_list(p, LIST_UNORDERED, "") === "no_room") {
           break;
         }
@@ -360,8 +364,8 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
       // Code fence handling: need 3+ backticks followed by newline.
       if (p.pending.length < 3) {
         if (char === "`") {
-          p.pending = pending_with_char;
-          p.fence_start = pending_with_char.length;
+          hold(p, char);
+          p.fence_start = p.pending.length;
           return true;
         }
         p.fence_start = 0;
@@ -369,8 +373,8 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
       }
       if (char === "`") {
         if (p.pending.length === p.fence_start) {
-          p.pending = pending_with_char;
-          p.fence_start = pending_with_char.length;
+          hold(p, char);
+          p.fence_start = p.pending.length;
         } else if (add_token(p, PARAGRAPH)) {
           clear_root_pending(p);
           p.fence_start = 0;
@@ -402,7 +406,7 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
         p.token = NEWLINE;
         return true;
       }
-      p.pending = pending_with_char;
+      hold(p, char);
       return true;
     case "+":
       if (char !== " ") {
@@ -450,8 +454,9 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
     case "|": {
       // GFM needs a delimiter row on the line AFTER the header, so the header is HELD in `pending`
       // until the next line decides.
-      const nl = p.pending.indexOf("\n");
-      if (nl !== -1 && char === "\n") {
+      const has_nl = pending_has_newline(p);
+      if (has_nl && char === "\n") {
+        const nl = p.pending.indexOf("\n");
         const header = p.pending.slice(0, nl);
         const delim = p.pending.slice(nl + 1);
         const cells = table_row_cells(delim);
@@ -482,8 +487,8 @@ export function handleRootContext(p: Parser, char: string, pending_with_char: st
       if (p.at_end) {
         break;
       }
-      if (nl === -1 || DELIMITER_ROW_CHARS.has(char)) {
-        p.pending = pending_with_char;
+      if (!has_nl || DELIMITER_ROW_CHARS.has(char)) {
+        hold(p, char);
         return true;
       }
       break;
@@ -543,7 +548,7 @@ const ATX_CLOSE_TAIL = /[ \t]*(?:#+[ \t]*)?$/u;
 
 /** Hold a candidate ATX closing sequence, so a `#` run that turns out to be syntax never reaches
  *  the sink as text. */
-export function handleHeading(p: Parser, char: string, pending_with_char: string): boolean {
+export function handleHeading(p: Parser, char: string): boolean {
   if (char === "\n") {
     // A whitespace-only hold is the line's trailing whitespace, which 4.2 strips from a heading's
     // content whether or not a closing run follows it.
@@ -558,15 +563,15 @@ export function handleHeading(p: Parser, char: string, pending_with_char: string
     // A closing run must be preceded by whitespace. `atx_close` covers the run that starts the
     // content, whose whitespace was the opening sequence's own.
     if (p.atx_close || /^[ \t]+$/u.test(p.pending)) {
-      p.pending = pending_with_char;
+      hold(p, char);
       p.atx_close = true;
       return true;
     }
     p.atx_close = false;
     return false;
   }
-  if ((char === " " || char === "\t") && p.atx_close && p.pending.includes("#")) {
-    p.pending = pending_with_char;
+  if ((char === " " || char === "\t") && p.atx_close && pending_has_hash(p)) {
+    hold(p, char);
     return true;
   }
   if (char !== " " && char !== "\t") {
@@ -764,13 +769,13 @@ export function handleCodeFence(p: Parser, char: string, pending_with_char: stri
 export function handleCodeInline(p: Parser, char: string, pending_with_char: string): void {
   switch (char) {
     case "`":
-      if (pending_with_char.length === p.fence_start + (p.pending.startsWith(" ") ? 1 : 0)) {
+      if (pending_with_char.length === p.fence_start + (pending_head(p) === " " ? 1 : 0)) {
         add_text(p);
         end_token(p);
         p.pending = "";
         p.fence_start = 0;
       } else {
-        p.pending = pending_with_char;
+        hold(p, char);
       }
       return;
     case "\n":
@@ -935,6 +940,8 @@ export function handleMaybeURL(p: Parser, char: string, pending_with_char: strin
     }
     p.pending = pending_with_char;
     p.textBuf = pending_with_char;
+    p.url_tail = "";
+    p.url_sep = false;
     return;
   }
   const http = "http:/";
@@ -967,105 +974,170 @@ function enclosing_idx(p: Parser, wanted: readonly Token[]): number {
 const LABEL_TOKENS: readonly Token[] = [LINK, IMAGE];
 const CELL_TOKENS: readonly Token[] = [TABLE_CELL];
 
-/** The closer for each title delimiter CommonMark 6.3 allows. */
-const TITLE_CLOSE: Readonly<Record<string, string>> = { '"': '"', "'": "'", "(": ")" };
-
-/** Whether a backslash before `ch` is an escape that consumes it. Mirrors handleCommon's `\`
- *  arm, which keeps the backslash before an alphanumeric and drops it before anything else. */
-function is_escaped_char(ch: string): boolean {
+/** CommonMark 2.4: a backslash escapes only ASCII punctuation, and is a literal before anything
+ *  else. */
+function is_ascii_punctuation(ch: string): boolean {
   const cc = ch.charCodeAt(0);
-  return !(is_digit(cc) || (cc >= 65 && cc <= 90) || (cc >= 97 && cc <= 122));
+  return (
+    ch.length === 1 &&
+    ((cc >= 33 && cc <= 47) ||
+      (cc >= 58 && cc <= 64) ||
+      (cc >= 91 && cc <= 96) ||
+      (cc >= 123 && cc <= 126))
+  );
 }
 
-interface Destination {
-  url: string;
-  title: string | null;
-  /** Whether a `)` belongs to the run rather than ending it: an unbalanced `(` in the
-   *  destination, or a `(…)` title whose closer it would be. The caller keeps accumulating
-   *  instead of closing the link. */
-  open: boolean;
+/** An escaped character as the destination or title keeps it. `decode_entities` runs over the
+ *  whole value later, so an escaped `&` is spelled `&amp;` to stay a literal `&`. */
+function unescaped(ch: string): string {
+  return ch === "&" ? "&amp;" : ch;
 }
 
-/** Split the run between `](` and a candidate closing `)` into a destination and a title. */
-function scan_destination(run: string): Destination {
-  const whole: Destination = { url: run, title: null, open: false };
-  let i = 0;
-  let url = "";
-  if (run.startsWith("<")) {
-    for (i = 1; i < run.length && run.charAt(i) !== ">"; i += 1) {
-      if (run.charAt(i) === "\\" && i + 1 < run.length) {
-        url += run.charAt(i);
-        i += 1;
+/** Where a `DestScan` is in the run after `](`. */
+const DEST_START = 0;
+const DEST_ANGLE = 1;
+const DEST_BARE = 2;
+const DEST_GAP = 3;
+const DEST_TITLE = 4;
+const DEST_AFTER_TITLE = 5;
+/** Not a destination and title: a closing `)` takes the whole run as the URL. */
+const DEST_WHOLE = 6;
+/** A bare destination left a `(` open before whitespace, so no `)` closes it. */
+const DEST_STUCK = 7;
+
+function new_dest(): DestScan {
+  return {
+    phase: DEST_START,
+    url: "",
+    title: "",
+    depth: 0,
+    escaped: false,
+    spaced: false,
+    closer: "",
+  };
+}
+
+function is_space_or_tab(ch: string): boolean {
+  return ch === " " || ch === "\t";
+}
+
+/** Reads one character of the run. */
+function dest_feed(d: DestScan, ch: string): void {
+  if (d.escaped) {
+    d.escaped = false;
+    if (is_ascii_punctuation(ch)) {
+      if (d.phase === DEST_TITLE) {
+        d.title += unescaped(ch);
+      } else {
+        d.url += unescaped(ch);
       }
-      url += run.charAt(i);
+      return;
     }
-    if (i === run.length) {
-      // No `>` yet, so this `)` is INSIDE the brackets and does not close the link — the angle
-      // form's twin of the bare branch's `depth > 0`.
-      return { url: run, title: null, open: true };
+    if (d.phase === DEST_TITLE) {
+      d.title += "\\";
+    } else {
+      d.url += "\\";
     }
-    i += 1;
-  } else {
-    let depth = 0;
-    for (; i < run.length; i += 1) {
-      const ch = run.charAt(i);
-      if (ch === "\\" && i + 1 < run.length) {
-        url += ch + run.charAt(i + 1);
-        i += 1;
-        continue;
+  } else if (
+    ch === "\\" &&
+    (d.phase === DEST_ANGLE || d.phase === DEST_BARE || d.phase === DEST_TITLE)
+  ) {
+    d.escaped = true;
+    return;
+  }
+  switch (d.phase) {
+    case DEST_START:
+      if (ch === "<") {
+        d.phase = DEST_ANGLE;
+        return;
       }
-      if (ch === " " || ch === "\t") {
-        break;
+      d.phase = DEST_BARE;
+      dest_feed(d, ch);
+      return;
+    case DEST_ANGLE:
+      if (ch === ">") {
+        d.phase = DEST_GAP;
+        return;
+      }
+      d.url += ch;
+      return;
+    case DEST_BARE:
+      if (is_space_or_tab(ch)) {
+        d.phase = d.depth > 0 ? DEST_STUCK : DEST_GAP;
+        d.spaced = true;
+        return;
       }
       if (ch === "(") {
-        depth += 1;
+        d.depth += 1;
       } else if (ch === ")") {
-        depth -= 1;
+        d.depth -= 1;
       }
-      url += ch;
-    }
-    if (depth > 0) {
-      return { url: run, title: null, open: true };
-    }
+      d.url += ch;
+      return;
+    case DEST_GAP:
+      if (is_space_or_tab(ch)) {
+        d.spaced = true;
+        return;
+      }
+      d.closer = ch === "(" ? ")" : ch === '"' || ch === "'" ? ch : "";
+      // A title must be separated from the destination; `<a>"t"` is one URL.
+      d.phase = d.closer !== "" && d.spaced ? DEST_TITLE : DEST_WHOLE;
+      return;
+    case DEST_TITLE:
+      if (ch === d.closer) {
+        d.phase = DEST_AFTER_TITLE;
+      } else {
+        d.title += ch;
+      }
+      return;
+    case DEST_AFTER_TITLE:
+      if (!is_space_or_tab(ch)) {
+        d.phase = DEST_WHOLE;
+      }
+      return;
+    default:
+      return;
   }
-  const gap_start = i;
-  while (run.charAt(i) === " " || run.charAt(i) === "\t") {
-    i += 1;
+}
+
+/** Whether a `)` read now belongs to the run instead of closing the link: escaped, inside `<…>`,
+ *  after an unbalanced `(`, or as the closer of a `(…)` title. */
+function dest_keeps_paren(d: DestScan): boolean {
+  if (d.escaped) {
+    return true;
   }
-  if (i === run.length) {
-    return { url, title: null, open: false };
+  switch (d.phase) {
+    case DEST_ANGLE:
+    case DEST_STUCK:
+      return true;
+    case DEST_BARE:
+      return d.depth > 0;
+    case DEST_TITLE:
+      return d.closer === ")";
+    default:
+      return false;
   }
-  const close = TITLE_CLOSE[run.charAt(i)];
-  if (close === undefined || i === gap_start) {
-    return whole;
-  }
-  let title = "";
-  for (i += 1; i < run.length; i += 1) {
-    const ch = run.charAt(i);
-    if (ch === "\\" && i + 1 < run.length) {
-      const next = run.charAt(i + 1);
-      title += is_escaped_char(next) ? next : ch + next;
-      i += 1;
-      continue;
-    }
-    if (ch === close) {
-      break;
-    }
-    title += ch;
-  }
-  if (i === run.length) {
-    // A `(…)` title is closed by the `)` the caller is holding, so keep accumulating. A quoted one
-    // cannot be, so the run is a destination.
-    return close === ")" ? { url: run, title: null, open: true } : whole;
-  }
-  i += 1;
-  while (run.charAt(i) === " " || run.charAt(i) === "\t") {
-    i += 1;
-  }
-  return i === run.length ? { url, title, open: false } : whole;
 }
 
 export function handleLinkOrImage(p: Parser, char: string, pending_with_char: string): boolean {
+  if (p.dest !== null) {
+    const d = p.dest;
+    if (char !== ")" || dest_keeps_paren(d)) {
+      dest_feed(d, char);
+      hold(p, char);
+      return true;
+    }
+    const whole = d.phase === DEST_WHOLE || (d.phase === DEST_TITLE && d.closer !== ")");
+    const type = p.token === LINK ? HREF : SRC;
+    // Decoded here, before the sink's gate judges it: see `decode_entities`.
+    p.sink.attr(type, decode_entities(whole ? p.pending.slice(2) : d.url));
+    if (d.phase === DEST_AFTER_TITLE) {
+      p.sink.attr(TITLE, decode_entities(d.title));
+    }
+    end_token(p);
+    p.pending = "";
+    return true;
+  }
   // CommonMark 6.3 allows balanced brackets in a label, so the label ends at a `]` only when no `[`
   // is open.
   if (p.pending === "[") {
@@ -1084,32 +1156,13 @@ export function handleLinkOrImage(p: Parser, char: string, pending_with_char: st
     add_text(p);
     if (char === "(") {
       p.pending = pending_with_char;
+      p.dest = new_dest();
     } else {
       // No destination, so this was never a link: the sink restores the `[` as text.
       end_token_unresolved(p);
       p.textBuf += "]";
       p.pending = char;
     }
-    return true;
-  }
-  if (p.pending.startsWith("]") && p.pending[1] === "(") {
-    if (char !== ")") {
-      p.pending += char;
-      return true;
-    }
-    const dest = scan_destination(p.pending.slice(2));
-    if (dest.open) {
-      p.pending += char;
-      return true;
-    }
-    const type = p.token === LINK ? HREF : SRC;
-    // Decoded here, before the sink's gate judges it: see `decode_entities`.
-    p.sink.attr(type, decode_entities(dest.url));
-    if (dest.title !== null) {
-      p.sink.attr(TITLE, decode_entities(dest.title));
-    }
-    end_token(p);
-    p.pending = "";
     return true;
   }
   return false;
@@ -1164,22 +1217,27 @@ function endRawURL(p: Parser, trailing: string): void {
   }
 }
 
-export function handleRawURL(p: Parser, char: string, pending_with_char: string): void {
+/** `url_tail` is `splitRawURLTail(pending).tail`, kept per character (see `Parser`). */
+export function handleRawURL(p: Parser, char: string): void {
   if (char === " " || char === "\n" || char === "\\") {
     endRawURL(p, char);
   } else if (RAW_URL_TAIL.has(char) || isCJKPunctuation(char)) {
     // A CJK separator followed by a backtick proves the URL ended: RFC 3986 excludes the backtick.
-    if (char === "`" && CJK_SEPARATOR.has(p.pending.charAt(p.pending.length - 1))) {
+    if (char === "`" && p.url_sep) {
       endRawURL(p, char);
       return;
     }
     // Held, not appended: the sink cannot take text back and every chunk boundary flushes
     // `textBuf`, so a possible tail waits until the URL is known to continue past it.
-    p.pending = pending_with_char;
+    hold(p, char);
+    p.url_tail += char;
+    p.url_sep = CJK_SEPARATOR.has(char);
   } else {
     // The URL continues, so everything held is part of it after all.
-    p.textBuf += splitRawURLTail(p.pending).tail + char;
-    p.pending = pending_with_char;
+    p.textBuf += p.url_tail + char;
+    hold(p, char);
+    p.url_tail = "";
+    p.url_sep = false;
   }
 }
 
@@ -1278,7 +1336,8 @@ export function handleMaybeEntity(p: Parser, char: string, pending_with_char: st
 }
 
 export function handleCommon(p: Parser, char: string, pending_with_char: string): boolean {
-  switch (p.pending[0]) {
+  const head = pending_head(p);
+  switch (head) {
     case "\\":
       if (p.token === IMAGE || p.token === EQUATION_BLOCK || p.token === EQUATION_INLINE) {
         break;
@@ -1371,7 +1430,7 @@ export function handleCommon(p: Parser, char: string, pending_with_char: string)
       }
       if (char === "`") {
         p.fence_start += 1;
-        p.pending = pending_with_char;
+        hold(p, char);
       } else {
         p.fence_start += 1;
         add_text(p);
@@ -1394,7 +1453,7 @@ export function handleCommon(p: Parser, char: string, pending_with_char: string)
       ) {
         break;
       }
-      const symbol = p.pending[0] as string;
+      const symbol = head;
       const isUnd = symbol === "_";
       const italic = isUnd ? ITALIC_UND : ITALIC_AST;
       const strong = isUnd ? STRONG_UND : STRONG_AST;

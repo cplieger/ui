@@ -67,6 +67,7 @@ import {
   end_token,
   end_tokens_to_indent,
   end_tokens_to_len,
+  pending_head,
 } from "./parser-state.js";
 
 export type { AttrName, Kind, Sink } from "./parser-state.js";
@@ -102,7 +103,22 @@ function parser(sink: Sink): Parser {
   return {
     sink,
     textBuf: "",
-    pending: "",
+    get pending() {
+      return this.held;
+    },
+    set pending(v: string) {
+      this.held = v;
+      this.held_known = false;
+      this.dest = null;
+    },
+    held: "",
+    held_known: true,
+    held_head: "",
+    held_nl: false,
+    held_hash: false,
+    dest: null,
+    url_tail: "",
+    url_sep: false,
     tokens,
     delims: new Array<string>(TOKEN_ARRAY_CAP).fill(""),
     len: 0,
@@ -159,18 +175,12 @@ const TOKEN_HANDLERS: Partial<Record<Token, TokenHandler>> = {
     handleRootContext(p, char, pending) ? actionContinue : actionBreak,
   [LIST_UNORDERED]: (p, char, pending) =>
     handleRootContext(p, char, pending) ? actionContinue : actionBreak,
-  [HEADING_1]: (p, char, pending) =>
-    handleHeading(p, char, pending) ? actionContinue : actionBreak,
-  [HEADING_2]: (p, char, pending) =>
-    handleHeading(p, char, pending) ? actionContinue : actionBreak,
-  [HEADING_3]: (p, char, pending) =>
-    handleHeading(p, char, pending) ? actionContinue : actionBreak,
-  [HEADING_4]: (p, char, pending) =>
-    handleHeading(p, char, pending) ? actionContinue : actionBreak,
-  [HEADING_5]: (p, char, pending) =>
-    handleHeading(p, char, pending) ? actionContinue : actionBreak,
-  [HEADING_6]: (p, char, pending) =>
-    handleHeading(p, char, pending) ? actionContinue : actionBreak,
+  [HEADING_1]: (p, char) => (handleHeading(p, char) ? actionContinue : actionBreak),
+  [HEADING_2]: (p, char) => (handleHeading(p, char) ? actionContinue : actionBreak),
+  [HEADING_3]: (p, char) => (handleHeading(p, char) ? actionContinue : actionBreak),
+  [HEADING_4]: (p, char) => (handleHeading(p, char) ? actionContinue : actionBreak),
+  [HEADING_5]: (p, char) => (handleHeading(p, char) ? actionContinue : actionBreak),
+  [HEADING_6]: (p, char) => (handleHeading(p, char) ? actionContinue : actionBreak),
   [TABLE]: (p, char, pending) => (handleTable(p, char, pending) ? actionContinue : actionBreak),
   [TABLE_ROW]: (p, char) => (handleTableRow(p, char) ? actionContinue : actionBreak),
   [TABLE_CELL]: (p, char) => (handleTableCell(p, char) ? actionContinue : actionBreak),
@@ -221,7 +231,7 @@ const TOKEN_HANDLERS: Partial<Record<Token, TokenHandler>> = {
     return actionBreak;
   },
   [EQUATION_INLINE]: (p, char, pending) => {
-    if (pending === "\\)" || p.pending.startsWith("$")) {
+    if (pending === "\\)" || pending_head(p) === "$") {
       add_text(p);
       end_token(p);
       p.pending = char === ")" ? "" : char;
@@ -237,8 +247,8 @@ const TOKEN_HANDLERS: Partial<Record<Token, TokenHandler>> = {
     handleLinkOrImage(p, char, pending) ? actionContinue : actionBreak,
   [IMAGE]: (p, char, pending) =>
     handleLinkOrImage(p, char, pending) ? actionContinue : actionBreak,
-  [RAW_URL]: (p, char, pending) => {
-    handleRawURL(p, char, pending);
+  [RAW_URL]: (p, char) => {
+    handleRawURL(p, char);
     return actionAlwaysContinue;
   },
   [MAYBE_ANGLE]: (p, char, pending) =>

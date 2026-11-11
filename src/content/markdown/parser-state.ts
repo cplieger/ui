@@ -177,7 +177,7 @@ export const LANG = "lang";
 export const CHECKED = "checked";
 export const START = "start";
 export const ALIGN = "align";
-export const UNCLOSED = "unclosed";
+const UNCLOSED = "unclosed";
 
 /**
  * Receives the parse as a flat sequence of operations. Every `open` is
@@ -195,10 +195,42 @@ export interface Sink {
 
 export const TOKEN_ARRAY_CAP = 24;
 
+/** A link destination read one character at a time, so the `)` that may
+ *  close it is judged without rescanning the run (CommonMark 6.3). */
+export interface DestScan {
+  phase: number;
+  url: string;
+  title: string;
+  depth: number;
+  /** A backslash that has not consumed its character yet. */
+  escaped: boolean;
+  /** Whitespace separates the destination from what follows it. */
+  spaced: boolean;
+  closer: string;
+}
+
+/**
+ * Parser state. `pending` holds the characters a handler has not decided
+ * yet; it is an accessor over `held`, and assigning it drops the `held_*`
+ * facts and `dest`, which `hold` keeps. Reading any character of a string
+ * built one character at a time copies it (V8 flattens a rope on each read),
+ * so a handler holding an unbounded run reads these facts, never the run.
+ */
 export interface Parser {
   sink: Sink;
   textBuf: string;
   pending: string;
+  held: string;
+  held_known: boolean;
+  held_head: string;
+  held_nl: boolean;
+  held_hash: boolean;
+  /** Set while `pending` holds `](` and a destination. */
+  dest: DestScan | null;
+  /** The trailing run of an open bare URL that may not end it, and whether
+   *  its last character is a CJK separator. */
+  url_tail: string;
+  url_sep: boolean;
   tokens: Uint32Array;
   /** The delimiter that opened `tokens[i]`, restored as text when the
    *  token never closes. */
@@ -244,8 +276,56 @@ function ends_with_word_char(s: string): boolean {
   return !NOT_WORD.test(s.slice(start));
 }
 
+/** Flushes `textBuf` rather than reading its end, which would copy the
+ *  whole buffer on each call (see `Parser`). */
 export function prev_is_word_char(p: Parser): boolean {
-  return p.textBuf === "" ? p.prev_is_word : ends_with_word_char(p.textBuf);
+  add_text(p);
+  return p.prev_is_word;
+}
+
+/** Appends `char` to `pending`, keeping the facts `pending_head` and its
+ *  siblings answer from. */
+export function hold(p: Parser, char: string): void {
+  if (p.held === "") {
+    p.held_known = true;
+    p.held_head = char.charAt(0);
+    p.held_nl = false;
+    p.held_hash = false;
+  }
+  if (char === "\n") {
+    p.held_nl = true;
+  } else if (char === "#") {
+    p.held_hash = true;
+  }
+  p.held += char;
+}
+
+function know_held(p: Parser): void {
+  if (!p.held_known) {
+    p.held_known = true;
+    p.held_head = p.held.charAt(0);
+    p.held_nl = p.held.includes("\n");
+    p.held_hash = p.held.includes("#");
+  }
+}
+
+/** `pending[0]`, without reading `pending`. */
+export function pending_head(p: Parser): string | undefined {
+  if (p.held === "") {
+    return undefined;
+  }
+  know_held(p);
+  return p.held_head;
+}
+
+export function pending_has_newline(p: Parser): boolean {
+  know_held(p);
+  return p.held_nl;
+}
+
+export function pending_has_hash(p: Parser): boolean {
+  know_held(p);
+  return p.held_hash;
 }
 
 export function is_word_char(ch: string): boolean {
