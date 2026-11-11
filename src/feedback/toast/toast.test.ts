@@ -44,7 +44,7 @@ describe("toast", () => {
     expect(toasts()).toHaveLength(0);
   });
 
-  it("dismisses on a press anywhere on it but its own buttons, and on its close button", async () => {
+  it("dismisses on a press anywhere on it but its own buttons", async () => {
     const undone: string[] = [];
     toast({
       title: "3 entries removed",
@@ -57,6 +57,9 @@ describe("toast", () => {
     await userEvent.click(t.querySelector("strong") as HTMLElement);
     await gone();
     expect(toasts()).toHaveLength(0);
+  });
+
+  it("dismisses on its close button", async () => {
     toast({ kind: "error", title: "Radarr is offline" });
     await userEvent.click(toasts()[0]?.querySelector(".cp-toast-close") as HTMLElement);
     await gone();

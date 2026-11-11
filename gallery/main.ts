@@ -9,8 +9,13 @@ import { enhanceSelectAll } from "@cplieger/ui/checkbox";
 import { enhanceChoiceFields } from "@cplieger/ui/choice";
 import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 import { enhanceCopy } from "@cplieger/ui/copy";
+import { enhanceDateRange } from "@cplieger/ui/date-range";
+import { enhanceFiles } from "@cplieger/ui/file";
+import { reportErrors } from "@cplieger/ui/form";
 import { enhanceRange } from "@cplieger/ui/range";
 import { enhanceSearch } from "@cplieger/ui/search";
+import { enhancePairs } from "@cplieger/ui/pairs";
+import { enhanceRules } from "@cplieger/ui/rules";
 import { enhanceReveal, enhanceSecret } from "@cplieger/ui/secret";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceStepper } from "@cplieger/ui/stepper";
@@ -148,4 +153,82 @@ for (const button of all<HTMLButtonElement>("button[data-test]")) {
       }),
     fields: { url: { input: url, mark } },
   });
+}
+// A filter chip's state is the app's filter; here a press flips it.
+for (const chip of all<HTMLButtonElement>(".cp-filter-chip")) {
+  chip.addEventListener("click", () => {
+    chip.setAttribute("aria-pressed", String(chip.getAttribute("aria-pressed") !== "true"));
+  });
+}
+for (const range of all<HTMLElement>("[data-range]")) {
+  enhanceDateRange(range);
+}
+// A file field names its list by data-files and its limit by data-max-size.
+// In a dialog, Upload with no file says so on the field.
+for (const input of all<HTMLInputElement>("input[type='file'][data-files]")) {
+  const list = document.getElementById(input.dataset["files"] ?? "");
+  const files = enhanceFiles(input, {
+    ...(list === null ? {} : { list }),
+    maxSize: Number(input.dataset["maxSize"] ?? Infinity),
+  });
+  const form = input.form;
+  const summary = form?.querySelector<HTMLElement>("[data-summary]");
+  if (form === null || summary === null || summary === undefined) {
+    continue;
+  }
+  form.addEventListener("submit", (e) => {
+    if (files.files.length === 0) {
+      e.preventDefault();
+      reportErrors(form, [{ field: input, message: "Choose a file to upload." }], {
+        summary,
+        heading: (n) => `${String(n)} fields need a fix`,
+      });
+    }
+  });
+}
+// The sentence editor's pickers: a language each, three to a rule.
+const LANGS = ["English", "English (signs and songs)", "French", "German", "Spanish", "Japanese"];
+const pickLang = (chosen: string, when: string): HTMLElement => {
+  const select = document.createElement("select");
+  select.className = "cp-input";
+  select.setAttribute("aria-label", `Language ${when}`);
+  for (const l of [...LANGS, "nothing"]) {
+    select.append(new Option(l, l, false, l === chosen));
+  }
+  const box = document.createElement("span");
+  box.className = "cp-select";
+  box.append(select);
+  return box;
+};
+for (const rules of all<HTMLElement>("[data-sentences]")) {
+  enhanceRules(rules, {
+    max: 3,
+    target: (rule) => pickLang("French", rule.dataset["when"] ?? ""),
+    rule: () => {
+      const li = document.createElement("li");
+      li.dataset["when"] = "when the audio is Japanese";
+      const when = document.createElement("span");
+      when.dataset["part"] = "when";
+      when.append("When the audio is", pickLang("Japanese", "for the audio"));
+      const verb = document.createElement("span");
+      verb.dataset["part"] = "verb";
+      verb.textContent = "fetch";
+      const targets = document.createElement("span");
+      targets.dataset["part"] = "targets";
+      const first = document.createElement("span");
+      first.className = "cp-rule-target";
+      first.append(pickLang("English", li.dataset["when"]));
+      targets.append(first);
+      li.append(when, verb, targets);
+      return li;
+    },
+    words: {
+      add: (when, full, n) =>
+        full ? `Add a language ${when}: ${String(n)} is the most` : `Add a language ${when}`,
+      full: (n) => `${String(n)} languages is the most`,
+    },
+  });
+}
+for (const box of all<HTMLElement>("[data-pairs]")) {
+  enhancePairs(box);
 }

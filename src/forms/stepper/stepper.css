@@ -21,11 +21,14 @@
 
 .cp-stepper > .cp-button {
   position: relative;
+}
+
+.cp-stepper:not([data-variant]) > .cp-button {
   min-block-size: 0;
   border-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
 }
 
-.cp-stepper > input {
+.cp-stepper > input:not(.cp-input) {
   inline-size: 4ch;
   border: 0;
   outline: none;
@@ -39,7 +42,7 @@
   appearance: textfield;
 }
 
-:root[data-pointer="fine"] .cp-stepper > input {
+:root[data-pointer="fine"] .cp-stepper > input:not(.cp-input) {
   font-size: var(--cp-text-ui);
 }
 
@@ -53,7 +56,7 @@
 }
 
 /* Focus on its number rings the whole stepper, as a focused field is. */
-.cp-stepper:has(> input:focus-visible) {
+.cp-stepper:has(> input:not(.cp-input):focus-visible) {
   border-color: var(--cp-focus-ring);
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
@@ -86,7 +89,24 @@
 }
 
 @media (forced-colors: active) {
-  .cp-stepper:has(> input:focus-visible) {
+  .cp-stepper:has(> input:not(.cp-input):focus-visible) {
     outline-color: Highlight;
   }
+}
+
+/* Nudges: a signed value in its own field between buttons of several sizes,
+ * such as −1 s, −0.1 s, +0.1 s and +1 s, and a Reset, wrapping as one row. */
+.cp-stepper[data-variant="nudge"] {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1);
+  block-size: auto;
+  border: 0;
+  background: none;
+}
+
+.cp-stepper[data-variant="nudge"] > .cp-input {
+  inline-size: 7ch;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }

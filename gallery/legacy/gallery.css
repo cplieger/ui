@@ -899,11 +899,6 @@
 
 /* Forms */
 
-.g-form {
-  display: grid;
-  gap: var(--cp-space-4);
-}
-
 /* A textarea grows with its text, up to ten lines, where the engine sizes
  * fields to their content; elsewhere gallery.js grows it. */
 textarea.cp-input {
@@ -1627,59 +1622,8 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 }
 
 /* Filter chips: a toggle each; turning one on slides its check in. */
-.g-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-2);
-}
-
-.g-chip {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-3);
-  border: var(--cp-line-w) solid var(--cp-border-strong);
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-surface-raised);
-  color: var(--cp-ink);
-  font: inherit;
-  font-size: var(--cp-text-sm);
-  cursor: pointer;
-  transition:
-    background-color 160ms var(--cp-ease-out),
-    border-color 160ms var(--cp-ease-out),
-    scale var(--press-dur, var(--dur-spring)) var(--press-ease, var(--ease-bounce));
-}
-
-.g-chip > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  inline-size: 0;
-  margin-inline-end: 0;
-  opacity: 0;
-  transition:
-    inline-size 220ms var(--ease-spring),
-    margin 220ms var(--ease-spring),
-    opacity 160ms var(--cp-ease-out);
-}
 
 /* On, a chip fills with the accent like every chosen control. */
-.g-chip[aria-pressed="true"] {
-  border-color: transparent;
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-chip[aria-pressed="true"] > .cp-icon {
-  inline-size: 0.875rem;
-  margin-inline-end: var(--cp-space-1);
-  opacity: 1;
-}
-
-.g-chip[data-cp-pressed] {
-  scale: 0.95;
-}
 
 /* Layouts */
 
@@ -2402,10 +2346,6 @@ kbd.g-key {
   align-self: flex-start;
 }
 
-.g-chips {
-  align-items: center;
-}
-
 /* Focus and scrolling stop below the sticky header, so it never covers what
  * they bring into view. */
 html:has(.g-header) {
@@ -2788,93 +2728,14 @@ html:has(.g-header) {
 }
 
 /* A signed decimal with nudges. */
-.g-nudge {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-1);
-}
-
-.g-nudge > input {
-  inline-size: 7ch;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
 
 /* Rules as table columns: condition, verb, languages, buttons. Each row
  * is a subgrid of the list, so a column lines up however long its words. */
-.g-rules-box {
-  display: grid;
-  gap: var(--cp-space-3);
-  container-type: inline-size;
-}
-
-.g-rules {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  gap: var(--cp-space-2) var(--cp-space-2);
-  align-items: center;
-}
-
-.g-rules > li {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  animation: row-in 200ms var(--cp-ease-out);
-}
-
-.g-rule-when {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-targets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-2);
-}
 
 /* One language and its remove, kept together when the row wraps. */
-.g-pick {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.125rem;
-}
-
-.g-pick-x[hidden] {
-  display: none;
-}
 
 /* The row's own buttons in the last column: + first, so every rule's + lines
  * up, then the rule's remove where it has one. */
-.g-rule-acts {
-  display: flex;
-  gap: var(--cp-space-1);
-}
-
-.g-rules select.cp-input {
-  min-block-size: var(--cp-control-h-sm);
-  padding-block: 0;
-}
-
-.g-rules .cp-select {
-  display: inline-grid;
-}
-
-@container (width < 36rem) {
-  .g-rules {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .g-rules > li {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--cp-space-2);
-  }
-}
 
 /* A row that arrives fades in and settles 4px; nothing bounces. */
 @keyframes row-in {
@@ -2885,40 +2746,6 @@ html:has(.g-header) {
 }
 
 /* Pairs of fields with an arrow between. */
-.g-pairs {
-  display: grid;
-  gap: var(--cp-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.g-pairs > li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
-  gap: var(--cp-space-2);
-  align-items: start;
-  animation: row-in 200ms var(--cp-ease-out);
-}
-
-.g-pairs > li > .cp-icon {
-  margin-block-start: calc((var(--cp-control-h) - 18px) / 2);
-  color: var(--cp-ink-muted);
-}
-
-.g-pairs > li > .cp-button {
-  margin-block-start: 0;
-}
-
-@media (width < 40rem) {
-  .g-pairs > li {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .g-pairs > li > .cp-icon {
-    display: none;
-  }
-}
 
 /* The refreshing region is a panel, and its line runs along the panel's
  * top edge, inside the border, so it belongs to what it refreshes. */
@@ -4184,12 +4011,6 @@ html:has(.g-header) {
 
 .cp-field > .cp-input[data-width="fill"] {
   justify-self: stretch;
-}
-
-.g-row-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
-  gap: var(--cp-space-3);
 }
 
 /* A zone with a context menu: under a finger, a hold opens the menu, so it

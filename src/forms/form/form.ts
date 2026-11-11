@@ -7,7 +7,7 @@
  * @module
  */
 
-import { type Control, MARK, clearError as clear, idOf, showError } from "./field-error.js";
+import { type Control, MARK, clearError as clear, idOf, showError as show } from "./field-error.js";
 
 export type { Control } from "./field-error.js";
 
@@ -15,6 +15,12 @@ export type { Control } from "./field-error.js";
  *  showed it. */
 export function clearError(field: Control): void {
   clear(field);
+}
+
+/** Shows `message` as `field`'s error, as `reportErrors` does for one field,
+ *  without the summary or a move of focus. */
+export function showError(field: Control, message: string): void {
+  show(field, message);
 }
 
 export interface FieldError {
@@ -59,7 +65,7 @@ export function reportErrors(
     }
   }
   for (const e of errors) {
-    showError(e.field, e.message);
+    show(e.field, e.message);
   }
   if (errors.length < 2) {
     summary.hidden = true;
