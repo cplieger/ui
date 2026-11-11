@@ -27,7 +27,7 @@ addEventListener("popstate", () => tabs.select(tabFromUrl()), { signal: page.sig
 - `onSelect(tab, panel)` runs when a press or a key selects another tab, after its panel is shown. Write the tab into the URL there, as [Design patterns](../design-patterns.md#tabs) asks.
 - `select(tab)` selects a tab and shows its panel without `onSelect`, as when Back restores the tab the URL names. `selected` reads the selected tab.
 - The tab marked `aria-selected="true"` starts selected, else the first. Every other tab's panel is hidden.
-- A selected tab out of view in a strip too wide for its place scrolls into view, whether it starts selected, or a press, a key or `select()` chose it. A tab wider than the strip shows from where its label starts. The script scrolls only the strip, never the page.
+- A selected tab out of view in a strip too wide for its place scrolls into view, whether it starts selected, or a press, a key or `select()` chose it. A strip hidden when the script runs, as in a closed dialog, scrolls once it is first shown. A tab wider than the strip shows from where its label starts. The script scrolls only the strip, never the page.
 - Without the script the selected tab fills itself, so a page drawn on the server shows the right tab.
 - Aborting `signal` removes the listeners and the pill.
 

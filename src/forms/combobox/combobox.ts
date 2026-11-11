@@ -166,7 +166,6 @@ export function enhanceCombobox(
       update(options.autoActivate === true && input.value.trim() !== "" ? "first" : "keep");
       if (onSettle !== undefined) {
         clearTimeout(timer);
-        // A pause in typing is a length of time, so a timer measures it.
         timer = setTimeout(() => {
           onSettle(input.value);
         }, settleMs);

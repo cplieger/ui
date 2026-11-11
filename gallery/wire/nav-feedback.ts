@@ -16,7 +16,6 @@ import { toast, type ToastKind, type ToastOptions } from "@cplieger/ui/toast";
 
 installAnnouncer();
 
-// A menu item names the toast it shows by data-say.
 for (const menu of document.querySelectorAll<HTMLElement>(".cp-header .cp-menu, #m-season")) {
   enhanceMenu(menu, {
     onSelect: (item) => {
@@ -139,8 +138,6 @@ for (const list of document.querySelectorAll<HTMLElement>(".cp-tabs[data-tabs]")
   );
 }
 
-// data-accordion-mode names the accordion its One at a time and Any number
-// choice switches.
 for (const mode of document.querySelectorAll<HTMLElement>("[data-accordion-mode]")) {
   const accordion = document.getElementById(mode.dataset["accordionMode"] ?? "");
   if (accordion === null) {

@@ -6,7 +6,7 @@
  * @module
  */
 
-import { reducedMotion, until } from "../../core/lifetime/lifetime.js";
+import { reducedMotion, until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { enhancePill } from "../../core/pill/pill.js";
 import { enhanceRovingFocus } from "../../core/roving-focus/roving-focus.js";
 
@@ -66,11 +66,30 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
       }
     }
   };
+  let unseen: ResizeObserver | null = null;
+  whenAborted(signal, () => unseen?.disconnect());
   // Only the strip scrolls, never the page (as scrollIntoView would), so a
   // tab Back restores in a strip off screen leaves the page where it was.
-  // A restore scrolls at once, since nothing glides into a strip the reader
-  // is not looking at. A tab wider than the strip shows its reading start.
+  // A restore or the start scrolls at once, since nothing animates on load
+  // (design.md "Motion"). A tab wider than the strip shows its reading start.
   const reveal = (tab: HTMLElement, glide: boolean): void => {
+    if (list.clientWidth === 0) {
+      // A strip with no box (in a closed dialog or a hidden panel) measures
+      // 0 at both edges, so the reveal waits until it first has a width.
+      if (unseen === null && signal?.aborted !== true) {
+        const watch = new ResizeObserver(() => {
+          const now = selected();
+          if (list.clientWidth > 0 && now !== null) {
+            watch.disconnect();
+            unseen = null;
+            reveal(now, false);
+          }
+        });
+        unseen = watch;
+        watch.observe(list);
+      }
+      return;
+    }
     const left = list.getBoundingClientRect().left + list.clientLeft;
     const right = left + list.clientWidth;
     const box = tab.getBoundingClientRect();

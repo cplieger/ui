@@ -186,6 +186,26 @@ describe("enhanceTabs", () => {
     expect(tab.right).toBeLessThanOrEqual(port.right + 0.5);
   });
 
+  it("brings the selected tab into view once a strip hidden at the start is shown", async () => {
+    const { list, tabs } = strip(2);
+    const wrap = document.createElement("div");
+    wrap.hidden = true;
+    document.body.append(wrap);
+    wrap.append(list);
+    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
+    for (const t of tabs) {
+      t.style.cssText = "flex: none; inline-size: 5rem";
+    }
+    enhanceTabs(list, { signal: life.signal });
+    wrap.hidden = false;
+    await vi.waitFor(() => {
+      const port = list.getBoundingClientRect();
+      const tab = (tabs[2] as HTMLElement).getBoundingClientRect();
+      expect(tab.left).toBeGreaterThanOrEqual(port.left - 0.5);
+      expect(tab.right).toBeLessThanOrEqual(port.right + 0.5);
+    });
+  });
+
   it.each([
     { dir: "ltr", scroll: 32, start: (r: DOMRect) => r.left },
     { dir: "rtl", scroll: -32, start: (r: DOMRect) => r.right },
