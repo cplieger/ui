@@ -447,9 +447,14 @@
                   Access
                 </button>
               </div>
-              <span class="cp-progress"
+              <!-- [html-validate-disable-next prefer-native-element: Firefox does not animate the fill of a native progress, so the bar is a span with its role] -->
+              <span
+                class="cp-progress progress-58"
+                role="progressbar"
+                aria-label="Checking sources"
+                aria-valuenow="58"
                 ><span class="cp-progress-track"
-                  ><span class="cp-progress-fill progress-58"></span></span
+                  ><span class="cp-progress-fill"></span></span
                 >58%</span
               >
             </div>

@@ -296,36 +296,6 @@ for (const group of document.querySelectorAll(".cp-segmented, .g-toggles")) {
   place(true);
 }
 
-// Progress: small steps a little faster than the fill's 480ms glide, so it
-// never comes to rest between them; it turns green once the fill arrives.
-for (const b of document.querySelectorAll("[data-run]")) {
-  const bar = document.getElementById(b.dataset.run);
-  const fill = bar.firstElementChild;
-  let run = 0;
-  b.addEventListener("click", () => {
-    const mine = ++run;
-    bar.classList.remove("full");
-    fill.style.transition = "none";
-    fill.style.setProperty("--p", "0%");
-    void fill.offsetWidth;
-    fill.style.transition = "";
-    let p = 0;
-    const tick = () => {
-      if (mine !== run) return;
-      p = Math.min(100, p + 3 + Math.random() * 5);
-      fill.style.setProperty("--p", `${p}%`);
-      if (p < 100) setTimeout(tick, 260);
-      else
-        setTimeout(() => {
-          if (mine !== run) return;
-          bar.classList.add("full");
-        }, 480);
-    };
-    tick();
-  });
-}
-
-
 // Five quick presses on a wordmark flip its mark: a rare surprise.
 for (const w of document.querySelectorAll("[data-five-press]")) {
   const mark = w.querySelector(".cp-mark");
@@ -2113,19 +2083,6 @@ for (const d of $$("[data-filter-sheet]")) {
   });
   label();
   recount();
-}
-
-// The first sync's phase line moves on with it (a demo clock).
-for (const host of $$("[data-first-sync]")) {
-  const bar = $("progress", host);
-  const phase = $(".g-sync-phase", host);
-  setInterval(() => {
-    const next = Number(bar.value) + 7;
-    if (next > Number(bar.max)) {
-      bar.value = 0;
-    } else bar.value = next;
-    phase.textContent = `Series ${bar.value} of ${bar.max}`;
-  }, 900);
 }
 
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to

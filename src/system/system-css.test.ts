@@ -2233,6 +2233,113 @@ describe("css/system.css feedback and steps", () => {
     expect(before(passed).maskImage).not.toBe(before(failed).maskImage);
   });
 
+  it("reveals a progress fill to its --cp-progress, and turns it green with its check once done", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-progress" role="progressbar" aria-label="Check" aria-valuenow="40"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>40%</span>',
+    );
+    const bar = el.querySelector(".cp-progress") as HTMLElement;
+    const fill = el.querySelector(".cp-progress-fill") as HTMLElement;
+    fill.style.transition = "none";
+    bar.style.setProperty("--cp-progress", "40%");
+    const track = (el.querySelector(".cp-progress-track") as HTMLElement).getBoundingClientRect();
+    expect([track.width, track.height]).toEqual([224, 8]);
+    expect(getComputedStyle(fill).clipPath).toMatch(/^inset\(0px 60% 0px 0px round/);
+    // The track comes first, then the check's kept place, then the words.
+    const check = getComputedStyle(bar, "::before");
+    expect([check.width, check.opacity, check.scale]).toEqual(["18px", "0", "0"]);
+    expect(check.maskImage).toMatch(/^url\(/);
+    const accent = host("");
+    accent.style.color = "var(--cp-accent-9)";
+    const success = host("");
+    success.style.color = "var(--cp-success-9)";
+    const from = (): string => getComputedStyle(fill).getPropertyValue("--cp-progress-from");
+    expect(rgb(from())).toEqual(rgb(getComputedStyle(accent).color));
+    bar.dataset["state"] = "done";
+    expect(rgb(from())).toEqual(rgb(getComputedStyle(success).color));
+    expect(rgb(getComputedStyle(fill).getPropertyValue("--cp-progress-to"))).toEqual(
+      rgb(getComputedStyle(success).color),
+    );
+    fill.style.removeProperty("transition");
+    // Green waits for the last step's 480ms glide, and the check for green.
+    expect(getComputedStyle(fill).transitionDelay).toBe("0s, 0.48s, 0.48s");
+    expect(getComputedStyle(bar, "::before").transitionDelay).toBe("0.74s, 0.74s");
+  });
+
+  it.skipIf(!emulates)("keeps a progress fill apart from its track in forced colours", async () => {
+    theme("light");
+    await media("forced-colors", "active");
+    const el = build(
+      '<span class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>1 of 2</span>',
+    );
+    const track = getComputedStyle(el.querySelector(".cp-progress-track") as Element);
+    const fill = getComputedStyle(el.querySelector(".cp-progress-fill") as Element);
+    const system = (colour: string): string => {
+      const h = host("");
+      h.style.cssText = `forced-color-adjust: none; background: ${colour}`;
+      return getComputedStyle(h).backgroundColor;
+    };
+    expect(fill.backgroundImage).toBe("none");
+    expect([fill.backgroundColor, track.backgroundColor]).toEqual([
+      system("Highlight"),
+      system("Canvas"),
+    ]);
+    expect(system("Highlight")).not.toBe(system("Canvas"));
+    expect(track.outlineStyle).toBe("solid");
+  });
+
+  it("puts a progress bar's words under its track in a box too narrow for both", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-empty"><span class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>Series 120 of 351</span></div>',
+    );
+    el.style.inlineSize = "20rem";
+    const bar = el.querySelector(".cp-progress") as HTMLElement;
+    const track = (el.querySelector(".cp-progress-track") as HTMLElement).getBoundingClientRect();
+    expect(bar.getBoundingClientRect().right).toBeLessThanOrEqual(
+      (el.firstElementChild as HTMLElement).getBoundingClientRect().right,
+    );
+    expect(bar.getBoundingClientRect().height).toBeGreaterThan(track.height + 8);
+    el.style.inlineSize = "40rem";
+    expect(bar.getBoundingClientRect().height).toBeLessThan(24);
+  });
+
+  it("sizes a skeleton's heading and last lines, and leads an empty state with its glyph or loader", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-stack"><div class="cp-skeleton" data-variant="heading"></div><div class="cp-skeleton"></div><div class="cp-skeleton" data-variant="last"></div></div>' +
+        '<div class="cp-empty"><span class="cp-icon" data-tone="danger"></span><strong>Failed</strong></div>' +
+        '<div class="cp-empty"><span class="cp-icon"></span><strong><span class="cp-loader"><span></span></span>Reading</strong></div>',
+    );
+    el.style.inlineSize = "500px";
+    root.classList.add("cp");
+    const [heading, line, last] = [...el.querySelectorAll<HTMLElement>(".cp-skeleton")].map(
+      (s) => s.getBoundingClientRect().width,
+    ) as [number, number, number];
+    expect([heading / line, last / line]).toEqual([0.4, 0.85]);
+    const [failed, plain] = [...el.querySelectorAll<HTMLElement>(".cp-empty > .cp-icon")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const danger = host("");
+    danger.style.color = "var(--cp-danger-9)";
+    const accent = host("");
+    accent.style.color = "var(--cp-accent-9)";
+    expect([getComputedStyle(failed).width, getComputedStyle(failed).color]).toEqual([
+      "48px",
+      getComputedStyle(danger).color,
+    ]);
+    expect(getComputedStyle(plain).color).toBe(getComputedStyle(accent).color);
+    const head = el.querySelector("strong:has(.cp-loader)") as HTMLElement;
+    const loader = (head.firstElementChild as HTMLElement).getBoundingClientRect();
+    const box = head.getBoundingClientRect();
+    expect([getComputedStyle(head).display, getComputedStyle(head).columnGap]).toEqual([
+      "flex",
+      "8px",
+    ]);
+    expect(loader.top + loader.height / 2).toBeCloseTo(box.top + box.height / 2, 0);
+  });
+
   it("twirls a loader through the harmony colours", () => {
     theme("light");
     const el = build('<span class="cp-loader" aria-hidden="true"><span></span></span>');

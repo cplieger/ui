@@ -119,6 +119,8 @@ An app whose data comes from another service has these states before it shows an
 | The service has no items | that the service answered and holds nothing yet | "Open Sonarr", a link to the service |
 | Filters hide everything | which filters are active | "Clear filters" |
 
+First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, then a `.cp-progress` whose words name the phase and the step, such as "Series 120 of 351", repeated in its `aria-valuetext`, then "View activity". Connection failed and Sync failed lead with a `circle-x` glyph in `data-tone="danger"`.
+
 ## Navigation and the URL
 
 - The URL is the state. Filters, sort, search, the open tab, the page of a list and an open sheet each live in the path or the query, so a link, a refresh and Back reopen the same view.

@@ -89,8 +89,8 @@
       <div class="card">
         <h2>A known amount</h2>
         <div class="stage">
-          <span class="variant"><span class="bar-row"><span class="bar" id="bar"><span></span></span><span class="cp-icon bar-check" data-cp-icon="circle-check" aria-hidden="true"></span></span>Run a check</span>
-          <button class="cp-button" type="button" data-run="bar">Start</button>
+          <span class="variant"><span class="cp-progress" id="check-bar" role="progressbar" aria-label="Running a check" aria-valuenow="0"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span></span>Run a check</span>
+          <button class="cp-button" type="button" data-progress-run="check-bar">Start</button>
         </div>
       </div>
       <div class="card">
@@ -119,9 +119,9 @@
       <div class="card g-wide">
         <h2>Loading content</h2>
         <div class="cp-panel cp-stack" aria-busy="true" aria-label="Loading the library">
-          <div class="cp-skeleton g-skel-40"></div>
+          <div class="cp-skeleton" data-variant="heading"></div>
           <div class="cp-skeleton"></div>
-          <div class="cp-skeleton g-skel-85"></div>
+          <div class="cp-skeleton" data-variant="last"></div>
         </div>
         <footer>A region that loads draws its shape at once with skeleton lines and marks itself busy; a whole screen loading uses the three twirls above.</footer>
       </div>
@@ -142,13 +142,13 @@
       </div>
       <div class="card">
         <h2>Failed to load</h2>
-        <div class="cp-empty"><span class="cp-icon g-hero-icon" data-tone="danger" data-cp-icon="circle-x" aria-hidden="true"></span><strong>The library did not load</strong><span>Sonarr took more than 10 seconds to answer.</span><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Try again</button></div>
+        <div class="cp-empty"><span class="cp-icon" data-tone="danger" data-cp-icon="circle-x" aria-hidden="true"></span><strong>The library did not load</strong><span>Sonarr took more than 10 seconds to answer.</span><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Try again</button></div>
         <footer>An error says what failed and offers the one next step.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>First sync running</h2>
-        <div class="cp-empty" data-first-sync><strong class="g-sync-head"><span class="loader load-twirl" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="g-sync-phase">Series 120 of 351</span><progress max="351" value="120" aria-label="Reading the library from Sonarr"></progress><a class="cp-button" href="#empty">View activity</a></div>
-        <footer>The first-run state between connecting and data: what is being read, how far, and a way to watch it. The phase line moves on as the sync does.</footer>
+        <div class="cp-empty"><strong><span class="cp-loader" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="cp-progress" role="progressbar" aria-label="Reading the library from Sonarr" aria-valuemax="351" aria-valuenow="120" aria-valuetext="Series 120 of 351" data-sync-demo><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>Series 120 of 351</span><a class="cp-button" href="#empty">View activity</a></div>
+        <footer>The first-run state between connecting and data: what is being read, how far, and a way to watch it. The bar is the one for a known amount, with the step in words beside it, or under it in a narrow box, and both move on as the sync does.</footer>
       </div>
     </div>
   </section>

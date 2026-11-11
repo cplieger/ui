@@ -418,84 +418,8 @@
   box-shadow: none;
 }
 
-/* Progress. The fill is one gradient fixed to the track, the accent at the
- * start and a lighter accent at the end, and progress reveals more of it by
- * clipping less, so the lighter end only shows near the finish. Its two
- * stops are registered colours, so finishing fades both straight to green;
- * a gradient written with plain colours would swap at once. */
-
-@property --bar-a {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: transparent;
-}
-
-@property --bar-b {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: transparent;
-}
-
-.bar-row {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.bar {
-  --bar-light: oklch(from var(--cp-accent-9) calc(l + 0.14) c h);
-
-  position: relative;
-  inline-size: 14rem;
-  block-size: 0.5rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-accent-4);
-  overflow: hidden;
-}
-
-.bar > span {
-  --bar-a: var(--cp-accent-9);
-  --bar-b: var(--bar-light);
-
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--bar-a), var(--bar-b));
-  clip-path: inset(0 calc(100% - var(--p, 0%)) 0 0 round var(--cp-radius-round));
-  transition:
-    clip-path 480ms var(--cp-ease-out),
-    --bar-a 500ms var(--cp-ease-out),
-    --bar-b 500ms var(--cp-ease-out);
-}
-
-.bar:dir(rtl) > span {
-  background-image: linear-gradient(270deg, var(--bar-a), var(--bar-b));
-  clip-path: inset(0 0 0 calc(100% - var(--p, 0%)) round var(--cp-radius-round));
-}
-
 /* Done: the fill fades to green and a check pops in at its end. The check's
  * place is kept while it is hidden, so nothing moves when it appears. */
-.bar.full > span {
-  --bar-a: var(--cp-success-9);
-  --bar-b: var(--cp-success-9);
-}
-
-.bar-check {
-  color: var(--cp-success-9);
-  scale: 0;
-  opacity: 0;
-  transition:
-    scale 160ms var(--cp-ease-out),
-    opacity 160ms var(--cp-ease-out);
-}
-
-.bar.full + .bar-check {
-  scale: 1;
-  opacity: 1;
-  transition:
-    scale var(--dur-spring) var(--ease-bounce) 260ms,
-    opacity 120ms linear 260ms;
-}
 
 /* A loader for work of unknown length, at about the size of a 24px icon, so
  * it sits beside words or alone in a panel. */
@@ -2230,7 +2154,7 @@ html:has(.g-header) {
   padding: var(--cp-space-3) var(--cp-space-4);
 }
 
-:is(.g-job, [data-first-sync]) progress {
+.g-job progress {
   grid-column: 1 / -1;
   inline-size: 100%;
   block-size: 0.375rem;
@@ -2241,17 +2165,17 @@ html:has(.g-header) {
   overflow: hidden;
 }
 
-:is(.g-job, [data-first-sync]) progress::-webkit-progress-bar {
+.g-job progress::-webkit-progress-bar {
   background: var(--cp-accent-4);
 }
 
-:is(.g-job, [data-first-sync]) progress::-webkit-progress-value {
+.g-job progress::-webkit-progress-value {
   border-radius: var(--cp-radius-round);
   background: var(--cp-accent-9);
   transition: inline-size 400ms var(--cp-ease-out);
 }
 
-:is(.g-job, [data-first-sync]) progress::-moz-progress-bar {
+.g-job progress::-moz-progress-bar {
   border-radius: var(--cp-radius-round);
   background: var(--cp-accent-9);
 }
@@ -2493,18 +2417,8 @@ html:has(.g-header) {
   color: var(--cp-accent);
 }
 
-/* ===== Hero icons, layouts and the rest of the scope ===== */
+/* ===== Layouts and the rest of the scope ===== */
 
-/* Hero icons on empty and error states, without an inline style. */
-.g-hero-icon {
-  --cp-icon-size: 3rem;
-
-  color: var(--cp-accent);
-}
-
-.g-hero-icon[data-tone="danger"] {
-  color: var(--cp-danger-9);
-}
 
 /* Avatars and covers take their harmony colour from an attribute. */
 [data-h="1"] {
@@ -2525,14 +2439,6 @@ html:has(.g-header) {
 [data-h="4"] {
   --av: var(--cp-harmony-4);
   --av-on: var(--cp-harmony-4-on);
-}
-
-.g-skel-40 {
-  inline-size: 40%;
-}
-
-.g-skel-85 {
-  inline-size: 85%;
 }
 
 /* Positioned, so a visually hidden label inside its table stays in the
@@ -3257,21 +3163,6 @@ html:has(.g-header) {
   rotate: 90deg;
 }
 
-[data-first-sync] progress {
-  inline-size: min(100%, 16rem);
-}
-
-/* The loader sits in the heading's line, as it does beside words anywhere. */
-[data-first-sync] > .g-sync-head {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-[data-first-sync] .g-sync-phase {
-  color: var(--cp-ink-muted);
-  font-variant-numeric: tabular-nums;
-}
 .g-media-head h2 + .g-alt-title + .g-media-meta {
   margin-block-start: var(--cp-space-2);
 }

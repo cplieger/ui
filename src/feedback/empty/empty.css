@@ -6,3 +6,18 @@
   padding: var(--cp-space-8) var(--cp-space-6);
   color: var(--cp-ink-muted);
 }
+
+/* Its lead glyph, in the accent or the tone it names, such as danger for
+ * a load that failed. */
+.cp-empty > .cp-icon:first-child {
+  --cp-icon-size: 3rem;
+
+  color: var(--cp-tone-9);
+}
+
+/* A heading with a loader, for work that runs before there is data. */
+.cp-empty > :has(> .cp-loader:first-child) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}

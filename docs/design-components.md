@@ -62,8 +62,8 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes, run by [tabs](navigation/tabs.md) with its sliding pill |
 | `.cp-link-tabs` | tabs that are links, one address each, the current one `aria-current="page"` |
 | `.cp-accordion`, `.cp-accordion-section` | native `<details>` in one raised box divided by lines, each summary's chevron turning as it opens, and a section with a small quiet menu button beside its summary, outside it, as [disclosure](navigation/disclosure.md#accordion) describes. Sections sharing a `name` open one at a time |
-| `.cp-progress`, `.cp-progress-track`, `.cp-progress-fill` | a progress bar in a tone |
-| `.cp-skeleton`, `.cp-empty` | the loading and empty states |
+| `.cp-progress`, `.cp-progress-track`, `.cp-progress-fill` | a bar for a known amount with `role="progressbar"`, filled to its `--cp-progress` (0% to 100%, set through the CSSOM) and gliding to each step, with the step in words beside it, or under it in a narrow box. `data-state="done"` turns it green and pops a check in at its end. Its fill is in the tone, the accent by default |
+| `.cp-skeleton`, `.cp-empty` | the loading and empty states. A skeleton line takes `data-variant="heading"` (40% wide) or `"last"` (85%, a paragraph's last line). An empty state's first child may be its 48px glyph, in the accent or the tone it names, such as `data-tone="danger"` for a load that failed, and a heading holding a `.cp-loader` first sets it in the heading's line, for work that runs before there is data |
 | `.cp-loader`, `.cp-inline-load` | a loader for work of unknown length, the checkbox's square twirling through the harmony colours, alone or beside words that say what is loading |
 | `.cp-toaster`, `.cp-toast` | the toast stack and a toast, as [toast](feedback/toast.md) describes |
 | `.cp-tooltip` | a control's tip, as [tooltip](overlays/tooltip.md) describes |
