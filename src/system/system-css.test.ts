@@ -654,7 +654,8 @@ describe("css/system.css", () => {
   it("draws a key as a cap in the body font, a combination as its keys' caps, and a menu item's key as words", () => {
     theme("light");
     const el = build(
-      '<p><kbd>?</kbd> <kbd><kbd>Ctrl</kbd> <kbd>K</kbd></kbd></p><div class="cp-menu"><button role="menuitem" type="button">Search<kbd>S</kbd></button></div>',
+      '<p><kbd>?</kbd> <kbd><kbd>Ctrl</kbd> <kbd>K</kbd></kbd></p><div class="cp-menu"><button role="menuitem" type="button">Search<kbd>S</kbd></button>' +
+        '<button role="menuitem" type="button">Jump<kbd><kbd>Ctrl</kbd> <kbd>K</kbd></kbd></button></div>',
     );
     const [key, combo, ctrl] = [...el.querySelectorAll("p kbd")].map((k) => getComputedStyle(k));
     const body = getComputedStyle(el).fontFamily;
@@ -666,17 +667,25 @@ describe("css/system.css", () => {
     }
     expect(combo?.borderInlineStartStyle).toBe("none");
     expect(combo?.paddingInlineStart).toBe("0px");
-    const inMenu = getComputedStyle(el.querySelector(".cp-menu kbd") as Element);
-    expect(inMenu.borderInlineStartStyle).toBe("none");
-    expect(inMenu.paddingInlineStart).toBe("0px");
+    for (const k of el.querySelectorAll(".cp-menu kbd")) {
+      expect(getComputedStyle(k).borderInlineStartStyle).toBe("none");
+      expect(getComputedStyle(k).paddingInlineStart).toBe("0px");
+    }
+    expect(el.querySelectorAll(".cp-menu kbd").length).toBe(4);
   });
 
   it("ends a palette's action with its keys as muted words, and fills the active action", () => {
     theme("light");
     const el = build(
-      '<div class="cp-palette"><ul role="listbox"><li role="option" aria-selected="true"><span>Go to the library</span><kbd>G L</kbd></li><li role="option" aria-selected="false"><span>Open settings</span><kbd>,</kbd></li></ul></div>',
+      '<div class="cp-palette"><ul role="listbox"><li role="option" aria-selected="true"><span>Go to the library</span><kbd>G L</kbd></li><li role="option" aria-selected="false"><span>Open settings</span><kbd>,</kbd></li>' +
+        '<li role="option" aria-selected="false"><span>Search</span><kbd><kbd>Ctrl</kbd> <kbd>F</kbd></kbd></li></ul></div>',
     );
-    const [on, off] = [...el.querySelectorAll("li")];
+    const [on, off, combo] = [...el.querySelectorAll("li")];
+    expect((combo as Element).querySelectorAll("kbd kbd").length).toBe(2);
+    for (const k of (combo as Element).querySelectorAll("kbd kbd")) {
+      expect(getComputedStyle(k).borderInlineStartStyle).toBe("none");
+      expect(getComputedStyle(k).paddingInlineStart).toBe("0px");
+    }
     const keys = getComputedStyle((off as Element).querySelector("kbd") as Element);
     expect(keys.borderInlineStartStyle).toBe("none");
     expect(keys.paddingInlineStart).toBe("0px");
@@ -1796,6 +1805,34 @@ describe("css/system.css overlays", () => {
     expect(getComputedStyle(on, "::before").backgroundColor).toBe(getComputedStyle(accent).color);
   });
 
+  it("shrinks a select panel option's box while data-cp-pressed marks it", () => {
+    theme("light");
+    const [rest, pressed] = [
+      ...build(
+        '<div class="cp-select-panel"><ul role="listbox"><li role="option" aria-selected="false">Watch next</li>' +
+          '<li role="option" aria-selected="false" data-cp-pressed="">Rewatch</li></ul></div>',
+      ).querySelectorAll<HTMLElement>("li"),
+    ] as [HTMLElement, HTMLElement];
+    expect(getComputedStyle(rest, "::before").scale).toBe("none");
+    // Firefox keeps the scale as a float32.
+    expect(Number(getComputedStyle(pressed, "::before").scale)).toBeCloseTo(0.88, 6);
+  });
+
+  it.skipIf(!emulates)(
+    "holds a pressed select panel option's box still under reduced motion",
+    async () => {
+      theme("light");
+      const option = build(
+        '<div class="cp-select-panel"><ul role="listbox"><li role="option" aria-selected="false" data-cp-pressed="">Rewatch</li></ul></div>',
+      ).querySelector("li") as HTMLElement;
+      await media("prefers-reduced-motion", "reduce");
+      for (const a of document.getAnimations()) {
+        a.finish();
+      }
+      expect(getComputedStyle(option, "::before").scale).toBe("none");
+    },
+  );
+
   it("lays out a small confirmation and a select panel only while open", () => {
     theme("light");
     const el = build(
@@ -1835,6 +1872,20 @@ describe("css/system.css overlays", () => {
     const badge = getComputedStyle(b.querySelector(".cp-badge") as Element);
     expect(badge.backgroundColor).toBe(getComputedStyle(accent).color);
     expect(badge.color).toBe(getComputedStyle(ink).color);
+  });
+
+  it("shows a pressed Show button's drawing marked on, which the trigger rule leaves to it", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-input-wrap"><input class="cp-input" type="text"><button class="cp-button" type="button" aria-pressed="true" aria-label="Show password">' +
+        '<span class="cp-icon"></span><span class="cp-icon" data-part="on"></span></button></div>',
+    );
+    const b = el.querySelector("button") as HTMLElement;
+    const shown = () =>
+      [...b.querySelectorAll(".cp-icon")].map((i) => getComputedStyle(i).display !== "none");
+    expect(shown()).toEqual([false, true]);
+    b.setAttribute("aria-pressed", "false");
+    expect(shown()).toEqual([true, false]);
   });
 
   it("opens a sheet the window's height at the inline end, and a confirmation narrower than a dialog", () => {

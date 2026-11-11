@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { installAnchors } from "../anchor/anchor.js";
 import { enhanceSelectPanel } from "./select-panel.js";
 
@@ -81,6 +82,18 @@ describe("enhanceSelectPanel", () => {
     expect(options.every((o) => o.hidden)).toBe(true);
     expect(empty.hidden).toBe(false);
     expect(field.hasAttribute("aria-activedescendant")).toBe(false);
+  });
+
+  it("says its empty words as the list goes empty, since focus stays in the field", async () => {
+    installAnnouncer({ signal: life.signal });
+    const { opener, panel, empty } = page();
+    enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
+    await userEvent.click(opener);
+    await userEvent.keyboard("zzz");
+    expect(empty.hidden).toBe(false);
+    await expect
+      .poll(() => document.querySelector('[data-cp-politeness="polite"]')?.textContent)
+      .toBe("No label matches.");
   });
 
   it("moves the active option with the arrows, wrapping and skipping a disabled one, and checks it on Enter", async () => {

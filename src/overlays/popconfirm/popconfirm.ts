@@ -24,7 +24,8 @@ let seq = 0;
  * `popover` is a `.cp-popover[data-variant="confirm"]` opened by a button's
  * `popovertarget` or `commandfor`, holding the question in a `<p>` and a
  * `<form>` with its submit button and a `type="button"` decline. Throws a
- * `TypeError` when it holds no form or no decline.
+ * `TypeError` when it holds no form or no decline. Needs `installAnchors()`
+ * for focus to come back to the opener in Safari.
  */
 export function enhancePopconfirm(popover: HTMLElement, options: PopconfirmOptions): void {
   const { onConfirm, signal } = options;
@@ -70,7 +71,7 @@ export function enhancePopconfirm(popover: HTMLElement, options: PopconfirmOptio
       e.preventDefault();
       popover.hidePopover();
       // Safari focuses no button on a click, so hiding finds no opener to
-      // give focus back to.
+      // give focus back to (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#clicking_and_focus).
       anchorOf(popover)?.focus();
       onConfirm();
     },

@@ -90,6 +90,7 @@ export function enhancePalette(dialog: HTMLDialogElement, options: PaletteOption
   field.autofocus = true;
   // A long list scrolls, and a scroller with nothing focusable in it is a
   // Tab stop in Chromium and Firefox; focus belongs in the field.
+  // (https://chromestatus.com/feature/5231964663578624)
   listbox.tabIndex = -1;
   field.addEventListener(
     "focus",

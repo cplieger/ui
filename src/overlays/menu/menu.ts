@@ -258,7 +258,7 @@ export function enhanceMenu(menu: HTMLElement, options: MenuOptions = {}): void 
   let focusLast = false;
   const me: Owner = {
     // Safari focuses no button on a click, so hiding can find no opener to
-    // give focus back to.
+    // give focus back to (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#clicking_and_focus).
     close: () => {
       const inside = menu.contains(document.activeElement);
       hide(menu);
@@ -483,7 +483,8 @@ export function enhanceContextMenu(
     },
     listen,
   );
-  // menu.css stops a hold here raising iOS's link callout, which no event cancels.
+  // menu.css stops a hold here raising iOS's link callout, which no event
+  // cancels (https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/-webkit-touch-callout).
   zone.toggleAttribute("data-cp-context", true);
   wireItems(menu, me, signal);
   signal?.addEventListener(

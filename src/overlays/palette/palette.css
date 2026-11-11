@@ -54,7 +54,8 @@
 }
 
 /* The keys that run an action are muted words at its end, as in a menu. */
-.cp-palette [role="option"] > kbd {
+.cp-palette [role="option"] > kbd,
+.cp-palette [role="option"] > kbd kbd {
   margin-inline-start: auto;
   padding: 0;
   border: 0;

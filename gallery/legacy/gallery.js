@@ -54,7 +54,7 @@ const coarse = () => root.dataset.pointer === "coarse";
 // attribute that a mouse, a finger and a key set the same way. :active cannot
 // carry it: iOS Safari applies it only under a touchstart listener, and a
 // quick tap holds it for a frame or two.
-const PRESSABLE = "button:not(:disabled), label:has(input:not(:disabled))";
+const PRESSABLE = 'button:not(:disabled), label:has(input:not(:disabled)), [role="option"]:not([aria-disabled="true"])';
 // Android shows a touch press after its 100ms tap timeout (ViewConfiguration
 // TAP_TIMEOUT), so a scroll that starts on a control cancels before it shows.
 const TOUCH_DELAY = 100;

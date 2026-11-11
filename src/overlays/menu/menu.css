@@ -52,7 +52,8 @@
   cursor: not-allowed;
 }
 
-.cp-menu [role^="menuitem"] > kbd {
+.cp-menu [role^="menuitem"] > kbd,
+.cp-menu [role^="menuitem"] > kbd kbd {
   margin-inline-start: auto;
   padding: 0;
   border: 0;
@@ -137,7 +138,7 @@
 
 /* A press goes down fast and comes back on the spring, as a checkbox's. */
 .cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before,
-.cp-select-panel [role="option"]:active::before {
+.cp-select-panel [role="option"]:is(:active, [data-cp-pressed])::before {
   --cp-mbox-press-dur: var(--cp-dur-press);
   --cp-mbox-press-ease: var(--cp-ease-out);
 
@@ -177,7 +178,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before,
-  .cp-select-panel [role="option"]:active::before {
+  .cp-select-panel [role="option"]:is(:active, [data-cp-pressed])::before {
     scale: none;
   }
 

@@ -147,7 +147,7 @@ export function enhanceOverflow(bar: HTMLElement, options: OverflowOptions = {})
     const changed = was.size !== out.size || [...was].some((b) => !out.has(b));
     if (changed && menu.matches(":popover-open")) {
       // The popover gives focus back only to a More that took it, which a
-      // click in Safari never does.
+      // click in Safari never does (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#clicking_and_focus).
       const inside = menu.contains(document.activeElement);
       menu.hidePopover();
       if (inside) {

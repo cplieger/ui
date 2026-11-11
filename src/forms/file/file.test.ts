@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { showError } from "../form/form.js";
@@ -34,6 +35,8 @@ function zone(multiple = true): {
   document.body.append(field);
   return { field, drop, input, list };
 }
+
+const task = (): Promise<void> => new Promise((r) => setTimeout(r));
 
 const file = (name: string, size = 2048): File => new File([new Uint8Array(size)], name);
 
@@ -135,8 +138,25 @@ describe("enhanceFiles", () => {
     choose(input, [file("a.ass"), file("b.mkv")]);
     expect([list.children.length, input.getAttribute("aria-invalid")]).toEqual([1, "true"]);
     form.reset();
-    await Promise.resolve();
+    await task();
     expect([list.children.length, input.hasAttribute("aria-invalid")]).toEqual([0, false]);
+  });
+
+  it("empties its list and its refusal when a person presses the form's reset button", async () => {
+    const { field, input, list } = zone();
+    const form = document.createElement("form");
+    const reset = document.createElement("button");
+    reset.type = "reset";
+    reset.textContent = "Clear";
+    form.append(field, reset);
+    document.body.append(form);
+    enhanceFiles(input, { list, signal: life.signal });
+    choose(input, [file("a.ass"), file("b.mkv")]);
+    await userEvent.click(reset);
+    await task();
+    expect([input.files?.length, list.children.length, input.hasAttribute("aria-invalid")]).toEqual(
+      [0, 0, false],
+    );
   });
 
   it("keeps its list when a listener cancels the reset", async () => {
@@ -150,7 +170,7 @@ describe("enhanceFiles", () => {
     enhanceFiles(input, { list, signal: life.signal });
     choose(input, [file("a.ass")]);
     form.reset();
-    await Promise.resolve();
+    await task();
     expect(list.children.length).toBe(1);
   });
 

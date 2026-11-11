@@ -7,6 +7,7 @@
  */
 
 import { anchorOf } from "../anchor/anchor.js";
+import { announce } from "../../feedback/announce/announce.js";
 import { until } from "../../core/lifetime/lifetime.js";
 
 export interface SelectPanelOptions {
@@ -34,8 +35,9 @@ const words = (el: Element): string => el.textContent.trim().toLocaleLowerCase()
  * `popovertarget` or `commandfor`, holding a `<form>` with a text `<input>`,
  * a `role="listbox"` of `role="option"` rows checked by `aria-selected`, and
  * its submit button. An element marked `data-part="empty"` shows while no
- * option matches. Throws a `TypeError` when the form, the field or the
- * listbox is missing.
+ * option matches, and its words are announced as it shows. Throws a
+ * `TypeError` when the form, the field or the listbox is missing. Needs
+ * `installAnchors()` for focus to come back to the opener in Safari.
  */
 export function enhanceSelectPanel(panel: HTMLElement, options: SelectPanelOptions): void {
   const { onApply, signal } = options;
@@ -77,8 +79,14 @@ export function enhanceSelectPanel(panel: HTMLElement, options: SelectPanelOptio
       o.hidden = !words(o).includes(q);
     }
     const shown = all().filter(usable);
-    if (empty !== null) {
-      empty.hidden = shown.length > 0;
+    const none = shown.length === 0;
+    // Focus stays in the field, so the list going empty says nothing by
+    // itself.
+    if (empty !== null && empty.hidden === none) {
+      empty.hidden = !none;
+      if (none) {
+        announce(empty.textContent.trim());
+      }
     }
     activate(shown[0] ?? null);
   };
@@ -90,6 +98,7 @@ export function enhanceSelectPanel(panel: HTMLElement, options: SelectPanelOptio
   listbox.setAttribute("aria-multiselectable", "true");
   // A long list scrolls, and a scroller with nothing focusable in it is a
   // Tab stop in Chromium and Firefox; focus belongs in the field.
+  // (https://chromestatus.com/feature/5231964663578624)
   listbox.tabIndex = -1;
   field.setAttribute("role", "combobox");
   field.setAttribute("aria-autocomplete", "list");
@@ -172,7 +181,7 @@ export function enhanceSelectPanel(panel: HTMLElement, options: SelectPanelOptio
       applied = true;
       panel.hidePopover();
       // Safari focuses no button on a click, so hiding finds no opener to
-      // give focus back to.
+      // give focus back to (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#clicking_and_focus).
       anchorOf(panel)?.focus();
       onApply(all().filter(checked));
     },

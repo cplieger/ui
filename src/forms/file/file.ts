@@ -160,15 +160,18 @@ export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}
   );
   // A form's reset empties the field but fires no change, so the list and
   // the refusal follow once the reset has run, unless a listener cancelled it.
+  // The check waits a task, not a microtask: a reset button's event runs a
+  // microtask checkpoint before the controls reset
+  // (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset).
   input.form?.addEventListener(
     "reset",
     () => {
-      queueMicrotask(() => {
+      setTimeout(() => {
         if (held().length === 0) {
           list?.replaceChildren();
           clearError(input, "file");
         }
-      });
+      }, 0);
     },
     listen,
   );

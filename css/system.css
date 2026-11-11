@@ -5340,7 +5340,8 @@ textarea.cp-input {
 }
 
 /* The keys that run an action are muted words at its end, as in a menu. */
-.cp-palette [role="option"] > kbd {
+.cp-palette [role="option"] > kbd,
+.cp-palette [role="option"] > kbd kbd {
   margin-inline-start: auto;
   padding: 0;
   border: 0;
@@ -5639,7 +5640,8 @@ textarea.cp-input {
   cursor: not-allowed;
 }
 
-.cp-menu [role^="menuitem"] > kbd {
+.cp-menu [role^="menuitem"] > kbd,
+.cp-menu [role^="menuitem"] > kbd kbd {
   margin-inline-start: auto;
   padding: 0;
   border: 0;
@@ -5724,7 +5726,7 @@ textarea.cp-input {
 
 /* A press goes down fast and comes back on the spring, as a checkbox's. */
 .cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before,
-.cp-select-panel [role="option"]:active::before {
+.cp-select-panel [role="option"]:is(:active, [data-cp-pressed])::before {
   --cp-mbox-press-dur: var(--cp-dur-press);
   --cp-mbox-press-ease: var(--cp-ease-out);
 
@@ -5764,7 +5766,7 @@ textarea.cp-input {
 
 @media (prefers-reduced-motion: reduce) {
   .cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before,
-  .cp-select-panel [role="option"]:active::before {
+  .cp-select-panel [role="option"]:is(:active, [data-cp-pressed])::before {
     scale: none;
   }
 
@@ -5874,13 +5876,18 @@ textarea.cp-input {
   }
 }
 
-/* A trigger whose filters or labels are on, marked data-active by the page:
- * as a pinned pin does, its icon shows the filled drawing marked
- * data-part="on", the one after its own, in the accent. A toggle shows its
- * drawings by aria-pressed instead. */
-.cp-button:not(.cp-toggle, [data-active]) > .cp-icon[data-part="on"],
+/* A button's filled drawing, the .cp-icon marked data-part="on" after its
+ * own, shows only by its owner's rule: a trigger the page marks data-active,
+ * whose filters or labels are on, shows it in the accent, as a pinned pin
+ * does; a toggle or a field's Show button shows it by aria-pressed. The hide
+ * stays at (0,2,0) so every owner's rule outranks it. */
+:where(.cp-button) > .cp-icon[data-part="on"],
 .cp-button[data-active] > .cp-icon:has(+ [data-part="on"]) {
   display: none;
+}
+
+.cp-button[data-active] > .cp-icon[data-part="on"] {
+  display: inline-block;
 }
 
 .cp-button[data-active]:not(:disabled) > [data-part="on"] {
