@@ -25,8 +25,9 @@ export interface TabsOptions {
 export interface Tabs {
   /** The selected tab, or null when the list holds none. */
   readonly selected: HTMLElement | null;
-  /** Selects `tab` and shows its panel without `onSelect`, as when Back
-   *  restores the tab the URL names. A tab outside the list is ignored. */
+  /** Selects `tab`, shows its panel and scrolls the strip to it without
+   *  `onSelect`, as when Back restores the tab the URL names. A tab outside
+   *  the list is ignored. */
   select(tab: HTMLElement): void;
 }
 
@@ -65,16 +66,25 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
       }
     }
   };
+  // Only the strip scrolls, never the page (as scrollIntoView would), so a
+  // tab Back restores in a strip off screen leaves the page where it was.
+  // A restore scrolls at once: it needs no glide, and Firefox leaves a
+  // smooth scroll of a strip outside the viewport undone.
+  const reveal = (tab: HTMLElement, glide: boolean): void => {
+    const start = list.getBoundingClientRect().left + list.clientLeft;
+    const end = start + list.clientWidth;
+    const box = tab.getBoundingClientRect();
+    const dx = box.left < start ? box.left - start : Math.max(0, box.right - end);
+    if (dx !== 0) {
+      list.scrollBy({ left: dx, behavior: glide && !reducedMotion() ? "smooth" : "auto" });
+    }
+  };
   const choose = (tab: HTMLElement): void => {
     if (tab === selected()) {
       return;
     }
     show(tab);
-    tab.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-      behavior: reducedMotion() ? "auto" : "smooth",
-    });
+    reveal(tab, true);
     onSelect?.(tab, panelOf(tab));
   };
 
@@ -130,6 +140,7 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
     select(tab) {
       if (tabOf(tab) === tab) {
         show(tab);
+        reveal(tab, false);
       }
     },
   };

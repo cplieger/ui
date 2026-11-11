@@ -23,7 +23,7 @@ check.update({ kind: "success", title: "Check finished" });
 | `life` | `7000` | How long a passing toast stays, in ms. |
 | `busy` | false | Work in progress: a loader instead of the glyph, kept until `update`. |
 
-- `toast()` returns `{ dismiss, update }`. `update` takes the same options and changes the toast in place: a working toast that counts keeps its loader turning, and buttons with the same labels stay where they are, so focus on one survives, while their `run` and `keep` take the new values.
+- `toast()` returns `{ dismiss, update }`. `update` takes the same options and changes the toast in place: a working toast that counts keeps its loader turning, words it leaves unchanged keep a selection in them, and buttons with the same labels stay where they are, so focus on one survives, while their `run` and `keep` take the new values.
 - A press anywhere on a toast but its buttons dismisses it, and a finger can swipe it away. It leaves by sliding out and fading, then its row closes so the toasts above settle.
 - Four show at once. The oldest passing one makes room, or the oldest of all when every one stays.
 - The stack is a popover, kept inside the topmost modal dialog while one is open, since the dialog makes the rest of the page inert.

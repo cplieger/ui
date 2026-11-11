@@ -2062,7 +2062,7 @@ describe("css/system.css feedback and steps", () => {
   it("stacks a banner's head, its reasons and its foot, the foot in the tone's ink", () => {
     theme("light");
     const el = build(
-      '<div class="cp-banner" data-tone="warning"><span>Update ready.</span><button class="cp-button" type="button">Reload</button></div>' +
+      '<div class="cp-banner" data-tone="warning"><strong>Update ready.</strong> Reload to use it. <small>Saved.</small><button class="cp-button" type="button">Reload</button></div>' +
         '<div class="cp-banner" data-tone="warning"><strong><span class="cp-icon"></span>Reachable from the internet</strong><ul><li>It answers on a public address.</li></ul><small>Seen today. <a href="#a">How to limit access</a></small></div>',
     );
     const [plain, reasons] = [...el.querySelectorAll<HTMLElement>(".cp-banner")] as [
@@ -2071,6 +2071,10 @@ describe("css/system.css feedback and steps", () => {
     ];
     expect(getComputedStyle(plain).display).toBe("flex");
     expect(getComputedStyle(plain).paddingBlockStart).toBe("8px");
+    expect(getComputedStyle(plain.querySelector("strong") as Element).display).toBe("block");
+    expect(getComputedStyle(plain.querySelector("small") as Element).color).toBe(
+      getComputedStyle(plain).color,
+    );
     const box = getComputedStyle(reasons);
     expect([box.display, box.paddingBlockStart, box.paddingInlineStart]).toEqual([
       "grid",
@@ -2270,8 +2274,11 @@ describe("css/system.css feedback and steps", () => {
     theme("light");
     await media("forced-colors", "active");
     const el = build(
-      '<span class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>1 of 2</span>',
+      '<span class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>1 of 2</span>' +
+        '<span dir="rtl" class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>1 of 2</span>',
     );
+    const rtl = getComputedStyle(el.querySelector("[dir=rtl] .cp-progress-fill") as Element);
+    expect(rtl.backgroundImage).toBe("none");
     const track = getComputedStyle(el.querySelector(".cp-progress-track") as Element);
     const fill = getComputedStyle(el.querySelector(".cp-progress-fill") as Element);
     const system = (colour: string): string => {

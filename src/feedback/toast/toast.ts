@@ -220,8 +220,10 @@ export function toast(options: ToastOptions): ToastHandle {
   let actions: readonly ToastAction[] = [];
   let row: HTMLElement | null = null;
 
-  // An update keeps every node whose part did not change, so a working
-  // toast that counts keeps its loader turning and focus on its buttons.
+  // An update keeps the loader, the body and the buttons whose labels did
+  // not change, and leaves unchanged words alone, so a working toast that
+  // counts keeps its loader turning, focus on its buttons and a selection in
+  // its body. The draining line starts again with each update.
   const render = (o: ToastOptions): void => {
     const kind = o.kind ?? "info";
     el.dataset["kind"] = kind;
@@ -230,10 +232,16 @@ export function toast(options: ToastOptions): ToastHandle {
       lead.classList.toggle("cp-loader", o.busy === true);
       lead.replaceChildren(...(o.busy === true ? [document.createElement("span")] : []));
     }
-    title.textContent = o.title;
+    if (title.textContent !== o.title) {
+      title.textContent = o.title;
+    }
     if (o.body !== undefined && o.body !== "") {
-      body.textContent = o.body;
-      title.after(body);
+      if (body.textContent !== o.body) {
+        body.textContent = o.body;
+      }
+      if (body.parentNode !== text) {
+        title.after(body);
+      }
     } else {
       body.remove();
     }

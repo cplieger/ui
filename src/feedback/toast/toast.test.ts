@@ -122,6 +122,16 @@ describe("toast", () => {
     ]);
   });
 
+  it("keeps a selection in a body that an update leaves unchanged", () => {
+    const body = "Verdicts may be up to an hour old.";
+    const t = toast({ title: "Checking 0 of 412 entries…", body, busy: true });
+    const p = (toasts()[0] as HTMLElement).querySelector("p") as HTMLElement;
+    getSelection()?.selectAllChildren(p);
+    t.update({ title: "Checking 103 of 412 entries…", body, busy: true });
+    expect(String(getSelection())).toBe(body);
+    getSelection()?.removeAllRanges();
+  });
+
   it("shows four at most, the oldest passing one making room", () => {
     toast({ kind: "error", title: "kept" });
     for (const n of [1, 2, 3, 4]) {
@@ -145,8 +155,15 @@ describe("toast", () => {
     const top = document.elementFromPoint((box?.left ?? 0) + 4, (box?.top ?? 0) + 4);
     expect(stack().contains(top)).toBe(true);
     expect(stack().parentElement).toBe(d);
+    const closed = new Promise((r) => {
+      d.addEventListener("toggle", (e) => {
+        if ((e as ToggleEvent).newState === "closed") {
+          r(null);
+        }
+      });
+    });
     d.close();
-    await new Promise((r) => setTimeout(r, 0));
+    await closed;
     expect(stack().parentElement).toBe(document.body);
     expect(stack().matches(":popover-open")).toBe(true);
   });

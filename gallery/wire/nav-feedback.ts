@@ -28,8 +28,6 @@ for (const menu of document.querySelectorAll<HTMLElement>(".cp-header .cp-menu, 
   });
 }
 
-// The worst state that holds, from problems to all good. A change is said
-// politely in the button's own words, and the panel's heading follows.
 const STATES = [
   { state: "ok", words: "All good" },
   { state: "working", words: "Working: 3" },
@@ -66,8 +64,6 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-status-
   });
 }
 
-// The jump field: one value, its options filtered by what was typed, the
-// count or the no-match line said once typing stops.
 for (const row of document.querySelectorAll<HTMLElement>("[data-jump]")) {
   const input = row.querySelector<HTMLInputElement>("input");
   const popup = document.getElementById(row.dataset["jump"] ?? "");
@@ -200,7 +196,6 @@ document.querySelector("[data-toast-sticky]")?.addEventListener("click", () => {
     sticky: true,
   });
 });
-// The check counts in steps of 103 until its 412 entries are done.
 document.querySelector("[data-toast-busy]")?.addEventListener("click", () => {
   let done = 0;
   const working = (): ToastOptions => ({
@@ -252,8 +247,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-chip-ne
   });
 }
 
-// A frame takes the gallery's look by message (frame.ts owns why): sent
-// when the frame asks and on every change.
+// frame.ts owns why the look arrives by message.
 const root = document.documentElement;
 for (const frame of document.querySelectorAll<HTMLIFrameElement>("iframe[data-frame]")) {
   const send = (): void => {
@@ -322,7 +316,6 @@ for (const start of document.querySelectorAll<HTMLButtonElement>("[data-progress
   });
 }
 
-// The first sync's bar and its words move on with it (a demo clock).
 for (const bar of document.querySelectorAll<HTMLElement>("[data-sync-demo]")) {
   const max = Number(bar.getAttribute("aria-valuemax"));
   const words = [...bar.childNodes].find((n) => n.nodeType === Node.TEXT_NODE);

@@ -137,6 +137,42 @@ describe("enhanceTabs", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it("scrolls a strip too narrow for its tabs to a tab pressed half out of view", async () => {
+    const { list, tabs } = strip();
+    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
+    for (const t of tabs) {
+      t.style.cssText = "flex: none; inline-size: 5rem";
+    }
+    enhanceTabs(list, { signal: life.signal });
+    await userEvent.click(tabs[1] as HTMLElement, { position: { x: 4, y: 4 } });
+    await vi.waitFor(() => {
+      const port = list.getBoundingClientRect();
+      expect((tabs[1] as HTMLElement).getBoundingClientRect().right).toBeLessThanOrEqual(
+        port.right + 0.5,
+      );
+    });
+  });
+
+  it("scrolls a strip too narrow for its tabs to the one select() picks, never the page", () => {
+    const { list, tabs } = strip();
+    list.style.cssText = "display: flex; inline-size: 6rem; overflow-x: auto";
+    for (const t of tabs) {
+      t.style.cssText = "flex: none; inline-size: 5rem";
+    }
+    const spacer = document.createElement("div");
+    spacer.style.blockSize = "300vh";
+    document.body.prepend(spacer);
+    const page = document.scrollingElement as Element;
+    page.scrollTop = 0;
+    const api = enhanceTabs(list, { signal: life.signal });
+    api.select(tabs[2] as HTMLElement);
+    const port = list.getBoundingClientRect();
+    const tab = (tabs[2] as HTMLElement).getBoundingClientRect();
+    expect(tab.left).toBeGreaterThanOrEqual(port.left - 0.5);
+    expect(tab.right).toBeLessThanOrEqual(port.right + 0.5);
+    expect(page.scrollTop).toBe(0);
+  });
+
   it("slides a pill under the selected tab, and its signal removes the pill and the keys", async () => {
     const { list, tabs } = strip();
     enhanceTabs(list, { signal: life.signal });

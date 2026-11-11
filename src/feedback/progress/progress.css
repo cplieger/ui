@@ -97,7 +97,8 @@
     outline: 1px solid CanvasText;
   }
 
-  .cp-progress-fill {
+  .cp-progress-fill,
+  .cp-progress-fill:dir(rtl) {
     background: Highlight;
   }
 

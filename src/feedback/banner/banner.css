@@ -25,13 +25,13 @@
   padding-block: var(--cp-space-3);
 }
 
-.cp-banner > strong {
+.cp-banner:has(> ul) > strong {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
 }
 
-.cp-banner > strong > .cp-icon {
+.cp-banner:has(> ul) > strong > .cp-icon {
   color: var(--cp-tone-11);
 }
 
@@ -42,7 +42,7 @@
   line-height: var(--cp-leading-body);
 }
 
-.cp-banner > small {
+.cp-banner:has(> ul) > small {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
 }
