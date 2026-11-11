@@ -4,7 +4,8 @@
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
-import { installAnchors } from "@cplieger/ui/anchor";
+import { anchorOf, installAnchors } from "@cplieger/ui/anchor";
+import { enhanceConfirm, type Confirm } from "@cplieger/ui/confirm";
 import { closeDialog, installDialogs } from "@cplieger/ui/dialog";
 import { enhanceContextMenu, enhanceMenu } from "@cplieger/ui/menu";
 import { enhancePalette } from "@cplieger/ui/palette";
@@ -12,6 +13,8 @@ import { enhancePanel } from "@cplieger/ui/panel";
 import { enhancePopconfirm } from "@cplieger/ui/popconfirm";
 import { enhanceSelectPanel } from "@cplieger/ui/select-panel";
 import { toast } from "@cplieger/ui/toast";
+import { enhanceToggle } from "@cplieger/ui/toggle";
+import { turn } from "@cplieger/ui/turn";
 
 installAnchors();
 installAnnouncer();
@@ -36,10 +39,56 @@ for (const zone of document.querySelectorAll<HTMLElement>("[data-context]")) {
   }
 }
 
+// A button that confirms in place names its words by data-busy-words and
+// data-done-words, and what to announce once done by data-say; its work
+// here only waits.
+const confirms = new Map<Element, Confirm>();
+const confirmIn = (button: Element, said: string | undefined): void => {
+  void confirms
+    .get(button)
+    ?.run(() => new Promise((done) => setTimeout(done, 900)))
+    .then((ok) => {
+      if (ok && said !== undefined) {
+        announce(said);
+      }
+    });
+};
+for (const b of document.querySelectorAll<HTMLButtonElement>("button[data-done-words]")) {
+  confirms.set(
+    b,
+    enhanceConfirm(b, {
+      busy: b.dataset["busyWords"] ?? "Saving…",
+      done: b.dataset["doneWords"] ?? "Saved",
+      ...(b.hasAttribute("data-footprint") ? { width: "footprint" as const } : {}),
+    }),
+  );
+  if (!b.hasAttribute("popovertarget")) {
+    b.addEventListener("click", () => {
+      confirmIn(b, b.dataset["say"]);
+    });
+  }
+}
+for (const b of document.querySelectorAll("[data-turn]")) {
+  b.addEventListener("click", () => {
+    turn(b);
+  });
+}
+for (const b of document.querySelectorAll<HTMLButtonElement>(
+  '.cp-toggle:is([data-kind="pin"], [data-kind="favourite"])',
+)) {
+  enhanceToggle(b);
+}
+
+// A confirmation whose button confirms in place plays that button's cycle.
 for (const pop of document.querySelectorAll<HTMLElement>('.cp-popover[data-variant="confirm"]')) {
   enhancePopconfirm(pop, {
     onConfirm: () => {
-      toast({ kind: "success", title: pop.dataset["say"] ?? "Done" });
+      const opener = anchorOf(pop);
+      if (opener !== null && confirms.has(opener)) {
+        confirmIn(opener, pop.dataset["say"]);
+      } else {
+        toast({ kind: "success", title: pop.dataset["say"] ?? "Done" });
+      }
     },
   });
 }

@@ -234,7 +234,6 @@ for (const b of document.querySelectorAll("[data-toggle]")) {
       icon.dataset.cpIcon = on ? "pin-filled" : "pin";
       b.classList.toggle("unpinned", !on);
     }
-    if (b.dataset.toggle === "heart") icon.dataset.cpIcon = on ? "heart-filled" : "heart";
   });
   b.addEventListener("animationend", () => b.classList.remove("unpinned"));
 }
@@ -1974,22 +1973,6 @@ for (const bar of $$("[data-overflow]")) {
   fit();
 }
 
-// A delete asks next to its button first, then confirms in place as Save does.
-for (const pop of $$("[data-delete-confirm]")) {
-  const opener = document.querySelector(`[popovertarget="${pop.id}"]`);
-  $("[data-yes]", pop).addEventListener("click", () => {
-    pop.hidePopover();
-    opener.focus();
-    confirmCycle(opener);
-    say("4 files deleted");
-  });
-  $("[data-no]", pop).addEventListener("click", () => {
-    pop.hidePopover();
-    opener.focus();
-  });
-  pop.addEventListener("toggle", (e) => e.newState === "open" && $("[data-no]", pop).focus());
-}
-
 // An action that confirms and keeps its word, as Copy does.
 for (const b of $$("[data-confirm-word]")) {
   b.addEventListener("click", () => {
@@ -2319,9 +2302,7 @@ for (const roll of $$(".roll")) {
   // A row action keeps one footprint across all its words (idle, busy, done):
   // an end margin takes up what the current word leaves and glides with it,
   // so its start edge, its icon and the buttons beside it never move.
-  const hold = btn.closest('[data-col="actions"]') ?? (btn.hasAttribute("data-footprint") ? btn : null);
-  // a split button's main action holds its widest word, so its caret never moves
-  const fixed = btn.closest(".g-btngroup");
+  const hold = btn.closest('[data-col="actions"]');
   const measure = (text) => {
     const keep = rest.textContent;
     rest.textContent = text;
@@ -2332,9 +2313,9 @@ for (const roll of $$(".roll")) {
   const fit = () => {
     const now = btn.classList.contains("grabbed") || btn.dataset.state === "done" ? done : rest;
     const widest = () => Math.max(measure(idle), done.scrollWidth, measure(btn.dataset.busyWords ?? idle));
-    const w = fixed ? widest() : now.scrollWidth;
+    const w = now.scrollWidth;
     roll.style.inlineSize = `${w}px`;
-    if (hold && !fixed) btn.style.marginInlineEnd = `${Math.max(measure(idle), done.scrollWidth, measure(btn.dataset.busyWords ?? idle)) - w}px`;
+    if (hold) btn.style.marginInlineEnd = `${widest() - w}px`;
   };
   new MutationObserver(fit).observe(btn, { attributes: true, attributeFilter: ["class", "data-state"] });
   new ResizeObserver(fit).observe(rest);

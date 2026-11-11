@@ -1569,6 +1569,20 @@ describe("css/system.css buttons and arrangements", () => {
     expect(split.getBoundingClientRect().width).toBeCloseTo(width, 0);
   });
 
+  it("keeps a split and a group as wide as their parts inside a form's grid", () => {
+    theme("light");
+    const el = build(
+      '<form class="cp-form" style="inline-size: 30rem"><div class="cp-split" role="group"><button class="cp-button" data-variant="primary" type="button">Grab</button><button class="cp-button" data-variant="primary" type="button" aria-label="More"><span class="cp-icon"></span></button></div><div class="cp-group" role="group"><button class="cp-button" type="button">A</button><button class="cp-button" type="button">B</button></div></form>',
+    );
+    for (const joined of el.querySelectorAll(".cp-split, .cp-group")) {
+      const parts = [...joined.children].reduce(
+        (sum, b) => sum + b.getBoundingClientRect().width,
+        0,
+      );
+      expect(joined.getBoundingClientRect().width).toBeCloseTo(parts, 0);
+    }
+  });
+
   it("joins a group's buttons with one line and rounds only its outer corners", () => {
     theme("light");
     const el = build(

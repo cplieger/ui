@@ -300,40 +300,6 @@
   }
 }
 
-/* Heart: it beats and fills, in a red of its own, when turned on. A quiet
- * button's hover inks its icon, a scoped rule that wins a specificity tie by
- * proximity, so :root lifts the red over it; under a mouse an off heart
- * also turns red, as a hint of what a press does. */
-.heart-beat {
-  --heart: oklch(62% 0.21 20);
-}
-
-:root .cp-button.heart-beat[aria-pressed="true"]:not(:disabled) {
-  color: var(--heart);
-}
-
-/* The heart reacts on press only; a mouse hover just tints it its colour. */
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-button.heart-beat:hover:not(:disabled) {
-      color: var(--heart);
-    }
-  }
-}
-
-.heart-beat[aria-pressed="true"] .cp-icon {
-  animation: heart 1100ms var(--cp-ease-out);
-}
-
-@keyframes heart {
-  0% { scale: 1; }
-  15% { scale: 1.35; }
-  30% { scale: 0.92; }
-  45% { scale: 1.15; }
-  100% { scale: 1; }
-}
-
 /* Colour pops: a state change flashes its tone's solid, then fades to its
  * wash from the first fifth of the animation on. */
 
@@ -3078,150 +3044,6 @@ html:has(.g-header) {
   gap: var(--cp-space-1);
 }
 
-/* Button group and split button. */
-.g-btngroup {
-  display: inline-flex;
-  transition: transform var(--cp-dur-press) var(--cp-ease-out);
-}
-
-/* The group presses as one control: a part that scaled alone would open a gap
- * at its seam. */
-.g-btngroup > .cp-button {
-  --cp-press-scale: 1;
-
-  position: relative;
-  overflow: hidden;
-}
-
-/* A split button is one shape: the group paints the fill, its corners and its
- * state's colour, and its parts paint nothing at rest, so its edges are drawn
- * once and cannot disagree between the parts at a fractional offset. A part
- * paints only its own hover or press, inside the shape. The group does not
- * clip, so a part's focus ring still shows outside it. */
-.g-btngroup:has(> .g-split-caret) {
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-tone-9);
-  transition:
-    background-color 600ms var(--cp-ease-out),
-    transform var(--cp-dur-press) var(--cp-ease-out);
-}
-
-.g-btngroup:has(> .g-split-caret):has(> [data-state="done"]) {
-  background: var(--done-bg);
-  transition:
-    background-color 160ms var(--cp-ease-out),
-    transform var(--cp-dur-press) var(--cp-ease-out);
-}
-
-.g-btngroup:has(> .g-split-caret) > .cp-button,
-:root .g-btngroup:has(> .g-split-caret) > .cp-button.btn-done[data-state] {
-  background: transparent;
-}
-
-/* A part's hover or press fill stops inside its transparent 1px border, so it
- * never paints over the shape's own anti-aliased edge: a second layer there
- * would make the hovered part's edge heavier than its neighbour's. The rules
- * set background-color, since a background shorthand resets the clip. */
-.g-btngroup:has(> .g-split-caret) > .cp-button {
-  background-clip: padding-box;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-btngroup:has(> .g-split-caret) > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-state]) {
-      background-color: var(--cp-tone-10);
-      background-clip: padding-box;
-    }
-  }
-}
-
-.g-btngroup:has(> .g-split-caret) > .cp-button:is(:active, [data-cp-pressed]):not(:disabled, [aria-disabled="true"], [data-state]) {
-  background-color: var(--cp-tone-10);
-  background-clip: padding-box;
-}
-
-.g-btngroup:has(> .cp-button:is(:active, [data-cp-pressed]):not(:disabled, [aria-disabled="true"])) {
-  transform: scale(var(--cp-press-scale));
-}
-
-.g-btngroup > .cp-button {
-  border-radius: 0;
-}
-
-.g-btngroup > .cp-button:first-child {
-  border-start-start-radius: var(--cp-radius-control);
-  border-end-start-radius: var(--cp-radius-control);
-}
-
-.g-btngroup > .cp-button:last-child {
-  border-start-end-radius: var(--cp-radius-control);
-  border-end-end-radius: var(--cp-radius-control);
-}
-
-.g-btngroup > .cp-button + .cp-button {
-  border-inline-start: 1px solid oklch(from currentcolor l c h / 25%);
-}
-
-.g-btngroup > .g-split-caret {
-  inline-size: 2.25rem;
-  min-inline-size: 0;
-  padding-inline: 0;
-  transition:
-    visibility 0s,
-    border-color 120ms var(--cp-ease-out) 120ms,
-    background-color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-/* While the main action works it grows over its caret: its end slides across
- * the caret in 240ms, its rounded corners travel at that end over the same
- * colour, and the group keeps one width. When the action is done it slides
- * back and squares its corners once its end is at the seam again. The covered
- * caret leaves the tab order. */
-.g-btngroup > .btn-done:first-child {
-  z-index: 1;
-  transition:
-    background-color 600ms var(--cp-ease-out),
-    color 600ms var(--cp-ease-out),
-    transform var(--cp-dur-micro) var(--cp-ease-out),
-    margin-inline-end 240ms var(--cp-ease-out),
-    padding-inline-end 240ms var(--cp-ease-out),
-    border-radius 0s 240ms;
-}
-
-.g-btngroup:has(> [data-state]) > .btn-done:first-child {
-  margin-inline-end: -2.25rem;
-  padding-inline-end: calc(var(--cp-control-pad-x) + 2.25rem);
-  border-start-end-radius: var(--cp-radius-control);
-  border-end-end-radius: var(--cp-radius-control);
-  transition:
-    background-color 600ms var(--cp-ease-out),
-    color 600ms var(--cp-ease-out),
-    transform var(--cp-dur-micro) var(--cp-ease-out),
-    margin-inline-end 240ms var(--cp-ease-out),
-    padding-inline-end 240ms var(--cp-ease-out),
-    border-radius 0s;
-}
-
-/* The divider fades with the chevron, so the parts read as one button. */
-.g-btngroup:has(> [data-state]) > .g-split-caret {
-  visibility: hidden;
-  border-inline-start-color: transparent;
-  transition:
-    visibility 0s 240ms,
-    border-color 160ms var(--cp-ease-out);
-}
-
-/* The chevron fades ahead of the sliding edge, so half a chevron never shows,
- * and returns once the edge has passed back over it. */
-.g-btngroup > .g-split-caret > .cp-icon {
-  transition: opacity 120ms var(--cp-ease-out) 120ms;
-}
-
-.g-btngroup:has(> [data-state]) > .g-split-caret > .cp-icon {
-  opacity: 0;
-  transition: opacity 90ms var(--cp-ease-out);
-}
-
 /* A toggle group: icon buttons, one pressed. */
 .g-toggles {
   display: inline-flex;
@@ -3331,19 +3153,6 @@ html:has(.g-header) {
   block-size: 2px;
   border-radius: 2px;
   background: var(--cp-accent);
-}
-
-/* A small confirmation anchored to its button. */
-.g-popconfirm {
-  display: grid;
-  gap: var(--cp-space-3);
-  inline-size: 16rem;
-  padding: var(--cp-space-3) var(--cp-space-4);
-}
-
-.g-popconfirm p {
-  margin: 0;
-  font-size: var(--cp-text-sm);
 }
 
 /* The list runs edge to edge: a poster sits flush with its row's start,
@@ -3835,8 +3644,7 @@ html:has(.g-header) {
 }
 
 /* A control as wide as its parts, wherever it sits. */
-.g-toggles,
-.g-btngroup {
+.g-toggles {
   inline-size: fit-content;
   max-inline-size: 100%;
 }

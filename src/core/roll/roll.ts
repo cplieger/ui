@@ -36,13 +36,21 @@ export function rollText(host: HTMLElement): string {
   return current(host).textContent;
 }
 
-/** The width `text` would take in the window, in pixels. */
+/** `line`'s laid-out width. A pressed button scales to 97%, and a box
+ *  measured through that transform would hold its words 3% too narrow. */
+function widthOf(line: Element): number {
+  const width = Number.parseFloat(getComputedStyle(line).inlineSize);
+  return Number.isNaN(width) ? 0 : width;
+}
+
+/** The width `text` would take in the window, in pixels, unscaled by any
+ *  transform on the page. */
 export function measureRoll(host: HTMLElement, text: string): number {
   const probe = document.createElement("span");
   probe.textContent = text;
   probe.style.visibility = "hidden";
   host.append(probe);
-  const width = probe.getBoundingClientRect().width;
+  const width = widthOf(probe);
   probe.remove();
   return width;
 }
@@ -72,10 +80,10 @@ export function roll(host: HTMLElement, text: string, options: RollOptions = {})
     host.style.removeProperty("inline-size");
     return;
   }
-  const start = from.getBoundingClientRect().width;
+  const start = widthOf(from);
   host.style.inlineSize = `${String(start)}px`;
   host.append(to);
-  const end = to.getBoundingClientRect().width;
+  const end = widthOf(to);
   // The width transition needs the start width painted first.
   host.getBoundingClientRect();
   host.style.inlineSize = `${String(end)}px`;

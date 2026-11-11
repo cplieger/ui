@@ -50,6 +50,6 @@ button.addEventListener("click", async () => {
 | `onRest` | none | Runs each time the button is back at rest after a run, done, failed or ended by `signal`, such as for a save bar that leaves then. A run started during the done state goes on without a rest, so `onRest` waits for it. |
 | `signal` | none | Aborting it puts the button back at rest and ends the cycle. |
 
-The width defaults to `"fixed"` inside a `.cp-split`, so the caret never moves, to `"footprint"` in a table's `data-col="actions"` cell, and to `"glide"` elsewhere.
+The width defaults to `"fixed"` inside a `.cp-split`, so the caret never moves, to `"footprint"` in a table's `data-col="actions"` cell, and to `"glide"` elsewhere. A held width or footprint is measured again each time a web font finishes loading, so a button enhanced before its font arrived does not keep the fallback font's width.
 
 In a split button, the action grows over its caret while it works, and the split turns green as one shape. See [Components](../design-components.md).

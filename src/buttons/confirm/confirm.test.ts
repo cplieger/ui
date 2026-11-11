@@ -210,6 +210,26 @@ describe("enhanceConfirm", () => {
     expect(Number.parseFloat(roll.style.minInlineSize)).toBeGreaterThan(0);
   });
 
+  it("measures its held width again once a web font loads", () => {
+    const split = document.createElement("div");
+    split.className = "cp-split";
+    document.body.append(split);
+    const b = button("Grab the best", split);
+    const stop = new AbortController();
+    confirm(b, { busy: "Grabbing…", done: "Grabbed", signal: stop.signal });
+    const roll = b.querySelector(".cp-roll") as HTMLElement;
+    const held = () => Number.parseFloat(roll.style.minInlineSize);
+    const before = held();
+    b.style.fontSize = "32px";
+    document.fonts.dispatchEvent(new Event("loadingdone"));
+    expect(held()).toBeGreaterThan(before * 1.5);
+    const grown = held();
+    stop.abort();
+    b.style.fontSize = "";
+    document.fonts.dispatchEvent(new Event("loadingdone"));
+    expect(held()).toBe(grown);
+  });
+
   it("glides elsewhere, and takes the width mode it is given", () => {
     expect(button().dataset["cpConfirm"]).toBeUndefined();
     const b = button();
