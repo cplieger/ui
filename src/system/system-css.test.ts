@@ -427,6 +427,132 @@ describe("css/system.css sparkline", () => {
   });
 });
 
+describe("css/system.css figure", () => {
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const ink = (token: string) => {
+    const probe = host("");
+    probe.style.color = `var(${token})`;
+    return getComputedStyle(probe).color;
+  };
+  const glyph = (el: Element | null, pseudo: "::before" | "::after") =>
+    decodeURIComponent(getComputedStyle(el as Element, pseudo).maskImage);
+  function figure(attrs = "", tag = "div", extra = ""): HTMLElement {
+    theme("light");
+    const end = tag === "a" ? ' href="#x"' : tag === "button" ? ' type="button"' : "";
+    const el = build(
+      `<div class="cp-grid" style="inline-size: 20rem"><${tag} class="cp-figure"${end} ${attrs}><span data-part="label">Store used</span> <span data-part="value"><data value="85">85</data>&nbsp;<span data-part="unit">%</span></span>${extra}</${tag}></div>`,
+    );
+    return el.querySelector(".cp-figure") as HTMLElement;
+  }
+
+  it("sets the number large under its muted label, with its unit on the number's baseline", () => {
+    const fig = figure();
+    const label = fig.querySelector('[data-part="label"]') as Element;
+    const value = fig.querySelector('[data-part="value"]') as Element;
+    const unit = fig.querySelector('[data-part="unit"]') as Element;
+    expect(box(value).top).toBeGreaterThanOrEqual(box(label).bottom);
+    expect(getComputedStyle(label).fontSize).toBe("13px");
+    expect(getComputedStyle(label).color).toBe(ink("--cp-ink-muted"));
+    const cs = getComputedStyle(value);
+    expect([cs.fontSize, cs.fontWeight, cs.fontVariantNumeric, cs.color]).toEqual([
+      "28px",
+      "700",
+      "tabular-nums",
+      ink("--cp-ink"),
+    ]);
+    expect(getComputedStyle(unit).fontSize).toBe("16px");
+    expect(getComputedStyle(unit).color).toBe(ink("--cp-ink-muted"));
+    // One baseline: the unit's text bottom sits above the number's by its smaller descent only.
+    const number = box(fig.querySelector("data"));
+    expect(Math.abs(box(unit).bottom - number.bottom)).toBeLessThan(6);
+    expect(box(unit).left).toBeGreaterThan(number.right);
+    expect(getComputedStyle(value, "::before").content).toBe("none");
+  });
+
+  it("colours a number in its tone and draws a state tone's glyph before it", () => {
+    const expected = { success: "m16 9-5.5 5.5L8 12", warning: "m21.73 18", danger: "m15 9-6 6" };
+    for (const [tone, path] of Object.entries(expected)) {
+      const value = figure(`data-tone="${tone}"`).querySelector('[data-part="value"]') as Element;
+      expect(getComputedStyle(value).color, tone).toBe(ink(`--cp-${tone}-11`));
+      expect(glyph(value, "::before"), tone).toContain(path);
+      const mark = getComputedStyle(value, "::before");
+      expect([mark.width, mark.height], tone).toEqual(["24px", "24px"]);
+    }
+    const neutral = figure('data-tone="neutral"').querySelector('[data-part="value"]') as Element;
+    const tone = build('<span data-tone="neutral" style="color: var(--cp-tone-11)"></span>');
+    expect(getComputedStyle(neutral).color).toBe(
+      getComputedStyle(tone.firstChild as Element).color,
+    );
+    expect(getComputedStyle(neutral, "::before").content).toBe("none");
+  });
+
+  it("puts a sparkline beside the number at the figure's end, in the figure's slot", () => {
+    const fig = figure('data-series="4"', "div", '<span class="cp-sparkline"></span>');
+    const spark = fig.querySelector(".cp-sparkline") as HTMLElement;
+    renderSparkline(spark, [1, 3, 2], { last: false });
+    const value = box(fig.querySelector('[data-part="value"]'));
+    const line = box(spark);
+    expect(line.top).toBeLessThan(value.bottom);
+    expect(line.bottom).toBeGreaterThan(value.top);
+    expect(box(fig).right - line.right).toBeCloseTo(17, 0);
+    expect(getComputedStyle(spark).color).toBe(ink("--cp-series-4"));
+    expect(getComputedStyle(fig, "::after").content).toBe("none");
+  });
+
+  it("ends a figure that opens something in a chevron, down for a list, turned while it is open", () => {
+    const link = figure("", "a");
+    expect(glyph(link, "::after")).toContain("m9 18 6-6-6-6");
+    expect(getComputedStyle(link).textDecorationLine).toBe("none");
+    const chevron = getComputedStyle(link, "::after");
+    expect([chevron.width, chevron.height, chevron.backgroundColor]).toEqual([
+      "18px",
+      "18px",
+      ink("--cp-ink-muted"),
+    ]);
+    const shut = figure('aria-expanded="false"', "button");
+    shut.style.setProperty("transition", "none");
+    expect(glyph(shut, "::after")).toContain("m6 9 6 6 6-6");
+    expect(getComputedStyle(shut, "::after").rotate).toBe("none");
+    const open = figure('aria-expanded="true"', "button");
+    expect(getComputedStyle(open, "::after").rotate).toBe("180deg");
+    expect(getComputedStyle(open).backgroundColor).toBe(ink("--cp-selected"));
+    expect(getComputedStyle(open).borderColor).toBe(ink("--cp-border-strong"));
+    expect(getComputedStyle(shut).backgroundColor).toBe(ink("--cp-surface-raised"));
+  });
+
+  it("keeps a sparkline and the chevron in their own columns, the chevron last", () => {
+    const fig = figure("", "a", '<span class="cp-sparkline"></span>');
+    renderSparkline(fig.querySelector(".cp-sparkline") as HTMLElement, [1, 2], { last: false });
+    const cols = getComputedStyle(fig).gridTemplateColumns.split(" ");
+    expect(cols).toHaveLength(3);
+    expect(cols[2]).toBe("18px");
+  });
+
+  it("points a link figure's chevron the reading way in a right-to-left page", () => {
+    const fig = figure('dir="rtl"', "a");
+    expect(getComputedStyle(fig, "::after").scale).toBe("-1 1");
+  });
+
+  it("presses a figure that is a button, borders it under a mouse, and rings it on focus", async () => {
+    root.setAttribute("data-pointer", "fine");
+    const fig = figure("data-cp-pressed", "button");
+    fig.style.transition = "none";
+    // Firefox keeps the scale as a float32, 0.9700000286.
+    expect(new DOMMatrix(getComputedStyle(fig).transform).a).toBeCloseTo(0.97, 6);
+    fig.removeAttribute("data-cp-pressed");
+    expect(getComputedStyle(fig).borderColor).toBe(ink("--cp-line"));
+    await userEvent.hover(fig);
+    expect(getComputedStyle(fig).borderColor).toBe(ink("--cp-border-strong"));
+    fig.focus({ focusVisible: true });
+    expect(getComputedStyle(fig).outlineStyle).toBe("solid");
+    expect(getComputedStyle(fig).textAlign).toBe("start");
+    // A button fills its grid cell as a tile does.
+    expect(box(fig).width).toBe(320);
+    root.setAttribute("data-pointer", "coarse");
+    expect(getComputedStyle(fig).borderColor).toBe(ink("--cp-line"));
+  });
+});
+
 describe("css/system.css", () => {
   it("styles nothing and sets no colour scheme until an element opts in with cp", () => {
     root.setAttribute("data-theme", "dark");

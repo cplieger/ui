@@ -62,6 +62,7 @@ navigation/tabs/tabs.css
 feedback/progress/progress.css
 data/share-bar/share-bar.css
 data/sparkline/sparkline.css
+data/figure/figure.css
 feedback/skeleton/skeleton.css
 feedback/empty/empty.css
 feedback/loader/loader.css

@@ -1,0 +1,146 @@
+/* A figure: a number now, under its label, with an optional unit and an
+ * optional sparkline beside it, on a tile. The same tile as a button or a
+ * link opens what is behind the number. */
+.cp-figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--cp-space-1) var(--cp-space-3);
+  align-content: start;
+  align-items: center;
+  padding: var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+}
+
+.cp-figure > [data-part="label"] {
+  grid-column: 1;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* The number's line, its unit on the same baseline; the stylesheet draws a
+ * state tone's glyph before it, so the tone is never colour alone. */
+.cp-figure > [data-part="value"] {
+  display: flex;
+  grid-column: 1;
+  align-items: baseline;
+  min-inline-size: 0;
+  font-size: var(--cp-text-2xl);
+  font-weight: var(--cp-weight-heading);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-figure [data-part="unit"] {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-md);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-figure[data-tone] > [data-part="value"] {
+  color: var(--cp-tone-11);
+}
+
+.cp-figure[data-tone="success"] > [data-part="value"]::before,
+.cp-figure[data-tone="warning"] > [data-part="value"]::before,
+.cp-figure[data-tone="danger"] > [data-part="value"]::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin-inline-end: var(--cp-space-2);
+  background: currentcolor;
+  mask: url("../icons/svg/circle-check.svg") center / contain no-repeat;
+}
+
+.cp-figure[data-tone="warning"] > [data-part="value"]::before {
+  mask-image: url("../icons/svg/triangle-alert.svg");
+}
+
+.cp-figure[data-tone="danger"] > [data-part="value"]::before {
+  mask-image: url("../icons/svg/circle-x.svg");
+}
+
+.cp-figure > .cp-sparkline {
+  grid-row: 2;
+  grid-column: 2;
+}
+
+.cp-figure[data-series] > .cp-sparkline:not([data-series]) {
+  color: var(--cp-tone-9);
+}
+
+:is(button, a).cp-figure {
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    border-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* data-cp-pressed comes from @cplieger/ui/press, for a finger :active misses. */
+:is(button, a).cp-figure:active,
+:is(button, a).cp-figure[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+/* A figure that opens something ends in a chevron, so it reads as a control
+ * at rest: along the line for a page or a dialog, down for a list it
+ * expands, turning while that list is open. */
+:is(button, a).cp-figure::after {
+  content: "";
+  grid-row: 1 / 3;
+  grid-column: 2;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+}
+
+:is(button, a).cp-figure:has(> .cp-sparkline)::after {
+  grid-column: 3;
+}
+
+:is(button, a).cp-figure:dir(rtl)::after {
+  scale: -1 1;
+}
+
+button.cp-figure[aria-expanded]::after {
+  mask-image: url("../icons/svg/chevron-down.svg");
+  transition: rotate var(--cp-dur-short) var(--cp-ease-move);
+}
+
+button.cp-figure[aria-expanded="true"] {
+  border-color: var(--cp-border-strong);
+  background: var(--cp-selected);
+}
+
+button.cp-figure[aria-expanded="true"]::after {
+  rotate: 180deg;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :is(button, a).cp-figure:hover {
+      border-color: var(--cp-border-strong);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-figure > [data-part="value"]::before,
+  :is(button, a).cp-figure::after {
+    background: CanvasText;
+  }
+
+  button.cp-figure[aria-expanded="true"] {
+    border-color: Highlight;
+  }
+}

@@ -47,7 +47,7 @@ The stylesheet needs `contrast-color()`, `light-dark()`, relative `oklch()`, `co
 - The fonts cover Latin scripts. Other scripts, such as a Japanese title, use the system's fonts.
 - Mono is for machine text only. Labels, numbers and headings stay in the text face.
 - The scale steps by about 1.2: 13, 14, 16, 19, 23, 28 and 34px, from `--cp-text-xs` to `--cp-text-3xl`. Interface text is 14px and metadata 13px, and no sans text is smaller. Machine text in `.cp-mono` is set at 0.92em of the text around it, because its letters run about 30% wider than the sans at the same x-height.
-- Headings are `h1` 23px, `h2` 19px, `h3` 16px and `h4` 14px, at one weight (700) and one colour, balanced over their lines. A setup step's `h1`, under its steps on a gate page, is 19px. The 28px and 34px steps are for an app's own large figures.
+- Headings are `h1` 23px, `h2` 19px, `h3` 16px and `h4` 14px, at one weight (700) and one colour, balanced over their lines. A setup step's `h1`, under its steps on a gate page, is 19px. The 28px step is a [figure's](design-components.md) number, and the 34px step is for an app's own larger figures.
 - Prose lines stop at 68 characters.
 - Numbers that line up in a column use tabular figures: `data-col="num"` in a table, `.cp-count`, `<time>`, `<data>` and `<output>`.
 - Labels, table heads and captions are sentence case at normal letter spacing, never tracked capitals.

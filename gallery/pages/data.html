@@ -162,7 +162,7 @@
     <div class="g-grid">
       <div class="card g-wide" data-new>
         <h2>Series colours</h2>
-        <div class="cp-panel g-flush">
+        <div class="cp-panel" data-flush>
           <table class="cp-table" data-series-contrast>
             <caption class="g-sr">The nine series colours and their contrast on each surface</caption>
             <thead><tr><th data-col="num">Slot</th><th>On a chip, with its swatch</th><th data-col="num">On the page</th><th data-col="num">On a panel</th><th data-col="num">Sunken</th></tr></thead>
@@ -211,7 +211,7 @@
       </div>
       <div class="card g-wide" data-new>
         <h2>Sparkline</h2>
-        <div class="cp-panel g-flush">
+        <div class="cp-panel" data-flush>
           <table class="cp-table">
             <caption class="g-sr">A message server and its agents, sampled each minute</caption>
             <thead><tr><th scope="col">Measure</th><th scope="col">Last 6 hours</th></tr></thead>
@@ -226,6 +226,36 @@
         </div>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button></div>
         <footer>Six hours of a sample a minute as one line in a series colour, with no axis: the dot marks the last value, written beside it. Live and active agents share one scale from 0 to 12, so they compare; the others run from their own low to their own high. Memory starts at the last restart, with no line before it. A reader hears the range, the last value, the low and the high. Next minute adds a sample to each.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Figures</h2>
+        <div class="cp-grid">
+          <div class="cp-figure" data-series="1"><span data-part="label">Live agents</span> <span data-part="value"><data value="0">0</data></span> <span class="cp-sparkline" data-spark="live"></span></div>
+          <div class="cp-figure" data-tone="warning"><span data-part="label">Oldest unread</span> <span data-part="value"><data value="74">74</data>&nbsp;<span data-part="unit">min</span><span class="cp-visually-hidden">, over an hour</span></span></div>
+          <button class="cp-figure" type="button" data-tone="neutral" aria-expanded="false" aria-controls="refused-posts" data-figure-count="refused"><span data-part="label">Refused posts</span> <span data-part="value"><data value="0">0</data></span></button>
+          <button class="cp-figure" type="button" data-tone="warning" aria-expanded="false" aria-controls="failed-pushes"><span data-part="label">Failed pushes</span> <span data-part="value"><data value="3">3</data></span></button>
+        </div>
+        <section class="cp-panel g-gap-top" id="refused-posts" aria-label="Refused posts" hidden>
+          <p class="cp-meta" data-figure-empty="refused">No post was refused in the last 6 hours.</p>
+          <table class="cp-table" data-figure-list="refused" hidden>
+            <caption class="cp-visually-hidden">Refused posts in the last 6 hours</caption>
+            <thead><tr><th scope="col">Time</th><th scope="col">Thread</th><th scope="col">Reason</th></tr></thead>
+            <tbody><tr><td><time datetime="14:21">14:21</time></td><td class="cp-mono">/workspace/grelot</td><td>The body is over 64&nbsp;KiB.</td></tr></tbody>
+          </table>
+        </section>
+        <section class="cp-panel g-gap-top" data-flush id="failed-pushes" aria-label="Failed pushes" hidden>
+          <table class="cp-table">
+            <caption class="cp-visually-hidden">Failed pushes in the last 6 hours</caption>
+            <thead><tr><th scope="col">Time</th><th scope="col">Agent</th><th scope="col">Reason</th></tr></thead>
+            <tbody>
+              <tr><td><time datetime="13:02">13:02</time></td><td>@ui-design-research</td><td>The connection closed before the push.</td></tr>
+              <tr><td><time datetime="13:40">13:40</time></td><td>@library-reorg-lead</td><td>No answer in 10&nbsp;s.</td></tr>
+              <tr><td><time datetime="14:05">14:05</time></td><td>@ui-design-research</td><td>The connection closed before the push.</td></tr>
+            </tbody>
+          </table>
+        </section>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button><button class="cp-button" type="button" data-figure-refuse="refused">Refuse a post</button></div>
+        <footer>A number now under its label, with its unit on its baseline. Live agents carries its last six hours as a sparkline in its slot. Oldest unread is past its hour, so it takes the warning tone with the tone's glyph, and a reader hears "over an hour". Refused posts and Failed pushes are buttons that open the events behind their count: neutral at 0, in the warning tone with a count. Refuse a post turns the first from 0 to 1 and back.</footer>
       </div>
     </div>
   </section>

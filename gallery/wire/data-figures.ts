@@ -121,9 +121,26 @@ const series = [
   { name: "memory", start: 150, step: 0.8, lo: 140, hi: 260, whole: true, format: unit("MB") },
 ] as const;
 
+// A sparkline in a figure leaves its last value to the figure's number.
+function draw(
+  host: HTMLElement,
+  values: readonly (number | null)[],
+  options: SparklineOptions,
+): void {
+  const number = host.closest(".cp-figure")?.querySelector('[data-part="value"] data');
+  if (!(number instanceof HTMLDataElement)) {
+    renderSparkline(host, values, options);
+    return;
+  }
+  renderSparkline(host, values, { ...options, last: false });
+  const last = values.findLast((v) => v !== null);
+  number.value = String(last ?? "");
+  number.textContent = last === undefined ? "" : (options.format ?? ((n) => whole.format(n)))(last);
+}
+
 const sparks = series.flatMap((s, i) => {
-  const host = document.querySelector<HTMLElement>(`[data-spark="${s.name}"]`);
-  if (host === null) {
+  const hosts = document.querySelectorAll<HTMLElement>(`[data-spark="${s.name}"]`);
+  if (hosts.length === 0) {
     return [];
   }
   const move = walk(i + 7);
@@ -142,12 +159,17 @@ const sparks = series.flatMap((s, i) => {
     ...("domain" in s ? { domain: s.domain } : {}),
     ...("format" in s ? { format: s.format } : {}),
   };
+  const drawAll = (): void => {
+    for (const host of hosts) {
+      draw(host, values, options);
+    }
+  };
   const tick = (): void => {
     values.shift();
     values.push(sample());
-    renderSparkline(host, values, options);
+    drawAll();
   };
-  renderSparkline(host, values, options);
+  drawAll();
   return [tick];
 });
 
@@ -156,5 +178,43 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-spark-t
     for (const tick of sparks) {
       tick();
     }
+  });
+}
+
+// A figure that is a button shows or hides the events behind its count.
+for (const figure of document.querySelectorAll<HTMLButtonElement>(
+  "button.cp-figure[aria-controls]",
+)) {
+  const list = document.getElementById(figure.getAttribute("aria-controls") ?? "");
+  if (list === null) {
+    continue;
+  }
+  figure.addEventListener("click", () => {
+    const open = figure.getAttribute("aria-expanded") !== "true";
+    figure.setAttribute("aria-expanded", String(open));
+    list.hidden = !open;
+  });
+}
+
+// The demo turns a count from 0 to 1 and back: neutral at 0, warning with a count.
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-figure-refuse]")) {
+  const name = CSS.escape(button.dataset["figureRefuse"] ?? "");
+  const figure = document.querySelector<HTMLElement>(`[data-figure-count="${name}"]`);
+  const number = figure?.querySelector('[data-part="value"] data');
+  const empty = document.querySelector<HTMLElement>(`[data-figure-empty="${name}"]`);
+  const table = document.querySelector<HTMLElement>(`[data-figure-list="${name}"]`);
+  const panel = table?.closest(".cp-panel");
+  if (!(number instanceof HTMLDataElement) || empty === null || table === null || !panel) {
+    continue;
+  }
+  button.addEventListener("click", () => {
+    const count = number.value === "0" ? 1 : 0;
+    number.value = String(count);
+    number.textContent = String(count);
+    figure?.setAttribute("data-tone", count === 0 ? "neutral" : "warning");
+    empty.hidden = count !== 0;
+    table.hidden = count === 0;
+    panel.toggleAttribute("data-flush", count !== 0);
+    button.textContent = count === 0 ? "Refuse a post" : "Clear the refusal";
   });
 }
