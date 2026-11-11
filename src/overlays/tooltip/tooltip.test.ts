@@ -31,13 +31,17 @@ describe("installTooltips", () => {
     installTooltips({ signal: life.signal, delay: 300 });
     const b = control("Settings", "Settings");
     // The rest is measured from the pointer's arrival to the tip's opening, so
-    // a busy machine that slows the hover cannot make it look early.
+    // a busy machine that slows the hover cannot make it look early. Both ends
+    // read performance.now() in their listener: an input event's timeStamp is
+    // the occurrence's time (https://dom.spec.whatwg.org/#concept-event-create),
+    // which Firefox under load stamped 5s after the toggle it caused. This
+    // listener runs before the document's, which starts the delay.
     let arrived = 0;
     let opened = 0;
-    b.addEventListener("pointerover", (e) => (arrived ||= e.timeStamp));
+    b.addEventListener("pointerover", () => (arrived ||= performance.now()));
     tip().addEventListener("toggle", (e) => {
       if (e.newState === "open") {
-        opened ||= e.timeStamp;
+        opened ||= performance.now();
       }
     });
     await userEvent.hover(b);
