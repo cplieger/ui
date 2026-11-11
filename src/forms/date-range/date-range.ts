@@ -42,9 +42,9 @@ export function enhanceDateRange(range: HTMLElement, options: DateRangeOptions =
   ];
   const check = (): void => {
     if (from.value !== "" && to.value !== "" && to.value < from.value) {
-      showError(to, order);
+      showError(to, order, undefined, "date-range");
     } else {
-      clearError(to);
+      clearError(to, "date-range");
     }
   };
   const fill = (value: string): void => {

@@ -115,9 +115,9 @@ export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}
     }
     input.files = keep.files;
     if (refusal === "") {
-      clearError(input);
+      clearError(input, "file");
     } else {
-      showError(input, refusal);
+      showError(input, refusal, undefined, "file");
     }
     if (list !== undefined) {
       list.replaceChildren(

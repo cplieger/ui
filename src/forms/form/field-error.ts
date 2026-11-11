@@ -9,11 +9,12 @@
 export type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
 /** The attribute on a field whose error is showing, valued by who showed
- * it, so `reportErrors` and a connection test each clear only their own. */
+ * it, so `reportErrors` and each module that checks a field clear only their
+ * own. */
 export const MARK = "data-cp-error";
 
 /** Who showed a field's error. */
-export type Owner = "form" | "test";
+export type Owner = "form" | "test" | "date-range" | "file";
 /** Each field's error once found or made, so a later call finds it again
  *  after clearError took it out of the field's aria-describedby. */
 const known = new WeakMap<Control, HTMLElement>();
