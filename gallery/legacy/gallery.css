@@ -899,11 +899,6 @@
 
 /* Forms */
 
-.g-form {
-  display: grid;
-  gap: var(--cp-space-4);
-}
-
 /* A textarea grows with its text, up to ten lines, where the engine sizes
  * fields to their content; elsewhere gallery.js grows it. */
 textarea.cp-input {
@@ -924,60 +919,6 @@ input.cp-input:is([type="date"], [type="time"], [type="datetime-local"]) {
 input.cp-input::-webkit-calendar-picker-indicator {
   opacity: 0.6;
   cursor: pointer;
-}
-
-/* A drop zone: the whole area is the file input's label. */
-.g-drop {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: var(--cp-space-2);
-  padding: var(--cp-space-6) var(--cp-space-4);
-  border: 2px dashed var(--cp-border-strong);
-  border-radius: var(--cp-radius-surface);
-  color: var(--cp-ink-muted);
-  text-align: center;
-  cursor: pointer;
-  transition:
-    border-color var(--cp-dur-micro) var(--cp-ease-out),
-    background-color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-.g-drop > .cp-icon {
-  --cp-icon-size: 1.5rem;
-
-  color: var(--cp-accent);
-  transition: translate 300ms var(--ease-spring);
-}
-
-.g-drop.over {
-  border-color: var(--cp-accent);
-  background: var(--cp-selected);
-}
-
-.g-drop.over > .cp-icon {
-  translate: 0 -0.25rem;
-}
-
-.g-drop > input {
-  position: absolute;
-  opacity: 0;
-  inline-size: 1px;
-  block-size: 1px;
-}
-
-.g-drop:has(:focus-visible) {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
-}
-
-.g-files {
-  display: grid;
-  gap: var(--cp-space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--cp-text-sm);
 }
 
 /* Notifications: a stack in the inline-end corner, newest at the bottom. A
@@ -1627,59 +1568,8 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 }
 
 /* Filter chips: a toggle each; turning one on slides its check in. */
-.g-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-2);
-}
-
-.g-chip {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-3);
-  border: var(--cp-line-w) solid var(--cp-border-strong);
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-surface-raised);
-  color: var(--cp-ink);
-  font: inherit;
-  font-size: var(--cp-text-sm);
-  cursor: pointer;
-  transition:
-    background-color 160ms var(--cp-ease-out),
-    border-color 160ms var(--cp-ease-out),
-    scale var(--press-dur, var(--dur-spring)) var(--press-ease, var(--ease-bounce));
-}
-
-.g-chip > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  inline-size: 0;
-  margin-inline-end: 0;
-  opacity: 0;
-  transition:
-    inline-size 220ms var(--ease-spring),
-    margin 220ms var(--ease-spring),
-    opacity 160ms var(--cp-ease-out);
-}
 
 /* On, a chip fills with the accent like every chosen control. */
-.g-chip[aria-pressed="true"] {
-  border-color: transparent;
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-chip[aria-pressed="true"] > .cp-icon {
-  inline-size: 0.875rem;
-  margin-inline-end: var(--cp-space-1);
-  opacity: 1;
-}
-
-.g-chip[data-cp-pressed] {
-  scale: 0.95;
-}
 
 /* Layouts */
 
@@ -2402,10 +2292,6 @@ kbd.g-key {
   align-self: flex-start;
 }
 
-.g-chips {
-  align-items: center;
-}
-
 /* Focus and scrolling stop below the sticky header, so it never covers what
  * they bring into view. */
 html:has(.g-header) {
@@ -2788,93 +2674,14 @@ html:has(.g-header) {
 }
 
 /* A signed decimal with nudges. */
-.g-nudge {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-1);
-}
-
-.g-nudge > input {
-  inline-size: 7ch;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
 
 /* Rules as table columns: condition, verb, languages, buttons. Each row
  * is a subgrid of the list, so a column lines up however long its words. */
-.g-rules-box {
-  display: grid;
-  gap: var(--cp-space-3);
-  container-type: inline-size;
-}
-
-.g-rules {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  gap: var(--cp-space-2) var(--cp-space-2);
-  align-items: center;
-}
-
-.g-rules > li {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  animation: row-in 200ms var(--cp-ease-out);
-}
-
-.g-rule-when {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-targets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-2);
-}
 
 /* One language and its remove, kept together when the row wraps. */
-.g-pick {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.125rem;
-}
-
-.g-pick-x[hidden] {
-  display: none;
-}
 
 /* The row's own buttons in the last column: + first, so every rule's + lines
  * up, then the rule's remove where it has one. */
-.g-rule-acts {
-  display: flex;
-  gap: var(--cp-space-1);
-}
-
-.g-rules select.cp-input {
-  min-block-size: var(--cp-control-h-sm);
-  padding-block: 0;
-}
-
-.g-rules .cp-select {
-  display: inline-grid;
-}
-
-@container (width < 36rem) {
-  .g-rules {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .g-rules > li {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--cp-space-2);
-  }
-}
 
 /* A row that arrives fades in and settles 4px; nothing bounces. */
 @keyframes row-in {
@@ -2885,40 +2692,6 @@ html:has(.g-header) {
 }
 
 /* Pairs of fields with an arrow between. */
-.g-pairs {
-  display: grid;
-  gap: var(--cp-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.g-pairs > li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
-  gap: var(--cp-space-2);
-  align-items: start;
-  animation: row-in 200ms var(--cp-ease-out);
-}
-
-.g-pairs > li > .cp-icon {
-  margin-block-start: calc((var(--cp-control-h) - 18px) / 2);
-  color: var(--cp-ink-muted);
-}
-
-.g-pairs > li > .cp-button {
-  margin-block-start: 0;
-}
-
-@media (width < 40rem) {
-  .g-pairs > li {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .g-pairs > li > .cp-icon {
-    display: none;
-  }
-}
 
 /* The refreshing region is a panel, and its line runs along the panel's
  * top edge, inside the border, so it belongs to what it refreshes. */
@@ -4143,37 +3916,12 @@ html:has(.g-header) {
   resize: horizontal;
 }
 
-.g-cluster {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2) var(--cp-space-3);
-}
-
-.g-cluster > .f-box {
+.cp-cluster > .f-box {
   inline-size: auto;
-}
-
-.g-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--cp-space-4);
-}
-
-@container (width >= 40rem) {
-  .g-split {
-    grid-template-columns: 9rem minmax(0, 1fr);
-  }
 }
 
 .f-mid {
   min-block-size: 6rem;
-}
-
-.g-autogrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 7rem), 1fr));
-  gap: var(--cp-space-3);
 }
 
 /* A field whose value has a known length fits it: a stepper, a date, a
@@ -4184,12 +3932,6 @@ html:has(.g-header) {
 
 .cp-field > .cp-input[data-width="fill"] {
   justify-self: stretch;
-}
-
-.g-row-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
-  gap: var(--cp-space-3);
 }
 
 /* A zone with a context menu: under a finger, a hold opens the menu, so it
@@ -4444,12 +4186,6 @@ html:has(.g-header) {
   flex: 1;
 }
 
-.g-bare {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 /* A confirmed delete keeps its red as it confirms. */
 :root .cp-button.btn-done[data-tone="danger"][data-state="done"]:not(:disabled) {
   background: var(--cp-danger-9);
@@ -4600,4 +4336,79 @@ html:has(.g-header) {
     contain: layout;
     padding-block-end: 3.5rem;
   }
+}
+
+/* Each card says whether it runs on the library ("Built") or still draws
+ * with the gallery's own CSS ("Mockup"), and whether its design waits for
+ * the owner's review (data-new, "To review"). gallery/review.ts sets
+ * data-build. Card captures set data-capture and draw neither. */
+:root:not([data-capture]) .card > h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+:root:not([data-capture]) .card > h2::before,
+:root:not([data-capture]) .card > h2::after {
+  order: 2;
+  padding: 0.0625rem var(--cp-space-2);
+  border-radius: var(--cp-radius-chip);
+  font-family: var(--cp-font-body);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+  letter-spacing: normal;
+}
+
+:root:not([data-capture]) .card[data-build="built"] > h2::after {
+  content: "Built";
+  background: var(--cp-success-3);
+  color: var(--cp-success-11);
+}
+
+:root:not([data-capture]) .card[data-build="mockup"] > h2::after {
+  content: "Mockup";
+  background: var(--cp-fill);
+  color: var(--cp-ink-muted);
+}
+
+:root:not([data-capture]) .card[data-new] > h2::before {
+  content: "To review";
+  background: var(--cp-accent-3);
+  color: var(--cp-accent-11);
+}
+
+:root:not([data-capture]) body[data-build] .controls::before {
+  padding: 0.0625rem var(--cp-space-2);
+  border-radius: var(--cp-radius-chip);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+:root:not([data-capture]) body[data-build="built"] .controls::before {
+  content: "Built screen";
+  background: var(--cp-success-3);
+  color: var(--cp-success-11);
+}
+
+:root:not([data-capture]) body[data-build="mockup"] .controls::before {
+  content: "Mockup screen";
+  background: var(--cp-fill);
+  color: var(--cp-ink-muted);
+}
+
+:root:not([data-capture]) body:has(> main[data-new]) .controls::after {
+  content: "To review";
+  padding: 0.0625rem var(--cp-space-2);
+  border-radius: var(--cp-radius-chip);
+  background: var(--cp-accent-3);
+  color: var(--cp-accent-11);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+[data-show="review"] .card:not([data-new]),
+[data-show="mockup"] .card:not([data-build="mockup"]),
+[data-show="built"] .card:not([data-build="built"]) {
+  display: none;
 }

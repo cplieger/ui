@@ -89,6 +89,7 @@ ${body}
   <label>Theme <select name="theme"><option value="light">Light</option><option value="dark">Dark</option></select></label>
   <label>Hue <input name="hue" type="range" min="0" max="359" value="255"></label>
   <label><input name="motion" type="checkbox"> Reduced motion</label>
+  <label>Show <select name="show"><option value="all">Every card</option><option value="review">To review</option><option value="mockup">Mockups</option><option value="built">Built</option></select></label>
 </div>
 <script type="module" src="gallery.js"></script>
 </body>

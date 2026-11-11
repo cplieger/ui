@@ -41,6 +41,8 @@ forms/textarea/textarea.css
 forms/range/range.css
 forms/tokens/tokens.css
 forms/connection-test/connection-test.css
+forms/rules/rules.css
+forms/pairs/pairs.css
 feedback/state/state.css
 data/table/table.css
 navigation/pages/pages.css
@@ -72,6 +74,7 @@ buttons/button/busy.css
 buttons/confirm/confirm.css
 buttons/group/group.css
 buttons/toggle/toggle.css
+buttons/filter-chip/filter-chip.css
 core/roll/roll.css
 core/pill/pill.css
 foundations/icons/icons.css

@@ -1,4 +1,4 @@
-import { reportErrors } from "@cplieger/ui/form";
+import { clearError, reportErrors, showError } from "@cplieger/ui/form";
 
 // The gallery's own behaviour for the cards that do not run on src/ yet, in plain DOM.
 const root = document.documentElement;
@@ -955,25 +955,6 @@ if (cmdPalette) {
 }
 
 // --------------------------------------------------------------- fields
-for (const z of $$(".g-drop")) {
-  const input = $("input", z);
-  const list = document.getElementById(z.dataset.list);
-  const show = (files) => {
-    list.replaceChildren(...[...files].map((f) => el("li", {}, icon("file-text"), ` ${f.name} (${Math.max(1, Math.round(f.size / 1024))} KB)`)));
-    say(`${files.length} file${files.length === 1 ? "" : "s"} chosen`);
-  };
-  z.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    z.classList.add("over");
-  });
-  z.addEventListener("dragleave", () => z.classList.remove("over"));
-  z.addEventListener("drop", (e) => {
-    e.preventDefault();
-    z.classList.remove("over");
-    show(e.dataTransfer.files);
-  });
-  input.addEventListener("change", () => show(input.files));
-}
 // -------------------------------------------------------- relative time
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const rtfNarrow = new Intl.RelativeTimeFormat(undefined, { numeric: "always", style: "narrow" });
@@ -1248,10 +1229,6 @@ for (const list of $$("[data-reorder]")) {
   };
   list.addEventListener("pointerup", end);
   list.addEventListener("pointercancel", end);
-}
-
-for (const c of $$(".g-chip")) {
-  c.addEventListener("click", () => c.setAttribute("aria-pressed", String(c.getAttribute("aria-pressed") !== "true")));
 }
 
 // --------------------------------------------------------- disclosure
@@ -1852,164 +1829,23 @@ for (const d of $$("[data-grouped]")) {
   update();
 }
 
-// ----------------------------------------------------- signed stepper
-// Arrow keys step 0.1, Shift with an arrow 1; only the field and its
-// buttons change the value.
-for (const n of $$(".g-nudge")) {
-  const input = $("input", n);
-  const fmt = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}`;
-  const read = () => Number(input.value.replace("−", "-").replace("+", "")) || 0;
-  const set = (v) => {
-    const c = Math.max(-60, Math.min(60, Math.round(v * 100) / 100));
-    input.value = fmt(c);
-    n.dispatchEvent(new CustomEvent("nudge", { bubbles: true, detail: c }));
-  };
-  for (const b of $$("[data-nudge]", n)) b.addEventListener("click", () => set(read() + Number(b.dataset.nudge)));
-  $("[data-reset]", n)?.addEventListener("click", () => set(0));
-  input.addEventListener("keydown", (e) => {
-    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-    e.preventDefault();
-    set(read() + (e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? 1 : 0.1));
-  });
-  input.addEventListener("change", () => set(read()));
-  set(read());
-}
-
-// ------------------------------------------------------ sentence editor
-// Each rule is a sentence with pickers; + adds a language up to three, then
-// it is disabled and says why.
-const LANGS = ["English", "English (signs and songs)", "French", "German", "Spanish", "Japanese"];
-const pickLang = (chosen = "English", when = "") => {
-  const s = el("select", { class: "cp-input", "aria-label": when ? `Language ${when}` : "Language" }, ...[...LANGS, "nothing"].map((l) => el("option", { text: l })));
-  s.value = chosen;
-  return el("span", { class: "cp-select" }, s);
-};
-for (const ed of $$("[data-sentences]")) {
-  const list = $("ol", ed);
-  // Focus goes to a button, never a select: a focused <select> opens its
-  // picker at once on iOS Safari.
-  // Each language is an entry with its own remove, shown while the rule holds
-  // more than one, so any added language can go and the rule keeps one.
-  const sync = (row) => {
-    const entries = $$(".g-pick", row);
-    for (const e of entries) $(".g-pick-x", e).hidden = entries.length < 2;
-    const add = $(".g-rule-add", row);
-    const full = entries.length >= 3;
-    if (full) add.setAttribute("aria-disabled", "true");
-    else add.removeAttribute("aria-disabled");
-    add.setAttribute("aria-label", full ? `Add a language ${row.dataset.when}: three is the most` : `Add a language ${row.dataset.when}`);
-  };
-  const entry = (row, pick) => {
-    const name = () => $("select", pick).value;
-    const x = el("button", { class: "cp-button g-pick-x", "data-variant": "quiet", "data-size": "sm", type: "button" }, icon("x"));
-    const label = () => x.setAttribute("aria-label", `Remove ${name()} ${row.dataset.when}`);
-    label();
-    $("select", pick).addEventListener("change", label);
-    x.addEventListener("click", () => {
-      const gone = name();
-      wrap.remove();
-      sync(row);
-      $(".g-rule-add", row).focus();
-      say(`${gone} removed`);
-    });
-    const wrap = el("span", { class: "g-pick" }, pick, x);
-    return wrap;
-  };
-  const plus = (row) => {
-    const add = el("button", { class: "cp-button g-rule-add", "data-variant": "quiet", "data-size": "sm", type: "button" }, icon("plus"));
-    add.addEventListener("click", () => {
-      if ($$(".g-pick", row).length >= 3) return;
-      $(".g-targets", row).append(entry(row, pickLang("French", row.dataset.when)));
-      sync(row);
-      if ($$(".g-pick", row).length >= 3) say("Three languages is the most");
-    });
-    return add;
-  };
-  const rule = (audio) => {
-    const row = el("li", {});
-    row.dataset.when = `when the audio is ${audio}`;
-    const remove = el("button", { class: "cp-button", "data-variant": "quiet", "data-size": "sm", type: "button", "aria-label": `Remove the rule ${row.dataset.when}` }, icon("x"));
-    remove.addEventListener("click", () => {
-      const next = row.nextElementSibling ?? row.previousElementSibling;
-      row.remove();
-      $(".cp-button", next)?.focus();
-    });
-    row.append(
-      el("span", { class: "g-rule-when" }, "When the audio is", pickLang(audio, "for the audio")),
-      el("span", { class: "g-rule-verb", text: "fetch" }),
-      el("span", { class: "g-targets" }),
-      el("span", { class: "g-rule-acts" }, plus(row), remove),
-    );
-    $(".g-targets", row).append(entry(row, pickLang("English", row.dataset.when)));
-    sync(row);
-    return row;
-  };
-  $("[data-add-rule]", ed).addEventListener("click", () => {
-    const r = rule("Japanese");
-    list.append(r);
-    $(".g-rule-add", r).focus();
-  });
-  // The default rule has no remove of its own; its languages do.
-  const first = $("li", list);
-  if (first) {
-    first.dataset.when = "by default";
-    const targets = $(".g-targets", first);
-    for (const pick of $$(":scope > .cp-select", targets)) targets.append(entry(first, pick));
-    first.append(el("span", { class: "g-rule-acts" }, plus(first)));
-    sync(first);
-  }
-}
-
-
 // ------------------------------------------------------------ pair rows
+// A path must start with /, said once the field is left. main.ts runs the
+// rows.
 for (const ed of $$("[data-pairs]")) {
-  const list = $("ul", ed);
-  const tmpl = $("li", list).cloneNode(true);
-  let n = 1;
-  const check = (f) => {
-    const err = f.nextElementSibling;
-    const bad = f.value.trim() !== "" && !f.value.startsWith("/");
-    f.setAttribute("aria-invalid", String(bad));
-    err.hidden = !bad;
-  };
-  ed.addEventListener("focusout", (e) => e.target.matches("input") && check(e.target));
-  ed.addEventListener("click", (e) => {
-    if (e.target.closest("[data-remove-pair]")) {
-      const row = e.target.closest("li");
-      (row.nextElementSibling ?? row.previousElementSibling)?.querySelector("input")?.focus();
-      row.remove();
+  ed.addEventListener("focusout", (e) => {
+    const f = e.target;
+    if (!f.matches("input")) return;
+    if (f.value.trim() !== "" && !f.value.startsWith("/")) {
+      showError(f, "Start with /");
+    } else {
+      clearError(f);
     }
-  });
-  $("[data-add-pair]", ed).addEventListener("click", () => {
-    const row = tmpl.cloneNode(true);
-    n++;
-    for (const f of $$("input", row)) {
-      f.value = "";
-      f.id = `${f.id.replace(/-\d+$/, "")}-${n}`;
-      f.nextElementSibling.id = `${f.id}-error`;
-      f.setAttribute("aria-describedby", `${f.id}-error`);
-      f.removeAttribute("aria-invalid");
-      f.nextElementSibling.hidden = true;
-    }
-    list.append(row);
-    $("input", row).focus();
   });
 }
 
 // ---------------------------------------------------------- upload dialog
 for (const d of $$("[data-upload]")) {
-  const input = $("input[type='file']", d);
-  const err = $(".cp-field-error", d);
-  const go = $("[value='upload']", d);
-  const name = $(".g-upload-name", d);
-  input.addEventListener("change", () => {
-    const f = input.files[0];
-    const big = f && f.size > 10 * 1024 * 1024;
-    err.hidden = !big;
-    input.setAttribute("aria-invalid", String(Boolean(big)));
-    go.disabled = !f || big;
-    name.textContent = f ? `${f.name}, ${Math.max(1, Math.round(f.size / 1024))} KB` : "";
-  });
   d.addEventListener("close", () => {
     if (d.returnValue !== "upload") return;
     const row = document.getElementById(d.dataset.upload);
@@ -2091,12 +1927,13 @@ for (const p of $$(".g-player")) {
   });
   // The timing preview: every cue moves by the offset, and the caption on
   // screen redraws at once.
-  offset?.addEventListener("nudge", (e) => {
+  offset?.addEventListener("change", (e) => {
+    const by = Number(e.target.value.replace("\u2212", "-")) || 0;
     const cues = [...(track.cues ?? [])];
     base ??= cues.map((c) => [c.startTime, c.endTime]);
     cues.forEach((c, i) => {
-      c.startTime = Math.max(0, base[i][0] + e.detail);
-      c.endTime = Math.max(0.1, base[i][1] + e.detail);
+      c.startTime = Math.max(0, base[i][0] + by);
+      c.endTime = Math.max(0.1, base[i][1] + by);
     });
     track.mode = "hidden";
     track.mode = "showing";
@@ -2631,35 +2468,6 @@ for (const host of $$("[data-first-sync]")) {
     } else bar.value = next;
     phase.textContent = `Series ${bar.value} of ${bar.max}`;
   }, 900);
-}
-
-// A date range: a quick range fills both dates, a typed date clears it, and
-// an end before the start is an error on the end.
-for (const box of $$("[data-range]")) {
-  const [from, to] = $$("input[type='date']", box);
-  const err = document.getElementById(to.getAttribute("aria-describedby"));
-  const iso = (d) => d.toISOString().slice(0, 10);
-  const check = () => {
-    const bad = from.value && to.value && to.value < from.value;
-    to.toggleAttribute("aria-invalid", Boolean(bad));
-    if (bad) to.setAttribute("aria-invalid", "true");
-    err.hidden = !bad;
-  };
-  const preset = (v) => {
-    const today = new Date();
-    to.value = v === "all" ? "" : iso(today);
-    from.value = v === "all" ? "" : iso(new Date(today.getTime() - (Number(v) - 1) * 86400000));
-    check();
-  };
-  box.addEventListener("change", (e) => {
-    if (e.target.name === "range-preset") preset(e.target.value);
-    else if (e.target.type === "date") {
-      for (const r of $$("[name='range-preset']", box)) r.checked = false;
-      $(".cp-segmented", box).dispatchEvent(new Event("change"));
-      check();
-    }
-  });
-  preset($("[name='range-preset']:checked", box)?.value ?? "7");
 }
 
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to

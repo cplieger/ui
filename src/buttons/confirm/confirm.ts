@@ -153,8 +153,8 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
       let shownAt = -1;
       const delay = setTimeout(() => {
         if (mine === cycle) {
-          shownAt = performance.now();
           show("busy", busy);
+          shownAt = performance.now();
         }
       }, busyDelay);
       try {
@@ -167,8 +167,11 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
         throw err;
       }
       clearTimeout(delay);
-      if (shownAt >= 0) {
-        await wait(Math.max(0, busyMin - (performance.now() - shownAt)));
+      // A timer may fire a little early in some engines, so the hold waits
+      // again for what is left.
+      for (let left = busyMin - (performance.now() - shownAt); shownAt >= 0 && left > 0;) {
+        await wait(left);
+        left = busyMin - (performance.now() - shownAt);
       }
       if (mine !== cycle) {
         return false;

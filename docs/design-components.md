@@ -21,9 +21,12 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-choices`, `.cp-choice`, `.cp-choice-field` | a fieldset of whole-row labels, each a checkbox or a radio, its words and a muted `<small>` line, and a radio's own field, such as "Every [30] minutes", as [choice](forms/choice.md) describes |
 | `.cp-switch` | a native checkbox with `role="switch"`, its thumb springing to the end when on |
 | `.cp-select` | a native `<select class="cp-input">` in a box that draws its chevron |
-| `.cp-stepper`, `.cp-stepper-value` | a number between a minus and a plus, as wide as what it holds, as [stepper](forms/stepper.md) describes, or a value button between them, such as a zoom |
+| `.cp-stepper`, `.cp-stepper-value` | a number between a minus and a plus, as wide as what it holds, or a value button between them, such as a zoom, as [stepper](forms/stepper.md) describes. With `data-variant="nudge"` it is a signed value between buttons of several sizes and a Reset |
 | `.cp-secret`, `.cp-secret-source` | a saved secret that is replaced, never shown, as [secret](forms/secret.md) describes, and a secret from the environment: its name, where it comes from and its state |
 | `.cp-code`, `.cp-copy` | machine text in a box with Copy attached, as [copy](forms/copy.md) describes |
+| `.cp-drop`, `.cp-files` | a file field's label as a dashed area that takes dropped files, and the list of the files a field took, as [file](forms/file.md) describes |
+| `.cp-rules`, `.cp-rule-target` | rules that read as sentences with pickers, set in columns, each target with its remove, as [rules](forms/rules.md) describes |
+| `.cp-pairs` | rows of two fields that belong together, such as path mappings, each with an arrow between and its remove, as [pairs](forms/pairs.md) describes |
 | `.cp-affix` | a field with a fixed part of its value beside it, such as `https://` or a unit, in a `<span>` before or after the `.cp-input`. The field and its fixed part share one box, one control tall |
 | `.cp-search` | a search field with its glass and a clear button, as [search](forms/search.md) describes |
 | `.cp-textarea-count` | a text area's count under it, red past its limit, as [textarea](forms/textarea.md) describes. A `textarea.cp-input` grows from three lines to ten |
@@ -48,6 +51,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-popover` | a native popover by the button that opens it, as [anchor](overlays/anchor.md) describes, with `data-variant="panel"` for a panel of controls, whose focus [panel](overlays/panel.md) gives |
 | `.cp-menu`, `.cp-menu-label`, `.cp-menu-tag` | a menu of `menuitem`, `menuitemcheckbox` and `menuitemradio` buttons or links, a group's heading and a word at an item's end, as [menu](overlays/menu.md) describes |
 | `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed` |
+| `.cp-filter-chip` | a pill `<button>` that turns one filter on or off by `aria-pressed`, filled with the accent and its `check` icon sliding in while pressed. A row of them is a `.cp-cluster` with `role="group"` and a name. Your click handler sets `aria-pressed` from the filter's state |
 | `.cp-tabs`, `.cp-tab` | the WAI-ARIA tabs pattern, as [Design patterns](design-patterns.md#tabs) describes |
 | `.cp-progress`, `.cp-progress-track`, `.cp-progress-fill` | a progress bar in a tone |
 | `.cp-skeleton`, `.cp-empty` | the loading and empty states |

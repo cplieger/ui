@@ -1,0 +1,52 @@
+/* Pairs of fields, such as path mappings: each row the first field, an
+ * arrow, the second field and the row's remove, each field with its own
+ * error under it. Under 40rem the fields stack and the arrow goes. */
+.cp-pairs {
+  display: grid;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-pairs > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  gap: var(--cp-space-2);
+  align-items: start;
+}
+
+/* The arrow and the remove sit level with the fields, whatever error
+ * grows under them. */
+.cp-pairs > li > .cp-icon {
+  margin-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2);
+  color: var(--cp-ink-muted);
+}
+
+.cp-pairs > li[data-cp-added] {
+  animation: cp-row-in 200ms var(--cp-ease-out);
+}
+
+@media (width < 40rem) {
+  .cp-pairs > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cp-pairs > li > .cp-icon {
+    display: none;
+  }
+
+  .cp-pairs > li > .cp-field:last-of-type {
+    grid-column: 1;
+  }
+
+  .cp-pairs > li > .cp-button {
+    grid-area: 1 / 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-pairs > li[data-cp-added] {
+    animation-name: cp-fade-in;
+  }
+}

@@ -1,0 +1,64 @@
+/* A filter chip: a pill button that turns one filter on or off by
+ * aria-pressed. Pressed, it fills with the accent and its check slides in,
+ * so the state is never the colour alone. */
+.cp-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-3);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+  font: inherit;
+  font-size: var(--cp-text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--cp-ease-out),
+    border-color 160ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* The check, held at no width until the chip is pressed. */
+.cp-filter-chip > .cp-icon {
+  --cp-icon-size: 0.875rem;
+
+  inline-size: 0;
+  margin-inline-end: 0;
+  opacity: 0;
+  transition:
+    inline-size 220ms var(--cp-ease-spring),
+    margin 220ms var(--cp-ease-spring),
+    opacity 160ms var(--cp-ease-out);
+}
+
+.cp-filter-chip[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-filter-chip[aria-pressed="true"] > .cp-icon {
+  inline-size: 0.875rem;
+  margin-inline-end: var(--cp-space-1);
+  opacity: 1;
+}
+
+.cp-filter-chip:active,
+.cp-filter-chip[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+@media (forced-colors: active) {
+  .cp-filter-chip {
+    border-color: ButtonText;
+  }
+
+  .cp-filter-chip[aria-pressed="true"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+}

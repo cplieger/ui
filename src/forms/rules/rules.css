@@ -1,0 +1,98 @@
+/* Rules that read as sentences, such as "When the audio is [Japanese],
+ * fetch [English] [+]", set in columns like a table: the condition, the
+ * verb, the targets and the row's buttons, so every picker starts where the
+ * one above it does. In a box under 36rem each rule wraps as a sentence. */
+.cp-rules {
+  display: grid;
+  gap: var(--cp-space-3);
+  container-type: inline-size;
+}
+
+.cp-rules > ol {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: var(--cp-space-2);
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-rules > ol > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.cp-rules [data-part="when"],
+.cp-rules [data-part="targets"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-rules [data-part="actions"] {
+  display: flex;
+  gap: var(--cp-space-1);
+}
+
+/* One target: its picker, and a remove shown while the rule holds more
+ * than one. */
+.cp-rule-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+/* The buttons the rules make hold no icon: the stylesheet draws + and ×. */
+.cp-rules [data-part] .cp-button:empty::before {
+  content: "";
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/x.svg") center / contain no-repeat;
+}
+
+.cp-rules [data-add-target]:empty::before {
+  mask-image: url("../icons/svg/plus.svg");
+}
+
+.cp-rules select.cp-input {
+  min-block-size: var(--cp-control-h-sm);
+  padding-block: 0;
+}
+
+.cp-rules .cp-select {
+  display: inline-grid;
+}
+
+@container (width < 36rem) {
+  .cp-rules > ol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cp-rules > ol > li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--cp-space-2);
+  }
+}
+
+/* A rule or a target the person adds fades in and settles 4px. */
+.cp-rules [data-cp-added] {
+  animation: cp-row-in 200ms var(--cp-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-rules [data-cp-added] {
+    animation-name: cp-fade-in;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-rules [data-part] .cp-button:empty::before {
+    background: ButtonText;
+  }
+}

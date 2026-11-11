@@ -1097,6 +1097,15 @@
   }
 }
 
+/* A row the person adds, such as a rule or a pair of fields, fades in and
+ * settles 4px; nothing bounces. */
+@keyframes cp-row-in {
+  from {
+    opacity: 0;
+    translate: 0 -0.25rem;
+  }
+}
+
 /* Depth: a shadow marks a gesture-summoned overlay only, tinted by the
  * neutral hue; in-flow surfaces separate by a fill or one line, never both. */
 :root {
@@ -1826,6 +1835,106 @@
   font: inherit;
   font-weight: var(--cp-weight-medium);
   cursor: pointer;
+}
+
+/* A drop zone: a file field's label as a dashed area, so a press anywhere
+ * opens the picker and files dropped on it are taken
+ * (@cplieger/ui/file). A drag over it lifts its icon. */
+.cp-drop {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-6) var(--cp-space-4);
+  border: 2px dashed var(--cp-border-strong);
+  border-radius: var(--cp-radius-surface);
+  color: var(--cp-ink-muted);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--cp-dur-micro) var(--cp-ease-out),
+    background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-drop > .cp-icon {
+  --cp-icon-size: 1.5rem;
+
+  color: var(--cp-accent);
+  transition: translate 300ms var(--cp-ease-spring);
+}
+
+.cp-drop[data-cp-over] {
+  border-color: var(--cp-accent);
+  background: var(--cp-selected);
+}
+
+.cp-drop[data-cp-over] > .cp-icon {
+  translate: 0 -0.25rem;
+}
+
+/* The field stays in the page, so it keeps focus and its form, but out of
+ * sight: the zone draws its ring. */
+.cp-drop > input[type="file"] {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.cp-drop:has(> input:focus-visible) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* The files a field took: each a file glyph, its name and its size. */
+.cp-files {
+  display: grid;
+  gap: var(--cp-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--cp-text-sm);
+}
+
+.cp-files > li {
+  display: flex;
+  gap: var(--cp-space-2);
+  align-items: baseline;
+  min-inline-size: 0;
+}
+
+.cp-files > li::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  inline-size: 1rem;
+  block-size: 1rem;
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/file-text.svg") center / contain no-repeat;
+}
+
+.cp-files > li > span {
+  overflow-wrap: anywhere;
+}
+
+.cp-files > li > small {
+  flex: none;
+  color: var(--cp-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (forced-colors: active) {
+  .cp-drop {
+    border-color: CanvasText;
+  }
+
+  .cp-drop:has(> input:focus-visible) {
+    outline-color: Highlight;
+  }
+
+  .cp-files > li::before {
+    background: CanvasText;
+  }
 }
 
 /* A field that holds a quiet control inside its end, such as Show on a
@@ -2792,11 +2901,14 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 .cp-stepper > .cp-button {
   position: relative;
+}
+
+.cp-stepper:not([data-variant]) > .cp-button {
   min-block-size: 0;
   border-radius: calc(var(--cp-radius-control) - var(--cp-line-w));
 }
 
-.cp-stepper > input {
+.cp-stepper > input:not(.cp-input) {
   inline-size: 4ch;
   border: 0;
   outline: none;
@@ -2810,7 +2922,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   appearance: textfield;
 }
 
-:root[data-pointer="fine"] .cp-stepper > input {
+:root[data-pointer="fine"] .cp-stepper > input:not(.cp-input) {
   font-size: var(--cp-text-ui);
 }
 
@@ -2824,7 +2936,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 /* Focus on its number rings the whole stepper, as a focused field is. */
-.cp-stepper:has(> input:focus-visible) {
+.cp-stepper:has(> input:not(.cp-input):focus-visible) {
   border-color: var(--cp-focus-ring);
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: var(--cp-focus-offset);
@@ -2857,9 +2969,26 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 @media (forced-colors: active) {
-  .cp-stepper:has(> input:focus-visible) {
+  .cp-stepper:has(> input:not(.cp-input):focus-visible) {
     outline-color: Highlight;
   }
+}
+
+/* Nudges: a signed value in its own field between buttons of several sizes,
+ * such as −1 s, −0.1 s, +0.1 s and +1 s, and a Reset, wrapping as one row. */
+.cp-stepper[data-variant="nudge"] {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1);
+  block-size: auto;
+  border: 0;
+  background: none;
+}
+
+.cp-stepper[data-variant="nudge"] > .cp-input {
+  inline-size: 7ch;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 /* A secret from the environment, such as an API key: its name, where it
@@ -3501,6 +3630,158 @@ textarea.cp-input {
 @media (forced-colors: active) {
   .cp-test-status::before {
     background: CanvasText;
+  }
+}
+
+/* Rules that read as sentences, such as "When the audio is [Japanese],
+ * fetch [English] [+]", set in columns like a table: the condition, the
+ * verb, the targets and the row's buttons, so every picker starts where the
+ * one above it does. In a box under 36rem each rule wraps as a sentence. */
+.cp-rules {
+  display: grid;
+  gap: var(--cp-space-3);
+  container-type: inline-size;
+}
+
+.cp-rules > ol {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: var(--cp-space-2);
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-rules > ol > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.cp-rules [data-part="when"],
+.cp-rules [data-part="targets"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-rules [data-part="actions"] {
+  display: flex;
+  gap: var(--cp-space-1);
+}
+
+/* One target: its picker, and a remove shown while the rule holds more
+ * than one. */
+.cp-rule-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+/* The buttons the rules make hold no icon: the stylesheet draws + and ×. */
+.cp-rules [data-part] .cp-button:empty::before {
+  content: "";
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/x.svg") center / contain no-repeat;
+}
+
+.cp-rules [data-add-target]:empty::before {
+  mask-image: url("../icons/svg/plus.svg");
+}
+
+.cp-rules select.cp-input {
+  min-block-size: var(--cp-control-h-sm);
+  padding-block: 0;
+}
+
+.cp-rules .cp-select {
+  display: inline-grid;
+}
+
+@container (width < 36rem) {
+  .cp-rules > ol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cp-rules > ol > li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--cp-space-2);
+  }
+}
+
+/* A rule or a target the person adds fades in and settles 4px. */
+.cp-rules [data-cp-added] {
+  animation: cp-row-in 200ms var(--cp-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-rules [data-cp-added] {
+    animation-name: cp-fade-in;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-rules [data-part] .cp-button:empty::before {
+    background: ButtonText;
+  }
+}
+
+/* Pairs of fields, such as path mappings: each row the first field, an
+ * arrow, the second field and the row's remove, each field with its own
+ * error under it. Under 40rem the fields stack and the arrow goes. */
+.cp-pairs {
+  display: grid;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-pairs > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  gap: var(--cp-space-2);
+  align-items: start;
+}
+
+/* The arrow and the remove sit level with the fields, whatever error
+ * grows under them. */
+.cp-pairs > li > .cp-icon {
+  margin-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2);
+  color: var(--cp-ink-muted);
+}
+
+.cp-pairs > li[data-cp-added] {
+  animation: cp-row-in 200ms var(--cp-ease-out);
+}
+
+@media (width < 40rem) {
+  .cp-pairs > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cp-pairs > li > .cp-icon {
+    display: none;
+  }
+
+  .cp-pairs > li > .cp-field:last-of-type {
+    grid-column: 1;
+  }
+
+  .cp-pairs > li > .cp-button {
+    grid-area: 1 / 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-pairs > li[data-cp-added] {
+    animation-name: cp-fade-in;
   }
 }
 
@@ -5619,6 +5900,71 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 @media (prefers-reduced-motion: reduce) {
   .cp-toggle[data-cp-toggled] > .cp-icon {
     animation: none;
+  }
+}
+
+/* A filter chip: a pill button that turns one filter on or off by
+ * aria-pressed. Pressed, it fills with the accent and its check slides in,
+ * so the state is never the colour alone. */
+.cp-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-3);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+  font: inherit;
+  font-size: var(--cp-text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--cp-ease-out),
+    border-color 160ms var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* The check, held at no width until the chip is pressed. */
+.cp-filter-chip > .cp-icon {
+  --cp-icon-size: 0.875rem;
+
+  inline-size: 0;
+  margin-inline-end: 0;
+  opacity: 0;
+  transition:
+    inline-size 220ms var(--cp-ease-spring),
+    margin 220ms var(--cp-ease-spring),
+    opacity 160ms var(--cp-ease-out);
+}
+
+.cp-filter-chip[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-filter-chip[aria-pressed="true"] > .cp-icon {
+  inline-size: 0.875rem;
+  margin-inline-end: var(--cp-space-1);
+  opacity: 1;
+}
+
+.cp-filter-chip:active,
+.cp-filter-chip[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+@media (forced-colors: active) {
+  .cp-filter-chip {
+    border-color: ButtonText;
+  }
+
+  .cp-filter-chip[aria-pressed="true"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
   }
 }
 
