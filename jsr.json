@@ -28,6 +28,7 @@
     "./press": "./src/core/press/press.ts",
     "./radio-focus": "./src/core/radio-focus/radio-focus.ts",
     "./range": "./src/forms/range/range.ts",
+    "./ranked-bars": "./src/data/ranked-bars/ranked-bars.ts",
     "./roll": "./src/core/roll/roll.ts",
     "./roving-focus": "./src/core/roving-focus/roving-focus.ts",
     "./rules": "./src/forms/rules/rules.ts",

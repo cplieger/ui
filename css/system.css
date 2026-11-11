@@ -5324,6 +5324,45 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
+/* Ranked bars (@cplieger/ui/ranked-bars): a table cell's number with a bar
+ * after it, sized against its column's largest. The bars share one start, so
+ * their lengths compare, and the numbers end against them. */
+.cp-table [data-bar] {
+  --cp-bar-w: 6rem;
+
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-table [data-bar] > [data-part="bar"] {
+  display: inline-flex;
+  inline-size: var(--cp-bar-w);
+  block-size: 0.5rem;
+  margin-inline-start: var(--cp-space-2);
+  vertical-align: middle;
+  color: var(--cp-ranked-fill, var(--cp-series-1));
+}
+
+.cp-table:is([data-series], [data-tone]),
+.cp-table :is([data-series], [data-tone]) {
+  --cp-ranked-fill: var(--cp-tone-9);
+}
+
+/* The script writes the fill's inline-size, its share of the largest. */
+.cp-table [data-bar] > [data-part="bar"] > span {
+  min-inline-size: 2px;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+@media (forced-colors: active) {
+  .cp-table [data-bar] > [data-part="bar"] > span {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
 /* Skeleton: the shape of what is coming, with a slow opacity beat that stops
  * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
 .cp-skeleton {

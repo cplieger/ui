@@ -4,6 +4,7 @@ import { cdp, page, server, userEvent } from "vitest/browser";
 import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
 import { enhanceShareBar } from "../data/share-bar/share-bar.js";
 import { enhanceMeter } from "../data/meter/meter.js";
+import { enhanceRankedBars } from "../data/ranked-bars/ranked-bars.js";
 import { renderSparkline } from "../data/sparkline/sparkline.js";
 import { enhanceRange } from "../forms/range/range.js";
 
@@ -677,6 +678,72 @@ describe("css/system.css meter", () => {
     const bar = box(el.querySelector('[data-part="bar"]'));
     const mark = box(el.querySelector('[data-part="marks"] > span'));
     expect(bar.right - (mark.left + mark.width / 2)).toBeCloseTo(302 * 0.8, 0);
+  });
+});
+
+describe("css/system.css ranked bars", () => {
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const slot = (n: number) => {
+    const probe = host("");
+    probe.style.color = `var(--cp-series-${String(n)})`;
+    return getComputedStyle(probe).color;
+  };
+  function ranked(rows: string, attrs = "", dir = "ltr"): HTMLTableElement {
+    theme("light");
+    const el = build(
+      `<div dir="${dir}" style="inline-size: 400px"><table class="cp-table" ${attrs}><thead><tr><th>Agent</th><th data-bar>Sent</th></tr></thead><tbody>${rows}</tbody></table></div>`,
+    );
+    const table = el.querySelector("table") as HTMLTableElement;
+    enhanceRankedBars(table);
+    return table;
+  }
+  const row = (value: number, attrs = "", cell = "") =>
+    `<tr ${attrs}><th>a</th><td data-bar ${cell}><data value="${String(value)}">${String(value)}</data></td></tr>`;
+  interface Part {
+    readonly number: DOMRect;
+    readonly bar: DOMRect;
+    readonly fill: Element | null;
+  }
+  const parts = (table: HTMLTableElement): Part[] =>
+    [...table.querySelectorAll("tbody tr")].map((r) => ({
+      number: box(r.querySelector("data")),
+      bar: box(r.querySelector('[data-part="bar"]')),
+      fill: r.querySelector('[data-part="bar"] > span'),
+    }));
+
+  it("draws a 6rem bar after each number, the bars on one start, each filled to its share", () => {
+    const table = ranked(row(1000) + row(250) + row(1));
+    const [top, mid, low] = parts(table) as [Part, Part, Part];
+    for (const p of [top, mid, low]) {
+      expect([p.bar.width, p.bar.left]).toEqual([96, top.bar.left]);
+      expect(p.bar.left - p.number.right).toBeCloseTo(8, 0);
+      expect(box(p.fill).left).toBe(p.bar.left);
+      expect(box(p.fill).height).toBe(8);
+    }
+    expect(mid.number.right).toBeCloseTo(top.number.right, 1);
+    expect([box(top.fill).width, box(mid.fill).width, box(low.fill).width]).toEqual([96, 24, 2]);
+    expect(getComputedStyle(top.fill as Element).borderTopLeftRadius).toBe("2px");
+    const cell = table.querySelector("td") as Element;
+    expect(getComputedStyle(cell).fontVariantNumeric).toBe("tabular-nums");
+    expect(getComputedStyle(cell).whiteSpace).toBe("nowrap");
+  });
+
+  it("fills in slot 1, or the slot data-series names on the table, the row or the cell", () => {
+    const fill = (table: HTMLTableElement) =>
+      parts(table).map((p) => getComputedStyle(p.fill as Element).color);
+    expect(fill(ranked(row(4)))).toEqual([slot(1)]);
+    expect(fill(ranked(row(4), 'data-series="4"'))).toEqual([slot(4)]);
+    expect(fill(ranked(row(4, 'data-series="2"') + row(2, "", 'data-series="3"')))).toEqual([
+      slot(2),
+      slot(3),
+    ]);
+  });
+
+  it("puts the bar before the number and fills it from the right in a right-to-left page", () => {
+    const [p] = parts(ranked(row(10) + row(40), "", "rtl")) as [Part];
+    expect(p.number.left - p.bar.right).toBeCloseTo(8, 0);
+    expect(box(p.fill).right).toBe(p.bar.right);
+    expect(box(p.fill).width).toBe(24);
   });
 });
 

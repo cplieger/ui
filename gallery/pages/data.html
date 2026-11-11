@@ -248,9 +248,9 @@
             <caption class="cp-visually-hidden">Failed pushes in the last 6 hours</caption>
             <thead><tr><th scope="col">Time</th><th scope="col">Agent</th><th scope="col">Reason</th></tr></thead>
             <tbody>
-              <tr><td><time datetime="13:02">13:02</time></td><td>@ui-design-research</td><td>The connection closed before the push.</td></tr>
-              <tr><td><time datetime="13:40">13:40</time></td><td>@library-reorg-lead</td><td>No answer in 10&nbsp;s.</td></tr>
-              <tr><td><time datetime="14:05">14:05</time></td><td>@ui-design-research</td><td>The connection closed before the push.</td></tr>
+              <tr><td><time datetime="13:02">13:02</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
+              <tr><td><time datetime="13:40">13:40</time></td><td>@grace</td><td>No answer in 10&nbsp;s.</td></tr>
+              <tr><td><time datetime="14:05">14:05</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
             </tbody>
           </table>
         </section>
@@ -266,6 +266,24 @@
         </div>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-meter-step="store-meter" data-by="30">Add 30 GB</button><button class="cp-button" type="button" data-meter-step="store-meter" data-by="-150">Free 150 GB</button></div>
         <footer>A native meter against its ceiling, marked at 80% and 90%. Past the first mark the fill turns to the warning tone and past the second to danger, each with its glyph before the words, which say the value and the mark it passed. Add 30 GB and Free 150 GB move it.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Ranked table</h2>
+        <div class="cp-panel" data-flush>
+          <table class="cp-table" data-ranked>
+            <caption class="g-sr">Who posts and reads, in the last 6 hours, by posts sent</caption>
+            <thead><tr><th scope="col">Agent</th><th scope="col" data-bar="posts">Sent</th><th scope="col" data-bar="posts">Read</th><th scope="col" data-col="num">Longest wait</th><th scope="col" data-col="num">Turns held</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><a href="#figures">@ada</a></th><td data-bar="posts"><data value="148">148</data></td><td data-bar="posts" data-series="2"><data value="96">96</data></td><td data-col="num">3&nbsp;min</td><td data-col="num">4</td></tr>
+              <tr><th scope="row"><a href="#figures">@grace</a></th><td data-bar="posts"><data value="61">61</data></td><td data-bar="posts" data-series="2"><data value="133">133</data></td><td data-col="num">12&nbsp;min</td><td data-col="num">2</td></tr>
+              <tr><th scope="row"><a href="#figures">@linus</a></th><td data-bar="posts"><data value="44">44</data></td><td data-bar="posts" data-series="2"><data value="58">58</data></td><td data-col="num">41&nbsp;min</td><td data-col="num">1</td></tr>
+              <tr><th scope="row"><a href="#figures">@margaret</a></th><td data-bar="posts"><data value="17">17</data></td><td data-bar="posts" data-series="2"><data value="120">120</data></td><td data-col="num">6&nbsp;min</td><td data-col="num">0</td></tr>
+              <tr><th scope="row"><a href="#figures">@alan</a></th><td data-bar="posts"><data value="5">5</data></td><td data-bar="posts" data-series="2"><data value="12">12</data></td><td data-col="num">2&nbsp;h&nbsp;10&nbsp;min</td><td data-col="num">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-ranked-post>@alan sends 60</button></div>
+        <footer>Each count has a bar after it, sized against the largest of Sent and Read together, since both count posts: Sent in the first series colour and Read in the second. The bars start on one line so their lengths compare, the numbers stay exact, and a reader hears only the numbers. @alan sends 60 adds to his row and Take the 60 back undoes it; the table ranks again each time, its bars following.</footer>
       </div>
     </div>
   </section>

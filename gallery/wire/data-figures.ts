@@ -4,6 +4,7 @@
  */
 
 import { enhanceMeter } from "@cplieger/ui/meter";
+import { enhanceRankedBars } from "@cplieger/ui/ranked-bars";
 import { enhanceShareBar } from "@cplieger/ui/share-bar";
 import { renderSparkline, type SparklineOptions } from "@cplieger/ui/sparkline";
 
@@ -243,5 +244,29 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-meter-s
     meter.value = value;
     meter.textContent = of;
     words.textContent = passed === 0 ? of : `${of}, past the ${String(passed)}% mark`;
+  });
+}
+
+for (const table of document.querySelectorAll<HTMLTableElement>("table[data-ranked]")) {
+  enhanceRankedBars(table);
+}
+
+// The demo adds posts to one row and back, ranking the table by its first count.
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-ranked-post]")) {
+  const table = button.closest(".card")?.querySelector<HTMLTableElement>("table[data-ranked]");
+  const body = table?.tBodies[0];
+  const sent = body?.rows[body.rows.length - 1]?.querySelector("data");
+  if (body === undefined || !(sent instanceof HTMLDataElement)) {
+    continue;
+  }
+  const count = (row: HTMLTableRowElement) => Number(row.querySelector("data")?.value ?? 0);
+  let sent60 = false;
+  button.addEventListener("click", () => {
+    const n = Number(sent.value) + (sent60 ? -60 : 60);
+    sent.value = String(n);
+    sent.textContent = String(n);
+    body.append(...[...body.rows].sort((a, b) => count(b) - count(a)));
+    sent60 = !sent60;
+    button.textContent = sent60 ? "Take the 60 back" : "@alan sends 60";
   });
 }

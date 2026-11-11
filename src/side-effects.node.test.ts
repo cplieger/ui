@@ -35,6 +35,7 @@ const PURE = [
   "/press",
   "/radio-focus",
   "/range",
+  "/ranked-bars",
   "/roll",
   "/rules",
   "/roving-focus",

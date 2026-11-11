@@ -82,7 +82,7 @@ Each module is one subpath, grouped here by what it is for:
 - Buttons: [confirm](docs/buttons/confirm.md), [toggle](docs/buttons/toggle.md) and [turn](docs/buttons/turn.md).
 - Forms: [form](docs/forms/form.md), [checkbox](docs/forms/checkbox.md), [choice](docs/forms/choice.md), [stepper](docs/forms/stepper.md), [secret](docs/forms/secret.md), [copy](docs/forms/copy.md), [tokens](docs/forms/tokens.md), [combobox](docs/forms/combobox.md), [search](docs/forms/search.md), [textarea](docs/forms/textarea.md), [range](docs/forms/range.md), [date-range](docs/forms/date-range.md), [file](docs/forms/file.md), [rules](docs/forms/rules.md), [pairs](docs/forms/pairs.md) and [connection-test](docs/forms/connection-test.md).
 - Navigation and layout: [disclosure](docs/navigation/disclosure.md) and [list-detail](docs/layout/list-detail.md).
-- Data: [share-bar](docs/data/share-bar.md), [sparkline](docs/data/sparkline.md) and [meter](docs/data/meter.md).
+- Data: [share-bar](docs/data/share-bar.md), [sparkline](docs/data/sparkline.md), [meter](docs/data/meter.md) and [ranked-bars](docs/data/ranked-bars.md).
 - Behaviour every page shares: [press](docs/core/press.md), [pointer](docs/core/pointer.md), [radio-focus](docs/core/radio-focus.md), [roving-focus](docs/core/roving-focus.md), [roll](docs/core/roll.md), [pill](docs/core/pill.md), [theme](docs/core/theme.md) and [view-transition](docs/core/view-transition.md).
 - [icons](docs/foundations/icons.md): `createIcons`, `iconNames` and `ownIconNames`.
 
