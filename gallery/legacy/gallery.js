@@ -507,28 +507,6 @@ for (const d of $$("dialog.g-dialog[data-says]")) {
   d.addEventListener("close", () => d.returnValue && d.returnValue !== "cancel" && toast({ kind: d.returnValue === "delete" ? "success" : "info", title: d.dataset.says }));
 }
 
-// --------------------------------------------------------------- fields
-// -------------------------------------------------------- relative time
-const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-const rtfNarrow = new Intl.RelativeTimeFormat(undefined, { numeric: "always", style: "narrow" });
-const dtf = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
-function relative(ms, narrow = false) {
-  const s = Math.round((ms - Date.now()) / 1000);
-  const units = [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]];
-  for (const [u, n] of units) if (Math.abs(s) >= n) return (narrow ? rtfNarrow : rtf).format(Math.round(s / n), u);
-  return rtf.format(s < 0 ? Math.min(-1, s) : s, "second").replace(/\d+ seconds? ago/, "just now");
-}
-function liveTimes() {
-  for (const t of $$("time[data-ago]")) {
-    const at = Date.now() - Number(t.dataset.ago) * 1000;
-    t.dateTime ||= new Date(at).toISOString();
-    t.textContent = relative(Date.parse(t.dateTime), t.dataset.style === "narrow");
-    t.title = dtf.format(Date.parse(t.dateTime));
-  }
-}
-liveTimes();
-setInterval(liveTimes, 30000);
-
 // ------------------------------------------------------------- tables
 // A sortable header sorts its column and the rows glide to their places.
 // Each sort button names what a press does: the other order on the sorted

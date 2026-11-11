@@ -40,6 +40,7 @@ const PURE = [
   "/radio-focus",
   "/range",
   "/ranked-bars",
+  "/relative-time",
   "/roll",
   "/rules",
   "/roving-focus",
