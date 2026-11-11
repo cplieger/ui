@@ -154,5 +154,5 @@ The interface may ship in one language and still show titles, names and file nam
 
 The language decides these when an app first needs them, and adds them here:
 
-- Charts with axes. A share of a whole is already a [share bar](data/share-bar.md). For the rest, until then, show the numbers in a table, label series directly, give each series a slot of the [series colours](design-colour.md#series-colours), and never use colour as the only way to tell series apart.
+- Charts with axes. A share of a whole is already a [share bar](data/share-bar.md), and how a number has moved over a range a [sparkline](data/sparkline.md). For the rest, until then, show the numbers in a table, label series directly, give each series a slot of the [series colours](design-colour.md#series-colours), and never use colour as the only way to tell series apart.
 - Print styles.

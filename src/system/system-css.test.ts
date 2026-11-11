@@ -3,6 +3,7 @@ import { cdp, page, server, userEvent } from "vitest/browser";
 
 import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
 import { enhanceShareBar } from "../data/share-bar/share-bar.js";
+import { renderSparkline } from "../data/sparkline/sparkline.js";
 import { enhanceRange } from "../forms/range/range.js";
 
 const root = document.documentElement;
@@ -362,6 +363,67 @@ describe("css/system.css share bar", () => {
     const tip = () => document.querySelector(".cp-tooltip");
     await expect.poll(() => tip()?.matches(":popover-open"), { timeout: 3000 }).toBe(true);
     expect(tip()?.textContent).toBe("best: 3, 75%");
+  });
+});
+
+describe("css/system.css sparkline", () => {
+  function sparkline(values: readonly number[], attrs = "", dir = "ltr"): HTMLElement {
+    theme("light");
+    const el = build(`<p dir="${dir}">Live <span class="cp-sparkline" ${attrs}></span></p>`);
+    const spark = el.querySelector(".cp-sparkline") as HTMLElement;
+    renderSparkline(spark, values);
+    return spark;
+  }
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const slot = (n: number) => {
+    const probe = host("");
+    probe.style.color = `var(--cp-series-${String(n)})`;
+    return getComputedStyle(probe).color;
+  };
+
+  it("puts the dot on the last value, inside the sparkline's own box, and the value after it", () => {
+    const el = sparkline([0, 10, 5]);
+    const plot = box(el.querySelector('[data-part="plot"]'));
+    const dot = box(el.querySelector('[data-part="dot"]'));
+    expect(plot.width).toBe(96);
+    expect(plot.height).toBe(20);
+    expect(dot.width).toBe(6);
+    expect(dot.left + dot.width / 2).toBeCloseTo(plot.right, 1);
+    expect(dot.top + dot.height / 2).toBeCloseTo(plot.top + 10, 1);
+    const outer = box(el);
+    expect(dot.right).toBeLessThanOrEqual(outer.right);
+    const top = sparkline([10, 0]);
+    const high = box(top.querySelector('[data-part="plot"]'));
+    expect(high.top - box(top).top).toBeGreaterThanOrEqual(3);
+    const value = box(el.querySelector('[data-part="last"]'));
+    expect(value.left - plot.right).toBeGreaterThanOrEqual(8);
+    expect(
+      getComputedStyle(el.querySelector('[data-part="last"]') as Element).fontVariantNumeric,
+    ).toBe("tabular-nums");
+  });
+
+  it("draws in slot 1 by default and in the slot data-series names, its value in ink", () => {
+    const plain = sparkline([1, 2]);
+    expect(getComputedStyle(plain).color).toBe(slot(1));
+    const fourth = sparkline([1, 2], 'data-series="4"');
+    const path = fourth.querySelector("path") as SVGPathElement;
+    expect(getComputedStyle(fourth).color).toBe(slot(4));
+    expect(getComputedStyle(path).fill).toBe("none");
+    expect(getComputedStyle(path).strokeWidth).toBe("2px");
+    expect(getComputedStyle(path).vectorEffect).toBe("non-scaling-stroke");
+    const ink = host("");
+    ink.style.color = "var(--cp-ink)";
+    expect(getComputedStyle(fourth.querySelector('[data-part="last"]') as Element).color).toBe(
+      getComputedStyle(ink).color,
+    );
+  });
+
+  it("runs left to right, its value after the dot, in a right-to-left page", () => {
+    const el = sparkline([0, 10, 5], "", "rtl");
+    const plot = box(el.querySelector('[data-part="plot"]'));
+    const dot = box(el.querySelector('[data-part="dot"]'));
+    expect(dot.left + dot.width / 2).toBeCloseTo(plot.right, 1);
+    expect(box(el.querySelector('[data-part="last"]')).left).toBeGreaterThan(plot.right);
   });
 });
 

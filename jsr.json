@@ -34,6 +34,7 @@
     "./secret": "./src/forms/secret/secret.ts",
     "./share-bar": "./src/data/share-bar/share-bar.ts",
     "./skeleton": "./src/feedback/skeleton/skeleton.ts",
+    "./sparkline": "./src/data/sparkline/sparkline.ts",
     "./stepper": "./src/forms/stepper/stepper.ts",
     "./textarea": "./src/forms/textarea/textarea.ts",
     "./theme": "./src/core/theme/theme.ts",

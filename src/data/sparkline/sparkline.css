@@ -1,0 +1,67 @@
+/* A sparkline (@cplieger/ui/sparkline): a word-sized line in a series
+ * colour, its last value marked by a dot and written beside it. The plot
+ * runs left to right in every script, as time does on a chart. */
+.cp-sparkline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  direction: ltr;
+  vertical-align: middle;
+  color: var(--cp-series-1);
+}
+
+.cp-sparkline[data-series] {
+  color: var(--cp-tone-9);
+}
+
+/* The margin holds the half of the stroke and of the dot that falls past
+ * the plot's edge at the low, the high and the last value. */
+.cp-sparkline > [data-part="plot"] {
+  position: relative;
+  flex: none;
+  inline-size: 6rem;
+  block-size: var(--cp-space-5);
+  margin: 3px;
+}
+
+.cp-sparkline svg {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+}
+
+.cp-sparkline path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.cp-sparkline [data-part="dot"] {
+  position: absolute;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+  translate: -50% -50%;
+}
+
+.cp-sparkline > [data-part="last"] {
+  color: var(--cp-ink);
+  unicode-bidi: isolate;
+}
+
+@media (forced-colors: active) {
+  .cp-sparkline path {
+    stroke: CanvasText;
+  }
+
+  .cp-sparkline [data-part="dot"] {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}

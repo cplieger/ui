@@ -4,6 +4,7 @@
  */
 
 import { enhanceShareBar } from "@cplieger/ui/share-bar";
+import { renderSparkline, type SparklineOptions } from "@cplieger/ui/sparkline";
 
 const root = document.documentElement;
 
@@ -94,6 +95,66 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-share-g
     button.textContent = grabbed ? "Put them back" : "Grab 20 upgrades";
     if (meta !== null && meta !== undefined) {
       meta.textContent = `${String(Math.round((Number(best.value) / 659) * 100))}% on the best`;
+    }
+  });
+}
+
+// A seeded walk, so every capture of the page draws the same lines.
+function walk(seed: number): (from: number, step: number, lo: number, hi: number) => number {
+  let state = seed;
+  const next = (): number => {
+    state = (state * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return state / 2_147_483_648;
+  };
+  return (from, step, lo, hi) => Math.min(hi, Math.max(lo, from + (next() - 0.5) * 2 * step));
+}
+
+const MINUTES = 360;
+const RESTART = 110;
+const whole = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
+const unit = (u: string) => (n: number) => `${whole.format(n)}\u00A0${u}`;
+const series = [
+  { name: "live", start: 8, step: 0.3, lo: 4, hi: 12, whole: true, domain: [0, 12] },
+  { name: "active", start: 5, step: 0.3, lo: 0, hi: 9, whole: true, domain: [0, 12] },
+  { name: "requests", start: 110, step: 3, lo: 60, hi: 180, whole: true },
+  { name: "latency", start: 140, step: 2.5, lo: 110, hi: 260, whole: false, format: unit("ms") },
+  { name: "memory", start: 150, step: 0.8, lo: 140, hi: 260, whole: true, format: unit("MB") },
+] as const;
+
+const sparks = series.flatMap((s, i) => {
+  const host = document.querySelector<HTMLElement>(`[data-spark="${s.name}"]`);
+  if (host === null) {
+    return [];
+  }
+  const move = walk(i + 7);
+  let v: number = s.start;
+  const sample = (): number => {
+    v = move(v, s.step, s.lo, s.hi);
+    return s.whole ? Math.round(v) : v;
+  };
+  const values: (number | null)[] = Array.from({ length: MINUTES }, () => sample());
+  if (s.name === "memory") {
+    // Gauges reset on a restart, so the minutes before it have no sample.
+    values.fill(null, 0, RESTART);
+  }
+  const options: SparklineOptions = {
+    range: "Last 6 hours",
+    ...("domain" in s ? { domain: s.domain } : {}),
+    ...("format" in s ? { format: s.format } : {}),
+  };
+  const tick = (): void => {
+    values.shift();
+    values.push(sample());
+    renderSparkline(host, values, options);
+  };
+  renderSparkline(host, values, options);
+  return [tick];
+});
+
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-spark-tick]")) {
+  button.addEventListener("click", () => {
+    for (const tick of sparks) {
+      tick();
     }
   });
 }

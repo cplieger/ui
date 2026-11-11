@@ -42,6 +42,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height |
 | `.cp-pager` | the range and the Previous and Next links under a table |
 | `.cp-share`, `.cp-share-bar`, `.cp-share-legend` | the parts of a whole as segments sized by share with a 2px gap, a tip on each, and a legend of chips that can be links, over the table that holds the numbers, as [share-bar](data/share-bar.md) describes |
+| `.cp-sparkline` | a series over a range as a word-sized line with no axis, in a slot of the [series colours](design-colour.md#series-colours), a dot on its last value and the value beside it, named by its range, last value, low and high, as [sparkline](data/sparkline.md) describes |
 | `.cp-chip`, `.cp-notice`, `.cp-swatch`, `.cp-count` | states in a tone, or categories on a slot of the [series colours](design-colour.md#series-colours) with `data-series`, and a count beside a filter |
 | `.cp-panel`, `.cp-stack`, `.cp-toolbar`, `.cp-heading-row`, `.cp-crumbs`, `.cp-meta` | surfaces and layout |
 | `.cp-cluster` | a row of small things, such as chips or buttons, that wraps instead of overflowing, with `data-gap="tight"` for less space |

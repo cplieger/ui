@@ -41,6 +41,7 @@ const PURE = [
   "/secret",
   "/share-bar",
   "/skeleton",
+  "/sparkline",
   "/stepper",
   "/textarea",
   "/theme",

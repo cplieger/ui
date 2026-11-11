@@ -6,6 +6,7 @@
  */
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
+import { localeOf } from "../../core/locale/locale.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
 
 export interface ShareBarOptions {
@@ -138,8 +139,7 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
     const all = shares(table);
     const total = all.reduce((sum, s) => sum + s.value, 0);
     const shown = all.filter((s) => s.value > 0);
-    const lang = share.closest("[lang]")?.getAttribute("lang");
-    const locale = lang === null || lang === undefined || lang === "" ? undefined : lang;
+    const locale = localeOf(share);
     place(
       bar,
       shown,
