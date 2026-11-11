@@ -3511,8 +3511,73 @@ describe("css/system.css data tables", () => {
         '<div><p style="margin: 0; line-height: 12px">Same episode</p></div></td></tr></tbody></table>',
     );
     const cell = el.querySelector("td") as Element;
-    expect(getComputedStyle(cell.firstElementChild as Element).paddingBlock).toBe("8px");
-    expect(cell.getBoundingClientRect().height).toBe(28);
+    expect(getComputedStyle(cell.firstElementChild as Element).paddingBlock).toBe("16px 20px");
+    expect(cell.getBoundingClientRect().height).toBe(48);
+  });
+
+  it("starts a detail row's content in line with its row's first data column", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><tbody><tr><td data-col="expand">' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-expanded="true">' +
+        '<span class="cp-icon" data-cp-icon="chevron-right"></span></button></td>' +
+        "<td><strong>Arid</strong></td></tr>" +
+        '<tr data-part="detail"><td colspan="2"><div><p style="margin: 0">Same episode</p></div></td></tr>' +
+        "</tbody></table>",
+    );
+    const title = (el.querySelector("strong") as Element).getBoundingClientRect();
+    const fact = (el.querySelector("p") as Element).getBoundingClientRect();
+    expect(fact.left).toBe(title.left);
+  });
+
+  it("lays facts in a muted label column beside their values, one column on a phone", async () => {
+    theme("light");
+    const el = build(
+      '<dl class="cp-facts"><dt>Path</dt><dd>/media/anime/Frieren</dd><dt>Size</dt><dd>31.4 GB</dd></dl>',
+    );
+    const list = el.querySelector("dl") as Element;
+    const [dt, dd] = [list.querySelector("dt"), list.querySelector("dd")] as Element[];
+    const style = getComputedStyle(list);
+    expect([style.rowGap, style.columnGap, style.margin]).toEqual(["8px", "20px", "0px"]);
+    expect(getComputedStyle(dt as Element).color).toBe(resolve("var(--cp-ink-muted)"));
+    expect(getComputedStyle(dd as Element).margin).toBe("0px");
+    expect((dd as Element).getBoundingClientRect().top).toBe(
+      (dt as Element).getBoundingClientRect().top,
+    );
+    await page.viewport(390, 800);
+    expect((dd as Element).getBoundingClientRect().left).toBe(
+      (dt as Element).getBoundingClientRect().left,
+    );
+    expect(getComputedStyle(dd as Element).marginBlockEnd).toBe("12px");
+  });
+
+  it("aligns compared facts' words and notes in their own columns, the word at the list's size", async () => {
+    theme("light");
+    const fact = (label: string, word: string, note: string) =>
+      `<dt>${label}</dt><dd><span class="cp-state" data-tone="success">` +
+      `<span class="cp-icon" data-cp-icon="check"></span>${word}</span><small>${note}</small></dd>`;
+    const el = build(
+      `<dl class="cp-facts" data-variant="compare">${fact("Episode", "Same", "S01E04 in both")}` +
+        `${fact("Release group", "Differs", "Timed to a web release")}</dl>`,
+    );
+    const list = el.querySelector("dl") as Element;
+    const words = [...list.querySelectorAll(".cp-state")];
+    const notes = [...list.querySelectorAll("small")];
+    const left = (e: Element | undefined) => (e as Element).getBoundingClientRect().left;
+    expect(left(words[0])).toBe(left(words[1]));
+    expect(left(notes[0])).toBe(left(notes[1]));
+    expect(left(notes[0])).toBeGreaterThan(left(words[1]));
+    expect(getComputedStyle(words[0] as Element).fontSize).toBe(getComputedStyle(list).fontSize);
+    expect((words[0]?.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(18);
+    expect(getComputedStyle(notes[0] as Element).fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
+    );
+    await page.viewport(390, 800);
+    const labels = [...list.querySelectorAll("dt")];
+    expect((words[0] as Element).getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      (labels[0] as Element).getBoundingClientRect().bottom,
+    );
+    expect(left(words[0])).toBe(left(labels[0]));
   });
 
   it("writes an outcome small, its link to the result in the success tone", () => {

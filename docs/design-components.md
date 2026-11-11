@@ -59,6 +59,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `data-col="expand"`, `tr[data-part="detail"]` | a row that explains itself: a first column whose chevron button opens the detail row after it, one cell across the table whose one child glides open. [table](data/table.md) runs it |
 | `.cp-outcome` | a row action turned into its result in its own cell: a link to the result in the success tone, or a `.cp-field-error` beside Retry |
 | `.cp-active-filters` | the filters in force as a wrapping row of `.cp-token` chips, each with its Remove, then a `data-filters-clear` button shown while a filter is on. [active-filters](data/active-filters.md) runs it |
+| `.cp-facts` | facts about one thing as a native `<dl>`, the labels muted in one column and the values in the next, one column under 40rem. `data-variant="compare"` holds a `.cp-state` word and a `<small>` note in each `<dd>`, in aligned columns |
 | `.cp-chip`, `.cp-notice`, `.cp-swatch` | states in a tone, or categories on a slot of the [series colours](design-colour.md#series-colours) with `data-series`, and a filter's tone square |
 | `.cp-chip[data-cp-flash]` | a chip whose state changed while the person watched, set and cleared by `flashChip` from `@cplieger/ui/chip` |
 | `.cp-panel`, `.cp-stack`, `.cp-toolbar`, `.cp-heading-row`, `.cp-crumbs`, `.cp-meta` | surfaces and layout |

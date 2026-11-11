@@ -293,13 +293,21 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 /* The detail row takes its content's height, not the table's row height.
  * A table row cannot animate its height, so the cell's one child glides,
- * its padding with it, and holds the space a padded cell would. */
+ * its padding with it, and holds the space a padded cell would. Its start
+ * lines up with the row's first data column: past the chevron's button
+ * (its icon and padding, or the hit area if wider) and that column's
+ * cell padding. */
 .cp-table tr[data-part="detail"] > td {
   block-size: auto;
 }
 
 .cp-table tr[data-part="detail"] > td > * {
-  padding-block: var(--cp-space-2);
+  padding-block: var(--cp-space-4) var(--cp-space-5);
+  padding-inline: calc(
+      max(var(--cp-icon-ui) + 2 * (var(--cp-space-2) + var(--cp-line-w)), var(--cp-hit-min)) +
+        var(--cp-space-3)
+    )
+    var(--cp-space-4);
 }
 
 @media (forced-colors: active) {

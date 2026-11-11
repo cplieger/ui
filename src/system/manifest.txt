@@ -46,6 +46,7 @@ forms/pairs/pairs.css
 feedback/state/state.css
 data/table/table.css
 data/active-filters/active-filters.css
+data/facts/facts.css
 navigation/pages/pages.css
 navigation/rail/filters-trigger.css
 data/text/text.css

@@ -123,7 +123,16 @@ const grab = enhanceConfirm(grabButton, { busy: "Grabbing…", done: "Grabbed", 
       </td>
     </tr>
     <tr id="why-arid" data-part="detail" hidden>
-      <td colspan="4"><div>…</div></td>
+      <td colspan="4">
+        <div>
+          <dl class="cp-facts" data-variant="compare">
+            <dt>Episode</dt>
+            <dd><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Same</span><small>S01E04 in both</small></dd>
+            <dt>Release group</dt>
+            <dd><span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Differs</span><small>Arid's video, a fansub's subtitles</small></dd>
+          </dl>
+        </div>
+      </td>
     </tr>
   </tbody>
 </table>
@@ -136,7 +145,7 @@ enhanceRowDetail(table, { signal: page.signal });
 ```
 
 - A row that explains itself has a first column, `data-col="expand"`, holding a quiet small button with the chevron. Its `aria-controls` names the `<tr data-part="detail">` that follows the row, and its name says what opens, such as "Why Arid's release ranks first". The chevron turns to point down while `aria-expanded` is `"true"`.
-- The detail row has one cell across the table, holding one element, which takes the detail's padding. The row takes that element's height rather than the table's row height.
+- The detail row has one cell across the table, holding one element, which takes the detail's padding and starts in line with the row's first data column. The row takes that element's height rather than the table's row height. What it explains is often a `.cp-facts` list with `data-variant="compare"`: each fact's label, a `.cp-state` word with its glyph, and a note.
 - A press turns `aria-expanded` and glides the element open or shut, its padding with its height, as every disclosure glides. The row is hidden once shut. A press during a glide turns back from where it is. Each row starts as its button's `aria-expanded` says.
 - [Sort](#sort) keeps a detail row after its row.
 - `signal` removes the listener and ends a glide at its end.

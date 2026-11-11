@@ -1,0 +1,69 @@
+/* Facts: a native <dl>, the labels muted in one column and the values in
+ * the next, in one column under 40rem as .cp-pairs stacks. A compared fact,
+ * data-variant="compare", holds a .cp-state word and a <small> note in its
+ * <dd>, the three in aligned columns. */
+.cp-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--cp-space-2) var(--cp-space-5);
+  margin: 0;
+  font-size: var(--cp-text-sm);
+}
+
+.cp-facts > dt {
+  color: var(--cp-ink-muted);
+}
+
+.cp-facts > dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cp-facts[data-variant="compare"] {
+  grid-template-columns: max-content auto minmax(0, 1fr);
+  gap: var(--cp-space-1) var(--cp-space-3);
+}
+
+.cp-facts[data-variant="compare"] > dd {
+  display: contents;
+}
+
+/* The word is the fact's value, so it reads at the list's size, its glyph
+ * at a control's. */
+.cp-facts .cp-state {
+  font-size: inherit;
+}
+
+.cp-facts .cp-state > .cp-icon {
+  --cp-icon-size: var(--cp-icon-ui);
+}
+
+.cp-facts[data-variant="compare"] > dd > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+@media (width < 40rem) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cp-facts > dd {
+    margin-block-end: var(--cp-space-3);
+  }
+
+  /* Each label on its own line, its word and note on the next. */
+  .cp-facts[data-variant="compare"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] > dt {
+    grid-column: 1 / -1;
+  }
+
+  .cp-facts[data-variant="compare"] > dd > * {
+    margin-block-end: var(--cp-space-3);
+  }
+}

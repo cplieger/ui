@@ -1317,36 +1317,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   color: var(--cp-ink-muted);
 }
 
-/* Key and value pairs: the labels in one column, the values in the next,
- * stacking on a phone. */
-.g-kv {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--cp-space-2) var(--cp-space-5);
-  margin: 0;
-  font-size: var(--cp-text-sm);
-}
-
-.g-kv dt {
-  color: var(--cp-ink-muted);
-}
-
-.g-kv dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-@media (width < 40rem) {
-  .g-kv {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
-  .g-kv dd {
-    margin-block-end: var(--cp-space-3);
-  }
-}
-
 /* A timeline of events: icon, words, time. */
 .g-timeline {
   display: grid;
@@ -1677,36 +1647,6 @@ html:has(.g-header) {
 .g-virtual .g-vrow > small {
   color: var(--cp-ink-muted);
   font-variant-numeric: tabular-nums;
-}
-
-/* Compared facts under a row. */
-.g-facts {
-  display: grid;
-  grid-template-columns: max-content auto 1fr;
-  gap: var(--cp-space-1) var(--cp-space-3);
-  margin: 0;
-  padding: var(--cp-space-2) var(--cp-space-4) var(--cp-space-3) 3rem;
-  font-size: var(--cp-text-sm);
-}
-
-.g-facts > dt {
-  color: var(--cp-ink-muted);
-}
-
-.g-facts > dd {
-  display: contents;
-}
-
-.g-facts > dd > span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-tone-11);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-facts > dd > small {
-  color: var(--cp-ink-muted);
 }
 
 .g-report {
