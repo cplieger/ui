@@ -1,9 +1,8 @@
 /**
  * toggle.ts — `enhanceToggle()` makes a button an on and off toggle such as
- * Pin, Favourite or the theme: a press flips `aria-pressed`, the stylesheet
- * shows the drawing marked `data-part="on"` while it is on, and the drawing
- * plays its turn-on or turn-off motion only on a change, never when the page
- * first draws.
+ * Pin, Favourite or the theme, playing its drawing's motion only on a
+ * change. `enhanceToggleGroup()` keeps one button of a group pressed, as a
+ * choice among views is.
  * @module
  */
 
@@ -67,5 +66,61 @@ export function enhanceToggle(button: HTMLButtonElement, options: ToggleOptions 
       button.removeAttribute(MOTION);
       button.setAttribute("aria-pressed", String(on));
     },
+  };
+}
+
+export interface ToggleGroupOptions {
+  /** Runs after a press pressed another button, with that button. */
+  readonly onChange?: (button: HTMLButtonElement) => void;
+  /** Removes the listener. */
+  readonly signal?: AbortSignal;
+}
+
+export interface ToggleGroup {
+  /** The pressed button, or null when none is. */
+  readonly pressed: HTMLButtonElement | null;
+  /** Presses `button`, one of the group's, without a press or `onChange`. */
+  set(button: HTMLButtonElement): void;
+}
+
+/**
+ * `group`, a `.cp-toggle-group`, holds `.cp-button`s with `aria-pressed`. A
+ * press on one presses it and lets go of the others; a press on the
+ * pressed one keeps it pressed, so one choice always holds.
+ */
+export function enhanceToggleGroup(
+  group: HTMLElement,
+  options: ToggleGroupOptions = {},
+): ToggleGroup {
+  const { onChange, signal } = options;
+  const buttons = (): HTMLButtonElement[] => [
+    ...group.querySelectorAll<HTMLButtonElement>(":scope > button[aria-pressed]"),
+  ];
+  const press = (chosen: HTMLButtonElement): void => {
+    for (const b of buttons()) {
+      b.setAttribute("aria-pressed", String(b === chosen));
+    }
+  };
+
+  group.addEventListener(
+    "click",
+    (e) => {
+      const b = e.target instanceof Element ? e.target.closest("button") : null;
+      if (b?.parentElement !== group || !b.hasAttribute("aria-pressed")) {
+        return;
+      }
+      if (b.getAttribute("aria-pressed") !== "true") {
+        press(b);
+        onChange?.(b);
+      }
+    },
+    until(signal),
+  );
+
+  return {
+    get pressed() {
+      return buttons().find((b) => b.getAttribute("aria-pressed") === "true") ?? null;
+    },
+    set: press,
   };
 }

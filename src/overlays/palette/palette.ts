@@ -1,10 +1,8 @@
 /**
  * palette.ts — `enhancePalette()` makes a `<dialog class="cp-dialog
- * cp-palette">` a command palette: Ctrl+K, or ⌘K, opens it with
- * its field empty and focused, typing narrows its list of actions, the
- * arrow keys move through them while focus stays in the field, and Enter or
- * a press runs one and closes the palette. The list is an inline
- * `@cplieger/ui/combobox`.
+ * cp-palette">` a command palette: Ctrl+K, or ⌘K, opens it, typing narrows
+ * its actions, and Enter or a press runs one and closes it. The list is an
+ * inline `@cplieger/ui/combobox`.
  * @module
  */
 

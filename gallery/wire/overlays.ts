@@ -13,7 +13,8 @@ import { enhancePanel } from "@cplieger/ui/panel";
 import { enhancePopconfirm } from "@cplieger/ui/popconfirm";
 import { enhanceSelectPanel } from "@cplieger/ui/select-panel";
 import { toast } from "@cplieger/ui/toast";
-import { enhanceToggle } from "@cplieger/ui/toggle";
+import { enhancePill } from "@cplieger/ui/pill";
+import { enhanceToggle, enhanceToggleGroup } from "@cplieger/ui/toggle";
 import { turn } from "@cplieger/ui/turn";
 
 installAnchors();
@@ -77,6 +78,10 @@ for (const b of document.querySelectorAll<HTMLButtonElement>(
   '.cp-toggle:is([data-kind="pin"], [data-kind="favourite"])',
 )) {
   enhanceToggle(b);
+}
+for (const g of document.querySelectorAll<HTMLElement>(".cp-toggle-group")) {
+  enhanceToggleGroup(g);
+  enhancePill(g);
 }
 
 // A confirmation whose button confirms in place plays that button's cycle.

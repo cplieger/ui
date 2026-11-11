@@ -403,14 +403,14 @@
     inline-size 460ms var(--ease-spring);
 }
 
-/* A segmented choice or a toggle group: the same pill slides to the chosen
- * one, under its words. Placed in rows and columns, so a wrapped choice
+/* A segmented choice: the pill slides to the chosen one, under its
+ * words. Placed in rows and columns, so a wrapped choice
  * slides to its line. */
-:is(.cp-segmented, .g-toggles):has(> .pill) {
+.cp-segmented:has(> .pill) {
   position: relative;
 }
 
-:is(.cp-segmented, .g-toggles) > .pill {
+.cp-segmented > .pill {
   position: absolute;
   inset-block-start: 0;
   inset-inline-start: 0;
@@ -427,17 +427,15 @@
     block-size 460ms var(--ease-spring);
 }
 
-:is(.cp-segmented, .g-toggles) > .pill[data-still] {
+.cp-segmented > .pill[data-still] {
   transition: none;
 }
 
-.cp-segmented:has(> .pill) > label,
-.g-toggles:has(> .pill) > button {
+.cp-segmented:has(> .pill) > label {
   z-index: 1;
 }
 
-.cp-segmented:has(> .pill) > label:has(:checked),
-.g-toggles:has(> .pill) > button[aria-pressed="true"] {
+.cp-segmented:has(> .pill) > label:has(:checked) {
   background: transparent;
   box-shadow: none;
 }
@@ -3044,40 +3042,6 @@ html:has(.g-header) {
   gap: var(--cp-space-1);
 }
 
-/* A toggle group: icon buttons, one pressed. */
-.g-toggles {
-  display: inline-flex;
-  gap: 0.125rem;
-  padding: 0.125rem;
-  border-radius: calc(var(--cp-radius-control) + 0.125rem);
-  background: var(--cp-fill);
-}
-
-.g-toggles > button[aria-pressed="true"] {
-  background: var(--cp-surface-raised);
-  color: var(--cp-ink);
-  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
-}
-
-/* As on the segmented: the sliding pill is the only fill. A hover or a press
- * never paints the quiet button's grey over the pill or the track; hovering an
- * unpressed toggle only darkens its icon. */
-.g-toggles > button.cp-button[aria-label][data-cp-pressed] {
-  background: transparent;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-toggles > button.cp-button:hover:not(:disabled) {
-      background: transparent;
-    }
-
-    .g-toggles > button:not([aria-pressed="true"]):hover:not(:disabled) {
-      color: var(--cp-ink);
-    }
-  }
-}
-
 /* A toolbar that moves what does not fit into a More menu. */
 .g-overflow {
   display: flex;
@@ -3641,12 +3605,6 @@ html:has(.g-header) {
 
 .g-timeline details > summary > .cp-icon:dir(rtl) {
   scale: -1 1;
-}
-
-/* A control as wide as its parts, wherever it sits. */
-.g-toggles {
-  inline-size: fit-content;
-  max-inline-size: 100%;
 }
 
 /* A date or a time holds its value and its picker button, never cut; a date's

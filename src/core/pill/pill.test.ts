@@ -88,4 +88,29 @@ describe("enhancePill", () => {
     enhancePill(group, { signal: AbortSignal.abort() });
     expect(pillOf(group)).toBeNull();
   });
+
+  it("slides under a toggle group's pressed button when the host presses another", async () => {
+    const group = document.createElement("div");
+    group.className = "cp-toggle-group";
+    group.style.display = "inline-flex";
+    const buttons = ["List", "Grid"].map((name, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = name;
+      b.style.padding = `0 ${String(10 + i * 8)}px`;
+      b.setAttribute("aria-pressed", String(i === 0));
+      group.append(b);
+      return b;
+    });
+    document.body.append(group);
+    enhancePill(group, { signal: life.signal });
+    const pill = pillOf(group);
+    expect(at(pill)).toEqual(box(buttons[0] as HTMLElement));
+    await frames();
+    buttons[0]?.setAttribute("aria-pressed", "false");
+    buttons[1]?.setAttribute("aria-pressed", "true");
+    await frames(1);
+    expect(at(pill)).toEqual(box(buttons[1] as HTMLElement));
+    expect(pill.hasAttribute("data-cp-still")).toBe(false);
+  });
 });

@@ -1617,6 +1617,30 @@ describe("css/system.css buttons and arrangements", () => {
     expect(getComputedStyle(b).color).not.toBe(off);
   });
 
+  it("raises a toggle group's pressed button on its track, and leaves the fill to a pill", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-toggle-group" role="group" aria-label="View"><button class="cp-button" data-variant="quiet" type="button" aria-pressed="true" aria-label="List"><span class="cp-icon"></span></button><button class="cp-button" data-variant="quiet" type="button" aria-pressed="false" aria-label="Grid"><span class="cp-icon"></span></button></div>',
+    );
+    const group = el.querySelector(".cp-toggle-group") as HTMLElement;
+    const [on, off] = [...group.querySelectorAll("button")].map((b) => {
+      b.style.transition = "none";
+      return getComputedStyle(b);
+    });
+    const raised = host("");
+    raised.style.backgroundColor = "var(--cp-surface-raised)";
+    expect(on?.backgroundColor).toBe(getComputedStyle(raised).backgroundColor);
+    expect(on?.boxShadow).not.toBe("none");
+    expect(off?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(on?.color).not.toBe(off?.color);
+    expect(getComputedStyle(group).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    const pill = document.createElement("span");
+    pill.className = "cp-pill";
+    group.prepend(pill);
+    expect(on?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(on?.boxShadow).toBe("none");
+  });
+
   it("makes an icon segmented choice's segments square", () => {
     theme("light");
     const el = build(

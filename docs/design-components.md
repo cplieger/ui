@@ -14,6 +14,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-button` | `data-variant="primary"` or `"quiet"`, `data-size="sm"`, `data-tone`, `aria-busy="true"` while working, and `aria-disabled="true"` on a link without `href`, and `data-active` on a trigger whose filters or labels are on, which shows its icon's filled drawing, the `.cp-icon` after it marked `data-part="on"`, in the accent. One that confirms in place with [confirm](buttons/confirm.md), and one whose icon turns with [turn](buttons/turn.md) |
 | `.cp-group`, `.cp-split` | buttons joined into one control, and a split button: an action and a caret, one shape, the action growing over the caret while it works |
 | `.cp-toggle` | a quiet icon button that is on or off, with `data-kind="pin"`, `"favourite"` or `"theme"`, as [toggle](buttons/toggle.md) describes |
+| `.cp-toggle-group` | quiet icon buttons on one track with one pressed, for a choice among views such as List, Grid and Compact, the pressed one raised or a pill under it, as [toggle](buttons/toggle.md) describes |
 | `.cp-roll` | words or a number that change by sliding, as [roll](core/roll.md) describes |
 | `.cp-field`, `.cp-label`, `.cp-input`, `.cp-help`, `.cp-field-error` | a labelled field, its help and its error, with the danger border on `aria-invalid="true"` and `:user-invalid`, and the warning border on `data-tone="warning"` |
 | `.cp-form`, `.cp-input-row`, `.cp-input-wrap` | a column of fields at most 32rem wide, a field with a control beside it, and a field with a quiet control inside its end |

@@ -1,13 +1,8 @@
 /**
  * dialog.ts — what a native `<dialog class="cp-dialog">` lacks in some
- * engines. Buttons open and close it with `commandfor`, and the modal dialog
- * itself moves focus in, makes the page inert and returns focus. This adds:
- * a press outside closes a dialog marked `closedby="any"` where the engine
- * does not, a dialog marked `data-keep-typed` that holds typed changes
- * shakes instead of closing on that press, a dialog `holdDialog` holds
- * shakes instead of closing on Escape or that press, each refusal said to a
- * screen reader, and the exit animation runs in an engine that cannot
- * animate a dialog leaving the top layer.
+ * engines: a press outside closing a `closedby="any"` dialog, a shake in
+ * place of closing for `data-keep-typed` or `holdDialog`, said to a screen
+ * reader, and the exit animation out of the top layer.
  * @module
  */
 

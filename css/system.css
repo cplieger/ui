@@ -6225,6 +6225,48 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   }
 }
 
+/* A toggle group (@cplieger/ui/toggle): quiet icon buttons on one track, one
+ * pressed, for a choice among views such as List, Grid and Compact. The
+ * pressed one is raised, or the pill from @cplieger/ui/pill slides under
+ * it; words would make it a segmented choice. */
+.cp-toggle-group {
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  border-radius: calc(var(--cp-radius-control) + 0.125rem);
+  background: var(--cp-fill);
+}
+
+.cp-toggle-group > .cp-button {
+  --cp-toggle-fill: transparent;
+}
+
+.cp-toggle-group > .cp-button[aria-pressed="true"] {
+  color: var(--cp-ink);
+}
+
+.cp-toggle-group:not(:has(> .cp-pill)) > .cp-button[aria-pressed="true"] {
+  --cp-toggle-fill: var(--cp-surface-raised);
+
+  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
+}
+
+/* (0,4,1) outranks a quiet button's hover fill and an icon-only button's
+ * press fill, (0,4,0) each: the track is the fill, so a hover only darkens
+ * the icon, and a press shows by the pill moving. */
+.cp-toggle-group > button.cp-button[aria-pressed]:enabled {
+  background: var(--cp-toggle-fill);
+}
+
+@media (forced-colors: active) {
+  .cp-toggle-group > button.cp-button[aria-pressed="true"]:enabled {
+    background: SelectedItem;
+    color: SelectedItemText;
+  }
+}
+
 /* A filter chip: a pill button that turns one filter on or off by
  * aria-pressed. Pressed, it fills with the accent and its check slides in,
  * so the state is never the colour alone. */
@@ -6314,9 +6356,10 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* The pill @cplieger/ui/pill slides under a segmented choice's chosen
- * segment. Placed by row and column, so a wrapped choice slides to its
- * line. Once it is there, the segments paint no fill of their own. */
-.cp-segmented:has(> .cp-pill) {
+ * segment, or a toggle group's pressed button. Placed by row and column,
+ * so a wrapped choice slides to its line. Once it is there, the segments
+ * paint no fill of their own. */
+:is(.cp-segmented, .cp-toggle-group):has(> .cp-pill) {
   position: relative;
 }
 
@@ -6351,7 +6394,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   left: 0;
 }
 
-.cp-segmented:has(> .cp-pill) > label {
+.cp-segmented:has(> .cp-pill) > label,
+.cp-toggle-group:has(> .cp-pill) > .cp-button {
   z-index: 1;
 }
 

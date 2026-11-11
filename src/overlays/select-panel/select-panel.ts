@@ -1,10 +1,8 @@
 /**
  * select-panel.ts — `enhanceSelectPanel()` makes a `.cp-popover.cp-select-panel`
- * a choice of several from a list too long to scan: a field filters the
- * options, the arrow keys move through them while focus stays in the field,
- * Enter or a press checks one, and the form's submit applies the choice and
- * closes. Closing any other way, by Escape or a press outside, puts back the
- * choice it opened with.
+ * a choice of several from a long list: a field filters the options, Enter
+ * or a press checks one, the form's submit applies the choice, and any other
+ * close puts back the choice it opened with.
  * @module
  */
 

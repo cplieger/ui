@@ -1,11 +1,8 @@
 /**
  * combobox.ts — the WAI-ARIA combobox with a list popup
- * (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) over a text field
- * and a `role="listbox"` the host fills. Focus stays in the field while the
- * arrow keys move `aria-activedescendant` through the options, and Enter or
- * a press accepts one. The host owns which options show and what accepting
- * one does; the popup shows while it holds a visible option, or the list
- * stays in place when it is `inline`, as in a command palette.
+ * (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) over a text field and
+ * a `role="listbox"` the host fills: focus stays in the field while the arrow
+ * keys move `aria-activedescendant`, and Enter or a press accepts an option.
  * @module
  */
 

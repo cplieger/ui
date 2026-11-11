@@ -311,18 +311,15 @@ for (const list of document.querySelectorAll(".slide-tabs")) {
   place();
 }
 
-// Segmented choices and toggle groups: one pill under the chosen one. It
-// lands without motion on load and on a resize, and slides on a choice.
-for (const group of document.querySelectorAll(".cp-segmented, .g-toggles")) {
+// Segmented choices: one pill under the chosen one. It lands without motion
+// on load and on a resize, and slides on a choice.
+for (const group of document.querySelectorAll(".cp-segmented")) {
   const pill = document.createElement("span");
   pill.className = "pill";
   pill.setAttribute("aria-hidden", "true");
   pill.dataset.still = "";
   group.prepend(pill);
-  const chosen = () =>
-    group.classList.contains("g-toggles")
-      ? group.querySelector('button[aria-pressed="true"]')
-      : group.querySelector("label:has(:checked)");
+  const chosen = () => group.querySelector("label:has(:checked)");
   const place = (still) => {
     const c = chosen();
     pill.hidden = !c;
@@ -336,7 +333,6 @@ for (const group of document.querySelectorAll(".cp-segmented, .g-toggles")) {
   };
   new ResizeObserver(() => place(true)).observe(group);
   group.addEventListener("change", () => place(false));
-  group.addEventListener("click", () => requestAnimationFrame(() => place(false)));
   place(true);
 }
 
@@ -1925,16 +1921,6 @@ for (const list of $$("[data-hold]")) {
       list.before(line);
       glideShow(line, true);
     }
-  });
-}
-
-// A toggle group: one pressed at a time.
-for (const g of $$(".g-toggles")) {
-  g.addEventListener("click", (e) => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    for (const x of $$("button", g)) x.setAttribute("aria-pressed", String(x === b));
-    say(`${b.getAttribute("aria-label")} view`);
   });
 }
 
