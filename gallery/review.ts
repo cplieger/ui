@@ -36,27 +36,12 @@ const HARNESS = new Set([
   "g-icon",
 ]);
 
-/** Every gallery class the gallery's own stylesheet draws. */
+/** Every gallery class the gallery's own stylesheet draws, which build.ts
+ *  lists in the page: a preview tab runs the page at an opaque origin, where
+ *  reading the stylesheet's rules throws. */
 function drawn(): Set<string> {
-  const names = new Set<string>();
-  const walk = (rules: CSSRuleList): void => {
-    for (const r of rules) {
-      if (r instanceof CSSStyleRule) {
-        for (const m of r.selectorText.matchAll(/\.(g-[\w-]+)/g)) {
-          names.add(m[1] ?? "");
-        }
-      }
-      if ("cssRules" in r && r.cssRules instanceof CSSRuleList) {
-        walk(r.cssRules);
-      }
-    }
-  };
-  for (const sheet of document.styleSheets) {
-    if (sheet.href?.endsWith("/gallery.css") === true) {
-      walk(sheet.cssRules);
-    }
-  }
-  return names;
+  const list = document.querySelector<HTMLMetaElement>('meta[name="gallery-classes"]');
+  return new Set((list?.content ?? "").split(" ").filter(Boolean));
 }
 
 export function markCards(): void {

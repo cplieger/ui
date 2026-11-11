@@ -33,7 +33,6 @@ const all = <E extends Element>(selector: string): E[] => [
 ];
 
 installTooltips();
-markCards();
 
 // The gallery names a group's boxes by data-group and its select-all box by
 // data-select-all.
@@ -163,7 +162,7 @@ for (const chip of all<HTMLButtonElement>(".cp-filter-chip")) {
   });
 }
 for (const range of all<HTMLElement>("[data-range]")) {
-  enhanceDateRange(range);
+  enhanceDateRange(range, { earliest: new Date(2024, 2, 1) });
 }
 // A file field names its list by data-files and its limit by data-max-size.
 // In a dialog, Upload with no file says so on the field.
@@ -234,3 +233,6 @@ for (const rules of all<HTMLElement>("[data-sentences]")) {
 for (const box of all<HTMLElement>("[data-pairs]")) {
   enhancePairs(box);
 }
+
+// Last, once every card is wired: it only reads the page.
+markCards();

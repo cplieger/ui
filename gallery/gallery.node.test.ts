@@ -31,11 +31,25 @@ beforeAll(async () => {
   await buildGallery(out);
   const server = createServer((req, res) => {
     const path = new URL(req.url ?? "/", "http://x").pathname;
+    // A page framed the way a preview tab frames it: sandboxed, so at an
+    // opaque origin, where reading a stylesheet's rules throws.
+    const framed = /^\/framed\/([\w-]+)$/.exec(path);
+    if (framed !== null) {
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(
+        `<link rel="icon" href="data:,"><iframe sandbox="allow-scripts" src="/${framed[1] ?? ""}.html"></iframe>`,
+      );
+      return;
+    }
     // normalize() of a rooted path cannot climb above it, so the join stays under out.
     const file = join(out, normalize(decodeURIComponent(path)));
     readFile(file).then(
       (body) => {
-        res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
+        // An opaque-origin page fetches its module script and fonts by CORS.
+        res.writeHead(200, {
+          "content-type": TYPES[extname(file)] ?? "application/octet-stream",
+          "access-control-allow-origin": "*",
+        });
         res.end(body);
       },
       () => {
@@ -89,5 +103,39 @@ describe.each(browsers)("the gallery in %s", (name) => {
     }
     expect(report).toEqual({});
     expect([...missing]).toEqual([]);
+  }, 240_000);
+
+  it("runs every page's script to its end inside a sandboxed frame, as a preview tab shows it", async () => {
+    const engine = ENGINES[name];
+    if (engine === undefined) {
+      throw new TypeError(`unknown browser ${name}`);
+    }
+    const browser = await engine.launch();
+    const report: Record<string, unknown> = {};
+    try {
+      for (const page of pageNames) {
+        const tab = await browser.newPage();
+        const errors: string[] = [];
+        tab.on("pageerror", (e) => errors.push(e.message));
+        await tab.goto(`${origin}/framed/${page}`);
+        const frame = tab.frames()[1];
+        // The marks run last, so a page they reach ran every wiring before them.
+        const marked = await frame
+          ?.waitForFunction(() => document.querySelector("[data-build]") !== null, null, {
+            timeout: 10_000,
+          })
+          .then(
+            () => true,
+            () => false,
+          );
+        if (errors.length > 0 || marked !== true) {
+          report[page] = { errors, marked };
+        }
+        await tab.close();
+      }
+    } finally {
+      await browser.close();
+    }
+    expect(report).toEqual({});
   }, 240_000);
 });
