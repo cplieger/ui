@@ -2,7 +2,7 @@
 
 `@cplieger/ui/reorder`
 
-A list the person puts in order, such as audio languages by preference or subtitle providers by priority. Each item has Move up and Move down, so one press moves it with no drag; a handle drags it with a mouse or a finger; Alt with the Up or Down arrow moves the item holding focus. The others slide aside, the ranks renumber and the new place is said.
+A list the person puts in order, such as audio languages by preference or subtitle providers by priority. Each item has Move up and Move down, so one press moves it with no drag. A handle drags it with a mouse or a finger, and Alt with the Up or Down arrow moves the item holding focus. The others slide aside, the ranks renumber and the new place is said.
 
 ```html
 <ol class="cp-list cp-reorder" aria-label="Audio languages, first is preferred">
@@ -34,9 +34,9 @@ enhanceReorder(list, {
 ## API
 
 - `enhanceReorder(list, opts?)` wires an `<ol>` or `<ul>` whose `<li>` items are the things to order. An item holds any content, a card with its own switch, fields and buttons included, and these parts, each optional:
-  - `[data-part="handle"]`, the grip a pointer drags, `aria-hidden` since the buttons and the keys do the same for everyone else;
-  - `[data-part="rank"]`, which the module numbers from 1;
-  - buttons `[data-move="up"]` and `[data-move="down"]`, usually inside a `[data-part="move"]` at the end of the item's line.
+  - `[data-part="handle"]`, the grip a pointer drags, `aria-hidden` since the buttons and the keys do the same for everyone else.
+  - `[data-part="rank"]`, which the module numbers from 1.
+  - Buttons `[data-move="up"]` and `[data-move="down"]`, usually inside a `[data-part="move"]` at the end of the item's line.
 - `ReorderOptions` = `{ name?, words?, onChange?, signal? }`.
   - `name(item)` is the item's name in what is said, by default its `data-name`, else its text. Set `data-name` on an item that holds more than its name.
   - `words(name, position, count)` is what is said after a move, by default "Japanese, position 2 of 3".

@@ -42,11 +42,11 @@ for (const t of list.querySelectorAll("time[datetime*='T']")) {
 
 ## The parts
 
-- `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first, between `li.cp-feed-day` separators, each a `<time>` with the day, and at most one `li.cp-feed-marker`, "New since your last visit", before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full; the New messages button says what arrived.
+- `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first, between `li.cp-feed-day` separators, each a `<time>` with the day, and at most one `li.cp-feed-marker`, "New since your last visit", before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full. The New messages button says what arrived.
 - An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, enhanced by [relative-time](relative-time.md). Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
 - `data-own` marks the person's own entry, whose author reads "You". It sits on the sunken fill, with its text on the same edge as everyone else's.
 - An own entry still sending carries `data-state="sending"` and `aria-busy="true"`, and its footer holds a `.cp-inline-load` "Sending…". One that failed carries `data-state="failed"`, and its footer holds a danger `.cp-state` "Not sent." and a small plain Retry button.
-- The read summary, "Read by 3 of 5", is a quiet small button opening a `.cp-popover.cp-feed-readers` with a `<section>` each for "Read" and "Not read yet", an `h4` over a list of links. While the names load, the popover holds a `.cp-inline-load`; when they fail, a danger `.cp-notice` with Retry.
+- The read summary, "Read by 3 of 5", is a quiet small button opening a `.cp-popover.cp-feed-readers` with a `<section>` each for "Read" and "Not read yet", an `h4` over a list of links. While the names load, the popover holds a `.cp-inline-load`. When they fail, it holds a danger `.cp-notice` with Retry.
 - While the entries load, the feed carries `aria-busy="true"` and holds `li.cp-feed-entry[data-skeleton]` items of four `.cp-skeleton` lines. With none, the detail says so in a sentence, such as "No messages in the last 72 hours.", in place of the feed.
 - `.cp-feed-foot` follows the feed in its scroller and stays pinned to the scroller's end. It holds `button.cp-feed-jump`, `hidden` until the script shows it, and the composer.
 
@@ -91,7 +91,7 @@ compose.addEventListener("submit", async (e) => {
 ```
 
 - Send stays enabled with empty fields, so a press says what is missing, as every form does.
-- Ctrl+Enter, or Command+Enter on a Mac, sends from the message; Enter alone breaks the line.
+- Ctrl+Enter, or Command+Enter on a Mac, sends from the message. Enter alone breaks the line.
 - Append the own entry with `data-state="sending"` as the send starts, so the feed scrolls to it, and keep the text in the fields until the send is done. A failed send leaves the entry failed with Retry, and the text stays.
 
 ## API

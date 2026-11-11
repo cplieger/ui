@@ -35,7 +35,7 @@ formatRelative(at, { now: start, locale: "fr" }); // "dans 25 minutes"
 | 1 day ago | yesterday | 1d ago |
 | 3 weeks ago | 3 weeks ago | 3w ago |
 
-- The words come from `Intl.RelativeTimeFormat`, so every locale reads its own. `long` lets the locale name the nearest day ("yesterday", "tomorrow"); `short` and `narrow` always give a number, because a compact form reads as one.
+- The words come from `Intl.RelativeTimeFormat`, so every locale reads its own. `long` lets the locale name the nearest day ("yesterday", "tomorrow"). `short` and `narrow` always give a number, because a compact form reads as one.
 - The unit is the largest that fits: a minute, an hour, a day, a week, a month of 30 days or a year of 365 days, each rounded to the nearest whole one.
 - The exact time is `Intl.DateTimeFormat` with `dateStyle: "medium"` and `timeStyle: "short"`, in the same locale.
 
