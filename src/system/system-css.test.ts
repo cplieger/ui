@@ -3492,6 +3492,41 @@ describe("css/system.css data tables", () => {
     expect([still, leaving]).toEqual(["none", "cp-token-out"]);
   });
 
+  it("turns an open row's chevron to point down, in either direction of text", () => {
+    theme("light");
+    const row = (dir: string, open: string) =>
+      `<tr dir="${dir}"><td data-col="expand"><button type="button" aria-expanded="${open}">` +
+      '<span class="cp-icon" data-cp-icon="chevron-right"></span></button></td></tr>';
+    const el = build(
+      `<table class="cp-table"><tbody>${row("ltr", "false")}${row("ltr", "true")}${row("rtl", "true")}</tbody></table>`,
+    );
+    const turns = [...el.querySelectorAll(".cp-icon")].map((i) => getComputedStyle(i).rotate);
+    expect(turns).toEqual(["none", "90deg", "-90deg"]);
+  });
+
+  it("gives a detail row its content's height, the padding on the cell's one child", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><tbody><tr data-part="detail"><td>' +
+        '<div><p style="margin: 0; line-height: 12px">Same episode</p></div></td></tr></tbody></table>',
+    );
+    const cell = el.querySelector("td") as Element;
+    expect(getComputedStyle(cell.firstElementChild as Element).paddingBlock).toBe("8px");
+    expect(cell.getBoundingClientRect().height).toBe(28);
+  });
+
+  it("writes an outcome small, its link to the result in the success tone", () => {
+    theme("light");
+    const el = build('<span class="cp-outcome"><a href="#r">Downloaded</a></span>');
+    const outcome = el.querySelector(".cp-outcome") as Element;
+    expect(getComputedStyle(outcome).fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-sm)" })).fontSize,
+    );
+    expect(getComputedStyle(outcome.querySelector("a") as Element).color).toBe(
+      resolve("var(--cp-success-11)"),
+    );
+  });
+
   it("fills the row a keyboard is in, and keeps a selected row's fill", async () => {
     theme("light");
     const el = build(

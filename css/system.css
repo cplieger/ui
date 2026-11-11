@@ -4479,6 +4479,64 @@ th[aria-sort="descending"] > .cp-sort::after {
   justify-content: end;
 }
 
+/* A row action that turned into its result: a link to it in the success
+ * tone, or the error beside Retry. */
+.cp-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-outcome > a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  color: var(--cp-success-11);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-outcome > .cp-field-error {
+  margin: 0;
+}
+
+/* A row that opens its detail does so from a chevron in its own first
+ * column (@cplieger/ui/table). The chevron turns to point down, which in
+ * a right-to-left row, where it is mirrored, is the other way round. */
+.cp-table [data-col="expand"] {
+  inline-size: 1%;
+  padding-inline-end: 0;
+}
+
+.cp-table [data-col="expand"] [aria-expanded] > .cp-icon {
+  transition: rotate 220ms var(--cp-ease-spring);
+}
+
+.cp-table [data-col="expand"] [aria-expanded="true"] > .cp-icon {
+  rotate: 90deg;
+}
+
+.cp-table [data-col="expand"] :where([aria-expanded="true"]) > .cp-icon:dir(rtl) {
+  rotate: -90deg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-table [data-col="expand"] [aria-expanded] > .cp-icon {
+    transition: none;
+  }
+}
+
+/* The detail row takes its content's height, not the table's row height.
+ * A table row cannot animate its height, so the cell's one child glides,
+ * its padding with it, and holds the space a padded cell would. */
+.cp-table tr[data-part="detail"] > td {
+  block-size: auto;
+}
+
+.cp-table tr[data-part="detail"] > td > * {
+  padding-block: var(--cp-space-2);
+}
+
 @media (forced-colors: active) {
   .cp-sort::after {
     background: ButtonText;

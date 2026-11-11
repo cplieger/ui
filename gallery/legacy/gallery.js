@@ -1065,50 +1065,6 @@ for (const host of $$("[data-virtual]")) {
   draw();
 }
 
-// ------------------------------------------------------ inline outcomes
-for (const b of $$("[data-outcome]")) {
-  let fail = b.dataset.outcome === "fail";
-  const cell = b.parentElement;
-  const run = (btn) => {
-    btn.setAttribute("aria-busy", "true");
-    btn.querySelector(".label").textContent = "Downloading…";
-    btn.querySelector(".cp-icon").dataset.cpIcon = "spinner-arc";
-    setTimeout(() => {
-      const out = el("span", { class: "g-outcome", "data-state": fail ? "error" : "done" });
-      if (fail) {
-        const retry = el("button", { class: "cp-button", "data-size": "sm", type: "button" }, icon("refresh-cw"), el("span", { class: "label", text: "Retry" }));
-        out.append(el("span", { class: "cp-field-error" }, icon("circle-x"), "The provider timed out."), retry);
-        retry.addEventListener("click", () => {
-          fail = false;
-          run(retry);
-        });
-        announce("Download failed: the provider timed out.", true);
-      } else {
-        out.append(el("a", { href: "#data" }, icon("circle-check"), "Downloaded · Pinned"));
-        announce("Downloaded and pinned.");
-      }
-      cell.replaceChildren(out);
-      (out.querySelector("button, a")).focus();
-    }, 1400);
-  };
-  b.addEventListener("click", () => run(b));
-}
-for (const b of $$(".g-disclose")) {
-  b.addEventListener("click", () => {
-    const row = document.getElementById(b.getAttribute("aria-controls"));
-    const body = $(".g-why", row) ?? row;
-    const open = b.getAttribute("aria-expanded") !== "true";
-    b.setAttribute("aria-expanded", String(open));
-    body.glide?.cancel();
-    if (open) {
-      row.hidden = false;
-      body.glide = glideHeight(body, 0, body.getBoundingClientRect().height);
-    } else {
-      body.glide = glideHeight(body, body.getBoundingClientRect().height, 0, () => (row.hidden = true));
-    }
-  });
-}
-
 // ------------------------------------------------------- batched action
 for (const b of $$("[data-batch-total]")) {
   const total = Number(b.dataset.batchTotal);

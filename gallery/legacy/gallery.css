@@ -1679,26 +1679,6 @@ html:has(.g-header) {
   font-variant-numeric: tabular-nums;
 }
 
-/* An action that reports its own outcome in its cell. */
-.g-outcome {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  font-size: var(--cp-text-sm);
-}
-
-.g-outcome[data-state="done"] a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-success-11);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-outcome .cp-field-error {
-  margin: 0;
-}
-
 /* Compared facts under a row. */
 .g-facts {
   display: grid;
@@ -1727,20 +1707,6 @@ html:has(.g-header) {
 
 .g-facts > dd > small {
   color: var(--cp-ink-muted);
-}
-
-.g-disclose {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-}
-
-.g-disclose > .cp-icon {
-  transition: rotate 220ms var(--ease-spring);
-}
-
-.g-disclose[aria-expanded="true"] > .cp-icon {
-  rotate: 90deg;
 }
 
 .g-report {
@@ -2564,28 +2530,6 @@ html:has(.g-header) {
 :root .cp-button.btn-done[data-tone="danger"][data-state="done"]:not(:disabled) {
   background: var(--cp-danger-9);
   color: var(--cp-danger-on);
-}
-
-/* An expandable row opens on a chevron in its own first column. */
-.cp-table [data-col="expand"] {
-  inline-size: 1%;
-  padding-inline-end: 0;
-}
-
-/* The row of facts takes its content's height, not the table's row height,
- * so it glides from nothing; its inner layer holds the padding the glide
- * would otherwise stop at. */
-.cp-table .g-why-row > td {
-  block-size: auto;
-  padding-block: 0;
-}
-
-.g-why {
-  overflow: clip;
-}
-
-.g-why-in {
-  padding-block: var(--cp-space-2);
 }
 
 /* A reorderable item's Move up and Move down sit at its end. */

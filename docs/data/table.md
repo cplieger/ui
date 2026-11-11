@@ -2,7 +2,7 @@
 
 `@cplieger/ui/table`
 
-The parts of a `.cp-table` that need a script. `enhanceSort` runs sortable headers, and `enhanceBatchBar` runs the `.cp-batchbar` that acts on the selected rows. [Design patterns](../design-patterns.md) "Tables" says how a table behaves, and [Components](../design-components.md) lists its classes.
+The parts of a `.cp-table` that need a script. `enhanceSort` runs sortable headers, `enhanceBatchBar` runs the `.cp-batchbar` that acts on the selected rows, and `enhanceRowDetail` opens the detail under a row that explains itself. [Design patterns](../design-patterns.md) "Tables" says how a table behaves, and [Components](../design-components.md) lists its classes.
 
 ## Markup
 
@@ -92,3 +92,64 @@ const grab = enhanceConfirm(grabButton, { busy: "Grabbing…", done: "Grabbed", 
 - `onChange({ count, everything })` runs after each change. The returned bar reads `count` and `everything`, `sync()` shows the boxes' state after code changes them, and `clear()` clears.
 - `words` gives `count`, `cleared`, `every`, `page` and `action` in another language.
 - `signal` removes the listeners.
+
+## Row detail
+
+```html
+<table class="cp-table">
+  <thead>
+    <tr>
+      <th data-col="expand"><span class="cp-visually-hidden">Why this rank</span></th>
+      <th>Release</th>
+      <th data-col="num">Rank</th>
+      <th data-col="actions"><span class="cp-visually-hidden">Actions</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td data-col="expand">
+        <button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-expanded="false" aria-controls="why-arid" aria-label="Why Arid's release ranks first">
+          <span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span>
+        </button>
+      </td>
+      <td><div class="cp-cell-stack"><strong>[Arid] Frieren S01E04</strong><span class="cp-meta">English, ASS</span></div></td>
+      <td data-col="num">1st</td>
+      <td data-col="actions">
+        <button class="cp-button" data-size="sm" type="button" aria-label="Download [Arid] Frieren S01E04">
+          <span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>
+          <span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span>
+          <span class="cp-roll">Download</span>
+        </button>
+      </td>
+    </tr>
+    <tr id="why-arid" data-part="detail" hidden>
+      <td colspan="4"><div>…</div></td>
+    </tr>
+  </tbody>
+</table>
+```
+
+```ts
+import { enhanceRowDetail } from "@cplieger/ui/table";
+
+enhanceRowDetail(table, { signal: page.signal });
+```
+
+- A row that explains itself has a first column, `data-col="expand"`, holding a quiet small button with the chevron. Its `aria-controls` names the `<tr data-part="detail">` that follows the row, and its name says what opens, such as "Why Arid's release ranks first". The chevron turns to point down while `aria-expanded` is `"true"`.
+- The detail row has one cell across the table, holding one element, which takes the detail's padding. The row takes that element's height rather than the table's row height.
+- A press turns `aria-expanded` and glides the element open or shut, its padding with its height, as every disclosure glides. The row is hidden once shut. A press during a glide turns back from where it is. Each row starts as its button's `aria-expanded` says.
+- [Sort](#sort) keeps a detail row after its row.
+- `signal` removes the listener and ends a glide at its end.
+
+## Outcome
+
+```html
+<td data-col="actions">
+  <span class="cp-outcome">
+    <a href="/releases/arid-04"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Downloaded · Pinned</a>
+  </span>
+</td>
+```
+
+- A row action whose result is worth keeping in view, such as a download, runs through [confirm](../buttons/confirm.md) with `done: false`, then the app replaces the cell's content with a `.cp-outcome`: a link to the result, in the success tone, or a `.cp-field-error` with the reason and a Retry button that runs the same cycle.
+- Focus moves to the outcome's link or Retry, and the app says the result with [announce](../feedback/announce.md), assertively for an error.

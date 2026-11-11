@@ -5,6 +5,8 @@
  * places. `enhanceBatchBar()` runs the `.cp-batchbar` over its selection:
  * the count, Clear, the offer of every matching row, bulk actions that name
  * their count, Escape, the announcements and the bar gliding in and out.
+ * `enhanceRowDetail()` opens and shuts the detail row under a row that
+ * explains itself, gliding it as every disclosure glides.
  * @module
  */
 
@@ -156,6 +158,108 @@ export function enhanceSort(table: HTMLTableElement, options: SortOptions = {}):
     until(signal),
   );
   name();
+}
+
+export interface RowDetailOptions {
+  /** Removes the listener and ends a glide at its end state. */
+  readonly signal?: AbortSignal;
+}
+
+const OPENER = '[data-col="expand"] button[aria-controls]';
+const detailGlides = new WeakMap<HTMLElement, Animation>();
+
+function detailOf(table: HTMLTableElement, button: Element): HTMLTableRowElement | undefined {
+  const id = button.getAttribute("aria-controls");
+  return [...table.rows].find((r) => r.id === id && r.dataset["part"] === "detail");
+}
+
+const boxOf = (row: HTMLTableRowElement): HTMLElement | null => {
+  const box = row.cells[0]?.firstElementChild;
+  return box instanceof HTMLElement ? box : null;
+};
+
+/** Glides `row`'s box from the height it shows to open or shut, scaling its
+ *  padding with its height so no padded band shows at the ends. */
+function glideDetail(row: HTMLTableRowElement, open: boolean): void {
+  const box = boxOf(row);
+  const from = row.hidden ? 0 : (box?.getBoundingClientRect().height ?? 0);
+  row.hidden = false;
+  if (box === null) {
+    row.hidden = !open;
+    return;
+  }
+  detailGlides.get(box)?.cancel();
+  const full = box.getBoundingClientRect().height;
+  const style = getComputedStyle(box);
+  const start = Number.parseFloat(style.paddingBlockStart);
+  const end = Number.parseFloat(style.paddingBlockEnd);
+  const at = (f: number): Keyframe => ({
+    blockSize: `${String(full * f)}px`,
+    paddingBlockStart: `${String(start * f)}px`,
+    paddingBlockEnd: `${String(end * f)}px`,
+    overflow: "clip",
+  });
+  const run = box.animate([at(full > 0 ? Math.min(from / full, 1) : 0), at(open ? 1 : 0)], {
+    duration: reducedMotion() ? 0 : 240,
+    easing: EASE_OUT,
+    fill: "forwards",
+  });
+  detailGlides.set(box, run);
+  void run.finished.then(
+    () => {
+      row.hidden = !open;
+      run.cancel();
+      detailGlides.delete(box);
+    },
+    () => undefined,
+  );
+}
+
+/**
+ * Each row of `table` that explains itself has, in its `data-col="expand"`
+ * cell, a button whose `aria-controls` names the `<tr data-part="detail">`
+ * after it, which holds one cell across the table with one child. A press
+ * turns `aria-expanded` and glides that child open or shut, hiding the row
+ * once shut. The rows start as their buttons' `aria-expanded` says.
+ */
+export function enhanceRowDetail(table: HTMLTableElement, options: RowDetailOptions = {}): void {
+  const { signal } = options;
+  if (signal?.aborted === true) {
+    return;
+  }
+  for (const button of table.querySelectorAll(OPENER)) {
+    const row = detailOf(table, button);
+    if (row !== undefined) {
+      row.hidden = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", String(!row.hidden));
+    }
+  }
+  table.addEventListener(
+    "click",
+    (e) => {
+      const button = e.target instanceof Element ? e.target.closest(OPENER) : null;
+      const row = button === null || !table.contains(button) ? undefined : detailOf(table, button);
+      if (button === null || row === undefined) {
+        return;
+      }
+      const open = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", String(open));
+      glideDetail(row, open);
+    },
+    until(signal),
+  );
+  signal?.addEventListener(
+    "abort",
+    () => {
+      for (const row of table.rows) {
+        const box = boxOf(row);
+        if (box !== null) {
+          detailGlides.get(box)?.finish();
+        }
+      }
+    },
+    { once: true },
+  );
 }
 
 /** What the batch bar counts. */

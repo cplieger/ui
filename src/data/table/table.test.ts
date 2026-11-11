@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { enhanceSelectAll } from "../../forms/checkbox/checkbox.js";
-import { enhanceBatchBar, enhanceSort, type BatchSelection } from "./table.js";
+import { enhanceBatchBar, enhanceRowDetail, enhanceSort, type BatchSelection } from "./table.js";
 
 let life = new AbortController();
 
@@ -92,6 +92,119 @@ describe("enhanceSort", () => {
       table.querySelectorAll<HTMLButtonElement>(".cp-sort")[1] as HTMLButtonElement,
     );
     expect(ids(table)).toEqual(["a", "a-why", "b", "c"]);
+  });
+});
+
+function detailed(): HTMLTableElement {
+  const box = document.createElement("div");
+  // Static test markup, never caller text.
+  box.setHTMLUnsafe(
+    '<table class="cp-table"><tbody>' +
+      '<tr><td data-col="expand"><button type="button" aria-expanded="false" aria-controls="why-a">Why A</button></td><td>A</td></tr>' +
+      '<tr id="why-a" data-part="detail"><td colspan="2"><div style="padding-block: 8px"><p style="margin: 0">Same episode</p><p style="margin: 0">Other group</p></div></td></tr>' +
+      '<tr><td data-col="expand"><button type="button" aria-expanded="true" aria-controls="why-b">Why B</button></td><td>B</td></tr>' +
+      '<tr id="why-b" data-part="detail" hidden><td colspan="2">Fewer downloads</td></tr>' +
+      '<tr><td data-col="expand"><button type="button" aria-controls="nowhere">Why C</button></td><td>C</td></tr>' +
+      "</tbody></table>",
+  );
+  document.body.append(box);
+  return box.querySelector("table") as HTMLTableElement;
+}
+
+const opener = (table: HTMLTableElement, n: number) =>
+  table.querySelectorAll<HTMLButtonElement>("button")[n] as HTMLButtonElement;
+const row = (table: HTMLTableElement, id: string) =>
+  table.querySelector<HTMLTableRowElement>(`#${id}`) as HTMLTableRowElement;
+const gliding = (box: Element) => box.getAnimations()[0] as Animation;
+const frames = (run: Animation) =>
+  (run.effect as KeyframeEffect)
+    .getKeyframes()
+    .map((k) => [k["blockSize"], k["paddingBlockStart"], k["paddingBlockEnd"]]);
+
+describe("enhanceRowDetail", () => {
+  it("starts each detail row as its button says", () => {
+    const table = detailed();
+    enhanceRowDetail(table, { signal: life.signal });
+    expect([row(table, "why-a").hidden, row(table, "why-b").hidden]).toEqual([true, false]);
+  });
+
+  it("glides a detail open from nothing, its padding with it, and shut, hiding the row at the end", async () => {
+    const table = detailed();
+    enhanceRowDetail(table, { signal: life.signal });
+    const detail = row(table, "why-a");
+    const box = detail.cells[0]?.firstElementChild as HTMLElement;
+    opener(table, 0).click();
+    expect(opener(table, 0).getAttribute("aria-expanded")).toBe("true");
+    expect(detail.hidden).toBe(false);
+    const open = gliding(box);
+    await open.finished;
+    await expect.poll(() => box.getAnimations().length).toBe(0);
+    const full = `${String(box.getBoundingClientRect().height)}px`;
+    expect(frames(open)).toEqual([
+      ["0px", "0px", "0px"],
+      [full, "8px", "8px"],
+    ]);
+    opener(table, 0).click();
+    expect(opener(table, 0).getAttribute("aria-expanded")).toBe("false");
+    expect(detail.hidden).toBe(false);
+    const shut = gliding(box);
+    expect(frames(shut)[1]).toEqual(["0px", "0px", "0px"]);
+    await shut.finished;
+    await expect.poll(() => detail.hidden).toBe(true);
+  });
+
+  it("turns back from where a glide is, leaving the row open", async () => {
+    const table = detailed();
+    enhanceRowDetail(table, { signal: life.signal });
+    const detail = row(table, "why-a");
+    const box = detail.cells[0]?.firstElementChild as HTMLElement;
+    opener(table, 0).click();
+    await gliding(box).finished;
+    await expect.poll(() => box.getAnimations().length).toBe(0);
+    const full = box.getBoundingClientRect().height;
+    opener(table, 0).click();
+    opener(table, 0).click();
+    const back = gliding(box);
+    expect(Number.parseFloat(String(frames(back)[0]?.[0]))).toBeGreaterThan(full / 2);
+    await back.finished;
+    await expect.poll(() => box.getAnimations().length).toBe(0);
+    expect([detail.hidden, opener(table, 0).getAttribute("aria-expanded")]).toEqual([
+      false,
+      "true",
+    ]);
+  });
+
+  it("shows and hides a detail with no element to glide at once", async () => {
+    const table = detailed();
+    enhanceRowDetail(table, { signal: life.signal });
+    await userEvent.click(opener(table, 1));
+    expect(row(table, "why-b").hidden).toBe(true);
+    await userEvent.click(opener(table, 1));
+    expect(row(table, "why-b").hidden).toBe(false);
+  });
+
+  it("leaves a button whose aria-controls names no detail row alone", async () => {
+    const table = detailed();
+    enhanceRowDetail(table, { signal: life.signal });
+    await userEvent.click(opener(table, 2));
+    expect(opener(table, 2).hasAttribute("aria-expanded")).toBe(false);
+  });
+
+  it("stops with its signal, ending a glide at its end", async () => {
+    const table = detailed();
+    enhanceRowDetail(table, { signal: life.signal });
+    const detail = row(table, "why-a");
+    const box = detail.cells[0]?.firstElementChild as HTMLElement;
+    opener(table, 0).click();
+    expect(box.getAnimations()).toHaveLength(1);
+    life.abort();
+    await expect.poll(() => box.getAnimations().length).toBe(0);
+    expect(detail.hidden).toBe(false);
+    await userEvent.click(opener(table, 0));
+    expect([detail.hidden, opener(table, 0).getAttribute("aria-expanded")]).toEqual([
+      false,
+      "true",
+    ]);
   });
 });
 

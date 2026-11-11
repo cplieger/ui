@@ -8,7 +8,7 @@ import { announce } from "@cplieger/ui/announce";
 import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceMenu } from "@cplieger/ui/menu";
 import { skeletonTiming } from "@cplieger/ui/skeleton";
-import { enhanceBatchBar, enhanceSort } from "@cplieger/ui/table";
+import { enhanceBatchBar, enhanceRowDetail, enhanceSort } from "@cplieger/ui/table";
 import { toast } from "@cplieger/ui/toast";
 
 const all = <E extends Element>(selector: string, root: ParentNode = document): E[] => [
@@ -56,6 +56,92 @@ for (const button of all<HTMLButtonElement>("button[data-grab]")) {
       }
     });
   });
+}
+
+for (const table of all<HTMLTableElement>('table:has([data-col="expand"] [aria-controls])')) {
+  enhanceRowDetail(table);
+}
+
+const make = (tag: string, className: string, ...children: (Node | string)[]): HTMLElement => {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.append(...children);
+  return node;
+};
+
+const glyph = (name: string, part?: string): HTMLElement => {
+  const node = make("span", "cp-icon");
+  node.dataset["cpIcon"] = name;
+  if (part !== undefined) {
+    node.dataset["part"] = part;
+  }
+  node.setAttribute("aria-hidden", "true");
+  return node;
+};
+
+// A row's Download turns into its result in its own cell. The one marked
+// data-outcome="fail" fails once, and its Retry then succeeds.
+for (const button of all<HTMLButtonElement>("button[data-outcome]")) {
+  const cell = button.parentElement;
+  if (cell === null) {
+    continue;
+  }
+  let fails = button.dataset["outcome"] === "fail";
+  const settle = (outcome: HTMLElement, said: string, politeness?: "assertive"): void => {
+    cell.replaceChildren(outcome);
+    outcome.querySelector<HTMLElement>("a, button")?.focus();
+    announce(said, politeness);
+  };
+  const download = (b: HTMLButtonElement): void => {
+    const cycle = enhanceConfirm(b, { busy: "Downloading…", done: false });
+    const load = (): Promise<void> =>
+      new Promise((ok, no) =>
+        setTimeout(() => {
+          if (fails) {
+            no(new Error("The provider timed out."));
+          } else {
+            ok();
+          }
+        }, 1400),
+      );
+    b.addEventListener("click", () => {
+      cycle.run(load).then(
+        (ran) => {
+          if (!ran) {
+            return;
+          }
+          const link = make("a", "", glyph("circle-check"), "Downloaded · Pinned");
+          link.setAttribute("href", "#table");
+          settle(make("span", "cp-outcome", link), "Downloaded and pinned.");
+        },
+        () => {
+          fails = false;
+          const retry = make(
+            "button",
+            "cp-button",
+            glyph("refresh-cw"),
+            glyph("spinner-arc", "busy"),
+            make("span", "cp-roll", "Retry"),
+          ) as HTMLButtonElement;
+          retry.type = "button";
+          retry.dataset["size"] = "sm";
+          download(retry);
+          const error = make(
+            "span",
+            "cp-field-error",
+            glyph("circle-x"),
+            "The provider timed out.",
+          );
+          settle(
+            make("span", "cp-outcome", error, retry),
+            "Download failed: the provider timed out.",
+            "assertive",
+          );
+        },
+      );
+    });
+  };
+  download(button);
 }
 
 // One menu serves every row's ⋯; an item names its toast by data-say.
