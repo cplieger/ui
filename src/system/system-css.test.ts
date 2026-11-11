@@ -3399,3 +3399,93 @@ describe("css/system.css feedback and steps", () => {
     );
   });
 });
+
+describe("css/system.css lists, feeds and counts", () => {
+  const resolved = (value: string, property: "color" | "backgroundColor" = "color"): string => {
+    const probe = host("");
+    probe.style[property] = value;
+    return getComputedStyle(probe)[property];
+  };
+
+  it("draws a dot as an 8px circle in its tone", () => {
+    theme("light");
+    const el = build('<span class="cp-dot" data-tone="success"></span>');
+    const dot = el.querySelector(".cp-dot") as HTMLElement;
+    const box = dot.getBoundingClientRect();
+    expect([box.width, box.height]).toEqual([8, 8]);
+    expect(getComputedStyle(dot).borderRadius).toBe("50%");
+    expect(getComputedStyle(dot).backgroundColor).toBe(resolved("var(--cp-success-9)"));
+    expect(getComputedStyle(dot).animationName).toBe("none");
+  });
+
+  it("rings a live dot twice, within the 5 seconds a loop may run without a pause control", () => {
+    theme("light");
+    const el = build('<span class="cp-dot" data-tone="success" data-live></span>');
+    const cs = getComputedStyle(el.querySelector(".cp-dot") as Element);
+    expect(cs.animationName).toBe("cp-dot-live");
+    expect(cs.animationIterationCount).toBe("2");
+    expect(parseFloat(cs.animationDuration) * 2).toBeLessThanOrEqual(5);
+  });
+
+  it("replays a dot's rings when its state turns live again", () => {
+    theme("light");
+    const el = build('<span class="cp-dot" data-tone="success" data-live></span>');
+    const dot = el.querySelector(".cp-dot") as HTMLElement;
+    const first = dot.getAnimations()[0];
+    expect(first).toBeDefined();
+    dot.removeAttribute("data-live");
+    expect(getComputedStyle(dot).animationName).toBe("none");
+    expect(dot.getAnimations()).toEqual([]);
+    dot.setAttribute("data-live", "");
+    const again = dot.getAnimations()[0];
+    expect(again).toBeDefined();
+    expect(again).not.toBe(first);
+  });
+
+  it.skipIf(!emulates)("holds a live dot still under reduced motion", async () => {
+    theme("light");
+    await media("prefers-reduced-motion", "reduce");
+    const el = build('<span class="cp-dot" data-tone="success" data-live></span>');
+    expect(getComputedStyle(el.querySelector(".cp-dot") as Element).animationName).toBe("none");
+  });
+
+  it.skipIf(!emulates)(
+    "paints a dot in the text colour in forced colours, where a background is dropped",
+    async () => {
+      theme("light");
+      await media("forced-colors", "active");
+      const el = build('<span class="cp-dot" data-tone="success"></span>');
+      const fill = getComputedStyle(el.querySelector(".cp-dot") as Element).backgroundColor;
+      expect(fill).toBe(resolved("CanvasText"));
+      expect(fill).not.toBe(resolved("Canvas"));
+    },
+  );
+
+  it("draws a badge's count in the accent at 13px or more in even figures, and a quiet one muted", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-badge">12</span><span class="cp-badge" data-variant="quiet">3</span>',
+    );
+    const [solid, quiet] = [...el.querySelectorAll(".cp-badge")].map((b) =>
+      getComputedStyle(b),
+    ) as [CSSStyleDeclaration, CSSStyleDeclaration];
+    expect(parseFloat(solid.fontSize)).toBeGreaterThanOrEqual(13);
+    expect(solid.fontVariantNumeric).toBe("tabular-nums");
+    expect(solid.backgroundColor).toBe(resolved("var(--cp-accent)"));
+    expect(solid.color).toBe(resolved("var(--cp-on-accent)"));
+    expect(quiet.backgroundColor).toBe(resolved("var(--cp-fill)"));
+    expect(quiet.color).toBe(resolved("var(--cp-ink-muted)"));
+    expect(contrast(solid.color, solid.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(quiet.color, quiet.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.skipIf(!emulates)(
+    "outlines a badge in forced colours, where its fill is dropped",
+    async () => {
+      theme("light");
+      await media("forced-colors", "active");
+      const el = build('<span class="cp-badge">12</span>');
+      expect(getComputedStyle(el.querySelector(".cp-badge") as Element).borderStyle).toBe("solid");
+    },
+  );
+});

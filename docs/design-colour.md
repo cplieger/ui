@@ -15,7 +15,7 @@ Every colour comes from a seed, a hue in degrees and a chroma in OKLCH units:
 | `--cp-warning-h`, `--cp-warning-c` | 75, 0.12 | states that need attention soon |
 | `--cp-success-h`, `--cp-success-c` | 150, 0.12 | states that are fine |
 
-The accent never paints a status. A chip, a notice or a badge takes a tone instead, so the colour of an action never reads as a state, and every state carries a glyph and a word as well. Two starting points help the accent read as an action:
+The accent never paints a status. A chip, a notice or a dot takes a tone instead, so the colour of an action never reads as a state, and every state carries a glyph and a word as well. A badge counts, and a count is not a state, so a badge stays in the accent. Two starting points help the accent read as an action:
 
 - Keep it about 30 degrees or more from every status hue on the same screen. If your brand is red, near hue 29, move your danger hue, for example to 355, or give the accent another hue and keep the brand for the header. A yellow brand moves the warning hue the same way, and a green one the success hue.
 - Give it chroma 0.06 or more. Below that, the primary button and the current selection stop standing out from the neutrals.
