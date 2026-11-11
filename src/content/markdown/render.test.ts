@@ -971,11 +971,14 @@ describe("maxBytes", () => {
   });
 
   it("defaults to 1 MiB", () => {
-    const under = render("a".repeat(1 << 20));
+    // "あ" is 3 UTF-8 bytes: 349,525 of them and one "a" make 1,048,576 in a
+    // third of the characters an ASCII text needs.
+    const exact = "あ".repeat(349_525) + "a";
+    const under = render(exact);
     expect(under.querySelector("[data-cp-truncated]")).toBeNull();
-    const over = render("a".repeat((1 << 20) + 1));
+    const over = render(`${exact}a`);
     expect(over.querySelector("[data-cp-truncated]")).not.toBeNull();
-    expect(over.firstElementChild?.textContent).toHaveLength(1 << 20);
+    expect(over.firstElementChild?.textContent).toBe(exact);
   });
 
   it("closes a fence cut short as unclosed", () => {
