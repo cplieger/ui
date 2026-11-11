@@ -179,6 +179,14 @@
       background: var(--cp-fill);
     }
 
+    /* The open row keeps its fill under the mouse. The hover fill above
+     * wins over the selected rule on scope proximity; this one ties it on
+     * specificity and comes later, so the more specific pressed fill still
+     * wins over both. */
+    .cp-list-row:where([aria-current]):not([aria-current="false"]):hover {
+      background: var(--cp-selected);
+    }
+
     .cp-list-row > .cp-cell-stack > a:hover {
       color: var(--cp-accent-ink);
     }

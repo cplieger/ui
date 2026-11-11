@@ -289,6 +289,22 @@ describe("enhanceReorder", () => {
       (outer.children[0] as HTMLElement).querySelector(':scope > .cp-list-row [data-part="rank"]')
         ?.textContent,
     ).toBe("1");
+    await userEvent.click(button(outer, "Audio", "down"));
+    expect(order(outer)).toEqual(["Subtitles", "Audio"]);
+    expect(ranks(inner)).toEqual(["1", "2"]);
+    expect(button(inner, "English", "up").getAttribute("aria-disabled")).toBe("true");
+    expect(button(inner, "English", "down").hasAttribute("aria-disabled")).toBe(false);
+    await userEvent.click(button(inner, "English", "down"));
+    expect(order(inner)).toEqual(["Japanese", "English"]);
+  });
+
+  it("neither moves nor numbers for an unwired list nested in an item", async () => {
+    const outer = list(["Audio", "Subtitles"]);
+    enhanceReorder(outer, { signal: life.signal });
+    const inner = list(["Japanese", "English"], outer.children[0] as HTMLElement);
+    await userEvent.click(button(inner, "Japanese", "down"));
+    expect(order(outer)).toEqual(["Audio", "Subtitles"]);
+    expect(ranks(inner)).toEqual(["", ""]);
   });
 
   it("stops with its signal", async () => {

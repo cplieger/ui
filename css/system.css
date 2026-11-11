@@ -4754,6 +4754,14 @@ textarea.cp-input {
       background: var(--cp-fill);
     }
 
+    /* The open row keeps its fill under the mouse. The hover fill above
+     * wins over the selected rule on scope proximity; this one ties it on
+     * specificity and comes later, so the more specific pressed fill still
+     * wins over both. */
+    .cp-list-row:where([aria-current]):not([aria-current="false"]):hover {
+      background: var(--cp-selected);
+    }
+
     .cp-list-row > .cp-cell-stack > a:hover {
       color: var(--cp-accent-ink);
     }
@@ -4916,8 +4924,8 @@ textarea.cp-input {
 
 /* An open conversation: its entries oldest first, with day separators and
  * the marker of what is new since the last visit between them. The feed
- * script keeps the reader's place in every engine, and WebKit has no scroll
- * anchoring, so the browser's own anchoring would fight it. */
+ * script keeps the reader's place, and the browser's own scroll anchoring
+ * would fight it. */
 .cp-feed {
   display: grid;
   gap: var(--cp-space-2);
@@ -4956,6 +4964,14 @@ textarea.cp-input {
 .cp-feed-entry > header > a:focus-visible {
   color: var(--cp-accent-ink);
   text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-feed-entry > header > a:hover {
+      color: var(--cp-accent-ink);
+    }
+  }
 }
 
 .cp-feed-entry > header > time {

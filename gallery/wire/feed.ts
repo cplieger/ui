@@ -485,8 +485,9 @@ function entry(post: Post, own: boolean): HTMLLIElement {
 // A path wraps after a slash, where a reader expects it to.
 function pathParts(path: string): (string | HTMLElement)[] {
   return path
-    .split("/")
-    .flatMap((part, i) => (i === 0 ? [part] : [document.createElement("wbr"), `/${part}`]));
+    .split(/(?<=\/)/)
+    .filter((part) => part !== "")
+    .flatMap((part, i) => (i === 0 ? [part] : [document.createElement("wbr"), part]));
 }
 
 const msgRoot = document.getElementById("msg");
@@ -687,6 +688,9 @@ if (msgRoot !== null && msgFeed instanceof HTMLOListElement && compose instanceo
         kept?.isConnected === true && holds(kept)
           ? kept
           : entry({ author: "You", subject: subject.value, body: body.value }, true);
+      if (item.dataset["state"] === "sending") {
+        return;
+      }
       if (!item.isConnected) {
         msgFeed.append(item);
       }

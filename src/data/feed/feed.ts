@@ -79,8 +79,10 @@ function topOf(scroller: HTMLElement): number {
  * first, and scrolls it to its newest entry at once. The feed's scroller is
  * the nearest box around it that scrolls, found again whenever the feed
  * resizes or a box around it scrolls, so moving the feed into a dialog is
- * followed. An entry the app adds with `data-own`, and anything added while
- * the feed is `aria-busy="true"` or held no entry, scrolls to the newest.
+ * followed. An entry the app adds with `data-own`, anything added while the
+ * feed held no entry, and a load (`aria-busy="true"`) that began with no
+ * entry or at the end scroll to the newest. Any other load keeps the
+ * reader's place, and nothing a load adds is counted.
  */
 export function enhanceFeed(
   feed: HTMLOListElement | HTMLUListElement,
@@ -105,6 +107,11 @@ export function enhanceFeed(
   /** The first child showing at the scroller's top, and its offset there. */
   let anchor: { readonly el: Element; readonly off: number } | null = null;
   const focusable = new Set<HTMLElement>();
+  const isBusy = (): boolean => feed.getAttribute("aria-busy") === "true";
+  let busy = isBusy();
+  /** The load under way began with no entry or at the end, so what it
+   *  brings scrolls to the newest; any other keeps the reader's place. */
+  let opening = true;
 
   // Fires after layout and before paint, so a kept place never flickers.
   const resize = new ResizeObserver(() => {
@@ -267,15 +274,18 @@ export function enhanceFeed(
 
   const added = new MutationObserver((records) => {
     const fresh = new Set<Node>();
-    let busyChanged = false;
     for (const r of records) {
-      busyChanged ||= r.type === "attributes";
       for (const n of r.addedNodes) {
         fresh.add(n);
       }
     }
     const kids = [...feed.children];
     const had = kids.some((k) => isEntry(k) && !fresh.has(k));
+    const was = busy;
+    busy = isBusy();
+    if (busy && !was) {
+      opening = !had || atEnd;
+    }
     // The arrivals are the added children at the feed's end, so entries
     // shown older, at its start, are never counted as new.
     let arrived = 0;
@@ -288,12 +298,13 @@ export function enhanceFeed(
       }
     }
     adopt();
-    if (busyChanged || feed.getAttribute("aria-busy") === "true" || !had || own || atEnd) {
+    const load = busy || was;
+    if (!had || own || (load ? opening : atEnd)) {
       toEnd(going);
       return;
     }
     keep();
-    if (arrived > 0) {
+    if (!load && arrived > 0) {
       show(unseen + arrived);
     }
   });

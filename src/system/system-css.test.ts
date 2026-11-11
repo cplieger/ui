@@ -3530,6 +3530,31 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(await hovered()).toEqual(rest);
   });
 
+  it("keeps the selected fill on a hovered open row, under the pressed fill", async () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(conversation('aria-current="page"') + conversation('aria-current="false"'));
+    const [open, other] = [...el.querySelectorAll<HTMLElement>(".cp-list-row")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    open.style.transition = "none";
+    other.style.transition = "none";
+    await userEvent.hover(open);
+    expect(getComputedStyle(open).backgroundColor).toBe(
+      resolved("var(--cp-selected)", "backgroundColor"),
+    );
+    open.toggleAttribute("data-cp-pressed", true);
+    expect(getComputedStyle(open).backgroundColor).toBe(
+      resolved("var(--cp-fill-active)", "backgroundColor"),
+    );
+    await userEvent.hover(other);
+    expect(getComputedStyle(other).backgroundColor).toBe(
+      resolved("var(--cp-fill)", "backgroundColor"),
+    );
+    await userEvent.unhover(other);
+  });
+
   it("selects a row by any aria-current but false, and keeps muted text readable on it", () => {
     const fills = (t: "light" | "dark") => {
       theme(t);
@@ -3909,6 +3934,24 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(getComputedStyle(failed.querySelector("a") as Element).color).toBe(
       resolved("var(--cp-ink)"),
     );
+  });
+
+  it("keeps the author link in ink at rest and turns it accent under a mouse and on keyboard focus", async () => {
+    theme("light");
+    const el = build(`<ol class="cp-feed">${entry()}</ol>`);
+    const a = el.querySelector(".cp-feed-entry > header > a") as HTMLAnchorElement;
+    a.style.transition = "none";
+    const ink = resolved("var(--cp-ink)");
+    const accent = resolved("var(--cp-accent-ink)");
+    expect(getComputedStyle(a).color).toBe(ink);
+    root.dataset["pointer"] = "fine";
+    await userEvent.hover(a);
+    expect(getComputedStyle(a).color).toBe(accent);
+    root.dataset["pointer"] = "coarse";
+    expect(getComputedStyle(a).color).toBe(ink);
+    await userEvent.unhover(a);
+    a.focus({ focusVisible: true } as FocusOptions);
+    expect(getComputedStyle(a).color).toBe(accent);
   });
 
   it("keeps a plain-text body's line breaks and wraps a name with no break point", () => {

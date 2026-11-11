@@ -121,17 +121,23 @@ export function enhanceReorder(
     }
     return li;
   };
+  // The item a rank or Move button numbers or moves: only one of this list's
+  // own, never one in a list nested in it, which numbers and moves its own.
+  const partOf = (el: Element): HTMLLIElement | null => {
+    const li = el.closest("li");
+    return li?.parentElement === list ? li : null;
+  };
 
   const sync = (): void => {
     const all = items();
     all.forEach((item, i) => {
       for (const rank of item.querySelectorAll('[data-part="rank"]')) {
-        if (itemOf(rank) === item) {
+        if (partOf(rank) === item) {
           rank.textContent = String(i + 1);
         }
       }
       for (const b of item.querySelectorAll("[data-move]")) {
-        if (itemOf(b) !== item) {
+        if (partOf(b) !== item) {
           continue;
         }
         if (b.getAttribute("data-move") === "up" ? i === 0 : i === all.length - 1) {
@@ -205,11 +211,10 @@ export function enhanceReorder(
     "click",
     (e) => {
       const b = e.target instanceof Element ? e.target.closest("[data-move]") : null;
-      const item = b === null || e.defaultPrevented ? null : itemOf(b);
+      const item = b === null || e.defaultPrevented ? null : partOf(b);
       if (item === null || b === null) {
         return;
       }
-      // A nested list's button is that list's, so its press stops here.
       e.preventDefault();
       const by = { up: -1, down: 1 }[b.getAttribute("data-move") ?? ""];
       if (drag !== null || by === undefined || b.getAttribute("aria-disabled") === "true") {

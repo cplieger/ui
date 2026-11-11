@@ -247,6 +247,46 @@ describe("enhanceFeed", () => {
     expect(c.jump.hidden).toBe(true);
   });
 
+  it("leaves a scrolled-up reader in place when the feed is marked busy and settles", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 200);
+    c.feed.setAttribute("aria-busy", "true");
+    await settle();
+    expect(c.box.scrollTop).toBe(200);
+    c.feed.removeAttribute("aria-busy");
+    await settle();
+    expect(c.box.scrollTop).toBe(200);
+  });
+
+  it("keeps the reader on the same entry through a busy load of older entries, counting nothing", async () => {
+    const c = conversation();
+    const feed = enhance(c);
+    await settle();
+    await scrollTo(c.box, 300);
+    const top = c.box.getBoundingClientRect().top;
+    const on = [...c.feed.children].find(
+      (el) => el.getBoundingClientRect().bottom > top,
+    ) as Element;
+    const before = on.getBoundingClientRect().top;
+    c.feed.setAttribute("aria-busy", "true");
+    const skeletons = Array.from({ length: 3 }, () => entry({ "data-skeleton": "" }));
+    c.feed.prepend(...skeletons);
+    await settle();
+    expect(Math.abs(on.getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
+    for (const s of skeletons) {
+      s.remove();
+    }
+    c.feed.prepend(...Array.from({ length: 5 }, () => entry()));
+    c.feed.append(entry());
+    c.feed.removeAttribute("aria-busy");
+    await settle();
+    expect(Math.abs(on.getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
+    expect(feed.unseen).toBe(0);
+    expect(c.jump.hidden).toBe(true);
+  });
+
   it("hides the jump once the reader scrolls to the end", async () => {
     const c = conversation();
     const feed = enhance(c);
