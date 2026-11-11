@@ -89,7 +89,9 @@ describe.each(browsers)("the gallery in %s", (name) => {
           const state = await tab.evaluate(() => ({
             wide: document.documentElement.scrollWidth > document.documentElement.clientWidth,
             unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
-              (i) => i.style.getPropertyValue("--cp-icon-image") === "" && i.checkVisibility(),
+              (i) =>
+                getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" &&
+                i.checkVisibility(),
             ).length,
           }));
           if (errors.length > 0 || (width === 390 && state.wide) || state.unpainted > 0) {
