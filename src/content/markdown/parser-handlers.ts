@@ -90,6 +90,33 @@ const XML_ENTITIES: Readonly<Record<string, string>> = {
  *  `is_delimiter_row` accepts, or a valid table is lost. */
 const DELIMITER_ROW_CHARS = new Set(["-", " ", "\t", "|", ":"]);
 
+/** A line after a table's rows that opens with one of these may start
+ *  another block, which breaks the table; any other line is a row. */
+const BREAKS_TABLE = new Set([
+  "\n",
+  "#",
+  ">",
+  "-",
+  "*",
+  "+",
+  "_",
+  "`",
+  "~",
+  "$",
+  "\\",
+  "<",
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+]);
+
 function is_hex_digit(cc: number): boolean {
   return is_digit(cc) || (cc >= 65 && cc <= 70) || (cc >= 97 && cc <= 102);
 }
@@ -594,6 +621,22 @@ export function handleTable(p: Parser, char: string, pending_with_char: string):
     end_token(p);
     p.table_state = 0;
     return false;
+  }
+  // A line's first character decides at once whether it is a row, so the table never holds
+  // text and where a stream is cut cannot move the line (GFM 0.29 examples 201 and 202).
+  if (p.table_state === 2 && p.pending === "" && char !== "|") {
+    if (char === " " || char === "\t") {
+      return true;
+    }
+    if (!BREAKS_TABLE.has(char)) {
+      add_token(p, TABLE_ROW);
+      p.write(p, char);
+      return true;
+    }
+    end_token(p);
+    p.table_state = 0;
+    p.write(p, char);
+    return true;
   }
   switch (p.pending) {
     case "|":

@@ -109,24 +109,20 @@ const markdownDocument = fc
   .map((parts) => parts.join(""));
 
 describe("parser properties", () => {
-  it("builds the same tree whether a stream is cut at blank lines or not", () => {
-    // Mid-block, the parser commits what it holds at a chunk's end, so only a cut after a blank
-    // line, where no block is open, promises the one-write tree.
-    const cutAtBlankLines = markdownDocument.chain((doc) => {
-      const blanks: number[] = [];
-      for (let i = doc.indexOf("\n\n"); i !== -1; i = doc.indexOf("\n\n", i + 1)) {
-        blanks.push(i + 2);
-      }
-      return fc.tuple(fc.constant(doc), fc.subarray(blanks));
-    });
+  it("builds the same tree wherever a stream is cut", () => {
+    const cut = markdownDocument.chain((doc) =>
+      fc.tuple(
+        fc.constant(doc),
+        fc.uniqueArray(fc.integer({ min: 0, max: doc.length }), { maxLength: 8 }),
+      ),
+    );
     fc.assert(
-      fc.property(cutAtBlankLines, ([doc, cuts]) => {
-        const chunks = [0, ...cuts, doc.length]
-          .slice(1)
-          .map((end, i, ends) => doc.slice(i === 0 ? 0 : ends[i - 1], end));
+      fc.property(cut, ([doc, cuts]) => {
+        const ends = [...cuts, doc.length].sort((a, b) => a - b);
+        const chunks = ends.map((end, i) => doc.slice(i === 0 ? 0 : ends[i - 1], end));
         expect(tree(chunks)).toEqual(tree([doc]));
       }),
-      { numRuns: 300 },
+      { numRuns: 1000 },
     );
   });
 

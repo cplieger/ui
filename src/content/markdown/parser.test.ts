@@ -223,6 +223,67 @@ describe("table alignment", () => {
   });
 });
 
+describe("the end of a table", () => {
+  const TABLE = "| a |\n| - |\n| 1 |\n";
+  const ROWS = [
+    "open:table",
+    "open:table-row",
+    "open:table-cell",
+    "text: a ",
+    "close",
+    "close",
+    "open:table-row",
+    "open:table-cell",
+    "text: 1 ",
+    "close",
+    "close",
+  ];
+
+  // GFM 0.29 example 201: a block-level line after the rows breaks the table; 202: a blank
+  // line does too, and a plain line is one more row.
+  it.each([
+    ["# x", ["close", "open:heading-1", "text:x", "close"]],
+    ["> x", ["close", "open:blockquote", "open:paragraph", "text:x", "close", "close"]],
+    ["- x", ["close", "open:list-unordered", "open:list-item", "text:x", "close", "close"]],
+    ["1. x", ["close", "open:list-ordered", "open:list-item", "text:x", "close", "close"]],
+    ["\nx", ["close", "open:paragraph", "text:x", "close"]],
+    ["x", ["open:table-row", "open:table-cell", "text:x", "close", "close", "close"]],
+    [
+      "x | y",
+      [
+        "open:table-row",
+        "open:table-cell",
+        "text:x ",
+        "close",
+        "open:table-cell",
+        "text: y",
+        "close",
+        "close",
+        "close",
+      ],
+    ],
+  ])("reads %j after the rows the same at any chunk size", (line, after) => {
+    for (const chunkLen of [1, 2, 3, TABLE.length + 1, TABLE.length + line.length]) {
+      // A chunk's end may split a text run, never move it, so runs are merged before comparing.
+      const ops: string[] = [];
+      for (const op of trace(TABLE + line, chunkLen).ops) {
+        const last = ops[ops.length - 1];
+        if (op.startsWith("text:") && last?.startsWith("text:") === true) {
+          ops[ops.length - 1] = last + op.slice(5);
+        } else {
+          ops.push(op);
+        }
+      }
+      expect(ops).toEqual([...ROWS, ...after]);
+    }
+  });
+
+  it("takes an indented line that opens with a pipe as a row", () => {
+    const t = trace("| a |\n| - |\n  | 1 |");
+    expect(t.kinds).toEqual(["table", "table-row", "table-cell", "table-row", "table-cell"]);
+  });
+});
+
 describe("link destination grammar", () => {
   it("keeps a raw space in a query in the href", () => {
     expect(attrs(trace("[label](https://x/?a=b c=d)"), "href")).toEqual(["https://x/?a=b c=d"]);

@@ -10,6 +10,8 @@
 export { createParser } from "./parser.js";
 export type { AttrName, Kind, MarkdownParser, Sink } from "./parser.js";
 export { payloadShaped } from "./gate.js";
+export { createRecorder, replay } from "./recorder.js";
+export type { Op } from "./recorder.js";
 export { createDomSink, renderMarkdown } from "./render.js";
 export type {
   CodeNode,
@@ -20,3 +22,5 @@ export type {
   MathNode,
   RenderOptions,
 } from "./render.js";
+export { createMarkdownStream } from "./stream.js";
+export type { MarkdownStream, StreamOptions } from "./stream.js";

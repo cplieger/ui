@@ -84,8 +84,8 @@ export interface RenderOptions {
   readonly headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
-/** What a stream adds to the sink. */
-interface SinkExtras {
+/** What a stream adds to the sink; `StreamOptions` owns their contract. */
+export interface SinkExtras {
   text?(parent: Element, node: Text): Node | undefined;
   moved?(el: Element): void;
 }
@@ -169,7 +169,7 @@ function checkLevel(level: number): number {
 }
 
 /** The sink behind `createDomSink`, with a stream's extras. */
-function domSink(
+export function domSink(
   host: Element,
   options: RenderOptions = {},
   extras: SinkExtras = {},
@@ -679,7 +679,9 @@ function domSink(
     },
     sync() {
       for (const scroller of watched) {
-        syncOverflow(scroller);
+        if (scroller.isConnected) {
+          syncOverflow(scroller);
+        }
       }
     },
   };
@@ -711,19 +713,52 @@ export function createDomSink(host: Element, options?: RenderOptions): DomSink {
   };
 }
 
-/** Up to `budget` UTF-8 bytes of `text`, cut at a code point. */
-function takeBytes(text: string, budget: number): { kept: string; bytes: number } {
-  // A UTF-16 unit is at most 3 UTF-8 bytes.
-  if (text.length * 3 <= budget) {
-    return { kept: text, bytes: new TextEncoder().encode(text).length };
-  }
-  const out = new Uint8Array(Math.max(0, budget));
-  const { read, written: bytes } = new TextEncoder().encodeInto(text, out);
-  return { kept: text.slice(0, read), bytes };
+/** What `maxBytes` lets through of a text written in one or more chunks. */
+interface ByteBudget {
+  /** The part of `chunk` that fits, cut at a code point even when a
+   *  surrogate pair spans two chunks; "" once the budget is spent. */
+  take(chunk: string): string;
+  /** Some text did not fit. */
+  readonly cut: boolean;
+}
+
+/** @internal */
+export function byteBudget(max: number): ByteBudget {
+  let left = max;
+  let cut = false;
+  // In UTF-8 bytes, a lead surrogate costs the pair's 4 and its trail 0; an
+  // unpaired lead is refunded to U+FFFD's 3.
+  let lead = false;
+  return {
+    take(chunk) {
+      if (cut) {
+        return "";
+      }
+      for (let i = 0; i < chunk.length; i++) {
+        const c = chunk.charCodeAt(i);
+        const isLead = c >= 0xd800 && c <= 0xdbff;
+        const trails = lead && c >= 0xdc00 && c <= 0xdfff;
+        if (lead && !trails) {
+          left += 1;
+        }
+        const cost = trails ? 0 : c < 0x80 ? 1 : c < 0x800 ? 2 : isLead ? 4 : 3;
+        if (cost > left) {
+          cut = true;
+          return chunk.slice(0, i);
+        }
+        left -= cost;
+        lead = isLead;
+      }
+      return chunk;
+    },
+    get cut() {
+      return cut;
+    },
+  };
 }
 
 /** The line shown once where `maxBytes` cut the text. */
-function truncationLine(doc: Document, maxBytes: number): HTMLParagraphElement {
+export function truncationLine(doc: Document, maxBytes: number): HTMLParagraphElement {
   const line = doc.createElement("p");
   line.setAttribute("data-cp-truncated", "");
   const size = new Intl.NumberFormat(undefined, {
@@ -737,7 +772,7 @@ function truncationLine(doc: Document, maxBytes: number): HTMLParagraphElement {
 }
 
 /** `maxBytes`, checked. */
-function byteLimit(options: RenderOptions): number {
+export function byteLimit(options: RenderOptions): number {
   const max = options.maxBytes ?? MIB;
   if (!Number.isInteger(max) || max < 0) {
     throw new RangeError(`maxBytes must be a whole number of bytes, not ${String(max)}`);
@@ -754,12 +789,12 @@ function byteLimit(options: RenderOptions): number {
 export function renderMarkdown(host: Element, text: string, options: RenderOptions = {}): void {
   const max = byteLimit(options);
   const sink = domSink(host, options);
-  const { kept } = takeBytes(text, max);
+  const budget = byteBudget(max);
   const parser = createParser(sink);
-  parser.write(kept);
+  parser.write(budget.take(text));
   parser.end();
   sink.end();
-  if (kept.length < text.length && options.signal?.aborted !== true) {
+  if (budget.cut && options.signal?.aborted !== true) {
     host.append(truncationLine(host.ownerDocument, max));
   }
 }

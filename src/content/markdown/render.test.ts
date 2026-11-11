@@ -955,6 +955,15 @@ describe("maxBytes", () => {
     expect(el.querySelector("[data-cp-truncated]")).not.toBeNull();
   });
 
+  it("counts an unpaired surrogate as U+FFFD's 3 bytes", () => {
+    // TextEncoder writes a lone surrogate as U+FFFD: 1 + 3 + 1 = 5.
+    expect(new TextEncoder().encode("a\uD800b")).toHaveLength(5);
+    expect(render("a\uD800b", { maxBytes: 5 }).querySelector("[data-cp-truncated]")).toBeNull();
+    const cut = render("a\uD800bc", { maxBytes: 5 });
+    expect(cut.firstElementChild?.textContent).toBe("a\uD800b");
+    expect(cut.querySelector("[data-cp-truncated]")).not.toBeNull();
+  });
+
   it("shows no line when the text fits exactly", () => {
     const el = render("abcé😀", { maxBytes: 9 });
     expect(el.querySelector("[data-cp-truncated]")).toBeNull();
