@@ -61,6 +61,9 @@
 }
 
 .cp-code[data-variant="block"] > pre > code {
+  display: block;
+  inline-size: max-content;
+  min-inline-size: 100%;
   overflow-wrap: normal;
   font-size: 1em;
 }

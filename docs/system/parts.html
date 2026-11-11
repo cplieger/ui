@@ -484,6 +484,70 @@
             </div>
           </section>
           <section>
+            <h2>Prose and code</h2>
+            <div class="cp-prose">
+              <p>Set <code>SONARR_URL</code> in <code>config/library.env</code>, then restart the checker:</p>
+              <div
+                class="cp-code"
+                data-variant="block"
+              >
+                <div data-part="bar">
+                  <span data-part="lang">Go</span>
+                  <div data-part="actions">
+                    <button
+                      class="cp-button cp-copy"
+                      type="button"
+                      data-variant="quiet"
+                      data-size="sm"
+                    >
+                      <span
+                        class="cp-icon"
+                        aria-hidden="true"
+                      ></span><span
+                        class="cp-icon"
+                        data-part="done"
+                        aria-hidden="true"
+                      ></span>Copy
+                    </button>
+                  </div>
+                </div>
+                <pre><code class="language-go"><span data-token="comment">// Check every series once an hour.</span>
+<span data-token="keyword">func</span> <span data-token="punctuation">(</span>c <span data-token="punctuation">*</span>Checker<span data-token="punctuation">)</span> Run<span data-token="punctuation">()</span> <span data-token="punctuation">{</span>
+	c<span data-token="punctuation">.</span>every<span data-token="punctuation">(</span><span data-token="number">60</span><span data-token="punctuation">,</span> <span data-token="string">"series"</span><span data-token="punctuation">)</span>
+<span data-token="punctuation">}</span></code></pre>
+              </div>
+              <div
+                class="cp-code"
+                data-variant="block"
+              >
+                <div data-part="bar">
+                  <span data-part="lang">Diff</span>
+                  <div data-part="actions">
+                    <button
+                      class="cp-button cp-copy"
+                      type="button"
+                      data-variant="quiet"
+                      data-size="sm"
+                    >
+                      <span
+                        class="cp-icon"
+                        aria-hidden="true"
+                      ></span><span
+                        class="cp-icon"
+                        data-part="done"
+                        aria-hidden="true"
+                      ></span>Copy
+                    </button>
+                  </div>
+                </div>
+                <pre><code class="language-diff"><span data-token="keyword">@@ -1,2 +1,2 @@</span>
+ interval: 60
+<span data-token="deleted">-quality: "any"</span>
+<span data-token="inserted">+quality: "best"</span></code></pre>
+              </div>
+            </div>
+          </section>
+          <section>
             <h2>Sheet</h2>
             <div class="sheet-frame">
               <div

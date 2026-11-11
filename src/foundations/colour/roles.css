@@ -35,6 +35,18 @@
   --cp-on-brand: contrast-color(var(--cp-brand));
   --cp-backdrop: oklch(from var(--cp-neutral-12) 15% c h / 45%);
 
+  /* Syntax colours. String, number and key are fixed hues, apart from the
+   * status seeds, so a string never reads as a success; each clears 7:1 on
+   * the sunken, page and raised surfaces in both themes. */
+  --cp-syntax-keyword: var(--cp-accent-11);
+  --cp-syntax-string: light-dark(oklch(42% 0.12 145deg), oklch(75% 0.14 145deg));
+  --cp-syntax-number: light-dark(oklch(43% 0.1 60deg), oklch(78% 0.13 60deg));
+  --cp-syntax-key: light-dark(oklch(45% 0.14 320deg), oklch(76% 0.13 320deg));
+  --cp-syntax-comment: var(--cp-ink-muted);
+  --cp-syntax-punctuation: var(--cp-ink-muted);
+  --cp-syntax-inserted: var(--cp-success-4);
+  --cp-syntax-deleted: var(--cp-danger-4);
+
   /* The shell carries the app's brand: the solid brand in light, a deep tone
    * of it in dark. Its hover and current fills move away from its ink. */
   --cp-shell-bg: light-dark(

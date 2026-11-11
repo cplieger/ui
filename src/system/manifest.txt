@@ -48,6 +48,7 @@ data/table/table.css
 content/prose/prose.css
 content/table-scroll/table-scroll.css
 content/code-block/code-block.css
+content/syntax/syntax.css
 navigation/pages/pages.css
 navigation/rail/filters-trigger.css
 data/text/text.css
