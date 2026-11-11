@@ -45,6 +45,9 @@ forms/rules/rules.css
 forms/pairs/pairs.css
 feedback/state/state.css
 data/table/table.css
+content/prose/prose.css
+content/table-scroll/table-scroll.css
+content/code-block/code-block.css
 navigation/pages/pages.css
 navigation/rail/filters-trigger.css
 data/text/text.css
