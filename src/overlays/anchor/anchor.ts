@@ -38,6 +38,7 @@ function target(opener: Element): HTMLElement | null {
 }
 
 const names = new WeakMap<HTMLElement, string>();
+const anchors = new WeakMap<HTMLElement, HTMLElement>();
 
 /** Adds `name` to `el`'s `anchor-name` list, beside the names it has. */
 export function addAnchorName(el: HTMLElement, name: string): void {
@@ -82,6 +83,13 @@ export function anchorTo(popover: HTMLElement, opener: HTMLElement): void {
     popover.style.removeProperty(p);
   }
   popover.style.setProperty("position-anchor", nameOf(opener));
+  anchors.set(popover, opener);
+}
+
+/** The element `popover` sits by: its opener pressed last, or what
+ *  `anchorTo` named. Null before either, and once it opened at a point. */
+export function anchorOf(popover: HTMLElement): HTMLElement | null {
+  return anchors.get(popover) ?? null;
 }
 
 /**
@@ -91,6 +99,7 @@ export function anchorTo(popover: HTMLElement, opener: HTMLElement): void {
  */
 export function showPopoverAt(popover: HTMLElement, x: number, y: number): void {
   popover.setAttribute(AT, "");
+  anchors.delete(popover);
   popover.style.setProperty("position-anchor", "none");
   // The popover's own inset and margin would centre it.
   popover.style.inset = "auto";

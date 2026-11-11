@@ -1,0 +1,22 @@
+/* A small confirmation (@cplieger/ui/popconfirm): a question and its two
+ * answers in a .cp-popover by the button that asked. Its form only groups
+ * them, so the popover lays out the question and the answers' row. */
+.cp-popover[data-variant="confirm"] {
+  display: grid;
+  gap: var(--cp-space-3);
+  inline-size: 16rem;
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.cp-popover[data-variant="confirm"]:not(:popover-open) {
+  display: none;
+}
+
+.cp-popover[data-variant="confirm"] > form {
+  display: contents;
+}
+
+.cp-popover[data-variant="confirm"] p {
+  margin: 0;
+  font-size: var(--cp-text-sm);
+}

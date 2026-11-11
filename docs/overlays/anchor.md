@@ -18,6 +18,7 @@ showPopoverAt(menu, event.clientX, event.clientY); // a context menu
 
 - `installAnchors(opts?)` names each button and the popover it opens as a pair when the button is pressed, so CSS can place one by the other. A popover several buttons share, such as one menu for every row, follows the one pressed. It covers `popovertarget` and a `commandfor` button with a popover command. Every call shares one listener, which stays until every caller's `signal` has aborted.
 - `anchorTo(popover, opener)` names one pair by hand, for a popover your code opens.
+- `anchorOf(popover)` returns the element it sits by, the opener pressed last or the one `anchorTo` named, or null before either and once it opened at a point.
 - `showPopoverAt(popover, x, y)` opens a popover with its corner at a point in viewport pixels, moved in so it stays inside the window.
 - `addAnchorName(el, name)` and `removeAnchorName(el, name)` add or take out one name in an element's `anchor-name` list and keep its others, so a control can anchor its own popover and its tooltip at once.
-- `.cp-popover[data-variant="panel"]` is a panel of controls rather than a list of choices, and [panel](panel.md) gives it its focus.
+- `.cp-popover[data-variant="panel"]` is a panel of controls rather than a list of choices, and [panel](panel.md) gives it its focus. `data-variant="confirm"` is a small confirmation, as [popconfirm](popconfirm.md) describes, and `.cp-select-panel` a choice of several, as [select-panel](select-panel.md) describes.

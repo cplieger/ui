@@ -1714,6 +1714,62 @@ describe("css/system.css overlays", () => {
     },
   );
 
+  it("checks a select panel option with a menu check item's box", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-select-panel"><ul role="listbox"><li role="option" aria-selected="false">Watch next</li>' +
+        '<li role="option" aria-selected="true">Rewatch</li></ul></div>',
+    );
+    const [off, on] = [...el.querySelectorAll<HTMLElement>("li")] as [HTMLElement, HTMLElement];
+    expect(getComputedStyle(off, "::before").borderRadius).toBe("30%");
+    expect(getComputedStyle(off, "::after").clipPath).toBe("inset(0px 100% 0px 0px)");
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    expect(getComputedStyle(on, "::before").borderRadius).toBe("50%");
+    expect(getComputedStyle(on, "::before").backgroundColor).toBe(getComputedStyle(accent).color);
+  });
+
+  it("lays out a small confirmation and a select panel only while open", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-popover" data-variant="confirm" popover><form><p>Remove it?</p></form></div>' +
+        '<div class="cp-popover cp-select-panel" popover><form><input></form></div>',
+    );
+    for (const pop of el.querySelectorAll<HTMLElement>("[popover]")) {
+      pop.style.transition = "none";
+      expect(getComputedStyle(pop).display).toBe("none");
+      pop.showPopover();
+      expect(getComputedStyle(pop).display).toBe("grid");
+      // The form only groups, so the popover's grid lays out its parts.
+      expect(getComputedStyle(pop.querySelector("form") as Element).display).toBe("contents");
+      pop.hidePopover();
+    }
+  });
+
+  it("shows a trigger's filled drawing in the accent while it is on, beside its solid count", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button" type="button"><span class="cp-icon"></span><span class="cp-icon" data-part="on"></span>Filters<span class="cp-badge">2</span></button>',
+    );
+    const b = el.querySelector("button") as HTMLElement;
+    const [off, on] = [...b.querySelectorAll<HTMLElement>(".cp-icon")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const shown = () => [off, on].map((i) => getComputedStyle(i).display !== "none");
+    expect(shown()).toEqual([true, false]);
+    b.setAttribute("data-active", "");
+    expect(shown()).toEqual([false, true]);
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    const ink = host("");
+    ink.style.color = "var(--cp-on-accent)";
+    expect(getComputedStyle(on).color).toBe(getComputedStyle(accent).color);
+    const badge = getComputedStyle(b.querySelector(".cp-badge") as Element);
+    expect(badge.backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(badge.color).toBe(getComputedStyle(ink).color);
+  });
+
   it("opens a sheet the window's height at the inline end, and a confirmation narrower than a dialog", () => {
     theme("light");
     const sheet = document.createElement("dialog");

@@ -2100,72 +2100,6 @@ for (const b of $$("[data-confirm-word]")) {
   });
 }
 
-// A small confirmation next to its button.
-for (const pop of $$("[data-popconfirm]")) {
-  $("[data-yes]", pop).addEventListener("click", () => {
-    pop.hidePopover();
-    toast({ kind: "success", title: pop.dataset.popconfirm });
-  });
-  $("[data-no]", pop).addEventListener("click", () => pop.hidePopover());
-  pop.addEventListener("toggle", (e) => e.newState === "open" && $("[data-no]", pop).focus());
-}
-
-// A select panel: a filter over a checkable list; Apply sets the choice
-// and closes; Escape keeps the old one.
-for (const pop of $$("[data-selectpanel]")) {
-  const filter = $("input", pop);
-  const opts = $$("[role='option']", pop);
-  const btn = document.querySelector(`[popovertarget="${pop.id}"]`);
-  let kept = opts.map((o) => o.getAttribute("aria-selected"));
-  let at = 0;
-  const vis = () => opts.filter((o) => !o.hidden);
-  const activate = (i) => {
-    const v = vis();
-    at = (i + v.length) % v.length;
-    opts.forEach((o) => o.classList.toggle("active", o === v[at]));
-    if (v[at]) filter.setAttribute("aria-activedescendant", v[at].id);
-  };
-  let applied = false;
-  pop.addEventListener("toggle", (e) => {
-    if (e.newState === "closed" && !applied) opts.forEach((o, i) => o.setAttribute("aria-selected", kept[i]));
-    applied = false;
-    if (e.newState === "open") {
-      kept = opts.map((o) => o.getAttribute("aria-selected"));
-      filter.value = "";
-      for (const o of opts) o.hidden = false;
-      activate(0);
-      filter.focus();
-    }
-  });
-  filter.addEventListener("input", () => {
-    const q = filter.value.toLowerCase();
-    for (const o of opts) o.hidden = !o.textContent.toLowerCase().includes(q);
-    activate(0);
-  });
-  const flip = (o) => o.setAttribute("aria-selected", String(o.getAttribute("aria-selected") !== "true"));
-  filter.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") activate(at + 1);
-    else if (e.key === "ArrowUp") activate(at - 1);
-    else if (e.key === "Enter") vis()[at] && flip(vis()[at]);
-    else if (e.key === "Escape") opts.forEach((o, i) => o.setAttribute("aria-selected", kept[i]));
-    else return;
-    if (e.key !== "Escape") e.preventDefault();
-  });
-  for (const o of opts) o.addEventListener("click", () => flip(o));
-  const labelBtn = () => {
-    const n = opts.filter((o) => o.getAttribute("aria-selected") === "true").length;
-    $(".label", btn).textContent = n ? `Labels: ${n}` : "Labels";
-    markActive(btn, n > 0);
-  };
-  $("[data-apply-panel]", pop).addEventListener("click", () => {
-    applied = true;
-    labelBtn();
-    pop.hidePopover();
-    btn.focus();
-  });
-  labelBtn();
-}
-
 // The single-value jump field: options with a picture; the first Escape
 // closes the list, the second clears the field; the count is announced.
 for (const box of $$("[data-jump]")) {
@@ -2392,28 +2326,6 @@ for (const [n, host] of $$(".g-shell[data-frame-name]").entries()) {
   host.prepend(group);
   new ResizeObserver(fit).observe(view);
   fit();
-}
-
-// The filter panel's button counts its filters and takes the accent while
-// any is on; Clear ends them, and the panel's Show names what it shows.
-for (const pop of $$("[data-filter-panel]")) {
-  const btn = document.querySelector(`[popovertarget="${pop.id}"]:not([popovertargetaction])`);
-  const boxes = $$("input[type='checkbox']", pop);
-  const show = $("[data-panel-show]", pop);
-  const update = () => {
-    const n = boxes.filter((b) => b.checked).length;
-    $(".g-badge", btn).textContent = String(n);
-    $(".g-badge", btn).hidden = n === 0;
-    btn.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
-    markActive(btn, n > 0);
-    show.textContent = n ? `Show ${[0, 33, 42, 51][n]}` : "Show all 412";
-  };
-  pop.addEventListener("change", update);
-  $("[data-panel-clear]", pop).addEventListener("click", () => {
-    for (const b of boxes) b.checked = false;
-    update();
-  });
-  update();
 }
 
 

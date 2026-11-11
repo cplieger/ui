@@ -59,24 +59,27 @@
         </div>
         <footer>A checkbox item toggles and keeps the menu open; a link item goes somewhere and carries its tag or the external icon.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Small confirmation and select panel</h2>
         <div class="stage">
           <button class="cp-button" type="button" popovertarget="pc-1"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove</button>
-          <div class="g-pop g-popconfirm" id="pc-1" popover role="alertdialog" aria-labelledby="pc-1-t" data-popconfirm="Removed the label"><p id="pc-1-t">Remove this label from 3 entries?</p><div class="g-row-inline"><button class="cp-button" data-variant="primary" data-tone="danger" data-size="sm" type="button" data-yes>Remove</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-no>Keep it</button></div></div>
-          <button class="cp-button" type="button" popovertarget="sp-1"><span class="cp-icon" data-cp-icon="tag" data-cp-icon-on="tag-filled" aria-hidden="true"></span><span class="label">Labels</span></button>
-          <div class="g-pop g-selectpanel" id="sp-1" popover role="dialog" aria-label="Labels" data-selectpanel>
-            <input class="cp-input" role="combobox" aria-expanded="true" aria-controls="sp-1-list" aria-label="Filter labels" placeholder="Filter labels">
-            <ul role="listbox" id="sp-1-list" aria-multiselectable="true" aria-label="Labels">
-              <li role="option" id="sp-1-a" aria-selected="false"><span class="g-mbox" aria-hidden="true"></span>Watch next</li>
-              <li role="option" id="sp-1-b" aria-selected="true"><span class="g-mbox" aria-hidden="true"></span>Rewatch</li>
-              <li role="option" id="sp-1-c" aria-selected="false"><span class="g-mbox" aria-hidden="true"></span>Dub wanted</li>
-              <li role="option" id="sp-1-d" aria-selected="false"><span class="g-mbox" aria-hidden="true"></span>Archive</li>
-            </ul>
-            <div class="g-row-inline"><button class="cp-button" data-variant="primary" data-size="sm" type="button" data-apply-panel>Apply</button></div>
+          <div class="cp-popover" data-variant="confirm" id="pc-1" popover data-say="Removed the label"><form><p>Remove this label from 3 entries?</p><div class="cp-cluster"><button class="cp-button" data-variant="primary" data-tone="danger" data-size="sm">Remove</button><button class="cp-button" data-size="sm" type="button" commandfor="pc-1" command="hide-popover">Keep it</button></div></form></div>
+          <button class="cp-button" type="button" popovertarget="sp-1"><span class="cp-icon" data-cp-icon="tag" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="tag-filled" data-part="on" aria-hidden="true"></span><span data-part="label">Labels</span></button>
+          <div class="cp-popover cp-select-panel" id="sp-1" popover role="dialog" aria-label="Labels">
+            <form>
+              <input class="cp-input" aria-label="Filter labels" placeholder="Filter labels">
+              <ul role="listbox" id="sp-1-list" aria-label="Labels">
+                <li role="option" aria-selected="false">Watch next</li>
+                <li role="option" aria-selected="true">Rewatch</li>
+                <li role="option" aria-selected="false">Dub wanted</li>
+                <li role="option" aria-selected="false">Archive</li>
+              </ul>
+              <p data-part="empty" hidden>No label matches.</p>
+              <div class="cp-cluster"><button class="cp-button" data-variant="primary" data-size="sm">Apply</button></div>
+            </form>
           </div>
         </div>
-        <footer>A short, reversible removal asks next to its button instead of in a dialog. A select panel filters a checkable list and applies on Apply; Escape restores the old choice.</footer>
+        <footer>A short, reversible removal asks next to its button instead of in a dialog, with focus on Keep it. A select panel filters a checkable list and applies on Apply; Escape restores the old choice.</footer>
       </div>
       <div class="card">
         <h2>Context menu</h2>
@@ -91,17 +94,17 @@
         </div>
         <footer>The same menu at the pointer: a right click, or a finger held still for half a second, which selects no text and lifts into no browser menu. Every row's ⋯ button opens it too, for a keyboard and for anyone who does not know to hold.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Panel</h2>
         <div class="stage">
-          <button class="cp-button" type="button" popovertarget="p-filters"><span class="cp-icon" data-cp-icon="funnel" data-cp-icon-on="funnel-filled" aria-hidden="true"></span>Filters<span class="g-badge">2</span></button>
-          <div class="g-pop g-panel" id="p-filters" popover aria-label="Filters" data-filter-panel>
+          <button class="cp-button" type="button" popovertarget="p-filters"><span class="cp-icon" data-cp-icon="funnel" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="funnel-filled" data-part="on" aria-hidden="true"></span>Filters<span class="cp-badge">2</span></button>
+          <div class="cp-popover" data-variant="panel" id="p-filters" popover aria-label="Filters" data-filter-panel>
             <fieldset class="cp-choices"><legend class="cp-label">Verdict</legend>
               <label class="cp-choice"><input class="cp-checkbox" type="checkbox" checked><span>Not the best</span></label>
               <label class="cp-choice"><input class="cp-checkbox" type="checkbox" checked><span>Missing</span></label>
               <label class="cp-choice"><input class="cp-checkbox" type="checkbox"><span>On an alt</span></label>
             </fieldset>
-            <div class="g-row-inline"><button class="cp-button" data-variant="primary" data-size="sm" type="button" popovertarget="p-filters" popovertargetaction="hide" data-panel-show>Show 42</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-panel-clear>Clear</button></div>
+            <div class="cp-cluster"><button class="cp-button" data-variant="primary" data-size="sm" type="button" popovertarget="p-filters" popovertargetaction="hide" data-panel-show>Show 42</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-panel-clear>Clear</button></div>
           </div>
         </div>
         <footer>A small form next to its button, for a choice that does not need the whole screen. A click outside closes it. While any filter is on, the button takes the accent: its funnel fills and its count turns solid.</footer>

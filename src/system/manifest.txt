@@ -49,6 +49,7 @@ navigation/pages/pages.css
 navigation/rail/filters-trigger.css
 data/text/text.css
 feedback/chip/chip.css
+feedback/badge/badge.css
 feedback/notice/notice.css
 feedback/banner/banner.css
 layout/panel/panel.css
@@ -68,10 +69,13 @@ navigation/steps/steps.css
 overlays/dialog/dialog.css
 overlays/keys/keys.css
 overlays/popover/popover.css
+overlays/popconfirm/popconfirm.css
+overlays/select-panel/select-panel.css
 forms/combobox/combobox.css
 overlays/menu/menu.css
 overlays/tooltip/tooltip.css
 buttons/button/busy.css
+buttons/button/active.css
 buttons/confirm/confirm.css
 buttons/group/group.css
 buttons/toggle/toggle.css

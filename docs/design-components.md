@@ -11,7 +11,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-skip` | the link that takes a keyboard past the header to `.cp-main`, shown only while it has focus |
 | `.cp-banner` | a condition that stops the person's work on every screen, such as an update that needs a reload, or a lost connection in an app with no header status, at the top of `.cp-main` in a `data-tone`, its words first and its one action at the end, with no dismiss |
 | `.cp-rail-toggle` | the Filters button that shows only once the rail leaves |
-| `.cp-button` | `data-variant="primary"` or `"quiet"`, `data-size="sm"`, `data-tone`, `aria-busy="true"` while working, and `aria-disabled="true"` on a link without `href`. One that confirms in place with [confirm](buttons/confirm.md), and one whose icon turns with [turn](buttons/turn.md) |
+| `.cp-button` | `data-variant="primary"` or `"quiet"`, `data-size="sm"`, `data-tone`, `aria-busy="true"` while working, and `aria-disabled="true"` on a link without `href`, and `data-active` on a trigger whose filters or labels are on, which shows its icon's filled drawing, the `.cp-icon` after it marked `data-part="on"`, in the accent. One that confirms in place with [confirm](buttons/confirm.md), and one whose icon turns with [turn](buttons/turn.md) |
 | `.cp-group`, `.cp-split` | buttons joined into one control, and a split button: an action and a caret, one shape, the action growing over the caret while it works |
 | `.cp-toggle` | a quiet icon button that is on or off, with `data-kind="pin"`, `"favourite"` or `"theme"`, as [toggle](buttons/toggle.md) describes |
 | `.cp-roll` | words or a number that change by sliding, as [roll](core/roll.md) describes |
@@ -42,6 +42,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height |
 | `.cp-pager` | the range and the Previous and Next links under a table |
 | `.cp-chip`, `.cp-notice`, `.cp-swatch`, `.cp-count` | states in a tone, and a count beside a filter |
+| `.cp-badge` | a count that asks to be seen, such as the filters on in a trigger: solid in the accent, in the header's ink on the header, or `data-variant="quiet"` for a count that only informs. Give the number its words for a screen reader, such as the trigger's `aria-label` |
 | `.cp-panel`, `.cp-stack`, `.cp-toolbar`, `.cp-heading-row`, `.cp-crumbs`, `.cp-meta` | surfaces and layout |
 | `.cp-cluster` | a row of small things, such as chips or buttons, that wraps instead of overflowing, with `data-gap="tight"` for less space |
 | `.cp-side-main` | a side column of `--cp-side-width` (16rem) beside the rest, stacking above it once the rest would be narrower than half the box |
@@ -49,7 +50,8 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-list-detail`, `.cp-detail`, `.cp-detail-body` | a list with its entry's detail docked beside it, or in a dialog when the box is narrow, as [List and detail](layout/list-detail.md) describes |
 | `.cp-dialog`, `.cp-dialog-body` | a native `<dialog>` opened with `showModal()`, holding a `<form>` with its header, a `.cp-dialog-body` that scrolls and a footer of buttons, rising from the bottom on a phone, with `data-variant="confirm"` for a short confirmation led by its icon and `"sheet"` for the window's height at the inline end. The page does not scroll under it, as [dialog](overlays/dialog.md) describes |
 | `.cp-keys` | the keyboard shortcuts, in a `.cp-dialog-body`: a `<section>` per area, each a heading over a `<dl>` of what a key does and its `<kbd>` keys, set in as many columns as fit, and a last `<p>` across them for a muted line such as the build version |
-| `.cp-popover` | a native popover by the button that opens it, as [anchor](overlays/anchor.md) describes, with `data-variant="panel"` for a panel of controls, whose focus [panel](overlays/panel.md) gives |
+| `.cp-popover` | a native popover by the button that opens it, as [anchor](overlays/anchor.md) describes, with `data-variant="panel"` for a panel of controls, whose focus [panel](overlays/panel.md) gives, and `data-variant="confirm"` for a small confirmation, as [popconfirm](overlays/popconfirm.md) describes |
+| `.cp-select-panel` | a choice of several on a `.cp-popover`: a field that filters a `role="listbox"` of options checked by `aria-selected`, each with a menu check item's box, and the button that applies them, as [select-panel](overlays/select-panel.md) describes |
 | `.cp-menu`, `.cp-menu-label`, `.cp-menu-tag` | a menu of `menuitem`, `menuitemcheckbox` and `menuitemradio` buttons or links, a group's heading and a word at an item's end, as [menu](overlays/menu.md) describes |
 | `.cp-filter-group`, `.cp-filter-title`, `.cp-filter` | a filter list with `aria-pressed` |
 | `.cp-filter-chip` | a pill `<button>` that turns one filter on or off by `aria-pressed`, filled with the accent and its `check` icon sliding in while pressed. A row of them is a `.cp-cluster` with `role="group"` and a name. Your click handler sets `aria-pressed` from the filter's state |

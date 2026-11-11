@@ -1186,13 +1186,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   font-weight: var(--cp-weight-heading);
 }
 
-.g-panel {
-  display: grid;
-  gap: var(--cp-space-3);
-  inline-size: 18rem;
-  padding: var(--cp-space-4);
-}
-
 /* Dialogs: a modal in the middle, a confirmation, a sheet from the inline
  * end, and a full-screen one. All are native <dialog>, so focus moves in,
  * the page goes inert and Escape closes. They fade and settle in and fade
@@ -3429,36 +3422,6 @@ html:has(.g-header) {
   font-size: var(--cp-text-sm);
 }
 
-/* A select panel: a filter over a checkable list, and Apply. */
-.g-selectpanel {
-  display: grid;
-  gap: var(--cp-space-2);
-  inline-size: 18rem;
-  padding: var(--cp-space-2);
-}
-
-.g-selectpanel [role="listbox"] {
-  display: grid;
-  max-block-size: 12rem;
-  margin: 0;
-  padding: 0;
-  overflow: auto;
-  list-style: none;
-}
-
-.g-selectpanel [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-.g-selectpanel [role="option"].active {
-  background: var(--cp-fill);
-}
 /* The list runs edge to edge: a poster sits flush with its row's start,
  * and 2px part one row's poster from the next. */
 
@@ -3879,11 +3842,6 @@ html:has(.g-header) {
   color: var(--cp-accent);
 }
 
-.cp-button[data-active] > .g-badge {
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
-}
-
 /* The account button is the avatar: no square behind it, a ring of the
  * bar's ink that holds it off the bar whatever its colour, and a hover that
  * widens the ring. */
@@ -4025,57 +3983,6 @@ html:has(.g-header) {
 .cp-tokens > .load-twirl > span {
   inline-size: 0.875rem;
   block-size: 0.875rem;
-}
-
-/* A row that checks in a menu or a panel: the checkbox's own look at the
- * row's size, a rounded square with the field's edge that becomes an
- * accent circle with the same check, its ink centred as the box's is. */
-.g-mbox {
-  --mbox: 1.125rem;
-
-  display: grid;
-  flex: none;
-  place-items: center;
-  inline-size: var(--mbox);
-  block-size: var(--mbox);
-  border-radius: 30%;
-  background: var(--cp-surface-raised);
-  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
-  /* the form checkbox's twirl: a quarter turn into a circle on the accent */
-  transition:
-    border-radius var(--dur-spring) var(--ease-spring),
-    rotate var(--dur-spring) var(--ease-spring),
-    background-color 160ms var(--cp-ease-out),
-    box-shadow 160ms var(--cp-ease-out),
-    scale var(--press-dur, var(--dur-spring)) var(--press-ease, var(--ease-bounce));
-}
-
-[data-cp-pressed] > .g-mbox {
-  scale: 0.88;
-}
-
-/* The check draws itself as the box turns, counter-turned so it lands upright. */
-.g-mbox::before {
-  content: "";
-  inline-size: calc(var(--mbox) - 0.25rem);
-  block-size: calc(var(--mbox) - 0.25rem);
-  background: var(--cp-on-accent);
-  mask: url("icons/marks/check.svg") center / contain no-repeat;
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 120ms var(--cp-ease-out);
-}
-
-:is([aria-checked="true"], [aria-selected="true"]) > .g-mbox {
-  border-radius: 50%;
-  rotate: 90deg;
-  background: var(--cp-accent);
-  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-accent);
-}
-
-:is([aria-checked="true"], [aria-selected="true"]) > .g-mbox::before {
-  rotate: -90deg;
-  clip-path: inset(0 0 0 0);
-  transition: clip-path 200ms var(--cp-ease-out) 80ms;
 }
 
 /* The stepper's number rolls in a window laid over its field. */

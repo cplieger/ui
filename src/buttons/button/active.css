@@ -1,0 +1,12 @@
+/* A trigger whose filters or labels are on, marked data-active by the page:
+ * as a pinned pin does, its icon shows the filled drawing marked
+ * data-part="on", the one after its own, in the accent. A toggle shows its
+ * drawings by aria-pressed instead. */
+.cp-button:not(.cp-toggle, [data-active]) > .cp-icon[data-part="on"],
+.cp-button[data-active] > .cp-icon:has(+ [data-part="on"]) {
+  display: none;
+}
+
+.cp-button[data-active]:not(:disabled) > [data-part="on"] {
+  color: var(--cp-accent);
+}
