@@ -1,24 +1,28 @@
 /**
  * menu.ts — the WAI-ARIA menu button over a native popover
- * (https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/). The button opens
- * the `role="menu"` popover by its `popovertarget`, and the popover closes
- * on Escape and on a press outside by itself, returning focus to the button.
- * `enhanceMenu()` adds what the platform lacks: focus on the first item as
- * it opens, the arrow keys, Home, End and typeahead among the items, check
- * and radio items that keep it open, and closing once an item is chosen.
- * `enhanceContextMenu()` opens one at the pointer instead.
+ * (https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/). Every button whose
+ * `popovertarget` or `commandfor` names the `role="menu"` popover opens it,
+ * and an automatic popover closes on Escape and on a press outside by
+ * itself, returning focus to the button. `enhanceMenu()` adds what the
+ * platform lacks: one call for every button that opens the menu, the menu
+ * placed by the one pressed, focus on the first item as it opens, the arrow
+ * keys, Home, End and typeahead among the items, check and radio items that
+ * keep it open, closing once an item is chosen, and the Escape and outside
+ * press a `popover="manual"` menu lacks. `enhanceContextMenu()` opens one at
+ * the pointer instead, and one manual menu can take both.
  * @module
  */
 
 import { anchorTo, showPopoverAt } from "../anchor/anchor.js";
-import { until } from "../../core/lifetime/lifetime.js";
+import { shared, until } from "../../core/lifetime/lifetime.js";
 
 export interface MenuOptions {
   /** The person chose an item: a `menuitem` after the menu closed, a
    *  `menuitemcheckbox` or `menuitemradio` after its `aria-checked` changed,
    *  with the menu still open. */
   readonly onSelect?: (item: HTMLElement) => void;
-  /** Removes the listeners and the button's ARIA. */
+  /** Ends the enhancement: removes its listeners and ARIA, and closes the
+   *  menu if this enhancement opened it. */
   readonly signal?: AbortSignal;
 }
 
@@ -36,22 +40,59 @@ function ensureId(el: HTMLElement): string {
   return el.id;
 }
 
-/** Keys, typeahead and choosing inside `menu`, shared by both menus. */
-function wireItems(
-  menu: HTMLElement,
-  close: () => void,
-  onSelect: ((item: HTMLElement) => void) | undefined,
-  listen: AddEventListenerOptions,
-): void {
-  const items = (): HTMLElement[] =>
-    [...menu.querySelectorAll<HTMLElement>(ITEM)].filter((i) => !i.hidden);
+function hide(menu: HTMLElement): void {
+  if (menu.matches(":popover-open")) {
+    menu.hidePopover();
+  }
+}
+
+const itemsOf = (menu: HTMLElement): HTMLElement[] =>
+  [...menu.querySelectorAll<HTMLElement>(ITEM)].filter((i) => !i.hidden);
+
+/** One enhancement of a menu: how it closes, who hears a choice, and what
+ *  it gives up when another enhancement opens the menu. */
+interface Owner {
+  readonly close: () => void;
+  readonly onSelect: ((item: HTMLElement) => void) | undefined;
+  /** Whether a press on `node` belongs to this opening, as its opener does. */
+  readonly holds: (node: Node) => boolean;
+  readonly release: () => void;
+}
+
+// A row menu that a ⋯ button and a right click both open is enhanced twice
+// but has one set of item listeners, so a key moves once and a check
+// toggles once; the enhancement that opened it last closes it and hears
+// the choice.
+const owners = new WeakMap<HTMLElement, Owner>();
+const wirings = new WeakMap<HTMLElement, ReturnType<typeof shared>>();
+
+function own(menu: HTMLElement, owner: Owner): void {
+  const was = owners.get(menu);
+  if (was !== owner) {
+    was?.release();
+    owners.set(menu, owner);
+  }
+}
+
+/** Keys, typeahead, choosing, and the dismissal a manual popover lacks. */
+function listenItems(menu: HTMLElement, signal: AbortSignal): void {
+  const listen = { signal };
+  const capture = { capture: true, signal };
+  const close = (): void => {
+    const o = owners.get(menu);
+    if (o === undefined) {
+      hide(menu);
+    } else {
+      o.close();
+    }
+  };
   let typed = "";
   let typedAt = -Infinity;
 
   menu.addEventListener(
     "keydown",
     (e) => {
-      const list = items();
+      const list = itemsOf(menu);
       const active = e.composedPath()[0];
       const at = list.findIndex((i) => i === active);
       const go = (i: number): void => {
@@ -101,6 +142,7 @@ function wireItems(
         e.preventDefault();
         return;
       }
+      const onSelect = owners.get(menu)?.onSelect;
       const role = item.getAttribute("role");
       if (role === "menuitemcheckbox") {
         item.setAttribute("aria-checked", String(item.getAttribute("aria-checked") !== "true"));
@@ -120,77 +162,188 @@ function wireItems(
     },
     listen,
   );
+
+  // An auto popover closes itself on Escape and on a press outside; a
+  // manual one, as a context menu must be, gets both here. Armed now, never
+  // on a timer: a busy page starves timers, and a menu whose dismissal waits
+  // behind them ignores Escape.
+  const manualOpen = (): boolean => menu.popover === "manual" && menu.matches(":popover-open");
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      const t = e.composedPath()[0];
+      if (
+        manualOpen() &&
+        t instanceof Node &&
+        !menu.contains(t) &&
+        owners.get(menu)?.holds(t) !== true
+      ) {
+        close();
+      }
+    },
+    capture,
+  );
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Escape" && manualOpen()) {
+        e.preventDefault();
+        close();
+      }
+    },
+    capture,
+  );
+}
+
+/** Starts `menu`'s one set of item listeners, held until every
+ *  enhancement's signal has aborted; `owner` answers for it until another
+ *  enhancement opens it, unless one already does. */
+function wireItems(menu: HTMLElement, owner: Owner, signal: AbortSignal | undefined): void {
+  let wiring = wirings.get(menu);
+  if (wiring === undefined) {
+    wiring = shared((s) => {
+      listenItems(menu, s);
+    });
+    wirings.set(menu, wiring);
+  }
+  wiring.install(signal === undefined ? {} : { signal });
+  if (!owners.has(menu)) {
+    owners.set(menu, owner);
+  }
+}
+
+/** Ends `owner`'s hold on `menu`, closing it if `owner` opened it. */
+function disown(menu: HTMLElement, owner: Owner): void {
+  if (owners.get(menu) === owner) {
+    owners.delete(menu);
+    hide(menu);
+  }
 }
 
 /**
- * Wires `button` to the `role="menu"` popover `menu`, which `button` opens
- * by `popovertarget`. Items are read at each key, so items the host adds or
- * removes need no call. An item with `aria-disabled="true"` takes focus but
- * cannot be chosen.
+ * Enhances the `role="menu"` popover `menu` once, however many buttons open
+ * it: every element whose `popovertarget` or `commandfor` names it is an
+ * opener, rows added later included, so one menu can serve every row of a
+ * list, and the menu sits by the opener pressed. Items are read at each key,
+ * so items the host adds or removes need no call. An item with
+ * `aria-disabled="true"` takes focus but cannot be chosen.
  */
-export function enhanceMenu(
-  button: HTMLElement,
-  menu: HTMLElement,
-  options: MenuOptions = {},
-): void {
+export function enhanceMenu(menu: HTMLElement, options: MenuOptions = {}): void {
   const { onSelect, signal } = options;
   if (signal?.aborted === true) {
     return;
   }
   const listen = until(signal);
-  button.setAttribute("aria-haspopup", "menu");
-  button.setAttribute("aria-controls", ensureId(menu));
-  button.setAttribute("aria-expanded", "false");
-  let focusLast = false;
-  const first = (): HTMLElement | undefined =>
-    [...menu.querySelectorAll<HTMLElement>(ITEM)].find((i) => !i.hidden);
-  const last = (): HTMLElement | undefined =>
-    [...menu.querySelectorAll<HTMLElement>(ITEM)].filter((i) => !i.hidden).at(-1);
-  const close = (): void => {
-    if (menu.matches(":popover-open")) {
-      menu.hidePopover();
+  const capture = until(signal, true);
+  const id = ensureId(menu);
+  const root = menu.getRootNode() as Document | ShadowRoot;
+  const OPENER = `[popovertarget="${CSS.escape(id)}"], [commandfor="${CSS.escape(id)}"]`;
+  const openerOf = (t: EventTarget | null): HTMLElement | null => {
+    const b = t instanceof Element ? t.closest<HTMLElement>(OPENER) : null;
+    return b === null || menu.contains(b) ? null : b;
+  };
+  const mark = (b: Element): void => {
+    b.setAttribute("aria-haspopup", "menu");
+    b.setAttribute("aria-controls", id);
+    if (!b.hasAttribute("aria-expanded")) {
+      b.setAttribute("aria-expanded", "false");
     }
   };
+  for (const b of root.querySelectorAll(OPENER)) {
+    mark(b);
+  }
+  let opener: HTMLElement | null = null;
+  let focusLast = false;
+  const me: Owner = {
+    close: () => {
+      hide(menu);
+    },
+    onSelect,
+    holds: (node) => node instanceof Element && openerOf(node) !== null,
+    release: () => {
+      opener?.setAttribute("aria-expanded", "false");
+    },
+  };
+  // The opener pressed last owns the menu: only it reads as expanded, and
+  // the menu sits by it.
+  const take = (b: HTMLElement): void => {
+    if (opener !== b) {
+      opener?.setAttribute("aria-expanded", "false");
+    }
+    mark(b);
+    opener = b;
+    own(menu, me);
+    anchorTo(menu, b);
+  };
 
+  // An opener added later is named one as focus or a press reaches it.
+  root.addEventListener(
+    "focusin",
+    (e) => {
+      const b = openerOf(e.target);
+      if (b !== null) {
+        mark(b);
+      }
+    },
+    capture,
+  );
+  // A click runs before the opener's default action opens the popover.
+  root.addEventListener(
+    "click",
+    (e) => {
+      const b = openerOf(e.target);
+      if (b !== null) {
+        take(b);
+      }
+    },
+    capture,
+  );
+  // Enter and Space open by the button's own click; the arrows open it too,
+  // ArrowUp with focus on the last item.
+  root.addEventListener(
+    "keydown",
+    (e) => {
+      const ke = e as KeyboardEvent;
+      const b = openerOf(ke.target);
+      if (b === null || (ke.key !== "ArrowDown" && ke.key !== "ArrowUp")) {
+        return;
+      }
+      ke.preventDefault();
+      take(b);
+      focusLast = ke.key === "ArrowUp";
+      if (menu.matches(":popover-open")) {
+        (focusLast ? itemsOf(menu).at(-1) : itemsOf(menu)[0])?.focus();
+        focusLast = false;
+      } else {
+        menu.showPopover();
+      }
+    },
+    capture,
+  );
   menu.addEventListener(
     "toggle",
     (e) => {
-      const open = e.newState === "open";
-      button.setAttribute("aria-expanded", String(open));
-      if (open && !menu.hasAttribute("data-cp-at")) {
-        (focusLast ? last() : first())?.focus();
+      if (owners.get(menu) === me) {
+        const open = e.newState === "open";
+        opener?.setAttribute("aria-expanded", String(open));
+        if (open) {
+          (focusLast ? itemsOf(menu).at(-1) : itemsOf(menu)[0])?.focus();
+        }
       }
       focusLast = false;
     },
     listen,
   );
-  // Enter and Space open by the button's own click; the arrows open it too,
-  // ArrowUp with focus on the last item.
-  button.addEventListener(
-    "keydown",
-    (e) => {
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") {
-        return;
-      }
-      e.preventDefault();
-      focusLast = e.key === "ArrowUp";
-      anchorTo(menu, button);
-      if (!menu.matches(":popover-open")) {
-        menu.showPopover();
-      } else {
-        (focusLast ? last() : first())?.focus();
-      }
-    },
-    listen,
-  );
-  wireItems(menu, close, onSelect, listen);
+  wireItems(menu, me, signal);
 
   signal?.addEventListener(
     "abort",
     () => {
-      close();
-      for (const a of ["aria-haspopup", "aria-controls", "aria-expanded"]) {
-        button.removeAttribute(a);
+      disown(menu, me);
+      for (const b of root.querySelectorAll(OPENER)) {
+        for (const a of ["aria-haspopup", "aria-controls", "aria-expanded"]) {
+          b.removeAttribute(a);
+        }
       }
     },
     { once: true },
@@ -200,6 +353,9 @@ export function enhanceMenu(
 export interface ContextMenuOptions extends MenuOptions {
   /** How long a finger held still opens the menu, in ms. Default 500. */
   readonly hold?: number;
+  /** Runs with the element pressed before the menu opens, so the host can
+   *  fill the menu for it. */
+  readonly onOpen?: (target: Element) => void;
 }
 
 /**
@@ -212,9 +368,9 @@ export interface ContextMenuOptions extends MenuOptions {
 export function enhanceContextMenu(
   zone: HTMLElement,
   menu: HTMLElement,
-  options: ContextMenuOptions & { readonly onOpen?: (target: Element) => void } = {},
+  options: ContextMenuOptions = {},
 ): void {
-  const { onSelect, onOpen, signal } = options;
+  const { onOpen, onSelect, signal } = options;
   if (signal?.aborted === true) {
     return;
   }
@@ -222,16 +378,8 @@ export function enhanceContextMenu(
   const listen = until(signal);
   const capture = until(signal, true);
   let opener: Element | null = null;
-  const open = (x: number, y: number, at: Element): void => {
-    onOpen?.(at);
-    opener = document.activeElement;
-    showPopoverAt(menu, x, y);
-    menu.querySelector<HTMLElement>(ITEM)?.focus();
-  };
   const close = (): void => {
-    if (menu.matches(":popover-open")) {
-      menu.hidePopover();
-    }
+    hide(menu);
     if (
       opener instanceof HTMLElement &&
       opener.isConnected &&
@@ -241,29 +389,21 @@ export function enhanceContextMenu(
     }
     opener = null;
   };
-
-  // Armed now, never on a timer: a busy page starves timers, and a menu
-  // whose dismissal waits behind them ignores Escape.
-  document.addEventListener(
-    "pointerdown",
-    (e) => {
-      const t = e.composedPath()[0];
-      if (menu.matches(":popover-open") && t instanceof Node && !menu.contains(t)) {
-        close();
-      }
+  const me: Owner = {
+    close,
+    onSelect,
+    holds: () => false,
+    release: () => {
+      opener = null;
     },
-    capture,
-  );
-  document.addEventListener(
-    "keydown",
-    (e) => {
-      if (e.key === "Escape" && menu.matches(":popover-open")) {
-        e.preventDefault();
-        close();
-      }
-    },
-    capture,
-  );
+  };
+  const open = (x: number, y: number, at: Element): void => {
+    onOpen?.(at);
+    opener = document.activeElement;
+    own(menu, me);
+    showPopoverAt(menu, x, y);
+    menu.querySelector<HTMLElement>(ITEM)?.focus();
+  };
 
   let held = false;
   let start: { x: number; y: number; at: Element } | null = null;
@@ -335,12 +475,12 @@ export function enhanceContextMenu(
     },
     listen,
   );
-  wireItems(menu, close, onSelect, listen);
+  wireItems(menu, me, signal);
   signal?.addEventListener(
     "abort",
     () => {
       drop();
-      close();
+      disown(menu, me);
     },
     { once: true },
   );

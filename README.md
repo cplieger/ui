@@ -6,16 +6,16 @@
 
 ![A library screen in the design language: a coloured header with destinations, a rail of filters with counts, a table of entries with posters, chips and row actions, and a status line](docs/images/system-library-dark.png)
 
-The stylesheet styles the browser's own elements and a set of `.cp-*` classes, in light and dark, from a few colour seeds each app sets. Each script adds only what the browser lacks, such as a menu's keys or a toast's queue, and starts from a call you make. It has no runtime dependencies and ships as ESM-only TypeScript source, so it needs a bundler that compiles TypeScript 6 or later. It needs Chrome or Edge 147, Firefox 147 or Safari 26.4 or later. It is licensed under Apache-2.0.
+The stylesheet styles the browser's own elements and a set of `.cp-*` classes, in light and dark, from a few colour seeds each app sets. Each script adds only what the browser lacks, such as a menu's keys or a toast's queue. It has no runtime dependencies and ships as ESM-only TypeScript source, so it needs a bundler that compiles TypeScript 6 or later. It needs Chrome or Edge 147, Firefox 147 or Safari 26.4 or later.
 
 ## Why use it
 
 - Dialogs, popovers and disclosures are the browser's own `<dialog>`, `popover` and `<details>`, so focus, Escape, a press outside a popover and the top layer work with no script.
 - Every control is one height and sizes itself for a mouse or a finger from the last real pointer, so a row of fields and buttons lines up on a desktop and under a thumb.
-- Colour comes from an accent hue and a neutral hue. The stylesheet computes every step, both themes and the harmony colours from them, and a test holds each pair of text and fill to its contrast.
+- The stylesheet computes every colour step, both themes and the harmony colours from an accent hue and a neutral hue, and a test holds each pair of text and fill to its contrast.
 - Each component starts from a call you make and touches nothing as it loads, so a bundler drops what you do not import. One that stays on the page takes an `AbortSignal` for its lifetime.
 
-Consider [Pico CSS](https://picocss.com) if you want classless styles for content pages, or [Shoelace](https://shoelace.style) if you want web components.
+Consider [Pico CSS](https://picocss.com) for classless styles on content pages, or [Shoelace](https://shoelace.style) for web components.
 
 ## Install
 
@@ -59,7 +59,7 @@ import { toast } from "@cplieger/ui/toast";
 const page = new AbortController();
 installPress({ signal: page.signal });
 installAnchors({ signal: page.signal });
-enhanceMenu(sortButton, sortMenu, { signal: page.signal, onSelect: (item) => sortBy(item.textContent) });
+enhanceMenu(sortMenu, { signal: page.signal, onSelect: (item) => sortBy(item.textContent) });
 
 toast({ kind: "success", title: "Saved" });
 ```
@@ -88,6 +88,7 @@ The full reference, generated from the doc comments, is on [JSR](https://jsr.io/
 
 ## Documentation
 
+- The [principles](docs/principles.md) are the decisions every part follows.
 - The [design language](docs/design.md) covers type, layout, touch, shape and motion, and [colour](docs/design-colour.md) the seeds, steps, tones and harmony colours.
 - [Components](docs/design-components.md) lists every class the stylesheet ships.
 - [Design patterns](docs/design-patterns.md) covers loading, forms, tables, tabs, dialogs, notifications, first run, navigation and words, with [settings](docs/design-settings.md) and [account screens](docs/design-account.md) on their own pages.

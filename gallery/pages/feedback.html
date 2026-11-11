@@ -1,0 +1,181 @@
+<main class="play">
+  <header>
+    <h1>Feedback</h1>
+    <p>How the apps say what happened and what is happening: toasts that pass or stay, notices and banners in the page, states, progress and loading, and empty and error states.</p>
+  </header>
+
+  <nav class="g-index" aria-label="On this page">
+    <a href="#toasts">Toasts</a><a href="#notices">Notices and banners</a><a href="#states">States and counts</a><a href="#progress">Progress and loading</a><a href="#empty">Empty and error</a>
+  <a href="#stale">Stale content</a><a href="#announce">Announcements</a></nav>
+
+  <section class="g-section" id="toasts">
+    <h2>Toasts</h2>
+    <p>A toast reports a result the person did not wait for on screen. A passing one drains a thin line and leaves after seven seconds, and a pointer or focus on the stack holds them all; an error stays until dismissed. On touch, a swipe sideways dismisses one.</p>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Kinds</h2>
+        <div class="g-buttons">
+          <button class="cp-button" type="button" data-toast-kind="info">Info</button>
+          <button class="cp-button" type="button" data-toast-kind="success">Success</button>
+          <button class="cp-button" type="button" data-toast-kind="warning">Warning</button>
+          <button class="cp-button" type="button" data-toast-kind="error">Error, stays</button>
+        </div>
+        <footer>Info and success are polite; warning and error interrupt a screen reader. Each has its glyph, so the tone is never the only signal.</footer>
+      </div>
+      <div class="card">
+        <h2>With an action, held, or working</h2>
+        <div class="g-buttons">
+          <button class="cp-button" type="button" data-toast-undo>Remove with Undo</button>
+          <button class="cp-button" type="button" data-toast-sticky>Held until dismissed</button>
+          <button class="cp-button" type="button" data-toast-busy>Working, then done</button>
+        </div>
+        <footer>A toast with an action, such as Undo, stays until dismissed. A working toast counts as it goes, offers Open and Cancel, and turns into its result in place.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="notices">
+    <h2>Notices and banners</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <h2>Notices in the page</h2>
+        <div class="cp-stack">
+          <div class="cp-notice" data-tone="neutral"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span><span>Verdicts come from SeaDex and refresh every hour.</span></div>
+          <div class="cp-notice" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span><span>Every source answered on the last check.</span></div>
+          <div class="cp-notice" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>AniList answered with too many requests at 14:02. The refresh resumes at 14:10.</span></div>
+          <div class="cp-notice" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><span>Radarr rejected the API key. Paste a new key in Settings, then Sources.</span></div>
+        </div>
+        <footer>A notice belongs to the screen it is on and stays while its fact holds.</footer>
+      </div>
+      <div class="card g-wide">
+        <h2>Banner for the whole app</h2>
+        <div class="g-banner" data-tone="warning" role="status"><span class="cp-icon" data-cp-icon="wifi-off" aria-hidden="true"></span><span><strong>Connection lost.</strong> Reconnecting in 4 seconds…</span><button class="cp-button" data-size="sm" type="button">Retry now</button></div>
+        <div class="g-banner-reasons g-gap-top" role="status"><strong><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>This app can be reached from the internet</strong><ul><li>It answers on a public address, 203.0.113.7.</li><li>Sign-in by password is on, with no passkey required.</li></ul><small>Last seen from outside <time data-ago="2400"></time>. <a href="#announce">How to limit access</a></small></div>
+        <footer>For a state of the whole app, such as a lost connection: at the top of the main area, above the page's own content, until the state ends, so it has no dismiss. When the state has reasons, they follow as a short list with one way to act on them.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="states">
+    <h2>States and counts</h2>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Status chips</h2>
+        <div class="g-row-inline">
+          <span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span>
+          <span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Older revision</span>
+          <span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span>
+          <span class="cp-chip" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>Not listed</span>
+          <button class="cp-chip chip-pop" data-tone="success" type="button"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span><span class="word">Up</span></button>
+        </div>
+        <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once and fades back to its wash: press the last chip.</footer>
+      </div>
+      <div class="card">
+        <h2>Live dot, badges, times</h2>
+        <div class="g-form">
+          <span class="g-row-inline"><span class="g-dot" data-tone="success" data-live></span>Checking now<span class="g-dot" data-tone="neutral"></span>Idle</span>
+          <span class="g-row-inline">Releases <span class="g-badge">12</span> Activity <span class="g-badge" data-quiet>3</span></span>
+          <span>Last full check <time data-ago="420"></time>, the next one <time data-ago="-1500"></time></span>
+        </div>
+        <footer>Only a live state pulses. A relative time keeps the exact one in its title and updates every 30 seconds.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="progress">
+    <h2>Progress and loading</h2>
+    <div class="g-grid">
+      <div class="card">
+        <h2>A known amount</h2>
+        <div class="stage">
+          <span class="variant"><span class="bar-row"><span class="bar" id="bar"><span></span></span><span class="cp-icon bar-check" data-cp-icon="circle-check" aria-hidden="true"></span></span>Run a check</span>
+          <button class="cp-button" type="button" data-run="bar">Start</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>An unknown amount</h2>
+        <div class="stage">
+          <span class="variant"><span class="loader load-twirl" role="progressbar" aria-label="Loading"><span></span></span>Alone</span>
+          <span class="variant"><span class="inline-load"><span class="loader load-twirl" role="progressbar" aria-label="Loading"><span></span></span>Checking 412 entries…</span>Beside words</span>
+        </div>
+      </div>
+      <div class="card g-wide">
+        <h2>A whole screen loading</h2>
+        <div class="screens">
+          <div class="variant">
+          <div class="screen" tabindex="-1">
+            <div class="boot">
+              <span class="boot-shape boot-trio boot-random" role="progressbar" aria-label="Loading"><span></span><span></span><span></span></span>
+              <strong>Release tracker</strong>
+              <span class="boot-status">Connecting to Sonarr…</span>
+            </div>
+          </div>
+          <button class="cp-button" data-size="sm" type="button" data-full>View full screen</button>
+          </div>
+        </div>
+        <footer>Three twirls, each picking its next move at random: a quarter turn either way, a half turn, a full spin as a circle, a hop that rounds in the air and squashes as it lands, or a round swell, with the odd change of colour round the hue wheel. The status line fades in after 1.5 seconds, so a quick load shows only the shapes. Until the script loads, the three run a plain wave. View full screen, then Escape or a click, to close.</footer>
+      </div>
+      <div class="card g-wide">
+        <h2>Loading content</h2>
+        <div class="cp-panel cp-stack" aria-busy="true" aria-label="Loading the library">
+          <div class="cp-skeleton g-skel-40"></div>
+          <div class="cp-skeleton"></div>
+          <div class="cp-skeleton g-skel-85"></div>
+        </div>
+        <footer>A region that loads draws its shape at once with skeleton lines and marks itself busy; a whole screen loading uses the three twirls above.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="empty">
+    <h2>Empty and error</h2>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Empty</h2>
+        <div class="cp-empty"><span class="float" aria-hidden="true"><span class="cp-icon" data-cp-icon="package-open"></span></span><strong>No series yet</strong><span>Connect Sonarr to fill the library.</span><button class="cp-button" data-variant="primary" type="button">Connect Sonarr</button></div>
+      </div>
+      <div class="card">
+        <h2>No results</h2>
+        <div class="cp-empty"><span class="float" aria-hidden="true"><span class="cp-icon" data-cp-icon="telescope"></span></span><strong>Nothing matches "frieren 4k"</strong><span>Try fewer words, or clear the filters.</span><button class="cp-button" type="button">Clear filters</button></div>
+        <footer>An empty list and a search that finds nothing float their drawing over a shadow that shrinks as it rises.</footer>
+      </div>
+      <div class="card">
+        <h2>Failed to load</h2>
+        <div class="cp-empty"><span class="cp-icon g-hero-icon" data-tone="danger" data-cp-icon="circle-x" aria-hidden="true"></span><strong>The library did not load</strong><span>Sonarr took more than 10 seconds to answer.</span><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Try again</button></div>
+        <footer>An error says what failed and offers the one next step.</footer>
+      </div>
+      <div class="card">
+        <h2>First sync running</h2>
+        <div class="cp-empty" data-first-sync><strong class="g-sync-head"><span class="loader load-twirl" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="g-sync-phase">Series 120 of 351</span><progress max="351" value="120" aria-label="Reading the library from Sonarr"></progress><a class="cp-button" href="#empty">View activity</a></div>
+        <footer>The first-run state between connecting and data: what is being read, how far, and a way to watch it. The phase line moves on as the sync does.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="stale">
+    <h2>Refreshing what is on screen</h2>
+    <div class="g-grid">
+      <div class="card g-wide">
+        <div class="g-row-inline"><button class="cp-button" type="button" data-refresh="stale-region"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh</button><button class="cp-button" type="button" data-refresh="stale-region" data-fail><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh, failing</button></div>
+        <div class="cp-panel g-refreshing cp-stack g-gap-top" id="stale-region">
+          <dl class="g-kv"><dt>Series</dt><dd>351</dd><dt>On the best</dt><dd>268</dd><dt>Checked</dt><dd><time data-ago="420"></time></dd></dl>
+        </div>
+        <footer>The old content stays while it refreshes: the button pressed turns busy, and a line runs along the top edge of the panel it refreshes, which is marked busy. A failed refresh puts its error at the top of that panel, with Retry, and says how old the content is. Where the content has no panel of its own, the line runs along the edge it does have, such as a table's header.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="announce">
+    <h2>Announcements that reach a dialog</h2>
+    <div class="g-grid">
+      <div class="card">
+        <div class="g-buttons"><button class="cp-button" type="button" data-announce="3 subtitles found" data-log="heard">Say something from the page</button><button class="cp-button" type="button" commandfor="d-announce" command="show-modal">Open a dialog, then say something</button></div>
+        <ol class="g-heard g-gap-top" id="heard" aria-label="What a screen reader heard"></ol>
+        <dialog class="g-dialog" id="d-announce" aria-labelledby="d-announce-title">
+          <form method="dialog"><header><h2 id="d-announce-title">Timing</h2></header><div class="g-body"><p>While this dialog is open, the page behind it is inert, its live regions too. A message for the person has to be said from inside the dialog.</p><button class="cp-button" type="button" data-announce="Timing applied" data-log="heard">Apply the timing</button></div><footer><button class="cp-button" value="ok">Close</button></footer></form>
+        </dialog>
+        <footer>An announcement is for a screen reader: it is heard, never seen, so the list above shows what was said and from where. A modal dialog makes the rest of the page inert, live regions included, so each dialog has its own pair, made before it opens, and an announcement goes to the topmost.</footer>
+      </div>
+    </div>
+  </section>
+</main>

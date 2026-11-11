@@ -2488,6 +2488,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
 }
 
 .cp-heading-row {
+  container: cp-heading / inline-size;
   display: flex;
   flex-wrap: wrap;
   align-items: end;
@@ -2506,7 +2507,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
   justify-content: end;
 }
 
-@media (width < 40rem) {
+@container cp-heading (width < 40rem) {
   .cp-heading-row > .cp-toolbar {
     flex: 1 1 100%;
     justify-content: start;

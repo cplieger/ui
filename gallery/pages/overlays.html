@@ -1,0 +1,240 @@
+<main class="play">
+  <header>
+    <h1>Overlays</h1>
+    <p>Everything that opens over the page: tips and menus next to what opened them, panels, dialogs in the middle, sheets from the side, a full-screen task and the command palette. Each is a native popover or dialog, so focus, Escape and the click outside are the platform's.</p>
+  </header>
+
+  <nav class="g-index" aria-label="On this page">
+    <a href="#inline">Next to their button</a><a href="#dialogs">Dialogs and sheets</a><a href="#palette-sec">Command palette</a>
+  <a href="#grouped">Grouped confirmation</a><a href="#keys-sec">Shortcuts</a></nav>
+
+  <section class="g-section" id="inline">
+    <h2>Next to their button</h2>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Tooltip</h2>
+        <div class="stage">
+          <button class="cp-button" data-variant="quiet" type="button" aria-label="Refresh" data-tip="Refresh"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span></button>
+          <button class="cp-button" data-variant="quiet" type="button" aria-label="Settings" data-tip="Settings"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span></button>
+          <span class="g-row-inline">Seeders <button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="About seeders" data-tip="People sharing the release right now" data-tip-toggle><span class="cp-icon" data-cp-icon="circle-help" aria-hidden="true"></span></button></span>
+        </div>
+        <footer>Half a second after a mouse arrives, at once for the keyboard. An info button toggles its tip on a tap, since a finger has no hover.</footer>
+      </div>
+      <div class="card">
+        <h2>Menu</h2>
+        <div class="stage">
+          <button class="cp-button" type="button" popovertarget="m-actions" aria-haspopup="menu">Actions<span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></button>
+          <div class="g-pop g-menu" id="m-actions" popover role="menu" aria-label="Actions">
+            <button role="menuitem" type="button" data-say="Search started"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span>Search for a release<kbd>S</kbd></button>
+            <button role="menuitem" type="button" data-say="Season refreshed"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh this season</button>
+            <button role="menuitem" type="button" data-say="Opened in Sonarr"><span class="cp-icon" data-cp-icon="external-link" aria-hidden="true"></span>Open in Sonarr</button>
+            <hr>
+            <button role="menuitem" type="button" data-tone="danger" data-say="Removed from the library"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove from the library…</button>
+          </div>
+          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-sort" aria-haspopup="menu"><span class="cp-icon" data-cp-icon="arrow-up-down" aria-hidden="true"></span>Sort</button>
+          <div class="g-pop g-menu" id="m-sort" popover role="menu" aria-label="Sort by">
+            <div class="g-menu-label">Sort by</div>
+            <button role="menuitemradio" type="button" data-group="sort" aria-checked="true">Title<span class="cp-icon g-tick" data-cp-icon="check" aria-hidden="true"></span></button>
+            <button role="menuitemradio" type="button" data-group="sort" aria-checked="false">Last checked<span class="cp-icon g-tick" data-cp-icon="check" aria-hidden="true"></span></button>
+            <button role="menuitemradio" type="button" data-group="sort" aria-checked="false">Size<span class="cp-icon g-tick" data-cp-icon="check" aria-hidden="true"></span></button>
+          </div>
+        </div>
+        <footer>It grows from the corner nearest its button and flips when the page runs out. Arrows, Home, End and a first letter move through it; Enter runs an item and gives focus back.</footer>
+      </div>
+      <div class="card">
+        <h2>Menus that check, and menus of links</h2>
+        <div class="stage">
+          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-cols" aria-haspopup="menu"><span class="cp-icon" data-cp-icon="columns-3" aria-hidden="true"></span>Columns</button>
+          <div class="g-pop g-menu" id="m-cols" popover role="menu" aria-label="Columns">
+            <button role="menuitemcheckbox" type="button" aria-checked="true"><span class="g-mbox" aria-hidden="true"></span>Verdict</button>
+            <button role="menuitemcheckbox" type="button" aria-checked="true"><span class="g-mbox" aria-hidden="true"></span>Size</button>
+            <button role="menuitemcheckbox" type="button" aria-checked="false"><span class="g-mbox" aria-hidden="true"></span>Group</button>
+            <button role="menuitemcheckbox" type="button" aria-checked="false"><span class="g-mbox" aria-hidden="true"></span>Last checked</button>
+          </div>
+          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-report" aria-haspopup="menu">Report to animap<span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></button>
+          <div class="g-pop g-menu" id="m-report" popover role="menu" aria-label="Report to animap">
+            <a role="menuitem" href="#inline">Wrong season mapping<span class="g-tag">suggested</span></a>
+            <a role="menuitem" href="#inline">Missing entry<span class="cp-icon" data-cp-icon="external-link" aria-hidden="true"></span></a>
+          </div>
+        </div>
+        <footer>A checkbox item toggles and keeps the menu open; a link item goes somewhere and carries its tag or the external icon.</footer>
+      </div>
+      <div class="card">
+        <h2>Small confirmation and select panel</h2>
+        <div class="stage">
+          <button class="cp-button" type="button" popovertarget="pc-1"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove</button>
+          <div class="g-pop g-popconfirm" id="pc-1" popover role="alertdialog" aria-labelledby="pc-1-t" data-popconfirm="Removed the label"><p id="pc-1-t">Remove this label from 3 entries?</p><div class="g-row-inline"><button class="cp-button" data-variant="primary" data-tone="danger" data-size="sm" type="button" data-yes>Remove</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-no>Keep it</button></div></div>
+          <button class="cp-button" type="button" popovertarget="sp-1"><span class="cp-icon" data-cp-icon="tag" data-cp-icon-on="tag-filled" aria-hidden="true"></span><span class="label">Labels</span></button>
+          <div class="g-pop g-selectpanel" id="sp-1" popover role="dialog" aria-label="Labels" data-selectpanel>
+            <input class="cp-input" role="combobox" aria-expanded="true" aria-controls="sp-1-list" aria-label="Filter labels" placeholder="Filter labels">
+            <ul role="listbox" id="sp-1-list" aria-multiselectable="true" aria-label="Labels">
+              <li role="option" id="sp-1-a" aria-selected="false"><span class="g-mbox" aria-hidden="true"></span>Watch next</li>
+              <li role="option" id="sp-1-b" aria-selected="true"><span class="g-mbox" aria-hidden="true"></span>Rewatch</li>
+              <li role="option" id="sp-1-c" aria-selected="false"><span class="g-mbox" aria-hidden="true"></span>Dub wanted</li>
+              <li role="option" id="sp-1-d" aria-selected="false"><span class="g-mbox" aria-hidden="true"></span>Archive</li>
+            </ul>
+            <div class="g-row-inline"><button class="cp-button" data-variant="primary" data-size="sm" type="button" data-apply-panel>Apply</button></div>
+          </div>
+        </div>
+        <footer>A short, reversible removal asks next to its button instead of in a dialog. A select panel filters a checkable list and applies on Apply; Escape restores the old choice.</footer>
+      </div>
+      <div class="card">
+        <h2>Context menu</h2>
+        <ul class="g-list" data-context>
+          <li data-name="Frieren"><div class="g-row"><span class="g-avatar" data-h="2">FR</span><span>Frieren: Beyond Journey's End<small>Right-click, or hold on touch</small></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-context-open aria-haspopup="menu" aria-label="More for Frieren"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div></li>
+          <li data-name="Mushishi"><div class="g-row"><span class="g-avatar" data-h="3">MU</span><span>Mushishi<small>Right-click, or hold on touch</small></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-context-open aria-haspopup="menu" aria-label="More for Mushishi"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div></li>
+        </ul>
+        <div class="g-pop g-menu" id="ctx-menu" popover="manual" role="menu" aria-label="Row actions">
+          <button role="menuitem" type="button" data-say="Copied the title"><span class="cp-icon" data-cp-icon="copy" aria-hidden="true"></span>Copy title</button>
+          <button role="menuitem" type="button" data-say="Pinned"><span class="cp-icon" data-cp-icon="pin" aria-hidden="true"></span>Pin to the top</button>
+          <button role="menuitem" type="button" data-tone="danger" data-say="Removed"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove…</button>
+        </div>
+        <footer>The same menu at the pointer: a right click, or a finger held still for half a second, which selects no text and lifts into no browser menu. Every row's ⋯ button opens it too, for a keyboard and for anyone who does not know to hold.</footer>
+      </div>
+      <div class="card">
+        <h2>Panel</h2>
+        <div class="stage">
+          <button class="cp-button" type="button" popovertarget="p-filters"><span class="cp-icon" data-cp-icon="funnel" data-cp-icon-on="funnel-filled" aria-hidden="true"></span>Filters<span class="g-badge">2</span></button>
+          <div class="g-pop g-panel" id="p-filters" popover aria-label="Filters" data-filter-panel>
+            <fieldset class="g-choices"><legend class="cp-label">Verdict</legend>
+              <label class="g-choice"><input class="box box-twirl" type="checkbox" checked><span>Not the best</span></label>
+              <label class="g-choice"><input class="box box-twirl" type="checkbox" checked><span>Missing</span></label>
+              <label class="g-choice"><input class="box box-twirl" type="checkbox"><span>On an alt</span></label>
+            </fieldset>
+            <div class="g-row-inline"><button class="cp-button" data-variant="primary" data-size="sm" type="button" popovertarget="p-filters" popovertargetaction="hide" data-panel-show>Show 42</button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-panel-clear>Clear</button></div>
+          </div>
+        </div>
+        <footer>A small form next to its button, for a choice that does not need the whole screen. A click outside closes it. While any filter is on, the button takes the accent: its funnel fills and its count turns solid.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="dialogs">
+    <h2>Dialogs and sheets</h2>
+    <p>On a phone, the dialogs in the middle rise from the bottom instead.</p>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Dialog</h2>
+        <div class="stage"><button class="cp-button" type="button" commandfor="d-rename" command="show-modal">Rename the instance…</button></div>
+        <dialog class="g-dialog" id="d-rename" data-keep-typed data-says="Renamed" aria-labelledby="d-rename-title">
+          <form method="dialog">
+            <header><h2 id="d-rename-title">Rename the instance</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-rename" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
+            <div class="g-body"><div class="cp-field"><label class="cp-label" for="d-rename-name">Name</label><input class="cp-input" id="d-rename-name" value="Release tracker" autofocus></div></div>
+            <footer><button class="cp-button" value="cancel">Cancel</button><button class="cp-button" data-variant="primary" value="save">Rename</button></footer>
+          </form>
+        </dialog>
+        <footer>Focus starts in the field it holds and returns to the button on close. A press outside closes it, unless the name was changed: then it shakes and keeps the words.</footer>
+      </div>
+      <div class="card">
+        <h2>Confirmation</h2>
+        <div class="stage"><button class="cp-button" data-variant="primary" data-tone="danger" type="button" commandfor="d-delete" command="show-modal"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove 3 entries…</button></div>
+        <dialog class="g-dialog g-confirm" id="d-delete" data-says="3 entries removed" role="alertdialog" aria-labelledby="d-delete-title" aria-describedby="d-delete-body">
+          <form method="dialog">
+            <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-delete-title">Remove 3 entries?</h2><p id="d-delete-body">They leave the library here; the files and Sonarr stay as they are.</p></div></div>
+            <footer><button class="cp-button" value="cancel" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Remove</button></footer>
+          </form>
+        </dialog>
+        <footer>Its buttons say what they do. Focus starts on the safe one, and only Escape or a button closes it.</footer>
+      </div>
+      <div class="card">
+        <h2>Sheet</h2>
+        <div class="stage"><button class="cp-button" type="button" commandfor="d-sheet" command="show-modal"><span class="cp-icon" data-cp-icon="panel-right" aria-hidden="true"></span>Episode details</button></div>
+        <dialog class="g-dialog g-sheet" id="d-sheet" aria-labelledby="d-sheet-title">
+          <form method="dialog">
+            <header><h2 id="d-sheet-title">S01E04, The Land Where Souls Rest</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-sheet" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
+            <div class="g-body">
+              <dl class="g-kv"><dt>File</dt><dd><code class="cp-mono">Frieren.S01E04.1080p.BluRay.mkv</code></dd><dt>Size</dt><dd>1.4 GB</dd><dt>Audio</dt><dd>Japanese, English</dd><dt>Subtitles</dt><dd>English (signs and songs), English</dd><dt>Checked</dt><dd><time data-ago="3600"></time></dd></dl>
+            </div>
+            <footer><button class="cp-button" value="cancel">Close</button><button class="cp-button" data-variant="primary" value="ok">Grab the best</button></footer>
+          </form>
+        </dialog>
+        <footer>From the inline end, at full height; across the window on a phone. For detail that keeps the list in view. A press anywhere outside closes it.</footer>
+      </div>
+      <div class="card">
+        <h2>Filter sheet</h2>
+        <div class="stage g-row-inline"><button class="cp-button" type="button" commandfor="d-filters" command="show-modal" data-filters-open><span class="cp-icon" data-cp-icon="funnel" data-cp-icon-on="funnel-filled" aria-hidden="true"></span><span class="label">Filters, 1</span></button><button class="cp-button" data-variant="quiet" type="button" data-filters-clear>Clear filters</button></div>
+        <dialog class="g-dialog g-sheet" id="d-filters" aria-labelledby="d-filters-title" data-filter-sheet data-total="412">
+          <form method="dialog">
+            <header><h2 id="d-filters-title">Filters</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-filters" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
+            <div class="g-body cp-stack">
+              <fieldset class="g-choices"><legend class="cp-label">Verdict</legend>
+                <label class="g-choice"><input class="box box-twirl" type="checkbox" name="verdict" value="best"><span>On the best</span></label>
+                <label class="g-choice"><input class="box box-twirl" type="checkbox" name="verdict" value="not" checked><span>Not the best</span></label>
+                <label class="g-choice"><input class="box box-twirl" type="checkbox" name="verdict" value="missing"><span>Missing</span></label>
+              </fieldset>
+              <fieldset class="g-choices"><legend class="cp-label">Kind</legend>
+                <label class="g-choice"><input class="g-radio" type="radio" name="kind" value="all" checked><span>All</span></label>
+                <label class="g-choice"><input class="g-radio" type="radio" name="kind" value="tv"><span>TV</span></label>
+                <label class="g-choice"><input class="g-radio" type="radio" name="kind" value="film"><span>Films</span></label>
+              </fieldset>
+            </div>
+            <footer><button class="cp-button" type="button" data-sheet-clear>Clear all</button><button class="cp-button" data-variant="primary" value="apply" data-sheet-apply>Show 33 results</button></footer>
+          </form>
+        </dialog>
+        <footer>Below 60rem the rail's filters move into this sheet behind a Filters button that carries the count. With two groups it stages: the foot says how many results the choice would show, “Show 33 results” applies it all at once, and Close, Escape or a press outside put back what was there.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="keys-sec">
+    <h2>Keyboard shortcuts</h2>
+    <div class="g-grid">
+      <div class="card">
+        <div class="stage"><button class="cp-button" type="button" commandfor="keys" command="show-modal"><span class="cp-icon" data-cp-icon="keyboard" aria-hidden="true"></span>Shortcuts, or press <kbd class="g-key">?</kbd></button></div>
+        <dialog class="g-dialog" id="keys" aria-labelledby="keys-title">
+          <form method="dialog">
+            <header><h2 id="keys-title">Keyboard shortcuts</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="keys" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
+            <div class="g-body"><div class="g-keys">
+              <section><h3 class="cp-label">Anywhere</h3><dl><dt>Search</dt><dd><kbd class="g-key">/</kbd></dd><dt>Command palette</dt><dd><kbd class="g-key">Ctrl</kbd> <kbd class="g-key">K</kbd></dd><dt>This list</dt><dd><kbd class="g-key">?</kbd></dd></dl></section>
+              <section><h3 class="cp-label">Library</h3><dl><dt>Next row</dt><dd><kbd class="g-key">J</kbd></dd><dt>Previous row</dt><dd><kbd class="g-key">K</kbd></dd><dt>Grab the selected</dt><dd><kbd class="g-key">G</kbd></dd></dl></section>
+            </div><p class="g-note">Release tracker 3.0.0</p></div>
+          </form>
+        </dialog>
+        <footer>? opens the keys by area, with the version at the foot. Keys never fire while typing in a field.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="palette-sec">
+    <h2>Command palette</h2>
+    <div class="g-grid">
+      <div class="card">
+        <h2>Jump to anything</h2>
+        <div class="stage"><button class="cp-button" type="button" data-palette-open><span class="cp-icon" data-cp-icon="command" aria-hidden="true"></span>Open, or press <kbd class="g-key">Ctrl</kbd> <kbd class="g-key">K</kbd></button></div>
+        <dialog class="g-dialog g-palette" id="palette" aria-label="Command palette">
+          <div class="g-palette-field"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list" placeholder="Search actions and pages" autofocus></div>
+          <ul role="listbox" id="palette-list" aria-label="Actions">
+            <li class="g-option" role="option" id="pa-1"><span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span><span>Go to the library</span><kbd>G L</kbd></li>
+            <li class="g-option" role="option" id="pa-2"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span>Go to releases</span><kbd>G R</kbd></li>
+            <li class="g-option" role="option" id="pa-3"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span>Run a full check</span></li>
+            <li class="g-option" role="option" id="pa-4"><span class="cp-icon" data-cp-icon="sun-moon" aria-hidden="true"></span><span>Switch the theme</span></li>
+            <li class="g-option" role="option" id="pa-5"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span><span>Open settings</span><kbd>,</kbd></li>
+            <li class="g-option" role="option" id="pa-6"><span class="cp-icon" data-cp-icon="log-out" aria-hidden="true"></span><span>Sign out</span></li>
+          </ul>
+          <p class="g-none" hidden>No action matches.</p>
+        </dialog>
+        <footer>For an app with many places and actions. Typing narrows the list; arrows move; Enter runs.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="grouped">
+    <h2>Confirmation with groups</h2>
+    <div class="g-grid">
+      <div class="card">
+        <div class="stage"><button class="cp-button" data-variant="primary" data-tone="danger" type="button" commandfor="d-grouped" command="show-modal"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Delete subtitles…</button></div>
+        <dialog class="g-dialog g-confirm" id="d-grouped" data-grouped data-says="Deleted" role="alertdialog" aria-labelledby="d-grouped-title">
+          <form method="dialog">
+            <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-grouped-title">Delete subtitles for 4 episodes?</h2><p>Choose which to delete. The files are removed from the disk.</p>
+              <div class="g-groups">
+                <label class="g-choice"><input class="box box-twirl" type="checkbox" data-count="3"><span>3 managed files<small>Fetched by this app</small></span></label>
+                <label class="g-choice"><input class="box box-twirl" type="checkbox" data-count="1"><span>1 found on disk<small>Not fetched by this app</small></span></label>
+              </div></div></div>
+            <footer><button class="cp-button" value="cancel" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Delete</button></footer>
+          </form>
+        </dialog>
+        <footer>No group is chosen for you. The button says how many files it deletes, in two or three words, and stays disabled until something is chosen. A press outside closes it, deleting nothing.</footer>
+      </div>
+    </div>
+  </section>
+</main>

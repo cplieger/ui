@@ -64,7 +64,7 @@ describe("enhanceConnectionTest", () => {
     enhanceConnectionTest(button, status, { run: answer().run, signal: life.signal });
     expect(button.type).toBe("button");
     expect(status.getAttribute("role")).toBe("status");
-    expect(status.dataset["state"]).toBe("idle");
+    expect(status.dataset["cpState"]).toBe("idle");
   });
 
   it("goes busy with its words, then says a pass, on the status and the form", async () => {
@@ -77,13 +77,13 @@ describe("enhanceConnectionTest", () => {
       signal: life.signal,
     });
     await userEvent.click(button);
-    expect(status.dataset["state"]).toBe("busy");
+    expect(status.dataset["cpState"]).toBe("busy");
     expect(status.textContent).toBe("Testing…");
     expect(button.getAttribute("aria-disabled")).toBe("true");
     expect(status.hasAttribute("aria-busy")).toBe(false);
     a.give({ ok: true, message: "Sonarr 4.0 answered." });
     await tick();
-    expect([status.dataset["state"], f.dataset["state"], status.textContent]).toEqual([
+    expect([status.dataset["cpState"], f.dataset["cpState"], status.textContent]).toEqual([
       "passed",
       "passed",
       "Sonarr 4.0 answered.",
@@ -114,11 +114,11 @@ describe("enhanceConnectionTest", () => {
     await userEvent.click(button);
     a.give({ ok: false, message: "Nothing answered at that address.", field: "url" });
     await tick();
-    expect(status.dataset["state"]).toBe("failed");
+    expect(status.dataset["cpState"]).toBe("failed");
     expect(url.getAttribute("aria-invalid")).toBe("true");
     expect([mark.hidden, mark.textContent]).toEqual([false, "Nothing answered at that address."]);
     await userEvent.type(url, "0");
-    expect(status.dataset["state"]).toBe("idle");
+    expect(status.dataset["cpState"]).toBe("idle");
     expect(url.hasAttribute("aria-invalid")).toBe(false);
     expect(mark.hidden).toBe(true);
   });
@@ -130,7 +130,7 @@ describe("enhanceConnectionTest", () => {
     await userEvent.click(button);
     a.give({ ok: false, message: "No.", field: "constructor" });
     await tick();
-    expect(status.dataset["state"]).toBe("failed");
+    expect(status.dataset["cpState"]).toBe("failed");
   });
 
   it("words a rejected check, and drops the answer of a check the person edited past", async () => {
@@ -145,7 +145,7 @@ describe("enhanceConnectionTest", () => {
     await userEvent.type(url, "1");
     a.give({ ok: true, message: "late" });
     await tick();
-    expect(status.dataset["state"]).toBe("idle");
+    expect(status.dataset["cpState"]).toBe("idle");
     await userEvent.click(button);
     a.fail("nope");
     await tick();

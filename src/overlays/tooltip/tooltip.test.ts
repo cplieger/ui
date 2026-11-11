@@ -25,17 +25,24 @@ function control(tip: string, label?: string): HTMLButtonElement {
 
 const tip = () => document.querySelector(".cp-tooltip") as HTMLElement;
 const showing = () => tip().matches(":popover-open");
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 describe("installTooltips", () => {
   it("shows a control's tip after a mouse rests on it, and hides it as the mouse leaves", async () => {
-    // Long enough that the hover itself, on a busy machine, never outlasts it.
-    installTooltips({ signal: life.signal, delay: 1000 });
+    installTooltips({ signal: life.signal, delay: 300 });
     const b = control("Settings", "Settings");
+    // The rest is measured from the pointer's arrival to the tip's opening, so
+    // a busy machine that slows the hover cannot make it look early.
+    let arrived = 0;
+    let opened = 0;
+    b.addEventListener("pointerover", (e) => (arrived ||= e.timeStamp));
+    tip().addEventListener("toggle", (e) => {
+      if (e.newState === "open") {
+        opened ||= e.timeStamp;
+      }
+    });
     await userEvent.hover(b);
-    expect(showing()).toBe(false);
-    await wait(1300);
-    expect(showing()).toBe(true);
+    await expect.poll(showing, { timeout: 3000 }).toBe(true);
+    expect(opened - arrived).toBeGreaterThanOrEqual(300);
     expect(tip().textContent).toBe("Settings");
     expect(tip().getAttribute("role")).toBe("tooltip");
     await userEvent.unhover(b);

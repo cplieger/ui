@@ -21,9 +21,9 @@ function chromium() {
   };
 }
 
-// The element libraries' engines: UI_ENGINES=chromium,firefox,webkit runs all
-// three. Chromium alone by default, the one browser CI installs today.
-const ENGINES = (process.env["UI_ENGINES"] ?? "chromium").split(",") as (
+// The browsers the element tests run in: CPLIEGER_BROWSERS=chromium,firefox,webkit
+// runs all three, and Chromium alone runs when it is unset, as in CI.
+const ENGINES = (process.env["CPLIEGER_BROWSERS"] ?? "chromium").split(",") as (
   "chromium" | "firefox" | "webkit"
 )[];
 
@@ -114,7 +114,7 @@ export default defineConfig({
           environment: "node",
           isolate: true,
           exclude: EXCLUDE,
-          include: ["src/**/*.node.test.ts"],
+          include: ["src/**/*.node.test.ts", "gallery/*.node.test.ts"],
         },
       },
     ],

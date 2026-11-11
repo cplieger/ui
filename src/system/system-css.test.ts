@@ -416,6 +416,18 @@ describe("css/system.css", () => {
     expect(chip).toBeLessThan(line);
   });
 
+  it("gives a heading row's toolbar its own line by the row's width, not the window's", () => {
+    theme("light");
+    const el = build(
+      '<div style="inline-size: 300px"><div class="cp-heading-row"><h2>Sources</h2><div class="cp-toolbar"><button class="cp-button" type="button">Add</button></div></div></div>' +
+        '<div style="inline-size: 900px"><div class="cp-heading-row"><h2>Sources</h2><div class="cp-toolbar"><button class="cp-button" type="button">Add</button></div></div></div>',
+    );
+    const [narrow, wide] = [...el.querySelectorAll<HTMLElement>(".cp-toolbar")].map(
+      (t) => getComputedStyle(t).justifyContent,
+    );
+    expect([narrow, wide]).toEqual(["start", "end"]);
+  });
+
   it("spaces a rule and a heading row in a stack by the stack's gap alone", () => {
     theme("light");
     const el = build(

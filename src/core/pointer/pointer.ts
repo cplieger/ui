@@ -7,6 +7,8 @@
  * @module
  */
 
+import { shared } from "../lifetime/lifetime.js";
+
 /** A pen counts as coarse: a stylus on a touchscreen has no hover and wants
  *  finger-sized targets, whatever its precision. */
 export type PointerTier = "fine" | "coarse";
@@ -64,13 +66,8 @@ export function applyPointerTier(opts?: PointerTierOptions): PointerTier {
   return tier;
 }
 
-/** Follow each real pointer: a press of any pointer, or a mouse or trackpad
- *  that moves without one, sets `data-pointer` to its tier and keeps it
- *  under `storageKey`. Call it after `applyPointerTier`; a second call adds
- *  listeners that write the same values. */
-export function installPointerTier(opts?: PointerTierFollowOptions): void {
-  const key = opts?.storageKey;
-  const signal = opts?.signal;
+function follow(signal: AbortSignal, opts: PointerTierOptions): void {
+  const key = opts.storageKey;
   const root = document.documentElement;
   const set = (tier: PointerTier): void => {
     if (root.getAttribute(ATTR) === tier) {
@@ -98,11 +95,21 @@ export function installPointerTier(opts?: PointerTierFollowOptions): void {
     }
   };
   // Capture, so a page handler that stops the event cannot hide the input.
-  const options: AddEventListenerOptions = {
-    capture: true,
-    passive: true,
-    ...(signal === undefined ? {} : { signal }),
-  };
+  const options: AddEventListenerOptions = { capture: true, passive: true, signal };
   globalThis.addEventListener("pointerdown", onDown, options);
   globalThis.addEventListener("pointermove", onMove, options);
+}
+
+// Made on the first install, so a pre-paint bundle that imports only
+// applyPointerTier keeps no lifetime code.
+let page: ReturnType<typeof shared<PointerTierOptions>> | undefined;
+
+/** Follow each real pointer: a press of any pointer, or a mouse or trackpad
+ *  that moves without one, sets `data-pointer` to its tier and keeps it
+ *  under `storageKey`. Call it after `applyPointerTier`. Every call shares
+ *  one set of listeners, held until every caller's `signal` has aborted;
+ *  the first call's `storageKey` holds. */
+export function installPointerTier(opts: PointerTierFollowOptions = {}): void {
+  page ??= shared(follow);
+  page.install(opts);
 }

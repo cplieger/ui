@@ -3,16 +3,7 @@ import baseConfig from "./eslint.config.base.mjs";
 
 export default [
   ...baseConfig,
-  // Layered after the base's disableTypeChecked block so these rules actually turn off.
-  {
-    files: ["src/actions/**/*.test.ts", "src/fetch/**/*.test.ts"],
-    rules: {
-      "@typescript-eslint/no-invalid-void-type": "off",
-      "@typescript-eslint/no-empty-function": "off",
-      "@typescript-eslint/no-non-null-asserted-optional-chain": "off",
-      "@typescript-eslint/no-deprecated": "off",
-      "no-throw-literal": "off",
-      curly: "off",
-    },
-  },
+  // The gallery's own versions of the elements whose cards do not run on
+  // src/ yet, each deleted as its card moves onto src/.
+  { ignores: ["gallery/legacy/**"] },
 ];

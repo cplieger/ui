@@ -4,7 +4,7 @@ The drawings under `icons/svg/` named in `iconNames` are derived from [Lucide](h
 
 The fonts under `fonts/` are [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next) and [Atkinson Hyperlegible Mono](https://github.com/googlefonts/atkinson-hyperlegible-next-mono), copied unchanged from the [Fontsource](https://fontsource.org) `@fontsource-variable` 5.3.0 releases (SIL Open Font License 1.1). Each license text ships beside the files as `fonts/LICENSE-atkinson-hyperlegible-next` and `fonts/LICENSE-atkinson-hyperlegible-mono`.
 
-The check mark under `icons/marks/` is this package's own drawing. No other third-party source is included in this repository.
+The check and dash marks under `icons/marks/` are this package's own drawings. No other third-party source is included in this repository.
 
 One design is followed:
 

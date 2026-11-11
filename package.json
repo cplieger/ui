@@ -35,11 +35,12 @@
     "./css/system": "./css/system.css"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p gallery/tsconfig.json",
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "icons:sync": "ICONS_SYNC=1 vitest --run --project node src/foundations/icons/icons.node.test.ts",
     "system:sync": "SYSTEM_SYNC=1 vitest --run --project node src/system/system-css.node.test.ts",
     "system:screens": "SYSTEM_SCREENS=1 vitest --run --project node src/system/system-screens.node.test.ts",
+    "gallery": "node gallery/build.ts",
     "test": "vitest --run",
     "test:coverage": "vitest --run --coverage",
     "lint:eslint": "eslint .",
