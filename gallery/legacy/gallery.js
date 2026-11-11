@@ -847,44 +847,6 @@ if (ctx) {
   }
 }
 
-// ----------------------------------------------------------- tooltips
-// A short wait for a mouse, at once for focus; a tap toggles it on touch.
-// The tip names the control; its words are never the only place they live.
-let tipTimer = 0;
-$$("[data-tip]").forEach((t, i) => {
-  const tip = el("div", { class: "g-tip", popover: "manual", role: "tooltip", id: `g-tip-${i}`, text: t.dataset.tip });
-  document.body.append(tip);
-  const name = `--g-tip-${i}`;
-  t.style.setProperty("anchor-name", name);
-  tip.style.setProperty("position-anchor", name);
-  // A tip that repeats the control's name adds nothing to hear; one that
-  // says more describes it.
-  if (t.getAttribute("aria-label") !== t.dataset.tip) t.setAttribute("aria-describedby", tip.id);
-  // The words are read at each showing, so a control that changes its tip
-  // (a toggle that names what it will do next) is never stale.
-  const show = () => {
-    tip.textContent = t.dataset.tip;
-    if (!tip.matches(":popover-open")) tip.showPopover();
-  };
-  const hide = () => {
-    clearTimeout(tipTimer);
-    if (tip.matches(":popover-open")) tip.hidePopover();
-  };
-  t.addEventListener("pointerenter", (e) => {
-    if (e.pointerType !== "mouse") return;
-    clearTimeout(tipTimer);
-    tipTimer = setTimeout(show, 500);
-  });
-  t.addEventListener("pointerleave", hide);
-  t.addEventListener("focus", () => t.matches(":focus-visible") && show());
-  t.addEventListener("blur", hide);
-  t.addEventListener("keydown", (e) => e.key === "Escape" && hide());
-  t.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" || !t.hasAttribute("data-tip-toggle")) return;
-    tip.matches(":popover-open") ? hide() : show();
-  });
-});
-
 // ------------------------------------------------------------ dialogs
 // Buttons open and close dialogs through commandfor; this fills in only for
 // an engine without invoker commands.
@@ -1286,7 +1248,7 @@ for (const bar of $$("[data-batch]")) {
   const table = all?.closest("table");
   for (const zone of [bar, table]) {
     zone?.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape" || bar.hidden || document.querySelector(":popover-open:not(.g-tip), dialog[open]")) return;
+      if (e.key !== "Escape" || bar.hidden || document.querySelector(":popover-open:not(.cp-tooltip), dialog[open]")) return;
       e.preventDefault();
       clear();
       (all ?? boxes[0])?.focus();
@@ -2602,7 +2564,7 @@ for (const b of $$("[data-theme-toggle]")) {
     const dark = root.dataset.theme === "dark";
     b.setAttribute("aria-pressed", String(dark));
     ic.dataset.cpIcon = dark ? "moon" : "sun";
-    b.dataset.tip = dark ? "Switch to light" : "Switch to dark";
+    b.dataset.cpTip = dark ? "Switch to light" : "Switch to dark";
   };
   b.addEventListener("click", () => {
     ic.classList.remove("g-flip");

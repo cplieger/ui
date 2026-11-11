@@ -37,8 +37,34 @@ function listen(signal: AbortSignal, delay: number): void {
   let shownFor: HTMLElement | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
+  /** Writes `el`'s words into the tip, and describes `el` by them only
+   *  while they say more than its name. False when it has none to show. */
+  const write = (el: HTMLElement): boolean => {
+    const words = el.dataset["cpTip"] ?? "";
+    if (words === "" || !el.isConnected) {
+      return false;
+    }
+    tip.textContent = words;
+    if (el.getAttribute("aria-label") === words) {
+      if (el.getAttribute("aria-describedby") === tip.id) {
+        el.removeAttribute("aria-describedby");
+      }
+    } else if (!el.hasAttribute("aria-describedby")) {
+      el.setAttribute("aria-describedby", tip.id);
+    }
+    return true;
+  };
+  // A control that changes face while its tip shows, Send to Cancel, takes
+  // the tip with it.
+  const watch = new MutationObserver(() => {
+    if (shownFor !== null && !write(shownFor)) {
+      hide();
+    }
+  });
+
   const hide = (): void => {
     clearTimeout(timer);
+    watch.disconnect();
     if (shownFor !== null) {
       removeAnchorName(shownFor, NAME);
       if (shownFor.getAttribute("aria-describedby") === tip.id) {
@@ -55,18 +81,12 @@ function listen(signal: AbortSignal, delay: number): void {
     if (shownFor !== el) {
       hide();
     }
-    const words = el.dataset["cpTip"] ?? "";
-    if (words === "" || !el.isConnected) {
+    if (!write(el)) {
       return;
     }
-    // Read at each showing, so a control that names what its next press
-    // does is never stale.
-    tip.textContent = words;
     addAnchorName(el, NAME);
-    if (el.getAttribute("aria-label") !== words && !el.hasAttribute("aria-describedby")) {
-      el.setAttribute("aria-describedby", tip.id);
-    }
     shownFor = el;
+    watch.observe(el, { attributes: true, attributeFilter: ["data-cp-tip", "aria-label"] });
     if (tip.matches(":popover-open")) {
       // Shown again, so it stays above a modal that opened after it.
       tip.hidePopover();
