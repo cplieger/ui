@@ -87,14 +87,16 @@
   font-weight: var(--cp-weight-medium);
 }
 
-/* A radio item's tick: a single choice does not move. */
+/* A radio item's tick, the check icon at an icon's size: a single choice
+ * does not move. */
 .cp-menu [role="menuitemradio"]::after {
   content: "";
-  inline-size: 1rem;
-  block-size: 1rem;
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
   margin-inline-start: auto;
   background: var(--cp-accent);
-  mask: url("../icons/marks/check.svg") center / contain no-repeat;
+  mask: url("../icons/svg/check.svg") center / contain no-repeat;
   visibility: hidden;
 }
 
@@ -104,7 +106,7 @@
 
 /* A check item's box: the form checkbox's twirl at the row's size, a
  * rounded square with the field's edge that turns a quarter into an accent
- * circle, its mark counter-turned so it lands upright. */
+ * circle. Its mark is the item's ::after, so it never turns. */
 .cp-menu [role="menuitemcheckbox"]::before {
   --cp-mbox: 1.125rem;
 
@@ -119,7 +121,17 @@
     border-radius var(--cp-dur-spring) var(--cp-ease-spring),
     rotate var(--cp-dur-spring) var(--cp-ease-spring),
     background-color 160ms var(--cp-ease-out),
-    box-shadow 160ms var(--cp-ease-out);
+    box-shadow 160ms var(--cp-ease-out),
+    scale var(--cp-mbox-press-dur, var(--cp-dur-spring))
+      var(--cp-mbox-press-ease, var(--cp-ease-bounce));
+}
+
+/* A press goes down fast and comes back on the spring, as a checkbox's. */
+.cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before {
+  --cp-mbox-press-dur: var(--cp-dur-press);
+  --cp-mbox-press-ease: var(--cp-ease-out);
+
+  scale: 0.88;
 }
 
 .cp-menu [role="menuitemcheckbox"] {
@@ -148,6 +160,16 @@
 .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::after {
   clip-path: inset(0 0 0 0);
   transition: clip-path 200ms var(--cp-ease-out) 80ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before {
+    scale: none;
+  }
+
+  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+    rotate: none;
+  }
 }
 
 @media (forced-colors: active) {

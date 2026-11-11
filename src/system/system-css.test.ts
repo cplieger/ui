@@ -1683,7 +1683,36 @@ describe("css/system.css overlays", () => {
     expect(getComputedStyle(radio as Element, "::after").visibility).toBe("hidden");
     (radio as HTMLElement).setAttribute("aria-checked", "true");
     expect(getComputedStyle(radio as Element, "::after").visibility).toBe("visible");
+    // The tick is the check icon at an icon's size, 18px.
+    expect(getComputedStyle(radio as Element, "::after").width).toBe("18px");
   });
+
+  const pressedCheckItem = (): Element =>
+    build(
+      '<div class="cp-menu" role="menu"><button role="menuitemcheckbox" aria-checked="true" type="button" data-cp-pressed="">Posters</button></div>',
+    ).querySelector("button") as Element;
+
+  it("shrinks a pressed menu item's box as a checkbox's", () => {
+    theme("light");
+    const box = getComputedStyle(pressedCheckItem(), "::before");
+    // Firefox keeps the scale as a float32.
+    expect(Number(box.scale)).toBeCloseTo(0.88, 6);
+    expect(box.rotate).toBe("90deg");
+  });
+
+  it.skipIf(!emulates)(
+    "neither turns nor shrinks a menu item's box under reduced motion",
+    async () => {
+      theme("light");
+      const item = pressedCheckItem();
+      await media("prefers-reduced-motion", "reduce");
+      for (const a of document.getAnimations()) {
+        a.finish();
+      }
+      expect(getComputedStyle(item, "::before").scale).toBe("none");
+      expect(getComputedStyle(item, "::before").rotate).toBe("none");
+    },
+  );
 
   it("opens a sheet the window's height at the inline end, and a confirmation narrower than a dialog", () => {
     theme("light");

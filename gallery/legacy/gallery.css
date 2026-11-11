@@ -1168,16 +1168,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   color: var(--cp-ink-muted);
 }
 
-.g-menu [role="menuitemradio"] > .g-tick {
-  visibility: hidden;
-  margin-inline-start: auto;
-  color: var(--cp-accent);
-}
-
-.g-menu [role="menuitemradio"][aria-checked="true"] > .g-tick {
-  visibility: visible;
-}
-
 .g-menu [data-tone="danger"],
 .g-menu [data-tone="danger"] > .cp-icon {
   color: var(--cp-danger-11);
@@ -3005,42 +2995,6 @@ html:has(.g-header) {
   align-items: center;
   gap: var(--cp-space-1);
   color: var(--cp-warning-11);
-  font-weight: var(--cp-weight-medium);
-}
-
-/* Menus: a checkbox item and a link item with a tag. */
-.g-menu [role="menuitemcheckbox"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  inline-size: 100%;
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2) var(--cp-space-3);
-  border: 0;
-  border-radius: var(--cp-radius-control);
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.g-menu [role="menuitemcheckbox"]:focus {
-  outline: none;
-  background: var(--cp-fill);
-}
-
-.g-menu a[role="menuitem"] {
-  text-decoration: none;
-}
-
-.g-menu .g-tag {
-  margin-inline-start: auto;
-  padding: 0 var(--cp-space-2);
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-medium);
 }
 

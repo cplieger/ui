@@ -721,9 +721,10 @@ const markActive = (b, on) => {
 // pair, so CSS anchor positioning places and flips it.
 // A popover shared by several buttons (one menu for every row) takes the
 // anchor of the one pressed; a button inside its own popover anchors nothing.
+// A .cp-popover is the library's, placed by installAnchors().
 $$("[popovertarget]").forEach((b, i) => {
   const pop = document.getElementById(b.getAttribute("popovertarget"));
-  if (!pop || pop.contains(b)) return;
+  if (!pop || pop.contains(b) || pop.matches(".cp-popover")) return;
   const name = `--g-anchor-${i}`;
   b.style.setProperty("anchor-name", name);
   if (!pop.style.getPropertyValue("position-anchor")) pop.style.setProperty("position-anchor", name);
@@ -765,89 +766,7 @@ function menuKeys(menu) {
     if (item.dataset.say) toast({ kind: item.dataset.tone === "danger" ? "warning" : "info", title: item.dataset.say });
   });
 }
-$$("[role='menu'][popover]").forEach(menuKeys);
-
-// A context menu opens where the pointer is: a right click, or a finger held
-// still for half a second. The hold selects no text and opens no browser
-// menu, and the lift that ends it clicks nothing. Each row's ⋯ button opens
-// the same menu under itself.
-const ctx = $("#ctx-menu");
-if (ctx) {
-  const show = () => ctx.matches(":popover-open") || ctx.showPopover();
-  // popover="manual": the browser's light dismiss would take the finger's
-  // lift after a hold as a press outside and close the menu it just opened.
-  // A press outside or Escape closes it instead.
-  document.addEventListener("pointerdown", (e) => {
-    if (ctx.matches(":popover-open") && !ctx.contains(e.target) && !e.target.closest?.("[data-context-open]")) ctx.hidePopover();
-  }, true);
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && ctx.matches(":popover-open")) ctx.hidePopover();
-  });
-  // Opened from a button, the menu hands focus back to it as it closes.
-  let opener = null;
-  ctx.addEventListener("toggle", (e) => {
-    if (e.newState !== "closed") return;
-    if (opener && (ctx.contains(document.activeElement) || document.activeElement === document.body)) opener.focus();
-    opener = null;
-  });
-  const openAt = (x, y, row) => {
-    ctx.style.setProperty("position-anchor", "none");
-    ctx.style.positionArea = "none";
-    ctx.style.left = `${Math.min(x, innerWidth - 220)}px`;
-    ctx.style.top = `${Math.min(y, innerHeight - 220)}px`;
-    ctx.dataset.row = row?.dataset.name ?? "";
-    opener = null;
-    show();
-  };
-  for (const zone of $$("[data-context]")) {
-    zone.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      if (!held) openAt(e.clientX, e.clientY, e.target.closest("[data-name]"));
-    });
-    let hold = 0;
-    let start = null;
-    let held = false;
-    const drop = () => {
-      clearTimeout(hold);
-      start = null;
-    };
-    zone.addEventListener("pointerdown", (e) => {
-      if (e.pointerType === "mouse" || e.target.closest("button")) return;
-      held = false;
-      start = { x: e.clientX, y: e.clientY };
-      hold = setTimeout(() => {
-        held = true;
-        openAt(start.x, start.y, e.target.closest("[data-name]"));
-      }, 500);
-    });
-    zone.addEventListener("pointermove", (e) => {
-      if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) drop();
-    });
-    for (const t of ["pointerup", "pointercancel"]) zone.addEventListener(t, drop);
-    // The lift after a hold would click the row under the finger.
-    zone.addEventListener("click", (e) => {
-      if (!held) return;
-      held = false;
-      e.preventDefault();
-      e.stopPropagation();
-    }, true);
-    zone.addEventListener("selectstart", (e) => start && e.preventDefault());
-  }
-  for (const b of $$("[data-context-open]")) {
-    const name = `--g-ctx-${b.closest("[data-name]").dataset.name}`;
-    b.style.setProperty("anchor-name", name);
-    b.addEventListener("click", () => {
-      if (ctx.matches(":popover-open") && opener === b) return ctx.hidePopover();
-      opener = b;
-      ctx.style.removeProperty("left");
-      ctx.style.removeProperty("top");
-      ctx.style.positionArea = "";
-      ctx.style.setProperty("position-anchor", name);
-      ctx.dataset.row = b.closest("[data-name]").dataset.name;
-      show();
-    });
-  }
-}
+$$(".g-menu[popover]").forEach(menuKeys);
 
 // ------------------------------------------------------------ dialogs
 // Buttons open and close dialogs through commandfor; this fills in only for
@@ -2053,20 +1972,6 @@ for (const list of $$("[data-tabs-manual]")) {
       }, 500);
     });
   }
-}
-
-// The header's theme button switches light and dark in one press: pressed
-// means dark, and its icon turns over to the theme it now shows.
-// Menu items that check: Space or a press toggles and keeps the menu open.
-for (const item of $$("[role='menuitemcheckbox']")) {
-  const toggle = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    item.setAttribute("aria-checked", String(item.getAttribute("aria-checked") !== "true"));
-    say(`${item.textContent.trim()} ${item.getAttribute("aria-checked") === "true" ? "shown" : "hidden"}`);
-  };
-  item.addEventListener("click", toggle);
-  item.addEventListener("keydown", (e) => e.key === " " && toggle(e));
 }
 
 // Active filters: chips that remove their filter, Clear, and "N of M"

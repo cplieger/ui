@@ -23,20 +23,20 @@
       <div class="card">
         <h2>Menu</h2>
         <div class="stage">
-          <button class="cp-button" type="button" popovertarget="m-actions" aria-haspopup="menu">Actions<span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></button>
-          <div class="g-pop g-menu" id="m-actions" popover role="menu" aria-label="Actions">
+          <button class="cp-button" type="button" popovertarget="m-actions">Actions<span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></button>
+          <div class="cp-popover cp-menu" id="m-actions" popover role="menu" aria-label="Actions">
             <button role="menuitem" type="button" data-say="Search started"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span>Search for a release<kbd>S</kbd></button>
             <button role="menuitem" type="button" data-say="Season refreshed"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh this season</button>
             <button role="menuitem" type="button" data-say="Opened in Sonarr"><span class="cp-icon" data-cp-icon="external-link" aria-hidden="true"></span>Open in Sonarr</button>
             <hr>
             <button role="menuitem" type="button" data-tone="danger" data-say="Removed from the library"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove from the library…</button>
           </div>
-          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-sort" aria-haspopup="menu"><span class="cp-icon" data-cp-icon="arrow-up-down" aria-hidden="true"></span>Sort</button>
-          <div class="g-pop g-menu" id="m-sort" popover role="menu" aria-label="Sort by">
-            <div class="g-menu-label">Sort by</div>
-            <button role="menuitemradio" type="button" data-group="sort" aria-checked="true">Title<span class="cp-icon g-tick" data-cp-icon="check" aria-hidden="true"></span></button>
-            <button role="menuitemradio" type="button" data-group="sort" aria-checked="false">Last checked<span class="cp-icon g-tick" data-cp-icon="check" aria-hidden="true"></span></button>
-            <button role="menuitemradio" type="button" data-group="sort" aria-checked="false">Size<span class="cp-icon g-tick" data-cp-icon="check" aria-hidden="true"></span></button>
+          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-sort"><span class="cp-icon" data-cp-icon="arrow-up-down" aria-hidden="true"></span>Sort</button>
+          <div class="cp-popover cp-menu" id="m-sort" popover role="menu" aria-label="Sort by">
+            <div class="cp-menu-label" aria-hidden="true">Sort by</div>
+            <button role="menuitemradio" type="button" aria-checked="true">Title</button>
+            <button role="menuitemradio" type="button" aria-checked="false">Last checked</button>
+            <button role="menuitemradio" type="button" aria-checked="false">Size</button>
           </div>
         </div>
         <footer>It grows from the corner nearest its button and flips when the page runs out. Arrows, Home, End and a first letter move through it; Enter runs an item and gives focus back.</footer>
@@ -44,16 +44,16 @@
       <div class="card">
         <h2>Menus that check, and menus of links</h2>
         <div class="stage">
-          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-cols" aria-haspopup="menu"><span class="cp-icon" data-cp-icon="columns-3" aria-hidden="true"></span>Columns</button>
-          <div class="g-pop g-menu" id="m-cols" popover role="menu" aria-label="Columns">
-            <button role="menuitemcheckbox" type="button" aria-checked="true"><span class="g-mbox" aria-hidden="true"></span>Verdict</button>
-            <button role="menuitemcheckbox" type="button" aria-checked="true"><span class="g-mbox" aria-hidden="true"></span>Size</button>
-            <button role="menuitemcheckbox" type="button" aria-checked="false"><span class="g-mbox" aria-hidden="true"></span>Group</button>
-            <button role="menuitemcheckbox" type="button" aria-checked="false"><span class="g-mbox" aria-hidden="true"></span>Last checked</button>
+          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-cols"><span class="cp-icon" data-cp-icon="columns-3" aria-hidden="true"></span>Columns</button>
+          <div class="cp-popover cp-menu" id="m-cols" popover role="menu" aria-label="Columns">
+            <button role="menuitemcheckbox" type="button" aria-checked="true">Verdict</button>
+            <button role="menuitemcheckbox" type="button" aria-checked="true">Size</button>
+            <button role="menuitemcheckbox" type="button" aria-checked="false">Group</button>
+            <button role="menuitemcheckbox" type="button" aria-checked="false">Last checked</button>
           </div>
-          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-report" aria-haspopup="menu">Report to animap<span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></button>
-          <div class="g-pop g-menu" id="m-report" popover role="menu" aria-label="Report to animap">
-            <a role="menuitem" href="#inline">Wrong season mapping<span class="g-tag">suggested</span></a>
+          <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-report">Report to animap<span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></button>
+          <div class="cp-popover cp-menu" id="m-report" popover role="menu" aria-label="Report to animap">
+            <a role="menuitem" href="#inline">Wrong season mapping<span class="cp-menu-tag">suggested</span></a>
             <a role="menuitem" href="#inline">Missing entry<span class="cp-icon" data-cp-icon="external-link" aria-hidden="true"></span></a>
           </div>
         </div>
@@ -81,10 +81,10 @@
       <div class="card">
         <h2>Context menu</h2>
         <ul class="g-list" data-context>
-          <li data-name="Frieren"><div class="g-row"><span class="g-avatar" data-h="2">FR</span><span>Frieren: Beyond Journey's End<small>Right-click, or hold on touch</small></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-context-open aria-haspopup="menu" aria-label="More for Frieren"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div></li>
-          <li data-name="Mushishi"><div class="g-row"><span class="g-avatar" data-h="3">MU</span><span>Mushishi<small>Right-click, or hold on touch</small></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-context-open aria-haspopup="menu" aria-label="More for Mushishi"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div></li>
+          <li data-name="Frieren"><div class="g-row"><span class="g-avatar" data-h="2">FR</span><span>Frieren: Beyond Journey's End<small>Right-click, or hold on touch</small></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" popovertarget="ctx-menu" aria-label="More for Frieren"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div></li>
+          <li data-name="Mushishi"><div class="g-row"><span class="g-avatar" data-h="3">MU</span><span>Mushishi<small>Right-click, or hold on touch</small></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" popovertarget="ctx-menu" aria-label="More for Mushishi"><span class="cp-icon" data-cp-icon="ellipsis" aria-hidden="true"></span></button></div></li>
         </ul>
-        <div class="g-pop g-menu" id="ctx-menu" popover="manual" role="menu" aria-label="Row actions">
+        <div class="cp-popover cp-menu" id="ctx-menu" popover="manual" role="menu" aria-label="Row actions">
           <button role="menuitem" type="button" data-say="Copied the title"><span class="cp-icon" data-cp-icon="copy" aria-hidden="true"></span>Copy title</button>
           <button role="menuitem" type="button" data-say="Pinned"><span class="cp-icon" data-cp-icon="pin" aria-hidden="true"></span>Pin to the top</button>
           <button role="menuitem" type="button" data-tone="danger" data-say="Removed"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove…</button>
