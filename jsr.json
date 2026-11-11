@@ -32,6 +32,7 @@
     "./rules": "./src/forms/rules/rules.ts",
     "./search": "./src/forms/search/search.ts",
     "./secret": "./src/forms/secret/secret.ts",
+    "./share-bar": "./src/data/share-bar/share-bar.ts",
     "./skeleton": "./src/feedback/skeleton/skeleton.ts",
     "./stepper": "./src/forms/stepper/stepper.ts",
     "./textarea": "./src/forms/textarea/textarea.ts",

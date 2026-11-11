@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished } from "vit
 import { cdp, page, server, userEvent } from "vitest/browser";
 
 import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
+import { enhanceShareBar } from "../data/share-bar/share-bar.js";
 import { enhanceRange } from "../forms/range/range.js";
 
 const root = document.documentElement;
@@ -276,6 +277,91 @@ describe("css/system.css series slots", () => {
     const slot = host("");
     slot.style.color = "var(--cp-series-2)";
     expect(getComputedStyle(swatch).backgroundColor).toBe(getComputedStyle(slot).color);
+  });
+});
+
+describe("css/system.css share bar", () => {
+  function shareBar(rows: string): HTMLElement {
+    theme("light");
+    const el = build(
+      `<div class="cp-share"><table class="cp-table"><tbody>${rows}</tbody></table></div>`,
+    );
+    el.style.inlineSize = "402px";
+    const life = new AbortController();
+    onTestFinished(() => {
+      life.abort();
+    });
+    enhanceShareBar(el.querySelector(".cp-share") as HTMLElement, { signal: life.signal });
+    return el;
+  }
+  const row = (series: string, label: string, n: number) =>
+    `<tr data-series="${series}"><th><a href="#${label}">${label}</a></th><td><data value="${String(n)}">${String(n)}</data></td></tr>`;
+
+  it("sizes each segment by its share with the surface showing through a 2px gap", () => {
+    const el = shareBar(row("1", "best", 300) + row("2", "alt", 100));
+    const [a, b] = [...el.querySelectorAll(".cp-share-bar > span")].map((s) =>
+      s.getBoundingClientRect(),
+    );
+    expect((b?.left ?? 0) - (a?.right ?? 0)).toBeCloseTo(2, 1);
+    // The 400px left after the gap, shared 300 to 100.
+    expect(a?.width).toBeCloseTo(300, 0);
+    expect(b?.width).toBeCloseTo(100, 0);
+    expect(a?.height).toBe(24);
+    expect(getComputedStyle(el.querySelector(".cp-share-bar") as Element).backgroundColor).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+  });
+
+  it("keeps a sliver of a tiny share in sight, fills each segment with its slot, and shows an empty whole as a bare track", () => {
+    const el = shareBar(row("1", "best", 10_000) + row("3", "alt", 1));
+    const [big, tiny] = [...el.querySelectorAll<HTMLElement>(".cp-share-bar > span")];
+    expect(tiny?.getBoundingClientRect().width).toBeGreaterThanOrEqual(4);
+    const slot = host("");
+    slot.style.color = "var(--cp-series-3)";
+    expect(getComputedStyle(tiny as Element).backgroundColor).toBe(getComputedStyle(slot).color);
+    expect(getComputedStyle(big as Element).backgroundColor).not.toBe(getComputedStyle(slot).color);
+    const empty = shareBar(row("1", "none", 0)).querySelector(".cp-share-bar") as HTMLElement;
+    const fill = host("");
+    fill.style.color = "var(--cp-fill)";
+    expect(getComputedStyle(empty).backgroundColor).toBe(getComputedStyle(fill).color);
+  });
+
+  it("makes a legend link a chip with no underline and the hit area of the pointer", () => {
+    const el = shareBar(row("1", "best", 3));
+    const chip = el.querySelector(".cp-share-legend a.cp-chip") as HTMLElement;
+    expect(getComputedStyle(chip).textDecorationLine).toBe("none");
+    expect(chip.getBoundingClientRect().height).toBe(24);
+    root.setAttribute("data-pointer", "coarse");
+    expect(chip.getBoundingClientRect().height).toBe(44);
+    expect(getComputedStyle(el.querySelector(".cp-share-legend") as Element).listStyleType).toBe(
+      "none",
+    );
+  });
+
+  it("reads a row's header as a cell of its row, its glyph beside its link's words", () => {
+    const el = shareBar(row("1", "best", 3) + row("2", "alt", 1));
+    const th = [...el.querySelectorAll<HTMLElement>("tbody th")];
+    const td = el.querySelector("tbody td") as HTMLElement;
+    for (const p of ["color", "fontSize", "fontWeight", "paddingInlineStart"] as const) {
+      expect(getComputedStyle(th[0] as Element)[p], p).toBe(getComputedStyle(td)[p]);
+    }
+    expect(getComputedStyle(th[0] as Element).borderBlockEndWidth).toBe("1px");
+    expect(getComputedStyle(th[1] as Element).borderBlockEndWidth).toBe("0px");
+    const link = th[0]?.querySelector("a") as HTMLElement;
+    const glyph = document.createElement("span");
+    glyph.className = "cp-icon";
+    link.prepend(glyph);
+    expect(getComputedStyle(link).display).toBe("inline-flex");
+    expect(getComputedStyle(link).alignItems).toBe("center");
+  });
+
+  it("shows a segment's tip under a mouse", async () => {
+    root.setAttribute("data-pointer", "fine");
+    const el = shareBar(row("1", "best", 3) + row("2", "alt", 1));
+    await userEvent.hover(el.querySelector(".cp-share-bar > span") as HTMLElement);
+    const tip = () => document.querySelector(".cp-tooltip");
+    await expect.poll(() => tip()?.matches(":popover-open"), { timeout: 3000 }).toBe(true);
+    expect(tip()?.textContent).toBe("best: 3, 75%");
   });
 });
 

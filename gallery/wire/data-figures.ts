@@ -3,6 +3,8 @@
  * sparklines, meters, share bars and card links on the Data page.
  */
 
+import { enhanceShareBar } from "@cplieger/ui/share-bar";
+
 const root = document.documentElement;
 
 // The rendered sRGB of an opaque CSS colour, read back through a canvas pixel.
@@ -54,4 +56,44 @@ for (const table of document.querySelectorAll<HTMLTableElement>("table[data-seri
   new MutationObserver(() => {
     measureSeries(table);
   }).observe(root, { attributes: true, attributeFilter: ["data-theme", "style"] });
+}
+
+for (const share of document.querySelectorAll<HTMLElement>(".cp-share")) {
+  const toggle = document.querySelector<HTMLButtonElement>(
+    `[data-share-toggle="${CSS.escape(share.id)}"]`,
+  );
+  enhanceShareBar(share, toggle === null ? {} : { toggle });
+}
+
+// The demo moves twenty copies between the first two rows and back, and the
+// bar follows the table it reads.
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-share-grab]")) {
+  const share = document.getElementById(button.dataset["shareGrab"] ?? "");
+  const [best, unlisted] = share?.querySelectorAll("tbody data") ?? [];
+  const meta = share?.closest("section")?.querySelector(".cp-meta a");
+  if (!(best instanceof HTMLDataElement && unlisted instanceof HTMLDataElement)) {
+    continue;
+  }
+  const move = (from: HTMLDataElement, to: HTMLDataElement): void => {
+    for (const [d, n] of [
+      [from, Number(from.value) - 20],
+      [to, Number(to.value) + 20],
+    ] as const) {
+      d.value = String(n);
+      d.textContent = String(n);
+    }
+  };
+  let grabbed = false;
+  button.addEventListener("click", () => {
+    if (grabbed) {
+      move(best, unlisted);
+    } else {
+      move(unlisted, best);
+    }
+    grabbed = !grabbed;
+    button.textContent = grabbed ? "Put them back" : "Grab 20 upgrades";
+    if (meta !== null && meta !== undefined) {
+      meta.textContent = `${String(Math.round((Number(best.value) / 659) * 100))}% on the best`;
+    }
+  });
 }

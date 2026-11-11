@@ -60,6 +60,7 @@ layout/list-detail/list-detail.css
 navigation/rail/filters.css
 navigation/tabs/tabs.css
 feedback/progress/progress.css
+data/share-bar/share-bar.css
 feedback/skeleton/skeleton.css
 feedback/empty/empty.css
 feedback/loader/loader.css

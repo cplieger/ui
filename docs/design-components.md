@@ -38,9 +38,10 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-segmented` | one choice of a few, such as a theme, as native radios in labels, with `data-variant="icons"` for square icon segments named by each radio's `aria-label`, and a pill that slides under the choice with [pill](core/pill.md) |
 | `.cp-settings`, `.cp-settings-nav`, `.cp-setting`, `.cp-savebar` | a settings page: its categories beside the open one, one setting per row, and the bar that holds unsaved changes, as [Settings](design-settings.md) describes |
 | `.cp-gate` | a page outside the frame for one short task, such as sign-in, as [Account and sign-in](design-account.md#the-gate-page) describes. `data-variant="steps"` is a setup of several steps: a 28rem column whose panel is the steps' container, and a `data-part="actions"` row with Back first and the primary last |
-| `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority` |
+| `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority`. A row's header, a `<th scope="row">` in the body, reads as one of the row's cells, and a link in a cell holds its glyph beside its words |
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height |
 | `.cp-pager` | the range and the Previous and Next links under a table |
+| `.cp-share`, `.cp-share-bar`, `.cp-share-legend` | the parts of a whole as segments sized by share with a 2px gap, a tip on each, and a legend of chips that can be links, over the table that holds the numbers, as [share-bar](data/share-bar.md) describes |
 | `.cp-chip`, `.cp-notice`, `.cp-swatch`, `.cp-count` | states in a tone, or categories on a slot of the [series colours](design-colour.md#series-colours) with `data-series`, and a count beside a filter |
 | `.cp-panel`, `.cp-stack`, `.cp-toolbar`, `.cp-heading-row`, `.cp-crumbs`, `.cp-meta` | surfaces and layout |
 | `.cp-cluster` | a row of small things, such as chips or buttons, that wraps instead of overflowing, with `data-gap="tight"` for less space |

@@ -39,6 +39,7 @@ const PURE = [
   "/roving-focus",
   "/search",
   "/secret",
+  "/share-bar",
   "/skeleton",
   "/stepper",
   "/textarea",

@@ -22,8 +22,26 @@
   vertical-align: middle;
 }
 
-.cp-table tr:last-child td {
+/* A row's header, such as its title, reads as a cell of its row. */
+.cp-table tbody th {
+  padding: 0 var(--cp-space-3);
+  block-size: var(--cp-row-h);
+  color: var(--cp-ink);
+  font-size: inherit;
+  font-weight: var(--cp-weight-body);
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.cp-table tr:last-child td,
+.cp-table tbody tr:last-child th {
   border-block-end: 0;
+}
+
+.cp-table :is(td, th) > a:has(> .cp-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
 }
 
 .cp-table [data-col="num"] {

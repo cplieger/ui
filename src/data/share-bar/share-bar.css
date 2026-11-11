@@ -1,0 +1,73 @@
+/* A share bar (@cplieger/ui/share-bar): the parts of a whole as segments
+ * sized by share, the surface showing through a 2px gap between them, over
+ * a legend of chips, each with its swatch, its words and its count. */
+.cp-share {
+  display: grid;
+  gap: var(--cp-space-3);
+}
+
+.cp-share-bar {
+  display: flex;
+  gap: 2px;
+  block-size: var(--cp-space-6);
+  border-radius: var(--cp-radius-control);
+  overflow: clip;
+}
+
+/* An empty whole is a bare track. */
+.cp-share-bar:empty {
+  background: var(--cp-fill);
+}
+
+/* The script writes each segment's flex-grow, its count. */
+.cp-share-bar > span {
+  flex: 0 1 0;
+  min-inline-size: var(--cp-space-1);
+  background: var(--cp-tone-9);
+}
+
+.cp-share-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-share-legend .cp-chip > data {
+  font-weight: var(--cp-weight-body);
+}
+
+.cp-share-legend a.cp-chip {
+  min-block-size: var(--cp-hit-min);
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.cp-share-legend a.cp-chip:active,
+.cp-share-legend a.cp-chip[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-share-legend a.cp-chip:hover {
+      background: var(--cp-tone-4);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-share-bar > span {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  .cp-share-legend .cp-swatch {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
