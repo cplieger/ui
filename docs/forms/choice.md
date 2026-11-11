@@ -27,5 +27,5 @@ enhanceChoiceFields(fieldset, { signal: page.signal });
 
 - While its radio is not chosen, the field leaves the tab order and carries `aria-disabled="true"`. It is never `disabled`, because a focused field that turns disabled drops focus to the page.
 - Focusing the field, by a press on it, chooses its radio and fires `input` and `change` on the radio, as a press of the radio would.
-- Fields added later need no call, since each change and each focus reads the fieldset again.
+- `enhanceChoiceFields` returns `sync`, which marks the fields again. Call it after adding choices, since otherwise a new field is marked at the group's next change.
 - `signal` removes the listeners and the state written on the fields.

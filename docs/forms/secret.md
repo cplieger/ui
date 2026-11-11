@@ -13,7 +13,7 @@ A saved secret, whose value never comes back to the browser, and the Show button
   </div>
   <div data-part="edit">
     <div class="cp-input-wrap">
-      <input class="cp-input" name="key" type="password" aria-labelledby="key-l" autocomplete="off">
+      <input class="cp-input" name="key" type="password" aria-labelledby="key-l" autocomplete="new-password">
       <button class="cp-button" data-variant="quiet" type="button" aria-label="Show OpenSubtitles API key">
         <span class="cp-icon" data-cp-icon="eye" aria-hidden="true"></span>
         <span class="cp-icon" data-cp-icon="eye-off" data-part="on" aria-hidden="true"></span>

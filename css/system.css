@@ -2230,6 +2230,14 @@ input.cp-input:is([type^="date"], [type="time"]) {
   transition: clip-path 120ms var(--cp-ease-out);
 }
 
+/* The hit area reaches the tier's minimum around the box, which is
+ * smaller than a control. */
+.cp-checkbox::after {
+  content: "";
+  position: absolute;
+  inset: calc((var(--cp-checkbox-size) - var(--cp-hit-min)) / 2);
+}
+
 .cp-checkbox:is(:checked, :indeterminate) {
   background: var(--cp-accent);
   box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-accent);
@@ -2343,6 +2351,13 @@ input.cp-input:is([type^="date"], [type="time"]) {
   background: var(--cp-on-accent);
   scale: 0;
   transition: scale 140ms var(--cp-ease-out);
+}
+
+/* The hit area reaches the tier's minimum around the circle. */
+.cp-radio::after {
+  content: "";
+  position: absolute;
+  inset: calc((var(--cp-radio-size) - var(--cp-hit-min)) / 2);
 }
 
 .cp-radio:checked {
@@ -2524,9 +2539,15 @@ input.cp-input:is([type^="date"], [type="time"]) {
   background: transparent;
   color: var(--cp-ink);
   font: inherit;
+  /* 16px on touch, so iOS does not zoom, as a field does. */
+  font-size: max(16px, var(--cp-text-ui));
   font-variant-numeric: tabular-nums;
   text-align: center;
   appearance: textfield;
+}
+
+:root[data-pointer="fine"] .cp-stepper > input {
+  font-size: var(--cp-text-ui);
 }
 
 .cp-stepper > input::-webkit-inner-spin-button {
@@ -2676,6 +2697,286 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
 /* The check marked data-part="done" stands in for the drawing while done. */
 :where(.cp-copy) > .cp-icon[data-part] {
   display: none;
+}
+
+/* A field with a fixed part of its value beside it, such as https:// or a
+ * unit: one box, one control tall, the fixed part outside what is typed. */
+.cp-affix {
+  display: flex;
+  align-items: stretch;
+  /* Border-box: the border sits inside the control height, and stays
+   * visible beside the fixed part's fill, which an inset shadow would not. */
+  block-size: var(--cp-control-h);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  overflow: hidden;
+}
+
+.cp-affix > .cp-input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+}
+
+.cp-affix > span {
+  display: grid;
+  place-items: center;
+  padding-inline: var(--cp-space-3);
+  background: var(--cp-fill);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  white-space: nowrap;
+}
+
+/* Focus on its field rings the whole box, as a focused field is ringed. */
+.cp-affix:has(> .cp-input:focus-visible) {
+  border-color: var(--cp-focus-ring);
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-affix:has(> .cp-input:is(:user-invalid, [aria-invalid="true"])) {
+  border-color: var(--cp-danger-8);
+}
+
+@media (forced-colors: active) {
+  .cp-affix:has(> .cp-input:focus-visible) {
+    outline-color: Highlight;
+  }
+}
+
+/* A search field: the glass at its start, and a clear button at its end
+ * that shows only while there is text (@cplieger/ui/search). The field needs
+ * a placeholder, which is how the stylesheet knows it is empty. */
+.cp-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.cp-search::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--cp-space-3);
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/search.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+
+.cp-search > .cp-input {
+  flex: 1;
+  min-inline-size: 0;
+  padding-inline: calc(var(--cp-space-3) * 2 + var(--cp-icon-ui))
+    calc(var(--cp-control-h) - 0.25rem);
+}
+
+.cp-search > .cp-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.cp-search > .cp-button {
+  position: absolute;
+  inset-inline-end: 0.25rem;
+  min-block-size: calc(var(--cp-control-h) - 0.5rem);
+  min-inline-size: calc(var(--cp-control-h) - 0.5rem);
+  padding: 0;
+  transition:
+    opacity var(--cp-dur-micro) var(--cp-ease-out),
+    scale var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-search > .cp-button::before {
+  content: "";
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/x.svg") center / contain no-repeat;
+}
+
+.cp-search:has(> .cp-input:placeholder-shown) > .cp-button {
+  opacity: 0;
+  scale: 0.6;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .cp-search::before,
+  .cp-search > .cp-button::before {
+    background: CanvasText;
+  }
+}
+
+/* A loader stands in for the glass while results load. */
+.cp-search:has(> .cp-inline-load, > .cp-loader)::before {
+  display: none;
+}
+
+.cp-search > :is(.cp-inline-load, .cp-loader) {
+  position: absolute;
+  inset-inline-start: var(--cp-space-3);
+  pointer-events: none;
+}
+
+/* A text area grows with its text up to ten lines, then scrolls. Where the
+ * engine cannot size it to its content, @cplieger/ui/textarea does. */
+textarea.cp-input {
+  field-sizing: content;
+  min-block-size: calc(3lh + 2 * var(--cp-space-2));
+  max-block-size: calc(10lh + 2 * var(--cp-space-2));
+  padding-block: var(--cp-space-2);
+  resize: vertical;
+}
+
+/* Its count, under it at the end, red once past the limit. */
+.cp-textarea-count {
+  justify-self: end;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-textarea-count[data-cp-over] {
+  color: var(--cp-danger-11);
+  font-weight: var(--cp-weight-medium);
+}
+
+/* A range: the native slider in the accent, its track filled to the thumb,
+ * with the value shown over the thumb while it is held or focused by keys
+ * (@cplieger/ui/range). */
+.cp-range {
+  --cp-range-fill: 50%;
+  --cp-range-track: 0.375rem;
+  --cp-range-thumb: 1.125rem;
+
+  appearance: none;
+  inline-size: 100%;
+  block-size: var(--cp-control-h-sm);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cp-range::-webkit-slider-runnable-track {
+  block-size: var(--cp-range-track);
+  border-radius: var(--cp-radius-round);
+  background: linear-gradient(
+    to right,
+    var(--cp-accent) var(--cp-range-fill),
+    var(--cp-accent-4) var(--cp-range-fill)
+  );
+}
+
+.cp-range::-moz-range-track {
+  block-size: var(--cp-range-track);
+  border-radius: var(--cp-radius-round);
+  background: linear-gradient(
+    to right,
+    var(--cp-accent) var(--cp-range-fill),
+    var(--cp-accent-4) var(--cp-range-fill)
+  );
+}
+
+.cp-range:dir(rtl)::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to left,
+    var(--cp-accent) var(--cp-range-fill),
+    var(--cp-accent-4) var(--cp-range-fill)
+  );
+}
+
+.cp-range:dir(rtl)::-moz-range-track {
+  background: linear-gradient(
+    to left,
+    var(--cp-accent) var(--cp-range-fill),
+    var(--cp-accent-4) var(--cp-range-fill)
+  );
+}
+
+.cp-range::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: var(--cp-range-thumb);
+  block-size: var(--cp-range-thumb);
+  margin-block-start: calc((var(--cp-range-track) - var(--cp-range-thumb)) / 2);
+  border-radius: 50%;
+  background: var(--cp-surface-raised);
+  box-shadow:
+    0 0 0 2px var(--cp-accent),
+    0 1px 3px oklch(0% 0 0deg / 25%);
+  transition: scale var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-range::-moz-range-thumb {
+  inline-size: var(--cp-range-thumb);
+  block-size: var(--cp-range-thumb);
+  border: 0;
+  border-radius: 50%;
+  background: var(--cp-surface-raised);
+  box-shadow:
+    0 0 0 2px var(--cp-accent),
+    0 1px 3px oklch(0% 0 0deg / 25%);
+}
+
+.cp-range:active::-webkit-slider-thumb {
+  scale: 1.25;
+}
+
+.cp-range:focus-visible {
+  border-radius: var(--cp-radius-control);
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+/* The slider and its output on one line, the value at the end. */
+.cp-range-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+}
+
+.cp-range-row > output {
+  min-inline-size: 3ch;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.cp-range-tip {
+  position: absolute;
+  inset-block-end: calc(100% + 0.25rem);
+  inset-inline-start: var(--cp-range-tip-x, 0);
+  translate: -50% 0;
+  padding: 0.125rem var(--cp-space-2);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-neutral-12);
+  color: var(--cp-neutral-1);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-range-row:is([data-cp-held], :has(> .cp-range:focus-visible)) > .cp-range-tip {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-range:active::-webkit-slider-thumb {
+    scale: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-range::-webkit-slider-thumb,
+  .cp-range::-moz-range-thumb {
+    background: ButtonText;
+  }
 }
 
 /* A field of chosen values (@cplieger/ui/tokens): chips before the text

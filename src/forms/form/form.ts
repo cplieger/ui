@@ -53,25 +53,36 @@ function nameOf(field: Control): string {
   return (field.labels?.[0]?.textContent ?? field.getAttribute("aria-label") ?? field.name).trim();
 }
 
+/** The field's error: a `.cp-field-error` its `aria-describedby` names,
+ *  else the element whose id is the field's id followed by `-error`. */
+function errorOf(field: Control): HTMLElement | null {
+  const root = field.getRootNode() as Document | ShadowRoot;
+  for (const id of (field.getAttribute("aria-describedby") ?? "").split(/\s+/)) {
+    const el = id === "" ? null : root.getElementById(id);
+    if (el?.classList.contains("cp-field-error") === true) {
+      return el;
+    }
+  }
+  return root.getElementById(`${idOf(field)}-error`);
+}
+
 /** Marks `field` valid: its error hides and no longer describes it. */
 export function clearError(field: Control): void {
-  const id = `${idOf(field)}-error`;
+  const error = errorOf(field);
   field.removeAttribute("aria-invalid");
   field.removeAttribute(MARK);
-  describedBy(field, id, false);
-  const error = document.getElementById(id);
   if (error !== null) {
+    describedBy(field, error.id, false);
     error.hidden = true;
   }
 }
 
 function mark({ field, message }: FieldError): void {
-  const id = `${idOf(field)}-error`;
-  let error = document.getElementById(id);
+  let error = errorOf(field);
   if (error === null) {
     error = document.createElement("span");
     error.className = "cp-field-error";
-    error.id = id;
+    error.id = `${idOf(field)}-error`;
     const host = field.closest(".cp-field");
     if (host === null) {
       field.after(error);
@@ -89,12 +100,15 @@ function mark({ field, message }: FieldError): void {
   error.hidden = false;
   field.setAttribute("aria-invalid", "true");
   field.setAttribute(MARK, "");
-  describedBy(field, id, true);
+  describedBy(field, error.id, true);
 }
 
 /**
  * Shows `errors` on `form` and clears every error an earlier call showed
- * that `errors` no longer names. An empty list hides the summary.
+ * that `errors` no longer names. An empty list hides the summary. A field's
+ * error is the `.cp-field-error` its `aria-describedby` names, else the
+ * element whose id is its id followed by `-error`, else one made at the end
+ * of its `.cp-field`, or after the field outside one.
  */
 export function reportErrors(
   form: HTMLFormElement,

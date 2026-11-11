@@ -31,9 +31,15 @@
   background: transparent;
   color: var(--cp-ink);
   font: inherit;
+  /* 16px on touch, so iOS does not zoom, as a field does. */
+  font-size: max(16px, var(--cp-text-ui));
   font-variant-numeric: tabular-nums;
   text-align: center;
   appearance: textfield;
+}
+
+:root[data-pointer="fine"] .cp-stepper > input {
+  font-size: var(--cp-text-ui);
 }
 
 .cp-stepper > input::-webkit-inner-spin-button {

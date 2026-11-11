@@ -955,54 +955,6 @@ if (cmdPalette) {
 }
 
 // --------------------------------------------------------------- fields
-for (const f of $$(".g-search")) {
-  const input = $("input", f);
-  $(".g-clear", f)?.addEventListener("click", () => {
-    input.value = "";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.focus();
-  });
-}
-// A textarea counts its characters and grows where the engine cannot size
-// it to its content.
-const sizesToContent = CSS.supports("field-sizing", "content");
-for (const t of $$("textarea[data-max]")) {
-  const out = document.getElementById(t.dataset.count);
-  const max = Number(t.dataset.max);
-  const update = () => {
-    out.textContent = `${t.value.length} / ${max}`;
-    out.toggleAttribute("data-over", t.value.length > max);
-    t.setAttribute("aria-invalid", String(t.value.length > max));
-    if (!sizesToContent) {
-      t.style.height = "auto";
-      t.style.height = `${t.scrollHeight + 2}px`;
-    }
-  };
-  t.addEventListener("input", update);
-  update();
-}
-for (const r of $$(".g-range")) {
-  const out = document.getElementById(r.dataset.out);
-  const row = r.parentElement;
-  const tip = el("span", { class: "g-range-tip", "aria-hidden": "true" });
-  row.append(tip);
-  const update = () => {
-    const share = (r.value - r.min) / (r.max - r.min);
-    r.style.setProperty("--fill", `${share * 100}%`);
-    if (out) out.value = `${r.value}${r.dataset.unit ?? ""}`;
-    // the thumb's centre travels the track less its own width (18px)
-    const thumb = 18;
-    tip.style.setProperty("--tip-x", `${Math.round(r.offsetLeft + thumb / 2 + share * (r.offsetWidth - thumb))}px`);
-    tip.textContent = `${r.value}${r.dataset.unit ?? ""}`;
-  };
-  r.addEventListener("input", update);
-  r.addEventListener("pointerdown", () => {
-    row.dataset.held = "";
-    addEventListener("pointerup", () => delete row.dataset.held, { once: true });
-  });
-  new ResizeObserver(update).observe(r);
-  update();
-}
 for (const z of $$(".g-drop")) {
   const input = $("input", z);
   const list = document.getElementById(z.dataset.list);

@@ -83,12 +83,22 @@ describe("enhanceConfirm", () => {
 
   it("keeps a busy state that showed for at least busyMin", async () => {
     const b = button();
-    const run = confirm(b).run(() => sleep(30));
-    await sleep(25);
-    const shown = performance.now();
-    expect(b.dataset["cpState"]).toBe("busy");
-    await run;
-    expect(performance.now() - shown).toBeGreaterThanOrEqual(QUICK.busyMin - 25);
+    // Timed from the state changes themselves, so a slow machine that delays
+    // the test's own timers cannot shorten what it measures.
+    let shown = -1;
+    let left = -1;
+    new MutationObserver(() => {
+      if (b.dataset["cpState"] === "busy") {
+        shown = performance.now();
+      } else if (shown >= 0 && left < 0) {
+        left = performance.now();
+      }
+    }).observe(b, { attributes: true, attributeFilter: ["data-cp-state"] });
+    await confirm(b).run(() => sleep(30));
+    await sleep(0);
+    expect(shown).toBeGreaterThanOrEqual(0);
+    // A timer may fire up to a millisecond early in some engines.
+    expect(left - shown).toBeGreaterThanOrEqual(QUICK.busyMin - 1);
   });
 
   it("ignores a second run while a cycle is running and never calls its work", async () => {

@@ -92,6 +92,22 @@ describe("reportErrors", () => {
     expect(url.hasAttribute("aria-invalid")).toBe(false);
   });
 
+  it("writes into the error the field already names, whatever its id, instead of making a second", () => {
+    const { form, summary, url } = source();
+    const error = document.createElement("span");
+    error.className = "cp-field-error";
+    error.id = "address-problem";
+    error.hidden = true;
+    url.after(error);
+    url.setAttribute("aria-describedby", "address-problem");
+    reportErrors(form, [{ field: url, message: "Enter the address." }], { summary, heading });
+    expect(form.querySelectorAll(".cp-field-error")).toHaveLength(1);
+    expect([error.hidden, error.textContent]).toEqual([false, "Enter the address."]);
+    expect(url.getAttribute("aria-describedby")).toBe("address-problem");
+    clearError(url);
+    expect([error.hidden, url.hasAttribute("aria-describedby")]).toEqual([true, false]);
+  });
+
   it("keeps the icon an error was written with, and clears one field on request", () => {
     const { form, summary, url } = source();
     const error = document.createElement("span");

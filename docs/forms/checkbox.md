@@ -20,7 +20,7 @@ const sync = enhanceSelectAll(all, () => form.querySelectorAll('[name="notify"]'
 sync(); // after code checks or clears boxes itself
 ```
 
-- `boxes` is read at each change, so rows added or removed need no call.
+- `boxes` is read at each press and each change, so a press covers rows added or removed since. Call `sync` after adding or removing rows, so the box shows the new group at once.
 - A press of the select-all box changes only the boxes that are not disabled, and each box it changes fires `input` and `change`, as its own press would.
 - The box's state counts the boxes that can change, or every box when none can, so "All of these" reads checked once everything that can be on is on.
 - `enhanceSelectAll` returns `sync`, which sets the box from the group. Call it after code changes the boxes without a press.

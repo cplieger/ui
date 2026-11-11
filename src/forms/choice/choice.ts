@@ -22,15 +22,14 @@ function radioOf(field: Element): HTMLInputElement | null {
 }
 
 /**
- * Enhances every `.cp-choice-field` in `group`, a `.cp-choices`, read at each
- * change, so choices added later need no call.
+ * Enhances every `.cp-choice-field` in `group`, a `.cp-choices`. Returns
+ * `sync`, which marks the fields again, as after choices were added.
  */
-export function enhanceChoiceFields(group: HTMLElement, options: ChoiceFieldOptions = {}): void {
+export function enhanceChoiceFields(
+  group: HTMLElement,
+  options: ChoiceFieldOptions = {},
+): () => void {
   const { signal } = options;
-  if (signal?.aborted === true) {
-    return;
-  }
-  const listen = until(signal);
   const fields = (): HTMLElement[] => [...group.querySelectorAll<HTMLElement>(FIELD)];
   const sync = (): void => {
     for (const f of fields()) {
@@ -39,6 +38,10 @@ export function enhanceChoiceFields(group: HTMLElement, options: ChoiceFieldOpti
       f.tabIndex = live ? 0 : -1;
     }
   };
+  if (signal?.aborted === true) {
+    return sync;
+  }
+  const listen = until(signal);
   group.addEventListener("change", sync, listen);
   group.addEventListener(
     "focusin",
@@ -65,4 +68,5 @@ export function enhanceChoiceFields(group: HTMLElement, options: ChoiceFieldOpti
     { once: true },
   );
   sync();
+  return sync;
 }

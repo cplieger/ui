@@ -33,6 +33,10 @@ forms/select/select.css
 forms/stepper/stepper.css
 forms/secret/secret.css
 forms/copy/copy.css
+forms/affix/affix.css
+forms/search/search.css
+forms/textarea/textarea.css
+forms/range/range.css
 forms/tokens/tokens.css
 feedback/state/state.css
 data/table/table.css

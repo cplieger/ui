@@ -353,6 +353,28 @@ describe("css/system.css", () => {
     expect((row as Element).getBoundingClientRect().width).toBe(22);
   });
 
+  it("gives a checkbox and a radio a hit area of the tier's minimum around their box", () => {
+    theme("light");
+    for (const [tier, min] of [
+      ["fine", 24],
+      ["coarse", 44],
+    ] as const) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div style="padding: 40px"><input class="cp-checkbox" type="checkbox" aria-label="A"></div><div style="padding: 40px"><input class="cp-radio" type="radio" aria-label="B"></div>',
+      );
+      for (const input of el.querySelectorAll("input")) {
+        const box = input.getBoundingClientRect();
+        const reach = (min - box.width) / 2 - 0.5;
+        expect(document.elementFromPoint(box.right + reach, box.top + box.height / 2)).toBe(input);
+        expect(document.elementFromPoint(box.right + reach + 2, box.top + box.height / 2)).not.toBe(
+          input,
+        );
+      }
+      el.remove();
+    }
+  });
+
   it("fills a chosen radio with the accent", () => {
     theme("light");
     const el = build(
@@ -389,6 +411,11 @@ describe("css/system.css", () => {
         (el.querySelector("#line") as Element).getBoundingClientRect().height,
       );
       expect(box.width).toBeLessThan(200);
+      // 16px on touch, so iOS does not zoom into the number.
+      const size = Number.parseFloat(
+        getComputedStyle(el.querySelector(".cp-stepper > input") as Element).fontSize,
+      );
+      expect(size >= 16).toBe(tier === "coarse");
     }
   });
 
@@ -444,6 +471,47 @@ describe("css/system.css", () => {
       const mark = getComputedStyle(el.querySelector(".cp-token > button") as Element, "::before");
       expect(decodeURIComponent(mark.maskImage)).toContain("M18 6 6 18");
     }
+  });
+
+  it("keeps a field with a fixed part one control tall, and rings the whole box for its focused field", () => {
+    theme("light");
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<input class="cp-input" id="line"><div class="cp-affix"><span>https://</span><input class="cp-input" id="host"></div>',
+      );
+      expect((el.querySelector(".cp-affix") as Element).getBoundingClientRect().height).toBe(
+        (el.querySelector("#line") as Element).getBoundingClientRect().height,
+      );
+    }
+  });
+
+  it("shows a search field's clear button only while it holds text, and draws its glass", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-search"><input class="cp-input" type="search" placeholder="Search" id="q"><button class="cp-button" aria-label="Clear"></button></div>',
+    );
+    const search = el.querySelector(".cp-search") as Element;
+    const clear = el.querySelector("button") as HTMLElement;
+    clear.style.transition = "none";
+    expect(getComputedStyle(clear).opacity).toBe("0");
+    (el.querySelector("#q") as HTMLInputElement).value = "Frieren";
+    expect(getComputedStyle(clear).opacity).toBe("1");
+    expect(decodeURIComponent(getComputedStyle(search, "::before").maskImage)).toContain(
+      "m21 21-4.34-4.34",
+    );
+  });
+
+  it("grows a text area from three lines to ten, then scrolls", () => {
+    theme("light");
+    const el = build('<textarea class="cp-input" rows="1"></textarea>');
+    const a = el.querySelector("textarea") as HTMLTextAreaElement;
+    const lh = Number.parseFloat(getComputedStyle(a).lineHeight);
+    const h = () => a.getBoundingClientRect().height;
+    expect(h()).toBeGreaterThanOrEqual(lh * 3);
+    a.value = "line\n".repeat(30);
+    a.style.blockSize = "auto";
+    expect(h()).toBeLessThanOrEqual(lh * 10 + 32);
   });
 
   it("presses a button by data-cp-pressed as well as :active, and never a disabled one", async () => {

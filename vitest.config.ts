@@ -21,8 +21,8 @@ function chromium() {
   };
 }
 
-// The browsers the element tests run in: CPLIEGER_BROWSERS=chromium,firefox,webkit
-// runs all three, and Chromium alone runs when it is unset, as in CI.
+// The browsers the element tests run in, which CI sets from package.json's
+// cplieger.browsers. Chromium alone runs when it is unset, as locally.
 const ENGINES = (process.env["CPLIEGER_BROWSERS"] ?? "chromium").split(",") as (
   "chromium" | "firefox" | "webkit"
 )[];

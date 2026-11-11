@@ -183,7 +183,11 @@ describe("enhanceCombobox", () => {
     const settled: string[] = [];
     const { input } = combo({ onSettle: (t) => settled.push(t), settle: 40 });
     input.focus();
-    await userEvent.keyboard("Mon");
+    // A burst in one task, so the test does not depend on how fast keys arrive.
+    for (const text of ["M", "Mo", "Mon"]) {
+      input.value = text;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
     expect(settled).toEqual([]);
     await expect.poll(() => settled).toEqual(["Mon"]);
   });

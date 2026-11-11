@@ -53,6 +53,22 @@ describe("enhanceChoiceFields", () => {
     expect(minutes.getAttribute("aria-disabled")).toBe("false");
   });
 
+  it("marks a choice added later once sync is called", () => {
+    const { group } = cadence();
+    const sync = enhanceChoiceFields(group, { signal: life.signal });
+    const later = document.createElement("div");
+    later.className = "cp-choice";
+    // Static test markup, never caller text.
+    later.setHTMLUnsafe(
+      '<input class="cp-radio" type="radio" name="c" aria-label="At"><span class="cp-choice-field"><input class="cp-input" id="at" aria-label="Time"></span>',
+    );
+    group.append(later);
+    sync();
+    expect((group.querySelector("#at") as HTMLInputElement).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+  });
+
   it("removes the state it wrote once its signal aborts", () => {
     const { group, minutes } = cadence();
     enhanceChoiceFields(group, { signal: life.signal });

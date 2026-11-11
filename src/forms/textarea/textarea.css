@@ -1,0 +1,22 @@
+/* A text area grows with its text up to ten lines, then scrolls. Where the
+ * engine cannot size it to its content, @cplieger/ui/textarea does. */
+textarea.cp-input {
+  field-sizing: content;
+  min-block-size: calc(3lh + 2 * var(--cp-space-2));
+  max-block-size: calc(10lh + 2 * var(--cp-space-2));
+  padding-block: var(--cp-space-2);
+  resize: vertical;
+}
+
+/* Its count, under it at the end, red once past the limit. */
+.cp-textarea-count {
+  justify-self: end;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-textarea-count[data-cp-over] {
+  color: var(--cp-danger-11);
+  font-weight: var(--cp-weight-medium);
+}

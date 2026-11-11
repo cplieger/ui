@@ -24,7 +24,8 @@ enhanceCopy(button, { source: keyElement, signal: page.signal });
 enhanceCopy(feedButton, { text: () => feed.url, copied: "Feed address copied", signal: page.signal });
 ```
 
-- Give `source`, the element whose text is copied and selected when the write is refused, `text`, or both. With neither, `enhanceCopy` throws a `TypeError`.
+- Give `source`, the element whose text is copied and selected when the write is refused, `text`, or both. With neither, `enhanceCopy` throws a `TypeError`. With `text` alone, a refused write puts the text in the hint and selects it there.
+- `onCopy` runs after a written copy, so a page can tell whether a secret was copied.
 - A written copy sets `data-cp-state="done"` for 1.6 seconds. The button turns green, the check draws in place of the copy drawing, and its word stays Copy. `copied`, by default "Copied", is said through [announce](../feedback/announce.md).
-- A refused write selects `source` and shows the hint for 6 seconds, by default "Selected. Press Ctrl+C to copy.", naming the Command key on a Mac. `selected(keys)` gives other words. The hint is `hint`, or a `.cp-help` made after the button's `.cp-code`.
+- A refused write selects `source` and shows the hint for 6 seconds, by default "Selected. Press Ctrl+C to copy.", naming the Command key on a Mac. `selected(keys)` gives other words. The hint is `hint`, or a `.cp-help` made after the button's `.cp-code`, or after the button when it is in none.
 - `signal` removes the listener and a hint `enhanceCopy` made.

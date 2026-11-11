@@ -86,7 +86,7 @@ applyPointerTier({ storageKey: "app.pointer" }); // pre-paint
 installPointerTier({ storageKey: "app.pointer" }); // at startup
 ```
 
-Hover styles apply under `@media (any-hover: hover)` while `data-pointer` is not `coarse`, so a tapped control keeps no hover fill. Pressed and focus styles apply on every tier. A press scales the control to 97%, except an icon-only button, which takes the pressed fill instead, since a scaled 18px icon blurs on a 1x screen. On touch an input stays at 16px so iOS does not zoom.
+Hover styles apply under `@media (any-hover: hover)` while `data-pointer` is not `coarse`, so a tapped control keeps no hover fill. Pressed and focus styles apply on every tier. A press scales the control to 97%, except an icon-only button, which takes the pressed fill instead, since a scaled 18px icon blurs on a 1x screen. A checkbox or radio pressed through its label scales to 88% and springs back. On touch an input stays at 16px so iOS does not zoom.
 
 A press is drawn from `:active` and from the `data-cp-pressed` that [press](core/press.md) sets, since iOS Safari gives a tapped control no `:active`. Controls take `touch-action: manipulation`, so a fast second tap never zooms the page.
 
@@ -109,19 +109,20 @@ Motion shows what changed.
 | `--cp-dur-medium` | 240ms | a toast entering |
 | `--cp-dur-long` | 360ms | a view transition between screens |
 | `--cp-dur-exit` | 120ms | anything leaving |
+| `--cp-dur-spring` | 520ms | a spring, such as a switch's thumb, a checkbox's turn or a radio's dot |
 
 - Entrances ease out (`--cp-ease-out`), exits ease in (`--cp-ease-in`) and are shorter, and moves between two places use `--cp-ease-move`.
-- `--cp-ease-spring` is a spring sampled into `linear()` that overshoots about 13%, for something that travels or settles, such as a sliding pill or a dialog. A spring never plays on an undo path, which eases out instead.
-- Movement animates `transform` and `opacity`. Colour, fill and border changes take `--cp-dur-micro`. List the properties, never `transition: all`.
+- `--cp-ease-spring` is a spring sampled into `linear()` that overshoots about 13%, for something that travels or settles, such as a sliding pill or a dialog. A spring never plays on an undo path, which eases out instead. `--cp-ease-bounce` overshoots about 27%, for a mark that pops in, such as a radio's dot.
+- Movement animates `transform` and `opacity`. Colour, fill and border changes take `--cp-dur-micro`, except a control's own state, whose colour follows its motion: a switch's track takes 200ms, and a checkbox's or radio's fill 160ms. A done fill flashes in within 160ms and fades back over 600ms, or 900ms on Copy. List the properties, never `transition: all`.
 - Nothing animates on load, on scroll, or on an action repeated all day, such as typing or switching tabs. A detail or dialog a page loads with already open appears without its entrance, as [List and detail](layout/list-detail.md) shows.
 - A `.cp-dialog` fades in and settles from 96% on `--cp-ease-spring` over `--cp-dur-medium`, rising from the bottom edge in the compact tier, and fades out over `--cp-dur-short`. A docked detail slides in from the inline end over `--cp-dur-medium`. A sheet slides in from the inline end over 300ms and out over 280ms. A popover grows out of its button in 180ms and shrinks back in 140ms.
 - A route change cross-fades through `@cplieger/ui/view-transition`. Inside `.cp`, the stylesheet gives it `--cp-dur-long`.
-- Under `prefers-reduced-motion: reduce`, presses do not scale, the skeleton and `spinner-arc` stand still, medium and long durations drop to `--cp-dur-short`, the spring eases out, and a dialog or a docked detail only fades. A loop that runs longer than 5 seconds has a pause control.
+- Under `prefers-reduced-motion: reduce`, presses do not scale, the skeleton and `spinner-arc` stand still, medium, long and spring durations drop to `--cp-dur-short`, both springs ease out, and a dialog or a docked detail only fades. A loop that runs longer than 5 seconds has a pause control.
 - A pulsing or beating mark is for something that is live right now, such as a running check. A static state stays still.
 
 ## Components
 
-[Components](design-components.md) lists every class the stylesheet ships and what it is for, with the parts page that shows each one in its states.
+[Components](design-components.md) lists every class the stylesheet ships and what it is for.
 
 ## Icons
 
@@ -137,4 +138,4 @@ The pages in `docs/system/` render the screens on these pages, on [Settings](des
 
 ![The item page on a tablet held upright, with touch-sized controls and no sidebar](images/system-item-tablet.png)
 
-![Every component in the dark theme](images/system-parts-dark.png)
+![Buttons including a busy one, fields with errors, chips, notices including an error summary, tabs, a progress bar, a skeleton, an empty state and a filter sheet in the dark theme](images/system-parts-dark.png)

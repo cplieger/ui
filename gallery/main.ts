@@ -8,8 +8,11 @@
 import { enhanceSelectAll } from "@cplieger/ui/checkbox";
 import { enhanceChoiceFields } from "@cplieger/ui/choice";
 import { enhanceCopy } from "@cplieger/ui/copy";
+import { enhanceRange } from "@cplieger/ui/range";
+import { enhanceSearch } from "@cplieger/ui/search";
 import { enhanceReveal, enhanceSecret } from "@cplieger/ui/secret";
 import { enhanceStepper } from "@cplieger/ui/stepper";
+import { enhanceTextarea } from "@cplieger/ui/textarea";
 import { enhanceTokens } from "@cplieger/ui/tokens";
 import { installTooltips } from "@cplieger/ui/tooltip";
 
@@ -65,4 +68,17 @@ for (const box of all<HTMLElement>("[data-tokens]")) {
     ...(max === undefined ? {} : { max: Number(max) }),
     onChange: () => box.dispatchEvent(new CustomEvent("tokens", { bubbles: true })),
   });
+}
+for (const search of all<HTMLElement>(".cp-search")) {
+  enhanceSearch(search);
+}
+// A text area names its limit by data-max and its count by data-count.
+for (const area of all<HTMLTextAreaElement>("textarea[data-max]")) {
+  const count = document.getElementById(area.dataset["count"] ?? "");
+  enhanceTextarea(area, { max: Number(area.dataset["max"]), ...(count === null ? {} : { count }) });
+}
+// A range names its output by data-out.
+for (const range of all<HTMLInputElement>("input.cp-range")) {
+  const output = document.getElementById(range.dataset["out"] ?? "");
+  enhanceRange(range, output instanceof HTMLOutputElement ? { output } : {});
 }

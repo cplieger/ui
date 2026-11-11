@@ -19,12 +19,13 @@ function tell(box: HTMLInputElement): void {
 }
 
 /**
- * `boxes` returns the group's checkboxes and is read at each change, so rows
- * added or removed need no call. A disabled box keeps its state, and the
- * state of `all` counts the boxes that can change, or every box when none
- * can. Each box a press of `all` changes fires `input` and `change`, as a
- * press of its own would. Returns `sync`, for code that changes the boxes
- * itself.
+ * `boxes` returns the group's checkboxes and is read at each press and each
+ * change, so a press covers rows added or removed since. A disabled box
+ * keeps its state, and the state of `all` counts the boxes that can change,
+ * or every box when none can. Each box a press of `all` changes fires
+ * `input` and `change`, as a press of its own would. Returns `sync`, for
+ * code that checks, clears, adds or removes boxes itself, so `all` shows the
+ * new group at once.
  */
 export function enhanceSelectAll(
   all: HTMLInputElement,

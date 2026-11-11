@@ -77,6 +77,34 @@ describe("enhanceCopy", () => {
     expect(written).toEqual(["https://feed.example/rss"]);
   });
 
+  it("puts a text that is not on the page in the hint, selected, when the clipboard refuses", async () => {
+    vi.spyOn(Clipboard.prototype, "writeText").mockRejectedValue(
+      new DOMException("denied", "NotAllowedError"),
+    );
+    const { button } = key();
+    enhanceCopy(button, { text: () => "https://feed.example/rss", signal: life.signal });
+    await userEvent.click(button);
+    const hint = () => button.parentElement?.nextElementSibling as HTMLElement;
+    await expect.poll(() => hint().hidden).toBe(false);
+    expect(hint().querySelector("code")?.textContent).toBe("https://feed.example/rss");
+    expect(getSelection()?.toString()).toBe("https://feed.example/rss");
+  });
+
+  it("tells the page after a written copy, and not after a refused one", async () => {
+    let copies = 0;
+    const write = vi.spyOn(Clipboard.prototype, "writeText").mockResolvedValue(undefined);
+    const { code, button } = key();
+    enhanceCopy(button, { source: code, onCopy: () => (copies += 1), signal: life.signal });
+    await userEvent.click(button);
+    await expect.poll(() => copies).toBe(1);
+    write.mockRejectedValue(new DOMException("denied", "NotAllowedError"));
+    await userEvent.click(button);
+    await expect
+      .poll(() => (code.parentElement?.nextElementSibling as HTMLElement).hidden)
+      .toBe(false);
+    expect(copies).toBe(1);
+  });
+
   it("needs a source or a text, and removes the hint it made once its signal aborts", () => {
     const { code, button } = key();
     expect(() => enhanceCopy(button, {})).toThrow(TypeError);

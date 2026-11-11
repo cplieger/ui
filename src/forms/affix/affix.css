@@ -1,0 +1,48 @@
+/* A field with a fixed part of its value beside it, such as https:// or a
+ * unit: one box, one control tall, the fixed part outside what is typed. */
+.cp-affix {
+  display: flex;
+  align-items: stretch;
+  /* Border-box: the border sits inside the control height, and stays
+   * visible beside the fixed part's fill, which an inset shadow would not. */
+  block-size: var(--cp-control-h);
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  overflow: hidden;
+}
+
+.cp-affix > .cp-input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+}
+
+.cp-affix > span {
+  display: grid;
+  place-items: center;
+  padding-inline: var(--cp-space-3);
+  background: var(--cp-fill);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  white-space: nowrap;
+}
+
+/* Focus on its field rings the whole box, as a focused field is ringed. */
+.cp-affix:has(> .cp-input:focus-visible) {
+  border-color: var(--cp-focus-ring);
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-affix:has(> .cp-input:is(:user-invalid, [aria-invalid="true"])) {
+  border-color: var(--cp-danger-8);
+}
+
+@media (forced-colors: active) {
+  .cp-affix:has(> .cp-input:focus-visible) {
+    outline-color: Highlight;
+  }
+}

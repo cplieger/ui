@@ -20,6 +20,8 @@ export interface CopyOptions {
   readonly hint?: HTMLElement;
   /** Said after a written copy. Default "Copied". */
   readonly copied?: string;
+  /** Runs after a written copy, so a page can tell a secret was copied. */
+  readonly onCopy?: () => void;
   /** The hint for a refused write, given the copy keys such as "Ctrl+C".
    *  Default "Selected. Press Ctrl+C to copy." */
   readonly selected?: (keys: string) => string;
@@ -55,7 +57,8 @@ async function write(text: string): Promise<boolean> {
 /**
  * `button` keeps its word, Copy. It holds the copy drawing and a check
  * marked `data-part="done"`, shown while `data-cp-state="done"` turns it
- * green. Give `source`, `text` or both.
+ * green. Give `source`, `text` or both. With no `source`, a refused write
+ * shows the text in the hint and selects it there.
  */
 export function enhanceCopy(button: HTMLButtonElement, options: CopyOptions): void {
   const { source, signal } = options;
@@ -88,6 +91,7 @@ export function enhanceCopy(button: HTMLButtonElement, options: CopyOptions): vo
           shown.hidden = true;
           button.dataset["cpState"] = "done";
           announce(options.copied ?? "Copied");
+          options.onCopy?.();
           // How long the done look shows is a length of time, so a timer measures it.
           doneTimer = setTimeout(() => {
             delete button.dataset["cpState"];
@@ -95,16 +99,22 @@ export function enhanceCopy(button: HTMLButtonElement, options: CopyOptions): vo
           return;
         }
         delete button.dataset["cpState"];
-        if (source !== undefined) {
-          const range = document.createRange();
-          range.selectNodeContents(source);
-          getSelection()?.removeAllRanges();
-          getSelection()?.addRange(range);
-        }
         const keys = copyKeys();
         const words = options.selected?.(keys) ?? `Selected. Press ${keys} to copy.`;
         shown.textContent = words;
+        // With nothing on the page to select, the hint holds the text itself.
+        let target = source;
+        if (target === undefined) {
+          target = document.createElement("code");
+          target.className = "cp-mono";
+          target.textContent = read();
+          shown.append(" ", target);
+        }
         shown.hidden = false;
+        const range = document.createRange();
+        range.selectNodeContents(target);
+        getSelection()?.removeAllRanges();
+        getSelection()?.addRange(range);
         announce(words);
         hintTimer = setTimeout(() => {
           shown.hidden = true;

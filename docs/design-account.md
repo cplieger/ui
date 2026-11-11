@@ -13,7 +13,7 @@ Sign-in, setup, invites and recovery links each open a gate page outside the app
 3. One button on the page is primary, the main form's submit or else the only method.
 4. `<title>` is the screen and the app, such as "Sign in · Release tracker". The theme follows the person's choice from `@cplieger/ui/theme`, which needs no account.
 
-A password field holds a quiet Show button inside its end, in a `.cp-input-wrap`, so it keeps the width of the username field above it. The button has `eye` and `eye-off` and an `aria-pressed` that follows the state. Passwords here run to 15 characters or more, so reading one back saves a retry.
+A password field holds a quiet Show button inside its end, in a `.cp-input-wrap`, so it keeps the width of the username field above it. The button has `eye` and `eye-off` and an `aria-pressed` that follows the state, which [secret](forms/secret.md)'s `enhanceReveal` keeps. Passwords here run to 15 characters or more, so reading one back saves a retry.
 
 ![The sign-in gate page in the light theme: the mark and name over one panel with a session-ended notice, a password form, and the passkey and single sign-on buttons](images/system-sign-in-light.png)
 
@@ -153,9 +153,9 @@ When `GET /api/auth/me` says `sso_governed`, the password and passkey rows keep 
 
 A new API key, an invite link and a recovery link show once, at creation, and no list carries them again.
 
-1. Show it in the panel or dialog that made it, never in a toast, as a read-only `.cp-input` with `.cp-mono` in a `.cp-input-row` with a "Copy" button.
+1. Show it in the panel or dialog that made it, never in a toast, in a `.cp-code` with a `.cp-copy` button, as [copy](forms/copy.md) describes.
 2. Above it, a warning notice: "Copy it now. It will not be shown again."
-3. Hold it with `shownOnce`, which clears it on `pagehide`. "Done" dismisses it, and closing the dialog asks first while it has not been copied.
+3. Hold it with `shownOnce`, which clears it on `pagehide`. "Done" dismisses it, and closing the dialog asks first while it has not been copied, which `enhanceCopy`'s `onCopy` tells the page.
 4. Announce "Key created. Copy it now." politely.
 
 ## Admin

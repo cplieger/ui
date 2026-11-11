@@ -21,9 +21,13 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-stepper`, `.cp-stepper-value` | a number between a minus and a plus, as wide as what it holds, as [stepper](forms/stepper.md) describes, or a value button between them, such as a zoom |
 | `.cp-secret`, `.cp-secret-source` | a saved secret that is replaced, never shown, as [secret](forms/secret.md) describes, and a secret from the environment: its name, where it comes from and its state |
 | `.cp-code`, `.cp-copy` | machine text in a box with Copy attached, as [copy](forms/copy.md) describes |
+| `.cp-affix` | a field with a fixed part of its value beside it, such as `https://` or a unit, in a `<span>` before or after the `.cp-input`, one box one control tall |
+| `.cp-search` | a search field with its glass and a clear button, as [search](forms/search.md) describes |
+| `.cp-textarea-count` | a text area's count under it, red past its limit, as [textarea](forms/textarea.md) describes. A `textarea.cp-input` grows from three lines to ten |
+| `.cp-range`, `.cp-range-row` | a slider filled to its thumb, and its row with an `<output>`, as [range](forms/range.md) describes |
 | `.cp-tokens`, `.cp-token` | a field of chosen values as chips, one control tall on one line, as [tokens](forms/tokens.md) describes |
 | `.cp-listbox` | the options under a combobox, on a `.cp-popover` as wide as its field, the active one filled, as [combobox](forms/combobox.md) describes |
-| `.cp-state` | a short state word in its `data-tone`, after the tone's glyph |
+| `.cp-state` | a short state word in its `data-tone`, after a `.cp-icon` with the tone's glyph, such as `circle-check` for `success` |
 | `.cp-segmented` | one choice of a few, such as a theme, as native radios in labels, with `data-variant="icons"` for square icon segments named by each radio's `aria-label`, and a pill that slides under the choice with [pill](core/pill.md) |
 | `.cp-settings`, `.cp-settings-nav`, `.cp-setting`, `.cp-savebar` | a settings page: its categories beside the open one, one setting per row, and the bar that holds unsaved changes, as [Settings](design-settings.md) describes |
 | `.cp-gate` | a page outside the frame for one short task, such as sign-in, as [Account and sign-in](design-account.md#the-gate-page) describes |
