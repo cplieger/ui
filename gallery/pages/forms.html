@@ -199,7 +199,7 @@
         <h2>Search terms</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-terms">Must contain</label>
-          <div class="g-tokens" data-tokens="terms"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><span class="g-token" data-value="1080p"><span>1080p</span><button type="button" aria-label="Remove 1080p" tabindex="-1"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></span><span class="g-token" data-value="dual audio"><span>dual audio</span><button type="button" aria-label="Remove dual audio" tabindex="-1"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></span><input id="f-terms" placeholder="Add a term"></div>
+          <div class="cp-tokens" data-tokens="terms"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><span class="cp-token" data-value="1080p"><span>1080p</span><button type="button" aria-label="Remove 1080p" tabindex="-1"></button></span><span class="cp-token" data-value="dual audio"><span>dual audio</span><button type="button" aria-label="Remove dual audio" tabindex="-1"></button></span><input id="f-terms" placeholder="Add a term"></div>
           <span class="cp-help">Enter or a comma adds a term. Left or Backspace from the field moves to the terms, where Backspace removes one.</span>
         </div>
         <footer>Each term pops in and shrinks away; a term already there shakes instead of doubling.</footer>
@@ -208,8 +208,8 @@
         <h2>Pick from suggestions</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-langs">Subtitle languages, in order</label>
-          <div class="g-tokens" data-tokens="langs" data-suggest="f-langs-list" data-max="3" data-note="f-langs-note"><span class="g-token" data-value="English"><span>English</span><button type="button" aria-label="Remove English" tabindex="-1"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></span><input id="f-langs" role="combobox" aria-expanded="false" aria-controls="f-langs-list" aria-autocomplete="list" placeholder="Add a language"></div>
-          <ul class="g-pop g-suggest" id="f-langs-list" role="listbox" popover="manual" aria-label="Languages">
+          <div class="cp-tokens" data-tokens="langs" data-suggest="f-langs-list" data-max="3" data-note="f-langs-note"><span class="cp-token" data-value="English"><span>English</span><button type="button" aria-label="Remove English" tabindex="-1"></button></span><input id="f-langs" placeholder="Add a language"></div>
+          <ul class="cp-popover cp-listbox" id="f-langs-list" role="listbox" popover="manual" aria-label="Languages">
             <li role="option" id="lang-fr" aria-label="French, fr">French<small>fr</small></li>
             <li role="option" id="lang-de" aria-label="German, de">German<small>de</small></li>
             <li role="option" id="lang-ja" aria-label="Japanese, ja">Japanese<small>ja</small></li>
@@ -218,7 +218,7 @@
             <li role="option" id="lang-it" aria-label="Italian, it">Italian<small>it</small></li>
             <li role="option" id="lang-en" aria-label="English, en">English<small>en</small></li>
           </ul>
-          <span class="cp-help" id="f-langs-note" role="status"></span>
+          <span class="cp-help" id="f-langs-note" hidden></span>
         </div>
         <footer>The combobox pattern: the list narrows as you type, Alt+Down opens it whole, arrows move through it and Enter takes one. A language already chosen leaves the list, and the list holds only real languages, so there is no free text. Three is the limit here, and the field says so.</footer>
       </div>
@@ -226,15 +226,15 @@
         <h2>Tags, with new ones</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-tags">Tags</label>
-          <div class="g-tokens" data-tokens="tags" data-suggest="f-tags-list" data-free data-max="5" data-note="f-tags-note"><span class="g-token" data-value="seasonal"><span>seasonal</span><button type="button" aria-label="Remove seasonal" tabindex="-1"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></span><input id="f-tags" role="combobox" aria-expanded="false" aria-controls="f-tags-list" aria-autocomplete="list" placeholder="Add a tag"></div>
-          <ul class="g-pop g-suggest" id="f-tags-list" role="listbox" popover="manual" aria-label="Tags in use">
+          <div class="cp-tokens" data-tokens="tags" data-suggest="f-tags-list" data-free data-max="5" data-note="f-tags-note"><span class="cp-token" data-value="seasonal"><span>seasonal</span><button type="button" aria-label="Remove seasonal" tabindex="-1"></button></span><input id="f-tags" placeholder="Add a tag"></div>
+          <ul class="cp-popover cp-listbox" id="f-tags-list" role="listbox" popover="manual" aria-label="Tags in use">
             <li role="option" id="tag-fav" data-value="favourite" aria-label="favourite, on 12 entries">favourite<small>12</small></li>
             <li role="option" id="tag-rewatch" data-value="rewatch" aria-label="rewatch, on 4 entries">rewatch<small>4</small></li>
             <li role="option" id="tag-dub" data-value="dub only" aria-label="dub only, on 7 entries">dub only<small>7</small></li>
             <li role="option" id="tag-seasonal" data-value="seasonal" aria-label="seasonal, on 21 entries">seasonal<small>21</small></li>
             <li role="option" id="tag-archived" data-value="archived" aria-label="archived, on 3 entries">archived<small>3</small></li>
           </ul>
-          <span class="cp-help" id="f-tags-note" role="status"></span>
+          <span class="cp-help" id="f-tags-note" hidden></span>
         </div>
         <footer>Like the language picker, and each tag says how many entries carry it. Words that match no tag end the list with Add “…”, so Enter takes a match first and a new tag only when nothing matches. Five is the limit.</footer>
       </div>

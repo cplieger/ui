@@ -431,6 +431,21 @@ describe("css/system.css", () => {
     );
   });
 
+  it("keeps a single line of chosen values one control tall, and draws each chip's remove mark", () => {
+    theme("light");
+    for (const tier of ["fine", "coarse"]) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<input class="cp-input" id="line"><div class="cp-tokens"><span class="cp-token" data-value="a"><span>a</span><button type="button" aria-label="Remove a"></button></span><input aria-label="Tags"></div>',
+      );
+      expect((el.querySelector(".cp-tokens") as Element).getBoundingClientRect().height).toBe(
+        (el.querySelector("#line") as Element).getBoundingClientRect().height,
+      );
+      const mark = getComputedStyle(el.querySelector(".cp-token > button") as Element, "::before");
+      expect(decodeURIComponent(mark.maskImage)).toContain("M18 6 6 18");
+    }
+  });
+
   it("presses a button by data-cp-pressed as well as :active, and never a disabled one", async () => {
     theme("light");
     const el = build(

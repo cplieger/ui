@@ -8,6 +8,7 @@
     "./ask": "./src/overlays/ask/ask.ts",
     "./checkbox": "./src/forms/checkbox/checkbox.ts",
     "./choice": "./src/forms/choice/choice.ts",
+    "./combobox": "./src/forms/combobox/combobox.ts",
     "./confirm": "./src/buttons/confirm/confirm.ts",
     "./connection-test": "./src/forms/connection-test/connection-test.ts",
     "./copy": "./src/forms/copy/copy.ts",
@@ -29,6 +30,7 @@
     "./theme": "./src/core/theme/theme.ts",
     "./toast": "./src/feedback/toast/toast.ts",
     "./toggle": "./src/buttons/toggle/toggle.ts",
+    "./tokens": "./src/forms/tokens/tokens.ts",
     "./tooltip": "./src/overlays/tooltip/tooltip.ts",
     "./turn": "./src/buttons/turn/turn.ts",
     "./view-transition": "./src/core/view-transition/view-transition.ts"

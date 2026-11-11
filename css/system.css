@@ -2678,6 +2678,162 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
   display: none;
 }
 
+/* A field of chosen values (@cplieger/ui/tokens): chips before the text
+ * input, wrapping as they grow. Its edge is inset, so a single line is one
+ * control tall beside other fields. */
+.cp-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-block-size: var(--cp-control-h);
+  padding: 0.25rem var(--cp-space-2);
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-surface-raised);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
+  cursor: text;
+}
+
+.cp-tokens:has(> input:focus-visible) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-focus-ring);
+}
+
+.cp-tokens > .cp-icon {
+  margin-inline: 0.25rem 0.125rem;
+  color: var(--cp-ink-muted);
+}
+
+.cp-tokens > input {
+  flex: 1 1 8rem;
+  min-inline-size: 6rem;
+  min-block-size: calc(var(--cp-control-h) - 0.75rem);
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  font-size: max(16px, var(--cp-text-ui));
+}
+
+:root[data-pointer="fine"] .cp-tokens > input {
+  font-size: var(--cp-text-ui);
+}
+
+/* A chip: its words and a remove button inside its end, popping in as it
+ * arrives, shrinking away as it leaves, and shaking when added again. */
+.cp-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  min-block-size: 1.5rem;
+  padding-inline: var(--cp-space-2) 2px;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+  animation: cp-token-in 420ms var(--cp-ease-bounce);
+}
+
+.cp-token > button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cp-token > button::before {
+  content: "";
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  background: currentcolor;
+  mask: url("../icons/svg/x.svg") center / contain no-repeat;
+}
+
+/* A finger's target reaches past the round button. */
+:root[data-pointer="coarse"] .cp-token > button::after {
+  content: "";
+  position: absolute;
+  inset: -0.5rem;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-token > button:hover {
+      background: oklch(from var(--cp-accent-9) l c h / 18%);
+    }
+  }
+}
+
+.cp-token > button:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: 1px;
+}
+
+.cp-token[data-cp-leaving] {
+  animation: cp-token-out 180ms var(--cp-ease-out) forwards;
+}
+
+.cp-token[data-cp-again] {
+  animation: cp-token-again 380ms var(--cp-ease-out);
+}
+
+@keyframes cp-token-in {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+
+@keyframes cp-token-out {
+  to {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+
+@keyframes cp-token-again {
+  25% {
+    translate: -3px 0;
+  }
+
+  50% {
+    translate: 3px 0;
+  }
+
+  75% {
+    translate: -2px 0;
+  }
+}
+
+/* With no animation running, a leaving chip goes at once. */
+@media (prefers-reduced-motion: reduce) {
+  .cp-token,
+  .cp-token[data-cp-again],
+  .cp-token[data-cp-leaving] {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-token {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+
+  .cp-token > button::before {
+    background: CanvasText;
+  }
+}
+
 /* A state word: a short word in its tone, after the tone's glyph, such as
  * "set", "not set" or "rejected" beside a setting. */
 .cp-state {
@@ -4072,6 +4228,55 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
     .cp-popover:popover-open {
       scale: 1;
     }
+  }
+}
+
+/* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as
+ * wide as its field, the active option filled, a muted word at an option's
+ * end in a <small>. */
+.cp-listbox {
+  inline-size: anchor-size(width);
+  min-inline-size: 12rem;
+  max-block-size: 15rem;
+  margin-block: var(--cp-space-1) 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.cp-listbox [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  border-radius: var(--cp-radius-control);
+  cursor: pointer;
+}
+
+:root[data-pointer="coarse"] .cp-listbox [role="option"] {
+  min-block-size: var(--cp-control-h);
+}
+
+.cp-listbox [role="option"][aria-selected="true"] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+}
+
+.cp-listbox [role="option"][aria-disabled="true"] {
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+.cp-listbox [role="option"] small {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+@media (forced-colors: active) {
+  .cp-listbox [role="option"][aria-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
   }
 }
 

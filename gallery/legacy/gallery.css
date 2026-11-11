@@ -1803,103 +1803,13 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 
 /* Chosen items: a box of tokens with a field after them. */
 
-.g-tokens {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-1);
-  min-block-size: var(--cp-control-h);
-  padding: 0.25rem var(--cp-space-2);
-  /* Inset edge, not a border, so a single-line field is one control height
-   * and lines up with the inputs beside it; it still grows as tokens wrap. */
-  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-raised);
-  cursor: text;
-}
-
 /* A field built of parts rings like a field: its own border, flush, when
  * its text input has focus; a chip's button keeps its own ring. */
-.g-tokens:has(> input:focus-visible) {
-  outline: var(--cp-focus-w) solid transparent;
-  outline-offset: calc(var(--cp-focus-w) * -1);
-  border-color: var(--cp-focus-ring);
-  box-shadow: inset 0 0 0 calc(var(--cp-focus-w) - var(--cp-line-w)) var(--cp-focus-ring);
-}
-
-.g-tokens > .cp-icon {
-  margin-inline: 0.25rem 0.125rem;
-  color: var(--cp-ink-muted);
-}
-
-.g-tokens > input {
-  flex: 1 1 8rem;
-  min-inline-size: 6rem;
-  min-block-size: calc(var(--cp-control-h) - 0.75rem);
-  border: 0;
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  font-size: max(16px, var(--cp-text-ui));
-  outline: none;
-}
-
-:root[data-pointer="fine"] .g-tokens > input {
-  font-size: var(--cp-text-ui);
-}
-
-.g-token {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.125rem;
-  min-block-size: 1.625rem;
-  padding-inline: var(--cp-space-2) 0.125rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-  animation: token-in 420ms var(--ease-bounce);
-}
-
-.g-token > button {
-  display: grid;
-  place-items: center;
-  inline-size: 1.375rem;
-  block-size: 1.375rem;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.g-token > button > .cp-icon {
-  --cp-icon-size: 0.75rem;
-}
 
 @media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-token > button:hover {
-      background: oklch(from var(--cp-accent-9) l c h / 18%);
-    }
-  }
-}
-
-.g-token.leaving {
-  animation: token-out 180ms var(--cp-ease-out) forwards;
 }
 
 /* Backspace in an empty field marks the last token first, then removes it. */
-.g-token.marked {
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
-}
-
-.g-token.again {
-  animation: token-again 380ms var(--cp-ease-out);
-}
 
 @keyframes token-in {
   from {
@@ -2188,7 +2098,7 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-toast, .g-slot, .g-result, .g-token) {
+  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-toast, .g-slot, .g-result) {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
@@ -2708,36 +2618,6 @@ kbd.g-key {
 
 /* A suggestion list under a field: the combobox's listbox, anchored to the
  * field's box. */
-.g-suggest {
-  inline-size: anchor-size(width);
-  max-block-size: 15rem;
-  margin: var(--cp-space-1) 0 0;
-  padding: var(--cp-space-1);
-  overflow: auto;
-  list-style: none;
-  position-area: block-end span-inline-end;
-}
-
-.g-suggest [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-.g-suggest [role="option"][aria-selected="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-}
-
-.g-suggest [role="option"] small {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
 
 /* A rail of destinations with sections and counts. */
 .g-rail {
@@ -3731,31 +3611,6 @@ html:has(.g-header) {
 
 /* The × sits inside its pill: 24px, the 2.2 minimum target, 2px from the
  * pill's end and edges; under a finger its hit area reaches 44px. */
-.g-token {
-  min-block-size: 1.5rem;
-  padding-inline-end: 2px;
-}
-
-.g-token > button {
-  inline-size: 1.5rem;
-  block-size: 1.5rem;
-}
-
-:root[data-pointer="coarse"] .g-token > button {
-  position: relative;
-}
-
-:root[data-pointer="coarse"] .g-token > button::after {
-  content: "";
-  position: absolute;
-  inset: -0.5rem;
-}
-
-.g-token:focus-within,
-.g-token > button:focus-visible {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: 1px;
-}
 
 /* The stepper: the current step also differs by its ring and weight, and
  * says so in words; a done step is a link back. */
@@ -4009,7 +3864,7 @@ html:has(.g-header) {
   gap: var(--cp-space-2);
 }
 
-.g-active > .g-token {
+.g-active > .cp-token {
   animation: none;
 }
 
@@ -4435,9 +4290,6 @@ html:has(.g-header) {
 /* A jump field: one value, options with a picture. */
 /* The list runs edge to edge: a poster sits flush with its row's start,
  * and 2px part one row's poster from the next. */
-.g-suggest.g-jump {
-  padding: 0;
-}
 
 .g-jump [role="listbox"] {
   display: grid;
@@ -4757,11 +4609,6 @@ html:has(.g-header) {
 }
 
 /* A popover that holds a listbox and a status line beside it. */
-.g-suggest > ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
 
 .g-bullets {
   display: grid;
@@ -5073,14 +4920,14 @@ html:has(.g-header) {
 }
 
 /* The search field shows its loader where its magnifier was. */
-.g-tokens > .load-twirl {
+.cp-tokens > .load-twirl {
   flex: none;
   inline-size: 1.125rem;
   block-size: 1.125rem;
   margin-inline: 0.125rem;
 }
 
-.g-tokens > .load-twirl > span {
+.cp-tokens > .load-twirl > span {
   inline-size: 0.875rem;
   block-size: 0.875rem;
 }
@@ -5312,3 +5159,45 @@ html:has(.g-header) {
     display: none;
   }
 }
+/* The jump list's own styles, until its card moves onto the library's combobox. */
+.g-suggest {
+  inline-size: anchor-size(width);
+  max-block-size: 15rem;
+  margin: var(--cp-space-1) 0 0;
+  padding: var(--cp-space-1);
+  overflow: auto;
+  list-style: none;
+  position-area: block-end span-inline-end;
+}
+
+.g-suggest [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  border-radius: var(--cp-radius-control);
+  cursor: pointer;
+}
+
+.g-suggest [role="option"][aria-selected="true"] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+}
+
+.g-suggest [role="option"] small {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.g-suggest.g-jump {
+  padding: 0;
+}
+
+.g-suggest > ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+

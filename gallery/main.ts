@@ -10,6 +10,7 @@ import { enhanceChoiceFields } from "@cplieger/ui/choice";
 import { enhanceCopy } from "@cplieger/ui/copy";
 import { enhanceReveal, enhanceSecret } from "@cplieger/ui/secret";
 import { enhanceStepper } from "@cplieger/ui/stepper";
+import { enhanceTokens } from "@cplieger/ui/tokens";
 import { installTooltips } from "@cplieger/ui/tooltip";
 
 import "./legacy/gallery.js";
@@ -46,4 +47,22 @@ for (const button of all<HTMLButtonElement>(".cp-code > .cp-copy")) {
   if (source !== null && source !== undefined) {
     enhanceCopy(button, { source });
   }
+}
+// A token field names its suggestions by data-suggest, its limit by
+// data-max and its note by data-note, and data-free takes new words. The
+// search page listens for "tokens".
+for (const box of all<HTMLElement>("[data-tokens]")) {
+  const byId = (key: string): HTMLElement | undefined => {
+    const id = box.dataset[key];
+    return id === undefined ? undefined : (document.getElementById(id) ?? undefined);
+  };
+  const suggestions = byId("suggest");
+  const note = byId("note");
+  const max = box.dataset["max"];
+  enhanceTokens(box, {
+    ...(suggestions === undefined ? {} : { suggestions, allowNew: box.hasAttribute("data-free") }),
+    ...(note === undefined ? {} : { note }),
+    ...(max === undefined ? {} : { max: Number(max) }),
+    onChange: () => box.dispatchEvent(new CustomEvent("tokens", { bubbles: true })),
+  });
 }
