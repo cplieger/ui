@@ -27,6 +27,14 @@ function target(e: Event): HTMLElement | null {
   return t instanceof Element ? t.closest<HTMLElement>(TIP) : null;
 }
 
+// Words that differ only in punctuation, spacing or case say the same thing.
+function gist(text: string): string {
+  return text
+    .replaceAll(/[\p{P}\s]+/gu, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function listen(signal: AbortSignal, delay: number): void {
   const tip = document.createElement("div");
   tip.className = "cp-tooltip";
@@ -45,7 +53,7 @@ function listen(signal: AbortSignal, delay: number): void {
       return false;
     }
     tip.textContent = words;
-    if (el.getAttribute("aria-label") === words) {
+    if (gist(el.getAttribute("aria-label") ?? el.textContent) === gist(words)) {
       if (el.getAttribute("aria-describedby") === tip.id) {
         el.removeAttribute("aria-describedby");
       }
@@ -86,7 +94,13 @@ function listen(signal: AbortSignal, delay: number): void {
     }
     addAnchorName(el, NAME);
     shownFor = el;
-    watch.observe(el, { attributes: true, attributeFilter: ["data-cp-tip", "aria-label"] });
+    watch.observe(el, {
+      attributes: true,
+      attributeFilter: ["data-cp-tip", "aria-label"],
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
     if (tip.matches(":popover-open")) {
       // Shown again, so it stays above a modal that opened after it.
       tip.hidePopover();

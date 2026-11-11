@@ -14,7 +14,6 @@
   overflow: clip;
 }
 
-/* An empty whole is a bare track. */
 .cp-share-bar:empty {
   background: var(--cp-fill);
 }

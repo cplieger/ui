@@ -128,7 +128,7 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
   const view = table.closest<HTMLElement>(".cp-share > *") ?? table;
   const bar = document.createElement("div");
   bar.className = "cp-share-bar";
-  // The legend says every segment's words and count, so the bar is not read.
+  // The legend says every segment's words, count and share, so the bar is not read.
   bar.setAttribute("aria-hidden", "true");
   const legend = document.createElement("ul");
   legend.className = "cp-share-legend";
@@ -140,19 +140,20 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
     const total = all.reduce((sum, s) => sum + s.value, 0);
     const shown = all.filter((s) => s.value > 0);
     const locale = localeOf(share);
+    const of = (s: Share): string => percent(s.value / total, locale);
+    const tip = (s: Share): string => `${words(s.label)}: ${words(s.count)}, ${of(s)}`;
     place(
       bar,
       shown,
       () => "span",
       (seg, s) => {
-        const tip = `${words(s.label)}: ${words(s.count)}, ${percent(s.value / total, locale)}`;
         // The tip's own aria-describedby on the segment stays.
         sync(
           seg,
           tones(
             s.row,
             new Map([
-              ["data-cp-tip", tip],
+              ["data-cp-tip", tip(s)],
               ["data-cp-tip-toggle", ""],
             ]),
           ),
@@ -177,11 +178,24 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
             }
             attrs.delete("id");
             attrs.set("class", "cp-chip");
+            // A tap on a link chip follows it, so only a plain chip toggles.
+            if (total > 0) {
+              attrs.set("data-cp-tip", tip(s));
+              if (s.link === null) {
+                attrs.set("data-cp-tip-toggle", "");
+              }
+            }
             sync(chip, tones(s.row, attrs), "all");
             const swatch = document.createElement("span");
             swatch.className = "cp-swatch";
             const label = [...(s.link ?? s.label).childNodes].map((n) => n.cloneNode(true));
             chip.replaceChildren(swatch, ...label, " ", s.count.cloneNode(true));
+            if (total > 0) {
+              const hidden = document.createElement("span");
+              hidden.className = "cp-visually-hidden";
+              hidden.textContent = `, ${of(s)}`;
+              chip.append(hidden);
+            }
           },
         );
       },
@@ -197,13 +211,14 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
 
   draw();
   show(toggle?.getAttribute("aria-pressed") === "true");
+  // Unfiltered, since a chip copies every attribute of its row's link; draw
+  // writes only outside the table, so it never wakes itself.
   const watch = new MutationObserver(draw);
   watch.observe(table, {
     subtree: true,
     childList: true,
     characterData: true,
     attributes: true,
-    attributeFilter: ["value", "href", ...TONES],
   });
   if (toggle !== undefined) {
     toggle.hidden = false;

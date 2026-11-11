@@ -5,7 +5,7 @@
 A series of numbers over a range, such as six hours of a gauge sampled each minute, as a line the size of a word. A dot marks the last value, which is written beside it. There is no axis. The line shows the shape of the change, and the number says how much.
 
 ```html
-<p>Live agents <span class="cp-sparkline" data-series="1" id="live"></span></p>
+<p>Live members <span class="cp-sparkline" data-series="1" id="live"></span></p>
 ```
 
 ```ts

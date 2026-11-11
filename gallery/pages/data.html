@@ -207,17 +207,17 @@
           </div>
         </section>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-share-grab="verdict-share">Grab 20 upgrades</button></div>
-        <footer>One segment per verdict, sized by its share, with the surface showing through a 2px gap; a mouse or a tap on a segment shows its words, count and share. The legend chips are the links, each with its swatch, glyph, words and count. Table view shows the same numbers as a table, which is also what a page without the script shows. Grab 20 upgrades moves twenty copies from Not listed to On the best, and the bar follows the table.</footer>
+        <footer>One segment per verdict, sized by its share, with the surface showing through a 2px gap; a mouse or a tap on a segment shows its words, count and share. The legend chips are the links, each with its swatch, glyph, words and count; a reader also hears its share, and focus or a mouse shows the segment's tip on it. Table view shows the same numbers as a table, which is also what a page without the script shows. Grab 20 upgrades moves twenty copies from Not listed to On the best, and the bar follows the table.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Sparkline</h2>
         <div class="cp-panel" data-flush>
           <table class="cp-table">
-            <caption class="g-sr">A message server and its agents, sampled each minute</caption>
+            <caption class="g-sr">A message server and its members, sampled each minute</caption>
             <thead><tr><th scope="col">Measure</th><th scope="col">Last 6 hours</th></tr></thead>
             <tbody>
-              <tr><th scope="row">Live agents</th><td><span class="cp-sparkline" data-series="1" data-spark="live"></span></td></tr>
-              <tr><th scope="row">Active agents</th><td><span class="cp-sparkline" data-series="2" data-spark="active"></span></td></tr>
+              <tr><th scope="row">Live members</th><td><span class="cp-sparkline" data-series="1" data-spark="live"></span></td></tr>
+              <tr><th scope="row">Active members</th><td><span class="cp-sparkline" data-series="2" data-spark="active"></span></td></tr>
               <tr><th scope="row">Requests a minute</th><td><span class="cp-sparkline" data-series="3" data-spark="requests"></span></td></tr>
               <tr><th scope="row">95th percentile latency</th><td><span class="cp-sparkline" data-series="4" data-spark="latency"></span></td></tr>
               <tr><th scope="row">Memory</th><td><span class="cp-sparkline" data-series="5" data-spark="memory"></span></td></tr>
@@ -225,12 +225,12 @@
           </table>
         </div>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button></div>
-        <footer>Six hours of a sample a minute as one line in a series colour, with no axis: the dot marks the last value, written beside it. Live and active agents share one scale from 0 to 12, so they compare; the others run from their own low to their own high. Memory starts at the last restart, with no line before it. A reader hears the range, the last value, the low and the high. Next minute adds a sample to each.</footer>
+        <footer>Six hours of a sample a minute as one line in a series colour, with no axis: the dot marks the last value, written beside it. Live and active members share one scale from 0 to 12, so they compare; the others run from their own low to their own high. Memory starts at the last restart, with no line before it. A reader hears the range, the last value, the low and the high. Next minute adds a sample to each.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Figures</h2>
         <div class="cp-grid">
-          <div class="cp-figure" data-series="1"><span data-part="label">Live agents</span> <span data-part="value"><data value="0">0</data></span> <span class="cp-sparkline" data-spark="live"></span></div>
+          <div class="cp-figure" data-series="1"><span data-part="label">Live members</span> <span data-part="value"><data value="0">0</data></span> <span class="cp-sparkline" data-spark="live"></span></div>
           <div class="cp-figure" data-tone="warning"><span data-part="label">Oldest unread</span> <span data-part="value"><data value="74">74</data>&nbsp;<span data-part="unit">min</span><span class="cp-visually-hidden">, over an hour</span></span></div>
           <button class="cp-figure" type="button" data-tone="neutral" aria-expanded="false" aria-controls="refused-posts" data-figure-count="refused"><span data-part="label">Refused posts</span> <span data-part="value"><data value="0">0</data></span></button>
           <button class="cp-figure" type="button" data-tone="warning" aria-expanded="false" aria-controls="failed-pushes"><span data-part="label">Failed pushes</span> <span data-part="value"><data value="3">3</data></span></button>
@@ -240,13 +240,13 @@
           <table class="cp-table" data-figure-list="refused" hidden>
             <caption class="cp-visually-hidden">Refused posts in the last 6 hours</caption>
             <thead><tr><th scope="col">Time</th><th scope="col">Thread</th><th scope="col">Reason</th></tr></thead>
-            <tbody><tr><td><time datetime="14:21">14:21</time></td><td class="cp-mono">/workspace/grelot</td><td>The body is over 64&nbsp;KiB.</td></tr></tbody>
+            <tbody><tr><td><time datetime="14:21">14:21</time></td><td class="cp-mono">/releases</td><td>The body is over 64&nbsp;KiB.</td></tr></tbody>
           </table>
         </section>
         <section class="cp-panel g-gap-top" data-flush id="failed-pushes" aria-label="Failed pushes" hidden>
           <table class="cp-table">
             <caption class="cp-visually-hidden">Failed pushes in the last 6 hours</caption>
-            <thead><tr><th scope="col">Time</th><th scope="col">Agent</th><th scope="col">Reason</th></tr></thead>
+            <thead><tr><th scope="col">Time</th><th scope="col">Member</th><th scope="col">Reason</th></tr></thead>
             <tbody>
               <tr><td><time datetime="13:02">13:02</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
               <tr><td><time datetime="13:40">13:40</time></td><td>@grace</td><td>No answer in 10&nbsp;s.</td></tr>
@@ -255,7 +255,7 @@
           </table>
         </section>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button><button class="cp-button" type="button" data-figure-refuse="refused">Refuse a post</button></div>
-        <footer>A number now under its label, with its unit on its baseline. Live agents carries its last six hours as a sparkline in its slot. Oldest unread is past its hour, so it takes the warning tone with the tone's glyph, and a reader hears "over an hour". Refused posts and Failed pushes are buttons that open the events behind their count: neutral at 0, in the warning tone with a count. Refuse a post turns the first from 0 to 1 and back.</footer>
+        <footer>A number now under its label, with its unit on its baseline. Live members carries its last six hours as a sparkline in its slot. Oldest unread is past its hour, so it takes the warning tone with the tone's glyph, and a reader hears "over an hour". Refused posts and Failed pushes are buttons that open the events behind their count: neutral at 0, in the warning tone with a count. Refuse a post turns the first from 0 to 1 and back.</footer>
       </div>
       <div class="card" data-new>
         <h2>Meter</h2>
@@ -272,7 +272,7 @@
         <div class="cp-panel" data-flush>
           <table class="cp-table" data-ranked>
             <caption class="g-sr">Who posts and reads, in the last 6 hours, by posts sent</caption>
-            <thead><tr><th scope="col">Agent</th><th scope="col" data-bar="posts">Sent</th><th scope="col" data-bar="posts">Read</th><th scope="col" data-col="num">Longest wait</th><th scope="col" data-col="num">Turns held</th></tr></thead>
+            <thead><tr><th scope="col">Member</th><th scope="col" data-bar="posts">Sent</th><th scope="col" data-bar="posts">Read</th><th scope="col" data-col="num">Longest wait</th><th scope="col" data-col="num">Turns held</th></tr></thead>
             <tbody>
               <tr><th scope="row"><a href="#figures">@ada</a></th><td data-bar="posts"><data value="148">148</data></td><td data-bar="posts" data-series="2"><data value="96">96</data></td><td data-col="num">3&nbsp;min</td><td data-col="num">4</td></tr>
               <tr><th scope="row"><a href="#figures">@grace</a></th><td data-bar="posts"><data value="61">61</data></td><td data-bar="posts" data-series="2"><data value="133">133</data></td><td data-col="num">12&nbsp;min</td><td data-col="num">2</td></tr>

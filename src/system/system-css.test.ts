@@ -533,6 +533,13 @@ describe("css/system.css figure", () => {
     expect(getComputedStyle(shut).backgroundColor).toBe(ink("--cp-surface-raised"));
   });
 
+  it.skipIf(!emulates)("turns an open figure's chevron at once under reduced motion", async () => {
+    await media("prefers-reduced-motion", "reduce");
+    const open = figure('aria-expanded="true"', "button");
+    const chevron = getComputedStyle(open, "::after");
+    expect([chevron.transitionDuration, chevron.rotate]).toEqual(["0s", "180deg"]);
+  });
+
   it("keeps a sparkline and the chevron in their own columns, the chevron last", () => {
     const fig = figure("", "a", '<span class="cp-sparkline"></span>');
     renderSparkline(fig.querySelector(".cp-sparkline") as HTMLElement, [1, 2], { last: false });
@@ -692,6 +699,20 @@ describe("css/system.css media card", () => {
   });
 
   it.skipIf(!emulates)(
+    "keeps a hovered cover's shadow and drops its lift under reduced motion",
+    async () => {
+      await media("prefers-reduced-motion", "reduce");
+      root.setAttribute("data-pointer", "fine");
+      const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+      const cover = a.querySelector(".cp-cover") as HTMLElement;
+      cover.style.transition = "none";
+      await userEvent.hover(a);
+      expect(getComputedStyle(cover).scale).toBe("none");
+      expect(getComputedStyle(cover).boxShadow).not.toBe("none");
+    },
+  );
+
+  it.skipIf(!emulates)(
     "outlines a stand-in in forced colours, where its fill is gone",
     async () => {
       await media("forced-colors", "active");
@@ -839,7 +860,7 @@ describe("css/system.css ranked bars", () => {
   function ranked(rows: string, attrs = "", dir = "ltr"): HTMLTableElement {
     theme("light");
     const el = build(
-      `<div dir="${dir}" style="inline-size: 400px"><table class="cp-table" ${attrs}><thead><tr><th>Agent</th><th data-bar>Sent</th></tr></thead><tbody>${rows}</tbody></table></div>`,
+      `<div dir="${dir}" style="inline-size: 400px"><table class="cp-table" ${attrs}><thead><tr><th>Member</th><th data-bar>Sent</th></tr></thead><tbody>${rows}</tbody></table></div>`,
     );
     const table = el.querySelector("table") as HTMLTableElement;
     enhanceRankedBars(table);
@@ -2336,6 +2357,25 @@ describe("css/system.css overlays", () => {
     (radio as HTMLElement).setAttribute("aria-checked", "true");
     expect(getComputedStyle(radio as Element, "::after").visibility).toBe("visible");
   });
+
+  it.skipIf(!emulates)(
+    "rounds a checked menu item's box without turning it under reduced motion",
+    async () => {
+      theme("light");
+      // A fresh item each time, so no transition is under way when it is read.
+      const box = () =>
+        getComputedStyle(
+          build(
+            '<div class="cp-menu" role="menu"><button role="menuitemcheckbox" aria-checked="true" type="button">Posters</button></div>',
+          ).querySelector("button") as Element,
+          "::before",
+        );
+      expect(box().rotate).toBe("90deg");
+      await media("prefers-reduced-motion", "reduce");
+      const reduced = box();
+      expect([reduced.rotate, reduced.borderRadius]).toEqual(["none", "50%"]);
+    },
+  );
 
   it("opens a sheet the window's height at the inline end, and a confirmation narrower than a dialog", () => {
     theme("light");

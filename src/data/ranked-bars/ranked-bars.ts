@@ -39,8 +39,9 @@ function cells(table: HTMLTableElement): Cell[] {
  * Each body cell marked `data-bar` holds its count as a `<data value>`. Its
  * bar is sized against the largest value among the cells of its column, or
  * among every cell sharing its `data-bar` name, such as sent and read posts.
- * A value of 0 or less, or one that is not a number, draws no bar. The bars
- * are not read: the numbers are. They follow every later change to the table.
+ * A value of 0 or less, or one that is not a number, draws an empty track,
+ * so the column still lines up. The bars are not read: the numbers are. They
+ * follow every later change to the table.
  */
 export function enhanceRankedBars(table: HTMLTableElement, options: RankedBarsOptions = {}): void {
   const { signal } = options;

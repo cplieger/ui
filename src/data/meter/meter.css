@@ -19,8 +19,8 @@
   gap: var(--cp-meter-gap);
 }
 
-/* The fill is the meter's colour, so a page or a test reads it there. The
- * script writes each meter's flex-grow, its range. */
+/* The fill is the meter's colour, so a page reads it there. The script
+ * writes each meter's flex-grow, its range. */
 .cp-meter meter {
   appearance: none;
   display: block;
@@ -50,8 +50,10 @@
   color: var(--cp-danger-9);
 }
 
-/* Chromium paints the value at half the bar's height unless its inner
- * element lays the bar out as a flex item. */
+/* Chromium's UA sheet makes the inner element a grid whose bar spans only
+ * its middle half (third_party/blink/renderer/core/html/resources/html.css,
+ * meter::-webkit-meter-inner-element); a flex box lets the bar fill it.
+ * Pinned by "paints the fill over the bar's whole height" in system-css. */
 .cp-meter meter::-webkit-meter-inner-element {
   display: flex;
 }

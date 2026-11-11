@@ -70,8 +70,6 @@ for (const share of document.querySelectorAll<HTMLElement>(".cp-share")) {
   enhanceShareBar(share, toggle === null ? {} : { toggle });
 }
 
-// The demo moves twenty copies between the first two rows and back, and the
-// bar follows the table it reads.
 for (const button of document.querySelectorAll<HTMLButtonElement>("[data-share-grab]")) {
   const share = document.getElementById(button.dataset["shareGrab"] ?? "");
   const [best, unlisted] = share?.querySelectorAll("tbody data") ?? [];
@@ -185,7 +183,6 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-spark-t
   });
 }
 
-// A figure that is a button shows or hides the events behind its count.
 for (const figure of document.querySelectorAll<HTMLButtonElement>(
   "button.cp-figure[aria-controls]",
 )) {
@@ -200,7 +197,6 @@ for (const figure of document.querySelectorAll<HTMLButtonElement>(
   });
 }
 
-// The demo turns a count from 0 to 1 and back: neutral at 0, warning with a count.
 for (const button of document.querySelectorAll<HTMLButtonElement>("[data-figure-refuse]")) {
   const name = CSS.escape(button.dataset["figureRefuse"] ?? "");
   const figure = document.querySelector<HTMLElement>(`[data-figure-count="${name}"]`);
@@ -227,7 +223,6 @@ for (const meter of document.querySelectorAll<HTMLElement>(".cp-meter")) {
   enhanceMeter(meter);
 }
 
-// The demo moves a store's use and writes its words, which name the mark it passed.
 for (const button of document.querySelectorAll<HTMLButtonElement>("[data-meter-step]")) {
   const meter = document.getElementById(button.dataset["meterStep"] ?? "");
   const host = meter?.closest<HTMLElement>(".cp-meter");
@@ -253,7 +248,6 @@ for (const table of document.querySelectorAll<HTMLTableElement>("table[data-rank
   enhanceRankedBars(table);
 }
 
-// The demo adds posts to one row and back, ranking the table by its first count.
 for (const button of document.querySelectorAll<HTMLButtonElement>("[data-ranked-post]")) {
   const table = button.closest(".card")?.querySelector<HTMLTableElement>("table[data-ranked]");
   const body = table?.tBodies[0];
@@ -273,7 +267,6 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-ranked-
   });
 }
 
-// Run a check finds a few more upgrades, and the card link's number rolls up to them.
 for (const button of document.querySelectorAll<HTMLButtonElement>("[data-roll-figure]")) {
   const figure = document.getElementById(button.dataset["rollFigure"] ?? "");
   if (!(figure instanceof HTMLDataElement)) {

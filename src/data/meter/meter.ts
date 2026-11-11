@@ -21,9 +21,12 @@ const RANK: Readonly<Record<MeterLevel, number>> = {
   "even-less-good": 2,
 };
 
-// The region HTML's meter algorithm puts the value in, the one a browser's
-// own meter colours by.
+// The region HTML's meter algorithm puts the value in. Its suboptimum region
+// runs "from the low boundary", so a value at the mark next to the optimum is
+// past it, as Gecko reads it; Blink and WebKit colour that value optimum.
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-meter-element
+// https://searchfox.org/mozilla-central/source/dom/html/HTMLMeterElement.cpp
+// https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/html/html_meter_element.cc
 function meterLevel(meter: HTMLMeterElement): MeterLevel {
   const { value, low, high, optimum } = meter;
   if (optimum < low) {

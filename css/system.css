@@ -4899,7 +4899,6 @@ textarea.cp-input {
   overflow: clip;
 }
 
-/* An empty whole is a bare track. */
 .cp-share-bar:empty {
   background: var(--cp-fill);
 }
@@ -5062,7 +5061,6 @@ textarea.cp-input {
   --cp-icon-size: 1rem;
 }
 
-/* A card link's badges: any number of chips under the number. */
 .cp-figure > .cp-cluster {
   grid-column: 1;
   justify-self: start;
@@ -5179,6 +5177,12 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  button.cp-figure[aria-expanded]::after {
+    transition: none;
+  }
+}
+
 @media (forced-colors: active) {
   .cp-figure > [data-part="value"]::before,
   :is(button, a).cp-figure::after {
@@ -5211,8 +5215,8 @@ button.cp-figure[aria-expanded="true"]::after {
   gap: var(--cp-meter-gap);
 }
 
-/* The fill is the meter's colour, so a page or a test reads it there. The
- * script writes each meter's flex-grow, its range. */
+/* The fill is the meter's colour, so a page reads it there. The script
+ * writes each meter's flex-grow, its range. */
 .cp-meter meter {
   appearance: none;
   display: block;
@@ -5242,8 +5246,10 @@ button.cp-figure[aria-expanded="true"]::after {
   color: var(--cp-danger-9);
 }
 
-/* Chromium paints the value at half the bar's height unless its inner
- * element lays the bar out as a flex item. */
+/* Chromium's UA sheet makes the inner element a grid whose bar spans only
+ * its middle half (third_party/blink/renderer/core/html/resources/html.css,
+ * meter::-webkit-meter-inner-element); a flex box lets the bar fill it.
+ * Pinned by "paints the fill over the bar's whole height" in system-css. */
 .cp-meter meter::-webkit-meter-inner-element {
   display: flex;
 }
@@ -5466,6 +5472,14 @@ a.cp-media:focus-visible > .cp-cover {
     a.cp-media:hover > .cp-cover {
       scale: 1.03;
       box-shadow: var(--cp-shadow-overlay);
+    }
+
+    /* Inside the scope: a scoped rule outranks an unscoped one of the same
+     * specificity, whatever their order. */
+    @media (prefers-reduced-motion: reduce) {
+      a.cp-media:hover > .cp-cover {
+        scale: none;
+      }
     }
   }
 }
@@ -6448,6 +6462,12 @@ a.cp-media:focus-visible > .cp-cover {
 .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::after {
   clip-path: inset(0 0 0 0);
   transition: clip-path 200ms var(--cp-ease-out) 80ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+    rotate: none;
+  }
 }
 
 @media (forced-colors: active) {

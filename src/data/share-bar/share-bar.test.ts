@@ -93,12 +93,12 @@ describe("enhanceShareBar", () => {
     expect(best?.id).toBe("");
     expect(best?.dataset["series"]).toBe("1");
     expect(best?.firstElementChild?.className).toBe("cp-swatch");
-    expect(best?.textContent).toBe("On the best 402");
+    expect(best?.textContent).toBe("On the best 402, 86%");
     expect(best?.querySelector(":scope > .cp-icon")).not.toBeNull();
     expect(best?.querySelector("data")?.value).toBe("402");
     expect(unlisted?.localName).toBe("a");
     expect([withheld?.localName, withheld?.dataset["tone"]]).toEqual(["span", "warning"]);
-    expect(none?.textContent).toBe("No file 0");
+    expect(none?.textContent).toBe("No file 0, 0%");
     // The legend holds copies; the table keeps its own nodes.
     expect(table.querySelector("#best")).not.toBeNull();
     expect(table.querySelectorAll("data")).toHaveLength(4);
@@ -114,7 +114,7 @@ describe("enhanceShareBar", () => {
         '<tr><th>Endless</th><td><data value="Infinity">∞</data></td></tr>',
     );
     enhanceShareBar(box, { signal: life.signal });
-    expect(chips(box).map((c) => c.textContent)).toEqual(["Kept 3"]);
+    expect(chips(box).map((c) => c.textContent)).toEqual(["Kept 3, 100%"]);
     expect(segments(box)).toHaveLength(1);
   });
 
@@ -122,7 +122,28 @@ describe("enhanceShareBar", () => {
     const { box } = share('<tr><th>None</th><td><data value="0">0</data></td></tr>');
     enhanceShareBar(box, { signal: life.signal });
     expect(segments(box)).toHaveLength(0);
-    expect(chips(box)).toHaveLength(1);
+    const [chip] = chips(box);
+    expect(chip?.textContent).toBe("None 0");
+    expect(chip?.hasAttribute("data-cp-tip")).toBe(false);
+  });
+
+  it("says each part's share in its chip, in the page's language, and shows its tip on focus", () => {
+    const { box } = share(ROWS, "fr");
+    enhanceShareBar(box, { signal: life.signal });
+    const [best, , withheld] = chips(box) as [HTMLElement, HTMLElement, HTMLElement];
+    const words = best.querySelector(":scope > .cp-visually-hidden");
+    expect(words?.textContent).toMatch(/^, 86[\u00a0\u202f]%$/);
+    expect(best.lastElementChild).toBe(words);
+    expect(best.dataset["cpTip"]).toBe(segments(box)[0]?.dataset["cpTip"]);
+    // A tap on a link follows it; a plain chip's tap shows its tip.
+    expect(best.hasAttribute("data-cp-tip-toggle")).toBe(false);
+    expect(withheld.hasAttribute("data-cp-tip-toggle")).toBe(true);
+    best.focus({ focusVisible: true });
+    const tip = document.querySelector(".cp-tooltip") as HTMLElement;
+    expect(tip.matches(":popover-open")).toBe(true);
+    expect(tip.textContent).toBe(best.dataset["cpTip"]);
+    // The chip's own words already say what its tip says.
+    expect(best.hasAttribute("aria-describedby")).toBe(false);
   });
 
   it("switches to the table and back by the toggle, which it shows", async () => {
@@ -165,10 +186,12 @@ describe("enhanceShareBar", () => {
     expect(segments(box)[0]).toBe(seg);
     expect(chips(box)[0]).toBe(chip);
     expect(document.activeElement).toBe(chip);
-    expect(chip?.textContent).toBe("On the best 500");
+    expect(chip?.textContent).toBe("On the best 500, 88%");
     expect(seg?.dataset["cpTip"]).toBe("On the best: 500, 88%");
 
     const link = table.querySelector("a") as HTMLAnchorElement;
+    link.setAttribute("aria-current", "page");
+    await expect.poll(() => chips(box)[0]?.getAttribute("aria-current")).toBe("page");
     link.replaceWith(...link.childNodes);
     await expect.poll(() => chips(box)[0]?.localName).toBe("span");
     (table.tBodies[0]?.rows[1] as HTMLTableRowElement).dataset["series"] = "7";

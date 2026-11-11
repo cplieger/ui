@@ -47,6 +47,7 @@ describe("enhanceMeter", () => {
     };
     expect(m.dataset["cpLevel"]).toBe("optimum");
     expect(await level(420)).toEqual(["suboptimum", "suboptimum"]);
+    expect(await level(400)).toEqual(["suboptimum", "suboptimum"]);
     expect(await level(450)).toEqual(["suboptimum", "suboptimum"]);
     expect(await level(451)).toEqual(["even-less-good", "even-less-good"]);
     expect(await level(399)).toEqual(["optimum", "optimum"]);
@@ -56,6 +57,8 @@ describe("enhanceMeter", () => {
     const box = meter(
       '<meter max="100" low="20" high="50" optimum="90" value="30"></meter>' +
         '<meter max="100" low="20" high="50" optimum="90" value="10"></meter>' +
+        '<meter max="100" low="20" high="50" optimum="90" value="50"></meter>' +
+        '<meter max="100" low="20" high="50" optimum="90" value="20"></meter>' +
         '<meter max="100" low="20" high="80" value="10"></meter>' +
         '<meter max="100" low="20" high="80" value="50"></meter>' +
         '<meter max="12" value="3"></meter>',
@@ -64,6 +67,8 @@ describe("enhanceMeter", () => {
     expect(meters(box).map((m) => m.dataset["cpLevel"])).toEqual([
       "suboptimum",
       "even-less-good",
+      "suboptimum",
+      "suboptimum",
       "suboptimum",
       "optimum",
       "optimum",

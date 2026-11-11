@@ -35,7 +35,6 @@
   --cp-icon-size: 1rem;
 }
 
-/* A card link's badges: any number of chips under the number. */
 .cp-figure > .cp-cluster {
   grid-column: 1;
   justify-self: start;
@@ -149,6 +148,12 @@ button.cp-figure[aria-expanded="true"]::after {
     :is(button, a).cp-figure:hover {
       border-color: var(--cp-border-strong);
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.cp-figure[aria-expanded]::after {
+    transition: none;
   }
 }
 

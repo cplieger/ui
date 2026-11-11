@@ -148,6 +148,12 @@
   transition: clip-path 200ms var(--cp-ease-out) 80ms;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+    rotate: none;
+  }
+}
+
 @media (forced-colors: active) {
   .cp-menu [role^="menuitem"]:focus {
     outline: var(--cp-line-w) solid Highlight;

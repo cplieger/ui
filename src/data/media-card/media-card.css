@@ -84,6 +84,14 @@ a.cp-media:focus-visible > .cp-cover {
       scale: 1.03;
       box-shadow: var(--cp-shadow-overlay);
     }
+
+    /* Inside the scope: a scoped rule outranks an unscoped one of the same
+     * specificity, whatever their order. */
+    @media (prefers-reduced-motion: reduce) {
+      a.cp-media:hover > .cp-cover {
+        scale: none;
+      }
+    }
   }
 }
 
