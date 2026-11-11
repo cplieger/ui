@@ -158,6 +158,20 @@ export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}
     },
     listen,
   );
+  // A form's reset empties the field but fires no change, so the list and
+  // the refusal follow once the reset has run, unless a listener cancelled it.
+  input.form?.addEventListener(
+    "reset",
+    () => {
+      queueMicrotask(() => {
+        if (held().length === 0) {
+          list?.replaceChildren();
+          clearError(input, "file");
+        }
+      });
+    },
+    listen,
+  );
   const zone = input.closest<HTMLElement>(".cp-drop");
   if (zone !== null) {
     zone.addEventListener(

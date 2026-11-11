@@ -5,12 +5,14 @@
  * a press outside closes a dialog marked `closedby="any"` where the engine
  * does not, a dialog marked `data-keep-typed` that holds typed changes
  * shakes instead of closing on that press, a dialog `holdDialog` holds
- * shakes instead of closing on Escape or that press, and the exit animation
- * runs in an engine that cannot animate a dialog leaving the top layer.
+ * shakes instead of closing on Escape or that press, each refusal said to a
+ * screen reader, and the exit animation runs in an engine that cannot
+ * animate a dialog leaving the top layer.
  * @module
  */
 
 import { reducedMotion, shared } from "../../core/lifetime/lifetime.js";
+import { announce } from "../../feedback/announce/announce.js";
 
 export interface DialogOptions {
   /** Ends this call's hold on the listeners. Default: none, held for the
@@ -21,6 +23,7 @@ export interface DialogOptions {
 const KEEP = "data-keep-typed";
 const LEAVING = "data-cp-leaving";
 const REFUSED = "data-cp-refused";
+const KEPT = "Your changes are still here. Save them, or cancel to drop them.";
 
 const nativeClosedBy = (): boolean => "closedBy" in HTMLDialogElement.prototype;
 /** Chromium animates a dialog out of the top layer in CSS; Firefox and
@@ -32,9 +35,17 @@ function dialogOf(e: Event): HTMLDialogElement | null {
   return t instanceof HTMLDialogElement && t.classList.contains("cp-dialog") ? t : null;
 }
 
-const holds = new WeakMap<HTMLDialogElement, () => boolean>();
+interface Hold {
+  readonly held: () => boolean;
+  readonly say: string | undefined;
+}
+
+const holds = new WeakMap<HTMLDialogElement, Hold>();
 
 export interface HoldOptions {
+  /** Said to a screen reader each time a close is refused, such as what
+   *  to do before the dialog closes. Default: nothing said. */
+  readonly say?: string;
   /** Ends the hold. */
   readonly signal?: AbortSignal;
 }
@@ -50,15 +61,15 @@ export function holdDialog(
   held: () => boolean,
   options: HoldOptions = {},
 ): void {
-  const { signal } = options;
+  const { say, signal } = options;
   if (signal?.aborted === true) {
     return;
   }
-  holds.set(dialog, held);
+  holds.set(dialog, { held, say });
   signal?.addEventListener(
     "abort",
     () => {
-      if (holds.get(dialog) === held) {
+      if (holds.get(dialog)?.held === held) {
         holds.delete(dialog);
       }
     },
@@ -66,7 +77,7 @@ export function holdDialog(
   );
 }
 
-const isHeld = (dialog: HTMLDialogElement): boolean => holds.get(dialog)?.() === true;
+const isHeld = (dialog: HTMLDialogElement): boolean => holds.get(dialog)?.held() === true;
 
 /** Whether the person changed a field from the value it opened with. */
 export function holdsTypedChanges(dialog: HTMLDialogElement): boolean {
@@ -92,11 +103,19 @@ function outside(dialog: HTMLDialogElement, e: MouseEvent): boolean {
   return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
 }
 
-function refuse(dialog: HTMLDialogElement): void {
+/** Shakes `dialog` and says why it stays, if `say` is given. */
+function refuse(dialog: HTMLDialogElement, say: string | undefined): void {
   dialog.removeAttribute(REFUSED);
   dialog.getBoundingClientRect();
   dialog.setAttribute(REFUSED, "");
+  if (say !== undefined) {
+    announce(say);
+  }
 }
+
+const refuseHeld = (dialog: HTMLDialogElement): void => {
+  refuse(dialog, holds.get(dialog)?.say);
+};
 
 /**
  * Closes `dialog` with `value` as its `returnValue`, playing its exit first
@@ -179,12 +198,12 @@ function listen(signal: AbortSignal): void {
       }
       startedOutside = null;
       if (isHeld(d)) {
-        refuse(d);
+        refuseHeld(d);
         return;
       }
       if (d.hasAttribute(KEEP)) {
         if (holdsTypedChanges(d)) {
-          refuse(d);
+          refuse(d, KEPT);
         } else {
           closeDialog(d, "cancel");
         }
@@ -215,7 +234,7 @@ function listen(signal: AbortSignal): void {
       const d = e.key === "Escape" && t instanceof Element ? t.closest("dialog") : null;
       if (d instanceof HTMLDialogElement && d.open && !e.defaultPrevented && isHeld(d)) {
         e.preventDefault();
-        refuse(d);
+        refuseHeld(d);
       }
     },
     { signal },
@@ -229,7 +248,7 @@ function listen(signal: AbortSignal): void {
       }
       if (isHeld(d)) {
         e.preventDefault();
-        refuse(d);
+        refuseHeld(d);
       } else if (!cssExit() && !reducedMotion()) {
         // Escape ends the dialog at once in these engines; it goes through
         // closeDialog instead, for the exit.

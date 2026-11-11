@@ -1791,6 +1791,38 @@ describe("css/system.css overlays", () => {
     confirm.close();
   });
 
+  it("sets a confirmation's groups 12px under its words", () => {
+    theme("light");
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog";
+    d.dataset["variant"] = "confirm";
+    d.innerHTML =
+      '<form><div class="cp-dialog-body"><span class="cp-icon"></span><div><h2>Delete?</h2><p>Choose which.</p>' +
+      '<fieldset class="cp-choices"><label class="cp-choice"><input type="checkbox"><span>3 files</span></label></fieldset></div></div></form>';
+    hosts.push(d as unknown as HTMLElement);
+    document.body.append(d);
+    d.showModal();
+    const words = (d.querySelector("p") as Element).getBoundingClientRect();
+    const groups = (d.querySelector("fieldset") as Element).getBoundingClientRect();
+    expect(Math.round(groups.top - words.bottom)).toBe(12);
+    d.close();
+  });
+
+  it.skipIf(!emulates)(
+    "dims a refusing dialog once in place of the shake under reduced motion",
+    async () => {
+      theme("light");
+      const d = document.createElement("dialog");
+      d.className = "cp-dialog";
+      d.setAttribute("data-cp-refused", "");
+      hosts.push(d as unknown as HTMLElement);
+      document.body.append(d);
+      expect(getComputedStyle(d).animationName).toBe("cp-refuse");
+      await media("prefers-reduced-motion", "reduce");
+      expect(getComputedStyle(d).animationName).toBe("cp-refuse-still");
+    },
+  );
+
   it("stops the page scrolling while a modal dialog is open", () => {
     theme("light");
     const d = document.createElement("dialog");

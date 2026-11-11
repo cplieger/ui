@@ -126,6 +126,34 @@ describe("enhanceFiles", () => {
     expect([list.children.length, changes]).toEqual([1, 1]);
   });
 
+  it("empties its list and its refusal when its form resets", async () => {
+    const { field, input, list } = zone();
+    const form = document.createElement("form");
+    form.append(field);
+    document.body.append(form);
+    enhanceFiles(input, { list, signal: life.signal });
+    choose(input, [file("a.ass"), file("b.mkv")]);
+    expect([list.children.length, input.getAttribute("aria-invalid")]).toEqual([1, "true"]);
+    form.reset();
+    await Promise.resolve();
+    expect([list.children.length, input.hasAttribute("aria-invalid")]).toEqual([0, false]);
+  });
+
+  it("keeps its list when a listener cancels the reset", async () => {
+    const { field, input, list } = zone();
+    const form = document.createElement("form");
+    form.append(field);
+    document.body.append(form);
+    form.addEventListener("reset", (e) => {
+      e.preventDefault();
+    });
+    enhanceFiles(input, { list, signal: life.signal });
+    choose(input, [file("a.ass")]);
+    form.reset();
+    await Promise.resolve();
+    expect(list.children.length).toBe(1);
+  });
+
   it("removes its listeners once its signal aborts", () => {
     const { drop, input, list } = zone();
     enhanceFiles(input, { list, signal: life.signal });

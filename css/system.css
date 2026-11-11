@@ -5116,6 +5116,12 @@ textarea.cp-input {
   color: var(--cp-ink-muted);
 }
 
+/* A confirmation that asks which groups its action takes, such as which
+ * files to delete, lists them under its words. */
+.cp-dialog[data-variant="confirm"] .cp-dialog-body .cp-choices {
+  margin-block-start: var(--cp-space-3);
+}
+
 /* A sheet: the whole height at the inline end, sliding in, and sliding out
  * as it came, over 280ms and speeding up. */
 .cp-dialog[data-variant="sheet"] {
@@ -5160,9 +5166,16 @@ textarea.cp-input {
   max-block-size: none;
 }
 
-/* A dialog that keeps typed changes says no to a press outside. */
+/* A dialog that keeps typed changes says no to a press outside, and
+ * @cplieger/ui/dialog says why to a screen reader. */
 .cp-dialog[data-cp-refused] {
   animation: cp-refuse 420ms var(--cp-ease-out);
+}
+
+@keyframes cp-refuse-still {
+  40% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes cp-refuse {
@@ -5219,8 +5232,9 @@ textarea.cp-input {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* The refusal dims once in place of the shake, so it still shows. */
   .cp-dialog[data-cp-refused] {
-    animation: none;
+    animation-name: cp-refuse-still;
   }
 
   .cp-dialog {

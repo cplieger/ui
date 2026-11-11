@@ -706,16 +706,6 @@ $("[data-toast-sticky]")?.addEventListener("click", () =>
   toast({ kind: "warning", title: "Radarr is offline", body: "Changes wait until it answers again.", sticky: true }),
 );
 
-// A trigger with filters or labels on: data-active, and its icon swaps to
-// the filled drawing named by data-cp-icon-on.
-const markActive = (b, on) => {
-  b.toggleAttribute("data-active", on);
-  const ic = $(".cp-icon[data-cp-icon-on]", b);
-  if (!ic) return;
-  ic.dataset.cpIconOff ??= ic.dataset.cpIcon;
-  ic.dataset.cpIcon = on ? ic.dataset.cpIconOn : ic.dataset.cpIconOff;
-};
-
 // ---------------------------------------------------------- anchors
 // Each popover anchors to the button that opens it, by a name unique to the
 // pair, so CSS anchor positioning places and flips it.
@@ -783,20 +773,7 @@ if (!("command" in HTMLButtonElement.prototype)) {
 }
 // A press outside a dialog closes it, as closedby="any" does in the engines
 // that ship it (Safari does not yet). It must start and end outside, so a
-// drag out of a field closes nothing. A dialog holding changes the person
-// typed keeps them: it shakes instead, and Escape or Cancel still close it.
-const typedIn = (d) => $$("input, textarea, select", d).some((f) =>
-  f.type === "checkbox" || f.type === "radio" ? f.checked !== f.defaultChecked : f.tagName === "SELECT" ? [...f.options].some((o) => o.selected !== o.defaultSelected) : f.value !== f.defaultValue);
-for (const d of $$("dialog[data-keep-typed]")) {
-  // A cancel drops the edits; a save makes them the dialog's new start.
-  d.addEventListener("close", () => {
-    const form = $("form", d);
-    if (d.returnValue && d.returnValue !== "cancel") {
-      for (const f of $$("input, textarea", form)) f.defaultValue = f.value;
-    }
-    form.reset();
-  });
-}
+// drag out of a field closes nothing.
 for (const d of $$("dialog.g-dialog")) {
   const outside = (e) => {
     const r = d.getBoundingClientRect();
@@ -807,18 +784,11 @@ for (const d of $$("dialog.g-dialog")) {
   d.addEventListener("click", (e) => {
     if (!startedOutside || !outside(e)) return;
     startedOutside = false;
-    if (d.hasAttribute("data-keep-typed") && typedIn(d)) {
-      d.classList.remove("g-refused");
-      void d.offsetWidth;
-      d.classList.add("g-refused");
-      say("Your changes are still here. Save them, or press Cancel.");
-      return;
-    }
     d.close("cancel");
   });
 }
 
-for (const d of $$("dialog[data-says]")) {
+for (const d of $$("dialog.g-dialog[data-says]")) {
   d.addEventListener("close", () => d.returnValue && d.returnValue !== "cancel" && toast({ kind: d.returnValue === "delete" ? "success" : "info", title: d.dataset.says }));
 }
 
@@ -1729,25 +1699,6 @@ for (const list of $$("[data-jobs]")) {
   setInterval(tick, 700);
 }
 
-// ---------------------------------------------- grouped confirmation
-for (const d of $$("[data-grouped]")) {
-  const boxes = $$("input[type='checkbox']", d);
-  const go = $("[value='delete']", d);
-  // The button counts what it deletes in one short phrase; the groups say
-  // which files those are.
-  const update = () => {
-    const n = boxes.filter((b) => b.checked).reduce((sum, b) => sum + Number(b.dataset.count), 0);
-    go.disabled = n === 0;
-    go.textContent = n ? `Delete ${n} ${n === 1 ? "file" : "files"}` : "Choose what to delete";
-  };
-  for (const b of boxes) b.addEventListener("change", update);
-  d.addEventListener("close", () => {
-    for (const b of boxes) b.checked = false;
-    update();
-  });
-  update();
-}
-
 // ------------------------------------------------------------ pair rows
 // A path must start with /, said once the field is left. main.ts runs the
 // rows.
@@ -2227,64 +2178,6 @@ for (const host of $$("[data-strip]")) {
   const rows = cells.map((c, i) => el("tr", {}, el("td", { text: i === cells.length - 1 ? `Check ${i + 1}, the latest` : `Check ${i + 1}` }), el("td", { text: STRIP[c][1] }))).reverse();
   const table = el("table", { class: "cp-table" }, el("thead", {}, el("tr", {}, el("th", { text: "Check" }), el("th", { text: "State" }))), el("tbody", {}, ...rows));
   host.append(svg, legend, el("details", {}, el("summary", {}, icon("chevron-right"), "Show as a table"), el("div", { class: "cp-panel g-flush g-gap-top" }, table)));
-}
-
-// The filter sheet stages: the foot counts what the choice would show,
-// Show N results applies it, and Close or Escape put back what was there.
-for (const d of $$("[data-filter-sheet]")) {
-  const inputs = $$("input", d);
-  const apply = $("[data-sheet-apply]", d);
-  const opener = $("[data-filters-open]", d.closest(".card"));
-  const clearOut = $("[data-filters-clear]", d.closest(".card"));
-  const total = Number(d.dataset.total);
-  let applied = inputs.map((i) => i.checked);
-  const active = (states) => {
-    const verdicts = inputs.filter((i, k) => i.name === "verdict" && states[k]).length;
-    const kind = inputs.find((i, k) => i.name === "kind" && states[k])?.value;
-    return verdicts + (kind && kind !== "all" ? 1 : 0);
-  };
-  const results = () => {
-    const v = inputs.filter((i) => i.name === "verdict" && i.checked).map((i) => ({ best: 268, not: 33, missing: 9 })[i.value]);
-    const kind = inputs.find((i) => i.name === "kind" && i.checked)?.value;
-    const n = v.length ? v.reduce((a, b) => a + b, 0) : total;
-    return Math.round(n * ({ all: 1, tv: 0.8, film: 0.2 })[kind ?? "all"]);
-  };
-  const recount = () => {
-    const n = results();
-    apply.textContent = n ? `Show ${n} results` : "No results";
-    apply.toggleAttribute("aria-disabled", n === 0);
-  };
-  const label = () => {
-    const n = active(applied);
-    $(".label", opener).textContent = n ? `Filters, ${n}` : "Filters";
-    markActive(opener, n > 0);
-    clearOut.hidden = n === 0;
-  };
-  d.addEventListener("change", recount);
-  $("[data-sheet-clear]", d).addEventListener("click", () => {
-    for (const i of inputs) i.checked = i.name === "kind" && i.value === "all";
-    recount();
-  });
-  d.addEventListener("close", () => {
-    if (d.returnValue === "apply" && !apply.hasAttribute("aria-disabled")) {
-      applied = inputs.map((i) => i.checked);
-      toast({ kind: "info", title: `Showing ${results()} results` });
-    } else inputs.forEach((i, k) => (i.checked = applied[k]));
-    d.returnValue = "";
-    label();
-    recount();
-  });
-  apply.addEventListener("click", (e) => apply.hasAttribute("aria-disabled") && e.preventDefault());
-  clearOut.addEventListener("click", () => {
-    for (const i of inputs) i.checked = i.name === "kind" && i.value === "all";
-    applied = inputs.map((i) => i.checked);
-    label();
-    recount();
-    opener.focus();
-    say("Filters cleared");
-  });
-  label();
-  recount();
 }
 
 // The first sync's phase line moves on with it (a demo clock).

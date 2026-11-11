@@ -116,50 +116,50 @@
     <h2>Dialogs and sheets</h2>
     <p>On a phone, the dialogs in the middle rise from the bottom instead.</p>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Dialog</h2>
         <div class="stage"><button class="cp-button" type="button" commandfor="d-rename" command="show-modal">Rename the instance…</button></div>
-        <dialog class="g-dialog" id="d-rename" data-keep-typed data-says="Renamed" aria-labelledby="d-rename-title">
-          <form method="dialog">
+        <dialog class="cp-dialog" id="d-rename" data-keep-typed data-says="Renamed" aria-labelledby="d-rename-title">
+          <form>
             <header><h2 id="d-rename-title">Rename the instance</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-rename" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
-            <div class="g-body"><div class="cp-field"><label class="cp-label" for="d-rename-name">Name</label><input class="cp-input" id="d-rename-name" value="Release tracker" autofocus></div></div>
-            <footer><button class="cp-button" type="button" commandfor="d-rename" command="close">Cancel</button><button class="cp-button" data-variant="primary" value="save">Rename</button></footer>
+            <div class="cp-dialog-body"><div class="cp-field"><label class="cp-label" for="d-rename-name">Name</label><input class="cp-input" id="d-rename-name" value="Release tracker" autofocus></div></div>
+            <footer><button class="cp-button" type="button" commandfor="d-rename" command="close">Cancel</button><button class="cp-button" data-variant="primary" type="submit">Rename</button></footer>
           </form>
         </dialog>
         <footer>Focus starts in the field it holds and returns to the button on close. A press outside closes it, unless the name was changed: then it shakes and keeps the words.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Confirmation</h2>
         <div class="stage"><button class="cp-button" data-variant="primary" data-tone="danger" type="button" commandfor="d-delete" command="show-modal"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove 3 entries…</button></div>
-        <dialog class="g-dialog g-confirm" id="d-delete" data-says="3 entries removed" role="alertdialog" aria-labelledby="d-delete-title" aria-describedby="d-delete-body">
+        <dialog class="cp-dialog" data-variant="confirm" id="d-delete" data-says="3 entries removed" role="alertdialog" aria-labelledby="d-delete-title" aria-describedby="d-delete-body">
           <form method="dialog">
-            <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-delete-title">Remove 3 entries?</h2><p id="d-delete-body">They leave the library here; the files and Sonarr stay as they are.</p></div></div>
-            <footer><button class="cp-button" type="button" commandfor="d-delete" command="close" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Remove</button></footer>
+            <div class="cp-dialog-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-delete-title">Remove 3 entries?</h2><p id="d-delete-body">They leave the library here; the files and Sonarr stay as they are.</p></div></div>
+            <footer><button class="cp-button" type="button" commandfor="d-delete" command="close" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" type="submit" value="delete">Remove</button></footer>
           </form>
         </dialog>
         <footer>Its buttons say what they do. Focus starts on the safe one, and only Escape or a button closes it.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Sheet</h2>
         <div class="stage"><button class="cp-button" type="button" commandfor="d-sheet" command="show-modal"><span class="cp-icon" data-cp-icon="panel-right" aria-hidden="true"></span>Episode details</button></div>
-        <dialog class="g-dialog g-sheet" id="d-sheet" aria-labelledby="d-sheet-title">
-          <form method="dialog">
-            <header><h2 id="d-sheet-title">S01E04, The Land Where Souls Rest</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-sheet" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
-            <div class="g-body">
+        <dialog class="cp-dialog" data-variant="sheet" id="d-sheet" aria-labelledby="d-sheet-title" closedby="any" data-says="Grabbing the best release">
+          <form>
+            <header><h2 id="d-sheet-title" tabindex="-1" autofocus>S01E04, The Land Where Souls Rest</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-sheet" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
+            <div class="cp-dialog-body">
               <dl class="g-kv"><dt>File</dt><dd><code class="cp-mono">Frieren.S01E04.1080p.BluRay.mkv</code></dd><dt>Size</dt><dd>1.4 GB</dd><dt>Audio</dt><dd>Japanese, English</dd><dt>Subtitles</dt><dd>English (signs and songs), English</dd><dt>Checked</dt><dd><time data-ago="3600"></time></dd></dl>
             </div>
-            <footer><button class="cp-button" type="button" commandfor="d-sheet" command="close">Close</button><button class="cp-button" data-variant="primary" value="ok">Grab the best</button></footer>
+            <footer><button class="cp-button" type="button" commandfor="d-sheet" command="close">Close</button><button class="cp-button" data-variant="primary" type="submit">Grab the best</button></footer>
           </form>
         </dialog>
         <footer>From the inline end, at full height; across the window on a phone. For detail that keeps the list in view. A press anywhere outside closes it.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Filter sheet</h2>
-        <div class="stage g-row-inline"><button class="cp-button" type="button" commandfor="d-filters" command="show-modal" data-filters-open><span class="cp-icon" data-cp-icon="funnel" data-cp-icon-on="funnel-filled" aria-hidden="true"></span><span class="label">Filters, 1</span></button><button class="cp-button" data-variant="quiet" type="button" data-filters-clear>Clear filters</button></div>
-        <dialog class="g-dialog g-sheet" id="d-filters" aria-labelledby="d-filters-title" data-filter-sheet data-total="412">
+        <div class="stage g-row-inline"><button class="cp-button" type="button" commandfor="d-filters" command="show-modal" data-filters-open><span class="cp-icon" data-cp-icon="funnel" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="funnel-filled" data-part="on" aria-hidden="true"></span><span data-part="label">Filters, 1</span></button><button class="cp-button" data-variant="quiet" type="button" data-filters-clear>Clear filters</button></div>
+        <dialog class="cp-dialog" data-variant="sheet" id="d-filters" aria-labelledby="d-filters-title" closedby="any" data-filter-sheet data-total="412">
           <form method="dialog">
             <header><h2 id="d-filters-title">Filters</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-filters" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
-            <div class="g-body cp-stack">
+            <div class="cp-dialog-body">
               <fieldset class="cp-choices"><legend class="cp-label">Verdict</legend>
                 <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="verdict" value="best"><span>On the best</span></label>
                 <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="verdict" value="not" checked><span>Not the best</span></label>
@@ -171,7 +171,7 @@
                 <label class="cp-choice"><input class="cp-radio" type="radio" name="kind" value="film"><span>Films</span></label>
               </fieldset>
             </div>
-            <footer><button class="cp-button" type="button" data-sheet-clear>Clear all</button><button class="cp-button" data-variant="primary" value="apply" data-sheet-apply>Show 33 results</button></footer>
+            <footer><button class="cp-button" type="button" data-sheet-clear>Clear all</button><button class="cp-button" data-variant="primary" type="submit" value="apply" data-sheet-apply>Show 33 results</button></footer>
           </form>
         </dialog>
         <footer>Below 60rem the rail's filters move into this sheet behind a Filters button that carries the count. With two groups it stages: the foot says how many results the choice would show, “Show 33 results” applies it all at once, and Close, Escape or a press outside put back what was there.</footer>
@@ -226,16 +226,17 @@
   <section class="g-section" id="grouped">
     <h2>Confirmation with groups</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
+        <h2>Delete in groups</h2>
         <div class="stage"><button class="cp-button" data-variant="primary" data-tone="danger" type="button" commandfor="d-grouped" command="show-modal"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Delete subtitles…</button></div>
-        <dialog class="g-dialog g-confirm" id="d-grouped" data-grouped data-says="Deleted" role="alertdialog" aria-labelledby="d-grouped-title">
+        <dialog class="cp-dialog" data-variant="confirm" id="d-grouped" data-grouped data-says="Deleted" role="alertdialog" aria-labelledby="d-grouped-title" closedby="any">
           <form method="dialog">
-            <div class="g-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-grouped-title">Delete subtitles for 4 episodes?</h2><p>Choose which to delete. The files are removed from the disk.</p>
-              <div class="g-groups">
+            <div class="cp-dialog-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-grouped-title">Delete subtitles for 4 episodes?</h2><p id="d-grouped-ask">Choose which to delete. The files are removed from the disk.</p>
+              <fieldset class="cp-choices" aria-labelledby="d-grouped-ask">
                 <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-count="3"><span>3 managed files<small>Fetched by this app</small></span></label>
                 <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-count="1"><span>1 found on disk<small>Not fetched by this app</small></span></label>
-              </div></div></div>
-            <footer><button class="cp-button" type="button" commandfor="d-grouped" command="close" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" value="delete">Delete</button></footer>
+              </fieldset></div></div>
+            <footer><button class="cp-button" type="button" commandfor="d-grouped" command="close" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" type="submit" value="delete">Delete</button></footer>
           </form>
         </dialog>
         <footer>No group is chosen for you. The button says how many files it deletes, in two or three words, and stays disabled until something is chosen. A press outside closes it, deleting nothing.</footer>

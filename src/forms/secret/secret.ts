@@ -88,6 +88,8 @@ export function enhanceReveal(
   );
 }
 
+const SHOWN_ONCE = "Copy it first. It is not shown again.";
+
 export interface ShownOnceOptions {
   /** The dialog the secret shows in, held open until it is copied. */
   readonly dialog?: HTMLDialogElement;
@@ -102,7 +104,8 @@ export interface ShownOnce {
 
 /**
  * Shows `secret`, an element whose text is a new key or link, once. Until
- * `copied()` runs, Escape and a press outside shake `dialog` and keep it;
+ * `copied()` runs, Escape and a press outside shake `dialog` and keep it,
+ * saying "Copy it first. It is not shown again." to a screen reader;
  * Done or Cancel still close it. The text is cleared when the dialog closes
  * and when the page is hidden, so it never comes back from the back-forward
  * cache. Pass `copied` as `enhanceCopy`'s `onCopy`.
@@ -123,7 +126,10 @@ export function shownOnce(secret: HTMLElement, options: ShownOnceOptions = {}): 
   }
   const listen = until(signal);
   if (dialog !== undefined) {
-    holdDialog(dialog, () => !isCopied, signal === undefined ? {} : { signal });
+    holdDialog(dialog, () => !isCopied, {
+      say: SHOWN_ONCE,
+      ...(signal === undefined ? {} : { signal }),
+    });
     dialog.addEventListener("close", clear, listen);
   }
   addEventListener("pagehide", clear, listen);

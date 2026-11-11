@@ -2731,13 +2731,6 @@ html:has(.g-header) {
   font-size: var(--cp-text-xs);
 }
 
-/* A grouped-count confirmation: groups to choose, none chosen for you. */
-.g-groups {
-  display: grid;
-  gap: var(--cp-space-2);
-  margin-block-start: var(--cp-space-3);
-}
-
 /* Video with one caption track: our controls over the native element. */
 .g-player {
   display: grid;
@@ -3833,13 +3826,6 @@ html:has(.g-header) {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-/* A trigger whose filters or labels are on takes the accent, as a pinned
- * pin does: its icon fills and its count turns solid. :root keeps it over
- * the hover rule that inks a button's icon. */
-:root .cp-button[data-active]:not(:disabled) > .cp-icon {
-  color: var(--cp-accent);
 }
 
 /* The account button is the avatar: no square behind it, a ring of the

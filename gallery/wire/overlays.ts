@@ -3,8 +3,9 @@
  * run on the library.
  */
 
+import { announce, installAnnouncer } from "@cplieger/ui/announce";
 import { installAnchors } from "@cplieger/ui/anchor";
-import { installDialogs } from "@cplieger/ui/dialog";
+import { closeDialog, installDialogs } from "@cplieger/ui/dialog";
 import { enhanceContextMenu, enhanceMenu } from "@cplieger/ui/menu";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhancePopconfirm } from "@cplieger/ui/popconfirm";
@@ -12,6 +13,7 @@ import { enhanceSelectPanel } from "@cplieger/ui/select-panel";
 import { toast } from "@cplieger/ui/toast";
 
 installAnchors();
+installAnnouncer();
 installDialogs();
 
 // A menu item names what it would do by data-say; a removal is a warning.
@@ -104,5 +106,181 @@ if (keys instanceof HTMLDialogElement) {
       return;
     }
     keys.showModal();
+  });
+}
+
+const DONE = "done";
+const dialogs = [...document.querySelectorAll<HTMLDialogElement>(".cp-dialog")];
+
+// A dialog that does work holds a plain form: its submit does the work, here
+// none, and closes the dialog with the submitter's value or "done". It
+// listens on the dialog, so a check on the form that refuses the submit by
+// preventDefault, such as the upload's, runs first.
+for (const d of dialogs) {
+  if (d.querySelector(":scope > form")?.getAttribute("method") === "dialog") {
+    continue;
+  }
+  d.addEventListener("submit", (e) => {
+    if (e.defaultPrevented) {
+      return;
+    }
+    e.preventDefault();
+    const by = e.submitter;
+    closeDialog(d, by instanceof HTMLButtonElement && by.value !== "" ? by.value : DONE);
+  });
+}
+
+// A form dialog opens with what was last saved: its work makes the text
+// fields' values their new start, and every close puts the form back to it.
+for (const d of document.querySelectorAll<HTMLDialogElement>(".cp-dialog[data-keep-typed]")) {
+  d.addEventListener("close", () => {
+    const form = d.querySelector("form");
+    if (d.returnValue === DONE) {
+      for (const f of d.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+        'input:not([type="file"], [type="checkbox"], [type="radio"]), textarea',
+      )) {
+        f.defaultValue = f.value;
+      }
+    }
+    form?.reset();
+  });
+}
+
+// A dialog's data-says is its toast once its own answer closes it.
+for (const d of document.querySelectorAll<HTMLDialogElement>(".cp-dialog[data-says]")) {
+  d.addEventListener("close", () => {
+    const value = d.returnValue;
+    if (value !== "" && value !== "cancel") {
+      toast({ kind: value === "delete" ? "success" : "info", title: d.dataset["says"] ?? "" });
+    }
+  });
+}
+
+// The delete names how many files the chosen groups hold, and waits for one.
+for (const d of document.querySelectorAll<HTMLDialogElement>("[data-grouped]")) {
+  const boxes = [...d.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+  const go = d.querySelector<HTMLButtonElement>('[type="submit"]');
+  if (go === null) {
+    continue;
+  }
+  const update = (): void => {
+    const n = boxes
+      .filter((b) => b.checked)
+      .reduce((sum, b) => sum + Number(b.dataset["count"]), 0);
+    go.disabled = n === 0;
+    go.textContent =
+      n === 0 ? "Choose what to delete" : `Delete ${String(n)} ${n === 1 ? "file" : "files"}`;
+  };
+  d.addEventListener("change", update);
+  d.addEventListener("close", () => {
+    for (const b of boxes) {
+      b.checked = false;
+    }
+    update();
+  });
+  update();
+}
+
+// The filter sheet stages, as docs/design-patterns.md describes: the foot
+// counts what the choice would show, its submit applies it, and any other
+// close puts back what was applied. The counts are the gallery's own.
+const VERDICTS = new Map([
+  ["best", 268],
+  ["not", 33],
+  ["missing", 9],
+]);
+const KINDS = new Map([
+  ["all", 1],
+  ["tv", 0.8],
+  ["film", 0.2],
+]);
+for (const d of document.querySelectorAll<HTMLDialogElement>("[data-filter-sheet]")) {
+  const card = d.closest(".card");
+  const inputs = [...d.querySelectorAll<HTMLInputElement>("input")];
+  const apply = d.querySelector<HTMLButtonElement>("[data-sheet-apply]");
+  const opener = card?.querySelector<HTMLElement>("[data-filters-open]");
+  const label = opener?.querySelector('[data-part="label"]');
+  const clearOut = card?.querySelector<HTMLElement>("[data-filters-clear]");
+  if (
+    apply === null ||
+    opener === null ||
+    opener === undefined ||
+    label === null ||
+    label === undefined ||
+    clearOut === null ||
+    clearOut === undefined
+  ) {
+    continue;
+  }
+  const total = Number(d.dataset["total"]);
+  let applied = inputs.map((i) => i.checked);
+  const kindOf = (states: readonly boolean[]): string =>
+    inputs.find((i, k) => i.name === "kind" && states[k] === true)?.value ?? "all";
+  const results = (): number => {
+    const now = inputs.map((i) => i.checked);
+    const chosen = inputs.filter((i) => i.name === "verdict" && i.checked);
+    const n =
+      chosen.length === 0
+        ? total
+        : chosen.reduce((sum, i) => sum + (VERDICTS.get(i.value) ?? 0), 0);
+    return Math.round(n * (KINDS.get(kindOf(now)) ?? 1));
+  };
+  const recount = (): void => {
+    const n = results();
+    apply.textContent = n === 0 ? "No results" : `Show ${String(n)} results`;
+    apply.toggleAttribute("aria-disabled", n === 0);
+  };
+  const showApplied = (): void => {
+    const verdicts = inputs.filter((i, k) => i.name === "verdict" && applied[k] === true).length;
+    const n = verdicts + (kindOf(applied) === "all" ? 0 : 1);
+    label.textContent = n === 0 ? "Filters" : `Filters, ${String(n)}`;
+    opener.toggleAttribute("data-active", n > 0);
+    clearOut.hidden = n === 0;
+  };
+  const clear = (): void => {
+    for (const i of inputs) {
+      i.checked = i.name === "kind" && i.value === "all";
+    }
+  };
+  d.addEventListener("change", recount);
+  d.querySelector("[data-sheet-clear]")?.addEventListener("click", () => {
+    clear();
+    recount();
+  });
+  // A choice that shows nothing is not applied: its button only says so.
+  apply.addEventListener("click", (e) => {
+    if (apply.hasAttribute("aria-disabled")) {
+      e.preventDefault();
+    }
+  });
+  d.addEventListener("close", () => {
+    if (d.returnValue === "apply") {
+      applied = inputs.map((i) => i.checked);
+      toast({ kind: "info", title: `Showing ${String(results())} results` });
+    } else {
+      inputs.forEach((i, k) => {
+        i.checked = applied[k] === true;
+      });
+    }
+    showApplied();
+    recount();
+  });
+  clearOut.addEventListener("click", () => {
+    clear();
+    applied = inputs.map((i) => i.checked);
+    showApplied();
+    recount();
+    opener.focus();
+    announce("Filters cleared");
+  });
+  showApplied();
+  recount();
+}
+
+// A close command and Escape keep the last returnValue, so each close
+// clears it for the next; registered last, after every reader above.
+for (const d of dialogs) {
+  d.addEventListener("close", () => {
+    d.returnValue = "";
   });
 }

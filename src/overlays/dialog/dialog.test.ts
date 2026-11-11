@@ -63,6 +63,37 @@ describe("installDialogs", () => {
     expect(d.open).toBe(false);
   });
 
+  it("says to a screen reader that typed changes are still there when it refuses a press outside", async () => {
+    installDialogs({ signal: life.signal });
+    const d = dialog({ "data-keep-typed": "" }, '<input value="Sonarr">');
+    d.showModal();
+    (d.querySelector("input") as HTMLInputElement).value = "Sonarr 4K";
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    await settled();
+    expect(d.querySelector('[aria-live="polite"]')?.textContent).toBe(
+      "Your changes are still here. Save them, or cancel to drop them.",
+    );
+  });
+
+  it("says a held dialog's words each time it refuses, and nothing without them", async () => {
+    installDialogs({ signal: life.signal });
+    const quiet = dialog({}, '<button type="button">Done</button>');
+    holdDialog(quiet, () => true, { signal: life.signal });
+    quiet.showModal();
+    (quiet.querySelector("button") as HTMLButtonElement).focus();
+    await userEvent.keyboard("{Escape}");
+    await settled();
+    expect(quiet.querySelector('[aria-live="polite"]')?.textContent ?? "").toBe("");
+    quiet.remove();
+    const d = dialog({}, '<button type="button">Done</button>');
+    holdDialog(d, () => true, { say: "Copy it first.", signal: life.signal });
+    d.showModal();
+    (d.querySelector("button") as HTMLButtonElement).focus();
+    await userEvent.keyboard("{Escape}");
+    await settled();
+    expect(d.querySelector('[aria-live="polite"]')?.textContent).toBe("Copy it first.");
+  });
+
   it("keeps a held dialog open on Escape and a press outside, shaking it, and closes it once released", async () => {
     installDialogs({ signal: life.signal });
     const d = dialog({ closedby: "any" }, '<button type="button" id="done">Done</button>');
