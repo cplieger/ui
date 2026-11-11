@@ -44,8 +44,14 @@ const keyOf = (row: HTMLTableRowElement, column: number): string => {
 
 const numeric = (text: string): boolean => text.trim() !== "" && Number.isFinite(Number(text));
 
+/** Numbers before words, so the order is total whatever the keys mix. */
 function compare(a: string, b: string): number {
-  return numeric(a) && numeric(b) ? Number(a) - Number(b) : collator.compare(a, b);
+  const na = numeric(a);
+  const nb = numeric(b);
+  if (na && nb) {
+    return Number(a) - Number(b);
+  }
+  return na === nb ? collator.compare(a, b) : na ? -1 : 1;
 }
 
 interface Group {
@@ -90,8 +96,9 @@ function glide(
  * `table`'s sortable headers are `<th>`s holding a `<button class="cp-sort">`
  * with the column's name, the sorted one marked by `aria-sort`. A press on an
  * unsorted column sorts it ascending, and on the sorted one turns its order.
- * Rows sort by each cell's `data-sort`, or its text, numbers as numbers; a
- * `data-part="detail"` row keeps its place after the row before it.
+ * Rows sort by each cell's `data-sort`, or its text, numbers as numbers and
+ * before words; a `data-part="detail"` row keeps its place after the row
+ * before it.
  */
 export function enhanceSort(table: HTMLTableElement, options: SortOptions = {}): void {
   const { onSort, signal } = options;
@@ -283,12 +290,12 @@ export interface BatchBarWords {
 export interface BatchBarOptions {
   /** The rows' checkboxes, read at each change, so rows added since count. */
   readonly boxes: () => Iterable<HTMLInputElement>;
-  /** The header's select-all box, which focus returns to on a clear. Its
-   *  table takes Escape as the bar does. */
+  /** The header's select-all box, which focus returns to on a clear. */
   readonly all?: HTMLInputElement;
   /** How many rows the filters show on every page. Default: the boxes. */
   readonly total?: () => number;
-  /** After each change to the selection. */
+  /** After each change to the selection, once for a press that changes
+   *  many boxes, given the selection it ends on. */
   readonly onChange?: (selection: BatchSelection) => void;
   readonly words?: BatchBarWords;
   /** Removes the listeners. */
@@ -333,7 +340,8 @@ function label(button: HTMLElement, text: string): void {
  * actions marked `data-batch-action` with their word, such as "Grab", which
  * then reads "Grab 3". An action whose `@cplieger/ui/confirm` cycle runs
  * keeps its words until `sync()`. Escape clears while focus is in the bar or
- * the table and no menu or dialog is open.
+ * the boxes' table, unless an automatic popover is open or a handler has
+ * prevented the key.
  */
 export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): BatchBar {
   const { boxes, all, onChange, signal } = options;
@@ -348,23 +356,28 @@ export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): Bat
     action: options.words?.action ?? ((w: string, n: number) => `${w} ${String(n)}`),
   };
   let everything = false;
-  let wasEverything = false;
   let selected = 0;
+  let told: BatchSelection = { count: 0, everything: false };
   let said: string | undefined;
-  let saying = false;
+  let telling = false;
 
-  const say = (): void => {
-    if (saying) {
+  const report = (): void => {
+    if (telling) {
       return;
     }
-    saying = true;
-    // A select-all press changes each box in turn; one word for all of them.
+    telling = true;
+    // A select-all press or a clear changes each box in turn; one word and
+    // one onChange for all of them.
     queueMicrotask(() => {
-      saying = false;
+      telling = false;
       const text = selected > 0 ? words.count(selected) : words.cleared();
       if (text !== said) {
         said = text;
         announce(text);
+      }
+      if (selected !== told.count || everything !== told.everything) {
+        told = { count: selected, everything };
+        onChange?.(told);
       }
     });
   };
@@ -377,9 +390,7 @@ export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): Bat
       everything = false;
     }
     const n = everything ? total : on;
-    const changed = n !== selected || everything !== wasEverything;
     selected = n;
-    wasEverything = everything;
     if (count !== null) {
       count.textContent = words.count(n);
     }
@@ -398,9 +409,8 @@ export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): Bat
     } else {
       bar.hidden = n === 0;
     }
-    if (changed && glides) {
-      say();
-      onChange?.({ count: n, everything });
+    if (glides) {
+      report();
     }
   };
 
@@ -432,6 +442,7 @@ export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): Bat
     clear,
   };
   show(false);
+  told = { count: selected, everything };
   said = selected > 0 ? words.count(selected) : words.cleared();
   if (signal?.aborted === true) {
     return controller;
@@ -465,19 +476,25 @@ export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): Bat
     },
     listen,
   );
-  const escape = (e: KeyboardEvent): void => {
-    // An open automatic popover takes this Escape to close itself, and a
-    // manual menu's own handler has prevented it.
-    const open = bar.ownerDocument.querySelector(AUTO_OPEN);
-    if (e.key !== "Escape" || e.defaultPrevented || selected === 0 || open !== null) {
-      return;
-    }
-    e.preventDefault();
-    clear();
-    focusBack();
-  };
-  for (const zone of [bar, all?.closest("table")]) {
-    zone?.addEventListener("keydown", escape, listen);
-  }
+  bar.ownerDocument.addEventListener(
+    "keydown",
+    (e) => {
+      // An open automatic popover takes this Escape to close itself, and a
+      // manual menu's own handler has prevented it.
+      const open = bar.ownerDocument.querySelector(AUTO_OPEN);
+      if (e.key !== "Escape" || e.defaultPrevented || selected === 0 || open !== null) {
+        return;
+      }
+      const table = (all ?? [...boxes()][0])?.closest("table");
+      const t = e.target;
+      if (!(t instanceof Node) || !(bar.contains(t) || table?.contains(t) === true)) {
+        return;
+      }
+      e.preventDefault();
+      clear();
+      focusBack();
+    },
+    listen,
+  );
   return controller;
 }

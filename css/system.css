@@ -4279,8 +4279,7 @@ textarea.cp-input {
   gap: var(--cp-space-1);
 }
 
-/* The caption names the table and its range, and takes focus after a sort
- * or a page change. */
+/* The caption names the table and its range. */
 .cp-table > caption {
   padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
   color: var(--cp-ink-muted);
@@ -4572,6 +4571,13 @@ th[aria-sort="descending"] > .cp-sort::after {
       background: var(--cp-surface-raised);
     }
   }
+}
+
+/* The flush panel holding a table is the box its columns step aside by.
+ * The queries stay unnamed, so a table outside one follows the region it
+ * sits in, such as .cp-main. */
+.cp-panel[data-flush]:has(> .cp-table) {
+  container: cp-table / inline-size;
 }
 
 @container (width < 64rem) {

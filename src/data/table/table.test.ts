@@ -69,6 +69,34 @@ describe("enhanceSort", () => {
     expect(ids(table)).toEqual(["c", "b", "a", "a-why"]);
   });
 
+  it("puts numbers before words, one order whatever order the rows start in", async () => {
+    const keys = ["1.5", "1.10", "1.7 beta", "10", "alpha", "2"];
+    const sorted = async (start: readonly string[]): Promise<string[]> => {
+      const box = document.createElement("div");
+      const table = document.createElement("table");
+      table.createTHead().insertRow().append(document.createElement("th"));
+      const sort = document.createElement("button");
+      sort.className = "cp-sort";
+      sort.type = "button";
+      sort.textContent = "Version";
+      table.tHead!.rows[0]!.cells[0]!.append(sort);
+      const body = table.createTBody();
+      for (const key of start) {
+        body.insertRow().insertCell().textContent = key;
+      }
+      box.append(table);
+      document.body.append(box);
+      enhanceSort(table, { signal: life.signal });
+      await userEvent.click(sort);
+      const order = [...body.rows].map((r) => r.textContent);
+      box.remove();
+      return order;
+    };
+    const want = ["1.10", "1.5", "2", "10", "1.7 beta", "alpha"];
+    expect(await sorted(keys)).toEqual(want);
+    expect(await sorted([...keys].reverse())).toEqual(want);
+  });
+
   it("leaves the rows to an app that sorts them itself, and takes its words", async () => {
     const table = sortable();
     const seen: [string, string][] = [];
@@ -271,6 +299,26 @@ describe("enhanceBatchBar", () => {
     ]);
   });
 
+  it("calls onChange once for a header box press and once for a clear", async () => {
+    const b = batch();
+    const seen: BatchSelection[] = [];
+    enhanceBatchBar(b.bar, {
+      boxes: () => b.boxes,
+      all: b.all,
+      onChange: (s) => seen.push({ ...s }),
+      signal: life.signal,
+    });
+    await userEvent.click(b.all);
+    await expect.poll(() => seen.length).toBe(1);
+    await userEvent.click(b.clear);
+    await expect.poll(() => seen.length).toBe(2);
+    await new Promise((done) => setTimeout(done, 100));
+    expect(seen).toEqual([
+      { count: 3, everything: false },
+      { count: 0, everything: false },
+    ]);
+  });
+
   it("says a press of the header box once, with the count it ends on", async () => {
     installAnnouncer({ signal: life.signal });
     const b = batch();
@@ -354,6 +402,21 @@ describe("enhanceBatchBar", () => {
     b.clear.focus();
     await userEvent.keyboard("{Escape}");
     expect((b.boxes[0] as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("clears on Escape in the boxes' table without a header box, focusing the first box", async () => {
+    const b = batch();
+    enhanceBatchBar(b.bar, { boxes: () => b.boxes, signal: life.signal });
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    await userEvent.click(b.boxes[2] as HTMLInputElement);
+    outside.focus();
+    await userEvent.keyboard("{Escape}");
+    expect((b.boxes[2] as HTMLInputElement).checked).toBe(true);
+    (b.boxes[2] as HTMLInputElement).focus();
+    await userEvent.keyboard("{Escape}");
+    expect((b.boxes[2] as HTMLInputElement).checked).toBe(false);
+    expect(document.activeElement).toBe(b.boxes[0]);
   });
 
   it("keeps a bulk action's words while its confirm runs, until sync", async () => {

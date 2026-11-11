@@ -26,7 +26,7 @@ card.append(strip);
 ```
 
 - `createStateHistory(points, options)` returns a `.cp-state-history` element and adds nothing to the page. `points` are the observations, oldest first, each naming its key in `states`. A key `states` lacks throws a `RangeError`.
-- `states` gives each state its `tone`, one of `success`, `warning`, `danger`, `neutral` and `accent`, and its `word`. The summary and the legend list the states in this order and name only those that occur.
+- `states` gives each state its `tone`, one of `success`, `warning`, `danger`, `neutral` and `accent`, and its `word`. The summary and the legend list the states in this order and name only those that occur. The order is the object's key order, which puts integer-like keys such as `503` first, ascending.
 - The strip is an `<svg>` with `role="img"`, named by `name` and the count of each state, such as "Sonarr, the last 25 checks: 22 answered, 1 slow, 1 failed, 1 not checked".
 - The table lists the newest first. A point's `label`, such as its time, names its row. Without one, the rows read "Check 25, the latest", "Check 24" and so on. It opens from a "Show as a table" summary, which glides as [disclosure](../navigation/disclosure.md) does.
 - `words` gives the words in another language: `tally(count, word)` for a state's share of the name, `show` for the summary, `point` and `state` for the table's headers, and `label(n, latest)` for a row with no label, counting from 1 for the oldest.

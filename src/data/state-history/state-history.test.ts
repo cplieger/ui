@@ -41,6 +41,19 @@ describe("createStateHistory", () => {
     expect(cells[0]?.getAttribute("width")).toBe("24.7");
   });
 
+  it("keeps every cell of a long history drawn, thinning the gap between them", () => {
+    const el = createStateHistory(
+      Array.from({ length: 400 }, () => ({ state: "ok" as const })),
+      { name: "Sonarr", states: STATES },
+    );
+    const cells = [...el.querySelectorAll("svg > rect")];
+    const widths = cells.map((c) => Number(c.getAttribute("width")));
+    expect(cells).toHaveLength(400);
+    expect(widths.every((w) => w > 0)).toBe(true);
+    const last = cells.at(-1) as Element;
+    expect(Number(last.getAttribute("x")) + Number(last.getAttribute("width"))).toBeLessThan(100);
+  });
+
   it("names the strip with each state's count, in the order the states are given", () => {
     const el = createStateHistory(checks("down", "ok", "ok", "skip"), {
       name: "Sonarr, the last 4 checks",

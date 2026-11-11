@@ -66,7 +66,7 @@ enhanceSort(table, {
 ```
 
 - Each `.cp-sort` button is named by the order its press applies, such as "Sort by Size, ascending". A press on an unsorted column sorts it ascending, and on the sorted one turns its order. `aria-sort` moves to the pressed header, and "Sorted by Size, ascending" is announced.
-- Without `onSort`, the rows are reordered in the page and glide to their new places. A row sorts by its cell's `data-sort`, or else its text. Two numbers compare as numbers, and words compare in the page's language, numbers within them by value. A `data-part="detail"` row stays after the row before it.
+- Without `onSort`, the rows are reordered in the page and glide to their new places. A row sorts by its cell's `data-sort`, or else its text. Two numbers compare as numbers, numbers come before words, and words compare in the page's language, numbers within them by value. A `data-part="detail"` row stays after the row before it.
 - With `onSort`, the app orders the rows itself, such as by writing the sort into the URL and loading the page again.
 - `words.sort(column, order)` and `words.sorted(column, order)` give the button's name and the announcement in another language.
 - `signal` removes the listeners.
@@ -86,10 +86,10 @@ const grab = enhanceConfirm(grabButton, { busy: "Grabbing…", done: "Grabbed", 
 
 - The bar glides in once a row is selected and out once none is. `.cp-batch-count` reads "3 selected", and each `data-batch-action` button adds the count to its word, such as "Grab 3". A button whose confirm cycle runs keeps its words until `sync()`, so pass `bar.sync` as its `onRest`.
 - Once the whole page is selected and `total()` is more than the page holds, the `data-batch-every` button offers "Select all 412 entries". Its press counts every matching row and moves focus to Clear. Changing a box ends it.
-- Clear, and Escape while focus is in the bar or the table, clear the selection and return focus to the header box. Escape is left alone while an automatic popover is open, which takes it to close.
+- Clear, and Escape while focus is in the bar or the boxes' table, clear the selection and return focus to the header box, or the first row's box without one. Escape is left alone while an automatic popover is open, which takes it to close, and when a handler has already prevented it.
 - The header box is named "Select all 25 entries on this page".
 - Each change to the count is announced politely, once per press, and "Selection cleared" once none is left.
-- `onChange({ count, everything })` runs after each change. The returned bar reads `count` and `everything`, `sync()` shows the boxes' state after code changes them, and `clear()` clears.
+- `onChange({ count, everything })` runs after each change, once for a press that changes many boxes, with the selection it ends on. The returned bar reads `count` and `everything`, `sync()` shows the boxes' state after code changes them, and `clear()` clears.
 - `words` gives `count`, `cleared`, `every`, `page` and `action` in another language.
 - `signal` removes the listeners.
 

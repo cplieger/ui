@@ -2384,6 +2384,23 @@ describe("css/system.css", () => {
     expect(shown()).toEqual([true, false, false]);
   });
 
+  it("drops columns by the width of the flush panel holding the table", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-panel" data-flush><table class="cp-table"><tbody><tr><td>title</td><td data-priority="mid">mid</td><td data-priority="low">low</td></tr></tbody></table></div>',
+    );
+    el.style.inlineSize = "1100px";
+    const panel = el.querySelector(".cp-panel") as HTMLElement;
+    const shown = () =>
+      [...el.querySelectorAll("td")].map((td) => getComputedStyle(td).display !== "none");
+    expect(getComputedStyle(panel).containerName).toBe("cp-table");
+    expect(shown()).toEqual([true, true, true]);
+    panel.style.inlineSize = "900px";
+    expect(shown()).toEqual([true, true, false]);
+    panel.style.inlineSize = "600px";
+    expect(shown()).toEqual([true, false, false]);
+  });
+
   it("drops the rail under 60rem of viewport", async () => {
     theme("light");
     const rail = build('<aside class="cp-rail">filters</aside>').firstElementChild as HTMLElement;

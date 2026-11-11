@@ -44,7 +44,8 @@ export interface StateHistoryOptions<K extends string> {
   /** Such as "Sonarr, the last 25 checks": the strip's and the table's name. */
   readonly name: string;
   /** Each state's tone and word, in the order the summary and legend list
-   *  them. */
+   *  them: `Object.keys` order, so integer-like keys such as "503" come
+   *  first, ascending. */
   readonly states: Readonly<Record<K, StateHistoryState>>;
   readonly words?: StateHistoryWords;
   /** Stops the table's glide and removes its listener. */
@@ -98,10 +99,13 @@ export function createStateHistory<K extends string>(
   const sum = seen.map((k) => tally(counts.get(k) ?? 0, states[k].word)).join(", ");
   strip.setAttribute("aria-label", sum === "" ? name : `${name}: ${sum}`);
   const w = 100 / points.length;
+  // A long history thins the gap with the cells, or a cell's width goes
+  // negative and SVG draws nothing.
+  const gap = Math.min(0.3, w / 2);
   points.forEach((p, i) => {
     const cell = document.createElementNS(SVG, "rect");
-    cell.setAttribute("x", String(i * w + 0.15));
-    cell.setAttribute("width", String(w - 0.3));
+    cell.setAttribute("x", String(i * w + gap / 2));
+    cell.setAttribute("width", String(w - gap));
     cell.setAttribute("height", "10");
     cell.setAttribute("rx", "0.6");
     cell.dataset["tone"] = states[p.state].tone;

@@ -1965,11 +1965,6 @@ html:has(.g-header) {
 
 /* ===== Data: the table and its rules ===== */
 
-/* The panel is the table's container, so columns step aside by its width. */
-.g-tablebox {
-  container-type: inline-size;
-}
-
 
 .g-kept-tag {
   display: inline-flex;
