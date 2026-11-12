@@ -455,7 +455,7 @@ describe("withheld links", () => {
   it("leaves no payload-shaped address on an anchor, whatever the query", () => {
     const query = fc.oneof(
       fc.string({ maxLength: 260 }).map((s) => encodeURIComponent(s)),
-      fc.constantFrom(`k=${"%2F".repeat(22)}`, "t=AKIAABCDEFGHIJKLMNOP", `b=${"Q".repeat(44)}`),
+      fc.constantFrom(`k=${"%2F".repeat(22)}`, "t=AKIAABCDEFGHIJKLMNOP", `b=${"Q".repeat(44)}`), // gitleaks:allow
     );
     const producers = [
       (u: string) => `x ${u} y`,

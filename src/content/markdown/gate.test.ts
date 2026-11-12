@@ -367,7 +367,7 @@ describe("payloadShaped", () => {
     ["21 consecutive percent escapes", `https://e.example/?d=${"%41".repeat(21)}`],
     ["a 40-character base64 run", `https://e.example/?d=${"Q".repeat(40)}`],
     ["a 39-character run with padding", `https://e.example/?d=${"Q".repeat(39)}=`],
-    ["an AWS access key id", "https://e.example/?k=AKIAABCDEFGHIJKLMNOP"],
+    ["an AWS access key id", "https://e.example/?k=AKIAABCDEFGHIJKLMNOP"], // gitleaks:allow
     ["an ssh key marker", "https://e.example/?k=ssh-ed25519%20AAAA"],
     ["a private key header", "https://e.example/?k=BEGIN+RSA+PRIVATE+KEY"],
     ["a Slack token", "https://e.example/?t=xoxb-123-abc"],
