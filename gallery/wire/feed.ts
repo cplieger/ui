@@ -101,7 +101,9 @@ interface Title {
   readonly seen: number;
 }
 
-const ROW_H = 48;
+/** The pitch the stylesheet gives a virtual list's rows, 3rem. */
+const rowPitch = (): number =>
+  3 * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
 
 function titleRow(id: string): HTMLDivElement {
   const link = document.createElement("a");
@@ -149,9 +151,10 @@ for (const list of document.querySelectorAll<HTMLElement>(".cp-list[data-virtual
   let view = titles;
   const drawn = new Map<string, HTMLDivElement>();
   const draw = () => {
-    spacer.style.blockSize = `${String(view.length * ROW_H)}px`;
-    const first = Math.max(0, Math.floor(list.scrollTop / ROW_H) - 5);
-    const last = Math.min(view.length, Math.ceil((list.scrollTop + list.clientHeight) / ROW_H) + 5);
+    const pitch = rowPitch();
+    spacer.style.blockSize = `${String(view.length * pitch)}px`;
+    const first = Math.max(0, Math.floor(list.scrollTop / pitch) - 5);
+    const last = Math.min(view.length, Math.ceil((list.scrollTop + list.clientHeight) / pitch) + 5);
     const keep = new Set(view.slice(first, last).map((t) => t.id));
     const focused = document.activeElement?.closest<HTMLElement>(".cp-list-row")?.dataset["id"];
     if (focused !== undefined && drawn.has(focused)) {
@@ -173,7 +176,7 @@ for (const list of document.querySelectorAll<HTMLElement>(".cp-list[data-virtual
         drawn.set(t.id, row);
         spacer.append(row);
       }
-      row.style.insetBlockStart = `${String(i * ROW_H)}px`;
+      row.style.insetBlockStart = `${String(i * pitch)}px`;
       const [text, end] = row.children;
       if (text?.firstElementChild != null && end != null) {
         text.firstElementChild.textContent = t.title;
