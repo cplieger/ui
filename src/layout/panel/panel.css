@@ -40,6 +40,11 @@
   min-inline-size: 0;
 }
 
+/* A title's line of facts sits close under it, read as one block. */
+.cp-heading-row > :first-child > :is(h1, h2, h3) + p {
+  margin-block-start: var(--cp-space-1);
+}
+
 .cp-heading-row > .cp-toolbar {
   flex: 0 1 auto;
   justify-content: end;

@@ -1,4 +1,5 @@
 import { clearError, reportErrors, showError } from "@cplieger/ui/form";
+import { toast } from "@cplieger/ui/toast";
 
 // The gallery's own behaviour for the cards that do not run on src/ yet, in plain DOM.
 const root = document.documentElement;
@@ -239,31 +240,6 @@ for (const b of document.querySelectorAll("[data-toggle]")) {
   b.addEventListener("animationend", () => b.classList.remove("unpinned"));
 }
 
-// Colour pops: a chip cycles through states and flashes on each change.
-const states = [
-  ["success", "check", "Up"],
-  ["warning", "clock", "Slow"],
-  ["danger", "x", "Down"],
-];
-for (const c of document.querySelectorAll(".chip-pop")) {
-  let i = 0;
-  c.addEventListener("click", () => {
-    i = (i + 1) % states.length;
-    const [tone, icon, word] = states[i];
-    c.dataset.tone = tone;
-    c.querySelector(".cp-icon").dataset.cpIcon = icon;
-    c.querySelector(".word").textContent = word;
-    c.classList.remove("popped");
-    void c.offsetWidth;
-    c.classList.add("popped");
-  });
-}
-
-// A filter row toggles; its wash fades in CSS.
-for (const f of document.querySelectorAll(".filter-fade")) {
-  f.addEventListener("click", () => f.setAttribute("aria-pressed", String(f.getAttribute("aria-pressed") !== "true")));
-}
-
 // Odometer
 function setOdometer(el, value) {
   const digits = String(value).padStart(el.children.length, "0");
@@ -289,27 +265,6 @@ for (const o of document.querySelectorAll(".odometer")) {
     setOdometer(o, v % 10 ** o.children.length);
     o.setAttribute("aria-label", String(v));
   });
-}
-
-// Sliding tab pill
-for (const list of document.querySelectorAll(".slide-tabs")) {
-  const pill = list.querySelector(".pill");
-  const place = () => {
-    const sel = list.querySelector('[aria-selected="true"]');
-    pill.style.setProperty("--x", `${sel.offsetLeft}px`);
-    pill.style.setProperty("--w", `${sel.offsetWidth}px`);
-  };
-  const sizes = new ResizeObserver(place);
-  sizes.observe(list);
-  for (const tab of list.querySelectorAll(".cp-tab")) {
-    sizes.observe(tab);
-    tab.addEventListener("click", () => {
-      for (const t of list.querySelectorAll(".cp-tab")) t.setAttribute("aria-selected", String(t === tab));
-      place();
-      tab.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduced() ? "auto" : "smooth" });
-    });
-  }
-  place();
 }
 
 // Segmented choices and toggle groups: one pill under the chosen one. It
@@ -340,36 +295,6 @@ for (const group of document.querySelectorAll(".cp-segmented, .g-toggles")) {
   group.addEventListener("click", () => requestAnimationFrame(() => place(false)));
   place(true);
 }
-
-// Progress: small steps a little faster than the fill's 480ms glide, so it
-// never comes to rest between them; it turns green once the fill arrives.
-for (const b of document.querySelectorAll("[data-run]")) {
-  const bar = document.getElementById(b.dataset.run);
-  const fill = bar.firstElementChild;
-  let run = 0;
-  b.addEventListener("click", () => {
-    const mine = ++run;
-    bar.classList.remove("full");
-    fill.style.transition = "none";
-    fill.style.setProperty("--p", "0%");
-    void fill.offsetWidth;
-    fill.style.transition = "";
-    let p = 0;
-    const tick = () => {
-      if (mine !== run) return;
-      p = Math.min(100, p + 3 + Math.random() * 5);
-      fill.style.setProperty("--p", `${p}%`);
-      if (p < 100) setTimeout(tick, 260);
-      else
-        setTimeout(() => {
-          if (mine !== run) return;
-          bar.classList.add("full");
-        }, 480);
-    };
-    tick();
-  });
-}
-
 
 // Five quick presses on a wordmark flip its mark: a rare surprise.
 for (const w of document.querySelectorAll("[data-five-press]")) {
@@ -574,138 +499,6 @@ new MutationObserver((records) => {
 // heard from inside an open modal dialog too.
 const say = (text) => announce(text);
 
-// ---------------------------------------------------------------- toasts
-// A passing toast leaves when its draining line ends, so a pointer or focus
-// on the stack, which pauses the line in CSS, pauses its timer too. An error
-// stays until dismissed. A finger can swipe one away.
-const TOAST_ICON = { info: "info", success: "circle-check", warning: "triangle-alert", error: "octagon-alert" };
-let toaster = null;
-// design-patterns.md "Notifications": 7 seconds, paused while hovered or
-// focused; an error, or any toast with an action, stays until dismissed.
-function toast({ kind = "info", title, body = "", action = null, actions = [], sticky = kind === "error" || Boolean(action) || actions.length > 0, life = 7000, busy = false }) {
-  toaster ??= document.body.appendChild(el("section", { class: "g-toaster", "aria-label": "Notifications" }));
-  const close = el("button", { class: "cp-button g-close", "data-variant": "quiet", type: "button", "aria-label": "Dismiss" }, icon("x"));
-  const text = el("div", {}, el("strong", { text: title }), ...(body ? [el("p", { text: body })] : []));
-  const node = el(
-    "div",
-    { class: "g-toast", "data-kind": kind, role: kind === "error" ? "alert" : "status" },
-    busy ? el("span", { class: "loader load-twirl g-toast-load", "aria-hidden": "true" }, el("span")) : icon(TOAST_ICON[kind]),
-    text,
-    close,
-  );
-  const all = action ? [action, ...actions] : actions;
-  if (all.length) {
-    text.append(el("div", { class: "g-toast-actions" }, ...all.map((a) => el("button", { class: "cp-button", "data-size": "sm", type: "button", text: a.label, onclick: () => { a.run?.(); if (!a.keep) leave(); } }))));
-  }
-  if (!sticky && !busy) {
-    const line = el("span", { class: "g-time" });
-    line.style.setProperty("--life", `${life}ms`);
-    line.addEventListener("animationend", () => leave());
-    node.append(line);
-  }
-  const slot = el("div", { class: "g-slot" }, el("div", { class: "g-toast-wrap" }, node));
-  const leave = () => goAway(slot);
-  close.addEventListener("click", leave);
-  // A press anywhere on the toast dismisses it, except on its own buttons
-  // and links, and except a press that ends a text selection.
-  node.addEventListener("click", (e) => {
-    if (e.target.closest("button, a") || String(getSelection()).length > 0) return;
-    leave();
-  });
-  swipeAway(node, leave);
-  toaster.append(slot);
-  // At most four at once: the oldest passing one makes room.
-  const slots = $$(".g-slot:not(.leaving)", toaster);
-  if (slots.length > 4) goAway(slots.find((s) => s.querySelector(".g-time")) ?? slots[0]);
-  return {
-    leave,
-    node,
-    update(next) {
-      node.dataset.kind = next.kind;
-      node.setAttribute("role", next.kind === "error" ? "alert" : "status");
-      text.querySelector(".g-toast-actions")?.remove();
-      node.firstElementChild.replaceWith(icon(TOAST_ICON[next.kind]));
-      text.firstElementChild.textContent = next.title;
-      if (next.body !== undefined) {
-        text.querySelector("p")?.remove();
-        if (next.body) text.append(el("p", { text: next.body }));
-      }
-      const line = el("span", { class: "g-time" });
-      line.style.setProperty("--life", `${next.life ?? 7000}ms`);
-      line.addEventListener("animationend", () => leave());
-      node.append(line);
-    },
-  };
-}
-// A toast leaves in two beats: it slides out toward its edge and fades
-// (280ms, speeding up), then its row closes so the ones above settle down
-// (220ms). Reduced motion only fades.
-function goAway(slot) {
-  if (slot.classList.contains("leaving")) return;
-  slot.classList.add("leaving");
-  const out = reduced() ? 120 : 280;
-  setTimeout(() => slot.classList.add("closing"), out);
-  setTimeout(() => slot.remove(), out + (reduced() ? 0 : 240));
-}
-function swipeAway(node, leave) {
-  let start = null;
-  node.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" || e.target.closest("button")) return;
-    start = { x: e.clientX, id: e.pointerId };
-    node.setPointerCapture(e.pointerId);
-  });
-  node.addEventListener("pointermove", (e) => {
-    if (start?.id !== e.pointerId) return;
-    const dx = e.clientX - start.x;
-    node.style.translate = `${dx}px 0`;
-    node.style.opacity = String(1 - Math.min(Math.abs(dx) / 200, 0.7));
-  });
-  const end = (e) => {
-    if (start?.id !== e.pointerId) return;
-    const dx = e.clientX - start.x;
-    start = null;
-    if (Math.abs(dx) > 80) leave();
-    else {
-      node.style.translate = "";
-      node.style.opacity = "";
-    }
-  };
-  node.addEventListener("pointerup", end);
-  node.addEventListener("pointercancel", end);
-}
-for (const b of $$("[data-toast-kind]")) {
-  b.addEventListener("click", () => {
-    const kind = b.dataset.toastKind;
-    const preset = {
-      info: { title: "The next check starts at 14:30" },
-      success: { title: "Saved", body: "The next check uses the new interval." },
-      warning: { title: "AniList is slow to answer", body: "Verdicts may be up to an hour old." },
-      error: { title: "Sonarr refused the API key", body: "Paste a new key in Settings, then Sources." },
-    }[kind];
-    toast({ kind, ...preset });
-  });
-}
-$("[data-toast-undo]")?.addEventListener("click", () =>
-  toast({ kind: "success", title: "3 entries removed", action: { label: "Undo", run: () => toast({ kind: "info", title: "3 entries restored" }) } }),
-);
-$("[data-toast-busy]")?.addEventListener("click", () => {
-  let n = 0;
-  let stopped = false;
-  const t = toast({ kind: "info", title: "Checking 0 of 412 entries…", busy: true, actions: [{ label: "Open", keep: true, run: () => say("Opening the check") }, { label: "Cancel", run: () => (stopped = true) }] });
-  const tick = setInterval(() => {
-    if (stopped) return clearInterval(tick);
-    n = Math.min(412, n + 103);
-    t.node.querySelector("strong").textContent = `Checking ${n} of 412 entries…`;
-    if (n === 412) {
-      clearInterval(tick);
-      t.update({ kind: "success", title: "Check finished", body: "33 entries have a better release." });
-    }
-  }, 600);
-});
-$("[data-toast-sticky]")?.addEventListener("click", () =>
-  toast({ kind: "warning", title: "Radarr is offline", body: "Changes wait until it answers again.", sticky: true }),
-);
-
 // A trigger with filters or labels on: data-active, and its icon swaps to
 // the filled drawing named by data-cp-icon-on.
 const markActive = (b, on) => {
@@ -765,7 +558,7 @@ function menuKeys(menu) {
     if (item.dataset.say) toast({ kind: item.dataset.tone === "danger" ? "warning" : "info", title: item.dataset.say });
   });
 }
-$$("[role='menu'][popover]").forEach(menuKeys);
+$$("[role='menu'][popover]:not(.cp-menu)").forEach(menuKeys);
 
 // A context menu opens where the pointer is: a right click, or a finger held
 // still for half a second. The hold selects no text and opens no browser
@@ -975,40 +768,6 @@ function liveTimes() {
 }
 liveTimes();
 setInterval(liveTimes, 30000);
-
-// -------------------------------------------------------- content tabs
-// Arrow keys move along the tabs and select, as the WAI-ARIA tabs pattern's
-// automatic activation does; each tab shows its panel.
-for (const list of $$("[data-tabs]")) {
-  const tabs = $$("[role='tab']", list);
-  const select = (tab) => {
-    for (const t of tabs) {
-      const on = t === tab;
-      t.setAttribute("aria-selected", String(on));
-      t.tabIndex = on ? 0 : -1;
-      const panel = document.getElementById(t.getAttribute("aria-controls"));
-      if (panel) panel.hidden = !on;
-    }
-    tab.click();
-  };
-  list.addEventListener("keydown", (e) => {
-    const at = tabs.indexOf(document.activeElement);
-    if (at < 0) return;
-    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs.length - 1 }[e.key];
-    if (next === undefined) return;
-    e.preventDefault();
-    const t = tabs[(next + tabs.length) % tabs.length];
-    t.focus();
-    select(t);
-  });
-  for (const t of tabs) t.addEventListener("click", () => {
-    for (const x of tabs) {
-      x.tabIndex = x === t ? 0 : -1;
-      const panel = document.getElementById(x.getAttribute("aria-controls"));
-      if (panel) panel.hidden = x !== t;
-    }
-  });
-}
 
 // ------------------------------------------------------------- tables
 // A sortable header sorts its column and the rows glide to their places.
@@ -1230,10 +989,6 @@ for (const list of $$("[data-reorder]")) {
   list.addEventListener("pointerup", end);
   list.addEventListener("pointercancel", end);
 }
-
-// --------------------------------------------------------- disclosure
-// <details name> is the platform's accordion; an engine that sizes to auto
-// glides it open, and the others snap, which is usable.
 
 // ---------------------------------------------------------------- theme
 // The page's look follows the chosen theme, and the change reveals the new
@@ -1614,40 +1369,6 @@ for (const md of $$("[data-md]")) {
   render();
 }
 
-// ----------------------------------------------------------- bottom bar
-for (const nav of $$(".g-bottom-nav")) {
-  nav.addEventListener("click", (e) => {
-    const a = e.target.closest("a");
-    if (!a) return;
-    e.preventDefault();
-    for (const x of $$("a", nav)) x.toggleAttribute("aria-current", x === a);
-    for (const x of $$("a", nav)) if (x === a) x.setAttribute("aria-current", "page");
-    $(".g-phone-body", nav.closest(".g-phone")).textContent = `${a.textContent.trim()}: this destination's screen.`;
-  });
-}
-
-// --------------------------------------------------------- header status
-// The worst state that holds: problems, offline, a warning, working, all
-// good. A change is announced politely, as the words of the button itself.
-const STATES = [
-  { state: "ok", words: "All good" },
-  { state: "working", words: "Working: 3" },
-  { state: "warning", words: "1 warning" },
-  { state: "problem", words: "2 problems", detail: "Full check 3 of 8" },
-  { state: "offline", words: "Offline" },
-];
-for (const s of $$("[data-status-demo]")) {
-  const link = $(".cp-header-status", s.closest(".card"));
-  let i = 0;
-  s.addEventListener("click", () => {
-    i = (i + 1) % STATES.length;
-    const st = STATES[i];
-    link.dataset.state = st.state;
-    link.replaceChildren(el("span", { text: st.words }), ...(st.detail ? [el("span", { "data-part": "detail", text: st.detail })] : []));
-    announce(st.words);
-  });
-}
-
 // ------------------------------------------------------------ virtual list
 // 20,000 rows: only those in view, plus a few each side, are in the DOM,
 // each keyed by its id so a live update changes it in place. The focused
@@ -2022,41 +1743,6 @@ for (const form of $$("form[data-settings]")) {
 
 // ======================================== hero icons, layouts and the rest of the scope
 
-// Tabs with manual activation: for panels that load on demand, the arrow
-// keys move focus only, and Enter or Space selects (design-patterns.md
-// "Tabs" rule 3).
-for (const list of $$("[data-tabs-manual]")) {
-  const tabs = $$("[role='tab']", list);
-  list.addEventListener("keydown", (e) => {
-    const at = tabs.indexOf(document.activeElement);
-    if (at < 0) return;
-    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: tabs.length - 1 }[e.key];
-    if (next !== undefined) {
-      e.preventDefault();
-      tabs[(next + tabs.length) % tabs.length].focus();
-    }
-  });
-  for (const t of tabs) {
-    t.addEventListener("click", () => {
-      for (const x of tabs) {
-        x.setAttribute("aria-selected", String(x === t));
-        x.tabIndex = x === t ? 0 : -1;
-        const panel = document.getElementById(x.getAttribute("aria-controls"));
-        if (panel) panel.hidden = x !== t;
-      }
-      const panel = document.getElementById(t.getAttribute("aria-controls"));
-      panel.setAttribute("aria-busy", "true");
-      panel.textContent = "Loading…";
-      setTimeout(() => {
-        panel.removeAttribute("aria-busy");
-        panel.textContent = `${t.textContent}: loaded when selected.`;
-      }, 500);
-    });
-  }
-}
-
-// The header's theme button switches light and dark in one press: pressed
-// means dark, and its icon turns over to the theme it now shows.
 // Menu items that check: Space or a press toggles and keeps the menu open.
 for (const item of $$("[role='menuitemcheckbox']")) {
   const toggle = (e) => {
@@ -2270,64 +1956,6 @@ for (const pop of $$("[data-selectpanel]")) {
   labelBtn();
 }
 
-// The single-value jump field: options with a picture; the first Escape
-// closes the list, the second clears the field; the count is announced.
-for (const box of $$("[data-jump]")) {
-  const input = $("input", box);
-  const list = document.getElementById(box.dataset.jump);
-  const opts = $$("[role='option']", list);
-  const none = $("[role='status']", list);
-  const anchorName = "--g-jump";
-  box.style.setProperty("anchor-name", anchorName);
-  list.style.setProperty("position-anchor", anchorName);
-  let at = -1;
-  let timer = 0;
-  const vis = () => opts.filter((o) => !o.hidden);
-  const mark = (i) => {
-    const v = vis();
-    at = v.length ? (i + v.length) % v.length : -1;
-    opts.forEach((o) => o.setAttribute("aria-selected", String(o === v[at])));
-    if (v[at]) input.setAttribute("aria-activedescendant", v[at].id);
-    else input.removeAttribute("aria-activedescendant");
-  };
-  const open = () => {
-    const q = input.value.trim().toLowerCase();
-    for (const o of opts) o.hidden = q !== "" && !o.textContent.toLowerCase().includes(q);
-    none.hidden = vis().length > 0;
-    none.textContent = `No entry matches “${input.value.trim()}”`;
-    if (!list.matches(":popover-open")) list.showPopover();
-    input.setAttribute("aria-expanded", "true");
-    mark(0);
-    clearTimeout(timer);
-    timer = setTimeout(() => announce(vis().length ? `${vis().length} entries` : none.textContent), 500);
-  };
-  const close = () => {
-    if (list.matches(":popover-open")) list.hidePopover();
-    input.setAttribute("aria-expanded", "false");
-  };
-  input.addEventListener("input", open);
-  input.addEventListener("blur", () => setTimeout(close, 120));
-  list.addEventListener("pointerdown", (e) => e.preventDefault());
-  const go = (o) => {
-    close();
-    input.value = o.querySelector("strong").textContent;
-    toast({ kind: "info", title: `Opened ${input.value}` });
-  };
-  list.addEventListener("click", (e) => {
-    const o = e.target.closest("[role='option']");
-    if (o) go(o);
-  });
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") (list.matches(":popover-open") ? mark(at + 1) : open());
-    else if (e.key === "ArrowUp") mark(at - 1);
-    else if (e.key === "Enter" && at >= 0 && list.matches(":popover-open")) go(vis()[at]);
-    else if (e.key === "Escape") (list.matches(":popover-open") ? close() : (input.value = ""));
-    else return;
-    e.preventDefault();
-  });
-  $("[data-jump-go]", box)?.addEventListener("click", () => (vis()[0] ? go(vis()[0]) : open()));
-}
-
 // Values that come from data are set through the CSSOM, which a style-src
 // without 'unsafe-inline' allows, never as a style attribute.
 for (const s of $$(".g-segs > span[data-fill]")) {
@@ -2457,19 +2085,6 @@ for (const d of $$("[data-filter-sheet]")) {
   recount();
 }
 
-// The first sync's phase line moves on with it (a demo clock).
-for (const host of $$("[data-first-sync]")) {
-  const bar = $("progress", host);
-  const phase = $(".g-sync-phase", host);
-  setInterval(() => {
-    const next = Number(bar.value) + 7;
-    if (next > Number(bar.max)) {
-      bar.value = 0;
-    } else bar.value = next;
-    phase.textContent = `Series ${bar.value} of ${bar.max}`;
-  }, 900);
-}
-
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to
 // fit its card; its own container queries do what the window's width would.
 const WIDTHS = [["Phone", 390], ["Tablet", 820], ["Desktop", 1280]];
@@ -2580,23 +2195,7 @@ function glideDetails(d) {
   });
   void run;
 }
-for (const d of $$("details")) glideDetails(d);
-
-// An accordion's mode: One at a time groups its sections, so opening one
-// closes the others; Any number lets each open on its own. Switching to one
-// at a time keeps the first open section and closes the rest.
-for (const mode of $$("[data-acc-mode]")) {
-  const sections = $$("details", document.getElementById(mode.dataset.accMode));
-  const group = sections[0]?.dataset.group ?? "acc";
-  mode.addEventListener("change", (e) => {
-    const one = e.target.value === "one";
-    for (const s of sections) {
-      if (one) s.dataset.group = group;
-      else delete s.dataset.group;
-    }
-    if (one) for (const s of sections.filter((x) => x.open).slice(1)) $("summary", s).click();
-  });
-}
+for (const d of $$("details:not(.cp-accordion details)")) glideDetails(d);
 
 // A bar that appears or leaves pushes the content under it, so it glides
 // open and shut instead of jumping.

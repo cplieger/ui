@@ -4,7 +4,7 @@
   gap: var(--cp-space-2);
 }
 
-.cp-input-row > .cp-input {
+.cp-input-row > :is(.cp-input, .cp-search) {
   flex: 1;
   min-inline-size: 0;
 }

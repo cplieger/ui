@@ -25,7 +25,8 @@
   font: inherit;
   text-align: start;
   cursor: pointer;
-  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+  /* Slower than a colour change: the wash turns the whole row on or off. */
+  transition: background-color var(--cp-dur-medium) var(--cp-ease-out);
 }
 
 .cp-filter[aria-pressed="true"] {
@@ -50,12 +51,18 @@
   background: var(--cp-tone-9);
 }
 
-/* A count beside a filter. */
-.cp-count {
+/* A filter's count, a quiet .cp-badge at the row's end, turns solid in the
+ * accent with its row. */
+.cp-filter > .cp-badge {
   margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--cp-dur-medium) var(--cp-ease-out),
+    color var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+.cp-filter[aria-pressed="true"] > .cp-badge {
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
 }
 
 @media (forced-colors: active) {

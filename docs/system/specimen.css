@@ -240,7 +240,7 @@
 }
 
 .progress-58 {
-  inline-size: 58%;
+  --cp-progress: 58%;
 }
 
 /* A sheet shown in place, at the size it opens at, for the reference only. */

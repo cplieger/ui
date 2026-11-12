@@ -22,7 +22,7 @@
         </div>
         <footer>Info and success are polite; warning and error interrupt a screen reader. Each has its glyph, so the tone is never the only signal.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>With an action, held, or working</h2>
         <div class="g-buttons">
           <button class="cp-button" type="button" data-toast-undo>Remove with Undo</button>
@@ -50,7 +50,7 @@
       <div class="card g-wide">
         <h2>Banner for the whole app</h2>
         <div class="cp-banner" data-tone="warning" role="status"><span class="cp-icon" data-cp-icon="wifi-off" aria-hidden="true"></span><span><strong>Connection lost.</strong> Reconnecting in 4 seconds…</span><button class="cp-button" data-size="sm" type="button">Retry now</button></div>
-        <div class="g-banner-reasons g-gap-top" role="status"><strong><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>This app can be reached from the internet</strong><ul><li>It answers on a public address, 203.0.113.7.</li><li>Sign-in by password is on, with no passkey required.</li></ul><small>Last seen from outside <time data-ago="2400"></time>. <a href="#announce">How to limit access</a></small></div>
+        <div class="cp-banner g-gap-top" data-tone="warning" role="status"><strong><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>This app can be reached from the internet</strong><ul><li>It answers on a public address, 203.0.113.7.</li><li>Sign-in by password is on, with no passkey required.</li></ul><small>Last seen from outside <time data-ago="2400"></time>. <a href="#announce">How to limit access</a></small></div>
         <footer>For a state of the whole app, such as an update that needs a reload, or a lost connection in an app with no header status (with one, its offline state says it alone): at the top of the main area, above the page's own content, until the state ends, so it has no dismiss. When the state has reasons, they follow as a short list with one way to act on them.</footer>
       </div>
     </div>
@@ -59,16 +59,17 @@
   <section class="g-section" id="states">
     <h2>States and counts</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Status chips</h2>
         <div class="g-row-inline">
           <span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span>
           <span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Older revision</span>
           <span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span>
           <span class="cp-chip" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>Not listed</span>
-          <button class="cp-chip chip-pop" data-tone="success" type="button"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span><span class="word">Up</span></button>
+          <span class="cp-chip" data-tone="success" data-chip-demo><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span><span>Up</span></span>
         </div>
-        <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once and fades back to its wash: press the last chip.</footer>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-chip-next>Next state</button></div>
+        <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once, a little larger, and fades back to its wash; the change is announced, since the flash is only seen. Next state moves the last chip from Up to Slow to Down. A chip is a state, never a control.</footer>
       </div>
       <div class="card">
         <h2>Live dot, badges, times</h2>
@@ -85,11 +86,11 @@
   <section class="g-section" id="progress">
     <h2>Progress and loading</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>A known amount</h2>
         <div class="stage">
-          <span class="variant"><span class="bar-row"><span class="bar" id="bar"><span></span></span><span class="cp-icon bar-check" data-cp-icon="circle-check" aria-hidden="true"></span></span>Run a check</span>
-          <button class="cp-button" type="button" data-run="bar">Start</button>
+          <span class="variant"><span class="cp-progress" id="check-bar" role="progressbar" aria-label="Running a check" aria-valuenow="0"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span></span>Run a check</span>
+          <button class="cp-button" type="button" data-progress-run="check-bar">Start</button>
         </div>
       </div>
       <div class="card">
@@ -118,9 +119,9 @@
       <div class="card g-wide">
         <h2>Loading content</h2>
         <div class="cp-panel cp-stack" aria-busy="true" aria-label="Loading the library">
-          <div class="cp-skeleton g-skel-40"></div>
+          <div class="cp-skeleton" data-variant="heading"></div>
           <div class="cp-skeleton"></div>
-          <div class="cp-skeleton g-skel-85"></div>
+          <div class="cp-skeleton" data-variant="last"></div>
         </div>
         <footer>A region that loads draws its shape at once with skeleton lines and marks itself busy; a whole screen loading uses the three twirls above.</footer>
       </div>
@@ -141,13 +142,13 @@
       </div>
       <div class="card">
         <h2>Failed to load</h2>
-        <div class="cp-empty"><span class="cp-icon g-hero-icon" data-tone="danger" data-cp-icon="circle-x" aria-hidden="true"></span><strong>The library did not load</strong><span>Sonarr took more than 10 seconds to answer.</span><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Try again</button></div>
+        <div class="cp-empty"><span class="cp-icon" data-tone="danger" data-cp-icon="circle-x" aria-hidden="true"></span><strong>The library did not load</strong><span>Sonarr took more than 10 seconds to answer.</span><button class="cp-button" type="button"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Try again</button></div>
         <footer>An error says what failed and offers the one next step.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>First sync running</h2>
-        <div class="cp-empty" data-first-sync><strong class="g-sync-head"><span class="loader load-twirl" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="g-sync-phase">Series 120 of 351</span><progress max="351" value="120" aria-label="Reading the library from Sonarr"></progress><a class="cp-button" href="#empty">View activity</a></div>
-        <footer>The first-run state between connecting and data: what is being read, how far, and a way to watch it. The phase line moves on as the sync does.</footer>
+        <div class="cp-empty"><strong><span class="cp-loader" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="cp-progress" role="progressbar" aria-label="Reading the library from Sonarr" aria-valuemax="351" aria-valuenow="120" aria-valuetext="Series 120 of 351" data-sync-demo><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>Series 120 of 351</span><a class="cp-button" href="#empty">View activity</a></div>
+        <footer>The first-run state between connecting and data: what is being read, how far, and a way to watch it. The bar is the one for a known amount, with the step in words beside it, or under it in a narrow box, and both move on as the sync does.</footer>
       </div>
     </div>
   </section>
