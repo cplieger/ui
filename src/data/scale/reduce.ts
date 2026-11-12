@@ -11,13 +11,12 @@ export interface Point {
 }
 
 /**
- * The runs of `ys[from..to)` between gaps (`null` or `NaN`), placed at
- * `xs` (ascending), reduced so each column `width` wide keeps its entry,
- * minimum, maximum and exit per run, in sample order. A column of four
- * samples or fewer keeps them all. After a gap, the samples that share a
- * column with the run before it move to the next column's start, so a gap
- * narrower than a column still breaks the path by one column, though never
- * past `end`, so a sample on the plot's end is not moved off it.
+ * The runs of `ys[from..to)` between gaps (`null` or `NaN`), placed at `xs`
+ * (ascending), reduced so each column `width` wide keeps its entry, minimum,
+ * maximum and exit per run, in sample order. A column of four samples or fewer
+ * keeps them all. After a gap, the samples that share a column with the run
+ * before it move to the next column's start, so a gap narrower than a column
+ * still breaks the path by one column, though never past `end`.
  */
 export function reduce(
   xs: ArrayLike<number>,

@@ -4,9 +4,8 @@
  */
 
 /** Maps `d0`..`d1` onto `r0`..`r1`, linearly or (for "log", d0 > 0) by
- *  logarithm, each end exactly onto its end of the range, so a sample on the
- *  domain's end is never cut as past the plot. A domain of one value maps to
- *  the range's middle. */
+ *  logarithm, each end exactly onto its end of the range. A domain of one
+ *  value maps to the range's middle. */
 export function position(
   type: "linear" | "log" | "time",
   d0: number,
