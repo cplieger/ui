@@ -159,6 +159,17 @@ function place(el: ChildNode, hook: () => Node | undefined): Node {
   return result;
 }
 
+/** Sets an `ol`'s `--cp-marker-digits` to its widest number's digit count,
+ *  which `.cp-prose` widens the marker gutter by. Runs as items arrive, so a
+ *  streamed list widens when it reaches 10 or 100. */
+function fitMarkers(ol: Element): void {
+  const start = Number(ol.getAttribute("start") ?? "1");
+  const digits = String(start + Math.max(ol.children.length - 1, 0)).length;
+  if (digits > 1 && isHTMLElement(ol)) {
+    ol.style.setProperty("--cp-marker-digits", String(digits));
+  }
+}
+
 function checkLevel(level: number): number {
   if (!Number.isInteger(level) || level < 1 || level > 6) {
     throw new RangeError(`headingLevel must be 1 to 6, not ${String(level)}`);
@@ -442,6 +453,9 @@ export function domSink(
         const node = doc.createElement(tag);
         parent.into.append(node);
         push(kind, node, node);
+        if (kind === "list-item" && parent.kind === "list-ordered") {
+          fitMarkers(parent.into);
+        }
       }
     }
   }
@@ -468,6 +482,7 @@ export function domSink(
     } else if (name === "start" && frame.kind === "list-ordered") {
       if (START.test(value)) {
         frame.into.setAttribute("start", String(Number(value)));
+        fitMarkers(frame.into);
       }
     } else if (name === "align" && frame.kind === "table") {
       frame.align = value.split(",");

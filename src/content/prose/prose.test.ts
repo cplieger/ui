@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { renderMarkdown } from "../markdown/markdown.js";
+import { createMarkdownStream, renderMarkdown } from "../markdown/markdown.js";
 
 const root = document.documentElement;
 const hosts: HTMLElement[] = [];
@@ -52,6 +52,24 @@ function q(el: Element, selector: string): HTMLElement {
 }
 
 const css = (el: Element) => getComputedStyle(el);
+
+/** How wide `li`'s outside marker for `n` is: the number, the dot and the
+ *  space, in tabular figures as the UA styles `::marker`. */
+function markerWidth(li: Element, n: number): number {
+  const probe = document.createElement("span");
+  probe.style.position = "absolute";
+  probe.style.whiteSpace = "pre";
+  probe.style.fontVariantNumeric = "tabular-nums";
+  probe.textContent = `${String(n)}. `;
+  li.append(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return width;
+}
+
+/** How far `li`'s content starts from the clipping host's edge. */
+const gutter = (host: Element, li: Element) =>
+  li.getBoundingClientRect().left - host.getBoundingClientRect().left;
 const frame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
 
 describe(".cp-prose", () => {
@@ -84,6 +102,40 @@ describe(".cp-prose", () => {
     const el = prose("| a | b | c |\n|:--|:-:|--:|\n| 1 | 2 | 3 |\n");
     const cells = [...el.querySelectorAll("tbody td")];
     expect(cells.map((c) => css(c).textAlign)).toEqual(["start", "center", "end"]);
+  });
+
+  it("widens an ordered list's gutter to fit a nine-digit start", () => {
+    const el = prose("123456789. x\n");
+    el.style.overflow = "clip";
+    const li = q(el, "ol > li");
+    expect(gutter(el, li)).toBeGreaterThanOrEqual(markerWidth(li, 123456789));
+  });
+
+  it("widens a streamed ordered list's gutter as its numbers reach 100", () => {
+    const el = prose("");
+    el.style.overflow = "clip";
+    const stream = createMarkdownStream(el, { flushIntervalMs: 0 });
+    for (const [chunk, n] of [
+      ["98. a\n", 98],
+      ["1. b\n", 99],
+      ["1. c\n", 100],
+    ] as const) {
+      stream.write(chunk);
+      const items = el.querySelectorAll("ol > li");
+      expect(items).toHaveLength(n - 97);
+      const li = items[items.length - 1] as Element;
+      expect(gutter(el, li), chunk).toBeGreaterThanOrEqual(markerWidth(li, n));
+    }
+    stream.end();
+  });
+
+  it("keeps a nested ordered list's gutter to its own numbers", () => {
+    const el = prose("100. a\n     1. b\n");
+    const outer = q(el, ":scope > ol");
+    const inner = q(outer, "ol");
+    const pad = (ol: Element) => Number.parseFloat(css(ol).paddingInlineStart);
+    expect(pad(inner)).toBe(1.5 * Number.parseFloat(css(inner).fontSize));
+    expect(pad(outer)).toBeGreaterThan(pad(inner));
   });
 
   it("draws a task item with its box and no bullet", () => {
