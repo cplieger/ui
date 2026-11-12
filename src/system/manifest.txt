@@ -60,6 +60,7 @@ data/text/text.css
 data/avatar/avatar.css
 data/cover/cover.css
 data/list-row/list-row.css
+data/held-list/held-list.css
 data/reorder/reorder.css
 data/feed/feed.css
 feedback/chip/chip.css

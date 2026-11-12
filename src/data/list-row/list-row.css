@@ -199,19 +199,6 @@
   }
 }
 
-/* The rows a list holds back while the reader is in it: their count and the
- * Show button that puts them in, above the list, in a role="status". */
-.cp-list-pending {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cp-space-2);
-  padding: var(--cp-space-2) var(--cp-space-4);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-sm);
-}
-
 /* The list's last item, holding one action for the whole list. */
 .cp-list-foot {
   display: flex;
@@ -267,9 +254,5 @@
   .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible) {
     outline: var(--cp-line-w) solid CanvasText;
     outline-offset: calc(-1 * var(--cp-line-w));
-  }
-
-  .cp-list-pending {
-    border: var(--cp-line-w) solid CanvasText;
   }
 }

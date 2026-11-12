@@ -3760,7 +3760,7 @@ describe("css/system.css lists, feeds and counts", () => {
   it("offers held-back rows on the selected fill in readable ink, in both themes", () => {
     for (const t of ["light", "dark"] as const) {
       theme(t);
-      const el = build('<div class="cp-list-pending" role="status">3 newer rows</div>');
+      const el = build('<div class="cp-list-pending">3 newer rows</div>');
       const cs = getComputedStyle(el.firstElementChild as Element);
       expect(cs.backgroundColor).toBe(resolved("var(--cp-selected)", "backgroundColor"));
       expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(4.5);

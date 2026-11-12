@@ -1,0 +1,24 @@
+/* The rows a list holds back while the reader is in it: their count and the
+ * Show button that puts them in, above the list. */
+.cp-list-pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-2) var(--cp-space-4);
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-size: var(--cp-text-sm);
+}
+
+/* A table row the app could not refresh, kept beside its reason: muted ink,
+ * as a kept list row is. */
+.cp-table tbody tr[data-kept] > :is(td, th) {
+  color: var(--cp-ink-muted);
+}
+
+@media (forced-colors: active) {
+  .cp-list-pending {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
