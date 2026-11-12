@@ -20,8 +20,9 @@ import {
   snap,
   tickPath,
 } from "./geometry.js";
-import type { Layout, Metrics, Text } from "./layout.js";
+import type { Layout, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
+import { MARKER_RADIUS } from "./notes.js";
 import { primaryOf, type Reading, type Widths } from "./readout.js";
 import type { Navigator, Selection } from "./select.js";
 
@@ -83,6 +84,20 @@ function texts(part: string, list: readonly Text[], mono = false): SVGElement {
     text.textContent = t.text;
     g.append(text);
   }
+  return g;
+}
+
+// A note's numbered marker at its point, moved in by up to AREA_ROOM px at
+// the plot's edge so the area's clip never cuts the circle.
+function marker(note: Note, f: Layout["frame"]): SVGElement {
+  const r = MARKER_RADIUS;
+  const inside = (v: number, hi: number) =>
+    Math.min(Math.max(v, r - AREA_ROOM), Math.max(hi + AREA_ROOM - r, r - AREA_ROOM));
+  const cx = inside(note.point.x, f.width);
+  const cy = inside(note.point.y, f.height);
+  const g = svgEl("g", { "data-part": "marker" });
+  g.append(svgEl("path", { d: ring(cx, cy, r) }));
+  g.append(texts("number", [{ text: String(note.number), x: cx, y: cy, anchor: "middle" }]));
   return g;
 }
 
@@ -172,7 +187,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       case "text": {
         const note = lay.notes.find((n) => n.mark === index);
         if (note !== undefined) {
-          area.append(texts("note", note.lines));
+          area.append(lay.numbered ? marker(note, f) : texts("note", note.lines));
         }
         break;
       }

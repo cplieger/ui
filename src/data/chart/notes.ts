@@ -1,16 +1,22 @@
 /**
  * notes.ts — where a text mark's note sits beside its point: its lines
  * wrapped at spaces, its side, flipped at the plot's edge, then shifted
- * along that edge until it fits.
+ * along that edge until it fits; and the stop whose reading it joins.
  * @module
  */
 
-import type { Side } from "./model.js";
+import { lowerBound } from "../scale/reduce.js";
+
+import type { Model, RectModel, Side, TextModel } from "./model.js";
+import { primaryOf } from "./readout.js";
+import { ruleAt } from "./scales.js";
 
 /** The room between a note and its point. */
 export const NOTE_OFFSET = 4;
 /** A note wraps at this many rem. */
 export const NOTE_REM = 12;
+/** A numbered marker's radius: a 20 px circle. */
+export const MARKER_RADIUS = 10;
 
 export interface Box {
   readonly left: number;
@@ -126,4 +132,86 @@ export function placeNote(
     : { ...b, top: b.top + shift, bottom: b.bottom + shift };
   const fits = box.left >= 0 && box.right <= width && box.top >= 0 && box.bottom <= height;
   return { side: taken, box, fits };
+}
+
+/** The stop a note joins: bucket or sample `i`, post `i` of a timeline
+ *  row, or a timeline row with no post. */
+export type Join =
+  | { readonly kind: "stop"; readonly i: number }
+  | { readonly kind: "post"; readonly row: number; readonly i: number }
+  | { readonly kind: "row"; readonly row: number };
+
+/**
+ * The index in `[from, to)` of ascending `xs` nearest `x`, the earlier on a
+ * tie. Before the first or after the last only within half the distance to
+ * that end's neighbour, or at any x for a lone one; undefined otherwise.
+ */
+export function nearestStop(
+  xs: ArrayLike<number>,
+  from: number,
+  to: number,
+  x: number,
+): number | undefined {
+  if (to <= from) {
+    return undefined;
+  }
+  if (to - from === 1) {
+    return from;
+  }
+  const first = xs[from] ?? 0;
+  const last = xs[to - 1] ?? 0;
+  if (x < first) {
+    return first - x <= ((xs[from + 1] ?? first) - first) / 2 ? from : undefined;
+  }
+  if (x > last) {
+    return x - last <= (last - (xs[to - 2] ?? last)) / 2 ? to - 1 : undefined;
+  }
+  const i = Math.min(Math.max(lowerBound(xs, x), from + 1), to - 1);
+  return x - (xs[i - 1] ?? x) <= (xs[i] ?? x) - x ? i - 1 : i;
+}
+
+// The shown bucket whose [x1, x2) holds x, or at the domain's high end the
+// bucket ending there, which no bucket's interval holds.
+function bucketAt(m: RectModel, x: number, hi: number): number | undefined {
+  const x1 = (i: number) => m.x1[i] ?? 0;
+  const x2 = (i: number) => m.x2[i] ?? 0;
+  const held = m.shown.find((i) => x1(i) <= x && x < x2(i));
+  return held ?? (x === hi ? m.shown.find((i) => x2(i) === x) : undefined);
+}
+
+/** The stop note `t` joins in `model`; none when it lies off an axis's
+ *  drawn range or names no stop. */
+export function noteJoin(model: Model, t: TextModel): Join | undefined {
+  if ("off" in ruleAt(model.x, t.x)) {
+    return undefined;
+  }
+  const y = model.y;
+  if (!t.row && y.type !== "band" && y.passed && (t.y < y.lo || t.y > y.hi)) {
+    return undefined;
+  }
+  const m = primaryOf(model);
+  switch (m?.kind) {
+    case "rect": {
+      const i = bucketAt(m, t.x, model.x.hi);
+      return i === undefined ? undefined : { kind: "stop", i };
+    }
+    case "line":
+    case "area": {
+      const i = nearestStop(m.x, m.from, m.to, t.x);
+      return i === undefined ? undefined : { kind: "stop", i };
+    }
+    case "dot": {
+      const row = m.rows[t.y];
+      if (row === undefined) {
+        return undefined;
+      }
+      if (row.to <= row.from) {
+        return { kind: "row", row: t.y };
+      }
+      const i = nearestStop(row.x, row.from, row.to, t.x);
+      return i === undefined ? undefined : { kind: "post", row: t.y, i };
+    }
+    case undefined:
+      return undefined;
+  }
 }

@@ -414,6 +414,58 @@ describe("the summary of a timeline", () => {
   });
 });
 
+describe("the notes in the summary", () => {
+  it("follow the rules, each its x in the readings' format and its text, in spec order", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [
+        ...stacked.marks,
+        { mark: "text", x: starts[3] ?? 0, y: 9, text: "Deploy" },
+        { mark: "rule", y: 12, label: "Limit" },
+        { mark: "text", x: starts[9] ?? 0, y: 9, text: "Rollback" },
+      ],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(
+        `Limit 12\\. ${time(starts[3] ?? 0)}: Deploy\\. ${time(starts[9] ?? 0)}: Rollback\\.$`,
+        "u",
+      ),
+    );
+  });
+
+  it("names a timeline note's row before its time", () => {
+    const spec: ChartSpec = {
+      x: { type: "time", domain: [START, END] },
+      marks: [
+        { mark: "dot", rows: [{ name: "ana", x: [START + MIN] }] },
+        { mark: "text", x: START + 2 * MIN, y: "ana", text: "Paused" },
+      ],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(`ana, ${time(START + 2 * MIN)}: Paused\\.$`, "u"),
+    );
+  });
+
+  it("include a note outside a passed domain, which is not drawn", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: END + 60 * MIN, y: 1, text: "Later" }],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(/: Later\.$/u);
+  });
+
+  it("take the app's words", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: START, y: 1, text: "Start" }],
+    };
+    const own = chartWords({ note: (at, text) => `[${at}] ${text}` });
+    expect(generatedSummary(model(spec), own)).toMatch(
+      new RegExp(`\\[${time(START)}\\] Start$`, "u"),
+    );
+  });
+});
+
 describe("the spec's own summary", () => {
   it("replaces the generated text with a string, or edits it with a function", () => {
     expect(summaryOf(model({ ...stacked, summary: "Posts today." }), words)).toBe("Posts today.");

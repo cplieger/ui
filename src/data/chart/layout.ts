@@ -82,6 +82,9 @@ export interface Layout {
   readonly endLabels: readonly Text[];
   /** The notes drawn, in spec order: those whose point lies in the plot. */
   readonly notes: readonly Note[];
+  /** Every note is drawn as its numbered marker, its words listed below
+   *  the plot: under 30rem, or when two notes overlap or one cannot fit. */
+  readonly numbered: boolean;
 }
 
 /** A text mark's note laid out beside its point, in plot px. */
@@ -93,14 +96,16 @@ export interface Note {
   readonly lines: readonly Text[];
   /** Its box lies inside the plot. */
   readonly fits: boolean;
+  /** Its marker's number, 1 up in the order drawn. */
+  readonly number: number;
 }
 
 /** The room between text and what it labels. */
 const PAD = 8;
 /** The x tick vectors' length, and the room under them. */
 const TICK = 4;
-/** Under this many rem a chart draws no end labels. */
-const END_LABELS_REM = 30;
+/** Under this many rem a chart draws no end labels, and its notes as numbered markers. */
+const NARROW_REM = 30;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
@@ -169,9 +174,23 @@ function notesOf(model: Model, metrics: Metrics, frame: Frame, rows: Layout["row
         anchor,
       })),
       fits: placed.fits,
+      number: out.length + 1,
     });
   });
   return out;
+}
+
+const overlap = (a: Box, b: Box): boolean =>
+  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+// All notes switch together, so a reader never matches some on the plot and
+// some in the list below it.
+function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
+  return (
+    notes.length > 0 &&
+    (narrow ||
+      notes.some((n, k) => !n.fits || notes.slice(k + 1).some((o) => overlap(n.box, o.box))))
+  );
 }
 
 /** An x rule's label on the plot: its words and value, or off the axis. */
@@ -218,7 +237,7 @@ export function layout(
   }
   const axisW = Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
-  const ends = chart >= END_LABELS_REM * metrics.rem ? endTexts(model, words) : [];
+  const ends = chart >= NARROW_REM * metrics.rem ? endTexts(model, words) : [];
   const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,
@@ -376,6 +395,7 @@ export function layout(
   });
 
   const frame: Frame = { width: plotW, height, dpr, x: model.x, xAt: xAx.at, yAt };
+  const notes = notesOf(model, metrics, frame, rows);
   return {
     width,
     height: top + height + bottom,
@@ -393,6 +413,7 @@ export function layout(
     ruleLabels,
     plotLabels,
     endLabels,
-    notes: notesOf(model, metrics, frame, rows),
+    notes,
+    numbered: numberedNotes(notes, chart < NARROW_REM * metrics.rem),
   };
 }

@@ -686,6 +686,37 @@ describe("notes", () => {
     expect(notes.map((n) => n.textContent)).toEqual(["Early"]);
     expect(notes[0]?.previousElementSibling?.getAttribute("data-part")).toBe("rect");
   });
+
+  it("draws numbered markers under 30rem: a 20 px ink circle at the point, its number in the surface", () => {
+    const d = draw(
+      noted([
+        { mark: "text", x: 9_000_000, y: 6, text: "Deploy" },
+        { mark: "text", x: 12_600_000, y: 3, text: "Rollback" },
+      ]),
+      320,
+    );
+    expect(d.lay.numbered).toBe(true);
+    expect(d.svg.querySelector('[data-part="note"]')).toBeNull();
+    const marks = [...d.svg.querySelectorAll('[data-part="area"] > [data-part="marker"]')];
+    expect(marks.map((m) => m.textContent)).toEqual(["1", "2"]);
+    const [first] = marks;
+    const circle = first?.querySelector("path") as SVGPathElement;
+    const b = circle.getBBox();
+    expect(b.width).toBeCloseTo(20, 0);
+    expect(b.x + b.width / 2).toBeCloseTo(d.lay.frame.xAt(9_000_000), 1);
+    expect(b.y + b.height / 2).toBeCloseTo(d.lay.frame.yAt(6), 1);
+    expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)"));
+    const number = first?.querySelector("text") as Element;
+    expect(getComputedStyle(number).fill).toBe(token(number, "var(--cp-surface-page)"));
+    expect(getComputedStyle(number).fontSize).toBe("13px");
+  });
+
+  it("keeps a marker at the plot's edge whole inside the area's clip", () => {
+    const d = draw(noted([{ mark: "text", x: 0, y: 0, text: "Start" }]), 320);
+    const b = (d.svg.querySelector('[data-part="marker"] path') as SVGPathElement).getBBox();
+    expect(b.x).toBeGreaterThanOrEqual(-AREA_ROOM - 0.01);
+    expect(b.y + b.height).toBeLessThanOrEqual(d.lay.frame.height + AREA_ROOM + 0.01);
+  });
 });
 
 describe("the legend row", () => {
@@ -792,6 +823,19 @@ describe("surfaces", () => {
       expect(getComputedStyle(note).fill).toBe(token(note, "var(--cp-ink)", "color", palette));
       expect(getComputedStyle(note).stroke).toBe(
         token(note, "var(--cp-surface-page)", "color", palette),
+      );
+      const numbered = draw(
+        {
+          ...stacked,
+          marks: [...stacked.marks, { mark: "text", x: 9_000_000, y: 6, text: "Deploy" }],
+        },
+        320,
+      );
+      const circle = numbered.svg.querySelector('[data-part="marker"] path') as Element;
+      expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)", "color", palette));
+      const number = numbered.svg.querySelector('[data-part="marker"] text') as Element;
+      expect(getComputedStyle(number).fill).toBe(
+        token(number, "var(--cp-surface-page)", "color", palette),
       );
       const line = raised.svg.querySelector('[data-part="line"] path') as Element;
       expect(getComputedStyle(line).stroke).toBe(

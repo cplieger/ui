@@ -382,6 +382,38 @@ describe("keys on a timeline", () => {
   });
 });
 
+describe("notes in the readings", () => {
+  it("a bucket's reading adds the note its interval holds, the legend row never", async () => {
+    const b = build({
+      ...bars,
+      marks: [...bars.marks, { mark: "text", x: START + 20 * MIN, y: 4, text: "Deploy" }],
+    });
+    b.plot.focus();
+    key(b.plot, "Home");
+    await says(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
+    key(b.plot, "ArrowRight");
+    await says(`${span(15, 30)}: Announce 3, Path 1. Total 4. Note: Deploy.`);
+    expect(legendText(b)).toBe(`${span(15, 30)} · Announce · 3 · Path · 1 · 4`);
+    key(b.plot, "ArrowUp");
+    await says(`${span(15, 30)}: Announce 3. Note: Deploy.`);
+  });
+
+  it("a silent row's reading adds its note after a full stop, a post's the note nearest it", async () => {
+    const b = build({
+      ...agents,
+      marks: [
+        ...agents.marks,
+        { mark: "text", x: START + 30 * MIN, y: "docs-bot", text: "Paused" },
+        { mark: "text", x: START + 39 * MIN, y: "lead-ui", text: "Release" },
+      ],
+    });
+    b.plot.focus();
+    await says(`lead-ui: ${time(40)}. Note: Release.`);
+    key(b.plot, "ArrowDown");
+    await says("docs-bot: no posts. Note: Paused.");
+  });
+});
+
 describe("the pointer", () => {
   it("selects the nearest bucket along x anywhere in the plot's height, silently, and a mouse leaving clears it", async () => {
     const b = build(bars);

@@ -4,7 +4,7 @@ import { measurer } from "../scale/measure.js";
 
 import { layout, type Metrics } from "./layout.js";
 import { chartModel } from "./model.js";
-import { placeNote, wrapNote } from "./notes.js";
+import { nearestStop, noteJoin, placeNote, wrapNote } from "./notes.js";
 import type { ChartSpec, Mark } from "./spec.js";
 import { chartWords } from "./words.js";
 
@@ -24,6 +24,11 @@ const metrics: Metrics = {
 };
 const lay = (spec: ChartSpec, w = 600) =>
   layout(chartModel(spec, "en", "UTC"), chartWords(), metrics, w, { axis: 0, label: 0 });
+// Each text mark's join, in spec order.
+const joined = (spec: ChartSpec) => {
+  const m = chartModel(spec, "en", "UTC");
+  return m.marks.flatMap((t) => (t.kind === "text" ? [noteJoin(m, t) ?? null] : []));
+};
 
 describe("wrapNote", () => {
   it("breaks at spaces into lines no wider than the limit", () => {
@@ -177,5 +182,181 @@ describe("a note in the layout", () => {
     });
     expect(l.notes[0]?.box.top).toBe(4);
     expect(l.notes[0]?.fits).toBe(true);
+  });
+});
+
+describe("nearestStop", () => {
+  const xs = [10, 20, 40];
+
+  it.each([
+    [14, 0],
+    [15, 0],
+    [16, 1],
+    [30, 1],
+    [31, 2],
+    [40, 2],
+  ])("joins x %d to stop %d, the earlier on a tie", (x, i) => {
+    expect(nearestStop(xs, 0, 3, x)).toBe(i);
+  });
+
+  it.each([
+    [5, 0],
+    [4.9, undefined],
+    [50, 2],
+    [50.1, undefined],
+  ])("joins x %d past an end only within half the gap to its neighbour", (x, i) => {
+    expect(nearestStop(xs, 0, 3, x)).toBe(i);
+  });
+
+  it("joins a lone stop at any x, and none in an empty span", () => {
+    expect(nearestStop(xs, 1, 2, 1_000)).toBe(1);
+    expect(nearestStop(xs, 1, 1, 20)).toBeUndefined();
+  });
+
+  it("reads only the span it is given", () => {
+    expect(nearestStop(xs, 1, 3, 10)).toBe(1);
+    expect(nearestStop(xs, 1, 3, 9)).toBeUndefined();
+  });
+});
+
+describe("the stop a note joins", () => {
+  const at = (x: number): Mark => ({ mark: "text", x, y: 1, text: "n" });
+
+  it("joins the bucket whose interval holds its x, none in a gap, the last at the domain's end", () => {
+    const gappy: ChartSpec = {
+      x: { type: "time", domain: [0, 3_600_000] },
+      marks: [
+        {
+          mark: "rect",
+          x1: [0, 900_000, 2_700_000],
+          x2: [900_000, 1_800_000, 3_600_000],
+          series: [{ name: "Posts", y: [1, 2, 3] }],
+        },
+        at(0),
+        at(899_999),
+        at(900_000),
+        at(2_000_000),
+        at(3_600_000),
+      ],
+    };
+    expect(joined(gappy)).toEqual([
+      { kind: "stop", i: 0 },
+      { kind: "stop", i: 0 },
+      { kind: "stop", i: 1 },
+      null,
+      { kind: "stop", i: 2 },
+    ]);
+  });
+
+  it("joins a line's or an area's nearest sample, the earlier on a tie, within half a gap past the ends", () => {
+    for (const mark of ["line", "area"] as const) {
+      const spec: ChartSpec = {
+        x: { type: "linear", domain: [0, 60] },
+        marks: [
+          { mark, x: [10, 20, 40], series: [{ name: "a", y: [1, 2, 3] }] },
+          at(15),
+          at(16),
+          at(5),
+          at(4),
+          at(50),
+          at(51),
+        ],
+      };
+      expect(joined(spec)).toEqual([
+        { kind: "stop", i: 0 },
+        { kind: "stop", i: 1 },
+        { kind: "stop", i: 0 },
+        null,
+        { kind: "stop", i: 2 },
+        null,
+      ]);
+    }
+  });
+
+  it("joins a timeline post in its row by the same rule, or a silent row's selection", () => {
+    const spec: ChartSpec = {
+      x: { type: "time", domain: [0, 100] },
+      marks: [
+        {
+          mark: "dot",
+          rows: [
+            { name: "ana", x: [10, 20, 40] },
+            { name: "bo", x: [] },
+          ],
+        },
+        { mark: "text", x: 15, y: "ana", text: "tie" },
+        { mark: "text", x: 16, y: "ana", text: "after" },
+        { mark: "text", x: 51, y: "ana", text: "past" },
+        { mark: "text", x: 50, y: "bo", text: "silent" },
+      ],
+    };
+    expect(joined(spec)).toEqual([
+      { kind: "post", row: 0, i: 0 },
+      { kind: "post", row: 0, i: 1 },
+      null,
+      { kind: "row", row: 1 },
+    ]);
+  });
+
+  it("joins nothing outside a passed domain on either axis", () => {
+    const spec: ChartSpec = {
+      x: { type: "linear", domain: [0, 50] },
+      y: { domain: [0, 10] },
+      marks: [
+        { mark: "line", x: [10, 20, 40], series: [{ name: "a", y: [1, 2, 3] }] },
+        { mark: "text", x: 60, y: 1, text: "right" },
+        { mark: "text", x: 20, y: 11, text: "high" },
+        { mark: "text", x: 20, y: 10, text: "edge" },
+      ],
+    };
+    expect(joined(spec)).toEqual([null, null, { kind: "stop", i: 1 }]);
+  });
+});
+
+describe("numbered markers", () => {
+  const two = (a: number, b: number) =>
+    posts([
+      { mark: "text", x: a, y: 4, text: "Deploy" },
+      { mark: "text", x: b, y: 4, text: "Rollback" },
+    ]);
+
+  it("leaves notes on the plot from 30rem up when none overlap and each fits", () => {
+    const l = lay(two(450_000, 2_250_000), 480);
+    expect(l.numbered).toBe(false);
+    expect(l.notes.map((n) => n.number)).toEqual([1, 2]);
+  });
+
+  it("numbers every note under 30rem", () => {
+    expect(lay(two(450_000, 2_250_000), 479).numbered).toBe(true);
+  });
+
+  it("numbers every note when two boxes overlap", () => {
+    expect(lay(two(1_350_000, 1_400_000)).numbered).toBe(true);
+  });
+
+  it("numbers every note when one cannot fit inside the plot", () => {
+    const long = "w".repeat(90);
+    const l = lay(posts([{ mark: "text", x: 1_350_000, y: 4, text: long }]));
+    expect(l.notes[0]?.fits).toBe(false);
+    expect(l.numbered).toBe(true);
+  });
+
+  it("numbers the drawn notes in spec order, skipping one left out", () => {
+    const l = lay(
+      posts(
+        [
+          { mark: "text", x: 3_000_000, y: 4, text: "Out" },
+          { mark: "text", x: 450_000, y: 4, text: "In" },
+        ],
+        { type: "time", domain: [0, 2_700_000] },
+      ),
+      320,
+    );
+    expect(l.notes.map((n) => [n.mark, n.number])).toEqual([[2, 1]]);
+    expect(l.numbered).toBe(true);
+  });
+
+  it("is off with no notes", () => {
+    expect(lay(posts([]), 320).numbered).toBe(false);
   });
 });

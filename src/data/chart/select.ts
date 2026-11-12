@@ -9,6 +9,7 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 
 import { dotGroups, snap, type DotGroup, type Frame } from "./geometry.js";
 import type { Layout } from "./layout.js";
+import { noteJoin, type Join } from "./notes.js";
 import type { DotModel, Model, RectModel, SampleModel } from "./model.js";
 import {
   bucketReading,
@@ -443,6 +444,36 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
  * through `words.reading`, or a silent row's `words.silentRow`.
  */
 export function spoken(model: Model, sel: Selection, words: Words, part: boolean): string {
+  const said = readingWords(model, sel, words, part);
+  const notes = noteReadings(model, sel, words);
+  if (said === "" || notes === "") {
+    return said;
+  }
+  // A silent row's words end without a full stop, which the notes need before them.
+  const silent = sel.kind === "row" && said === selectionReading(model, sel, words)?.at;
+  return `${said}${silent ? "." : ""} ${notes}`;
+}
+
+const joins = (j: Join, sel: Selection): boolean =>
+  j.kind === "stop"
+    ? (sel.kind === "rect" || sel.kind === "line" || sel.kind === "area") && sel.i === j.i
+    : j.kind === "post"
+      ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
+      : sel.kind === "row" && sel.row === j.row;
+
+/** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
+function noteReadings(model: Model, sel: Selection, words: Words): string {
+  const out: string[] = [];
+  for (const m of model.marks) {
+    const j = m.kind === "text" ? noteJoin(model, m) : undefined;
+    if (m.kind === "text" && j !== undefined && joins(j, sel)) {
+      out.push(words.noteReading(m.text));
+    }
+  }
+  return out.join(" ");
+}
+
+function readingWords(model: Model, sel: Selection, words: Words, part: boolean): string {
   const reading = selectionReading(model, sel, words);
   const m = primaryOf(model);
   if (reading === undefined || m === undefined) {

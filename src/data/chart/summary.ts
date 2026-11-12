@@ -192,6 +192,21 @@ export function ruleSentences(model: Model, words: Words): string[] {
   return out;
 }
 
+/** Each note's sentence, in spec order: its x as the readings write it,
+ *  under a dot mark after its row's name. */
+export function noteSentences(model: Model, words: Words): string[] {
+  const out: string[] = [];
+  const m = primaryOf(model);
+  for (const t of model.marks) {
+    if (t.kind === "text") {
+      const x = model.xText(t.x);
+      const row = t.row && m?.kind === "dot" ? m.rows[t.y]?.name : undefined;
+      out.push(words.note(row === undefined ? x : `${row}, ${x}`, t.text));
+    }
+  }
+  return out;
+}
+
 /** The summary the chart writes for `model`, before the spec's own `summary`. */
 export function generatedSummary(model: Model, words: Words): string {
   const m = primaryOf(model);
@@ -203,7 +218,7 @@ export function generatedSummary(model: Model, words: Words): string {
         : m?.kind === "dot"
           ? dotSummary(model, m, words)
           : [];
-  return [...head, ...ruleSentences(model, words)].join(" ");
+  return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
 /** The summary the figure shows: the spec's string, its function of the

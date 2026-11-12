@@ -908,6 +908,93 @@ describe("the drawing under update and resize", () => {
   });
 });
 
+describe("the notes", () => {
+  const noted = (...notes: [number, number, string][]): ChartSpec => ({
+    ...full,
+    marks: [...full.marks, ...notes.map(([x, y, text]) => ({ mark: "text" as const, x, y, text }))],
+  });
+  const one = noted([starts[1] ?? 0, 4, "Deploy"]);
+  const two = noted([starts[1] ?? 0, 4, "Deploy"], [starts[2] ?? 0, 2, "Rollback"]);
+  const svgNotes = (b: Built) =>
+    [...b.figure.querySelectorAll('svg [data-part="note"] text')].map((t) => t.textContent);
+  const markers = (b: Built) =>
+    [...b.figure.querySelectorAll('svg [data-part="marker"] text')].map((t) => t.textContent);
+  const listed = (b: Built) =>
+    [...(get(b.figure, "notes")?.querySelectorAll("li") ?? [])].map((li) => li.textContent);
+
+  it("writes a note on the plot from 30rem up, with no list", () => {
+    const b = build({ width: 480 });
+    start(one, b);
+    expect(svgNotes(b)).toEqual(["Deploy"]);
+    expect(markers(b)).toEqual([]);
+    expect(get(b.figure, "notes")).toBeNull();
+  });
+
+  it("numbers every note under 30rem and lists them below the plot, in spec order", () => {
+    const b = build({ width: 479 });
+    start(two, b);
+    expect(svgNotes(b)).toEqual([]);
+    expect(markers(b)).toEqual(["1", "2"]);
+    expect(showing(b.figure)).toEqual(["legend", "plot", "notes", "table"]);
+    expect(get(b.figure, "notes")?.localName).toBe("ol");
+    expect(listed(b)).toEqual(["Deploy", "Rollback"]);
+  });
+
+  it("numbers every note when two would overlap, on a wide figure", () => {
+    const b = build({ width: 600 });
+    start(noted([starts[1] ?? 0, 4, "Deploy"], [starts[1] ?? 0, 4, "Same place"]), b);
+    expect(markers(b)).toEqual(["1", "2"]);
+    expect(listed(b)).toEqual(["Deploy", "Same place"]);
+  });
+
+  it("switches to the list on a resize under 30rem and back above it", async () => {
+    const b = build({ width: 600 });
+    start(one, b);
+    const host = b.figure.parentElement as HTMLElement;
+    host.style.inlineSize = "320px";
+    await vi.waitFor(() => {
+      expect(listed(b)).toEqual(["Deploy"]);
+    });
+    expect(svgNotes(b)).toEqual([]);
+    host.style.inlineSize = "600px";
+    await vi.waitFor(() => {
+      expect(get(b.figure, "notes")).toBeNull();
+    });
+    expect(svgNotes(b)).toEqual(["Deploy"]);
+  });
+
+  it("hides the list with the plot in the table view, which writes the notes after the table", () => {
+    const b = build({ width: 320 });
+    const chart = start(one, b);
+    chart.showTable(true);
+    expect(get(b.figure, "notes")?.hidden).toBe(true);
+    expect(get(b.figure, "table")?.querySelector('[data-part="after"]')?.textContent).toMatch(
+      /: Deploy\.$/u,
+    );
+    chart.showTable(false);
+    expect(get(b.figure, "notes")?.hidden).toBe(false);
+  });
+
+  it("keeps the list under a failed refresh and a teardown, and drops it on loading, empty and an update without notes", () => {
+    const b = build({ width: 320 });
+    const chart = start(one, b);
+    chart.error(notice());
+    expect(showing(b.figure)).toEqual(["legend", "plot", "notes", "table", "notice"]);
+    chart.update(full);
+    expect(get(b.figure, "notes")).toBeNull();
+    chart.update(one);
+    chart.update(nothing);
+    expect(showing(b.figure)).toEqual(["empty"]);
+    chart.update(one);
+    chart.loading();
+    expect(showing(b.figure)).toEqual(["loading"]);
+    const torn = build({ width: 320 });
+    start(one, torn);
+    torn.life.abort();
+    expect(listed(torn)).toEqual(["Deploy"]);
+  });
+});
+
 describe("a face that loads after the drawing", () => {
   const strip: ChartSpec = {
     x: { type: "time", domain: [START, START + 60 * MIN] },

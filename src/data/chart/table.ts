@@ -9,7 +9,7 @@ import { formatter } from "../scale/format.js";
 import type { Model, RectModel, SampleModel } from "./model.js";
 import { bucketTotal, sampleTotal } from "./model.js";
 import { bucketText, partText, primaryOf, samplePart, totalled } from "./readout.js";
-import { ruleSentences } from "./summary.js";
+import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
 /** Text, or an instant written in a `<time datetime>`. */
@@ -31,7 +31,8 @@ export interface TableModel {
   readonly corner: string;
   readonly columns: readonly { readonly text: string; readonly num: boolean }[];
   readonly rows: readonly Row[];
-  readonly rules: string;
+  /** The rules' and notes' sentences after the table. */
+  readonly after: string;
 }
 
 // Private-use characters stand in for instants while the words place them.
@@ -116,9 +117,9 @@ function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
-  const rules = ruleSentences(model, words).join(" ");
+  const after = [...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
   if (m === undefined) {
-    return { corner: "", columns: [], rows: [], rules };
+    return { corner: "", columns: [], rows: [], after };
   }
   if (m.kind === "dot") {
     const count = formatter("number", model.locale);
@@ -145,7 +146,7 @@ export function tableModel(model: Model, words: Words): TableModel {
         { text: words.last, num: false },
       ],
       rows,
-      rules,
+      after,
     };
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
@@ -156,7 +157,7 @@ export function tableModel(model: Model, words: Words): TableModel {
     corner: model.spec.x.label ?? "",
     columns,
     rows: m.kind === "rect" ? rectRows(model, m, words) : lineRows(model, m, words),
-    rules,
+    after,
   };
 }
 
@@ -293,17 +294,17 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot:
       after = tr;
     }
   }
-  let rules = panel.querySelector<HTMLElement>('[data-part="rules"]');
-  if (t.rules === "") {
-    rules?.remove();
+  let after = panel.querySelector<HTMLElement>('[data-part="after"]');
+  if (t.after === "") {
+    after?.remove();
   } else {
-    if (rules === null) {
-      rules = document.createElement("p");
-      rules.dataset["part"] = "rules";
-      panel.append(rules);
+    if (after === null) {
+      after = document.createElement("p");
+      after.dataset["part"] = "after";
+      panel.append(after);
     }
-    if (rules.textContent !== t.rules) {
-      rules.textContent = t.rules;
+    if (after.textContent !== t.after) {
+      after.textContent = t.after;
     }
   }
 }

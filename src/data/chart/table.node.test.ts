@@ -212,7 +212,7 @@ describe("the table of a histogram", () => {
   });
 
   it("writes the rules as a sentence after the table", () => {
-    expect(t.rules).toBe(`Median ${dur(42_000)}. 95th percentile ${dur(18 * MIN)}.`);
+    expect(t.after).toBe(`Median ${dur(42_000)}. 95th percentile ${dur(18 * MIN)}.`);
   });
 });
 
@@ -358,5 +358,26 @@ describe("the table of a timeline", () => {
       ["docs-bot", "0", "None", "None"],
       ["late", "0", "None", "None"],
     ]);
+  });
+});
+
+describe("the notes after the table", () => {
+  it("follow the rules, each its x and text, and none leaves the sentence out", () => {
+    const x = per(3, (i) => START + i * MIN);
+    const line = (more: Mark[]): ChartSpec => ({
+      x: { type: "time" },
+      marks: [{ mark: "line", x, series: [{ name: "Live", y: [1, 2, 3] }] }, ...more],
+    });
+    const t = tableModel(
+      model(
+        line([
+          { mark: "text", x: START + MIN, y: 2, text: "Deploy" },
+          { mark: "rule", y: 2, label: "Limit" },
+        ]),
+      ),
+      words,
+    );
+    expect(t.after).toBe(`Limit 2. ${time(START + MIN)}: Deploy.`);
+    expect(tableModel(model(line([])), words).after).toBe("");
   });
 });

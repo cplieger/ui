@@ -85,6 +85,10 @@ export interface ChartWords {
   readonly binParts?: (parts: string) => string;
   /** Summary and table, a rule. Default "{label} {value}." */
   readonly rule?: (label: string, value: string) => string;
+  /** Summary and table, a note; at is its place in words. Default "{at}: {text}." */
+  readonly note?: (at: string, text: string) => string;
+  /** A note added to the reading of the stop it joins. Default "Note: {text}." */
+  readonly noteReading?: (text: string) => string;
   /** Summary, line head. Default "{range}, {every}.", or "{range}." when every is "". */
   readonly lineSummary?: (range: string, every: string) => string;
   /** Summary, one line series. Default "{name}: last {last}, low {low}, high {high}." */
@@ -148,6 +152,8 @@ const DEFAULTS: Words = {
   binSummary: (n, range) => `${n} from ${range}.`,
   binParts: (parts) => `${parts}.`,
   rule: (label, value) => `${label} ${value}.`,
+  note: (at, text) => `${at}: ${text}.`,
+  noteReading: (text) => `Note: ${text}.`,
   lineSummary: (range, every) => (every === "" ? `${range}.` : `${range}, ${every}.`),
   lineSeries: (name, last, low, high) => `${name}: last ${last}, low ${low}, high ${high}.`,
   dotSummary: (range, rows, n) => `${range}. ${rows}, ${n}.`,
