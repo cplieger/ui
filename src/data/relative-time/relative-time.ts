@@ -29,7 +29,7 @@ export interface RelativeTimeOptions {
 }
 
 // Each unit's length in seconds, largest first, as a calendar-free count.
-const UNITS = [
+const LENGTHS = [
   ["year", 31_536_000],
   ["month", 2_592_000],
   ["week", 604_800],
@@ -37,6 +37,14 @@ const UNITS = [
   ["hour", 3_600],
   ["minute", 60],
 ] as const;
+
+// Each unit with the age it starts at: half a smaller unit before the
+// smaller's rounded count would reach one of it, so "60 minutes ago" and
+// "12 months ago" never show. The minute starts at a minute.
+const UNITS = LENGTHS.map(([unit, n], i) => {
+  const next = LENGTHS[i + 1]?.[1];
+  return [unit, n, next === undefined ? n : (Math.round(n / next) - 0.5) * next] as const;
+});
 
 // The longest delay setTimeout keeps; a longer one fires at once.
 const MAX_DELAY = 2 ** 31 - 1;
@@ -60,8 +68,8 @@ function formatter(
 
 function words(at: number, now: number, style: RelativeStyle, locale?: string): string {
   const s = Math.round((at - now) / 1000);
-  for (const [unit, n] of UNITS) {
-    if (Math.abs(s) >= n) {
+  for (const [unit, n, from] of UNITS) {
+    if (Math.abs(s) >= from) {
       // A compact form reads as a number: "1d ago", never "yesterday".
       const numeric = style === "long" ? "auto" : "always";
       return formatter(locale, style, numeric).format(Math.round(s / n), unit);
@@ -78,13 +86,13 @@ function nextChange(at: number, now: number): number {
   const s = Math.round((at - now) / 1000);
   let target = -60;
   let bigger = Number.POSITIVE_INFINITY;
-  for (const [, n] of UNITS) {
-    if (Math.abs(s) >= n) {
+  for (const [, n, from] of UNITS) {
+    if (Math.abs(s) >= from) {
       const half = n * Math.round(s / n) - n / 2 - 1;
-      target = Math.max(half, s < 0 ? -bigger : n - 1);
+      target = Math.max(half, s < 0 ? -bigger : Math.ceil(from) - 1);
       break;
     }
-    bigger = n;
+    bigger = from;
   }
   // Math.round reads `target` once (at - now) / 1000 is below target + 0.5.
   return at - (target + 0.5) * 1000 + 1;

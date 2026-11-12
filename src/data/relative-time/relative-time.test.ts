@@ -52,6 +52,26 @@ describe("formatRelative", () => {
     ]);
   });
 
+  it("moves to the larger unit before the smaller one's count would reach it", () => {
+    const at = (s: number): string => formatRelative(NOW - s * 1000, { now: NOW, locale: "en" });
+    const ahead = (s: number): string => formatRelative(NOW + s * 1000, { now: NOW, locale: "en" });
+    expect([at(3569), at(3571), at(84_599), at(86_399), at(561_599), at(561_600)]).toEqual([
+      "59 minutes ago",
+      "1 hour ago",
+      "23 hours ago",
+      "yesterday",
+      "6 days ago",
+      "last week",
+    ]);
+    expect([at(24 * 86_400), at(25 * 86_400), at(344 * 86_400), at(346 * 86_400)]).toEqual([
+      "3 weeks ago",
+      "last month",
+      "11 months ago",
+      "last year",
+    ]);
+    expect([ahead(3569), ahead(3571)]).toEqual(["in 59 minutes", "in 1 hour"]);
+  });
+
   it("speaks the locale's words", () => {
     const fr = (ms: number): string => formatRelative(NOW + ms, { now: NOW, locale: "fr" });
     expect([fr(-4 * MIN), fr(25 * MIN), fr(-DAY), fr(-10_000)]).toEqual([
@@ -136,6 +156,25 @@ describe("enhanceRelativeTime", () => {
     expect(shown(t)).toBe("3 hours ago");
     vi.advanceTimersByTime(1);
     expect(shown(t)).toBe("4 hours ago");
+  });
+
+  it("turns to the next unit where its words start", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const t = time(NOW - 58 * MIN);
+    enhanceRelativeTime(t, { locale: "en", signal: life.signal });
+    expect(shown(t)).toBe("58 minutes ago");
+    vi.advanceTimersByTime(MIN);
+    expect(shown(t)).toBe("59 minutes ago");
+    vi.advanceTimersByTime(30_000);
+    expect(shown(t)).toBe("1 hour ago");
+    const ahead = time(Date.now() + 61 * MIN);
+    enhanceRelativeTime(ahead, { locale: "en", signal: life.signal });
+    expect(shown(ahead)).toBe("in 1 hour");
+    vi.advanceTimersByTime(90_000);
+    expect(shown(ahead)).toBe("in 1 hour");
+    vi.advanceTimersByTime(1_000);
+    expect(shown(ahead)).toBe("in 59 minutes");
   });
 
   it("counts a time ahead down to now, then up as it passes", () => {
