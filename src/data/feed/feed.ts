@@ -12,9 +12,10 @@ import { roll } from "../../core/roll/roll.js";
 import { announce } from "../../feedback/announce/announce.js";
 
 export interface FeedOptions {
-  /** The `.cp-feed-foot` pinned under the feed. Its height is kept as the
-   *  feed's `--cp-feed-foot-size`, the entries' end scroll margin, and the
-   *  part of it the on-screen keyboard covers as its `--cp-keyboard-inset`. */
+  /** The `.cp-feed-foot` pinned under the feed. Its height, with the jump's
+   *  above it while the jump shows, is kept as the feed's
+   *  `--cp-feed-foot-size`, the entries' end scroll margin, and the part of
+   *  it the on-screen keyboard covers as its `--cp-keyboard-inset`. */
   readonly foot?: HTMLElement;
   /** The `.cp-feed-jump` button, `hidden` until entries arrive while the
    *  reader is scrolled up. Its words go in its `.cp-roll`, else they are
@@ -113,9 +114,14 @@ export function enhanceFeed(
   let held = [...feed.children].some(isEntry);
 
   const size = (): void => {
-    if (foot !== undefined) {
-      feed.style.setProperty(FOOT, `${String(foot.offsetHeight)}px`);
+    if (foot === undefined) {
+      return;
     }
+    const h =
+      jump === undefined || jump.hidden
+        ? foot.offsetHeight
+        : foot.getBoundingClientRect().bottom - jump.getBoundingClientRect().top;
+    feed.style.setProperty(FOOT, `${String(h)}px`);
   };
 
   // Fires after layout and before paint, so a kept place never flickers.
@@ -142,14 +148,22 @@ export function enhanceFeed(
     return { el: feed, off: feed.getBoundingClientRect().top - top };
   };
 
+  // An anchored offset is moved into the new scroller's frame, so the entry
+  // goes back to where the reader saw it on screen.
   const resolve = (): void => {
     const now = scrollerOf(feed);
     if (now === scroller) {
       return;
     }
     resize.unobserve(scroller);
+    const old = scroller;
     scroller = now;
     wrote = null;
+    if (place !== "end") {
+      place = old.isConnected
+        ? { el: place.el, off: place.off + topOf(old) - topOf(now) }
+        : anchorAt();
+    }
     // Observing inside the observer's own callback raises "ResizeObserver
     // loop completed", so the new scroller is watched from the next frame.
     requestAnimationFrame(() => {
@@ -230,6 +244,7 @@ export function enhanceFeed(
     if (jump !== undefined && !jump.hidden) {
       const had = jump.contains(document.activeElement);
       jump.hidden = true;
+      size();
       if (had) {
         focusNewest();
       }
@@ -246,6 +261,7 @@ export function enhanceFeed(
     if (jump.hidden || host === null) {
       (host ?? jump).textContent = text;
       jump.hidden = false;
+      size();
     } else {
       roll(host, text);
     }

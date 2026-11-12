@@ -458,6 +458,72 @@ describe("enhanceFeed", () => {
     );
   });
 
+  it("lands an entry's link that Tab reaches clear of the New messages button", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 0);
+    c.feed.append(entry());
+    await settle();
+    expect(c.jump.hidden).toBe(false);
+    (c.feed.querySelector("a") as HTMLAnchorElement).focus();
+    for (let i = 0; i < 4; i += 1) {
+      await userEvent.keyboard("{Tab}");
+      await settle();
+      const link = document.activeElement as HTMLElement;
+      expect(c.feed.contains(link)).toBe(true);
+      expect(link.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        c.jump.getBoundingClientRect().top + 1,
+      );
+    }
+    expect(c.box.scrollTop).toBeGreaterThan(0);
+  });
+
+  it("lets a name that Tab reaches in an entry's popover reach the popover's end", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    const panel = document.createElement("div");
+    panel.className = "cp-popover cp-feed-readers";
+    panel.dataset["variant"] = "panel";
+    panel.popover = "auto";
+    // With no anchor to place it by. A shown position-area popover also
+    // stops WebKit's page scroll anchoring, which a later test relies on.
+    panel.style.positionArea = "none";
+    panel.style.insetBlockStart = "0";
+    panel.style.insetInlineStart = "0";
+    const names = document.createElement("ul");
+    for (let i = 0; i < 40; i += 1) {
+      const a = document.createElement("a");
+      a.href = `#reader-${String(i)}`;
+      a.textContent = `Reader ${String(i + 1)}`;
+      const li = document.createElement("li");
+      li.append(a);
+      names.append(li);
+    }
+    panel.append(names);
+    c.feed.lastElementChild?.append(panel);
+    panel.showPopover();
+    await Promise.all(panel.getAnimations().map((a) => a.finished));
+    const [first, second] = panel.querySelectorAll("a");
+    const pitch =
+      (second?.getBoundingClientRect().top ?? 0) - (first?.getBoundingClientRect().top ?? 0);
+    first?.focus();
+    // An engine scrolls a name into view only once it is not wholly in
+    // view, so one a margin does not push up gets within a name of the end.
+    const gaps: number[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      await userEvent.keyboard("{Tab}");
+      await settle();
+      const end = panel.getBoundingClientRect().top + panel.clientTop + panel.clientHeight;
+      gaps.push(end - (document.activeElement?.getBoundingClientRect().bottom ?? 0));
+    }
+    expect(document.activeElement?.textContent).toBe("Reader 31");
+    expect(panel.scrollTop).toBeGreaterThan(0);
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(-1);
+    expect(Math.min(...gaps)).toBeLessThan(pitch);
+  });
+
   it("keeps a reader who scrolled up in place while they type in the composer", async () => {
     const c = conversation();
     enhance(c);
@@ -553,6 +619,43 @@ describe("enhanceFeed", () => {
     await settle();
     expect(other.scrollTop).toBe(100);
     expect(feed.unseen).toBe(1);
+  });
+
+  it("keeps the entry a reader scrolled up to in place when its box stops scrolling", async () => {
+    document.body.append(block("30vh"));
+    const c = conversation();
+    document.body.append(block("150vh"));
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 200);
+    const top = c.box.getBoundingClientRect().top;
+    const seen = [...c.feed.children].find((el) => el.getBoundingClientRect().bottom > top);
+    const at = seen?.getBoundingClientRect().top ?? Number.NaN;
+    c.box.style.blockSize = "auto";
+    await settle();
+    expect(c.box.scrollHeight).toBeLessThanOrEqual(c.box.clientHeight);
+    expect(Math.abs((seen?.getBoundingClientRect().top ?? 0) - at)).toBeLessThanOrEqual(1);
+  });
+
+  it("keeps a page-scrolled reader's entry in place when the feed's box starts to scroll", async () => {
+    document.body.append(block("30vh"));
+    const c = conversation(15, "auto");
+    c.box.style.maxBlockSize = `${String(2 * innerHeight)}px`;
+    document.body.append(block("150vh"));
+    enhance(c);
+    await settle();
+    const seen = c.feed.children[3] as Element;
+    const page = document.documentElement;
+    await scrollTo(page, page.scrollTop + seen.getBoundingClientRect().top - 10);
+    const at = seen.getBoundingClientRect().top;
+    for (let i = 0; i < 30; i += 1) {
+      c.feed.append(entry());
+    }
+    await settle();
+    expect(c.box.scrollHeight).toBeGreaterThan(c.box.clientHeight);
+    expect(c.box.scrollTop).toBe(0);
+    expect(Math.abs(seen.getBoundingClientRect().top - at)).toBeLessThanOrEqual(1);
+    expect(c.jump.hidden).toBe(false);
   });
 
   it("uses the page as the scroller when no box around the feed scrolls", async () => {

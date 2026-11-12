@@ -98,7 +98,7 @@ compose.addEventListener("submit", async (e) => {
 
 - `enhanceFeed(feed, opts?)` wires an `ol.cp-feed` or `ul.cp-feed`, scrolls it to its newest entry at once and returns a `Feed`.
 - `FeedOptions` = `{ foot?, jump?, words?, signal? }`.
-  - `foot` is the `.cp-feed-foot`. The script keeps the feed's `--cp-feed-foot-size` at the foot's height, and the stylesheet makes it the end scroll margin of everything in the feed. So whatever focus scrolls into view lands above the composer with its focus ring clear, while the composer's caret moves nothing. The script also sets the foot's `--cp-keyboard-inset` to the part of it an on-screen keyboard covers, measured on the visual viewport, so the composer rises above the keyboard.
+  - `foot` is the `.cp-feed-foot`. The script keeps the feed's `--cp-feed-foot-size` at the foot's height, and while the New messages button shows, at the height of the foot and the button together. The stylesheet makes it the end scroll margin of everything in the feed except a popover's contents. So whatever focus scrolls into view lands above the composer and the button with its focus ring clear, while the composer's caret moves nothing. The script also sets the foot's `--cp-keyboard-inset` to the part of it an on-screen keyboard covers, measured on the visual viewport, so the composer rises above the keyboard.
   - `jump` is the `.cp-feed-jump` button. Its words go in its `.cp-roll`, which rolls as the count grows, else they are its whole text.
   - `words(n)` gives the jump's words for `n` new entries, by default "1 new message" and "3 new messages".
   - `signal` removes the listeners and observers, hides the jump and puts back every property the script set.

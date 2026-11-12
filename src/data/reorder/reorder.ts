@@ -167,17 +167,18 @@ export function enhanceReorder(
     } else if (to < from) {
       item.after(...all.slice(to, from));
     }
-    if (reducedMotion()) {
-      unslide(all);
-      return;
-    }
-    // Without a transition, so the measure below is each item's new place.
+    // Without a transition, so the scroll and the measure below see each
+    // item's new place.
     for (const el of all) {
       el.style.transition = "none";
       el.style.translate = "";
     }
     if (item.contains(document.activeElement)) {
       item.scrollIntoView({ block: "nearest", behavior: "instant" });
+    }
+    if (reducedMotion()) {
+      unslide(all);
+      return;
     }
     const shifts = all.map((el, i) => (shown[i] ?? 0) - el.getBoundingClientRect().top);
     all.forEach((el, i) => {

@@ -267,6 +267,33 @@ describe("enhanceReorder", () => {
     expect([...ol.children].flatMap(slides)).toEqual([]);
   });
 
+  it("keeps the pressed button in its scroller's view under reduced motion", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      (q: string) => ({ matches: q.includes("reduce") }) as MediaQueryList,
+    );
+    const box = document.createElement("div");
+    box.style.overflowY = "auto";
+    box.style.blockSize = "160px";
+    document.body.append(box);
+    const names = Array.from({ length: 12 }, (_, i) => `Item ${String(i + 1)}`);
+    const ol = list(names, box);
+    enhanceReorder(ol, { signal: life.signal });
+    const view = box.getBoundingClientRect();
+    const name = names.findLast(
+      (n) => button(ol, n, "down").getBoundingClientRect().bottom <= view.bottom,
+    ) as string;
+    const down = button(ol, name, "down");
+    down.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(order(ol).indexOf(name)).toBe(names.indexOf(name) + 1);
+    expect(document.activeElement).toBe(down);
+    const r = down.getBoundingClientRect();
+    expect(r.top).toBeGreaterThanOrEqual(view.top - 1);
+    expect(r.bottom).toBeLessThanOrEqual(view.bottom + 1);
+    expect([...ol.children].flatMap(slides)).toEqual([]);
+  });
+
   it("numbers items the app adds later", async () => {
     const ol = list();
     enhanceReorder(ol, { signal: life.signal });
