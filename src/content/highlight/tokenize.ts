@@ -295,33 +295,72 @@ function numberEnd(code: string, i: number): number {
   return j;
 }
 
-// Indent, then `- ` sequence markers, then a key: quoted, or plain up to a `:` that a space or the
-// line's end follows. Every part stops at its first mismatch, so a line is read once.
-const YAML_LINE =
-  /([ \t]*)((?:-[ \t]+)*)(?:("(?:[^"\\\n]|\\.)*"|'(?:[^'\n]|'')*'|[^\s#'"?:,[\]{}&*!|>%@`-][^\n:#]*)(?=:(?:[ \t]|$)))?/my;
+const isBlank = (c: number): boolean => c === 32 || c === 9;
 
-/** Emits a YAML line's indent, sequence markers and key; returns where it stopped. */
+const PLAIN_KEY_START = /[^\s#'"?:,[\]{}&*!|>%@`-]/;
+
+/** Emits a YAML line's indent, `- ` sequence markers and key; returns where it stopped. */
 function yamlLineStart(code: string, i: number, out: Out): number {
-  YAML_LINE.lastIndex = i;
-  const m = YAML_LINE.exec(code);
-  if (m === null) {
-    return i;
-  }
-  const [, indent = "", dashes = "", key] = m;
-  let at = i + indent.length;
-  out.emit(null, at);
-  for (let k = 0; k < dashes.length; k++) {
+  let at = i;
+  while (isBlank(code.charCodeAt(at))) {
     at++;
-    out.emit(dashes.charCodeAt(k) === 45 ? "punctuation" : null, at);
   }
-  if (key !== undefined) {
-    at += key.length;
-    out.emit("key", at);
+  out.emit(null, at);
+  while (code.charCodeAt(at) === 45 && isBlank(code.charCodeAt(at + 1))) {
+    out.emit("punctuation", at + 1);
+    at += 2;
+    while (isBlank(code.charCodeAt(at))) {
+      at++;
+    }
+    out.emit(null, at);
+  }
+  const key = yamlKeyEnd(code, at);
+  if (key !== -1) {
+    out.emit("key", key);
+    return key;
   }
   return at;
 }
 
-const NAME = /[\w:.-]*/y;
+/** Where a YAML key at `i` ends: quoted, or plain up to a `:` that a space, a tab or the line's
+ *  end follows; -1 when no key starts there. */
+function yamlKeyEnd(code: string, i: number): number {
+  const c = code.charCodeAt(i);
+  let j = i + 1;
+  if (c === QUOTE) {
+    while (code.charCodeAt(j) !== QUOTE) {
+      const d = code.charCodeAt(j);
+      if (Number.isNaN(d) || d === NL || (d === BACKSLASH && endsLine(code, j + 1))) {
+        return -1;
+      }
+      j += d === BACKSLASH ? 2 : 1;
+    }
+    j++;
+  } else if (c === APOS) {
+    // `''` is an escaped quote, so the key ends at the first quote no quote follows.
+    while (code.charCodeAt(j) !== APOS || code.charCodeAt(j + 1) === APOS) {
+      const d = code.charCodeAt(j);
+      if (Number.isNaN(d) || d === NL) {
+        return -1;
+      }
+      j += d === APOS ? 2 : 1;
+    }
+    j++;
+  } else if (PLAIN_KEY_START.test(code.charAt(i))) {
+    for (let d = code.charCodeAt(j); j < code.length && d !== NL && d !== 58 && d !== 35;) {
+      d = code.charCodeAt(++j);
+    }
+  } else {
+    return -1;
+  }
+  return code.charCodeAt(j) === 58 && (isBlank(code.charCodeAt(j + 1)) || endsLine(code, j + 1))
+    ? j
+    : -1;
+}
+
+/** Whether `at` is the end of the text or a line terminator, as `$` reads it in multiline mode. */
+const endsLine = (code: string, at: number): boolean =>
+  at >= code.length || /[\n\r\u2028\u2029]/.test(code.charAt(at));
 
 /** HTML and XML: tag names colour as keywords and attribute values as strings; the text between
  *  tags stays uncoloured, so its words and apostrophes are prose. */
@@ -353,9 +392,11 @@ function scanMarkup(code: string): Token[] {
 }
 
 function nameEnd(code: string, i: number): number {
-  NAME.lastIndex = i;
-  NAME.test(code);
-  return NAME.lastIndex;
+  let j = i;
+  while (j < code.length && /[\w:.-]/.test(code.charAt(j))) {
+    j++;
+  }
+  return j;
 }
 
 /** Emits a tag's attributes through its `>`; returns the index past it, or the end. */
