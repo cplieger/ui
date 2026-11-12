@@ -95,6 +95,22 @@ describe("the summary of a column chart", () => {
     };
     expect(shortDescription(model(one), words)).toBe(`Column chart, ${span(START, END)}`);
   });
+
+  it("dates both ends of a domain a whole day long, whose clock times match", () => {
+    const day = 24 * 60 * MIN;
+    const m = model({ ...stacked, x: { type: "time", domain: [END - day, END] } });
+    const dated = (t: number) =>
+      new Intl.DateTimeFormat("en", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: TZ,
+      }).format(t);
+    expect(shortDescription(m, words)).toBe(
+      `Stacked column chart, 2 series, ${dated(END - day)} to ${dated(END)}`,
+    );
+  });
 });
 
 describe("the summary of a step area", () => {

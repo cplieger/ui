@@ -649,7 +649,9 @@ export function chartModel(
         return textModel(m, `marks[${String(index)}]`, x, y);
     }
   });
-  const days = x.hi - x.lo > DAY;
+  // The ends of a domain a whole day long share their clock time, so they
+  // need their dates ("Nov 10, 2:00 PM to Nov 11, 2:00 PM").
+  const days = x.hi - x.lo >= DAY;
   const xText =
     x.type === "time" ? instantFormat(locale, timeZone, days) : formatter(x.format, locale);
   const xSpan =
