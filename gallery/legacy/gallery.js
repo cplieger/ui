@@ -498,6 +498,7 @@ function menuKeys(menu) {
     if (item.dataset.say) toast({ kind: item.dataset.tone === "danger" ? "warning" : "info", title: item.dataset.say });
   });
 }
+$$("[role='menu'][popover]:not(.cp-menu)").forEach(menuKeys);
 
 // ------------------------------------------------------------ dialogs
 // Buttons open and close dialogs through commandfor; this fills in only for
