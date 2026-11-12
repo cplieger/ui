@@ -120,16 +120,20 @@ function cut(points: readonly Point[], width: number): Point[] {
  */
 export function linePath(m: LineModel, s: number, f: Frame): string {
   const ys = m.series[s]?.y ?? [];
-  // A log x cannot place a sample at or below 0, so the line then starts at
-  // its first sample inside the domain.
-  const before = m.from > 0 && !(f.x.type === "log" && (m.x[m.from - 1] ?? 0) <= 0);
+  // A log x cannot place a sample at or below 0: a straight line then starts
+  // at its first sample inside the domain, and a step line holds that
+  // sample's value from just left of the plot, where u is -1.
+  const unplaced = (i: number) => f.x.type === "log" && (m.x[i] ?? 0) <= 0;
+  const before = m.from > 0 && (m.step || !unplaced(m.from - 1));
   const from = before ? m.from - 1 : m.from;
   const to = Math.min(m.to + 1, m.x.length);
   // u runs left to right whichever way x does, for the reduction.
   const flip = f.x.reverse;
   const u = (v: number) => (flip ? f.width - f.xAt(v) : f.xAt(v));
-  const us = Array.from(m.x, (v, i) => (i >= from && i < to ? u(v) : 0));
-  const runs = reduce(us, ys, from, to, 1 / f.dpr);
+  const us = Array.from(m.x, (v, i) =>
+    i >= from && i < to ? (i === from && unplaced(i) ? -1 : u(v)) : 0,
+  );
+  const runs = reduce(us, ys, from, to, 1 / f.dpr, f.width);
   let d = "";
   for (const run of runs) {
     const points: Point[] = [];

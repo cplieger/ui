@@ -186,6 +186,17 @@ describe("the markup a chart builds", () => {
     expect(b.figure.tabIndex).toBe(-1);
   });
 
+  it("balances the title's lines and wraps the summary, which update() rewrites, as prose", () => {
+    const b = build({ id: "posts-chart" });
+    start(full, b);
+    const wrap = (part: string) =>
+      getComputedStyle(
+        b.figure.querySelector(`figcaption > [data-part="${part}"]`) as Element,
+      ).getPropertyValue("text-wrap-style");
+    expect(wrap("title")).toBe("balance");
+    expect(wrap("summary")).toBe("auto");
+  });
+
   it("gives the plot the application role, its name and its how-to, the SVG hidden", () => {
     const b = build({ id: "posts-chart" });
     start(full, b);

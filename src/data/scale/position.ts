@@ -4,7 +4,9 @@
  */
 
 /** Maps `d0`..`d1` onto `r0`..`r1`, linearly or (for "log", d0 > 0) by
- *  logarithm. A domain of one value maps to the range's middle. */
+ *  logarithm, each end exactly onto its end of the range, so a sample on the
+ *  domain's end is never cut as past the plot. A domain of one value maps to
+ *  the range's middle. */
 export function position(
   type: "linear" | "log" | "time",
   d0: number,
@@ -20,5 +22,7 @@ export function position(
     return () => mid;
   }
   const k = (r1 - r0) / span;
-  return (v) => r0 + (f(v) - a) * k;
+  // d0 lands on r0 exactly by the sum; d1 only up to float error, so it is
+  // pinned.
+  return (v) => (v === d1 ? r1 : r0 + (f(v) - a) * k);
 }

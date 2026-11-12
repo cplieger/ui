@@ -439,6 +439,13 @@ describe("a selection at the plot's ends", () => {
       },
     ],
     [
+      "a line reaching the plot's bottom and top",
+      {
+        x: {},
+        marks: [{ mark: "line", x: [0, 1, 2, 3], series: [{ name: "Live", y: [0, 9, 2, 10] }] }],
+      },
+    ],
+    [
       "a dot row",
       {
         x: { type: "time" },
@@ -454,7 +461,8 @@ describe("a selection at the plot's ends", () => {
     const b = build(spec);
     b.plot.focus();
     // The clip is the area's viewBox, in the ring's own user space; a
-    // client box would not do, since Firefox's is loose round an arc.
+    // client box would not do, since Firefox's counts the stroke, by a
+    // conservative estimate (16 px for this 10 px ring).
     const area = b.plot.querySelector('[data-part="area"]') as SVGSVGElement;
     const clip = area.viewBox.baseVal;
     const stroke = 1;

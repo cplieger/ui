@@ -16,7 +16,8 @@ export interface Point {
  * minimum, maximum and exit per run, in sample order. A column of four
  * samples or fewer keeps them all. After a gap, the samples that share a
  * column with the run before it move to the next column's start, so a gap
- * narrower than a column still breaks the path by one column.
+ * narrower than a column still breaks the path by one column, though never
+ * past `end`, so a sample on the plot's end is not moved off it.
  */
 export function reduce(
   xs: ArrayLike<number>,
@@ -24,6 +25,7 @@ export function reduce(
   from: number,
   to: number,
   width: number,
+  end = Number.POSITIVE_INFINITY,
 ): Point[][] {
   const runs: Point[][] = [];
   let run: Point[] = [];
@@ -68,7 +70,7 @@ export function reduce(
     let c = Math.floor(x / width);
     if (c <= after) {
       c = after + 1;
-      x = Math.max(x, c * width);
+      x = Math.max(x, Math.min(c * width, end));
     }
     if (c !== col) {
       if (column.length > 0) {

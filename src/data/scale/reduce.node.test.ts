@@ -56,6 +56,13 @@ describe("reduce", () => {
     ]);
   });
 
+  it("moves a sample after a gap no further than the end it is given", () => {
+    expect(reduce([0, 0.5, 0.8], [1, null, 2], 0, 3, 1, 0.8)).toEqual([
+      [{ x: 0, y: 1 }],
+      [{ x: 0.8, y: 2 }],
+    ]);
+  });
+
   it("reads NaN as a gap, draws nothing for a run of nulls wider than a column, and joins nothing across it", () => {
     const xs = [0, 1, 2, 3, 4, 5];
     const ys = [1, Number.NaN, null, null, 7, 8];

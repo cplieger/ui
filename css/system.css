@@ -5308,6 +5308,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
   font-weight: var(--cp-weight-body);
+  text-wrap: wrap;
 }
 
 .cp-chart > .cp-toolbar {

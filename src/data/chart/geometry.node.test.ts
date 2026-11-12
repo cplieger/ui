@@ -249,6 +249,63 @@ describe("line geometry", () => {
     expect(points(d)).toEqual([[100, 100, 200, 0]]);
   });
 
+  it("holds a step line's value from the low end of a log x when the sample before is at 0", () => {
+    const m = model({
+      x: { type: "log", domain: [1, 100] },
+      marks: [
+        { mark: "line", x: [0, 10, 100], curve: "step", series: [{ name: "a", y: [5, 2, 3] }] },
+      ],
+    });
+    const d = linePath(lineOf(m), 0, frame(m, 200, 300, 6));
+    expect(points(d)).toEqual([[0, 50, 100, 50, 100, 200, 200, 200, 200, 150]]);
+  });
+
+  describe("draws the newest sample on the plot's end of an inferred time domain", () => {
+    const MIN = 60_000;
+    const S = Date.UTC(2026, 10, 12, 9);
+    const x = [S, S + 10 * MIN, S + 20 * MIN];
+    const line = (y: (number | null)[], curve: "linear" | "step", reverse = false): ChartSpec => ({
+      x: { type: "time", reverse },
+      marks: [{ mark: "line", x, curve, series: [{ name: "a", y }] }],
+    });
+    // On 425 px, 100 px tall up to 5: 3 sits at 40, 4 at 20 and 5 at 0.
+    const drawn = (spec: ChartSpec) => {
+      const m = model(spec);
+      return points(linePath(lineOf(m), 0, frame(m, 425, 100, 5)));
+    };
+
+    it("ends a step line on its last change", () => {
+      expect(drawn(line([3, 5, 4], "step"))).toEqual([
+        [0, 40, 212.5, 40, 212.5, 0, 425, 0, 425, 20],
+      ]);
+    });
+
+    it("ends a reversed step line on its last change", () => {
+      expect(drawn(line([3, 5, 4], "step", true))).toEqual([
+        [425, 40, 212.5, 40, 212.5, 0, 0, 0, 0, 20],
+      ]);
+    });
+
+    it("draws a lone newest sample after a gap", () => {
+      expect(drawn(line([3, null, 4], "linear"))).toEqual([
+        [0, 40, 0, 40],
+        [425, 20, 425, 20],
+      ]);
+    });
+  });
+
+  it("draws a sample on the end of a plot of fractional width after a gap in its last column", () => {
+    const m = model({
+      x: { domain: [0, 1_000] },
+      marks: [
+        { mark: "line", x: [0, 999, 999.5, 1_000], series: [{ name: "a", y: [1, 2, null, 3] }] },
+      ],
+    });
+    const runs = points(linePath(lineOf(m), 0, frame(m, 424.6, 300, 3)));
+    expect(runs).toHaveLength(2);
+    expect(runs[1]).toEqual([424.6, 0, 424.6, 0]);
+  });
+
   it("keeps each pixel column's extremes of 4,320 samples", () => {
     const x = Array.from({ length: 4_320 }, (_, i) => i);
     const y = x.map((i) => (i === 2_000 ? 50 : i === 3_000 ? -40 : 0));
