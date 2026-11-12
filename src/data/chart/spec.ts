@@ -39,6 +39,9 @@ export interface RectMark {
   readonly x2: ArrayLike<number>;
   /** The last bucket is still filling. */
   readonly open?: boolean;
+  /** How several series share a bucket: stacked from the baseline (the
+   *  default), or side by side in series order from the left. */
+  readonly arrange?: "stack" | "group";
   readonly series: readonly Series[];
 }
 

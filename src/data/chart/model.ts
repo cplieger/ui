@@ -10,7 +10,8 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
 import type { ChartSpec, RectMark } from "./spec.js";
 
-type Kind = "stackedColumn" | "column" | "histogram" | "line" | "step" | "timeline";
+type Kind =
+  "stackedColumn" | "groupedColumn" | "column" | "histogram" | "line" | "step" | "timeline";
 
 export interface SeriesModel {
   readonly name: string;
@@ -24,6 +25,9 @@ export interface RectModel {
   readonly x1: ArrayLike<number>;
   readonly x2: ArrayLike<number>;
   readonly open: boolean;
+  /** "group" sets two or more series side by side in each bucket; one
+   *  series grouped is a plain column, so it reads "stack". */
+  readonly arrange: "stack" | "group";
   readonly series: readonly SeriesModel[];
   /** The buckets drawn, read and listed: every one not wholly outside the domain. */
   readonly shown: readonly number[];
@@ -210,6 +214,10 @@ function checkMark(mark: unknown, what: string): void {
         }
       }
       optional(mark["open"], "boolean", `${what}.open`);
+      const arrange = mark["arrange"];
+      if (arrange !== undefined && arrange !== "stack" && arrange !== "group") {
+        fail(`${what}.arrange must be "stack" or "group"`);
+      }
       checkSeries(mark["series"], x1.length, what);
       return;
     }
@@ -331,7 +339,13 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
     case undefined:
       return undefined;
     case "rect":
-      return x.type === "log" ? "histogram" : first.series.length > 1 ? "stackedColumn" : "column";
+      if (x.type === "log") {
+        return "histogram";
+      }
+      if (first.series.length < 2) {
+        return "column";
+      }
+      return first.arrange === "group" ? "groupedColumn" : "stackedColumn";
     case "line":
       return first.step ? "step" : "line";
     case "dot":
@@ -372,6 +386,7 @@ export function chartModel(
           x1: m.x1,
           x2: m.x2,
           open: m.open === true,
+          arrange: m.arrange === "group" && m.series.length > 1 ? "group" : "stack",
           series: series(m.series),
           shown: shownBuckets(m, index, x),
         };

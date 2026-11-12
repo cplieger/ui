@@ -82,6 +82,34 @@ describe("the legend row of stacked bars", () => {
   });
 });
 
+describe("the legend row of grouped columns", () => {
+  const mark = postsByKind.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+  const m = model({ ...postsByKind, marks: [{ ...mark, arrange: "group" }] });
+  const rect = m.marks[0] as RectModel;
+
+  it("reads each series' total over the domain and no grand total", () => {
+    const r = overall(m, words);
+    expect(chips(r)?.map((c) => c[2])).toEqual(["120", "98", "64", "29"]);
+    expect(r?.total).toBeUndefined();
+  });
+
+  it("reads a bucket's values and no total", () => {
+    const r = bucketReading(m, rect, 13, words);
+    expect(chips(r)?.map((c) => c[2])).toEqual(["5", "6", "3", "1"]);
+    expect(r.total).toBeUndefined();
+  });
+
+  it("keeps no width for a total slot", () => {
+    expect(
+      readoutWidths(
+        m,
+        words,
+        measurer((t) => 7 * t.length, 7, "en"),
+      ).total,
+    ).toBe(0);
+  });
+});
+
 describe("the legend row of one series", () => {
   it("reads a column chart's count with its unit, and no total", () => {
     const m = model({

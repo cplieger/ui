@@ -228,7 +228,9 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
   const extent = new Extent(log);
   for (const m of spec.marks) {
     if (m.mark === "rect") {
-      // Segments are never negative, so a stack's total is its highest value.
+      // Segments are never negative, so a stack's total is its highest value;
+      // a group's sub-columns stand on the baseline, each its own height.
+      const group = m.arrange === "group";
       for (let i = 0; i < m.x1.length; i++) {
         let total = 0;
         for (const s of m.series) {
@@ -236,9 +238,14 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
           if (v !== null) {
             extent.count(v);
             total += v;
+            if (group) {
+              extent.add(v);
+            }
           }
         }
-        extent.add(total);
+        if (!group) {
+          extent.add(total);
+        }
       }
     } else if (m.mark === "line") {
       for (const s of m.series) {

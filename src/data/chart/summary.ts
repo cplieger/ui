@@ -55,9 +55,27 @@ function rectSummary(model: Model, m: RectModel, words: Words): string[] {
   const out = [words.stackSummary(all, every, range, parts)];
   // The open bucket is still filling, so a low count there is not a drop.
   const last = m.x1.length - 1;
+  const closed = m.shown.filter((i) => !(m.open && i === last));
+  if (m.arrange === "group") {
+    // A group compares series, so its peak is one value, not a bucket's total.
+    let peak: { i: number; s: SeriesModel; v: number } | undefined;
+    for (const i of closed) {
+      for (const s of m.series) {
+        const v = s.y[i] ?? 0;
+        if (v > (peak?.v ?? 0)) {
+          peak = { i, s, v };
+        }
+      }
+    }
+    if (peak !== undefined) {
+      const n = counted(model.yText(peak.v), peak.v, unit, model);
+      out.push(words.highest(peak.s.name, bucketText(model, m, peak.i, words), n));
+    }
+    return out;
+  }
   let best = -1;
-  for (const i of m.shown) {
-    if (!(m.open && i === last) && (best === -1 || bucketTotal(m, i) > bucketTotal(m, best))) {
+  for (const i of closed) {
+    if (best === -1 || bucketTotal(m, i) > bucketTotal(m, best)) {
       best = i;
     }
   }

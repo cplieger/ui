@@ -112,6 +112,39 @@ describe("the table of stacked bars", () => {
   });
 });
 
+describe("the table of grouped columns", () => {
+  const starts = per(2, (i) => START + i * 60 * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 120 * MIN] },
+      marks: [
+        {
+          mark: "rect",
+          arrange: "group",
+          x1: starts,
+          x2: starts.map((s) => s + 60 * MIN),
+          series: [
+            { name: "Announce", y: [1, 2] },
+            { name: "Path", y: [5, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("heads a column per series and no Total, and lists each bucket's values", () => {
+    expect(t.columns).toEqual([
+      { text: "Announce", num: true },
+      { text: "Path", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      [`${iso(START)} to ${iso(START + 60 * MIN)}`, "1", "5"],
+      [`${iso(START + 60 * MIN)} to ${iso(START + 120 * MIN)}`, "2", "No data"],
+    ]);
+  });
+});
+
 describe("the table of a histogram", () => {
   const edges = durationEdges();
   const t = tableModel(

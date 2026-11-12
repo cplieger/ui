@@ -7,7 +7,7 @@
 import { formatter } from "../scale/format.js";
 
 import type { LineModel, Model, RectModel } from "./model.js";
-import { bucketText, primaryOf } from "./readout.js";
+import { bucketText, primaryOf, totalled } from "./readout.js";
 import { ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
@@ -80,10 +80,10 @@ export function stepStops(m: LineModel): number[] {
 }
 
 function rectRows(model: Model, m: RectModel, words: Words): Row[] {
-  const stacked = m.series.length > 1;
+  const total = totalled(m);
   return m.shown.map((i) => {
     const cells = m.series.map((s) => value(model, s.y[i], words));
-    if (stacked) {
+    if (total) {
       cells.push(
         value(
           model,
@@ -147,7 +147,7 @@ export function tableModel(model: Model, words: Words): TableModel {
     };
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
-  if (m.kind === "rect" && m.series.length > 1) {
+  if (m.kind === "rect" && totalled(m)) {
     columns.push({ text: words.total, num: true });
   }
   return {

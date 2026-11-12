@@ -4,10 +4,18 @@ import { cdp, server } from "vitest/browser";
 import { durationEdges } from "../scale/ladder.js";
 import { forgetMeasures } from "../scale/measure.js";
 
-import { AREA_ROOM, drawPlot, frameLegend, readMetrics, writeLegend } from "./draw.js";
+import {
+  AREA_ROOM,
+  drawPlot,
+  drawSelection,
+  frameLegend,
+  readMetrics,
+  writeLegend,
+} from "./draw.js";
 import { layout, type Layout } from "./layout.js";
 import { chartModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, overall, readoutWidths } from "./readout.js";
+import { navigator } from "./select.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
 
@@ -197,6 +205,40 @@ describe("the marks", () => {
     const a = rects(announce ?? "")[5];
     const c = rects(direct ?? "")[5];
     expect(Number(c?.[2])).toBeCloseTo(Number(a?.[1]) - 1, 6);
+  });
+
+  it("sets a group's series side by side from the baseline, and rings each sub-column or the chosen one", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, arrange: "group" }] }, 600);
+    const boxes = (p: Element | null | undefined) =>
+      [...(p?.getAttribute("d") ?? "").matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/g)].map((g) =>
+        g.slice(1).map(Number),
+      );
+    const [announce, path, direct] = series(d, "rect").map(boxes);
+    // Bucket 5: Path is null, so its slot stays empty between Announce and Direct.
+    expect(path).toHaveLength(23);
+    const a = announce?.[5] ?? [];
+    const c = direct?.[5] ?? [];
+    const base = d.lay.frame.yAt(0);
+    expect(a[3]).toBeCloseTo(base, 6);
+    expect(c[3]).toBeCloseTo(base, 6);
+    // Announce 4 stands 4 times as tall as Direct 1, each from the baseline.
+    expect(base - (a[1] ?? 0)).toBeCloseTo(4 * (base - (c[1] ?? 0)), 0);
+    expect((c[0] ?? 0) - (a[2] ?? 0)).toBeGreaterThan(1);
+    const nav = navigator(d.model, d.lay);
+    const rings = (part: number | undefined) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 5, part }, nav);
+      return boxes(d.svg.querySelector('[data-part="ring"]'));
+    };
+    // 1 px inside each drawn sub-column, Path's empty slot left out.
+    const near = (v: number | undefined) => expect.closeTo(v ?? 0, 1);
+    expect(rings(undefined).map((r) => r[0])).toEqual([
+      near((a[0] ?? 0) + 1),
+      near((c[0] ?? 0) + 1),
+    ]);
+    expect(rings(2)).toEqual([
+      [near((c[0] ?? 0) + 1), near((c[1] ?? 0) + 1), near((c[2] ?? 0) - 1), near(base - 1)],
+    ]);
   });
 
   it("strokes each line 2 px in its slot", () => {

@@ -97,6 +97,42 @@ describe("the summary of a column chart", () => {
   });
 });
 
+describe("the summary of grouped columns", () => {
+  const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const grouped: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "group" }] };
+
+  it("names the highest single value of a closed bucket in place of the busiest bucket", () => {
+    // The open bucket's Announce 30 is still filling, so Path's 9 is the highest.
+    expect(generatedSummary(model(grouped), words)).toBe(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 145, Path 101. ` +
+        `Highest: Path, ${span(starts[13] ?? 0, ends[13] ?? 0)}, 9${nb}posts.`,
+    );
+  });
+
+  it("names the busiest bucket of one series grouped, which is a plain column chart", () => {
+    const one: ChartSpec = {
+      ...grouped,
+      marks: [
+        {
+          ...mark,
+          arrange: "group",
+          series: [{ name: "All", y: per(24, (i) => (i === 4 ? 3 : 1)) }],
+        },
+      ],
+    };
+    expect(generatedSummary(model(one), words)).toBe(
+      `26${nb}posts, every 15${nb}min from ${span(START, END)}. ` +
+        `Busiest: ${span(starts[4] ?? 0, ends[4] ?? 0)}, 3${nb}posts.`,
+    );
+  });
+
+  it("is a grouped column chart with its series count", () => {
+    expect(shortDescription(model(grouped), words)).toBe(
+      `Grouped column chart, 2 series, ${span(START, END)}`,
+    );
+  });
+});
+
 const edges = durationEdges();
 const reads = (
   series: Extract<Mark, { mark: "rect" }>["series"],

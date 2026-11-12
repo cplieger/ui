@@ -117,6 +117,11 @@ describe("spec errors", () => {
     ["a mark that is not one of the four", { x: {}, marks: [{ mark: "area" }] }, TypeError],
     ["marks that are not an array", { x: {}, marks: "rect" }, TypeError],
     [
+      "an arrange that is not stack or group",
+      { x: {}, marks: [rect([1], { arrange: "side" as "group" })] },
+      TypeError,
+    ],
+    [
       "a series with no name",
       { x: {}, marks: [line([1], { series: [{ y: [1] } as never] })] },
       TypeError,
@@ -187,6 +192,41 @@ describe("the chart's kind", () => {
       "stackedColumn",
     ],
     ["one series of rects", { x: {}, marks: [rect([1])] }, "column"],
+    [
+      "two series of rects grouped",
+      {
+        x: {},
+        marks: [
+          rect([1], {
+            arrange: "group",
+            series: [
+              { name: "a", y: [1] },
+              { name: "b", y: [2] },
+            ],
+          }),
+        ],
+      },
+      "groupedColumn",
+    ],
+    ["one series of rects grouped", { x: {}, marks: [rect([1], { arrange: "group" })] }, "column"],
+    [
+      "two series of rects grouped on a log x",
+      {
+        x: { type: "log" },
+        marks: [
+          rect([1], {
+            x1: [1],
+            x2: [2],
+            arrange: "group",
+            series: [
+              { name: "a", y: [1] },
+              { name: "b", y: [2] },
+            ],
+          }),
+        ],
+      },
+      "histogram",
+    ],
     [
       "rects on a log x",
       { x: { type: "log" }, marks: [rect([1], { x1: [1], x2: [2] })] },

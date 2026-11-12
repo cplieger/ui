@@ -109,10 +109,15 @@ export function lastSample(m: LineModel, s: SeriesModel): number {
   return -1;
 }
 
+/** Whether a rect reads a total: a stack of two or more series. A group
+ *  compares its series, and a total read from one misleads. */
+export const totalled = (m: RectModel): boolean => m.series.length > 1 && m.arrange !== "group";
+
 const dots = (m: DotModel) => m.rows.reduce((n, r) => n + r.to - r.from, 0);
 
-/** The legend row with no selection: a stack's or a histogram's totals over
- *  the domain, a dot chart's count, a line's last values. */
+/** The legend row with no selection: a rect's series totals over the
+ *  domain with a stack's grand total, a dot chart's count, a line's last
+ *  values. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -120,10 +125,9 @@ export function overall(model: Model, words: Words): Reading | undefined {
       return undefined;
     case "rect": {
       const all = entries(model, m.series, (s) => sum(s, m.shown), words);
-      const total =
-        m.series.length > 1
-          ? model.yText(m.series.reduce((n, s) => n + sum(s, m.shown), 0))
-          : undefined;
+      const total = totalled(m)
+        ? model.yText(m.series.reduce((n, s) => n + sum(s, m.shown), 0))
+        : undefined;
       return { at: legendDomain(model, words), entries: all, total };
     }
     case "line": {
@@ -147,10 +151,12 @@ export function overall(model: Model, words: Words): Reading | undefined {
   }
 }
 
-/** Bucket `i` of `m`: its interval, each series' value and a stack's total. */
+/** Bucket `i` of `m`: its interval, each series' value and a stack's total,
+ *  none for a group. */
 export function bucketReading(model: Model, m: RectModel, i: number, words: Words): Reading {
-  const total =
-    m.series.length > 1 ? model.yText(m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0)) : undefined;
+  const total = totalled(m)
+    ? model.yText(m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0))
+    : undefined;
   return {
     at: bucketText(model, m, i, words),
     entries: entries(model, m.series, (s) => s.y[i] ?? null, words),

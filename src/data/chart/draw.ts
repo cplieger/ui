@@ -10,6 +10,7 @@ import {
   bucketEdges,
   dotGroups,
   dotPath,
+  groupEdges,
   hairline,
   linePath,
   num,
@@ -201,12 +202,26 @@ function inset(left: number, right: number, top: number, bottom: number): string
   return `M${num(left + dx)} ${num(top + dy)}H${num(right - dx)}V${num(bottom - dy)}H${num(left + dx)}Z`;
 }
 
-/** The ring's path for `sel`: the bar or its segment, each line's point or
- *  the chosen one, the drawn dot, or a row's hairline. */
+/** The ring's path for `sel`: the bar or its segment, a group's sub-columns
+ *  or the chosen one, each line's point or the chosen one, the drawn dot, or
+ *  a row's hairline. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
   if (sel.kind === "rect" && m?.kind === "rect") {
+    if (m.arrange === "group") {
+      const subs = groupEdges(m, sel.i, f);
+      return m.series
+        .map((s, k) => {
+          const v = s.y[sel.i] ?? 0;
+          const sub = subs[k];
+          const chosen = sel.part === undefined || sel.part === k;
+          return chosen && v > 0 && sub !== undefined
+            ? inset(sub.left, sub.right, f.yAt(v), f.yAt(0))
+            : "";
+        })
+        .join("");
+    }
     const { left, right } = bucketEdges(m, sel.i, f);
     let base = 0;
     let out = "";

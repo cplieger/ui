@@ -6,7 +6,7 @@ import { measurer } from "../scale/measure.js";
 import { layout, type Layout, type Metrics } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { navigator, rekey, spoken, initial, type Key, type Selection } from "./select.js";
-import type { ChartSpec } from "./spec.js";
+import type { ChartSpec, Mark } from "./spec.js";
 import { chartWords } from "./words.js";
 
 const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
@@ -122,6 +122,26 @@ describe("rect keys", () => {
       undefined,
     ]);
     expect(b.nav.move(whole, "ArrowDown", undefined)).toEqual({ kind: "rect", i: 1, part: 1 });
+  });
+
+  it("Up and Down move through a group's sub-columns left to right, in series order", () => {
+    const spec = stacked();
+    const [mark] = spec.marks;
+    const g = built({
+      ...spec,
+      marks: [{ ...(mark as Extract<Mark, { mark: "rect" }>), arrange: "group" }],
+    });
+    const whole: Selection = { kind: "rect", i: 2, part: undefined };
+    expect(press(g, whole, "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      { kind: "rect", i: 2, part: 0 },
+      { kind: "rect", i: 2, part: 1 },
+      undefined,
+    ]);
+    expect(press(g, { kind: "rect", i: 2, part: 1 }, "ArrowDown", "ArrowDown")).toEqual([
+      { kind: "rect", i: 2, part: 0 },
+      undefined,
+    ]);
+    expect(spoken(g.model, whole, words, false)).toBe(`${span(30, 45)}: Announce 2, Path No data.`);
   });
 
   it("says one segment for Up and Down, and the whole bucket again for Left and Right", () => {

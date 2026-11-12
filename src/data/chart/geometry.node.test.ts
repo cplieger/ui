@@ -3,7 +3,15 @@ import { describe, expect, it } from "vitest";
 import { durationEdges } from "../scale/ladder.js";
 import { position } from "../scale/position.js";
 
-import { bucketEdges, dotGroups, dotPath, linePath, rectPaths, type Frame } from "./geometry.js";
+import {
+  bucketEdges,
+  dotGroups,
+  dotPath,
+  groupEdges,
+  linePath,
+  rectPaths,
+  type Frame,
+} from "./geometry.js";
 import { chartModel, type LineModel, type Model, type RectModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
@@ -175,6 +183,146 @@ describe("rect geometry", () => {
     expect(under.right).toBe(Math.round(f.xAt(1_000) - 0.5));
     expect(f.xAt(1_000) - f.xAt(500)).toBeCloseTo(f.xAt(2_000) - f.xAt(1_000), 9);
     expect(next.left).toBe(under.right + 1);
+  });
+});
+
+// `n` buckets of `series` series under "group", each value its series' index + 1.
+function grouped(n: number, series: number, domain?: readonly [number, number]): Model {
+  const x1 = Array.from({ length: n }, (_, i) => i);
+  return model({
+    x: domain === undefined ? {} : { domain },
+    marks: [
+      {
+        mark: "rect",
+        arrange: "group",
+        x1,
+        x2: x1.map((v) => v + 1),
+        series: Array.from({ length: series }, (_, k) => ({
+          name: String(k),
+          y: x1.map(() => k + 1),
+        })),
+      },
+    ],
+  });
+}
+
+// The space between neighbouring groups and the widest space inside any group.
+function spaces(subs: { left: number; right: number }[][]): { between: number; inside: number } {
+  let between = Number.POSITIVE_INFINITY;
+  let inside = 0;
+  subs.forEach((group, i) => {
+    group.forEach((s, k) => {
+      const next = group[k + 1];
+      if (next !== undefined) {
+        inside = Math.max(inside, next.left - s.right);
+      }
+    });
+    const after = subs[i + 1]?.[0];
+    const last = group.at(-1);
+    if (after !== undefined && last !== undefined) {
+      between = Math.min(between, after.left - last.right);
+    }
+  });
+  return { between, inside };
+}
+
+describe("grouped column geometry", () => {
+  // dpr 100 snaps to the hundredth of a px, so the widths below are the design's.
+  const edgesOf = (m: Model, width: number) => {
+    const f = frame(m, width, 100, 3, 100);
+    return rectOf(m).shown.map((i) => groupEdges(rectOf(m), i, f));
+  };
+
+  it("drops the inset to 0.5 px when 12.5 % leaves a sub-column under 2 px", () => {
+    // 6.5 px buckets: (6.5 − 1.63 − 1) ÷ 2 = 1.94 px, so (6.5 − 1 − 1) ÷ 2 = 2.25 px.
+    const subs = edgesOf(grouped(10, 2), 65);
+    expect(subs[1]).toEqual([
+      { left: 7, right: 9.25 },
+      { left: 10.25, right: 12.5 },
+    ]);
+    expect(spaces(subs)).toEqual({ between: 1, inside: 1 });
+  });
+
+  it("keeps the 12.5 % inset for two series in 24 buckets on the 206 px phone plot", () => {
+    const subs = edgesOf(grouped(24, 2), 206);
+    const bucket = 206 / 24;
+    const width = (bucket - 0.25 * bucket - 1) / 2;
+    for (const s of subs.flat()) {
+      expect(s.right - s.left).toBeCloseTo(width, 1);
+    }
+    expect(subs[3]?.[0]?.left).toBeCloseTo(3 * bucket + 0.125 * bucket, 1);
+    const { between, inside } = spaces(subs);
+    expect(inside).toBeCloseTo(1, 1);
+    expect(between).toBeCloseTo(0.25 * bucket, 1);
+  });
+
+  it("lets three series in 24 buckets touch, with 1 px between groups", () => {
+    const subs = edgesOf(grouped(24, 3), 206);
+    const width = (206 / 24 - 1) / 3;
+    for (const s of subs.flat()) {
+      expect(s.right - s.left).toBeCloseTo(width, 1);
+    }
+    expect(spaces(subs)).toEqual({ between: expect.closeTo(1, 1), inside: expect.closeTo(0, 1) });
+  });
+
+  it("lets groups touch too when 1 px between them would leave a sub-column under 1 px", () => {
+    // 72 buckets of 2.86 px: (2.86 − 1) ÷ 2 = 0.93 px, so 2.86 ÷ 2 = 1.43 px.
+    const subs = edgesOf(grouped(72, 2), 206);
+    for (const s of subs.flat()) {
+      expect(s.right - s.left).toBeCloseTo(206 / 144, 1);
+    }
+    expect(spaces(subs)).toEqual({ between: expect.closeTo(0, 1), inside: expect.closeTo(0, 1) });
+  });
+
+  it("never leaves less space between groups than inside one, at any bucket width", () => {
+    for (const series of [2, 3, 4]) {
+      for (let width = 20; width <= 1_200; width += 7) {
+        const { between, inside } = spaces(edgesOf(grouped(24, series), width));
+        // Snapping to the hundredth of a px may move each space by 0.01.
+        expect(between, `${String(series)} series in ${String(width)} px`).toBeGreaterThanOrEqual(
+          inside - 0.02,
+        );
+      }
+    }
+  });
+
+  it("takes no inset on a side cut at the domain's end", () => {
+    // The last 10 px bucket is cut to 5 px: the inner gaps go, (5 − 0.5) ÷ 2 = 2.25 px.
+    const subs = edgesOf(grouped(10, 2, [0, 9.5]), 95);
+    expect(subs.at(-1)).toEqual([
+      { left: 90.5, right: 92.75 },
+      { left: 92.75, right: 95 },
+    ]);
+  });
+
+  it("draws each series from the baseline in its own slot, a null leaving its slot empty", () => {
+    const m = model({
+      x: {},
+      marks: [
+        {
+          mark: "rect",
+          arrange: "group",
+          x1: [0],
+          x2: [1],
+          series: [
+            { name: "a", y: [10] },
+            { name: "b", y: [null] },
+            { name: "c", y: [5] },
+          ],
+        },
+      ],
+    });
+    const [a, b, c] = rectPaths(rectOf(m), frame(m, 100, 100, 10, 100)).map(boxes);
+    // A 12.5 px inset a side and 1 px gaps leave (100 − 25 − 2) ÷ 3 px each.
+    const w = 73 / 3;
+    expect(a?.[0]).toEqual({ left: 12.5, top: 0, right: expect.closeTo(12.5 + w, 2), bottom: 100 });
+    expect(b).toEqual([]);
+    expect(c?.[0]).toEqual({
+      left: expect.closeTo(87.5 - w, 2),
+      top: 50,
+      right: 87.5,
+      bottom: 100,
+    });
   });
 });
 

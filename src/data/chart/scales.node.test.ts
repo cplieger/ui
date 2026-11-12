@@ -192,6 +192,20 @@ describe("yScale", () => {
     expect(y).toMatchObject({ type: "linear", lo: 0, hi: 4, integer: true });
   });
 
+  it("spans a group's largest single value from zero, not its totals", () => {
+    const grouped: Mark = {
+      mark: "rect",
+      arrange: "group",
+      x1: [0, 1],
+      x2: [1, 2],
+      series: [
+        { name: "a", y: [1, 7] },
+        { name: "b", y: [3, 2] },
+      ],
+    };
+    expect(continuous(yScale({ x: {}, marks: [grouped] }))).toMatchObject({ lo: 0, hi: 7 });
+  });
+
   it("spans line values and rules, from zero unless zero is false", () => {
     const marks: Mark[] = [
       { mark: "line", x: [0, 1, 2], series: [{ name: "a", y: [5, Number.NaN, 9.5] }] },

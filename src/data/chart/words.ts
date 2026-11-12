@@ -3,7 +3,8 @@
  * @module
  */
 
-type Kind = "stackedColumn" | "column" | "histogram" | "line" | "step" | "timeline";
+type Kind =
+  "stackedColumn" | "groupedColumn" | "column" | "histogram" | "line" | "step" | "timeline";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -12,9 +13,10 @@ export interface ChartWords {
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
   /** The kind in the short description. Defaults "Stacked column chart",
-   *  "Column chart", "Histogram", "Line chart", "Step line", "Timeline". A rect
-   *  on a log x is a histogram, stacked or not; any other rect is a column
-   *  chart, `stackedColumn` with two or more series. */
+   *  "Grouped column chart", "Column chart", "Histogram", "Line chart", "Step
+   *  line", "Timeline". A rect on a log x is a histogram however it is
+   *  arranged; any other rect is a column chart, `stackedColumn` or
+   *  `groupedColumn` with two or more series. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -59,6 +61,9 @@ export interface ChartWords {
   readonly stackSummary?: (total: string, every: string, range: string, parts: string) => string;
   /** Summary, busiest bucket. Default "Busiest: {range}, {n}." */
   readonly busiest?: (range: string, n: string) => string;
+  /** Summary, a grouped chart's largest single value. Default "Highest:
+   *  {name}, {range}, {n}." */
+  readonly highest?: (name: string, range: string, n: string) => string;
   /** The x range of a log x whose underflow bin is drawn below the low end;
    *  edge is the low end. Default "under {edge} to {to}". */
   readonly underRange?: (edge: string, to: string) => string;
@@ -91,6 +96,7 @@ const DEFAULTS: Words = {
   howTo: "Arrow keys read the values. Tab leaves the chart.",
   kind: {
     stackedColumn: "Stacked column chart",
+    groupedColumn: "Grouped column chart",
     column: "Column chart",
     histogram: "Histogram",
     line: "Line chart",
@@ -121,6 +127,7 @@ const DEFAULTS: Words = {
     return parts === "" ? `${head}.` : `${head}: ${parts}.`;
   },
   busiest: (range, n) => `Busiest: ${range}, ${n}.`,
+  highest: (name, range, n) => `Highest: ${name}, ${range}, ${n}.`,
   underRange: (edge, to) => `under ${edge} to ${to}`,
   binSummary: (n, range) => `${n} from ${range}.`,
   binParts: (parts) => `${parts}.`,

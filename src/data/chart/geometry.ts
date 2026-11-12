@@ -40,31 +40,97 @@ export function bucketEdges(
   i: number,
   f: Frame,
 ): { readonly left: number; readonly right: number } {
-  const x1 = m.x1[i] ?? 0;
-  const x2 = m.x2[i] ?? 0;
-  const a = f.xAt(Math.max(x1, f.x.drawnLo));
-  const b = f.xAt(Math.min(x2, f.x.hi));
-  // A side cut at the domain's end has no neighbour to leave a gap for.
-  const [cutA, cutB] = [x1 < f.x.drawnLo, x2 > f.x.hi];
-  const flip = a > b;
-  let left = clamp(Math.min(a, b), 0, f.width);
-  let right = clamp(Math.max(a, b), 0, f.width);
+  const s = bucketSpan(m, i, f);
+  let { left, right } = s;
   if (right - left - GAP >= 1) {
-    left += (flip ? cutB : cutA) ? 0 : GAP / 2;
-    right -= (flip ? cutA : cutB) ? 0 : GAP / 2;
+    left += s.cutLeft ? 0 : GAP / 2;
+    right -= s.cutRight ? 0 : GAP / 2;
   }
   return { left: snap(left, f.dpr), right: snap(right, f.dpr) };
 }
 
+// Bucket `i`'s px cut at the plot's ends, and which side was cut at the
+// domain's end, where there is no neighbour to leave a gap for.
+function bucketSpan(m: RectModel, i: number, f: Frame) {
+  const x1 = m.x1[i] ?? 0;
+  const x2 = m.x2[i] ?? 0;
+  const a = f.xAt(Math.max(x1, f.x.drawnLo));
+  const b = f.xAt(Math.min(x2, f.x.hi));
+  const [cutA, cutB] = [x1 < f.x.drawnLo, x2 > f.x.hi];
+  const flip = a > b;
+  return {
+    left: clamp(Math.min(a, b), 0, f.width),
+    right: clamp(Math.max(a, b), 0, f.width),
+    cutLeft: flip ? cutB : cutA,
+    cutRight: flip ? cutA : cutB,
+  };
+}
+
+/** A group's inset a side, as a share of its bucket's width. */
+const GROUP_INSET = 0.125;
+/** A sub-column under this gives up the group's spaces, widest first. */
+const SUB_MIN = 2;
+
+/**
+ * Bucket `i`'s sub-columns in a group, one per series of `m` in series
+ * order from the left, snapped to device px. Each group is inset by the
+ * larger of 0.5 px and 12.5 % of the bucket a side, sub-columns 1 px apart.
+ * Under 2 px a sub-column, the inset drops to 0.5 px, then the inner gaps
+ * go; the 1 px between groups goes last, under 1 px a sub-column, so the
+ * space between groups is never less than the space inside one.
+ */
+export function groupEdges(
+  m: RectModel,
+  i: number,
+  f: Frame,
+): { readonly left: number; readonly right: number }[] {
+  const s = bucketSpan(m, i, f);
+  const n = m.series.length;
+  const width = s.right - s.left;
+  const sides = (s.cutLeft ? 0 : 1) + (s.cutRight ? 0 : 1);
+  const sub = (inset: number, inner: number) => (width - inset * sides - inner * (n - 1)) / n;
+  const half = GAP / 2;
+  const tries: [number, number][] = [
+    [Math.max(half, GROUP_INSET * width), GAP],
+    [half, GAP],
+  ];
+  const [first, inner] = tries.find(([a, b]) => sub(a, b) >= SUB_MIN) ?? [half, 0];
+  const inset = inner === 0 && sub(half, 0) < 1 ? 0 : first;
+  const w = sub(inset, inner);
+  const start = s.left + (s.cutLeft ? 0 : inset);
+  return m.series.map((_, k) => {
+    const left = start + k * (w + inner);
+    return { left: snap(left, f.dpr), right: snap(left + w, f.dpr) };
+  });
+}
+
 /**
  * One path per series of `m`, every shown bucket's segment a rectangle,
- * stacked in series order from the baseline. A `null` counts as 0 and draws
- * nothing. Each segment over another gives up its bottom px as the gap,
- * unless it is under 3 px tall, so a stack's top stays at its total.
+ * stacked in series order from the baseline, or under "group" each its
+ * sub-column from the baseline. A `null` counts as 0 and draws nothing.
+ * Each segment over another gives up its bottom px as the gap, unless it is
+ * under 3 px tall, so a stack's top stays at its total.
  */
 export function rectPaths(m: RectModel, f: Frame): string[] {
   const paths = m.series.map(() => "");
+  const box = (k: number, left: number, right: number, top: number, bottom: number) => {
+    paths[k] =
+      `${paths[k] ?? ""}M${num(left)} ${num(top)}H${num(right)}V${num(bottom)}H${num(left)}Z`;
+  };
   for (const i of m.shown) {
+    if (m.arrange === "group") {
+      const subs = groupEdges(m, i, f);
+      const bottom = clamp(f.yAt(0), 0, f.height);
+      m.series.forEach((s, k) => {
+        const v = s.y[i] ?? 0;
+        const sub = subs[k];
+        const top = clamp(f.yAt(v), 0, f.height);
+        if (v > 0 && sub !== undefined && sub.right > sub.left && bottom > top) {
+          box(k, sub.left, sub.right, top, bottom);
+        }
+      });
+      continue;
+    }
     const { left, right } = bucketEdges(m, i, f);
     if (right <= left) {
       continue;
@@ -83,8 +149,7 @@ export function rectPaths(m: RectModel, f: Frame): string[] {
       const end = below && tall >= GAP_MIN ? bottom - GAP : bottom;
       below = true;
       if (end > top) {
-        paths[k] =
-          `${paths[k] ?? ""}M${num(left)} ${num(top)}H${num(right)}V${num(end)}H${num(left)}Z`;
+        box(k, left, right, top, end);
       }
     });
   }
