@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished } from "vit
 import { cdp, page, server, userEvent } from "vitest/browser";
 
 import { installRadioFocus } from "../core/radio-focus/radio-focus.js";
+import { enhanceShareBar } from "../data/share-bar/share-bar.js";
+import { enhanceMeter } from "../data/meter/meter.js";
+import { enhanceRankedBars } from "../data/ranked-bars/ranked-bars.js";
+import { renderSparkline } from "../data/sparkline/sparkline.js";
 import { enhanceRange } from "../forms/range/range.js";
 
 const root = document.documentElement;
@@ -67,7 +71,12 @@ function host(
 
 // The rendered sRGB of an opaque CSS colour, read back through a canvas pixel;
 // a transparent one (an unresolved token) throws instead of reading as black.
+const readings = new Map<string, [number, number, number]>();
 function rgb(colour: string): [number, number, number] {
+  const known = readings.get(colour);
+  if (known !== undefined) {
+    return known;
+  }
   const ctx = new OffscreenCanvas(1, 1).getContext("2d");
   if (ctx === null) {
     throw new Error("no 2d context");
@@ -78,6 +87,7 @@ function rgb(colour: string): [number, number, number] {
   if (a !== 255) {
     throw new Error(`${colour} is not opaque`);
   }
+  readings.set(colour, [r, g, b]);
   return [r, g, b];
 }
 
@@ -200,6 +210,737 @@ describe("css/system.css harmony colours", () => {
       }
     });
   }
+});
+
+// A series slot as the browser resolves it: [lightness 0 to 1, chroma, hue].
+function seriesAt(n: number, accentHue: number, accentChroma = 0.137): [number, number, number] {
+  root.style.setProperty("--cp-accent-h", String(accentHue));
+  root.style.setProperty("--cp-accent-c", String(accentChroma));
+  const el = host("");
+  el.style.color = `var(--cp-series-${String(n)})`;
+  const m = /oklch\(([\d.]+) ([\d.]+) ([\d.]+)/.exec(getComputedStyle(el).color);
+  if (m === null) {
+    throw new Error(`series ${String(n)} resolved to ${getComputedStyle(el).color}`);
+  }
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+describe("css/system.css series slots", () => {
+  it("keeps the accent's hue for slot 1 and turns the others as the harmony partners do", () => {
+    theme("light");
+    // 255 turned by 0, 150, 210, 30, 60, 90, 120, 240 and 270, with 105 moved
+    // out of the yellow-greens to 95
+    const hues = [255, 45, 95, 285, 315, 345, 15, 135, 165];
+    hues.forEach((h, i) => {
+      expect(seriesAt(i + 1, 255)[2], `slot ${String(i + 1)}`).toBeCloseTo(h, 3);
+    });
+    expect(seriesAt(1, 110)[2]).toBeCloseTo(110, 3);
+  });
+
+  it("puts odd slots on the bright level and even slots on the deep one, in each theme", () => {
+    theme("light");
+    expect([1, 2, 3].map((n) => seriesAt(n, 255)[0])).toEqual([0.61, 0.42, 0.61]);
+    theme("dark");
+    expect([1, 2, 3].map((n) => seriesAt(n, 255)[0])).toEqual([0.8, 0.6, 0.8]);
+  });
+
+  it("gives a muted accent's slots chroma 0.11 and caps a vivid accent's at 0.16", () => {
+    theme("light");
+    expect(seriesAt(1, 30, 0.05)[1]).toBeCloseTo(0.11, 4);
+    expect(seriesAt(1, 30, 0.12)[1]).toBeCloseTo(0.144, 4);
+    expect(seriesAt(1, 30, 0.2)[1]).toBeCloseTo(0.16, 4);
+  });
+
+  for (const t of ["light", "dark"] as const) {
+    it(`holds every slot at 3:1 on the page, raised, sunken and overlay surfaces in ${t}`, () => {
+      theme(t);
+      // Probes built once, so each hue costs one style pass, not one per probe.
+      const probes = host("");
+      const pairs = ["page", "raised", "sunken", "overlay"].flatMap((s) =>
+        [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
+          const el = document.createElement("span");
+          el.style.color = `var(--cp-series-${String(n)})`;
+          el.style.backgroundColor = `var(--cp-surface-${s})`;
+          probes.append(el);
+          return { el, name: `slot ${String(n)} on ${s}` };
+        }),
+      );
+      for (let hue = 0; hue < 360; hue += 15) {
+        root.style.setProperty("--cp-accent-h", String(hue));
+        for (const { el, name } of pairs) {
+          const cs = getComputedStyle(el);
+          expect(
+            contrast(cs.color, cs.backgroundColor),
+            `hue ${String(hue)} ${name}`,
+          ).toBeGreaterThanOrEqual(3);
+        }
+      }
+    });
+  }
+
+  it("puts a chip's tint and text and a swatch's fill on the slot data-series names", () => {
+    theme("light");
+    root.style.setProperty("--cp-accent-h", "255");
+    const chip = host("cp-chip", { "data-series": "2" }, "span");
+    const swatch = host("cp-swatch", { "data-series": "2" }, "span");
+    const plain = host("cp-chip", {}, "span");
+    const hueOf = (colour: string) => Number(/oklch\([\d.]+ [\d.]+ ([\d.]+)/.exec(colour)?.[1]);
+    expect(hueOf(getComputedStyle(chip).backgroundColor)).toBeCloseTo(45, 3);
+    expect(hueOf(getComputedStyle(chip).color)).toBeCloseTo(45, 3);
+    expect(hueOf(getComputedStyle(plain).backgroundColor)).toBeCloseTo(255, 3);
+    const slot = host("");
+    slot.style.color = "var(--cp-series-2)";
+    expect(getComputedStyle(swatch).backgroundColor).toBe(getComputedStyle(slot).color);
+  });
+});
+
+describe("css/system.css share bar", () => {
+  function shareBar(rows: string): HTMLElement {
+    theme("light");
+    const el = build(
+      `<div class="cp-share"><table class="cp-table"><tbody>${rows}</tbody></table></div>`,
+    );
+    el.style.inlineSize = "402px";
+    const life = new AbortController();
+    onTestFinished(() => {
+      life.abort();
+    });
+    enhanceShareBar(el.querySelector(".cp-share") as HTMLElement, { signal: life.signal });
+    return el;
+  }
+  const row = (series: string, label: string, n: number) =>
+    `<tr data-series="${series}"><th><a href="#${label}">${label}</a></th><td><data value="${String(n)}">${String(n)}</data></td></tr>`;
+
+  it("sizes each segment by its share with the surface showing through a 2px gap", () => {
+    const el = shareBar(row("1", "best", 300) + row("2", "alt", 100));
+    const [a, b] = [...el.querySelectorAll(".cp-share-bar > span")].map((s) =>
+      s.getBoundingClientRect(),
+    );
+    expect((b?.left ?? 0) - (a?.right ?? 0)).toBeCloseTo(2, 1);
+    // The 400px left after the gap, shared 300 to 100.
+    expect(a?.width).toBeCloseTo(300, 0);
+    expect(b?.width).toBeCloseTo(100, 0);
+    expect(a?.height).toBe(24);
+    expect(getComputedStyle(el.querySelector(".cp-share-bar") as Element).backgroundColor).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+  });
+
+  it("keeps a sliver of a tiny share in sight, fills each segment with its slot, and shows an empty whole as a bare track", () => {
+    const el = shareBar(row("1", "best", 10_000) + row("3", "alt", 1));
+    const [big, tiny] = [...el.querySelectorAll<HTMLElement>(".cp-share-bar > span")];
+    expect(tiny?.getBoundingClientRect().width).toBeGreaterThanOrEqual(4);
+    const slot = host("");
+    slot.style.color = "var(--cp-series-3)";
+    expect(getComputedStyle(tiny as Element).backgroundColor).toBe(getComputedStyle(slot).color);
+    expect(getComputedStyle(big as Element).backgroundColor).not.toBe(getComputedStyle(slot).color);
+    const empty = shareBar(row("1", "none", 0)).querySelector(".cp-share-bar") as HTMLElement;
+    const fill = host("");
+    fill.style.color = "var(--cp-fill)";
+    expect(getComputedStyle(empty).backgroundColor).toBe(getComputedStyle(fill).color);
+  });
+
+  it("makes a legend link a chip with no underline, and every chip the hit area of the pointer", () => {
+    const el = shareBar(
+      row("1", "best", 3) +
+        '<tr data-series="2"><th>plain</th><td><data value="1">1</data></td></tr>',
+    );
+    const chip = el.querySelector(".cp-share-legend a.cp-chip") as HTMLElement;
+    const plain = el.querySelector(".cp-share-legend span.cp-chip") as HTMLElement;
+    expect(getComputedStyle(chip).textDecorationLine).toBe("none");
+    expect(chip.getBoundingClientRect().height).toBe(24);
+    expect(plain.getBoundingClientRect().height).toBe(24);
+    root.setAttribute("data-pointer", "coarse");
+    expect(chip.getBoundingClientRect().height).toBe(44);
+    expect(plain.getBoundingClientRect().height).toBe(44);
+    expect(getComputedStyle(el.querySelector(".cp-share-legend") as Element).listStyleType).toBe(
+      "none",
+    );
+  });
+
+  it("reads a row's header as a cell of its row, its glyph beside its link's words", () => {
+    const el = shareBar(row("1", "best", 3) + row("2", "alt", 1));
+    const th = [...el.querySelectorAll<HTMLElement>("tbody th")];
+    const td = el.querySelector("tbody td") as HTMLElement;
+    for (const p of ["color", "fontSize", "fontWeight", "paddingInlineStart"] as const) {
+      expect(getComputedStyle(th[0] as Element)[p], p).toBe(getComputedStyle(td)[p]);
+    }
+    expect(getComputedStyle(th[0] as Element).borderBlockEndWidth).toBe("1px");
+    expect(getComputedStyle(th[1] as Element).borderBlockEndWidth).toBe("0px");
+    const link = th[0]?.querySelector("a") as HTMLElement;
+    const glyph = document.createElement("span");
+    glyph.className = "cp-icon";
+    link.prepend(glyph);
+    expect(getComputedStyle(link).display).toBe("inline-flex");
+    expect(getComputedStyle(link).alignItems).toBe("center");
+  });
+
+  it("fills a row's header with its row, hovered or selected", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "fine");
+    const el = build(
+      '<table class="cp-table"><tbody><tr><th scope="row">best</th><td>3</td></tr></tbody></table>',
+    );
+    const [th, td] = [el.querySelector("th"), el.querySelector("td")] as HTMLElement[];
+    const fill = host("");
+    fill.style.color = "var(--cp-fill)";
+    await userEvent.hover(td as HTMLElement);
+    expect(getComputedStyle(td as Element).backgroundColor).toBe(getComputedStyle(fill).color);
+    expect(getComputedStyle(th as Element).backgroundColor).toBe(getComputedStyle(fill).color);
+    await userEvent.unhover(td as HTMLElement);
+    const pick = document.createElement("td");
+    pick.dataset["col"] = "select";
+    pick.setHTMLUnsafe('<label><input type="checkbox" checked aria-label="Pick"></label>');
+    th?.before(pick);
+    fill.style.color = "var(--cp-selected)";
+    expect(getComputedStyle(th as Element).backgroundColor).toBe(getComputedStyle(fill).color);
+  });
+
+  it("shows a segment's tip under a mouse", async () => {
+    root.setAttribute("data-pointer", "fine");
+    const el = shareBar(row("1", "best", 3) + row("2", "alt", 1));
+    await userEvent.hover(el.querySelector(".cp-share-bar > span") as HTMLElement);
+    const tip = () => document.querySelector(".cp-tooltip");
+    await expect.poll(() => tip()?.matches(":popover-open"), { timeout: 3000 }).toBe(true);
+    expect(tip()?.textContent).toBe("best: 3, 75%");
+  });
+});
+
+describe("css/system.css sparkline", () => {
+  function sparkline(values: readonly number[], attrs = "", dir = "ltr"): HTMLElement {
+    theme("light");
+    const el = build(`<p dir="${dir}">Live <span class="cp-sparkline" ${attrs}></span></p>`);
+    const spark = el.querySelector(".cp-sparkline") as HTMLElement;
+    renderSparkline(spark, values);
+    return spark;
+  }
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const slot = (n: number) => {
+    const probe = host("");
+    probe.style.color = `var(--cp-series-${String(n)})`;
+    return getComputedStyle(probe).color;
+  };
+
+  it("puts the dot on the last value, inside the sparkline's own box, and the value after it", () => {
+    const el = sparkline([0, 10, 5]);
+    const plot = box(el.querySelector('[data-part="plot"]'));
+    const dot = box(el.querySelector('[data-part="dot"]'));
+    expect(plot.width).toBe(96);
+    expect(plot.height).toBe(20);
+    expect(dot.width).toBe(6);
+    expect(dot.left + dot.width / 2).toBeCloseTo(plot.right, 1);
+    expect(dot.top + dot.height / 2).toBeCloseTo(plot.top + 10, 1);
+    const outer = box(el);
+    expect(dot.right).toBeLessThanOrEqual(outer.right);
+    const top = sparkline([10, 0]);
+    const high = box(top.querySelector('[data-part="plot"]'));
+    expect(high.top - box(top).top).toBeGreaterThanOrEqual(3);
+    const value = box(el.querySelector('[data-part="last"]'));
+    expect(value.left - plot.right).toBeGreaterThanOrEqual(8);
+    expect(
+      getComputedStyle(el.querySelector('[data-part="last"]') as Element).fontVariantNumeric,
+    ).toBe("tabular-nums");
+  });
+
+  it("draws in slot 1 by default and in the slot data-series names, its value in ink", () => {
+    const plain = sparkline([1, 2]);
+    expect(getComputedStyle(plain).color).toBe(slot(1));
+    const fourth = sparkline([1, 2], 'data-series="4"');
+    const path = fourth.querySelector("path") as SVGPathElement;
+    expect(getComputedStyle(fourth).color).toBe(slot(4));
+    expect(getComputedStyle(path).fill).toBe("none");
+    expect(getComputedStyle(path).strokeWidth).toBe("2px");
+    expect(getComputedStyle(path).vectorEffect).toBe("non-scaling-stroke");
+    const ink = host("");
+    ink.style.color = "var(--cp-ink)";
+    expect(getComputedStyle(fourth.querySelector('[data-part="last"]') as Element).color).toBe(
+      getComputedStyle(ink).color,
+    );
+  });
+
+  it("runs left to right, its value after the dot, in a right-to-left page", () => {
+    const el = sparkline([0, 10, 5], "", "rtl");
+    const plot = box(el.querySelector('[data-part="plot"]'));
+    const dot = box(el.querySelector('[data-part="dot"]'));
+    expect(dot.left + dot.width / 2).toBeCloseTo(plot.right, 1);
+    expect(box(el.querySelector('[data-part="last"]')).left).toBeGreaterThan(plot.right);
+  });
+});
+
+describe("css/system.css figure", () => {
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const ink = (token: string) => {
+    const probe = host("");
+    probe.style.color = `var(${token})`;
+    return getComputedStyle(probe).color;
+  };
+  const glyph = (el: Element | null, pseudo: "::before" | "::after") =>
+    decodeURIComponent(getComputedStyle(el as Element, pseudo).maskImage);
+  function figure(attrs = "", tag = "div", extra = ""): HTMLElement {
+    theme("light");
+    const end = tag === "a" ? ' href="#x"' : tag === "button" ? ' type="button"' : "";
+    const el = build(
+      `<div class="cp-grid" style="inline-size: 20rem"><${tag} class="cp-figure"${end} ${attrs}><span data-part="label">Store used</span> <span data-part="value"><data value="85">85</data>&nbsp;<span data-part="unit">%</span></span>${extra}</${tag}></div>`,
+    );
+    return el.querySelector(".cp-figure") as HTMLElement;
+  }
+
+  it("sets the number large under its muted label, with its unit on the number's baseline", () => {
+    const fig = figure();
+    const label = fig.querySelector('[data-part="label"]') as Element;
+    const value = fig.querySelector('[data-part="value"]') as Element;
+    const unit = fig.querySelector('[data-part="unit"]') as Element;
+    expect(box(value).top).toBeGreaterThanOrEqual(box(label).bottom);
+    expect(getComputedStyle(label).fontSize).toBe("13px");
+    expect(getComputedStyle(label).color).toBe(ink("--cp-ink-muted"));
+    const cs = getComputedStyle(value);
+    expect([cs.fontSize, cs.fontWeight, cs.fontVariantNumeric, cs.color]).toEqual([
+      "28px",
+      "700",
+      "tabular-nums",
+      ink("--cp-ink"),
+    ]);
+    expect(getComputedStyle(unit).fontSize).toBe("16px");
+    expect(getComputedStyle(unit).color).toBe(ink("--cp-ink-muted"));
+    // One baseline: the unit's text bottom sits above the number's by its smaller descent only.
+    const number = box(fig.querySelector("data"));
+    expect(Math.abs(box(unit).bottom - number.bottom)).toBeLessThan(6);
+    expect(box(unit).left).toBeGreaterThan(number.right);
+    expect(getComputedStyle(value, "::before").content).toBe("none");
+  });
+
+  it("colours a number in its tone and draws a state tone's glyph before it", () => {
+    const expected = { success: "m16 9-5.5 5.5L8 12", warning: "m21.73 18", danger: "m15 9-6 6" };
+    for (const [tone, path] of Object.entries(expected)) {
+      const value = figure(`data-tone="${tone}"`).querySelector('[data-part="value"]') as Element;
+      expect(getComputedStyle(value).color, tone).toBe(ink(`--cp-${tone}-11`));
+      expect(glyph(value, "::before"), tone).toContain(path);
+      const mark = getComputedStyle(value, "::before");
+      expect([mark.width, mark.height], tone).toEqual(["24px", "24px"]);
+    }
+    const neutral = figure('data-tone="neutral"').querySelector('[data-part="value"]') as Element;
+    const tone = build('<span data-tone="neutral" style="color: var(--cp-tone-11)"></span>');
+    expect(getComputedStyle(neutral).color).toBe(
+      getComputedStyle(tone.firstChild as Element).color,
+    );
+    expect(getComputedStyle(neutral, "::before").content).toBe("none");
+  });
+
+  it("puts a sparkline beside the number at the figure's end, in the figure's slot", () => {
+    const fig = figure('data-series="4"', "div", '<span class="cp-sparkline"></span>');
+    const spark = fig.querySelector(".cp-sparkline") as HTMLElement;
+    renderSparkline(spark, [1, 3, 2], { last: false });
+    const value = box(fig.querySelector('[data-part="value"]'));
+    const line = box(spark);
+    expect(line.top).toBeLessThan(value.bottom);
+    expect(line.bottom).toBeGreaterThan(value.top);
+    expect(box(fig).right - line.right).toBeCloseTo(17, 0);
+    expect(getComputedStyle(spark).color).toBe(ink("--cp-series-4"));
+    expect(getComputedStyle(fig, "::after").content).toBe("none");
+  });
+
+  it("ends a figure that opens something in a chevron, down for a list, turned while it is open", () => {
+    const link = figure("", "a");
+    expect(glyph(link, "::after")).toContain("m9 18 6-6-6-6");
+    expect(getComputedStyle(link).textDecorationLine).toBe("none");
+    const chevron = getComputedStyle(link, "::after");
+    expect([chevron.width, chevron.height, chevron.backgroundColor]).toEqual([
+      "18px",
+      "18px",
+      ink("--cp-ink-muted"),
+    ]);
+    const shut = figure('aria-expanded="false"', "button");
+    shut.style.setProperty("transition", "none");
+    expect(glyph(shut, "::after")).toContain("m6 9 6 6 6-6");
+    expect(getComputedStyle(shut, "::after").rotate).toBe("none");
+    const open = figure('aria-expanded="true"', "button");
+    expect(getComputedStyle(open, "::after").rotate).toBe("180deg");
+    expect(getComputedStyle(open).backgroundColor).toBe(ink("--cp-selected"));
+    expect(getComputedStyle(open).borderColor).toBe(ink("--cp-border-strong"));
+    expect(getComputedStyle(shut).backgroundColor).toBe(ink("--cp-surface-raised"));
+  });
+
+  it.skipIf(!emulates)("turns an open figure's chevron at once under reduced motion", async () => {
+    await media("prefers-reduced-motion", "reduce");
+    const open = figure('aria-expanded="true"', "button");
+    const chevron = getComputedStyle(open, "::after");
+    expect([chevron.transitionDuration, chevron.rotate]).toEqual(["0s", "180deg"]);
+  });
+
+  it("keeps a sparkline and the chevron in their own columns, the chevron last", () => {
+    const fig = figure("", "a", '<span class="cp-sparkline"></span>');
+    renderSparkline(fig.querySelector(".cp-sparkline") as HTMLElement, [1, 2], { last: false });
+    const cols = getComputedStyle(fig).gridTemplateColumns.split(" ");
+    expect(cols).toHaveLength(3);
+    expect(cols[2]).toBe("18px");
+  });
+
+  it("points a link figure's chevron the reading way in a right-to-left page", () => {
+    const fig = figure('dir="rtl"', "a");
+    expect(getComputedStyle(fig, "::after").scale).toBe("-1 1");
+  });
+
+  it("presses a figure that is a button, borders it under a mouse, and rings it on focus", async () => {
+    root.setAttribute("data-pointer", "fine");
+    const fig = figure("data-cp-pressed", "button");
+    fig.style.transition = "none";
+    // Firefox keeps the scale as a float32, 0.9700000286.
+    expect(new DOMMatrix(getComputedStyle(fig).transform).a).toBeCloseTo(0.97, 6);
+    fig.removeAttribute("data-cp-pressed");
+    expect(getComputedStyle(fig).borderColor).toBe(ink("--cp-line"));
+    await userEvent.hover(fig);
+    expect(getComputedStyle(fig).borderColor).toBe(ink("--cp-border-strong"));
+    fig.focus({ focusVisible: true });
+    expect(getComputedStyle(fig).outlineStyle).toBe("solid");
+    expect(getComputedStyle(fig).textAlign).toBe("start");
+    // A button fills its grid cell as a tile does.
+    expect(box(fig).width).toBe(320);
+    root.setAttribute("data-pointer", "coarse");
+    expect(getComputedStyle(fig).borderColor).toBe(ink("--cp-line"));
+  });
+
+  it("leads a card link's label with its glyph, at the label's own height", () => {
+    const plain = figure("", "a").querySelector('[data-part="label"]') as HTMLElement;
+    const card = figure("", "a");
+    const label = card.querySelector('[data-part="label"]') as HTMLElement;
+    label.prepend(
+      build('<span class="cp-icon" data-cp-icon="arrow-up"></span>').firstChild as Node,
+    );
+    const icon = label.querySelector(".cp-icon") as Element;
+    expect([box(icon).width, box(icon).height]).toEqual([16, 16]);
+    expect(getComputedStyle(icon).backgroundColor).toBe(ink("--cp-ink-muted"));
+    const words = document.createRange();
+    words.selectNodeContents(label.lastChild as Node);
+    expect(words.getBoundingClientRect().left - box(icon).right).toBe(4);
+    expect(box(icon).left).toBe(box(card).left + 17);
+    // Firefox lays out in 1/60 px, so heights agree to a hundredth.
+    expect(box(label).height).toBeCloseTo(box(plain).height, 2);
+  });
+
+  it("sets a card link's badges as a row of chips under its number, at the start", () => {
+    const chips = '<span class="cp-chip">3 new</span><span class="cp-chip">Kept from 03:00</span>';
+    const card = figure("", "a", `<span class="cp-cluster" data-gap="tight">${chips}</span>`);
+    const value = card.querySelector('[data-part="value"]') as Element;
+    const [first, second] = [...card.querySelectorAll(".cp-chip")] as [Element, Element];
+    expect(box(first).top).toBeGreaterThanOrEqual(box(value).bottom);
+    expect(box(first).left).toBe(box(value).left);
+    expect(box(second).top).toBe(box(first).top);
+    expect(box(second).left - box(first).right).toBe(8);
+    // The chevron still spans the label and number rows, beside them.
+    expect(getComputedStyle(card, "::after").gridRowStart).toBe("1");
+    expect(getComputedStyle(card, "::after").gridColumnStart).toBe("2");
+  });
+});
+
+describe("css/system.css media card", () => {
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const paint = (token: string) => {
+    const probe = host("");
+    probe.style.color = `var(${token})`;
+    return getComputedStyle(probe).color;
+  };
+  const card = (cover = "", title = "Frieren") =>
+    `<a class="cp-media" href="#x"><span class="cp-cover"${cover}><span class="cp-icon" data-cp-icon="tv"></span><span class="cp-chip">Best</span></span><strong data-part="title">${title}</strong><small data-part="meta">2023, 28 episodes</small></a>`;
+  function grid(...cards: string[]): HTMLElement {
+    theme("light");
+    return build(
+      `<div class="cp-grid" style="inline-size: 40rem; --cp-grid-min: 9.5rem">${cards.join("")}</div>`,
+    );
+  }
+
+  it("draws a 2:3 cover over a bold title and its muted facts, the card one link", () => {
+    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+    const cover = a.querySelector(".cp-cover") as Element;
+    const title = a.querySelector('[data-part="title"]') as Element;
+    const meta = a.querySelector('[data-part="meta"]') as Element;
+    expect(box(cover).height).toBeCloseTo((box(cover).width * 3) / 2, 0);
+    expect(getComputedStyle(cover).borderRadius).toBe("4px");
+    expect(box(title).top - box(cover).bottom).toBeCloseTo(8, 2);
+    expect(box(meta).top - box(title).bottom).toBeCloseTo(8, 2);
+    const t = getComputedStyle(title);
+    expect([t.fontSize, t.fontWeight, t.color]).toEqual(["14px", "700", paint("--cp-ink")]);
+    const m = getComputedStyle(meta);
+    expect([m.fontSize, m.color]).toEqual(["13px", paint("--cp-ink-muted")]);
+    expect(getComputedStyle(a).textDecorationLine).toBe("none");
+  });
+
+  it("keeps each title under its cover when a neighbour's title wraps", () => {
+    const long = "Frieren: Beyond Journey's End, the second season and its specials";
+    const [, short] = [...grid(card("", long), card()).querySelectorAll(".cp-media")] as [
+      Element,
+      Element,
+    ];
+    const cover = short.querySelector(".cp-cover") as Element;
+    expect(box(short.querySelector('[data-part="title"]')).top - box(cover).bottom).toBeCloseTo(
+      8,
+      2,
+    );
+  });
+
+  it("fills a stand-in in a harmony colour with its glyph centred, and a chip at the top start", () => {
+    for (const n of ["1", "2", "3", "4"]) {
+      const cover = grid(card(` data-harmony="${n}"`)).querySelector(".cp-cover") as Element;
+      expect(getComputedStyle(cover).backgroundColor, n).toBe(paint(`--cp-harmony-${n}`));
+      expect(getComputedStyle(cover).color, n).toBe(paint(`--cp-harmony-${n}-on`));
+    }
+    const cover = grid(card()).querySelector(".cp-cover") as Element;
+    expect(getComputedStyle(cover).backgroundColor).toBe(paint("--cp-harmony-1"));
+    const icon = box(cover.querySelector(".cp-icon"));
+    expect([icon.width, icon.height]).toEqual([32, 32]);
+    const c = box(cover);
+    expect(icon.left + 16).toBeCloseTo(c.left + c.width / 2, 0);
+    expect(icon.top + 16).toBeCloseTo(c.top + c.height / 2, 0);
+    const chip = box(cover.querySelector(".cp-chip"));
+    expect([chip.top - c.top, chip.left - c.left]).toEqual([8, 8]);
+    const rtl = grid(card(' dir="rtl"')).querySelector(".cp-cover") as Element;
+    expect(box(rtl).right - box(rtl.querySelector(".cp-chip")).right).toBe(8);
+  });
+
+  it("fills the cover with the work's own image", () => {
+    const img =
+      '<img alt="" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22/%3E">';
+    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+    const cover = a.querySelector(".cp-cover") as Element;
+    cover.prepend(build(img).firstChild as Node);
+    const pic = cover.querySelector("img") as Element;
+    expect(box(pic).toJSON()).toEqual(box(cover).toJSON());
+    expect(getComputedStyle(pic).objectFit).toBe("cover");
+  });
+
+  it("lifts the cover under a mouse, not a finger, and rings the cover on focus", async () => {
+    root.setAttribute("data-pointer", "fine");
+    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+    const cover = a.querySelector(".cp-cover") as HTMLElement;
+    cover.style.transition = "none";
+    expect(getComputedStyle(cover).boxShadow).toBe("none");
+    await userEvent.hover(a);
+    expect(getComputedStyle(cover).scale).toBe("1.03");
+    expect(getComputedStyle(cover).boxShadow).not.toBe("none");
+    root.setAttribute("data-pointer", "coarse");
+    expect(getComputedStyle(cover).scale).toBe("none");
+    a.focus({ focusVisible: true });
+    expect(getComputedStyle(a).outlineStyle).toBe("none");
+    const ring = getComputedStyle(cover);
+    expect([ring.outlineStyle, ring.outlineOffset]).toEqual(["solid", "2px"]);
+    expect(ring.outlineColor).toBe(paint("--cp-focus-ring"));
+  });
+
+  it.skipIf(!emulates)(
+    "keeps a hovered cover's shadow and drops its lift under reduced motion",
+    async () => {
+      await media("prefers-reduced-motion", "reduce");
+      root.setAttribute("data-pointer", "fine");
+      const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+      const cover = a.querySelector(".cp-cover") as HTMLElement;
+      cover.style.transition = "none";
+      await userEvent.hover(a);
+      expect(getComputedStyle(cover).scale).toBe("none");
+      expect(getComputedStyle(cover).boxShadow).not.toBe("none");
+    },
+  );
+
+  it.skipIf(!emulates)(
+    "outlines a stand-in in forced colours, where its fill is gone",
+    async () => {
+      await media("forced-colors", "active");
+      const cover = grid(card()).querySelector(".cp-cover") as Element;
+      const cs = getComputedStyle(cover);
+      expect([cs.borderStyle, cs.borderWidth]).toEqual(["solid", "1px"]);
+      expect(cs.borderColor).toBe(paint("CanvasText"));
+    },
+  );
+});
+
+describe("css/system.css meter", () => {
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const token = (name: string) => {
+    const probe = host("");
+    probe.style.color = `var(${name})`;
+    return getComputedStyle(probe).color;
+  };
+  function meter(bars: string, attrs = "", dir = "ltr"): HTMLElement {
+    theme("light");
+    const el = build(
+      `<div dir="${dir}" style="inline-size: 302px"><div class="cp-meter" ${attrs}><div data-part="bar">${bars}</div><small data-part="words">Store</small></div></div>`,
+    );
+    const m = el.querySelector(".cp-meter") as HTMLElement;
+    enhanceMeter(m);
+    return m;
+  }
+  // The element's paint from one screenshot, read back by CSS pixel.
+  async function paint(el: Element): Promise<(x: number, y: number) => string> {
+    const shot = await page.screenshot({ element: el, base64: true, save: false });
+    const png = await (await fetch(`data:image/png;base64,${shot}`)).blob();
+    const img = await createImageBitmap(png);
+    const ctx = new OffscreenCanvas(img.width, img.height).getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.drawImage(img, 0, 0);
+    const scale = img.width / box(el).width;
+    const px = ctx.getImageData(0, 0, img.width, img.height).data;
+    return (x, y) => {
+      const at = (Math.floor(y * scale) * img.width + Math.floor(x * scale)) * 4;
+      return px.slice(at, at + 3).join(",");
+    };
+  }
+
+  it("lays its meters out as one 8px bar, a 2px gap between them, each sized by its range", () => {
+    const el = meter('<meter max="12" value="12"></meter><meter max="6" value="3"></meter>');
+    const [a, b] = [...el.querySelectorAll("meter")].map(box) as [DOMRect, DOMRect];
+    expect([a.width, b.width, a.height, b.height]).toEqual([200, 100, 8, 8]);
+    expect(b.left - a.right).toBe(2);
+    const cs = getComputedStyle(el.querySelector("meter") as Element);
+    expect(cs.borderTopLeftRadius).toBe("2px");
+    expect(cs.backgroundColor).toBe(token("--cp-fill"));
+  });
+
+  it("paints the fill over the bar's whole height up to the value, from the start side", async () => {
+    theme("light");
+    const el = build(
+      ["ltr", "rtl"]
+        .map(
+          (dir) =>
+            `<div dir="${dir}" class="cp-meter" style="inline-size: 300px"><div data-part="bar"><meter max="100" value="50"></meter></div></div>`,
+        )
+        .join(""),
+    );
+    const at = await paint(el);
+    for (const [i, m] of [...el.querySelectorAll("meter")].entries()) {
+      const top = box(m).top - box(el).top;
+      const rows = (x: number) =>
+        new Set(Array.from({ length: 8 }, (_, y) => at(x, top + y + 0.5)));
+      const [near, far] = i === 0 ? [rows(50), rows(250)] : [rows(250), rows(50)];
+      expect(near.size, String(i)).toBe(1);
+      expect(far.size, String(i)).toBe(1);
+      expect([...near][0], String(i)).not.toBe([...far][0]);
+    }
+  });
+
+  it("fills in the accent, a series slot or tone, and the warning or danger past low or high", () => {
+    const store = '<meter max="500" low="400" high="450" optimum="0" value="300"></meter>';
+    const fill = (el: HTMLElement) => getComputedStyle(el.querySelector("meter") as Element).color;
+    expect(fill(meter(store))).toBe(token("--cp-accent"));
+    expect(fill(meter(store, 'data-series="2"'))).toBe(token("--cp-series-2"));
+    expect(fill(meter('<meter max="9" value="1" data-series="5"></meter>'))).toBe(
+      token("--cp-series-5"),
+    );
+    expect(fill(meter(store.replace("300", "420"), 'data-series="2"'))).toBe(
+      token("--cp-warning-9"),
+    );
+    expect(fill(meter(store.replace("300", "470")))).toBe(token("--cp-danger-9"));
+  });
+
+  it("draws a level past its optimum's glyph before the words, and none at the optimum", () => {
+    const store = '<meter max="500" low="400" high="450" optimum="0" value="300"></meter>';
+    const glyph = (el: HTMLElement) =>
+      decodeURIComponent(
+        getComputedStyle(el.querySelector('[data-part="words"]') as Element, "::before").maskImage,
+      );
+    expect(glyph(meter(store))).toBe("none");
+    expect(glyph(meter(store.replace("300", "420")))).toContain("M12 9v4");
+    expect(glyph(meter(store.replace("300", "470")))).toContain("m15 9-6 6");
+  });
+
+  it("puts each mark's tick over the bar at its point and its words under it", () => {
+    const el = meter(
+      '<meter max="10" value="1"></meter><meter max="30" low="15" high="27" value="1"></meter>',
+    );
+    const bar = box(el.querySelector('[data-part="bar"]'));
+    const marks = [...el.querySelectorAll('[data-part="marks"] > span')];
+    // 300px of shares after the gap: 75px, the gap, then 225px.
+    for (const [i, point] of [77 + 112.5, 77 + 202.5].entries()) {
+      const at = box(marks[i] as Element);
+      const tick = getComputedStyle(marks[i] as Element, "::before");
+      const end = at.bottom - parseFloat(tick.bottom);
+      expect(at.left + parseFloat(tick.left) + parseFloat(tick.width) / 2 - bar.left).toBeCloseTo(
+        point,
+        0,
+      );
+      expect(at.left - bar.left).toBeCloseTo(point, 0);
+      expect(at.top).toBeGreaterThanOrEqual(bar.bottom);
+      expect(end).toBeCloseTo(at.top, 1);
+      expect(end - parseFloat(tick.height)).toBeLessThanOrEqual(bar.top + 0.01);
+    }
+    const words = document.createRange();
+    words.selectNodeContents(marks[0] as Element);
+    const text = words.getBoundingClientRect();
+    expect(text.left + text.width / 2 - bar.left).toBeCloseTo(189.5, 0);
+    expect(getComputedStyle(marks[0] as Element).fontSize).toBe("13px");
+  });
+
+  it("measures marks from the end in a right-to-left page", () => {
+    const el = meter('<meter max="100" low="80" value="1"></meter>', "", "rtl");
+    const bar = box(el.querySelector('[data-part="bar"]'));
+    const mark = box(el.querySelector('[data-part="marks"] > span'));
+    expect(bar.right - (mark.left + mark.width / 2)).toBeCloseTo(302 * 0.8, 0);
+  });
+});
+
+describe("css/system.css ranked bars", () => {
+  const box = (el: Element | null) => (el as Element).getBoundingClientRect();
+  const slot = (n: number) => {
+    const probe = host("");
+    probe.style.color = `var(--cp-series-${String(n)})`;
+    return getComputedStyle(probe).color;
+  };
+  function ranked(rows: string, attrs = "", dir = "ltr"): HTMLTableElement {
+    theme("light");
+    const el = build(
+      `<div dir="${dir}" style="inline-size: 400px"><table class="cp-table" ${attrs}><thead><tr><th>Member</th><th data-bar>Sent</th></tr></thead><tbody>${rows}</tbody></table></div>`,
+    );
+    const table = el.querySelector("table") as HTMLTableElement;
+    enhanceRankedBars(table);
+    return table;
+  }
+  const row = (value: number, attrs = "", cell = "") =>
+    `<tr ${attrs}><th>a</th><td data-bar ${cell}><data value="${String(value)}">${String(value)}</data></td></tr>`;
+  interface Part {
+    readonly number: DOMRect;
+    readonly bar: DOMRect;
+    readonly fill: Element | null;
+  }
+  const parts = (table: HTMLTableElement): Part[] =>
+    [...table.querySelectorAll("tbody tr")].map((r) => ({
+      number: box(r.querySelector("data")),
+      bar: box(r.querySelector('[data-part="bar"]')),
+      fill: r.querySelector('[data-part="bar"] > span'),
+    }));
+
+  it("draws a 6rem bar after each number, the bars on one start, each filled to its share", () => {
+    const table = ranked(row(1000) + row(250) + row(1));
+    const [top, mid, low] = parts(table) as [Part, Part, Part];
+    for (const p of [top, mid, low]) {
+      expect([p.bar.width, p.bar.left]).toEqual([96, top.bar.left]);
+      expect(p.bar.left - p.number.right).toBeCloseTo(8, 0);
+      expect(box(p.fill).left).toBe(p.bar.left);
+      expect(box(p.fill).height).toBe(8);
+    }
+    expect(mid.number.right).toBeCloseTo(top.number.right, 1);
+    expect([box(top.fill).width, box(mid.fill).width, box(low.fill).width]).toEqual([96, 24, 2]);
+    expect(getComputedStyle(top.fill as Element).borderTopLeftRadius).toBe("2px");
+    const cell = table.querySelector("td") as Element;
+    expect(getComputedStyle(cell).fontVariantNumeric).toBe("tabular-nums");
+    expect(getComputedStyle(cell).whiteSpace).toBe("nowrap");
+  });
+
+  it("fills in slot 1, or the slot data-series names on the table, the row or the cell", () => {
+    const fill = (table: HTMLTableElement) =>
+      parts(table).map((p) => getComputedStyle(p.fill as Element).color);
+    expect(fill(ranked(row(4)))).toEqual([slot(1)]);
+    expect(fill(ranked(row(4), 'data-series="4"'))).toEqual([slot(4)]);
+    expect(fill(ranked(row(4, 'data-series="2"') + row(2, "", 'data-series="3"')))).toEqual([
+      slot(2),
+      slot(3),
+    ]);
+  });
+
+  it("puts the bar before the number and fills it from the right in a right-to-left page", () => {
+    const [p] = parts(ranked(row(10) + row(40), "", "rtl")) as [Part];
+    expect(p.number.left - p.bar.right).toBeCloseTo(8, 0);
+    expect(box(p.fill).right).toBe(p.bar.right);
+    expect(box(p.fill).width).toBe(24);
+  });
 });
 
 describe("css/system.css", () => {
@@ -2222,6 +2963,25 @@ describe("css/system.css overlays", () => {
     b.setAttribute("aria-pressed", "false");
     expect(shown()).toEqual([true, false]);
   });
+
+  it.skipIf(!emulates)(
+    "rounds a checked menu item's box without turning it under reduced motion",
+    async () => {
+      theme("light");
+      // A fresh item each time, so no transition is under way when it is read.
+      const box = () =>
+        getComputedStyle(
+          build(
+            '<div class="cp-menu" role="menu"><button role="menuitemcheckbox" aria-checked="true" type="button">Posters</button></div>',
+          ).querySelector("button") as Element,
+          "::before",
+        );
+      expect(box().rotate).toBe("90deg");
+      await media("prefers-reduced-motion", "reduce");
+      const reduced = box();
+      expect([reduced.rotate, reduced.borderRadius]).toEqual(["none", "50%"]);
+    },
+  );
 
   it("opens a sheet the window's height at the inline end, and a confirmation narrower than a dialog", () => {
     theme("light");

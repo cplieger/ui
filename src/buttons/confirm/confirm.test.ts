@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { rollText } from "../../core/roll/roll.js";
 import { enhanceConfirm, type ConfirmOptions } from "./confirm.js";
 
 afterEach(() => {
+  vi.useRealTimers();
   document.body.replaceChildren();
 });
 
@@ -82,23 +83,18 @@ describe("enhanceConfirm", () => {
   });
 
   it("keeps a busy state that showed for at least busyMin", async () => {
+    // A faked clock: WebKit's performance.now() ticks in whole milliseconds,
+    // so timing the states on the real one reads up to 2ms short.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
     const b = button();
-    // Timed from the state changes themselves, so a slow machine that delays
-    // the test's own timers cannot shorten what it measures.
-    let shown = -1;
-    let left = -1;
-    new MutationObserver(() => {
-      if (b.dataset["cpState"] === "busy") {
-        shown = performance.now();
-      } else if (shown >= 0 && left < 0) {
-        left = performance.now();
-      }
-    }).observe(b, { attributes: true, attributeFilter: ["data-cp-state"] });
-    await confirm(b).run(() => sleep(30));
-    await sleep(0);
-    expect(shown).toBeGreaterThanOrEqual(0);
-    // A timer may fire up to a millisecond early in some engines.
-    expect(left - shown).toBeGreaterThanOrEqual(QUICK.busyMin - 1);
+    const run = confirm(b).run(() => sleep(30));
+    await vi.advanceTimersByTimeAsync(QUICK.busyDelay);
+    expect(b.dataset["cpState"]).toBe("busy");
+    await vi.advanceTimersByTimeAsync(QUICK.busyMin - 1);
+    expect(b.dataset["cpState"]).toBe("busy");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(b.dataset["cpState"]).toBe("done");
+    await expect(run).resolves.toBe(true);
   });
 
   it("ignores a second run while the work runs and never calls its work", async () => {

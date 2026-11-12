@@ -377,7 +377,8 @@
   --cp-success-on: contrast-color(var(--cp-success-9));
 }
 :root,
-[data-tone] {
+[data-tone],
+[data-series] {
   --cp-tone-1: light-dark(
     oklch(99.3% calc(var(--cp-tone-c) * 0.04) var(--cp-tone-h)),
     oklch(18.5% calc(var(--cp-tone-c) * 0.1) var(--cp-tone-h))
@@ -692,7 +693,8 @@
     --cp-success-on: contrast-color(var(--cp-success-9));
   }
   :root,
-  [data-tone] {
+  [data-tone],
+  [data-series] {
     --cp-tone-1: light-dark(
       oklch(99.3% calc(var(--cp-tone-c) * 0.04) var(--cp-tone-h)),
       oklch(18.5% calc(var(--cp-tone-c) * 0.1) var(--cp-tone-h))
@@ -836,6 +838,382 @@
   --cp-harmony-2-on: contrast-color(var(--cp-harmony-2));
   --cp-harmony-3-on: contrast-color(var(--cp-harmony-3));
   --cp-harmony-4-on: contrast-color(var(--cp-harmony-4));
+}
+
+@property --cp-series-1-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-series-2-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-series-3-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-series-4-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-series-5-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-series-6-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-series-7-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-series-8-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-series-9-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+:root {
+  --cp-series-1-h: var(--cp-accent-h);
+  --cp-series-1: light-dark(
+    oklch(
+      61%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-1-h) - 90) * 1deg)), 4) - 0.078 *
+              pow(max(0, cos((var(--cp-series-1-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-1-h)
+    ),
+    oklch(
+      80%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-1-h) - 260) * 1deg)), 1) - 0.045 *
+              pow(max(0, cos((var(--cp-series-1-h) - 20) * 1deg)), 3)
+          )
+        )
+        var(--cp-series-1-h)
+    )
+  );
+  --cp-series-2-h: var(--cp-harmony-2-h);
+  --cp-series-2: light-dark(
+    oklch(
+      42%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.04 * pow(max(0, cos((var(--cp-series-2-h) - 90) * 1deg)), 6) - 0.075 *
+              pow(max(0, cos((var(--cp-series-2-h) - 195) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-2-h)
+    ),
+    oklch(
+      60%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.188 - 0.052 * pow(max(0, cos((var(--cp-series-2-h) - 90) * 1deg)), 4) - 0.086 *
+              pow(max(0, cos((var(--cp-series-2-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-2-h)
+    )
+  );
+  --cp-series-3-h: var(--cp-harmony-3-h);
+  --cp-series-3: light-dark(
+    oklch(
+      61%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-3-h) - 90) * 1deg)), 4) - 0.078 *
+              pow(max(0, cos((var(--cp-series-3-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-3-h)
+    ),
+    oklch(
+      80%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-3-h) - 260) * 1deg)), 1) - 0.045 *
+              pow(max(0, cos((var(--cp-series-3-h) - 20) * 1deg)), 3)
+          )
+        )
+        var(--cp-series-3-h)
+    )
+  );
+  --cp-series-4-h: calc(
+    mod(calc(var(--cp-accent-h) + 30), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 30), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 30), 360))
+  );
+  --cp-series-4: light-dark(
+    oklch(
+      42%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.04 * pow(max(0, cos((var(--cp-series-4-h) - 90) * 1deg)), 6) - 0.075 *
+              pow(max(0, cos((var(--cp-series-4-h) - 195) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-4-h)
+    ),
+    oklch(
+      60%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.188 - 0.052 * pow(max(0, cos((var(--cp-series-4-h) - 90) * 1deg)), 4) - 0.086 *
+              pow(max(0, cos((var(--cp-series-4-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-4-h)
+    )
+  );
+  --cp-series-5-h: calc(
+    mod(calc(var(--cp-accent-h) + 60), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 60), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 60), 360))
+  );
+  --cp-series-5: light-dark(
+    oklch(
+      61%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-5-h) - 90) * 1deg)), 4) - 0.078 *
+              pow(max(0, cos((var(--cp-series-5-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-5-h)
+    ),
+    oklch(
+      80%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-5-h) - 260) * 1deg)), 1) - 0.045 *
+              pow(max(0, cos((var(--cp-series-5-h) - 20) * 1deg)), 3)
+          )
+        )
+        var(--cp-series-5-h)
+    )
+  );
+  --cp-series-6-h: calc(
+    mod(calc(var(--cp-accent-h) + 90), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 90), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 90), 360))
+  );
+  --cp-series-6: light-dark(
+    oklch(
+      42%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.04 * pow(max(0, cos((var(--cp-series-6-h) - 90) * 1deg)), 6) - 0.075 *
+              pow(max(0, cos((var(--cp-series-6-h) - 195) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-6-h)
+    ),
+    oklch(
+      60%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.188 - 0.052 * pow(max(0, cos((var(--cp-series-6-h) - 90) * 1deg)), 4) - 0.086 *
+              pow(max(0, cos((var(--cp-series-6-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-6-h)
+    )
+  );
+  --cp-series-7-h: calc(
+    mod(calc(var(--cp-accent-h) + 120), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 120), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 120), 360))
+  );
+  --cp-series-7: light-dark(
+    oklch(
+      61%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-7-h) - 90) * 1deg)), 4) - 0.078 *
+              pow(max(0, cos((var(--cp-series-7-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-7-h)
+    ),
+    oklch(
+      80%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-7-h) - 260) * 1deg)), 1) - 0.045 *
+              pow(max(0, cos((var(--cp-series-7-h) - 20) * 1deg)), 3)
+          )
+        )
+        var(--cp-series-7-h)
+    )
+  );
+  --cp-series-8-h: calc(
+    mod(calc(var(--cp-accent-h) + 240), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 240), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 240), 360))
+  );
+  --cp-series-8: light-dark(
+    oklch(
+      42%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.04 * pow(max(0, cos((var(--cp-series-8-h) - 90) * 1deg)), 6) - 0.075 *
+              pow(max(0, cos((var(--cp-series-8-h) - 195) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-8-h)
+    ),
+    oklch(
+      60%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.188 - 0.052 * pow(max(0, cos((var(--cp-series-8-h) - 90) * 1deg)), 4) - 0.086 *
+              pow(max(0, cos((var(--cp-series-8-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-8-h)
+    )
+  );
+  --cp-series-9-h: calc(
+    mod(calc(var(--cp-accent-h) + 270), 360) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 100) * 100000, 1) *
+      clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
+      (95 - mod(calc(var(--cp-accent-h) + 270), 360)) +
+      clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 117.5) * 100000 + 1, 1) *
+      clamp(0, (135 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
+      (142 - mod(calc(var(--cp-accent-h) + 270), 360))
+  );
+  --cp-series-9: light-dark(
+    oklch(
+      61%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-9-h) - 90) * 1deg)), 4) - 0.078 *
+              pow(max(0, cos((var(--cp-series-9-h) - 205) * 1deg)), 2)
+          )
+        )
+        var(--cp-series-9-h)
+    ),
+    oklch(
+      80%
+        min(
+          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          calc(
+            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-9-h) - 260) * 1deg)), 1) - 0.045 *
+              pow(max(0, cos((var(--cp-series-9-h) - 20) * 1deg)), 3)
+          )
+        )
+        var(--cp-series-9-h)
+    )
+  );
+}
+
+[data-series="1"] {
+  --cp-tone-h: var(--cp-series-1-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-1);
+}
+[data-series="2"] {
+  --cp-tone-h: var(--cp-series-2-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-2);
+}
+[data-series="3"] {
+  --cp-tone-h: var(--cp-series-3-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-3);
+}
+[data-series="4"] {
+  --cp-tone-h: var(--cp-series-4-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-4);
+}
+[data-series="5"] {
+  --cp-tone-h: var(--cp-series-5-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-5);
+}
+[data-series="6"] {
+  --cp-tone-h: var(--cp-series-6-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-6);
+}
+[data-series="7"] {
+  --cp-tone-h: var(--cp-series-7-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-7);
+}
+[data-series="8"] {
+  --cp-tone-h: var(--cp-series-8-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-8);
+}
+[data-series="9"] {
+  --cp-tone-h: var(--cp-series-9-h);
+  --cp-tone-c: 0.09;
+  --cp-tone-9: var(--cp-series-9);
 }
 /* colour:end */
 
@@ -3879,8 +4257,26 @@ textarea.cp-input {
   vertical-align: middle;
 }
 
-.cp-table tr:last-child td {
+/* A row's header, such as its title, reads as a cell of its row. */
+.cp-table tbody th {
+  padding: 0 var(--cp-space-3);
+  block-size: var(--cp-row-h);
+  color: var(--cp-ink);
+  font-size: inherit;
+  font-weight: var(--cp-weight-body);
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.cp-table tr:last-child td,
+.cp-table tbody tr:last-child th {
   border-block-end: 0;
+}
+
+.cp-table :is(td, th) > a:has(> .cp-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
 }
 
 .cp-table [data-col="num"] {
@@ -3911,7 +4307,8 @@ textarea.cp-input {
   margin: 0;
 }
 
-.cp-table tr:has(> [data-col="select"] input:checked) > td {
+/* A header row's select-all box is a th, so only a body row takes the fill. */
+.cp-table tr:has(> td[data-col="select"] input:checked) > :is(td, th) {
   background: var(--cp-selected);
 }
 
@@ -3959,7 +4356,7 @@ textarea.cp-input {
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-table tbody tr:hover td {
+    .cp-table tbody tr:hover :is(td, th) {
       background: var(--cp-fill);
     }
 
@@ -4123,10 +4520,11 @@ textarea.cp-input {
   }
 }
 
-/* An entry's cover at 2:3: its art in an <img> that fills it, or, while
- * there is none, a glyph on one flat harmony colour that data-harmony picks
- * from 1 to 4, as on .cp-avatar. */
+/* An entry's cover at 2:3: its art in an <img> over a glyph on one flat
+ * harmony colour that data-harmony picks from 1 to 4, as on .cp-avatar. The
+ * glyph shows until the image has loaded, or while there is none. */
 .cp-cover {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 2 / 3;
@@ -4152,6 +4550,8 @@ textarea.cp-input {
 }
 
 .cp-cover > img {
+  position: absolute;
+  inset: 0;
   inline-size: 100%;
   block-size: 100%;
   object-fit: cover;
@@ -4159,6 +4559,12 @@ textarea.cp-input {
 
 .cp-cover > .cp-icon {
   --cp-icon-size: 2rem;
+}
+
+.cp-cover > .cp-chip {
+  position: absolute;
+  inset-block-start: var(--cp-space-2);
+  inset-inline-start: var(--cp-space-2);
 }
 
 @media (forced-colors: active) {
@@ -5006,6 +5412,568 @@ textarea.cp-input {
 
   .cp-progress::before {
     background: CanvasText;
+  }
+}
+
+/* A share bar (@cplieger/ui/share-bar): the parts of a whole as segments
+ * sized by share, the surface showing through a 2px gap between them, over
+ * a legend of chips, each with its swatch, its words and its count. */
+.cp-share {
+  display: grid;
+  gap: var(--cp-space-3);
+}
+
+.cp-share-bar {
+  display: flex;
+  gap: 2px;
+  block-size: var(--cp-space-6);
+  border-radius: var(--cp-radius-control);
+  overflow: clip;
+}
+
+.cp-share-bar:empty {
+  background: var(--cp-fill);
+}
+
+/* The script writes each segment's flex-grow, its count. */
+.cp-share-bar > span {
+  flex: 0 1 0;
+  min-inline-size: var(--cp-space-1);
+  background: var(--cp-tone-9);
+}
+
+.cp-share-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-share-legend .cp-chip > data {
+  font-weight: var(--cp-weight-body);
+}
+
+/* A plain chip is a tap target too: it toggles its tip. */
+.cp-share-legend .cp-chip {
+  min-block-size: var(--cp-hit-min);
+}
+
+.cp-share-legend a.cp-chip {
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+.cp-share-legend a.cp-chip:active,
+.cp-share-legend a.cp-chip[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-share-legend a.cp-chip:hover {
+      background: var(--cp-tone-4);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-share-bar > span {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  .cp-share-legend .cp-swatch {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
+/* A sparkline (@cplieger/ui/sparkline): a word-sized line in a series
+ * colour, its last value marked by a dot and written beside it. The plot
+ * runs left to right in every script, as time does on a chart. */
+.cp-sparkline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  direction: ltr;
+  vertical-align: middle;
+  color: var(--cp-series-1);
+}
+
+.cp-sparkline[data-series] {
+  color: var(--cp-tone-9);
+}
+
+/* The margin holds the half of the stroke and of the dot that falls past
+ * the plot's edge at the low, the high and the last value. */
+.cp-sparkline > [data-part="plot"] {
+  position: relative;
+  flex: none;
+  inline-size: 6rem;
+  block-size: var(--cp-space-5);
+  margin: 3px;
+}
+
+.cp-sparkline svg {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+}
+
+.cp-sparkline path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.cp-sparkline [data-part="dot"] {
+  position: absolute;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+  translate: -50% -50%;
+}
+
+.cp-sparkline > [data-part="last"] {
+  color: var(--cp-ink);
+  unicode-bidi: isolate;
+}
+
+@media (forced-colors: active) {
+  .cp-sparkline path {
+    stroke: CanvasText;
+  }
+
+  .cp-sparkline [data-part="dot"] {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
+/* A figure: a number now, under its label, with an optional unit and an
+ * optional sparkline beside it, on a tile. The same tile as a button or a
+ * link opens what is behind the number. */
+.cp-figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--cp-space-1) var(--cp-space-3);
+  align-content: start;
+  align-items: center;
+  padding: var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+  color: var(--cp-ink);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+}
+
+.cp-figure > [data-part="label"] {
+  grid-column: 1;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-figure > [data-part="label"]:has(> .cp-icon) {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+}
+
+/* 1rem keeps the glyph inside the 13px label's line, so a card with a glyph
+ * stands as tall as one without. */
+.cp-figure > [data-part="label"] > .cp-icon {
+  --cp-icon-size: 1rem;
+}
+
+.cp-figure > .cp-cluster {
+  grid-column: 1;
+  justify-self: start;
+}
+
+/* The number's line, its unit on the same baseline; the stylesheet draws a
+ * state tone's glyph before it, so the tone is never colour alone. */
+.cp-figure > [data-part="value"] {
+  display: flex;
+  grid-column: 1;
+  align-items: baseline;
+  min-inline-size: 0;
+  font-size: var(--cp-text-2xl);
+  font-weight: var(--cp-weight-heading);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-figure [data-part="unit"] {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-md);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-figure[data-tone] > [data-part="value"] {
+  color: var(--cp-tone-11);
+}
+
+.cp-figure[data-tone="success"] > [data-part="value"]::before,
+.cp-figure[data-tone="warning"] > [data-part="value"]::before,
+.cp-figure[data-tone="danger"] > [data-part="value"]::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin-inline-end: var(--cp-space-2);
+  background: currentcolor;
+  mask: url("../icons/svg/circle-check.svg") center / contain no-repeat;
+}
+
+.cp-figure[data-tone="warning"] > [data-part="value"]::before {
+  mask-image: url("../icons/svg/triangle-alert.svg");
+}
+
+.cp-figure[data-tone="danger"] > [data-part="value"]::before {
+  mask-image: url("../icons/svg/circle-x.svg");
+}
+
+.cp-figure > .cp-sparkline {
+  grid-row: 2;
+  grid-column: 2;
+}
+
+.cp-figure[data-series] > .cp-sparkline:not([data-series]) {
+  color: var(--cp-tone-9);
+}
+
+:is(button, a).cp-figure {
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    border-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+/* data-cp-pressed comes from @cplieger/ui/press, for a finger :active misses. */
+:is(button, a).cp-figure:active,
+:is(button, a).cp-figure[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+/* A figure that opens something ends in a chevron, so it reads as a control
+ * at rest: along the line for a page or a dialog, down for a list it
+ * expands, turning while that list is open. */
+:is(button, a).cp-figure::after {
+  content: "";
+  grid-row: 1 / 3;
+  grid-column: 2;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+}
+
+:is(button, a).cp-figure:has(> .cp-sparkline)::after {
+  grid-column: 3;
+}
+
+:is(button, a).cp-figure:dir(rtl)::after {
+  scale: -1 1;
+}
+
+button.cp-figure[aria-expanded]::after {
+  mask-image: url("../icons/svg/chevron-down.svg");
+  transition: rotate var(--cp-dur-short) var(--cp-ease-move);
+}
+
+button.cp-figure[aria-expanded="true"] {
+  border-color: var(--cp-border-strong);
+  background: var(--cp-selected);
+}
+
+button.cp-figure[aria-expanded="true"]::after {
+  rotate: 180deg;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :is(button, a).cp-figure:hover {
+      border-color: var(--cp-border-strong);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.cp-figure[aria-expanded]::after {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-figure > [data-part="value"]::before,
+  :is(button, a).cp-figure::after {
+    background: CanvasText;
+  }
+
+  button.cp-figure[aria-expanded="true"] {
+    border-color: Highlight;
+  }
+}
+
+/* A meter (@cplieger/ui/meter): native <meter> elements as one bar, a
+ * segment per meter with the surface showing through a 2px gap, each filled
+ * to its value, over its marks and the value in words. */
+.cp-meter {
+  --cp-meter-h: 0.5rem;
+  --cp-meter-gap: 2px;
+
+  display: grid;
+  gap: var(--cp-space-1);
+}
+
+.cp-meter > [data-part="label"] {
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-meter > [data-part="bar"] {
+  display: flex;
+  gap: var(--cp-meter-gap);
+}
+
+/* The fill is the meter's colour, so a page reads it there. The script
+ * writes each meter's flex-grow, its range. */
+.cp-meter meter {
+  appearance: none;
+  display: block;
+  flex: 1 1 0;
+  min-inline-size: 0;
+  inline-size: auto;
+  block-size: var(--cp-meter-h);
+  margin: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--cp-fill);
+  color: var(--cp-accent);
+  overflow: clip;
+}
+
+.cp-meter[data-series] meter,
+.cp-meter[data-tone] meter,
+.cp-meter meter:is([data-series], [data-tone]) {
+  color: var(--cp-tone-9);
+}
+
+.cp-meter meter[data-cp-level="suboptimum"] {
+  color: var(--cp-warning-9);
+}
+
+.cp-meter meter[data-cp-level="even-less-good"] {
+  color: var(--cp-danger-9);
+}
+
+/* Chromium's UA sheet makes the inner element a grid whose bar spans only
+ * its middle half (third_party/blink/renderer/core/html/resources/html.css,
+ * meter::-webkit-meter-inner-element); a flex box lets the bar fill it.
+ * Pinned by "paints the fill over the bar's whole height" in system-css. */
+.cp-meter meter::-webkit-meter-inner-element {
+  display: flex;
+}
+
+.cp-meter meter::-webkit-meter-bar {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cp-meter meter::-webkit-meter-optimum-value {
+  border-radius: 0;
+  background: currentcolor;
+}
+
+.cp-meter meter::-webkit-meter-suboptimum-value {
+  border-radius: 0;
+  background: currentcolor;
+}
+
+.cp-meter meter::-webkit-meter-even-less-good-value {
+  border-radius: 0;
+  background: currentcolor;
+}
+
+.cp-meter meter::-moz-meter-bar {
+  border-radius: 0;
+  background: currentcolor;
+}
+
+/* Each mark is a point on the bar's line: its tick rises over the bar and
+ * its words centre under it. */
+.cp-meter > [data-part="marks"] {
+  position: relative;
+  block-size: 1lh;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-meter > [data-part="marks"] > span {
+  position: absolute;
+  inset-block-start: 0;
+  display: flex;
+  justify-content: center;
+  inline-size: 0;
+  white-space: nowrap;
+}
+
+.cp-meter > [data-part="marks"] > span::before {
+  content: "";
+  position: absolute;
+  inset-block-end: 100%;
+  inline-size: 2px;
+  block-size: calc(var(--cp-meter-h) + var(--cp-space-1));
+  background: var(--cp-ink-muted);
+}
+
+.cp-meter > [data-part="words"] {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* A level past its optimum draws its glyph before the words, so the level
+ * is never colour alone. */
+.cp-meter[data-cp-level="suboptimum"] > [data-part="words"]::before,
+.cp-meter[data-cp-level="even-less-good"] > [data-part="words"]::before {
+  content: "";
+  display: inline-block;
+  inline-size: 1em;
+  block-size: 1em;
+  margin-inline-end: var(--cp-space-1);
+  vertical-align: -0.125em;
+  background: var(--cp-warning-11);
+  mask: url("../icons/svg/triangle-alert.svg") center / contain no-repeat;
+}
+
+.cp-meter[data-cp-level="even-less-good"] > [data-part="words"]::before {
+  background: var(--cp-danger-11);
+  mask-image: url("../icons/svg/circle-x.svg");
+}
+
+@media (forced-colors: active) {
+  .cp-meter meter {
+    forced-color-adjust: none;
+    outline: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .cp-meter > [data-part="marks"] > span::before,
+  .cp-meter > [data-part="words"]::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
+/* Ranked bars (@cplieger/ui/ranked-bars): a table cell's number with a bar
+ * after it, sized against its column's largest. The bars share one start, so
+ * their lengths compare, and the numbers end against them. */
+.cp-table [data-bar] {
+  --cp-bar-w: 6rem;
+
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cp-table [data-bar] > [data-part="bar"] {
+  display: inline-flex;
+  inline-size: var(--cp-bar-w);
+  block-size: 0.5rem;
+  margin-inline-start: var(--cp-space-2);
+  vertical-align: middle;
+  color: var(--cp-ranked-fill, var(--cp-series-1));
+}
+
+.cp-table:is([data-series], [data-tone]),
+.cp-table :is([data-series], [data-tone]) {
+  --cp-ranked-fill: var(--cp-tone-9);
+}
+
+/* The script writes the fill's inline-size, its share of the largest. */
+.cp-table [data-bar] > [data-part="bar"] > span {
+  min-inline-size: 2px;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+@media (forced-colors: active) {
+  .cp-table [data-bar] > [data-part="bar"] > span {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
+/* A media card: a .cp-cover over the work's title and its facts, the whole
+ * card one link. */
+.cp-media {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-2);
+  color: var(--cp-ink);
+  text-decoration: none;
+}
+
+.cp-media > [data-part="title"] {
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-heading);
+  line-height: 1.3;
+}
+
+.cp-media > [data-part="meta"] {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-media > .cp-cover {
+  transition:
+    scale var(--cp-dur-medium) var(--cp-ease-spring),
+    box-shadow var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+/* The ring goes round the cover, the card's shape, and not round its words. */
+a.cp-media:focus-visible {
+  outline: none;
+}
+
+a.cp-media:focus-visible > .cp-cover {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    a.cp-media:hover > .cp-cover {
+      scale: 1.03;
+      box-shadow: var(--cp-shadow-overlay);
+    }
+
+    /* Inside the scope: a scoped rule outranks an unscoped one of the same
+     * specificity, whatever their order. */
+    @media (prefers-reduced-motion: reduce) {
+      a.cp-media:hover > .cp-cover {
+        scale: none;
+      }
+    }
   }
 }
 

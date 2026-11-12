@@ -1,7 +1,8 @@
-/* An entry's cover at 2:3: its art in an <img> that fills it, or, while
- * there is none, a glyph on one flat harmony colour that data-harmony picks
- * from 1 to 4, as on .cp-avatar. */
+/* An entry's cover at 2:3: its art in an <img> over a glyph on one flat
+ * harmony colour that data-harmony picks from 1 to 4, as on .cp-avatar. The
+ * glyph shows until the image has loaded, or while there is none. */
 .cp-cover {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 2 / 3;
@@ -27,6 +28,8 @@
 }
 
 .cp-cover > img {
+  position: absolute;
+  inset: 0;
   inline-size: 100%;
   block-size: 100%;
   object-fit: cover;
@@ -34,6 +37,12 @@
 
 .cp-cover > .cp-icon {
   --cp-icon-size: 2rem;
+}
+
+.cp-cover > .cp-chip {
+  position: absolute;
+  inset-block-start: var(--cp-space-2);
+  inset-inline-start: var(--cp-space-2);
 }
 
 @media (forced-colors: active) {

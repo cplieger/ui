@@ -33,6 +33,14 @@ function target(e: Event): HTMLElement | null {
   return t instanceof Element ? t.closest<HTMLElement>(TIP) : null;
 }
 
+// Words that differ only in punctuation, spacing or case say the same thing.
+function gist(text: string): string {
+  return text
+    .replaceAll(/[\p{P}\s]+/gu, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function listen(signal: AbortSignal, delay: number): void {
   const tip = document.createElement("div");
   tip.className = "cp-tooltip";
@@ -55,7 +63,7 @@ function listen(signal: AbortSignal, delay: number): void {
     tip.textContent = words;
     const d = described(el);
     const name = d.getAttribute("aria-label") ?? el.getAttribute("aria-label") ?? el.textContent;
-    if (name.trim() === words) {
+    if (gist(name) === gist(words)) {
       if (d.getAttribute("aria-describedby") === tip.id) {
         d.removeAttribute("aria-describedby");
       }
@@ -97,7 +105,13 @@ function listen(signal: AbortSignal, delay: number): void {
     }
     addAnchorName(el, NAME);
     shownFor = el;
-    watch.observe(el, { attributes: true, attributeFilter: ["data-cp-tip", "aria-label"] });
+    watch.observe(el, {
+      attributes: true,
+      attributeFilter: ["data-cp-tip", "aria-label"],
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
     const d = described(el);
     if (d !== el) {
       watch.observe(d, { attributes: true, attributeFilter: ["aria-label"] });
