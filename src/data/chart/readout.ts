@@ -29,7 +29,7 @@ export interface Reading {
 /** The mark the legend row reads: the first rect, line or dot. */
 type Primary = RectModel | LineModel | DotModel;
 
-function primaryOf(model: Model): Primary | undefined {
+export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
     if (m.kind !== "rule") {
       return m;
@@ -38,11 +38,15 @@ function primaryOf(model: Model): Primary | undefined {
   return undefined;
 }
 
-const counted = (value: string, count: number, unit: Unit | undefined, model: Model): string =>
-  unit === undefined ? value : withNoun(value, noun(unit, count, model.locale));
+export const counted = (
+  value: string,
+  count: number,
+  unit: Unit | undefined,
+  model: Model,
+): string => (unit === undefined ? value : withNoun(value, noun(unit, count, model.locale)));
 
 /** The x domain in words, `underRange` when a log x's underflow bin is drawn below it. */
-function domainText(model: Model, words: Words): string {
+export function domainText(model: Model, words: Words): string {
   const { x, xText } = model;
   return x.under?.drawn === "below"
     ? words.underRange(xText(x.lo), xText(x.hi))
@@ -51,7 +55,7 @@ function domainText(model: Model, words: Words): string {
 
 /** Bucket `i` of `m` in words: its interval, the underflow bin's "under",
  *  and an open last bucket's "so far". */
-function bucketText(model: Model, m: RectModel, i: number, words: Words): string {
+export function bucketText(model: Model, m: RectModel, i: number, words: Words): string {
   const under = model.x.under;
   const x2 = model.xText(m.x2[i] ?? 0);
   const text =

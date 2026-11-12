@@ -5347,8 +5347,11 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-weight: var(--cp-weight-body);
 }
 
-.cp-chart > [data-part="plot"] {
+.cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
+}
+
+.cp-chart > [data-part="plot"] {
   --cp-chart-row: max(24px, 1.75em);
 
   border: 1px solid transparent;
@@ -5358,9 +5361,26 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 @container (width < 30rem) {
-  .cp-chart > [data-part="plot"] {
+  .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
     --cp-chart-height: 200px;
   }
+}
+
+/* While loading, a box holds the plot's place, which the skeleton fills
+ * once its show delay has passed. */
+.cp-chart > [data-part="loading"] {
+  block-size: var(--cp-chart-height);
+}
+
+.cp-chart > [data-part="loading"] > .cp-skeleton {
+  block-size: 100%;
+}
+
+/* The table view's rules, as a sentence under the table. */
+.cp-chart > [data-part="table"] > [data-part="rules"] {
+  margin: 0;
+  padding: var(--cp-space-2) var(--cp-space-3) var(--cp-space-3);
+  font-size: var(--cp-text-sm);
 }
 
 .cp-chart [data-part="plot"] [data-mono] {

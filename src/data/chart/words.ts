@@ -44,6 +44,11 @@ export interface ChartWords {
   readonly noData?: string;
   /** A silent row's first and last cells. Default "None". */
   readonly none?: string;
+  /** A timeline's table head over each row's count, first and last dot.
+   *  Defaults "Count", "First", "Last". */
+  readonly count?: string;
+  readonly first?: string;
+  readonly last?: string;
   /** A rule outside a passed domain, on the plot. Default "{label} {value}, off the axis". */
   readonly offAxis?: (label: string, value: string) => string;
   /** Equal buckets or samples. Default "every {size}". */
@@ -106,6 +111,9 @@ const DEFAULTS: Words = {
   total: "Total",
   noData: "No data",
   none: "None",
+  count: "Count",
+  first: "First",
+  last: "Last",
   offAxis: (label, value) => `${label} ${value}, off the axis`,
   every: (size) => `every ${size}`,
   stackSummary: (total, every, range, parts) => {
