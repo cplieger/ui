@@ -354,6 +354,229 @@ describe("grouped column geometry", () => {
   });
 });
 
+// Each closed shape "M x y (V y | H x)… Z" of a path as its corners, a
+// point on a straight run between two others dropped.
+function outlines(d: string): [number, number][][] {
+  return [...d.matchAll(/M([^Z]*)Z/g)].map((g) => {
+    const [x0, y0, ...rest] = (g[1] ?? "").split(/(?=[VH])| /);
+    let at: [number, number] = [Number(x0), Number(y0)];
+    const out: [number, number][] = [at];
+    for (const c of rest) {
+      at = c.startsWith("V") ? [at[0], Number(c.slice(1))] : [Number(c.slice(1)), at[1]];
+      const [p, q] = [out.at(-2), out.at(-1)];
+      if (q?.[0] === at[0] && q[1] === at[1]) {
+        continue;
+      }
+      const straight =
+        p !== undefined &&
+        q !== undefined &&
+        ((p[0] === q[0] && q[0] === at[0]) || (p[1] === q[1] && q[1] === at[1]));
+      if (straight) {
+        out[out.length - 1] = at;
+      } else {
+        out.push(at);
+      }
+    }
+    return out;
+  });
+}
+
+const area = (
+  x1: number[],
+  series: { name: string; y: (number | null)[] }[],
+  more: { x2?: number[]; arrange?: "stack" | "share"; domain?: [number, number] } = {},
+): Model =>
+  model({
+    x: more.domain === undefined ? {} : { domain: more.domain },
+    marks: [
+      {
+        mark: "rect",
+        shape: "area",
+        x1,
+        x2: more.x2 ?? x1.map((v) => v + 1),
+        ...(more.arrange === undefined ? {} : { arrange: more.arrange }),
+        series,
+      },
+    ],
+  });
+
+describe("step area geometry", () => {
+  it("draws each series' run of touching buckets as one shape, flat across each bucket, the 1 px gap per bucket", () => {
+    const m = area(
+      [0, 1, 2, 3],
+      [
+        { name: "a", y: [2, 4, 0, 3] },
+        { name: "b", y: [1, 1, 1, 1] },
+      ],
+    );
+    // 100 px a bucket, 10 px a unit.
+    const [a, b] = rectPaths(rectOf(m), frame(m, 400, 100, 10)).map(outlines);
+    expect(a).toEqual([
+      [
+        [0, 100],
+        [0, 80],
+        [100, 80],
+        [100, 60],
+        [200, 60],
+        [200, 100],
+        [0, 100],
+      ],
+      [
+        [300, 100],
+        [300, 70],
+        [400, 70],
+        [400, 100],
+        [300, 100],
+      ],
+    ]);
+    // b sits 1 px above a's top in every bucket a fills, on the baseline in bucket 2.
+    expect(b).toEqual([
+      [
+        [0, 79],
+        [0, 70],
+        [100, 70],
+        [100, 50],
+        [200, 50],
+        [200, 90],
+        [300, 90],
+        [300, 60],
+        [400, 60],
+        [400, 69],
+        [300, 69],
+        [300, 100],
+        [200, 100],
+        [200, 59],
+        [100, 59],
+        [100, 79],
+        [0, 79],
+      ],
+    ]);
+  });
+
+  it("takes no gap below a segment under 3 px tall", () => {
+    const m = area(
+      [0],
+      [
+        { name: "a", y: [5] },
+        { name: "b", y: [0.2] },
+      ],
+    );
+    const [, b] = rectPaths(rectOf(m), frame(m, 100, 100, 10)).map(outlines);
+    expect(b?.[0]?.slice(0, 2)).toEqual([
+      [0, 50],
+      [0, 48],
+    ]);
+  });
+
+  it("ends a run at a 0, a null and a gap in x, never bridging them", () => {
+    const m = area([0, 1, 3, 4, 5, 6], [{ name: "a", y: [1, 1, 1, null, 1, 0] }], {
+      x2: [1, 2, 4, 5, 6, 7],
+    });
+    const [a] = rectPaths(rectOf(m), frame(m, 700, 100, 1)).map(outlines);
+    expect(a?.map((o) => [o[0]?.[0], Math.max(...o.map((p) => p[0]))])).toEqual([
+      [0, 200],
+      [300, 400],
+      [500, 600],
+    ]);
+  });
+
+  it("lets buckets touch with no inset, so 72 on 276 px fill the plot edge to edge", () => {
+    const x1 = Array.from({ length: 72 }, (_, i) => i);
+    const m = area(x1, [{ name: "a", y: x1.map(() => 1) }]);
+    const f = frame(m, 276, 200, 1, 3);
+    const edges = rectOf(m).shown.map((i) => bucketEdges(rectOf(m), i, f));
+    expect(edges[0]?.left).toBe(0);
+    expect(edges.at(-1)?.right).toBe(276);
+    for (let i = 1; i < edges.length; i++) {
+      expect(edges[i]?.left).toBe(edges[i - 1]?.right);
+    }
+    expect(outlines(rectPaths(rectOf(m), f)[0] ?? "")).toHaveLength(1);
+  });
+
+  it("cuts a run at each end of a passed domain at the plot's edge", () => {
+    const m = area([0, 1, 2, 3, 4, 5], [{ name: "a", y: [1, 1, 1, 1, 1, 1] }], {
+      domain: [1.5, 4.5],
+    });
+    const [a] = rectPaths(rectOf(m), frame(m, 300, 100, 1)).map(outlines);
+    expect(a).toEqual([
+      [
+        [0, 100],
+        [0, 0],
+        [300, 0],
+        [300, 100],
+        [0, 100],
+      ],
+    ]);
+  });
+
+  it("runs right to left on a reversed x", () => {
+    const m = model({
+      x: { reverse: true },
+      marks: [
+        { mark: "rect", shape: "area", x1: [0, 1], x2: [1, 2], series: [{ name: "a", y: [1, 2] }] },
+      ],
+    });
+    const [a] = rectPaths(rectOf(m), frame(m, 200, 100, 2)).map(outlines);
+    expect(a).toEqual([
+      [
+        [200, 100],
+        [200, 50],
+        [100, 50],
+        [100, 0],
+        [0, 0],
+        [0, 100],
+        [200, 100],
+      ],
+    ]);
+  });
+
+  it("joins the read histogram's underflow bin to its run", () => {
+    const edges = durationEdges();
+    const m = model({
+      x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+      marks: [
+        {
+          mark: "rect",
+          shape: "area",
+          x1: edges.slice(0, -1),
+          x2: edges.slice(1),
+          series: [{ name: "Reads", y: edges.slice(1).map(() => 1) }],
+        },
+      ],
+    });
+    const [a] = rectPaths(rectOf(m), frame(m, 276, 200, 1)).map(outlines);
+    expect(a).toEqual([
+      [
+        [0, 200],
+        [0, 0],
+        [276, 0],
+        [276, 200],
+        [0, 200],
+      ],
+    ]);
+  });
+
+  it("stacks a 100% area's shares to the top, a bucket whose total is 0 ending every run", () => {
+    const m = area(
+      [0, 1, 2],
+      [
+        { name: "a", y: [1, 0, 1] },
+        { name: "b", y: [3, 0, 1] },
+      ],
+      { arrange: "share" },
+    );
+    const [a, b] = rectPaths(rectOf(m), frame(m, 300, 100, 1)).map(outlines);
+    expect(a?.map((o) => o.map((p) => p[1]))).toEqual([
+      [100, 75, 75, 100, 100],
+      [100, 50, 50, 100, 100],
+    ]);
+    expect(b?.map((o) => o[1])).toEqual([
+      [0, 0],
+      [200, 0],
+    ]);
+  });
+});
+
 function points(d: string): number[][] {
   return d
     .split("M")

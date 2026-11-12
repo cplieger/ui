@@ -15,6 +15,9 @@ type Kind =
   | "groupedColumn"
   | "shareColumn"
   | "column"
+  | "stackedArea"
+  | "shareArea"
+  | "area"
   | "histogram"
   | "line"
   | "step"
@@ -36,6 +39,7 @@ export interface RectModel {
    *  series grouped is a plain column, so it reads "stack". "share" draws
    *  each series' share of its bucket's total; `series` keeps the values. */
   readonly arrange: "stack" | "group" | "share";
+  readonly shape: "bars" | "area";
   readonly series: readonly SeriesModel[];
   /** The buckets drawn, read and listed: every one not wholly outside the domain. */
   readonly shown: readonly number[];
@@ -249,6 +253,15 @@ function checkMark(mark: unknown, what: string): void {
       ) {
         fail(`${what}.arrange must be "stack", "group" or "share"`);
       }
+      const shape = mark["shape"];
+      if (shape !== undefined && shape !== "bars" && shape !== "area") {
+        fail(`${what}.shape must be "bars" or "area"`);
+      }
+      if (shape === "area" && arrange === "group") {
+        fail(
+          `${what}.shape "area" takes no arrange "group", since areas cannot stand side by side`,
+        );
+      }
       const list = mark["series"];
       checkSeries(list, x1.length, what);
       if (arrange === "share" && arrayLike(list) && list.length < 2) {
@@ -377,6 +390,13 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       if (x.type === "log") {
         return "histogram";
       }
+      if (first.shape === "area") {
+        return first.series.length < 2
+          ? "area"
+          : first.arrange === "share"
+            ? "shareArea"
+            : "stackedArea";
+      }
       if (first.series.length < 2) {
         return "column";
       }
@@ -429,6 +449,7 @@ export function chartModel(
             m.arrange === "share" || (m.arrange === "group" && m.series.length > 1)
               ? m.arrange
               : "stack",
+          shape: m.shape ?? "bars",
           series: series(m.series),
           shown: shownBuckets(m, index, x),
         };

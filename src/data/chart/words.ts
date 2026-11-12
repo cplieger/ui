@@ -8,6 +8,9 @@ type Kind =
   | "groupedColumn"
   | "shareColumn"
   | "column"
+  | "stackedArea"
+  | "shareArea"
+  | "area"
   | "histogram"
   | "line"
   | "step"
@@ -21,9 +24,11 @@ export interface ChartWords {
   readonly howTo?: string;
   /** The kind in the short description. Defaults "Stacked column chart",
    *  "Grouped column chart", "100% stacked column chart", "Column chart",
+   *  "Stacked area chart", "100% stacked area chart", "Area chart",
    *  "Histogram", "Line chart", "Step line", "Timeline". A rect on a log x is
-   *  a histogram however it is arranged; any other rect is a column chart,
-   *  `stackedColumn`, `groupedColumn` or `shareColumn` with two or more series. */
+   *  a histogram however it is shaped or arranged; any other rect is a column
+   *  or, with shape "area", an area chart, its stacked, grouped or 100% kind
+   *  with two or more series. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -106,6 +111,9 @@ const DEFAULTS: Words = {
     groupedColumn: "Grouped column chart",
     shareColumn: "100% stacked column chart",
     column: "Column chart",
+    stackedArea: "Stacked area chart",
+    shareArea: "100% stacked area chart",
+    area: "Area chart",
     histogram: "Histogram",
     line: "Line chart",
     step: "Step line",

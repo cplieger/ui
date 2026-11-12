@@ -123,6 +123,16 @@ describe("spec errors", () => {
     ],
     ["a share of one series", { x: {}, marks: [rect([1], { arrange: "share" })] }, TypeError],
     [
+      "a shape that is not bars or area",
+      { x: {}, marks: [rect([1], { shape: "steps" as "area" })] },
+      TypeError,
+    ],
+    [
+      "an area grouped",
+      { x: {}, marks: [rect([1], { shape: "area", arrange: "group" })] },
+      TypeError,
+    ],
+    [
       "a series with no name",
       { x: {}, marks: [line([1], { series: [{ y: [1] } as never] })] },
       TypeError,
@@ -242,6 +252,45 @@ describe("the chart's kind", () => {
           }),
         ],
       },
+      "histogram",
+    ],
+    ["one series of rects as area", { x: {}, marks: [rect([1], { shape: "area" })] }, "area"],
+    [
+      "two series of rects as area",
+      {
+        x: {},
+        marks: [
+          rect([1], {
+            shape: "area",
+            series: [
+              { name: "a", y: [1] },
+              { name: "b", y: [2] },
+            ],
+          }),
+        ],
+      },
+      "stackedArea",
+    ],
+    [
+      "two series of rects as area stacked to 100%",
+      {
+        x: {},
+        marks: [
+          rect([1], {
+            shape: "area",
+            arrange: "share",
+            series: [
+              { name: "a", y: [1] },
+              { name: "b", y: [2] },
+            ],
+          }),
+        ],
+      },
+      "shareArea",
+    ],
+    [
+      "rects as area on a log x",
+      { x: { type: "log" }, marks: [rect([1], { x1: [1], x2: [2], shape: "area" })] },
       "histogram",
     ],
     [

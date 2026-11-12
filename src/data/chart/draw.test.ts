@@ -12,6 +12,7 @@ import {
   readMetrics,
   writeLegend,
 } from "./draw.js";
+import { snap } from "./geometry.js";
 import { layout, type Layout } from "./layout.js";
 import { chartModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, overall, readoutWidths } from "./readout.js";
@@ -272,6 +273,31 @@ describe("the marks", () => {
     expect(ring(1)).toEqual([
       [near(left + 1), near(base - (5 / 6) * h + 1), near(right - 1), near(base - h / 2 - 1)],
     ]);
+  });
+
+  it("draws a step area as one shape per run, and rings a bucket 1 px inside its flush edges", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, shape: "area" }] }, 600);
+    const paths = series(d, "rect");
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["1", "2", "4"]);
+    // Path's null in bucket 5 splits it in two; the others run unbroken.
+    const shapes = paths.map((p) => (p.getAttribute("d") ?? "").split("M").length - 1);
+    expect(shapes).toEqual([1, 2, 1]);
+    for (const p of paths) {
+      expect(getComputedStyle(p).fill).toBe(
+        token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`),
+      );
+    }
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 5, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    const [left, , right, bottom] = [...(ring.match(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/) ?? [])]
+      .slice(1)
+      .map(Number);
+    expect(left).toBeCloseTo(snap(f.xAt(5 * 900_000), f.dpr) + 1, 2);
+    expect(right).toBeCloseTo(snap(f.xAt(6 * 900_000), f.dpr) - 1, 2);
+    expect(bottom).toBeCloseTo(f.yAt(0) - 1, 2);
   });
 
   it("strokes each line 2 px in its slot", () => {

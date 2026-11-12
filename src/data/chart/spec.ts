@@ -45,6 +45,10 @@ export interface RectMark {
    *  runs 0 to 1, in "percent" unless y.format says another, and takes no
    *  domain. */
   readonly arrange?: "stack" | "group" | "share";
+  /** "bars" (the default) draws each bucket apart; "area" draws each
+   *  series' run of touching buckets above 0 as one flat-topped shape, with
+   *  no gap between buckets. "area" takes no "group". */
+  readonly shape?: "bars" | "area";
   readonly series: readonly Series[];
 }
 

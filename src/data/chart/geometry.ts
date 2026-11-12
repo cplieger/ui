@@ -33,8 +33,9 @@ const GAP = 1;
 /** A segment shorter than this keeps its whole height, with no gap below. */
 const GAP_MIN = 3;
 
-/** Bucket `i`'s left and right px: cut at the plot's ends, inset half the
- *  gap a side unless that leaves under 1 px of bar, snapped to device px. */
+/** Bucket `i`'s left and right px: cut at the plot's ends, snapped to
+ *  device px, and as bars inset half the gap a side unless that leaves
+ *  under 1 px of bar. */
 export function bucketEdges(
   m: RectModel,
   i: number,
@@ -42,7 +43,7 @@ export function bucketEdges(
 ): { readonly left: number; readonly right: number } {
   const s = bucketSpan(m, i, f);
   let { left, right } = s;
-  if (right - left - GAP >= 1) {
+  if (m.shape === "bars" && right - left - GAP >= 1) {
     left += s.cutLeft ? 0 : GAP / 2;
     right -= s.cutRight ? 0 : GAP / 2;
   }
@@ -110,9 +111,13 @@ export function groupEdges(
  * of the bucket), or under "group" each its sub-column from the baseline.
  * A `null` counts as 0 and draws nothing. Each segment over another gives
  * up its bottom px as the gap, unless it is under 3 px tall, so a stack's
- * top stays at its total.
+ * top stays at its total. Under shape "area" each run of touching buckets
+ * is one shape instead (`areaPaths`).
  */
 export function rectPaths(m: RectModel, f: Frame): string[] {
+  if (m.shape === "area") {
+    return areaPaths(m, f);
+  }
   const paths = m.series.map(() => "");
   const box = (k: number, left: number, right: number, top: number, bottom: number) => {
     paths[k] =
@@ -154,6 +159,76 @@ export function rectPaths(m: RectModel, f: Frame): string[] {
       }
     });
   }
+  return paths;
+}
+
+/** One bucket of a run: the px of its x1 and x2 sides and its segment's top and bottom. */
+interface Step {
+  readonly from: number;
+  readonly to: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+// A run as one closed outline: up its first side, along each bucket's top
+// with a vertical step at each shared edge, down its last side and back
+// along the bottoms, so touching buckets meet inside one path with no seam.
+function outline(run: readonly Step[]): string {
+  const first = run[0];
+  if (first === undefined) {
+    return "";
+  }
+  let d = `M${num(first.from)} ${num(first.bottom)}`;
+  for (const s of run) {
+    d += `V${num(s.top)}H${num(s.to)}`;
+  }
+  for (let j = run.length - 1; j >= 0; j--) {
+    const s = run[j];
+    d += s === undefined ? "" : `V${num(s.bottom)}H${num(s.from)}`;
+  }
+  return `${d}Z`;
+}
+
+/**
+ * The step area: one path per series of `m`, each run of shown buckets that
+ * touch (one's x2 is the next one's x1) and where the series draws above 0
+ * one closed shape, stacked as `rectPaths` stacks bars and flush at each
+ * shared edge. A 0, a `null` or a gap in x ends the run.
+ */
+function areaPaths(m: RectModel, f: Frame): string[] {
+  const paths = m.series.map(() => "");
+  const runs: Step[][] = m.series.map(() => []);
+  const end = (k: number) => {
+    paths[k] = `${paths[k] ?? ""}${outline(runs[k] ?? [])}`;
+    runs[k] = [];
+  };
+  let prev: number | undefined;
+  for (const i of m.shown) {
+    const touching = prev !== undefined && m.x2[prev] === m.x1[i];
+    prev = i;
+    const { left, right } = bucketEdges(m, i, f);
+    const [from, to] = f.x.reverse ? [right, left] : [left, right];
+    let base = 0;
+    let below = false;
+    m.series.forEach((s, k) => {
+      const v = drawnValue(m, s, i);
+      if (!touching || v <= 0) {
+        end(k);
+      }
+      if (v <= 0) {
+        return;
+      }
+      const bottom = clamp(f.yAt(base), 0, f.height);
+      base += v;
+      const top = clamp(f.yAt(base), 0, f.height);
+      const gap = below && bottom - top >= GAP_MIN ? GAP : 0;
+      below = true;
+      runs[k]?.push({ from, to, top, bottom: bottom - gap });
+    });
+  }
+  m.series.forEach((_, k) => {
+    end(k);
+  });
   return paths;
 }
 

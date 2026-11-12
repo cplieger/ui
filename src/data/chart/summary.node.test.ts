@@ -97,6 +97,31 @@ describe("the summary of a column chart", () => {
   });
 });
 
+describe("the summary of a step area", () => {
+  const rect = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const shaped = (more: Partial<Extract<Mark, { mark: "rect" }>>): ChartSpec => ({
+    ...stacked,
+    marks: [{ ...rect, shape: "area", ...more }],
+  });
+
+  it("says what the columns say, the shape changing only the drawing", () => {
+    expect(generatedSummary(model(shaped({})), words)).toBe(
+      generatedSummary(model(stacked), words),
+    );
+  });
+
+  it("names a stacked area, a 100% area and an area of one series", () => {
+    expect(shortDescription(model(shaped({})), words)).toBe(
+      `Stacked area chart, 2 series, ${span(START, END)}`,
+    );
+    expect(shortDescription(model(shaped({ arrange: "share" })), words)).toBe(
+      `100% stacked area chart, 2 series, ${span(START, END)}`,
+    );
+    const one = shaped({ series: [{ name: "All", y: per(24, () => 1) }] });
+    expect(shortDescription(model(one), words)).toBe(`Area chart, ${span(START, END)}`);
+  });
+});
+
 describe("the summary of grouped columns", () => {
   const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
   const grouped: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "group" }] };
