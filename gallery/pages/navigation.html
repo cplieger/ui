@@ -158,23 +158,33 @@
 
   <section class="g-section" id="detail">
     <h2>Master and detail</h2>
-    <p>A list with its selected item's detail docked beside it at wide width, and the same detail in a dialog below it. The route opens it, so Back closes it, and a link to it opens it.</p>
-    <div class="card g-wide">
-      <div class="g-md" data-md="md-dialog">
-        <ul class="g-list">
-          <li><a class="g-row" href="#md/frieren" data-title="Frieren: Beyond Journey's End" data-meta="TV, 2023, 28 episodes, on the best release"><span class="g-avatar" data-h="2">FR</span><span>Frieren: Beyond Journey's End<small>28 episodes</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
-          <li><a class="g-row" href="#md/mushishi" data-title="Mushishi" data-meta="TV, 2005, 26 episodes, on an alt release"><span class="g-avatar" data-h="3">MU</span><span>Mushishi<small>26 episodes</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
-          <li><a class="g-row" href="#md/heron" data-title="The Boy and the Heron" data-meta="Film, 2023, on the best release"><span class="g-avatar" data-h="1">BH</span><span>The Boy and the Heron<small>Film</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
-        </ul>
-        <aside class="g-dock" aria-labelledby="md-dock-title" hidden>
-          <header><h3 id="md-dock-title" class="g-md-title" tabindex="-1"></h3><button class="cp-button" data-variant="quiet" type="button" data-md-close aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
-          <div class="g-dock-content"><p class="g-md-meta g-note"></p><div class="cp-tabs" role="tablist" aria-label="Detail"><button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button><button class="cp-tab" role="tab" type="button" aria-selected="false" tabindex="-1">Subtitles</button></div></div>
-        </aside>
+    <p>A list with its selected item's detail docked beside it at wide width, and the same detail in a full-height sheet below it. The route opens it, so Back closes it, and a link to it opens it.</p>
+    <div class="card g-wide" data-new>
+      <div class="g-resizable">
+        <div class="cp-list-detail" id="md">
+          <ul class="cp-list" aria-label="Library">
+            <li><a class="cp-list-row" href="#md/frieren" data-title="Frieren: Beyond Journey's End" data-meta="TV, 2023, 28 episodes, on the best release" data-episodes="28 episodes, all on the best release." data-subtitles="English and French, both in sync."><span class="cp-avatar" data-harmony="2">FR</span><span class="cp-cell-stack">Frieren: Beyond Journey's End<small>28 episodes</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+            <li><a class="cp-list-row" href="#md/mushishi" data-title="Mushishi" data-meta="TV, 2005, 26 episodes, on an alt release" data-episodes="26 episodes, on an alt release." data-subtitles="English, 2 episodes out of sync."><span class="cp-avatar" data-harmony="3">MU</span><span class="cp-cell-stack">Mushishi<small>26 episodes</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+            <li><a class="cp-list-row" href="#md/heron" data-title="The Boy and the Heron" data-meta="Film, 2023, on the best release" data-episodes="A film, on the best release." data-subtitles="English, in sync."><span class="cp-avatar" data-harmony="1">BH</span><span class="cp-cell-stack">The Boy and the Heron<small>Film</small></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          </ul>
+          <section class="cp-detail" hidden aria-labelledby="md-title">
+            <header>
+              <h3 id="md-title" tabindex="-1">Frieren: Beyond Journey's End</h3>
+              <button class="cp-button" data-variant="quiet" type="button" data-detail-close aria-label="Close" data-cp-tip="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button>
+            </header>
+            <div class="cp-detail-body">
+              <p class="cp-meta" id="md-meta">TV, 2023, 28 episodes, on the best release</p>
+              <div class="cp-tabs" role="tablist" aria-label="Detail" id="md-tabs">
+                <button class="cp-tab" role="tab" type="button" id="md-t1" aria-controls="md-p1" aria-selected="true">Episodes</button>
+                <button class="cp-tab" role="tab" type="button" id="md-t2" aria-controls="md-p2" aria-selected="false" tabindex="-1">Subtitles</button>
+              </div>
+              <div class="cp-panel" role="tabpanel" id="md-p1" aria-labelledby="md-t1">28 episodes, all on the best release.</div>
+              <div class="cp-panel" role="tabpanel" id="md-p2" aria-labelledby="md-t2" hidden>English and French, both in sync.</div>
+            </div>
+          </section>
+        </div>
       </div>
-      <dialog class="g-dialog g-sheet" id="md-dialog" aria-labelledby="md-dialog-title">
-        <form method="dialog"><header><h2 id="md-dialog-title" class="g-md-title"></h2><button class="cp-button" data-variant="quiet" type="button" data-md-close aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header><div class="g-body"></div></form>
-      </dialog>
-      <footer>Opening focuses the panel's heading; Close, Escape or Back returns focus to the row's link. Narrow the window under 64rem to see the dialog.</footer>
+      <footer>The detail docks beside the list once the frame is 52rem wide; drag the frame's corner narrower to open the same detail in a full-height sheet at the inline end, across the whole window on a phone. Opening focuses the detail's heading; Close, Escape, a press outside the sheet or Back returns focus to the row's link.</footer>
     </div>
   </section>
 

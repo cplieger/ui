@@ -844,50 +844,6 @@ $$("[data-announce]").forEach((b) => b.addEventListener("click", () => {
   if (log) log.append(el("li", {}, el("q", { text: b.dataset.announce }), where === "page" ? ", from the page's live region" : ", from the dialog's own live region, while the page is inert"));
 }));
 
-// ------------------------------------------------------ master and detail
-// The route opens the panel, so Back closes it. Wide: docked beside the
-// list, its heading focused. Narrow: the same content in a modal dialog.
-// Escape or Close goes back, and focus returns to the row's link.
-for (const md of $$("[data-md]")) {
-  const dock = $(".g-dock", md);
-  const dialog = document.getElementById(md.dataset.md);
-  const content = $(".g-dock-content", dock);
-  const wide = matchMedia("(width >= 64rem)");
-  let opener = null;
-  const render = () => {
-    const m = /^#md\/(.+)$/.exec(location.hash);
-    if (!m) {
-      dock.hidden = true;
-      if (dialog.open) dialog.close();
-      opener?.focus();
-      return;
-    }
-    const link = $(`a[href="#md/${m[1]}"]`, md);
-    opener = link;
-    for (const a of $$("a[href^='#md/']", md)) a.toggleAttribute("aria-current", a === link);
-    $$(".g-md-title").forEach((h) => (h.textContent = link.dataset.title));
-    $$(".g-md-meta").forEach((p) => (p.textContent = link.dataset.meta));
-    if (wide.matches) {
-      if (dialog.open) dialog.close();
-      dock.append(content);
-      dock.hidden = false;
-      $("h3", dock).focus();
-    } else {
-      dock.hidden = true;
-      $(".g-body", dialog).append(content);
-      if (!dialog.open) dialog.showModal();
-    }
-  };
-  addEventListener("hashchange", render);
-  wide.addEventListener("change", render);
-  for (const b of $$("[data-md-close]")) b.addEventListener("click", () => history.back());
-  dialog.addEventListener("cancel", (e) => {
-    e.preventDefault();
-    history.back();
-  });
-  render();
-}
-
 // ------------------------------------------------------------ pair rows
 // A path must start with /, said once the field is left. main.ts runs the
 // rows.

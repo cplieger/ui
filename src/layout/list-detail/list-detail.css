@@ -65,9 +65,17 @@
 }
 
 /* In the sheet the detail is as tall as the sheet, so its body scrolls
- * inside it and a feed's foot stays at the sheet's end. */
+ * inside it and a feed's foot stays at the sheet's end. The dialog's own
+ * header and body padding space it there, as in a form dialog. */
 .cp-detail-dialog > .cp-detail {
   block-size: 100%;
+  gap: 0;
+}
+
+/* A context scrolls in the sheet as the body does, so it keeps the body's
+ * 4px above its first control for a focus ring its overflow would clip. */
+.cp-detail-dialog > .cp-detail > .cp-context {
+  padding-block-start: var(--cp-space-1);
 }
 
 .cp-detail-body {

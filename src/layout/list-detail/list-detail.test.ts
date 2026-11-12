@@ -164,6 +164,44 @@ describe("enhanceListDetail", () => {
     );
   });
 
+  it("spaces the detail in the sheet as a form dialog spaces its header and body", () => {
+    const { detail, heading, api } = mount(400);
+    api.open({ still: true });
+    const form = document.createElement("dialog");
+    form.className = "cp-dialog";
+    const inner = document.createElement("form");
+    const header = document.createElement("header");
+    const title = document.createElement("h2");
+    title.textContent = "Form";
+    header.append(title);
+    const body = document.createElement("div");
+    body.className = "cp-dialog-body";
+    body.textContent = "Body";
+    inner.append(header, body);
+    form.append(inner);
+    document.body.append(form);
+    form.show();
+    const gap = (above: Element, below: Element | null): number =>
+      (below?.getBoundingClientRect().top ?? Number.NaN) - above.getBoundingClientRect().bottom;
+    const formGap = gap(header, body);
+    const detailHeader = heading.parentElement ?? heading;
+    expect(gap(detailHeader, detail.querySelector(".cp-detail-body"))).toBeCloseTo(formGap, 0);
+  });
+
+  it("starts a context's content in the sheet where a body's starts", () => {
+    const { detail, heading, api } = mount(400);
+    api.open({ still: true });
+    const body = detail.querySelector(".cp-detail-body");
+    const line = document.createElement("p");
+    line.textContent = "First";
+    body?.replaceChildren(line);
+    const top = (): number =>
+      line.getBoundingClientRect().top - heading.getBoundingClientRect().bottom;
+    const inBody = top();
+    body?.setAttribute("class", "cp-context");
+    expect(top()).toBeCloseTo(inBody, 0);
+  });
+
   it("moves an open detail when the box crosses the docking width, keeping focus in it and playing no motion", async () => {
     const { root, detail, close, dialog, api } = mount(1000);
     api.open();
@@ -257,6 +295,21 @@ describe("enhanceListDetail", () => {
     expect(document.activeElement).toBe(heading);
     api.close();
     expect(document.activeElement).toBe(opener);
+  });
+
+  it("returns focus to the link of the entry opened last while the detail stayed docked", () => {
+    const { opener, close, api } = mount(1000);
+    const other = document.createElement("a");
+    other.href = "#other";
+    other.textContent = "Other";
+    opener.after(other);
+    api.open();
+    other.focus();
+    api.open();
+    close.focus();
+    api.open();
+    api.close();
+    expect(document.activeElement).toBe(other);
   });
 
   it.each([

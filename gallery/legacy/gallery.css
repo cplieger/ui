@@ -770,47 +770,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   color: var(--cp-ink-muted);
 }
 
-/* The sheet: full height at the inline end, sliding in. */
-.g-sheet {
-  inline-size: min(26rem, 100vw);
-  max-inline-size: 100vw;
-  block-size: 100dvh;
-  max-block-size: 100dvh;
-  margin: 0 0 0 auto;
-  border-block: 0;
-  border-inline-end: 0;
-  border-radius: 0;
-  scale: 1;
-  translate: 100% 0;
-  opacity: 1;
-}
-
-.g-sheet:dir(rtl) {
-  margin: 0 auto 0 0;
-  translate: -100% 0;
-}
-
-/* A sheet slides out as it came, over 280ms and speeding up. */
-.g-sheet {
-  transition-duration: 280ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
-}
-
-.g-sheet[open] {
-  translate: 0 0;
-  scale: 1;
-  transition-duration: 300ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-}
-
-@starting-style {
-  .g-sheet[open] {
-    translate: 100% 0;
-    scale: 1;
-    opacity: 1;
-  }
-}
-
 @media (width < 40rem) {
   .g-dialog:not(.g-sheet) {
     inline-size: 100vw;
@@ -1340,53 +1299,6 @@ html:has(.g-header) {
 }
 
 /* ===== Shared app pieces ===== */
-
-/* Master and detail: the list with a docked panel beside it at wide width;
- * below it the same panel is a modal dialog (gallery.js moves it). The
- * route opens it, so Back closes it. */
-.g-md {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--cp-space-4);
-  container-type: inline-size;
-}
-
-.g-md:has(> .g-dock:not([hidden])) {
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
-}
-
-.g-dock {
-  display: grid;
-  align-content: start;
-  gap: var(--cp-space-3);
-  padding: var(--cp-space-4);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-  animation: dock-in 220ms var(--cp-ease-out);
-}
-
-.g-dock > header {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-dock > header > h3 {
-  flex: 1;
-  font-size: var(--cp-text-md);
-}
-
-.g-dock > header > h3:focus {
-  outline: none;
-}
-
-@keyframes dock-in {
-  from {
-    opacity: 0;
-    translate: 1rem 0;
-  }
-}
 
 /* A phone's screen: the frame holds a page of its own, under 40rem wide, so
  * the library's narrow-width rules apply inside it. */

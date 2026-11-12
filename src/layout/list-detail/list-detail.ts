@@ -31,8 +31,9 @@ export interface OpenOptions {
 export interface ListDetail {
   /** Shows the detail, docked or in its sheet, and focuses its heading. */
   open(options?: OpenOptions): void;
-  /** Hides the detail and returns focus to what had it before `open()`.
-   *  The sheet keeps the detail until its exit has played. */
+  /** Hides the detail and returns focus to what had it before `open()`,
+   *  or before a later `open()` made from outside the shown detail. The
+   *  sheet keeps the detail until its exit has played. */
   close(): void;
 }
 
@@ -202,6 +203,13 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         if (opts.still === true) {
           holdStill();
         }
+      } else if (
+        !dialog.contains(document.activeElement) &&
+        !detail.contains(document.activeElement) &&
+        document.activeElement !== document.body
+      ) {
+        // Another entry's link opened the docked detail: Close returns there.
+        opener = document.activeElement;
       }
       place(true);
     },
