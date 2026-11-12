@@ -2042,6 +2042,17 @@ describe("css/system.css", () => {
     expect(r && document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)).toBe(b);
   });
 
+  it("keeps a notice's button as wide as its words beside text that wraps", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-notice" data-tone="danger" style="inline-size: 16rem"><span>The refresh did not answer, so this is the answer from a minute ago.</span><button class="cp-button" data-size="sm" type="button">Retry</button></div><button class="cp-button" data-size="sm" type="button">Retry</button>',
+    );
+    const [inside, free] = [...el.querySelectorAll("button")].map(
+      (b) => b.getBoundingClientRect().width,
+    );
+    expect(inside).toBe(free);
+  });
+
   it.each(["light", "dark"] as const)(
     "raises a plain button off a notice's wash, edged at 3:1, in %s",
     (t) => {
