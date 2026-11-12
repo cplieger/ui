@@ -48,7 +48,10 @@ data/table/table.css
 navigation/pages/pages.css
 navigation/rail/filters-trigger.css
 data/text/text.css
+data/avatar/avatar.css
+data/cover/cover.css
 feedback/chip/chip.css
+feedback/badge/badge.css
 feedback/notice/notice.css
 feedback/banner/banner.css
 layout/panel/panel.css
@@ -59,6 +62,8 @@ layout/grid/grid.css
 layout/list-detail/list-detail.css
 navigation/rail/filters.css
 navigation/tabs/tabs.css
+navigation/link-tabs/link-tabs.css
+navigation/accordion/accordion.css
 feedback/progress/progress.css
 data/share-bar/share-bar.css
 data/sparkline/sparkline.css
@@ -73,6 +78,7 @@ feedback/toast/toast.css
 navigation/steps/steps.css
 overlays/dialog/dialog.css
 overlays/popover/popover.css
+navigation/header-status/status-panel.css
 forms/combobox/combobox.css
 overlays/menu/menu.css
 overlays/tooltip/tooltip.css
@@ -81,6 +87,7 @@ buttons/confirm/confirm.css
 buttons/group/group.css
 buttons/toggle/toggle.css
 buttons/filter-chip/filter-chip.css
+navigation/account/account.css
 core/roll/roll.css
 core/pill/pill.css
 foundations/icons/icons.css

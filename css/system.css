@@ -1769,13 +1769,32 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 var(--cp-space-4);
+  gap: var(--cp-space-1) var(--cp-space-4);
   min-block-size: 1.875rem;
-  padding-inline: var(--cp-page-gutter);
+  padding: var(--cp-space-1) var(--cp-page-gutter);
   font-size: var(--cp-text-xs);
   color: var(--cp-ink-muted);
   background: var(--cp-surface-raised);
   border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* A part for work that has not run when it should have: the warning ink and
+ * a clock, so the colour is not its only mark. */
+.cp-status > [data-state="late"] {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  color: var(--cp-warning-11);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-status > [data-state="late"]::before {
+  content: "";
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: currentcolor;
+  mask: url("../icons/svg/clock.svg") center / contain no-repeat;
 }
 
 /* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
@@ -1790,6 +1809,12 @@
 
   .cp-rail {
     display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-status > [data-state="late"]::before {
+    background: CanvasText;
   }
 }
 
@@ -2186,7 +2211,7 @@
   gap: var(--cp-space-2);
 }
 
-.cp-input-row > .cp-input {
+.cp-input-row > :is(.cp-input, .cp-search) {
   flex: 1;
   min-inline-size: 0;
 }
@@ -2499,6 +2524,18 @@
 
   .cp-header > .cp-nav > .cp-nav-item:hover {
     background: none;
+  }
+
+  /* A destination's badge sits on its icon's top end, off the word below. */
+  .cp-header > .cp-nav > .cp-nav-item > .cp-badge {
+    position: absolute;
+    inset-block-start: 0.25rem;
+    inset-inline-start: calc(50% + 0.25rem);
+  }
+
+  .cp-nav > .cp-nav-item > .cp-badge:not([data-variant]) {
+    background: var(--cp-accent);
+    color: var(--cp-on-accent);
   }
 
   .cp-header > .cp-nav .cp-nav-label {
@@ -4423,6 +4460,101 @@ textarea.cp-input {
   }
 }
 
+/* An avatar: a person's initials on one flat harmony colour, which
+ * data-harmony picks from 1 to 4, so a list of people tells them apart
+ * without a hand-picked hue. */
+.cp-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 30%;
+  background: var(--cp-harmony-1);
+  color: var(--cp-harmony-1-on);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+}
+
+.cp-avatar[data-harmony="2"] {
+  background: var(--cp-harmony-2);
+  color: var(--cp-harmony-2-on);
+}
+
+.cp-avatar[data-harmony="3"] {
+  background: var(--cp-harmony-3);
+  color: var(--cp-harmony-3-on);
+}
+
+.cp-avatar[data-harmony="4"] {
+  background: var(--cp-harmony-4);
+  color: var(--cp-harmony-4-on);
+}
+
+.cp-avatar[data-size="sm"] {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+}
+
+@media (forced-colors: active) {
+  .cp-avatar {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* An entry's cover at 2:3: its art in an <img> over a glyph on one flat
+ * harmony colour that data-harmony picks from 1 to 4, as on .cp-avatar. The
+ * glyph shows until the image has loaded, or while there is none. */
+.cp-cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-harmony-1);
+  color: var(--cp-harmony-1-on);
+  overflow: hidden;
+}
+
+.cp-cover[data-harmony="2"] {
+  background: var(--cp-harmony-2);
+  color: var(--cp-harmony-2-on);
+}
+
+.cp-cover[data-harmony="3"] {
+  background: var(--cp-harmony-3);
+  color: var(--cp-harmony-3-on);
+}
+
+.cp-cover[data-harmony="4"] {
+  background: var(--cp-harmony-4);
+  color: var(--cp-harmony-4-on);
+}
+
+.cp-cover > img {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.cp-cover > .cp-icon {
+  --cp-icon-size: 2rem;
+}
+
+.cp-cover > .cp-chip {
+  position: absolute;
+  inset-block-start: var(--cp-space-2);
+  inset-inline-start: var(--cp-space-2);
+}
+
+@media (forced-colors: active) {
+  .cp-cover {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
 /* Chip: a tone's wash, its glyph and its word; colour is never alone. */
 .cp-chip {
   display: inline-flex;
@@ -4447,8 +4579,74 @@ textarea.cp-input {
   --cp-icon-size: 0.875rem;
 }
 
+/* flashChip() sets data-cp-flash and removes it when the flash ends. The
+ * keyframes read the tone, so a chip whose tone changes mid-flash flashes
+ * its new one. */
+.cp-chip[data-cp-flash] {
+  animation:
+    cp-chip-flash 900ms var(--cp-ease-out),
+    cp-chip-pop 900ms var(--cp-ease-out);
+}
+
+@keyframes cp-chip-flash {
+  0%,
+  18% {
+    background: var(--cp-tone-9);
+    color: var(--cp-tone-on);
+  }
+}
+
+@keyframes cp-chip-pop {
+  18% {
+    scale: 1.1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-chip[data-cp-flash] {
+    animation: cp-chip-flash 900ms var(--cp-ease-out);
+  }
+}
+
 @media (forced-colors: active) {
   .cp-chip {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* A badge: a count beside a destination or a filter, such as 12 new
+ * releases. Solid for a count that asks to be seen, data-variant="quiet"
+ * for one that only informs. A count is not a state, so it takes the
+ * accent rather than a tone. */
+.cp-badge {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.25rem;
+  block-size: 1.25rem;
+  padding-inline: 0.375rem;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cp-badge[data-variant="quiet"] {
+  background: var(--cp-fill);
+  color: var(--cp-ink-muted);
+}
+
+/* The accent can be the header's own colour, so on the bar a solid badge
+ * takes the bar's ink, as the mark does. */
+.cp-header .cp-badge:not([data-variant]) {
+  background: var(--cp-shell-ink);
+  color: var(--cp-shell-bg);
+}
+
+@media (forced-colors: active) {
+  .cp-badge {
     border: var(--cp-line-w) solid CanvasText;
   }
 }
@@ -4533,6 +4731,36 @@ textarea.cp-input {
   color: var(--cp-tone-11);
 }
 
+/* A banner with reasons stacks its head (a <strong> with its glyph), the
+ * list, and a <small> foot holding its one way to act. */
+.cp-banner:has(> ul) {
+  display: grid;
+  gap: var(--cp-space-2);
+  padding-block: var(--cp-space-3);
+}
+
+.cp-banner:has(> ul) > strong {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-banner:has(> ul) > strong > .cp-icon {
+  color: var(--cp-tone-11);
+}
+
+.cp-banner > ul {
+  margin: 0;
+  padding-inline-start: 1.75rem;
+  font-size: var(--cp-text-sm);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-banner:has(> ul) > small {
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+}
+
 .cp-banner > .cp-button {
   margin-inline-start: auto;
 }
@@ -4597,6 +4825,11 @@ textarea.cp-input {
 .cp-heading-row > :first-child {
   flex: 1 1 18rem;
   min-inline-size: 0;
+}
+
+/* A title's line of facts sits close under it, read as one block. */
+.cp-heading-row > :first-child > :is(h1, h2, h3) + p {
+  margin-block-start: var(--cp-space-1);
 }
 
 .cp-heading-row > .cp-toolbar {
@@ -4776,7 +5009,8 @@ textarea.cp-input {
   font: inherit;
   text-align: start;
   cursor: pointer;
-  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+  /* Slower than a colour change: the wash turns the whole row on or off. */
+  transition: background-color var(--cp-dur-medium) var(--cp-ease-out);
 }
 
 .cp-filter[aria-pressed="true"] {
@@ -4801,12 +5035,18 @@ textarea.cp-input {
   background: var(--cp-tone-9);
 }
 
-/* A count beside a filter. */
-.cp-count {
+/* A filter's count, a quiet .cp-badge at the row's end, turns solid in the
+ * accent with its row. */
+.cp-filter > .cp-badge {
   margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--cp-dur-medium) var(--cp-ease-out),
+    color var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+.cp-filter[aria-pressed="true"] > .cp-badge {
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
 }
 
 @media (forced-colors: active) {
@@ -4860,28 +5100,301 @@ textarea.cp-input {
   }
 }
 
-/* Progress: a track and a fill in the tone. */
+/* Tabs as links: a nav of links, one address each, the current one
+ * aria-current="page" and underlined in the accent. The strip scrolls when
+ * it is wider than its place, and a scroll box clips at its padding edge:
+ * its padding holds the focus rings, its negative margins take that room
+ * back out of the layout, and its line is drawn at the links' foot. */
+.cp-link-tabs {
+  --cp-link-tabs-room: calc(var(--cp-focus-w) + var(--cp-focus-offset));
+  --cp-link-tabs-line: var(--cp-line);
+
+  display: flex;
+  gap: var(--cp-space-1);
+  margin: calc(-1 * var(--cp-link-tabs-room));
+  margin-block-end: calc(var(--cp-line-w) - var(--cp-link-tabs-room));
+  padding: var(--cp-link-tabs-room);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: linear-gradient(var(--cp-link-tabs-line) 0 0) center bottom
+    calc(var(--cp-link-tabs-room) - var(--cp-line-w)) / calc(100% - 2 * var(--cp-link-tabs-room))
+    var(--cp-line-w) no-repeat;
+}
+
+.cp-link-tabs > a {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  color: var(--cp-ink-muted);
+  font-weight: var(--cp-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cp-link-tabs > a[aria-current="page"] {
+  color: var(--cp-ink);
+}
+
+/* Over the strip's line, so the current link's mark replaces it. */
+.cp-link-tabs > a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: var(--cp-space-2);
+  inset-block-end: calc(-1 * var(--cp-line-w));
+  block-size: 2px;
+  border-radius: 2px;
+  background: var(--cp-accent);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-link-tabs > a:not([aria-current="page"]):hover {
+      color: var(--cp-ink);
+    }
+  }
+}
+
+/* Forced colours drop the strip's line, a background image, unless the
+ * strip keeps its own colours; its links take the system's back. */
+@media (forced-colors: active) {
+  .cp-link-tabs {
+    --cp-link-tabs-line: CanvasText;
+
+    forced-color-adjust: none;
+  }
+
+  .cp-link-tabs > * {
+    forced-color-adjust: auto;
+  }
+
+  .cp-link-tabs > a[aria-current="page"]::after {
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+}
+
+/* An accordion: native <details> in one raised box, divided by lines. A
+ * section with its own menu is a .cp-accordion-section holding the details
+ * and the menu's button, which sits beside the summary and not in it, so
+ * pressing it never opens or shuts the section. */
+.cp-accordion {
+  display: grid;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+}
+
+.cp-accordion > :not(:first-child) {
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+.cp-accordion summary {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h);
+  padding: var(--cp-space-1) var(--cp-space-4);
+  border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
+  font-weight: var(--cp-weight-medium);
+  cursor: pointer;
+  list-style: none;
+}
+
+.cp-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A summary spans the box, so its ring is drawn inside it. */
+.cp-accordion summary:focus-visible {
+  outline-offset: calc(-1 * var(--cp-focus-w));
+}
+
+/* The chevron stays by a wrapped title's first line, level with a menu
+ * button. It turns as the press lands, shutting included: disclosure.ts
+ * keeps a closing section open, marked data-cp-closing, while it glides. */
+.cp-accordion summary > .cp-icon:last-child {
+  align-self: start;
+  margin-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2 - var(--cp-space-1));
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  transition: rotate 200ms var(--cp-ease-out);
+}
+
+:where(.cp-accordion) details[open]:not([data-cp-closing]) > summary > .cp-icon:last-child {
+  rotate: 180deg;
+}
+
+.cp-accordion details > summary + * {
+  padding: 0 var(--cp-space-4) var(--cp-space-4);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  line-height: var(--cp-leading-body);
+}
+
+.cp-accordion-section {
+  --cp-accordion-menu-w: max(
+    var(--cp-hit-min),
+    calc(var(--cp-icon-ui) + 2 * var(--cp-space-2) + 2 * var(--cp-line-w))
+  );
+
+  position: relative;
+}
+
+/* 1.5rem clears the chevron and leaves a gap before it. */
+.cp-accordion-section > .cp-button {
+  position: absolute;
+  inset-block-start: calc((var(--cp-control-h) - var(--cp-control-h-sm)) / 2);
+  inset-inline-end: calc(var(--cp-space-4) + 1.5rem);
+}
+
+/* Keeps the menu button's width free before the chevron, so a long title
+ * or chip wraps short of the button instead of running under it. */
+.cp-accordion-section > details > summary::after {
+  content: "";
+  flex: none;
+  order: 1;
+  inline-size: var(--cp-accordion-menu-w);
+  margin-inline-start: auto;
+}
+
+.cp-accordion-section > details > summary > .cp-icon:last-child {
+  order: 2;
+  margin-inline-start: 0;
+}
+
+/* Progress for a known amount: the host sets --cp-progress (0% to 100%) on
+ * .cp-progress and data-state="done" with its last step. The fill is one
+ * gradient fixed to the track, revealed by a clip that grows, so the
+ * lighter end only shows near the finish. Its two stops are registered
+ * colours, so done fades both to green; plain colours would swap at once. */
+@property --cp-progress-from {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+@property --cp-progress-to {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+/* It wraps and never outgrows its box, so in a narrow box the track
+ * shrinks toward its 5rem floor and the words go under it instead of
+ * overflowing. */
 .cp-progress {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-inline-size: 100%;
   align-items: center;
   gap: var(--cp-space-2);
   font-size: var(--cp-text-xs);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: var(--cp-ink-muted);
 }
 
 .cp-progress-track {
-  inline-size: 5rem;
-  block-size: 0.375rem;
+  order: -1;
+  flex: 0 1 auto;
+  inline-size: 14rem;
+  min-inline-size: 5rem;
+  block-size: 0.5rem;
   border-radius: var(--cp-radius-round);
   background: var(--cp-tone-4);
   overflow: clip;
 }
 
 .cp-progress-fill {
+  --cp-progress-from: var(--cp-tone-9);
+  --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h);
+
+  display: block;
   block-size: 100%;
-  background: var(--cp-tone-9);
   border-radius: inherit;
+  background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to));
+  clip-path: inset(0 calc(100% - var(--cp-progress, 0%)) 0 0 round var(--cp-radius-round));
+  transition:
+    clip-path 480ms var(--cp-ease-out),
+    --cp-progress-from 500ms var(--cp-ease-out),
+    --cp-progress-to 500ms var(--cp-ease-out);
+}
+
+.cp-progress-fill:dir(rtl) {
+  background-image: linear-gradient(270deg, var(--cp-progress-from), var(--cp-progress-to));
+  clip-path: inset(0 0 0 calc(100% - var(--cp-progress, 0%)) round var(--cp-radius-round));
+}
+
+/* The check keeps its place while hidden, so the words never move. */
+.cp-progress::before {
+  content: "";
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  background: var(--cp-success-9);
+  mask: url("../icons/svg/circle-check.svg") center / contain no-repeat;
+  scale: 0;
+  opacity: 0;
+  transition:
+    scale var(--cp-dur-short) var(--cp-ease-out),
+    opacity var(--cp-dur-short) var(--cp-ease-out);
+}
+
+/* Green once the last step's fill has arrived, then the check pops in. */
+.cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+  --cp-progress-from: var(--cp-success-9);
+  --cp-progress-to: var(--cp-success-9);
+
+  transition-delay: 0s, 480ms, 480ms;
+}
+
+.cp-progress[data-state="done"]::before {
+  scale: 1;
+  opacity: 1;
+  transition:
+    scale var(--cp-dur-spring) var(--cp-ease-bounce) 740ms,
+    opacity 120ms linear 740ms;
+}
+
+/* The fill jumps to each step and the check only fades in, with no wait
+ * for a glide that no longer runs. */
+@media (prefers-reduced-motion: reduce) {
+  .cp-progress-fill,
+  .cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+    transition:
+      --cp-progress-from var(--cp-dur-short) var(--cp-ease-out),
+      --cp-progress-to var(--cp-dur-short) var(--cp-ease-out);
+  }
+
+  .cp-progress::before {
+    scale: 1;
+  }
+
+  .cp-progress::before,
+  .cp-progress[data-state="done"]::before {
+    transition: opacity var(--cp-dur-short) var(--cp-ease-out);
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-progress-track {
+    forced-color-adjust: none;
+    background: Canvas;
+    outline: 1px solid CanvasText;
+  }
+
+  .cp-progress-fill,
+  .cp-progress-fill:dir(rtl) {
+    background: Highlight;
+  }
+
+  .cp-progress::before {
+    background: CanvasText;
+  }
 }
 
 /* A share bar (@cplieger/ui/share-bar): the parts of a whole as segments
@@ -5392,9 +5905,8 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
-/* A media card: a cover over the work's title and its facts, the whole card
- * one link. A cover is the work's own image, or a stand-in in a harmony
- * colour with the kind's glyph. */
+/* A media card: a .cp-cover over the work's title and its facts, the whole
+ * card one link. */
 .cp-media {
   display: grid;
   align-content: start;
@@ -5414,52 +5926,10 @@ button.cp-figure[aria-expanded="true"]::after {
   font-size: var(--cp-text-xs);
 }
 
-.cp-cover {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 2 / 3;
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-harmony-2);
-  color: var(--cp-harmony-2-on);
-  overflow: hidden;
+.cp-media > .cp-cover {
   transition:
     scale var(--cp-dur-medium) var(--cp-ease-spring),
     box-shadow var(--cp-dur-medium) var(--cp-ease-out);
-}
-
-.cp-cover[data-harmony="1"] {
-  background: var(--cp-harmony-1);
-  color: var(--cp-harmony-1-on);
-}
-
-.cp-cover[data-harmony="3"] {
-  background: var(--cp-harmony-3);
-  color: var(--cp-harmony-3-on);
-}
-
-.cp-cover[data-harmony="4"] {
-  background: var(--cp-harmony-4);
-  color: var(--cp-harmony-4-on);
-}
-
-.cp-cover > .cp-icon {
-  --cp-icon-size: 2rem;
-}
-
-/* Over the stand-in, which shows until the image has loaded. */
-.cp-cover > img {
-  position: absolute;
-  inset: 0;
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
-}
-
-.cp-cover > .cp-chip {
-  position: absolute;
-  inset-block-start: var(--cp-space-2);
-  inset-inline-start: var(--cp-space-2);
 }
 
 /* The ring goes round the cover, the card's shape, and not round its words. */
@@ -5489,12 +5959,6 @@ a.cp-media:focus-visible > .cp-cover {
   }
 }
 
-@media (forced-colors: active) {
-  .cp-cover {
-    border: var(--cp-line-w) solid CanvasText;
-  }
-}
-
 /* Skeleton: the shape of what is coming, with a slow opacity beat that stops
  * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
 .cp-skeleton {
@@ -5503,6 +5967,16 @@ a.cp-media:focus-visible > .cp-cover {
   border-radius: var(--cp-radius-control);
   background: var(--cp-fill-hover);
   animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
+}
+
+/* Lines that stand for text: a heading is short, and a paragraph's last
+ * line stops before the end. */
+.cp-skeleton[data-variant="heading"] {
+  inline-size: 40%;
+}
+
+.cp-skeleton[data-variant="last"] {
+  inline-size: 85%;
 }
 
 @keyframes cp-skeleton {
@@ -5524,6 +5998,21 @@ a.cp-media:focus-visible > .cp-cover {
   gap: var(--cp-space-3);
   padding: var(--cp-space-8) var(--cp-space-6);
   color: var(--cp-ink-muted);
+}
+
+/* Its lead glyph, in the accent or the tone it names, such as danger for
+ * a load that failed. */
+.cp-empty > .cp-icon:first-child {
+  --cp-icon-size: 3rem;
+
+  color: var(--cp-tone-9);
+}
+
+/* A heading with a loader, for work that runs before there is data. */
+.cp-empty > :has(> .cp-loader:first-child) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
 }
 
 /* A loader for work of unknown length, about the size of a 24px icon, so it
@@ -6270,9 +6759,39 @@ a.cp-media:focus-visible > .cp-cover {
   }
 }
 
+/* The header status's panel: a .cp-popover[data-variant="panel"] whose
+ * heading repeats the state's words, over one <section> per fact, each a
+ * <strong> head with its glyph and a sentence, divided edge to edge. After
+ * popover.css, whose panel padding this replaces. */
+.cp-popover.cp-status-panel {
+  gap: 0;
+  inline-size: 20rem;
+  padding: 0;
+}
+
+.cp-status-panel > h2 {
+  padding: var(--cp-space-3) var(--cp-space-4);
+  font-size: var(--cp-text-md);
+}
+
+.cp-status-panel > section {
+  display: grid;
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-status-panel > section > strong {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
 /* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as
  * wide as its field, the active option filled, a muted word at an option's
- * end in a <small>. */
+ * end in a <small>. It is the listbox, or the popup that holds the listbox
+ * beside its .cp-listbox-empty line. */
 .cp-listbox {
   inline-size: anchor-size(width);
   min-inline-size: 12rem;
@@ -6310,6 +6829,51 @@ a.cp-media:focus-visible > .cp-cover {
   margin-inline-start: auto;
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
+}
+
+.cp-listbox > [role="listbox"] {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-listbox-empty {
+  padding: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+}
+
+/* Options led by a .cp-cover run edge to edge: a cover sits flush with its
+ * row's start, its title over a line of facts, and 2px part one row's cover
+ * from the next. */
+.cp-listbox:has([role="option"] > .cp-cover) {
+  padding: 0;
+}
+
+.cp-listbox [role="option"]:has(> .cp-cover) {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0 var(--cp-space-3);
+  min-block-size: 3rem;
+  padding-inline-start: 0;
+  border-radius: 0;
+}
+
+.cp-listbox :not([hidden]):has(> .cp-cover) ~ [role="option"] {
+  margin-block-start: 2px;
+}
+
+.cp-listbox [role="option"] > .cp-cover {
+  grid-row: 1 / 3;
+  inline-size: 2rem;
+}
+
+.cp-listbox [role="option"] > .cp-cover > .cp-icon {
+  --cp-icon-size: 0.875rem;
+}
+
+.cp-listbox [role="option"]:has(> .cp-cover) small {
+  margin-inline-start: 0;
 }
 
 @media (forced-colors: active) {
@@ -6982,6 +7546,36 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   }
 }
 
+/* The header's account button: the avatar alone, ringed in the header's
+ * ink so it stands off the bar whatever its harmony colour. The ring is
+ * its hover and its open state, so the button paints no fill. */
+.cp-button.cp-account {
+  padding: 0.1875rem;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.cp-account > .cp-avatar {
+  box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
+  transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-account[aria-expanded="true"] > .cp-avatar {
+  box-shadow: 0 0 0 3px var(--cp-shell-ink);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-button.cp-account:hover:enabled {
+      background: transparent;
+    }
+
+    .cp-account:hover > .cp-avatar {
+      box-shadow: 0 0 0 3px var(--cp-shell-ink);
+    }
+  }
+}
+
 /* A roll: words or a number that change by sliding, the old line out and the
  * new one in, inside a one-line window. @cplieger/ui/roll writes the lines
  * and the window's width, which glides to the new line's. */
@@ -7006,9 +7600,10 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* The pill @cplieger/ui/pill slides under a segmented choice's chosen
- * segment. Placed by row and column, so a wrapped choice slides to its
- * line. Once it is there, the segments paint no fill of their own. */
-.cp-segmented:has(> .cp-pill) {
+ * segment or a tab strip's selected tab. Placed by row and column, so a
+ * wrapped choice slides to its line. Once it is there, the choices paint
+ * no fill of their own. */
+:is(.cp-segmented, .cp-tabs):has(> .cp-pill) {
   position: relative;
 }
 
@@ -7043,11 +7638,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   left: 0;
 }
 
-.cp-segmented:has(> .cp-pill) > label {
+.cp-segmented:has(> .cp-pill) > label,
+.cp-tabs:has(> .cp-pill) > .cp-tab {
   z-index: 1;
 }
 
-.cp-segmented:has(> .cp-pill) > label:has(:checked) {
+.cp-segmented:has(> .cp-pill) > label:has(:checked),
+.cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"] {
   background: transparent;
   box-shadow: none;
 }

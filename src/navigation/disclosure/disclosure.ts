@@ -3,8 +3,9 @@
  * engine. CSS can take a height to `auto` only where `interpolate-size`
  * ships, so the height glides in script. `enhanceDisclosure()` glides one
  * `<details>`; sections that share a `name` open one at a time, the others
- * gliding shut as one opens. `glideShow()` glides any element in or out,
- * such as a bar that pushes the content under it.
+ * gliding shut as one opens, and `groupDisclosures()` changes that group
+ * at run time. `glideShow()` glides any element in or out, such as a bar
+ * that pushes the content under it.
  * @module
  */
 
@@ -20,6 +21,7 @@ const EASE_OUT = "cubic-bezier(0.2, 0, 0, 1)";
 const EASE_IN = "cubic-bezier(0.4, 0, 1, 1)";
 
 const glides = new WeakMap<HTMLElement, Animation>();
+const enhanced = new WeakSet<HTMLDetailsElement>();
 
 /** Glides `el`'s height from `from` to `to` pixels, then runs `done`. The
  *  end height holds until `done` commits the open or shut state. */
@@ -79,6 +81,7 @@ export function enhanceDisclosure(
     details.removeAttribute("name");
     details.dataset["cpGroup"] = name;
   }
+  enhanced.add(details);
   summary.addEventListener(
     "click",
     (e) => {
@@ -112,13 +115,56 @@ export function enhanceDisclosure(
     "abort",
     () => {
       glides.get(details)?.finish();
-      if (name !== null) {
-        details.setAttribute("name", name);
+      // finish() commits the shut a microtask later; a still-open section
+      // given its name now would make the browser shut the open sibling.
+      if (details.hasAttribute(CLOSING)) {
+        details.removeAttribute(CLOSING);
+        details.open = false;
+      }
+      enhanced.delete(details);
+      const group = details.dataset["cpGroup"];
+      if (group !== undefined) {
+        details.setAttribute("name", group);
         delete details.dataset["cpGroup"];
       }
     },
     { once: true },
   );
+}
+
+/**
+ * Puts `sections` in one group named `name`, so they open one at a time, or
+ * with `null` lets each open on its own. Grouping keeps the first open
+ * section open and glides the others shut. A section `enhanceDisclosure`
+ * has not enhanced takes the `name` itself, and the browser shuts the
+ * others at once.
+ */
+export function groupDisclosures(
+  sections: Iterable<HTMLDetailsElement>,
+  name: string | null,
+): void {
+  let kept = false;
+  for (const d of sections) {
+    if (!enhanced.has(d)) {
+      if (name === null) {
+        d.removeAttribute("name");
+      } else {
+        d.setAttribute("name", name);
+      }
+      continue;
+    }
+    if (name === null) {
+      delete d.dataset["cpGroup"];
+      continue;
+    }
+    d.dataset["cpGroup"] = name;
+    if (d.open && !d.hasAttribute(CLOSING)) {
+      if (kept) {
+        shut(d);
+      }
+      kept = true;
+    }
+  }
 }
 
 /** Shows or hides `el` by gliding its height, instead of letting the content

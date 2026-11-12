@@ -1,0 +1,36 @@
+/* A badge: a count beside a destination or a filter, such as 12 new
+ * releases. Solid for a count that asks to be seen, data-variant="quiet"
+ * for one that only informs. A count is not a state, so it takes the
+ * accent rather than a tone. */
+.cp-badge {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.25rem;
+  block-size: 1.25rem;
+  padding-inline: 0.375rem;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cp-badge[data-variant="quiet"] {
+  background: var(--cp-fill);
+  color: var(--cp-ink-muted);
+}
+
+/* The accent can be the header's own colour, so on the bar a solid badge
+ * takes the bar's ink, as the mark does. */
+.cp-header .cp-badge:not([data-variant]) {
+  background: var(--cp-shell-ink);
+  color: var(--cp-shell-bg);
+}
+
+@media (forced-colors: active) {
+  .cp-badge {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

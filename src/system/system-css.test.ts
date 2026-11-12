@@ -684,7 +684,7 @@ describe("css/system.css media card", () => {
       expect(getComputedStyle(cover).color, n).toBe(paint(`--cp-harmony-${n}-on`));
     }
     const cover = grid(card()).querySelector(".cp-cover") as Element;
-    expect(getComputedStyle(cover).backgroundColor).toBe(paint("--cp-harmony-2"));
+    expect(getComputedStyle(cover).backgroundColor).toBe(paint("--cp-harmony-1"));
     const icon = box(cover.querySelector(".cp-icon"));
     expect([icon.width, icon.height]).toEqual([32, 32]);
     const c = box(cover);
@@ -1339,6 +1339,140 @@ describe("css/system.css", () => {
     expect(getComputedStyle(detail).display).toBe("none");
   });
 
+  it("draws a destination's badge in the bar's ink, and on its icon's corner in the accent on a phone", async () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-app"><header class="cp-header"><nav class="cp-nav"><a class="cp-nav-item" href="#a"><span class="cp-icon"></span><span class="cp-nav-label">Releases</span><span class="cp-badge">12</span></a></nav><span class="cp-badge" data-variant="quiet">3</span></header></div>',
+    );
+    const header = getComputedStyle(el.querySelector(".cp-header") as Element);
+    const [badge, quiet] = [...el.querySelectorAll(".cp-badge")] as [HTMLElement, HTMLElement];
+    expect(getComputedStyle(badge).backgroundColor).toBe(header.color);
+    expect(getComputedStyle(badge).color).toBe(header.backgroundColor);
+    expect(getComputedStyle(badge).fontSize).toBe("13px");
+    expect(getComputedStyle(quiet).backgroundColor).not.toBe(header.color);
+    await page.viewport(390, 800);
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    expect(getComputedStyle(badge).backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(badge).position).toBe("absolute");
+    const item = (el.querySelector(".cp-nav-item") as Element).getBoundingClientRect();
+    const box = badge.getBoundingClientRect();
+    expect(box.left).toBeGreaterThan(item.left + item.width / 2);
+    expect(box.top).toBeLessThan(item.top + 8);
+  });
+
+  it("rings the account button's avatar in the bar's ink, wider while its menu is open", () => {
+    theme("light");
+    const el = build(
+      '<header class="cp-header"><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button></header>',
+    );
+    const button = el.querySelector("button") as HTMLElement;
+    const avatar = el.querySelector(".cp-avatar") as HTMLElement;
+    avatar.style.transition = "none";
+    expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(avatar.getBoundingClientRect().width).toBe(28);
+    expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 2px$/);
+    button.setAttribute("aria-expanded", "true");
+    expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 3px$/);
+  });
+
+  it("colours an avatar by its harmony colour, the first by default", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-avatar">AB</span><span class="cp-avatar" data-harmony="3">CD</span>',
+    );
+    const [first, third] = [...el.querySelectorAll(".cp-avatar")] as [Element, Element];
+    const harmony = (n: number) => {
+      const probe = host("");
+      probe.style.color = `var(--cp-harmony-${String(n)})`;
+      return getComputedStyle(probe).color;
+    };
+    expect(getComputedStyle(first).backgroundColor).toBe(harmony(1));
+    expect(getComputedStyle(third).backgroundColor).toBe(harmony(3));
+    const cs = getComputedStyle(third);
+    expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("lays the status panel's sections edge to edge over the panel's own padding", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-popover cp-status-panel" data-variant="panel" popover><h2>All good</h2><section><strong>Sources</strong><span>Sonarr answered.</span></section></div>',
+    );
+    const panel = el.querySelector(".cp-popover") as HTMLElement;
+    panel.style.transition = "none";
+    panel.showPopover();
+    const box = panel.getBoundingClientRect();
+    const section = (panel.querySelector("section") as Element).getBoundingClientRect();
+    expect(box.width).toBe(320);
+    expect(Math.round(section.left - box.left)).toBe(1);
+    expect(getComputedStyle(panel.querySelector("section") as Element).paddingInlineStart).toBe(
+      "16px",
+    );
+    panel.hidePopover();
+  });
+
+  it("runs a listbox's covered options edge to edge, a title over its facts, 2px apart", () => {
+    theme("light");
+    const option = (title: string) =>
+      `<li role="option"><span class="cp-cover" data-harmony="2"><span class="cp-icon"></span></span><strong>${title}</strong><small>2023 · TV</small></li>`;
+    const el = build(
+      `<div class="cp-popover cp-listbox" popover><ul role="listbox" aria-label="Entries">${option("Hidden")}${option("Frieren")}${option("Mushishi")}</ul><p class="cp-listbox-empty" hidden></p></div>`,
+    );
+    const popup = el.querySelector(".cp-listbox") as HTMLElement;
+    popup.style.transition = "none";
+    popup.showPopover();
+    const [hidden, first, second] = [...el.querySelectorAll("li")] as [
+      HTMLLIElement,
+      HTMLLIElement,
+      HTMLLIElement,
+    ];
+    hidden.hidden = true;
+    const box = popup.getBoundingClientRect();
+    const cover = (first.querySelector(".cp-cover") as Element).getBoundingClientRect();
+    expect(Math.round(cover.left - box.left)).toBe(1);
+    expect([cover.width, cover.height]).toEqual([32, 48]);
+    expect(first.getBoundingClientRect().top - box.top).toBe(1);
+    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(2);
+    const title = (first.querySelector("strong") as Element).getBoundingClientRect();
+    const facts = (first.querySelector("small") as Element).getBoundingClientRect();
+    expect(facts.top).toBeGreaterThanOrEqual(title.bottom);
+    expect(facts.left).toBe(title.left);
+    popup.hidePopover();
+  });
+
+  it("colours a cover by its harmony colour and fills it with its art", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-cover"></span><span class="cp-cover" data-harmony="4"><img alt="" width="10" height="10"></span>',
+    );
+    const [first, fourth] = [...el.querySelectorAll(".cp-cover")] as [HTMLElement, HTMLElement];
+    first.style.inlineSize = "4rem";
+    fourth.style.inlineSize = "4rem";
+    const harmony = (n: number) => {
+      const probe = host("");
+      probe.style.color = `var(--cp-harmony-${String(n)})`;
+      return getComputedStyle(probe).color;
+    };
+    expect(getComputedStyle(first).backgroundColor).toBe(harmony(1));
+    expect(getComputedStyle(fourth).backgroundColor).toBe(harmony(4));
+    expect(first.getBoundingClientRect().height).toBe(96);
+    const art = (fourth.querySelector("img") as Element).getBoundingClientRect();
+    expect([art.width, art.height]).toEqual([64, 96]);
+  });
+
+  it("lets a search field grow in an input row beside its button", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-input-row"><div class="cp-search"><input class="cp-input" placeholder="Title" aria-label="Title"></div><button class="cp-button" type="button">Search</button></div>',
+    );
+    el.style.inlineSize = "40rem";
+    const row = (el.querySelector(".cp-input-row") as Element).getBoundingClientRect();
+    const button = (el.querySelector("button") as Element).getBoundingClientRect();
+    const search = (el.querySelector(".cp-search") as Element).getBoundingClientRect();
+    expect(Math.round(button.right)).toBe(Math.round(row.right));
+    expect(Math.round(search.right + 8)).toBe(Math.round(button.left));
+  });
+
   it("moves the header's destinations to a bar at the window's foot on a phone, and leaves room for it", async () => {
     theme("light");
     const el = build(
@@ -1527,6 +1661,176 @@ describe("css/system.css", () => {
     expect(margins(el.querySelector(".cp-stack > hr"))).toEqual(["0px", "0px"]);
     expect(margins(el.querySelector(".cp-stack > .cp-heading-row"))).toEqual(["0px", "0px"]);
     expect(margins(el.querySelector(".cp-heading-row"))[1]).toBe("20px");
+  });
+
+  it("sets a heading row's line of facts 4px under its title", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-heading-row"><div><h1>Frieren</h1><p class="cp-meta">28 episodes</p></div></div>',
+    );
+    const title = (el.querySelector("h1") as HTMLElement).getBoundingClientRect();
+    const line = (el.querySelector("p") as HTMLElement).getBoundingClientRect();
+    expect(line.top - title.bottom).toBeCloseTo(4, 0);
+  });
+
+  it("underlines the current link tab over the strip's line, and keeps its focus ring inside the scroll box", () => {
+    theme("light");
+    const el = build(
+      '<div style="display: flow-root; inline-size: 200px"><nav class="cp-link-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a><a href="#c">Timing</a></nav><p>Next</p></div>',
+    );
+    const nav = el.querySelector("nav") as HTMLElement;
+    const [current, other] = [...nav.querySelectorAll<HTMLElement>("a")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const mark = getComputedStyle(current, "::after");
+    const accent = build('<span style="color: var(--cp-accent)"></span>')
+      .firstElementChild as HTMLElement;
+    expect(mark.backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(other, "::after").content).toBe("none");
+    expect(getComputedStyle(nav).overflowX).toBe("auto");
+    expect(nav.scrollWidth).toBeGreaterThan(nav.clientWidth);
+    const box = nav.getBoundingClientRect();
+    const tab = current.getBoundingClientRect();
+    const frame = (nav.parentElement as HTMLElement).getBoundingClientRect();
+    const next = (el.querySelector("p") as HTMLElement).getBoundingClientRect();
+    expect(mark.blockSize).toBe("2px");
+    expect(mark.insetBlockEnd).toBe("-1px");
+    // Room for a 2px ring at a 2px offset on every side.
+    expect([tab.top - box.top, tab.left - box.left, box.bottom - tab.bottom]).toEqual([
+      expect.closeTo(4, 0),
+      expect.closeTo(4, 0),
+      expect.closeTo(4, 0),
+    ]);
+    // The margins take that room back: the tabs sit where an unpadded strip
+    // with a 1px line under it would put them.
+    expect([tab.top, tab.left]).toEqual([
+      expect.closeTo(frame.top, 0),
+      expect.closeTo(frame.left, 0),
+    ]);
+    expect(next.top - tab.bottom).toBeCloseTo(1, 0);
+    expect(getComputedStyle(current).color).not.toBe(getComputedStyle(other).color);
+  });
+
+  it("fills a selected tab itself until the pill is there, then paints the pill only", () => {
+    theme("light");
+    const strip = (pill: boolean) =>
+      `<div class="cp-tabs" role="tablist" aria-label="Item">${pill ? '<span class="cp-pill" aria-hidden="true"></span>' : ""}` +
+      '<button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button>' +
+      '<button class="cp-tab" role="tab" type="button" aria-selected="false">History</button></div>';
+    const el = build(strip(false) + strip(true));
+    const [bare, slid] = [...el.querySelectorAll<HTMLElement>(".cp-tabs")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const fill = (list: HTMLElement) =>
+      getComputedStyle(list.querySelector('[aria-selected="true"]') as HTMLElement).backgroundColor;
+    const pill = slid.querySelector(".cp-pill") as HTMLElement;
+    expect(fill(bare)).not.toBe("rgba(0, 0, 0, 0)");
+    expect(fill(slid)).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(pill).backgroundColor).toBe(fill(bare));
+    expect(getComputedStyle(pill).position).toBe("absolute");
+    expect(getComputedStyle(slid).position).toBe("relative");
+    expect(getComputedStyle(slid.querySelector(".cp-tab") as HTMLElement).zIndex).toBe("1");
+  });
+
+  it.skipIf(!emulates)(
+    "keeps the link tabs' line and the current mark in forced colours",
+    async () => {
+      theme("light");
+      await media("forced-colors", "active");
+      const el = build(
+        '<nav class="cp-link-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a></nav>',
+      );
+      const nav = el.querySelector("nav") as HTMLElement;
+      const mark = getComputedStyle(nav.querySelector("a") as HTMLElement, "::after");
+      const system = build('<span style="color: CanvasText"></span>')
+        .firstElementChild as HTMLElement;
+      const ink = getComputedStyle(system).color;
+      expect(getComputedStyle(nav).backgroundImage).toContain(ink);
+      expect(mark.backgroundColor).toBe(ink);
+      expect(getComputedStyle(nav.querySelector("a") as HTMLElement).forcedColorAdjust).toBe(
+        "auto",
+      );
+    },
+  );
+
+  it("divides an accordion's sections, turns an open one's chevron, and pads its content", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-accordion" style="inline-size: 24rem">' +
+        '<details open><summary>Season 1<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details>' +
+        '<details open data-cp-closing><summary>Season 2<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>12 episodes</div></details>' +
+        '<details><summary>Specials<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>2 specials</div></details></div>',
+    );
+    const box = el.querySelector(".cp-accordion") as HTMLElement;
+    const [open, closing, shut] = [...box.querySelectorAll("details")] as [
+      HTMLDetailsElement,
+      HTMLDetailsElement,
+      HTMLDetailsElement,
+    ];
+    const chevron = (d: Element) => d.querySelector("summary > .cp-icon") as HTMLElement;
+    const summary = open.querySelector("summary") as HTMLElement;
+    const body = open.querySelector("div") as HTMLElement;
+    const raised = build('<span style="color: var(--cp-surface-raised)"></span>')
+      .firstElementChild as HTMLElement;
+    expect(getComputedStyle(box).backgroundColor).toBe(getComputedStyle(raised).color);
+    expect(getComputedStyle(box).borderTopWidth).toBe("1px");
+    expect(getComputedStyle(open).borderTopWidth).toBe("0px");
+    expect([closing, shut].map((d) => getComputedStyle(d).borderTopWidth)).toEqual(["1px", "1px"]);
+    expect(summary.getBoundingClientRect().height).toBeCloseTo(32, 0);
+    expect(getComputedStyle(summary).paddingLeft).toBe("16px");
+    expect(getComputedStyle(chevron(open)).rotate).toBe("180deg");
+    expect([closing, shut].map((d) => getComputedStyle(chevron(d)).rotate)).toEqual([
+      "none",
+      "none",
+    ]);
+    expect(chevron(open).getBoundingClientRect().right).toBeCloseTo(
+      summary.getBoundingClientRect().right - 16,
+      0,
+    );
+    const muted = build('<span style="color: var(--cp-ink-muted)"></span>')
+      .firstElementChild as HTMLElement;
+    expect(getComputedStyle(body).color).toBe(getComputedStyle(muted).color);
+    expect(getComputedStyle(body).padding).toBe("0px 16px 16px");
+  });
+
+  it("draws an accordion summary's focus ring inside it", async () => {
+    theme("light");
+    const el = build(
+      '<button type="button">Before</button><div class="cp-accordion"><details><summary>Season 1<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details></div>',
+    );
+    (el.querySelector("button") as HTMLElement).focus();
+    await userEvent.tab();
+    const summary = el.querySelector("summary") as HTMLElement;
+    expect(document.activeElement).toBe(summary);
+    expect(getComputedStyle(summary).outlineOffset).toBe("-2px");
+  });
+
+  it("puts a section's menu button beside its summary, before the chevron, and wraps a long title short of it", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-accordion" style="inline-size: 16rem"><div class="cp-accordion-section">' +
+        '<details><summary>Season 1 with a title too long for one line<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details>' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="Season 1 actions"><span class="cp-icon" data-cp-icon="ellipsis"></span></button></div></div>',
+    );
+    const summary = el.querySelector("summary") as HTMLElement;
+    const button = el.querySelector(".cp-button") as HTMLElement;
+    const chevron = summary.querySelector(".cp-icon") as HTMLElement;
+    const s = summary.getBoundingClientRect();
+    const b = button.getBoundingClientRect();
+    const words = document.createRange();
+    words.selectNodeContents(summary.firstChild as Text);
+    const lines = [...words.getClientRects()];
+    expect(b.top - s.top).toBeCloseTo(3, 0);
+    expect(s.right - b.right).toBeCloseTo(40, 0);
+    const c = chevron.getBoundingClientRect();
+    expect(b.right).toBeLessThan(c.left);
+    expect(c.top + c.height / 2).toBeCloseTo(b.top + b.height / 2, 0);
+    expect((lines[0] as DOMRect).top - s.top).toBeGreaterThanOrEqual(4);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(Math.max(...lines.map((r) => r.right))).toBeLessThanOrEqual(b.left);
+    expect(summary.contains(button)).toBe(false);
   });
 
   for (const t of ["light", "dark"] as const) {
@@ -1874,6 +2178,61 @@ describe("css/system.css", () => {
     );
     const [r, m] = [...el.querySelectorAll("p")].map((p) => p.getBoundingClientRect().top);
     expect(r).toBe(m);
+  });
+
+  it("ends a filter with its quiet count, solid in the accent while on, and fades the wash over 240ms", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-filter-group" style="inline-size:14rem">' +
+        '<button class="cp-filter" type="button" aria-pressed="true">On the best<span class="cp-badge" data-variant="quiet">268</span></button>' +
+        '<button class="cp-filter" type="button" aria-pressed="false">Missing<span class="cp-badge" data-variant="quiet">9</span></button></div>',
+    );
+    const [on, off] = [...el.querySelectorAll<HTMLElement>(".cp-filter")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const badge = (f: HTMLElement) => f.querySelector(".cp-badge") as HTMLElement;
+    for (const f of [on, off]) {
+      f.style.transition = "none";
+      badge(f).style.transition = "none";
+    }
+    const probe = host("");
+    probe.style.color = "var(--cp-accent)";
+    probe.style.backgroundColor = "var(--cp-fill)";
+    expect(getComputedStyle(badge(on)).backgroundColor).toBe(getComputedStyle(probe).color);
+    expect(getComputedStyle(badge(off)).backgroundColor).toBe(
+      getComputedStyle(probe).backgroundColor,
+    );
+    expect(Math.round(badge(off).getBoundingClientRect().right)).toBe(
+      Math.round(
+        off.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(off).paddingRight),
+      ),
+    );
+    off.style.removeProperty("transition");
+    expect(getComputedStyle(off).transitionDuration).toBe("0.24s");
+  });
+
+  it("marks a late part of the status line in the warning ink with a clock, and spaces its wrapped lines", () => {
+    theme("light");
+    const el = build(
+      '<footer class="cp-status" style="inline-size:12rem"><span>412 entries</span><span data-state="late">Late: the 14:00 check has not run</span></footer>',
+    );
+    const late = el.querySelector('[data-state="late"]') as HTMLElement;
+    const probe = host("");
+    probe.style.color = "var(--cp-warning-11)";
+    expect(getComputedStyle(late).color).toBe(getComputedStyle(probe).color);
+    expect(decodeURIComponent(getComputedStyle(late, "::before").maskImage)).toContain(
+      "M12 6v6l4 2",
+    );
+    const plain = late.previousElementSibling as Element;
+    expect(getComputedStyle(plain, "::before").content).toBe("none");
+    const status = el.querySelector(".cp-status") as HTMLElement;
+    const [first, second] = [...status.children].map((n) => n.getBoundingClientRect()) as [
+      DOMRect,
+      DOMRect,
+    ];
+    expect(second.top - first.bottom).toBeGreaterThanOrEqual(4);
+    expect(first.top - status.getBoundingClientRect().top).toBeGreaterThanOrEqual(4);
   });
 
   it("shrinks a field and the button beside it to a narrow column", () => {
@@ -2460,6 +2819,80 @@ describe("css/system.css feedback and steps", () => {
     ).toBe("cp-toast-drain");
   });
 
+  it("stacks a banner's head, its reasons and its foot, the foot in the tone's ink", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-banner" data-tone="warning"><strong>Update ready.</strong> Reload to use it. <small>Saved.</small><button class="cp-button" type="button">Reload</button></div>' +
+        '<div class="cp-banner" data-tone="warning"><strong><span class="cp-icon"></span>Reachable from the internet</strong><ul><li>It answers on a public address.</li></ul><small>Seen today. <a href="#a">How to limit access</a></small></div>',
+    );
+    const [plain, reasons] = [...el.querySelectorAll<HTMLElement>(".cp-banner")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect(getComputedStyle(plain).display).toBe("flex");
+    expect(getComputedStyle(plain).paddingBlockStart).toBe("8px");
+    expect(getComputedStyle(plain.querySelector("strong") as Element).display).toBe("block");
+    expect(getComputedStyle(plain.querySelector("small") as Element).color).toBe(
+      getComputedStyle(plain).color,
+    );
+    const box = getComputedStyle(reasons);
+    expect([box.display, box.paddingBlockStart, box.paddingInlineStart]).toEqual([
+      "grid",
+      "12px",
+      "16px",
+    ]);
+    const head = reasons.querySelector("strong") as HTMLElement;
+    const list = reasons.querySelector("ul") as HTMLElement;
+    expect(list.getBoundingClientRect().top - head.getBoundingClientRect().bottom).toBe(8);
+    expect(getComputedStyle(list).paddingInlineStart).toBe("28px");
+    expect(getComputedStyle(head).display).toBe("flex");
+    const ink = host("");
+    ink.style.color = "var(--cp-warning-11)";
+    const words = host("");
+    words.style.color = "var(--cp-warning-12)";
+    const foot = getComputedStyle(reasons.querySelector("small") as Element);
+    expect([foot.color, foot.fontSize]).toEqual([getComputedStyle(ink).color, "13px"]);
+    expect(getComputedStyle(reasons.querySelector(".cp-icon") as Element).color).toBe(
+      getComputedStyle(ink).color,
+    );
+    expect(box.color).toBe(getComputedStyle(words).color);
+  });
+
+  it("flashes a chip's solid at 110% and fades it back to its wash from the first fifth", () => {
+    theme("light");
+    const el = build('<span class="cp-chip" data-tone="danger" data-cp-flash="">Down</span>');
+    const chip = el.querySelector(".cp-chip") as HTMLElement;
+    const at = (ms: number) => {
+      for (const a of chip.getAnimations()) {
+        a.pause();
+        a.currentTime = ms;
+      }
+      return getComputedStyle(chip);
+    };
+    const solid = host("", { "data-tone": "danger" });
+    solid.style.cssText = "background: var(--cp-tone-9); color: var(--cp-tone-on)";
+    const wash = host("");
+    wash.style.background = "var(--cp-danger-3)";
+    // An animated colour reads back in its interpolation space, so compare pixels.
+    const solidBg = rgb(getComputedStyle(solid).backgroundColor);
+    const on = rgb(getComputedStyle(solid).color);
+    expect([rgb(at(0).backgroundColor), rgb(at(0).color)]).toEqual([solidBg, on]);
+    expect([rgb(at(162).backgroundColor), at(162).scale]).toEqual([solidBg, "1.1"]);
+    expect(rgb(at(600).backgroundColor)).not.toEqual(solidBg);
+    expect(Number(at(600).scale)).toBeLessThan(1.1);
+    chip.removeAttribute("data-cp-flash");
+    expect(getComputedStyle(chip).backgroundColor).toBe(getComputedStyle(wash).backgroundColor);
+  });
+
+  it.skipIf(!emulates)("keeps a chip's flash but not its growth under reduced motion", async () => {
+    theme("light");
+    const el = build('<span class="cp-chip" data-tone="success" data-cp-flash="">Up</span>');
+    await media("prefers-reduced-motion", "reduce");
+    expect(getComputedStyle(el.querySelector(".cp-chip") as Element).animationName).toBe(
+      "cp-chip-flash",
+    );
+  });
+
   it("puts a tooltip above its control by the anchor the tooltip script names", () => {
     theme("light");
     const el = build(
@@ -2562,6 +2995,148 @@ describe("css/system.css feedback and steps", () => {
     expect(getComputedStyle(failed as Element).color).toBe(tone("--cp-danger-11"));
     expect(before(passed).maskImage).toMatch(/^url\(/);
     expect(before(passed).maskImage).not.toBe(before(failed).maskImage);
+  });
+
+  it("reveals a progress fill to its --cp-progress, and turns it green with its check once done", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-progress" role="progressbar" aria-label="Check" aria-valuenow="40"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>40%</span>',
+    );
+    const bar = el.querySelector(".cp-progress") as HTMLElement;
+    const fill = el.querySelector(".cp-progress-fill") as HTMLElement;
+    fill.style.transition = "none";
+    bar.style.setProperty("--cp-progress", "40%");
+    const track = (el.querySelector(".cp-progress-track") as HTMLElement).getBoundingClientRect();
+    expect([track.width, track.height]).toEqual([224, 8]);
+    expect(getComputedStyle(fill).clipPath).toMatch(/^inset\(0px 60% 0px 0px round/);
+    // The track comes first, then the check's kept place, then the words.
+    const check = getComputedStyle(bar, "::before");
+    expect([check.width, check.opacity, check.scale]).toEqual(["18px", "0", "0"]);
+    expect(check.maskImage).toMatch(/^url\(/);
+    const accent = host("");
+    accent.style.color = "var(--cp-accent-9)";
+    const success = host("");
+    success.style.color = "var(--cp-success-9)";
+    const from = (): string => getComputedStyle(fill).getPropertyValue("--cp-progress-from");
+    expect(rgb(from())).toEqual(rgb(getComputedStyle(accent).color));
+    bar.dataset["state"] = "done";
+    expect(rgb(from())).toEqual(rgb(getComputedStyle(success).color));
+    expect(rgb(getComputedStyle(fill).getPropertyValue("--cp-progress-to"))).toEqual(
+      rgb(getComputedStyle(success).color),
+    );
+    fill.style.removeProperty("transition");
+    // Green waits for the last step's 480ms glide, and the check for green.
+    expect(getComputedStyle(fill).transitionDelay).toBe("0s, 0.48s, 0.48s");
+    expect(getComputedStyle(bar, "::before").transitionDelay).toBe("0.74s, 0.74s");
+  });
+
+  it.skipIf(!emulates)("keeps a progress fill apart from its track in forced colours", async () => {
+    theme("light");
+    await media("forced-colors", "active");
+    const el = build(
+      '<span class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>1 of 2</span>' +
+        '<span dir="rtl" class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>1 of 2</span>',
+    );
+    const rtl = getComputedStyle(el.querySelector("[dir=rtl] .cp-progress-fill") as Element);
+    expect(rtl.backgroundImage).toBe("none");
+    const track = getComputedStyle(el.querySelector(".cp-progress-track") as Element);
+    const fill = getComputedStyle(el.querySelector(".cp-progress-fill") as Element);
+    const system = (colour: string): string => {
+      const h = host("");
+      h.style.cssText = `forced-color-adjust: none; background: ${colour}`;
+      return getComputedStyle(h).backgroundColor;
+    };
+    expect(fill.backgroundImage).toBe("none");
+    expect([fill.backgroundColor, track.backgroundColor]).toEqual([
+      system("Highlight"),
+      system("Canvas"),
+    ]);
+    expect(system("Highlight")).not.toBe(system("Canvas"));
+    expect(track.outlineStyle).toBe("solid");
+  });
+
+  it("puts a progress bar's words under its track in a box too narrow for both", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-empty"><span class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>Series 120 of 351</span></div>',
+    );
+    el.style.inlineSize = "20rem";
+    const bar = el.querySelector(".cp-progress") as HTMLElement;
+    const track = (el.querySelector(".cp-progress-track") as HTMLElement).getBoundingClientRect();
+    expect(bar.getBoundingClientRect().right).toBeLessThanOrEqual(
+      (el.firstElementChild as HTMLElement).getBoundingClientRect().right,
+    );
+    expect(bar.getBoundingClientRect().height).toBeGreaterThan(track.height + 8);
+    el.style.inlineSize = "40rem";
+    expect(bar.getBoundingClientRect().height).toBeLessThan(24);
+  });
+
+  it("shrinks a progress bar's track to fit a box narrower than the track", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-progress"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>Series 120 of 351</span>',
+    );
+    el.style.inlineSize = "10rem";
+    const box = el.getBoundingClientRect();
+    const bar = (el.querySelector(".cp-progress") as HTMLElement).getBoundingClientRect();
+    const track = (el.querySelector(".cp-progress-track") as HTMLElement).getBoundingClientRect();
+    expect(bar.right).toBeLessThanOrEqual(box.right + 0.5);
+    expect(track.width).toBeLessThanOrEqual(160.5);
+    expect(track.width).toBeGreaterThanOrEqual(80);
+  });
+
+  it.skipIf(!emulates)(
+    "jumps a progress fill and fades its check in at once under reduced motion",
+    async () => {
+      theme("light");
+      const el = build(
+        '<span class="cp-progress" data-state="done"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>2 of 2</span>',
+      );
+      await media("prefers-reduced-motion", "reduce");
+      const fill = getComputedStyle(el.querySelector(".cp-progress-fill") as Element);
+      expect(fill.transitionProperty).not.toMatch(/clip-path/);
+      expect(fill.transitionDelay).toMatch(/^0s(, 0s)*$/);
+      const check = getComputedStyle(el.querySelector(".cp-progress") as Element, "::before");
+      expect(check.transitionProperty).toBe("opacity");
+      expect(check.transitionDelay).toBe("0s");
+      expect(check.scale).toBe("1");
+    },
+  );
+
+  it("sizes a skeleton's heading and last lines, and leads an empty state with its glyph or loader", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-stack"><div class="cp-skeleton" data-variant="heading"></div><div class="cp-skeleton"></div><div class="cp-skeleton" data-variant="last"></div></div>' +
+        '<div class="cp-empty"><span class="cp-icon" data-tone="danger"></span><strong>Failed</strong></div>' +
+        '<div class="cp-empty"><span class="cp-icon"></span><strong><span class="cp-loader"><span></span></span>Reading</strong></div>',
+    );
+    el.style.inlineSize = "500px";
+    root.classList.add("cp");
+    const [heading, line, last] = [...el.querySelectorAll<HTMLElement>(".cp-skeleton")].map(
+      (s) => s.getBoundingClientRect().width,
+    ) as [number, number, number];
+    expect([heading / line, last / line]).toEqual([0.4, 0.85]);
+    const [failed, plain] = [...el.querySelectorAll<HTMLElement>(".cp-empty > .cp-icon")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const danger = host("");
+    danger.style.color = "var(--cp-danger-9)";
+    const accent = host("");
+    accent.style.color = "var(--cp-accent-9)";
+    expect([getComputedStyle(failed).width, getComputedStyle(failed).color]).toEqual([
+      "48px",
+      getComputedStyle(danger).color,
+    ]);
+    expect(getComputedStyle(plain).color).toBe(getComputedStyle(accent).color);
+    const head = el.querySelector("strong:has(.cp-loader)") as HTMLElement;
+    const loader = (head.firstElementChild as HTMLElement).getBoundingClientRect();
+    const box = head.getBoundingClientRect();
+    expect([getComputedStyle(head).display, getComputedStyle(head).columnGap]).toEqual([
+      "flex",
+      "8px",
+    ]);
+    expect(loader.top + loader.height / 2).toBeCloseTo(box.top + box.height / 2, 0);
   });
 
   it("twirls a loader through the harmony colours", () => {

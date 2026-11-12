@@ -192,6 +192,51 @@ describe("enhanceCombobox", () => {
     await expect.poll(() => settled).toEqual(["Mon"]);
   });
 
+  it("shows its no-match line in the popup while typed text matches none, and closes for an empty field", async () => {
+    const input = document.createElement("input");
+    input.setAttribute("aria-label", "Jump to an entry");
+    const popup = document.createElement("div");
+    popup.className = "cp-popover cp-listbox";
+    const list = document.createElement("ul");
+    list.id = "entries";
+    const option = document.createElement("li");
+    option.setAttribute("role", "option");
+    option.textContent = "Frieren";
+    list.append(option);
+    const empty = document.createElement("p");
+    empty.textContent = "No entry matches";
+    empty.hidden = true;
+    popup.append(list, empty);
+    document.body.append(input, popup);
+    enhanceCombobox(input, list, {
+      popup,
+      empty,
+      onQuery: (text) => {
+        option.hidden = text === "" || !"frieren".startsWith(text.toLowerCase());
+      },
+      onAccept: () => undefined,
+      signal: life.signal,
+    });
+    expect([popup.popover, list.hasAttribute("popover")]).toEqual(["manual", false]);
+    input.focus();
+    await userEvent.keyboard("Fz");
+    expect([open(popup), empty.hidden, option.hidden]).toEqual([true, false, true]);
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    expect(active(input)).toBeNull();
+    await userEvent.click(empty);
+    expect([document.activeElement, open(popup)]).toEqual([input, true]);
+    await userEvent.keyboard("{Backspace}");
+    expect([open(popup), empty.hidden]).toEqual([true, true]);
+    await userEvent.keyboard("{Backspace}");
+    expect([open(popup), empty.hidden]).toEqual([false, true]);
+    await userEvent.keyboard("q");
+    expect(open(popup)).toBe(true);
+    await userEvent.keyboard("{Escape}");
+    expect([open(popup), input.value]).toEqual([false, "q"]);
+    await userEvent.keyboard("{Escape}");
+    expect([open(popup), input.value, empty.hidden]).toEqual([false, "", true]);
+  });
+
   it("removes its attributes and closes once its signal aborts", async () => {
     const { input, list } = combo();
     input.focus();

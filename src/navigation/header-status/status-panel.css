@@ -1,0 +1,28 @@
+/* The header status's panel: a .cp-popover[data-variant="panel"] whose
+ * heading repeats the state's words, over one <section> per fact, each a
+ * <strong> head with its glyph and a sentence, divided edge to edge. After
+ * popover.css, whose panel padding this replaces. */
+.cp-popover.cp-status-panel {
+  gap: 0;
+  inline-size: 20rem;
+  padding: 0;
+}
+
+.cp-status-panel > h2 {
+  padding: var(--cp-space-3) var(--cp-space-4);
+  font-size: var(--cp-text-md);
+}
+
+.cp-status-panel > section {
+  display: grid;
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-status-panel > section > strong {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}

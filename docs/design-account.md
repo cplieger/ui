@@ -121,6 +121,8 @@ An `auth_recent_auth_required` with reason `reenable_needs_other_method` opens n
 
 ## Account and security
 
+The header reaches it through the account button, `.cp-account`, a menu button whose menu says who is signed in, links to this page as "Account and security" and ends with "Sign out".
+
 The Security page has one `<h2>` section each for the profile, the sign-in methods, the sessions and the API keys, in that order, and the security log when the app shows it. Each section saves on its own, and its form's fields sit in a `.cp-form`.
 
 ![The Security page in the dark theme: the profile form, the sign-in methods with a password turned off, the passkeys with one that may be copied, the sessions, and a new API key shown once above the keys](images/system-security-dark.png)

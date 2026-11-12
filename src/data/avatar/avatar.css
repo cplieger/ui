@@ -1,0 +1,41 @@
+/* An avatar: a person's initials on one flat harmony colour, which
+ * data-harmony picks from 1 to 4, so a list of people tells them apart
+ * without a hand-picked hue. */
+.cp-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 30%;
+  background: var(--cp-harmony-1);
+  color: var(--cp-harmony-1-on);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+}
+
+.cp-avatar[data-harmony="2"] {
+  background: var(--cp-harmony-2);
+  color: var(--cp-harmony-2-on);
+}
+
+.cp-avatar[data-harmony="3"] {
+  background: var(--cp-harmony-3);
+  color: var(--cp-harmony-3-on);
+}
+
+.cp-avatar[data-harmony="4"] {
+  background: var(--cp-harmony-4);
+  color: var(--cp-harmony-4-on);
+}
+
+.cp-avatar[data-size="sm"] {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+}
+
+@media (forced-colors: active) {
+  .cp-avatar {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
