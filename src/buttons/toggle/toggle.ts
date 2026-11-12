@@ -41,10 +41,14 @@ export function enhanceToggle(button: HTMLButtonElement, options: ToggleOptions 
     () => {
       const on = !state();
       button.setAttribute("aria-pressed", String(on));
-      // A second change mid-motion restarts it from the new state.
+      // A second change mid-motion restarts it from the new state. A button
+      // not drawn, as one pressed from a toolbar's More menu, would end no
+      // animation and play it once shown, so it marks none.
       button.removeAttribute(MOTION);
       button.getBoundingClientRect();
-      button.setAttribute(MOTION, on ? "on" : "off");
+      if (button.checkVisibility()) {
+        button.setAttribute(MOTION, on ? "on" : "off");
+      }
       onChange?.(on);
     },
     listen,

@@ -1,9 +1,9 @@
 /**
- * press.ts — `installPress()` puts `data-cp-pressed` on the button, link or
- * checkbox label a mouse, a finger, a pen or a key is pressing, so a
- * stylesheet draws a press that shows on touch too. `:active` cannot: iOS
- * Safari applies it only under a touchstart listener, and a quick tap holds
- * it for a frame or two.
+ * press.ts — `installPress()` puts `data-cp-pressed` on the button, link,
+ * checkbox label or listbox option a mouse, a finger, a pen or a key is
+ * pressing, so a stylesheet draws a press that shows on touch too. `:active`
+ * cannot: iOS Safari applies it only under a touchstart listener, and a quick
+ * tap holds it for a frame or two.
  * @module
  */
 
@@ -25,8 +25,9 @@ const SPACE = [
 ].join(", ");
 const ENTER = `${SPACE}, a[href]:not([aria-disabled="true"])`;
 const TOGGLE = 'input:is([type="checkbox"], [type="radio"]):not(:disabled)';
-/** A checkbox or radio presses through the label that wraps it. */
-const POINTER = `${ENTER}, label:has(${TOGGLE})`;
+/** A checkbox or radio presses through the label that wraps it, and a
+ *  listbox option, which only a pointer presses, through itself. */
+const POINTER = `${ENTER}, label:has(${TOGGLE}), [role="option"]:not([aria-disabled="true"])`;
 
 /** Android shows a touch press after this long (ViewConfiguration.TAP_TIMEOUT),
  *  so a scroll that starts on a control cancels before anything shows. */

@@ -30,7 +30,7 @@ page.abort(); // removes the listeners and every data-cp-pressed they set
 
 ## What it presses
 
-- An enabled `button`, a `[role="button"]`, a `summary` and an `a[href]`, and a checkbox or radio through the `label` that wraps it, from the box or from the words. `disabled` or a disabled `fieldset` takes a button or a checkbox out, and `aria-disabled="true"` takes out any of them.
+- An enabled `button`, a `[role="button"]`, a `summary` and an `a[href]`, a checkbox or radio through the `label` that wraps it, from the box or from the words, and a listbox's `[role="option"]` under a pointer. `disabled` or a disabled `fieldset` takes a button or a checkbox out, and `aria-disabled="true"` takes out any of them.
 - The nearest of those from the event's target, inside an open shadow root too.
 
 ## When the press shows

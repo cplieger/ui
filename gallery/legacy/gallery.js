@@ -55,7 +55,7 @@ const coarse = () => root.dataset.pointer === "coarse";
 // attribute that a mouse, a finger and a key set the same way. :active cannot
 // carry it: iOS Safari applies it only under a touchstart listener, and a
 // quick tap holds it for a frame or two.
-const PRESSABLE = "button:not(:disabled), label:has(input:not(:disabled))";
+const PRESSABLE = 'button:not(:disabled), label:has(input:not(:disabled)), [role="option"]:not([aria-disabled="true"])';
 // Android shows a touch press after its 100ms tap timeout (ViewConfiguration
 // TAP_TIMEOUT), so a scroll that starts on a control cancels before it shows.
 const TOUCH_DELAY = 100;
@@ -207,8 +207,8 @@ for (const b of document.querySelectorAll(".btn-done[data-demo-save]")) {
 }
 
 
-// Icon twirls and toggles. The settings cog has six teeth, so a 60 degree
-// notch lands it looking as it started.
+// The settings cog has six teeth, so a 60 degree notch lands it looking as
+// it started.
 for (const b of document.querySelectorAll(".cog-turn")) {
   b.addEventListener("click", () => {
     b.classList.remove("turning");
@@ -216,28 +216,6 @@ for (const b of document.querySelectorAll(".cog-turn")) {
     b.classList.add("turning");
   });
   b.addEventListener("animationend", () => b.classList.remove("turning"));
-}
-
-for (const b of document.querySelectorAll(".twirl-click")) {
-  b.addEventListener("click", () => {
-    b.classList.remove("spun");
-    void b.offsetWidth;
-    b.classList.add("spun");
-  });
-}
-
-for (const b of document.querySelectorAll("[data-toggle]")) {
-  b.addEventListener("click", () => {
-    const on = b.getAttribute("aria-pressed") !== "true";
-    b.setAttribute("aria-pressed", String(on));
-    const icon = b.querySelector(".cp-icon");
-    if (b.dataset.toggle === "pin") {
-      icon.dataset.cpIcon = on ? "pin-filled" : "pin";
-      b.classList.toggle("unpinned", !on);
-    }
-    if (b.dataset.toggle === "heart") icon.dataset.cpIcon = on ? "heart-filled" : "heart";
-  });
-  b.addEventListener("animationend", () => b.classList.remove("unpinned"));
 }
 
 // Odometer
@@ -265,35 +243,6 @@ for (const o of document.querySelectorAll(".odometer")) {
     setOdometer(o, v % 10 ** o.children.length);
     o.setAttribute("aria-label", String(v));
   });
-}
-
-// Segmented choices and toggle groups: one pill under the chosen one. It
-// lands without motion on load and on a resize, and slides on a choice.
-for (const group of document.querySelectorAll(".cp-segmented, .g-toggles")) {
-  const pill = document.createElement("span");
-  pill.className = "pill";
-  pill.setAttribute("aria-hidden", "true");
-  pill.dataset.still = "";
-  group.prepend(pill);
-  const chosen = () =>
-    group.classList.contains("g-toggles")
-      ? group.querySelector('button[aria-pressed="true"]')
-      : group.querySelector("label:has(:checked)");
-  const place = (still) => {
-    const c = chosen();
-    pill.hidden = !c;
-    if (!c) return;
-    if (still) pill.dataset.still = "";
-    pill.style.setProperty("--x", `${c.offsetLeft}px`);
-    pill.style.setProperty("--y", `${c.offsetTop}px`);
-    pill.style.setProperty("--w", `${c.offsetWidth}px`);
-    pill.style.setProperty("--h", `${c.offsetHeight}px`);
-    if (still) requestAnimationFrame(() => requestAnimationFrame(() => delete pill.dataset.still));
-  };
-  new ResizeObserver(() => place(true)).observe(group);
-  group.addEventListener("change", () => place(false));
-  group.addEventListener("click", () => requestAnimationFrame(() => place(false)));
-  place(true);
 }
 
 // Five quick presses on a wordmark flip its mark: a rare surprise.
@@ -499,24 +448,15 @@ new MutationObserver((records) => {
 // heard from inside an open modal dialog too.
 const say = (text) => announce(text);
 
-// A trigger with filters or labels on: data-active, and its icon swaps to
-// the filled drawing named by data-cp-icon-on.
-const markActive = (b, on) => {
-  b.toggleAttribute("data-active", on);
-  const ic = $(".cp-icon[data-cp-icon-on]", b);
-  if (!ic) return;
-  ic.dataset.cpIconOff ??= ic.dataset.cpIcon;
-  ic.dataset.cpIcon = on ? ic.dataset.cpIconOn : ic.dataset.cpIconOff;
-};
-
 // ---------------------------------------------------------- anchors
 // Each popover anchors to the button that opens it, by a name unique to the
 // pair, so CSS anchor positioning places and flips it.
 // A popover shared by several buttons (one menu for every row) takes the
 // anchor of the one pressed; a button inside its own popover anchors nothing.
+// A .cp-popover is the library's, placed by installAnchors().
 $$("[popovertarget]").forEach((b, i) => {
   const pop = document.getElementById(b.getAttribute("popovertarget"));
-  if (!pop || pop.contains(b)) return;
+  if (!pop || pop.contains(b) || pop.matches(".cp-popover")) return;
   const name = `--g-anchor-${i}`;
   b.style.setProperty("anchor-name", name);
   if (!pop.style.getPropertyValue("position-anchor")) pop.style.setProperty("position-anchor", name);
@@ -560,88 +500,6 @@ function menuKeys(menu) {
 }
 $$("[role='menu'][popover]:not(.cp-menu)").forEach(menuKeys);
 
-// A context menu opens where the pointer is: a right click, or a finger held
-// still for half a second. The hold selects no text and opens no browser
-// menu, and the lift that ends it clicks nothing. Each row's ⋯ button opens
-// the same menu under itself.
-const ctx = $("#ctx-menu");
-if (ctx) {
-  const show = () => ctx.matches(":popover-open") || ctx.showPopover();
-  // popover="manual": the browser's light dismiss would take the finger's
-  // lift after a hold as a press outside and close the menu it just opened.
-  // A press outside or Escape closes it instead.
-  document.addEventListener("pointerdown", (e) => {
-    if (ctx.matches(":popover-open") && !ctx.contains(e.target) && !e.target.closest?.("[data-context-open]")) ctx.hidePopover();
-  }, true);
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && ctx.matches(":popover-open")) ctx.hidePopover();
-  });
-  // Opened from a button, the menu hands focus back to it as it closes.
-  let opener = null;
-  ctx.addEventListener("toggle", (e) => {
-    if (e.newState !== "closed") return;
-    if (opener && (ctx.contains(document.activeElement) || document.activeElement === document.body)) opener.focus();
-    opener = null;
-  });
-  const openAt = (x, y, row) => {
-    ctx.style.setProperty("position-anchor", "none");
-    ctx.style.positionArea = "none";
-    ctx.style.left = `${Math.min(x, innerWidth - 220)}px`;
-    ctx.style.top = `${Math.min(y, innerHeight - 220)}px`;
-    ctx.dataset.row = row?.dataset.name ?? "";
-    opener = null;
-    show();
-  };
-  for (const zone of $$("[data-context]")) {
-    zone.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      if (!held) openAt(e.clientX, e.clientY, e.target.closest("[data-name]"));
-    });
-    let hold = 0;
-    let start = null;
-    let held = false;
-    const drop = () => {
-      clearTimeout(hold);
-      start = null;
-    };
-    zone.addEventListener("pointerdown", (e) => {
-      if (e.pointerType === "mouse" || e.target.closest("button")) return;
-      held = false;
-      start = { x: e.clientX, y: e.clientY };
-      hold = setTimeout(() => {
-        held = true;
-        openAt(start.x, start.y, e.target.closest("[data-name]"));
-      }, 500);
-    });
-    zone.addEventListener("pointermove", (e) => {
-      if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) drop();
-    });
-    for (const t of ["pointerup", "pointercancel"]) zone.addEventListener(t, drop);
-    // The lift after a hold would click the row under the finger.
-    zone.addEventListener("click", (e) => {
-      if (!held) return;
-      held = false;
-      e.preventDefault();
-      e.stopPropagation();
-    }, true);
-    zone.addEventListener("selectstart", (e) => start && e.preventDefault());
-  }
-  for (const b of $$("[data-context-open]")) {
-    const name = `--g-ctx-${b.closest("[data-name]").dataset.name}`;
-    b.style.setProperty("anchor-name", name);
-    b.addEventListener("click", () => {
-      if (ctx.matches(":popover-open") && opener === b) return ctx.hidePopover();
-      opener = b;
-      ctx.style.removeProperty("left");
-      ctx.style.removeProperty("top");
-      ctx.style.positionArea = "";
-      ctx.style.setProperty("position-anchor", name);
-      ctx.dataset.row = b.closest("[data-name]").dataset.name;
-      show();
-    });
-  }
-}
-
 // ------------------------------------------------------------ dialogs
 // Buttons open and close dialogs through commandfor; this fills in only for
 // an engine without invoker commands.
@@ -657,20 +515,7 @@ if (!("command" in HTMLButtonElement.prototype)) {
 }
 // A press outside a dialog closes it, as closedby="any" does in the engines
 // that ship it (Safari does not yet). It must start and end outside, so a
-// drag out of a field closes nothing. A dialog holding changes the person
-// typed keeps them: it shakes instead, and Escape or Cancel still close it.
-const typedIn = (d) => $$("input, textarea, select", d).some((f) =>
-  f.type === "checkbox" || f.type === "radio" ? f.checked !== f.defaultChecked : f.tagName === "SELECT" ? [...f.options].some((o) => o.selected !== o.defaultSelected) : f.value !== f.defaultValue);
-for (const d of $$("dialog[data-keep-typed]")) {
-  // A cancel drops the edits; a save makes them the dialog's new start.
-  d.addEventListener("close", () => {
-    const form = $("form", d);
-    if (d.returnValue && d.returnValue !== "cancel") {
-      for (const f of $$("input, textarea", form)) f.defaultValue = f.value;
-    }
-    form.reset();
-  });
-}
+// drag out of a field closes nothing.
 for (const d of $$("dialog.g-dialog")) {
   const outside = (e) => {
     const r = d.getBoundingClientRect();
@@ -681,70 +526,12 @@ for (const d of $$("dialog.g-dialog")) {
   d.addEventListener("click", (e) => {
     if (!startedOutside || !outside(e)) return;
     startedOutside = false;
-    if (d.hasAttribute("data-keep-typed") && typedIn(d)) {
-      d.classList.remove("g-refused");
-      void d.offsetWidth;
-      d.classList.add("g-refused");
-      say("Your changes are still here. Save them, or press Cancel.");
-      return;
-    }
     d.close("cancel");
   });
 }
 
-for (const d of $$("dialog[data-says]")) {
+for (const d of $$("dialog.g-dialog[data-says]")) {
   d.addEventListener("close", () => d.returnValue && d.returnValue !== "cancel" && toast({ kind: d.returnValue === "delete" ? "success" : "info", title: d.dataset.says }));
-}
-
-// --------------------------------------------------------- command palette
-const cmdPalette = $("#palette");
-if (cmdPalette) {
-  const input = $("input", cmdPalette);
-  const list = $("[role='listbox']", cmdPalette);
-  const all = $$("[role='option']", list);
-  const visible = () => all.filter((o) => !o.hidden);
-  const activate = (o) => {
-    for (const n of all) n.setAttribute("aria-selected", String(n === o));
-    if (o) {
-      input.setAttribute("aria-activedescendant", o.id);
-      o.scrollIntoView({ block: "nearest" });
-    }
-  };
-  input.addEventListener("input", () => {
-    const q = input.value.trim().toLowerCase();
-    for (const o of all) o.hidden = q !== "" && !o.textContent.toLowerCase().includes(q);
-    activate(visible()[0]);
-    $(".g-none", cmdPalette).hidden = visible().length > 0;
-  });
-  input.addEventListener("keydown", (e) => {
-    const v = visible();
-    const at = v.findIndex((o) => o.getAttribute("aria-selected") === "true");
-    if (e.key === "ArrowDown") activate(v[(at + 1) % v.length]);
-    else if (e.key === "ArrowUp") activate(v[(at - 1 + v.length) % v.length]);
-    else if (e.key === "Enter" && v[at]) run(v[at]);
-    else return;
-    e.preventDefault();
-  });
-  const run = (o) => {
-    cmdPalette.close();
-    toast({ kind: "info", title: o.querySelector("span:not(.cp-icon)").textContent });
-  };
-  list.addEventListener("click", (e) => {
-    const o = e.target.closest("[role='option']");
-    if (o) run(o);
-  });
-  const open = () => {
-    input.value = "";
-    input.dispatchEvent(new Event("input"));
-    cmdPalette.showModal();
-  };
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-      e.preventDefault();
-      open();
-    }
-  });
-  $("[data-palette-open]")?.addEventListener("click", open);
 }
 
 // --------------------------------------------------------------- fields
@@ -1531,25 +1318,6 @@ for (const list of $$("[data-jobs]")) {
   setInterval(tick, 700);
 }
 
-// ---------------------------------------------- grouped confirmation
-for (const d of $$("[data-grouped]")) {
-  const boxes = $$("input[type='checkbox']", d);
-  const go = $("[value='delete']", d);
-  // The button counts what it deletes in one short phrase; the groups say
-  // which files those are.
-  const update = () => {
-    const n = boxes.filter((b) => b.checked).reduce((sum, b) => sum + Number(b.dataset.count), 0);
-    go.disabled = n === 0;
-    go.textContent = n ? `Delete ${n} ${n === 1 ? "file" : "files"}` : "Choose what to delete";
-  };
-  for (const b of boxes) b.addEventListener("change", update);
-  d.addEventListener("close", () => {
-    for (const b of boxes) b.checked = false;
-    update();
-  });
-  update();
-}
-
 // ------------------------------------------------------------ pair rows
 // A path must start with /, said once the field is left. main.ts runs the
 // rows.
@@ -1579,8 +1347,8 @@ for (const d of $$("[data-upload]")) {
   });
 }
 
-// A refresh that waits turns its own icon: Motion's one turn (.twirl-click),
-// repeated while busy. When the work ends, the turn in progress finishes, so
+// A refresh that waits turns its own icon: Motion's one turn, repeated
+// while busy. When the work ends, the turn in progress finishes, so
 // the icon always comes to rest upright. Reduced motion pulses it instead.
 const TURN = { duration: 900, easing: "cubic-bezier(0.55, 0, 0.3, 1)" };
 function turnWhileBusy(ic) {
@@ -1743,18 +1511,6 @@ for (const form of $$("form[data-settings]")) {
 
 // ======================================== hero icons, layouts and the rest of the scope
 
-// Menu items that check: Space or a press toggles and keeps the menu open.
-for (const item of $$("[role='menuitemcheckbox']")) {
-  const toggle = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    item.setAttribute("aria-checked", String(item.getAttribute("aria-checked") !== "true"));
-    say(`${item.textContent.trim()} ${item.getAttribute("aria-checked") === "true" ? "shown" : "hidden"}`);
-  };
-  item.addEventListener("click", toggle);
-  item.addEventListener("keydown", (e) => e.key === " " && toggle(e));
-}
-
 // Active filters: chips that remove their filter, Clear, and "N of M"
 // announced once a change settles.
 for (const box of $$("[data-active-filters]")) {
@@ -1785,15 +1541,6 @@ for (const box of $$("[data-active-filters]")) {
   update();
 }
 
-// The shortcut list: ? opens it anywhere outside a field.
-const keysDialog = $("#keys");
-if (keysDialog) {
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "?" || e.target.closest("input, textarea, select, [contenteditable]")) return;
-    keysDialog.showModal();
-  });
-}
-
 // A list that holds its place: changes that would move rows wait behind a
 // line that offers them, so nothing moves under the reader (WCAG 3.2.2).
 for (const list of $$("[data-hold]")) {
@@ -1817,143 +1564,6 @@ for (const list of $$("[data-hold]")) {
       glideShow(line, true);
     }
   });
-}
-
-// A toggle group: one pressed at a time.
-for (const g of $$(".g-toggles")) {
-  g.addEventListener("click", (e) => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    for (const x of $$("button", g)) x.setAttribute("aria-pressed", String(x === b));
-    say(`${b.getAttribute("aria-label")} view`);
-  });
-}
-
-// A toolbar that sends what does not fit into its More menu, in order.
-for (const bar of $$("[data-overflow]")) {
-  const items = $$("[data-item]", bar);
-  const more = $("[data-more]", bar);
-  const menu = document.getElementById(more.getAttribute("popovertarget"));
-  const fit = () => {
-    const wasHidden = new Set(items.filter((i) => i.hidden));
-    const moreWasHidden = more.hidden;
-    for (const i of items) i.hidden = false;
-    // Measure the More button's real width and reserve exactly that, so it is
-    // never clipped by the bar's overflow when it appears (a fixed 48px was
-    // narrower than the "… More" button).
-    more.hidden = false;
-    menu.replaceChildren();
-    const room = bar.clientWidth - more.offsetWidth - 4;
-    let used = 0;
-    const out = [];
-    for (const i of items) {
-      used += i.offsetWidth + 4;
-      if (used > room) out.push(i);
-    }
-    for (const i of out) {
-      i.hidden = true;
-      menu.append(el("button", { role: "menuitem", type: "button", "data-say": i.textContent.trim() }, icon(i.querySelector(".cp-icon").dataset.cpIcon), i.textContent.trim()));
-    }
-    more.hidden = out.length === 0;
-    // opacity only: a moving or scaling 18px icon blurs on a 1x screen
-    const fade = (n) => !reduced() && n.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" });
-    for (const i of items) if (!i.hidden && wasHidden.has(i)) fade(i);
-    if (!more.hidden && moreWasHidden) fade(more);
-  };
-  new ResizeObserver(fit).observe(bar);
-  fit();
-}
-
-// A delete asks next to its button first, then confirms in place as Save does.
-for (const pop of $$("[data-delete-confirm]")) {
-  const opener = document.querySelector(`[popovertarget="${pop.id}"]`);
-  $("[data-yes]", pop).addEventListener("click", () => {
-    pop.hidePopover();
-    opener.focus();
-    confirmCycle(opener);
-    say("4 files deleted");
-  });
-  $("[data-no]", pop).addEventListener("click", () => {
-    pop.hidePopover();
-    opener.focus();
-  });
-  pop.addEventListener("toggle", (e) => e.newState === "open" && $("[data-no]", pop).focus());
-}
-
-// An action that confirms and keeps its word, as Copy does.
-for (const b of $$("[data-confirm-word]")) {
-  b.addEventListener("click", () => {
-    b.dataset.cpState = "done";
-    say(b.dataset.confirmWord);
-    clearTimeout(b.confirmTimer);
-    b.confirmTimer = setTimeout(() => delete b.dataset.cpState, 1600);
-  });
-}
-
-// A small confirmation next to its button.
-for (const pop of $$("[data-popconfirm]")) {
-  $("[data-yes]", pop).addEventListener("click", () => {
-    pop.hidePopover();
-    toast({ kind: "success", title: pop.dataset.popconfirm });
-  });
-  $("[data-no]", pop).addEventListener("click", () => pop.hidePopover());
-  pop.addEventListener("toggle", (e) => e.newState === "open" && $("[data-no]", pop).focus());
-}
-
-// A select panel: a filter over a checkable list; Apply sets the choice
-// and closes; Escape keeps the old one.
-for (const pop of $$("[data-selectpanel]")) {
-  const filter = $("input", pop);
-  const opts = $$("[role='option']", pop);
-  const btn = document.querySelector(`[popovertarget="${pop.id}"]`);
-  let kept = opts.map((o) => o.getAttribute("aria-selected"));
-  let at = 0;
-  const vis = () => opts.filter((o) => !o.hidden);
-  const activate = (i) => {
-    const v = vis();
-    at = (i + v.length) % v.length;
-    opts.forEach((o) => o.classList.toggle("active", o === v[at]));
-    if (v[at]) filter.setAttribute("aria-activedescendant", v[at].id);
-  };
-  let applied = false;
-  pop.addEventListener("toggle", (e) => {
-    if (e.newState === "closed" && !applied) opts.forEach((o, i) => o.setAttribute("aria-selected", kept[i]));
-    applied = false;
-    if (e.newState === "open") {
-      kept = opts.map((o) => o.getAttribute("aria-selected"));
-      filter.value = "";
-      for (const o of opts) o.hidden = false;
-      activate(0);
-      filter.focus();
-    }
-  });
-  filter.addEventListener("input", () => {
-    const q = filter.value.toLowerCase();
-    for (const o of opts) o.hidden = !o.textContent.toLowerCase().includes(q);
-    activate(0);
-  });
-  const flip = (o) => o.setAttribute("aria-selected", String(o.getAttribute("aria-selected") !== "true"));
-  filter.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") activate(at + 1);
-    else if (e.key === "ArrowUp") activate(at - 1);
-    else if (e.key === "Enter") vis()[at] && flip(vis()[at]);
-    else if (e.key === "Escape") opts.forEach((o, i) => o.setAttribute("aria-selected", kept[i]));
-    else return;
-    if (e.key !== "Escape") e.preventDefault();
-  });
-  for (const o of opts) o.addEventListener("click", () => flip(o));
-  const labelBtn = () => {
-    const n = opts.filter((o) => o.getAttribute("aria-selected") === "true").length;
-    $(".label", btn).textContent = n ? `Labels: ${n}` : "Labels";
-    markActive(btn, n > 0);
-  };
-  $("[data-apply-panel]", pop).addEventListener("click", () => {
-    applied = true;
-    labelBtn();
-    pop.hidePopover();
-    btn.focus();
-  });
-  labelBtn();
 }
 
 // Values that come from data are set through the CSSOM, which a style-src
@@ -2027,64 +1637,6 @@ for (const host of $$("[data-strip]")) {
   host.append(svg, legend, el("details", {}, el("summary", {}, icon("chevron-right"), "Show as a table"), el("div", { class: "cp-panel g-flush g-gap-top" }, table)));
 }
 
-// The filter sheet stages: the foot counts what the choice would show,
-// Show N results applies it, and Close or Escape put back what was there.
-for (const d of $$("[data-filter-sheet]")) {
-  const inputs = $$("input", d);
-  const apply = $("[data-sheet-apply]", d);
-  const opener = $("[data-filters-open]", d.closest(".card"));
-  const clearOut = $("[data-filters-clear]", d.closest(".card"));
-  const total = Number(d.dataset.total);
-  let applied = inputs.map((i) => i.checked);
-  const active = (states) => {
-    const verdicts = inputs.filter((i, k) => i.name === "verdict" && states[k]).length;
-    const kind = inputs.find((i, k) => i.name === "kind" && states[k])?.value;
-    return verdicts + (kind && kind !== "all" ? 1 : 0);
-  };
-  const results = () => {
-    const v = inputs.filter((i) => i.name === "verdict" && i.checked).map((i) => ({ best: 268, not: 33, missing: 9 })[i.value]);
-    const kind = inputs.find((i) => i.name === "kind" && i.checked)?.value;
-    const n = v.length ? v.reduce((a, b) => a + b, 0) : total;
-    return Math.round(n * ({ all: 1, tv: 0.8, film: 0.2 })[kind ?? "all"]);
-  };
-  const recount = () => {
-    const n = results();
-    apply.textContent = n ? `Show ${n} results` : "No results";
-    apply.toggleAttribute("aria-disabled", n === 0);
-  };
-  const label = () => {
-    const n = active(applied);
-    $(".label", opener).textContent = n ? `Filters, ${n}` : "Filters";
-    markActive(opener, n > 0);
-    clearOut.hidden = n === 0;
-  };
-  d.addEventListener("change", recount);
-  $("[data-sheet-clear]", d).addEventListener("click", () => {
-    for (const i of inputs) i.checked = i.name === "kind" && i.value === "all";
-    recount();
-  });
-  d.addEventListener("close", () => {
-    if (d.returnValue === "apply" && !apply.hasAttribute("aria-disabled")) {
-      applied = inputs.map((i) => i.checked);
-      toast({ kind: "info", title: `Showing ${results()} results` });
-    } else inputs.forEach((i, k) => (i.checked = applied[k]));
-    d.returnValue = "";
-    label();
-    recount();
-  });
-  apply.addEventListener("click", (e) => apply.hasAttribute("aria-disabled") && e.preventDefault());
-  clearOut.addEventListener("click", () => {
-    for (const i of inputs) i.checked = i.name === "kind" && i.value === "all";
-    applied = inputs.map((i) => i.checked);
-    label();
-    recount();
-    opener.focus();
-    say("Filters cleared");
-  });
-  label();
-  recount();
-}
-
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to
 // fit its card; its own container queries do what the window's width would.
 const WIDTHS = [["Phone", 390], ["Tablet", 820], ["Desktop", 1280]];
@@ -2111,28 +1663,6 @@ for (const [n, host] of $$(".g-shell[data-frame-name]").entries()) {
   host.prepend(group);
   new ResizeObserver(fit).observe(view);
   fit();
-}
-
-// The filter panel's button counts its filters and takes the accent while
-// any is on; Clear ends them, and the panel's Show names what it shows.
-for (const pop of $$("[data-filter-panel]")) {
-  const btn = document.querySelector(`[popovertarget="${pop.id}"]:not([popovertargetaction])`);
-  const boxes = $$("input[type='checkbox']", pop);
-  const show = $("[data-panel-show]", pop);
-  const update = () => {
-    const n = boxes.filter((b) => b.checked).length;
-    $(".g-badge", btn).textContent = String(n);
-    $(".g-badge", btn).hidden = n === 0;
-    btn.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
-    markActive(btn, n > 0);
-    show.textContent = n ? `Show ${[0, 33, 42, 51][n]}` : "Show all 412";
-  };
-  pop.addEventListener("change", update);
-  $("[data-panel-clear]", pop).addEventListener("click", () => {
-    for (const b of boxes) b.checked = false;
-    update();
-  });
-  update();
 }
 
 
@@ -2268,9 +1798,7 @@ for (const roll of $$(".roll")) {
   // A row action keeps one footprint across all its words (idle, busy, done):
   // an end margin takes up what the current word leaves and glides with it,
   // so its start edge, its icon and the buttons beside it never move.
-  const hold = btn.closest('[data-col="actions"]') ?? (btn.hasAttribute("data-footprint") ? btn : null);
-  // a split button's main action holds its widest word, so its caret never moves
-  const fixed = btn.closest(".g-btngroup");
+  const hold = btn.closest('[data-col="actions"]');
   const measure = (text) => {
     const keep = rest.textContent;
     rest.textContent = text;
@@ -2281,9 +1809,9 @@ for (const roll of $$(".roll")) {
   const fit = () => {
     const now = btn.classList.contains("grabbed") || btn.dataset.state === "done" ? done : rest;
     const widest = () => Math.max(measure(idle), done.scrollWidth, measure(btn.dataset.busyWords ?? idle));
-    const w = fixed ? widest() : now.scrollWidth;
+    const w = now.scrollWidth;
     roll.style.inlineSize = `${w}px`;
-    if (hold && !fixed) btn.style.marginInlineEnd = `${Math.max(measure(idle), done.scrollWidth, measure(btn.dataset.busyWords ?? idle)) - w}px`;
+    if (hold) btn.style.marginInlineEnd = `${widest() - w}px`;
   };
   new MutationObserver(fit).observe(btn, { attributes: true, attributeFilter: ["class", "data-state"] });
   new ResizeObserver(fit).observe(rest);

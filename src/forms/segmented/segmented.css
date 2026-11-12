@@ -45,8 +45,9 @@
   cursor: inherit;
 }
 
-/* An icon-only choice, such as a List, Grid or Compact view: square
- * segments, each named by its radio's aria-label. */
+/* An icon-only choice, such as a List, Grid or Table view: square
+ * segments, each named by its radio's aria-label or by visually hidden
+ * words in its label. */
 .cp-segmented[data-variant="icons"] > label {
   inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
   min-inline-size: 0;

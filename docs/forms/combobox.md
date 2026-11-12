@@ -28,6 +28,7 @@ enhanceCombobox(input, list, {
 - `onSettle(text)` runs once typing has paused for `settle` ms (250 by default), for work too costly for each keystroke.
 - `autoActivate` makes the first option active as typing changes the options, so Enter takes the best match. `openOnFocus` shows the options as the field takes focus. Both are off by default.
 - The listbox becomes a manual popover placed under `anchor`, the field by default, and takes its look from `.cp-popover.cp-listbox`. Keep it beside the field, so it stays inside any dialog that holds the field.
+- `inline` keeps the listbox in place and shown, as in a [command palette](../overlays/palette.md): it is no popover, the field stays expanded, `autoActivate` makes the first option active even with no text, and Escape is left to what holds the field, such as its dialog.
 - `popup` and `empty` show a line in place of the options while the typed text matches none. `popup` is the `.cp-popover.cp-listbox` that becomes the popover in the listbox's place, holding the listbox and `empty`, a `<p class="cp-listbox-empty" hidden>` whose words you write in `onQuery`. Without `empty`, the popup closes when no option is left.
 - `signal` removes the listeners and the field's combobox attributes, and closes the popup.
 

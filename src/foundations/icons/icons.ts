@@ -130,6 +130,7 @@ export type LucideIconName =
   | "star"
   | "sun"
   | "sun-moon"
+  | "table"
   | "tablet"
   | "tag"
   | "telescope"
@@ -280,6 +281,7 @@ export const iconNames: readonly LucideIconName[] = [
   "star",
   "sun",
   "sun-moon",
+  "table",
   "tablet",
   "tag",
   "telescope",

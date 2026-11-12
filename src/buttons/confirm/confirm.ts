@@ -7,6 +7,7 @@
  * @module
  */
 
+import { until } from "../../core/lifetime/lifetime.js";
 import { measureRoll, roll, rollText } from "../../core/roll/roll.js";
 
 /** How the button's width follows its words. */
@@ -123,6 +124,17 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
   };
 
   fit(rest);
+  // A web font that loads after this changes every word's width, so the
+  // width held from the fallback font's would be wrong.
+  if (width !== "glide") {
+    document.fonts.addEventListener(
+      "loadingdone",
+      () => {
+        fit(rollText(words));
+      },
+      until(signal),
+    );
+  }
 
   signal?.addEventListener(
     "abort",

@@ -101,7 +101,7 @@ describe("shownOnce", () => {
     return { d, code };
   }
 
-  it("keeps the dialog on Escape until the secret is copied", async () => {
+  it("keeps the dialog on Escape until the secret is copied, saying why", async () => {
     installDialogs({ signal: life.signal });
     const { d } = shown();
     const once = shownOnce(d.querySelector("code") as HTMLElement, {
@@ -111,6 +111,9 @@ describe("shownOnce", () => {
     d.showModal();
     await userEvent.keyboard("{Escape}");
     expect(d.open).toBe(true);
+    await expect
+      .poll(() => d.querySelector('[aria-live="polite"]')?.textContent)
+      .toBe("Copy it first. It is not shown again.");
     once.copied();
     await userEvent.keyboard("{Escape}");
     await expect.poll(() => d.open).toBe(false);

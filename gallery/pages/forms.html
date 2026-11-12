@@ -174,20 +174,20 @@
         </div>
         <footer>The whole area is the file input's label, so a press anywhere opens the picker; a drag over it lifts the icon.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Upload with limits</h2>
         <button class="cp-button" type="button" commandfor="d-upload" command="show-modal"><span class="cp-icon" data-cp-icon="upload" aria-hidden="true"></span>Add a file…</button>
         <ul class="g-list g-gap-top"><li id="up-row" hidden><div class="g-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span>The uploaded file<small class="g-up-state"></small></span></div></li></ul>
-        <dialog class="g-dialog" id="d-upload" data-upload="up-row" aria-labelledby="d-upload-title">
-          <form method="dialog">
+        <dialog class="cp-dialog" id="d-upload" data-upload="up-row" data-keep-typed aria-labelledby="d-upload-title">
+          <form>
             <header><h2 id="d-upload-title">Add a subtitle file</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-upload" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
-            <div class="g-body">
+            <div class="cp-dialog-body">
               <div class="cp-notice" data-tone="danger" data-summary hidden></div>
               <div class="cp-field"><label class="cp-label" for="up-file">File, .ass, .srt or .vtt</label><input class="cp-input" id="up-file" type="file" accept=".ass,.srt,.vtt" data-files="up-file-list" data-max-size="10485760" aria-describedby="up-file-error"><ul class="cp-files" id="up-file-list"></ul><span class="cp-field-error" id="up-file-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span></span></div>
               <div class="cp-field"><label class="cp-label" for="up-lang">Language</label><div class="cp-select"><select class="cp-input" id="up-lang"><option>English</option><option>French</option></select></div></div>
               <div class="cp-field"><label class="cp-label" for="up-kind">Kind</label><div class="cp-select"><select class="cp-input" id="up-kind"><option>Full</option><option>Signs and songs</option></select></div></div>
             </div>
-            <footer><button class="cp-button" type="button" commandfor="d-upload" command="close">Cancel</button><button class="cp-button" data-variant="primary" value="upload">Upload</button></footer>
+            <footer><button class="cp-button" type="button" commandfor="d-upload" command="close">Cancel</button><button class="cp-button" data-variant="primary" type="submit" value="upload">Upload</button></footer>
           </form>
         </dialog>
         <footer>The dialog refuses an oversized file with its sentence before anything is sent; the row then shows Uploading… and its outcome.</footer>

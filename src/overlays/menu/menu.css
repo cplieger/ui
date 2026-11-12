@@ -26,6 +26,14 @@
   min-block-size: var(--cp-control-h);
 }
 
+/* A zone enhanceContextMenu opens a menu in: under a finger a hold opens it,
+ * so the hold selects no text and raises no callout. A mouse still selects. */
+:root[data-pointer="coarse"] [data-cp-context] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .cp-menu [role^="menuitem"]:focus {
   outline: none;
   background: var(--cp-fill);
@@ -44,8 +52,11 @@
   cursor: not-allowed;
 }
 
-.cp-menu [role^="menuitem"] > kbd {
+.cp-menu [role^="menuitem"] > kbd,
+.cp-menu [role^="menuitem"] > kbd kbd {
   margin-inline-start: auto;
+  padding: 0;
+  border: 0;
   color: var(--cp-ink-muted);
   font: inherit;
   font-size: var(--cp-text-xs);
@@ -85,14 +96,16 @@
   font-weight: var(--cp-weight-medium);
 }
 
-/* A radio item's tick: a single choice does not move. */
+/* A radio item's tick, the check icon at an icon's size: a single choice
+ * does not move. */
 .cp-menu [role="menuitemradio"]::after {
   content: "";
-  inline-size: 1rem;
-  block-size: 1rem;
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
   margin-inline-start: auto;
   background: var(--cp-accent);
-  mask: url("../icons/marks/check.svg") center / contain no-repeat;
+  mask: url("../icons/svg/check.svg") center / contain no-repeat;
   visibility: hidden;
 }
 
@@ -100,10 +113,11 @@
   visibility: visible;
 }
 
-/* A check item's box: the form checkbox's twirl at the row's size, a
- * rounded square with the field's edge that turns a quarter into an accent
- * circle, its mark counter-turned so it lands upright. */
-.cp-menu [role="menuitemcheckbox"]::before {
+/* A check item's box, and a select panel option's: the form checkbox's
+ * twirl at the row's size, a rounded square with the field's edge that
+ * turns a quarter into an accent circle. Its mark is the row's ::after, so
+ * it never turns. */
+:is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::before {
   --cp-mbox: 1.125rem;
 
   content: "";
@@ -117,14 +131,26 @@
     border-radius var(--cp-dur-spring) var(--cp-ease-spring),
     rotate var(--cp-dur-spring) var(--cp-ease-spring),
     background-color 160ms var(--cp-ease-out),
-    box-shadow 160ms var(--cp-ease-out);
+    box-shadow 160ms var(--cp-ease-out),
+    scale var(--cp-mbox-press-dur, var(--cp-dur-spring))
+      var(--cp-mbox-press-ease, var(--cp-ease-bounce));
 }
 
-.cp-menu [role="menuitemcheckbox"] {
+/* A press goes down fast and comes back on the spring, as a checkbox's. */
+.cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before,
+.cp-select-panel [role="option"]:is(:active, [data-cp-pressed])::before {
+  --cp-mbox-press-dur: var(--cp-dur-press);
+  --cp-mbox-press-ease: var(--cp-ease-out);
+
+  scale: 0.88;
+}
+
+.cp-menu [role="menuitemcheckbox"],
+.cp-select-panel [role="option"] {
   position: relative;
 }
 
-.cp-menu [role="menuitemcheckbox"]::after {
+:is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::after {
   content: "";
   position: absolute;
   inset-inline-start: calc(var(--cp-space-2) + 0.125rem);
@@ -136,16 +162,30 @@
   transition: clip-path 120ms var(--cp-ease-out);
 }
 
-.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before,
+.cp-select-panel [role="option"][aria-selected="true"]::before {
   border-radius: 50%;
   rotate: 90deg;
   background-color: var(--cp-accent);
   box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-accent);
 }
 
-.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::after {
+.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::after,
+.cp-select-panel [role="option"][aria-selected="true"]::after {
   clip-path: inset(0 0 0 0);
   transition: clip-path 200ms var(--cp-ease-out) 80ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before,
+  .cp-select-panel [role="option"]:is(:active, [data-cp-pressed])::before {
+    scale: none;
+  }
+
+  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before,
+  .cp-select-panel [role="option"][aria-selected="true"]::before {
+    rotate: none;
+  }
 }
 
 @media (forced-colors: active) {
@@ -153,17 +193,18 @@
     outline: var(--cp-line-w) solid Highlight;
   }
 
-  .cp-menu [role="menuitemcheckbox"]::before {
+  :is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::before {
     forced-color-adjust: none;
     border: var(--cp-line-w) solid CanvasText;
     background: Canvas;
   }
 
-  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before,
+  .cp-select-panel [role="option"][aria-selected="true"]::before {
     background: Highlight;
   }
 
-  .cp-menu [role="menuitemcheckbox"]::after,
+  :is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::after,
   .cp-menu [role="menuitemradio"]::after {
     forced-color-adjust: none;
     background: HighlightText;
