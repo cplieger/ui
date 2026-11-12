@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
@@ -9,8 +9,8 @@ let sheet: HTMLLinkElement;
 let away: HTMLDivElement;
 
 // The rules for the line and a kept row live in the stylesheet, so the
-// tests link it, as an app's page does.
-beforeEach(async () => {
+// tests link it, as an app's page does, once for the file.
+beforeAll(async () => {
   document.documentElement.classList.add("cp");
   sheet = document.createElement("link");
   sheet.rel = "stylesheet";
@@ -21,6 +21,14 @@ beforeEach(async () => {
   });
   document.head.append(sheet);
   await loaded;
+});
+
+afterAll(() => {
+  sheet.remove();
+  document.documentElement.classList.remove("cp");
+});
+
+beforeEach(async () => {
   installAnnouncer({ signal: life.signal });
   // Somewhere for the pointer to rest that no list reaches.
   away = document.createElement("div");
@@ -36,8 +44,6 @@ beforeEach(async () => {
 afterEach(() => {
   life.abort();
   life = new AbortController();
-  sheet.remove();
-  document.documentElement.classList.remove("cp");
   document.body.replaceChildren();
   document.documentElement.scrollTop = 0;
 });
@@ -398,14 +404,16 @@ describe("enhanceHeldList", () => {
   });
 });
 
-function muted(): string {
+function colour(token = "--cp-ink-muted"): string {
   const probe = document.createElement("span");
-  probe.style.color = "var(--cp-ink-muted)";
+  probe.style.color = `var(${token})`;
   document.body.append(probe);
   const color = getComputedStyle(probe).color;
   probe.remove();
   return color;
 }
+
+const muted = () => colour();
 
 describe("markKept", () => {
   const today = (h: number, m: number) => {
@@ -422,6 +430,7 @@ describe("markKept", () => {
     const row = li.querySelector(".cp-list-row") as HTMLElement;
     expect(row.hasAttribute("data-kept")).toBe(true);
     expect(getComputedStyle(row).color).toBe(muted());
+    expect(getComputedStyle(li.querySelector("a") as HTMLElement).color).toBe(muted());
     expect(second.hidden).toBe(true);
     const kept = row.querySelector(".cp-cell-stack > small.cp-kept") as HTMLElement;
     expect(kept.textContent).toBe("Kept from 03:00: Sonarr walk partial");
@@ -493,6 +502,53 @@ describe("markKept", () => {
       "Kept from 03:00: Sonarr walk partial",
     );
     expect(getComputedStyle(second).color).toBe(muted());
+  });
+
+  /** A Library row: a title link over its meta line, in a `.cp-table`. */
+  function libraryRow(): { readonly row: HTMLTableRowElement; readonly link: HTMLAnchorElement } {
+    const link = document.createElement("a");
+    link.href = "#mushishi";
+    link.textContent = "Mushishi";
+    const meta = document.createElement("span");
+    meta.className = "cp-meta";
+    meta.textContent = "Sonarr, TV, 2005";
+    const stack = document.createElement("div");
+    stack.className = "cp-cell-stack";
+    stack.append(link, meta);
+    const cell = document.createElement("td");
+    cell.append(stack);
+    const row = document.createElement("tr");
+    row.append(cell);
+    const body = document.createElement("tbody");
+    body.append(row);
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    table.append(body);
+    document.body.append(table);
+    return { row, link };
+  }
+
+  it("puts a table title's meta line aside for the kept line, and back with null", () => {
+    const { row } = libraryRow();
+    const meta = row.querySelector(".cp-meta") as HTMLElement;
+    const stack = row.querySelector(".cp-cell-stack") as HTMLElement;
+    markKept(row, { from: today(3, 0), reason: "Sonarr walk partial" }, { locale: "en-GB" });
+    expect(meta.hidden).toBe(true);
+    expect(stack.lastElementChild?.matches("small.cp-kept")).toBe(true);
+    expect(stack.lastElementChild?.textContent).toBe("Kept from 03:00: Sonarr walk partial");
+    markKept(row, null);
+    expect(meta.hidden).toBe(false);
+    expect(stack.querySelector(".cp-kept")).toBeNull();
+  });
+
+  it("mutes a kept row's title link, which still takes the accent from the keyboard", async () => {
+    const { row, link } = libraryRow();
+    markKept(row, { from: today(3, 0), reason: "Sonarr walk partial" });
+    expect(link.hidden).toBe(false);
+    expect(getComputedStyle(link).color).toBe(muted());
+    await userEvent.tab();
+    expect(document.activeElement).toBe(link);
+    expect(getComputedStyle(link).color).toBe(colour("--cp-accent-ink"));
   });
 
   it("refuses an invalid date", () => {

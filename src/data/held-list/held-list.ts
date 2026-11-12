@@ -244,10 +244,10 @@ function clock(at: number, locale: string | undefined): string {
 
 /**
  * Marks `row`, an item, a `.cp-list-row` or a `tr`, kept since `kept.from`
- * beside `kept.reason`, in muted ink: the second lines of its first
- * `.cp-cell-stack` give way to a `small.cp-kept` line, whose clock the
- * stylesheet draws. The time is the time of day when it is today's, else the
- * date and time. Null marks it fresh again. Throws a TypeError for an
+ * beside `kept.reason`, in muted ink: the `small` and `.cp-meta` lines of
+ * its first `.cp-cell-stack` give way to a `small.cp-kept` line, whose clock
+ * the stylesheet draws. The time is the time of day when it is today's, else
+ * the date and time. Null marks it fresh again. Throws a TypeError for an
  * invalid date.
  */
 export function markKept(row: Element, kept: Kept | null, options: KeptOptions = {}): void {
@@ -280,7 +280,9 @@ export function markKept(row: Element, kept: Kept | null, options: KeptOptions =
   const stack = target.querySelector(".cp-cell-stack");
   const hid: HTMLElement[] = [];
   if (stack !== null) {
-    for (const el of stack.querySelectorAll<HTMLElement>(":scope > small:not([hidden])")) {
+    for (const el of stack.querySelectorAll<HTMLElement>(
+      ":scope > :is(small, .cp-meta):not([hidden])",
+    )) {
       el.hidden = true;
       hid.push(el);
     }

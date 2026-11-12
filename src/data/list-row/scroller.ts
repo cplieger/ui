@@ -6,13 +6,13 @@
  */
 
 /** The page's own scroller. */
-export function pageScroller(): HTMLElement {
+function pageScroller(): HTMLElement {
   const root = document.scrollingElement;
   return root instanceof HTMLElement ? root : document.documentElement;
 }
 
 /** Whether `el` scrolls its own content now. */
-export function scrolls(el: Element): boolean {
+function scrolls(el: Element): boolean {
   const y = getComputedStyle(el).overflowY;
   return (y === "auto" || y === "scroll") && el.scrollHeight > el.clientHeight;
 }

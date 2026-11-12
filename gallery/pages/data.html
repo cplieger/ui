@@ -135,15 +135,34 @@
         </ol>
         <footer>The same reorder holds whole cards: each provider has its switch in its header, a summary, its key and a Test connection that checks it. Alt with an arrow moves the card from its switch or a button, and is left to the key field, where it moves the caret. Clear a key and test it to see a failure.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>A list that holds its place</h2>
-        <ul class="cp-list" id="hold-list" data-hold>
-          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-cell-stack">Frieren, Season 1<small>Grabbed <time data-ago="900"></time></small></span></div></li>
-          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><span class="cp-cell-stack">Mushishi<small>Checked <time data-ago="2400"></time></small></span></div></li>
-          <li><div class="cp-list-row" data-kept><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-cell-stack">Radarr's queue<small><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Kept from 03:00: Radarr is not answering</small></span></div></li>
+        <ul class="cp-list" id="hold-log" aria-label="Recent activity">
+          <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="refresh-cw" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Quick check<small>4 s · 2 entries judged · 1 state changed</small></span><span data-part="end"><time data-ago="240"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="download" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Imported: Dandadan<small>Sonarr S1 · grabbed from the feed</small></span><span data-part="end"><time data-ago="1560"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="check-check" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Problem ended: SeaDex unreachable<small>Lasted 2 h 15 m</small></span><span data-part="end"><time data-ago="9900"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="circle-x" data-tone="danger" aria-hidden="true"></span><span class="cp-cell-stack">Download failed, blocklisted by Sonarr: Mob Psycho 100 II<small>S2</small></span><span data-part="end"><time data-ago="12120"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
         </ul>
-        <div class="g-row-inline g-gap-top"><button class="cp-button" data-size="sm" type="button" data-hold-push="hold-list">Three rows arrive</button></div>
-        <footer>New rows never push the list under the reader: a line offers them, “3 newer rows · Show”, and Show puts them in and moves focus to the first. A row the app could not refresh stays, in muted ink with a clock and the reason.</footer>
+        <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-log"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button></div>
+        <footer>A row that arrives while the reader is in the list, pointing at it, in one of its rows or scrolled past its start, waits behind one line, “3 newer rows · Show”, so nothing moves under them. Show puts the rows in and moves focus to the first, and the count is said once it stops changing. At the list's start, untouched, a row goes straight in. Start the live changes, then point at the list.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A table that holds its place</h2>
+        <div class="cp-panel" data-flush>
+          <table class="cp-table">
+            <caption>Library, the worst verdict first</caption>
+            <thead><tr><th>Copy</th><th>Verdict</th></tr></thead>
+            <tbody id="hold-library">
+              <tr data-copy="ping-pong" data-verdict="missing"><td><div class="cp-cell-stack"><a href="#lists">Ping Pong the Animation</a><span class="cp-meta">Sonarr, TV, 2014</span></div></td><td><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></td></tr>
+              <tr data-copy="dungeon" data-verdict="worse"><td><div class="cp-cell-stack"><a href="#lists">Delicious in Dungeon</a><span class="cp-meta">Sonarr, TV, 2024</span></div></td><td><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not the best</span></td></tr>
+              <tr data-copy="mushishi" data-verdict="alt"><td><div class="cp-cell-stack"><a href="#lists">Mushishi</a><span class="cp-meta">Sonarr, TV, 2005</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>On an alt</span></td></tr>
+              <tr data-copy="frieren" data-verdict="best"><td><div class="cp-cell-stack"><a href="#lists">Frieren: Beyond Journey's End</a><span class="cp-meta">Sonarr, TV, 2023</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></td></tr>
+              <tr data-copy="heron" data-verdict="best"><td><div class="cp-cell-stack"><a href="#lists">The Boy and the Heron</a><span class="cp-meta">Radarr, film, 2023</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-library"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button><button class="cp-button" data-size="sm" type="button" data-hold-partial="hold-library">End Sonarr's walk partial</button></div>
+        <footer>The Library is a table and holds its rows the same way: a copy whose verdict changes while the reader is in the table waits behind “1 row changed · Show”, and Show moves it to its sorted place. A Sonarr walk that ends partial keeps the copies it did not reach in muted ink, with the list's clock and the reason, “Kept from 03:00: Sonarr walk partial”.</footer>
       </div>
         <div class="card g-wide" data-new>
           <h2>A long list</h2>
