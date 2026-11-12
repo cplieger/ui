@@ -204,6 +204,12 @@
   border-block-end: 0;
 }
 
+/* A cell of running text keeps a readable width: without a floor a table
+ * wider than its box sits at its min-content, a word a line. */
+.cp-prose :where(td[data-cp-wrap]) {
+  min-inline-size: 12em;
+}
+
 /* anywhere counts every character toward a cell's min-content, which would
  * crush a short column to one letter; the region scrolls instead. */
 .cp-prose :where(th, td) :where(code) {
