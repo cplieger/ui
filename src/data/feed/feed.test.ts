@@ -113,6 +113,12 @@ const scrollTo = async (el: Element, top: number) => {
   await settle();
 };
 const polite = () => document.querySelector('[aria-live="polite"]')?.textContent;
+/** A smooth scroll's length depends on the engine and the host's load, so a
+ *  test waits for it to end rather than polling within a time bound. */
+const scrollEnd = (el: Element) =>
+  new Promise<void>((resolve) => {
+    el.addEventListener("scrollend", () => resolve(), { once: true });
+  });
 
 describe("enhanceFeed", () => {
   it("opens at the newest entry with the foot under it", async () => {
@@ -387,8 +393,10 @@ describe("enhanceFeed", () => {
     await scrollTo(c.box, 0);
     c.feed.append(entry(), entry());
     await settle();
+    const ended = scrollEnd(c.box);
     await userEvent.click(c.jump);
-    await expect.poll(() => gap(c.box)).toBeLessThanOrEqual(1);
+    await ended;
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     expect(c.jump.hidden).toBe(true);
     const newest = c.feed.lastElementChild as HTMLElement;
     expect(document.activeElement).toBe(newest);
@@ -811,11 +819,13 @@ describe("enhanceFeed", () => {
     await scrollTo(c.box, 0);
     c.feed.append(entry());
     await settle();
+    const ended = scrollEnd(c.box);
     await userEvent.click(c.jump);
     // Firefox runs a smooth scroll on for a few frames after an instant one,
     // which should end it (https://drafts.csswg.org/cssom-view/#perform-a-scroll),
     // so the press's scroll finishes before the reset.
-    await expect.poll(() => gap(c.box)).toBeLessThanOrEqual(1);
+    await ended;
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     c.foot.style.setProperty("--cp-keyboard-inset", "10px");
     own.abort();
     expect(c.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe("");
