@@ -44,6 +44,95 @@
   gap: var(--cp-space-1);
 }
 
+/* The caption names the table and its range. */
+.cp-table > caption {
+  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  text-align: start;
+}
+
+/* A sortable header's button (@cplieger/ui/table). Its arrow shows on the
+ * sorted column and turns over for descending. */
+.cp-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-block-size: var(--cp-control-h-sm);
+  padding: 0 var(--cp-space-1);
+  margin-inline: calc(-1 * var(--cp-space-1));
+  border: 0;
+  border-radius: var(--cp-radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cp-sort::after {
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: currentcolor;
+  mask: url("../icons/svg/arrow-up.svg") center / contain no-repeat;
+  opacity: 0;
+  transition:
+    rotate 260ms var(--cp-ease-spring),
+    opacity var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+th[aria-sort] > .cp-sort::after {
+  opacity: 1;
+}
+
+th[aria-sort="descending"] > .cp-sort::after {
+  rotate: 180deg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-sort::after {
+    transition: opacity var(--cp-dur-micro) var(--cp-ease-out);
+  }
+}
+
+/* The title cell: a .cp-cover beside the title and its line. The cover
+ * fills its row less 1px each side, so pictures in stacked rows
+ * sit 2px apart; the words keep their own padding. */
+.cp-title-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+}
+
+.cp-table :is(td, th):has(> .cp-title-cell) {
+  padding-block: 1px;
+}
+
+.cp-title-cell > .cp-cell-stack {
+  padding-block: var(--cp-space-2);
+}
+
+.cp-title-cell > .cp-cover {
+  flex: none;
+  inline-size: 2.25rem;
+  border-radius: calc(var(--cp-radius-control) - 0.125rem);
+}
+
+.cp-title-cell > .cp-cover > .cp-icon {
+  --cp-icon-size: 1rem;
+}
+
+/* The row a keyboard is in takes the fill a pointer gives it, so a person
+ * tabbing through a row's actions sees which row they act on. */
+.cp-table tbody tr:has(:focus-visible) > :is(td, th) {
+  background: var(--cp-fill);
+}
+
+.cp-table tbody tr:has(:focus-visible) .cp-button:not([data-variant], [data-cp-state]) {
+  background: var(--cp-surface-raised);
+}
+
 .cp-table [data-col="num"] {
   text-align: end;
   font-variant-numeric: tabular-nums;
@@ -119,8 +208,84 @@
   justify-content: end;
 }
 
+/* A row action that turned into its result: a link to it in the success
+ * tone, or the error beside Retry. */
+.cp-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-outcome > a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  color: var(--cp-success-11);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-outcome > .cp-field-error {
+  margin: 0;
+}
+
+/* A row that opens its detail does so from a chevron in its own first
+ * column (@cplieger/ui/table). The chevron turns to point down, which in
+ * a right-to-left row, where it is mirrored, is the other way round. */
+.cp-table [data-col="expand"] {
+  inline-size: 1%;
+  padding-inline-end: 0;
+}
+
+.cp-table [data-col="expand"] [aria-expanded] > .cp-icon {
+  transition: rotate 220ms var(--cp-ease-spring);
+}
+
+.cp-table [data-col="expand"] [aria-expanded="true"] > .cp-icon {
+  rotate: 90deg;
+}
+
+.cp-table [data-col="expand"] :where([aria-expanded="true"]) > .cp-icon:dir(rtl) {
+  rotate: -90deg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-table [data-col="expand"] [aria-expanded] > .cp-icon {
+    transition: none;
+  }
+}
+
+/* The detail row takes its content's height, not the table's row height.
+ * A table row cannot animate its height, so the cell's one child glides,
+ * its padding with it, and holds the space a padded cell would. Its start
+ * lines up with the row's first data column: past the chevron's button
+ * (its icon and padding, or the hit area if wider) and that column's
+ * cell padding. */
+.cp-table tr[data-part="detail"] > td {
+  block-size: auto;
+}
+
+.cp-table tr[data-part="detail"] > td > * {
+  padding-block: var(--cp-space-4) var(--cp-space-5);
+  padding-inline: calc(
+      max(var(--cp-icon-ui) + 2 * (var(--cp-space-2) + var(--cp-line-w)), var(--cp-hit-min)) +
+        var(--cp-space-3)
+    )
+    var(--cp-space-4);
+}
+
+@media (forced-colors: active) {
+  .cp-sort::after {
+    background: ButtonText;
+  }
+}
+
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
+    th:not([aria-sort]) > .cp-sort:hover::after {
+      opacity: 0.4;
+    }
+
     .cp-table tbody tr:hover :is(td, th) {
       background: var(--cp-fill);
     }
@@ -132,6 +297,16 @@
       background: var(--cp-surface-raised);
     }
   }
+}
+
+/* The flush panel holding a table is the box its columns step aside by.
+ * The queries stay unnamed, so a table outside one follows the region it
+ * sits in, such as .cp-main. Containment sizes the panel as if empty, so a
+ * shrink-to-fit host, such as a popover, gets 24rem from it, or the window
+ * less 2rem. */
+.cp-panel[data-flush]:has(> .cp-table) {
+  container: cp-table / inline-size;
+  contain-intrinsic-inline-size: min(24rem, calc(100vw - 2rem));
 }
 
 @container (width < 64rem) {
