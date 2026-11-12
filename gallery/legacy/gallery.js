@@ -507,125 +507,6 @@ for (const d of $$("dialog.g-dialog[data-says]")) {
   d.addEventListener("close", () => d.returnValue && d.returnValue !== "cancel" && toast({ kind: d.returnValue === "delete" ? "success" : "info", title: d.dataset.says }));
 }
 
-// ------------------------------------------------------------- tables
-// A sortable header sorts its column and the rows glide to their places.
-// Each sort button names what a press does: the other order on the sorted
-// column, ascending on the others.
-function sortNames(table) {
-  for (const b of $$(".g-sort", table)) {
-    const th = b.closest("th");
-    const now = th.getAttribute("aria-sort");
-    b.setAttribute("aria-label", `Sort by ${b.textContent.trim()}, ${now === "ascending" ? "descending" : "ascending"}`);
-  }
-}
-for (const table of $$("table[data-sortable]")) {
-  sortNames(table);
-  const all = $("[data-select-all]", table);
-  if (all) all.setAttribute("aria-label", `Select all ${$$("tbody tr", table).length} entries on this page`);
-  const body = $("tbody", table);
-  for (const btn of $$(".g-sort", table)) {
-    btn.addEventListener("click", () => {
-      const th = btn.closest("th");
-      const col = [...th.parentElement.children].indexOf(th);
-      const dir = th.getAttribute("aria-sort") === "ascending" ? "descending" : "ascending";
-      for (const h of $$("th", table)) h.removeAttribute("aria-sort");
-      th.setAttribute("aria-sort", dir);
-      const rows = $$("tr", body);
-      const before = new Map(rows.map((r) => [r, r.getBoundingClientRect().top]));
-      const key = (r) => r.children[col].dataset.sort ?? r.children[col].textContent.trim();
-      rows.sort((a, b) => {
-        const [x, y] = [key(a), key(b)];
-        const c = isNaN(x) || isNaN(y) ? x.localeCompare(y) : Number(x) - Number(y);
-        return dir === "ascending" ? c : -c;
-      });
-      body.append(...rows);
-      if (!reduced()) {
-        for (const r of rows) {
-          const dy = before.get(r) - r.getBoundingClientRect().top;
-          if (dy) r.animate([{ translate: `0 ${dy}px` }, { translate: "0 0" }], { duration: 260, easing: "cubic-bezier(0.2, 0, 0, 1)" });
-        }
-      }
-      sortNames(table);
-      say(`Sorted by ${btn.textContent.trim()}, ${dir}`);
-    });
-  }
-}
-// The bar counts the selection and names it on every bulk action. Once
-// this whole page is selected and more rows match, it offers them all;
-// Escape in the table or the bar clears, unless a menu or dialog is open.
-for (const bar of $$("[data-batch]")) {
-  const group = bar.dataset.batch;
-  const boxes = $$(`[data-group="${group}"]`);
-  const all = $(`[data-select-all="${group}"]`);
-  const count = $(".cp-batch-count", bar);
-  const every = $("[data-select-every]", bar);
-  const total = Number(bar.dataset.total ?? boxes.length);
-  let everything = false;
-  let said = "";
-  const update = () => {
-    const on = boxes.filter((b) => b.checked).length;
-    if (on < boxes.length) everything = false;
-    const n = everything ? total : on;
-    bar.hidden = n === 0;
-    count.textContent = `${n} selected`;
-    if (every) every.hidden = everything || on < boxes.length || total <= boxes.length;
-    for (const b of $$("[data-names-count]", bar)) {
-      const label = $(".roll > span:first-child", b) ?? b;
-      label.textContent = `${b.dataset.namesCount} ${n}`;
-    }
-    const words = n ? count.textContent : "Selection cleared";
-    if (words !== said) say(words);
-    said = words;
-  };
-  const clear = () => {
-    everything = false;
-    for (const b of boxes) b.checked = false;
-    boxes[0]?.dispatchEvent(new Event("change"));
-    update();
-  };
-  for (const b of [...boxes, all]) b?.addEventListener("change", update);
-  every?.addEventListener("click", () => {
-    everything = true;
-    update();
-    $("[data-clear]", bar).focus();
-  });
-  $("[data-clear]", bar)?.addEventListener("click", () => {
-    clear();
-    (all ?? boxes[0])?.focus();
-  });
-  const table = all?.closest("table");
-  for (const zone of [bar, table]) {
-    zone?.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape" || bar.hidden || document.querySelector(":popover-open:not(.cp-tooltip), dialog[open]")) return;
-      e.preventDefault();
-      clear();
-      (all ?? boxes[0])?.focus();
-    });
-  }
-  said = "Selection cleared";
-  update();
-}
-// A row's Grab answers in its own cell, with no toast: the Save cycle
-// above plays on it, and this says it once a press.
-for (const b of $$("[data-grab-row]")) {
-  b.addEventListener("click", () => {
-    if (b.dataset.said) return;
-    b.dataset.said = "";
-    say(`Grabbing ${b.dataset.grabRow}`);
-    setTimeout(() => delete b.dataset.said, 1600);
-  });
-}
-$("[data-load-table]")?.addEventListener("click", (e) => {
-  const table = document.getElementById(e.currentTarget.dataset.loadTable);
-  const body = $("tbody", table);
-  const keep = [...body.children];
-  table.setAttribute("aria-busy", "true");
-  body.replaceChildren(...keep.map(() => el("tr", { class: "g-skeleton-row" }, ...[...keep[0].children].map(() => el("td")))));
-  setTimeout(() => {
-    body.replaceChildren(...keep);
-    table.removeAttribute("aria-busy");
-  }, 1400);
-});
 
 
 // ---------------------------------------------------------------- theme
@@ -1007,75 +888,6 @@ for (const md of $$("[data-md]")) {
   render();
 }
 
-// ------------------------------------------------------ inline outcomes
-for (const b of $$("[data-outcome]")) {
-  let fail = b.dataset.outcome === "fail";
-  const cell = b.parentElement;
-  const run = (btn) => {
-    btn.setAttribute("aria-busy", "true");
-    btn.querySelector(".label").textContent = "Downloading…";
-    btn.querySelector(".cp-icon").dataset.cpIcon = "spinner-arc";
-    setTimeout(() => {
-      const out = el("span", { class: "g-outcome", "data-state": fail ? "error" : "done" });
-      if (fail) {
-        const retry = el("button", { class: "cp-button", "data-size": "sm", type: "button" }, icon("refresh-cw"), el("span", { class: "label", text: "Retry" }));
-        out.append(el("span", { class: "cp-field-error" }, icon("circle-x"), "The provider timed out."), retry);
-        retry.addEventListener("click", () => {
-          fail = false;
-          run(retry);
-        });
-        announce("Download failed: the provider timed out.", true);
-      } else {
-        out.append(el("a", { href: "#data" }, icon("circle-check"), "Downloaded · Pinned"));
-        announce("Downloaded and pinned.");
-      }
-      cell.replaceChildren(out);
-      (out.querySelector("button, a")).focus();
-    }, 1400);
-  };
-  b.addEventListener("click", () => run(b));
-}
-for (const b of $$(".g-disclose")) {
-  b.addEventListener("click", () => {
-    const row = document.getElementById(b.getAttribute("aria-controls"));
-    const body = $(".g-why", row) ?? row;
-    const open = b.getAttribute("aria-expanded") !== "true";
-    b.setAttribute("aria-expanded", String(open));
-    body.glide?.cancel();
-    if (open) {
-      row.hidden = false;
-      body.glide = glideHeight(body, 0, body.getBoundingClientRect().height);
-    } else {
-      body.glide = glideHeight(body, body.getBoundingClientRect().height, 0, () => (row.hidden = true));
-    }
-  });
-}
-
-// ------------------------------------------------------- batched action
-for (const b of $$("[data-batch-total]")) {
-  const total = Number(b.dataset.batchTotal);
-  const size = Number(b.dataset.batchSize);
-  const report = document.getElementById(b.dataset.report);
-  let started = 0;
-  const label = () => {
-    const left = total - started;
-    $(".label", b).textContent = started === 0 ? `Start the first ${Math.min(size, left)}` : left > size ? `Start the next ${size}` : `Start the remaining ${left}`;
-  };
-  b.addEventListener("click", () => {
-    const n = Math.min(size, total - started);
-    started += n;
-    const failed = started === total ? 2 : 0;
-    const left = total - started;
-    report.textContent = `Started ${started} of ${total}. ${left ? `${left} remain.` : "None remain."}${failed ? ` ${failed} couldn't start: no provider has their language.` : ""}`;
-    announce(report.textContent);
-    if (left === 0) {
-      b.disabled = true;
-      $(".label", b).textContent = `All ${total} started`;
-    } else label();
-  });
-  label();
-}
-
 // ------------------------------------------------------------ pair rows
 // A path must start with /, said once the field is left. main.ts runs the
 // rows.
@@ -1269,102 +1081,11 @@ for (const form of $$("form[data-settings]")) {
 
 // ======================================== hero icons, layouts and the rest of the scope
 
-// Active filters: chips that remove their filter, Clear, and "N of M"
-// announced once a change settles.
-for (const box of $$("[data-active-filters]")) {
-  const count = document.getElementById(box.dataset.count);
-  const total = Number(box.dataset.total);
-  const update = () => {
-    const n = $$(".cp-token", box).length;
-    const shown = Math.round(total / (n + 1)) + (n ? 3 : 0);
-    count.textContent = n ? `${shown} of ${total}` : `${total} titles`;
-    $("[data-clear-filters]", box).hidden = n === 0;
-    clearTimeout(box.t);
-    box.t = setTimeout(() => announce(count.textContent), 500);
-  };
-  box.addEventListener("click", (e) => {
-    const x = e.target.closest(".cp-token > button");
-    if (x) {
-      const next = x.closest(".cp-token").nextElementSibling?.querySelector("button") ?? $("[data-clear-filters]", box);
-      x.closest(".cp-token").remove();
-      next?.focus();
-      update();
-    }
-    if (e.target.closest("[data-clear-filters]")) {
-      for (const t of $$(".cp-token", box)) t.remove();
-      update();
-    }
-  });
-  box.addEventListener("filters-reset", update);
-  update();
-}
-
 // Values that come from data are set through the CSSOM, which a style-src
 // without 'unsafe-inline' allows, never as a style attribute.
 for (const l of $$("label[data-hue]")) l.style.setProperty("--h", l.dataset.hue);
 
 // A current step's share of its bar, set through the CSSOM.
-for (const li of $$(".g-track > li[data-pct]")) li.style.setProperty("--pct", `${li.dataset.pct}%`);
-
-// History: Load older adds the next days and focuses the first it added.
-for (const b of $$("[data-load-older]")) {
-  const host = $("[data-history]", b.closest(".card"));
-  let round = 0;
-  b.addEventListener("click", () => {
-    round += 1;
-    const day = el("h3", { class: "g-day", tabindex: "-1", text: round === 1 ? "Two weeks ago" : `${round + 1} weeks ago` });
-    const list = el("ol", { class: "g-timeline" },
-      el("li", {}, el("span", { class: "g-ev", "data-tone": "neutral" }, icon("search")), el("span", {}, el("strong", { text: "Checked" }), " against SeaDex"), el("time", { text: `${round + 1} weeks ago` })),
-      el("li", {}, el("span", { class: "g-ev", "data-tone": "success" }, icon("download")), el("span", {}, el("strong", { text: "Grabbed" }), " a web release"), el("time", { text: `${round + 1} weeks ago` })));
-    host.append(day, list);
-    day.focus();
-    say("2 older events loaded");
-    if (round === 2) {
-      b.replaceWith(el("p", { class: "g-note", text: "That is the whole history." }));
-    }
-  });
-}
-
-// Active filters: put the demo's chips back.
-for (const b of $$("[data-reset-filters]")) {
-  const box = $("[data-active-filters]", b.closest(".card"));
-  const start = $$(".cp-token", box).map((t) => t.cloneNode(true));
-  b.addEventListener("click", () => {
-    for (const t of $$(".cp-token", box)) t.remove();
-    $("[data-clear-filters]", box).before(...start.map((t) => t.cloneNode(true)));
-    box.dispatchEvent(new Event("filters-reset"));
-  });
-}
-
-// A state history strip from one letter per check: s answered, w slow,
-// d failed, n not checked. The picture's name sums it up, and the same
-// checks open as a table.
-const STRIP = { s: ["success", "Answered"], w: ["warning", "Slow"], d: ["danger", "Failed"], n: ["neutral", "Not checked"] };
-for (const host of $$("[data-strip]")) {
-  const cells = [...host.dataset.strip];
-  const NS = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(NS, "svg");
-  const w = 100 / cells.length;
-  svg.setAttribute("viewBox", "0 0 100 10");
-  svg.setAttribute("preserveAspectRatio", "none");
-  svg.setAttribute("role", "img");
-  const tally = Object.fromEntries(Object.keys(STRIP).map((k) => [k, cells.filter((c) => c === k).length]));
-  const words = Object.entries(tally).filter(([, n]) => n).map(([k, n]) => `${n} ${STRIP[k][1].toLowerCase()}`);
-  svg.setAttribute("aria-label", `${host.dataset.stripName}: ${words.join(", ")}`);
-  cells.forEach((c, i) => {
-    const r = document.createElementNS(NS, "rect");
-    r.setAttribute("x", String(i * w + 0.15));
-    r.setAttribute("width", String(w - 0.3));
-    r.setAttribute("height", "10");
-    r.setAttribute("rx", "0.6");
-    r.dataset.tone = STRIP[c][0];
-    svg.append(r);
-  });
-  const legend = el("div", { class: "g-legend" }, ...Object.entries(STRIP).filter(([k]) => tally[k]).map(([, [tone, word]]) => el("span", {}, el("span", { class: "g-dot", "data-tone": tone }), word)));
-  const rows = cells.map((c, i) => el("tr", {}, el("td", { text: i === cells.length - 1 ? `Check ${i + 1}, the latest` : `Check ${i + 1}` }), el("td", { text: STRIP[c][1] }))).reverse();
-  const table = el("table", { class: "cp-table" }, el("thead", {}, el("tr", {}, el("th", { text: "Check" }), el("th", { text: "State" }))), el("tbody", {}, ...rows));
-  host.append(svg, legend, el("details", {}, el("summary", {}, icon("chevron-right"), "Show as a table"), el("div", { class: "cp-panel g-flush g-gap-top" }, table)));
-}
 
 // A frame drawn at a phone's, a tablet's or a desktop's width, scaled to
 // fit its card; its own container queries do what the window's width would.
@@ -1454,32 +1175,7 @@ function glideDetails(d) {
   });
   void run;
 }
-for (const d of $$("details:not(.cp-accordion details, .cp-context-panel)")) glideDetails(d);
-
-// A bar that appears or leaves pushes the content under it, so it glides
-// open and shut instead of jumping.
-function glideShow(node, show) {
-  if (show === !node.hidden) return;
-  if (show) {
-    node.hidden = false;
-    const to = node.getBoundingClientRect().height;
-    node.animate([{ blockSize: "0px", opacity: 0, overflow: "clip" }, { blockSize: `${to}px`, opacity: 1, overflow: "clip" }], { duration: glideMs(), easing: "cubic-bezier(0.2, 0, 0, 1)" });
-  } else {
-    const from = node.getBoundingClientRect().height;
-    node.animate([{ blockSize: `${from}px`, opacity: 1, overflow: "clip" }, { blockSize: "0px", opacity: 0, overflow: "clip" }], { duration: glideMs(), easing: "cubic-bezier(0.4, 0, 1, 1)" }).onfinish = () => (node.hidden = true);
-  }
-}
-for (const bar of $$("[data-batch]")) {
-  // the batch script toggles hidden; this turns each toggle into a glide
-  let shown = !bar.hidden;
-  new MutationObserver(() => {
-    const now = !bar.hidden;
-    if (now === shown) return;
-    shown = now;
-    bar.hidden = !now;
-    glideShow(bar, now);
-  }).observe(bar, { attributes: true, attributeFilter: ["hidden"] });
-}
+for (const d of $$("details:not(.cp-accordion details, .cp-context-panel, .cp-history details)")) glideDetails(d);
 
 // A dialog's exit: Chromium animates it in CSS (overlay and display allow
 // discrete); an engine that cannot gets the same fade or slide in script

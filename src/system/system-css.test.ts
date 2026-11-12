@@ -2384,6 +2384,44 @@ describe("css/system.css", () => {
     expect(shown()).toEqual([true, false, false]);
   });
 
+  it("drops columns by the width of the flush panel holding the table", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-panel" data-flush><table class="cp-table"><tbody><tr><td>title</td><td data-priority="mid">mid</td><td data-priority="low">low</td></tr></tbody></table></div>',
+    );
+    el.style.inlineSize = "1100px";
+    const panel = el.querySelector(".cp-panel") as HTMLElement;
+    const shown = () =>
+      [...el.querySelectorAll("td")].map((td) => getComputedStyle(td).display !== "none");
+    expect(getComputedStyle(panel).containerName).toBe("cp-table");
+    expect(shown()).toEqual([true, true, true]);
+    panel.style.inlineSize = "900px";
+    expect(shown()).toEqual([true, true, false]);
+    panel.style.inlineSize = "600px";
+    expect(shown()).toEqual([true, false, false]);
+  });
+
+  it.each([1280, 360, 320])(
+    "gives a flush table panel 24rem, or the window less 2rem, in a host that shrinks to fit, at a %ipx window",
+    async (windowWidth) => {
+      theme("light");
+      await page.viewport(windowWidth, 700);
+      const panel =
+        '<div class="cp-panel" data-flush><table class="cp-table"><tbody><tr><td>A title</td></tr></tbody></table></div>';
+      const el = build(
+        `<div popover="manual">${panel}</div><div style="display: flex; align-items: flex-start">${panel}</div>`,
+      );
+      (el.querySelector("[popover]") as HTMLElement).showPopover();
+      const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const boxes = [...el.querySelectorAll(".cp-panel")].map((p) => p.getBoundingClientRect());
+      expect(boxes).toHaveLength(2);
+      for (const box of boxes) {
+        expect(box.width).toBeGreaterThanOrEqual(Math.min(24 * rem, windowWidth - 2 * rem));
+        expect(box.right).toBeLessThanOrEqual(windowWidth);
+      }
+    },
+  );
+
   it("drops the rail under 60rem of viewport", async () => {
     theme("light");
     const rail = build('<aside class="cp-rail">filters</aside>').firstElementChild as HTMLElement;
@@ -2505,7 +2543,7 @@ describe("css/system.css", () => {
     expect(sizes).toEqual(["23px", "19px", "16px", "14px"]);
   });
 
-  it("shows hover on a link and a button under a fine pointer and not under a coarse one", async () => {
+  const hoverLook = async (pointer: "fine" | "coarse") => {
     theme("light");
     const el = build('<a href="#h">link</a> <button class="cp-button" type="button">Go</button>');
     const a = el.querySelector("a") as HTMLElement;
@@ -2516,20 +2554,27 @@ describe("css/system.css", () => {
       getComputedStyle(a).textDecorationColor,
       getComputedStyle(button).backgroundColor,
     ];
-    // Each pointer move is a round trip to the browser that takes over a
-    // second under a loaded run, so the tier flips under a held hover.
-    const under = (pointer: string, read: () => string) => {
-      root.dataset["pointer"] = pointer;
-      return read();
-    };
-    const link = () => getComputedStyle(a).textDecorationColor;
-    const fill = () => getComputedStyle(button).backgroundColor;
-    await userEvent.hover(a);
-    expect(under("fine", link)).not.toBe(rest[0]);
-    expect(under("coarse", link)).toBe(rest[0]);
-    await userEvent.hover(button);
-    expect(under("coarse", fill)).toBe(rest[1]);
-    expect(under("fine", fill)).not.toBe(rest[1]);
+    root.dataset["pointer"] = pointer;
+    // Neither element moves, so Playwright's wait for two equal animation frames
+    // only adds time: WebKit under a loaded full run took over 4s to give them.
+    const now = { force: true };
+    await userEvent.hover(a, now);
+    const link = getComputedStyle(a).textDecorationColor;
+    await userEvent.hover(button, now);
+    const fill = getComputedStyle(button).backgroundColor;
+    await userEvent.unhover(button, now);
+    return { rest, hovered: [link, fill] };
+  };
+
+  it("shows hover on a link and a button under a fine pointer", async () => {
+    const { rest, hovered } = await hoverLook("fine");
+    expect(hovered[0]).not.toBe(rest[0]);
+    expect(hovered[1]).not.toBe(rest[1]);
+  });
+
+  it("shows no hover on a link or a button under a coarse pointer", async () => {
+    const { rest, hovered } = await hoverLook("coarse");
+    expect(hovered).toEqual(rest);
   });
 
   it("opens a sheet at the inline end at full height, across the window when compact", async () => {
@@ -3192,6 +3237,7 @@ describe("css/system.css feedback and steps", () => {
       );
       const a = el.querySelector("a") as HTMLAnchorElement;
       const box = a.getBoundingClientRect();
+      expect(getComputedStyle(a, "::after").height).toBe(`${String(min)}px`);
       const number = getComputedStyle(a.parentElement as Element, "::before");
       const reach = (min - box.height) / 2 - 0.5;
       expect(document.elementFromPoint(box.left + 4, box.top - reach)).toBe(a);
@@ -4228,5 +4274,484 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(
       getComputedStyle(el.querySelector("summary") as Element, "::after").backgroundColor,
     ).toBe(resolved("CanvasText", "backgroundColor"));
+  });
+});
+
+describe("css/system.css data tables", () => {
+  const resolve = (value: string, property: "color" | "backgroundColor" = "color"): string => {
+    const h = host("");
+    h.style[property] = value;
+    return getComputedStyle(h)[property];
+  };
+
+  it("draws a sort button's arrow from the stylesheet, shown on the sorted column and turned over for descending", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><thead><tr>' +
+        '<th><button class="cp-sort" type="button">Title</button></th>' +
+        '<th aria-sort="ascending"><button class="cp-sort" type="button">Size</button></th>' +
+        '<th aria-sort="descending"><button class="cp-sort" type="button">Added</button></th>' +
+        "</tr></thead></table>",
+    );
+    const [off, up, down] = [...el.querySelectorAll(".cp-sort")].map((b) =>
+      getComputedStyle(b, "::after"),
+    );
+    expect(off?.maskImage).toMatch(/^url\(/);
+    expect([off?.opacity, up?.opacity, down?.opacity]).toEqual(["0", "1", "1"]);
+    expect([up?.rotate, down?.rotate]).toEqual(["none", "180deg"]);
+  });
+
+  it("gives a sort button a small control's height, a finger's under a coarse pointer", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><thead><tr><th><button class="cp-sort" type="button">Title</button></th></tr></thead></table>',
+    );
+    const button = el.querySelector(".cp-sort") as HTMLElement;
+    expect(button.getBoundingClientRect().height).toBe(26);
+    root.dataset["pointer"] = "coarse";
+    expect(button.getBoundingClientRect().height).toBe(44);
+  });
+
+  it.skipIf(!emulates)("keeps a sort arrow in the button's ink in forced colours", async () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><thead><tr><th aria-sort="ascending"><button class="cp-sort" type="button">Title</button></th></tr></thead></table>',
+    );
+    await media("forced-colors", "active");
+    const button = el.querySelector(".cp-sort") as HTMLElement;
+    expect(getComputedStyle(button, "::after").backgroundColor).toBe(
+      resolve("ButtonText", "backgroundColor"),
+    );
+  });
+
+  it("writes a caption small and muted at the table's start", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><caption>Library, 1 to 4 of 412 entries</caption></table>',
+    );
+    const caption = getComputedStyle(el.querySelector("caption") as Element);
+    expect([caption.color, caption.textAlign]).toEqual([resolve("var(--cp-ink-muted)"), "start"]);
+    expect(caption.fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
+    );
+  });
+
+  it("sizes a title cell's cover to its row less 1px each side, in a cell or a row's header", () => {
+    theme("light");
+    const cell = (tag: "td" | "th") =>
+      `<tr><${tag}><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv"></span></span>` +
+      `<div class="cp-cell-stack"><a href="#t">Mushishi</a><span class="cp-meta">TV, 2005</span></div></div></${tag}></tr>`;
+    const el = build(`<table class="cp-table"><tbody>${cell("td")}${cell("th")}</tbody></table>`);
+    for (const row of el.querySelectorAll("tr")) {
+      const cover = row.querySelector(".cp-cover") as Element;
+      const box = cover.getBoundingClientRect();
+      expect([box.width, box.height]).toEqual([36, 54]);
+      expect(getComputedStyle(row.cells[0] as Element).paddingBlockStart).toBe("1px");
+      expect(getComputedStyle(cover).borderStartStartRadius).toBe(
+        getComputedStyle(
+          host("", { style: "border-radius: calc(var(--cp-radius-control) - 0.125rem)" }),
+        ).borderStartStartRadius,
+      );
+      expect((cover.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(16);
+    }
+  });
+
+  it("lays the filters in force in a wrapping row whose chips arrive still and shrink away", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-token" id="field-chip"><span>a</span><button type="button"></button></span>' +
+        '<div class="cp-active-filters"><span class="cp-token"><span>Kind: TV</span><button type="button"></button></span>' +
+        '<span class="cp-token" data-cp-leaving><span>Verdict: Best</span><button type="button"></button></span></div>',
+    );
+    const row = getComputedStyle(el.querySelector(".cp-active-filters") as Element);
+    expect([row.display, row.flexWrap, row.columnGap]).toEqual(["flex", "wrap", "8px"]);
+    const [still, leaving] = [...el.querySelectorAll(".cp-active-filters > .cp-token")].map(
+      (c) => getComputedStyle(c).animationName,
+    );
+    expect(getComputedStyle(el.querySelector("#field-chip") as Element).animationName).toBe(
+      "cp-token-in",
+    );
+    expect([still, leaving]).toEqual(["none", "cp-token-out"]);
+  });
+
+  it("turns an open row's chevron to point down, in either direction of text", () => {
+    theme("light");
+    const row = (dir: string, open: string) =>
+      `<tr dir="${dir}"><td data-col="expand"><button type="button" aria-expanded="${open}">` +
+      '<span class="cp-icon" data-cp-icon="chevron-right"></span></button></td></tr>';
+    const el = build(
+      `<table class="cp-table"><tbody>${row("ltr", "false")}${row("ltr", "true")}${row("rtl", "true")}</tbody></table>`,
+    );
+    const turns = [...el.querySelectorAll(".cp-icon")].map((i) => getComputedStyle(i).rotate);
+    expect(turns).toEqual(["none", "90deg", "-90deg"]);
+  });
+
+  it("gives a detail row its content's height, the padding on the cell's one child", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><tbody><tr data-part="detail"><td>' +
+        '<div><p style="margin: 0; line-height: 12px">Same episode</p></div></td></tr></tbody></table>',
+    );
+    const cell = el.querySelector("td") as Element;
+    expect(getComputedStyle(cell.firstElementChild as Element).paddingBlock).toBe("16px 20px");
+    expect(cell.getBoundingClientRect().height).toBe(48);
+  });
+
+  it("starts a detail row's content in line with its row's first data column", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><tbody><tr><td data-col="expand">' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-expanded="true">' +
+        '<span class="cp-icon" data-cp-icon="chevron-right"></span></button></td>' +
+        "<td><strong>Arid</strong></td></tr>" +
+        '<tr data-part="detail"><td colspan="2"><div><p style="margin: 0">Same episode</p></div></td></tr>' +
+        "</tbody></table>",
+    );
+    const title = (el.querySelector("strong") as Element).getBoundingClientRect();
+    const fact = (el.querySelector("p") as Element).getBoundingClientRect();
+    expect(fact.left).toBe(title.left);
+  });
+
+  const historyEvent = (tone: string, more = "") =>
+    `<li><span data-part="mark" data-tone="${tone}"><span class="cp-icon" data-cp-icon="plus"></span></span>` +
+    `<span><strong>Added</strong> from Sonarr${more}</span><time>today</time></li>`;
+
+  it("heads each day of a history small and muted, the first with no space above", () => {
+    theme("light");
+    const el = build(
+      `<div class="cp-history"><h3>Today</h3><ol>${historyEvent("neutral")}</ol>` +
+        `<h3>Last week</h3><ol>${historyEvent("neutral")}</ol>` +
+        `<h1>Last month</h1><ol>${historyEvent("neutral")}</ol></div>`,
+    );
+    const [first, second, third] = [...el.querySelectorAll("h1, h3")].map((h) =>
+      getComputedStyle(h),
+    );
+    expect([first?.color, first?.fontWeight]).toEqual([resolve("var(--cp-ink-muted)"), "600"]);
+    expect(first?.fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
+    );
+    expect([first?.marginTop, first?.marginBottom]).toEqual(["0px", "8px"]);
+    expect(second?.marginTop).toBe("16px");
+    expect([third?.color, third?.fontSize, third?.fontWeight]).toEqual([
+      first?.color,
+      first?.fontSize,
+      first?.fontWeight,
+    ]);
+  });
+
+  it("marks each event with a round in its tone, joined to the next by a line", () => {
+    theme("light");
+    const el = build(
+      `<div class="cp-history"><ol>${historyEvent("success")}${historyEvent("warning")}</ol></div>`,
+    );
+    const [mark] = [...el.querySelectorAll('[data-part="mark"]')];
+    const box = (mark as Element).getBoundingClientRect();
+    expect([box.width, box.height]).toEqual([32, 32]);
+    const style = getComputedStyle(mark as Element);
+    expect(style.borderRadius).toBe("50%");
+    expect(style.backgroundColor).toBe(
+      getComputedStyle(host("", { "data-tone": "success", style: "background: var(--cp-tone-3)" }))
+        .backgroundColor,
+    );
+    const [joined, last] = [...el.querySelectorAll("li")].map((li) =>
+      getComputedStyle(li, "::before"),
+    );
+    expect([joined?.borderInlineStartWidth, joined?.insetInlineStart, joined?.top]).toEqual([
+      "2px",
+      "15px",
+      "36px",
+    ]);
+    expect(last?.content).toBe("none");
+    const time = getComputedStyle(el.querySelector("time") as Element);
+    expect([time.color, time.whiteSpace]).toEqual([resolve("var(--cp-ink-muted)"), "nowrap"]);
+  });
+
+  it("turns an open event's chevron down in either direction, back as it starts to close", () => {
+    theme("light");
+    const more = (open: string, closing = "") =>
+      `<details ${open} ${closing}><summary><span class="cp-icon" data-cp-icon="chevron-right"></span>What changed</summary><p>Replaced</p></details>`;
+    const el = build(
+      `<div class="cp-history"><ol>${historyEvent("success", more(""))}${historyEvent("success", more("open"))}` +
+        `${historyEvent("success", more("open", "data-cp-closing"))}</ol>` +
+        `<ol dir="rtl">${historyEvent("success", more("open"))}</ol></div>`,
+    );
+    const turns = [...el.querySelectorAll("summary > .cp-icon")].map(
+      (i) => getComputedStyle(i).rotate,
+    );
+    expect(turns).toEqual(["none", "90deg", "none", "-90deg"]);
+    const summary = el.querySelector("summary") as Element;
+    expect(getComputedStyle(summary).color).toBe(resolve("var(--cp-accent-11)"));
+    const reach = getComputedStyle(summary, "::after");
+    expect([reach.position, reach.height]).toEqual(["absolute", "24px"]);
+  });
+
+  const stateHistory = (open = "", dir = "ltr") =>
+    `<div class="cp-state-history" dir="${dir}"><svg viewBox="0 0 100 10" preserveAspectRatio="none">` +
+    '<rect x="0" width="50" height="10" data-tone="success"></rect>' +
+    '<rect x="50" width="50" height="10" data-tone="neutral"></rect></svg>' +
+    '<div data-part="legend"><span data-tone="success">Answered</span><span data-tone="neutral">Not checked</span></div>' +
+    `<details ${open}><summary>Show as a table</summary><div class="cp-panel" data-flush><p>Table</p></div></details></div>`;
+
+  it("draws a state history's cells in their tones, a not-checked one in the neutral line", () => {
+    theme("light");
+    const el = build(stateHistory());
+    const strip = (el.querySelector("svg") as Element).getBoundingClientRect();
+    expect([strip.width, strip.height]).toEqual([el.getBoundingClientRect().width, 28]);
+    const [answered, skipped] = [...el.querySelectorAll("rect")].map(
+      (r) => getComputedStyle(r).fill,
+    );
+    expect(rgb(answered as string)).toEqual(rgb(resolve("var(--cp-success-9)")));
+    expect(rgb(skipped as string)).toEqual(rgb(resolve("var(--cp-neutral-6)")));
+    expect(getComputedStyle(el.firstElementChild as Element).rowGap).toBe("8px");
+  });
+
+  it("pairs each state's word in the legend with a round swatch of its cells' colour", () => {
+    theme("dark");
+    const el = build(stateHistory());
+    const legend = getComputedStyle(el.querySelector('[data-part="legend"]') as Element);
+    expect([legend.display, legend.flexWrap, legend.rowGap, legend.columnGap]).toEqual([
+      "flex",
+      "wrap",
+      "4px",
+      "16px",
+    ]);
+    expect(legend.color).toBe(resolve("var(--cp-ink-muted)"));
+    expect(legend.fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
+    );
+    const [answered, skipped] = [...el.querySelectorAll('[data-part="legend"] > span')].map((k) =>
+      getComputedStyle(k, "::before"),
+    );
+    expect([answered?.width, answered?.height, answered?.borderRadius]).toEqual([
+      "8px",
+      "8px",
+      "50%",
+    ]);
+    expect(rgb(answered?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-success-9)")));
+    expect(rgb(skipped?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-neutral-6)")));
+  });
+
+  it("turns a state history's table chevron down in either direction, its summary reaching the minimum", () => {
+    theme("light");
+    const el = build(
+      stateHistory() +
+        stateHistory("open") +
+        stateHistory("open data-cp-closing") +
+        stateHistory("open", "rtl"),
+    );
+    const turns = [...el.querySelectorAll("summary")].map(
+      (s) => getComputedStyle(s, "::before").rotate,
+    );
+    expect(turns).toEqual(["none", "90deg", "none", "-90deg"]);
+    const summary = el.querySelector("summary") as Element;
+    const style = getComputedStyle(summary);
+    expect([style.color, style.fontSize]).toEqual([resolve("var(--cp-accent-11)"), "14px"]);
+    expect(getComputedStyle(summary, "::after").height).toBe("24px");
+    const panel = el.querySelectorAll(".cp-panel")[1] as Element;
+    expect(getComputedStyle(panel).marginTop).toBe("12px");
+  });
+
+  const track = (attrs = "") =>
+    `<ol class="cp-track" ${attrs}><li data-state="done">Found</li>` +
+    '<li data-state="current" aria-current="step">Sent</li><li data-state="todo">Imported</li></ol>';
+  const bars = (el: Element) =>
+    [...el.querySelectorAll(".cp-track > li")].map((li) => getComputedStyle(li, "::before"));
+
+  it("fills a track's done steps, its current one to the share the app sets, from the line's start", () => {
+    theme("light");
+    const el = build(track() + track('dir="rtl"'));
+    const [ltr, rtl] = [...el.querySelectorAll(".cp-track")] as [HTMLElement, HTMLElement];
+    for (const list of [ltr, rtl]) {
+      (list.children[1] as HTMLElement).style.setProperty("--cp-track-at", "42%");
+    }
+    const [done, current, todo] = bars(ltr);
+    expect(rgb(done?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-accent)")));
+    expect(rgb(todo?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-fill)")));
+    expect([done?.height, done?.borderRadius]).toEqual([
+      "6px",
+      getComputedStyle(host("", { style: "border-radius: var(--cp-radius-round)" })).borderRadius,
+    ]);
+    expect(current?.backgroundImage).toMatch(/^linear-gradient\(to right, .+ 42%, .+ 42%\)$/);
+    expect(bars(rtl)[1]?.backgroundImage).toMatch(/^linear-gradient\(to left, /);
+    const names = [...ltr.children].map((li) => getComputedStyle(li));
+    expect(names.map((n) => n.color)).toEqual([
+      resolve("var(--cp-ink-muted)"),
+      resolve("var(--cp-ink)"),
+      resolve("var(--cp-ink-muted)"),
+    ]);
+    expect(names[1]?.fontWeight).toBe("500");
+    const [first, second] = [...ltr.children].map((li) => li.getBoundingClientRect());
+    expect(first?.width).toBe(second?.width);
+  });
+
+  it("greys a kept track, its current step solid, and dates it under a clock", () => {
+    theme("dark");
+    const el = build(track("data-kept") + '<p class="cp-kept">Last known at 14:02</p>');
+    const [done, current, todo] = bars(el);
+    const grey = rgb(resolve("var(--cp-neutral-8)"));
+    expect(rgb(done?.backgroundColor as string)).toEqual(grey);
+    expect(rgb(todo?.backgroundColor as string)).toEqual(rgb(resolve("var(--cp-neutral-5)")));
+    const stops = [...(current?.backgroundImage ?? "").matchAll(/rgb\([^)]+\)|oklch\([^)]+\)/g)];
+    expect(new Set(stops.map((m) => m[0]))).toHaveProperty("size", 1);
+    expect(getComputedStyle(el.querySelector("[aria-current]") as Element).color).toBe(
+      resolve("var(--cp-ink-muted)"),
+    );
+    const kept = el.querySelector(".cp-kept") as Element;
+    const style = getComputedStyle(kept);
+    expect([style.color, style.marginTop]).toEqual([resolve("var(--cp-ink-muted)"), "8px"]);
+    const clock = getComputedStyle(kept, "::before");
+    expect([clock.width, clock.height]).toEqual(["14px", "14px"]);
+    expect(decodeURIComponent(clock.maskImage)).toContain("M12 6v6l4 2");
+  });
+
+  it("sizes a compact track's button to the tier's minimum, in the accent", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-track-compact" type="button"><span class="cp-icon" data-cp-icon="download"></span>Downloading</button>',
+    );
+    const button = el.querySelector("button") as Element;
+    for (const [tier, h] of [
+      ["fine", 24],
+      ["coarse", 44],
+    ] as const) {
+      root.dataset["pointer"] = tier;
+      expect(button.getBoundingClientRect().height).toBe(h);
+    }
+    const style = getComputedStyle(button);
+    expect([style.color, style.fontWeight, style.backgroundColor]).toEqual([
+      resolve("var(--cp-accent-11)"),
+      "500",
+      "rgba(0, 0, 0, 0)",
+    ]);
+  });
+
+  const batchReport = () =>
+    '<div class="cp-batch-report">' +
+    "<p>Started 246 of 248. None remain. 2 couldn't start:</p><ul>" +
+    '<li><span>Kaiba, episode 4</span><span class="cp-state" data-tone="danger">No provider has Basque subtitles</span></li>' +
+    '<li><span>Kaiba, episode 12</span><span class="cp-state" data-tone="danger">The video file is missing</span></li>' +
+    "</ul></div>";
+
+  it("writes a batch report's summary muted and small, 8px under what runs it", () => {
+    theme("light");
+    const el = build(batchReport());
+    const report = el.querySelector(".cp-batch-report") as Element;
+    const style = getComputedStyle(report);
+    expect([style.color, style.fontSize]).toEqual([
+      resolve("var(--cp-ink-muted)"),
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-sm)" })).fontSize,
+    ]);
+    const summary = (report.querySelector("p") as Element).getBoundingClientRect();
+    expect(summary.top - report.getBoundingClientRect().top).toBe(0);
+    expect(style.marginTop).toBe("8px");
+    expect(getComputedStyle(report.querySelector("ul") as Element).listStyleType).toBe("none");
+  });
+
+  it("lines up each item that did not go beside its reason, stacking them on a phone", async () => {
+    theme("light");
+    const el = build(batchReport());
+    const [names, reasons] = [
+      [...el.querySelectorAll("li > span:first-child")],
+      [...el.querySelectorAll("li > .cp-state")],
+    ];
+    const items = [...el.querySelectorAll("li")];
+    const box = (e: Element | undefined) => (e as Element).getBoundingClientRect();
+    expect(box(reasons[0]).left).toBe(box(reasons[1]).left);
+    expect(box(reasons[0]).left - box(names[1]).right).toBeCloseTo(12, 1);
+    expect(box(items[1]).top - box(items[0]).bottom).toBeCloseTo(4, 1);
+    expect(getComputedStyle(names[0] as Element).color).toBe(resolve("var(--cp-ink)"));
+    await page.viewport(390, 800);
+    expect(box(reasons[0]).left).toBe(box(names[0]).left);
+    expect(box(reasons[0]).top).toBeCloseTo(box(names[0]).bottom, 1);
+    expect(box(items[1]).top - box(items[0]).bottom).toBeCloseTo(8, 1);
+  });
+
+  it("lays facts in a muted label column beside their values, one column on a phone", async () => {
+    theme("light");
+    const el = build(
+      '<dl class="cp-facts"><dt>Path</dt><dd>/media/anime/Frieren</dd><dt>Size</dt><dd>31.4 GB</dd></dl>',
+    );
+    const list = el.querySelector("dl") as Element;
+    const [dt, dd] = [list.querySelector("dt"), list.querySelector("dd")] as Element[];
+    const style = getComputedStyle(list);
+    expect([style.rowGap, style.columnGap, style.margin]).toEqual(["8px", "20px", "0px"]);
+    expect(getComputedStyle(dt as Element).color).toBe(resolve("var(--cp-ink-muted)"));
+    expect(getComputedStyle(dd as Element).margin).toBe("0px");
+    expect((dd as Element).getBoundingClientRect().top).toBe(
+      (dt as Element).getBoundingClientRect().top,
+    );
+    await page.viewport(390, 800);
+    expect((dd as Element).getBoundingClientRect().left).toBe(
+      (dt as Element).getBoundingClientRect().left,
+    );
+    expect(getComputedStyle(dd as Element).marginBlockEnd).toBe("12px");
+  });
+
+  it("aligns compared facts' words and notes in their own columns, the word at the list's size", async () => {
+    theme("light");
+    const fact = (label: string, word: string, note: string) =>
+      `<dt>${label}</dt><dd><span class="cp-state" data-tone="success">` +
+      `<span class="cp-icon" data-cp-icon="check"></span>${word}</span><small>${note}</small></dd>`;
+    const el = build(
+      `<dl class="cp-facts" data-variant="compare">${fact("Episode", "Same", "S01E04 in both")}` +
+        `${fact("Release group", "Differs", "Timed to a web release")}</dl>`,
+    );
+    const list = el.querySelector("dl") as Element;
+    const words = [...list.querySelectorAll(".cp-state")];
+    const notes = [...list.querySelectorAll("small")];
+    const left = (e: Element | undefined) => (e as Element).getBoundingClientRect().left;
+    expect(left(words[0])).toBe(left(words[1]));
+    expect(left(notes[0])).toBe(left(notes[1]));
+    expect(left(notes[0])).toBeGreaterThan(left(words[1]));
+    expect(getComputedStyle(words[0] as Element).fontSize).toBe(getComputedStyle(list).fontSize);
+    expect((words[0]?.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(18);
+    expect(getComputedStyle(notes[0] as Element).fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
+    );
+    await page.viewport(390, 800);
+    const labels = [...list.querySelectorAll("dt")];
+    expect((words[0] as Element).getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      (labels[0] as Element).getBoundingClientRect().bottom,
+    );
+    expect(left(words[0])).toBe(left(labels[0]));
+  });
+
+  it("writes an outcome small, its link to the result in the success tone", () => {
+    theme("light");
+    const el = build('<span class="cp-outcome"><a href="#r">Downloaded</a></span>');
+    const outcome = el.querySelector(".cp-outcome") as Element;
+    expect(getComputedStyle(outcome).fontSize).toBe(
+      getComputedStyle(host("", { style: "font-size: var(--cp-text-sm)" })).fontSize,
+    );
+    expect(getComputedStyle(outcome.querySelector("a") as Element).color).toBe(
+      resolve("var(--cp-success-11)"),
+    );
+  });
+
+  it("fills the row a keyboard is in, and keeps a selected row's fill", async () => {
+    theme("light");
+    const el = build(
+      '<button type="button" id="start">Start</button><table class="cp-table"><tbody>' +
+        '<tr><th scope="row">a</th><td data-col="actions"><button class="cp-button" type="button">Grab</button></td></tr>' +
+        '<tr><td data-col="select"><label><input type="checkbox" checked></label></td><td>b</td></tr>' +
+        "</tbody></table>",
+    );
+    const [plain, selected] = [...el.querySelectorAll("tr")].map(
+      (tr) => tr.cells[0] as HTMLElement,
+    );
+    const grab = el.querySelector(".cp-button") as HTMLElement;
+    const rest = getComputedStyle(grab).backgroundColor;
+    expect(getComputedStyle(plain as Element).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    (el.querySelector("#start") as HTMLElement).focus();
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(grab);
+    expect(getComputedStyle(plain as Element).backgroundColor).toBe(
+      resolve("var(--cp-fill)", "backgroundColor"),
+    );
+    expect(getComputedStyle(grab).backgroundColor).not.toBe(rest);
+    await userEvent.keyboard("{Tab}");
+    expect(getComputedStyle(selected as Element).backgroundColor).toBe(
+      resolve("var(--cp-selected)", "backgroundColor"),
+    );
   });
 });

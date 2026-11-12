@@ -11,6 +11,7 @@ Every region that loads data has four designed states, for loading, empty, error
 | The first load of content whose shape is known, such as a table or a list | a skeleton in that shape (`.cp-skeleton`) |
 | An action on one control, such as Save or Retry | `spinner-arc` in the control beside its label, with `aria-busy="true"` on it |
 | Work with known steps, such as a check of 8 sources | a progress bar (`.cp-progress`) and the step in words, such as "3 of 8" |
+| A job that moves through named stages, such as a grab that is found, sent, downloading and imported | a step track (`.cp-track`), in a table row its compact form (`.cp-track-compact`). When the job stops reporting, the track is kept grey with the time it was last known (`data-kept` and `.cp-kept`) |
 | Work with no known length, such as a full check that the server accepted | a status line that names the work, the time it started and its latest progress, with Cancel when the work can stop |
 | A request with no answer by its own deadline | the error state, with what to try next |
 
@@ -37,21 +38,27 @@ A form never loses what the person typed, and every error is text that says how 
 
 ## Tables
 
-Rows are never interactive. A row's actions are buttons in its last cell, and a destination is a link in the title cell.
+Rows are never interactive. A row's actions are buttons in its last cell, and a destination is a link in the title cell, beside its picture in a `.cp-title-cell`. The row that holds keyboard focus takes the fill a pointer gives a row, so a person tabbing through its actions sees which row they act on.
 
-**Row actions.** A row's action button has a visible word, such as "Grab", and an accessible name that starts with that word and adds the row, such as "Grab Delicious in Dungeon". A row with one action gives it the whole actions column, so a column of actions lines up.
+**Row actions.** A row's action button has a visible word, such as "Grab", and an accessible name that starts with that word and adds the row, such as "Grab Delicious in Dungeon". A row with one action gives it the whole actions column, so a column of actions lines up. More actions go in one `.cp-menu` that every row's ⋯ button opens, and an action that runs confirms in its own cell, with no toast.
 
-**Sorting.** A sortable column's header is a button that names the order it will apply. The current sort is in the URL and in `aria-sort` on its `<th>`.
+**Sorting.** A sortable column's header is a `.cp-sort` button that names the order it will apply, such as "Sort by Size, ascending". The current sort is in the URL and in `aria-sort` on its `<th>`. [table](data/table.md)'s `enhanceSort` names the buttons, moves `aria-sort` and announces the new order.
 
 **Selection.** A table whose rows take a bulk action has a first column, `data-col="select"`, of `.cp-checkbox` boxes:
 
 1. Each row's checkbox has a name that includes its title, such as "Select Mushishi", inside a `<label>` that fills its cell.
 2. The header's checkbox selects the rows on this page, and its name says so, such as "Select all 25 entries on this page". It is mixed (`indeterminate`) while some of them are selected. [checkbox](forms/checkbox.md)'s `enhanceSelectAll` does both.
-3. A selected row takes the selected fill. Space toggles the focused checkbox. Escape clears the selection while focus is in the table or the batch bar and no dialog or menu is open.
+3. A selected row takes the selected fill. Space toggles the focused checkbox. Escape clears the selection while focus is in the table or the batch bar, unless an open menu takes it.
 4. With one row or more selected, a `.cp-batchbar` above the table, a `<section>` named by `aria-label`, shows the count, a Clear button and the bulk actions, which name their count, such as "Grab 2". Once the whole page is selected and more rows match, it also offers "Select all 412 entries", which selects every row the filters show on every page. With none selected, the bar is gone.
 5. Selection survives sorting and paging. A filter change that hides selected rows keeps them selected and says so in the count, such as "2 selected, 1 hidden by filters".
-6. Announce each change to the count through `@cplieger/ui/announce`, politely.
+6. Announce each change to the count through `@cplieger/ui/announce`, politely. [table](data/table.md)'s `enhanceBatchBar` runs the bar, its count, Escape and these announcements.
 7. A bulk action that changes or removes data asks first or offers an Undo, as a single action does. Its confirmation names the count.
+
+**A batched action.** Work on more items than one press should send, such as finding subtitles for 248 episodes, goes in batches. The button names what its next press does, such as "Start the first 100", "Start the next 100" or "Start the remaining 48", and after the last batch it is disabled and says "All 248 started". A `.cp-batch-report` under it sums up each press, such as "Started 200 of 248. 48 remain.", then lists each item that did not go, with its reason as a `.cp-state` word. Announce the summary through `@cplieger/ui/announce`, politely. Focus stays on the button while batches remain, then moves to the report, since a disabled button cannot hold it.
+
+**A row that explains itself.** When people need to know why a row is where it is, such as a ranked release, a chevron button in a first `data-col="expand"` column opens a detail row under it, named for what it explains, such as "Why Arid's release ranks first". The detail glides open as every disclosure does. Its content is often a `.cp-facts` list with `data-variant="compare"`, each fact a `.cp-state` word, such as Same or Differs, and a note. The detail starts in line with the row's first data column. A row action whose result matters after it ends, such as Download, turns into a `.cp-outcome` in its cell: a link to the result, or the error with Retry, and focus moves to it. [table](data/table.md)'s `enhanceRowDetail` runs the detail.
+
+**Filters.** While a filter is on, the filters in force sit above the table as a `.cp-active-filters` row, one chip each with its Remove, then Clear filters, and the result count reads "140 of 412". Removing one moves focus to the next chip, or to Clear filters while one is left, and the new count is announced once the person stops removing. [active-filters](data/active-filters.md) runs the row.
 
 **Pages.** A list longer than one page has a `.cp-pager` under its table, inside the panel:
 
@@ -128,7 +135,7 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 | A short confirmation of the person's own action, such as "Source added", whose result stays visible on the screen or in the history | a toast | 7 seconds, paused while hovered or focused |
 | A confirmation whose result is not visible anywhere else | a toast | until dismissed |
 | A failure of the person's own action | a toast, with Retry when it can be retried | until dismissed |
-| The outcome of background work, such as a finished check | the app's activity history, and a toast only when the person started it | in the history |
+| The outcome of background work, such as a finished check | the app's activity history (`.cp-history`), and a toast only when the person started it | in the history |
 
 - Show each toast with `toast()` from `@cplieger/ui/toast`. A passing toast stays 7 seconds, and an error or a toast with an action, such as Undo, stays until dismissed on its own.
 - Toasts announce themselves, confirmations politely and errors assertively, so use an error toast only for a failure of what the person just did. A failure of background work, such as a refresh, is a notice, announced politely.
@@ -200,5 +207,5 @@ The interface may ship in one language and still show titles, names and file nam
 
 The language decides these when an app first needs them, and adds them here:
 
-- Charts with axes. A share of a whole is already a [share bar](data/share-bar.md), how a number has moved over a range a [sparkline](data/sparkline.md), a number now with its trend a `.cp-figure` from [Components](design-components.md), a value against its ceiling a [meter](data/meter.md), and a table ranked by count a table with [ranked bars](data/ranked-bars.md). For the rest, until then, show the numbers in a table, label series directly, give each series a slot of the [series colours](design-colour.md#series-colours), and never use colour as the only way to tell series apart.
+- Charts with axes. A share of a whole is already a [share bar](data/share-bar.md), how a number has moved over a range a [sparkline](data/sparkline.md), a state over time, such as a service's last checks, a [state history](data/state-history.md) strip, a number now with its trend a `.cp-figure` from [Components](design-components.md), a value against its ceiling a [meter](data/meter.md), and a table ranked by count a table with [ranked bars](data/ranked-bars.md). For the rest, until then, show the numbers in a table, label series directly, give each series a slot of the [series colours](design-colour.md#series-colours), and never use colour as the only way to tell series apart.
 - Print styles.

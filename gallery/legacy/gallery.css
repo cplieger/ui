@@ -619,103 +619,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
  * positioning, in the top layer, so no z-index decides it. It grows out of
  * the corner nearest its button. */
 
-.g-pop {
-  position: fixed;
-  inset: auto;
-  margin: var(--cp-space-1) 0;
-  padding: var(--cp-space-1);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-overlay);
-  background: var(--cp-surface-overlay);
-  color: var(--cp-ink);
-  box-shadow: var(--cp-shadow-overlay);
-  position-area: block-end span-inline-end;
-  position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
-  transform-origin: top left;
-  opacity: 0;
-  scale: 0.96;
-  transition:
-    opacity 140ms var(--cp-ease-out),
-    scale 140ms var(--cp-ease-out),
-    overlay 140ms allow-discrete,
-    display 140ms allow-discrete;
-}
-
-.g-pop:popover-open {
-  opacity: 1;
-  scale: 1;
-  transition-duration: 180ms;
-}
-
-@starting-style {
-  .g-pop:popover-open {
-    opacity: 0;
-    scale: 0.96;
-  }
-}
-
-.g-menu {
-  min-inline-size: 12rem;
-}
-
-.g-menu [role="menuitem"],
-.g-menu [role="menuitemradio"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  inline-size: 100%;
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2) var(--cp-space-3);
-  border: 0;
-  border-radius: var(--cp-radius-control);
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-:root[data-pointer="coarse"] .g-menu [role^="menuitem"] {
-  min-block-size: var(--cp-control-h);
-}
-
-.g-menu [role^="menuitem"]:focus-visible,
-.g-menu [role^="menuitem"]:focus {
-  outline: none;
-  background: var(--cp-fill);
-}
-
-.g-menu [role^="menuitem"] > kbd {
-  margin-inline-start: auto;
-  padding: 0;
-  border: 0;
-  color: var(--cp-ink-muted);
-  font: inherit;
-  font-size: var(--cp-text-xs);
-}
-
-.g-menu [role^="menuitem"] > .cp-icon {
-  color: var(--cp-ink-muted);
-}
-
-.g-menu [data-tone="danger"],
-.g-menu [data-tone="danger"] > .cp-icon {
-  color: var(--cp-danger-11);
-}
-
-.g-menu hr {
-  margin: var(--cp-space-1) 0;
-  border: 0;
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-menu-label {
-  padding: var(--cp-space-1) var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-heading);
-}
-
 /* Dialogs: a modal in the middle, a confirmation, a sheet from the inline
  * end, and a full-screen one. All are native <dialog>, so focus moves in,
  * the page goes inert and Escape closes. They fade and settle in and fade
@@ -931,41 +834,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
 
 /* Tables and lists */
 
-.g-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.g-sort > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  opacity: 0;
-  transition: rotate 260ms var(--ease-spring), opacity var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-th[aria-sort] .g-sort > .cp-icon {
-  opacity: 1;
-}
-
-th[aria-sort="descending"] .g-sort > .cp-icon {
-  rotate: 180deg;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    th:not([aria-sort]) .g-sort:hover > .cp-icon {
-      opacity: 0.4;
-    }
-  }
-}
-
 .g-avatar {
   display: inline-grid;
   place-items: center;
@@ -1011,7 +879,7 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
 }
 
-.g-row > span:not(.g-avatar, .cp-icon, .g-dot) {
+.g-row > span:not(.g-avatar, .cp-icon) {
   display: grid;
   flex: 1;
   gap: 0.125rem;
@@ -1049,21 +917,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 .g-row:focus-visible {
   outline: var(--cp-focus-w) solid var(--cp-focus-ring);
   outline-offset: -2px;
-}
-
-.g-skeleton-row td::after {
-  content: "";
-  display: block;
-  block-size: 0.75rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-fill);
-  animation: pulse-row 1.4s ease-in-out infinite;
-}
-
-@keyframes pulse-row {
-  50% {
-    opacity: 0.45;
-  }
 }
 
 /* Backspace in an empty field marks the last token first, then removes it. */
@@ -1287,7 +1140,7 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-result) {
+  :root:not([data-motion="full"]) :is(.g-dialog, .cp-tooltip, .g-result) {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
@@ -1325,106 +1178,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 .g-toast-load > span {
   inline-size: 0.875rem;
   block-size: 0.875rem;
-}
-
-.g-dot {
-  display: inline-block;
-  inline-size: 0.5rem;
-  block-size: 0.5rem;
-  border-radius: 50%;
-  background: var(--cp-tone-9);
-}
-
-.g-badge {
-  display: inline-grid;
-  place-items: center;
-  min-inline-size: 1.25rem;
-  block-size: 1.25rem;
-  padding-inline: 0.375rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
-  font-size: 0.6875rem;
-  font-weight: var(--cp-weight-heading);
-  font-variant-numeric: tabular-nums;
-}
-
-.g-badge[data-quiet] {
-  background: var(--cp-fill);
-  color: var(--cp-ink-muted);
-}
-
-/* Key and value pairs: the labels in one column, the values in the next,
- * stacking on a phone. */
-.g-kv {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--cp-space-2) var(--cp-space-5);
-  margin: 0;
-  font-size: var(--cp-text-sm);
-}
-
-.g-kv dt {
-  color: var(--cp-ink-muted);
-}
-
-.g-kv dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-@media (width < 40rem) {
-  .g-kv {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
-  .g-kv dd {
-    margin-block-end: var(--cp-space-3);
-  }
-}
-
-/* A timeline of events: icon, words, time. */
-.g-timeline {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.g-timeline > li {
-  position: relative;
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) auto;
-  gap: var(--cp-space-3);
-  align-items: start;
-  padding-block: var(--cp-space-2);
-  font-size: var(--cp-text-sm);
-}
-
-.g-timeline > li:not(:last-child)::before {
-  content: "";
-  position: absolute;
-  inset-block: 2.25rem 0;
-  inset-inline-start: calc(1rem - 1px);
-  border-inline-start: 2px solid var(--cp-line);
-}
-
-.g-timeline .g-ev {
-  display: grid;
-  place-items: center;
-  inline-size: 2rem;
-  block-size: 2rem;
-  border-radius: 50%;
-  background: var(--cp-tone-3);
-  color: var(--cp-tone-11);
-}
-
-.g-timeline time {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  white-space: nowrap;
 }
 
 /* A cover's stand-in: a harmony colour and the kind's glyph. */
@@ -1646,76 +1399,6 @@ html:has(.g-header) {
   background: var(--cp-surface-page);
 }
 
-/* An action that reports its own outcome in its cell. */
-.g-outcome {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  font-size: var(--cp-text-sm);
-}
-
-.g-outcome[data-state="done"] a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-success-11);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-outcome .cp-field-error {
-  margin: 0;
-}
-
-/* Compared facts under a row. */
-.g-facts {
-  display: grid;
-  grid-template-columns: max-content auto 1fr;
-  gap: var(--cp-space-1) var(--cp-space-3);
-  margin: 0;
-  padding: var(--cp-space-2) var(--cp-space-4) var(--cp-space-3) 3rem;
-  font-size: var(--cp-text-sm);
-}
-
-.g-facts > dt {
-  color: var(--cp-ink-muted);
-}
-
-.g-facts > dd {
-  display: contents;
-}
-
-.g-facts > dd > span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-tone-11);
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-facts > dd > small {
-  color: var(--cp-ink-muted);
-}
-
-.g-disclose {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-}
-
-.g-disclose > .cp-icon {
-  transition: rotate 220ms var(--ease-spring);
-}
-
-.g-disclose[aria-expanded="true"] > .cp-icon {
-  rotate: 90deg;
-}
-
-.g-report {
-  margin: var(--cp-space-2) 0 0;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-}
-
 /* The refreshing region is a panel, and its line runs along the panel's
  * top edge, inside the border, so it belongs to what it refreshes. */
 .g-refreshing {
@@ -1903,14 +1586,6 @@ html:has(.g-header) {
   --av-on: var(--cp-harmony-4-on);
 }
 
-/* Positioned, so a visually hidden label inside its table stays in the
- * scroller rather than widening the page, as css/system's flush panel does. */
-.g-flush {
-  position: relative;
-  padding: 0;
-  overflow-x: auto;
-}
-
 .g-gap-top {
   margin-block-start: var(--cp-space-3);
 }
@@ -1919,119 +1594,10 @@ html:has(.g-header) {
   font-size: var(--cp-text-lg);
 }
 
-/* Targets: a sort button fills its header cell; a token's remove button
- * is 28px, 44px under a finger; a switch's hit area reaches 44px. */
-.g-sort {
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-1);
-  margin-inline: calc(-1 * var(--cp-space-1));
-  border-radius: var(--cp-radius-control);
-}
-
 /* The frame's status line out of its frame, boxed so its edges show. */
 .g-statusline {
   border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-control);
-}
-
-/* A step track: named steps, each done, current or to come. */
-.g-track {
-  display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
-  gap: 0.25rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--cp-text-xs);
-}
-
-.g-track > li {
-  display: grid;
-  gap: 0.25rem;
-  color: var(--cp-ink-muted);
-}
-
-.g-track > li::before {
-  content: "";
-  block-size: 0.375rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-fill);
-}
-
-.g-track > li[data-state="done"]::before {
-  background: var(--cp-accent);
-}
-
-.g-track > li[data-state="current"]::before {
-  background: linear-gradient(90deg, var(--cp-accent) var(--pct, 50%), var(--cp-accent-4) var(--pct, 50%));
-}
-
-.g-track > li[data-state="current"] {
-  color: var(--cp-ink);
-  font-weight: var(--cp-weight-medium);
-}
-
-/* Active filters: chips that remove, a Clear, and the count. */
-.g-active {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-active > .cp-token {
-  animation: none;
-}
-
-.g-kept-tag {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-/* A state history strip: one cell per check, its table beside it. */
-.g-strip-chart {
-  display: grid;
-  gap: var(--cp-space-2);
-}
-
-.g-strip-chart svg {
-  inline-size: 100%;
-  block-size: 1.75rem;
-}
-
-.g-strip-chart rect[data-tone="success"] {
-  fill: var(--cp-success-9);
-}
-
-.g-strip-chart rect[data-tone="warning"] {
-  fill: var(--cp-warning-9);
-}
-
-.g-strip-chart rect[data-tone="danger"] {
-  fill: var(--cp-danger-9);
-}
-
-.g-strip-chart rect[data-tone="neutral"] {
-  fill: var(--cp-neutral-6);
-}
-
-.g-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-1) var(--cp-space-4);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-legend .g-dot[data-tone="neutral"] {
-  background: var(--cp-neutral-6);
-}
-
-.g-legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
 }
 
 
@@ -2092,156 +1658,6 @@ html:has(.g-header) {
 }
 
 /* ===== Data: the table and its rules ===== */
-
-/* The panel is the table's container, so columns step aside by its width. */
-.g-tablebox {
-  container-type: inline-size;
-}
-
-.g-caption {
-  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  text-align: start;
-}
-
-.g-titlecell {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-}
-
-/* A 2:3 thumbnail: the poster, or its stand-in with the title's initial.
- * In a table it fills its row less 1px each side, so posters stack 2px
- * apart as in the jump list; the text keeps its own padding. */
-.cp-table td:has(> .g-titlecell) {
-  padding-block: 1px;
-}
-
-.g-titlecell > .cp-cell-stack {
-  padding-block: var(--cp-space-2);
-}
-
-.g-thumb {
-  display: grid;
-  flex: none;
-  place-items: center;
-  inline-size: 2.25rem;
-  aspect-ratio: 2 / 3;
-  border-radius: calc(var(--cp-radius-control) - 0.125rem);
-  background: var(--av, var(--cp-harmony-2));
-  color: var(--av-on, var(--cp-harmony-2-on));
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-semibold);
-}
-
-.g-rowacts {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--cp-space-1);
-}
-
-/* The step track's words, and its compact and kept forms. */
-.g-track-wrap {
-  display: grid;
-  gap: var(--cp-space-2);
-}
-
-.g-track-wrap > p {
-  margin: 0;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-track[data-stale] > li::before {
-  background: var(--cp-neutral-5);
-}
-
-.g-track[data-stale] > li[data-state="done"]::before,
-.g-track[data-stale] > li[data-state="current"]::before {
-  background: var(--cp-neutral-8);
-}
-
-.g-track[data-stale] > li[data-state="current"] {
-  color: var(--cp-ink-muted);
-}
-
-.g-step-compact {
-  min-block-size: 1.5rem;
-  padding: 0 var(--cp-space-1);
-  border: 0;
-  border-radius: var(--cp-radius-control);
-  background: none;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-accent-11);
-  font-size: var(--cp-text-sm);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-kept-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-}
-
-.g-kept-tag > .cp-icon {
-  --cp-icon-size: 0.875rem;
-}
-
-/* History by day, with Load older at its foot. */
-.g-day {
-  margin: var(--cp-space-4) 0 var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-semibold);
-}
-
-.g-day:first-child {
-  margin-block-start: 0;
-}
-
-.g-timeline details {
-  grid-column: 2 / -1;
-  font-size: var(--cp-text-sm);
-}
-
-.g-timeline summary {
-  color: var(--cp-accent-11);
-  cursor: pointer;
-}
-
-.g-timeline details > p {
-  margin: var(--cp-space-1) 0 0;
-  color: var(--cp-ink-muted);
-}
-
-/* The strip's table alternative. */
-.g-strip-chart details > summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  list-style: none;
-  color: var(--cp-accent-11);
-  font-size: var(--cp-text-sm);
-  cursor: pointer;
-}
-
-.g-strip-chart details > summary::-webkit-details-marker {
-  display: none;
-}
-
-.g-strip-chart details > summary > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  transition: rotate 160ms var(--cp-ease-out);
-}
-
-.g-strip-chart details[open]:not([data-closing]) > summary > .cp-icon {
-  rotate: 90deg;
-}
 
 .g-media-head h2 + .g-alt-title + .g-media-meta {
   margin-block-start: var(--cp-space-2);
@@ -2356,32 +1772,6 @@ html:has(.g-header) {
   justify-self: stretch;
 }
 
-/* History: a disclosure that opens on a chevron and glides open. */
-.g-timeline details > summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  list-style: none;
-}
-
-.g-timeline details > summary::-webkit-details-marker {
-  display: none;
-}
-
-.g-timeline details > summary > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  transition: rotate 160ms var(--cp-ease-out);
-}
-
-.g-timeline details[open]:not([data-closing]) > summary > .cp-icon {
-  rotate: 90deg;
-}
-
-.g-timeline details > summary > .cp-icon:dir(rtl) {
-  scale: -1 1;
-}
-
 /* A date or a time holds its value and its picker button, never cut; a date's
  * value is longer, so it gets more room (a spaced locale clipped the icon). */
 .cp-field > .cp-input:is([type="date"], [type="time"]):not([data-width="fill"]) {
@@ -2424,24 +1814,7 @@ html:has(.g-header) {
 
 /* The stepper's number rolls in a window laid over its field. */
 
-.g-thumb > .cp-icon {
-  --cp-icon-size: 1rem;
-}
-
 /* ===== Forced colours: the gallery's own controls keep their state ===== */
-@media (forced-colors: active) {
-
-  .g-dot,
-  .g-track > li::before {
-    forced-color-adjust: none;
-    border: 1px solid CanvasText;
-  }
-
-  .g-track > li[data-state="done"]::before,
-  .g-track > li[data-state="current"]::before {
-    background: Highlight;
-  }
-}
 
 .g-harmony > span[data-h] {
   background: var(--av);
@@ -2460,28 +1833,6 @@ html:has(.g-header) {
 :root .cp-button.btn-done[data-tone="danger"][data-state="done"]:not(:disabled) {
   background: var(--cp-danger-9);
   color: var(--cp-danger-on);
-}
-
-/* An expandable row opens on a chevron in its own first column. */
-.cp-table [data-col="expand"] {
-  inline-size: 1%;
-  padding-inline-end: 0;
-}
-
-/* The row of facts takes its content's height, not the table's row height,
- * so it glides from nothing; its inner layer holds the padding the glide
- * would otherwise stop at. */
-.cp-table .g-why-row > td {
-  block-size: auto;
-  padding-block: 0;
-}
-
-.g-why {
-  overflow: clip;
-}
-
-.g-why-in {
-  padding-block: var(--cp-space-2);
 }
 
 /* Content-free frames: each region is a labelled, dashed box. */

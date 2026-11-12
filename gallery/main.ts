@@ -5,6 +5,7 @@
  * as an app does, and its legacy version goes.
  */
 
+import { installAnnouncer } from "@cplieger/ui/announce";
 import { enhanceSelectAll } from "@cplieger/ui/checkbox";
 import { enhanceChoiceFields } from "@cplieger/ui/choice";
 import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
@@ -30,6 +31,7 @@ import "./legacy/gallery.js";
 import "./wire/feed.js";
 import { markCards } from "./review.js";
 import "./wire/data-figures.js";
+import "./wire/data-tables.js";
 import "./wire/nav-feedback.js";
 import "./wire/overlays.js";
 
@@ -37,6 +39,7 @@ const all = <E extends Element>(selector: string): E[] => [
   ...document.querySelectorAll<E>(selector),
 ];
 
+installAnnouncer();
 installRadioFocus();
 installTooltips();
 

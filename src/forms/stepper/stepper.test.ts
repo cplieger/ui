@@ -76,10 +76,28 @@ describe("enhanceStepper", () => {
   it("rolls the number over the field while it changes, and a keystroke ends the roll at once", async () => {
     const { s, input, plus } = stepper("3");
     enhanceStepper(s, { signal: life.signal });
+    const rolling: boolean[] = [];
+    // Read as the press lands, since a slow press can outlast the roll.
+    document.addEventListener("click", () => rolling.push(s.hasAttribute("data-cp-rolling")), {
+      signal: life.signal,
+    });
     await userEvent.click(plus);
-    expect(s.hasAttribute("data-cp-rolling")).toBe(true);
-    await expect.poll(() => s.hasAttribute("data-cp-rolling")).toBe(false);
+    expect(rolling).toEqual([true]);
+    await Promise.allSettled(s.getAnimations({ subtree: true }).map((a) => a.finished));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(s.hasAttribute("data-cp-rolling")).toBe(false);
+    // Held mid-roll, so only the keystroke can end it.
+    document.addEventListener(
+      "click",
+      () => {
+        for (const a of s.getAnimations({ subtree: true })) {
+          a.pause();
+        }
+      },
+      { signal: life.signal },
+    );
     await userEvent.click(plus);
+    expect(rolling).toEqual([true, true]);
     expect(s.hasAttribute("data-cp-rolling")).toBe(true);
     input.focus();
     await userEvent.keyboard("{ArrowUp}");

@@ -10,6 +10,7 @@ const PACKAGE_ROOT = resolve(import.meta.dirname, "..");
 
 // No subpath does anything as it loads: each starts its work from a call.
 const PURE = [
+  "/active-filters",
   "/anchor",
   "/announce",
   "/ask",
@@ -53,7 +54,9 @@ const PURE = [
   "/share-bar",
   "/skeleton",
   "/sparkline",
+  "/state-history",
   "/stepper",
+  "/table",
   "/tabs",
   "/textarea",
   "/theme",

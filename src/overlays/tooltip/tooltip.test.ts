@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { installTooltips } from "./tooltip.js";
@@ -30,33 +30,31 @@ describe("installTooltips", () => {
   it("shows a control's tip after a mouse rests on it, and hides it as the mouse leaves", async () => {
     installTooltips({ signal: life.signal, delay: 300 });
     const b = control("Settings", "Settings");
-    // The rest is measured from the pointer's arrival to the tip's opening, so
-    // a busy machine that slows the hover cannot make it look early. Both are
-    // read from performance.now() as they run: under load Firefox gave an
-    // automated pointerover a timeStamp 1.1s after the toggle it caused. The
-    // window's capture listener runs before the tooltip's, which starts the
-    // timer; one millisecond allows for the clock's rounding.
-    let arrived = 0;
-    let opened = 0;
-    const over = (e: PointerEvent): void => {
-      if (e.target === b) {
-        arrived ||= performance.now();
-      }
-    };
-    window.addEventListener("pointerover", over, { capture: true, signal: life.signal });
-    tip().addEventListener("toggle", (e) => {
-      if (e.newState === "open") {
-        opened ||= performance.now();
-      }
-    });
     await userEvent.hover(b);
     await expect.poll(showing, { timeout: 3000 }).toBe(true);
-    expect(arrived).toBeGreaterThan(0);
-    expect(opened - arrived).toBeGreaterThanOrEqual(299);
     expect(tip().textContent).toBe("Settings");
     expect(tip().getAttribute("role")).toBe("tooltip");
     await userEvent.unhover(b);
     expect(showing()).toBe(false);
+  });
+
+  it("waits the whole delay from the mouse's arrival before showing", () => {
+    // The delay is the tooltip's own timer, so a faked clock measures it
+    // exactly; a real hover's delivery time varies by engine under load.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      installTooltips({ signal: life.signal, delay: 300 });
+      const b = control("Settings", "Settings");
+      b.dispatchEvent(
+        new PointerEvent("pointerover", { bubbles: true, composed: true, pointerType: "mouse" }),
+      );
+      vi.advanceTimersByTime(299);
+      expect(showing()).toBe(false);
+      vi.advanceTimersByTime(1);
+      expect(showing()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows the tip at once for keyboard focus, and hides it on Escape and on blur", async () => {
