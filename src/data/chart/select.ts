@@ -176,8 +176,9 @@ function along(
   return next === undefined || (next >= lo && next <= hi) ? undefined : next;
 }
 
-/** The parts of a bucket or sample bottom to top: a stack's series in
- *  order, or the lines with a value there by value, ties in series order. */
+/** The parts of a bucket or sample in Up order: the series in series order
+ *  (bottom to top in a stack, left to right in a group), or the lines with a
+ *  value there by value, ties in series order. */
 function partsAt(m: RectModel | SampleModel, i: number): number[] {
   const all = m.series.map((_, k) => k);
   if (m.kind !== "line") {
@@ -441,7 +442,8 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
 /**
  * What announce says for `sel`: with `part` and a series chosen, that one
  * segment or line through `words.segment`; otherwise the whole reading
- * through `words.reading`, or a silent row's `words.silentRow`.
+ * through `words.reading`, or a silent row's `words.silentRow`; then each
+ * note joining the stop through `words.noteReading`.
  */
 export function spoken(model: Model, sel: Selection, words: Words, part: boolean): string {
   const said = readingWords(model, sel, words, part);

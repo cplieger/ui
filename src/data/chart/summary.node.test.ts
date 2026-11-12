@@ -470,6 +470,16 @@ describe("the notes in the summary", () => {
     expect(generatedSummary(model(spec), words)).toMatch(/: Later\.$/u);
   });
 
+  it("end a note written as a sentence once", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: START, y: 1, text: "Deploy of 1.4.0." }],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(`${time(START)}: Deploy of 1\\.4\\.0\\.$`, "u"),
+    );
+  });
+
   it("take the app's words", () => {
     const spec: ChartSpec = {
       ...stacked,

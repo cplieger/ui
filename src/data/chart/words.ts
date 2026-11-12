@@ -85,9 +85,11 @@ export interface ChartWords {
   readonly binParts?: (parts: string) => string;
   /** Summary and table, a rule. Default "{label} {value}." */
   readonly rule?: (label: string, value: string) => string;
-  /** Summary and table, a note; at is its place in words. Default "{at}: {text}." */
+  /** Summary and table, a note; at is its place in words. Default "{at}: {text}.",
+   *  with no stop added when the text ends in one. */
   readonly note?: (at: string, text: string) => string;
-  /** A note added to the reading of the stop it joins. Default "Note: {text}." */
+  /** A note added to the reading of the stop it joins. Default "Note: {text}.",
+   *  with no stop added when the text ends in one. */
   readonly noteReading?: (text: string) => string;
   /** Summary, line head. Default "{range}, {every}.", or "{range}." when every is "". */
   readonly lineSummary?: (range: string, every: string) => string;
@@ -106,6 +108,9 @@ export interface ChartWords {
 export type Words = Required<Omit<ChartWords, "kind">> & {
   readonly kind: Readonly<Record<Kind, string>>;
 };
+
+// An app's note may already be a sentence ("Deploy of 1.4.0."), which a second stop would end twice.
+const sentence = (t: string): string => (/[.!?\u2026]$/u.test(t) ? t : `${t}.`);
 
 const DEFAULTS: Words = {
   chart: "chart",
@@ -152,8 +157,8 @@ const DEFAULTS: Words = {
   binSummary: (n, range) => `${n} from ${range}.`,
   binParts: (parts) => `${parts}.`,
   rule: (label, value) => `${label} ${value}.`,
-  note: (at, text) => `${at}: ${text}.`,
-  noteReading: (text) => `Note: ${text}.`,
+  note: (at, text) => sentence(`${at}: ${text}`),
+  noteReading: (text) => sentence(`Note: ${text}`),
   lineSummary: (range, every) => (every === "" ? `${range}.` : `${range}, ${every}.`),
   lineSeries: (name, last, low, high) => `${name}: last ${last}, low ${low}, high ${high}.`,
   dotSummary: (range, rows, n) => `${range}. ${rows}, ${n}.`,

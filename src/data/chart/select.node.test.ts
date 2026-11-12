@@ -545,3 +545,16 @@ describe("the selection across an update", () => {
     expect(rekey(a, { kind: "dot", row: 0, from: 0, to: 1 }, gone)).toBe(undefined);
   });
 });
+
+describe("a note in a reading", () => {
+  it("ends a note written as a sentence once", () => {
+    const spec = stacked();
+    const b = built({
+      ...spec,
+      marks: [...spec.marks, { mark: "text", x: START + 20 * MIN, y: 4, text: "Deploy done!" }],
+    });
+    expect(spoken(b.model, { kind: "rect", i: 1, part: undefined }, words, false)).toBe(
+      `${span(15, 30)}: Announce 5, Path 9. Total 14. Note: Deploy done!`,
+    );
+  });
+});
