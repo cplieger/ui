@@ -557,4 +557,15 @@ describe("a note in a reading", () => {
       `${span(15, 30)}: Announce 5, Path 9. Total 14. Note: Deploy done!`,
     );
   });
+
+  it("on a step line reads a note at a held sample at the stop holding it, wherever the pointer is in its run", () => {
+    const b = built({
+      ...step,
+      marks: [...step.marks, { mark: "text", x: START + 3 * MIN, y: 4, text: "Restart" }],
+    });
+    const at = (i: number) => spoken(b.model, { kind: "line", i, part: undefined }, words, false);
+    expect(at(2)).toBe(`${time(2)}: Live 4, Active 1. Note: Restart.`);
+    expect(at(3)).toBe(`${time(3)}: Live 4, Active 1. Note: Restart.`);
+    expect(at(4)).toBe(`${time(4)}: Live 4, Active 2.`);
+  });
 });

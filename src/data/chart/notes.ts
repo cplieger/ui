@@ -10,6 +10,7 @@ import { lowerBound } from "../scale/reduce.js";
 import type { Model, RectModel, Side, TextModel } from "./model.js";
 import { primaryOf } from "./readout.js";
 import { ruleAt } from "./scales.js";
+import { stepStopAt } from "./table.js";
 
 /** The room between a note and its point. */
 const NOTE_OFFSET = 4;
@@ -179,14 +180,32 @@ function bucketAt(m: RectModel, x: number, hi: number): number | undefined {
   return held ?? (x === hi ? m.shown.find((i) => x2(i) === x) : undefined);
 }
 
-/** The stop note `t` joins in `model`; none when it lies off an axis's
- *  drawn range or names no stop. */
-export function noteJoin(model: Model, t: TextModel): Join | undefined {
-  if ("off" in ruleAt(model.x, t.x)) {
+/**
+ * Where note `t` stands, in axis values: a band's row index for `y` on a
+ * timeline. Undefined when it lies off either axis's domain, which the scales
+ * set without notes, so layout draws and `noteJoin` joins the same notes at
+ * every width.
+ */
+export function notePoint(
+  model: Model,
+  t: TextModel,
+): { readonly x: number; readonly y: number } | undefined {
+  const x = ruleAt(model.x, t.x);
+  if ("off" in x) {
     return undefined;
   }
-  const y = model.y;
-  if (!t.row && y.type !== "band" && y.passed && (t.y < y.lo || t.y > y.hi)) {
+  if (model.y.type === "band") {
+    return { x: x.at, y: t.y };
+  }
+  const y = ruleAt(model.y, t.y);
+  return "off" in y ? undefined : { x: x.at, y: y.at };
+}
+
+/** The stop note `t` joins in `model`; none when `notePoint` places it
+ *  nowhere or it names no stop. On a step curve that is the stop holding its
+ *  nearest sample, since the keys stop only there. */
+export function noteJoin(model: Model, t: TextModel): Join | undefined {
+  if (notePoint(model, t) === undefined) {
     return undefined;
   }
   const m = primaryOf(model);
@@ -198,7 +217,10 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
     case "line":
     case "area": {
       const i = nearestStop(m.x, m.from, m.to, t.x);
-      return i === undefined ? undefined : { kind: "stop", i };
+      if (i === undefined) {
+        return undefined;
+      }
+      return { kind: "stop", i: m.step ? stepStopAt(m, i) : i };
     }
     case "dot": {
       const row = m.rows[t.y];

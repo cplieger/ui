@@ -398,6 +398,21 @@ describe("notes in the readings", () => {
     await says(`${span(15, 30)}: Announce 3. Note: Deploy.`);
   });
 
+  it("on a step line, the change point holding a note's sample reads it", async () => {
+    const b = build({
+      ...step,
+      marks: [...step.marks, { mark: "text", x: START + 3 * MIN, y: 4, text: "Restart" }],
+    });
+    b.plot.focus();
+    await says(`${time(7)}: Live 10, Active 2.`);
+    key(b.plot, "ArrowLeft");
+    await says(`${time(5)}: Live 10, Active 2.`);
+    key(b.plot, "ArrowLeft");
+    await says(`${time(4)}: Live 4, Active 2.`);
+    key(b.plot, "ArrowLeft");
+    await says(`${time(2)}: Live 4, Active 1. Note: Restart.`);
+  });
+
   it("a silent row's reading adds its note after a full stop, a post's the note nearest it", async () => {
     const b = build({
       ...agents,

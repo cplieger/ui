@@ -6,6 +6,7 @@
 
 import { formatter, instantFormat, spanFormat, type Unit } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
+import { spansDay } from "../scale/time.js";
 
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
 import type { ChartSpec, Mark, RectMark } from "./spec.js";
@@ -180,7 +181,6 @@ export interface Model {
   readonly timeZone: string | undefined;
 }
 
-const DAY = 86_400_000;
 const SCALE_TYPES = new Set(["linear", "log", "time", "band"]);
 const FORMATS = new Set(["number", "integer", "percent", "duration"]);
 const SIDES = new Set(["above", "below", "left", "right"]);
@@ -649,9 +649,9 @@ export function chartModel(
         return textModel(m, `marks[${String(index)}]`, x, y);
     }
   });
-  // The ends of a domain a whole day long share their clock time, so they
+  // The ends of a domain a whole day long can share their clock time, so they
   // need their dates ("Nov 10, 2:00 PM to Nov 11, 2:00 PM").
-  const days = x.hi - x.lo >= DAY;
+  const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
   const xText =
     x.type === "time" ? instantFormat(locale, timeZone, days) : formatter(x.format, locale);
   const xSpan =

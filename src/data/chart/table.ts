@@ -63,17 +63,30 @@ function timed(model: Model, write: (m: Model) => string): Part[] {
     .map((s) => (s.length === 1 ? (at[(s.codePointAt(0) ?? 0) - MARK] ?? s) : s));
 }
 
+const isStop = (m: SampleModel, i: number): boolean =>
+  i === m.from || i === m.to - 1 || m.series.some((s) => s.y[i] !== s.y[i - 1]);
+
 /** The samples a step line's table lists and its keys stop at: the first
  *  and last inside the domain, and each where any series changes value or
  *  turns to or from a gap. */
 export function stepStops(m: SampleModel): number[] {
   const out: number[] = [];
   for (let i = m.from; i < m.to; i++) {
-    if (i === m.from || i === m.to - 1 || m.series.some((s) => s.y[i] !== s.y[i - 1])) {
+    if (isStop(m, i)) {
       out.push(i);
     }
   }
   return out;
+}
+
+/** The stop holding sample `i` of a step line inside its domain: the last of
+ *  `stepStops` at or before it. */
+export function stepStopAt(m: SampleModel, i: number): number {
+  let k = i;
+  while (k > m.from && !isStop(m, k)) {
+    k--;
+  }
+  return k;
 }
 
 function rectRows(model: Model, m: RectModel, words: Words): Row[] {

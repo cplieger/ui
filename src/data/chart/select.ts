@@ -21,7 +21,7 @@ import {
   sampleReading,
   type Reading,
 } from "./readout.js";
-import { stepStops } from "./table.js";
+import { stepStopAt, stepStops } from "./table.js";
 import type { Words } from "./words.js";
 
 /**
@@ -456,9 +456,22 @@ export function spoken(model: Model, sel: Selection, words: Words, part: boolean
   return `${said}${silent ? "." : ""} ${notes}`;
 }
 
-const joins = (j: Join, sel: Selection): boolean =>
+// The stop `sel` stands on: a pointer on a step curve's held sample stands on
+// the stop holding it, which is where `noteJoin` joins a note.
+function stopOf(model: Model, sel: Selection): number | undefined {
+  if (sel.kind === "rect") {
+    return sel.i;
+  }
+  if (sel.kind !== "line" && sel.kind !== "area") {
+    return undefined;
+  }
+  const m = primaryOf(model);
+  return m?.kind === sel.kind && m.step ? stepStopAt(m, sel.i) : sel.i;
+}
+
+const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
   j.kind === "stop"
-    ? (sel.kind === "rect" || sel.kind === "line" || sel.kind === "area") && sel.i === j.i
+    ? stop === j.i
     : j.kind === "post"
       ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
       : sel.kind === "row" && sel.row === j.row;
@@ -466,9 +479,10 @@ const joins = (j: Join, sel: Selection): boolean =>
 /** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
 function noteReadings(model: Model, sel: Selection, words: Words): string {
   const out: string[] = [];
+  const stop = stopOf(model, sel);
   for (const m of model.marks) {
     const j = m.kind === "text" ? noteJoin(model, m) : undefined;
-    if (m.kind === "text" && j !== undefined && joins(j, sel)) {
+    if (m.kind === "text" && j !== undefined && joins(j, sel, stop)) {
       out.push(words.noteReading(m.text));
     }
   }

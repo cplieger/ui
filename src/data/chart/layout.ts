@@ -20,9 +20,9 @@ import {
 } from "./axis.js";
 import type { Frame } from "./geometry.js";
 import { sampleValue, type Model } from "./model.js";
-import { NOTE_REM, placeNote, wrapNote, type Box } from "./notes.js";
+import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
-import { ruleAt, type Continuous } from "./scales.js";
+import type { Continuous } from "./scales.js";
 import type { Words } from "./words.js";
 
 /** What the page gives the layout, read outside any draw. */
@@ -134,24 +134,17 @@ function endTexts(model: Model, words: Words): { text: string; value: number }[]
   return out;
 }
 
-// Each text mark whose point lies in the plot, wrapped and placed beside it.
+// Each text mark `notePoint` places, wrapped and placed beside its point.
 function notesOf(model: Model, metrics: Metrics, frame: Frame, rows: Layout["rows"]): Note[] {
   const out: Note[] = [];
   const max = Math.min(NOTE_REM * metrics.rem, frame.width);
   model.marks.forEach((m, mark) => {
-    if (m.kind !== "text") {
+    const at = m.kind === "text" ? notePoint(model, m) : undefined;
+    if (m.kind !== "text" || at === undefined) {
       return;
     }
-    const xPlace = ruleAt(model.x, m.x);
-    if ("off" in xPlace) {
-      return;
-    }
-    const x = frame.xAt(xPlace.at);
-    const y = m.row ? (rows[m.y]?.y ?? 0) : frame.yAt(m.y);
-    const inside = (v: number, hi: number) => v >= -0.5 && v <= hi + 0.5;
-    if (!inside(x, frame.width) || !inside(y, frame.height)) {
-      return;
-    }
+    const x = frame.xAt(at.x);
+    const y = m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y);
     const texts = wrapNote(m.text, max, metrics.measure.text);
     const w = Math.max(...texts.map(metrics.measure.text));
     const h = texts.length * metrics.lineHeight;

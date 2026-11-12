@@ -96,20 +96,47 @@ describe("the summary of a column chart", () => {
     expect(shortDescription(model(one), words)).toBe(`Column chart, ${span(START, END)}`);
   });
 
+  // Paris springs forward on 29 March 2026 and falls back on 25 October.
+  const HR = 60 * MIN;
+  const dated = (t: number) =>
+    new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: TZ,
+    }).format(t);
+  const across = (lo: number, hi: number): Model =>
+    model({
+      x: { type: "time", domain: [lo, hi] },
+      marks: [{ mark: "line", x: [lo, hi], series: [{ name: "Load", y: [3, 5] }] }],
+    });
+
   it("dates both ends of a domain a whole day long, whose clock times match", () => {
-    const day = 24 * 60 * MIN;
+    const day = 24 * HR;
     const m = model({ ...stacked, x: { type: "time", domain: [END - day, END] } });
-    const dated = (t: number) =>
-      new Intl.DateTimeFormat("en", {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: TZ,
-      }).format(t);
     expect(shortDescription(m, words)).toBe(
       `Stacked column chart, 2 series, ${dated(END - day)} to ${dated(END)}`,
     );
+  });
+
+  it.each([
+    ["a 23-hour spring-forward day", Date.UTC(2026, 2, 28, 13), 23],
+    ["a 25-hour fall-back day", Date.UTC(2026, 9, 24, 12), 25],
+  ])("dates both ends of %s, in the description and the summary", (_, lo, hours) => {
+    const hi = lo + hours * HR;
+    expect(time(lo)).toBe(time(hi));
+    const m = across(lo, hi);
+    const range = `${dated(lo)} to ${dated(hi)}`;
+    expect(shortDescription(m, words)).toBe(`Line chart, ${range}`);
+    expect(generatedSummary(m, words)).toContain(range);
+  });
+
+  it("writes only the times of a domain under a day that crosses midnight", () => {
+    // 10:00 PM to 4:00 AM in Paris.
+    const lo = Date.UTC(2026, 10, 11, 21);
+    const hi = lo + 6 * HR;
+    expect(shortDescription(across(lo, hi), words)).toBe(`Line chart, ${span(lo, hi)}`);
   });
 });
 

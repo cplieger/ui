@@ -6,11 +6,14 @@ import { layout, type Metrics } from "./layout.js";
 import { chartModel } from "./model.js";
 import { nearestStop, noteJoin, placeNote, wrapNote } from "./notes.js";
 import type { ChartSpec, Mark } from "./spec.js";
+import { generatedSummary } from "./summary.js";
+import { tableModel } from "./table.js";
 import { chartWords } from "./words.js";
 
 // A face 7.5 px a character, digits included.
 const width = (t: string) => 7.5 * Array.from(t).length;
 const face = measurer(width, 7.5, "en");
+const words = chartWords();
 const metrics: Metrics = {
   measure: face,
   mono: face,
@@ -23,7 +26,7 @@ const metrics: Metrics = {
   dpr: 1,
 };
 const lay = (spec: ChartSpec, w = 600) =>
-  layout(chartModel(spec, "en", "UTC"), chartWords(), metrics, w, { axis: 0, label: 0 });
+  layout(chartModel(spec, "en", "UTC"), words, metrics, w, { axis: 0, label: 0 });
 // Each text mark's join, in spec order.
 const joined = (spec: ChartSpec) => {
   const m = chartModel(spec, "en", "UTC");
@@ -310,6 +313,58 @@ describe("the stop a note joins", () => {
       ],
     };
     expect(joined(spec)).toEqual([null, null, { kind: "stop", i: 1 }]);
+  });
+});
+
+describe("a note on a step curve", () => {
+  // Stops at samples 0, 3 and 4: the first, a change and the last.
+  const stepped = (mark: "line" | "area", x: number): ChartSpec => ({
+    x: { type: "linear", domain: [0, 40] },
+    marks: [
+      { mark, curve: "step", x: [0, 10, 20, 30, 40], series: [{ name: "a", y: [1, 1, 1, 2, 2] }] },
+      { mark: "text", x, y: 1, text: "n" },
+    ],
+  });
+
+  it.each([
+    [20, 0],
+    [9, 0],
+    [29, 3],
+    [40, 4],
+  ])("joins x %d to stop %d, the stop holding its nearest sample", (x, i) => {
+    for (const mark of ["line", "area"] as const) {
+      expect(joined(stepped(mark, x))).toEqual([{ kind: "stop", i }]);
+    }
+  });
+});
+
+describe("a note off an inferred y domain", () => {
+  const spec = (y: number): ChartSpec => ({
+    x: { type: "linear", domain: [0, 50] },
+    marks: [
+      { mark: "line", x: [10, 20, 40], series: [{ name: "a", y: [1, 2, 2.6] }] },
+      { mark: "text", x: 20, y, text: "Spike" },
+    ],
+  });
+
+  it("is not drawn and joins no reading, yet is in the summary and the table", () => {
+    const m = chartModel(spec(30), "en", "UTC");
+    expect(lay(spec(30)).notes).toEqual([]);
+    expect(joined(spec(30))).toEqual([null]);
+    expect(generatedSummary(m, words)).toContain("20: Spike.");
+    expect(tableModel(m, words).after).toContain("20: Spike.");
+  });
+
+  it("is not drawn in the room the axis rounds its top up to, as it joins nothing there", () => {
+    const l = lay(spec(2.8));
+    expect(l.frame.yAt(2.8)).toBeGreaterThanOrEqual(0);
+    expect(l.notes).toEqual([]);
+    expect(joined(spec(2.8))).toEqual([null]);
+  });
+
+  it("is drawn and joins its stop inside the data's extent", () => {
+    expect(lay(spec(2)).notes).toHaveLength(1);
+    expect(joined(spec(2))).toEqual([{ kind: "stop", i: 1 }]);
   });
 });
 
