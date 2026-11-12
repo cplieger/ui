@@ -26,7 +26,7 @@ const toolbar = enhanceOverflow(bar, { signal: page.signal });
 - Each button that leaves is an item in the menu with its icon and its words, or its `aria-label`. Choosing the item presses the button, so the action runs as it does from the toolbar, through the button's own click listener. A disabled button's item is disabled, and a `data-tone="danger"` button's item keeps its tone.
 - A button with `aria-pressed`, such as a [toggle](toggle.md), is a check item that shows its state, and the menu stays open after it, as for any check item.
 - A child that is not a button, or a button the page hid, keeps its place.
-- The menu is enhanced as a [menu](../overlays/menu.md) by this call; enhance it nowhere else.
+- The menu is enhanced as a [menu](../overlays/menu.md) by this call. Enhance it nowhere else.
 - Focus on a button that leaves moves to More, and focus on More moves to the last button once More leaves. A menu that is open while its buttons change closes.
 - The toolbar fits itself again when its own width changes and when a web font loads. `toolbar.fit()` fits it again after a button's words change or a button comes or goes.
 - `signal` shows every button again, hides More and removes the listeners.

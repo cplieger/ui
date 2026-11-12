@@ -94,6 +94,6 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-visually-hidden` | text a screen reader reads and the eye does not see |
 | `.cp-mono`, `.cp-truncate`, `.cp-cell-stack` | machine text, one line cut with an ellipsis, and a title over a muted line |
 
-Inside `.cp`, the icons from `@cplieger/ui/icons` take the language's sizes. A `<kbd>` is a key cap in the body font, and a `<kbd>` of `<kbd>`s, such as Ctrl K, is one combination whose inner keys are the caps; in a menu item a key is muted words at its end.
+Inside `.cp`, the icons from `@cplieger/ui/icons` take the language's sizes. A `<kbd>` is a key cap in the body font, and a `<kbd>` of `<kbd>`s, such as Ctrl K, is one combination whose inner keys are the caps. In a menu item a key is muted words at its end.
 
 ![Every component in the light theme: buttons including a busy one, fields with errors, chips, notices including an error summary, tabs, a progress bar, a skeleton, an empty state, a filter sheet, list rows with badges and a live dot, and a conversation with its sending and failed messages above the composer](images/system-parts-light.png)
