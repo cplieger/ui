@@ -30,6 +30,7 @@ import { viewTransition } from "@cplieger/ui/view-transition";
 import "./legacy/gallery.js";
 import "./wire/feed.js";
 import { markCards } from "./review.js";
+import "./wire/charts.js";
 import "./wire/content.js";
 import "./wire/data-figures.js";
 import "./wire/data-tables.js";
@@ -167,8 +168,10 @@ for (const button of all<HTMLButtonElement>("button[data-test]")) {
   });
 }
 // A filter chip's state is the app's filter; here a press flips it. A share
-// bar's toggle is the share bar's own.
-for (const chip of all<HTMLButtonElement>(".cp-filter-chip:not([data-share-toggle])")) {
+// bar's toggle and a chart's are their own.
+for (const chip of all<HTMLButtonElement>(
+  ".cp-filter-chip:not([data-share-toggle], .cp-chart *)",
+)) {
   chip.addEventListener("click", () => {
     chip.setAttribute("aria-pressed", String(chip.getAttribute("aria-pressed") !== "true"));
   });

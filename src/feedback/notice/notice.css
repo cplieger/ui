@@ -16,8 +16,11 @@
   align-items: center;
 }
 
-/* The text sits left, the button is pushed to the end of the row. */
+/* The text sits left, the button is pushed to the end of the row. A
+ * button's min-inline-size replaces a flex item's min-content floor, so the
+ * button keeps its words' width and the text wraps instead. */
 .cp-notice > .cp-button {
+  flex-shrink: 0;
   margin-inline-start: auto;
 }
 

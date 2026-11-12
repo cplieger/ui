@@ -18,6 +18,7 @@ const HARNESS = new Set([
   "g-shell-page",
   "g-shell-view",
   "g-resizable",
+  "g-chart-group",
   "g-mini-header",
   "g-statusline",
   "g-phone",

@@ -10,6 +10,7 @@
     "./anchor": "./src/overlays/anchor/anchor.ts",
     "./announce": "./src/feedback/announce/announce.ts",
     "./ask": "./src/overlays/ask/ask.ts",
+    "./chart": "./src/data/chart/chart.ts",
     "./checkbox": "./src/forms/checkbox/checkbox.ts",
     "./chip": "./src/feedback/chip/chip.ts",
     "./choice": "./src/forms/choice/choice.ts",

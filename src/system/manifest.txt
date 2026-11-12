@@ -53,6 +53,7 @@ data/active-filters/active-filters.css
 data/facts/facts.css
 data/history/history.css
 data/state-history/state-history.css
+data/chart/chart.css
 navigation/pages/pages.css
 navigation/rail/filters-trigger.css
 data/text/text.css
