@@ -61,7 +61,7 @@ const postsByKind: ChartSpec = {
 
 const chips = (r: Reading | undefined) => r?.entries.map((e) => [e.slot, e.name, e.value]);
 
-describe("the legend row of stacked bars", () => {
+describe("the legend row of stacked columns", () => {
   const m = model(postsByKind);
   const rect = m.marks[0] as RectModel;
 

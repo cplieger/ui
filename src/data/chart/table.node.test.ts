@@ -68,7 +68,7 @@ describe("the table of bars across days", () => {
   });
 });
 
-describe("the table of stacked bars", () => {
+describe("the table of stacked columns", () => {
   // Four hourly buckets from 7:30, so the first crosses the domain's start; the last is open.
   const starts = per(4, (i) => START - 30 * MIN + i * 60 * MIN);
   const t = tableModel(

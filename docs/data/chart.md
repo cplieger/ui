@@ -49,6 +49,65 @@ posts.update({
 - A second `renderChart` on a figure that holds a live chart throws an `InvalidStateError`, where [sparkline](sparkline.md)'s `renderSparkline` and `renderMarkdown` draw again on each call. Those hold nothing between calls, while a chart holds listeners, a lifecycle and a selection, so its data changes through `update`. A figure whose chart was torn down by its signal can be rendered again.
 - Nothing shows in the figure but its caption until the script runs, since a chart's data are numbers the app fetches.
 
+## Choosing a chart
+
+Pick a chart by the question its data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide) and the [Financial Times Visual Vocabulary](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary). Readers know line and column charts best, and those make comparing easiest, so prefer one of them unless another answers the question better. Outside the chart: a number now is a `.cp-figure`, with a [sparkline](sparkline.md) for how it moved; one share of one whole inside a figure is a [share bar](share-bar.md); long names and exact numbers go in a table with [ranked bars](ranked-bars.md).
+
+### How did it change over time?
+
+| Question | Chart | Write |
+| --- | --- | --- |
+| How did an amount move? | Line chart | `line` |
+| How did a level that holds between changes move, such as members live? | Step line | `line`, `curve: "step"` |
+| How much happened in each bucket, and of which kind? | Column chart, stacked when it has several series | `rect` |
+| The same, when buckets are many and rarely empty | Stacked area chart | `rect`, `shape: "area"` |
+| How did the parts of a sampled amount move, such as memory by process? | Stacked area chart | `area` |
+| How did the shares of a whole move? | 100% stacked area or column chart | `area` or `rect`, `arrange: "share"` |
+| How do two or three series compare in each bucket? | Grouped column chart | `rect`, `arrange: "group"` |
+| Who acted when? | Timeline strip | `dot` |
+
+- **Bars or an area for buckets.** Bars when buckets are few, often empty, or hold small bursty counts: a gap says a bucket is empty, and an area would break into slivers. The area when buckets are many and rarely empty, where the gaps between bars are noise. Both read and list the same numbers.
+- An area chart shows the change of the total well and the change of each part less well ([FT Visual Vocabulary, Change over time](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary)). Only the lowest part sits on a flat baseline, so put the part compared most first.
+- Grouped columns suit few buckets and two or three series. Do not read totals from them; a stack shows totals ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)).
+
+### How are values spread?
+
+| Question | Chart | Write |
+| --- | --- | --- |
+| How are waits or sizes spread? | Histogram | `rect` with its bins on a log x |
+
+- The chart computes nothing statistical. The app sends a histogram's bins.
+
+### What makes up the whole?
+
+| Question | Chart | Write |
+| --- | --- | --- |
+| How did a whole's parts change over time? | 100% stacked area or column chart | `area` or `rect`, `arrange: "share"` |
+
+### Marking a moment or a level
+
+| Question | Mark | Write |
+| --- | --- | --- |
+| Where is a threshold, a median or a target? | Rule | `rule` |
+| What explains a spike or an outlier? | Text annotation | `text` |
+
+On a phone, or when notes would overlap, every note becomes a numbered marker with the notes listed below the plot.
+
+### Not offered
+
+| Type | Use instead |
+| --- | --- |
+| Maps: choropleth, symbol and locator maps | A table of the regions sorted by value, with [ranked bars](ranked-bars.md). A map needs shapes and a projection that this module does not carry. |
+| Stream graphs | A stacked area chart. Exact values are hard to read in a stream graph ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)): no layer sits on a flat baseline, so none can be read against the axis. |
+| Marimekko charts | A table of the categories with ranked bars of their totals, and a [share bar](share-bar.md) of each one's parts. A Marimekko challenges the reader to compare absolute and relative values at once, as widths and heights ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
+| Parliament charts | A table of the seats with ranked bars, since election results are almost always shown as bars ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
+| Waffle and pictogram charts | A share bar for the shares of one whole, ranked bars for counts. Both trade readability for illustration ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
+| Connected scatter plots | Two line charts over the same time x, one per measure. A connected scatter plot carries time only in its path's order, which a reader must trace dot by dot. |
+| Radar charts | A table with a row per variable and a column per series, with ranked bars. A radar's outline depends on the order of its axes ([FT Visual Vocabulary, Magnitude](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary)). |
+| 3D charts | The same chart in two dimensions. Projection distorts lengths, angles and areas ([Claus Wilke: Don't go 3D](https://clauswilke.com/dataviz/no-3d.html)). |
+
+Niche statistical types such as violin plots and dendrograms are not offered either, as Datawrapper's guide leaves them out.
+
 ## Marks
 
 | Mark | Draws | Use it for |
