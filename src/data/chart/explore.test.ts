@@ -453,25 +453,19 @@ describe("a selection at the plot's ends", () => {
   it.each(ends)("draws %s's ring whole at both ends, inside the area's clip", (_, spec) => {
     const b = build(spec);
     b.plot.focus();
-    // The clip is the area's viewport, which its attributes give: Chromium's
-    // box for a nested <svg> is its content's.
-    const a = b.plot.querySelector('[data-part="area"]') as Element;
-    const at = (name: string) => Number(a.getAttribute(name));
-    const svg = (b.plot.querySelector("svg") as Element).getBoundingClientRect();
-    const area = {
-      left: svg.left + at("x"),
-      top: svg.top + at("y"),
-      right: svg.left + at("x") + at("width"),
-      bottom: svg.top + at("y") + at("height"),
-    };
+    // The clip is the area's viewBox, in the ring's own user space; a
+    // client box would not do, since Firefox's is loose round an arc.
+    const area = b.plot.querySelector('[data-part="area"]') as SVGSVGElement;
+    const clip = area.viewBox.baseVal;
+    const stroke = 1;
     for (const name of ["Home", "End"]) {
       key(b.plot, name);
-      const box = (ring(b) as Element).getBoundingClientRect();
+      const box = (ring(b) as SVGGraphicsElement).getBBox();
       expect(box.width).toBeGreaterThan(0);
-      expect(box.left).toBeGreaterThanOrEqual(area.left - 1e-3);
-      expect(box.right).toBeLessThanOrEqual(area.right + 1e-3);
-      expect(box.top).toBeGreaterThanOrEqual(area.top - 1e-3);
-      expect(box.bottom).toBeLessThanOrEqual(area.bottom + 1e-3);
+      expect(box.x - stroke).toBeGreaterThanOrEqual(clip.x - 1e-3);
+      expect(box.x + box.width + stroke).toBeLessThanOrEqual(clip.x + clip.width + 1e-3);
+      expect(box.y - stroke).toBeGreaterThanOrEqual(clip.y - 1e-3);
+      expect(box.y + box.height + stroke).toBeLessThanOrEqual(clip.y + clip.height + 1e-3);
     }
   });
 });
