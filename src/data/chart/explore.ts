@@ -27,7 +27,7 @@ import type { Words } from "./words.js";
 /** A touch drag selects once it has moved this far along x, in px. */
 const DRAG = 8;
 
-export interface Explorer {
+interface Explorer {
   /** `model` was drawn as `lay`, its legend row framed with no selection. */
   drawn(model: Model, lay: Layout): void;
   /** `model` replaces the data: the selection stays where its x still is. */

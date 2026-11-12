@@ -217,8 +217,6 @@ export interface Navigator {
   pick(px: number, py: number): Selection | undefined;
   /** The crosshair's px along x, absent for a row selection. */
   crosshair(sel: Selection): number | undefined;
-  /** A dot row's drawn dots, kept for the layout's life. */
-  groups(row: number): readonly DotGroup[];
 }
 
 export function navigator(model: Model, lay: Layout): Navigator {
@@ -270,7 +268,6 @@ export function navigator(model: Model, lay: Layout): Navigator {
   };
 
   return {
-    groups,
     move(sel, key, x) {
       if (m === undefined) {
         return undefined;

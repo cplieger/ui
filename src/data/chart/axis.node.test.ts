@@ -36,6 +36,9 @@ const fixed = (width: number): AxisContext => ({
 });
 
 const labelled = (axis: Axis) => axis.ticks.filter((t) => t.label !== undefined);
+// The value between the first two ticks, which run in position order.
+const step = (axis: Axis) =>
+  Math.abs((axis.ticks[1]?.value ?? Number.NaN) - (axis.ticks[0]?.value ?? Number.NaN));
 const words = (axis: Axis) => labelled(axis).map((t) => t.label?.lines.join("\n"));
 
 const histogram = (maxMs?: number): ChartSpec => {
@@ -102,7 +105,7 @@ describe("a time axis", () => {
   it("steps 2 hours over 6 at 276 px, writing the hour and the date at the first tick", () => {
     for (const locale of ["en", "fr"]) {
       const axis = xAxis(time(eight, eight + 6 * HR), 276, ctx(locale));
-      expect(axis.step).toBe(2 * HR);
+      expect(step(axis)).toBe(2 * HR);
       const hour = new Intl.DateTimeFormat(locale, { hour: "numeric", timeZone: "Europe/Paris" });
       const day = new Intl.DateTimeFormat(locale, {
         month: "short",
@@ -119,9 +122,9 @@ describe("a time axis", () => {
   });
 
   it("steps 12 hours over 24 and a day over 72 at 276 px, a day step writing only the date", () => {
-    expect(xAxis(time(eight - 18 * HR, eight + 6 * HR), 276, ctx()).step).toBe(12 * HR);
+    expect(step(xAxis(time(eight - 18 * HR, eight + 6 * HR), 276, ctx()))).toBe(12 * HR);
     const days = xAxis(time(eight - 66 * HR, eight + 6 * HR), 276, ctx());
-    expect(days.step).toBe(DAY);
+    expect(step(days)).toBe(DAY);
     const day = new Intl.DateTimeFormat("en", {
       month: "short",
       day: "numeric",
@@ -133,9 +136,9 @@ describe("a time axis", () => {
   });
 
   it("steps 3 hours over 6 at 206 px and 30 minutes at 990 px", () => {
-    expect(xAxis(time(eight, eight + 6 * HR), 206, ctx()).step).toBe(3 * HR);
+    expect(step(xAxis(time(eight, eight + 6 * HR), 206, ctx()))).toBe(3 * HR);
     const wide = xAxis(time(eight, eight + 6 * HR), 990, ctx());
-    expect(wide.step).toBe(30 * MIN);
+    expect(step(wide)).toBe(30 * MIN);
     expect(wide.ticks).toHaveLength(13);
     const minute = new Intl.DateTimeFormat("en", {
       hour: "numeric",
@@ -150,7 +153,7 @@ describe("a time axis", () => {
   it("writes the date wherever the day changes", () => {
     const lo = eight - 2 * DAY + 10 * HR; // 6:00 PM on 9 November
     const axis = xAxis(time(lo, lo + 3 * DAY), 990, ctx());
-    expect(axis.step).toBe(6 * HR);
+    expect(step(axis)).toBe(6 * HR);
     const dated = axis.ticks.filter((t) => t.label?.lines.length === 2).map((t) => t.value);
     // The first tick, then each local midnight.
     expect(dated).toEqual([lo, lo + 6 * HR, lo + 30 * HR, lo + 54 * HR]);
@@ -161,7 +164,7 @@ describe("a time axis", () => {
     // Labels 100 px wide on ticks 82.5 px apart: every other one is kept,
     // and the midnights fall on the dropped ones.
     const axis = xAxis(time(lo, lo + 3 * DAY), 990, fixed(100));
-    expect(axis.step).toBe(6 * HR);
+    expect(step(axis)).toBe(6 * HR);
     expect(axis.ticks).toHaveLength(13);
     expect(labelled(axis).map((t) => t.value)).toEqual(
       [0, 12, 24, 36, 48, 60, 72].map((h) => lo + h * HR),
@@ -172,7 +175,7 @@ describe("a time axis", () => {
 
   it("moves to a coarser step rather than drop more than every other label", () => {
     const axis = xAxis(time(eight, eight + 6 * HR), 276, fixed(200));
-    expect(axis.step).toBe(3 * HR);
+    expect(step(axis)).toBe(3 * HR);
   });
 
   it("keeps every label inside the plot", () => {
@@ -202,14 +205,14 @@ describe("a linear axis", () => {
       marks: [{ mark: "line", x: [3, 97], series: [{ name: "a", y: [1, 2] }] }],
     });
     const axis = xAxis(scale, 400, ctx());
-    expect([axis.lo, axis.hi, axis.step]).toEqual([0, 100, 20]);
+    expect([axis.lo, axis.hi, step(axis)]).toEqual([0, 100, 20]);
     expect(axis.ticks.map((t) => t.at)).toEqual([0, 80, 160, 240, 320, 400]);
   });
 
   it("moves to a coarser step when greedy would drop more than every other label", () => {
     const scale = xScale({ x: { domain: [0, 100] }, marks: [] });
     const axis = xAxis(scale, 400, fixed(150));
-    expect(axis.step).toBe(50);
+    expect(step(axis)).toBe(50);
     expect(labelled(axis).map((t) => t.value)).toEqual([0, 100]);
   });
 
@@ -222,7 +225,7 @@ describe("a linear axis", () => {
       throw new Error("expected a linear y");
     }
     const axis = yAxis(y, 240, 16, ctx());
-    expect([axis.lo, axis.hi, axis.step]).toEqual([0, 400, 100]);
+    expect([axis.lo, axis.hi, step(axis)]).toEqual([0, 400, 100]);
     expect(axis.at(0)).toBe(240);
     expect(axis.at(400)).toBe(0);
     expect(labelled(axis)).toHaveLength(5);

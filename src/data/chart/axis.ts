@@ -45,8 +45,6 @@ export interface Axis {
   /** Maps a value to its px along the axis. */
   readonly at: (value: number) => number;
   readonly ticks: readonly Tick[];
-  /** A linear or time axis's step: a value, or ms. */
-  readonly step: number | undefined;
 }
 
 export interface AxisContext {
@@ -130,7 +128,7 @@ function logAxis(
       break;
     }
   }
-  return { lo: scale.lo, hi: scale.hi, at, ticks: chosen, step: undefined };
+  return { lo: scale.lo, hi: scale.hi, at, ticks: chosen };
 }
 
 function linearAxisAt(
@@ -151,7 +149,7 @@ function linearAxisAt(
     const values = linearTicks(lo, hi, step);
     const { ticks, shown } = fitted(values, at, write, layout);
     if (!tooSparse(shown, values.length) || values.length <= 1) {
-      return { lo, hi, at, ticks, step };
+      return { lo, hi, at, ticks };
     }
   }
 }
@@ -209,7 +207,7 @@ function timeAxis(
     const labels = timeLabels(values, at, words, layout, ctx.timeZone);
     if (!tooSparse(labels.size, values.length) || index >= TIME_STEPS.length - 1) {
       const ticks = values.map((value) => ({ value, at: at(value), label: labels.get(value) }));
-      return { lo, hi, at, ticks: ticks.sort(byPosition), step };
+      return { lo, hi, at, ticks: ticks.sort(byPosition) };
     }
   }
 }
@@ -283,7 +281,7 @@ export type RuleLabel =
   | { readonly at: number; readonly width: number }
   | { readonly off: "low" | "high"; readonly width: number };
 
-export interface RuleBand {
+interface RuleBand {
   /** Each label's start in px and its line, 0 or 1, in the given order. */
   readonly placed: readonly { readonly start: number; readonly line: 0 | 1 }[];
   /** The band's lines: 0 with no label, else 1 or 2. */

@@ -33,13 +33,12 @@ export function linearTicks(lo: number, hi: number, step: number): number[] {
   return ticks;
 }
 
-export interface LinearAxis {
+interface LinearAxis {
   readonly domain: readonly [number, number];
   readonly step: number;
-  readonly ticks: readonly number[];
 }
 
-export interface LinearAxisOptions {
+interface LinearAxisOptions {
   /** Extend the domain to the step's multiples around it. */
   readonly nice: boolean;
   /** Every value is an integer, so the step is at least 1. */
@@ -68,7 +67,7 @@ export function linearAxis(
       : [lo, hi];
     const span = domain[1] - domain[0];
     if ((step * px) / span >= spacing || step >= span) {
-      return { domain, step, ticks: linearTicks(domain[0], domain[1], step) };
+      return { domain, step };
     }
     step = coarserStep(step);
   }

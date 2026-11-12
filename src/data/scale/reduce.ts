@@ -117,15 +117,3 @@ export function upperBound(xs: ArrayLike<number>, v: number): number {
   }
   return lo;
 }
-
-/** The index of the `xs` value nearest `v`, the earlier on a tie; -1 when `xs` is empty. */
-export function nearest(xs: ArrayLike<number>, v: number): number {
-  if (xs.length === 0) {
-    return -1;
-  }
-  const i = lowerBound(xs, v);
-  if (i === 0 || i === xs.length) {
-    return Math.max(i - 1, 0);
-  }
-  return v - (xs[i - 1] ?? v) <= (xs[i] ?? v) - v ? i - 1 : i;
-}

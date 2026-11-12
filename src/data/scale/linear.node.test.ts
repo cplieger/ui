@@ -30,7 +30,6 @@ describe("linearAxis", () => {
     expect(linearAxis(0, 312, 240, 40, nice)).toEqual({
       domain: [0, 400],
       step: 100,
-      ticks: [0, 100, 200, 300, 400],
     });
     expect(linearAxis(0, 105, 240, 40, nice).step).toBe(20);
     expect(linearAxis(0, 105, 240, 40, nice).domain).toEqual([0, 120]);
@@ -46,19 +45,17 @@ describe("linearAxis", () => {
     expect(linearAxis(0, 3, 240, 40, { nice: true, integer: true })).toEqual({
       domain: [0, 3],
       step: 1,
-      ticks: [0, 1, 2, 3],
     });
   });
 
-  it("keeps a passed domain and ticks inside it", () => {
+  it("keeps a passed domain", () => {
     expect(linearAxis(3, 97, 400, 80, { nice: false, integer: false })).toEqual({
       domain: [3, 97],
       step: 20,
-      ticks: [20, 40, 60, 80],
     });
   });
 
   it("stops at one interval over the domain when no step meets the target", () => {
-    expect(linearAxis(0, 11, 30, 40, nice)).toEqual({ domain: [0, 20], step: 20, ticks: [0, 20] });
+    expect(linearAxis(0, 11, 30, 40, nice)).toEqual({ domain: [0, 20], step: 20 });
   });
 });

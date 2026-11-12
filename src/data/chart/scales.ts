@@ -14,8 +14,7 @@ interface Underflow {
   readonly mark: number;
   readonly index: number;
   readonly x1: number;
-  readonly x2: number;
-  /** "below": `x2` is the low end, so it is drawn under it from `from`;
+  /** "below": its `x2` is the low end, so it is drawn under it from `from`;
    *  "cut": it crosses the low end; "out": it lies wholly below it. */
   readonly drawn: "below" | "cut" | "out";
   readonly from: number;
@@ -131,7 +130,7 @@ function underflow(spec: ChartSpec, lo: number): Underflow | undefined {
       }
       const [n1, n2] = index + 1 < m.x1.length ? rectAt(m, index + 1) : [1, 2];
       const drawn = x2 === lo ? "below" : x2 > lo ? "cut" : "out";
-      found = { mark, index, x1, x2, drawn, from: drawn === "below" ? x2 / (n2 / n1) : lo };
+      found = { mark, index, x1, drawn, from: drawn === "below" ? x2 / (n2 / n1) : lo };
     }
   });
   return found;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { lowerBound, nearest, reduce } from "./reduce.js";
+import { lowerBound, reduce } from "./reduce.js";
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i);
 
@@ -96,15 +96,5 @@ describe("binary search", () => {
     expect(lowerBound(xs, 25)).toBe(3);
     expect(lowerBound(xs, 35)).toBe(4);
     expect(lowerBound([], 1)).toBe(0);
-  });
-
-  it("finds the nearest value, the earlier on a tie, at both ends", () => {
-    expect(nearest(xs, -100)).toBe(0);
-    expect(nearest(xs, 14)).toBe(0);
-    expect(nearest(xs, 15)).toBe(0);
-    expect(nearest(xs, 16)).toBe(1);
-    expect(nearest(xs, 26)).toBe(3);
-    expect(nearest(xs, 100)).toBe(3);
-    expect(nearest([], 1)).toBe(-1);
   });
 });

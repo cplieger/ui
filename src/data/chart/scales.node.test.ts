@@ -91,7 +91,6 @@ describe("the underflow bin", () => {
       mark: 0,
       index: 0,
       x1: 0,
-      x2: S,
       drawn: "below",
       from: 500,
     });
