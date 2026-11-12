@@ -71,27 +71,27 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes is a [chart](data/chart.md):
 
-- How many now: a `.cp-figure` from [Components](design-components.md), with a [sparkline](data/sparkline.md) for how it moved over the range.
-- A count that is almost always zero, such as failed checks: a `.cp-figure`, since a chart of zeros says less than the number.
-- Counts per time bucket, and their mix: stacked bars, a `rect` mark on a time x.
-- A gauge sampled over time, such as members live: a step line, a `line` mark with `curve: "step"`.
-- How long things wait, from seconds to days: a histogram on the duration ladder, a `rect` mark on a log x with `format: "duration"`, and its median and percentiles as `rule` marks.
-- Who acts when: a timeline strip, a `dot` mark with one row per actor, silent ones included. A run of merged dots means the actor acted at least about every dot's width of time along it.
-- Long names and exact numbers: a table with [ranked bars](data/ranked-bars.md).
-- A share of one whole: a [share bar](data/share-bar.md). A state over time, such as a service's last checks: a [state history](data/state-history.md) strip. A value against its ceiling: a [meter](data/meter.md).
+- A number now is a `.cp-figure` from [Components](design-components.md), with a [sparkline](data/sparkline.md) for how it moved over the range.
+- A count that is almost always zero, such as failed checks, is a `.cp-figure`, since a chart of zeros says less than the number.
+- Counts per time bucket, and their mix, are stacked bars, a `rect` mark on a time x.
+- A gauge sampled over time, such as members live, is a step line, a `line` mark with `curve: "step"`.
+- Waits from seconds to days are a histogram on the duration ladder, a `rect` mark on a log x with `format: "duration"`. Its median and percentiles are `rule` marks.
+- Who acts when is a timeline strip, a `dot` mark with one row per actor, silent ones included. A run of merged dots means the actor acted at least about every dot's width of time along it.
+- Long names and exact numbers go in a table with [ranked bars](data/ranked-bars.md).
+- A share of one whole is a [share bar](data/share-bar.md). A state over time, such as a service's last checks, is a [state history](data/state-history.md) strip. A value against its ceiling is a [meter](data/meter.md).
 
 **Bars start at zero.** A bar's length is its value, so a bar chart's axis always includes 0, as [Datawrapper explains](https://www.datawrapper.de/docs/why-our-column-and-bar-charts-start-at-zero). Lines alone may start elsewhere.
 
-**Five series at most in a stack.** Each segment of a 3px bar on a phone must still be told from its neighbours and found in the legend. Group the smallest into "Other". Give each series a slot of the [series colours](design-colour.md#series-colours), the same slot for the same category on every chart of a screen.
+**Five series at most in a stack.** Each 3px segment on a phone must stand apart from its neighbours and in the legend. Group the smallest into "Other". Give each series a slot of the [series colours](design-colour.md#series-colours), the same slot for the same category on every chart of a screen.
 
-**The duration ladder.** Waits are binned on one ladder, whose edges are 0, 1 sec, 2 sec, 5 sec, 10 sec, 30 sec, 1 min, 2 min, 5 min, 10 min, 30 min, 1 hr, 2 hr, 6 hr, 12 hr, 1 day, 3 days, 7 days, 14 days, 30 days and 90 days. `durationEdges` from [chart](data/chart.md) returns its edges in milliseconds, and a server in another language bins on the same numbers.
+**The duration ladder.** Waits are binned on one ladder. Its edges are 0, 1 sec, 2 sec, 5 sec, 10 sec and 30 sec. In minutes they are 1, 2, 5, 10 and 30, and in hours 1, 2, 6 and 12. In days they are 1, 3, 7, 14, 30 and 90. `durationEdges` from [chart](data/chart.md) returns its edges in milliseconds, and a server in another language bins on the same numbers.
 
 1. Each bin is `[edge, next edge)`, and the last is closed, so every wait from 0 to the last edge lands in exactly one bin.
-2. The ladder ends at the first edge at or above the longest wait the data can hold. That is the larger of the retention and the longest wait stored, since a retention lowered after older data was written leaves that data in place.
-3. Neighbouring edges differ by a factor of 2 to 3, so on a log axis no bin is more than 1.6 times as wide as another, and a bar's height can be its count. A histogram whose bins range wider plots each bin's count per unit of log width, with a y label that says so, since its area then carries the count.
+2. The ladder ends at the first edge at or above the longest wait the data can hold. That is the larger of the retention and the longest wait stored. A retention lowered after older data was written leaves that data in place.
+3. Neighbouring edges differ by a factor of 2 to 3, so on a log axis no bin is over 1.6 times another's width. A bar's height can then be its count. A histogram whose bins range wider plots each bin's count per unit of log width, so that its area carries the count. Its y label says so.
 4. The ladder grows by adding edges above 90 days, such as 180 and 365, never by moving one below, so stored bins keep their edges.
 
-**Charts that share an x.** Charts stacked on one time range pass the range as their x `domain` and set `--cp-chart-axis-gutter` and `--cp-chart-label-gutter` once on their common parent, so their plots start and end at the same edges and the eye runs straight down the screen at one moment. Under 30rem the label gutter is 0, since lines drop their end labels there.
+**Charts that share an x.** Charts stacked on one time range pass the range as their x `domain`. They set `--cp-chart-axis-gutter` and `--cp-chart-label-gutter` once on their common parent, so their plots start and end at the same edges. The eye then runs straight down the screen at one moment. Under 30rem the label gutter is 0, since lines drop their end labels there.
 
 ## Lists
 

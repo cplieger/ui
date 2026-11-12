@@ -54,7 +54,7 @@ Each step is a `light-dark()` pair, so `color-scheme` picks the theme. The dark 
 
 A token resolves on the element that uses it, so a region with `color-scheme: dark` turns dark inside a light page.
 
-Under `prefers-contrast: more`, text moves further from its surface, boundaries get stronger and the header darkens. Under `forced-colors: active`, the system colours apply, and every chip, notice, batch bar and selected control keeps a visible border. A [chart](data/chart.md)'s plot is the one exception: it keeps its theme's drawing on its theme surface, inside a `CanvasText` border, following the contrast theme's lightness.
+Under `prefers-contrast: more`, text moves further from its surface, boundaries get stronger and the header darkens. Under `forced-colors: active`, the system colours apply, and every chip, notice, batch bar and selected control keeps a visible border. A [chart](data/chart.md)'s plot is the one exception. It keeps its theme's drawing on its theme surface, inside a `CanvasText` border, following the contrast theme's lightness.
 
 ## Contrast
 

@@ -33,7 +33,7 @@ events.addEventListener("done", () => stream.end());
 | `images` | `"link"` | `"link"` renders an image as a link to its source. `"load"` renders an `img`. |
 | `hooks` | none | The app's own elements, as [Hooks](#hooks) describes. |
 | `maxBytes` | 1 MiB | The text read, in UTF-8 bytes, across every write of a stream. Past it the text is cut at a code point, and one line at the cut says so. |
-| `signal` | none | Aborting it lets go of the overflow observers. In a stream it also drops what is queued and runs no further hook, and a later write is ignored. |
+| `signal` | none | Aborting it lets go of the overflow observers. In a stream it also drops its queue, runs no further hook and ignores a later write. |
 | `highlight` | on | `false` leaves code blocks uncoloured. |
 | `headingLevel` | `1` | The element `#` renders as, 1 to 6. Deeper headings shift by the same amount and stop at `h6`, so text inside a page's own `h3` can start at `h4`. |
 
