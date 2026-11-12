@@ -41,6 +41,15 @@ const PAGES: readonly (readonly [
 
 export const pageNames: readonly string[] = PAGES.map(([page]) => page);
 
+/** The pages in `frames/`, each shown in an `<iframe>` on a card: a piece
+ *  that exists only under a media query's width, which the gallery's own
+ *  window is wider than. Each is built as `frame-<name>.html`. */
+const FRAMES: readonly (readonly [frame: string, title: string])[] = [
+  ["bottom-nav", "Bottom navigation"],
+];
+
+export const frameNames: readonly string[] = FRAMES.map(([frame]) => `frame-${frame}`);
+
 function nav(current: string): string {
   const parent = PAGES.find(([page]) => page === current)?.[4] ?? current;
   return PAGES.filter((p) => p[4] === undefined)
@@ -104,6 +113,25 @@ ${body}
 `;
 }
 
+/** A frame's page: the library alone, no gallery header or controls. */
+function bare(title: string, body: string): string {
+  return `<!DOCTYPE html>
+<html lang="en" class="cp" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}: cplieger gallery</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/system.css">
+</head>
+<body>
+${body}
+<script type="module" src="frame.js"></script>
+</body>
+</html>
+`;
+}
+
 /** Builds the gallery into `out`, emptied first. */
 export async function buildGallery(out = join(HERE, "dist")): Promise<void> {
   await rm(out, { recursive: true, force: true });
@@ -116,14 +144,21 @@ export async function buildGallery(out = join(HERE, "dist")): Promise<void> {
       .replace('<div class="g-icons" data-icon-grid></div>', grid);
     await writeFile(join(out, `${page}.html`), frame(title, page, body, classes));
   }
+  for (const [name, title] of FRAMES) {
+    const body = (await readFile(join(HERE, "frames", `${name}.html`), "utf8")).trimEnd();
+    await writeFile(join(out, `frame-${name}.html`), bare(title, body));
+  }
   await build({
-    // Against the repo root, where npm runs the script, and a literal, so a
-    // tool that traces bundler entries reaches main.ts.
-    entryPoints: ["gallery/main.ts"],
+    // Against the repo root, where npm runs the script, and literals, so a
+    // tool that traces bundler entries reaches main.ts and frame.ts.
+    entryPoints: [
+      { in: "gallery/main.ts", out: "gallery" },
+      { in: "gallery/frame.ts", out: "frame" },
+    ],
     bundle: true,
     format: "esm",
     platform: "browser",
-    outfile: join(out, "gallery.js"),
+    outdir: out,
     // The package marks its scripts free of side effects, which would drop
     // the gallery's own, imported for its effects alone.
     ignoreAnnotations: true,

@@ -115,6 +115,18 @@
     background: none;
   }
 
+  /* A destination's badge sits on its icon's top end, off the word below. */
+  .cp-header > .cp-nav > .cp-nav-item > .cp-badge {
+    position: absolute;
+    inset-block-start: 0.25rem;
+    inset-inline-start: calc(50% + 0.25rem);
+  }
+
+  .cp-nav > .cp-nav-item > .cp-badge:not([data-variant]) {
+    background: var(--cp-accent);
+    color: var(--cp-on-accent);
+  }
+
   .cp-header > .cp-nav .cp-nav-label {
     position: static;
     inline-size: auto;

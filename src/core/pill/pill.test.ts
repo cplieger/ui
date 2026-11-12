@@ -80,6 +80,34 @@ describe("enhancePill", () => {
     expect(group.querySelectorAll(".cp-pill")).toHaveLength(1);
   });
 
+  it("lies under a tab strip's selected tab and follows aria-selected whatever sets it", async () => {
+    const list = document.createElement("div");
+    list.setAttribute("role", "tablist");
+    list.style.cssText = "display: flex; gap: 4px; padding: 4px; position: relative";
+    const tabs = ["Episodes", "Subtitles", "History"].map((word, i) => {
+      const tab = document.createElement("button");
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", String(i === 0));
+      tab.style.padding = `0 ${String(8 + i * 6)}px`;
+      tab.textContent = word;
+      list.append(tab);
+      return tab;
+    });
+    document.body.append(list);
+    enhancePill(list, { signal: life.signal });
+    const pill = pillOf(list);
+    expect(at(pill)).toEqual(box(tabs[0] as HTMLElement));
+    await frames(6);
+    tabs[0]?.setAttribute("aria-selected", "false");
+    tabs[2]?.setAttribute("aria-selected", "true");
+    await Promise.resolve();
+    expect(at(pill)).toEqual(box(tabs[2] as HTMLElement));
+    expect(pill.hasAttribute("data-cp-still")).toBe(false);
+    tabs[2]?.setAttribute("aria-selected", "false");
+    await Promise.resolve();
+    expect(pill.hidden).toBe(true);
+  });
+
   it("removes the pill when its signal aborts, and adds none under one already aborted", () => {
     const { group } = segmented();
     enhancePill(group, { signal: life.signal });

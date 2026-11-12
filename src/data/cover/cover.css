@@ -1,0 +1,43 @@
+/* An entry's cover at 2:3: its art in an <img> that fills it, or, while
+ * there is none, a glyph on one flat harmony colour that data-harmony picks
+ * from 1 to 4, as on .cp-avatar. */
+.cp-cover {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--cp-radius-control);
+  background: var(--cp-harmony-1);
+  color: var(--cp-harmony-1-on);
+  overflow: hidden;
+}
+
+.cp-cover[data-harmony="2"] {
+  background: var(--cp-harmony-2);
+  color: var(--cp-harmony-2-on);
+}
+
+.cp-cover[data-harmony="3"] {
+  background: var(--cp-harmony-3);
+  color: var(--cp-harmony-3-on);
+}
+
+.cp-cover[data-harmony="4"] {
+  background: var(--cp-harmony-4);
+  color: var(--cp-harmony-4-on);
+}
+
+.cp-cover > img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.cp-cover > .cp-icon {
+  --cp-icon-size: 2rem;
+}
+
+@media (forced-colors: active) {
+  .cp-cover {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

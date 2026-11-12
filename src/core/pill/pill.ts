@@ -1,8 +1,9 @@
 /**
  * pill.ts — `enhancePill()` slides one raised pill under the chosen segment
- * of a `.cp-segmented`, on a spring, instead of each segment filling on its
- * own. The pill lands without motion when the page first draws and when the
- * group resizes, and slides when the choice changes.
+ * of a `.cp-segmented`, or the selected tab of a `.cp-tabs`, on a spring,
+ * instead of each choice filling on its own. The pill lands without motion
+ * when the page first draws and when the group resizes, and slides when the
+ * choice changes.
  * @module
  */
 
@@ -14,13 +15,22 @@ export interface PillOptions {
 }
 
 const STILL = "data-cp-still";
+const TAB = ':scope > [role="tab"]';
 
-/** The label of the checked radio, or null when none is. */
+const isTablist = (group: HTMLElement): boolean => group.getAttribute("role") === "tablist";
+
+/** The selected tab or the label of the checked radio, or null when none is. */
 function chosen(group: HTMLElement): HTMLElement | null {
-  return group.querySelector<HTMLElement>(":scope > label:has(> input:checked)");
+  return isTablist(group)
+    ? group.querySelector<HTMLElement>(`${TAB}[aria-selected="true"]`)
+    : group.querySelector<HTMLElement>(":scope > label:has(> input:checked)");
 }
 
-/** Adds the pill to `group`, a `.cp-segmented`, once. */
+/**
+ * Adds the pill to `group`, a `.cp-segmented` or a `.cp-tabs` tablist, once.
+ * It follows a radio's `change` and a tab's `aria-selected`, whatever script
+ * sets it.
+ */
 export function enhancePill(group: HTMLElement, options: PillOptions = {}): void {
   const { signal } = options;
   const listen = until(signal);
@@ -61,33 +71,46 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
     place(true);
   });
   resize.observe(group);
-  // Listened on the document, after the page's own listeners: a change
-  // elsewhere may clear the choice, as a typed date clears a date range's
-  // quick range, and setting `checked` fires nothing.
-  group.ownerDocument.addEventListener(
-    "change",
-    () => {
-      place(false);
-    },
-    listen,
-  );
-  // A reset fires before the controls reset
-  // (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset).
-  group.ownerDocument.addEventListener(
-    "reset",
-    () => {
-      setTimeout(() => {
+  const selection = new MutationObserver(() => {
+    place(false);
+  });
+  if (isTablist(group)) {
+    // A strip held to the width it is given can keep its size while a tab
+    // grows, as when its font arrives.
+    for (const tab of group.querySelectorAll(TAB)) {
+      resize.observe(tab);
+    }
+    selection.observe(group, { subtree: true, attributeFilter: ["aria-selected"] });
+  } else {
+    // Listened on the document, after the page's own listeners: a change
+    // elsewhere may clear the choice, as a typed date clears a date range's
+    // quick range, and setting `checked` fires nothing.
+    group.ownerDocument.addEventListener(
+      "change",
+      () => {
         place(false);
-      }, 0);
-    },
-    listen,
-  );
+      },
+      listen,
+    );
+    // A reset fires before the controls reset
+    // (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset).
+    group.ownerDocument.addEventListener(
+      "reset",
+      () => {
+        setTimeout(() => {
+          place(false);
+        }, 0);
+      },
+      listen,
+    );
+  }
   place(true);
 
   signal?.addEventListener(
     "abort",
     () => {
       resize.disconnect();
+      selection.disconnect();
       cancelAnimationFrame(frame);
       pill.remove();
     },

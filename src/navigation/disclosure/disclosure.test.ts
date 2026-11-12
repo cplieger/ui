@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { enhanceDisclosure, glideShow } from "./disclosure.js";
+import { enhanceDisclosure, glideShow, groupDisclosures } from "./disclosure.js";
 
 let life = new AbortController();
 
@@ -85,6 +85,67 @@ describe("enhanceDisclosure", () => {
     expect(named.hasAttribute("name")).toBe(false);
     life.abort();
     expect(named.getAttribute("name")).toBe("group");
+  });
+
+  it("keeps the open section open when its signal aborts while a sibling glides shut", async () => {
+    const a = section("Sources", "settings");
+    const b = section("Languages", "settings");
+    for (const d of [a, b]) {
+      enhanceDisclosure(d, { signal: life.signal });
+    }
+    await userEvent.click(a.querySelector("summary") as HTMLElement);
+    await settle();
+    await userEvent.click(b.querySelector("summary") as HTMLElement);
+    expect(a.hasAttribute("data-cp-closing")).toBe(true);
+    life.abort();
+    await settle();
+    expect([a.open, b.open]).toEqual([false, true]);
+    expect([a.getAttribute("name"), b.getAttribute("name")]).toEqual(["settings", "settings"]);
+  });
+});
+
+describe("groupDisclosures", () => {
+  it("groups sections at run time, keeping the first open one and gliding the others shut", async () => {
+    const [a, b, c] = [section("One"), section("Two"), section("Three")];
+    for (const d of [a, b, c]) {
+      enhanceDisclosure(d, { signal: life.signal });
+      await userEvent.click(d.querySelector("summary") as HTMLElement);
+    }
+    await settle();
+    groupDisclosures([a, b, c], "seasons");
+    expect(a.hasAttribute("data-cp-closing")).toBe(false);
+    expect([b, c].map((d) => d.hasAttribute("data-cp-closing"))).toEqual([true, true]);
+    await settle();
+    expect([a.open, b.open, c.open]).toEqual([true, false, false]);
+    await userEvent.click(c.querySelector("summary") as HTMLElement);
+    await settle();
+    expect([a.open, b.open, c.open]).toEqual([false, false, true]);
+  });
+
+  it("lets grouped sections open on their own once ungrouped, and gives back the group they hold when the signal aborts", async () => {
+    const [a, b] = [section("One", "seasons"), section("Two", "seasons")];
+    const c = section("Three");
+    for (const d of [a, b, c]) {
+      enhanceDisclosure(d, { signal: life.signal });
+    }
+    groupDisclosures([a, b], null);
+    groupDisclosures([c], "other");
+    await userEvent.click(a.querySelector("summary") as HTMLElement);
+    await userEvent.click(b.querySelector("summary") as HTMLElement);
+    await settle();
+    expect([a.open, b.open]).toEqual([true, true]);
+    life.abort();
+    expect([a.hasAttribute("name"), b.hasAttribute("name")]).toEqual([false, false]);
+    expect(c.getAttribute("name")).toBe("other");
+  });
+
+  it("gives sections it has not enhanced the name itself", () => {
+    const [a, b] = [section("One"), section("Two")];
+    groupDisclosures([a, b], "seasons");
+    expect([a.getAttribute("name"), b.getAttribute("name")]).toEqual(["seasons", "seasons"]);
+    expect(a.hasAttribute("data-cp-group")).toBe(false);
+    groupDisclosures([a, b], null);
+    expect([a.hasAttribute("name"), b.hasAttribute("name")]).toEqual([false, false]);
   });
 });
 

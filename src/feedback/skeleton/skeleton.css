@@ -8,6 +8,16 @@
   animation: cp-skeleton var(--cp-skeleton-dur) var(--cp-ease-move) infinite alternate;
 }
 
+/* Lines that stand for text: a heading is short, and a paragraph's last
+ * line stops before the end. */
+.cp-skeleton[data-variant="heading"] {
+  inline-size: 40%;
+}
+
+.cp-skeleton[data-variant="last"] {
+  inline-size: 85%;
+}
+
 @keyframes cp-skeleton {
   to {
     opacity: 0.45;

@@ -447,9 +447,14 @@
                   Access
                 </button>
               </div>
-              <span class="cp-progress"
+              <!-- [html-validate-disable-next prefer-native-element: Firefox does not animate the fill of a native progress, so the bar is a span with its role] -->
+              <span
+                class="cp-progress progress-58"
+                role="progressbar"
+                aria-label="Checking sources"
+                aria-valuenow="58"
                 ><span class="cp-progress-track"
-                  ><span class="cp-progress-fill progress-58"></span></span
+                  ><span class="cp-progress-fill"></span></span
                 >58%</span
               >
             </div>
@@ -511,7 +516,7 @@
                       type="button"
                       aria-pressed="false"
                     >
-                      All entries<span class="cp-count">412</span>
+                      All entries<span class="cp-badge" data-variant="quiet">412</span>
                     </button>
                     <button
                       class="cp-filter"
@@ -519,7 +524,7 @@
                       aria-pressed="true"
                       data-tone="worse"
                     >
-                      <span class="cp-swatch"></span>Not the best<span class="cp-count">33</span>
+                      <span class="cp-swatch"></span>Not the best<span class="cp-badge" data-variant="quiet">33</span>
                     </button>
                     <button
                       class="cp-filter"
@@ -527,7 +532,7 @@
                       aria-pressed="true"
                       data-tone="missing"
                     >
-                      <span class="cp-swatch"></span>Missing<span class="cp-count">9</span>
+                      <span class="cp-swatch"></span>Missing<span class="cp-badge" data-variant="quiet">9</span>
                     </button>
                   </div>
                 </div>

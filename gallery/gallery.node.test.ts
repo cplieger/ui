@@ -7,7 +7,7 @@ import { extname, join, normalize } from "node:path";
 import { chromium, firefox, webkit, type BrowserType } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { buildGallery, pageNames } from "./build.js";
+import { buildGallery, frameNames, pageNames } from "./build.js";
 
 const TYPES: Record<string, string> = {
   ".html": "text/html",
@@ -79,7 +79,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const browser = await engine.launch();
     const report: Record<string, unknown> = {};
     try {
-      for (const page of pageNames) {
+      for (const page of [...pageNames, ...frameNames]) {
         for (const width of [1440, 390]) {
           const tab = await browser.newPage({ viewport: { width, height: 900 } });
           const errors: string[] = [];

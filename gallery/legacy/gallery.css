@@ -236,27 +236,6 @@
   }
 }
 
-/* Colour pops: a state change flashes its tone's solid, then fades to its
- * wash from the first fifth of the animation on. */
-
-.chip-pop.popped {
-  animation: chip-pop 900ms var(--cp-ease-out);
-}
-
-@keyframes chip-pop {
-  0%,
-  18% {
-    background: var(--cp-tone-9);
-    color: var(--cp-tone-on);
-  }
-}
-
-/* A filter that turns on fades its wash in over the whole row, and out
- * again when it turns off. */
-.cp-filter.filter-fade {
-  transition: background-color 240ms var(--cp-ease-out);
-}
-
 /* Sparkles: small stars that leave a point, spin and fade. */
 
 .sparkle {
@@ -269,14 +248,6 @@
   background: var(--sparkle, var(--pop-1));
   /* a four-point sparkle */
   clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
-}
-
-.chip-pop {
-  border: 0;
-  font: inherit;
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-medium);
-  cursor: pointer;
 }
 
 /* Count roll: each digit is a column that slides to its number. */
@@ -310,113 +281,8 @@
   block-size: 1em;
 }
 
-/* Tabs and nav with a pill that follows the selection. */
-
-.slide-tabs {
-  position: relative;
-}
-
-.slide-tabs .cp-tab {
-  position: relative;
-  z-index: 1;
-}
-
-.slide-tabs .cp-tab[aria-selected="true"] {
-  background: transparent;
-}
-
-.slide-tabs .pill {
-  position: absolute;
-  inset-block: var(--cp-space-1);
-  inset-inline-start: 0;
-  inline-size: var(--w, 0);
-  translate: var(--x, 0) 0;
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-raised);
-  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
-  transition:
-    translate 460ms var(--ease-spring),
-    inline-size 460ms var(--ease-spring);
-}
-
-/* Progress. The fill is one gradient fixed to the track, the accent at the
- * start and a lighter accent at the end, and progress reveals more of it by
- * clipping less, so the lighter end only shows near the finish. Its two
- * stops are registered colours, so finishing fades both straight to green;
- * a gradient written with plain colours would swap at once. */
-
-@property --bar-a {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: transparent;
-}
-
-@property --bar-b {
-  syntax: "<color>";
-  inherits: false;
-  initial-value: transparent;
-}
-
-.bar-row {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.bar {
-  --bar-light: oklch(from var(--cp-accent-9) calc(l + 0.14) c h);
-
-  position: relative;
-  inline-size: 14rem;
-  block-size: 0.5rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-accent-4);
-  overflow: hidden;
-}
-
-.bar > span {
-  --bar-a: var(--cp-accent-9);
-  --bar-b: var(--bar-light);
-
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--bar-a), var(--bar-b));
-  clip-path: inset(0 calc(100% - var(--p, 0%)) 0 0 round var(--cp-radius-round));
-  transition:
-    clip-path 480ms var(--cp-ease-out),
-    --bar-a 500ms var(--cp-ease-out),
-    --bar-b 500ms var(--cp-ease-out);
-}
-
-.bar:dir(rtl) > span {
-  background-image: linear-gradient(270deg, var(--bar-a), var(--bar-b));
-  clip-path: inset(0 0 0 calc(100% - var(--p, 0%)) round var(--cp-radius-round));
-}
-
 /* Done: the fill fades to green and a check pops in at its end. The check's
  * place is kept while it is hidden, so nothing moves when it appears. */
-.bar.full > span {
-  --bar-a: var(--cp-success-9);
-  --bar-b: var(--cp-success-9);
-}
-
-.bar-check {
-  color: var(--cp-success-9);
-  scale: 0;
-  opacity: 0;
-  transition:
-    scale 160ms var(--cp-ease-out),
-    opacity 160ms var(--cp-ease-out);
-}
-
-.bar.full + .bar-check {
-  scale: 1;
-  opacity: 1;
-  transition:
-    scale var(--dur-spring) var(--ease-bounce) 260ms,
-    opacity 120ms linear 260ms;
-}
 
 /* A loader for work of unknown length, at about the size of a 24px icon, so
  * it sits beside words or alone in a panel. */
@@ -593,16 +459,6 @@
   animation: none;
 }
 
-/* A toast springs in (gallery.css .g-toast). */
-
-@keyframes toast-in {
-  from {
-    translate: 0 1.5rem;
-    opacity: 0;
-    scale: 0.96;
-  }
-}
-
 /* A wordmark's mark flips after five quick presses. */
 
 [data-five-press] > .cp-mark {
@@ -672,6 +528,7 @@
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
+    transition-delay: 0s !important;
   }
 
   /* a loader still has to read as busy, so it pulses slowly instead */
@@ -686,6 +543,7 @@
   animation-duration: 1ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 1ms !important;
+  transition-delay: 0s !important;
 }
 
 :root[data-motion="reduced"] .cp-button:is(:active, [data-cp-pressed]) {
@@ -782,168 +640,10 @@ input.cp-input::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
-/* Notifications: a stack in the inline-end corner, newest at the bottom. A
- * passing toast keeps a thin line that drains as its time runs out and
- * stops while a pointer or focus is on it. */
-
-.g-toaster {
-  position: fixed;
-  inset-block-end: calc(var(--cp-space-3) + 3.25rem);
-  inset-inline-end: var(--cp-space-4);
-  z-index: 90;
-  display: grid;
-  gap: 0;
-  inline-size: min(24rem, calc(100vw - 2rem));
-  pointer-events: none;
-}
-
-/* Each toast sits in a slot whose row collapses when it leaves, so the
- * ones above slide down instead of jumping. */
-.g-slot {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 220ms var(--cp-ease-out);
-}
-
-.g-slot.closing {
-  grid-template-rows: 0fr;
-}
-
-.g-slot > .g-toast-wrap {
-  min-block-size: 0;
-  overflow: visible;
-  padding-block-start: var(--cp-space-2);
-}
-
-.g-slot.closing > .g-toast-wrap {
-  overflow: hidden;
-}
-
-.g-toast {
-  --tone-9: var(--cp-accent-9);
-
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--cp-space-1) var(--cp-space-3);
-  align-items: start;
-  padding: var(--cp-space-3) var(--cp-space-3) var(--cp-space-3) var(--cp-space-4);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-overlay);
-  box-shadow: var(--cp-shadow-overlay);
-  overflow: hidden;
-  pointer-events: auto;
-  touch-action: pan-y;
-  animation: toast-in 560ms var(--ease-spring);
-}
-
-.g-slot.leaving .g-toast {
-  opacity: 0;
-  translate: calc(100% + var(--cp-space-4)) 0;
-  transition:
-    opacity 280ms cubic-bezier(0.4, 0, 1, 1),
-    translate 280ms cubic-bezier(0.4, 0, 1, 1);
-}
-
-.g-slot.leaving .g-toast:dir(rtl) {
-  translate: calc(-100% - var(--cp-space-4)) 0;
-}
-
-/* Under a finger or a mouse, the whole toast is the dismiss. */
-.g-toast {
-  cursor: pointer;
-}
-
-.g-toast :is(p, strong) {
-  cursor: text;
-}
-
-.g-toast:dir(rtl) {
-  padding-inline: var(--cp-space-4) var(--cp-space-3);
-}
-
-.g-toast > .cp-icon {
-  margin-block-start: 0.0625rem;
-  color: var(--tone-9);
-}
-
-.g-toast[data-kind="success"] {
-  --tone-9: var(--cp-success-9);
-}
-
-.g-toast[data-kind="warning"] {
-  --tone-9: var(--cp-warning-9);
-}
-
-.g-toast[data-kind="error"] {
-  --tone-9: var(--cp-danger-9);
-}
-
-.g-toast strong {
-  display: block;
-  font-weight: var(--cp-weight-medium);
-}
-
-.g-toast p {
-  margin: 0.125rem 0 0;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  line-height: var(--cp-leading-body);
-}
-
-.g-toast .g-toast-actions {
-  grid-column: 2;
-  display: flex;
-  gap: var(--cp-space-2);
-  margin-block-start: var(--cp-space-2);
-}
-
-.g-toast > .g-close {
-  min-block-size: 1.75rem;
-  min-inline-size: 1.75rem;
-  margin-block: -0.25rem;
-  padding: 0;
-}
-
-/* The draining line: a scale, so it runs on the compositor. */
-.g-toast > .g-time {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: 0;
-  block-size: 2px;
-  background: var(--tone-9);
-  opacity: 0.55;
-  transform-origin: left;
-  animation: drain var(--life, 5s) linear forwards;
-}
-
-.g-toast:dir(rtl) > .g-time {
-  transform-origin: right;
-}
-
-.g-toast:is(:hover, :focus-within) > .g-time,
-.g-toaster:is(:hover, :focus-within) .g-time {
-  animation-play-state: paused;
-}
-
-@keyframes drain {
-  to {
-    scale: 0 1;
-  }
-}
-
 .g-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: var(--cp-space-2);
-}
-
-@media (width < 40rem) {
-  .g-toaster {
-    inset-inline: var(--cp-space-3);
-    inline-size: auto;
-  }
 }
 
 /* Popovers: a menu or a panel anchored to its button with CSS anchor
@@ -1258,13 +958,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
       translate: 0 100%;
     }
   }
-}
-
-.g-strip-panel {
-  padding: var(--cp-space-5);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  color: var(--cp-ink-muted);
 }
 
 /* Tables and lists */
@@ -1625,7 +1318,7 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-toast, .g-slot, .g-result) {
+  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-result) {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
@@ -1873,72 +1566,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   cursor: default;
 }
 
-/* An accordion of native <details name>, the arrow turning as it opens; an
- * engine that animates to auto sizes glides the body. */
-.g-accordion {
-  display: grid;
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-  overflow: hidden;
-  interpolate-size: allow-keywords;
-}
-
-.g-accordion > :is(details, .g-group) + :is(details, .g-group) {
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-accordion summary {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-4);
-  font-weight: var(--cp-weight-medium);
-  cursor: pointer;
-  list-style: none;
-}
-
-.g-accordion summary::-webkit-details-marker {
-  display: none;
-}
-
-.g-accordion summary > .cp-icon {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  transition: rotate 200ms var(--cp-ease-out);
-}
-
-.g-accordion details[open]:not([data-closing]) summary > .cp-icon {
-  rotate: 180deg;
-}
-
-.g-accordion .g-acc-body {
-  padding: 0 var(--cp-space-4) var(--cp-space-4);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  line-height: var(--cp-leading-body);
-}
-
-/* A rail of destinations with sections and counts. */
-.g-rail {
-  display: grid;
-  gap: var(--cp-space-4);
-  inline-size: 14rem;
-  padding: var(--cp-space-3);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-}
-
-.g-rail .cp-filter > .g-badge {
-  margin-inline-start: auto;
-}
-
-.g-rail .cp-filter[aria-pressed="true"] > .g-badge {
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
-}
 
 /* Foundations page */
 
@@ -2126,85 +1753,16 @@ html:has(.g-header) {
   }
 }
 
-/* A phone frame for pieces that only exist at compact width. */
+/* A phone's screen: the frame holds a page of its own, under 40rem wide, so
+ * the library's narrow-width rules apply inside it. */
 .g-phone {
-  position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: block;
   inline-size: 20rem;
+  max-inline-size: 100%;
   block-size: 30rem;
   border: 6px solid var(--cp-neutral-12);
   border-radius: 1.75rem;
   background: var(--cp-surface-page);
-  overflow: hidden;
-  container-type: inline-size;
-}
-
-.g-phone > .g-phone-head {
-  padding: var(--cp-space-3) var(--cp-space-4);
-  background: var(--cp-shell-bg);
-  color: var(--cp-shell-ink);
-  font-weight: var(--cp-weight-heading);
-}
-
-.g-phone > .g-phone-body {
-  padding: var(--cp-space-4);
-  overflow: auto;
-  color: var(--cp-ink-muted);
-}
-
-/* The bottom bar: the main nav at compact width, up to four destinations,
- * each an icon over its word, the current one in the accent. */
-.g-bottom-nav {
-  display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
-  padding-block-end: env(safe-area-inset-bottom);
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-  background: var(--cp-surface-raised);
-}
-
-.g-bottom-nav > a {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: 0.125rem;
-  min-block-size: 3.5rem;
-  padding-block: 0.5rem;
-  color: var(--cp-ink-muted);
-  font-size: 0.6875rem;
-  font-weight: var(--cp-weight-medium);
-  text-decoration: none;
-}
-
-.g-bottom-nav > a > .cp-icon {
-  transition: translate 260ms var(--ease-spring);
-}
-
-.g-bottom-nav > a[aria-current="page"] {
-  color: var(--cp-accent-11);
-}
-
-.g-bottom-nav > a[aria-current="page"]::before {
-  content: "";
-  position: absolute;
-  inset: 0.25rem 0.375rem;
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-selected);
-  z-index: -1;
-  animation: nav-pill 300ms var(--ease-spring);
-}
-
-.g-bottom-nav > a {
-  isolation: isolate;
-}
-
-@keyframes nav-pill {
-  from {
-    scale: 0.4 1;
-    opacity: 0;
-  }
 }
 
 /* A virtual list: a fixed-height viewport, a spacer the height of every
@@ -2272,18 +1830,6 @@ html:has(.g-header) {
 .g-meter > small {
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
-}
-
-/* A group whose header holds an action menu outside its summary, so the
- * menu never opens or closes the group. */
-.g-group {
-  position: relative;
-}
-
-.g-group > .g-group-menu {
-  position: absolute;
-  inset-block-start: calc((var(--cp-control-h) - var(--cp-control-h-sm)) / 2);
-  inset-inline-end: calc(var(--cp-space-4) + 1.5rem);
 }
 
 /* An action that reports its own outcome in its cell. */
@@ -2364,7 +1910,7 @@ html:has(.g-header) {
   padding: var(--cp-space-3) var(--cp-space-4);
 }
 
-:is(.g-job, [data-first-sync]) progress {
+.g-job progress {
   grid-column: 1 / -1;
   inline-size: 100%;
   block-size: 0.375rem;
@@ -2375,17 +1921,17 @@ html:has(.g-header) {
   overflow: hidden;
 }
 
-:is(.g-job, [data-first-sync]) progress::-webkit-progress-bar {
+.g-job progress::-webkit-progress-bar {
   background: var(--cp-accent-4);
 }
 
-:is(.g-job, [data-first-sync]) progress::-webkit-progress-value {
+.g-job progress::-webkit-progress-value {
   border-radius: var(--cp-radius-round);
   background: var(--cp-accent-9);
   transition: inline-size 400ms var(--cp-ease-out);
 }
 
-:is(.g-job, [data-first-sync]) progress::-moz-progress-bar {
+.g-job progress::-moz-progress-bar {
   border-radius: var(--cp-radius-round);
   background: var(--cp-accent-9);
 }
@@ -2463,38 +2009,6 @@ html:has(.g-header) {
   to {
     background-position: 140% 0;
   }
-}
-
-/* A banner with reasons. */
-.g-banner-reasons {
-  display: grid;
-  gap: var(--cp-space-2);
-  padding: var(--cp-space-3) var(--cp-space-4);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-warning-3);
-  color: var(--cp-warning-12);
-}
-
-.g-banner-reasons > strong {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-.g-banner-reasons > strong > .cp-icon {
-  color: var(--cp-warning-11);
-}
-
-.g-banner-reasons ul {
-  margin: 0;
-  padding-inline-start: 1.75rem;
-  font-size: var(--cp-text-sm);
-  line-height: var(--cp-leading-body);
-}
-
-.g-banner-reasons small {
-  color: var(--cp-warning-11);
-  font-size: var(--cp-text-xs);
 }
 
 /* Video with one caption track: our controls over the native element. */
@@ -2632,18 +2146,8 @@ html:has(.g-header) {
   color: var(--cp-accent);
 }
 
-/* ===== Hero icons, layouts and the rest of the scope ===== */
+/* ===== Layouts and the rest of the scope ===== */
 
-/* Hero icons on empty and error states, without an inline style. */
-.g-hero-icon {
-  --cp-icon-size: 3rem;
-
-  color: var(--cp-accent);
-}
-
-.g-hero-icon[data-tone="danger"] {
-  color: var(--cp-danger-9);
-}
 
 /* Avatars and covers take their harmony colour from an attribute. */
 [data-h="1"] {
@@ -2664,19 +2168,6 @@ html:has(.g-header) {
 [data-h="4"] {
   --av: var(--cp-harmony-4);
   --av-on: var(--cp-harmony-4-on);
-}
-
-.g-avatar[data-size="sm"] {
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-}
-
-.g-skel-40 {
-  inline-size: 40%;
-}
-
-.g-skel-85 {
-  inline-size: 85%;
 }
 
 /* Positioned, so a visually hidden label inside its table stays in the
@@ -2704,50 +2195,10 @@ html:has(.g-header) {
   border-radius: var(--cp-radius-control);
 }
 
-/* The header status as a button with a non-modal panel. */
-
-.g-status-panel {
-  inline-size: 20rem;
-  padding: 0;
-}
-
-.g-status-panel > h2 {
-  padding: var(--cp-space-3) var(--cp-space-4);
-  font-size: var(--cp-text-md);
-}
-
-.g-status-panel > section {
-  display: grid;
-  gap: var(--cp-space-1);
-  padding: var(--cp-space-3) var(--cp-space-4);
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-  font-size: var(--cp-text-sm);
-}
-
-.g-status-panel > section > strong {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-/* A status line with a late state. */
+/* The frame's status line out of its frame, boxed so its edges show. */
 .g-statusline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-1) var(--cp-space-4);
-  padding: var(--cp-space-2) var(--cp-space-4);
+  border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-page);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-statusline [data-late] {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-warning-11);
-  font-weight: var(--cp-weight-medium);
 }
 
 /* A card that is one link. */
@@ -2913,99 +2364,6 @@ html:has(.g-header) {
   gap: var(--cp-space-1);
 }
 
-/* A page header: crumbs, title, description, actions. */
-.g-pagehead {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--cp-space-2) var(--cp-space-4);
-  align-items: end;
-}
-
-.g-pagehead > .cp-crumbs {
-  grid-column: 1 / -1;
-}
-
-.g-pagehead p {
-  margin: var(--cp-space-1) 0 0;
-  color: var(--cp-ink-muted);
-}
-
-@media (width < 40rem) {
-  .g-pagehead {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* Tabs that are links to pages. */
-.g-linktabs {
-  display: flex;
-  gap: var(--cp-space-1);
-  border-block-end: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-linktabs > a {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-3);
-  color: var(--cp-ink-muted);
-  font-weight: var(--cp-weight-medium);
-  text-decoration: none;
-}
-
-.g-linktabs > a[aria-current="page"] {
-  color: var(--cp-ink);
-}
-
-.g-linktabs > a[aria-current="page"]::after {
-  content: "";
-  position: absolute;
-  inset-inline: var(--cp-space-2);
-  inset-block-end: -1px;
-  block-size: 2px;
-  border-radius: 2px;
-  background: var(--cp-accent);
-}
-
-/* The list runs edge to edge: a poster sits flush with its row's start,
- * and 2px part one row's poster from the next. */
-
-.g-jump [role="listbox"] {
-  display: grid;
-  gap: 2px;
-}
-
-.g-jump [role="option"] {
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: 0 var(--cp-space-3);
-  align-items: center;
-  min-block-size: 3rem;
-  padding-inline-start: 0;
-  border-radius: 0;
-  overflow: hidden;
-}
-
-.g-jump [role="option"] > .g-cover {
-  grid-row: 1 / 3;
-  inline-size: 2rem;
-}
-
-.g-jump [role="option"] > .g-cover > .cp-icon {
-  --cp-icon-size: 0.875rem;
-}
-
-.g-jump [role="option"] small {
-  margin: 0;
-}
-
-.g-jump [role="status"] {
-  padding: var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-}
 
 /* The item hero: an alternative title in its own language, link chips. */
 .g-alt-title {
@@ -3237,28 +2595,8 @@ html:has(.g-header) {
   rotate: 90deg;
 }
 
-[data-first-sync] progress {
-  inline-size: min(100%, 16rem);
-}
-
-/* The loader sits in the heading's line, as it does beside words anywhere. */
-[data-first-sync] > .g-sync-head {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-[data-first-sync] .g-sync-phase {
-  color: var(--cp-ink-muted);
-  font-variant-numeric: tabular-nums;
-}
 .g-media-head h2 + .g-alt-title + .g-media-meta {
   margin-block-start: var(--cp-space-2);
-}
-
-/* Skip to the content: the first Tab stop, shown only while focused. */
-.g-mini-header {
-  position: relative;
 }
 
 /* ===== Layouts: frames at three widths, and arrangements inside a region ===== */
@@ -3368,38 +2706,6 @@ html:has(.g-header) {
 
 .cp-field > .cp-input[data-width="fill"] {
   justify-self: stretch;
-}
-
-/* The account button is the avatar: no square behind it, a ring of the
- * bar's ink that holds it off the bar whatever its colour, and a hover that
- * widens the ring. */
-.cp-header .cp-button.g-avatar-btn {
-  min-inline-size: 0;
-  padding: 0.1875rem;
-  border-radius: 50%;
-  background: transparent;
-}
-
-.cp-header .g-avatar-btn > .g-avatar {
-  box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
-  transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-header .cp-button.g-avatar-btn[data-variant="quiet"]:hover:enabled {
-      background: transparent;
-    }
-
-    .cp-header .g-avatar-btn:hover > .g-avatar {
-      box-shadow: 0 0 0 3px var(--cp-shell-ink);
-    }
-  }
-}
-
-.cp-header .g-avatar-btn[aria-expanded="true"] > .g-avatar,
-.cp-header .g-avatar-btn:has(+ :popover-open) > .g-avatar {
-  box-shadow: 0 0 0 3px var(--cp-shell-ink);
 }
 
 /* A job's phase and, once it ends, its outcome: a glyph at the words'
@@ -3633,47 +2939,6 @@ html:has(.g-header) {
   .f-md > .f-note {
     display: none;
   }
-}
-/* The jump list's own styles, until its card moves onto the library's combobox. */
-.g-suggest {
-  inline-size: anchor-size(width);
-  max-block-size: 15rem;
-  margin: var(--cp-space-1) 0 0;
-  padding: var(--cp-space-1);
-  overflow: auto;
-  list-style: none;
-  position-area: block-end span-inline-end;
-}
-
-.g-suggest [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-.g-suggest [role="option"][aria-selected="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-}
-
-.g-suggest [role="option"] small {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-suggest.g-jump {
-  padding: 0;
-}
-
-.g-suggest > ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 /* The header card is a frame inside a card, so its skip link sits at the

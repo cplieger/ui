@@ -1,8 +1,11 @@
 /**
  * combobox.ts — the WAI-ARIA combobox with a list popup
- * (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) over a text field and
- * a `role="listbox"` the host fills: focus stays in the field while the arrow
- * keys move `aria-activedescendant`, and Enter or a press accepts an option.
+ * (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) over a text field
+ * and a `role="listbox"` the host fills. Focus stays in the field while the
+ * arrow keys move `aria-activedescendant` through the options, and Enter or
+ * a press accepts one. The host owns which options show and what accepting
+ * one does; the popup shows while it holds a visible option, or a line
+ * saying the text matches none.
  * @module
  */
 
@@ -31,13 +34,20 @@ export interface ComboboxOptions {
   /** Shows the options when the field takes focus. Default false: typing,
    *  ArrowDown or Alt+ArrowDown shows them. */
   readonly openOnFocus?: boolean;
-  /** What the listbox sits under. Default: the field. */
+  /** What the popup sits under. Default: the field. */
   readonly anchor?: HTMLElement;
   /** Keeps the listbox in place and shown, as in a command palette: it is
    *  no popover, the field stays expanded, `autoActivate` makes the first
    *  option active with no text too, and Escape is left to what holds the
    *  field, such as its dialog. Default false. */
   readonly inline?: boolean;
+  /** The element shown as the popup, holding the listbox and `empty`.
+   *  Default: the listbox itself. */
+  readonly popup?: HTMLElement;
+  /** A line in `popup`, beside the listbox, shown in place of the options
+   *  while typed text matches none. The host writes its words in `onQuery`;
+   *  without it, the popup closes when no option is left. */
+  readonly empty?: HTMLElement;
   /** Removes the listeners and the field's combobox attributes, and closes
    *  the popup. */
   readonly signal?: AbortSignal;
@@ -62,19 +72,20 @@ function ensureId(el: HTMLElement, prefix: string): string {
 
 /**
  * `input` is a text `<input>`. `listbox` is the `role="listbox"` that holds
- * its `role="option"` rows; it becomes a manual popover placed under
- * `anchor`. An option that is hidden, inside a hidden part of the listbox,
- * or `aria-disabled="true"` is skipped.
+ * its `role="option"` rows; it, or `popup` when given, becomes a manual
+ * popover placed under `anchor`. An option that is hidden, inside a
+ * hidden part of the listbox, or `aria-disabled="true"` is skipped.
  */
 export function enhanceCombobox(
   input: HTMLInputElement,
   listbox: HTMLElement,
   options: ComboboxOptions,
 ): Combobox {
-  const { onQuery, onAccept, onText, onSettle, signal } = options;
+  const { onQuery, onAccept, onText, onSettle, empty, signal } = options;
   const settleMs = options.settle ?? 250;
   const anchor = options.anchor ?? input;
   const inline = options.inline === true;
+  const popup = options.popup ?? listbox;
   let active: HTMLElement | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -86,7 +97,7 @@ export function enhanceCombobox(
     [...listbox.querySelectorAll<HTMLElement>('[role="option"]')].filter(
       (o) => o.getAttribute("aria-disabled") !== "true" && shown(o),
     );
-  const isOpen = (): boolean => inline || listbox.matches(":popover-open");
+  const isOpen = (): boolean => inline || popup.matches(":popover-open");
   const mark = (option: HTMLElement | null): void => {
     active = option;
     for (const o of listbox.querySelectorAll<HTMLElement>('[role="option"]')) {
@@ -106,7 +117,7 @@ export function enhanceCombobox(
     }
     input.setAttribute("aria-expanded", "false");
     if (isOpen()) {
-      listbox.hidePopover();
+      popup.hidePopover();
     }
   };
   const focused = (): boolean =>
@@ -114,13 +125,17 @@ export function enhanceCombobox(
   /** Shows or hides the popup for the options now visible. */
   const update = (activate: "keep" | "first" | "last" | "none"): void => {
     const list = visible();
-    if (list.length === 0 || !focused()) {
+    const none = list.length === 0 && input.value.trim() !== "";
+    if (empty !== undefined) {
+      empty.hidden = !none;
+    }
+    if (!focused() || (list.length === 0 && !(none && empty !== undefined))) {
       close();
       return;
     }
     if (!isOpen()) {
-      anchorTo(listbox, anchor);
-      listbox.showPopover();
+      anchorTo(popup, anchor);
+      popup.showPopover();
     }
     input.setAttribute("aria-expanded", "true");
     if (activate === "first") {
@@ -147,8 +162,8 @@ export function enhanceCombobox(
   const listen = until(signal);
   ensureId(listbox, "cp-listbox");
   listbox.setAttribute("role", "listbox");
-  if (!inline && !listbox.hasAttribute("popover")) {
-    listbox.popover = "manual";
+  if (!inline && !popup.hasAttribute("popover")) {
+    popup.popover = "manual";
   }
   input.setAttribute("role", "combobox");
   input.setAttribute("aria-autocomplete", "list");
@@ -162,7 +177,6 @@ export function enhanceCombobox(
       update(best());
       if (onSettle !== undefined) {
         clearTimeout(timer);
-        // A pause in typing is a length of time, so a timer measures it.
         timer = setTimeout(() => {
           onSettle(input.value);
         }, settleMs);
@@ -233,9 +247,9 @@ export function enhanceCombobox(
     },
     listen,
   );
-  // A press on the list keeps focus in the field, so the field never blurs
+  // A press on the popup keeps focus in the field, so the field never blurs
   // and the click lands.
-  listbox.addEventListener(
+  popup.addEventListener(
     "pointerdown",
     (e) => {
       e.preventDefault();
@@ -256,7 +270,7 @@ export function enhanceCombobox(
   input.addEventListener(
     "focusout",
     (e) => {
-      if (!(e.relatedTarget instanceof Node && listbox.contains(e.relatedTarget))) {
+      if (!(e.relatedTarget instanceof Node && popup.contains(e.relatedTarget))) {
         close();
       }
     },

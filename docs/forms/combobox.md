@@ -2,7 +2,7 @@
 
 `@cplieger/ui/combobox`
 
-The [combobox with a list popup](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) over a text field and a listbox you fill. Focus stays in the field while the arrow keys move through the options, and Enter or a press accepts one. You decide which options show and what accepting one does, and the popup shows while it holds a visible option.
+The [combobox with a list popup](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) over a text field and a listbox you fill. Focus stays in the field while the arrow keys move through the options, and Enter or a press accepts one. You decide which options show and what accepting one does, and the popup shows while it holds a visible option, or a line saying nothing matches.
 
 ```html
 <label class="cp-label" for="jump">Jump to an entry</label>
@@ -29,7 +29,40 @@ enhanceCombobox(input, list, {
 - `autoActivate` makes the first option active as typing changes the options, so Enter takes the best match. `openOnFocus` shows the options as the field takes focus. Both are off by default.
 - The listbox becomes a manual popover placed under `anchor`, the field by default, and takes its look from `.cp-popover.cp-listbox`. Keep it beside the field, so it stays inside any dialog that holds the field.
 - `inline` keeps the listbox in place and shown, as in a [command palette](../overlays/palette.md): it is no popover, the field stays expanded, `autoActivate` makes the first option active even with no text, and Escape is left to what holds the field, such as its dialog.
+- `popup` and `empty` show a line in place of the options while the typed text matches none. `popup` is the `.cp-popover.cp-listbox` that becomes the popover in the listbox's place, holding the listbox and `empty`, a `<p class="cp-listbox-empty" hidden>` whose words you write in `onQuery`. Without `empty`, the popup closes when no option is left.
 - `signal` removes the listeners and the field's combobox attributes, and closes the popup.
+
+## Options with a cover
+
+An option that starts with a [`.cp-cover`](../design-components.md) is drawn as an entry: its cover flush with the row's start, its title in a `<strong>` over a line of facts in a `<small>`, and the list running edge to edge. Give an `<img>` in the cover `alt=""`, since the title names the entry.
+
+```html
+<div class="cp-input-row" id="jump-row">
+  <div class="cp-search"><input class="cp-input" id="jump" placeholder="Title, year or group"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div>
+  <button class="cp-button" type="button">Search</button>
+</div>
+<div class="cp-popover cp-listbox" id="jump-popup">
+  <ul id="jump-list" aria-label="Entries">
+    <li role="option"><span class="cp-cover"><img src="frieren.webp" alt=""></span><strong>Frieren</strong><small>2023 · TV</small></li>
+  </ul>
+  <p class="cp-listbox-empty" hidden></p>
+</div>
+```
+
+```ts
+enhanceCombobox(input, list, {
+  popup,
+  empty,
+  anchor: row,
+  autoActivate: true,
+  onQuery: (text) => {
+    filter(text);
+    empty.textContent = `No entry matches “${text.trim()}”`;
+  },
+  onAccept: (option) => openEntry(option),
+  onSettle: () => announce(count() > 0 ? `${count()} entries` : empty.textContent),
+});
+```
 
 ## Keys
 
