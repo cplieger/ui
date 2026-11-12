@@ -32,7 +32,7 @@ The parts of a `.cp-table` that need a script. `enhanceSort` runs sortable heade
         <td data-col="select"><label><input class="cp-checkbox" type="checkbox" aria-label="Select Mushishi"></label></td>
         <td>
           <div class="cp-title-cell">
-            <span class="cp-thumb" data-harmony="4" aria-hidden="true"><span class="cp-icon" data-cp-icon="tv"></span></span>
+            <span class="cp-cover" data-harmony="4" aria-hidden="true"><span class="cp-icon" data-cp-icon="tv"></span></span>
             <div class="cp-cell-stack"><a href="/series/mushishi">Mushishi</a><span class="cp-meta">TV, 2005, 26 episodes</span></div>
           </div>
         </td>
@@ -50,7 +50,7 @@ The parts of a `.cp-table` that need a script. `enhanceSort` runs sortable heade
 ```
 
 - A sortable header is a `<th>` holding a `<button class="cp-sort">` with the column's name. The stylesheet draws its arrow, shown on the column whose `<th>` carries `aria-sort`.
-- `.cp-title-cell` puts a `.cp-thumb` beside the title and its line. The thumb is a 2:3 tile in a flat harmony colour, `data-harmony` from `"1"` to `"4"` (`"2"` by default), holding the kind's icon, or an `<img>` that covers it.
+- `.cp-title-cell` puts a `.cp-cover` beside the title and its line, 36px wide so it fills the row less 1px each side, its glyph at 16px. The cover's harmony colour, glyph and `<img>` are the cover's own, as [Components](../design-components.md) describes.
 - A row's actions sit in a `.cp-toolbar`. Its worded action confirms in place with [confirm](../buttons/confirm.md), and its ⋯ buttons all open one `.cp-menu` through [menu](../overlays/menu.md).
 - While the table loads, each cell holds a `.cp-skeleton`, timed by [skeleton](../feedback/skeleton.md).
 

@@ -32,6 +32,9 @@ const settled = async () => {
   await Promise.allSettled(document.getAnimations().map((a) => a.finished));
   await new Promise((r) => setTimeout(r, 0));
 };
+// announce writes its words after a 100ms gap; a timer set later with an equal or longer
+// timeout runs after it (https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timers).
+const said = () => new Promise((r) => setTimeout(r, 150));
 
 describe("installDialogs", () => {
   it("closes a dialog marked closedby=any on a press that starts and ends outside it", async () => {
@@ -73,7 +76,7 @@ describe("installDialogs", () => {
     d.showModal();
     (d.querySelector("input") as HTMLInputElement).value = "Sonarr 4K";
     await userEvent.click(document.body, { position: { x: 5, y: 5 } });
-    await settled();
+    await said();
     expect(d.querySelector('[aria-live="polite"]')?.textContent).toBe(
       "Your changes are still here. Save them, or cancel to drop them.",
     );
@@ -86,7 +89,7 @@ describe("installDialogs", () => {
     quiet.showModal();
     (quiet.querySelector("button") as HTMLButtonElement).focus();
     await userEvent.keyboard("{Escape}");
-    await settled();
+    await said();
     expect(quiet.querySelector('[aria-live="polite"]')?.textContent ?? "").toBe("");
     quiet.remove();
     const d = dialog({}, '<button type="button">Done</button>');
@@ -94,7 +97,7 @@ describe("installDialogs", () => {
     d.showModal();
     (d.querySelector("button") as HTMLButtonElement).focus();
     await userEvent.keyboard("{Escape}");
-    await settled();
+    await said();
     expect(d.querySelector('[aria-live="polite"]')?.textContent).toBe("Copy it first.");
   });
 

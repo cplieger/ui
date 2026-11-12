@@ -47,7 +47,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `.cp-gate` | a page outside the frame for one short task, such as sign-in, as [Account and sign-in](design-account.md#the-gate-page) describes. `data-variant="steps"` is a setup of several steps: a 28rem column whose panel is the steps' container, and a `data-part="actions"` row with Back first and the primary last |
 | `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority`, its `<caption>` small and muted at its start. A row's header, a `<th scope="row">` in the body, reads as one of the row's cells, a link in a cell holds its glyph beside its words, and the row a keyboard is in takes the hover fill |
 | `.cp-sort` | a sortable header's button inside a `<th>`, its arrow drawn on the column `aria-sort` marks and turned over for descending. [table](data/table.md) sorts |
-| `.cp-title-cell`, `.cp-thumb` | a title cell with its picture beside the title and its line, and the picture's 2:3 tile in the harmony colour `data-harmony` names, `"1"` to `"4"` |
+| `.cp-title-cell` | a title cell: a `.cp-cover` sized to the row beside the title and its line |
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height. [table](data/table.md) runs it |
 | `.cp-pager` | the range and the Previous and Next links under a table |
 | `.cp-share`, `.cp-share-bar`, `.cp-share-legend` | the parts of a whole as segments sized by share with a 2px gap, a tip on each, and a legend of chips that can be links, over the table that holds the numbers, as [share-bar](data/share-bar.md) describes |

@@ -96,8 +96,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* The title cell: a picture or its stand-in beside the title and its line.
- * The picture fills its row less 1px each side, so pictures in stacked rows
+/* The title cell: a .cp-cover beside the title and its line. The cover
+ * fills its row less 1px each side, so pictures in stacked rows
  * sit 2px apart; the words keep their own padding. */
 .cp-title-cell {
   display: flex;
@@ -105,7 +105,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   gap: var(--cp-space-3);
 }
 
-.cp-table td:has(> .cp-title-cell) {
+.cp-table :is(td, th):has(> .cp-title-cell) {
   padding-block: 1px;
 }
 
@@ -113,54 +113,19 @@ th[aria-sort="descending"] > .cp-sort::after {
   padding-block: var(--cp-space-2);
 }
 
-/* A 2:3 tile in a flat harmony colour, holding the kind's icon until a
- * picture loads over it. */
-.cp-thumb {
-  --cp-thumb: var(--cp-harmony-2);
-  --cp-thumb-on: var(--cp-harmony-2-on);
-
-  display: grid;
+.cp-title-cell > .cp-cover {
   flex: none;
-  place-items: center;
   inline-size: 2.25rem;
-  aspect-ratio: 2 / 3;
-  overflow: hidden;
   border-radius: calc(var(--cp-radius-control) - 0.125rem);
-  background: var(--cp-thumb);
-  color: var(--cp-thumb-on);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-strong);
 }
 
-.cp-thumb[data-harmony="1"] {
-  --cp-thumb: var(--cp-harmony-1);
-  --cp-thumb-on: var(--cp-harmony-1-on);
-}
-
-.cp-thumb[data-harmony="3"] {
-  --cp-thumb: var(--cp-harmony-3);
-  --cp-thumb-on: var(--cp-harmony-3-on);
-}
-
-.cp-thumb[data-harmony="4"] {
-  --cp-thumb: var(--cp-harmony-4);
-  --cp-thumb-on: var(--cp-harmony-4-on);
-}
-
-.cp-thumb > .cp-icon {
+.cp-title-cell > .cp-cover > .cp-icon {
   --cp-icon-size: 1rem;
-}
-
-.cp-thumb > img {
-  grid-area: 1 / 1;
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
 }
 
 /* The row a keyboard is in takes the fill a pointer gives it, so a person
  * tabbing through a row's actions sees which row they act on. */
-.cp-table tbody tr:has(:focus-visible) > td {
+.cp-table tbody tr:has(:focus-visible) > :is(td, th) {
   background: var(--cp-fill);
 }
 
@@ -312,10 +277,6 @@ th[aria-sort="descending"] > .cp-sort::after {
 @media (forced-colors: active) {
   .cp-sort::after {
     background: ButtonText;
-  }
-
-  .cp-thumb {
-    border: var(--cp-line-w) solid CanvasText;
   }
 }
 

@@ -2555,11 +2555,14 @@ describe("css/system.css", () => {
       getComputedStyle(button).backgroundColor,
     ];
     root.dataset["pointer"] = pointer;
-    await userEvent.hover(a);
+    // Neither element moves, so Playwright's wait for two equal animation frames
+    // only adds time: WebKit under a loaded full run took over 4s to give them.
+    const now = { force: true };
+    await userEvent.hover(a, now);
     const link = getComputedStyle(a).textDecorationColor;
-    await userEvent.hover(button);
+    await userEvent.hover(button, now);
     const fill = getComputedStyle(button).backgroundColor;
-    await userEvent.unhover(button);
+    await userEvent.unhover(button, now);
     return { rest, hovered: [link, fill] };
   };
 
@@ -3502,19 +3505,24 @@ describe("css/system.css data tables", () => {
     );
   });
 
-  it("draws a thumbnail as a 2:3 tile in the harmony colour it names, the second by default", () => {
+  it("sizes a title cell's cover to its row less 1px each side, in a cell or a row's header", () => {
     theme("light");
-    const el = build(
-      '<span class="cp-thumb"></span><span class="cp-thumb" data-harmony="1"></span><span class="cp-thumb" data-harmony="4"></span>',
-    );
-    const [plain, one, four] = [...el.querySelectorAll(".cp-thumb")];
-    const fill = (e: Element | undefined) => getComputedStyle(e as Element).backgroundColor;
-    expect(fill(plain)).toBe(resolve("var(--cp-harmony-2)", "backgroundColor"));
-    expect(fill(one)).toBe(resolve("var(--cp-harmony-1)", "backgroundColor"));
-    expect(fill(four)).toBe(resolve("var(--cp-harmony-4)", "backgroundColor"));
-    expect(getComputedStyle(four as Element).color).toBe(resolve("var(--cp-harmony-4-on)"));
-    const box = (plain as Element).getBoundingClientRect();
-    expect([box.width, box.height]).toEqual([36, 54]);
+    const cell = (tag: "td" | "th") =>
+      `<tr><${tag}><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv"></span></span>` +
+      `<div class="cp-cell-stack"><a href="#t">Mushishi</a><span class="cp-meta">TV, 2005</span></div></div></${tag}></tr>`;
+    const el = build(`<table class="cp-table"><tbody>${cell("td")}${cell("th")}</tbody></table>`);
+    for (const row of el.querySelectorAll("tr")) {
+      const cover = row.querySelector(".cp-cover") as Element;
+      const box = cover.getBoundingClientRect();
+      expect([box.width, box.height]).toEqual([36, 54]);
+      expect(getComputedStyle(row.cells[0] as Element).paddingBlockStart).toBe("1px");
+      expect(getComputedStyle(cover).borderStartStartRadius).toBe(
+        getComputedStyle(
+          host("", { style: "border-radius: calc(var(--cp-radius-control) - 0.125rem)" }),
+        ).borderStartStartRadius,
+      );
+      expect((cover.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(16);
+    }
   });
 
   it("lays the filters in force in a wrapping row whose chips arrive still and shrink away", () => {
@@ -3893,7 +3901,7 @@ describe("css/system.css data tables", () => {
     theme("light");
     const el = build(
       '<button type="button" id="start">Start</button><table class="cp-table"><tbody>' +
-        '<tr><td>a</td><td data-col="actions"><button class="cp-button" type="button">Grab</button></td></tr>' +
+        '<tr><th scope="row">a</th><td data-col="actions"><button class="cp-button" type="button">Grab</button></td></tr>' +
         '<tr><td data-col="select"><label><input type="checkbox" checked></label></td><td>b</td></tr>' +
         "</tbody></table>",
     );
