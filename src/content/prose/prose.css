@@ -47,8 +47,21 @@
   font-weight: var(--cp-weight-strong);
 }
 
-.cp-prose :where(ul, ol) {
+.cp-prose :where(ul) {
   padding-inline-start: 1.5em;
+}
+
+/* Not inherited, so a nested list keeps its own count. */
+@property --cp-marker-digits {
+  syntax: "<integer>";
+  inherits: false;
+  initial-value: 1;
+}
+
+/* An outside marker past the gutter paints beyond the host, where a host
+ * that clips cuts its leading digits; markers use tabular figures. */
+.cp-prose :where(ol) {
+  padding-inline-start: calc(1.5em + (var(--cp-marker-digits) - 1) * 1ch);
 }
 
 .cp-prose :where(li) + :where(li),
