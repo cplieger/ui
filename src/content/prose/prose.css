@@ -59,9 +59,47 @@
 }
 
 /* An outside marker past the gutter paints beyond the host, where a host
- * that clips cuts its leading digits; markers use tabular figures. */
+ * that clips cuts its leading digits; markers use tabular figures. The
+ * count is an attribute, not a style, so markup stays valid under a strict
+ * style-src and survives being serialised. */
 .cp-prose :where(ol) {
   padding-inline-start: calc(1.5em + (var(--cp-marker-digits) - 1) * 1ch);
+}
+
+.cp-prose :where(ol[data-cp-digits="2"]) {
+  --cp-marker-digits: 2;
+}
+
+.cp-prose :where(ol[data-cp-digits="3"]) {
+  --cp-marker-digits: 3;
+}
+
+.cp-prose :where(ol[data-cp-digits="4"]) {
+  --cp-marker-digits: 4;
+}
+
+.cp-prose :where(ol[data-cp-digits="5"]) {
+  --cp-marker-digits: 5;
+}
+
+.cp-prose :where(ol[data-cp-digits="6"]) {
+  --cp-marker-digits: 6;
+}
+
+.cp-prose :where(ol[data-cp-digits="7"]) {
+  --cp-marker-digits: 7;
+}
+
+.cp-prose :where(ol[data-cp-digits="8"]) {
+  --cp-marker-digits: 8;
+}
+
+.cp-prose :where(ol[data-cp-digits="9"]) {
+  --cp-marker-digits: 9;
+}
+
+.cp-prose :where(ol[data-cp-digits="10"]) {
+  --cp-marker-digits: 10;
 }
 
 .cp-prose :where(li) + :where(li),
