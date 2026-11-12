@@ -1755,6 +1755,29 @@ html:has(.g-header) {
   inline-size: min(30rem, 100%);
 }
 
+/* A frame as wide as a 390px phone's page, less its 16px gutters. */
+.g-resizable[data-start="phone"] {
+  inline-size: min(calc(358px + 2 * var(--cp-space-3) + 2 * var(--cp-line-w)), 100%);
+}
+
+/* The tab's charts share their plot edges, as an app sets the gutters. */
+.g-chart-group {
+  --cp-chart-axis-gutter: 8rem;
+  --cp-chart-label-gutter: 5rem;
+}
+
+@container (width < 30rem) {
+  .g-chart-group {
+    --cp-chart-axis-gutter: 5rem;
+    --cp-chart-label-gutter: 0px;
+  }
+}
+
+/* A card is a raised surface, which forced colours paint behind a plot. */
+.card {
+  --cp-chart-surface: var(--cp-surface-raised);
+}
+
 .cp-cluster > .f-box {
   inline-size: auto;
 }

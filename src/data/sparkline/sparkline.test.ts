@@ -103,6 +103,21 @@ describe("renderSparkline", () => {
     expect(d(el)).toBe("M0 50L1 50");
   });
 
+  it("reduces thousands of values per column, keeping each column's low and high", () => {
+    const el = spark();
+    const values = Array.from({ length: 4_320 }, (_, i) =>
+      i === 2_000 ? 100 : i === 3_000 ? -100 : i % 7,
+    );
+    renderSparkline(el, values);
+    const points = (d(el) ?? "").split(/[ML]/u).filter((p) => p !== "");
+    expect(points.length).toBeLessThanOrEqual(4 * 512);
+    expect(points.length).toBeGreaterThan(512);
+    expect(points).toContain("2000 0");
+    expect(points).toContain("3000 100");
+    expect(points[0]).toBe("0 50");
+    expect(points.at(-1)).toBe("4319 50");
+  });
+
   it("draws a flat series across the middle and a single value as a dot at the end", () => {
     const el = spark();
     renderSparkline(el, [3, 3, 3]);

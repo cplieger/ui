@@ -33,7 +33,7 @@ events.addEventListener("done", () => stream.end());
 | `images` | `"link"` | `"link"` renders an image as a link to its source. `"load"` renders an `img`. |
 | `hooks` | none | The app's own elements, as [Hooks](#hooks) describes. |
 | `maxBytes` | 1 MiB | The text read, in UTF-8 bytes, across every write of a stream. Past it the text is cut at a code point, and one line at the cut says so. |
-| `signal` | none | Aborting it lets go of the overflow observers. In a stream it also drops what is queued and runs no further hook; a later write is ignored. |
+| `signal` | none | Aborting it lets go of the overflow observers. In a stream it also drops its queue, runs no further hook and ignores a later write. |
 | `highlight` | on | `false` leaves code blocks uncoloured. |
 | `headingLevel` | `1` | The element `#` renders as, 1 to 6. Deeper headings shift by the same amount and stop at `h6`, so text inside a page's own `h3` can start at `h4`. |
 
@@ -45,12 +45,12 @@ A `headingLevel` or `maxBytes` out of range throws a `RangeError`, and a `base` 
 | --- | --- |
 | paragraph, heading, blockquote, rule, line break | `p`, `h1` to `h6`, `blockquote`, `hr`, `br` |
 | emphasis, strong, strike, inline code | `em`, `strong`, `del`, `code` |
-| list, task | `ul`, or `ol` with `start` and, once its numbers reach 10, the style property `--cp-marker-digits`, the widest number's digit count, which `.cp-prose` widens the marker gutter by; a task's box is a disabled `input type="checkbox"` named "Task item" |
-| table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"`; every body row has the header's cell count, padded with empty cells or cut |
+| list, task | `ul`, or `ol` with `start`. Once its numbers reach 10, an `ol` also gets the style property `--cp-marker-digits`, the digit count of its widest number, which `.cp-prose` widens the marker gutter by. A task's box is a disabled `input type="checkbox"` named "Task item" |
+| table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"`. Every body row has the header's cell count, padded with empty cells or cut |
 | link, bare URL, email | `a` |
 | image | `a`, or `img` in `"load"` mode |
 | equation | `code` with `data-math="inline"` or `"block"`, the TeX as its text |
-| fenced or indented code | the code block; a fence is three or more backticks or tildes |
+| fenced or indented code | the code block, where a fence is three or more backticks or tildes |
 
 Raw HTML in the text is shown as text. A character reference is decoded once, HTML 4.01's named set, and never read again as markup.
 
