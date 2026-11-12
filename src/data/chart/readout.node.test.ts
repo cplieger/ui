@@ -4,7 +4,14 @@ import { formatDuration } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
-import { chartModel, type DotModel, type LineModel, type Model, type RectModel } from "./model.js";
+import {
+  chartModel,
+  type AreaModel,
+  type DotModel,
+  type LineModel,
+  type Model,
+  type RectModel,
+} from "./model.js";
 import {
   bucketReading,
   overall,
@@ -227,6 +234,54 @@ describe("the legend row of a step line", () => {
     const r = sampleReading(m, line, 0, words);
     expect(r.at).toBe(time(START));
     expect(chips(r)?.map((c) => c[2])).toEqual(["No data", "No data"]);
+  });
+});
+
+describe("the legend row of a stacked area", () => {
+  const x = per(4, (i) => START + i * MIN);
+  const spec = (wind: (number | null)[]): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 10 * MIN] },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "Gas", slot: 1, y: [1_204, 1_100, 990, 1_310] },
+          { name: "Wind", slot: 2, y: wind },
+        ],
+      },
+    ],
+  });
+  const m = model(spec([980, 410, 1_020, null]));
+
+  it("reads the last whole stack's values and total with no selection", () => {
+    const r = overall(m, words);
+    expect(r?.at).toBe(time(x[2] ?? 0));
+    expect(chips(r)).toEqual([
+      [1, "Gas", "990"],
+      [2, "Wind", "1,020"],
+    ]);
+    expect(r?.total).toBe("2,010");
+  });
+
+  it("reads a sample's values and total, No data for both at a gap", () => {
+    const area = m.marks[0] as AreaModel;
+    expect(sampleReading(m, area, 0, words).total).toBe("2,184");
+    const gap = sampleReading(m, area, 3, words);
+    expect(chips(gap)?.map((c) => c[2])).toEqual(["1,310", "No data"]);
+    expect(gap.total).toBe("No data");
+  });
+
+  it("reads No data with no whole stack in the domain", () => {
+    const r = overall(model(spec([null, null, null, null])), words);
+    expect(r?.at).toBe(span(START, START + 10 * MIN));
+    expect(r?.total).toBe("No data");
+  });
+
+  it("keeps a total slot as wide as the widest total", () => {
+    const m2 = model(spec([980, 410, 1_020, 1_230_000]));
+    const measure = measurer((t) => 7 * Array.from(t).length, 7, "en");
+    expect(readoutWidths(m2, words, measure).total).toBe(7 * "1,231,310".length);
   });
 });
 

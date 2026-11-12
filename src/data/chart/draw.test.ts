@@ -300,6 +300,46 @@ describe("the marks", () => {
     expect(bottom).toBeCloseTo(f.yAt(0) - 1, 2);
   });
 
+  it("fills an area's layers in their slots with no stroke, and rings each layer's top or the chosen one", () => {
+    const x = per(60, (i) => i * 60_000);
+    const d = draw({
+      x: { type: "time" },
+      marks: [
+        {
+          mark: "area",
+          x,
+          series: [
+            { name: "Gas", slot: 1, y: x.map(() => 4) },
+            { name: "Wind", slot: 3, y: x.map((_, i) => (i === 30 ? null : 2)) },
+          ],
+        },
+      ],
+    });
+    const paths = series(d, "layers");
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["1", "3"]);
+    for (const p of paths) {
+      const cs = getComputedStyle(p);
+      expect(cs.fill).toBe(token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`));
+      expect(cs.stroke).toBe("none");
+      // The gap at sample 30 breaks both layers.
+      expect((p.getAttribute("d")?.match(/Z/g) ?? []).length).toBe(2);
+    }
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    const ring = (part: number | undefined, i = 10) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "area", i, part }, nav);
+      const r = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+      return [...r.matchAll(/M([\d.]+) ([\d.]+)a/g)].map((g) => [Number(g[1]), Number(g[2])]);
+    };
+    const cx = f.xAt(10 * 60_000);
+    expect(ring(undefined)).toEqual([
+      [expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(4), 2)],
+      [expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(6), 2)],
+    ]);
+    expect(ring(1)).toEqual([[expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(6), 2)]]);
+    expect(ring(undefined, 30)).toEqual([]);
+  });
+
   it("strokes each line 2 px in its slot", () => {
     const d = draw(stepLine);
     const paths = series(d, "line");
@@ -397,6 +437,20 @@ describe("the marks", () => {
           x: { type, reverse: true },
           y: { zero: false },
           marks: [{ ...line([1, 2, 3], [-2, Number.NaN, 5]), curve: "step" as const }],
+        },
+        {
+          x: type === "log" ? { type, domain: [1, 100] as const } : { type, reverse: true },
+          marks: [
+            {
+              mark: "area" as const,
+              x: [0, 1, 10, 100, 200],
+              curve: "step" as const,
+              series: [
+                { name: "a", y: [2, 0, null, 3, 8] },
+                { name: "b", y: [1, Number.NaN, 4, 0, 2] },
+              ],
+            },
+          ],
         },
         {
           x: type === "log" ? { type, domain: [1, 1_000] as const } : { type },

@@ -120,6 +120,22 @@ const stepLine: ChartSpec = {
   ],
 };
 
+// Three layers of 4,320 samples each, a stacked area over 72 hours.
+const stackedArea: ChartSpec = {
+  x: { type: "time", domain: [START, START + HOURS_72] },
+  marks: [
+    {
+      mark: "area",
+      x: minutes,
+      series: [
+        { name: "Gas", y: minutes.map((_, i) => 40 + ((i * 7) % 13)) },
+        { name: "Wind", y: minutes.map((_, i) => 10 + ((i * 5) % 17)) },
+        { name: "Solar", y: minutes.map((_, i) => (i * 3) % 11) },
+      ],
+    },
+  ],
+};
+
 // 20,000 posts over 29 agents, spread unevenly along 72 hours.
 const timeline: ChartSpec = {
   x: { type: "time", domain: [START, START + HOURS_72] },
@@ -152,6 +168,20 @@ const few: ChartSpec = {
     },
   ],
 };
+const fewLayers: ChartSpec = {
+  ...stackedArea,
+  marks: [
+    {
+      mark: "area",
+      x: minutes.slice(0, 3),
+      series: [
+        { name: "Gas", y: [1, 2, 3] },
+        { name: "Wind", y: [0, 1, 1] },
+        { name: "Solar", y: [1, 1, 1] },
+      ],
+    },
+  ],
+};
 const fewDots: ChartSpec = {
   ...timeline,
   marks: [{ mark: "dot", rows: [{ name: "a", x: minutes.slice(0, 3) }] }],
@@ -163,6 +193,15 @@ describe("performance", () => {
     expect(ms).toBeLessThan(RENDER_MS);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
+
+  it.skipIf(!chromium)(
+    "renders a 72-hour stacked area of three layers of 4,320 samples within its bound",
+    async () => {
+      const { ms, plot } = await timed(stackedArea, fewLayers);
+      expect(ms).toBeLessThan(RENDER_MS);
+      expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+    },
+  );
 
   it.skipIf(!chromium)("renders a timeline of 20,000 dots within its bound", async () => {
     const dots = timeline.marks[0]?.mark === "dot" ? timeline.marks[0].rows : [];

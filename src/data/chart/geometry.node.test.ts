@@ -4,6 +4,7 @@ import { durationEdges } from "../scale/ladder.js";
 import { position } from "../scale/position.js";
 
 import {
+  areaPaths,
   bucketEdges,
   dotGroups,
   dotPath,
@@ -12,7 +13,7 @@ import {
   rectPaths,
   type Frame,
 } from "./geometry.js";
-import { chartModel, type LineModel, type Model, type RectModel } from "./model.js";
+import { chartModel, type AreaModel, type LineModel, type Model, type RectModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
 import { tableModel } from "./table.js";
@@ -29,6 +30,7 @@ function frame(model: Model, width: number, height: number, yHi: number, dpr = 1
 const model = (spec: ChartSpec) => chartModel(spec, "en", "UTC");
 const rectOf = (m: Model) => m.marks[0] as RectModel;
 const lineOf = (m: Model) => m.marks[0] as LineModel;
+const areaOf = (m: Model) => m.marks[0] as AreaModel;
 
 // Each rectangle "M l t H r V b H l Z" of a path, as numbers.
 function boxes(d: string): { left: number; top: number; right: number; bottom: number }[] {
@@ -727,6 +729,122 @@ describe("line geometry", () => {
       marks: [{ mark: "line", x: [0, 1], series: [{ name: "a", y: [0, 1] }] }],
     });
     expect(points(linePath(lineOf(m), 0, frame(m, 100, 100, 1)))).toEqual([[100, 100, 0, 0]]);
+  });
+});
+
+// Each closed shape "M x yLx y…Z" of a path, as its points' numbers.
+function shapes(d: string): number[][] {
+  return [...d.matchAll(/M([^Z]*)Z/g)].map((g) => (g[1] ?? "").split(/[ L]/).map(Number));
+}
+
+describe("area geometry", () => {
+  const stack = (
+    series: (number | null)[][],
+    more: { curve?: "step"; reverse?: boolean } = {},
+  ): ChartSpec => ({
+    x: { reverse: more.reverse === true },
+    marks: [
+      {
+        mark: "area",
+        x: (series[0] ?? []).map((_, i) => i),
+        ...(more.curve === undefined ? {} : { curve: more.curve }),
+        series: series.map((y, k) => ({ name: `s${String(k)}`, y })),
+      },
+    ],
+  });
+  const drawn = (spec: ChartSpec, width: number, yHi: number) => {
+    const m = model(spec);
+    return areaPaths(areaOf(m), frame(m, width, 100, yHi)).map(shapes);
+  };
+
+  it("fills the first layer from the baseline and the next from its top, 1 px above it", () => {
+    // On 100 px up to 10, a value v sits at 100 - 10v.
+    const [a, b] = drawn(
+      stack([
+        [2, 4],
+        [2, 2],
+      ]),
+      100,
+      10,
+    );
+    expect(a).toEqual([[0, 80, 100, 60, 100, 100, 0, 100]]);
+    expect(b).toEqual([[0, 60, 100, 40, 100, 59, 0, 79]]);
+  });
+
+  it("breaks every layer where any series is a gap, and fills no lone sample", () => {
+    const [a, b] = drawn(
+      stack([
+        [2, 4, 2, 4, 4],
+        [2, 2, null, 2, 2],
+      ]),
+      400,
+      10,
+    );
+    expect(a).toEqual([
+      [0, 80, 100, 60, 100, 100, 0, 100],
+      [300, 60, 400, 60, 400, 100, 300, 100],
+    ]);
+    expect(b).toHaveLength(2);
+    expect(drawn(stack([[1, null, 1]]), 200, 1)).toEqual([[]]);
+  });
+
+  it("takes no gap below a layer under 3 px tall in a column, nor on a stack of 0", () => {
+    // 0.2 is 2 px on 100 px up to 10.
+    const [, thin] = drawn(
+      stack([
+        [2, 2],
+        [0.2, 0.2],
+      ]),
+      100,
+      10,
+    );
+    expect(thin).toEqual([[0, 78, 100, 78, 100, 80, 0, 80]]);
+    const [, onZero] = drawn(
+      stack([
+        [0, 0],
+        [5, 5],
+      ]),
+      100,
+      10,
+    );
+    expect(onZero).toEqual([[0, 50, 100, 50, 100, 100, 0, 100]]);
+  });
+
+  it("holds each value until the next sample on a step curve", () => {
+    const [a] = drawn(stack([[1, 3]], { curve: "step" }), 100, 4);
+    expect(a?.[0]?.slice(0, 6)).toEqual([0, 75, 100, 75, 100, 25]);
+  });
+
+  it("draws a reversed x right to left", () => {
+    const [a] = drawn(stack([[0, 1]], { reverse: true }), 100, 1);
+    expect(a).toEqual([[100, 100, 0, 0, 0, 100, 100, 100]]);
+  });
+
+  it("reduces 4,320 samples in three layers per pixel column, keeping each peak, the layers sharing their edges", () => {
+    const n = 4_320;
+    const spike = (at: number) => Array.from({ length: n }, (_, i) => (i === at ? 20 : 10));
+    const m = model(stack([spike(1_000), spike(2_000), spike(3_000)]));
+    const paths = areaPaths(areaOf(m), frame(m, 276, 100, 100));
+    const [a, b, c] = paths.map((d) => shapes(d)[0] ?? []);
+    for (const pts of [a, b, c]) {
+      expect((pts ?? []).length / 2).toBeLessThan(2 * 4 * 277);
+    }
+    // The stack is 30 tall, 40 at each spike: on 100 px up to 100, 60 px.
+    const ys = (pts: number[] | undefined) => (pts ?? []).filter((_, k) => k % 2 === 1);
+    expect(Math.min(...ys(c))).toBe(60);
+    // Layer b's bottom is layer a's top raised by its 1 px gap, point for point.
+    // A shape runs along its top to the plot's right edge, then back.
+    const split = (pts: number[] = []) => {
+      const k = pts.findIndex((v, j) => j % 2 === 0 && v === 276) + 2;
+      return [pts.slice(0, k), pts.slice(k)] as const;
+    };
+    const [aTop] = split(a);
+    const [, bBottom] = split(b);
+    const back: number[] = [];
+    for (let k = bBottom.length - 2; k >= 0; k -= 2) {
+      back.push(bBottom[k] ?? 0, (bBottom[k + 1] ?? 0) + 1);
+    }
+    expect(back).toEqual(aTop);
   });
 });
 

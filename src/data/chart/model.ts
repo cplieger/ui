@@ -60,14 +60,39 @@ export function drawnValue(m: RectModel, s: SeriesModel, i: number): number {
   return total > 0 ? v / total : 0;
 }
 
-export interface LineModel {
-  readonly kind: "line";
+interface Samples {
   readonly x: ArrayLike<number>;
   readonly step: boolean;
   readonly series: readonly SeriesModel[];
   /** The samples inside the domain, `[from, to)`. */
   readonly from: number;
   readonly to: number;
+}
+
+export interface LineModel extends Samples {
+  readonly kind: "line";
+}
+
+/** Series stacked in series order over samples, each a layer. */
+export interface AreaModel extends Samples {
+  readonly kind: "area";
+}
+
+/** A mark over `x` samples, read by the same stops and keys. */
+export type SampleModel = LineModel | AreaModel;
+
+/** The stack's top at sample `i` of `m`, or `null` where any series is a
+ *  gap, which breaks every layer there. */
+export function sampleTotal(m: AreaModel, i: number): number | null {
+  let total = 0;
+  for (const s of m.series) {
+    const v = s.y[i] ?? null;
+    if (v === null) {
+      return null;
+    }
+    total += v;
+  }
+  return total;
 }
 
 export interface DotRowModel {
@@ -94,7 +119,7 @@ interface RuleModel {
   readonly place: ReturnType<typeof ruleAt>;
 }
 
-type MarkModel = RectModel | LineModel | DotModel | RuleModel;
+type MarkModel = RectModel | LineModel | AreaModel | DotModel | RuleModel;
 
 export interface Model {
   readonly spec: ChartSpec;
@@ -104,7 +129,8 @@ export interface Model {
   readonly marks: readonly MarkModel[];
   /** The data mark's kind; absent with rules alone. */
   readonly kind: Kind | undefined;
-  /** Nothing to draw: every value null, every row empty, or every rect 0. */
+  /** Nothing to draw: every value null, every row empty, every rect 0, or
+   *  every area sample 0 or a gap. */
   readonly empty: boolean;
   /** An x value as the readings and the table write it. */
   readonly xText: (v: number) => string;
@@ -227,6 +253,12 @@ function checkSeries(series: unknown, length: number, what: string): void {
   }
 }
 
+function checkCurve(curve: unknown, what: string): void {
+  if (curve !== undefined && curve !== "linear" && curve !== "step") {
+    fail(`${what}.curve must be "linear" or "step"`);
+  }
+}
+
 function checkMark(mark: unknown, what: string): void {
   if (!isObject(mark)) {
     fail(`${what} must be an object`);
@@ -271,9 +303,15 @@ function checkMark(mark: unknown, what: string): void {
     }
     case "line": {
       const x = checkX(mark["x"], `${what}.x`, false);
-      const curve = mark["curve"];
-      if (curve !== undefined && curve !== "linear" && curve !== "step") {
-        fail(`${what}.curve must be "linear" or "step"`);
+      checkCurve(mark["curve"], what);
+      checkSeries(mark["series"], x.length, what);
+      return;
+    }
+    case "area": {
+      const x = checkX(mark["x"], `${what}.x`, false);
+      checkCurve(mark["curve"], what);
+      if (mark["arrange"] !== undefined && mark["arrange"] !== "stack") {
+        fail(`${what}.arrange must be "stack"`);
       }
       checkSeries(mark["series"], x.length, what);
       return;
@@ -310,7 +348,7 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     default:
-      fail(`${what}.mark must be "rect", "line", "dot" or "rule"`);
+      fail(`${what}.mark must be "rect", "line", "area", "dot" or "rule"`);
   }
 }
 
@@ -338,7 +376,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line or dot mark and any rules`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area or dot mark and any rules`,
       );
     }
     data = m;
@@ -407,6 +445,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
           : "stackedColumn";
     case "line":
       return first.step ? "step" : "line";
+    case "area":
+      return first.series.length < 2 ? "area" : "stackedArea";
     case "dot":
       return "timeline";
   }
@@ -418,6 +458,13 @@ function hasData(m: MarkModel): boolean {
       return m.shown.some((i) => m.series.some((s) => (s.y[i] ?? 0) > 0));
     case "line":
       return m.series.some((s) => s.y.slice(m.from, m.to).some((v) => v !== null));
+    case "area":
+      for (let i = m.from; i < m.to; i++) {
+        if ((sampleTotal(m, i) ?? 0) > 0) {
+          return true;
+        }
+      }
+      return false;
     case "dot":
       return m.rows.some((r) => r.to > r.from);
     case "rule":
@@ -459,6 +506,15 @@ export function chartModel(
           x: m.x,
           step: m.curve === "step",
           series: series(m.series, y.type === "log"),
+          from: lowerBound(m.x, x.lo),
+          to: upperBound(m.x, x.hi),
+        };
+      case "area":
+        return {
+          kind: "area",
+          x: m.x,
+          step: m.curve === "step",
+          series: series(m.series),
           from: lowerBound(m.x, x.lo),
           to: upperBound(m.x, x.hi),
         };

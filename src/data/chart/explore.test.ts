@@ -316,6 +316,35 @@ describe("keys on a step line", () => {
   });
 });
 
+describe("keys on a stacked area", () => {
+  it("focus says the newest sample with its total, Up and Down each layer in series order", async () => {
+    const x = Array.from({ length: 4 }, (_, i) => START + i * MIN);
+    const b = build({
+      x: { type: "time" },
+      marks: [
+        {
+          mark: "area",
+          x,
+          series: [
+            { name: "Gas", y: [5, 6, 7, 9] },
+            { name: "Wind", y: [1, 2, 3, 1] },
+          ],
+        },
+      ],
+    });
+    expect(legendText(b)).toBe(`${time(3)} · Gas · 9 · Wind · 1 · 10`);
+    b.plot.focus();
+    await says(`${time(3)}: Gas 9, Wind 1. Total 10.`);
+    key(b.plot, "ArrowLeft");
+    await says(`${time(2)}: Gas 7, Wind 3. Total 10.`);
+    key(b.plot, "ArrowUp");
+    await says(`${time(2)}: Gas 7.`);
+    key(b.plot, "ArrowUp");
+    await says(`${time(2)}: Wind 3.`);
+    expect(legendText(b)).toBe(`${time(2)} · Gas · 7 · Wind · 3 · 10`);
+  });
+});
+
 describe("keys on a timeline", () => {
   it("focus starts on the first row's last post", async () => {
     const b = build(agents);

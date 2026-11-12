@@ -255,6 +255,60 @@ describe("step line keys", () => {
   });
 });
 
+describe("area keys", () => {
+  // Gas, Wind and Solar sampled each minute from 8:00, Wind missing at 8:02.
+  const b = built({
+    x: { type: "time", domain: [START, START + 4 * MIN] },
+    y: { unit: { one: "megawatt", other: "megawatts" } },
+    marks: [
+      {
+        mark: "area",
+        x: minutes(5),
+        series: [
+          { name: "Gas", y: [12, 11, 10, 9, 8] },
+          { name: "Wind", y: [3, 4, null, 6, 7] },
+          { name: "Solar", y: [1, 2, 3, 4, 5] },
+        ],
+      },
+    ],
+  });
+  const at = (s: Selection | undefined) => (s?.kind === "area" ? s.i : undefined);
+
+  it("focus starts on the newest sample, and Left and Right step each sample", () => {
+    const first = initial(b.model);
+    expect(first).toEqual({ kind: "area", i: 4, part: undefined });
+    const back = press(b, first as Selection, ...Array<Key>(5).fill("ArrowLeft"));
+    expect(back.map(at)).toEqual([3, 2, 1, 0, undefined]);
+  });
+
+  it("moves Up and Down through the layers in series order, whatever their values", () => {
+    const whole: Selection = { kind: "area", i: 0, part: undefined };
+    expect(press(b, whole, "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      { kind: "area", i: 0, part: 0 },
+      { kind: "area", i: 0, part: 1 },
+      { kind: "area", i: 0, part: 2 },
+      undefined,
+    ]);
+    expect(spoken(b.model, { kind: "area", i: 0, part: 1 }, words, true)).toBe(
+      `${time(0)}: Wind 3.`,
+    );
+  });
+
+  it("says each layer and the stack's total, No data at a gap", () => {
+    expect(spoken(b.model, { kind: "area", i: 1, part: undefined }, words, false)).toBe(
+      `${time(1)}: Gas 11, Wind 4, Solar 2. Total 17.`,
+    );
+    expect(spoken(b.model, { kind: "area", i: 2, part: undefined }, words, false)).toBe(
+      `${time(2)}: Gas 10, Wind No data, Solar 3. Total No data.`,
+    );
+  });
+
+  it("selects the nearest sample under the pointer", () => {
+    const px = b.lay.frame.xAt(START + 1.4 * MIN);
+    expect(b.nav.pick(px, 0)).toEqual({ kind: "area", i: 1, part: undefined });
+  });
+});
+
 describe("Page keys", () => {
   const spec: ChartSpec = {
     x: { type: "time", domain: [START, START + 120 * MIN] },

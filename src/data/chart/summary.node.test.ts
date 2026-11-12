@@ -318,6 +318,42 @@ describe("the summary of a step line", () => {
   });
 });
 
+describe("the summary of a stacked area", () => {
+  const x = per(7, (i) => START + i * MIN);
+  const spec = (more: Partial<Extract<Mark, { mark: "area" }>> = {}): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 6 * MIN] },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "Gas", y: [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204] },
+          { name: "Wind", y: [410, 600, 1_020, null, 980, 980, 980] },
+          { name: "Solar", y: [500, 790, 300, 200, 412, 412, 412] },
+        ],
+        ...more,
+      },
+    ],
+  });
+
+  it("says each layer's last, low and high, then the total's, a gap leaving it out", () => {
+    expect(generatedSummary(model(spec()), words)).toBe(
+      `${span(START, START + 6 * MIN)}, every 1${nb}min. Gas: last 1,204, low 990, high 1,310. ` +
+        "Wind: last 980, low 410, high 1,020. Solar: last 412, low 200, high 790. " +
+        "Total: last 2,596, low 1,900, high 2,700.",
+    );
+  });
+
+  it("names a stacked area whatever its curve, and an area of one series", () => {
+    expect(shortDescription(model(spec({ curve: "step" })), words)).toBe(
+      `Stacked area chart, 3 series, ${span(START, START + 6 * MIN)}`,
+    );
+    const one = model(spec({ series: [{ name: "Gas", y: per(7, () => 1) }] }));
+    expect(shortDescription(one, words)).toBe(`Area chart, ${span(START, START + 6 * MIN)}`);
+    expect(generatedSummary(one, words)).not.toContain("Total");
+  });
+});
+
 describe("the summary of a timeline", () => {
   const quiet = ["docs-bot", "ha-agent", "notes-bot", "a", "b", "c", "d"];
   const m = model({

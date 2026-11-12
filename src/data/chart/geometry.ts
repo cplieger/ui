@@ -1,13 +1,21 @@
 /**
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
- * px, y down: rects with their gaps, lines reduced per device pixel and cut
- * at the plot's ends, rows of dots, rules and the axis lines.
+ * px, y down: rects with their gaps, lines and areas reduced per device
+ * pixel and cut at the plot's ends, rows of dots, rules and the axis lines.
  * @module
  */
 
 import { reduce, type Point } from "../scale/reduce.js";
 
-import { drawnValue, type DotRowModel, type LineModel, type RectModel } from "./model.js";
+import {
+  drawnValue,
+  sampleTotal,
+  type AreaModel,
+  type DotRowModel,
+  type LineModel,
+  type RectModel,
+  type SampleModel,
+} from "./model.js";
 import type { Continuous } from "./scales.js";
 
 /** The px a device pixel grid is snapped to at `dpr`. */
@@ -112,11 +120,11 @@ export function groupEdges(
  * A `null` counts as 0 and draws nothing. Each segment over another gives
  * up its bottom px as the gap, unless it is under 3 px tall, so a stack's
  * top stays at its total. Under shape "area" each run of touching buckets
- * is one shape instead (`areaPaths`).
+ * is one shape instead (`stepAreaPaths`).
  */
 export function rectPaths(m: RectModel, f: Frame): string[] {
   if (m.shape === "area") {
-    return areaPaths(m, f);
+    return stepAreaPaths(m, f);
   }
   const paths = m.series.map(() => "");
   const box = (k: number, left: number, right: number, top: number, bottom: number) => {
@@ -195,7 +203,7 @@ function outline(run: readonly Step[]): string {
  * one closed shape, stacked as `rectPaths` stacks bars and flush at each
  * shared edge. A 0, a `null` or a gap in x ends the run.
  */
-function areaPaths(m: RectModel, f: Frame): string[] {
+function stepAreaPaths(m: RectModel, f: Frame): string[] {
   const paths = m.series.map(() => "");
   const runs: Step[][] = m.series.map(() => []);
   const end = (k: number) => {
@@ -253,6 +261,43 @@ function cut(points: readonly Point[], width: number): Point[] {
   return out;
 }
 
+// The samples a path reads (those inside the domain and the one beyond each
+// end) and each one's px along u, which runs left to right whichever way x
+// does, for the reduction.
+function placed(m: SampleModel, f: Frame) {
+  // A log x cannot place a sample at or below 0: a straight line then starts
+  // at its first sample inside the domain, and a step line holds that
+  // sample's value from just left of the plot, where u is -1.
+  const unplaced = (i: number) => f.x.type === "log" && (m.x[i] ?? 0) <= 0;
+  const before = m.from > 0 && (m.step || !unplaced(m.from - 1));
+  const from = before ? m.from - 1 : m.from;
+  const to = Math.min(m.to + 1, m.x.length);
+  const flip = f.x.reverse;
+  const u = (v: number) => (flip ? f.width - f.xAt(v) : f.xAt(v));
+  const us = Array.from(m.x, (v, i) =>
+    i >= from && i < to ? (i === from && unplaced(i) ? -1 : u(v)) : 0,
+  );
+  return { from, to, us, flip };
+}
+
+// A reduced run in plot px as drawn: in steps held until the next sample
+// when `step`, cut where the plot ends.
+function piece(run: readonly Point[], step: boolean, width: number): Point[] {
+  const points: Point[] = [];
+  run.forEach((p, k) => {
+    const before = run[k - 1];
+    if (step && before !== undefined) {
+      // A held value inside the run only continues the horizontal.
+      if (before.y === p.y && k < run.length - 1) {
+        return;
+      }
+      points.push({ x: p.x, y: before.y });
+    }
+    points.push(p);
+  });
+  return cut(points, width);
+}
+
 /**
  * Series `s` of `m` as one path: the samples inside the domain and the one
  * beyond each end, reduced per device pixel column, in steps held until the
@@ -261,42 +306,116 @@ function cut(points: readonly Point[], width: number): Point[] {
  */
 export function linePath(m: LineModel, s: number, f: Frame): string {
   const ys = m.series[s]?.y ?? [];
-  // A log x cannot place a sample at or below 0: a straight line then starts
-  // at its first sample inside the domain, and a step line holds that
-  // sample's value from just left of the plot, where u is -1.
-  const unplaced = (i: number) => f.x.type === "log" && (m.x[i] ?? 0) <= 0;
-  const before = m.from > 0 && (m.step || !unplaced(m.from - 1));
-  const from = before ? m.from - 1 : m.from;
-  const to = Math.min(m.to + 1, m.x.length);
-  // u runs left to right whichever way x does, for the reduction.
-  const flip = f.x.reverse;
-  const u = (v: number) => (flip ? f.width - f.xAt(v) : f.xAt(v));
-  const us = Array.from(m.x, (v, i) =>
-    i >= from && i < to ? (i === from && unplaced(i) ? -1 : u(v)) : 0,
-  );
+  const { from, to, us, flip } = placed(m, f);
   const runs = reduce(us, ys, from, to, 1 / f.dpr, f.width);
   let d = "";
   for (const run of runs) {
-    const points: Point[] = [];
-    run.forEach((p, k) => {
-      const before = run[k - 1];
-      if (m.step && before !== undefined) {
-        // A held value inside the run only continues the horizontal.
-        if (before.y === p.y && k < run.length - 1) {
-          return;
-        }
-        points.push({ x: p.x, y: f.yAt(before.y) });
-      }
-      points.push({ x: p.x, y: f.yAt(p.y) });
-    });
-    const piece = cut(points, f.width);
-    if (piece.length === 0) {
+    const drawn = piece(
+      run.map((p) => ({ x: p.x, y: f.yAt(p.y) })),
+      m.step,
+      f.width,
+    );
+    if (drawn.length === 0) {
       continue;
     }
-    const at = piece.map((p) => `${num(flip ? f.width - p.x : p.x)} ${num(p.y)}`);
+    const at = drawn.map((p) => `${num(flip ? f.width - p.x : p.x)} ${num(p.y)}`);
     d += `M${at.join("L")}${at.length === 1 ? `L${at[0] ?? ""}` : ""}`;
   }
   return d;
+}
+
+// The device pixel column `reduce` gives each sample of `[from, to)`, by its
+// rule: after a gap, a run starts past the column the run before it ended in.
+function columnsOf(
+  us: readonly number[],
+  gap: (i: number) => boolean,
+  from: number,
+  to: number,
+  width: number,
+): number[] {
+  const out: number[] = [];
+  let after = Number.NEGATIVE_INFINITY;
+  let col = Number.NaN;
+  for (let i = from; i < to; i++) {
+    if (gap(i)) {
+      if (!Number.isNaN(col)) {
+        after = col;
+        col = Number.NaN;
+      }
+      continue;
+    }
+    col = Math.max(Math.floor((us[i] ?? 0) / width), after + 1);
+    out[i] = col;
+  }
+  return out;
+}
+
+/**
+ * One path per series of area `m`: the layer between its stack's top and the
+ * top below it (the baseline for the first), one closed shape per run between
+ * gaps; a sample where any series is a gap breaks every layer. Each boundary
+ * is reduced per device pixel column as a line is, so a layer's bottom is the
+ * edge below it, raised by the 1 px gap in each column where the layer is at
+ * least 3 px tall at every sample and stands on a stack above 0.
+ */
+export function areaPaths(m: AreaModel, f: Frame): string[] {
+  const { from, to, us, flip } = placed(m, f);
+  const w = 1 / f.dpr;
+  const tops: (number | null)[][] = m.series.map(() => []);
+  for (let i = from; i < to; i++) {
+    let base = 0;
+    const total = sampleTotal(m, i);
+    m.series.forEach((s, k) => {
+      base += s.y[i] ?? 0;
+      const top = tops[k];
+      if (top !== undefined) {
+        top[i] = total === null ? null : base;
+      }
+    });
+  }
+  const gap = (i: number) => sampleTotal(m, i) === null;
+  const cols = columnsOf(us, gap, from, to, w);
+  const at = (p: Point) => `${num(flip ? f.width - p.x : p.x)} ${num(p.y)}`;
+  return m.series.map((_, k) => {
+    const top = tops[k] ?? [];
+    const below = tops[k - 1];
+    const topPx: (number | null)[] = [];
+    const bottomPx: (number | null)[] = [];
+    // Whether every sample in each column keeps the gap.
+    const keeps = new Map<number, boolean>();
+    for (let i = from; i < to; i++) {
+      const v = top[i] ?? null;
+      const under = below === undefined ? 0 : (below[i] ?? null);
+      if (v === null || under === null) {
+        topPx[i] = null;
+        bottomPx[i] = null;
+        continue;
+      }
+      topPx[i] = f.yAt(v);
+      bottomPx[i] = f.yAt(under);
+      const c = cols[i] ?? 0;
+      const ok = under > 0 && f.yAt(under) - f.yAt(v) >= GAP_MIN;
+      keeps.set(c, (keeps.get(c) ?? true) && ok);
+    }
+    for (let i = from; i < to; i++) {
+      const b = bottomPx[i];
+      if (b !== null && b !== undefined && keeps.get(cols[i] ?? 0) === true) {
+        bottomPx[i] = b - GAP;
+      }
+    }
+    const upper = reduce(us, topPx, from, to, w, f.width);
+    const lower = reduce(us, bottomPx, from, to, w, f.width);
+    let d = "";
+    upper.forEach((run, r) => {
+      const a = piece(run, m.step, f.width);
+      const b = piece(lower[r] ?? [], m.step, f.width);
+      // A lone sample has no width to fill.
+      if (a.length > 1 && b.length > 1) {
+        d += `M${[...a, ...b.reverse()].map(at).join("L")}Z`;
+      }
+    });
+    return d;
+  });
 }
 
 /** One drawn dot of a row: its centre's px and the dots `[from, to)` it stands for. */

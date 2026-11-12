@@ -240,6 +240,19 @@ describe("yScale", () => {
     expect(continuous(yScale({ x: {}, marks: [grouped] }))).toMatchObject({ lo: 0, hi: 7 });
   });
 
+  it("spans an area's stack totals from zero, leaving out a sample with a gap", () => {
+    const stacked: Mark = {
+      mark: "area",
+      x: [0, 1, 2],
+      series: [
+        { name: "a", y: [1, 9, 2] },
+        { name: "b", y: [3, null, 2] },
+      ],
+    };
+    expect(continuous(yScale({ x: {}, marks: [stacked] }))).toMatchObject({ lo: 0, hi: 4 });
+    expect(xScale({ x: {}, marks: [stacked] })).toMatchObject({ lo: 0, hi: 2 });
+  });
+
   it("spans line values and rules, from zero unless zero is false", () => {
     const marks: Mark[] = [
       { mark: "line", x: [0, 1, 2], series: [{ name: "a", y: [5, Number.NaN, 9.5] }] },

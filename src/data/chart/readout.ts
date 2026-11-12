@@ -10,10 +10,13 @@ import type { Measure } from "../scale/measure.js";
 
 import {
   bucketTotal,
+  sampleTotal,
+  type AreaModel,
   type DotModel,
   type LineModel,
   type Model,
   type RectModel,
+  type SampleModel,
   type SeriesModel,
 } from "./model.js";
 import type { Words } from "./words.js";
@@ -33,8 +36,8 @@ export interface Reading {
   readonly total: string | undefined;
 }
 
-/** The mark the legend row reads: the chart's one rect, line or dot. */
-type Primary = RectModel | LineModel | DotModel;
+/** The mark the legend row reads: the chart's one rect, line, area or dot. */
+type Primary = RectModel | LineModel | AreaModel | DotModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -107,13 +110,38 @@ const sum = (s: SeriesModel, shown: readonly number[]) =>
   shown.reduce((n, i) => n + (s.y[i] ?? 0), 0);
 
 /** The last sample inside the domain where series `s` has a value, or -1. */
-export function lastSample(m: LineModel, s: SeriesModel): number {
+export function lastSample(m: SampleModel, s: SeriesModel): number {
   for (let i = m.to - 1; i >= m.from; i--) {
     if (s.y[i] !== null) {
       return i;
     }
   }
   return -1;
+}
+
+/** The last sample inside the domain where area `m`'s stack has no gap, or -1. */
+export function lastStack(m: AreaModel): number {
+  for (let i = m.to - 1; i >= m.from; i--) {
+    if (sampleTotal(m, i) !== null) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/** Sample `i`'s stack total as the readings and the table write it: absent
+ *  for one series, No data at a gap. */
+export function stackText(
+  model: Model,
+  m: SampleModel,
+  i: number,
+  words: Words,
+): string | undefined {
+  if (m.kind !== "area" || m.series.length < 2) {
+    return undefined;
+  }
+  const total = sampleTotal(m, i);
+  return total === null ? words.noData : model.yText(total);
 }
 
 /** Whether a rect reads a total: a stack of two or more series. A group
@@ -149,7 +177,7 @@ const dots = (m: DotModel) => m.rows.reduce((n, r) => n + r.to - r.from, 0);
 
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
- *  values. */
+ *  values, an area's last whole stack. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -170,6 +198,17 @@ export function overall(model: Model, words: Words): Reading | undefined {
           : entries(model, m.series, (s) => sum(s, m.shown), words);
       const total = totalled(m) ? totalText(model, m, grand) : undefined;
       return { at: legendDomain(model, words), entries: all, total };
+    }
+    case "area": {
+      const last = lastStack(m);
+      if (last === -1) {
+        return {
+          at: legendDomain(model, words),
+          entries: entries(model, m.series, () => null, words),
+          total: m.series.length > 1 ? words.noData : undefined,
+        };
+      }
+      return sampleReading(model, m, last, words);
     }
     case "line": {
       const last = Math.max(...m.series.map((s) => lastSample(m, s)));
@@ -207,12 +246,12 @@ export function bucketReading(model: Model, m: RectModel, i: number, words: Word
   return { at: bucketText(model, m, i, words), entries: all, total };
 }
 
-/** Sample `i` of `m`: its x and each series' value there. */
-export function sampleReading(model: Model, m: LineModel, i: number, words: Words): Reading {
+/** Sample `i` of `m`: its x, each series' value there and a stack's total. */
+export function sampleReading(model: Model, m: SampleModel, i: number, words: Words): Reading {
   return {
     at: model.xText(m.x[i] ?? 0),
     entries: entries(model, m.series, (s) => s.y[i] ?? null, words),
-    total: undefined,
+    total: stackText(model, m, i, words),
   };
 }
 
@@ -328,7 +367,7 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     for (const i of m.shown) {
       add(bucketReading(model, m, i, words));
     }
-  } else if (m?.kind === "line") {
+  } else if (m?.kind === "line" || m?.kind === "area") {
     const indices = spread(model, m.x, m.from, m.to);
     for (const i of indices) {
       at.push(model.xText(m.x[i] ?? 0));
@@ -345,6 +384,22 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
         );
       }
     });
+    if (m.kind === "area" && m.series.length > 1) {
+      // The widest totals: the spread's, the extremes, and No data.
+      let lo = Number.POSITIVE_INFINITY;
+      let hi = Number.NEGATIVE_INFINITY;
+      for (let i = m.from; i < m.to; i++) {
+        const t = sampleTotal(m, i);
+        if (t !== null) {
+          lo = Math.min(lo, t);
+          hi = Math.max(hi, t);
+        }
+      }
+      for (const i of indices) {
+        totals.push(stackText(model, m, i, words) ?? "");
+      }
+      totals.push(words.noData, ...(lo <= hi ? [model.yText(lo), model.yText(hi)] : []));
+    }
   } else if (m?.kind === "dot") {
     // Each post's time, written once per stretch of x in which its width holds.
     const posts = new Map<string, number>();

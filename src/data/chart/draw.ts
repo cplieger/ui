@@ -7,6 +7,7 @@
 import { fontMeasure } from "../scale/measure.js";
 
 import {
+  areaPaths,
   bucketEdges,
   dotGroups,
   dotPath,
@@ -20,7 +21,7 @@ import {
   tickPath,
 } from "./geometry.js";
 import type { Layout, Metrics, Text } from "./layout.js";
-import { drawnValue, type Model } from "./model.js";
+import { drawnValue, sampleTotal, type Model } from "./model.js";
 import { primaryOf, type Reading, type Widths } from "./readout.js";
 import type { Navigator, Selection } from "./select.js";
 
@@ -144,6 +145,15 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         area.append(g);
         break;
       }
+      case "area": {
+        // "area" names the clipping svg, so the layers' group takes "layers".
+        const g = svgEl("g", { "data-part": "layers" });
+        areaPaths(m, f).forEach((d, k) => {
+          g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
+        });
+        area.append(g);
+        break;
+      }
       case "dot": {
         const g = svgEl("g", { "data-part": "dot", "data-series": String(m.slot) });
         m.rows.forEach((row, r) => {
@@ -203,8 +213,8 @@ function inset(left: number, right: number, top: number, bottom: number): string
 }
 
 /** The ring's path for `sel`: the bar or its segment, a group's sub-columns
- *  or the chosen one, each line's point or the chosen one, the drawn dot, or
- *  a row's hairline. */
+ *  or the chosen one, each line's point or each layer's top or the chosen
+ *  one, the drawn dot, or a row's hairline. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -237,6 +247,19 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
       out = inset(left, right, f.yAt(base), f.yAt(0));
     }
     return out;
+  }
+  if (sel.kind === "area" && m?.kind === "area") {
+    if (sampleTotal(m, sel.i) === null) {
+      return "";
+    }
+    const cx = f.xAt(m.x[sel.i] ?? 0);
+    let top = 0;
+    return m.series
+      .map((s, k) => {
+        top += s.y[sel.i] ?? 0;
+        return sel.part === undefined || sel.part === k ? ring(cx, f.yAt(top), 4) : "";
+      })
+      .join("");
   }
   if (sel.kind === "line" && m?.kind === "line") {
     const cx = f.xAt(m.x[sel.i] ?? 0);

@@ -60,6 +60,17 @@ interface LineMark {
   readonly series: readonly Series[];
 }
 
+interface AreaMark {
+  readonly mark: "area";
+  readonly x: ArrayLike<number>;
+  /** Default "linear"; "step" holds each value until the next sample. */
+  readonly curve?: "linear" | "step";
+  /** Several series stack in series order from the baseline. A sample where
+   *  any series is a gap breaks every layer there. */
+  readonly arrange?: "stack";
+  readonly series: readonly Series[];
+}
+
 interface DotRow {
   readonly name: string;
   readonly x: ArrayLike<number>;
@@ -80,13 +91,13 @@ interface RuleMark {
   readonly label: string;
 }
 
-export type Mark = RectMark | LineMark | DotMark | RuleMark;
+export type Mark = RectMark | LineMark | AreaMark | DotMark | RuleMark;
 
 export interface ChartSpec {
   readonly x: Scale;
   /** Band when the chart has a dot mark. */
   readonly y?: Scale;
-  /** One rect, line or dot mark and any rules, drawn in order: a rule after
+  /** One rect, line, area or dot mark and any rules, drawn in order: a rule after
    *  a rect draws over it. A second data mark is a `TypeError`. */
   readonly marks: readonly Mark[];
   /** The plot's height in px. */

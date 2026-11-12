@@ -262,6 +262,41 @@ describe("the table of a step line", () => {
   });
 });
 
+describe("the table of a stacked area", () => {
+  const x = per(7, (i) => START + i * MIN);
+  const spec = (more: Partial<Extract<Mark, { mark: "area" }>> = {}): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 6 * MIN] },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "Gas", y: [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204] },
+          { name: "Wind", y: [410, 600, 1_020, null, 980, 980, 980] },
+          { name: "Solar", y: [500, 790, 300, 200, 412, 412, 412] },
+        ],
+        ...more,
+      },
+    ],
+  });
+
+  it("heads a column per layer and a Total, and lists every sample, a gap's total as No data", () => {
+    const t = tableModel(model(spec()), words);
+    expect(t.columns.map((c) => c.text)).toEqual(["Gas", "Wind", "Solar", "Total"]);
+    expect(cells(t).slice(2, 4)).toEqual([
+      [iso(x[2] ?? 0), "1,100", "1,020", "300", "2,420"],
+      [iso(x[3] ?? 0), "1,000", "No data", "200", "No data"],
+    ]);
+  });
+
+  it("lists a stepped area's change points and no Total for one series", () => {
+    const stepped = tableModel(model(spec({ curve: "step" })), words);
+    expect(stepped.rows.map((r) => r.key)).toEqual([0, 1, 2, 3, 4, 6].map((i) => String(x[i])));
+    const one = tableModel(model(spec({ series: [{ name: "Gas", y: per(7, () => 1) }] })), words);
+    expect(one.columns.map((c) => c.text)).toEqual(["Gas"]);
+  });
+});
+
 describe("the table of a timeline", () => {
   const posts = [START + 10 * MIN, START + 10 * MIN, START + 90 * MIN];
   const t = tableModel(

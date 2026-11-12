@@ -8,13 +8,14 @@ import { formatDuration, formatter } from "../scale/format.js";
 
 import {
   bucketTotal,
+  sampleTotal,
   type DotModel,
-  type LineModel,
   type Model,
   type RectModel,
+  type SampleModel,
   type SeriesModel,
 } from "./model.js";
-import { bucketText, counted, domainText, lastSample, primaryOf } from "./readout.js";
+import { bucketText, counted, domainText, lastSample, lastStack, primaryOf } from "./readout.js";
 import type { Words } from "./words.js";
 
 /** The one step between every neighbour in `steps`, or undefined when they differ. */
@@ -96,7 +97,36 @@ function rectSummary(model: Model, m: RectModel, words: Words): string[] {
   return out;
 }
 
-function lineSummary(model: Model, m: LineModel, words: Words): string[] {
+// One series' last, low and high over the domain through `lineSeries`;
+// `at(i)` is its value at sample `i`, null at a gap.
+function seriesSentence(
+  model: Model,
+  m: SampleModel,
+  name: string,
+  at: (i: number) => number | null,
+  last: number,
+  words: Words,
+): string {
+  // A loop, since spreading a long series into Math.min overflows the stack.
+  let low = Number.POSITIVE_INFINITY;
+  let high = Number.NEGATIVE_INFINITY;
+  for (let i = m.from; i < m.to; i++) {
+    const v = at(i);
+    if (v !== null) {
+      low = Math.min(low, v);
+      high = Math.max(high, v);
+    }
+  }
+  const text = (v: number | null) => (v === null ? words.noData : model.yText(v));
+  return words.lineSeries(
+    name,
+    text(last === -1 ? null : at(last)),
+    text(low <= high ? low : null),
+    text(low <= high ? high : null),
+  );
+}
+
+function lineSummary(model: Model, m: SampleModel, words: Words): string[] {
   const steps: number[] = [];
   for (let i = m.from + 1; i < m.to; i++) {
     steps.push((m.x[i] ?? 0) - (m.x[i - 1] ?? 0));
@@ -105,27 +135,12 @@ function lineSummary(model: Model, m: LineModel, words: Words): string[] {
     words.lineSummary(domainText(model, words), sizeText(model, evenStep(steps), words)),
   ];
   for (const s of m.series) {
-    // A loop, since spreading a long series into Math.min overflows the stack.
-    let low = Number.POSITIVE_INFINITY;
-    let high = Number.NEGATIVE_INFINITY;
-    for (let i = m.from; i < m.to; i++) {
-      const v = s.y[i] ?? null;
-      if (v !== null) {
-        low = Math.min(low, v);
-        high = Math.max(high, v);
-      }
-    }
-    const at = lastSample(m, s);
-    const text = (v: number | null | undefined) =>
-      v === null || v === undefined ? words.noData : model.yText(v);
-    out.push(
-      words.lineSeries(
-        s.name,
-        text(at === -1 ? null : s.y[at]),
-        text(low <= high ? low : null),
-        text(low <= high ? high : null),
-      ),
-    );
+    const at = (i: number) => s.y[i] ?? null;
+    out.push(seriesSentence(model, m, s.name, at, lastSample(m, s), words));
+  }
+  if (m.kind === "area" && m.series.length > 1) {
+    const at = (i: number) => sampleTotal(m, i);
+    out.push(seriesSentence(model, m, words.total, at, lastStack(m), words));
   }
   return out;
 }
@@ -176,7 +191,7 @@ export function generatedSummary(model: Model, words: Words): string {
   const head =
     m?.kind === "rect"
       ? rectSummary(model, m, words)
-      : m?.kind === "line"
+      : m?.kind === "line" || m?.kind === "area"
         ? lineSummary(model, m, words)
         : m?.kind === "dot"
           ? dotSummary(model, m, words)

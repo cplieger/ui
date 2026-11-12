@@ -5432,7 +5432,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-width: 1px;
 }
 
-.cp-chart svg [data-part="rect"] path {
+.cp-chart svg :is([data-part="rect"], [data-part="layers"]) path {
   fill: var(--cp-tone-9);
 }
 

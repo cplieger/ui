@@ -26,6 +26,16 @@ const line = (
   ...more,
 });
 
+const area = (
+  series: readonly (readonly (number | null)[])[],
+  more: Partial<Extract<Mark, { mark: "area" }>> = {},
+): Mark => ({
+  mark: "area",
+  x: (series[0] ?? []).map((_, i) => i),
+  series: series.map((y, k) => ({ name: `s${String(k)}`, y })),
+  ...more,
+});
+
 const ten = Array.from({ length: 10 }, (_, i) => ({ name: `s${String(i)}`, y: [1] }));
 
 describe("spec errors", () => {
@@ -114,7 +124,37 @@ describe("spec errors", () => {
       { x: {}, marks: [line([1], { curve: "smooth" as "step" })] },
       TypeError,
     ],
-    ["a mark that is not one of the four", { x: {}, marks: [{ mark: "area" }] }, TypeError],
+    ["a mark that is not one of the five", { x: {}, marks: [{ mark: "pie" }] }, TypeError],
+    ["a repeated area x", { x: {}, marks: [area([[1, 2]], { x: [0, 0] })] }, RangeError],
+    ["a negative y under an area", { x: {}, marks: [area([[1, -1]])] }, RangeError],
+    [
+      "an infinite y under an area",
+      { x: {}, marks: [area([[Number.POSITIVE_INFINITY]])] },
+      RangeError,
+    ],
+    [
+      "an area's y domain without 0",
+      { x: {}, y: { domain: [1, 5] }, marks: [area([[2]])] },
+      RangeError,
+    ],
+    [
+      "an area series shorter than its x",
+      { x: {}, marks: [area([[1]], { x: [0, 1] })] },
+      TypeError,
+    ],
+    [
+      "an area curve that is not linear or step",
+      { x: {}, marks: [area([[1]], { curve: "smooth" as "step" })] },
+      TypeError,
+    ],
+    [
+      "an area arranged other than stack",
+      { x: {}, marks: [area([[1], [2]], { arrange: "group" as "stack" })] },
+      TypeError,
+    ],
+    ["zero false under an area", { x: {}, y: { zero: false }, marks: [area([[1]])] }, TypeError],
+    ["a log y under an area", { x: {}, y: { type: "log" }, marks: [area([[1]])] }, TypeError],
+    ["an area beside a line", { x: {}, marks: [area([[1]]), line([1])] }, TypeError],
     ["marks that are not an array", { x: {}, marks: "rect" }, TypeError],
     [
       "an arrange that is not stack, group or share",
@@ -155,7 +195,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line or dot mark and any rules",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area or dot mark and any rules",
     );
   });
 
@@ -298,6 +338,13 @@ describe("the chart's kind", () => {
       { x: { type: "log" }, marks: [rect([1], { x1: [1], x2: [2] })] },
       "histogram",
     ],
+    ["one area series", { x: {}, marks: [area([[1]])] }, "area"],
+    ["two area series", { x: {}, marks: [area([[1], [2]])] }, "stackedArea"],
+    [
+      "two stepped area series",
+      { x: {}, marks: [area([[1], [2]], { curve: "step" })] },
+      "stackedArea",
+    ],
     ["a line with no curve", { x: {}, marks: [line([1])] }, "line"],
     ["a step line", { x: {}, marks: [line([1], { curve: "step" })] }, "step"],
     ["dot rows", { x: {}, marks: [{ mark: "dot", rows: [] }] }, "timeline"],
@@ -320,6 +367,32 @@ describe("empty", () => {
     ["rules alone", { x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }] }, true],
     ["one rect above 0", { x: {}, marks: [rect([0, 1])] }, false],
     ["one line value", { x: {}, marks: [line([null, 0])] }, false],
+    [
+      "every area sample 0 or a gap",
+      {
+        x: {},
+        marks: [
+          area([
+            [0, 1],
+            [0, null],
+          ]),
+        ],
+      },
+      true,
+    ],
+    [
+      "one whole area stack above 0",
+      {
+        x: {},
+        marks: [
+          area([
+            [0, 1],
+            [0, 2],
+          ]),
+        ],
+      },
+      false,
+    ],
   ])("%s: %s", (_, spec, empty) => {
     expect(build(spec).empty).toBe(empty);
   });
