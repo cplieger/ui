@@ -84,17 +84,24 @@ function texts(part: string, list: readonly Text[], mono = false): SVGElement {
   return g;
 }
 
+/** The px the area's clip leaves past each side of the plot: the selection
+ *  ring's radius 4 and half its 2 px stroke, which also hold a dot's 3 px
+ *  radius and a line's cap, so a mark at the plot's edge draws whole. */
+export const AREA_ROOM = 5;
+
 // The plot's marks, in spec order, inside a nested SVG that clips them to
-// the plot's width and to 2 px past its top and bottom, room for a stroke.
+// the plot outset by AREA_ROOM; its user space keeps 0 0 at the plot's corner.
 function plotArea(model: Model, lay: Layout): SVGElement {
   const f = lay.frame;
+  const w = num(f.width + 2 * AREA_ROOM);
+  const h = num(f.height + 2 * AREA_ROOM);
   const area = svgEl("svg", {
     "data-part": "area",
-    x: num(lay.left),
-    y: num(lay.top - 2),
-    width: num(f.width),
-    height: num(f.height + 4),
-    viewBox: `0 -2 ${num(f.width)} ${num(f.height + 4)}`,
+    x: num(lay.left - AREA_ROOM),
+    y: num(lay.top - AREA_ROOM),
+    width: w,
+    height: h,
+    viewBox: `${String(-AREA_ROOM)} ${String(-AREA_ROOM)} ${w} ${h}`,
   });
   const grid: string[] = [];
   let zero = "";

@@ -286,11 +286,13 @@ function check(spec: unknown): asserts spec is ChartSpec {
   optional(spec["empty"], "string", "empty");
 }
 
-const gaps = (y: ArrayLike<number | null>): (number | null)[] =>
-  Array.from(y, (v) => (v === null || Number.isNaN(v) ? null : v));
+// A log axis has no place for 0 or below, so a line reads such a value as a
+// gap, as the extent already leaves it out.
+const gaps = (y: ArrayLike<number | null>, log: boolean): (number | null)[] =>
+  Array.from(y, (v) => (v === null || Number.isNaN(v) || (log && v <= 0) ? null : v));
 
-function series(list: RectMark["series"]): SeriesModel[] {
-  return list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, y: gaps(s.y) }));
+function series(list: RectMark["series"], log = false): SeriesModel[] {
+  return list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, y: gaps(s.y, log) }));
 }
 
 // A rect is drawn unless it lies wholly outside the domain; a log x's
@@ -365,7 +367,7 @@ export function chartModel(
           kind: "line",
           x: m.x,
           step: m.curve === "step",
-          series: series(m.series),
+          series: series(m.series, y.type === "log"),
           from: lowerBound(m.x, x.lo),
           to: upperBound(m.x, x.hi),
         };

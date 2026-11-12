@@ -120,7 +120,10 @@ function cut(points: readonly Point[], width: number): Point[] {
  */
 export function linePath(m: LineModel, s: number, f: Frame): string {
   const ys = m.series[s]?.y ?? [];
-  const from = Math.max(m.from - 1, 0);
+  // A log x cannot place a sample at or below 0, so the line then starts at
+  // its first sample inside the domain.
+  const before = m.from > 0 && !(f.x.type === "log" && (m.x[m.from - 1] ?? 0) <= 0);
+  const from = before ? m.from - 1 : m.from;
   const to = Math.min(m.to + 1, m.x.length);
   // u runs left to right whichever way x does, for the reduction.
   const flip = f.x.reverse;

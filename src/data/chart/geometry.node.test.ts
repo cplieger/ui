@@ -6,6 +6,9 @@ import { position } from "../scale/position.js";
 import { bucketEdges, dotGroups, dotPath, linePath, rectPaths, type Frame } from "./geometry.js";
 import { chartModel, type LineModel, type Model, type RectModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
+import { generatedSummary } from "./summary.js";
+import { tableModel } from "./table.js";
+import { chartWords } from "./words.js";
 
 function frame(model: Model, width: number, height: number, yHi: number, dpr = 1): Frame {
   const { x } = model;
@@ -218,6 +221,32 @@ describe("line geometry", () => {
       [0, 75, 100, 50],
       [300, 0, 300, 0],
     ]);
+  });
+
+  it("reads a line's value at or below 0 on a log y as a gap, in the path, summary and table", () => {
+    const m = model({
+      x: {},
+      y: { type: "log" },
+      marks: [{ mark: "line", x: [0, 1, 2, 3], series: [{ name: "a", y: [2, 0, 8, -1] }] }],
+    });
+    const f: Frame = { ...frame(m, 300, 100, 1), yAt: position("log", 2, 8, 100, 0) };
+    expect(points(linePath(lineOf(m), 0, f))).toEqual([
+      [0, 100, 0, 100],
+      [200, 0, 200, 0],
+    ]);
+    const words = chartWords();
+    expect(generatedSummary(m, words)).toContain("low 2, high 8");
+    const cells = tableModel(m, words).rows.map((r) => r.cells[0]?.parts.join(""));
+    expect(cells).toEqual(["2", words.noData, "8", words.noData]);
+  });
+
+  it("starts a line on a log x at its first sample inside the domain when the one before is at 0", () => {
+    const m = model({
+      x: { type: "log", domain: [1, 100] },
+      marks: [{ mark: "line", x: [0, 10, 100], series: [{ name: "a", y: [1, 2, 3] }] }],
+    });
+    const d = linePath(lineOf(m), 0, frame(m, 200, 300, 3));
+    expect(points(d)).toEqual([[100, 100, 200, 0]]);
   });
 
   it("keeps each pixel column's extremes of 4,320 samples", () => {

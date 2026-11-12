@@ -4,7 +4,7 @@ import { cdp, server } from "vitest/browser";
 import { durationEdges } from "../scale/ladder.js";
 import { forgetMeasures } from "../scale/measure.js";
 
-import { drawPlot, frameLegend, readMetrics, writeLegend } from "./draw.js";
+import { AREA_ROOM, drawPlot, frameLegend, readMetrics, writeLegend } from "./draw.js";
 import { layout, type Layout } from "./layout.js";
 import { chartModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, overall, readoutWidths } from "./readout.js";
@@ -260,8 +260,67 @@ describe("the marks", () => {
       expect(box.x).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width + 1e-6);
     }
-    expect(Number(area.getAttribute("width"))).toBe(d.lay.frame.width);
-    expect(Number(area.getAttribute("x"))).toBe(d.lay.left);
+    expect(Number(area.getAttribute("width"))).toBe(d.lay.frame.width + 2 * AREA_ROOM);
+    expect(Number(area.getAttribute("x"))).toBe(d.lay.left - AREA_ROOM);
+  });
+
+  it("writes only finite numbers into the drawing, for every mark on every scale", () => {
+    const edges = durationEdges();
+    const rule = (axis: "x" | "y", v: number) => ({ mark: "rule", [axis]: v, label: "R" }) as const;
+    const line = (x: number[], y: (number | null)[]) =>
+      ({ mark: "line", x, series: [{ name: "a", y }] }) as const;
+    const specs: ChartSpec[] = [
+      { ...stacked, marks: [...stacked.marks, rule("x", 900_000), rule("y", 99), rule("x", -5)] },
+      {
+        x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+        marks: [
+          {
+            mark: "rect",
+            x1: edges.slice(0, -1),
+            x2: edges.slice(1),
+            series: [{ name: "Reads", y: edges.slice(1).map((_, i) => i % 3) }],
+          },
+          rule("x", 400),
+          rule("x", 0),
+          rule("x", -1),
+          rule("x", 9e12),
+        ],
+      },
+      ...(["linear", "log", "time"] as const).flatMap((type) => [
+        {
+          x: type === "log" ? { type, domain: [1, 100] as const } : { type },
+          y: { type: "log" as const },
+          marks: [line([0, 1, 10, 100, 200], [2, 0, -3, null, 8]), rule("y", 0), rule("y", 4)],
+        },
+        {
+          x: { type, reverse: true },
+          y: { zero: false },
+          marks: [{ ...line([1, 2, 3], [-2, Number.NaN, 5]), curve: "step" as const }],
+        },
+        {
+          x: type === "log" ? { type, domain: [1, 1_000] as const } : { type },
+          y: { type: "band" as const },
+          marks: [
+            {
+              mark: "dot" as const,
+              rows: [
+                { name: "a", x: [0, 1, 1, 50] },
+                { name: "b", x: [] },
+              ],
+            },
+            rule("x", 0),
+          ],
+        },
+      ]),
+    ];
+    for (const spec of specs) {
+      const d = draw(spec);
+      for (const el of [d.svg, ...d.svg.querySelectorAll("*")]) {
+        for (const a of el.attributes) {
+          expect(a.value, `${el.tagName} ${a.name}`).not.toMatch(/Infinity|NaN/);
+        }
+      }
+    }
   });
 
   it("clips the marks to the plot's area while the axis labels sit outside it", () => {

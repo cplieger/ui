@@ -4,6 +4,7 @@ import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type Chart, type ChartOptions, type ChartSpec } from "./chart.js";
+import { AREA_ROOM } from "./draw.js";
 
 const root = document.documentElement;
 const MIN = 60_000;
@@ -808,7 +809,8 @@ describe("the drawing under update and resize", () => {
     ],
   });
   const plotLeft = (b: Built) =>
-    Number(get(b.figure, "plot")?.querySelector('[data-part="area"]')?.getAttribute("x"));
+    Number(get(b.figure, "plot")?.querySelector('[data-part="area"]')?.getAttribute("x")) +
+    AREA_ROOM;
 
   it("keeps a group's left edge when an update widens the top label, read back in px", () => {
     const b = build();
@@ -847,11 +849,11 @@ describe("the drawing under update and resize", () => {
     const wide = build({ width: 480 });
     start(steps, wide);
     expect(ends(wide)).toBe(1);
-    expect(Number(area(wide).getAttribute("height"))).toBe(240 + 4);
+    expect(Number(area(wide).getAttribute("height"))).toBe(240 + 2 * AREA_ROOM);
     const narrow = build({ width: 479 });
     start(steps, narrow);
     expect(ends(narrow)).toBe(0);
-    expect(Number(area(narrow).getAttribute("height"))).toBe(200 + 4);
+    expect(Number(area(narrow).getAttribute("height"))).toBe(200 + 2 * AREA_ROOM);
   });
 
   it("measures afresh on a resize, with no two x labels overlapping", async () => {
@@ -888,7 +890,8 @@ describe("a face that loads after the drawing", () => {
     ],
   };
   const plotLeft = (b: Built) =>
-    Number(get(b.figure, "plot")?.querySelector('[data-part="area"]')?.getAttribute("x"));
+    Number(get(b.figure, "plot")?.querySelector('[data-part="area"]')?.getAttribute("x")) +
+    AREA_ROOM;
   const late = (b: Built): Built => {
     (b.figure.parentElement as HTMLElement).style.fontFamily = '"cp-chart-late", serif';
     return b;

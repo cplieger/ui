@@ -5,6 +5,7 @@ import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type Chart, type ChartSpec } from "./chart.js";
+import { AREA_ROOM } from "./draw.js";
 
 const root = document.documentElement;
 const emulates = server.browser === "chromium";
@@ -155,8 +156,8 @@ function point(
   const svg = b.plot.querySelector("svg") as SVGSVGElement;
   const area = svg.querySelector('[data-part="area"]') as SVGSVGElement;
   const box = svg.getBoundingClientRect();
-  const left = Number(area.getAttribute("x"));
-  const top = Number(area.getAttribute("y")) + 2;
+  const left = Number(area.getAttribute("x")) + AREA_ROOM;
+  const top = Number(area.getAttribute("y")) + AREA_ROOM;
   target.dispatchEvent(
     new PointerEvent(type, {
       clientX: box.left + left + x,
@@ -170,7 +171,7 @@ function point(
 }
 
 const plotWidth = (b: Built) =>
-  Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("width"));
+  Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("width")) - 2 * AREA_ROOM;
 
 describe("keys on a stacked bar chart", () => {
   it("focus selects the newest bucket and says it", async () => {
@@ -424,6 +425,54 @@ describe("touch", () => {
     point(b, "pointerdown", w * 0.5, 24 * 2.2, "touch");
     point(b, "pointerup", w * 0.5, 24 * 2.2, "touch");
     expect(legendText(b)).toBe(`ha-agent · 2${nb}posts, ${span(5, 38)}`);
+  });
+});
+
+describe("a selection at the plot's ends", () => {
+  const ends: [string, ChartSpec][] = [
+    ["a stacked bar", { ...bars, x: { type: "time" } }],
+    [
+      "a line",
+      {
+        x: {},
+        marks: [{ mark: "line", x: [0, 1, 2, 3], series: [{ name: "Live", y: [4, 9, 2, 7] }] }],
+      },
+    ],
+    [
+      "a dot row",
+      {
+        x: { type: "time" },
+        y: { type: "band" },
+        marks: [
+          { mark: "dot", rows: [{ name: "lead-ui", x: [0, 10, 20].map((m) => START + m * MIN) }] },
+        ],
+      },
+    ],
+  ];
+
+  it.each(ends)("draws %s's ring whole at both ends, inside the area's clip", (_, spec) => {
+    const b = build(spec);
+    b.plot.focus();
+    // The clip is the area's viewport, which its attributes give: Chromium's
+    // box for a nested <svg> is its content's.
+    const a = b.plot.querySelector('[data-part="area"]') as Element;
+    const at = (name: string) => Number(a.getAttribute(name));
+    const svg = (b.plot.querySelector("svg") as Element).getBoundingClientRect();
+    const area = {
+      left: svg.left + at("x"),
+      top: svg.top + at("y"),
+      right: svg.left + at("x") + at("width"),
+      bottom: svg.top + at("y") + at("height"),
+    };
+    for (const name of ["Home", "End"]) {
+      key(b.plot, name);
+      const box = (ring(b) as Element).getBoundingClientRect();
+      expect(box.width).toBeGreaterThan(0);
+      expect(box.left).toBeGreaterThanOrEqual(area.left - 1e-3);
+      expect(box.right).toBeLessThanOrEqual(area.right + 1e-3);
+      expect(box.top).toBeGreaterThanOrEqual(area.top - 1e-3);
+      expect(box.bottom).toBeLessThanOrEqual(area.bottom + 1e-3);
+    }
   });
 });
 

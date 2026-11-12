@@ -60,7 +60,7 @@ posts.update({
 
 - Marks draw in the order given, so a rule after a rect draws over it.
 - Values are columns that share one x, sorted ascending: a line's `x` and a rect's `x1` strictly increase, and a dot row's `x` may repeat, since two posts can share a millisecond.
-- `null` or `NaN` in a `y` is a gap. A line breaks there, even across one missed sample at the widest range, a rect draws nothing, a stack counts it as 0 for the segments above, and the table writes "No data".
+- `null` or `NaN` in a `y` is a gap. A line breaks there, even across one missed sample at the widest range, a rect draws nothing, a stack counts it as 0 for the segments above, and the table writes "No data". On a log y, a line's value at or below 0 is a gap too, since a log axis has no place for it.
 - A stack's first series sits on the baseline, so put the series compared most first. Neighbouring bars stand 1px apart and stacked segments 1px apart, and a bucket too narrow for a 1px gap and 1px of bar draws touching.
 - `open: true` marks a rect's last bucket as still filling: its readings and its table row add "so far", and the summary's busiest bucket leaves it out.
 - A rule's `x` or `y` is a finite number. Send no rule when the value is unknown, such as a median with no reads yet.
@@ -76,7 +76,7 @@ posts.update({
 | `time` | instants, in milliseconds since the epoch | the data's extent |
 | `band` | named rows, the y of a `dot` mark | the rows in the order given |
 
-- A time axis says `type: "time"`, since a number cannot say it is an instant. A log axis is never inferred.
+- A time axis says `type: "time"`, since a number cannot say it is an instant. A log axis is never inferred. On a log x, a line starts at its first sample inside the domain when the sample before it is at 0 or below.
 - A passed `domain` fixes the scale, so charts that sit together compare on one scale. Marks are cut at its ends: a bucket that crosses an end is drawn to the edge and keeps its full interval and value in its readings and its table row, and anything wholly outside is left out.
 - A linear y under a `rect` always includes 0, since a bar's length is its value. A chart of lines alone may set `zero: false`.
 - Ticks follow the chart's own width, about 80px apart on x and 40px apart on y, so a chart in a narrow panel gets fewer. Labels are never rotated: a label that would come within 8px of the last is dropped, and a time or linear axis moves to a coarser step before dropping more than every other one.
