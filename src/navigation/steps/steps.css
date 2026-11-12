@@ -83,11 +83,15 @@
   text-underline-offset: 0.2em;
 }
 
+/* Sized, not inset from the link's height, which would snap to layout
+ * units and fall a fraction under the minimum. */
 .cp-steps > li > a::after {
   content: "";
   position: absolute;
-  inset-block: calc((100% - var(--cp-hit-min)) / 2);
+  inset-block-start: 50%;
   inset-inline: calc(-1.75rem - var(--cp-space-2)) 0;
+  block-size: var(--cp-hit-min);
+  translate: 0 -50%;
 }
 
 @media (any-hover: hover) {

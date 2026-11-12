@@ -1,0 +1,113 @@
+/* A history: a heading per day, then an <ol> of that day's events, newest
+ * first. An event is its round mark (data-part="mark", in its data-tone,
+ * holding the event's glyph), its words, and its <time> at the end; a line
+ * joins the marks. An event with more to say holds a native <details>. */
+.cp-history > :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--cp-space-4) 0 var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-strong);
+}
+
+.cp-history > :first-child {
+  margin-block-start: 0;
+}
+
+.cp-history > ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-history > ol > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  gap: var(--cp-space-3);
+  align-items: start;
+  padding-block: var(--cp-space-2);
+  font-size: var(--cp-text-sm);
+}
+
+/* The line runs from under this event's mark to the next event's. */
+.cp-history > ol > li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-block: 2.25rem 0;
+  inset-inline-start: calc(1rem - 1px);
+  border-inline-start: 2px solid var(--cp-line);
+}
+
+.cp-history [data-part="mark"] {
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 50%;
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-11);
+}
+
+.cp-history > ol > li > time {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  white-space: nowrap;
+}
+
+/* The summary keeps its 19px line, so its hit area reaches past it, sized
+ * rather than inset so it never snaps under the minimum. */
+.cp-history details > summary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--cp-accent-11);
+  list-style: none;
+  cursor: pointer;
+}
+
+.cp-history details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.cp-history details > summary::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  block-size: var(--cp-hit-min);
+  translate: 0 -50%;
+}
+
+/* The chevron turns to point down, so a mirrored one turns the other way. */
+.cp-history details > summary > .cp-icon {
+  --cp-icon-size: 0.875rem;
+  --cp-history-turn: 90deg;
+
+  transition: rotate 160ms var(--cp-ease-out);
+}
+
+.cp-history details > summary > .cp-icon:dir(rtl) {
+  --cp-history-turn: -90deg;
+}
+
+.cp-history details[open]:not([data-cp-closing]) > summary > .cp-icon {
+  rotate: var(--cp-history-turn);
+}
+
+.cp-history details > :not(summary) {
+  margin: var(--cp-space-1) 0 0;
+  color: var(--cp-ink-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-history details > summary > .cp-icon {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-history [data-part="mark"] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

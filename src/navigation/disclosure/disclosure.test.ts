@@ -26,19 +26,25 @@ function section(title: string, name?: string): HTMLDetailsElement {
   return d;
 }
 
-// The glides' own end handlers were attached first, so they have run once this resolves.
-const settle = () =>
-  Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined)));
+// A glide ends on an animation frame, which a busy machine can hold past any fixed wait.
+const settle = async () => {
+  await Promise.allSettled(document.getAnimations().map((a) => a.finished));
+  await new Promise((r) => setTimeout(r, 0));
+};
 
 describe("enhanceDisclosure", () => {
   it("glides open, its height growing from the summary's to the content's", async () => {
     const d = section("What changed");
     enhanceDisclosure(d, { signal: life.signal });
     const shut = d.getBoundingClientRect().height;
-    await userEvent.click(d.querySelector("summary") as HTMLElement);
+    const summary = d.querySelector("summary") as HTMLElement;
+    let keys: ComputedKeyframe[] = [];
+    // Read as the press lands, since a slow press can outlast the glide.
+    summary.addEventListener("click", () => {
+      keys = (d.getAnimations()[0]?.effect as KeyframeEffect | undefined)?.getKeyframes() ?? [];
+    });
+    await userEvent.click(summary);
     expect(d.open).toBe(true);
-    const [glide] = d.getAnimations();
-    const keys = (glide?.effect as KeyframeEffect).getKeyframes();
     expect(Number.parseFloat(String(keys[0]?.["blockSize"]))).toBeCloseTo(shut, 0);
     expect(Number.parseFloat(String(keys.at(-1)?.["blockSize"]))).toBeGreaterThan(shut + 100);
     await settle();
@@ -51,9 +57,12 @@ describe("enhanceDisclosure", () => {
     const summary = d.querySelector("summary") as HTMLElement;
     await userEvent.click(summary);
     await settle();
+    const gliding: boolean[] = [];
+    summary.addEventListener("click", () => {
+      gliding.push(d.open, d.hasAttribute("data-cp-closing"));
+    });
     await userEvent.click(summary);
-    expect(d.open).toBe(true);
-    expect(d.hasAttribute("data-cp-closing")).toBe(true);
+    expect(gliding).toEqual([true, true]);
     await settle();
     expect(d.open).toBe(false);
     expect(d.hasAttribute("data-cp-closing")).toBe(false);

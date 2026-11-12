@@ -49,6 +49,10 @@ content/prose/prose.css
 content/table-scroll/table-scroll.css
 content/code-block/code-block.css
 content/syntax/syntax.css
+data/active-filters/active-filters.css
+data/facts/facts.css
+data/history/history.css
+data/state-history/state-history.css
 navigation/pages/pages.css
 navigation/rail/filters-trigger.css
 data/text/text.css
@@ -69,6 +73,8 @@ navigation/tabs/tabs.css
 navigation/link-tabs/link-tabs.css
 navigation/accordion/accordion.css
 feedback/progress/progress.css
+feedback/track/track.css
+feedback/batch-report/batch-report.css
 data/share-bar/share-bar.css
 data/sparkline/sparkline.css
 data/figure/figure.css
