@@ -7,6 +7,7 @@
 import { fontMeasure } from "../scale/measure.js";
 
 import {
+  bucketEdges,
   dotGroups,
   dotPath,
   hairline,
@@ -19,7 +20,8 @@ import {
 } from "./geometry.js";
 import type { Layout, Metrics, Text } from "./layout.js";
 import type { Model } from "./model.js";
-import type { Reading, Widths } from "./readout.js";
+import { primaryOf, type Reading, type Widths } from "./readout.js";
+import type { Navigator, Selection } from "./select.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -43,22 +45,28 @@ const px = (style: CSSStyleDeclaration, name: string, fallback: number): number 
  * layout read, so it runs on a render or a resize, never inside a draw.
  */
 export function readMetrics(plot: HTMLElement, locale: string | undefined): Metrics {
+  // Every read of the plot's style comes before the probe changes the tree,
+  // which would make each later read restyle the page.
   const style = getComputedStyle(plot);
   const size = Number.parseFloat(style.fontSize) || 13;
+  const read = {
+    row: px(style, "--cp-chart-row", 24),
+    axisGroup: px(style, "--cp-chart-axis-gutter", 0),
+    labelGroup: px(style, "--cp-chart-label-gutter", 0),
+    height: px(style, "--cp-chart-height", 240),
+    rem: Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
+  };
+  const measure = fontMeasure(plot, locale);
   const probe = document.createElement("span");
   probe.dataset["mono"] = "";
   plot.append(probe);
   const mono = fontMeasure(probe, locale);
   probe.remove();
   return {
-    measure: fontMeasure(plot, locale),
+    measure,
     mono,
     lineHeight: Math.ceil(size * 1.3),
-    rem: Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
-    row: px(style, "--cp-chart-row", 24),
-    axisGroup: px(style, "--cp-chart-axis-gutter", 0),
-    labelGroup: px(style, "--cp-chart-label-gutter", 0),
-    height: px(style, "--cp-chart-height", 240),
+    ...read,
     dpr: window.devicePixelRatio || 1,
   };
 }
@@ -173,6 +181,85 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
     plotArea(model, lay),
     texts("end", lay.endLabels),
   );
+}
+
+const ring = (cx: number, cy: number, r: number): string =>
+  `M${num(cx - r)} ${num(cy)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0`;
+
+// A rectangle's outline drawn 1 px inside its edges, so its 2 px stroke
+// stays on the bar and covers no neighbour.
+function inset(left: number, right: number, top: number, bottom: number): string {
+  const dx = Math.min(1, (right - left) / 2);
+  const dy = Math.min(1, (bottom - top) / 2);
+  return `M${num(left + dx)} ${num(top + dy)}H${num(right - dx)}V${num(bottom - dy)}H${num(left + dx)}Z`;
+}
+
+/** The ring's path for `sel`: the bar or its segment, each line's point or
+ *  the chosen one, the drawn dot, or a row's hairline. */
+function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
+  const f = lay.frame;
+  const m = primaryOf(model);
+  if (sel.kind === "rect" && m?.kind === "rect") {
+    const { left, right } = bucketEdges(m, sel.i, f);
+    let base = 0;
+    let out = "";
+    m.series.forEach((s, k) => {
+      const v = s.y[sel.i] ?? 0;
+      const lo = base;
+      base += Math.max(v, 0);
+      if (sel.part === k && v > 0) {
+        out = inset(left, right, f.yAt(base), f.yAt(lo));
+      }
+    });
+    if (sel.part === undefined && base > 0) {
+      out = inset(left, right, f.yAt(base), f.yAt(0));
+    }
+    return out;
+  }
+  if (sel.kind === "line" && m?.kind === "line") {
+    const cx = f.xAt(m.x[sel.i] ?? 0);
+    return m.series
+      .filter((_, k) => sel.part === undefined || sel.part === k)
+      .map((s) => s.y[sel.i])
+      .filter((v): v is number => v !== null && v !== undefined)
+      .map((v) => ring(cx, f.yAt(v), 4))
+      .join("");
+  }
+  const cy = snap(lay.rows[sel.kind === "dot" || sel.kind === "row" ? sel.row : 0]?.y ?? 0, f.dpr);
+  if (sel.kind === "row") {
+    return `M0 ${num(cy + 0.5)}H${num(f.width)}`;
+  }
+  const at = nav.crosshair(sel);
+  return at === undefined ? "" : ring(at, cy + 0.5, 4);
+}
+
+/**
+ * Draws `sel`'s crosshair and ring over the plot `drawPlot` drew in `svg`,
+ * replacing the last; none with no selection.
+ */
+export function drawSelection(
+  svg: SVGSVGElement,
+  model: Model,
+  lay: Layout,
+  sel: Selection | undefined,
+  nav: Navigator,
+): void {
+  const area = svg.querySelector('[data-part="area"]');
+  area?.querySelector('[data-part="selection"]')?.remove();
+  if (area === null || sel === undefined) {
+    return;
+  }
+  const g = svgEl("g", { "data-part": "selection" });
+  const at = nav.crosshair(sel);
+  if (at !== undefined) {
+    const x = num(snap(at, lay.frame.dpr) + 0.5);
+    g.append(svgEl("path", { "data-part": "crosshair", d: `M${x} 0V${num(lay.frame.height)}` }));
+  }
+  const d = ringPath(model, lay, sel, nav);
+  if (d !== "") {
+    g.append(svgEl("path", { "data-part": "ring", d }));
+  }
+  area.append(g);
 }
 
 function span(part: string): HTMLSpanElement {

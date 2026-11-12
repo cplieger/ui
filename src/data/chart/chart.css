@@ -183,8 +183,16 @@
   stroke-width: 1px;
 }
 
-.cp-chart svg :is([data-part="rect"], [data-part="dot"]) path {
+.cp-chart svg [data-part="rect"] path {
   fill: var(--cp-tone-9);
+}
+
+/* Each dot is a zero-length segment its round cap draws as a circle. */
+.cp-chart svg [data-part="dot"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 6px;
+  stroke-linecap: round;
 }
 
 .cp-chart svg [data-part="line"] > path {
@@ -196,6 +204,20 @@
 }
 
 .cp-chart svg [data-part="rule"] {
+  fill: none;
+  stroke: var(--cp-ink);
+  stroke-width: 2px;
+}
+
+/* The selection a pointer, a key or focus makes: a crosshair at its x and a
+ * ring round its bar, point, dot or row, drawn by script. */
+.cp-chart svg [data-part="crosshair"] {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
+}
+
+.cp-chart svg [data-part="ring"] {
   fill: none;
   stroke: var(--cp-ink);
   stroke-width: 2px;

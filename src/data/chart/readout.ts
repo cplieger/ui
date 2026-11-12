@@ -203,18 +203,19 @@ export interface Widths {
   readonly total: number;
 }
 
-const HALF_HOUR = 1_800_000;
+/** Every time zone's offset from UTC is a whole number of quarter hours. */
+const QUARTER_HOUR = 900_000;
 const SAMPLE = 256;
 
 // Indices of `[from, to)` whose x text can differ in width: on a time x one
-// per half hour, since every digit is as wide as another; else at most 256
-// spread evenly, with the ends.
+// per quarter hour, inside which every zone's local hour and day hold, since
+// every digit is as wide as another; else at most 256 spread evenly, with the ends.
 function spread(model: Model, x: ArrayLike<number>, from: number, to: number): number[] {
   const out: number[] = [];
   if (model.x.type === "time") {
     let last = Number.NaN;
     for (let i = from; i < to; i++) {
-      const slot = Math.floor((x[i] ?? 0) / HALF_HOUR);
+      const slot = Math.floor((x[i] ?? 0) / QUARTER_HOUR);
       if (slot !== last) {
         out.push(i);
         last = slot;
@@ -234,10 +235,15 @@ function spread(model: Model, x: ArrayLike<number>, from: number, to: number): n
 
 // The widest texts of a series' values: the extremes and an even spread.
 function valueCandidates(s: SeriesModel, indices: readonly number[]): (number | null)[] {
-  const known = s.y.filter((v) => v !== null);
-  const lo = known.reduce((a, b) => Math.min(a, b), Number.POSITIVE_INFINITY);
-  const hi = known.reduce((a, b) => Math.max(a, b), Number.NEGATIVE_INFINITY);
-  return [...indices.map((i) => s.y[i] ?? null), ...(known.length > 0 ? [lo, hi] : []), null];
+  let lo = Number.POSITIVE_INFINITY;
+  let hi = Number.NEGATIVE_INFINITY;
+  for (const v of s.y) {
+    if (v !== null) {
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    }
+  }
+  return [...indices.map((i) => s.y[i] ?? null), ...(lo <= hi ? [lo, hi] : []), null];
 }
 
 const widest = (texts: Iterable<string>, measure: Measure): number => {
@@ -283,17 +289,29 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       }
     });
   } else if (m?.kind === "dot") {
-    let instant = "";
+    // Each post's time, written once per stretch of x in which its width holds.
+    const posts = new Map<string, number>();
     m.rows.forEach((row, r) => {
       add(rowReading(model, m, r, words));
       at.push(row.name);
       for (const i of spread(model, row.x, row.from, row.to)) {
-        const text = model.xText(row.x[i] ?? 0);
-        if (measure.number(text) > measure.number(instant)) {
-          instant = text;
+        const v = row.x[i] ?? 0;
+        const slot = model.x.type === "time" ? String(Math.floor(v / QUARTER_HOUR)) : String(v);
+        if (!posts.has(slot)) {
+          posts.set(slot, v);
         }
       }
     });
+    let instant = "";
+    let instantW = 0;
+    for (const v of posts.values()) {
+      const text = model.xText(v);
+      const w = measure.number(text);
+      if (w > instantW) {
+        instant = text;
+        instantW = w;
+      }
+    }
     values[0]?.push(instant);
     // Posts that share a pixel read a count and a span: no wider than the
     // largest row's count over the widest instant's span.

@@ -12,6 +12,7 @@ import { skeletonTiming, type SkeletonTimingController } from "../../feedback/sk
 import { forgetMeasures } from "../scale/measure.js";
 
 import { drawPlot, frameLegend, readMetrics } from "./draw.js";
+import { explore } from "./explore.js";
 import { layout, type Floors } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { overall, readoutWidths, type Widths } from "./readout.js";
@@ -168,6 +169,7 @@ export function renderChart(
   panel.hidden = true;
 
   const life = new AbortController();
+  const explorer = explore(plot, svg, legend, words, life.signal);
   let state: State = "loading";
   // What the good render since the last loading() showed, if one came.
   let shown: "ready" | "empty" | undefined;
@@ -180,6 +182,9 @@ export function renderChart(
   let floors: Floors = { axis: 0, label: 0 };
   let widths: Widths | undefined;
   let lastHeight: number | undefined;
+  // The plot width the drawing was laid out at, which the observer's first
+  // entry, sent once observing starts, usually repeats.
+  let drawnWidth: number | undefined;
 
   let timing: SkeletonTimingController | undefined;
   let committed = false;
@@ -253,7 +258,8 @@ export function renderChart(
     }
     plotStale = false;
     const metrics = readMetrics(plot, locale);
-    const lay = layout(drawn, words, metrics, plot.clientWidth, floors);
+    drawnWidth = plot.clientWidth;
+    const lay = layout(drawn, words, metrics, drawnWidth, floors);
     floors = lay.gutters;
     drawPlot(svg, drawn, lay);
     const none = overall(drawn, words);
@@ -261,11 +267,15 @@ export function renderChart(
       widths = grow(widths, readoutWidths(drawn, words, metrics.measure));
       frameLegend(legend, none, widths, words.total);
     }
+    explorer.drawn(drawn, lay);
   };
 
   const showView = (): void => {
     if (drawn === undefined) {
       return;
+    }
+    if (tableOn) {
+      explorer.clear();
     }
     if (tableOn && tableStale) {
       syncTable(panel, tableModel(drawn, words), title.textContent, drawn.y.type === "band");
@@ -294,12 +304,14 @@ export function renderChart(
     shown = model.empty ? "empty" : "ready";
     state = shown;
     if (model.empty) {
+      explorer.reset();
       drawn = undefined;
       const text = model.spec.empty ?? words.empty;
       empty.textContent = text;
       setSummary(text, false);
       arrange([empty]);
     } else {
+      explorer.data(model);
       drawn = model;
       setSummary(summaryOf(model, words), true);
       plot.setAttribute("role", "application");
@@ -333,6 +345,7 @@ export function renderChart(
       arrange([empty, el]);
     } else {
       state = "failed";
+      explorer.reset();
       drawn = undefined;
       setSummary("", false);
       arrange([el]);
@@ -360,6 +373,7 @@ export function renderChart(
   const startLoading = (): void => {
     state = "loading";
     shown = undefined;
+    explorer.reset();
     drawn = undefined;
     stored = undefined;
     notice?.remove();
@@ -425,7 +439,7 @@ export function renderChart(
     if (frame === 0) {
       frame = requestAnimationFrame(() => {
         frame = 0;
-        if (hasDrawing()) {
+        if (hasDrawing() && plot.clientWidth !== drawnWidth) {
           floors = { axis: 0, label: 0 };
           drawGeometry();
         }
@@ -540,6 +554,7 @@ export function renderChart(
         figure.setAttribute("aria-busy", "false");
         arrange([]);
       } else if (hasDrawing()) {
+        explorer.reset();
         plot.removeAttribute("tabindex");
         plot.removeAttribute("aria-roledescription");
         plot.removeAttribute("aria-describedby");

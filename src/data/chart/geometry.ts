@@ -133,6 +133,10 @@ export function linePath(m: LineModel, s: number, f: Frame): string {
     run.forEach((p, k) => {
       const before = run[k - 1];
       if (m.step && before !== undefined) {
+        // A held value inside the run only continues the horizontal.
+        if (before.y === p.y && k < run.length - 1) {
+          return;
+        }
         points.push({ x: p.x, y: f.yAt(before.y) });
       }
       points.push({ x: p.x, y: f.yAt(p.y) });
@@ -146,9 +150,6 @@ export function linePath(m: LineModel, s: number, f: Frame): string {
   }
   return d;
 }
-
-/** A dot's radius, in px. */
-const R = 3;
 
 /** One drawn dot of a row: its centre's px and the dots `[from, to)` it stands for. */
 export interface DotGroup {
@@ -175,14 +176,11 @@ export function dotGroups(row: DotRowModel, f: Frame): DotGroup[] {
   return groups;
 }
 
-/** `groups` as one path of circles on the line at `cy`. */
+/** `groups` as one path of zero-length segments on the line at `cy`, each
+ *  a dot of radius 3 under the 6 px round-capped stroke `chart.css` gives it. */
 export function dotPath(groups: readonly DotGroup[], cy: number): string {
-  return groups
-    .map(
-      (g) =>
-        `M${num(g.at - R)} ${num(cy)}a${String(R)} ${String(R)} 0 1 0 ${String(2 * R)} 0a${String(R)} ${String(R)} 0 1 0 ${String(-2 * R)} 0`,
-    )
-    .join("");
+  const y = num(cy);
+  return groups.map((g) => `M${num(g.at)} ${y}h0`).join("");
 }
 
 /** A 1 px line across the plot at `y`, on whole device pixels. */

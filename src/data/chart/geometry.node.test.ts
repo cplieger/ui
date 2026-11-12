@@ -263,8 +263,6 @@ describe("dot geometry", () => {
       { at: 10, from: 0, to: 3 },
       { at: 20, from: 3, to: 4 },
     ]);
-    expect(dotPath(groups, 12.5)).toBe(
-      "M7 12.5a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M17 12.5a3 3 0 1 0 6 0a3 3 0 1 0 -6 0",
-    );
+    expect(dotPath(groups, 12.5)).toBe("M10 12.5h0M20 12.5h0");
   });
 });

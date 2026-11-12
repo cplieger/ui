@@ -205,17 +205,15 @@ describe("the marks", () => {
     }
   });
 
-  it("draws a dot row as one path of circles in the mark's slot, rows on hairlines", () => {
+  it("draws a dot row as one path of round dots in the mark's slot, rows on hairlines", () => {
     const d = draw(strip(["silent", "lead-ui", "docs"]));
     const g = d.svg.querySelector('[data-part="dot"]');
     expect(g?.getAttribute("data-series")).toBe("1");
     const paths = series(d, "dot");
-    expect(paths.map((p) => (p.getAttribute("d")?.match(/a3 3/g) ?? []).length)).toEqual([
-      0, 6, 12,
-    ]);
-    expect(getComputedStyle(paths[1] as Element).fill).toBe(
-      token(paths[1] as Element, "var(--cp-series-1)"),
-    );
+    expect(paths.map((p) => (p.getAttribute("d")?.match(/h0/g) ?? []).length)).toEqual([0, 3, 6]);
+    const dot = getComputedStyle(paths[1] as Element);
+    expect(dot.stroke).toBe(token(paths[1] as Element, "var(--cp-series-1)"));
+    expect([dot.strokeWidth, dot.strokeLinecap]).toEqual(["6px", "round"]);
     expect(d.svg.querySelector('[data-part="rows"]')?.getAttribute("d")?.match(/M/g)).toHaveLength(
       3,
     );
