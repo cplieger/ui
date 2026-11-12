@@ -188,6 +188,31 @@ describe("enhanceShareBar", () => {
     expect(chips(box)[1]?.textContent).toBe("One 1, 0.01%");
   });
 
+  it("never writes a part short of the whole as 100%", () => {
+    const { box } = share(
+      '<tr><th>Most</th><td><data value="199">199</data></td></tr>' +
+        '<tr><th>One</th><td><data value="1">1</data></td></tr>',
+    );
+    enhanceShareBar(box, { signal: life.signal });
+    expect(segments(box).map((s) => s.dataset["cpTip"])).toEqual([
+      "Most: 199, 99.5%",
+      "One: 1, 0.5%",
+    ]);
+    expect(chips(box)[0]?.textContent).toBe("Most 199, 99.5%");
+  });
+
+  it("leaves each id of the table on the table's own node", () => {
+    const { box, table } = share(
+      '<tr><th><a href="/a" id="row-link"><span id="glyph"></span>Glyph</a></th><td><data id="count" value="3">3</data></td></tr>',
+    );
+    enhanceShareBar(box, { signal: life.signal });
+    for (const id of ["row-link", "glyph", "count"]) {
+      expect(document.querySelectorAll(`#${id}`)).toHaveLength(1);
+      expect(table.contains(document.getElementById(id))).toBe(true);
+    }
+    expect(chips(box)[0]?.textContent).toBe("Glyph 3, 100%");
+  });
+
   it("switches to the table and back by the toggle, which it shows", async () => {
     const { box, toggle } = share();
     const view = box.querySelector(".wrap") as HTMLElement;

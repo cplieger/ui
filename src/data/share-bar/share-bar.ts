@@ -97,15 +97,36 @@ function tones(row: Element, into: Map<string, string>): Map<string, string> {
   return into;
 }
 
-// A part with a count never reads as 0%: one too small for the usual digits
-// shows its first significant digit.
+// A part reads as neither 0% nor the whole: one too small for the usual
+// digits shows its first significant digit, and one just short of the whole
+// takes the fraction digits that tell it from 100%.
 function percent(share: number, locale: string | undefined): string {
-  const digits = share < 0.1 ? 1 : 0;
-  const format = (o: Intl.NumberFormatOptions) =>
-    new Intl.NumberFormat(locale, { style: "percent", ...o }).format(share);
-  const out = format({ maximumFractionDigits: digits });
-  const zero = new Intl.NumberFormat(locale, { style: "percent" }).format(0);
-  return share > 0 && out === zero ? format({ maximumSignificantDigits: 1 }) : out;
+  const format = (o: Intl.NumberFormatOptions, v = share) =>
+    new Intl.NumberFormat(locale, { style: "percent", ...o }).format(v);
+  let digits = share < 0.1 ? 1 : 0;
+  let out = format({ maximumFractionDigits: digits });
+  if (share > 0 && out === format({}, 0)) {
+    return format({ maximumSignificantDigits: 1 });
+  }
+  const whole = format({}, 1);
+  // 20 digits tell the largest double below 1 from it, so the loop ends.
+  while (share < 1 && out === whole && digits < 20) {
+    digits += 1;
+    out = format({ maximumFractionDigits: digits });
+  }
+  return out;
+}
+
+// No copy keeps an id, so the page holds each id once, on the table's node.
+function copy(node: Node): Node {
+  const out = node.cloneNode(true);
+  if (out instanceof Element) {
+    out.removeAttribute("id");
+    for (const el of out.querySelectorAll("[id]")) {
+      el.removeAttribute("id");
+    }
+  }
+  return out;
 }
 
 function words(el: Element): string {
@@ -194,8 +215,8 @@ export function enhanceShareBar(share: HTMLElement, options: ShareBarOptions = {
             written.set(chip, [...attrs.keys()]);
             const swatch = document.createElement("span");
             swatch.className = "cp-swatch";
-            const label = [...(s.link ?? s.label).childNodes].map((n) => n.cloneNode(true));
-            chip.replaceChildren(swatch, ...label, " ", s.count.cloneNode(true));
+            const label = [...(s.link ?? s.label).childNodes].map(copy);
+            chip.replaceChildren(swatch, ...label, " ", copy(s.count));
             if (total > 0) {
               const hidden = document.createElement("span");
               hidden.className = "cp-visually-hidden";
