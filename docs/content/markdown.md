@@ -45,7 +45,7 @@ A `headingLevel` or `maxBytes` out of range throws a `RangeError`, and a `base` 
 | --- | --- |
 | paragraph, heading, blockquote, rule, line break | `p`, `h1` to `h6`, `blockquote`, `hr`, `br` |
 | emphasis, strong, strike, inline code | `em`, `strong`, `del`, `code` |
-| list, task | `ul`, or `ol` with `start`. Once its numbers reach 10, an `ol` also gets the style property `--cp-marker-digits`, the digit count of its widest number, which `.cp-prose` widens the marker gutter by. A task's box is a disabled `input type="checkbox"` named "Task item" |
+| list, task | `ul`, or `ol` with `start`. Once its numbers reach 10, an `ol` also gets `data-cp-digits`, the digit count of its widest number, which `.cp-prose` widens the marker gutter by. A hand-written `ol` can carry it too. A task's box is a disabled `input type="checkbox"` named "Task item" |
 | table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"`. Every body row has the header's cell count, padded with empty cells or cut |
 | link, bare URL, email | `a` |
 | image | `a`, or `img` in `"load"` mode |
