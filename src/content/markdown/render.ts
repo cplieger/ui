@@ -159,14 +159,26 @@ function place(el: ChildNode, hook: () => Node | undefined): Node {
   return result;
 }
 
-/** Sets an `ol`'s `--cp-marker-digits` to its widest number's digit count,
+/** Sets an `ol`'s `data-cp-digits` to its widest number's digit count,
  *  which `.cp-prose` widens the marker gutter by. Runs as items arrive, so a
  *  streamed list widens when it reaches 10 or 100. */
 function fitMarkers(ol: Element): void {
   const start = Number(ol.getAttribute("start") ?? "1");
   const digits = String(start + Math.max(ol.children.length - 1, 0)).length;
-  if (digits > 1 && isHTMLElement(ol)) {
-    ol.style.setProperty("--cp-marker-digits", String(digits));
+  if (digits > 1) {
+    ol.setAttribute("data-cp-digits", String(digits));
+  }
+}
+
+/** Running text this long, about 12em, wraps in a narrow column. */
+const PROSE_CELL = 24;
+
+/** Marks a cell of running text `data-cp-wrap`, which `.cp-prose` keeps at
+ *  a readable width once the table is wider than its box and scrolls. */
+function markProse(cell: Element): void {
+  const text = cell.textContent.trim();
+  if (text.length >= PROSE_CELL && /\s/.test(text)) {
+    cell.setAttribute("data-cp-wrap", "");
   }
 }
 
@@ -667,6 +679,9 @@ export function domSink(
       }
       case "table-row":
         closeRow(frame);
+        return node;
+      case "table-cell":
+        markProse(frame.into);
         return node;
       case "emphasis":
       case "strong":

@@ -53,6 +53,8 @@ describe("the element vocabulary", () => {
     ["- a\n- b", "<ul><li>a</li><li>b</li></ul>"],
     ["1. a\n2. b", "<ol><li>a</li><li>b</li></ol>"],
     ["3. a\n4. b", '<ol start="3"><li>a</li><li>b</li></ol>'],
+    ["9. a\n1. b", '<ol start="9" data-cp-digits="2"><li>a</li><li>b</li></ol>'],
+    ["98. a\n1. b\n1. c", '<ol start="98" data-cp-digits="3"><li>a</li><li>b</li><li>c</li></ol>'],
     ["$x^2$", '<p><code data-math="inline">x^2</code></p>'],
     ["$$\nx^2\n$$\n", '<p><code data-math="block">x^2\n</code></p>'],
     ["<b>x</b> &amp; <script>", "<p>&lt;b&gt;x&lt;/b&gt; &amp; &lt;script&gt;</p>"],
@@ -77,6 +79,14 @@ describe("the element vocabulary", () => {
       "aria-label": "Task item",
     });
     expect(el.querySelector("li")?.textContent).toBe(" done");
+  });
+
+  it("marks a cell of running text data-cp-wrap and leaves short cells alone", () => {
+    const el = render(
+      "| a | b | c |\n|-|-|-|\n| x | a note long enough to wrap | a-long-token-with-no-space-in-it |",
+    );
+    const cells = [...el.querySelectorAll("td")];
+    expect(cells.map((c) => c.hasAttribute("data-cp-wrap"))).toEqual([false, true, false]);
   });
 
   it("puts a table in its region, header cells in thead, alignment as data-align", () => {

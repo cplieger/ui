@@ -45,8 +45,8 @@ A `headingLevel` or `maxBytes` out of range throws a `RangeError`, and a `base` 
 | --- | --- |
 | paragraph, heading, blockquote, rule, line break | `p`, `h1` to `h6`, `blockquote`, `hr`, `br` |
 | emphasis, strong, strike, inline code | `em`, `strong`, `del`, `code` |
-| list, task | `ul`, or `ol` with `start`. Once its numbers reach 10, an `ol` also gets the style property `--cp-marker-digits`, the digit count of its widest number, which `.cp-prose` widens the marker gutter by. A task's box is a disabled `input type="checkbox"` named "Task item" |
-| table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"`. Every body row has the header's cell count, padded with empty cells or cut |
+| list, task | `ul`, or `ol` with `start`. Once its numbers reach 10, an `ol` also gets `data-cp-digits`, the digit count of its widest number, which `.cp-prose` widens the marker gutter by. A hand-written `ol` can carry it too. A task's box is a disabled `input type="checkbox"` named "Task item" |
+| table | `div.cp-table-scroll > table`, each cell's alignment in `data-align="start"`, `"center"` or `"end"`. Every body row has the header's cell count, padded with empty cells or cut. A cell of running text carries `data-cp-wrap`, which keeps it at a readable width once the table is wider than its box and scrolls |
 | link, bare URL, email | `a` |
 | image | `a`, or `img` in `"load"` mode |
 | equation | `code` with `data-math="inline"` or `"block"`, the TeX as its text |
