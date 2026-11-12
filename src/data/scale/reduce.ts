@@ -102,6 +102,21 @@ export function lowerBound(xs: ArrayLike<number>, v: number): number {
   return lo;
 }
 
+/** The first index whose `xs` value is above `v`; `xs.length` when none is. */
+export function upperBound(xs: ArrayLike<number>, v: number): number {
+  let lo = 0;
+  let hi = xs.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if ((xs[mid] ?? v) <= v) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
 /** The index of the `xs` value nearest `v`, the earlier on a tie; -1 when `xs` is empty. */
 export function nearest(xs: ArrayLike<number>, v: number): number {
   if (xs.length === 0) {

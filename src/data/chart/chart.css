@@ -1,0 +1,204 @@
+/* A chart (@cplieger/ui/chart): a figure whose caption row holds the title
+ * and the app's toolbar, the summary under them, the legend row, and the
+ * plot, an SVG drawn left to right in every script. Its colours are role
+ * tokens and series slots; nothing in it moves. */
+
+/* Registered, so script reads each length back in px. */
+@property --cp-chart-axis-gutter {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-chart-label-gutter {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-chart-row {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0;
+}
+
+/* Untyped, so its light-dark() resolves on the plot, in the plot's colour
+ * scheme, rather than as a colour where it is set. */
+@property --cp-chart-surface {
+  syntax: "*";
+  inherits: true;
+  initial-value: transparent;
+}
+
+/* The surface a chart sits on, which only forced colours paint behind the
+ * plot. An app's own raised container sets it to the raised token. */
+:root {
+  --cp-chart-surface: var(--cp-surface-page);
+}
+
+.cp-list-detail > .cp-detail,
+.cp-gate > .cp-panel {
+  --cp-chart-surface: var(--cp-surface-raised);
+}
+
+.cp-chart {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  margin: 0;
+}
+
+.cp-chart > figcaption {
+  grid-column: 1;
+  font-size: var(--cp-text-md);
+  font-weight: var(--cp-weight-heading);
+  text-wrap: balance;
+}
+
+/* Once built, the caption spans the row so its summary runs under the
+ * toolbar too, at the row's full width. */
+.cp-chart > figcaption:has(> [data-part="summary"]) {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-template-columns: subgrid;
+  grid-row: 1 / span 2;
+  grid-column: 1 / -1;
+}
+
+.cp-chart > figcaption > [data-part="title"] {
+  grid-column: 1;
+}
+
+.cp-chart > figcaption > [data-part="summary"] {
+  grid-column: 1 / -1;
+  max-inline-size: 68ch;
+  margin: 0;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-body);
+}
+
+.cp-chart > .cp-toolbar {
+  grid-row: 1;
+  grid-column: 2;
+  align-self: center;
+  justify-content: end;
+}
+
+.cp-chart > :not(figcaption, .cp-toolbar) {
+  grid-column: 1 / -1;
+  min-inline-size: 0;
+}
+
+/* The legend row is a .cp-cluster, whose display would beat [hidden]. */
+.cp-chart > [hidden] {
+  display: none;
+}
+
+/* The legend row: the x it reads, a chip per series, a stack's total. The
+ * script writes each slot's width, so no selection resizes the row. */
+.cp-chart > [data-part="legend"] {
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-chart > [data-part="legend"] [data-part="at"] {
+  display: inline-block;
+}
+
+.cp-chart > [data-part="legend"] [data-part="value"] {
+  display: inline-block;
+  text-align: end;
+}
+
+.cp-chart > [data-part="legend"] .cp-chip > [data-part="value"] {
+  font-weight: var(--cp-weight-body);
+}
+
+.cp-chart > [data-part="plot"] {
+  --cp-chart-height: 240px;
+  --cp-chart-row: max(24px, 1.75em);
+
+  border: 1px solid transparent;
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+  touch-action: pan-y pinch-zoom;
+}
+
+@container (width < 30rem) {
+  .cp-chart > [data-part="plot"] {
+    --cp-chart-height: 200px;
+  }
+}
+
+.cp-chart [data-part="plot"] [data-mono] {
+  font-family: var(--cp-font-mono);
+  font-size: 0.92em;
+}
+
+.cp-chart svg {
+  display: block;
+  overflow: visible;
+  direction: ltr;
+}
+
+.cp-chart svg text {
+  dominant-baseline: central;
+  fill: var(--cp-ink-muted);
+  unicode-bidi: isolate;
+}
+
+.cp-chart svg [data-part="grid"],
+.cp-chart svg [data-part="rows"],
+.cp-chart svg [data-part="ticks"] {
+  fill: none;
+  stroke: var(--cp-line);
+  stroke-width: 1px;
+}
+
+.cp-chart svg [data-part="zero"] {
+  fill: none;
+  stroke: var(--cp-border-strong);
+  stroke-width: 1px;
+}
+
+.cp-chart svg :is([data-part="rect"], [data-part="dot"]) path {
+  fill: var(--cp-tone-9);
+}
+
+.cp-chart svg [data-part="line"] > path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cp-chart svg [data-part="rule"] {
+  fill: none;
+  stroke: var(--cp-ink);
+  stroke-width: 2px;
+}
+
+.cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {
+  fill: var(--cp-ink);
+}
+
+/* Forced colours leave an inline SVG's illustration alone, so the plot keeps
+ * its theme drawing on its surface, inside the CanvasText border the forced
+ * transparent border becomes. Chromium resolves light-dark() by the page's
+ * own color-scheme even while it reports "light dark", so the plot names
+ * both, and its tokens take the contrast theme's side whatever data-theme says. */
+@media (forced-colors: active) {
+  .cp-chart svg {
+    color-scheme: light dark;
+    forced-color-adjust: none;
+    background: var(--cp-chart-surface);
+  }
+
+  .cp-chart > [data-part="legend"] .cp-swatch {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}

@@ -39,15 +39,13 @@ const EDGES = [
 const DEFAULT_MAX = 3 * DAY;
 const LONGEST = 90 * DAY;
 
-/** The duration ladder's bin edges, in milliseconds, from 0 up to its first
- *  edge at or above `maxMs`, the longest delay the data can hold (not a
- *  setting that may have changed since older data was written): 0, 1_000,
- *  2_000, 5_000, … 86_400_000, 259_200_000 (3 days, the default), then
- *  604_800_000, 1_209_600_000, 2_592_000_000 and 7_776_000_000 (7, 14, 30
- *  and 90 days). Each bin is [edge_i, edge_i+1) and the last is closed,
- *  [edge_n-1, edge_n], so every delay from 0 to the last edge falls in
- *  exactly one bin. Throws a `RangeError` unless `maxMs` is finite, above 0
- *  and at most 90 days. */
+/** The duration ladder's bin edges in ms, from 0 to its first edge at or
+ *  above `maxMs`, the longest delay the data can hold (not a setting that
+ *  may have dropped since older data was written): 0, 1_000, 2_000, 5_000,
+ *  … 259_200_000 (3 days, the default), then 7, 14, 30 and 90 days. Each
+ *  bin is [edge_i, edge_i+1), the last closed, so every delay from 0 to the
+ *  last edge falls in exactly one. Throws a `RangeError` unless `maxMs` is
+ *  finite, above 0 and at most 90 days. */
 export function durationEdges(maxMs: number = DEFAULT_MAX): readonly number[] {
   if (!Number.isFinite(maxMs) || maxMs <= 0 || maxMs > LONGEST) {
     throw new RangeError(
