@@ -1,8 +1,8 @@
 # List and detail
 
-A list with the chosen entry's detail beside it. Once the box holding both is 52rem wide, the detail docks beside the list. Below that width, the same detail opens in a modal dialog, which rises from the bottom on a phone.
+A list with the chosen entry's detail beside it. Once the box holding both is 52rem wide, the detail docks beside the list. Below that width, the same detail opens as a full-height sheet at the inline end, across the whole window on a phone. The rest of the page is inert while the sheet is open.
 
-The app's route decides when the detail shows. A link on each entry changes the route, and the route calls `open()` or `close()`. Back then closes the detail. Close goes back, and so does Escape while the detail is in its dialog.
+The app's route decides when the detail shows. A link on each entry changes the route, and the route calls `open()` or `close()`. Back then closes the detail. Close goes back, and so do Escape and a press outside while the detail is in its sheet.
 
 ## Markup
 
@@ -61,14 +61,14 @@ function route(entry: string | null): void {
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `signal` | none | Aborting it closes the detail and removes the dialog and the listeners. |
+| `signal` | none | Aborting it closes the detail and removes the sheet and the listeners. |
 | `dockAt` | `52` | The box's width, in rem, from which the detail docks. |
-| `onDismiss` | `close()` | Runs on Close, and on Escape while the detail is in its dialog. Go back here, and let the route close the detail. |
+| `onDismiss` | `close()` | Runs on Close, and on Escape, a press outside, or the browser closing the sheet itself while the detail is in its sheet. Go back here, and let the route close the detail. |
 
 - `open()` shows the detail and focuses its heading. Calling it again while the detail shows moves focus back to the heading. `open({ still: true })` shows it without its entrance, for a page that loads with an entry open.
-- `close()` hides the detail and returns focus to the element that had it before `open()`, usually the entry's link.
-- An open detail moves between the dock and the dialog when the box crosses the docking width, and keeps focus inside it.
+- `close()` hides the detail and returns focus to the element that had it before `open()`, usually the entry's link. The sheet slides out with the detail still in it; calling `open()` during that exit keeps it open.
+- An open detail moves between the dock and the sheet when the box crosses the docking width, without its entrance, and keeps focus inside it.
 
 The script measures the box, not the window, so the frame works in any region that gives it room. Mark the open entry's link with `aria-current="true"`, so a screen reader hears which entry the detail shows and the list fills its row.
 
-While the detail is in its dialog, the rest of the page is inert. [announce](../feedback/announce.md) speaks from inside the dialog then.
+The sheet is a `.cp-dialog` with `data-variant="sheet"`, the language's sheet, and the detail fills its height, so its body scrolls inside it. [announce](../feedback/announce.md) speaks from inside the sheet while it is open.

@@ -1,7 +1,7 @@
 /* List and detail: a list with the chosen entry's detail docked beside it
- * once the box is wide enough, and the same detail in a modal dialog below
- * that. enhanceListDetail (@cplieger/ui/list-detail) moves the detail; the
- * app's route opens and closes it, so Back closes it. */
+ * once the box is wide enough, and the same detail in a full-height sheet
+ * below that. enhanceListDetail (@cplieger/ui/list-detail) moves the detail;
+ * the app's route opens and closes it, so Back closes it. */
 .cp-list-detail {
   --cp-detail-w: minmax(18rem, 24rem);
 
@@ -62,6 +62,12 @@
   border-radius: var(--cp-radius-surface);
   background: var(--cp-surface-raised);
   animation: cp-detail-in var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+/* In the sheet the detail is as tall as the sheet, so its body scrolls
+ * inside it and a feed's foot stays at the sheet's end. */
+.cp-detail-dialog > .cp-detail {
+  block-size: 100%;
 }
 
 .cp-detail-body {
