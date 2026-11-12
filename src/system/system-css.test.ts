@@ -2401,23 +2401,26 @@ describe("css/system.css", () => {
     expect(shown()).toEqual([true, false, false]);
   });
 
-  it("gives a flush table panel 24rem in a host that shrinks to fit", () => {
-    theme("light");
-    const panel =
-      '<div class="cp-panel" data-flush><table class="cp-table"><tbody><tr><td>A title</td></tr></tbody></table></div>';
-    const el = build(
-      `<div popover="manual">${panel}</div><div style="display: flex; align-items: flex-start">${panel}</div>`,
-    );
-    (el.querySelector("[popover]") as HTMLElement).showPopover();
-    const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const widths = [...el.querySelectorAll(".cp-panel")].map(
-      (p) => p.getBoundingClientRect().width,
-    );
-    expect(widths).toHaveLength(2);
-    for (const w of widths) {
-      expect(w).toBeGreaterThanOrEqual(24 * rem);
-    }
-  });
+  it.each([1280, 360, 320])(
+    "gives a flush table panel 24rem, or the window less 2rem, in a host that shrinks to fit, at a %ipx window",
+    async (windowWidth) => {
+      theme("light");
+      await page.viewport(windowWidth, 700);
+      const panel =
+        '<div class="cp-panel" data-flush><table class="cp-table"><tbody><tr><td>A title</td></tr></tbody></table></div>';
+      const el = build(
+        `<div popover="manual">${panel}</div><div style="display: flex; align-items: flex-start">${panel}</div>`,
+      );
+      (el.querySelector("[popover]") as HTMLElement).showPopover();
+      const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const boxes = [...el.querySelectorAll(".cp-panel")].map((p) => p.getBoundingClientRect());
+      expect(boxes).toHaveLength(2);
+      for (const box of boxes) {
+        expect(box.width).toBeGreaterThanOrEqual(Math.min(24 * rem, windowWidth - 2 * rem));
+        expect(box.right).toBeLessThanOrEqual(windowWidth);
+      }
+    },
+  );
 
   it("drops the rail under 60rem of viewport", async () => {
     theme("light");
@@ -3578,15 +3581,23 @@ describe("css/system.css data tables", () => {
     theme("light");
     const el = build(
       `<div class="cp-history"><h3>Today</h3><ol>${historyEvent("neutral")}</ol>` +
-        `<h3>Last week</h3><ol>${historyEvent("neutral")}</ol></div>`,
+        `<h3>Last week</h3><ol>${historyEvent("neutral")}</ol>` +
+        `<h1>Last month</h1><ol>${historyEvent("neutral")}</ol></div>`,
     );
-    const [first, second] = [...el.querySelectorAll("h3")].map((h) => getComputedStyle(h));
+    const [first, second, third] = [...el.querySelectorAll("h1, h3")].map((h) =>
+      getComputedStyle(h),
+    );
     expect([first?.color, first?.fontWeight]).toEqual([resolve("var(--cp-ink-muted)"), "600"]);
     expect(first?.fontSize).toBe(
       getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
     );
     expect([first?.marginTop, first?.marginBottom]).toEqual(["0px", "8px"]);
     expect(second?.marginTop).toBe("16px");
+    expect([third?.color, third?.fontSize, third?.fontWeight]).toEqual([
+      first?.color,
+      first?.fontSize,
+      first?.fontWeight,
+    ]);
   });
 
   it("marks each event with a round in its tone, joined to the next by a line", () => {

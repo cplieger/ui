@@ -4576,10 +4576,11 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* The flush panel holding a table is the box its columns step aside by.
  * The queries stay unnamed, so a table outside one follows the region it
  * sits in, such as .cp-main. Containment sizes the panel as if empty, so a
- * shrink-to-fit host, such as a popover, gets 24rem from it. */
+ * shrink-to-fit host, such as a popover, gets 24rem from it, or the window
+ * less 2rem. */
 .cp-panel[data-flush]:has(> .cp-table) {
   container: cp-table / inline-size;
-  contain-intrinsic-inline-size: 24rem;
+  contain-intrinsic-inline-size: min(24rem, calc(100vw - 2rem));
 }
 
 @container (width < 64rem) {
