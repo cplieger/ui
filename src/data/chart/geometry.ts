@@ -7,7 +7,7 @@
 
 import { reduce, type Point } from "../scale/reduce.js";
 
-import type { DotRowModel, LineModel, RectModel } from "./model.js";
+import { drawnValue, type DotRowModel, type LineModel, type RectModel } from "./model.js";
 import type { Continuous } from "./scales.js";
 
 /** The px a device pixel grid is snapped to at `dpr`. */
@@ -106,10 +106,11 @@ export function groupEdges(
 
 /**
  * One path per series of `m`, every shown bucket's segment a rectangle,
- * stacked in series order from the baseline, or under "group" each its
- * sub-column from the baseline. A `null` counts as 0 and draws nothing.
- * Each segment over another gives up its bottom px as the gap, unless it is
- * under 3 px tall, so a stack's top stays at its total.
+ * stacked in series order from the baseline (under "share" each its share
+ * of the bucket), or under "group" each its sub-column from the baseline.
+ * A `null` counts as 0 and draws nothing. Each segment over another gives
+ * up its bottom px as the gap, unless it is under 3 px tall, so a stack's
+ * top stays at its total.
  */
 export function rectPaths(m: RectModel, f: Frame): string[] {
   const paths = m.series.map(() => "");
@@ -138,7 +139,7 @@ export function rectPaths(m: RectModel, f: Frame): string[] {
     let base = 0;
     let below = false;
     m.series.forEach((s, k) => {
-      const v = s.y[i] ?? 0;
+      const v = drawnValue(m, s, i);
       if (v <= 0) {
         return;
       }

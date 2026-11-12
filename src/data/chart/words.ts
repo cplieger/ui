@@ -4,7 +4,14 @@
  */
 
 type Kind =
-  "stackedColumn" | "groupedColumn" | "column" | "histogram" | "line" | "step" | "timeline";
+  | "stackedColumn"
+  | "groupedColumn"
+  | "shareColumn"
+  | "column"
+  | "histogram"
+  | "line"
+  | "step"
+  | "timeline";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -13,10 +20,10 @@ export interface ChartWords {
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
   /** The kind in the short description. Defaults "Stacked column chart",
-   *  "Grouped column chart", "Column chart", "Histogram", "Line chart", "Step
-   *  line", "Timeline". A rect on a log x is a histogram however it is
-   *  arranged; any other rect is a column chart, `stackedColumn` or
-   *  `groupedColumn` with two or more series. */
+   *  "Grouped column chart", "100% stacked column chart", "Column chart",
+   *  "Histogram", "Line chart", "Step line", "Timeline". A rect on a log x is
+   *  a histogram however it is arranged; any other rect is a column chart,
+   *  `stackedColumn`, `groupedColumn` or `shareColumn` with two or more series. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -97,6 +104,7 @@ const DEFAULTS: Words = {
   kind: {
     stackedColumn: "Stacked column chart",
     groupedColumn: "Grouped column chart",
+    shareColumn: "100% stacked column chart",
     column: "Column chart",
     histogram: "Histogram",
     line: "Line chart",

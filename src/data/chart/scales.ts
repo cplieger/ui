@@ -293,11 +293,30 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     throw new TypeError("renderChart: a rect's y always starts at zero");
   }
   const log = type === "log";
+  const share = spec.marks.some((m) => m.mark === "rect" && m.arrange === "share");
+  if (share && y.domain !== undefined) {
+    throw new TypeError("renderChart: a 100% stack's y runs 0 to 1, so it takes no domain");
+  }
   const passed = passedDomain(y.domain, "y", log);
   if (rects && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
     throw new RangeError("renderChart: a rect's y domain must hold 0");
   }
   const extent = yExtent(spec, log);
+  if (share) {
+    // Every bucket with a total reaches 1, so the axis is fixed as a passed
+    // domain is: a rule outside it is off the axis.
+    return {
+      type,
+      lo: 0,
+      hi: 1,
+      passed: true,
+      integer: false,
+      format: y.format ?? "percent",
+      reverse: false,
+      under: undefined,
+      drawnLo: 0,
+    };
+  }
   const integer = extent.integer;
   if (!log) {
     for (const m of spec.marks) {

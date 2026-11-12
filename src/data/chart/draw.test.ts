@@ -241,6 +241,39 @@ describe("the marks", () => {
     ]);
   });
 
+  it("stacks each 100% bucket to the top of the axis, and rings the bucket or a share", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, arrange: "share" }] }, 600);
+    const boxes = (p: Element | null | undefined) =>
+      [...(p?.getAttribute("d") ?? "").matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/g)].map((g) =>
+        g.slice(1).map(Number),
+      );
+    const [announce, path, direct] = series(d, "rect").map(boxes);
+    const top = d.lay.frame.yAt(1);
+    const base = d.lay.frame.yAt(0);
+    // Bucket 0: Announce 3, Path 2 and Direct 1 of 6, so a half, a third and a sixth.
+    const h = base - top;
+    expect(direct?.[0]?.[1]).toBeCloseTo(top, 1);
+    expect(announce?.[0]?.[1]).toBeCloseTo(base - h / 2, 1);
+    expect(path?.[0]?.[1]).toBeCloseTo(base - (5 / 6) * h, 1);
+    // Bucket 5: Path is null, so Announce 4 and Direct 1 fill it.
+    expect(announce?.[5]?.[1]).toBeCloseTo(base - (4 / 5) * h, 1);
+    expect(direct?.[5]?.[1]).toBeCloseTo(top, 1);
+    const nav = navigator(d.model, d.lay);
+    const ring = (part: number | undefined) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 0, part }, nav);
+      return boxes(d.svg.querySelector('[data-part="ring"]'));
+    };
+    const near = (v: number) => expect.closeTo(v, 1);
+    const [left = 0, , right = 0] = announce?.[0] ?? [];
+    expect(ring(undefined)).toEqual([
+      [near(left + 1), near(top + 1), near(right - 1), near(base - 1)],
+    ]);
+    expect(ring(1)).toEqual([
+      [near(left + 1), near(base - (5 / 6) * h + 1), near(right - 1), near(base - h / 2 - 1)],
+    ]);
+  });
+
   it("strokes each line 2 px in its slot", () => {
     const d = draw(stepLine);
     const paths = series(d, "line");

@@ -110,6 +110,46 @@ describe("the legend row of grouped columns", () => {
   });
 });
 
+describe("the legend row of columns stacked to 100%", () => {
+  const mark = postsByKind.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+  const m = model({ ...postsByKind, marks: [{ ...mark, arrange: "share" }] });
+  const rect = m.marks[0] as RectModel;
+
+  it("reads each series' share of the grand total and the total with its unit", () => {
+    const r = overall(m, words);
+    // 120, 98, 64 and 29 of 311.
+    expect(chips(r)?.map((c) => c[2])).toEqual(["39%", "32%", "21%", "9%"]);
+    expect(r?.total).toBe(`311${nb}posts`);
+  });
+
+  it("reads a bucket's shares and its absolute total, No data for a gap", () => {
+    const r = bucketReading(m, rect, 13, words);
+    // 5, 6, 3 and 1 of 15.
+    expect(chips(r)?.map((c) => c[2])).toEqual(["33%", "40%", "20%", "7%"]);
+    expect(r.total).toBe(`15${nb}posts`);
+    expect(bucketReading(m, rect, 23, words).entries[3]?.value).toBe("No data");
+  });
+
+  it("reads a bucket whose total is 0 by its values, since it has no shares", () => {
+    const zero = model({
+      ...postsByKind,
+      marks: [
+        {
+          ...mark,
+          arrange: "share",
+          series: mark.series.map((s) => ({
+            ...s,
+            y: Array.from(s.y, (v, i) => (i === 2 ? 0 : v)),
+          })),
+        },
+      ],
+    });
+    const r = bucketReading(zero, zero.marks[0] as RectModel, 2, words);
+    expect(chips(r)?.map((c) => c[2])).toEqual(["0", "0", "0", "0"]);
+    expect(r.total).toBe(`0${nb}posts`);
+  });
+});
+
 describe("the legend row of one series", () => {
   it("reads a column chart's count with its unit, and no total", () => {
     const m = model({

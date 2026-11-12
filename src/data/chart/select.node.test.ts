@@ -144,6 +144,30 @@ describe("rect keys", () => {
     expect(spoken(g.model, whole, words, false)).toBe(`${span(30, 45)}: Announce 2, Path No data.`);
   });
 
+  it("moves through a 100% stack's segments in series order and says shares and the total", () => {
+    const spec = stacked();
+    const [mark] = spec.marks;
+    const s = built({
+      ...spec,
+      marks: [{ ...(mark as Extract<Mark, { mark: "rect" }>), arrange: "share" }],
+    });
+    const whole: Selection = { kind: "rect", i: 0, part: undefined };
+    expect(press(s, whole, "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      { kind: "rect", i: 0, part: 0 },
+      { kind: "rect", i: 0, part: 1 },
+      undefined,
+    ]);
+    expect(spoken(s.model, whole, words, false)).toBe(
+      `${span(0, 15)}: Announce 75%, Path 25%. Total 4\u00A0posts.`,
+    );
+    expect(spoken(s.model, { kind: "rect", i: 1, part: 1 }, words, true)).toBe(
+      `${span(15, 30)}: Path 64%.`,
+    );
+    expect(spoken(s.model, { kind: "rect", i: 2, part: 1 }, words, true)).toBe(
+      `${span(30, 45)}: Path No data.`,
+    );
+  });
+
   it("says one segment for Up and Down, and the whole bucket again for Left and Right", () => {
     const path: Selection = { kind: "rect", i: 1, part: 1 };
     expect(spoken(b.model, path, words, true)).toBe(`${span(15, 30)}: Path 9.`);

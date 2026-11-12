@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { chartModel } from "./model.js";
+import { chartModel, drawnValue } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 
 const build = (spec: unknown) => chartModel(spec as ChartSpec, "en", "UTC");
@@ -117,10 +117,11 @@ describe("spec errors", () => {
     ["a mark that is not one of the four", { x: {}, marks: [{ mark: "area" }] }, TypeError],
     ["marks that are not an array", { x: {}, marks: "rect" }, TypeError],
     [
-      "an arrange that is not stack or group",
+      "an arrange that is not stack, group or share",
       { x: {}, marks: [rect([1], { arrange: "side" as "group" })] },
       TypeError,
     ],
+    ["a share of one series", { x: {}, marks: [rect([1], { arrange: "share" })] }, TypeError],
     [
       "a series with no name",
       { x: {}, marks: [line([1], { series: [{ y: [1] } as never] })] },
@@ -210,6 +211,22 @@ describe("the chart's kind", () => {
     ],
     ["one series of rects grouped", { x: {}, marks: [rect([1], { arrange: "group" })] }, "column"],
     [
+      "two series of rects stacked to 100%",
+      {
+        x: {},
+        marks: [
+          rect([1], {
+            arrange: "share",
+            series: [
+              { name: "a", y: [1] },
+              { name: "b", y: [2] },
+            ],
+          }),
+        ],
+      },
+      "shareColumn",
+    ],
+    [
       "two series of rects grouped on a log x",
       {
         x: { type: "log" },
@@ -256,5 +273,54 @@ describe("empty", () => {
     ["one line value", { x: {}, marks: [line([null, 0])] }, false],
   ])("%s: %s", (_, spec, empty) => {
     expect(build(spec).empty).toBe(empty);
+  });
+});
+
+describe("a rect stacked to 100%", () => {
+  const two = (a: (number | null)[], b: (number | null)[], more = {}) =>
+    rect(a, {
+      arrange: "share",
+      series: [
+        { name: "a", y: a },
+        { name: "b", y: b },
+      ],
+      ...more,
+    });
+
+  it("draws each value's share of its bucket, nothing where the total is 0", () => {
+    const m = build({ x: {}, marks: [two([1, 0, null], [3, 0, 2])] });
+    const r = m.marks[0];
+    if (r?.kind !== "rect") {
+      throw new Error("not a rect");
+    }
+    const [a, b] = r.series;
+    expect([0, 1, 2].map((i) => (a === undefined ? -1 : drawnValue(r, a, i)))).toEqual([
+      0.25, 0, 0,
+    ]);
+    expect([0, 1, 2].map((i) => (b === undefined ? -1 : drawnValue(r, b, i)))).toEqual([
+      0.75, 0, 1,
+    ]);
+  });
+
+  it("keeps the values, writing shares in percent and amounts as numbers", () => {
+    const m = build({ x: {}, marks: [two([1500], [500])] });
+    expect(m.marks[0]?.kind === "rect" ? m.marks[0].series[0]?.y : undefined).toEqual([1500]);
+    expect(m.yText(0.75)).toBe("75%");
+    expect(m.amountText(1500)).toBe("1,500");
+  });
+
+  it("writes shares in the app's y format when it passes one", () => {
+    const m = build({
+      x: {},
+      y: { format: { style: "percent", maximumFractionDigits: 1 } },
+      marks: [two([1], [2])],
+    });
+    expect(m.yText(1 / 3)).toBe("33.3%");
+  });
+
+  it("names the rule a share of one series breaks", () => {
+    expect(() => build({ x: {}, marks: [rect([1], { arrange: "share" })] })).toThrow(
+      'renderChart: marks[0].arrange "share" needs two or more series, since one reads 100% everywhere',
+    );
   });
 });

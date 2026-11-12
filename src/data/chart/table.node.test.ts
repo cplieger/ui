@@ -145,6 +145,38 @@ describe("the table of grouped columns", () => {
   });
 });
 
+describe("the table of columns stacked to 100%", () => {
+  const starts = per(3, (i) => START + i * 60 * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 180 * MIN] },
+      marks: [
+        {
+          mark: "rect",
+          arrange: "share",
+          x1: starts,
+          x2: starts.map((s) => s + 60 * MIN),
+          series: [
+            { name: "Announce", y: [1, 0, 1200] },
+            { name: "Path", y: [3, 0, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("lists each bucket's shares and its absolute total, a bucket of 0 by its values", () => {
+    expect(t.columns.map((c) => c.text)).toEqual(["Announce", "Path", "Total"]);
+    const at = (i: number) => starts[i] ?? 0;
+    expect(cells(t)).toEqual([
+      [`${iso(at(0))} to ${iso(at(1))}`, "25%", "75%", "4"],
+      [`${iso(at(1))} to ${iso(at(2))}`, "0", "0", "0"],
+      [`${iso(at(2))} to ${iso(at(2) + 60 * MIN)}`, "100%", "No data", "1,200"],
+    ]);
+  });
+});
+
 describe("the table of a histogram", () => {
   const edges = durationEdges();
   const t = tableModel(

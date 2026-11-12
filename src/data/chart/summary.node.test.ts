@@ -133,6 +133,35 @@ describe("the summary of grouped columns", () => {
   });
 });
 
+describe("the summary of columns stacked to 100%", () => {
+  const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const share: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "share" }] };
+
+  it("gives each series' share of the grand total and the busiest bucket's absolute total", () => {
+    // 145 and 101 of 246; bucket 13 holds 5 and 9.
+    expect(generatedSummary(model(share), words)).toBe(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 59%, Path 41%. ` +
+        `Busiest: ${span(starts[13] ?? 0, ends[13] ?? 0)}, 14${nb}posts.`,
+    );
+  });
+
+  it("writes its amounts as numbers whatever format its shares take", () => {
+    const tenths: ChartSpec = {
+      ...share,
+      y: { ...share.y, format: { style: "percent", maximumFractionDigits: 1 } },
+    };
+    expect(generatedSummary(model(tenths), words)).toContain(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 58.9%, Path 41.1%.`,
+    );
+  });
+
+  it("is a 100% stacked column chart with its series count", () => {
+    expect(shortDescription(model(share), words)).toBe(
+      `100% stacked column chart, 2 series, ${span(START, END)}`,
+    );
+  });
+});
+
 const edges = durationEdges();
 const reads = (
   series: Extract<Mark, { mark: "rect" }>["series"],

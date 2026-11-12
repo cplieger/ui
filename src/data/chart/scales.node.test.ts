@@ -192,6 +192,40 @@ describe("yScale", () => {
     expect(y).toMatchObject({ type: "linear", lo: 0, hi: 4, integer: true });
   });
 
+  describe("a 100% stack", () => {
+    const shared = (x1: number[], x2: number[], ...ys: number[][]): Mark => ({
+      ...(rect(x1, x2, ...ys) as Extract<Mark, { mark: "rect" }>),
+      arrange: "share",
+    });
+    const share = shared([0, 1], [1, 2], [1, 7], [3, 2]);
+
+    it("spans 0 to 1 as a passed domain, in percent unless y says another format", () => {
+      expect(continuous(yScale({ x: {}, marks: [share] }))).toMatchObject({
+        lo: 0,
+        hi: 1,
+        passed: true,
+        integer: false,
+        format: "percent",
+      });
+      expect(continuous(yScale({ x: {}, y: { format: "number" }, marks: [share] })).format).toBe(
+        "number",
+      );
+    });
+
+    it("leaves a rule above 1 off the axis, where a stack would stretch to hold it", () => {
+      const y = continuous(yScale({ x: {}, marks: [share, { mark: "rule", y: 2, label: "Cap" }] }));
+      expect(ruleAt(y, 2)).toEqual({ off: "high" });
+      expect(ruleAt(y, 0.5)).toEqual({ at: 0.5 });
+    });
+
+    it("refuses a domain and still refuses a negative value", () => {
+      expect(() => yScale({ x: {}, y: { domain: [0, 1] }, marks: [share] })).toThrow(
+        "renderChart: a 100% stack's y runs 0 to 1, so it takes no domain",
+      );
+      expect(() => yScale({ x: {}, marks: [shared([0], [1], [1], [-1])] })).toThrow(RangeError);
+    });
+  });
+
   it("spans a group's largest single value from zero, not its totals", () => {
     const grouped: Mark = {
       mark: "rect",

@@ -8,7 +8,14 @@
 import { noun, withNoun, type Unit } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
-import type { DotModel, LineModel, Model, RectModel, SeriesModel } from "./model.js";
+import {
+  bucketTotal,
+  type DotModel,
+  type LineModel,
+  type Model,
+  type RectModel,
+  type SeriesModel,
+} from "./model.js";
 import type { Words } from "./words.js";
 
 /** One legend entry: a series' chip with its value, or a bare value. */
@@ -113,6 +120,31 @@ export function lastSample(m: LineModel, s: SeriesModel): number {
  *  compares its series, and a total read from one misleads. */
 export const totalled = (m: RectModel): boolean => m.series.length > 1 && m.arrange !== "group";
 
+/** Series `s`'s value in bucket `i` as the readings and the table write it:
+ *  under "share" its share of the bucket's total, or its value when the
+ *  total is 0, which has no shares. */
+export function partText(
+  model: Model,
+  m: RectModel,
+  s: SeriesModel,
+  i: number,
+  words: Words,
+): string {
+  const v = s.y[i] ?? null;
+  if (v === null) {
+    return words.noData;
+  }
+  const total = m.arrange === "share" ? bucketTotal(m, i) : 0;
+  return total > 0 ? model.yText(v / total) : model.amountText(v);
+}
+
+// A rect's total: under "share" with its unit, since the shares beside it have none.
+function totalText(model: Model, m: RectModel, n: number): string {
+  return m.arrange === "share"
+    ? counted(model.amountText(n), n, model.spec.y?.unit, model)
+    : model.yText(n);
+}
+
 const dots = (m: DotModel) => m.rows.reduce((n, r) => n + r.to - r.from, 0);
 
 /** The legend row with no selection: a rect's series totals over the
@@ -124,10 +156,19 @@ export function overall(model: Model, words: Words): Reading | undefined {
     case undefined:
       return undefined;
     case "rect": {
-      const all = entries(model, m.series, (s) => sum(s, m.shown), words);
-      const total = totalled(m)
-        ? model.yText(m.series.reduce((n, s) => n + sum(s, m.shown), 0))
-        : undefined;
+      const grand = m.series.reduce((n, s) => n + sum(s, m.shown), 0);
+      const all =
+        m.arrange === "share"
+          ? m.series.map((s) => ({
+              slot: s.slot,
+              name: s.name,
+              value:
+                grand > 0
+                  ? model.yText(sum(s, m.shown) / grand)
+                  : model.amountText(sum(s, m.shown)),
+            }))
+          : entries(model, m.series, (s) => sum(s, m.shown), words);
+      const total = totalled(m) ? totalText(model, m, grand) : undefined;
       return { at: legendDomain(model, words), entries: all, total };
     }
     case "line": {
@@ -151,17 +192,19 @@ export function overall(model: Model, words: Words): Reading | undefined {
   }
 }
 
-/** Bucket `i` of `m`: its interval, each series' value and a stack's total,
- *  none for a group. */
+/** Bucket `i` of `m`: its interval, each series' value or share and a
+ *  stack's total, none for a group. */
 export function bucketReading(model: Model, m: RectModel, i: number, words: Words): Reading {
-  const total = totalled(m)
-    ? model.yText(m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0))
-    : undefined;
-  return {
-    at: bucketText(model, m, i, words),
-    entries: entries(model, m.series, (s) => s.y[i] ?? null, words),
-    total,
-  };
+  const total = totalled(m) ? totalText(model, m, bucketTotal(m, i)) : undefined;
+  const all =
+    m.series.length > 1
+      ? m.series.map((s) => ({
+          slot: s.slot,
+          name: s.name,
+          value: partText(model, m, s, i, words),
+        }))
+      : entries(model, m.series, (s) => s.y[i] ?? null, words);
+  return { at: bucketText(model, m, i, words), entries: all, total };
 }
 
 /** Sample `i` of `m`: its x and each series' value there. */

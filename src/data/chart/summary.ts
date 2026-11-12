@@ -6,7 +6,14 @@
 
 import { formatDuration, formatter } from "../scale/format.js";
 
-import type { DotModel, LineModel, Model, RectModel, SeriesModel } from "./model.js";
+import {
+  bucketTotal,
+  type DotModel,
+  type LineModel,
+  type Model,
+  type RectModel,
+  type SeriesModel,
+} from "./model.js";
 import { bucketText, counted, domainText, lastSample, primaryOf } from "./readout.js";
 import type { Words } from "./words.js";
 
@@ -25,21 +32,19 @@ function sizeText(model: Model, size: number | undefined, words: Words): string 
   return words.every(text);
 }
 
-const bucketTotal = (m: RectModel, i: number): number =>
-  m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0);
-
 const seriesTotal = (m: RectModel, s: SeriesModel): number =>
   m.shown.reduce((n, i) => n + (s.y[i] ?? 0), 0);
 
 function rectSummary(model: Model, m: RectModel, words: Words): string[] {
   const unit = model.spec.y?.unit;
   const total = m.shown.reduce((n, i) => n + bucketTotal(m, i), 0);
-  const all = counted(model.yText(total), total, unit, model);
+  const all = counted(model.amountText(total), total, unit, model);
   const range = domainText(model, words);
-  const parts =
-    m.series.length > 1
-      ? m.series.map((s) => `${s.name} ${model.yText(seriesTotal(m, s))}`).join(", ")
-      : "";
+  const part = (s: SeriesModel) =>
+    m.arrange === "share" && total > 0
+      ? model.yText(seriesTotal(m, s) / total)
+      : model.amountText(seriesTotal(m, s));
+  const parts = m.series.length > 1 ? m.series.map((s) => `${s.name} ${part(s)}`).join(", ") : "";
   if (model.kind === "histogram") {
     const out = [words.binSummary(all, range)];
     if (parts !== "") {
@@ -68,7 +73,7 @@ function rectSummary(model: Model, m: RectModel, words: Words): string[] {
       }
     }
     if (peak !== undefined) {
-      const n = counted(model.yText(peak.v), peak.v, unit, model);
+      const n = counted(model.amountText(peak.v), peak.v, unit, model);
       out.push(words.highest(peak.s.name, bucketText(model, m, peak.i, words), n));
     }
     return out;
@@ -82,7 +87,10 @@ function rectSummary(model: Model, m: RectModel, words: Words): string[] {
   if (best !== -1 && bucketTotal(m, best) > 0) {
     const n = bucketTotal(m, best);
     out.push(
-      words.busiest(bucketText(model, m, best, words), counted(model.yText(n), n, unit, model)),
+      words.busiest(
+        bucketText(model, m, best, words),
+        counted(model.amountText(n), n, unit, model),
+      ),
     );
   }
   return out;

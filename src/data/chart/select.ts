@@ -12,6 +12,7 @@ import type { Layout } from "./layout.js";
 import type { DotModel, LineModel, Model, RectModel } from "./model.js";
 import {
   bucketReading,
+  partText,
   postReading,
   primaryOf,
   rowReading,
@@ -449,7 +450,12 @@ export function spoken(model: Model, sel: Selection, words: Words, part: boolean
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
       const v = s.y[sel.i];
-      const value = v === null || v === undefined ? words.noData : model.yText(v);
+      const value =
+        m.kind === "rect"
+          ? partText(model, m, s, sel.i, words)
+          : v === null || v === undefined
+            ? words.noData
+            : model.yText(v);
       return words.segment(reading.at, s.name, value);
     }
     if (m.kind === "line" && m.series.every((one) => one.y[sel.i] === null)) {

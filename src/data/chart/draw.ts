@@ -20,7 +20,7 @@ import {
   tickPath,
 } from "./geometry.js";
 import type { Layout, Metrics, Text } from "./layout.js";
-import type { Model } from "./model.js";
+import { drawnValue, type Model } from "./model.js";
 import { primaryOf, type Reading, type Widths } from "./readout.js";
 import type { Navigator, Selection } from "./select.js";
 
@@ -226,7 +226,7 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
     let base = 0;
     let out = "";
     m.series.forEach((s, k) => {
-      const v = s.y[sel.i] ?? 0;
+      const v = drawnValue(m, s, sel.i);
       const lo = base;
       base += Math.max(v, 0);
       if (sel.part === k && v > 0) {

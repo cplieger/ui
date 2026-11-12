@@ -104,6 +104,34 @@ describe("rect geometry", () => {
     expect(d?.[0]?.bottom).toBe(149);
   });
 
+  it("stacks a 100% bucket's shares to the top, the gap between them, and leaves a total of 0 empty", () => {
+    const spec: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "rect",
+          arrange: "share",
+          x1: [0, 1, 2],
+          x2: [1, 2, 3],
+          series: [
+            { name: "a", y: [30, 0, 5] },
+            { name: "b", y: [10, 0, null] },
+          ],
+        },
+      ],
+    };
+    const m = model(spec);
+    // 200 px for the whole of each bucket: 3/4 and 1/4 of 40, then 5 of 5.
+    const [a, b] = rectPaths(rectOf(m), frame(m, 30, 200, 1)).map(boxes);
+    const heights = (list: typeof a) =>
+      list?.map(({ left, top, bottom }) => ({ left, top, bottom }));
+    expect(heights(a)).toEqual([
+      { left: 1, top: 50, bottom: 200 },
+      { left: 21, top: 0, bottom: 200 },
+    ]);
+    expect(heights(b)).toEqual([{ left: 1, top: 0, bottom: 49 }]);
+  });
+
   it("draws nothing for a null or a 0, which keeps the segments above in place", () => {
     const spec: ChartSpec = {
       x: {},

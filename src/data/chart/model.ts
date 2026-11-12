@@ -11,7 +11,14 @@ import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js"
 import type { ChartSpec, RectMark } from "./spec.js";
 
 type Kind =
-  "stackedColumn" | "groupedColumn" | "column" | "histogram" | "line" | "step" | "timeline";
+  | "stackedColumn"
+  | "groupedColumn"
+  | "shareColumn"
+  | "column"
+  | "histogram"
+  | "line"
+  | "step"
+  | "timeline";
 
 export interface SeriesModel {
   readonly name: string;
@@ -26,11 +33,27 @@ export interface RectModel {
   readonly x2: ArrayLike<number>;
   readonly open: boolean;
   /** "group" sets two or more series side by side in each bucket; one
-   *  series grouped is a plain column, so it reads "stack". */
-  readonly arrange: "stack" | "group";
+   *  series grouped is a plain column, so it reads "stack". "share" draws
+   *  each series' share of its bucket's total; `series` keeps the values. */
+  readonly arrange: "stack" | "group" | "share";
   readonly series: readonly SeriesModel[];
   /** The buckets drawn, read and listed: every one not wholly outside the domain. */
   readonly shown: readonly number[];
+}
+
+/** The sum of bucket `i`'s values, a `null` as 0. */
+export const bucketTotal = (m: RectModel, i: number): number =>
+  m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0);
+
+/** The height series `s` draws in bucket `i`, a `null` as 0: under "share"
+ *  its share of the bucket's total, 0 when the total is, else its value. */
+export function drawnValue(m: RectModel, s: SeriesModel, i: number): number {
+  const v = s.y[i] ?? 0;
+  if (m.arrange !== "share") {
+    return v;
+  }
+  const total = bucketTotal(m, i);
+  return total > 0 ? v / total : 0;
 }
 
 export interface LineModel {
@@ -85,6 +108,9 @@ export interface Model {
   readonly xSpan: (from: number, to: number) => readonly [string, string];
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
+  /** A rect's value or total as an amount: `yText`, or a plain number under
+   *  "share", whose `yText` writes shares. */
+  readonly amountText: (v: number) => string;
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
 }
@@ -215,10 +241,19 @@ function checkMark(mark: unknown, what: string): void {
       }
       optional(mark["open"], "boolean", `${what}.open`);
       const arrange = mark["arrange"];
-      if (arrange !== undefined && arrange !== "stack" && arrange !== "group") {
-        fail(`${what}.arrange must be "stack" or "group"`);
+      if (
+        arrange !== undefined &&
+        arrange !== "stack" &&
+        arrange !== "group" &&
+        arrange !== "share"
+      ) {
+        fail(`${what}.arrange must be "stack", "group" or "share"`);
       }
-      checkSeries(mark["series"], x1.length, what);
+      const list = mark["series"];
+      checkSeries(list, x1.length, what);
+      if (arrange === "share" && arrayLike(list) && list.length < 2) {
+        fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
+      }
       return;
     }
     case "line": {
@@ -345,7 +380,11 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       if (first.series.length < 2) {
         return "column";
       }
-      return first.arrange === "group" ? "groupedColumn" : "stackedColumn";
+      return first.arrange === "group"
+        ? "groupedColumn"
+        : first.arrange === "share"
+          ? "shareColumn"
+          : "stackedColumn";
     case "line":
       return first.step ? "step" : "line";
     case "dot":
@@ -386,7 +425,10 @@ export function chartModel(
           x1: m.x1,
           x2: m.x2,
           open: m.open === true,
-          arrange: m.arrange === "group" && m.series.length > 1 ? "group" : "stack",
+          arrange:
+            m.arrange === "share" || (m.arrange === "group" && m.series.length > 1)
+              ? m.arrange
+              : "stack",
           series: series(m.series),
           shown: shownBuckets(m, index, x),
         };
@@ -428,6 +470,8 @@ export function chartModel(
     x.type === "time"
       ? spanFormat(locale, timeZone, days)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
+  const yText = formatter(y.type === "band" ? undefined : y.format, locale);
+  const share = marks.some((m) => m.kind === "rect" && m.arrange === "share");
   return {
     spec,
     x,
@@ -437,7 +481,8 @@ export function chartModel(
     empty: !marks.some(hasData),
     xText,
     xSpan,
-    yText: formatter(y.type === "band" ? undefined : y.format, locale),
+    yText,
+    amountText: share ? formatter("number", locale) : yText,
     locale,
     timeZone,
   };

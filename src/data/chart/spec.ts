@@ -40,8 +40,11 @@ export interface RectMark {
   /** The last bucket is still filling. */
   readonly open?: boolean;
   /** How several series share a bucket: stacked from the baseline (the
-   *  default), or side by side in series order from the left. */
-  readonly arrange?: "stack" | "group";
+   *  default), side by side in series order from the left, or stacked to
+   *  100 % of each bucket's total. "share" needs two or more series; its y
+   *  runs 0 to 1, in "percent" unless y.format says another, and takes no
+   *  domain. */
+  readonly arrange?: "stack" | "group" | "share";
   readonly series: readonly Series[];
 }
 
