@@ -47,5 +47,5 @@ const once = shownOnce(keyElement, { dialog, signal: page.signal });
 enhanceCopy(copyButton, { source: keyElement, onCopy: once.copied, signal: page.signal });
 ```
 
-- A new key or link shows once, in the `.cp-code` of the panel or dialog that made it. Until `copied()` runs, Escape and a press outside shake `dialog` and keep it open, while Done or Cancel still close it. It needs [`installDialogs()`](../overlays/dialog.md).
+- A new key or link shows once, in the `.cp-code` of the panel or dialog that made it. Until `copied()` runs, Escape and a press outside shake `dialog` and keep it open, saying "Copy it first. It is not shown again." to a screen reader, while Done or Cancel still close it. It needs [`installDialogs()`](../overlays/dialog.md).
 - The text is cleared when the dialog closes and when the page is hidden, so it never comes back from the back-forward cache.

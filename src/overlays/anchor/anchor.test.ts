@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { anchorTo, installAnchors, showPopoverAt } from "./anchor.js";
+import { anchorOf, anchorTo, installAnchors, showPopoverAt } from "./anchor.js";
 
 let life = new AbortController();
 
@@ -100,5 +100,20 @@ describe("anchorTo and showPopoverAt", () => {
     anchorTo(pop, buttons[0] as HTMLButtonElement);
     expect(pop.hasAttribute("data-cp-at")).toBe(false);
     expect(pop.style.left).toBe("");
+  });
+
+  it("names the element a popover sits by: the opener pressed last, none at a point", () => {
+    installAnchors({ signal: life.signal });
+    const { pop, buttons } = menuFor("Row one", "Row two");
+    const [one, two] = buttons as [HTMLButtonElement, HTMLButtonElement];
+    expect(anchorOf(pop)).toBeNull();
+    one.click();
+    expect(anchorOf(pop)).toBe(one);
+    pop.hidePopover();
+    two.click();
+    expect(anchorOf(pop)).toBe(two);
+    pop.hidePopover();
+    showPopoverAt(pop, 10, 10);
+    expect(anchorOf(pop)).toBeNull();
   });
 });

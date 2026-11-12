@@ -82,10 +82,24 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
     }
     selection.observe(group, { subtree: true, attributeFilter: ["aria-selected"] });
   } else {
-    group.addEventListener(
+    // Listened on the document, after the page's own listeners: a change
+    // elsewhere may clear the choice, as a typed date clears a date range's
+    // quick range, and setting `checked` fires nothing.
+    group.ownerDocument.addEventListener(
       "change",
       () => {
         place(false);
+      },
+      listen,
+    );
+    // A reset fires before the controls reset
+    // (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset).
+    group.ownerDocument.addEventListener(
+      "reset",
+      () => {
+        setTimeout(() => {
+          place(false);
+        }, 0);
       },
       listen,
     );

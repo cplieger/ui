@@ -32,4 +32,5 @@ subs.files; // the files the field holds
 - `list`, a `<ul class="cp-files">`, gets one item per file taken: its glyph, its name and its size. `fileSize(bytes)` gives the same size words, such as "12 KB" or "4.2 MB".
 - Each choice is said through [announce](../feedback/announce.md), by default "2 files chosen", with a refused file's sentence after it, and `onChange` gets the files taken.
 - A field nobody filled is the form's to report on submit, since the forms pattern keeps submit enabled. That error clears with the next choice the field takes whole.
+- A reset of the field's form empties the list and clears the refusal.
 - `signal` removes the listeners.

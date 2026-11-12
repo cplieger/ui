@@ -1526,6 +1526,75 @@ describe("css/system.css", () => {
     expect(getComputedStyle(skip).opacity).toBe("1");
   });
 
+  it("draws a key as a cap in the body font, a combination as its keys' caps, and a menu item's key as words", () => {
+    theme("light");
+    const el = build(
+      '<p><kbd>?</kbd> <kbd><kbd>Ctrl</kbd> <kbd>K</kbd></kbd></p><div class="cp-menu"><button role="menuitem" type="button">Search<kbd>S</kbd></button>' +
+        '<button role="menuitem" type="button">Jump<kbd><kbd>Ctrl</kbd> <kbd>K</kbd></kbd></button></div>',
+    );
+    const [key, combo, ctrl] = [...el.querySelectorAll("p kbd")].map((k) => getComputedStyle(k));
+    const body = getComputedStyle(el).fontFamily;
+    for (const cap of [key, ctrl]) {
+      expect(cap?.fontFamily).toBe(body);
+      expect(cap?.fontSize).toBe("13px");
+      expect(cap?.borderBlockEndWidth).toBe("2px");
+      expect(cap?.borderInlineStartStyle).toBe("solid");
+    }
+    expect(combo?.borderInlineStartStyle).toBe("none");
+    expect(combo?.paddingInlineStart).toBe("0px");
+    for (const k of el.querySelectorAll(".cp-menu kbd")) {
+      expect(getComputedStyle(k).borderInlineStartStyle).toBe("none");
+      expect(getComputedStyle(k).paddingInlineStart).toBe("0px");
+    }
+    expect(el.querySelectorAll(".cp-menu kbd").length).toBe(4);
+  });
+
+  it("ends a palette's action with its keys as muted words, and fills the active action", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-palette"><ul role="listbox"><li role="option" aria-selected="true"><span>Go to the library</span><kbd>G L</kbd></li><li role="option" aria-selected="false"><span>Open settings</span><kbd>,</kbd></li>' +
+        '<li role="option" aria-selected="false"><span>Search</span><kbd><kbd>Ctrl</kbd> <kbd>F</kbd></kbd></li></ul></div>',
+    );
+    const [on, off, combo] = [...el.querySelectorAll("li")];
+    expect((combo as Element).querySelectorAll("kbd kbd").length).toBe(2);
+    for (const k of (combo as Element).querySelectorAll("kbd kbd")) {
+      expect(getComputedStyle(k).borderInlineStartStyle).toBe("none");
+      expect(getComputedStyle(k).paddingInlineStart).toBe("0px");
+    }
+    const keys = getComputedStyle((off as Element).querySelector("kbd") as Element);
+    expect(keys.borderInlineStartStyle).toBe("none");
+    expect(keys.paddingInlineStart).toBe("0px");
+    expect(keys.fontSize).toBe("13px");
+    const kbdBox = ((off as Element).querySelector("kbd") as Element).getBoundingClientRect();
+    expect(Math.round(kbdBox.right)).toBe(
+      Math.round((off as Element).getBoundingClientRect().right) - 12,
+    );
+    expect(getComputedStyle(on as Element).backgroundColor).not.toBe(
+      getComputedStyle(off as Element).backgroundColor,
+    );
+  });
+
+  it("sets shortcut groups side by side, each key across from what it does, and the foot under them all", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-keys" style="inline-size: 30rem"><section><h3>Anywhere</h3><dl><dt>Search</dt><dd><kbd>/</kbd></dd></dl></section><section><h3>Library</h3><dl><dt>Next row</dt><dd><kbd>J</kbd></dd></dl></section><p>Version 3.0.0</p></div>',
+    );
+    const [a, b] = [...el.querySelectorAll("section")].map((s) => s.getBoundingClientRect());
+    expect((b as DOMRect).top).toBe((a as DOMRect).top);
+    expect((b as DOMRect).left).toBeGreaterThan((a as DOMRect).right);
+    const dt = (el.querySelector("dt") as Element).getBoundingClientRect();
+    const dd = (el.querySelector("dd") as Element).getBoundingClientRect();
+    expect(Math.abs(dd.top - dt.top)).toBeLessThan(4);
+    expect(dd.left).toBeGreaterThan(dt.left);
+    const foot = el.querySelector("p") as Element;
+    const box = foot.getBoundingClientRect();
+    expect(box.top).toBeGreaterThan((a as DOMRect).bottom);
+    expect(Math.round(box.width)).toBe(480);
+    expect(
+      contrast(getComputedStyle(foot).color, getComputedStyle(root).backgroundColor),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("shares a short row between a fitted grid's items, and stacks them when the box is narrow", () => {
     theme("light");
     const el = build(
@@ -2609,6 +2678,20 @@ describe("css/system.css buttons and arrangements", () => {
     expect(split.getBoundingClientRect().width).toBeCloseTo(width, 0);
   });
 
+  it("keeps a split and a group as wide as their parts inside a form's grid", () => {
+    theme("light");
+    const el = build(
+      '<form class="cp-form" style="inline-size: 30rem"><div class="cp-split" role="group"><button class="cp-button" data-variant="primary" type="button">Grab</button><button class="cp-button" data-variant="primary" type="button" aria-label="More"><span class="cp-icon"></span></button></div><div class="cp-group" role="group"><button class="cp-button" type="button">A</button><button class="cp-button" type="button">B</button></div></form>',
+    );
+    for (const joined of el.querySelectorAll(".cp-split, .cp-group")) {
+      const parts = [...joined.children].reduce(
+        (sum, b) => sum + b.getBoundingClientRect().width,
+        0,
+      );
+      expect(joined.getBoundingClientRect().width).toBeCloseTo(parts, 0);
+    }
+  });
+
   it("joins a group's buttons with one line and rounds only its outer corners", () => {
     theme("light");
     const el = build(
@@ -2742,6 +2825,143 @@ describe("css/system.css overlays", () => {
     expect(getComputedStyle(radio as Element, "::after").visibility).toBe("hidden");
     (radio as HTMLElement).setAttribute("aria-checked", "true");
     expect(getComputedStyle(radio as Element, "::after").visibility).toBe("visible");
+    // The tick is the check icon at an icon's size, 18px.
+    expect(getComputedStyle(radio as Element, "::after").width).toBe("18px");
+  });
+
+  const pressedCheckItem = (): Element =>
+    build(
+      '<div class="cp-menu" role="menu"><button role="menuitemcheckbox" aria-checked="true" type="button" data-cp-pressed="">Posters</button></div>',
+    ).querySelector("button") as Element;
+
+  it("shrinks a pressed menu item's box as a checkbox's", () => {
+    theme("light");
+    const box = getComputedStyle(pressedCheckItem(), "::before");
+    // Firefox keeps the scale as a float32.
+    expect(Number(box.scale)).toBeCloseTo(0.88, 6);
+    expect(box.rotate).toBe("90deg");
+  });
+
+  it.skipIf(!emulates)(
+    "neither turns nor shrinks a menu item's box under reduced motion",
+    async () => {
+      theme("light");
+      const item = pressedCheckItem();
+      await media("prefers-reduced-motion", "reduce");
+      for (const a of document.getAnimations()) {
+        a.finish();
+      }
+      expect(getComputedStyle(item, "::before").scale).toBe("none");
+      expect(getComputedStyle(item, "::before").rotate).toBe("none");
+    },
+  );
+
+  it("stops a context menu zone selecting text under a finger, not under a mouse", () => {
+    theme("light");
+    const zone = host("", { "data-cp-context": "" });
+    zone.textContent = "Frieren";
+    root.dataset["pointer"] = "fine";
+    expect(getComputedStyle(zone).userSelect).not.toBe("none");
+    root.dataset["pointer"] = "coarse";
+    expect(getComputedStyle(zone).userSelect).toBe("none");
+  });
+
+  it("checks a select panel option with a menu check item's box", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-select-panel"><ul role="listbox"><li role="option" aria-selected="false">Watch next</li>' +
+        '<li role="option" aria-selected="true">Rewatch</li></ul></div>',
+    );
+    const [off, on] = [...el.querySelectorAll<HTMLElement>("li")] as [HTMLElement, HTMLElement];
+    expect(getComputedStyle(off, "::before").borderRadius).toBe("30%");
+    expect(getComputedStyle(off, "::after").clipPath).toBe("inset(0px 100% 0px 0px)");
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    expect(getComputedStyle(on, "::before").borderRadius).toBe("50%");
+    expect(getComputedStyle(on, "::before").backgroundColor).toBe(getComputedStyle(accent).color);
+  });
+
+  it("shrinks a select panel option's box while data-cp-pressed marks it", () => {
+    theme("light");
+    const [rest, pressed] = [
+      ...build(
+        '<div class="cp-select-panel"><ul role="listbox"><li role="option" aria-selected="false">Watch next</li>' +
+          '<li role="option" aria-selected="false" data-cp-pressed="">Rewatch</li></ul></div>',
+      ).querySelectorAll<HTMLElement>("li"),
+    ] as [HTMLElement, HTMLElement];
+    expect(getComputedStyle(rest, "::before").scale).toBe("none");
+    // Firefox keeps the scale as a float32.
+    expect(Number(getComputedStyle(pressed, "::before").scale)).toBeCloseTo(0.88, 6);
+  });
+
+  it.skipIf(!emulates)(
+    "holds a pressed select panel option's box still under reduced motion",
+    async () => {
+      theme("light");
+      const option = build(
+        '<div class="cp-select-panel"><ul role="listbox"><li role="option" aria-selected="false" data-cp-pressed="">Rewatch</li></ul></div>',
+      ).querySelector("li") as HTMLElement;
+      await media("prefers-reduced-motion", "reduce");
+      for (const a of document.getAnimations()) {
+        a.finish();
+      }
+      expect(getComputedStyle(option, "::before").scale).toBe("none");
+    },
+  );
+
+  it("lays out a small confirmation and a select panel only while open", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-popover" data-variant="confirm" popover><form><p>Remove it?</p></form></div>' +
+        '<div class="cp-popover cp-select-panel" popover><form><input></form></div>',
+    );
+    for (const pop of el.querySelectorAll<HTMLElement>("[popover]")) {
+      pop.style.transition = "none";
+      expect(getComputedStyle(pop).display).toBe("none");
+      pop.showPopover();
+      expect(getComputedStyle(pop).display).toBe("grid");
+      // The form only groups, so the popover's grid lays out its parts.
+      expect(getComputedStyle(pop.querySelector("form") as Element).display).toBe("contents");
+      pop.hidePopover();
+    }
+  });
+
+  it("shows a trigger's filled drawing in the accent while it is on, beside its solid count", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-button" type="button"><span class="cp-icon"></span><span class="cp-icon" data-part="on"></span>Filters<span class="cp-badge">2</span></button>',
+    );
+    const b = el.querySelector("button") as HTMLElement;
+    const [off, on] = [...b.querySelectorAll<HTMLElement>(".cp-icon")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const shown = () => [off, on].map((i) => getComputedStyle(i).display !== "none");
+    expect(shown()).toEqual([true, false]);
+    b.setAttribute("data-active", "");
+    expect(shown()).toEqual([false, true]);
+    const accent = host("");
+    accent.style.color = "var(--cp-accent)";
+    const ink = host("");
+    ink.style.color = "var(--cp-on-accent)";
+    expect(getComputedStyle(on).color).toBe(getComputedStyle(accent).color);
+    const badge = getComputedStyle(b.querySelector(".cp-badge") as Element);
+    expect(badge.backgroundColor).toBe(getComputedStyle(accent).color);
+    expect(badge.color).toBe(getComputedStyle(ink).color);
+  });
+
+  it("shows a pressed Show button's drawing marked on, which the trigger rule leaves to it", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-input-wrap"><input class="cp-input" type="text"><button class="cp-button" type="button" aria-pressed="true" aria-label="Show password">' +
+        '<span class="cp-icon"></span><span class="cp-icon" data-part="on"></span></button></div>',
+    );
+    const b = el.querySelector("button") as HTMLElement;
+    const shown = () =>
+      [...b.querySelectorAll(".cp-icon")].map((i) => getComputedStyle(i).display !== "none");
+    expect(shown()).toEqual([false, true]);
+    b.setAttribute("aria-pressed", "false");
+    expect(shown()).toEqual([true, false]);
   });
 
   it.skipIf(!emulates)(
@@ -2783,6 +3003,38 @@ describe("css/system.css overlays", () => {
     expect(confirm.getBoundingClientRect().width).toBeLessThanOrEqual(26 * 16 + 1);
     confirm.close();
   });
+
+  it("sets a confirmation's groups 12px under its words", () => {
+    theme("light");
+    const d = document.createElement("dialog");
+    d.className = "cp-dialog";
+    d.dataset["variant"] = "confirm";
+    d.innerHTML =
+      '<form><div class="cp-dialog-body"><span class="cp-icon"></span><div><h2>Delete?</h2><p>Choose which.</p>' +
+      '<fieldset class="cp-choices"><label class="cp-choice"><input type="checkbox"><span>3 files</span></label></fieldset></div></div></form>';
+    hosts.push(d as unknown as HTMLElement);
+    document.body.append(d);
+    d.showModal();
+    const words = (d.querySelector("p") as Element).getBoundingClientRect();
+    const groups = (d.querySelector("fieldset") as Element).getBoundingClientRect();
+    expect(Math.round(groups.top - words.bottom)).toBe(12);
+    d.close();
+  });
+
+  it.skipIf(!emulates)(
+    "dims a refusing dialog once in place of the shake under reduced motion",
+    async () => {
+      theme("light");
+      const d = document.createElement("dialog");
+      d.className = "cp-dialog";
+      d.setAttribute("data-cp-refused", "");
+      hosts.push(d as unknown as HTMLElement);
+      document.body.append(d);
+      expect(getComputedStyle(d).animationName).toBe("cp-refuse");
+      await media("prefers-reduced-motion", "reduce");
+      expect(getComputedStyle(d).animationName).toBe("cp-refuse-still");
+    },
+  );
 
   it("stops the page scrolling while a modal dialog is open", () => {
     theme("light");

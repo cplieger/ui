@@ -18,6 +18,7 @@ import { enhancePairs } from "@cplieger/ui/pairs";
 import { enhanceRules } from "@cplieger/ui/rules";
 import { enhanceReveal, enhanceSecret } from "@cplieger/ui/secret";
 import { enhancePanel } from "@cplieger/ui/panel";
+import { installRadioFocus } from "@cplieger/ui/radio-focus";
 import { enhanceStepper } from "@cplieger/ui/stepper";
 import { enhanceTextarea } from "@cplieger/ui/textarea";
 import { createTokenLimit, enhanceTokens, type TokenLimit } from "@cplieger/ui/tokens";
@@ -29,11 +30,13 @@ import "./legacy/gallery.js";
 import { markCards } from "./review.js";
 import "./wire/data-figures.js";
 import "./wire/nav-feedback.js";
+import "./wire/overlays.js";
 
 const all = <E extends Element>(selector: string): E[] => [
   ...document.querySelectorAll<E>(selector),
 ];
 
+installRadioFocus();
 installTooltips();
 
 // The gallery names a group's boxes by data-group and its select-all box by

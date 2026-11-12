@@ -267,6 +267,7 @@ describe("installPress targets", () => {
     ["a link", '<a href="#x">x</a>', "a"],
     ["a summary", "<details><summary>More</summary></details>", "summary"],
     ["a role=button", '<div role="button" tabindex="0">x</div>', "div"],
+    ["a listbox option", '<ul role="listbox"><li role="option">x</li></ul>', "li"],
   ])("presses %s", (_, markup, sel) => {
     install();
     const el = mount<HTMLElement>(markup, sel);
@@ -294,6 +295,11 @@ describe("installPress targets", () => {
       "the label of a disabled checkbox",
       '<label><input type="checkbox" disabled> A</label>',
       "label",
+    ],
+    [
+      "an aria-disabled listbox option",
+      '<ul role="listbox"><li role="option" aria-disabled="true">x</li></ul>',
+      "li",
     ],
     ["plain text", "<p>words</p>", "p"],
   ])("presses nothing for %s", (_, markup, sel) => {

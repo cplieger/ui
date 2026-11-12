@@ -1620,10 +1620,27 @@
   }
 }
 
-:where(.cp) :where(code, kbd, samp, pre) {
+:where(.cp) :where(code, samp, pre) {
   font-family: var(--cp-font-mono);
   font-size: 0.92em;
   font-variant-ligatures: none;
+}
+
+/* A key is a cap in the body font. A <kbd> of <kbd>s is one combination,
+ * whose keys are the caps. */
+:where(.cp) :where(kbd) {
+  padding: 0.0625rem 0.375rem;
+  border: var(--cp-line-w) solid var(--cp-border-strong);
+  border-block-end-width: 2px;
+  border-radius: 0.3125rem;
+  font-family: inherit;
+  font-size: var(--cp-text-xs);
+}
+
+:where(.cp) :where(kbd:has(kbd)) {
+  padding: 0;
+  border: 0;
+  font-size: inherit;
 }
 
 :where(.cp) :where(pre) {
@@ -2046,8 +2063,9 @@
   cursor: inherit;
 }
 
-/* An icon-only choice, such as a List, Grid or Compact view: square
- * segments, each named by its radio's aria-label. */
+/* An icon-only choice, such as a List, Grid or Table view: square
+ * segments, each named by its radio's aria-label or by visually hidden
+ * words in its label. */
 .cp-segmented[data-variant="icons"] > label {
   inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
   min-inline-size: 0;
@@ -6559,6 +6577,12 @@ a.cp-media:focus-visible > .cp-cover {
   color: var(--cp-ink-muted);
 }
 
+/* A confirmation that asks which groups its action takes, such as which
+ * files to delete, lists them under its words. */
+.cp-dialog[data-variant="confirm"] .cp-dialog-body .cp-choices {
+  margin-block-start: var(--cp-space-3);
+}
+
 /* A sheet: the whole height at the inline end, sliding in, and sliding out
  * as it came, over 280ms and speeding up. */
 .cp-dialog[data-variant="sheet"] {
@@ -6603,9 +6627,16 @@ a.cp-media:focus-visible > .cp-cover {
   max-block-size: none;
 }
 
-/* A dialog that keeps typed changes says no to a press outside. */
+/* A dialog that keeps typed changes says no to a press outside, and
+ * @cplieger/ui/dialog says why to a screen reader. */
 .cp-dialog[data-cp-refused] {
   animation: cp-refuse 420ms var(--cp-ease-out);
+}
+
+@keyframes cp-refuse-still {
+  40% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes cp-refuse {
@@ -6662,8 +6693,9 @@ a.cp-media:focus-visible > .cp-cover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* The refusal dims once in place of the shake, so it still shows. */
   .cp-dialog[data-cp-refused] {
-    animation: none;
+    animation-name: cp-refuse-still;
   }
 
   .cp-dialog {
@@ -6682,6 +6714,123 @@ a.cp-media:focus-visible > .cp-cover {
       opacity: 0;
       translate: 0 0;
     }
+  }
+}
+
+/* The keyboard shortcuts, in a dialog: groups by area, each a heading over
+ * a <dl> of what a key does and its <kbd> caps, as many columns as fit, and
+ * a last <p> across them all, such as the build version. */
+.cp-keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--cp-space-5);
+}
+
+.cp-keys dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  margin: var(--cp-space-2) 0 0;
+  font-size: var(--cp-text-sm);
+}
+
+.cp-keys dd {
+  margin: 0;
+}
+
+.cp-keys > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* A command palette (@cplieger/ui/palette): a .cp-dialog near the top of
+ * the window, its search field above a list of actions, each with its icon
+ * and, at its end, the keys that run it. On a phone it rises from the
+ * bottom edge as every dialog does. */
+@media (width >= 40rem) {
+  .cp-palette {
+    inline-size: min(36rem, calc(100vw - 2rem));
+    margin-block-start: 12vh;
+  }
+}
+
+.cp-palette-field {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* Focus stays in the field while the palette is open, so a ring would mark
+ * nothing; the caret and the active option show where typing and Enter go. */
+.cp-palette-field > input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  font-size: var(--cp-text-md);
+  outline: none;
+}
+
+.cp-palette [role="listbox"] {
+  display: grid;
+  max-block-size: 20rem;
+  margin: 0;
+  padding: var(--cp-space-1);
+  overflow: auto;
+  list-style: none;
+}
+
+.cp-palette [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  min-block-size: var(--cp-control-h);
+  padding-inline: var(--cp-space-3);
+  border-radius: var(--cp-radius-control);
+  cursor: pointer;
+}
+
+.cp-palette [role="option"] > .cp-icon {
+  color: var(--cp-ink-muted);
+}
+
+/* The keys that run an action are muted words at its end, as in a menu. */
+.cp-palette [role="option"] > kbd,
+.cp-palette [role="option"] > kbd kbd {
+  margin-inline-start: auto;
+  padding: 0;
+  border: 0;
+  color: var(--cp-ink-muted);
+  font: inherit;
+  font-size: var(--cp-text-xs);
+}
+
+.cp-palette [role="option"][aria-selected="true"] {
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+}
+
+.cp-palette [role="option"][aria-selected="true"] > .cp-icon {
+  color: inherit;
+}
+
+.cp-palette [data-part="empty"] {
+  margin: 0;
+  padding: var(--cp-space-6) var(--cp-space-4);
+  color: var(--cp-ink-muted);
+  text-align: center;
+}
+
+@media (forced-colors: active) {
+  .cp-palette [role="option"][aria-selected="true"] {
+    background: Highlight;
+    color: HighlightText;
   }
 }
 
@@ -6756,6 +6905,96 @@ a.cp-media:focus-visible > .cp-cover {
     .cp-popover:popover-open {
       scale: 1;
     }
+  }
+}
+
+/* A small confirmation (@cplieger/ui/popconfirm): a question and its two
+ * answers in a .cp-popover by the button that asked. Its form only groups
+ * them, so the popover lays out the question and the answers' row. */
+.cp-popover[data-variant="confirm"] {
+  display: grid;
+  gap: var(--cp-space-3);
+  inline-size: 16rem;
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.cp-popover[data-variant="confirm"]:not(:popover-open) {
+  display: none;
+}
+
+.cp-popover[data-variant="confirm"] > form {
+  display: contents;
+}
+
+.cp-popover[data-variant="confirm"] p {
+  margin: 0;
+  font-size: var(--cp-text-sm);
+}
+
+/* A select panel (@cplieger/ui/select-panel): a .cp-popover holding a field
+ * that filters a list of options to check, and the button that applies
+ * them. Its form only groups them, so the popover lays them out. An
+ * option's box is drawn with the menu's check items, in menu.css. */
+.cp-popover.cp-select-panel {
+  display: grid;
+  gap: var(--cp-space-2);
+  inline-size: 18rem;
+  padding: var(--cp-space-2);
+}
+
+.cp-popover.cp-select-panel:not(:popover-open) {
+  display: none;
+}
+
+.cp-select-panel > form {
+  display: contents;
+}
+
+.cp-select-panel [role="listbox"] {
+  display: grid;
+  max-block-size: 12rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.cp-select-panel [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-2);
+  border-radius: var(--cp-radius-control);
+  cursor: pointer;
+}
+
+:root[data-pointer="coarse"] .cp-select-panel [role="option"] {
+  min-block-size: var(--cp-control-h);
+}
+
+/* The option the arrow keys reached, which Enter checks; focus stays in
+ * the field. */
+.cp-select-panel [role="option"][data-cp-active] {
+  background: var(--cp-fill);
+}
+
+.cp-select-panel [role="option"][aria-disabled="true"] {
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+/* The words shown while no option matches the filter. */
+.cp-select-panel [data-part="empty"] {
+  margin: 0;
+  padding: var(--cp-space-1) var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-sm);
+}
+
+@media (forced-colors: active) {
+  .cp-select-panel [role="option"][data-cp-active] {
+    outline: var(--cp-line-w) solid Highlight;
   }
 }
 
@@ -6911,6 +7150,14 @@ a.cp-media:focus-visible > .cp-cover {
   min-block-size: var(--cp-control-h);
 }
 
+/* A zone enhanceContextMenu opens a menu in: under a finger a hold opens it,
+ * so the hold selects no text and raises no callout. A mouse still selects. */
+:root[data-pointer="coarse"] [data-cp-context] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .cp-menu [role^="menuitem"]:focus {
   outline: none;
   background: var(--cp-fill);
@@ -6929,8 +7176,11 @@ a.cp-media:focus-visible > .cp-cover {
   cursor: not-allowed;
 }
 
-.cp-menu [role^="menuitem"] > kbd {
+.cp-menu [role^="menuitem"] > kbd,
+.cp-menu [role^="menuitem"] > kbd kbd {
   margin-inline-start: auto;
+  padding: 0;
+  border: 0;
   color: var(--cp-ink-muted);
   font: inherit;
   font-size: var(--cp-text-xs);
@@ -6970,14 +7220,16 @@ a.cp-media:focus-visible > .cp-cover {
   font-weight: var(--cp-weight-medium);
 }
 
-/* A radio item's tick: a single choice does not move. */
+/* A radio item's tick, the check icon at an icon's size: a single choice
+ * does not move. */
 .cp-menu [role="menuitemradio"]::after {
   content: "";
-  inline-size: 1rem;
-  block-size: 1rem;
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
   margin-inline-start: auto;
   background: var(--cp-accent);
-  mask: url("../icons/marks/check.svg") center / contain no-repeat;
+  mask: url("../icons/svg/check.svg") center / contain no-repeat;
   visibility: hidden;
 }
 
@@ -6985,10 +7237,11 @@ a.cp-media:focus-visible > .cp-cover {
   visibility: visible;
 }
 
-/* A check item's box: the form checkbox's twirl at the row's size, a
- * rounded square with the field's edge that turns a quarter into an accent
- * circle, its mark counter-turned so it lands upright. */
-.cp-menu [role="menuitemcheckbox"]::before {
+/* A check item's box, and a select panel option's: the form checkbox's
+ * twirl at the row's size, a rounded square with the field's edge that
+ * turns a quarter into an accent circle. Its mark is the row's ::after, so
+ * it never turns. */
+:is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::before {
   --cp-mbox: 1.125rem;
 
   content: "";
@@ -7002,14 +7255,26 @@ a.cp-media:focus-visible > .cp-cover {
     border-radius var(--cp-dur-spring) var(--cp-ease-spring),
     rotate var(--cp-dur-spring) var(--cp-ease-spring),
     background-color 160ms var(--cp-ease-out),
-    box-shadow 160ms var(--cp-ease-out);
+    box-shadow 160ms var(--cp-ease-out),
+    scale var(--cp-mbox-press-dur, var(--cp-dur-spring))
+      var(--cp-mbox-press-ease, var(--cp-ease-bounce));
 }
 
-.cp-menu [role="menuitemcheckbox"] {
+/* A press goes down fast and comes back on the spring, as a checkbox's. */
+.cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before,
+.cp-select-panel [role="option"]:is(:active, [data-cp-pressed])::before {
+  --cp-mbox-press-dur: var(--cp-dur-press);
+  --cp-mbox-press-ease: var(--cp-ease-out);
+
+  scale: 0.88;
+}
+
+.cp-menu [role="menuitemcheckbox"],
+.cp-select-panel [role="option"] {
   position: relative;
 }
 
-.cp-menu [role="menuitemcheckbox"]::after {
+:is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::after {
   content: "";
   position: absolute;
   inset-inline-start: calc(var(--cp-space-2) + 0.125rem);
@@ -7021,20 +7286,28 @@ a.cp-media:focus-visible > .cp-cover {
   transition: clip-path 120ms var(--cp-ease-out);
 }
 
-.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before,
+.cp-select-panel [role="option"][aria-selected="true"]::before {
   border-radius: 50%;
   rotate: 90deg;
   background-color: var(--cp-accent);
   box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-accent);
 }
 
-.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::after {
+.cp-menu [role="menuitemcheckbox"][aria-checked="true"]::after,
+.cp-select-panel [role="option"][aria-selected="true"]::after {
   clip-path: inset(0 0 0 0);
   transition: clip-path 200ms var(--cp-ease-out) 80ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+  .cp-menu [role="menuitemcheckbox"][data-cp-pressed]::before,
+  .cp-select-panel [role="option"]:is(:active, [data-cp-pressed])::before {
+    scale: none;
+  }
+
+  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before,
+  .cp-select-panel [role="option"][aria-selected="true"]::before {
     rotate: none;
   }
 }
@@ -7044,17 +7317,18 @@ a.cp-media:focus-visible > .cp-cover {
     outline: var(--cp-line-w) solid Highlight;
   }
 
-  .cp-menu [role="menuitemcheckbox"]::before {
+  :is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::before {
     forced-color-adjust: none;
     border: var(--cp-line-w) solid CanvasText;
     background: Canvas;
   }
 
-  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before {
+  .cp-menu [role="menuitemcheckbox"][aria-checked="true"]::before,
+  .cp-select-panel [role="option"][aria-selected="true"]::before {
     background: Highlight;
   }
 
-  .cp-menu [role="menuitemcheckbox"]::after,
+  :is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::after,
   .cp-menu [role="menuitemradio"]::after {
     forced-color-adjust: none;
     background: HighlightText;
@@ -7138,6 +7412,24 @@ a.cp-media:focus-visible > .cp-cover {
   }
 }
 
+/* A button's filled drawing, the .cp-icon marked data-part="on" after its
+ * own, shows only by its owner's rule: a trigger the page marks data-active,
+ * whose filters or labels are on, shows it in the accent, as a pinned pin
+ * does; a toggle or a field's Show button shows it by aria-pressed. The hide
+ * stays at (0,2,0) so every owner's rule outranks it. */
+:where(.cp-button) > .cp-icon[data-part="on"],
+.cp-button[data-active] > .cp-icon:has(+ [data-part="on"]) {
+  display: none;
+}
+
+.cp-button[data-active] > .cp-icon[data-part="on"] {
+  display: inline-block;
+}
+
+.cp-button[data-active]:not(:disabled) > [data-part="on"] {
+  color: var(--cp-accent);
+}
+
 /* A button that confirms its own action in place (@cplieger/ui/confirm):
  * busy with the spinner-arc and its busy words, then a green fill, a check
  * that draws and its done words, then back at rest. The fill fades back
@@ -7204,9 +7496,12 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 
 /* A button group: buttons joined into one control, a thin line between them,
  * the outer corners rounded. It presses as one, because a part that scaled
- * alone would open a gap at its seam. */
+ * alone would open a gap at its seam. It stays as wide as its parts in a grid
+ * or a flex column too, such as a form, where it would otherwise stretch. */
 :is(.cp-group, .cp-split) {
   display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
   transition: transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
@@ -7479,6 +7774,27 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   .cp-toggle[data-cp-toggled] > .cp-icon {
     animation: none;
   }
+}
+
+/* A toolbar that keeps to one line (@cplieger/ui/overflow): the buttons
+ * that do not fit wait in its More menu. Until its script runs it wraps,
+ * as a .cp-toolbar does, so no button is ever out of reach. */
+.cp-overflow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-inline-size: 0;
+}
+
+.cp-overflow[data-cp-overflow] {
+  flex-wrap: nowrap;
+}
+
+/* Each button keeps its own width, so the fit counts what really fits and
+ * a tight bar never squeezes More. */
+.cp-overflow > * {
+  flex: none;
 }
 
 /* A filter chip: a pill button that turns one filter on or off by
