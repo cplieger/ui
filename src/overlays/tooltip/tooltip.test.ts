@@ -118,6 +118,42 @@ describe("installTooltips", () => {
     expect(radio.hasAttribute("aria-describedby")).toBe(false);
   });
 
+  it("does not describe a tipped label's radio whose aria-label repeats the tip", () => {
+    installTooltips({ signal: life.signal });
+    const label = document.createElement("label");
+    label.dataset["cpTip"] = "Grid";
+    label.innerHTML = '<input type="radio" name="view" aria-label="Grid">';
+    document.body.append(label);
+    const radio = label.querySelector("input") as HTMLInputElement;
+    radio.focus({ focusVisible: true });
+    expect(showing()).toBe(true);
+    expect(radio.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("follows a radio an arrow key reaches without :focus-visible, as Safari moves it", () => {
+    installTooltips({ signal: life.signal });
+    const radios = ["Shows each item as a row", "Shows each item as a tile"].map((words, i) => {
+      const label = document.createElement("label");
+      label.dataset["cpTip"] = words;
+      label.innerHTML = `<input type="radio" name="view"><span class="cp-visually-hidden">${["List", "Grid"][i] ?? ""}</span>`;
+      document.body.append(label);
+      return label.querySelector("input") as HTMLInputElement;
+    });
+    const [list, grid] = radios as [HTMLInputElement, HTMLInputElement];
+    list.focus({ focusVisible: true });
+    // WebKit's arrow handler focuses the next radio inside the keydown's task
+    // with no keyboard focus trigger.
+    list.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, composed: true }),
+    );
+    grid.focus({ focusVisible: false });
+    expect(grid.matches(":focus-visible")).toBe(false);
+    expect(showing()).toBe(true);
+    expect(tip().textContent).toBe("Shows each item as a tile");
+    expect(grid.getAttribute("aria-describedby")).toBe(tip().id);
+    expect(list.hasAttribute("aria-describedby")).toBe(false);
+  });
+
   it("toggles the tip with a tap on a control marked for it, and leaves other taps alone", () => {
     installTooltips({ signal: life.signal });
     const b = control("What this means", "Help");

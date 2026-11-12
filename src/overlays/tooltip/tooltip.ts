@@ -10,6 +10,7 @@
 
 import { addAnchorName, removeAnchorName } from "../anchor/anchor.js";
 import { shared } from "../../core/lifetime/lifetime.js";
+import { installRadioFocus } from "../../core/radio-focus/radio-focus.js";
 
 export interface TooltipOptions {
   /** How long a mouse rests on a control before its tip shows, in ms.
@@ -42,9 +43,10 @@ function listen(signal: AbortSignal, delay: number): void {
   let shownFor: HTMLElement | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  /** Writes `el`'s words into the tip, and describes `el` by them only
-   *  while they say more than its name: its `aria-label`, else its own
-   *  words, as a label's visually hidden ones. False when it has none. */
+  /** Writes `el`'s words into the tip, and describes the control by them
+   *  only while they say more than its name: the control's `aria-label`,
+   *  else `el`'s, else `el`'s own words, as a label's visually hidden ones.
+   *  False when it has none. */
   const write = (el: HTMLElement): boolean => {
     const words = el.dataset["cpTip"] ?? "";
     if (words === "" || !el.isConnected) {
@@ -52,7 +54,8 @@ function listen(signal: AbortSignal, delay: number): void {
     }
     tip.textContent = words;
     const d = described(el);
-    if ((el.getAttribute("aria-label") ?? el.textContent.trim()) === words) {
+    const name = d.getAttribute("aria-label") ?? el.getAttribute("aria-label") ?? el.textContent;
+    if (name.trim() === words) {
       if (d.getAttribute("aria-describedby") === tip.id) {
         d.removeAttribute("aria-describedby");
       }
@@ -95,6 +98,10 @@ function listen(signal: AbortSignal, delay: number): void {
     addAnchorName(el, NAME);
     shownFor = el;
     watch.observe(el, { attributes: true, attributeFilter: ["data-cp-tip", "aria-label"] });
+    const d = described(el);
+    if (d !== el) {
+      watch.observe(d, { attributes: true, attributeFilter: ["aria-label"] });
+    }
     if (tip.matches(":popover-open")) {
       // Shown again, so it stays above a modal that opened after it.
       tip.hidePopover();
@@ -137,10 +144,16 @@ function listen(signal: AbortSignal, delay: number): void {
     "focusin",
     (e) => {
       // The focused control may sit inside the tipped one, as a radio in
-      // its label.
+      // its label. Safari's arrow move between radios misses :focus-visible;
+      // radio-focus marks it, and its capture listener runs before this one
+      // because installTooltips installs it first.
       const el = target(e);
       const focused = e.composedPath()[0];
-      if (el !== null && focused instanceof Element && focused.matches(":focus-visible")) {
+      if (
+        el !== null &&
+        focused instanceof Element &&
+        focused.matches(":focus-visible, [data-cp-focus-ring]")
+      ) {
         show(el);
       }
     },
@@ -202,7 +215,9 @@ const page = shared<{ readonly delay?: number }>((signal, o) => {
  * Starts the tips, once for the page however many parts of it call this.
  * They stay until every caller's signal has aborted; a caller with no
  * signal holds them for the page's life. The first call's `delay` holds.
+ * It installs `@cplieger/ui/radio-focus` under the same signal.
  */
 export function installTooltips(options: TooltipOptions = {}): void {
+  installRadioFocus(options.signal === undefined ? {} : { signal: options.signal });
   page.install(options);
 }
