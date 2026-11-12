@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { costRatio } from "../test-helpers/cost-ratio.js";
+import { costRatio, LINEAR_BOUND } from "../test-helpers/cost-ratio.js";
 import { TOKEN_KINDS, runs, tokenize } from "./highlight.js";
 
 const LANGS = [
@@ -123,8 +123,6 @@ describe("linear time", () => {
     const work = (code: string): void => {
       tokenize(code, lang);
     };
-    // Sixteen times the input costs about sixteen times the work when linear and 256 times when
-    // quadratic; the bound sits between them, at 16^1.5.
-    expect(costRatio(work, generate(4 * 1024), generate(64 * 1024))).toBeLessThan(64);
+    expect(costRatio(work, generate)).toBeLessThan(LINEAR_BOUND);
   });
 });

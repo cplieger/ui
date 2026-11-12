@@ -26,7 +26,9 @@ function section(title: string, name?: string): HTMLDetailsElement {
   return d;
 }
 
-const settle = () => new Promise((r) => setTimeout(r, 400));
+// The glides' own end handlers were attached first, so they have run once this resolves.
+const settle = () =>
+  Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined)));
 
 describe("enhanceDisclosure", () => {
   it("glides open, its height growing from the summary's to the content's", async () => {

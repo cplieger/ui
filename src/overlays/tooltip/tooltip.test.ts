@@ -28,17 +28,26 @@ const showing = () => tip().matches(":popover-open");
 
 describe("installTooltips", () => {
   it("shows a control's tip after a mouse rests on it, and hides it as the mouse leaves", async () => {
-    installTooltips({ signal: life.signal, delay: 300 });
     const b = control("Settings", "Settings");
     // The rest is measured from the pointer's arrival to the tip's opening, so
     // a busy machine that slows the hover cannot make it look early. Both ends
     // read performance.now() in their listener: an input event's timeStamp is
     // the occurrence's time (https://dom.spec.whatwg.org/#concept-event-create),
-    // which Firefox under load stamped 5s after the toggle it caused. This
-    // listener runs before the document's, which starts the delay.
+    // which Firefox under load stamped 5s after the toggle it caused. Added
+    // before the library's capture listener and reading the same events, this
+    // one runs first, so no delay starts before the arrival it is timed from.
     let arrived = 0;
     let opened = 0;
-    b.addEventListener("pointerover", () => (arrived ||= performance.now()));
+    document.addEventListener(
+      "pointerover",
+      (e) => {
+        if (e.pointerType === "mouse" && b.contains(e.composedPath()[0] as Node)) {
+          arrived ||= performance.now();
+        }
+      },
+      { capture: true, signal: life.signal },
+    );
+    installTooltips({ signal: life.signal, delay: 300 });
     tip().addEventListener("toggle", (e) => {
       if (e.newState === "open") {
         opened ||= performance.now();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { costRatio } from "../test-helpers/cost-ratio.js";
+import { costRatio, LINEAR_BOUND } from "../test-helpers/cost-ratio.js";
 import { detectLanguage, resolveLanguage } from "./highlight.js";
 
 describe("detectLanguage reads a language from its first lines", () => {
@@ -116,7 +116,6 @@ describe("detectLanguage runs in time linear in its input", () => {
     const work = (code: string): void => {
       detectLanguage(code);
     };
-    // Sixteen times the input costs about sixteen times the work when linear; the bound sits at 16^1.5.
-    expect(costRatio(work, generate(4 * 1024), generate(64 * 1024))).toBeLessThan(64);
+    expect(costRatio(work, generate)).toBeLessThan(LINEAR_BOUND);
   });
 });
