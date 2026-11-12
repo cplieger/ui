@@ -740,7 +740,7 @@ function shapes(d: string): number[][] {
 describe("area geometry", () => {
   const stack = (
     series: (number | null)[][],
-    more: { curve?: "step"; reverse?: boolean } = {},
+    more: { curve?: "step"; reverse?: boolean; share?: boolean } = {},
   ): ChartSpec => ({
     x: { reverse: more.reverse === true },
     marks: [
@@ -748,6 +748,7 @@ describe("area geometry", () => {
         mark: "area",
         x: (series[0] ?? []).map((_, i) => i),
         ...(more.curve === undefined ? {} : { curve: more.curve }),
+        ...(more.share === true ? { arrange: "share" as const } : {}),
         series: series.map((y, k) => ({ name: `s${String(k)}`, y })),
       },
     ],
@@ -808,6 +809,42 @@ describe("area geometry", () => {
       10,
     );
     expect(onZero).toEqual([[0, 50, 100, 50, 100, 100, 0, 100]]);
+  });
+
+  it("stacks shares to the top of the plot under share, the 1 px gap kept", () => {
+    // On 100 px up to 1, a share v sits at 100 - 100v.
+    const [a, b] = drawn(
+      stack(
+        [
+          [1, 3],
+          [3, 1],
+        ],
+        { share: true },
+      ),
+      100,
+      1,
+    );
+    expect(a).toEqual([[0, 75, 100, 25, 100, 100, 0, 100]]);
+    expect(b).toEqual([[0, 0, 100, 0, 100, 24, 0, 74]]);
+  });
+
+  it("breaks every layer under share where a sample's total is 0", () => {
+    const [a, b] = drawn(
+      stack(
+        [
+          [1, 1, 0, 1, 1],
+          [1, 1, 0, 1, 1],
+        ],
+        { share: true },
+      ),
+      400,
+      1,
+    );
+    expect(a).toEqual([
+      [0, 50, 100, 50, 100, 100, 0, 100],
+      [300, 50, 400, 50, 400, 100, 300, 100],
+    ]);
+    expect(b).toHaveLength(2);
   });
 
   it("holds each value until the next sample on a step curve", () => {

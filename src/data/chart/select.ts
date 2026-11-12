@@ -16,6 +16,7 @@ import {
   postReading,
   primaryOf,
   rowReading,
+  samplePart,
   sampleReading,
   type Reading,
 } from "./readout.js";
@@ -456,13 +457,10 @@ export function spoken(model: Model, sel: Selection, words: Words, part: boolean
   if (sel.kind !== "dot" && sel.kind !== "row" && m.kind !== "dot") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
-      const v = s.y[sel.i];
       const value =
         m.kind === "rect"
           ? partText(model, m, s, sel.i, words)
-          : v === null || v === undefined
-            ? words.noData
-            : model.yText(v);
+          : samplePart(model, m, s, sel.i, words);
       return words.segment(reading.at, s.name, value);
     }
     if (m.kind === "line" && m.series.every((one) => one.y[sel.i] === null)) {

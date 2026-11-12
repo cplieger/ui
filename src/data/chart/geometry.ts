@@ -8,8 +8,9 @@
 import { reduce, type Point } from "../scale/reduce.js";
 
 import {
+  drawnTotal,
   drawnValue,
-  sampleTotal,
+  sampleValue,
   type AreaModel,
   type DotRowModel,
   type LineModel,
@@ -353,7 +354,8 @@ function columnsOf(
 /**
  * One path per series of area `m`: the layer between its stack's top and the
  * top below it (the baseline for the first), one closed shape per run between
- * gaps; a sample where any series is a gap breaks every layer. Each boundary
+ * gaps, stacked under "share" from each sample's shares; a sample whose stack
+ * is not drawn (`drawnTotal`) breaks every layer. Each boundary
  * is reduced per device pixel column as a line is, so a layer's bottom is the
  * edge below it, raised by the 1 px gap in each column where the layer is at
  * least 3 px tall at every sample and stands on a stack above 0.
@@ -364,16 +366,16 @@ export function areaPaths(m: AreaModel, f: Frame): string[] {
   const tops: (number | null)[][] = m.series.map(() => []);
   for (let i = from; i < to; i++) {
     let base = 0;
-    const total = sampleTotal(m, i);
     m.series.forEach((s, k) => {
-      base += s.y[i] ?? 0;
+      const v = sampleValue(m, s, i);
+      base += v ?? 0;
       const top = tops[k];
       if (top !== undefined) {
-        top[i] = total === null ? null : base;
+        top[i] = v === null ? null : base;
       }
     });
   }
-  const gap = (i: number) => sampleTotal(m, i) === null;
+  const gap = (i: number) => drawnTotal(m, i) === null;
   const cols = columnsOf(us, gap, from, to, w);
   const at = (p: Point) => `${num(flip ? f.width - p.x : p.x)} ${num(p.y)}`;
   return m.series.map((_, k) => {

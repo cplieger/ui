@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { chartModel, drawnValue } from "./model.js";
+import { chartModel, drawnTotal, drawnValue, sampleValue } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 
 const build = (spec: unknown) => chartModel(spec as ChartSpec, "en", "UTC");
@@ -148,9 +148,24 @@ describe("spec errors", () => {
       TypeError,
     ],
     [
-      "an area arranged other than stack",
+      "an area arranged other than stack or share",
       { x: {}, marks: [area([[1], [2]], { arrange: "group" as "stack" })] },
       TypeError,
+    ],
+    [
+      "an area share of one series",
+      { x: {}, marks: [area([[1]], { arrange: "share" })] },
+      TypeError,
+    ],
+    [
+      "an area share with a y domain",
+      { x: {}, y: { domain: [0, 1] }, marks: [area([[1], [2]], { arrange: "share" })] },
+      TypeError,
+    ],
+    [
+      "a negative y under an area share",
+      { x: {}, marks: [area([[1], [-1]], { arrange: "share" })] },
+      RangeError,
     ],
     ["zero false under an area", { x: {}, y: { zero: false }, marks: [area([[1]])] }, TypeError],
     ["a log y under an area", { x: {}, y: { type: "log" }, marks: [area([[1]])] }, TypeError],
@@ -345,6 +360,11 @@ describe("the chart's kind", () => {
       { x: {}, marks: [area([[1], [2]], { curve: "step" })] },
       "stackedArea",
     ],
+    [
+      "two area series stacked to 100%",
+      { x: {}, marks: [area([[1], [2]], { arrange: "share" })] },
+      "shareArea",
+    ],
     ["a line with no curve", { x: {}, marks: [line([1])] }, "line"],
     ["a step line", { x: {}, marks: [line([1], { curve: "step" })] }, "step"],
     ["dot rows", { x: {}, marks: [{ mark: "dot", rows: [] }] }, "timeline"],
@@ -444,5 +464,72 @@ describe("a rect stacked to 100%", () => {
     expect(() => build({ x: {}, marks: [rect([1], { arrange: "share" })] })).toThrow(
       'renderChart: marks[0].arrange "share" needs two or more series, since one reads 100% everywhere',
     );
+  });
+});
+
+describe("an area stacked to 100%", () => {
+  const shared = (series: readonly (readonly (number | null)[])[]) => {
+    const m = build({ x: {}, marks: [area(series, { arrange: "share" })] });
+    const a = m.marks[0];
+    if (a?.kind !== "area") {
+      throw new Error("not an area");
+    }
+    return { m, a };
+  };
+
+  it("draws each value's share of its sample, no stack where the total is 0 or a series is a gap", () => {
+    const { a } = shared([
+      [1, 0, 2, 4],
+      [3, 0, null, 4],
+    ]);
+    const [s0, s1] = a.series;
+    expect([0, 1, 2, 3].map((i) => drawnTotal(a, i))).toEqual([4, null, null, 8]);
+    expect([0, 1, 2, 3].map((i) => (s0 === undefined ? -1 : sampleValue(a, s0, i)))).toEqual([
+      0.25,
+      null,
+      null,
+      0.5,
+    ]);
+    expect([0, 1, 2, 3].map((i) => (s1 === undefined ? -1 : sampleValue(a, s1, i)))).toEqual([
+      0.75,
+      null,
+      null,
+      0.5,
+    ]);
+  });
+
+  it("keeps a stack of 0 drawn, at its values, when not stacked to 100%", () => {
+    const m = build({
+      x: {},
+      marks: [
+        area([
+          [0, 1],
+          [0, 1],
+        ]),
+      ],
+    });
+    const a = m.marks[0];
+    if (a?.kind !== "area") {
+      throw new Error("not an area");
+    }
+    expect(drawnTotal(a, 0)).toBe(0);
+    expect(a.series[0] === undefined ? -1 : sampleValue(a, a.series[0], 1)).toBe(1);
+  });
+
+  it("keeps the values, writing shares in percent and amounts as numbers", () => {
+    const { m, a } = shared([[1500], [500]]);
+    expect(a.series[0]?.y).toEqual([1500]);
+    expect(m.y).toMatchObject({ lo: 0, hi: 1, passed: true });
+    expect(m.yText(0.75)).toBe("75%");
+    expect(m.amountText(1500)).toBe("1,500");
+  });
+
+  it("names the rule a share of one series breaks", () => {
+    expect(() => build({ x: {}, marks: [area([[1]], { arrange: "share" })] })).toThrow(
+      'renderChart: marks[0].arrange "share" needs two or more series, since one reads 100% everywhere',
+    );
+    expect(() =>
+      build({ x: {}, marks: [area([[1], [2]], { arrange: "group" as "stack" })] }),
+    ).toThrow('renderChart: marks[0].arrange must be "stack" or "share"');
   });
 });

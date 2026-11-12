@@ -285,6 +285,70 @@ describe("the legend row of a stacked area", () => {
   });
 });
 
+describe("the legend row of an area stacked to 100%", () => {
+  const x = per(3, (i) => START + i * MIN);
+  const spec = (solar: (number | null)[]): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 10 * MIN] },
+    y: { unit: { one: "MW", other: "MW" } },
+    marks: [
+      {
+        mark: "area",
+        x,
+        arrange: "share",
+        series: [
+          { name: "Gas", slot: 1, y: [0, 1_204, 1_100] },
+          { name: "Wind", slot: 2, y: [0, 980, 900] },
+          { name: "Solar", slot: 3, y: solar },
+        ],
+      },
+    ],
+  });
+  const m = model(spec([0, 412, null]));
+  const area = m.marks[0] as AreaModel;
+
+  it("reads the last whole stack's shares and its total with the unit, with no selection", () => {
+    const r = overall(m, words);
+    expect(r?.at).toBe(time(x[1] ?? 0));
+    expect(chips(r)).toEqual([
+      [1, "Gas", "46%"],
+      [2, "Wind", "38%"],
+      [3, "Solar", "16%"],
+    ]);
+    expect(r?.total).toBe(`2,596${nb}MW`);
+  });
+
+  it("reads a total of 0 by its values, and a gap by the values there with No data", () => {
+    const zero = sampleReading(m, area, 0, words);
+    expect(chips(zero)?.map((c) => c[2])).toEqual(["0", "0", "0"]);
+    expect(zero.total).toBe(`0${nb}MW`);
+    const gap = sampleReading(m, area, 2, words);
+    expect(chips(gap)?.map((c) => c[2])).toEqual(["1,100", "900", "No data"]);
+    expect(gap.total).toBe("No data");
+  });
+
+  it("keeps a value slot as wide as a value read where the stack has no shares", () => {
+    const wide = model({
+      ...spec([0, 412, null]),
+      marks: [
+        {
+          mark: "area",
+          x,
+          arrange: "share",
+          series: [
+            { name: "Gas", slot: 1, y: [0, 1_204, 1_100_000] },
+            { name: "Wind", slot: 2, y: [0, 980, 900] },
+            { name: "Solar", slot: 3, y: [0, 412, null] },
+          ],
+        },
+      ],
+    });
+    const measure = measurer((t) => 7 * Array.from(t).length, 7, "en");
+    const w = readoutWidths(wide, words, measure);
+    expect(w.values).toEqual([7 * "1,100,000".length, 7 * "No data".length, 7 * "No data".length]);
+    expect(w.total).toBe(7 * "2,596 MW".length);
+  });
+});
+
 describe("the legend row of a timeline", () => {
   const posts = [START + 10 * MIN, START + 10 * MIN, START + 12 * MIN, START + 90 * MIN];
   const m = model({

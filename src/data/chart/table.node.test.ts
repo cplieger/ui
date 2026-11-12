@@ -297,6 +297,36 @@ describe("the table of a stacked area", () => {
   });
 });
 
+describe("the table of an area stacked to 100%", () => {
+  const x = per(3, (i) => START + i * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 2 * MIN] },
+      marks: [
+        {
+          mark: "area",
+          x,
+          arrange: "share",
+          series: [
+            { name: "Gas", y: [0, 1_500, 700] },
+            { name: "Wind", y: [0, 500, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("holds the shares the plot shows and the absolute total, a total of 0 by its values", () => {
+    expect(t.columns.map((c) => c.text)).toEqual(["Gas", "Wind", "Total"]);
+    expect(cells(t)).toEqual([
+      [iso(x[0] ?? 0), "0", "0", "0"],
+      [iso(x[1] ?? 0), "75%", "25%", "2,000"],
+      [iso(x[2] ?? 0), "700", "No data", "No data"],
+    ]);
+  });
+});
+
 describe("the table of a timeline", () => {
   const posts = [START + 10 * MIN, START + 10 * MIN, START + 90 * MIN];
   const t = tableModel(

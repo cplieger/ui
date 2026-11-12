@@ -7,8 +7,8 @@
 import { formatter } from "../scale/format.js";
 
 import type { Model, RectModel, SampleModel } from "./model.js";
-import { bucketTotal } from "./model.js";
-import { bucketText, partText, primaryOf, stackText, totalled } from "./readout.js";
+import { bucketTotal, sampleTotal } from "./model.js";
+import { bucketText, partText, primaryOf, samplePart, totalled } from "./readout.js";
 import { ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
@@ -62,11 +62,6 @@ function timed(model: Model, write: (m: Model) => string): Part[] {
     .map((s) => (s.length === 1 ? (at[(s.codePointAt(0) ?? 0) - MARK] ?? s) : s));
 }
 
-const value = (model: Model, v: number | null | undefined, words: Words): Cell => ({
-  parts: [v === null || v === undefined ? words.noData : model.yText(v)],
-  num: true,
-});
-
 /** The samples a step line's table lists and its keys stop at: the first
  *  and last inside the domain, and each where any series changes value or
  *  turns to or from a gap. */
@@ -103,10 +98,16 @@ function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
     ? stepStops(m)
     : Array.from({ length: m.to - m.from }, (_, k) => m.from + k);
   return indices.map((i) => {
-    const cells = m.series.map((s) => value(model, s.y[i], words));
-    const total = stackText(model, m, i, words);
-    if (total !== undefined) {
-      cells.push({ parts: [total], num: true });
+    const cells: Cell[] = m.series.map((s) => ({
+      parts: [samplePart(model, m, s, i, words)],
+      num: true,
+    }));
+    if (m.kind === "area" && m.series.length > 1) {
+      const total = sampleTotal(m, i);
+      cells.push({
+        parts: [total === null ? words.noData : model.amountText(total)],
+        num: true,
+      });
     }
     return { key: String(m.x[i]), head: timed(model, (t) => t.xText(m.x[i] ?? 0)), cells };
   });

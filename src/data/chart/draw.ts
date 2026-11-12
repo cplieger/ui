@@ -21,7 +21,7 @@ import {
   tickPath,
 } from "./geometry.js";
 import type { Layout, Metrics, Text } from "./layout.js";
-import { drawnValue, sampleTotal, type Model } from "./model.js";
+import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
 import { primaryOf, type Reading, type Widths } from "./readout.js";
 import type { Navigator, Selection } from "./select.js";
 
@@ -249,14 +249,14 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
     return out;
   }
   if (sel.kind === "area" && m?.kind === "area") {
-    if (sampleTotal(m, sel.i) === null) {
+    if (drawnTotal(m, sel.i) === null) {
       return "";
     }
     const cx = f.xAt(m.x[sel.i] ?? 0);
     let top = 0;
     return m.series
       .map((s, k) => {
-        top += s.y[sel.i] ?? 0;
+        top += sampleValue(m, s, sel.i) ?? 0;
         return sel.part === undefined || sel.part === k ? ring(cx, f.yAt(top), 4) : "";
       })
       .join("");

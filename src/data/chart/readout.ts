@@ -10,7 +10,9 @@ import type { Measure } from "../scale/measure.js";
 
 import {
   bucketTotal,
+  drawnTotal,
   sampleTotal,
+  sampleValue,
   type AreaModel,
   type DotModel,
   type LineModel,
@@ -119,29 +121,52 @@ export function lastSample(m: SampleModel, s: SeriesModel): number {
   return -1;
 }
 
-/** The last sample inside the domain where area `m`'s stack has no gap, or -1. */
+/** The last sample inside the domain where area `m` draws its stack, or -1. */
 export function lastStack(m: AreaModel): number {
   for (let i = m.to - 1; i >= m.from; i--) {
-    if (sampleTotal(m, i) !== null) {
+    if (drawnTotal(m, i) !== null) {
       return i;
     }
   }
   return -1;
 }
 
-/** Sample `i`'s stack total as the readings and the table write it: absent
- *  for one series, No data at a gap. */
-export function stackText(
+/** Series `s`'s value at sample `i` of `m` as the readings and the table
+ *  write it: under "share" its share of the total, or its value when the
+ *  total is 0 or another series is a gap, which leave no shares. */
+export function samplePart(
   model: Model,
   m: SampleModel,
+  s: SeriesModel,
   i: number,
   words: Words,
-): string | undefined {
+): string {
+  const v = s.y[i] ?? null;
+  if (v === null) {
+    return words.noData;
+  }
+  if (m.kind === "area" && m.arrange === "share") {
+    const total = drawnTotal(m, i);
+    return total === null ? model.amountText(v) : model.yText(v / total);
+  }
+  return model.yText(v);
+}
+
+// An area's total in a reading: under "share" with its unit, since the
+// shares beside it have none.
+function areaTotal(model: Model, m: AreaModel, n: number): string {
+  return m.arrange === "share"
+    ? counted(model.amountText(n), n, model.spec.y?.unit, model)
+    : model.yText(n);
+}
+
+// Sample `i`'s stack total in a reading: absent for one series, No data at a gap.
+function stackText(model: Model, m: SampleModel, i: number, words: Words): string | undefined {
   if (m.kind !== "area" || m.series.length < 2) {
     return undefined;
   }
   const total = sampleTotal(m, i);
-  return total === null ? words.noData : model.yText(total);
+  return total === null ? words.noData : areaTotal(model, m, total);
 }
 
 /** Whether a rect reads a total: a stack of two or more series. A group
@@ -246,13 +271,17 @@ export function bucketReading(model: Model, m: RectModel, i: number, words: Word
   return { at: bucketText(model, m, i, words), entries: all, total };
 }
 
-/** Sample `i` of `m`: its x, each series' value there and a stack's total. */
+/** Sample `i` of `m`: its x, each series' value or share there and a stack's total. */
 export function sampleReading(model: Model, m: SampleModel, i: number, words: Words): Reading {
-  return {
-    at: model.xText(m.x[i] ?? 0),
-    entries: entries(model, m.series, (s) => s.y[i] ?? null, words),
-    total: stackText(model, m, i, words),
-  };
+  const all =
+    m.series.length > 1
+      ? m.series.map((s) => ({
+          slot: s.slot,
+          name: s.name,
+          value: samplePart(model, m, s, i, words),
+        }))
+      : entries(model, m.series, (s) => s.y[i] ?? null, words);
+  return { at: model.xText(m.x[i] ?? 0), entries: all, total: stackText(model, m, i, words) };
 }
 
 const span = (model: Model, x: ArrayLike<number>, from: number, to: number, words: Words) =>
@@ -329,17 +358,51 @@ function spread(model: Model, x: ArrayLike<number>, from: number, to: number): n
   return out;
 }
 
-// The widest texts of a series' values: the extremes and an even spread.
-function valueCandidates(s: SeriesModel, indices: readonly number[]): (number | null)[] {
+// The least and greatest of `values`, skipping nulls; none when all are.
+function extremes(values: Iterable<number | null>): number[] {
   let lo = Number.POSITIVE_INFINITY;
   let hi = Number.NEGATIVE_INFINITY;
-  for (const v of s.y) {
+  for (const v of values) {
     if (v !== null) {
       lo = Math.min(lo, v);
       hi = Math.max(hi, v);
     }
   }
-  return [...indices.map((i) => s.y[i] ?? null), ...(lo <= hi ? [lo, hi] : []), null];
+  return lo <= hi ? [lo, hi] : [];
+}
+
+// The values `at` gives for `[from, to)`.
+function* over(from: number, to: number, at: (i: number) => number | null) {
+  for (let i = from; i < to; i++) {
+    yield at(i);
+  }
+}
+
+// The widest texts series `s` of `m` can read: an even spread, the extremes
+// (under "share" of its shares and of the values read where no shares are),
+// and No data.
+function valueTexts(
+  model: Model,
+  m: SampleModel,
+  s: SeriesModel,
+  indices: readonly number[],
+  words: Words,
+): string[] {
+  const out = [words.noData];
+  if (m.kind === "area" && m.arrange === "share") {
+    out.push(...indices.map((i) => samplePart(model, m, s, i, words)));
+    out.push(
+      ...extremes(over(m.from, m.to, (i) => sampleValue(m, s, i))).map((v) => model.yText(v)),
+    );
+    const unshared = (i: number) => (drawnTotal(m, i) === null ? (s.y[i] ?? null) : null);
+    out.push(...extremes(over(m.from, m.to, unshared)).map((v) => model.amountText(v)));
+    return out;
+  }
+  const write = (v: number) =>
+    m.series.length === 1 ? counted(model.yText(v), v, model.spec.y?.unit, model) : model.yText(v);
+  const values = [...indices.map((i) => s.y[i] ?? null), ...extremes(s.y)];
+  out.push(...values.map((v) => (v === null ? words.noData : write(v))));
+  return out;
 }
 
 const widest = (texts: Iterable<string>, measure: Measure): number => {
@@ -372,33 +435,16 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     for (const i of indices) {
       at.push(model.xText(m.x[i] ?? 0));
     }
-    const unit = model.spec.y?.unit;
     m.series.forEach((s, k) => {
-      for (const v of valueCandidates(s, indices)) {
-        values[k]?.push(
-          v === null
-            ? words.noData
-            : m.series.length === 1
-              ? counted(model.yText(v), v, unit, model)
-              : model.yText(v),
-        );
-      }
+      values[k]?.push(...valueTexts(model, m, s, indices, words));
     });
     if (m.kind === "area" && m.series.length > 1) {
       // The widest totals: the spread's, the extremes, and No data.
-      let lo = Number.POSITIVE_INFINITY;
-      let hi = Number.NEGATIVE_INFINITY;
-      for (let i = m.from; i < m.to; i++) {
-        const t = sampleTotal(m, i);
-        if (t !== null) {
-          lo = Math.min(lo, t);
-          hi = Math.max(hi, t);
-        }
-      }
       for (const i of indices) {
         totals.push(stackText(model, m, i, words) ?? "");
       }
-      totals.push(words.noData, ...(lo <= hi ? [model.yText(lo), model.yText(hi)] : []));
+      const all = extremes(over(m.from, m.to, (i) => sampleTotal(m, i)));
+      totals.push(words.noData, ...all.map((n) => areaTotal(model, m, n)));
     }
   } else if (m?.kind === "dot") {
     // Each post's time, written once per stretch of x in which its width holds.

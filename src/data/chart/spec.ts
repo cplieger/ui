@@ -65,9 +65,12 @@ interface AreaMark {
   readonly x: ArrayLike<number>;
   /** Default "linear"; "step" holds each value until the next sample. */
   readonly curve?: "linear" | "step";
-  /** Several series stack in series order from the baseline. A sample where
-   *  any series is a gap breaks every layer there. */
-  readonly arrange?: "stack";
+  /** Several series stack in series order from the baseline (the default),
+   *  or to 100 % of each sample's total. A sample where any series is a gap,
+   *  or under "share" whose total is 0, breaks every layer there. "share"
+   *  needs two or more series; its y runs 0 to 1, in "percent" unless
+   *  y.format says another, and takes no domain. */
+  readonly arrange?: "stack" | "share";
   readonly series: readonly Series[];
 }
 

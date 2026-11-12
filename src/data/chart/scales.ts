@@ -319,7 +319,9 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     throw new TypeError(`renderChart: ${filled} y always starts at zero`);
   }
   const log = type === "log";
-  const share = spec.marks.some((m) => m.mark === "rect" && m.arrange === "share");
+  const share = spec.marks.some(
+    (m) => (m.mark === "rect" || m.mark === "area") && m.arrange === "share",
+  );
   if (share && y.domain !== undefined) {
     throw new TypeError("renderChart: a 100% stack's y runs 0 to 1, so it takes no domain");
   }
@@ -329,8 +331,8 @@ export function yScale(spec: ChartSpec): Continuous | Band {
   }
   const extent = yExtent(spec, log);
   if (share) {
-    // Every bucket with a total reaches 1, so the axis is fixed as a passed
-    // domain is: a rule outside it is off the axis.
+    // Every stack drawn reaches 1, so the axis is fixed as a passed domain
+    // is: a rule outside it is off the axis.
     return {
       type,
       lo: 0,

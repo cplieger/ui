@@ -73,9 +73,12 @@ export interface LineModel extends Samples {
   readonly kind: "line";
 }
 
-/** Series stacked in series order over samples, each a layer. */
+/** Series stacked in series order over samples, each a layer; under
+ *  "share" each draws its share of the sample's total, `series` keeping the
+ *  values. */
 export interface AreaModel extends Samples {
   readonly kind: "area";
+  readonly arrange: "stack" | "share";
 }
 
 /** A mark over `x` samples, read by the same stops and keys. */
@@ -93,6 +96,25 @@ export function sampleTotal(m: AreaModel, i: number): number | null {
     total += v;
   }
   return total;
+}
+
+/** The total area `m` draws its stack to at sample `i`, or `null` where it
+ *  draws none: a gap in any series, or under "share" a total of 0, which
+ *  has no shares. */
+export function drawnTotal(m: AreaModel, i: number): number | null {
+  const total = sampleTotal(m, i);
+  return total === null || (m.arrange === "share" && total <= 0) ? null : total;
+}
+
+/** The thickness series `s` draws at sample `i` of area `m`: its value, or
+ *  under "share" its share of the total; `null` where the stack is not drawn. */
+export function sampleValue(m: AreaModel, s: SeriesModel, i: number): number | null {
+  const total = drawnTotal(m, i);
+  if (total === null) {
+    return null;
+  }
+  const v = s.y[i] ?? 0;
+  return m.arrange === "share" ? v / total : v;
 }
 
 export interface DotRowModel {
@@ -138,7 +160,7 @@ export interface Model {
   readonly xSpan: (from: number, to: number) => readonly [string, string];
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
-  /** A rect's value or total as an amount: `yText`, or a plain number under
+  /** A value or total as an amount: `yText`, or a plain number under
    *  "share", whose `yText` writes shares. */
   readonly amountText: (v: number) => string;
   readonly locale: string | undefined;
@@ -310,10 +332,15 @@ function checkMark(mark: unknown, what: string): void {
     case "area": {
       const x = checkX(mark["x"], `${what}.x`, false);
       checkCurve(mark["curve"], what);
-      if (mark["arrange"] !== undefined && mark["arrange"] !== "stack") {
-        fail(`${what}.arrange must be "stack"`);
+      const arrange = mark["arrange"];
+      if (arrange !== undefined && arrange !== "stack" && arrange !== "share") {
+        fail(`${what}.arrange must be "stack" or "share"`);
       }
-      checkSeries(mark["series"], x.length, what);
+      const list = mark["series"];
+      checkSeries(list, x.length, what);
+      if (arrange === "share" && arrayLike(list) && list.length < 2) {
+        fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
+      }
       return;
     }
     case "dot": {
@@ -446,7 +473,11 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
     case "line":
       return first.step ? "step" : "line";
     case "area":
-      return first.series.length < 2 ? "area" : "stackedArea";
+      return first.series.length < 2
+        ? "area"
+        : first.arrange === "share"
+          ? "shareArea"
+          : "stackedArea";
     case "dot":
       return "timeline";
   }
@@ -514,6 +545,7 @@ export function chartModel(
           kind: "area",
           x: m.x,
           step: m.curve === "step",
+          arrange: m.arrange ?? "stack",
           series: series(m.series),
           from: lowerBound(m.x, x.lo),
           to: upperBound(m.x, x.hi),
@@ -548,7 +580,9 @@ export function chartModel(
       ? spanFormat(locale, timeZone, days)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
   const yText = formatter(y.type === "band" ? undefined : y.format, locale);
-  const share = marks.some((m) => m.kind === "rect" && m.arrange === "share");
+  const share = marks.some(
+    (m) => (m.kind === "rect" || m.kind === "area") && m.arrange === "share",
+  );
   return {
     spec,
     x,

@@ -340,6 +340,38 @@ describe("the marks", () => {
     expect(ring(undefined, 30)).toEqual([]);
   });
 
+  it("rings a 100% stacked area's layer tops at their shares, none where the total is 0, and labels each layer from 30rem up", () => {
+    const x = per(60, (i) => i * 60_000);
+    const d = draw(
+      {
+        x: { type: "time" },
+        marks: [
+          {
+            mark: "area",
+            x,
+            arrange: "share",
+            series: [
+              { name: "Gas", slot: 1, y: x.map((_, i) => (i === 20 ? 0 : 1)) },
+              { name: "Wind", slot: 3, y: x.map((_, i) => (i === 20 ? 0 : 3)) },
+            ],
+          },
+        ],
+      },
+      600,
+    );
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    const ring = (i: number) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "area", i, part: undefined }, nav);
+      const r = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+      return [...r.matchAll(/M([\d.]+) ([\d.]+)a/g)].map((g) => Number(g[2]));
+    };
+    expect(ring(10)).toEqual([expect.closeTo(f.yAt(0.25), 2), expect.closeTo(f.yAt(1), 2)]);
+    expect(ring(20)).toEqual([]);
+    const ends = [...d.svg.querySelectorAll('[data-part="end"] text')].map((t) => t.textContent);
+    expect(ends).toEqual(["Wind 75%", "Gas 25%"]);
+  });
+
   it("strokes each line 2 px in its slot", () => {
     const d = draw(stepLine);
     const paths = series(d, "line");

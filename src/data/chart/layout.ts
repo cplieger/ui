@@ -1,7 +1,7 @@
 /**
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
- * plot, the x axis under it, and the lines' end labels.
+ * plot, the x axis under it, and the lines' and areas' end labels.
  * @module
  */
 
@@ -18,8 +18,8 @@ import {
   type RuleLabel,
 } from "./axis.js";
 import type { Frame } from "./geometry.js";
-import type { Model } from "./model.js";
-import { lastSample } from "./readout.js";
+import { sampleValue, type Model } from "./model.js";
+import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
 import type { Words } from "./words.js";
 
@@ -89,17 +89,25 @@ const END_LABELS_REM = 30;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
-// The end labels' texts and values, one per line series with a last value.
-function endTexts(model: Model): { text: string; value: number }[] {
+// The end labels' texts and the y value each sits at: a line series' last
+// value, or the middle of an area layer's thickness at the last whole stack.
+function endTexts(model: Model, words: Words): { text: string; value: number }[] {
   const out: { text: string; value: number }[] = [];
   for (const m of model.marks) {
-    if (m.kind !== "line") {
-      continue;
-    }
-    for (const s of m.series) {
-      const value = s.y[lastSample(m, s)];
-      if (value !== undefined && value !== null) {
-        out.push({ text: `${s.name} ${model.yText(value)}`, value });
+    if (m.kind === "line") {
+      for (const s of m.series) {
+        const value = s.y[lastSample(m, s)];
+        if (value !== undefined && value !== null) {
+          out.push({ text: `${s.name} ${model.yText(value)}`, value });
+        }
+      }
+    } else if (m.kind === "area") {
+      const i = lastStack(m);
+      let base = 0;
+      for (const s of i === -1 ? [] : m.series) {
+        const v = sampleValue(m, s, i) ?? 0;
+        out.push({ text: `${s.name} ${samplePart(model, m, s, i, words)}`, value: base + v / 2 });
+        base += v;
       }
     }
   }
@@ -150,7 +158,7 @@ export function layout(
   }
   const axisW = Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
-  const ends = chart >= END_LABELS_REM * metrics.rem ? endTexts(model) : [];
+  const ends = chart >= END_LABELS_REM * metrics.rem ? endTexts(model, words) : [];
   const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,
@@ -290,7 +298,7 @@ export function layout(
     }
   }
 
-  // End labels in the label gutter at their last values; a lower one moves
+  // End labels in the label gutter at their values; a lower one moves
   // down until it clears the one above.
   const sorted = ends
     .map((e) => ({ ...e, y: Math.min(Math.max(yAt(e.value), 0), height) }))

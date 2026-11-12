@@ -9,6 +9,7 @@ import { formatDuration, formatter } from "../scale/format.js";
 import {
   bucketTotal,
   sampleTotal,
+  sampleValue,
   type DotModel,
   type Model,
   type RectModel,
@@ -98,13 +99,13 @@ function rectSummary(model: Model, m: RectModel, words: Words): string[] {
 }
 
 // One series' last, low and high over the domain through `lineSeries`;
-// `at(i)` is its value at sample `i`, null at a gap.
+// `at(i)` is its value at sample `i`, null at a gap, written by `write`.
 function seriesSentence(
-  model: Model,
   m: SampleModel,
   name: string,
   at: (i: number) => number | null,
   last: number,
+  write: (v: number) => string,
   words: Words,
 ): string {
   // A loop, since spreading a long series into Math.min overflows the stack.
@@ -117,7 +118,7 @@ function seriesSentence(
       high = Math.max(high, v);
     }
   }
-  const text = (v: number | null) => (v === null ? words.noData : model.yText(v));
+  const text = (v: number | null) => (v === null ? words.noData : write(v));
   return words.lineSeries(
     name,
     text(last === -1 ? null : at(last)),
@@ -134,13 +135,19 @@ function lineSummary(model: Model, m: SampleModel, words: Words): string[] {
   const out = [
     words.lineSummary(domainText(model, words), sizeText(model, evenStep(steps), words)),
   ];
+  const yText = (v: number) => model.yText(v);
   for (const s of m.series) {
-    const at = (i: number) => s.y[i] ?? null;
-    out.push(seriesSentence(model, m, s.name, at, lastSample(m, s), words));
+    // Under "share" a layer's share exists only where its stack is drawn.
+    out.push(
+      m.kind === "area" && m.arrange === "share"
+        ? seriesSentence(m, s.name, (i) => sampleValue(m, s, i), lastStack(m), yText, words)
+        : seriesSentence(m, s.name, (i) => s.y[i] ?? null, lastSample(m, s), yText, words),
+    );
   }
   if (m.kind === "area" && m.series.length > 1) {
     const at = (i: number) => sampleTotal(m, i);
-    out.push(seriesSentence(model, m, words.total, at, lastStack(m), words));
+    const amount = (v: number) => model.amountText(v);
+    out.push(seriesSentence(m, words.total, at, lastStack(m), amount, words));
   }
   return out;
 }

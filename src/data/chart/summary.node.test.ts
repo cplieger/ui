@@ -354,6 +354,38 @@ describe("the summary of a stacked area", () => {
   });
 });
 
+describe("the summary of an area stacked to 100%", () => {
+  const x = per(3, (i) => START + i * MIN);
+  const m = model({
+    x: { type: "time", domain: [START, START + 2 * MIN] },
+    y: { format: { style: "percent", maximumFractionDigits: 1 } },
+    marks: [
+      {
+        mark: "area",
+        x,
+        arrange: "share",
+        series: [
+          { name: "Gas", y: [0, 1, 1_500] },
+          { name: "Wind", y: [0, 3, 500] },
+        ],
+      },
+    ],
+  });
+
+  it("says each layer's shares where its stack is drawn and the total's amounts", () => {
+    expect(generatedSummary(m, words)).toBe(
+      `${span(START, START + 2 * MIN)}, every 1${nb}min. Gas: last 75%, low 25%, high 75%. ` +
+        "Wind: last 25%, low 25%, high 75%. Total: last 2,000, low 0, high 2,000.",
+    );
+  });
+
+  it("names a 100% stacked area chart", () => {
+    expect(shortDescription(m, words)).toBe(
+      `100% stacked area chart, 2 series, ${span(START, START + 2 * MIN)}`,
+    );
+  });
+});
+
 describe("the summary of a timeline", () => {
   const quiet = ["docs-bot", "ha-agent", "notes-bot", "a", "b", "c", "d"];
   const m = model({
