@@ -12,7 +12,7 @@ import { primaryOf } from "./readout.js";
 import { ruleAt } from "./scales.js";
 
 /** The room between a note and its point. */
-export const NOTE_OFFSET = 4;
+const NOTE_OFFSET = 4;
 /** A note wraps at this many rem. */
 export const NOTE_REM = 12;
 /** A numbered marker's radius: a 20 px circle. */

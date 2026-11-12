@@ -51,9 +51,9 @@ posts.update({
 
 ## Choosing a chart
 
-Pick a chart by the question its data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide) and the [Financial Times Visual Vocabulary](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary). Readers know line and column charts best, and those make comparing easiest, so prefer one of them unless another answers the question better. Outside the chart: a number now is a `.cp-figure`, with a [sparkline](sparkline.md) for how it moved; one share of one whole inside a figure is a [share bar](share-bar.md); long names and exact numbers go in a table with [ranked bars](ranked-bars.md).
+Pick a chart by the question its data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide) and the [Financial Times Visual Vocabulary](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary). Readers know line and column charts best, and those make comparing easiest, so prefer one of them unless another answers the question better. Outside the chart: a number now is a `.cp-figure`, with a [sparkline](sparkline.md) for how it moved. One share of one whole inside a figure is a [share bar](share-bar.md). Long names and exact numbers go in a table with [ranked bars](ranked-bars.md).
 
-### How did it change over time?
+### Change over time
 
 | Question | Chart | Write |
 | --- | --- | --- |
@@ -68,9 +68,9 @@ Pick a chart by the question its data answers, after [Datawrapper's guide to cha
 
 - **Bars or an area for buckets.** Bars when buckets are few, often empty, or hold small bursty counts: a gap says a bucket is empty, and an area would break into slivers. The area when buckets are many and rarely empty, where the gaps between bars are noise. Both read and list the same numbers.
 - An area chart shows the change of the total well and the change of each part less well ([FT Visual Vocabulary, Change over time](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary)). Only the lowest part sits on a flat baseline, so put the part compared most first.
-- Grouped columns suit few buckets and two or three series. Do not read totals from them; a stack shows totals ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)).
+- Grouped columns suit few buckets and two or three series. A stack shows totals, so do not read totals from grouped columns ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)).
 
-### How are values spread?
+### Spread of values
 
 | Question | Chart | Write |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ Pick a chart by the question its data answers, after [Datawrapper's guide to cha
 
 - The chart computes nothing statistical. The app sends a histogram's bins.
 
-### What makes up the whole?
+### Parts of a whole
 
 | Question | Chart | Write |
 | --- | --- | --- |
@@ -104,7 +104,7 @@ On a phone, or when notes would overlap, every note becomes a numbered marker wi
 | Waffle and pictogram charts | A share bar for the shares of one whole, ranked bars for counts. Both trade readability for illustration ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
 | Connected scatter plots | Two line charts over the same time x, one per measure. A connected scatter plot carries time only in its path's order, which a reader must trace dot by dot. |
 | Radar charts | A table with a row per variable and a column per series, with ranked bars. A radar's outline depends on the order of its axes ([FT Visual Vocabulary, Magnitude](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary)). |
-| 3D charts | The same chart in two dimensions. Projection distorts lengths, angles and areas ([Claus Wilke: Don't go 3D](https://clauswilke.com/dataviz/no-3d.html)). |
+| 3D charts | The same chart in two dimensions. Projection distorts lengths, angles and areas ([Claus Wilke on 3D charts](https://clauswilke.com/dataviz/no-3d.html)). |
 
 Niche statistical types such as violin plots and dendrograms are not offered either, as Datawrapper's guide leaves them out.
 
@@ -112,7 +112,7 @@ Niche statistical types such as violin plots and dendrograms are not offered eit
 
 | Mark | Draws | Use it for |
 | --- | --- | --- |
-| `rect` | a column from `x1` to `x2` and from 0 to `y`, stacked in series order when it has several series, side by side with `arrange: "group"`, or stacked to 100% with `arrange: "share"`; with `shape: "area"`, a step area with no gap between buckets | counts per time bucket, or a histogram's bins on a log x |
+| `rect` | a column from `x1` to `x2` and from 0 to `y`, stacked in series order when it has several series, side by side with `arrange: "group"`, or stacked to 100% with `arrange: "share"`, and with `shape: "area"` a step area with no gap between buckets | counts per time bucket, or a histogram's bins on a log x |
 | `line` | a 2px path per series through `(x, y)`, `curve: "linear"` (the default) or `"step"`, which holds each value until the next sample | a gauge sampled each minute, in steps |
 | `area` | a layer per series filled from the one below it (the first from 0) through `(x, y)`, stacked in series order or to 100% with `arrange: "share"`, `curve: "linear"` (the default) or `"step"` | a sampled amount whose parts add up, such as memory by process |
 | `dot` | a 6px dot per value, one row per named row on a band y | who posts when, one row per agent |
@@ -131,7 +131,7 @@ Niche statistical types such as violin plots and dendrograms are not offered eit
 - `arrange: "share"` stacks an area's series to 100% of each sample's total, for shares that move over time. Send the same values as for a stack: the chart divides each by its sample's total, and a sample whose total is 0 breaks every layer, as a gap does. Its y runs from 0 to 1 and is written `"percent"` unless `y.format` says another, and a passed `y.domain` is a `TypeError`. Its readings, legend row, end labels, summary and table give each layer's share, with the absolute total the shares hide: "2:00 PM: Gas 46%, Wind 38%, Solar 16%. Total 2,596 MW." A sample whose total is 0, or where a series is a gap, reads its values. `arrange` is `"stack"` by default, any other value than the two is a `TypeError`, and so is a share of one series.
 - `open: true` marks a rect's last bucket as still filling. Its readings and its table row add "so far", and the summary's busiest bucket or highest value leaves it out.
 - A rule's `x` or `y` is a finite number. Send no rule when the value is unknown, such as a median with no reads yet.
-- A `text` mark writes its `text` beside the place its `x` and `y` name: values on the chart's scales under a `rect`, `line` or `area`, and under a `dot` mark a time and a row's name. The chart places the note, so the app tunes no offsets: it sits 4px off its point on its `side`, `"above"` by default or `"below"`, `"left"` or `"right"`, moves to the opposite side when it would cross the plot's edge, and then shifts along that edge until it fits. It wraps at spaces to 12rem, or the plot's width when that is narrower, in ink on a 3px halo of the chart's surface, so it reads over bars and gridlines. A note does not widen an inferred domain, and one outside the domain is not drawn, though the summary and the table still give it. Under 30rem, or when two notes would overlap or one cannot fit inside the plot, every note becomes a numbered marker, a 20px ink circle at its point, and the notes are listed in spec order in an `<ol data-part="notes">` below the plot. All notes switch together, so a reader never matches some on the plot and some below it. Both places are required, so a missing one is a `TypeError`, as are empty text, another `side`, a name on a continuous scale and a number for a row; a non-finite value, a row name not in the band and a value at or below 0 on a log scale are a `RangeError`.
+- A `text` mark writes its `text` beside the place its `x` and `y` name: values on the chart's scales under a `rect`, `line` or `area`, and under a `dot` mark a time and a row's name. The chart places the note, so the app tunes no offsets: it sits 4px off its point on its `side`, `"above"` by default or `"below"`, `"left"` or `"right"`, moves to the opposite side when it would cross the plot's edge, and then shifts along that edge until it fits. It wraps at spaces to 12rem, or the plot's width when that is narrower, in ink on a 3px halo of the chart's surface, so it reads over bars and gridlines. A note does not widen an inferred domain, and one outside the domain is not drawn, though the summary and the table still give it. Under 30rem, or when two notes would overlap or one cannot fit inside the plot, every note becomes a numbered marker, a 20px ink circle at its point, and the notes are listed in spec order in an `<ol data-part="notes">` below the plot. All notes switch together, so a reader never matches some on the plot and some below it. Both places are required, so a missing one is a `TypeError`, as are empty text, another `side`, a name on a continuous scale and a number for a row. A non-finite value, a row name not in the band and a value at or below 0 on a log scale are a `RangeError`.
 - Dots keep their glyph when posts crowd, since one pixel column's posts draw once. An agent that posts more often than a dot is wide draws a run, which reads as continuous activity. The legend row, the keys and the table give each post and each count.
 - The chart computes nothing statistical. The app sends the bins, the counts and the percentiles it draws.
 
