@@ -1,0 +1,74 @@
+<main class="play">
+  <header>
+    <h1>Account screens</h1>
+    <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
+  </header>
+
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a></nav>
+
+  <section class="g-section" id="sign-in">
+    <h2>Sign-in</h2>
+    <p><code>mountSignIn(panel, options)</code> fills the gate page's panel: the password form, then a passkey and single sign-on under a rule, then the recovery hint in the panel's foot. The line under the panel is the app's own.</p>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>The sign-in page</h2>
+        <div class="cp-gate">
+          <div class="cp-wordmark"><span class="cp-mark" aria-hidden="true">R</span>Release tracker</div>
+          <section class="cp-panel" data-account-demo="page"></section>
+          <p class="cp-meta"><a href="#sign-in">Help for this screen</a></p>
+        </div>
+        <footer>Every method on, after a session ended. Type the password "wrong" for a refused sign-in, "busy" for a busy server, "limit" for a rate limit, or a username with a space. Each press of Sign in with a passkey answers the next outcome: ran out of time, not registered here, closed prompt, then signed in.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>One owner's words</h2>
+        <section class="cp-panel" data-account-demo="owner"></section>
+        <footer>The app's recovery hint as a node, its place for linking, and a single sign-on identity that no account uses, in the words the app passed for it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A wrong password</h2>
+        <section class="cp-panel" data-account-demo="wrong"></section>
+        <footer>A danger notice that never says which half was wrong, with focus on the password and its text selected.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Too many attempts</h2>
+        <section class="cp-panel" data-account-demo="limit"></section>
+        <footer>A countdown from the answer's Retry-After. Sign in and the passkey are held with aria-disabled until it ends; only its start and its end are said.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Fields left empty</h2>
+        <section class="cp-panel" data-account-demo="empty"></section>
+        <footer>Two empty fields: the summary lists each as a link, and nothing is sent.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A passkey that ran out of time</h2>
+        <section class="cp-panel" data-account-demo="passkey"></section>
+        <footer>A warning notice; a closed prompt shows nothing.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Single sign-on did not finish</h2>
+        <section class="cp-panel" data-account-demo="sso"></section>
+        <footer>The provider sent the browser back with an error. The screen shows its code's notice and removes it from the address.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Only a passkey</h2>
+        <section class="cp-panel" data-account-demo="passkey-only"></section>
+        <footer>Password sign-in off: the only method is the primary, with no rule above it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Reading the state</h2>
+        <section class="cp-panel" data-account-demo="loading"></section>
+        <footer>The panel is busy with the form's shape until the server says which methods are on.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>The app is not answering</h2>
+        <section class="cp-panel" data-account-demo="offline"></section>
+        <footer>The state read failed. Retry reads it again.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Sign-in turned off</h2>
+        <section class="cp-panel" data-account-demo="off"></section>
+        <footer>No method is on.</footer>
+      </div>
+    </div>
+  </section>
+</main>
