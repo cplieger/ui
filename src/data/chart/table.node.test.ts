@@ -30,6 +30,44 @@ const iso = (t: number) => `<${new Date(t).toISOString()}>${time(t)}`;
 const cells = (t: TableModel) =>
   t.rows.map((r) => [text(r.head), ...r.cells.map((c) => text(c.parts))]);
 
+describe("the table of bars across days", () => {
+  // Hourly buckets from 10:00 PM in Paris over three days, so the dates show.
+  const from = START + 14 * 60 * MIN;
+  const starts = per(3, (i) => from + i * 60 * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [from - 2 * 24 * 60 * MIN, from + 180 * MIN] },
+      marks: [
+        {
+          mark: "rect",
+          x1: starts,
+          x2: starts.map((s) => s + 60 * MIN),
+          series: [{ name: "Posts", y: [1, 2, 3] }],
+        },
+      ],
+    }),
+    words,
+  );
+  const full = (ms: number) =>
+    new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: TZ,
+    }).format(ms);
+  const at = (ms: number, text: string) => `<${new Date(ms).toISOString()}>${text}`;
+
+  it("writes an end's date only when it falls on another day than the start", () => {
+    const [a = 0, b = 0, c = 0] = starts;
+    expect(t.rows.map((r) => text(r.head))).toEqual([
+      `${at(a, full(a))} to ${at(b, time(b))}`,
+      `${at(b, full(b))} to ${at(c, full(c))}`,
+      `${at(c, full(c))} to ${at(c + 60 * MIN, time(c + 60 * MIN))}`,
+    ]);
+  });
+});
+
 describe("the table of stacked bars", () => {
   // Four hourly buckets from 7:30, so the first crosses the domain's start; the last is open.
   const starts = per(4, (i) => START - 30 * MIN + i * 60 * MIN);

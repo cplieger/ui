@@ -50,18 +50,26 @@ export function domainText(model: Model, words: Words): string {
   const { x, xText } = model;
   return x.under?.drawn === "below"
     ? words.underRange(xText(x.lo), xText(x.hi))
-    : words.range(xText(x.lo), xText(x.hi));
+    : words.range(...model.xSpan(x.lo, x.hi));
+}
+
+// The legend row's x reading starts its line, so an underflow range reads as
+// the bin does ("Under 1 sec to 3 days"), where `underRange` is a clause.
+function legendDomain(model: Model, words: Words): string {
+  const { x, xText } = model;
+  return x.under?.drawn === "below"
+    ? words.range(words.under(xText(x.lo)), xText(x.hi))
+    : domainText(model, words);
 }
 
 /** Bucket `i` of `m` in words: its interval, the underflow bin's "under",
  *  and an open last bucket's "so far". */
 export function bucketText(model: Model, m: RectModel, i: number, words: Words): string {
   const under = model.x.under;
-  const x2 = model.xText(m.x2[i] ?? 0);
   const text =
     under !== undefined && model.marks[under.mark] === m && under.index === i
-      ? words.under(x2)
-      : words.range(model.xText(m.x1[i] ?? 0), x2);
+      ? words.under(model.xText(m.x2[i] ?? 0))
+      : words.range(...model.xSpan(m.x1[i] ?? 0, m.x2[i] ?? 0));
   return m.open && i === m.x1.length - 1 ? words.soFar(text) : text;
 }
 
@@ -116,11 +124,11 @@ export function overall(model: Model, words: Words): Reading | undefined {
         m.series.length > 1
           ? model.yText(m.series.reduce((n, s) => n + sum(s, m.shown), 0))
           : undefined;
-      return { at: domainText(model, words), entries: all, total };
+      return { at: legendDomain(model, words), entries: all, total };
     }
     case "line": {
       const last = Math.max(...m.series.map((s) => lastSample(m, s)));
-      const at = last === -1 ? domainText(model, words) : model.xText(m.x[last] ?? 0);
+      const at = last === -1 ? legendDomain(model, words) : model.xText(m.x[last] ?? 0);
       const value = (s: SeriesModel) => {
         const i = lastSample(m, s);
         return i === -1 ? null : (s.y[i] ?? null);
@@ -131,7 +139,7 @@ export function overall(model: Model, words: Words): Reading | undefined {
       const n = dots(m);
       const value = counted(model.yText(n), n, m.unit, model);
       return {
-        at: domainText(model, words),
+        at: legendDomain(model, words),
         entries: [{ slot: undefined, name: undefined, value }],
         total: undefined,
       };
@@ -160,7 +168,7 @@ export function sampleReading(model: Model, m: LineModel, i: number, words: Word
 }
 
 const span = (model: Model, x: ArrayLike<number>, from: number, to: number, words: Words) =>
-  words.range(model.xText(x[from] ?? 0), model.xText(x[to - 1] ?? 0));
+  words.range(...model.xSpan(x[from] ?? 0, x[to - 1] ?? 0));
 
 const bare = (value: string): Entry[] => [{ slot: undefined, name: undefined, value }];
 

@@ -31,9 +31,9 @@ const span = (a: number, b: number) => `${time(a)} to ${time(b)}`;
 const model = (spec: ChartSpec): Model => chartModel(spec, "en", TZ);
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 
-// Job 1: 24 buckets of 15 minutes, the last still filling.
+// Posts by kind: 24 buckets of 15 minutes, the last still filling.
 const starts = per(24, (i) => START + i * 15 * MIN);
-const job1: ChartSpec = {
+const postsByKind: ChartSpec = {
   x: { type: "time", domain: [START, START + 6 * 60 * MIN] },
   y: { label: "Posts", unit: { one: "post", other: "posts" } },
   marks: [
@@ -55,7 +55,7 @@ const job1: ChartSpec = {
 const chips = (r: Reading | undefined) => r?.entries.map((e) => [e.slot, e.name, e.value]);
 
 describe("the legend row of stacked bars", () => {
-  const m = model(job1);
+  const m = model(postsByKind);
   const rect = m.marks[0] as RectModel;
 
   it("reads the domain, each series' total and the total with no selection", () => {
@@ -85,10 +85,10 @@ describe("the legend row of stacked bars", () => {
 describe("the legend row of one series", () => {
   it("reads a bar chart's count with its unit, and no total", () => {
     const m = model({
-      ...job1,
+      ...postsByKind,
       marks: [
         {
-          ...(job1.marks[0] as RectModel & { mark: "rect" }),
+          ...(postsByKind.marks[0] as RectModel & { mark: "rect" }),
           series: [{ name: "All", y: per(24, () => 1) }],
         },
       ],
@@ -101,7 +101,7 @@ describe("the legend row of one series", () => {
     );
   });
 
-  it("reads the underflow bin as under its edge, and the domain from under the low end", () => {
+  it("reads the underflow bin as under its edge, and the domain from under the low end, capitalised", () => {
     const edges = durationEdges();
     const m = model({
       x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
@@ -117,7 +117,7 @@ describe("the legend row of one series", () => {
     });
     const rect = m.marks[0] as RectModel;
     expect(overall(m, words)?.at).toBe(
-      `under ${formatDuration(1_000, "en")} to ${formatDuration(edges.at(-1) ?? 0, "en")}`,
+      `Under ${formatDuration(1_000, "en")} to ${formatDuration(edges.at(-1) ?? 0, "en")}`,
     );
     expect(overall(m, words)?.entries[0]?.value).toBe(`32${nb}reads`);
     expect(bucketReading(m, rect, 0, words).at).toBe(`Under ${formatDuration(1_000, "en")}`);
@@ -217,7 +217,7 @@ describe("the legend row's widths", () => {
   };
 
   it("holds every bucket's reading and the whole chart's", () => {
-    const m = model(job1);
+    const m = model(postsByKind);
     const w = readoutWidths(m, words, measure);
     const rect = m.marks[0] as RectModel;
     for (const i of rect.shown) {

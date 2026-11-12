@@ -166,6 +166,23 @@ export function instantFormat(
   return (ms) => df.format(ms);
 }
 
+/** Both ends of a span of instants as `instantFormat` writes them, the end
+ *  without its date when it falls on the start's day ("Nov 10, 12:00 PM" and
+ *  "1:00 PM"). */
+export function spanFormat(
+  locale: string | undefined,
+  timeZone: string | undefined,
+  days: boolean,
+): (from: number, to: number) => readonly [string, string] {
+  const at = instantFormat(locale, timeZone, days);
+  if (!days) {
+    return (from, to) => [at(from), at(to)];
+  }
+  const day = dates(locale, timeZone, DAY);
+  const time = dates(locale, timeZone, MINUTE);
+  return (from, to) => [at(from), day.format(from) === day.format(to) ? time.format(to) : at(to)];
+}
+
 /** A time tick's two lines for ticks `stepMs` apart: `time`, absent for a
  *  step of a day or more, and `date`, which the axis writes at its first tick
  *  and where the day changes. */

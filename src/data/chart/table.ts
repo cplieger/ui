@@ -42,21 +42,23 @@ function timed(model: Model, write: (m: Model) => string): Part[] {
   if (model.x.type !== "time") {
     return [write(model)];
   }
-  const at: number[] = [];
+  const at: { at: number; text: string }[] = [];
+  const mark = (v: number, text: string): string => {
+    at.push({ at: v, text });
+    return String.fromCodePoint(MARK + at.length - 1);
+  };
   const marked: Model = {
     ...model,
-    xText: (v) => {
-      at.push(v);
-      return String.fromCodePoint(MARK + at.length - 1);
+    xText: (v) => mark(v, model.xText(v)),
+    xSpan: (from, to) => {
+      const [a, b] = model.xSpan(from, to);
+      return [mark(from, a), mark(to, b)];
     },
   };
   return write(marked)
     .split(MARKS)
     .filter((s) => s !== "")
-    .map((s) => {
-      const v = s.length === 1 ? at[(s.codePointAt(0) ?? 0) - MARK] : undefined;
-      return v === undefined ? s : { at: v, text: model.xText(v) };
-    });
+    .map((s) => (s.length === 1 ? (at[(s.codePointAt(0) ?? 0) - MARK] ?? s) : s));
 }
 
 const value = (model: Model, v: number | null | undefined, words: Words): Cell => ({

@@ -32,7 +32,7 @@ const lay = (
 ) => layout(chartModel(spec, "en", "UTC"), words, metrics(more), width, floors);
 
 const edges = durationEdges();
-const job2 = (median: number, p95: number): ChartSpec => ({
+const readDelays = (median: number, p95: number): ChartSpec => ({
   x: {
     type: "log",
     format: "duration",
@@ -64,8 +64,8 @@ const line = (y: (number | null)[][]): ChartSpec => ({
 });
 
 describe("rule labels", () => {
-  it("lays job 2's rules on the 276 px phone plot: the median runs right, the 95th percentile ends at its rule on the second line", () => {
-    const l = lay(job2(42_000, 1_087_000), 80 + 276, { axisGroup: 80 });
+  it("lays the read histogram's rules on the 276 px phone plot: the median runs right, the 95th percentile ends at its rule on the second line", () => {
+    const l = lay(readDelays(42_000, 1_087_000), 80 + 276, { axisGroup: 80 });
     expect(l.frame.width).toBe(276);
     const [median, p95] = l.ruleLabels;
     expect(median?.text).toBe(`Median ${formatDuration(42_000, "en")}`);
@@ -78,14 +78,14 @@ describe("rule labels", () => {
   });
 
   it("writes a rule outside the domain as a label flush with its end", () => {
-    const l = lay(job2(42_000, 4 * 86_400_000), 80 + 276, { axisGroup: 80 });
+    const l = lay(readDelays(42_000, 4 * 86_400_000), 80 + 276, { axisGroup: 80 });
     const off = l.ruleLabels[1];
     expect(off?.text).toBe(`95th percentile ${formatDuration(4 * 86_400_000, "en")}, off the axis`);
     expect((off?.x ?? 0) + face.number(off?.text ?? "")).toBe(80 + 276);
   });
 
   it("puts the y title on its own line when a rule's label would touch it", () => {
-    const l = lay(job2(1_000, 1_000), 300);
+    const l = lay(readDelays(1_000, 1_000), 300);
     expect(l.titles[0]?.y).toBeLessThan(l.ruleLabels[0]?.y ?? 0);
     expect(l.top).toBe(3 * 17 + 4);
   });

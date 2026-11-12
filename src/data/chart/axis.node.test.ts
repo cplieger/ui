@@ -22,7 +22,7 @@ const MIN = 60 * S;
 const HR = 60 * MIN;
 const DAY = 24 * HR;
 
-// A face 7.5 px a character, so job 2's duration labels run 30 to 52 px.
+// A face 7.5 px a character, so the read histogram's duration labels run 30 to 52 px.
 const perChar = (w: number) => (text: string) => w * Array.from(text).length;
 const ctx = (locale = "en", w = 7.5): AxisContext => ({
   locale,
@@ -60,7 +60,7 @@ const time = (lo: number, hi: number): Continuous =>
 const eight = Date.UTC(2026, 10, 11, 7);
 
 describe("a duration axis", () => {
-  it("places job 2's eight ticks near 15, 63, 100, 149, 186, 224, 253 and 276 px on the phone plot", () => {
+  it("places the read histogram's eight ticks near 15, 63, 100, 149, 186, 224, 253 and 276 px on the phone plot", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
     const at = [S, 10 * S, MIN, 10 * MIN, HR, 6 * HR, DAY, 3 * DAY].map((v) =>
       Math.round(axis.at(v)),
@@ -68,7 +68,7 @@ describe("a duration axis", () => {
     expect(at).toEqual([15, 63, 100, 149, 186, 224, 253, 276]);
   });
 
-  it("thins job 2's ticks at 276 px to 1 sec, 1 min, 1 hr and 3 days", () => {
+  it("thins the read histogram's ticks at 276 px to 1 sec, 1 min, 1 hr and 3 days", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
     expect(axis.ticks.map((t) => t.value)).toEqual([S, MIN, HR, 3 * DAY]);
     expect(words(axis)).toEqual([S, MIN, HR, 3 * DAY].map((v) => formatDuration(v, "en")));
@@ -76,7 +76,7 @@ describe("a duration axis", () => {
     expect(axis.ticks[0]?.label?.box.start).toBe(0);
   });
 
-  it("ends the thinned list at 7 days or 90 days at those retentions, near the positions the design gives", () => {
+  it("ends the thinned list at 7 days or 90 days at those retentions, near 14, 94, 175 and 276 px and 12, 80, 148 and 276 px", () => {
     const week = xAxis(xScale(histogram(7 * DAY)), 276, ctx());
     expect(week.ticks.map((t) => t.value)).toEqual([S, MIN, HR, 7 * DAY]);
     expect(week.ticks.map((t) => Math.round(t.at))).toEqual([14, 94, 175, 276]);
@@ -273,7 +273,7 @@ describe("the y gutter", () => {
 });
 
 describe("the rule label band", () => {
-  it("lays job 2's labels at 276 px: the median running right, the 95th percentile ending at its rule on the second line", () => {
+  it("lays the read histogram's labels at 276 px: the median running right, the 95th percentile ending at its rule on the second line", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
     const median = axis.at(42 * S);
     const p95 = axis.at(18 * MIN);

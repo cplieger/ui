@@ -15,14 +15,14 @@ const rect = (x1: number[], x2: number[], ...ys: (number | null)[][]): Mark => (
   series: ys.map((y, i) => ({ name: `s${String(i)}`, y })),
 });
 
-// grelot's job 2: the ladder's bins at the default retention, two rules.
+// A histogram of read delays: the ladder's bins at the default retention, two rules.
 const edges = durationEdges();
 const bins = rect(
   edges.slice(0, -1),
   edges.slice(1),
   edges.slice(1).map((_, i) => i + 1),
 );
-const job2 = (domain?: readonly [number, number], ...rules: number[]): ChartSpec => ({
+const readDelays = (domain?: readonly [number, number], ...rules: number[]): ChartSpec => ({
   x: { type: "log", format: "duration", ...(domain === undefined ? {} : { domain }) },
   marks: [bins, ...rules.map((x) => ({ mark: "rule" as const, x, label: "Median" }))],
 });
@@ -59,7 +59,7 @@ describe("xScale", () => {
   });
 
   it("spans only the positive edges on a log scale, never its rules", () => {
-    const scale = xScale(job2(undefined, 400, 4 * DAY));
+    const scale = xScale(readDelays(undefined, 400, 4 * DAY));
     expect(scale).toMatchObject({ lo: S, hi: 3 * DAY, passed: false });
   });
 
@@ -85,8 +85,8 @@ describe("xScale", () => {
 });
 
 describe("the underflow bin", () => {
-  it("draws job 2's first bin below the 1 sec low end, as wide as its neighbour", () => {
-    const scale = xScale(job2([S, 3 * DAY]));
+  it("draws the read histogram's first bin below the 1 sec low end, as wide as its neighbour", () => {
+    const scale = xScale(readDelays([S, 3 * DAY]));
     expect(scale.under).toMatchObject({
       mark: 0,
       index: 0,
@@ -99,7 +99,7 @@ describe("the underflow bin", () => {
   });
 
   it("draws the same with no domain", () => {
-    expect(xScale(job2()).drawnLo).toBe(500);
+    expect(xScale(readDelays()).drawnLo).toBe(500);
   });
 
   it("takes a factor of 2 with no neighbour, and its neighbour's factor when it has one", () => {
@@ -113,13 +113,13 @@ describe("the underflow bin", () => {
   });
 
   it("leaves the bin out under a 10 sec low end, drawing from 10 sec", () => {
-    const scale = xScale(job2([10 * S, 3 * DAY]));
+    const scale = xScale(readDelays([10 * S, 3 * DAY]));
     expect(scale.under?.drawn).toBe("out");
     expect(scale.drawnLo).toBe(10 * S);
   });
 
   it("leaves the bin out under a 1.5 sec low end, from which the 1 to 2 sec bin is cut", () => {
-    const scale = xScale(job2([1_500, 3 * DAY]));
+    const scale = xScale(readDelays([1_500, 3 * DAY]));
     expect(scale.under?.drawn).toBe("out");
     expect(scale.drawnLo).toBe(1_500);
   });
@@ -155,23 +155,23 @@ describe("the underflow bin", () => {
 });
 
 describe("ruleAt", () => {
-  it("puts job 2's 1 sec median on the tick and a 999 ms one at the bin's middle", () => {
-    const scale = xScale(job2([S, 3 * DAY]));
+  it("puts the read histogram's 1 sec median on the tick and a 999 ms one at the bin's middle", () => {
+    const scale = xScale(readDelays([S, 3 * DAY]));
     expect(ruleAt(scale, S)).toEqual({ at: S });
     expect(ruleAt(scale, 999)).toEqual({ at: Math.sqrt(500 * 1_000) });
   });
 
   it("puts a 400 ms median at the bin's middle with no domain", () => {
-    const scale = xScale(job2(undefined, 400));
+    const scale = xScale(readDelays(undefined, 400));
     expect(scale.drawnLo).toBe(500);
     expect(ruleAt(scale, 400)).toEqual({ at: Math.sqrt(500 * 1_000) });
   });
 
   it("puts a rule outside the domain off the axis at its nearer end", () => {
-    const scale = xScale(job2([S, 3 * DAY]));
+    const scale = xScale(readDelays([S, 3 * DAY]));
     expect(ruleAt(scale, 4 * DAY)).toEqual({ off: "high" });
     expect(ruleAt(scale, -1)).toEqual({ off: "low" });
-    const cut = xScale(job2([10 * S, 3 * DAY]));
+    const cut = xScale(readDelays([10 * S, 3 * DAY]));
     expect(ruleAt(cut, 400)).toEqual({ off: "low" });
     expect(ruleAt(xScale({ x: { domain: [0, 10] }, marks: [] }), 12)).toEqual({ off: "high" });
   });

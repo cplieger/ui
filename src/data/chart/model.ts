@@ -4,7 +4,7 @@
  * @module
  */
 
-import { formatter, instantFormat, type Unit } from "../scale/format.js";
+import { formatter, instantFormat, spanFormat, type Unit } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
 
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
@@ -77,6 +77,8 @@ export interface Model {
   readonly empty: boolean;
   /** An x value as the readings and the table write it. */
   readonly xText: (v: number) => string;
+  /** Both ends of a span of x, the end without a date the start already says. */
+  readonly xSpan: (from: number, to: number) => readonly [string, string];
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
   readonly locale: string | undefined;
@@ -389,10 +391,13 @@ export function chartModel(
       }
     }
   });
+  const days = x.hi - x.lo > DAY;
   const xText =
+    x.type === "time" ? instantFormat(locale, timeZone, days) : formatter(x.format, locale);
+  const xSpan =
     x.type === "time"
-      ? instantFormat(locale, timeZone, x.hi - x.lo > DAY)
-      : formatter(x.format, locale);
+      ? spanFormat(locale, timeZone, days)
+      : (from: number, to: number) => [xText(from), xText(to)] as const;
   return {
     spec,
     x,
@@ -401,6 +406,7 @@ export function chartModel(
     kind: kindOf(marks, x),
     empty: !marks.some(hasData),
     xText,
+    xSpan,
     yText: formatter(y.type === "band" ? undefined : y.format, locale),
     locale,
     timeZone,

@@ -150,7 +150,7 @@ describe("rect geometry", () => {
     expect(bucketEdges(rect, 4, f)).toEqual({ left: 250 + 0.5, right: 300 });
   });
 
-  it("draws job 2's underflow bin below the low end, the width of its neighbour", () => {
+  it("draws the read histogram's underflow bin below the low end, the width of its neighbour", () => {
     const edges = durationEdges();
     const spec: ChartSpec = {
       x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },

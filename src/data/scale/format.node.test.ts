@@ -7,6 +7,7 @@ import {
   instantFormat,
   keepUnit,
   noun,
+  spanFormat,
   tickFormat,
   withNoun,
 } from "./format.js";
@@ -114,6 +115,29 @@ describe("time formats", () => {
       );
     }
     expect(instantFormat("en", "UTC", false)(at)).toBe("2:15 PM");
+  });
+
+  it("writes a span's end without the date its start already says, and with it on another day", () => {
+    const full = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } as const;
+    const paris = (locale: string, ms: number, options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat(locale, { ...options, timeZone: "Europe/Paris" }).format(ms);
+    // 11:00 PM in Paris, then midnight, the next day.
+    const late = Date.UTC(2026, 10, 11, 22);
+    for (const locale of ["en", "fr"]) {
+      const span = spanFormat(locale, "Europe/Paris", true);
+      expect(span(at, at + 3_600_000)).toEqual([
+        intl(locale, full),
+        paris(locale, at + 3_600_000, { hour: "numeric", minute: "2-digit" }),
+      ]);
+      expect(span(late, late + 3_600_000)).toEqual([
+        paris(locale, late, full),
+        paris(locale, late + 3_600_000, full),
+      ]);
+      expect(spanFormat(locale, "Europe/Paris", false)(at, at + 3_600_000)).toEqual([
+        intl(locale, { hour: "numeric", minute: "2-digit" }),
+        paris(locale, at + 3_600_000, { hour: "numeric", minute: "2-digit" }),
+      ]);
+    }
   });
 
   it("writes an hour tick's first line as the hour, a shorter step's with minutes, a day step's as none", () => {
