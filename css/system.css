@@ -4838,46 +4838,47 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* Highlighted code: @cplieger/ui/highlight marks each token with
- * data-token, and these colours apply wherever it lands inside .cp, so a
- * file view or a diff row outside a code block takes them too. */
-.cp :where([data-token="keyword"]) {
+ * data-token, and these colours apply inside .cp, a code block, prose, or a
+ * .cp-syntax host such as a file view or a diff row, so an app that adopts
+ * one subtree at a time gets coloured code without opting the rest in. */
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="keyword"]) {
   color: var(--cp-syntax-keyword);
   font-weight: var(--cp-weight-medium);
 }
 
-.cp :where([data-token="string"]) {
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="string"]) {
   color: var(--cp-syntax-string);
 }
 
-.cp :where([data-token="number"]) {
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="number"]) {
   color: var(--cp-syntax-number);
 }
 
-.cp :where([data-token="key"]) {
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="key"]) {
   color: var(--cp-syntax-key);
 }
 
-.cp :where([data-token="comment"]) {
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="comment"]) {
   color: var(--cp-syntax-comment);
   font-style: italic;
 }
 
-.cp :where([data-token="punctuation"]) {
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="punctuation"]) {
   color: var(--cp-syntax-punctuation);
 }
 
 /* A changed line is a token holding its own + or -, which carries the
  * change without colour. */
-.cp :where([data-token="inserted"], [data-token="deleted"]) {
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="inserted"], [data-token="deleted"]) {
   color: var(--cp-ink);
   box-decoration-break: clone;
 }
 
-.cp :where([data-token="inserted"]) {
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="inserted"]) {
   background: var(--cp-syntax-inserted);
 }
 
-.cp :where([data-token="deleted"]) {
+:is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token="deleted"]) {
   background: var(--cp-syntax-deleted);
 }
 
@@ -4894,7 +4895,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 @media (forced-colors: active) {
-  .cp :where([data-token]) {
+  :is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token]) {
     color: CanvasText;
   }
 }
