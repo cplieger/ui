@@ -65,4 +65,4 @@ highlightInto(rowCode, line, "ts", { marks: [{ start: 6, end: 11 }], markClass: 
 
 ## Colours
 
-The stylesheet colours `[data-token]` anywhere inside `.cp`, with the `--cp-syntax-*` roles in [Colour](../design-colour.md#syntax-colours). A keyword is in medium weight and a comment in italic, so neither leans on colour alone. In forced colours every token takes the system's text colour.
+The stylesheet, `@cplieger/ui/css/system`, colours `[data-token]` inside `.cp`, a `.cp-code` block, `.cp-prose`, or any element with the `.cp-syntax` class, such as a file view or a diff row in a page that has not opted into `.cp`, with the `--cp-syntax-*` roles in [Colour](../design-colour.md#syntax-colours). A keyword is in medium weight and a comment in italic, so neither leans on colour alone. In forced colours every token takes the system's text colour.

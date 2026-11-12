@@ -19,6 +19,7 @@ events.addEventListener("done", () => stream.end());
 ```
 
 - `renderMarkdown` and a stream render after what the host holds. To render again, empty the host first.
+- Load the stylesheet, `@cplieger/ui/css/system`, with the `fonts/` and `icons/` folders beside it as the package ships them: it styles the prose, draws the code block's Copy and check icons from `icons/svg/copy.svg` and `check.svg`, and colours the code. Without it the code block shows its Copy button with two empty icons.
 - Put `.cp-prose` on the host. The renderer sets no class inside it beyond the code block's and the table region's, so the stylesheet styles every element from outside.
 - The markup carries no `style` attribute, so it renders under a `style-src 'self'` policy.
 

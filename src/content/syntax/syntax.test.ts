@@ -183,7 +183,7 @@ describe("the syntax roles", () => {
     );
   });
 
-  it("colours tokens anywhere inside .cp, outside a code block too", () => {
+  it("colours tokens inside .cp, outside a code block too", () => {
     root.setAttribute("data-theme", "light");
     const row = host();
     highlightInto(row, 'x = "s"', "py");
@@ -191,6 +191,21 @@ describe("the syntax roles", () => {
     expect(getComputedStyle(str!).color).not.toBe(getComputedStyle(row).color);
     root.classList.remove("cp");
     expect(getComputedStyle(str!).color).toBe(getComputedStyle(row).color);
+  });
+
+  it("colours tokens in a code block, prose or a .cp-syntax host with no .cp anywhere", () => {
+    root.setAttribute("data-theme", "light");
+    root.classList.remove("cp");
+    for (const cls of ["cp-prose", "cp-syntax"]) {
+      const el = host(cls);
+      highlightInto(el, 'x = "s"', "py");
+      const str = el.querySelector<HTMLElement>("[data-token='string']");
+      expect(getComputedStyle(str!).color, cls).not.toBe(getComputedStyle(el).color);
+    }
+    const prose = host("cp-prose");
+    renderMarkdown(prose, "```go\nfunc main() {}\n```\n");
+    const kw = prose.querySelector<HTMLElement>(".cp-code [data-token='keyword']");
+    expect(getComputedStyle(kw!).color).not.toBe(getComputedStyle(prose).color);
   });
 
   it("fills a changed line across the block's widest line, keeping its sign", () => {
@@ -235,7 +250,7 @@ describe("the syntax roles", () => {
     const selectors = forced.flatMap((m) =>
       [...m.cssRules].map((r) => (r instanceof CSSStyleRule ? r.selectorText : "")),
     );
-    expect(selectors).toContain(".cp :where([data-token])");
+    expect(selectors).toContain(":is(.cp, .cp-code, .cp-prose, .cp-syntax) :where([data-token])");
   });
 
   it.skipIf(!emulates)("drops every token to CanvasText in forced colours", async () => {
