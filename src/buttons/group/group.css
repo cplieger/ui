@@ -1,8 +1,11 @@
 /* A button group: buttons joined into one control, a thin line between them,
  * the outer corners rounded. It presses as one, because a part that scaled
- * alone would open a gap at its seam. */
+ * alone would open a gap at its seam. It stays as wide as its parts in a grid
+ * or a flex column too, such as a form, where it would otherwise stretch. */
 :is(.cp-group, .cp-split) {
   display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
   transition: transform var(--cp-dur-press) var(--cp-ease-out);
 }
 

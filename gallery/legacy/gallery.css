@@ -219,17 +219,6 @@
   }
 }
 
-/* Refresh: one turn that speeds up and slows down, at most about 1.8 turns
- * a second at its fastest. */
-.twirl-click .cp-icon {
-  transition: rotate 0ms;
-}
-
-.twirl-click.spun .cp-icon {
-  rotate: 1turn;
-  transition: rotate 900ms cubic-bezier(0.55, 0, 0.3, 1);
-}
-
 /* The cog turns one tooth, 60 degrees, and rests at 0, which its six
  * teeth make the same drawing: a resting turn that is not a multiple of 90
  * degrees resamples the icon and blurs it on a 1x screen. */
@@ -245,93 +234,6 @@
   to {
     rotate: 60deg;
   }
-}
-
-/* Pin: a mouse lifts it 2px, as a hint. Pressing it carries it on up, then
- * down past its rest as if into a board, and back. The keyframes name no
- * first or last frame, so the arc starts and ends at the pin's own position:
- * lifted under a mouse, at rest under a finger. Pinned, it takes the accent
- * and its head fills. Unpinned, it lifts out. */
-.pin-drop .cp-icon {
-  transition: translate 180ms var(--cp-ease-out);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .pin-drop:hover .cp-icon {
-      translate: 0 -2px;
-    }
-  }
-}
-
-/* :root keeps the accent over any hover rule that inks the icon. */
-:root .cp-button.pin-drop[aria-pressed="true"]:not(:disabled) {
-  color: var(--cp-accent);
-}
-
-.pin-drop[aria-pressed="true"] .cp-icon {
-  animation: pin-drop 640ms;
-}
-
-@keyframes pin-drop {
-  30% {
-    translate: 0 -7px;
-    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
-  }
-
-  62% {
-    translate: 0 3px;
-    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
-  }
-
-  82% {
-    translate: 0 -1px;
-    animation-timing-function: ease-in-out;
-  }
-}
-
-.pin-drop.unpinned .cp-icon {
-  animation: pin-lift 360ms var(--cp-ease-out);
-}
-
-@keyframes pin-lift {
-  40% {
-    translate: 0 -5px;
-  }
-}
-
-/* Heart: it beats and fills, in a red of its own, when turned on. A quiet
- * button's hover inks its icon, a scoped rule that wins a specificity tie by
- * proximity, so :root lifts the red over it; under a mouse an off heart
- * also turns red, as a hint of what a press does. */
-.heart-beat {
-  --heart: oklch(62% 0.21 20);
-}
-
-:root .cp-button.heart-beat[aria-pressed="true"]:not(:disabled) {
-  color: var(--heart);
-}
-
-/* The heart reacts on press only; a mouse hover just tints it its colour. */
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-button.heart-beat:hover:not(:disabled) {
-      color: var(--heart);
-    }
-  }
-}
-
-.heart-beat[aria-pressed="true"] .cp-icon {
-  animation: heart 1100ms var(--cp-ease-out);
-}
-
-@keyframes heart {
-  0% { scale: 1; }
-  15% { scale: 1.35; }
-  30% { scale: 0.92; }
-  45% { scale: 1.15; }
-  100% { scale: 1; }
 }
 
 /* Sparkles: small stars that leave a point, spin and fade. */
@@ -377,45 +279,6 @@
 
 .odometer .col span {
   block-size: 1em;
-}
-
-/* A segmented choice or a toggle group: the same pill slides to the chosen
- * one, under its words. Placed in rows and columns, so a wrapped choice
- * slides to its line. */
-:is(.cp-segmented, .g-toggles):has(> .pill) {
-  position: relative;
-}
-
-:is(.cp-segmented, .g-toggles) > .pill {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  inline-size: var(--w, 0);
-  block-size: var(--h, 0);
-  translate: var(--x, 0) var(--y, 0);
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-surface-raised);
-  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
-  pointer-events: none;
-  transition:
-    translate 460ms var(--ease-spring),
-    inline-size 460ms var(--ease-spring),
-    block-size 460ms var(--ease-spring);
-}
-
-:is(.cp-segmented, .g-toggles) > .pill[data-still] {
-  transition: none;
-}
-
-.cp-segmented:has(> .pill) > label,
-.g-toggles:has(> .pill) > button {
-  z-index: 1;
-}
-
-.cp-segmented:has(> .pill) > label:has(:checked),
-.g-toggles:has(> .pill) > button[aria-pressed="true"] {
-  background: transparent;
-  box-shadow: none;
 }
 
 /* Done: the fill fades to green and a check pops in at its end. The check's
@@ -668,8 +531,6 @@
     transition-delay: 0s !important;
   }
 
-  /* design.md "Motion": presses do not scale */
-
   /* a loader still has to read as busy, so it pulses slowly instead */
   :root:not([data-motion="full"]) :is(.loader, .boot-shape) {
     animation: loop-pulse 2s ease-in-out infinite !important;
@@ -857,6 +718,8 @@ input.cp-input::-webkit-calendar-picker-indicator {
 
 .g-menu [role^="menuitem"] > kbd {
   margin-inline-start: auto;
+  padding: 0;
+  border: 0;
   color: var(--cp-ink-muted);
   font: inherit;
   font-size: var(--cp-text-xs);
@@ -864,16 +727,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
 
 .g-menu [role^="menuitem"] > .cp-icon {
   color: var(--cp-ink-muted);
-}
-
-.g-menu [role="menuitemradio"] > .g-tick {
-  visibility: hidden;
-  margin-inline-start: auto;
-  color: var(--cp-accent);
-}
-
-.g-menu [role="menuitemradio"][aria-checked="true"] > .g-tick {
-  visibility: visible;
 }
 
 .g-menu [data-tone="danger"],
@@ -892,13 +745,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-heading);
-}
-
-.g-panel {
-  display: grid;
-  gap: var(--cp-space-3);
-  inline-size: 18rem;
-  padding: var(--cp-space-4);
 }
 
 /* Dialogs: a modal in the middle, a confirmation, a sheet from the inline
@@ -1259,10 +1105,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
     opacity: 0;
   }
 }
-
-/* Filter chips: a toggle each; turning one on slides its check in. */
-
-/* On, a chip fills with the accent like every chosen control. */
 
 /* Layouts */
 
@@ -1724,84 +1566,6 @@ th[aria-sort="descending"] .g-sort > .cp-icon {
   cursor: default;
 }
 
-/* The command palette: a dialog at the top third with a field over a list. */
-.g-palette {
-  inline-size: min(36rem, calc(100vw - 2rem));
-  margin-block-start: 12vh;
-}
-
-.g-palette .g-palette-field {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  padding: var(--cp-space-3) var(--cp-space-4);
-  border-block-end: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-palette .g-palette-field > input {
-  flex: 1;
-  border: 0;
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  font-size: var(--cp-text-md);
-  outline: none;
-}
-
-.g-palette [role="listbox"] {
-  display: grid;
-  max-block-size: 20rem;
-  margin: 0;
-  padding: var(--cp-space-1);
-  overflow: auto;
-  list-style: none;
-}
-
-.g-option {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-.g-option > .cp-icon {
-  color: var(--cp-ink-muted);
-}
-
-.g-option > kbd {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font: inherit;
-  font-size: var(--cp-text-xs);
-}
-
-.g-option[aria-selected="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-}
-
-.g-option[aria-selected="true"] > .cp-icon {
-  color: inherit;
-}
-
-.g-none {
-  padding: var(--cp-space-6) var(--cp-space-4);
-  color: var(--cp-ink-muted);
-  text-align: center;
-}
-
-kbd.g-key {
-  padding: 0.0625rem 0.375rem;
-  border: var(--cp-line-w) solid var(--cp-border-strong);
-  border-block-end-width: 2px;
-  border-radius: 0.3125rem;
-  font-family: inherit;
-  font-size: var(--cp-text-xs);
-}
-
 
 /* Foundations page */
 
@@ -2219,26 +1983,6 @@ html:has(.g-header) {
   container-type: inline-size;
 }
 
-/* A signed decimal with nudges. */
-
-/* Rules as table columns: condition, verb, languages, buttons. Each row
- * is a subgrid of the list, so a column lines up however long its words. */
-
-/* One language and its remove, kept together when the row wraps. */
-
-/* The row's own buttons in the last column: + first, so every rule's + lines
- * up, then the rule's remove where it has one. */
-
-/* A row that arrives fades in and settles 4px; nothing bounces. */
-@keyframes row-in {
-  from {
-    opacity: 0;
-    translate: 0 -0.25rem;
-  }
-}
-
-/* Pairs of fields with an arrow between. */
-
 /* The refreshing region is a panel, and its line runs along the panel's
  * top edge, inside the border, so it belongs to what it refreshes. */
 .g-refreshing {
@@ -2265,13 +2009,6 @@ html:has(.g-header) {
   to {
     background-position: 140% 0;
   }
-}
-
-/* A grouped-count confirmation: groups to choose, none chosen for you. */
-.g-groups {
-  display: grid;
-  gap: var(--cp-space-2);
-  margin-block-start: var(--cp-space-3);
 }
 
 /* Video with one caption track: our controls over the native element. */
@@ -2464,42 +2201,6 @@ html:has(.g-header) {
   border-radius: var(--cp-radius-control);
 }
 
-/* Menus: a checkbox item and a link item with a tag. */
-.g-menu [role="menuitemcheckbox"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  inline-size: 100%;
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2) var(--cp-space-3);
-  border: 0;
-  border-radius: var(--cp-radius-control);
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.g-menu [role="menuitemcheckbox"]:focus {
-  outline: none;
-  background: var(--cp-fill);
-}
-
-.g-menu a[role="menuitem"] {
-  text-decoration: none;
-}
-
-.g-menu .g-tag {
-  margin-inline-start: auto;
-  padding: 0 var(--cp-space-2);
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-medium);
-}
-
 /* A card that is one link. */
 .g-cardlink {
   display: grid;
@@ -2601,25 +2302,6 @@ html:has(.g-header) {
   animation: none;
 }
 
-/* The shortcut list. */
-.g-keys {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--cp-space-5);
-}
-
-.g-keys dl {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--cp-space-2) var(--cp-space-3);
-  margin: var(--cp-space-2) 0 0;
-  font-size: var(--cp-text-sm);
-}
-
-.g-keys dd {
-  margin: 0;
-}
-
 /* A list that holds its place: a line offers the change instead. */
 .g-hold-line {
   display: flex;
@@ -2682,248 +2364,6 @@ html:has(.g-header) {
   gap: var(--cp-space-1);
 }
 
-/* Button group and split button. */
-.g-btngroup {
-  display: inline-flex;
-  transition: transform var(--cp-dur-press) var(--cp-ease-out);
-}
-
-/* The group presses as one control: a part that scaled alone would open a gap
- * at its seam. */
-.g-btngroup > .cp-button {
-  --cp-press-scale: 1;
-
-  position: relative;
-  overflow: hidden;
-}
-
-/* A split button is one shape: the group paints the fill, its corners and its
- * state's colour, and its parts paint nothing at rest, so its edges are drawn
- * once and cannot disagree between the parts at a fractional offset. A part
- * paints only its own hover or press, inside the shape. The group does not
- * clip, so a part's focus ring still shows outside it. */
-.g-btngroup:has(> .g-split-caret) {
-  border-radius: var(--cp-radius-control);
-  background: var(--cp-tone-9);
-  transition:
-    background-color 600ms var(--cp-ease-out),
-    transform var(--cp-dur-press) var(--cp-ease-out);
-}
-
-.g-btngroup:has(> .g-split-caret):has(> [data-state="done"]) {
-  background: var(--done-bg);
-  transition:
-    background-color 160ms var(--cp-ease-out),
-    transform var(--cp-dur-press) var(--cp-ease-out);
-}
-
-.g-btngroup:has(> .g-split-caret) > .cp-button,
-:root .g-btngroup:has(> .g-split-caret) > .cp-button.btn-done[data-state] {
-  background: transparent;
-}
-
-/* A part's hover or press fill stops inside its transparent 1px border, so it
- * never paints over the shape's own anti-aliased edge: a second layer there
- * would make the hovered part's edge heavier than its neighbour's. The rules
- * set background-color, since a background shorthand resets the clip. */
-.g-btngroup:has(> .g-split-caret) > .cp-button {
-  background-clip: padding-box;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-btngroup:has(> .g-split-caret) > .cp-button:hover:not(:disabled, [aria-disabled="true"], [data-state]) {
-      background-color: var(--cp-tone-10);
-      background-clip: padding-box;
-    }
-  }
-}
-
-.g-btngroup:has(> .g-split-caret) > .cp-button:is(:active, [data-cp-pressed]):not(:disabled, [aria-disabled="true"], [data-state]) {
-  background-color: var(--cp-tone-10);
-  background-clip: padding-box;
-}
-
-.g-btngroup:has(> .cp-button:is(:active, [data-cp-pressed]):not(:disabled, [aria-disabled="true"])) {
-  transform: scale(var(--cp-press-scale));
-}
-
-.g-btngroup > .cp-button {
-  border-radius: 0;
-}
-
-.g-btngroup > .cp-button:first-child {
-  border-start-start-radius: var(--cp-radius-control);
-  border-end-start-radius: var(--cp-radius-control);
-}
-
-.g-btngroup > .cp-button:last-child {
-  border-start-end-radius: var(--cp-radius-control);
-  border-end-end-radius: var(--cp-radius-control);
-}
-
-.g-btngroup > .cp-button + .cp-button {
-  border-inline-start: 1px solid oklch(from currentcolor l c h / 25%);
-}
-
-.g-btngroup > .g-split-caret {
-  inline-size: 2.25rem;
-  min-inline-size: 0;
-  padding-inline: 0;
-  transition:
-    visibility 0s,
-    border-color 120ms var(--cp-ease-out) 120ms,
-    background-color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-/* While the main action works it grows over its caret: its end slides across
- * the caret in 240ms, its rounded corners travel at that end over the same
- * colour, and the group keeps one width. When the action is done it slides
- * back and squares its corners once its end is at the seam again. The covered
- * caret leaves the tab order. */
-.g-btngroup > .btn-done:first-child {
-  z-index: 1;
-  transition:
-    background-color 600ms var(--cp-ease-out),
-    color 600ms var(--cp-ease-out),
-    transform var(--cp-dur-micro) var(--cp-ease-out),
-    margin-inline-end 240ms var(--cp-ease-out),
-    padding-inline-end 240ms var(--cp-ease-out),
-    border-radius 0s 240ms;
-}
-
-.g-btngroup:has(> [data-state]) > .btn-done:first-child {
-  margin-inline-end: -2.25rem;
-  padding-inline-end: calc(var(--cp-control-pad-x) + 2.25rem);
-  border-start-end-radius: var(--cp-radius-control);
-  border-end-end-radius: var(--cp-radius-control);
-  transition:
-    background-color 600ms var(--cp-ease-out),
-    color 600ms var(--cp-ease-out),
-    transform var(--cp-dur-micro) var(--cp-ease-out),
-    margin-inline-end 240ms var(--cp-ease-out),
-    padding-inline-end 240ms var(--cp-ease-out),
-    border-radius 0s;
-}
-
-/* The divider fades with the chevron, so the parts read as one button. */
-.g-btngroup:has(> [data-state]) > .g-split-caret {
-  visibility: hidden;
-  border-inline-start-color: transparent;
-  transition:
-    visibility 0s 240ms,
-    border-color 160ms var(--cp-ease-out);
-}
-
-/* The chevron fades ahead of the sliding edge, so half a chevron never shows,
- * and returns once the edge has passed back over it. */
-.g-btngroup > .g-split-caret > .cp-icon {
-  transition: opacity 120ms var(--cp-ease-out) 120ms;
-}
-
-.g-btngroup:has(> [data-state]) > .g-split-caret > .cp-icon {
-  opacity: 0;
-  transition: opacity 90ms var(--cp-ease-out);
-}
-
-/* A toggle group: icon buttons, one pressed. */
-.g-toggles {
-  display: inline-flex;
-  gap: 0.125rem;
-  padding: 0.125rem;
-  border-radius: calc(var(--cp-radius-control) + 0.125rem);
-  background: var(--cp-fill);
-}
-
-.g-toggles > button[aria-pressed="true"] {
-  background: var(--cp-surface-raised);
-  color: var(--cp-ink);
-  box-shadow: 0 1px 2px oklch(from var(--cp-neutral-12) 20% c h / 15%);
-}
-
-/* As on the segmented: the sliding pill is the only fill. A hover or a press
- * never paints the quiet button's grey over the pill or the track; hovering an
- * unpressed toggle only darkens its icon. */
-.g-toggles > button.cp-button[aria-label][data-cp-pressed] {
-  background: transparent;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-toggles > button.cp-button:hover:not(:disabled) {
-      background: transparent;
-    }
-
-    .g-toggles > button:not([aria-pressed="true"]):hover:not(:disabled) {
-      color: var(--cp-ink);
-    }
-  }
-}
-
-/* A toolbar that moves what does not fit into a More menu. */
-.g-overflow {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  min-inline-size: 0;
-  overflow: hidden;
-  padding: var(--cp-space-1);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-control);
-  resize: horizontal;
-  inline-size: min(30rem, 100%);
-  max-inline-size: 100%;
-}
-
-/* Items and More keep their own width, so the measure counts what really
- * fits and a tight bar never squeezes More past its padding. */
-.g-overflow > :is([data-item], [data-more]) {
-  flex: none;
-}
-
-/* A small confirmation anchored to its button. */
-.g-popconfirm {
-  display: grid;
-  gap: var(--cp-space-3);
-  inline-size: 16rem;
-  padding: var(--cp-space-3) var(--cp-space-4);
-}
-
-.g-popconfirm p {
-  margin: 0;
-  font-size: var(--cp-text-sm);
-}
-
-/* A select panel: a filter over a checkable list, and Apply. */
-.g-selectpanel {
-  display: grid;
-  gap: var(--cp-space-2);
-  inline-size: 18rem;
-  padding: var(--cp-space-2);
-}
-
-.g-selectpanel [role="listbox"] {
-  display: grid;
-  max-block-size: 12rem;
-  margin: 0;
-  padding: 0;
-  overflow: auto;
-  list-style: none;
-}
-
-.g-selectpanel [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-.g-selectpanel [role="option"].active {
-  background: var(--cp-fill);
-}
 
 /* The item hero: an alternative title in its own language, link chips. */
 .g-alt-title {
@@ -3245,6 +2685,11 @@ html:has(.g-header) {
   resize: horizontal;
 }
 
+/* A frame that starts narrower than its card, so the card opens folded. */
+.g-resizable[data-start="narrow"] {
+  inline-size: min(30rem, 100%);
+}
+
 .cp-cluster > .f-box {
   inline-size: auto;
 }
@@ -3261,26 +2706,6 @@ html:has(.g-header) {
 
 .cp-field > .cp-input[data-width="fill"] {
   justify-self: stretch;
-}
-
-/* A zone with a context menu: under a finger, a hold opens the menu, so it
- * selects no text and raises no callout. A mouse still selects. */
-:root[data-pointer="coarse"] [data-context] {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-}
-
-/* A trigger whose filters or labels are on takes the accent, as a pinned
- * pin does: its icon fills and its count turns solid. :root keeps it over
- * the hover rule that inks a button's icon. */
-:root .cp-button[data-active]:not(:disabled) > .cp-icon {
-  color: var(--cp-accent);
-}
-
-.cp-button[data-active] > .g-badge {
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
 }
 
 /* A job's phase and, once it ends, its outcome: a glyph at the words'
@@ -3324,13 +2749,6 @@ html:has(.g-header) {
 
 .g-timeline details > summary > .cp-icon:dir(rtl) {
   scale: -1 1;
-}
-
-/* A control as wide as its parts, wherever it sits. */
-.g-toggles,
-.g-btngroup {
-  inline-size: fit-content;
-  max-inline-size: 100%;
 }
 
 /* A date or a time holds its value and its picker button, never cut; a date's
@@ -3392,57 +2810,6 @@ html:has(.g-header) {
 .cp-tokens > .load-twirl > span {
   inline-size: 0.875rem;
   block-size: 0.875rem;
-}
-
-/* A row that checks in a menu or a panel: the checkbox's own look at the
- * row's size, a rounded square with the field's edge that becomes an
- * accent circle with the same check, its ink centred as the box's is. */
-.g-mbox {
-  --mbox: 1.125rem;
-
-  display: grid;
-  flex: none;
-  place-items: center;
-  inline-size: var(--mbox);
-  block-size: var(--mbox);
-  border-radius: 30%;
-  background: var(--cp-surface-raised);
-  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-border-strong);
-  /* the form checkbox's twirl: a quarter turn into a circle on the accent */
-  transition:
-    border-radius var(--dur-spring) var(--ease-spring),
-    rotate var(--dur-spring) var(--ease-spring),
-    background-color 160ms var(--cp-ease-out),
-    box-shadow 160ms var(--cp-ease-out),
-    scale var(--press-dur, var(--dur-spring)) var(--press-ease, var(--ease-bounce));
-}
-
-[data-cp-pressed] > .g-mbox {
-  scale: 0.88;
-}
-
-/* The check draws itself as the box turns, counter-turned so it lands upright. */
-.g-mbox::before {
-  content: "";
-  inline-size: calc(var(--mbox) - 0.25rem);
-  block-size: calc(var(--mbox) - 0.25rem);
-  background: var(--cp-on-accent);
-  mask: url("icons/marks/check.svg") center / contain no-repeat;
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 120ms var(--cp-ease-out);
-}
-
-:is([aria-checked="true"], [aria-selected="true"]) > .g-mbox {
-  border-radius: 50%;
-  rotate: 90deg;
-  background: var(--cp-accent);
-  box-shadow: inset 0 0 0 var(--cp-line-w) var(--cp-accent);
-}
-
-:is([aria-checked="true"], [aria-selected="true"]) > .g-mbox::before {
-  rotate: -90deg;
-  clip-path: inset(0 0 0 0);
-  transition: clip-path 200ms var(--cp-ease-out) 80ms;
 }
 
 /* The stepper's number rolls in a window laid over its field. */

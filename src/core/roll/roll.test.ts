@@ -47,6 +47,19 @@ describe("roll", () => {
     expect(Number.parseFloat(host.style.inlineSize)).toBeCloseTo(wide, 1);
   });
 
+  it("measures and glides at the laid-out width inside a scaled box, as a pressed button is", () => {
+    const flat = measureRoll(windowOf("Grabbing…"), "Grabbing…");
+    const host = windowOf("Grab");
+    const press = document.createElement("span");
+    press.style.display = "inline-block";
+    press.style.transform = "scale(0.5)";
+    press.append(host);
+    document.body.append(press);
+    expect(measureRoll(host, "Grabbing…")).toBeCloseTo(flat, 1);
+    roll(host, "Grabbing…");
+    expect(Number.parseFloat(host.style.inlineSize)).toBeCloseTo(flat, 1);
+  });
+
   it("brings the new line up from below, or down from above when it rolls down", () => {
     const up = windowOf("1");
     roll(up, "2");

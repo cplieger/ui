@@ -116,4 +116,35 @@ describe("enhancePill", () => {
     enhancePill(group, { signal: AbortSignal.abort() });
     expect(pillOf(group)).toBeNull();
   });
+
+  it("hides once a change elsewhere clears the choice, as a typed date clears a quick range", async () => {
+    const { group } = segmented(1);
+    const date = document.createElement("input");
+    date.type = "date";
+    document.body.append(date);
+    date.addEventListener("change", () => {
+      for (const r of group.querySelectorAll("input")) {
+        r.checked = false;
+      }
+    });
+    enhancePill(group, { signal: life.signal });
+    expect(pillOf(group).hidden).toBe(false);
+    date.value = "2026-11-11";
+    date.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(pillOf(group).hidden).toBe(true);
+  });
+
+  it("follows its form's reset back to the first choice", async () => {
+    const form = document.createElement("form");
+    const { group, labels } = segmented(0);
+    // A reset goes back to the markup's choice, the checked attribute.
+    (labels[0]?.querySelector("input") as HTMLInputElement).defaultChecked = true;
+    form.append(group);
+    document.body.append(form);
+    enhancePill(group, { signal: life.signal });
+    await userEvent.click(labels[2] as HTMLElement);
+    expect(at(pillOf(group))).toEqual(box(labels[2] as HTMLElement));
+    form.reset();
+    await expect.poll(() => at(pillOf(group))).toEqual(box(labels[0] as HTMLElement));
+  });
 });

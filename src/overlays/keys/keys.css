@@ -1,0 +1,27 @@
+/* The keyboard shortcuts, in a dialog: groups by area, each a heading over
+ * a <dl> of what a key does and its <kbd> caps, as many columns as fit, and
+ * a last <p> across them all, such as the build version. */
+.cp-keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--cp-space-5);
+}
+
+.cp-keys dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  margin: var(--cp-space-2) 0 0;
+  font-size: var(--cp-text-sm);
+}
+
+.cp-keys dd {
+  margin: 0;
+}
+
+.cp-keys > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
