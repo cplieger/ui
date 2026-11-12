@@ -54,8 +54,12 @@ navigation/rail/filters-trigger.css
 data/text/text.css
 data/avatar/avatar.css
 data/cover/cover.css
+data/list-row/list-row.css
+data/reorder/reorder.css
+data/feed/feed.css
 feedback/chip/chip.css
 feedback/badge/badge.css
+feedback/dot/dot.css
 feedback/notice/notice.css
 feedback/banner/banner.css
 layout/panel/panel.css
@@ -64,6 +68,7 @@ layout/cluster/cluster.css
 layout/side-main/side-main.css
 layout/grid/grid.css
 layout/list-detail/list-detail.css
+layout/context-panel/context-panel.css
 navigation/rail/filters.css
 navigation/tabs/tabs.css
 navigation/link-tabs/link-tabs.css

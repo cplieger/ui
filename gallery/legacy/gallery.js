@@ -507,129 +507,7 @@ for (const d of $$("dialog.g-dialog[data-says]")) {
   d.addEventListener("close", () => d.returnValue && d.returnValue !== "cancel" && toast({ kind: d.returnValue === "delete" ? "success" : "info", title: d.dataset.says }));
 }
 
-// --------------------------------------------------------------- fields
-// -------------------------------------------------------- relative time
-const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-const rtfNarrow = new Intl.RelativeTimeFormat(undefined, { numeric: "always", style: "narrow" });
-const dtf = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
-function relative(ms, narrow = false) {
-  const s = Math.round((ms - Date.now()) / 1000);
-  const units = [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]];
-  for (const [u, n] of units) if (Math.abs(s) >= n) return (narrow ? rtfNarrow : rtf).format(Math.round(s / n), u);
-  return rtf.format(s < 0 ? Math.min(-1, s) : s, "second").replace(/\d+ seconds? ago/, "just now");
-}
-function liveTimes() {
-  for (const t of $$("time[data-ago]")) {
-    const at = Date.now() - Number(t.dataset.ago) * 1000;
-    t.dateTime ||= new Date(at).toISOString();
-    t.textContent = relative(Date.parse(t.dateTime), t.dataset.style === "narrow");
-    t.title = dtf.format(Date.parse(t.dateTime));
-  }
-}
-liveTimes();
-setInterval(liveTimes, 30000);
 
-
-// ---------------------------------------------------- reorderable list
-// A handle drags an item; Alt with an arrow key, or its Move up and Move
-// down, move it by one. The others slide aside and the order is announced.
-for (const list of $$("[data-reorder]")) {
-  const rows = () => $$(":scope > li", list);
-  const flip = (fn) => {
-    const before = new Map(rows().map((r) => [r, r.getBoundingClientRect().top]));
-    fn();
-    if (reduced()) return;
-    for (const r of rows()) {
-      const dy = before.get(r) - r.getBoundingClientRect().top;
-      if (dy) r.animate([{ translate: `0 ${dy}px` }, { translate: "0 0" }], { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" });
-    }
-  };
-  const moved = (r) => {
-    sync?.();
-    const i = rows().indexOf(r);
-    $$(".g-rank", list).forEach((n, k) => (n.textContent = String(k + 1)));
-    say(`${r.dataset.name}, position ${i + 1} of ${rows().length}`);
-  };
-  // Move up and Move down on every item: a single press moves it, with no drag
-  // (WCAG 2.2, 2.5.7). Focus stays on the button pressed, which moves with its
-  // item; at an end the button is aria-disabled, so it keeps focus there too.
-  const sync = () => {
-    const all = rows();
-    all.forEach((r, i) => {
-      $("[data-move='-1']", r)?.setAttribute("aria-disabled", String(i === 0));
-      $("[data-move='1']", r)?.setAttribute("aria-disabled", String(i === all.length - 1));
-    });
-  };
-  sync();
-  list.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-move]");
-    if (!b || b.getAttribute("aria-disabled") === "true") return;
-    const r = b.closest("li");
-    flip(() => (b.dataset.move === "-1" ? r.previousElementSibling?.before(r) : r.nextElementSibling?.after(r)));
-    b.focus();
-    sync();
-    moved(r);
-  });
-  list.addEventListener("keydown", (e) => {
-    const r = e.target.closest("li");
-    if (!r || !e.altKey || !["ArrowUp", "ArrowDown"].includes(e.key)) return;
-    e.preventDefault();
-    flip(() => (e.key === "ArrowUp" ? r.previousElementSibling?.before(r) : r.nextElementSibling?.after(r)));
-    e.target.focus();
-    moved(r);
-  });
-  let drag = null;
-  list.addEventListener("pointerdown", (e) => {
-    const h = e.target.closest(".g-handle");
-    if (!h || e.button !== 0) return;
-    e.preventDefault();
-    const r = h.closest("li");
-    h.setPointerCapture(e.pointerId);
-    drag = { r, h, id: e.pointerId, y0: e.clientY, boxes: rows().map((x) => ({ x, top: x.offsetTop, h: x.offsetHeight })) };
-    drag.from = drag.boxes.findIndex((b) => b.x === r);
-    drag.to = drag.from;
-    r.classList.add("lifted");
-  });
-  list.addEventListener("pointermove", (e) => {
-    if (drag?.id !== e.pointerId) return;
-    const dy = e.clientY - drag.y0;
-    const me = drag.boxes[drag.from];
-    drag.r.style.translate = `0 ${dy}px`;
-    const mid = me.top + me.h / 2 + dy;
-    let to = drag.boxes.findIndex((b) => mid < b.top + b.h / 2);
-    if (to < 0) to = drag.boxes.length - 1;
-    else if (to > drag.from) to -= 1;
-    drag.to = to;
-    drag.boxes.forEach((b, i) => {
-      if (b.x === drag.r) return;
-      let s = 0;
-      if (drag.from < to && i > drag.from && i <= to) s = -me.h;
-      if (drag.from > to && i >= to && i < drag.from) s = me.h;
-      b.x.style.transition = "translate 0.2s cubic-bezier(0.2, 0, 0, 1)";
-      b.x.style.translate = s ? `0 ${s}px` : "";
-    });
-  });
-  const end = (e) => {
-    if (drag?.id !== e.pointerId) return;
-    const d = drag;
-    drag = null;
-    const others = d.boxes.map((b) => b.x).filter((x) => x !== d.r);
-    flip(() => {
-      for (const b of d.boxes) {
-        b.x.style.transition = "none";
-        b.x.style.translate = "";
-      }
-      const anchor = others[d.to];
-      if (anchor) anchor.before(d.r);
-      else list.append(d.r);
-    });
-    requestAnimationFrame(() => d.boxes.forEach((b) => (b.x.style.transition = "")));
-    d.r.classList.remove("lifted");
-    moved(d.r);
-  };
-  list.addEventListener("pointerup", end);
-  list.addEventListener("pointercancel", end);
-}
 
 // ---------------------------------------------------------------- theme
 // The page's look follows the chosen theme, and the change reveals the new
@@ -1010,99 +888,6 @@ for (const md of $$("[data-md]")) {
   render();
 }
 
-// ------------------------------------------------------------ virtual list
-// 20,000 rows: only those in view, plus a few each side, are in the DOM,
-// each keyed by its id so a live update changes it in place. The focused
-// row stays drawn when it scrolls away, so focus never drops to the body.
-for (const host of $$("[data-virtual]")) {
-  const total = Number(host.dataset.virtual);
-  const H = 48;
-  const words = ["Frieren", "Mushishi", "Dungeon", "Heron", "Monogatari", "Ping Pong", "Haikyu", "Mob Psycho", "Odd Taxi", "Kaiju"];
-  let rows = Array.from({ length: total }, (_, i) => ({ id: `t${i}`, title: `${words[i % words.length]} ${Math.floor(i / words.length) + 1}`, n: (i * 7) % 26 }));
-  let view = rows;
-  const spacer = $(".g-spacer", host);
-  const drawn = new Map();
-  const count = document.getElementById(host.dataset.count);
-  const draw = () => {
-    spacer.style.blockSize = `${view.length * H}px`;
-    const first = Math.max(0, Math.floor(host.scrollTop / H) - 5);
-    const last = Math.min(view.length, Math.ceil((host.scrollTop + host.clientHeight) / H) + 5);
-    const keep = new Set(view.slice(first, last).map((r) => r.id));
-    const focused = document.activeElement?.closest?.(".g-vrow")?.dataset.id;
-    if (focused) keep.add(focused);
-    for (const [id, node] of drawn) if (!keep.has(id)) { node.remove(); drawn.delete(id); }
-    view.forEach((r, i) => {
-      if (!keep.has(r.id)) return;
-      let node = drawn.get(r.id);
-      if (!node) {
-        node = el("div", { class: "g-vrow", "data-id": r.id }, el("a", { href: `#${r.id}` }), el("small"));
-        drawn.set(r.id, node);
-        spacer.append(node);
-      }
-      node.style.top = `${i * H}px`;
-      node.firstChild.textContent = r.title;
-      node.lastChild.textContent = `${r.n} of 26 episodes`;
-    });
-  };
-  host.addEventListener("scroll", draw, { passive: true });
-  const filter = document.getElementById(host.dataset.filter);
-  filter?.addEventListener("input", () => {
-    const q = filter.value.trim().toLowerCase();
-    view = q ? rows.filter((r) => r.title.toLowerCase().includes(q)) : rows;
-    host.scrollTop = 0;
-    draw();
-    count.textContent = `${view.length.toLocaleString()} of ${rows.length.toLocaleString()} titles`;
-    clearTimeout(host.sayTimer);
-    host.sayTimer = setTimeout(() => announce(count.textContent), 500);
-  });
-  $(`[data-live-update="${host.id}"]`)?.addEventListener("click", () => {
-    rows = rows.map((r) => (Math.random() < 0.3 ? { ...r, n: Math.min(26, r.n + 1) } : r));
-    const ids = new Set(view.map((r) => r.id));
-    view = rows.filter((r) => ids.has(r.id));
-    draw();
-  });
-  count.textContent = `${total.toLocaleString()} of ${total.toLocaleString()} titles`;
-  draw();
-}
-
-// --------------------------------------------------------------- jobs
-for (const list of $$("[data-jobs]")) {
-  const tick = () => {
-    for (const j of $$(".g-job:not([data-ended])", list)) {
-      const p = $("progress", j);
-      p.value = Math.min(Number(p.max), Number(p.value) + 1);
-      $(".g-job-n", j).textContent = `${p.value} of ${p.max}`;
-      if (p.value === Number(p.max)) end(j, "Finished", "circle-check", "success");
-    }
-  };
-  const end = (j, words, ic, tone) => {
-    j.dataset.ended = "";
-    const phase = $(".g-job-phase", j);
-    phase.dataset.tone = tone;
-    phase.replaceChildren(icon(ic), words);
-    $("[data-stop]", j)?.remove();
-  };
-  list.addEventListener("click", (e) => {
-    const stop = e.target.closest("[data-stop]");
-    if (stop) {
-      const j = stop.closest(".g-job");
-      end(j, "Stopped by you", "circle-minus", "neutral");
-      announce(`${$(".g-job-kind", j).textContent} stopped`);
-    }
-    if (e.target.closest("[data-more-jobs]")) {
-      const tmpl = $(".g-job", list);
-      for (let k = 0; k < 3; k++) {
-        const c = tmpl.cloneNode(true);
-        delete c.dataset.ended;
-        $("progress", c).value = 0;
-        list.insertBefore(c, e.target.closest(".g-list-foot"));
-      }
-      e.target.closest(".g-list-foot").remove();
-    }
-  });
-  setInterval(tick, 700);
-}
-
 // ------------------------------------------------------------ pair rows
 // A path must start with /, said once the field is left. main.ts runs the
 // rows.
@@ -1296,31 +1081,6 @@ for (const form of $$("form[data-settings]")) {
 
 // ======================================== hero icons, layouts and the rest of the scope
 
-// A list that holds its place: changes that would move rows wait behind a
-// line that offers them, so nothing moves under the reader (WCAG 3.2.2).
-for (const list of $$("[data-hold]")) {
-  const line = el("div", { class: "g-hold-line", role: "status" });
-  let pending = 0;
-  $(`[data-hold-push="${list.id}"]`)?.addEventListener("click", () => {
-    pending += 3;
-    line.replaceChildren(`${pending} newer rows`, el("button", { class: "cp-button", "data-size": "sm", type: "button", text: "Show", onclick: () => {
-      let first = null;
-      for (let k = pending; k > 0; k--) {
-        first = el("li", { tabindex: "-1" }, el("div", { class: "g-row" }, icon("plus"), el("span", {}, `New grab ${k}`, el("small", { text: "just now" }))));
-        list.prepend(first);
-      }
-      pending = 0;
-      line.remove();
-      first?.focus();
-    } }));
-    if (!line.isConnected) {
-      line.hidden = true;
-      list.before(line);
-      glideShow(line, true);
-    }
-  });
-}
-
 // Values that come from data are set through the CSSOM, which a style-src
 // without 'unsafe-inline' allows, never as a style attribute.
 for (const l of $$("label[data-hue]")) l.style.setProperty("--h", l.dataset.hue);
@@ -1415,21 +1175,7 @@ function glideDetails(d) {
   });
   void run;
 }
-for (const d of $$("details:not(.cp-accordion details, .cp-history details)")) glideDetails(d);
-
-// A bar that appears or leaves pushes the content under it, so it glides
-// open and shut instead of jumping.
-function glideShow(node, show) {
-  if (show === !node.hidden) return;
-  if (show) {
-    node.hidden = false;
-    const to = node.getBoundingClientRect().height;
-    node.animate([{ blockSize: "0px", opacity: 0, overflow: "clip" }, { blockSize: `${to}px`, opacity: 1, overflow: "clip" }], { duration: glideMs(), easing: "cubic-bezier(0.2, 0, 0, 1)" });
-  } else {
-    const from = node.getBoundingClientRect().height;
-    node.animate([{ blockSize: `${from}px`, opacity: 1, overflow: "clip" }, { blockSize: "0px", opacity: 0, overflow: "clip" }], { duration: glideMs(), easing: "cubic-bezier(0.4, 0, 1, 1)" }).onfinish = () => (node.hidden = true);
-  }
-}
+for (const d of $$("details:not(.cp-accordion details, .cp-context-panel, .cp-history details)")) glideDetails(d);
 
 // A dialog's exit: Chromium animates it in CSS (overlay and display allow
 // discrete); an engine that cannot gets the same fade or slide in script

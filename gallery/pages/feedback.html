@@ -71,14 +71,14 @@
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-chip-next>Next state</button></div>
         <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once, a little larger, and fades back to its wash; the change is announced, since the flash is only seen. Next state moves the last chip from Up to Slow to Down. A chip is a state, never a control.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Live dot, badges, times</h2>
         <div class="cp-form">
-          <span class="g-row-inline"><span class="g-dot" data-tone="success" data-live></span>Checking now<span class="g-dot" data-tone="neutral"></span>Idle</span>
-          <span class="g-row-inline">Releases <span class="g-badge">12</span> Activity <span class="g-badge" data-quiet>3</span></span>
+          <span class="g-row-inline"><span class="cp-dot" data-tone="success" data-live data-dot-demo></span><span>Checking now</span><span class="cp-dot" data-tone="neutral"></span>Idle<button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-dot-next>Next state</button></span>
+          <span class="g-row-inline">Releases <span class="cp-badge">12<span class="cp-visually-hidden"> new</span></span> Activity <span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> new</span></span></span>
           <span>Last full check <time data-ago="420"></time>, the next one <time data-ago="-1500"></time></span>
         </div>
-        <footer>Only a live state pulses. A relative time keeps the exact one in its title and updates every 30 seconds.</footer>
+        <footer>A live state pulses twice as it turns live: press Next state twice. A relative time shows the exact one on hover and keeps its words current.</footer>
       </div>
     </div>
   </section>

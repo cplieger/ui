@@ -14,6 +14,34 @@
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
 }
 
+/* Wide: the detail is the work, such as an open conversation, and takes
+ * the room left by a list of 30% of the box, kept within 16rem and 22rem.
+ * Docked, it sticks under any sticky header and is at most the window's
+ * height less that header, so the list and the detail scroll apart; its
+ * second child fills the rest and scrolls inside it. The list keeps its own
+ * height beside that window-tall detail. */
+.cp-list-detail[data-variant="wide"][data-cp-docked] {
+  grid-template-columns: clamp(16rem, 30%, 22rem) minmax(0, 1fr);
+  align-items: start;
+}
+
+.cp-list-detail[data-variant="wide"][data-cp-docked] > .cp-detail {
+  position: sticky;
+  inset-block-start: var(--cp-sticky-top, 0);
+  grid-template-rows: auto minmax(0, 1fr);
+  max-block-size: calc(100dvb - var(--cp-sticky-top, 0px));
+  overflow-y: auto;
+}
+
+/* The padding, given back by the margin, keeps a focus ring at the body's
+ * edge clear of its scrolling. */
+:where(.cp-list-detail[data-variant="wide"][data-cp-docked]) > .cp-detail > .cp-detail-body {
+  min-block-size: 0;
+  margin: calc(-1 * var(--cp-space-1));
+  padding: var(--cp-space-1);
+  overflow-y: auto;
+}
+
 /* The open entry: its row in a table, or its own element in a list, carries
  * aria-current="true". */
 .cp-list-detail tr:has([aria-current="true"]) > td,
@@ -48,10 +76,13 @@
   gap: var(--cp-space-2);
 }
 
+/* A name with no break point, such as a path, wraps rather than pushing the
+ * close button out of a narrow detail. */
 .cp-detail > header > :is(h2, h3) {
   flex: 1;
   min-inline-size: 0;
   font-size: var(--cp-text-md);
+  overflow-wrap: anywhere;
 }
 
 .cp-list-detail > .cp-detail[data-cp-still] {

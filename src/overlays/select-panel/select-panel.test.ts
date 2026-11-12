@@ -50,6 +50,10 @@ function page(listbox = true): {
   };
 }
 
+// The opener never moves, so Playwright's wait for two equal animation frames
+// only adds time: Firefox and WebKit under a loaded full run took over 4s.
+const open = (opener: HTMLButtonElement) => userEvent.click(opener, { force: true });
+
 const checked = (options: HTMLElement[]): string[] =>
   options.filter((o) => o.getAttribute("aria-selected") === "true").map((o) => o.textContent);
 
@@ -61,7 +65,7 @@ describe("enhanceSelectPanel", () => {
     const { opener, panel, field } = page();
     enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
     field.value = "left over";
-    await userEvent.click(opener);
+    await open(opener);
     expect(document.activeElement).toBe(field);
     expect(field.value).toBe("");
     expect(activeOf(field)).toBe("Watch next");
@@ -73,7 +77,7 @@ describe("enhanceSelectPanel", () => {
   it("filters the options by their words, and shows its empty words while none matches", async () => {
     const { opener, panel, field, options, empty } = page();
     enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.keyboard("ARCH");
     expect(options.map((o) => o.hidden)).toEqual([true, true, true, false]);
     expect(activeOf(field)).toBe("Archive");
@@ -87,7 +91,7 @@ describe("enhanceSelectPanel", () => {
   it("keeps its empty words hidden while only a disabled option matches", async () => {
     const { opener, panel, field, options, empty } = page();
     enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.keyboard("dub");
     expect(options.map((o) => o.hidden)).toEqual([true, true, false, true]);
     expect(empty.hidden).toBe(true);
@@ -98,7 +102,7 @@ describe("enhanceSelectPanel", () => {
     installAnnouncer({ signal: life.signal });
     const { opener, panel, empty } = page();
     enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.keyboard("zzz");
     expect(empty.hidden).toBe(false);
     await expect
@@ -113,7 +117,7 @@ describe("enhanceSelectPanel", () => {
       onApply: (chosen) => applied.push(chosen.map((o) => o.textContent)),
       signal: life.signal,
     });
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.keyboard("{ArrowDown}{ArrowDown}");
     expect(activeOf(field)).toBe("Archive");
     await userEvent.keyboard("{ArrowDown}");
@@ -130,7 +134,7 @@ describe("enhanceSelectPanel", () => {
   it("checks a pressed option and keeps focus in the field, and ignores a disabled one", async () => {
     const { opener, panel, field, options } = page();
     enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.click(options[1] as HTMLElement);
     await userEvent.click(options[2] as HTMLElement, { force: true });
     expect(checked(options)).toEqual([]);
@@ -151,7 +155,7 @@ describe("enhanceSelectPanel", () => {
         }),
       signal: life.signal,
     });
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.click(options[0] as HTMLElement);
     await userEvent.click(apply);
     expect(seen).toEqual([{ chosen: ["Watch next", "Rewatch"], open: false, focus: opener }]);
@@ -161,12 +165,12 @@ describe("enhanceSelectPanel", () => {
   it("puts back the choice it opened with when Escape or a press outside closes it", async () => {
     const { opener, panel, options } = page();
     enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.click(options[0] as HTMLElement);
     await userEvent.keyboard("{Escape}");
     expect(panel.matches(":popover-open")).toBe(false);
     expect(checked(options)).toEqual(["Rewatch"]);
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.click(options[3] as HTMLElement);
     await userEvent.click(document.querySelector("#outside") as HTMLElement);
     expect(panel.matches(":popover-open")).toBe(false);
@@ -177,7 +181,7 @@ describe("enhanceSelectPanel", () => {
     const { opener, panel } = page();
     let applied = 0;
     enhanceSelectPanel(panel, { onApply: () => (applied += 1), signal: life.signal });
-    await userEvent.click(opener);
+    await open(opener);
     await userEvent.keyboard("zz{Enter}");
     expect(applied).toBe(0);
     expect(panel.matches(":popover-open")).toBe(true);
@@ -193,7 +197,7 @@ describe("enhanceSelectPanel", () => {
   it("drops the active option and its listeners once its signal aborts", async () => {
     const { opener, panel, field, options } = page();
     enhanceSelectPanel(panel, { onApply: () => undefined, signal: life.signal });
-    await userEvent.click(opener);
+    await open(opener);
     life.abort();
     expect(field.hasAttribute("aria-activedescendant")).toBe(false);
     expect(options.some((o) => o.hasAttribute("data-cp-active"))).toBe(false);

@@ -35,15 +35,21 @@ const settled = async () => {
 // announce writes its words after a 100ms gap; a timer set later with an equal or longer
 // timeout runs after it (https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timers).
 const said = () => new Promise((r) => setTimeout(r, 150));
+// What `open` reads as `d` closes: a close waits for the exit, which a loaded
+// engine can stretch past any fixed wait.
+const closing = (d: HTMLDialogElement) =>
+  new Promise<boolean>((r) => {
+    d.addEventListener("close", () => r(d.open), { once: true });
+  });
 
 describe("installDialogs", () => {
   it("closes a dialog marked closedby=any on a press that starts and ends outside it", async () => {
     installDialogs({ signal: life.signal });
     const d = dialog({ closedby: "any" }, "<p>Hi</p>");
     d.showModal();
+    const shut = closing(d);
     await userEvent.click(document.body, { position: { x: 5, y: 5 } });
-    await settled();
-    expect(d.open).toBe(false);
+    expect(await shut).toBe(false);
   });
 
   it("keeps a dialog open for a press inside it", async () => {
@@ -65,9 +71,9 @@ describe("installDialogs", () => {
     expect(d.open).toBe(true);
     expect(d.hasAttribute("data-cp-refused")).toBe(true);
     field.value = "Sonarr";
+    const shut = closing(d);
     await userEvent.click(document.body, { position: { x: 5, y: 5 } });
-    await settled();
-    expect(d.open).toBe(false);
+    expect(await shut).toBe(false);
   });
 
   it("says to a screen reader that typed changes are still there when it refuses a press outside", async () => {
@@ -116,9 +122,9 @@ describe("installDialogs", () => {
     await settled();
     expect(d.open).toBe(true);
     held = false;
+    const shut = closing(d);
     await userEvent.keyboard("{Escape}");
-    await settled();
-    expect(d.open).toBe(false);
+    expect(await shut).toBe(false);
   });
 
   it("closes a held dialog when the person chooses to, by a close command", async () => {
@@ -133,9 +139,9 @@ describe("installDialogs", () => {
     d.append(done);
     holdDialog(d, () => true, { signal: life.signal });
     d.showModal();
+    const shut = closing(d);
     await userEvent.click(done);
-    await settled();
-    expect(d.open).toBe(false);
+    expect(await shut).toBe(false);
   });
 
   it("measures the scrollbar the page lock pads by, and forgets it once its signals abort", () => {
@@ -152,10 +158,10 @@ describe("closeDialog", () => {
     installDialogs({ signal: life.signal });
     const d = dialog();
     d.showModal();
+    const shut = closing(d);
     closeDialog(d, "saved");
     closeDialog(d, "twice");
-    await settled();
-    expect(d.open).toBe(false);
+    expect(await shut).toBe(false);
     expect(d.returnValue).toBe("saved");
   });
 

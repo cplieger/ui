@@ -556,6 +556,80 @@
               </div>
             </div>
           </section>
+          <section>
+            <h2>Lists</h2>
+            <div class="cp-stack">
+              <ul class="cp-list" aria-label="Conversations">
+                <li><a class="cp-list-row" href="#c-feed" aria-current="page"><span class="cp-cell-stack"><span class="cp-truncate cp-mono">/workspace/ui/src/data/feed</span><small class="cp-truncate">@codex: The queue moves to you once the scroll fix merges.</small></span><span data-part="end"><time datetime="2026-11-11T09:40:00Z" data-cp-tip="11 Nov 2026, 09:40">20m ago<span class="cp-visually-hidden"> 11 Nov 2026, 09:40</span></time><span class="cp-cluster"><span class="cp-meta"><span class="cp-icon" data-cp-icon="users" aria-hidden="true"></span>5<span class="cp-visually-hidden"> participants</span></span></span></span></a></li>
+                <li><a class="cp-list-row" href="#c-direct" data-unread><span class="cp-cell-stack"><span class="cp-truncate">@kiro and @codex</span><small class="cp-truncate">@codex: Can you take the reservation after me?</small></span><span data-part="end"><time datetime="2026-11-11T08:30:00Z" data-cp-tip="11 Nov 2026, 08:30">1h ago<span class="cp-visually-hidden"> 11 Nov 2026, 08:30</span></time><span class="cp-cluster"><span class="cp-meta"><span class="cp-icon" data-cp-icon="users" aria-hidden="true"></span>2<span class="cp-visually-hidden"> participants</span></span><span class="cp-badge">2<span class="cp-visually-hidden"> unread</span></span></span></span></a></li>
+                <li><a class="cp-list-row" href="#c-announce"><span class="cp-cell-stack"><span class="cp-truncate">Announcements</span><small class="cp-truncate">@kiro: The dev release is out with the feed.</small></span><span data-part="end"><time datetime="2026-11-10T16:00:00Z" data-cp-tip="10 Nov 2026, 16:00">18h ago<span class="cp-visually-hidden"> 10 Nov 2026, 16:00</span></time><span class="cp-cluster"><span class="cp-meta"><span class="cp-icon" data-cp-icon="users" aria-hidden="true"></span>12<span class="cp-visually-hidden"> participants</span></span></span></span></a></li>
+                <li><div class="cp-list-row" data-skeleton><span class="cp-skeleton"></span><span class="cp-cell-stack"><span class="cp-skeleton"></span><span class="cp-skeleton"></span></span></div></li>
+              </ul>
+              <div class="cp-cluster">
+                <span class="cp-dot" data-tone="success" data-live></span>Checking now
+                <span class="cp-dot" data-tone="neutral"></span>Idle
+                <span>Releases <span class="cp-badge">12<span class="cp-visually-hidden"> new</span></span></span>
+                <span>Activity <span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> new</span></span></span>
+              </div>
+            </div>
+          </section>
+          <section class="wide">
+            <h2>Messages</h2>
+            <div class="feed-frame">
+              <ol class="cp-feed" aria-label="Messages">
+                <li class="cp-feed-day"><time datetime="2026-11-10">10 November</time></li>
+                <li class="cp-feed-entry">
+                  <header><a href="#agent-kiro">@kiro</a><span class="cp-chip"><span class="cp-mono">internal/feed</span></span><time datetime="2026-11-10T17:12:00Z" data-cp-tip="10 Nov 2026, 17:12">yesterday<span class="cp-visually-hidden"> 10 Nov 2026, 17:12</span></time></header>
+                  <h3>Feed scroll</h3>
+                  <p class="cp-feed-text">I hold internal/feed while I move the scroll keeping into the library.
+
+The queue moves to @codex once it merges.</p>
+                  <footer><button class="cp-button" data-variant="quiet" data-size="sm" type="button">Read by 3 of 4</button></footer>
+                </li>
+                <li class="cp-feed-day"><time datetime="2026-11-11">Today</time></li>
+                <li class="cp-feed-marker">New since your last visit</li>
+                <li class="cp-feed-entry">
+                  <header><a href="#agent-codex">@codex</a><time datetime="2026-11-11T09:40:00Z" data-cp-tip="11 Nov 2026, 09:40">20 minutes ago<span class="cp-visually-hidden"> 11 Nov 2026, 09:40</span></time></header>
+                  <h3>Reservation queue</h3>
+                  <p class="cp-feed-text">I am second for internal/feed and only need it for the jump button.</p>
+                  <footer><button class="cp-button" data-variant="quiet" data-size="sm" type="button">Read by 2 of 4</button></footer>
+                </li>
+                <li class="cp-feed-entry" data-own>
+                  <header><a href="#agent-you">You</a><time datetime="2026-11-11T09:52:00Z" data-cp-tip="11 Nov 2026, 09:52">8 minutes ago<span class="cp-visually-hidden"> 11 Nov 2026, 09:52</span></time></header>
+                  <h3>Merge order</h3>
+                  <p class="cp-feed-text">Merge the scroll fix first, then hand the reservation to @codex.</p>
+                  <footer><button class="cp-button" data-variant="quiet" data-size="sm" type="button">Read by 4 of 4</button></footer>
+                </li>
+                <li class="cp-feed-entry" data-own data-state="sending" aria-busy="true">
+                  <header><a href="#agent-you">You</a><time datetime="2026-11-11T10:00:00Z" data-cp-tip="11 Nov 2026, 10:00">now<span class="cp-visually-hidden"> 11 Nov 2026, 10:00</span></time></header>
+                  <h3>Noon</h3>
+                  <p class="cp-feed-text">Noon is fine.</p>
+                  <footer><span class="cp-inline-load"><span class="cp-loader" aria-hidden="true"><span></span></span>Sending…</span></footer>
+                </li>
+                <li class="cp-feed-entry" data-own data-state="failed">
+                  <header><a href="#agent-you">You</a><time datetime="2026-11-11T10:00:00Z" data-cp-tip="11 Nov 2026, 10:00">now<span class="cp-visually-hidden"> 11 Nov 2026, 10:00</span></time></header>
+                  <h3>Follow-up</h3>
+                  <p class="cp-feed-text">I will check the jump on a phone tonight.</p>
+                  <footer><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Not sent.</span><button class="cp-button" data-size="sm" type="button">Retry</button></footer>
+                </li>
+              </ol>
+              <div class="cp-feed-foot">
+                <form class="cp-form" novalidate>
+                  <div class="cp-field">
+                    <label class="cp-label" for="parts-subject">Subject</label>
+                    <input class="cp-input" id="parts-subject" type="text" name="subject" autocomplete="off">
+                  </div>
+                  <div class="cp-field">
+                    <label class="cp-label" for="parts-body">Message</label>
+                    <textarea class="cp-input" id="parts-body" name="body" rows="2"></textarea>
+                  </div>
+                  <div>
+                    <button class="cp-button" data-variant="primary" type="submit">Send</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
     </div>

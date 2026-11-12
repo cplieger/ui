@@ -2,7 +2,7 @@
 
 `@cplieger/ui/palette`
 
-A command palette, for an app with many places and actions: Ctrl+K, or ⌘K on a Mac, opens a dialog near the top of the window with its search field focused, typing narrows its list of actions, the arrow keys move through them while focus stays in the field, and Enter or a press runs one. It is a `<dialog class="cp-dialog cp-palette">` over an inline [combobox](../forms/combobox.md).
+A command palette, for an app with many places and actions: Ctrl+K, or Command+K on a Mac, opens a dialog near the top of the window with its search field focused, typing narrows its list of actions, the arrow keys move through them while focus stays in the field, and Enter or a press runs one. It is a `<dialog class="cp-dialog cp-palette">` over an inline [combobox](../forms/combobox.md).
 
 ```html
 <button class="cp-button" type="button" commandfor="palette" command="show-modal">Open, or press <kbd>Ctrl</kbd> <kbd>K</kbd></button>
@@ -31,7 +31,7 @@ palette.open(); // from your own code, such as a menu item
 - `onRun(option)` runs after Enter on the active action or a press on one, as the palette closes. Focus goes back to where it was before the palette opened.
 - Typing shows the actions whose words hold the text, ignoring case and the keys a `<kbd>` names. The first action shown is active, so Enter runs the best match.
 - While no action matches, the `data-part="empty"` element shows and its words are said to a screen reader through [announce](../feedback/announce.md).
-- `key` is the letter that opens the palette with Ctrl or ⌘, `"k"` by default, or `null` for none. It does nothing while another modal dialog is open.
+- `key` is the letter that opens the palette with Ctrl or Command, `"k"` by default, or `null` for none. It does nothing while another modal dialog is open.
 - Each open starts with the field empty and every action shown. Escape and, with `closedby="any"`, a press outside close it.
 - A dialog with no `<input>` or no `role="listbox"` throws a `TypeError`. `signal` removes the listeners, the key's among them.
 
