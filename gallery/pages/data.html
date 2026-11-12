@@ -4,7 +4,7 @@
     <p>How the apps show many things: a table that sorts and selects, lists with people and media, an ordered list you can rearrange, details as pairs, a history of events, cards with covers and headline numbers.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#table">Table</a><a href="#lists">Lists</a><a href="#details">Details and history</a><a href="#cards">Cards and numbers</a><a href="#steps">Progress and work</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#table">Table</a><a href="#lists">Lists</a><a href="#details">Details and history</a><a href="#figures">Figures and shares</a><a href="#cards">Cards and numbers</a><a href="#steps">Progress and work</a></nav>
 
   <section class="g-section" id="table">
     <h2>Table</h2>
@@ -157,32 +157,163 @@
     </div>
   </section>
 
+  <section class="g-section" id="figures">
+    <h2>Figures and shares</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Series colours</h2>
+        <div class="cp-panel" data-flush>
+          <table class="cp-table" data-series-contrast>
+            <caption class="g-sr">The nine series colours and their contrast on each surface</caption>
+            <thead><tr><th data-col="num">Slot</th><th>On a chip, with its swatch</th><th data-col="num">On the page</th><th data-col="num">On a panel</th><th data-col="num">Sunken</th><th data-col="num">In a popover</th></tr></thead>
+            <tbody>
+              <tr><td data-col="num">1</td><td><span class="cp-chip" data-series="1"><span class="cp-swatch"></span>On the best</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+              <tr><td data-col="num">2</td><td><span class="cp-chip" data-series="2"><span class="cp-swatch"></span>Not listed</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+              <tr><td data-col="num">3</td><td><span class="cp-chip" data-series="3"><span class="cp-swatch"></span>On an alt</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+              <tr><td data-col="num">4</td><td><span class="cp-chip" data-series="4"><span class="cp-swatch"></span>Unverified</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+              <tr><td data-col="num">5</td><td><span class="cp-chip" data-series="5"><span class="cp-swatch"></span>Withheld</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+              <tr><td data-col="num">6</td><td><span class="cp-chip" data-series="6"><span class="cp-swatch"></span>Older revision</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+              <tr><td data-col="num">7</td><td><span class="cp-chip" data-series="7"><span class="cp-swatch"></span>Unattributed</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+              <tr><td data-col="num">8</td><td><span class="cp-chip" data-series="8"><span class="cp-swatch"></span>No file</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+              <tr><td data-col="num">9</td><td><span class="cp-chip" data-series="9"><span class="cp-swatch"></span>Not on SeaDex</span></td><td data-col="num" data-on="page"></td><td data-col="num" data-on="raised"></td><td data-col="num" data-on="sunken"></td><td data-col="num" data-on="overlay"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <footer>Nine slots for categories in data, turned from the accent as the harmony colours are: data-series puts a chip, a swatch or any element that reads a tone on one. Odd slots are bright and even ones deep, so neighbours differ in lightness under every colour-vision deficiency, and each holds 3:1 on the page, a panel, a sunken surface and a popover, measured here in the current theme. Change the hue in the bar below and every slot follows. The verdicts are a release tracker's, most common first.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Share bar</h2>
+        <section class="cp-panel" aria-labelledby="share-h">
+          <div class="cp-heading-row">
+            <div><h3 id="share-h">Library against SeaDex</h3><p class="cp-meta">659 copies · <a href="#figures">61% on the best</a></p></div>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" data-share-toggle="verdict-share" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </div>
+          <div class="cp-share" id="verdict-share">
+            <table class="cp-table">
+              <caption class="cp-visually-hidden">Copies by verdict</caption>
+              <thead><tr><th scope="col">Verdict</th><th scope="col" data-col="num">Copies</th></tr></thead>
+              <tbody>
+                <tr data-series="1"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="shield-check" aria-hidden="true"></span>On the best</a></th><td data-col="num"><data value="402">402</data></td></tr>
+                <tr data-series="2"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="tag" aria-hidden="true"></span>Not listed</a></th><td data-col="num"><data value="58">58</data></td></tr>
+                <tr data-series="3"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="git-branch" aria-hidden="true"></span>On an alt</a></th><td data-col="num"><data value="41">41</data></td></tr>
+                <tr data-series="4"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="circle-help" aria-hidden="true"></span>Unverified</a></th><td data-col="num"><data value="12">12</data></td></tr>
+                <tr data-series="5"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="lock" aria-hidden="true"></span>Withheld</a></th><td data-col="num"><data value="9">9</data></td></tr>
+                <tr data-series="6"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="history" aria-hidden="true"></span>Older revision</a></th><td data-col="num"><data value="6">6</data></td></tr>
+                <tr data-series="7"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="split" aria-hidden="true"></span>Unattributed</a></th><td data-col="num"><data value="4">4</data></td></tr>
+                <tr data-series="8"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="minus" aria-hidden="true"></span>No file</a></th><td data-col="num"><data value="27">27</data></td></tr>
+                <tr data-series="9"><th scope="row"><a href="#figures"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>Not on SeaDex</a></th><td data-col="num"><data value="100">100</data></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-share-grab="verdict-share">Grab 20 upgrades</button></div>
+        <footer>One segment per verdict, sized by its share, with the surface showing through a 2px gap; a mouse or a tap on a segment shows its words, count and share. The legend chips are the links, each with its swatch, glyph, words and count; a reader also hears its share, and focus or a mouse shows the segment's tip on it. Table view shows the same numbers as a table, which is also what a page without the script shows. Grab 20 upgrades moves twenty copies from Not listed to On the best, and the bar follows the table.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Sparkline</h2>
+        <div class="cp-panel" data-flush>
+          <table class="cp-table">
+            <caption class="g-sr">A message server and its members, sampled each minute</caption>
+            <thead><tr><th scope="col">Measure</th><th scope="col">Last 6 hours</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Live members</th><td><span class="cp-sparkline" data-series="1" data-spark="live"></span></td></tr>
+              <tr><th scope="row">Active members</th><td><span class="cp-sparkline" data-series="2" data-spark="active"></span></td></tr>
+              <tr><th scope="row">Requests a minute</th><td><span class="cp-sparkline" data-series="3" data-spark="requests"></span></td></tr>
+              <tr><th scope="row">95th percentile latency</th><td><span class="cp-sparkline" data-series="4" data-spark="latency"></span></td></tr>
+              <tr><th scope="row">Memory</th><td><span class="cp-sparkline" data-series="5" data-spark="memory"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button></div>
+        <footer>Six hours of a sample a minute as one line in a series colour, with no axis: the dot marks the last value, written beside it. Live and active members share one scale from 0 to 12, so they compare; the others run from their own low to their own high. Memory starts at the last restart, with no line before it. A reader hears the range, the last value, the low and the high. Next minute adds a sample to each.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Figures</h2>
+        <div class="cp-grid">
+          <div class="cp-figure" data-series="1"><span data-part="label">Live members</span> <span data-part="value"><data value="0">0</data></span> <span class="cp-sparkline" data-spark="live"></span></div>
+          <div class="cp-figure" data-tone="warning"><span data-part="label">Oldest unread</span> <span data-part="value"><data value="74">74</data>&nbsp;<span data-part="unit">min</span><span class="cp-visually-hidden">, over an hour</span></span></div>
+          <button class="cp-figure" type="button" data-tone="neutral" aria-expanded="false" aria-controls="refused-posts" data-figure-count="refused"><span data-part="label">Refused posts</span> <span data-part="value"><data value="0">0</data></span></button>
+          <button class="cp-figure" type="button" data-tone="warning" aria-expanded="false" aria-controls="failed-pushes"><span data-part="label">Failed pushes</span> <span data-part="value"><data value="3">3</data></span></button>
+        </div>
+        <section class="cp-panel g-gap-top" id="refused-posts" aria-label="Refused posts" hidden>
+          <p class="cp-meta" data-figure-empty="refused">No post was refused in the last 6 hours.</p>
+          <table class="cp-table" data-figure-list="refused" hidden>
+            <caption class="cp-visually-hidden">Refused posts in the last 6 hours</caption>
+            <thead><tr><th scope="col">Time</th><th scope="col">Thread</th><th scope="col">Reason</th></tr></thead>
+            <tbody><tr><td><time datetime="14:21">14:21</time></td><td class="cp-mono">/releases</td><td>The body is over 64&nbsp;KiB.</td></tr></tbody>
+          </table>
+        </section>
+        <section class="cp-panel g-gap-top" data-flush id="failed-pushes" aria-label="Failed pushes" hidden>
+          <table class="cp-table">
+            <caption class="cp-visually-hidden">Failed pushes in the last 6 hours</caption>
+            <thead><tr><th scope="col">Time</th><th scope="col">Member</th><th scope="col">Reason</th></tr></thead>
+            <tbody>
+              <tr><td><time datetime="13:02">13:02</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
+              <tr><td><time datetime="13:40">13:40</time></td><td>@grace</td><td>No answer in 10&nbsp;s.</td></tr>
+              <tr><td><time datetime="14:05">14:05</time></td><td>@ada</td><td>The connection closed before the push.</td></tr>
+            </tbody>
+          </table>
+        </section>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-spark-tick>Next minute</button><button class="cp-button" type="button" data-figure-refuse="refused">Refuse a post</button></div>
+        <footer>A number now under its label, with its unit on its baseline. Live members carries its last six hours as a sparkline in its slot. Oldest unread is past its hour, so it takes the warning tone with the tone's glyph, and a reader hears "over an hour". Refused posts and Failed pushes are buttons that open the events behind their count: neutral at 0, in the warning tone with a count. Refuse a post turns the first from 0 to 1 and back.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Meter</h2>
+        <div class="cp-meter" data-meter-unit="GB">
+          <label data-part="label" for="store-meter">Store used</label>
+          <div data-part="bar"><meter id="store-meter" min="0" max="500" low="400" high="450" optimum="0" value="420" aria-describedby="store-words">420 GB of 500 GB</meter></div>
+          <small data-part="words" id="store-words">420 GB of 500 GB, past the 80% mark</small>
+        </div>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-meter-step="store-meter" data-by="30">Add 30 GB</button><button class="cp-button" type="button" data-meter-step="store-meter" data-by="-150">Free 150 GB</button></div>
+        <footer>A native meter against its ceiling, marked at 80% and 90%. Past the first mark the fill turns to the warning tone and past the second to danger, each with its glyph before the words, which say the value and the mark it passed. Add 30 GB and Free 150 GB move it.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Ranked table</h2>
+        <div class="cp-panel" data-flush>
+          <table class="cp-table" data-ranked>
+            <caption class="g-sr">Who posts and reads, in the last 6 hours, by posts sent</caption>
+            <thead><tr><th scope="col">Member</th><th scope="col" data-bar="posts">Sent</th><th scope="col" data-bar="posts">Read</th><th scope="col" data-col="num">Longest wait</th><th scope="col" data-col="num">Turns held</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><a href="#figures">@ada</a></th><td data-bar="posts"><data value="148">148</data></td><td data-bar="posts" data-series="2"><data value="96">96</data></td><td data-col="num">3&nbsp;min</td><td data-col="num">4</td></tr>
+              <tr><th scope="row"><a href="#figures">@grace</a></th><td data-bar="posts"><data value="61">61</data></td><td data-bar="posts" data-series="2"><data value="133">133</data></td><td data-col="num">12&nbsp;min</td><td data-col="num">2</td></tr>
+              <tr><th scope="row"><a href="#figures">@linus</a></th><td data-bar="posts"><data value="44">44</data></td><td data-bar="posts" data-series="2"><data value="58">58</data></td><td data-col="num">41&nbsp;min</td><td data-col="num">1</td></tr>
+              <tr><th scope="row"><a href="#figures">@margaret</a></th><td data-bar="posts"><data value="17">17</data></td><td data-bar="posts" data-series="2"><data value="120">120</data></td><td data-col="num">6&nbsp;min</td><td data-col="num">0</td></tr>
+              <tr><th scope="row"><a href="#figures">@alan</a></th><td data-bar="posts"><data value="5">5</data></td><td data-bar="posts" data-series="2"><data value="12">12</data></td><td data-col="num">2&nbsp;h&nbsp;10&nbsp;min</td><td data-col="num">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-ranked-post>@alan sends 60</button></div>
+        <footer>Each count has a bar after it, sized against the largest of Sent and Read together, since both count posts: Sent in the first series colour and Read in the second. The bars start on one line so their lengths compare, the numbers stay exact, and a reader hears only the numbers. @alan sends 60 adds to his row and Take the 60 back undoes it; the table ranks again each time, its bars following.</footer>
+      </div>
+    </div>
+  </section>
+
   <section class="g-section" id="cards">
     <h2>Cards and numbers</h2>
     <div class="g-grid">
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Card links</h2>
-        <div class="g-cardlinks">
-          <a class="g-cardlink" href="#cards"><span>Not the best</span><strong><span class="odometer" id="odo" data-digits="2" data-value="33" role="img" aria-label="33"></span></strong><span class="cp-chip" data-tone="warning">3 new</span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a>
-          <a class="g-cardlink" href="#cards"><span>Missing</span><strong>9</strong><span class="cp-chip" data-tone="neutral">Unchanged</span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a>
-          <a class="g-cardlink" href="#cards"><span>Last check</span><strong><time data-ago="360" data-style="narrow"></time></strong><span class="cp-chip" data-tone="success">All answered</span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a>
+        <div class="cp-grid" style="--cp-grid-min: 12rem">
+          <a class="cp-figure" href="#cards"><span data-part="label"><span class="cp-icon" data-cp-icon="arrow-up" aria-hidden="true"></span>New upgrades</span><span data-part="value"><data class="cp-roll" data-kind="number" id="odo" value="33">33</data></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="warning">3 new</span><span class="cp-chip" data-tone="neutral">Kept from 03:00</span></span></a>
+          <a class="cp-figure" href="#cards"><span data-part="label">Missing</span><span data-part="value"><data value="9">9</data></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="neutral">Unchanged</span></span></a>
+          <a class="cp-figure" href="#cards"><span data-part="label">Last check</span><span data-part="value"><time data-ago="360" data-style="narrow"></time></span><span class="cp-cluster" data-gap="tight"><span class="cp-chip" data-tone="success">All answered</span></span></a>
         </div>
-        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-bump="odo">Run a check</button></div>
-        <footer>The whole box is one link, named in reading order: label, figure, badge, at one width for every card. A time is the narrow form, "6m ago". A figure that changes while the page is open rolls to its new value, as Run a check shows. A card holds no button: an action such as Run now lives on the page the card opens.</footer>
+        <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-roll-figure="odo">Run a check</button></div>
+        <footer>A card link is a figure that is a link: the whole box is one link, named in reading order (glyph, label, figure, badges), at one width for every card. A leading glyph tells the groups apart, and the badges are a cluster of any number of chips, as New upgrades shows with a count from an earlier pass beside its new count. A time is the narrow form, "6m ago". A figure that changes while the page is open rolls to its new value, as Run a check shows. A card holds no button: an action such as Run now lives on the page the card opens.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Media cards</h2>
-        <div class="g-cards">
-          <a class="g-card" href="#cards"><span class="g-cover" data-h="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><strong>Frieren: Beyond Journey's End</strong><small>2023, 28 episodes</small></a>
-          <a class="g-card" href="#cards"><span class="g-cover" data-h="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not best</span></span><strong>Delicious in Dungeon</strong><small>2024, 24 episodes</small></a>
-          <a class="g-card" href="#cards"><span class="g-cover" data-h="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong>The Boy and the Heron</strong><small>2023, film</small></a>
-          <a class="g-card" href="#cards"><span class="g-cover" data-h="4"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></span><strong>Ping Pong the Animation</strong><small>2014, 11 episodes</small></a>
+        <div class="cp-grid" style="--cp-grid-min: 9.5rem">
+          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><strong data-part="title">Frieren: Beyond Journey's End</strong><small data-part="meta">2023, 28 episodes</small></a>
+          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not best</span></span><strong data-part="title">Delicious in Dungeon</strong><small data-part="meta">2024, 24 episodes</small></a>
+          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong data-part="title">The Boy and the Heron</strong><small data-part="meta">2023, film</small></a>
+          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></span><strong data-part="title">Ping Pong the Animation</strong><small data-part="meta">2014, 11 episodes</small></a>
         </div>
-        <footer>Where the covers carry the meaning, a grid of cards; without covers, the stand-in is a harmony gradient and the kind's icon. The card grows a little under a mouse.</footer>
+        <footer>Where the covers carry the meaning, a grid of cards. A cover is the work's own image; without one, the stand-in is a harmony colour and the kind's glyph. The cover grows a little under a mouse, and the focus ring goes round it.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Segmented meter</h2>
-        <div class="g-meter"><div class="g-segs" aria-hidden="true"><span data-of="12" data-fill="100" data-h="1"></span><span data-of="12" data-fill="25" data-h="2"></span></div><small>English 12 of 12 · French 3 of 12 · 2 pinned</small></div>
+        <div class="cp-meter"><div data-part="bar"><meter data-series="1" max="12" value="12" aria-label="English" aria-describedby="lang-words">12 of 12</meter><meter data-series="2" max="12" value="3" aria-label="French" aria-describedby="lang-words">3 of 12</meter></div><small data-part="words" id="lang-words">English 12 of 12 · French 3 of 12 · 2 pinned</small></div>
         <footer>One segment per target, filled in its share. The sentence is the meter's meaning and its text alternative; the colour is a second channel.</footer>
       </div>
     </div>

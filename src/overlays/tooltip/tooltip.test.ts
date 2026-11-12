@@ -88,6 +88,20 @@ describe("installTooltips", () => {
     expect(more.hasAttribute("aria-describedby")).toBe(false);
   });
 
+  it("names a control without a label by its text, apart from punctuation and case", async () => {
+    installTooltips({ signal: life.signal });
+    const same = control("On the best: 402, 86%");
+    same.textContent = "on the best 402, 86 %";
+    const more = control("Save the draft");
+    more.textContent = "Save";
+    same.focus({ focusVisible: true });
+    expect(same.hasAttribute("aria-describedby")).toBe(false);
+    more.focus({ focusVisible: true });
+    expect(more.getAttribute("aria-describedby")).toBe(tip().id);
+    more.textContent = "Save the draft.";
+    await expect.poll(() => more.hasAttribute("aria-describedby")).toBe(false);
+  });
+
   it("does not describe a control whose own words, seen or visually hidden, repeat its tip", () => {
     installTooltips({ signal: life.signal });
     const label = document.createElement("label");

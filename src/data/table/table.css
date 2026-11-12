@@ -22,8 +22,26 @@
   vertical-align: middle;
 }
 
-.cp-table tr:last-child td {
+/* A row's header, such as its title, reads as a cell of its row. */
+.cp-table tbody th {
+  padding: 0 var(--cp-space-3);
+  block-size: var(--cp-row-h);
+  color: var(--cp-ink);
+  font-size: inherit;
+  font-weight: var(--cp-weight-body);
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.cp-table tr:last-child td,
+.cp-table tbody tr:last-child th {
   border-block-end: 0;
+}
+
+.cp-table :is(td, th) > a:has(> .cp-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
 }
 
 .cp-table [data-col="num"] {
@@ -54,7 +72,8 @@
   margin: 0;
 }
 
-.cp-table tr:has(> [data-col="select"] input:checked) > td {
+/* A header row's select-all box is a th, so only a body row takes the fill. */
+.cp-table tr:has(> td[data-col="select"] input:checked) > :is(td, th) {
   background: var(--cp-selected);
 }
 
@@ -102,7 +121,7 @@
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-table tbody tr:hover td {
+    .cp-table tbody tr:hover :is(td, th) {
       background: var(--cp-fill);
     }
 

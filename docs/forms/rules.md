@@ -33,7 +33,7 @@ enhanceRules(rules, {
 
 - A rule is an `<li>` with `data-when`, the words that name it in its buttons, such as "when the audio is Japanese", and its `data-part="when"`, `"verb"` and `"targets"`. Each target is a `.cp-rule-target` holding its picker.
 - The rules give each rule a + after its targets, and each rule without `data-fixed` a remove of its own. Each target gets a remove, shown while its rule holds more than one, so a rule always keeps one. The buttons are quiet and small, and the stylesheet draws their + and ×.
-- The + button adds a target from `target(rule)` up to `max`. At `max` it stays in place with `aria-disabled="true"` and its name says why, and the limit is said through [announce](../feedback/announce.md). A removed target is said too, by default "French removed".
+- Pressing + adds a target from `target(rule)` up to `max`. At `max` it stays in place with `aria-disabled="true"` and its name says why, and the limit is said through [announce](../feedback/announce.md). A removed target is said too, by default "French removed".
 - `data-add-rule` appends a rule from `rule()`, and focus goes to its +. Removing a rule moves focus to the next rule's +, or the one before it, or to Add a rule.
 - Focus always lands on a button, never on a picker, because a focused `<select>` opens its picker at once on iOS.
 - A target's remove is named from its picker's chosen text, by default "Remove French by default", and follows a change of it. `words` gives other `add`, `removeTarget`, `removeRule`, `removed` and `full` words. Each button the rules make has its name as its tip too.

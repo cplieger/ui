@@ -1,0 +1,53 @@
+/* A media card: a .cp-cover over the work's title and its facts, the whole
+ * card one link. */
+.cp-media {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-2);
+  color: var(--cp-ink);
+  text-decoration: none;
+}
+
+.cp-media > [data-part="title"] {
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-heading);
+  line-height: 1.3;
+}
+
+.cp-media > [data-part="meta"] {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-media > .cp-cover {
+  transition:
+    scale var(--cp-dur-medium) var(--cp-ease-spring),
+    box-shadow var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+/* The ring goes round the cover, the card's shape, and not round its words. */
+a.cp-media:focus-visible {
+  outline: none;
+}
+
+a.cp-media:focus-visible > .cp-cover {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    a.cp-media:hover > .cp-cover {
+      scale: 1.03;
+      box-shadow: var(--cp-shadow-overlay);
+    }
+
+    /* Inside the scope: a scoped rule outranks an unscoped one of the same
+     * specificity, whatever their order. */
+    @media (prefers-reduced-motion: reduce) {
+      a.cp-media:hover > .cp-cover {
+        scale: none;
+      }
+    }
+  }
+}
