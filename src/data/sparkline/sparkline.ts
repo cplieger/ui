@@ -6,6 +6,8 @@
  */
 
 import { localeOf } from "../../core/locale/locale.js";
+import { formatter } from "../scale/format.js";
+import { reduce } from "../scale/reduce.js";
 
 export interface SparklineSummary {
   /** The options' `range`, when given. */
@@ -43,6 +45,9 @@ export interface SparklineOptions {
 const SVG = "http://www.w3.org/2000/svg";
 // The viewBox's height; the line spans it from the high (0) to the low.
 const TALL = 100;
+// More columns than device pixels across the 6rem plot on a 3x screen, so
+// the reduction never merges what a pixel would show apart.
+const COLUMNS = 512;
 
 const summaryWords = ({ range, last, low, high }: SparklineSummary): string =>
   range === undefined
@@ -72,8 +77,7 @@ export function renderSparkline(
   ) {
     throw new RangeError(`sparkline domain [${String(domain)}] is not a finite low to high`);
   }
-  const numbers = new Intl.NumberFormat(localeOf(host));
-  const format = options.format ?? ((n: number) => numbers.format(n));
+  const format = options.format ?? formatter("number", localeOf(host));
   const finite = values.map((v) => (v !== null && Number.isFinite(v) ? v : null));
   const known = finite.filter((v) => v !== null);
   const end = finite.findLastIndex((v) => v !== null);
@@ -102,17 +106,13 @@ export function renderSparkline(
   const y = (v: number): number =>
     hi === lo ? TALL / 2 : ((hi - Math.min(Math.max(v, lo), hi)) / (hi - lo)) * TALL;
 
+  const xs = finite.map((_, i) => x(i));
   let d = "";
-  finite.forEach((v, i) => {
-    if (v === null) {
-      return;
-    }
-    const at = `${round(x(i))} ${round(y(v))}`;
-    const starts = i === 0 || finite[i - 1] === null;
-    const ends = i === finite.length - 1 || finite[i + 1] === null;
+  for (const run of reduce(xs, finite, 0, finite.length, Math.max(1, wide / COLUMNS))) {
+    const at = run.map((p) => `${round(p.x)} ${round(y(p.y))}`);
     // A run of one value is a zero-length segment, which its round caps draw as a dot.
-    d += `${starts ? "M" : "L"}${at}${starts && ends ? `L${at}` : ""}`;
-  });
+    d += `M${at.join("L")}${at.length === 1 ? `L${at[0] ?? ""}` : ""}`;
+  }
   const path = document.createElementNS(SVG, "path");
   path.setAttribute("d", d);
   svg.append(path);
