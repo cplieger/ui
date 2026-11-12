@@ -26,7 +26,7 @@ export interface Reading {
   readonly total: string | undefined;
 }
 
-/** The mark the legend row reads: the first rect, line or dot. */
+/** The mark the legend row reads: the chart's one rect, line or dot. */
 type Primary = RectModel | LineModel | DotModel;
 
 export function primaryOf(model: Model): Primary | undefined {

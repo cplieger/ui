@@ -123,7 +123,7 @@ describe("gutters", () => {
     expect(l.rows.map((r) => r.y)).toEqual([12, 36]);
   });
 
-  it("keeps a bar chart's label gutter at the group's, empty", () => {
+  it("keeps a column chart's label gutter at the group's, empty", () => {
     const spec: ChartSpec = {
       x: {},
       marks: [{ mark: "rect", x1: [0], x2: [1], series: [{ name: "a", y: [1] }] }],

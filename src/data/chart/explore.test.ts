@@ -173,7 +173,7 @@ function point(
 const plotWidth = (b: Built) =>
   Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("width")) - 2 * AREA_ROOM;
 
-describe("keys on a stacked bar chart", () => {
+describe("keys on a stacked column chart", () => {
   it("focus selects the newest bucket and says it", async () => {
     const b = build(bars);
     b.plot.focus();
@@ -235,7 +235,7 @@ describe("keys on a stacked bar chart", () => {
     expect(document.activeElement).toBe(b.plot);
     await expect
       .element(b.plot)
-      .toHaveAccessibleName(`Stacked bar chart, 2 series, ${span(0, 60)}`);
+      .toHaveAccessibleName(`Stacked column chart, 2 series, ${span(0, 60)}`);
     await expect
       .element(b.plot)
       .toHaveAccessibleDescription("Arrow keys read the values. Tab leaves the chart.");

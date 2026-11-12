@@ -10,7 +10,7 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
 import type { ChartSpec, RectMark } from "./spec.js";
 
-type Kind = "stacked" | "bar" | "histogram" | "line" | "step" | "timeline";
+type Kind = "stackedColumn" | "column" | "histogram" | "line" | "step" | "timeline";
 
 export interface SeriesModel {
   readonly name: string;
@@ -71,7 +71,7 @@ export interface Model {
   readonly y: Continuous | Band;
   /** In the spec's order. */
   readonly marks: readonly MarkModel[];
-  /** The first rect, line or dot mark's kind; absent with rules alone. */
+  /** The data mark's kind; absent with rules alone. */
   readonly kind: Kind | undefined;
   /** Nothing to draw: every value null, every row empty, or every rect 0. */
   readonly empty: boolean;
@@ -271,8 +271,21 @@ function check(spec: unknown): asserts spec is ChartSpec {
   if (!arrayLike(marks)) {
     fail("marks must be an array");
   }
+  let data = -1;
   for (let m = 0; m < marks.length; m++) {
-    checkMark(marks[m], `marks[${String(m)}]`);
+    const mark = marks[m];
+    checkMark(mark, `marks[${String(m)}]`);
+    if (isObject(mark) && mark["mark"] === "rule") {
+      continue;
+    }
+    // The keys, the legend row, the summary and the table read one mark, so a
+    // second would draw values none of them give.
+    if (data !== -1) {
+      fail(
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line or dot mark and any rules`,
+      );
+    }
+    data = m;
   }
   const height = spec["height"];
   optional(height, "number", "height");
@@ -318,7 +331,7 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
     case undefined:
       return undefined;
     case "rect":
-      return x.type === "log" ? "histogram" : first.series.length > 1 ? "stacked" : "bar";
+      return x.type === "log" ? "histogram" : first.series.length > 1 ? "stackedColumn" : "column";
     case "line":
       return first.step ? "step" : "line";
     case "dot":

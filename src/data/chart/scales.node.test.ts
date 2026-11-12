@@ -132,11 +132,6 @@ describe("the underflow bin", () => {
   });
 
   it("throws a RangeError for a second rect whose x1 is 0 or below", () => {
-    const spec: ChartSpec = {
-      x: { type: "log" },
-      marks: [rect([0, S], [S, 2 * S], [1, 1]), rect([0], [S], [1])],
-    };
-    expect(() => xScale(spec)).toThrow(RangeError);
     const one: ChartSpec = {
       x: { type: "log" },
       marks: [rect([-5, 0, S], [0, S, 2 * S], [1, 1, 1])],
@@ -240,7 +235,11 @@ describe("scale errors", () => {
   });
 
   it.each<[string, ChartSpec, ErrorConstructor]>([
-    ["dots beside a line", { x: {}, marks: [line, { mark: "dot", rows: [] }] }, TypeError],
+    [
+      "a linear y under dots",
+      { x: {}, y: { type: "linear" }, marks: [{ mark: "dot", rows: [] }] },
+      TypeError,
+    ],
     [
       "a domain on a band",
       { x: {}, y: { domain: [0, 1] }, marks: [{ mark: "dot", rows: [] }] },

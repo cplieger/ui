@@ -204,7 +204,7 @@ describe("the markup a chart builds", () => {
     expect(plot?.getAttribute("role")).toBe("application");
     expect(plot?.getAttribute("aria-roledescription")).toBe("chart");
     expect(plot?.getAttribute("tabindex")).toBe("0");
-    expect(plot?.getAttribute("aria-label")).toMatch(/^Stacked bar chart, 2 series, /u);
+    expect(plot?.getAttribute("aria-label")).toMatch(/^Stacked column chart, 2 series, /u);
     const howTo = document.getElementById(plot?.getAttribute("aria-describedby") ?? "");
     expect(howTo?.id).toBe("posts-chart-howto");
     expect(howTo?.textContent).toBe("Arrow keys read the values. Tab leaves the chart.");

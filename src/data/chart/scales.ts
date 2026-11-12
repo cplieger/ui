@@ -256,14 +256,14 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
 }
 
 /** The y scale of `spec`: a band of the dot rows, else linear unless it
- *  says log. Throws for marks that want different y types and for a domain
- *  or zero a rect cannot take. */
+ *  says log. Throws for a y type its mark cannot take and for a domain or
+ *  zero a rect cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
   const y = spec.y ?? {};
   const kinds = new Set(spec.marks.map((m) => m.mark));
   if (kinds.has("dot")) {
-    if (kinds.has("rect") || kinds.has("line") || (y.type ?? "band") !== "band") {
-      throw new TypeError("renderChart: a dot mark's band y cannot hold rects or lines");
+    if ((y.type ?? "band") !== "band") {
+      throw new TypeError("renderChart: a dot mark's y is a band of its rows");
     }
     if (spec.marks.some((m) => m.mark === "rule" && m.y !== undefined)) {
       throw new TypeError("renderChart: a rule on a band y has no value to sit at");

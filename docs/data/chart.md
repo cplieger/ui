@@ -2,7 +2,7 @@
 
 `@cplieger/ui/chart`
 
-Charts with axes come in four forms. Stacked bars count per time bucket. A histogram bins waits on the duration ladder, a timeline strip shows who acts when, and lines run plain or stepped. Each chart has a summary in words and a legend row that carries the selection's values. Keys read each point aloud, and a table view holds the same data.
+Charts with axes come in four forms. Stacked columns count per time bucket. A histogram bins waits on the duration ladder, a timeline strip shows who acts when, and lines run plain or stepped. Each chart has a summary in words and a legend row that carries the selection's values. Keys read each point aloud, and a table view holds the same data.
 
 Install the announcer once at startup, beside the chart's first use. The keys speak through [announce](../feedback/announce.md), which says nothing without it.
 
@@ -53,11 +53,12 @@ posts.update({
 
 | Mark | Draws | Use it for |
 | --- | --- | --- |
-| `rect` | a bar from `x1` to `x2` and from 0 to `y`, stacked in series order when it has several series | counts per time bucket, or a histogram's bins on a log x |
+| `rect` | a column from `x1` to `x2` and from 0 to `y`, stacked in series order when it has several series | counts per time bucket, or a histogram's bins on a log x |
 | `line` | a 2px path per series through `(x, y)`, `curve: "linear"` (the default) or `"step"`, which holds each value until the next sample | a gauge sampled each minute, in steps |
 | `dot` | a 6px dot per value, one row per named row on a band y | who posts when, one row per agent |
 | `rule` | a 2px line across the plot at one `x` or one `y`, with its label and value | a median, a percentile, a threshold |
 
+- A chart holds one data mark, a `rect`, `line` or `dot`, and any number of rules. The keys, the legend row, the summary and the table read that one mark, so a second data mark throws a `TypeError` rather than draw values they never give.
 - Marks draw in the order given, so a rule after a rect draws over it.
 - Values are columns that share one x, sorted ascending. A line's `x` and a rect's `x1` strictly increase, and a dot row's `x` may repeat, since two posts can share a millisecond.
 - `null` or `NaN` in a `y` is a gap. A line breaks there, even across one missed sample at the widest range, and a rect draws nothing. A stack counts a gap as 0 for the segments above, and the table writes "No data". On a log y, a line's value at or below 0 is a gap too.
@@ -164,4 +165,4 @@ reads.update({
 
 ## Words
 
-`locale` and `timeZone` set how numbers and instants are written. By default they are the `lang` of the figure or its nearest ancestor, and the page's time zone. `words` gives every word the chart writes and says, each a string or a function of values already formatted. `ChartWords` lists each with its English default. Among them are `reading(at, parts, total)` for a selection read aloud, the summary's frames and the kinds that start the plot's name, such as "Stacked bar chart". `silentRow(name, unit)` writes a silent row, such as "docs-bot: no posts".
+`locale` and `timeZone` set how numbers and instants are written. By default they are the `lang` of the figure or its nearest ancestor, and the page's time zone. `words` gives every word the chart writes and says, each a string or a function of values already formatted. `ChartWords` lists each with its English default. Among them are `reading(at, parts, total)` for a selection read aloud, the summary's frames and the kinds that start the plot's name: `kind.column` "Column chart" and `kind.stackedColumn` "Stacked column chart" for a rect, `histogram`, `line`, `step` and `timeline`. `silentRow(name, unit)` writes a silent row, such as "docs-bot: no posts".

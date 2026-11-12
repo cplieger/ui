@@ -76,7 +76,8 @@ export interface ChartSpec {
   readonly x: Scale;
   /** Band when the chart has a dot mark. */
   readonly y?: Scale;
-  /** Drawn in order: a rule after a rect draws over it. */
+  /** One rect, line or dot mark and any rules, drawn in order: a rule after
+   *  a rect draws over it. A second data mark is a `TypeError`. */
   readonly marks: readonly Mark[];
   /** The plot's height in px. */
   readonly height?: number;

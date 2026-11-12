@@ -388,7 +388,7 @@ describe("charts in a group", () => {
     expect(edges(line)).toEqual(edges(bars));
   });
 
-  it("cut a band name wider than the group gutter, so a strip and a bar chart share their left edge", () => {
+  it("cut a band name wider than the group gutter, so a strip and a column chart share their left edge", () => {
     const parent = place(600);
     parent.style.setProperty("--cp-chart-axis-gutter", "5rem");
     const bars = draw(stacked, 600, parent);

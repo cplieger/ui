@@ -3,7 +3,7 @@
  * @module
  */
 
-type Kind = "stacked" | "bar" | "histogram" | "line" | "step" | "timeline";
+type Kind = "stackedColumn" | "column" | "histogram" | "line" | "step" | "timeline";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -11,10 +11,10 @@ export interface ChartWords {
   readonly chart?: string;
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
-  /** The kind in the short description. Defaults "Stacked bar chart", "Bar chart",
-   *  "Histogram", "Line chart", "Step line", "Timeline". A rect on a log x is a
-   *  histogram, stacked or not; any other rect is a bar chart, "stacked" with
-   *  two or more series. */
+  /** The kind in the short description. Defaults "Stacked column chart",
+   *  "Column chart", "Histogram", "Line chart", "Step line", "Timeline". A rect
+   *  on a log x is a histogram, stacked or not; any other rect is a column
+   *  chart, `stackedColumn` with two or more series. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -53,7 +53,7 @@ export interface ChartWords {
   readonly offAxis?: (label: string, value: string) => string;
   /** Equal buckets or samples. Default "every {size}". */
   readonly every?: (size: string) => string;
-  /** Summary, a bar chart. Default "{total}, {every} from {range}: {parts}.",
+  /** Summary, a column chart. Default "{total}, {every} from {range}: {parts}.",
    *  or "{total} from {range}: {parts}." when every is ""; with parts "" it
    *  ends after the range. */
   readonly stackSummary?: (total: string, every: string, range: string, parts: string) => string;
@@ -90,8 +90,8 @@ const DEFAULTS: Words = {
   chart: "chart",
   howTo: "Arrow keys read the values. Tab leaves the chart.",
   kind: {
-    stacked: "Stacked bar chart",
-    bar: "Bar chart",
+    stackedColumn: "Stacked column chart",
+    column: "Column chart",
     histogram: "Histogram",
     line: "Line chart",
     step: "Step line",

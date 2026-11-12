@@ -83,7 +83,7 @@ describe("the legend row of stacked bars", () => {
 });
 
 describe("the legend row of one series", () => {
-  it("reads a bar chart's count with its unit, and no total", () => {
+  it("reads a column chart's count with its unit, and no total", () => {
     const m = model({
       ...postsByKind,
       marks: [

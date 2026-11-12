@@ -45,7 +45,7 @@ const stacked: ChartSpec = {
   ],
 };
 
-describe("the summary of a bar chart", () => {
+describe("the summary of a column chart", () => {
   it("says the total, the bucket size, the range, each series and the busiest closed bucket", () => {
     expect(generatedSummary(model(stacked), words)).toBe(
       `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 145, Path 101. ` +
@@ -85,8 +85,15 @@ describe("the summary of a bar chart", () => {
 
   it("names the kind, the series count and the range", () => {
     expect(shortDescription(model(stacked), words)).toBe(
-      `Stacked bar chart, 2 series, ${span(START, END)}`,
+      `Stacked column chart, 2 series, ${span(START, END)}`,
     );
+    const one: ChartSpec = {
+      ...stacked,
+      marks: [
+        { mark: "rect", x1: starts, x2: ends, series: [{ name: "All", y: per(24, () => 1) }] },
+      ],
+    };
+    expect(shortDescription(model(one), words)).toBe(`Column chart, ${span(START, END)}`);
   });
 });
 

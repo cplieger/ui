@@ -59,11 +59,8 @@ describe("spec errors", () => {
     ["a tenth series with no slot", { x: {}, marks: [rect([1], { series: ten })] }, RangeError],
     ["a log domain at 0", { x: { type: "log", domain: [0, 10] }, marks: [rect([1])] }, RangeError],
     [
-      "a second rect at 0 on a log x",
-      {
-        x: { type: "log" },
-        marks: [rect([1], { x1: [0], x2: [1] }), rect([1], { x1: [-1], x2: [2] })],
-      },
+      "a second rect at 0 or below on a log x",
+      { x: { type: "log" }, marks: [rect([1, 1], { x1: [-1, 0], x2: [0, 1] })] },
       RangeError,
     ],
     [
@@ -84,6 +81,18 @@ describe("spec errors", () => {
     ["a height of 0", { x: {}, height: 0, marks: [] }, RangeError],
     ["a series shorter than its x", { x: {}, marks: [line([1], { x: [0, 1] })] }, TypeError],
     ["dots beside a line", { x: {}, marks: [line([1]), { mark: "dot", rows: [] }] }, TypeError],
+    ["a line beside a rect", { x: {}, marks: [rect([1]), line([1])] }, TypeError],
+    ["two lines", { x: {}, marks: [line([1]), line([2])] }, TypeError],
+    [
+      "a second rect after a rule",
+      { x: {}, marks: [rect([1]), { mark: "rule", y: 1, label: "Cap" }, rect([2])] },
+      TypeError,
+    ],
+    [
+      "a linear y under dots",
+      { x: {}, y: { type: "linear" }, marks: [{ mark: "dot", rows: [] }] },
+      TypeError,
+    ],
     [
       "a rule with neither x nor y",
       { x: {}, marks: [{ mark: "rule", label: "Median" }] },
@@ -126,6 +135,27 @@ describe("spec errors", () => {
     );
   });
 
+  it("names the one-data-mark rule a second data mark breaks", () => {
+    expect(() =>
+      build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
+    ).toThrow(
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line or dot mark and any rules",
+    );
+  });
+
+  it("takes one data mark among any number of rules", () => {
+    expect(() =>
+      build({
+        x: {},
+        marks: [
+          { mark: "rule", y: 1, label: "Floor" },
+          rect([1]),
+          { mark: "rule", y: 2, label: "Cap" },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
   it("takes tied dot times and a NaN y as a gap", () => {
     const m = build({
       x: {},
@@ -154,9 +184,9 @@ describe("the chart's kind", () => {
           }),
         ],
       },
-      "stacked",
+      "stackedColumn",
     ],
-    ["one series of rects", { x: {}, marks: [rect([1])] }, "bar"],
+    ["one series of rects", { x: {}, marks: [rect([1])] }, "column"],
     [
       "rects on a log x",
       { x: { type: "log" }, marks: [rect([1], { x1: [1], x2: [2] })] },
