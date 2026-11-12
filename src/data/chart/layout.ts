@@ -116,6 +116,8 @@ function ruleText(model: Model, words: Words, label: string, value: number, off:
  * Lays out `model` in a `width` px box. The gutters are the larger of the
  * measured ones, the group's and `floors`; the caller keeps the result's
  * `gutters` as the next update's floors so the plot never moves sideways.
+ * `chart` is the chart's own width, which the 30rem rule and the band
+ * names' cut read, `width` by default.
  */
 export function layout(
   model: Model,
@@ -123,6 +125,7 @@ export function layout(
   metrics: Metrics,
   width: number,
   floors: Floors,
+  chart = width,
 ): Layout {
   const { measure, lineHeight, dpr } = metrics;
   const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
@@ -141,13 +144,13 @@ export function layout(
     }
   } else {
     const face = mono ? metrics.mono : measure;
-    const limit = bandLimit(metrics.axisGroup, width, metrics.rem);
+    const limit = bandLimit(metrics.axisGroup, chart, metrics.rem);
     names = band.rows.map((n) => cutName(n, limit, face.text));
     widestY = Math.max(0, ...names.map(face.text));
   }
   const axisW = Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
-  const ends = width >= END_LABELS_REM * metrics.rem ? endTexts(model) : [];
+  const ends = chart >= END_LABELS_REM * metrics.rem ? endTexts(model) : [];
   const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,

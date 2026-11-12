@@ -163,6 +163,10 @@
   direction: ltr;
 }
 
+.cp-chart svg[data-part="area"] {
+  overflow: hidden;
+}
+
 .cp-chart svg text {
   dominant-baseline: central;
   fill: var(--cp-ink-muted);
@@ -231,7 +235,8 @@
  * its theme drawing on its surface, inside the CanvasText border the forced
  * transparent border becomes. Chromium resolves light-dark() by the page's
  * own color-scheme even while it reports "light dark", so the plot names
- * both, and its tokens take the contrast theme's side whatever data-theme says. */
+ * both, and its tokens take the contrast theme's side whatever data-theme
+ * says; draw.test.ts "under forced colours" pins it, with no issue filed. */
 @media (forced-colors: active) {
   .cp-chart svg {
     color-scheme: light dark;

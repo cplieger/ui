@@ -241,7 +241,11 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot:
     caption.textContent = title;
     const head = table.createTHead().insertRow();
     head.append(cornerCell(t.corner), ...t.columns.map((c) => headCell(c.text, c.num)));
-    table.createTBody().append(...t.rows.map((r) => bodyRow(r, dot)));
+    // One append per row, since a long line's rows overflow an argument list.
+    const body = table.createTBody();
+    for (const r of t.rows) {
+      body.append(bodyRow(r, dot));
+    }
     panel.querySelector("table")?.remove();
     panel.prepend(table);
   } else {

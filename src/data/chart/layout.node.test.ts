@@ -170,6 +170,13 @@ describe("end labels", () => {
     expect(l.gutters.label).toBe(0);
   });
 
+  it("reads 30rem off the chart's width, which the plot's borders make wider than its drawing", () => {
+    const model = chartModel(line([[1, 5]]), "en", "UTC");
+    const floors = { axis: 0, label: 0 };
+    expect(layout(model, words, metrics(), 478, floors, 480).endLabels).toHaveLength(1);
+    expect(layout(model, words, metrics(), 478, floors, 479.5).endLabels).toEqual([]);
+  });
+
   it("moves the y gutter right and the end labels left under reverse", () => {
     const l = lay({ ...line([[1, 5]]), x: { reverse: true } }, 600);
     expect(l.left).toBe(l.gutters.label);

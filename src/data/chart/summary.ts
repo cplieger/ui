@@ -79,7 +79,16 @@ function lineSummary(model: Model, m: LineModel, words: Words): string[] {
     words.lineSummary(domainText(model, words), sizeText(model, evenStep(steps), words)),
   ];
   for (const s of m.series) {
-    const known = s.y.slice(m.from, m.to).filter((v) => v !== null);
+    // A loop, since spreading a long series into Math.min overflows the stack.
+    let low = Number.POSITIVE_INFINITY;
+    let high = Number.NEGATIVE_INFINITY;
+    for (let i = m.from; i < m.to; i++) {
+      const v = s.y[i] ?? null;
+      if (v !== null) {
+        low = Math.min(low, v);
+        high = Math.max(high, v);
+      }
+    }
     const at = lastSample(m, s);
     const text = (v: number | null | undefined) =>
       v === null || v === undefined ? words.noData : model.yText(v);
@@ -87,8 +96,8 @@ function lineSummary(model: Model, m: LineModel, words: Words): string[] {
       words.lineSeries(
         s.name,
         text(at === -1 ? null : s.y[at]),
-        text(known.length === 0 ? null : Math.min(...known)),
-        text(known.length === 0 ? null : Math.max(...known)),
+        text(low <= high ? low : null),
+        text(low <= high ? high : null),
       ),
     );
   }

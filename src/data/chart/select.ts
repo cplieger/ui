@@ -347,14 +347,14 @@ export function navigator(model: Model, lay: Layout): Navigator {
               r = k;
             }
           });
-          const g = groups(r);
-          const ats = f.x.reverse ? g.map((d) => -d.at).reverse() : g.map((d) => d.at);
-          const want = f.x.reverse ? -px : px;
-          const k = lowerBound(ats, want);
+          // Groups come in data order, which runs against px on a reversed x.
+          const g = f.x.reverse ? [...groups(r)].reverse() : groups(r);
+          const ats = g.map((d) => d.at);
+          const k = lowerBound(ats, px);
           const near = [k - 1, k]
             .filter((j) => j >= 0 && j < ats.length)
-            .sort((a, b) => Math.abs((ats[a] ?? 0) - want) - Math.abs((ats[b] ?? 0) - want))[0];
-          const hit = near === undefined ? undefined : g[f.x.reverse ? g.length - 1 - near : near];
+            .sort((a, b) => Math.abs((ats[a] ?? 0) - px) - Math.abs((ats[b] ?? 0) - px))[0];
+          const hit = near === undefined ? undefined : g[near];
           return hit !== undefined && Math.abs(hit.at - px) <= REACH
             ? { kind: "dot", row: r, from: hit.from, to: hit.to }
             : { kind: "row", row: r };

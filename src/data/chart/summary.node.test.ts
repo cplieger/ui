@@ -178,6 +178,27 @@ describe("the summary of a step line", () => {
     );
   });
 
+  it("reads the low and high of a 90-day minute line, and No data for a series with none", () => {
+    const n = 90 * 24 * 60;
+    const long = per(n, (i) => START + i * MIN);
+    const big = model({
+      x: { type: "time", domain: [START, START + (n - 1) * MIN] },
+      marks: [
+        {
+          mark: "line",
+          x: long,
+          series: [
+            { name: "Load", y: long.map((_, i) => (i === 7 ? -3 : i === n - 2 ? 40 : i % 10)) },
+            { name: "Idle", y: long.map(() => null) },
+          ],
+        },
+      ],
+    });
+    const text = generatedSummary(big, words);
+    expect(text).toContain("Load: last 9, low -3, high 40.");
+    expect(text).toContain("Idle: last No data, low No data, high No data.");
+  });
+
   it("names a step line and its series", () => {
     expect(shortDescription(m, words)).toBe(`Step line, 2 series, ${span(START, END)}`);
   });

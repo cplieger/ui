@@ -84,7 +84,14 @@ function draw(spec: ChartSpec, width = 600, parent?: HTMLElement, lang = "en"): 
   box.append(figure);
   const model = chartModel(spec, lang, "UTC");
   const metrics = readMetrics(plot, lang);
-  const lay = layout(model, words, metrics, plot.clientWidth, { axis: 0, label: 0 });
+  const lay = layout(
+    model,
+    words,
+    metrics,
+    plot.clientWidth,
+    { axis: 0, label: 0 },
+    plot.getBoundingClientRect().width,
+  );
   drawPlot(svg, model, lay);
   const none = overall(model, words);
   if (none !== undefined) {
@@ -255,6 +262,13 @@ describe("the marks", () => {
     }
     expect(Number(area.getAttribute("width"))).toBe(d.lay.frame.width);
     expect(Number(area.getAttribute("x"))).toBe(d.lay.left);
+  });
+
+  it("clips the marks to the plot's area while the axis labels sit outside it", () => {
+    const d = draw(stacked);
+    const area = d.svg.querySelector('[data-part="area"]') as SVGSVGElement;
+    expect(getComputedStyle(area).overflow).toBe("hidden");
+    expect(getComputedStyle(d.svg).overflow).toBe("visible");
   });
 
   it("puts gridlines in the line colour and the zero line in the strong border", () => {

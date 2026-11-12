@@ -88,8 +88,8 @@ const step: ChartSpec = {
   ],
 };
 
-const timeline = (rows: { name: string; x: number[] }[]): ChartSpec => ({
-  x: { type: "time", domain: [START, START + 60 * MIN] },
+const timeline = (rows: { name: string; x: number[] }[], reverse = false): ChartSpec => ({
+  x: { type: "time", domain: [START, START + 60 * MIN], reverse },
   y: { type: "band", unit: { one: "agent", other: "agents" } },
   marks: [{ mark: "dot", unit: { one: "post", other: "posts" }, rows }],
 });
@@ -372,6 +372,19 @@ describe("the pointer", () => {
     expect(b.nav.pick(dot + 41, 12)).toEqual({ kind: "row", row: 0 });
     expect(b.nav.pick(dot, 30)).toEqual({ kind: "row", row: 1 });
     expect(b.nav.pick(dot, 400)).toEqual({ kind: "row", row: 1 });
+  });
+
+  it("picks the dot under it on a reversed x, and the row more than 40 px from every dot", () => {
+    const b = built(
+      timeline([{ name: "lead-ui", x: [10, 30, 50].map((m) => START + m * MIN) }], true),
+    );
+    const f = b.lay.frame;
+    const at = (m: number) => f.xAt(START + m * MIN);
+    expect(at(10)).toBeGreaterThan(at(50));
+    expect(b.nav.pick(at(10), 12)).toEqual({ kind: "dot", row: 0, from: 0, to: 1 });
+    expect(b.nav.pick(at(30) + 5, 12)).toEqual({ kind: "dot", row: 0, from: 1, to: 2 });
+    expect(b.nav.pick(at(50), 12)).toEqual({ kind: "dot", row: 0, from: 2, to: 3 });
+    expect(b.nav.pick(at(10) + 41, 12)).toEqual({ kind: "row", row: 0 });
   });
 
   it("reads posts that share a pixel as their count and span", () => {

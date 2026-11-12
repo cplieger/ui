@@ -98,7 +98,7 @@ class Extent {
   }
 }
 
-// A linear extent of one value spans 1 on the side away from 0, or 1 each way.
+// A linear extent of one value spans 1 each way of it, or 0 to 1 at 0.
 function widen(lo: number, hi: number): readonly [number, number] {
   if (lo < hi) {
     return [lo, hi];

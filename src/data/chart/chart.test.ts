@@ -828,6 +828,32 @@ describe("the drawing under update and resize", () => {
     expect(plotLeft(b)).toBe(left);
   });
 
+  const steps: ChartSpec = {
+    x: { type: "time", domain: [START, START + 3 * MIN] },
+    marks: [
+      {
+        mark: "line",
+        curve: "step",
+        x: per(4, (i) => START + i * MIN),
+        series: [{ name: "Live", y: [4, 4, 6, 6] }],
+      },
+    ],
+  };
+  const area = (b: Built) =>
+    get(b.figure, "plot")?.querySelector('[data-part="area"]') as SVGSVGElement;
+  const ends = (b: Built) => b.figure.querySelectorAll('svg [data-part="end"] text').length;
+
+  it("draws end labels on a figure 30rem wide, as wide as the stylesheet's plot height takes it", () => {
+    const wide = build({ width: 480 });
+    start(steps, wide);
+    expect(ends(wide)).toBe(1);
+    expect(Number(area(wide).getAttribute("height"))).toBe(240 + 4);
+    const narrow = build({ width: 479 });
+    start(steps, narrow);
+    expect(ends(narrow)).toBe(0);
+    expect(Number(area(narrow).getAttribute("height"))).toBe(200 + 4);
+  });
+
   it("measures afresh on a resize, with no two x labels overlapping", async () => {
     const b = build({ width: 1200 });
     start(counts(9), b);
@@ -845,6 +871,50 @@ describe("the drawing under update and resize", () => {
       if (p !== undefined && q !== undefined && Math.abs(p.top - q.top) < 1) {
         expect(q.left).toBeGreaterThanOrEqual(p.right);
       }
+    }
+  });
+});
+
+describe("a face that loads after the drawing", () => {
+  const strip: ChartSpec = {
+    x: { type: "time", domain: [START, START + 60 * MIN] },
+    y: { type: "band" },
+    marks: [
+      {
+        mark: "dot",
+        unit: { one: "post", other: "posts" },
+        rows: [{ name: "lead-ui-agent", x: [START + 10 * MIN] }],
+      },
+    ],
+  };
+  const plotLeft = (b: Built) =>
+    Number(get(b.figure, "plot")?.querySelector('[data-part="area"]')?.getAttribute("x"));
+  const late = (b: Built): Built => {
+    (b.figure.parentElement as HTMLElement).style.fontFamily = '"cp-chart-late", serif';
+    return b;
+  };
+
+  it("measures the chart again once the face has loaded, as a chart drawn after it measures", async () => {
+    const url = new URL("../../../fonts/atkinson-hyperlegible-next-latin.woff2", import.meta.url);
+    const face = new FontFace("cp-chart-late", `url(${url.href})`);
+    await document.fonts.ready;
+    document.fonts.add(face);
+    try {
+      const b = build();
+      const chart = start(null, b);
+      late(b);
+      chart.update(strip);
+      const before = plotLeft(b);
+      await face.load();
+      await document.fonts.ready;
+      const after = late(build());
+      start(strip, after);
+      expect(plotLeft(after)).not.toBe(before);
+      await vi.waitFor(() => {
+        expect(plotLeft(b)).toBe(plotLeft(after));
+      });
+    } finally {
+      document.fonts.delete(face);
     }
   });
 });

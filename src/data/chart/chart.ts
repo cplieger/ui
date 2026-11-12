@@ -50,7 +50,8 @@ export interface Chart {
    *  showed, the plot or the empty words. Ignored once aborted. */
   error(notice: HTMLElement): void;
   /** The summary in the current state. It is "" in failed, in loading with
-   *  nothing stored, while a stored error waits, and torn down from those. */
+   *  nothing stored, while a stored error waits, and torn down from failed,
+   *  loading or settling. */
   readonly summary: string;
   /** Shows the table view (true) or the plot (false), as the toggle does;
    *  remembered until there is a drawing to switch from. */
@@ -182,9 +183,9 @@ export function renderChart(
   let floors: Floors = { axis: 0, label: 0 };
   let widths: Widths | undefined;
   let lastHeight: number | undefined;
-  // The plot width the drawing was laid out at, which the observer's first
-  // entry, sent once observing starts, usually repeats.
-  let drawnWidth: number | undefined;
+  // The chart's width the drawing was laid out at, which the observer's
+  // first entry, sent once observing starts, usually repeats.
+  let drawnBox: number | undefined;
 
   let timing: SkeletonTimingController | undefined;
   let committed = false;
@@ -245,6 +246,10 @@ export function renderChart(
     summaryEl.hidden = !visible;
   };
 
+  // The plot's border box fills the figure's content box, which the
+  // stylesheet's container queries read.
+  const chartWidth = (): number => plot.getBoundingClientRect().width;
+
   const hasDrawing = (): boolean =>
     state === "ready" || (state === "refreshFailed" && shown === "ready");
 
@@ -258,8 +263,8 @@ export function renderChart(
     }
     plotStale = false;
     const metrics = readMetrics(plot, locale);
-    drawnWidth = plot.clientWidth;
-    const lay = layout(drawn, words, metrics, drawnWidth, floors);
+    drawnBox = chartWidth();
+    const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox);
     floors = lay.gutters;
     drawPlot(svg, drawn, lay);
     const none = overall(drawn, words);
@@ -268,6 +273,16 @@ export function renderChart(
       frameLegend(legend, none, widths, words.total);
     }
     explorer.drawn(drawn, lay);
+  };
+
+  // Drops the kept gutters and slot widths, then draws now or once shown.
+  const measureAfresh = (): void => {
+    floors = { axis: 0, label: 0 };
+    widths = undefined;
+    plotStale = true;
+    if (hasDrawing() && !plot.hidden) {
+      drawGeometry();
+    }
   };
 
   const showView = (): void => {
@@ -439,9 +454,8 @@ export function renderChart(
     if (frame === 0) {
       frame = requestAnimationFrame(() => {
         frame = 0;
-        if (hasDrawing() && plot.clientWidth !== drawnWidth) {
-          floors = { axis: 0, label: 0 };
-          drawGeometry();
+        if (hasDrawing() && chartWidth() !== drawnBox) {
+          measureAfresh();
         }
       });
     }
@@ -460,17 +474,26 @@ export function renderChart(
     );
   }
 
-  if (document.fonts.status === "loading") {
+  // A face may start loading only once a draw lays out its text, so every
+  // load the page starts while the chart lives measures it again once the
+  // set settles. WebKit fires no loadingdone for such a load, only loading.
+  let settling = false;
+  const onFonts = (): void => {
+    if (settling) {
+      return;
+    }
+    settling = true;
     void document.fonts.ready.then(() => {
+      settling = false;
       if (!life.signal.aborted) {
         forgetMeasures();
-        floors = { axis: 0, label: 0 };
-        plotStale = true;
-        if (hasDrawing() && !plot.hidden) {
-          drawGeometry();
-        }
+        measureAfresh();
       }
     });
+  };
+  document.fonts.addEventListener("loading", onFonts, { signal: life.signal });
+  if (document.fonts.status === "loading") {
+    onFonts();
   }
 
   const handle: Chart = {
