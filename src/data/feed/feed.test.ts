@@ -812,6 +812,10 @@ describe("enhanceFeed", () => {
     c.feed.append(entry());
     await settle();
     await userEvent.click(c.jump);
+    // Firefox runs a smooth scroll on for a few frames after an instant one,
+    // which should end it (https://drafts.csswg.org/cssom-view/#perform-a-scroll),
+    // so the press's scroll finishes before the reset.
+    await expect.poll(() => gap(c.box)).toBeLessThanOrEqual(1);
     c.foot.style.setProperty("--cp-keyboard-inset", "10px");
     own.abort();
     expect(c.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe("");
