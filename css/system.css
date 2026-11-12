@@ -4742,6 +4742,12 @@ th[aria-sort="descending"] > .cp-sort::after {
   border-block-end: 0;
 }
 
+/* A cell of running text keeps a readable width: without a floor a table
+ * wider than its box sits at its min-content, a word a line. */
+.cp-prose :where(td[data-cp-wrap]) {
+  min-inline-size: 12em;
+}
+
 /* anywhere counts every character toward a cell's min-content, which would
  * crush a short column to one letter; the region scrolls instead. */
 .cp-prose :where(th, td) :where(code) {
@@ -4791,11 +4797,16 @@ th[aria-sort="descending"] > .cp-sort::after {
   background: var(--cp-surface-sunken);
 }
 
+/* The trailing action nests in the block's corner: its inset is the block's
+ * radius less the border and the button's radius, so the corners are
+ * concentric. */
 .cp-code[data-variant="block"] > [data-part="bar"] {
+  --cp-bar-inset: calc(var(--cp-radius-surface) - var(--cp-line-w) - var(--cp-radius-control));
+
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
-  padding: var(--cp-space-1) var(--cp-space-1) var(--cp-space-1) var(--cp-space-3);
+  padding: var(--cp-bar-inset) var(--cp-bar-inset) var(--cp-bar-inset) var(--cp-space-3);
   border-block-end: var(--cp-line-w) solid var(--cp-line);
 }
 

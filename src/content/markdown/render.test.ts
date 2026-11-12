@@ -79,6 +79,14 @@ describe("the element vocabulary", () => {
     expect(el.querySelector("li")?.textContent).toBe(" done");
   });
 
+  it("marks a cell of running text data-cp-wrap and leaves short cells alone", () => {
+    const el = render(
+      "| a | b | c |\n|-|-|-|\n| x | a note long enough to wrap | a-long-token-with-no-space-in-it |",
+    );
+    const cells = [...el.querySelectorAll("td")];
+    expect(cells.map((c) => c.hasAttribute("data-cp-wrap"))).toEqual([false, true, false]);
+  });
+
   it("puts a table in its region, header cells in thead, alignment as data-align", () => {
     const el = render("| a | b | c |\n|:-|:-:|-:|\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |");
     const region = el.firstElementChild;
