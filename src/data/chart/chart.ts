@@ -476,7 +476,8 @@ export function renderChart(
 
   // A face may start loading only once a draw lays out its text, so every
   // load the page starts while the chart lives measures it again once the
-  // set settles. WebKit fires no loadingdone for such a load, only loading.
+  // set settles. WebKit fires no loadingdone for such a load, only loading;
+  // chart.test.ts "measures the chart again once the face has loaded" pins it.
   let settling = false;
   const onFonts = (): void => {
     if (settling) {

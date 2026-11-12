@@ -856,6 +856,26 @@ describe("the drawing under update and resize", () => {
     expect(Number(area(narrow).getAttribute("height"))).toBe(200 + 2 * AREA_ROOM);
   });
 
+  it("keeps the legend's slot widths through an update, and measures them again on a resize", async () => {
+    const b = build();
+    const chart = start(bars([12_345, 1, 1, 1]), b);
+    const slot = () =>
+      Number.parseFloat(
+        (
+          get(b.figure, "legend")?.querySelector(
+            '[data-part="total"] [data-part="value"]',
+          ) as HTMLElement
+        ).style.minInlineSize,
+      );
+    const wide = slot();
+    chart.update(bars([1, 1, 1, 1], [1, 1, 1, 1]));
+    expect(slot()).toBe(wide);
+    (b.figure.parentElement as HTMLElement).style.inlineSize = "560px";
+    await vi.waitFor(() => {
+      expect(slot()).toBeLessThan(wide);
+    });
+  });
+
   it("measures afresh on a resize, with no two x labels overlapping", async () => {
     const b = build({ width: 1200 });
     start(counts(9), b);
@@ -898,17 +918,29 @@ describe("a face that loads after the drawing", () => {
   };
 
   it("measures the chart again once the face has loaded, as a chart drawn after it measures", async () => {
+    // A stylesheet face, as an app's is, so its fetch starts at the chart's
+    // draw, after the page's fonts settled.
     const url = new URL("../../../fonts/atkinson-hyperlegible-next-latin.woff2", import.meta.url);
-    const face = new FontFace("cp-chart-late", `url(${url.href})`);
-    await document.fonts.ready;
-    document.fonts.add(face);
+    const faces = new CSSStyleSheet();
+    // A query of its own, so no cached copy loads the face within the draw.
+    url.searchParams.set("late", String(Date.now()));
+    faces.replaceSync(`@font-face { font-family: "cp-chart-late"; src: url("${url.href}"); }`);
     try {
       const b = build();
       const chart = start(null, b);
+      // The page's own faces settle before the late face is known.
+      await vi.waitFor(() => {
+        expect(document.fonts.status).toBe("loaded");
+      });
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, faces];
       late(b);
       chart.update(strip);
       const before = plotLeft(b);
-      await face.load();
+      const face = () => [...document.fonts].find((f) => f.family.includes("cp-chart-late"));
+      await vi.waitFor(() => {
+        expect(face()?.status).toBe("loaded");
+      });
+      // The chart's own wait on the set comes first, so it has run by now.
       await document.fonts.ready;
       const after = late(build());
       start(strip, after);
@@ -917,7 +949,7 @@ describe("a face that loads after the drawing", () => {
         expect(plotLeft(b)).toBe(plotLeft(after));
       });
     } finally {
-      document.fonts.delete(face);
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => s !== faces);
     }
   });
 });
