@@ -1,0 +1,15 @@
+/* A table wider than its box scrolls inside this region; while it overflows
+ * the renderer makes the region a named tab stop. */
+.cp-table-scroll {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  scrollbar-width: thin;
+}
+
+.cp-table-scroll:focus-visible {
+  outline-offset: calc(-1 * var(--cp-focus-w));
+}

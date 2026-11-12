@@ -30,6 +30,7 @@ const PAGES: readonly (readonly [
   ["navigation", "Navigation", "panel-left", "Navigation"],
   ["data", "Data", "rows-3", "Data"],
   ["media", "Media", "film", "Media"],
+  ["content", "Content", "file-text", "Content"],
   ["layouts", "Layouts", "layout-grid", "Layouts and screens"],
   ["sign-in", "Sign-in", "log-in", "Screen: sign-in", "layouts"],
   ["setup", "Setup", "list-checks", "Screen: first-run setup", "layouts"],

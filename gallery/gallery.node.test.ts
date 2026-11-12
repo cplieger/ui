@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 
-import { chromium, firefox, webkit, type BrowserType } from "playwright";
+import { chromium, firefox, webkit, type Browser, type BrowserType } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { buildGallery, frameNames, pageNames } from "./build.js";
@@ -71,71 +71,71 @@ afterAll(async () => {
 });
 
 describe.each(browsers)("the gallery in %s", (name) => {
-  it("loads every page with no error, every file found, every icon painted and nothing wider than a phone", async () => {
-    const engine = ENGINES[name];
-    if (engine === undefined) {
-      throw new TypeError(`unknown browser ${name}`);
-    }
-    const browser = await engine.launch();
-    const report: Record<string, unknown> = {};
-    try {
-      for (const page of [...pageNames, ...frameNames]) {
-        for (const width of [1440, 390]) {
-          const tab = await browser.newPage({ viewport: { width, height: 900 } });
-          const errors: string[] = [];
-          tab.on("pageerror", (e) => errors.push(e.message));
-          await tab.goto(`${origin}/${page}.html`);
-          await tab.evaluate(() => document.fonts.ready.then(() => undefined));
-          const state = await tab.evaluate(() => ({
-            wide: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-            unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
-              (i) => i.style.getPropertyValue("--cp-icon-image") === "" && i.checkVisibility(),
-            ).length,
-          }));
-          if (errors.length > 0 || (width === 390 && state.wide) || state.unpainted > 0) {
-            report[`${page} at ${String(width)}`] = { errors, ...state };
-          }
-          await tab.close();
-        }
-      }
-    } finally {
-      await browser.close();
-    }
-    expect(report).toEqual({});
-    expect([...missing]).toEqual([]);
-  }, 240_000);
+  let browser: Browser | undefined;
 
-  it("runs every page's script to its end inside a sandboxed frame, as a preview tab shows it", async () => {
+  beforeAll(async () => {
     const engine = ENGINES[name];
     if (engine === undefined) {
       throw new TypeError(`unknown browser ${name}`);
     }
-    const browser = await engine.launch();
-    const report: Record<string, unknown> = {};
-    try {
-      for (const page of pageNames) {
-        const tab = await browser.newPage();
+    browser = await engine.launch();
+  }, 60_000);
+
+  afterAll(async () => {
+    await browser?.close();
+  });
+
+  it.each([...pageNames, ...frameNames])(
+    "loads %s with no error, every icon painted and nothing wider than a phone",
+    async (page) => {
+      const report: Record<string, unknown> = {};
+      for (const width of [1440, 390]) {
+        const tab = await (browser as Browser).newPage({ viewport: { width, height: 900 } });
         const errors: string[] = [];
         tab.on("pageerror", (e) => errors.push(e.message));
-        await tab.goto(`${origin}/framed/${page}`);
-        const frame = tab.frames()[1];
-        // The marks run last, so a page they reach ran every wiring before them.
-        const marked = await frame
-          ?.waitForFunction(() => document.querySelector("[data-build]") !== null, null, {
-            timeout: 10_000,
-          })
-          .then(
-            () => true,
-            () => false,
-          );
-        if (errors.length > 0 || marked !== true) {
-          report[page] = { errors, marked };
+        await tab.goto(`${origin}/${page}.html`);
+        await tab.evaluate(() => document.fonts.ready.then(() => undefined));
+        const state = await tab.evaluate(() => ({
+          wide: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          unpainted: [...document.querySelectorAll<HTMLElement>(".cp-icon")].filter(
+            (i) =>
+              getComputedStyle(i).getPropertyValue("--cp-icon-image") === "" && i.checkVisibility(),
+          ).length,
+        }));
+        if (errors.length > 0 || (width === 390 && state.wide) || state.unpainted > 0) {
+          report[String(width)] = { errors, ...state };
         }
         await tab.close();
       }
-    } finally {
-      await browser.close();
-    }
-    expect(report).toEqual({});
-  }, 240_000);
+      expect(report).toEqual({});
+    },
+    60_000,
+  );
+
+  it("finds every file the pages ask for", () => {
+    expect([...missing]).toEqual([]);
+  });
+
+  it.each(pageNames)(
+    "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",
+    async (page) => {
+      const tab = await (browser as Browser).newPage();
+      const errors: string[] = [];
+      tab.on("pageerror", (e) => errors.push(e.message));
+      await tab.goto(`${origin}/framed/${page}`);
+      const frame = tab.frames()[1];
+      // The marks run last, so a page they reach ran every wiring before them.
+      const marked = await frame
+        ?.waitForFunction(() => document.querySelector("[data-build]") !== null, null, {
+          timeout: 10_000,
+        })
+        .then(
+          () => true,
+          () => false,
+        );
+      await tab.close();
+      expect({ errors, marked }).toEqual({ errors: [], marked: true });
+    },
+    60_000,
+  );
 });

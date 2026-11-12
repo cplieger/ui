@@ -101,6 +101,23 @@ The envelope is the highest chroma a hue can take while every step stays inside 
 | 345 to 359 | 0.165 | 0.020 |
 <!-- envelope:end -->
 
+## Syntax colours
+
+[highlight](content/highlight.md) marks each token with `data-token`, and these roles colour it anywhere inside `.cp`. Each clears 4.5:1 on a code block's sunken surface in both themes, and a test holds it there.
+
+| Role | Colours | Also |
+| --- | --- | --- |
+| `--cp-syntax-keyword` | the accent's step 11 | medium weight |
+| `--cp-syntax-string` | a fixed green, hue 145 | |
+| `--cp-syntax-number` | a fixed amber, hue 60 | |
+| `--cp-syntax-key` | a fixed magenta, hue 320, for JSON and YAML keys | |
+| `--cp-syntax-comment` | muted ink | italic |
+| `--cp-syntax-punctuation` | muted ink | |
+| `--cp-syntax-inserted` | the success tone's step 4, as a line's fill | the line keeps its `+` |
+| `--cp-syntax-deleted` | the danger tone's step 4, as a line's fill | the line keeps its `-` |
+
+The string, number and key hues are fixed rather than taken from the seeds, so a string never reads as a success and a key never as an action. Each clears 7:1 on the page, raised and sunken surfaces in both themes. In forced colours every token takes `CanvasText`.
+
 ## Tones
 
 A tone is a colour family on one element: `data-tone="accent"`, `"neutral"`, `"danger"`, `"warning"` or `"success"`. Inside it, `--cp-tone-1` to `--cp-tone-12` and `--cp-tone-on` follow the tone's hue. Chips, notices, swatches, progress bars and primary buttons read the tone, so `data-tone="danger"` on a primary button makes it a destructive one.

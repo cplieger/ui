@@ -1,0 +1,78 @@
+/* The language's one code block (@cplieger/ui/markdown builds it): a bar
+ * with the language and the actions over a pre that scrolls on its own.
+ * A fill, not a line, sets it apart; forced colours draw the transparent
+ * border. */
+.cp-code[data-variant="block"] {
+  display: block;
+  block-size: auto;
+  min-inline-size: 0;
+  padding: 0;
+  border-color: transparent;
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-sunken);
+}
+
+.cp-code[data-variant="block"] > [data-part="bar"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-1) var(--cp-space-1) var(--cp-space-1) var(--cp-space-3);
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+}
+
+.cp-code[data-variant="block"] [data-part="lang"] {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-size: var(--cp-text-xs);
+  color: var(--cp-ink-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-code[data-variant="block"] [data-part="actions"] {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cp-space-1);
+  margin-inline-start: auto;
+}
+
+/* The renderer's Copy carries icon spans with no name to resolve. */
+:where(.cp-code[data-variant="block"]) .cp-copy > .cp-icon {
+  --cp-icon-image: url("../icons/svg/copy.svg");
+}
+
+:where(.cp-code[data-variant="block"]) .cp-copy > .cp-icon[data-part="done"] {
+  --cp-icon-image: url("../icons/svg/check.svg");
+}
+
+/* Long lines scroll rather than wrap: a wrapped command reads as two. */
+.cp-code[data-variant="block"] > pre {
+  margin: 0;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-radius: 0 0 calc(var(--cp-radius-surface) - var(--cp-line-w))
+    calc(var(--cp-radius-surface) - var(--cp-line-w));
+  background: transparent;
+  line-height: var(--cp-leading-body);
+  white-space: pre;
+  tab-size: 4;
+  scrollbar-width: thin;
+}
+
+.cp-code[data-variant="block"] > pre > code {
+  display: block;
+  inline-size: max-content;
+  min-inline-size: 100%;
+  overflow-wrap: normal;
+  font-size: 1em;
+}
+
+.cp-code[data-variant="block"] > pre:focus-visible {
+  outline-offset: calc(-1 * var(--cp-focus-w));
+}
+
+.cp-code[data-variant="block"] > .cp-help {
+  display: block;
+  padding: 0 var(--cp-space-4) var(--cp-space-3);
+}

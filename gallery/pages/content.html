@@ -1,0 +1,126 @@
+<main class="play">
+  <header>
+    <h1>Content</h1>
+    <p>Text an agent wrote, rendered as the language's prose: headings, lists, tables and code blocks coloured and copyable, with every link and image checked before it can leave the page.</p>
+  </header>
+
+  <nav class="g-index" aria-label="On this page"><a href="#prose">Prose</a><a href="#code">Code blocks</a><a href="#tables">Tables</a><a href="#live">Live</a><a href="#safety">Safety</a></nav>
+
+  <section class="g-section" id="prose">
+    <h2>Prose</h2>
+    <div class="g-grid">
+      <div class="card" data-new>
+        <h2>Every construct, headings from h2</h2>
+        <div class="cp-prose" data-markdown="prose"></div>
+        <footer>One answer holding each piece once: emphasis, strong, struck words, a long path in inline code that breaks anywhere, a line break, nested and numbered lists, task boxes, a quote, a table, an equation, a rule, an image in its link form and a code block. Its <code>#</code> renders as <code>h2</code>, under the card's own title.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>The same, headings from h4</h2>
+        <div class="cp-prose" data-markdown="prose" data-level="4"></div>
+        <footer>With <code>headingLevel: 4</code> the same text fits under a page's <code>h3</code>; its <code>###</code> reaches <code>h6</code>, which keeps a size and weight of its own.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="code">
+    <h2>Code blocks</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Go</h2>
+        <div class="cp-prose" data-markdown="code-go"></div>
+        <footer>The bar names the language and holds Copy, which writes the block's text and turns into a check. Keywords, strings, numbers and comments each take a syntax colour, at least 4.5:1 on the block in both themes.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>TypeScript</h2>
+        <div class="cp-prose" data-markdown="code-ts"></div>
+        <footer>The fence's tag is <code>ts</code>; the label says TypeScript.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A change</h2>
+        <div class="cp-prose" data-markdown="code-diff"></div>
+        <footer>An added line has a green fill and its <code>+</code>, a removed one a red fill and its <code>-</code>, so the sign says it without the colour. The fills span the block's widest line.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>No tag, detected</h2>
+        <div class="cp-prose" data-markdown="code-detected"></div>
+        <footer>The fence has no tag. Detection reads the first lines, finds Python and labels and colours it so; when it is unsure, the block stays plain with no label.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A tag the highlighter does not know</h2>
+        <div class="cp-prose" data-markdown="code-unknown"></div>
+        <footer>The label is the tag as written, and the text stays plain.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A long line</h2>
+        <div class="cp-prose" data-markdown="code-long"></div>
+        <footer>A command never wraps, since a wrapped one reads as two. The block scrolls instead, and takes a tab stop only while it overflows, so a keyboard can scroll it too.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>An app's button beside Copy</h2>
+        <div class="cp-prose" data-markdown="code-action"></div>
+        <footer>The app adds Run to the block's actions from its <code>code</code> hook, once the fence has closed. Press it for a notice.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="tables">
+    <h2>Tables</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>A wide table in its region</h2>
+        <div class="cp-prose" data-markdown="table"></div>
+        <footer>A table wider than its box scrolls inside its own outlined region, never the page. While it overflows the region is a tab stop named Table; once it fits, it is neither. Each column keeps the alignment the text gave it.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="live">
+    <h2>Live</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Paste agent text</h2>
+        <div class="cp-stack">
+          <div class="cp-field"><label class="cp-label" for="md-live">Markdown</label><textarea class="cp-input" id="md-live" rows="8" data-markdown-live="md-live-out"></textarea></div>
+          <div class="cp-prose" id="md-live-out"></div>
+        </div>
+        <footer>What you type or paste renders below on the next frame, with the same options an app uses by default: links checked, images as links, at most 1 MiB.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="safety">
+    <h2>Safety</h2>
+    <div class="g-grid">
+      <div class="card" data-new>
+        <h2>A refused link</h2>
+        <div class="cp-prose" data-markdown="safety-refused"></div>
+        <footer>A <code>javascript:</code> destination gets no <code>href</code>, so its words read as body text and do nothing.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A withheld link</h2>
+        <div class="cp-prose" data-markdown="safety-withheld"></div>
+        <footer>An address that could carry data out, here a long encoded query, renders without <code>href</code> and shows where it leads, so a person can read it and copy it on purpose.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>An image in its link form</h2>
+        <div class="cp-prose" data-markdown="safety-image"></div>
+        <footer>An image is a link to its source, named by its alt text, so nothing is fetched until a person asks for it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Raw HTML as text</h2>
+        <div class="cp-prose" data-markdown="safety-html"></div>
+        <footer>Tags in the text are shown as the characters they are; nothing in the text becomes markup.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A cut text</h2>
+        <div class="cp-prose" data-markdown="cut"></div>
+        <footer>Past <code>maxBytes</code>, here 640 bytes, the text stops where it was cut, what was open is closed, and one line says so.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>An image the app loads</h2>
+        <div class="cp-prose" data-markdown="image-load"></div>
+        <footer>With <code>images: "load"</code> an image is fetched with no referrer and lazily, and fits the column with the prose's corner radius.</footer>
+      </div>
+    </div>
+  </section>
+</main>
