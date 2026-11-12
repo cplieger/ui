@@ -77,10 +77,10 @@ function topOf(scroller: HTMLElement): number {
 /**
  * Wires `feed`, a `.cp-feed` of `li.cp-feed-entry` oldest first, in the
  * nearest box that scrolls it (found again as it moves), at its newest entry.
- * Entries appended after the newest while it is not `aria-busy="true"` are
- * arrivals, followed by a reader at the end and else counted; an own
- * (`data-own`) one there always goes to the newest. Any other entry is a
- * load, which keeps the reader's place and is never counted.
+ * Entries appended after the newest while not `aria-busy="true"` are arrivals,
+ * followed by a reader at the end, else counted; an own (`data-own`) one there
+ * goes to the newest, as do the entries of a feed that had none. Any other
+ * entry is a load, which keeps the reader's place and is never counted.
  */
 export function enhanceFeed(
   feed: HTMLOListElement | HTMLUListElement,
@@ -206,12 +206,15 @@ export function enhanceFeed(
 
   // A hidden feed, such as one in a detail not yet open, has no end to
   // reach: it goes there once it shows and the observer sees it resize.
+  // One wired hidden latched the page, so a call in the turn it shows must
+  // find its scroller first, or it would scroll the page.
   const toEnd = (smooth: boolean): void => {
     atEnd = true;
     clear();
     if (feed.getClientRects().length === 0) {
       return;
     }
+    adopt();
     going = smooth;
     scroller.scrollTo({ top: scroller.scrollTop + gap(), behavior: smooth ? "smooth" : "instant" });
     // A load at the end is measured against this before any scroll event.

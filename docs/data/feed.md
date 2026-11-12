@@ -107,7 +107,7 @@ compose.addEventListener("submit", async (e) => {
 ## Behaviour
 
 - The feed's scroller is the nearest box around it that scrolls, else the page. It is found again as the feed moves, so a detail that moves from its docked place into a dialog keeps its feed followed. On the page, the end is where the foot rests under the last entry, whatever follows the feed.
-- A feed that is hidden when it is wired, such as one in a detail not yet open, scrolls nothing until it shows, and then opens at its newest entry.
+- A feed that is hidden when it is wired, such as one in a detail not yet open, scrolls nothing until it shows, and then opens at its newest entry. A `toNewest()` called as it shows scrolls the box that holds it, never the page.
 - Within 2rem of the end counts as at the end. While the reader is there, new entries and entries that grow keep the newest in view.
 - Once the reader has scrolled up, the entry at the top of the view stays where it is when entries are shown above it, such as by "Show older", or when an entry above grows. The browser's own scroll anchoring is off in the feed, because the script keeps the place and the two would fight.
 - An arrival is an entry appended after the newest one while the feed is not `aria-busy="true"`. Arrivals while the reader is scrolled up are counted. A day separator or the marker added with them is not. The jump shows the count, and its words are said politely as it shows and as the count changes.

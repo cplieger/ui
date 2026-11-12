@@ -567,10 +567,8 @@ if (msgRoot !== null && msgFeed instanceof HTMLOListElement && compose instanceo
   const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const first = byHash() ?? rows.find((r) => r.hasAttribute("aria-current"));
   if (first !== undefined && msgRoot.getBoundingClientRect().width >= 52 * rem) {
-    const y = scrollY;
     route(first, true);
     title?.blur();
-    scrollTo({ top: y, behavior: "instant" });
   } else {
     first?.removeAttribute("aria-current");
   }

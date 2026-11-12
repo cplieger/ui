@@ -513,6 +513,26 @@ describe("enhanceFeed", () => {
     expect(document.documentElement.scrollTop).toBe(0);
   });
 
+  it("on toNewest() in the turn a hidden feed shows, scrolls its box and not the page", async () => {
+    const above = document.createElement("div");
+    above.style.blockSize = "50vh";
+    document.body.append(above);
+    const c = conversation();
+    const below = document.createElement("div");
+    below.style.blockSize = "150vh";
+    document.body.append(below);
+    c.box.hidden = true;
+    const feed = enhance(c);
+    await settle();
+    c.box.hidden = false;
+    feed.toNewest();
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    await settle();
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+  });
+
   it("scrolls to the newest on toNewest()", async () => {
     const c = conversation();
     const feed = enhance(c);
