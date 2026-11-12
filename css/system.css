@@ -772,7 +772,7 @@
     mod(calc(var(--cp-accent-h) + 150), 360) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 100) * 100000, 1) *
       clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
-      (95 - mod(calc(var(--cp-accent-h) + 150), 360)) +
+      (90 - mod(calc(var(--cp-accent-h) + 150), 360)) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 150), 360) - 117.5) * 100000 + 1, 1) *
       clamp(0, (135 - mod(calc(var(--cp-accent-h) + 150), 360)) * 100000, 1) *
       (142 - mod(calc(var(--cp-accent-h) + 150), 360))
@@ -781,7 +781,7 @@
     mod(calc(var(--cp-accent-h) + 210), 360) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 100) * 100000, 1) *
       clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
-      (95 - mod(calc(var(--cp-accent-h) + 210), 360)) +
+      (90 - mod(calc(var(--cp-accent-h) + 210), 360)) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 210), 360) - 117.5) * 100000 + 1, 1) *
       clamp(0, (135 - mod(calc(var(--cp-accent-h) + 210), 360)) * 100000, 1) *
       (142 - mod(calc(var(--cp-accent-h) + 210), 360))
@@ -909,8 +909,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-1-h) - 90) * 1deg)), 4) - 0.078 *
-              pow(max(0, cos((var(--cp-series-1-h) - 205) * 1deg)), 2)
+            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-1-h) - 88) * 1deg)), 3) - 0.077 *
+              pow(max(0, cos((var(--cp-series-1-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-1-h)
@@ -920,8 +920,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-1-h) - 260) * 1deg)), 1) - 0.045 *
-              pow(max(0, cos((var(--cp-series-1-h) - 20) * 1deg)), 3)
+            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-1-h) - 267) * 1deg)), 4) - 0.024 *
+              pow(max(0, cos((var(--cp-series-1-h) - 27) * 1deg)), 4)
           )
         )
         var(--cp-series-1-h)
@@ -930,12 +930,12 @@
   --cp-series-2-h: var(--cp-harmony-2-h);
   --cp-series-2: light-dark(
     oklch(
-      42%
+      calc(42% + 8% * pow(max(0, cos((var(--cp-series-2-h) - 45) * 1deg)), 4))
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.04 * pow(max(0, cos((var(--cp-series-2-h) - 90) * 1deg)), 6) - 0.075 *
-              pow(max(0, cos((var(--cp-series-2-h) - 195) * 1deg)), 2)
+            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-2-h) - 90) * 1deg)), 5) - 0.066 *
+              pow(max(0, cos((var(--cp-series-2-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-2-h)
@@ -945,8 +945,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.188 - 0.052 * pow(max(0, cos((var(--cp-series-2-h) - 90) * 1deg)), 4) - 0.086 *
-              pow(max(0, cos((var(--cp-series-2-h) - 205) * 1deg)), 2)
+            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-2-h) - 89) * 1deg)), 3) - 0.078 *
+              pow(max(0, cos((var(--cp-series-2-h) - 200) * 1deg)), 2)
           )
         )
         var(--cp-series-2-h)
@@ -959,8 +959,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-3-h) - 90) * 1deg)), 4) - 0.078 *
-              pow(max(0, cos((var(--cp-series-3-h) - 205) * 1deg)), 2)
+            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-3-h) - 88) * 1deg)), 3) - 0.077 *
+              pow(max(0, cos((var(--cp-series-3-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-3-h)
@@ -970,8 +970,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-3-h) - 260) * 1deg)), 1) - 0.045 *
-              pow(max(0, cos((var(--cp-series-3-h) - 20) * 1deg)), 3)
+            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-3-h) - 267) * 1deg)), 4) - 0.024 *
+              pow(max(0, cos((var(--cp-series-3-h) - 27) * 1deg)), 4)
           )
         )
         var(--cp-series-3-h)
@@ -981,19 +981,19 @@
     mod(calc(var(--cp-accent-h) + 30), 360) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 100) * 100000, 1) *
       clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
-      (95 - mod(calc(var(--cp-accent-h) + 30), 360)) +
+      (90 - mod(calc(var(--cp-accent-h) + 30), 360)) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 30), 360) - 117.5) * 100000 + 1, 1) *
       clamp(0, (135 - mod(calc(var(--cp-accent-h) + 30), 360)) * 100000, 1) *
       (142 - mod(calc(var(--cp-accent-h) + 30), 360))
   );
   --cp-series-4: light-dark(
     oklch(
-      42%
+      calc(42% + 8% * pow(max(0, cos((var(--cp-series-4-h) - 45) * 1deg)), 4))
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.04 * pow(max(0, cos((var(--cp-series-4-h) - 90) * 1deg)), 6) - 0.075 *
-              pow(max(0, cos((var(--cp-series-4-h) - 195) * 1deg)), 2)
+            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-4-h) - 90) * 1deg)), 5) - 0.066 *
+              pow(max(0, cos((var(--cp-series-4-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-4-h)
@@ -1003,8 +1003,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.188 - 0.052 * pow(max(0, cos((var(--cp-series-4-h) - 90) * 1deg)), 4) - 0.086 *
-              pow(max(0, cos((var(--cp-series-4-h) - 205) * 1deg)), 2)
+            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-4-h) - 89) * 1deg)), 3) - 0.078 *
+              pow(max(0, cos((var(--cp-series-4-h) - 200) * 1deg)), 2)
           )
         )
         var(--cp-series-4-h)
@@ -1014,7 +1014,7 @@
     mod(calc(var(--cp-accent-h) + 60), 360) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 100) * 100000, 1) *
       clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
-      (95 - mod(calc(var(--cp-accent-h) + 60), 360)) +
+      (90 - mod(calc(var(--cp-accent-h) + 60), 360)) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 60), 360) - 117.5) * 100000 + 1, 1) *
       clamp(0, (135 - mod(calc(var(--cp-accent-h) + 60), 360)) * 100000, 1) *
       (142 - mod(calc(var(--cp-accent-h) + 60), 360))
@@ -1025,8 +1025,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-5-h) - 90) * 1deg)), 4) - 0.078 *
-              pow(max(0, cos((var(--cp-series-5-h) - 205) * 1deg)), 2)
+            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-5-h) - 88) * 1deg)), 3) - 0.077 *
+              pow(max(0, cos((var(--cp-series-5-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-5-h)
@@ -1036,8 +1036,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-5-h) - 260) * 1deg)), 1) - 0.045 *
-              pow(max(0, cos((var(--cp-series-5-h) - 20) * 1deg)), 3)
+            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-5-h) - 267) * 1deg)), 4) - 0.024 *
+              pow(max(0, cos((var(--cp-series-5-h) - 27) * 1deg)), 4)
           )
         )
         var(--cp-series-5-h)
@@ -1047,19 +1047,19 @@
     mod(calc(var(--cp-accent-h) + 90), 360) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 100) * 100000, 1) *
       clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
-      (95 - mod(calc(var(--cp-accent-h) + 90), 360)) +
+      (90 - mod(calc(var(--cp-accent-h) + 90), 360)) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 90), 360) - 117.5) * 100000 + 1, 1) *
       clamp(0, (135 - mod(calc(var(--cp-accent-h) + 90), 360)) * 100000, 1) *
       (142 - mod(calc(var(--cp-accent-h) + 90), 360))
   );
   --cp-series-6: light-dark(
     oklch(
-      42%
+      calc(42% + 8% * pow(max(0, cos((var(--cp-series-6-h) - 45) * 1deg)), 4))
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.04 * pow(max(0, cos((var(--cp-series-6-h) - 90) * 1deg)), 6) - 0.075 *
-              pow(max(0, cos((var(--cp-series-6-h) - 195) * 1deg)), 2)
+            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-6-h) - 90) * 1deg)), 5) - 0.066 *
+              pow(max(0, cos((var(--cp-series-6-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-6-h)
@@ -1069,8 +1069,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.188 - 0.052 * pow(max(0, cos((var(--cp-series-6-h) - 90) * 1deg)), 4) - 0.086 *
-              pow(max(0, cos((var(--cp-series-6-h) - 205) * 1deg)), 2)
+            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-6-h) - 89) * 1deg)), 3) - 0.078 *
+              pow(max(0, cos((var(--cp-series-6-h) - 200) * 1deg)), 2)
           )
         )
         var(--cp-series-6-h)
@@ -1080,7 +1080,7 @@
     mod(calc(var(--cp-accent-h) + 120), 360) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 100) * 100000, 1) *
       clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
-      (95 - mod(calc(var(--cp-accent-h) + 120), 360)) +
+      (90 - mod(calc(var(--cp-accent-h) + 120), 360)) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 120), 360) - 117.5) * 100000 + 1, 1) *
       clamp(0, (135 - mod(calc(var(--cp-accent-h) + 120), 360)) * 100000, 1) *
       (142 - mod(calc(var(--cp-accent-h) + 120), 360))
@@ -1091,8 +1091,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-7-h) - 90) * 1deg)), 4) - 0.078 *
-              pow(max(0, cos((var(--cp-series-7-h) - 205) * 1deg)), 2)
+            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-7-h) - 88) * 1deg)), 3) - 0.077 *
+              pow(max(0, cos((var(--cp-series-7-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-7-h)
@@ -1102,8 +1102,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-7-h) - 260) * 1deg)), 1) - 0.045 *
-              pow(max(0, cos((var(--cp-series-7-h) - 20) * 1deg)), 3)
+            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-7-h) - 267) * 1deg)), 4) - 0.024 *
+              pow(max(0, cos((var(--cp-series-7-h) - 27) * 1deg)), 4)
           )
         )
         var(--cp-series-7-h)
@@ -1113,19 +1113,19 @@
     mod(calc(var(--cp-accent-h) + 240), 360) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 100) * 100000, 1) *
       clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
-      (95 - mod(calc(var(--cp-accent-h) + 240), 360)) +
+      (90 - mod(calc(var(--cp-accent-h) + 240), 360)) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 240), 360) - 117.5) * 100000 + 1, 1) *
       clamp(0, (135 - mod(calc(var(--cp-accent-h) + 240), 360)) * 100000, 1) *
       (142 - mod(calc(var(--cp-accent-h) + 240), 360))
   );
   --cp-series-8: light-dark(
     oklch(
-      42%
+      calc(42% + 8% * pow(max(0, cos((var(--cp-series-8-h) - 45) * 1deg)), 4))
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.04 * pow(max(0, cos((var(--cp-series-8-h) - 90) * 1deg)), 6) - 0.075 *
-              pow(max(0, cos((var(--cp-series-8-h) - 195) * 1deg)), 2)
+            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-8-h) - 90) * 1deg)), 5) - 0.066 *
+              pow(max(0, cos((var(--cp-series-8-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-8-h)
@@ -1135,8 +1135,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.188 - 0.052 * pow(max(0, cos((var(--cp-series-8-h) - 90) * 1deg)), 4) - 0.086 *
-              pow(max(0, cos((var(--cp-series-8-h) - 205) * 1deg)), 2)
+            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-8-h) - 89) * 1deg)), 3) - 0.078 *
+              pow(max(0, cos((var(--cp-series-8-h) - 200) * 1deg)), 2)
           )
         )
         var(--cp-series-8-h)
@@ -1146,7 +1146,7 @@
     mod(calc(var(--cp-accent-h) + 270), 360) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 100) * 100000, 1) *
       clamp(0, (117.5 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
-      (95 - mod(calc(var(--cp-accent-h) + 270), 360)) +
+      (90 - mod(calc(var(--cp-accent-h) + 270), 360)) +
       clamp(0, (mod(calc(var(--cp-accent-h) + 270), 360) - 117.5) * 100000 + 1, 1) *
       clamp(0, (135 - mod(calc(var(--cp-accent-h) + 270), 360)) * 100000, 1) *
       (142 - mod(calc(var(--cp-accent-h) + 270), 360))
@@ -1157,8 +1157,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.184 - 0.044 * pow(max(0, cos((var(--cp-series-9-h) - 90) * 1deg)), 4) - 0.078 *
-              pow(max(0, cos((var(--cp-series-9-h) - 205) * 1deg)), 2)
+            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-9-h) - 88) * 1deg)), 3) - 0.077 *
+              pow(max(0, cos((var(--cp-series-9-h) - 199) * 1deg)), 2)
           )
         )
         var(--cp-series-9-h)
@@ -1168,8 +1168,8 @@
         min(
           clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
           calc(
-            0.16 - 0.06 * pow(max(0, cos((var(--cp-series-9-h) - 260) * 1deg)), 1) - 0.045 *
-              pow(max(0, cos((var(--cp-series-9-h) - 20) * 1deg)), 3)
+            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-9-h) - 267) * 1deg)), 4) - 0.024 *
+              pow(max(0, cos((var(--cp-series-9-h) - 27) * 1deg)), 4)
           )
         )
         var(--cp-series-9-h)
