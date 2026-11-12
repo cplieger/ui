@@ -29,6 +29,7 @@ const PAGES: readonly (readonly [
   ["overlays", "Overlays", "layers", "Overlays"],
   ["navigation", "Navigation", "panel-left", "Navigation"],
   ["data", "Data", "rows-3", "Data"],
+  ["charts", "Charts", "chart-column", "Charts"],
   ["media", "Media", "film", "Media"],
   ["content", "Content", "file-text", "Content"],
   ["layouts", "Layouts", "layout-grid", "Layouts and screens"],
