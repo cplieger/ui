@@ -620,103 +620,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
  * positioning, in the top layer, so no z-index decides it. It grows out of
  * the corner nearest its button. */
 
-.g-pop {
-  position: fixed;
-  inset: auto;
-  margin: var(--cp-space-1) 0;
-  padding: var(--cp-space-1);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-overlay);
-  background: var(--cp-surface-overlay);
-  color: var(--cp-ink);
-  box-shadow: var(--cp-shadow-overlay);
-  position-area: block-end span-inline-end;
-  position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
-  transform-origin: top left;
-  opacity: 0;
-  scale: 0.96;
-  transition:
-    opacity 140ms var(--cp-ease-out),
-    scale 140ms var(--cp-ease-out),
-    overlay 140ms allow-discrete,
-    display 140ms allow-discrete;
-}
-
-.g-pop:popover-open {
-  opacity: 1;
-  scale: 1;
-  transition-duration: 180ms;
-}
-
-@starting-style {
-  .g-pop:popover-open {
-    opacity: 0;
-    scale: 0.96;
-  }
-}
-
-.g-menu {
-  min-inline-size: 12rem;
-}
-
-.g-menu [role="menuitem"],
-.g-menu [role="menuitemradio"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  inline-size: 100%;
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2) var(--cp-space-3);
-  border: 0;
-  border-radius: var(--cp-radius-control);
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-:root[data-pointer="coarse"] .g-menu [role^="menuitem"] {
-  min-block-size: var(--cp-control-h);
-}
-
-.g-menu [role^="menuitem"]:focus-visible,
-.g-menu [role^="menuitem"]:focus {
-  outline: none;
-  background: var(--cp-fill);
-}
-
-.g-menu [role^="menuitem"] > kbd {
-  margin-inline-start: auto;
-  padding: 0;
-  border: 0;
-  color: var(--cp-ink-muted);
-  font: inherit;
-  font-size: var(--cp-text-xs);
-}
-
-.g-menu [role^="menuitem"] > .cp-icon {
-  color: var(--cp-ink-muted);
-}
-
-.g-menu [data-tone="danger"],
-.g-menu [data-tone="danger"] > .cp-icon {
-  color: var(--cp-danger-11);
-}
-
-.g-menu hr {
-  margin: var(--cp-space-1) 0;
-  border: 0;
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-}
-
-.g-menu-label {
-  padding: var(--cp-space-1) var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-heading);
-}
-
 /* Dialogs: a modal in the middle, a confirmation, a sheet from the inline
  * end, and a full-screen one. All are native <dialog>, so focus moves in,
  * the page goes inert and Escape closes. They fade and settle in and fade
@@ -977,7 +880,7 @@ input.cp-input::-webkit-calendar-picker-indicator {
   transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
 }
 
-.g-row > span:not(.g-avatar, .cp-icon, .g-handle, .g-rank, .g-dot, .g-move) {
+.g-row > span:not(.g-avatar, .cp-icon) {
   display: grid;
   flex: 1;
   gap: 0.125rem;
@@ -1238,7 +1141,7 @@ input.cp-input::-webkit-calendar-picker-indicator {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) :is(.g-dialog, .g-pop, .cp-tooltip, .g-result) {
+  :root:not([data-motion="full"]) :is(.g-dialog, .cp-tooltip, .g-result) {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
@@ -1278,46 +1181,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   block-size: 0.875rem;
 }
 
-/* A live status dot: only a state that is live right now pulses. */
-.g-dot {
-  display: inline-block;
-  inline-size: 0.5rem;
-  block-size: 0.5rem;
-  border-radius: 50%;
-  background: var(--cp-tone-9);
-}
-
-.g-dot[data-live] {
-  box-shadow: 0 0 0 0 oklch(from var(--cp-tone-9) l c h / 50%);
-  animation: dot-live 1.8s var(--cp-ease-out) infinite;
-}
-
-@keyframes dot-live {
-  70%,
-  100% {
-    box-shadow: 0 0 0 0.375rem oklch(from var(--cp-tone-9) l c h / 0%);
-  }
-}
-
-.g-badge {
-  display: inline-grid;
-  place-items: center;
-  min-inline-size: 1.25rem;
-  block-size: 1.25rem;
-  padding-inline: 0.375rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
-  font-size: 0.6875rem;
-  font-weight: var(--cp-weight-heading);
-  font-variant-numeric: tabular-nums;
-}
-
-.g-badge[data-quiet] {
-  background: var(--cp-fill);
-  color: var(--cp-ink-muted);
-}
-
 /* A cover's stand-in: a harmony colour and the kind's glyph. */
 .g-cover {
   position: relative;
@@ -1332,33 +1195,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
 
 .g-cover > .cp-icon {
   --cp-icon-size: 2rem;
-}
-
-/* A reorderable list: a handle at the start of each row. */
-.g-handle {
-  display: grid;
-  place-items: center;
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-  border-radius: var(--cp-radius-control);
-  color: var(--cp-ink-muted);
-  cursor: grab;
-  touch-action: none;
-}
-
-.g-list > li.lifted {
-  position: relative;
-  z-index: 2;
-  background: var(--cp-surface-raised);
-  box-shadow: 0 6px 18px oklch(from var(--cp-neutral-12) 20% c h / 22%);
-  cursor: grabbing;
-}
-
-.g-rank {
-  min-inline-size: 1.25rem;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-variant-numeric: tabular-nums;
 }
 
 .g-list .g-row {
@@ -1564,130 +1400,6 @@ html:has(.g-header) {
   background: var(--cp-surface-page);
 }
 
-/* A virtual list: a fixed-height viewport, a spacer the height of every
- * row, and only the rows in view drawn inside it. */
-.g-virtual {
-  position: relative;
-  block-size: 22rem;
-  overflow: auto;
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-  contain: strict;
-}
-
-.g-virtual > .g-spacer {
-  position: relative;
-}
-
-.g-virtual .g-vrow {
-  position: absolute;
-  inset-inline: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  block-size: 3rem;
-  padding-inline: var(--cp-space-4);
-  border-block-end: var(--cp-line-w) solid var(--cp-line);
-  font-size: var(--cp-text-sm);
-}
-
-.g-virtual .g-vrow > a {
-  flex: 1;
-  min-inline-size: 0;
-  overflow: hidden;
-  color: var(--cp-ink);
-  font-weight: var(--cp-weight-medium);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.g-virtual .g-vrow > small {
-  color: var(--cp-ink-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* A job row: what, where, how far, and Stop. */
-.g-job {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--cp-space-1) var(--cp-space-4);
-  padding: var(--cp-space-3) var(--cp-space-4);
-}
-
-.g-job progress {
-  grid-column: 1 / -1;
-  inline-size: 100%;
-  block-size: 0.375rem;
-  appearance: none;
-  border: 0;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-accent-4);
-  overflow: hidden;
-}
-
-.g-job progress::-webkit-progress-bar {
-  background: var(--cp-accent-4);
-}
-
-.g-job progress::-webkit-progress-value {
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-accent-9);
-  transition: inline-size 400ms var(--cp-ease-out);
-}
-
-.g-job progress::-moz-progress-bar {
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-accent-9);
-}
-
-.g-job > .g-job-what {
-  display: grid;
-  gap: 0.125rem;
-}
-
-.g-job small {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.g-job[data-ended] {
-  color: var(--cp-ink-muted);
-}
-
-.g-list-foot {
-  display: flex;
-  justify-content: center;
-  padding: var(--cp-space-2);
-  border-block-start: var(--cp-line-w) solid var(--cp-line);
-}
-
-/* A problem row: a sentence, since when, and its one fix. */
-.g-problem {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--cp-space-3);
-  align-items: start;
-  padding: var(--cp-space-3) var(--cp-space-4);
-  font-size: var(--cp-text-sm);
-}
-
-.g-problem > .cp-icon {
-  color: var(--cp-warning-9);
-}
-
-.g-problem p {
-  margin: 0;
-}
-
-.g-problem time {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-.g-problems {
-  container-type: inline-size;
-}
-
 /* The refreshing region is a panel, and its line runs along the panel's
  * top edge, inside the border, so it belongs to what it refreshes. */
 .g-refreshing {
@@ -1890,24 +1602,6 @@ html:has(.g-header) {
 }
 
 
-/* A list that holds its place: a line offers the change instead. */
-.g-hold-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cp-space-2);
-  padding: var(--cp-space-2) var(--cp-space-4);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-sm);
-}
-
-.g-kept-tag {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-
 /* The item hero: an alternative title in its own language, link chips. */
 .g-alt-title {
   margin: 0.125rem 0 0;
@@ -1965,33 +1659,6 @@ html:has(.g-header) {
 }
 
 /* ===== Data: the table and its rules ===== */
-
-
-.g-kept-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-}
-
-.g-kept-tag > .cp-icon {
-  --cp-icon-size: 0.875rem;
-}
-
-/* A kept row reads as old through muted ink, which still passes AA, never
- * through opacity, which would not. */
-.g-row[data-kept],
-.cp-table tr[data-kept] > td {
-  color: var(--cp-ink-muted);
-}
-
-/* A file: its kind, its name, its facts, its download. */
-.g-file > .cp-icon:first-child {
-  color: var(--cp-ink-muted);
-}
-
-.g-file .cp-mono {
-  overflow-wrap: anywhere;
-}
 
 .g-media-head h2 + .g-alt-title + .g-media-meta {
   margin-block-start: var(--cp-space-2);
@@ -2106,23 +1773,6 @@ html:has(.g-header) {
   justify-self: stretch;
 }
 
-/* A job's phase and, once it ends, its outcome: a glyph at the words'
- * size, on their line. */
-.g-job-phase {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.g-job-phase > .cp-icon {
-  --cp-icon-size: 0.875rem;
-}
-
-.g-job-phase[data-tone] {
-  color: var(--cp-tone-11);
-  font-weight: var(--cp-weight-medium);
-}
-
 /* A date or a time holds its value and its picker button, never cut; a date's
  * value is longer, so it gets more room (a spaced locale clipped the icon). */
 .cp-field > .cp-input:is([type="date"], [type="time"]):not([data-width="fill"]) {
@@ -2143,27 +1793,6 @@ html:has(.g-header) {
 
 .g-roll > span {
   grid-area: 1 / 1;
-}
-
-/* A list's title link reads as the row's name, as a table's does: ink and
- * medium at rest, the accent and its underline under a mouse or the keyboard. */
-:is(.g-vrow, .g-job-what) a {
-  color: var(--cp-ink);
-  font-weight: var(--cp-weight-medium);
-  text-decoration-color: transparent;
-}
-
-:is(.g-vrow, .g-job-what) a:focus-visible {
-  color: var(--cp-accent-ink);
-  text-decoration-color: currentcolor;
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    :is(.g-vrow, .g-job-what) a:hover {
-      color: var(--cp-accent-ink);
-    }
-  }
 }
 
 /* The batch bar sticks under the gallery's own header. */
@@ -2187,13 +1816,6 @@ html:has(.g-header) {
 /* The stepper's number rolls in a window laid over its field. */
 
 /* ===== Forced colours: the gallery's own controls keep their state ===== */
-@media (forced-colors: active) {
-
-  .g-dot {
-    forced-color-adjust: none;
-    border: 1px solid CanvasText;
-  }
-}
 
 .g-harmony > span[data-h] {
   background: var(--av);
@@ -2212,14 +1834,6 @@ html:has(.g-header) {
 :root .cp-button.btn-done[data-tone="danger"][data-state="done"]:not(:disabled) {
   background: var(--cp-danger-9);
   color: var(--cp-danger-on);
-}
-
-/* A reorderable item's Move up and Move down sit at its end. */
-.g-move {
-  display: inline-flex;
-  flex: none;
-  gap: 0.125rem;
-  margin-inline-start: auto;
 }
 
 /* Content-free frames: each region is a labelled, dashed box. */

@@ -128,3 +128,52 @@
     background: CanvasText;
   }
 }
+
+/* A native <progress> wears the same track and fill. Each engine draws the
+ * value through its own pseudo-element, and one unknown pseudo-element
+ * drops a whole rule, so each gets its own. */
+:where(.cp) :where(progress) {
+  block-size: 0.375rem;
+  appearance: none;
+  border: 0;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-4);
+  overflow: hidden;
+}
+
+:where(.cp) :where(progress)::-webkit-progress-bar {
+  background: var(--cp-tone-4);
+}
+
+:where(.cp) :where(progress)::-webkit-progress-value {
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-9);
+  transition: inline-size var(--cp-dur-long) var(--cp-ease-out);
+}
+
+:where(.cp) :where(progress)::-moz-progress-bar {
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-9);
+}
+
+/* Forced colours drop a background, which would leave no bar at all; the
+ * native bar draws as the known-amount bar does. */
+@media (forced-colors: active) {
+  :where(.cp) :where(progress) {
+    forced-color-adjust: none;
+    background: Canvas;
+    outline: 1px solid CanvasText;
+  }
+
+  :where(.cp) :where(progress)::-webkit-progress-bar {
+    background: Canvas;
+  }
+
+  :where(.cp) :where(progress)::-webkit-progress-value {
+    background: Highlight;
+  }
+
+  :where(.cp) :where(progress)::-moz-progress-bar {
+    background: Highlight;
+  }
+}

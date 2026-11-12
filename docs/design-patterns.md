@@ -1,6 +1,6 @@
 # Design patterns
 
-This page covers the patterns of the design language in `@cplieger/ui/css/system`, for loading, forms, tables, tabs, dialogs, notifications, first run, navigation, language and words. It builds on [Design language](design.md), which covers type, layout, touch and motion, on [Colour](design-colour.md), and on [Components](design-components.md), which lists the classes. [Settings](design-settings.md) covers the settings page, and [Account and sign-in](design-account.md) the screens around an app's accounts.
+This page covers the patterns of the design language in `@cplieger/ui/css/system`, for loading, forms, tables, lists, tabs, dialogs, notifications, messages, first run, navigation, language and words. It builds on [Design language](design.md), which covers type, layout, touch and motion, on [Colour](design-colour.md), and on [Components](design-components.md), which lists the classes. [Settings](design-settings.md) covers the settings page, and [Account and sign-in](design-account.md) the screens around an app's accounts.
 
 ## Loading
 
@@ -67,6 +67,36 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 3. After a page change, focus moves to the table's caption or the first row's title link, and the scroll returns to the top of the table.
 4. When the last page empties, such as after a delete, the list moves to the new last page.
 
+## Lists
+
+A list is a column of rows that each open or name one thing, such as conversations, people or files. Values compared down a column belong in a table.
+
+```html
+<ul class="cp-list" aria-label="Conversations">
+  <li>
+    <a class="cp-list-row" href="#c-feed" data-unread>
+      <span class="cp-cell-stack">
+        <span class="cp-truncate cp-mono">/workspace/ui/src/data/feed</span>
+        <small class="cp-truncate">@codex: The queue moves to you once the scroll fix merges.</small>
+      </span>
+      <span data-part="end">
+        <time datetime="2026-11-11T09:40:00Z">09:40</time>
+        <span class="cp-cluster"><span class="cp-badge">2<span class="cp-visually-hidden"> unread</span></span></span>
+      </span>
+    </a>
+  </li>
+</ul>
+```
+
+1. A row is one target. When the whole row opens one thing, the row is the link (`a.cp-list-row`) or a button. Otherwise it is a `<div>` that holds at most a title link and one worded action, a small plain button whose accessible name adds the row, such as "Download Frieren.S01E04.en.ass".
+2. The title and the line under it stay on one line each, cut with an ellipsis at the row's edge. Machine text, such as a path, is `.cp-mono`. A time is a `<time>` through [relative-time](data/relative-time.md), which keeps its words current and gives the exact time on hover and to a screen reader.
+3. An unread row carries `data-unread`, which sets its title in the heading weight, beside a badge whose number has the word "unread" for a screen reader, so colour is never the only sign. The open row carries `aria-current="page"`, or `"true"` when the list sits inside the open view.
+4. While the list loads, it carries `aria-busy="true"` and holds skeleton rows (`data-skeleton`) in the rows' shape. Empty, it is a `.cp-empty` that names what belongs there and offers the action that fills it, such as "No conversations in the last 72 hours." with New message.
+5. Rows that arrive while the person is in the list never push the rows they are reading. A `.cp-list-pending` line above the list says how many wait, and its Show puts them in and moves focus to the first.
+6. A row the app could not refresh carries `data-kept`, muted, with a `clock` and the reason in its second line, such as "Kept from 03:00: Radarr is not answering".
+7. A list too long to draw is a `.cp-list[data-virtual]` that holds only the rows in view. Each row is keyed by its id, so a live update changes a row in place and the focused row stays drawn. When a filter narrows it, the count of matches is said once typing stops.
+8. A list the person puts in order uses [reorder](data/reorder.md): every item has Move up and Move down, so a drag is never the only way, the others slide aside and the new place is said.
+
 ## Tabs
 
 Tabs follow the WAI-ARIA tabs pattern:
@@ -111,6 +141,18 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 - Toasts announce themselves, confirmations politely and errors assertively, so use an error toast only for a failure of what the person just did. A failure of background work, such as a refresh, is a notice, announced politely.
 - A notice that appears announces through `@cplieger/ui/announce`, politely, and only one that blocks the person's current task uses `role="alert"`.
 - One message per event. A problem shown in a notice is not also a toast.
+
+## Messages
+
+A conversation is a [feed](data/feed.md): its messages oldest first, with the composer pinned under them.
+
+1. The feed opens at the newest message. While the person is at the end, a message that arrives keeps the newest in view. Once they have scrolled up, nothing that arrives moves them. A New messages button above the composer counts the arrivals and says its words politely, and a press takes them to the newest and moves focus to it.
+2. A day separator stands where the day changes, and "New since your last visit" before the first message the person has not seen.
+3. The person's own messages sit on the sunken fill with "You" as the author, their text on the same edge as everyone else's. No bubbles, and no coloured edge.
+4. A message shows in the feed as soon as it is sent, muted with "Sending…", and the feed scrolls to it wherever the person was. A send that fails turns it into "Not sent." with Retry, and keeps the text in the composer.
+5. The composer is a form like any other. Send stays enabled, so a press with an empty field says what is missing. Ctrl+Enter, or Command+Enter on a Mac, sends, and Enter breaks the line. On a phone the composer stays above the on-screen keyboard, and it never covers the last message.
+6. "Read by 3 of 5" opens who has read the message and who has not yet, with its own loading and error states.
+7. What surrounds the conversation, such as its reservations and followers, is a [context-panel](layout/context-panel.md): a column beside the feed in a wide box, and a disclosure above it in a narrow one.
 
 ## First run
 

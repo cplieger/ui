@@ -93,6 +93,7 @@ export type LucideIconName =
   | "maximize-2"
   | "menu"
   | "message-square"
+  | "messages-square"
   | "minus"
   | "monitor"
   | "moon"
@@ -104,6 +105,7 @@ export type LucideIconName =
   | "panel-left"
   | "panel-right"
   | "pause"
+  | "pen-line"
   | "pencil"
   | "pin"
   | "play"
@@ -244,6 +246,7 @@ export const iconNames: readonly LucideIconName[] = [
   "maximize-2",
   "menu",
   "message-square",
+  "messages-square",
   "minus",
   "monitor",
   "moon",
@@ -255,6 +258,7 @@ export const iconNames: readonly LucideIconName[] = [
   "panel-left",
   "panel-right",
   "pause",
+  "pen-line",
   "pencil",
   "pin",
   "play",

@@ -5414,6 +5414,575 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
+/* A list: rows on one raised surface, a line between them. */
+/* Rows keep their height in a list stretched taller than them, such as
+ * beside a taller detail. */
+.cp-list {
+  display: grid;
+  align-content: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+  overflow: hidden;
+}
+
+.cp-list > li + li {
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* A row: a link or a button when the whole row opens something, or a div
+ * holding its one worded action. */
+.cp-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 3.25rem;
+  padding: var(--cp-space-2) var(--cp-space-4);
+  border: 0;
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: default;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+:is(a[href], button).cp-list-row {
+  cursor: pointer;
+}
+
+.cp-list-row > .cp-icon {
+  color: var(--cp-ink-muted);
+}
+
+.cp-list-row > .cp-cell-stack {
+  flex: 1;
+  justify-items: stretch;
+  min-inline-size: 0;
+  padding-block: 0;
+}
+
+/* A row's title is its main text, so a cut title ends at the row's edge,
+ * not at the 14rem a table cell's does. */
+.cp-list-row .cp-cell-stack > .cp-truncate {
+  max-inline-size: none;
+}
+
+/* Machine text has no break points, so a long name would widen the row. */
+.cp-list-row .cp-cell-stack > :is(.cp-mono, code) {
+  overflow-wrap: anywhere;
+}
+
+.cp-list-row time {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* A line that says why, after its glyph, such as a reason a row was kept. */
+.cp-list-row :is(small, .cp-meta):has(> .cp-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+}
+
+.cp-list-row :is(small, .cp-meta) > .cp-icon {
+  --cp-icon-size: 0.875rem;
+}
+
+/* The trailing column: the time on the title's line, then the counts. */
+.cp-list-row > [data-part="end"] {
+  display: grid;
+  flex: none;
+  justify-items: end;
+  gap: 0.125rem;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-list-row > [data-part="end"] > .cp-cluster {
+  gap: var(--cp-space-2);
+}
+
+/* A link in the text column names what the row is about, in ink until it
+ * is pointed at, wherever it sits in the column. */
+.cp-list-row > .cp-cell-stack > a {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-list-row > .cp-cell-stack > a:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+.cp-list-row > .cp-icon[data-tone] {
+  color: var(--cp-tone-9);
+}
+
+.cp-list-row > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* A running job: what and where beside its action, a bar across the row,
+ * then how far it is. The action stretches to the text it sits beside. */
+.cp-list-row[data-variant="progress"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--cp-space-1) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.cp-list-row > progress {
+  grid-column: 1 / -1;
+  inline-size: 100%;
+}
+
+/* A row that runs to sentences: its glyph on the first line, the words,
+ * and one link to its fix at the end. */
+.cp-list-row[data-variant="long"] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-list-row[data-variant="long"] p {
+  margin: 0;
+}
+
+.cp-list-row[data-unread] > .cp-cell-stack {
+  font-weight: var(--cp-weight-heading);
+}
+
+.cp-list-row[data-unread] > .cp-cell-stack > small {
+  font-weight: var(--cp-weight-body);
+}
+
+/* A row the app could not refresh, kept beside its reason, or a job that
+ * ended, kept beside its outcome: muted ink, which still passes AA where
+ * opacity would not. */
+.cp-list-row:is([data-kept], [data-ended]) {
+  color: var(--cp-ink-muted);
+}
+
+.cp-list-row:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: -2px;
+}
+
+.cp-list-row[aria-current]:not([aria-current="false"]) {
+  background: var(--cp-selected);
+}
+
+:is(a[href], button).cp-list-row:is(:active, [data-cp-pressed]) {
+  background: var(--cp-fill-active);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-list-row:not([data-skeleton]):hover {
+      background: var(--cp-fill);
+    }
+
+    /* The open row keeps its fill under the mouse. The hover fill above
+     * wins over the selected rule on scope proximity; this one ties it on
+     * specificity and comes later, so the more specific pressed fill still
+     * wins over both. */
+    .cp-list-row:where([aria-current]):not([aria-current="false"]):hover {
+      background: var(--cp-selected);
+    }
+
+    .cp-list-row > .cp-cell-stack > a:hover {
+      color: var(--cp-accent-ink);
+    }
+
+    /* A plain button shares the row's hover fill and would vanish; lift it
+     * to the raised surface. One that confirms in place keeps its state's. */
+    .cp-list-row:hover .cp-button:not([data-variant], [data-cp-state]) {
+      background: var(--cp-surface-raised);
+    }
+  }
+}
+
+/* The rows a list holds back while the reader is in it: their count and the
+ * Show button that puts them in, above the list, in a role="status". */
+.cp-list-pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-2) var(--cp-space-4);
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-size: var(--cp-text-sm);
+}
+
+/* The list's last item, holding one action for the whole list. */
+.cp-list-foot {
+  display: flex;
+  justify-content: center;
+  padding: var(--cp-space-2);
+}
+
+/* A list too long to draw: a scroller of --cp-list-h whose spacer a script
+ * sizes to every row, drawing only the rows in view at their offsets.
+ * Strict containment keeps each scroll's layout inside the list. */
+.cp-list[data-virtual] {
+  position: relative;
+  display: block;
+  block-size: var(--cp-list-h, 22rem);
+  overflow: auto;
+  contain: strict;
+}
+
+.cp-list[data-virtual] > [data-part="spacer"] {
+  position: relative;
+}
+
+/* The script places rows 3rem apart, so a row is exactly that tall. */
+.cp-list[data-virtual] .cp-list-row {
+  position: absolute;
+  inset-inline: 0;
+  block-size: 3rem;
+  min-block-size: 0;
+  padding-block: 0;
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-list-row[data-skeleton] > .cp-skeleton {
+  flex: none;
+  inline-size: 2rem;
+  block-size: 2rem;
+}
+
+.cp-list-row[data-skeleton] > .cp-cell-stack {
+  gap: var(--cp-space-2);
+}
+
+.cp-list-row[data-skeleton] > .cp-cell-stack > :first-child {
+  inline-size: 60%;
+}
+
+.cp-list-row[data-skeleton] > .cp-cell-stack > :nth-child(2) {
+  inline-size: 85%;
+}
+
+@media (forced-colors: active) {
+  .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible) {
+    outline: var(--cp-line-w) solid CanvasText;
+    outline-offset: calc(-1 * var(--cp-line-w));
+  }
+
+  .cp-list-pending {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* A list the person puts in order, its items any content: rows when it is
+ * also a .cp-list, cards when it is a .cp-stack. */
+.cp-reorder {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The script sets each item's translate from where it showed and clears
+ * it, so the item slides to its new place. */
+.cp-reorder > li {
+  transition: translate var(--cp-dur-medium) var(--cp-ease-move);
+}
+
+/* The item a drag lifted follows the pointer, above the others. */
+.cp-reorder > li[data-cp-lifted] {
+  position: relative;
+  z-index: 2;
+  background: var(--cp-surface-raised);
+  box-shadow: var(--cp-shadow-overlay);
+  cursor: grabbing;
+  transition: none;
+}
+
+.cp-reorder:not(.cp-list) > li[data-cp-lifted] {
+  border-radius: var(--cp-radius-surface);
+}
+
+.cp-reorder [data-part="handle"] {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: max(1.75rem, var(--cp-hit-min));
+  block-size: max(1.75rem, var(--cp-hit-min));
+  border-radius: var(--cp-radius-control);
+  color: var(--cp-ink-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.cp-reorder [data-cp-lifted] [data-part="handle"] {
+  cursor: grabbing;
+}
+
+.cp-reorder [data-part="rank"] {
+  min-inline-size: 1.25rem;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Move up and Move down, at the end of the item's line. */
+.cp-reorder [data-part="move"] {
+  display: inline-flex;
+  flex: none;
+  gap: 0.125rem;
+  margin-inline-start: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-reorder > li {
+    transition: none;
+  }
+}
+
+/* Forced colours drop the shadow, so a line marks the lifted item. */
+@media (forced-colors: active) {
+  .cp-reorder > li[data-cp-lifted] {
+    outline: var(--cp-line-w) solid CanvasText;
+    outline-offset: calc(-1 * var(--cp-line-w));
+  }
+}
+
+/* An open conversation: its entries oldest first, with day separators and
+ * the marker of what is new since the last visit between them. The feed
+ * script keeps the reader's place, and the browser's own scroll anchoring
+ * would fight it. */
+.cp-feed {
+  display: grid;
+  gap: var(--cp-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-anchor: none;
+}
+
+.cp-feed * {
+  overflow-anchor: none;
+}
+
+/* Whatever focus or a link scrolls into view lands with its focus ring
+ * clear of the pinned foot and the New messages button, whose height the
+ * feed script sets. A margin on the entries, unlike scroll padding on the
+ * scroller, leaves the composer's caret alone, which the browser would
+ * otherwise keep above the padding by scrolling the reader to the end. */
+:where(.cp-feed) * {
+  scroll-margin-block-end: calc(
+    var(--cp-feed-foot-size, 0px) + var(--cp-focus-w) + var(--cp-focus-offset)
+  );
+}
+
+/* A popover in an entry scrolls in its own box in the top layer, over the
+ * foot. */
+:where(.cp-feed) :where([popover], [popover] *) {
+  scroll-margin-block-end: 0;
+}
+
+/* Every entry has the same padding, so the person's own entries, on their
+ * fill, keep their text on the same edge as everyone else's. */
+.cp-feed-entry {
+  display: grid;
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-radius: var(--cp-radius-surface);
+}
+
+.cp-feed-entry > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-1) var(--cp-space-2);
+}
+
+.cp-feed-entry > header > a {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-feed-entry > header > a:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-feed-entry > header > a:hover {
+      color: var(--cp-accent-ink);
+    }
+  }
+}
+
+.cp-feed-entry > header > time {
+  margin-inline-start: auto;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-feed-entry > h3 {
+  max-inline-size: var(--cp-measure);
+}
+
+/* A body as its author typed it: its line breaks kept, and a path or a
+ * link with no break point wrapped rather than widening the feed. */
+.cp-feed-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cp-feed-entry > footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2);
+  margin-block-start: var(--cp-space-1);
+}
+
+/* The person's own entry: a sunken fill, with "You" for its author. */
+.cp-feed-entry[data-own] {
+  background: var(--cp-surface-sunken);
+}
+
+.cp-feed-entry[data-state="sending"],
+.cp-feed-entry[data-state="sending"] > header > a {
+  color: var(--cp-ink-muted);
+}
+
+/* A day: its date centred between two hairlines. */
+.cp-feed-day {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  padding-block: var(--cp-space-2);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+.cp-feed-day::before,
+.cp-feed-day::after {
+  flex: 1;
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  content: "";
+}
+
+/* What is new since the last visit: its words at the start, in ink and a
+ * heavier weight than a day's, then a strong line to the end, so the two
+ * differ by place, weight and words as well as colour. */
+.cp-feed-marker {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  padding-block: var(--cp-space-2);
+  color: var(--cp-ink);
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-feed-marker::after {
+  flex: 1;
+  border-block-start: var(--cp-line-w) solid var(--cp-border-strong);
+  content: "";
+}
+
+.cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(1) {
+  inline-size: 30%;
+}
+
+.cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(2) {
+  inline-size: 50%;
+}
+
+.cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(3) {
+  inline-size: 90%;
+}
+
+.cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(4) {
+  inline-size: 70%;
+}
+
+/* Who has read an entry and who has not, in the popover its read summary
+ * opens: a heading over each list of names. */
+.cp-feed-readers {
+  max-block-size: min(24rem, 70dvb);
+  overflow-y: auto;
+}
+
+.cp-feed-readers > section {
+  display: grid;
+  gap: var(--cp-space-1);
+}
+
+.cp-feed-readers ul {
+  display: grid;
+  gap: var(--cp-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--cp-text-sm);
+}
+
+/* The composer and the New messages button, pinned to the scroller's end.
+ * --cp-keyboard-inset, which the feed script sets, is the part of the foot
+ * the on-screen keyboard covers: padding it keeps the controls above the
+ * keyboard while the foot stays in flow under the last entry. */
+.cp-feed-foot {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+  display: grid;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-3) var(--cp-space-4)
+    calc(var(--cp-space-3) + var(--cp-keyboard-inset, 0px));
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  background: var(--cp-surface-raised);
+}
+
+.cp-feed-foot > .cp-form {
+  max-inline-size: var(--cp-measure);
+}
+
+/* Centred above the foot by equal insets and auto margins, which hold in
+ * both directions where a translate by half its width would not. Its
+ * offset is from the foot's padding box, inside the foot's top line. */
+.cp-feed-jump {
+  position: absolute;
+  inset-block-end: calc(100% + var(--cp-line-w) + var(--cp-space-2));
+  inset-inline: 0;
+  inline-size: fit-content;
+  margin-inline: auto;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-surface-raised);
+}
+
+/* Forced colours drop the own entry's fill, so a line keeps it apart. */
+@media (forced-colors: active) {
+  .cp-feed-entry[data-own] {
+    outline: var(--cp-line-w) solid CanvasText;
+    outline-offset: calc(-1 * var(--cp-line-w));
+  }
+}
+
 /* Chip: a tone's wash, its glyph and its word; colour is never alone. */
 .cp-chip {
   display: inline-flex;
@@ -5507,6 +6076,46 @@ th[aria-sort="descending"] > .cp-sort::after {
 @media (forced-colors: active) {
   .cp-badge {
     border: var(--cp-line-w) solid CanvasText;
+  }
+}
+
+/* A dot: a state's mark beside its words, in a data-tone. data-live marks a
+ * state that is live right now, such as a running check: a ring leaves the
+ * dot twice as the state turns live, and setting data-live again replays it.
+ * Two rings stay under the 5 seconds after which a loop needs a pause control
+ * (WCAG 2.2.2), and a dot that moves all day is noise. */
+.cp-dot {
+  display: inline-block;
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: var(--cp-tone-9);
+}
+
+.cp-dot[data-live] {
+  box-shadow: 0 0 0 0 oklch(from var(--cp-tone-9) l c h / 50%);
+  animation: cp-dot-live 1.8s var(--cp-ease-out) 2;
+}
+
+@keyframes cp-dot-live {
+  70%,
+  100% {
+    box-shadow: 0 0 0 0.375rem oklch(from var(--cp-tone-9) l c h / 0%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-dot[data-live] {
+    animation: none;
+  }
+}
+
+/* Forced colours drop a background, which is all a dot is. */
+@media (forced-colors: active) {
+  .cp-dot {
+    forced-color-adjust: none;
+    background: CanvasText;
   }
 }
 
@@ -5784,6 +6393,34 @@ th[aria-sort="descending"] > .cp-sort::after {
   grid-template-columns: minmax(0, 1fr) var(--cp-detail-w);
 }
 
+/* Wide: the detail is the work, such as an open conversation, and takes
+ * the room left by a list of 30% of the box, kept within 16rem and 22rem.
+ * Docked, it sticks under any sticky header and is at most the window's
+ * height less that header, so the list and the detail scroll apart; its
+ * second child fills the rest and scrolls inside it. The list keeps its own
+ * height beside that window-tall detail. */
+.cp-list-detail[data-variant="wide"][data-cp-docked] {
+  grid-template-columns: clamp(16rem, 30%, 22rem) minmax(0, 1fr);
+  align-items: start;
+}
+
+.cp-list-detail[data-variant="wide"][data-cp-docked] > .cp-detail {
+  position: sticky;
+  inset-block-start: var(--cp-sticky-top, 0);
+  grid-template-rows: auto minmax(0, 1fr);
+  max-block-size: calc(100dvb - var(--cp-sticky-top, 0px));
+  overflow-y: auto;
+}
+
+/* The padding, given back by the margin, keeps a focus ring at the body's
+ * edge clear of its scrolling. */
+:where(.cp-list-detail[data-variant="wide"][data-cp-docked]) > .cp-detail > .cp-detail-body {
+  min-block-size: 0;
+  margin: calc(-1 * var(--cp-space-1));
+  padding: var(--cp-space-1);
+  overflow-y: auto;
+}
+
 /* The open entry: its row in a table, or its own element in a list, carries
  * aria-current="true". */
 .cp-list-detail tr:has([aria-current="true"]) > td,
@@ -5818,10 +6455,13 @@ th[aria-sort="descending"] > .cp-sort::after {
   gap: var(--cp-space-2);
 }
 
+/* A name with no break point, such as a path, wraps rather than pushing the
+ * close button out of a narrow detail. */
 .cp-detail > header > :is(h2, h3) {
   flex: 1;
   min-inline-size: 0;
   font-size: var(--cp-text-md);
+  overflow-wrap: anywhere;
 }
 
 .cp-list-detail > .cp-detail[data-cp-still] {
@@ -5838,6 +6478,200 @@ th[aria-sort="descending"] > .cp-sort::after {
 @media (prefers-reduced-motion: reduce) {
   .cp-list-detail > .cp-detail {
     animation-name: cp-fade-in;
+  }
+}
+
+/* A context panel beside its main column: a thread's reservations, queue
+ * and followers beside its feed. enhanceContextPanel
+ * (@cplieger/ui/context-panel) docks it as a column at the inline start of
+ * a wide box and makes it a disclosure above the main column below that.
+ * It comes first in the source, so the reading and focus order stay the
+ * visual order in both. */
+.cp-context {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-3);
+  min-inline-size: 0;
+}
+
+.cp-context-main {
+  min-inline-size: 0;
+}
+
+.cp-context-panel {
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+}
+
+.cp-context-panel > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: max(var(--cp-control-h), var(--cp-hit-min));
+  padding-inline: var(--cp-space-3);
+  border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
+  font-weight: var(--cp-weight-medium);
+  list-style: none;
+  cursor: pointer;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-context-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.cp-context-panel > summary::after {
+  content: "";
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-inline-start: auto;
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
+  transition: rotate var(--cp-dur-short) var(--cp-ease-out);
+}
+
+/* Open, the summary's fill meets the body under it. */
+.cp-context-panel[open] > summary {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+/* data-cp-closing is set while the disclosure glides shut, so the chevron
+ * turns back as the close begins. */
+.cp-context-panel[open]:not([data-cp-closing]) > summary::after {
+  rotate: 180deg;
+}
+
+/* The summary spans the panel, so its ring sits inside, where a scrolling
+ * box around the panel cannot clip it. */
+.cp-context-panel > summary:focus-visible {
+  outline-offset: calc(-1 * var(--cp-focus-w));
+}
+
+.cp-context-panel > section {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-2);
+  padding: 0 var(--cp-space-3) var(--cp-space-3);
+}
+
+.cp-context-panel h3 {
+  font-size: var(--cp-text-sm);
+}
+
+.cp-context-panel :is(ul, ol) {
+  display: grid;
+  gap: var(--cp-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--cp-text-sm);
+}
+
+.cp-context-panel > section > .cp-skeleton {
+  inline-size: 80%;
+}
+
+.cp-context-panel > section > .cp-skeleton:nth-child(odd) {
+  inline-size: 55%;
+}
+
+/* Docked: a --cp-side-width column, its summary gone and the panel always
+ * open, one line between it and the main column. Sticky under any sticky
+ * header, so it stays in view while the page scrolls the main column. The
+ * inline start padding, given back by the margin, keeps a focus ring at
+ * that edge clear of the panel's own scrolling. */
+.cp-context[data-cp-docked] {
+  grid-template-columns: var(--cp-side-width, 16rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--cp-space-4);
+}
+
+.cp-context[data-cp-docked] > .cp-context-panel {
+  position: sticky;
+  inset-block-start: var(--cp-sticky-top, 0);
+  max-block-size: calc(100dvb - var(--cp-sticky-top, 0px));
+  overflow-y: auto;
+  margin-inline-start: calc(-1 * var(--cp-space-1));
+  padding-inline: var(--cp-space-1) var(--cp-space-4);
+  border: 0;
+  border-inline-end: var(--cp-line-w) solid var(--cp-line);
+  border-radius: 0;
+}
+
+.cp-context[data-cp-docked] > .cp-context-panel > summary {
+  display: none;
+}
+
+.cp-context[data-cp-docked] > .cp-context-panel > section {
+  padding: 0 0 var(--cp-space-4);
+}
+
+/* In a box of bounded height (a list-detail dialog, or the docked detail of
+ * the wide list-detail) the context fills it and scrolls inside it, so the
+ * feed's pinned foot sticks to the box's end: the whole context when the
+ * panel sits above the main column, each column on its own when docked.
+ * There the panel is static, since a sticky offset would push it down
+ * inside a box that never scrolls it. */
+:where(.cp-dialog, .cp-list-detail[data-variant="wide"]) > .cp-detail > .cp-context {
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+:where(.cp-dialog, .cp-list-detail[data-variant="wide"])
+  > .cp-detail
+  > .cp-context[data-cp-docked] {
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  overflow: visible;
+}
+
+:where(.cp-dialog, .cp-list-detail[data-variant="wide"])
+  > .cp-detail
+  > .cp-context[data-cp-docked]
+  > .cp-context-panel {
+  position: static;
+  max-block-size: none;
+}
+
+:where(.cp-dialog, .cp-list-detail[data-variant="wide"])
+  > .cp-detail
+  > .cp-context[data-cp-docked]
+  > .cp-context-main {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A dialog's sides are wider than a docked detail's. The foot keeps its
+ * line from edge to edge, and its controls on the entries' text edge. */
+.cp-dialog > .cp-detail > .cp-context {
+  padding-inline: var(--cp-space-5);
+}
+
+.cp-dialog > .cp-detail > .cp-context .cp-feed-foot {
+  margin-inline: calc(-1 * var(--cp-space-5));
+  padding-inline: calc(var(--cp-space-5) + var(--cp-space-4));
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-context-panel > summary:hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-context-panel > summary::after {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-context-panel > summary::after {
+    background: CanvasText;
   }
 }
 
@@ -6253,6 +7087,55 @@ th[aria-sort="descending"] > .cp-sort::after {
 
   .cp-progress::before {
     background: CanvasText;
+  }
+}
+
+/* A native <progress> wears the same track and fill. Each engine draws the
+ * value through its own pseudo-element, and one unknown pseudo-element
+ * drops a whole rule, so each gets its own. */
+:where(.cp) :where(progress) {
+  block-size: 0.375rem;
+  appearance: none;
+  border: 0;
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-4);
+  overflow: hidden;
+}
+
+:where(.cp) :where(progress)::-webkit-progress-bar {
+  background: var(--cp-tone-4);
+}
+
+:where(.cp) :where(progress)::-webkit-progress-value {
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-9);
+  transition: inline-size var(--cp-dur-long) var(--cp-ease-out);
+}
+
+:where(.cp) :where(progress)::-moz-progress-bar {
+  border-radius: var(--cp-radius-round);
+  background: var(--cp-tone-9);
+}
+
+/* Forced colours drop a background, which would leave no bar at all; the
+ * native bar draws as the known-amount bar does. */
+@media (forced-colors: active) {
+  :where(.cp) :where(progress) {
+    forced-color-adjust: none;
+    background: Canvas;
+    outline: 1px solid CanvasText;
+  }
+
+  :where(.cp) :where(progress)::-webkit-progress-bar {
+    background: Canvas;
+  }
+
+  :where(.cp) :where(progress)::-webkit-progress-value {
+    background: Highlight;
+  }
+
+  :where(.cp) :where(progress)::-moz-progress-bar {
+    background: Highlight;
   }
 }
 

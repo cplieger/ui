@@ -37,14 +37,12 @@ function parse(text: string): number {
 const ROLLING = "data-cp-rolling";
 
 /**
- * `stepper` holds a number `<input>` and buttons marked `data-step`, how many
- * of the field's steps a press moves: `"-1"` for the minus and `"1"` for the
- * plus. A text `<input>` takes its range and step from `data-min`,
- * `data-max` and `data-step` and steps on Up and Down. Shift with Up or Down
- * moves ten steps in either field. A button marked `data-reset` sets the
- * field to that attribute's value, or else back to the markup's value. Each
- * change fires `input` and `change` on the field, as typing would, and is
- * said through @cplieger/ui/announce.
+ * `stepper` holds a number `<input>` and buttons whose `data-step` is how
+ * many steps a press moves: `"-1"` for the minus, `"1"` for the plus. A
+ * text `<input>` takes its range and step from `data-min`, `data-max` and
+ * `data-step` and steps on Up and Down. Shift moves ten steps in either field.
+ * A `data-reset` button sets the field to that attribute's value, else the
+ * markup's. A change fires `input` and `change` and is said through announce.
  */
 export function enhanceStepper(stepper: HTMLElement, options: StepperOptions = {}): void {
   const { signal } = options;

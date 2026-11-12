@@ -1,0 +1,193 @@
+/* A context panel beside its main column: a thread's reservations, queue
+ * and followers beside its feed. enhanceContextPanel
+ * (@cplieger/ui/context-panel) docks it as a column at the inline start of
+ * a wide box and makes it a disclosure above the main column below that.
+ * It comes first in the source, so the reading and focus order stay the
+ * visual order in both. */
+.cp-context {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-3);
+  min-inline-size: 0;
+}
+
+.cp-context-main {
+  min-inline-size: 0;
+}
+
+.cp-context-panel {
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+}
+
+.cp-context-panel > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-block-size: max(var(--cp-control-h), var(--cp-hit-min));
+  padding-inline: var(--cp-space-3);
+  border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
+  font-weight: var(--cp-weight-medium);
+  list-style: none;
+  cursor: pointer;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-context-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.cp-context-panel > summary::after {
+  content: "";
+  flex: none;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-inline-start: auto;
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
+  transition: rotate var(--cp-dur-short) var(--cp-ease-out);
+}
+
+/* Open, the summary's fill meets the body under it. */
+.cp-context-panel[open] > summary {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+/* data-cp-closing is set while the disclosure glides shut, so the chevron
+ * turns back as the close begins. */
+.cp-context-panel[open]:not([data-cp-closing]) > summary::after {
+  rotate: 180deg;
+}
+
+/* The summary spans the panel, so its ring sits inside, where a scrolling
+ * box around the panel cannot clip it. */
+.cp-context-panel > summary:focus-visible {
+  outline-offset: calc(-1 * var(--cp-focus-w));
+}
+
+.cp-context-panel > section {
+  display: grid;
+  align-content: start;
+  gap: var(--cp-space-2);
+  padding: 0 var(--cp-space-3) var(--cp-space-3);
+}
+
+.cp-context-panel h3 {
+  font-size: var(--cp-text-sm);
+}
+
+.cp-context-panel :is(ul, ol) {
+  display: grid;
+  gap: var(--cp-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--cp-text-sm);
+}
+
+.cp-context-panel > section > .cp-skeleton {
+  inline-size: 80%;
+}
+
+.cp-context-panel > section > .cp-skeleton:nth-child(odd) {
+  inline-size: 55%;
+}
+
+/* Docked: a --cp-side-width column, its summary gone and the panel always
+ * open, one line between it and the main column. Sticky under any sticky
+ * header, so it stays in view while the page scrolls the main column. The
+ * inline start padding, given back by the margin, keeps a focus ring at
+ * that edge clear of the panel's own scrolling. */
+.cp-context[data-cp-docked] {
+  grid-template-columns: var(--cp-side-width, 16rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--cp-space-4);
+}
+
+.cp-context[data-cp-docked] > .cp-context-panel {
+  position: sticky;
+  inset-block-start: var(--cp-sticky-top, 0);
+  max-block-size: calc(100dvb - var(--cp-sticky-top, 0px));
+  overflow-y: auto;
+  margin-inline-start: calc(-1 * var(--cp-space-1));
+  padding-inline: var(--cp-space-1) var(--cp-space-4);
+  border: 0;
+  border-inline-end: var(--cp-line-w) solid var(--cp-line);
+  border-radius: 0;
+}
+
+.cp-context[data-cp-docked] > .cp-context-panel > summary {
+  display: none;
+}
+
+.cp-context[data-cp-docked] > .cp-context-panel > section {
+  padding: 0 0 var(--cp-space-4);
+}
+
+/* In a box of bounded height (a list-detail dialog, or the docked detail of
+ * the wide list-detail) the context fills it and scrolls inside it, so the
+ * feed's pinned foot sticks to the box's end: the whole context when the
+ * panel sits above the main column, each column on its own when docked.
+ * There the panel is static, since a sticky offset would push it down
+ * inside a box that never scrolls it. */
+:where(.cp-dialog, .cp-list-detail[data-variant="wide"]) > .cp-detail > .cp-context {
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+:where(.cp-dialog, .cp-list-detail[data-variant="wide"])
+  > .cp-detail
+  > .cp-context[data-cp-docked] {
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  overflow: visible;
+}
+
+:where(.cp-dialog, .cp-list-detail[data-variant="wide"])
+  > .cp-detail
+  > .cp-context[data-cp-docked]
+  > .cp-context-panel {
+  position: static;
+  max-block-size: none;
+}
+
+:where(.cp-dialog, .cp-list-detail[data-variant="wide"])
+  > .cp-detail
+  > .cp-context[data-cp-docked]
+  > .cp-context-main {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A dialog's sides are wider than a docked detail's. The foot keeps its
+ * line from edge to edge, and its controls on the entries' text edge. */
+.cp-dialog > .cp-detail > .cp-context {
+  padding-inline: var(--cp-space-5);
+}
+
+.cp-dialog > .cp-detail > .cp-context .cp-feed-foot {
+  margin-inline: calc(-1 * var(--cp-space-5));
+  padding-inline: calc(var(--cp-space-5) + var(--cp-space-4));
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-context-panel > summary:hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-context-panel > summary::after {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-context-panel > summary::after {
+    background: CanvasText;
+  }
+}

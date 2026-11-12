@@ -1,0 +1,275 @@
+/* A list: rows on one raised surface, a line between them. */
+/* Rows keep their height in a list stretched taller than them, such as
+ * beside a taller detail. */
+.cp-list {
+  display: grid;
+  align-content: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-surface-raised);
+  overflow: hidden;
+}
+
+.cp-list > li + li {
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+}
+
+/* A row: a link or a button when the whole row opens something, or a div
+ * holding its one worded action. */
+.cp-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 3.25rem;
+  padding: var(--cp-space-2) var(--cp-space-4);
+  border: 0;
+  background: transparent;
+  color: var(--cp-ink);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: default;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+:is(a[href], button).cp-list-row {
+  cursor: pointer;
+}
+
+.cp-list-row > .cp-icon {
+  color: var(--cp-ink-muted);
+}
+
+.cp-list-row > .cp-cell-stack {
+  flex: 1;
+  justify-items: stretch;
+  min-inline-size: 0;
+  padding-block: 0;
+}
+
+/* A row's title is its main text, so a cut title ends at the row's edge,
+ * not at the 14rem a table cell's does. */
+.cp-list-row .cp-cell-stack > .cp-truncate {
+  max-inline-size: none;
+}
+
+/* Machine text has no break points, so a long name would widen the row. */
+.cp-list-row .cp-cell-stack > :is(.cp-mono, code) {
+  overflow-wrap: anywhere;
+}
+
+.cp-list-row time {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* A line that says why, after its glyph, such as a reason a row was kept. */
+.cp-list-row :is(small, .cp-meta):has(> .cp-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+}
+
+.cp-list-row :is(small, .cp-meta) > .cp-icon {
+  --cp-icon-size: 0.875rem;
+}
+
+/* The trailing column: the time on the title's line, then the counts. */
+.cp-list-row > [data-part="end"] {
+  display: grid;
+  flex: none;
+  justify-items: end;
+  gap: 0.125rem;
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-list-row > [data-part="end"] > .cp-cluster {
+  gap: var(--cp-space-2);
+}
+
+/* A link in the text column names what the row is about, in ink until it
+ * is pointed at, wherever it sits in the column. */
+.cp-list-row > .cp-cell-stack > a {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+  text-decoration-color: transparent;
+}
+
+.cp-list-row > .cp-cell-stack > a:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+.cp-list-row > .cp-icon[data-tone] {
+  color: var(--cp-tone-9);
+}
+
+.cp-list-row > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
+/* A running job: what and where beside its action, a bar across the row,
+ * then how far it is. The action stretches to the text it sits beside. */
+.cp-list-row[data-variant="progress"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--cp-space-1) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.cp-list-row > progress {
+  grid-column: 1 / -1;
+  inline-size: 100%;
+}
+
+/* A row that runs to sentences: its glyph on the first line, the words,
+ * and one link to its fix at the end. */
+.cp-list-row[data-variant="long"] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-list-row[data-variant="long"] p {
+  margin: 0;
+}
+
+.cp-list-row[data-unread] > .cp-cell-stack {
+  font-weight: var(--cp-weight-heading);
+}
+
+.cp-list-row[data-unread] > .cp-cell-stack > small {
+  font-weight: var(--cp-weight-body);
+}
+
+/* A row the app could not refresh, kept beside its reason, or a job that
+ * ended, kept beside its outcome: muted ink, which still passes AA where
+ * opacity would not. */
+.cp-list-row:is([data-kept], [data-ended]) {
+  color: var(--cp-ink-muted);
+}
+
+.cp-list-row:focus-visible {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: -2px;
+}
+
+.cp-list-row[aria-current]:not([aria-current="false"]) {
+  background: var(--cp-selected);
+}
+
+:is(a[href], button).cp-list-row:is(:active, [data-cp-pressed]) {
+  background: var(--cp-fill-active);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-list-row:not([data-skeleton]):hover {
+      background: var(--cp-fill);
+    }
+
+    /* The open row keeps its fill under the mouse. The hover fill above
+     * wins over the selected rule on scope proximity; this one ties it on
+     * specificity and comes later, so the more specific pressed fill still
+     * wins over both. */
+    .cp-list-row:where([aria-current]):not([aria-current="false"]):hover {
+      background: var(--cp-selected);
+    }
+
+    .cp-list-row > .cp-cell-stack > a:hover {
+      color: var(--cp-accent-ink);
+    }
+
+    /* A plain button shares the row's hover fill and would vanish; lift it
+     * to the raised surface. One that confirms in place keeps its state's. */
+    .cp-list-row:hover .cp-button:not([data-variant], [data-cp-state]) {
+      background: var(--cp-surface-raised);
+    }
+  }
+}
+
+/* The rows a list holds back while the reader is in it: their count and the
+ * Show button that puts them in, above the list, in a role="status". */
+.cp-list-pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-2) var(--cp-space-4);
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-size: var(--cp-text-sm);
+}
+
+/* The list's last item, holding one action for the whole list. */
+.cp-list-foot {
+  display: flex;
+  justify-content: center;
+  padding: var(--cp-space-2);
+}
+
+/* A list too long to draw: a scroller of --cp-list-h whose spacer a script
+ * sizes to every row, drawing only the rows in view at their offsets.
+ * Strict containment keeps each scroll's layout inside the list. */
+.cp-list[data-virtual] {
+  position: relative;
+  display: block;
+  block-size: var(--cp-list-h, 22rem);
+  overflow: auto;
+  contain: strict;
+}
+
+.cp-list[data-virtual] > [data-part="spacer"] {
+  position: relative;
+}
+
+/* The script places rows 3rem apart, so a row is exactly that tall. */
+.cp-list[data-virtual] .cp-list-row {
+  position: absolute;
+  inset-inline: 0;
+  block-size: 3rem;
+  min-block-size: 0;
+  padding-block: 0;
+  border-block-end: var(--cp-line-w) solid var(--cp-line);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-list-row[data-skeleton] > .cp-skeleton {
+  flex: none;
+  inline-size: 2rem;
+  block-size: 2rem;
+}
+
+.cp-list-row[data-skeleton] > .cp-cell-stack {
+  gap: var(--cp-space-2);
+}
+
+.cp-list-row[data-skeleton] > .cp-cell-stack > :first-child {
+  inline-size: 60%;
+}
+
+.cp-list-row[data-skeleton] > .cp-cell-stack > :nth-child(2) {
+  inline-size: 85%;
+}
+
+@media (forced-colors: active) {
+  .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible) {
+    outline: var(--cp-line-w) solid CanvasText;
+    outline-offset: calc(-1 * var(--cp-line-w));
+  }
+
+  .cp-list-pending {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

@@ -28,6 +28,7 @@ import { installTooltips } from "@cplieger/ui/tooltip";
 import { viewTransition } from "@cplieger/ui/view-transition";
 
 import "./legacy/gallery.js";
+import "./wire/feed.js";
 import { markCards } from "./review.js";
 import "./wire/content.js";
 import "./wire/data-figures.js";
@@ -104,7 +105,8 @@ for (const range of all<HTMLInputElement>("input.cp-range")) {
   const output = document.getElementById(range.dataset["out"] ?? "");
   enhanceRange(range, output instanceof HTMLOutputElement ? { output } : {});
 }
-for (const panel of all<HTMLElement>(".cp-popover[data-variant='panel']")) {
+// A feed's read summaries are wired with their entries in wire/feed.ts.
+for (const panel of all<HTMLElement>(".cp-popover[data-variant='panel']:not(.cp-feed-readers)")) {
   enhancePanel(panel);
 }
 // The header's theme toggle: dark while pressed, the new look growing from
