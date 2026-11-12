@@ -163,7 +163,7 @@ const HARMONY = {
   // the yellows and ambers rise above step 9
   floor: { base: 0.5, amp: 0.32, peak: 95, power: 4 },
   // the yellow-green band and where its two halves move to
-  band: { from: 100, to: 135, split: 117.5, low: 95, high: 142 },
+  band: { from: 100, to: 135, split: 117.5, low: 90, high: 142 },
   // the lighter accent sits this far above step 9
   lighter: 0.14,
   // chroma cap: a - b * max(0, cos(h - centre))^power
@@ -266,22 +266,27 @@ function harmonyBlock(): string {
 // harmony partners are, slots 2 and 3 being harmony 2 and 3's hues. Odd slots
 // sit on a bright level and even slots on a deep one, so neighbours differ in
 // lightness, which every colour-vision deficiency keeps; both levels hold 3:1
-// on every surface of their theme. Chroma is the partners' fifth more than
+// on every surface of their theme. In the light theme a deep slot with a warm
+// hue rises, so a red or an orange reads brick, not maroon; cool deep slots
+// stay down, which keeps a red slot apart from a green neighbour for
+// protanopes and deuteranopes. Chroma is the partners' fifth more than
 // the accent's, kept between min and max so a muted accent still gives slots
 // apart, under a gamut cap fitted per level. The tests below check the fits.
 const SERIES = {
   turns: [0, 150, 210, 30, 60, 90, 120, 240, 270],
   level: { light: { bright: 0.61, deep: 0.42 }, dark: { bright: 0.8, deep: 0.6 } },
+  // the light deep level's rise: lift * max(0, cos(h - centre))^power
+  warm: { lift: 0.08, centre: 45, power: 4 },
   chroma: { min: 0.11, max: 0.16 },
   // a - b1 * max(0, cos(h - c1))^p1 - b2 * max(0, cos(h - c2))^p2
   cap: {
     light: {
-      bright: [0.184, 0.044, 90, 4, 0.078, 205, 2],
-      deep: [0.16, 0.04, 90, 6, 0.075, 195, 2],
+      bright: [0.189, 0.049, 88, 3, 0.077, 199, 2],
+      deep: [0.157, 0.034, 90, 5, 0.066, 199, 2],
     },
     dark: {
-      bright: [0.16, 0.06, 260, 1, 0.045, 20, 3],
-      deep: [0.188, 0.052, 90, 4, 0.086, 205, 2],
+      bright: [0.142, 0.042, 267, 4, 0.024, 27, 4],
+      deep: [0.188, 0.049, 89, 3, 0.078, 200, 2],
     },
   },
 } as const;
@@ -290,6 +295,14 @@ type Level = "bright" | "deep";
 type SeriesCap = readonly [number, number, number, number, number, number, number];
 
 const levelOf = (slot: number): Level => (slot % 2 === 1 ? "bright" : "deep");
+
+const rises = (theme: Theme, level: Level) => theme === "light" && level === "deep";
+
+function lightnessOf(theme: Theme, level: Level, h: number): number {
+  const { lift, centre, power } = SERIES.warm;
+  const base = SERIES.level[theme][level];
+  return rises(theme, level) ? base + lift * Math.max(0, cos(h - centre)) ** power : base;
+}
 
 /** The series slots as OKLCH triples, slot 1 first, the reference the CSS computes. */
 function series(hue: number, chroma: number, theme: Theme): Colour[] {
@@ -300,7 +313,7 @@ function series(hue: number, chroma: number, theme: Theme): Colour[] {
     const [a, b1, c1, p1, b2, c2, p2]: SeriesCap = SERIES.cap[theme][level];
     const cap = a - b1 * Math.max(0, cos(h - c1)) ** p1 - b2 * Math.max(0, cos(h - c2)) ** p2;
     const want = Math.min(Math.max(chroma * HARMONY.chroma, SERIES.chroma.min), SERIES.chroma.max);
-    return [SERIES.level[theme][level], Math.min(want, cap), h];
+    return [lightnessOf(theme, level, h), Math.min(want, cap), h];
   });
 }
 
@@ -312,7 +325,12 @@ function seriesCss(theme: Theme, slot: number): string {
     `${num(b)} * pow(max(0, cos((${h} - ${String(centre)}) * 1deg)), ${String(power)})`;
   const cap = `calc(${num(a)} - ${trough(b1, c1, p1)} - ${trough(b2, c2, p2)})`;
   const want = `clamp(${num(SERIES.chroma.min)}, calc(var(--cp-accent-c) * ${num(HARMONY.chroma)}), ${num(SERIES.chroma.max)})`;
-  return `oklch(${pct(SERIES.level[theme][level])} min(${want}, ${cap}) ${h})`;
+  const { lift, centre, power } = SERIES.warm;
+  const base = pct(SERIES.level[theme][level]);
+  const l = rises(theme, level)
+    ? `calc(${base} + ${pct(lift)} * pow(max(0, cos((${h} - ${String(centre)}) * 1deg)), ${String(power)}))`
+    : base;
+  return `oklch(${l} min(${want}, ${cap}) ${h})`;
 }
 
 function seriesBlock(): string {
@@ -856,7 +874,9 @@ describe("css/system.css", () => {
     expect(lead?.[0]).toBeCloseTo(0.548 - 0.024 * Math.cos((66 * Math.PI) / 180) ** 4, 5);
     expect(orange?.[1]).toBeCloseTo(0.137 * HARMONY.chroma, 5);
     expect(yellow?.[2]).toBe(HARMONY.band.low);
-    expect(yellow?.[0]).toBeCloseTo(HARMONY.floor.base + HARMONY.floor.amp, 5);
+    const { base, amp, peak, power } = HARMONY.floor;
+    expect(yellow?.[0]).toBeCloseTo(base + amp * cos(HARMONY.band.low - peak) ** power, 5);
+    expect(yellow?.[0]).toBeGreaterThan(0.8);
   });
 
   it("ships fonts byte-identical to the pinned Fontsource release", async () => {

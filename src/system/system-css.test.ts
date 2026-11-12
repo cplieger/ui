@@ -154,10 +154,10 @@ describe("css/system.css harmony colours", () => {
     expect(harmonyAt(3, 300)[2]).toBeCloseTo(150, 3);
   });
 
-  it("moves a partner out of the yellow-greens, to 95 below 117.5 and to 142 from there", () => {
+  it("moves a partner out of the yellow-greens, to 90 below 117.5 and to 142 from there", () => {
     theme("light");
     // 320 + 150 = 470, which is 110; 340 + 150 = 490, which is 130.
-    expect(harmonyAt(2, 320)[2]).toBeCloseTo(95, 3);
+    expect(harmonyAt(2, 320)[2]).toBeCloseTo(90, 3);
     expect(harmonyAt(2, 340)[2]).toBeCloseTo(142, 3);
     // 327.5 + 150 is 117.5, the first hue of the upper half
     expect(harmonyAt(2, 327.5)[2]).toBeCloseTo(142, 3);
@@ -229,8 +229,8 @@ describe("css/system.css series slots", () => {
   it("keeps the accent's hue for slot 1 and turns the others as the harmony partners do", () => {
     theme("light");
     // 255 turned by 0, 150, 210, 30, 60, 90, 120, 240 and 270, with 105 moved
-    // out of the yellow-greens to 95
-    const hues = [255, 45, 95, 285, 315, 345, 15, 135, 165];
+    // out of the yellow-greens to 90
+    const hues = [255, 45, 90, 285, 315, 345, 15, 135, 165];
     hues.forEach((h, i) => {
       expect(seriesAt(i + 1, 255)[2], `slot ${String(i + 1)}`).toBeCloseTo(h, 3);
     });
@@ -239,9 +239,20 @@ describe("css/system.css series slots", () => {
 
   it("puts odd slots on the bright level and even slots on the deep one, in each theme", () => {
     theme("light");
-    expect([1, 2, 3].map((n) => seriesAt(n, 255)[0])).toEqual([0.61, 0.42, 0.61]);
+    // slot 4 is 285, a violet, where the deep level stays
+    expect([1, 3, 4].map((n) => seriesAt(n, 255)[0])).toEqual([0.61, 0.61, 0.42]);
     theme("dark");
-    expect([1, 2, 3].map((n) => seriesAt(n, 255)[0])).toEqual([0.8, 0.6, 0.8]);
+    expect([1, 2, 3, 4].map((n) => seriesAt(n, 255)[0])).toEqual([0.8, 0.6, 0.8, 0.6]);
+  });
+
+  it("lifts an orange deep slot 8 points in the light theme, so it reads brick, not maroon", () => {
+    theme("light");
+    // slot 2 of a 255 accent is 45, an orange
+    expect(seriesAt(2, 255)[0]).toBeCloseTo(0.5, 3);
+    // a red at 15, slot 2 of a 225 accent, rises less
+    const red = seriesAt(2, 225)[0];
+    expect(red).toBeGreaterThan(0.44);
+    expect(red).toBeLessThan(0.5);
   });
 
   it("gives a muted accent's slots chroma 0.11 and caps a vivid accent's at 0.16", () => {

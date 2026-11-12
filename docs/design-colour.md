@@ -143,7 +143,7 @@ When a screen needs a few colours that belong together, such as avatars, a loade
 - 2 and 3 are its split complement, the accent's hue turned 150 and 210 degrees.
 - 4 is a lighter accent.
 
-The partners are tuned for the eye, after the method of [pro-color-harmonies](https://github.com/meodai/pro-color-harmonies). Each sits at the lightness step 9 had before its white-ink dip, 56% in the light theme and the accent's 64% in the dark, and takes its own ink, `--cp-harmony-N-on`, which is black for many greens and teals. Yellows and ambers need more lightness to look clean, so they rise and never come out olive. A turn into the yellow-greens moves to the nearest clean yellow or green. Each partner carries a fifth more chroma than the accent, capped where a hue would leave sRGB. An orange is then vivid rather than brown, and a muted accent still gets muted partners. A test checks every hue in both themes.
+The partners are tuned for the eye, after the method of [pro-color-harmonies](https://github.com/meodai/pro-color-harmonies). Each sits at the lightness step 9 had before its white-ink dip, 56% in the light theme and the accent's 64% in the dark, and takes its own ink, `--cp-harmony-N-on`, which is black for many greens and teals. Yellows and ambers need more lightness to look clean, so they rise and never come out olive. A turn into the yellow-greens moves to a golden yellow (hue 90) or a clean green (hue 142), whichever is nearer. Each partner carries a fifth more chroma than the accent, capped where a hue would leave sRGB. An orange is then vivid rather than brown, and a muted accent still gets muted partners. A test checks every hue in both themes.
 
 A yellow partner is lighter than the accent, so a mark that must stand out from the page by colour alone, such as a thin chart line, also needs an outline or a label.
 
@@ -160,6 +160,7 @@ The slots come from the accent by the harmony method:
 - Slot 1 is the accent's hue, and slots 2 and 3 are the harmony partners' hues.
 - Slots 4 to 9 are the accent turned 30, 60, 90, 120, 240 and 270 degrees, each moved out of the yellow-greens as a partner is.
 - Odd slots are bright and even slots deep: 61% and 42% lightness in the light theme, 80% and 60% in the dark. Two neighbours always differ in lightness, which every colour-vision deficiency keeps.
+- In the light theme an even slot with a warm hue rises, by up to 8 points at an orange, so a red or an orange reads brick rather than maroon. A cool even slot stays at 42%, which keeps a red slot apart from a green neighbour for protanopes and deuteranopes.
 - Each slot takes a fifth more chroma than the accent, between 0.11 and 0.16, and less where its hue would leave sRGB. A muted accent still gives slots that stand apart.
 
 Tests check every accent hue in both themes. Every slot is 3:1 or more on the page, raised, sunken and overlay surfaces. Neighbouring slots stay at least three just-noticeable differences apart in OKLab under simulated protanopia, deuteranopia and tritanopia, and any two slots do in full colour vision.
