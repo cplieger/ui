@@ -13,8 +13,8 @@ import { announce } from "../../feedback/announce/announce.js";
 
 export interface FeedOptions {
   /** The `.cp-feed-foot` pinned under the feed. Its height is kept as the
-   *  scroller's end scroll padding, and the part of it the on-screen
-   *  keyboard covers as its `--cp-keyboard-inset`. */
+   *  feed's `--cp-feed-foot-size`, the entries' end scroll margin, and the
+   *  part of it the on-screen keyboard covers as its `--cp-keyboard-inset`. */
   readonly foot?: HTMLElement;
   /** The `.cp-feed-jump` button, `hidden` until entries arrive while the
    *  reader is scrolled up. Its words go in its `.cp-roll`, else they are
@@ -38,6 +38,11 @@ export interface Feed {
 /** How near the end, in rem, still counts as at the end. */
 const END_REM = 2;
 const INSET = "--cp-keyboard-inset";
+const FOOT = "--cp-feed-foot-size";
+
+/** Where the reader is: at the end, or this child of the feed (the feed
+ *  itself when none shows) this far below the scroller's top. */
+type Place = "end" | { readonly el: Element; readonly off: number };
 
 const defaultWords = (n: number): string =>
   n === 1 ? "1 new message" : `${String(n)} new messages`;
@@ -75,12 +80,12 @@ function topOf(scroller: HTMLElement): number {
 }
 
 /**
- * Wires `feed`, a `.cp-feed` of `li.cp-feed-entry` oldest first, in the
- * nearest box that scrolls it (found again as it moves), at its newest entry.
- * Entries appended after the newest while not `aria-busy="true"` are arrivals,
- * followed by a reader at the end, else counted; an own (`data-own`) one there
- * goes to the newest, as do the entries of a feed that had none. Any other
- * entry is a load, which keeps the reader's place and is never counted.
+ * Wires `feed`, a `.cp-feed` of `li.cp-feed-entry` oldest first, at its
+ * newest entry, and keeps the place the reader scrolled to, the end or an
+ * entry, through every change. Entries appended after the newest while not
+ * `aria-busy="true"` are arrivals, counted while the reader is up; an own
+ * (`data-own`) one goes to the newest, as do a first load's. Any other entry
+ * is a load, never counted.
  */
 export function enhanceFeed(
   feed: HTMLOListElement | HTMLUListElement,
@@ -96,22 +101,27 @@ export function enhanceFeed(
   const vv = window.visualViewport;
 
   let scroller = scrollerOf(feed);
-  /** The scroller's own inline scroll padding, put back when it changes. */
-  let padBefore = scroller.style.scrollPaddingBlockEnd;
-  let atEnd = true;
+  let place: Place = "end";
   /** A smooth scroll to the newest is under way, so the scrolls it passes
    *  through are not the reader leaving the end. */
   let going = false;
-  /** The first child showing at the scroller's top, and its offset there. */
-  let anchor: { readonly el: Element; readonly off: number } | null = null;
+  /** The position the feed last scrolled to, so the scroll event it causes
+   *  is not taken for the reader's. */
+  let wrote: number | null = null;
   const focusable = new Set<HTMLElement>();
   /** Whether the feed held an entry after the last batch of changes. */
   let held = [...feed.children].some(isEntry);
 
+  const size = (): void => {
+    if (foot !== undefined) {
+      feed.style.setProperty(FOOT, `${String(foot.offsetHeight)}px`);
+    }
+  };
+
   // Fires after layout and before paint, so a kept place never flickers.
   const resize = new ResizeObserver(() => {
-    pad();
-    keep();
+    size();
+    restore();
   });
   resize.observe(feed);
   resize.observe(scroller);
@@ -121,35 +131,25 @@ export function enhanceFeed(
 
   const newest = (): HTMLElement | undefined => [...feed.children].filter(isEntry).at(-1);
 
-  const record = (): void => {
+  const anchorAt = (): Place => {
     const top = topOf(scroller);
     for (const el of feed.children) {
       const r = el.getBoundingClientRect();
       if (r.height > 0 && r.bottom > top) {
-        anchor = { el, off: r.top - top };
-        return;
+        return { el, off: r.top - top };
       }
     }
-    anchor = null;
+    return { el: feed, off: feed.getBoundingClientRect().top - top };
   };
 
-  const pad = (): void => {
-    if (foot !== undefined) {
-      scroller.style.scrollPaddingBlockEnd = `${String(foot.offsetHeight)}px`;
-    }
-  };
-
-  const adopt = (): void => {
+  const resolve = (): void => {
     const now = scrollerOf(feed);
     if (now === scroller) {
       return;
     }
-    if (foot !== undefined) {
-      scroller.style.scrollPaddingBlockEnd = padBefore;
-    }
     resize.unobserve(scroller);
     scroller = now;
-    padBefore = now.style.scrollPaddingBlockEnd;
+    wrote = null;
     // Observing inside the observer's own callback raises "ResizeObserver
     // loop completed", so the new scroller is watched from the next frame.
     requestAnimationFrame(() => {
@@ -157,7 +157,62 @@ export function enhanceFeed(
         resize.observe(now);
       }
     });
-    pad();
+  };
+
+  // On the page, what follows the feed is not its end: the end is the
+  // foot's place under the last entry, where the sticky foot rests.
+  const gap = (): number =>
+    scroller === document.scrollingElement
+      ? feed.getBoundingClientRect().bottom + (foot?.offsetHeight ?? 0) - innerHeight
+      : scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+
+  const write = (top: number, smooth: boolean): void => {
+    scroller.scrollTo({ top, behavior: smooth ? "smooth" : "instant" });
+    wrote = smooth ? null : scroller.scrollTop;
+  };
+
+  // The one step that scrolls for the feed, run after anything that can
+  // move its entries. The end is only ever scrolled down to, since on the
+  // page a negative gap means the end already shows. With its child gone,
+  // as after a refill, the scroll position is the place. A hidden feed is
+  // put back once it shows, in the scroller it shows in.
+  const restore = (): void => {
+    if (feed.getClientRects().length === 0) {
+      return;
+    }
+    resolve();
+    if (place === "end") {
+      const by = gap();
+      if (by > 0) {
+        write(scroller.scrollTop + by, going);
+      } else {
+        going = false;
+      }
+      return;
+    }
+    const { el, off } = place;
+    if (el !== feed && el.parentElement !== feed) {
+      place = anchorAt();
+      return;
+    }
+    const by = el.getBoundingClientRect().top - topOf(scroller) - off;
+    if (by !== 0) {
+      write(scroller.scrollTop + by, false);
+    }
+  };
+
+  const read = (): void => {
+    const own = wrote !== null && scroller.scrollTop === wrote;
+    wrote = null;
+    const end = gap() <= END_REM * remPx();
+    if (own || (going && !end)) {
+      return;
+    }
+    going = false;
+    place = end ? "end" : anchorAt();
+    if (end) {
+      clear();
+    }
   };
 
   const focusNewest = (): void => {
@@ -197,77 +252,11 @@ export function enhanceFeed(
     announce(text);
   };
 
-  // On the page, what follows the feed is not its end: the end is the
-  // foot's place under the last entry, where the sticky foot rests.
-  const gap = (): number =>
-    scroller === document.scrollingElement
-      ? feed.getBoundingClientRect().bottom + (foot?.offsetHeight ?? 0) - innerHeight
-      : scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-
-  // A hidden feed, such as one in a detail not yet open, has no end to
-  // reach: it goes there once it shows and the observer sees it resize.
-  // One wired hidden latched the page, so a call in the turn it shows must
-  // find its scroller first, or it would scroll the page.
   const toEnd = (smooth: boolean): void => {
-    atEnd = true;
-    clear();
-    if (feed.getClientRects().length === 0) {
-      return;
-    }
-    adopt();
+    place = "end";
     going = smooth;
-    scroller.scrollTo({ top: scroller.scrollTop + gap(), behavior: smooth ? "smooth" : "instant" });
-    // A load at the end is measured against this before any scroll event.
-    if (!smooth) {
-      record();
-    }
-  };
-
-  // Puts the child the reader was on back where it was; with that child
-  // gone, as after a refill, the scroll position itself is the place.
-  const restore = (): void => {
-    if (anchor?.el.parentElement !== feed) {
-      record();
-      return;
-    }
-    const by = anchor.el.getBoundingClientRect().top - topOf(scroller) - anchor.off;
-    if (by !== 0) {
-      scroller.scrollBy({ top: by, behavior: "instant" });
-    }
-  };
-
-  // After the feed, the foot or the scroller changed size: the reader at
-  // the end stays there, and one scrolled up keeps their place.
-  const keep = (): void => {
-    adopt();
-    if (atEnd) {
-      toEnd(going);
-    } else {
-      restore();
-    }
-  };
-
-  // A load moves no one, a reader at the end included, so the end is
-  // measured again once the place is kept. A press of the jump still
-  // heading to the newest goes on there, and a hidden feed has no place.
-  const hold = (): void => {
-    if (!going && feed.getClientRects().length > 0) {
-      restore();
-      atEnd = gap() <= END_REM * remPx();
-    }
-  };
-
-  const read = (): void => {
-    const end = gap() <= END_REM * remPx();
-    if (going && !end) {
-      return;
-    }
-    going = false;
-    atEnd = end;
-    record();
-    if (end) {
-      clear();
-    }
+    clear();
+    restore();
   };
 
   // Its offset in CSS px holds only at a scale of 1: a pinch zoom also
@@ -311,7 +300,6 @@ export function enhanceFeed(
     if (busyAt.size === 0) {
       return;
     }
-    adopt();
     // Into a feed with no entry, such as the first load, the feed opens.
     if (!was) {
       toEnd(going);
@@ -331,14 +319,14 @@ export function enhanceFeed(
         }
       }
     }
-    if (own || (arrived > 0 && atEnd)) {
+    if (own) {
       toEnd(going);
       return;
     }
-    hold();
-    if (arrived > 0) {
+    if (arrived > 0 && place !== "end") {
       show(unseen + arrived);
     }
+    restore();
   });
   added.observe(feed, {
     childList: true,
@@ -354,7 +342,7 @@ export function enhanceFeed(
       if (!(t instanceof Element) || !t.contains(feed)) {
         return;
       }
-      adopt();
+      resolve();
       inset();
       if (t === scroller) {
         read();
@@ -372,7 +360,7 @@ export function enhanceFeed(
       { ...until(signal, true), passive: true },
     );
   }
-  addEventListener("resize", keep, listen);
+  addEventListener("resize", restore, listen);
   vv?.addEventListener("resize", inset, listen);
   vv?.addEventListener("scroll", inset, listen);
   jump?.addEventListener(
@@ -387,17 +375,15 @@ export function enhanceFeed(
   if (jump !== undefined) {
     jump.hidden = true;
   }
-  pad();
+  size();
   inset();
-  toEnd(false);
+  restore();
 
   whenAborted(signal, () => {
     added.disconnect();
     resize.disconnect();
-    if (foot !== undefined) {
-      scroller.style.scrollPaddingBlockEnd = padBefore;
-      foot.style.removeProperty(INSET);
-    }
+    feed.style.removeProperty(FOOT);
+    foot?.style.removeProperty(INSET);
     for (const el of focusable) {
       el.removeAttribute("tabindex");
     }

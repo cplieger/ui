@@ -101,6 +101,12 @@ const settle = () =>
     requestAnimationFrame(() => requestAnimationFrame(resolve));
   });
 
+function block(size: string): HTMLDivElement {
+  const div = document.createElement("div");
+  div.style.blockSize = size;
+  return div;
+}
+
 const gap = (el: Element) => el.scrollHeight - el.scrollTop - el.clientHeight;
 const scrollTo = async (el: Element, top: number) => {
   el.scrollTop = top;
@@ -280,35 +286,33 @@ describe("enhanceFeed", () => {
     expect(polite()).not.toContain("new message");
   });
 
-  it("keeps a reader at the end in place through a load that spans tasks", async () => {
+  it("keeps a reader at the end there through a load that spans tasks, counting nothing", async () => {
     const c = conversation();
     const feed = enhance(c);
     await settle();
-    const top = c.box.scrollTop;
     c.feed.setAttribute("aria-busy", "true");
     await settle();
     c.feed.append(entry(), entry(), entry());
     await settle();
-    expect(c.box.scrollTop).toBe(top);
-    expect(gap(c.box)).toBeGreaterThan(1);
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     c.feed.removeAttribute("aria-busy");
     await settle();
-    expect(c.box.scrollTop).toBe(top);
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     expect(feed.unseen).toBe(0);
     expect(c.jump.hidden).toBe(true);
   });
 
-  it("keeps a reader at the end in place through a load set and cleared in one task", async () => {
+  it("keeps a reader at the end there through a load set and cleared in one task", async () => {
     const c = conversation();
     const feed = enhance(c);
     await settle();
-    const top = c.box.scrollTop;
     c.feed.setAttribute("aria-busy", "true");
     c.feed.append(entry(), entry(), entry());
     c.feed.removeAttribute("aria-busy");
     await settle();
-    expect(c.box.scrollTop).toBe(top);
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     expect(feed.unseen).toBe(0);
+    expect(c.jump.hidden).toBe(true);
   });
 
   it("keeps the place and counts nothing when the entries are replaced whole", async () => {
@@ -409,17 +413,82 @@ describe("enhanceFeed", () => {
     expect(document.activeElement).toBe(c.feed.lastElementChild);
   });
 
-  it("keeps the scroller's end scroll padding at the foot's height", async () => {
+  it("keeps the foot's height as the feed's --cp-feed-foot-size", async () => {
     const c = conversation();
     enhance(c);
     await settle();
-    expect(c.box.style.scrollPaddingBlockEnd).toBe(`${String(c.foot.offsetHeight)}px`);
-    const tall = document.createElement("div");
-    tall.style.blockSize = "5rem";
+    const size = () => c.feed.style.getPropertyValue("--cp-feed-foot-size");
+    expect(size()).toBe(`${String(c.foot.offsetHeight)}px`);
+    c.foot.append(block("5rem"));
+    await settle();
+    expect(size()).toBe(`${String(c.foot.offsetHeight)}px`);
+    expect(c.box.style.scrollPaddingBlockEnd).toBe("");
+  });
+
+  it("lands an entry's link that Tab reaches below the view clear of the foot", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 0);
+    (c.feed.querySelector("a") as HTMLAnchorElement).focus();
+    for (let i = 0; i < 4; i += 1) {
+      await userEvent.keyboard("{Tab}");
+      await settle();
+      const link = document.activeElement as HTMLElement;
+      expect(c.feed.contains(link)).toBe(true);
+      expect(link.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        c.foot.getBoundingClientRect().top + 1,
+      );
+    }
+    expect(c.box.scrollTop).toBeGreaterThan(0);
+  });
+
+  it("lands the newest entry's link clear of the foot on Shift+Tab from the composer", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 200);
+    (c.foot.querySelector("textarea") as HTMLTextAreaElement).focus();
+    await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+    await settle();
+    const link = c.feed.lastElementChild?.querySelector("a") as HTMLAnchorElement;
+    expect(document.activeElement).toBe(link);
+    expect(link.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      c.foot.getBoundingClientRect().top + 1,
+    );
+  });
+
+  it("keeps a reader who scrolled up in place while they type in the composer", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 200);
+    await userEvent.click(c.foot.querySelector("textarea") as HTMLTextAreaElement);
+    await settle();
+    expect(c.box.scrollTop).toBe(200);
+    await userEvent.keyboard("abc{Enter}def{Enter}ghi");
+    await settle();
+    expect(c.box.scrollTop).toBe(200);
+  });
+
+  it("keeps the place as the foot grows and shrinks, at the end and scrolled up", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    const tall = block("5rem");
     c.foot.append(tall);
     await settle();
-    expect(c.box.style.scrollPaddingBlockEnd).toBe(`${String(c.foot.offsetHeight)}px`);
     expect(gap(c.box)).toBeLessThanOrEqual(1);
+    tall.remove();
+    await settle();
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    await scrollTo(c.box, 200);
+    c.foot.append(tall);
+    await settle();
+    expect(c.box.scrollTop).toBe(200);
+    tall.remove();
+    await settle();
+    expect(c.box.scrollTop).toBe(200);
   });
 
   it("raises the foot's controls by the part the on-screen keyboard covers", async () => {
@@ -446,6 +515,27 @@ describe("enhanceFeed", () => {
     document.body.style.removeProperty("margin");
   });
 
+  it("keeps a reader who scrolled up in place as the on-screen keyboard opens", async () => {
+    const keyboard = new EventTarget() as EventTarget & {
+      height: number;
+      offsetTop: number;
+      scale: number;
+    };
+    Object.assign(keyboard, { height: innerHeight, offsetTop: 0, scale: 1 });
+    Object.defineProperty(window, "visualViewport", { value: keyboard, configurable: true });
+    document.body.style.margin = "0";
+    const c = conversation(30, `${String(innerHeight)}px`);
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 200);
+    keyboard.height = innerHeight - 200;
+    keyboard.dispatchEvent(new Event("resize"));
+    await settle();
+    expect(c.foot.style.getPropertyValue("--cp-keyboard-inset")).toBe("200px");
+    expect(c.box.scrollTop).toBe(200);
+    document.body.style.removeProperty("margin");
+  });
+
   it("follows the feed into another scroller", async () => {
     const c = conversation();
     const feed = enhance(c);
@@ -458,8 +548,6 @@ describe("enhanceFeed", () => {
     other.append(c.feed, c.foot);
     await settle();
     expect(gap(other)).toBeLessThanOrEqual(1);
-    expect(other.style.scrollPaddingBlockEnd).toBe(`${String(c.foot.offsetHeight)}px`);
-    expect(c.box.style.scrollPaddingBlockEnd).toBe("");
     await scrollTo(other, 100);
     c.feed.append(entry());
     await settle();
@@ -496,6 +584,72 @@ describe("enhanceFeed", () => {
     await settle();
     expect(document.documentElement.scrollTop).toBe(0);
     expect(c.jump.hidden).toBe(false);
+  });
+
+  it("never scrolls the page up to a short feed's end that already shows", async () => {
+    document.body.append(block("40vh"));
+    const c = conversation(2);
+    document.body.append(block("150vh"));
+    const feed = enhance(c);
+    await settle();
+    await scrollTo(document.documentElement, 150);
+    c.feed.append(entry());
+    await settle();
+    expect(document.documentElement.scrollTop).toBe(150);
+    c.foot.append(block("3rem"));
+    await settle();
+    expect(document.documentElement.scrollTop).toBe(150);
+    feed.toNewest();
+    await settle();
+    expect(document.documentElement.scrollTop).toBe(150);
+  });
+
+  it("leaves the page alone when the reader scrolls it past a feed it scrolls", async () => {
+    const c = conversation(60, "auto");
+    c.box.style.overflowY = "visible";
+    const after = block("150vh");
+    document.body.append(after);
+    enhance(c);
+    await settle();
+    await scrollTo(document.documentElement, document.documentElement.scrollHeight);
+    // The engine's own scroll anchoring may move the page to keep what
+    // shows in place; the feed moves nothing.
+    const top = after.getBoundingClientRect().top;
+    c.feed.append(entry());
+    await settle();
+    expect(Math.abs(after.getBoundingClientRect().top - top)).toBeLessThanOrEqual(1);
+    c.foot.append(block("3rem"));
+    await settle();
+    expect(Math.abs(after.getBoundingClientRect().top - top)).toBeLessThanOrEqual(1);
+  });
+
+  it("never moves the page around a feed that scrolls in its own box", async () => {
+    document.body.append(block("60vh"));
+    const c = conversation();
+    document.body.append(block("150vh"));
+    const feed = enhance(c);
+    await settle();
+    await scrollTo(document.documentElement, 120);
+    c.feed.append(entry());
+    await settle();
+    c.feed.prepend(entry(), entry());
+    c.foot.append(block("4rem"));
+    await settle();
+    await scrollTo(c.box, 100);
+    c.feed.append(entry());
+    c.feed.setAttribute("aria-busy", "true");
+    c.feed.append(entry());
+    c.feed.removeAttribute("aria-busy");
+    await settle();
+    expect(c.box.scrollTop).toBe(100);
+    c.feed.append(entry({ "data-own": "" }));
+    await settle();
+    await userEvent.click(c.foot.querySelector("textarea") as HTMLTextAreaElement);
+    await userEvent.keyboard("abc{Enter}def");
+    feed.toNewest();
+    await settle();
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    expect(document.documentElement.scrollTop).toBe(120);
   });
 
   it("leaves the page alone while the feed is hidden, and opens at the newest once shown", async () => {
@@ -548,7 +702,6 @@ describe("enhanceFeed", () => {
 
   it("puts everything back on abort and stops following", async () => {
     const c = conversation();
-    c.box.style.scrollPaddingBlockEnd = "1px";
     const own = new AbortController();
     enhance(c, { signal: own.signal });
     await settle();
@@ -558,7 +711,7 @@ describe("enhanceFeed", () => {
     await userEvent.click(c.jump);
     c.foot.style.setProperty("--cp-keyboard-inset", "10px");
     own.abort();
-    expect(c.box.style.scrollPaddingBlockEnd).toBe("1px");
+    expect(c.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe("");
     expect(c.foot.style.getPropertyValue("--cp-keyboard-inset")).toBe("");
     expect(c.feed.lastElementChild?.hasAttribute("tabindex")).toBe(false);
     await scrollTo(c.box, 0);
@@ -575,6 +728,6 @@ describe("enhanceFeed", () => {
     expect(c.box.scrollTop).toBe(0);
     feed.toNewest();
     expect(c.box.scrollTop).toBe(0);
-    expect(c.box.style.scrollPaddingBlockEnd).toBe("");
+    expect(c.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe("");
   });
 });

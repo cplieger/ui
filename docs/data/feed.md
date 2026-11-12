@@ -98,7 +98,7 @@ compose.addEventListener("submit", async (e) => {
 
 - `enhanceFeed(feed, opts?)` wires an `ol.cp-feed` or `ul.cp-feed`, scrolls it to its newest entry at once and returns a `Feed`.
 - `FeedOptions` = `{ foot?, jump?, words?, signal? }`.
-  - `foot` is the `.cp-feed-foot`. The script keeps the scroller's `scroll-padding-block-end` at the foot's height, so an entry that takes focus never lands under the composer. It also sets the foot's `--cp-keyboard-inset` to the part of it an on-screen keyboard covers, measured on the visual viewport, so the composer rises above the keyboard.
+  - `foot` is the `.cp-feed-foot`. The script keeps the feed's `--cp-feed-foot-size` at the foot's height, and the stylesheet makes it the end scroll margin of everything in the feed. So whatever focus scrolls into view lands above the composer with its focus ring clear, while the composer's caret moves nothing. The script also sets the foot's `--cp-keyboard-inset` to the part of it an on-screen keyboard covers, measured on the visual viewport, so the composer rises above the keyboard.
   - `jump` is the `.cp-feed-jump` button. Its words go in its `.cp-roll`, which rolls as the count grows, else they are its whole text.
   - `words(n)` gives the jump's words for `n` new entries, by default "1 new message" and "3 new messages".
   - `signal` removes the listeners and observers, hides the jump and puts back every property the script set.
@@ -106,13 +106,15 @@ compose.addEventListener("submit", async (e) => {
 
 ## Behaviour
 
-- The feed's scroller is the nearest box around it that scrolls, else the page. It is found again as the feed moves, so a detail that moves from its docked place into a dialog keeps its feed followed. On the page, the end is where the foot rests under the last entry, whatever follows the feed.
+- The feed's scroller is the nearest box around it that scrolls, else the page. It is found again as the feed shows, moves or changes, so a detail that moves from its docked place into a dialog keeps its feed followed.
+- The reader's place is either the end or the entry at the top of the view with its distance from the top. Only the reader's own scrolling sets it, and within 2rem of the end counts as at the end. A place the feed scrolled to itself is never taken for the reader's.
+- After anything that can move the entries, the feed puts the place back in one step. That covers entries added above or below, an entry or the foot growing or shrinking, the on-screen keyboard opening and closing, and a load. At the end, it scrolls to the end. Scrolled up, the entry at the top goes back to where it was. With that entry gone, as after a list replaced whole, the scroll position itself is the place. The browser's own scroll anchoring is off in the feed, because the two would fight.
+- The feed scrolls for nothing else, the page included. Its own writes are this one step and the reader's ways to the newest: the jump, `toNewest()`, their own entry and the first entries of an empty feed.
+- On the page, the end is where the foot rests under the last entry, whatever follows the feed. When that place already shows, as for a short conversation or a page scrolled past the feed, the feed scrolls nothing: it only ever scrolls down to its end.
 - A feed that is hidden when it is wired, such as one in a detail not yet open, scrolls nothing until it shows, and then opens at its newest entry. A `toNewest()` called as it shows scrolls the box that holds it, never the page.
-- Within 2rem of the end counts as at the end. While the reader is there, new entries and entries that grow keep the newest in view.
-- Once the reader has scrolled up, the entry at the top of the view stays where it is when entries are shown above it, such as by "Show older", or when an entry above grows. The browser's own scroll anchoring is off in the feed, because the script keeps the place and the two would fight.
 - An arrival is an entry appended after the newest one while the feed is not `aria-busy="true"`. Arrivals while the reader is scrolled up are counted. A day separator or the marker added with them is not. The jump shows the count, and its words are said politely as it shows and as the count changes.
 - The jump hides once the reader reaches the end, by scrolling or by pressing it. A press scrolls to the newest, smoothly unless the person asked for less motion, and moves focus to the newest entry, which takes `tabindex="-1"` for it. Focus on the jump as it hides moves there too, so it never drops to the page.
 - The person's own entry appended after the newest always scrolls there, wherever the reader was and even while a load is under way. So does anything added while the feed held no entry, such as the first load.
-- Every other entry is a load: entries shown above, such as by "Show older", a list replaced whole, and anything added while the feed is `aria-busy="true"`, even when the app sets and clears it in one go. A load keeps the reader's place, a reader at the end included, and is never counted. Marking the feed busy and clearing it moves nothing.
+- Every other entry is a load: entries shown above, such as by "Show older", a list replaced whole, and anything added while the feed is `aria-busy="true"`. That holds even when the app sets and clears it in one go. A load is never counted, and it keeps the place like any other change. A reader at the end stays at the end, and one scrolled up stays on their entry. Marking the feed busy and clearing it moves nothing.
 - A pinch zoom also shrinks the visual viewport, so the keyboard inset is measured only at a scale of 1.
 - The module does nothing when it is imported.
