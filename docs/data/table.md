@@ -66,7 +66,7 @@ enhanceSort(table, {
 ```
 
 - Each `.cp-sort` button is named by the order its press applies, such as "Sort by Size, ascending". A press on an unsorted column sorts it ascending, and on the sorted one turns its order. `aria-sort` moves to the pressed header, and "Sorted by Size, ascending" is announced.
-- Without `onSort`, the rows are reordered in the page and glide to their new places. A row sorts by its cell's `data-sort`, or else its text. Two numbers compare as numbers, numbers come before words, and words compare in the page's language, numbers within them by value. A `data-part="detail"` row stays after the row before it.
+- Without `onSort`, the rows are reordered in the page and glide to their new places. A row sorts by its cell's `data-sort`, or else its text. Two numbers compare as numbers, numbers come before words, and words compare in the table's language, the `lang` of its nearest element that has one, numbers within them by value. A `data-part="detail"` row stays after the row before it. A sortable table nested in a cell sorts only its own rows.
 - With `onSort`, the app orders the rows itself, such as by writing the sort into the URL and loading the page again.
 - `words.sort(column, order)` and `words.sorted(column, order)` give the button's name and the announcement in another language.
 - `signal` removes the listeners.

@@ -112,6 +112,50 @@ describe("enhanceSort", () => {
     expect(sorts(table)).toEqual(["descending", null, null]);
   });
 
+  it("compares words in the table's language", async () => {
+    const order = async (lang: string): Promise<string[]> => {
+      const box = document.createElement("div");
+      box.lang = lang;
+      // Static test markup, never caller text.
+      box.setHTMLUnsafe(
+        '<table><thead><tr><th><button class="cp-sort" type="button">Name</button></th></tr></thead>' +
+          "<tbody><tr><td>zebra</td></tr><tr><td>äpple</td></tr><tr><td>apa</td></tr></tbody></table>",
+      );
+      document.body.append(box);
+      const table = box.querySelector("table") as HTMLTableElement;
+      enhanceSort(table, { signal: life.signal });
+      await userEvent.click(table.querySelector(".cp-sort") as HTMLButtonElement);
+      const words = [...table.tBodies[0]!.rows].map((r) => r.textContent);
+      box.remove();
+      return words;
+    };
+    // Swedish sorts ä after z; German sorts it with a.
+    expect(await order("sv")).toEqual(["apa", "zebra", "äpple"]);
+    expect(await order("de")).toEqual(["apa", "äpple", "zebra"]);
+    expect(await order("not a tag!")).toHaveLength(3);
+  });
+
+  it("leaves a sortable table nested in a cell to its own sort", async () => {
+    const outer = sortable();
+    const cell = outer.querySelector("#a-why td") as HTMLTableCellElement;
+    // Static test markup, never caller text.
+    cell.setHTMLUnsafe(
+      '<table><thead><tr><th><button class="cp-sort" type="button">Step</button></th></tr></thead>' +
+        '<tbody><tr id="i2"><td>2</td></tr><tr id="i1"><td>1</td></tr></tbody></table>',
+    );
+    const inner = cell.querySelector("table") as HTMLTableElement;
+    enhanceSort(outer, { signal: life.signal });
+    enhanceSort(inner, { signal: life.signal });
+    expect(outer.querySelectorAll(".cp-sort")[2]?.getAttribute("aria-label")).toBe(
+      "Sort by Step, ascending",
+    );
+    await userEvent.click(inner.querySelector(".cp-sort") as HTMLButtonElement);
+    expect(ids(inner)).toEqual(["i1", "i2"]);
+    expect(inner.querySelector("th")?.getAttribute("aria-sort")).toBe("ascending");
+    expect(ids(outer)).toEqual(["a", "a-why", "b", "c"]);
+    expect(outer.querySelector("th")?.getAttribute("aria-sort")).toBe("ascending");
+  });
+
   it("stops with its signal", async () => {
     const table = sortable();
     enhanceSort(table, { signal: life.signal });

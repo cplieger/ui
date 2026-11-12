@@ -2401,6 +2401,24 @@ describe("css/system.css", () => {
     expect(shown()).toEqual([true, false, false]);
   });
 
+  it("gives a flush table panel 24rem in a host that shrinks to fit", () => {
+    theme("light");
+    const panel =
+      '<div class="cp-panel" data-flush><table class="cp-table"><tbody><tr><td>A title</td></tr></tbody></table></div>';
+    const el = build(
+      `<div popover="manual">${panel}</div><div style="display: flex; align-items: flex-start">${panel}</div>`,
+    );
+    (el.querySelector("[popover]") as HTMLElement).showPopover();
+    const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const widths = [...el.querySelectorAll(".cp-panel")].map(
+      (p) => p.getBoundingClientRect().width,
+    );
+    expect(widths).toHaveLength(2);
+    for (const w of widths) {
+      expect(w).toBeGreaterThanOrEqual(24 * rem);
+    }
+  });
+
   it("drops the rail under 60rem of viewport", async () => {
     theme("light");
     const rail = build('<aside class="cp-rail">filters</aside>').firstElementChild as HTMLElement;

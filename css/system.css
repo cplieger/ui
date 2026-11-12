@@ -4575,9 +4575,11 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 /* The flush panel holding a table is the box its columns step aside by.
  * The queries stay unnamed, so a table outside one follows the region it
- * sits in, such as .cp-main. */
+ * sits in, such as .cp-main. Containment sizes the panel as if empty, so a
+ * shrink-to-fit host, such as a popover, gets 24rem from it. */
 .cp-panel[data-flush]:has(> .cp-table) {
   container: cp-table / inline-size;
+  contain-intrinsic-inline-size: 24rem;
 }
 
 @container (width < 64rem) {
@@ -4681,7 +4683,7 @@ th[aria-sort="descending"] > .cp-sort::after {
  * first. An event is its round mark (data-part="mark", in its data-tone,
  * holding the event's glyph), its words, and its <time> at the end; a line
  * joins the marks. An event with more to say holds a native <details>. */
-.cp-history > :is(h2, h3, h4, h5, h6) {
+.cp-history > :is(h1, h2, h3, h4, h5, h6) {
   margin: var(--cp-space-4) 0 var(--cp-space-2);
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);

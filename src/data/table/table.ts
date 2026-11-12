@@ -33,7 +33,22 @@ export interface SortOptions {
 }
 
 const EASE_OUT = "cubic-bezier(0.2, 0, 0, 1)";
-const collator = new Intl.Collator(undefined, { numeric: true });
+const collators = new Map<string, Intl.Collator>();
+
+/** The collator for `lang`; an empty or malformed tag, which `Intl` refuses,
+ *  gets the runtime's own. */
+function collatorFor(lang: string): Intl.Collator {
+  let collator = collators.get(lang);
+  if (collator === undefined) {
+    try {
+      collator = new Intl.Collator(lang === "" ? undefined : lang, { numeric: true });
+    } catch {
+      collator = new Intl.Collator(undefined, { numeric: true });
+    }
+    collators.set(lang, collator);
+  }
+  return collator;
+}
 
 const nameOf = (button: HTMLElement): string => button.textContent.trim();
 
@@ -45,7 +60,7 @@ const keyOf = (row: HTMLTableRowElement, column: number): string => {
 const numeric = (text: string): boolean => text.trim() !== "" && Number.isFinite(Number(text));
 
 /** Numbers before words, so the order is total whatever the keys mix. */
-function compare(a: string, b: string): number {
+function compare(collator: Intl.Collator, a: string, b: string): number {
   const na = numeric(a);
   const nb = numeric(b);
   if (na && nb) {
@@ -97,8 +112,8 @@ function glide(
  * with the column's name, the sorted one marked by `aria-sort`. A press on an
  * unsorted column sorts it ascending, and on the sorted one turns its order.
  * Rows sort by each cell's `data-sort`, or its text, numbers as numbers and
- * before words; a `data-part="detail"` row keeps its place after the row
- * before it.
+ * before words in the table's `lang`; a `data-part="detail"` row keeps its
+ * place after the row before it. A table nested in a cell sorts on its own.
  */
 export function enhanceSort(table: HTMLTableElement, options: SortOptions = {}): void {
   const { onSort, signal } = options;
@@ -107,9 +122,9 @@ export function enhanceSort(table: HTMLTableElement, options: SortOptions = {}):
   }
   const sortWords = options.words?.sort ?? ((c, o) => `Sort by ${c}, ${o}`);
   const sortedWords = options.words?.sorted ?? ((c, o) => `Sorted by ${c}, ${o}`);
-  const buttons = (): HTMLButtonElement[] => [
-    ...table.querySelectorAll<HTMLButtonElement>("th > .cp-sort"),
-  ];
+  const own = (el: Element): boolean => el.closest("table") === table;
+  const buttons = (): HTMLButtonElement[] =>
+    [...table.querySelectorAll<HTMLButtonElement>("th > .cp-sort")].filter(own);
   const name = (): void => {
     for (const b of buttons()) {
       const now = b.parentElement?.getAttribute("aria-sort");
@@ -122,11 +137,12 @@ export function enhanceSort(table: HTMLTableElement, options: SortOptions = {}):
 
   const reorder = (column: number, order: SortOrder): void => {
     const sign = order === "ascending" ? 1 : -1;
+    const collator = collatorFor(table.closest<HTMLElement>("[lang]")?.lang ?? "");
     for (const body of table.tBodies) {
       const groups = groupsOf(body, column);
       const rows = groups.flatMap((g) => g.rows);
       const before = new Map(rows.map((r) => [r, r.getBoundingClientRect().top]));
-      groups.sort((a, b) => sign * compare(a.key, b.key));
+      groups.sort((a, b) => sign * compare(collator, a.key, b.key));
       body.append(...groups.flatMap((g) => g.rows));
       glide(rows, before);
     }
@@ -137,17 +153,15 @@ export function enhanceSort(table: HTMLTableElement, options: SortOptions = {}):
     (e) => {
       const button = e.target instanceof Element ? e.target.closest(".cp-sort") : null;
       const header = button?.parentElement;
-      if (
-        !(header instanceof HTMLTableCellElement) ||
-        header.tagName !== "TH" ||
-        !table.contains(header)
-      ) {
+      if (!(header instanceof HTMLTableCellElement) || header.tagName !== "TH" || !own(header)) {
         return;
       }
       const order: SortOrder =
         header.getAttribute("aria-sort") === "ascending" ? "descending" : "ascending";
       for (const th of table.querySelectorAll("th[aria-sort]")) {
-        th.removeAttribute("aria-sort");
+        if (own(th)) {
+          th.removeAttribute("aria-sort");
+        }
       }
       header.setAttribute("aria-sort", order);
       if (onSort === undefined) {
@@ -335,13 +349,12 @@ function label(button: HTMLElement, text: string): void {
 }
 
 /**
- * `bar` is a `.cp-batchbar` holding a `.cp-batch-count`, a
- * `data-batch-clear` button, an optional `data-batch-every` button, and bulk
- * actions marked `data-batch-action` with their word, such as "Grab", which
- * then reads "Grab 3". An action whose `@cplieger/ui/confirm` cycle runs
- * keeps its words until `sync()`. Escape clears while focus is in the bar or
- * the boxes' table, unless an automatic popover is open or a handler has
- * prevented the key.
+ * `bar` is a `.cp-batchbar` holding a `.cp-batch-count`, a `data-batch-clear`
+ * button, an optional `data-batch-every` button, and bulk actions marked
+ * `data-batch-action` with their word, such as "Grab", then read "Grab 3".
+ * An action whose `@cplieger/ui/confirm` cycle runs keeps its words until
+ * `sync()`. Escape clears while focus is in the bar or the boxes' table,
+ * unless an automatic popover is open or a handler has prevented the key.
  */
 export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): BatchBar {
   const { boxes, all, onChange, signal } = options;

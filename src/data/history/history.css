@@ -2,7 +2,7 @@
  * first. An event is its round mark (data-part="mark", in its data-tone,
  * holding the event's glyph), its words, and its <time> at the end; a line
  * joins the marks. An event with more to say holds a native <details>. */
-.cp-history > :is(h2, h3, h4, h5, h6) {
+.cp-history > :is(h1, h2, h3, h4, h5, h6) {
   margin: var(--cp-space-4) 0 var(--cp-space-2);
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
