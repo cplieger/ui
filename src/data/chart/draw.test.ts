@@ -633,6 +633,61 @@ describe("labels", () => {
   });
 });
 
+describe("notes", () => {
+  const noted = (more: ChartSpec["marks"]): ChartSpec => ({
+    ...stacked,
+    marks: [...stacked.marks, ...more],
+  });
+
+  it("writes each line of a note in the plot at its layout, ink on a halo of the surface", () => {
+    const d = draw(
+      noted([{ mark: "text", x: 9_000_000, y: 6, text: "Deploy of the new feed reader at last" }]),
+    );
+    const lines = [
+      ...d.svg.querySelectorAll<SVGTextElement>('[data-part="area"] [data-part="note"] text'),
+    ];
+    expect(lines.map((t) => t.textContent)).toEqual(d.lay.notes[0]?.lines.map((t) => t.text));
+    expect(lines.length).toBeGreaterThan(1);
+    const box = d.lay.notes[0]?.box;
+    for (const t of lines) {
+      expect(Number(t.getAttribute("x"))).toBeCloseTo(d.lay.frame.xAt(9_000_000), 1);
+      expect(t.getAttribute("text-anchor")).toBe("middle");
+      const cs = getComputedStyle(t);
+      expect(cs.fill).toBe(token(t, "var(--cp-ink)"));
+      expect(cs.stroke).toBe(token(t, "var(--cp-surface-page)"));
+      expect(cs.strokeWidth).toBe("6px");
+      expect(cs.paintOrder).toMatch(/^stroke/u);
+      const b = t.getBBox();
+      expect(b.width).toBeLessThanOrEqual(12 * 16 + 1);
+      expect(b.y).toBeGreaterThanOrEqual((box?.top ?? 0) - 1);
+      expect(b.y + b.height).toBeLessThanOrEqual((box?.bottom ?? 0) + 1);
+    }
+  });
+
+  it("takes the raised surface for its halo inside .cp-detail", () => {
+    const parent = place(700);
+    parent.className = "cp-list-detail";
+    const detail = document.createElement("div");
+    detail.className = "cp-detail";
+    parent.append(detail);
+    const d = draw(noted([{ mark: "text", x: 9_000_000, y: 6, text: "Deploy" }]), 700, detail);
+    const t = d.svg.querySelector('[data-part="note"] text') as Element;
+    expect(getComputedStyle(t).stroke).toBe(token(t, "var(--cp-surface-raised)"));
+  });
+
+  it("draws in spec order over the marks before it, and leaves out a note off the domain", () => {
+    const d = draw(
+      noted([
+        { mark: "text", x: 30 * 900_000, y: 6, text: "Later" },
+        { mark: "text", x: 900_000, y: 6, text: "Early" },
+      ]),
+    );
+    const notes = [...d.svg.querySelectorAll('[data-part="area"] > [data-part="note"]')];
+    expect(notes.map((n) => n.textContent)).toEqual(["Early"]);
+    expect(notes[0]?.previousElementSibling?.getAttribute("data-part")).toBe("rect");
+  });
+});
+
 describe("the legend row", () => {
   it("names each series in a chip with its slot's swatch, and the total", () => {
     const d = draw(stacked);
@@ -729,6 +784,15 @@ describe("surfaces", () => {
       }
       const end = raised.svg.querySelector('[data-part="end"] text') as Element;
       expect(getComputedStyle(end).fill).toBe(token(end, "var(--cp-ink)", "color", palette));
+      const noted = draw({
+        ...stacked,
+        marks: [...stacked.marks, { mark: "text", x: 9_000_000, y: 6, text: "Deploy" }],
+      });
+      const note = noted.svg.querySelector('[data-part="note"] text') as Element;
+      expect(getComputedStyle(note).fill).toBe(token(note, "var(--cp-ink)", "color", palette));
+      expect(getComputedStyle(note).stroke).toBe(
+        token(note, "var(--cp-surface-page)", "color", palette),
+      );
       const line = raised.svg.querySelector('[data-part="line"] path') as Element;
       expect(getComputedStyle(line).stroke).toBe(
         token(line, "var(--cp-series-1)", "color", palette),

@@ -43,7 +43,7 @@ type Primary = RectModel | LineModel | AreaModel | DotModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
-    if (m.kind !== "rule") {
+    if (m.kind !== "rule" && m.kind !== "text") {
       return m;
     }
   }

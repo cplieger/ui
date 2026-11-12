@@ -1,7 +1,8 @@
 /**
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
- * plot, the x axis under it, and the lines' and areas' end labels.
+ * plot, the x axis under it, the lines' and areas' end labels, and the
+ * text marks' notes.
  * @module
  */
 
@@ -19,8 +20,9 @@ import {
 } from "./axis.js";
 import type { Frame } from "./geometry.js";
 import { sampleValue, type Model } from "./model.js";
+import { NOTE_REM, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
-import type { Continuous } from "./scales.js";
+import { ruleAt, type Continuous } from "./scales.js";
 import type { Words } from "./words.js";
 
 /** What the page gives the layout, read outside any draw. */
@@ -78,6 +80,19 @@ export interface Layout {
   /** Text inside the plot, in plot px: a y rule's label. */
   readonly plotLabels: readonly Text[];
   readonly endLabels: readonly Text[];
+  /** The notes drawn, in spec order: those whose point lies in the plot. */
+  readonly notes: readonly Note[];
+}
+
+/** A text mark's note laid out beside its point, in plot px. */
+export interface Note {
+  /** The text mark's index in the spec. */
+  readonly mark: number;
+  readonly point: { readonly x: number; readonly y: number };
+  readonly box: Box;
+  readonly lines: readonly Text[];
+  /** Its box lies inside the plot. */
+  readonly fits: boolean;
 }
 
 /** The room between text and what it labels. */
@@ -111,6 +126,51 @@ function endTexts(model: Model, words: Words): { text: string; value: number }[]
       }
     }
   }
+  return out;
+}
+
+// Each text mark whose point lies in the plot, wrapped and placed beside it.
+function notesOf(model: Model, metrics: Metrics, frame: Frame, rows: Layout["rows"]): Note[] {
+  const out: Note[] = [];
+  const max = Math.min(NOTE_REM * metrics.rem, frame.width);
+  model.marks.forEach((m, mark) => {
+    if (m.kind !== "text") {
+      return;
+    }
+    const xPlace = ruleAt(model.x, m.x);
+    if ("off" in xPlace) {
+      return;
+    }
+    const x = frame.xAt(xPlace.at);
+    const y = m.row ? (rows[m.y]?.y ?? 0) : frame.yAt(m.y);
+    const inside = (v: number, hi: number) => v >= -0.5 && v <= hi + 0.5;
+    if (!inside(x, frame.width) || !inside(y, frame.height)) {
+      return;
+    }
+    const texts = wrapNote(m.text, max, metrics.measure.text);
+    const w = Math.max(...texts.map(metrics.measure.text));
+    const h = texts.length * metrics.lineHeight;
+    const placed = placeNote(x, y, m.side, w, h, frame.width, frame.height);
+    const { box, side } = placed;
+    const [tx, anchor] =
+      side === "left"
+        ? [box.right, "end" as const]
+        : side === "right"
+          ? [box.left, "start" as const]
+          : [(box.left + box.right) / 2, "middle" as const];
+    out.push({
+      mark,
+      point: { x, y },
+      box,
+      lines: texts.map((text, k) => ({
+        text,
+        x: tx,
+        y: box.top + (k + 0.5) * metrics.lineHeight,
+        anchor,
+      })),
+      fits: placed.fits,
+    });
+  });
   return out;
 }
 
@@ -315,12 +375,13 @@ export function layout(
     };
   });
 
+  const frame: Frame = { width: plotW, height, dpr, x: model.x, xAt: xAx.at, yAt };
   return {
     width,
     height: top + height + bottom,
     left,
     top,
-    frame: { width: plotW, height, dpr, x: model.x, xAt: xAx.at, yAt },
+    frame,
     xAxis: xAx,
     yAxis: yAx,
     rows,
@@ -332,5 +393,6 @@ export function layout(
     ruleLabels,
     plotLabels,
     endLabels,
+    notes: notesOf(model, metrics, frame, rows),
   };
 }

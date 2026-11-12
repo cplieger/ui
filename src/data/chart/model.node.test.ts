@@ -36,6 +36,16 @@ const area = (
   ...more,
 });
 
+const note = (more: Partial<Extract<Mark, { mark: "text" }>> = {}): Mark => ({
+  mark: "text",
+  x: 0,
+  y: 1,
+  text: "Deploy",
+  ...more,
+});
+
+const dots: Mark = { mark: "dot", rows: [{ name: "ana", x: [0] }] };
+
 const ten = Array.from({ length: 10 }, (_, i) => ({ name: `s${String(i)}`, y: [1] }));
 
 describe("spec errors", () => {
@@ -170,6 +180,56 @@ describe("spec errors", () => {
     ["zero false under an area", { x: {}, y: { zero: false }, marks: [area([[1]])] }, TypeError],
     ["a log y under an area", { x: {}, y: { type: "log" }, marks: [area([[1]])] }, TypeError],
     ["an area beside a line", { x: {}, marks: [area([[1]]), line([1])] }, TypeError],
+    ["a note with no text", { x: {}, marks: [line([1]), note({ text: " " })] }, TypeError],
+    [
+      "a note's text that is not a string",
+      { x: {}, marks: [line([1]), note({ text: 3 as unknown as string })] },
+      TypeError,
+    ],
+    [
+      "a note's side that is not one of four",
+      { x: {}, marks: [line([1]), note({ side: "top" as "above" })] },
+      TypeError,
+    ],
+    [
+      "a note with no x",
+      { x: {}, marks: [line([1]), { mark: "text", y: 1, text: "Deploy" }] },
+      TypeError,
+    ],
+    [
+      "a note with no y",
+      { x: {}, marks: [rect([1]), { mark: "text", x: 0.5, text: "Deploy" }] },
+      TypeError,
+    ],
+    ["a note's x as a name", { x: {}, marks: [line([1]), note({ x: "Monday" })] }, TypeError],
+    [
+      "a note's y as a name off a band",
+      { x: {}, marks: [area([[1]]), note({ y: "a" })] },
+      TypeError,
+    ],
+    [
+      "a note's x that is not a number or a name",
+      { x: {}, marks: [line([1]), note({ x: true as unknown as number })] },
+      TypeError,
+    ],
+    [
+      "a note's non-finite x",
+      { x: {}, marks: [line([1]), note({ x: Number.POSITIVE_INFINITY })] },
+      RangeError,
+    ],
+    ["a note's NaN y", { x: {}, marks: [line([1]), note({ y: Number.NaN })] }, RangeError],
+    [
+      "a note at 0 on a log x",
+      { x: { type: "log" }, marks: [rect([1], { x1: [1], x2: [2] }), note({ x: 0 })] },
+      RangeError,
+    ],
+    [
+      "a note below 0 on a log y",
+      { x: {}, y: { type: "log" }, marks: [line([1]), note({ y: -1 })] },
+      RangeError,
+    ],
+    ["a note's row as a number", { x: {}, marks: [dots, note({ y: 0 })] }, TypeError],
+    ["a note in no row", { x: {}, marks: [dots, note({ y: "zed" })] }, RangeError],
     ["marks that are not an array", { x: {}, marks: "rect" }, TypeError],
     [
       "an arrange that is not stack, group or share",
@@ -212,6 +272,44 @@ describe("spec errors", () => {
     ).toThrow(
       "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area or dot mark and any rules",
     );
+  });
+
+  it("takes text marks beside its one data mark, as rules", () => {
+    const m = build({
+      x: {},
+      marks: [note({ x: 0, y: 1 }), rect([1, 2]), note({ x: 1.5, y: 2, side: "left" })],
+    });
+    expect(m.kind).toBe("column");
+    expect(m.marks[0]).toEqual({
+      kind: "text",
+      x: 0,
+      y: 1,
+      row: false,
+      text: "Deploy",
+      side: "above",
+    });
+    expect(m.marks[2]).toMatchObject({ x: 1.5, y: 2, side: "left" });
+  });
+
+  it("places a note in a timeline's row by its index", () => {
+    const m = build({
+      x: { type: "time" },
+      marks: [
+        {
+          mark: "dot",
+          rows: [
+            { name: "ana", x: [0] },
+            { name: "bo", x: [1] },
+          ],
+        },
+        note({ x: 1, y: "bo" }),
+      ],
+    });
+    expect(m.marks[1]).toMatchObject({ x: 1, y: 1, row: true });
+  });
+
+  it("is empty with notes and no data", () => {
+    expect(build({ x: {}, marks: [rect([0]), note({ x: 0.5, y: 0 })] }).empty).toBe(true);
   });
 
   it("takes one data mark among any number of rules", () => {

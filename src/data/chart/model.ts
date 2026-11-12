@@ -8,7 +8,7 @@ import { formatter, instantFormat, spanFormat, type Unit } from "../scale/format
 import { lowerBound, upperBound } from "../scale/reduce.js";
 
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
-import type { ChartSpec, RectMark } from "./spec.js";
+import type { ChartSpec, Mark, RectMark } from "./spec.js";
 
 type Kind =
   | "stackedColumn"
@@ -141,7 +141,20 @@ interface RuleModel {
   readonly place: ReturnType<typeof ruleAt>;
 }
 
-type MarkModel = RectModel | LineModel | AreaModel | DotModel | RuleModel;
+export type Side = "above" | "below" | "left" | "right";
+
+/** A note at a place on the plot, which joins the reading of the stop it names. */
+export interface TextModel {
+  readonly kind: "text";
+  readonly x: number;
+  /** A y value, or under a dot mark the index of the row it names. */
+  readonly y: number;
+  readonly row: boolean;
+  readonly text: string;
+  readonly side: Side;
+}
+
+type MarkModel = RectModel | LineModel | AreaModel | DotModel | RuleModel | TextModel;
 
 export interface Model {
   readonly spec: ChartSpec;
@@ -170,6 +183,7 @@ export interface Model {
 const DAY = 86_400_000;
 const SCALE_TYPES = new Set(["linear", "log", "time", "band"]);
 const FORMATS = new Set(["number", "integer", "percent", "duration"]);
+const SIDES = new Set(["above", "below", "left", "right"]);
 
 function fail(message: string, type: ErrorConstructor = TypeError): never {
   throw new type(`renderChart: ${message}`);
@@ -374,8 +388,27 @@ function checkMark(mark: unknown, what: string): void {
       }
       return;
     }
+    case "text": {
+      if (typeof mark["text"] !== "string" || mark["text"].trim() === "") {
+        fail(`${what}.text must be a non-empty string`);
+      }
+      const side = mark["side"];
+      if (side !== undefined && !(typeof side === "string" && SIDES.has(side))) {
+        fail(`${what}.side must be "above", "below", "left" or "right"`);
+      }
+      for (const axis of ["x", "y"]) {
+        const v = mark[axis];
+        if (v !== undefined && typeof v !== "number" && typeof v !== "string") {
+          fail(`${what}.${axis} must be a number or a name`);
+        }
+        if (typeof v === "number" && !Number.isFinite(v)) {
+          fail(`${what}.${axis} must be finite`, RangeError);
+        }
+      }
+      return;
+    }
     default:
-      fail(`${what}.mark must be "rect", "line", "area", "dot" or "rule"`);
+      fail(`${what}.mark must be "rect", "line", "area", "dot", "rule" or "text"`);
   }
 }
 
@@ -396,14 +429,14 @@ function check(spec: unknown): asserts spec is ChartSpec {
   for (let m = 0; m < marks.length; m++) {
     const mark = marks[m];
     checkMark(mark, `marks[${String(m)}]`);
-    if (isObject(mark) && mark["mark"] === "rule") {
+    if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
       continue;
     }
     // The keys, the legend row, the summary and the table read one mark, so a
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area or dot mark and any rules`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area or dot mark and any rules and text marks`,
       );
     }
     data = m;
@@ -447,7 +480,7 @@ function shownBuckets(mark: RectMark, index: number, x: Continuous): number[] {
 }
 
 function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
-  const first = marks.find((m) => m.kind !== "rule");
+  const first = marks.find((m) => m.kind !== "rule" && m.kind !== "text");
   switch (first?.kind) {
     case undefined:
       return undefined;
@@ -499,8 +532,50 @@ function hasData(m: MarkModel): boolean {
     case "dot":
       return m.rows.some((r) => r.to > r.from);
     case "rule":
+    case "text":
       return false;
   }
+}
+
+// A note's place in the data mark's terms: values on continuous scales, or
+// under a dot mark a time and a row's name.
+function textModel(
+  m: Extract<Mark, { mark: "text" }>,
+  what: string,
+  x: Continuous,
+  y: Continuous | Band,
+): TextModel {
+  const side = m.side ?? "above";
+  const place = (v: number | string | undefined, axis: "x" | "y", scale: Continuous | Band) => {
+    if (v === undefined) {
+      return fail(`${what}.${axis} is missing; a note needs an x and a y on this chart`);
+    }
+    if (scale.type === "band") {
+      if (typeof v !== "string") {
+        return fail(`${what}.${axis} must name a row of the band`);
+      }
+      const row = scale.rows.indexOf(v);
+      if (row === -1) {
+        return fail(`${what}.${axis} names no row: "${v}"`, RangeError);
+      }
+      return row;
+    }
+    if (typeof v !== "number") {
+      return fail(`${what}.${axis} must be a number on a ${scale.type} scale`);
+    }
+    if (scale.type === "log" && v <= 0) {
+      return fail(`${what}.${axis} must be above 0 on a log scale`, RangeError);
+    }
+    return v;
+  };
+  return {
+    kind: "text",
+    x: place(m.x, "x", x),
+    y: place(m.y, "y", y),
+    row: y.type === "band",
+    text: m.text,
+    side,
+  };
 }
 
 /**
@@ -570,6 +645,8 @@ export function chartModel(
         const place = scale.type === "band" ? { at: value } : ruleAt(scale, value);
         return { kind: "rule", axis, value, label: m.label, place };
       }
+      case "text":
+        return textModel(m, `marks[${String(index)}]`, x, y);
     }
   });
   const days = x.hi - x.lo > DAY;

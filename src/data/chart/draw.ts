@@ -127,7 +127,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   if (zero !== "") {
     area.append(svgEl("path", { "data-part": "zero", d: zero }));
   }
-  for (const m of model.marks) {
+  model.marks.forEach((m, index) => {
     switch (m.kind) {
       case "rect": {
         const g = svgEl("g", { "data-part": "rect" });
@@ -169,8 +169,15 @@ function plotArea(model: Model, lay: Layout): SVGElement {
           area.append(svgEl("path", { "data-part": "rule", d: rulePath(m.axis, at, f) }));
         }
         break;
+      case "text": {
+        const note = lay.notes.find((n) => n.mark === index);
+        if (note !== undefined) {
+          area.append(texts("note", note.lines));
+        }
+        break;
+      }
     }
-  }
+  });
   if (lay.plotLabels.length > 0) {
     area.append(texts("rule-label", lay.plotLabels));
   }

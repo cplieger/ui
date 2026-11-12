@@ -5476,6 +5476,16 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-ink);
 }
 
+/* A note's 3 px halo of the plot's surface keeps it legible over bars and
+ * gridlines; the stroke paints first, so it widens the glyphs by half. */
+.cp-chart svg [data-part="note"] text {
+  fill: var(--cp-ink);
+  stroke: var(--cp-chart-surface);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
 /* Forced colours leave an inline SVG's illustration alone, so the plot keeps
  * its theme drawing on its surface, inside the CanvasText border the forced
  * transparent border becomes. Chromium resolves light-dark() by the page's

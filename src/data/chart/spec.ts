@@ -94,14 +94,27 @@ interface RuleMark {
   readonly label: string;
 }
 
-export type Mark = RectMark | LineMark | AreaMark | DotMark | RuleMark;
+/** A note at a place on the plot, set 4 px off it on its `side` (default
+ *  "above"). Under a rect, line or area `x` and `y` are values on the
+ *  chart's scales; under a dot mark `x` is a time and `y` a row's name. Both
+ *  are required. A note outside the drawn range is not drawn. */
+interface TextMark {
+  readonly mark: "text";
+  readonly x?: number | string;
+  readonly y?: number | string;
+  readonly text: string;
+  readonly side?: "above" | "below" | "left" | "right";
+}
+
+export type Mark = RectMark | LineMark | AreaMark | DotMark | RuleMark | TextMark;
 
 export interface ChartSpec {
   readonly x: Scale;
   /** Band when the chart has a dot mark. */
   readonly y?: Scale;
-  /** One rect, line, area or dot mark and any rules, drawn in order: a rule after
-   *  a rect draws over it. A second data mark is a `TypeError`. */
+  /** One rect, line, area or dot mark and any rules and text marks, drawn in
+   *  order: a rule after a rect draws over it. A second data mark is a
+   *  `TypeError`. */
   readonly marks: readonly Mark[];
   /** The plot's height in px. */
   readonly height?: number;
