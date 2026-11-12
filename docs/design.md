@@ -18,7 +18,7 @@ The stylesheet fixes the controls, the navigation, the type, the spacing, the ra
 ## Set up
 
 1. Import `@cplieger/ui/css/system`. Its `@font-face` rules point at `../fonts/` and its drawn glyphs at `../icons/`, so a bundler that follows `url()`, such as esbuild or Vite, copies those files with the CSS.
-2. Put `class="cp"` on `<html>`. Without it the file defines custom properties and fonts and styles only the `.cp-*` classes your markup uses, so an app can adopt it one subtree at a time. Inside `.cp`, the `hidden` attribute always hides, even on a class that sets `display`.
+2. Put `class="cp"` on `<html>`. Without it the file defines custom properties and fonts and styles only the `.cp-*` classes your markup uses, so an app can adopt it one subtree at a time. A `.cp` subtree takes the page's `color-scheme`, so set `color-scheme` on a page that themes itself, or `data-theme` on the subtree to pin it; only `.cp` on `<html>` follows the system by default. Inside `.cp`, the `hidden` attribute always hides, even on a class that sets `display`.
 3. Set your seeds in your own unlayered `:root`, after the import. The steps are computed on `:root`, so a seed set on another element changes nothing there. To colour one region differently, give it a tone.
 4. Set `data-theme="light"` or `data-theme="dark"` on `<html>` before first paint from an external blocking script. `@cplieger/ui/theme` writes this attribute. With no attribute, the page follows the operating system.
 5. Set `data-pointer` with [`@cplieger/ui/pointer`](core/pointer.md), as [Touch and mouse](#touch-and-mouse) shows.

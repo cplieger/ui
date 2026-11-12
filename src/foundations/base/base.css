@@ -1,6 +1,5 @@
 /* Element defaults, inside .cp only. */
 :where(.cp) {
-  color-scheme: light dark;
   background: var(--cp-surface-page);
   color: var(--cp-ink);
   font-family: var(--cp-font-body);

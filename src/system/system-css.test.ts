@@ -951,6 +951,22 @@ describe("css/system.css", () => {
     expect(getComputedStyle(button).fontFamily).not.toContain("Atkinson");
   });
 
+  it("lets a .cp subtree take the page's colour scheme, or its own data-theme", () => {
+    root.classList.remove("cp");
+    root.removeAttribute("data-theme");
+    for (const scheme of ["light", "dark"] as const) {
+      root.style.colorScheme = scheme;
+      const sub = host("cp");
+      expect(getComputedStyle(sub).colorScheme).toBe(scheme);
+      const lum = luminance(rgb(getComputedStyle(sub).backgroundColor));
+      expect(scheme === "light" ? lum > 0.85 : lum < 0.02).toBe(true);
+      sub.setAttribute("data-theme", scheme === "light" ? "dark" : "light");
+      expect(getComputedStyle(sub).colorScheme).toBe(scheme === "light" ? "dark" : "light");
+    }
+    root.style.colorScheme = "";
+    root.classList.add("cp");
+  });
+
   it("follows data-theme once html carries cp", () => {
     theme("dark");
     expect(getComputedStyle(root).colorScheme).toBe("dark");

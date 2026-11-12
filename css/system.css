@@ -68,11 +68,18 @@
   --cp-tone-c: var(--cp-accent-c);
 }
 
-:root.cp[data-theme="light"] {
+/* The page's own .cp follows the system unless data-theme pins it. A .cp
+ * subtree in a page that themes itself inherits that page's color-scheme,
+ * so every light-dark() step inside it agrees with the page around it. */
+:where(:root.cp) {
+  color-scheme: light dark;
+}
+
+.cp[data-theme="light"] {
   color-scheme: light;
 }
 
-:root.cp[data-theme="dark"] {
+.cp[data-theme="dark"] {
   color-scheme: dark;
 }
 
@@ -1508,7 +1515,6 @@
 
 /* Element defaults, inside .cp only. */
 :where(.cp) {
-  color-scheme: light dark;
   background: var(--cp-surface-page);
   color: var(--cp-ink);
   font-family: var(--cp-font-body);
