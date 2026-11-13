@@ -7,6 +7,7 @@ import { enhanceHeldList, type HeldListOptions, markKept } from "./held-list.js"
 let life = new AbortController();
 let sheet: HTMLLinkElement;
 let away: HTMLDivElement;
+const viewport = Object.getOwnPropertyDescriptor(window, "visualViewport");
 
 // The rules for the line and a kept row live in the stylesheet, so the
 // tests link it, as an app's page does, once for the file.
@@ -44,6 +45,9 @@ beforeEach(async () => {
 afterEach(() => {
   life.abort();
   life = new AbortController();
+  if (viewport !== undefined) {
+    Object.defineProperty(window, "visualViewport", viewport);
+  }
   document.body.replaceChildren();
   document.documentElement.scrollTop = 0;
 });
@@ -205,6 +209,35 @@ describe("enhanceHeldList", () => {
     expect(held.held).toBe(0);
     box.style.scrollPaddingBlockStart = "5rem";
     await settle();
+    held.change(() => undefined);
+    expect(held.held).toBe(1);
+  });
+
+  it("holds a change once the page has scrolled past the start of the box that scrolls the list", async () => {
+    const { box, ul } = scrolling();
+    const tail = document.createElement("div");
+    tail.style.blockSize = "150vh";
+    document.body.append(tail);
+    const held = enhance(ul);
+    held.change(() => undefined);
+    expect(held.held).toBe(0);
+    document.documentElement.scrollTop = box.offsetTop + 96;
+    await settle();
+    expect(box.scrollTop).toBe(0);
+    held.change(() => undefined);
+    expect(held.held).toBe(1);
+  });
+
+  it("holds a change once a pinch zoom or the keyboard shows the page past the list's start", () => {
+    const ul = list();
+    const held = enhance(ul);
+    held.change(() => undefined);
+    expect(held.held).toBe(0);
+    const top = ul.getBoundingClientRect().top;
+    Object.defineProperty(window, "visualViewport", {
+      value: { offsetTop: top + 20, height: 200 },
+      configurable: true,
+    });
     held.change(() => undefined);
     expect(held.held).toBe(1);
   });

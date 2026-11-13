@@ -10,6 +10,7 @@
 import { reducedMotion, until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { roll } from "../../core/roll/roll.js";
 import { announce } from "../../feedback/announce/announce.js";
+import { pageScroller, scrollerOf, viewOf } from "../list-row/scroller.js";
 
 export interface FeedOptions {
   /** The `.cp-feed-foot` pinned under the feed. Its height, with the jump's
@@ -55,29 +56,6 @@ const isEntry = (n: Node | undefined): n is HTMLElement =>
 
 function remPx(): number {
   return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-}
-
-function pageScroller(): HTMLElement {
-  const root = document.scrollingElement;
-  return root instanceof HTMLElement ? root : document.documentElement;
-}
-
-/** The nearest box around `feed` that scrolls it now, else the page. */
-function scrollerOf(feed: Element): HTMLElement {
-  for (let el = feed.parentElement; el !== null; el = el.parentElement) {
-    const y = getComputedStyle(el).overflowY;
-    if ((y === "auto" || y === "scroll") && el.scrollHeight > el.clientHeight) {
-      return el;
-    }
-  }
-  return pageScroller();
-}
-
-/** The top of the part of the viewport `scroller` shows. */
-function topOf(scroller: HTMLElement): number {
-  return scroller === document.scrollingElement
-    ? 0
-    : scroller.getBoundingClientRect().top + scroller.clientTop;
 }
 
 /**
@@ -138,7 +116,7 @@ export function enhanceFeed(
   const newest = (): HTMLElement | undefined => [...feed.children].filter(isEntry).at(-1);
 
   const anchorAt = (): Place => {
-    const top = topOf(scroller);
+    const top = viewOf(scroller).top;
     for (const el of feed.children) {
       const r = el.getBoundingClientRect();
       if (r.height > 0 && r.bottom > top) {
@@ -161,7 +139,7 @@ export function enhanceFeed(
     wrote = null;
     if (place !== "end") {
       place = old.isConnected
-        ? { el: place.el, off: place.off + topOf(old) - topOf(now) }
+        ? { el: place.el, off: place.off + viewOf(old).top - viewOf(now).top }
         : anchorAt();
     }
     // Observing inside the observer's own callback raises "ResizeObserver
@@ -209,7 +187,7 @@ export function enhanceFeed(
       place = anchorAt();
       return;
     }
-    const by = el.getBoundingClientRect().top - topOf(scroller) - off;
+    const by = el.getBoundingClientRect().top - viewOf(scroller).top - off;
     if (by !== 0) {
       write(scroller.scrollTop + by, false);
     }
@@ -281,10 +259,7 @@ export function enhanceFeed(
     if (foot === undefined || vv === null) {
       return;
     }
-    const bottom =
-      scroller === document.scrollingElement
-        ? innerHeight
-        : scroller.getBoundingClientRect().bottom;
+    const { bottom } = viewOf(scroller);
     const covered =
       vv.scale === 1 ? Math.max(0, Math.min(bottom, innerHeight) - (vv.offsetTop + vv.height)) : 0;
     if (covered > 0) {

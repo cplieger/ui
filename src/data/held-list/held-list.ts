@@ -9,7 +9,7 @@
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
-import { scrollerOf, viewOf } from "../list-row/scroller.js";
+import { scrollerOf, seenOf } from "../list-row/scroller.js";
 
 export interface HeldListWords {
   /** The offer's count of `n` held rows. Default "1 newer row", "3 newer
@@ -140,7 +140,7 @@ export function enhanceHeldList(
     }
     return (
       region.getClientRects().length > 0 &&
-      region.getBoundingClientRect().top < viewOf(scrollerOf(region)).top - 0.5
+      region.getBoundingClientRect().top < seenOf(region).top - 0.5
     );
   };
 
@@ -149,7 +149,7 @@ export function enhanceHeldList(
   const putLine = (): void => {
     const scroller = scrollerOf(region);
     const top = region.getBoundingClientRect().top;
-    const keep = top < viewOf(scroller).bottom;
+    const keep = top < seenOf(region).bottom;
     const anchoring = scroller.style.overflowAnchor;
     scroller.style.overflowAnchor = "none";
     before.before(line);

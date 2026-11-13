@@ -234,6 +234,23 @@ describe("enhanceFeed", () => {
     expect(Math.abs(on.getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
   });
 
+  it("keeps in place the first entry below the scroller's start padding, as under a sticky header", async () => {
+    const c = conversation();
+    c.box.style.scrollPaddingBlockStart = "160px";
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 300);
+    const top = c.box.getBoundingClientRect().top;
+    const kids = [...c.feed.children];
+    const under = kids.find((el) => el.getBoundingClientRect().bottom > top) as Element;
+    const seen = kids.find((el) => el.getBoundingClientRect().bottom > top + 160) as Element;
+    expect(seen).not.toBe(under);
+    const before = seen.getBoundingClientRect().top;
+    under.append(block("3rem"));
+    await settle();
+    expect(Math.abs(seen.getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
+  });
+
   it("opens a feed loaded from skeletons at its newest, and counts nothing a later load adds", async () => {
     const c = conversation(0);
     c.feed.setAttribute("aria-busy", "true");
@@ -578,6 +595,26 @@ describe("enhanceFeed", () => {
     Object.assign(keyboard, { height: innerHeight / 2, scale: 2 });
     keyboard.dispatchEvent(new Event("resize"));
     expect(c.foot.style.getPropertyValue("--cp-keyboard-inset")).toBe("");
+    document.body.style.removeProperty("margin");
+  });
+
+  it("measures what the keyboard covers from the scroller's inner edge, not its border", async () => {
+    const keyboard = new EventTarget() as EventTarget & {
+      height: number;
+      offsetTop: number;
+      scale: number;
+    };
+    Object.assign(keyboard, { height: innerHeight - 200, offsetTop: 0, scale: 1 });
+    Object.defineProperty(window, "visualViewport", { value: keyboard, configurable: true });
+    document.body.style.margin = "0";
+    const c = conversation(30, `${String(innerHeight - 100)}px`);
+    c.box.style.boxSizing = "border-box";
+    c.box.style.borderBlockEnd = "40px solid";
+    enhance(c);
+    await settle();
+    // The foot rests on the inner edge, innerHeight - 140; the keyboard
+    // starts at innerHeight - 200.
+    expect(c.foot.style.getPropertyValue("--cp-keyboard-inset")).toBe("60px");
     document.body.style.removeProperty("margin");
   });
 
