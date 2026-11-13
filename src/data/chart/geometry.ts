@@ -842,9 +842,13 @@ export function dotRadius(m: ScatterModel, k: number, i: number, f: Pick<Frame, 
   return v > 0 ? Math.max((f.bubble ?? 0) * Math.sqrt(v / m.size.hi), 0.5) : 0;
 }
 
-// A closed circle, so its outline joins where it starts.
-const circle = (c: Point, r: number): string =>
-  `M${num(c.x - r)} ${num(c.y)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0Z`;
+// A closed circle of radius r from its left end, so its outline joins
+// where it starts.
+const arcs = (r: number): string =>
+  `a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0Z`;
+const SCATTER_ARCS = arcs(SCATTER_RADIUS);
+const circle = (c: Point, r: number, tail = arcs(r)): string =>
+  `M${num(c.x - r)} ${num(c.y)}${tail}`;
 
 /** A path of bubbles in one slot. */
 export interface BubblePath {
@@ -863,12 +867,13 @@ export function bubblePaths(m: ScatterModel, f: Frame): BubblePath[] {
   const paths: { slot: number; circles: string[] }[] = [];
   // Per slot, its paths' indices, ascending.
   const bySlot = new Map<number, number[]>();
-  const placed: { x: number; y: number; r: number; path: number }[] = [];
   const reach = 2 * (f.bubble ?? 0) + 1;
-  const cells = new Map<string, number[]>();
+  // A cell's key packs its column and row; two cells sharing a key only add
+  // neighbours the distance test then drops.
+  const cells = new Map<number, { x: number; y: number; r: number; path: number }[]>();
   for (const ref of m.drawn) {
     const c = scatterAt(m, ref.series, ref.i, f);
-    const r = Number(num(dotRadius(m, ref.series, ref.i, f)));
+    const r = Math.round(dotRadius(m, ref.series, ref.i, f) * 100) / 100;
     if (c === undefined || r <= 0) {
       continue;
     }
@@ -878,10 +883,12 @@ export function bubblePaths(m: ScatterModel, f: Frame): BubblePath[] {
     const cy = Math.floor(c.y / reach);
     for (let gx = cx - 1; gx <= cx + 1; gx++) {
       for (let gy = cy - 1; gy <= cy + 1; gy++) {
-        for (const p of cells.get(`${String(gx)} ${String(gy)}`) ?? []) {
-          const o = placed[p];
-          if (o !== undefined && Math.hypot(o.x - c.x, o.y - c.y) < o.r + r + 1) {
-            after = Math.max(after, o.path);
+        for (const o of cells.get(gx * 0x100000 + gy) ?? []) {
+          const dx = o.x - c.x;
+          const dy = o.y - c.y;
+          const near = o.r + r + 1;
+          if (o.path > after && dx * dx + dy * dy < near * near) {
+            after = o.path;
           }
         }
       }
@@ -896,11 +903,14 @@ export function bubblePaths(m: ScatterModel, f: Frame): BubblePath[] {
       bySlot.set(slot, own);
     }
     paths[path]?.circles.push(circle(c, r));
-    const key = `${String(cx)} ${String(cy)}`;
-    const cell = cells.get(key) ?? [];
-    cell.push(placed.length);
-    cells.set(key, cell);
-    placed.push({ x: c.x, y: c.y, r, path });
+    const key = cx * 0x100000 + cy;
+    const cell = cells.get(key);
+    const at = { x: c.x, y: c.y, r, path };
+    if (cell === undefined) {
+      cells.set(key, [at]);
+    } else {
+      cell.push(at);
+    }
   }
   return paths.map((p) => ({ slot: p.slot, d: p.circles.join("") }));
 }
@@ -914,7 +924,7 @@ export function scatterPaths(m: ScatterModel, f: Frame): string[] {
     (m.shown[k] ?? [])
       .map((i) => {
         const c = scatterAt(m, k, i, f);
-        return c === undefined ? "" : circle(c, SCATTER_RADIUS);
+        return c === undefined ? "" : circle(c, SCATTER_RADIUS, SCATTER_ARCS);
       })
       .join(""),
   );
