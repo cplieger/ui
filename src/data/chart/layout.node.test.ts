@@ -5,7 +5,7 @@ import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
 import { barSegments } from "./geometry.js";
-import { layout, type Metrics } from "./layout.js";
+import { dodge, layout, type Metrics } from "./layout.js";
 import { chartModel, type BarModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
@@ -170,6 +170,29 @@ describe("end labels", () => {
     const l = lay(line([[1, 5]]), 479);
     expect(l.endLabels).toEqual([]);
     expect(l.gutters.label).toBe(0);
+  });
+
+  it("cuts a name to the group's label gutter less its pad, keeping the value whole", () => {
+    const spec: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "line",
+          x: [0, 1],
+          series: [
+            { name: "Agents waiting on review", y: [3, 12_345] },
+            { name: "Live", y: [1, 4] },
+          ],
+        },
+      ],
+    };
+    const l = lay(spec, 600, { labelGroup: 80 });
+    // 80 - 8 px less " 12,345" leaves 19.5 px, two characters at 7.5 px.
+    expect(l.endLabels.map((e) => e.text)).toEqual(["A… 12,345", "Live 4"]);
+    expect(l.gutters.label).toBe(80);
+    expect(lay(spec, 600).endLabels.map((e) => e.text)).toContain(
+      "Agents waiting on review 12,345",
+    );
   });
 
   it("reads 30rem off the chart's width, which the plot's borders make wider than its drawing", () => {
@@ -466,7 +489,7 @@ describe("a bar chart", () => {
     expect([l.frame.xAt(0), l.frame.xAt(1)]).toEqual([0, l.frame.width]);
   });
 
-  const survey = (more: Partial<ChartSpec["x"]> = {}, labels = true): ChartSpec => ({
+  const survey = (more: Partial<NonNullable<ChartSpec["x"]>> = {}, labels = true): ChartSpec => ({
     x: more,
     marks: [
       {
@@ -608,7 +631,7 @@ describe("a bar chart", () => {
     expect(l.valueLabels[0]).toMatchObject({ x: (panels[0]?.at(34) ?? 0) - 4, anchor: "end" });
   });
 
-  const pyramid = (more: Partial<ChartSpec["x"]> = {}, labels = true): ChartSpec => ({
+  const pyramid = (more: Partial<NonNullable<ChartSpec["x"]>> = {}, labels = true): ChartSpec => ({
     x: more,
     marks: [
       {
@@ -698,7 +721,7 @@ describe("a bar chart", () => {
 });
 
 describe("a point chart", () => {
-  const ages = (x: ChartSpec["x"] = { label: "Median age" }): ChartSpec => ({
+  const ages = (x: NonNullable<ChartSpec["x"]> = { label: "Median age" }): ChartSpec => ({
     x,
     marks: [
       {
@@ -762,7 +785,7 @@ describe("a point chart", () => {
 describe("an x rule's label on bar rows", () => {
   const ruled = (
     arrange: "split" | "mirror" | "diverge" | undefined,
-    x: ChartSpec["x"] = {},
+    x: NonNullable<ChartSpec["x"]> = {},
   ): ChartSpec => ({
     x,
     marks: [
@@ -813,5 +836,226 @@ describe("an x rule's label on bar rows", () => {
   it("starts at its one line on a stacked bar chart", () => {
     const l = lay(ruled(undefined), 600);
     expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + l.frame.xAt(10) });
+  });
+});
+
+describe("dodge", () => {
+  it("keeps labels a step apart or more where they are", () => {
+    expect(dodge([40, 10, 70], 18, 0, 100)).toEqual([40, 10, 70]);
+  });
+
+  it("moves labels that crowd apart as a group centred on their mean", () => {
+    expect(dodge([10, 12], 18, 0, 100)).toEqual([2, 20]);
+    expect(dodge([12, 10, 50], 18, 0, 100)).toEqual([20, 2, 50]);
+  });
+
+  it("merges a group that its move brings onto the next", () => {
+    // 40 and 42 meet at 32 and 50, which crowds 60: all three centre on 142 / 3.
+    const mean = 142 / 3;
+    expect(dodge([40, 42, 60], 18, 0, 100)).toEqual(
+      [mean - 18, mean, mean + 18].map((v) => expect.closeTo(v, 9)),
+    );
+  });
+
+  it("keeps a group inside its bounds and ties in their order", () => {
+    expect(dodge([0, 0], 18, 0, 100)).toEqual([0, 18]);
+    expect(dodge([100, 99], 18, 0, 100)).toEqual([100, 82]);
+  });
+});
+
+describe("a slope chart", () => {
+  const slope = (
+    ends: readonly (readonly [number | null, number | null])[],
+    names = ["Cats", "Dogs", "Horses", "Mice"],
+    more: Partial<ChartSpec> = {},
+  ): ChartSpec => ({
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        // Series past the ninth need a slot given; the layout never reads it.
+        series: ends.map((y, k) => ({ name: names[k] ?? `s${String(k)}`, slot: 1, y })),
+      },
+    ],
+    ...more,
+  });
+  const pets = slope([
+    [50, 34],
+    [40, 4],
+    [30, 39],
+    [20, 44],
+  ]);
+
+  it("sets its columns at the plot's edges, their names above, with no axes", () => {
+    const l = lay(pets, 480);
+    // "Horses 30" and "Horses 39" are the widest labels, 67.5 px, and the 8 px pad.
+    expect(l.gutters).toEqual({ axis: 76, label: 76 });
+    expect(l.frame.width).toBe(480 - 76 - 76);
+    expect([l.frame.xAt(0), l.frame.xAt(1)]).toEqual([0, 328]);
+    expect(l.heads).toEqual([
+      { text: "2005", x: 76, y: 8.5, anchor: "start" },
+      { text: "2015", x: 76 + 328, y: 8.5, anchor: "end" },
+    ]);
+    expect(l.top).toBe(17 + 4);
+    expect(l.yAxis).toBeUndefined();
+    expect([l.xAxis.ticks, l.xLabels, l.yLabels, l.titles]).toEqual([[], [], [], []]);
+    expect(l.height).toBe(21 + 240 + 9);
+  });
+
+  it("labels each end with its name and value at its dot's height, ending 8 px off the plot", () => {
+    const l = lay(pets, 480);
+    // y runs from 0 to 50 down the 240 px plot.
+    expect([l.frame.yAt(50), l.frame.yAt(0)]).toEqual([0, 240]);
+    const y = (v: number) => expect.closeTo(21 + 240 - (v / 50) * 240, 9);
+    expect(l.endLabels).toEqual([
+      { text: "Cats 50", x: 68, y: y(50), anchor: "end", series: 0 },
+      { text: "Dogs 40", x: 68, y: y(40), anchor: "end", series: 1 },
+      { text: "Horses 30", x: 68, y: y(30), anchor: "end", series: 2 },
+      { text: "Mice 20", x: 68, y: y(20), anchor: "end", series: 3 },
+      { text: "Cats 34", x: 412, y: y(34), anchor: "start", series: 0 },
+      { text: "Dogs 4", x: 412, y: y(4), anchor: "start", series: 1 },
+      { text: "Horses 39", x: 412, y: y(39), anchor: "start", series: 2 },
+      { text: "Mice 44", x: 412, y: y(44), anchor: "start", series: 3 },
+    ]);
+    expect(l.leaders).toEqual([]);
+  });
+
+  it("writes the left values alone and the right names and values under 30rem", () => {
+    const l = lay(pets, 320);
+    expect(l.endLabels.slice(0, 4).map((e) => e.text)).toEqual(["50", "40", "30", "20"]);
+    expect(l.endLabels.slice(4).map((e) => e.text)).toEqual([
+      "Cats 34",
+      "Dogs 4",
+      "Horses 39",
+      "Mice 44",
+    ]);
+    // "50" is 15 px and the pad; "Horses 39" 67.5 px and the pad.
+    expect(l.gutters).toEqual({ axis: 23, label: 76 });
+    expect(l.frame.width).toBe(320 - 23 - 76);
+  });
+
+  it("moves crowded labels apart around their mean and joins those moved past 4 px to their dots", () => {
+    const l = lay(
+      slope([
+        [50, 34],
+        [40, 33],
+        [30, 31],
+      ]),
+      480,
+    );
+    const right = l.endLabels.filter((e) => e.anchor === "start");
+    const dot = (v: number) => 240 - (v / 50) * 240;
+    const mean = (dot(34) + dot(33) + dot(31)) / 3;
+    expect(right.map((e) => e.y - 21)).toEqual(
+      [mean - 18, mean, mean + 18].map((v) => expect.closeTo(v, 6)),
+    );
+    const edge = 76 + l.frame.width;
+    expect(l.leaders).toEqual([
+      {
+        from: { x: edge, y: expect.closeTo(21 + dot(34), 9) },
+        to: { x: edge + 6, y: right[0]?.y },
+      },
+      {
+        from: { x: edge, y: expect.closeTo(21 + dot(31), 9) },
+        to: { x: edge + 6, y: right[2]?.y },
+      },
+    ]);
+  });
+
+  it("grows the plot to 18 px a label on its longer side", () => {
+    const many = slope(
+      Array.from({ length: 20 }, (_, k) => [k, k] as const),
+      [],
+    );
+    expect(lay(many, 600).frame.height).toBe(360);
+    expect(lay(slope([[1, 2]], ["a"], { height: 400 }), 600).frame.height).toBe(400);
+  });
+
+  it("cuts a name so each gutter stays within 30 % of the chart", () => {
+    const l = lay(slope([[50, 34]], ["A very long series name indeed"]), 480);
+    const label = l.endLabels[1]?.text ?? "";
+    expect(label).toBe("A very long se… 34");
+    expect(l.gutters.label).toBeLessThanOrEqual(0.3 * 480);
+  });
+
+  it("draws no label at a null end", () => {
+    const l = lay(
+      slope([
+        [null, 31],
+        [40, 33],
+      ]),
+      480,
+    );
+    expect(l.endLabels.map((e) => [e.text, e.series])).toEqual([
+      ["Dogs 40", 1],
+      ["Cats 31", 0],
+      ["Dogs 33", 1],
+    ]);
+  });
+
+  it("keeps the group gutters and the floors as minimums", () => {
+    const l = lay(pets, 600, { axisGroup: 100, labelGroup: 90 }, { axis: 0, label: 95 });
+    expect(l.gutters).toEqual({ axis: 100, label: 95 });
+  });
+});
+
+describe("a scatter's layout", () => {
+  const countries: ChartSpec = {
+    x: { label: "GDP per capita", domain: [0, 100] },
+    y: { label: "Life expectancy", domain: [50, 90] },
+    marks: [
+      {
+        mark: "scatter",
+        series: [{ name: "All", names: ["Chad", "Monaco"], x: [0, 100], y: [50, 90] }],
+      },
+    ],
+  };
+
+  it("runs both axes 6 px inside the plot, so a dot and its ring at a domain's end draw whole", () => {
+    const l = lay(countries, 600);
+    // The ring reaches 2 px past a 4 px dot.
+    expect(l.frame.xAt(0)).toBeCloseTo(6, 6);
+    expect(l.frame.xAt(100)).toBeCloseTo(l.frame.width - 6, 6);
+    expect(l.frame.yAt(90)).toBeCloseTo(6, 6);
+    expect(l.frame.yAt(50)).toBeCloseTo(l.frame.height - 6, 6);
+    expect(l.frame.height).toBe(240);
+    // The ticks and their labels move with the axes.
+    expect(l.xAxis.ticks[0]?.at).toBeCloseTo(6, 6);
+    expect(l.yAxis?.ticks.find((t) => t.value === 90)?.at).toBeCloseTo(6, 6);
+    const top = l.yLabels.find((t) => t.text === "90");
+    expect(top?.y).toBeCloseTo(l.top + 6, 6);
+  });
+
+  it("gives a bubble chart its largest radius by width and runs its axes clear of its largest bubble", () => {
+    const sized = (r: number[]): ChartSpec => ({
+      ...countries,
+      r: { label: "Population", domain: [0, 100] },
+      marks: [
+        {
+          mark: "scatter",
+          series: [{ name: "All", names: ["Chad", "Monaco"], x: [0, 100], y: [50, 90], r }],
+        },
+      ],
+    });
+    const wide = lay(sized([100, 25]), 600);
+    expect(wide.frame.bubble).toBe(24);
+    // The largest bubble, at the domain's high end, and its ring's 2 px.
+    expect(wide.frame.xAt(0)).toBeCloseTo(26, 6);
+    expect(wide.frame.yAt(50)).toBeCloseTo(wide.frame.height - 26, 6);
+    const narrow = lay(sized([100, 25]), 300);
+    expect(narrow.frame.bubble).toBe(12);
+    expect(narrow.frame.xAt(0)).toBeCloseTo(14, 6);
+    // The largest drawn bubble is a quarter of the domain's area: half its radius.
+    expect(lay(sized([25, 0]), 600).frame.xAt(0)).toBeCloseTo(14, 6);
+    expect(lay(countries, 600).frame.bubble).toBeUndefined();
+  });
+
+  it("titles y above its gutter and x under its ticks at the right end", () => {
+    const l = lay(countries, 600);
+    expect(l.titles.map((t) => [t.text, t.anchor])).toEqual([
+      ["Life expectancy", "start"],
+      ["GDP per capita", "end"],
+    ]);
+    expect(l.titles[1]?.x).toBe(l.left + l.frame.width);
   });
 });

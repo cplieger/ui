@@ -2,6 +2,8 @@
  * input, wrapping as they grow. Its edge is inset, so a single line is one
  * control tall beside other fields. */
 .cp-tokens {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;

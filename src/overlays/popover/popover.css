@@ -4,6 +4,8 @@
  * nearest its button, and a native popover closes on Escape and on a press
  * outside by itself. */
 .cp-popover {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
   position: fixed;
   inset: auto;
   margin: var(--cp-space-1) 0;

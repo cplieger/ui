@@ -111,7 +111,9 @@ export function explore(
     }
     const box = svg.getBoundingClientRect();
     const next = nav.pick(e.clientX - box.left - lay.left, e.clientY - box.top - lay.top);
-    if (next !== undefined) {
+    if (next === undefined) {
+      clear();
+    } else {
       select(next);
     }
   };
@@ -135,6 +137,9 @@ export function explore(
       return;
     }
     if (!isKey(e.key) || model === undefined || nav === undefined) {
+      return;
+    }
+    if (!nav.pages && (e.key === "PageUp" || e.key === "PageDown")) {
       return;
     }
     e.preventDefault();

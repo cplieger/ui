@@ -2,6 +2,8 @@
  * aria-pressed. Pressed, it fills with the accent and its check slides in,
  * so the state is never the colour alone. */
 .cp-filter-chip {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: inline-flex;
   align-items: center;
   min-block-size: var(--cp-control-h-sm);

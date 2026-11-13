@@ -56,6 +56,8 @@
 }
 
 .cp-status {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   grid-area: status;
   display: flex;
   flex-wrap: wrap;

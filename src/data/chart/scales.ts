@@ -6,7 +6,7 @@
 
 import type { Format } from "../scale/format.js";
 
-import type { BarMark, ChartSpec, PointMark, RectMark } from "./spec.js";
+import type { BarMark, ChartSpec, PointMark, RectMark, ScatterMark } from "./spec.js";
 
 /** A log x's one rect whose `x1` is 0 or below. */
 interface Underflow {
@@ -207,33 +207,135 @@ function addPoints(extent: Extent, m: PointMark, log: boolean): void {
   }
 }
 
+// A scatter's dot is placed by its value, so a log axis has no place for 0
+// or below; a dot without its other value, or a bubble without its size,
+// is not drawn, so it holds no extent.
+function addScatter(extent: Extent, m: ScatterMark, axis: "x" | "y", log: boolean): void {
+  const other = axis === "x" ? "y" : "x";
+  for (const s of m.series) {
+    for (let i = 0; i < s[axis].length; i++) {
+      const v = s[axis][i];
+      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
+        throw new RangeError(`renderChart: a scatter's ${axis} cannot be infinite`);
+      }
+      if (finite(v)) {
+        if (log && v <= 0) {
+          throw new RangeError(`renderChart: a scatter's ${axis} must be above 0 on a log ${axis}`);
+        }
+        if (finite(s[other][i]) && (s.r === undefined || finite(s.r[i]))) {
+          extent.count(v);
+          extent.add(v);
+        }
+      }
+    }
+  }
+}
+
+/** A bubble chart's size: a dot's area runs from none at 0 to the largest
+ *  dot's at `hi`. */
+export interface Size {
+  readonly hi: number;
+  readonly format: Format | undefined;
+}
+
+/** The r scale of `spec`, undefined unless its scatter's series carry `r`:
+ *  [0, the largest r of a dot with both positions], or the passed domain.
+ *  Throws for an r scale beside no r, a domain whose low end is not 0, and
+ *  an r infinite, below 0 or past a passed domain, which no area shows. */
+export function rScale(spec: ChartSpec): Size | undefined {
+  const scatter = spec.marks.find((m): m is ScatterMark => m.mark === "scatter");
+  const series = scatter?.series.filter((s) => s.r !== undefined) ?? [];
+  if (series.length === 0) {
+    if (spec.r !== undefined) {
+      throw new TypeError("renderChart: an r scale sizes a scatter's dots, and none carries r");
+    }
+    return undefined;
+  }
+  const passed = passedDomain(spec.r?.domain, "r", false);
+  if (passed !== undefined && passed[0] !== 0) {
+    throw new RangeError("renderChart: r.domain must start at 0, where a dot has no area");
+  }
+  let hi = 0;
+  for (const s of series) {
+    for (let i = 0; i < (s.r?.length ?? 0); i++) {
+      const v = s.r?.[i];
+      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
+        throw new RangeError("renderChart: a scatter's r cannot be infinite");
+      }
+      if (!finite(v)) {
+        continue;
+      }
+      if (v < 0) {
+        throw new RangeError("renderChart: a scatter's r cannot be below 0, which has no area");
+      }
+      if (passed !== undefined && v > passed[1]) {
+        throw new RangeError("renderChart: a scatter's r must lie inside r.domain");
+      }
+      if (finite(s.x[i]) && finite(s.y[i])) {
+        hi = Math.max(hi, v);
+      }
+    }
+  }
+  return { hi: passed?.[1] ?? (hi > 0 ? hi : 1), format: spec.r?.format };
+}
+
+// A slope's two columns, named by its mark, at 0 and 1.
+const COLUMNS: Continuous = {
+  type: "linear",
+  lo: 0,
+  hi: 1,
+  passed: true,
+  integer: true,
+  format: undefined,
+  reverse: false,
+  absolute: false,
+  under: undefined,
+  drawnLo: 0,
+};
+
 /** The x scale of `spec`: linear unless it says another continuous type,
- *  under a bar mark linear from 0, and under a point mark holding 0 only
- *  with `zero: true`. Throws for a band x and for a type, domain, zero or
- *  underflow bin that breaks a rule. */
+ *  under a bar mark linear from 0, under a point mark or a scatter holding
+ *  0 only with `zero: true`, and under a slope its two columns at 0 and 1.
+ *  Throws for a band x and for a type, domain, zero or underflow bin that
+ *  breaks a rule, and for an x scale or an x rule beside a slope. */
 export function xScale(spec: ChartSpec): Continuous {
-  const type = spec.x.type ?? "linear";
+  if (spec.marks.some((m) => m.mark === "slope")) {
+    if (spec.x !== undefined) {
+      throw new TypeError("renderChart: a slope takes no x scale; its mark names its two columns");
+    }
+    if (spec.marks.some((m) => m.mark === "rule" && m.x !== undefined)) {
+      throw new TypeError("renderChart: a rule on a slope's x has no value to sit at");
+    }
+    return COLUMNS;
+  }
+  const x = spec.x ?? {};
+  const type = x.type ?? "linear";
   if (type === "band") {
     throw new TypeError("renderChart: x cannot be a band scale; rows lie along y");
   }
   const bars = spec.marks.some((m) => m.mark === "bar");
   const share = spec.marks.some((m) => m.mark === "bar" && m.arrange === "share");
-  if (share && spec.x.domain !== undefined) {
+  if (share && x.domain !== undefined) {
     throw new TypeError("renderChart: a 100% stack's x runs 0 to 1, so it takes no domain");
   }
   if (bars && type !== "linear") {
     throw new TypeError("renderChart: a bar's x is linear, so its length is its value");
   }
-  if (bars && spec.x.zero === false) {
+  if (bars && x.zero === false) {
     throw new TypeError("renderChart: a bar's x always starts at zero");
   }
-  const points = spec.marks.some((m) => m.mark === "point");
-  if (points && spec.x.zero !== undefined && type !== "linear") {
+  const scatter = spec.marks.some((m) => m.mark === "scatter");
+  if (scatter && type === "time") {
+    throw new TypeError("renderChart: a scatter's x is linear or log; a value over time is a line");
+  }
+  // Neither holds 0 unless asked, since a dot's place, not a length, is its value.
+  const placed = scatter || spec.marks.some((m) => m.mark === "point");
+  if (placed && x.zero !== undefined && type !== "linear") {
     throw new TypeError(`renderChart: a ${type} x has no zero to hold`);
   }
   const log = type === "log";
   const extent = new Extent(log);
-  if (bars || (points && spec.x.zero === true)) {
+  if (bars || (placed && x.zero === true)) {
     extent.add(0);
   }
   for (const m of spec.marks) {
@@ -250,6 +352,8 @@ export function xScale(spec: ChartSpec): Continuous {
       addBars(extent, m);
     } else if (m.mark === "point") {
       addPoints(extent, m, log);
+    } else if (m.mark === "scatter") {
+      addScatter(extent, m, "x", log);
     }
   }
   const integer = extent.integer;
@@ -283,14 +387,14 @@ export function xScale(spec: ChartSpec): Continuous {
       hi: 1,
       passed: true,
       integer: false,
-      format: spec.x.format ?? "percent",
-      reverse: spec.x.reverse === true,
+      format: x.format ?? "percent",
+      reverse: x.reverse === true,
       absolute: false,
       under: undefined,
       drawnLo: 0,
     };
   }
-  const passed = passedDomain(spec.x.domain, "x", log);
+  const passed = passedDomain(x.domain, "x", log);
   if (bars && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
     throw new RangeError("renderChart: a bar's x domain must hold 0");
   }
@@ -313,8 +417,8 @@ export function xScale(spec: ChartSpec): Continuous {
     hi,
     passed: passed !== undefined,
     integer,
-    format: spec.x.format,
-    reverse: spec.x.reverse === true,
+    format: x.format,
+    reverse: x.reverse === true,
     absolute: spec.marks.some((m) => m.mark === "bar" && m.arrange === "diverge"),
     under,
     drawnLo: under?.drawn === "below" ? under.from : lo,
@@ -397,7 +501,9 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
           extent.add(total);
         }
       }
-    } else if (m.mark === "line") {
+    } else if (m.mark === "scatter") {
+      addScatter(extent, m, "y", log);
+    } else if (m.mark === "line" || m.mark === "slope") {
       for (const s of m.series) {
         for (const value of Array.from(s.y)) {
           const v = yValue(value);
@@ -413,8 +519,10 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
 }
 
 /** The y scale of `spec`: a band of the dot rows or the bar or point categories,
- *  else linear unless it says log. Throws for a y type its mark cannot take
- *  and for a domain or zero a rect or an area cannot take. */
+ *  else linear unless it says log, which a slope cannot; a linear y holds 0
+ *  unless `zero: false`, under a scatter only with `zero: true`. Throws for
+ *  a y type its mark cannot take and for a domain or zero a rect or an area
+ *  cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
   const y = spec.y ?? {};
   const kinds = new Set(spec.marks.map((m) => m.mark));
@@ -442,6 +550,9 @@ export function yScale(spec: ChartSpec): Continuous | Band {
   if (type === "band" || type === "time") {
     throw new TypeError(`renderChart: y cannot be a ${type} scale without dot, bar or point rows`);
   }
+  if (kinds.has("slope") && type !== "linear") {
+    throw new TypeError("renderChart: a slope's y is linear");
+  }
   const rects = kinds.has("rect");
   const filled = rects ? "a rect's" : kinds.has("area") ? "an area's" : undefined;
   if (filled !== undefined && type !== "linear") {
@@ -453,6 +564,10 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     throw new TypeError(`renderChart: ${filled} y always starts at zero`);
   }
   const log = type === "log";
+  const scatter = kinds.has("scatter");
+  if (scatter && log && y.zero !== undefined) {
+    throw new TypeError("renderChart: a log y has no zero to hold");
+  }
   const share = spec.marks.some(
     (m) => (m.mark === "rect" || m.mark === "area") && m.arrange === "share",
   );
@@ -487,7 +602,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
         extent.add(m.y);
       }
     }
-    if (y.zero !== false) {
+    if (scatter ? y.zero === true : y.zero !== false) {
       extent.add(0);
     }
   }

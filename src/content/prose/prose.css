@@ -148,6 +148,8 @@
 }
 
 .cp-prose :where(code[data-math="block"]) {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   display: block;
   overflow-x: auto;
   padding: var(--cp-space-3) var(--cp-space-4);

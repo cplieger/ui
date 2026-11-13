@@ -671,3 +671,169 @@ describe("keys and touch on a bar chart", () => {
     expect(legendText(b)).toBe("Brill · Domestic · 3 · International · 22 · 25");
   });
 });
+
+describe("keys and the pointer on a slope chart", () => {
+  const pets: ChartSpec = {
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", y: [50, 34] },
+          { name: "Dogs", y: [40, 31] },
+          { name: "Horses", y: [30, null] },
+        ],
+      },
+    ],
+  };
+  const rings = (b: Built) => (ring(b)?.getAttribute("d") ?? "").split("M").length - 1;
+  const chips = (b: Built) =>
+    [...b.legend.querySelectorAll(".cp-chip")].map((c) => c.hasAttribute("data-selected"));
+  const strong = (b: Built) =>
+    [...b.plot.querySelectorAll('[data-part="end"] > text[data-selected]')].map(
+      (t) => t.textContent,
+    );
+
+  it("focus selects the right column and rings each end there", async () => {
+    const b = build(pets);
+    expect(legendText(b)).toBe("2015 · Cats · 34 · Dogs · 31 · Horses · No data");
+    b.plot.focus();
+    await says("2015: Cats 34, Dogs 31, Horses No data.");
+    expect(rings(b)).toBe(2);
+    expect(crosshair(b)).not.toBe(null);
+  });
+
+  it("chooses a series with Up and Down, says its change, and marks it by weight", async () => {
+    const b = build(pets);
+    // A face that loads late measures the legend row again; compare after it.
+    await document.fonts.ready;
+    b.plot.focus();
+    const widths = () =>
+      [...b.legend.querySelectorAll(".cp-chip")].map((c) => c.getBoundingClientRect().width);
+    const before = widths();
+    expect(key(b.plot, "ArrowUp").defaultPrevented).toBe(true);
+    await says("Dogs: 2005 40, 2015 31. Change -9.");
+    expect(widths()).toEqual(before);
+    expect(
+      getComputedStyle(b.legend.querySelectorAll(".cp-chip > bdi")[1] as Element).fontWeight,
+    ).toBe("600");
+    expect(rings(b)).toBe(2);
+    expect(chips(b)).toEqual([false, true, false]);
+    expect(strong(b)).toEqual(["Dogs 40", "Dogs 31"]);
+    // The chosen line and its ends, drawn again over the others.
+    expect(b.plot.querySelectorAll('[data-part="selection"] [data-series="2"]')).toHaveLength(2);
+    key(b.plot, "ArrowLeft");
+    await says("2005: Cats 50, Dogs 40, Horses 30.");
+    expect(legendText(b)).toBe("2005 · Cats · 50 · Dogs · 40 · Horses · 30");
+    expect(chips(b)).toEqual([false, true, false]);
+    key(b.plot, "Escape");
+    expect(chips(b)).toEqual([false, false, false]);
+    expect(strong(b)).toEqual([]);
+  });
+
+  it("leaves the Page keys to the page", () => {
+    const b = build(pets);
+    b.plot.focus();
+    expect(key(b.plot, "PageUp").defaultPrevented).toBe(false);
+    expect(key(b.plot, "PageDown").defaultPrevented).toBe(false);
+    expect(key(b.plot, "Home").defaultPrevented).toBe(true);
+  });
+
+  it("a mouse selects the nearer column anywhere in the plot's height", () => {
+    const b = build(pets);
+    point(b, "pointermove", plotWidth(b) * 0.4, 0);
+    expect(legendText(b)).toBe("2005 · Cats · 50 · Dogs · 40 · Horses · 30");
+    expect(rings(b)).toBe(3);
+    point(b, "pointermove", plotWidth(b) * 0.6, 200);
+    expect(legendText(b)).toBe("2015 · Cats · 34 · Dogs · 31 · Horses · No data");
+  });
+});
+
+describe("keys and the pointer on a scatter plot", () => {
+  const world: ChartSpec = {
+    x: { label: "GDP per capita", domain: [0, 150] },
+    y: { label: "Life expectancy", domain: [50, 90] },
+    marks: [
+      {
+        mark: "scatter",
+        unit: { one: "country", other: "countries" },
+        series: [
+          { name: "Europe", names: ["Albania", "Monaco"], x: [19, 140], y: [79.8, 85.9] },
+          { name: "Africa", names: ["Chad", "Ghana"], x: [1.6, 6.3], y: [53, 64.1] },
+        ],
+      },
+    ],
+  };
+  const chips = (b: Built) =>
+    [...b.legend.querySelectorAll(".cp-chip")].map((c) => c.hasAttribute("data-selected"));
+  // A dot's centre in plot px, from the domains above and the plot's 6 px insets.
+  const at = (b: Built, x: number, y: number) => {
+    const w = plotWidth(b) - 12;
+    const h =
+      Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("height")) -
+      2 * AREA_ROOM -
+      12;
+    return { x: 6 + (x / 150) * w, y: 6 + ((90 - y) / 40) * h };
+  };
+
+  it("focus selects the first dot in x order, rings it and draws the crosshair to its edge", async () => {
+    const b = build(world);
+    expect(legendText(b)).toBe(`4${nb}countries · Europe · 2 · Africa · 2`);
+    b.plot.focus();
+    await says("Chad: Africa, GDP per capita 1.6, Life expectancy 53.");
+    expect(legendText(b)).toBe(
+      "Chad · GDP per capita 1.6 · Life expectancy 53 · Europe · 2 · Africa · 2",
+    );
+    expect(chips(b)).toEqual([false, true]);
+    expect(ring(b)).not.toBe(null);
+    // Two rules, each a move and a line.
+    expect(crosshair(b)?.getAttribute("d")?.match(/M/gu)).toHaveLength(2);
+  });
+
+  it("walks x order with Left and Right and y order with Up and Down, saying each dot", async () => {
+    const b = build(world);
+    b.plot.focus();
+    const cases: [string, string][] = [
+      ["ArrowRight", "Ghana: Africa, GDP per capita 6.3, Life expectancy 64.1."],
+      ["ArrowUp", "Albania: Europe, GDP per capita 19, Life expectancy 79.8."],
+      ["End", "Monaco: Europe, GDP per capita 140, Life expectancy 85.9."],
+      ["ArrowDown", "Albania: Europe, GDP per capita 19, Life expectancy 79.8."],
+      ["Home", "Chad: Africa, GDP per capita 1.6, Life expectancy 53."],
+    ];
+    for (const [name, text] of cases) {
+      expect(key(b.plot, name).defaultPrevented, name).toBe(true);
+      await says(text);
+    }
+    expect(chips(b)).toEqual([false, true]);
+  });
+
+  it("a mouse selects the dot within 40 px of its edge and clears the selection beyond it", () => {
+    const b = build(world);
+    const monaco = at(b, 140, 85.9);
+    point(b, "pointermove", monaco.x - 30, monaco.y + 20);
+    expect(legendText(b)).toBe(
+      "Monaco · GDP per capita 140 · Life expectancy 85.9 · Europe · 2 · Africa · 2",
+    );
+    expect(chips(b)).toEqual([true, false]);
+    point(b, "pointermove", monaco.x - 60, monaco.y + 60);
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(`4${nb}countries · Europe · 2 · Africa · 2`);
+  });
+
+  it("a tap selects the nearest dot, a tap far from every dot clears it, and a drag never selects", () => {
+    const b = build(world);
+    const ghana = at(b, 6.3, 64.1);
+    point(b, "pointerdown", ghana.x + 3, ghana.y, "touch");
+    point(b, "pointerup", ghana.x + 3, ghana.y, "touch");
+    expect(legendText(b)).toBe(
+      "Ghana · GDP per capita 6.3 · Life expectancy 64.1 · Europe · 2 · Africa · 2",
+    );
+    point(b, "pointerdown", plotWidth(b) / 2, 10, "touch");
+    point(b, "pointerup", plotWidth(b) / 2, 10, "touch");
+    expect(ring(b)).toBe(null);
+    point(b, "pointerdown", ghana.x - 40, ghana.y, "touch");
+    point(b, "pointermove", ghana.x, ghana.y, "touch");
+    point(b, "pointerup", ghana.x, ghana.y, "touch");
+    expect(ring(b)).toBe(null);
+  });
+});
