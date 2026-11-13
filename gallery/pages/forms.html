@@ -242,6 +242,21 @@
         <footer>Like the language picker, and each tag says how many entries carry it. Words that match no tag end the list with Add “…”, so Enter takes a match first and a new tag only when nothing matches. Five is the limit.</footer>
       </div>
       <div class="card" data-new>
+        <h2>Recipients, some away</h2>
+        <div class="cp-field">
+          <label class="cp-label" for="f-recipients">To</label>
+          <div class="cp-tokens" data-tokens="to" data-suggest="f-recipients-list"><span class="cp-token" data-value="@mira"><span>@mira</span><button type="button" aria-label="Remove @mira" tabindex="-1"></button></span><input id="f-recipients" placeholder="Add a recipient"></div>
+          <ul class="cp-popover cp-listbox" id="f-recipients-list" role="listbox" popover="manual" aria-label="Recipients">
+            <li role="option" id="rcp-all">Announcements</li>
+            <li role="option" id="rcp-mira">@mira</li>
+            <li role="option" id="rcp-otto">@otto<small>Dormant</small></li>
+            <li role="option" id="rcp-sana">@sana</li>
+            <li role="option" id="rcp-jules">@jules<small>Dormant</small></li>
+          </ul>
+        </div>
+        <footer>The To field of a message. A dormant recipient can still be chosen: Dormant ends its row in muted words and is read with the name, and its chip holds the name alone.</footer>
+      </div>
+      <div class="card" data-new>
         <h2>One limit across pickers</h2>
         <div class="cp-stack">
           <div class="cp-field">

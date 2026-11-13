@@ -5050,17 +5050,24 @@ describe("css/system.css popup option row", () => {
     }
   });
 
-  it("fills an option under a mouse and keeps the reached one washed under it", async () => {
-    theme("light");
-    root.setAttribute("data-pointer", "fine");
-    const wash = resolve("backgroundColor", "var(--cp-selected)");
-    const fill = resolve("backgroundColor", "var(--cp-fill)");
-    for (const row of popups()) {
+  for (const [at, popup] of ["menu", "listbox", "select panel", "palette"].entries()) {
+    it(`fills a ${popup} option under a mouse and keeps the reached one washed under it`, async () => {
+      theme("light");
+      root.setAttribute("data-pointer", "fine");
+      const row = popups()[at] as HTMLElement;
       await userEvent.hover(rest(row));
-      expect(getComputedStyle(rest(row)).backgroundColor, rest(row).textContent).toBe(fill);
+      expect(getComputedStyle(rest(row)).backgroundColor).toBe(
+        resolve("backgroundColor", "var(--cp-fill)"),
+      );
       await userEvent.hover(row);
-      expect(getComputedStyle(row).backgroundColor, row.textContent).toBe(wash);
-    }
+      expect(getComputedStyle(row).backgroundColor).toBe(
+        resolve("backgroundColor", "var(--cp-selected)"),
+      );
+    });
+  }
+
+  it("fills no option under a finger", async () => {
+    theme("light");
     root.setAttribute("data-pointer", "coarse");
     const [, listbox] = popups();
     await userEvent.hover(rest(listbox as HTMLElement));
@@ -5094,6 +5101,27 @@ describe("css/system.css popup option row", () => {
       resolve("backgroundColor", "var(--cp-fill)"),
     );
     expect(getComputedStyle(badge).color).toBe(muted);
+  });
+
+  it("ends a choosable option with a muted word read with its name, at 4.5:1 on the popup", async () => {
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      const list = build(
+        '<ul class="cp-popover cp-listbox" role="listbox" aria-label="To"><li role="option">@mira</li><li role="option">@otto<small>Dormant</small></li></ul>',
+      ).firstElementChild as HTMLElement;
+      const option = list.lastElementChild as HTMLElement;
+      const word = option.querySelector("small") as HTMLElement;
+      await expect.element(option).toHaveAccessibleName("@otto Dormant");
+      expect([getComputedStyle(option).color, getComputedStyle(option).cursor], t).toEqual([
+        resolve("color", "var(--cp-ink)"),
+        "pointer",
+      ]);
+      expect(getComputedStyle(word).color, t).toBe(resolve("color", "var(--cp-ink-muted)"));
+      expect(
+        contrast(getComputedStyle(word).color, getComputedStyle(list).backgroundColor),
+        t,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it("keeps a reached option's words, end and danger ink at 4.5:1 on the wash, in both themes", () => {
