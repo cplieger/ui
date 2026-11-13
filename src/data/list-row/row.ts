@@ -21,12 +21,13 @@ export function focusableIn(el: Element): HTMLElement | null {
 }
 
 /** Focuses `el`, which takes `tabindex="-1"` until it loses focus when it
- *  takes no focus of its own. */
-export function focusOn(el: Element): void {
+ *  takes no focus of its own; says whether it gave `el` that tabindex. */
+export function focusOn(el: Element, options?: FocusOptions): boolean {
   if (!(el instanceof HTMLElement)) {
-    return;
+    return false;
   }
-  if (!el.matches(FOCUSABLE)) {
+  const give = !el.matches(FOCUSABLE);
+  if (give) {
     el.tabIndex = -1;
     el.addEventListener(
       "blur",
@@ -36,5 +37,6 @@ export function focusOn(el: Element): void {
       { once: true },
     );
   }
-  el.focus();
+  el.focus(options);
+  return give;
 }

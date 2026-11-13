@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { rollText } from "../../core/roll/roll.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { enhanceHeldList, type HeldListOptions } from "./held-list.js";
 
@@ -355,7 +356,7 @@ describe("enhanceHeldList", () => {
     heading.textContent = "Activity";
     document.body.append(heading);
     const ul = list();
-    const held = enhance(ul, { before: heading });
+    const held = enhance(ul, { beside: heading });
     ul.querySelector("a")?.focus();
     held.change(() => undefined);
     expect(line()?.nextElementSibling).toBe(heading);
@@ -434,5 +435,237 @@ describe("enhanceHeldList", () => {
       return undefined;
     });
     expect(ran).toBe(true);
+  });
+
+  it("holds behind the host's own button at the start edge, and its press puts the rows in", async () => {
+    const ul = list();
+    const jump = hostJump();
+    const held = enhance(ul, { jump });
+    expect(jump.hidden).toBe(true);
+    ul.querySelector("a")?.focus();
+    const fresh = item("Fresh");
+    held.change(() => {
+      ul.prepend(fresh);
+      return [fresh];
+    }, 2);
+    expect(line()).toBeNull();
+    expect(jump.hidden).toBe(false);
+    expect(jump.textContent).toBe("2 newer rows");
+    await userEvent.click(jump);
+    expect(ul.firstElementChild).toBe(fresh);
+    expect(jump.hidden).toBe(true);
+    expect(document.activeElement).toBe(fresh.querySelector(".cp-list-row"));
+  });
+});
+
+/** A hidden button after the body, as a host's own offer. */
+function hostJump(roll = false): HTMLButtonElement {
+  const jump = document.createElement("button");
+  jump.type = "button";
+  jump.className = "cp-button";
+  jump.hidden = true;
+  if (roll) {
+    const host = document.createElement("span");
+    host.className = "cp-roll";
+    jump.append(host);
+  }
+  document.body.append(jump);
+  return jump;
+}
+
+/** Appends a row to `ul` and returns it, as an end edge's change does. */
+const grow = (ul: HTMLUListElement, title?: string) => () => {
+  const li = item(title);
+  ul.append(li);
+  return [li];
+};
+
+/** How far `row`'s end is below `box`'s, in px. */
+const past = (row: Element, box: Element) =>
+  row.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom;
+
+const scrollTo = async (el: Element, top: number) => {
+  el.scrollTop = top;
+  await settle();
+};
+
+describe("enhanceHeldList at the end edge", () => {
+  it("puts a change in at once and counts nothing while the reader sees its row", () => {
+    const ul = list(3);
+    const held = enhance(ul, { edge: "end" });
+    held.change(grow(ul, "Fresh"));
+    expect(ul.lastElementChild?.textContent).toContain("Fresh");
+    expect(held.held).toBe(0);
+    expect(line()).toBeNull();
+  });
+
+  it("counts a row that goes in below the reader on a line pinned after the list", async () => {
+    const { box, ul } = scrolling();
+    const held = enhance(ul, { edge: "end", settle: 0 });
+    held.change(grow(ul, "Fresh"));
+    expect(ul.lastElementChild?.textContent).toContain("Fresh");
+    expect(box.scrollTop).toBe(0);
+    expect(held.held).toBe(1);
+    const offer = line();
+    expect(offer?.previousElementSibling).toBe(ul);
+    expect(offer?.dataset["edge"]).toBe("end");
+    expect(offer?.querySelector("span")?.textContent).toBe("1 newer row");
+    expect(offer?.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      box.getBoundingClientRect().bottom + 1,
+    );
+    held.change(grow(ul), 2);
+    expect(held.held).toBe(3);
+    expect(offer?.querySelector("span")?.textContent).toBe("3 newer rows");
+    await expect.poll(polite).toBe("3 newer rows");
+  });
+
+  it("goes to the newest row on Show and moves focus to it", async () => {
+    const { box, ul } = scrolling();
+    const held = enhance(ul, { edge: "end" });
+    held.change(grow(ul));
+    const newest = grow(ul, "Newest")()[0] as HTMLLIElement;
+    held.change(() => [newest]);
+    await userEvent.click(showButton() as HTMLButtonElement);
+    expect(line()).toBeNull();
+    expect(held.held).toBe(0);
+    await expect.poll(() => past(newest, box)).toBeLessThanOrEqual(1);
+    const row = newest.querySelector(".cp-list-row") as HTMLElement;
+    expect(document.activeElement).toBe(row);
+    expect(row.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("drops the count once the reader scrolls to the newest row, moving focus there from Show", async () => {
+    const { box, ul } = scrolling();
+    const held = enhance(ul, { edge: "end" });
+    held.change(grow(ul, "Fresh"));
+    await scrollTo(box, 100);
+    expect(held.held).toBe(1);
+    showButton()?.focus();
+    await scrollTo(box, box.scrollHeight);
+    expect(line()).toBeNull();
+    expect(held.held).toBe(0);
+    expect(document.activeElement).toBe(ul.lastElementChild?.querySelector(".cp-list-row"));
+  });
+
+  it("counts nothing that a change scrolls into view, as a host following the end does", async () => {
+    const { box, ul } = scrolling();
+    const held = enhance(ul, { edge: "end" });
+    await scrollTo(box, box.scrollHeight);
+    const follow = () => {
+      const [li] = grow(ul)();
+      box.scrollTop = box.scrollHeight;
+      return li === undefined ? [] : [li];
+    };
+    held.change(follow);
+    expect(held.held).toBe(0);
+    // Under the end padding at the last position there is nothing to reach.
+    box.style.scrollPaddingBlockEnd = "3rem";
+    held.change(follow);
+    expect(held.held).toBe(0);
+  });
+
+  it("counts a row its end scroll margin leaves under a pinned foot, as a feed's entries have", () => {
+    const { box, ul } = scrolling();
+    const foot = document.createElement("div");
+    foot.style.position = "sticky";
+    foot.style.insetBlockEnd = "0";
+    foot.style.blockSize = "5rem";
+    box.append(foot);
+    const held = enhance(ul, { edge: "end" });
+    // The new row's end at the box's end, under the foot.
+    const under = (margin: string) => () => {
+      const [li] = grow(ul)();
+      li?.style.setProperty("scroll-margin-block-end", margin);
+      box.scrollTop = box.scrollHeight - box.clientHeight - foot.offsetHeight;
+      return li === undefined ? [] : [li];
+    };
+    held.change(under("0px"));
+    expect(held.held).toBe(0);
+    held.change(under("5rem"));
+    expect(held.held).toBe(1);
+    expect(line()?.previousElementSibling).toBe(ul);
+  });
+
+  it("follows a row that arrives during Show's scroll to the newest, counting it not", async () => {
+    const { box, ul } = scrolling();
+    const held = enhance(ul, { edge: "end" });
+    held.change(grow(ul));
+    await userEvent.click(showButton() as HTMLButtonElement);
+    const [late] = grow(ul, "Late")();
+    held.change(() => (late === undefined ? [] : [late]));
+    expect(held.held).toBe(0);
+    expect(line()).toBeNull();
+    await expect.poll(() => past(late as Element, box)).toBeLessThanOrEqual(1);
+  });
+
+  it("counts a row under the scroller's end padding, and pins the line above it", async () => {
+    const { box, ul } = scrolling();
+    box.style.scrollPaddingBlockEnd = "3rem";
+    const tail = document.createElement("div");
+    tail.style.blockSize = "4rem";
+    box.append(tail);
+    const held = enhance(ul, { edge: "end" });
+    await scrollTo(box, box.scrollHeight);
+    // The newest row's end 2rem above the box's end, under its 3rem padding.
+    await scrollTo(box, box.scrollTop - 32);
+    held.change(() => []);
+    expect(held.held).toBe(1);
+    const offer = line() as HTMLElement;
+    expect(box.getBoundingClientRect().bottom - offer.getBoundingClientRect().bottom).toBeCloseTo(
+      48,
+      0,
+    );
+    await userEvent.click(showButton() as HTMLButtonElement);
+    const newest = ul.lastElementChild as Element;
+    await expect.poll(() => Math.round(past(newest, box))).toBe(-48);
+    expect(line()).toBeNull();
+  });
+
+  it("counts on the host's own button, rolling its words, and its press goes to the newest", async () => {
+    const { box, ul } = scrolling();
+    const jump = hostJump(true);
+    const host = jump.querySelector(".cp-roll") as HTMLElement;
+    const held = enhance(ul, {
+      edge: "end",
+      jump,
+      words: { count: (n) => `${String(n)} nouvelles lignes` },
+    });
+    held.change(grow(ul));
+    expect(line()).toBeNull();
+    expect(jump.hidden).toBe(false);
+    expect(rollText(host)).toBe("1 nouvelles lignes");
+    const add = grow(ul, "Newest");
+    let newest: Element | undefined;
+    held.change(() => {
+      [newest] = add();
+      return newest === undefined ? [] : [newest];
+    });
+    expect(rollText(host)).toBe("2 nouvelles lignes");
+    expect(jump.contains(host)).toBe(true);
+    await userEvent.click(jump);
+    expect(jump.hidden).toBe(true);
+    await expect.poll(() => past(newest as Element, box)).toBeLessThanOrEqual(1);
+    expect(document.activeElement).toBe(newest?.querySelector(".cp-list-row"));
+  });
+
+  it("on abort hides the button, removes the tabindex it gave and counts no later change", async () => {
+    const { box, ul } = scrolling();
+    const own = new AbortController();
+    const jump = hostJump();
+    const held = enhanceHeldList(ul, { edge: "end", jump, signal: own.signal });
+    held.change(grow(ul));
+    await userEvent.click(jump);
+    const row = document.activeElement as HTMLElement;
+    expect(row.getAttribute("tabindex")).toBe("-1");
+    await expect.poll(() => past(row, box)).toBeLessThanOrEqual(1);
+    await settle();
+    held.change(grow(ul));
+    expect(jump.hidden).toBe(false);
+    own.abort();
+    expect(jump.hidden).toBe(true);
+    expect(row.hasAttribute("tabindex")).toBe(false);
+    held.change(grow(ul));
+    expect(jump.hidden).toBe(true);
+    expect(held.held).toBe(0);
   });
 });

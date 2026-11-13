@@ -39,6 +39,43 @@ function padOf(style: CSSStyleDeclaration): number {
   return Number.parseFloat(style.scrollPaddingBlockStart) || 0;
 }
 
+/** The part of `scroller`'s end its `scroll-padding-block-end` covers, as
+ *  a bar fixed at the window's foot does. */
+export function coveredEnd(scroller: Element): number {
+  return Number.parseFloat(getComputedStyle(scroller).scrollPaddingBlockEnd) || 0;
+}
+
+/** How far `scroller` can still scroll toward its end, in px. */
+const further = (scroller: Element): number =>
+  scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+
+/**
+ * Whether the reader has yet to see `el`'s end, and `margin` px past it, and
+ * can still scroll to it: a box around `el` that scrolls, or the page, ends
+ * above that point, its end padding counted as covered, and can scroll
+ * further toward its end. Past a scroller's last position nothing is left
+ * to reach.
+ */
+export function endUnseen(el: Element, margin = 0): boolean {
+  const end = el.getBoundingClientRect().bottom + margin - 1;
+  const page = pageScroller();
+  const root = getComputedStyle(document.documentElement);
+  for (let at = el.parentElement; at !== null && at !== page; at = at.parentElement) {
+    const propagated = at === document.body && root.overflowY === "visible";
+    if (propagated || !scrolls(at)) {
+      continue;
+    }
+    const bottom = at.getBoundingClientRect().top + at.clientTop + at.clientHeight - coveredEnd(at);
+    if (end > bottom && further(at) > 1) {
+      return true;
+    }
+  }
+  const vv = window.visualViewport;
+  const shown = vv === null ? innerHeight : vv.offsetTop + vv.height;
+  const bottom = Math.min(shown, innerHeight - coveredEnd(page));
+  return end > bottom && (further(page) > 1 || shown < innerHeight - 1);
+}
+
 /**
  * Where `scroller` shows its content, in px of the layout viewport, its
  * start padding counted as covered. It moves only with the scroller's own

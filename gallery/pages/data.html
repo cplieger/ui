@@ -180,6 +180,21 @@
         <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-library"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button><button class="cp-button" data-size="sm" type="button" data-hold-partial="hold-library">End Sonarr's walk partial</button></div>
         <footer>The Library is a table and holds its rows the same way: a copy whose verdict changes while the reader is in the table waits behind “1 row changed · Show”, and Show moves it to its sorted place. A Sonarr walk that ends partial keeps the copies it did not reach in muted ink, with the list's clock and the reason, “Kept from 03:00: Sonarr walk partial”, and their grabs go grey with them.</footer>
       </div>
+      <div class="card" data-new>
+        <h2>A log that grows at its end</h2>
+        <ol class="cp-list" id="hold-steps" data-density="compact" aria-label="Full checks, oldest first">
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span class="cp-cell-stack">Full check started</span><span data-part="end"><time data-ago="10930"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="globe" aria-hidden="true"></span><span class="cp-cell-stack">Read SeaDex: 1,204 entries</span><span data-part="end"><time data-ago="10920"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-cell-stack">Read Sonarr: 412 series</span><span data-part="end"><time data-ago="10905"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span><span class="cp-cell-stack">Read Radarr: 96 films</span><span data-part="end"><time data-ago="10890"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-cell-stack">Read Nyaa's feed: 318 releases</span><span data-part="end"><time data-ago="10870"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="scale" aria-hidden="true"></span><span class="cp-cell-stack">Judged 508 copies: 3 states changed</span><span data-part="end"><time data-ago="10850"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="download" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Grabbed: Frieren S01 from Nyaa</span><span data-part="end"><time data-ago="10830"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="check-check" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Full check done in 2 m 10 s</span><span data-part="end"><time data-ago="10800"></time></span></div></li>
+        </ol>
+        <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-steps"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button></div>
+        <footer>A log oldest first lets each new row in at once, since it goes in below the reader and moves nothing they see. A row that goes in out of view is counted on a line pinned to the window's end, “2 newer rows · Show”: Show goes to the newest row and moves focus to it, and the count goes once the reader scrolls there. Start the live changes, which run one full check, then scroll the page up until the log's end is below the window.</footer>
+      </div>
         <div class="card g-wide" data-new>
           <h2>A long list</h2>
         <div class="g-row-inline"><div class="cp-search g-grow"><input class="cp-input" id="v-filter" type="search" placeholder="Filter titles" aria-label="Filter titles"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><span id="v-count"></span><button class="cp-button" type="button" data-live-update="v-list">Live update</button></div>

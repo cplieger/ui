@@ -6265,8 +6265,8 @@ div.cp-list-foot {
   }
 }
 
-/* The rows a list holds back while the reader is in it: their count and the
- * Show button that puts them in, above the list. */
+/* The rows a list holds back while the reader is in it, or at its end edge
+ * those that went in below the reader: their count and the Show button. */
 .cp-list-pending {
   display: flex;
   align-items: center;
@@ -6276,6 +6276,15 @@ div.cp-list-foot {
   background: var(--cp-selected);
   color: var(--cp-accent-12);
   font-size: var(--cp-text-sm);
+}
+
+/* At the end edge the line follows the list, pinned to its scroller's end
+ * while the rows it counts are below the reader; the script lifts it above
+ * the scroller's end padding. */
+.cp-list-pending[data-edge="end"] {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
 }
 
 @media (forced-colors: active) {

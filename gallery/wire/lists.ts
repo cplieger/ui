@@ -1,6 +1,6 @@
 /**
  * lists.ts — the gallery's lists on the library: one list set by its
- * attributes, the lists and tables that hold their place, a long list
+ * attributes, the lists, log and table that hold their place, a long list
  * keyed by its titles, and the pages that Load older and Show older add.
  */
 
@@ -228,18 +228,27 @@ if (sample instanceof HTMLUListElement && settings !== null) {
 }
 
 /** Runs `tick` every two seconds between one press of `of`'s live button
- *  and the next, which is the card's pause control; nothing runs on load. */
-function live(of: string, tick: () => void): void {
+ *  and the next, which is the card's pause control, or until `tick` says
+ *  `false`; nothing runs on load. */
+function live(of: string, tick: () => boolean | undefined): void {
   const button = document.querySelector<HTMLButtonElement>(`[data-hold-live="${of}"]`);
   let timer: ReturnType<typeof setInterval> | undefined;
-  button?.addEventListener("click", () => {
-    const on = timer === undefined;
+  const run = (on: boolean): void => {
     clearInterval(timer);
-    timer = on ? setInterval(tick, 2000) : undefined;
-    button.replaceChildren(
+    timer = on
+      ? setInterval(() => {
+          if (tick() === false) {
+            run(false);
+          }
+        }, 2000)
+      : undefined;
+    button?.replaceChildren(
       icon(on ? "pause" : "play"),
       on ? "Pause live changes" : "Start live changes",
     );
+  };
+  button?.addEventListener("click", () => {
+    run(timer === undefined);
   });
 }
 
@@ -319,6 +328,65 @@ if (log instanceof HTMLUListElement) {
       }
       return [item];
     });
+  });
+}
+
+interface Step {
+  readonly glyph: string;
+  readonly tone?: string;
+  readonly what: string;
+}
+
+const STEPS: readonly Step[] = [
+  { glyph: "refresh-cw", what: "Full check started" },
+  { glyph: "globe", what: "Read SeaDex: 1,206 entries" },
+  { glyph: "tv", what: "Read Sonarr: 413 series" },
+  { glyph: "film", what: "Read Radarr: 96 films" },
+  { glyph: "radio-tower", what: "Read Nyaa's feed: 321 releases" },
+  { glyph: "scale", what: "Judged 509 copies: 1 state changed" },
+  { glyph: "download", tone: "success", what: "Grabbed: Dandadan S1 from Nyaa" },
+  { glyph: "check-check", tone: "success", what: "Full check done in 2 m 4 s" },
+];
+
+function stepRow({ glyph, tone, what }: Step): HTMLLIElement {
+  const mark = icon(glyph);
+  if (tone !== undefined) {
+    mark.dataset["tone"] = tone;
+  }
+  const text = document.createElement("span");
+  text.className = "cp-cell-stack";
+  text.textContent = what;
+  const time = document.createElement("time");
+  time.dateTime = new Date().toISOString();
+  enhanceRelativeTime(time);
+  const end = document.createElement("span");
+  end.dataset["part"] = "end";
+  end.append(time);
+  const row = document.createElement("div");
+  row.className = "cp-list-row";
+  row.append(mark, text, end);
+  const item = document.createElement("li");
+  item.append(row);
+  return item;
+}
+
+// A log oldest first: each press runs one full check, a step every two
+// seconds, appended at the log's end.
+const steps = document.getElementById("hold-steps");
+if (steps instanceof HTMLOListElement) {
+  const held = enhanceHeldList(steps, { edge: "end" });
+  let next = 0;
+  live(steps.id, () => {
+    const step = STEPS[next];
+    next = (next + 1) % STEPS.length;
+    if (step !== undefined) {
+      held.change(() => {
+        const item = stepRow(step);
+        steps.append(item);
+        return [item];
+      });
+    }
+    return next !== 0;
   });
 }
 
