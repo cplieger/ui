@@ -30,7 +30,8 @@ interface Label {
   readonly box: Box;
 }
 
-interface Tick {
+/** A tick along an axis, with its label if it kept one. */
+export interface Tick {
   readonly value: number;
   /** Its position along the axis, in px. */
   readonly at: number;

@@ -440,4 +440,117 @@ describe("a bar chart", () => {
     expect(l.titles.map((t) => t.text)).toEqual(["Answers"]);
     expect([l.frame.xAt(0), l.frame.xAt(1)]).toEqual([0, l.frame.width]);
   });
+
+  const survey = (more: Partial<ChartSpec["x"]> = {}, labels = true): ChartSpec => ({
+    x: more,
+    marks: [
+      {
+        mark: "bar",
+        y: ["Instagram", "Facebook"],
+        arrange: "split",
+        labels,
+        series: [
+          { name: "Daily", x: [34, 20] },
+          { name: "Weekly", x: [8, 43] },
+          { name: "Never", x: [7, null] },
+        ],
+      },
+    ],
+  });
+
+  it("sets a panel per series 16 px apart on one shared scale, each headed by its name", () => {
+    const l = lay(survey(), 600);
+    // "Instagram" and its pad make a 76 px gutter, so the 524 px plot holds
+    // three 164 px panels and two 16 px gaps.
+    expect(l.frame.width).toBe(524);
+    const panels = l.frame.panels ?? [];
+    expect(panels.map((p) => [p.left, p.right])).toEqual([
+      [0, 164],
+      [180, 344],
+      [360, 524],
+    ]);
+    expect(panels.map((p) => p.at(0))).toEqual([0, 180, 360]);
+    for (const p of panels) {
+      expect(p.at(20) - p.at(0)).toBeCloseTo(panels[0]?.at(20) ?? 0);
+    }
+    expect(l.frame.height).toBe(2 * 24);
+    expect(l.bar).toBe(16);
+    // The heads take one line above the plot.
+    expect(l.top).toBe(17 + 4);
+    expect(l.heads).toEqual([
+      { text: "Daily", x: 76, y: 8.5, anchor: "start" },
+      { text: "Weekly", x: 76 + 180, y: 8.5, anchor: "start" },
+      { text: "Never", x: 76 + 360, y: 8.5, anchor: "start" },
+    ]);
+  });
+
+  it("writes each bar's value inside its panel, every panel ending short by the widest label", () => {
+    const l = lay(survey(), 600);
+    const panels = l.frame.panels ?? [];
+    expect(l.valueLabels.map((t) => t.text)).toEqual(["34", "8", "7", "20", "43"]);
+    const [daily, weekly, , , most] = l.valueLabels;
+    expect(daily).toMatchObject({ x: (panels[0]?.at(34) ?? 0) + 4, y: 12, anchor: "start" });
+    expect(weekly).toMatchObject({ x: (panels[1]?.at(8) ?? 0) + 4, y: 12 });
+    expect(most).toMatchObject({ x: (panels[1]?.at(43) ?? 0) + 4, y: 36 });
+    // "43" and its 4 px gap end the largest bar's panel; every panel keeps that room.
+    for (const p of panels) {
+      expect(p.at(43) + 4 + 2 * 7.5).toBeCloseTo(p.right);
+    }
+    expect(l.xAxis.ticks).toEqual([]);
+  });
+
+  it("cuts a panel's name to its width", () => {
+    const long = survey();
+    const bar = long.marks[0];
+    if (bar?.mark !== "bar") {
+      throw new Error("a bar mark");
+    }
+    const l = lay(
+      {
+        ...long,
+        marks: [{ ...bar, series: [{ name: "A few times a week", x: [1, 2] }, ...bar.series] }],
+      },
+      600,
+    );
+    const head = l.heads[0]?.text ?? "";
+    // Four 119 px panels: "A few times a week" is 135 px, so it is cut.
+    expect(head.endsWith("…")).toBe(true);
+    expect(head.length * 7.5).toBeLessThanOrEqual(119);
+  });
+
+  it("folds the panels into one under 30rem, each row's bars one under another, with no heads", () => {
+    const l = lay(survey(), 479);
+    expect(l.frame.panels).toBeUndefined();
+    expect(l.heads).toEqual([]);
+    expect(l.top).toBe(0);
+    // A name's 18 px line, 2 px, three 12 px bars with 1 px between, and 8 px.
+    expect(l.frame.height).toBe(2 * (18 + 2 + 38 + 8));
+    const [daily, weekly, never] = l.valueLabels;
+    expect([daily?.y, weekly?.y, never?.y]).toEqual([20 + 6, 20 + 19, 20 + 32]);
+    expect(daily?.x).toBeCloseTo(l.frame.xAt(34) + 4);
+    expect(l.frame.xAt(43) + 4 + 2 * 7.5).toBeCloseTo(l.frame.width);
+  });
+
+  it("repeats the x axis in every panel when labels are off", () => {
+    const l = lay(survey({ label: "Answers" }, false), 600);
+    expect(l.valueLabels).toEqual([]);
+    expect(l.xAxis.ticks.filter((t) => t.value === 0).map((t) => t.at)).toEqual([0, 180, 360]);
+    const zeros = l.xLabels.filter((t) => t.text === "0");
+    expect(zeros).toHaveLength(3);
+    expect(l.xLabels.length % 3).toBe(0);
+    expect(l.titles.map((t) => t.text)).toEqual(["Answers"]);
+    const top = Math.max(...l.xAxis.ticks.map((t) => t.value));
+    for (const p of l.frame.panels ?? []) {
+      expect(p.at(top)).toBeLessThanOrEqual(p.right + 1e-6);
+    }
+  });
+
+  it("lays the panels right to left on a reversed x, each bar from its panel's right edge", () => {
+    const l = lay(survey({ reverse: true }), 600);
+    const panels = l.frame.panels ?? [];
+    expect(panels.map((p) => p.left)).toEqual([360, 180, 0]);
+    expect(panels.map((p) => p.at(0))).toEqual([524, 344, 164]);
+    expect(l.heads[0]).toMatchObject({ text: "Daily", x: l.left + 524, anchor: "end" });
+    expect(l.valueLabels[0]).toMatchObject({ x: (panels[0]?.at(34) ?? 0) - 4, anchor: "end" });
+  });
 });

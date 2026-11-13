@@ -137,9 +137,10 @@ function underflow(spec: ChartSpec, lo: number): Underflow | undefined {
 }
 
 // A bar row's stack reaches from the sum of its negative values to the sum
-// of its positive ones, through 0; grouped bars each reach their own value.
+// of its positive ones, through 0; grouped and split bars each reach their
+// own value.
 function addBars(extent: Extent, m: BarMark): void {
-  const group = m.arrange === "group";
+  const apart = m.arrange === "group" || m.arrange === "split";
   for (let i = 0; i < m.y.length; i++) {
     let lo = 0;
     let hi = 0;
@@ -151,9 +152,13 @@ function addBars(extent: Extent, m: BarMark): void {
       if (m.arrange === "share" && finite(v) && v < 0) {
         throw new RangeError("renderChart: a 100% stack's x cannot be negative");
       }
+      // Each panel's bars start at its left edge, with no room left of 0.
+      if (m.arrange === "split" && finite(v) && v < 0) {
+        throw new RangeError("renderChart: a split bar's x cannot be negative");
+      }
       if (finite(v)) {
         extent.count(v);
-        if (group) {
+        if (apart) {
           extent.add(v);
         } else if (v < 0) {
           lo += v;

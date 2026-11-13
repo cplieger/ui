@@ -702,6 +702,16 @@ describe("the bar mark", () => {
     ],
     ["a negative x under a share", { x: {}, marks: [shareBars([1], [-2])] }, RangeError],
     [
+      "a negative x under a split",
+      { x: {}, marks: [shareBars([1], [-2], { arrange: "split" })] },
+      RangeError,
+    ],
+    [
+      "a negative x under a split of one series",
+      { x: {}, marks: [bars([1, -2], { arrange: "split" })] },
+      RangeError,
+    ],
+    [
       "a below slot that is not a number",
       {
         x: {},
@@ -803,6 +813,22 @@ describe("the bar mark", () => {
       kind: "bar",
       marks: [{ arrange: "stack" }],
     });
+  });
+
+  it("is a split bar chart from two series with value labels, and a plain one split with one", () => {
+    expect(
+      build({ x: {}, marks: [shareBars([1, 0], [3, 0], { arrange: "split" })] }),
+    ).toMatchObject({ kind: "splitBar", marks: [{ arrange: "split", labels: true }] });
+    expect(build({ x: {}, marks: [bars([1], { arrange: "split" })] })).toMatchObject({
+      kind: "bar",
+      marks: [{ arrange: "stack" }],
+    });
+  });
+
+  it("names the arrangements a bar draws", () => {
+    expect(() => build({ x: {}, marks: [bars([1], { arrange: "side" as "stack" })] })).toThrow(
+      'renderChart: marks[0].arrange must be "stack", "group", "share" or "split"',
+    );
   });
 
   it("is a 100% stacked bar chart from two series, with no value labels", () => {

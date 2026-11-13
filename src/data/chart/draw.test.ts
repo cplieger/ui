@@ -978,6 +978,58 @@ describe("a bar chart", () => {
     expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.frame.xAt(48.4) + 1, 1);
   });
 
+  const split: ChartSpec = {
+    x: {},
+    marks: [
+      {
+        mark: "bar",
+        y: ["Instagram", "Facebook"],
+        arrange: "split",
+        series: [
+          { name: "Daily", slot: 1, x: [34, 20] },
+          { name: "Weekly", slot: 3, x: [8, 43] },
+        ],
+      },
+    ],
+  };
+
+  it("draws a split's panels side by side under their heads, a zero line and a ring each", () => {
+    const d = draw(split, 600);
+    const heads = [...d.svg.querySelectorAll('[data-part="head"] text')];
+    expect(heads.map((t) => t.textContent)).toEqual(["Daily", "Weekly"]);
+    const muted = getComputedStyle(d.svg.querySelector('[data-part="y"] > text') as Element).fill;
+    expect(getComputedStyle(heads[0] as Element).fill).toBe(muted);
+    const panels = d.lay.frame.panels ?? [];
+    const paths = [...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path')];
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    const [daily, weekly] = paths.map((p) => p.getBBox());
+    expect(daily?.x).toBeCloseTo(panels[0]?.left ?? -1);
+    expect(weekly?.x).toBeCloseTo(panels[1]?.left ?? -1);
+    // The second panel starts 16 px past the first one's end.
+    expect((panels[1]?.left ?? 0) - (panels[0]?.right ?? 0)).toBe(16);
+    const zero = d.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
+    expect(zero.match(/M/gu)).toHaveLength(2);
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 0, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    // One outline 1 px outside each panel's bar, none spanning the gap between.
+    expect(ring.match(/M/gu)).toHaveLength(2);
+    const box = (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
+    expect(box.x + box.width).toBeCloseTo((panels[1]?.at(8) ?? 0) + 1, 1);
+  });
+
+  it("folds a split on a phone into bars one under another, with no heads", () => {
+    const d = draw(split, 320);
+    expect(d.lay.frame.panels).toBeUndefined();
+    expect(d.svg.querySelector('[data-part="head"]')?.childElementCount).toBe(0);
+    const [daily, weekly] = [
+      ...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path'),
+    ].map((p) => p.getBBox());
+    expect(daily?.x).toBeCloseTo(d.lay.frame.xAt(0));
+    expect(weekly?.x).toBeCloseTo(d.lay.frame.xAt(0));
+    expect(weekly?.y ?? 0).toBeGreaterThan(daily?.y ?? 0);
+  });
+
   it("sets the names above the bars on a phone", () => {
     const d = draw(ages, 320);
     expect(d.lay.left).toBe(0);

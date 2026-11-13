@@ -9,6 +9,7 @@
 import { reduce, type Point } from "../scale/reduce.js";
 
 import {
+  barsApart,
   barValue,
   drawnTotal,
   drawnValue,
@@ -36,6 +37,17 @@ export interface Frame {
   readonly x: Continuous;
   readonly xAt: (v: number) => number;
   readonly yAt: (v: number) => number;
+  /** A split bar chart's panels, one per series in series order; absent
+   *  once it folds into one panel under 30rem. */
+  readonly panels?: readonly Panel[];
+}
+
+/** A split bar chart's panel: its left and right px in the plot, and its
+ *  share of the chart's one x scale mapped into it. */
+export interface Panel {
+  readonly left: number;
+  readonly right: number;
+  readonly at: (v: number) => number;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
@@ -424,14 +436,14 @@ export function areaPaths(m: AreaModel, f: Frame): string[] {
 }
 
 /** Row `i`'s reach of `m` along x, each end 0 without a value past it: a
- *  stack's sums of its negative and of its positive values, or a group's
- *  lowest and highest value. */
+ *  stack's sums of its negative and of its positive values, or the lowest
+ *  and highest value of bars standing apart. */
 export function barReach(m: BarModel, i: number): { readonly lo: number; readonly hi: number } {
   let lo = 0;
   let hi = 0;
   for (const s of m.series) {
     const v = barValue(m, s, i);
-    if (m.arrange === "group") {
+    if (barsApart(m)) {
       lo = Math.min(lo, v);
       hi = Math.max(hi, v);
     } else if (v < 0) {
@@ -446,15 +458,17 @@ export function barReach(m: BarModel, i: number): { readonly lo: number; readonl
 /** A grouped row's bars are this share of a bar's thickness, 1 px apart. */
 const SUB_BAR = 0.75;
 
-/** The px across a row that `m`'s bars of `thick` px take: one bar, or a
- *  group's bars and the 1 px between them. */
+/** The px across a row that `m`'s bars of `thick` px take: one bar, or the
+ *  bars of a group or a folded split and the 1 px between them. A split in
+ *  panels takes one bar's `thick`. */
 export const barBlock = (m: BarModel, thick: number): number =>
-  m.arrange === "group" ? m.series.length * thick * SUB_BAR + (m.series.length - 1) * GAP : thick;
+  barsApart(m) ? m.series.length * thick * SUB_BAR + (m.series.length - 1) * GAP : thick;
 
 /** The centre across its row of series `k`'s bar in a row of `m` centred
- *  at `cy`: `cy` itself unless the row is grouped. */
+ *  at `cy`: `cy` itself unless the row's bars stand one under another, as
+ *  a group's and a folded split's do; a split in panels keeps `cy`. */
 export function barCentre(m: BarModel, k: number, cy: number, thick: number): number {
-  if (m.arrange !== "group") {
+  if (!barsApart(m)) {
     return cy;
   }
   const sub = thick * SUB_BAR;
@@ -475,7 +489,8 @@ export interface Segment {
  * Positive values stack rightward from 0 and negative ones leftward, each
  * side in series order; a segment beyond another gives up its first px
  * toward 0 as the gap unless it is under 3 px long, so a stack's end stays
- * at its sum. Under "group" each series' bar runs from 0 at `barCentre`,
+ * at its sum. Under "split" each series' bar runs from 0 in its panel of
+ * `f.panels`, and under "group" or a folded split from 0 at `barCentre`,
  * a sub-bar's thickness across. A `null` counts as 0 and draws nothing.
  */
 export function barSegments(
@@ -485,7 +500,23 @@ export function barSegments(
   cy: number,
   thick: number,
 ): (Segment | undefined)[] {
-  if (m.arrange === "group") {
+  const panels = m.arrange === "split" ? f.panels : undefined;
+  if (panels !== undefined) {
+    const top = snap(cy - thick / 2, f.dpr);
+    const bottom = snap(cy + thick / 2, f.dpr);
+    return m.series.map((s, k) => {
+      const p = panels[k];
+      const v = s.x[i] ?? 0;
+      if (p === undefined || v === 0) {
+        return undefined;
+      }
+      const [a, b] = [p.at(0), p.at(v)];
+      const left = clamp(Math.min(a, b), p.left, p.right);
+      const right = clamp(Math.max(a, b), p.left, p.right);
+      return right > left ? { left, right, top, bottom } : undefined;
+    });
+  }
+  if (barsApart(m)) {
     const half = (thick * SUB_BAR) / 2;
     return m.series.map((s, k) => {
       const v = s.x[i] ?? 0;

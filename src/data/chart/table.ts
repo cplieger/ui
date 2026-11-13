@@ -8,7 +8,7 @@
 import { formatter } from "../scale/format.js";
 
 import type { BarModel, Model, RectModel, SampleModel } from "./model.js";
-import { barTotal, bucketTotal, sampleTotal } from "./model.js";
+import { barsApart, barTotal, bucketTotal, sampleTotal } from "./model.js";
 import { barPart, bucketText, partText, primaryOf, samplePart, totalled } from "./readout.js";
 import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
@@ -130,10 +130,11 @@ function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
 }
 
 // A row per category, a column per series, and from two stacked series up
-// a Total, under "share" the absolute total the shares hide.
+// a Total, under "share" the absolute total the shares hide; none for bars
+// standing apart.
 function barTable(model: Model, m: BarModel, words: Words, after: string): TableModel {
   const names = model.y.type === "band" ? model.y.rows : [];
-  const withTotal = m.series.length > 1 && m.arrange !== "group";
+  const withTotal = m.series.length > 1 && !barsApart(m);
   const rows = names.map((name, i): Row => {
     const cells: Cell[] = m.series.map((s) => ({
       parts: [barPart(model, m, s, i, words)],

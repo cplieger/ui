@@ -105,14 +105,16 @@ export interface BarMark {
   readonly y: readonly string[];
   /** How several series share a row: stacked in series order from 0, the
    *  negative values leftward (the default), as thinner bars one under
-   *  another in series order, or stacked to 100 % of each row's total.
-   *  "share" needs two or more series and values of 0 or more; its x runs
-   *  0 to 1, in "percent" unless x.format says another, and takes no
-   *  domain. */
-  readonly arrange?: "stack" | "group" | "share";
+   *  another in series order, stacked to 100 % of each row's total, or
+   *  split into a panel per series, left to right on one shared scale
+   *  (under 30rem folded into thinner bars one under another). "share"
+   *  needs two or more series and values of 0 or more; its x runs 0 to 1,
+   *  in "percent" unless x.format says another, and takes no domain.
+   *  "split" takes values of 0 or more. */
+  readonly arrange?: "stack" | "group" | "share" | "split";
   /** Each bar's value at its end (default true), in place of an x axis: a
-   *  stack's total, or each grouped bar's own value. "share" takes none,
-   *  since its rows all reach 100 %, and keeps its x axis. */
+   *  stack's total, or each grouped or split bar's own value. "share" takes
+   *  none, since its rows all reach 100 %, and keeps its x axis. */
   readonly labels?: boolean;
   readonly series: readonly BarSeries[];
 }

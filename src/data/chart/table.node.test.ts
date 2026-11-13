@@ -457,7 +457,7 @@ describe("the table of a bar chart", () => {
     ]);
   });
 
-  it("has no Total column for grouped bars", () => {
+  it.each(["group", "split"] as const)("has no Total column for %s bars", (arrange) => {
     const t = tableModel(
       model({
         x: {},
@@ -465,7 +465,7 @@ describe("the table of a bar chart", () => {
           {
             mark: "bar",
             y: ["Japan"],
-            arrange: "group",
+            arrange,
             series: [
               { name: "Female", x: [51.1] },
               { name: "Male", x: [48.4] },

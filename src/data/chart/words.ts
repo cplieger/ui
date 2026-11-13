@@ -19,7 +19,8 @@ type Kind =
   | "stackedBar"
   | "groupedBar"
   | "shareBar"
-  | "divergingBar";
+  | "divergingBar"
+  | "splitBar";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -149,6 +150,7 @@ const DEFAULTS: Words = {
     groupedBar: "Grouped bar chart",
     shareBar: "100% stacked bar chart",
     divergingBar: "Diverging bar chart",
+    splitBar: "Split bar chart",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>

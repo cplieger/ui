@@ -659,6 +659,22 @@ describe("bar keys", () => {
     }
   });
 
+  it("moves Right through a split's panels as drawn, and once folded in series order", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      const split: ChartSpec = { ...spec, marks: [{ ...mark, arrange: "split" }] };
+      // A reversed x lays the panels right to left, the first series' at the right.
+      const wide = built(split);
+      expect(wide.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
+      expect(spoken(wide.model, bar(0), words, false)).toBe("Row 1: Domestic 1, International 2.");
+      // Under 30rem the panels fold into bars one under another, as a group's.
+      const folded = built(split, 479);
+      expect(folded.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, 0));
+      expect(folded.nav.move(bar(0, 0), "ArrowRight", undefined)).toEqual(bar(0, 1));
+    }
+  });
+
   it("says a 100% row's shares and absolute total, and runs with the drawing on a reversed x", () => {
     for (const reverse of [false, true]) {
       const spec = reach(reverse);

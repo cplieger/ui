@@ -136,7 +136,8 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       }
     }
     if (lay.xAxis.lo <= 0 && lay.xAxis.hi >= 0) {
-      zero = upright(f.xAt(0), f.height, f.dpr);
+      const ats = f.panels?.map((p) => p.at(0)) ?? [f.xAt(0)];
+      zero = ats.map((at) => upright(at, f.height, f.dpr)).join("");
     }
   }
   for (const t of lay.yAxis?.ticks ?? []) {
@@ -247,6 +248,7 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
     texts("x", lay.xLabels),
     texts("titles", lay.titles),
     texts("rule-label", lay.ruleLabels),
+    texts("head", lay.heads),
     plotArea(model, lay),
     texts("end", lay.endLabels),
   );
@@ -270,8 +272,8 @@ const outset = (g: Segment): string =>
 
 /** The ring's path for `sel`: the bar or its segment, a group's sub-columns
  *  or the chosen one, each line's point or each layer's top or the chosen
- *  one, the drawn dot, a row's hairline, or a bar row's bar or chosen
- *  segment. */
+ *  one, the drawn dot, a row's hairline, or a bar row's bar, its bars in
+ *  each panel, or the chosen part. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -334,6 +336,10 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
     );
     if (segs.length === 0) {
       return "";
+    }
+    // Panels stand apart, so each bar takes its own ring.
+    if (f.panels !== undefined) {
+      return segs.map(outset).join("");
     }
     // The whole row rings the box around its bars; a chosen part, that bar.
     const g = segs.reduce((a, b) => ({

@@ -606,6 +606,20 @@ describe("the summary of a bar chart", () => {
     );
   });
 
+  it("names each split series' extremes and no totals, a split bar chart at every width", () => {
+    const split: ChartSpec = {
+      ...firms,
+      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "split" }],
+    };
+    expect(generatedSummary(model(split), words)).toBe(
+      `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
+        "International: highest Brill 22, lowest Acme 2.",
+    );
+    expect(shortDescription(model(split), words)).toBe(
+      `Split bar chart, 3 series, 3${nb}companies`,
+    );
+  });
+
   it("names each 100% series' highest and lowest share, leaving out a row whose total is 0, and no totals", () => {
     const share: ChartSpec = {
       x: {},

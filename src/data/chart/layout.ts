@@ -2,7 +2,7 @@
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
  * plot, the x axis under it, the lines' and areas' end labels, a bar
- * chart's rows and value labels, and the text marks' notes.
+ * chart's rows, panels and value labels, and the text marks' notes.
  * @module
  */
 
@@ -18,9 +18,10 @@ import {
   yAxis,
   type Axis,
   type RuleLabel,
+  type Tick,
 } from "./axis.js";
-import { barBlock, barCentre, barReach, type Frame } from "./geometry.js";
-import { sampleValue, type BarModel, type Model } from "./model.js";
+import { barBlock, barCentre, barReach, type Frame, type Panel } from "./geometry.js";
+import { barsApart, sampleValue, type BarModel, type Model } from "./model.js";
 import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
@@ -79,6 +80,8 @@ export interface Layout {
   readonly bar: number;
   /** A bar chart's value labels, in plot px. */
   readonly valueLabels: readonly Text[];
+  /** A split bar chart's panel names over its panels, in SVG px. */
+  readonly heads: readonly Text[];
   readonly mono: boolean;
   readonly gutters: Floors;
   /** Text outside the plot, in SVG px: tick labels, titles, rule and end labels. */
@@ -122,6 +125,8 @@ const BAR_SPACE = 8;
 const NAME_GAP = 2;
 /** The room between a bar's end and its value label. */
 const VALUE_GAP = 4;
+/** The room between a split bar chart's panels. */
+const PANEL_GAP = 16;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
@@ -211,11 +216,11 @@ interface BarValue {
 }
 
 // The values a bar chart writes at its bars' ends: each stacked row's total,
-// or each grouped bar's value; none for a gap.
+// or the value of each bar standing apart; none for a gap.
 function barValues(m: BarModel, rows: number): BarValue[] {
   const out: BarValue[] = [];
   for (let row = 0; row < rows; row++) {
-    if (m.arrange === "group") {
+    if (barsApart(m)) {
       m.series.forEach((s, k) => {
         const v = s.x[row] ?? null;
         if (v !== null) {
@@ -236,6 +241,34 @@ function barValues(m: BarModel, rows: number): BarValue[] {
     }
   }
   return out;
+}
+
+// The panels of a split's `count` series in series order, `width` px each
+// and PANEL_GAP apart, left to right or on a reversed x right to left, each
+// placing a value at its left edge plus `at`'s px.
+function panelsOf(
+  count: number,
+  width: number,
+  reverse: boolean,
+  at: (v: number) => number,
+): Panel[] {
+  return Array.from({ length: count }, (_, k) => {
+    const left = (reverse ? count - 1 - k : k) * (width + PANEL_GAP);
+    return { left, right: left + width, at: (v: number) => left + at(v) };
+  });
+}
+
+// A tick `dx` px along, its label's box with it.
+function moved(t: Tick, dx: number): Tick {
+  const label = t.label;
+  return {
+    ...t,
+    at: t.at + dx,
+    label:
+      label === undefined
+        ? undefined
+        : { ...label, box: { start: label.box.start + dx, end: label.box.end + dx } },
+  };
 }
 
 /** An x rule's label on the plot: its words and value, or off the axis. */
@@ -267,9 +300,12 @@ export function layout(
   const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
   // Under 30rem a name above its bar leaves the plot the chart's whole width.
   const above = bars !== undefined && narrow;
+  // Under 30rem a split's panels would be too thin for their bars, so they
+  // fold into one, each row's bars one under another as a group's.
+  const panelled = bars?.arrange === "split" && !narrow;
   const thick = bars === undefined ? 0 : Math.max(1, metrics.row - BAR_SPACE);
-  const block = bars === undefined ? 0 : barBlock(bars, thick);
-  const barRow = bars?.arrange === "group" ? block + BAR_SPACE : metrics.row;
+  const block = bars === undefined ? 0 : panelled ? thick : barBlock(bars, thick);
+  const barRow = block > thick ? block + BAR_SPACE : metrics.row;
   const rowH = above ? metrics.nameLine + NAME_GAP + barRow : barRow;
   const height =
     band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * rowH;
@@ -321,16 +357,30 @@ export function layout(
       roomRight = Math.max(roomRight, w);
     }
   });
-  const xAx: Axis = valued
+  // A split's panels share one scale, so each lays the same axis along the
+  // same width, its labels' room kept at its own end.
+  const count = panelled ? bars.series.length : 1;
+  const panelW = Math.max(1, (plotW - (count - 1) * PANEL_GAP) / count);
+  const one: Axis = valued
     ? {
         lo: model.x.lo,
         hi: model.x.hi,
         at: reverse
-          ? position("linear", model.x.lo, model.x.hi, plotW - roomRight, roomLeft)
-          : position("linear", model.x.lo, model.x.hi, roomLeft, plotW - roomRight),
+          ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
+          : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
         ticks: [],
       }
-    : xAxis(model.x, plotW, ctx);
+    : xAxis(model.x, panelW, ctx);
+  const panels = panelled ? panelsOf(count, panelW, reverse, one.at) : [];
+  // A rule's place reads the first panel's axis.
+  const xAx: Axis =
+    panels[0] === undefined
+      ? one
+      : {
+          ...one,
+          at: panels[0].at,
+          ticks: panels.flatMap((p) => one.ticks.map((t) => moved(t, p.left))),
+        };
 
   const xRules = model.marks.filter((m) => m.kind === "rule" && m.axis === "x");
   const ruleTexts: string[] = [];
@@ -364,7 +414,8 @@ export function layout(
   );
   const titleLines = yTitle === undefined ? 0 : titleClear ? 0 : 1;
   const bandLines = Math.max(placed.lines, yTitle === undefined ? 0 : 1 - titleLines);
-  const lines = titleLines + bandLines;
+  const headLine = titleLines + bandLines;
+  const lines = headLine + (panels.length > 0 ? 1 : 0);
   const top = lines === 0 ? 0 : lines * lineHeight + TICK;
 
   const mid = (line: number) => (line + 0.5) * lineHeight;
@@ -382,6 +433,15 @@ export function layout(
         : { text: yTitle, x: 0, y: mid(0), anchor: "start" },
     );
   }
+
+  // A panel's name over it, cut to its width; the legend row and the table
+  // give it whole.
+  const heads: Text[] = panels.map((p, k) => ({
+    text: cutName(bars?.series[k]?.name ?? "", p.right - p.left, measure.text),
+    x: left + (reverse ? p.right : p.left),
+    y: mid(headLine),
+    anchor: reverse ? "end" : "start",
+  }));
 
   const xLabels: Text[] = [];
   let xLines = 0;
@@ -457,12 +517,19 @@ export function layout(
       return;
     }
     const reach = barReach(bars, t.row);
-    const end = xAx.at(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi);
+    const panel = t.series === undefined ? undefined : panels[t.series];
+    const end =
+      panel !== undefined
+        ? panel.at(t.value)
+        : xAx.at(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi);
     const leftward = t.value < 0 !== reverse;
     valueLabels.push({
       text: valueTexts[i] ?? "",
       x: leftward ? end - VALUE_GAP : end + VALUE_GAP,
-      y: t.series === undefined ? at.y : barCentre(bars, t.series, at.y, thick),
+      y:
+        t.series === undefined || panel !== undefined
+          ? at.y
+          : barCentre(bars, t.series, at.y, thick),
       anchor: leftward ? "end" : "start",
     });
   });
@@ -508,7 +575,15 @@ export function layout(
     };
   });
 
-  const frame: Frame = { width: plotW, height, dpr, x: model.x, xAt: xAx.at, yAt };
+  const frame: Frame = {
+    width: plotW,
+    height,
+    dpr,
+    x: model.x,
+    xAt: xAx.at,
+    yAt,
+    ...(panels.length > 0 ? { panels } : {}),
+  };
   const notes = notesOf(model, metrics, frame, rows);
   return {
     width,
@@ -523,6 +598,7 @@ export function layout(
     gutters: { axis: axisW, label: labelW },
     bar: thick,
     valueLabels,
+    heads,
     xLabels,
     yLabels,
     titles,

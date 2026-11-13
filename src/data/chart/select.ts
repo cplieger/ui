@@ -11,6 +11,7 @@ import { dotGroups, snap, type DotGroup, type Frame } from "./geometry.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
 import type { BarModel, DotModel, Model, RectModel, SampleModel } from "./model.js";
+import { barsApart } from "./model.js";
 import {
   barPart,
   barReading,
@@ -212,8 +213,9 @@ function stepPart(order: readonly number[], part: number | undefined, up: boolea
 /**
  * Where `key` moves a bar row selection over `rows` rows: Up and Down, Home,
  * End and the Page keys through the rows, keeping the chosen part; Left and
- * Right through the row's parts in series order as drawn, from the whole row
- * to its first or last. One series has no parts to choose.
+ * Right through the row's parts in series order, from the whole row to its
+ * first or last, the other way when `reverse` lays them right to left. One
+ * series has no parts to choose.
  */
 function moveBar(
   m: BarModel,
@@ -227,8 +229,7 @@ function moveBar(
     if (n < 2) {
       return undefined;
     }
-    // A group's bars stand one under another, so a reversed x leaves their order.
-    const forward = (key === "ArrowRight") !== (reverse && m.arrange !== "group");
+    const forward = (key === "ArrowRight") !== reverse;
     const part = sel.part === undefined ? (forward ? 0 : n - 1) : sel.part + (forward ? 1 : -1);
     return part >= 0 && part < n ? { ...sel, part } : undefined;
   }
@@ -333,7 +334,10 @@ export function navigator(model: Model, lay: Layout): Navigator {
         return sel.kind === "dot" || sel.kind === "row" ? moveDot(m, sel, key, x) : undefined;
       }
       if (m.kind === "bar") {
-        return sel.kind === "bar" ? moveBar(m, bandRows(model), sel, key, f.x.reverse) : undefined;
+        // Bars one under another keep series order on a reversed x; a
+        // stack's segments and a split's panels run with it.
+        const along = f.x.reverse && (!barsApart(m) || f.panels !== undefined);
+        return sel.kind === "bar" ? moveBar(m, bandRows(model), sel, key, along) : undefined;
       }
       if (sel.kind !== m.kind) {
         return undefined;

@@ -9,6 +9,7 @@ import { formatter, noun, withNoun, type Unit } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {
+  barsApart,
   barTotal,
   bucketTotal,
   drawnTotal,
@@ -241,7 +242,7 @@ function barTotalText(model: Model, m: BarModel, total: number | null, words: Wo
 }
 
 /** Row `r` of bar mark `m`: its name, each series' value or share, and
- *  from two stacked series up the row's total. */
+ *  from two series up the row's total unless its bars stand apart. */
 export function barReading(model: Model, m: BarModel, r: number, words: Words): Reading {
   const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
   if (m.series.length === 1) {
@@ -255,7 +256,7 @@ export function barReading(model: Model, m: BarModel, r: number, words: Words): 
     name: s.name,
     value: barPart(model, m, s, r, words),
   }));
-  const total = m.arrange === "group" ? undefined : barTotalText(model, m, barTotal(m, r), words);
+  const total = barsApart(m) ? undefined : barTotalText(model, m, barTotal(m, r), words);
   return { at, entries: all, total };
 }
 
@@ -321,7 +322,7 @@ export function overall(model: Model, words: Words): Reading | undefined {
           m.series.length === 1
             ? bare("")
             : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
-        total: m.arrange !== "group" && m.series.length > 1 ? "" : undefined,
+        total: !barsApart(m) && m.series.length > 1 ? "" : undefined,
       };
   }
 }

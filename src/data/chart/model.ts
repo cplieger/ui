@@ -33,7 +33,8 @@ type Kind =
   | "stackedBar"
   | "groupedBar"
   | "shareBar"
-  | "divergingBar";
+  | "divergingBar"
+  | "splitBar";
 
 export interface SeriesModel {
   readonly name: string;
@@ -156,15 +157,20 @@ export interface BarSeriesModel {
 /** Bars along x, one row per category of the chart's band y. */
 export interface BarModel {
   readonly kind: "bar";
-  /** "group" sets two or more series one under another in each row; one
-   *  series grouped is a plain bar, so it reads "stack". "share" draws each
-   *  series' share of its row's total; `series` keeps the values. */
-  readonly arrange: "stack" | "group" | "share";
+  /** "group" sets two or more series one under another in each row, and
+   *  "split" in a panel each; one series grouped or split is a plain bar, so
+   *  it reads "stack". "share" draws each series' share of its row's total;
+   *  `series` keeps the values. */
+  readonly arrange: "stack" | "group" | "share" | "split";
   /** Each row's value written at its bar's end, in place of an x axis;
    *  never under "share". */
   readonly labels: boolean;
   readonly series: readonly BarSeriesModel[];
 }
+
+/** Whether each of `m`'s bars stands on its own from 0, as a group's and a
+ *  split's do, so its rows read no total. */
+export const barsApart = (m: BarModel): boolean => m.arrange === "group" || m.arrange === "split";
 
 /** Row `i`'s total of bar mark `m`, or `null` when every value is a gap. */
 export function barTotal(m: BarModel, i: number): number | null {
@@ -450,9 +456,10 @@ function checkMark(mark: unknown, what: string): void {
         arrange !== undefined &&
         arrange !== "stack" &&
         arrange !== "group" &&
-        arrange !== "share"
+        arrange !== "share" &&
+        arrange !== "split"
       ) {
-        fail(`${what}.arrange must be "stack", "group" or "share"`);
+        fail(`${what}.arrange must be "stack", "group", "share" or "split"`);
       }
       optional(mark["labels"], "boolean", `${what}.labels`);
       if (arrange === "share" && mark["labels"] !== undefined) {
@@ -637,7 +644,9 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
           ? "groupedBar"
           : first.arrange === "share"
             ? "shareBar"
-            : "stackedBar";
+            : first.arrange === "split"
+              ? "splitBar"
+              : "stackedBar";
   }
 }
 
@@ -768,7 +777,8 @@ export function chartModel(
         return {
           kind: "bar",
           arrange:
-            m.arrange === "share" || (m.arrange === "group" && m.series.length > 1)
+            m.arrange === "share" ||
+            ((m.arrange === "group" || m.arrange === "split") && m.series.length > 1)
               ? m.arrange
               : "stack",
           labels: m.arrange !== "share" && m.labels !== false,

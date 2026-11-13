@@ -410,6 +410,17 @@ describe("a bar chart's scales", () => {
         "renderChart: a 100% stack's x cannot be negative",
       );
     });
+
+    it("runs a split's x from 0 to its largest single value, and refuses a negative one", () => {
+      const split = (spec: ChartSpec): ChartSpec => ({
+        ...spec,
+        marks: spec.marks.map((m) => (m.mark === "bar" ? { ...m, arrange: "split" } : m)),
+      });
+      expect(xScale(split(bars([30, 5], [20, 40])))).toMatchObject({ lo: 0, hi: 40 });
+      expect(() => xScale(split(bars([3], [-1])))).toThrow(
+        "renderChart: a split bar's x cannot be negative",
+      );
+    });
   });
 
   it("names the band y's rows in the app's order", () => {

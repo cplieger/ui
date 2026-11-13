@@ -568,6 +568,24 @@ describe("the legend row of a bar chart", () => {
     expect(overall(m, words)?.total).toBeUndefined();
   });
 
+  it("reads a split row's values with no total, and names the series with no total slot", () => {
+    const split: ChartSpec = {
+      ...firms,
+      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "split" }],
+    };
+    const m = model(split);
+    const bar = m.marks[0] as BarModel;
+    expect(barReading(m, bar, 0, words)).toEqual({
+      at: "Acme",
+      entries: [
+        { slot: 1, name: "Domestic", value: "40" },
+        { slot: 3, name: "International", value: "2" },
+      ],
+      total: undefined,
+    });
+    expect(overall(m, words)?.total).toBeUndefined();
+  });
+
   const shared = (rows: (number | null)[][]): ChartSpec => ({
     x: { unit: { one: "respondent", other: "respondents" } },
     marks: [

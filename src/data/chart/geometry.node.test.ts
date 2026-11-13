@@ -1079,4 +1079,63 @@ describe("bars", () => {
       { left: 0, right: 40, top: 4, bottom: 20 },
     ]);
   });
+
+  const split = (series: (number | null)[][]) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          arrange: "split",
+          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+        },
+      ],
+    });
+  // Two 92 px panels 16 px apart, each 0 to 50 along its first 80 px.
+  const panelled = (m: Model): Frame => ({
+    ...barFrame(m, 0, 50, 200),
+    panels: [0, 108].map((left) => ({
+      left,
+      right: left + 92,
+      at: (v: number) => left + position("linear", 0, 50, 0, 80)(v),
+    })),
+  });
+
+  it("draws each split series' bar from 0 in its own panel, a whole bar thick", () => {
+    const m = split([
+      [25, null],
+      [50, 10],
+    ]);
+    const f = panelled(m);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 40, top: 4, bottom: 20 },
+      { left: 108, right: 188, top: 4, bottom: 20 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([
+      undefined,
+      { left: 108, right: 124, top: 28, bottom: 44 },
+    ]);
+    expect(barReach(barOf(m), 0)).toEqual({ lo: 0, hi: 50 });
+  });
+
+  it("folds a split with no panels into 12 px bars one under another, as a group", () => {
+    const m = split([[25], [50]]);
+    const f = barFrame(m, 0, 50, 100);
+    // Two 12 px bars and the 1 px between them are 25 px, centred on the row's 30.
+    expect(barBlock(barOf(m), 16)).toBe(25);
+    expect(barSegments(barOf(m), 0, f, 30, 16)).toEqual([
+      { left: 0, right: 50, top: 18, bottom: 30 },
+      { left: 0, right: 100, top: 31, bottom: 43 },
+    ]);
+    expect(barCentre(barOf(m), 1, 30, 16)).toBe(36.5);
+  });
+
+  it("draws one series split as a plain bar", () => {
+    const m = split([[40]]);
+    expect(barOf(m).arrange).toBe("stack");
+    expect(barSegments(barOf(m), 0, barFrame(m, 0, 100), 12, 16)).toEqual([
+      { left: 0, right: 40, top: 4, bottom: 20 },
+    ]);
+  });
 });
