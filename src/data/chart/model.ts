@@ -693,7 +693,7 @@ const pointSeries = (list: PointMark["series"]): PointSeriesModel[] =>
 
 /** One series with a value below 0: its bars run either side of the zero
  *  line, and every value but 0 is written with its sign. */
-export const signedBar = (m: BarModel): boolean =>
+const signedBar = (m: BarModel): boolean =>
   m.series.length === 1 && (m.series[0]?.x.some((v) => v !== null && v < 0) ?? false);
 
 // A rect is drawn unless it lies wholly outside the domain; a log x's
