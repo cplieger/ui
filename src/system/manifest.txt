@@ -40,7 +40,6 @@ forms/search/search.css
 forms/textarea/textarea.css
 forms/range/range.css
 forms/tokens/tokens.css
-forms/connection-test/connection-test.css
 forms/rules/rules.css
 forms/pairs/pairs.css
 feedback/state/state.css

@@ -4048,69 +4048,6 @@ textarea.cp-input {
   }
 }
 
-/* The connection test's answer (@cplieger/ui/connection-test): its words
- * after a glyph, in a tone drawn from data-cp-state: the spinner while busy,
- * circle-check in the success tone once passed, circle-x in the danger tone
- * once failed, and nothing at rest. */
-.cp-test-status {
-  --cp-test-glyph: none;
-
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-}
-
-.cp-test-status::before {
-  content: "";
-  display: none;
-  flex: none;
-  inline-size: var(--cp-icon-ui);
-  block-size: var(--cp-icon-ui);
-  background: currentcolor;
-  mask: var(--cp-test-glyph) center / contain no-repeat;
-}
-
-.cp-test-status[data-cp-state="busy"] {
-  --cp-test-glyph: url("../icons/svg/spinner-arc.svg");
-}
-
-.cp-test-status[data-cp-state="busy"]::before {
-  display: block;
-  animation: cp-spin 0.8s linear infinite;
-}
-
-.cp-test-status[data-cp-state="passed"] {
-  --cp-test-glyph: url("../icons/svg/circle-check.svg");
-
-  color: var(--cp-success-11);
-}
-
-.cp-test-status[data-cp-state="failed"] {
-  --cp-test-glyph: url("../icons/svg/circle-x.svg");
-
-  color: var(--cp-danger-11);
-}
-
-.cp-test-status[data-cp-state="passed"]::before,
-.cp-test-status[data-cp-state="failed"]::before {
-  display: block;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cp-test-status[data-cp-state="busy"]::before {
-    animation: none;
-  }
-}
-
-@media (forced-colors: active) {
-  .cp-test-status::before {
-    background: CanvasText;
-  }
-}
-
 /* Rules that read as sentences, such as "When the audio is [Japanese],
  * fetch [English] [+]", set in columns like a table: the condition, the
  * verb, the targets and the row's buttons, so every picker starts where the
@@ -4263,12 +4200,16 @@ textarea.cp-input {
   }
 }
 
-/* A state word: a short word in its tone, after the tone's glyph, such as
- * "set", "not set" or "rejected" beside a setting. */
-.cp-state {
+/* A state: the state of a thing in its row or field, a short word in its
+ * tone after the tone's glyph, such as "set", "not set" or "rejected"
+ * beside a setting. With data-cp-state it is the state of the thing's own
+ * work, and the stylesheet draws its glyph and tone. .cp-test-status is the
+ * former name of a data-size="ui" state, drawn the same until it is
+ * removed. */
+:is(.cp-state, .cp-test-status) {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--cp-space-1);
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-medium);
@@ -4276,6 +4217,72 @@ textarea.cp-input {
 
 .cp-state > .cp-icon {
   --cp-icon-size: 0.875rem;
+}
+
+/* A state that is its line's own content, such as a test's answer beside
+ * its button, reads at the interface's size with a control's glyph. */
+:is(.cp-state[data-size="ui"], .cp-test-status) {
+  font-size: var(--cp-text-ui);
+}
+
+.cp-state[data-size="ui"] > .cp-icon {
+  --cp-icon-size: var(--cp-icon-ui);
+}
+
+/* Only a state that names a glyph below makes the box, so a state of any
+ * other value never paints the unmasked square. */
+:is(.cp-state, .cp-test-status)[data-cp-state]::before {
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: currentcolor;
+  mask: var(--cp-state-glyph) center / contain no-repeat;
+}
+
+:is(.cp-state[data-size="ui"], .cp-test-status)::before {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+}
+
+:is(.cp-state, .cp-test-status):is([data-cp-state="idle"], [data-cp-state="busy"]) {
+  color: var(--cp-ink-muted);
+}
+
+:is(.cp-state, .cp-test-status)[data-cp-state="busy"] {
+  --cp-state-glyph: url("../icons/svg/spinner-arc.svg");
+}
+
+:is(.cp-state, .cp-test-status)[data-cp-state="busy"]::before {
+  content: "";
+  animation: cp-spin 0.8s linear infinite;
+}
+
+:is(.cp-state, .cp-test-status)[data-cp-state="passed"] {
+  --cp-state-glyph: url("../icons/svg/circle-check.svg");
+
+  color: var(--cp-success-11);
+}
+
+:is(.cp-state, .cp-test-status)[data-cp-state="failed"] {
+  --cp-state-glyph: url("../icons/svg/circle-x.svg");
+
+  color: var(--cp-danger-11);
+}
+
+:is(.cp-state, .cp-test-status):is([data-cp-state="passed"], [data-cp-state="failed"])::before {
+  content: "";
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.cp-state, .cp-test-status)[data-cp-state="busy"]::before {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  :is(.cp-state, .cp-test-status)[data-cp-state]::before {
+    background: CanvasText;
+  }
 }
 
 /* Data table: rows are never interactive; actions are buttons in a cell.

@@ -34,6 +34,7 @@ import "./wire/charts.js";
 import "./wire/content.js";
 import "./wire/data-figures.js";
 import "./wire/data-tables.js";
+import "./wire/marks.js";
 import "./wire/nav-feedback.js";
 import "./wire/overlays.js";
 

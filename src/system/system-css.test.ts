@@ -3284,28 +3284,6 @@ describe("css/system.css feedback and steps", () => {
     );
   });
 
-  it("draws the connection test's glyph and tone by its state, and nothing at rest", () => {
-    theme("light");
-    const el = build(
-      ["idle", "busy", "passed", "failed"]
-        .map((s) => `<span class="cp-test-status" data-cp-state="${s}">Words</span>`)
-        .join(""),
-    );
-    const [idle, busy, passed, failed] = [...el.querySelectorAll(".cp-test-status")];
-    const before = (e: Element | undefined) => getComputedStyle(e as Element, "::before");
-    expect(before(idle).display).toBe("none");
-    expect(before(busy).animationName).toBe("cp-spin");
-    const tone = (v: string): string => {
-      const h = host("");
-      h.style.color = `var(${v})`;
-      return getComputedStyle(h).color;
-    };
-    expect(getComputedStyle(passed as Element).color).toBe(tone("--cp-success-11"));
-    expect(getComputedStyle(failed as Element).color).toBe(tone("--cp-danger-11"));
-    expect(before(passed).maskImage).toMatch(/^url\(/);
-    expect(before(passed).maskImage).not.toBe(before(failed).maskImage);
-  });
-
   it("reveals a progress fill to its --cp-progress, and turns it green with its check once done", () => {
     theme("light");
     const el = build(

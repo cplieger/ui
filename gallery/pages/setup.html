@@ -17,7 +17,7 @@
       <section class="cp-stack" data-step data-title="Connect Sonarr" hidden>
         <div class="cp-field"><label class="cp-label" for="su-url">Address</label><input class="cp-input" id="su-url" type="url" value="http://sonarr.lan:8989" aria-describedby="su-url-error"><span class="cp-field-error" id="su-url-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>No answer at this address and port.</span></div>
         <div class="cp-field"><label class="cp-label" for="su-key">API key</label><input class="cp-input" id="su-key" value="0a1b2c3d4e5f"><span class="cp-help">In Sonarr: Settings, then General.</span></div>
-        <div class="cp-cluster"><button class="cp-button" type="button" data-test="su-verdict" data-url="su-url"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-test-status" id="su-verdict"></span></div>
+        <div class="cp-cluster"><button class="cp-button" type="button" data-test="su-verdict" data-url="su-url"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-state" data-size="ui" id="su-verdict"></span></div>
         <div data-part="actions"><button class="cp-button" data-variant="quiet" type="button" data-back>Back</button><button class="cp-button" data-variant="primary" type="button" data-next>Next</button></div>
       </section>
       <section class="cp-stack" data-step data-title="Run the first check" hidden>

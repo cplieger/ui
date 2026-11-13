@@ -70,7 +70,17 @@
           <span class="cp-chip" data-tone="success" data-chip-demo><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span><span>Up</span></span>
         </div>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-chip-next>Next state</button></div>
-        <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once, a little larger, and fades back to its wash; the change is announced, since the flash is only seen. Next state moves the last chip from Up to Slow to Down. A chip is a state, never a control.</footer>
+        <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once, a little larger, and fades back to its wash; the change is announced, since the flash is only seen. Next state moves the last chip from Up to Slow to Down. A chip is a label that travels with its thing, such as a copy's state on its cover, never a control.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>State words</h2>
+        <div class="cp-form">
+          <span class="g-row-inline"><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Set</span><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>Not set</span><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Rejected</span></span>
+          <span class="cp-state" data-size="ui" data-cp-state="passed">Connected, Sonarr 4.0.9</span>
+          <span class="cp-state" data-size="ui" data-cp-state="failed">Sonarr did not answer at this address and port.</span>
+          <div class="cp-cluster"><button class="cp-button" type="button" data-state-test="st-status"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-state" data-size="ui" id="st-status"></span></div>
+        </div>
+        <footer>The state of a thing in its row or field: its tone's glyph and its word, here a setting's. A test or a task says the state of its own work with data-cp-state, and the stylesheet draws the glyph: the spinner while it runs, a check once it passed, a cross once it failed. Press Test connection twice to see both answers. A label that travels with the thing is a chip.</footer>
       </div>
       <div class="card" data-new>
         <h2>Live dot, badges, times</h2>
