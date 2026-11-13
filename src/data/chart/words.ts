@@ -18,7 +18,8 @@ type Kind =
   | "bar"
   | "stackedBar"
   | "groupedBar"
-  | "shareBar";
+  | "shareBar"
+  | "divergingBar";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -26,16 +27,14 @@ export interface ChartWords {
   readonly chart?: string;
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
-  /** The kind in the short description. Defaults "Stacked column chart",
-   *  "Grouped column chart", "100% stacked column chart", "Column chart",
-   *  "Stacked area chart", "100% stacked area chart", "Area chart",
-   *  "Histogram", "Line chart", "Step line", "Timeline", "Bar chart",
-   *  "Stacked bar chart", "Grouped bar chart", "100% stacked bar chart". A
-   *  rect on a log x is a histogram however it is
-   *  shaped or arranged; any other rect is a column or, with shape "area", an
-   *  area chart, its stacked, grouped or 100% kind with two or more series.
-   *  A bar mark is a bar chart, its stacked, grouped or 100% kind with two
-   *  or more series. */
+  /** The kind in the short description. Defaults "Column chart" and its
+   *  "Stacked", "Grouped" and "100% stacked" forms, the same four of "Bar
+   *  chart", "Diverging bar chart", "Area chart", "Stacked area chart", "100%
+   *  stacked area chart", "Histogram", "Line chart", "Step line", "Timeline".
+   *  A rect on a log x is a histogram; any other rect a column or, with shape
+   *  "area", an area chart; a bar mark of one series with a value below 0 a
+   *  diverging bar chart; two or more series take the stacked, grouped or 100%
+   *  kind. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -149,6 +148,7 @@ const DEFAULTS: Words = {
     stackedBar: "Stacked bar chart",
     groupedBar: "Grouped bar chart",
     shareBar: "100% stacked bar chart",
+    divergingBar: "Diverging bar chart",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>

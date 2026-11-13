@@ -38,6 +38,19 @@ const numbers = (locale: string | undefined, options: Intl.NumberFormatOptions =
     () => new Intl.NumberFormat(locale, options),
   );
 
+const PRESETS = {
+  number: {},
+  integer: { maximumFractionDigits: 0 },
+  percent: { style: "percent" },
+} as const satisfies Record<string, Intl.NumberFormatOptions>;
+
+const preset = (format: Format | undefined): Intl.NumberFormatOptions | undefined =>
+  format === undefined
+    ? PRESETS.number
+    : typeof format === "string" && format !== "duration"
+      ? PRESETS[format]
+      : undefined;
+
 /** The writer `format` names, in `locale`; "number" when it is undefined. */
 export function formatter(
   format: Format | undefined,
@@ -46,27 +59,33 @@ export function formatter(
   if (typeof format === "function") {
     return format;
   }
-  if (typeof format === "object") {
-    const nf = numbers(locale, format);
-    return (v) => nf.format(v);
+  const options = typeof format === "object" ? format : preset(format);
+  if (options === undefined) {
+    return (v) => formatDuration(v, locale);
   }
-  switch (format) {
-    case undefined:
-    case "number": {
-      const nf = numbers(locale);
-      return (v) => nf.format(v);
-    }
-    case "integer": {
-      const nf = numbers(locale, { maximumFractionDigits: 0 });
-      return (v) => nf.format(v);
-    }
-    case "percent": {
-      const nf = numbers(locale, { style: "percent" });
-      return (v) => nf.format(v);
-    }
-    case "duration":
-      return (v) => formatDuration(v, locale);
+  const nf = numbers(locale, options);
+  return (v) => nf.format(v);
+}
+
+/**
+ * `formatter`'s writer with a sign on every value but 0: `Intl`'s
+ * `signDisplay: "exceptZero"` (a format object's own `signDisplay` kept),
+ * or for a duration or a function a "+" before a positive value's text
+ * unless it already starts with one.
+ */
+export function signedFormatter(
+  format: Format | undefined,
+  locale: string | undefined,
+): (value: number) => string {
+  const options = typeof format === "object" ? format : preset(format);
+  if (options !== undefined) {
+    return formatter({ signDisplay: "exceptZero", ...options }, locale);
   }
+  const write = formatter(format, locale);
+  return (v) => {
+    const text = write(v);
+    return v > 0 && !text.startsWith("+") ? `+${text}` : text;
+  };
 }
 
 type DurationUnit = "days" | "hours" | "minutes" | "seconds";

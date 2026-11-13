@@ -947,7 +947,9 @@ describe("bars", () => {
     expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
       { left: 0, right: 40, top: 4, bottom: 20 },
     ]);
-    expect(barPaths(barOf(m), [12, 36], 16, f)).toEqual(["M0 4H40V20H0ZM0 28H100V44H0Z"]);
+    expect(barPaths(barOf(m), [12, 36], 16, f)).toEqual([
+      { slot: 1, d: "M0 4H40V20H0ZM0 28H100V44H0Z" },
+    ]);
   });
 
   it("draws a negative value leftward from 0, and nothing for 0 or a gap", () => {
@@ -958,6 +960,39 @@ describe("bars", () => {
     ]);
     expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([undefined]);
     expect(barSegments(barOf(m), 2, f, 36, 16)).toEqual([undefined]);
+  });
+
+  it("draws a series' bars below 0 in its below slot, and keeps one path without it", () => {
+    const spec = (below?: 2 | 4) =>
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["a", "b", "c"],
+            series: [
+              {
+                name: "Change",
+                slot: 3,
+                ...(below === undefined ? {} : { below }),
+                x: [20, -10, 0],
+              },
+            ],
+          },
+        ],
+      });
+    const f = barFrame(spec(), -50, 50);
+    expect(barPaths(barOf(spec(4)), [12, 36, 60], 16, f)).toEqual([
+      { slot: 3, d: "M50 4H70V20H50Z" },
+      { slot: 4, d: "M40 28H50V44H40Z" },
+    ]);
+    expect(barPaths(barOf(spec(3 as 2)), [12, 36, 60], 16, f)).toEqual([
+      { slot: 3, d: "M50 4H70V20H50ZM40 28H50V44H40Z" },
+    ]);
+    expect(barPaths(barOf(spec()), [12, 36, 60], 16, f)).toEqual([
+      { slot: 3, d: "M50 4H70V20H50ZM40 28H50V44H40Z" },
+    ]);
+    expect(barOf(spec()).series[0]?.below).toBe(3);
   });
 
   it("stacks series from 0, each beyond another 1 px short unless under 3 px", () => {

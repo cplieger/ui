@@ -4,7 +4,13 @@
  * @module
  */
 
-import { formatter, instantFormat, spanFormat, type Unit } from "../scale/format.js";
+import {
+  formatter,
+  instantFormat,
+  signedFormatter,
+  spanFormat,
+  type Unit,
+} from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
 import { spansDay } from "../scale/time.js";
 
@@ -26,7 +32,8 @@ type Kind =
   | "bar"
   | "stackedBar"
   | "groupedBar"
-  | "shareBar";
+  | "shareBar"
+  | "divergingBar";
 
 export interface SeriesModel {
   readonly name: string;
@@ -140,6 +147,8 @@ export interface DotModel {
 export interface BarSeriesModel {
   readonly name: string;
   readonly slot: number;
+  /** The slot of its bars below 0; its own slot unless `below` names one. */
+  readonly below: number;
   /** A value per row of the band, a gap (`null` or `NaN`) as `null`. */
   readonly x: readonly (number | null)[];
 }
@@ -298,15 +307,15 @@ function checkX(values: unknown, what: string, ties: boolean): ArrayLike<number>
   return values as ArrayLike<number>;
 }
 
-function checkSlot(slot: unknown, what: string): void {
+function checkSlot(slot: unknown, what: string, field = "slot"): void {
   if (slot === undefined) {
     return;
   }
   if (typeof slot !== "number") {
-    fail(`${what}.slot must be a number`);
+    fail(`${what}.${field} must be a number`);
   }
   if (!Number.isInteger(slot) || slot < 1 || slot > 9) {
-    fail(`${what}.slot must be 1 to 9`, RangeError);
+    fail(`${what}.${field} must be 1 to 9`, RangeError);
   }
 }
 
@@ -454,6 +463,14 @@ function checkMark(mark: unknown, what: string): void {
       if (arrange === "share" && arrayLike(list) && list.length < 2) {
         fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
       }
+      const all = Array.from(list as ArrayLike<Record<string, unknown>>);
+      all.forEach((one, s) => {
+        const at = `${what}.series[${String(s)}]`;
+        checkSlot(one["below"], at, "below");
+        if (one["below"] !== undefined && all.length > 1) {
+          fail(`${at}.below has no place beside other series, whose slots tell them apart`);
+        }
+      });
       return;
     }
     case "rule": {
@@ -550,7 +567,15 @@ function series(list: RectMark["series"], log = false): SeriesModel[] {
 }
 
 const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
-  list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, x: gaps(s.x, false) }));
+  list.map((s, i) => {
+    const slot = s.slot ?? i + 1;
+    return { name: s.name, slot, below: s.below ?? slot, x: gaps(s.x, false) };
+  });
+
+/** One series with a value below 0: its bars run either side of the zero
+ *  line, and every value but 0 is written with its sign. */
+export const signedBar = (m: BarModel): boolean =>
+  m.series.length === 1 && (m.series[0]?.x.some((v) => v !== null && v < 0) ?? false);
 
 // A rect is drawn unless it lies wholly outside the domain; a log x's
 // underflow bin follows its own rule.
@@ -605,7 +630,9 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       return "timeline";
     case "bar":
       return first.series.length < 2
-        ? "bar"
+        ? signedBar(first)
+          ? "divergingBar"
+          : "bar"
         : first.arrange === "group"
           ? "groupedBar"
           : first.arrange === "share"
@@ -762,8 +789,11 @@ export function chartModel(
   // The ends of a domain a whole day long can share their clock time, so they
   // need their dates ("Nov 10, 2:00 PM to Nov 11, 2:00 PM").
   const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
+  const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
   const xText =
-    x.type === "time" ? instantFormat(locale, timeZone, days) : formatter(x.format, locale);
+    x.type === "time"
+      ? instantFormat(locale, timeZone, days)
+      : (signed ? signedFormatter : formatter)(x.format, locale);
   const xSpan =
     x.type === "time"
       ? spanFormat(locale, timeZone, days)

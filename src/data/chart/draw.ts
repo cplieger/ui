@@ -198,9 +198,9 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       case "bar": {
         const g = svgEl("g", { "data-part": "bar" });
         const ys = lay.rows.map((r) => r.y);
-        barPaths(m, ys, lay.bar, f).forEach((d, k) => {
-          g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
-        });
+        for (const p of barPaths(m, ys, lay.bar, f)) {
+          g.append(svgEl("path", { "data-series": String(p.slot), d: p.d }));
+        }
         area.append(g);
         break;
       }

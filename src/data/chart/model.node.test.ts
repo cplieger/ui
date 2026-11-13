@@ -702,6 +702,41 @@ describe("the bar mark", () => {
     ],
     ["a negative x under a share", { x: {}, marks: [shareBars([1], [-2])] }, RangeError],
     [
+      "a below slot that is not a number",
+      {
+        x: {},
+        marks: [
+          { mark: "bar", y: ["a"], series: [{ name: "a", below: "2" as unknown as 2, x: [-1] }] },
+        ],
+      },
+      TypeError,
+    ],
+    [
+      "a below slot of 10",
+      {
+        x: {},
+        marks: [{ mark: "bar", y: ["a"], series: [{ name: "a", below: 10 as 2, x: [-1] }] }],
+      },
+      RangeError,
+    ],
+    [
+      "a below slot beside another series",
+      {
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["a"],
+            series: [
+              { name: "p", x: [1] },
+              { name: "q", below: 3, x: [-2] },
+            ],
+          },
+        ],
+      },
+      TypeError,
+    ],
+    [
       "an x domain under a share",
       { x: { domain: [0, 1] }, marks: [shareBars([1], [2])] },
       TypeError,
@@ -726,7 +761,7 @@ describe("the bar mark", () => {
       kind: "bar",
       arrange: "stack",
       labels: true,
-      series: [{ name: "a", slot: 1, x: [3, null, null, 1] }],
+      series: [{ name: "a", slot: 1, below: 1, x: [3, null, null, 1] }],
     });
     expect(m.kind).toBe("bar");
   });
@@ -775,6 +810,44 @@ describe("the bar mark", () => {
     expect(m.kind).toBe("shareBar");
     expect(m.marks[0]).toMatchObject({ arrange: "share", labels: false });
     expect(m.amountText(1234.5)).toBe("1,234.5");
+  });
+
+  it("is a diverging bar chart from one series with a value below 0, signing every value but 0", () => {
+    const m = build({
+      x: { format: "percent" },
+      marks: [
+        {
+          mark: "bar",
+          y: ["a", "b"],
+          series: [{ name: "Change", slot: 2, below: 5, x: [0.16, -0.143] }],
+        },
+      ],
+    });
+    expect(m.kind).toBe("divergingBar");
+    expect(m.marks[0]).toMatchObject({ series: [{ slot: 2, below: 5 }] });
+    expect([m.xText(0.16), m.xText(-0.143), m.xText(0)]).toEqual(["+16%", "-14%", "0%"]);
+    expect(m.amountText(0.16)).toBe("+16%");
+  });
+
+  it("stays a bar chart, unsigned, with no value below 0 or with two series", () => {
+    const plain = build({ x: { format: "percent" }, marks: [bars([0.16, 0, null])] });
+    expect(plain.kind).toBe("bar");
+    expect(plain.xText(0.16)).toBe("16%");
+    const two = build({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["a"],
+          series: [
+            { name: "p", x: [3] },
+            { name: "q", x: [-2] },
+          ],
+        },
+      ],
+    });
+    expect(two.kind).toBe("stackedBar");
+    expect(two.xText(3)).toBe("3");
   });
 
   it("is empty when every value is 0 or a gap, or there are no rows", () => {

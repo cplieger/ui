@@ -521,19 +521,36 @@ export function barSegments(
   });
 }
 
-/** One path per series of `m`, each row's segment a rectangle (`barSegments`)
- *  on the bar centred at that row's `ys` entry. */
-export function barPaths(m: BarModel, ys: readonly number[], thick: number, f: Frame): string[] {
-  const paths = m.series.map(() => "");
+/** A path in its series slot, the rectangles of every segment it fills. */
+export interface BarPath {
+  readonly slot: number;
+  readonly d: string;
+}
+
+/** One path per series of `m` in series order, each row's segment a
+ *  rectangle (`barSegments`) on the bar centred at that row's `ys` entry,
+ *  then for a series whose `below` slot is not its own a path of its
+ *  segments below 0 in that slot. */
+export function barPaths(m: BarModel, ys: readonly number[], thick: number, f: Frame): BarPath[] {
+  const paths = m.series.map(() => ["", ""]);
   ys.forEach((cy, i) => {
     barSegments(m, i, f, cy, thick).forEach((g, k) => {
-      if (g !== undefined) {
-        paths[k] =
-          `${paths[k] ?? ""}M${num(g.left)} ${num(g.top)}H${num(g.right)}V${num(g.bottom)}H${num(g.left)}Z`;
+      const s = m.series[k];
+      const p = paths[k];
+      if (g !== undefined && s !== undefined && p !== undefined) {
+        const side = s.below !== s.slot && (s.x[i] ?? 0) < 0 ? 1 : 0;
+        p[side] =
+          `${p[side] ?? ""}M${num(g.left)} ${num(g.top)}H${num(g.right)}V${num(g.bottom)}H${num(g.left)}Z`;
       }
     });
   });
-  return paths;
+  const out = m.series.map((s, k) => ({ slot: s.slot, d: paths[k]?.[0] ?? "" }));
+  m.series.forEach((s, k) => {
+    if (s.below !== s.slot) {
+      out.push({ slot: s.below, d: paths[k]?.[1] ?? "" });
+    }
+  });
+  return out;
 }
 
 /** One drawn dot of a row: its centre's px and the dots `[from, to)` it stands for. */

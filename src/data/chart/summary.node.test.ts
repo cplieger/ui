@@ -567,6 +567,24 @@ describe("the summary of a bar chart", () => {
     );
   });
 
+  it("signs a diverging bar chart's extremes and names its kind", () => {
+    const m = model({
+      x: { format: { style: "percent", maximumFractionDigits: 1 } },
+      y: { unit: { one: "state", other: "states" } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Utah", "Texas", "Puerto Rico"],
+          series: [{ name: "Change", x: [0.16, 0, -0.143] }],
+        },
+      ],
+    });
+    expect(generatedSummary(m, words)).toBe(
+      `3${nb}states. Highest Utah +16%, lowest Puerto Rico -14.3%.`,
+    );
+    expect(shortDescription(m, words)).toBe(`Diverging bar chart, 3${nb}states`);
+  });
+
   it("names each series' extremes and the totals', leaving out a series with no value", () => {
     expect(generatedSummary(model(firms), words)).toBe(
       `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +

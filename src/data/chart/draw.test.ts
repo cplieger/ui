@@ -873,6 +873,35 @@ describe("a bar chart", () => {
     expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBe(0);
   });
 
+  it("fills a diverging bar's bars below 0 in its below slot and signs its labels", () => {
+    const d = draw(
+      {
+        x: { format: "percent" },
+        marks: [
+          {
+            mark: "bar",
+            y: ["Utah", "Texas", "Puerto Rico"],
+            series: [{ name: "Change", slot: 1, below: 3, x: [0.16, 0, -0.14] }],
+          },
+        ],
+      },
+      600,
+    );
+    const paths = [...d.svg.querySelectorAll('[data-part="bar"] > path')];
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    const [up, down] = paths.map((p) => (p as SVGPathElement).getBBox());
+    const zero = d.lay.frame.xAt(0);
+    expect(up?.x).toBeCloseTo(zero);
+    expect((down?.x ?? 0) + (down?.width ?? 0)).toBeCloseTo(zero);
+    expect(getComputedStyle(paths[1] as Element).fill).not.toBe(
+      getComputedStyle(paths[0] as Element).fill,
+    );
+    const values = [...d.svg.querySelectorAll('[data-part="value"] text')].map(
+      (t) => t.textContent,
+    );
+    expect(values).toEqual(["+16%", "0%", "-14%"]);
+  });
+
   it("draws vertical gridlines at the x ticks with labels off", () => {
     const d = draw(
       {

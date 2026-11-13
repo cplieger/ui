@@ -310,10 +310,11 @@ describe("a bar chart", () => {
     expect(l.xAxis.ticks).toEqual([]);
     expect(l.xLabels).toEqual([]);
     const [holy, , japan] = l.valueLabels;
-    expect(holy).toMatchObject({ text: "57.4", anchor: "start", y: 12 });
+    // One series with a value below 0 signs every value but 0.
+    expect(holy).toMatchObject({ text: "+57.4", anchor: "start", y: 12 });
     expect(japan).toMatchObject({ text: "-9", anchor: "end", y: 60 });
-    // "57.4" and "-9" with their gaps leave the plot at both ends.
-    expect(l.frame.xAt(57.4) + 4 + 4 * 7.5).toBeCloseTo(l.frame.width);
+    // "+57.4" and "-9" with their gaps leave the plot at both ends.
+    expect(l.frame.xAt(57.4) + 4 + 5 * 7.5).toBeCloseTo(l.frame.width);
     expect(l.frame.xAt(-9) - 4 - 2 * 7.5).toBeCloseTo(0);
     expect(holy?.x).toBeCloseTo(l.frame.xAt(57.4) + 4);
     expect(l.height).toBe(l.top + l.frame.height);
@@ -338,6 +339,27 @@ describe("a bar chart", () => {
     );
     expect(l.valueLabels.map((t) => t.text)).toEqual(["5"]);
     expect(l.valueLabels[0]?.x).toBeCloseTo(l.frame.xAt(5) + 4);
+  });
+
+  it("signs a diverging bar's labels and keeps the widest label's room on each side", () => {
+    const l = lay(
+      {
+        x: { format: "percent" },
+        marks: [
+          {
+            mark: "bar",
+            y: ["Utah", "Texas", "Puerto Rico"],
+            series: [{ name: "Change", x: [0.16, 0, -0.143] }],
+          },
+        ],
+      },
+      600,
+    );
+    expect(l.valueLabels.map((t) => t.text)).toEqual(["+16%", "0%", "-14%"]);
+    // 7.5 px a character and the 4 px gap: "+16%" on the right, "-14%" on the left.
+    expect(l.frame.xAt(-0.143) - 4 - 4 * 7.5).toBeCloseTo(0);
+    expect(l.frame.xAt(0.16) + 4 + 4 * 7.5).toBeCloseTo(l.frame.width);
+    expect(l.valueLabels[2]).toMatchObject({ anchor: "end" });
   });
 
   const sexes: ChartSpec = {

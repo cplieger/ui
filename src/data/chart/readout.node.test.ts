@@ -517,6 +517,25 @@ describe("the legend row of a bar chart", () => {
     expect(barReading(m, bar, 1, words).entries[0]?.value).toBe("No data");
   });
 
+  it("signs a diverging bar's readings but 0's", () => {
+    const m = model({
+      x: { format: { style: "percent", maximumFractionDigits: 1 } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Utah", "Texas", "Puerto Rico"],
+          series: [{ name: "Change", x: [0.16, 0, -0.143] }],
+        },
+      ],
+    });
+    const bar = m.marks[0] as BarModel;
+    expect([0, 1, 2].map((r) => barReading(m, bar, r, words).entries[0]?.value)).toEqual([
+      "+16%",
+      "0%",
+      "-14.3%",
+    ]);
+  });
+
   it("reads a stacked row's parts and total, a gap counting for nothing", () => {
     const m = model(firms);
     const bar = m.marks[0] as BarModel;

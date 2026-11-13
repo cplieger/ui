@@ -89,12 +89,16 @@ interface DotMark {
 interface BarSeries {
   readonly name: string;
   readonly slot?: Slot;
+  /** The slot of the bars below 0, on a chart of this one series. */
+  readonly below?: Slot;
   /** A value per category, in `y`'s order; `null` or `NaN` is a gap. */
   readonly x: Values;
 }
 
 /** Horizontal bars, one row per category on a band y, top to bottom in
- *  the order sent; each bar's length from 0 along a linear x is its value. */
+ *  the order sent; each bar's length from 0 along a linear x is its value,
+ *  leftward below 0. One series with a value below 0 writes every value
+ *  but 0 with its sign. */
 export interface BarMark {
   readonly mark: "bar";
   /** The categories' names, each once. */
