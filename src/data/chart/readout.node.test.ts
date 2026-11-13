@@ -499,6 +499,11 @@ describe("the legend row of a bar chart", () => {
       total: undefined,
     });
     expect(overall(model(ages()), words)?.at).toBe("3 categories");
+    const one: ChartSpec = {
+      x: {},
+      marks: [{ mark: "bar", y: ["Japan"], series: [{ name: "Median age", x: [49.8] }] }],
+    };
+    expect(overall(model(one), words)?.at).toBe("1 category");
   });
 
   it("names the series of a stack with their value and total slots blank", () => {

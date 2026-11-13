@@ -114,8 +114,9 @@ export interface ChartWords {
   /** A note added to the reading of the stop it joins. Default "Note: {text}.",
    *  with no stop added when the text ends in one. */
   readonly noteReading?: (text: string) => string;
-  /** A band's rows when the y scale names no unit. Default "{n} categories". */
-  readonly categories?: (n: string) => string;
+  /** A band's rows when the y scale names no unit; count is n as a number,
+   *  for the plural. Default "{n} categories", or "{n} category" for one. */
+  readonly categories?: (n: string, count: number) => string;
   /** Summary, a bar chart's head; series is "" for one series. Default
    *  "{count}, {series}.", or "{count}." with one series. */
   readonly countSummary?: (count: string, series: string) => string;
@@ -220,7 +221,7 @@ const DEFAULTS: Words = {
   rule: (label, value) => `${label} ${value}.`,
   note: (at, text) => sentence(`${at}: ${text}`),
   noteReading: (text) => sentence(`Note: ${text}`),
-  categories: (n) => `${n} categories`,
+  categories: (n, count) => (count === 1 ? `${n} category` : `${n} categories`),
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
   extremes: (high, low) => `Highest ${high}, lowest ${low}.`,

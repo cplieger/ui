@@ -839,10 +839,10 @@ describe("the summary of band rows alike or alone", () => {
   });
 
   it("names the one row holding a value once", () => {
-    expect(generatedSummary(bars([[49.9]]), words)).toBe("1 categories. Japan 49.9.");
+    expect(generatedSummary(bars([[49.9]]), words)).toBe("1 category. Japan 49.9.");
     expect(generatedSummary(bars([[null, 48.6, null]]), words)).toBe("3 categories. Italy 48.6.");
     expect(generatedSummary(bars([[51.1], [48.4]], { arrange: "group" }), words)).toBe(
-      "1 categories, 2 series. Female: Japan 51.1. Male: Japan 48.4.",
+      "1 category, 2 series. Female: Japan 51.1. Male: Japan 48.4.",
     );
   });
 
@@ -883,7 +883,7 @@ describe("the summary of band rows alike or alone", () => {
       only: (name, row) => `${name === "" ? "Nur" : name} ${row}.`,
     });
     expect(generatedSummary(bars([[40, 40, 40]]), own)).toBe("3 categories. Alle je 40.");
-    expect(generatedSummary(bars([[49.9]]), own)).toBe("1 categories. Nur Japan 49.9.");
+    expect(generatedSummary(bars([[49.9]]), own)).toBe("1 category. Nur Japan 49.9.");
   });
 });
 

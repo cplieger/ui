@@ -213,7 +213,7 @@ export function rowsText(model: Model, words: Words): string {
   const n = model.y.type === "band" ? model.y.rows.length : 0;
   const count = formatter("number", model.locale)(n);
   const unit = model.spec.y?.unit;
-  return unit === undefined ? words.categories(count) : counted(count, n, unit, model);
+  return unit === undefined ? words.categories(count, n) : counted(count, n, unit, model);
 }
 
 /** Series `s`'s value in row `i` as the readings and the table write it,
