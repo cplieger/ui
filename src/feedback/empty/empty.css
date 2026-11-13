@@ -15,8 +15,9 @@
   color: var(--cp-tone-9);
 }
 
-/* A page with nothing else to show. Its heading is the page's h1, so it
- * takes the ink back from the box's muted colour, which it would inherit. */
+/* The page for an address that matches no route. Its heading is the page's
+ * h1, so it takes the ink back from the box's muted colour, which it would
+ * inherit. */
 .cp-empty[data-variant="page"] {
   justify-items: center;
   padding: 12vh 0;

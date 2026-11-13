@@ -31,7 +31,7 @@ Every region that loads data has four designed states, for loading, empty, error
 </span>
 ```
 
-**An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`.
+**An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`. A failure that would fail the same way again, such as a file over the size limit or a format the app cannot write, is final: the item shows its reason and no Retry.
 
 ```html
 <div class="cp-list-row">
@@ -240,14 +240,14 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
 - The current destination carries `aria-current="page"`, or `"true"` when the screen sits inside it, as an item sits inside its library.
 - A screen opens with its `.cp-crumbs`, then a `.cp-heading-row` holding the `<h1>` with its `.cp-meta` line of facts under it, and the screen's `.cp-toolbar` at its end.
 
-**A page that does not exist.** An address with no view near it, such as a path the app does not know, opens the not-found page: the app's frame with a `.cp-empty` marked `data-variant="page"` in `.cp-main`. It holds the `telescope` glyph, an `<h1>` that says the page does not exist, one sentence on why it may have gone, and a link home. The stylesheet draws the glyph with no script.
+**A page that does not exist.** An address that matches no route opens the not-found page: the app's frame with a `.cp-empty` marked `data-variant="page"` in `.cp-main`. It holds the `telescope` glyph, an `<h1>` that says the page does not exist, one sentence on why the address may be wrong, and a link to the app's start page. The stylesheet draws the glyph with no script. An address that matches a route but names an item the app does not hold, such as an entry the server answers it does not know, is not this page: it stays that item's screen, with its breadcrumbs, and shows a plain `.cp-empty` where the item would be, which says the item is not there, such as "This entry is not in your library", and links to the list it belongs to.
 
 ```html
 <main class="cp-main" id="main" tabindex="-1">
   <section class="cp-empty" data-variant="page" aria-labelledby="not-found-title">
     <span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span>
     <h1 id="not-found-title" tabindex="-1">This page does not exist</h1>
-    <p>The address may be old, or the item was removed.</p>
+    <p>The address may be old, or it was mistyped.</p>
     <a class="cp-button" data-variant="primary" href="/">Go to the start</a>
   </section>
 </main>

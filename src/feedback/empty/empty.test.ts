@@ -5,7 +5,7 @@ import { build, contrast, q, resolved, useSystemSheet } from "../../system/test-
 useSystemSheet();
 
 const PAGE =
-  '<section class="cp-empty" data-variant="page" style="inline-size: 40rem"><span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span><h1>This page does not exist</h1><p>The address may be old, or the item was removed.</p><a class="cp-button" data-variant="primary" href="#start">Go to the start</a></section>';
+  '<section class="cp-empty" data-variant="page" style="inline-size: 40rem"><span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span><h1>This page does not exist</h1><p>The address may be old, or it was mistyped.</p><a class="cp-button" data-variant="primary" href="#start">Go to the start</a></section>';
 
 const centre = (el: Element) => {
   const r = el.getBoundingClientRect();
