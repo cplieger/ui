@@ -460,6 +460,28 @@ describe("the legend row's widths", () => {
     }
   });
 
+  it("holds a duration wider than its extremes, writing one text per duration record", () => {
+    const n = 1_000;
+    const y = per(n, (i) =>
+      i === 0 ? 0 : i === n - 1 ? 9 * 60 * MIN : i === 500 ? 9_420_013 : 100 + i * 9,
+    );
+    const m = model({
+      x: {},
+      y: { format: "duration" },
+      marks: [{ mark: "line", x: per(n, (i) => i), series: [{ name: "a", y }] }],
+    });
+    let texts = 0;
+    const counting = { ...measure, number: (t: string) => (texts++, measure.number(t)) };
+    const w = readoutWidths(m, words, counting);
+    expect(w.values[0]).toBe(measure.number(formatDuration(9_420_013, "en")));
+    // About a hundred records: 0, 109 to 999 ms, 1 to 9 s, 2 hr 37 min and 9 hr.
+    expect(texts).toBeLessThan(150);
+    const line = m.marks[0] as LineModel;
+    for (let i = 0; i < n; i++) {
+      fits(sampleReading(m, line, i, words), w);
+    }
+  });
+
   it("holds every sample of a line", () => {
     const x = per(500, (i) => START + i * MIN);
     const m = model({

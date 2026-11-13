@@ -84,8 +84,35 @@ describe("widthKey", () => {
     expect(key?.(0)).not.toBe(key?.(1));
   });
 
+  it("keys a duration by the record it writes and its sign", () => {
+    const key = widthKey("duration", "en");
+    expect(key).toBeDefined();
+    const durations = [
+      0, -0, 0.3, -0.3, 1, 999.4, 999.6, 1_000, 1_234, 1_456, 9_999, 12_345, -5_000, 59_600, 60_000,
+      61_000, 599_000, 3_723_000, 9_420_013, 82_800_000, 1_080_000_000,
+    ];
+    for (const signed of [false, true]) {
+      const write = (signed ? signedFormatter : formatter)("duration", "en");
+      const seen = new Map<number, string>();
+      for (const v of durations) {
+        const k = key?.(v) ?? Number.NaN;
+        expect(k, String(v)).not.toBeNaN();
+        const text = seen.get(k) ?? write(v);
+        expect(write(v), String(v)).toBe(text);
+        seen.set(k, text);
+      }
+    }
+    expect(key?.(1_234)).toBe(key?.(1_456));
+    expect(key?.(59_600)).toBe(key?.(60_000));
+    expect(key?.(-0.3)).toBe(key?.(0));
+    expect(key?.(1_234)).not.toBe(key?.(12_345));
+    expect(key?.(61_000)).not.toBe(key?.(60_000));
+    expect(key?.(-5_000)).not.toBe(key?.(5_000));
+    expect(key?.(0.3)).not.toBe(key?.(0));
+    expect(key?.(Infinity)).toBeNaN();
+  });
+
   it("has none for what it cannot read", () => {
-    expect(widthKey("duration", "en")).toBeUndefined();
     expect(widthKey((v) => String(v), "en")).toBeUndefined();
     expect(widthKey({ notation: "compact" }, "en")).toBeUndefined();
     expect(widthKey({ maximumSignificantDigits: 2 }, "en")).toBeUndefined();

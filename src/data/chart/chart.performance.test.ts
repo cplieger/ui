@@ -128,6 +128,23 @@ const stepLine: ChartSpec = {
   ],
 };
 
+// 8,640 distinct response times, from 100 ms to 90 s.
+const durationLine: ChartSpec = {
+  ...stepLine,
+  y: { label: "Response time", format: "duration" },
+  marks: [
+    {
+      mark: "line",
+      curve: "step",
+      x: minutes,
+      series: Array.from({ length: 2 }, (_, k) => ({
+        name: `p${String(50 + 45 * k)}`,
+        y: minutes.map((_, i) => 100 + ((i * 7_919 + k * 104_729) % 89_900)),
+      })),
+    },
+  ],
+};
+
 // Three layers of 4,320 samples each, a stacked area over 72 hours.
 const stackedArea: ChartSpec = {
   x: { type: "time", domain: [START, START + HOURS_72] },
@@ -176,6 +193,7 @@ const few: ChartSpec = {
     },
   ],
 };
+const fewDurations: ChartSpec = { ...few, y: { format: "duration" } };
 const fewLayers: ChartSpec = {
   ...stackedArea,
   marks: [
@@ -249,6 +267,15 @@ describe("performance", () => {
     expect(ms).toBeLessThan(RENDER_MS);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
+
+  it.skipIf(!chromium)(
+    "renders a 72-hour step line of 8,640 distinct durations within its bound",
+    async () => {
+      const { ms, plot } = await timed(durationLine, fewDurations);
+      expect(ms).toBeLessThan(RENDER_MS);
+      expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+    },
+  );
 
   it.skipIf(!chromium)(
     "renders a 72-hour stacked area of three layers of 4,320 samples within its bound",
