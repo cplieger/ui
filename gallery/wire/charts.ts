@@ -1,8 +1,8 @@
 /**
  * charts.ts — the gallery wiring for the Charts page: grelot's four
  * statistics drawn by the library's chart from seeded data, the other time
- * series, bars and dots by category, their loading, empty and error states,
- * and phone-width frames.
+ * series, bars and dots by category, slope and scatter charts, their
+ * loading, empty and error states, and phone-width frames.
  */
 
 import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
@@ -697,6 +697,124 @@ function electricCars(): ChartSpec {
   };
 }
 
+// Life expectancy at birth in years, World Bank, 2000 and 2021.
+const LIFE = [
+  ["Japan", 81.1, 84.4],
+  ["France", 79.1, 82.3],
+  ["United States", 76.6, 76.3],
+  ["China", 71.4, 78.2],
+  ["India", 62.7, 67.2],
+  ["Nigeria", 46.3, 52.7],
+] as const;
+
+function lifeSlope(): ChartSpec {
+  return {
+    y: { label: "Life expectancy", unit: YEARS, zero: false },
+    marks: [
+      {
+        mark: "slope",
+        x: ["2000", "2021"],
+        series: LIFE.map(([name, then, now], i) => ({
+          name,
+          slot: (i + 1) as 1 | 2 | 3 | 4 | 5 | 6,
+          y: [then, now],
+        })),
+      },
+      { mark: "text", x: "2021", y: 76.3, text: "Below 2000 after Covid-19", side: "below" },
+    ],
+  };
+}
+
+// GDP per capita in US dollars, life expectancy in years and population,
+// rounded from the World Bank's 2022 figures.
+const NATIONS = [
+  ["Europe", "Norway", 106_000, 83.2, 5_460_000],
+  ["Europe", "Switzerland", 93_000, 83.9, 8_780_000],
+  ["Europe", "Germany", 48_700, 80.7, 83_800_000],
+  ["Europe", "United Kingdom", 46_100, 80.7, 67_000_000],
+  ["Europe", "France", 40_900, 82.3, 68_000_000],
+  ["Europe", "Italy", 34_200, 82.9, 59_000_000],
+  ["Europe", "Spain", 29_700, 83.2, 47_800_000],
+  ["Europe", "Poland", 18_700, 77.4, 36_800_000],
+  ["Europe", "Romania", 15_800, 75.3, 19_000_000],
+  ["Europe", "Russia", 15_300, 72.5, 143_600_000],
+  ["Europe", "Ukraine", 4_500, 71.2, 38_000_000],
+  ["Asia and Oceania", "Singapore", 82_800, 83.4, 5_640_000],
+  ["Asia and Oceania", "Australia", 65_000, 83.3, 26_000_000],
+  ["Asia and Oceania", "New Zealand", 48_800, 82.1, 5_120_000],
+  ["Asia and Oceania", "Japan", 34_000, 84, 125_100_000],
+  ["Asia and Oceania", "South Korea", 32_400, 83.7, 51_600_000],
+  ["Asia and Oceania", "China", 12_700, 78.6, 1_412_000_000],
+  ["Asia and Oceania", "Indonesia", 4_800, 70.5, 275_500_000],
+  ["Asia and Oceania", "Vietnam", 4_100, 74.6, 98_200_000],
+  ["Asia and Oceania", "Philippines", 3_500, 71.7, 115_600_000],
+  ["Asia and Oceania", "Bangladesh", 2_700, 73.7, 171_200_000],
+  ["Asia and Oceania", "India", 2_400, 67.7, 1_417_000_000],
+  ["Asia and Oceania", "Pakistan", 1_600, 66.4, 235_800_000],
+  ["Africa", "Botswana", 7_700, 65.6, 2_630_000],
+  ["Africa", "South Africa", 6_800, 62.3, 59_900_000],
+  ["Africa", "Egypt", 4_300, 70.2, 111_000_000],
+  ["Africa", "Morocco", 3_500, 74, 37_500_000],
+  ["Africa", "Nigeria", 2_200, 53.6, 218_500_000],
+  ["Africa", "Kenya", 2_100, 62.1, 54_000_000],
+  ["Africa", "Ethiopia", 1_000, 65, 123_400_000],
+  ["Africa", "Chad", 700, 52.5, 17_700_000],
+  ["Africa", "DR Congo", 650, 59.7, 99_000_000],
+  ["Africa", "Burundi", 260, 61.7, 12_900_000],
+  ["Americas", "United States", 76_400, 76.4, 333_300_000],
+  ["Americas", "Canada", 55_500, 81.3, 38_900_000],
+  ["Americas", "Chile", 15_400, 78.9, 19_600_000],
+  ["Americas", "Argentina", 13_700, 75.4, 46_200_000],
+  ["Americas", "Costa Rica", 13_400, 77, 5_180_000],
+  ["Americas", "Mexico", 11_500, 70.2, 127_500_000],
+  ["Americas", "Brazil", 8_900, 72.8, 215_300_000],
+  ["Americas", "Peru", 7_100, 72.4, 34_000_000],
+  ["Americas", "Colombia", 6_600, 72.8, 51_900_000],
+  ["Americas", "Haiti", 1_700, 63.7, 11_600_000],
+] as const;
+
+const REGIONS = ["Europe", "Asia and Oceania", "Africa", "Americas"] as const;
+
+function nations(sized: boolean): ChartSpec {
+  return {
+    x: {
+      type: "log",
+      label: "GDP per capita",
+      format: { style: "currency", currency: "USD", maximumFractionDigits: 0 },
+    },
+    y: { label: "Life expectancy", unit: YEARS },
+    ...(sized
+      ? { r: { label: "Population", format: { notation: "compact", maximumFractionDigits: 1 } } }
+      : {}),
+    marks: [
+      {
+        mark: "scatter",
+        unit: { one: "country", other: "countries" },
+        series: REGIONS.map((region, i) => {
+          const rows = NATIONS.filter(([of]) => of === region);
+          return {
+            name: region,
+            slot: (i + 1) as 1 | 2 | 3 | 4,
+            names: rows.map(([, name]) => name),
+            x: rows.map(([, , gdp]) => gdp),
+            y: rows.map(([, , , life]) => life),
+            ...(sized ? { r: rows.map(([, , , , people]) => people) } : {}),
+          };
+        }),
+      },
+      sized
+        ? { mark: "text", x: 2_400, y: 67.7, text: "1.4 billion people", side: "right" }
+        : {
+            mark: "text",
+            x: 76_400,
+            y: 76.4,
+            text: "Shorter lives than in Chile or Costa Rica",
+            side: "left",
+          },
+    ],
+  };
+}
+
 const SPECS = new Map<string, (hours: number) => ChartSpec>([
   ["posts", (hours) => posts(postCounts(hours))],
   ["reads", (hours) => reads(READS.get(hours) ?? 1_204, hours)],
@@ -781,6 +899,11 @@ make("phone-platforms", platforms());
 make("phone-ages-by-sex", agesBySex());
 make("phone-pay", pay());
 make("phone-electric-cars", electricCars());
+make("life", lifeSlope());
+make("nations", nations(false));
+make("nations-sized", nations(true));
+make("phone-life", lifeSlope());
+make("phone-nations-sized", nations(true));
 make("activity", activity(6));
 make("agents", agents(6));
 make("loading", null);

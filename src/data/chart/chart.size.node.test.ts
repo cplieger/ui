@@ -5,10 +5,11 @@ import { build } from "esbuild";
 import { expect, it } from "vitest";
 
 // No standard sizes a chart module, so the budget makes growth a decision:
-// measured at 39,045 bytes with the rect, line, area, dot, bar, point,
-// slope, scatter, rule and text marks, plus 10 %. A change that passes it raises the budget in
-// the same pull request, with its reason.
-const BUDGET = 42_950;
+// measured at 40,499 bytes with the rect, line, area, dot, bar, point,
+// slope, scatter (bubbles included), rule and text marks, plus 10 %. A
+// change that passes it raises the budget in the same pull request, with
+// its reason.
+const BUDGET = 44_550;
 
 it("@cplieger/ui/chart bundles, minified and gzipped, within its budget", async () => {
   const out = await build({

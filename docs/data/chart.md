@@ -2,7 +2,7 @@
 
 `@cplieger/ui/chart`
 
-Charts with axes come in seven forms. Stacked columns count per time bucket. A histogram bins waits on the duration ladder, a timeline strip shows who acts when, lines run plain or stepped, and areas stack the parts of a sampled amount. Bars compare categories, stacked, grouped, split or either side of a middle, and dot, range and arrow plots set a few values per category along one axis. Each chart has a summary in words and a legend row that carries the selection's values. Keys read each point aloud, and a table view holds the same data.
+Charts with axes come in nine forms. Stacked columns count per time bucket. A histogram bins waits on the duration ladder, a timeline strip shows who acts when, lines run plain or stepped, and areas stack the parts of a sampled amount. Bars compare categories, stacked, grouped, split or either side of a middle, and dot, range and arrow plots set a few values per category along one axis. A slope chart sets two moments side by side, and scatter and bubble charts place each item by two measures, or three. Each chart has a summary in words and a legend row that carries the selection's values. Keys read each point aloud, and a table view holds the same data.
 
 Install the announcer once at startup, beside the chart's first use. The keys speak through [announce](../feedback/announce.md), which says nothing without it.
 
@@ -64,12 +64,14 @@ Pick a chart by the question its data answers, after [Datawrapper's guide to cha
 | How did the parts of a sampled amount move, such as memory by process? | Stacked area chart | `area` |
 | How did the shares of a whole move? | 100% stacked area or column chart | `area` or `rect`, `arrange: "share"` |
 | How do two or three series compare in each bucket? | Grouped column chart | `rect`, `arrange: "group"` |
+| What changed between two moments, for a few series? | Slope chart | `slope` |
 | What changed between two moments, for many categories? | Arrow plot | `point`, `link: "arrow"` |
 | Who acted when? | Timeline strip | `dot` |
 
 - **Bars or an area for buckets.** Bars when buckets are few, often empty, or hold small bursty counts: a gap says a bucket is empty, and an area would break into slivers. The area when buckets are many and rarely empty, where the gaps between bars are noise. Both read and list the same numbers.
 - An area chart shows the change of the total well and the change of each part less well ([FT Visual Vocabulary, Change over time](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary)). Only the lowest part sits on a flat baseline, so put the part compared most first.
 - Grouped columns suit few buckets and two or three series. A stack shows totals, so do not read totals from grouped columns ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)).
+- A slope chart is a line chart with everything between its two ends erased, for when the ups and downs between them do not matter ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). An arrow plot fits more categories in less room.
 
 ### Comparing categories
 
@@ -103,6 +105,15 @@ Pick a chart by the question its data answers, after [Datawrapper's guide to cha
 
 - The chart computes nothing statistical. The app sends a histogram's bins.
 
+### Relating two measures
+
+| Question | Chart | Write |
+| --- | --- | --- |
+| Does one measure go with another across items? | Scatter plot | `scatter` |
+| The same, with a third measure for each item | Bubble chart | `scatter` with `r` |
+
+- Many readers find scatter plots hard. Introduce the topic with a simpler chart first ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)).
+
 ### Parts of a whole
 
 | Question | Chart | Write |
@@ -131,7 +142,7 @@ On a phone, or when notes would overlap, every note becomes a numbered marker wi
 | Waffle and pictogram charts | A [share bar](share-bar.md) for the shares of one whole, a 100% stacked bar chart for several, a bar chart for counts. Both trade readability for illustration ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
 | Connected scatter plots | Two line charts over the same time x, one per measure. A connected scatter plot carries time only in its path's order, which a reader must trace dot by dot. |
 | Radar charts | A dot plot with a row per variable and a dot per series. A radar's outline depends on the order of its axes ([FT Visual Vocabulary, Magnitude](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary)). |
-| 3D charts | The same chart in two dimensions. Projection distorts lengths, angles and areas ([Claus Wilke on 3D charts](https://clauswilke.com/dataviz/no-3d.html)). |
+| 3D charts | The same chart in two dimensions, a third value as a bubble's size. Projection distorts lengths, angles and areas ([Claus Wilke on 3D charts](https://clauswilke.com/dataviz/no-3d.html)). |
 
 Niche statistical types such as violin plots and dendrograms are not offered either, as Datawrapper's guide leaves them out.
 
