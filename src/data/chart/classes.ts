@@ -32,7 +32,8 @@ const NICE = [1, 2, 2.5, 5];
 const tidy = (v: number): number => Number(v.toPrecision(12));
 
 // The class widths from the smallest at least `min` upward; integer data
-// takes whole widths only, so no boundary falls between two counts.
+// takes whole widths only, so a sequential boundary, or an even diverging
+// count's about a whole pivot, never falls between two counts.
 function* widths(min: number, integer: boolean): Generator<number, never> {
   for (let k = Math.floor(Math.log10(min)) - 1; ; k++) {
     for (const lead of NICE) {
