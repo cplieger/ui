@@ -4203,9 +4203,9 @@ textarea.cp-input {
 /* A state: the state of a thing in its row or field, a short word in its
  * tone after the tone's glyph, such as "set", "not set" or "rejected"
  * beside a setting. With data-cp-state it is the state of the thing's own
- * work, and the stylesheet draws its glyph and tone. .cp-test-status is the
- * former name of a data-size="ui" state, drawn the same until it is
- * removed. */
+ * work, and the stylesheet draws its glyph and tone; "passed" is a check's
+ * word for "done". .cp-test-status is the former name of a data-size="ui"
+ * state, drawn the same until it is removed. */
 :is(.cp-state, .cp-test-status) {
   display: inline-flex;
   align-items: center;
@@ -4257,7 +4257,7 @@ textarea.cp-input {
   animation: cp-spin 0.8s linear infinite;
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="passed"] {
+:is(.cp-state, .cp-test-status):is([data-cp-state="passed"], [data-cp-state="done"]) {
   --cp-state-glyph: url("../icons/svg/circle-check.svg");
 
   color: var(--cp-success-11);
@@ -4269,7 +4269,9 @@ textarea.cp-input {
   color: var(--cp-danger-11);
 }
 
-:is(.cp-state, .cp-test-status):is([data-cp-state="passed"], [data-cp-state="failed"])::before {
+:is(.cp-state, .cp-test-status)[data-cp-state="passed"]::before,
+:is(.cp-state, .cp-test-status)[data-cp-state="done"]::before,
+:is(.cp-state, .cp-test-status)[data-cp-state="failed"]::before {
   content: "";
 }
 
@@ -9748,18 +9750,20 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
   color: var(--cp-danger-on);
 }
 
+/* Only a button's parts: a row, a form or a state also takes a
+ * data-cp-state, and its own icons stay. */
 :where(.cp-button[data-cp-confirm]) > .cp-icon[data-part],
-[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
-[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
+.cp-button[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
+.cp-button[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
   display: none;
 }
 
-[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
+.cp-button[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
   display: inline-block;
   animation: cp-spin 0.8s linear infinite;
 }
 
-[data-cp-state="done"] > .cp-icon[data-part="done"] {
+.cp-button[data-cp-state="done"] > .cp-icon[data-part="done"] {
   display: inline-block;
   animation: cp-check-draw 320ms var(--cp-ease-out);
 }
@@ -9778,8 +9782,8 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-cp-state="busy"] > .cp-icon[data-part],
-  [data-cp-state="done"] > .cp-icon[data-part] {
+  .cp-button[data-cp-state="busy"] > .cp-icon[data-part],
+  .cp-button[data-cp-state="done"] > .cp-icon[data-part] {
     animation: none;
   }
 }

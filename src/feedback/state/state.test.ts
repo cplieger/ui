@@ -5,7 +5,7 @@ import { build, q, resolved, useSystemSheet } from "../../system/test-helpers/cs
 
 useSystemSheet();
 
-const STATES = ["idle", "busy", "passed", "failed"] as const;
+const STATES = ["idle", "busy", "passed", "done", "failed"] as const;
 
 const before = (el: Element) => getComputedStyle(el, "::before");
 
@@ -64,12 +64,9 @@ describe("state", () => {
         (s) => `<span class="cp-state" data-size="ui" data-cp-state="${s}">Words</span>`,
       ).join(""),
     );
-    const [idle, busy, passed, failed] = [...el.querySelectorAll<HTMLElement>(".cp-state")] as [
-      HTMLElement,
-      HTMLElement,
-      HTMLElement,
-      HTMLElement,
-    ];
+    const [idle, busy, passed, done, failed] = [
+      ...el.querySelectorAll<HTMLElement>(".cp-state"),
+    ] as [HTMLElement, HTMLElement, HTMLElement, HTMLElement, HTMLElement];
     const muted = resolved("var(--cp-ink-muted)");
     // Each glyph by a line of its drawing in icons/svg, which the dev server
     // inlines into the mask.
@@ -80,6 +77,10 @@ describe("state", () => {
     expect(glyph(busy)).toContain("M21 12a9 9 0 0 1-9 9");
     expect(getComputedStyle(passed).color).toBe(resolved("var(--cp-success-11)"));
     expect(glyph(passed)).toContain("m16 9-5.5 5.5L8 12");
+    expect([getComputedStyle(done).color, before(done).maskImage]).toEqual([
+      getComputedStyle(passed).color,
+      before(passed).maskImage,
+    ]);
     expect(getComputedStyle(failed).color).toBe(resolved("var(--cp-danger-11)"));
     expect(glyph(failed)).toContain("m15 9-6 6");
     expect(before(failed).backgroundColor).toBe(getComputedStyle(failed).color);
@@ -110,6 +111,17 @@ describe("state", () => {
       '<span class="cp-state" data-tone="success" data-cp-state="failed">Not sent.</span>',
     );
     expect(getComputedStyle(q(el, ".cp-state")).color).toBe(resolved("var(--cp-danger-11)"));
+  });
+
+  // A confirmed button hides its rest icon while busy or done; an item that
+  // takes the same attribute keeps its own.
+  it.each(["busy", "done"])("keeps the icons of an item whose work is %s", (s) => {
+    const el = build(
+      `<div class="cp-list-row" data-cp-state="${s}"><span class="cp-icon" data-cp-icon="file-text"></span>` +
+        `<span class="cp-state" data-cp-state="${s}"><span class="cp-icon"></span>Words</span></div>`,
+    );
+    const shown = [...el.querySelectorAll(".cp-icon")].map((i) => getComputedStyle(i).display);
+    expect(shown).not.toContain("none");
   });
 
   it("draws no glyph for a state it has none for", () => {

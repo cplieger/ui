@@ -22,6 +22,31 @@ Every region that loads data has four designed states, for loading, empty, error
 - Empty says what belongs here and offers the one action that fills it (`.cp-empty`). Error says what broke and what to do next, in a notice where the region would be. It never apologises and never stays vague.
 - A change that will most likely succeed shows at once and rolls back on failure, through `@cplieger/reactive/actions`. A destructive action asks first or offers an Undo.
 
+**An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`.
+
+```html
+<div class="cp-list-row">
+  <span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span>
+  <span class="cp-cell-stack">
+    <span class="cp-truncate cp-mono">Frieren.S01E05.en.ass</span>
+    <small>The server did not answer.</small>
+  </span>
+  <span data-part="end"><span class="cp-state" data-cp-state="failed">Not uploaded</span></span>
+  <button class="cp-button" data-size="sm" type="button" aria-label="Retry Frieren.S01E05.en.ass">
+    <span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>
+    <span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span>
+    <span class="cp-roll">Retry</span>
+  </button>
+</div>
+```
+
+1. Retry turns busy while the work runs again, and the state and its reason stay until the answer comes, so the item never shows two spinners.
+2. When the work is done, the state turns `done` and Retry leaves. Focus that was on Retry moves to the item.
+3. When it fails again, the reason changes to the new one and Retry is back at rest.
+4. Announce the outcome through `@cplieger/ui/announce`, assertively for a failure of what the person just did.
+
+A field's error stays a `.cp-field-error` under its field.
+
 ## Forms
 
 A form never loses what the person typed, and every error is text that says how to fix it. [form](forms/form.md) shows and clears the errors as steps 3 to 5 ask, from the app's own checks.
