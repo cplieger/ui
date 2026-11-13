@@ -785,12 +785,105 @@ describe("the summary of a dot plot", () => {
     });
     const releases = model({
       x: { type: "time" },
-      marks: [{ mark: "point", y: ["a"], series: [{ name: "R", x: [START] }] }],
+      marks: [
+        { mark: "point", y: ["a", "b"], series: [{ name: "R", x: [START, START + 90 * MIN] }] },
+      ],
     });
     expect(generatedSummary(releases, own)).toBe(
-      `1 categories. R: ${`a ${time(START)}`} bis a ${time(START)}.`,
+      `2 categories. R: a ${time(START)} bis b ${time(START + 90 * MIN)}.`,
     );
-    expect(shortDescription(releases, own)).toBe("Punktdiagramm, 1 categories");
+    expect(shortDescription(releases, own)).toBe("Punktdiagramm, 2 categories");
+  });
+});
+
+describe("the summary of band rows alike or alone", () => {
+  const bars = (x: (number | null)[][], more: Partial<Extract<Mark, { mark: "bar" }>> = {}) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["Japan", "Italy", "Spain"].slice(0, x[0]?.length ?? 0),
+          ...more,
+          series: x.map((v, i) => ({ name: ["Female", "Male"][i] ?? "", x: v })),
+        },
+      ],
+    });
+
+  it("gives the value once when every row holds it, a series or the totals", () => {
+    expect(generatedSummary(bars([[40, 40, 40]]), words)).toBe("3 categories. 40 each.");
+    expect(generatedSummary(bars([[40, null, 40]]), words)).toBe("3 categories. 40 each.");
+    expect(
+      generatedSummary(
+        model({
+          x: { format: "percent" },
+          marks: [
+            {
+              mark: "bar",
+              y: ["Item 1", "Item 2"],
+              arrange: "diverge",
+              left: 1,
+              series: [
+                { name: "Disagree", x: [0.25, 0.4] },
+                { name: "Agree", x: [0.75, 0.6] },
+              ],
+            },
+          ],
+        }),
+        words,
+      ),
+    ).toBe(
+      "2 categories, 2 series. Disagree: highest Item 2 40%, lowest Item 1 25%. " +
+        "Agree: highest Item 1 75%, lowest Item 2 60%. Total: 100% each.",
+    );
+  });
+
+  it("names the one row holding a value once", () => {
+    expect(generatedSummary(bars([[49.9]]), words)).toBe("1 categories. Japan 49.9.");
+    expect(generatedSummary(bars([[null, 48.6, null]]), words)).toBe("3 categories. Italy 48.6.");
+    expect(generatedSummary(bars([[51.1], [48.4]], { arrange: "group" }), words)).toBe(
+      "1 categories, 2 series. Female: Japan 51.1. Male: Japan 48.4.",
+    );
+  });
+
+  it("reads a point series, a time x's instants and a link's gaps alike once", () => {
+    const point = (x: ChartSpec["x"], a: number[], b: number[], link?: "range") =>
+      model({
+        x,
+        marks: [
+          {
+            mark: "point",
+            y: ["api", "web"],
+            ...(link === undefined ? {} : { link }),
+            series: [
+              { name: "Before", x: a },
+              { name: "After", x: b },
+            ],
+          },
+        ],
+      });
+    expect(generatedSummary(point({}, [5, 5], [7, 9]), words)).toBe(
+      "2 categories, 2 series. Before: 5 each. After: highest web 9, lowest api 7.",
+    );
+    expect(
+      generatedSummary(point({ type: "time" }, [START, START], [START, START + MIN]), words),
+    ).toBe(
+      `2 categories, 2 series. Before: ${time(START)} each. ` +
+        `After: earliest api ${time(START)}, latest web ${time(START + MIN)}.`,
+    );
+    expect(generatedSummary(point({}, [1, 3], [11, 13], "range"), words)).toBe(
+      "2 categories, 2 series. Before: highest web 3, lowest api 1. " +
+        "After: highest web 13, lowest api 11. Gap: 10 each.",
+    );
+  });
+
+  it("takes the app's words", () => {
+    const own = chartWords({
+      alike: (name, value) => `${name === "" ? "Alle" : name} je ${value}.`,
+      only: (name, row) => `${name === "" ? "Nur" : name} ${row}.`,
+    });
+    expect(generatedSummary(bars([[40, 40, 40]]), own)).toBe("3 categories. Alle je 40.");
+    expect(generatedSummary(bars([[49.9]]), own)).toBe("1 categories. Nur Japan 49.9.");
   });
 });
 

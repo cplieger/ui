@@ -126,6 +126,14 @@ export interface ChartWords {
   /** Summary, a bar or point chart of one series. Default "Highest {high},
    *  lowest {low}." */
   readonly extremes?: (high: string, low: string) => string;
+  /** Summary, a bar or point series whose rows all hold one value; name is
+   *  "" for a chart's one series. Default "{name}: {value} each.", or
+   *  "{value} each." */
+  readonly alike?: (name: string, value: string) => string;
+  /** Summary, a bar or point series with one row holding a value; row is
+   *  "{row} {value}" and name "" for a chart's one series. Default
+   *  "{name}: {row}.", or "{row}." */
+  readonly only?: (name: string, row: string) => string;
   /** Summary, one series of a point chart on a time x; first and last are
    *  each "{row} {time}". Default "{name}: earliest {first}, latest {last}." */
   readonly spanSeries?: (name: string, first: string, last: string) => string;
@@ -216,6 +224,8 @@ const DEFAULTS: Words = {
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
   extremes: (high, low) => `Highest ${high}, lowest ${low}.`,
+  alike: (name, value) => (name === "" ? `${value} each.` : `${name}: ${value} each.`),
+  only: (name, row) => (name === "" ? `${row}.` : `${name}: ${row}.`),
   spanSeries: (name, first, last) => `${name}: earliest ${first}, latest ${last}.`,
   lineSummary: (range, every) => (every === "" ? `${range}.` : `${range}, ${every}.`),
   lineSeries: (name, last, low, high) => `${name}: last ${last}, low ${low}, high ${high}.`,

@@ -5486,11 +5486,6 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-tone-9);
 }
 
-/* A bar's value at its end. */
-.cp-chart svg [data-part="value"] text {
-  fill: var(--cp-ink);
-}
-
 /* A selected bar row's name shows by weight as well as colour. */
 .cp-chart svg [data-part="y"] text[data-selected] {
   fill: var(--cp-ink);
@@ -5561,9 +5556,10 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-ink);
 }
 
-/* A note's 3 px halo of the plot's surface keeps it legible over bars and
- * gridlines; the stroke paints first, so it widens the glyphs by half. */
-.cp-chart svg [data-part="note"] text {
+/* A note's or a bar value's 3 px halo of the plot's surface keeps it
+ * legible over bars, gridlines and rules; the stroke paints first, so it
+ * widens the glyphs by half. */
+.cp-chart svg :is([data-part="note"], [data-part="value"]) text {
   fill: var(--cp-ink);
   stroke: var(--cp-chart-surface);
   stroke-width: 6px;

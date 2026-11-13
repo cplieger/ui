@@ -895,6 +895,21 @@ describe("a bar chart", () => {
     expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBe(0);
   });
 
+  it("writes value labels in ink on a halo of the surface, over a rule that crosses them", () => {
+    const d = draw(
+      { ...ages, marks: [...ages.marks, { mark: "rule", x: 50, label: "Median" }] },
+      600,
+    );
+    const label = d.svg.querySelector('[data-part="value"] text') as Element;
+    const cs = getComputedStyle(label);
+    expect(cs.fill).toBe(token(label, "var(--cp-ink)"));
+    expect(cs.stroke).toBe(token(label, "var(--cp-surface-page)"));
+    expect(cs.strokeWidth).toBe("6px");
+    expect(cs.paintOrder).toMatch(/^stroke/u);
+    const rule = d.svg.querySelector('[data-part="area"] > [data-part="rule"]') as Element;
+    expect(rule.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("fills a diverging bar's bars below 0 in its below slot and signs its labels", () => {
     const d = draw(
       {

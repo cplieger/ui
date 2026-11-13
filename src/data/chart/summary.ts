@@ -196,18 +196,21 @@ function dotSummary(model: Model, m: DotModel, words: Words): string[] {
 }
 
 // The rows holding the highest and the lowest of `at`, the first in the
-// app's order on a tie; none when every row is a gap.
+// app's order on a tie, and how many rows hold a value; none when every
+// row is a gap.
 function barExtremes(
   names: readonly string[],
   at: (i: number) => number | null,
-): { high: number; low: number } | undefined {
+): { high: number; low: number; held: number } | undefined {
   let high = -1;
   let low = -1;
+  let held = 0;
   names.forEach((_, i) => {
     const v = at(i);
     if (v === null) {
       return;
     }
+    held += 1;
     if (high === -1 || v > (at(high) ?? v)) {
       high = i;
     }
@@ -215,7 +218,27 @@ function barExtremes(
       low = i;
     }
   });
-  return high === -1 ? undefined : { high, low };
+  return high === -1 ? undefined : { high, low, held };
+}
+
+// One series' extremes in words; name is "" for a chart's one series. A
+// lone row or rows all alike read once, since their highest and lowest
+// would name one row twice or a tie as an extreme.
+function extremesText(
+  words: Words,
+  name: string,
+  e: { high: number; low: number; held: number },
+  at: (i: number) => number | null,
+  place: (i: number) => string,
+  value: (i: number) => string,
+  apart: (high: string, low: string) => string,
+): string {
+  if (e.held === 1) {
+    return words.only(name, place(e.high));
+  }
+  return at(e.high) === at(e.low)
+    ? words.alike(name, value(e.high))
+    : apart(place(e.high), place(e.low));
 }
 
 function barSummary(model: Model, m: BarModel, words: Words): string[] {
@@ -225,15 +248,18 @@ function barSummary(model: Model, m: BarModel, words: Words): string[] {
     ? words.seriesCount(formatter("number", model.locale)(m.series.length))
     : "";
   const out = [words.countSummary(rowsText(model, words), series)];
-  const place = (i: number, v: number | null) =>
-    `${names[i] ?? ""} ${v === null ? words.noData : model.xText(v)}`;
   const sentence = (name: string | undefined, at: (i: number) => number | null) => {
     const e = barExtremes(names, at);
     if (e === undefined) {
       return;
     }
-    const [high, low] = [place(e.high, at(e.high)), place(e.low, at(e.low))];
-    out.push(name === undefined ? words.extremes(high, low) : words.barSeries(name, high, low));
+    const value = (i: number) => model.xText(at(i) ?? 0);
+    const place = (i: number) => `${names[i] ?? ""} ${value(i)}`;
+    out.push(
+      extremesText(words, name ?? "", e, at, place, value, (high, low) =>
+        name === undefined ? words.extremes(high, low) : words.barSeries(name, high, low),
+      ),
+    );
   };
   for (const s of m.series) {
     // Under "share" a series' share exists only in a row whose total is above 0.
@@ -263,24 +289,33 @@ function pointSummary(model: Model, m: PointModel, words: Words): string[] {
   const out = [words.countSummary(rowsText(model, words), series)];
   const time = model.x.type === "time";
   for (const s of m.series) {
-    const e = barExtremes(names, (i) => s.x[i] ?? null);
+    const at = (i: number) => s.x[i] ?? null;
+    const e = barExtremes(names, at);
     if (e === undefined) {
       continue;
     }
-    const place = (i: number) => `${names[i] ?? ""} ${model.xText(s.x[i] ?? 0)}`;
-    const [high, low] = [place(e.high), place(e.low)];
+    const value = (i: number) => model.xText(at(i) ?? 0);
+    const place = (i: number) => `${names[i] ?? ""} ${value(i)}`;
     out.push(
-      time
-        ? words.spanSeries(s.name, low, high)
-        : several
-          ? words.barSeries(s.name, high, low)
-          : words.extremes(high, low),
+      extremesText(words, several ? s.name : "", e, at, place, value, (high, low) =>
+        time
+          ? words.spanSeries(s.name, low, high)
+          : several
+            ? words.barSeries(s.name, high, low)
+            : words.extremes(high, low),
+      ),
     );
   }
-  const e = m.link === undefined ? undefined : barExtremes(names, (i) => pointLink(m, i));
+  const link = (i: number) => pointLink(m, i);
+  const e = m.link === undefined ? undefined : barExtremes(names, link);
   if (e !== undefined) {
-    const place = (i: number) => `${names[i] ?? ""} ${linkText(model, m, pointLink(m, i) ?? 0)}`;
-    out.push(words.barSeries(totalWord(model, words), place(e.high), place(e.low)));
+    const value = (i: number) => linkText(model, m, link(i) ?? 0);
+    const place = (i: number) => `${names[i] ?? ""} ${value(i)}`;
+    out.push(
+      extremesText(words, totalWord(model, words), e, link, place, value, (high, low) =>
+        words.barSeries(totalWord(model, words), high, low),
+      ),
+    );
   }
   return out;
 }
