@@ -409,6 +409,18 @@ button.cp-list-row[aria-pressed] .cp-badge {
   inline-size: 85%;
 }
 
+/* A table row kept the same way: muted ink in every cell. */
+.cp-table tbody tr[data-kept] > :is(td, th) {
+  color: var(--cp-ink-muted);
+}
+
+/* A kept row's title link is muted too, so the row does not read as fresh;
+ * it still takes the accent under a mouse or the keyboard. This ties the
+ * title rule above on specificity, so it stays after it. */
+:where(.cp-list-row[data-kept], .cp-table tbody tr[data-kept]) .cp-cell-stack > a:first-child {
+  color: var(--cp-ink-muted);
+}
+
 @media (forced-colors: active) {
   .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible),
   .cp-list-row[aria-pressed="true"]:not(:focus-visible),

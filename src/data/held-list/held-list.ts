@@ -2,13 +2,13 @@
  * held-list.ts — `enhanceHeldList()` keeps a list's rows still while the
  * reader is in it: a change that would add or move rows waits behind a line
  * that offers it, "3 newer rows · Show", and Show puts the rows in their
- * places and moves focus to the first (WCAG 3.2.2). `markKept()` mutes a row
- * the app could not refresh beside the time it is from and the reason.
+ * places and moves focus to the first (WCAG 3.2.2).
  * @module
  */
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
+import { focusOn, rowOf } from "../list-row/row.js";
 import { scrollerOf, seenOf } from "../list-row/scroller.js";
 
 export interface HeldListWords {
@@ -47,52 +47,9 @@ export interface HeldList {
   discard(): void;
 }
 
-export interface KeptOptions {
-  /** The kept line's words for the time the row is from and the reason.
-   *  Default "Kept from 03:00: Sonarr walk partial". */
-  readonly words?: (time: string, reason: string) => string;
-  /** A BCP 47 language tag for the time. Default: the browser's. */
-  readonly locale?: string;
-}
-
-export interface Kept {
-  /** When the row's content is from. */
-  readonly from: Date | number;
-  /** Why it could not be refreshed, such as "Sonarr walk partial". */
-  readonly reason: string;
-}
-
 const defaultCount = (n: number): string => (n === 1 ? "1 newer row" : `${String(n)} newer rows`);
 
-const defaultKept = (time: string, reason: string): string => `Kept from ${time}: ${reason}`;
-
-const FOCUSABLE = "a[href], button, input, select, textarea, [tabindex]";
-
 let seq = 0;
-
-/** The row `el` stands for: an item's `.cp-list-row`, else `el`. */
-function rowOf(el: Element): Element {
-  return el instanceof HTMLLIElement ? (el.querySelector(":scope > .cp-list-row") ?? el) : el;
-}
-
-/** Focuses `el`, which takes `tabindex="-1"` until it loses focus when it
- *  takes no focus of its own. */
-function focusOn(el: Element): void {
-  if (!(el instanceof HTMLElement)) {
-    return;
-  }
-  if (!el.matches(FOCUSABLE)) {
-    el.tabIndex = -1;
-    el.addEventListener(
-      "blur",
-      () => {
-        el.removeAttribute("tabindex");
-      },
-      { once: true },
-    );
-  }
-  el.focus();
-}
 
 const inPageOrder = (a: Node, b: Node): number =>
   a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
@@ -225,72 +182,4 @@ export function enhanceHeldList(
       }
     },
   };
-}
-
-interface Marked {
-  readonly line: HTMLElement;
-  readonly hid: readonly HTMLElement[];
-}
-
-const marked = new WeakMap<Element, Marked>();
-
-function clock(at: number, locale: string | undefined): string {
-  const today = new Date(at).toDateString() === new Date().toDateString();
-  return new Intl.DateTimeFormat(
-    locale,
-    today ? { timeStyle: "short" } : { dateStyle: "medium", timeStyle: "short" },
-  ).format(at);
-}
-
-/**
- * Marks `row`, an item, a `.cp-list-row` or a `tr`, kept since `kept.from`
- * beside `kept.reason`, in muted ink: the `small` and `.cp-meta` lines of
- * its first `.cp-cell-stack` give way to a `small.cp-kept` line, whose clock
- * the stylesheet draws. The time is the time of day when it is today's, else
- * the date and time. Null marks it fresh again. Throws a TypeError for an
- * invalid date.
- */
-export function markKept(row: Element, kept: Kept | null, options: KeptOptions = {}): void {
-  const target = rowOf(row);
-  const prior = marked.get(target);
-  if (kept === null) {
-    target.removeAttribute("data-kept");
-    if (prior !== undefined) {
-      prior.line.remove();
-      for (const el of prior.hid) {
-        el.hidden = false;
-      }
-      marked.delete(target);
-    }
-    return;
-  }
-  const at = typeof kept.from === "number" ? kept.from : kept.from.getTime();
-  if (!Number.isFinite(at)) {
-    throw new TypeError("held-list: not a valid date");
-  }
-  const text = (options.words ?? defaultKept)(clock(at, options.locale), kept.reason);
-  target.setAttribute("data-kept", "");
-  if (prior !== undefined) {
-    prior.line.textContent = text;
-    return;
-  }
-  const line = document.createElement("small");
-  line.className = "cp-kept";
-  line.textContent = text;
-  const stack = target.querySelector(".cp-cell-stack");
-  const hid: HTMLElement[] = [];
-  if (stack !== null) {
-    for (const el of stack.querySelectorAll<HTMLElement>(
-      ":scope > :is(small, .cp-meta):not([hidden])",
-    )) {
-      el.hidden = true;
-      hid.push(el);
-    }
-    stack.append(line);
-  } else if (target instanceof HTMLTableRowElement) {
-    (target.querySelector(":scope > :is(td, th)") ?? target).append(line);
-  } else {
-    target.append(line);
-  }
-  marked.set(target, { line, hid });
 }

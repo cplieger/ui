@@ -6170,6 +6170,18 @@ button.cp-list-row[aria-pressed] .cp-badge {
   inline-size: 85%;
 }
 
+/* A table row kept the same way: muted ink in every cell. */
+.cp-table tbody tr[data-kept] > :is(td, th) {
+  color: var(--cp-ink-muted);
+}
+
+/* A kept row's title link is muted too, so the row does not read as fresh;
+ * it still takes the accent under a mouse or the keyboard. This ties the
+ * title rule above on specificity, so it stays after it. */
+:where(.cp-list-row[data-kept], .cp-table tbody tr[data-kept]) .cp-cell-stack > a:first-child {
+  color: var(--cp-ink-muted);
+}
+
 @media (forced-colors: active) {
   .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible),
   .cp-list-row[aria-pressed="true"]:not(:focus-visible),
@@ -6190,18 +6202,6 @@ button.cp-list-row[aria-pressed] .cp-badge {
   background: var(--cp-selected);
   color: var(--cp-accent-12);
   font-size: var(--cp-text-sm);
-}
-
-/* A table row the app could not refresh, kept beside its reason: muted ink,
- * as a kept list row is. */
-.cp-table tbody tr[data-kept] > :is(td, th) {
-  color: var(--cp-ink-muted);
-}
-
-/* A kept row's title link is muted too, so the row does not read as fresh;
- * it still takes the accent under a mouse or the keyboard. */
-:where(.cp-list-row[data-kept], .cp-table tbody tr[data-kept]) .cp-cell-stack > a:first-child {
-  color: var(--cp-ink-muted);
 }
 
 @media (forced-colors: active) {
@@ -7681,6 +7681,7 @@ button.cp-list-row[aria-pressed] .cp-badge {
   --cp-track-todo: var(--cp-fill);
   --cp-track-done: var(--cp-accent);
   --cp-track-rest: var(--cp-accent-4);
+  --cp-track-now: var(--cp-ink);
   --cp-track-way: to right;
 
   display: grid;
@@ -7713,21 +7714,18 @@ button.cp-list-row[aria-pressed] .cp-badge {
 }
 
 .cp-track > li[data-state="current"] {
-  color: var(--cp-ink);
+  color: var(--cp-track-now);
   font-weight: var(--cp-weight-medium);
 }
 
 /* A kept track, the last known state of a job no longer reporting, goes
  * grey, its current step solid; a .cp-kept line under it says when it was
- * true. */
-.cp-track[data-kept] > li {
+ * true. A track in a kept list or table row is kept with its row. */
+.cp-track:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) > li {
   --cp-track-todo: var(--cp-neutral-5);
   --cp-track-done: var(--cp-neutral-8);
   --cp-track-rest: var(--cp-neutral-8);
-}
-
-.cp-track[data-kept] > li[data-state="current"] {
-  color: var(--cp-ink-muted);
+  --cp-track-now: var(--cp-ink-muted);
 }
 
 .cp-kept {
@@ -7769,6 +7767,10 @@ button.cp-list-row[aria-pressed] .cp-badge {
   font-weight: var(--cp-weight-medium);
 }
 
+.cp-track-compact:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) {
+  color: var(--cp-ink-muted);
+}
+
 @media (forced-colors: active) {
   .cp-track > li {
     --cp-track-todo: Canvas;
@@ -7776,7 +7778,7 @@ button.cp-list-row[aria-pressed] .cp-badge {
     --cp-track-rest: Canvas;
   }
 
-  .cp-track[data-kept] > li {
+  .cp-track:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) > li {
     --cp-track-todo: Canvas;
     --cp-track-done: GrayText;
     --cp-track-rest: Canvas;
@@ -7789,6 +7791,10 @@ button.cp-list-row[aria-pressed] .cp-badge {
 
   .cp-kept::before {
     background: CanvasText;
+  }
+
+  .cp-track-compact:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) {
+    color: GrayText;
   }
 }
 

@@ -3,8 +3,9 @@
  * attributes, and the lists and tables that hold their place.
  */
 
-import { enhanceHeldList, markKept } from "@cplieger/ui/held-list";
+import { enhanceHeldList } from "@cplieger/ui/held-list";
 import { createIcons } from "@cplieger/ui/icons";
+import { markKept } from "@cplieger/ui/list-row";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { toast } from "@cplieger/ui/toast";
 

@@ -33,6 +33,7 @@ const PURE = [
   "/highlight",
   "/icons",
   "/list-detail",
+  "/list-row",
   "/markdown",
   "/menu",
   "/meter",

@@ -26,6 +26,7 @@
     "./highlight": "./src/content/highlight/highlight.ts",
     "./icons": "./src/foundations/icons/icons.ts",
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
+    "./list-row": "./src/data/list-row/list-row.ts",
     "./markdown": "./src/content/markdown/markdown.ts",
     "./menu": "./src/overlays/menu/menu.ts",
     "./meter": "./src/data/meter/meter.ts",

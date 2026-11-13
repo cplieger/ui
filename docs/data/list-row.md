@@ -61,7 +61,7 @@ Each one is set on the `.cp-list` and applies to every row in it.
 
 - `aria-current="page"` marks the open row of a list that navigates (`"true"` when the list sits inside the open view), `aria-pressed="true"` a filter that is on, and `aria-selected="true"` a chosen option. The three share one look: the selected wash with the accent's darkest ink at the medium weight, its lines still muted and in the body weight, and a quiet count turns solid in the accent. A toggle's wash fades in and out over 240ms. In forced colours the row is outlined.
 - `data-unread` sets the title in the heading weight.
-- `data-kept` (from `markKept`) and `data-ended` set the row in muted ink, which still passes AA.
+- `data-kept` (from `markKept`) and `data-ended` set the row in muted ink, which still passes AA. A kept row's title link is muted too, and a step track in it, `.cp-track` under its text or `.cp-track-compact` at its end, goes grey with it, so the row's `.cp-kept` line says when all of it was true. A kept `tr` of a `.cp-table` mutes every cell the same way. A `.cp-track-compact[data-kept]` greys a compact track kept alone in a live row.
 - `data-skeleton` draws the row as a loading placeholder.
 - An item whose own work is under way, done or failed carries the `.cp-state[data-cp-state]` mark in its end, with Retry as the row's one action when it failed.
 
@@ -90,6 +90,6 @@ Each one is set on the `.cp-list` and applies to every row in it.
 
 ## API
 
-- `markKept(row, kept, opts?)` marks an `li`, a `.cp-list-row` or a `tr` kept: `kept` = `{ from, reason }`, where `from` is a `Date` or ms since the epoch. The row's visible `small` and `.cp-meta` lines in its first `.cp-cell-stack` give way to a `small.cp-kept` line, "Kept from 03:00: Sonarr walk partial", whose clock the stylesheet draws; a row with none takes the line at its end, or in its first cell for a table row. Null marks it fresh again and shows the lines it hid. It throws a `TypeError` for an invalid date.
+- `markKept(row, kept, opts?)` marks an `li`, a `.cp-list-row` or the `tr` of a `.cp-table` kept: `kept` = `{ from, reason }`, where `from` is a `Date` or ms since the epoch. The row's visible `small` and `.cp-meta` lines in its first `.cp-cell-stack` give way to a `small.cp-kept` line, "Kept from 03:00: Sonarr walk partial", whose clock the stylesheet draws; a row with none takes the line at its end, or in its first cell for a table row. Null marks it fresh again and shows the lines it hid. Calling it again on a kept row rewrites its one line. It throws a `TypeError` for an invalid date.
 - `KeptOptions` = `{ words?, locale? }`. `words(time, reason)` gives the line. `locale` is a BCP 47 language tag for the time, by default the browser's. The time is the time of day when it is today's, "03:00", and the date with the time on another day, "9 Nov 2026, 03:00".
 - The module does nothing when it is imported.

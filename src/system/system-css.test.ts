@@ -5037,6 +5037,33 @@ describe("css/system.css data tables", () => {
     ]);
   });
 
+  it("greys a compact track kept alone in a live row", () => {
+    theme("light");
+    const el = build(
+      '<button class="cp-track-compact" type="button" data-kept><span class="cp-icon" data-cp-icon="download"></span>Downloading</button>',
+    );
+    const button = el.querySelector("button") as Element;
+    expect(getComputedStyle(button).color).toBe(resolve("var(--cp-ink-muted)"));
+    expect(getComputedStyle(button.querySelector(".cp-icon") as Element).color).toBe(
+      resolve("var(--cp-ink-muted)"),
+    );
+  });
+
+  it.skipIf(!emulates)("greys a kept compact track in forced colours", async () => {
+    theme("light");
+    await media("forced-colors", "active");
+    const el = build(
+      '<button class="cp-track-compact" type="button">Sent</button>' +
+        '<button class="cp-track-compact" type="button" data-kept>Downloading</button>',
+    );
+    const [live, kept] = [...el.querySelectorAll("button")].map((b) => getComputedStyle(b).color);
+    const probe = host("");
+    probe.style.cssText = "forced-color-adjust: none; color: GrayText";
+    const grey = getComputedStyle(probe).color;
+    expect(kept).toBe(grey);
+    expect(live).not.toBe(grey);
+  });
+
   const batchReport = () =>
     '<div class="cp-batch-report">' +
     "<p>Started 246 of 248. None remain. 2 couldn't start:</p><ul>" +
