@@ -82,6 +82,7 @@ Pick a chart by the question its data answers, after [Datawrapper's guide to cha
 
 | Question | Chart | Write |
 | --- | --- | --- |
+| What makes up the whole? | Share bar, one bar with no axis | [`@cplieger/ui/share-bar`](share-bar.md) |
 | How did a whole's parts change over time? | 100% stacked area or column chart | `area` or `rect`, `arrange: "share"` |
 
 ### Marking a moment or a level
