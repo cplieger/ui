@@ -66,6 +66,7 @@
 .cp-dialog > form,
 .cp-dialog > .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   max-block-size: inherit;
 }
@@ -98,6 +99,7 @@
 .cp-dialog-body,
 .cp-dialog .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-4);
   padding: var(--cp-space-1) var(--cp-space-5) var(--cp-space-5);

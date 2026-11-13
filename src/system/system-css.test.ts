@@ -1415,13 +1415,28 @@ describe("css/system.css", () => {
   it("rings the account button's avatar in the bar's ink, wider while its menu is open", () => {
     theme("light");
     const el = build(
-      '<header class="cp-header"><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button></header>',
+      '<header class="cp-header"><a class="cp-wordmark" href="/"><span class="cp-mark">G</span>grelot</a><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button><button class="cp-button" data-variant="quiet" type="button" aria-label="Settings"><span class="cp-icon"></span></button></header>',
     );
-    const button = el.querySelector("button") as HTMLElement;
+    const [button, settings] = [...el.querySelectorAll<HTMLElement>("button")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
     const avatar = el.querySelector(".cp-avatar") as HTMLElement;
+    const wordmark = el.querySelector(".cp-wordmark") as HTMLElement;
     avatar.style.transition = "none";
     expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
-    expect(avatar.getBoundingClientRect().width).toBe(28);
+    // As tall as the header's other controls, with the hit area on the wordmark, on each tier.
+    for (const [tier, control, hit] of [
+      ["fine", 32, 24],
+      ["coarse", 44, 44],
+    ] as const) {
+      root.setAttribute("data-pointer", tier);
+      expect(button.getBoundingClientRect().height, tier).toBe(control);
+      expect(button.getBoundingClientRect().width, tier).toBe(control);
+      expect(settings.getBoundingClientRect().height, tier).toBe(control);
+      expect(avatar.getBoundingClientRect().width, tier).toBe(control - 6);
+      expect(wordmark.getBoundingClientRect().height, tier).toBeGreaterThanOrEqual(hit);
+    }
     expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 2px$/);
     button.setAttribute("aria-expanded", "true");
     expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 3px$/);
@@ -4815,5 +4830,82 @@ describe("css/system.css data tables", () => {
     expect(getComputedStyle(selected as Element).backgroundColor).toBe(
       resolve("var(--cp-selected)", "backgroundColor"),
     );
+  });
+});
+
+// docs/design.md "Nothing else is wider than the window at 320px, and
+// nothing is clipped": app text with no break point and a code line longer
+// than the window, in every part that holds app content.
+describe("css/system.css at 320px", () => {
+  const word = `https://grelot.example/agents/${"alpha-".repeat(24)}end`;
+  const line = `curl -sS -H 'Authorization: Bearer test-key' 'https://grelot.example/api/v1/agents/alpha/messages?since=2026-11-13T00:00:00Z&limit=100'`;
+  const code = `<div class="cp-code" data-variant="block"><pre tabindex="0"><code>${line}</code></pre></div>`;
+  const cases: [string, string][] = [
+    [
+      "a feed entry",
+      `<ol class="cp-feed"><li class="cp-feed-entry"><header><a href="#">@alpha</a><time>09:12</time></header><p class="cp-feed-text">${word}</p>${code}</li></ol>`,
+    ],
+    [
+      "a feed entry's rendered markdown",
+      `<ol class="cp-feed"><li class="cp-feed-entry"><header><a href="#">@alpha</a><time>09:12</time></header><div class="cp-prose"><p>${word}</p>${code}</div></li></ol>`,
+    ],
+    [
+      "a list row",
+      `<ul class="cp-list"><li><div class="cp-list-row"><div class="cp-cell-stack"><a href="#">${word}</a><small>${word}</small></div></div></li></ul>`,
+    ],
+    ["an empty state", `<section class="cp-empty"><h2>${word}</h2><p>${word}</p></section>`],
+    ["a notice", `<div class="cp-notice" data-tone="warning"><span>${word}</span></div>`],
+    [
+      "a detail",
+      `<section class="cp-detail"><header><h2>${word}</h2></header><div class="cp-detail-body"><p>${word}</p>${code}</div></section>`,
+    ],
+    [
+      "a detail's rendered markdown",
+      `<section class="cp-detail"><header><h2>Notes</h2></header><div class="cp-detail-body"><div class="cp-prose">${code}</div></div></section>`,
+    ],
+    [
+      "a context panel",
+      `<aside class="cp-context-panel"><section><h2>Paths</h2><p>${word}</p></section></aside>`,
+    ],
+    [
+      "a dialog body",
+      `<div class="cp-dialog-body"><div><h2>${word}</h2><p>${word}</p></div></div>`,
+    ],
+    [
+      "facts",
+      `<dl class="cp-facts"><dt>Path</dt><dd><code class="cp-mono">${word}</code></dd></dl>`,
+    ],
+    [
+      "a toolbar's button",
+      `<div class="cp-toolbar"><button class="cp-button" type="button">Message @${"alpha-".repeat(12)}end</button></div>`,
+    ],
+    [
+      "chips in a cluster",
+      `<div class="cp-cluster"><span class="cp-chip" data-tone="neutral">from @${"alpha-".repeat(12)}end</span></div>`,
+    ],
+  ];
+
+  it.each(cases)("keeps %s inside a 320px column", (_name, markup) => {
+    theme("light");
+    const el = build(`<div style="inline-size: 20rem">${markup}</div>`);
+    const column = el.firstElementChild as HTMLElement;
+    const right = column.getBoundingClientRect().right;
+    expect(column.scrollWidth, "something is wider than the column").toBeLessThanOrEqual(
+      column.clientWidth,
+    );
+    // A part inside a box that scrolls or clips is that box's to hold.
+    const held = (part: Element): boolean => {
+      for (let up = part.parentElement; up !== null && up !== column; up = up.parentElement) {
+        if (getComputedStyle(up).overflowX !== "visible") {
+          return true;
+        }
+      }
+      return false;
+    };
+    for (const part of [...column.querySelectorAll("*")].filter((p) => !held(p))) {
+      expect(part.getBoundingClientRect().right, part.outerHTML.slice(0, 80)).toBeLessThanOrEqual(
+        right + 0.5,
+      );
+    }
   });
 });

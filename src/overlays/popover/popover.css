@@ -52,6 +52,7 @@
 /* A panel of controls rather than a list of choices. */
 .cp-popover[data-variant="panel"] {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-3);
   inline-size: 18rem;
   padding: var(--cp-space-4);
