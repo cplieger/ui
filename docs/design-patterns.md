@@ -139,7 +139,7 @@ A dialog is the last answer, after inline editing and disclosure. When one is ne
 
 A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, body and footer. It opens at the inline end at full height, and across the whole window in the compact tier. The filter sheet is the standard one:
 
-1. Below 60rem, a Filters button in the page toolbar, with class `.cp-rail-toggle`, opens the rail's filters in a sheet. The stylesheet shows it only once the rail is gone. Its label carries the count of active filters, such as "Filters, 2", and while any filter is active, a "Clear filters" button sits beside it.
+1. Below 60rem, a Filters button in the page toolbar opens the rail's filters in a sheet. Its label carries the count of active filters, such as "Filters, 2", and while any filter is active, a "Clear filters" button sits beside it. Both carry `.cp-rail-toggle`, which marks a toolbar control that serves the rail once it is gone: the stylesheet shows them only below 60rem, where the rail is hidden.
 2. The head holds the title "Filters" and a Close button.
 3. A sheet with one group of filters whose results come back fast applies each change at once and writes the URL. Its foot holds "Clear all" and "Done", and Close and Escape keep the changes.
 4. A sheet with several groups, or whose results are slow, stages the changes. Its foot holds "Clear all" and "Show 41 results", which applies them as one URL entry and closes the sheet. Close and Escape discard what was staged.

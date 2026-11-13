@@ -782,7 +782,7 @@ describe("the table view on update", () => {
     expect(cell?.textContent).toBe("7");
     expect(now[1]).toBe(third);
     expect(document.activeElement).toBe(head);
-    expect(document.querySelector(".cp-live-regions")?.textContent).toBe("");
+    expect(document.querySelector("[data-cp-live-regions]")?.textContent).toBe("");
   });
 
   it("rebuilds a hidden table on its next show", () => {
