@@ -502,6 +502,14 @@ export interface Segment {
   readonly bottom: number;
 }
 
+// The px a bar may fill along `at`: the domain's span, so a bar crossing a
+// passed domain's end is cut there, short of the room kept for value labels
+// and notes, where its label then sits.
+function barSpan(f: Frame, at: (v: number) => number): readonly [number, number] {
+  const [a, b] = [at(f.x.lo), at(f.x.hi)];
+  return [Math.min(a, b), Math.max(a, b)];
+}
+
 /** Row `i`'s segments of `m`, one per series, absent where it draws nothing
  *  (a `null` counts as 0): centred on `cy`, `thick` px across, snapped to
  *  device px. Values stack from 0 in series order, rightward above it and
@@ -528,19 +536,21 @@ export function barSegments(
         return undefined;
       }
       const [a, b] = [p.at(0), p.at(v)];
-      const left = clamp(Math.min(a, b), p.left, p.right);
-      const right = clamp(Math.max(a, b), p.left, p.right);
+      const [lo, hi] = barSpan(f, p.at);
+      const left = clamp(Math.min(a, b), lo, hi);
+      const right = clamp(Math.max(a, b), lo, hi);
       return right > left ? { left, right, top, bottom } : undefined;
     });
   }
+  const [lo, hi] = barSpan(f, f.xAt);
   if (barsApart(m)) {
     const half = (thick * SUB_BAR) / 2;
     return m.series.map((s, k) => {
       const v = s.x[i] ?? 0;
       const c = barCentre(m, k, cy, thick);
       const [a, b] = [f.xAt(0), f.xAt(v)];
-      const left = clamp(Math.min(a, b), 0, f.width);
-      const right = clamp(Math.max(a, b), 0, f.width);
+      const left = clamp(Math.min(a, b), lo, hi);
+      const right = clamp(Math.max(a, b), lo, hi);
       return v !== 0 && right > left
         ? { left, right, top: snap(c - half, f.dpr), bottom: snap(c + half, f.dpr) }
         : undefined;
@@ -566,8 +576,8 @@ export function barSegments(
       a += Math.sign(b - a) * GAP;
     }
     drawn[side] = true;
-    const left = clamp(Math.min(a, b), 0, f.width);
-    const right = clamp(Math.max(a, b), 0, f.width);
+    const left = clamp(Math.min(a, b), lo, hi);
+    const right = clamp(Math.max(a, b), lo, hi);
     return right > left ? { left, right, top, bottom } : undefined;
   });
 }
@@ -585,6 +595,7 @@ function divergeSegments(
   bottom: number,
 ): (Segment | undefined)[] {
   const out: (Segment | undefined)[] = m.series.map(() => undefined);
+  const [lo, hi] = barSpan(f, f.xAt);
   const value = (k: number) => m.series[k]?.x[i] ?? 0;
   const half = m.centre ? value(m.left) / 2 : 0;
   const centred = half > 0;
@@ -594,8 +605,8 @@ function divergeSegments(
     if (drawn && Math.abs(b - a) >= GAP_MIN) {
       a += Math.sign(b - a) * GAP;
     }
-    const left = clamp(Math.min(a, b), 0, f.width);
-    const right = clamp(Math.max(a, b), 0, f.width);
+    const left = clamp(Math.min(a, b), lo, hi);
+    const right = clamp(Math.max(a, b), lo, hi);
     out[k] = right > left ? { left, right, top, bottom } : undefined;
   };
   if (centred) {
@@ -624,7 +635,7 @@ function divergeSegments(
 }
 
 /** A path in its series slot, the rectangles of every segment it fills. */
-export interface BarPath {
+interface BarPath {
   readonly slot: number;
   readonly d: string;
 }

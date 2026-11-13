@@ -24,7 +24,8 @@ import {
 } from "./select.js";
 import type { Words } from "./words.js";
 
-/** A touch that moves this far along x is a drag, not a tap, in px. */
+/** A touch that moves this far is a drag, not a tap, in px: along x on a
+ *  chart a drag explores, either way on one that only taps select. */
 const DRAG = 8;
 
 interface Explorer {
@@ -41,6 +42,7 @@ interface Explorer {
 interface Touch {
   readonly id: number;
   readonly x: number;
+  readonly y: number;
   dragging: boolean;
   /** Moved past DRAG on a chart that only taps select, so its lift selects nothing. */
   moved: boolean;
@@ -175,7 +177,7 @@ export function explore(
     pressed = true;
     lifted = undefined;
     if (e.pointerType === "touch") {
-      touch = { id: e.pointerId, x: e.clientX, dragging: false, moved: false };
+      touch = { id: e.pointerId, x: e.clientX, y: e.clientY, dragging: false, moved: false };
     }
   });
   on("pointermove", (e) => {
@@ -187,13 +189,14 @@ export function explore(
     if (touch?.id !== e.pointerId) {
       return;
     }
-    if (touch.dragging || Math.abs(e.clientX - touch.x) > DRAG) {
-      if (nav?.drags === true) {
+    const across = Math.abs(e.clientX - touch.x) > DRAG;
+    if (nav?.drags === true) {
+      if (touch.dragging || across) {
         touch.dragging = true;
         pointAt(e);
-      } else {
-        touch.moved = true;
       }
+    } else if (across || Math.abs(e.clientY - touch.y) > DRAG) {
+      touch.moved = true;
     }
   });
   on("pointerup", (e) => {

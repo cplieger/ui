@@ -503,6 +503,17 @@ describe("a note on bar and point rows", () => {
     expect(reversed.notes[0]?.point.x).toBe((last?.at(43) ?? 0) - past);
   });
 
+  it("points past a bar cut at a passed domain's end, in its panel or folded", () => {
+    const split = bars({ arrange: "split", labels: false }, { domain: [0, 40] });
+    // Facebook's Weekly 43 is cut at 40.
+    const l = lay(split);
+    const last = l.frame.panels?.[1];
+    expect(l.notes[0]?.point.x).toBeCloseTo((last?.at(40) ?? 0) + 4);
+    expect(l.notes[0]?.point.x).toBeLessThanOrEqual(last?.right ?? Number.NaN);
+    const folded = lay(split, 479);
+    expect(folded.notes[0]?.point.x).toBeCloseTo(folded.frame.xAt(40) + 4);
+  });
+
   it("points past the farthest bar of the folded row under 30rem", () => {
     const l = lay(bars({ arrange: "split" }), 479);
     expect(l.frame.panels).toBeUndefined();

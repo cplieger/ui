@@ -605,6 +605,9 @@ export function layout(
   const valueLabels: Text[] = [];
   // Each label's bar and the label's outer edge.
   const labelEnds: (BarValue & { readonly edge: number })[] = [];
+  // A bar is cut at a passed domain's end (`barSegments`), so what sits at
+  // its end is placed from its value held to the domain.
+  const held = (v: number) => Math.min(Math.max(v, model.x.lo), model.x.hi);
   values.forEach((t, i) => {
     const at = rows[t.row];
     if (at === undefined || bars === undefined) {
@@ -614,8 +617,8 @@ export function layout(
     const panel = t.series === undefined ? undefined : panels[t.series];
     const end =
       panel !== undefined
-        ? panel.at(t.value)
-        : xAx.at(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi);
+        ? panel.at(held(t.value))
+        : xAx.at(held(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi));
     const leftward = panel?.leftward ?? t.value < 0 !== reverse;
     const text = valueTexts[i] ?? "";
     const x = leftward ? end - VALUE_GAP : end + VALUE_GAP;
@@ -687,15 +690,15 @@ export function layout(
     if (panel !== undefined) {
       const label = labelEnds.find((e) => e.row === row && e.series === k);
       const dir = panel.leftward ? -1 : 1;
-      return (label?.edge ?? panel.at(bars.series[k]?.x[row] ?? 0)) + dir * END_GAP;
+      return (label?.edge ?? panel.at(held(bars.series[k]?.x[row] ?? 0))) + dir * END_GAP;
     }
     const reach = barReach(bars, row);
     if (bars.arrange === "diverge") {
-      return Math.max(xAx.at(reach.lo), xAx.at(reach.hi)) + END_GAP;
+      return Math.max(xAx.at(held(reach.lo)), xAx.at(held(reach.hi))) + END_GAP;
     }
     // Bars here are 0 or more, so the farthest reaches the row's highest.
     const label = labelEnds.find((e) => e.row === row && e.value === reach.hi);
-    return (label?.edge ?? xAx.at(reach.hi)) + (reverse ? -END_GAP : END_GAP);
+    return (label?.edge ?? xAx.at(held(reach.hi))) + (reverse ? -END_GAP : END_GAP);
   };
   const notes = notesOf(model, metrics, frame, rows, rowEnd);
   return {

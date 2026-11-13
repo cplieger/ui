@@ -4,8 +4,9 @@ import { formatDuration } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
+import { barSegments } from "./geometry.js";
 import { layout, type Metrics } from "./layout.js";
-import { chartModel } from "./model.js";
+import { chartModel, type BarModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
 
@@ -362,6 +363,30 @@ describe("a bar chart", () => {
     expect(l.valueLabels[2]).toMatchObject({ anchor: "end" });
   });
 
+  // A label's box along x: "start" runs right from x, "end" left to it.
+  const span = (t: { text: string; x: number; anchor: string }) =>
+    t.anchor === "end" ? [t.x - 7.5 * t.text.length, t.x] : [t.x, t.x + 7.5 * t.text.length];
+
+  it("writes a value past a passed domain at its bar's cut end, inside the plot", () => {
+    const one = (domain: [number, number], x: number[]): ChartSpec => ({
+      x: { domain },
+      marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "Age", x }] }],
+    });
+    const high = lay(one([0, 50], [57.4, 49.8]), 600);
+    expect(high.valueLabels.map((t) => t.text)).toEqual(["57.4", "49.8"]);
+    expect(high.valueLabels[0]?.x).toBeCloseTo(high.frame.xAt(50) + 4);
+    const low = lay(one([-10, 50], [-30, 20]), 600);
+    expect(low.valueLabels[0]).toMatchObject({ text: "-30", anchor: "end" });
+    expect(low.valueLabels[0]?.x).toBeCloseTo(low.frame.xAt(-10) - 4);
+    for (const l of [high, low]) {
+      for (const t of l.valueLabels) {
+        const [a = 0, b = 0] = span(t);
+        expect(a).toBeGreaterThanOrEqual(-1e-6);
+        expect(b).toBeLessThanOrEqual(l.frame.width + 1e-6);
+      }
+    }
+  });
+
   const sexes: ChartSpec = {
     x: {},
     marks: [
@@ -497,6 +522,35 @@ describe("a bar chart", () => {
       expect(p.at(43) + 4 + 2 * 7.5).toBeCloseTo(p.right);
     }
     expect(l.xAxis.ticks).toEqual([]);
+  });
+
+  it("writes a value past a passed domain at its bar's cut end, inside its own panel", () => {
+    const spec: ChartSpec = {
+      x: { domain: [0, 30] },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Instagram"],
+          arrange: "split",
+          series: [
+            { name: "Daily", x: [43] },
+            { name: "Weekly", x: [8] },
+          ],
+        },
+      ],
+    };
+    const l = lay(spec, 600);
+    const panels = l.frame.panels ?? [];
+    expect(l.valueLabels.map((t) => t.text)).toEqual(["43", "8"]);
+    l.valueLabels.forEach((t, k) => {
+      const [a = 0, b = 0] = span(t);
+      expect(a).toBeGreaterThanOrEqual(panels[k]?.left ?? Number.NaN);
+      expect(b).toBeLessThanOrEqual((panels[k]?.right ?? Number.NaN) + 1e-6);
+    });
+    expect(l.valueLabels[0]?.x).toBeCloseTo((panels[0]?.at(30) ?? 0) + 4);
+    const bars = chartModel(spec, "en", "UTC").marks[0] as BarModel;
+    const [daily] = barSegments(bars, 0, l.frame, l.rows[0]?.y ?? 0, l.bar);
+    expect(daily?.right).toBeCloseTo(panels[0]?.at(30) ?? Number.NaN);
   });
 
   it("cuts a panel's name to its width", () => {

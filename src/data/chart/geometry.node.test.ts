@@ -941,7 +941,7 @@ describe("bars", () => {
     width,
     height: 48,
     dpr: 1,
-    x: m.x,
+    x: { ...m.x, lo, hi },
     xAt: position("linear", lo, hi, 0, width),
     yAt: (v) => v,
   });
@@ -955,6 +955,18 @@ describe("bars", () => {
     ]);
     expect(barPaths(barOf(m), [12, 36], 16, f)).toEqual([
       { slot: 1, d: "M0 4H40V20H0ZM0 28H100V44H0Z" },
+    ]);
+  });
+
+  it("cuts a bar at a passed domain's end, short of the room past it", () => {
+    const m = barModel([[57.4, -30]]);
+    // The domain [-10, 50] maps to 20 to 80 px, room for labels either side.
+    const f = { ...barFrame(m, -10, 50), xAt: position("linear", -10, 50, 20, 80) };
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 30, right: 80, top: 4, bottom: 20 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([
+      { left: 20, right: 30, top: 28, bottom: 44 },
     ]);
   });
 

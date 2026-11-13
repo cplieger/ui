@@ -635,6 +635,18 @@ describe("keys and touch on a bar chart", () => {
     expect(crosshair(b)).toBe(null);
   });
 
+  it("a vertical slide the browser does not scroll selects nothing on lift", () => {
+    const b = build(firms);
+    const w = plotWidth(b);
+    const h = plotHeight(b);
+    const before = legendText(b);
+    point(b, "pointerdown", w * 0.5, h * 0.1, "touch");
+    point(b, "pointermove", w * 0.5, h * 0.9, "touch");
+    point(b, "pointerup", w * 0.5, h * 0.9, "touch");
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(before);
+  });
+
   it("a mouse selects the row under it anywhere across the plot", () => {
     const b = build(firms);
     point(b, "pointermove", plotWidth(b) - 1, plotHeight(b) * 0.5);
