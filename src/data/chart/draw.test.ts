@@ -12,7 +12,7 @@ import {
   readMetrics,
   writeLegend,
 } from "./draw.js";
-import { hairline, snap, upright } from "./geometry.js";
+import { hairline, num, snap, upright } from "./geometry.js";
 import { layout, type Layout } from "./layout.js";
 import { chartModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, overall, readoutWidths } from "./readout.js";
@@ -1519,6 +1519,49 @@ describe("a scatter plot", () => {
     // With neither axis holding 0 there is no zero line.
     const away = draw(countries({ domain: [1_000, 70_000] }));
     expect(away.svg.querySelector('[data-part="zero"]')).toBeNull();
+  });
+
+  it("rings a selected dot over every dot, in its place, with rules from both axes to its edge", () => {
+    const d = draw({
+      x: { label: "a", domain: [0, 100] },
+      y: { label: "b", domain: [0, 100] },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "Europe", names: ["A"], x: [40], y: [30] },
+            { name: "Africa", names: ["B"], x: [41], y: [30] },
+          ],
+        },
+      ],
+    });
+    const f = d.lay.frame;
+    drawSelection(
+      d.svg,
+      d.model,
+      d.lay,
+      { kind: "scatter", series: 0, i: 0 },
+      navigator(d.model, d.lay),
+    );
+    const area = d.svg.querySelector('[data-part="area"]');
+    // The selection draws after both series, and draws no dot of its own.
+    expect(area?.lastElementChild?.getAttribute("data-part")).toBe("selection");
+    expect(area?.querySelectorAll('[data-part="selection"] [data-series]')).toHaveLength(0);
+    const cx = f.xAt(40);
+    const cy = f.yAt(30);
+    const ring = d.svg.querySelector('[data-part="ring"]') as SVGGeometryElement;
+    const box = ring.getBBox();
+    expect([box.x, box.y, box.width, box.height]).toEqual(
+      [cx - 5, cy - 5, 10, 10].map((v) => expect.closeTo(v, 3)),
+    );
+    const hair = d.svg.querySelector('[data-part="crosshair"]') as SVGGeometryElement;
+    const x = snap(cx, f.dpr) + 0.5;
+    const y = snap(cy, f.dpr) + 0.5;
+    expect(hair.getAttribute("d")).toBe(
+      `M${num(x)} ${num(f.height)}V${num(cy + 4)}M0 ${num(y)}H${num(cx - 4)}`,
+    );
+    drawSelection(d.svg, d.model, d.lay, undefined, navigator(d.model, d.lay));
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
   });
 
   it("draws a gridline at every tick of a log axis and no zero line there", () => {

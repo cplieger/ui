@@ -5,7 +5,7 @@ import { durationEdges } from "../scale/ladder.js";
 
 import { chartModel, type LineModel, type Model } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
-import { stepStops, tableModel, type TableModel } from "./table.js";
+import { namedRows, stepStops, tableModel, type TableModel } from "./table.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -633,5 +633,95 @@ describe("the table of a slope chart", () => {
     ]);
     expect(t.rows.map((r) => r.key)).toEqual(["Cats", "Horses", "Mice"]);
     expect(t.after).toBe("Target 40. 2005: Peak.");
+  });
+});
+
+describe("the table of a scatter plot", () => {
+  const world = (more: readonly Mark[] = [], domain?: readonly [number, number]): ChartSpec => ({
+    x: { label: "GDP per capita", ...(domain === undefined ? {} : { domain }) },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Europe",
+            names: ["Albania", "Monaco", "Kosovo"],
+            x: [18_920, 140_000, null],
+            y: [79.8, 85.9, 79],
+          },
+          { name: "Africa", names: ["Chad", "Mali"], x: [1_500, 2_000], y: [53, Number.NaN] },
+        ],
+      },
+      ...more,
+    ],
+  });
+
+  it("lists a row per dot in series order, its series, then each measure under its label", () => {
+    const t = tableModel(model(world()), words);
+    expect(t.corner).toBe("");
+    expect(t.columns).toEqual([
+      { text: "Series", num: false },
+      { text: "GDP per capita", num: true },
+      { text: "Life expectancy", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["Albania", "Europe", "18,920", "79.8"],
+      ["Monaco", "Europe", "140,000", "85.9"],
+      ["Kosovo", "Europe", "No data", "79"],
+      ["Chad", "Africa", "1,500", "53"],
+      ["Mali", "Africa", "2,000", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Albania", "Monaco", "Kosovo", "Chad", "Mali"]);
+  });
+
+  it("has no Series column with one series", () => {
+    const t = tableModel(
+      model({
+        x: { label: "GDP per capita" },
+        y: { label: "Life expectancy" },
+        marks: [
+          { mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1_500], y: [53] }] },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["GDP per capita", "Life expectancy"]);
+    expect(cells(t)).toEqual([["Chad", "1,500", "53"]]);
+  });
+
+  it("leaves out a dot outside a passed domain, as the plot does", () => {
+    const t = tableModel(model(world([], [0, 100_000])), words);
+    expect(t.rows.map((r) => r.key)).toEqual(["Albania", "Kosovo", "Chad", "Mali"]);
+  });
+
+  it("follows with its rules and notes, a note placed at the dot it joins", () => {
+    const t = tableModel(
+      model(
+        world([
+          { mark: "rule", y: 70, label: "World average" },
+          { mark: "text", x: 140_000, y: 85.9, text: "A city-state" },
+        ]),
+      ),
+      words,
+    );
+    expect(t.after).toBe("World average 70. Monaco: A city-state.");
+  });
+
+  it("sets the dots' names, as a band's rows and a slope's series, in their own direction", () => {
+    expect(namedRows(model(world()))).toBe(true);
+    expect(
+      namedRows(
+        model({ marks: [{ mark: "slope", x: ["a", "b"], series: [{ name: "s", y: [1, 2] }] }] }),
+      ),
+    ).toBe(true);
+    expect(
+      namedRows(
+        model({
+          x: { type: "time" },
+          marks: [{ mark: "line", x: [START], series: [{ name: "s", y: [1] }] }],
+        }),
+      ),
+    ).toBe(false);
   });
 });

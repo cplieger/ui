@@ -86,6 +86,8 @@ export interface ChartWords {
   readonly count?: string;
   readonly first?: string;
   readonly last?: string;
+  /** A scatter's table head over each dot's series. Default "Series". */
+  readonly series?: string;
   /** A rule outside a passed domain, on the plot. Default "{label} {value}, off the axis". */
   readonly offAxis?: (label: string, value: string) => string;
   /** Equal buckets or samples. Default "every {size}". */
@@ -120,23 +122,27 @@ export interface ChartWords {
   /** A scatter's dots when its mark names no unit; count is n as a number,
    *  for the plural. Default "{n} points", or "{n} point" for one. */
   readonly points?: (n: string, count: number) => string;
-  /** Summary, a bar chart's head; series is "" for one series. Default
+  /** A scatter dot's value with its axis label, in the legend row, the
+   *  readings and a note's place. Default "{label} {value}". */
+  readonly measure?: (label: string, value: string) => string;
+  /** Summary, a bar, point or scatter chart's head; series is "" for one series. Default
    *  "{count}, {series}.", or "{count}." with one series. */
   readonly countSummary?: (count: string, series: string) => string;
-  /** Summary, one series of a bar or point chart, or its totals under `total`; high
-   *  and low are each "{row} {value}". Default "{name}: highest {high},
-   *  lowest {low}." */
+  /** Summary, one series of a bar or point chart, or its totals under
+   *  `total`, or one measure of a scatter under its label; high and low are
+   *  each "{row} {value}" or "{dot} {value}". Default "{name}: highest
+   *  {high}, lowest {low}." */
   readonly barSeries?: (name: string, high: string, low: string) => string;
   /** Summary, a bar or point chart of one series. Default "Highest {high},
    *  lowest {low}." */
   readonly extremes?: (high: string, low: string) => string;
-  /** Summary, a bar or point series whose rows all hold one value; name is
-   *  "" for a chart's one series. Default "{name}: {value} each.", or
-   *  "{value} each." */
+  /** Summary, a bar or point series whose rows all hold one value, or a
+   *  scatter measure whose dots do; name is "" for a chart's one series.
+   *  Default "{name}: {value} each.", or "{value} each." */
   readonly alike?: (name: string, value: string) => string;
-  /** Summary, a bar or point series with one row holding a value; row is
-   *  "{row} {value}" and name "" for a chart's one series. Default
-   *  "{name}: {row}.", or "{row}." */
+  /** Summary, a bar or point series with one row holding a value, or a
+   *  scatter of one dot; row is "{row} {value}" and name "" for a chart's
+   *  one series. Default "{name}: {row}.", or "{row}." */
   readonly only?: (name: string, row: string) => string;
   /** Summary, one series of a point chart on a time x; first and last are
    *  each "{row} {time}". Default "{name}: earliest {first}, latest {last}." */
@@ -222,6 +228,7 @@ const DEFAULTS: Words = {
   count: "Count",
   first: "First",
   last: "Last",
+  series: "Series",
   offAxis: (label, value) => `${label} ${value}, off the axis`,
   every: (size) => `every ${size}`,
   stackSummary: (total, every, range, parts) => {
@@ -238,6 +245,7 @@ const DEFAULTS: Words = {
   noteReading: (text) => sentence(`Note: ${text}`),
   categories: (n, count) => (count === 1 ? `${n} category` : `${n} categories`),
   points: (n, count) => (count === 1 ? `${n} point` : `${n} points`),
+  measure: (label, value) => `${label} ${value}`,
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
   extremes: (high, low) => `Highest ${high}, lowest ${low}.`,

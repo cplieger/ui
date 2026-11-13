@@ -7,7 +7,7 @@
 
 import { lowerBound } from "../scale/reduce.js";
 
-import type { Model, RectModel, Side, TextModel } from "./model.js";
+import { scatterDotAt, type Model, type RectModel, type Side, type TextModel } from "./model.js";
 import { primaryOf } from "./readout.js";
 import { ruleAt } from "./scales.js";
 import { stepStopAt } from "./table.js";
@@ -136,11 +136,13 @@ export function placeNote(
 }
 
 /** The stop a note joins: bucket, sample or slope column `i`, post `i` of
- *  a timeline row, or a row: a timeline row with no post, or a bar or point row. */
+ *  a timeline row, a row (a timeline row with no post, or a bar or point
+ *  row), or a scatter's dot `i` of `series`. */
 export type Join =
   | { readonly kind: "stop"; readonly i: number }
   | { readonly kind: "post"; readonly row: number; readonly i: number }
-  | { readonly kind: "row"; readonly row: number };
+  | { readonly kind: "row"; readonly row: number }
+  | { readonly kind: "dot"; readonly series: number; readonly i: number };
 
 /**
  * The index in `[from, to)` of ascending `xs` nearest `x`, the earlier on a
@@ -208,7 +210,9 @@ export function notePoint(
 /** The stop note `t` joins in `model`; none when `notePoint` places it
  *  nowhere or it names no stop. On a step curve that is the stop holding its
  *  nearest sample, since the keys stop only there. A bar or point note
- *  joins its row, its x only placing it; a slope note its column. */
+ *  joins its row, its x only placing it; a slope note its column; a
+ *  scatter note the dot at its values, by value, never by px, so its join
+ *  holds before any layout and at every width. */
 export function noteJoin(model: Model, t: TextModel): Join | undefined {
   const p = notePoint(model, t);
   const m = primaryOf(model);
@@ -245,7 +249,10 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
     }
     case "slope":
       return { kind: "stop", i: x };
-    case "scatter":
+    case "scatter": {
+      const d = scatterDotAt(m, x, p.y);
+      return d === undefined ? undefined : { kind: "dot", ...d };
+    }
     case undefined:
       return undefined;
   }

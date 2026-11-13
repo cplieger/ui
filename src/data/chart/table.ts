@@ -1,13 +1,21 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
- * bucket, sample, change point, dot row, category or slope series, kept in
- * place across updates.
+ * bucket, sample, change point, dot row, category, slope series or scatter
+ * dot, kept in place across updates.
  * @module
  */
 
 import { formatter } from "../scale/format.js";
 
-import type { BarModel, Model, PointModel, RectModel, SampleModel, SlopeModel } from "./model.js";
+import type {
+  BarModel,
+  Model,
+  PointModel,
+  RectModel,
+  SampleModel,
+  ScatterModel,
+  SlopeModel,
+} from "./model.js";
 import { barsApart, barTotal, bucketTotal, pointLink, sampleTotal, slopeChange } from "./model.js";
 import {
   barPart,
@@ -215,6 +223,53 @@ function slopeTable(model: Model, m: SlopeModel, words: Words, after: string): T
   };
 }
 
+// A row per dot in series order, then the app's order, its name the head,
+// its series from two up, then each measure under its label; a gap reads
+// No data. A dot outside a passed domain is left out, as the plot leaves it.
+function scatterTable(model: Model, m: ScatterModel, words: Words, after: string): TableModel {
+  const several = m.series.length > 1;
+  const inside = (v: number | null | undefined, scale: Model["x"] | Model["y"]) =>
+    v === null || v === undefined || scale.type === "band" || (v >= scale.lo && v <= scale.hi);
+  const value = (v: number | null | undefined, write: (v: number) => string) =>
+    v === null || v === undefined ? words.noData : write(v);
+  const rows = m.series.flatMap((s) =>
+    s.names.flatMap((name, i): Row[] => {
+      if (!inside(s.x[i], model.x) || !inside(s.y[i], model.y)) {
+        return [];
+      }
+      const cells: Cell[] = [
+        { parts: [value(s.x[i], model.xText)], num: true },
+        { parts: [value(s.y[i], model.yText)], num: true },
+      ];
+      return [
+        {
+          key: name,
+          head: [name],
+          cells: several ? [{ parts: [s.name], num: false }, ...cells] : cells,
+        },
+      ];
+    }),
+  );
+  const columns = [
+    { text: model.spec.x?.label ?? "", num: true },
+    { text: model.spec.y?.label ?? "", num: true },
+  ];
+  return {
+    corner: "",
+    columns: several ? [{ text: words.series, num: false }, ...columns] : columns,
+    rows,
+    after,
+  };
+}
+
+/** Whether the table's row heads are the app's names, each set in a `<bdi>`
+ *  so a right-to-left name keeps its place: a band's rows, a slope's series
+ *  or a scatter's dots. */
+export const namedRows = (model: Model): boolean => {
+  const kind = primaryOf(model)?.kind;
+  return model.y.type === "band" || kind === "slope" || kind === "scatter";
+};
+
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
@@ -260,7 +315,7 @@ export function tableModel(model: Model, words: Words): TableModel {
     return slopeTable(model, m, words, after);
   }
   if (m.kind === "scatter") {
-    return { corner: "", columns: [], rows: [], after };
+    return scatterTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {
@@ -347,7 +402,7 @@ function rewrite(el: Element, fresh: Element): void {
  * table with the same columns keeps its rows: changed cells are rewritten
  * in place, new rows inserted and rows that left removed.
  */
-export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot: boolean): void {
+export function syncTable(panel: HTMLElement, t: TableModel, title: string, named: boolean): void {
   let table = panel.querySelector("table");
   if (table?.dataset["head"] !== headSignature(t)) {
     table = document.createElement("table");
@@ -360,7 +415,7 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot:
     // One append per row, since a long line's rows overflow an argument list.
     const body = table.createTBody();
     for (const r of t.rows) {
-      body.append(bodyRow(r, dot));
+      body.append(bodyRow(r, named));
     }
     panel.querySelector("table")?.remove();
     panel.prepend(table);
@@ -383,7 +438,7 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot:
     }
     let after: HTMLTableRowElement | null = null;
     for (const row of t.rows) {
-      const fresh = bodyRow(row, dot);
+      const fresh = bodyRow(row, named);
       let tr = old.get(row.key);
       if (tr === undefined) {
         tr = fresh;

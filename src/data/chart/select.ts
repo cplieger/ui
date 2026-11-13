@@ -7,10 +7,26 @@
 
 import { lowerBound, upperBound } from "../scale/reduce.js";
 
-import { dotGroups, snap, type DotGroup, type Frame } from "./geometry.js";
+import {
+  dotGroups,
+  SCATTER_RADIUS,
+  scatterAt,
+  snap,
+  type DotGroup,
+  type Frame,
+} from "./geometry.js";
+import { pointGrid, type Grid } from "./grid.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
-import type { DotModel, Model, RectModel, SampleModel, SlopeModel } from "./model.js";
+import type {
+  DotModel,
+  DotRef,
+  Model,
+  RectModel,
+  SampleModel,
+  ScatterModel,
+  SlopeModel,
+} from "./model.js";
 import { barsApart, pointLink, slopeChange } from "./model.js";
 import {
   barPart,
@@ -18,6 +34,7 @@ import {
   bucketReading,
   changeText,
   columnReading,
+  measureText,
   partText,
   pointPart,
   pointReading,
@@ -26,6 +43,7 @@ import {
   rowReading,
   samplePart,
   sampleReading,
+  scatterReading,
   type Reading,
 } from "./readout.js";
 import { stepStopAt, stepStops } from "./table.js";
@@ -34,8 +52,8 @@ import type { Words } from "./words.js";
 /**
  * A bucket, a sample or a slope's column `i`, with one series (`part`) when
  * Up or Down chose it; the posts `[from, to)` of a dot row; a dot row as a
- * whole; or a bar or point row, with one series (`part`) when Left or Right
- * chose it.
+ * whole; a bar or point row, with one series (`part`) when Left or Right
+ * chose it; or a scatter's dot `i` of `series`.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
@@ -44,7 +62,8 @@ export type Selection =
   | { readonly kind: "slope"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "dot"; readonly row: number; readonly from: number; readonly to: number }
   | { readonly kind: "row"; readonly row: number }
-  | { readonly kind: "bar" | "point"; readonly row: number; readonly part: number | undefined };
+  | { readonly kind: "bar" | "point"; readonly row: number; readonly part: number | undefined }
+  | { readonly kind: "scatter"; readonly series: number; readonly i: number };
 
 export type Key =
   "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End" | "PageUp" | "PageDown";
@@ -62,7 +81,7 @@ const KEYS = new Set<string>([
 
 export const isKey = (key: string): key is Key => KEYS.has(key);
 
-/** How far a pointer reaches for a dot in its row, in px. */
+/** How far a pointer reaches for a dot in its row, or for a scatter dot's edge, in px. */
 const REACH = 40;
 /** One x tick's room when the axis draws fewer than two ticks, in px. */
 const TICK_FALLBACK = 80;
@@ -78,12 +97,79 @@ function bucketSpan(m: RectModel, i: number, f: Frame): readonly [number, number
   return a <= b ? [a, b] : [b, a];
 }
 
+/** A scatter's shown dots in draw order (series, then the app's order) and
+ *  their two key orders, each a list of draw indices. */
+interface Orders {
+  readonly dots: readonly DotRef[];
+  readonly x: readonly number[];
+  readonly y: readonly number[];
+  readonly byX: readonly number[];
+  readonly byY: readonly number[];
+  /** Each draw index's place in `byX` and in `byY`. */
+  readonly rankX: Int32Array;
+  readonly rankY: Int32Array;
+  /** Each series' first draw index. */
+  readonly base: readonly number[];
+}
+
+const ordersOf = new WeakMap<ScatterModel, Orders>();
+
+// Ties in either order fall to the other value, then to draw order, so
+// coincident dots are each a stop.
+function orders(m: ScatterModel): Orders {
+  let o = ordersOf.get(m);
+  if (o !== undefined) {
+    return o;
+  }
+  const dots: DotRef[] = [];
+  const x: number[] = [];
+  const y: number[] = [];
+  const base: number[] = [];
+  m.series.forEach((s, k) => {
+    base.push(dots.length);
+    for (const i of m.shown[k] ?? []) {
+      dots.push({ series: k, i });
+      x.push(s.x[i] ?? 0);
+      y.push(s.y[i] ?? 0);
+    }
+  });
+  const all = dots.map((_, d) => d);
+  const byX = [...all].sort(
+    (a, b) => (x[a] ?? 0) - (x[b] ?? 0) || (y[a] ?? 0) - (y[b] ?? 0) || a - b,
+  );
+  const byY = all.sort((a, b) => (y[a] ?? 0) - (y[b] ?? 0) || (x[a] ?? 0) - (x[b] ?? 0) || a - b);
+  const rankX = new Int32Array(dots.length);
+  const rankY = new Int32Array(dots.length);
+  byX.forEach((d, p) => {
+    rankX[d] = p;
+  });
+  byY.forEach((d, p) => {
+    rankY[d] = p;
+  });
+  o = { dots, x, y, byX, byY, rankX, rankY, base };
+  ordersOf.set(m, o);
+  return o;
+}
+
+// The draw index of `sel` among `m`'s shown dots, or -1 when it is not one.
+function drawIndex(m: ScatterModel, o: Orders, sel: DotRef): number {
+  const shown = m.shown[sel.series] ?? [];
+  const j = lowerBound(shown, sel.i);
+  return shown[j] === sel.i ? (o.base[sel.series] ?? 0) + j : -1;
+}
+
+const dotSelection = (o: Orders, d: number | undefined): Selection | undefined => {
+  const ref = d === undefined ? undefined : o.dots[d];
+  return ref === undefined ? undefined : { kind: "scatter", ...ref };
+};
+
 const lineStops = (m: SampleModel): number[] =>
   m.step ? stepStops(m) : Array.from({ length: m.to - m.from }, (_, k) => m.from + k);
 
 /** The selection focus gives a chart that has none yet: the newest x or a
  *  slope's right column, on a timeline the first row's last post, or that
- *  row when it is silent, or a bar or point chart's first row, whole. */
+ *  row when it is silent, a bar or point chart's first row, whole, or a
+ *  scatter's first dot in x order. */
 export function initial(model: Model): Selection | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -112,8 +198,10 @@ export function initial(model: Model): Selection | undefined {
       return bandRows(model) > 0 ? { kind: m.kind, row: 0, part: undefined } : undefined;
     case "slope":
       return { kind: "slope", i: 1, part: undefined };
-    case "scatter":
-      return undefined;
+    case "scatter": {
+      const o = orders(m);
+      return dotSelection(o, o.byX[0]);
+    }
   }
 }
 
@@ -275,6 +363,30 @@ function moveColumn(
   return i === sel.i ? undefined : { ...sel, i };
 }
 
+/** Where `key` moves a scatter's dot: Left and Right, Home, End and the
+ *  Page keys along x order, as the drawing runs; Up and Down along y order,
+ *  Up to the next higher value. */
+function moveScatter(
+  m: ScatterModel,
+  sel: Selection & { kind: "scatter" },
+  key: Key,
+  lay: Layout,
+): Selection | undefined {
+  const o = orders(m);
+  const d = drawIndex(m, o, sel);
+  if (d === -1) {
+    return undefined;
+  }
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    return dotSelection(o, o.byY[(o.rankY[d] ?? 0) + (key === "ArrowUp" ? 1 : -1)]);
+  }
+  const places = Array.from({ length: o.byX.length }, (_, p) => p);
+  const px = (p: number) => lay.frame.xAt(o.x[o.byX[p] ?? 0] ?? 0);
+  const at = o.rankX[d] ?? 0;
+  const p = along(places, at, at, key, px, lay);
+  return p === undefined ? undefined : dotSelection(o, o.byX[p]);
+}
+
 /** A selection's position along x on the plot, in px. */
 function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined {
   const m = primaryOf(model);
@@ -299,12 +411,14 @@ export interface Navigator {
   /** Where `key` moves `sel`; `x` is the post x Up and Down aim for.
    *  Undefined when the key has nowhere to go. */
   move(sel: Selection, key: Key, x: number | undefined): Selection | undefined;
-  /** What a pointer at plot px `(px, py)` selects. */
+  /** What a pointer at plot px `(px, py)` selects; undefined when nothing
+   *  is within reach, which clears the selection. */
   pick(px: number, py: number): Selection | undefined;
-  /** The crosshair's px along x, absent for a row selection. */
+  /** The crosshair's px along x, absent for a row or a scatter's dot,
+   *  whose crosshair is two rules to its edge. */
   crosshair(sel: Selection): number | undefined;
-  /** A touch drag moves the selection; on a bar or point chart only a tap
-   *  does, since a vertical drag is the page's scroll. */
+  /** A touch drag moves the selection; on a bar, point or scatter chart
+   *  only a tap does, since a vertical drag is the page's scroll. */
   readonly drags: boolean;
   /** Page Up and Page Down move the selection; on a slope, whose two
    *  columns have no ticks to page by, they are the page's. */
@@ -326,6 +440,16 @@ export function navigator(model: Model, lay: Layout): Navigator {
   };
   let stops: number[] | undefined;
   const lineStopsOnce = (l: SampleModel): number[] => (stops ??= lineStops(l));
+  let grid: Grid | undefined;
+  // Built at the first pick, so a draw no pointer reaches never pays for it.
+  const gridOf = (s: ScatterModel): Grid => {
+    if (grid === undefined) {
+      const at = orders(s).dots.map((d) => scatterAt(s, d.series, d.i, f) ?? { x: 0, y: 0 });
+      const r = new Float64Array(at.length).fill(SCATTER_RADIUS);
+      grid = pointGrid({ x: at.map((p) => p.x), y: at.map((p) => p.y), r }, REACH);
+    }
+    return grid;
+  };
 
   const moveDot = (d: DotModel, sel: Selection & { kind: "dot" | "row" }, key: Key, x?: number) => {
     if (key === "ArrowUp" || key === "ArrowDown") {
@@ -380,7 +504,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
         return sel.kind === "slope" ? moveColumn(m, sel, key) : undefined;
       }
       if (m.kind === "scatter") {
-        return undefined;
+        return sel.kind === "scatter" ? moveScatter(m, sel, key, lay) : undefined;
       }
       if (sel.kind !== m.kind) {
         return undefined;
@@ -458,7 +582,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
           return { kind: "slope", i, part: undefined };
         }
         case "scatter":
-          return undefined;
+          return dotSelection(orders(m), gridOf(m).nearest(px, py));
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;
@@ -484,7 +608,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
     },
     crosshair: (sel) => selectionPx(model, sel, f),
-    drags: m?.kind !== "bar" && m?.kind !== "point",
+    drags: m?.kind !== "bar" && m?.kind !== "point" && m?.kind !== "scatter",
     pages: m?.kind !== "slope",
   };
 }
@@ -528,6 +652,17 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     const i = now.columns.indexOf(was.columns[sel.i] ?? "");
     const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
     return i === -1 ? undefined : { kind: "slope", i, part };
+  }
+  if (sel.kind === "scatter" && was.kind === "scatter" && now.kind === "scatter") {
+    // A dot's name is unique across the mark, so it is found in any series.
+    const name = was.series[sel.series]?.names[sel.i];
+    for (let k = 0; k < now.series.length; k++) {
+      const i = (now.shown[k] ?? []).find((j) => now.series[k]?.names[j] === name);
+      if (i !== undefined) {
+        return { kind: "scatter", series: k, i };
+      }
+    }
+    return undefined;
   }
   if ((sel.kind === "dot" || sel.kind === "row") && was.kind === "dot" && now.kind === "dot") {
     const name = was.rows[sel.row]?.name;
@@ -581,6 +716,9 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   if (sel.kind === "slope" && m?.kind === "slope") {
     return columnReading(model, m, sel.i, words, sel.part);
   }
+  if (sel.kind === "scatter" && m?.kind === "scatter") {
+    return scatterReading(model, m, sel.series, sel.i, words);
+  }
   return undefined;
 }
 
@@ -620,7 +758,9 @@ const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
     ? stop === j.i
     : j.kind === "post"
       ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
-      : (sel.kind === "row" || sel.kind === "bar" || sel.kind === "point") && sel.row === j.row;
+      : j.kind === "dot"
+        ? sel.kind === "scatter" && sel.series === j.series && sel.i === j.i
+        : (sel.kind === "row" || sel.kind === "bar" || sel.kind === "point") && sel.row === j.row;
 
 /** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
 function noteReadings(model: Model, sel: Selection, words: Words): string {
@@ -662,6 +802,15 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     if (part && s !== undefined) {
       return slopeWords(model, m, s, words);
     }
+  } else if (sel.kind === "scatter" && m.kind === "scatter") {
+    // The dot's series, then each measure; the chips' counts are the chart's, not the dot's.
+    const s = m.series[sel.series];
+    const parts = [
+      ...(m.series.length > 1 ? [s?.name ?? ""] : []),
+      measureText(model, "x", s?.x[sel.i] ?? null, words),
+      measureText(model, "y", s?.y[sel.i] ?? null, words),
+    ];
+    return words.reading(reading.at, parts.join(", "), "");
   } else if (
     (sel.kind === "rect" || sel.kind === "line" || sel.kind === "area") &&
     (m.kind === "rect" || m.kind === "line" || m.kind === "area")

@@ -269,6 +269,29 @@ export interface ScatterModel {
   readonly shown: readonly (readonly number[])[];
 }
 
+/** A scatter's dot: index `i` of series `series`. */
+export interface DotRef {
+  readonly series: number;
+  readonly i: number;
+}
+
+/** The shown dot of `m` whose values are `x` and `y`, the one drawn on top
+ *  among coincident dots: the later series, then the later in the app's
+ *  order. Undefined when no shown dot has both. */
+export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | undefined {
+  for (let k = m.series.length - 1; k >= 0; k--) {
+    const s = m.series[k];
+    const shown = m.shown[k] ?? [];
+    for (let j = shown.length - 1; j >= 0; j--) {
+      const i = shown[j] ?? 0;
+      if (s?.x[i] === x && s.y[i] === y) {
+        return { series: k, i };
+      }
+    }
+  }
+  return undefined;
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";

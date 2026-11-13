@@ -337,8 +337,53 @@ export function columnReading(
 }
 
 /** Whether a chosen series marks its legend chip: on a slope, whose series
- *  Up and Down choose while the row reads a column. */
-export const chipChosen = (model: Model): boolean => primaryOf(model)?.kind === "slope";
+ *  Up and Down choose while the row reads a column, and on a scatter, whose
+ *  chips keep their counts while the row reads a dot. */
+export function chipChosen(model: Model): boolean {
+  const kind = primaryOf(model)?.kind;
+  return kind === "slope" || kind === "scatter";
+}
+
+/** A scatter dot's value on `axis` with its axis label, through `words.measure`. */
+export function measureText(model: Model, axis: "x" | "y", v: number | null, words: Words): string {
+  const text = v === null ? words.noData : axis === "x" ? model.xText(v) : model.yText(v);
+  return words.measure(model.spec[axis]?.label ?? "", text);
+}
+
+// A scatter's chips, a dot count per series, a figure that adds up across
+// the chart where its measures need not; none with one series.
+function dotChips(model: Model, m: ScatterModel): Entry[] {
+  const count = formatter("number", model.locale);
+  return m.series.length < 2
+    ? []
+    : m.series.map((s, k) => ({
+        slot: s.slot,
+        name: s.name,
+        value: count(m.shown[k]?.length ?? 0),
+      }));
+}
+
+/** Dot `i` of series `k` of `m`: its name, each measure with its label, and
+ *  the chips' counts with its series' chip marked. */
+export function scatterReading(
+  model: Model,
+  m: ScatterModel,
+  k: number,
+  i: number,
+  words: Words,
+): Reading {
+  const s = m.series[k];
+  const reading = {
+    at: s?.names[i] ?? "",
+    entries: [
+      ...bare(measureText(model, "x", s?.x[i] ?? null, words)),
+      ...bare(measureText(model, "y", s?.y[i] ?? null, words)),
+      ...dotChips(model, m),
+    ],
+    total: undefined,
+  };
+  return m.series.length < 2 ? reading : { ...reading, chosen: 2 + k };
+}
 
 /** A slope series' change in the y format, signed on every value but 0. */
 export function changeText(model: Model, v: number): string {
@@ -416,23 +461,12 @@ export function overall(model: Model, words: Words): Reading | undefined {
     }
     case "slope":
       return columnReading(model, m, 1, words);
-    case "scatter": {
-      // A series' count adds up across the chart, where its measures need not.
-      const count = formatter("number", model.locale);
-      const chips =
-        m.series.length < 2
-          ? []
-          : m.series.map((s, k) => ({
-              slot: s.slot,
-              name: s.name,
-              value: count(m.shown[k]?.length ?? 0),
-            }));
+    case "scatter":
       return {
         at: dotsText(model, m, words),
-        entries: [...bare(""), ...bare(""), ...chips],
+        entries: [...bare(""), ...bare(""), ...dotChips(model, m)],
         total: undefined,
       };
-    }
   }
 }
 
@@ -528,12 +562,18 @@ function spread(model: Model, x: ArrayLike<number>, from: number, to: number): n
     }
     return out;
   }
-  const step = Math.max(1, Math.ceil((to - from) / SAMPLE));
-  for (let i = from; i < to; i += step) {
+  return spreadOf(to - from).map((k) => from + k);
+}
+
+// At most 256 of the indices [0, n) spread evenly, with the ends.
+function spreadOf(n: number): number[] {
+  const out: number[] = [];
+  const step = Math.max(1, Math.ceil(n / SAMPLE));
+  for (let i = 0; i < n; i += step) {
     out.push(i);
   }
-  if (to > from) {
-    out.push(to - 1);
+  if (n > 0) {
+    out.push(n - 1);
   }
   return out;
 }
@@ -585,6 +625,20 @@ function valueTexts(
   return out;
 }
 
+// The widest measure texts a scatter's `axis` can read: each series' even
+// spread of its shown dots and its extremes, as a line's values are found.
+function scatterTexts(model: Model, m: ScatterModel, axis: "x" | "y", words: Words): string[] {
+  const out: string[] = [];
+  m.series.forEach((s, k) => {
+    const shown = m.shown[k] ?? [];
+    const values = s[axis];
+    const at = (j: number) => values[shown[j] ?? 0] ?? null;
+    const picked = [...spreadOf(shown.length).map(at), ...extremes(over(0, shown.length, at))];
+    out.push(...picked.map((v) => measureText(model, axis, v, words)));
+  });
+  return out;
+}
+
 const widest = (texts: Iterable<string>, measure: Measure): number => {
   let w = 0;
   for (const t of texts) {
@@ -632,6 +686,18 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     }
   } else if (m?.kind === "slope") {
     add(columnReading(model, m, 0, words));
+  } else if (m?.kind === "scatter") {
+    m.series.forEach((s, k) => {
+      for (const i of m.shown[k] ?? []) {
+        at.push(s.names[i] ?? "");
+      }
+    });
+    for (const [slot, axis] of [
+      [0, "x"],
+      [1, "y"],
+    ] as const) {
+      values[slot]?.push(...scatterTexts(model, m, axis, words));
+    }
   } else if (m?.kind === "dot") {
     // Each post's time, written once per stretch of x in which its width holds.
     const posts = new Map<string, number>();

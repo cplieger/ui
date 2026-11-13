@@ -111,7 +111,9 @@ export function explore(
     }
     const box = svg.getBoundingClientRect();
     const next = nav.pick(e.clientX - box.left - lay.left, e.clientY - box.top - lay.top);
-    if (next !== undefined) {
+    if (next === undefined) {
+      clear();
+    } else {
       select(next);
     }
   };

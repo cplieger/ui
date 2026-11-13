@@ -609,3 +609,84 @@ describe("a note on a slope", () => {
     expect(tableModel(m, words).after).toBe("2015: Goal.");
   });
 });
+
+describe("a note on a scatter plot", () => {
+  const world = (...notes: Mark[]): ChartSpec => ({
+    x: { label: "GDP per capita", domain: [0, 150_000] },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Europe",
+            names: ["Albania", "Monaco", "Andorra"],
+            x: [18_920, 140_000, 140_000],
+            y: [79.8, 85.9, 85.9],
+          },
+          { name: "Asia", names: ["Macau"], x: [140_000], y: [85.9] },
+        ],
+      },
+      ...notes,
+    ],
+  });
+
+  it("joins the dot at its values, the one drawn on top among coincident dots", () => {
+    expect(
+      joined(
+        world(
+          { mark: "text", x: 18_920, y: 79.8, text: "Poorest" },
+          { mark: "text", x: 140_000, y: 85.9, text: "Richest" },
+        ),
+      ),
+    ).toEqual([
+      { kind: "dot", series: 0, i: 0 },
+      { kind: "dot", series: 1, i: 0 },
+    ]);
+  });
+
+  it("joins the later dot of one series among coincident ones", () => {
+    const spec: ChartSpec = {
+      ...world(),
+      marks: [
+        {
+          mark: "scatter",
+          series: [{ name: "a", names: ["a1", "a2", "a3"], x: [1, 1, 2], y: [1, 1, 2] }],
+        },
+        { mark: "text", x: 1, y: 1, text: "Two here" },
+      ],
+    };
+    expect(joined(spec)).toEqual([{ kind: "dot", series: 0, i: 1 }]);
+  });
+
+  it("joins no dot when none has its values, nor one off the domain", () => {
+    expect(
+      joined(
+        world(
+          { mark: "text", x: 18_920, y: 80, text: "Near Albania" },
+          { mark: "text", x: 200_000, y: 85.9, text: "Off" },
+        ),
+      ),
+    ).toEqual([null, null]);
+  });
+
+  it("is placed by values, so its summary and table are written before any layout", () => {
+    const m = chartModel(
+      world(
+        { mark: "text", x: 140_000, y: 85.9, text: "Richest" },
+        { mark: "text", x: 50_000, y: 70, text: "Gap" },
+      ),
+      "en",
+      "UTC",
+    );
+    const after = "Macau: Richest. GDP per capita 50,000, Life expectancy 70: Gap.";
+    expect(generatedSummary(m, words).endsWith(` ${after}`)).toBe(true);
+    expect(tableModel(m, words).after).toBe(after);
+    expect(spoken(m, { kind: "scatter", series: 1, i: 0 }, words, false)).toBe(
+      "Macau: Asia, GDP per capita 140,000, Life expectancy 85.9. Note: Richest.",
+    );
+    expect(spoken(m, { kind: "scatter", series: 0, i: 1 }, words, false)).toBe(
+      "Monaco: Europe, GDP per capita 140,000, Life expectancy 85.9.",
+    );
+  });
+});

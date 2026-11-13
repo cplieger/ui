@@ -195,6 +195,27 @@ const fewDots: ChartSpec = {
   marks: [{ mark: "dot", rows: [{ name: "a", x: minutes.slice(0, 3) }] }],
 };
 
+// 10,000 dots in five series, spread over both axes by two coprime strides.
+const scatter: ChartSpec = {
+  x: { label: "GDP per capita" },
+  y: { label: "Life expectancy" },
+  marks: [
+    {
+      mark: "scatter",
+      series: Array.from({ length: 5 }, (_, k) => ({
+        name: `Region ${String(k + 1)}`,
+        names: Array.from({ length: 2_000 }, (_, i) => `place-${String(k)}-${String(i)}`),
+        x: Array.from({ length: 2_000 }, (_, i) => 500 + ((i * 7_919 + k * 104_729) % 99_500)),
+        y: Array.from({ length: 2_000 }, (_, i) => 50 + ((i * 6_007 + k * 3_571) % 4_000) / 100),
+      })),
+    },
+  ],
+};
+const fewPlaces: ChartSpec = {
+  ...scatter,
+  marks: [{ mark: "scatter", series: [{ name: "a", names: ["a", "b"], x: [1, 2], y: [3, 4] }] }],
+};
+
 describe("performance", () => {
   it.skipIf(!chromium)("renders a 72-hour step line of 8,640 values within its bound", async () => {
     const { ms, plot } = await timed(stepLine, few);
@@ -210,6 +231,13 @@ describe("performance", () => {
       expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
     },
   );
+
+  it.skipIf(!chromium)("renders a scatter plot of 10,000 dots within its bound", async () => {
+    const { ms, plot } = await timed(scatter, fewPlaces);
+    expect(plot.querySelectorAll('[data-part="scatter"] > path')).toHaveLength(5);
+    expect(ms).toBeLessThan(RENDER_MS);
+    expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
 
   it.skipIf(!chromium)("renders a timeline of 20,000 dots within its bound", async () => {
     const dots = timeline.marks[0]?.mark === "dot" ? timeline.marks[0].rows : [];

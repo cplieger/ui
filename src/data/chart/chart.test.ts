@@ -1079,3 +1079,38 @@ describe("a face that loads after the drawing", () => {
     }
   });
 });
+
+describe("a scatter plot's notes with the table view on from the start", () => {
+  it("writes the note at the dot it joins in the summary and after the table, the plot never laid out", () => {
+    const b = build({ pressed: true });
+    const chart = start(
+      {
+        x: { label: "GDP per capita" },
+        y: { label: "Life expectancy" },
+        marks: [
+          {
+            mark: "scatter",
+            series: [
+              {
+                name: "Europe",
+                names: ["Albania", "Monaco"],
+                x: [18_920, 140_000],
+                y: [79.8, 85.9],
+              },
+            ],
+          },
+          { mark: "text", x: 140_000, y: 85.9, text: "A city-state" },
+        ],
+      },
+      b,
+    );
+    expect(get(b.figure, "plot")?.hidden).toBe(true);
+    expect(get(b.figure, "plot")?.querySelector("svg")?.childElementCount).toBe(0);
+    expect(get(b.figure, "table")?.querySelector('[data-part="after"]')?.textContent).toBe(
+      "Monaco: A city-state.",
+    );
+    expect(chart.summary.endsWith(" Monaco: A city-state.")).toBe(true);
+    const rows = [...(get(b.figure, "table")?.querySelectorAll("tbody th") ?? [])];
+    expect(rows.map((th) => th.querySelector("bdi")?.textContent)).toEqual(["Albania", "Monaco"]);
+  });
+});

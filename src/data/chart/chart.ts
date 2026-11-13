@@ -18,7 +18,7 @@ import { chartModel, type Model } from "./model.js";
 import { chipChosen, overall, readoutWidths, totalWord, type Widths } from "./readout.js";
 import type { ChartSpec } from "./spec.js";
 import { shortDescription, summaryOf } from "./summary.js";
-import { syncTable, tableModel } from "./table.js";
+import { namedRows, syncTable, tableModel } from "./table.js";
 import { chartWords, type ChartWords, type Words } from "./words.js";
 
 export { durationEdges } from "../scale/ladder.js";
@@ -312,7 +312,7 @@ export function renderChart(
       explorer.clear();
     }
     if (tableOn && tableStale) {
-      syncTable(panel, tableModel(drawn, words), title.textContent, drawn.y.type === "band");
+      syncTable(panel, tableModel(drawn, words), title.textContent, namedRows(drawn));
       tableStale = false;
     }
     panel.hidden = !tableOn;
@@ -360,7 +360,7 @@ export function renderChart(
       arrange([legend, plot, panel]);
       plotStale = true;
       if (tableOn && !panel.hidden) {
-        syncTable(panel, tableModel(model, words), title.textContent, model.y.type === "band");
+        syncTable(panel, tableModel(model, words), title.textContent, namedRows(model));
         tableStale = false;
       } else {
         tableStale = true;

@@ -13,6 +13,7 @@ import {
   type Model,
   type PointModel,
   type RectModel,
+  type ScatterModel,
   type SlopeModel,
 } from "./model.js";
 import {
@@ -25,6 +26,7 @@ import {
   readoutWidths,
   rowReading,
   sampleReading,
+  scatterReading,
   totalWord,
   type Reading,
 } from "./readout.js";
@@ -967,5 +969,95 @@ describe("a scatter's legend row with no selection", () => {
   it("has no chip for one series", () => {
     expect(overall(scatter(1), words)?.entries).toHaveLength(2);
     expect(overall(scatter(1), words)?.at).toBe(`2${nb}countries`);
+  });
+});
+
+describe("a scatter's legend row with a dot selected", () => {
+  const world = (series: number): Model =>
+    model({
+      x: { label: "GDP per capita" },
+      y: { label: "Life expectancy" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            {
+              name: "Europe",
+              slot: 2 as const,
+              names: ["Albania", "Liechtenstein", "Norway"],
+              x: [19, 140, 82],
+              y: [79.8, 84.3, 83.2],
+            },
+            { name: "Africa", slot: 5 as const, names: ["Chad"], x: [1.6], y: [53] },
+          ].slice(0, series),
+        },
+      ],
+    });
+  const scatterOf = (m: Model) => m.marks[0] as ScatterModel;
+
+  it("reads the dot's name, each measure with its label, the chips' counts, its chip chosen", () => {
+    const m = world(2);
+    expect(scatterReading(m, scatterOf(m), 1, 0, words)).toEqual({
+      at: "Chad",
+      entries: [
+        { slot: undefined, name: undefined, value: "GDP per capita 1.6" },
+        { slot: undefined, name: undefined, value: "Life expectancy 53" },
+        { slot: 2, name: "Europe", value: "3" },
+        { slot: 5, name: "Africa", value: "1" },
+      ],
+      total: undefined,
+      chosen: 3,
+    });
+  });
+
+  it("chooses no chip with one series, which has none", () => {
+    const m = world(1);
+    expect(scatterReading(m, scatterOf(m), 0, 2, words)).toEqual({
+      at: "Norway",
+      entries: [
+        { slot: undefined, name: undefined, value: "GDP per capita 82" },
+        { slot: undefined, name: undefined, value: "Life expectancy 83.2" },
+      ],
+      total: undefined,
+    });
+  });
+
+  it("keeps each slot as wide as its widest reading: the longest name and each measure's", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 7, "en");
+    const w = readoutWidths(world(2), words, measure);
+    expect(w.at).toBe(7 * "Liechtenstein".length);
+    expect(w.values).toEqual([
+      7 * "GDP per capita 140".length,
+      7 * "Life expectancy 79.8".length,
+      7 * "3".length,
+      7 * "1".length,
+    ]);
+  });
+
+  it("finds each measure's widest reading among thousands of dots by their extremes", () => {
+    const n = 5_000;
+    const m = model({
+      x: { label: "x" },
+      y: { label: "y" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            {
+              name: "All",
+              names: per(n, (i) => `d${String(i)}`),
+              x: per(n, (i) => (i === 2_345 ? 12_345 : i % 10)),
+              y: per(n, (i) => (i === 3_001 ? -42 : 1)),
+            },
+          ],
+        },
+      ],
+    });
+    const w = readoutWidths(
+      m,
+      words,
+      measurer((t) => 7 * Array.from(t).length, 7, "en"),
+    );
+    expect(w.values).toEqual([7 * "x 12,345".length, 7 * "y -42".length]);
   });
 });

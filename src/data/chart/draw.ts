@@ -25,6 +25,8 @@ import {
   rectPaths,
   rulePath,
   ruleXs,
+  SCATTER_RADIUS,
+  scatterAt,
   scatterPaths,
   SLOPE_RADIUS,
   slopeEnds,
@@ -349,7 +351,8 @@ const outset = (g: Segment): string =>
 /** The ring's path for `sel`: the bar or its segment, a group's sub-columns
  *  or the chosen one, each line's point or each layer's top or the chosen
  *  one, the drawn dot, a row's hairline, a bar row's bar, its bars in each
- *  panel, or the chosen part, or a point row's dots or the chosen one. */
+ *  panel, or the chosen part, a point row's dots or the chosen one, or a
+ *  scatter's dot. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -435,6 +438,10 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
       .map((at) => (at === undefined ? "" : ring(at, cy, POINT_RADIUS + 1)))
       .join("");
   }
+  if (sel.kind === "scatter" && m?.kind === "scatter") {
+    const c = scatterAt(m, sel.series, sel.i, f);
+    return c === undefined ? "" : ring(c.x, c.y, SCATTER_RADIUS + 1);
+  }
   if (sel.kind === "slope" && m?.kind === "slope") {
     // A chosen series rings both its ends, the whole column each end in it.
     return m.series
@@ -451,6 +458,23 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
   }
   const at = nav.crosshair(sel);
   return at === undefined ? "" : ring(at, cy + 0.5, 4);
+}
+
+// A scatter dot's crosshair: a rule up from the x axis and one across from
+// the y axis, each ending at the dot's edge so neither crosses it.
+function scatterHair(model: Model, lay: Layout, sel: Selection): string {
+  const m = primaryOf(model);
+  const f = lay.frame;
+  const c =
+    sel.kind === "scatter" && m?.kind === "scatter"
+      ? scatterAt(m, sel.series, sel.i, f)
+      : undefined;
+  if (c === undefined) {
+    return "";
+  }
+  const x = snap(c.x, f.dpr) + 0.5;
+  const y = snap(c.y, f.dpr) + 0.5;
+  return `M${num(x)} ${num(f.height)}V${num(c.y + SCATTER_RADIUS)}M0 ${num(y)}H${num(c.x - SCATTER_RADIUS)}`;
 }
 
 /**
@@ -494,9 +518,12 @@ export function drawSelection(
     g.append(line, dots);
   }
   const at = nav.crosshair(sel);
+  const hair = at === undefined ? scatterHair(model, lay, sel) : "";
   if (at !== undefined) {
     const x = num(snap(at, lay.frame.dpr) + 0.5);
     g.append(svgEl("path", { "data-part": "crosshair", d: `M${x} 0V${num(lay.frame.height)}` }));
+  } else if (hair !== "") {
+    g.append(svgEl("path", { "data-part": "crosshair", d: hair }));
   }
   const d = ringPath(model, lay, sel, nav);
   if (d !== "") {

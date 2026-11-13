@@ -1038,3 +1038,95 @@ describe("a scatter's short description", () => {
     expect(shortDescription(one, words)).toBe("Scatter plot, 1 point");
   });
 });
+
+describe("a scatter's summary", () => {
+  const countries = { one: "country", other: "countries" };
+  const world = (more: readonly Mark[] = []): ChartSpec => ({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        unit: countries,
+        series: [
+          {
+            name: "Europe",
+            names: ["Albania", "Monaco", "Norway", "Kosovo"],
+            x: [18_920, 140_000, 82_000, null],
+            y: [79.8, 85.9, 83.2, 79],
+          },
+          { name: "Africa", names: ["Burundi", "Chad"], x: [900, 1_500], y: [62, 53] },
+        ],
+      },
+      ...more,
+    ],
+  });
+
+  it("counts the dots and series, then gives each measure's highest and lowest dot", () => {
+    expect(generatedSummary(model(world()), words)).toBe(
+      `5${nb}countries, 2 series. GDP per capita: highest Monaco 140,000, lowest Burundi 900. Life expectancy: highest Monaco 85.9, lowest Chad 53.`,
+    );
+  });
+
+  it("gives a tie to the first dot in series order, then in the app's order", () => {
+    const tied = model({
+      x: { label: "x" },
+      y: { label: "y" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "a", names: ["a1", "a2"], x: [1, 3], y: [2, 2] },
+            { name: "b", names: ["b1", "b2"], x: [3, 1], y: [5, 1] },
+          ],
+        },
+      ],
+    });
+    expect(generatedSummary(tied, words)).toBe(
+      "4 points, 2 series. x: highest a2 3, lowest a1 1. y: highest b1 5, lowest b2 1.",
+    );
+  });
+
+  it("reads one dot once and dots all alike as one value", () => {
+    const one = model({
+      x: { label: "GDP per capita" },
+      y: { label: "Life expectancy" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [{ name: "All", names: ["Chad", "Mali"], x: [1_500, 2_000], y: [53, 53] }],
+        },
+      ],
+    });
+    expect(generatedSummary(one, words)).toBe(
+      "2 points. GDP per capita: highest Mali 2,000, lowest Chad 1,500. Life expectancy: 53 each.",
+    );
+    const lone = model({
+      x: { label: "GDP per capita" },
+      y: { label: "Life expectancy" },
+      marks: [{ mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1_500], y: [53] }] }],
+    });
+    expect(generatedSummary(lone, words)).toBe(
+      "1 point. GDP per capita: Chad 1,500. Life expectancy: Chad 53.",
+    );
+  });
+
+  it("writes a note's place as the dot it joins, or else both its measures", () => {
+    const notes: Mark[] = [
+      { mark: "text", x: 140_000, y: 85.9, text: "A city-state" },
+      { mark: "text", x: 50_000, y: 70, text: "Nobody here" },
+    ];
+    expect(generatedSummary(model(world(notes)), words)).toMatch(
+      / Monaco: A city-state\. GDP per capita 50,000, Life expectancy 70: Nobody here\.$/u,
+    );
+  });
+
+  it("states no correlation, which an app adds through its summary function", () => {
+    const own = summaryOf(
+      model({ ...world(), summary: (generated) => `${generated} Richer countries live longer.` }),
+      words,
+    );
+    expect(own).toMatch(/lowest Chad 53\. Richer countries live longer\.$/u);
+    expect(generatedSummary(model(world()), words)).not.toMatch(/correlat|trend/iu);
+  });
+});
