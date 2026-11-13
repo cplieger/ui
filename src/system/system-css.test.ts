@@ -4105,6 +4105,28 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(fix.right).toBeCloseTo(r.getBoundingClientRect().right - 16, 1);
   });
 
+  it("puts each sentence's own time under it in a wrapping row that carries two", () => {
+    theme("light");
+    const el = build(
+      '<ul class="cp-list"><li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-tone="warning"></span><div><p>OpenSubtitles is paused until 14:20.</p><time>2 hours ago</time><p>Its data is out of date.</p><time>1 day ago</time></div></div></li></ul>',
+    );
+    const r = row(el);
+    const [first, second] = [...r.querySelectorAll("p")].map((p) => p.getBoundingClientRect()) as [
+      DOMRect,
+      DOMRect,
+    ];
+    const [since, older] = [...r.querySelectorAll("time")] as [HTMLTimeElement, HTMLTimeElement];
+    const a = since.getBoundingClientRect();
+    const b = older.getBoundingClientRect();
+    expect(a.top).toBeGreaterThanOrEqual(first.bottom - 1);
+    expect(second.top).toBeGreaterThanOrEqual(a.bottom - 1);
+    expect(b.top).toBeGreaterThanOrEqual(second.bottom - 1);
+    expect(Math.abs(a.left - first.left)).toBeLessThanOrEqual(1);
+    for (const time of [since, older]) {
+      expect(getComputedStyle(time).color).toBe(resolved("var(--cp-ink-muted)"));
+    }
+  });
+
   it("shows a wrapping row's exact time beside its words once the row is 40rem wide", () => {
     theme("light");
     const markup =

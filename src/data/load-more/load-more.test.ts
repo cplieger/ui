@@ -251,6 +251,41 @@ describe("enhanceLoadMore", () => {
     await expect.poll(polite).toBe("2 more rows");
   });
 
+  it.each([
+    ["a panel holding a table", true],
+    ["a table", false],
+  ])("adds rows to the last body of %s that its foot follows", async (_, inPanel) => {
+    const tableRow = (title: string): HTMLTableRowElement => {
+      const tr = document.createElement("tr");
+      const link = document.createElement("a");
+      link.href = `#${title}`;
+      link.textContent = title;
+      tr.insertCell().append(link);
+      return tr;
+    };
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    const head = table.createTHead();
+    head.insertRow().insertCell().textContent = "What";
+    const body = table.createTBody();
+    body.append(tableRow("Fetched"));
+    const panel = document.createElement("div");
+    panel.className = "cp-panel";
+    panel.append(table);
+    const button = moreButton("Load older");
+    const foot = document.createElement("div");
+    foot.className = "cp-list-foot";
+    foot.append(button);
+    document.body.append(inPanel ? panel : table, foot);
+    const older = [tableRow("Synced"), tableRow("Scanned")];
+    enhance(button, { load: () => Promise.resolve(page(older)) });
+    press(button);
+    await expect.poll(() => document.activeElement?.textContent).toBe("Synced");
+    expect([...body.rows].map((tr) => tr.textContent)).toEqual(["Fetched", "Synced", "Scanned"]);
+    expect(head.rows).toHaveLength(1);
+    await expect.poll(polite).toBe("2 more rows");
+  });
+
   it("at a feed's start puts older entries first, and focuses the oldest, which stays in view", async () => {
     const box = document.createElement("div");
     box.style.blockSize = "16rem";

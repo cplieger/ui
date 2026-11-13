@@ -46,8 +46,9 @@ export interface LoadMoreOptions {
    *  that comes after that is dropped. */
   readonly load: (signal: AbortSignal) => Promise<LoadMorePage>;
   /** Where the items go. Default: at `"end"`, the list the button's
-   *  `li.cp-list-foot` ends, or the element before its `div.cp-list-foot`;
-   *  at `"start"`, the element after its `.cp-feed-head`. */
+   *  `li.cp-list-foot` ends, or the element before its `div.cp-list-foot`,
+   *  for a table or a panel holding one its last body; at `"start"`, the
+   *  element after its `.cp-feed-head`. */
   readonly list?: Element;
   /** Default `"end"`. */
   readonly edge?: LoadMoreEdge;
@@ -90,9 +91,15 @@ function listOf(button: HTMLButtonElement, edge: LoadMoreEdge): Element | null {
     return button.closest(".cp-feed-head")?.nextElementSibling ?? null;
   }
   const foot = button.closest(".cp-list-foot");
-  return foot instanceof HTMLLIElement
-    ? foot.parentElement
-    : (foot?.previousElementSibling ?? null);
+  if (foot instanceof HTMLLIElement) {
+    return foot.parentElement;
+  }
+  const before = foot?.previousElementSibling ?? null;
+  const table =
+    before instanceof HTMLTableElement ? before : before?.querySelector(":scope > table");
+  return table instanceof HTMLTableElement
+    ? (table.tBodies[table.tBodies.length - 1] ?? before)
+    : before;
 }
 
 /** Gives `button` the `.cp-roll` its words roll in and the busy spinner,

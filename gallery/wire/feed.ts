@@ -38,25 +38,40 @@ document.querySelector("[data-dot-next]")?.addEventListener("click", () => {
   dotWords.textContent = live ? "Checking now" : "Waiting";
 });
 
+interface JobEnd {
+  readonly words: string;
+  readonly glyph: string;
+  readonly tone: string;
+  readonly cause: string;
+}
+
 // Stop leaves with its job's end, so focus moves to the job's link first
 // rather than drop to the body.
-function endJob(job: HTMLElement, words: string, glyph: string, tone: string): void {
+function endJob(job: HTMLElement, end: JobEnd): void {
   job.dataset["ended"] = "";
-  const phase = job.querySelector<HTMLElement>("[data-job-phase]");
-  if (phase !== null) {
-    const mark = document.createElement("span");
-    mark.className = "cp-icon";
-    mark.dataset["cpIcon"] = glyph;
-    mark.setAttribute("aria-hidden", "true");
-    phase.className = "cp-state";
-    phase.dataset["tone"] = tone;
-    phase.replaceChildren(mark, words);
-  }
+  const mark = document.createElement("span");
+  mark.className = "cp-icon";
+  mark.dataset["cpIcon"] = end.glyph;
+  mark.setAttribute("aria-hidden", "true");
+  const state = document.createElement("span");
+  state.className = "cp-state";
+  state.dataset["tone"] = end.tone;
+  state.append(mark, end.words);
+  const outcome = document.createElement("span");
+  outcome.dataset["part"] = "end";
+  outcome.append(state);
+  const cause = document.createElement("small");
+  cause.textContent = end.cause;
+  const body = job.querySelector(":scope > .cp-cell-stack");
+  body?.append(cause);
+  body?.after(outcome);
   const stop = job.querySelector<HTMLElement>("[data-stop]");
   if (stop?.contains(document.activeElement) === true) {
     job.querySelector("a")?.focus();
   }
-  stop?.remove();
+  for (const part of job.querySelectorAll(":scope > :is([data-stop], progress, small)")) {
+    part.remove();
+  }
 }
 
 for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
@@ -71,7 +86,12 @@ for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
       bar.value = Math.min(bar.max, bar.value + 1);
       n.textContent = `${String(bar.value)} of ${String(bar.max)}`;
       if (bar.value === bar.max) {
-        endJob(job, "Finished", "circle-check", "success");
+        endJob(job, {
+          words: "Finished",
+          glyph: "circle-check",
+          tone: "success",
+          cause: `All ${String(bar.max)} done`,
+        });
       }
     }
   }, 700);
@@ -79,7 +99,13 @@ for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
     const target = e.target instanceof Element ? e.target : null;
     const job = target?.closest("[data-stop]")?.closest<HTMLElement>(".cp-list-row");
     if (job != null) {
-      endJob(job, "Stopped by you", "circle-minus", "neutral");
+      const at = job.querySelector("[data-job-n]")?.textContent ?? "";
+      endJob(job, {
+        words: "Stopped",
+        glyph: "circle-minus",
+        tone: "neutral",
+        cause: at === "" ? "Stopped by you" : `Stopped by you at ${at}`,
+      });
       announce(`${job.querySelector("[data-job-kind]")?.textContent ?? "The job"} stopped`);
     }
   });

@@ -478,6 +478,50 @@ if (library instanceof HTMLTableSectionElement) {
     }
     partial.textContent = end ? "Complete Sonarr's walk" : "End Sonarr's walk partial";
   });
+  const more = document.querySelector<HTMLButtonElement>(`[data-load-copies="${library.id}"]`);
+  if (more !== null) {
+    enhanceLoadMore(more, {
+      load: pager([
+        () => ({
+          items: [
+            copyRow("vinland", "Vinland Saga", "Sonarr, TV, 2019"),
+            copyRow("your-name", "Your Name", "Radarr, film, 2016"),
+          ],
+          more: false,
+        }),
+      ]),
+      words: { count: (n) => (n === 1 ? "1 more copy" : `${String(n)} more copies`) },
+    });
+  }
+}
+
+/** A copy on the best release with no grab, which sorts after every row
+ *  the card starts with. */
+function copyRow(key: string, name: string, facts: string): HTMLTableRowElement {
+  const link = document.createElement("a");
+  link.href = "#lists";
+  link.textContent = name;
+  const meta = document.createElement("span");
+  meta.className = "cp-meta";
+  meta.textContent = facts;
+  const stack = document.createElement("div");
+  stack.className = "cp-cell-stack";
+  stack.append(link, meta);
+  const { tone, glyph, words } = VERDICTS.best;
+  const chip = document.createElement("span");
+  chip.className = "cp-chip";
+  chip.dataset["tone"] = tone;
+  chip.append(icon(glyph), words);
+  const none = document.createElement("span");
+  none.className = "cp-meta";
+  none.textContent = "None";
+  const row = document.createElement("tr");
+  row.dataset["copy"] = key;
+  row.dataset["verdict"] = "best";
+  row.insertCell().append(stack);
+  row.insertCell().append(chip);
+  row.insertCell().append(none);
+  return row;
 }
 
 interface Title {

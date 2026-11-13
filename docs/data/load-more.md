@@ -44,7 +44,7 @@ enhanceLoadMore(olderPosts, {
 
 ## The parts
 
-- `li.cp-list-foot` is a list's last item, its one action centred. A list of groups, such as a history with one list a day, takes a `div.cp-list-foot` after them, its action at their start edge 12px below; the page then goes after the last group, as its own heading and list.
+- `li.cp-list-foot` is a list's last item, its one action centred. A list of groups, such as a history with one list a day, takes a `div.cp-list-foot` after them, its action at their start edge 12px below; the page then goes after the last group, as its own heading and list. A `.cp-table` takes a `div.cp-list-foot` after it, or after the `.cp-panel` that holds it, and a page's rows go at the end of its last body.
 - `.cp-feed-head` comes before a `.cp-feed` in the same scroller, its one action centred. It is not pinned, so the reader meets it at the oldest entry shown. Day separators and the "New since your last visit" marker can come with a page; they are not counted.
 - The module gives a button that has only words the `.cp-roll` they roll in and a `spinner-arc` that turns while it is busy, which the stylesheet draws. A button whose markup holds them already, as a [confirm](../buttons/confirm.md) button's does, keeps its own.
 
@@ -53,7 +53,7 @@ enhanceLoadMore(olderPosts, {
 - `enhanceLoadMore(button, opts)` wires `button`. It throws a `TypeError` when the button is in neither a list's foot nor a feed's head and `list` is not given.
 - `LoadMoreOptions` = `{ load, list?, edge?, words?, signal? }`.
   - `load(signal)` fetches the next page and resolves to `{ items, more, label? }`. `items` are the elements to add in their order; one already in the list, such as a row a [keyed-list](keyed-list.md) drew, stays where it is. `more` says whether another page is left. `label` gives the button new words from now on, such as "Show the last 3". A rejection is the failed state. `signal` aborts when the module's signal does.
-  - `list` is where the items go. By default, at the end, the list a `li.cp-list-foot` ends, or the element before a `div.cp-list-foot`; at the start, the element after the `.cp-feed-head`.
+  - `list` is where the items go. By default, at the end, the list a `li.cp-list-foot` ends, or the element before a `div.cp-list-foot`, which for a table, or a panel holding one, is its last body; at the start, the element after the `.cp-feed-head`.
   - `edge` is `"end"` (the default), after the last row and before the foot, or `"start"`, before the first item.
   - `words` = `{ count?, busy?, failed?, retry? }`. `count(n)` is said once a page of `n` rows or entries is in, by default "20 more rows" at the end and "20 older messages" at the start. `busy` is the button's words while it loads, by default "Loading…". `failed` is said when a page fails, by default "The next page did not load.". `retry` is the button's words after a failure, by default "Retry".
   - `signal` ends a load under way, drops a page that comes after it, puts the button at rest and removes its listener.
