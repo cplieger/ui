@@ -530,7 +530,9 @@ describe("enhanceFeed", () => {
     expect(panel.scrollTop).toBeGreaterThan(0);
     expect(Math.min(...gaps)).toBeGreaterThanOrEqual(-1);
     expect(Math.min(...gaps)).toBeLessThan(pitch);
-  });
+    // Thirty driver round trips outlast 5 s on a loaded host, and a timed-out
+    // run goes on pressing Tab into the next tests, which then fail too.
+  }, 30_000);
 
   it("keeps a reader who scrolled up in place while they type in the composer", async () => {
     const c = conversation();
