@@ -19,6 +19,7 @@ import {
   barsApart,
   barTotal,
   bucketTotal,
+  cellCount,
   drawnTotal,
   pointLink,
   sampleTotal,
@@ -38,6 +39,7 @@ import {
   type SeriesModel,
   type SlopeModel,
 } from "./model.js";
+import { classOf } from "./classes.js";
 import type { Words } from "./words.js";
 
 /** One legend entry: a series' chip with its value, or a bare value. */
@@ -56,6 +58,9 @@ export interface Reading {
   readonly total: string | undefined;
   /** The entry of the series chosen, whose chip name turns semibold. */
   readonly chosen?: number;
+  /** A cell chart's selected class, whose swatch in the colour key takes
+   *  the ring; -1 for a missing cell, whose No data swatch does. */
+  readonly swatch?: number;
 }
 
 /** The mark the legend row reads: the chart's one data mark. */
@@ -422,11 +427,78 @@ export function changeText(model: Model, v: number): string {
   return signedFormatter(model.y.type === "band" ? undefined : model.y.format, model.locale)(v);
 }
 
+/** How many cells a cell chart has, missing ones included, through `words.cells`. */
+export function cellsText(model: Model, m: CellModel, words: Words): string {
+  const n = cellCount(m.x) * cellCount(m.y);
+  return words.cells(formatter("number", model.locale)(n), n);
+}
+
+/** Column or row `i` of a cell chart's `axis` in words: its category's
+ *  name, or its bin's range, after the axis's label through `words.measure`
+ *  when it has one and `labelled`. */
+export function cellAxisText(
+  model: Model,
+  m: CellModel,
+  axis: "x" | "y",
+  i: number,
+  words: Words,
+  labelled = true,
+): string {
+  const a = m[axis];
+  if ("names" in a) {
+    return a.names[i] ?? "";
+  }
+  const lo = a.edges[i] ?? 0;
+  const hi = a.edges[i + 1] ?? 0;
+  const range =
+    axis === "x"
+      ? words.range(...model.xSpan(lo, hi))
+      : words.range(model.yText(lo), model.yText(hi));
+  const label = model.spec[axis]?.label ?? "";
+  return label === "" || !labelled ? range : words.measure(label, range);
+}
+
+/** Cell (`row`, `column`)'s place through `words.cellPlace`. */
+export const cellPlaceText = (
+  model: Model,
+  m: CellModel,
+  row: number,
+  column: number,
+  words: Words,
+): string =>
+  words.cellPlace(
+    cellAxisText(model, m, "x", column, words),
+    cellAxisText(model, m, "y", row, words),
+  );
+
+/** A cell's value in the colour scale's format and unit, a gap as No data. */
+export const cellValueText = (model: Model, v: number | null, words: Words): string =>
+  v === null ? words.noData : counted(model.colourText(v), v, model.spec.colour?.unit, model);
+
+/** Cell (`row`, `column`) of `m`: its place and its value, with its class's
+ *  swatch to ring. */
+export function cellReading(
+  model: Model,
+  m: CellModel,
+  row: number,
+  column: number,
+  words: Words,
+): Reading {
+  const v = m.values[row]?.[column] ?? null;
+  return {
+    at: cellPlaceText(model, m, row, column, words),
+    entries: bare(cellValueText(model, v, words)),
+    total: undefined,
+    swatch: v === null ? -1 : classOf(m.classes, v),
+  };
+}
+
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
  *  values, an area's last whole stack, a bar or point chart's row count,
  *  a slope's right column, a scatter's dot count, blank slots for its
- *  measures and from two series up each one's count. */
+ *  measures and from two series up each one's count, or a cell chart's
+ *  cell count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -500,7 +572,8 @@ export function overall(model: Model, words: Words): Reading | undefined {
         total: undefined,
       };
     case "cell":
-      return undefined;
+      // Cells need not add up (a median, a temperature), so the value slot is blank.
+      return { at: cellsText(model, m, words), entries: bare(""), total: undefined };
   }
 }
 
@@ -753,6 +826,34 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     measuresOf(m).forEach((axis, slot) => {
       values[slot]?.push(...scatterTexts(model, m, axis, words));
     });
+  } else if (m?.kind === "cell") {
+    // A place joins a column's words to a row's, so the widest of each makes the widest place.
+    const widestOf = (axis: "x" | "y") => {
+      let text = "";
+      let w = -1;
+      for (let i = 0; i < cellCount(m[axis]); i++) {
+        const t = cellAxisText(model, m, axis, i, words);
+        const tw = measure.number(t);
+        if (tw > w) {
+          text = t;
+          w = tw;
+        }
+      }
+      return text;
+    };
+    at.push(words.cellPlace(widestOf("x"), widestOf("y")));
+    const unit = model.spec.colour?.unit;
+    const all = function* () {
+      for (const row of m.values) {
+        yield* row;
+      }
+    };
+    values[0]?.push(
+      words.noData,
+      ...widthSamples(all(), model.widthKeys.colour, nounOf(model, unit)).map((v) =>
+        cellValueText(model, v, words),
+      ),
+    );
   } else if (m?.kind === "dot") {
     const posts = function* () {
       for (const row of m.rows) {

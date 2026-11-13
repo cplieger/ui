@@ -261,6 +261,29 @@ const fewBubbles: ChartSpec = {
   ],
 };
 
+// A 2D histogram of 100 by 100 bins, 10,000 cells, every 97th missing.
+const edges = Array.from({ length: 101 }, (_, i) => i * 10);
+const histogram2d: ChartSpec = {
+  x: { label: "Price" },
+  y: { label: "Rating" },
+  marks: [
+    {
+      mark: "cell",
+      x: { edges },
+      y: { edges },
+      values: Array.from({ length: 100 }, (_, r) =>
+        Array.from({ length: 100 }, (_, c) =>
+          (r * 100 + c) % 97 === 0 ? null : (r * 7 + c * 13) % 50,
+        ),
+      ),
+    },
+  ],
+};
+const fewCells: ChartSpec = {
+  ...histogram2d,
+  marks: [{ mark: "cell", x: { edges: [0, 1] }, y: { edges: [0, 1] }, values: [[1]] }],
+};
+
 describe("performance", () => {
   it.skipIf(!chromium)("renders a 72-hour step line of 8,640 values within its bound", async () => {
     const { ms, plot } = await timed(stepLine, few);
@@ -299,6 +322,14 @@ describe("performance", () => {
     expect(paths.reduce((n, p) => n + (p.getAttribute("d")?.match(/Z/g) ?? []).length, 0)).toBe(
       2_000,
     );
+    expect(ms).toBeLessThan(RENDER_MS);
+    expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
+
+  it.skipIf(!chromium)("renders a 2D histogram of 10,000 cells within its bound", async () => {
+    const { ms, plot } = await timed(histogram2d, fewCells);
+    // One path per class and one for the missing cells' outlines.
+    expect(plot.querySelectorAll('[data-part="cell"] > path')).toHaveLength(6);
     expect(ms).toBeLessThan(RENDER_MS);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });

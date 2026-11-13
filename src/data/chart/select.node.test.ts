@@ -1253,3 +1253,146 @@ describe("scatter keys, pointer and words", () => {
     expect(rekey(a, { kind: "line", i: 0, part: undefined }, moved)).toBe(undefined);
   });
 });
+
+describe("a cell chart's selection", () => {
+  const days = ["Mon", "Tue", "Wed"];
+  const hours = ["0", "1", "2", "3"];
+  const grid = (over: Partial<ChartSpec> = {}): ChartSpec => ({
+    colour: { unit: { one: "post", other: "posts" } },
+    marks: [
+      {
+        mark: "cell",
+        x: hours,
+        y: days,
+        values: [
+          [3, 0, 1, 2],
+          [4, null, 6, 7],
+          [8, 9, 10, 11],
+        ],
+      },
+    ],
+    ...over,
+  });
+  const cell = (row: number, column: number): Selection => ({ kind: "cell", row, column });
+
+  it("starts on the first cell in reading order, the top left", () => {
+    expect(initial(built(grid()).model)).toEqual(cell(0, 0));
+  });
+
+  it("starts on the top right when x runs right to left", () => {
+    expect(initial(built(grid({ x: { reverse: true } })).model)).toEqual(cell(0, 3));
+  });
+
+  it("moves by cell with the arrows and to the row's ends with Home and End", () => {
+    const b = built(grid());
+    expect(press(b, cell(1, 1), "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp")).toEqual([
+      cell(1, 2),
+      cell(2, 2),
+      cell(2, 1),
+      cell(1, 1),
+    ]);
+    expect(press(b, cell(1, 1), "End")).toEqual([cell(1, 3)]);
+    expect(press(b, cell(1, 1), "Home")).toEqual([cell(1, 0)]);
+  });
+
+  it("stops at the grid's edges", () => {
+    const b = built(grid());
+    expect(press(b, cell(0, 0), "ArrowUp")).toEqual([undefined]);
+    expect(press(b, cell(0, 0), "ArrowLeft")).toEqual([undefined]);
+    expect(press(b, cell(2, 3), "ArrowDown")).toEqual([undefined]);
+    expect(press(b, cell(2, 3), "ArrowRight")).toEqual([undefined]);
+  });
+
+  it("moves Right rightward on a reversed x, as the drawing runs", () => {
+    expect(press(built(grid({ x: { reverse: true } })), cell(0, 2), "ArrowRight")).toEqual([
+      cell(0, 1),
+    ]);
+  });
+
+  it("pages ten columns on a band x, held at the row's ends", () => {
+    const names = Array.from({ length: 24 }, (_, i) => String(i));
+    const b = built({
+      marks: [{ mark: "cell", x: names, y: ["a"], values: [names.map((_, i) => i)] }],
+    });
+    expect(press(b, cell(0, 0), "PageDown", "PageDown", "PageDown", "PageUp")).toEqual([
+      cell(0, 10),
+      cell(0, 20),
+      cell(0, 23),
+      cell(0, 13),
+    ]);
+  });
+
+  it("moves Up to the higher bin on a binned y, whose rows run up from the bottom", () => {
+    const b = built({
+      marks: [
+        {
+          mark: "cell",
+          x: { edges: [0, 10, 20] },
+          y: { edges: [0, 5, 10] },
+          values: [
+            [1, 2],
+            [3, 4],
+          ],
+        },
+      ],
+    });
+    expect(press(b, cell(0, 0), "ArrowUp", "ArrowUp")).toEqual([cell(1, 0), undefined]);
+    expect(initial(b.model)).toEqual(cell(1, 0));
+  });
+
+  it("pages one x tick on a binned x", () => {
+    const edges = Array.from({ length: 101 }, (_, i) => i);
+    const b = built({
+      marks: [{ mark: "cell", x: { edges }, y: ["a"], values: [edges.slice(1)] }],
+    });
+    const next = b.nav.move(cell(0, 0), "PageDown", undefined);
+    const ticks = b.lay.xAxis.ticks.map((t) => t.value).sort((p, q) => p - q);
+    const step = (ticks[1] ?? 0) - (ticks[0] ?? 0);
+    expect(next).toEqual(cell(0, step));
+  });
+
+  it("picks the cell under the pointer, the cell past a gap, and nothing off the grid", () => {
+    const b = built(grid());
+    const xs = b.lay.cells?.xs ?? [];
+    const ys = b.lay.cells?.ys ?? [];
+    const mid = (a: readonly number[], i: number) => ((a[i] ?? 0) + (a[i + 1] ?? 0)) / 2;
+    expect(b.nav.pick(mid(xs, 2), mid(ys, 1))).toEqual(cell(1, 2));
+    // The 1 px gap between two cells lies on their shared edge.
+    expect(b.nav.pick(xs[2] ?? 0, ys[1] ?? 0)).toEqual(cell(1, 2));
+    expect(b.nav.pick(-1, mid(ys, 1))).toBeUndefined();
+    expect(b.nav.pick(mid(xs, 0), (ys.at(-1) ?? 0) + 1)).toBeUndefined();
+  });
+
+  it("drags along the row it began on and draws no crosshair", () => {
+    const b = built(grid());
+    expect(b.nav.drags).toBe(true);
+    expect(b.nav.alongRow).toBe(true);
+    expect(b.nav.crosshair(cell(0, 0))).toBeUndefined();
+  });
+
+  it("keeps a cell across an update by its column's and row's names", () => {
+    const before = built(grid()).model;
+    const after = built({
+      marks: [
+        {
+          mark: "cell",
+          x: ["3", "2"],
+          y: ["Wed", "Tue"],
+          values: [
+            [1, 2],
+            [3, 4],
+          ],
+        },
+      ],
+    }).model;
+    expect(rekey(before, cell(1, 2), after)).toEqual(cell(1, 1));
+    expect(rekey(before, cell(0, 0), after)).toBeUndefined();
+  });
+
+  it("says the cell's place and value, and No data for a missing one", () => {
+    const { model } = built(grid());
+    expect(spoken(model, cell(1, 2), words, false)).toBe("Tue, 2: 6\u00A0posts.");
+    expect(spoken(model, cell(1, 1), words, true)).toBe("Tue, 1: No data.");
+    expect(spoken(model, cell(0, 0), words, false)).toBe("Mon, 0: 3\u00A0posts.");
+  });
+});

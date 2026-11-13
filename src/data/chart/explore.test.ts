@@ -837,3 +837,76 @@ describe("keys and the pointer on a scatter plot", () => {
     expect(ring(b)).toBe(null);
   });
 });
+
+describe("keys, the pointer and touch on a heatmap", () => {
+  const grid: ChartSpec = {
+    colour: { unit: { one: "post", other: "posts" } },
+    marks: [
+      {
+        mark: "cell",
+        x: ["2 PM", "3 PM", "4 PM", "5 PM"],
+        y: ["Mon", "Tue", "Wed"],
+        values: [
+          [3, 0, 1, 2],
+          [4, null, 6, 7],
+          [8, 9, 10, 11],
+        ],
+      },
+    ],
+  };
+  // Cell (row, column)'s middle in plot px: rows 24 px tall, columns sharing the width.
+  const mid = (b: Built, row: number, column: number) => ({
+    x: ((column + 0.5) * plotWidth(b)) / 4,
+    y: (row + 0.5) * 24,
+  });
+
+  it("reads the cell count with no selection and focus selects the top left cell", async () => {
+    const b = build(grid);
+    expect(legendText(b)).toBe("12 cells");
+    b.plot.focus();
+    await says(`Mon, 2 PM: 3${nb}posts.`);
+    expect(legendText(b)).toBe(`Mon, 2 PM · 3${nb}posts`);
+    expect(ring(b)).not.toBe(null);
+    expect(crosshair(b)).toBe(null);
+  });
+
+  it("walks the grid by cell, saying each place and value, a missing cell No data", async () => {
+    const b = build(grid);
+    b.plot.focus();
+    const cases: [string, string][] = [
+      ["ArrowRight", `Mon, 3 PM: 0${nb}posts.`],
+      ["ArrowDown", "Tue, 3 PM: No data."],
+      ["End", `Tue, 5 PM: 7${nb}posts.`],
+      ["ArrowDown", `Wed, 5 PM: 11${nb}posts.`],
+      ["Home", `Wed, 2 PM: 8${nb}posts.`],
+    ];
+    for (const [name, text] of cases) {
+      expect(key(b.plot, name).defaultPrevented, name).toBe(true);
+      await says(text);
+    }
+  });
+
+  it("a mouse selects the cell under it and clears the selection off the grid", () => {
+    const b = build(grid);
+    const at = mid(b, 2, 1);
+    point(b, "pointermove", at.x, at.y);
+    expect(legendText(b)).toBe(`Wed, 3 PM · 9${nb}posts`);
+    point(b, "pointermove", at.x, 3 * 24 + 4);
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe("12 cells");
+  });
+
+  it("a tap selects a cell and a sideways drag moves along the row it began on", () => {
+    const b = build(grid);
+    const start = mid(b, 1, 0);
+    point(b, "pointerdown", start.x, start.y, "touch");
+    point(b, "pointerup", start.x, start.y, "touch");
+    expect(legendText(b)).toBe(`Tue, 2 PM · 4${nb}posts`);
+    point(b, "pointerdown", start.x, start.y, "touch");
+    const end = mid(b, 2, 3);
+    // The finger drifts down a row as it slides, and the selection keeps to Tue.
+    point(b, "pointermove", end.x, end.y, "touch");
+    expect(legendText(b)).toBe(`Tue, 5 PM · 7${nb}posts`);
+    point(b, "pointerup", end.x, end.y, "touch");
+  });
+});

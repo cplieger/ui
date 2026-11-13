@@ -8,6 +8,7 @@ import {
   chartModel,
   type AreaModel,
   type BarModel,
+  type CellModel,
   type DotModel,
   type LineModel,
   type Model,
@@ -19,6 +20,7 @@ import {
 import {
   barReading,
   bucketReading,
+  cellReading,
   columnReading,
   overall,
   pointReading,
@@ -1212,5 +1214,88 @@ describe("a bubble chart's legend row", () => {
       measurer((t) => 7 * Array.from(t).length, 7, "en"),
     );
     expect(w.values[2]).toBe(7 * "Population 124M".length);
+  });
+});
+
+describe("a cell chart's legend row", () => {
+  const nb = "\u00A0";
+  const hist: ChartSpec = {
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    colour: { unit: { one: "country", other: "countries" } },
+    marks: [
+      {
+        mark: "cell",
+        x: { edges: [500, 1000, 2000] },
+        y: { edges: [55, 60, 65] },
+        values: [
+          [3, 12],
+          [null, 1],
+        ],
+      },
+    ],
+  };
+  const cellOf = (m: Model) => m.marks[0] as CellModel;
+  const width = (t: string) => 7 * Array.from(t).length;
+  const face = measurer(width, 7, "en");
+
+  it("reads the cell count and a blank value with no selection", () => {
+    const m = chartModel(hist, "en", TZ);
+    expect(overall(m, words)).toEqual({
+      at: "4 cells",
+      entries: [{ slot: undefined, name: undefined, value: "" }],
+      total: undefined,
+    });
+  });
+
+  it("reads a bin's place through each axis's label and the value in the colour unit", () => {
+    const m = chartModel(hist, "en", TZ);
+    expect(cellReading(m, cellOf(m), 0, 1, words)).toEqual({
+      at: "Life expectancy 55 to 60, GDP per capita 1,000 to 2,000",
+      entries: [{ slot: undefined, name: undefined, value: `12${nb}countries` }],
+      total: undefined,
+      // Integer counts up to 12 take classes 5 wide: 10 to 15 is the third.
+      swatch: 2,
+    });
+  });
+
+  it("reads a missing cell as No data, its swatch the No data one", () => {
+    const m = chartModel(hist, "en", TZ);
+    const r = cellReading(m, cellOf(m), 1, 0, words);
+    expect(r.entries[0]?.value).toBe("No data");
+    expect(r.swatch).toBe(-1);
+  });
+
+  it("names a category grid's cell by its row, then its column", () => {
+    const m = chartModel(
+      { marks: [{ mark: "cell", x: ["2 PM"], y: ["Tuesday"], values: [[42]] }] },
+      "en",
+      TZ,
+    );
+    expect(cellReading(m, cellOf(m), 0, 0, words).at).toBe("Tuesday, 2 PM");
+  });
+
+  it("keeps the slots as wide as the widest place and value", () => {
+    const m = chartModel(
+      {
+        colour: { unit: { one: "post", other: "posts" } },
+        marks: [
+          {
+            mark: "cell",
+            x: ["a", "longest"],
+            y: ["Wednesday", "Mon"],
+            values: [
+              [1, 1000],
+              [null, 2],
+            ],
+          },
+        ],
+      },
+      "en",
+      TZ,
+    );
+    const w = readoutWidths(m, words, face);
+    expect(w.at).toBe(width("Wednesday, longest"));
+    expect(w.values).toEqual([width(`1,000${nb}posts`)]);
   });
 });

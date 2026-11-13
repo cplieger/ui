@@ -7,7 +7,14 @@
 
 import { lowerBound } from "../scale/reduce.js";
 
-import { scatterDotAt, type Model, type RectModel, type Side, type TextModel } from "./model.js";
+import {
+  binOf,
+  scatterDotAt,
+  type Model,
+  type RectModel,
+  type Side,
+  type TextModel,
+} from "./model.js";
 import { primaryOf } from "./readout.js";
 import { ruleAt } from "./scales.js";
 import { stepStopAt } from "./table.js";
@@ -142,7 +149,8 @@ export type Join =
   | { readonly kind: "stop"; readonly i: number }
   | { readonly kind: "post"; readonly row: number; readonly i: number }
   | { readonly kind: "row"; readonly row: number }
-  | { readonly kind: "dot"; readonly series: number; readonly i: number };
+  | { readonly kind: "dot"; readonly series: number; readonly i: number }
+  | { readonly kind: "cell"; readonly row: number; readonly column: number };
 
 /**
  * The index in `[from, to)` of ascending `xs` nearest `x`, the earlier on a
@@ -212,7 +220,8 @@ export function notePoint(
  *  nearest sample, since the keys stop only there. A bar or point note
  *  joins its row, its x only placing it; a slope note its column; a
  *  scatter note the dot at its values, by value, never by px, so its join
- *  holds before any layout and at every width. */
+ *  holds before any layout and at every width; a cell note the cell its
+ *  names or the bins holding its values give. */
 export function noteJoin(model: Model, t: TextModel): Join | undefined {
   const p = notePoint(model, t);
   const m = primaryOf(model);
@@ -253,7 +262,11 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       const d = scatterDotAt(m, x, p.y);
       return d === undefined ? undefined : { kind: "dot", ...d };
     }
-    case "cell":
+    case "cell": {
+      const column = "names" in m.x ? Math.floor(x) : binOf(m.x.edges, x);
+      const row = "names" in m.y ? p.y : binOf(m.y.edges, p.y);
+      return column === -1 || row === -1 ? undefined : { kind: "cell", row, column };
+    }
     case undefined:
       return undefined;
   }

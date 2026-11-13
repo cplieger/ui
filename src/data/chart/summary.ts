@@ -10,6 +10,7 @@ import {
   barTotal,
   bucketTotal,
   cellCount,
+  cellOrder,
   pointLink,
   sampleTotal,
   sampleValue,
@@ -27,8 +28,12 @@ import {
   type SeriesModel,
   type SlopeModel,
 } from "./model.js";
+import { noteJoin } from "./notes.js";
 import {
   bucketText,
+  cellPlaceText,
+  cellsText,
+  cellValueText,
   changeText,
   counted,
   domainText,
@@ -395,6 +400,33 @@ function scatterSummary(model: Model, m: ScatterModel, words: Words): string[] {
   return out;
 }
 
+// The cell count, then the highest and lowest cells in reading order, the
+// first on a tie; a missing cell counts for nothing. No total, since cells
+// need not add up.
+function cellSummary(model: Model, m: CellModel, words: Words): string[] {
+  let high: readonly [number, number] | undefined;
+  let low: readonly [number, number] | undefined;
+  const at = (c: readonly [number, number] | undefined) =>
+    c === undefined ? null : (m.values[c[0]]?.[c[1]] ?? null);
+  for (const c of cellOrder(model, m)) {
+    const v = at(c);
+    if (v === null) {
+      continue;
+    }
+    if (high === undefined || v > (at(high) ?? v)) {
+      high = c;
+    }
+    if (low === undefined || v < (at(low) ?? v)) {
+      low = c;
+    }
+  }
+  const place = (c: readonly [number, number] | undefined) =>
+    c === undefined
+      ? ""
+      : `${cellPlaceText(model, m, c[0], c[1], words)}: ${cellValueText(model, at(c), words)}`;
+  return [words.cellSummary(cellsText(model, m, words), place(high), place(low))];
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -409,7 +441,8 @@ export function ruleSentences(model: Model, words: Words): string[] {
 /** Each note's sentence, in spec order: its x as the readings write it (a
  *  slope's column name), under a dot mark after its row's name, on a bar or
  *  point chart its row's name alone, on a scatter the name of the dot it
- *  joins or else both its measures. */
+ *  joins or else both its measures, on a cell chart the place of the cell it
+ *  joins or else both its values. */
 export function noteSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
   const m = primaryOf(model);
@@ -420,6 +453,13 @@ export function noteSentences(model: Model, words: Words): string[] {
         d === undefined
           ? `${measureText(model, "x", t.x ?? null, words)}, ${measureText(model, "y", t.y, words)}`
           : (m.series[d.series]?.names[d.i] ?? "");
+      out.push(words.note(at, t.text));
+    } else if (t.kind === "text" && m?.kind === "cell") {
+      const j = noteJoin(model, t);
+      const at =
+        j?.kind === "cell"
+          ? cellPlaceText(model, m, j.row, j.column, words)
+          : words.cellPlace(model.xText(t.x ?? 0), model.yText(t.y));
       out.push(words.note(at, t.text));
     } else if (t.kind === "text") {
       const row = model.y.type === "band" ? (model.y.rows[t.y] ?? "") : undefined;
@@ -450,7 +490,9 @@ export function generatedSummary(model: Model, words: Words): string {
                 ? slopeSummary(model, m, words)
                 : m?.kind === "scatter"
                   ? scatterSummary(model, m, words)
-                  : [];
+                  : m?.kind === "cell"
+                    ? cellSummary(model, m, words)
+                    : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 

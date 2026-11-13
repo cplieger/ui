@@ -12,6 +12,7 @@ import { pointGrid, type Grid } from "./grid.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
 import type {
+  CellModel,
   DotModel,
   DotRef,
   Model,
@@ -20,11 +21,12 @@ import type {
   ScatterModel,
   SlopeModel,
 } from "./model.js";
-import { barsApart, pointLink, slopeChange } from "./model.js";
+import { barsApart, cellCount, cellOrder, pointLink, slopeChange } from "./model.js";
 import {
   barPart,
   barReading,
   bucketReading,
+  cellReading,
   changeText,
   columnReading,
   measureText,
@@ -46,7 +48,8 @@ import type { Words } from "./words.js";
  * A bucket, a sample or a slope's column `i`, with one series (`part`) when
  * Up or Down chose it; the posts `[from, to)` of a dot row; a dot row as a
  * whole; a bar or point row, with one series (`part`) when Left or Right
- * chose it; or a scatter's dot `i` of `series`.
+ * chose it; a scatter's dot `i` of `series`; or a cell chart's cell at
+ * `row` and `column`, indices into its axes.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
@@ -56,7 +59,8 @@ export type Selection =
   | { readonly kind: "dot"; readonly row: number; readonly from: number; readonly to: number }
   | { readonly kind: "row"; readonly row: number }
   | { readonly kind: "bar" | "point"; readonly row: number; readonly part: number | undefined }
-  | { readonly kind: "scatter"; readonly series: number; readonly i: number };
+  | { readonly kind: "scatter"; readonly series: number; readonly i: number }
+  | { readonly kind: "cell"; readonly row: number; readonly column: number };
 
 export type Key =
   "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End" | "PageUp" | "PageDown";
@@ -78,7 +82,8 @@ export const isKey = (key: string): key is Key => KEYS.has(key);
 const REACH = 40;
 /** One x tick's room when the axis draws fewer than two ticks, in px. */
 const TICK_FALLBACK = 80;
-/** Page Up and Page Down move a band chart's selection this many rows. */
+/** Page Up and Page Down move a band chart's selection this many rows, and
+ *  a cell chart's on a band x this many columns. */
 const PAGE_ROWS = 10;
 
 const bandRows = (model: Model): number => (model.y.type === "band" ? model.y.rows.length : 0);
@@ -161,8 +166,9 @@ const lineStops = (m: SampleModel): number[] =>
 
 /** The selection focus gives a chart that has none yet: the newest x or a
  *  slope's right column, on a timeline the first row's last post, or that
- *  row when it is silent, a bar or point chart's first row, whole, or a
- *  scatter's first dot in x order. */
+ *  row when it is silent, a bar or point chart's first row, whole, a
+ *  scatter's first dot in x order, or a cell chart's first cell in reading
+ *  order. */
 export function initial(model: Model): Selection | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -195,8 +201,12 @@ export function initial(model: Model): Selection | undefined {
       const o = orders(m);
       return dotSelection(o, o.byX[0]);
     }
-    case "cell":
-      return undefined;
+    case "cell": {
+      const first = cellOrder(model, m).next();
+      return first.done === true
+        ? undefined
+        : { kind: "cell", row: first.value[0], column: first.value[1] };
+    }
   }
 }
 
@@ -382,6 +392,62 @@ function moveScatter(
   return p === undefined ? undefined : dotSelection(o, o.byX[p]);
 }
 
+/** Where `key` moves a cell selection, as the drawing runs: Left and Right,
+ *  Home and End along the row, Up and Down to the cell above or below (a
+ *  binned y's rows run up from the bottom), Page Up and Page Down by one x
+ *  tick on a binned x and PAGE_ROWS columns on a band x. */
+function moveCell(
+  m: CellModel,
+  sel: Selection & { kind: "cell" },
+  key: Key,
+  lay: Layout,
+): Selection | undefined {
+  const rows = cellCount(m.y);
+  const columns = cellCount(m.x);
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    const up = (key === "ArrowUp") !== "edges" in m.y;
+    const row = sel.row + (up ? -1 : 1);
+    return row >= 0 && row < rows ? { ...sel, row } : undefined;
+  }
+  const xs = lay.cells?.xs ?? [];
+  if ((key === "PageUp" || key === "PageDown") && "names" in m.x) {
+    const rightward = (key === "PageDown") !== lay.frame.x.reverse;
+    const column = Math.min(
+      Math.max(sel.column + (rightward ? PAGE_ROWS : -PAGE_ROWS), 0),
+      columns - 1,
+    );
+    return column === sel.column ? undefined : { ...sel, column };
+  }
+  const stops = Array.from({ length: columns }, (_, c) => c);
+  const px = (c: number) => ((xs[c] ?? 0) + (xs[c + 1] ?? 0)) / 2;
+  const column = along(stops, sel.column, sel.column, key, px, lay);
+  return column === undefined ? undefined : { ...sel, column };
+}
+
+/** The span of `edges`, ascending or descending, holding `v`, the later on
+ *  a shared edge; -1 outside them. */
+function spanOf(edges: readonly number[], v: number): number {
+  const n = edges.length - 1;
+  const first = edges[0] ?? 0;
+  const last = edges[n] ?? 0;
+  if (n < 1 || v < Math.min(first, last) || v > Math.max(first, last)) {
+    return -1;
+  }
+  const up = last >= first;
+  let lo = 0;
+  let hi = n;
+  // The last edge at or before v along the edges' own direction.
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >>> 1;
+    if (up ? (edges[mid] ?? 0) <= v : (edges[mid] ?? 0) >= v) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
 /** A selection's position along x on the plot, in px. */
 function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined {
   const m = primaryOf(model);
@@ -418,6 +484,8 @@ export interface Navigator {
   /** Page Up and Page Down move the selection; on a slope, whose two
    *  columns have no ticks to page by, they are the page's. */
   readonly pages: boolean;
+  /** A touch drag keeps the row it began on, as along a cell chart's row. */
+  readonly alongRow: boolean;
 }
 
 export function navigator(model: Model, lay: Layout): Navigator {
@@ -503,7 +571,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
         return sel.kind === "scatter" ? moveScatter(m, sel, key, lay) : undefined;
       }
       if (m.kind === "cell") {
-        return undefined;
+        return sel.kind === "cell" ? moveCell(m, sel, key, lay) : undefined;
       }
       if (sel.kind !== m.kind) {
         return undefined;
@@ -585,8 +653,13 @@ export function navigator(model: Model, lay: Layout): Navigator {
           const ref = d === undefined ? undefined : m.drawn[d];
           return ref === undefined ? undefined : { kind: "scatter", ...ref };
         }
-        case "cell":
-          return undefined;
+        case "cell": {
+          // The cell whose box holds the pointer, a gap taking the cell past
+          // it; off the grid nothing.
+          const column = spanOf(lay.cells?.xs ?? [], px);
+          const row = spanOf(lay.cells?.ys ?? [], py);
+          return column === -1 || row === -1 ? undefined : { kind: "cell", row, column };
+        }
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;
@@ -614,6 +687,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
     crosshair: (sel) => selectionPx(model, sel, f),
     drags: m?.kind !== "bar" && m?.kind !== "point" && m?.kind !== "scatter",
     pages: m?.kind !== "slope",
+    alongRow: m?.kind === "cell",
   };
 }
 
@@ -667,6 +741,20 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
       }
     }
     return undefined;
+  }
+  if (sel.kind === "cell" && was.kind === "cell" && now.kind === "cell") {
+    // A column or row is found by its name, or by its bin's low edge.
+    const find = (a: CellModel["x"], b: CellModel["x"], i: number) =>
+      "names" in a
+        ? "names" in b
+          ? b.names.indexOf(a.names[i] ?? "")
+          : -1
+        : "edges" in b && i < a.edges.length - 1
+          ? b.edges.slice(0, -1).indexOf(a.edges[i] ?? Number.NaN)
+          : -1;
+    const row = find(was.y, now.y, sel.row);
+    const column = find(was.x, now.x, sel.column);
+    return row === -1 || column === -1 ? undefined : { kind: "cell", row, column };
   }
   if ((sel.kind === "dot" || sel.kind === "row") && was.kind === "dot" && now.kind === "dot") {
     const name = was.rows[sel.row]?.name;
@@ -723,6 +811,9 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   if (sel.kind === "scatter" && m?.kind === "scatter") {
     return scatterReading(model, m, sel.series, sel.i, words);
   }
+  if (sel.kind === "cell" && m?.kind === "cell") {
+    return cellReading(model, m, sel.row, sel.column, words);
+  }
   return undefined;
 }
 
@@ -764,7 +855,9 @@ const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
       ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
       : j.kind === "dot"
         ? sel.kind === "scatter" && sel.series === j.series && sel.i === j.i
-        : (sel.kind === "row" || sel.kind === "bar" || sel.kind === "point") && sel.row === j.row;
+        : j.kind === "cell"
+          ? sel.kind === "cell" && sel.row === j.row && sel.column === j.column
+          : (sel.kind === "row" || sel.kind === "bar" || sel.kind === "point") && sel.row === j.row;
 
 /** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
 function noteReadings(model: Model, sel: Selection, words: Words): string {

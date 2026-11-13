@@ -319,6 +319,30 @@ export type CellAxis =
 export const cellCount = (axis: CellAxis): number =>
   "names" in axis ? axis.names.length : axis.edges.length - 1;
 
+/** The bin of ascending `edges` holding `v`, each from its low edge, the
+ *  last to its high edge too; -1 outside them. */
+export function binOf(edges: readonly number[], v: number): number {
+  const last = edges.length - 1;
+  if (last < 1 || !(v >= (edges[0] ?? 0) && v <= (edges[last] ?? 0))) {
+    return -1;
+  }
+  return v === edges[last] ? last - 1 : upperBound(edges, v) - 1;
+}
+
+/** A cell chart's cells in reading order, as `[row, column]`: rows from the
+ *  top (a binned y's highest bin first), columns from the left. */
+export function* cellOrder(model: Model, m: CellModel): Generator<readonly [number, number]> {
+  const rows = cellCount(m.y);
+  const columns = cellCount(m.x);
+  const up = "edges" in m.y;
+  for (let k = 0; k < rows; k++) {
+    const r = up ? rows - 1 - k : k;
+    for (let j = 0; j < columns; j++) {
+      yield [r, model.x.reverse ? columns - 1 - j : j];
+    }
+  }
+}
+
 /** A grid of cells, each coloured by its value's class. */
 export interface CellModel {
   readonly kind: "cell";
@@ -386,6 +410,8 @@ export interface Model {
   readonly yText: (v: number) => string;
   /** A bubble's size, in the r scale's format. */
   readonly rText: (v: number) => string;
+  /** A cell's value or a class boundary, in the colour scale's format. */
+  readonly colourText: (v: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
    *  bar or point chart, else `yText`), or a plain number under "share",
    *  whose axis writes shares. */
@@ -397,6 +423,7 @@ export interface Model {
     readonly y: WidthKey | undefined;
     readonly r: WidthKey | undefined;
     readonly amount: WidthKey | undefined;
+    readonly colour: WidthKey | undefined;
   };
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
@@ -1214,22 +1241,29 @@ function textModel(
   x: Continuous,
   y: Continuous | Band,
   ends: string | undefined,
-  columns: readonly [string, string] | undefined,
+  columns: { readonly names: readonly string[]; readonly cell: boolean } | undefined,
 ): TextModel {
   const side = m.side ?? "above";
   if (ends !== undefined && m.x !== undefined) {
     fail(`${what}.x has no place under arrange "${ends}"; the note sits at its row's end`);
   }
-  // A slope's columns sit at x 0 and 1, so a note names its column by index there.
+  // A slope's columns sit at x 0 and 1, so a note names its column by index
+  // there; a cell chart's column c spans c to c + 1, so its note sits mid-column.
   const column = (v: number | string | undefined): number => {
+    const of = columns?.cell === true ? "the cell chart's columns" : "the slope's two columns";
     if (v === undefined) {
-      return fail(`${what}.x is missing; a note on a slope names one of its two columns`);
+      return fail(
+        `${what}.x is missing; a note on ${columns?.cell === true ? "a cell chart names one of its columns" : "a slope names one of its two columns"}`,
+      );
     }
     if (typeof v !== "string") {
-      return fail(`${what}.x must name one of the slope's two columns`);
+      return fail(`${what}.x must name one of ${of}`);
     }
-    const c = columns?.indexOf(v) ?? -1;
-    return c === -1 ? fail(`${what}.x names no column: "${v}"`, RangeError) : c;
+    const c = columns?.names.indexOf(v) ?? -1;
+    if (c === -1) {
+      return fail(`${what}.x names no column: "${v}"`, RangeError);
+    }
+    return columns?.cell === true ? c + 0.5 : c;
   };
   const place = (v: number | string | undefined, axis: "x" | "y", scale: Continuous | Band) => {
     if (v === undefined) {
@@ -1282,6 +1316,8 @@ export function chartModel(
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
   const columns = spec.marks.find((m) => m.mark === "slope")?.x;
+  const cellMark = spec.marks.find((m) => m.mark === "cell");
+  const cellNames = cellMark === undefined || "edges" in cellMark.x ? undefined : cellMark.x;
   // The values a cell chart's inferred classes span.
   const filled = (m: CellMark): number[] =>
     m.values.flatMap((row) =>
@@ -1376,7 +1412,18 @@ export function chartModel(
         return { kind: "rule", axis, value, label: m.label, place: either ? { at: value } : place };
       }
       case "text":
-        return textModel(m, `marks[${String(index)}]`, x, y, ends, columns);
+        return textModel(
+          m,
+          `marks[${String(index)}]`,
+          x,
+          y,
+          ends,
+          columns === undefined
+            ? cellNames === undefined
+              ? undefined
+              : { names: cellNames, cell: true }
+            : { names: columns, cell: false },
+        );
     }
   });
   // The ends of a domain a whole day long can share their clock time, so they
@@ -1389,7 +1436,7 @@ export function chartModel(
     slope?.columns ?? (cellX !== undefined && "names" in cellX ? cellX.names : undefined);
   const xText =
     named !== undefined
-      ? (v: number) => named[v] ?? ""
+      ? (v: number) => named[Math.floor(v)] ?? ""
       : x.type === "time"
         ? instantFormat(locale, timeZone, days)
         : (signed ? signedFormatter : formatter)(x.format, locale);
@@ -1399,6 +1446,7 @@ export function chartModel(
       : (from: number, to: number) => [xText(from), xText(to)] as const;
   const yText = formatter(y.type === "band" ? undefined : y.format, locale);
   const rText = formatter(size?.format, locale);
+  const colourText = formatter(spec.colour?.format, locale);
   const share = marks.some(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
@@ -1416,12 +1464,14 @@ export function chartModel(
     xSpan,
     yText,
     rText,
+    colourText,
     amountText: share ? formatter("number", locale) : bars ? xText : yText,
     widthKeys: {
       x: xKey,
       y: yKey,
       r: widthKey(size?.format, locale),
       amount: share ? widthKey("number", locale) : bars ? xKey : yKey,
+      colour: widthKey(spec.colour?.format, locale),
     },
     locale,
     timeZone,

@@ -83,6 +83,8 @@ export interface Text {
   readonly anchor: "start" | "middle" | "end";
   /** A slope's end label's series. */
   readonly series?: number;
+  /** A cell chart's column a band x label names. */
+  readonly column?: number;
 }
 
 /** A line from `from` to `to`, in SVG px. */
@@ -824,6 +826,7 @@ export function layout(
   const xLabels: Text[] = [];
   let xLines = 0;
   const labelTop = top + height + TICK + 2;
+  const bandX = cells !== undefined && "names" in cells.x;
   for (const t of xAx.ticks) {
     const label = t.label;
     if (label === undefined) {
@@ -836,6 +839,7 @@ export function layout(
         x: left + (label.box.start + label.box.end) / 2,
         y: labelTop + mid(k),
         anchor: "middle",
+        ...(bandX ? { column: Math.floor(t.value) } : {}),
       });
     });
   }

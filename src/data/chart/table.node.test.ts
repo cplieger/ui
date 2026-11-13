@@ -762,3 +762,68 @@ describe("the table of a bubble chart", () => {
     ]);
   });
 });
+
+describe("the table of a cell chart", () => {
+  it("is a matrix: a column per x entry, a row per y entry, each value or No data", () => {
+    const t = tableModel(
+      model({
+        colour: { unit: { one: "post", other: "posts" } },
+        marks: [
+          {
+            mark: "cell",
+            x: ["2 PM", "3 PM"],
+            y: ["Monday", "Tuesday"],
+            values: [
+              [4, 1200],
+              [null, 0],
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["2 PM", "3 PM"]);
+    expect(cells(t)).toEqual([
+      ["Monday", "4", "1,200"],
+      ["Tuesday", "No data", "0"],
+    ]);
+  });
+
+  it("lists a binned y's highest bin first and names both axes in the corner", () => {
+    const t = tableModel(
+      model({
+        x: { label: "GDP per capita" },
+        y: { label: "Life expectancy" },
+        marks: [
+          {
+            mark: "cell",
+            x: { edges: [1000, 2000, 5000] },
+            y: { edges: [50, 55, 60] },
+            values: [
+              [1, 2],
+              [3, 4],
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Life expectancy / GDP per capita");
+    expect(t.columns.map((c) => c.text)).toEqual(["1,000 to 2,000", "2,000 to 5,000"]);
+    expect(cells(t)).toEqual([
+      ["55 to 60", "3", "4"],
+      ["50 to 55", "1", "2"],
+    ]);
+  });
+
+  it("orders its columns as the plot does on a reversed x", () => {
+    const t = tableModel(
+      model({
+        x: { reverse: true },
+        marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[1, 2]] }],
+      }),
+      words,
+    );
+    expect(cells(t)).toEqual([["r", "2", "1"]]);
+  });
+});

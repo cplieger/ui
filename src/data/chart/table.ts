@@ -9,6 +9,7 @@ import { formatter } from "../scale/format.js";
 
 import type {
   BarModel,
+  CellModel,
   Model,
   PointModel,
   RectModel,
@@ -16,10 +17,19 @@ import type {
   ScatterModel,
   SlopeModel,
 } from "./model.js";
-import { barsApart, barTotal, bucketTotal, pointLink, sampleTotal, slopeChange } from "./model.js";
+import {
+  barsApart,
+  barTotal,
+  bucketTotal,
+  cellCount,
+  pointLink,
+  sampleTotal,
+  slopeChange,
+} from "./model.js";
 import {
   barPart,
   bucketText,
+  cellAxisText,
   changeText,
   dotValue,
   linkText,
@@ -272,6 +282,39 @@ function scatterTable(model: Model, m: ScatterModel, words: Words, after: string
   };
 }
 
+// A matrix as the plot draws it: a column per x entry, a row per y entry
+// from the top (a binned y's highest bin first), each value in the colour
+// scale's format, the axes' labels in the corner.
+function cellTable(model: Model, m: CellModel, words: Words, after: string): TableModel {
+  const rows = cellCount(m.y);
+  const order = Array.from({ length: rows }, (_, k) => ("edges" in m.y ? rows - 1 - k : k));
+  const xs = Array.from({ length: cellCount(m.x) }, (_, c) => c);
+  const columns = (model.x.reverse ? xs.reverse() : xs).map((c) => ({
+    text: cellAxisText(model, m, "x", c, words, false),
+    num: true,
+    c,
+  }));
+  const corner = [model.spec.y?.label, model.spec.x?.label]
+    .filter((l): l is string => l !== undefined && l !== "")
+    .join(" / ");
+  return {
+    corner,
+    columns: columns.map(({ text, num }) => ({ text, num })),
+    rows: order.map((r): Row => {
+      const head = cellAxisText(model, m, "y", r, words, false);
+      return {
+        key: head,
+        head: [head],
+        cells: columns.map(({ c }) => {
+          const v = m.values[r]?.[c] ?? null;
+          return { parts: [v === null ? words.noData : model.colourText(v)], num: true };
+        }),
+      };
+    }),
+    after,
+  };
+}
+
 /** Whether the table's row heads are the app's names, each set in a `<bdi>`
  *  so a right-to-left name keeps its place: a band's rows, a slope's series
  *  or a scatter's dots. */
@@ -328,7 +371,7 @@ export function tableModel(model: Model, words: Words): TableModel {
     return scatterTable(model, m, words, after);
   }
   if (m.kind === "cell") {
-    return { corner: "", columns: [], rows: [], after };
+    return cellTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {

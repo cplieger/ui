@@ -6507,6 +6507,41 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-width: 1px;
 }
 
+/* A cell chart's colour key: its label, the swatches with each boundary's
+ * value centred under it, and a No data swatch. A swatch's ring shows only
+ * while its class is selected. */
+.cp-chart > [data-part="legend"] > [data-part="key"] {
+  display: inline-flex;
+  align-items: start;
+  gap: var(--cp-space-2);
+}
+
+.cp-chart [data-part="key"] > [data-part="scale"],
+.cp-chart [data-part="key"] > [data-part="none"] {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.cp-chart > [data-part="legend"] [data-part="thresholds"] {
+  position: relative;
+  block-size: 1lh;
+}
+
+.cp-chart > [data-part="legend"] [data-part="thresholds"] > span {
+  position: absolute;
+  inset-block-start: 0;
+  translate: -50% 0;
+  white-space: nowrap;
+}
+
+.cp-chart [data-part="key"] [data-part="ring"] {
+  visibility: hidden;
+}
+
+.cp-chart [data-part="key"] [data-selected] {
+  visibility: visible;
+}
+
 .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
 }
@@ -6583,8 +6618,10 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-tone-9);
 }
 
-/* A selected bar row's name shows by weight as well as colour. */
-.cp-chart svg [data-part="y"] text[data-selected] {
+/* A selected bar row's name, or a cell's row and column names, show by
+ * weight as well as colour. */
+.cp-chart svg [data-part="y"] text[data-selected],
+.cp-chart svg [data-part="x"] text[data-selected] {
   fill: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
 }

@@ -1245,3 +1245,110 @@ describe("a 2D histogram's short description", () => {
     ).toBe(`Heatmap, 12 by 3${nb}quarters`);
   });
 });
+
+describe("a cell chart's summary", () => {
+  const grid = (values: (number | null)[][], over: Partial<ChartSpec> = {}): ChartSpec => ({
+    colour: { unit: posts },
+    marks: [{ mark: "cell", x: ["2 PM", "3 PM"], y: ["Monday", "Tuesday"], values }],
+    ...over,
+  });
+
+  it("counts the cells and names the highest and lowest, each with its value", () => {
+    expect(
+      generatedSummary(
+        model(
+          grid([
+            [4, 57],
+            [0, null],
+          ]),
+        ),
+        words,
+      ),
+    ).toBe(`4 cells. Highest Monday, 3 PM: 57${nb}posts. Lowest Tuesday, 2 PM: 0${nb}posts.`);
+  });
+
+  it("names the first cell in reading order on a tie", () => {
+    expect(
+      generatedSummary(
+        model(
+          grid([
+            [5, 5],
+            [5, 5],
+          ]),
+        ),
+        words,
+      ),
+    ).toBe(`4 cells. Highest Monday, 2 PM: 5${nb}posts. Lowest Monday, 2 PM: 5${nb}posts.`);
+  });
+
+  it("reads a binned y's highest bin first, as the plot draws it from the top", () => {
+    const spec: ChartSpec = {
+      marks: [
+        {
+          mark: "cell",
+          x: { edges: [0, 1, 2] },
+          y: { edges: [0, 10, 20] },
+          values: [
+            [1, 9],
+            [9, 1],
+          ],
+        },
+      ],
+    };
+    expect(generatedSummary(model(spec), words)).toBe(
+      "4 cells. Highest 10 to 20, 0 to 1: 9. Lowest 10 to 20, 1 to 2: 1.",
+    );
+  });
+
+  it("says only the count when every cell is missing", () => {
+    expect(
+      generatedSummary(
+        model(
+          grid([
+            [null, null],
+            [null, null],
+          ]),
+        ),
+        words,
+      ),
+    ).toBe("4 cells.");
+  });
+
+  it("adds no total, which an app whose values add up writes in its own summary", () => {
+    expect(
+      generatedSummary(
+        model(
+          grid([
+            [1, 2],
+            [3, 4],
+          ]),
+        ),
+        words,
+      ),
+    ).not.toContain("Total");
+  });
+
+  it("places a note at the cell it names", () => {
+    const spec = grid(
+      [
+        [1, 2],
+        [3, 4],
+      ],
+      {
+        marks: [
+          {
+            mark: "cell",
+            x: ["2 PM", "3 PM"],
+            y: ["Monday", "Tuesday"],
+            values: [
+              [1, 2],
+              [3, 4],
+            ],
+          },
+          { mark: "text", x: "3 PM", y: "Tuesday", text: "Release" },
+        ],
+      },
+    );
+    expect(generatedSummary(model(spec), words)).toContain("Tuesday, 3 PM: Release.");
+  });
+});

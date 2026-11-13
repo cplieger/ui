@@ -6,6 +6,7 @@ import { forgetMeasures } from "../scale/measure.js";
 
 import {
   AREA_ROOM,
+  colourKey,
   drawPlot,
   drawSelection,
   frameLegend,
@@ -13,10 +14,10 @@ import {
   sizeKey,
   writeLegend,
 } from "./draw.js";
-import { hairline, num, snap, upright } from "./geometry.js";
+import { cellBox, hairline, num, snap, upright } from "./geometry.js";
 import { layout, type Layout } from "./layout.js";
-import { chartModel, type Model, type RectModel } from "./model.js";
-import { bucketReading, overall, readoutWidths } from "./readout.js";
+import { chartModel, type CellModel, type Model, type RectModel } from "./model.js";
+import { bucketReading, cellReading, overall, readoutWidths } from "./readout.js";
 import { navigator } from "./select.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
@@ -1901,6 +1902,122 @@ describe("a heatmap", () => {
     for (const part of ["grid", "rows", "zero"]) {
       expect(d.svg.querySelector(`[data-part="${part}"]`)).toBeNull();
     }
+  });
+});
+
+describe("a heatmap's selection and colour key", () => {
+  const spec: ChartSpec = {
+    colour: { label: "Posts", thresholds: [4, 8, 12, 16] },
+    marks: [
+      {
+        mark: "cell",
+        x: ["0", "1", "2", "3"],
+        y: ["Mon", "Tue"],
+        values: [
+          [0, 3, 6, 9],
+          [null, 12, 15, 18],
+        ],
+      },
+    ],
+  };
+  // The key as the chart draws it, at the legend row's end.
+  const keyed = (s: ChartSpec, width = 600) => {
+    const d = draw(s, width);
+    const key = colourKey(d.model, words, readMetrics(d.legend, "en").measure);
+    if (key !== undefined) {
+      d.legend.append(key);
+    }
+    return { ...d, key };
+  };
+  const box = (el: Element) => el.getBoundingClientRect();
+
+  it("rings the selected cell 1 px outside its edges and turns its row and column names ink", () => {
+    const d = draw(spec);
+    drawSelection(
+      d.svg,
+      d.model,
+      d.lay,
+      { kind: "cell", row: 1, column: 2 },
+      navigator(d.model, d.lay),
+    );
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    const [x0, y0] = ring.slice(1).split(/[ H]/u).map(Number);
+    const fill =
+      d.lay.cells === undefined ? undefined : cellBox(d.lay.cells, 1, 2, d.lay.frame.dpr);
+    expect([x0, y0]).toEqual([(fill?.left ?? 0) - 1, (fill?.top ?? 0) - 1]);
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+    const selected = [...d.svg.querySelectorAll("text[data-selected]")].map((t) => t.textContent);
+    expect(selected).toEqual(["Tue", "2"]);
+    const name = d.svg.querySelector('[data-part="x"] text[data-selected]') as Element;
+    expect(getComputedStyle(name).fill).toBe(token(name, "var(--cp-ink)"));
+    drawSelection(d.svg, d.model, d.lay, undefined, navigator(d.model, d.lay));
+    expect(d.svg.querySelectorAll("text[data-selected]").length).toBe(0);
+  });
+
+  it("draws a swatch per class in its step, each threshold centred under its boundary", () => {
+    const { key } = keyed(spec);
+    expect(key?.getAttribute("aria-hidden")).toBe("true");
+    expect(key?.querySelector('[data-part="label"]')?.textContent).toBe("Posts");
+    const swatches = [...(key?.querySelectorAll<SVGRectElement>("rect[data-step]") ?? [])];
+    expect(swatches.map((r) => r.dataset["step"])).toEqual(["1", "3", "5", "7", "9"]);
+    swatches.forEach((r) => {
+      expect([box(r).width, box(r).height]).toEqual([24, 12]);
+      expect(getComputedStyle(r).fill).toBe(
+        token(r, `var(--cp-sequential-${r.dataset["step"] ?? ""})`),
+      );
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["4", "8", "12", "16"]);
+    labels.forEach((l, k) => {
+      const centre = (box(l).left + box(l).right) / 2;
+      const between =
+        (box(swatches[k] as Element).right + box(swatches[k + 1] as Element).left) / 2;
+      expect(Math.abs(centre - between)).toBeLessThan(0.6);
+    });
+    expect(key?.querySelector('[data-part="none"]')?.textContent).toBe("No data");
+  });
+
+  it("rings the swatch of the selected cell's class, and the No data swatch for a missing cell", () => {
+    const { legend, model } = keyed(spec);
+    const m = model.marks[0] as CellModel;
+    const ringed = () =>
+      [...legend.querySelectorAll('[data-part="ring"]')].map((r) =>
+        r.hasAttribute("data-selected"),
+      );
+    writeLegend(legend, cellReading(model, m, 1, 2, words));
+    expect(ringed()).toEqual([false, false, false, true, false, false]);
+    const ring = legend.querySelector('[data-part="ring"][data-selected]') as Element;
+    expect(getComputedStyle(ring).visibility).toBe("visible");
+    expect(getComputedStyle(legend.querySelector('[data-part="ring"]') as Element).visibility).toBe(
+      "hidden",
+    );
+    writeLegend(legend, cellReading(model, m, 1, 0, words));
+    expect(ringed()).toEqual([false, false, false, false, false, true]);
+    writeLegend(legend, overall(model, words) as NonNullable<ReturnType<typeof overall>>);
+    expect(ringed().some(Boolean)).toBe(false);
+  });
+
+  it("labels a diverging key's pivot under its middle swatch and thins crowded labels", () => {
+    const diverging: ChartSpec = {
+      colour: { type: "diverging", steps: 5, format: { maximumFractionDigits: 2 } },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-0.123, 0.987]] }],
+    };
+    const { key } = keyed(diverging);
+    const middle = key?.querySelectorAll("rect[data-step]")[2] as Element;
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    const pivot = labels.find((l) => l.textContent === "0") as Element;
+    expect(pivot).toBeDefined();
+    expect(
+      Math.abs(
+        (box(pivot).left + box(pivot).right) / 2 - (box(middle).left + box(middle).right) / 2,
+      ),
+    ).toBeLessThan(0.6);
+    for (let k = 1; k < labels.length; k++) {
+      expect(box(labels[k] as Element).left).toBeGreaterThanOrEqual(
+        box(labels[k - 1] as Element).right,
+      );
+    }
+    expect(key?.querySelector('[data-part="none"]')).toBeNull();
   });
 });
 

@@ -131,6 +131,18 @@ export interface ChartWords {
    *  the y and x counts, each in its axis's unit when it names one.
    *  Default "{rows} by {columns}". */
   readonly grid?: (rows: string, columns: string) => string;
+  /** A cell chart's cells in the legend row with no selection and in the
+   *  summary; count is n as a number, for the plural. Default "{n} cells",
+   *  or "{n} cell" for one. */
+  readonly cells?: (n: string, count: number) => string;
+  /** A cell's place in the legend row, the readings, the summary and a
+   *  note's place: its column's and its row's name, or a bin as
+   *  `measure` of its range. Default "{row}, {column}". */
+  readonly cellPlace?: (column: string, row: string) => string;
+  /** Summary, a cell chart; high and low are each "{place}: {value}", or ""
+   *  when no cell holds a value. Default "{count}. Highest {high}. Lowest
+   *  {low}.", or "{count}." without them. */
+  readonly cellSummary?: (count: string, high: string, low: string) => string;
   /** A scatter dot's value with its axis label, in the legend row, the
    *  readings and a note's place. Default "{label} {value}". */
   readonly measure?: (label: string, value: string) => string;
@@ -258,6 +270,10 @@ const DEFAULTS: Words = {
   categories: (n, count) => (count === 1 ? `${n} category` : `${n} categories`),
   points: (n, count) => (count === 1 ? `${n} point` : `${n} points`),
   grid: (rows, columns) => `${rows} by ${columns}`,
+  cells: (n, count) => (count === 1 ? `${n} cell` : `${n} cells`),
+  cellPlace: (column, row) => `${row}, ${column}`,
+  cellSummary: (count, high, low) =>
+    high === "" ? `${count}.` : `${count}. Highest ${high}. Lowest ${low}.`,
   measure: (label, value) => `${label} ${value}`,
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,

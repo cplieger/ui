@@ -4,7 +4,7 @@
  * @module
  */
 
-import { fontMeasure } from "../scale/measure.js";
+import { fontMeasure, type Measure } from "../scale/measure.js";
 
 import {
   areaPaths,
@@ -13,6 +13,7 @@ import {
   barSegments,
   bubblePaths,
   bucketEdges,
+  cellBox,
   cellPaths,
   dotGroups,
   dotPath,
@@ -42,6 +43,7 @@ import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
 import { primaryOf, type Reading, type Widths } from "./readout.js";
+import type { Words } from "./words.js";
 import type { Navigator, Selection } from "./select.js";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -476,6 +478,9 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
     const c = scatterAt(m, sel.series, sel.i, f);
     return c === undefined ? "" : ring(c.x, c.y, dotRadius(m, sel.series, sel.i, f) + 1);
   }
+  if (sel.kind === "cell" && m?.kind === "cell") {
+    return lay.cells === undefined ? "" : outset(cellBox(lay.cells, sel.row, sel.column, f.dpr));
+  }
   if (sel.kind === "slope" && m?.kind === "slope") {
     // A chosen series rings both its ends, the whole column each end in it.
     return m.series
@@ -525,11 +530,16 @@ export function drawSelection(
 ): void {
   const area = svg.querySelector('[data-part="area"]');
   area?.querySelector('[data-part="selection"]')?.remove();
-  // A bar or point row's selection shows by its name's weight too, not by
-  // colour alone.
+  // A bar or point row's selection, and a cell's row and column, show by
+  // their names' weight too, not by colour alone.
+  const bandY = model.y.type === "band";
   svg.querySelectorAll('[data-part="y"] > text').forEach((name, r) => {
-    const row = sel?.kind === "bar" || sel?.kind === "point";
+    const row = sel?.kind === "bar" || sel?.kind === "point" || (sel?.kind === "cell" && bandY);
     name.toggleAttribute("data-selected", row && sel.row === r);
+  });
+  svg.querySelectorAll('[data-part="x"] > text').forEach((name, k) => {
+    const c = lay.xLabels[k]?.column;
+    name.toggleAttribute("data-selected", sel?.kind === "cell" && c === sel.column);
   });
   const chosen = sel?.kind === "slope" ? sel.part : undefined;
   svg.querySelectorAll('[data-part="end"] > text').forEach((label, k) => {
@@ -664,6 +674,133 @@ export function sizeKey(model: Model, lay: Layout): HTMLElement | undefined {
   return key;
 }
 
+/** A colour key swatch's size and the room its ring takes past it, in px. */
+const SWATCH_W = 24;
+const SWATCH_H = 12;
+const SWATCH_PAD = 2;
+/** The space between two swatches, as between two cells. */
+const GAP_PX = 1;
+/** The least room between two of the key's labels, in px. */
+const KEY_LABEL_GAP = 4;
+
+// The labels of `at` (centres in px) whose `widths` keep KEY_LABEL_GAP
+// apart: all, every second from the first, or the first and last.
+function thinned(at: readonly number[], widths: readonly number[]): number[] {
+  const clear = (keep: readonly number[]) =>
+    keep.every((k, j) => {
+      const prev = keep[j - 1];
+      return (
+        prev === undefined ||
+        (at[k] ?? 0) - (at[prev] ?? 0) >=
+          ((widths[k] ?? 0) + (widths[prev] ?? 0)) / 2 + KEY_LABEL_GAP
+      );
+    });
+  const all = at.map((_, k) => k);
+  const second = all.filter((k) => k % 2 === 0);
+  const ends = all.length < 2 ? all : [0, all.length - 1];
+  return [all, second].find(clear) ?? (clear(ends) ? ends : ends.slice(0, 1));
+}
+
+function swatchSvg(width: number): SVGElement {
+  const h = num(SWATCH_H + 2 * SWATCH_PAD);
+  const w = num(width);
+  return svgEl("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}` });
+}
+
+// A swatch's ring, 1 px outside its edges as the plot's ring is, shown
+// only while its class is selected.
+const swatchRing = (x: number): SVGElement =>
+  svgEl("rect", {
+    "data-part": "ring",
+    x: num(x - 1),
+    y: num(SWATCH_PAD - 1),
+    width: num(SWATCH_W + 2),
+    height: num(SWATCH_H + 2),
+  });
+
+/**
+ * A cell chart's colour key, for the legend row's end: the colour scale's
+ * label, a swatch per class in class order with each boundary's value under
+ * it (thinned when they would touch), a diverging scale's pivot under the
+ * middle swatch for an odd count, and a No data swatch when a cell is
+ * missing. `aria-hidden`, since every reading and the table give each value.
+ * Undefined without a cell mark.
+ */
+export function colourKey(model: Model, words: Words, measure: Measure): HTMLElement | undefined {
+  const m = primaryOf(model);
+  if (m?.kind !== "cell") {
+    return undefined;
+  }
+  const { classes } = m;
+  const key = span("key");
+  key.setAttribute("aria-hidden", "true");
+  const label = model.spec.colour?.label;
+  if (label !== undefined && label !== "") {
+    const head = span("label");
+    head.textContent = label;
+    key.append(head);
+  }
+  const n = classes.steps.length;
+  const x = (k: number) => SWATCH_PAD + k * (SWATCH_W + GAP_PX);
+  const scale = span("scale");
+  const svg = swatchSvg(x(n) - GAP_PX + SWATCH_PAD);
+  const g = svgEl("g", { "data-scale": classes.type });
+  classes.steps.forEach((step, k) => {
+    g.append(
+      svgEl("rect", {
+        "data-step": String(step),
+        x: num(x(k)),
+        y: num(SWATCH_PAD),
+        width: num(SWATCH_W),
+        height: num(SWATCH_H),
+      }),
+    );
+  });
+  svg.append(g, ...classes.steps.map((_, k) => swatchRing(x(k))));
+  const marks: { at: number; text: string }[] = classes.thresholds.map((t, k) => ({
+    at: x(k + 1) - GAP_PX / 2,
+    text: model.colourText(t),
+  }));
+  const pivot = model.spec.colour?.pivot ?? 0;
+  if (classes.type === "diverging" && n % 2 === 1 && model.spec.colour?.thresholds === undefined) {
+    const middle = (n - 1) / 2;
+    marks.splice(middle, 0, { at: x(middle) + SWATCH_W / 2, text: model.colourText(pivot) });
+  }
+  const labels = span("thresholds");
+  const keep = thinned(
+    marks.map((t) => t.at),
+    marks.map((t) => measure.number(t.text)),
+  );
+  for (const k of keep) {
+    const t = marks[k];
+    if (t !== undefined) {
+      const el = document.createElement("span");
+      el.textContent = t.text;
+      // The SVG keeps left-to-right geometry under right-to-left text, as the plot does.
+      el.style.left = `${num(t.at)}px`;
+      labels.append(el);
+    }
+  }
+  scale.append(svg, labels);
+  key.append(scale);
+  if (m.values.some((row) => row.includes(null))) {
+    const none = span("none");
+    const box = swatchSvg(SWATCH_W + 2 * SWATCH_PAD);
+    box.append(
+      svgEl("path", {
+        "data-part": "missing",
+        d: `M${num(SWATCH_PAD + 0.5)} ${num(SWATCH_PAD + 0.5)}h${num(SWATCH_W - 1)}v${num(SWATCH_H - 1)}h${num(1 - SWATCH_W)}Z`,
+      }),
+      swatchRing(SWATCH_PAD),
+    );
+    const text = document.createElement("span");
+    text.textContent = words.noData;
+    none.append(box, text);
+    key.append(none);
+  }
+  return key;
+}
+
 /** Writes `reading` into a legend row `frameLegend` built for its shape. */
 export function writeLegend(legend: HTMLElement, reading: Reading): void {
   const at = legend.querySelector('[data-part="at"]');
@@ -682,4 +819,10 @@ export function writeLegend(legend: HTMLElement, reading: Reading): void {
   if (total !== undefined) {
     total.textContent = reading.total ?? "";
   }
+  const rings = legend.querySelectorAll('[data-part="key"] [data-part="ring"]');
+  const missing = legend.querySelector('[data-part="none"] [data-part="ring"]');
+  rings.forEach((ring, k) => {
+    const chosen = ring === missing ? reading.swatch === -1 : reading.swatch === k;
+    ring.toggleAttribute("data-selected", chosen);
+  });
 }

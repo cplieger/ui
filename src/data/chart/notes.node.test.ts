@@ -690,3 +690,89 @@ describe("a note on a scatter plot", () => {
     );
   });
 });
+
+describe("a note on a cell chart", () => {
+  const grid = (...notes: Mark[]): ChartSpec => ({
+    marks: [
+      {
+        mark: "cell",
+        x: ["2 PM", "3 PM", "4 PM"],
+        y: ["Monday", "Tuesday"],
+        values: [
+          [1, 2, 3],
+          [4, 5, 6],
+        ],
+      },
+      ...notes,
+    ],
+  });
+  const bins = (...notes: Mark[]): ChartSpec => ({
+    marks: [
+      {
+        mark: "cell",
+        x: { edges: [0, 10, 20] },
+        y: { edges: [100, 200, 300] },
+        values: [
+          [1, 2],
+          [3, 4],
+        ],
+      },
+      ...notes,
+    ],
+  });
+
+  it("joins the cell its column's and row's names give", () => {
+    expect(joined(grid({ mark: "text", x: "3 PM", y: "Tuesday", text: "Release" }))).toEqual([
+      { kind: "cell", row: 1, column: 1 },
+    ]);
+  });
+
+  it("joins the bin holding each value: a bin from its low edge, the last to its high edge", () => {
+    expect(
+      joined(
+        bins(
+          { mark: "text", x: 10, y: 100, text: "a" },
+          { mark: "text", x: 20, y: 300, text: "b" },
+          { mark: "text", x: 9.9, y: 199, text: "c" },
+        ),
+      ),
+    ).toEqual([
+      { kind: "cell", row: 0, column: 1 },
+      { kind: "cell", row: 1, column: 1 },
+      { kind: "cell", row: 0, column: 0 },
+    ]);
+  });
+
+  it("leaves a note beyond the edges out of the drawing and of every reading", () => {
+    const spec = bins({ mark: "text", x: 25, y: 150, text: "far" });
+    expect(joined(spec)).toEqual([null]);
+    expect(lay(spec).notes).toEqual([]);
+  });
+
+  it("sits mid-cell on a band x and joins that cell's reading", () => {
+    const spec = grid({ mark: "text", x: "3 PM", y: "Tuesday", text: "Release" });
+    const l = lay(spec);
+    const xs = l.cells?.xs ?? [];
+    expect(l.notes[0]?.point.x).toBeCloseTo(((xs[1] ?? 0) + (xs[2] ?? 0)) / 2, 6);
+    const m = chartModel(spec, "en", "UTC");
+    expect(spoken(m, { kind: "cell", row: 1, column: 1 }, words, false)).toBe(
+      "Tuesday, 3 PM: 5. Note: Release.",
+    );
+    expect(spoken(m, { kind: "cell", row: 1, column: 0 }, words, false)).toBe("Tuesday, 2 PM: 4.");
+    expect(tableModel(m, words).after).toBe("Tuesday, 3 PM: Release.");
+  });
+
+  it("refuses a column name the chart lacks and a number on a band x", () => {
+    expect(() =>
+      chartModel(grid({ mark: "text", x: "5 PM", y: "Monday", text: "a" }), "en", "UTC"),
+    ).toThrow(new RangeError('renderChart: marks[1].x names no column: "5 PM"'));
+    expect(() =>
+      chartModel(grid({ mark: "text", x: 1, y: "Monday", text: "a" }), "en", "UTC"),
+    ).toThrow(new TypeError("renderChart: marks[1].x must name one of the cell chart's columns"));
+    expect(() => chartModel(grid({ mark: "text", y: "Monday", text: "a" }), "en", "UTC")).toThrow(
+      new TypeError(
+        "renderChart: marks[1].x is missing; a note on a cell chart names one of its columns",
+      ),
+    );
+  });
+});

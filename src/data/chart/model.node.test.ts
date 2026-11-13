@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  binOf,
+  cellOrder,
   chartModel,
   drawnTotal,
   drawnValue,
@@ -1872,5 +1874,67 @@ describe("a cell mark's binned axes", () => {
   it("takes a height on a binned y, which a named y refuses", () => {
     expect(build({ height: 120, marks: [bins(["a", "b"], life)] }).spec.height).toBe(120);
     expect(() => build({ height: 120, marks: [bins(gdp, ["a", "b"])] })).toThrow(TypeError);
+  });
+});
+
+describe("binOf", () => {
+  const edges = [0, 10, 20, 50];
+
+  it("puts a value in the bin from its low edge, the last bin to its high edge too", () => {
+    expect([0, 9.99, 10, 49, 50].map((v) => binOf(edges, v))).toEqual([0, 0, 1, 2, 2]);
+  });
+
+  it("puts a value past either edge, or NaN, in no bin", () => {
+    expect([-0.1, 50.1, Number.NaN].map((v) => binOf(edges, v))).toEqual([-1, -1, -1]);
+  });
+});
+
+describe("a cell chart's reading order", () => {
+  const order = (spec: ChartSpec) => {
+    const m = build(spec);
+    return [...cellOrder(m, m.marks[0] as CellModel)];
+  };
+
+  it("runs from the top left along each row, a binned y from its highest bin", () => {
+    const spec: ChartSpec = {
+      marks: [
+        {
+          mark: "cell",
+          x: ["a", "b"],
+          y: { edges: [0, 1, 2] },
+          values: [
+            [1, 2],
+            [3, 4],
+          ],
+        },
+      ],
+    };
+    expect(order(spec)).toEqual([
+      [1, 0],
+      [1, 1],
+      [0, 0],
+      [0, 1],
+    ]);
+  });
+
+  it("starts each row at its right on a reversed x, as the drawing runs", () => {
+    const spec: ChartSpec = {
+      x: { reverse: true },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[1, 2]] }],
+    };
+    expect(order(spec)).toEqual([
+      [0, 1],
+      [0, 0],
+    ]);
+  });
+});
+
+describe("a cell chart's colour format", () => {
+  it("writes values and boundaries in the colour scale's format", () => {
+    const m = build({
+      colour: { format: "percent" },
+      marks: [{ mark: "cell", x: ["a"], y: ["r"], values: [[0.25]] }],
+    });
+    expect(m.colourText(0.25)).toBe("25%");
   });
 });

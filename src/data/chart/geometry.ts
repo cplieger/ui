@@ -943,12 +943,25 @@ function cellSpan(a: number, b: number, dpr: number): readonly [number, number] 
   return [snap(lo + half, dpr), snap(hi - half, dpr)];
 }
 
+/** The column and row edges of a cell chart in plot px (`Layout.cells`). */
+interface CellEdges {
+  readonly xs: readonly number[];
+  readonly ys: readonly number[];
+}
+
+/** Cell (`row`, `column`)'s drawn box, inset and snapped, as its fill is. */
+export function cellBox(edges: CellEdges, row: number, column: number, dpr: number): Segment {
+  const [top, bottom] = cellSpan(edges.ys[row] ?? 0, edges.ys[row + 1] ?? 0, dpr);
+  const [left, right] = cellSpan(edges.xs[column] ?? 0, edges.xs[column + 1] ?? 0, dpr);
+  return { left, right, top, bottom };
+}
+
 /** A cell chart's paths: one per class holding a cell, in class order,
  *  with the scale step it fills with, and the 1 px outlines of every
  *  missing cell, drawn inside its box. Cells stand 1 px apart. */
 export function cellPaths(
   m: CellModel,
-  edges: { readonly xs: readonly number[]; readonly ys: readonly number[] },
+  edges: CellEdges,
   dpr: number,
 ): {
   readonly classes: readonly { readonly step: number; readonly d: string }[];
@@ -957,9 +970,8 @@ export function cellPaths(
   const parts = m.classes.steps.map(() => "");
   let missing = "";
   m.values.forEach((row, r) => {
-    const [top, bottom] = cellSpan(edges.ys[r] ?? 0, edges.ys[r + 1] ?? 0, dpr);
     row.forEach((v, c) => {
-      const [left, right] = cellSpan(edges.xs[c] ?? 0, edges.xs[c + 1] ?? 0, dpr);
+      const { left, right, top, bottom } = cellBox(edges, r, c, dpr);
       if (right <= left || bottom <= top) {
         return;
       }
