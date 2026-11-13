@@ -84,6 +84,10 @@
   --cp-icon-image: url("../icons/svg/ellipsis.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="external-link"]) {
+  --cp-icon-image: url("../icons/svg/external-link.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="eye"]) {
   --cp-icon-image: url("../icons/svg/eye.svg");
 }

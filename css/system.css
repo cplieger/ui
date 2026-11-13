@@ -2794,6 +2794,14 @@
   scale: -1 1;
 }
 
+/* Forced colours paint a non-system background as Canvas, which would
+ * hide the mark. */
+@media (forced-colors: active) {
+  .cp-crumbs > :not(:first-child)::before {
+    background: CanvasText;
+  }
+}
+
 /* Buttons: one primary per surface; danger is data-tone="danger". */
 .cp-button {
   display: inline-flex;
@@ -10189,7 +10197,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 /* A filter chip: a pill button that turns one filter on or off by
  * aria-pressed. Pressed, it fills with the accent and its check slides in,
- * so the state is never the colour alone. */
+ * so the state is never the colour alone. As an <a> it is the same pill
+ * leading to a related page. */
 .cp-filter-chip {
   display: inline-flex;
   align-items: center;
@@ -10209,10 +10218,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
-/* The check, held at no width until the chip is pressed. */
 .cp-filter-chip > .cp-icon {
   --cp-icon-size: 0.875rem;
+}
 
+/* The check, held at no width until the chip is pressed. A link has no
+ * pressed state, so its own glyph shows. */
+.cp-filter-chip:where(:not(a)) > .cp-icon {
   inline-size: 0;
   margin-inline-end: 0;
   opacity: 0;
@@ -10240,6 +10252,56 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   transform: scale(var(--cp-press-scale));
 }
 
+/* A link is outlined on the page, with a mark after its words drawn from
+ * its rel: a chevron for a page in the app, the external mark for one
+ * that leaves it. The mark is never read, so a link that leaves says so
+ * in a .cp-visually-hidden span. */
+:where(a).cp-filter-chip {
+  gap: var(--cp-space-1);
+  border-color: var(--cp-line);
+  background: none;
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    border-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+:where(a).cp-filter-chip::after {
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+:where(a).cp-filter-chip:not([rel~="external"]):dir(rtl)::after {
+  scale: -1 1;
+}
+
+:where(a).cp-filter-chip:where([rel~="external"])::after {
+  mask-image: url("../icons/svg/external-link.svg");
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(a).cp-filter-chip:hover {
+      border-color: var(--cp-border-strong);
+      background: var(--cp-fill);
+    }
+
+    /* Forced colours would paint this ink as Canvas, so the mark keeps
+     * its system colour there. */
+    @media (forced-colors: none) {
+      :where(a).cp-filter-chip:hover::after {
+        background: var(--cp-ink);
+      }
+    }
+  }
+}
+
 @media (forced-colors: active) {
   .cp-filter-chip {
     border-color: ButtonText;
@@ -10249,6 +10311,14 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
+  }
+
+  :where(a).cp-filter-chip {
+    border-color: LinkText;
+  }
+
+  :where(a).cp-filter-chip::after {
+    background: LinkText;
   }
 }
 
@@ -10439,6 +10509,10 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 :where(.cp) .cp-icon:where([data-cp-icon="ellipsis"]) {
   --cp-icon-image: url("../icons/svg/ellipsis.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="external-link"]) {
+  --cp-icon-image: url("../icons/svg/external-link.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="eye"]) {

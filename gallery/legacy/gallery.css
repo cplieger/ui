@@ -1610,49 +1610,6 @@ html:has(.g-header) {
   margin-block-start: var(--cp-space-3);
 }
 
-.g-linkchips > a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-3);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-round);
-  color: var(--cp-ink);
-  font-size: var(--cp-text-sm);
-  text-decoration: none;
-}
-
-.g-linkchips > a > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  color: var(--cp-ink-muted);
-}
-
-.g-linkchips > a {
-  transition:
-    background-color var(--cp-dur-micro) var(--cp-ease-out),
-    border-color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-linkchips > a:hover {
-      border-color: var(--cp-border-strong);
-      background: var(--cp-fill);
-    }
-
-    .g-linkchips > a:hover > .cp-icon {
-      color: var(--cp-ink);
-    }
-  }
-}
-
-.g-linkchips > a:focus-visible {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
-}
-
 /* ===== Data: the table and its rules ===== */
 
 .g-media-head h2 + .g-alt-title + .g-media-meta {

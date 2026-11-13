@@ -55,6 +55,24 @@ export function q(el: ParentNode, selector: string): HTMLElement {
   return found;
 }
 
+/** The URL the mask of `el`, or of its `pseudo`-element, paints. */
+export function maskUrl(el: Element, pseudo?: string): string {
+  const image = getComputedStyle(el, pseudo).maskImage;
+  return /^url\("?([^")]+)"?\)$/.exec(image)?.[1] ?? image;
+}
+
+/** The drawing at `url` in the form the dev server inlines a small asset as
+ *  a data URL: single quotes, no space between tags. */
+export async function drawing(url: string | URL): Promise<string> {
+  const text = await (await fetch(url)).text();
+  return text.replaceAll('"', "'").replace(/>\s+</g, "><").replace(/\s+/g, " ").trim();
+}
+
+/** The drawing of the shipped glyph `name`, in the same form. */
+export function shipped(name: string): Promise<string> {
+  return drawing(new URL(`../../../icons/svg/${name}.svg`, import.meta.url));
+}
+
 /** A colour as the page resolves it, such as `var(--cp-warning-11)`. */
 export function resolved(colour: string): string {
   const el = document.createElement("span");

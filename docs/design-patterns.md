@@ -234,6 +234,7 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
 - A route change moves focus to the new screen's `<h1>` and sets `<title>` to the screen's name.
 - A link to something that is gone, or a query value the app does not know, opens the nearest valid view with a notice that says what was dropped.
 - A destination is a link (`<a href>`), so a middle click, a new tab and a copied address all work. A button is for an action on this screen.
+- A link that leaves the app, to another service or site, carries `rel="external"` and says where it goes in its words, such as "AniList" with ", opens AniList" in a `.cp-visually-hidden` span. As a pill, an `a.cp-filter-chip`, the stylesheet then draws the external mark in place of the chevron.
 - A destination that shows only its icon, from 40rem to 60rem, keeps its word as its accessible name through `.cp-nav-label`, which the stylesheet hides from sight only, and a tooltip with the same word. Under 40rem the header's destinations move to a bar at the window's foot, each an icon over its word.
 - The header holds four destinations at most, so each keeps its word on one line in the bar under 40rem. Others go in a menu or on a screen of their own.
 - The current destination carries `aria-current="page"`, or `"true"` when the screen sits inside it, as an item sits inside its library.

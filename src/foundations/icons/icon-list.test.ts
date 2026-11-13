@@ -1,30 +1,25 @@
 import { describe, expect, it, onTestFinished } from "vitest";
 
-import { build, q, useSystemSheet } from "../../system/test-helpers/css.js";
+import {
+  build,
+  drawing,
+  maskUrl,
+  q,
+  shipped,
+  useSystemSheet,
+} from "../../system/test-helpers/css.js";
 import { createIcons } from "./icons.js";
 
 useSystemSheet();
-
-function maskUrl(el: Element): string {
-  const image = getComputedStyle(el).maskImage;
-  return /^url\("?([^")]+)"?\)$/.exec(image)?.[1] ?? image;
-}
-
-// The dev server inlines a small asset as a data URL with single quotes and no
-// space between tags, so a drawing is compared in that form.
-async function drawing(url: string | URL): Promise<string> {
-  const text = await (await fetch(url)).text();
-  return text.replaceAll('"', "'").replace(/>\s+</g, "><").replace(/\s+/g, " ").trim();
-}
 
 describe("the icon list", () => {
   it.each(["circle-check", "circle-x", "triangle-alert", "spinner-arc", "x"])(
     "paints %s from its shipped file on a page that runs no script",
     async (name) => {
       const host = build(`<span class="cp-icon" data-cp-icon="${name}" aria-hidden="true"></span>`);
-      const shipped = await drawing(new URL(`../../../icons/svg/${name}.svg`, import.meta.url));
-      expect(shipped).toContain("<svg");
-      expect(await drawing(maskUrl(q(host, ".cp-icon")))).toBe(shipped);
+      const file = await shipped(name);
+      expect(file).toContain("<svg");
+      expect(await drawing(maskUrl(q(host, ".cp-icon")))).toBe(file);
     },
   );
 
