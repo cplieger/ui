@@ -1536,7 +1536,7 @@ describe("css/system.css", () => {
     );
     const b = el.querySelector("button") as HTMLElement;
     expect(getComputedStyle(b.querySelector('[data-part="on"]') as Element).animationName).toBe(
-      "cp-theme-turn",
+      "cp-toggle-turn",
     );
     expect(getComputedStyle(b).color).toBe(
       getComputedStyle(el.querySelector("header") as Element).color,
@@ -2996,9 +2996,182 @@ describe("css/system.css buttons and arrangements", () => {
     expect(shown()).toEqual([false, true]);
     const accent = host("");
     accent.style.color = "var(--cp-accent)";
-    expect(getComputedStyle(b).color).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(b.querySelector('[data-part="on"]') as Element).backgroundColor).toBe(
+      getComputedStyle(accent).color,
+    );
     expect(getComputedStyle(b).color).not.toBe(off);
   });
+
+  const toggle = (attrs: string, words = "") =>
+    `<button class="cp-button cp-toggle" data-variant="quiet" ${attrs} aria-pressed="true" type="button"><span class="cp-icon"></span><span class="cp-icon" data-part="on"></span>${words}</button>`;
+  const colourOf = (value: string): string => {
+    const probe = host("");
+    probe.style.color = value;
+    return getComputedStyle(probe).color;
+  };
+  // A toggle that is on: its drawing's colour, its words' colour, and the
+  // motion each change plays as [name, duration].
+  const looks = (b: HTMLElement) => {
+    const icon = b.querySelector('[data-part="on"]') as HTMLElement;
+    const motion = (way: "on" | "off") => {
+      b.dataset["cpToggled"] = way;
+      const s = getComputedStyle(icon);
+      return [s.animationName, s.animationDuration];
+    };
+    const look = {
+      drawing: getComputedStyle(icon).backgroundColor,
+      words: getComputedStyle(b).color,
+      on: motion("on"),
+      off: motion("off"),
+    };
+    delete b.dataset["cpToggled"];
+    return look;
+  };
+
+  it("makes each kind a preset of a tone and a motion", () => {
+    theme("light");
+    const el = build(
+      `<p>${toggle('data-kind="pin"')}${toggle('data-tone="accent" data-motion="drop"')}</p>` +
+        `<p>${toggle('data-kind="favourite"')}${toggle('data-motion="beat"')}</p>` +
+        `<p>${toggle('data-kind="theme"')}${toggle('data-motion="turn"')}</p>`,
+    );
+    const [pin, drop, favourite, beat, themed, turn] = [
+      ...el.querySelectorAll<HTMLElement>("button"),
+    ].map(looks);
+    const ink = getComputedStyle(el.querySelector("p") as Element).color;
+    expect(pin).toEqual({
+      drawing: colourOf("var(--cp-accent)"),
+      words: colourOf("var(--cp-accent-ink)"),
+      on: ["cp-toggle-drop", "0.64s"],
+      off: ["cp-toggle-lift", "0.36s"],
+    });
+    expect(drop).toEqual(pin);
+    expect(favourite).toEqual({
+      drawing: colourOf("oklch(62% 0.21 20deg)"),
+      words: ink,
+      on: ["cp-toggle-beat", "1.1s"],
+      off: ["none", "0s"],
+    });
+    // With no tone, the on drawing alone marks the state, in the ink around it.
+    expect(beat).toEqual({ ...favourite, drawing: ink });
+    expect(themed).toEqual({
+      drawing: ink,
+      words: ink,
+      on: ["cp-toggle-turn", "0.42s"],
+      off: ["cp-toggle-turn", "0.42s"],
+    });
+    expect(turn).toEqual(themed);
+  });
+
+  it("lets a toggle's own tone and motion win over its kind's preset", () => {
+    theme("light");
+    const el = build(
+      `<p>${toggle('data-kind="pin" data-tone="danger" data-motion="beat"')}${toggle('data-kind="favourite" data-motion="drop"')}</p>`,
+    );
+    const [pin, favourite] = [...el.querySelectorAll<HTMLElement>("button")].map(looks);
+    expect(pin).toEqual({
+      drawing: colourOf("var(--cp-danger-9)"),
+      words: colourOf("var(--cp-danger-11)"),
+      on: ["cp-toggle-beat", "1.1s"],
+      off: ["none", "0s"],
+    });
+    expect(favourite).toEqual({
+      drawing: colourOf("oklch(62% 0.21 20deg)"),
+      words: getComputedStyle(el.querySelector("p") as Element).color,
+      on: ["cp-toggle-drop", "0.64s"],
+      off: ["cp-toggle-lift", "0.36s"],
+    });
+  });
+
+  for (const t of ["light", "dark"] as const) {
+    it(`gives a toned toggle's words 4.5:1 and its drawing 3:1 on the page and a raised surface, ${t}`, () => {
+      theme(t);
+      const tones = ["accent", "neutral", "danger", "warning", "success"];
+      const el = build(tones.map((tone) => toggle(`data-tone="${tone}"`, "Watch")).join(""));
+      const surfaces = ["--cp-surface-page", "--cp-surface-raised"].map((s) => {
+        const probe = host("");
+        probe.style.backgroundColor = `var(${s})`;
+        return getComputedStyle(probe).backgroundColor;
+      });
+      const low = [...el.querySelectorAll<HTMLElement>("button")].flatMap((b, i) => {
+        const { drawing, words } = looks(b);
+        return surfaces.flatMap((s, j) => [
+          ...(contrast(words, s) < 4.5 ? [`${tones[i] ?? ""} words on surface ${String(j)}`] : []),
+          ...(contrast(drawing, s) < 3
+            ? [`${tones[i] ?? ""} drawing on surface ${String(j)}`]
+            : []),
+        ]);
+      });
+      expect(low).toEqual([]);
+    });
+  }
+
+  const hovered = async (markup: string, pointer: "fine" | "coarse") => {
+    theme("light");
+    root.dataset["pointer"] = pointer;
+    const el = build(markup);
+    const b = el.querySelector("button") as HTMLElement;
+    const icon = b.querySelector(".cp-icon") as HTMLElement;
+    icon.style.transition = "none";
+    b.style.transition = "none";
+    b.setAttribute("aria-pressed", "false");
+    await userEvent.hover(b, { force: true });
+    const s = getComputedStyle(icon);
+    const look = {
+      lift: s.translate,
+      drawing: s.backgroundColor,
+      words: getComputedStyle(b).color,
+    };
+    await userEvent.unhover(b, { force: true });
+    return look;
+  };
+
+  it("hints at each motion under a mouse: drop lifts the drawing, beat tints it", async () => {
+    const quiet = await hovered(toggle(""), "fine");
+    expect(quiet).toEqual({ lift: "none", drawing: quiet.words, words: colourOf("var(--cp-ink)") });
+    const drop = await hovered(toggle('data-motion="drop" data-tone="accent"'), "fine");
+    expect(drop).toEqual({ ...quiet, lift: "0px -2px" });
+    const beat = await hovered(toggle('data-kind="favourite"'), "fine");
+    expect(beat).toEqual({ ...quiet, drawing: colourOf("oklch(62% 0.21 20deg)") });
+    expect(await hovered(toggle('data-kind="theme"'), "fine")).toEqual(quiet);
+  });
+
+  it("keeps the header's ink on a hovered toggle's words while beat tints its drawing", async () => {
+    const look = await hovered(
+      `<header class="cp-header">${toggle('data-motion="beat" data-tone="accent"')}</header>`,
+      "fine",
+    );
+    const header = document.querySelector(".cp-header") as Element;
+    expect(look.words).toBe(getComputedStyle(header).color);
+    expect(look.drawing).toBe(colourOf("var(--cp-accent)"));
+  });
+
+  it("gives no hover hint under a finger", async () => {
+    const look = await hovered(toggle('data-kind="favourite" data-motion="drop"'), "coarse");
+    expect(look.lift).toBe("none");
+    expect(look.drawing).toBe(look.words);
+  });
+
+  it.skipIf(!emulates)("plays no motion and lifts nothing under reduced motion", async () => {
+    await media("prefers-reduced-motion", "reduce");
+    expect((await hovered(toggle('data-kind="pin"'), "fine")).lift).toBe("none");
+    const el = build(toggle('data-kind="pin"') + toggle('data-kind="theme"'));
+    expect([...el.querySelectorAll<HTMLElement>("button")].map((b) => looks(b).on[0])).toEqual([
+      "none",
+      "none",
+    ]);
+  });
+
+  it.skipIf(!emulates)(
+    "keeps the system's ink on a toggle's drawing in forced colours",
+    async () => {
+      await media("forced-colors", "active");
+      theme("light");
+      const el = build(toggle('data-tone="danger"', "Watch"));
+      const { drawing, words } = looks(el.querySelector("button") as HTMLElement);
+      expect(drawing).toBe(words);
+    },
+  );
 
   it("makes an icon segmented choice's segments square", () => {
     theme("light");

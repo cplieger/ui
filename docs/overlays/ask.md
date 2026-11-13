@@ -2,7 +2,7 @@
 
 `@cplieger/ui/ask`
 
-One question in a modal confirmation: a yes or no that resolves true or false; with `input`, a value that resolves its text or null; with `choices`, the groups the action takes, which resolve their values or null.
+One question in a modal confirmation. A yes or no resolves true or false. With `input` it asks for a value and resolves its text or null. With `choices` it asks which groups the action takes and resolves their values or null.
 
 ```ts
 import { ask } from "@cplieger/ui/ask";

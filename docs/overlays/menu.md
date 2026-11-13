@@ -36,11 +36,11 @@ enhanceMenu(menu, { onSelect: (item) => run(item), signal: page.signal });
 
 A menu's items and the options of a [combobox](../forms/combobox.md), a [select panel](select-panel.md) and a [palette](palette.md) are one row, drawn by the stylesheet with no class of its own:
 
-- **Lead**, optional: a `.cp-icon` in the muted ink, a check item's box, or in a combobox a `.cp-cover`.
-- **Words**: the item's name.
-- **End**, optional, pushed to the row's end: the keys that run it in a `<kbd>`, a muted `<small>` such as a language code, a count or "Dormant", or a quiet `.cp-badge` for a word that should stand out, such as "suggested". Its text is part of the option's name, so give the row an `aria-label` when the end needs words of its own, as "French, fr".
-- **Height**: `--cp-control-h-sm` under a mouse and `--cp-control-h` under a finger.
-- **The option the keys reach**, where Enter goes, takes the selected wash in `--cp-accent-12` ink: the focused menu item, the combobox's or palette's active option (`aria-selected`), and the select panel's (`data-cp-active`, since its `aria-selected` means checked). An option under a mouse takes the fill.
+- The lead, optional: a `.cp-icon` in the muted ink, a check item's box, or in a combobox a `.cp-cover`.
+- The words: the item's name.
+- The end, optional, pushed to the row's end: the keys that run it in a `<kbd>`, a muted `<small>` such as a language code, a count or "Dormant", or a quiet `.cp-badge` for a word that should stand out, such as "suggested". Its text is part of the option's name, so give the row an `aria-label` when the end needs words of its own, as "French, fr".
+- The height: `--cp-control-h-sm` under a mouse and `--cp-control-h` under a finger.
+- The option the keys reach, where Enter goes, takes the selected wash in `--cp-accent-12` ink: the focused menu item, the combobox's or palette's active option (`aria-selected`), and the select panel's (`data-cp-active`, since its `aria-selected` means checked). An option under a mouse takes the fill.
 - `aria-disabled="true"` draws the row in the disabled ink, and `data-tone="danger"` on a menu item in the danger ink.
 
 ```html

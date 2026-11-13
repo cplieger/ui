@@ -9799,23 +9799,59 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 
 /* A toggle (@cplieger/ui/toggle): a quiet icon button that is on or off,
  * such as Pin, Favourite or the theme. While on it shows its other drawing,
- * in its own colour for a pin (the accent) and a favourite (a red), and a
- * change plays the drawing's motion: a pin drops in as if into a board and
- * lifts out, a heart beats, and the theme's sun turns over into a moon.
- * Under a mouse a pin lifts 2px and an off heart tints, as a hint of what a
- * press does. */
+ * in its data-tone when it has one (the drawing in step 9, any words in
+ * step 11), and a change plays its data-motion. data-kind is a preset of
+ * both: pin is the accent and drop, favourite its own red and beat, theme
+ * the ink it sits on and turn. */
 .cp-toggle {
-  --cp-toggle-on: var(--cp-accent);
+  --cp-toggle-on: currentcolor;
+  --cp-toggle-ink: currentcolor;
 }
 
-.cp-toggle[data-kind="favourite"] {
+/* A preset is (0,1,0) and a toggle's own data-tone or data-motion (0,2,0),
+ * so its own wins whatever the order. Each motion sets all four of its
+ * properties, so none of a preset's leaks past it. */
+:where(.cp-toggle)[data-kind="pin"] {
+  --cp-toggle-on: var(--cp-accent);
+  --cp-toggle-ink: var(--cp-accent-ink);
+}
+
+/* A heart's red is no tone, since a tone reads as a state; it has no step
+ * for words, so a favourite's words keep their ink. */
+:where(.cp-toggle)[data-kind="favourite"] {
   --cp-toggle-on: oklch(62% 0.21 20deg);
 }
 
-/* The theme toggle keeps the ink it sits on, in the header or a page: its
- * pressed state is dark, not a colour. */
-.cp-toggle[data-kind="theme"] {
-  --cp-toggle-on: currentcolor;
+.cp-toggle[data-tone] {
+  --cp-toggle-on: var(--cp-tone-9);
+  --cp-toggle-ink: var(--cp-tone-11);
+}
+
+/* Drop: lifts under a mouse, drops in as if into a board, lifts out. */
+:where(.cp-toggle)[data-kind="pin"],
+.cp-toggle[data-motion="drop"] {
+  --cp-toggle-lift: 0 -2px;
+  --cp-toggle-hint: currentcolor;
+  --cp-toggle-in: cp-toggle-drop 640ms;
+  --cp-toggle-out: cp-toggle-lift 360ms var(--cp-ease-out);
+}
+
+/* Beat: tints under a mouse, beats once as it turns on. */
+:where(.cp-toggle)[data-kind="favourite"],
+.cp-toggle[data-motion="beat"] {
+  --cp-toggle-lift: none;
+  --cp-toggle-hint: var(--cp-toggle-on);
+  --cp-toggle-in: cp-toggle-beat 1100ms var(--cp-ease-out);
+  --cp-toggle-out: none;
+}
+
+/* Turn: the drawing now shown turns over into place, both ways. */
+:where(.cp-toggle)[data-kind="theme"],
+.cp-toggle[data-motion="turn"] {
+  --cp-toggle-lift: none;
+  --cp-toggle-hint: currentcolor;
+  --cp-toggle-in: cp-toggle-turn 420ms var(--cp-ease-spring);
+  --cp-toggle-out: cp-toggle-turn 420ms var(--cp-ease-spring);
 }
 
 .cp-toggle > .cp-icon[data-part="on"],
@@ -9830,45 +9866,53 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 /* (0,4,1) lifts the colour over a quiet button's hover ink, a (0,4,0)
  * scoped rule that wins a tie by proximity. */
 button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
-  color: var(--cp-toggle-on);
+  color: var(--cp-toggle-ink);
 }
 
-.cp-toggle[data-kind="pin"] > .cp-icon {
+/* The drawing's fill is its own colour; (0,4,0) holds it over the hover
+ * hint. Forced colours keep the system's ink. */
+@media (forced-colors: none) {
+  .cp-toggle[aria-pressed="true"]:where(:enabled) > .cp-icon[data-part="on"] {
+    background-color: var(--cp-toggle-on);
+  }
+}
+
+.cp-toggle > .cp-icon {
   transition: translate 180ms var(--cp-ease-out);
 }
 
-@media (any-hover: hover) {
+/* The hint tints the drawing alone, so the words keep the quiet hover's
+ * ink, which differs in the header. */
+@media (any-hover: hover) and (forced-colors: none) {
   @scope (:root:not([data-pointer="coarse"])) {
-    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .cp-icon {
-      translate: 0 -2px;
-    }
-
-    button.cp-toggle[data-kind="favourite"]:hover:enabled {
-      color: var(--cp-toggle-on);
+    :where(.cp-toggle):hover:enabled > .cp-icon {
+      background-color: var(--cp-toggle-hint, currentcolor);
     }
   }
 }
 
-/* The keyframes name no first or last frame, so the arc starts and ends at
- * the pin's own position: lifted under a mouse, at rest under a finger. */
-.cp-toggle[data-kind="pin"][data-cp-toggled="on"] > .cp-icon {
-  animation: cp-pin-drop 640ms;
+@media (any-hover: hover) and (prefers-reduced-motion: no-preference) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-toggle):hover:enabled > .cp-icon {
+      translate: var(--cp-toggle-lift, none);
+    }
+  }
 }
 
-.cp-toggle[data-kind="pin"][data-cp-toggled="off"] > .cp-icon {
-  animation: cp-pin-lift 360ms var(--cp-ease-out);
+/* The keyframes name no first or last frame, so a motion starts and ends
+ * at the drawing's own position: lifted under a mouse, at rest under a
+ * finger. */
+@media (prefers-reduced-motion: no-preference) {
+  .cp-toggle[data-cp-toggled="on"] > .cp-icon {
+    animation: var(--cp-toggle-in, none);
+  }
+
+  .cp-toggle[data-cp-toggled="off"] > .cp-icon {
+    animation: var(--cp-toggle-out, none);
+  }
 }
 
-.cp-toggle[data-kind="favourite"][data-cp-toggled="on"] > .cp-icon {
-  animation: cp-heart-beat 1100ms var(--cp-ease-out);
-}
-
-/* The drawing now shown turns over into place, so sun becomes moon. */
-.cp-toggle[data-kind="theme"][data-cp-toggled] > .cp-icon {
-  animation: cp-theme-turn 420ms var(--cp-ease-spring);
-}
-
-@keyframes cp-theme-turn {
+@keyframes cp-toggle-turn {
   from {
     opacity: 0;
     rotate: -120deg;
@@ -9876,7 +9920,7 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   }
 }
 
-@keyframes cp-pin-drop {
+@keyframes cp-toggle-drop {
   30% {
     translate: 0 -7px;
     animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
@@ -9893,13 +9937,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   }
 }
 
-@keyframes cp-pin-lift {
+@keyframes cp-toggle-lift {
   40% {
     translate: 0 -5px;
   }
 }
 
-@keyframes cp-heart-beat {
+@keyframes cp-toggle-beat {
   0% {
     scale: 1;
   }
@@ -9918,12 +9962,6 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
   100% {
     scale: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cp-toggle[data-cp-toggled] > .cp-icon {
-    animation: none;
   }
 }
 

@@ -82,7 +82,7 @@ for (const b of document.querySelectorAll("[data-turn]")) {
   });
 }
 for (const b of document.querySelectorAll<HTMLButtonElement>(
-  '.cp-toggle:is([data-kind="pin"], [data-kind="favourite"])',
+  ".cp-toggle:not([data-theme-toggle])",
 )) {
   enhanceToggle(b);
 }

@@ -31,8 +31,8 @@ glideShow(batchBar, selected > 0);
 
 A `<details>` takes one look in one of two forms, with one chevron that the stylesheet draws pointing down and turns by the form. A summary holds its words, and a count or a chip where it needs one, never a chevron of its own. The chevron turns as the section opens and turns back as the press to shut it lands.
 
-- **Inline**: any `<details>` outside an accordion, with no class. The summary reads in the accent with the chevron before its words, pointing the way the words run, and turning down while it is open. Its hit area reaches the minimum above and below its line, and its content starts 8px under it. It suits one aside under a line of content, such as "What changed" under an event, "Show details" in a status block or a "Server" section of small figures.
-- **Boxed**: the sections of an accordion, below, for a set of sections a person scans, such as seasons. A lone boxed section is an accordion of one.
+- Inline: any `<details>` outside an accordion, with no class. The summary reads in the accent with the chevron before its words, pointing the way the words run, and turning down while it is open. Its hit area reaches the minimum above and below its line, and its content starts 8px under it. It suits one aside under a line of content, such as "What changed" under an event, "Show details" in a status block or a "Server" section of small figures.
+- Boxed: the sections of an accordion, below, for a set of sections a person scans, such as seasons. A lone boxed section is an accordion of one.
 
 ```html
 <p>Grabbed Arid's BD release.</p>
