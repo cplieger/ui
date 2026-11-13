@@ -225,6 +225,11 @@ function seriesAt(n: number, accentHue: number, accentChroma = 0.137): [number, 
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
+// The light bright level is the 3:1 ceiling over every neutral seed and chroma
+// a slot can take, so on the default surfaces it sits between 3.08:1 and
+// 3.19:1; one fixed lightness for every hue would reach 3.62:1 at a yellow.
+const BRIGHT_MAX = 3.3;
+
 describe("css/system.css series slots", () => {
   it("keeps the accent's hue for slot 1 and turns the others as the harmony partners do", () => {
     theme("light");
@@ -237,29 +242,48 @@ describe("css/system.css series slots", () => {
     expect(seriesAt(1, 110)[2]).toBeCloseTo(110, 3);
   });
 
-  it("puts odd slots on the bright level and even slots on the deep one, in each theme", () => {
+  it("keeps a deep slot one step under the bright slot of the same hue, in each theme", () => {
+    // slot 1 of a 255 accent and slot 2 of a 105 accent are both at hue 255
     theme("light");
-    // slot 4 is 285, a violet, where the deep level stays
-    expect([1, 3, 4].map((n) => seriesAt(n, 255)[0])).toEqual([0.61, 0.61, 0.42]);
+    expect(seriesAt(1, 255)[0] - seriesAt(2, 105)[0]).toBeCloseTo(0.18, 3);
     theme("dark");
     expect([1, 2, 3, 4].map((n) => seriesAt(n, 255)[0])).toEqual([0.8, 0.6, 0.8, 0.6]);
   });
 
-  it("lifts an orange deep slot 8 points in the light theme, so it reads brick, not maroon", () => {
+  it("sets each light bright slot as light as 3:1 on the surfaces allows at its hue, whatever the hue", () => {
     theme("light");
-    // slot 2 of a 255 accent is 45, an orange
-    expect(seriesAt(2, 255)[0]).toBeCloseTo(0.5, 3);
-    // a red at 15, slot 2 of a 225 accent, rises less
-    const red = seriesAt(2, 225)[0];
-    expect(red).toBeGreaterThan(0.44);
-    expect(red).toBeLessThan(0.5);
+    const probes = host("");
+    const surfaces = ["page", "raised", "sunken", "overlay"].map((name) => {
+      const el = document.createElement("span");
+      el.style.backgroundColor = `var(--cp-surface-${name})`;
+      probes.append(el);
+      return el;
+    });
+    for (let hue = 0; hue < 360; hue += 15) {
+      root.style.setProperty("--cp-accent-h", String(hue));
+      for (const n of [1, 3, 5, 7, 9]) {
+        const worst = Math.min(
+          ...surfaces.map((el) => {
+            el.style.color = `var(--cp-series-${String(n)})`;
+            const cs = getComputedStyle(el);
+            return contrast(cs.color, cs.backgroundColor);
+          }),
+        );
+        expect(worst, `hue ${String(hue)} slot ${String(n)}`).toBeGreaterThanOrEqual(3);
+        expect(worst, `hue ${String(hue)} slot ${String(n)}`).toBeLessThan(BRIGHT_MAX);
+      }
+    }
   });
 
-  it("gives a muted accent's slots chroma 0.11 and caps a vivid accent's at 0.16", () => {
+  it("gives a muted accent's slots chroma 0.13, 1.3 times a vivid one's, under the slot's gamut cap", () => {
     theme("light");
-    expect(seriesAt(1, 30, 0.05)[1]).toBeCloseTo(0.11, 4);
-    expect(seriesAt(1, 30, 0.12)[1]).toBeCloseTo(0.144, 4);
-    expect(seriesAt(1, 30, 0.2)[1]).toBeCloseTo(0.16, 4);
+    expect(seriesAt(1, 30, 0.05)[1]).toBeCloseTo(0.13, 4);
+    expect(seriesAt(1, 30, 0.12)[1]).toBeCloseTo(0.156, 4);
+    // at hue 30 the light bright cap is 0.18 - 0.038 * cos(61deg)^5
+    expect(seriesAt(1, 30, 0.2)[1]).toBeCloseTo(
+      0.18 - 0.038 * Math.cos((61 * Math.PI) / 180) ** 5,
+      3,
+    );
   });
 
   for (const t of ["light", "dark"] as const) {
@@ -1391,13 +1415,28 @@ describe("css/system.css", () => {
   it("rings the account button's avatar in the bar's ink, wider while its menu is open", () => {
     theme("light");
     const el = build(
-      '<header class="cp-header"><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button></header>',
+      '<header class="cp-header"><a class="cp-wordmark" href="/"><span class="cp-mark">G</span>grelot</a><button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account" aria-expanded="false"><span class="cp-avatar" data-size="sm">CP</span></button><button class="cp-button" data-variant="quiet" type="button" aria-label="Settings"><span class="cp-icon"></span></button></header>',
     );
-    const button = el.querySelector("button") as HTMLElement;
+    const [button, settings] = [...el.querySelectorAll<HTMLElement>("button")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
     const avatar = el.querySelector(".cp-avatar") as HTMLElement;
+    const wordmark = el.querySelector(".cp-wordmark") as HTMLElement;
     avatar.style.transition = "none";
     expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
-    expect(avatar.getBoundingClientRect().width).toBe(28);
+    // As tall as the header's other controls, with the hit area on the wordmark, on each tier.
+    for (const [tier, control, hit] of [
+      ["fine", 32, 24],
+      ["coarse", 44, 44],
+    ] as const) {
+      root.setAttribute("data-pointer", tier);
+      expect(button.getBoundingClientRect().height, tier).toBe(control);
+      expect(button.getBoundingClientRect().width, tier).toBe(control);
+      expect(settings.getBoundingClientRect().height, tier).toBe(control);
+      expect(avatar.getBoundingClientRect().width, tier).toBe(control - 6);
+      expect(wordmark.getBoundingClientRect().height, tier).toBeGreaterThanOrEqual(hit);
+    }
     expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 2px$/);
     button.setAttribute("aria-expanded", "true");
     expect(getComputedStyle(avatar).boxShadow).toMatch(/ 0px 0px 0px 3px$/);
@@ -4655,7 +4694,7 @@ describe("css/system.css lists, feeds and counts", () => {
   it("scrolls a conversation in a list-detail dialog with its panel above, the foot pinned edge to edge", () => {
     theme("light");
     const el = build(
-      `<dialog class="cp-dialog cp-detail-dialog"><section class="cp-detail"><header><h2>internal/feed</h2></header><div class="cp-context">${contextPanel()}<div class="cp-context-main"><ol class="cp-feed">${entry().repeat(30)}</ol>${foot}</div></div></section></dialog>`,
+      `<dialog class="cp-dialog"><section class="cp-detail"><header><h2>internal/feed</h2></header><div class="cp-context">${contextPanel()}<div class="cp-context-main"><ol class="cp-feed">${entry().repeat(30)}</ol>${foot}</div></div></section></dialog>`,
     );
     const dialog = el.querySelector("dialog") as HTMLDialogElement;
     dialog.showModal();
@@ -5358,6 +5397,83 @@ describe("css/system.css popup option row", () => {
       for (const end of row.querySelectorAll("kbd, small")) {
         expect(getComputedStyle(end).color).toBe(resolve("color", "HighlightText"));
       }
+    }
+  });
+});
+
+// docs/design.md "Nothing else is wider than the window at 320px, and
+// nothing is clipped": app text with no break point and a code line longer
+// than the window, in every part that holds app content.
+describe("css/system.css at 320px", () => {
+  const word = `https://grelot.example/agents/${"alpha-".repeat(24)}end`;
+  const line = `curl -sS -H 'Authorization: Bearer test-key' 'https://grelot.example/api/v1/agents/alpha/messages?since=2026-11-13T00:00:00Z&limit=100'`;
+  const code = `<div class="cp-code" data-variant="block"><pre tabindex="0"><code>${line}</code></pre></div>`;
+  const cases: [string, string][] = [
+    [
+      "a feed entry",
+      `<ol class="cp-feed"><li class="cp-feed-entry"><header><a href="#">@alpha</a><time>09:12</time></header><p class="cp-feed-text">${word}</p>${code}</li></ol>`,
+    ],
+    [
+      "a feed entry's rendered markdown",
+      `<ol class="cp-feed"><li class="cp-feed-entry"><header><a href="#">@alpha</a><time>09:12</time></header><div class="cp-prose"><p>${word}</p>${code}</div></li></ol>`,
+    ],
+    [
+      "a list row",
+      `<ul class="cp-list"><li><div class="cp-list-row"><div class="cp-cell-stack"><a href="#">${word}</a><small>${word}</small></div></div></li></ul>`,
+    ],
+    ["an empty state", `<section class="cp-empty"><h2>${word}</h2><p>${word}</p></section>`],
+    ["a notice", `<div class="cp-notice" data-tone="warning"><span>${word}</span></div>`],
+    [
+      "a detail",
+      `<section class="cp-detail"><header><h2>${word}</h2></header><div class="cp-detail-body"><p>${word}</p>${code}</div></section>`,
+    ],
+    [
+      "a detail's rendered markdown",
+      `<section class="cp-detail"><header><h2>Notes</h2></header><div class="cp-detail-body"><div class="cp-prose">${code}</div></div></section>`,
+    ],
+    [
+      "a context panel",
+      `<aside class="cp-context-panel"><section><h2>Paths</h2><p>${word}</p></section></aside>`,
+    ],
+    [
+      "a dialog body",
+      `<div class="cp-dialog-body"><div><h2>${word}</h2><p>${word}</p></div></div>`,
+    ],
+    [
+      "facts",
+      `<dl class="cp-facts"><dt>Path</dt><dd><code class="cp-mono">${word}</code></dd></dl>`,
+    ],
+    [
+      "a toolbar's button",
+      `<div class="cp-toolbar"><button class="cp-button" type="button">Message @${"alpha-".repeat(12)}end</button></div>`,
+    ],
+    [
+      "chips in a cluster",
+      `<div class="cp-cluster"><span class="cp-chip" data-tone="neutral">from @${"alpha-".repeat(12)}end</span></div>`,
+    ],
+  ];
+
+  it.each(cases)("keeps %s inside a 320px column", (_name, markup) => {
+    theme("light");
+    const el = build(`<div style="inline-size: 20rem">${markup}</div>`);
+    const column = el.firstElementChild as HTMLElement;
+    const right = column.getBoundingClientRect().right;
+    expect(column.scrollWidth, "something is wider than the column").toBeLessThanOrEqual(
+      column.clientWidth,
+    );
+    // A part inside a box that scrolls or clips is that box's to hold.
+    const held = (part: Element): boolean => {
+      for (let up = part.parentElement; up !== null && up !== column; up = up.parentElement) {
+        if (getComputedStyle(up).overflowX !== "visible") {
+          return true;
+        }
+      }
+      return false;
+    };
+    for (const part of [...column.querySelectorAll("*")].filter((p) => !held(p))) {
+      expect(part.getBoundingClientRect().right, part.outerHTML.slice(0, 80)).toBeLessThanOrEqual(
+        right + 0.5,
+      );
     }
   });
 });

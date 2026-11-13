@@ -6,7 +6,7 @@ import { measurer } from "../scale/measure.js";
 import { layout, type Layout, type Metrics } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { navigator, rekey, spoken, initial, type Key, type Selection } from "./select.js";
-import type { ChartSpec } from "./spec.js";
+import type { ChartSpec, Mark } from "./spec.js";
 import { chartWords } from "./words.js";
 
 const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
@@ -14,6 +14,7 @@ const metrics: Metrics = {
   measure: face,
   mono: face,
   lineHeight: 17,
+  nameLine: 18,
   rem: 16,
   row: 24,
   axisGroup: 80,
@@ -124,6 +125,50 @@ describe("rect keys", () => {
     expect(b.nav.move(whole, "ArrowDown", undefined)).toEqual({ kind: "rect", i: 1, part: 1 });
   });
 
+  it("Up and Down move through a group's sub-columns left to right, in series order", () => {
+    const spec = stacked();
+    const [mark] = spec.marks;
+    const g = built({
+      ...spec,
+      marks: [{ ...(mark as Extract<Mark, { mark: "rect" }>), arrange: "group" }],
+    });
+    const whole: Selection = { kind: "rect", i: 2, part: undefined };
+    expect(press(g, whole, "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      { kind: "rect", i: 2, part: 0 },
+      { kind: "rect", i: 2, part: 1 },
+      undefined,
+    ]);
+    expect(press(g, { kind: "rect", i: 2, part: 1 }, "ArrowDown", "ArrowDown")).toEqual([
+      { kind: "rect", i: 2, part: 0 },
+      undefined,
+    ]);
+    expect(spoken(g.model, whole, words, false)).toBe(`${span(30, 45)}: Announce 2, Path No data.`);
+  });
+
+  it("moves through a 100% stack's segments in series order and says shares and the total", () => {
+    const spec = stacked();
+    const [mark] = spec.marks;
+    const s = built({
+      ...spec,
+      marks: [{ ...(mark as Extract<Mark, { mark: "rect" }>), arrange: "share" }],
+    });
+    const whole: Selection = { kind: "rect", i: 0, part: undefined };
+    expect(press(s, whole, "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      { kind: "rect", i: 0, part: 0 },
+      { kind: "rect", i: 0, part: 1 },
+      undefined,
+    ]);
+    expect(spoken(s.model, whole, words, false)).toBe(
+      `${span(0, 15)}: Announce 75%, Path 25%. Total 4\u00A0posts.`,
+    );
+    expect(spoken(s.model, { kind: "rect", i: 1, part: 1 }, words, true)).toBe(
+      `${span(15, 30)}: Path 64%.`,
+    );
+    expect(spoken(s.model, { kind: "rect", i: 2, part: 1 }, words, true)).toBe(
+      `${span(30, 45)}: Path No data.`,
+    );
+  });
+
   it("says one segment for Up and Down, and the whole bucket again for Left and Right", () => {
     const path: Selection = { kind: "rect", i: 1, part: 1 };
     expect(spoken(b.model, path, words, true)).toBe(`${span(15, 30)}: Path 9.`);
@@ -208,6 +253,60 @@ describe("step line keys", () => {
     expect(b.nav.move({ kind: "line", i: 0, part: undefined }, "ArrowUp", undefined)).toBe(
       undefined,
     );
+  });
+});
+
+describe("area keys", () => {
+  // Gas, Wind and Solar sampled each minute from 8:00, Wind missing at 8:02.
+  const b = built({
+    x: { type: "time", domain: [START, START + 4 * MIN] },
+    y: { unit: { one: "megawatt", other: "megawatts" } },
+    marks: [
+      {
+        mark: "area",
+        x: minutes(5),
+        series: [
+          { name: "Gas", y: [12, 11, 10, 9, 8] },
+          { name: "Wind", y: [3, 4, null, 6, 7] },
+          { name: "Solar", y: [1, 2, 3, 4, 5] },
+        ],
+      },
+    ],
+  });
+  const at = (s: Selection | undefined) => (s?.kind === "area" ? s.i : undefined);
+
+  it("focus starts on the newest sample, and Left and Right step each sample", () => {
+    const first = initial(b.model);
+    expect(first).toEqual({ kind: "area", i: 4, part: undefined });
+    const back = press(b, first as Selection, ...Array<Key>(5).fill("ArrowLeft"));
+    expect(back.map(at)).toEqual([3, 2, 1, 0, undefined]);
+  });
+
+  it("moves Up and Down through the layers in series order, whatever their values", () => {
+    const whole: Selection = { kind: "area", i: 0, part: undefined };
+    expect(press(b, whole, "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      { kind: "area", i: 0, part: 0 },
+      { kind: "area", i: 0, part: 1 },
+      { kind: "area", i: 0, part: 2 },
+      undefined,
+    ]);
+    expect(spoken(b.model, { kind: "area", i: 0, part: 1 }, words, true)).toBe(
+      `${time(0)}: Wind 3.`,
+    );
+  });
+
+  it("says each layer and the stack's total, No data at a gap", () => {
+    expect(spoken(b.model, { kind: "area", i: 1, part: undefined }, words, false)).toBe(
+      `${time(1)}: Gas 11, Wind 4, Solar 2. Total 17.`,
+    );
+    expect(spoken(b.model, { kind: "area", i: 2, part: undefined }, words, false)).toBe(
+      `${time(2)}: Gas 10, Wind No data, Solar 3. Total No data.`,
+    );
+  });
+
+  it("selects the nearest sample under the pointer", () => {
+    const px = b.lay.frame.xAt(START + 1.4 * MIN);
+    expect(b.nav.pick(px, 0)).toEqual({ kind: "area", i: 1, part: undefined });
   });
 });
 
@@ -445,5 +544,359 @@ describe("the selection across an update", () => {
     expect(rekey(a, { kind: "row", row: 1 }, b)).toEqual({ kind: "row", row: 0 });
     const gone = built(timeline([{ name: "lead-ui", x: [START + 11 * MIN] }])).model;
     expect(rekey(a, { kind: "dot", row: 0, from: 0, to: 1 }, gone)).toBe(undefined);
+  });
+});
+
+describe("a note in a reading", () => {
+  it("ends a note written as a sentence once", () => {
+    const spec = stacked();
+    const b = built({
+      ...spec,
+      marks: [...spec.marks, { mark: "text", x: START + 20 * MIN, y: 4, text: "Deploy done!" }],
+    });
+    expect(spoken(b.model, { kind: "rect", i: 1, part: undefined }, words, false)).toBe(
+      `${span(15, 30)}: Announce 5, Path 9. Total 14. Note: Deploy done!`,
+    );
+  });
+
+  it("on a step line reads a note at a held sample at the stop holding it, wherever the pointer is in its run", () => {
+    const b = built({
+      ...step,
+      marks: [...step.marks, { mark: "text", x: START + 3 * MIN, y: 4, text: "Restart" }],
+    });
+    const at = (i: number) => spoken(b.model, { kind: "line", i, part: undefined }, words, false);
+    expect(at(2)).toBe(`${time(2)}: Live 4, Active 1. Note: Restart.`);
+    expect(at(3)).toBe(`${time(3)}: Live 4, Active 1. Note: Restart.`);
+    expect(at(4)).toBe(`${time(4)}: Live 4, Active 2.`);
+  });
+});
+
+const names = (n: number) => Array.from({ length: n }, (_, i) => `Row ${String(i + 1)}`);
+const ages: ChartSpec = {
+  x: { unit: { one: "year", other: "years" } },
+  marks: [
+    {
+      mark: "bar",
+      y: ["Holy See", "Monaco", "Japan"],
+      series: [{ name: "Median age", x: [57.4, 54.5, 49.8] }],
+    },
+  ],
+};
+const reach = (reverse = false, rows = 3): ChartSpec => ({
+  x: { reverse },
+  marks: [
+    {
+      mark: "bar",
+      y: names(rows),
+      series: [
+        { name: "Domestic", x: Array.from({ length: rows }, (_, i) => i + 1) },
+        { name: "International", x: Array.from({ length: rows }, (_, i) => (i === 1 ? null : 2)) },
+      ],
+    },
+  ],
+});
+const bar = (row: number, part?: number): Selection => ({ kind: "bar", row, part });
+
+describe("bar keys", () => {
+  it("focus starts on the first row, whole, and on no rows selects nothing", () => {
+    expect(initial(built(ages).model)).toEqual(bar(0));
+    const none = built({ x: {}, marks: [{ mark: "bar", y: [], series: [{ name: "a", x: [] }] }] });
+    expect(initial(none.model)).toBe(undefined);
+  });
+
+  it("Up and Down step a row, Home and End take the ends, and nothing moves past them", () => {
+    const b = built(ages);
+    expect(press(b, bar(0), "ArrowDown", "ArrowDown", "ArrowDown")).toEqual([
+      bar(1),
+      bar(2),
+      undefined,
+    ]);
+    expect(b.nav.move(bar(0), "ArrowUp", undefined)).toBe(undefined);
+    expect(b.nav.move(bar(0), "End", undefined)).toEqual(bar(2));
+    expect(b.nav.move(bar(2), "Home", undefined)).toEqual(bar(0));
+    expect(b.nav.move(bar(0), "Home", undefined)).toBe(undefined);
+  });
+
+  it("Page keys move ten rows, stopping at the first and last", () => {
+    const b = built(reach(false, 25));
+    expect(press(b, bar(0), "PageDown", "PageDown", "PageDown", "PageDown")).toEqual([
+      bar(10),
+      bar(20),
+      bar(24),
+      undefined,
+    ]);
+    expect(b.nav.move(bar(14, 1), "PageUp", undefined)).toEqual(bar(4, 1));
+    expect(b.nav.move(bar(4), "PageUp", undefined)).toEqual(bar(0));
+  });
+
+  it("Left and Right move through the row's parts in series order, and Up and Down keep the part", () => {
+    const b = built(reach());
+    expect(press(b, bar(0), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      bar(0, 0),
+      bar(0, 1),
+      undefined,
+    ]);
+    expect(b.nav.move(bar(0), "ArrowLeft", undefined)).toEqual(bar(0, 1));
+    expect(b.nav.move(bar(0, 0), "ArrowLeft", undefined)).toBe(undefined);
+    expect(b.nav.move(bar(0, 1), "ArrowDown", undefined)).toEqual(bar(1, 1));
+  });
+
+  it("runs with the drawing on a reversed x: Right moves toward the first series", () => {
+    const b = built(reach(true));
+    expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, 1));
+    expect(b.nav.move(bar(0, 1), "ArrowRight", undefined)).toEqual(bar(0, 0));
+  });
+
+  it("moves Right to the next grouped bar in series order on either x direction", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      const b = built({ ...spec, marks: [{ ...mark, arrange: "group" }] });
+      expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, 0));
+      expect(b.nav.move(bar(0, 0), "ArrowRight", undefined)).toEqual(bar(0, 1));
+      expect(b.nav.move(bar(0), "ArrowLeft", undefined)).toEqual(bar(0, 1));
+      expect(spoken(b.model, bar(0), words, false)).toBe("Row 1: Domestic 1, International 2.");
+    }
+  });
+
+  it("moves Right through a split's panels as drawn, and once folded in series order", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      const split: ChartSpec = { ...spec, marks: [{ ...mark, arrange: "split" }] };
+      // A reversed x lays the panels right to left, the first series' at the right.
+      const wide = built(split);
+      expect(wide.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
+      expect(spoken(wide.model, bar(0), words, false)).toBe("Row 1: Domestic 1, International 2.");
+      // Under 30rem the panels fold into bars one under another, as a group's.
+      const folded = built(split, 479);
+      expect(folded.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, 0));
+      expect(folded.nav.move(bar(0, 0), "ArrowRight", undefined)).toEqual(bar(0, 1));
+    }
+  });
+
+  it("says a 100% row's shares and absolute total, and runs with the drawing on a reversed x", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      const b = built({ ...spec, marks: [{ ...mark, arrange: "share" }] });
+      expect(spoken(b.model, bar(0), words, false)).toBe(
+        "Row 1: Domestic 33%, International 67%. Total 3.",
+      );
+      expect(spoken(b.model, bar(0, 1), words, true)).toBe("Row 1: International 67%.");
+      expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
+    }
+  });
+
+  it("moves Right through a diverging row left to right as drawn and says its total", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      // Domestic lies left of 0, so it is drawn first from the left, last on a reversed x.
+      const b = built({ ...spec, marks: [{ ...mark, arrange: "diverge", left: 1 }] });
+      expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
+      expect(spoken(b.model, bar(0), words, false)).toBe(
+        "Row 1: Domestic 1, International 2. Total 3.",
+      );
+    }
+  });
+
+  it("moves Right from a mirror's left side to its right one and says its total", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      // A reversed x sets the first series on the right side.
+      const b = built({ ...spec, marks: [{ ...mark, arrange: "mirror" }] });
+      expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
+      expect(b.nav.move(bar(0), "ArrowLeft", undefined)).toEqual(bar(0, reverse ? 0 : 1));
+      expect(spoken(b.model, bar(0), words, false)).toBe(
+        "Row 1: Domestic 1, International 2. Total 3.",
+      );
+      // On a phone the sides stay apart.
+      const phone = built({ ...spec, marks: [{ ...mark, arrange: "mirror" }] }, 320);
+      expect(phone.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
+    }
+  });
+
+  it("one series has no parts for Left and Right to choose", () => {
+    const b = built(ages);
+    expect(b.nav.move(bar(1), "ArrowLeft", undefined)).toBe(undefined);
+    expect(b.nav.move(bar(1), "ArrowRight", undefined)).toBe(undefined);
+  });
+
+  it("says a row whole with its total, a part through the segment words, a gap as No data", () => {
+    const b = built(reach());
+    expect(spoken(b.model, bar(0), words, false)).toBe(
+      "Row 1: Domestic 1, International 2. Total 3.",
+    );
+    expect(spoken(b.model, bar(0, 1), words, true)).toBe("Row 1: International 2.");
+    expect(spoken(b.model, bar(1, 1), words, false)).toBe(
+      "Row 2: Domestic 2, International No data. Total 2.",
+    );
+    expect(spoken(b.model, bar(1, 1), words, true)).toBe("Row 2: International No data.");
+    expect(spoken(built(ages).model, bar(2), words, false)).toBe("Japan: 49.8\u00A0years.");
+  });
+});
+
+describe("the pointer on a bar chart", () => {
+  it("selects the row under it anywhere across the plot's width, or the nearest past the ends", () => {
+    const b = built(ages);
+    const w = b.lay.frame.width;
+    expect(b.nav.pick(0, 24 * 1.5)).toEqual(bar(1));
+    expect(b.nav.pick(w, 24 * 1.5)).toEqual(bar(1));
+    expect(b.nav.pick(w / 2, 24 * 0.9)).toEqual(bar(0));
+    expect(b.nav.pick(w / 2, -40)).toEqual(bar(0));
+    expect(b.nav.pick(w / 2, 24 * 9)).toEqual(bar(2));
+  });
+
+  it("selects by the row under the name above it on a phone's 44 px rows", () => {
+    const b = built(ages, 300);
+    expect(b.nav.pick(10, 44 * 1.1)).toEqual(bar(1));
+    expect(b.nav.pick(10, 44 * 2.9)).toEqual(bar(2));
+  });
+
+  it("draws no crosshair and selects by tap, not by drag", () => {
+    const b = built(ages);
+    expect(b.nav.crosshair(bar(1))).toBe(undefined);
+    expect(b.nav.drags).toBe(false);
+    expect(built(stacked()).nav.drags).toBe(true);
+  });
+});
+
+describe("a bar row across an update", () => {
+  it("follows its row by name in a new order, keeps its part, and leaves with the row", () => {
+    const a = built(reach()).model;
+    const turned: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["Row 3", "Row 1"],
+          series: [
+            { name: "Domestic", x: [3, 1] },
+            { name: "International", x: [2, 2] },
+          ],
+        },
+      ],
+    };
+    const b = built(turned).model;
+    expect(rekey(a, bar(0, 1), b)).toEqual(bar(1, 1));
+    expect(rekey(a, bar(2), b)).toEqual(bar(0));
+    expect(rekey(a, bar(1), b)).toBe(undefined);
+    expect(rekey(a, bar(0, 1), built(ages).model)).toBe(undefined);
+  });
+});
+
+describe("point keys, pointer and words", () => {
+  const point = (row: number, part?: number): Selection => ({ kind: "point", row, part });
+  const degrees = (reverse = false, rows = 3): ChartSpec => ({
+    x: { reverse },
+    y: { unit: { one: "degree", other: "degrees" } },
+    marks: [
+      {
+        mark: "point",
+        y: Array.from({ length: rows }, (_, i) => `Degree ${String(i + 1)}`),
+        series: [
+          { name: "Women", x: Array.from({ length: rows }, (_, i) => (i === 1 ? null : 50 + i)) },
+          { name: "Men", x: Array.from({ length: rows }, (_, i) => 40 + i) },
+        ],
+      },
+    ],
+  });
+
+  it("focus starts on the first row, whole, and on no rows selects nothing", () => {
+    expect(initial(built(degrees()).model)).toEqual(point(0));
+    const none = built({ x: {}, marks: [{ mark: "point", y: [], series: [] }] });
+    expect(initial(none.model)).toBe(undefined);
+  });
+
+  it("steps rows with Up, Down, Home, End and the Page keys, keeping the part", () => {
+    const b = built(degrees(false, 25));
+    expect(press(b, point(0, 1), "ArrowDown", "End", "ArrowDown", "PageUp", "Home")).toEqual([
+      point(1, 1),
+      point(24, 1),
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(b.nav.move(point(24, 1), "PageUp", undefined)).toEqual(point(14, 1));
+    expect(b.nav.move(point(3), "PageUp", undefined)).toEqual(point(0));
+    expect(b.nav.move(point(3), "Home", undefined)).toEqual(point(0));
+  });
+
+  it("moves through a row's dots in series order with Left and Right, on a reversed x too", () => {
+    for (const reverse of [false, true]) {
+      const b = built(degrees(reverse));
+      expect(press(b, point(0), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+        point(0, 0),
+        point(0, 1),
+        undefined,
+      ]);
+      expect(b.nav.move(point(0), "ArrowLeft", undefined)).toEqual(point(0, 1));
+    }
+    const one = built({
+      x: {},
+      marks: [{ mark: "point", y: ["a"], series: [{ name: "a", x: [1] }] }],
+    });
+    expect(one.nav.move(point(0), "ArrowRight", undefined)).toBe(undefined);
+  });
+
+  it("says a row whole, a chosen dot alone, a gap as No data, and one series with its unit", () => {
+    const b = built(degrees());
+    expect(spoken(b.model, point(0), words, false)).toBe("Degree 1: Women 50, Men 40.");
+    expect(spoken(b.model, point(1), words, false)).toBe("Degree 2: Women No data, Men 41.");
+    expect(spoken(b.model, point(2, 1), words, true)).toBe("Degree 3: Men 42.");
+    expect(spoken(b.model, point(2, 1), words, false)).toBe("Degree 3: Women 52, Men 42.");
+    const one = built({
+      x: { unit: { one: "year", other: "years" } },
+      marks: [{ mark: "point", y: ["Japan"], series: [{ name: "Median", x: [49.8] }] }],
+    });
+    expect(spoken(one.model, point(0), words, false)).toBe("Japan: 49.8\u00A0years.");
+  });
+
+  it("says a range's gap and an arrow's change after the row, and leaves either out at a gap", () => {
+    const linked = (link: "range" | "arrow"): ChartSpec => ({
+      ...degrees(),
+      marks: [{ ...(degrees().marks[0] as Extract<Mark, { mark: "point" }>), link }],
+    });
+    const range = built(linked("range")).model;
+    expect(spoken(range, point(0), words, false)).toBe("Degree 1: Women 50, Men 40. Gap 10.");
+    expect(spoken(range, point(1), words, false)).toBe("Degree 2: Women No data, Men 41.");
+    expect(spoken(range, point(0, 1), words, true)).toBe("Degree 1: Men 40.");
+    const arrow = built(linked("arrow")).model;
+    expect(spoken(arrow, point(2), words, false)).toBe("Degree 3: Women 52, Men 42. Change -10.");
+    const own = chartWords({ changeReading: (at, parts, change) => `${at} (${change}): ${parts}` });
+    expect(spoken(arrow, point(2), own, false)).toBe("Degree 3 (-10): Women 52, Men 42");
+  });
+
+  it("selects the row under the pointer across the plot, by tap only, with no crosshair", () => {
+    const b = built(degrees());
+    expect(b.nav.pick(b.lay.frame.width, 24 * 1.5)).toEqual(point(1));
+    expect(b.nav.pick(0, -10)).toEqual(point(0));
+    expect(b.nav.pick(0, 24 * 9)).toEqual(point(2));
+    expect(built(degrees(), 300).nav.pick(10, 38 * 1.1)).toEqual(point(1));
+    expect(b.nav.crosshair(point(1))).toBe(undefined);
+    expect(b.nav.drags).toBe(false);
+  });
+
+  it("follows its row by name across an update, keeps its part, and leaves with the row", () => {
+    const a = built(degrees()).model;
+    const turned: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "point",
+          y: ["Degree 3", "Degree 1"],
+          series: [
+            { name: "Women", x: [1, 2] },
+            { name: "Men", x: [3, 4] },
+          ],
+        },
+      ],
+    };
+    const b = built(turned).model;
+    expect(rekey(a, point(0, 1), b)).toEqual(point(1, 1));
+    expect(rekey(a, point(1), b)).toBe(undefined);
+    expect(rekey(a, { kind: "bar", row: 0, part: undefined }, b)).toBe(undefined);
   });
 });

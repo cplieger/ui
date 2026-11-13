@@ -68,6 +68,7 @@
 
 .cp-context-panel > section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-2);
   padding: 0 var(--cp-space-3) var(--cp-space-3);

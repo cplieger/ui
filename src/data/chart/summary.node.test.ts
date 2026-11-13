@@ -45,7 +45,7 @@ const stacked: ChartSpec = {
   ],
 };
 
-describe("the summary of a bar chart", () => {
+describe("the summary of a column chart", () => {
   it("says the total, the bucket size, the range, each series and the busiest closed bucket", () => {
     expect(generatedSummary(model(stacked), words)).toBe(
       `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 145, Path 101. ` +
@@ -85,7 +85,147 @@ describe("the summary of a bar chart", () => {
 
   it("names the kind, the series count and the range", () => {
     expect(shortDescription(model(stacked), words)).toBe(
-      `Stacked bar chart, 2 series, ${span(START, END)}`,
+      `Stacked column chart, 2 series, ${span(START, END)}`,
+    );
+    const one: ChartSpec = {
+      ...stacked,
+      marks: [
+        { mark: "rect", x1: starts, x2: ends, series: [{ name: "All", y: per(24, () => 1) }] },
+      ],
+    };
+    expect(shortDescription(model(one), words)).toBe(`Column chart, ${span(START, END)}`);
+  });
+
+  // Paris springs forward on 29 March 2026 and falls back on 25 October.
+  const HR = 60 * MIN;
+  const dated = (t: number) =>
+    new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: TZ,
+    }).format(t);
+  const across = (lo: number, hi: number): Model =>
+    model({
+      x: { type: "time", domain: [lo, hi] },
+      marks: [{ mark: "line", x: [lo, hi], series: [{ name: "Load", y: [3, 5] }] }],
+    });
+
+  it("dates both ends of a domain a whole day long, whose clock times match", () => {
+    const day = 24 * HR;
+    const m = model({ ...stacked, x: { type: "time", domain: [END - day, END] } });
+    expect(shortDescription(m, words)).toBe(
+      `Stacked column chart, 2 series, ${dated(END - day)} to ${dated(END)}`,
+    );
+  });
+
+  it.each([
+    ["a 23-hour spring-forward day", Date.UTC(2026, 2, 28, 13), 23],
+    ["a 25-hour fall-back day", Date.UTC(2026, 9, 24, 12), 25],
+  ])("dates both ends of %s, in the description and the summary", (_, lo, hours) => {
+    const hi = lo + hours * HR;
+    expect(time(lo)).toBe(time(hi));
+    const m = across(lo, hi);
+    const range = `${dated(lo)} to ${dated(hi)}`;
+    expect(shortDescription(m, words)).toBe(`Line chart, ${range}`);
+    expect(generatedSummary(m, words)).toContain(range);
+  });
+
+  it("writes only the times of a domain under a day that crosses midnight", () => {
+    // 10:00 PM to 4:00 AM in Paris.
+    const lo = Date.UTC(2026, 10, 11, 21);
+    const hi = lo + 6 * HR;
+    expect(shortDescription(across(lo, hi), words)).toBe(`Line chart, ${span(lo, hi)}`);
+  });
+});
+
+describe("the summary of a step area", () => {
+  const rect = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const shaped = (more: Partial<Extract<Mark, { mark: "rect" }>>): ChartSpec => ({
+    ...stacked,
+    marks: [{ ...rect, shape: "area", ...more }],
+  });
+
+  it("says what the columns say, the shape changing only the drawing", () => {
+    expect(generatedSummary(model(shaped({})), words)).toBe(
+      generatedSummary(model(stacked), words),
+    );
+  });
+
+  it("names a stacked area, a 100% area and an area of one series", () => {
+    expect(shortDescription(model(shaped({})), words)).toBe(
+      `Stacked area chart, 2 series, ${span(START, END)}`,
+    );
+    expect(shortDescription(model(shaped({ arrange: "share" })), words)).toBe(
+      `100% stacked area chart, 2 series, ${span(START, END)}`,
+    );
+    const one = shaped({ series: [{ name: "All", y: per(24, () => 1) }] });
+    expect(shortDescription(model(one), words)).toBe(`Area chart, ${span(START, END)}`);
+  });
+});
+
+describe("the summary of grouped columns", () => {
+  const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const grouped: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "group" }] };
+
+  it("names the highest single value of a closed bucket in place of the busiest bucket", () => {
+    // The open bucket's Announce 30 is still filling, so Path's 9 is the highest.
+    expect(generatedSummary(model(grouped), words)).toBe(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 145, Path 101. ` +
+        `Highest: Path, ${span(starts[13] ?? 0, ends[13] ?? 0)}, 9${nb}posts.`,
+    );
+  });
+
+  it("names the busiest bucket of one series grouped, which is a plain column chart", () => {
+    const one: ChartSpec = {
+      ...grouped,
+      marks: [
+        {
+          ...mark,
+          arrange: "group",
+          series: [{ name: "All", y: per(24, (i) => (i === 4 ? 3 : 1)) }],
+        },
+      ],
+    };
+    expect(generatedSummary(model(one), words)).toBe(
+      `26${nb}posts, every 15${nb}min from ${span(START, END)}. ` +
+        `Busiest: ${span(starts[4] ?? 0, ends[4] ?? 0)}, 3${nb}posts.`,
+    );
+  });
+
+  it("is a grouped column chart with its series count", () => {
+    expect(shortDescription(model(grouped), words)).toBe(
+      `Grouped column chart, 2 series, ${span(START, END)}`,
+    );
+  });
+});
+
+describe("the summary of columns stacked to 100%", () => {
+  const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const share: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "share" }] };
+
+  it("gives each series' share of the grand total and the busiest bucket's absolute total", () => {
+    // 145 and 101 of 246; bucket 13 holds 5 and 9.
+    expect(generatedSummary(model(share), words)).toBe(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 59%, Path 41%. ` +
+        `Busiest: ${span(starts[13] ?? 0, ends[13] ?? 0)}, 14${nb}posts.`,
+    );
+  });
+
+  it("writes its amounts as numbers whatever format its shares take", () => {
+    const tenths: ChartSpec = {
+      ...share,
+      y: { ...share.y, format: { style: "percent", maximumFractionDigits: 1 } },
+    };
+    expect(generatedSummary(model(tenths), words)).toContain(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 58.9%, Path 41.1%.`,
+    );
+  });
+
+  it("is a 100% stacked column chart with its series count", () => {
+    expect(shortDescription(model(share), words)).toBe(
+      `100% stacked column chart, 2 series, ${span(START, END)}`,
     );
   });
 });
@@ -221,6 +361,74 @@ describe("the summary of a step line", () => {
   });
 });
 
+describe("the summary of a stacked area", () => {
+  const x = per(7, (i) => START + i * MIN);
+  const spec = (more: Partial<Extract<Mark, { mark: "area" }>> = {}): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 6 * MIN] },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "Gas", y: [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204] },
+          { name: "Wind", y: [410, 600, 1_020, null, 980, 980, 980] },
+          { name: "Solar", y: [500, 790, 300, 200, 412, 412, 412] },
+        ],
+        ...more,
+      },
+    ],
+  });
+
+  it("says each layer's last, low and high, then the total's, a gap leaving it out", () => {
+    expect(generatedSummary(model(spec()), words)).toBe(
+      `${span(START, START + 6 * MIN)}, every 1${nb}min. Gas: last 1,204, low 990, high 1,310. ` +
+        "Wind: last 980, low 410, high 1,020. Solar: last 412, low 200, high 790. " +
+        "Total: last 2,596, low 1,900, high 2,700.",
+    );
+  });
+
+  it("names a stacked area whatever its curve, and an area of one series", () => {
+    expect(shortDescription(model(spec({ curve: "step" })), words)).toBe(
+      `Stacked area chart, 3 series, ${span(START, START + 6 * MIN)}`,
+    );
+    const one = model(spec({ series: [{ name: "Gas", y: per(7, () => 1) }] }));
+    expect(shortDescription(one, words)).toBe(`Area chart, ${span(START, START + 6 * MIN)}`);
+    expect(generatedSummary(one, words)).not.toContain("Total");
+  });
+});
+
+describe("the summary of an area stacked to 100%", () => {
+  const x = per(3, (i) => START + i * MIN);
+  const m = model({
+    x: { type: "time", domain: [START, START + 2 * MIN] },
+    y: { format: { style: "percent", maximumFractionDigits: 1 } },
+    marks: [
+      {
+        mark: "area",
+        x,
+        arrange: "share",
+        series: [
+          { name: "Gas", y: [0, 1, 1_500] },
+          { name: "Wind", y: [0, 3, 500] },
+        ],
+      },
+    ],
+  });
+
+  it("says each layer's shares where its stack is drawn and the total's amounts", () => {
+    expect(generatedSummary(m, words)).toBe(
+      `${span(START, START + 2 * MIN)}, every 1${nb}min. Gas: last 75%, low 25%, high 75%. ` +
+        "Wind: last 25%, low 25%, high 75%. Total: last 2,000, low 0, high 2,000.",
+    );
+  });
+
+  it("names a 100% stacked area chart", () => {
+    expect(shortDescription(m, words)).toBe(
+      `100% stacked area chart, 2 series, ${span(START, START + 2 * MIN)}`,
+    );
+  });
+});
+
 describe("the summary of a timeline", () => {
   const quiet = ["docs-bot", "ha-agent", "notes-bot", "a", "b", "c", "d"];
   const m = model({
@@ -249,6 +457,68 @@ describe("the summary of a timeline", () => {
   });
 });
 
+describe("the notes in the summary", () => {
+  it("follow the rules, each its x in the readings' format and its text, in spec order", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [
+        ...stacked.marks,
+        { mark: "text", x: starts[3] ?? 0, y: 9, text: "Deploy" },
+        { mark: "rule", y: 12, label: "Limit" },
+        { mark: "text", x: starts[9] ?? 0, y: 9, text: "Rollback" },
+      ],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(
+        `Limit 12\\. ${time(starts[3] ?? 0)}: Deploy\\. ${time(starts[9] ?? 0)}: Rollback\\.$`,
+        "u",
+      ),
+    );
+  });
+
+  it("names a timeline note's row before its time", () => {
+    const spec: ChartSpec = {
+      x: { type: "time", domain: [START, END] },
+      marks: [
+        { mark: "dot", rows: [{ name: "ana", x: [START + MIN] }] },
+        { mark: "text", x: START + 2 * MIN, y: "ana", text: "Paused" },
+      ],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(`ana, ${time(START + 2 * MIN)}: Paused\\.$`, "u"),
+    );
+  });
+
+  it("include a note outside a passed domain, which is not drawn", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: END + 60 * MIN, y: 1, text: "Later" }],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(/: Later\.$/u);
+  });
+
+  it("end a note written as a sentence once", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: START, y: 1, text: "Deploy of 1.4.0." }],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(`${time(START)}: Deploy of 1\\.4\\.0\\.$`, "u"),
+    );
+  });
+
+  it("take the app's words", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: START, y: 1, text: "Start" }],
+    };
+    const own = chartWords({ note: (at, text) => `[${at}] ${text}` });
+    expect(generatedSummary(model(spec), own)).toMatch(
+      new RegExp(`\\[${time(START)}\\] Start$`, "u"),
+    );
+  });
+});
+
 describe("the spec's own summary", () => {
   it("replaces the generated text with a string, or edits it with a function", () => {
     expect(summaryOf(model({ ...stacked, summary: "Posts today." }), words)).toBe("Posts today.");
@@ -259,5 +529,414 @@ describe("the spec's own summary", () => {
   it("speaks through the app's words", () => {
     const fr = chartWords({ busiest: (range, n) => `Pic : ${range}, ${n}.` });
     expect(generatedSummary(model(stacked), fr)).toMatch(/ Pic : .*, 14\u00A0posts\.$/u);
+  });
+});
+
+describe("the summary of a bar chart", () => {
+  const countries = { one: "country", other: "countries" };
+  const ages: ChartSpec = {
+    x: {},
+    y: { unit: countries },
+    marks: [
+      {
+        mark: "bar",
+        y: ["Holy See", "Monaco", "Japan", "Andorra"],
+        series: [{ name: "Median age", x: [57.4, 49.8, 49.8, null] }],
+      },
+    ],
+  };
+  const firms: ChartSpec = {
+    x: {},
+    y: { unit: { one: "company", other: "companies" } },
+    marks: [
+      {
+        mark: "bar",
+        y: ["Acme", "Brill", "Corda"],
+        series: [
+          { name: "Domestic", x: [40, 3, 7] },
+          { name: "International", x: [2, 22, 2] },
+          { name: "Online", x: [null, null, null] },
+        ],
+      },
+    ],
+  };
+
+  it("counts the rows, then names the highest and lowest, the first row on a tie", () => {
+    expect(generatedSummary(model(ages), words)).toBe(
+      `4${nb}countries. Highest Holy See 57.4, lowest Monaco 49.8.`,
+    );
+  });
+
+  it("signs a diverging bar chart's extremes and names its kind", () => {
+    const m = model({
+      x: { format: { style: "percent", maximumFractionDigits: 1 } },
+      y: { unit: { one: "state", other: "states" } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Utah", "Texas", "Puerto Rico"],
+          series: [{ name: "Change", x: [0.16, 0, -0.143] }],
+        },
+      ],
+    });
+    expect(generatedSummary(m, words)).toBe(
+      `3${nb}states. Highest Utah +16%, lowest Puerto Rico -14.3%.`,
+    );
+    expect(shortDescription(m, words)).toBe(`Diverging bar chart, 3${nb}states`);
+  });
+
+  it("names each series' extremes and the totals', leaving out a series with no value", () => {
+    expect(generatedSummary(model(firms), words)).toBe(
+      `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
+        "International: highest Brill 22, lowest Acme 2. Total: highest Acme 42, lowest Corda 9.",
+    );
+  });
+
+  it("names each grouped series' extremes and no totals", () => {
+    const grouped: ChartSpec = {
+      ...firms,
+      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "group" }],
+    };
+    expect(generatedSummary(model(grouped), words)).toBe(
+      `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
+        "International: highest Brill 22, lowest Acme 2.",
+    );
+    expect(shortDescription(model(grouped), words)).toBe(
+      `Grouped bar chart, 3 series, 3${nb}companies`,
+    );
+  });
+
+  it("names each split series' extremes and no totals, a split bar chart at every width", () => {
+    const split: ChartSpec = {
+      ...firms,
+      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "split" }],
+    };
+    expect(generatedSummary(model(split), words)).toBe(
+      `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
+        "International: highest Brill 22, lowest Acme 2.",
+    );
+    expect(shortDescription(model(split), words)).toBe(
+      `Split bar chart, 3 series, 3${nb}companies`,
+    );
+  });
+
+  it("names each 100% series' highest and lowest share, leaving out a row whose total is 0, and no totals", () => {
+    const share: ChartSpec = {
+      x: {},
+      y: { unit: { one: "company", other: "companies" } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Acme", "Brill", "Corda", "Dune"],
+          arrange: "share",
+          series: [
+            { name: "Domestic", x: [40, 3, 1, 0] },
+            { name: "International", x: [10, 1, 3, 0] },
+          ],
+        },
+      ],
+    };
+    expect(generatedSummary(model(share), words)).toBe(
+      `4${nb}companies, 2 series. Domestic: highest Acme 80%, lowest Corda 25%. ` +
+        "International: highest Corda 75%, lowest Acme 20%.",
+    );
+    expect(shortDescription(model(share), words)).toBe(
+      `100% stacked bar chart, 2 series, 4${nb}companies`,
+    );
+  });
+
+  it("names each diverging series' extremes and the totals', a diverging stacked bar chart", () => {
+    const likert: ChartSpec = {
+      x: { format: "percent" },
+      y: { unit: { one: "item", other: "items" } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Item 1", "Item 2"],
+          arrange: "diverge",
+          left: 1,
+          centre: true,
+          series: [
+            { name: "Disagree", x: [0.25, 0.1] },
+            { name: "Neutral", x: [0.2, 0.3] },
+            { name: "Agree", x: [0.55, 0.4] },
+          ],
+        },
+      ],
+    };
+    expect(generatedSummary(model(likert), words)).toBe(
+      `2${nb}items, 3 series. Disagree: highest Item 1 25%, lowest Item 2 10%. ` +
+        "Neutral: highest Item 2 30%, lowest Item 1 20%. " +
+        "Agree: highest Item 1 55%, lowest Item 2 40%. " +
+        "Total: highest Item 1 100%, lowest Item 2 80%.",
+    );
+    expect(shortDescription(model(likert), words)).toBe(
+      `Diverging stacked bar chart, 3 series, 2${nb}items`,
+    );
+  });
+
+  it("names each side's extremes and the totals', a back-to-back bar chart", () => {
+    const pyramid: ChartSpec = {
+      x: {},
+      y: { unit: { one: "age group", other: "age groups" } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["90+", "45-50", "0-5"],
+          arrange: "mirror",
+          series: [
+            { name: "Male", x: [210, 2734, 1690] },
+            { name: "Female", x: [520, 2690, 1610] },
+          ],
+        },
+      ],
+    };
+    expect(generatedSummary(model(pyramid), words)).toBe(
+      `3${nb}age groups, 2 series. Male: highest 45-50 2,734, lowest 90+ 210. ` +
+        "Female: highest 45-50 2,690, lowest 90+ 520. " +
+        "Total: highest 45-50 5,424, lowest 90+ 730.",
+    );
+    expect(shortDescription(model(pyramid), words)).toBe(
+      `Back-to-back bar chart, 2 series, 3${nb}age groups`,
+    );
+  });
+
+  it("says only the count when every value is a gap, in categories without a unit", () => {
+    const empty: ChartSpec = {
+      x: {},
+      marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "a", x: [null, null] }] }],
+    };
+    expect(generatedSummary(model(empty), words)).toBe("2 categories.");
+  });
+
+  it("is named by its kind, its series count and its row count", () => {
+    expect(shortDescription(model(ages), words)).toBe(`Bar chart, 4${nb}countries`);
+    expect(shortDescription(model(firms), words)).toBe(
+      `Stacked bar chart, 3 series, 3${nb}companies`,
+    );
+  });
+
+  it("takes the app's words", () => {
+    const own = chartWords({
+      categories: (n) => `${n} rows`,
+      countSummary: (count) => `[${count}]`,
+      extremes: (high, low) => `${high} > ${low}`,
+    });
+    const plain: ChartSpec = { ...ages, y: {} };
+    expect(generatedSummary(model(plain), own)).toBe("[4 rows] Holy See 57.4 > Monaco 49.8");
+  });
+});
+
+describe("the summary of a dot plot", () => {
+  const degrees = { one: "degree", other: "degrees" };
+  const pay: ChartSpec = {
+    x: {},
+    y: { unit: degrees },
+    marks: [
+      {
+        mark: "point",
+        y: ["Doctorate", "Master's", "Less than 9th grade"],
+        series: [
+          { name: "Women", x: [128_700, 91_000, 29_100] },
+          { name: "Men", x: [163_500, null, 43_350] },
+          { name: "Other", x: [null, null, null] },
+        ],
+      },
+    ],
+  };
+
+  it("counts rows and series, then names each series' highest and lowest row", () => {
+    expect(generatedSummary(model(pay), words)).toBe(
+      `3${nb}degrees, 3 series. Women: highest Doctorate 128,700, lowest Less than 9th grade 29,100. Men: highest Doctorate 163,500, lowest Less than 9th grade 43,350.`,
+    );
+    expect(shortDescription(model(pay), words)).toBe(`Dot plot, 3 series, 3${nb}degrees`);
+  });
+
+  it("names one series' extremes, and a time x's earliest and latest", () => {
+    const one = model({
+      x: {},
+      marks: [
+        { mark: "point", y: ["Japan", "Monaco"], series: [{ name: "Age", x: [49.8, 54.5] }] },
+      ],
+    });
+    expect(generatedSummary(one, words)).toBe(
+      "2 categories. Highest Monaco 54.5, lowest Japan 49.8.",
+    );
+    expect(shortDescription(one, words)).toBe("Dot plot, 2 categories");
+    const releases = model({
+      x: { type: "time" },
+      marks: [
+        {
+          mark: "point",
+          y: ["api", "web"],
+          series: [{ name: "Release", x: [START + 90 * MIN, START] }],
+        },
+      ],
+    });
+    expect(generatedSummary(releases, words)).toBe(
+      `2 categories. Release: earliest web ${time(START)}, latest api ${time(START + 90 * MIN)}.`,
+    );
+  });
+
+  it("takes the app's words", () => {
+    const own = chartWords({
+      kind: { dotPlot: "Punktdiagramm" },
+      spanSeries: (name, first, last) => `${name}: ${first} bis ${last}.`,
+    });
+    const releases = model({
+      x: { type: "time" },
+      marks: [
+        { mark: "point", y: ["a", "b"], series: [{ name: "R", x: [START, START + 90 * MIN] }] },
+      ],
+    });
+    expect(generatedSummary(releases, own)).toBe(
+      `2 categories. R: a ${time(START)} bis b ${time(START + 90 * MIN)}.`,
+    );
+    expect(shortDescription(releases, own)).toBe("Punktdiagramm, 2 categories");
+  });
+});
+
+describe("the summary of band rows alike or alone", () => {
+  const bars = (x: (number | null)[][], more: Partial<Extract<Mark, { mark: "bar" }>> = {}) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["Japan", "Italy", "Spain"].slice(0, x[0]?.length ?? 0),
+          ...more,
+          series: x.map((v, i) => ({ name: ["Female", "Male"][i] ?? "", x: v })),
+        },
+      ],
+    });
+
+  it("gives the value once when every row holds it, a series or the totals", () => {
+    expect(generatedSummary(bars([[40, 40, 40]]), words)).toBe("3 categories. 40 each.");
+    expect(generatedSummary(bars([[40, null, 40]]), words)).toBe("3 categories. 40 each.");
+    expect(
+      generatedSummary(
+        model({
+          x: { format: "percent" },
+          marks: [
+            {
+              mark: "bar",
+              y: ["Item 1", "Item 2"],
+              arrange: "diverge",
+              left: 1,
+              series: [
+                { name: "Disagree", x: [0.25, 0.4] },
+                { name: "Agree", x: [0.75, 0.6] },
+              ],
+            },
+          ],
+        }),
+        words,
+      ),
+    ).toBe(
+      "2 categories, 2 series. Disagree: highest Item 2 40%, lowest Item 1 25%. " +
+        "Agree: highest Item 1 75%, lowest Item 2 60%. Total: 100% each.",
+    );
+  });
+
+  it("names the one row holding a value once", () => {
+    expect(generatedSummary(bars([[49.9]]), words)).toBe("1 category. Japan 49.9.");
+    expect(generatedSummary(bars([[null, 48.6, null]]), words)).toBe("3 categories. Italy 48.6.");
+    expect(generatedSummary(bars([[51.1], [48.4]], { arrange: "group" }), words)).toBe(
+      "1 category, 2 series. Female: Japan 51.1. Male: Japan 48.4.",
+    );
+  });
+
+  it("reads a point series, a time x's instants and a link's gaps alike once", () => {
+    const point = (x: ChartSpec["x"], a: number[], b: number[], link?: "range") =>
+      model({
+        x,
+        marks: [
+          {
+            mark: "point",
+            y: ["api", "web"],
+            ...(link === undefined ? {} : { link }),
+            series: [
+              { name: "Before", x: a },
+              { name: "After", x: b },
+            ],
+          },
+        ],
+      });
+    expect(generatedSummary(point({}, [5, 5], [7, 9]), words)).toBe(
+      "2 categories, 2 series. Before: 5 each. After: highest web 9, lowest api 7.",
+    );
+    expect(
+      generatedSummary(point({ type: "time" }, [START, START], [START, START + MIN]), words),
+    ).toBe(
+      `2 categories, 2 series. Before: ${time(START)} each. ` +
+        `After: earliest api ${time(START)}, latest web ${time(START + MIN)}.`,
+    );
+    expect(generatedSummary(point({}, [1, 3], [11, 13], "range"), words)).toBe(
+      "2 categories, 2 series. Before: highest web 3, lowest api 1. " +
+        "After: highest web 13, lowest api 11. Gap: 10 each.",
+    );
+  });
+
+  it("takes the app's words", () => {
+    const own = chartWords({
+      alike: (name, value) => `${name === "" ? "Alle" : name} je ${value}.`,
+      only: (name, row) => `${name === "" ? "Nur" : name} ${row}.`,
+    });
+    expect(generatedSummary(bars([[40, 40, 40]]), own)).toBe("3 categories. Alle je 40.");
+    expect(generatedSummary(bars([[49.9]]), own)).toBe("1 category. Nur Japan 49.9.");
+  });
+});
+
+describe("the summary of a range or arrow plot", () => {
+  const pay = (link: "range" | "arrow"): ChartSpec => ({
+    x: {},
+    y: { unit: { one: "degree", other: "degrees" } },
+    marks: [
+      {
+        mark: "point",
+        y: ["Doctorate", "Master's", "Less than 9th grade", "None"],
+        link,
+        series: [
+          { name: "Women", x: [128_700, 91_000, 29_100, null] },
+          { name: "Men", x: [163_500, 144_310, 43_350, 20_000] },
+        ],
+      },
+    ],
+  });
+
+  it("names the highest and lowest gap after each series, leaving a row with a gap out", () => {
+    expect(generatedSummary(model(pay("range")), words)).toBe(
+      `4${nb}degrees, 2 series. Women: highest Doctorate 128,700, lowest Less than 9th grade 29,100. Men: highest Doctorate 163,500, lowest None 20,000. Gap: highest Master's 53,310, lowest Less than 9th grade 14,250.`,
+    );
+    expect(shortDescription(model(pay("range")), words)).toBe(
+      `Range plot, 2 series, 4${nb}degrees`,
+    );
+  });
+
+  it("names the largest and smallest change with their signs", () => {
+    const fell = model({
+      x: {},
+      marks: [
+        {
+          mark: "point",
+          y: ["Norway", "Chad"],
+          link: "arrow",
+          series: [
+            { name: "2013", x: [5.8, 3] },
+            { name: "2023", x: [93, 1.5] },
+          ],
+        },
+      ],
+    });
+    expect(generatedSummary(fell, words)).toBe(
+      "2 categories, 2 series. 2013: highest Norway 5.8, lowest Chad 3. 2023: highest Norway 93, lowest Chad 1.5. Change: highest Norway +87.2, lowest Chad -1.5.",
+    );
+    expect(shortDescription(fell, words)).toBe("Arrow plot, 2 series, 2 categories");
+  });
+
+  it("takes the app's nouns", () => {
+    const own = chartWords({ gap: "Écart", kind: { rangePlot: "Intervalle" } });
+    expect(generatedSummary(model(pay("range")), own)).toContain("Écart: highest Master's");
+    expect(shortDescription(model(pay("range")), own)).toBe(`Intervalle, 2 series, 4${nb}degrees`);
   });
 });

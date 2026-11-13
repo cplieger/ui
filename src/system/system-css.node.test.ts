@@ -263,30 +263,31 @@ function harmonyBlock(): string {
 }
 
 // Series slots: nine categorical colours turned from the accent as the
-// harmony partners are, slots 2 and 3 being harmony 2 and 3's hues. Odd slots
-// sit on a bright level and even slots on a deep one, so neighbours differ in
-// lightness, which every colour-vision deficiency keeps; both levels hold 3:1
-// on every surface of their theme. In the light theme a deep slot with a warm
-// hue rises, so a red or an orange reads brick, not maroon; cool deep slots
-// stay down, which keeps a red slot apart from a green neighbour for
-// protanopes and deuteranopes. Chroma is the partners' fifth more than
-// the accent's, kept between min and max so a muted accent still gives slots
-// apart, under a gamut cap fitted per level. The tests below check the fits.
+// harmony partners are, slots 2 and 3 being harmony 2 and 3's hues. One rule
+// for every hue. Odd slots are bright and even slots deep, a fixed step
+// apart, so neighbours differ in lightness, which every colour-vision
+// deficiency keeps. In the light theme a bright slot sits as light as 3:1 on
+// every surface allows at its hue, so every slot meets the page at the same
+// contrast; the curve is that ceiling, the least over the chromas a slot can
+// take, fitted by two harmonics and kept under it. The dark theme's two
+// levels hold 3:1 at every hue as they are. Chroma is the accent's times k,
+// kept between min and max so a muted accent still gives slots apart, under a
+// gamut cap fitted per level. The tests below check the fits.
 const SERIES = {
   turns: [0, 150, 210, 30, 60, 90, 120, 240, 270],
-  level: { light: { bright: 0.61, deep: 0.42 }, dark: { bright: 0.8, deep: 0.6 } },
-  // the light deep level's rise: lift * max(0, cos(h - centre))^power
-  warm: { lift: 0.08, centre: 45, power: 4 },
-  chroma: { min: 0.11, max: 0.16 },
+  // light bright: a + r1 * cos(h - p1) + r2 * cos(2 * (h - p2)); deep is step below
+  light: { a: 0.6276, r1: 0.019, p1: -7, r2: 0.0023, p2: 80, step: 0.18 },
+  dark: { bright: 0.8, deep: 0.6 },
+  chroma: { k: 1.3, min: 0.13, max: 0.2 },
   // a - b1 * max(0, cos(h - c1))^p1 - b2 * max(0, cos(h - c2))^p2
   cap: {
     light: {
-      bright: [0.189, 0.049, 88, 3, 0.077, 199, 2],
-      deep: [0.157, 0.034, 90, 5, 0.066, 199, 2],
+      bright: [0.18, 0.038, 91, 5, 0.073, 199, 3],
+      deep: [0.154, 0.034, 91, 7, 0.07, 199, 3],
     },
     dark: {
-      bright: [0.142, 0.042, 267, 4, 0.024, 27, 4],
-      deep: [0.188, 0.049, 89, 3, 0.078, 200, 2],
+      bright: [0.169, 0.07, 255, 1, 0.059, 24, 4],
+      deep: [0.169, 0.034, 89, 7, 0.06, 199, 3],
     },
   },
 } as const;
@@ -296,12 +297,13 @@ type SeriesCap = readonly [number, number, number, number, number, number, numbe
 
 const levelOf = (slot: number): Level => (slot % 2 === 1 ? "bright" : "deep");
 
-const rises = (theme: Theme, level: Level) => theme === "light" && level === "deep";
-
 function lightnessOf(theme: Theme, level: Level, h: number): number {
-  const { lift, centre, power } = SERIES.warm;
-  const base = SERIES.level[theme][level];
-  return rises(theme, level) ? base + lift * Math.max(0, cos(h - centre)) ** power : base;
+  if (theme === "dark") {
+    return SERIES.dark[level];
+  }
+  const { a, r1, p1, r2, p2, step } = SERIES.light;
+  const bright = a + r1 * cos(h - p1) + r2 * cos(2 * (h - p2));
+  return level === "bright" ? bright : bright - step;
 }
 
 /** The series slots as OKLCH triples, slot 1 first, the reference the CSS computes. */
@@ -312,10 +314,13 @@ function series(hue: number, chroma: number, theme: Theme): Colour[] {
     const h = i === 0 ? hue : turned(hue, turn);
     const [a, b1, c1, p1, b2, c2, p2]: SeriesCap = SERIES.cap[theme][level];
     const cap = a - b1 * Math.max(0, cos(h - c1)) ** p1 - b2 * Math.max(0, cos(h - c2)) ** p2;
-    const want = Math.min(Math.max(chroma * HARMONY.chroma, SERIES.chroma.min), SERIES.chroma.max);
+    const want = Math.min(Math.max(chroma * SERIES.chroma.k, SERIES.chroma.min), SERIES.chroma.max);
     return [lightnessOf(theme, level, h), Math.min(want, cap), h];
   });
 }
+
+// An angle offset as CSS: `- 7` or `+ 7`, never `- -7`.
+const offset = (deg: number) => (deg < 0 ? `+ ${String(-deg)}` : `- ${String(deg)}`);
 
 function seriesCss(theme: Theme, slot: number): string {
   const level = levelOf(slot);
@@ -324,12 +329,15 @@ function seriesCss(theme: Theme, slot: number): string {
   const trough = (b: number, centre: number, power: number) =>
     `${num(b)} * pow(max(0, cos((${h} - ${String(centre)}) * 1deg)), ${String(power)})`;
   const cap = `calc(${num(a)} - ${trough(b1, c1, p1)} - ${trough(b2, c2, p2)})`;
-  const want = `clamp(${num(SERIES.chroma.min)}, calc(var(--cp-accent-c) * ${num(HARMONY.chroma)}), ${num(SERIES.chroma.max)})`;
-  const { lift, centre, power } = SERIES.warm;
-  const base = pct(SERIES.level[theme][level]);
-  const l = rises(theme, level)
-    ? `calc(${base} + ${pct(lift)} * pow(max(0, cos((${h} - ${String(centre)}) * 1deg)), ${String(power)}))`
-    : base;
+  const want = `clamp(${num(SERIES.chroma.min)}, calc(var(--cp-accent-c) * ${num(SERIES.chroma.k)}), ${num(SERIES.chroma.max)})`;
+  let l: string;
+  if (theme === "dark") {
+    l = pct(SERIES.dark[level]);
+  } else {
+    const { a: la, r1, p1: q1, r2, p2: q2, step } = SERIES.light;
+    const base = level === "bright" ? la : la - step;
+    l = `calc(${num(base)} + ${num(r1)} * cos((${h} ${offset(q1)}) * 1deg) + ${num(r2)} * cos((2 * (${h} ${offset(q2)})) * 1deg))`;
+  }
   return `oklch(${l} min(${want}, ${cap}) ${h})`;
 }
 
@@ -645,6 +653,12 @@ async function built(): Promise<string> {
   return [await readFile(HEADER, "utf8"), ...parts].join("\n");
 }
 
+// The cp- class names in a module's source. A cp- word right before "-${"
+// is an id prefix, and --cp- and data-cp- are a property and an attribute.
+function cpClasses(source: string): string[] {
+  return source.match(/(?<![-\w$])cp-[a-z0-9]+(?:-[a-z0-9]+)*(?![-\w$])/g) ?? [];
+}
+
 describe("css/system.css", () => {
   it("carries the colour block the ladder writes", async () => {
     const current = await readFile(COLOUR, "utf8");
@@ -682,6 +696,46 @@ describe("css/system.css", () => {
     await walk(join(ROOT, "src"), "");
     expect(new Set(listed).size, "a file listed twice").toBe(listed.length);
     expect([...listed].sort()).toEqual(onDisk.sort());
+  });
+
+  // An app may allow only the classes this stylesheet draws, so a module that
+  // writes or looks up any other cp- class breaks that app. A hook a script
+  // finds an element by is a data-cp-* attribute.
+  it("draws every cp- class a module's source names", async () => {
+    const drawn = new Set(
+      (await readFile(CSS, "utf8")).match(/(?<=\.)cp-[a-z0-9]+(?:-[a-z0-9]+)*/g),
+    );
+    const missing: string[] = [];
+    const walk = async (dir: string): Promise<void> => {
+      for (const e of await readdir(dir, { withFileTypes: true })) {
+        const path = join(dir, e.name);
+        if (e.isDirectory()) {
+          if (e.name !== "test-helpers") {
+            await walk(path);
+          }
+        } else if (e.name.endsWith(".ts") && !e.name.endsWith(".test.ts")) {
+          for (const name of cpClasses(await readFile(path, "utf8"))) {
+            if (!drawn.has(name)) {
+              missing.push(`${path.slice(ROOT.length + 1)}: ${name}`);
+            }
+          }
+        }
+      }
+    };
+    await walk(join(ROOT, "src"));
+    expect(
+      missing,
+      "draw the class in its element's CSS, or make the hook a data-cp-* attribute",
+    ).toEqual([]);
+  });
+
+  it("counts a written or looked-up cp- class, and no id prefix, property or attribute", () => {
+    expect(cpClasses('d.className = "cp-dialog cp-detail-dialog"; q(".cp-live-regions");')).toEqual(
+      ["cp-dialog", "cp-detail-dialog", "cp-live-regions"],
+    );
+    expect(
+      cpClasses('t.id = `cp-ask-${n}`; s.setProperty("--cp-at", v); a["data-cp-state"];'),
+    ).toEqual([]);
   });
 
   it("documents the envelope the ladder gives", async () => {

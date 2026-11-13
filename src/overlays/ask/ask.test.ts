@@ -84,8 +84,7 @@ describe("ask", () => {
     const words = d.querySelector("p");
     expect(words?.textContent).toBe("Rewind the chat to this turn?");
     expect(d.getAttribute("aria-describedby")).toBe(words?.id);
-    expect(d.querySelector("dl")?.className).toBe("cp-facts");
-    expect([...d.querySelectorAll("dt, dd")].map((n) => n.textContent)).toEqual([
+    expect([...d.querySelectorAll("dl.cp-facts > :is(dt, dd)")].map((n) => n.textContent)).toEqual([
       "Turns removed",
       "4",
     ]);

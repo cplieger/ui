@@ -69,18 +69,14 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 ## Charts
 
-Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes is a [chart](data/chart.md):
+Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes is a [chart](data/chart.md), whose [Choosing a chart](data/chart.md#choosing-a-chart) says which form answers which question, from stacked columns per time bucket and bars by category to a timeline strip of who acts when. Outside it:
 
 - A number now is a `.cp-figure` from [Components](design-components.md), with a [sparkline](data/sparkline.md) for how it moved over the range.
 - A count that is almost always zero, such as failed checks, is a `.cp-figure`, since a chart of zeros says less than the number.
-- Counts per time bucket, and their mix, are stacked bars, a `rect` mark on a time x.
-- A gauge sampled over time, such as members live, is a step line, a `line` mark with `curve: "step"`.
-- Waits from seconds to days are a histogram on the duration ladder, a `rect` mark on a log x with `format: "duration"`. Its median and percentiles are `rule` marks.
-- Who acts when is a timeline strip, a `dot` mark with one row per actor, silent ones included. A run of merged dots means the actor acted at least about every dot's width of time along it.
 - Long names and exact numbers go in a table with [ranked bars](data/ranked-bars.md).
 - A share of one whole is a [share bar](data/share-bar.md). A state over time, such as a service's last checks, is a [state history](data/state-history.md) strip. A value against its ceiling is a [meter](data/meter.md).
 
-**Bars start at zero.** A bar's length is its value, so a bar chart's axis always includes 0, as [Datawrapper explains](https://www.datawrapper.de/docs/why-our-column-and-bar-charts-start-at-zero). Lines alone may start elsewhere.
+**Columns and bars start at zero.** A column's or a bar's length is its value, so a column or bar chart's value axis always includes 0, as [Datawrapper explains](https://www.datawrapper.de/docs/why-our-column-and-bar-charts-start-at-zero). An area's height is its value too, so its axis includes 0 as well. Lines and dot plots, which place a value rather than draw its length, may start elsewhere.
 
 **Five series at most in a stack.** Each 3px segment on a phone must stand apart from its neighbours and in the legend. Group the smallest into "Other". Give each series a slot of the [series colours](design-colour.md#series-colours), the same slot for the same category on every chart of a screen.
 
@@ -146,7 +142,7 @@ A dialog is the last answer, after inline editing and disclosure. When one is ne
 
 A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, body and footer. It opens at the inline end at full height, and across the whole window in the compact tier. The filter sheet is the standard one:
 
-1. Below 60rem, a Filters button in the page toolbar, with class `.cp-rail-toggle`, opens the rail's filters in a sheet. The stylesheet shows it only once the rail is gone. Its label carries the count of active filters, such as "Filters, 2", and while any filter is active, a "Clear filters" button sits beside it.
+1. Below 60rem, a Filters button in the page toolbar opens the rail's filters in a sheet. Its label carries the count of active filters, such as "Filters, 2", and while any filter is active, a "Clear filters" button sits beside it. Both carry `.cp-rail-toggle`, which marks a toolbar control that serves the rail once it is gone: the stylesheet shows them only below 60rem, where the rail is hidden.
 2. The head holds the title "Filters" and a Close button.
 3. A sheet with one group of filters whose results come back fast applies each change at once and writes the URL. Its foot holds "Clear all" and "Done", and Close and Escape keep the changes.
 4. A sheet with several groups, or whose results are slow, stages the changes. Its foot holds "Clear all" and "Show 41 results", which applies them as one URL entry and closes the sheet. Close and Escape discard what was staged.

@@ -6,7 +6,7 @@
 
 import type { Format } from "../scale/format.js";
 
-import type { ChartSpec, RectMark } from "./spec.js";
+import type { BarMark, ChartSpec, PointMark, RectMark } from "./spec.js";
 
 /** A log x's one rect whose `x1` is 0 or below. */
 interface Underflow {
@@ -30,6 +30,9 @@ export interface Continuous {
   readonly integer: boolean;
   readonly format: Format | undefined;
   readonly reverse: boolean;
+  /** Its ticks write their distance from 0, as on a diverging bar chart,
+   *  whose left bars hold values of 0 or more. */
+  readonly absolute: boolean;
   readonly under: Underflow | undefined;
   /** Where the drawing starts: `lo`, or an underflow bin's `from` below it. */
   readonly drawnLo: number;
@@ -136,38 +139,161 @@ function underflow(spec: ChartSpec, lo: number): Underflow | undefined {
   return found;
 }
 
-/** The x scale of `spec`: linear unless it says another continuous type.
- *  Throws for a band x and for a domain or underflow bin that breaks a rule. */
+// A bar row's stack reaches from the sum of its negative values to the sum
+// of its positive ones, through 0; a diverging row from its left series'
+// sum and half its centre series to the rest; grouped, split and mirrored
+// bars each reach their own value.
+function addBars(extent: Extent, m: BarMark): void {
+  const apart = m.arrange === "group" || m.arrange === "split" || m.arrange === "mirror";
+  const left = m.arrange === "diverge" ? (m.left ?? 0) : -1;
+  const centre = m.centre === true ? left : -1;
+  for (let i = 0; i < m.y.length; i++) {
+    let lo = 0;
+    let hi = 0;
+    for (const [k, s] of m.series.entries()) {
+      const v = s.x[i];
+      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
+        throw new RangeError("renderChart: a bar's x cannot be infinite");
+      }
+      if (m.arrange === "share" && finite(v) && v < 0) {
+        throw new RangeError("renderChart: a 100% stack's x cannot be negative");
+      }
+      // Each panel's bars start at its left edge, with no room left of 0.
+      if (m.arrange === "split" && finite(v) && v < 0) {
+        throw new RangeError("renderChart: a split bar's x cannot be negative");
+      }
+      // Each side's bars start at the spine, with no room past it.
+      if (m.arrange === "mirror" && finite(v) && v < 0) {
+        throw new RangeError("renderChart: a mirrored bar's x cannot be negative");
+      }
+      // A diverging bar's side comes from its place in the order, never its sign.
+      if (left !== -1 && finite(v) && v < 0) {
+        throw new RangeError("renderChart: a diverging bar's x cannot be negative");
+      }
+      if (finite(v)) {
+        extent.count(v);
+        if (apart) {
+          extent.add(v);
+        } else if (k === centre) {
+          lo -= v / 2;
+          hi += v / 2;
+        } else if (k < left || v < 0) {
+          lo -= Math.abs(v);
+        } else {
+          hi += v;
+        }
+      }
+    }
+    extent.add(lo);
+    extent.add(hi);
+  }
+}
+
+// A point's dot is placed by its value, so a log x has no place for 0 or below.
+function addPoints(extent: Extent, m: PointMark, log: boolean): void {
+  for (const s of m.series) {
+    for (const v of Array.from(s.x)) {
+      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
+        throw new RangeError("renderChart: a point's x cannot be infinite");
+      }
+      if (finite(v)) {
+        if (log && v <= 0) {
+          throw new RangeError("renderChart: a point's x must be above 0 on a log x");
+        }
+        extent.count(v);
+        extent.add(v);
+      }
+    }
+  }
+}
+
+/** The x scale of `spec`: linear unless it says another continuous type,
+ *  under a bar mark linear from 0, and under a point mark holding 0 only
+ *  with `zero: true`. Throws for a band x and for a type, domain, zero or
+ *  underflow bin that breaks a rule. */
 export function xScale(spec: ChartSpec): Continuous {
   const type = spec.x.type ?? "linear";
   if (type === "band") {
-    throw new TypeError("renderChart: x cannot be a band scale; dot rows lie along y");
+    throw new TypeError("renderChart: x cannot be a band scale; rows lie along y");
+  }
+  const bars = spec.marks.some((m) => m.mark === "bar");
+  const share = spec.marks.some((m) => m.mark === "bar" && m.arrange === "share");
+  if (share && spec.x.domain !== undefined) {
+    throw new TypeError("renderChart: a 100% stack's x runs 0 to 1, so it takes no domain");
+  }
+  if (bars && type !== "linear") {
+    throw new TypeError("renderChart: a bar's x is linear, so its length is its value");
+  }
+  if (bars && spec.x.zero === false) {
+    throw new TypeError("renderChart: a bar's x always starts at zero");
+  }
+  const points = spec.marks.some((m) => m.mark === "point");
+  if (points && spec.x.zero !== undefined && type !== "linear") {
+    throw new TypeError(`renderChart: a ${type} x has no zero to hold`);
   }
   const log = type === "log";
   const extent = new Extent(log);
+  if (bars || (points && spec.x.zero === true)) {
+    extent.add(0);
+  }
   for (const m of spec.marks) {
     if (m.mark === "rect") {
       extent.addAll(m.x1);
       extent.addAll(m.x2);
-    } else if (m.mark === "line") {
+    } else if (m.mark === "line" || m.mark === "area") {
       extent.addAll(m.x);
     } else if (m.mark === "dot") {
       for (const row of m.rows) {
         extent.addAll(row.x);
       }
+    } else if (m.mark === "bar") {
+      addBars(extent, m);
+    } else if (m.mark === "point") {
+      addPoints(extent, m, log);
     }
   }
   const integer = extent.integer;
+  // A split's panels and a mirror's or diverging chart's sides start at 0,
+  // so a rule there reads as a distance from it, drawn on both sides of a
+  // diverging axis.
+  const from0 = spec.marks
+    .map((m) => (m.mark === "bar" ? m.arrange : undefined))
+    .find((a) => a === "split" || a === "mirror" || a === "diverge");
   // On a log scale a rule never moves the extent, so a sub-second median
   // opens no empty strip left of the underflow bin.
   if (!log) {
     for (const m of spec.marks) {
       if (m.mark === "rule" && finite(m.x)) {
+        if (from0 !== undefined && m.x < 0) {
+          throw new RangeError(`renderChart: a rule under arrange "${from0}" cannot be below 0`);
+        }
         extent.add(m.x);
+        if (from0 === "diverge") {
+          extent.add(-m.x);
+        }
       }
     }
   }
+  if (share) {
+    // Every row drawn reaches 1, so the axis is fixed as a passed domain is:
+    // a rule outside it is off the axis.
+    return {
+      type,
+      lo: 0,
+      hi: 1,
+      passed: true,
+      integer: false,
+      format: spec.x.format ?? "percent",
+      reverse: spec.x.reverse === true,
+      absolute: false,
+      under: undefined,
+      drawnLo: 0,
+    };
+  }
   const passed = passedDomain(spec.x.domain, "x", log);
+  if (bars && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
+    throw new RangeError("renderChart: a bar's x domain must hold 0");
+  }
   let lo: number;
   let hi: number;
   if (passed !== undefined) {
@@ -189,6 +315,7 @@ export function xScale(spec: ChartSpec): Continuous {
     integer,
     format: spec.x.format,
     reverse: spec.x.reverse === true,
+    absolute: spec.marks.some((m) => m.mark === "bar" && m.arrange === "diverge"),
     under,
     drawnLo: under?.drawn === "below" ? under.from : lo,
   };
@@ -211,15 +338,19 @@ export function ruleAt(
   return { off: value < lo ? "low" : "high" };
 }
 
-function yValue(v: number | null | undefined, rect: boolean): number | null {
+// `filled` names a mark whose length or height from 0 is its value, which
+// has no place for a value below 0.
+function yValue(v: number | null | undefined, filled?: "rect" | "area"): number | null {
   if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
     throw new RangeError("renderChart: a y value cannot be infinite");
   }
   if (!finite(v)) {
     return null;
   }
-  if (rect && v < 0) {
-    throw new RangeError("renderChart: a rect's y cannot be negative");
+  if (filled !== undefined && v < 0) {
+    throw new RangeError(
+      `renderChart: ${filled === "rect" ? "a rect" : "an area"}'s y cannot be negative`,
+    );
   }
   return v;
 }
@@ -228,22 +359,48 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
   const extent = new Extent(log);
   for (const m of spec.marks) {
     if (m.mark === "rect") {
-      // Segments are never negative, so a stack's total is its highest value.
+      // Segments are never negative, so a stack's total is its highest value;
+      // a group's sub-columns stand on the baseline, each its own height.
+      const group = m.arrange === "group";
       for (let i = 0; i < m.x1.length; i++) {
         let total = 0;
         for (const s of m.series) {
-          const v = yValue(s.y[i], true);
+          const v = yValue(s.y[i], "rect");
           if (v !== null) {
+            extent.count(v);
+            total += v;
+            if (group) {
+              extent.add(v);
+            }
+          }
+        }
+        if (!group) {
+          extent.add(total);
+        }
+      }
+    } else if (m.mark === "area") {
+      // A layer stands on those before it, so the stack's top is its total;
+      // a sample where any series is a gap draws no stack.
+      for (let i = 0; i < m.x.length; i++) {
+        let total = 0;
+        let gap = false;
+        for (const s of m.series) {
+          const v = yValue(s.y[i], "area");
+          if (v === null) {
+            gap = true;
+          } else {
             extent.count(v);
             total += v;
           }
         }
-        extent.add(total);
+        if (!gap) {
+          extent.add(total);
+        }
       }
     } else if (m.mark === "line") {
       for (const s of m.series) {
         for (const value of Array.from(s.y)) {
-          const v = yValue(value, false);
+          const v = yValue(value);
           if (v !== null) {
             extent.count(v);
             extent.add(v);
@@ -255,15 +412,16 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
   return extent;
 }
 
-/** The y scale of `spec`: a band of the dot rows, else linear unless it
- *  says log. Throws for marks that want different y types and for a domain
- *  or zero a rect cannot take. */
+/** The y scale of `spec`: a band of the dot rows or the bar or point categories,
+ *  else linear unless it says log. Throws for a y type its mark cannot take
+ *  and for a domain or zero a rect or an area cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
   const y = spec.y ?? {};
   const kinds = new Set(spec.marks.map((m) => m.mark));
-  if (kinds.has("dot")) {
-    if (kinds.has("rect") || kinds.has("line") || (y.type ?? "band") !== "band") {
-      throw new TypeError("renderChart: a dot mark's band y cannot hold rects or lines");
+  const banded = (["dot", "bar", "point"] as const).find((k) => kinds.has(k));
+  if (banded !== undefined) {
+    if ((y.type ?? "band") !== "band") {
+      throw new TypeError(`renderChart: a ${banded} mark's y is a band of its rows`);
     }
     if (spec.marks.some((m) => m.mark === "rule" && m.y !== undefined)) {
       throw new TypeError("renderChart: a rule on a band y has no value to sit at");
@@ -271,26 +429,57 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     if (y.domain !== undefined) {
       throw new TypeError("renderChart: a band scale takes no domain; its rows are its domain");
     }
-    const rows = spec.marks.flatMap((m) => (m.mark === "dot" ? m.rows.map((r) => r.name) : []));
+    const rows = spec.marks.flatMap((m) =>
+      m.mark === "dot"
+        ? m.rows.map((r) => r.name)
+        : m.mark === "bar" || m.mark === "point"
+          ? [...m.y]
+          : [],
+    );
     return { type: "band", rows, mono: y.mono === true };
   }
   const type = y.type ?? "linear";
   if (type === "band" || type === "time") {
-    throw new TypeError(`renderChart: y cannot be a ${type} scale without dot rows`);
+    throw new TypeError(`renderChart: y cannot be a ${type} scale without dot, bar or point rows`);
   }
   const rects = kinds.has("rect");
-  if (rects && type !== "linear") {
-    throw new TypeError("renderChart: a rect's y is linear, so a bar's length is its value");
+  const filled = rects ? "a rect's" : kinds.has("area") ? "an area's" : undefined;
+  if (filled !== undefined && type !== "linear") {
+    throw new TypeError(
+      `renderChart: ${filled} y is linear, so ${rects ? "a bar's length" : "its height"} is its value`,
+    );
   }
-  if (rects && y.zero === false) {
-    throw new TypeError("renderChart: a rect's y always starts at zero");
+  if (filled !== undefined && y.zero === false) {
+    throw new TypeError(`renderChart: ${filled} y always starts at zero`);
   }
   const log = type === "log";
+  const share = spec.marks.some(
+    (m) => (m.mark === "rect" || m.mark === "area") && m.arrange === "share",
+  );
+  if (share && y.domain !== undefined) {
+    throw new TypeError("renderChart: a 100% stack's y runs 0 to 1, so it takes no domain");
+  }
   const passed = passedDomain(y.domain, "y", log);
-  if (rects && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
-    throw new RangeError("renderChart: a rect's y domain must hold 0");
+  if (filled !== undefined && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
+    throw new RangeError(`renderChart: ${filled} y domain must hold 0`);
   }
   const extent = yExtent(spec, log);
+  if (share) {
+    // Every stack drawn reaches 1, so the axis is fixed as a passed domain
+    // is: a rule outside it is off the axis.
+    return {
+      type,
+      lo: 0,
+      hi: 1,
+      passed: true,
+      integer: false,
+      format: y.format ?? "percent",
+      reverse: false,
+      absolute: false,
+      under: undefined,
+      drawnLo: 0,
+    };
+  }
   const integer = extent.integer;
   if (!log) {
     for (const m of spec.marks) {
@@ -322,6 +511,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     integer,
     format: y.format,
     reverse: false,
+    absolute: false,
     under: undefined,
     drawnLo: lo,
   };

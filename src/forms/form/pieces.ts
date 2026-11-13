@@ -1,9 +1,8 @@
 /**
- * pieces.ts — fields whose value is more than their controls' values, such
- * as `./tokens`' chips or `./pairs`' rows. Each registers the box that holds
- * it, how to read and write its values, and the values a reset puts back,
- * so the unsaved-changes guard counts, discards and rebases it as it does a
- * native control.
+ * pieces.ts — fields whose value is more than their controls' values
+ * (`./tokens`' chips, `./pairs`' rows). Each registers its box, how to read
+ * and write its values and what a reset puts back, so the unsaved-changes
+ * guard counts, discards and rebases it as it does a native control.
  * @internal
  * @module
  */

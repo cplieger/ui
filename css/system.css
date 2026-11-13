@@ -905,12 +905,15 @@
   --cp-series-1-h: var(--cp-accent-h);
   --cp-series-1: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-1-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-1-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-1-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-1-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-1-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-1-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-1-h)
@@ -918,10 +921,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-1-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-1-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-1-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-1-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-1-h)
@@ -930,12 +933,15 @@
   --cp-series-2-h: var(--cp-harmony-2-h);
   --cp-series-2: light-dark(
     oklch(
-      calc(42% + 8% * pow(max(0, cos((var(--cp-series-2-h) - 45) * 1deg)), 4))
+      calc(
+          0.4476 + 0.019 * cos((var(--cp-series-2-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-2-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-2-h) - 90) * 1deg)), 5) - 0.066 *
-              pow(max(0, cos((var(--cp-series-2-h) - 199) * 1deg)), 2)
+            0.154 - 0.034 * pow(max(0, cos((var(--cp-series-2-h) - 91) * 1deg)), 7) - 0.07 *
+              pow(max(0, cos((var(--cp-series-2-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-2-h)
@@ -943,10 +949,10 @@
     oklch(
       60%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-2-h) - 89) * 1deg)), 3) - 0.078 *
-              pow(max(0, cos((var(--cp-series-2-h) - 200) * 1deg)), 2)
+            0.169 - 0.034 * pow(max(0, cos((var(--cp-series-2-h) - 89) * 1deg)), 7) - 0.06 *
+              pow(max(0, cos((var(--cp-series-2-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-2-h)
@@ -955,12 +961,15 @@
   --cp-series-3-h: var(--cp-harmony-3-h);
   --cp-series-3: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-3-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-3-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-3-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-3-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-3-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-3-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-3-h)
@@ -968,10 +977,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-3-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-3-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-3-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-3-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-3-h)
@@ -988,12 +997,15 @@
   );
   --cp-series-4: light-dark(
     oklch(
-      calc(42% + 8% * pow(max(0, cos((var(--cp-series-4-h) - 45) * 1deg)), 4))
+      calc(
+          0.4476 + 0.019 * cos((var(--cp-series-4-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-4-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-4-h) - 90) * 1deg)), 5) - 0.066 *
-              pow(max(0, cos((var(--cp-series-4-h) - 199) * 1deg)), 2)
+            0.154 - 0.034 * pow(max(0, cos((var(--cp-series-4-h) - 91) * 1deg)), 7) - 0.07 *
+              pow(max(0, cos((var(--cp-series-4-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-4-h)
@@ -1001,10 +1013,10 @@
     oklch(
       60%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-4-h) - 89) * 1deg)), 3) - 0.078 *
-              pow(max(0, cos((var(--cp-series-4-h) - 200) * 1deg)), 2)
+            0.169 - 0.034 * pow(max(0, cos((var(--cp-series-4-h) - 89) * 1deg)), 7) - 0.06 *
+              pow(max(0, cos((var(--cp-series-4-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-4-h)
@@ -1021,12 +1033,15 @@
   );
   --cp-series-5: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-5-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-5-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-5-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-5-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-5-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-5-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-5-h)
@@ -1034,10 +1049,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-5-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-5-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-5-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-5-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-5-h)
@@ -1054,12 +1069,15 @@
   );
   --cp-series-6: light-dark(
     oklch(
-      calc(42% + 8% * pow(max(0, cos((var(--cp-series-6-h) - 45) * 1deg)), 4))
+      calc(
+          0.4476 + 0.019 * cos((var(--cp-series-6-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-6-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-6-h) - 90) * 1deg)), 5) - 0.066 *
-              pow(max(0, cos((var(--cp-series-6-h) - 199) * 1deg)), 2)
+            0.154 - 0.034 * pow(max(0, cos((var(--cp-series-6-h) - 91) * 1deg)), 7) - 0.07 *
+              pow(max(0, cos((var(--cp-series-6-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-6-h)
@@ -1067,10 +1085,10 @@
     oklch(
       60%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-6-h) - 89) * 1deg)), 3) - 0.078 *
-              pow(max(0, cos((var(--cp-series-6-h) - 200) * 1deg)), 2)
+            0.169 - 0.034 * pow(max(0, cos((var(--cp-series-6-h) - 89) * 1deg)), 7) - 0.06 *
+              pow(max(0, cos((var(--cp-series-6-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-6-h)
@@ -1087,12 +1105,15 @@
   );
   --cp-series-7: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-7-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-7-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-7-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-7-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-7-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-7-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-7-h)
@@ -1100,10 +1121,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-7-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-7-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-7-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-7-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-7-h)
@@ -1120,12 +1141,15 @@
   );
   --cp-series-8: light-dark(
     oklch(
-      calc(42% + 8% * pow(max(0, cos((var(--cp-series-8-h) - 45) * 1deg)), 4))
+      calc(
+          0.4476 + 0.019 * cos((var(--cp-series-8-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-8-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-8-h) - 90) * 1deg)), 5) - 0.066 *
-              pow(max(0, cos((var(--cp-series-8-h) - 199) * 1deg)), 2)
+            0.154 - 0.034 * pow(max(0, cos((var(--cp-series-8-h) - 91) * 1deg)), 7) - 0.07 *
+              pow(max(0, cos((var(--cp-series-8-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-8-h)
@@ -1133,10 +1157,10 @@
     oklch(
       60%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-8-h) - 89) * 1deg)), 3) - 0.078 *
-              pow(max(0, cos((var(--cp-series-8-h) - 200) * 1deg)), 2)
+            0.169 - 0.034 * pow(max(0, cos((var(--cp-series-8-h) - 89) * 1deg)), 7) - 0.06 *
+              pow(max(0, cos((var(--cp-series-8-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-8-h)
@@ -1153,12 +1177,15 @@
   );
   --cp-series-9: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-9-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-9-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-9-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-9-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-9-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-9-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-9-h)
@@ -1166,10 +1193,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-9-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-9-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-9-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-9-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-9-h)
@@ -1523,6 +1550,7 @@
   font-synthesis-weight: none;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-wrap: break-word;
   accent-color: var(--cp-accent);
   caret-color: var(--cp-accent-ink);
   scrollbar-color: var(--cp-border-strong) transparent;
@@ -2326,6 +2354,11 @@
   white-space: nowrap;
 }
 
+/* As a link home, the wordmark is a control and takes the hit area. */
+a.cp-wordmark {
+  min-block-size: var(--cp-hit-min);
+}
+
 .cp-mark {
   display: grid;
   place-items: center;
@@ -2691,8 +2724,10 @@
   font: inherit;
   font-weight: var(--cp-weight-medium);
   font-size: var(--cp-text-ui);
-  line-height: 1;
-  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap-style: balance;
+  max-inline-size: 100%;
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
@@ -5347,8 +5382,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   block-size: 100%;
 }
 
-/* The table view's rules, as a sentence under the table. */
-.cp-chart > [data-part="table"] > [data-part="rules"] {
+/* The table view's rules and notes, as sentences under the table. */
+.cp-chart > [data-part="table"] > [data-part="after"] {
   margin: 0;
   padding: var(--cp-space-2) var(--cp-space-3) var(--cp-space-3);
   font-size: var(--cp-text-sm);
@@ -5389,16 +5424,47 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-width: 1px;
 }
 
-.cp-chart svg [data-part="rect"] path {
+.cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
+.cp-chart svg [data-part="bar"] path {
   fill: var(--cp-tone-9);
 }
 
+/* A selected bar row's name shows by weight as well as colour. */
+.cp-chart svg [data-part="y"] text[data-selected] {
+  fill: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+}
+
 /* Each dot is a zero-length segment its round cap draws as a circle. */
-.cp-chart svg [data-part="dot"] path {
+.cp-chart svg [data-part="dot"] path,
+.cp-chart svg [data-part="point"] path {
   fill: none;
   stroke: var(--cp-tone-9);
   stroke-width: 6px;
   stroke-linecap: round;
+}
+
+/* A point is a value the reader compares, so its dot is larger. */
+.cp-chart svg [data-part="point"] path {
+  stroke-width: 10px;
+}
+
+/* A range's bold link and an arrow, its head showing the direction in any
+ * colour, under the dots. */
+.cp-chart svg [data-part="link"] {
+  fill: none;
+  stroke: var(--cp-border-strong);
+  stroke-width: 4px;
+}
+
+.cp-chart svg [data-part="arrow"] {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 2px;
+}
+
+.cp-chart svg [data-part="arrowhead"] {
+  fill: var(--cp-ink-muted);
 }
 
 .cp-chart svg [data-part="line"] > path {
@@ -5431,6 +5497,33 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {
   fill: var(--cp-ink);
+}
+
+/* A note's or a bar value's 3 px halo of the plot's surface keeps it
+ * legible over bars, gridlines and rules; the stroke paints first, so it
+ * widens the glyphs by half. */
+.cp-chart svg :is([data-part="note"], [data-part="value"]) text {
+  fill: var(--cp-ink);
+  stroke: var(--cp-chart-surface);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
+.cp-chart svg [data-part="marker"] > path {
+  fill: var(--cp-ink);
+}
+
+.cp-chart svg [data-part="marker"] text {
+  fill: var(--cp-chart-surface);
+}
+
+/* The numbered markers' key, below the plot. */
+.cp-chart > [data-part="notes"] {
+  margin: 0;
+  padding-inline-start: 2.5ch;
+  font-size: var(--cp-text-xs);
+  color: var(--cp-ink);
 }
 
 /* Forced colours leave an inline SVG's illustration alone, so the plot keeps
@@ -5476,7 +5569,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* The trigger for the rail's filters, shown only once the rail leaves. */
+/* A toolbar control that serves the rail's filters, shown only once the
+ * rail leaves: the Filters button and its Clear filters companion. */
 .cp-rail-toggle {
   display: none;
 }
@@ -5999,6 +6093,7 @@ th[aria-sort="descending"] > .cp-sort::after {
  * would fight it. */
 .cp-feed {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-2);
   margin: 0;
   padding: 0;
@@ -6031,6 +6126,7 @@ th[aria-sort="descending"] > .cp-sort::after {
  * fill, keep their text on the same edge as everyone else's. */
 .cp-feed-entry {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-1);
   padding: var(--cp-space-3) var(--cp-space-4);
   border-radius: var(--cp-radius-surface);
@@ -6225,6 +6321,13 @@ th[aria-sort="descending"] > .cp-sort::after {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-medium);
+  text-wrap-style: balance;
+  max-inline-size: 100%;
+}
+
+/* In a table a chip keeps one line: a table wider than its panel scrolls
+ * inside it, so the column keeps the chip's whole width. */
+.cp-table .cp-chip {
   white-space: nowrap;
 }
 
@@ -6663,6 +6766,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
   min-inline-size: 0;
@@ -6678,6 +6782,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
 }
@@ -6784,6 +6889,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-context-panel > section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-2);
   padding: 0 var(--cp-space-3) var(--cp-space-3);
@@ -8235,10 +8341,16 @@ a.cp-media:focus-visible > .cp-cover {
 /* Empty state: what belongs here and the one action that fills it. */
 .cp-empty {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: var(--cp-space-3);
   padding: var(--cp-space-8) var(--cp-space-6);
   color: var(--cp-ink-muted);
+}
+
+/* Each part keeps its own width, held to the column so a long word wraps. */
+.cp-empty > * {
+  max-inline-size: 100%;
 }
 
 /* Its lead glyph, in the accent or the tone it names, such as danger for
@@ -8734,6 +8846,7 @@ a.cp-media:focus-visible > .cp-cover {
 .cp-dialog > form,
 .cp-dialog > .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   max-block-size: inherit;
 }
@@ -8766,6 +8879,7 @@ a.cp-media:focus-visible > .cp-cover {
 .cp-dialog-body,
 .cp-dialog .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-4);
   padding: var(--cp-space-1) var(--cp-space-5) var(--cp-space-5);
@@ -9072,6 +9186,7 @@ a.cp-media:focus-visible > .cp-cover {
 /* A panel of controls rather than a list of choices. */
 .cp-popover[data-variant="panel"] {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-3);
   inline-size: 18rem;
   padding: var(--cp-space-4);
@@ -9171,6 +9286,7 @@ a.cp-media:focus-visible > .cp-cover {
 
 .cp-status-panel > section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-1);
   padding: var(--cp-space-3) var(--cp-space-4);
   border-block-start: var(--cp-line-w) solid var(--cp-line);
@@ -10055,12 +10171,18 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
  * ink so it stands off the bar whatever its harmony colour. The ring is
  * its hover and its open state, so the button paints no fill. */
 .cp-button.cp-account {
-  padding: 0.1875rem;
+  inline-size: var(--cp-control-h);
+  block-size: var(--cp-control-h);
+  padding: 0.125rem;
   border-radius: 50%;
   background: transparent;
 }
 
-.cp-account > .cp-avatar {
+/* The avatar fills the button, so the button is as tall as the header's
+ * other controls on each pointer tier. */
+.cp-button.cp-account > .cp-avatar {
+  inline-size: 100%;
+  block-size: 100%;
   box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
   transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
 }
