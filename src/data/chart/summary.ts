@@ -14,6 +14,7 @@ import {
   type BarModel,
   type DotModel,
   type Model,
+  type PointModel,
   type RectModel,
   type SampleModel,
   type SeriesModel,
@@ -246,6 +247,35 @@ function barSummary(model: Model, m: BarModel, words: Words): string[] {
   return out;
 }
 
+// The rows and series head, then each series' highest and lowest row, or
+// on a time x its earliest and latest, since "highest" reads wrong of an
+// instant; one series on a linear or log x through `extremes`.
+function pointSummary(model: Model, m: PointModel, words: Words): string[] {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const several = m.series.length > 1;
+  const series = several
+    ? words.seriesCount(formatter("number", model.locale)(m.series.length))
+    : "";
+  const out = [words.countSummary(rowsText(model, words), series)];
+  const time = model.x.type === "time";
+  for (const s of m.series) {
+    const e = barExtremes(names, (i) => s.x[i] ?? null);
+    if (e === undefined) {
+      continue;
+    }
+    const place = (i: number) => `${names[i] ?? ""} ${model.xText(s.x[i] ?? 0)}`;
+    const [high, low] = [place(e.high), place(e.low)];
+    out.push(
+      time
+        ? words.spanSeries(s.name, low, high)
+        : several
+          ? words.barSeries(s.name, high, low)
+          : words.extremes(high, low),
+    );
+  }
+  return out;
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -284,7 +314,9 @@ export function generatedSummary(model: Model, words: Words): string {
           ? dotSummary(model, m, words)
           : m?.kind === "bar"
             ? barSummary(model, m, words)
-            : [];
+            : m?.kind === "point"
+              ? pointSummary(model, m, words)
+              : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
@@ -297,12 +329,13 @@ export function summaryOf(model: Model, words: Words): string {
 }
 
 /** The plot's name: its kind, its series count from two up, and its x
- *  domain, or on a bar chart its row count, since its x is a value. */
+ *  domain, or on a bar or point chart its row count, since its x is a value. */
 export function shortDescription(model: Model, words: Words): string {
   const m = primaryOf(model);
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
   const n = m === undefined || m.kind === "dot" ? 0 : m.series.length;
   const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
-  const range = m?.kind === "bar" ? rowsText(model, words) : domainText(model, words);
+  const range =
+    m?.kind === "bar" || m?.kind === "point" ? rowsText(model, words) : domainText(model, words);
   return words.shortDescription(kind, series, range);
 }

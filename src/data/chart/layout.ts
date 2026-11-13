@@ -1,8 +1,9 @@
 /**
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
- * plot, the x axis under it, the lines' and areas' end labels, a bar
- * chart's rows, panels and value labels, and the text marks' notes.
+ * plot, the x axis under it, the lines' and areas' end labels, a band
+ * chart's rows, a bar chart's panels and value labels, and the text marks'
+ * notes.
  * @module
  */
 
@@ -20,7 +21,7 @@ import {
   type RuleLabel,
   type Tick,
 } from "./axis.js";
-import { barBlock, barCentre, barReach, type Frame, type Panel } from "./geometry.js";
+import { barBlock, barCentre, barReach, POINT_RADIUS, type Frame, type Panel } from "./geometry.js";
 import { barsApart, sampleValue, type BarModel, type Model } from "./model.js";
 import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
@@ -73,7 +74,7 @@ export interface Layout {
   /** A continuous y's axis; absent on a band. */
   readonly yAxis: Axis | undefined;
   /** A band's rows, each name cut to its room, `y` the middle of its dot
-   *  row or its bars in the plot. */
+   *  row, its bars or its points in the plot. */
   readonly rows: readonly { readonly name: string; readonly y: number }[];
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
@@ -117,7 +118,7 @@ const PAD = 8;
 /** The x tick vectors' length, and the room under them. */
 const TICK = 4;
 /** Under this many rem a chart draws no end labels, its notes as numbered
- *  markers, and a bar's name on its own line above it. */
+ *  markers, and a bar row's or a point row's name on its own line above it. */
 const NARROW_REM = 30;
 /** A row's bars take its height less this, half above them and half below. */
 const BAR_SPACE = 8;
@@ -132,6 +133,10 @@ const VALUE_GAP = 4;
 const PANEL_GAP = 16;
 /** The spine between a mirrored bar chart's two sides. */
 const SPINE = 8;
+/** A point chart's x runs this far inside each end of the plot: the
+ *  selection ring's reach, 1 px off a dot with its 2 px stroke, so a dot at
+ *  the domain's end draws whole, ring and all, inside the plot's clip. */
+const POINT_INSET = POINT_RADIUS + 2;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
@@ -277,8 +282,11 @@ function panelsOf(
 
 // A tick of an axis drawn rightward from 0, placed in panel `p`, its
 // label's box with it.
-function inPanel(t: Tick, p: Panel): Tick {
-  const at = (v: number) => (p.leftward ? p.right - v : p.left + v);
+const inPanel = (t: Tick, p: Panel): Tick =>
+  moved(t, (v) => (p.leftward ? p.right - v : p.left + v));
+
+// A tick and its label's box moved along the axis by `at`.
+function moved(t: Tick, at: (v: number) => number): Tick {
   const label = t.label;
   if (label === undefined) {
     return { ...t, at: at(t.at) };
@@ -318,17 +326,26 @@ export function layout(
   const mono = band?.mono === true;
   const narrow = chart < NARROW_REM * metrics.rem;
   const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
+  const points = model.marks.some((m) => m.kind === "point");
   const mirror = bars?.arrange === "mirror";
-  // Under 30rem a name above its bar leaves the plot the chart's whole width;
-  // a mirror's short names stay in the gutter, keeping its rows short.
-  const above = bars !== undefined && narrow && !mirror;
+  // Under 30rem a name above its bar or its dots leaves the plot the chart's
+  // whole width; a mirror's short names stay in the gutter, keeping its rows
+  // short.
+  const above = narrow && ((bars !== undefined && !mirror) || points);
   // Under 30rem a split's panels would be too thin for their bars, so they
   // fold into one, each row's bars one under another as a group's.
   const panelled = (bars?.arrange === "split" && !narrow) || mirror;
   const thick =
     bars === undefined ? 0 : Math.max(1, metrics.row - (mirror ? MIRROR_SPACE : BAR_SPACE));
-  const block = bars === undefined ? 0 : panelled ? thick : barBlock(bars, thick);
-  const barRow = block > thick ? block + BAR_SPACE : metrics.row;
+  const block =
+    bars !== undefined ? (panelled ? thick : barBlock(bars, thick)) : points ? 2 * POINT_RADIUS : 0;
+  // Under its name a point row is its dots and a bar's room.
+  const barRow =
+    points && above
+      ? block + BAR_SPACE
+      : !points && block > thick
+        ? block + BAR_SPACE
+        : metrics.row;
   const rowH = above ? metrics.nameLine + NAME_GAP + barRow : barRow;
   const height =
     band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * rowH;
@@ -387,6 +404,7 @@ export function layout(
   const gap = mirror ? SPINE : PANEL_GAP;
   const panelW = Math.max(1, (plotW - (count - 1) * gap) / count);
   const flip = reverse && !panelled;
+  const inset = points ? POINT_INSET : 0;
   if (panelled) {
     roomRight = Math.max(roomLeft, roomRight);
     roomLeft = 0;
@@ -400,12 +418,22 @@ export function layout(
           : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
         ticks: [],
       }
-    : xAxis(flip === reverse ? model.x : { ...model.x, reverse: flip }, panelW, ctx);
+    : xAxis(
+        flip === reverse ? model.x : { ...model.x, reverse: flip },
+        Math.max(1, panelW - 2 * inset),
+        ctx,
+      );
   const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
   // A rule's place reads the first panel's axis.
   const xAx: Axis =
     panels[0] === undefined
-      ? one
+      ? inset === 0
+        ? one
+        : {
+            ...one,
+            at: (v) => inset + one.at(v),
+            ticks: one.ticks.map((t) => moved(t, (v) => inset + v)),
+          }
       : {
           ...one,
           at: panels[0].at,

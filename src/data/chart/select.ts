@@ -10,13 +10,15 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 import { dotGroups, snap, type DotGroup, type Frame } from "./geometry.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
-import type { BarModel, DotModel, Model, RectModel, SampleModel } from "./model.js";
+import type { DotModel, Model, RectModel, SampleModel } from "./model.js";
 import { barsApart } from "./model.js";
 import {
   barPart,
   barReading,
   bucketReading,
   partText,
+  pointPart,
+  pointReading,
   postReading,
   primaryOf,
   rowReading,
@@ -29,8 +31,8 @@ import type { Words } from "./words.js";
 
 /**
  * A bucket or a sample, with one series (`part`) when Up or Down chose it;
- * the posts `[from, to)` of a dot row; a dot row as a whole; or a bar row,
- * with one series (`part`) when Left or Right chose it.
+ * the posts `[from, to)` of a dot row; a dot row as a whole; or a bar or
+ * point row, with one series (`part`) when Left or Right chose it.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
@@ -38,7 +40,7 @@ export type Selection =
   | { readonly kind: "area"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "dot"; readonly row: number; readonly from: number; readonly to: number }
   | { readonly kind: "row"; readonly row: number }
-  | { readonly kind: "bar"; readonly row: number; readonly part: number | undefined };
+  | { readonly kind: "bar" | "point"; readonly row: number; readonly part: number | undefined };
 
 export type Key =
   "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End" | "PageUp" | "PageDown";
@@ -77,7 +79,7 @@ const lineStops = (m: SampleModel): number[] =>
 
 /** The selection focus gives a chart that has none yet: the newest x, on
  *  a timeline the first row's last post, or that row when it is silent, or
- *  a bar chart's first row, whole. */
+ *  a bar or point chart's first row, whole. */
 export function initial(model: Model): Selection | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -102,7 +104,8 @@ export function initial(model: Model): Selection | undefined {
         : { kind: "row", row: 0 };
     }
     case "bar":
-      return bandRows(model) > 0 ? { kind: "bar", row: 0, part: undefined } : undefined;
+    case "point":
+      return bandRows(model) > 0 ? { kind: m.kind, row: 0, part: undefined } : undefined;
   }
 }
 
@@ -211,21 +214,20 @@ function stepPart(order: readonly number[], part: number | undefined, up: boolea
 }
 
 /**
- * Where `key` moves a bar row selection over `rows` rows: Up and Down, Home,
- * End and the Page keys through the rows, keeping the chosen part; Left and
- * Right through the row's parts in series order, from the whole row to its
- * first or last, the other way when `reverse` lays them right to left. One
- * series has no parts to choose.
+ * Where `key` moves a bar or point row selection over `rows` rows of `n`
+ * series: Up and Down, Home, End and the Page keys through the rows, keeping
+ * the chosen part; Left and Right through the row's parts in series order,
+ * from the whole row to its first or last, the other way when `reverse`
+ * lays them right to left. One series has no parts to choose.
  */
-function moveBar(
-  m: BarModel,
+function moveRow(
+  n: number,
   rows: number,
-  sel: Selection & { kind: "bar" },
+  sel: Selection & { kind: "bar" | "point" },
   key: Key,
   reverse: boolean,
 ): Selection | undefined {
   if (key === "ArrowLeft" || key === "ArrowRight") {
-    const n = m.series.length;
     if (n < 2) {
       return undefined;
     }
@@ -272,8 +274,8 @@ export interface Navigator {
   pick(px: number, py: number): Selection | undefined;
   /** The crosshair's px along x, absent for a row selection. */
   crosshair(sel: Selection): number | undefined;
-  /** A touch drag moves the selection; on a bar chart only a tap does,
-   *  since a vertical drag is the page's scroll. */
+  /** A touch drag moves the selection; on a bar or point chart only a tap
+   *  does, since a vertical drag is the page's scroll. */
   readonly drags: boolean;
 }
 
@@ -333,11 +335,14 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "dot") {
         return sel.kind === "dot" || sel.kind === "row" ? moveDot(m, sel, key, x) : undefined;
       }
-      if (m.kind === "bar") {
-        // Bars one under another keep series order on a reversed x; a
-        // stack's segments and the panels run with it.
-        const along = f.x.reverse && (!barsApart(m) || f.panels !== undefined);
-        return sel.kind === "bar" ? moveBar(m, bandRows(model), sel, key, along) : undefined;
+      if (m.kind === "bar" || m.kind === "point") {
+        // Bars one under another and a row's dots, which lie at their
+        // values, keep series order on a reversed x; a stack's segments and
+        // the panels run with it.
+        const along = f.x.reverse && m.kind === "bar" && (!barsApart(m) || f.panels !== undefined);
+        return sel.kind === m.kind
+          ? moveRow(m.series.length, bandRows(model), sel, key, along)
+          : undefined;
       }
       if (sel.kind !== m.kind) {
         return undefined;
@@ -399,15 +404,16 @@ export function navigator(model: Model, lay: Layout): Navigator {
                 : lo;
           return { kind: m.kind, i, part: undefined };
         }
-        case "bar": {
+        case "bar":
+        case "point": {
           // The row whose band holds the pointer, anywhere across the plot's
-          // width: on a phone a row's name sits above its bar, inside its band.
+          // width: on a phone a row's name sits above its bars, inside its band.
           const n = lay.rows.length;
           if (n === 0) {
             return undefined;
           }
           const r = Math.floor((py / f.height) * n);
-          return { kind: "bar", row: Math.min(Math.max(r, 0), n - 1), part: undefined };
+          return { kind: m.kind, row: Math.min(Math.max(r, 0), n - 1), part: undefined };
         }
         case "dot": {
           if (lay.rows.length === 0) {
@@ -434,7 +440,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
     },
     crosshair: (sel) => selectionPx(model, sel, f),
-    drags: m?.kind !== "bar",
+    drags: m?.kind !== "bar" && m?.kind !== "point",
   };
 }
 
@@ -462,12 +468,16 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
     return now.x[i] === v && i >= now.from && i < now.to ? { kind: sel.kind, i, part } : undefined;
   }
-  if (sel.kind === "bar" && was.kind === "bar" && now.kind === "bar") {
+  if (
+    (sel.kind === "bar" || sel.kind === "point") &&
+    was.kind === sel.kind &&
+    now.kind === sel.kind
+  ) {
     // Categories are unique, so a row is found by its name in any order.
     const name = before.y.type === "band" ? before.y.rows[sel.row] : undefined;
     const row = after.y.type === "band" && name !== undefined ? after.y.rows.indexOf(name) : -1;
     const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
-    return row === -1 ? undefined : { kind: "bar", row, part };
+    return row === -1 ? undefined : { kind: sel.kind, row, part };
   }
   if ((sel.kind === "dot" || sel.kind === "row") && was.kind === "dot" && now.kind === "dot") {
     const name = was.rows[sel.row]?.name;
@@ -514,6 +524,9 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   }
   if (sel.kind === "bar" && m?.kind === "bar") {
     return barReading(model, m, sel.row, words);
+  }
+  if (sel.kind === "point" && m?.kind === "point") {
+    return pointReading(model, m, sel.row, words);
   }
   return undefined;
 }
@@ -584,6 +597,11 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
       return words.segment(reading.at, s.name, barPart(model, m, s, sel.row, words));
+    }
+  } else if (sel.kind === "point" && m.kind === "point") {
+    const s = sel.part === undefined ? undefined : m.series[sel.part];
+    if (part && s !== undefined) {
+      return words.segment(reading.at, s.name, pointPart(model, s, sel.row, words));
     }
   } else if (
     (sel.kind === "rect" || sel.kind === "line" || sel.kind === "area") &&

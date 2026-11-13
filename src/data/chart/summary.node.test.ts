@@ -726,3 +726,70 @@ describe("the summary of a bar chart", () => {
     expect(generatedSummary(model(plain), own)).toBe("[4 rows] Holy See 57.4 > Monaco 49.8");
   });
 });
+
+describe("the summary of a dot plot", () => {
+  const degrees = { one: "degree", other: "degrees" };
+  const pay: ChartSpec = {
+    x: {},
+    y: { unit: degrees },
+    marks: [
+      {
+        mark: "point",
+        y: ["Doctorate", "Master's", "Less than 9th grade"],
+        series: [
+          { name: "Women", x: [128_700, 91_000, 29_100] },
+          { name: "Men", x: [163_500, null, 43_350] },
+          { name: "Other", x: [null, null, null] },
+        ],
+      },
+    ],
+  };
+
+  it("counts rows and series, then names each series' highest and lowest row", () => {
+    expect(generatedSummary(model(pay), words)).toBe(
+      `3${nb}degrees, 3 series. Women: highest Doctorate 128,700, lowest Less than 9th grade 29,100. Men: highest Doctorate 163,500, lowest Less than 9th grade 43,350.`,
+    );
+    expect(shortDescription(model(pay), words)).toBe(`Dot plot, 3 series, 3${nb}degrees`);
+  });
+
+  it("names one series' extremes, and a time x's earliest and latest", () => {
+    const one = model({
+      x: {},
+      marks: [
+        { mark: "point", y: ["Japan", "Monaco"], series: [{ name: "Age", x: [49.8, 54.5] }] },
+      ],
+    });
+    expect(generatedSummary(one, words)).toBe(
+      "2 categories. Highest Monaco 54.5, lowest Japan 49.8.",
+    );
+    expect(shortDescription(one, words)).toBe("Dot plot, 2 categories");
+    const releases = model({
+      x: { type: "time" },
+      marks: [
+        {
+          mark: "point",
+          y: ["api", "web"],
+          series: [{ name: "Release", x: [START + 90 * MIN, START] }],
+        },
+      ],
+    });
+    expect(generatedSummary(releases, words)).toBe(
+      `2 categories. Release: earliest web ${time(START)}, latest api ${time(START + 90 * MIN)}.`,
+    );
+  });
+
+  it("takes the app's words", () => {
+    const own = chartWords({
+      kind: { dotPlot: "Punktdiagramm" },
+      spanSeries: (name, first, last) => `${name}: ${first} bis ${last}.`,
+    });
+    const releases = model({
+      x: { type: "time" },
+      marks: [{ mark: "point", y: ["a"], series: [{ name: "R", x: [START] }] }],
+    });
+    expect(generatedSummary(releases, own)).toBe(
+      `1 categories. R: ${`a ${time(START)}`} bis a ${time(START)}.`,
+    );
+    expect(shortDescription(releases, own)).toBe("Punktdiagramm, 1 categories");
+  });
+});

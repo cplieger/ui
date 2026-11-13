@@ -17,6 +17,9 @@ import {
   hairline,
   linePath,
   num,
+  POINT_RADIUS,
+  pointAt,
+  pointPaths,
   rectPaths,
   rulePath,
   snap,
@@ -127,16 +130,22 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   });
   const grid: string[] = [];
   let zero = "";
-  // A bar's value axis is x, so its gridlines and zero line stand upright.
+  // A bar's and a point's value axis is x, so their gridlines and zero line
+  // stand upright; a point chart's zero is only a linear x's.
   const primary = primaryOf(model);
   const bars = primary?.kind === "bar";
-  if (bars) {
+  const points = primary?.kind === "point";
+  if (bars || points) {
     for (const t of lay.xAxis.ticks) {
-      if (t.value !== 0) {
+      if (t.value !== 0 || model.x.type !== "linear") {
         grid.push(upright(t.at, f.height, f.dpr));
       }
     }
-    if (lay.xAxis.lo <= 0 && lay.xAxis.hi >= 0) {
+    if (primary.kind === "point") {
+      if (model.x.type === "linear" && lay.xAxis.lo <= 0 && lay.xAxis.hi >= 0) {
+        zero = upright(f.xAt(0), f.height, f.dpr);
+      }
+    } else if (lay.xAxis.lo <= 0 && lay.xAxis.hi >= 0) {
       // A mirror's baselines stand in its spine, each just outside its side's bars.
       const spine = primary.arrange === "mirror";
       const ats = f.panels?.map((p) => p.at(0) - (spine && !p.leftward ? 1 : 0)) ?? [f.xAt(0)];
@@ -208,6 +217,18 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         area.append(g);
         break;
       }
+      case "point": {
+        const g = svgEl("g", { "data-part": "point" });
+        pointPaths(
+          m,
+          lay.rows.map((r) => r.y),
+          f,
+        ).forEach((d, k) => {
+          g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
+        });
+        area.append(g);
+        break;
+      }
       case "rule":
         if ("at" in m.place) {
           const at = m.axis === "x" ? f.xAt(m.place.at) : f.yAt(m.place.at);
@@ -275,8 +296,8 @@ const outset = (g: Segment): string =>
 
 /** The ring's path for `sel`: the bar or its segment, a group's sub-columns
  *  or the chosen one, each line's point or each layer's top or the chosen
- *  one, the drawn dot, a row's hairline, or a bar row's bar, its bars in
- *  each panel, or the chosen part. */
+ *  one, the drawn dot, a row's hairline, a bar row's bar, its bars in each
+ *  panel, or the chosen part, or a point row's dots or the chosen one. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -353,6 +374,15 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
     }));
     return outset(g);
   }
+  if (sel.kind === "point" && m?.kind === "point") {
+    const cy = snap(lay.rows[sel.row]?.y ?? 0, f.dpr) + 0.5;
+    return m.series
+      .map((_, k) =>
+        sel.part === undefined || sel.part === k ? pointAt(m, k, sel.row, f) : undefined,
+      )
+      .map((at) => (at === undefined ? "" : ring(at, cy, POINT_RADIUS + 1)))
+      .join("");
+  }
   const cy = snap(lay.rows[sel.kind === "dot" || sel.kind === "row" ? sel.row : 0]?.y ?? 0, f.dpr);
   if (sel.kind === "row") {
     return `M0 ${num(cy + 0.5)}H${num(f.width)}`;
@@ -374,9 +404,11 @@ export function drawSelection(
 ): void {
   const area = svg.querySelector('[data-part="area"]');
   area?.querySelector('[data-part="selection"]')?.remove();
-  // A bar row's selection shows by its name's weight too, not by colour alone.
+  // A bar or point row's selection shows by its name's weight too, not by
+  // colour alone.
   svg.querySelectorAll('[data-part="y"] > text').forEach((name, r) => {
-    name.toggleAttribute("data-selected", sel?.kind === "bar" && sel.row === r);
+    const row = sel?.kind === "bar" || sel?.kind === "point";
+    name.toggleAttribute("data-selected", row && sel.row === r);
   });
   if (area === null || sel === undefined) {
     return;

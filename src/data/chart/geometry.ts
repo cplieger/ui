@@ -1,8 +1,8 @@
 /**
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
- * pixel and cut at the plot's ends, rows of dots, bars along their rows,
- * rules and the axis lines.
+ * pixel and cut at the plot's ends, rows of dots, bars and points along
+ * their rows, rules and the axis lines.
  * @module
  */
 
@@ -19,6 +19,7 @@ import {
   type BarModel,
   type DotRowModel,
   type LineModel,
+  type PointModel,
   type RectModel,
   type SampleModel,
 } from "./model.js";
@@ -693,6 +694,32 @@ export function dotPath(groups: readonly DotGroup[], cy: number): string {
 /** A 1 px line across the plot at `y`, on whole device pixels. */
 export const hairline = (y: number, width: number, dpr: number): string =>
   `M0 ${num(snap(y, dpr) + 0.5)}H${num(width)}`;
+
+/** A point mark's dot radius, under the 10 px round-capped stroke
+ *  `chart.css` gives it: larger than a timeline's, since each is a value
+ *  the reader compares. */
+export const POINT_RADIUS = 5;
+
+/** Series `k`'s dot in row `i` of `m`: its centre's px along x, snapped to
+ *  device px, or undefined at a gap or outside the domain. */
+export function pointAt(m: PointModel, k: number, i: number, f: Frame): number | undefined {
+  const v = m.series[k]?.x[i] ?? null;
+  return v === null || v < f.x.lo || v > f.x.hi ? undefined : snap(f.xAt(v), f.dpr);
+}
+
+/** One path per series of `m` in series order, each row's dot a zero-length
+ *  segment on the row's line at that row's `ys` entry, so a later series'
+ *  dot lies over an earlier one where they meet. */
+export function pointPaths(m: PointModel, ys: readonly number[], f: Frame): string[] {
+  return m.series.map((_, k) =>
+    ys
+      .map((cy, i) => {
+        const at = pointAt(m, k, i, f);
+        return at === undefined ? "" : `M${num(at)} ${num(snap(cy, f.dpr) + 0.5)}h0`;
+      })
+      .join(""),
+  );
+}
 
 /** A 1 px line down the plot at `x`, on whole device pixels. */
 export const upright = (x: number, height: number, dpr: number): string =>

@@ -234,6 +234,7 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       return i === undefined ? undefined : { kind: "post", row: t.y, i };
     }
     case "bar":
+    case "point":
     case undefined:
       return undefined;
   }

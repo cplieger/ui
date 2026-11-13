@@ -205,11 +205,17 @@
 }
 
 /* Each dot is a zero-length segment its round cap draws as a circle. */
-.cp-chart svg [data-part="dot"] path {
+.cp-chart svg [data-part="dot"] path,
+.cp-chart svg [data-part="point"] path {
   fill: none;
   stroke: var(--cp-tone-9);
   stroke-width: 6px;
   stroke-linecap: round;
+}
+
+/* A point is a value the reader compares, so its dot is larger. */
+.cp-chart svg [data-part="point"] path {
+  stroke-width: 10px;
 }
 
 .cp-chart svg [data-part="line"] > path {

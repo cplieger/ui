@@ -474,3 +474,67 @@ describe("a bar chart's scales", () => {
     });
   });
 });
+
+describe("a point chart's scales", () => {
+  const points = (x: ChartSpec["x"], ...series: (number | null)[][]): ChartSpec => ({
+    x,
+    marks: [
+      {
+        mark: "point",
+        y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+        series: series.map((v, k) => ({ name: `s${String(k)}`, x: v })),
+      },
+    ],
+  });
+
+  it("takes x over the values without 0, since no length encodes them", () => {
+    const x = xScale(points({}, [38.5, 57.4], [40, null]));
+    expect([x.lo, x.hi, x.integer, x.passed]).toEqual([38.5, 57.4, false, false]);
+  });
+
+  it("holds 0 with zero true, and a passed domain as it is", () => {
+    const zero = xScale(points({ zero: true }, [38.5, 57.4]));
+    expect([zero.lo, zero.hi]).toEqual([0, 57.4]);
+    const passed = xScale(points({ domain: [40, 50] }, [38.5, 57.4]));
+    expect([passed.lo, passed.hi, passed.passed]).toEqual([40, 50, true]);
+    const off = xScale(points({ zero: false }, [38.5, 57.4]));
+    expect(off.lo).toBe(38.5);
+  });
+
+  it("widens one value and takes its rules", () => {
+    const one = xScale(points({}, [5]));
+    expect([one.lo, one.hi]).toEqual([4, 6]);
+    const spec = points({}, [40, 50]);
+    const ruled = xScale({
+      ...spec,
+      marks: [...spec.marks, { mark: "rule", x: 60, label: "Aim" }],
+    });
+    expect([ruled.lo, ruled.hi]).toEqual([40, 60]);
+  });
+
+  it("takes a log x above 0 and a time x over its instants", () => {
+    const log = xScale(points({ type: "log" }, [0.0024, 93], [null, 5]));
+    expect([log.type, log.lo, log.hi]).toEqual(["log", 0.0024, 93]);
+    const time = xScale(points({ type: "time" }, [5 * DAY, DAY], [3 * DAY, null]));
+    expect([time.type, time.lo, time.hi]).toEqual(["time", DAY, 5 * DAY]);
+  });
+
+  it("takes a band y of its categories", () => {
+    expect(yScale(points({}, [1, 2]))).toEqual({ type: "band", rows: ["c0", "c1"], mono: false });
+    expect(() => yScale({ ...points({}, [1]), y: { type: "linear" } })).toThrow(
+      "renderChart: a point mark's y is a band of its rows",
+    );
+  });
+
+  it("refuses an infinite value, 0 or below on a log x, and zero off a linear x", () => {
+    expect(() => xScale(points({}, [Number.POSITIVE_INFINITY]))).toThrow(
+      "renderChart: a point's x cannot be infinite",
+    );
+    expect(() => xScale(points({ type: "log" }, [0]))).toThrow(
+      "renderChart: a point's x must be above 0 on a log x",
+    );
+    expect(() => xScale(points({ type: "time", zero: true }, [DAY]))).toThrow(
+      "renderChart: a time x has no zero to hold",
+    );
+  });
+});

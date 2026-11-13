@@ -270,7 +270,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot or bar mark and any rules",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar or point mark and any rules",
     );
   });
 
@@ -757,7 +757,7 @@ describe("the bar mark", () => {
 
   it("names the height rule", () => {
     expect(() => build({ x: {}, height: 200, marks: [bars([1])] })).toThrow(
-      "renderChart: height has no place on a dot or bar chart, which is as tall as its rows",
+      "renderChart: height has no place on a dot, bar or point chart, which is as tall as its rows",
     );
   });
 
@@ -986,5 +986,101 @@ describe("the bar mark", () => {
     expect(() =>
       build({ x: {}, marks: [bars([1]), { mark: "text", x: 1, y: "zz", text: "No" }] }),
     ).toThrow(RangeError);
+  });
+});
+
+const points = (
+  series: readonly (readonly (number | null)[])[],
+  more: Partial<Extract<Mark, { mark: "point" }>> = {},
+): Mark => ({
+  mark: "point",
+  y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+  series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+  ...more,
+});
+
+describe("the point mark", () => {
+  it.each([
+    [
+      "a y of numbers",
+      { x: {}, marks: [points([[1]], { y: [1] as unknown as string[] })] },
+      TypeError,
+    ],
+    [
+      "a series without x",
+      { x: {}, marks: [{ mark: "point", y: ["a"], series: [{ name: "a" }] }] },
+      TypeError,
+    ],
+    ["an x shorter than its y", { x: {}, marks: [points([[1]], { y: ["a", "b"] })] }, TypeError],
+    ["an empty name", { x: {}, marks: [points([[1]], { y: [""] })] }, RangeError],
+    ["a repeated name", { x: {}, marks: [points([[1, 2]], { y: ["a", "a"] })] }, RangeError],
+    ["an infinite x", { x: {}, marks: [points([[Number.NEGATIVE_INFINITY]])] }, RangeError],
+    ["a value of 0 on a log x", { x: { type: "log" }, marks: [points([[0, 4]])] }, RangeError],
+    ["a band x", { x: { type: "band" }, marks: [points([[1]])] }, TypeError],
+    ["zero on a log x", { x: { type: "log", zero: true }, marks: [points([[1]])] }, TypeError],
+    ["zero on a time x", { x: { type: "time", zero: false }, marks: [points([[1]])] }, TypeError],
+    ["a linear y", { x: {}, y: { type: "linear" }, marks: [points([[1]])] }, TypeError],
+    ["a height", { x: {}, height: 200, marks: [points([[1]])] }, TypeError],
+    [
+      "a y rule",
+      { x: {}, marks: [points([[1]]), { mark: "rule", y: 1, label: "Cap" }] },
+      TypeError,
+    ],
+    ["a point beside a bar", { x: {}, marks: [bars([1]), points([[1]])] }, TypeError],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ x: { type: "log", zero: true }, marks: [points([[1]])] })).toThrow(
+      "renderChart: a log x has no zero to hold",
+    );
+    expect(() => build({ x: { type: "log" }, marks: [points([[-1, 4]])] })).toThrow(
+      "renderChart: a point's x must be above 0 on a log x",
+    );
+    expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "rule" or "text"',
+    );
+  });
+
+  it("keeps the app's order on a band y, its values and slots, and gaps as null", () => {
+    const m = build({
+      x: {},
+      marks: [
+        {
+          mark: "point",
+          y: ["Holy See", "Monaco", "Japan"],
+          series: [
+            { name: "Female", x: [60.4, Number.NaN, 51.1] },
+            { name: "Male", slot: 5, x: [54.5, 53.1, null] },
+          ],
+        },
+      ],
+    });
+    expect(m.y).toEqual({ type: "band", rows: ["Holy See", "Monaco", "Japan"], mono: false });
+    expect(m.marks[0]).toEqual({
+      kind: "point",
+      series: [
+        { name: "Female", slot: 1, x: [60.4, null, 51.1] },
+        { name: "Male", slot: 5, x: [54.5, 53.1, null] },
+      ],
+    });
+    expect(m.kind).toBe("dotPlot");
+    expect(m.amountText(51.1)).toBe("51.1");
+  });
+
+  it("is empty when every value is a gap or outside the domain", () => {
+    expect(build({ x: {}, marks: [points([[null, null]])] }).empty).toBe(true);
+    expect(build({ x: {}, marks: [points([])] }).empty).toBe(true);
+    expect(build({ x: { domain: [10, 20] }, marks: [points([[5, 25]])] }).empty).toBe(true);
+    expect(build({ x: { domain: [10, 20] }, marks: [points([[5, 20]])] }).empty).toBe(false);
+    expect(build({ x: {}, marks: [points([[0, null]])] }).empty).toBe(false);
+  });
+
+  it("writes instants on a time x", () => {
+    const at = Date.UTC(2026, 10, 11, 8);
+    const m = build({ x: { type: "time" }, marks: [points([[at, at + 3_600_000]])] });
+    expect(m.amountText(at)).toBe(m.xText(at));
+    expect(m.xText(at)).toContain("8:00");
   });
 });

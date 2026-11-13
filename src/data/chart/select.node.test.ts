@@ -786,3 +786,102 @@ describe("a bar row across an update", () => {
     expect(rekey(a, bar(0, 1), built(ages).model)).toBe(undefined);
   });
 });
+
+describe("point keys, pointer and words", () => {
+  const point = (row: number, part?: number): Selection => ({ kind: "point", row, part });
+  const degrees = (reverse = false, rows = 3): ChartSpec => ({
+    x: { reverse },
+    y: { unit: { one: "degree", other: "degrees" } },
+    marks: [
+      {
+        mark: "point",
+        y: Array.from({ length: rows }, (_, i) => `Degree ${String(i + 1)}`),
+        series: [
+          { name: "Women", x: Array.from({ length: rows }, (_, i) => (i === 1 ? null : 50 + i)) },
+          { name: "Men", x: Array.from({ length: rows }, (_, i) => 40 + i) },
+        ],
+      },
+    ],
+  });
+
+  it("focus starts on the first row, whole, and on no rows selects nothing", () => {
+    expect(initial(built(degrees()).model)).toEqual(point(0));
+    const none = built({ x: {}, marks: [{ mark: "point", y: [], series: [] }] });
+    expect(initial(none.model)).toBe(undefined);
+  });
+
+  it("steps rows with Up, Down, Home, End and the Page keys, keeping the part", () => {
+    const b = built(degrees(false, 25));
+    expect(press(b, point(0, 1), "ArrowDown", "End", "ArrowDown", "PageUp", "Home")).toEqual([
+      point(1, 1),
+      point(24, 1),
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(b.nav.move(point(24, 1), "PageUp", undefined)).toEqual(point(14, 1));
+    expect(b.nav.move(point(3), "PageUp", undefined)).toEqual(point(0));
+    expect(b.nav.move(point(3), "Home", undefined)).toEqual(point(0));
+  });
+
+  it("moves through a row's dots in series order with Left and Right, on a reversed x too", () => {
+    for (const reverse of [false, true]) {
+      const b = built(degrees(reverse));
+      expect(press(b, point(0), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+        point(0, 0),
+        point(0, 1),
+        undefined,
+      ]);
+      expect(b.nav.move(point(0), "ArrowLeft", undefined)).toEqual(point(0, 1));
+    }
+    const one = built({
+      x: {},
+      marks: [{ mark: "point", y: ["a"], series: [{ name: "a", x: [1] }] }],
+    });
+    expect(one.nav.move(point(0), "ArrowRight", undefined)).toBe(undefined);
+  });
+
+  it("says a row whole, a chosen dot alone, a gap as No data, and one series with its unit", () => {
+    const b = built(degrees());
+    expect(spoken(b.model, point(0), words, false)).toBe("Degree 1: Women 50, Men 40.");
+    expect(spoken(b.model, point(1), words, false)).toBe("Degree 2: Women No data, Men 41.");
+    expect(spoken(b.model, point(2, 1), words, true)).toBe("Degree 3: Men 42.");
+    expect(spoken(b.model, point(2, 1), words, false)).toBe("Degree 3: Women 52, Men 42.");
+    const one = built({
+      x: { unit: { one: "year", other: "years" } },
+      marks: [{ mark: "point", y: ["Japan"], series: [{ name: "Median", x: [49.8] }] }],
+    });
+    expect(spoken(one.model, point(0), words, false)).toBe("Japan: 49.8\u00A0years.");
+  });
+
+  it("selects the row under the pointer across the plot, by tap only, with no crosshair", () => {
+    const b = built(degrees());
+    expect(b.nav.pick(b.lay.frame.width, 24 * 1.5)).toEqual(point(1));
+    expect(b.nav.pick(0, -10)).toEqual(point(0));
+    expect(b.nav.pick(0, 24 * 9)).toEqual(point(2));
+    expect(built(degrees(), 300).nav.pick(10, 38 * 1.1)).toEqual(point(1));
+    expect(b.nav.crosshair(point(1))).toBe(undefined);
+    expect(b.nav.drags).toBe(false);
+  });
+
+  it("follows its row by name across an update, keeps its part, and leaves with the row", () => {
+    const a = built(degrees()).model;
+    const turned: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "point",
+          y: ["Degree 3", "Degree 1"],
+          series: [
+            { name: "Women", x: [1, 2] },
+            { name: "Men", x: [3, 4] },
+          ],
+        },
+      ],
+    };
+    const b = built(turned).model;
+    expect(rekey(a, point(0, 1), b)).toEqual(point(1, 1));
+    expect(rekey(a, point(1), b)).toBe(undefined);
+    expect(rekey(a, { kind: "bar", row: 0, part: undefined }, b)).toBe(undefined);
+  });
+});

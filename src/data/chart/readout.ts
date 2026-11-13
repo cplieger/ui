@@ -21,6 +21,8 @@ import {
   type DotModel,
   type LineModel,
   type Model,
+  type PointModel,
+  type PointSeriesModel,
   type RectModel,
   type SampleModel,
   type SeriesModel,
@@ -42,8 +44,8 @@ export interface Reading {
   readonly total: string | undefined;
 }
 
-/** The mark the legend row reads: the chart's one rect, line, area, dot or bar. */
-type Primary = RectModel | LineModel | AreaModel | DotModel | BarModel;
+/** The mark the legend row reads: the chart's one rect, line, area, dot, bar or point. */
+type Primary = RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -260,9 +262,33 @@ export function barReading(model: Model, m: BarModel, r: number, words: Words): 
   return { at, entries: all, total };
 }
 
+/** Series `s`'s value in row `i` as the readings and the table write it, a
+ *  gap as No data. */
+export const pointPart = (model: Model, s: PointSeriesModel, i: number, words: Words): string => {
+  const v = s.x[i] ?? null;
+  return v === null ? words.noData : model.xText(v);
+};
+
+/** Row `r` of point mark `m`: its name and each series' value, with no
+ *  total, since a row's dots are values compared, not parts. */
+export function pointReading(model: Model, m: PointModel, r: number, words: Words): Reading {
+  const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
+  if (m.series.length === 1) {
+    const v = m.series[0]?.x[r] ?? null;
+    const value = v === null ? words.noData : counted(model.xText(v), v, model.spec.x.unit, model);
+    return { at, entries: bare(value), total: undefined };
+  }
+  const all = m.series.map((s) => ({
+    slot: s.slot,
+    name: s.name,
+    value: pointPart(model, s, r, words),
+  }));
+  return { at, entries: all, total: undefined };
+}
+
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
- *  values, an area's last whole stack, a bar chart's row count. */
+ *  values, an area's last whole stack, a bar or point chart's row count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -314,6 +340,7 @@ export function overall(model: Model, words: Words): Reading | undefined {
       };
     }
     case "bar":
+    case "point":
       // A category's values need not add up across rows (a median age), so
       // the row has no whole-chart figure to show.
       return {
@@ -322,7 +349,7 @@ export function overall(model: Model, words: Words): Reading | undefined {
           m.series.length === 1
             ? bare("")
             : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
-        total: !barsApart(m) && m.series.length > 1 ? "" : undefined,
+        total: m.kind === "bar" && !barsApart(m) && m.series.length > 1 ? "" : undefined,
       };
   }
 }
@@ -517,9 +544,9 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       const all = extremes(over(m.from, m.to, (i) => sampleTotal(m, i)));
       totals.push(words.noData, ...all.map((n) => areaTotal(model, m, n)));
     }
-  } else if (m?.kind === "bar") {
+  } else if (m?.kind === "bar" || m?.kind === "point") {
     for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
-      add(barReading(model, m, r, words));
+      add(m.kind === "bar" ? barReading(model, m, r, words) : pointReading(model, m, r, words));
     }
   } else if (m?.kind === "dot") {
     // Each post's time, written once per stretch of x in which its width holds.

@@ -1078,3 +1078,87 @@ describe("a bar chart", () => {
     expect(d.lay.frame.height).toBe(3 * 44);
   });
 });
+
+describe("a point chart", () => {
+  const ages = (x: ChartSpec["x"] = {}): ChartSpec => ({
+    x,
+    marks: [
+      {
+        mark: "point",
+        y: ["Holy See", "Monaco", "Japan"],
+        series: [
+          { name: "Female", slot: 1, x: [60.4, 54.5, 51.1] },
+          { name: "Male", slot: 3, x: [54.5, null, 48.4] },
+        ],
+      },
+    ],
+  });
+
+  it("draws a path of 10 px round dots per series in its slot on row hairlines", () => {
+    const d = draw(ages(), 600);
+    const paths = series(d, "point");
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    expect(paths.map((p) => (p.getAttribute("d")?.match(/h0/g) ?? []).length)).toEqual([3, 2]);
+    const dot = getComputedStyle(paths[1] as Element);
+    expect(dot.stroke).toBe(token(paths[1] as Element, "var(--cp-series-3)"));
+    expect([dot.strokeWidth, dot.strokeLinecap, dot.fill]).toEqual(["10px", "round", "none"]);
+    expect(d.svg.querySelector('[data-part="rows"]')?.getAttribute("d")?.match(/M/g)).toHaveLength(
+      3,
+    );
+    // The dots draw whole inside the plot, 7 px in from its ends.
+    for (const p of paths) {
+      const box = p.getBBox({ stroke: true });
+      expect(box.x).toBeGreaterThanOrEqual(1.99);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width - 1.99);
+    }
+  });
+
+  it("draws upright gridlines at the x ticks, an x axis, and a zero line only for a 0 in x", () => {
+    const d = draw(ages(), 600);
+    const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    expect(grid).toMatch(/^M[\d.]+ 0V/u);
+    expect(grid.match(/M/g)).toHaveLength(d.lay.xAxis.ticks.length);
+    expect(d.svg.querySelector('[data-part="zero"]')).toBeNull();
+    expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBeGreaterThan(0);
+    const zeroed = draw(ages({ zero: true }), 600);
+    const zero = zeroed.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
+    expect(zero).toBe(`M${String(snap(zeroed.lay.frame.xAt(0), 1) + 0.5)} 0V72`);
+    const ticks = zeroed.lay.xAxis.ticks.filter((t) => t.value !== 0);
+    expect(
+      zeroed.svg.querySelector('[data-part="grid"]')?.getAttribute("d")?.match(/M/g),
+    ).toHaveLength(ticks.length);
+  });
+
+  it("rings each of the selected row's dots 1 px out and sets its name at medium weight", () => {
+    const d = draw(ages(), 600);
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "point", row: 0, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]') as SVGPathElement;
+    expect(ring.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    const box = ring.getBBox();
+    const [male, female] = [d.lay.frame.xAt(54.5), d.lay.frame.xAt(60.4)];
+    expect(box.x).toBeCloseTo(male - 6, 0);
+    expect(box.x + box.width).toBeCloseTo(female + 6, 0);
+    expect(box.height).toBeCloseTo(12, 1);
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+    const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
+    expect(names.map((n) => n.hasAttribute("data-selected"))).toEqual([true, false, false]);
+    expect(getComputedStyle(names[0] as Element).fontWeight).toBe("500");
+    drawSelection(d.svg, d.model, d.lay, { kind: "point", row: 0, part: 1 }, nav);
+    const one = (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
+    expect(one.x + one.width / 2).toBeCloseTo(male, 0);
+    expect(one.width).toBeCloseTo(12, 1);
+    drawSelection(d.svg, d.model, d.lay, { kind: "point", row: 1, part: 1 }, nav);
+    expect(d.svg.querySelector('[data-part="ring"]')).toBeNull();
+  });
+
+  it("sets the names above the dots on a phone", () => {
+    const d = draw(ages(), 320);
+    expect(d.lay.left).toBe(0);
+    expect(d.svg.querySelector('[data-part="y"] > text')?.getAttribute("text-anchor")).toBe(
+      "start",
+    );
+    // An 18 px name line, 2 px, the 10 px dots and 8 px: 38 px at 13 px text.
+    expect(d.lay.frame.height).toBe(3 * 38);
+  });
+});

@@ -642,3 +642,65 @@ describe("a bar chart", () => {
     expect(l.valueLabels[0]).toMatchObject({ x: (panels[0]?.at(12) ?? 0) + 4, anchor: "start" });
   });
 });
+
+describe("a point chart", () => {
+  const ages = (x: ChartSpec["x"] = { label: "Median age" }): ChartSpec => ({
+    x,
+    marks: [
+      {
+        mark: "point",
+        y: ["Holy See", "Monaco", "Japan"],
+        series: [
+          { name: "Female", x: [60.4, 54.5, 51.1] },
+          { name: "Male", x: [54.5, 51.3, 48.4] },
+        ],
+      },
+    ],
+  });
+
+  it("sets a row of --cp-chart-row per category, its name in the gutter, from 30rem up", () => {
+    const l = lay(ages(), 600);
+    expect(l.frame.height).toBe(3 * 24);
+    expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60]);
+    expect(l.bar).toBe(0);
+    expect(l.gutters.axis).toBe(7.5 * "Holy See".length + 8);
+    expect(l.yLabels[2]).toMatchObject({ text: "Japan", anchor: "end", x: l.left - 8, y: 60 });
+  });
+
+  it("puts each name above its dots under 30rem, 38 px a row and no gutter", () => {
+    const l = lay(ages(), 479);
+    expect(l.gutters.axis).toBe(0);
+    expect(l.frame.height).toBe(3 * 38);
+    // The name's 18 px line, 2 px, then the 10 px dots and 8 px.
+    expect(l.rows.map((r) => r.y)).toEqual([25, 63, 101]);
+    expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 0, y: 38 + 9, anchor: "start" });
+  });
+
+  it("draws an x axis 7 px inside each end with its title, and no value labels", () => {
+    const l = lay(ages(), 600);
+    expect(l.valueLabels).toEqual([]);
+    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(7);
+    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 7);
+    expect(l.xAxis.lo).toBeLessThanOrEqual(48.4);
+    expect(l.xAxis.lo).toBeGreaterThan(0);
+    for (const t of l.xAxis.ticks) {
+      expect(t.at).toBeCloseTo(l.frame.xAt(t.value));
+      const box = t.label?.box;
+      if (box !== undefined) {
+        expect(box.start).toBeGreaterThanOrEqual(7);
+        expect(box.end).toBeLessThanOrEqual(l.frame.width - 7);
+      }
+    }
+    expect(l.xLabels.length).toBeGreaterThan(1);
+    expect(l.titles).toContainEqual(
+      expect.objectContaining({ text: "Median age", x: l.left + l.frame.width, anchor: "end" }),
+    );
+    expect(l.height).toBeGreaterThan(l.top + l.frame.height);
+  });
+
+  it("runs a reversed x from the right, still 7 px inside each end", () => {
+    const l = lay(ages({ reverse: true }), 600);
+    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(l.frame.width - 7);
+    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(7);
+  });
+});

@@ -15,6 +15,8 @@ import {
   dotPath,
   groupEdges,
   linePath,
+  pointAt,
+  pointPaths,
   rectPaths,
   type Frame,
 } from "./geometry.js";
@@ -24,6 +26,7 @@ import {
   type BarModel,
   type LineModel,
   type Model,
+  type PointModel,
   type RectModel,
 } from "./model.js";
 import type { ChartSpec } from "./spec.js";
@@ -1235,5 +1238,59 @@ describe("bars", () => {
     ]);
     expect(barSegments(barOf(m), 1, f, 36, 22)).toEqual([undefined, undefined]);
     expect(barBlock(barOf(m), 22)).toBe(22);
+  });
+});
+
+describe("points", () => {
+  const pointModel = (x: ChartSpec["x"], series: (number | null)[][]) =>
+    model({
+      x,
+      marks: [
+        {
+          mark: "point",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          series: series.map((v, k) => ({ name: `s${String(k)}`, slot: (k + 2) as 2, x: v })),
+        },
+      ],
+    });
+  const pointOf = (m: Model) => m.marks[0] as PointModel;
+  const pointFrame = (m: Model, lo: number, hi: number, dpr = 1): Frame => ({
+    width: 200,
+    height: 48,
+    dpr,
+    x: m.x,
+    xAt: position("linear", lo, hi, 0, 200),
+    yAt: (v) => v,
+  });
+
+  it("draws a dot per series on each row's line, a later series' last", () => {
+    const m = pointModel({}, [
+      [40, 50],
+      [60, 45],
+    ]);
+    const f = pointFrame(m, 40, 60);
+    expect(pointPaths(pointOf(m), [12, 36], f)).toEqual([
+      "M0 12.5h0M100 36.5h0",
+      "M200 12.5h0M50 36.5h0",
+    ]);
+  });
+
+  it("draws no dot for a gap, nor outside a passed domain", () => {
+    const m = pointModel({ domain: [40, 60] }, [[null, 39, 60, 61]]);
+    const f = pointFrame(m, 40, 60);
+    expect(pointPaths(pointOf(m), [12, 36, 60, 84], f)).toEqual(["M200 60.5h0"]);
+    expect([0, 1, 2, 3].map((i) => pointAt(pointOf(m), 0, i, f))).toEqual([
+      undefined,
+      undefined,
+      200,
+      undefined,
+    ]);
+  });
+
+  it("snaps each dot to device pixels", () => {
+    const m = pointModel({}, [[40, 40.3, 60]]);
+    const f = pointFrame(m, 40, 60, 2);
+    expect(pointAt(pointOf(m), 0, 1, f)).toBe(3);
+    expect(pointPaths(pointOf(m), [12.2, 36, 60], f)[0]).toBe("M0 12.5h0M3 36.5h0M200 60.5h0");
   });
 });

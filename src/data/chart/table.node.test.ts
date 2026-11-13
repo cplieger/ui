@@ -524,3 +524,47 @@ describe("the table of a bar chart", () => {
     expect(cells(t)).toEqual([["Japan", "51.1", "48.4"]]);
   });
 });
+
+describe("the table of a point chart", () => {
+  it("holds a row per category and a column per series, a gap as No data, no Total", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        y: { label: "Degree" },
+        marks: [
+          {
+            mark: "point",
+            y: ["Doctorate", "Master's"],
+            series: [
+              { name: "Women", x: [128_700, 91_000] },
+              { name: "Men", x: [163_500, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Degree");
+    expect(t.columns).toEqual([
+      { text: "Women", num: true },
+      { text: "Men", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["Doctorate", "128,700", "163,500"],
+      ["Master's", "91,000", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Doctorate", "Master's"]);
+  });
+
+  it("writes each instant in its time element on a time x, as words", () => {
+    const t = tableModel(
+      model({
+        x: { type: "time" },
+        marks: [{ mark: "point", y: ["a"], series: [{ name: "Release", x: [START] }] }],
+      }),
+      words,
+    );
+    expect(t.columns).toEqual([{ text: "Release", num: false }]);
+    expect(cells(t)).toEqual([["a", iso(START)]]);
+  });
+});

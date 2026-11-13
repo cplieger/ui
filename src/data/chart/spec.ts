@@ -18,7 +18,8 @@ interface Scale {
   readonly unit?: Unit;
   /** Linear, log and time only. */
   readonly domain?: readonly [number, number];
-  /** A linear y under line marks only. */
+  /** A linear y under line marks, which holds 0 unless false, or a linear
+   *  x under a point mark, which holds it only when true. */
   readonly zero?: boolean;
   readonly format?: Format;
   /** Band only: names in the mono face. */
@@ -129,6 +130,23 @@ export interface BarMark {
   readonly series: readonly BarSeries[];
 }
 
+interface PointSeries {
+  readonly name: string;
+  readonly slot?: Slot;
+  /** A value per category, in `y`'s order; `null` or `NaN` draws no dot. */
+  readonly x: Values;
+}
+
+/** A dot per series on each category's row, one row per category on a
+ *  band y, top to bottom in the order sent, along a linear, log or time x
+ *  that holds 0 only with `x.zero: true`, since no length encodes a value. */
+export interface PointMark {
+  readonly mark: "point";
+  /** The categories' names, each once. */
+  readonly y: readonly string[];
+  readonly series: readonly PointSeries[];
+}
+
 /** Exactly one of `x` and `y`, finite. */
 interface RuleMark {
   readonly mark: "rule";
@@ -149,18 +167,19 @@ interface TextMark {
   readonly side?: "above" | "below" | "left" | "right";
 }
 
-export type Mark = RectMark | LineMark | AreaMark | DotMark | BarMark | RuleMark | TextMark;
+export type Mark =
+  RectMark | LineMark | AreaMark | DotMark | BarMark | PointMark | RuleMark | TextMark;
 
 export interface ChartSpec {
   readonly x: Scale;
-  /** Band when the chart has a dot or bar mark. */
+  /** Band when the chart has a dot, bar or point mark. */
   readonly y?: Scale;
-  /** One rect, line, area, dot or bar mark and any rules and text marks,
-   *  drawn in order: a rule after a rect draws over it. A second data mark
-   *  is a `TypeError`. */
+  /** One rect, line, area, dot, bar or point mark and any rules and text
+   *  marks, drawn in order: a rule after a rect draws over it. A second
+   *  data mark is a `TypeError`. */
   readonly marks: readonly Mark[];
-  /** The plot's height in px. A band chart (dot or bar) is as tall as its
-   *  rows, so there it is a `TypeError`. */
+  /** The plot's height in px. A band chart (dot, bar or point) is as tall
+   *  as its rows, so there it is a `TypeError`. */
   readonly height?: number;
   readonly summary?: string | ((generated: string) => string);
   /** Shown instead of the plot when there is nothing to draw. */

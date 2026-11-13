@@ -7,7 +7,7 @@
 
 import { formatter } from "../scale/format.js";
 
-import type { BarModel, Model, RectModel, SampleModel } from "./model.js";
+import type { BarModel, Model, PointModel, RectModel, SampleModel } from "./model.js";
 import { barsApart, barTotal, bucketTotal, sampleTotal } from "./model.js";
 import { barPart, bucketText, partText, primaryOf, samplePart, totalled } from "./readout.js";
 import { noteSentences, ruleSentences } from "./summary.js";
@@ -156,6 +156,24 @@ function barTable(model: Model, m: BarModel, words: Words, after: string): Table
   return { corner: model.spec.y?.label ?? "", columns, rows, after };
 }
 
+// A row per category and a column per series, each value as the readings
+// write it, an instant in its `<time>`.
+function pointTable(model: Model, m: PointModel, words: Words, after: string): TableModel {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  // Instants are words, not figures to align.
+  const num = model.x.type !== "time";
+  const rows = names.map((name, i): Row => ({
+    key: name,
+    head: [name],
+    cells: m.series.map((s) => {
+      const v = s.x[i] ?? null;
+      return { parts: v === null ? [words.noData] : timed(model, (t) => t.xText(v)), num };
+    }),
+  }));
+  const columns = m.series.map((s) => ({ text: s.name, num }));
+  return { corner: model.spec.y?.label ?? "", columns, rows, after };
+}
+
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
@@ -193,6 +211,9 @@ export function tableModel(model: Model, words: Words): TableModel {
   }
   if (m.kind === "bar") {
     return barTable(model, m, words, after);
+  }
+  if (m.kind === "point") {
+    return pointTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {

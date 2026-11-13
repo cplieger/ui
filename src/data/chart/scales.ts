@@ -6,7 +6,7 @@
 
 import type { Format } from "../scale/format.js";
 
-import type { BarMark, ChartSpec, RectMark } from "./spec.js";
+import type { BarMark, ChartSpec, PointMark, RectMark } from "./spec.js";
 
 /** A log x's one rect whose `x1` is 0 or below. */
 interface Underflow {
@@ -189,9 +189,28 @@ function addBars(extent: Extent, m: BarMark): void {
   }
 }
 
+// A point's dot is placed by its value, so a log x has no place for 0 or below.
+function addPoints(extent: Extent, m: PointMark, log: boolean): void {
+  for (const s of m.series) {
+    for (const v of Array.from(s.x)) {
+      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
+        throw new RangeError("renderChart: a point's x cannot be infinite");
+      }
+      if (finite(v)) {
+        if (log && v <= 0) {
+          throw new RangeError("renderChart: a point's x must be above 0 on a log x");
+        }
+        extent.count(v);
+        extent.add(v);
+      }
+    }
+  }
+}
+
 /** The x scale of `spec`: linear unless it says another continuous type,
- *  and under a bar mark linear from 0. Throws for a band x and for a type,
- *  domain, zero or underflow bin that breaks a rule. */
+ *  under a bar mark linear from 0, and under a point mark holding 0 only
+ *  with `zero: true`. Throws for a band x and for a type, domain, zero or
+ *  underflow bin that breaks a rule. */
 export function xScale(spec: ChartSpec): Continuous {
   const type = spec.x.type ?? "linear";
   if (type === "band") {
@@ -208,9 +227,13 @@ export function xScale(spec: ChartSpec): Continuous {
   if (bars && spec.x.zero === false) {
     throw new TypeError("renderChart: a bar's x always starts at zero");
   }
+  const points = spec.marks.some((m) => m.mark === "point");
+  if (points && spec.x.zero !== undefined && type !== "linear") {
+    throw new TypeError(`renderChart: a ${type} x has no zero to hold`);
+  }
   const log = type === "log";
   const extent = new Extent(log);
-  if (bars) {
+  if (bars || (points && spec.x.zero === true)) {
     extent.add(0);
   }
   for (const m of spec.marks) {
@@ -225,6 +248,8 @@ export function xScale(spec: ChartSpec): Continuous {
       }
     } else if (m.mark === "bar") {
       addBars(extent, m);
+    } else if (m.mark === "point") {
+      addPoints(extent, m, log);
     }
   }
   const integer = extent.integer;
@@ -375,17 +400,16 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
   return extent;
 }
 
-/** The y scale of `spec`: a band of the dot rows or the bar categories,
+/** The y scale of `spec`: a band of the dot rows or the bar or point categories,
  *  else linear unless it says log. Throws for a y type its mark cannot take
  *  and for a domain or zero a rect or an area cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
   const y = spec.y ?? {};
   const kinds = new Set(spec.marks.map((m) => m.mark));
-  if (kinds.has("dot") || kinds.has("bar")) {
+  const banded = (["dot", "bar", "point"] as const).find((k) => kinds.has(k));
+  if (banded !== undefined) {
     if ((y.type ?? "band") !== "band") {
-      throw new TypeError(
-        `renderChart: a ${kinds.has("dot") ? "dot" : "bar"} mark's y is a band of its rows`,
-      );
+      throw new TypeError(`renderChart: a ${banded} mark's y is a band of its rows`);
     }
     if (spec.marks.some((m) => m.mark === "rule" && m.y !== undefined)) {
       throw new TypeError("renderChart: a rule on a band y has no value to sit at");
@@ -394,13 +418,17 @@ export function yScale(spec: ChartSpec): Continuous | Band {
       throw new TypeError("renderChart: a band scale takes no domain; its rows are its domain");
     }
     const rows = spec.marks.flatMap((m) =>
-      m.mark === "dot" ? m.rows.map((r) => r.name) : m.mark === "bar" ? [...m.y] : [],
+      m.mark === "dot"
+        ? m.rows.map((r) => r.name)
+        : m.mark === "bar" || m.mark === "point"
+          ? [...m.y]
+          : [],
     );
     return { type: "band", rows, mono: y.mono === true };
   }
   const type = y.type ?? "linear";
   if (type === "band" || type === "time") {
-    throw new TypeError(`renderChart: y cannot be a ${type} scale without dot or bar rows`);
+    throw new TypeError(`renderChart: y cannot be a ${type} scale without dot, bar or point rows`);
   }
   const rects = kinds.has("rect");
   const filled = rects ? "a rect's" : kinds.has("area") ? "an area's" : undefined;

@@ -15,7 +15,7 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 import { spansDay } from "../scale/time.js";
 
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
-import type { BarMark, ChartSpec, Mark, RectMark } from "./spec.js";
+import type { BarMark, ChartSpec, Mark, PointMark, RectMark } from "./spec.js";
 
 type Kind =
   | "stackedColumn"
@@ -36,7 +36,8 @@ type Kind =
   | "divergingBar"
   | "splitBar"
   | "divergingStackedBar"
-  | "mirrorBar";
+  | "mirrorBar"
+  | "dotPlot";
 
 export interface SeriesModel {
   readonly name: string;
@@ -203,6 +204,19 @@ export function barValue(m: BarModel, s: BarSeriesModel, i: number): number {
   return total > 0 ? v / total : 0;
 }
 
+export interface PointSeriesModel {
+  readonly name: string;
+  readonly slot: number;
+  /** A value per row of the band, a gap (`null` or `NaN`) as `null`. */
+  readonly x: readonly (number | null)[];
+}
+
+/** Dots along x, a dot per series on each row of the chart's band y. */
+export interface PointModel {
+  readonly kind: "point";
+  readonly series: readonly PointSeriesModel[];
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -225,7 +239,8 @@ export interface TextModel {
   readonly side: Side;
 }
 
-type MarkModel = RectModel | LineModel | AreaModel | DotModel | BarModel | RuleModel | TextModel;
+type MarkModel =
+  RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel | RuleModel | TextModel;
 
 export interface Model {
   readonly spec: ChartSpec;
@@ -235,8 +250,8 @@ export interface Model {
   readonly marks: readonly MarkModel[];
   /** The data mark's kind; absent with rules alone. */
   readonly kind: Kind | undefined;
-  /** Nothing to draw: every value null, every row empty, every rect 0, or
-   *  every area sample 0 or a gap. */
+  /** Nothing to draw: every value null, every row empty, every rect 0, no
+   *  point inside the domain, or every area sample 0 or a gap. */
   readonly empty: boolean;
   /** An x value as the readings and the table write it. */
   readonly xText: (v: number) => string;
@@ -245,8 +260,8 @@ export interface Model {
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
-   *  bar chart, else `yText`), or a plain number under "share", whose axis
-   *  writes shares. */
+   *  bar or point chart, else `yText`), or a plain number under "share",
+   *  whose axis writes shares. */
   readonly amountText: (v: number) => string;
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
@@ -401,6 +416,21 @@ function checkDiverge(
   }
 }
 
+// The readings and the table name a row by its name alone.
+function checkNames(names: unknown, what: string): ArrayLike<unknown> {
+  if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
+    fail(`${what}.y must be an array of the categories' names`);
+  }
+  const seen = new Set<unknown>();
+  for (const name of Array.from(names)) {
+    if (name === "" || seen.has(name)) {
+      fail(`${what}.y must name each category once, never ""`, RangeError);
+    }
+    seen.add(name);
+  }
+  return names;
+}
+
 function checkCurve(curve: unknown, what: string): void {
   if (curve !== undefined && curve !== "linear" && curve !== "step") {
     fail(`${what}.curve must be "linear" or "step"`);
@@ -487,18 +517,7 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     case "bar": {
-      const names = mark["y"];
-      if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
-        fail(`${what}.y must be an array of the categories' names`);
-      }
-      // The readings and the table name a row by its name alone.
-      const seen = new Set<unknown>();
-      for (const name of Array.from(names)) {
-        if (name === "" || seen.has(name)) {
-          fail(`${what}.y must name each category once, never ""`, RangeError);
-        }
-        seen.add(name);
-      }
+      const names = checkNames(mark["y"], what);
       const arrange = mark["arrange"];
       if (
         arrange !== undefined &&
@@ -539,6 +558,9 @@ function checkMark(mark: unknown, what: string): void {
       });
       return;
     }
+    case "point":
+      checkSeries(mark["series"], checkNames(mark["y"], what).length, what, "x");
+      return;
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -573,7 +595,7 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     default:
-      fail(`${what}.mark must be "rect", "line", "area", "dot", "bar", "rule" or "text"`);
+      fail(`${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "rule" or "text"`);
   }
 }
 
@@ -601,16 +623,18 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot or bar mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar or point mark and any rules and text marks`,
       );
     }
     data = m;
   }
   const height = spec["height"];
   const primary = marks[data];
-  const band = isObject(primary) && (primary["mark"] === "dot" || primary["mark"] === "bar");
+  const band =
+    isObject(primary) &&
+    (primary["mark"] === "dot" || primary["mark"] === "bar" || primary["mark"] === "point");
   if (band && height !== undefined) {
-    fail("height has no place on a dot or bar chart, which is as tall as its rows");
+    fail("height has no place on a dot, bar or point chart, which is as tall as its rows");
   }
   optional(height, "number", "height");
   if (typeof height === "number" && !(Number.isFinite(height) && height > 0)) {
@@ -637,6 +661,9 @@ const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
     const slot = s.slot ?? i + 1;
     return { name: s.name, slot, below: s.below ?? slot, x: gaps(s.x, false) };
   });
+
+const pointSeries = (list: PointMark["series"]): PointSeriesModel[] =>
+  list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, x: gaps(s.x, false) }));
 
 /** One series with a value below 0: its bars run either side of the zero
  *  line, and every value but 0 is written with its sign. */
@@ -710,10 +737,12 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
                 : first.arrange === "mirror"
                   ? "mirrorBar"
                   : "stackedBar";
+    case "point":
+      return "dotPlot";
   }
 }
 
-function hasData(m: MarkModel): boolean {
+function hasData(m: MarkModel, x: Continuous): boolean {
   switch (m.kind) {
     case "rect":
       return m.shown.some((i) => m.series.some((s) => (s.y[i] ?? 0) > 0));
@@ -730,6 +759,8 @@ function hasData(m: MarkModel): boolean {
       return m.rows.some((r) => r.to > r.from);
     case "bar":
       return m.series.some((s) => s.x.some((v) => v !== null && v !== 0));
+    case "point":
+      return m.series.some((s) => s.x.some((v) => v !== null && v >= x.lo && v <= x.hi));
     case "rule":
     case "text":
       return false;
@@ -851,6 +882,8 @@ export function chartModel(
           labels: m.arrange !== "share" && m.arrange !== "diverge" && m.labels !== false,
           series: barSeries(m.series),
         };
+      case "point":
+        return { kind: "point", series: pointSeries(m.series) };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;
@@ -879,14 +912,14 @@ export function chartModel(
   const share = marks.some(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
-  const bars = marks.some((m) => m.kind === "bar");
+  const bars = marks.some((m) => m.kind === "bar" || m.kind === "point");
   return {
     spec,
     x,
     y,
     marks,
     kind: kindOf(marks, x),
-    empty: !marks.some(hasData),
+    empty: !marks.some((m) => hasData(m, x)),
     xText,
     xSpan,
     yText,

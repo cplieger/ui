@@ -11,12 +11,14 @@ import {
   type DotModel,
   type LineModel,
   type Model,
+  type PointModel,
   type RectModel,
 } from "./model.js";
 import {
   barReading,
   bucketReading,
   overall,
+  pointReading,
   postReading,
   readoutWidths,
   rowReading,
@@ -699,5 +701,76 @@ describe("the legend row of a bar chart", () => {
       expect(measure.number(reading.total ?? "")).toBeLessThanOrEqual(w.total);
     }
     expect(measure.number(overall(m, words)?.at ?? "")).toBeLessThanOrEqual(w.at);
+  });
+});
+
+describe("the legend row of a point chart", () => {
+  const degrees = (x: ChartSpec["x"] = {}, ...series: (number | null)[][]): ChartSpec => ({
+    x,
+    y: { unit: { one: "degree", other: "degrees" } },
+    marks: [
+      {
+        mark: "point",
+        y: ["Doctorate", "Master's"],
+        series: series.map((v, k) => ({
+          name: k === 0 ? "Women" : "Men",
+          slot: (k + 2) as 2,
+          x: v,
+        })),
+      },
+    ],
+  });
+  const pointOf = (m: Model) => m.marks[0] as PointModel;
+
+  it("reads the row count with blank chips and no total", () => {
+    const m = model(degrees({}, [128_700, 91_000], [163_500, null]));
+    expect(overall(m, words)).toEqual({
+      at: `2${nb}degrees`,
+      entries: [
+        { slot: 2, name: "Women", value: "" },
+        { slot: 3, name: "Men", value: "" },
+      ],
+      total: undefined,
+    });
+  });
+
+  it("reads a row's values, a gap as No data, and no total", () => {
+    const m = model(degrees({}, [128_700, 91_000], [163_500, null]));
+    const r = pointReading(m, pointOf(m), 1, words);
+    expect(r).toEqual({
+      at: "Master's",
+      entries: [
+        { slot: 2, name: "Women", value: "91,000" },
+        { slot: 3, name: "Men", value: "No data" },
+      ],
+      total: undefined,
+    });
+  });
+
+  it("reads one series bare with the x unit, and instants on a time x", () => {
+    const one = model(degrees({ unit: { one: "dollar", other: "dollars" } }, [1, null]));
+    expect(pointReading(one, pointOf(one), 0, words).entries).toEqual([
+      { slot: undefined, name: undefined, value: `1${nb}dollar` },
+    ]);
+    expect(pointReading(one, pointOf(one), 1, words).entries[0]?.value).toBe("No data");
+    expect(overall(one, words)?.entries).toEqual([{ slot: undefined, name: undefined, value: "" }]);
+    const timed = model(degrees({ type: "time" }, [START, START + 90 * MIN]));
+    expect(pointReading(timed, pointOf(timed), 1, words).entries[0]?.value).toBe(
+      time(START + 90 * MIN),
+    );
+  });
+
+  it("keeps slots wide enough for every row's reading", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const m = model(degrees({}, [128_700, 91_000], [163_500, null]));
+    const w = readoutWidths(m, words, measure);
+    for (const r of [0, 1]) {
+      const reading = pointReading(m, pointOf(m), r, words);
+      expect(measure.number(reading.at)).toBeLessThanOrEqual(w.at);
+      reading.entries.forEach((e, k) => {
+        expect(measure.number(e.value)).toBeLessThanOrEqual(w.values[k] ?? 0);
+      });
+    }
+    expect(w.at).toBe(measure.number(`2${nb}degrees`));
   });
 });
