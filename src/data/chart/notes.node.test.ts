@@ -564,3 +564,48 @@ describe("a note on bar and point rows", () => {
     expect(tableModel(m, words).after).toBe("Facebook: Best.");
   });
 });
+
+describe("a note on a slope", () => {
+  const slope = (...notes: Mark[]): ChartSpec => ({
+    y: { domain: [0, 60] },
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", y: [50, 34] },
+          { name: "Dogs", y: [40, 31] },
+        ],
+      },
+      ...notes,
+    ],
+  });
+
+  it("sits at its column's edge and its y, and joins that column", () => {
+    const spec = slope(
+      { mark: "text", x: "2005", y: 50, text: "Peak" },
+      { mark: "text", x: "2015", y: 31, text: "Low" },
+    );
+    const l = lay(spec);
+    expect(l.notes.map((n) => n.point)).toEqual([
+      { x: 0, y: l.frame.yAt(50) },
+      { x: l.frame.width, y: l.frame.yAt(31) },
+    ]);
+    expect(joined(spec)).toEqual([
+      { kind: "stop", i: 0 },
+      { kind: "stop", i: 1 },
+    ]);
+  });
+
+  it("is left out of the plot and the readings off the y domain, still in the summary and table", () => {
+    const spec = slope({ mark: "text", x: "2015", y: 80, text: "Goal" });
+    expect(lay(spec).notes).toEqual([]);
+    expect(joined(spec)).toEqual([null]);
+    const m = chartModel(spec, "en", "UTC");
+    expect(spoken(m, { kind: "slope", i: 1, part: undefined }, words, false)).toBe(
+      "2015: Cats 34, Dogs 31.",
+    );
+    expect(generatedSummary(m, words)).toContain("2015: Goal.");
+    expect(tableModel(m, words).after).toBe("2015: Goal.");
+  });
+});

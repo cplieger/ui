@@ -176,7 +176,8 @@ interface RuleMark {
  *  "above"). Under a rect, line or area `x` and `y` are values on the
  *  chart's scales; under a dot mark `x` is a time and `y` a row's name;
  *  under a bar or point mark `y` names a row and `x` places the note along
- *  it. Both are required, except under a split, diverging or mirrored bar,
+ *  it; under a slope `x` names one of its two columns and `y` is a value.
+ *  Both are required, except under a split, diverging or mirrored bar,
  *  which refuses `x` and sets the note at its row's end. A note outside the
  *  drawn range is not drawn. */
 interface TextMark {

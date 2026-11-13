@@ -10,12 +10,14 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 import { dotGroups, snap, type DotGroup, type Frame } from "./geometry.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
-import type { DotModel, Model, RectModel, SampleModel } from "./model.js";
-import { barsApart, pointLink } from "./model.js";
+import type { DotModel, Model, RectModel, SampleModel, SlopeModel } from "./model.js";
+import { barsApart, pointLink, slopeChange } from "./model.js";
 import {
   barPart,
   barReading,
   bucketReading,
+  changeText,
+  columnReading,
   partText,
   pointPart,
   pointReading,
@@ -30,14 +32,16 @@ import { stepStopAt, stepStops } from "./table.js";
 import type { Words } from "./words.js";
 
 /**
- * A bucket or a sample, with one series (`part`) when Up or Down chose it;
- * the posts `[from, to)` of a dot row; a dot row as a whole; or a bar or
- * point row, with one series (`part`) when Left or Right chose it.
+ * A bucket, a sample or a slope's column `i`, with one series (`part`) when
+ * Up or Down chose it; the posts `[from, to)` of a dot row; a dot row as a
+ * whole; or a bar or point row, with one series (`part`) when Left or Right
+ * chose it.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "line"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "area"; readonly i: number; readonly part: number | undefined }
+  | { readonly kind: "slope"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "dot"; readonly row: number; readonly from: number; readonly to: number }
   | { readonly kind: "row"; readonly row: number }
   | { readonly kind: "bar" | "point"; readonly row: number; readonly part: number | undefined };
@@ -77,9 +81,9 @@ function bucketSpan(m: RectModel, i: number, f: Frame): readonly [number, number
 const lineStops = (m: SampleModel): number[] =>
   m.step ? stepStops(m) : Array.from({ length: m.to - m.from }, (_, k) => m.from + k);
 
-/** The selection focus gives a chart that has none yet: the newest x, on
- *  a timeline the first row's last post, or that row when it is silent, or
- *  a bar or point chart's first row, whole. */
+/** The selection focus gives a chart that has none yet: the newest x or a
+ *  slope's right column, on a timeline the first row's last post, or that
+ *  row when it is silent, or a bar or point chart's first row, whole. */
 export function initial(model: Model): Selection | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -107,7 +111,7 @@ export function initial(model: Model): Selection | undefined {
     case "point":
       return bandRows(model) > 0 ? { kind: m.kind, row: 0, part: undefined } : undefined;
     case "slope":
-      return undefined;
+      return { kind: "slope", i: 1, part: undefined };
   }
 }
 
@@ -193,12 +197,12 @@ function along(
   return next === undefined || (next >= lo && next <= hi) ? undefined : next;
 }
 
-/** The parts of a bucket or sample in Up order: the series in series order
- *  (bottom to top in a stack, left to right in a group), or the lines with a
- *  value there by value, ties in series order. */
-function partsAt(m: RectModel | SampleModel, i: number): number[] {
+/** The parts of a bucket, sample or slope column in Up order: the series in
+ *  series order (bottom to top in a stack, left to right in a group), or the
+ *  lines with a value there by value, ties in series order. */
+function partsAt(m: RectModel | SampleModel | SlopeModel, i: number): number[] {
   const all = m.series.map((_, k) => k);
-  if (m.kind !== "line") {
+  if (m.kind !== "line" && m.kind !== "slope") {
     return all;
   }
   return all
@@ -251,6 +255,24 @@ function moveRow(
   return row >= 0 && row < rows && row !== sel.row ? { ...sel, row } : undefined;
 }
 
+/** Where `key` moves a slope's selection: Up and Down through the series
+ *  at its column, Left and Right, Home and End to the left or the right
+ *  column, keeping the chosen series. The Page keys are the page's. */
+function moveColumn(
+  m: SlopeModel,
+  sel: Selection & { kind: "slope" },
+  key: Key,
+): Selection | undefined {
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    const part = stepPart(partsAt(m, sel.i), sel.part, key === "ArrowUp");
+    return part === undefined ? undefined : { ...sel, part };
+  }
+  const left = key === "ArrowLeft" || key === "Home";
+  const right = key === "ArrowRight" || key === "End";
+  const i = left ? 0 : right ? 1 : sel.i;
+  return i === sel.i ? undefined : { ...sel, i };
+}
+
 /** A selection's position along x on the plot, in px. */
 function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined {
   const m = primaryOf(model);
@@ -260,6 +282,9 @@ function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined
   }
   if ((sel.kind === "line" || sel.kind === "area") && sel.kind === m?.kind) {
     return f.xAt(m.x[sel.i] ?? 0);
+  }
+  if (sel.kind === "slope") {
+    return f.xAt(sel.i);
   }
   if (sel.kind === "dot" && m?.kind === "dot") {
     return snap(f.xAt(m.rows[sel.row]?.x[sel.from] ?? 0), f.dpr);
@@ -279,6 +304,9 @@ export interface Navigator {
   /** A touch drag moves the selection; on a bar or point chart only a tap
    *  does, since a vertical drag is the page's scroll. */
   readonly drags: boolean;
+  /** Page Up and Page Down move the selection; on a slope, whose two
+   *  columns have no ticks to page by, they are the page's. */
+  readonly pages: boolean;
 }
 
 export function navigator(model: Model, lay: Layout): Navigator {
@@ -345,6 +373,9 @@ export function navigator(model: Model, lay: Layout): Navigator {
         return sel.kind === m.kind
           ? moveRow(m.series.length, bandRows(model), sel, key, along)
           : undefined;
+      }
+      if (m.kind === "slope") {
+        return sel.kind === "slope" ? moveColumn(m, sel, key) : undefined;
       }
       if (sel.kind !== m.kind) {
         return undefined;
@@ -417,8 +448,10 @@ export function navigator(model: Model, lay: Layout): Navigator {
           const r = Math.floor((py / f.height) * n);
           return { kind: m.kind, row: Math.min(Math.max(r, 0), n - 1), part: undefined };
         }
-        case "slope":
-          return undefined;
+        case "slope": {
+          const i = Math.abs(px - f.xAt(0)) < Math.abs(px - f.xAt(1)) ? 0 : 1;
+          return { kind: "slope", i, part: undefined };
+        }
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;
@@ -445,6 +478,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
     },
     crosshair: (sel) => selectionPx(model, sel, f),
     drags: m?.kind !== "bar" && m?.kind !== "point",
+    pages: m?.kind !== "slope",
   };
 }
 
@@ -482,6 +516,11 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     const row = after.y.type === "band" && name !== undefined ? after.y.rows.indexOf(name) : -1;
     const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
     return row === -1 ? undefined : { kind: sel.kind, row, part };
+  }
+  if (sel.kind === "slope" && was.kind === "slope" && now.kind === "slope") {
+    const i = now.columns.indexOf(was.columns[sel.i] ?? "");
+    const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
+    return i === -1 ? undefined : { kind: "slope", i, part };
   }
   if ((sel.kind === "dot" || sel.kind === "row") && was.kind === "dot" && now.kind === "dot") {
     const name = was.rows[sel.row]?.name;
@@ -532,6 +571,9 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   if (sel.kind === "point" && m?.kind === "point") {
     return pointReading(model, m, sel.row, words);
   }
+  if (sel.kind === "slope" && m?.kind === "slope") {
+    return columnReading(model, m, sel.i, words, sel.part);
+  }
   return undefined;
 }
 
@@ -556,7 +598,7 @@ export function spoken(model: Model, sel: Selection, words: Words, part: boolean
 // The stop `sel` stands on: a pointer on a step curve's held sample stands on
 // the stop holding it, which is where `noteJoin` joins a note.
 function stopOf(model: Model, sel: Selection): number | undefined {
-  if (sel.kind === "rect") {
+  if (sel.kind === "rect" || sel.kind === "slope") {
     return sel.i;
   }
   if (sel.kind !== "line" && sel.kind !== "area") {
@@ -608,6 +650,11 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     if (part && s !== undefined) {
       return words.segment(reading.at, s.name, pointPart(model, s, sel.row, words));
     }
+  } else if (sel.kind === "slope" && m.kind === "slope") {
+    const s = sel.part === undefined ? undefined : m.series[sel.part];
+    if (part && s !== undefined) {
+      return slopeWords(model, m, s, words);
+    }
   } else if (
     (sel.kind === "rect" || sel.kind === "line" || sel.kind === "area") &&
     (m.kind === "rect" || m.kind === "line" || m.kind === "area")
@@ -635,4 +682,18 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
       : frame(reading.at, parts, reading.total ?? "");
   }
   return words.reading(reading.at, parts, reading.total ?? "");
+}
+
+// A chosen slope series, both its ends and its change, which a missing end leaves out.
+function slopeWords(model: Model, m: SlopeModel, s: SlopeModel["series"][number], words: Words) {
+  const parts = m.columns
+    .map((c, i) => {
+      const v = s.y[i] ?? null;
+      return `${c} ${v === null ? words.noData : model.yText(v)}`;
+    })
+    .join(", ");
+  const change = slopeChange(s);
+  return change === null
+    ? words.reading(s.name, parts, "")
+    : words.changeReading(s.name, parts, changeText(model, change));
 }

@@ -13,10 +13,12 @@ import {
   type Model,
   type PointModel,
   type RectModel,
+  type SlopeModel,
 } from "./model.js";
 import {
   barReading,
   bucketReading,
+  columnReading,
   overall,
   pointReading,
   postReading,
@@ -868,5 +870,56 @@ describe("the legend row of a range or arrow plot", () => {
     const w = readoutWidths(m, words, measure);
     expect(w.total).toBe(measure.number("No data"));
     expect(w.total).toBeGreaterThanOrEqual(measure.number("34,800"));
+  });
+});
+
+describe("the legend row of a slope chart", () => {
+  const pets = (y: ChartSpec["y"], ...series: (number | null)[][]): Model =>
+    model({
+      ...(y === undefined ? {} : { y }),
+      marks: [
+        {
+          mark: "slope",
+          x: ["2005", "2015"],
+          series: series.map((ends, k) => ({ name: ["Cats", "Horses"][k] ?? "", y: ends })),
+        },
+      ],
+    });
+  const slope = (m: Model) => m.marks[0] as SlopeModel;
+
+  it("reads the right column with no selection, each chip its value there", () => {
+    const m = pets(undefined, [50, 34], [null, 39]);
+    expect(overall(m, words)).toEqual({
+      at: "2015",
+      entries: [
+        { slot: 1, name: "Cats", value: "34" },
+        { slot: 2, name: "Horses", value: "39" },
+      ],
+      total: undefined,
+    });
+    expect(columnReading(m, slope(m), 0, words).entries.map((e) => e.value)).toEqual([
+      "50",
+      "No data",
+    ]);
+  });
+
+  it("marks a chosen series' chip, and none with one series, whose value is bare with its unit", () => {
+    const m = pets(undefined, [50, 34], [30, 39]);
+    expect(columnReading(m, slope(m), 0, words, 1)).toMatchObject({ at: "2005", chosen: 1 });
+    expect(columnReading(m, slope(m), 0, words)).not.toHaveProperty("chosen");
+    const one = pets({ unit: { one: "cat", other: "cats" } }, [50, 34]);
+    expect(columnReading(one, slope(one), 1, words, 0)).toEqual({
+      at: "2015",
+      entries: [{ slot: undefined, name: undefined, value: `34${nb}cats` }],
+      total: undefined,
+    });
+  });
+
+  it("keeps each slot as wide as either column needs", () => {
+    const m = pets(undefined, [1_250_000, 34], [null, 39]);
+    const measure = measurer((t) => 7 * Array.from(t).length, 7, "en");
+    const w = readoutWidths(m, words, measure);
+    expect(w.at).toBe(7 * 4);
+    expect(w.values).toEqual([7 * "1,250,000".length, 7 * "No data".length]);
   });
 });

@@ -137,6 +137,9 @@ export function explore(
     if (!isKey(e.key) || model === undefined || nav === undefined) {
       return;
     }
+    if (!nav.pages && (e.key === "PageUp" || e.key === "PageDown")) {
+      return;
+    }
     e.preventDefault();
     if (sel === undefined) {
       const back = memory ?? initial(model);

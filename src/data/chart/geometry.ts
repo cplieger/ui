@@ -777,6 +777,9 @@ export function arrowPaths(
   return { shafts, heads };
 }
 
+/** A slope end's radius, the half of chart.css's 8 px round cap. */
+export const SLOPE_RADIUS = 4;
+
 /** Series `k`'s two ends of slope `m`, left then right, in plot px: its
  *  columns at the plot's edges, each `undefined` at a `null` end. */
 export function slopeEnds(m: SlopeModel, k: number, f: Frame): (Point | undefined)[] {

@@ -671,3 +671,80 @@ describe("keys and touch on a bar chart", () => {
     expect(legendText(b)).toBe("Brill · Domestic · 3 · International · 22 · 25");
   });
 });
+
+describe("keys and the pointer on a slope chart", () => {
+  const pets: ChartSpec = {
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", y: [50, 34] },
+          { name: "Dogs", y: [40, 31] },
+          { name: "Horses", y: [30, null] },
+        ],
+      },
+    ],
+  };
+  const rings = (b: Built) => (ring(b)?.getAttribute("d") ?? "").split("M").length - 1;
+  const chips = (b: Built) =>
+    [...b.legend.querySelectorAll(".cp-chip")].map((c) => c.hasAttribute("data-selected"));
+  const strong = (b: Built) =>
+    [...b.plot.querySelectorAll('[data-part="end"] > text[data-selected]')].map(
+      (t) => t.textContent,
+    );
+
+  it("focus selects the right column and rings each end there", async () => {
+    const b = build(pets);
+    expect(legendText(b)).toBe("2015 · Cats · 34 · Dogs · 31 · Horses · No data");
+    b.plot.focus();
+    await says("2015: Cats 34, Dogs 31, Horses No data.");
+    expect(rings(b)).toBe(2);
+    expect(crosshair(b)).not.toBe(null);
+  });
+
+  it("chooses a series with Up and Down, says its change, and marks it by weight", async () => {
+    const b = build(pets);
+    // A face that loads late measures the legend row again; compare after it.
+    await document.fonts.ready;
+    b.plot.focus();
+    const widths = () =>
+      [...b.legend.querySelectorAll(".cp-chip")].map((c) => c.getBoundingClientRect().width);
+    const before = widths();
+    expect(key(b.plot, "ArrowUp").defaultPrevented).toBe(true);
+    await says("Dogs: 2005 40, 2015 31. Change -9.");
+    expect(widths()).toEqual(before);
+    expect(
+      getComputedStyle(b.legend.querySelectorAll(".cp-chip > bdi")[1] as Element).fontWeight,
+    ).toBe("600");
+    expect(rings(b)).toBe(2);
+    expect(chips(b)).toEqual([false, true, false]);
+    expect(strong(b)).toEqual(["Dogs 40", "Dogs 31"]);
+    // The chosen line and its ends, drawn again over the others.
+    expect(b.plot.querySelectorAll('[data-part="selection"] [data-series="2"]')).toHaveLength(2);
+    key(b.plot, "ArrowLeft");
+    await says("2005: Cats 50, Dogs 40, Horses 30.");
+    expect(legendText(b)).toBe("2005 · Cats · 50 · Dogs · 40 · Horses · 30");
+    expect(chips(b)).toEqual([false, true, false]);
+    key(b.plot, "Escape");
+    expect(chips(b)).toEqual([false, false, false]);
+    expect(strong(b)).toEqual([]);
+  });
+
+  it("leaves the Page keys to the page", () => {
+    const b = build(pets);
+    b.plot.focus();
+    expect(key(b.plot, "PageUp").defaultPrevented).toBe(false);
+    expect(key(b.plot, "PageDown").defaultPrevented).toBe(false);
+    expect(key(b.plot, "Home").defaultPrevented).toBe(true);
+  });
+
+  it("a mouse selects the nearer column anywhere in the plot's height", () => {
+    const b = build(pets);
+    point(b, "pointermove", plotWidth(b) * 0.4, 0);
+    expect(legendText(b)).toBe("2005 · Cats · 50 · Dogs · 40 · Horses · 30");
+    expect(rings(b)).toBe(3);
+    point(b, "pointermove", plotWidth(b) * 0.6, 200);
+    expect(legendText(b)).toBe("2015 · Cats · 34 · Dogs · 31 · Horses · No data");
+  });
+});

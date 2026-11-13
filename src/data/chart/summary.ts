@@ -12,6 +12,7 @@ import {
   pointLink,
   sampleTotal,
   sampleValue,
+  slopeChange,
   type BarModel,
   type DotModel,
   type Model,
@@ -19,9 +20,11 @@ import {
   type RectModel,
   type SampleModel,
   type SeriesModel,
+  type SlopeModel,
 } from "./model.js";
 import {
   bucketText,
+  changeText,
   counted,
   domainText,
   lastSample,
@@ -320,6 +323,38 @@ function pointSummary(model: Model, m: PointModel, words: Words): string[] {
   return out;
 }
 
+// The columns and series head, each series' two ends and change, then the
+// largest rise and fall, the first in series order on a tie; a series with
+// a missing end has no change to rank.
+function slopeSummary(model: Model, m: SlopeModel, words: Words): string[] {
+  const n = m.series.length;
+  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const out = [words.slopeSummary(domainText(model, words), series)];
+  const end = (v: number | null | undefined) =>
+    v === null || v === undefined ? words.noData : model.yText(v);
+  let rise: { name: string; v: number } | undefined;
+  let fall: { name: string; v: number } | undefined;
+  for (const s of m.series) {
+    const v = slopeChange(s);
+    out.push(
+      words.slopeSeries(s.name, end(s.y[0]), end(s.y[1]), v === null ? "" : changeText(model, v)),
+    );
+    if (v !== null && v > (rise?.v ?? 0)) {
+      rise = { name: s.name, v };
+    }
+    if (v !== null && v < (fall?.v ?? 0)) {
+      fall = { name: s.name, v };
+    }
+  }
+  if (rise !== undefined) {
+    out.push(words.rise(rise.name, changeText(model, rise.v)));
+  }
+  if (fall !== undefined) {
+    out.push(words.fall(fall.name, changeText(model, fall.v)));
+  }
+  return out;
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -331,9 +366,9 @@ export function ruleSentences(model: Model, words: Words): string[] {
   return out;
 }
 
-/** Each note's sentence, in spec order: its x as the readings write it,
- *  under a dot mark after its row's name, on a bar or point chart its row's
- *  name alone. */
+/** Each note's sentence, in spec order: its x as the readings write it (a
+ *  slope's column name), under a dot mark after its row's name, on a bar or
+ *  point chart its row's name alone. */
 export function noteSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
   const m = primaryOf(model);
@@ -363,7 +398,9 @@ export function generatedSummary(model: Model, words: Words): string {
             ? barSummary(model, m, words)
             : m?.kind === "point"
               ? pointSummary(model, m, words)
-              : [];
+              : m?.kind === "slope"
+                ? slopeSummary(model, m, words)
+                : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 

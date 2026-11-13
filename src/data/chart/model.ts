@@ -243,6 +243,12 @@ export interface SlopeModel {
   readonly series: readonly SeriesModel[];
 }
 
+/** A slope series' right end less its left; `null` with either end missing. */
+export function slopeChange(s: SeriesModel): number | null {
+  const [a = null, b = null] = s.y;
+  return a === null || b === null ? null : b - a;
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -862,11 +868,23 @@ function textModel(
   x: Continuous,
   y: Continuous | Band,
   ends: string | undefined,
+  columns: readonly [string, string] | undefined,
 ): TextModel {
   const side = m.side ?? "above";
   if (ends !== undefined && m.x !== undefined) {
     fail(`${what}.x has no place under arrange "${ends}"; the note sits at its row's end`);
   }
+  // A slope's columns sit at x 0 and 1, so a note names its column by index there.
+  const column = (v: number | string | undefined): number => {
+    if (v === undefined) {
+      return fail(`${what}.x is missing; a note on a slope names one of its two columns`);
+    }
+    if (typeof v !== "string") {
+      return fail(`${what}.x must name one of the slope's two columns`);
+    }
+    const c = columns?.indexOf(v) ?? -1;
+    return c === -1 ? fail(`${what}.x names no column: "${v}"`, RangeError) : c;
+  };
   const place = (v: number | string | undefined, axis: "x" | "y", scale: Continuous | Band) => {
     if (v === undefined) {
       return fail(
@@ -893,7 +911,7 @@ function textModel(
   };
   return {
     kind: "text",
-    x: ends === undefined ? place(m.x, "x", x) : undefined,
+    x: columns !== undefined ? column(m.x) : ends === undefined ? place(m.x, "x", x) : undefined,
     y: place(m.y, "y", y),
     row: y.type === "band",
     text: m.text,
@@ -916,6 +934,7 @@ export function chartModel(
   const ends = spec.marks
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
+  const columns = spec.marks.find((m) => m.mark === "slope")?.x;
   const marks = spec.marks.map((m, index): MarkModel => {
     switch (m.mark) {
       case "rect":
@@ -994,7 +1013,7 @@ export function chartModel(
         return { kind: "rule", axis, value, label: m.label, place: either ? { at: value } : place };
       }
       case "text":
-        return textModel(m, `marks[${String(index)}]`, x, y, ends);
+        return textModel(m, `marks[${String(index)}]`, x, y, ends, columns);
     }
   });
   // The ends of a domain a whole day long can share their clock time, so they

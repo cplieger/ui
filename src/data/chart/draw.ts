@@ -25,6 +25,8 @@ import {
   rectPaths,
   rulePath,
   ruleXs,
+  SLOPE_RADIUS,
+  slopeEnds,
   slopePaths,
   snap,
   type Segment,
@@ -420,6 +422,16 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
       .map((at) => (at === undefined ? "" : ring(at, cy, POINT_RADIUS + 1)))
       .join("");
   }
+  if (sel.kind === "slope" && m?.kind === "slope") {
+    // A chosen series rings both its ends, the whole column each end in it.
+    return m.series
+      .flatMap((_, k) => {
+        const ends = slopeEnds(m, k, f);
+        return sel.part === undefined ? [ends[sel.i]] : sel.part === k ? ends : [];
+      })
+      .map((p) => (p === undefined ? "" : ring(p.x, p.y, SLOPE_RADIUS + 1)))
+      .join("");
+  }
   const cy = snap(lay.rows[sel.kind === "dot" || sel.kind === "row" ? sel.row : 0]?.y ?? 0, f.dpr);
   if (sel.kind === "row") {
     return `M0 ${num(cy + 0.5)}H${num(f.width)}`;
@@ -447,10 +459,27 @@ export function drawSelection(
     const row = sel?.kind === "bar" || sel?.kind === "point";
     name.toggleAttribute("data-selected", row && sel.row === r);
   });
+  const chosen = sel?.kind === "slope" ? sel.part : undefined;
+  svg.querySelectorAll('[data-part="end"] > text').forEach((label, k) => {
+    const s = lay.endLabels[k]?.series;
+    label.toggleAttribute("data-selected", s !== undefined && s === chosen);
+  });
   if (area === null || sel === undefined) {
     return;
   }
   const g = svgEl("g", { "data-part": "selection" });
+  const m = primaryOf(model);
+  const s = m?.kind === "slope" && chosen !== undefined ? m.series[chosen] : undefined;
+  if (m?.kind === "slope" && s !== undefined) {
+    // The chosen series lies over the others where lines cross.
+    const { lines, ends } = slopePaths({ ...m, series: [s] }, lay.frame);
+    const slot = String(s.slot);
+    const line = svgEl("g", { "data-part": "slope" });
+    line.append(svgEl("path", { "data-series": slot, d: lines[0] ?? "" }));
+    const dots = svgEl("g", { "data-part": "ends" });
+    dots.append(svgEl("path", { "data-series": slot, d: ends[0] ?? "" }));
+    g.append(line, dots);
+  }
   const at = nav.crosshair(sel);
   if (at !== undefined) {
     const x = num(snap(at, lay.frame.dpr) + 0.5);
@@ -479,12 +508,14 @@ function bdi(text: string): HTMLElement {
  * Builds the legend row's entries for readings shaped like `reading`: the
  * x slot, a chip per named series with its swatch, a bare value for a lone
  * series, and a stack's total, each slot kept at its width in `widths`.
+ * With `chooses`, each chip name keeps the width its chosen weight needs.
  */
 export function frameLegend(
   legend: HTMLElement,
   reading: Reading,
   widths: Widths,
   total: string,
+  chooses = false,
 ): void {
   const at = span("at");
   at.style.minInlineSize = `${num(widths.at)}px`;
@@ -501,7 +532,11 @@ export function frameLegend(
     chip.dataset["series"] = String(e.slot ?? 1);
     const swatch = document.createElement("span");
     swatch.className = "cp-swatch";
-    chip.append(swatch, bdi(e.name), value);
+    const name = bdi(e.name);
+    if (chooses) {
+      name.dataset["name"] = e.name;
+    }
+    chip.append(swatch, name, value);
     parts.push(chip);
   });
   if (reading.total !== undefined) {
@@ -524,6 +559,9 @@ export function writeLegend(legend: HTMLElement, reading: Reading): void {
     const el = values[k];
     if (el !== undefined) {
       el.textContent = e.value;
+      if (e.name !== undefined) {
+        el.parentElement?.toggleAttribute("data-selected", reading.chosen === k);
+      }
     }
   });
   const total = values[reading.entries.length];

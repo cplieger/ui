@@ -1,17 +1,18 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
- * bucket, sample, change point, dot row or category, kept in place across
- * updates.
+ * bucket, sample, change point, dot row, category or slope series, kept in
+ * place across updates.
  * @module
  */
 
 import { formatter } from "../scale/format.js";
 
-import type { BarModel, Model, PointModel, RectModel, SampleModel } from "./model.js";
-import { barsApart, barTotal, bucketTotal, pointLink, sampleTotal } from "./model.js";
+import type { BarModel, Model, PointModel, RectModel, SampleModel, SlopeModel } from "./model.js";
+import { barsApart, barTotal, bucketTotal, pointLink, sampleTotal, slopeChange } from "./model.js";
 import {
   barPart,
   bucketText,
+  changeText,
   linkText,
   partText,
   primaryOf,
@@ -189,6 +190,31 @@ function pointTable(model: Model, m: PointModel, words: Words, after: string): T
   return { corner: model.spec.y?.label ?? "", columns, rows, after };
 }
 
+// A slope's unit is one series' change, so a row is a series, its two ends
+// and the change, and the corner names the measure, which no axis writes.
+function slopeTable(model: Model, m: SlopeModel, words: Words, after: string): TableModel {
+  const end = (v: number | null | undefined) =>
+    v === null || v === undefined ? words.noData : model.yText(v);
+  const rows = m.series.map((s): Row => {
+    const v = slopeChange(s);
+    return {
+      key: s.name,
+      head: [s.name],
+      cells: [
+        { parts: [end(s.y[0])], num: true },
+        { parts: [end(s.y[1])], num: true },
+        { parts: [v === null ? words.noData : changeText(model, v)], num: true },
+      ],
+    };
+  });
+  return {
+    corner: model.spec.y?.label ?? "",
+    columns: [...m.columns.map((text) => ({ text, num: true })), { text: words.change, num: true }],
+    rows,
+    after,
+  };
+}
+
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
@@ -231,7 +257,7 @@ export function tableModel(model: Model, words: Words): TableModel {
     return pointTable(model, m, words, after);
   }
   if (m.kind === "slope") {
-    return { corner: "", columns: [], rows: [], after };
+    return slopeTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {

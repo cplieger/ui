@@ -900,3 +900,141 @@ describe("point keys, pointer and words", () => {
     expect(rekey(a, { kind: "bar", row: 0, part: undefined }, b)).toBe(undefined);
   });
 });
+
+describe("slope keys, pointer and words", () => {
+  const column = (i: number, part?: number): Selection => ({ kind: "slope", i, part });
+  const pets = (more: readonly Mark[] = []): ChartSpec => ({
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", y: [50, 34] },
+          { name: "Dogs", y: [40, 31] },
+          { name: "Horses", y: [30, 39] },
+          { name: "Mice", y: [null, 31] },
+        ],
+      },
+      ...more,
+    ],
+  });
+
+  it("focus starts on the right column, whole", () => {
+    expect(initial(built(pets()).model)).toEqual(column(1));
+  });
+
+  it("moves between the columns with Left, Right, Home and End, keeping the series", () => {
+    const b = built(pets());
+    expect(press(b, column(1, 2), "ArrowLeft", "ArrowLeft", "End", "Home", "ArrowRight")).toEqual([
+      column(0, 2),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(b.nav.move(column(0, 2), "End", undefined)).toEqual(column(1, 2));
+    expect(b.nav.move(column(1), "Home", undefined)).toEqual(column(0));
+  });
+
+  it("leaves the Page keys to the page", () => {
+    const b = built(pets());
+    expect(b.nav.pages).toBe(false);
+    expect(b.nav.move(column(0), "PageDown", undefined)).toBe(undefined);
+    expect(b.nav.move(column(1), "PageUp", undefined)).toBe(undefined);
+    expect(built(stacked()).nav.pages).toBe(true);
+  });
+
+  it("moves Up and Down through the series by value at the column, ties in series order", () => {
+    const b = built(pets());
+    // 2015: Dogs 31 and Mice 31 tie, then Cats 34, then Horses 39.
+    expect(press(b, column(1), "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      column(1, 1),
+      column(1, 3),
+      column(1, 0),
+      column(1, 2),
+      undefined,
+    ]);
+    expect(b.nav.move(column(1), "ArrowDown", undefined)).toEqual(column(1, 2));
+    // 2005 has no Mice: Horses 30, Dogs 40, Cats 50.
+    expect(press(b, column(0), "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      column(0, 2),
+      column(0, 1),
+      column(0, 0),
+      undefined,
+    ]);
+  });
+
+  it("selects the nearer column anywhere in the plot's height, by drag too", () => {
+    const b = built(pets());
+    const w = b.lay.frame.width;
+    expect(b.nav.pick(w / 2 - 1, 0)).toEqual(column(0));
+    expect(b.nav.pick(w / 2 + 1, b.lay.frame.height)).toEqual(column(1));
+    expect(b.nav.pick(-20, 100)).toEqual(column(0));
+    expect(b.nav.pick(w + 20, 100)).toEqual(column(1));
+    expect(b.nav.crosshair(column(0))).toBe(0);
+    expect(b.nav.crosshair(column(1))).toBe(w);
+    expect(b.nav.drags).toBe(true);
+  });
+
+  it("says a column whole and a chosen series' ends and change", () => {
+    const b = built(pets());
+    expect(spoken(b.model, column(1), words, false)).toBe(
+      "2015: Cats 34, Dogs 31, Horses 39, Mice 31.",
+    );
+    expect(spoken(b.model, column(0), words, false)).toBe(
+      "2005: Cats 50, Dogs 40, Horses 30, Mice No data.",
+    );
+    expect(spoken(b.model, column(0, 1), words, true)).toBe("Dogs: 2005 40, 2015 31. Change -9.");
+    expect(spoken(b.model, column(1, 2), words, true)).toBe("Horses: 2005 30, 2015 39. Change +9.");
+    expect(spoken(b.model, column(1, 3), words, true)).toBe("Mice: 2005 No data, 2015 31.");
+    expect(spoken(b.model, column(1, 0), words, false)).toBe(
+      "2015: Cats 34, Dogs 31, Horses 39, Mice 31.",
+    );
+  });
+
+  it("says a change of 0 with no sign and in the y format", () => {
+    const b = built({
+      y: { format: "percent" },
+      marks: [
+        {
+          mark: "slope",
+          x: ["Before", "After"],
+          series: [
+            { name: "a", y: [0.5, 0.5] },
+            { name: "b", y: [0.25, 0.5] },
+          ],
+        },
+      ],
+    });
+    expect(spoken(b.model, column(0, 0), words, true)).toBe("a: Before 50%, After 50%. Change 0%.");
+    expect(spoken(b.model, column(0, 1), words, true)).toBe(
+      "b: Before 25%, After 50%. Change +25%.",
+    );
+  });
+
+  it("adds a note to its column's reading, whole or a chosen series", () => {
+    const note: Mark = { mark: "text", x: "2005", y: 50, text: "Peak" };
+    const b = built(pets([note]));
+    expect(spoken(b.model, column(0), words, false)).toBe(
+      "2005: Cats 50, Dogs 40, Horses 30, Mice No data. Note: Peak.",
+    );
+    expect(spoken(b.model, column(0, 1), words, true)).toBe(
+      "Dogs: 2005 40, 2015 31. Change -9. Note: Peak.",
+    );
+    expect(spoken(b.model, column(1), words, false)).toBe(
+      "2015: Cats 34, Dogs 31, Horses 39, Mice 31.",
+    );
+  });
+
+  it("keeps its column by name across an update, its series by place, and leaves with the name", () => {
+    const a = built(pets()).model;
+    const turned = (x: readonly [string, string]): Model =>
+      built({
+        marks: [{ mark: "slope", x, series: [{ name: "Cats", y: [1, 2] }] }],
+      }).model;
+    expect(rekey(a, column(1, 0), turned(["2015", "2025"]))).toEqual(column(0, 0));
+    expect(rekey(a, column(1, 3), turned(["2005", "2015"]))).toEqual(column(1));
+    expect(rekey(a, column(0), turned(["2015", "2025"]))).toBe(undefined);
+    expect(rekey(a, { kind: "line", i: 0, part: undefined }, a)).toBe(undefined);
+  });
+});

@@ -117,6 +117,26 @@
   font-weight: var(--cp-weight-body);
 }
 
+/* A chosen series' chip name shows it by weight as well as by its ring,
+ * one step past the chip's own medium. A hidden copy at that weight holds
+ * the name's width, so choosing a series never wraps the row. */
+.cp-chart > [data-part="legend"] .cp-chip > bdi[data-name] {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.cp-chart > [data-part="legend"] .cp-chip > bdi[data-name]::after {
+  overflow: hidden;
+  block-size: 0;
+  font-weight: var(--cp-weight-strong);
+  visibility: hidden;
+  content: attr(data-name) / "";
+}
+
+.cp-chart > [data-part="legend"] .cp-chip[data-selected] > bdi {
+  font-weight: var(--cp-weight-strong);
+}
+
 .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
 }
@@ -276,6 +296,10 @@
 
 .cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {
   fill: var(--cp-ink);
+}
+
+.cp-chart svg [data-part="end"] text[data-selected] {
+  font-weight: var(--cp-weight-medium);
 }
 
 /* A note's or a bar value's 3 px halo of the plot's surface keeps it

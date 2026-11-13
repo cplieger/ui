@@ -1293,6 +1293,32 @@ describe("the slope mark", () => {
     expect(build({ marks: [slope([[null, 0]])] }).empty).toBe(false);
   });
 
+  it("takes a note naming one of its columns, at that column's x", () => {
+    const m = build({
+      marks: [slope([[1, 2]]), { mark: "text", x: "2015", y: 2, text: "New high" }],
+    });
+    expect(m.marks[1]).toMatchObject({ kind: "text", x: 1, y: 2, row: false });
+    const note = (x: unknown) =>
+      build({ marks: [slope([[1, 2]]), { mark: "text", x, y: 1, text: "a" } as Mark] });
+    expect(() => note(1)).toThrow(
+      new TypeError("renderChart: marks[1].x must name one of the slope's two columns"),
+    );
+    expect(() => note("2025")).toThrow(
+      new RangeError('renderChart: marks[1].x names no column: "2025"'),
+    );
+    expect(() => note(undefined)).toThrow(
+      new TypeError(
+        "renderChart: marks[1].x is missing; a note on a slope names one of its two columns",
+      ),
+    );
+    expect(() =>
+      build({ marks: [slope([[1, 2]]), { mark: "text", x: "2005", text: "a" }] }),
+    ).toThrow(TypeError);
+    expect(() =>
+      build({ marks: [slope([[1, 2]]), { mark: "text", x: "2005", y: "a", text: "a" }] }),
+    ).toThrow(TypeError);
+  });
+
   it("takes a chart with no x scale for every other mark too", () => {
     expect(build({ marks: [line([1, 2])] }).x).toMatchObject({ type: "linear", lo: 0, hi: 1 });
   });

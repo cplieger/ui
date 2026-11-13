@@ -940,3 +940,68 @@ describe("the summary of a range or arrow plot", () => {
     expect(shortDescription(model(pay("range")), own)).toBe(`Intervalle, 2 series, 4${nb}degrees`);
   });
 });
+
+describe("the summary of a slope chart", () => {
+  const slope = (
+    series: readonly { name: string; y: (number | null)[] }[],
+    more: readonly Mark[] = [],
+  ): ChartSpec => ({
+    marks: [{ mark: "slope", x: ["2005", "2015"], series }, ...more],
+  });
+  const pets = slope([
+    { name: "Cats", y: [50, 34] },
+    { name: "Dogs", y: [40, 31] },
+    { name: "Horses", y: [30, 39] },
+    { name: "Mice", y: [null, 44] },
+    { name: "Sheep", y: [20, 35] },
+    { name: "Goats", y: [10, 25] },
+  ]);
+
+  it("gives each series' ends and change, then the largest rise and fall", () => {
+    expect(generatedSummary(model(pets), words)).toBe(
+      "2005 to 2015, 6 series. Cats: 50 to 34, -16. Dogs: 40 to 31, -9. Horses: 30 to 39, +9. " +
+        "Mice: No data to 44. Sheep: 20 to 35, +15. Goats: 10 to 25, +15. " +
+        "Largest rise: Sheep +15. Largest fall: Cats -16.",
+    );
+  });
+
+  it("leaves out the rise when none rose and the fall when none fell, and 0 is neither", () => {
+    expect(
+      generatedSummary(
+        model(
+          slope([
+            { name: "a", y: [3, 1] },
+            { name: "b", y: [2, 2] },
+          ]),
+        ),
+        words,
+      ),
+    ).toBe("2005 to 2015, 2 series. a: 3 to 1, -2. b: 2 to 2, 0. Largest fall: a -2.");
+    expect(generatedSummary(model(slope([{ name: "a", y: [1, 3] }])), words)).toBe(
+      "2005 to 2015. a: 1 to 3, +2. Largest rise: a +2.",
+    );
+  });
+
+  it("says its notes at their column, and names the columns in its short description", () => {
+    const noted = slope(
+      [{ name: "a", y: [1, 3] }],
+      [{ mark: "text", x: "2015", y: 3, text: "New high" }],
+    );
+    expect(generatedSummary(model(noted), words)).toBe(
+      "2005 to 2015. a: 1 to 3, +2. Largest rise: a +2. 2015: New high.",
+    );
+    expect(shortDescription(model(pets), words)).toBe("Slope chart, 6 series, 2005 to 2015");
+  });
+
+  it("takes the app's words", () => {
+    const own = chartWords({
+      slopeSummary: (range, series) => `[${range}|${series}]`,
+      slopeSeries: (name, from, to, change) => `<${name} ${from} ${to} ${change}>`,
+      rise: (name, change) => `up ${name} ${change}`,
+      fall: (name, change) => `down ${name} ${change}`,
+    });
+    expect(generatedSummary(model(slope([{ name: "a", y: [1, null] }])), own)).toBe(
+      "[2005 to 2015|] <a 1 No data >",
+    );
+  });
+});

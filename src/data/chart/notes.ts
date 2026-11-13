@@ -135,8 +135,8 @@ export function placeNote(
   return { side: taken, box, fits };
 }
 
-/** The stop a note joins: bucket or sample `i`, post `i` of a timeline
- *  row, or a row: a timeline row with no post, or a bar or point row. */
+/** The stop a note joins: bucket, sample or slope column `i`, post `i` of
+ *  a timeline row, or a row: a timeline row with no post, or a bar or point row. */
 export type Join =
   | { readonly kind: "stop"; readonly i: number }
   | { readonly kind: "post"; readonly row: number; readonly i: number }
@@ -208,7 +208,7 @@ export function notePoint(
 /** The stop note `t` joins in `model`; none when `notePoint` places it
  *  nowhere or it names no stop. On a step curve that is the stop holding its
  *  nearest sample, since the keys stop only there. A bar or point note
- *  joins its row, its x only placing it. */
+ *  joins its row, its x only placing it; a slope note its column. */
 export function noteJoin(model: Model, t: TextModel): Join | undefined {
   const p = notePoint(model, t);
   const m = primaryOf(model);
@@ -244,6 +244,7 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       return i === undefined ? undefined : { kind: "post", row: t.y, i };
     }
     case "slope":
+      return { kind: "stop", i: x };
     case undefined:
       return undefined;
   }

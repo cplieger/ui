@@ -598,3 +598,40 @@ describe("the table of a point chart", () => {
     expect(cells(arrow)[0]?.at(-1)).toBe("-37,700");
   });
 });
+
+describe("the table of a slope chart", () => {
+  it("holds a row per series, its two ends and its signed change, under the y label", () => {
+    const t = tableModel(
+      model({
+        y: { label: "Households, %" },
+        marks: [
+          {
+            mark: "slope",
+            x: ["2005", "2015"],
+            series: [
+              { name: "Cats", y: [50, 34] },
+              { name: "Horses", y: [30, 39] },
+              { name: "Mice", y: [null, 44] },
+            ],
+          },
+          { mark: "rule", y: 40, label: "Target" },
+          { mark: "text", x: "2005", y: 50, text: "Peak" },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Households, %");
+    expect(t.columns).toEqual([
+      { text: "2005", num: true },
+      { text: "2015", num: true },
+      { text: "Change", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["Cats", "50", "34", "-16"],
+      ["Horses", "30", "39", "+9"],
+      ["Mice", "No data", "44", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Cats", "Horses", "Mice"]);
+    expect(t.after).toBe("Target 40. 2005: Peak.");
+  });
+});

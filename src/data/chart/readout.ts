@@ -45,6 +45,8 @@ export interface Reading {
   /** A stack's total, or a range plot's gap or an arrow plot's change,
    *  under `totalWord`; absent without one. */
   readonly total: string | undefined;
+  /** The entry of the series chosen, whose chip name turns semibold. */
+  readonly chosen?: number;
 }
 
 /** The mark the legend row reads: the chart's one rect, line, area, dot, bar, point or slope. */
@@ -308,13 +310,30 @@ export function pointReading(model: Model, m: PointModel, r: number, words: Word
   return { at, entries: all, total };
 }
 
-/** Column `c` of slope `m`: its name and each series' value there. */
-function columnReading(model: Model, m: SlopeModel, c: number, words: Words): Reading {
-  return {
+/** Column `c` of slope `m`: its name and each series' value there, with
+ *  the `chosen` series' chip marked. */
+export function columnReading(
+  model: Model,
+  m: SlopeModel,
+  c: number,
+  words: Words,
+  chosen?: number,
+): Reading {
+  const reading = {
     at: m.columns[c] ?? "",
     entries: entries(model, m.series, (s) => s.y[c] ?? null, words),
     total: undefined,
   };
+  return chosen === undefined || m.series.length < 2 ? reading : { ...reading, chosen };
+}
+
+/** Whether a chosen series marks its legend chip: on a slope, whose series
+ *  Up and Down choose while the row reads a column. */
+export const chipChosen = (model: Model): boolean => primaryOf(model)?.kind === "slope";
+
+/** A slope series' change in the y format, signed on every value but 0. */
+export function changeText(model: Model, v: number): string {
+  return signedFormatter(model.y.type === "band" ? undefined : model.y.format, model.locale)(v);
 }
 
 /** The legend row with no selection: a rect's series totals over the

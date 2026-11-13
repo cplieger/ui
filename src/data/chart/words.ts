@@ -69,11 +69,12 @@ export interface ChartWords {
    *  row, the table head and the summary. Default "Gap". */
   readonly gap?: string;
   /** An arrow plot's second value less its first, where `gap` names a
-   *  range's. Default "Change". */
+   *  range's, and a slope's right end less its left. Default "Change". */
   readonly change?: string;
   /** A range plot's row, as announced. Default "{at}: {parts}. Gap {gap}." */
   readonly gapReading?: (at: string, parts: string, gap: string) => string;
-  /** An arrow plot's row, as announced. Default "{at}: {parts}. Change {change}." */
+  /** An arrow plot's row, or a slope's chosen series, as announced.
+   *  Default "{at}: {parts}. Change {change}." */
   readonly changeReading?: (at: string, parts: string, change: string) => string;
   /** A null value. Default "No data". */
   readonly noData?: string;
@@ -142,6 +143,16 @@ export interface ChartWords {
   readonly lineSeries?: (name: string, last: string, low: string, high: string) => string;
   /** Summary, dot head. Default "{range}. {rows}, {n}." */
   readonly dotSummary?: (range: string, rows: string, n: string) => string;
+  /** Summary, slope head; series is "" for one series. Default "{range},
+   *  {series}.", or "{range}." with one series. */
+  readonly slopeSummary?: (range: string, series: string) => string;
+  /** Summary, one slope series; change is "" when an end is missing.
+   *  Default "{name}: {from} to {to}, {change}.", or "{name}: {from} to {to}." */
+  readonly slopeSeries?: (name: string, from: string, to: string, change: string) => string;
+  /** Summary, a slope's largest rise. Default "Largest rise: {name} {change}." */
+  readonly rise?: (name: string, change: string) => string;
+  /** Summary, a slope's largest fall. Default "Largest fall: {name} {change}." */
+  readonly fall?: (name: string, change: string) => string;
   /** Summary, the busiest row. Default "Most: {name}, {n}." */
   readonly most?: (name: string, n: string) => string;
   /** Summary, rows with no dot. Default "None: {names}." */
@@ -230,6 +241,11 @@ const DEFAULTS: Words = {
   lineSummary: (range, every) => (every === "" ? `${range}.` : `${range}, ${every}.`),
   lineSeries: (name, last, low, high) => `${name}: last ${last}, low ${low}, high ${high}.`,
   dotSummary: (range, rows, n) => `${range}. ${rows}, ${n}.`,
+  slopeSummary: (range, series) => (series === "" ? `${range}.` : `${range}, ${series}.`),
+  slopeSeries: (name, from, to, change) =>
+    change === "" ? `${name}: ${from} to ${to}.` : `${name}: ${from} to ${to}, ${change}.`,
+  rise: (name, change) => `Largest rise: ${name} ${change}.`,
+  fall: (name, change) => `Largest fall: ${name} ${change}.`,
   most: (name, n) => `Most: ${name}, ${n}.`,
   silent: (names) => `None: ${names}.`,
   more: (n) => `and ${n} more`,
