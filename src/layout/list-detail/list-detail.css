@@ -51,6 +51,7 @@
 
 .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
   min-inline-size: 0;
@@ -66,6 +67,7 @@
 
 .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
 }
