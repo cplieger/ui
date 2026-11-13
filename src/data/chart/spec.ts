@@ -94,13 +94,17 @@ interface BarSeries {
 }
 
 /** Horizontal bars, one row per category on a band y, top to bottom in
- *  the order sent; each bar's length from 0 along a linear x is its value.
- *  Several series stack in series order from 0. */
+ *  the order sent; each bar's length from 0 along a linear x is its value. */
 export interface BarMark {
   readonly mark: "bar";
   /** The categories' names, each once. */
   readonly y: readonly string[];
-  /** Each bar's value at its end (default true), in place of an x axis. */
+  /** How several series share a row: stacked in series order from 0, the
+   *  negative values leftward (the default), or as thinner bars one under
+   *  another in series order. */
+  readonly arrange?: "stack" | "group";
+  /** Each bar's value at its end (default true), in place of an x axis: a
+   *  stack's total, or each grouped bar's own value. */
   readonly labels?: boolean;
   readonly series: readonly BarSeries[];
 }

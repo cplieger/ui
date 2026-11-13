@@ -656,6 +656,11 @@ describe("the bar mark", () => {
       { x: {}, marks: [bars([1], { labels: 1 as unknown as boolean })] },
       TypeError,
     ],
+    [
+      "an arrange it does not draw",
+      { x: {}, marks: [bars([1], { arrange: "side" as "stack" })] },
+      TypeError,
+    ],
     ["an empty name", { x: {}, marks: [bars([1], { y: [""] })] }, RangeError],
     ["a repeated name", { x: {}, marks: [bars([1, 2], { y: ["a", "a"] })] }, RangeError],
     ["an infinite x", { x: {}, marks: [bars([Number.POSITIVE_INFINITY])] }, RangeError],
@@ -691,6 +696,7 @@ describe("the bar mark", () => {
     expect(m.y).toEqual({ type: "band", rows: ["d", "b", "c", "a"], mono: false });
     expect(m.marks[0]).toEqual({
       kind: "bar",
+      arrange: "stack",
       labels: true,
       series: [{ name: "a", slot: 1, x: [3, null, null, 1] }],
     });
@@ -714,6 +720,26 @@ describe("the bar mark", () => {
     });
     expect(m.kind).toBe("stackedBar");
     expect(m.marks[0]).toMatchObject({ labels: false, series: [{ slot: 1 }, { slot: 4 }] });
+  });
+
+  it("is a grouped bar chart from two series, and a plain one grouped with one", () => {
+    const two = (n: number): Mark => ({
+      mark: "bar",
+      y: ["a"],
+      arrange: "group",
+      series: [
+        { name: "p", x: [1] },
+        { name: "q", x: [2] },
+      ].slice(0, n),
+    });
+    expect(build({ x: {}, marks: [two(2)] })).toMatchObject({
+      kind: "groupedBar",
+      marks: [{ arrange: "group" }],
+    });
+    expect(build({ x: {}, marks: [two(1)] })).toMatchObject({
+      kind: "bar",
+      marks: [{ arrange: "stack" }],
+    });
   });
 
   it("is empty when every value is 0 or a gap, or there are no rows", () => {

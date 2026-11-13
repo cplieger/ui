@@ -5,6 +5,8 @@ import { position } from "../scale/position.js";
 
 import {
   areaPaths,
+  barBlock,
+  barCentre,
   barPaths,
   barReach,
   barSegments,
@@ -979,5 +981,43 @@ describe("bars", () => {
       bottom: 44,
     });
     expect(barReach(barOf(m), 0)).toEqual({ lo: -10, hi: 50 });
+  });
+
+  const grouped = (series: (number | null)[][]) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          arrange: "group",
+          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+        },
+      ],
+    });
+
+  it("groups series as 12 px bars one under another, 1 px apart, each from 0", () => {
+    const m = grouped([[30], [-10], [null], [20]]);
+    const f = barFrame(m, -20, 80);
+    const at = (v: number) => f.xAt(v);
+    // Four 12 px bars and three 1 px gaps are 51 px, centred on the row's 30.
+    expect(barBlock(barOf(m), 16)).toBe(51);
+    expect(barSegments(barOf(m), 0, f, 30, 16)).toEqual([
+      { left: at(0), right: at(30), top: 5, bottom: 17 },
+      { left: at(-10), right: at(0), top: 18, bottom: 30 },
+      undefined,
+      { left: at(0), right: at(20), top: 44, bottom: 56 },
+    ]);
+    expect(barCentre(barOf(m), 3, 30, 16)).toBe(49.5);
+    expect(barReach(barOf(m), 0)).toEqual({ lo: -10, hi: 30 });
+  });
+
+  it("draws one series grouped as a plain bar", () => {
+    const m = grouped([[40]]);
+    expect(barOf(m).arrange).toBe("stack");
+    expect(barBlock(barOf(m), 16)).toBe(16);
+    expect(barSegments(barOf(m), 0, barFrame(m, 0, 100), 12, 16)).toEqual([
+      { left: 0, right: 40, top: 4, bottom: 20 },
+    ]);
   });
 });

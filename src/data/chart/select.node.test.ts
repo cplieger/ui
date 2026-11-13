@@ -647,6 +647,18 @@ describe("bar keys", () => {
     expect(b.nav.move(bar(0, 1), "ArrowRight", undefined)).toEqual(bar(0, 0));
   });
 
+  it("moves Right to the next grouped bar in series order on either x direction", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      const b = built({ ...spec, marks: [{ ...mark, arrange: "group" }] });
+      expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, 0));
+      expect(b.nav.move(bar(0, 0), "ArrowRight", undefined)).toEqual(bar(0, 1));
+      expect(b.nav.move(bar(0), "ArrowLeft", undefined)).toEqual(bar(0, 1));
+      expect(spoken(b.model, bar(0), words, false)).toBe("Row 1: Domestic 1, International 2.");
+    }
+  });
+
   it("one series has no parts for Left and Right to choose", () => {
     const b = built(ages);
     expect(b.nav.move(bar(1), "ArrowLeft", undefined)).toBe(undefined);

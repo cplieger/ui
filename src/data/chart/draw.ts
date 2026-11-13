@@ -335,12 +335,12 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
     if (segs.length === 0) {
       return "";
     }
-    // The whole row rings its bar's whole length; a chosen part, that segment.
+    // The whole row rings the box around its bars; a chosen part, that bar.
     const g = segs.reduce((a, b) => ({
       left: Math.min(a.left, b.left),
       right: Math.max(a.right, b.right),
-      top: a.top,
-      bottom: a.bottom,
+      top: Math.min(a.top, b.top),
+      bottom: Math.max(a.bottom, b.bottom),
     }));
     return outset(g);
   }

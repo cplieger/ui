@@ -422,20 +422,42 @@ export function areaPaths(m: AreaModel, f: Frame): string[] {
   });
 }
 
-/** Row `i`'s stack of `m` along x: the sum of its negative values and the
- *  sum of its positive ones, each 0 without any. */
+/** Row `i`'s reach of `m` along x, each end 0 without a value past it: a
+ *  stack's sums of its negative and of its positive values, or a group's
+ *  lowest and highest value. */
 export function barReach(m: BarModel, i: number): { readonly lo: number; readonly hi: number } {
   let lo = 0;
   let hi = 0;
   for (const s of m.series) {
     const v = s.x[i] ?? 0;
-    if (v < 0) {
+    if (m.arrange === "group") {
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    } else if (v < 0) {
       lo += v;
     } else {
       hi += v;
     }
   }
   return { lo, hi };
+}
+
+/** A grouped row's bars are this share of a bar's thickness, 1 px apart. */
+const SUB_BAR = 0.75;
+
+/** The px across a row that `m`'s bars of `thick` px take: one bar, or a
+ *  group's bars and the 1 px between them. */
+export const barBlock = (m: BarModel, thick: number): number =>
+  m.arrange === "group" ? m.series.length * thick * SUB_BAR + (m.series.length - 1) * GAP : thick;
+
+/** The centre across its row of series `k`'s bar in a row of `m` centred
+ *  at `cy`: `cy` itself unless the row is grouped. */
+export function barCentre(m: BarModel, k: number, cy: number, thick: number): number {
+  if (m.arrange !== "group") {
+    return cy;
+  }
+  const sub = thick * SUB_BAR;
+  return cy - barBlock(m, thick) / 2 + k * (sub + GAP) + sub / 2;
 }
 
 /** A bar segment's px: left to right along x, top to bottom across its row. */
@@ -452,7 +474,8 @@ export interface Segment {
  * Positive values stack rightward from 0 and negative ones leftward, each
  * side in series order; a segment beyond another gives up its first px
  * toward 0 as the gap unless it is under 3 px long, so a stack's end stays
- * at its sum. A `null` counts as 0 and draws nothing.
+ * at its sum. Under "group" each series' bar runs from 0 at `barCentre`,
+ * a sub-bar's thickness across. A `null` counts as 0 and draws nothing.
  */
 export function barSegments(
   m: BarModel,
@@ -461,6 +484,19 @@ export function barSegments(
   cy: number,
   thick: number,
 ): (Segment | undefined)[] {
+  if (m.arrange === "group") {
+    const half = (thick * SUB_BAR) / 2;
+    return m.series.map((s, k) => {
+      const v = s.x[i] ?? 0;
+      const c = barCentre(m, k, cy, thick);
+      const [a, b] = [f.xAt(0), f.xAt(v)];
+      const left = clamp(Math.min(a, b), 0, f.width);
+      const right = clamp(Math.max(a, b), 0, f.width);
+      return v !== 0 && right > left
+        ? { left, right, top: snap(c - half, f.dpr), bottom: snap(c + half, f.dpr) }
+        : undefined;
+    });
+  }
   const top = snap(cy - thick / 2, f.dpr);
   const bottom = snap(cy + thick / 2, f.dpr);
   const base = { lo: 0, hi: 0 };

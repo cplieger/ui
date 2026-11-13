@@ -137,22 +137,22 @@ function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
   });
 }
 
-// A row per category, a column per series, and from two series up a Total.
+// A row per category, a column per series, and from two stacked series up a Total.
 function barTable(model: Model, m: BarModel, words: Words, after: string): TableModel {
   const names = model.y.type === "band" ? model.y.rows : [];
-  const several = m.series.length > 1;
+  const withTotal = m.series.length > 1 && m.arrange === "stack";
   const rows = names.map((name, i): Row => {
     const cells: Cell[] = m.series.map((s) => ({
       parts: [barText(model, s.x[i] ?? null, words)],
       num: true,
     }));
-    if (several) {
+    if (withTotal) {
       cells.push({ parts: [barText(model, barTotal(m, i), words)], num: true });
     }
     return { key: name, head: [name], cells };
   });
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
-  if (several) {
+  if (withTotal) {
     columns.push({ text: words.total, num: true });
   }
   return { corner: model.spec.y?.label ?? "", columns, rows, after };

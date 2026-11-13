@@ -26,7 +26,7 @@ export interface Box {
   readonly bottom: number;
 }
 
-export interface Placed {
+interface Placed {
   readonly side: Side;
   readonly box: Box;
   /** The box lies inside the plot on the side it took. */

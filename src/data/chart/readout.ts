@@ -226,7 +226,7 @@ export const barText = (model: Model, v: number | null, words: Words): string =>
   v === null ? words.noData : model.xText(v);
 
 /** Row `r` of bar mark `m`: its name, each series' value, and from two
- *  series up the row's total. */
+ *  stacked series up the row's total. */
 export function barReading(model: Model, m: BarModel, r: number, words: Words): Reading {
   const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
   if (m.series.length === 1) {
@@ -240,7 +240,8 @@ export function barReading(model: Model, m: BarModel, r: number, words: Words): 
     name: s.name,
     value: barText(model, s.x[r] ?? null, words),
   }));
-  return { at, entries: all, total: barText(model, barTotal(m, r), words) };
+  const total = m.arrange === "stack" ? barText(model, barTotal(m, r), words) : undefined;
+  return { at, entries: all, total };
 }
 
 /** The legend row with no selection: a rect's series totals over the
@@ -305,7 +306,7 @@ export function overall(model: Model, words: Words): Reading | undefined {
           m.series.length === 1
             ? bare("")
             : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
-        total: m.series.length === 1 ? undefined : "",
+        total: m.arrange === "stack" && m.series.length > 1 ? "" : undefined,
       };
   }
 }

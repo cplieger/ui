@@ -24,7 +24,8 @@ type Kind =
   | "step"
   | "timeline"
   | "bar"
-  | "stackedBar";
+  | "stackedBar"
+  | "groupedBar";
 
 export interface SeriesModel {
   readonly name: string;
@@ -145,6 +146,9 @@ export interface BarSeriesModel {
 /** Bars along x, one row per category of the chart's band y. */
 export interface BarModel {
   readonly kind: "bar";
+  /** "group" sets two or more series one under another in each row; one
+   *  series grouped is a plain bar, so it reads "stack". */
+  readonly arrange: "stack" | "group";
   /** Each row's value written at its bar's end, in place of an x axis. */
   readonly labels: boolean;
   readonly series: readonly BarSeriesModel[];
@@ -405,6 +409,10 @@ function checkMark(mark: unknown, what: string): void {
         }
         seen.add(name);
       }
+      const arrange = mark["arrange"];
+      if (arrange !== undefined && arrange !== "stack" && arrange !== "group") {
+        fail(`${what}.arrange must be "stack" or "group"`);
+      }
       optional(mark["labels"], "boolean", `${what}.labels`);
       checkSeries(mark["series"], names.length, what, "x");
       return;
@@ -557,7 +565,11 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
     case "dot":
       return "timeline";
     case "bar":
-      return first.series.length < 2 ? "bar" : "stackedBar";
+      return first.series.length < 2
+        ? "bar"
+        : first.arrange === "group"
+          ? "groupedBar"
+          : "stackedBar";
   }
 }
 
@@ -685,7 +697,12 @@ export function chartModel(
           })),
         };
       case "bar":
-        return { kind: "bar", labels: m.labels !== false, series: barSeries(m.series) };
+        return {
+          kind: "bar",
+          arrange: m.arrange === "group" && m.series.length > 1 ? "group" : "stack",
+          labels: m.labels !== false,
+          series: barSeries(m.series),
+        };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;

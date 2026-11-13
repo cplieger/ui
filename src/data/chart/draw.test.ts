@@ -914,6 +914,41 @@ describe("a bar chart", () => {
     expect(names.some((n) => n.hasAttribute("data-selected"))).toBe(false);
   });
 
+  it("draws grouped bars in their slots one under another and rings the row's box", () => {
+    const sexes: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["Japan", "Italy"],
+          arrange: "group",
+          series: [
+            { name: "Female", slot: 1, x: [51.1, 48.6] },
+            { name: "Male", slot: 3, x: [48.4, 45.1] },
+          ],
+        },
+      ],
+    };
+    const d = draw(sexes, 600);
+    const paths = [...d.svg.querySelectorAll('[data-part="bar"] > path')];
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    const values = [...d.svg.querySelectorAll('[data-part="value"] text')].map(
+      (t) => t.textContent,
+    );
+    expect(values).toEqual(["51.1", "48.4", "48.6", "45.1"]);
+    const nav = navigator(d.model, d.lay);
+    const ringBox = () => (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
+    const cy = d.lay.rows[0]?.y ?? 0;
+    // Two 12 px bars and the 1 px between them: the whole row's ring frames all 25 px.
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 0, part: undefined }, nav);
+    expect(ringBox().y).toBeCloseTo(cy - 12.5 - 1, 0);
+    expect(ringBox().height).toBeCloseTo(25 + 2, 0);
+    expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.frame.xAt(51.1) + 1, 1);
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 0, part: 1 }, nav);
+    expect(ringBox().height).toBeCloseTo(12 + 2, 0);
+    expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.frame.xAt(48.4) + 1, 1);
+  });
+
   it("sets the names above the bars on a phone", () => {
     const d = draw(ages, 320);
     expect(d.lay.left).toBe(0);

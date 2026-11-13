@@ -227,7 +227,8 @@ function moveBar(
     if (n < 2) {
       return undefined;
     }
-    const forward = (key === "ArrowRight") !== reverse;
+    // A group's bars stand one under another, so a reversed x leaves their order.
+    const forward = (key === "ArrowRight") !== (reverse && m.arrange === "stack");
     const part = sel.part === undefined ? (forward ? 0 : n - 1) : sel.part + (forward ? 1 : -1);
     return part >= 0 && part < n ? { ...sel, part } : undefined;
   }

@@ -574,6 +574,20 @@ describe("the summary of a bar chart", () => {
     );
   });
 
+  it("names each grouped series' extremes and no totals", () => {
+    const grouped: ChartSpec = {
+      ...firms,
+      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "group" }],
+    };
+    expect(generatedSummary(model(grouped), words)).toBe(
+      `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
+        "International: highest Brill 22, lowest Acme 2.",
+    );
+    expect(shortDescription(model(grouped), words)).toBe(
+      `Grouped bar chart, 3 series, 3${nb}companies`,
+    );
+  });
+
   it("says only the count when every value is a gap, in categories without a unit", () => {
     const empty: ChartSpec = {
       x: {},

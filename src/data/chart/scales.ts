@@ -137,8 +137,9 @@ function underflow(spec: ChartSpec, lo: number): Underflow | undefined {
 }
 
 // A bar row's stack reaches from the sum of its negative values to the sum
-// of its positive ones, through 0.
+// of its positive ones, through 0; grouped bars each reach their own value.
 function addBars(extent: Extent, m: BarMark): void {
+  const group = m.arrange === "group";
   for (let i = 0; i < m.y.length; i++) {
     let lo = 0;
     let hi = 0;
@@ -149,7 +150,9 @@ function addBars(extent: Extent, m: BarMark): void {
       }
       if (finite(v)) {
         extent.count(v);
-        if (v < 0) {
+        if (group) {
+          extent.add(v);
+        } else if (v < 0) {
           lo += v;
         } else {
           hi += v;

@@ -23,7 +23,7 @@ import {
   sampleReading,
   type Reading,
 } from "./readout.js";
-import type { ChartSpec } from "./spec.js";
+import type { ChartSpec, Mark } from "./spec.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -528,6 +528,25 @@ describe("the legend row of a bar chart", () => {
       ],
       total: "3",
     });
+  });
+
+  const grouped: ChartSpec = {
+    ...firms,
+    marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "group" }],
+  };
+
+  it("reads a grouped row's values with no total, and names the series with no total slot", () => {
+    const m = model(grouped);
+    const bar = m.marks[0] as BarModel;
+    expect(barReading(m, bar, 0, words)).toEqual({
+      at: "Acme",
+      entries: [
+        { slot: 1, name: "Domestic", value: "40" },
+        { slot: 3, name: "International", value: "2" },
+      ],
+      total: undefined,
+    });
+    expect(overall(m, words)?.total).toBeUndefined();
   });
 
   it("keeps slots as wide as every row's reading and the whole chart's", () => {

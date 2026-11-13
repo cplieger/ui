@@ -340,6 +340,49 @@ describe("a bar chart", () => {
     expect(l.valueLabels[0]?.x).toBeCloseTo(l.frame.xAt(5) + 4);
   });
 
+  const sexes: ChartSpec = {
+    x: {},
+    marks: [
+      {
+        mark: "bar",
+        y: ["Japan", "Italy"],
+        arrange: "group",
+        series: [
+          { name: "Combined", x: [49.8, 48.4] },
+          { name: "Female", x: [51.1, null] },
+          { name: "Male", x: [48.4, -3] },
+        ],
+      },
+    ],
+  };
+
+  it("makes a grouped row its 12 px bars, the 1 px between them and 8 px, from 30rem up", () => {
+    const l = lay(sexes, 600);
+    // 3 × 12 + 2 + 8 = 46 px a row, the bars' block centred in it.
+    expect(l.frame.height).toBe(2 * 46);
+    expect(l.rows.map((r) => r.y)).toEqual([23, 69]);
+  });
+
+  it("puts a grouped row's name above its bars under 30rem, 18 + 2 + 38 + 8 px a row", () => {
+    const l = lay(sexes, 479);
+    expect(l.frame.height).toBe(2 * 66);
+    expect(l.rows.map((r) => r.y)).toEqual([18 + 2 + 19, 66 + 18 + 2 + 19]);
+  });
+
+  it("writes each grouped bar's value at its own end and across its own bar, none for a gap", () => {
+    const l = lay(sexes, 600);
+    expect(l.valueLabels.map((t) => t.text)).toEqual(["49.8", "51.1", "48.4", "48.4", "-3"]);
+    const [combined, female, male, , below] = l.valueLabels;
+    expect(combined?.x).toBeCloseTo(l.frame.xAt(49.8) + 4);
+    expect(female?.x).toBeCloseTo(l.frame.xAt(51.1) + 4);
+    // Each label sits across its own 12 px bar: the block runs 4 to 42 in the first row.
+    expect([combined?.y, female?.y, male?.y]).toEqual([10, 23, 36]);
+    expect(below).toMatchObject({ anchor: "end", y: 46 + 36 });
+    expect(below?.x).toBeCloseTo(l.frame.xAt(-3) - 4);
+    // x reaches the largest single value, not a row's sum.
+    expect(l.frame.xAt(51.1) + 4 + 4 * 7.5).toBeCloseTo(l.frame.width);
+  });
+
   it("draws an x axis with its ticks and title when labels are off", () => {
     const off: ChartSpec = {
       x: { label: "Years" },

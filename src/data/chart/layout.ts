@@ -19,7 +19,7 @@ import {
   type Axis,
   type RuleLabel,
 } from "./axis.js";
-import { barReach, type Frame } from "./geometry.js";
+import { barBlock, barCentre, barReach, type Frame } from "./geometry.js";
 import { sampleValue, type BarModel, type Model } from "./model.js";
 import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
@@ -72,9 +72,10 @@ export interface Layout {
   /** A continuous y's axis; absent on a band. */
   readonly yAxis: Axis | undefined;
   /** A band's rows, each name cut to its room, `y` the middle of its dot
-   *  row or its bar in the plot. */
+   *  row or its bars in the plot. */
   readonly rows: readonly { readonly name: string; readonly y: number }[];
-  /** A bar's thickness, 0 without a bar mark. */
+  /** A whole bar's thickness, which a group's thinner bars derive from
+   *  (`barBlock`); 0 without a bar mark. */
   readonly bar: number;
   /** A bar chart's value labels, in plot px. */
   readonly valueLabels: readonly Text[];
@@ -115,7 +116,7 @@ const TICK = 4;
 /** Under this many rem a chart draws no end labels, its notes as numbered
  *  markers, and a bar's name on its own line above it. */
 const NARROW_REM = 30;
-/** A bar is its row less this, half above it and half below. */
+/** A row's bars take its height less this, half above them and half below. */
 const BAR_SPACE = 8;
 /** The room between a name above a bar and the bar. */
 const NAME_GAP = 2;
@@ -201,19 +202,40 @@ function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
   );
 }
 
-// Each row's value label: its total, written by the x format, on the side
-// of 0 its sign takes; absent for a row with no value.
-function barTotals(m: BarModel, rows: number): (number | undefined)[] {
-  return Array.from({ length: rows }, (_, i) => {
-    let total: number | undefined;
+/** A bar's value label: the value it writes, its row, and the series whose
+ *  bar it ends, or none for a stack's total. */
+interface BarValue {
+  readonly value: number;
+  readonly row: number;
+  readonly series: number | undefined;
+}
+
+// The values a bar chart writes at its bars' ends: each stacked row's total,
+// or each grouped bar's value; none for a gap.
+function barValues(m: BarModel, rows: number): BarValue[] {
+  const out: BarValue[] = [];
+  for (let row = 0; row < rows; row++) {
+    if (m.arrange === "group") {
+      m.series.forEach((s, k) => {
+        const v = s.x[row] ?? null;
+        if (v !== null) {
+          out.push({ value: v, row, series: k });
+        }
+      });
+      continue;
+    }
+    let total: number | null = null;
     for (const s of m.series) {
-      const v = s.x[i] ?? null;
+      const v = s.x[row] ?? null;
       if (v !== null) {
         total = (total ?? 0) + v;
       }
     }
-    return total;
-  });
+    if (total !== null) {
+      out.push({ value: total, row, series: undefined });
+    }
+  }
+  return out;
 }
 
 /** An x rule's label on the plot: its words and value, or off the axis. */
@@ -246,7 +268,9 @@ export function layout(
   // Under 30rem a name above its bar leaves the plot the chart's whole width.
   const above = bars !== undefined && narrow;
   const thick = bars === undefined ? 0 : Math.max(1, metrics.row - BAR_SPACE);
-  const rowH = above ? metrics.nameLine + NAME_GAP + metrics.row : metrics.row;
+  const block = bars === undefined ? 0 : barBlock(bars, thick);
+  const barRow = bars?.arrange === "group" ? block + BAR_SPACE : metrics.row;
+  const rowH = above ? metrics.nameLine + NAME_GAP + barRow : barRow;
   const height =
     band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * rowH;
 
@@ -285,16 +309,13 @@ export function layout(
   // Value labels sit past each bar's end, so x ends short of each side by
   // the widest label there and its gap; they stand in for the x axis.
   const valued = bars?.labels === true;
-  const totals = valued && band !== undefined ? barTotals(bars, band.rows.length) : [];
-  const valueTexts = totals.map((t) => (t === undefined ? "" : model.xText(t)));
+  const values = valued && band !== undefined ? barValues(bars, band.rows.length) : [];
+  const valueTexts = values.map((t) => model.xText(t.value));
   let roomLeft = 0;
   let roomRight = 0;
-  totals.forEach((t, i) => {
-    if (t === undefined) {
-      return;
-    }
+  values.forEach((t, i) => {
     const w = measure.number(valueTexts[i] ?? "") + VALUE_GAP;
-    if (t < 0 !== reverse) {
+    if (t.value < 0 !== reverse) {
       roomLeft = Math.max(roomLeft, w);
     } else {
       roomRight = Math.max(roomRight, w);
@@ -409,7 +430,7 @@ export function layout(
   } else {
     names.forEach((name, i) => {
       if (above) {
-        const y = i * rowH + metrics.nameLine + NAME_GAP + thick / 2;
+        const y = i * rowH + metrics.nameLine + NAME_GAP + block / 2;
         rows.push({ name, y });
         yLabels.push(
           reverse
@@ -430,18 +451,18 @@ export function layout(
   }
 
   const valueLabels: Text[] = [];
-  totals.forEach((t, i) => {
-    const row = rows[i];
-    if (t === undefined || row === undefined) {
+  values.forEach((t, i) => {
+    const at = rows[t.row];
+    if (at === undefined || bars === undefined) {
       return;
     }
-    const reach = bars === undefined ? undefined : barReach(bars, i);
-    const end = xAx.at(t < 0 ? (reach?.lo ?? 0) : (reach?.hi ?? 0));
-    const leftward = t < 0 !== reverse;
+    const reach = barReach(bars, t.row);
+    const end = xAx.at(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi);
+    const leftward = t.value < 0 !== reverse;
     valueLabels.push({
       text: valueTexts[i] ?? "",
       x: leftward ? end - VALUE_GAP : end + VALUE_GAP,
-      y: row.y,
+      y: t.series === undefined ? at.y : barCentre(bars, t.series, at.y, thick),
       anchor: leftward ? "end" : "start",
     });
   });

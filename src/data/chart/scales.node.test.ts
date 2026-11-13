@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { durationEdges } from "../scale/ladder.js";
 
 import { ruleAt, xScale, yScale, type Continuous } from "./scales.js";
-import type { ChartSpec, Mark } from "./spec.js";
+import type { BarMark, ChartSpec, Mark } from "./spec.js";
 
 const S = 1_000;
 const DAY = 86_400_000;
@@ -358,6 +358,16 @@ describe("a bar chart's scales", () => {
     expect([x.lo, x.hi, x.integer]).toEqual([0, 7, true]);
     const signed = xScale(bars([3, -2], [-1, -4]));
     expect([signed.lo, signed.hi]).toEqual([-6, 3]);
+  });
+
+  it("takes a group's x from its lowest to its highest single value", () => {
+    const spec = bars([3, -2], [4, -5]);
+    const grouped = {
+      ...spec,
+      marks: [{ ...(spec.marks[0] as BarMark), arrange: "group" as const }],
+    };
+    const x = xScale(grouped);
+    expect([x.lo, x.hi]).toEqual([-5, 4]);
   });
 
   it("holds 0 and its rules when every value is above 0", () => {

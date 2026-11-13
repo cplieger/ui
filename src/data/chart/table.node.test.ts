@@ -431,4 +431,26 @@ describe("the table of a bar chart", () => {
       ["Brill", "3", "No data", "3"],
     ]);
   });
+
+  it("has no Total column for grouped bars", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Japan"],
+            arrange: "group",
+            series: [
+              { name: "Female", x: [51.1] },
+              { name: "Male", x: [48.4] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["Female", "Male"]);
+    expect(cells(t)).toEqual([["Japan", "51.1", "48.4"]]);
+  });
 });

@@ -234,7 +234,7 @@ function barSummary(model: Model, m: BarModel, words: Words): string[] {
   for (const s of m.series) {
     sentence(several ? s.name : undefined, (i) => s.x[i] ?? null);
   }
-  if (several) {
+  if (several && m.arrange === "stack") {
     sentence(words.total, (i) => barTotal(m, i));
   }
   return out;
