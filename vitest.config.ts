@@ -68,10 +68,9 @@ const strict = {
   restoreMocks: true,
   unstubEnvs: true,
   unstubGlobals: true,
-  // No testTimeout: vitest's own default is 15 s in a browser project, where
-  // every userEvent is a driver round trip of up to 2.5 s on a loaded host,
-  // and 5 s in node.
-  hookTimeout: 10000,
+  // No testTimeout or hookTimeout: vitest's own defaults are 15 s and 30 s in
+  // a browser project, where every userEvent is a driver round trip of up to
+  // 2.5 s on a loaded host, and 5 s and 10 s in node.
   sequence: {
     shuffle: { files: false, tests: false },
     concurrent: false,

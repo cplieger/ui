@@ -530,8 +530,8 @@ describe("enhanceFeed", () => {
     expect(panel.scrollTop).toBeGreaterThan(0);
     expect(Math.min(...gaps)).toBeGreaterThanOrEqual(-1);
     expect(Math.min(...gaps)).toBeLessThan(pitch);
-    // Thirty driver round trips of up to 500 ms outlast the 15 s browser
-    // default, and a timed-out run presses Tab into the next tests too.
+    // Thirty Tab round trips outlast the 15 s browser default on a loaded
+    // host, and a timed-out run presses Tab into the next tests too.
   }, 30_000);
 
   it("keeps a reader who scrolled up in place while they type in the composer", async () => {
