@@ -27,6 +27,7 @@ import {
   type AreaModel,
   type BarModel,
   type BarSeriesModel,
+  type CalendarModel,
   type CellModel,
   type DotModel,
   type LineModel,
@@ -73,7 +74,8 @@ type Primary =
   | PointModel
   | SlopeModel
   | ScatterModel
-  | CellModel;
+  | CellModel
+  | CalendarModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -493,12 +495,35 @@ export function cellReading(
   };
 }
 
+/** How many days a calendar holds, missing ones included, through `words.days`. */
+export function daysText(model: Model, m: CalendarModel, words: Words): string {
+  const n = m.values.length;
+  return words.days(formatter("number", model.locale)(n), n);
+}
+
+/** Day `i` of a calendar in words: its date in full, "so far" on an open last day. */
+function dayText(model: Model, m: CalendarModel, i: number, words: Words): string {
+  const date = model.dateText(m.day + i);
+  return m.open && i === m.values.length - 1 ? words.soFar(date) : date;
+}
+
+/** Day `i` of `m`: its date and its value, with its class's swatch to ring. */
+export function dayReading(model: Model, m: CalendarModel, i: number, words: Words): Reading {
+  const v = m.values[i] ?? null;
+  return {
+    at: dayText(model, m, i, words),
+    entries: bare(cellValueText(model, v, words)),
+    total: undefined,
+    swatch: v === null ? -1 : classOf(m.classes, v),
+  };
+}
+
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
  *  values, an area's last whole stack, a bar or point chart's row count,
  *  a slope's right column, a scatter's dot count, blank slots for its
- *  measures and from two series up each one's count, or a cell chart's
- *  cell count. */
+ *  measures and from two series up each one's count, a cell chart's
+ *  cell count, or a calendar's day count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -574,6 +599,8 @@ export function overall(model: Model, words: Words): Reading | undefined {
     case "cell":
       // Cells need not add up (a median, a temperature), so the value slot is blank.
       return { at: cellsText(model, m, words), entries: bare(""), total: undefined };
+    case "calendar":
+      return { at: daysText(model, m, words), entries: bare(""), total: undefined };
   }
 }
 
@@ -852,6 +879,14 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       words.noData,
       ...widthSamples(all(), model.widthKeys.colour, nounOf(model, unit)).map((v) =>
         cellValueText(model, v, words),
+      ),
+    );
+  } else if (m?.kind === "calendar") {
+    m.values.forEach((_, i) => at.push(dayText(model, m, i, words)));
+    values[0]?.push(
+      words.noData,
+      ...widthSamples(m.values, model.widthKeys.colour, nounOf(model, model.spec.colour?.unit)).map(
+        (v) => cellValueText(model, v, words),
       ),
     );
   } else if (m?.kind === "dot") {

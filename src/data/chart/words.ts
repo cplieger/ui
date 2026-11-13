@@ -30,7 +30,8 @@ type Kind =
   | "scatter"
   | "bubble"
   | "heatmap"
-  | "histogram2d";
+  | "histogram2d"
+  | "calendar";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -44,8 +45,8 @@ export interface ChartWords {
    *  is a column chart, of a bar a bar chart or, with a value below 0, a
    *  diverging one; two or more take their arrangement's kind; an area
    *  mark, or a rect with shape "area", an area chart; a scatter whose
-   *  series carry r a bubble chart; a cell mark a heatmap, or a 2D histogram
-   *  when both its axes are binned. */
+   *  series carry r a bubble chart; a cell mark a heatmap, a 2D histogram
+   *  when both its axes are binned, or with days a calendar heatmap. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -61,7 +62,8 @@ export interface ChartWords {
   /** A timeline row with no dot in the domain; unit is the dot mark's plural
    *  noun, or "" without one. Default "{name}: no {unit}", or "{name}: none". */
   readonly silentRow?: (name: string, unit: string) => string;
-  /** An open rect's last bucket. Default "{range}, so far". */
+  /** An open rect's last bucket, or a calendar's open last day and its
+   *  value in the table. Default "{range}, so far". */
   readonly soFar?: (range: string) => string;
   /** The empty state, when the spec gives no `empty`. Default "Nothing to show in this range." */
   readonly empty?: string;
@@ -135,6 +137,10 @@ export interface ChartWords {
    *  summary; count is n as a number, for the plural. Default "{n} cells",
    *  or "{n} cell" for one. */
   readonly cells?: (n: string, count: number) => string;
+  /** A calendar's days in the legend row with no selection, the summary and
+   *  the short description; count is n as a number, for the plural.
+   *  Default "{n} days", or "{n} day" for one. */
+  readonly days?: (n: string, count: number) => string;
   /** A cell's place in the legend row, the readings, the summary and a
    *  note's place: its column's and its row's name, or a bin as
    *  `measure` of its range. Default "{row}, {column}". */
@@ -230,6 +236,7 @@ const DEFAULTS: Words = {
     bubble: "Bubble chart",
     heatmap: "Heatmap",
     histogram2d: "2D histogram",
+    calendar: "Calendar heatmap",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -271,6 +278,7 @@ const DEFAULTS: Words = {
   points: (n, count) => (count === 1 ? `${n} point` : `${n} points`),
   grid: (rows, columns) => `${rows} by ${columns}`,
   cells: (n, count) => (count === 1 ? `${n} cell` : `${n} cells`),
+  days: (n, count) => (count === 1 ? `${n} day` : `${n} days`),
   cellPlace: (column, row) => `${row}, ${column}`,
   cellSummary: (count, high, low) =>
     high === "" ? `${count}.` : `${count}. Highest ${high}. Lowest ${low}.`,

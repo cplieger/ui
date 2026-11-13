@@ -1396,3 +1396,73 @@ describe("a cell chart's selection", () => {
     expect(spoken(model, cell(0, 0), words, false)).toBe("Mon, 0: 3\u00A0posts.");
   });
 });
+
+describe("a calendar's selection", () => {
+  const DAY = 86_400_000;
+  // From Thursday 1 January 2026, 66 days, weeks from Monday.
+  const JAN1 = Date.UTC(2026, 0, 1);
+  const calendar = (values: (number | null)[], open = false): ChartSpec => ({
+    colour: { unit: { one: "post", other: "posts" } },
+    marks: [{ mark: "cell", days: { start: JAN1, values, open }, weekStart: 1 }],
+  });
+  const days = (n: number) => Array.from({ length: n }, (_, i) => i % 7);
+  const day = (i: number): Selection => ({ kind: "day", i });
+  const b = built(calendar(days(66)));
+
+  it("starts on the newest day", () => {
+    expect(initial(b.model)).toEqual(day(65));
+    expect(initial(built(calendar([])).model)).toBeUndefined();
+  });
+
+  it("moves a week with Left and Right, a day with Up and Down, and to the ends with Home and End", () => {
+    expect(press(b, day(10), "ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp")).toEqual([
+      day(17),
+      day(10),
+      day(11),
+      day(10),
+    ]);
+    expect(press(b, day(10), "Home")).toEqual([day(0)]);
+    expect(press(b, day(10), "End")).toEqual([day(65)]);
+    expect(press(b, day(3), "ArrowLeft")).toEqual([undefined]);
+    expect(press(b, day(0), "ArrowUp")).toEqual([undefined]);
+    expect(press(b, day(60), "ArrowRight")).toEqual([undefined]);
+    expect(press(b, day(65), "ArrowDown")).toEqual([undefined]);
+  });
+
+  it("pages to the same date a month away, the month's last day when it has none, held at the ends", () => {
+    // 31 January, then 28 February, then 28 January.
+    expect(press(b, day(30), "PageDown", "PageUp")).toEqual([day(58), day(27)]);
+    expect(press(b, day(45), "PageDown")).toEqual([day(65)]);
+    expect(press(b, day(20), "PageUp")).toEqual([day(0)]);
+    expect(press(b, day(0), "PageUp")).toEqual([undefined]);
+  });
+
+  it("picks the day under the pointer, and nothing above the weeks or outside the days", () => {
+    const g = b.lay.days;
+    const at = (column: number, row: number) =>
+      b.nav.pick((column + 0.5) * (g?.column ?? 0), (g?.tops[0] ?? 0) + (row + 0.5) * 24);
+    // Thursday 1 January is in the first column's fourth row, 8 January the next column's.
+    expect(at(0, 3)).toEqual(day(0));
+    expect(at(1, 3)).toEqual(day(7));
+    expect(at(0, 2)).toBeUndefined();
+    expect(b.nav.pick(1, (g?.tops[0] ?? 0) - 1)).toBeUndefined();
+    expect(b.nav.alongRow).toBe(true);
+  });
+
+  it("keeps a day across an update by its date", () => {
+    const later: ChartSpec = {
+      marks: [{ mark: "cell", days: { start: JAN1 + 7 * DAY, values: days(66) } }],
+    };
+    expect(rekey(b.model, day(10), chartModel(later, "en", "UTC"))).toEqual(day(3));
+    expect(rekey(b.model, day(3), chartModel(later, "en", "UTC"))).toBeUndefined();
+  });
+
+  it("says the day's date and value, so far on an open last day, and No data for a missing one", () => {
+    const model = built(calendar([3, null, 1], true)).model;
+    expect(spoken(model, day(0), words, false)).toBe("Thursday, January 1, 2026: 3\u00A0posts.");
+    expect(spoken(model, day(1), words, false)).toBe("Friday, January 2, 2026: No data.");
+    expect(spoken(model, day(2), words, false)).toBe(
+      "Saturday, January 3, 2026, so far: 1\u00A0post.",
+    );
+  });
+});

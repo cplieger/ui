@@ -17,6 +17,7 @@ import {
   scatterDotAt,
   slopeChange,
   type BarModel,
+  type CalendarModel,
   type CellAxis,
   type CellModel,
   type DotModel,
@@ -35,6 +36,7 @@ import {
   cellsText,
   cellValueText,
   changeText,
+  daysText,
   counted,
   domainText,
   dotsText,
@@ -427,6 +429,31 @@ function cellSummary(model: Model, m: CellModel, words: Words): string[] {
   return [words.cellSummary(cellsText(model, m, words), place(high), place(low))];
 }
 
+// The day count, then the highest and lowest days, the earliest on a tie; a
+// missing day and an open last day count for nothing.
+function calendarSummary(model: Model, m: CalendarModel, words: Words): string[] {
+  let high = -1;
+  let low = -1;
+  const last = m.open ? m.values.length - 1 : m.values.length;
+  for (let i = 0; i < last; i++) {
+    const v = m.values[i] ?? null;
+    if (v === null) {
+      continue;
+    }
+    if (high === -1 || v > (m.values[high] ?? v)) {
+      high = i;
+    }
+    if (low === -1 || v < (m.values[low] ?? v)) {
+      low = i;
+    }
+  }
+  const place = (i: number) =>
+    i === -1
+      ? ""
+      : `${model.dateText(m.day + i)}: ${cellValueText(model, m.values[i] ?? null, words)}`;
+  return [words.cellSummary(daysText(model, m, words), place(high), place(low))];
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -442,7 +469,7 @@ export function ruleSentences(model: Model, words: Words): string[] {
  *  slope's column name), under a dot mark after its row's name, on a bar or
  *  point chart its row's name alone, on a scatter the name of the dot it
  *  joins or else both its measures, on a cell chart the place of the cell it
- *  joins or else both its values. */
+ *  joins or else both its values, on a calendar its instant's date. */
 export function noteSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
   const m = primaryOf(model);
@@ -461,6 +488,8 @@ export function noteSentences(model: Model, words: Words): string[] {
           ? cellPlaceText(model, m, j.row, j.column, words)
           : words.cellPlace(model.xText(t.x ?? 0), model.yText(t.y));
       out.push(words.note(at, t.text));
+    } else if (t.kind === "text" && m?.kind === "calendar") {
+      out.push(words.note(model.xText(t.x ?? 0), t.text));
     } else if (t.kind === "text") {
       const row = model.y.type === "band" ? (model.y.rows[t.y] ?? "") : undefined;
       const x = t.x === undefined ? undefined : model.xText(t.x);
@@ -492,7 +521,9 @@ export function generatedSummary(model: Model, words: Words): string {
                   ? scatterSummary(model, m, words)
                   : m?.kind === "cell"
                     ? cellSummary(model, m, words)
-                    : [];
+                    : m?.kind === "calendar"
+                      ? calendarSummary(model, m, words)
+                      : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
@@ -518,12 +549,15 @@ function gridText(model: Model, m: CellModel, words: Words): string {
 
 /** The plot's name: its kind, its series count from two up, and its x
  *  domain, or on a bar or point chart its row count, on a scatter its dot
- *  count and on a cell chart its rows by its columns, since their x is no
- *  span. */
+ *  count, on a cell chart its rows by its columns and on a calendar its
+ *  day count, since their x is no span. */
 export function shortDescription(model: Model, words: Words): string {
   const m = primaryOf(model);
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
-  const n = m === undefined || m.kind === "dot" || m.kind === "cell" ? 0 : m.series.length;
+  const n =
+    m === undefined || m.kind === "dot" || m.kind === "cell" || m.kind === "calendar"
+      ? 0
+      : m.series.length;
   const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
   const range =
     m?.kind === "bar" || m?.kind === "point"
@@ -532,6 +566,8 @@ export function shortDescription(model: Model, words: Words): string {
         ? dotsText(model, m, words)
         : m?.kind === "cell"
           ? gridText(model, m, words)
-          : domainText(model, words);
+          : m?.kind === "calendar"
+            ? daysText(model, m, words)
+            : domainText(model, words);
   return words.shortDescription(kind, series, range);
 }

@@ -776,3 +776,61 @@ describe("a note on a cell chart", () => {
     );
   });
 });
+
+describe("a note on a calendar", () => {
+  // From midnight of Saturday 28 March 2026 in Paris, the day before the
+  // clocks go forward: 28 March is 24 hours long, 29 March 23.
+  const TZ = "Europe/Paris";
+  const START = Date.UTC(2026, 2, 27, 23);
+  const calendar = (...notes: Mark[]): ChartSpec => ({
+    marks: [{ mark: "cell", days: { start: START, values: [1, 2, 3, 4] }, weekStart: 1 }, ...notes],
+  });
+  const joins = (spec: ChartSpec) => {
+    const m = chartModel(spec, "en", TZ);
+    return m.marks.flatMap((t) => (t.kind === "text" ? [noteJoin(m, t) ?? null] : []));
+  };
+
+  it("joins the day holding its instant on the chart's wall clock, across a DST change", () => {
+    // 11:30 PM on 29 March and 12:30 AM on 30 March in Paris, an hour apart.
+    expect(
+      joins(
+        calendar(
+          { mark: "text", x: Date.UTC(2026, 2, 29, 21, 30), text: "Late" },
+          { mark: "text", x: Date.UTC(2026, 2, 29, 22, 30), text: "Early" },
+        ),
+      ),
+    ).toEqual([
+      { kind: "day", i: 1 },
+      { kind: "day", i: 2 },
+    ]);
+  });
+
+  it("joins the day's reading and writes the day's date in the summary and after the table", () => {
+    const spec = calendar({ mark: "text", x: Date.UTC(2026, 2, 28, 12), text: "Spring" });
+    const m = chartModel(spec, "en", TZ);
+    expect(spoken(m, { kind: "day", i: 0 }, words, false)).toBe(
+      "Saturday, March 28, 2026: 1. Note: Spring.",
+    );
+    expect(generatedSummary(m, words)).toContain("Saturday, March 28, 2026: Spring.");
+    expect(tableModel(m, words).after).toBe("Saturday, March 28, 2026: Spring.");
+  });
+
+  it("leaves an instant outside the days out of the drawing, and keeps it in the summary", () => {
+    const before = Date.UTC(2026, 2, 27, 22);
+    const spec = calendar({ mark: "text", x: before, text: "Before" });
+    const m = chartModel(spec, "en", TZ);
+    expect(joins(spec)).toEqual([null]);
+    expect(layout(m, words, metrics, 600, { axis: 0, label: 0 }).notes).toEqual([]);
+    expect(generatedSummary(m, words)).toContain("Friday, March 27, 2026: Before.");
+  });
+
+  it("draws a note on its day, at the day's centre", () => {
+    const spec = calendar({ mark: "text", x: Date.UTC(2026, 2, 30, 9), text: "Monday" });
+    const l = layout(chartModel(spec, "en", TZ), words, metrics, 600, { axis: 0, label: 0 });
+    const g = l.days;
+    // Monday 30 March starts the second week column; its fill's box is snapped to whole px.
+    const p = l.notes[0]?.point;
+    expect(Math.abs((p?.x ?? 0) - 1.5 * (g?.column ?? 0))).toBeLessThanOrEqual(0.5);
+    expect(Math.abs((p?.y ?? 0) - ((g?.tops[0] ?? 0) + 12))).toBeLessThanOrEqual(0.5);
+  });
+});

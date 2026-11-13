@@ -9,6 +9,7 @@ import { lowerBound } from "../scale/reduce.js";
 
 import {
   binOf,
+  dayOf,
   scatterDotAt,
   type Model,
   type RectModel,
@@ -144,13 +145,15 @@ export function placeNote(
 
 /** The stop a note joins: bucket, sample or slope column `i`, post `i` of
  *  a timeline row, a row (a timeline row with no post, or a bar or point
- *  row), or a scatter's dot `i` of `series`. */
+ *  row), a scatter's dot `i` of `series`, a grid's cell, or a calendar's
+ *  day `i`. */
 export type Join =
   | { readonly kind: "stop"; readonly i: number }
   | { readonly kind: "post"; readonly row: number; readonly i: number }
   | { readonly kind: "row"; readonly row: number }
   | { readonly kind: "dot"; readonly series: number; readonly i: number }
-  | { readonly kind: "cell"; readonly row: number; readonly column: number };
+  | { readonly kind: "cell"; readonly row: number; readonly column: number }
+  | { readonly kind: "day"; readonly i: number };
 
 /**
  * The index in `[from, to)` of ascending `xs` nearest `x`, the earlier on a
@@ -221,7 +224,8 @@ export function notePoint(
  *  joins its row, its x only placing it; a slope note its column; a
  *  scatter note the dot at its values, by value, never by px, so its join
  *  holds before any layout and at every width; a cell note the cell its
- *  names or the bins holding its values give. */
+ *  names or the bins holding its values give; a calendar note the day
+ *  holding its instant on the chart's wall clock. */
 export function noteJoin(model: Model, t: TextModel): Join | undefined {
   const p = notePoint(model, t);
   const m = primaryOf(model);
@@ -266,6 +270,10 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       const column = "names" in m.x ? Math.floor(x) : binOf(m.x.edges, x);
       const row = "names" in m.y ? p.y : binOf(m.y.edges, p.y);
       return column === -1 || row === -1 ? undefined : { kind: "cell", row, column };
+    }
+    case "calendar": {
+      const i = dayOf(model, m, x);
+      return i === -1 ? undefined : { kind: "day", i };
     }
     case undefined:
       return undefined;

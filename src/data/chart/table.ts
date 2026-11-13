@@ -7,8 +7,10 @@
 
 import { formatter } from "../scale/format.js";
 
+import { dayFormat, weekCount, weekRow } from "./calendar.js";
 import type {
   BarModel,
+  CalendarModel,
   CellModel,
   Model,
   PointModel,
@@ -43,8 +45,9 @@ import {
 import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
-/** Text, or an instant written in a `<time datetime>`. */
-type Part = string | { readonly at: number; readonly text: string };
+/** Text, or an instant written in a `<time datetime>`, as a calendar date
+ *  (`YYYY-MM-DD` of `at` in UTC) when `date` is set. */
+type Part = string | { readonly at: number; readonly text: string; readonly date?: boolean };
 
 interface Cell {
   readonly parts: readonly Part[];
@@ -315,6 +318,41 @@ function cellTable(model: Model, m: CellModel, words: Words, after: string): Tab
   };
 }
 
+const DAY = 86_400_000;
+
+// A row per week column, headed by its first date, and a column per weekday
+// from the week's start; a place outside the days is an empty cell.
+function calendarTable(model: Model, m: CalendarModel, words: Words, after: string): TableModel {
+  const lead = weekRow(m.day, m.weekStart);
+  const weekday = dayFormat(model.locale, { weekday: "long" });
+  const date = dayFormat(model.locale, { dateStyle: "medium" });
+  const first = m.day - lead;
+  return {
+    corner: "",
+    columns: Array.from({ length: 7 }, (_, r) => ({ text: weekday(first + r), num: true })),
+    rows: Array.from({ length: weekCount(lead, m.values.length) }, (_, w): Row => {
+      const start = first + 7 * w;
+      return {
+        key: String(start),
+        head: [{ at: start * DAY, text: date(start), date: true }],
+        cells: Array.from({ length: 7 }, (_, r): Cell => {
+          const i = 7 * w + r - lead;
+          if (i < 0 || i >= m.values.length) {
+            return { parts: [""], num: true };
+          }
+          const v = m.values[i] ?? null;
+          const text = v === null ? words.noData : model.colourText(v);
+          return {
+            parts: [m.open && i === m.values.length - 1 && v !== null ? words.soFar(text) : text],
+            num: true,
+          };
+        }),
+      };
+    }),
+    after,
+  };
+}
+
 /** Whether the table's row heads are the app's names, each set in a `<bdi>`
  *  so a right-to-left name keeps its place: a band's rows, a slope's series
  *  or a scatter's dots. */
@@ -373,6 +411,9 @@ export function tableModel(model: Model, words: Words): TableModel {
   if (m.kind === "cell") {
     return cellTable(model, m, words, after);
   }
+  if (m.kind === "calendar") {
+    return calendarTable(model, m, words, after);
+  }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {
     columns.push({ text: words.total, num: true });
@@ -396,7 +437,8 @@ function write(el: HTMLElement, parts: readonly Part[], isolate: boolean): void 
       return bdi;
     }
     const time = document.createElement("time");
-    time.dateTime = new Date(p.at).toISOString();
+    const iso = new Date(p.at).toISOString();
+    time.dateTime = p.date === true ? iso.slice(0, 10) : iso;
     time.textContent = p.text;
     return time;
   });

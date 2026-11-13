@@ -1830,8 +1830,8 @@ describe("the cell mark", () => {
 
 describe("a cell mark's binned axes", () => {
   const bins = (
-    x: Extract<Mark, { mark: "cell" }>["x"],
-    y: Extract<Mark, { mark: "cell" }>["y"],
+    x: Extract<Mark, { mark: "cell"; values: unknown }>["x"],
+    y: Extract<Mark, { mark: "cell"; values: unknown }>["y"],
   ): Mark => {
     const columns = "edges" in x ? x.edges.length - 1 : x.length;
     const rows = "edges" in y ? y.edges.length - 1 : y.length;

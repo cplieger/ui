@@ -6,7 +6,17 @@
 
 import type { Format } from "../scale/format.js";
 
-import type { BarMark, CellMark, ChartSpec, PointMark, RectMark, ScatterMark } from "./spec.js";
+import { localDay, midnight } from "../scale/time.js";
+
+import type {
+  BarMark,
+  CalendarMark,
+  CellMark,
+  ChartSpec,
+  PointMark,
+  RectMark,
+  ScatterMark,
+} from "./spec.js";
 
 type Scale = NonNullable<ChartSpec["x"]>;
 
@@ -352,13 +362,43 @@ function cellColumns(spec: ChartSpec, m: CellMark): Continuous {
   return { ...COLUMNS, hi: m.x.length, reverse: x.reverse === true };
 }
 
+const calendarOf = (spec: ChartSpec): CalendarMark | undefined =>
+  spec.marks.find((m): m is CalendarMark => m.mark === "cell" && "days" in m);
+
+// A calendar's x runs from its first day's midnight to the midnight after
+// its last on the chart's wall clock, so a note's instant finds its day.
+function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undefined): Continuous {
+  if (spec.x !== undefined) {
+    throw new TypeError("renderChart: a calendar takes no x scale; its days are its x");
+  }
+  if (spec.marks.some((r) => r.mark === "rule")) {
+    throw new TypeError("renderChart: a rule on a calendar has no value scale to sit on");
+  }
+  const day = localDay(m.days.start, timeZone);
+  const lo = midnight(day, timeZone);
+  return {
+    ...COLUMNS,
+    type: "time",
+    lo,
+    hi: midnight(day + m.days.values.length, timeZone),
+    integer: false,
+    drawnLo: lo,
+  };
+}
+
 /** The x scale of `spec`: linear unless it says another continuous type,
  *  under a bar mark linear from 0, under a point mark or a scatter holding
  *  0 only with `zero: true`, under a slope its two columns at 0 and 1, and
- *  under a cell mark its columns from 0 to their count or its bins' edges.
- *  Throws for a band x and for a type, domain, zero or underflow bin that
- *  breaks a rule, and for an x scale or an x rule beside a slope. */
-export function xScale(spec: ChartSpec): Continuous {
+ *  under a cell mark its columns from 0 to their count or its bins' edges,
+ *  and under a calendar its days in `timeZone`. Throws for a band x and for
+ *  a type, domain, zero or underflow bin that breaks a rule, for an x scale
+ *  or an x rule beside a slope, and for an x scale or a rule beside a
+ *  calendar. */
+export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
+  const calendar = calendarOf(spec);
+  if (calendar !== undefined) {
+    return calendarDays(spec, calendar, timeZone);
+  }
   if (spec.marks.some((m) => m.mark === "slope")) {
     if (spec.x !== undefined) {
       throw new TypeError("renderChart: a slope takes no x scale; its mark names its two columns");
@@ -368,7 +408,7 @@ export function xScale(spec: ChartSpec): Continuous {
     }
     return COLUMNS;
   }
-  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell");
+  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell" && !("days" in m));
   if (cell !== undefined) {
     return cellColumns(spec, cell);
   }
@@ -582,14 +622,21 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
   return extent;
 }
 
-/** The y scale of `spec`: a band of the dot rows or the bar, point or cell categories,
- *  a cell mark's bins' edges, else linear unless it says log, which a slope
- *  cannot; a linear y holds 0 unless `zero: false`, under a scatter only
- *  with `zero: true`. Throws for a y type its mark cannot take and for a
+/** The y scale of `spec`: a band of the dot rows or the bar, point or cell
+ *  categories, a cell mark's bins' edges, a calendar's seven weekday rows
+ *  from 0 to 7, else linear unless it says log, which a slope cannot; a
+ *  linear y holds 0 unless `zero: false`, under a scatter only with
+ *  `zero: true`. Throws for a y type its mark cannot take and for a
  *  domain or zero a rect, an area or bins cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
+  if (calendarOf(spec) !== undefined) {
+    if (spec.y !== undefined) {
+      throw new TypeError("renderChart: a calendar takes no y scale; its rows are weekdays");
+    }
+    return { ...COLUMNS, hi: 7 };
+  }
   const y = spec.y ?? {};
-  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell");
+  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell" && !("days" in m));
   if (cell !== undefined && "edges" in cell.y) {
     return binned(cell.y.edges, y, "y");
   }
@@ -612,7 +659,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
         ? m.rows.map((r) => r.name)
         : m.mark === "bar" || m.mark === "point"
           ? [...m.y]
-          : m.mark === "cell" && !("edges" in m.y)
+          : m.mark === "cell" && "y" in m && !("edges" in m.y)
             ? [...m.y]
             : [],
     );

@@ -13,8 +13,10 @@ import {
   barSegments,
   bubblePaths,
   bucketEdges,
+  calendarPaths,
   cellBox,
   cellPaths,
+  dayBox,
   dotGroups,
   dotPath,
   dotRadius,
@@ -39,6 +41,7 @@ import {
   tickPath,
   upright,
 } from "./geometry.js";
+import { dayPlace } from "./calendar.js";
 import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
@@ -299,6 +302,21 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         area.append(g);
         break;
       }
+      case "calendar": {
+        if (lay.days === undefined) {
+          break;
+        }
+        const g = svgEl("g", { "data-part": "cell", "data-scale": m.classes.type });
+        const { classes, missing } = calendarPaths(m, lay.days, f.dpr);
+        for (const c of classes) {
+          g.append(svgEl("path", { "data-step": String(c.step), d: c.d }));
+        }
+        if (missing !== "") {
+          g.append(svgEl("path", { "data-part": "missing", d: missing }));
+        }
+        area.append(g);
+        break;
+      }
       case "rule":
         if ("at" in m.place) {
           const at = m.place.at;
@@ -481,6 +499,9 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
   if (sel.kind === "cell" && m?.kind === "cell") {
     return lay.cells === undefined ? "" : outset(cellBox(lay.cells, sel.row, sel.column, f.dpr));
   }
+  if (sel.kind === "day" && m?.kind === "calendar") {
+    return lay.days === undefined ? "" : outset(dayBox(lay.days, sel.i, f.dpr));
+  }
   if (sel.kind === "slope" && m?.kind === "slope") {
     // A chosen series rings both its ends, the whole column each end in it.
     return m.series
@@ -533,9 +554,15 @@ export function drawSelection(
   // A bar or point row's selection, and a cell's row and column, show by
   // their names' weight too, not by colour alone.
   const bandY = model.y.type === "band";
+  // A calendar names its weekdays in every block, so the day's own block's name turns.
+  const day =
+    sel?.kind === "day" && lay.days !== undefined ? dayPlace(lay.days.weeks, sel.i) : undefined;
   svg.querySelectorAll('[data-part="y"] > text').forEach((name, r) => {
     const row = sel?.kind === "bar" || sel?.kind === "point" || (sel?.kind === "cell" && bandY);
-    name.toggleAttribute("data-selected", row && sel.row === r);
+    name.toggleAttribute(
+      "data-selected",
+      (row && sel.row === r) || (day !== undefined && day.block * 7 + day.row === r),
+    );
   });
   svg.querySelectorAll('[data-part="x"] > text').forEach((name, k) => {
     const c = lay.xLabels[k]?.column;
@@ -724,11 +751,11 @@ const swatchRing = (x: number): SVGElement =>
  * it (thinned when they would touch), a diverging scale's pivot under the
  * middle swatch for an odd count, and a No data swatch when a cell is
  * missing. `aria-hidden`, since every reading and the table give each value.
- * Undefined without a cell mark.
+ * Undefined without a cell mark, a grid's or a calendar's.
  */
 export function colourKey(model: Model, words: Words, measure: Measure): HTMLElement | undefined {
   const m = primaryOf(model);
-  if (m?.kind !== "cell") {
+  if (m?.kind !== "cell" && m?.kind !== "calendar") {
     return undefined;
   }
   const { classes } = m;
@@ -783,7 +810,9 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
   }
   scale.append(svg, labels);
   key.append(scale);
-  if (m.values.some((row) => row.includes(null))) {
+  const missing =
+    m.kind === "calendar" ? m.values.includes(null) : m.values.some((row) => row.includes(null));
+  if (missing) {
     const none = span("none");
     const box = swatchSvg(SWATCH_W + 2 * SWATCH_PAD);
     box.append(

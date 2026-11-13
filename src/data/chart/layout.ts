@@ -28,22 +28,27 @@ import {
   barReach,
   BUBBLE_RADIUS,
   BUBBLE_RADIUS_NARROW,
+  dayBox,
   dotRadius,
   POINT_RADIUS,
   ruleXs,
   SCATTER_RADIUS,
+  type DayGrid,
   type Frame,
   type Panel,
 } from "./geometry.js";
 import {
   barsApart,
+  dayOf,
   sampleValue,
   type BarModel,
+  type CalendarModel,
   type CellModel,
   type Model,
   type ScatterModel,
   type SlopeModel,
 } from "./model.js";
+import { dayFormat, dayPlace, foldSize, monthFirst, weekCount, weekRow } from "./calendar.js";
 import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
@@ -111,6 +116,8 @@ export interface Layout {
    *  rows' order, so cell (c, r) spans xs[c] to xs[c + 1] and ys[r] to
    *  ys[r + 1]; a binned y's run up from the plot's bottom. */
   readonly cells: { readonly xs: readonly number[]; readonly ys: readonly number[] } | undefined;
+  /** A calendar's days on the plot. */
+  readonly days: DayGrid | undefined;
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
   readonly bar: number;
@@ -240,6 +247,7 @@ function notesOf(
   frame: Frame,
   rows: Layout["rows"],
   rowEnd: (row: number) => number,
+  dayPoint?: (t: number) => { readonly x: number; readonly y: number } | undefined,
 ): Note[] {
   const out: Note[] = [];
   const max = Math.min(NOTE_REM * metrics.rem, frame.width);
@@ -248,8 +256,12 @@ function notesOf(
     if (m.kind !== "text" || at === undefined) {
       return;
     }
-    const x = at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x);
-    const y = m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y);
+    const day = dayPoint === undefined ? undefined : dayPoint(at.x ?? 0);
+    if (dayPoint !== undefined && day === undefined) {
+      return;
+    }
+    const x = day?.x ?? (at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x));
+    const y = day?.y ?? (m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y));
     const texts = wrapNote(m.text, max, metrics.measure.text);
     const w = Math.max(...texts.map(metrics.measure.text));
     const h = texts.length * metrics.lineHeight;
@@ -537,6 +549,7 @@ function slopeLayout(
     yAxis: undefined,
     rows: [],
     cells: undefined,
+    days: undefined,
     mono: false,
     gutters: { axis: axisW, label: labelW },
     bar: 0,
@@ -571,6 +584,113 @@ function binnedHeight(
   return Math.max(height, Math.ceil(row / least - 1e-9));
 }
 
+/** The space between a calendar's folded blocks. */
+const BLOCK_GAP = 16;
+
+// A calendar's week columns of weekday rows, in one block while a week
+// column is WEEK_MIN px or more, else in blocks of 26 or 13 weeks
+// stacked BLOCK_GAP apart, each under a line of its month names.
+function calendarLayout(
+  model: Model,
+  m: CalendarModel,
+  metrics: Metrics,
+  width: number,
+  floors: Floors,
+  chart: number,
+): Layout {
+  const { measure, lineHeight, dpr, row } = metrics;
+  const lead = weekRow(m.day, m.weekStart);
+  const weekday = dayFormat(model.locale, { weekday: "short" });
+  const names = Array.from({ length: 7 }, (_, r) => weekday(m.day - lead + r));
+  const widest = Math.max(0, ...names.map(measure.text));
+  const axisW = Math.max(ceil(axisGutter(widest, metrics.axisGroup)), floors.axis);
+  const labelW = Math.max(ceil(metrics.labelGroup), floors.label);
+  const plotW = Math.max(1, width - axisW - labelW);
+  const total = weekCount(lead, m.values.length);
+  const size = Math.max(1, foldSize(total, plotW));
+  const weeks = { lead, size, days: m.values.length };
+  const blocks = Math.max(1, Math.ceil(total / size));
+  const blockH = lineHeight + 7 * row;
+  const tops = Array.from({ length: blocks }, (_, b) => b * (blockH + BLOCK_GAP) + lineHeight);
+  const height = blocks * blockH + (blocks - 1) * BLOCK_GAP;
+  const grid: DayGrid = { weeks, column: plotW / size, row, tops };
+  const month = dayFormat(model.locale, { month: "short" });
+  const xLabels: Text[] = [];
+  m.values.forEach((_, i) => {
+    if (!monthFirst(m.day + i)) {
+      return;
+    }
+    const p = dayPlace(weeks, i);
+    const text = month(m.day + i);
+    const x = axisW + p.column * grid.column;
+    // A month starting in a block's last columns ends at the plot's edge.
+    const end = x + measure.text(text) > axisW + plotW;
+    xLabels.push({
+      text,
+      x: end ? axisW + plotW : x,
+      y: (tops[p.block] ?? 0) - lineHeight / 2,
+      anchor: end ? "end" : "start",
+    });
+  });
+  const yLabels = tops.flatMap((top) =>
+    names.map((text, r) => ({
+      text,
+      x: axisW - PAD,
+      y: top + (r + 0.5) * row,
+      anchor: "end" as const,
+    })),
+  );
+  const frame: Frame = {
+    width: plotW,
+    height,
+    dpr,
+    yAt: (v) => v,
+    x: model.x,
+    xAt: (v) => v,
+  };
+  const notes = notesOf(
+    model,
+    metrics,
+    frame,
+    [],
+    () => 0,
+    (t) => {
+      const i = dayOf(model, m, t);
+      if (i === -1) {
+        return undefined;
+      }
+      const b = dayBox(grid, i, dpr);
+      return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+    },
+  );
+  return {
+    width,
+    height,
+    left: axisW,
+    top: 0,
+    frame,
+    xAxis: { lo: model.x.lo, hi: model.x.hi, at: (v) => v, ticks: [] },
+    yAxis: undefined,
+    rows: [],
+    cells: undefined,
+    days: grid,
+    mono: false,
+    gutters: { axis: axisW, label: labelW },
+    bar: 0,
+    valueLabels: [],
+    heads: [],
+    xLabels,
+    yLabels,
+    titles: [],
+    ruleLabels: [],
+    plotLabels: [],
+    endLabels: [],
+    leaders: [],
+    notes,
+    numbered: numberedNotes(notes, chart < NARROW_REM * metrics.rem),
+  };
+}
+
 /** An x rule's label on the plot: its words and value, or off the axis. */
 function ruleText(model: Model, words: Words, label: string, value: number, off: boolean): string {
   const written = model.xText(value);
@@ -595,6 +715,10 @@ export function layout(
   const slope = model.marks.find((m) => m.kind === "slope");
   if (slope !== undefined) {
     return slopeLayout(model, slope, words, metrics, width, floors, chart);
+  }
+  const calendar = model.marks.find((m) => m.kind === "calendar");
+  if (calendar !== undefined) {
+    return calendarLayout(model, calendar, metrics, width, floors, chart);
   }
   const { measure, lineHeight, dpr } = metrics;
   const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
@@ -999,6 +1123,7 @@ export function layout(
               yBins?.map((e) => yAt(e)) ??
               Array.from({ length: rows.length + 1 }, (_, r) => r * rowH),
           },
+    days: undefined,
     mono,
     gutters: { axis: axisW, label: labelW },
     bar: thick,

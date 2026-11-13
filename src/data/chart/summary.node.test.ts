@@ -1205,7 +1205,7 @@ describe("a heatmap's short description", () => {
 
 describe("a 2D histogram's short description", () => {
   const bins = (
-    x: Extract<Mark, { mark: "cell" }>["x"],
+    x: Extract<Mark, { mark: "cell"; values: unknown }>["x"],
     one: string,
     other: string,
   ): ChartSpec => ({

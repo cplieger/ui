@@ -9,6 +9,7 @@
 
 import { reduce, upperBound, type Point } from "../scale/reduce.js";
 
+import { dayPlace, type Weeks } from "./calendar.js";
 import { classOf } from "./classes.js";
 import {
   barsApart,
@@ -19,6 +20,7 @@ import {
   sampleValue,
   type AreaModel,
   type BarModel,
+  type CalendarModel,
   type CellModel,
   type DotRowModel,
   type LineModel,
@@ -983,6 +985,45 @@ export function cellPaths(
       parts[k] =
         `${parts[k] ?? ""}M${num(left)} ${num(top)}H${num(right)}V${num(bottom)}H${num(left)}Z`;
     });
+  });
+  const classes = parts.flatMap((d, k) => (d === "" ? [] : [{ step: m.classes.steps[k] ?? 1, d }]));
+  return { classes, missing };
+}
+
+/** A calendar's days on the plot: their weeks, a week column's width and a
+ *  weekday row's height, and each block's first row's top, in plot px. */
+export interface DayGrid {
+  readonly weeks: Weeks;
+  readonly column: number;
+  readonly row: number;
+  readonly tops: readonly number[];
+}
+
+/** Day `i`'s drawn box, inset and snapped, as its fill is. */
+export function dayBox(grid: DayGrid, i: number, dpr: number): Segment {
+  const p = dayPlace(grid.weeks, i);
+  const top = (grid.tops[p.block] ?? 0) + p.row * grid.row;
+  const left = p.column * grid.column;
+  return cellBox({ xs: [left, left + grid.column], ys: [top, top + grid.row] }, 0, 0, dpr);
+}
+
+/** A calendar's paths, as `cellPaths` gives a grid's. */
+export function calendarPaths(
+  m: CalendarModel,
+  grid: DayGrid,
+  dpr: number,
+): ReturnType<typeof cellPaths> {
+  const parts = m.classes.steps.map(() => "");
+  let missing = "";
+  m.values.forEach((v, i) => {
+    const { left, right, top, bottom } = dayBox(grid, i, dpr);
+    if (v === null) {
+      missing += `M${num(left + 0.5)} ${num(top + 0.5)}H${num(right - 0.5)}V${num(bottom - 0.5)}H${num(left + 0.5)}Z`;
+      return;
+    }
+    const k = classOf(m.classes, v);
+    parts[k] =
+      `${parts[k] ?? ""}M${num(left)} ${num(top)}H${num(right)}V${num(bottom)}H${num(left)}Z`;
   });
   const classes = parts.flatMap((d, k) => (d === "" ? [] : [{ step: m.classes.steps[k] ?? 1, d }]));
   return { classes, missing };

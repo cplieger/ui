@@ -827,3 +827,51 @@ describe("the table of a cell chart", () => {
     expect(cells(t)).toEqual([["r", "2", "1"]]);
   });
 });
+
+describe("the table of a calendar", () => {
+  // From midnight of Thursday 1 January 2026 in Paris, ten days.
+  const start = Date.UTC(2025, 11, 31, 23);
+  const calendar = (weekStart: number, open = false) =>
+    tableModel(
+      model({
+        marks: [
+          {
+            mark: "cell",
+            days: { start, values: [1, 2, null, 4, 5, 6, 7, 8, 1200, 12], open },
+            weekStart,
+          },
+        ],
+      }),
+      words,
+    );
+
+  it("has a row per week headed by its first date and a column per weekday from the week's start", () => {
+    const t = calendar(1);
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ]);
+    expect(t.rows.map((r) => r.head)).toEqual([
+      [{ at: Date.UTC(2025, 11, 29), text: "Dec 29, 2025", date: true }],
+      [{ at: Date.UTC(2026, 0, 5), text: "Jan 5, 2026", date: true }],
+    ]);
+    expect(t.rows.map((r) => r.cells.map((c) => text(c.parts)))).toEqual([
+      ["", "", "", "1", "2", "No data", "4"],
+      ["5", "6", "7", "8", "1,200", "12", ""],
+    ]);
+  });
+
+  it("starts its columns on Sunday for a week from Sunday, and marks an open day so far", () => {
+    const t = calendar(7, true);
+    expect(t.columns[0]?.text).toBe("Sunday");
+    expect(t.rows.map((r) => r.cells.map((c) => text(c.parts)))).toEqual([
+      ["", "", "", "", "1", "2", "No data"],
+      ["4", "5", "6", "7", "8", "1,200", "12, so far"],
+    ]);
+  });
+});

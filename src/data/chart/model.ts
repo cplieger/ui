@@ -14,8 +14,9 @@ import {
   type WidthKey,
 } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
-import { spansDay } from "../scale/time.js";
+import { localDay, spansDay } from "../scale/time.js";
 
+import { dayFormat, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
 import { rScale, ruleAt, xScale, yScale, type Band, type Continuous, type Size } from "./scales.js";
 import type {
@@ -55,7 +56,8 @@ type Kind =
   | "scatter"
   | "bubble"
   | "heatmap"
-  | "histogram2d";
+  | "histogram2d"
+  | "calendar";
 
 export interface SeriesModel {
   readonly name: string;
@@ -353,6 +355,26 @@ export interface CellModel {
   readonly classes: Classes;
 }
 
+/** A calendar of days from local day `day`, each coloured by its value's class. */
+export interface CalendarModel {
+  readonly kind: "calendar";
+  /** The first day, as a local day count since 1970. */
+  readonly day: number;
+  /** A value per day, a gap (`null` or `NaN`) as `null`. */
+  readonly values: readonly (number | null)[];
+  /** The last day is still running. */
+  readonly open: boolean;
+  /** The ISO weekday a week column starts on. */
+  readonly weekStart: number;
+  readonly classes: Classes;
+}
+
+/** The day of `m` holding instant `t` on the chart's wall clock; -1 outside its days. */
+export function dayOf(model: Model, m: CalendarModel, t: number): number {
+  const i = localDay(t, model.timeZone) - m.day;
+  return i >= 0 && i < m.values.length ? i : -1;
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -387,6 +409,7 @@ type MarkModel =
   | SlopeModel
   | ScatterModel
   | CellModel
+  | CalendarModel
   | RuleModel
   | TextModel;
 
@@ -412,6 +435,9 @@ export interface Model {
   readonly rText: (v: number) => string;
   /** A cell's value or a class boundary, in the colour scale's format. */
   readonly colourText: (v: number) => string;
+  /** A local day's date in full (a day count since 1970), as a calendar
+   *  writes its days. */
+  readonly dateText: (day: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
    *  bar or point chart, else `yText`), or a plain number under "share",
    *  whose axis writes shares. */
@@ -742,7 +768,56 @@ function checkCellAxis(axis: unknown, what: string, name: "x" | "y"): number {
   return list.length - 1;
 }
 
+// A calendar lays out its own days, so it takes no axis or grid of values.
+function checkDays(mark: Record<string, unknown>, what: string): void {
+  for (const field of ["x", "y", "values"]) {
+    if (mark[field] !== undefined) {
+      fail(`${what}.${field} has no place beside days; a calendar lays out its days itself`);
+    }
+  }
+  const days = mark["days"];
+  if (!isObject(days)) {
+    fail(`${what}.days must be an object`);
+  }
+  const start = days["start"];
+  if (typeof start !== "number") {
+    fail(`${what}.days.start must be a number, the first day's midnight`);
+  }
+  if (!Number.isFinite(start)) {
+    fail(`${what}.days.start must be finite`, RangeError);
+  }
+  const values = days["values"];
+  if (!arrayLike(values) || Array.from(values).some((v) => v !== null && typeof v !== "number")) {
+    fail(`${what}.days.values must be an array of numbers or null`);
+  }
+  if (
+    Array.from(values).some((v) => v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY)
+  ) {
+    fail(`${what}.days.values cannot hold an infinite value`, RangeError);
+  }
+  optional(days["open"], "boolean", `${what}.days.open`);
+  const weekStart = mark["weekStart"];
+  if (
+    weekStart !== undefined &&
+    !(
+      typeof weekStart === "number" &&
+      Number.isInteger(weekStart) &&
+      weekStart >= 1 &&
+      weekStart <= 7
+    )
+  ) {
+    fail(`${what}.weekStart must be an ISO weekday from 1 (Monday) to 7 (Sunday)`);
+  }
+}
+
 function checkCells(mark: Record<string, unknown>, what: string): void {
+  if (mark["days"] !== undefined) {
+    checkDays(mark, what);
+    return;
+  }
+  if (mark["weekStart"] !== undefined) {
+    fail(`${what}.weekStart has no place without days, which it lays out in weeks`);
+  }
   const columns = checkCellAxis(mark["x"], what, "x");
   const rows = checkCellAxis(mark["y"], what, "y");
   const values = mark["values"];
@@ -1034,6 +1109,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     }
   }
   const cellChart = isObject(primary) && primary["mark"] === "cell";
+  const calendar = cellChart && primary["days"] !== undefined;
   const binnedY = cellChart && isObject(primary["y"]) && !arrayLike(primary["y"]);
   const band =
     isObject(primary) &&
@@ -1043,7 +1119,9 @@ function check(spec: unknown): asserts spec is ChartSpec {
       (cellChart && !binnedY));
   if (band && height !== undefined) {
     fail(
-      `height has no place on a ${cellChart ? "cell chart of categories" : "dot, bar or point chart"}, which is as tall as its rows`,
+      calendar
+        ? "height has no place on a calendar, which is as tall as its weeks"
+        : `height has no place on a ${cellChart ? "cell chart of categories" : "dot, bar or point chart"}, which is as tall as its rows`,
     );
   }
   if (spec["colour"] !== undefined) {
@@ -1197,6 +1275,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       return first.size === undefined ? "scatter" : "bubble";
     case "cell":
       return "edges" in first.x && "edges" in first.y ? "histogram2d" : "heatmap";
+    case "calendar":
+      return "calendar";
   }
 }
 
@@ -1225,6 +1305,8 @@ function hasData(m: MarkModel, x: Continuous): boolean {
       return m.shown.some((dots) => dots.length > 0);
     case "cell":
       return m.values.some((row) => row.some((v) => v !== null));
+    case "calendar":
+      return m.values.some((v) => v !== null);
     case "rule":
     case "text":
       return false;
@@ -1242,8 +1324,18 @@ function textModel(
   y: Continuous | Band,
   ends: string | undefined,
   columns: { readonly names: readonly string[]; readonly cell: boolean } | undefined,
+  calendar: boolean,
 ): TextModel {
   const side = m.side ?? "above";
+  if (calendar) {
+    if (m.y !== undefined) {
+      fail(`${what}.y has no place on a calendar; a note's x is an instant in its day`);
+    }
+    if (typeof m.x !== "number") {
+      fail(`${what}.x must be a number on a calendar, an instant in its day`);
+    }
+    return { kind: "text", x: m.x, y: 0, row: false, text: m.text, side };
+  }
   if (ends !== undefined && m.x !== undefined) {
     fail(`${what}.x has no place under arrange "${ends}"; the note sits at its row's end`);
   }
@@ -1309,14 +1401,15 @@ export function chartModel(
   timeZone: string | undefined,
 ): Model {
   check(spec);
-  const x = xScale(spec);
+  const x = xScale(spec, timeZone);
   const y = yScale(spec);
   const size = rScale(spec);
   const ends = spec.marks
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
   const columns = spec.marks.find((m) => m.mark === "slope")?.x;
-  const cellMark = spec.marks.find((m) => m.mark === "cell");
+  const cellMark = spec.marks.find((m): m is CellMark => m.mark === "cell" && !("days" in m));
+  const calendar = spec.marks.some((m) => m.mark === "cell" && "days" in m);
   const cellNames = cellMark === undefined || "edges" in cellMark.x ? undefined : cellMark.x;
   // The values a cell chart's inferred classes span.
   const filled = (m: CellMark): number[] =>
@@ -1393,6 +1486,20 @@ export function chartModel(
         // A band y throws in yScale without band rows, so y is continuous.
         return scatterModel(m, x, y as Continuous, size);
       case "cell":
+        if ("days" in m) {
+          const values = gaps(m.days.values, false);
+          return {
+            kind: "calendar",
+            day: localDay(m.days.start, timeZone),
+            values,
+            open: m.days.open === true,
+            weekStart: m.weekStart ?? weekStartOf(locale),
+            classes: classes(
+              spec.colour ?? {},
+              values.filter((v) => v !== null),
+            ),
+          };
+        }
         return {
           kind: "cell",
           x: "edges" in m.x ? { edges: m.x.edges } : { names: m.x },
@@ -1423,6 +1530,7 @@ export function chartModel(
               ? undefined
               : { names: cellNames, cell: true }
             : { names: columns, cell: false },
+          calendar,
         );
     }
   });
@@ -1434,14 +1542,17 @@ export function chartModel(
   const cellX = marks.find((m) => m.kind === "cell")?.x;
   const named =
     slope?.columns ?? (cellX !== undefined && "names" in cellX ? cellX.names : undefined);
+  const dateText = dayFormat(locale, { dateStyle: "full" });
   const xText =
     named !== undefined
       ? (v: number) => named[Math.floor(v)] ?? ""
-      : x.type === "time"
-        ? instantFormat(locale, timeZone, days)
-        : (signed ? signedFormatter : formatter)(x.format, locale);
+      : calendar
+        ? (v: number) => dateText(localDay(v, timeZone))
+        : x.type === "time"
+          ? instantFormat(locale, timeZone, days)
+          : (signed ? signedFormatter : formatter)(x.format, locale);
   const xSpan =
-    x.type === "time"
+    x.type === "time" && !calendar
       ? spanFormat(locale, timeZone, days)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
   const yText = formatter(y.type === "band" ? undefined : y.format, locale);
@@ -1465,6 +1576,7 @@ export function chartModel(
     yText,
     rText,
     colourText,
+    dateText,
     amountText: share ? formatter("number", locale) : bars ? xText : yText,
     widthKeys: {
       x: xKey,
