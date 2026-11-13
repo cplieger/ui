@@ -2,7 +2,7 @@
 
 `@cplieger/ui/held-list`
 
-A list that holds its place. While the reader is in it, a change that would add rows or move them waits behind one line above the list, such as "3 newer rows · Show", so nothing moves under them. Show puts the rows in their places and moves focus to the first. A list whose new rows go at its end, a log oldest first, lets them in at once, since they land below the reader, and counts those the reader has not seen on the same line, pinned under the list, whose Show goes to the newest. A row the app could not refresh is marked kept by `markKept()` in [list-row](list-row.md). It serves a `.cp-list` and the body of a `.cp-table` alike, and the app renders and changes every row itself.
+A list that holds its place. While the reader is in it, a change that would add rows or move them waits behind one line above the list, such as "3 newer rows · Show", so nothing moves under them. Show puts the rows in their places and moves focus to the first. A list whose new rows go at its end, a log oldest first, lets them in at once, since they land below the reader, and counts those the reader has not seen on the same line, pinned under the list, whose Show goes to the newest. A conversation's [feed](feed.md) counts its arrivals this way, on its New messages button. A row the app could not refresh is marked kept by `markKept()` in [list-row](list-row.md). It serves a `.cp-list` and the body of a `.cp-table` alike, and the app renders and changes every row itself.
 
 ```html
 <ul class="cp-list" aria-label="Activity">
@@ -73,7 +73,7 @@ markKept(row, null); // fresh again
   - `settle` is how long, in ms, the count stays the same before it is said, by default 500.
   - `signal` drops what is held or counted, removes the line, hides the jump, and removes the listeners and every `tabindex` the module gave. Focus on the offer moves as Show's would. A change after it runs at once and is not counted.
 - `HeldList` = `{ change(apply, rows?), held, discard() }`.
-  - `change(apply, rows?)` at the start edge runs `apply` at once when the reader is not in the list and nothing is held. Otherwise it holds `apply` and adds `rows`, by default 1, to the count. `apply` adds or moves the rows, and may return the rows it placed so that Show focuses the first. At the end edge it runs `apply` at once, and adds `rows` to the count when the last row `apply` returned, else the list's last row, ends below what the reader sees.
+  - `change(apply, rows?)` at the start edge runs `apply` at once when the reader is not in the list and nothing is held. Otherwise it holds `apply` and adds `rows`, by default 1, to the count. `apply` adds or moves the rows, and may return the rows it placed so that Show focuses the first. At the end edge it runs `apply` at once, and adds `rows` to the count when the last row `apply` returned, else the list's last row, ends below what the reader sees. Rows the app has already put in are counted by an `apply` that only returns them, as the feed does with the entries it saw arrive.
   - `held` is the number of rows held now, or at the end edge counted and not yet seen.
   - `discard()` drops every held or counted change and the offer, such as before the app replaces the list whole. Focus on the offer moves to the list, or at the end edge to the newest row.
 

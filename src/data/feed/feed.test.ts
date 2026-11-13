@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { rollText } from "../../core/roll/roll.js";
@@ -26,6 +26,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   life.abort();
   life = new AbortController();
   if (viewport !== undefined) {
@@ -143,18 +144,21 @@ describe("enhanceFeed", () => {
     const feed = enhance(c);
     await settle();
     await scrollTo(c.box, 200);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     c.feed.append(entry());
     await settle();
     expect(c.box.scrollTop).toBe(200);
     expect(c.jump.hidden).toBe(false);
     expect(c.jump.textContent).toBe("1 new message");
-    await expect.poll(polite).toBe("1 new message");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(polite()).toBe("1 new message");
     c.feed.append(entry());
     await settle();
     expect(c.box.scrollTop).toBe(200);
     expect(c.jump.textContent).toBe("2 new messages");
     expect(feed.unseen).toBe(2);
-    await expect.poll(polite).toBe("2 new messages");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(polite()).toBe("2 new messages");
   });
 
   it("rolls the count in a jump that has a roll, in the app's words", async () => {
@@ -417,6 +421,23 @@ describe("enhanceFeed", () => {
     expect(feed.unseen).toBe(0);
   });
 
+  it("hides the jump once the reader is within 2rem of the end, where the feed follows", async () => {
+    const c = conversation();
+    const feed = enhance(c);
+    await settle();
+    await scrollTo(c.box, 0);
+    c.feed.append(entry());
+    await settle();
+    expect(c.jump.hidden).toBe(false);
+    await scrollTo(c.box, c.box.scrollHeight - c.box.clientHeight - 16);
+    expect(c.jump.hidden).toBe(true);
+    expect(feed.unseen).toBe(0);
+    c.feed.append(entry());
+    await settle();
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    expect(c.jump.hidden).toBe(true);
+  });
+
   it("scrolls to the newest on a press of the jump, hides it and focuses the newest entry", async () => {
     const c = conversation();
     enhance(c);
@@ -448,6 +469,87 @@ describe("enhanceFeed", () => {
     await scrollTo(c.box, c.box.scrollHeight);
     expect(c.jump.hidden).toBe(true);
     expect(document.activeElement).toBe(c.feed.lastElementChild);
+  });
+
+  it("sizes the foot with the jump while it shows, and without it once it hides", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    const size = () => c.feed.style.getPropertyValue("--cp-feed-foot-size");
+    await scrollTo(c.box, 0);
+    c.feed.append(entry());
+    await settle();
+    const both = c.foot.getBoundingClientRect().bottom - c.jump.getBoundingClientRect().top;
+    expect(both).toBeGreaterThan(c.foot.offsetHeight);
+    expect(size()).toBe(`${String(both)}px`);
+    await scrollTo(c.box, c.box.scrollHeight);
+    await settle();
+    expect(c.jump.hidden).toBe(true);
+    expect(size()).toBe(`${String(c.foot.offsetHeight)}px`);
+  });
+
+  it("says a burst of arrivals once, when its count has settled", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 0);
+    const said: string[] = [];
+    const region = document.querySelector('[aria-live="polite"]') as HTMLElement;
+    const heard = new MutationObserver(() => {
+      said.push(region.textContent);
+    });
+    heard.observe(region, { childList: true, characterData: true, subtree: true });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    c.feed.append(entry());
+    await settle();
+    // Past the announcer's own 100ms merge, within the count's settling.
+    await vi.advanceTimersByTimeAsync(400);
+    c.feed.append(entry());
+    await settle();
+    await vi.advanceTimersByTimeAsync(499);
+    expect(polite()).toBe("");
+    await vi.advanceTimersByTimeAsync(101);
+    heard.disconnect();
+    expect(polite()).toBe("2 new messages");
+    expect(said.filter((s) => s !== "")).toEqual(["2 new messages"]);
+  });
+
+  it("on the page, follows an arrival at the end and counts nothing", async () => {
+    const c = conversation(60, "auto");
+    c.box.style.overflowY = "visible";
+    document.body.append(block("150vh"));
+    const feed = enhance(c);
+    await settle();
+    c.feed.append(entry());
+    await settle();
+    const end = c.feed.getBoundingClientRect().bottom + c.foot.offsetHeight;
+    expect(Math.abs(end - innerHeight)).toBeLessThanOrEqual(1);
+    expect(feed.unseen).toBe(0);
+    expect(c.jump.hidden).toBe(true);
+  });
+
+  it("offers arrivals on a line after a feed with neither foot nor jump, whose Show goes to the newest", async () => {
+    const c = conversation();
+    c.foot.remove();
+    const feed = enhanceFeed(c.feed, { signal: life.signal });
+    await settle();
+    await scrollTo(c.box, 0);
+    c.feed.append(entry(), entry());
+    await settle();
+    const line = c.feed.nextElementSibling as HTMLElement;
+    expect(line.matches('.cp-list-pending[data-edge="end"]')).toBe(true);
+    expect(line.textContent).toBe("2 new messagesShow");
+    expect(feed.unseen).toBe(2);
+    await userEvent.click(line.querySelector("button") as HTMLButtonElement);
+    await expect.poll(() => gap(c.box)).toBeLessThanOrEqual(1);
+    expect(line.isConnected).toBe(false);
+    expect(document.activeElement).toBe(c.feed.lastElementChild);
+    expect(feed.unseen).toBe(0);
+  });
+
+  it("refuses a foot with no jump to offer the arrivals on", () => {
+    const c = conversation();
+    expect(() => enhanceFeed(c.feed, { foot: c.foot, signal: life.signal })).toThrow(TypeError);
   });
 
   it("keeps the foot's height as the feed's --cp-feed-foot-size", async () => {
