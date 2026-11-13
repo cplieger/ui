@@ -225,6 +225,11 @@ function seriesAt(n: number, accentHue: number, accentChroma = 0.137): [number, 
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
+// The light bright level is the 3:1 ceiling over every neutral seed and chroma
+// a slot can take, so on the default surfaces it sits between 3.08:1 and
+// 3.19:1; one fixed lightness for every hue would reach 3.62:1 at a yellow.
+const BRIGHT_MAX = 3.3;
+
 describe("css/system.css series slots", () => {
   it("keeps the accent's hue for slot 1 and turns the others as the harmony partners do", () => {
     theme("light");
@@ -237,29 +242,48 @@ describe("css/system.css series slots", () => {
     expect(seriesAt(1, 110)[2]).toBeCloseTo(110, 3);
   });
 
-  it("puts odd slots on the bright level and even slots on the deep one, in each theme", () => {
+  it("keeps a deep slot one step under the bright slot of the same hue, in each theme", () => {
+    // slot 1 of a 255 accent and slot 2 of a 105 accent are both at hue 255
     theme("light");
-    // slot 4 is 285, a violet, where the deep level stays
-    expect([1, 3, 4].map((n) => seriesAt(n, 255)[0])).toEqual([0.61, 0.61, 0.42]);
+    expect(seriesAt(1, 255)[0] - seriesAt(2, 105)[0]).toBeCloseTo(0.18, 3);
     theme("dark");
     expect([1, 2, 3, 4].map((n) => seriesAt(n, 255)[0])).toEqual([0.8, 0.6, 0.8, 0.6]);
   });
 
-  it("lifts an orange deep slot 8 points in the light theme, so it reads brick, not maroon", () => {
+  it("sets each light bright slot as light as 3:1 on the surfaces allows at its hue, whatever the hue", () => {
     theme("light");
-    // slot 2 of a 255 accent is 45, an orange
-    expect(seriesAt(2, 255)[0]).toBeCloseTo(0.5, 3);
-    // a red at 15, slot 2 of a 225 accent, rises less
-    const red = seriesAt(2, 225)[0];
-    expect(red).toBeGreaterThan(0.44);
-    expect(red).toBeLessThan(0.5);
+    const probes = host("");
+    const surfaces = ["page", "raised", "sunken", "overlay"].map((name) => {
+      const el = document.createElement("span");
+      el.style.backgroundColor = `var(--cp-surface-${name})`;
+      probes.append(el);
+      return el;
+    });
+    for (let hue = 0; hue < 360; hue += 15) {
+      root.style.setProperty("--cp-accent-h", String(hue));
+      for (const n of [1, 3, 5, 7, 9]) {
+        const worst = Math.min(
+          ...surfaces.map((el) => {
+            el.style.color = `var(--cp-series-${String(n)})`;
+            const cs = getComputedStyle(el);
+            return contrast(cs.color, cs.backgroundColor);
+          }),
+        );
+        expect(worst, `hue ${String(hue)} slot ${String(n)}`).toBeGreaterThanOrEqual(3);
+        expect(worst, `hue ${String(hue)} slot ${String(n)}`).toBeLessThan(BRIGHT_MAX);
+      }
+    }
   });
 
-  it("gives a muted accent's slots chroma 0.11 and caps a vivid accent's at 0.16", () => {
+  it("gives a muted accent's slots chroma 0.13, 1.3 times a vivid one's, under the slot's gamut cap", () => {
     theme("light");
-    expect(seriesAt(1, 30, 0.05)[1]).toBeCloseTo(0.11, 4);
-    expect(seriesAt(1, 30, 0.12)[1]).toBeCloseTo(0.144, 4);
-    expect(seriesAt(1, 30, 0.2)[1]).toBeCloseTo(0.16, 4);
+    expect(seriesAt(1, 30, 0.05)[1]).toBeCloseTo(0.13, 4);
+    expect(seriesAt(1, 30, 0.12)[1]).toBeCloseTo(0.156, 4);
+    // at hue 30 the light bright cap is 0.18 - 0.038 * cos(61deg)^5
+    expect(seriesAt(1, 30, 0.2)[1]).toBeCloseTo(
+      0.18 - 0.038 * Math.cos((61 * Math.PI) / 180) ** 5,
+      3,
+    );
   });
 
   for (const t of ["light", "dark"] as const) {

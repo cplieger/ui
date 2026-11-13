@@ -159,11 +159,11 @@ The slots come from the accent by the harmony method:
 
 - Slot 1 is the accent's hue, and slots 2 and 3 are the harmony partners' hues.
 - Slots 4 to 9 are the accent turned 30, 60, 90, 120, 240 and 270 degrees, each moved out of the yellow-greens as a partner is.
-- Odd slots are bright and even slots deep: 61% and 42% lightness in the light theme, 80% and 60% in the dark. Two neighbours always differ in lightness, which every colour-vision deficiency keeps.
-- In the light theme an even slot with a warm hue rises, by up to 8 points at an orange, so a red or an orange reads brick rather than maroon. A cool even slot stays at 42%, which keeps a red slot apart from a green neighbour for protanopes and deuteranopes.
-- Each slot takes a fifth more chroma than the accent, between 0.11 and 0.16, and less where its hue would leave sRGB. A muted accent still gives slots that stand apart.
+- One rule sets every slot, whatever its hue. Odd slots are bright and even slots deep, 18 points apart, so two neighbours always differ in lightness, which every colour-vision deficiency keeps.
+- In the light theme a bright slot is as light as 3:1 on every surface allows at its hue: about 61% for a cyan and 64% for a red, so every slot meets the page at the same contrast and none is darker than it needs to be. A deep slot is 18 points below the bright one of its hue. In the dark theme the levels are 80% and 60%, which hold 3:1 at every hue.
+- Each slot takes 1.3 times the accent's chroma, between 0.13 and 0.20, and less where its hue would leave sRGB. A muted accent still gives slots that stand apart.
 
-Tests check every accent hue in both themes. Every slot is 3:1 or more on the page, raised, sunken and overlay surfaces. Neighbouring slots stay at least three just-noticeable differences apart in OKLab under simulated protanopia, deuteranopia and tritanopia, and any two slots do in full colour vision.
+Tests check every accent hue in both themes. Every slot is 3:1 or more on the page, raised, sunken and overlay surfaces, and a light bright slot no more than 3.3:1 on the default ones. Neighbouring slots stay at least three just-noticeable differences apart in OKLab under simulated protanopia, deuteranopia and tritanopia, and any two slots do in full colour vision.
 
 Neighbouring slots are the most distinct, and the order means nothing more. Give your most common categories the low numbers, and categories that sit side by side, such as the segments of one bar, neighbouring slots. A slot is never the only signal: a chip keeps its word, and a bar its legend and its numbers.
 
