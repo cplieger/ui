@@ -8807,9 +8807,9 @@ a.cp-media:focus-visible > .cp-cover {
   color: var(--cp-ink-muted);
 }
 
-/* A confirmation that asks which groups its action takes, such as which
- * files to delete, lists them under its words. */
-.cp-dialog[data-variant="confirm"] .cp-dialog-body .cp-choices {
+/* A confirmation lists the groups its action takes, such as which files to
+ * delete, or the facts to see before answering, under its words. */
+.cp-dialog[data-variant="confirm"] .cp-dialog-body :is(.cp-choices, .cp-facts) {
   margin-block-start: var(--cp-space-3);
 }
 

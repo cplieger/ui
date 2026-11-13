@@ -142,6 +142,7 @@ A dialog is the last answer, after inline editing and disclosure. When one is ne
 - Make it a native `<dialog class="cp-dialog">` opened with `commandfor` or `showModal()`, as [dialog](overlays/dialog.md) describes. The modal dialog makes the page inert, closes on Escape and returns focus to the control that opened it.
 - Move focus by what the dialog holds. A form focuses its first field. A confirmation focuses its least destructive action. A dialog of content to read focuses its heading.
 - A destructive confirmation names the action and its object on its button, such as "Delete 3 subtitles", and uses `data-tone="danger"` on it.
+- Pick the question by what it holds. A short removal with no list and no input asks next to its button, in a [popconfirm](overlays/popconfirm.md). Anything else asks in a confirmation dialog: [ask](overlays/ask.md) from script, with `tone`, `focus`, an `input` or the `choices` of groups it takes, or a `.cp-dialog[data-variant="confirm"]` written in the page. A confirmation with groups chooses none for the person and counts by group on its button. [confirm](buttons/confirm.md) asks nothing: it is the button's busy and done cycle.
 
 A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, body and footer. It opens at the inline end at full height, and across the whole window in the compact tier. The filter sheet is the standard one:
 

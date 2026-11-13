@@ -3299,20 +3299,27 @@ describe("css/system.css overlays", () => {
     confirm.close();
   });
 
-  it("sets a confirmation's groups 12px under its words", () => {
+  it.each([
+    [
+      "groups",
+      '<fieldset class="cp-choices"><label class="cp-choice"><input type="checkbox"><span>3 files</span></label></fieldset>',
+    ],
+    ["facts", '<dl class="cp-facts"><dt>Key</dt><dd>ci-deploy</dd></dl>'],
+  ])("sets a confirmation's %s 12px under its words", (_, under) => {
     theme("light");
     const d = document.createElement("dialog");
     d.className = "cp-dialog";
     d.dataset["variant"] = "confirm";
     d.innerHTML =
       '<form><div class="cp-dialog-body"><span class="cp-icon"></span><div><h2>Delete?</h2><p>Choose which.</p>' +
-      '<fieldset class="cp-choices"><label class="cp-choice"><input type="checkbox"><span>3 files</span></label></fieldset></div></div></form>';
+      under +
+      "</div></div></form>";
     hosts.push(d as unknown as HTMLElement);
     document.body.append(d);
     d.showModal();
     const words = (d.querySelector("p") as Element).getBoundingClientRect();
-    const groups = (d.querySelector("fieldset") as Element).getBoundingClientRect();
-    expect(Math.round(groups.top - words.bottom)).toBe(12);
+    const list = (d.querySelector("p + *") as Element).getBoundingClientRect();
+    expect(Math.round(list.top - words.bottom)).toBe(12);
     d.close();
   });
 
