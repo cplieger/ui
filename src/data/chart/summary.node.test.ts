@@ -1202,3 +1202,46 @@ describe("a heatmap's short description", () => {
     expect(shortDescription(model(week(undefined, undefined)), own)).toBe("Carte, 7 × 24");
   });
 });
+
+describe("a 2D histogram's short description", () => {
+  const bins = (
+    x: Extract<Mark, { mark: "cell" }>["x"],
+    one: string,
+    other: string,
+  ): ChartSpec => ({
+    x: { unit: { one, other } },
+    y: { unit: { one: "year", other: "years" } },
+    marks: [
+      {
+        mark: "cell",
+        x,
+        y: { edges: per(13, (i) => 25 + 5 * i) },
+        values: per(12, () => per("edges" in x ? x.edges.length - 1 : x.length, () => 1)),
+      },
+    ],
+  });
+
+  it("names it a 2D histogram with bare bin counts, since a binned axis's unit is its values'", () => {
+    expect(
+      shortDescription(
+        model(bins({ edges: per(21, (i) => 1_000 * (i + 1)) }, "dollar", "dollars")),
+        words,
+      ),
+    ).toBe("2D histogram, 12 by 20");
+  });
+
+  it("is a heatmap when one axis names its categories, counted in that axis's unit", () => {
+    expect(
+      shortDescription(
+        model(
+          bins(
+            per(3, (i) => `Q${String(i + 1)}`),
+            "quarter",
+            "quarters",
+          ),
+        ),
+        words,
+      ),
+    ).toBe(`Heatmap, 12 by 3${nb}quarters`);
+  });
+});

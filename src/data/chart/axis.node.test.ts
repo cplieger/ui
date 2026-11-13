@@ -370,3 +370,39 @@ describe("the rule label band", () => {
     expect(ruleBand([], 276).lines).toBe(0);
   });
 });
+
+describe("a binned axis", () => {
+  const binned = (
+    x: readonly number[],
+    y: readonly number[],
+    type: "linear" | "log",
+  ): ChartSpec => ({
+    x: { type },
+    y: { type },
+    marks: [
+      {
+        mark: "cell",
+        x: { edges: x },
+        y: { edges: y },
+        values: y.slice(1).map(() => x.slice(1).map(() => 1)),
+      },
+    ],
+  });
+
+  it("runs a linear x and y from the first edge to the last, unniced, with ticks of its type between", () => {
+    const spec = binned([52, 57, 62, 67, 72, 77, 82], [52, 57, 62, 67, 72, 77, 82], "linear");
+    const x = xAxis(xScale(spec), 276, ctx());
+    expect([x.lo, x.hi, x.at(52), x.at(82)]).toEqual([52, 82, 0, 276]);
+    expect(x.ticks.map((t) => t.value)).toEqual([60, 70, 80]);
+    const y = yAxis(yScale(spec) as Continuous, 240, 17, ctx());
+    expect([y.lo, y.hi, y.at(52), y.at(82)]).toEqual([52, 82, 240, 0]);
+    expect(y.ticks.every((t) => t.value >= 52 && t.value <= 82)).toBe(true);
+  });
+
+  it("ticks a log x of bins at its powers of ten between its ends", () => {
+    const edges = [500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000];
+    const x = xAxis(xScale(binned(edges, [0, 1], "log")), 276, ctx());
+    expect([x.lo, x.hi, x.at(500), x.at(200_000)]).toEqual([500, 200_000, 0, 276]);
+    expect(words(x)).toEqual(["1,000", "10,000", "100,000"]);
+  });
+});

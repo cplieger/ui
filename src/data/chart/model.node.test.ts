@@ -1825,3 +1825,52 @@ describe("the cell mark", () => {
     );
   });
 });
+
+describe("a cell mark's binned axes", () => {
+  const bins = (
+    x: Extract<Mark, { mark: "cell" }>["x"],
+    y: Extract<Mark, { mark: "cell" }>["y"],
+  ): Mark => {
+    const columns = "edges" in x ? x.edges.length - 1 : x.length;
+    const rows = "edges" in y ? y.edges.length - 1 : y.length;
+    return {
+      mark: "cell",
+      x,
+      y,
+      values: Array.from({ length: rows }, () => Array.from({ length: columns }, () => 2)),
+    };
+  };
+  const gdp = { edges: [1_000, 2_000, 5_000] };
+  const life = { edges: [50, 60, 70] };
+
+  it.each<[string, Mark, ErrorConstructor]>([
+    ["an axis neither names nor edges", bins({} as never, life), TypeError],
+    ["edges that are not numbers", bins({ edges: ["1", "2"] } as never, life), TypeError],
+    ["edges not an array", bins(gdp, { edges: 5 } as never), TypeError],
+    ["a single edge", bins({ edges: [1] }, life), RangeError],
+    ["edges out of order", bins(gdp, { edges: [50, 70, 60] }), RangeError],
+    ["a repeated edge", bins({ edges: [1, 1, 2] }, life), RangeError],
+    ["an infinite edge", bins(gdp, { edges: [50, Number.POSITIVE_INFINITY] }), RangeError],
+    ["a NaN edge", bins({ edges: [1, Number.NaN] }, life), RangeError],
+  ])("refuses %s", (_, mark, type) => {
+    expect(() => build({ marks: [mark] })).toThrow(type);
+  });
+
+  it("is a 2D histogram when both axes are binned, and a heatmap when one names its categories", () => {
+    expect(build({ marks: [bins(gdp, life)] }).kind).toBe("histogram2d");
+    expect(build({ marks: [bins(["a", "b"], life)] }).kind).toBe("heatmap");
+    expect(build({ marks: [bins(gdp, ["a", "b"])] }).kind).toBe("heatmap");
+  });
+
+  it("keeps each axis's names or edges, and writes a binned x's values as numbers", () => {
+    const m = build({ marks: [bins(gdp, ["Low", "High"])] });
+    const c = m.marks[0] as CellModel;
+    expect([c.x, c.y]).toEqual([gdp, { names: ["Low", "High"] }]);
+    expect(m.xText(2_000)).toBe("2,000");
+  });
+
+  it("takes a height on a binned y, which a named y refuses", () => {
+    expect(build({ height: 120, marks: [bins(["a", "b"], life)] }).spec.height).toBe(120);
+    expect(() => build({ height: 120, marks: [bins(gdp, ["a", "b"])] })).toThrow(TypeError);
+  });
+});

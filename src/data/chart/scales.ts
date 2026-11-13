@@ -8,6 +8,8 @@ import type { Format } from "../scale/format.js";
 
 import type { BarMark, CellMark, ChartSpec, PointMark, RectMark, ScatterMark } from "./spec.js";
 
+type Scale = NonNullable<ChartSpec["x"]>;
+
 /** A log x's one rect whose `x1` is 0 or below. */
 interface Underflow {
   /** Its mark's index in the spec, and its bucket's index in the mark. */
@@ -293,12 +295,50 @@ const COLUMNS: Continuous = {
   drawnLo: 0,
 };
 
+// A cell chart's binned axis spans its edges as a passed domain does: never
+// niced, and a rule past them is off the axis.
+function binned(edges: readonly number[], s: Scale, axis: "x" | "y"): Continuous {
+  const type = s.type ?? "linear";
+  if (type === "band" || (axis === "y" && type === "time")) {
+    throw new TypeError(
+      `renderChart: a cell mark's binned ${axis} is ${axis === "x" ? "linear, log or time" : "linear or log"}`,
+    );
+  }
+  if (s.domain !== undefined) {
+    throw new TypeError(`renderChart: a binned ${axis} takes no domain; its edges are its domain`);
+  }
+  if (s.zero !== undefined) {
+    throw new TypeError(`renderChart: a binned ${axis} spans its edges, so it has no zero to hold`);
+  }
+  const lo = edges[0] ?? 0;
+  if (type === "log" && lo <= 0) {
+    throw new RangeError(`renderChart: a log ${axis}'s edges must be above 0`);
+  }
+  return {
+    type,
+    lo,
+    hi: edges[edges.length - 1] ?? 1,
+    passed: true,
+    integer: edges.every((e) => Number.isInteger(e)),
+    format: s.format,
+    reverse: axis === "x" && s.reverse === true,
+    absolute: false,
+    under: undefined,
+    drawnLo: lo,
+  };
+}
+
 // A cell chart's categories on x, column i spanning i to i + 1, as a
 // slope's columns sit at 0 and 1: every place on it is a column's index.
 function cellColumns(spec: ChartSpec, m: CellMark): Continuous {
   const x = spec.x ?? {};
+  if ("edges" in m.x) {
+    return binned(m.x.edges, x, "x");
+  }
   if ((x.type ?? "band") !== "band") {
-    throw new TypeError("renderChart: a cell mark's x names its columns, so it is a band");
+    throw new TypeError(
+      "renderChart: a cell mark's x names its columns, so it is a band; bins give their edges",
+    );
   }
   if (x.domain !== undefined) {
     throw new TypeError("renderChart: a band scale takes no domain; its columns are its domain");
@@ -315,7 +355,7 @@ function cellColumns(spec: ChartSpec, m: CellMark): Continuous {
 /** The x scale of `spec`: linear unless it says another continuous type,
  *  under a bar mark linear from 0, under a point mark or a scatter holding
  *  0 only with `zero: true`, under a slope its two columns at 0 and 1, and
- *  under a cell mark its columns from 0 to their count.
+ *  under a cell mark its columns from 0 to their count or its bins' edges.
  *  Throws for a band x and for a type, domain, zero or underflow bin that
  *  breaks a rule, and for an x scale or an x rule beside a slope. */
 export function xScale(spec: ChartSpec): Continuous {
@@ -543,17 +583,23 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
 }
 
 /** The y scale of `spec`: a band of the dot rows or the bar, point or cell categories,
- *  else linear unless it says log, which a slope cannot; a linear y holds 0
- *  unless `zero: false`, under a scatter only with `zero: true`. Throws for
- *  a y type its mark cannot take and for a domain or zero a rect or an area
- *  cannot take. */
+ *  a cell mark's bins' edges, else linear unless it says log, which a slope
+ *  cannot; a linear y holds 0 unless `zero: false`, under a scatter only
+ *  with `zero: true`. Throws for a y type its mark cannot take and for a
+ *  domain or zero a rect, an area or bins cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
   const y = spec.y ?? {};
+  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell");
+  if (cell !== undefined && "edges" in cell.y) {
+    return binned(cell.y.edges, y, "y");
+  }
   const kinds = new Set(spec.marks.map((m) => m.mark));
   const banded = (["dot", "bar", "point", "cell"] as const).find((k) => kinds.has(k));
   if (banded !== undefined) {
     if ((y.type ?? "band") !== "band") {
-      throw new TypeError(`renderChart: a ${banded} mark's y is a band of its rows`);
+      throw new TypeError(
+        `renderChart: a ${banded} mark's y is a band of its rows${banded === "cell" ? "; bins give their edges" : ""}`,
+      );
     }
     if (spec.marks.some((m) => m.mark === "rule" && m.y !== undefined)) {
       throw new TypeError("renderChart: a rule on a band y has no value to sit at");
@@ -564,9 +610,11 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     const rows = spec.marks.flatMap((m) =>
       m.mark === "dot"
         ? m.rows.map((r) => r.name)
-        : m.mark === "bar" || m.mark === "point" || m.mark === "cell"
+        : m.mark === "bar" || m.mark === "point"
           ? [...m.y]
-          : [],
+          : m.mark === "cell" && !("edges" in m.y)
+            ? [...m.y]
+            : [],
     );
     return { type: "band", rows, mono: y.mono === true };
   }

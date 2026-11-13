@@ -54,7 +54,8 @@ type Kind =
   | "slope"
   | "scatter"
   | "bubble"
-  | "heatmap";
+  | "heatmap"
+  | "histogram2d";
 
 export interface SeriesModel {
   readonly name: string;
@@ -309,11 +310,20 @@ export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | un
   return undefined;
 }
 
-/** A grid of cells on a band y, each coloured by its value's class. */
+/** A cell chart's axis: its categories' names, at 0 to n − 1 of a named x,
+ *  or its bins' edges, one more than its bins. */
+export type CellAxis =
+  { readonly names: readonly string[] } | { readonly edges: readonly number[] };
+
+/** The columns or rows along `axis`. */
+export const cellCount = (axis: CellAxis): number =>
+  "names" in axis ? axis.names.length : axis.edges.length - 1;
+
+/** A grid of cells, each coloured by its value's class. */
 export interface CellModel {
   readonly kind: "cell";
-  /** The columns' names, at x 0 to n − 1 of the chart's x. */
-  readonly columns: readonly string[];
+  readonly x: CellAxis;
+  readonly y: CellAxis;
   /** A row of values per row of the band, a gap (`null` or `NaN`) as `null`. */
   readonly values: readonly (readonly (number | null)[])[];
   readonly classes: Classes;
@@ -682,9 +692,32 @@ function checkNames(names: unknown, what: string, axis = "y"): ArrayLike<unknown
   return names;
 }
 
+// A cell axis names its categories or gives its bins' edges; returns its
+// column or row count.
+function checkCellAxis(axis: unknown, what: string, name: "x" | "y"): number {
+  if (!isObject(axis)) {
+    fail(`${what}.${name} must name its categories or give its bins' edges`);
+  }
+  if (arrayLike(axis)) {
+    return checkNames(axis, what, name).length;
+  }
+  const edges = axis["edges"];
+  if (!arrayLike(edges) || Array.from(edges).some((e) => typeof e !== "number")) {
+    fail(`${what}.${name}.edges must be an array of numbers`);
+  }
+  const list = Array.from(edges as ArrayLike<number>);
+  if (list.length < 2) {
+    fail(`${what}.${name}.edges must hold two or more, a bin's low and high edges`, RangeError);
+  }
+  if (list.some((e, k) => !Number.isFinite(e) || (k > 0 && e <= (list[k - 1] ?? 0)))) {
+    fail(`${what}.${name}.edges must be finite and strictly increase`, RangeError);
+  }
+  return list.length - 1;
+}
+
 function checkCells(mark: Record<string, unknown>, what: string): void {
-  const columns = checkNames(mark["x"], what, "x").length;
-  const rows = checkNames(mark["y"], what).length;
+  const columns = checkCellAxis(mark["x"], what, "x");
+  const rows = checkCellAxis(mark["y"], what, "y");
   const values = mark["values"];
   if (!arrayLike(values) || values.length !== rows) {
     fail(`${what}.values must hold one row per y entry`);
@@ -973,15 +1006,17 @@ function check(spec: unknown): asserts spec is ChartSpec {
       }
     }
   }
+  const cellChart = isObject(primary) && primary["mark"] === "cell";
+  const binnedY = cellChart && isObject(primary["y"]) && !arrayLike(primary["y"]);
   const band =
     isObject(primary) &&
     (primary["mark"] === "dot" ||
       primary["mark"] === "bar" ||
       primary["mark"] === "point" ||
-      primary["mark"] === "cell");
+      (cellChart && !binnedY));
   if (band && height !== undefined) {
     fail(
-      `height has no place on a ${primary["mark"] === "cell" ? "cell chart of categories" : "dot, bar or point chart"}, which is as tall as its rows`,
+      `height has no place on a ${cellChart ? "cell chart of categories" : "dot, bar or point chart"}, which is as tall as its rows`,
     );
   }
   if (spec["colour"] !== undefined) {
@@ -1134,7 +1169,7 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
     case "scatter":
       return first.size === undefined ? "scatter" : "bubble";
     case "cell":
-      return "heatmap";
+      return "edges" in first.x && "edges" in first.y ? "histogram2d" : "heatmap";
   }
 }
 
@@ -1324,7 +1359,8 @@ export function chartModel(
       case "cell":
         return {
           kind: "cell",
-          columns: m.x,
+          x: "edges" in m.x ? { edges: m.x.edges } : { names: m.x },
+          y: "edges" in m.y ? { edges: m.y.edges } : { names: m.y },
           values: m.values.map((row) => gaps(row, false)),
           classes: classes(spec.colour ?? {}, filled(m)),
         };
@@ -1348,7 +1384,9 @@ export function chartModel(
   const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
   const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
   const slope = marks.find((m) => m.kind === "slope");
-  const named = slope?.columns ?? marks.find((m) => m.kind === "cell")?.columns;
+  const cellX = marks.find((m) => m.kind === "cell")?.x;
+  const named =
+    slope?.columns ?? (cellX !== undefined && "names" in cellX ? cellX.names : undefined);
   const xText =
     named !== undefined
       ? (v: number) => named[v] ?? ""

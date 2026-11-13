@@ -105,9 +105,9 @@ export interface Layout {
   /** A band's rows, each name cut to its room, `y` the middle of its dot
    *  row, its bars or its points in the plot. */
   readonly rows: readonly { readonly name: string; readonly y: number }[];
-  /** A cell chart's column and row edges in plot px, x's in its columns'
-   *  order and y's in its rows', so cell (c, r) spans xs[c] to xs[c + 1]
-   *  and ys[r] to ys[r + 1]. */
+  /** A cell chart's column and row edges in plot px, in its columns' and
+   *  rows' order, so cell (c, r) spans xs[c] to xs[c + 1] and ys[r] to
+   *  ys[r + 1]; a binned y's run up from the plot's bottom. */
   readonly cells: { readonly xs: readonly number[]; readonly ys: readonly number[] } | undefined;
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
@@ -552,6 +552,23 @@ function slopeLayout(
   };
 }
 
+// A binned y's plot: `height`, or taller until its thinnest bin is a `row`
+// tall, as a band's rows are.
+function binnedHeight(
+  y: Continuous,
+  edges: readonly number[],
+  height: number,
+  row: number,
+): number {
+  const at = position(y.type, y.lo, y.hi, 0, 1);
+  let least = 1;
+  for (let i = 1; i < edges.length; i++) {
+    least = Math.min(least, at(edges[i] ?? 0) - at(edges[i - 1] ?? 0));
+  }
+  // A float share (5 / 35) leaves 24 / share a hair over its whole px.
+  return Math.max(height, Math.ceil(row / least - 1e-9));
+}
+
 /** An x rule's label on the plot: its words and value, or off the axis. */
 function ruleText(model: Model, words: Words, label: string, value: number, off: boolean): string {
   const written = model.xText(value);
@@ -608,8 +625,18 @@ export function layout(
         ? block + BAR_SPACE
         : metrics.row;
   const rowH = above ? metrics.nameLine + NAME_GAP + barRow : barRow;
+  const yBins = cells !== undefined && "edges" in cells.y ? cells.y.edges : undefined;
   const height =
-    band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * rowH;
+    band !== undefined
+      ? band.rows.length * rowH
+      : yBins !== undefined
+        ? binnedHeight(
+            model.y as Continuous,
+            yBins,
+            model.spec.height ?? metrics.height,
+            metrics.row,
+          )
+        : (model.spec.height ?? metrics.height);
 
   let yAx: Axis | undefined;
   let names: string[] = [];
@@ -695,22 +722,23 @@ export function layout(
     roomRight += endRoom;
   }
   const shift = valued ? 0 : inset + (endLeft ? endRoom : 0);
-  const one: Axis = cells
-    ? bandAxis(cells.columns, plotW, reverse, measure)
-    : valued
-      ? {
-          lo: model.x.lo,
-          hi: model.x.hi,
-          at: flip
-            ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
-            : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
-          ticks: [],
-        }
-      : xAxis(
-          flip === reverse ? model.x : { ...model.x, reverse: flip },
-          Math.max(1, panelW - 2 * inset - endRoom),
-          ctx,
-        );
+  const one: Axis =
+    cells !== undefined && "names" in cells.x
+      ? bandAxis(cells.x.names, plotW, reverse, measure)
+      : valued
+        ? {
+            lo: model.x.lo,
+            hi: model.x.hi,
+            at: flip
+              ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
+              : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
+            ticks: [],
+          }
+        : xAxis(
+            flip === reverse ? model.x : { ...model.x, reverse: flip },
+            Math.max(1, panelW - 2 * inset - endRoom),
+            ctx,
+          );
   const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
   const xAx: Axis =
     panels[0] === undefined
@@ -959,8 +987,13 @@ export function layout(
       cells === undefined
         ? undefined
         : {
-            xs: Array.from({ length: cells.columns.length + 1 }, (_, c) => xAx.at(c)),
-            ys: Array.from({ length: rows.length + 1 }, (_, r) => r * rowH),
+            xs:
+              "edges" in cells.x
+                ? cells.x.edges.map((e) => xAx.at(e))
+                : Array.from({ length: cells.x.names.length + 1 }, (_, c) => xAx.at(c)),
+            ys:
+              yBins?.map((e) => yAt(e)) ??
+              Array.from({ length: rows.length + 1 }, (_, r) => r * rowH),
           },
     mono,
     gutters: { axis: axisW, label: labelW },

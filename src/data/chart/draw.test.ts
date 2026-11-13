@@ -1903,3 +1903,33 @@ describe("a heatmap", () => {
     }
   });
 });
+
+describe("a 2D histogram", () => {
+  const spec: ChartSpec = {
+    x: { type: "log" },
+    marks: [
+      {
+        mark: "cell",
+        x: { edges: [1_000, 10_000, 100_000] },
+        y: { edges: [-10, 0, 10, 20] },
+        values: [
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ],
+      },
+    ],
+  };
+
+  it("ticks its binned x and labels its binned y, with no gridline or zero line across the cells", () => {
+    const d = draw(spec);
+    expect(d.svg.querySelector('[data-part="ticks"]')?.getAttribute("d")).not.toBe("");
+    expect([...d.svg.querySelectorAll('[data-part="y"] text')].map((t) => t.textContent)).toContain(
+      "0",
+    );
+    for (const part of ["grid", "rows", "zero"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`)).toBeNull();
+    }
+    expect(d.svg.querySelectorAll('[data-part="cell"] path[data-step]').length).toBeGreaterThan(0);
+  });
+});

@@ -165,14 +165,16 @@ function plotArea(model: Model, lay: Layout): SVGElement {
     }
   }
   let yZero = "";
-  for (const t of lay.yAxis?.ticks ?? []) {
+  // A cell chart's gaps are its grid, and a binned y's 0 is a bin edge.
+  const yTicks = primary?.kind === "cell" ? [] : (lay.yAxis?.ticks ?? []);
+  for (const t of yTicks) {
     if (t.value === 0) {
       yZero = hairline(t.at, f.width, f.dpr);
     } else {
       grid.push(hairline(t.at, f.width, f.dpr));
     }
   }
-  const y = lay.yAxis;
+  const y = primary?.kind === "cell" ? undefined : lay.yAxis;
   if (y !== undefined && yZero === "" && y.lo <= 0 && y.hi >= 0) {
     yZero = hairline(f.yAt(0), f.width, f.dpr);
   }
@@ -334,7 +336,8 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
   svg.setAttribute("height", num(lay.height));
   svg.setAttribute("viewBox", `0 0 ${num(lay.width)} ${num(lay.height)}`);
   // A band x labels its columns, as a band y its rows, with no tick.
-  const band = primaryOf(model)?.kind === "cell";
+  const primary = primaryOf(model);
+  const band = primary?.kind === "cell" && "names" in primary.x;
   const ticks = svgEl("path", {
     "data-part": "ticks",
     transform: `translate(${num(lay.left)} ${num(lay.top + lay.frame.height)})`,

@@ -188,14 +188,22 @@ export interface ScatterMark {
   readonly series: readonly ScatterSeries[];
 }
 
+/** A binned axis of a cell chart: `edges[i]` to `edges[i + 1]` is bin i,
+ *  on the chart's scale for that axis. */
+interface CellBins {
+  /** Two or more finite edges, strictly increasing; above 0 on a log scale. */
+  readonly edges: readonly number[];
+}
+
 /** A grid of cells, each filled by its value's class on the chart's
- *  `colour` scale: x's categories from the left, y's from the top. */
+ *  `colour` scale: named columns from the left and rows from the top, bins
+ *  from the axis's low end. */
 export interface CellMark {
   readonly mark: "cell";
-  /** The columns' names, each once. */
-  readonly x: readonly string[];
-  /** The rows' names, each once. */
-  readonly y: readonly string[];
+  /** The columns' names, each once, or their bins on a linear, log or time x. */
+  readonly x: readonly string[] | CellBins;
+  /** The rows' names, each once, or their bins on a linear or log y. */
+  readonly y: readonly string[] | CellBins;
   /** A row of values per y entry, each as long as `x`; `null` or `NaN` is
    *  no data, outlined. */
   readonly values: readonly Values[];
@@ -277,10 +285,11 @@ export type Mark =
 export interface ChartSpec {
   /** Default `{}`. A slope names its columns itself, so there it is a
    *  `TypeError`; a scatter's is linear or log; a cell mark's categories
-   *  make it a band. */
+   *  make it a band, and its bins' edges are its domain. */
   readonly x?: Scale;
   /** Band when the chart has a dot, bar or point mark or a cell mark's
-   *  categories; linear under a slope; linear or log under a scatter. */
+   *  categories; linear under a slope; linear or log under a scatter or a
+   *  cell mark's bins. */
   readonly y?: Scale;
   /** A scatter's size, when its series carry `r`; a `TypeError` otherwise. */
   readonly r?: SizeScale;
@@ -292,7 +301,8 @@ export interface ChartSpec {
   readonly marks: readonly Mark[];
   /** The plot's height in px. A band chart (dot, bar or point, or a cell
    *  mark with categories on y) is as tall as its rows, so there it is a
-   *  `TypeError`; a slope grows past it to give each end label a line. */
+   *  `TypeError`; a slope grows past it to give each end label a line, and
+   *  a cell mark's binned y to give its thinnest bin a row. */
   readonly height?: number;
   readonly summary?: string | ((generated: string) => string);
   /** Shown instead of the plot when there is nothing to draw. */

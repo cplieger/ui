@@ -674,3 +674,83 @@ describe("a bubble chart's size scale", () => {
     expect(rScale(plain)).toBeUndefined();
   });
 });
+
+describe("a cell chart's binned scales", () => {
+  const values = (rows: number, columns: number) =>
+    Array.from({ length: rows }, () => Array.from({ length: columns }, () => 1));
+  const gdp = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000];
+  const life = [50, 55, 60, 65, 70, 75, 80, 85];
+  const grid = (
+    more: Partial<ChartSpec> = {},
+    x: Extract<Mark, { mark: "cell" }>["x"] = { edges: gdp },
+    y: Extract<Mark, { mark: "cell" }>["y"] = { edges: life },
+    rules: Mark[] = [],
+  ): ChartSpec => {
+    const columns = "edges" in x ? x.edges.length - 1 : x.length;
+    const rows = "edges" in y ? y.edges.length - 1 : y.length;
+    return { ...more, marks: [{ mark: "cell", x, y, values: values(rows, columns) }, ...rules] };
+  };
+
+  it("spans each binned axis from its first edge to its last, as a passed domain, unniced", () => {
+    const x = xScale(grid({ x: { type: "log" } }));
+    expect([x.type, x.lo, x.hi, x.passed, x.integer]).toEqual(["log", 1_000, 50_000, true, true]);
+    const y = continuous(yScale(grid({ x: { type: "log" } })));
+    expect([y.type, y.lo, y.hi, y.passed, y.integer]).toEqual(["linear", 50, 85, true, true]);
+    expect(xScale(grid({}, { edges: [0.5, 1.25, 2] })).integer).toBe(false);
+  });
+
+  it("takes a time x of bins and keeps a reversed x", () => {
+    const x = xScale(grid({ x: { type: "time", reverse: true } }, { edges: [0, DAY, 2 * DAY] }));
+    expect([x.type, x.lo, x.hi, x.reverse]).toEqual(["time", 0, 2 * DAY, true]);
+  });
+
+  it("pairs a binned axis with a band of names on the other", () => {
+    const days = ["Mon", "Tue"];
+    expect(yScale(grid({}, { edges: gdp }, days))).toEqual({
+      type: "band",
+      rows: days,
+      mono: false,
+    });
+    const x = xScale(grid({}, ["a", "b", "c"]));
+    expect([x.lo, x.hi]).toEqual([0, 3]);
+    expect(continuous(yScale(grid({}, ["a", "b", "c"]))).lo).toBe(50);
+  });
+
+  it("places a rule at its value on a binned axis, and off it past the edges", () => {
+    const spec = grid({}, { edges: gdp }, { edges: life }, [
+      { mark: "rule", x: 3_000, label: "a" },
+      { mark: "rule", y: 90, label: "b" },
+    ]);
+    expect(ruleAt(xScale(spec), 3_000)).toEqual({ at: 3_000 });
+    const y = continuous(yScale(spec));
+    expect([y.lo, y.hi]).toEqual([50, 85]);
+    expect(ruleAt(y, 90)).toEqual({ off: "high" });
+  });
+
+  it.each<[string, ChartSpec, ErrorConstructor]>([
+    ["a band type on a binned x", grid({ x: { type: "band" } }), TypeError],
+    ["a band type on a binned y", grid({ y: { type: "band" } }), TypeError],
+    ["a time y", grid({ y: { type: "time" } }), TypeError],
+    ["a domain on a binned x", grid({ x: { domain: [0, 10] } }), TypeError],
+    ["a domain on a binned y", grid({ y: { domain: [0, 10] } }), TypeError],
+    ["zero on a binned x", grid({ x: { zero: true } }), TypeError],
+    ["zero on a binned y", grid({ y: { zero: false } }), TypeError],
+    ["an edge at 0 on a log x", grid({ x: { type: "log" } }, { edges: [0, 1, 2] }), RangeError],
+    [
+      "an edge below 0 on a log y",
+      grid({ y: { type: "log" } }, undefined, { edges: [-1, 2] }),
+      RangeError,
+    ],
+    ["a linear type on a named y", grid({ y: { type: "linear" } }, undefined, ["a"]), TypeError],
+    [
+      "a y rule on a named y",
+      grid({}, undefined, ["a"], [{ mark: "rule", y: 1, label: "a" }]),
+      TypeError,
+    ],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => {
+      xScale(spec);
+      yScale(spec);
+    }).toThrow(type);
+  });
+});

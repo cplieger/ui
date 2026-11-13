@@ -9,12 +9,14 @@ import { formatDuration, formatter, type Unit } from "../scale/format.js";
 import {
   barTotal,
   bucketTotal,
+  cellCount,
   pointLink,
   sampleTotal,
   sampleValue,
   scatterDotAt,
   slopeChange,
   type BarModel,
+  type CellAxis,
   type CellModel,
   type DotModel,
   type Model,
@@ -460,12 +462,16 @@ export function summaryOf(model: Model, words: Words): string {
   return typeof own === "string" ? own : typeof own === "function" ? own(generated) : generated;
 }
 
-// A cell chart's rows by its columns, each count in its axis's unit or bare.
+// A cell chart's rows by its columns, each count in its axis's unit or
+// bare; a binned axis's unit is its values', not its bins', so its count
+// is bare.
 function gridText(model: Model, m: CellModel, words: Words): string {
   const number = formatter("number", model.locale);
-  const count = (n: number, unit: Unit | undefined) => counted(number(n), n, unit, model);
-  const rows = model.y.type === "band" ? model.y.rows.length : 0;
-  return words.grid(count(rows, model.spec.y?.unit), count(m.columns.length, model.spec.x?.unit));
+  const count = (axis: CellAxis, unit: Unit | undefined) => {
+    const n = cellCount(axis);
+    return counted(number(n), n, "names" in axis ? unit : undefined, model);
+  };
+  return words.grid(count(m.y, model.spec.y?.unit), count(m.x, model.spec.x?.unit));
 }
 
 /** The plot's name: its kind, its series count from two up, and its x

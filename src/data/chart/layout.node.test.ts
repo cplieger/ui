@@ -1114,3 +1114,71 @@ describe("a cell chart's layout", () => {
     ]);
   });
 });
+
+describe("a binned cell chart's layout", () => {
+  const binned = (
+    x: readonly number[] | readonly string[],
+    y: readonly number[],
+    more: Partial<ChartSpec> = {},
+  ): ChartSpec => {
+    const columns = x.length - (typeof x[0] === "number" ? 1 : 0);
+    return {
+      ...more,
+      marks: [
+        {
+          mark: "cell",
+          x:
+            typeof x[0] === "number" ? { edges: x as readonly number[] } : (x as readonly string[]),
+          y: { edges: y },
+          values: y.slice(1).map(() => Array.from({ length: columns }, () => 1)),
+        },
+      ],
+    };
+  };
+  const life = [50, 55, 60, 65, 70, 75, 80, 85];
+
+  it("puts each column's edges at its bin's edges on the x scale", () => {
+    const l = lay(binned([1_000, 2_000, 5_000, 10_000], life, { x: { type: "log" } }), 400);
+    const xs = l.cells?.xs ?? [];
+    expect(xs).toHaveLength(4);
+    expect(xs[0]).toBe(0);
+    expect(xs[3]).toBe(l.frame.width);
+    // On a log x, 1,000 to 2,000 and 5,000 to 10,000 are the same width.
+    expect((xs[1] ?? 0) - (xs[0] ?? 0)).toBeCloseTo((xs[3] ?? 0) - (xs[2] ?? 0), 6);
+    expect(l.xLabels.length).toBeGreaterThan(0);
+  });
+
+  it("runs a binned y's rows up from the plot's bottom at its edges, in the plot's height", () => {
+    const l = lay(binned(["a", "b"], life), 400);
+    expect(l.frame.height).toBe(240);
+    const ys = l.cells?.ys ?? [];
+    expect(ys).toHaveLength(8);
+    ys.forEach((y, r) => {
+      expect(y).toBeCloseTo(240 - (r * 240) / 7, 6);
+    });
+    expect(l.rows).toEqual([]);
+    expect(l.yAxis).toBeDefined();
+  });
+
+  it("keeps a passed height while every bin is a row tall, and grows past it until the thinnest is", () => {
+    // Seven bins of 168 px are a row each.
+    expect(lay(binned(["a"], life, { height: 168 }), 400).frame.height).toBe(168);
+    // Seven bins of 120 px would be 17 px: a 24 px row takes 168.
+    expect(lay(binned(["a"], life, { height: 120 }), 400).frame.height).toBe(168);
+    // Twelve equal bins of 240 px would be 20 px.
+    const twelve = Array.from({ length: 13 }, (_, i) => 20 + 5 * i);
+    expect(lay(binned(["a"], twelve), 400).frame.height).toBe(12 * 24);
+  });
+
+  it("grows by the thinnest bin on the scale, not the bin count", () => {
+    // 0 to 1 is a fortieth of 0 to 40, so it takes 24 × 40 px.
+    expect(lay(binned(["a"], [0, 1, 40]), 400).frame.height).toBe(960);
+    // On a log y, 1 to 10 and 10 to 100 are halves: 240 px holds them.
+    expect(lay(binned(["a"], [1, 10, 100], { y: { type: "log" } }), 400).frame.height).toBe(240);
+  });
+
+  it("titles a binned y above the plot, as a continuous y", () => {
+    const l = lay(binned(["a"], life, { y: { label: "Life expectancy" } }), 400);
+    expect(l.titles.map((t) => t.text)).toEqual(["Life expectancy"]);
+  });
+});
