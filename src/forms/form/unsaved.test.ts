@@ -615,16 +615,25 @@ describe("guardChanges: leaving the page", () => {
     const f = form(FIELDS);
     const { link, seen } = route();
     const guard = guardChanges(f, {
-      within: (to) => to.pathname.startsWith("/settings/"),
+      within: (to) => to.pathname === "/settings" || to.pathname.startsWith("/settings/"),
       signal: life.signal,
     });
     get<HTMLInputElement>(f, "#name").value = "Mine";
     link.href = "/settings/languages";
     await userEvent.click(link);
-    expect([question(), seen, guard.count]).toEqual([null, ["/settings/languages"], 1]);
-    link.href = "/elsewhere";
+    link.href = "/settings";
     await userEvent.click(link);
-    expect([title(), seen]).toEqual(["Discard your changes?", ["/settings/languages"]]);
+    expect([question(), seen, guard.count]).toEqual([
+      null,
+      ["/settings/languages", "/settings"],
+      1,
+    ]);
+    link.href = "/settings-archive";
+    await userEvent.click(link);
+    expect([title(), seen]).toEqual([
+      "Discard your changes?",
+      ["/settings/languages", "/settings"],
+    ]);
     await answer("Keep editing");
     expect(guard.count).toBe(1);
   });
