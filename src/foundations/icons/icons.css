@@ -212,6 +212,10 @@
   --cp-icon-image: url("../icons/svg/tag.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="telescope"]) {
+  --cp-icon-image: url("../icons/svg/telescope.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="timer"]) {
   --cp-icon-image: url("../icons/svg/timer.svg");
 }

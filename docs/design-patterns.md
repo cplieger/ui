@@ -230,6 +230,19 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
 - The current destination carries `aria-current="page"`, or `"true"` when the screen sits inside it, as an item sits inside its library.
 - A screen opens with its `.cp-crumbs`, then a `.cp-heading-row` holding the `<h1>` with its `.cp-meta` line of facts under it, and the screen's `.cp-toolbar` at its end.
 
+**A page that does not exist.** An address with no view near it, such as a path the app does not know, opens the not-found page: the app's frame with a `.cp-empty` marked `data-variant="page"` in `.cp-main`. It holds the `telescope` glyph, an `<h1>` that says the page does not exist, one sentence on why it may have gone, and a link home. The stylesheet draws the glyph with no script.
+
+```html
+<main class="cp-main" id="main" tabindex="-1">
+  <section class="cp-empty" data-variant="page" aria-labelledby="not-found-title">
+    <span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span>
+    <h1 id="not-found-title" tabindex="-1">This page does not exist</h1>
+    <p>The address may be old, or the item was removed.</p>
+    <a class="cp-button" data-variant="primary" href="/">Go to the start</a>
+  </section>
+</main>
+```
+
 ## Language and direction
 
 The interface may ship in one language and still show titles, names and file names in any script.

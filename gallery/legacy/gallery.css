@@ -1558,20 +1558,6 @@ html:has(.g-header) {
   animation: token-in 300ms var(--ease-bounce);
 }
 
-.g-not-found {
-  display: grid;
-  justify-items: center;
-  gap: var(--cp-space-3);
-  padding-block: 12vh;
-  text-align: center;
-}
-
-.g-not-found > .cp-icon {
-  --cp-icon-size: 3rem;
-
-  color: var(--cp-accent);
-}
-
 /* ===== Layouts and the rest of the scope ===== */
 
 
