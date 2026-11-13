@@ -132,6 +132,72 @@ function days(wrapped: boolean): {
   return { button, foot, last: yesterday.list };
 }
 
+/** A grab's step track, an `ol` of three steps, for a row's under line. */
+function track(): HTMLOListElement {
+  const steps = document.createElement("ol");
+  steps.className = "cp-track";
+  steps.setAttribute("aria-label", "Grab progress");
+  for (const [name, state] of [
+    ["Found", "done"],
+    ["Downloading", "current"],
+    ["Imported", "todo"],
+  ] as const) {
+    const step = document.createElement("li");
+    step.dataset["state"] = state;
+    step.textContent = name;
+    steps.append(step);
+  }
+  return steps;
+}
+
+/** An open Show details holding a list of two facts, for a row's under line. */
+function openDetails(): HTMLDetailsElement {
+  const details = document.createElement("details");
+  details.open = true;
+  const summary = document.createElement("summary");
+  summary.textContent = "Show details";
+  const facts = document.createElement("ul");
+  for (const fact of ["Seeders 12", "Size 1.2 GB"]) {
+    const item = document.createElement("li");
+    item.textContent = fact;
+    facts.append(item);
+  }
+  details.append(summary, facts);
+  return details;
+}
+
+function heading(name: string): HTMLHeadingElement {
+  const h = document.createElement("h3");
+  h.className = "cp-list-heading";
+  h.textContent = name;
+  return h;
+}
+
+/** A body of one linked row per title. */
+function bodyOf(titles: readonly string[]): HTMLTableSectionElement {
+  const body = document.createElement("tbody");
+  body.append(...titles.map((title) => tableRow(title)));
+  return body;
+}
+
+/** A `.cp-table` with a head row and a body of `titles`. */
+function headedTable(titles: readonly string[]): HTMLTableElement {
+  const table = document.createElement("table");
+  table.className = "cp-table";
+  table.createTHead().insertRow().insertCell().textContent = "What";
+  table.append(bodyOf(titles));
+  return table;
+}
+
+/** `toEqual` passes for a copy with the same markup; a page's items must be
+ *  the very elements the load gave. */
+function expectSame(actual: readonly Element[], expected: readonly Element[]): void {
+  expect(actual).toHaveLength(expected.length);
+  for (const [i, el] of expected.entries()) {
+    expect(actual[i]).toBe(el);
+  }
+}
+
 const page = (items: Element[], more = true, label?: string): LoadMorePage =>
   label === undefined ? { items, more } : { items, more, label };
 
@@ -149,7 +215,7 @@ describe("enhanceLoadMore", () => {
     enhance(button, { load: () => Promise.resolve(page(fresh)) });
     press(button);
     await expect.poll(() => document.activeElement?.textContent).toBe("Older 1");
-    expect([...ul.children].slice(3, 6)).toEqual(fresh);
+    expectSame([...ul.children].slice(3, 6), fresh);
     expect(ul.lastElementChild?.classList.contains("cp-list-foot")).toBe(true);
     expect(document.activeElement).toBe(fresh[0]?.querySelector("a"));
     await expect.poll(polite).toBe("3 more rows");
@@ -283,7 +349,7 @@ describe("enhanceLoadMore", () => {
     enhance(button, { load: () => Promise.resolve(page(older)) });
     press(button);
     await expect.poll(() => document.activeElement?.textContent).toBe("Older 1");
-    expect([...last.children].slice(-2)).toEqual(older);
+    expectSame([...last.children].slice(-2), older);
     await expect.poll(polite).toBe("2 more rows");
   });
 
@@ -334,7 +400,7 @@ describe("enhanceLoadMore", () => {
     });
     press(button);
     await expect.poll(() => document.activeElement?.textContent).toBe("Older 1");
-    expect([...last.children].slice(-2)).toEqual(older);
+    expectSame([...last.children].slice(-2), older);
     expect(last.children).toHaveLength(3);
   });
 
@@ -345,6 +411,44 @@ describe("enhanceLoadMore", () => {
     await expect.poll(() => button.isConnected).toBe(false);
     expect(document.activeElement).toBe(last.lastElementChild?.querySelector("a"));
   });
+
+  it.each([
+    ["a step track", track],
+    ["details holding a list", openDetails],
+  ])("counts a new day's rows, not the items of %s under a row", async (_, under) => {
+    const { button } = days(false);
+    const { heading, list: week } = group("Last week", 2);
+    for (const li of week.children) {
+      li.querySelector(".cp-list-row")?.append(under());
+    }
+    enhance(button, { load: () => Promise.resolve(page([heading, week])) });
+    press(button);
+    await expect.poll(() => document.activeElement).toBe(heading);
+    await expect.poll(polite).toBe("2 more rows");
+  });
+
+  it.each([
+    ["a step track", track],
+    ["details holding a list", openDetails],
+  ])(
+    "moves focus to the last row, not into %s under it, when the last page ends the groups it was given",
+    async (_, under) => {
+      const host = document.createElement("div");
+      const today = group("Today", 2);
+      host.append(today.heading, today.list);
+      const lastRow = today.list.lastElementChild as HTMLLIElement;
+      lastRow.querySelector(".cp-list-row")?.append(under());
+      const button = moreButton("Load older");
+      const foot = document.createElement("div");
+      foot.className = "cp-list-foot";
+      foot.append(button);
+      document.body.append(host, foot);
+      enhance(button, { list: host, load: () => Promise.resolve(page([], false)) });
+      press(button);
+      await expect.poll(() => button.isConnected).toBe(false);
+      expect(document.activeElement).toBe(lastRow.querySelector("a"));
+    },
+  );
 
   it("passes over a disabled or unshown control in the row focus moves to", async () => {
     const { ul, button } = footed();
@@ -410,8 +514,35 @@ describe("enhanceLoadMore", () => {
     press(button);
     await expect.poll(() => document.activeElement?.textContent).toBe("Synced");
     expect(table.tBodies).toHaveLength(1);
-    expect([...(table.tBodies[0]?.rows ?? [])]).toEqual(older);
-    expect([...panel.children]).toEqual(inPanel ? [table] : []);
+    expectSame([...(table.tBodies[0]?.rows ?? [])], older);
+    expectSame([...panel.children], inPanel ? [table] : []);
+  });
+
+  it("counts a page of bodies by their rows, in the table it was given as its list", async () => {
+    const table = headedTable(["Fetched"]);
+    const button = moreButton("Load older");
+    document.body.append(table, button);
+    const bodies = [bodyOf(["Synced", "Scanned"]), bodyOf(["Renamed"])];
+    enhance(button, { list: table, load: () => Promise.resolve(page(bodies)) });
+    press(button);
+    await expect.poll(() => document.activeElement?.textContent).toBe("Synced");
+    expectSame([...table.tBodies].slice(1), bodies);
+    await expect.poll(polite).toBe("3 more rows");
+  });
+
+  it("counts a day table's body rows, not its head's, in a page of the days it was given", async () => {
+    const host = document.createElement("div");
+    host.append(heading("Today"), headedTable(["Fetched"]));
+    const button = moreButton("Load older");
+    document.body.append(host, button);
+    const yesterday = headedTable(["Synced", "Scanned"]);
+    enhance(button, {
+      list: host,
+      load: () => Promise.resolve(page([heading("Yesterday"), yesterday])),
+    });
+    press(button);
+    await expect.poll(() => host.lastElementChild).toBe(yesterday);
+    await expect.poll(polite).toBe("2 more rows");
   });
 
   it("at a feed's start puts older entries first, and focuses the oldest, which stays in view", async () => {
@@ -449,7 +580,7 @@ describe("enhanceLoadMore", () => {
     enhance(button, { edge: "start", load: () => Promise.resolve(page([day, ...older])) });
     press(button);
     await expect.poll(() => document.activeElement).toBe(older[0]);
-    expect([...feed.children].slice(0, 5)).toEqual([day, ...older]);
+    expectSame([...feed.children].slice(0, 5), [day, ...older]);
     await expect.poll(polite).toBe("4 older messages");
     for (let i = 0; i < 3; i += 1) {
       await new Promise((resolve) => {

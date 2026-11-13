@@ -62,7 +62,7 @@ enhanceLoadMore(olderPosts, {
 
 - A press runs one load at a time; a press while one runs does nothing. The button reads busy, with `aria-busy="true"`, only once the load has run 150ms, so a fast page never flashes it, and then for at least 400ms.
 - Once a page is in, focus moves to its first item: a row's first part that takes focus, such as its link (a disabled control, or one the page does not show, is passed over), else the row, which takes `tabindex="-1"` until it loses focus; a feed's entry itself; a group's heading. So the reader goes on reading from where the page starts, and at a feed's start reads down to where they were. Focus moves only while it is still on the button or on the page; a reader who moved it elsewhere during the load keeps it there.
-- The count is said politely through [announce](../feedback/announce.md). A page with no rows says nothing.
+- The count is said politely through [announce](../feedback/announce.md). Only the rows and entries count: not a group's heading, a day separator or the `.cp-since` line, nor the steps of a row's track or the items of a list in its `<details>`. A page with no rows says nothing.
 - When `more` is false the foot or head goes. Focus on its button moves to the edge's row, the last at the end or the first at the start, so it never drops to the page.
 - A failed page is said with `failed`, and the button reads `retry` and loads the same page again on a press. A page that loads after that gives it back its words.
 - At a feed's start, [feed](feed.md) keeps the reader's place as the older entries go in, then takes the entry focus moves to as the reader's new place.

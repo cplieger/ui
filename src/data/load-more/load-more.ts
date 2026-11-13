@@ -62,24 +62,31 @@ export interface LoadMoreOptions {
 
 /** Items that mark a place in a list rather than stand for a thing. */
 const MARKS = ".cp-feed-day, .cp-since, .cp-list-foot";
-const ROWS = `li:not(${MARKS}), tr`;
 
 const counts: Record<LoadMoreEdge, (n: number) => string> = {
   end: (n) => (n === 1 ? "1 more row" : `${String(n)} more rows`),
   start: (n) => (n === 1 ? "1 older message" : `${String(n)} older messages`),
 };
 
-/** The rows and entries among `items`: an item, or each row inside a group. */
-function rowsIn(items: readonly Element[]): number {
-  let n = 0;
-  for (const el of items) {
-    if (el.matches("li, tr")) {
-      n += el.matches(MARKS) ? 0 : 1;
-    } else {
-      n += el.querySelectorAll(ROWS).length;
-    }
+/** The rows `el` stands for: itself when it is one, else its own rows as a
+ *  list, a table or a body, or those of the lists directly inside it, as a
+ *  group's; never the steps of a row's track or another list in a row. */
+function rowsOf(el: Element): readonly Element[] {
+  if (el.matches("li, tr")) {
+    return el.matches(MARKS) ? [] : [el];
   }
-  return n;
+  if (el instanceof HTMLTableElement) {
+    return [...el.tBodies].flatMap((body) => [...body.rows]);
+  }
+  if (el instanceof HTMLTableSectionElement && el.tagName === "TBODY") {
+    return [...el.rows];
+  }
+  const own = el.matches("ul, ol") ? ":scope > li" : ":scope > :is(ul, ol) > li";
+  return [...el.querySelectorAll(`${own}:not(${MARKS})`)];
+}
+
+function rowsIn(items: readonly Element[]): number {
+  return items.reduce((n, el) => n + rowsOf(el).length, 0);
 }
 
 /** Where a page goes: `put` adds its items at the edge, in their order,
@@ -96,7 +103,7 @@ function edgeOf(list: Element, edge: LoadMoreEdge): Element {
   if (el === list || el.matches("li, tr")) {
     return el;
   }
-  const rows = [...el.querySelectorAll(ROWS)];
+  const rows = rowsOf(el);
   return (edge === "start" ? rows[0] : rows.at(-1)) ?? el;
 }
 
