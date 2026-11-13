@@ -1,7 +1,7 @@
 /**
  * charts.ts — the gallery wiring for the Charts page: grelot's four
- * statistics drawn by the library's chart from seeded data, their loading,
- * empty and error states, and the four together at a phone's width.
+ * statistics drawn by the library's chart from seeded data, the other time
+ * series, their loading, empty and error states, and phone-width frames.
  */
 
 import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
@@ -49,8 +49,7 @@ interface Posts {
 
 // 15-minute buckets over 6 hours, 1-hour ones over longer ranges, the last
 // counted only up to now.
-function postCounts(hours: number, quiet = false): Posts {
-  const size = hours <= 6 ? 15 * MIN : HR;
+function postCounts(hours: number, size = hours <= 6 ? 15 * MIN : HR, quiet = false): Posts {
   const peak = size === HR ? 46 : 14;
   const start = END - hours * HR;
   const starts = Array.from({ length: (hours * HR) / size }, (_, i) => start + i * size);
@@ -64,7 +63,14 @@ function postCounts(hours: number, quiet = false): Posts {
   return { start, starts, ends: starts.map((t) => t + size), counts };
 }
 
-function posts({ start, starts, ends, counts }: Posts): ChartSpec {
+interface Drawn {
+  readonly shape?: "bars" | "area";
+  readonly arrange?: "stack" | "group" | "share";
+  readonly kinds?: number;
+}
+
+function posts({ start, starts, ends, counts }: Posts, drawn: Drawn = {}): ChartSpec {
+  const { kinds = KINDS.length, ...rect } = drawn;
   return {
     x: { type: "time", domain: [start, END] },
     y: { label: "Posts", unit: { one: "post", other: "posts" } },
@@ -74,7 +80,8 @@ function posts({ start, starts, ends, counts }: Posts): ChartSpec {
         x1: starts,
         x2: ends,
         open: true,
-        series: KINDS.map(([name], i) => ({
+        ...rect,
+        series: KINDS.slice(0, kinds).map(([name], i) => ({
           name,
           slot: (i + 1) as 1 | 2 | 3 | 4,
           y: [...(counts[i] ?? [])],
@@ -237,6 +244,118 @@ function agents(hours: number): ChartSpec {
   };
 }
 
+// Three processes sampled each minute up to now, four minutes unsampled
+// after 11:00 AM: the worker climbs until each collection, the cache grows.
+function memory(): ChartSpec {
+  const start = END - 6 * HR;
+  const gap = new Date(2026, 10, 11, 11, 3).getTime();
+  const rand = random(300);
+  const x: number[] = [];
+  const api: (number | null)[] = [];
+  const worker: (number | null)[] = [];
+  const cache: (number | null)[] = [];
+  let heap = 180;
+  for (let t = start; t <= NOW; t += MIN) {
+    x.push(t);
+    if (t >= gap && t < gap + 4 * MIN) {
+      api.push(null);
+      worker.push(null);
+      cache.push(null);
+      continue;
+    }
+    heap = heap > 520 || rand() < 0.01 ? 180 : heap + 4 * rand() * (0.5 + busy(t));
+    api.push(Math.round(310 + 160 * busy(t) + 30 * rand()));
+    worker.push(Math.round(heap));
+    cache.push(Math.round(120 + (90 * (t - start)) / (6 * HR)));
+  }
+  return {
+    x: { type: "time", domain: [start, END] },
+    y: { label: "Memory", unit: { one: "MB", other: "MB" } },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "api", slot: 1, y: api },
+          { name: "worker", slot: 2, y: worker },
+          { name: "cache", slot: 3, y: cache },
+        ],
+      },
+    ],
+    empty: "No samples in this range.",
+  };
+}
+
+// A day's generation every 15 minutes: solar follows the daylight, wind
+// drifts, and gas covers the rest of a demand that follows the day.
+function energy(): ChartSpec {
+  const start = END - 24 * HR;
+  const rand = random(400);
+  const x: number[] = [];
+  const gas: number[] = [];
+  const wind: number[] = [];
+  const solar: number[] = [];
+  let w = 900;
+  for (let t = start; t <= NOW; t += 15 * MIN) {
+    const d = new Date(t);
+    const h = d.getHours() + d.getMinutes() / 60;
+    const sun = h < 7 || h > 19 ? 0 : Math.round(950 * Math.sin((Math.PI * (h - 7)) / 12));
+    w = Math.min(1_400, Math.max(300, w + 120 * (rand() - 0.5)));
+    const demand = 2_200 + 900 * busy(t);
+    x.push(t);
+    solar.push(sun);
+    wind.push(Math.round(w));
+    gas.push(Math.round(Math.max(250, demand - sun - w)));
+  }
+  return {
+    x: { type: "time", domain: [start, END] },
+    y: { label: "Share of generation", unit: { one: "MW", other: "MW" } },
+    marks: [
+      {
+        mark: "area",
+        arrange: "share",
+        x,
+        series: [
+          { name: "Gas", slot: 1, y: gas },
+          { name: "Wind", slot: 2, y: wind },
+          { name: "Solar", slot: 3, y: solar },
+        ],
+      },
+    ],
+    empty: "No generation in this range.",
+  };
+}
+
+// The 95th percentile of response time each minute, round 240 ms, with a
+// deploy's spike at 10:20 AM and a flushed cache's dip at 12:40 PM.
+function latency(): ChartSpec {
+  const start = END - 6 * HR;
+  const deploy = new Date(2026, 10, 11, 10, 20).getTime();
+  const flush = new Date(2026, 10, 11, 12, 40).getTime();
+  const rand = random(500);
+  const x: number[] = [];
+  const p95: number[] = [];
+  for (let t = start; t <= NOW; t += MIN) {
+    const after = (t - deploy) / MIN;
+    const spike = after >= 0 && after < 12 ? 520 * Math.exp(-after / 4) : 0;
+    const dip = t >= flush && t < flush + 25 * MIN ? -90 : 0;
+    x.push(t);
+    p95.push(Math.round(200 + 60 * busy(t) + 30 * rand() + spike + dip));
+  }
+  const at = (t: number): number => p95[x.indexOf(t)] ?? 0;
+  return {
+    x: { type: "time", domain: [start, END] },
+    y: { label: "Response time", format: "duration" },
+    marks: [
+      { mark: "line", x, series: [{ name: "95th percentile", slot: 1, y: p95 }] },
+      { mark: "rule", y: 500, label: "Target" },
+      { mark: "text", x: deploy, y: at(deploy), text: "Deploy of 1.4.0", side: "right" },
+      { mark: "text", x: flush, y: at(flush), text: "Cache flushed", side: "below" },
+    ],
+    empty: "No samples in this range.",
+  };
+}
+
 const SPECS = new Map<string, (hours: number) => ChartSpec>([
   ["posts", (hours) => posts(postCounts(hours))],
   ["reads", (hours) => reads(READS.get(hours) ?? 1_204, hours)],
@@ -274,11 +393,12 @@ const later = (run: () => void): void => {
   setTimeout(run, 700);
 };
 
+// The tab's group draws its own figures, below.
 const figures = new Map<string, HTMLElement>();
-for (const figure of document.querySelectorAll<HTMLElement>(
-  "#statistics figure[data-chart], #states figure[data-chart]",
-)) {
-  figures.set(figure.dataset["chart"] ?? "", figure);
+for (const figure of document.querySelectorAll<HTMLElement>("figure[data-chart]")) {
+  if (figure.closest("[data-chart-group]") === null) {
+    figures.set(figure.dataset["chart"] ?? "", figure);
+  }
 }
 const charts = new Map<string, Chart>();
 const make = (name: string, spec: ChartSpec | null): Chart | undefined => {
@@ -294,11 +414,20 @@ const make = (name: string, spec: ChartSpec | null): Chart | undefined => {
 const sixHours = postCounts(6);
 make("posts-6", posts(sixHours));
 make("posts-72", posts(postCounts(72)));
+make("posts-area", posts(sixHours, { shape: "area" }));
+make("memory", memory());
+make("energy", energy());
+make("grouped", posts(postCounts(6, HR), { arrange: "group", kinds: 3 }));
+make("share-columns", posts(postCounts(24), { arrange: "share" }));
+make("latency", latency());
+make("phone-memory", memory());
+make("phone-latency", latency());
+make("phone-grouped", posts(postCounts(6), { arrange: "group", kinds: 3 }));
 make("reads", reads(1_204, 6));
 make("activity", activity(6));
 make("agents", agents(6));
 make("loading", null);
-make("empty", posts(postCounts(6, true)));
+make("empty", posts(postCounts(6, 15 * MIN, true)));
 
 const firstLoad = make("failed", null);
 const loadFails = (): void => {

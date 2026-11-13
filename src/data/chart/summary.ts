@@ -6,8 +6,17 @@
 
 import { formatDuration, formatter } from "../scale/format.js";
 
-import type { DotModel, LineModel, Model, RectModel, SeriesModel } from "./model.js";
-import { bucketText, counted, domainText, lastSample, primaryOf } from "./readout.js";
+import {
+  bucketTotal,
+  sampleTotal,
+  sampleValue,
+  type DotModel,
+  type Model,
+  type RectModel,
+  type SampleModel,
+  type SeriesModel,
+} from "./model.js";
+import { bucketText, counted, domainText, lastSample, lastStack, primaryOf } from "./readout.js";
 import type { Words } from "./words.js";
 
 /** The one step between every neighbour in `steps`, or undefined when they differ. */
@@ -25,21 +34,19 @@ function sizeText(model: Model, size: number | undefined, words: Words): string 
   return words.every(text);
 }
 
-const bucketTotal = (m: RectModel, i: number): number =>
-  m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0);
-
 const seriesTotal = (m: RectModel, s: SeriesModel): number =>
   m.shown.reduce((n, i) => n + (s.y[i] ?? 0), 0);
 
 function rectSummary(model: Model, m: RectModel, words: Words): string[] {
   const unit = model.spec.y?.unit;
   const total = m.shown.reduce((n, i) => n + bucketTotal(m, i), 0);
-  const all = counted(model.yText(total), total, unit, model);
+  const all = counted(model.amountText(total), total, unit, model);
   const range = domainText(model, words);
-  const parts =
-    m.series.length > 1
-      ? m.series.map((s) => `${s.name} ${model.yText(seriesTotal(m, s))}`).join(", ")
-      : "";
+  const part = (s: SeriesModel) =>
+    m.arrange === "share" && total > 0
+      ? model.yText(seriesTotal(m, s) / total)
+      : model.amountText(seriesTotal(m, s));
+  const parts = m.series.length > 1 ? m.series.map((s) => `${s.name} ${part(s)}`).join(", ") : "";
   if (model.kind === "histogram") {
     const out = [words.binSummary(all, range)];
     if (parts !== "") {
@@ -55,22 +62,72 @@ function rectSummary(model: Model, m: RectModel, words: Words): string[] {
   const out = [words.stackSummary(all, every, range, parts)];
   // The open bucket is still filling, so a low count there is not a drop.
   const last = m.x1.length - 1;
+  const closed = m.shown.filter((i) => !(m.open && i === last));
+  if (m.arrange === "group") {
+    // A group compares series, so its peak is one value, not a bucket's total.
+    let peak: { i: number; s: SeriesModel; v: number } | undefined;
+    for (const i of closed) {
+      for (const s of m.series) {
+        const v = s.y[i] ?? 0;
+        if (v > (peak?.v ?? 0)) {
+          peak = { i, s, v };
+        }
+      }
+    }
+    if (peak !== undefined) {
+      const n = counted(model.amountText(peak.v), peak.v, unit, model);
+      out.push(words.highest(peak.s.name, bucketText(model, m, peak.i, words), n));
+    }
+    return out;
+  }
   let best = -1;
-  for (const i of m.shown) {
-    if (!(m.open && i === last) && (best === -1 || bucketTotal(m, i) > bucketTotal(m, best))) {
+  for (const i of closed) {
+    if (best === -1 || bucketTotal(m, i) > bucketTotal(m, best)) {
       best = i;
     }
   }
   if (best !== -1 && bucketTotal(m, best) > 0) {
     const n = bucketTotal(m, best);
     out.push(
-      words.busiest(bucketText(model, m, best, words), counted(model.yText(n), n, unit, model)),
+      words.busiest(
+        bucketText(model, m, best, words),
+        counted(model.amountText(n), n, unit, model),
+      ),
     );
   }
   return out;
 }
 
-function lineSummary(model: Model, m: LineModel, words: Words): string[] {
+// One series' last, low and high over the domain through `lineSeries`;
+// `at(i)` is its value at sample `i`, null at a gap, written by `write`.
+function seriesSentence(
+  m: SampleModel,
+  name: string,
+  at: (i: number) => number | null,
+  last: number,
+  write: (v: number) => string,
+  words: Words,
+): string {
+  // A loop, since spreading a long series into Math.min overflows the stack.
+  let low = Number.POSITIVE_INFINITY;
+  let high = Number.NEGATIVE_INFINITY;
+  for (let i = m.from; i < m.to; i++) {
+    const v = at(i);
+    if (v !== null) {
+      low = Math.min(low, v);
+      high = Math.max(high, v);
+    }
+  }
+  const text = (v: number | null) => (v === null ? words.noData : write(v));
+  return words.lineSeries(
+    name,
+    text(last === -1 ? null : at(last)),
+    text(low <= high ? low : null),
+    text(low <= high ? high : null),
+  );
+}
+
+function lineSummary(model: Model, m: SampleModel, words: Words): string[] {
   const steps: number[] = [];
   for (let i = m.from + 1; i < m.to; i++) {
     steps.push((m.x[i] ?? 0) - (m.x[i - 1] ?? 0));
@@ -78,28 +135,19 @@ function lineSummary(model: Model, m: LineModel, words: Words): string[] {
   const out = [
     words.lineSummary(domainText(model, words), sizeText(model, evenStep(steps), words)),
   ];
+  const yText = (v: number) => model.yText(v);
   for (const s of m.series) {
-    // A loop, since spreading a long series into Math.min overflows the stack.
-    let low = Number.POSITIVE_INFINITY;
-    let high = Number.NEGATIVE_INFINITY;
-    for (let i = m.from; i < m.to; i++) {
-      const v = s.y[i] ?? null;
-      if (v !== null) {
-        low = Math.min(low, v);
-        high = Math.max(high, v);
-      }
-    }
-    const at = lastSample(m, s);
-    const text = (v: number | null | undefined) =>
-      v === null || v === undefined ? words.noData : model.yText(v);
+    // Under "share" a layer's share exists only where its stack is drawn.
     out.push(
-      words.lineSeries(
-        s.name,
-        text(at === -1 ? null : s.y[at]),
-        text(low <= high ? low : null),
-        text(low <= high ? high : null),
-      ),
+      m.kind === "area" && m.arrange === "share"
+        ? seriesSentence(m, s.name, (i) => sampleValue(m, s, i), lastStack(m), yText, words)
+        : seriesSentence(m, s.name, (i) => s.y[i] ?? null, lastSample(m, s), yText, words),
     );
+  }
+  if (m.kind === "area" && m.series.length > 1) {
+    const at = (i: number) => sampleTotal(m, i);
+    const amount = (v: number) => model.amountText(v);
+    out.push(seriesSentence(m, words.total, at, lastStack(m), amount, words));
   }
   return out;
 }
@@ -144,18 +192,33 @@ export function ruleSentences(model: Model, words: Words): string[] {
   return out;
 }
 
+/** Each note's sentence, in spec order: its x as the readings write it,
+ *  under a dot mark after its row's name. */
+export function noteSentences(model: Model, words: Words): string[] {
+  const out: string[] = [];
+  const m = primaryOf(model);
+  for (const t of model.marks) {
+    if (t.kind === "text") {
+      const x = model.xText(t.x);
+      const row = t.row && m?.kind === "dot" ? m.rows[t.y]?.name : undefined;
+      out.push(words.note(row === undefined ? x : `${row}, ${x}`, t.text));
+    }
+  }
+  return out;
+}
+
 /** The summary the chart writes for `model`, before the spec's own `summary`. */
 export function generatedSummary(model: Model, words: Words): string {
   const m = primaryOf(model);
   const head =
     m?.kind === "rect"
       ? rectSummary(model, m, words)
-      : m?.kind === "line"
+      : m?.kind === "line" || m?.kind === "area"
         ? lineSummary(model, m, words)
         : m?.kind === "dot"
           ? dotSummary(model, m, words)
           : [];
-  return [...head, ...ruleSentences(model, words)].join(" ");
+  return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
 /** The summary the figure shows: the spec's string, its function of the

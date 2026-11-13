@@ -5466,8 +5466,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   block-size: 100%;
 }
 
-/* The table view's rules, as a sentence under the table. */
-.cp-chart > [data-part="table"] > [data-part="rules"] {
+/* The table view's rules and notes, as sentences under the table. */
+.cp-chart > [data-part="table"] > [data-part="after"] {
   margin: 0;
   padding: var(--cp-space-2) var(--cp-space-3) var(--cp-space-3);
   font-size: var(--cp-text-sm);
@@ -5508,7 +5508,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-width: 1px;
 }
 
-.cp-chart svg [data-part="rect"] path {
+.cp-chart svg :is([data-part="rect"], [data-part="layers"]) path {
   fill: var(--cp-tone-9);
 }
 
@@ -5550,6 +5550,32 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {
   fill: var(--cp-ink);
+}
+
+/* A note's 3 px halo of the plot's surface keeps it legible over bars and
+ * gridlines; the stroke paints first, so it widens the glyphs by half. */
+.cp-chart svg [data-part="note"] text {
+  fill: var(--cp-ink);
+  stroke: var(--cp-chart-surface);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
+.cp-chart svg [data-part="marker"] > path {
+  fill: var(--cp-ink);
+}
+
+.cp-chart svg [data-part="marker"] text {
+  fill: var(--cp-chart-surface);
+}
+
+/* The numbered markers' key, below the plot. */
+.cp-chart > [data-part="notes"] {
+  margin: 0;
+  padding-inline-start: 2.5ch;
+  font-size: var(--cp-text-xs);
+  color: var(--cp-ink);
 }
 
 /* Forced colours leave an inline SVG's illustration alone, so the plot keeps

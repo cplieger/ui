@@ -1,7 +1,8 @@
 /**
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
- * plot, the x axis under it, and the lines' end labels.
+ * plot, the x axis under it, the lines' and areas' end labels, and the
+ * text marks' notes.
  * @module
  */
 
@@ -18,8 +19,9 @@ import {
   type RuleLabel,
 } from "./axis.js";
 import type { Frame } from "./geometry.js";
-import type { Model } from "./model.js";
-import { lastSample } from "./readout.js";
+import { sampleValue, type Model } from "./model.js";
+import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
+import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
 import type { Words } from "./words.js";
 
@@ -78,32 +80,110 @@ export interface Layout {
   /** Text inside the plot, in plot px: a y rule's label. */
   readonly plotLabels: readonly Text[];
   readonly endLabels: readonly Text[];
+  /** The notes drawn, in spec order: those whose point lies in the plot. */
+  readonly notes: readonly Note[];
+  /** Every note is drawn as its numbered marker, its words listed below
+   *  the plot: under 30rem, or when two notes overlap or one cannot fit. */
+  readonly numbered: boolean;
+}
+
+/** A text mark's note laid out beside its point, in plot px. */
+export interface Note {
+  /** The text mark's index in the spec. */
+  readonly mark: number;
+  readonly point: { readonly x: number; readonly y: number };
+  readonly box: Box;
+  readonly lines: readonly Text[];
+  /** Its box lies inside the plot. */
+  readonly fits: boolean;
+  /** Its marker's number, 1 up in the order drawn. */
+  readonly number: number;
 }
 
 /** The room between text and what it labels. */
 const PAD = 8;
 /** The x tick vectors' length, and the room under them. */
 const TICK = 4;
-/** Under this many rem a chart draws no end labels. */
-const END_LABELS_REM = 30;
+/** Under this many rem a chart draws no end labels, and its notes as numbered markers. */
+const NARROW_REM = 30;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
-// The end labels' texts and values, one per line series with a last value.
-function endTexts(model: Model): { text: string; value: number }[] {
+// The end labels' texts and the y value each sits at: a line series' last
+// value, or the middle of an area layer's thickness at the last whole stack.
+function endTexts(model: Model, words: Words): { text: string; value: number }[] {
   const out: { text: string; value: number }[] = [];
   for (const m of model.marks) {
-    if (m.kind !== "line") {
-      continue;
-    }
-    for (const s of m.series) {
-      const value = s.y[lastSample(m, s)];
-      if (value !== undefined && value !== null) {
-        out.push({ text: `${s.name} ${model.yText(value)}`, value });
+    if (m.kind === "line") {
+      for (const s of m.series) {
+        const value = s.y[lastSample(m, s)];
+        if (value !== undefined && value !== null) {
+          out.push({ text: `${s.name} ${model.yText(value)}`, value });
+        }
+      }
+    } else if (m.kind === "area") {
+      const i = lastStack(m);
+      let base = 0;
+      for (const s of i === -1 ? [] : m.series) {
+        const v = sampleValue(m, s, i) ?? 0;
+        out.push({ text: `${s.name} ${samplePart(model, m, s, i, words)}`, value: base + v / 2 });
+        base += v;
       }
     }
   }
   return out;
+}
+
+// Each text mark `notePoint` places, wrapped and placed beside its point.
+function notesOf(model: Model, metrics: Metrics, frame: Frame, rows: Layout["rows"]): Note[] {
+  const out: Note[] = [];
+  const max = Math.min(NOTE_REM * metrics.rem, frame.width);
+  model.marks.forEach((m, mark) => {
+    const at = m.kind === "text" ? notePoint(model, m) : undefined;
+    if (m.kind !== "text" || at === undefined) {
+      return;
+    }
+    const x = frame.xAt(at.x);
+    const y = m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y);
+    const texts = wrapNote(m.text, max, metrics.measure.text);
+    const w = Math.max(...texts.map(metrics.measure.text));
+    const h = texts.length * metrics.lineHeight;
+    const placed = placeNote(x, y, m.side, w, h, frame.width, frame.height);
+    const { box, side } = placed;
+    const [tx, anchor] =
+      side === "left"
+        ? [box.right, "end" as const]
+        : side === "right"
+          ? [box.left, "start" as const]
+          : [(box.left + box.right) / 2, "middle" as const];
+    out.push({
+      mark,
+      point: { x, y },
+      box,
+      lines: texts.map((text, k) => ({
+        text,
+        x: tx,
+        y: box.top + (k + 0.5) * metrics.lineHeight,
+        anchor,
+      })),
+      fits: placed.fits,
+      number: out.length + 1,
+    });
+  });
+  return out;
+}
+
+const overlap = (a: Box, b: Box): boolean =>
+  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+// All notes switch together, so a reader never matches some on the plot and
+// some in the list below it.
+function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
+  return (
+    notes.length > 0 &&
+    (narrow ||
+      notes.some((n, k) => !n.fits || notes.slice(k + 1).some((o) => overlap(n.box, o.box))))
+  );
 }
 
 /** An x rule's label on the plot: its words and value, or off the axis. */
@@ -150,7 +230,7 @@ export function layout(
   }
   const axisW = Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
-  const ends = chart >= END_LABELS_REM * metrics.rem ? endTexts(model) : [];
+  const ends = chart >= NARROW_REM * metrics.rem ? endTexts(model, words) : [];
   const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,
@@ -290,7 +370,7 @@ export function layout(
     }
   }
 
-  // End labels in the label gutter at their last values; a lower one moves
+  // End labels in the label gutter at their values; a lower one moves
   // down until it clears the one above.
   const sorted = ends
     .map((e) => ({ ...e, y: Math.min(Math.max(yAt(e.value), 0), height) }))
@@ -307,12 +387,14 @@ export function layout(
     };
   });
 
+  const frame: Frame = { width: plotW, height, dpr, x: model.x, xAt: xAx.at, yAt };
+  const notes = notesOf(model, metrics, frame, rows);
   return {
     width,
     height: top + height + bottom,
     left,
     top,
-    frame: { width: plotW, height, dpr, x: model.x, xAt: xAx.at, yAt },
+    frame,
     xAxis: xAx,
     yAxis: yAx,
     rows,
@@ -324,5 +406,7 @@ export function layout(
     ruleLabels,
     plotLabels,
     endLabels,
+    notes,
+    numbered: numberedNotes(notes, chart < NARROW_REM * metrics.rem),
   };
 }

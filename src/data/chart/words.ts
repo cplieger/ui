@@ -3,7 +3,18 @@
  * @module
  */
 
-type Kind = "stacked" | "bar" | "histogram" | "line" | "step" | "timeline";
+type Kind =
+  | "stackedColumn"
+  | "groupedColumn"
+  | "shareColumn"
+  | "column"
+  | "stackedArea"
+  | "shareArea"
+  | "area"
+  | "histogram"
+  | "line"
+  | "step"
+  | "timeline";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -11,10 +22,13 @@ export interface ChartWords {
   readonly chart?: string;
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
-  /** The kind in the short description. Defaults "Stacked bar chart", "Bar chart",
-   *  "Histogram", "Line chart", "Step line", "Timeline". A rect on a log x is a
-   *  histogram, stacked or not; any other rect is a bar chart, "stacked" with
-   *  two or more series. */
+  /** The kind in the short description. Defaults "Stacked column chart",
+   *  "Grouped column chart", "100% stacked column chart", "Column chart",
+   *  "Stacked area chart", "100% stacked area chart", "Area chart",
+   *  "Histogram", "Line chart", "Step line", "Timeline". A rect on a log x is
+   *  a histogram however it is shaped or arranged; any other rect is a column
+   *  or, with shape "area", an area chart, its stacked, grouped or 100% kind
+   *  with two or more series. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -53,12 +67,15 @@ export interface ChartWords {
   readonly offAxis?: (label: string, value: string) => string;
   /** Equal buckets or samples. Default "every {size}". */
   readonly every?: (size: string) => string;
-  /** Summary, a bar chart. Default "{total}, {every} from {range}: {parts}.",
+  /** Summary, a column chart. Default "{total}, {every} from {range}: {parts}.",
    *  or "{total} from {range}: {parts}." when every is ""; with parts "" it
    *  ends after the range. */
   readonly stackSummary?: (total: string, every: string, range: string, parts: string) => string;
   /** Summary, busiest bucket. Default "Busiest: {range}, {n}." */
   readonly busiest?: (range: string, n: string) => string;
+  /** Summary, a grouped chart's largest single value. Default "Highest:
+   *  {name}, {range}, {n}." */
+  readonly highest?: (name: string, range: string, n: string) => string;
   /** The x range of a log x whose underflow bin is drawn below the low end;
    *  edge is the low end. Default "under {edge} to {to}". */
   readonly underRange?: (edge: string, to: string) => string;
@@ -68,6 +85,12 @@ export interface ChartWords {
   readonly binParts?: (parts: string) => string;
   /** Summary and table, a rule. Default "{label} {value}." */
   readonly rule?: (label: string, value: string) => string;
+  /** Summary and table, a note; at is its place in words. Default "{at}: {text}.",
+   *  with no stop added when the text ends in one. */
+  readonly note?: (at: string, text: string) => string;
+  /** A note added to the reading of the stop it joins. Default "Note: {text}.",
+   *  with no stop added when the text ends in one. */
+  readonly noteReading?: (text: string) => string;
   /** Summary, line head. Default "{range}, {every}.", or "{range}." when every is "". */
   readonly lineSummary?: (range: string, every: string) => string;
   /** Summary, one line series. Default "{name}: last {last}, low {low}, high {high}." */
@@ -86,12 +109,20 @@ export type Words = Required<Omit<ChartWords, "kind">> & {
   readonly kind: Readonly<Record<Kind, string>>;
 };
 
+// An app's note may already be a sentence ("Deploy of 1.4.0."), which a second stop would end twice.
+const sentence = (t: string): string => (/[.!?\u2026]$/u.test(t) ? t : `${t}.`);
+
 const DEFAULTS: Words = {
   chart: "chart",
   howTo: "Arrow keys read the values. Tab leaves the chart.",
   kind: {
-    stacked: "Stacked bar chart",
-    bar: "Bar chart",
+    stackedColumn: "Stacked column chart",
+    groupedColumn: "Grouped column chart",
+    shareColumn: "100% stacked column chart",
+    column: "Column chart",
+    stackedArea: "Stacked area chart",
+    shareArea: "100% stacked area chart",
+    area: "Area chart",
     histogram: "Histogram",
     line: "Line chart",
     step: "Step line",
@@ -121,10 +152,13 @@ const DEFAULTS: Words = {
     return parts === "" ? `${head}.` : `${head}: ${parts}.`;
   },
   busiest: (range, n) => `Busiest: ${range}, ${n}.`,
+  highest: (name, range, n) => `Highest: ${name}, ${range}, ${n}.`,
   underRange: (edge, to) => `under ${edge} to ${to}`,
   binSummary: (n, range) => `${n} from ${range}.`,
   binParts: (parts) => `${parts}.`,
   rule: (label, value) => `${label} ${value}.`,
+  note: (at, text) => sentence(`${at}: ${text}`),
+  noteReading: (text) => sentence(`Note: ${text}`),
   lineSummary: (range, every) => (every === "" ? `${range}.` : `${range}, ${every}.`),
   lineSeries: (name, last, low, high) => `${name}: last ${last}, low ${low}, high ${high}.`,
   dotSummary: (range, rows, n) => `${range}. ${rows}, ${n}.`,

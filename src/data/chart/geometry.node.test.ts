@@ -3,8 +3,17 @@ import { describe, expect, it } from "vitest";
 import { durationEdges } from "../scale/ladder.js";
 import { position } from "../scale/position.js";
 
-import { bucketEdges, dotGroups, dotPath, linePath, rectPaths, type Frame } from "./geometry.js";
-import { chartModel, type LineModel, type Model, type RectModel } from "./model.js";
+import {
+  areaPaths,
+  bucketEdges,
+  dotGroups,
+  dotPath,
+  groupEdges,
+  linePath,
+  rectPaths,
+  type Frame,
+} from "./geometry.js";
+import { chartModel, type AreaModel, type LineModel, type Model, type RectModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
 import { tableModel } from "./table.js";
@@ -21,6 +30,7 @@ function frame(model: Model, width: number, height: number, yHi: number, dpr = 1
 const model = (spec: ChartSpec) => chartModel(spec, "en", "UTC");
 const rectOf = (m: Model) => m.marks[0] as RectModel;
 const lineOf = (m: Model) => m.marks[0] as LineModel;
+const areaOf = (m: Model) => m.marks[0] as AreaModel;
 
 // Each rectangle "M l t H r V b H l Z" of a path, as numbers.
 function boxes(d: string): { left: number; top: number; right: number; bottom: number }[] {
@@ -94,6 +104,34 @@ describe("rect geometry", () => {
     expect(c?.[0]).toMatchObject({ top: 149, bottom: 150 });
     expect(d?.[0]?.top).toBeCloseTo(148.6, 9);
     expect(d?.[0]?.bottom).toBe(149);
+  });
+
+  it("stacks a 100% bucket's shares to the top, the gap between them, and leaves a total of 0 empty", () => {
+    const spec: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "rect",
+          arrange: "share",
+          x1: [0, 1, 2],
+          x2: [1, 2, 3],
+          series: [
+            { name: "a", y: [30, 0, 5] },
+            { name: "b", y: [10, 0, null] },
+          ],
+        },
+      ],
+    };
+    const m = model(spec);
+    // 200 px for the whole of each bucket: 3/4 and 1/4 of 40, then 5 of 5.
+    const [a, b] = rectPaths(rectOf(m), frame(m, 30, 200, 1)).map(boxes);
+    const heights = (list: typeof a) =>
+      list?.map(({ left, top, bottom }) => ({ left, top, bottom }));
+    expect(heights(a)).toEqual([
+      { left: 1, top: 50, bottom: 200 },
+      { left: 21, top: 0, bottom: 200 },
+    ]);
+    expect(heights(b)).toEqual([{ left: 1, top: 0, bottom: 49 }]);
   });
 
   it("draws nothing for a null or a 0, which keeps the segments above in place", () => {
@@ -175,6 +213,369 @@ describe("rect geometry", () => {
     expect(under.right).toBe(Math.round(f.xAt(1_000) - 0.5));
     expect(f.xAt(1_000) - f.xAt(500)).toBeCloseTo(f.xAt(2_000) - f.xAt(1_000), 9);
     expect(next.left).toBe(under.right + 1);
+  });
+});
+
+// `n` buckets of `series` series under "group", each value its series' index + 1.
+function grouped(n: number, series: number, domain?: readonly [number, number]): Model {
+  const x1 = Array.from({ length: n }, (_, i) => i);
+  return model({
+    x: domain === undefined ? {} : { domain },
+    marks: [
+      {
+        mark: "rect",
+        arrange: "group",
+        x1,
+        x2: x1.map((v) => v + 1),
+        series: Array.from({ length: series }, (_, k) => ({
+          name: String(k),
+          y: x1.map(() => k + 1),
+        })),
+      },
+    ],
+  });
+}
+
+// The space between neighbouring groups and the widest space inside any group.
+function spaces(subs: { left: number; right: number }[][]): { between: number; inside: number } {
+  let between = Number.POSITIVE_INFINITY;
+  let inside = 0;
+  subs.forEach((group, i) => {
+    group.forEach((s, k) => {
+      const next = group[k + 1];
+      if (next !== undefined) {
+        inside = Math.max(inside, next.left - s.right);
+      }
+    });
+    const after = subs[i + 1]?.[0];
+    const last = group.at(-1);
+    if (after !== undefined && last !== undefined) {
+      between = Math.min(between, after.left - last.right);
+    }
+  });
+  return { between, inside };
+}
+
+describe("grouped column geometry", () => {
+  // dpr 100 snaps to the hundredth of a px, so the widths below are the design's.
+  const edgesOf = (m: Model, width: number) => {
+    const f = frame(m, width, 100, 3, 100);
+    return rectOf(m).shown.map((i) => groupEdges(rectOf(m), i, f));
+  };
+
+  it("drops the inset to 0.5 px when 12.5 % leaves a sub-column under 2 px", () => {
+    // 6.5 px buckets: (6.5 − 1.63 − 1) ÷ 2 = 1.94 px, so (6.5 − 1 − 1) ÷ 2 = 2.25 px.
+    const subs = edgesOf(grouped(10, 2), 65);
+    expect(subs[1]).toEqual([
+      { left: 7, right: 9.25 },
+      { left: 10.25, right: 12.5 },
+    ]);
+    expect(spaces(subs)).toEqual({ between: 1, inside: 1 });
+  });
+
+  it("keeps the 12.5 % inset for two series in 24 buckets on the 206 px phone plot", () => {
+    const subs = edgesOf(grouped(24, 2), 206);
+    const bucket = 206 / 24;
+    const width = (bucket - 0.25 * bucket - 1) / 2;
+    for (const s of subs.flat()) {
+      expect(s.right - s.left).toBeCloseTo(width, 1);
+    }
+    expect(subs[3]?.[0]?.left).toBeCloseTo(3 * bucket + 0.125 * bucket, 1);
+    const { between, inside } = spaces(subs);
+    expect(inside).toBeCloseTo(1, 1);
+    expect(between).toBeCloseTo(0.25 * bucket, 1);
+  });
+
+  it("lets three series in 24 buckets touch, with 1 px between groups", () => {
+    const subs = edgesOf(grouped(24, 3), 206);
+    const width = (206 / 24 - 1) / 3;
+    for (const s of subs.flat()) {
+      expect(s.right - s.left).toBeCloseTo(width, 1);
+    }
+    expect(spaces(subs)).toEqual({ between: expect.closeTo(1, 1), inside: expect.closeTo(0, 1) });
+  });
+
+  it("lets groups touch too when 1 px between them would leave a sub-column under 1 px", () => {
+    // 72 buckets of 2.86 px: (2.86 − 1) ÷ 2 = 0.93 px, so 2.86 ÷ 2 = 1.43 px.
+    const subs = edgesOf(grouped(72, 2), 206);
+    for (const s of subs.flat()) {
+      expect(s.right - s.left).toBeCloseTo(206 / 144, 1);
+    }
+    expect(spaces(subs)).toEqual({ between: expect.closeTo(0, 1), inside: expect.closeTo(0, 1) });
+  });
+
+  it("never leaves less space between groups than inside one, at any bucket width", () => {
+    for (const series of [2, 3, 4]) {
+      for (let width = 20; width <= 1_200; width += 7) {
+        const { between, inside } = spaces(edgesOf(grouped(24, series), width));
+        // Snapping to the hundredth of a px may move each space by 0.01.
+        expect(between, `${String(series)} series in ${String(width)} px`).toBeGreaterThanOrEqual(
+          inside - 0.02,
+        );
+      }
+    }
+  });
+
+  it("takes no inset on a side cut at the domain's end", () => {
+    // The last 10 px bucket is cut to 5 px: the inner gaps go, (5 − 0.5) ÷ 2 = 2.25 px.
+    const subs = edgesOf(grouped(10, 2, [0, 9.5]), 95);
+    expect(subs.at(-1)).toEqual([
+      { left: 90.5, right: 92.75 },
+      { left: 92.75, right: 95 },
+    ]);
+  });
+
+  it("draws each series from the baseline in its own slot, a null leaving its slot empty", () => {
+    const m = model({
+      x: {},
+      marks: [
+        {
+          mark: "rect",
+          arrange: "group",
+          x1: [0],
+          x2: [1],
+          series: [
+            { name: "a", y: [10] },
+            { name: "b", y: [null] },
+            { name: "c", y: [5] },
+          ],
+        },
+      ],
+    });
+    const [a, b, c] = rectPaths(rectOf(m), frame(m, 100, 100, 10, 100)).map(boxes);
+    // A 12.5 px inset a side and 1 px gaps leave (100 − 25 − 2) ÷ 3 px each.
+    const w = 73 / 3;
+    expect(a?.[0]).toEqual({ left: 12.5, top: 0, right: expect.closeTo(12.5 + w, 2), bottom: 100 });
+    expect(b).toEqual([]);
+    expect(c?.[0]).toEqual({
+      left: expect.closeTo(87.5 - w, 2),
+      top: 50,
+      right: 87.5,
+      bottom: 100,
+    });
+  });
+});
+
+// Each closed shape "M x y (V y | H x)… Z" of a path as its corners, a
+// point on a straight run between two others dropped.
+function outlines(d: string): [number, number][][] {
+  return [...d.matchAll(/M([^Z]*)Z/g)].map((g) => {
+    const [x0, y0, ...rest] = (g[1] ?? "").split(/(?=[VH])| /);
+    let at: [number, number] = [Number(x0), Number(y0)];
+    const out: [number, number][] = [at];
+    for (const c of rest) {
+      at = c.startsWith("V") ? [at[0], Number(c.slice(1))] : [Number(c.slice(1)), at[1]];
+      const [p, q] = [out.at(-2), out.at(-1)];
+      if (q?.[0] === at[0] && q[1] === at[1]) {
+        continue;
+      }
+      const straight =
+        p !== undefined &&
+        q !== undefined &&
+        ((p[0] === q[0] && q[0] === at[0]) || (p[1] === q[1] && q[1] === at[1]));
+      if (straight) {
+        out[out.length - 1] = at;
+      } else {
+        out.push(at);
+      }
+    }
+    return out;
+  });
+}
+
+const area = (
+  x1: number[],
+  series: { name: string; y: (number | null)[] }[],
+  more: { x2?: number[]; arrange?: "stack" | "share"; domain?: [number, number] } = {},
+): Model =>
+  model({
+    x: more.domain === undefined ? {} : { domain: more.domain },
+    marks: [
+      {
+        mark: "rect",
+        shape: "area",
+        x1,
+        x2: more.x2 ?? x1.map((v) => v + 1),
+        ...(more.arrange === undefined ? {} : { arrange: more.arrange }),
+        series,
+      },
+    ],
+  });
+
+describe("step area geometry", () => {
+  it("draws each series' run of touching buckets as one shape, flat across each bucket, the 1 px gap per bucket", () => {
+    const m = area(
+      [0, 1, 2, 3],
+      [
+        { name: "a", y: [2, 4, 0, 3] },
+        { name: "b", y: [1, 1, 1, 1] },
+      ],
+    );
+    // 100 px a bucket, 10 px a unit.
+    const [a, b] = rectPaths(rectOf(m), frame(m, 400, 100, 10)).map(outlines);
+    expect(a).toEqual([
+      [
+        [0, 100],
+        [0, 80],
+        [100, 80],
+        [100, 60],
+        [200, 60],
+        [200, 100],
+        [0, 100],
+      ],
+      [
+        [300, 100],
+        [300, 70],
+        [400, 70],
+        [400, 100],
+        [300, 100],
+      ],
+    ]);
+    // b sits 1 px above a's top in every bucket a fills, on the baseline in bucket 2.
+    expect(b).toEqual([
+      [
+        [0, 79],
+        [0, 70],
+        [100, 70],
+        [100, 50],
+        [200, 50],
+        [200, 90],
+        [300, 90],
+        [300, 60],
+        [400, 60],
+        [400, 69],
+        [300, 69],
+        [300, 100],
+        [200, 100],
+        [200, 59],
+        [100, 59],
+        [100, 79],
+        [0, 79],
+      ],
+    ]);
+  });
+
+  it("takes no gap below a segment under 3 px tall", () => {
+    const m = area(
+      [0],
+      [
+        { name: "a", y: [5] },
+        { name: "b", y: [0.2] },
+      ],
+    );
+    const [, b] = rectPaths(rectOf(m), frame(m, 100, 100, 10)).map(outlines);
+    expect(b?.[0]?.slice(0, 2)).toEqual([
+      [0, 50],
+      [0, 48],
+    ]);
+  });
+
+  it("ends a run at a 0, a null and a gap in x, never bridging them", () => {
+    const m = area([0, 1, 3, 4, 5, 6], [{ name: "a", y: [1, 1, 1, null, 1, 0] }], {
+      x2: [1, 2, 4, 5, 6, 7],
+    });
+    const [a] = rectPaths(rectOf(m), frame(m, 700, 100, 1)).map(outlines);
+    expect(a?.map((o) => [o[0]?.[0], Math.max(...o.map((p) => p[0]))])).toEqual([
+      [0, 200],
+      [300, 400],
+      [500, 600],
+    ]);
+  });
+
+  it("lets buckets touch with no inset, so 72 on 276 px fill the plot edge to edge", () => {
+    const x1 = Array.from({ length: 72 }, (_, i) => i);
+    const m = area(x1, [{ name: "a", y: x1.map(() => 1) }]);
+    const f = frame(m, 276, 200, 1, 3);
+    const edges = rectOf(m).shown.map((i) => bucketEdges(rectOf(m), i, f));
+    expect(edges[0]?.left).toBe(0);
+    expect(edges.at(-1)?.right).toBe(276);
+    for (let i = 1; i < edges.length; i++) {
+      expect(edges[i]?.left).toBe(edges[i - 1]?.right);
+    }
+    expect(outlines(rectPaths(rectOf(m), f)[0] ?? "")).toHaveLength(1);
+  });
+
+  it("cuts a run at each end of a passed domain at the plot's edge", () => {
+    const m = area([0, 1, 2, 3, 4, 5], [{ name: "a", y: [1, 1, 1, 1, 1, 1] }], {
+      domain: [1.5, 4.5],
+    });
+    const [a] = rectPaths(rectOf(m), frame(m, 300, 100, 1)).map(outlines);
+    expect(a).toEqual([
+      [
+        [0, 100],
+        [0, 0],
+        [300, 0],
+        [300, 100],
+        [0, 100],
+      ],
+    ]);
+  });
+
+  it("runs right to left on a reversed x", () => {
+    const m = model({
+      x: { reverse: true },
+      marks: [
+        { mark: "rect", shape: "area", x1: [0, 1], x2: [1, 2], series: [{ name: "a", y: [1, 2] }] },
+      ],
+    });
+    const [a] = rectPaths(rectOf(m), frame(m, 200, 100, 2)).map(outlines);
+    expect(a).toEqual([
+      [
+        [200, 100],
+        [200, 50],
+        [100, 50],
+        [100, 0],
+        [0, 0],
+        [0, 100],
+        [200, 100],
+      ],
+    ]);
+  });
+
+  it("joins the read histogram's underflow bin to its run", () => {
+    const edges = durationEdges();
+    const m = model({
+      x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+      marks: [
+        {
+          mark: "rect",
+          shape: "area",
+          x1: edges.slice(0, -1),
+          x2: edges.slice(1),
+          series: [{ name: "Reads", y: edges.slice(1).map(() => 1) }],
+        },
+      ],
+    });
+    const [a] = rectPaths(rectOf(m), frame(m, 276, 200, 1)).map(outlines);
+    expect(a).toEqual([
+      [
+        [0, 200],
+        [0, 0],
+        [276, 0],
+        [276, 200],
+        [0, 200],
+      ],
+    ]);
+  });
+
+  it("stacks a 100% area's shares to the top, a bucket whose total is 0 ending every run", () => {
+    const m = area(
+      [0, 1, 2],
+      [
+        { name: "a", y: [1, 0, 1] },
+        { name: "b", y: [3, 0, 1] },
+      ],
+      { arrange: "share" },
+    );
+    const [a, b] = rectPaths(rectOf(m), frame(m, 300, 100, 1)).map(outlines);
+    expect(a?.map((o) => o.map((p) => p[1]))).toEqual([
+      [100, 75, 75, 100, 100],
+      [100, 50, 50, 100, 100],
+    ]);
+    expect(b?.map((o) => o[1])).toEqual([
+      [0, 0],
+      [200, 0],
+    ]);
   });
 });
 
@@ -328,6 +729,159 @@ describe("line geometry", () => {
       marks: [{ mark: "line", x: [0, 1], series: [{ name: "a", y: [0, 1] }] }],
     });
     expect(points(linePath(lineOf(m), 0, frame(m, 100, 100, 1)))).toEqual([[100, 100, 0, 0]]);
+  });
+});
+
+// Each closed shape "M x yLx y…Z" of a path, as its points' numbers.
+function shapes(d: string): number[][] {
+  return [...d.matchAll(/M([^Z]*)Z/g)].map((g) => (g[1] ?? "").split(/[ L]/).map(Number));
+}
+
+describe("area geometry", () => {
+  const stack = (
+    series: (number | null)[][],
+    more: { curve?: "step"; reverse?: boolean; share?: boolean } = {},
+  ): ChartSpec => ({
+    x: { reverse: more.reverse === true },
+    marks: [
+      {
+        mark: "area",
+        x: (series[0] ?? []).map((_, i) => i),
+        ...(more.curve === undefined ? {} : { curve: more.curve }),
+        ...(more.share === true ? { arrange: "share" as const } : {}),
+        series: series.map((y, k) => ({ name: `s${String(k)}`, y })),
+      },
+    ],
+  });
+  const drawn = (spec: ChartSpec, width: number, yHi: number) => {
+    const m = model(spec);
+    return areaPaths(areaOf(m), frame(m, width, 100, yHi)).map(shapes);
+  };
+
+  it("fills the first layer from the baseline and the next from its top, 1 px above it", () => {
+    // On 100 px up to 10, a value v sits at 100 - 10v.
+    const [a, b] = drawn(
+      stack([
+        [2, 4],
+        [2, 2],
+      ]),
+      100,
+      10,
+    );
+    expect(a).toEqual([[0, 80, 100, 60, 100, 100, 0, 100]]);
+    expect(b).toEqual([[0, 60, 100, 40, 100, 59, 0, 79]]);
+  });
+
+  it("breaks every layer where any series is a gap, and fills no lone sample", () => {
+    const [a, b] = drawn(
+      stack([
+        [2, 4, 2, 4, 4],
+        [2, 2, null, 2, 2],
+      ]),
+      400,
+      10,
+    );
+    expect(a).toEqual([
+      [0, 80, 100, 60, 100, 100, 0, 100],
+      [300, 60, 400, 60, 400, 100, 300, 100],
+    ]);
+    expect(b).toHaveLength(2);
+    expect(drawn(stack([[1, null, 1]]), 200, 1)).toEqual([[]]);
+  });
+
+  it("takes no gap below a layer under 3 px tall in a column, nor on a stack of 0", () => {
+    // 0.2 is 2 px on 100 px up to 10.
+    const [, thin] = drawn(
+      stack([
+        [2, 2],
+        [0.2, 0.2],
+      ]),
+      100,
+      10,
+    );
+    expect(thin).toEqual([[0, 78, 100, 78, 100, 80, 0, 80]]);
+    const [, onZero] = drawn(
+      stack([
+        [0, 0],
+        [5, 5],
+      ]),
+      100,
+      10,
+    );
+    expect(onZero).toEqual([[0, 50, 100, 50, 100, 100, 0, 100]]);
+  });
+
+  it("stacks shares to the top of the plot under share, the 1 px gap kept", () => {
+    // On 100 px up to 1, a share v sits at 100 - 100v.
+    const [a, b] = drawn(
+      stack(
+        [
+          [1, 3],
+          [3, 1],
+        ],
+        { share: true },
+      ),
+      100,
+      1,
+    );
+    expect(a).toEqual([[0, 75, 100, 25, 100, 100, 0, 100]]);
+    expect(b).toEqual([[0, 0, 100, 0, 100, 24, 0, 74]]);
+  });
+
+  it("breaks every layer under share where a sample's total is 0", () => {
+    const [a, b] = drawn(
+      stack(
+        [
+          [1, 1, 0, 1, 1],
+          [1, 1, 0, 1, 1],
+        ],
+        { share: true },
+      ),
+      400,
+      1,
+    );
+    expect(a).toEqual([
+      [0, 50, 100, 50, 100, 100, 0, 100],
+      [300, 50, 400, 50, 400, 100, 300, 100],
+    ]);
+    expect(b).toHaveLength(2);
+  });
+
+  it("holds each value until the next sample on a step curve", () => {
+    const [a] = drawn(stack([[1, 3]], { curve: "step" }), 100, 4);
+    expect(a?.[0]?.slice(0, 6)).toEqual([0, 75, 100, 75, 100, 25]);
+  });
+
+  it("draws a reversed x right to left", () => {
+    const [a] = drawn(stack([[0, 1]], { reverse: true }), 100, 1);
+    expect(a).toEqual([[100, 100, 0, 0, 0, 100, 100, 100]]);
+  });
+
+  it("reduces 4,320 samples in three layers per pixel column, keeping each peak, the layers sharing their edges", () => {
+    const n = 4_320;
+    const spike = (at: number) => Array.from({ length: n }, (_, i) => (i === at ? 20 : 10));
+    const m = model(stack([spike(1_000), spike(2_000), spike(3_000)]));
+    const paths = areaPaths(areaOf(m), frame(m, 276, 100, 100));
+    const [a, b, c] = paths.map((d) => shapes(d)[0] ?? []);
+    for (const pts of [a, b, c]) {
+      expect((pts ?? []).length / 2).toBeLessThan(2 * 4 * 277);
+    }
+    // The stack is 30 tall, 40 at each spike: on 100 px up to 100, 60 px.
+    const ys = (pts: number[] | undefined) => (pts ?? []).filter((_, k) => k % 2 === 1);
+    expect(Math.min(...ys(c))).toBe(60);
+    // Layer b's bottom is layer a's top raised by its 1 px gap, point for point.
+    // A shape runs along its top to the plot's right edge, then back.
+    const split = (pts: number[] = []) => {
+      const k = pts.findIndex((v, j) => j % 2 === 0 && v === 276) + 2;
+      return [pts.slice(0, k), pts.slice(k)] as const;
+    };
+    const [aTop] = split(a);
+    const [, bBottom] = split(b);
+    const back: number[] = [];
+    for (let k = bBottom.length - 2; k >= 0; k -= 2) {
+      back.push(bBottom[k] ?? 0, (bBottom[k + 1] ?? 0) + 1);
+    }
+    expect(back).toEqual(aTop);
   });
 });
 

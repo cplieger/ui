@@ -9,16 +9,19 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 
 import { dotGroups, snap, type DotGroup, type Frame } from "./geometry.js";
 import type { Layout } from "./layout.js";
-import type { DotModel, LineModel, Model, RectModel } from "./model.js";
+import { noteJoin, type Join } from "./notes.js";
+import type { DotModel, Model, RectModel, SampleModel } from "./model.js";
 import {
   bucketReading,
+  partText,
   postReading,
   primaryOf,
   rowReading,
+  samplePart,
   sampleReading,
   type Reading,
 } from "./readout.js";
-import { stepStops } from "./table.js";
+import { stepStopAt, stepStops } from "./table.js";
 import type { Words } from "./words.js";
 
 /**
@@ -28,6 +31,7 @@ import type { Words } from "./words.js";
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "line"; readonly i: number; readonly part: number | undefined }
+  | { readonly kind: "area"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "dot"; readonly row: number; readonly from: number; readonly to: number }
   | { readonly kind: "row"; readonly row: number };
 
@@ -59,7 +63,7 @@ function bucketSpan(m: RectModel, i: number, f: Frame): readonly [number, number
   return a <= b ? [a, b] : [b, a];
 }
 
-const lineStops = (m: LineModel): number[] =>
+const lineStops = (m: SampleModel): number[] =>
   m.step ? stepStops(m) : Array.from({ length: m.to - m.from }, (_, k) => m.from + k);
 
 /** The selection focus gives a chart that has none yet: the newest x, or on
@@ -73,9 +77,10 @@ export function initial(model: Model): Selection | undefined {
       const i = m.shown.at(-1);
       return i === undefined ? undefined : { kind: "rect", i, part: undefined };
     }
-    case "line": {
+    case "line":
+    case "area": {
       const i = lineStops(m).at(-1);
-      return i === undefined ? undefined : { kind: "line", i, part: undefined };
+      return i === undefined ? undefined : { kind: m.kind, i, part: undefined };
     }
     case "dot": {
       const row = m.rows[0];
@@ -171,11 +176,12 @@ function along(
   return next === undefined || (next >= lo && next <= hi) ? undefined : next;
 }
 
-/** The parts of a bucket or sample bottom to top: a stack's series in
- *  order, or the lines with a value there by value, ties in series order. */
-function partsAt(m: RectModel | LineModel, i: number): number[] {
+/** The parts of a bucket or sample in Up order: the series in series order
+ *  (bottom to top in a stack, left to right in a group), or the lines with a
+ *  value there by value, ties in series order. */
+function partsAt(m: RectModel | SampleModel, i: number): number[] {
   const all = m.series.map((_, k) => k);
-  if (m.kind === "rect") {
+  if (m.kind !== "line") {
     return all;
   }
   return all
@@ -199,7 +205,7 @@ function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined
     const [a, b] = bucketSpan(m, sel.i, f);
     return (a + b) / 2;
   }
-  if (sel.kind === "line" && m?.kind === "line") {
+  if ((sel.kind === "line" || sel.kind === "area") && sel.kind === m?.kind) {
     return f.xAt(m.x[sel.i] ?? 0);
   }
   if (sel.kind === "dot" && m?.kind === "dot") {
@@ -233,7 +239,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
     return g;
   };
   let stops: number[] | undefined;
-  const lineStopsOnce = (l: LineModel): number[] => (stops ??= lineStops(l));
+  const lineStopsOnce = (l: SampleModel): number[] => (stops ??= lineStops(l));
 
   const moveDot = (d: DotModel, sel: Selection & { kind: "dot" | "row" }, key: Key, x?: number) => {
     if (key === "ArrowUp" || key === "ArrowDown") {
@@ -309,7 +315,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
           }
           return best === undefined ? undefined : { kind: "rect", i: best, part: undefined };
         }
-        case "line": {
+        case "line":
+        case "area": {
           if (m.to <= m.from) {
             return undefined;
           }
@@ -332,7 +339,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
                   Math.abs(f.xAt(m.x[lo - 1] ?? 0) - px) <= Math.abs(f.xAt(m.x[lo] ?? 0) - px)
                 ? lo - 1
                 : lo;
-          return { kind: "line", i, part: undefined };
+          return { kind: m.kind, i, part: undefined };
         }
         case "dot": {
           if (lay.rows.length === 0) {
@@ -376,11 +383,15 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
     return now.x1[i] === v && now.shown.includes(i) ? { kind: "rect", i, part } : undefined;
   }
-  if (sel.kind === "line" && was.kind === "line" && now.kind === "line") {
+  if (
+    (sel.kind === "line" || sel.kind === "area") &&
+    was.kind === sel.kind &&
+    now.kind === sel.kind
+  ) {
     const v = was.x[sel.i];
     const i = v === undefined ? -1 : lowerBound(now.x, v);
     const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
-    return now.x[i] === v && i >= now.from && i < now.to ? { kind: "line", i, part } : undefined;
+    return now.x[i] === v && i >= now.from && i < now.to ? { kind: sel.kind, i, part } : undefined;
   }
   if ((sel.kind === "dot" || sel.kind === "row") && was.kind === "dot" && now.kind === "dot") {
     const name = was.rows[sel.row]?.name;
@@ -416,7 +427,7 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   if (sel.kind === "rect" && m?.kind === "rect") {
     return bucketReading(model, m, sel.i, words);
   }
-  if (sel.kind === "line" && m?.kind === "line") {
+  if ((sel.kind === "line" || sel.kind === "area") && sel.kind === m?.kind) {
     return sampleReading(model, m, sel.i, words);
   }
   if (sel.kind === "dot" && m?.kind === "dot") {
@@ -431,9 +442,54 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
 /**
  * What announce says for `sel`: with `part` and a series chosen, that one
  * segment or line through `words.segment`; otherwise the whole reading
- * through `words.reading`, or a silent row's `words.silentRow`.
+ * through `words.reading`, or a silent row's `words.silentRow`; then each
+ * note joining the stop through `words.noteReading`.
  */
 export function spoken(model: Model, sel: Selection, words: Words, part: boolean): string {
+  const said = readingWords(model, sel, words, part);
+  const notes = noteReadings(model, sel, words);
+  if (said === "" || notes === "") {
+    return said;
+  }
+  // A silent row's words end without a full stop, which the notes need before them.
+  const silent = sel.kind === "row" && said === selectionReading(model, sel, words)?.at;
+  return `${said}${silent ? "." : ""} ${notes}`;
+}
+
+// The stop `sel` stands on: a pointer on a step curve's held sample stands on
+// the stop holding it, which is where `noteJoin` joins a note.
+function stopOf(model: Model, sel: Selection): number | undefined {
+  if (sel.kind === "rect") {
+    return sel.i;
+  }
+  if (sel.kind !== "line" && sel.kind !== "area") {
+    return undefined;
+  }
+  const m = primaryOf(model);
+  return m?.kind === sel.kind && m.step ? stepStopAt(m, sel.i) : sel.i;
+}
+
+const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
+  j.kind === "stop"
+    ? stop === j.i
+    : j.kind === "post"
+      ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
+      : sel.kind === "row" && sel.row === j.row;
+
+/** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
+function noteReadings(model: Model, sel: Selection, words: Words): string {
+  const out: string[] = [];
+  const stop = stopOf(model, sel);
+  for (const m of model.marks) {
+    const j = m.kind === "text" ? noteJoin(model, m) : undefined;
+    if (m.kind === "text" && j !== undefined && joins(j, sel, stop)) {
+      out.push(words.noteReading(m.text));
+    }
+  }
+  return out.join(" ");
+}
+
+function readingWords(model: Model, sel: Selection, words: Words, part: boolean): string {
   const reading = selectionReading(model, sel, words);
   const m = primaryOf(model);
   if (reading === undefined || m === undefined) {
@@ -445,11 +501,13 @@ export function spoken(model: Model, sel: Selection, words: Words, part: boolean
       ? reading.at
       : words.reading(reading.at, reading.entries[0]?.value ?? "", "");
   }
-  if ((sel.kind === "rect" || sel.kind === "line") && m.kind !== "dot") {
+  if (sel.kind !== "dot" && sel.kind !== "row" && m.kind !== "dot") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
-      const v = s.y[sel.i];
-      const value = v === null || v === undefined ? words.noData : model.yText(v);
+      const value =
+        m.kind === "rect"
+          ? partText(model, m, s, sel.i, words)
+          : samplePart(model, m, s, sel.i, words);
       return words.segment(reading.at, s.name, value);
     }
     if (m.kind === "line" && m.series.every((one) => one.y[sel.i] === null)) {

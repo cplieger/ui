@@ -173,7 +173,7 @@ function point(
 const plotWidth = (b: Built) =>
   Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("width")) - 2 * AREA_ROOM;
 
-describe("keys on a stacked bar chart", () => {
+describe("keys on a stacked column chart", () => {
   it("focus selects the newest bucket and says it", async () => {
     const b = build(bars);
     b.plot.focus();
@@ -235,7 +235,7 @@ describe("keys on a stacked bar chart", () => {
     expect(document.activeElement).toBe(b.plot);
     await expect
       .element(b.plot)
-      .toHaveAccessibleName(`Stacked bar chart, 2 series, ${span(0, 60)}`);
+      .toHaveAccessibleName(`Stacked column chart, 2 series, ${span(0, 60)}`);
     await expect
       .element(b.plot)
       .toHaveAccessibleDescription("Arrow keys read the values. Tab leaves the chart.");
@@ -316,6 +316,35 @@ describe("keys on a step line", () => {
   });
 });
 
+describe("keys on a stacked area", () => {
+  it("focus says the newest sample with its total, Up and Down each layer in series order", async () => {
+    const x = Array.from({ length: 4 }, (_, i) => START + i * MIN);
+    const b = build({
+      x: { type: "time" },
+      marks: [
+        {
+          mark: "area",
+          x,
+          series: [
+            { name: "Gas", y: [5, 6, 7, 9] },
+            { name: "Wind", y: [1, 2, 3, 1] },
+          ],
+        },
+      ],
+    });
+    expect(legendText(b)).toBe(`${time(3)} · Gas · 9 · Wind · 1 · 10`);
+    b.plot.focus();
+    await says(`${time(3)}: Gas 9, Wind 1. Total 10.`);
+    key(b.plot, "ArrowLeft");
+    await says(`${time(2)}: Gas 7, Wind 3. Total 10.`);
+    key(b.plot, "ArrowUp");
+    await says(`${time(2)}: Gas 7.`);
+    key(b.plot, "ArrowUp");
+    await says(`${time(2)}: Wind 3.`);
+    expect(legendText(b)).toBe(`${time(2)} · Gas · 7 · Wind · 3 · 10`);
+  });
+});
+
 describe("keys on a timeline", () => {
   it("focus starts on the first row's last post", async () => {
     const b = build(agents);
@@ -350,6 +379,53 @@ describe("keys on a timeline", () => {
     }
     key(b.plot, "ArrowDown");
     await says(`ha-agent: ${time(38)}.`);
+  });
+});
+
+describe("notes in the readings", () => {
+  it("a bucket's reading adds the note its interval holds, the legend row never", async () => {
+    const b = build({
+      ...bars,
+      marks: [...bars.marks, { mark: "text", x: START + 20 * MIN, y: 4, text: "Deploy" }],
+    });
+    b.plot.focus();
+    key(b.plot, "Home");
+    await says(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
+    key(b.plot, "ArrowRight");
+    await says(`${span(15, 30)}: Announce 3, Path 1. Total 4. Note: Deploy.`);
+    expect(legendText(b)).toBe(`${span(15, 30)} · Announce · 3 · Path · 1 · 4`);
+    key(b.plot, "ArrowUp");
+    await says(`${span(15, 30)}: Announce 3. Note: Deploy.`);
+  });
+
+  it("on a step line, the change point holding a note's sample reads it", async () => {
+    const b = build({
+      ...step,
+      marks: [...step.marks, { mark: "text", x: START + 3 * MIN, y: 4, text: "Restart" }],
+    });
+    b.plot.focus();
+    await says(`${time(7)}: Live 10, Active 2.`);
+    key(b.plot, "ArrowLeft");
+    await says(`${time(5)}: Live 10, Active 2.`);
+    key(b.plot, "ArrowLeft");
+    await says(`${time(4)}: Live 4, Active 2.`);
+    key(b.plot, "ArrowLeft");
+    await says(`${time(2)}: Live 4, Active 1. Note: Restart.`);
+  });
+
+  it("a silent row's reading adds its note after a full stop, a post's the note nearest it", async () => {
+    const b = build({
+      ...agents,
+      marks: [
+        ...agents.marks,
+        { mark: "text", x: START + 30 * MIN, y: "docs-bot", text: "Paused" },
+        { mark: "text", x: START + 39 * MIN, y: "lead-ui", text: "Release" },
+      ],
+    });
+    b.plot.focus();
+    await says(`lead-ui: ${time(40)}. Note: Release.`);
+    key(b.plot, "ArrowDown");
+    await says("docs-bot: no posts. Note: Paused.");
   });
 });
 
