@@ -863,6 +863,42 @@ describe("surfaces", () => {
         const el = plot.svg.querySelector(`[data-part="${part}"]`) as Element;
         expect(getComputedStyle(el)[prop], part).toBe(token(el, value, "color", palette));
       }
+      const bars = draw({
+        x: {},
+        marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "A", x: [3, 5] }] }],
+      });
+      drawSelection(
+        bars.svg,
+        bars.model,
+        bars.lay,
+        { kind: "bar", row: 1, part: undefined },
+        navigator(bars.model, bars.lay),
+      );
+      const label = bars.svg.querySelector('[data-part="value"] text') as Element;
+      expect(getComputedStyle(label).fill).toBe(token(label, "var(--cp-ink)", "color", palette));
+      expect(getComputedStyle(label).stroke).toBe(
+        token(label, "var(--cp-surface-page)", "color", palette),
+      );
+      const chosen = bars.svg.querySelector('[data-part="y"] > text[data-selected]') as Element;
+      expect(getComputedStyle(chosen).fill).toBe(token(chosen, "var(--cp-ink)", "color", palette));
+      const split = draw({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["a"],
+            arrange: "split",
+            series: [
+              { name: "A", x: [3] },
+              { name: "B", x: [5] },
+            ],
+          },
+        ],
+      });
+      const head = split.svg.querySelector('[data-part="head"] text') as Element;
+      expect(getComputedStyle(head).fill).toBe(
+        token(head, "var(--cp-ink-muted)", "color", palette),
+      );
     },
   );
 });

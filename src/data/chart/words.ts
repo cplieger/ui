@@ -33,15 +33,12 @@ export interface ChartWords {
   readonly chart?: string;
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
-  /** The kind in the short description. Defaults "Column chart" and its
-   *  "Stacked", "Grouped" and "100% stacked" forms, the same four of "Bar
-   *  chart", "Diverging bar chart", "Area chart", "Stacked area chart", "100%
-   *  stacked area chart", "Histogram", "Line chart", "Step line", "Timeline",
-   *  "Dot plot", "Range plot", "Arrow plot".
-   *  A rect on a log x is a histogram; any other rect a column or, with shape
-   *  "area", an area chart; a bar mark of one series with a value below 0 a
-   *  diverging bar chart; two or more series take the stacked, grouped or 100%
-   *  kind. */
+  /** The kind that starts the short description, by key, each with an
+   *  English default ("Column chart", "Back-to-back bar chart", "Dot plot"
+   *  and the rest). A rect on a log x is a histogram; one series of a rect
+   *  is a column chart, of a bar a bar chart or, with a value below 0, a
+   *  diverging one; two or more take their arrangement's kind; an area
+   *  mark, or a rect with shape "area", an area chart. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;

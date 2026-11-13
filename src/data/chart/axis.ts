@@ -55,7 +55,6 @@ export interface AxisContext {
 }
 
 interface Candidate {
-  readonly value: number;
   readonly at: number;
   readonly lines: readonly string[];
 }

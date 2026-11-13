@@ -1164,6 +1164,9 @@ describe("rules and notes on bar and point rows", () => {
       expect(() => build({ x: {}, marks: [two(arrange), at({ x: 2 })] })).toThrow(
         `renderChart: marks[1].x has no place under arrange "${arrange}"; the note sits at its row's end`,
       );
+      expect(() => build({ x: {}, marks: [two(arrange), { mark: "text", text: "Best" }] })).toThrow(
+        "renderChart: marks[1].y is missing; a note needs a y naming its row on this chart",
+      );
     },
   );
 

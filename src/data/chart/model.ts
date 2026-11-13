@@ -365,7 +365,12 @@ function checkSlot(slot: unknown, what: string, field = "slot"): void {
   }
 }
 
-function checkSeries(series: unknown, length: number, what: string, channel = "y"): void {
+function checkSeries(
+  series: unknown,
+  length: number,
+  what: string,
+  channel = "y",
+): asserts series is ArrayLike<Record<string, unknown>> {
   if (!arrayLike(series)) {
     fail(`${what}.series must be an array`);
   }
@@ -491,7 +496,7 @@ function checkMark(mark: unknown, what: string): void {
       }
       const list = mark["series"];
       checkSeries(list, x1.length, what);
-      if (arrange === "share" && arrayLike(list) && list.length < 2) {
+      if (arrange === "share" && list.length < 2) {
         fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
       }
       return;
@@ -511,7 +516,7 @@ function checkMark(mark: unknown, what: string): void {
       }
       const list = mark["series"];
       checkSeries(list, x.length, what);
-      if (arrange === "share" && arrayLike(list) && list.length < 2) {
+      if (arrange === "share" && list.length < 2) {
         fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
       }
       return;
@@ -558,14 +563,14 @@ function checkMark(mark: unknown, what: string): void {
       }
       const list = mark["series"];
       checkSeries(list, names.length, what, "x");
-      if (arrange === "share" && arrayLike(list) && list.length < 2) {
+      if (arrange === "share" && list.length < 2) {
         fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
       }
-      if (arrange === "mirror" && arrayLike(list) && list.length !== 2) {
+      if (arrange === "mirror" && list.length !== 2) {
         fail(`${what}.arrange "mirror" needs exactly two series, one each side of its spine`);
       }
-      checkDiverge(mark, arrange === "diverge", arrayLike(list) ? list.length : 0, what);
-      const all = Array.from(list as ArrayLike<Record<string, unknown>>);
+      checkDiverge(mark, arrange === "diverge", list.length, what);
+      const all = Array.from(list);
       all.forEach((one, s) => {
         const at = `${what}.series[${String(s)}]`;
         checkSlot(one["below"], at, "below");
@@ -576,13 +581,13 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     case "point": {
-      checkSeries(mark["series"], checkNames(mark["y"], what).length, what, "x");
+      const list = mark["series"];
+      checkSeries(list, checkNames(mark["y"], what).length, what, "x");
       const link = mark["link"];
       if (link !== undefined && link !== "range" && link !== "arrow") {
         fail(`${what}.link must be "range" or "arrow"`);
       }
-      const list = mark["series"];
-      if (link !== undefined && arrayLike(list) && list.length !== 2) {
+      if (link !== undefined && list.length !== 2) {
         fail(`${what}.link "${link}" needs exactly two series, the two ends it joins`);
       }
       return;
@@ -814,7 +819,9 @@ function textModel(
   }
   const place = (v: number | string | undefined, axis: "x" | "y", scale: Continuous | Band) => {
     if (v === undefined) {
-      return fail(`${what}.${axis} is missing; a note needs an x and a y on this chart`);
+      return fail(
+        `${what}.${axis} is missing; a note needs ${ends === undefined ? "an x and a y" : "a y naming its row"} on this chart`,
+      );
     }
     if (scale.type === "band") {
       if (typeof v !== "string") {

@@ -105,14 +105,13 @@ export interface BarMark {
   /** The categories' names, each once. */
   readonly y: readonly string[];
   /** How several series share a row: stacked from 0, negatives leftward
-   *  (the default); thinner bars one under another; stacked to 100 % of
-   *  the row ("share", two or more series, x 0 to 1 in "percent" unless
-   *  x.format says another, no domain); a panel each on one shared scale
-   *  ("split", folded under 30rem as a group); either side of 0
-   *  ("diverge", see `left`), its axis reading distances from 0 both ways;
-   *  or back to back ("mirror", exactly two series, the first leftward
-   *  from a spine, as a population pyramid). "share", "split", "diverge"
-   *  and "mirror" take values of 0 or more. */
+   *  (the default); thinner bars one under another ("group"); stacked to
+   *  100 % ("share", two or more series, x 0 to 1 in "percent" unless
+   *  x.format says otherwise, no domain); a panel each on one shared scale
+   *  ("split", folded under 30rem as a group); either side of 0 ("diverge",
+   *  see `left`); or back to back ("mirror", exactly two series, the first
+   *  leftward from a spine, as a population pyramid). "share", "split",
+   *  "diverge" and "mirror" take values of 0 or more. */
   readonly arrange?: "stack" | "group" | "share" | "split" | "diverge" | "mirror";
   /** "diverge" only, and required there: how many series, the first ones,
    *  stack leftward from 0, the last of them nearest it; the rest stack

@@ -502,18 +502,14 @@ export interface Segment {
   readonly bottom: number;
 }
 
-/**
- * Row `i`'s segments of `m`, one per series in series order, absent where it
- * draws nothing: centred on `cy`, `thick` px across, snapped to device px.
- * Positive values stack rightward from 0 and negative ones leftward, each
- * side in series order; a segment beyond another gives up its first px
- * toward 0 as the gap unless it is under 3 px long, so a stack's end stays
- * at its sum. Under "diverge" the left series stack leftward from 0 and
- * the rest rightward (`divergeSegments`). Under "split" and "mirror" each
- * series' bar runs from 0 in its panel of `f.panels`, and under "group" or a folded
- * split from 0 at `barCentre`, a sub-bar's thickness across. A `null`
- * counts as 0 and draws nothing.
- */
+/** Row `i`'s segments of `m`, one per series, absent where it draws nothing
+ *  (a `null` counts as 0): centred on `cy`, `thick` px across, snapped to
+ *  device px. Values stack from 0 in series order, rightward above it and
+ *  leftward below; a segment beyond another gives up its first px toward 0
+ *  as the gap unless under 3 px long, so a stack ends at its sum. "diverge"
+ *  stacks through `divergeSegments`; "split" and "mirror" run each bar from
+ *  0 in its panel of `f.panels`; "group" and a folded split from 0 at
+ *  `barCentre`. */
 export function barSegments(
   m: BarModel,
   i: number,
