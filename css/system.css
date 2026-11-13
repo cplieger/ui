@@ -10282,6 +10282,229 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   --cp-icon-size: 3rem;
 }
 
+/* Each glyph the library's own markup and CSS use, by its name, so a page
+ * with no script paints it. One class's weight, so an app's rule for the
+ * same name in a later stylesheet wins, as createIcons' inline URL does. */
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-down"]) {
+  --cp-icon-image: url("../icons/svg/arrow-down.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-right"]) {
+  --cp-icon-image: url("../icons/svg/arrow-right.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-up"]) {
+  --cp-icon-image: url("../icons/svg/arrow-up.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="check"]) {
+  --cp-icon-image: url("../icons/svg/check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="chevron-down"]) {
+  --cp-icon-image: url("../icons/svg/chevron-down.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="chevron-right"]) {
+  --cp-icon-image: url("../icons/svg/chevron-right.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-alert"]) {
+  --cp-icon-image: url("../icons/svg/circle-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-check"]) {
+  --cp-icon-image: url("../icons/svg/circle-check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-dashed"]) {
+  --cp-icon-image: url("../icons/svg/circle-dashed.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-x"]) {
+  --cp-icon-image: url("../icons/svg/circle-x.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="clock"]) {
+  --cp-icon-image: url("../icons/svg/clock.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="cloud-upload"]) {
+  --cp-icon-image: url("../icons/svg/cloud-upload.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="copy"]) {
+  --cp-icon-image: url("../icons/svg/copy.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="download"]) {
+  --cp-icon-image: url("../icons/svg/download.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="ellipsis"]) {
+  --cp-icon-image: url("../icons/svg/ellipsis.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="eye"]) {
+  --cp-icon-image: url("../icons/svg/eye.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="eye-off"]) {
+  --cp-icon-image: url("../icons/svg/eye-off.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="file-text"]) {
+  --cp-icon-image: url("../icons/svg/file-text.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="funnel"]) {
+  --cp-icon-image: url("../icons/svg/funnel.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="funnel-x"]) {
+  --cp-icon-image: url("../icons/svg/funnel-x.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="grip-vertical"]) {
+  --cp-icon-image: url("../icons/svg/grip-vertical.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="heart"]) {
+  --cp-icon-image: url("../icons/svg/heart.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="heart-filled"]) {
+  --cp-icon-image: url("../icons/svg/heart-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="history"]) {
+  --cp-icon-image: url("../icons/svg/history.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="info"]) {
+  --cp-icon-image: url("../icons/svg/info.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="key-round"]) {
+  --cp-icon-image: url("../icons/svg/key-round.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="layout-dashboard"]) {
+  --cp-icon-image: url("../icons/svg/layout-dashboard.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="layout-grid"]) {
+  --cp-icon-image: url("../icons/svg/layout-grid.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="library"]) {
+  --cp-icon-image: url("../icons/svg/library.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="list"]) {
+  --cp-icon-image: url("../icons/svg/list.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="lock"]) {
+  --cp-icon-image: url("../icons/svg/lock.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="log-in"]) {
+  --cp-icon-image: url("../icons/svg/log-in.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="log-out"]) {
+  --cp-icon-image: url("../icons/svg/log-out.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="moon"]) {
+  --cp-icon-image: url("../icons/svg/moon.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="octagon-alert"]) {
+  --cp-icon-image: url("../icons/svg/octagon-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="pin"]) {
+  --cp-icon-image: url("../icons/svg/pin.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="pin-filled"]) {
+  --cp-icon-image: url("../icons/svg/pin-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="plus"]) {
+  --cp-icon-image: url("../icons/svg/plus.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="radio-tower"]) {
+  --cp-icon-image: url("../icons/svg/radio-tower.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="refresh-cw"]) {
+  --cp-icon-image: url("../icons/svg/refresh-cw.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="save"]) {
+  --cp-icon-image: url("../icons/svg/save.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="search"]) {
+  --cp-icon-image: url("../icons/svg/search.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="settings"]) {
+  --cp-icon-image: url("../icons/svg/settings.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="shield-check"]) {
+  --cp-icon-image: url("../icons/svg/shield-check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="spinner-arc"]) {
+  --cp-icon-image: url("../icons/svg/spinner-arc.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="sun"]) {
+  --cp-icon-image: url("../icons/svg/sun.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="tag"]) {
+  --cp-icon-image: url("../icons/svg/tag.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="timer"]) {
+  --cp-icon-image: url("../icons/svg/timer.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="trash-2"]) {
+  --cp-icon-image: url("../icons/svg/trash-2.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="triangle-alert"]) {
+  --cp-icon-image: url("../icons/svg/triangle-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="tv"]) {
+  --cp-icon-image: url("../icons/svg/tv.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="user"]) {
+  --cp-icon-image: url("../icons/svg/user.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="users"]) {
+  --cp-icon-image: url("../icons/svg/users.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="wifi-off"]) {
+  --cp-icon-image: url("../icons/svg/wifi-off.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="x"]) {
+  --cp-icon-image: url("../icons/svg/x.svg");
+}
+
 /* A drawing that points along the line of text faces the other way in a
  * right-to-left context. */
 :where(.cp) .cp-icon:dir(rtl):is([data-cp-icon$="-right"], [data-cp-icon$="-left"]) {

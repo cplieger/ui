@@ -22,6 +22,7 @@ const HARNESS = new Set([
   "g-mini-header",
   "g-statusline",
   "g-phone",
+  "g-frame",
   "g-note",
   "g-sr",
   "g-h1",

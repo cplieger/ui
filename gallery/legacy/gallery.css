@@ -1400,6 +1400,15 @@ html:has(.g-header) {
   background: var(--cp-surface-page);
 }
 
+/* A page of its own at the card's width, such as one that runs no script. */
+.g-frame {
+  display: block;
+  inline-size: 100%;
+  block-size: 26rem;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
+}
+
 /* The refreshing region is a panel, and its line runs along the panel's
  * top edge, inside the border, so it belongs to what it refreshes. */
 .g-refreshing {
