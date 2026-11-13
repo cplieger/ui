@@ -183,8 +183,8 @@ function bucketAt(m: RectModel, x: number, hi: number): number | undefined {
 /**
  * Where note `t` stands, in axis values: a band's row index for `y` on a
  * timeline. Undefined when it lies off either axis's domain, which the scales
- * set without notes, so layout draws and `noteJoin` joins the same notes at
- * every width.
+ * set without notes. Layout and `noteJoin` both check it, so whether a note is
+ * on the plot never depends on the chart's width.
  */
 export function notePoint(
   model: Model,
