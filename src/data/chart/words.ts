@@ -55,15 +55,13 @@ export interface ChartWords {
   readonly chart?: string;
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
-  /** The kind that starts the short description, by key, each with an
-   *  English default ("Column chart", "Back-to-back bar chart", "Dot plot"
-   *  and the rest). A rect on a log x is a histogram; one series of a rect
-   *  is a column chart, of a bar a bar chart or, with a value below 0, a
-   *  diverging one; two or more take their arrangement's kind; an area
-   *  mark, or a rect with shape "area", an area chart; a scatter whose
-   *  series carry r a bubble chart; a cell mark a heatmap, a 2D histogram
-   *  when both its axes are binned, or with days a calendar heatmap; a box
-   *  mark a box plot. */
+  /** The kind that starts the short description, by key, each with an English default
+   *  ("Column chart", "Dot plot" and the rest). A rect on a log x is a histogram; one
+   *  series of a rect is a column chart, of a bar a bar chart or, with a value below 0, a
+   *  diverging one; two or more take their arrangement's kind. An area mark, or a rect with
+   *  shape "area", is an area chart; a scatter whose series carry r a bubble chart; a cell
+   *  mark a heatmap, a 2D histogram when both axes are binned, or a calendar heatmap with
+   *  days; a box mark a box plot. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;

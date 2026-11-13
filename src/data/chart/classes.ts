@@ -64,13 +64,12 @@ export function classSteps(type: "sequential" | "diverging", n: number, reverse 
 }
 
 /**
- * The classes of `spec` over `values`, the finite values a chart fills.
- * `thresholds` are taken as sent. Otherwise a passed `domain` is divided
- * into equal classes exactly; an inferred one, from 0 when no value is
- * below it, takes the smallest rounded width (1, 2, 2.5 or 5 times a power
- * of ten) whose classes, from a multiple of it, reach the greatest value.
- * A diverging scale's classes are symmetric about `pivot`, which an odd
- * count centres in its middle class and an even count makes a boundary.
+ * The classes of `spec` over `values`, the finite values a chart fills: `thresholds` as
+ * sent, a passed `domain` divided into equal classes exactly, or an inferred one (from 0
+ * when no value is below it) at the smallest rounded width (1, 2, 2.5 or 5 times a power
+ * of ten) whose classes, from a multiple of it, reach the greatest value. A diverging
+ * scale's classes are symmetric about `pivot`, which an odd count centres in its middle
+ * class and an even count makes a boundary.
  */
 export function classes(spec: ClassSpec, values: readonly number[]): Classes {
   const type = spec.type ?? "sequential";

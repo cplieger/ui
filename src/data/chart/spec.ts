@@ -295,17 +295,13 @@ interface RuleMark {
   readonly label: string;
 }
 
-/** A note at a place on the plot, set 4 px off it on its `side` (default
- *  "above"). Under a rect, line, area or scatter `x` and `y` are values on the
- *  chart's scales; under a cell grid each names a category or is a value
- *  its bins hold; under a calendar `x` is an instant in its day and `y`
- *  is refused; under a dot mark `x` is a time and `y` a row's name;
- *  under a bar, point or box mark `y` names a row and `x` places the note
- *  along it; under a slope `x` names one of its two columns and `y` is a value.
- *  Both are required, except under a calendar and under a split,
- *  diverging or mirrored bar, which refuses `x` and sets the note at its
- *  row's end. A note outside the
- *  drawn range is not drawn. */
+/** A note at a place on the plot, set 4 px off it on its `side` (default "above"); a
+ *  note outside the drawn range is not drawn. `x` and `y` are values on the scales under
+ *  a rect, line, area or scatter; categories or values the bins hold under a cell grid;
+ *  a time and a row's name under a dot; a place along the row and the row's name under
+ *  a bar, point or box; a column's name and a value under a slope. Both are required,
+ *  except that a calendar takes only `x`, an instant in its day, and a split, diverging
+ *  or mirrored bar refuses `x` and sets the note at its row's end. */
 interface TextMark {
   readonly mark: "text";
   readonly x?: number | string;
