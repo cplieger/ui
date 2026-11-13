@@ -801,8 +801,9 @@ const swatchRing = (x: number): SVGElement =>
  * A cell chart's colour key, for the legend row's end: the colour scale's
  * label, a swatch per class in class order with each boundary's value under
  * it (thinned when they would touch), a diverging scale's pivot under the
- * middle swatch for an odd count, and a No data swatch when a cell is
- * missing. `aria-hidden`, since every reading and the table give each value.
+ * middle swatch of an odd count or the middle boundary of an even one, kept
+ * through any thinning, and a No data swatch when a cell is missing.
+ * `aria-hidden`, since every reading and the table give each value.
  * Undefined without a cell mark, a grid's or a calendar's.
  */
 export function colourKey(model: Model, words: Words, measure: Measure): HTMLElement | undefined {
@@ -842,9 +843,14 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
   }));
   const pivot = model.spec.colour?.pivot ?? 0;
   let kept: number | undefined;
-  if (classes.type === "diverging" && n % 2 === 1 && model.spec.colour?.thresholds === undefined) {
-    kept = (n - 1) / 2;
-    marks.splice(kept, 0, { at: x(kept) + SWATCH_W / 2, text: model.colourText(pivot) });
+  if (classes.type === "diverging" && model.spec.colour?.thresholds === undefined) {
+    if (n % 2 === 1) {
+      kept = (n - 1) / 2;
+      marks.splice(kept, 0, { at: x(kept) + SWATCH_W / 2, text: model.colourText(pivot) });
+    } else {
+      // `classes` makes an even count's middle boundary the pivot itself.
+      kept = n / 2 - 1;
+    }
   }
   const labels = span("thresholds");
   const keep = thinned(

@@ -2147,6 +2147,22 @@ describe("a heatmap's selection and colour key", () => {
     const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
     expect(labels.map((l) => l.textContent)).toEqual(["-2.5°C", "0°C", "+2.5°C"]);
   });
+
+  it.each([
+    [4, ["0°C"]],
+    [8, ["-3°C", "0°C", "+3°C"]],
+  ])("keeps an even diverging key's pivot boundary through thinning, %i classes", (steps, kept) => {
+    const { key } = keyed({
+      colour: {
+        type: "diverging",
+        steps,
+        format: { style: "unit", unit: "celsius", signDisplay: "exceptZero" },
+      },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-2.6, 2.5]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(kept);
+  });
 });
 
 describe("a 2D histogram", () => {
