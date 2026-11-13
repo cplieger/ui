@@ -6,7 +6,7 @@
 
 import type { Format } from "../scale/format.js";
 
-import type { BarMark, ChartSpec, PointMark, RectMark, ScatterMark } from "./spec.js";
+import type { BarMark, CellMark, ChartSpec, PointMark, RectMark, ScatterMark } from "./spec.js";
 
 /** A log x's one rect whose `x1` is 0 or below. */
 interface Underflow {
@@ -293,9 +293,29 @@ const COLUMNS: Continuous = {
   drawnLo: 0,
 };
 
+// A cell chart's categories on x, column i spanning i to i + 1, as a
+// slope's columns sit at 0 and 1: every place on it is a column's index.
+function cellColumns(spec: ChartSpec, m: CellMark): Continuous {
+  const x = spec.x ?? {};
+  if ((x.type ?? "band") !== "band") {
+    throw new TypeError("renderChart: a cell mark's x names its columns, so it is a band");
+  }
+  if (x.domain !== undefined) {
+    throw new TypeError("renderChart: a band scale takes no domain; its columns are its domain");
+  }
+  if (x.zero !== undefined) {
+    throw new TypeError("renderChart: a band x has no zero to hold");
+  }
+  if (spec.marks.some((r) => r.mark === "rule" && r.x !== undefined)) {
+    throw new TypeError("renderChart: a rule on a band x has no value to sit at");
+  }
+  return { ...COLUMNS, hi: m.x.length, reverse: x.reverse === true };
+}
+
 /** The x scale of `spec`: linear unless it says another continuous type,
  *  under a bar mark linear from 0, under a point mark or a scatter holding
- *  0 only with `zero: true`, and under a slope its two columns at 0 and 1.
+ *  0 only with `zero: true`, under a slope its two columns at 0 and 1, and
+ *  under a cell mark its columns from 0 to their count.
  *  Throws for a band x and for a type, domain, zero or underflow bin that
  *  breaks a rule, and for an x scale or an x rule beside a slope. */
 export function xScale(spec: ChartSpec): Continuous {
@@ -307,6 +327,10 @@ export function xScale(spec: ChartSpec): Continuous {
       throw new TypeError("renderChart: a rule on a slope's x has no value to sit at");
     }
     return COLUMNS;
+  }
+  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell");
+  if (cell !== undefined) {
+    return cellColumns(spec, cell);
   }
   const x = spec.x ?? {};
   const type = x.type ?? "linear";
@@ -518,7 +542,7 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
   return extent;
 }
 
-/** The y scale of `spec`: a band of the dot rows or the bar or point categories,
+/** The y scale of `spec`: a band of the dot rows or the bar, point or cell categories,
  *  else linear unless it says log, which a slope cannot; a linear y holds 0
  *  unless `zero: false`, under a scatter only with `zero: true`. Throws for
  *  a y type its mark cannot take and for a domain or zero a rect or an area
@@ -526,7 +550,7 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
 export function yScale(spec: ChartSpec): Continuous | Band {
   const y = spec.y ?? {};
   const kinds = new Set(spec.marks.map((m) => m.mark));
-  const banded = (["dot", "bar", "point"] as const).find((k) => kinds.has(k));
+  const banded = (["dot", "bar", "point", "cell"] as const).find((k) => kinds.has(k));
   if (banded !== undefined) {
     if ((y.type ?? "band") !== "band") {
       throw new TypeError(`renderChart: a ${banded} mark's y is a band of its rows`);
@@ -540,7 +564,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     const rows = spec.marks.flatMap((m) =>
       m.mark === "dot"
         ? m.rows.map((r) => r.name)
-        : m.mark === "bar" || m.mark === "point"
+        : m.mark === "bar" || m.mark === "point" || m.mark === "cell"
           ? [...m.y]
           : [],
     );

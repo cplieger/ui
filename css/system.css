@@ -1702,7 +1702,7 @@
   );
   --cp-sequential-1: light-dark(
     oklch(
-      0.86
+      86%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.11 / 0.19)),
           max(
@@ -1716,7 +1716,7 @@
         var(--cp-scale-1-h)
     ),
     oklch(
-      0.4
+      40%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1732,7 +1732,7 @@
   );
   --cp-sequential-2: light-dark(
     oklch(
-      0.7887
+      78.87%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.0387 / 0.19)),
           max(
@@ -1746,7 +1746,7 @@
         var(--cp-scale-2-h)
     ),
     oklch(
-      0.465
+      46.5%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1762,7 +1762,7 @@
   );
   --cp-sequential-3: light-dark(
     oklch(
-      0.7175
+      71.75%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1776,7 +1776,7 @@
         var(--cp-scale-3-h)
     ),
     oklch(
-      0.53
+      53%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1792,7 +1792,7 @@
   );
   --cp-sequential-4: light-dark(
     oklch(
-      0.6462
+      64.62%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1806,7 +1806,7 @@
         var(--cp-scale-4-h)
     ),
     oklch(
-      0.595
+      59.5%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1822,7 +1822,7 @@
   );
   --cp-sequential-5: light-dark(
     oklch(
-      0.575
+      57.5%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1836,7 +1836,7 @@
         var(--cp-scale-5-h)
     ),
     oklch(
-      0.66
+      66%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1852,7 +1852,7 @@
   );
   --cp-sequential-6: light-dark(
     oklch(
-      0.5037
+      50.37%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1866,7 +1866,7 @@
         var(--cp-scale-6-h)
     ),
     oklch(
-      0.725
+      72.5%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1882,7 +1882,7 @@
   );
   --cp-sequential-7: light-dark(
     oklch(
-      0.4325
+      43.25%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1896,7 +1896,7 @@
         var(--cp-scale-7-h)
     ),
     oklch(
-      0.79
+      79%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.04 / 0.19)),
           max(
@@ -1912,7 +1912,7 @@
   );
   --cp-sequential-8: light-dark(
     oklch(
-      0.3612
+      36.12%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1926,7 +1926,7 @@
         var(--cp-scale-8-h)
     ),
     oklch(
-      0.855
+      85.5%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.105 / 0.19)),
           max(
@@ -1942,7 +1942,7 @@
   );
   --cp-sequential-9: light-dark(
     oklch(
-      0.29
+      29%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1956,7 +1956,7 @@
         var(--cp-scale-9-h)
     ),
     oklch(
-      0.92
+      92%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.17 / 0.19)),
           max(
@@ -1972,7 +1972,7 @@
   );
   --cp-diverging-1: light-dark(
     oklch(
-      0.42
+      42%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -1987,7 +1987,7 @@
         var(--cp-scale-opposite-h)
     ),
     oklch(
-      0.81
+      81%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.06 / 0.19)),
           max(
@@ -2004,7 +2004,7 @@
   );
   --cp-diverging-2: light-dark(
     oklch(
-      0.53
+      53%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2019,7 +2019,7 @@
         var(--cp-scale-opposite-h)
     ),
     oklch(
-      0.72
+      72%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2036,7 +2036,7 @@
   );
   --cp-diverging-3: light-dark(
     oklch(
-      0.64
+      64%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2051,7 +2051,7 @@
         var(--cp-scale-opposite-h)
     ),
     oklch(
-      0.63
+      63%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2068,7 +2068,7 @@
   );
   --cp-diverging-4: light-dark(
     oklch(
-      0.75
+      75%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2083,7 +2083,7 @@
         var(--cp-scale-opposite-h)
     ),
     oklch(
-      0.54
+      54%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2104,7 +2104,7 @@
   );
   --cp-diverging-6: light-dark(
     oklch(
-      0.75
+      75%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2118,7 +2118,7 @@
         var(--cp-accent-h)
     ),
     oklch(
-      0.54
+      54%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2134,7 +2134,7 @@
   );
   --cp-diverging-7: light-dark(
     oklch(
-      0.64
+      64%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2148,7 +2148,7 @@
         var(--cp-accent-h)
     ),
     oklch(
-      0.63
+      63%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2164,7 +2164,7 @@
   );
   --cp-diverging-8: light-dark(
     oklch(
-      0.53
+      53%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2178,7 +2178,7 @@
         var(--cp-accent-h)
     ),
     oklch(
-      0.72
+      72%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2194,7 +2194,7 @@
   );
   --cp-diverging-9: light-dark(
     oklch(
-      0.42
+      42%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
           max(
@@ -2208,7 +2208,7 @@
         var(--cp-accent-h)
     ),
     oklch(
-      0.81
+      81%
         min(
           calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.06 / 0.19)),
           max(
@@ -6616,6 +6616,88 @@ th[aria-sort="descending"] > .cp-sort::after {
 .cp-chart svg [data-part="scatter"] path {
   fill: var(--cp-tone-9);
   stroke: var(--cp-chart-surface);
+  stroke-width: 1px;
+}
+
+/* A cell takes its class's step of its scale; markup carries no style, so
+ * each step is a rule. */
+.cp-chart svg [data-scale="sequential"] [data-step="1"] {
+  fill: var(--cp-sequential-1);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="2"] {
+  fill: var(--cp-sequential-2);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="3"] {
+  fill: var(--cp-sequential-3);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="4"] {
+  fill: var(--cp-sequential-4);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="5"] {
+  fill: var(--cp-sequential-5);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="6"] {
+  fill: var(--cp-sequential-6);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="7"] {
+  fill: var(--cp-sequential-7);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="8"] {
+  fill: var(--cp-sequential-8);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="9"] {
+  fill: var(--cp-sequential-9);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="1"] {
+  fill: var(--cp-diverging-1);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="2"] {
+  fill: var(--cp-diverging-2);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="3"] {
+  fill: var(--cp-diverging-3);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="4"] {
+  fill: var(--cp-diverging-4);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="5"] {
+  fill: var(--cp-diverging-5);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="6"] {
+  fill: var(--cp-diverging-6);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="7"] {
+  fill: var(--cp-diverging-7);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="8"] {
+  fill: var(--cp-diverging-8);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="9"] {
+  fill: var(--cp-diverging-9);
+}
+
+/* A missing cell's outline sets it apart from the lowest class, which is
+ * filled. */
+.cp-chart svg [data-part="missing"] {
+  fill: none;
+  stroke: var(--cp-border);
   stroke-width: 1px;
 }
 

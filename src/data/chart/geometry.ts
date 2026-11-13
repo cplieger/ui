@@ -2,13 +2,14 @@
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
  * pixel and cut at the plot's ends, rows of dots, bars and points along
- * their rows, a slope's lines and ends, a scatter's dots, rules and the
- * axis lines.
+ * their rows, a slope's lines and ends, a scatter's dots, a grid's cells,
+ * rules and the axis lines.
  * @module
  */
 
 import { reduce, upperBound, type Point } from "../scale/reduce.js";
 
+import { classOf } from "./classes.js";
 import {
   barsApart,
   barTotal,
@@ -18,6 +19,7 @@ import {
   sampleValue,
   type AreaModel,
   type BarModel,
+  type CellModel,
   type DotRowModel,
   type LineModel,
   type PointModel,
@@ -928,6 +930,50 @@ export function scatterPaths(m: ScatterModel, f: Frame): string[] {
       })
       .join(""),
   );
+}
+
+/** A cell under this many px across, inset, gives up its gap on that axis. */
+const CELL_MIN = 3;
+
+// A cell's two edges along one axis, snapped, each inset half the gap
+// unless that leaves the cell under CELL_MIN.
+function cellSpan(a: number, b: number, dpr: number): readonly [number, number] {
+  const [lo, hi] = a < b ? [a, b] : [b, a];
+  const half = hi - lo - GAP >= CELL_MIN ? GAP / 2 : 0;
+  return [snap(lo + half, dpr), snap(hi - half, dpr)];
+}
+
+/** A cell chart's paths: one per class holding a cell, in class order,
+ *  with the scale step it fills with, and the 1 px outlines of every
+ *  missing cell, drawn inside its box. Cells stand 1 px apart. */
+export function cellPaths(
+  m: CellModel,
+  edges: { readonly xs: readonly number[]; readonly ys: readonly number[] },
+  dpr: number,
+): {
+  readonly classes: readonly { readonly step: number; readonly d: string }[];
+  readonly missing: string;
+} {
+  const parts = m.classes.steps.map(() => "");
+  let missing = "";
+  m.values.forEach((row, r) => {
+    const [top, bottom] = cellSpan(edges.ys[r] ?? 0, edges.ys[r + 1] ?? 0, dpr);
+    row.forEach((v, c) => {
+      const [left, right] = cellSpan(edges.xs[c] ?? 0, edges.xs[c + 1] ?? 0, dpr);
+      if (right <= left || bottom <= top) {
+        return;
+      }
+      if (v === null) {
+        missing += `M${num(left + 0.5)} ${num(top + 0.5)}H${num(right - 0.5)}V${num(bottom - 0.5)}H${num(left + 0.5)}Z`;
+        return;
+      }
+      const k = classOf(m.classes, v);
+      parts[k] =
+        `${parts[k] ?? ""}M${num(left)} ${num(top)}H${num(right)}V${num(bottom)}H${num(left)}Z`;
+    });
+  });
+  const classes = parts.flatMap((d, k) => (d === "" ? [] : [{ step: m.classes.steps[k] ?? 1, d }]));
+  return { classes, missing };
 }
 
 /** A 1 px line down the plot at `x`, on whole device pixels. */

@@ -13,6 +13,7 @@ import {
   barSegments,
   bubblePaths,
   bucketEdges,
+  cellPaths,
   dotGroups,
   dotPath,
   dotRadius,
@@ -33,6 +34,7 @@ import {
   chartModel,
   type AreaModel,
   type BarModel,
+  type CellModel,
   type LineModel,
   type Model,
   type PointModel,
@@ -1545,5 +1547,73 @@ describe("bubble geometry", () => {
       marks: [{ mark: "scatter", series: [{ name: "s", names: ["A"], x: [1], y: [2] }] }],
     }).marks[0] as ScatterModel;
     expect(dotRadius(plain, 0, 0, f)).toBe(4);
+  });
+});
+
+describe("cell geometry", () => {
+  const grid = (
+    values: (number | null)[][],
+    colour: NonNullable<ChartSpec["colour"]> = { thresholds: [5] },
+  ) =>
+    model({
+      colour,
+      marks: [
+        {
+          mark: "cell",
+          x: (values[0] ?? []).map((_, c) => `c${String(c)}`),
+          y: values.map((_, r) => `r${String(r)}`),
+          values,
+        },
+      ],
+    }).marks[0] as CellModel;
+
+  it("draws each class as one path of its cells in class order, each with its scale step", () => {
+    const m = grid([
+      [6, 1],
+      [2, 9],
+    ]);
+    const { classes, missing } = cellPaths(m, { xs: [0, 20, 40], ys: [0, 24, 48] }, 1);
+    expect(classes.map((c) => c.step)).toEqual([1, 9]);
+    // Each cell inset 0.5 px a side, snapped up to whole px: 1 px between neighbours.
+    expect(boxes(classes[0]?.d ?? "")).toEqual([
+      { left: 21, top: 1, right: 40, bottom: 24 },
+      { left: 1, top: 25, right: 20, bottom: 48 },
+    ]);
+    expect(boxes(classes[1]?.d ?? "")).toEqual([
+      { left: 1, top: 1, right: 20, bottom: 24 },
+      { left: 21, top: 25, right: 40, bottom: 48 },
+    ]);
+    expect(missing).toBe("");
+  });
+
+  it("draws no path for a class no cell takes", () => {
+    const m = grid([[1, 2]], { steps: 3, domain: [0, 30] });
+    expect(cellPaths(m, { xs: [0, 20, 40], ys: [0, 24] }, 1).classes.map((c) => c.step)).toEqual([
+      1,
+    ]);
+  });
+
+  it("outlines a missing cell 1 px inside its box, and fills nothing there", () => {
+    const m = grid([[null, 1]]);
+    const { classes, missing } = cellPaths(m, { xs: [0, 20, 40], ys: [0, 24] }, 1);
+    expect(missing).toBe("M1.5 1.5H19.5V23.5H1.5Z");
+    expect(boxes(classes[0]?.d ?? "")).toEqual([{ left: 21, top: 1, right: 40, bottom: 24 }]);
+  });
+
+  it("lets cells touch along an axis where the gap would leave one under 3 px", () => {
+    const m = grid([[1, 1, 1]]);
+    const { classes } = cellPaths(m, { xs: [0, 3.5, 7, 10.5], ys: [0, 24] }, 1);
+    // 3.5 px less the gap is 2.5 px: no inset across, the rows keep theirs.
+    expect(boxes(classes[0]?.d ?? "").map((b) => [b.left, b.right, b.top, b.bottom])).toEqual([
+      [0, 4, 1, 24],
+      [4, 7, 1, 24],
+      [7, 11, 1, 24],
+    ]);
+  });
+
+  it("snaps edges to device pixels and orders a reversed axis's edges", () => {
+    const m = grid([[1]]);
+    const { classes } = cellPaths(m, { xs: [10.3, 0], ys: [0, 10] }, 2);
+    expect(boxes(classes[0]?.d ?? "")).toEqual([{ left: 0.5, top: 0.5, right: 10, bottom: 9.5 }]);
   });
 });

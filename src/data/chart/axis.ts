@@ -230,6 +230,44 @@ export function xAxis(scale: Continuous, width: number, ctx: AxisContext): Axis 
   }
 }
 
+// Every 1st, 2nd, 5th, 10th, 20th… category, up to one past all `n`.
+function* bandSteps(n: number): Generator<number> {
+  for (let p = 1; ; p *= 10) {
+    for (const lead of [1, 2, 5]) {
+      yield lead * p;
+      if (lead * p >= n) {
+        return;
+      }
+    }
+  }
+}
+
+/** A band x of `names` along `width` px, each category a column from i to
+ *  i + 1, right to left when `reverse`: a label under every column's
+ *  middle, or under every 2nd, 5th, 10th… from the first when they would
+ *  overlap. */
+export function bandAxis(
+  names: readonly string[],
+  width: number,
+  reverse: boolean,
+  measure: Measure,
+): Axis {
+  const n = names.length;
+  const at = reverse ? position("linear", 0, n, width, 0) : position("linear", 0, n, 0, width);
+  const layout = { length: width, lineHeight: undefined, measure };
+  const write = (v: number) => names[Math.floor(v)] ?? "";
+  let ticks: Tick[] = [];
+  for (const every of bandSteps(n)) {
+    const values = names.flatMap((_, i) => (i % every === 0 ? [i + 0.5] : []));
+    const laid = fitted(values, at, write, layout);
+    ticks = laid.ticks;
+    if (laid.clear) {
+      break;
+    }
+  }
+  return { lo: 0, hi: n, at, ticks };
+}
+
 /** The y axis of `scale` up `height` px, its labels `lineHeight` px tall. */
 export function yAxis(
   scale: Continuous,

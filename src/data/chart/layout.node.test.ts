@@ -1059,3 +1059,58 @@ describe("a scatter's layout", () => {
     expect(l.titles[1]?.x).toBe(l.left + l.frame.width);
   });
 });
+
+describe("a cell chart's layout", () => {
+  const hours = Array.from({ length: 24 }, (_, h) => String(h));
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const week = (x: ChartSpec["x"] = {}): ChartSpec => ({
+    x,
+    marks: [{ mark: "cell", x: hours, y: days, values: days.map(() => hours.map(() => 1)) }],
+  });
+
+  it("gives each row the band's row height with its name in the y gutter", () => {
+    const l = lay(week(), 400);
+    expect(l.frame.height).toBe(7 * 24);
+    expect(l.yAxis).toBeUndefined();
+    expect(l.yLabels.map((t) => [t.text, t.y - l.top, t.anchor])).toEqual(
+      days.map((d, r) => [d, (r + 0.5) * 24, "end"]),
+    );
+    // "Mon" is 22.5 px and its pad 8.
+    expect(l.left).toBe(31);
+  });
+
+  it("holds each cell's column and row edges, the columns sharing the plot's width", () => {
+    const l = lay(week(), 400);
+    const w = 400 - 31;
+    expect(l.cells?.ys).toEqual(Array.from({ length: 8 }, (_, r) => r * 24));
+    expect(l.cells?.xs.length).toBe(25);
+    l.cells?.xs.forEach((x, c) => {
+      expect(x).toBeCloseTo((c * w) / 24, 6);
+    });
+  });
+
+  it("runs a reversed x's columns right to left", () => {
+    const l = lay(week({ reverse: true }), 400);
+    expect(l.cells?.xs[0]).toBeCloseTo(l.frame.width, 6);
+    expect(l.cells?.xs[24]).toBeCloseTo(0, 6);
+  });
+
+  it("labels each column under its middle, or every 2nd, 5th or 10th when labels would overlap", () => {
+    // 369 px over 24 columns is 15.4 px a column, under two-digit labels and their 8 px gap.
+    const wide = lay(week(), 400);
+    expect(wide.xLabels.map((t) => t.text)).toEqual(hours.filter((_, h) => h % 2 === 0));
+    const middle = (c: number) => wide.left + ((c + 0.5) * wide.frame.width) / 24;
+    expect(wide.xLabels[1]?.x).toBeCloseTo(middle(2), 6);
+    // 119 px is 5 px a column: every 2nd is 10 px apart, every 5th 25 px.
+    expect(lay(week(), 150).xLabels.map((t) => t.text)).toEqual(["0", "5", "10", "15", "20"]);
+    // 2.4 px a column: every 10th.
+    expect(lay(week(), 89).xLabels.map((t) => t.text)).toEqual(["0", "10", "20"]);
+  });
+
+  it("titles x under its labels at the plot's right end", () => {
+    const l = lay(week({ label: "Hour" }), 400);
+    expect(l.titles.map((t) => [t.text, t.x, t.anchor])).toEqual([
+      ["Hour", l.left + l.frame.width, "end"],
+    ]);
+  });
+});

@@ -281,6 +281,88 @@
   stroke-width: 1px;
 }
 
+/* A cell takes its class's step of its scale; markup carries no style, so
+ * each step is a rule. */
+.cp-chart svg [data-scale="sequential"] [data-step="1"] {
+  fill: var(--cp-sequential-1);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="2"] {
+  fill: var(--cp-sequential-2);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="3"] {
+  fill: var(--cp-sequential-3);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="4"] {
+  fill: var(--cp-sequential-4);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="5"] {
+  fill: var(--cp-sequential-5);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="6"] {
+  fill: var(--cp-sequential-6);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="7"] {
+  fill: var(--cp-sequential-7);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="8"] {
+  fill: var(--cp-sequential-8);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="9"] {
+  fill: var(--cp-sequential-9);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="1"] {
+  fill: var(--cp-diverging-1);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="2"] {
+  fill: var(--cp-diverging-2);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="3"] {
+  fill: var(--cp-diverging-3);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="4"] {
+  fill: var(--cp-diverging-4);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="5"] {
+  fill: var(--cp-diverging-5);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="6"] {
+  fill: var(--cp-diverging-6);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="7"] {
+  fill: var(--cp-diverging-7);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="8"] {
+  fill: var(--cp-diverging-8);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="9"] {
+  fill: var(--cp-diverging-9);
+}
+
+/* A missing cell's outline sets it apart from the lowest class, which is
+ * filled. */
+.cp-chart svg [data-part="missing"] {
+  fill: none;
+  stroke: var(--cp-border);
+  stroke-width: 1px;
+}
+
 /* A range's bold link and an arrow, its head showing the direction in any
  * colour, under the dots. */
 .cp-chart svg [data-part="link"] {

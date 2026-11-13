@@ -195,6 +195,8 @@ export function initial(model: Model): Selection | undefined {
       const o = orders(m);
       return dotSelection(o, o.byX[0]);
     }
+    case "cell":
+      return undefined;
   }
 }
 
@@ -500,6 +502,9 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "scatter") {
         return sel.kind === "scatter" ? moveScatter(m, sel, key, lay) : undefined;
       }
+      if (m.kind === "cell") {
+        return undefined;
+      }
       if (sel.kind !== m.kind) {
         return undefined;
       }
@@ -580,6 +585,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
           const ref = d === undefined ? undefined : m.drawn[d];
           return ref === undefined ? undefined : { kind: "scatter", ...ref };
         }
+        case "cell":
+          return undefined;
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;

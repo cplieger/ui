@@ -1164,3 +1164,41 @@ describe("a bubble chart's summary and short description", () => {
     expect(shortDescription(world, words)).toBe(`Bubble chart, 2 series, 3${nb}countries`);
   });
 });
+
+describe("a heatmap's short description", () => {
+  const week = (x: ChartSpec["x"], y: ChartSpec["y"]): ChartSpec => ({
+    ...(x === undefined ? {} : { x }),
+    ...(y === undefined ? {} : { y }),
+    marks: [
+      {
+        mark: "cell",
+        x: per(24, String),
+        y: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        values: per(7, () => per(24, () => 1)),
+      },
+    ],
+  });
+
+  it("gives its rows by its columns in the axes' units", () => {
+    expect(
+      shortDescription(
+        model(
+          week({ unit: { one: "hour", other: "hours" } }, { unit: { one: "day", other: "days" } }),
+        ),
+        words,
+      ),
+    ).toBe(`Heatmap, 7${nb}days by 24${nb}hours`);
+  });
+
+  it("gives bare counts where an axis names no unit", () => {
+    expect(shortDescription(model(week(undefined, undefined)), words)).toBe("Heatmap, 7 by 24");
+  });
+
+  it("takes the app's words for the grid", () => {
+    const own = chartWords({
+      grid: (rows, columns) => `${rows} × ${columns}`,
+      kind: { heatmap: "Carte" },
+    });
+    expect(shortDescription(model(week(undefined, undefined)), own)).toBe("Carte, 7 × 24");
+  });
+});

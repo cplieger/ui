@@ -12,6 +12,7 @@ import { position } from "../scale/position.js";
 
 import {
   axisGutter,
+  bandAxis,
   bandLimit,
   cutName,
   ruleBand,
@@ -38,6 +39,7 @@ import {
   barsApart,
   sampleValue,
   type BarModel,
+  type CellModel,
   type Model,
   type ScatterModel,
   type SlopeModel,
@@ -103,6 +105,10 @@ export interface Layout {
   /** A band's rows, each name cut to its room, `y` the middle of its dot
    *  row, its bars or its points in the plot. */
   readonly rows: readonly { readonly name: string; readonly y: number }[];
+  /** A cell chart's column and row edges in plot px, x's in its columns'
+   *  order and y's in its rows', so cell (c, r) spans xs[c] to xs[c + 1]
+   *  and ys[r] to ys[r + 1]. */
+  readonly cells: { readonly xs: readonly number[]; readonly ys: readonly number[] } | undefined;
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
   readonly bar: number;
@@ -528,6 +534,7 @@ function slopeLayout(
     xAxis: { lo: 0, hi: 1, at: xAt, ticks: [] },
     yAxis: undefined,
     rows: [],
+    cells: undefined,
     mono: false,
     gutters: { axis: axisW, label: labelW },
     bar: 0,
@@ -578,6 +585,7 @@ export function layout(
   const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
   const points = model.marks.some((m) => m.kind === "point");
   const scatter = model.marks.find((m) => m.kind === "scatter");
+  const cells = model.marks.find((m): m is CellModel => m.kind === "cell");
   const bubble =
     scatter?.size === undefined ? undefined : narrow ? BUBBLE_RADIUS_NARROW : BUBBLE_RADIUS;
   const mirror = bars?.arrange === "mirror";
@@ -687,20 +695,22 @@ export function layout(
     roomRight += endRoom;
   }
   const shift = valued ? 0 : inset + (endLeft ? endRoom : 0);
-  const one: Axis = valued
-    ? {
-        lo: model.x.lo,
-        hi: model.x.hi,
-        at: flip
-          ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
-          : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
-        ticks: [],
-      }
-    : xAxis(
-        flip === reverse ? model.x : { ...model.x, reverse: flip },
-        Math.max(1, panelW - 2 * inset - endRoom),
-        ctx,
-      );
+  const one: Axis = cells
+    ? bandAxis(cells.columns, plotW, reverse, measure)
+    : valued
+      ? {
+          lo: model.x.lo,
+          hi: model.x.hi,
+          at: flip
+            ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
+            : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
+          ticks: [],
+        }
+      : xAxis(
+          flip === reverse ? model.x : { ...model.x, reverse: flip },
+          Math.max(1, panelW - 2 * inset - endRoom),
+          ctx,
+        );
   const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
   const xAx: Axis =
     panels[0] === undefined
@@ -945,6 +955,13 @@ export function layout(
     xAxis: xAx,
     yAxis: yAx,
     rows,
+    cells:
+      cells === undefined
+        ? undefined
+        : {
+            xs: Array.from({ length: cells.columns.length + 1 }, (_, c) => xAx.at(c)),
+            ys: Array.from({ length: rows.length + 1 }, (_, r) => r * rowH),
+          },
     mono,
     gutters: { axis: axisW, label: labelW },
     bar: thick,

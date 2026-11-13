@@ -188,6 +188,41 @@ export interface ScatterMark {
   readonly series: readonly ScatterSeries[];
 }
 
+/** A grid of cells, each filled by its value's class on the chart's
+ *  `colour` scale: x's categories from the left, y's from the top. */
+export interface CellMark {
+  readonly mark: "cell";
+  /** The columns' names, each once. */
+  readonly x: readonly string[];
+  /** The rows' names, each once. */
+  readonly y: readonly string[];
+  /** A row of values per y entry, each as long as `x`; `null` or `NaN` is
+   *  no data, outlined. */
+  readonly values: readonly Values[];
+}
+
+/** A cell chart's colour classes: equal rounded classes over the data, or
+ *  the app's `thresholds`; a value past either end takes the end class. */
+interface ColourScale {
+  /** Default "sequential": low to high. "diverging": either side of `pivot`. */
+  readonly type?: "sequential" | "diverging";
+  /** The number of classes, 2 to 9; default 5. */
+  readonly steps?: number;
+  /** The span the equal classes divide, exactly; default the data's, from 0
+   *  when every value is 0 or more. */
+  readonly domain?: readonly [number, number];
+  /** One to eight strictly increasing boundaries, in place of `steps` and
+   *  `domain`. */
+  readonly thresholds?: readonly number[];
+  /** Diverging only: the middle the classes are symmetric about; default 0. */
+  readonly pivot?: number;
+  /** Diverging only: the accent's arm below the pivot, for more is worse. */
+  readonly reverse?: boolean;
+  readonly label?: string;
+  readonly unit?: Unit;
+  readonly format?: Format;
+}
+
 /** Exactly one of `x` and `y`, finite. Beside a dot, bar or point mark
  *  only `x`, drawn down every row: in every panel of a split, and at its
  *  distance from 0 on both sides of a mirror or a diverging chart, where it
@@ -235,25 +270,29 @@ export type Mark =
   | PointMark
   | SlopeMark
   | ScatterMark
+  | CellMark
   | RuleMark
   | TextMark;
 
 export interface ChartSpec {
   /** Default `{}`. A slope names its columns itself, so there it is a
-   *  `TypeError`; a scatter's is linear or log. */
+   *  `TypeError`; a scatter's is linear or log; a cell mark's categories
+   *  make it a band. */
   readonly x?: Scale;
-  /** Band when the chart has a dot, bar or point mark; linear under a
-   *  slope; linear or log under a scatter. */
+  /** Band when the chart has a dot, bar or point mark or a cell mark's
+   *  categories; linear under a slope; linear or log under a scatter. */
   readonly y?: Scale;
   /** A scatter's size, when its series carry `r`; a `TypeError` otherwise. */
   readonly r?: SizeScale;
-  /** One rect, line, area, dot, bar, point, slope or scatter mark and any rules and
-   *  text marks, drawn in order: a rule after a rect draws over it. A
-   *  second data mark is a `TypeError`. */
+  /** A cell mark's classes; a `TypeError` beside any other mark. */
+  readonly colour?: ColourScale;
+  /** One rect, line, area, dot, bar, point, slope, scatter or cell mark and
+   *  any rules and text marks, drawn in order: a rule after a rect draws
+   *  over it. A second data mark is a `TypeError`. */
   readonly marks: readonly Mark[];
-  /** The plot's height in px. A band chart (dot, bar or point) is as tall
-   *  as its rows, so there it is a `TypeError`; a slope grows past it to
-   *  give each end label a line. */
+  /** The plot's height in px. A band chart (dot, bar or point, or a cell
+   *  mark with categories on y) is as tall as its rows, so there it is a
+   *  `TypeError`; a slope grows past it to give each end label a line. */
   readonly height?: number;
   readonly summary?: string | ((generated: string) => string);
   /** Shown instead of the plot when there is nothing to draw. */

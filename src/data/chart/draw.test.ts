@@ -1840,3 +1840,66 @@ describe("a bubble chart", () => {
     expect(sizeKey(plain.model, plain.lay)).toBeUndefined();
   });
 });
+
+describe("a heatmap", () => {
+  const grid = (colour: NonNullable<ChartSpec["colour"]>): ChartSpec => ({
+    colour,
+    marks: [
+      {
+        mark: "cell",
+        x: ["0", "1", "2", "3"],
+        y: ["Mon", "Tue"],
+        values: [
+          [0, 3, 6, 9],
+          [null, 12, 15, 18],
+        ],
+      },
+    ],
+  });
+
+  it.each(["sequential", "diverging"] as const)(
+    "fills each class's cells with its step of the %s scale",
+    (type) => {
+      const d = draw(grid({ type, thresholds: [4, 8, 12, 16] }));
+      const g = d.svg.querySelector('[data-part="cell"]');
+      expect(g?.getAttribute("data-scale")).toBe(type);
+      const paths = [...(g?.querySelectorAll<SVGPathElement>("path[data-step]") ?? [])];
+      expect(paths.map((p) => p.dataset["step"])).toEqual(["1", "3", "5", "7", "9"]);
+      const fills = paths.map((p) => getComputedStyle(p).fill);
+      paths.forEach((p, k) => {
+        expect(fills[k]).toBe(token(p, `var(--cp-${type}-${p.dataset["step"] ?? ""})`));
+      });
+      expect(new Set(fills).size).toBe(5);
+    },
+  );
+
+  it("outlines a missing cell in the border colour with no fill", () => {
+    const d = draw(grid({}));
+    const missing = d.svg.querySelector<SVGPathElement>('[data-part="missing"]');
+    expect(missing).not.toBeNull();
+    const style = getComputedStyle(missing as SVGPathElement);
+    expect([style.fill, style.stroke, style.strokeWidth]).toEqual([
+      "none",
+      token(missing as SVGPathElement, "var(--cp-border)"),
+      "1px",
+    ]);
+  });
+
+  it("names its rows and columns with no tick, gridline or row hairline, the gaps being the grid", () => {
+    const d = draw(grid({}));
+    expect([...d.svg.querySelectorAll('[data-part="y"] text')].map((t) => t.textContent)).toEqual([
+      "Mon",
+      "Tue",
+    ]);
+    expect([...d.svg.querySelectorAll('[data-part="x"] text')].map((t) => t.textContent)).toEqual([
+      "0",
+      "1",
+      "2",
+      "3",
+    ]);
+    expect(d.svg.querySelector('[data-part="ticks"]')?.getAttribute("d")).toBe("");
+    for (const part of ["grid", "rows", "zero"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`)).toBeNull();
+    }
+  });
+});

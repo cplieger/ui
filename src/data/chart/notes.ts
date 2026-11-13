@@ -253,6 +253,7 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       const d = scatterDotAt(m, x, p.y);
       return d === undefined ? undefined : { kind: "dot", ...d };
     }
+    case "cell":
     case undefined:
       return undefined;
   }

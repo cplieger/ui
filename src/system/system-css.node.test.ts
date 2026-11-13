@@ -513,7 +513,7 @@ function scaleCss(l: number, h: string, cusp: string): string {
   const tapered =
     l <= knee ? want : `${want} * (1 - ${num(1 - top)} * ${num(l - knee)} / ${num(ceil - knee)})`;
   const cap = `max(0, min(${num(low)} * ${cc} * ${num(l)} / ${lc}, ${num(high)} * ${cc} * pow(${num(1 - l)} / (1 - ${lc}), ${num(power)})))`;
-  return `oklch(${num(l)} min(calc(${tapered}), ${cap}) ${h})`;
+  return `oklch(${num(l * 100)}% min(calc(${tapered}), ${cap}) ${h})`;
 }
 
 // The shortest turn from the accent toward a hue, capped, as CSS. mod() with

@@ -26,6 +26,7 @@ import {
   type AreaModel,
   type BarModel,
   type BarSeriesModel,
+  type CellModel,
   type DotModel,
   type LineModel,
   type Model,
@@ -59,7 +60,15 @@ export interface Reading {
 
 /** The mark the legend row reads: the chart's one data mark. */
 type Primary =
-  RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel | SlopeModel | ScatterModel;
+  | RectModel
+  | LineModel
+  | AreaModel
+  | DotModel
+  | BarModel
+  | PointModel
+  | SlopeModel
+  | ScatterModel
+  | CellModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -490,6 +499,8 @@ export function overall(model: Model, words: Words): Reading | undefined {
         entries: [...measuresOf(m).flatMap(() => bare("")), ...dotChips(model, m)],
         total: undefined,
       };
+    case "cell":
+      return undefined;
   }
 }
 

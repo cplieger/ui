@@ -16,8 +16,17 @@ import {
 import { lowerBound, upperBound } from "../scale/reduce.js";
 import { spansDay } from "../scale/time.js";
 
+import { classes, type Classes } from "./classes.js";
 import { rScale, ruleAt, xScale, yScale, type Band, type Continuous, type Size } from "./scales.js";
-import type { BarMark, ChartSpec, Mark, PointMark, RectMark, ScatterMark } from "./spec.js";
+import type {
+  BarMark,
+  CellMark,
+  ChartSpec,
+  Mark,
+  PointMark,
+  RectMark,
+  ScatterMark,
+} from "./spec.js";
 
 type Kind =
   | "stackedColumn"
@@ -44,7 +53,8 @@ type Kind =
   | "arrowPlot"
   | "slope"
   | "scatter"
-  | "bubble";
+  | "bubble"
+  | "heatmap";
 
 export interface SeriesModel {
   readonly name: string;
@@ -299,6 +309,16 @@ export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | un
   return undefined;
 }
 
+/** A grid of cells on a band y, each coloured by its value's class. */
+export interface CellModel {
+  readonly kind: "cell";
+  /** The columns' names, at x 0 to n − 1 of the chart's x. */
+  readonly columns: readonly string[];
+  /** A row of values per row of the band, a gap (`null` or `NaN`) as `null`. */
+  readonly values: readonly (readonly (number | null)[])[];
+  readonly classes: Classes;
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -332,6 +352,7 @@ type MarkModel =
   | PointModel
   | SlopeModel
   | ScatterModel
+  | CellModel
   | RuleModel
   | TextModel;
 
@@ -346,8 +367,8 @@ export interface Model {
   /** Nothing to draw: every value null, every row empty, every rect 0, no
    *  point inside the domain, or every area sample 0 or a gap. */
   readonly empty: boolean;
-  /** An x value as the readings and the table write it; on a slope a
-   *  column, 0 or 1, as its name. */
+  /** An x value as the readings and the table write it; on a slope or a
+   *  cell chart of categories a column's index as its name. */
   readonly xText: (v: number) => string;
   /** Both ends of a span of x, the end without a date the start already says. */
   readonly xSpan: (from: number, to: number) => readonly [string, string];
@@ -359,7 +380,7 @@ export interface Model {
    *  bar or point chart, else `yText`), or a plain number under "share",
    *  whose axis writes shares. */
   readonly amountText: (v: number) => string;
-  /** The width keys of `xText` off a time x and a slope, `yText`, `rText`
+  /** The width keys of `xText` off a time x and named columns, `yText`, `rText`
    *  and `amountText`; undefined where a format has none. */
   readonly widthKeys: {
     readonly x: WidthKey | undefined;
@@ -396,11 +417,28 @@ function checkUnit(unit: unknown, what: string): void {
   }
 }
 
+function checkFormat(format: unknown, what: string): void {
+  const ok =
+    format === undefined ||
+    typeof format === "function" ||
+    isObject(format) ||
+    (typeof format === "string" && FORMATS.has(format));
+  if (!ok) {
+    fail(`${what}.format must be a format name, Intl options or a function`);
+  }
+}
+
+function checkDomain(domain: unknown, what: string): void {
+  if (domain !== undefined && !(arrayLike(domain) && domain.length === 2)) {
+    fail(`${what}.domain must be a low and a high`);
+  }
+}
+
 function checkScale(scale: unknown, what: string): void {
   if (!isObject(scale)) {
     fail(`${what} must be an object`);
   }
-  const { type, format, domain } = scale;
+  const { type } = scale;
   if (type !== undefined && !(typeof type === "string" && SCALE_TYPES.has(type))) {
     fail(`${what}.type must be "linear", "log", "time" or "band"`);
   }
@@ -409,16 +447,74 @@ function checkScale(scale: unknown, what: string): void {
     optional(scale[flag], "boolean", `${what}.${flag}`);
   }
   checkUnit(scale["unit"], what);
-  const formatOk =
-    format === undefined ||
-    typeof format === "function" ||
-    isObject(format) ||
-    (typeof format === "string" && FORMATS.has(format));
-  if (!formatOk) {
-    fail(`${what}.format must be a format name, Intl options or a function`);
+  checkFormat(scale["format"], what);
+  checkDomain(scale["domain"], what);
+}
+
+// A cell chart's colour classes come from `steps` over a domain, or from
+// `thresholds` alone; `pivot` and `reverse` place a diverging scale's arms.
+function checkColour(colour: unknown): void {
+  if (!isObject(colour)) {
+    fail("colour must be an object");
   }
-  if (domain !== undefined && !(arrayLike(domain) && domain.length === 2)) {
-    fail(`${what}.domain must be a low and a high`);
+  const { type, steps, domain, thresholds, pivot, reverse } = colour;
+  if (type !== undefined && type !== "sequential" && type !== "diverging") {
+    fail('colour.type must be "sequential" or "diverging"');
+  }
+  optional(colour["label"], "string", "colour.label");
+  checkUnit(colour["unit"], "colour");
+  checkFormat(colour["format"], "colour");
+  checkDomain(domain, "colour");
+  if (
+    steps !== undefined &&
+    !(typeof steps === "number" && Number.isInteger(steps) && steps >= 2 && steps <= 9)
+  ) {
+    fail("colour.steps must be a whole number of classes from 2 to 9");
+  }
+  if (thresholds !== undefined) {
+    if (!arrayLike(thresholds) || Array.from(thresholds).some((t) => typeof t !== "number")) {
+      fail("colour.thresholds must be an array of numbers");
+    }
+    for (const [field, v] of [
+      ["steps", steps],
+      ["domain", domain],
+      ["pivot", pivot],
+    ] as const) {
+      if (v !== undefined) {
+        fail(`colour.${field} has no place beside thresholds, which place every class`);
+      }
+    }
+    const list = Array.from(thresholds as ArrayLike<number>);
+    if (list.length < 1 || list.length > 8) {
+      fail("colour.thresholds must hold one to eight boundaries, for 2 to 9 classes", RangeError);
+    }
+    if (list.some((t, k) => !Number.isFinite(t) || (k > 0 && t <= (list[k - 1] ?? 0)))) {
+      fail("colour.thresholds must be finite and strictly increase", RangeError);
+    }
+  }
+  if (arrayLike(domain)) {
+    const [lo, hi] = Array.from(domain);
+    if (typeof lo !== "number" || typeof hi !== "number") {
+      fail("colour.domain must be two numbers");
+    }
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo >= hi) {
+      fail("colour.domain must be finite, low below high", RangeError);
+    }
+  }
+  optional(pivot, "number", "colour.pivot");
+  if (typeof pivot === "number" && !Number.isFinite(pivot)) {
+    fail("colour.pivot must be finite", RangeError);
+  }
+  optional(reverse, "boolean", "colour.reverse");
+  if (type !== "diverging") {
+    for (const [field, v] of [
+      ["pivot", pivot],
+      ["reverse", reverse],
+    ] as const) {
+      if (v !== undefined) {
+        fail(`colour.${field} has no place on a sequential scale, which has no middle`);
+      }
+    }
   }
 }
 
@@ -571,19 +667,40 @@ function checkDiverge(
   }
 }
 
-// The readings and the table name a row by its name alone.
-function checkNames(names: unknown, what: string): ArrayLike<unknown> {
+// The readings and the table name a row, or a cell's column, by its name alone.
+function checkNames(names: unknown, what: string, axis = "y"): ArrayLike<unknown> {
   if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
-    fail(`${what}.y must be an array of the categories' names`);
+    fail(`${what}.${axis} must be an array of the categories' names`);
   }
   const seen = new Set<unknown>();
   for (const name of Array.from(names)) {
     if (name === "" || seen.has(name)) {
-      fail(`${what}.y must name each category once, never ""`, RangeError);
+      fail(`${what}.${axis} must name each category once, never ""`, RangeError);
     }
     seen.add(name);
   }
   return names;
+}
+
+function checkCells(mark: Record<string, unknown>, what: string): void {
+  const columns = checkNames(mark["x"], what, "x").length;
+  const rows = checkNames(mark["y"], what).length;
+  const values = mark["values"];
+  if (!arrayLike(values) || values.length !== rows) {
+    fail(`${what}.values must hold one row per y entry`);
+  }
+  for (let r = 0; r < rows; r++) {
+    const row = values[r];
+    const at = `${what}.values[${String(r)}]`;
+    checkValues(row, columns, at, "x");
+    if (
+      Array.from(row as ArrayLike<unknown>).some(
+        (v) => v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY,
+      )
+    ) {
+      fail(`${at} cannot hold an infinite value`, RangeError);
+    }
+  }
 }
 
 function checkCurve(curve: unknown, what: string): void {
@@ -750,6 +867,9 @@ function checkMark(mark: unknown, what: string): void {
     case "scatter":
       checkScatter(mark, what);
       return;
+    case "cell":
+      checkCells(mark, what);
+      return;
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -785,7 +905,7 @@ function checkMark(mark: unknown, what: string): void {
     }
     default:
       fail(
-        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "rule" or "text"`,
+        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "rule" or "text"`,
       );
   }
 }
@@ -830,7 +950,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope or scatter mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter or cell mark and any rules and text marks`,
       );
     }
     data = m;
@@ -855,9 +975,20 @@ function check(spec: unknown): asserts spec is ChartSpec {
   }
   const band =
     isObject(primary) &&
-    (primary["mark"] === "dot" || primary["mark"] === "bar" || primary["mark"] === "point");
+    (primary["mark"] === "dot" ||
+      primary["mark"] === "bar" ||
+      primary["mark"] === "point" ||
+      primary["mark"] === "cell");
   if (band && height !== undefined) {
-    fail("height has no place on a dot, bar or point chart, which is as tall as its rows");
+    fail(
+      `height has no place on a ${primary["mark"] === "cell" ? "cell chart of categories" : "dot, bar or point chart"}, which is as tall as its rows`,
+    );
+  }
+  if (spec["colour"] !== undefined) {
+    if (!(isObject(primary) && primary["mark"] === "cell")) {
+      fail("colour has no place without a cell mark, whose classes it colours");
+    }
+    checkColour(spec["colour"]);
   }
   optional(height, "number", "height");
   if (typeof height === "number" && !(Number.isFinite(height) && height > 0)) {
@@ -1002,6 +1133,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       return "slope";
     case "scatter":
       return first.size === undefined ? "scatter" : "bubble";
+    case "cell":
+      return "heatmap";
   }
 }
 
@@ -1028,6 +1161,8 @@ function hasData(m: MarkModel, x: Continuous): boolean {
       return m.series.some((s) => s.y.some((v) => v !== null));
     case "scatter":
       return m.shown.some((dots) => dots.length > 0);
+    case "cell":
+      return m.values.some((row) => row.some((v) => v !== null));
     case "rule":
     case "text":
       return false;
@@ -1112,6 +1247,11 @@ export function chartModel(
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
   const columns = spec.marks.find((m) => m.mark === "slope")?.x;
+  // The values a cell chart's inferred classes span.
+  const filled = (m: CellMark): number[] =>
+    m.values.flatMap((row) =>
+      Array.from(row).flatMap((v) => (v === null || Number.isNaN(v) ? [] : [v])),
+    );
   const marks = spec.marks.map((m, index): MarkModel => {
     switch (m.mark) {
       case "rect":
@@ -1181,6 +1321,13 @@ export function chartModel(
       case "scatter":
         // A band y throws in yScale without band rows, so y is continuous.
         return scatterModel(m, x, y as Continuous, size);
+      case "cell":
+        return {
+          kind: "cell",
+          columns: m.x,
+          values: m.values.map((row) => gaps(row, false)),
+          classes: classes(spec.colour ?? {}, filled(m)),
+        };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;
@@ -1201,9 +1348,10 @@ export function chartModel(
   const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
   const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
   const slope = marks.find((m) => m.kind === "slope");
+  const named = slope?.columns ?? marks.find((m) => m.kind === "cell")?.columns;
   const xText =
-    slope !== undefined
-      ? (v: number) => slope.columns[v] ?? ""
+    named !== undefined
+      ? (v: number) => named[v] ?? ""
       : x.type === "time"
         ? instantFormat(locale, timeZone, days)
         : (signed ? signedFormatter : formatter)(x.format, locale);
@@ -1217,7 +1365,7 @@ export function chartModel(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
   const bars = marks.some((m) => m.kind === "bar" || m.kind === "point");
-  const xKey = slope !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
+  const xKey = named !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
   const yKey = y.type === "band" ? undefined : widthKey(y.format, locale);
   return {
     spec,

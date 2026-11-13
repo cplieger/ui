@@ -28,7 +28,8 @@ type Kind =
   | "arrowPlot"
   | "slope"
   | "scatter"
-  | "bubble";
+  | "bubble"
+  | "heatmap";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -42,7 +43,7 @@ export interface ChartWords {
    *  is a column chart, of a bar a bar chart or, with a value below 0, a
    *  diverging one; two or more take their arrangement's kind; an area
    *  mark, or a rect with shape "area", an area chart; a scatter whose
-   *  series carry r a bubble chart. */
+   *  series carry r a bubble chart; a cell mark of categories a heatmap. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -124,6 +125,10 @@ export interface ChartWords {
   /** A scatter's dots when its mark names no unit; count is n as a number,
    *  for the plural. Default "{n} points", or "{n} point" for one. */
   readonly points?: (n: string, count: number) => string;
+  /** A cell chart's size in the short description: rows and columns are
+   *  the y and x counts, each in its axis's unit when it names one.
+   *  Default "{rows} by {columns}". */
+  readonly grid?: (rows: string, columns: string) => string;
   /** A scatter dot's value with its axis label, in the legend row, the
    *  readings and a note's place. Default "{label} {value}". */
   readonly measure?: (label: string, value: string) => string;
@@ -209,6 +214,7 @@ const DEFAULTS: Words = {
     slope: "Slope chart",
     scatter: "Scatter plot",
     bubble: "Bubble chart",
+    heatmap: "Heatmap",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -248,6 +254,7 @@ const DEFAULTS: Words = {
   noteReading: (text) => sentence(`Note: ${text}`),
   categories: (n, count) => (count === 1 ? `${n} category` : `${n} categories`),
   points: (n, count) => (count === 1 ? `${n} point` : `${n} points`),
+  grid: (rows, columns) => `${rows} by ${columns}`,
   measure: (label, value) => `${label} ${value}`,
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,

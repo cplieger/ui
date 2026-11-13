@@ -7,6 +7,7 @@ import {
   pointLink,
   sampleValue,
   scatterDotAt,
+  type CellModel,
   type PointModel,
   type ScatterModel,
 } from "./model.js";
@@ -279,7 +280,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope or scatter mark and any rules and text marks",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter or cell mark and any rules and text marks",
     );
   });
 
@@ -1048,7 +1049,7 @@ describe("the point mark", () => {
       "renderChart: a point's x must be above 0 on a log x",
     );
     expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
-      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "rule" or "text"',
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "rule" or "text"',
     );
   });
 
@@ -1673,5 +1674,154 @@ describe("the scatter mark's sizes", () => {
       ],
     });
     expect(scatterDotAt(m.marks[0] as ScatterModel, 1, 2)).toEqual({ series: 0, i: 0 });
+  });
+});
+
+describe("the cell mark", () => {
+  const cell = (more: Partial<Extract<Mark, { mark: "cell" }>> = {}): Mark => ({
+    mark: "cell",
+    x: ["0 h", "1 h", "2 h"],
+    y: ["Mon", "Tue"],
+    values: [
+      [3, 0, 1],
+      [null, Number.NaN, 7],
+    ],
+    ...more,
+  });
+
+  it.each<[string, unknown, ErrorConstructor]>([
+    ["x not names", { marks: [cell({ x: [1, 2] as never })] }, TypeError],
+    ["y not names", { marks: [cell({ y: "Mon" as never })] }, TypeError],
+    ["a repeated column", { marks: [cell({ x: ["a", "a", "b"] })] }, RangeError],
+    ["an empty row name", { marks: [cell({ y: ["", "Tue"] })] }, RangeError],
+    ["a row of values too few", { marks: [cell({ values: [[1, 2, 3]] })] }, TypeError],
+    [
+      "a row of another length",
+      {
+        marks: [
+          cell({
+            values: [
+              [1, 2],
+              [1, 2, 3],
+            ],
+          }),
+        ],
+      },
+      TypeError,
+    ],
+    ["values not rows", { marks: [cell({ values: 3 as never })] }, TypeError],
+    [
+      "a value that is not a number",
+      {
+        marks: [
+          cell({
+            values: [
+              [1, "2", 3],
+              [1, 2, 3],
+            ] as never,
+          }),
+        ],
+      },
+      TypeError,
+    ],
+    [
+      "an infinite value",
+      {
+        marks: [
+          cell({
+            values: [
+              [1, Number.POSITIVE_INFINITY, 3],
+              [1, 2, 3],
+            ],
+          }),
+        ],
+      },
+      RangeError,
+    ],
+    ["a linear x", { x: { type: "linear" }, marks: [cell()] }, TypeError],
+    ["a linear y", { y: { type: "linear" }, marks: [cell()] }, TypeError],
+    ["a domain on its x", { x: { domain: [0, 3] }, marks: [cell()] }, TypeError],
+    ["a height", { height: 200, marks: [cell()] }, TypeError],
+    ["an x rule", { marks: [cell(), { mark: "rule", x: 1, label: "a" }] }, TypeError],
+    ["a y rule", { marks: [cell(), { mark: "rule", y: 1, label: "a" }] }, TypeError],
+    ["a colour scale beside no cell", { colour: {}, marks: [rect([1])], x: {} }, TypeError],
+    ["a colour that is not an object", { colour: 5, marks: [cell()] }, TypeError],
+    ["another colour type", { colour: { type: "qualitative" }, marks: [cell()] }, TypeError],
+    ["one step", { colour: { steps: 1 }, marks: [cell()] }, TypeError],
+    ["ten steps", { colour: { steps: 10 }, marks: [cell()] }, TypeError],
+    ["a fractional step count", { colour: { steps: 4.5 }, marks: [cell()] }, TypeError],
+    [
+      "steps with thresholds",
+      { colour: { steps: 3, thresholds: [1, 2] }, marks: [cell()] },
+      TypeError,
+    ],
+    [
+      "a domain with thresholds",
+      { colour: { domain: [0, 9], thresholds: [1] }, marks: [cell()] },
+      TypeError,
+    ],
+    [
+      "a pivot with thresholds",
+      { colour: { type: "diverging", pivot: 1, thresholds: [1] }, marks: [cell()] },
+      TypeError,
+    ],
+    ["thresholds not numbers", { colour: { thresholds: ["1"] }, marks: [cell()] }, TypeError],
+    ["no thresholds", { colour: { thresholds: [] }, marks: [cell()] }, RangeError],
+    [
+      "nine thresholds",
+      { colour: { thresholds: [1, 2, 3, 4, 5, 6, 7, 8, 9] }, marks: [cell()] },
+      RangeError,
+    ],
+    ["thresholds out of order", { colour: { thresholds: [1, 3, 2] }, marks: [cell()] }, RangeError],
+    ["a repeated threshold", { colour: { thresholds: [1, 1] }, marks: [cell()] }, RangeError],
+    [
+      "an infinite threshold",
+      { colour: { thresholds: [1, Number.POSITIVE_INFINITY] }, marks: [cell()] },
+      RangeError,
+    ],
+    ["a domain low above high", { colour: { domain: [5, 1] }, marks: [cell()] }, RangeError],
+    ["a domain of one value", { colour: { domain: [5, 5] }, marks: [cell()] }, RangeError],
+    ["a domain of names", { colour: { domain: ["a", "b"] }, marks: [cell()] }, TypeError],
+    ["a pivot on a sequential scale", { colour: { pivot: 0 }, marks: [cell()] }, TypeError],
+    ["reverse on a sequential scale", { colour: { reverse: true }, marks: [cell()] }, TypeError],
+    [
+      "an infinite pivot",
+      { colour: { type: "diverging", pivot: Number.NaN }, marks: [cell()] },
+      RangeError,
+    ],
+    ["a colour label not a string", { colour: { label: 3 }, marks: [cell()] }, TypeError],
+    ["another colour format", { colour: { format: "money" }, marks: [cell()] }, TypeError],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("is a heatmap whose x holds its columns from 0 to their count and whose y is a band of its rows", () => {
+    const m = build({ marks: [cell()] });
+    expect(m.kind).toBe("heatmap");
+    expect([m.x.lo, m.x.hi, m.x.passed]).toEqual([0, 3, true]);
+    expect(m.y).toEqual({ type: "band", rows: ["Mon", "Tue"], mono: false });
+    expect([0, 1, 2].map((v) => m.xText(v))).toEqual(["0 h", "1 h", "2 h"]);
+  });
+
+  it("reads a NaN as no data and classes the rest from the chart's colour", () => {
+    const m = build({ colour: { type: "diverging", steps: 3, pivot: 4 }, marks: [cell()] });
+    const c = m.marks[0] as CellModel;
+    expect(c.values).toEqual([
+      [3, 0, 1],
+      [null, null, 7],
+    ]);
+    // The half-span is 4, so 3 classes are each at least 8/3 wide: 5.
+    expect(c.classes).toEqual({ type: "diverging", thresholds: [1.5, 6.5], steps: [1, 5, 9] });
+  });
+
+  it("is empty when every value is missing, and not when one is 0", () => {
+    const none = [
+      [null, null, null],
+      [null, null, null],
+    ];
+    expect(build({ marks: [cell({ values: none })] }).empty).toBe(true);
+    expect(build({ marks: [cell({ values: [none[0] ?? [], [null, 0, null]] })] }).empty).toBe(
+      false,
+    );
   });
 });

@@ -327,6 +327,9 @@ export function tableModel(model: Model, words: Words): TableModel {
   if (m.kind === "scatter") {
     return scatterTable(model, m, words, after);
   }
+  if (m.kind === "cell") {
+    return { corner: "", columns: [], rows: [], after };
+  }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {
     columns.push({ text: words.total, num: true });

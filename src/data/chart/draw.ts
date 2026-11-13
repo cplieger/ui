@@ -13,6 +13,7 @@ import {
   barSegments,
   bubblePaths,
   bucketEdges,
+  cellPaths,
   dotGroups,
   dotPath,
   dotRadius,
@@ -176,7 +177,9 @@ function plotArea(model: Model, lay: Layout): SVGElement {
     yZero = hairline(f.yAt(0), f.width, f.dpr);
   }
   zero += yZero;
-  const rows = bars ? [] : lay.rows.map((r) => hairline(r.y, f.width, f.dpr));
+  // Bars and cells fill their rows, so neither draws a row's hairline.
+  const rows =
+    bars || primary?.kind === "cell" ? [] : lay.rows.map((r) => hairline(r.y, f.width, f.dpr));
   if (grid.length > 0) {
     area.append(svgEl("path", { "data-part": "grid", d: grid.join("") }));
   }
@@ -277,6 +280,21 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         area.append(g);
         break;
       }
+      case "cell": {
+        if (lay.cells === undefined) {
+          break;
+        }
+        const g = svgEl("g", { "data-part": "cell", "data-scale": m.classes.type });
+        const { classes, missing } = cellPaths(m, lay.cells, f.dpr);
+        for (const c of classes) {
+          g.append(svgEl("path", { "data-step": String(c.step), d: c.d }));
+        }
+        if (missing !== "") {
+          g.append(svgEl("path", { "data-part": "missing", d: missing }));
+        }
+        area.append(g);
+        break;
+      }
       case "rule":
         if ("at" in m.place) {
           const at = m.place.at;
@@ -315,13 +333,17 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
   svg.setAttribute("width", num(lay.width));
   svg.setAttribute("height", num(lay.height));
   svg.setAttribute("viewBox", `0 0 ${num(lay.width)} ${num(lay.height)}`);
+  // A band x labels its columns, as a band y its rows, with no tick.
+  const band = primaryOf(model)?.kind === "cell";
   const ticks = svgEl("path", {
     "data-part": "ticks",
     transform: `translate(${num(lay.left)} ${num(lay.top + lay.frame.height)})`,
-    d: tickPath(
-      lay.xAxis.ticks.map((t) => t.at),
-      lay.frame.dpr,
-    ),
+    d: band
+      ? ""
+      : tickPath(
+          lay.xAxis.ticks.map((t) => t.at),
+          lay.frame.dpr,
+        ),
   });
   svg.replaceChildren(
     texts("y", lay.yLabels, lay.mono),
