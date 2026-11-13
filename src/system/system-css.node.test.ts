@@ -372,11 +372,227 @@ function seriesBlock(): string {
   return `${registered}\n\n:root { ${decls.join(" ")} }\n\n${tones.join("\n")}`;
 }
 
+// Sequential and diverging scales: nine ordered steps each, for a fill that
+// encodes a value; docs/design-colour.md states the rules. Step 1 is the
+// lowest value and the nearest the surface in both themes. Hue follows
+// lightness rank (1 the lightest step), turned toward a yellow when light and
+// a blue when dark, which hold their colour there. The tests below hold the
+// thresholds the rules were fitted to.
+const SCALE = {
+  // step 1's lightness, then step 9's, in equal steps
+  sequential: { light: [0.86, 0.29], dark: [0.4, 0.92] },
+  turn: { max: 30, light: HARMONY.floor.peak, dark: 265 },
+  // The slots' factor and floor. A ceiling of 0.18 puts dark neighbours
+  // 0.046 apart under protanopia; 0.17 is the highest that keeps 0.05.
+  chroma: { k: SERIES.chroma.k, min: SERIES.chroma.min, max: 0.17 },
+  // above knee, chroma tapers linearly to top of itself at ceil: a vivid
+  // light cyan reads as white to a protanope
+  taper: { knee: 0.75, ceil: 0.94, top: 0.4 },
+  // the arms' lightness outward from the middle; dark arms start 16 points
+  // out, since a protanope's red darkens onto the grey
+  diverging: {
+    middle: { light: 0.86, dark: 0.38 },
+    arm: { light: [0.75, 0.64, 0.53, 0.42], dark: [0.54, 0.63, 0.72, 0.81] },
+  },
+  // Gamut cap, Ottosson's cusp triangle
+  // (https://bottosson.github.io/posts/gamutclipping/): the cusp's lightness
+  // and chroma are five-harmonic Fourier series of the hue, fitted to sRGB's
+  // most chromatic colour at every whole degree, coefficients in the order
+  // 1, cos h, sin h, cos 2h, sin 2h, and so on. low and high are the largest
+  // factors keeping lightness 25% to 97% inside sRGB at every hue.
+  cusp: {
+    l: [
+      0.7427, -0.1278, 0.1233, 0.0365, -0.0114, 0.0153, -0.0628, -0.0126, -0.0047, -0.0171, -0.0001,
+    ],
+    c: [
+      0.2243, 0.0468, -0.0233, -0.0002, -0.0506, 0.0043, 0.0221, -0.0041, 0.0043, 0.0028, -0.0082,
+    ],
+    low: 0.88,
+    high: 0.89,
+    power: 1.2,
+  },
+} as const;
+
+const wrapHue = (h: number) => ((h % 360) + 360) % 360;
+
+// The signed shortest turn from one hue to another; exactly opposite is +180.
+function shortTurn(from: number, to: number): number {
+  const d = wrapHue(to - from);
+  return d > 180 ? d - 360 : d;
+}
+
+function rankHue(accent: number, rank: number): number {
+  const { max, light, dark } = SCALE.turn;
+  const toLight = Math.max(-max, Math.min(max, shortTurn(accent, light)));
+  const toDark = Math.max(-max, Math.min(max, shortTurn(accent, dark)));
+  return wrapHue(accent + toDark + ((toLight - toDark) * (9 - rank)) / 8);
+}
+
+// The diverging scale's other arm. No fixed turn works at every hue (180
+// degrees puts a cyan opposite a pink a deuteranope sees as one), so blue
+// faces warm accents, orange cool ones, and greens and magentas a mirror.
+function oppositeHue(accent: number): number {
+  const a = wrapHue(accent);
+  if (a >= 355 || a < 120) {
+    return 245;
+  }
+  return a >= 170 && a < 308 ? 55 : 475 - a;
+}
+
+function cuspOf(h: number): [number, number] {
+  const series = (k: readonly number[]) =>
+    k.reduce((sum, v, i) => {
+      const n = Math.ceil(i / 2);
+      return sum + (i === 0 ? v : v * (i % 2 === 1 ? cos(n * h) : cos(n * h - 90)));
+    }, 0);
+  return [series(SCALE.cusp.l), series(SCALE.cusp.c)];
+}
+
+function scaleColour(l: number, h: number, accentChroma: number): Colour {
+  const { k, min, max } = SCALE.chroma;
+  const { knee, ceil, top } = SCALE.taper;
+  const taper = l <= knee ? 1 : 1 - ((1 - top) * (l - knee)) / (ceil - knee);
+  const [lc, cc] = cuspOf(h);
+  const { low, high, power } = SCALE.cusp;
+  const cap = Math.max(0, Math.min((low * cc * l) / lc, high * cc * ((1 - l) / (1 - lc)) ** power));
+  return [l, Math.min(Math.min(Math.max(accentChroma * k, min), max) * taper, cap), h];
+}
+
+// A step's lightness as the CSS writes it, so the reference and the CSS agree.
+function sequentialL(theme: Theme, i: number): number {
+  const [a, b] = SCALE.sequential[theme];
+  return Number((a + ((b - a) * i) / 8).toFixed(4));
+}
+
+// Light step k has rank k, dark step k rank 10 - k.
+const rankOf = (theme: Theme, i: number) => (theme === "light" ? i + 1 : 9 - i);
+
+/** The sequential steps as OKLCH triples, step 1 first, the reference the CSS computes. */
+function sequential(hue: number, chroma: number, theme: Theme): Colour[] {
+  return Array.from({ length: 9 }, (_, i) =>
+    scaleColour(sequentialL(theme, i), rankHue(hue, rankOf(theme, i)), chroma),
+  );
+}
+
+/** The diverging steps, step 1 the far end of the opposite arm, on a neutral seed. */
+function diverging(
+  hue: number,
+  chroma: number,
+  theme: Theme,
+  neutralHue: number,
+  neutralChroma: number,
+  opposite = oppositeHue(hue),
+): Colour[] {
+  const arm = SCALE.diverging.arm[theme];
+  const middle: Colour = [SCALE.diverging.middle[theme], neutralChroma, neutralHue];
+  return [
+    ...arm.map((l) => scaleColour(l, opposite, chroma)).reverse(),
+    middle,
+    ...arm.map((l) => scaleColour(l, hue, chroma)),
+  ];
+}
+
+// A signed term of a sum as CSS: ` + 0.1 * x` or ` - 0.1 * x`.
+const term = (k: number, x: string) => ` ${k < 0 ? "-" : "+"} ${num(Math.abs(k))} * ${x}`;
+
+function cuspCss(k: readonly number[], h: string): string {
+  const terms = k.slice(1).map((v, i) => {
+    const n = Math.floor(i / 2) + 1;
+    return term(v, `${i % 2 === 0 ? "cos" : "sin"}(${h} * ${String(n)}deg)`);
+  });
+  return `calc(${num(k[0] ?? 0)}${terms.join("")})`;
+}
+
+// One step's colour as CSS, its hue and cusp read from the registered numbers.
+function scaleCss(l: number, h: string, cusp: string): string {
+  const { k, min, max } = SCALE.chroma;
+  const { knee, ceil, top } = SCALE.taper;
+  const { low, high, power } = SCALE.cusp;
+  const [lc, cc] = [`var(${cusp}-lc)`, `var(${cusp}-cc)`];
+  const want = `clamp(${num(min)}, calc(var(--cp-accent-c) * ${num(k)}), ${num(max)})`;
+  const tapered =
+    l <= knee ? want : `${want} * (1 - ${num(1 - top)} * ${num(l - knee)} / ${num(ceil - knee)})`;
+  const cap = `max(0, min(${num(low)} * ${cc} * ${num(l)} / ${lc}, ${num(high)} * ${cc} * pow(${num(1 - l)} / (1 - ${lc}), ${num(power)})))`;
+  return `oklch(${num(l)} min(calc(${tapered}), ${cap}) ${h})`;
+}
+
+// The shortest turn from the accent toward a hue, capped, as CSS. mod() with
+// a positive divisor lands in 0 to 360; the step subtracts 360 above 180.
+function turnCss(to: number): string {
+  const d = `mod(${String(to)} - var(--cp-accent-h), 360)`;
+  const max = String(SCALE.turn.max);
+  return `clamp(-${max}, ${d} - 360 * clamp(0, (${d} - 180) * 100000, 1), ${max})`;
+}
+
+// The four pieces of oppositeHue as CSS, each a window of the accent's hue
+// with the partners' steps (partnerHueCss).
+function oppositeHueCss(): string {
+  const a = "mod(var(--cp-accent-h), 360)";
+  const from = (edge: number) => `clamp(0, (${a} - ${String(edge)}) * 100000 + 1, 1)`;
+  const below = (edge: number) => `clamp(0, (${String(edge)} - ${a}) * 100000, 1)`;
+  const mirror = `(${from(120)} * ${below(170)} + ${from(308)} * ${below(355)})`;
+  return `calc(245 + ${mirror} * (230 - ${a}) - ${from(170)} * ${below(308)} * 190)`;
+}
+
+function scaleBlock(): string {
+  const ranks = Array.from({ length: 9 }, (_, i) => i + 1);
+  const cusps = [
+    ...ranks.map((r) => `--cp-scale-${String(r)}`),
+    "--cp-scale-accent",
+    "--cp-scale-opposite",
+  ];
+  const props = [
+    "--cp-scale-to-light",
+    "--cp-scale-to-dark",
+    ...ranks.map((r) => `--cp-scale-${String(r)}-h`),
+    "--cp-scale-opposite-h",
+    ...cusps.flatMap((c) => [`${c}-lc`, `${c}-cc`]),
+  ];
+  const registered = props
+    .map((p) => `@property ${p} { syntax: "<number>"; inherits: true; initial-value: 0; }`)
+    .join("\n\n");
+  const hueOf = (c: string) => (c === "--cp-scale-accent" ? "var(--cp-accent-h)" : `var(${c}-h)`);
+  const decls = [
+    `--cp-scale-to-light: ${turnCss(SCALE.turn.light)};`,
+    `--cp-scale-to-dark: ${turnCss(SCALE.turn.dark)};`,
+    ...ranks.map(
+      (r) =>
+        `--cp-scale-${String(r)}-h: mod(calc(var(--cp-accent-h) + var(--cp-scale-to-dark) + (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * ${num((9 - r) / 8)}), 360);`,
+    ),
+    `--cp-scale-opposite-h: ${oppositeHueCss()};`,
+    ...cusps.flatMap((c) => [
+      `${c}-lc: ${cuspCss(SCALE.cusp.l, hueOf(c))};`,
+      `${c}-cc: ${cuspCss(SCALE.cusp.c, hueOf(c))};`,
+    ]),
+    ...ranks.map((n) => {
+      const step = (theme: Theme) => {
+        const cusp = `--cp-scale-${String(rankOf(theme, n - 1))}`;
+        return scaleCss(sequentialL(theme, n - 1), `var(${cusp}-h)`, cusp);
+      };
+      return `--cp-sequential-${String(n)}: light-dark(${step("light")}, ${step("dark")});`;
+    }),
+    ...ranks.map((n) => {
+      const step = (theme: Theme) => {
+        if (n === 5) {
+          return `oklch(${pct(SCALE.diverging.middle[theme])} var(--cp-neutral-c) var(--cp-neutral-h))`;
+        }
+        const arm = SCALE.diverging.arm[theme];
+        const l = arm[Math.abs(n - 5) - 1] ?? 0;
+        return n > 5
+          ? scaleCss(l, "var(--cp-accent-h)", "--cp-scale-accent")
+          : scaleCss(l, "var(--cp-scale-opposite-h)", "--cp-scale-opposite");
+      };
+      return `--cp-diverging-${String(n)}: light-dark(${step("light")}, ${step("dark")});`;
+    }),
+  ];
+  return `${registered}\n\n:root { ${decls.join(" ")} }`;
+}
+
 function colourBlock(): string {
   const rules = (mode: Mode): string =>
     `:root { ${mode === "normal" ? `--cp-solid-hover-mix: ${String(SOLID_HOVER_MIX * 100)}%;` : ""} ${shell(mode)} ${ROOT_FAMILIES.flatMap((f) => ladder(f, mode)).join(" ")} }
      :root, [data-tone], [data-series] { ${ladder(TONE, mode).join(" ")} }`;
-  return `${START}\n/* Written by npm run system:sync from src/system/system-css.node.test.ts. */\n${rules("normal")}\n\n@media (prefers-contrast: more) { ${rules("more")} }\n\n${harmonyBlock()}\n\n${seriesBlock()}\n${END}`;
+  return `${START}\n/* Written by npm run system:sync from src/system/system-css.node.test.ts. */\n${rules("normal")}\n\n@media (prefers-contrast: more) { ${rules("more")} }\n\n${harmonyBlock()}\n\n${seriesBlock()}\n\n${scaleBlock()}\n${END}`;
 }
 
 function markers(current: string): [number, number] {
@@ -474,15 +690,17 @@ const VISIONS = {
   },
 } as const;
 
-// The luminances of the page, raised, sunken and overlay surfaces;
-// the sunken dark and overlay light ones are roles.css's own.
-function surfacesOf(theme: Theme, hue: number, chroma: number): number[] {
+// The page, raised, sunken and overlay surfaces; the sunken dark and overlay
+// light ones are roles.css's own.
+function surfaceColours(theme: Theme, hue: number, chroma: number): Colour[] {
   const st = steps("neutral", theme, "normal", hue, chroma, LADDER);
-  const own: Colour[] =
-    theme === "light"
-      ? [st[0] as Colour, st[1] as Colour, st[2] as Colour, [0.996, chroma * 0.5, hue]]
-      : [st[0] as Colour, st[1] as Colour, [0.16, chroma * 0.8, hue], st[2] as Colour];
-  return own.map((c) => luminance(linearSrgb(...c)));
+  return theme === "light"
+    ? [st[0] as Colour, st[1] as Colour, st[2] as Colour, [0.996, chroma * 0.5, hue]]
+    : [st[0] as Colour, st[1] as Colour, [0.16, chroma * 0.8, hue], st[2] as Colour];
+}
+
+function surfacesOf(theme: Theme, hue: number, chroma: number): number[] {
+  return surfaceColours(theme, hue, chroma).map((c) => luminance(linearSrgb(...c)));
 }
 
 type Ladder = Record<Mode, Record<Theme, readonly number[]>>;
@@ -659,6 +877,171 @@ function cpClasses(source: string): string[] {
   return source.match(/(?<![-\w$])cp-[a-z0-9]+(?:-[a-z0-9]+)*(?![-\w$])/g) ?? [];
 }
 
+// The default neutral seed and twelve hues at the chroma every neutral may take.
+const NEUTRALS: readonly (readonly [number, number])[] = [
+  [260, 0.008],
+  ...Array.from({ length: 12 }, (_, i) => [i * 30, ENVELOPE.neutral] as const),
+];
+
+// OKLab distances and contrasts the scales hold. A heatmap's steps need no
+// 3:1 between them: WCAG 1.4.11 exempts gradients that represent a
+// measurement (https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html).
+const SCALE_FLOOR = {
+  neighbours: 0.05,
+  // steps 1, 3, 5, 7 and 9 are the five-class set
+  twoApart: 0.1,
+  step1: { full: 0.1, simulated: 0.04 },
+  arms: APART,
+  middle: APART,
+  far: 4.5,
+} as const;
+
+const SCALE_CHECKS = [
+  "gamut",
+  "neighbours",
+  "twoApart",
+  "step1",
+  "divNeighbours",
+  "arms",
+  "middle",
+  "rising",
+  "far",
+] as const;
+type ScaleCheck = (typeof SCALE_CHECKS)[number];
+
+const SEEN: readonly (readonly [string, (c: readonly number[]) => readonly number[]])[] = [
+  ["full", (c) => c],
+  ...Object.entries(VISIONS),
+];
+const seenAs = (simulate: (c: readonly number[]) => readonly number[], c: Colour) =>
+  oklab(simulate(linearSrgb(...c).map(clamp)));
+
+// Every scale check over every accent hue by the degree, five accent chromas,
+// both themes and every neutral's surfaces, computed once for the tests below.
+let scaleReport: Record<ScaleCheck, string[]> | undefined;
+function scaleFailures(): Record<ScaleCheck, string[]> {
+  if (scaleReport !== undefined) {
+    return scaleReport;
+  }
+  const r = Object.fromEntries(SCALE_CHECKS.map((k) => [k, [] as string[]])) as Record<
+    ScaleCheck,
+    string[]
+  >;
+  const fail = (k: ScaleCheck, at: string, d: number, floor: number) => {
+    if (d < floor) {
+      r[k].push(`${at} is ${d.toFixed(3)}, needs ${String(floor)}`);
+    }
+  };
+  const contrastTo = (c: Colour, y: number) => ratio(luminance(linearSrgb(...c)), y);
+  for (const theme of ["light", "dark"] as const) {
+    for (let hue = 0; hue < 360; hue++) {
+      for (const chroma of [0, 0.02, 0.09, 0.137, 0.2]) {
+        const at = `${theme} hue ${String(hue)} chroma ${String(chroma)}`;
+        const s = sequential(hue, chroma, theme);
+        s.forEach((c, i) => {
+          if (!inGamut(linearSrgb(...c))) {
+            r.gamut.push(`${at} sequential ${String(i + 1)} is outside sRGB`);
+          }
+        });
+        for (const [vision, simulate] of SEEN) {
+          const p = s.map((c) => seenAs(simulate, c));
+          p.slice(1).forEach((c, i) => {
+            fail(
+              "neighbours",
+              `${at} ${vision} steps ${String(i + 1)}, ${String(i + 2)}`,
+              deltaE(p[i] as Colour, c),
+              SCALE_FLOOR.neighbours,
+            );
+          });
+          p.slice(2).forEach((c, i) => {
+            fail(
+              "twoApart",
+              `${at} ${vision} steps ${String(i + 1)}, ${String(i + 3)}`,
+              deltaE(p[i] as Colour, c),
+              SCALE_FLOOR.twoApart,
+            );
+          });
+        }
+        for (const [nh, nc] of NEUTRALS) {
+          const on = `${at} on neutral ${String(nh)} ${String(nc)}`;
+          const surfaces = surfaceColours(theme, nh, nc);
+          const ys = surfaces.map((c) => luminance(linearSrgb(...c)));
+          const page = ys[0] ?? 0;
+          const d = diverging(hue, chroma, theme, nh, nc);
+          d.forEach((c, i) => {
+            if (!inGamut(linearSrgb(...c))) {
+              r.gamut.push(`${on} diverging ${String(i + 1)} is outside sRGB`);
+            }
+          });
+          for (const [vision, simulate] of SEEN) {
+            const p = s.map((c) => seenAs(simulate, c));
+            const q = d.map((c) => seenAs(simulate, c));
+            const floor = vision === "full" ? SCALE_FLOOR.step1.full : SCALE_FLOOR.step1.simulated;
+            for (const surface of surfaces) {
+              const seenSurface = seenAs(simulate, surface);
+              fail(
+                "step1",
+                `${on} ${vision} sequential 1`,
+                deltaE(p[0] as Colour, seenSurface),
+                floor,
+              );
+              fail(
+                "middle",
+                `${on} ${vision} diverging 5`,
+                deltaE(q[4] as Colour, seenSurface),
+                SCALE_FLOOR.middle,
+              );
+            }
+            q.slice(1).forEach((c, i) => {
+              fail(
+                "divNeighbours",
+                `${on} ${vision} diverging ${String(i + 1)}, ${String(i + 2)}`,
+                deltaE(q[i] as Colour, c),
+                SCALE_FLOOR.neighbours,
+              );
+            });
+            for (let k = 1; k <= 4; k++) {
+              fail(
+                "arms",
+                `${on} ${vision} diverging ${String(5 - k)}, ${String(5 + k)}`,
+                deltaE(q[4 - k] as Colour, q[4 + k] as Colour),
+                SCALE_FLOOR.arms,
+              );
+            }
+          }
+          const cs = s.map((c) => contrastTo(c, page));
+          const cd = d.map((c) => contrastTo(c, page));
+          const outward = [
+            ...cs.slice(1).map((v, i) => [v, cs[i] ?? 0, `sequential ${String(i + 2)}`] as const),
+            ...[6, 7, 8, 9].map(
+              (n) => [cd[n - 1] ?? 0, cd[n - 2] ?? 0, `diverging ${String(n)}`] as const,
+            ),
+            ...[4, 3, 2, 1].map(
+              (n) => [cd[n - 1] ?? 0, cd[n] ?? 0, `diverging ${String(n)}`] as const,
+            ),
+          ];
+          for (const [v, before, name] of outward) {
+            if (v <= before) {
+              r.rising.push(`${on} ${name} has less contrast with the page than the step before`);
+            }
+          }
+          for (const y of ys) {
+            for (const [c, name] of [
+              [s[8], "sequential 9"],
+              [d[0], "diverging 1"],
+              [d[8], "diverging 9"],
+            ] as const) {
+              fail("far", `${on} ${name}`, contrastTo(c as Colour, y), SCALE_FLOOR.far);
+            }
+          }
+        }
+      }
+    }
+  }
+  scaleReport = r;
+  return r;
+}
+
 describe("css/system.css", () => {
   it("carries the colour block the ladder writes", async () => {
     const current = await readFile(COLOUR, "utf8");
@@ -826,12 +1209,8 @@ describe("css/system.css", () => {
 
   it("keeps every series slot inside sRGB and at 3:1 on every surface of its theme", () => {
     const report: string[] = [];
-    const neutrals: readonly (readonly [number, number])[] = [
-      [260, 0.008],
-      ...Array.from({ length: 12 }, (_, i) => [i * 30, ENVELOPE.neutral] as const),
-    ];
     for (const theme of ["light", "dark"] as const) {
-      const surfaces = neutrals.flatMap(([h, c]) => surfacesOf(theme, h, c));
+      const surfaces = NEUTRALS.flatMap(([h, c]) => surfacesOf(theme, h, c));
       for (let hue = 0; hue < 360; hue++) {
         for (const chroma of [0, 0.02, 0.09, 0.137, 0.2]) {
           series(hue, chroma, theme).forEach((colour, i) => {
@@ -931,6 +1310,47 @@ describe("css/system.css", () => {
     const { base, amp, peak, power } = HARMONY.floor;
     expect(yellow?.[0]).toBeCloseTo(base + amp * cos(HARMONY.band.low - peak) ** power, 5);
     expect(yellow?.[0]).toBeGreaterThan(0.8);
+  });
+
+  const scaleTests: readonly (readonly [ScaleCheck, string])[] = [
+    ["gamut", "keeps every sequential and diverging step inside sRGB"],
+    ["neighbours", "keeps neighbouring sequential steps 0.05 apart in every vision"],
+    ["twoApart", "keeps sequential steps two apart 0.10 apart in every vision"],
+    ["step1", "keeps sequential step 1 off every surface, 0.10 in full colour and 0.04 simulated"],
+    ["divNeighbours", "keeps neighbouring diverging steps 0.05 apart in every vision"],
+    ["arms", "keeps the two diverging arms apart at each distance from the middle in every vision"],
+    ["middle", "keeps the diverging middle off every surface in every vision"],
+    ["rising", "raises contrast with the page at every step away from it"],
+    ["far", "holds each scale's far steps at 4.5:1 on every surface"],
+  ];
+  for (const [check, name] of scaleTests) {
+    it(name, () => {
+      expect(scaleFailures()[check].slice(0, 20)).toEqual([]);
+    });
+  }
+
+  it("turns the default blue from a sky blue to a deep blue, and a red from amber to crimson", () => {
+    expect([1, 5, 9].map((r) => rankHue(255, r))).toEqual([225, 245, 265]);
+    expect([1, 9].map((r) => rankHue(27, r))).toEqual([57, 357]);
+    // the dark theme's step 1 is its darkest, so it takes the darkest rank's hue
+    expect(sequential(255, 0.137, "dark")[0]?.[2]).toBe(265);
+    expect(sequential(255, 0.137, "light")[0]?.[2]).toBe(225);
+  });
+
+  it("faces each accent with its piece's opposite hue on both sides of every edge", () => {
+    const edges = [119, 120, 169, 170, 307, 308, 354, 355].map(oppositeHue);
+    expect(edges).toEqual([245, 355, 306, 55, 55, 167, 121, 245]);
+  });
+
+  it("finds the cyan and pink a deuteranope confuses, which a fixed 180-degree turn would pair", () => {
+    const arms = (opposite: number) => {
+      const q = diverging(176, 0.137, "light", 260, 0.008, opposite).map((c) =>
+        seenAs(VISIONS.deuteranopia, c),
+      );
+      return Math.min(...[1, 2, 3, 4].map((k) => deltaE(q[4 - k] as Colour, q[4 + k] as Colour)));
+    };
+    expect(arms(356)).toBeLessThan(SCALE_FLOOR.arms);
+    expect(arms(oppositeHue(176))).toBeGreaterThanOrEqual(SCALE_FLOOR.arms);
   });
 
   it("ships fonts byte-identical to the pinned Fontsource release", async () => {
