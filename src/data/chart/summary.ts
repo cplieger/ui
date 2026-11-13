@@ -10,13 +10,23 @@ import {
   bucketTotal,
   sampleTotal,
   sampleValue,
+  type BarModel,
   type DotModel,
   type Model,
   type RectModel,
   type SampleModel,
   type SeriesModel,
 } from "./model.js";
-import { bucketText, counted, domainText, lastSample, lastStack, primaryOf } from "./readout.js";
+import {
+  barTotal,
+  bucketText,
+  counted,
+  domainText,
+  lastSample,
+  lastStack,
+  primaryOf,
+  rowsText,
+} from "./readout.js";
 import type { Words } from "./words.js";
 
 /** The one step between every neighbour in `steps`, or undefined when they differ. */
@@ -181,6 +191,55 @@ function dotSummary(model: Model, m: DotModel, words: Words): string[] {
   return out;
 }
 
+// The rows holding the highest and the lowest of `at`, the first in the
+// app's order on a tie; none when every row is a gap.
+function barExtremes(
+  names: readonly string[],
+  at: (i: number) => number | null,
+): { high: number; low: number } | undefined {
+  let high = -1;
+  let low = -1;
+  names.forEach((_, i) => {
+    const v = at(i);
+    if (v === null) {
+      return;
+    }
+    if (high === -1 || v > (at(high) ?? v)) {
+      high = i;
+    }
+    if (low === -1 || v < (at(low) ?? v)) {
+      low = i;
+    }
+  });
+  return high === -1 ? undefined : { high, low };
+}
+
+function barSummary(model: Model, m: BarModel, words: Words): string[] {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const several = m.series.length > 1;
+  const series = several
+    ? words.seriesCount(formatter("number", model.locale)(m.series.length))
+    : "";
+  const out = [words.countSummary(rowsText(model, words), series)];
+  const place = (i: number, v: number | null) =>
+    `${names[i] ?? ""} ${v === null ? words.noData : model.xText(v)}`;
+  const sentence = (name: string | undefined, at: (i: number) => number | null) => {
+    const e = barExtremes(names, at);
+    if (e === undefined) {
+      return;
+    }
+    const [high, low] = [place(e.high, at(e.high)), place(e.low, at(e.low))];
+    out.push(name === undefined ? words.extremes(high, low) : words.barSeries(name, high, low));
+  };
+  for (const s of m.series) {
+    sentence(several ? s.name : undefined, (i) => s.x[i] ?? null);
+  }
+  if (several) {
+    sentence(words.total, (i) => barTotal(m, i));
+  }
+  return out;
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -217,7 +276,9 @@ export function generatedSummary(model: Model, words: Words): string {
         ? lineSummary(model, m, words)
         : m?.kind === "dot"
           ? dotSummary(model, m, words)
-          : [];
+          : m?.kind === "bar"
+            ? barSummary(model, m, words)
+            : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
@@ -229,11 +290,13 @@ export function summaryOf(model: Model, words: Words): string {
   return typeof own === "string" ? own : typeof own === "function" ? own(generated) : generated;
 }
 
-/** The plot's name: its kind, its series count from two up, and its x domain. */
+/** The plot's name: its kind, its series count from two up, and its x
+ *  domain, or on a bar chart its row count, since its x is a value. */
 export function shortDescription(model: Model, words: Words): string {
   const m = primaryOf(model);
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
   const n = m === undefined || m.kind === "dot" ? 0 : m.series.length;
   const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
-  return words.shortDescription(kind, series, domainText(model, words));
+  const range = m?.kind === "bar" ? rowsText(model, words) : domainText(model, words);
+  return words.shortDescription(kind, series, range);
 }

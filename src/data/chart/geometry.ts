@@ -1,7 +1,8 @@
 /**
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
- * pixel and cut at the plot's ends, rows of dots, rules and the axis lines.
+ * pixel and cut at the plot's ends, rows of dots, bars along their rows,
+ * rules and the axis lines.
  * @module
  */
 
@@ -12,6 +13,7 @@ import {
   drawnValue,
   sampleValue,
   type AreaModel,
+  type BarModel,
   type DotRowModel,
   type LineModel,
   type RectModel,
@@ -420,6 +422,83 @@ export function areaPaths(m: AreaModel, f: Frame): string[] {
   });
 }
 
+/** Row `i`'s stack of `m` along x: the sum of its negative values and the
+ *  sum of its positive ones, each 0 without any. */
+export function barReach(m: BarModel, i: number): { readonly lo: number; readonly hi: number } {
+  let lo = 0;
+  let hi = 0;
+  for (const s of m.series) {
+    const v = s.x[i] ?? 0;
+    if (v < 0) {
+      lo += v;
+    } else {
+      hi += v;
+    }
+  }
+  return { lo, hi };
+}
+
+/** A bar segment's px: left to right along x, top to bottom across its row. */
+export interface Segment {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+/**
+ * Row `i`'s segments of `m`, one per series in series order, absent where it
+ * draws nothing: centred on `cy`, `thick` px across, snapped to device px.
+ * Positive values stack rightward from 0 and negative ones leftward, each
+ * side in series order; a segment beyond another gives up its first px
+ * toward 0 as the gap unless it is under 3 px long, so a stack's end stays
+ * at its sum. A `null` counts as 0 and draws nothing.
+ */
+export function barSegments(
+  m: BarModel,
+  i: number,
+  f: Frame,
+  cy: number,
+  thick: number,
+): (Segment | undefined)[] {
+  const top = snap(cy - thick / 2, f.dpr);
+  const bottom = snap(cy + thick / 2, f.dpr);
+  const base = { lo: 0, hi: 0 };
+  const drawn = { lo: false, hi: false };
+  return m.series.map((s) => {
+    const v = s.x[i] ?? 0;
+    if (v === 0) {
+      return undefined;
+    }
+    const side = v < 0 ? "lo" : "hi";
+    let a = f.xAt(base[side]);
+    base[side] += v;
+    const b = f.xAt(base[side]);
+    if (drawn[side] && Math.abs(b - a) >= GAP_MIN) {
+      a += Math.sign(b - a) * GAP;
+    }
+    drawn[side] = true;
+    const left = clamp(Math.min(a, b), 0, f.width);
+    const right = clamp(Math.max(a, b), 0, f.width);
+    return right > left ? { left, right, top, bottom } : undefined;
+  });
+}
+
+/** One path per series of `m`, each row's segment a rectangle (`barSegments`)
+ *  on the bar centred at that row's `ys` entry. */
+export function barPaths(m: BarModel, ys: readonly number[], thick: number, f: Frame): string[] {
+  const paths = m.series.map(() => "");
+  ys.forEach((cy, i) => {
+    barSegments(m, i, f, cy, thick).forEach((g, k) => {
+      if (g !== undefined) {
+        paths[k] =
+          `${paths[k] ?? ""}M${num(g.left)} ${num(g.top)}H${num(g.right)}V${num(g.bottom)}H${num(g.left)}Z`;
+      }
+    });
+  });
+  return paths;
+}
+
 /** One drawn dot of a row: its centre's px and the dots `[from, to)` it stands for. */
 export interface DotGroup {
   readonly at: number;
@@ -455,6 +534,10 @@ export function dotPath(groups: readonly DotGroup[], cy: number): string {
 /** A 1 px line across the plot at `y`, on whole device pixels. */
 export const hairline = (y: number, width: number, dpr: number): string =>
   `M0 ${num(snap(y, dpr) + 0.5)}H${num(width)}`;
+
+/** A 1 px line down the plot at `x`, on whole device pixels. */
+export const upright = (x: number, height: number, dpr: number): string =>
+  `M${num(snap(x, dpr) + 0.5)} 0V${num(height)}`;
 
 /** A 2 px rule across the plot at x `at`, or along it at y `at`. */
 export const rulePath = (axis: "x" | "y", at: number, f: Frame): string =>

@@ -86,6 +86,25 @@ interface DotMark {
   readonly rows: readonly DotRow[];
 }
 
+interface BarSeries {
+  readonly name: string;
+  readonly slot?: Slot;
+  /** A value per category, in `y`'s order; `null` or `NaN` is a gap. */
+  readonly x: Values;
+}
+
+/** Horizontal bars, one row per category on a band y, top to bottom in
+ *  the order sent; each bar's length from 0 along a linear x is its value.
+ *  Several series stack in series order from 0. */
+export interface BarMark {
+  readonly mark: "bar";
+  /** The categories' names, each once. */
+  readonly y: readonly string[];
+  /** Each bar's value at its end (default true), in place of an x axis. */
+  readonly labels?: boolean;
+  readonly series: readonly BarSeries[];
+}
+
 /** Exactly one of `x` and `y`, finite. */
 interface RuleMark {
   readonly mark: "rule";
@@ -106,17 +125,18 @@ interface TextMark {
   readonly side?: "above" | "below" | "left" | "right";
 }
 
-export type Mark = RectMark | LineMark | AreaMark | DotMark | RuleMark | TextMark;
+export type Mark = RectMark | LineMark | AreaMark | DotMark | BarMark | RuleMark | TextMark;
 
 export interface ChartSpec {
   readonly x: Scale;
-  /** Band when the chart has a dot mark. */
+  /** Band when the chart has a dot or bar mark. */
   readonly y?: Scale;
-  /** One rect, line, area or dot mark and any rules and text marks, drawn in
-   *  order: a rule after a rect draws over it. A second data mark is a
-   *  `TypeError`. */
+  /** One rect, line, area, dot or bar mark and any rules and text marks,
+   *  drawn in order: a rule after a rect draws over it. A second data mark
+   *  is a `TypeError`. */
   readonly marks: readonly Mark[];
-  /** The plot's height in px. */
+  /** The plot's height in px. A band chart (dot or bar) is as tall as its
+   *  rows, so there it is a `TypeError`. */
   readonly height?: number;
   readonly summary?: string | ((generated: string) => string);
   /** Shown instead of the plot when there is nothing to draw. */

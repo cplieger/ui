@@ -233,6 +233,7 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       const i = nearestStop(row.x, row.from, row.to, t.x);
       return i === undefined ? undefined : { kind: "post", row: t.y, i };
     }
+    case "bar":
     case undefined:
       return undefined;
   }

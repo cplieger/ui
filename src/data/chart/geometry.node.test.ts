@@ -5,6 +5,9 @@ import { position } from "../scale/position.js";
 
 import {
   areaPaths,
+  barPaths,
+  barReach,
+  barSegments,
   bucketEdges,
   dotGroups,
   dotPath,
@@ -13,7 +16,14 @@ import {
   rectPaths,
   type Frame,
 } from "./geometry.js";
-import { chartModel, type AreaModel, type LineModel, type Model, type RectModel } from "./model.js";
+import {
+  chartModel,
+  type AreaModel,
+  type BarModel,
+  type LineModel,
+  type Model,
+  type RectModel,
+} from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
 import { tableModel } from "./table.js";
@@ -904,5 +914,70 @@ describe("dot geometry", () => {
       { at: 20, from: 3, to: 4 },
     ]);
     expect(dotPath(groups, 12.5)).toBe("M10 12.5h0M20 12.5h0");
+  });
+});
+
+describe("bars", () => {
+  const barModel = (series: (number | null)[][]) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+        },
+      ],
+    });
+  const barFrame = (m: Model, lo: number, hi: number, width = 100): Frame => ({
+    width,
+    height: 48,
+    dpr: 1,
+    x: m.x,
+    xAt: position("linear", lo, hi, 0, width),
+    yAt: (v) => v,
+  });
+  const barOf = (m: Model) => m.marks[0] as BarModel;
+
+  it("draws each bar from 0 to its value, centred on its row", () => {
+    const m = barModel([[40, 100]]);
+    const f = barFrame(m, 0, 100);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 40, top: 4, bottom: 20 },
+    ]);
+    expect(barPaths(barOf(m), [12, 36], 16, f)).toEqual(["M0 4H40V20H0ZM0 28H100V44H0Z"]);
+  });
+
+  it("draws a negative value leftward from 0, and nothing for 0 or a gap", () => {
+    const m = barModel([[-20, 0, null]]);
+    const f = barFrame(m, -50, 50);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 30, right: 50, top: 4, bottom: 20 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([undefined]);
+    expect(barSegments(barOf(m), 2, f, 36, 16)).toEqual([undefined]);
+  });
+
+  it("stacks series from 0, each beyond another 1 px short unless under 3 px", () => {
+    const m = barModel([
+      [30, 30],
+      [20, 2],
+      [-10, null],
+    ]);
+    const f = barFrame(m, -20, 80);
+    const at = (v: number) => f.xAt(v);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: at(0), right: at(30), top: 4, bottom: 20 },
+      { left: at(30) + 1, right: at(50), top: 4, bottom: 20 },
+      { left: at(-10), right: at(0), top: 4, bottom: 20 },
+    ]);
+    // The 2-unit segment is 2 px, under 3, so it keeps its length and no gap.
+    expect(barSegments(barOf(m), 1, f, 36, 16)[1]).toEqual({
+      left: at(30),
+      right: at(32),
+      top: 28,
+      bottom: 44,
+    });
+    expect(barReach(barOf(m), 0)).toEqual({ lo: -10, hi: 50 });
   });
 });

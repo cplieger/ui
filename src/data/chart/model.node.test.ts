@@ -270,7 +270,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area or dot mark and any rules",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot or bar mark and any rules",
     );
   });
 
@@ -629,5 +629,111 @@ describe("an area stacked to 100%", () => {
     expect(() =>
       build({ x: {}, marks: [area([[1], [2]], { arrange: "group" as "stack" })] }),
     ).toThrow('renderChart: marks[0].arrange must be "stack" or "share"');
+  });
+});
+
+const bars = (
+  values: readonly (number | null)[],
+  more: Partial<Extract<Mark, { mark: "bar" }>> = {},
+): Mark => ({
+  mark: "bar",
+  y: values.map((_, i) => `c${String(i)}`),
+  series: [{ name: "a", x: values }],
+  ...more,
+});
+
+describe("the bar mark", () => {
+  it.each([
+    ["a y of numbers", { x: {}, marks: [bars([1], { y: [1] as unknown as string[] })] }, TypeError],
+    [
+      "a series without x",
+      { x: {}, marks: [{ mark: "bar", y: ["a"], series: [{ name: "a" }] }] },
+      TypeError,
+    ],
+    ["an x shorter than its y", { x: {}, marks: [bars([1], { y: ["a", "b"] })] }, TypeError],
+    [
+      "labels that are not a boolean",
+      { x: {}, marks: [bars([1], { labels: 1 as unknown as boolean })] },
+      TypeError,
+    ],
+    ["an empty name", { x: {}, marks: [bars([1], { y: [""] })] }, RangeError],
+    ["a repeated name", { x: {}, marks: [bars([1, 2], { y: ["a", "a"] })] }, RangeError],
+    ["an infinite x", { x: {}, marks: [bars([Number.POSITIVE_INFINITY])] }, RangeError],
+    ["a log x", { x: { type: "log" }, marks: [bars([1])] }, TypeError],
+    ["a time x", { x: { type: "time" }, marks: [bars([1])] }, TypeError],
+    ["zero false", { x: { zero: false }, marks: [bars([1])] }, TypeError],
+    ["an x domain without 0", { x: { domain: [1, 5] }, marks: [bars([2])] }, RangeError],
+    ["a linear y", { x: {}, y: { type: "linear" }, marks: [bars([1])] }, TypeError],
+    ["a y domain", { x: {}, y: { domain: [0, 1] }, marks: [bars([1])] }, TypeError],
+    ["a height", { x: {}, height: 200, marks: [bars([1])] }, TypeError],
+    [
+      "a height under dot rows",
+      { x: {}, height: 200, marks: [{ mark: "dot", rows: [] }] },
+      TypeError,
+    ],
+    ["a y rule", { x: {}, marks: [bars([1]), { mark: "rule", y: 1, label: "Cap" }] }, TypeError],
+    ["a bar beside a rect", { x: {}, marks: [rect([1]), bars([1])] }, TypeError],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the height rule", () => {
+    expect(() => build({ x: {}, height: 200, marks: [bars([1])] })).toThrow(
+      "renderChart: height has no place on a dot or bar chart, which is as tall as its rows",
+    );
+  });
+
+  it("keeps the app's order on a band y, its values, and gaps as null", () => {
+    const m = build({
+      x: {},
+      marks: [bars([3, null, Number.NaN, 1], { y: ["d", "b", "c", "a"] })],
+    });
+    expect(m.y).toEqual({ type: "band", rows: ["d", "b", "c", "a"], mono: false });
+    expect(m.marks[0]).toEqual({
+      kind: "bar",
+      labels: true,
+      series: [{ name: "a", slot: 1, x: [3, null, null, 1] }],
+    });
+    expect(m.kind).toBe("bar");
+  });
+
+  it("is a stacked bar chart from two series, with labels off when asked", () => {
+    const m = build({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["a"],
+          labels: false,
+          series: [
+            { name: "p", x: [1] },
+            { name: "q", slot: 4, x: [2] },
+          ],
+        },
+      ],
+    });
+    expect(m.kind).toBe("stackedBar");
+    expect(m.marks[0]).toMatchObject({ labels: false, series: [{ slot: 1 }, { slot: 4 }] });
+  });
+
+  it("is empty when every value is 0 or a gap, or there are no rows", () => {
+    expect(build({ x: {}, marks: [bars([0, null])] }).empty).toBe(true);
+    expect(build({ x: {}, marks: [bars([])] }).empty).toBe(true);
+    expect(build({ x: {}, marks: [bars([0, 2])] }).empty).toBe(false);
+  });
+
+  it("takes a note on a row by its name and an x rule", () => {
+    const m = build({
+      x: {},
+      marks: [
+        bars([1, 2]),
+        { mark: "rule", x: 1.5, label: "Target" },
+        { mark: "text", x: 2, y: "c1", text: "Best" },
+      ],
+    });
+    expect(m.marks[2]).toMatchObject({ kind: "text", x: 2, y: 1, row: true });
+    expect(() =>
+      build({ x: {}, marks: [bars([1]), { mark: "text", x: 1, y: "zz", text: "No" }] }),
+    ).toThrow(RangeError);
   });
 });

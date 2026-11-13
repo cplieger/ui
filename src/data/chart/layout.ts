@@ -1,12 +1,13 @@
 /**
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
- * plot, the x axis under it, the lines' and areas' end labels, and the
- * text marks' notes.
+ * plot, the x axis under it, the lines' and areas' end labels, a bar
+ * chart's rows and value labels, and the text marks' notes.
  * @module
  */
 
 import type { Measure } from "../scale/measure.js";
+import { position } from "../scale/position.js";
 
 import {
   axisGutter,
@@ -18,8 +19,8 @@ import {
   type Axis,
   type RuleLabel,
 } from "./axis.js";
-import type { Frame } from "./geometry.js";
-import { sampleValue, type Model } from "./model.js";
+import { barReach, type Frame } from "./geometry.js";
+import { sampleValue, type BarModel, type Model } from "./model.js";
 import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
@@ -35,6 +36,8 @@ export interface Metrics {
   readonly rem: number;
   /** A dot row's height, from `--cp-chart-row`. */
   readonly row: number;
+  /** A line of a row's name set above its bar, at `--cp-leading-ui`. */
+  readonly nameLine: number;
   /** The group gutters, from `--cp-chart-axis-gutter` and `--cp-chart-label-gutter`. */
   readonly axisGroup: number;
   readonly labelGroup: number;
@@ -68,8 +71,13 @@ export interface Layout {
   readonly xAxis: Axis;
   /** A continuous y's axis; absent on a band. */
   readonly yAxis: Axis | undefined;
-  /** A band's rows, each name cut to its gutter, `y` its middle in the plot. */
+  /** A band's rows, each name cut to its room, `y` the middle of its dot
+   *  row or its bar in the plot. */
   readonly rows: readonly { readonly name: string; readonly y: number }[];
+  /** A bar's thickness, 0 without a bar mark. */
+  readonly bar: number;
+  /** A bar chart's value labels, in plot px. */
+  readonly valueLabels: readonly Text[];
   readonly mono: boolean;
   readonly gutters: Floors;
   /** Text outside the plot, in SVG px: tick labels, titles, rule and end labels. */
@@ -104,8 +112,15 @@ export interface Note {
 const PAD = 8;
 /** The x tick vectors' length, and the room under them. */
 const TICK = 4;
-/** Under this many rem a chart draws no end labels, and its notes as numbered markers. */
+/** Under this many rem a chart draws no end labels, its notes as numbered
+ *  markers, and a bar's name on its own line above it. */
 const NARROW_REM = 30;
+/** A bar is its row less this, half above it and half below. */
+const BAR_SPACE = 8;
+/** The room between a name above a bar and the bar. */
+const NAME_GAP = 2;
+/** The room between a bar's end and its value label. */
+const VALUE_GAP = 4;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
@@ -186,6 +201,21 @@ function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
   );
 }
 
+// Each row's value label: its total, written by the x format, on the side
+// of 0 its sign takes; absent for a row with no value.
+function barTotals(m: BarModel, rows: number): (number | undefined)[] {
+  return Array.from({ length: rows }, (_, i) => {
+    let total: number | undefined;
+    for (const s of m.series) {
+      const v = s.x[i] ?? null;
+      if (v !== null) {
+        total = (total ?? 0) + v;
+      }
+    }
+    return total;
+  });
+}
+
 /** An x rule's label on the plot: its words and value, or off the axis. */
 function ruleText(model: Model, words: Words, label: string, value: number, off: boolean): string {
   const written = model.xText(value);
@@ -211,8 +241,14 @@ export function layout(
   const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
   const band = model.y.type === "band" ? model.y : undefined;
   const mono = band?.mono === true;
+  const narrow = chart < NARROW_REM * metrics.rem;
+  const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
+  // Under 30rem a name above its bar leaves the plot the chart's whole width.
+  const above = bars !== undefined && narrow;
+  const thick = bars === undefined ? 0 : Math.max(1, metrics.row - BAR_SPACE);
+  const rowH = above ? metrics.nameLine + NAME_GAP + metrics.row : metrics.row;
   const height =
-    band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * metrics.row;
+    band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * rowH;
 
   let yAx: Axis | undefined;
   let names: string[] = [];
@@ -222,15 +258,15 @@ export function layout(
     for (const t of yAx.ticks) {
       widestY = Math.max(widestY, t.label?.width ?? 0);
     }
-  } else {
+  } else if (!above) {
     const face = mono ? metrics.mono : measure;
     const limit = bandLimit(metrics.axisGroup, chart, metrics.rem);
     names = band.rows.map((n) => cutName(n, limit, face.text));
     widestY = Math.max(0, ...names.map(face.text));
   }
-  const axisW = Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
+  const axisW = above ? 0 : Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
-  const ends = chart >= NARROW_REM * metrics.rem ? endTexts(model, words) : [];
+  const ends = narrow ? [] : endTexts(model, words);
   const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,
@@ -241,7 +277,39 @@ export function layout(
   const plotW = Math.max(1, width - axisW - labelW);
   const reverse = model.x.reverse;
   const left = reverse ? labelW : axisW;
-  const xAx = xAxis(model.x, plotW, ctx);
+  if (band !== undefined && above) {
+    const face = mono ? metrics.mono : measure;
+    names = band.rows.map((n) => cutName(n, plotW, face.text));
+  }
+
+  // Value labels sit past each bar's end, so x ends short of each side by
+  // the widest label there and its gap; they stand in for the x axis.
+  const valued = bars?.labels === true;
+  const totals = valued && band !== undefined ? barTotals(bars, band.rows.length) : [];
+  const valueTexts = totals.map((t) => (t === undefined ? "" : model.xText(t)));
+  let roomLeft = 0;
+  let roomRight = 0;
+  totals.forEach((t, i) => {
+    if (t === undefined) {
+      return;
+    }
+    const w = measure.number(valueTexts[i] ?? "") + VALUE_GAP;
+    if (t < 0 !== reverse) {
+      roomLeft = Math.max(roomLeft, w);
+    } else {
+      roomRight = Math.max(roomRight, w);
+    }
+  });
+  const xAx: Axis = valued
+    ? {
+        lo: model.x.lo,
+        hi: model.x.hi,
+        at: reverse
+          ? position("linear", model.x.lo, model.x.hi, plotW - roomRight, roomLeft)
+          : position("linear", model.x.lo, model.x.hi, roomLeft, plotW - roomRight),
+        ticks: [],
+      }
+    : xAxis(model.x, plotW, ctx);
 
   const xRules = model.marks.filter((m) => m.kind === "rule" && m.axis === "x");
   const ruleTexts: string[] = [];
@@ -312,7 +380,7 @@ export function layout(
       });
     });
   }
-  const xTitle = model.x.type === "time" ? undefined : model.spec.x.label;
+  const xTitle = model.x.type === "time" || valued ? undefined : model.spec.x.label;
   if (xTitle !== undefined) {
     titles.push({
       text: xTitle,
@@ -321,7 +389,7 @@ export function layout(
       anchor: reverse ? "start" : "end",
     });
   }
-  const bottom = TICK + 2 + (xLines + (xTitle === undefined ? 0 : 1)) * lineHeight;
+  const bottom = valued ? 0 : TICK + 2 + (xLines + (xTitle === undefined ? 0 : 1)) * lineHeight;
 
   const yLabels: Text[] = [];
   const rows: { name: string; y: number }[] = [];
@@ -340,11 +408,43 @@ export function layout(
     }
   } else {
     names.forEach((name, i) => {
-      const y = (i + 0.5) * metrics.row;
+      if (above) {
+        const y = i * rowH + metrics.nameLine + NAME_GAP + thick / 2;
+        rows.push({ name, y });
+        yLabels.push(
+          reverse
+            ? {
+                text: name,
+                x: left + plotW,
+                y: top + i * rowH + metrics.nameLine / 2,
+                anchor: "end",
+              }
+            : { text: name, x: left, y: top + i * rowH + metrics.nameLine / 2, anchor: "start" },
+        );
+        return;
+      }
+      const y = (i + 0.5) * rowH;
       rows.push({ name, y });
       yLabels.push({ text: name, x: gutterX, y: top + y, anchor: gutterAnchor });
     });
   }
+
+  const valueLabels: Text[] = [];
+  totals.forEach((t, i) => {
+    const row = rows[i];
+    if (t === undefined || row === undefined) {
+      return;
+    }
+    const reach = bars === undefined ? undefined : barReach(bars, i);
+    const end = xAx.at(t < 0 ? (reach?.lo ?? 0) : (reach?.hi ?? 0));
+    const leftward = t < 0 !== reverse;
+    valueLabels.push({
+      text: valueTexts[i] ?? "",
+      x: leftward ? end - VALUE_GAP : end + VALUE_GAP,
+      y: row.y,
+      anchor: leftward ? "end" : "start",
+    });
+  });
 
   const yAt = yAx?.at ?? ((v: number) => v);
   const plotLabels: Text[] = [];
@@ -400,6 +500,8 @@ export function layout(
     rows,
     mono,
     gutters: { axis: axisW, label: labelW },
+    bar: thick,
+    valueLabels,
     xLabels,
     yLabels,
     titles,
@@ -407,6 +509,6 @@ export function layout(
     plotLabels,
     endLabels,
     notes,
-    numbered: numberedNotes(notes, chart < NARROW_REM * metrics.rem),
+    numbered: numberedNotes(notes, narrow),
   };
 }

@@ -1,14 +1,23 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
- * bucket, sample, change point or dot row, kept in place across updates.
+ * bucket, sample, change point, dot row or category, kept in place across
+ * updates.
  * @module
  */
 
 import { formatter } from "../scale/format.js";
 
-import type { Model, RectModel, SampleModel } from "./model.js";
+import type { BarModel, Model, RectModel, SampleModel } from "./model.js";
 import { bucketTotal, sampleTotal } from "./model.js";
-import { bucketText, partText, primaryOf, samplePart, totalled } from "./readout.js";
+import {
+  barText,
+  barTotal,
+  bucketText,
+  partText,
+  primaryOf,
+  samplePart,
+  totalled,
+} from "./readout.js";
 import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
@@ -21,7 +30,8 @@ interface Cell {
 }
 
 interface Row {
-  /** The row's x, or its dot row's name and place among rows of that name. */
+  /** The row's x, its dot row's name and place among rows of that name, or
+   *  its category's name. */
   readonly key: string;
   readonly head: readonly Part[];
   readonly cells: readonly Cell[];
@@ -127,6 +137,27 @@ function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
   });
 }
 
+// A row per category, a column per series, and from two series up a Total.
+function barTable(model: Model, m: BarModel, words: Words, after: string): TableModel {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const several = m.series.length > 1;
+  const rows = names.map((name, i): Row => {
+    const cells: Cell[] = m.series.map((s) => ({
+      parts: [barText(model, s.x[i] ?? null, words)],
+      num: true,
+    }));
+    if (several) {
+      cells.push({ parts: [barText(model, barTotal(m, i), words)], num: true });
+    }
+    return { key: name, head: [name], cells };
+  });
+  const columns = m.series.map((s) => ({ text: s.name, num: true }));
+  if (several) {
+    columns.push({ text: words.total, num: true });
+  }
+  return { corner: model.spec.y?.label ?? "", columns, rows, after };
+}
+
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
@@ -161,6 +192,9 @@ export function tableModel(model: Model, words: Words): TableModel {
       rows,
       after,
     };
+  }
+  if (m.kind === "bar") {
+    return barTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {

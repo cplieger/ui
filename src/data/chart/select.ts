@@ -10,8 +10,10 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 import { dotGroups, snap, type DotGroup, type Frame } from "./geometry.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
-import type { DotModel, Model, RectModel, SampleModel } from "./model.js";
+import type { BarModel, DotModel, Model, RectModel, SampleModel } from "./model.js";
 import {
+  barReading,
+  barText,
   bucketReading,
   partText,
   postReading,
@@ -26,14 +28,16 @@ import type { Words } from "./words.js";
 
 /**
  * A bucket or a sample, with one series (`part`) when Up or Down chose it;
- * the posts `[from, to)` of a dot row; or a dot row as a whole.
+ * the posts `[from, to)` of a dot row; a dot row as a whole; or a bar row,
+ * with one series (`part`) when Left or Right chose it.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "line"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "area"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "dot"; readonly row: number; readonly from: number; readonly to: number }
-  | { readonly kind: "row"; readonly row: number };
+  | { readonly kind: "row"; readonly row: number }
+  | { readonly kind: "bar"; readonly row: number; readonly part: number | undefined };
 
 export type Key =
   "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End" | "PageUp" | "PageDown";
@@ -55,6 +59,10 @@ export const isKey = (key: string): key is Key => KEYS.has(key);
 const REACH = 40;
 /** One x tick's room when the axis draws fewer than two ticks, in px. */
 const TICK_FALLBACK = 80;
+/** Page Up and Page Down move a band chart's selection this many rows. */
+const PAGE_ROWS = 10;
+
+const bandRows = (model: Model): number => (model.y.type === "band" ? model.y.rows.length : 0);
 
 /** A bucket's drawn extent in plot px, low to high, before its insets. */
 function bucketSpan(m: RectModel, i: number, f: Frame): readonly [number, number] {
@@ -66,8 +74,9 @@ function bucketSpan(m: RectModel, i: number, f: Frame): readonly [number, number
 const lineStops = (m: SampleModel): number[] =>
   m.step ? stepStops(m) : Array.from({ length: m.to - m.from }, (_, k) => m.from + k);
 
-/** The selection focus gives a chart that has none yet: the newest x, or on
- *  a timeline the first row's last post, or that row when it is silent. */
+/** The selection focus gives a chart that has none yet: the newest x, on
+ *  a timeline the first row's last post, or that row when it is silent, or
+ *  a bar chart's first row, whole. */
 export function initial(model: Model): Selection | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -91,6 +100,8 @@ export function initial(model: Model): Selection | undefined {
         ? { kind: "dot", row: 0, from: row.to - 1, to: row.to }
         : { kind: "row", row: 0 };
     }
+    case "bar":
+      return bandRows(model) > 0 ? { kind: "bar", row: 0, part: undefined } : undefined;
   }
 }
 
@@ -198,6 +209,42 @@ function stepPart(order: readonly number[], part: number | undefined, up: boolea
   return order[up ? k + 1 : k - 1];
 }
 
+/**
+ * Where `key` moves a bar row selection over `rows` rows: Up and Down, Home,
+ * End and the Page keys through the rows, keeping the chosen part; Left and
+ * Right through the row's parts in series order as drawn, from the whole row
+ * to its first or last. One series has no parts to choose.
+ */
+function moveBar(
+  m: BarModel,
+  rows: number,
+  sel: Selection & { kind: "bar" },
+  key: Key,
+  reverse: boolean,
+): Selection | undefined {
+  if (key === "ArrowLeft" || key === "ArrowRight") {
+    const n = m.series.length;
+    if (n < 2) {
+      return undefined;
+    }
+    const forward = (key === "ArrowRight") !== reverse;
+    const part = sel.part === undefined ? (forward ? 0 : n - 1) : sel.part + (forward ? 1 : -1);
+    return part >= 0 && part < n ? { ...sel, part } : undefined;
+  }
+  const page = (by: number) => Math.min(Math.max(sel.row + by, 0), rows - 1);
+  const row =
+    key === "ArrowUp"
+      ? sel.row - 1
+      : key === "ArrowDown"
+        ? sel.row + 1
+        : key === "Home"
+          ? 0
+          : key === "End"
+            ? rows - 1
+            : page(key === "PageUp" ? -PAGE_ROWS : PAGE_ROWS);
+  return row >= 0 && row < rows && row !== sel.row ? { ...sel, row } : undefined;
+}
+
 /** A selection's position along x on the plot, in px. */
 function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined {
   const m = primaryOf(model);
@@ -223,6 +270,9 @@ export interface Navigator {
   pick(px: number, py: number): Selection | undefined;
   /** The crosshair's px along x, absent for a row selection. */
   crosshair(sel: Selection): number | undefined;
+  /** A touch drag moves the selection; on a bar chart only a tap does,
+   *  since a vertical drag is the page's scroll. */
+  readonly drags: boolean;
 }
 
 export function navigator(model: Model, lay: Layout): Navigator {
@@ -280,6 +330,9 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
       if (m.kind === "dot") {
         return sel.kind === "dot" || sel.kind === "row" ? moveDot(m, sel, key, x) : undefined;
+      }
+      if (m.kind === "bar") {
+        return sel.kind === "bar" ? moveBar(m, bandRows(model), sel, key, f.x.reverse) : undefined;
       }
       if (sel.kind !== m.kind) {
         return undefined;
@@ -341,6 +394,16 @@ export function navigator(model: Model, lay: Layout): Navigator {
                 : lo;
           return { kind: m.kind, i, part: undefined };
         }
+        case "bar": {
+          // The row nearest the pointer, anywhere across the plot's width.
+          let r = -1;
+          lay.rows.forEach((row, k) => {
+            if (r === -1 || Math.abs(row.y - py) < Math.abs((lay.rows[r]?.y ?? 0) - py)) {
+              r = k;
+            }
+          });
+          return r === -1 ? undefined : { kind: "bar", row: r, part: undefined };
+        }
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;
@@ -366,6 +429,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
     },
     crosshair: (sel) => selectionPx(model, sel, f),
+    drags: m?.kind !== "bar",
   };
 }
 
@@ -392,6 +456,13 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     const i = v === undefined ? -1 : lowerBound(now.x, v);
     const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
     return now.x[i] === v && i >= now.from && i < now.to ? { kind: sel.kind, i, part } : undefined;
+  }
+  if (sel.kind === "bar" && was.kind === "bar" && now.kind === "bar") {
+    // Categories are unique, so a row is found by its name in any order.
+    const name = before.y.type === "band" ? before.y.rows[sel.row] : undefined;
+    const row = after.y.type === "band" && name !== undefined ? after.y.rows.indexOf(name) : -1;
+    const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
+    return row === -1 ? undefined : { kind: "bar", row, part };
   }
   if ((sel.kind === "dot" || sel.kind === "row") && was.kind === "dot" && now.kind === "dot") {
     const name = was.rows[sel.row]?.name;
@@ -436,12 +507,15 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   if (sel.kind === "row" && m?.kind === "dot") {
     return rowReading(model, m, sel.row, words);
   }
+  if (sel.kind === "bar" && m?.kind === "bar") {
+    return barReading(model, m, sel.row, words);
+  }
   return undefined;
 }
 
 /**
  * What announce says for `sel`: with `part` and a series chosen, that one
- * segment or line through `words.segment`; otherwise the whole reading
+ * segment, line or bar part through `words.segment`; otherwise the whole reading
  * through `words.reading`, or a silent row's `words.silentRow`; then each
  * note joining the stop through `words.noteReading`.
  */
@@ -501,7 +575,15 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
       ? reading.at
       : words.reading(reading.at, reading.entries[0]?.value ?? "", "");
   }
-  if (sel.kind !== "dot" && sel.kind !== "row" && m.kind !== "dot") {
+  if (sel.kind === "bar" && m.kind === "bar") {
+    const s = sel.part === undefined ? undefined : m.series[sel.part];
+    if (part && s !== undefined) {
+      return words.segment(reading.at, s.name, barText(model, s.x[sel.row] ?? null, words));
+    }
+  } else if (
+    (sel.kind === "rect" || sel.kind === "line" || sel.kind === "area") &&
+    (m.kind === "rect" || m.kind === "line" || m.kind === "area")
+  ) {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
       const value =

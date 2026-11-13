@@ -145,7 +145,10 @@ export function explore(
     const next = nav.move(sel, e.key, lastX);
     if (next !== undefined) {
       select(next);
-      say(next, e.key === "ArrowUp" || e.key === "ArrowDown");
+      // The keys that choose a part say it alone: Left and Right across a
+      // bar row, Up and Down through a stack or the lines.
+      const across = e.key === "ArrowLeft" || e.key === "ArrowRight";
+      say(next, next.kind === "bar" ? across : e.key === "ArrowUp" || e.key === "ArrowDown");
     }
   });
 
@@ -181,7 +184,7 @@ export function explore(
     if (touch?.id !== e.pointerId) {
       return;
     }
-    if (touch.dragging || Math.abs(e.clientX - touch.x) > DRAG) {
+    if (nav?.drags === true && (touch.dragging || Math.abs(e.clientX - touch.x) > DRAG)) {
       touch.dragging = true;
       pointAt(e);
     }

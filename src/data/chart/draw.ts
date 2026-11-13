@@ -8,6 +8,8 @@ import { fontMeasure } from "../scale/measure.js";
 
 import {
   areaPaths,
+  barPaths,
+  barSegments,
   bucketEdges,
   dotGroups,
   dotPath,
@@ -18,7 +20,9 @@ import {
   rectPaths,
   rulePath,
   snap,
+  type Segment,
   tickPath,
+  upright,
 } from "./geometry.js";
 import type { Layout, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
@@ -54,6 +58,7 @@ export function readMetrics(plot: HTMLElement, locale: string | undefined): Metr
   const size = Number.parseFloat(style.fontSize) || 13;
   const read = {
     row: px(style, "--cp-chart-row", 24),
+    nameLine: Math.ceil(size * px(style, "--cp-leading-ui", 1.35)),
     axisGroup: px(style, "--cp-chart-axis-gutter", 0),
     labelGroup: px(style, "--cp-chart-label-gutter", 0),
     height: px(style, "--cp-chart-height", 240),
@@ -122,6 +127,18 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   });
   const grid: string[] = [];
   let zero = "";
+  // A bar's value axis is x, so its gridlines and zero line stand upright.
+  const bars = primaryOf(model)?.kind === "bar";
+  if (bars) {
+    for (const t of lay.xAxis.ticks) {
+      if (t.value !== 0) {
+        grid.push(upright(t.at, f.height, f.dpr));
+      }
+    }
+    if (lay.xAxis.lo <= 0 && lay.xAxis.hi >= 0) {
+      zero = upright(f.xAt(0), f.height, f.dpr);
+    }
+  }
   for (const t of lay.yAxis?.ticks ?? []) {
     if (t.value === 0) {
       zero = hairline(t.at, f.width, f.dpr);
@@ -132,7 +149,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   if (lay.yAxis !== undefined && zero === "" && lay.yAxis.lo <= 0 && lay.yAxis.hi >= 0) {
     zero = hairline(f.yAt(0), f.width, f.dpr);
   }
-  const rows = lay.rows.map((r) => hairline(r.y, f.width, f.dpr));
+  const rows = bars ? [] : lay.rows.map((r) => hairline(r.y, f.width, f.dpr));
   if (grid.length > 0) {
     area.append(svgEl("path", { "data-part": "grid", d: grid.join("") }));
   }
@@ -178,6 +195,15 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         area.append(g);
         break;
       }
+      case "bar": {
+        const g = svgEl("g", { "data-part": "bar" });
+        const ys = lay.rows.map((r) => r.y);
+        barPaths(m, ys, lay.bar, f).forEach((d, k) => {
+          g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
+        });
+        area.append(g);
+        break;
+      }
       case "rule":
         if ("at" in m.place) {
           const at = m.axis === "x" ? f.xAt(m.place.at) : f.yAt(m.place.at);
@@ -193,6 +219,9 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       }
     }
   });
+  if (lay.valueLabels.length > 0) {
+    area.append(texts("value", lay.valueLabels));
+  }
   if (lay.plotLabels.length > 0) {
     area.append(texts("rule-label", lay.plotLabels));
   }
@@ -234,9 +263,15 @@ function inset(left: number, right: number, top: number, bottom: number): string
   return `M${num(left + dx)} ${num(top + dy)}H${num(right - dx)}V${num(bottom - dy)}H${num(left + dx)}Z`;
 }
 
+// A bar's outline 1 px outside its edges, so its 2 px stroke frames the bar
+// and covers none of it.
+const outset = (g: Segment): string =>
+  `M${num(g.left - 1)} ${num(g.top - 1)}H${num(g.right + 1)}V${num(g.bottom + 1)}H${num(g.left - 1)}Z`;
+
 /** The ring's path for `sel`: the bar or its segment, a group's sub-columns
  *  or the chosen one, each line's point or each layer's top or the chosen
- *  one, the drawn dot, or a row's hairline. */
+ *  one, the drawn dot, a row's hairline, or a bar row's bar or chosen
+ *  segment. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -292,6 +327,23 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
       .map((v) => ring(cx, f.yAt(v), 4))
       .join("");
   }
+  if (sel.kind === "bar" && m?.kind === "bar") {
+    const cy = lay.rows[sel.row]?.y ?? 0;
+    const segs = barSegments(m, sel.row, f, cy, lay.bar).filter(
+      (g, k): g is Segment => g !== undefined && (sel.part === undefined || sel.part === k),
+    );
+    if (segs.length === 0) {
+      return "";
+    }
+    // The whole row rings its bar's whole length; a chosen part, that segment.
+    const g = segs.reduce((a, b) => ({
+      left: Math.min(a.left, b.left),
+      right: Math.max(a.right, b.right),
+      top: a.top,
+      bottom: a.bottom,
+    }));
+    return outset(g);
+  }
   const cy = snap(lay.rows[sel.kind === "dot" || sel.kind === "row" ? sel.row : 0]?.y ?? 0, f.dpr);
   if (sel.kind === "row") {
     return `M0 ${num(cy + 0.5)}H${num(f.width)}`;
@@ -313,6 +365,10 @@ export function drawSelection(
 ): void {
   const area = svg.querySelector('[data-part="area"]');
   area?.querySelector('[data-part="selection"]')?.remove();
+  // A bar row's selection shows by its name's weight too, not by colour alone.
+  svg.querySelectorAll('[data-part="y"] > text').forEach((name, r) => {
+    name.toggleAttribute("data-selected", sel?.kind === "bar" && sel.row === r);
+  });
   if (area === null || sel === undefined) {
     return;
   }

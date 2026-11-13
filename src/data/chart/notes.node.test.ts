@@ -18,6 +18,7 @@ const metrics: Metrics = {
   measure: face,
   mono: face,
   lineHeight: 17,
+  nameLine: 18,
   rem: 16,
   row: 24,
   axisGroup: 0,

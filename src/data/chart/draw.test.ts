@@ -844,3 +844,82 @@ describe("surfaces", () => {
     },
   );
 });
+
+describe("a bar chart", () => {
+  const ages: ChartSpec = {
+    x: {},
+    marks: [
+      {
+        mark: "bar",
+        y: ["Holy See", "Monaco", "Japan"],
+        series: [{ name: "Median age", slot: 2, x: [57.4, 54.5, 49.8] }],
+      },
+    ],
+  };
+
+  it("draws one path of bars in the series' slot, values at their ends, an upright zero line", () => {
+    const d = draw(ages, 600);
+    const path = d.svg.querySelector('[data-part="bar"] > path');
+    expect(path?.getAttribute("data-series")).toBe("2");
+    expect(getComputedStyle(path as Element).fill).not.toBe("none");
+    const values = [...d.svg.querySelectorAll('[data-part="value"] text')].map(
+      (t) => t.textContent,
+    );
+    expect(values).toEqual(["57.4", "54.5", "49.8"]);
+    expect(d.svg.querySelector('[data-part="rows"]')).toBeNull();
+    expect(d.svg.querySelector('[data-part="grid"]')).toBeNull();
+    const zero = d.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
+    expect(zero).toMatch(/^M[\d.]+ 0V/u);
+    expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBe(0);
+  });
+
+  it("draws vertical gridlines at the x ticks with labels off", () => {
+    const d = draw(
+      {
+        ...ages,
+        marks: [
+          {
+            ...(ages.marks[0] as Extract<ChartSpec["marks"][number], { mark: "bar" }>),
+            labels: false,
+          },
+        ],
+      },
+      600,
+    );
+    const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    expect(grid).toMatch(/^M[\d.]+ 0V/u);
+    expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBeGreaterThan(0);
+  });
+
+  it("rings the selected row's bar 1 px outside it and sets its name in ink at medium weight", () => {
+    const d = draw(ages, 600);
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 1, part: undefined }, nav);
+    const ring = (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
+    const cy = d.lay.rows[1]?.y ?? 0;
+    const end = d.lay.frame.xAt(54.5);
+    // The outline runs 1 px outside the bar on every side, in plot px.
+    expect(ring.y).toBeCloseTo(cy - d.lay.bar / 2 - 1, 1);
+    expect(ring.height).toBeCloseTo(d.lay.bar + 2, 1);
+    expect(ring.x).toBeCloseTo(d.lay.frame.xAt(0) - 1, 1);
+    expect(ring.x + ring.width).toBeCloseTo(end + 1, 1);
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+    const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
+    expect(names.map((n) => n.hasAttribute("data-selected"))).toEqual([false, true, false]);
+    const style = getComputedStyle(names[1] as Element);
+    expect(style.fontWeight).toBe("500");
+    // Ink on the selected name, the muted ink on the others.
+    expect(style.fill).not.toBe(getComputedStyle(names[0] as Element).fill);
+    drawSelection(d.svg, d.model, d.lay, undefined, nav);
+    expect(names.some((n) => n.hasAttribute("data-selected"))).toBe(false);
+  });
+
+  it("sets the names above the bars on a phone", () => {
+    const d = draw(ages, 320);
+    expect(d.lay.left).toBe(0);
+    const first = d.svg.querySelector('[data-part="y"] > text');
+    expect(first?.getAttribute("text-anchor")).toBe("start");
+    // An 18 px name line, 2 px, then a 24 px row: 44 px at 13 px text.
+    expect(d.lay.frame.height).toBe(3 * 44);
+  });
+});

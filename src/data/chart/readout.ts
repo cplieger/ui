@@ -5,7 +5,7 @@
  * @module
  */
 
-import { noun, withNoun, type Unit } from "../scale/format.js";
+import { formatter, noun, withNoun, type Unit } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {
@@ -14,6 +14,7 @@ import {
   sampleTotal,
   sampleValue,
   type AreaModel,
+  type BarModel,
   type DotModel,
   type LineModel,
   type Model,
@@ -38,8 +39,8 @@ export interface Reading {
   readonly total: string | undefined;
 }
 
-/** The mark the legend row reads: the chart's one rect, line, area or dot. */
-type Primary = RectModel | LineModel | AreaModel | DotModel;
+/** The mark the legend row reads: the chart's one rect, line, area, dot or bar. */
+type Primary = RectModel | LineModel | AreaModel | DotModel | BarModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -200,9 +201,51 @@ function totalText(model: Model, m: RectModel, n: number): string {
 
 const dots = (m: DotModel) => m.rows.reduce((n, r) => n + r.to - r.from, 0);
 
+/** A band chart's row count in words: in the y scale's unit, or as categories. */
+export function rowsText(model: Model, words: Words): string {
+  const n = model.y.type === "band" ? model.y.rows.length : 0;
+  const count = formatter("number", model.locale)(n);
+  const unit = model.spec.y?.unit;
+  return unit === undefined ? words.categories(count) : counted(count, n, unit, model);
+}
+
+/** Row `i`'s total of bar mark `m`, or `null` when every value is a gap. */
+export function barTotal(m: BarModel, i: number): number | null {
+  let total: number | null = null;
+  for (const s of m.series) {
+    const v = s.x[i] ?? null;
+    if (v !== null) {
+      total = (total ?? 0) + v;
+    }
+  }
+  return total;
+}
+
+/** A bar value as the readings and the table write it, a gap as No data. */
+export const barText = (model: Model, v: number | null, words: Words): string =>
+  v === null ? words.noData : model.xText(v);
+
+/** Row `r` of bar mark `m`: its name, each series' value, and from two
+ *  series up the row's total. */
+export function barReading(model: Model, m: BarModel, r: number, words: Words): Reading {
+  const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
+  if (m.series.length === 1) {
+    const v = m.series[0]?.x[r] ?? null;
+    const unit = model.spec.x.unit;
+    const value = v === null ? words.noData : counted(model.xText(v), v, unit, model);
+    return { at, entries: bare(value), total: undefined };
+  }
+  const all = m.series.map((s) => ({
+    slot: s.slot,
+    name: s.name,
+    value: barText(model, s.x[r] ?? null, words),
+  }));
+  return { at, entries: all, total: barText(model, barTotal(m, r), words) };
+}
+
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
- *  values, an area's last whole stack. */
+ *  values, an area's last whole stack, a bar chart's row count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -253,6 +296,17 @@ export function overall(model: Model, words: Words): Reading | undefined {
         total: undefined,
       };
     }
+    case "bar":
+      // A category's values need not add up across rows (a median age), so
+      // the row has no whole-chart figure to show.
+      return {
+        at: rowsText(model, words),
+        entries:
+          m.series.length === 1
+            ? bare("")
+            : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
+        total: m.series.length === 1 ? undefined : "",
+      };
   }
 }
 
@@ -445,6 +499,10 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       }
       const all = extremes(over(m.from, m.to, (i) => sampleTotal(m, i)));
       totals.push(words.noData, ...all.map((n) => areaTotal(model, m, n)));
+    }
+  } else if (m?.kind === "bar") {
+    for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
+      add(barReading(model, m, r, words));
     }
   } else if (m?.kind === "dot") {
     // Each post's time, written once per stretch of x in which its width holds.

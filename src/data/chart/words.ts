@@ -14,7 +14,9 @@ type Kind =
   | "histogram"
   | "line"
   | "step"
-  | "timeline";
+  | "timeline"
+  | "bar"
+  | "stackedBar";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -25,10 +27,11 @@ export interface ChartWords {
   /** The kind in the short description. Defaults "Stacked column chart",
    *  "Grouped column chart", "100% stacked column chart", "Column chart",
    *  "Stacked area chart", "100% stacked area chart", "Area chart",
-   *  "Histogram", "Line chart", "Step line", "Timeline". A rect on a log x is
-   *  a histogram however it is shaped or arranged; any other rect is a column
-   *  or, with shape "area", an area chart, its stacked, grouped or 100% kind
-   *  with two or more series. */
+   *  "Histogram", "Line chart", "Step line", "Timeline", "Bar chart",
+   *  "Stacked bar chart". A rect on a log x is a histogram however it is
+   *  shaped or arranged; any other rect is a column or, with shape "area", an
+   *  area chart, its stacked, grouped or 100% kind with two or more series.
+   *  A bar mark is a bar chart, stacked with two or more series. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -91,6 +94,17 @@ export interface ChartWords {
   /** A note added to the reading of the stop it joins. Default "Note: {text}.",
    *  with no stop added when the text ends in one. */
   readonly noteReading?: (text: string) => string;
+  /** A band's rows when the y scale names no unit. Default "{n} categories". */
+  readonly categories?: (n: string) => string;
+  /** Summary, a bar chart's head; series is "" for one series. Default
+   *  "{count}, {series}.", or "{count}." with one series. */
+  readonly countSummary?: (count: string, series: string) => string;
+  /** Summary, one series of a bar chart, or its totals under `total`; high
+   *  and low are each "{row} {value}". Default "{name}: highest {high},
+   *  lowest {low}." */
+  readonly barSeries?: (name: string, high: string, low: string) => string;
+  /** Summary, a bar chart of one series. Default "Highest {high}, lowest {low}." */
+  readonly extremes?: (high: string, low: string) => string;
   /** Summary, line head. Default "{range}, {every}.", or "{range}." when every is "". */
   readonly lineSummary?: (range: string, every: string) => string;
   /** Summary, one line series. Default "{name}: last {last}, low {low}, high {high}." */
@@ -127,6 +141,8 @@ const DEFAULTS: Words = {
     line: "Line chart",
     step: "Step line",
     timeline: "Timeline",
+    bar: "Bar chart",
+    stackedBar: "Stacked bar chart",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -159,6 +175,10 @@ const DEFAULTS: Words = {
   rule: (label, value) => `${label} ${value}.`,
   note: (at, text) => sentence(`${at}: ${text}`),
   noteReading: (text) => sentence(`Note: ${text}`),
+  categories: (n) => `${n} categories`,
+  countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
+  barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
+  extremes: (high, low) => `Highest ${high}, lowest ${low}.`,
   lineSummary: (range, every) => (every === "" ? `${range}.` : `${range}, ${every}.`),
   lineSeries: (name, last, low, high) => `${name}: last ${last}, low ${low}, high ${high}.`,
   dotSummary: (range, rows, n) => `${range}. ${rows}, ${n}.`,

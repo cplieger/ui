@@ -5481,8 +5481,20 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-width: 1px;
 }
 
-.cp-chart svg :is([data-part="rect"], [data-part="layers"]) path {
+.cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
+.cp-chart svg [data-part="bar"] path {
   fill: var(--cp-tone-9);
+}
+
+/* A bar's value at its end. */
+.cp-chart svg [data-part="value"] text {
+  fill: var(--cp-ink);
+}
+
+/* A selected bar row's name shows by weight as well as colour. */
+.cp-chart svg [data-part="y"] text[data-selected] {
+  fill: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
 }
 
 /* Each dot is a zero-length segment its round cap draws as a circle. */

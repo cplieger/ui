@@ -340,3 +340,37 @@ describe("scale errors", () => {
     expect(() => yScale(spec)).toThrow(type);
   });
 });
+
+describe("a bar chart's scales", () => {
+  const bars = (...series: (number | null)[][]): ChartSpec => ({
+    x: {},
+    marks: [
+      {
+        mark: "bar",
+        y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+        series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+      },
+    ],
+  });
+
+  it("takes x from 0 to the largest stack, its negatives leftward", () => {
+    const x = xScale(bars([3, 1], [4, null]));
+    expect([x.lo, x.hi, x.integer]).toEqual([0, 7, true]);
+    const signed = xScale(bars([3, -2], [-1, -4]));
+    expect([signed.lo, signed.hi]).toEqual([-6, 3]);
+  });
+
+  it("holds 0 and its rules when every value is above 0", () => {
+    const spec = bars([40, 50]);
+    const x = xScale({ ...spec, marks: [...spec.marks, { mark: "rule", x: 60, label: "Target" }] });
+    expect([x.lo, x.hi]).toEqual([0, 60]);
+  });
+
+  it("names the band y's rows in the app's order", () => {
+    expect(yScale(bars([1, 2, 3]))).toEqual({
+      type: "band",
+      rows: ["c0", "c1", "c2"],
+      mono: false,
+    });
+  });
+});

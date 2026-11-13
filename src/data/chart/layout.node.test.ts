@@ -15,6 +15,7 @@ const metrics = (more: Partial<Metrics> = {}): Metrics => ({
   measure: face,
   mono: face,
   lineHeight: 17,
+  nameLine: 18,
   rem: 16,
   row: 24,
   axisGroup: 0,
@@ -260,5 +261,95 @@ describe("the plot's height", () => {
     expect(lay(spec, 600).frame.height).toBe(240);
     expect(lay(spec, 600, { height: 200 }).frame.height).toBe(200);
     expect(lay({ ...spec, height: 120 }, 600).frame.height).toBe(120);
+  });
+});
+
+describe("a bar chart", () => {
+  const countries: ChartSpec = {
+    x: {},
+    marks: [
+      {
+        mark: "bar",
+        y: ["Holy See", "Monaco", "Japan"],
+        series: [{ name: "Median age", x: [57.4, 54.5, -9] }],
+      },
+    ],
+  };
+
+  it("sets a row of --cp-chart-row per category, its name in the gutter, from 30rem up", () => {
+    const l = lay(countries, 600);
+    expect(l.frame.height).toBe(3 * 24);
+    expect(l.bar).toBe(16);
+    expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60]);
+    expect(l.gutters.axis).toBe(7.5 * "Holy See".length + 8);
+    expect(l.yLabels[0]).toMatchObject({ text: "Holy See", anchor: "end", x: l.left - 8 });
+  });
+
+  it("puts each name on its own line above its bar under 30rem, 44 px a row and no gutter", () => {
+    const l = lay(countries, 479);
+    expect(l.gutters.axis).toBe(0);
+    expect(l.left).toBe(0);
+    expect(l.frame.height).toBe(3 * 44);
+    // The name's 18 px line, 2 px, then the 16 px bar centred in the row's 24 px.
+    expect(l.rows.map((r) => r.y)).toEqual([28, 72, 116]);
+    expect(l.yLabels[1]).toEqual({ text: "Monaco", x: 0, y: 44 + 9, anchor: "start" });
+  });
+
+  it("cuts a name above its bar to the plot's width", () => {
+    const long: ChartSpec = {
+      x: {},
+      marks: [{ mark: "bar", y: ["A very long country name"], series: [{ name: "a", x: [1] }] }],
+    };
+    const l = lay(long, 100);
+    expect((l.yLabels[0]?.text.length ?? 0) * 7.5).toBeLessThanOrEqual(100);
+    expect(l.yLabels[0]?.text.endsWith("…")).toBe(true);
+  });
+
+  it("writes each value 4 px past its bar's end, x ending short by the widest label each side", () => {
+    const l = lay(countries, 600);
+    expect(l.xAxis.ticks).toEqual([]);
+    expect(l.xLabels).toEqual([]);
+    const [holy, , japan] = l.valueLabels;
+    expect(holy).toMatchObject({ text: "57.4", anchor: "start", y: 12 });
+    expect(japan).toMatchObject({ text: "-9", anchor: "end", y: 60 });
+    // "57.4" and "-9" with their gaps leave the plot at both ends.
+    expect(l.frame.xAt(57.4) + 4 + 4 * 7.5).toBeCloseTo(l.frame.width);
+    expect(l.frame.xAt(-9) - 4 - 2 * 7.5).toBeCloseTo(0);
+    expect(holy?.x).toBeCloseTo(l.frame.xAt(57.4) + 4);
+    expect(l.height).toBe(l.top + l.frame.height);
+  });
+
+  it("labels a stack's total at the end of its whole bar, none for a row of gaps", () => {
+    const l = lay(
+      {
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["a", "b"],
+            series: [
+              { name: "p", x: [2, null] },
+              { name: "q", x: [3, null] },
+            ],
+          },
+        ],
+      },
+      600,
+    );
+    expect(l.valueLabels.map((t) => t.text)).toEqual(["5"]);
+    expect(l.valueLabels[0]?.x).toBeCloseTo(l.frame.xAt(5) + 4);
+  });
+
+  it("draws an x axis with its ticks and title when labels are off", () => {
+    const off: ChartSpec = {
+      x: { label: "Years" },
+      marks: [{ mark: "bar", y: ["a", "b"], labels: false, series: [{ name: "a", x: [12, 47] }] }],
+    };
+    const l = lay(off, 600);
+    expect(l.valueLabels).toEqual([]);
+    expect(l.xAxis.ticks.map((t) => t.value)).toContain(0);
+    expect(l.xLabels.length).toBeGreaterThan(0);
+    expect(l.titles.map((t) => t.text)).toEqual(["Years"]);
+    expect(l.frame.xAt(0)).toBe(0);
   });
 });

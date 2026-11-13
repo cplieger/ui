@@ -9,7 +9,7 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 import { spansDay } from "../scale/time.js";
 
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
-import type { ChartSpec, Mark, RectMark } from "./spec.js";
+import type { BarMark, ChartSpec, Mark, RectMark } from "./spec.js";
 
 type Kind =
   | "stackedColumn"
@@ -22,7 +22,9 @@ type Kind =
   | "histogram"
   | "line"
   | "step"
-  | "timeline";
+  | "timeline"
+  | "bar"
+  | "stackedBar";
 
 export interface SeriesModel {
   readonly name: string;
@@ -133,6 +135,21 @@ export interface DotModel {
   readonly rows: readonly DotRowModel[];
 }
 
+export interface BarSeriesModel {
+  readonly name: string;
+  readonly slot: number;
+  /** A value per row of the band, a gap (`null` or `NaN`) as `null`. */
+  readonly x: readonly (number | null)[];
+}
+
+/** Bars along x, one row per category of the chart's band y. */
+export interface BarModel {
+  readonly kind: "bar";
+  /** Each row's value written at its bar's end, in place of an x axis. */
+  readonly labels: boolean;
+  readonly series: readonly BarSeriesModel[];
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -155,7 +172,7 @@ export interface TextModel {
   readonly side: Side;
 }
 
-type MarkModel = RectModel | LineModel | AreaModel | DotModel | RuleModel | TextModel;
+type MarkModel = RectModel | LineModel | AreaModel | DotModel | BarModel | RuleModel | TextModel;
 
 export interface Model {
   readonly spec: ChartSpec;
@@ -262,7 +279,7 @@ function checkSlot(slot: unknown, what: string): void {
   }
 }
 
-function checkSeries(series: unknown, length: number, what: string): void {
+function checkSeries(series: unknown, length: number, what: string, channel = "y"): void {
   if (!arrayLike(series)) {
     fail(`${what}.series must be an array`);
   }
@@ -276,15 +293,16 @@ function checkSeries(series: unknown, length: number, what: string): void {
     if (one["slot"] === undefined && s >= 9) {
       fail(`${at} needs a slot, since series past the ninth take none of their own`, RangeError);
     }
-    const y = one["y"];
-    if (!arrayLike(y)) {
-      fail(`${at}.y must be an array of numbers`);
+    const values = one[channel];
+    const of = `${at}.${channel}`;
+    if (!arrayLike(values)) {
+      fail(`${of} must be an array of numbers`);
     }
-    if (y.length !== length) {
-      fail(`${at}.y must be as long as its x`);
+    if (values.length !== length) {
+      fail(`${of} must be as long as its ${channel === "y" ? "x" : "y"}`);
     }
-    if (Array.from(y).some((v) => v !== null && typeof v !== "number")) {
-      fail(`${at}.y must hold numbers or null`);
+    if (Array.from(values).some((v) => v !== null && typeof v !== "number")) {
+      fail(`${of} must hold numbers or null`);
     }
   }
 }
@@ -374,6 +392,23 @@ function checkMark(mark: unknown, what: string): void {
       }
       return;
     }
+    case "bar": {
+      const names = mark["y"];
+      if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
+        fail(`${what}.y must be an array of the categories' names`);
+      }
+      // The readings and the table name a row by its name alone.
+      const seen = new Set<unknown>();
+      for (const name of Array.from(names)) {
+        if (name === "" || seen.has(name)) {
+          fail(`${what}.y must name each category once, never ""`, RangeError);
+        }
+        seen.add(name);
+      }
+      optional(mark["labels"], "boolean", `${what}.labels`);
+      checkSeries(mark["series"], names.length, what, "x");
+      return;
+    }
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -408,7 +443,7 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     default:
-      fail(`${what}.mark must be "rect", "line", "area", "dot", "rule" or "text"`);
+      fail(`${what}.mark must be "rect", "line", "area", "dot", "bar", "rule" or "text"`);
   }
 }
 
@@ -436,12 +471,17 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area or dot mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot or bar mark and any rules and text marks`,
       );
     }
     data = m;
   }
   const height = spec["height"];
+  const primary = marks[data];
+  const band = isObject(primary) && (primary["mark"] === "dot" || primary["mark"] === "bar");
+  if (band && height !== undefined) {
+    fail("height has no place on a dot or bar chart, which is as tall as its rows");
+  }
   optional(height, "number", "height");
   if (typeof height === "number" && !(Number.isFinite(height) && height > 0)) {
     fail("height must be a number of px above 0", RangeError);
@@ -461,6 +501,9 @@ const gaps = (y: ArrayLike<number | null>, log: boolean): (number | null)[] =>
 function series(list: RectMark["series"], log = false): SeriesModel[] {
   return list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, y: gaps(s.y, log) }));
 }
+
+const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
+  list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, x: gaps(s.x, false) }));
 
 // A rect is drawn unless it lies wholly outside the domain; a log x's
 // underflow bin follows its own rule.
@@ -513,6 +556,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
           : "stackedArea";
     case "dot":
       return "timeline";
+    case "bar":
+      return first.series.length < 2 ? "bar" : "stackedBar";
   }
 }
 
@@ -531,6 +576,8 @@ function hasData(m: MarkModel): boolean {
       return false;
     case "dot":
       return m.rows.some((r) => r.to > r.from);
+    case "bar":
+      return m.series.some((s) => s.x.some((v) => v !== null && v !== 0));
     case "rule":
     case "text":
       return false;
@@ -637,11 +684,13 @@ export function chartModel(
             to: upperBound(r.x, x.hi),
           })),
         };
+      case "bar":
+        return { kind: "bar", labels: m.labels !== false, series: barSeries(m.series) };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;
         const scale = axis === "x" ? x : y;
-        // A y rule beside dot rows throws in yScale, so its scale is continuous.
+        // A y rule on a band throws in yScale, so its scale is continuous.
         const place = scale.type === "band" ? { at: value } : ruleAt(scale, value);
         return { kind: "rule", axis, value, label: m.label, place };
       }
