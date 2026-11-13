@@ -164,6 +164,7 @@ export function renderChart(
   howTo.hidden = true;
   howTo.textContent = words.howTo;
   plot.append(svg, howTo);
+  const list = part("ol", "notes");
   const panel = part("div", "table");
   panel.className = "cp-panel";
   panel.dataset["flush"] = "";
@@ -186,6 +187,8 @@ export function renderChart(
   // The chart's width the drawing was laid out at, which the observer's
   // first entry, sent once observing starts, usually repeats.
   let drawnBox: number | undefined;
+  // The last drawing numbered its notes, so the list below the plot is shown.
+  let listed = false;
 
   let timing: SkeletonTimingController | undefined;
   let committed = false;
@@ -195,7 +198,7 @@ export function renderChart(
   // Puts the parts present in their order after the app's own content,
   // moving none already placed, since a move would blur a focused part.
   const arrange = (present: readonly (Element | undefined)[]): void => {
-    const order = [box, empty, legend, plot, panel, notice];
+    const order = [box, empty, legend, plot, list, panel, notice];
     for (const el of order) {
       if (el !== undefined && !present.includes(el)) {
         el.remove();
@@ -267,6 +270,22 @@ export function renderChart(
     const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox);
     floors = lay.gutters;
     drawPlot(svg, drawn, lay);
+    listed = lay.numbered;
+    if (listed) {
+      const texts = drawn.marks.map((m) => (m.kind === "text" ? m.text : ""));
+      list.replaceChildren(
+        ...lay.notes.map((n) => {
+          const li = document.createElement("li");
+          li.textContent = texts[n.mark] ?? "";
+          return li;
+        }),
+      );
+      if (list.parentElement !== figure) {
+        plot.after(list);
+      }
+    } else {
+      list.remove();
+    }
     const none = overall(drawn, words);
     if (none !== undefined) {
       widths = grow(widths, readoutWidths(drawn, words, metrics.measure));
@@ -298,6 +317,7 @@ export function renderChart(
     }
     panel.hidden = !tableOn;
     legend.hidden = tableOn;
+    list.hidden = tableOn;
     plot.hidden = tableOn;
     toggle?.setAttribute("aria-pressed", String(tableOn));
     if (!tableOn && plotStale) {
@@ -321,6 +341,7 @@ export function renderChart(
     if (model.empty) {
       explorer.reset();
       drawn = undefined;
+      listed = false;
       const text = model.spec.empty ?? words.empty;
       empty.textContent = text;
       setSummary(text, false);
@@ -334,6 +355,8 @@ export function renderChart(
       plot.setAttribute("aria-describedby", howTo.id);
       plot.setAttribute("aria-label", shortDescription(model, words));
       plot.tabIndex = 0;
+      // The drawing showView makes decides whether the new data numbers its notes.
+      listed = false;
       arrange([legend, plot, panel]);
       plotStale = true;
       if (tableOn && !panel.hidden) {
@@ -354,7 +377,7 @@ export function renderChart(
     old?.remove();
     if (state === "ready" || (state === "refreshFailed" && shown === "ready")) {
       state = "refreshFailed";
-      arrange([legend, plot, panel, el]);
+      arrange([legend, plot, listed ? list : undefined, panel, el]);
     } else if (state === "empty" || (state === "refreshFailed" && shown === "empty")) {
       state = "refreshFailed";
       arrange([empty, el]);
@@ -362,6 +385,7 @@ export function renderChart(
       state = "failed";
       explorer.reset();
       drawn = undefined;
+      listed = false;
       setSummary("", false);
       arrange([el]);
     }
@@ -390,6 +414,7 @@ export function renderChart(
     shown = undefined;
     explorer.reset();
     drawn = undefined;
+    listed = false;
     stored = undefined;
     notice?.remove();
     notice = undefined;
@@ -592,7 +617,7 @@ export function renderChart(
     });
     leftovers.set(
       figure,
-      [box, empty, legend, plot, panel, notice].filter(
+      [box, empty, legend, plot, list, panel, notice].filter(
         (el): el is HTMLElement => el?.isConnected === true,
       ),
     );

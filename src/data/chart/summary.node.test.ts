@@ -45,7 +45,7 @@ const stacked: ChartSpec = {
   ],
 };
 
-describe("the summary of a bar chart", () => {
+describe("the summary of a column chart", () => {
   it("says the total, the bucket size, the range, each series and the busiest closed bucket", () => {
     expect(generatedSummary(model(stacked), words)).toBe(
       `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 145, Path 101. ` +
@@ -85,7 +85,147 @@ describe("the summary of a bar chart", () => {
 
   it("names the kind, the series count and the range", () => {
     expect(shortDescription(model(stacked), words)).toBe(
-      `Stacked bar chart, 2 series, ${span(START, END)}`,
+      `Stacked column chart, 2 series, ${span(START, END)}`,
+    );
+    const one: ChartSpec = {
+      ...stacked,
+      marks: [
+        { mark: "rect", x1: starts, x2: ends, series: [{ name: "All", y: per(24, () => 1) }] },
+      ],
+    };
+    expect(shortDescription(model(one), words)).toBe(`Column chart, ${span(START, END)}`);
+  });
+
+  // Paris springs forward on 29 March 2026 and falls back on 25 October.
+  const HR = 60 * MIN;
+  const dated = (t: number) =>
+    new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: TZ,
+    }).format(t);
+  const across = (lo: number, hi: number): Model =>
+    model({
+      x: { type: "time", domain: [lo, hi] },
+      marks: [{ mark: "line", x: [lo, hi], series: [{ name: "Load", y: [3, 5] }] }],
+    });
+
+  it("dates both ends of a domain a whole day long, whose clock times match", () => {
+    const day = 24 * HR;
+    const m = model({ ...stacked, x: { type: "time", domain: [END - day, END] } });
+    expect(shortDescription(m, words)).toBe(
+      `Stacked column chart, 2 series, ${dated(END - day)} to ${dated(END)}`,
+    );
+  });
+
+  it.each([
+    ["a 23-hour spring-forward day", Date.UTC(2026, 2, 28, 13), 23],
+    ["a 25-hour fall-back day", Date.UTC(2026, 9, 24, 12), 25],
+  ])("dates both ends of %s, in the description and the summary", (_, lo, hours) => {
+    const hi = lo + hours * HR;
+    expect(time(lo)).toBe(time(hi));
+    const m = across(lo, hi);
+    const range = `${dated(lo)} to ${dated(hi)}`;
+    expect(shortDescription(m, words)).toBe(`Line chart, ${range}`);
+    expect(generatedSummary(m, words)).toContain(range);
+  });
+
+  it("writes only the times of a domain under a day that crosses midnight", () => {
+    // 10:00 PM to 4:00 AM in Paris.
+    const lo = Date.UTC(2026, 10, 11, 21);
+    const hi = lo + 6 * HR;
+    expect(shortDescription(across(lo, hi), words)).toBe(`Line chart, ${span(lo, hi)}`);
+  });
+});
+
+describe("the summary of a step area", () => {
+  const rect = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const shaped = (more: Partial<Extract<Mark, { mark: "rect" }>>): ChartSpec => ({
+    ...stacked,
+    marks: [{ ...rect, shape: "area", ...more }],
+  });
+
+  it("says what the columns say, the shape changing only the drawing", () => {
+    expect(generatedSummary(model(shaped({})), words)).toBe(
+      generatedSummary(model(stacked), words),
+    );
+  });
+
+  it("names a stacked area, a 100% area and an area of one series", () => {
+    expect(shortDescription(model(shaped({})), words)).toBe(
+      `Stacked area chart, 2 series, ${span(START, END)}`,
+    );
+    expect(shortDescription(model(shaped({ arrange: "share" })), words)).toBe(
+      `100% stacked area chart, 2 series, ${span(START, END)}`,
+    );
+    const one = shaped({ series: [{ name: "All", y: per(24, () => 1) }] });
+    expect(shortDescription(model(one), words)).toBe(`Area chart, ${span(START, END)}`);
+  });
+});
+
+describe("the summary of grouped columns", () => {
+  const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const grouped: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "group" }] };
+
+  it("names the highest single value of a closed bucket in place of the busiest bucket", () => {
+    // The open bucket's Announce 30 is still filling, so Path's 9 is the highest.
+    expect(generatedSummary(model(grouped), words)).toBe(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 145, Path 101. ` +
+        `Highest: Path, ${span(starts[13] ?? 0, ends[13] ?? 0)}, 9${nb}posts.`,
+    );
+  });
+
+  it("names the busiest bucket of one series grouped, which is a plain column chart", () => {
+    const one: ChartSpec = {
+      ...grouped,
+      marks: [
+        {
+          ...mark,
+          arrange: "group",
+          series: [{ name: "All", y: per(24, (i) => (i === 4 ? 3 : 1)) }],
+        },
+      ],
+    };
+    expect(generatedSummary(model(one), words)).toBe(
+      `26${nb}posts, every 15${nb}min from ${span(START, END)}. ` +
+        `Busiest: ${span(starts[4] ?? 0, ends[4] ?? 0)}, 3${nb}posts.`,
+    );
+  });
+
+  it("is a grouped column chart with its series count", () => {
+    expect(shortDescription(model(grouped), words)).toBe(
+      `Grouped column chart, 2 series, ${span(START, END)}`,
+    );
+  });
+});
+
+describe("the summary of columns stacked to 100%", () => {
+  const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
+  const share: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "share" }] };
+
+  it("gives each series' share of the grand total and the busiest bucket's absolute total", () => {
+    // 145 and 101 of 246; bucket 13 holds 5 and 9.
+    expect(generatedSummary(model(share), words)).toBe(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 59%, Path 41%. ` +
+        `Busiest: ${span(starts[13] ?? 0, ends[13] ?? 0)}, 14${nb}posts.`,
+    );
+  });
+
+  it("writes its amounts as numbers whatever format its shares take", () => {
+    const tenths: ChartSpec = {
+      ...share,
+      y: { ...share.y, format: { style: "percent", maximumFractionDigits: 1 } },
+    };
+    expect(generatedSummary(model(tenths), words)).toContain(
+      `246${nb}posts, every 15${nb}min from ${span(START, END)}: Announce 58.9%, Path 41.1%.`,
+    );
+  });
+
+  it("is a 100% stacked column chart with its series count", () => {
+    expect(shortDescription(model(share), words)).toBe(
+      `100% stacked column chart, 2 series, ${span(START, END)}`,
     );
   });
 });
@@ -221,6 +361,74 @@ describe("the summary of a step line", () => {
   });
 });
 
+describe("the summary of a stacked area", () => {
+  const x = per(7, (i) => START + i * MIN);
+  const spec = (more: Partial<Extract<Mark, { mark: "area" }>> = {}): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 6 * MIN] },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "Gas", y: [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204] },
+          { name: "Wind", y: [410, 600, 1_020, null, 980, 980, 980] },
+          { name: "Solar", y: [500, 790, 300, 200, 412, 412, 412] },
+        ],
+        ...more,
+      },
+    ],
+  });
+
+  it("says each layer's last, low and high, then the total's, a gap leaving it out", () => {
+    expect(generatedSummary(model(spec()), words)).toBe(
+      `${span(START, START + 6 * MIN)}, every 1${nb}min. Gas: last 1,204, low 990, high 1,310. ` +
+        "Wind: last 980, low 410, high 1,020. Solar: last 412, low 200, high 790. " +
+        "Total: last 2,596, low 1,900, high 2,700.",
+    );
+  });
+
+  it("names a stacked area whatever its curve, and an area of one series", () => {
+    expect(shortDescription(model(spec({ curve: "step" })), words)).toBe(
+      `Stacked area chart, 3 series, ${span(START, START + 6 * MIN)}`,
+    );
+    const one = model(spec({ series: [{ name: "Gas", y: per(7, () => 1) }] }));
+    expect(shortDescription(one, words)).toBe(`Area chart, ${span(START, START + 6 * MIN)}`);
+    expect(generatedSummary(one, words)).not.toContain("Total");
+  });
+});
+
+describe("the summary of an area stacked to 100%", () => {
+  const x = per(3, (i) => START + i * MIN);
+  const m = model({
+    x: { type: "time", domain: [START, START + 2 * MIN] },
+    y: { format: { style: "percent", maximumFractionDigits: 1 } },
+    marks: [
+      {
+        mark: "area",
+        x,
+        arrange: "share",
+        series: [
+          { name: "Gas", y: [0, 1, 1_500] },
+          { name: "Wind", y: [0, 3, 500] },
+        ],
+      },
+    ],
+  });
+
+  it("says each layer's shares where its stack is drawn and the total's amounts", () => {
+    expect(generatedSummary(m, words)).toBe(
+      `${span(START, START + 2 * MIN)}, every 1${nb}min. Gas: last 75%, low 25%, high 75%. ` +
+        "Wind: last 25%, low 25%, high 75%. Total: last 2,000, low 0, high 2,000.",
+    );
+  });
+
+  it("names a 100% stacked area chart", () => {
+    expect(shortDescription(m, words)).toBe(
+      `100% stacked area chart, 2 series, ${span(START, START + 2 * MIN)}`,
+    );
+  });
+});
+
 describe("the summary of a timeline", () => {
   const quiet = ["docs-bot", "ha-agent", "notes-bot", "a", "b", "c", "d"];
   const m = model({
@@ -246,6 +454,68 @@ describe("the summary of a timeline", () => {
         "None: docs-bot, ha-agent, notes-bot, a, b and 3 more.",
     );
     expect(shortDescription(m, words)).toBe(`Timeline, ${span(START, END)}`);
+  });
+});
+
+describe("the notes in the summary", () => {
+  it("follow the rules, each its x in the readings' format and its text, in spec order", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [
+        ...stacked.marks,
+        { mark: "text", x: starts[3] ?? 0, y: 9, text: "Deploy" },
+        { mark: "rule", y: 12, label: "Limit" },
+        { mark: "text", x: starts[9] ?? 0, y: 9, text: "Rollback" },
+      ],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(
+        `Limit 12\\. ${time(starts[3] ?? 0)}: Deploy\\. ${time(starts[9] ?? 0)}: Rollback\\.$`,
+        "u",
+      ),
+    );
+  });
+
+  it("names a timeline note's row before its time", () => {
+    const spec: ChartSpec = {
+      x: { type: "time", domain: [START, END] },
+      marks: [
+        { mark: "dot", rows: [{ name: "ana", x: [START + MIN] }] },
+        { mark: "text", x: START + 2 * MIN, y: "ana", text: "Paused" },
+      ],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(`ana, ${time(START + 2 * MIN)}: Paused\\.$`, "u"),
+    );
+  });
+
+  it("include a note outside a passed domain, which is not drawn", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: END + 60 * MIN, y: 1, text: "Later" }],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(/: Later\.$/u);
+  });
+
+  it("end a note written as a sentence once", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: START, y: 1, text: "Deploy of 1.4.0." }],
+    };
+    expect(generatedSummary(model(spec), words)).toMatch(
+      new RegExp(`${time(START)}: Deploy of 1\\.4\\.0\\.$`, "u"),
+    );
+  });
+
+  it("take the app's words", () => {
+    const spec: ChartSpec = {
+      ...stacked,
+      marks: [...stacked.marks, { mark: "text", x: START, y: 1, text: "Start" }],
+    };
+    const own = chartWords({ note: (at, text) => `[${at}] ${text}` });
+    expect(generatedSummary(model(spec), own)).toMatch(
+      new RegExp(`\\[${time(START)}\\] Start$`, "u"),
+    );
   });
 });
 

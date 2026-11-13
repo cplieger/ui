@@ -69,18 +69,14 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 ## Charts
 
-Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes is a [chart](data/chart.md):
+Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes is a [chart](data/chart.md), whose [Choosing a chart](data/chart.md#choosing-a-chart) says which form answers which question, from stacked columns per time bucket to a timeline strip of who acts when. Outside it:
 
 - A number now is a `.cp-figure` from [Components](design-components.md), with a [sparkline](data/sparkline.md) for how it moved over the range.
 - A count that is almost always zero, such as failed checks, is a `.cp-figure`, since a chart of zeros says less than the number.
-- Counts per time bucket, and their mix, are stacked bars, a `rect` mark on a time x.
-- A gauge sampled over time, such as members live, is a step line, a `line` mark with `curve: "step"`.
-- Waits from seconds to days are a histogram on the duration ladder, a `rect` mark on a log x with `format: "duration"`. Its median and percentiles are `rule` marks.
-- Who acts when is a timeline strip, a `dot` mark with one row per actor, silent ones included. A run of merged dots means the actor acted at least about every dot's width of time along it.
 - Long names and exact numbers go in a table with [ranked bars](data/ranked-bars.md).
 - A share of one whole is a [share bar](data/share-bar.md). A state over time, such as a service's last checks, is a [state history](data/state-history.md) strip. A value against its ceiling is a [meter](data/meter.md).
 
-**Bars start at zero.** A bar's length is its value, so a bar chart's axis always includes 0, as [Datawrapper explains](https://www.datawrapper.de/docs/why-our-column-and-bar-charts-start-at-zero). Lines alone may start elsewhere.
+**Columns start at zero.** A column's length is its value, so a column chart's axis always includes 0, as [Datawrapper explains](https://www.datawrapper.de/docs/why-our-column-and-bar-charts-start-at-zero). An area's height is its value too, so its axis includes 0 as well. Lines alone may start elsewhere.
 
 **Five series at most in a stack.** Each 3px segment on a phone must stand apart from its neighbours and in the legend. Group the smallest into "Other". Give each series a slot of the [series colours](design-colour.md#series-colours), the same slot for the same category on every chart of a screen.
 

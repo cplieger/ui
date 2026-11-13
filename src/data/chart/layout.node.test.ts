@@ -123,7 +123,7 @@ describe("gutters", () => {
     expect(l.rows.map((r) => r.y)).toEqual([12, 36]);
   });
 
-  it("keeps a bar chart's label gutter at the group's, empty", () => {
+  it("keeps a column chart's label gutter at the group's, empty", () => {
     const spec: ChartSpec = {
       x: {},
       marks: [{ mark: "rect", x1: [0], x2: [1], series: [{ name: "a", y: [1] }] }],
@@ -182,6 +182,75 @@ describe("end labels", () => {
     expect(l.left).toBe(l.gutters.label);
     expect(l.endLabels[0]).toMatchObject({ x: l.left - 8, anchor: "end" });
     expect(l.yLabels[0]).toMatchObject({ x: l.left + l.frame.width + 8, anchor: "start" });
+  });
+});
+
+describe("an area's end labels", () => {
+  const area = (y: (number | null)[][], arrange?: "share"): ChartSpec => ({
+    x: {},
+    height: 200,
+    marks: [
+      {
+        mark: "area",
+        x: (y[0] ?? []).map((_, i) => i),
+        ...(arrange === undefined ? {} : { arrange }),
+        series: y.map((values, k) => ({ name: `s${String(k)}`, y: values })),
+      },
+    ],
+  });
+
+  it("labels each layer at the middle of its thickness at the last whole stack", () => {
+    // The last sample is a gap in s1, so the labels read the one before it.
+    const l = lay(
+      area([
+        [2, 40, 1],
+        [2, 60, null],
+      ]),
+      480,
+    );
+    expect(l.endLabels.map((e) => e.text)).toEqual(["s1 60", "s0 40"]);
+    const [upper, lower] = l.endLabels;
+    expect(lower?.y).toBeCloseTo(l.top + l.frame.yAt(20), 6);
+    expect(upper?.y).toBeCloseTo(l.top + l.frame.yAt(70), 6);
+    expect(lower?.x).toBe(l.left + l.frame.width + 8);
+  });
+
+  it("writes shares under share, the middle of each share's thickness on the 0 to 1 axis", () => {
+    const l = lay(
+      area(
+        [
+          [1, 1],
+          [3, 3],
+        ],
+        "share",
+      ),
+      480,
+    );
+    expect(l.endLabels.map((e) => e.text)).toEqual(["s1 75%", "s0 25%"]);
+    expect(l.endLabels[1]?.y).toBeCloseTo(l.top + l.frame.yAt(0.125), 6);
+    expect(l.endLabels[0]?.y).toBeCloseTo(l.top + l.frame.yAt(0.625), 6);
+  });
+
+  it("moves thin layers' labels apart, the lower one down", () => {
+    const l = lay(
+      area([
+        [1, 1],
+        [1, 1],
+        [98, 98],
+      ]),
+      480,
+    );
+    const ys = l.endLabels.map((e) => e.y);
+    expect(l.endLabels.map((e) => e.text)).toEqual(["s2 98", "s1 1", "s0 1"]);
+    expect((ys[2] ?? 0) - (ys[1] ?? 0)).toBe(17);
+    expect(ys[1]).toBeCloseTo(l.top + l.frame.yAt(1.5), 6);
+  });
+
+  it("draws none with no whole stack, nor under 30rem", () => {
+    expect(lay(area([[null], [1]]), 480).endLabels).toEqual([]);
+    const narrow = lay(area([[1], [2]]), 479);
+    expect(narrow.endLabels).toEqual([]);
+    expect(narrow.gutters.label).toBe(0);
   });
 });
 

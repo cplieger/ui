@@ -68,7 +68,7 @@ describe("the table of bars across days", () => {
   });
 });
 
-describe("the table of stacked bars", () => {
+describe("the table of stacked columns", () => {
   // Four hourly buckets from 7:30, so the first crosses the domain's start; the last is open.
   const starts = per(4, (i) => START - 30 * MIN + i * 60 * MIN);
   const t = tableModel(
@@ -112,6 +112,71 @@ describe("the table of stacked bars", () => {
   });
 });
 
+describe("the table of grouped columns", () => {
+  const starts = per(2, (i) => START + i * 60 * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 120 * MIN] },
+      marks: [
+        {
+          mark: "rect",
+          arrange: "group",
+          x1: starts,
+          x2: starts.map((s) => s + 60 * MIN),
+          series: [
+            { name: "Announce", y: [1, 2] },
+            { name: "Path", y: [5, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("heads a column per series and no Total, and lists each bucket's values", () => {
+    expect(t.columns).toEqual([
+      { text: "Announce", num: true },
+      { text: "Path", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      [`${iso(START)} to ${iso(START + 60 * MIN)}`, "1", "5"],
+      [`${iso(START + 60 * MIN)} to ${iso(START + 120 * MIN)}`, "2", "No data"],
+    ]);
+  });
+});
+
+describe("the table of columns stacked to 100%", () => {
+  const starts = per(3, (i) => START + i * 60 * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 180 * MIN] },
+      marks: [
+        {
+          mark: "rect",
+          arrange: "share",
+          x1: starts,
+          x2: starts.map((s) => s + 60 * MIN),
+          series: [
+            { name: "Announce", y: [1, 0, 1200] },
+            { name: "Path", y: [3, 0, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("lists each bucket's shares and its absolute total, a bucket of 0 by its values", () => {
+    expect(t.columns.map((c) => c.text)).toEqual(["Announce", "Path", "Total"]);
+    const at = (i: number) => starts[i] ?? 0;
+    expect(cells(t)).toEqual([
+      [`${iso(at(0))} to ${iso(at(1))}`, "25%", "75%", "4"],
+      [`${iso(at(1))} to ${iso(at(2))}`, "0", "0", "0"],
+      [`${iso(at(2))} to ${iso(at(2) + 60 * MIN)}`, "100%", "No data", "1,200"],
+    ]);
+  });
+});
+
 describe("the table of a histogram", () => {
   const edges = durationEdges();
   const t = tableModel(
@@ -147,7 +212,7 @@ describe("the table of a histogram", () => {
   });
 
   it("writes the rules as a sentence after the table", () => {
-    expect(t.rules).toBe(`Median ${dur(42_000)}. 95th percentile ${dur(18 * MIN)}.`);
+    expect(t.after).toBe(`Median ${dur(42_000)}. 95th percentile ${dur(18 * MIN)}.`);
   });
 });
 
@@ -197,6 +262,71 @@ describe("the table of a step line", () => {
   });
 });
 
+describe("the table of a stacked area", () => {
+  const x = per(7, (i) => START + i * MIN);
+  const spec = (more: Partial<Extract<Mark, { mark: "area" }>> = {}): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 6 * MIN] },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "Gas", y: [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204] },
+          { name: "Wind", y: [410, 600, 1_020, null, 980, 980, 980] },
+          { name: "Solar", y: [500, 790, 300, 200, 412, 412, 412] },
+        ],
+        ...more,
+      },
+    ],
+  });
+
+  it("heads a column per layer and a Total, and lists every sample, a gap's total as No data", () => {
+    const t = tableModel(model(spec()), words);
+    expect(t.columns.map((c) => c.text)).toEqual(["Gas", "Wind", "Solar", "Total"]);
+    expect(cells(t).slice(2, 4)).toEqual([
+      [iso(x[2] ?? 0), "1,100", "1,020", "300", "2,420"],
+      [iso(x[3] ?? 0), "1,000", "No data", "200", "No data"],
+    ]);
+  });
+
+  it("lists a stepped area's change points and no Total for one series", () => {
+    const stepped = tableModel(model(spec({ curve: "step" })), words);
+    expect(stepped.rows.map((r) => r.key)).toEqual([0, 1, 2, 3, 4, 6].map((i) => String(x[i])));
+    const one = tableModel(model(spec({ series: [{ name: "Gas", y: per(7, () => 1) }] })), words);
+    expect(one.columns.map((c) => c.text)).toEqual(["Gas"]);
+  });
+});
+
+describe("the table of an area stacked to 100%", () => {
+  const x = per(3, (i) => START + i * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 2 * MIN] },
+      marks: [
+        {
+          mark: "area",
+          x,
+          arrange: "share",
+          series: [
+            { name: "Gas", y: [0, 1_500, 700] },
+            { name: "Wind", y: [0, 500, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("holds the shares the plot shows and the absolute total, a total of 0 by its values", () => {
+    expect(t.columns.map((c) => c.text)).toEqual(["Gas", "Wind", "Total"]);
+    expect(cells(t)).toEqual([
+      [iso(x[0] ?? 0), "0", "0", "0"],
+      [iso(x[1] ?? 0), "75%", "25%", "2,000"],
+      [iso(x[2] ?? 0), "700", "No data", "No data"],
+    ]);
+  });
+});
+
 describe("the table of a timeline", () => {
   const posts = [START + 10 * MIN, START + 10 * MIN, START + 90 * MIN];
   const t = tableModel(
@@ -228,5 +358,26 @@ describe("the table of a timeline", () => {
       ["docs-bot", "0", "None", "None"],
       ["late", "0", "None", "None"],
     ]);
+  });
+});
+
+describe("the notes after the table", () => {
+  it("follow the rules, each its x and text, and none leaves the sentence out", () => {
+    const x = per(3, (i) => START + i * MIN);
+    const line = (more: Mark[]): ChartSpec => ({
+      x: { type: "time" },
+      marks: [{ mark: "line", x, series: [{ name: "Live", y: [1, 2, 3] }] }, ...more],
+    });
+    const t = tableModel(
+      model(
+        line([
+          { mark: "text", x: START + MIN, y: 2, text: "Deploy" },
+          { mark: "rule", y: 2, label: "Limit" },
+        ]),
+      ),
+      words,
+    );
+    expect(t.after).toBe(`Limit 2. ${time(START + MIN)}: Deploy.`);
+    expect(tableModel(model(line([])), words).after).toBe("");
   });
 });

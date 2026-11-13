@@ -4,10 +4,19 @@ import { cdp, server } from "vitest/browser";
 import { durationEdges } from "../scale/ladder.js";
 import { forgetMeasures } from "../scale/measure.js";
 
-import { AREA_ROOM, drawPlot, frameLegend, readMetrics, writeLegend } from "./draw.js";
+import {
+  AREA_ROOM,
+  drawPlot,
+  drawSelection,
+  frameLegend,
+  readMetrics,
+  writeLegend,
+} from "./draw.js";
+import { snap } from "./geometry.js";
 import { layout, type Layout } from "./layout.js";
 import { chartModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, overall, readoutWidths } from "./readout.js";
+import { navigator } from "./select.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
 
@@ -199,6 +208,170 @@ describe("the marks", () => {
     expect(Number(c?.[2])).toBeCloseTo(Number(a?.[1]) - 1, 6);
   });
 
+  it("sets a group's series side by side from the baseline, and rings each sub-column or the chosen one", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, arrange: "group" }] }, 600);
+    const boxes = (p: Element | null | undefined) =>
+      [...(p?.getAttribute("d") ?? "").matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/g)].map((g) =>
+        g.slice(1).map(Number),
+      );
+    const [announce, path, direct] = series(d, "rect").map(boxes);
+    // Bucket 5: Path is null, so its slot stays empty between Announce and Direct.
+    expect(path).toHaveLength(23);
+    const a = announce?.[5] ?? [];
+    const c = direct?.[5] ?? [];
+    const base = d.lay.frame.yAt(0);
+    expect(a[3]).toBeCloseTo(base, 6);
+    expect(c[3]).toBeCloseTo(base, 6);
+    // Announce 4 stands 4 times as tall as Direct 1, each from the baseline.
+    expect(base - (a[1] ?? 0)).toBeCloseTo(4 * (base - (c[1] ?? 0)), 0);
+    expect((c[0] ?? 0) - (a[2] ?? 0)).toBeGreaterThan(1);
+    const nav = navigator(d.model, d.lay);
+    const rings = (part: number | undefined) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 5, part }, nav);
+      return boxes(d.svg.querySelector('[data-part="ring"]'));
+    };
+    // 1 px inside each drawn sub-column, Path's empty slot left out.
+    const near = (v: number | undefined) => expect.closeTo(v ?? 0, 1);
+    expect(rings(undefined).map((r) => r[0])).toEqual([
+      near((a[0] ?? 0) + 1),
+      near((c[0] ?? 0) + 1),
+    ]);
+    expect(rings(2)).toEqual([
+      [near((c[0] ?? 0) + 1), near((c[1] ?? 0) + 1), near((c[2] ?? 0) - 1), near(base - 1)],
+    ]);
+  });
+
+  it("stacks each 100% bucket to the top of the axis, and rings the bucket or a share", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, arrange: "share" }] }, 600);
+    const boxes = (p: Element | null | undefined) =>
+      [...(p?.getAttribute("d") ?? "").matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/g)].map((g) =>
+        g.slice(1).map(Number),
+      );
+    const [announce, path, direct] = series(d, "rect").map(boxes);
+    const top = d.lay.frame.yAt(1);
+    const base = d.lay.frame.yAt(0);
+    // Bucket 0: Announce 3, Path 2 and Direct 1 of 6, so a half, a third and a sixth.
+    const h = base - top;
+    expect(direct?.[0]?.[1]).toBeCloseTo(top, 1);
+    expect(announce?.[0]?.[1]).toBeCloseTo(base - h / 2, 1);
+    expect(path?.[0]?.[1]).toBeCloseTo(base - (5 / 6) * h, 1);
+    // Bucket 5: Path is null, so Announce 4 and Direct 1 fill it.
+    expect(announce?.[5]?.[1]).toBeCloseTo(base - (4 / 5) * h, 1);
+    expect(direct?.[5]?.[1]).toBeCloseTo(top, 1);
+    const nav = navigator(d.model, d.lay);
+    const ring = (part: number | undefined) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 0, part }, nav);
+      return boxes(d.svg.querySelector('[data-part="ring"]'));
+    };
+    const near = (v: number) => expect.closeTo(v, 1);
+    const [left = 0, , right = 0] = announce?.[0] ?? [];
+    expect(ring(undefined)).toEqual([
+      [near(left + 1), near(top + 1), near(right - 1), near(base - 1)],
+    ]);
+    expect(ring(1)).toEqual([
+      [near(left + 1), near(base - (5 / 6) * h + 1), near(right - 1), near(base - h / 2 - 1)],
+    ]);
+  });
+
+  it("draws a step area as one shape per run, and rings a bucket 1 px inside its flush edges", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, shape: "area" }] }, 600);
+    const paths = series(d, "rect");
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["1", "2", "4"]);
+    // Path's null in bucket 5 splits it in two; the others run unbroken.
+    const shapes = paths.map((p) => (p.getAttribute("d") ?? "").split("M").length - 1);
+    expect(shapes).toEqual([1, 2, 1]);
+    for (const p of paths) {
+      expect(getComputedStyle(p).fill).toBe(
+        token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`),
+      );
+    }
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 5, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    const [left, , right, bottom] = [...(ring.match(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/) ?? [])]
+      .slice(1)
+      .map(Number);
+    expect(left).toBeCloseTo(snap(f.xAt(5 * 900_000), f.dpr) + 1, 2);
+    expect(right).toBeCloseTo(snap(f.xAt(6 * 900_000), f.dpr) - 1, 2);
+    expect(bottom).toBeCloseTo(f.yAt(0) - 1, 2);
+  });
+
+  it("fills an area's layers in their slots with no stroke, and rings each layer's top or the chosen one", () => {
+    const x = per(60, (i) => i * 60_000);
+    const d = draw({
+      x: { type: "time" },
+      marks: [
+        {
+          mark: "area",
+          x,
+          series: [
+            { name: "Gas", slot: 1, y: x.map(() => 4) },
+            { name: "Wind", slot: 3, y: x.map((_, i) => (i === 30 ? null : 2)) },
+          ],
+        },
+      ],
+    });
+    const paths = series(d, "layers");
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["1", "3"]);
+    for (const p of paths) {
+      const cs = getComputedStyle(p);
+      expect(cs.fill).toBe(token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`));
+      expect(cs.stroke).toBe("none");
+      // The gap at sample 30 breaks both layers.
+      expect((p.getAttribute("d")?.match(/Z/g) ?? []).length).toBe(2);
+    }
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    const ring = (part: number | undefined, i = 10) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "area", i, part }, nav);
+      const r = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+      return [...r.matchAll(/M([\d.]+) ([\d.]+)a/g)].map((g) => [Number(g[1]), Number(g[2])]);
+    };
+    const cx = f.xAt(10 * 60_000);
+    expect(ring(undefined)).toEqual([
+      [expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(4), 2)],
+      [expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(6), 2)],
+    ]);
+    expect(ring(1)).toEqual([[expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(6), 2)]]);
+    expect(ring(undefined, 30)).toEqual([]);
+  });
+
+  it("rings a 100% stacked area's layer tops at their shares, none where the total is 0, and labels each layer from 30rem up", () => {
+    const x = per(60, (i) => i * 60_000);
+    const d = draw(
+      {
+        x: { type: "time" },
+        marks: [
+          {
+            mark: "area",
+            x,
+            arrange: "share",
+            series: [
+              { name: "Gas", slot: 1, y: x.map((_, i) => (i === 20 ? 0 : 1)) },
+              { name: "Wind", slot: 3, y: x.map((_, i) => (i === 20 ? 0 : 3)) },
+            ],
+          },
+        ],
+      },
+      600,
+    );
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    const ring = (i: number) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "area", i, part: undefined }, nav);
+      const r = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+      return [...r.matchAll(/M([\d.]+) ([\d.]+)a/g)].map((g) => Number(g[2]));
+    };
+    expect(ring(10)).toEqual([expect.closeTo(f.yAt(0.25), 2), expect.closeTo(f.yAt(1), 2)]);
+    expect(ring(20)).toEqual([]);
+    const ends = [...d.svg.querySelectorAll('[data-part="end"] text')].map((t) => t.textContent);
+    expect(ends).toEqual(["Wind 75%", "Gas 25%"]);
+  });
+
   it("strokes each line 2 px in its slot", () => {
     const d = draw(stepLine);
     const paths = series(d, "line");
@@ -298,6 +471,20 @@ describe("the marks", () => {
           marks: [{ ...line([1, 2, 3], [-2, Number.NaN, 5]), curve: "step" as const }],
         },
         {
+          x: type === "log" ? { type, domain: [1, 100] as const } : { type, reverse: true },
+          marks: [
+            {
+              mark: "area" as const,
+              x: [0, 1, 10, 100, 200],
+              curve: "step" as const,
+              series: [
+                { name: "a", y: [2, 0, null, 3, 8] },
+                { name: "b", y: [1, Number.NaN, 4, 0, 2] },
+              ],
+            },
+          ],
+        },
+        {
           x: type === "log" ? { type, domain: [1, 1_000] as const } : { type },
           y: { type: "band" as const },
           marks: [
@@ -388,7 +575,7 @@ describe("charts in a group", () => {
     expect(edges(line)).toEqual(edges(bars));
   });
 
-  it("cut a band name wider than the group gutter, so a strip and a bar chart share their left edge", () => {
+  it("cut a band name wider than the group gutter, so a strip and a column chart share their left edge", () => {
     const parent = place(600);
     parent.style.setProperty("--cp-chart-axis-gutter", "5rem");
     const bars = draw(stacked, 600, parent);
@@ -443,6 +630,92 @@ describe("labels", () => {
       (e as Element).getBoundingClientRect(),
     );
     expect(first?.left).toBeGreaterThan(last?.left ?? 0);
+  });
+});
+
+describe("notes", () => {
+  const noted = (more: ChartSpec["marks"]): ChartSpec => ({
+    ...stacked,
+    marks: [...stacked.marks, ...more],
+  });
+
+  it("writes each line of a note in the plot at its layout, ink on a halo of the surface", () => {
+    const d = draw(
+      noted([{ mark: "text", x: 9_000_000, y: 6, text: "Deploy of the new feed reader at last" }]),
+    );
+    const lines = [
+      ...d.svg.querySelectorAll<SVGTextElement>('[data-part="area"] [data-part="note"] text'),
+    ];
+    expect(lines.map((t) => t.textContent)).toEqual(d.lay.notes[0]?.lines.map((t) => t.text));
+    expect(lines.length).toBeGreaterThan(1);
+    const box = d.lay.notes[0]?.box;
+    for (const t of lines) {
+      expect(Number(t.getAttribute("x"))).toBeCloseTo(d.lay.frame.xAt(9_000_000), 1);
+      expect(t.getAttribute("text-anchor")).toBe("middle");
+      const cs = getComputedStyle(t);
+      expect(cs.fill).toBe(token(t, "var(--cp-ink)"));
+      expect(cs.stroke).toBe(token(t, "var(--cp-surface-page)"));
+      expect(cs.strokeWidth).toBe("6px");
+      expect(cs.paintOrder).toMatch(/^stroke/u);
+      const b = t.getBBox();
+      expect(b.width).toBeLessThanOrEqual(12 * 16 + 1);
+      expect(b.y).toBeGreaterThanOrEqual((box?.top ?? 0) - 1);
+      expect(b.y + b.height).toBeLessThanOrEqual((box?.bottom ?? 0) + 1);
+    }
+  });
+
+  it("takes the raised surface for its halo inside .cp-detail", () => {
+    const parent = place(700);
+    parent.className = "cp-list-detail";
+    const detail = document.createElement("div");
+    detail.className = "cp-detail";
+    parent.append(detail);
+    const d = draw(noted([{ mark: "text", x: 9_000_000, y: 6, text: "Deploy" }]), 700, detail);
+    const t = d.svg.querySelector('[data-part="note"] text') as Element;
+    expect(getComputedStyle(t).stroke).toBe(token(t, "var(--cp-surface-raised)"));
+  });
+
+  it("draws in spec order over the marks before it, and leaves out a note off the domain", () => {
+    const d = draw(
+      noted([
+        { mark: "text", x: 30 * 900_000, y: 6, text: "Later" },
+        { mark: "text", x: 900_000, y: 6, text: "Early" },
+      ]),
+    );
+    const notes = [...d.svg.querySelectorAll('[data-part="area"] > [data-part="note"]')];
+    expect(notes.map((n) => n.textContent)).toEqual(["Early"]);
+    expect(notes[0]?.previousElementSibling?.getAttribute("data-part")).toBe("rect");
+  });
+
+  it("draws numbered markers under 30rem: a 20 px ink circle at the point, its number in the surface", () => {
+    const d = draw(
+      noted([
+        { mark: "text", x: 9_000_000, y: 6, text: "Deploy" },
+        { mark: "text", x: 12_600_000, y: 3, text: "Rollback" },
+      ]),
+      320,
+    );
+    expect(d.lay.numbered).toBe(true);
+    expect(d.svg.querySelector('[data-part="note"]')).toBeNull();
+    const marks = [...d.svg.querySelectorAll('[data-part="area"] > [data-part="marker"]')];
+    expect(marks.map((m) => m.textContent)).toEqual(["1", "2"]);
+    const [first] = marks;
+    const circle = first?.querySelector("path") as SVGPathElement;
+    const b = circle.getBBox();
+    expect(b.width).toBeCloseTo(20, 0);
+    expect(b.x + b.width / 2).toBeCloseTo(d.lay.frame.xAt(9_000_000), 1);
+    expect(b.y + b.height / 2).toBeCloseTo(d.lay.frame.yAt(6), 1);
+    expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)"));
+    const number = first?.querySelector("text") as Element;
+    expect(getComputedStyle(number).fill).toBe(token(number, "var(--cp-surface-page)"));
+    expect(getComputedStyle(number).fontSize).toBe("13px");
+  });
+
+  it("keeps a marker at the plot's edge whole inside the area's clip", () => {
+    const d = draw(noted([{ mark: "text", x: 0, y: 0, text: "Start" }]), 320);
+    const b = (d.svg.querySelector('[data-part="marker"] path') as SVGPathElement).getBBox();
+    expect(b.x).toBeGreaterThanOrEqual(-AREA_ROOM - 0.01);
+    expect(b.y + b.height).toBeLessThanOrEqual(d.lay.frame.height + AREA_ROOM + 0.01);
   });
 });
 
@@ -542,6 +815,28 @@ describe("surfaces", () => {
       }
       const end = raised.svg.querySelector('[data-part="end"] text') as Element;
       expect(getComputedStyle(end).fill).toBe(token(end, "var(--cp-ink)", "color", palette));
+      const noted = draw({
+        ...stacked,
+        marks: [...stacked.marks, { mark: "text", x: 9_000_000, y: 6, text: "Deploy" }],
+      });
+      const note = noted.svg.querySelector('[data-part="note"] text') as Element;
+      expect(getComputedStyle(note).fill).toBe(token(note, "var(--cp-ink)", "color", palette));
+      expect(getComputedStyle(note).stroke).toBe(
+        token(note, "var(--cp-surface-page)", "color", palette),
+      );
+      const numbered = draw(
+        {
+          ...stacked,
+          marks: [...stacked.marks, { mark: "text", x: 9_000_000, y: 6, text: "Deploy" }],
+        },
+        320,
+      );
+      const circle = numbered.svg.querySelector('[data-part="marker"] path') as Element;
+      expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)", "color", palette));
+      const number = numbered.svg.querySelector('[data-part="marker"] text') as Element;
+      expect(getComputedStyle(number).fill).toBe(
+        token(number, "var(--cp-surface-page)", "color", palette),
+      );
       const line = raised.svg.querySelector('[data-part="line"] path') as Element;
       expect(getComputedStyle(line).stroke).toBe(
         token(line, "var(--cp-series-1)", "color", palette),

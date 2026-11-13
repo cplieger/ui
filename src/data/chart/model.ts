@@ -6,11 +6,23 @@
 
 import { formatter, instantFormat, spanFormat, type Unit } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
+import { spansDay } from "../scale/time.js";
 
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
-import type { ChartSpec, RectMark } from "./spec.js";
+import type { ChartSpec, Mark, RectMark } from "./spec.js";
 
-type Kind = "stacked" | "bar" | "histogram" | "line" | "step" | "timeline";
+type Kind =
+  | "stackedColumn"
+  | "groupedColumn"
+  | "shareColumn"
+  | "column"
+  | "stackedArea"
+  | "shareArea"
+  | "area"
+  | "histogram"
+  | "line"
+  | "step"
+  | "timeline";
 
 export interface SeriesModel {
   readonly name: string;
@@ -24,19 +36,86 @@ export interface RectModel {
   readonly x1: ArrayLike<number>;
   readonly x2: ArrayLike<number>;
   readonly open: boolean;
+  /** "group" sets two or more series side by side in each bucket; one
+   *  series grouped is a plain column, so it reads "stack". "share" draws
+   *  each series' share of its bucket's total; `series` keeps the values. */
+  readonly arrange: "stack" | "group" | "share";
+  readonly shape: "bars" | "area";
   readonly series: readonly SeriesModel[];
   /** The buckets drawn, read and listed: every one not wholly outside the domain. */
   readonly shown: readonly number[];
 }
 
-export interface LineModel {
-  readonly kind: "line";
+/** The sum of bucket `i`'s values, a `null` as 0. */
+export const bucketTotal = (m: RectModel, i: number): number =>
+  m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0);
+
+/** The height series `s` draws in bucket `i`, a `null` as 0: under "share"
+ *  its share of the bucket's total, 0 when the total is, else its value. */
+export function drawnValue(m: RectModel, s: SeriesModel, i: number): number {
+  const v = s.y[i] ?? 0;
+  if (m.arrange !== "share") {
+    return v;
+  }
+  const total = bucketTotal(m, i);
+  return total > 0 ? v / total : 0;
+}
+
+interface Samples {
   readonly x: ArrayLike<number>;
   readonly step: boolean;
   readonly series: readonly SeriesModel[];
   /** The samples inside the domain, `[from, to)`. */
   readonly from: number;
   readonly to: number;
+}
+
+export interface LineModel extends Samples {
+  readonly kind: "line";
+}
+
+/** Series stacked in series order over samples, each a layer; under
+ *  "share" each draws its share of the sample's total, `series` keeping the
+ *  values. */
+export interface AreaModel extends Samples {
+  readonly kind: "area";
+  readonly arrange: "stack" | "share";
+}
+
+/** A mark over `x` samples, read by the same stops and keys. */
+export type SampleModel = LineModel | AreaModel;
+
+/** The stack's top at sample `i` of `m`, or `null` where any series is a
+ *  gap, which breaks every layer there. */
+export function sampleTotal(m: AreaModel, i: number): number | null {
+  let total = 0;
+  for (const s of m.series) {
+    const v = s.y[i] ?? null;
+    if (v === null) {
+      return null;
+    }
+    total += v;
+  }
+  return total;
+}
+
+/** The total area `m` draws its stack to at sample `i`, or `null` where it
+ *  draws none: a gap in any series, or under "share" a total of 0, which
+ *  has no shares. */
+export function drawnTotal(m: AreaModel, i: number): number | null {
+  const total = sampleTotal(m, i);
+  return total === null || (m.arrange === "share" && total <= 0) ? null : total;
+}
+
+/** The thickness series `s` draws at sample `i` of area `m`: its value, or
+ *  under "share" its share of the total; `null` where the stack is not drawn. */
+export function sampleValue(m: AreaModel, s: SeriesModel, i: number): number | null {
+  const total = drawnTotal(m, i);
+  if (total === null) {
+    return null;
+  }
+  const v = s.y[i] ?? 0;
+  return m.arrange === "share" ? v / total : v;
 }
 
 export interface DotRowModel {
@@ -63,7 +142,20 @@ interface RuleModel {
   readonly place: ReturnType<typeof ruleAt>;
 }
 
-type MarkModel = RectModel | LineModel | DotModel | RuleModel;
+export type Side = "above" | "below" | "left" | "right";
+
+/** A note at a place on the plot, which joins the reading of the stop it names. */
+export interface TextModel {
+  readonly kind: "text";
+  readonly x: number;
+  /** A y value, or under a dot mark the index of the row it names. */
+  readonly y: number;
+  readonly row: boolean;
+  readonly text: string;
+  readonly side: Side;
+}
+
+type MarkModel = RectModel | LineModel | AreaModel | DotModel | RuleModel | TextModel;
 
 export interface Model {
   readonly spec: ChartSpec;
@@ -71,9 +163,10 @@ export interface Model {
   readonly y: Continuous | Band;
   /** In the spec's order. */
   readonly marks: readonly MarkModel[];
-  /** The first rect, line or dot mark's kind; absent with rules alone. */
+  /** The data mark's kind; absent with rules alone. */
   readonly kind: Kind | undefined;
-  /** Nothing to draw: every value null, every row empty, or every rect 0. */
+  /** Nothing to draw: every value null, every row empty, every rect 0, or
+   *  every area sample 0 or a gap. */
   readonly empty: boolean;
   /** An x value as the readings and the table write it. */
   readonly xText: (v: number) => string;
@@ -81,13 +174,16 @@ export interface Model {
   readonly xSpan: (from: number, to: number) => readonly [string, string];
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
+  /** A value or total as an amount: `yText`, or a plain number under
+   *  "share", whose `yText` writes shares. */
+  readonly amountText: (v: number) => string;
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
 }
 
-const DAY = 86_400_000;
 const SCALE_TYPES = new Set(["linear", "log", "time", "band"]);
 const FORMATS = new Set(["number", "integer", "percent", "duration"]);
+const SIDES = new Set(["above", "below", "left", "right"]);
 
 function fail(message: string, type: ErrorConstructor = TypeError): never {
   throw new type(`renderChart: ${message}`);
@@ -193,6 +289,12 @@ function checkSeries(series: unknown, length: number, what: string): void {
   }
 }
 
+function checkCurve(curve: unknown, what: string): void {
+  if (curve !== undefined && curve !== "linear" && curve !== "step") {
+    fail(`${what}.curve must be "linear" or "step"`);
+  }
+}
+
 function checkMark(mark: unknown, what: string): void {
   if (!isObject(mark)) {
     fail(`${what} must be an object`);
@@ -210,16 +312,49 @@ function checkMark(mark: unknown, what: string): void {
         }
       }
       optional(mark["open"], "boolean", `${what}.open`);
-      checkSeries(mark["series"], x1.length, what);
+      const arrange = mark["arrange"];
+      if (
+        arrange !== undefined &&
+        arrange !== "stack" &&
+        arrange !== "group" &&
+        arrange !== "share"
+      ) {
+        fail(`${what}.arrange must be "stack", "group" or "share"`);
+      }
+      const shape = mark["shape"];
+      if (shape !== undefined && shape !== "bars" && shape !== "area") {
+        fail(`${what}.shape must be "bars" or "area"`);
+      }
+      if (shape === "area" && arrange === "group") {
+        fail(
+          `${what}.shape "area" takes no arrange "group", since areas cannot stand side by side`,
+        );
+      }
+      const list = mark["series"];
+      checkSeries(list, x1.length, what);
+      if (arrange === "share" && arrayLike(list) && list.length < 2) {
+        fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
+      }
       return;
     }
     case "line": {
       const x = checkX(mark["x"], `${what}.x`, false);
-      const curve = mark["curve"];
-      if (curve !== undefined && curve !== "linear" && curve !== "step") {
-        fail(`${what}.curve must be "linear" or "step"`);
-      }
+      checkCurve(mark["curve"], what);
       checkSeries(mark["series"], x.length, what);
+      return;
+    }
+    case "area": {
+      const x = checkX(mark["x"], `${what}.x`, false);
+      checkCurve(mark["curve"], what);
+      const arrange = mark["arrange"];
+      if (arrange !== undefined && arrange !== "stack" && arrange !== "share") {
+        fail(`${what}.arrange must be "stack" or "share"`);
+      }
+      const list = mark["series"];
+      checkSeries(list, x.length, what);
+      if (arrange === "share" && arrayLike(list) && list.length < 2) {
+        fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
+      }
       return;
     }
     case "dot": {
@@ -253,8 +388,27 @@ function checkMark(mark: unknown, what: string): void {
       }
       return;
     }
+    case "text": {
+      if (typeof mark["text"] !== "string" || mark["text"].trim() === "") {
+        fail(`${what}.text must be a non-empty string`);
+      }
+      const side = mark["side"];
+      if (side !== undefined && !(typeof side === "string" && SIDES.has(side))) {
+        fail(`${what}.side must be "above", "below", "left" or "right"`);
+      }
+      for (const axis of ["x", "y"]) {
+        const v = mark[axis];
+        if (v !== undefined && typeof v !== "number" && typeof v !== "string") {
+          fail(`${what}.${axis} must be a number or a name`);
+        }
+        if (typeof v === "number" && !Number.isFinite(v)) {
+          fail(`${what}.${axis} must be finite`, RangeError);
+        }
+      }
+      return;
+    }
     default:
-      fail(`${what}.mark must be "rect", "line", "dot" or "rule"`);
+      fail(`${what}.mark must be "rect", "line", "area", "dot", "rule" or "text"`);
   }
 }
 
@@ -271,8 +425,21 @@ function check(spec: unknown): asserts spec is ChartSpec {
   if (!arrayLike(marks)) {
     fail("marks must be an array");
   }
+  let data = -1;
   for (let m = 0; m < marks.length; m++) {
-    checkMark(marks[m], `marks[${String(m)}]`);
+    const mark = marks[m];
+    checkMark(mark, `marks[${String(m)}]`);
+    if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
+      continue;
+    }
+    // The keys, the legend row, the summary and the table read one mark, so a
+    // second would draw values none of them give.
+    if (data !== -1) {
+      fail(
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area or dot mark and any rules and text marks`,
+      );
+    }
+    data = m;
   }
   const height = spec["height"];
   optional(height, "number", "height");
@@ -313,14 +480,37 @@ function shownBuckets(mark: RectMark, index: number, x: Continuous): number[] {
 }
 
 function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
-  const first = marks.find((m) => m.kind !== "rule");
+  const first = marks.find((m) => m.kind !== "rule" && m.kind !== "text");
   switch (first?.kind) {
     case undefined:
       return undefined;
     case "rect":
-      return x.type === "log" ? "histogram" : first.series.length > 1 ? "stacked" : "bar";
+      if (x.type === "log") {
+        return "histogram";
+      }
+      if (first.shape === "area") {
+        return first.series.length < 2
+          ? "area"
+          : first.arrange === "share"
+            ? "shareArea"
+            : "stackedArea";
+      }
+      if (first.series.length < 2) {
+        return "column";
+      }
+      return first.arrange === "group"
+        ? "groupedColumn"
+        : first.arrange === "share"
+          ? "shareColumn"
+          : "stackedColumn";
     case "line":
       return first.step ? "step" : "line";
+    case "area":
+      return first.series.length < 2
+        ? "area"
+        : first.arrange === "share"
+          ? "shareArea"
+          : "stackedArea";
     case "dot":
       return "timeline";
   }
@@ -332,11 +522,60 @@ function hasData(m: MarkModel): boolean {
       return m.shown.some((i) => m.series.some((s) => (s.y[i] ?? 0) > 0));
     case "line":
       return m.series.some((s) => s.y.slice(m.from, m.to).some((v) => v !== null));
+    case "area":
+      for (let i = m.from; i < m.to; i++) {
+        if ((sampleTotal(m, i) ?? 0) > 0) {
+          return true;
+        }
+      }
+      return false;
     case "dot":
       return m.rows.some((r) => r.to > r.from);
     case "rule":
+    case "text":
       return false;
   }
+}
+
+// A note's place in the data mark's terms: values on continuous scales, or
+// under a dot mark a time and a row's name.
+function textModel(
+  m: Extract<Mark, { mark: "text" }>,
+  what: string,
+  x: Continuous,
+  y: Continuous | Band,
+): TextModel {
+  const side = m.side ?? "above";
+  const place = (v: number | string | undefined, axis: "x" | "y", scale: Continuous | Band) => {
+    if (v === undefined) {
+      return fail(`${what}.${axis} is missing; a note needs an x and a y on this chart`);
+    }
+    if (scale.type === "band") {
+      if (typeof v !== "string") {
+        return fail(`${what}.${axis} must name a row of the band`);
+      }
+      const row = scale.rows.indexOf(v);
+      if (row === -1) {
+        return fail(`${what}.${axis} names no row: "${v}"`, RangeError);
+      }
+      return row;
+    }
+    if (typeof v !== "number") {
+      return fail(`${what}.${axis} must be a number on a ${scale.type} scale`);
+    }
+    if (scale.type === "log" && v <= 0) {
+      return fail(`${what}.${axis} must be above 0 on a log scale`, RangeError);
+    }
+    return v;
+  };
+  return {
+    kind: "text",
+    x: place(m.x, "x", x),
+    y: place(m.y, "y", y),
+    row: y.type === "band",
+    text: m.text,
+    side,
+  };
 }
 
 /**
@@ -359,6 +598,11 @@ export function chartModel(
           x1: m.x1,
           x2: m.x2,
           open: m.open === true,
+          arrange:
+            m.arrange === "share" || (m.arrange === "group" && m.series.length > 1)
+              ? m.arrange
+              : "stack",
+          shape: m.shape ?? "bars",
           series: series(m.series),
           shown: shownBuckets(m, index, x),
         };
@@ -368,6 +612,16 @@ export function chartModel(
           x: m.x,
           step: m.curve === "step",
           series: series(m.series, y.type === "log"),
+          from: lowerBound(m.x, x.lo),
+          to: upperBound(m.x, x.hi),
+        };
+      case "area":
+        return {
+          kind: "area",
+          x: m.x,
+          step: m.curve === "step",
+          arrange: m.arrange ?? "stack",
+          series: series(m.series),
           from: lowerBound(m.x, x.lo),
           to: upperBound(m.x, x.hi),
         };
@@ -391,15 +645,23 @@ export function chartModel(
         const place = scale.type === "band" ? { at: value } : ruleAt(scale, value);
         return { kind: "rule", axis, value, label: m.label, place };
       }
+      case "text":
+        return textModel(m, `marks[${String(index)}]`, x, y);
     }
   });
-  const days = x.hi - x.lo > DAY;
+  // The ends of a domain a whole day long can share their clock time, so they
+  // need their dates ("Nov 10, 2:00 PM to Nov 11, 2:00 PM").
+  const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
   const xText =
     x.type === "time" ? instantFormat(locale, timeZone, days) : formatter(x.format, locale);
   const xSpan =
     x.type === "time"
       ? spanFormat(locale, timeZone, days)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
+  const yText = formatter(y.type === "band" ? undefined : y.format, locale);
+  const share = marks.some(
+    (m) => (m.kind === "rect" || m.kind === "area") && m.arrange === "share",
+  );
   return {
     spec,
     x,
@@ -409,7 +671,8 @@ export function chartModel(
     empty: !marks.some(hasData),
     xText,
     xSpan,
-    yText: formatter(y.type === "band" ? undefined : y.format, locale),
+    yText,
+    amountText: share ? formatter("number", locale) : yText,
     locale,
     timeZone,
   };

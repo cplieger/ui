@@ -4,7 +4,14 @@ import { formatDuration } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
-import { chartModel, type DotModel, type LineModel, type Model, type RectModel } from "./model.js";
+import {
+  chartModel,
+  type AreaModel,
+  type DotModel,
+  type LineModel,
+  type Model,
+  type RectModel,
+} from "./model.js";
 import {
   bucketReading,
   overall,
@@ -54,7 +61,7 @@ const postsByKind: ChartSpec = {
 
 const chips = (r: Reading | undefined) => r?.entries.map((e) => [e.slot, e.name, e.value]);
 
-describe("the legend row of stacked bars", () => {
+describe("the legend row of stacked columns", () => {
   const m = model(postsByKind);
   const rect = m.marks[0] as RectModel;
 
@@ -82,8 +89,76 @@ describe("the legend row of stacked bars", () => {
   });
 });
 
+describe("the legend row of grouped columns", () => {
+  const mark = postsByKind.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+  const m = model({ ...postsByKind, marks: [{ ...mark, arrange: "group" }] });
+  const rect = m.marks[0] as RectModel;
+
+  it("reads each series' total over the domain and no grand total", () => {
+    const r = overall(m, words);
+    expect(chips(r)?.map((c) => c[2])).toEqual(["120", "98", "64", "29"]);
+    expect(r?.total).toBeUndefined();
+  });
+
+  it("reads a bucket's values and no total", () => {
+    const r = bucketReading(m, rect, 13, words);
+    expect(chips(r)?.map((c) => c[2])).toEqual(["5", "6", "3", "1"]);
+    expect(r.total).toBeUndefined();
+  });
+
+  it("keeps no width for a total slot", () => {
+    expect(
+      readoutWidths(
+        m,
+        words,
+        measurer((t) => 7 * t.length, 7, "en"),
+      ).total,
+    ).toBe(0);
+  });
+});
+
+describe("the legend row of columns stacked to 100%", () => {
+  const mark = postsByKind.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+  const m = model({ ...postsByKind, marks: [{ ...mark, arrange: "share" }] });
+  const rect = m.marks[0] as RectModel;
+
+  it("reads each series' share of the grand total and the total with its unit", () => {
+    const r = overall(m, words);
+    // 120, 98, 64 and 29 of 311.
+    expect(chips(r)?.map((c) => c[2])).toEqual(["39%", "32%", "21%", "9%"]);
+    expect(r?.total).toBe(`311${nb}posts`);
+  });
+
+  it("reads a bucket's shares and its absolute total, No data for a gap", () => {
+    const r = bucketReading(m, rect, 13, words);
+    // 5, 6, 3 and 1 of 15.
+    expect(chips(r)?.map((c) => c[2])).toEqual(["33%", "40%", "20%", "7%"]);
+    expect(r.total).toBe(`15${nb}posts`);
+    expect(bucketReading(m, rect, 23, words).entries[3]?.value).toBe("No data");
+  });
+
+  it("reads a bucket whose total is 0 by its values, since it has no shares", () => {
+    const zero = model({
+      ...postsByKind,
+      marks: [
+        {
+          ...mark,
+          arrange: "share",
+          series: mark.series.map((s) => ({
+            ...s,
+            y: Array.from(s.y, (v, i) => (i === 2 ? 0 : v)),
+          })),
+        },
+      ],
+    });
+    const r = bucketReading(zero, zero.marks[0] as RectModel, 2, words);
+    expect(chips(r)?.map((c) => c[2])).toEqual(["0", "0", "0", "0"]);
+    expect(r.total).toBe(`0${nb}posts`);
+  });
+});
+
 describe("the legend row of one series", () => {
-  it("reads a bar chart's count with its unit, and no total", () => {
+  it("reads a column chart's count with its unit, and no total", () => {
     const m = model({
       ...postsByKind,
       marks: [
@@ -159,6 +234,118 @@ describe("the legend row of a step line", () => {
     const r = sampleReading(m, line, 0, words);
     expect(r.at).toBe(time(START));
     expect(chips(r)?.map((c) => c[2])).toEqual(["No data", "No data"]);
+  });
+});
+
+describe("the legend row of a stacked area", () => {
+  const x = per(4, (i) => START + i * MIN);
+  const spec = (wind: (number | null)[]): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 10 * MIN] },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "Gas", slot: 1, y: [1_204, 1_100, 990, 1_310] },
+          { name: "Wind", slot: 2, y: wind },
+        ],
+      },
+    ],
+  });
+  const m = model(spec([980, 410, 1_020, null]));
+
+  it("reads the last whole stack's values and total with no selection", () => {
+    const r = overall(m, words);
+    expect(r?.at).toBe(time(x[2] ?? 0));
+    expect(chips(r)).toEqual([
+      [1, "Gas", "990"],
+      [2, "Wind", "1,020"],
+    ]);
+    expect(r?.total).toBe("2,010");
+  });
+
+  it("reads a sample's values and total, No data for both at a gap", () => {
+    const area = m.marks[0] as AreaModel;
+    expect(sampleReading(m, area, 0, words).total).toBe("2,184");
+    const gap = sampleReading(m, area, 3, words);
+    expect(chips(gap)?.map((c) => c[2])).toEqual(["1,310", "No data"]);
+    expect(gap.total).toBe("No data");
+  });
+
+  it("reads No data with no whole stack in the domain", () => {
+    const r = overall(model(spec([null, null, null, null])), words);
+    expect(r?.at).toBe(span(START, START + 10 * MIN));
+    expect(r?.total).toBe("No data");
+  });
+
+  it("keeps a total slot as wide as the widest total", () => {
+    const m2 = model(spec([980, 410, 1_020, 1_230_000]));
+    const measure = measurer((t) => 7 * Array.from(t).length, 7, "en");
+    expect(readoutWidths(m2, words, measure).total).toBe(7 * "1,231,310".length);
+  });
+});
+
+describe("the legend row of an area stacked to 100%", () => {
+  const x = per(3, (i) => START + i * MIN);
+  const spec = (solar: (number | null)[]): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 10 * MIN] },
+    y: { unit: { one: "MW", other: "MW" } },
+    marks: [
+      {
+        mark: "area",
+        x,
+        arrange: "share",
+        series: [
+          { name: "Gas", slot: 1, y: [0, 1_204, 1_100] },
+          { name: "Wind", slot: 2, y: [0, 980, 900] },
+          { name: "Solar", slot: 3, y: solar },
+        ],
+      },
+    ],
+  });
+  const m = model(spec([0, 412, null]));
+  const area = m.marks[0] as AreaModel;
+
+  it("reads the last whole stack's shares and its total with the unit, with no selection", () => {
+    const r = overall(m, words);
+    expect(r?.at).toBe(time(x[1] ?? 0));
+    expect(chips(r)).toEqual([
+      [1, "Gas", "46%"],
+      [2, "Wind", "38%"],
+      [3, "Solar", "16%"],
+    ]);
+    expect(r?.total).toBe(`2,596${nb}MW`);
+  });
+
+  it("reads a total of 0 by its values, and a gap by the values there with No data", () => {
+    const zero = sampleReading(m, area, 0, words);
+    expect(chips(zero)?.map((c) => c[2])).toEqual(["0", "0", "0"]);
+    expect(zero.total).toBe(`0${nb}MW`);
+    const gap = sampleReading(m, area, 2, words);
+    expect(chips(gap)?.map((c) => c[2])).toEqual(["1,100", "900", "No data"]);
+    expect(gap.total).toBe("No data");
+  });
+
+  it("keeps a value slot as wide as a value read where the stack has no shares", () => {
+    const wide = model({
+      ...spec([0, 412, null]),
+      marks: [
+        {
+          mark: "area",
+          x,
+          arrange: "share",
+          series: [
+            { name: "Gas", slot: 1, y: [0, 1_204, 1_100_000] },
+            { name: "Wind", slot: 2, y: [0, 980, 900] },
+            { name: "Solar", slot: 3, y: [0, 412, null] },
+          ],
+        },
+      ],
+    });
+    const measure = measurer((t) => 7 * Array.from(t).length, 7, "en");
+    const w = readoutWidths(wide, words, measure);
+    expect(w.values).toEqual([7 * "1,100,000".length, 7 * "No data".length, 7 * "No data".length]);
+    expect(w.total).toBe(7 * "2,596 MW".length);
   });
 });
 

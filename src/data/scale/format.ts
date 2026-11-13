@@ -156,7 +156,7 @@ const MINUTE = { hour: "numeric", minute: "2-digit" } as const;
 const DAY = { month: "short", day: "numeric" } as const;
 
 /** An instant in the summary, the readings and the table: its hour and
- *  minute, with its month and day when `days` (the domain spans more than a day). */
+ *  minute, with its month and day when `days` is set. */
 export function instantFormat(
   locale: string | undefined,
   timeZone: string | undefined,

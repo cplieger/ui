@@ -1,30 +1,30 @@
 <main class="play">
   <header>
     <h1>Charts</h1>
-    <p>Charts with axes, drawn by the library from data: grelot's Statistics tab, with its four charts and their states. Point at a plot, tap it, or Tab to it and use the arrow keys; each chart's Table view shows the same data as a table.</p>
+    <p>Charts with axes, drawn by the library from data: grelot's Statistics tab, with its four charts and their states, and the other time series a chart draws. Point at a plot, tap it, or Tab to it and use the arrow keys; each chart's Table view shows the same data as a table.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#statistics">Statistics</a><a href="#states">Loading, empty and error</a><a href="#phone">At a phone's width</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#statistics">Statistics</a><a href="#time-series">Time series</a><a href="#states">Loading, empty and error</a><a href="#phone">At a phone's width</a></nav>
 
   <section class="g-section" id="statistics">
     <h2>Statistics</h2>
     <div class="g-grid">
       <div class="card g-wide" data-new>
-        <h2>Stacked bars over 6 hours</h2>
+        <h2>Stacked columns over 6 hours</h2>
         <figure class="cp-chart" data-chart="posts-6">
           <figcaption>Posts by thread kind</figcaption>
           <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
         </figure>
         <div class="g-row-inline"><button class="cp-button" data-size="sm" type="button" data-chart-tick="posts-6">A minute passes</button></div>
-        <footer>Four thread kinds stacked in 15-minute buckets, the last one still filling: its readings say “so far”, and the summary's busiest bucket leaves it out. Point at a bar, tap it, or Tab to the plot and use the arrows; the legend row above carries the values and never changes size, and Up and Down read one kind. A minute passes adds posts to the newest bucket, keeping the selection and an open table in place.</footer>
+        <footer>Four thread kinds stacked in 15-minute buckets, the last one still filling: its readings say “so far”, and the summary's busiest bucket leaves it out. Point at a column, tap it, or Tab to the plot and use the arrows; the legend row above carries the values and never changes size, and Up and Down read one kind. A minute passes adds posts to the newest bucket, keeping the selection and an open table in place.</footer>
       </div>
       <div class="card g-wide" data-new>
-        <h2>Stacked bars over 72 hours</h2>
+        <h2>Stacked columns over 72 hours</h2>
         <figure class="cp-chart" data-chart="posts-72">
           <figcaption>Posts by thread kind</figcaption>
           <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
         </figure>
-        <footer>The same chart over 72 hours in 1-hour buckets. Ticks step as the width allows, each new day's date on a second line, and the nights show as low bars. Neighbouring bars stay 1 px apart until a bucket is too narrow for a gap and a bar.</footer>
+        <footer>The same chart over 72 hours in 1-hour buckets. Ticks step as the width allows, each new day's date on a second line, and the nights show as low columns. Neighbouring columns stay 1 px apart until a bucket is too narrow for a gap and a column.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Histogram with its median and 95th percentile</h2>
@@ -49,6 +49,60 @@
           <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
         </figure>
         <footer>Live and active agents sampled each minute and drawn in steps. The server restarted 40 minutes in, so the lines start there, and the keys read the minutes before as “No data”. From 30rem wide up each line is labelled at its end. Left and Right step through the moments something changed, which are also the table's rows.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="time-series">
+    <h2>Time series</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Step area over 6 hours</h2>
+        <figure class="cp-chart" data-chart="posts-area">
+          <figcaption>Posts by thread kind</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>The 6-hour posts above drawn with <code>shape: "area"</code>: each kind's run of touching buckets is one shape, flat across each bucket, so neighbouring buckets meet with no gap or seam. An empty bucket ends the run rather than being bridged. The keys, readings, summary and table are the columns' own, “so far” included. Columns suit few, often empty buckets of small counts; the area suits many buckets that are rarely empty.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Stacked area over samples</h2>
+        <figure class="cp-chart" data-chart="memory">
+          <figcaption>Memory by process</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Three processes sampled each minute and stacked, the first on the baseline. The worker's memory climbs until each collection; four minutes went unsampled after 11:00 AM, which breaks every layer, since the layers above would otherwise dip. From 30rem wide up each layer is labelled at its end with its last value; the legend row adds the total. Up and Down move through the layers in order.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>100% stacked area</h2>
+        <figure class="cp-chart" data-chart="energy">
+          <figcaption>Electricity by source</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Gas, wind and solar every 15 minutes over a day, each as its share of the total, so solar rises through the day while the total stays out of the shape. The readings, the end labels and the table give the shares with the absolute total in megawatts.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Grouped columns</h2>
+        <figure class="cp-chart" data-chart="grouped">
+          <figcaption>Posts by thread kind</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Three kinds side by side in each hour, to compare the kinds hour by hour. Each group is inset an eighth of its bucket a side, so groups stand further apart than their columns. The readings, summary and table give no total, since a total read from groups misleads, and the summary names the highest single value.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>100% stacked columns</h2>
+        <figure class="cp-chart" data-chart="share-columns">
+          <figcaption>Posts by thread kind</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>The kinds' shares of each hour's posts over 24 hours. An hour with no posts would draw nothing and read its values. The table adds a Total column with the counts the shares hide.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A line with notes</h2>
+        <figure class="cp-chart" data-chart="latency">
+          <figcaption>Response time</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>The 95th percentile of response time each minute, with a target rule and two notes the app wrote: the chart places each beside its point, flips it off an edge and wraps it at 12rem on a halo of the chart's surface. A reading of the minute a note names adds the note. Narrower than 30rem, or when two notes would overlap, every note becomes a numbered marker listed under the plot.</footer>
       </div>
     </div>
   </section>
@@ -121,6 +175,36 @@
           </div>
         </div>
         <footer>The tab on a 390 px phone, whose page gutters leave the charts 358 px. The four share their left and right edges through two gutter lengths set on their parent, 5rem and 0 under 30rem, so their x axes line up and agent names are cut at 5rem. Drag the box's corner to widen it: from 30rem the step line gains its end labels and the gutters grow to 8rem and 5rem. A new range loads all four together.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Stacked area at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-memory">
+            <figcaption>Memory by process</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>The memory chart on a 390 px phone. Under 30rem the layers lose their end labels and the legend row carries the names and values. Drag the corner wider than 30rem and the labels return in the gutter, moved apart where they would overlap.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Notes at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-latency">
+            <figcaption>Response time</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Under 30rem every note is a numbered marker, a 20 px circle at its point, and the notes are listed below the plot, all together. Drag the corner wider than 30rem and they return to the plot as text.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Grouped columns at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-grouped">
+            <figcaption>Posts by thread kind</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Three kinds in 24 buckets of 15 minutes on 358 px, each group still inset an eighth of its bucket a side. Drag the corner narrower: once a column would be under 2 px the inset drops first, then the columns of a group touch, and the gap between groups goes last, so a column is never paired with the next bucket's.</footer>
       </div>
     </div>
   </section>

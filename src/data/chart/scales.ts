@@ -149,7 +149,7 @@ export function xScale(spec: ChartSpec): Continuous {
     if (m.mark === "rect") {
       extent.addAll(m.x1);
       extent.addAll(m.x2);
-    } else if (m.mark === "line") {
+    } else if (m.mark === "line" || m.mark === "area") {
       extent.addAll(m.x);
     } else if (m.mark === "dot") {
       for (const row of m.rows) {
@@ -211,15 +211,19 @@ export function ruleAt(
   return { off: value < lo ? "low" : "high" };
 }
 
-function yValue(v: number | null | undefined, rect: boolean): number | null {
+// `filled` names a mark whose length or height from 0 is its value, which
+// has no place for a value below 0.
+function yValue(v: number | null | undefined, filled?: "rect" | "area"): number | null {
   if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
     throw new RangeError("renderChart: a y value cannot be infinite");
   }
   if (!finite(v)) {
     return null;
   }
-  if (rect && v < 0) {
-    throw new RangeError("renderChart: a rect's y cannot be negative");
+  if (filled !== undefined && v < 0) {
+    throw new RangeError(
+      `renderChart: ${filled === "rect" ? "a rect" : "an area"}'s y cannot be negative`,
+    );
   }
   return v;
 }
@@ -228,22 +232,48 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
   const extent = new Extent(log);
   for (const m of spec.marks) {
     if (m.mark === "rect") {
-      // Segments are never negative, so a stack's total is its highest value.
+      // Segments are never negative, so a stack's total is its highest value;
+      // a group's sub-columns stand on the baseline, each its own height.
+      const group = m.arrange === "group";
       for (let i = 0; i < m.x1.length; i++) {
         let total = 0;
         for (const s of m.series) {
-          const v = yValue(s.y[i], true);
+          const v = yValue(s.y[i], "rect");
           if (v !== null) {
+            extent.count(v);
+            total += v;
+            if (group) {
+              extent.add(v);
+            }
+          }
+        }
+        if (!group) {
+          extent.add(total);
+        }
+      }
+    } else if (m.mark === "area") {
+      // A layer stands on those before it, so the stack's top is its total;
+      // a sample where any series is a gap draws no stack.
+      for (let i = 0; i < m.x.length; i++) {
+        let total = 0;
+        let gap = false;
+        for (const s of m.series) {
+          const v = yValue(s.y[i], "area");
+          if (v === null) {
+            gap = true;
+          } else {
             extent.count(v);
             total += v;
           }
         }
-        extent.add(total);
+        if (!gap) {
+          extent.add(total);
+        }
       }
     } else if (m.mark === "line") {
       for (const s of m.series) {
         for (const value of Array.from(s.y)) {
-          const v = yValue(value, false);
+          const v = yValue(value);
           if (v !== null) {
             extent.count(v);
             extent.add(v);
@@ -256,14 +286,14 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
 }
 
 /** The y scale of `spec`: a band of the dot rows, else linear unless it
- *  says log. Throws for marks that want different y types and for a domain
- *  or zero a rect cannot take. */
+ *  says log. Throws for a y type its mark cannot take and for a domain or
+ *  zero a rect or an area cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
   const y = spec.y ?? {};
   const kinds = new Set(spec.marks.map((m) => m.mark));
   if (kinds.has("dot")) {
-    if (kinds.has("rect") || kinds.has("line") || (y.type ?? "band") !== "band") {
-      throw new TypeError("renderChart: a dot mark's band y cannot hold rects or lines");
+    if ((y.type ?? "band") !== "band") {
+      throw new TypeError("renderChart: a dot mark's y is a band of its rows");
     }
     if (spec.marks.some((m) => m.mark === "rule" && m.y !== undefined)) {
       throw new TypeError("renderChart: a rule on a band y has no value to sit at");
@@ -279,18 +309,42 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     throw new TypeError(`renderChart: y cannot be a ${type} scale without dot rows`);
   }
   const rects = kinds.has("rect");
-  if (rects && type !== "linear") {
-    throw new TypeError("renderChart: a rect's y is linear, so a bar's length is its value");
+  const filled = rects ? "a rect's" : kinds.has("area") ? "an area's" : undefined;
+  if (filled !== undefined && type !== "linear") {
+    throw new TypeError(
+      `renderChart: ${filled} y is linear, so ${rects ? "a bar's length" : "its height"} is its value`,
+    );
   }
-  if (rects && y.zero === false) {
-    throw new TypeError("renderChart: a rect's y always starts at zero");
+  if (filled !== undefined && y.zero === false) {
+    throw new TypeError(`renderChart: ${filled} y always starts at zero`);
   }
   const log = type === "log";
+  const share = spec.marks.some(
+    (m) => (m.mark === "rect" || m.mark === "area") && m.arrange === "share",
+  );
+  if (share && y.domain !== undefined) {
+    throw new TypeError("renderChart: a 100% stack's y runs 0 to 1, so it takes no domain");
+  }
   const passed = passedDomain(y.domain, "y", log);
-  if (rects && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
-    throw new RangeError("renderChart: a rect's y domain must hold 0");
+  if (filled !== undefined && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
+    throw new RangeError(`renderChart: ${filled} y domain must hold 0`);
   }
   const extent = yExtent(spec, log);
+  if (share) {
+    // Every stack drawn reaches 1, so the axis is fixed as a passed domain
+    // is: a rule outside it is off the axis.
+    return {
+      type,
+      lo: 0,
+      hi: 1,
+      passed: true,
+      integer: false,
+      format: y.format ?? "percent",
+      reverse: false,
+      under: undefined,
+      drawnLo: 0,
+    };
+  }
   const integer = extent.integer;
   if (!log) {
     for (const m of spec.marks) {

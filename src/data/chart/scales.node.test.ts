@@ -132,11 +132,6 @@ describe("the underflow bin", () => {
   });
 
   it("throws a RangeError for a second rect whose x1 is 0 or below", () => {
-    const spec: ChartSpec = {
-      x: { type: "log" },
-      marks: [rect([0, S], [S, 2 * S], [1, 1]), rect([0], [S], [1])],
-    };
-    expect(() => xScale(spec)).toThrow(RangeError);
     const one: ChartSpec = {
       x: { type: "log" },
       marks: [rect([-5, 0, S], [0, S, 2 * S], [1, 1, 1])],
@@ -197,6 +192,67 @@ describe("yScale", () => {
     expect(y).toMatchObject({ type: "linear", lo: 0, hi: 4, integer: true });
   });
 
+  describe("a 100% stack", () => {
+    const shared = (x1: number[], x2: number[], ...ys: number[][]): Mark => ({
+      ...(rect(x1, x2, ...ys) as Extract<Mark, { mark: "rect" }>),
+      arrange: "share",
+    });
+    const share = shared([0, 1], [1, 2], [1, 7], [3, 2]);
+
+    it("spans 0 to 1 as a passed domain, in percent unless y says another format", () => {
+      expect(continuous(yScale({ x: {}, marks: [share] }))).toMatchObject({
+        lo: 0,
+        hi: 1,
+        passed: true,
+        integer: false,
+        format: "percent",
+      });
+      expect(continuous(yScale({ x: {}, y: { format: "number" }, marks: [share] })).format).toBe(
+        "number",
+      );
+    });
+
+    it("leaves a rule above 1 off the axis, where a stack would stretch to hold it", () => {
+      const y = continuous(yScale({ x: {}, marks: [share, { mark: "rule", y: 2, label: "Cap" }] }));
+      expect(ruleAt(y, 2)).toEqual({ off: "high" });
+      expect(ruleAt(y, 0.5)).toEqual({ at: 0.5 });
+    });
+
+    it("refuses a domain and still refuses a negative value", () => {
+      expect(() => yScale({ x: {}, y: { domain: [0, 1] }, marks: [share] })).toThrow(
+        "renderChart: a 100% stack's y runs 0 to 1, so it takes no domain",
+      );
+      expect(() => yScale({ x: {}, marks: [shared([0], [1], [1], [-1])] })).toThrow(RangeError);
+    });
+  });
+
+  it("spans a group's largest single value from zero, not its totals", () => {
+    const grouped: Mark = {
+      mark: "rect",
+      arrange: "group",
+      x1: [0, 1],
+      x2: [1, 2],
+      series: [
+        { name: "a", y: [1, 7] },
+        { name: "b", y: [3, 2] },
+      ],
+    };
+    expect(continuous(yScale({ x: {}, marks: [grouped] }))).toMatchObject({ lo: 0, hi: 7 });
+  });
+
+  it("spans an area's stack totals from zero, leaving out a sample with a gap", () => {
+    const stacked: Mark = {
+      mark: "area",
+      x: [0, 1, 2],
+      series: [
+        { name: "a", y: [1, 9, 2] },
+        { name: "b", y: [3, null, 2] },
+      ],
+    };
+    expect(continuous(yScale({ x: {}, marks: [stacked] }))).toMatchObject({ lo: 0, hi: 4 });
+    expect(xScale({ x: {}, marks: [stacked] })).toMatchObject({ lo: 0, hi: 2 });
+  });
+
   it("spans line values and rules, from zero unless zero is false", () => {
     const marks: Mark[] = [
       { mark: "line", x: [0, 1, 2], series: [{ name: "a", y: [5, Number.NaN, 9.5] }] },
@@ -240,7 +296,11 @@ describe("scale errors", () => {
   });
 
   it.each<[string, ChartSpec, ErrorConstructor]>([
-    ["dots beside a line", { x: {}, marks: [line, { mark: "dot", rows: [] }] }, TypeError],
+    [
+      "a linear y under dots",
+      { x: {}, y: { type: "linear" }, marks: [{ mark: "dot", rows: [] }] },
+      TypeError,
+    ],
     [
       "a domain on a band",
       { x: {}, y: { domain: [0, 1] }, marks: [{ mark: "dot", rows: [] }] },
