@@ -1,9 +1,11 @@
 /**
  * lists.ts — the gallery's lists on the library: one list set by its
  * attributes, the lists, log and table that hold their place, a long list
- * keyed by its titles, and the pages that Load older and Show older add.
+ * keyed by its titles, the pages that Load older and Show older add, and a
+ * provider's status row whose test fails again.
  */
 
+import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceHeldList } from "@cplieger/ui/held-list";
 import { createIcons } from "@cplieger/ui/icons";
 import { enhanceKeyedList } from "@cplieger/ui/keyed-list";
@@ -708,5 +710,25 @@ if (showOlder !== null) {
     edge: "start",
     load: pager([() => olderDay(1, true), () => olderDay(2, false)]),
     words: { failed: "The older messages did not load." },
+  });
+}
+
+// The provider's key is still refused, so each test ends in the same failure.
+for (const button of document.querySelectorAll<HTMLButtonElement>("button[data-status-test]")) {
+  const test = enhanceConfirm(button, { busy: "Testing…", done: "Passed" });
+  const name = button.dataset["statusTest"] ?? "";
+  button.addEventListener("click", () => {
+    test
+      .run(
+        () =>
+          new Promise<never>((_, refuse) => {
+            setTimeout(() => {
+              refuse(new Error("401 Unauthorized"));
+            }, 900);
+          }),
+      )
+      .catch(() => {
+        toast({ kind: "error", title: `${name} still refuses the API key` });
+      });
   });
 }

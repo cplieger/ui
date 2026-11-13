@@ -3910,6 +3910,58 @@ describe("css/system.css lists, feeds and counts", () => {
     expect([small.color, small.fontSize]).toEqual([resolved("var(--cp-ink-muted)"), "13px"]);
   });
 
+  const status = (title: string) =>
+    `<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="plug" aria-hidden="true"></span><div class="cp-cell-stack">${title}<small>The API key was refused</small></div><span data-part="end"><span class="cp-state" data-tone="danger">Failing</span></span><div class="cp-cluster" data-part="actions"><a class="cp-button" data-size="sm" href="#k">Replace the key</a><button class="cp-button" data-size="sm" type="button">Test again</button></div><details><summary>Show details</summary><p>401 from the provider</p></details></div></li></ul>`;
+
+  it("lays a row's remedies side by side on a line of their own, 8px under its words and over its details", () => {
+    theme("light");
+    const el = build(status("<h3>OpenSubtitles</h3>"));
+    el.style.inlineSize = "30rem";
+    const r = row(el).getBoundingClientRect();
+    const box = (s: string) => (el.querySelector(s) as Element).getBoundingClientRect();
+    const [text, end, actions, details] = [
+      ".cp-cell-stack",
+      '[data-part="end"]',
+      '[data-part="actions"]',
+      "details",
+    ].map(box) as [DOMRect, DOMRect, DOMRect, DOMRect];
+    const [replace, retry] = [...el.querySelectorAll('[data-part="actions"] > *')].map((b) =>
+      b.getBoundingClientRect(),
+    ) as [DOMRect, DOMRect];
+    expect(actions.top - Math.max(text.bottom, end.bottom)).toBeCloseTo(8, 0);
+    expect(actions.left).toBeCloseTo(r.left + 16, 1);
+    expect(actions.right).toBeCloseTo(r.right - 16, 1);
+    expect(retry.top).toBeCloseTo(replace.top, 1);
+    expect(retry.left).toBeGreaterThan(replace.right);
+    expect(details.top).toBeGreaterThanOrEqual(actions.bottom);
+    expect(details.left).toBeCloseTo(actions.left, 1);
+  });
+
+  it("titles a row with a heading in the row's own font, size and line, at a title link's weight", () => {
+    theme("light");
+    const el = build(status('<h3 id="st-os" tabindex="-1">OpenSubtitles</h3>'));
+    el.style.setProperty("--cp-font-display", "Georgia, serif");
+    const heading = el.querySelector("h3") as HTMLElement;
+    const own = getComputedStyle(heading);
+    const of = getComputedStyle(row(el));
+    expect([own.fontFamily, own.fontSize, own.lineHeight, own.letterSpacing]).toEqual([
+      of.fontFamily,
+      of.fontSize,
+      of.lineHeight,
+      of.letterSpacing,
+    ]);
+    expect(own.fontWeight).toBe("500");
+    heading.focus();
+    expect(document.activeElement).toBe(heading);
+    expect(getComputedStyle(heading).outlineStyle).toBe("none");
+    const tile = build(
+      '<ul class="cp-list" data-layout="grid"><li><a class="cp-list-row" href="#t"><span class="cp-cover"></span><div class="cp-cell-stack"><h3>Frieren</h3><small>2023</small></div></a></li></ul>',
+    );
+    expect(getComputedStyle(tile.querySelector("h3") as Element).fontWeight, "a tile's title").toBe(
+      "700",
+    );
+  });
+
   it("puts a list's new-since marker in line with its rows' content, its line standing in for theirs", () => {
     theme("light");
     const rowOf = (title: string) =>

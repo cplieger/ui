@@ -249,10 +249,10 @@
   font-size: var(--cp-text-xs);
 }
 
-/* A part under the row's text, such as a running job's bar, takes a line of
- * its own across the row, and what follows it lines up under it. The
- * action stretches to the text it sits beside. */
-.cp-list-row:has(> :is(progress, .cp-track, details)) {
+/* A part under the row's text, such as a running job's bar or a status
+ * row's remedies, takes a line of its own across the row, and what follows
+ * it lines up under it. The action stretches to the text it sits beside. */
+.cp-list-row:has(> :is(progress, .cp-track, details, [data-part="actions"])) {
   flex-wrap: wrap;
   align-content: start;
   align-items: stretch;
@@ -260,9 +260,24 @@
   padding-block: var(--cp-space-3);
 }
 
-.cp-list-row > :is(progress, .cp-track, details),
-.cp-list-row > :is(progress, .cp-track, details) ~ * {
+.cp-list-row > :is(progress, .cp-track, details, [data-part="actions"]),
+.cp-list-row > :is(progress, .cp-track, details, [data-part="actions"]) ~ * {
   flex-basis: 100%;
+}
+
+.cp-list-row > [data-part="actions"] {
+  margin-block-start: var(--cp-space-1);
+}
+
+/* A row that stands alone, such as a component's status, may be titled by
+ * a heading a link lands on; it keeps a row title's size and font, in the
+ * medium weight a title link has. A tile's title rule outranks this. */
+.cp-list-row > .cp-cell-stack > :is(h2, h3, h4) {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--cp-weight-medium);
+  line-height: inherit;
+  letter-spacing: inherit;
 }
 
 /* A row that runs to sentences: its lead on the first line, the words,
