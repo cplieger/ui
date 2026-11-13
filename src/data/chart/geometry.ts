@@ -3,7 +3,7 @@
  * px, y down: rects with their gaps, lines and areas reduced per device
  * pixel and cut at the plot's ends, rows of dots, bars and points along
  * their rows, a slope's lines and ends, a scatter's dots, a grid's cells,
- * rules and the axis lines.
+ * boxes with their whiskers and outliers, rules and the axis lines.
  * @module
  */
 
@@ -20,6 +20,7 @@ import {
   sampleValue,
   type AreaModel,
   type BarModel,
+  type BoxModel,
   type CalendarModel,
   type CellModel,
   type DotRowModel,
@@ -1027,6 +1028,124 @@ export function calendarPaths(
   });
   const classes = parts.flatMap((d, k) => (d === "" ? [] : [{ step: m.classes.steps[k] ?? 1, d }]));
   return { classes, missing };
+}
+
+/** A box's thickness across its row with one series, and its sub-row's
+ *  height with several, whose boxes are `BOX_THIN`. */
+const BOX = 16;
+const BOX_THIN = 10;
+/** The median tick's reach past the box's top and bottom. */
+const MEDIAN_REACH = 3;
+/** The median tick's width; the box is cut `GAP` wider each side of it. */
+const MEDIAN_W = 2;
+/** An outlier's radius, under its 1.5 px stroke in `chart.css`. */
+const OUTLIER_RADIUS = 3;
+
+/** The px across a row that `m`'s boxes take: one box, or a sub-row each. */
+export const boxBlock = (m: BoxModel): number => BOX * m.series.length;
+
+/** Series `k`'s box in a row of `m` centred at `cy`: its centre line and
+ *  its thickness across the row. */
+export function boxAcross(m: BoxModel, k: number, cy: number): { cy: number; thick: number } {
+  return m.series.length === 1
+    ? { cy, thick: BOX }
+    : { cy: cy - boxBlock(m) / 2 + (k + 0.5) * BOX, thick: BOX_THIN };
+}
+
+/** Series `k`'s box in row `i` of `m` centred at `cy`, held to the domain's
+ *  span and snapped to device px; undefined where its five are gaps. */
+export function boxSegment(
+  m: BoxModel,
+  k: number,
+  i: number,
+  f: Frame,
+  cy: number,
+): Segment | undefined {
+  const b = m.series[k]?.boxes[i] ?? null;
+  if (b === null) {
+    return undefined;
+  }
+  const across = boxAcross(m, k, cy);
+  const [lo, hi] = barSpan(f, f.xAt);
+  const [a, c] = [f.xAt(b.q1), f.xAt(b.q3)];
+  return {
+    left: snap(clamp(Math.min(a, c), lo, hi), f.dpr),
+    right: snap(clamp(Math.max(a, c), lo, hi), f.dpr),
+    top: snap(across.cy - across.thick / 2, f.dpr),
+    bottom: snap(across.cy + across.thick / 2, f.dpr),
+  };
+}
+
+/** Series `k`'s paths: its boxes, cut round each median; its whiskers; its
+ *  outliers, those in one device px drawn once. */
+export interface BoxPaths {
+  readonly slot: number;
+  readonly boxes: string;
+  readonly whiskers: string;
+  readonly outliers: string;
+}
+
+const rect = (l: number, r: number, t: number, b: number): string =>
+  `M${num(l)} ${num(t)}H${num(r)}V${num(b)}H${num(l)}Z`;
+
+/** Each series' paths of `m` on the rows centred at `ys`, and every row's
+ *  median ticks as one path. Values past the domain are held to its ends,
+ *  and an outlier outside it is not drawn. */
+export function boxPaths(
+  m: BoxModel,
+  ys: readonly number[],
+  f: Frame,
+): { series: BoxPaths[]; medians: string } {
+  const [lo, hi] = barSpan(f, f.xAt);
+  const at = (v: number) => snap(clamp(f.xAt(v), lo, hi), f.dpr);
+  let medians = "";
+  const series = m.series.map((s, k) => {
+    let boxes = "";
+    let whiskers = "";
+    let outliers = "";
+    ys.forEach((cy, i) => {
+      const b = s.boxes[i] ?? null;
+      const g = boxSegment(m, k, i, f, cy);
+      if (b === null || g === undefined) {
+        return;
+      }
+      // The surface shows a GAP either side of the tick, as between any two parts.
+      const mid = at(b.median);
+      const cut = MEDIAN_W / 2 + GAP;
+      if (mid - cut > g.left) {
+        boxes += rect(g.left, mid - cut, g.top, g.bottom);
+      }
+      if (g.right > mid + cut) {
+        boxes += rect(mid + cut, g.right, g.top, g.bottom);
+      }
+      medians += rect(
+        mid - MEDIAN_W / 2,
+        mid + MEDIAN_W / 2,
+        g.top - MEDIAN_REACH,
+        g.bottom + MEDIAN_REACH,
+      );
+      const line = snap((g.top + g.bottom) / 2, f.dpr);
+      const [low, high] = [at(b.low), at(b.high)];
+      for (const [from, to] of [
+        [Math.min(low, high), g.left],
+        [g.right, Math.max(low, high)],
+      ] as const) {
+        if (to > from) {
+          whiskers += `M${num(from)} ${num(line)}H${num(to)}`;
+        }
+      }
+      let last = Number.NaN;
+      for (const v of s.outliers[i] ?? []) {
+        const x = snap(f.xAt(v), f.dpr);
+        if (v >= f.x.lo && v <= f.x.hi && x !== last) {
+          outliers += `M${num(x - OUTLIER_RADIUS)} ${num(line)}${arcs(OUTLIER_RADIUS)}`;
+          last = x;
+        }
+      }
+    });
+    return { slot: s.slot, boxes, whiskers, outliers };
+  });
+  return { series, medians };
 }
 
 /** A 1 px line down the plot at `x`, on whole device pixels. */

@@ -27,6 +27,7 @@ import {
   type AreaModel,
   type BarModel,
   type BarSeriesModel,
+  type BoxModel,
   type CalendarModel,
   type CellModel,
   type DotModel,
@@ -75,7 +76,8 @@ type Primary =
   | SlopeModel
   | ScatterModel
   | CellModel
-  | CalendarModel;
+  | CalendarModel
+  | BoxModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -601,6 +603,8 @@ export function overall(model: Model, words: Words): Reading | undefined {
       return { at: cellsText(model, m, words), entries: bare(""), total: undefined };
     case "calendar":
       return { at: daysText(model, m, words), entries: bare(""), total: undefined };
+    case "box":
+      return undefined;
   }
 }
 

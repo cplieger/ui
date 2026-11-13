@@ -31,7 +31,8 @@ type Kind =
   | "bubble"
   | "heatmap"
   | "histogram2d"
-  | "calendar";
+  | "calendar"
+  | "box";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -46,7 +47,8 @@ export interface ChartWords {
    *  diverging one; two or more take their arrangement's kind; an area
    *  mark, or a rect with shape "area", an area chart; a scatter whose
    *  series carry r a bubble chart; a cell mark a heatmap, a 2D histogram
-   *  when both its axes are binned, or with days a calendar heatmap. */
+   *  when both its axes are binned, or with days a calendar heatmap; a box
+   *  mark a box plot. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -237,6 +239,7 @@ const DEFAULTS: Words = {
     heatmap: "Heatmap",
     histogram2d: "2D histogram",
     calendar: "Calendar heatmap",
+    box: "Box plot",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>

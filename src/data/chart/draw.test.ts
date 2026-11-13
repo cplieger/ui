@@ -1066,6 +1066,9 @@ describe("surfaces", () => {
       expect(getComputedStyle(head).fill).toBe(
         token(head, "var(--cp-ink-muted)", "color", palette),
       );
+      const box = draw(latency(1));
+      const median = box.svg.querySelector('[data-part="median"]') as Element;
+      expect(getComputedStyle(median).fill).toBe(token(median, "var(--cp-ink)", "color", palette));
     },
   );
 });
@@ -1351,6 +1354,79 @@ describe("a bar chart", () => {
     expect(first?.getAttribute("text-anchor")).toBe("start");
     // An 18 px name line, 2 px, then a 24 px row: 44 px at 13 px text.
     expect(d.lay.frame.height).toBe(3 * 44);
+  });
+});
+
+const latency = (
+  count: number,
+  more: Partial<Extract<ChartSpec["marks"][number], { mark: "box" }>> = {},
+): ChartSpec => ({
+  x: { label: "Latency" },
+  marks: [
+    {
+      mark: "box",
+      y: ["search", "export", "login"],
+      series: per(count, (k) => ({
+        name: k === 0 ? "Before" : "After",
+        slot: (k === 0 ? 1 : 4) as 1,
+        low: [120, 300, 40],
+        q1: [180, 900, 60],
+        median: [240, 1400, 75],
+        q3: [410, 2100, 90],
+        high: [760, 4000, 130],
+        outliers: [[1100, 2600], [], [400]],
+      })),
+      ...more,
+    },
+  ],
+});
+
+describe("a box plot", () => {
+  it("draws each series' boxes, whiskers and hollow outliers in its slot, the median in ink", () => {
+    const d = draw(latency(2), 600);
+    for (const part of ["box", "whisker", "outlier"]) {
+      expect(
+        series(d, part).map((p) => p.getAttribute("data-series")),
+        part,
+      ).toEqual(["1", "4"]);
+    }
+    const [box, whisker, outlier] = ["box", "whisker", "outlier"].map(
+      (part) => series(d, part)[1] as Element,
+    );
+    const slot = token(box as Element, "var(--cp-series-4)");
+    expect(getComputedStyle(box as Element).fill).toBe(slot);
+    const w = getComputedStyle(whisker as Element);
+    expect([w.stroke, w.strokeWidth, w.fill]).toEqual([slot, "2px", "none"]);
+    const o = getComputedStyle(outlier as Element);
+    expect([o.stroke, o.strokeWidth, o.fill]).toEqual([slot, "1.5px", "none"]);
+    const median = d.svg.querySelector('[data-part="median"]') as Element;
+    expect(getComputedStyle(median).fill).toBe(token(median, "var(--cp-ink)"));
+    // Two series in three rows: six ticks, each 2 px wide and 3 px past its 10 px box.
+    expect(median.getAttribute("d")?.match(/M/g)).toHaveLength(6);
+    expect((median as SVGPathElement).getBBox().height).toBeGreaterThan(16);
+  });
+
+  it("draws upright gridlines at the x ticks, no row hairlines, and a zero line only where x holds 0", () => {
+    const d = draw(latency(1), 600);
+    const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    expect(grid).toMatch(/^M[\d.]+ 0V/u);
+    expect(d.svg.querySelector('[data-part="rows"]')).toBeNull();
+    expect(d.svg.querySelector('[data-part="value"]')).toBeNull();
+    expect(d.lay.frame.height).toBe(3 * 24);
+    // 40 to 4,000 nices down to 0 on a linear x, so the zero line stands there.
+    expect(d.lay.xAxis.lo).toBe(0);
+    expect(d.svg.querySelector('[data-part="zero"]')?.getAttribute("d")).toBe(
+      `M${String(snap(d.lay.frame.xAt(0), 1) + 0.5)} 0V72`,
+    );
+    const log = draw({ ...latency(1), x: { type: "log", label: "Latency" } }, 600);
+    expect(log.svg.querySelector('[data-part="zero"]')).toBeNull();
+  });
+
+  it("sets each name above its boxes on a phone", () => {
+    const d = draw(latency(1), 320);
+    expect(d.lay.gutters.axis).toBe(0);
+    const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
+    expect(names.map((n) => n.getAttribute("text-anchor"))).toEqual(["start", "start", "start"]);
   });
 });
 

@@ -21,8 +21,8 @@ interface Scale {
   /** Linear, log and time only. */
   readonly domain?: readonly [number, number];
   /** A linear y under a line or a slope, which holds 0 unless false, or a
-   *  linear x under a point mark, or either under a scatter, which holds it
-   *  only when true. */
+   *  linear x under a point or box mark, or either under a scatter, which
+   *  holds it only when true. */
   readonly zero?: boolean;
   readonly format?: Format;
   /** Band only: names in the mono face. */
@@ -232,6 +232,36 @@ export interface CalendarMark {
   readonly weekStart?: number;
 }
 
+interface BoxSeries {
+  readonly name: string;
+  readonly slot?: Slot;
+  /** Each category's five numbers, in `y`'s order, from the low whisker's
+   *  end to the high one's; a category whose five are all `null` or `NaN`
+   *  draws no box. */
+  readonly low: Values;
+  readonly q1: Values;
+  readonly median: Values;
+  readonly q3: Values;
+  readonly high: Values;
+  /** Each category's values beyond its whiskers, one array per category. */
+  readonly outliers?: readonly (readonly number[])[];
+}
+
+/** A distribution per category as a box from q1 to q3 with its median,
+ *  whiskers and outliers, one row per category on a band y, top to bottom
+ *  in the order sent, along a linear or log x that holds 0 only with
+ *  `x.zero: true`. Several series stand one under another in each row.
+ *  The app sends the five numbers: the chart computes no quartile. */
+export interface BoxMark {
+  readonly mark: "box";
+  /** The categories' names, each once. */
+  readonly y: readonly string[];
+  /** The app's words for its whiskers' convention ("1.5 × IQR"), said once
+   *  in the summary and under the table. */
+  readonly whiskers?: string;
+  readonly series: readonly BoxSeries[];
+}
+
 /** A cell chart's colour classes: equal rounded classes over the data, or
  *  the app's `thresholds`; a value past either end takes the end class. */
 interface ColourScale {
@@ -254,8 +284,8 @@ interface ColourScale {
   readonly format?: Format;
 }
 
-/** Exactly one of `x` and `y`, finite. Beside a dot, bar or point mark
- *  only `x`, drawn down every row: in every panel of a split, and at its
+/** Exactly one of `x` and `y`, finite. Beside a dot, bar, point or box
+ *  mark only `x`, drawn down every row: in every panel of a split, and at its
  *  distance from 0 on both sides of a mirror or a diverging chart, where it
  *  cannot be below 0. Beside a slope only `y`. */
 interface RuleMark {
@@ -270,8 +300,8 @@ interface RuleMark {
  *  chart's scales; under a cell grid each names a category or is a value
  *  its bins hold; under a calendar `x` is an instant in its day and `y`
  *  is refused; under a dot mark `x` is a time and `y` a row's name;
- *  under a bar or point mark `y` names a row and `x` places the note along
- *  it; under a slope `x` names one of its two columns and `y` is a value.
+ *  under a bar, point or box mark `y` names a row and `x` places the note
+ *  along it; under a slope `x` names one of its two columns and `y` is a value.
  *  Both are required, except under a calendar and under a split,
  *  diverging or mirrored bar, which refuses `x` and sets the note at its
  *  row's end. A note outside the
@@ -306,6 +336,7 @@ export type Mark =
   | ScatterMark
   | CellMark
   | CalendarMark
+  | BoxMark
   | RuleMark
   | TextMark;
 
@@ -315,8 +346,8 @@ export interface ChartSpec {
    *  make it a band, and its bins' edges are its domain. A calendar's days
    *  are its x, so there it is a `TypeError` too. */
   readonly x?: Scale;
-  /** Band when the chart has a dot, bar or point mark or a cell mark's
-   *  categories; linear under a slope; linear or log under a scatter or a
+  /** Band when the chart has a dot, bar, point or box mark or a cell
+   *  mark's categories; linear under a slope; linear or log under a scatter or a
    *  cell mark's bins; a `TypeError` beside a calendar, whose rows are
    *  weekdays. */
   readonly y?: Scale;
@@ -325,12 +356,12 @@ export interface ChartSpec {
   /** A cell mark's classes, a grid's or a calendar's; a `TypeError` beside
    *  any other mark. */
   readonly colour?: ColourScale;
-  /** One rect, line, area, dot, bar, point, slope, scatter or cell mark and
-   *  any rules and text marks, drawn in order: a rule after a rect draws
+  /** One rect, line, area, dot, bar, point, slope, scatter, cell or box
+   *  mark and any rules and text marks, drawn in order: a rule after a rect draws
    *  over it. A second data mark is a `TypeError`. */
   readonly marks: readonly Mark[];
-  /** The plot's height in px. A band chart (dot, bar or point, or a cell
-   *  mark with categories on y) is as tall as its rows, and a calendar as
+  /** The plot's height in px. A band chart (dot, bar, point or box, or a
+   *  cell mark with categories on y) is as tall as its rows, and a calendar as
    *  its weeks, so there it is a `TypeError`; a slope grows past it to give
    *  each end label a line, and a cell mark's binned y to give its thinnest
    *  bin a row. */

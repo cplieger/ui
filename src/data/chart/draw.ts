@@ -10,6 +10,7 @@ import {
   areaPaths,
   arrowPaths,
   barPaths,
+  boxPaths,
   barSegments,
   bubblePaths,
   bucketEdges,
@@ -146,13 +147,13 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   });
   const grid: string[] = [];
   let zero = "";
-  // A bar's and a point's value axis is x, so their gridlines and zero line
-  // stand upright, and a scatter's stand both ways; a point chart's and a
-  // scatter's zero is only a linear x's.
+  // A bar's, a point's and a box's value axis is x, so their gridlines and
+  // zero line stand upright, and a scatter's stand both ways; a point
+  // chart's, a box plot's and a scatter's zero is only a linear x's.
   const primary = primaryOf(model);
   const bars = primary?.kind === "bar";
-  const points = primary?.kind === "point";
-  if (bars || points || primary?.kind === "scatter") {
+  const placed = primary?.kind === "point" || primary?.kind === "box";
+  if (bars || placed || primary?.kind === "scatter") {
     for (const t of lay.xAxis.ticks) {
       if (t.value !== 0 || model.x.type !== "linear") {
         grid.push(upright(t.at, f.height, f.dpr));
@@ -184,9 +185,12 @@ function plotArea(model: Model, lay: Layout): SVGElement {
     yZero = hairline(f.yAt(0), f.width, f.dpr);
   }
   zero += yZero;
-  // Bars and cells fill their rows, so neither draws a row's hairline.
+  // Bars and cells fill their rows, and a box's whiskers lie on its row's
+  // line, so none draws a row's hairline.
   const rows =
-    bars || primary?.kind === "cell" ? [] : lay.rows.map((r) => hairline(r.y, f.width, f.dpr));
+    bars || primary?.kind === "cell" || primary?.kind === "box"
+      ? []
+      : lay.rows.map((r) => hairline(r.y, f.width, f.dpr));
   if (grid.length > 0) {
     area.append(svgEl("path", { "data-part": "grid", d: grid.join("") }));
   }
@@ -258,6 +262,31 @@ function plotArea(model: Model, lay: Layout): SVGElement {
           g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
         });
         area.append(g);
+        break;
+      }
+      case "box": {
+        // Each median tick lies over its box's cut, past its edges.
+        const { series, medians } = boxPaths(
+          m,
+          lay.rows.map((r) => r.y),
+          f,
+        );
+        const parts = (
+          part: "whisker" | "box" | "outlier",
+          key: "whiskers" | "boxes" | "outliers",
+        ) => {
+          const g = svgEl("g", { "data-part": part });
+          for (const p of series) {
+            g.append(svgEl("path", { "data-series": String(p.slot), d: p[key] }));
+          }
+          return g;
+        };
+        area.append(
+          parts("whisker", "whiskers"),
+          parts("box", "boxes"),
+          parts("outlier", "outliers"),
+          svgEl("path", { "data-part": "median", d: medians }),
+        );
         break;
       }
       case "slope": {

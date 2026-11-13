@@ -21,6 +21,7 @@ import { classes, type Classes } from "./classes.js";
 import { rScale, ruleAt, xScale, yScale, type Band, type Continuous, type Size } from "./scales.js";
 import type {
   BarMark,
+  BoxMark,
   CellMark,
   ChartSpec,
   Mark,
@@ -57,7 +58,8 @@ type Kind =
   | "bubble"
   | "heatmap"
   | "histogram2d"
-  | "calendar";
+  | "calendar"
+  | "box";
 
 export interface SeriesModel {
   readonly name: string;
@@ -312,6 +314,32 @@ export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | un
   return undefined;
 }
 
+/** A category's five numbers, each at most the next. */
+interface Five {
+  readonly low: number;
+  readonly q1: number;
+  readonly median: number;
+  readonly q3: number;
+  readonly high: number;
+}
+
+interface BoxSeriesModel {
+  readonly name: string;
+  readonly slot: number;
+  /** Per row of the band, its five numbers, or `null` where all five are gaps. */
+  readonly boxes: readonly (Five | null)[];
+  /** Per row of the band, its outliers in ascending order. */
+  readonly outliers: readonly (readonly number[])[];
+}
+
+/** A box per series on each row of the chart's band y. */
+export interface BoxModel {
+  readonly kind: "box";
+  /** The app's words for its whiskers' convention. */
+  readonly whiskers: string | undefined;
+  readonly series: readonly BoxSeriesModel[];
+}
+
 /** A cell chart's axis: its categories' names, at 0 to n − 1 of a named x,
  *  or its bins' edges, one more than its bins. */
 export type CellAxis =
@@ -410,6 +438,7 @@ type MarkModel =
   | ScatterModel
   | CellModel
   | CalendarModel
+  | BoxModel
   | RuleModel
   | TextModel;
 
@@ -439,7 +468,7 @@ export interface Model {
    *  writes its days. */
   readonly dateText: (day: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
-   *  bar or point chart, else `yText`), or a plain number under "share",
+   *  bar, point or box chart, else `yText`), or a plain number under "share",
    *  whose axis writes shares. */
   readonly amountText: (v: number) => string;
   /** The width keys of `xText` off a time x and named columns, `yText`, `rText`
@@ -838,6 +867,74 @@ function checkCells(mark: Record<string, unknown>, what: string): void {
   }
 }
 
+const FIVE = ["low", "q1", "median", "q3", "high"] as const;
+
+// The chart computes no quartile, so it takes each category's five numbers
+// as sent, all or none, in order, with its outliers beyond them.
+function checkBox(mark: Record<string, unknown>, what: string): void {
+  const names = Array.from(checkNames(mark["y"], what)) as string[];
+  const whiskers = mark["whiskers"];
+  if (whiskers !== undefined && !(typeof whiskers === "string" && whiskers.trim() !== "")) {
+    fail(`${what}.whiskers must be a non-empty string naming the whiskers' convention`);
+  }
+  const list = mark["series"];
+  if (!arrayLike(list)) {
+    fail(`${what}.series must be an array`);
+  }
+  for (let s = 0; s < list.length; s++) {
+    const one = list[s];
+    const at = `${what}.series[${String(s)}]`;
+    checkSeriesHead(one, s, at);
+    for (const field of FIVE) {
+      checkValues(one[field], names.length, `${at}.${field}`, "y");
+    }
+    const outliers = one["outliers"];
+    if (
+      outliers !== undefined &&
+      !(
+        arrayLike(outliers) &&
+        outliers.length === names.length &&
+        Array.from(outliers).every(
+          (o) => arrayLike(o) && Array.from(o).every((v) => typeof v === "number"),
+        )
+      )
+    ) {
+      fail(`${at}.outliers must hold an array of numbers per category`);
+    }
+    names.forEach((name, i) => {
+      const where = `${at} at "${name}"`;
+      const five = FIVE.map((field) => (one[field] as ArrayLike<number | null>)[i] ?? null);
+      const gaps = five.filter((v) => v === null || Number.isNaN(v)).length;
+      const extra = Array.from((outliers as ArrayLike<ArrayLike<number>> | undefined)?.[i] ?? []);
+      if (gaps === FIVE.length) {
+        if (extra.length > 0) {
+          fail(`${where} has outliers but no five numbers for them to lie beyond`);
+        }
+        return;
+      }
+      if (gaps > 0) {
+        fail(`${where} must have all five numbers, low, q1, median, q3 and high, or none`);
+      }
+      const [low = 0, , , , high = 0] = five as number[];
+      if (five.some((v) => !Number.isFinite(v))) {
+        fail(`${where} cannot hold an infinite value`, RangeError);
+      }
+      if (five.some((v, k) => k > 0 && (v ?? 0) < (five[k - 1] ?? 0))) {
+        fail(`${where} must have low ≤ q1 ≤ median ≤ q3 ≤ high`, RangeError);
+      }
+      if (extra.some((v) => !Number.isFinite(v))) {
+        fail(`${where}'s outliers must be finite`, RangeError);
+      }
+      if (extra.some((v) => v >= low && v <= high)) {
+        fail(
+          `${where}'s outliers must lie beyond its whiskers, below low or above high`,
+          RangeError,
+        );
+      }
+    });
+  }
+}
+
 function checkCurve(curve: unknown, what: string): void {
   if (curve !== undefined && curve !== "linear" && curve !== "step") {
     fail(`${what}.curve must be "linear" or "step"`);
@@ -1005,6 +1102,9 @@ function checkMark(mark: unknown, what: string): void {
     case "cell":
       checkCells(mark, what);
       return;
+    case "box":
+      checkBox(mark, what);
+      return;
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -1040,7 +1140,7 @@ function checkMark(mark: unknown, what: string): void {
     }
     default:
       fail(
-        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "rule" or "text"`,
+        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "rule" or "text"`,
       );
   }
 }
@@ -1085,7 +1185,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter or cell mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell or box mark and any rules and text marks`,
       );
     }
     data = m;
@@ -1116,12 +1216,13 @@ function check(spec: unknown): asserts spec is ChartSpec {
     (primary["mark"] === "dot" ||
       primary["mark"] === "bar" ||
       primary["mark"] === "point" ||
+      primary["mark"] === "box" ||
       (cellChart && !binnedY));
   if (band && height !== undefined) {
     fail(
       calendar
         ? "height has no place on a calendar, which is as tall as its weeks"
-        : `height has no place on a ${cellChart ? "cell chart of categories" : "dot, bar or point chart"}, which is as tall as its rows`,
+        : `height has no place on a ${cellChart ? "cell chart of categories" : "dot, bar, point or box chart"}, which is as tall as its rows`,
     );
   }
   if (spec["colour"] !== undefined) {
@@ -1158,6 +1259,25 @@ const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
 
 const pointSeries = (list: PointMark["series"]): PointSeriesModel[] =>
   list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, x: gaps(s.x, false) }));
+
+const boxSeries = (list: BoxMark["series"]): BoxSeriesModel[] =>
+  list.map((s, i) => ({
+    name: s.name,
+    slot: s.slot ?? i + 1,
+    // The check holds a category's five all or none, so its low tells.
+    boxes: Array.from(s.low, (low, r) =>
+      low === null || Number.isNaN(low)
+        ? null
+        : {
+            low,
+            q1: s.q1[r] ?? low,
+            median: s.median[r] ?? low,
+            q3: s.q3[r] ?? low,
+            high: s.high[r] ?? low,
+          },
+    ),
+    outliers: Array.from(s.low, (_, r) => [...(s.outliers?.[r] ?? [])].sort((a, b) => a - b)),
+  }));
 
 // A dot outside a passed domain is not drawn, and with no position, or a
 // bubble with no size, it is no stop.
@@ -1277,6 +1397,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       return "edges" in first.x && "edges" in first.y ? "histogram2d" : "heatmap";
     case "calendar":
       return "calendar";
+    case "box":
+      return "box";
   }
 }
 
@@ -1307,6 +1429,8 @@ function hasData(m: MarkModel, x: Continuous): boolean {
       return m.values.some((row) => row.some((v) => v !== null));
     case "calendar":
       return m.values.some((v) => v !== null);
+    case "box":
+      return m.series.some((s) => s.boxes.some((b) => b !== null));
     case "rule":
     case "text":
       return false;
@@ -1480,6 +1604,8 @@ export function chartModel(
         };
       case "point":
         return { kind: "point", link: m.link, series: pointSeries(m.series) };
+      case "box":
+        return { kind: "box", whiskers: m.whiskers, series: boxSeries(m.series) };
       case "slope":
         return { kind: "slope", columns: m.x, series: series(m.series) };
       case "scatter":
@@ -1561,7 +1687,7 @@ export function chartModel(
   const share = marks.some(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
-  const bars = marks.some((m) => m.kind === "bar" || m.kind === "point");
+  const bars = marks.some((m) => m.kind === "bar" || m.kind === "point" || m.kind === "box");
   const xKey = named !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
   const yKey = y.type === "band" ? undefined : widthKey(y.format, locale);
   return {

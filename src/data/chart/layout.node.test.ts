@@ -1182,3 +1182,47 @@ describe("a binned cell chart's layout", () => {
     expect(l.titles.map((t) => t.text)).toEqual(["Life expectancy"]);
   });
 });
+
+describe("a box plot", () => {
+  const latency = (series = 1): ChartSpec => ({
+    x: { label: "Latency" },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export", "login", "health"],
+        series: Array.from({ length: series }, (_, k) => ({
+          name: k === 0 ? "Before" : "After",
+          low: [120, 300, 40, 1],
+          q1: [180, 900, 60, 2],
+          median: [240, 1400, 75, 2],
+          q3: [410, 2100, 90, 3],
+          high: [760, 4000, 130, 4],
+        })),
+      },
+    ],
+  });
+
+  it("sets a 24 px row per category with one series, its name in the gutter, from 30rem up", () => {
+    const l = lay(latency(), 600);
+    expect(l.frame.height).toBe(4 * 24);
+    expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60, 84]);
+    expect(l.gutters.axis).toBe(7.5 * "health".length + 8);
+    expect(l.valueLabels).toEqual([]);
+    expect(l.titles).toContainEqual(expect.objectContaining({ text: "Latency", anchor: "end" }));
+  });
+
+  it("grows a row by a 16 px sub-row per series, 8 px to spare", () => {
+    const l = lay(latency(2), 600);
+    expect(l.frame.height).toBe(4 * 40);
+    expect(l.rows.map((r) => r.y)).toEqual([20, 60, 100, 140]);
+  });
+
+  it("puts each name above its boxes under 30rem: 44 px a row with one series, 60 with two", () => {
+    const one = lay(latency(), 320);
+    expect(one.gutters.axis).toBe(0);
+    expect(one.frame.height).toBe(176);
+    expect(one.rows[0]?.y).toBe(18 + 2 + 8);
+    expect(one.yLabels[1]).toEqual({ text: "export", x: 0, y: 44 + 9, anchor: "start" });
+    expect(lay(latency(2), 320).frame.height).toBe(240);
+  });
+});

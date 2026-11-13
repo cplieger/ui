@@ -9,6 +9,7 @@ import {
   pointLink,
   sampleValue,
   scatterDotAt,
+  type BoxModel,
   type CellModel,
   type PointModel,
   type ScatterModel,
@@ -282,7 +283,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter or cell mark and any rules and text marks",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell or box mark and any rules and text marks",
     );
   });
 
@@ -769,7 +770,7 @@ describe("the bar mark", () => {
 
   it("names the height rule", () => {
     expect(() => build({ x: {}, height: 200, marks: [bars([1])] })).toThrow(
-      "renderChart: height has no place on a dot, bar or point chart, which is as tall as its rows",
+      "renderChart: height has no place on a dot, bar, point or box chart, which is as tall as its rows",
     );
   });
 
@@ -1051,7 +1052,7 @@ describe("the point mark", () => {
       "renderChart: a point's x must be above 0 on a log x",
     );
     expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
-      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "rule" or "text"',
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "rule" or "text"',
     );
   });
 
@@ -1936,5 +1937,157 @@ describe("a cell chart's colour format", () => {
       marks: [{ mark: "cell", x: ["a"], y: ["r"], values: [[0.25]] }],
     });
     expect(m.colourText(0.25)).toBe("25%");
+  });
+});
+
+describe("the box mark", () => {
+  const latency = (more: Record<string, unknown> = {}, series: Record<string, unknown> = {}) => ({
+    mark: "box",
+    y: ["search", "export"],
+    series: [
+      {
+        name: "Latency",
+        low: [120, 300],
+        q1: [180, 900],
+        median: [240, 1400],
+        q3: [410, 2100],
+        high: [760, 4000],
+        ...series,
+      },
+    ],
+    ...more,
+  });
+
+  it.each([
+    ["a y of numbers", { marks: [latency({ y: [1, 2] })] }, TypeError],
+    ["a q1 shorter than its y", { marks: [latency({}, { q1: [180] })] }, TypeError],
+    [
+      "outliers not one array per category",
+      { marks: [latency({}, { outliers: [[1]] })] },
+      TypeError,
+    ],
+    ["outliers of strings", { marks: [latency({}, { outliers: [["a"], []] })] }, TypeError],
+    ["a partly null category", { marks: [latency({}, { median: [null, 1400] })] }, TypeError],
+    ["an empty whiskers", { marks: [latency({ whiskers: " " })] }, TypeError],
+    ["whiskers of a number", { marks: [latency({ whiskers: 1.5 })] }, TypeError],
+    ["a time x", { x: { type: "time" }, marks: [latency()] }, TypeError],
+    ["a band x", { x: { type: "band" }, marks: [latency()] }, TypeError],
+    ["zero on a log x", { x: { type: "log", zero: true }, marks: [latency()] }, TypeError],
+    ["a linear y", { y: { type: "linear" }, marks: [latency()] }, TypeError],
+    ["a height", { height: 200, marks: [latency()] }, TypeError],
+    ["a y rule", { marks: [latency(), { mark: "rule", y: 1, label: "Cap" }] }, TypeError],
+    [
+      "a box beside a bar",
+      { marks: [latency(), { mark: "bar", y: ["a"], series: [{ name: "a", x: [1] }] }] },
+      TypeError,
+    ],
+    ["an empty name", { marks: [latency({ y: ["", "export"] })] }, RangeError],
+    ["a repeated name", { marks: [latency({ y: ["a", "a"] })] }, RangeError],
+    [
+      "an infinite high",
+      { marks: [latency({}, { high: [760, Number.POSITIVE_INFINITY] })] },
+      RangeError,
+    ],
+    ["five out of order", { marks: [latency({}, { q1: [250, 900] })] }, RangeError],
+    [
+      "an outlier between the whiskers",
+      { marks: [latency({}, { outliers: [[500], []] })] },
+      RangeError,
+    ],
+    [
+      "an outlier on a whisker's end",
+      { marks: [latency({}, { outliers: [[760], []] })] },
+      RangeError,
+    ],
+    ["an infinite outlier", { marks: [latency({}, { outliers: [[Number.NaN], []] })] }, RangeError],
+    [
+      "a value of 0 on a log x",
+      { x: { type: "log" }, marks: [latency({}, { low: [0, 300] })] },
+      RangeError,
+    ],
+    [
+      "an outlier of 0 on a log x",
+      { x: { type: "log" }, marks: [latency({}, { outliers: [[0], []] })] },
+      RangeError,
+    ],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ marks: [latency({}, { q1: [250, 900] })] })).toThrow(
+      'renderChart: marks[0].series[0] at "search" must have low ≤ q1 ≤ median ≤ q3 ≤ high',
+    );
+    expect(() => build({ marks: [latency({}, { outliers: [[500], []] })] })).toThrow(
+      'renderChart: marks[0].series[0] at "search"\'s outliers must lie beyond its whiskers, below low or above high',
+    );
+    expect(() =>
+      build({ marks: [latency({}, { outliers: [[], [5000]], low: [120, null] })] }),
+    ).toThrow('renderChart: marks[0].series[0] at "export" must have all five numbers');
+    expect(() => build({ height: 100, marks: [latency()] })).toThrow(
+      "renderChart: height has no place on a dot, bar, point or box chart, which is as tall as its rows",
+    );
+  });
+
+  it("keeps each category's five numbers, a gap as null, and sorts its outliers", () => {
+    const m = build({
+      marks: [
+        latency(
+          { whiskers: "1.5 × IQR" },
+          {
+            low: [120, null],
+            q1: [180, Number.NaN],
+            median: [240, null],
+            q3: [410, null],
+            high: [760, null],
+            outliers: [[1100, 20, 2600], []],
+          },
+        ),
+      ],
+    });
+    expect(m.y).toEqual({ type: "band", rows: ["search", "export"], mono: false });
+    expect(m.marks[0] as BoxModel).toEqual({
+      kind: "box",
+      whiskers: "1.5 × IQR",
+      series: [
+        {
+          name: "Latency",
+          slot: 1,
+          boxes: [{ low: 120, q1: 180, median: 240, q3: 410, high: 760 }, null],
+          outliers: [[20, 1100, 2600], []],
+        },
+      ],
+    });
+    expect(m.kind).toBe("box");
+    expect(m.amountText(240)).toBe("240");
+  });
+
+  it("spans x over every whisker's end and outlier, without 0 unless asked", () => {
+    const m = build({ marks: [latency({}, { outliers: [[2600], [50]] })] });
+    expect(m.x.lo).toBeLessThanOrEqual(50);
+    expect(m.x.lo).toBeGreaterThan(0);
+    expect(m.x.hi).toBeGreaterThanOrEqual(4000);
+    expect(build({ x: { zero: true }, marks: [latency()] }).x.lo).toBe(0);
+    const log = build({ x: { type: "log" }, marks: [latency()] });
+    expect([log.x.type, log.x.lo, log.x.hi]).toEqual(["log", 120, 4000]);
+  });
+
+  it("is empty when every category's five are gaps", () => {
+    const none = {
+      low: [null, null],
+      q1: [null, null],
+      median: [null, null],
+      q3: [null, null],
+      high: [null, null],
+    };
+    expect(build({ marks: [latency({}, none)] }).empty).toBe(true);
+    expect(build({ marks: [latency()] }).empty).toBe(false);
+  });
+
+  it("is a box plot whatever its series count", () => {
+    const two = latency({}, {});
+    const series = (two.series as Record<string, unknown>[])[0] ?? {};
+    const m = build({ marks: [{ ...two, series: [series, { ...series, name: "After" }] }] });
+    expect(m.kind).toBe("box");
   });
 });

@@ -2,7 +2,7 @@
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
  * plot, the x axis under it, the lines' and areas' end labels, a band
- * chart's rows, a bar chart's panels and value labels, a slope's columns
+ * chart's rows, a bar chart's panels and value labels, a box plot's rows, a slope's columns
  * and end labels, a scatter's inset axes, and the text marks' notes.
  * @module
  */
@@ -26,6 +26,7 @@ import {
   barBlock,
   barCentre,
   barReach,
+  boxBlock,
   BUBBLE_RADIUS,
   BUBBLE_RADIUS_NARROW,
   dayBox,
@@ -42,6 +43,7 @@ import {
   dayOf,
   sampleValue,
   type BarModel,
+  type BoxModel,
   type CalendarModel,
   type CellModel,
   type Model,
@@ -727,29 +729,41 @@ export function layout(
   const narrow = chart < NARROW_REM * metrics.rem;
   const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
   const points = model.marks.some((m) => m.kind === "point");
+  const boxes = model.marks.find((m): m is BoxModel => m.kind === "box");
   const scatter = model.marks.find((m) => m.kind === "scatter");
   const cells = model.marks.find((m): m is CellModel => m.kind === "cell");
   const bubble =
     scatter?.size === undefined ? undefined : narrow ? BUBBLE_RADIUS_NARROW : BUBBLE_RADIUS;
   const mirror = bars?.arrange === "mirror";
-  // Under 30rem a name above its bar or its dots leaves the plot the chart's
-  // whole width; a mirror's short names stay in the gutter, keeping its rows
-  // short.
-  const above = narrow && ((bars !== undefined && !mirror) || points);
+  // Under 30rem a name above its bar, its dots or its boxes leaves the plot
+  // the chart's whole width; a mirror's short names stay in the gutter,
+  // keeping its rows short.
+  const above = narrow && ((bars !== undefined && !mirror) || points || boxes !== undefined);
   // Under 30rem a split's panels would be too thin for their bars, so they
   // fold into one, each row's bars one under another as a group's.
   const panelled = (bars?.arrange === "split" && !narrow) || mirror;
   const thick =
     bars === undefined ? 0 : Math.max(1, metrics.row - (mirror ? MIRROR_SPACE : BAR_SPACE));
   const block =
-    bars !== undefined ? (panelled ? thick : barBlock(bars, thick)) : points ? 2 * POINT_RADIUS : 0;
-  // Under its name a point row is its dots and a bar's room.
+    bars !== undefined
+      ? panelled
+        ? thick
+        : barBlock(bars, thick)
+      : points
+        ? 2 * POINT_RADIUS
+        : boxes !== undefined
+          ? boxBlock(boxes)
+          : 0;
+  // Under its name a point row is its dots and a bar's room; a box row of
+  // several series grows by a sub-row each.
   const barRow =
-    points && above
-      ? block + BAR_SPACE
-      : !points && block > thick
+    boxes !== undefined
+      ? Math.max(metrics.row, block + BAR_SPACE)
+      : points && above
         ? block + BAR_SPACE
-        : metrics.row;
+        : !points && block > thick
+          ? block + BAR_SPACE
+          : metrics.row;
   const rowH = above ? metrics.nameLine + NAME_GAP + barRow : barRow;
   const yBins = cells !== undefined && "edges" in cells.y ? cells.y.edges : undefined;
   const height =

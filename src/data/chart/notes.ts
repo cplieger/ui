@@ -220,7 +220,7 @@ export function notePoint(
 
 /** The stop note `t` joins in `model`; none when `notePoint` places it
  *  nowhere or it names no stop. On a step curve that is the stop holding its
- *  nearest sample, since the keys stop only there. A bar or point note
+ *  nearest sample, since the keys stop only there. A bar, point or box note
  *  joins its row, its x only placing it; a slope note its column; a
  *  scatter note the dot at its values, by value, never by px, so its join
  *  holds before any layout and at every width; a cell note the cell its
@@ -232,7 +232,7 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
   if (p === undefined) {
     return undefined;
   }
-  if (p.x === undefined || m?.kind === "bar" || m?.kind === "point") {
+  if (p.x === undefined || m?.kind === "bar" || m?.kind === "point" || m?.kind === "box") {
     return { kind: "row", row: p.y };
   }
   const x = p.x;

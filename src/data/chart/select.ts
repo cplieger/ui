@@ -213,6 +213,8 @@ export function initial(model: Model): Selection | undefined {
     }
     case "calendar":
       return m.values.length === 0 ? undefined : { kind: "day", i: m.values.length - 1 };
+    case "box":
+      return undefined;
   }
 }
 
@@ -713,6 +715,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
           );
           return block === -1 || i === -1 ? undefined : { kind: "day", i };
         }
+        case "box":
+          return undefined;
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;

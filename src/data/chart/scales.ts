@@ -10,6 +10,7 @@ import { localDay, midnight } from "../scale/time.js";
 
 import type {
   BarMark,
+  BoxMark,
   CalendarMark,
   CellMark,
   ChartSpec,
@@ -219,6 +220,26 @@ function addPoints(extent: Extent, m: PointMark, log: boolean): void {
   }
 }
 
+// A box's whiskers' ends and its outliers are its row's extremes, which a
+// log x has no place for at 0 or below.
+function addBoxes(extent: Extent, m: BoxMark, log: boolean): void {
+  for (const s of m.series) {
+    for (let i = 0; i < s.low.length; i++) {
+      const low = s.low[i];
+      if (!finite(low)) {
+        continue;
+      }
+      for (const v of [low, s.high[i] ?? low, ...(s.outliers?.[i] ?? [])]) {
+        if (log && v <= 0) {
+          throw new RangeError("renderChart: a box's values must be above 0 on a log x");
+        }
+        extent.count(v);
+        extent.add(v);
+      }
+    }
+  }
+}
+
 // A scatter's dot is placed by its value, so a log axis has no place for 0
 // or below; a dot without its other value, or a bubble without its size,
 // is not drawn, so it holds no extent.
@@ -387,8 +408,8 @@ function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undef
 }
 
 /** The x scale of `spec`: linear unless it says another continuous type,
- *  under a bar mark linear from 0, under a point mark or a scatter holding
- *  0 only with `zero: true`, under a slope its two columns at 0 and 1, and
+ *  under a bar mark linear from 0, under a point or box mark or a scatter
+ *  holding 0 only with `zero: true`, under a slope its two columns at 0 and 1, and
  *  under a cell mark its columns from 0 to their count or its bins' edges,
  *  and under a calendar its days in `timeZone`. Throws for a band x and for
  *  a type, domain, zero or underflow bin that breaks a rule, for an x scale
@@ -432,8 +453,13 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
   if (scatter && type === "time") {
     throw new TypeError("renderChart: a scatter's x is linear or log; a value over time is a line");
   }
-  // Neither holds 0 unless asked, since a dot's place, not a length, is its value.
-  const placed = scatter || spec.marks.some((m) => m.mark === "point");
+  const boxes = spec.marks.some((m) => m.mark === "box");
+  if (boxes && type === "time") {
+    throw new TypeError("renderChart: a box's x is linear or log");
+  }
+  // None holds 0 unless asked, since a place, not a length from 0, is the
+  // value: a dot's, or a box's spread.
+  const placed = scatter || boxes || spec.marks.some((m) => m.mark === "point");
   if (placed && x.zero !== undefined && type !== "linear") {
     throw new TypeError(`renderChart: a ${type} x has no zero to hold`);
   }
@@ -458,6 +484,8 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
       addPoints(extent, m, log);
     } else if (m.mark === "scatter") {
       addScatter(extent, m, "x", log);
+    } else if (m.mark === "box") {
+      addBoxes(extent, m, log);
     }
   }
   const integer = extent.integer;
@@ -622,8 +650,8 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
   return extent;
 }
 
-/** The y scale of `spec`: a band of the dot rows or the bar, point or cell
- *  categories, a cell mark's bins' edges, a calendar's seven weekday rows
+/** The y scale of `spec`: a band of the dot rows or the bar, point, box or
+ *  cell categories, a cell mark's bins' edges, a calendar's seven weekday rows
  *  from 0 to 7, else linear unless it says log, which a slope cannot; a
  *  linear y holds 0 unless `zero: false`, under a scatter only with
  *  `zero: true`. Throws for a y type its mark cannot take and for a
@@ -641,7 +669,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     return binned(cell.y.edges, y, "y");
   }
   const kinds = new Set(spec.marks.map((m) => m.mark));
-  const banded = (["dot", "bar", "point", "cell"] as const).find((k) => kinds.has(k));
+  const banded = (["dot", "bar", "point", "box", "cell"] as const).find((k) => kinds.has(k));
   if (banded !== undefined) {
     if ((y.type ?? "band") !== "band") {
       throw new TypeError(
@@ -657,7 +685,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     const rows = spec.marks.flatMap((m) =>
       m.mark === "dot"
         ? m.rows.map((r) => r.name)
-        : m.mark === "bar" || m.mark === "point"
+        : m.mark === "bar" || m.mark === "point" || m.mark === "box"
           ? [...m.y]
           : m.mark === "cell" && "y" in m && !("edges" in m.y)
             ? [...m.y]
@@ -667,7 +695,9 @@ export function yScale(spec: ChartSpec): Continuous | Band {
   }
   const type = y.type ?? "linear";
   if (type === "band" || type === "time") {
-    throw new TypeError(`renderChart: y cannot be a ${type} scale without dot, bar or point rows`);
+    throw new TypeError(
+      `renderChart: y cannot be a ${type} scale without dot, bar, point or box rows`,
+    );
   }
   if (kinds.has("slope") && type !== "linear") {
     throw new TypeError("renderChart: a slope's y is linear");

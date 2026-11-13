@@ -400,6 +400,30 @@
   stroke-width: 1px;
 }
 
+/* A box fills its slot; its whiskers and its hollow outliers stroke it, so
+ * a single value reads apart from the box. */
+.cp-chart svg [data-part="box"] path {
+  fill: var(--cp-tone-9);
+}
+
+.cp-chart svg [data-part="whisker"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 2px;
+}
+
+.cp-chart svg [data-part="outlier"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 1.5px;
+}
+
+/* The median's ink tick carries it where it meets a quartile and the cut
+ * through the box would vanish into the box's edge. */
+.cp-chart svg [data-part="median"] {
+  fill: var(--cp-ink);
+}
+
 /* A range's bold link and an arrow, its head showing the direction in any
  * colour, under the dots. */
 .cp-chart svg [data-part="link"] {
