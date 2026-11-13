@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="272" viewBox="0 0 460 272" role="img" font-family="system-ui, sans-serif" font-size="13">
+<title>The sequential and diverging scales of the default accent, steps 1 to 9, in the light and dark themes</title>
+<rect x="0" y="0" width="460" height="136" fill="#fcfdff"/>
+<text x="16" y="29" fill="#1f2226" text-anchor="start">Light theme</text>
+<text x="122" y="50" fill="#5a5c61" text-anchor="middle">1</text>
+<text x="160" y="50" fill="#5a5c61" text-anchor="middle">2</text>
+<text x="198" y="50" fill="#5a5c61" text-anchor="middle">3</text>
+<text x="236" y="50" fill="#5a5c61" text-anchor="middle">4</text>
+<text x="274" y="50" fill="#5a5c61" text-anchor="middle">5</text>
+<text x="312" y="50" fill="#5a5c61" text-anchor="middle">6</text>
+<text x="350" y="50" fill="#5a5c61" text-anchor="middle">7</text>
+<text x="388" y="50" fill="#5a5c61" text-anchor="middle">8</text>
+<text x="426" y="50" fill="#5a5c61" text-anchor="middle">9</text>
+<text x="16" y="77" fill="#1f2226" text-anchor="start">Sequential</text>
+<rect x="104" y="58" width="36" height="28" fill="#97ddf8"/>
+<rect x="142" y="58" width="36" height="28" fill="#5ec8f7"/>
+<rect x="180" y="58" width="36" height="28" fill="#33b0ec"/>
+<rect x="218" y="58" width="36" height="28" fill="#2297d9"/>
+<rect x="256" y="58" width="36" height="28" fill="#0f7fc5"/>
+<rect x="294" y="58" width="36" height="28" fill="#0266b1"/>
+<rect x="332" y="58" width="36" height="28" fill="#024f9b"/>
+<rect x="370" y="58" width="36" height="28" fill="#083883"/>
+<rect x="408" y="58" width="36" height="28" fill="#0c2367"/>
+<text x="16" y="113" fill="#1f2226" text-anchor="start">Diverging</text>
+<rect x="104" y="94" width="36" height="28" fill="#753c08"/>
+<rect x="142" y="94" width="36" height="28" fill="#a1540f"/>
+<rect x="180" y="94" width="36" height="28" fill="#d06f17"/>
+<rect x="218" y="94" width="36" height="28" fill="#f8903e"/>
+<rect x="256" y="94" width="36" height="28" fill="#ced1d6"/>
+<rect x="294" y="94" width="36" height="28" fill="#7cb1f4"/>
+<rect x="332" y="94" width="36" height="28" fill="#398cf0"/>
+<rect x="370" y="94" width="36" height="28" fill="#0b6aca"/>
+<rect x="408" y="94" width="36" height="28" fill="#024b95"/>
+<rect x="0" y="136" width="460" height="136" fill="#111316"/>
+<text x="16" y="165" fill="#ecedee" text-anchor="start">Dark theme</text>
+<text x="122" y="186" fill="#b9bbbe" text-anchor="middle">1</text>
+<text x="160" y="186" fill="#b9bbbe" text-anchor="middle">2</text>
+<text x="198" y="186" fill="#b9bbbe" text-anchor="middle">3</text>
+<text x="236" y="186" fill="#b9bbbe" text-anchor="middle">4</text>
+<text x="274" y="186" fill="#b9bbbe" text-anchor="middle">5</text>
+<text x="312" y="186" fill="#b9bbbe" text-anchor="middle">6</text>
+<text x="350" y="186" fill="#b9bbbe" text-anchor="middle">7</text>
+<text x="388" y="186" fill="#b9bbbe" text-anchor="middle">8</text>
+<text x="426" y="186" fill="#b9bbbe" text-anchor="middle">9</text>
+<text x="16" y="213" fill="#ecedee" text-anchor="start">Sequential</text>
+<rect x="104" y="194" width="36" height="28" fill="#193ba1"/>
+<rect x="142" y="194" width="36" height="28" fill="#1453b6"/>
+<rect x="180" y="194" width="36" height="28" fill="#0b6aca"/>
+<rect x="218" y="194" width="36" height="28" fill="#0381dd"/>
+<rect x="256" y="194" width="36" height="28" fill="#1599ed"/>
+<rect x="294" y="194" width="36" height="28" fill="#40b0f5"/>
+<rect x="332" y="194" width="36" height="28" fill="#70c6f6"/>
+<rect x="370" y="194" width="36" height="28" fill="#9cd9f7"/>
+<rect x="408" y="194" width="36" height="28" fill="#c9ebf9"/>
+<text x="16" y="249" fill="#ecedee" text-anchor="start">Diverging</text>
+<rect x="104" y="230" width="36" height="28" fill="#f9ad79"/>
+<rect x="142" y="230" width="36" height="28" fill="#f3831f"/>
+<rect x="180" y="230" width="36" height="28" fill="#cb6c17"/>
+<rect x="218" y="230" width="36" height="28" fill="#a55710"/>
+<rect x="256" y="230" width="36" height="28" fill="#404247"/>
+<rect x="294" y="230" width="36" height="28" fill="#126dcd"/>
+<rect x="332" y="230" width="36" height="28" fill="#3689ec"/>
+<rect x="370" y="230" width="36" height="28" fill="#6ba7f4"/>
+<rect x="408" y="230" width="36" height="28" fill="#9ec4f5"/>
+</svg>

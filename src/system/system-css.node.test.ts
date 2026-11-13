@@ -855,6 +855,73 @@ function envelopeTable(): string {
   return `<!-- envelope:start -->\n${rows.join("\n")}\n<!-- envelope:end -->`;
 }
 
+const SEEDS = join(ROOT, "src", "foundations", "colour", "seeds.css");
+const SWATCHES = join(ROOT, "docs", "images", "colour-scales.svg");
+
+async function seed(name: string): Promise<number> {
+  const m = new RegExp(`${name}:\\s*([\\d.]+);`).exec(await readFile(SEEDS, "utf8"));
+  if (m?.[1] === undefined) {
+    throw new Error(`src/foundations/colour/seeds.css sets no ${name}`);
+  }
+  return Number(m[1]);
+}
+
+function hex(c: Colour): string {
+  const channel = (v: number) => {
+    const x = clamp(v);
+    const s = x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055;
+    return Math.round(s * 255)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${linearSrgb(...c)
+    .map(channel)
+    .join("")}`;
+}
+
+// docs/design-colour.md's swatches: the default seeds' two scales, each
+// theme on its own page surface, as sRGB hex so any image viewer shows them.
+async function scalesSvg(): Promise<string> {
+  const aH = await seed("--cp-accent-h");
+  const aC = await seed("--cp-accent-c");
+  const nH = await seed("--cp-neutral-h");
+  const nC = await seed("--cp-neutral-c");
+  const box = { w: 36, h: 28, gap: 2, pad: 16, label: 88, panel: 136 };
+  const width = box.pad * 2 + box.label + 9 * box.w + 8 * box.gap;
+  const left = (i: number) => box.pad + box.label + i * (box.w + box.gap);
+  const text = (x: number, y: number, fill: string, s: string, anchor = "start") =>
+    `<text x="${String(x)}" y="${String(y)}" fill="${fill}" text-anchor="${anchor}">${s}</text>`;
+  const panel = (theme: Theme, top: number) => {
+    const ladder = steps("neutral", theme, "normal", nH, nC, LADDER);
+    const ink = hex(ladder[11] as Colour);
+    const row = (y: number, name: string, colours: readonly Colour[]) => [
+      text(box.pad, y + 19, ink, name),
+      ...colours.map(
+        (c, i) =>
+          `<rect x="${String(left(i))}" y="${String(y)}" width="${String(box.w)}" height="${String(box.h)}" fill="${hex(c)}"/>`,
+      ),
+    ];
+    return [
+      `<rect x="0" y="${String(top)}" width="${String(width)}" height="${String(box.panel)}" fill="${hex(ladder[0] as Colour)}"/>`,
+      text(box.pad, top + 29, ink, theme === "light" ? "Light theme" : "Dark theme"),
+      ...Array.from({ length: 9 }, (_, i) =>
+        text(left(i) + box.w / 2, top + 50, hex(ladder[10] as Colour), String(i + 1), "middle"),
+      ),
+      ...row(top + 58, "Sequential", sequential(aH, aC, theme)),
+      ...row(top + 94, "Diverging", diverging(aH, aC, theme, nH, nC)),
+    ];
+  };
+  const height = box.panel * 2;
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${String(width)}" height="${String(height)}" viewBox="0 0 ${String(width)} ${String(height)}" role="img" font-family="system-ui, sans-serif" font-size="13">`,
+    `<title>The sequential and diverging scales of the default accent, steps 1 to 9, in the light and dark themes</title>`,
+    ...panel("light", 0),
+    ...panel("dark", box.panel),
+    "</svg>",
+    "",
+  ].join("\n");
+}
+
 // The element files src/system/manifest.txt lists, in its order.
 async function manifest(): Promise<string[]> {
   return (await readFile(MANIFEST, "utf8"))
@@ -918,6 +985,8 @@ const seenAs = (simulate: (c: readonly number[]) => readonly number[], c: Colour
 
 // Every scale check over every accent hue by the degree, five accent chromas,
 // both themes and every neutral's surfaces, computed once for the tests below.
+// Only the diverging middle and the surfaces depend on the neutral, so each
+// colour is simulated once and the neutral loop only measures distances.
 let scaleReport: Record<ScaleCheck, string[]> | undefined;
 function scaleFailures(): Record<ScaleCheck, string[]> {
   if (scaleReport !== undefined) {
@@ -927,111 +996,127 @@ function scaleFailures(): Record<ScaleCheck, string[]> {
     ScaleCheck,
     string[]
   >;
-  const fail = (k: ScaleCheck, at: string, d: number, floor: number) => {
+  const fail = (k: ScaleCheck, d: number, floor: number, at: () => string) => {
     if (d < floor) {
-      r[k].push(`${at} is ${d.toFixed(3)}, needs ${String(floor)}`);
+      r[k].push(`${at()} is ${d.toFixed(3)}, needs ${String(floor)}`);
     }
   };
-  const contrastTo = (c: Colour, y: number) => ratio(luminance(linearSrgb(...c)), y);
+  const yOf = (c: Colour) => luminance(linearSrgb(...c));
   for (const theme of ["light", "dark"] as const) {
+    const neutrals = NEUTRALS.map(([nh, nc]) => {
+      const surfaces = surfaceColours(theme, nh, nc);
+      const middle: Colour = [SCALE.diverging.middle[theme], nc, nh];
+      if (!inGamut(linearSrgb(...middle))) {
+        r.gamut.push(`${theme} neutral ${String(nh)} ${String(nc)} diverging 5 is outside sRGB`);
+      }
+      return {
+        name: `neutral ${String(nh)} ${String(nc)}`,
+        ys: surfaces.map(yOf),
+        yMiddle: yOf(middle),
+        seen: SEEN.map(([, simulate]) => ({
+          surfaces: surfaces.map((c) => seenAs(simulate, c)),
+          middle: seenAs(simulate, middle),
+        })),
+      };
+    });
     for (let hue = 0; hue < 360; hue++) {
       for (const chroma of [0, 0.02, 0.09, 0.137, 0.2]) {
         const at = `${theme} hue ${String(hue)} chroma ${String(chroma)}`;
         const s = sequential(hue, chroma, theme);
-        s.forEach((c, i) => {
-          if (!inGamut(linearSrgb(...c))) {
-            r.gamut.push(`${at} sequential ${String(i + 1)} is outside sRGB`);
+        // the arms do not depend on the neutral; step 5 is each neutral's, below
+        const d = diverging(hue, chroma, theme, 0, 0);
+        const named: (readonly [Colour, string])[] = [
+          ...s.map((c, i) => [c, `sequential ${String(i + 1)}`] as const),
+          ...d.map((c, i) => [c, `diverging ${String(i + 1)}`] as const),
+        ];
+        for (const [c, name] of named) {
+          if (name !== "diverging 5" && !inGamut(linearSrgb(...c))) {
+            r.gamut.push(`${at} ${name} is outside sRGB`);
           }
-        });
-        for (const [vision, simulate] of SEEN) {
-          const p = s.map((c) => seenAs(simulate, c));
+        }
+        const ps = SEEN.map(([, simulate]) => s.map((c) => seenAs(simulate, c)));
+        const qs = SEEN.map(([, simulate]) => d.map((c) => seenAs(simulate, c)));
+        SEEN.forEach(([vision], v) => {
+          const p = ps[v] ?? [];
           p.slice(1).forEach((c, i) => {
-            fail(
-              "neighbours",
-              `${at} ${vision} steps ${String(i + 1)}, ${String(i + 2)}`,
-              deltaE(p[i] as Colour, c),
-              SCALE_FLOOR.neighbours,
-            );
+            fail("neighbours", deltaE(p[i] as Colour, c), SCALE_FLOOR.neighbours, () => {
+              return `${at} ${vision} steps ${String(i + 1)}, ${String(i + 2)}`;
+            });
           });
           p.slice(2).forEach((c, i) => {
-            fail(
-              "twoApart",
-              `${at} ${vision} steps ${String(i + 1)}, ${String(i + 3)}`,
-              deltaE(p[i] as Colour, c),
-              SCALE_FLOOR.twoApart,
-            );
-          });
-        }
-        for (const [nh, nc] of NEUTRALS) {
-          const on = `${at} on neutral ${String(nh)} ${String(nc)}`;
-          const surfaces = surfaceColours(theme, nh, nc);
-          const ys = surfaces.map((c) => luminance(linearSrgb(...c)));
-          const page = ys[0] ?? 0;
-          const d = diverging(hue, chroma, theme, nh, nc);
-          d.forEach((c, i) => {
-            if (!inGamut(linearSrgb(...c))) {
-              r.gamut.push(`${on} diverging ${String(i + 1)} is outside sRGB`);
-            }
-          });
-          for (const [vision, simulate] of SEEN) {
-            const p = s.map((c) => seenAs(simulate, c));
-            const q = d.map((c) => seenAs(simulate, c));
-            const floor = vision === "full" ? SCALE_FLOOR.step1.full : SCALE_FLOOR.step1.simulated;
-            for (const surface of surfaces) {
-              const seenSurface = seenAs(simulate, surface);
-              fail(
-                "step1",
-                `${on} ${vision} sequential 1`,
-                deltaE(p[0] as Colour, seenSurface),
-                floor,
-              );
-              fail(
-                "middle",
-                `${on} ${vision} diverging 5`,
-                deltaE(q[4] as Colour, seenSurface),
-                SCALE_FLOOR.middle,
-              );
-            }
-            q.slice(1).forEach((c, i) => {
-              fail(
-                "divNeighbours",
-                `${on} ${vision} diverging ${String(i + 1)}, ${String(i + 2)}`,
-                deltaE(q[i] as Colour, c),
-                SCALE_FLOOR.neighbours,
-              );
+            fail("twoApart", deltaE(p[i] as Colour, c), SCALE_FLOOR.twoApart, () => {
+              return `${at} ${vision} steps ${String(i + 1)}, ${String(i + 3)}`;
             });
-            for (let k = 1; k <= 4; k++) {
-              fail(
-                "arms",
-                `${on} ${vision} diverging ${String(5 - k)}, ${String(5 + k)}`,
-                deltaE(q[4 - k] as Colour, q[4 + k] as Colour),
-                SCALE_FLOOR.arms,
-              );
-            }
+          });
+          const q = qs[v] ?? [];
+          for (let k = 1; k <= 4; k++) {
+            fail("arms", deltaE(q[4 - k] as Colour, q[4 + k] as Colour), SCALE_FLOOR.arms, () => {
+              return `${at} ${vision} diverging ${String(5 - k)}, ${String(5 + k)}`;
+            });
           }
-          const cs = s.map((c) => contrastTo(c, page));
-          const cd = d.map((c) => contrastTo(c, page));
+          for (const i of [0, 1, 2, 5, 6, 7]) {
+            fail(
+              "divNeighbours",
+              deltaE(q[i] as Colour, q[i + 1] as Colour),
+              SCALE_FLOOR.neighbours,
+              () => {
+                return `${at} ${vision} diverging ${String(i + 1)}, ${String(i + 2)}`;
+              },
+            );
+          }
+        });
+        const ysS = s.map(yOf);
+        const ysD = d.map(yOf);
+        for (const n of neutrals) {
+          const on = () => `${at} on ${n.name}`;
+          SEEN.forEach(([vision], v) => {
+            const p = ps[v] ?? [];
+            const q = qs[v] ?? [];
+            const seen = n.seen[v];
+            if (seen === undefined) {
+              return;
+            }
+            const floor = vision === "full" ? SCALE_FLOOR.step1.full : SCALE_FLOOR.step1.simulated;
+            for (const surface of seen.surfaces) {
+              fail("step1", deltaE(p[0] as Colour, surface), floor, () => {
+                return `${on()} ${vision} sequential 1`;
+              });
+              fail("middle", deltaE(seen.middle, surface), SCALE_FLOOR.middle, () => {
+                return `${on()} ${vision} diverging 5`;
+              });
+            }
+            for (const i of [3, 4]) {
+              const [a, b] =
+                i === 3 ? [q[3] as Colour, seen.middle] : [seen.middle, q[5] as Colour];
+              fail("divNeighbours", deltaE(a, b), SCALE_FLOOR.neighbours, () => {
+                return `${on()} ${vision} diverging ${String(i + 1)}, ${String(i + 2)}`;
+              });
+            }
+          });
+          const page = n.ys[0] ?? 0;
+          const cs = ysS.map((y) => ratio(y, page));
+          const cd = ysD.map((y, i) => ratio(i === 4 ? n.yMiddle : y, page));
           const outward = [
-            ...cs.slice(1).map((v, i) => [v, cs[i] ?? 0, `sequential ${String(i + 2)}`] as const),
+            ...cs.slice(1).map((c, i) => [c, cs[i] ?? 0, `sequential ${String(i + 2)}`] as const),
             ...[6, 7, 8, 9].map(
-              (n) => [cd[n - 1] ?? 0, cd[n - 2] ?? 0, `diverging ${String(n)}`] as const,
+              (k) => [cd[k - 1] ?? 0, cd[k - 2] ?? 0, `diverging ${String(k)}`] as const,
             ),
             ...[4, 3, 2, 1].map(
-              (n) => [cd[n - 1] ?? 0, cd[n] ?? 0, `diverging ${String(n)}`] as const,
+              (k) => [cd[k - 1] ?? 0, cd[k] ?? 0, `diverging ${String(k)}`] as const,
             ),
           ];
-          for (const [v, before, name] of outward) {
-            if (v <= before) {
-              r.rising.push(`${on} ${name} has less contrast with the page than the step before`);
+          for (const [c, before, name] of outward) {
+            if (c <= before) {
+              r.rising.push(`${on()} ${name} has less contrast with the page than the step before`);
             }
           }
-          for (const y of ys) {
-            for (const [c, name] of [
-              [s[8], "sequential 9"],
-              [d[0], "diverging 1"],
-              [d[8], "diverging 9"],
+          for (const y of n.ys) {
+            for (const [yc, name] of [
+              [ysS[8], "sequential 9"],
+              [ysD[0], "diverging 1"],
+              [ysD[8], "diverging 9"],
             ] as const) {
-              fail("far", `${on} ${name}`, contrastTo(c as Colour, y), SCALE_FLOOR.far);
+              fail("far", ratio(yc ?? 0, y), SCALE_FLOOR.far, () => `${on()} ${name}`);
             }
           }
         }
@@ -1128,6 +1213,14 @@ describe("css/system.css", () => {
       await writeFile(DESIGN, (await readFile(DESIGN, "utf8")).replace(block, table));
     }
     expect(block.exec(await readFile(DESIGN, "utf8"))?.[0], "run npm run system:sync").toBe(table);
+  });
+
+  it("draws the default seeds' scales for docs/design-colour.md", async () => {
+    const svg = await scalesSvg();
+    if (process.env["SYSTEM_SYNC"] === "1") {
+      await writeFile(SWATCHES, svg);
+    }
+    expect(await readFile(SWATCHES, "utf8"), "run npm run system:sync").toBe(svg);
   });
 
   it("keeps every hue in gamut and every pair over its floor at the chroma every hue may take", () => {

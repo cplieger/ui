@@ -1,6 +1,6 @@
 # Colour
 
-This page covers how `@cplieger/ui/css/system` builds its colours, from the seeds an app sets and the steps computed from them to light and dark, contrast, tones and harmony colours. [Design language](design.md) covers the rest of the foundations.
+This page covers how `@cplieger/ui/css/system` builds its colours, from the seeds an app sets and the steps computed from them to light and dark, contrast, tones, harmony and series colours, and the scales that colour an amount. [Design language](design.md) covers the rest of the foundations.
 
 ## Seeds
 
@@ -168,3 +168,40 @@ Tests check every accent hue in both themes. Every slot is 3:1 or more on the pa
 Neighbouring slots are the most distinct, and the order means nothing more. Give your most common categories the low numbers, and categories that sit side by side, such as the segments of one bar, neighbouring slots. A slot is never the only signal: a chip keeps its word, and a bar its legend and its numbers.
 
 The deep level holds less colour, so a yellow on an even slot comes out a dark gold. A slot is meant for marks and fills, and words on one take `--cp-tone-on`.
+
+## Sequential and diverging scales
+
+Two scales colour an amount, as a heatmap's cells do, where the series colours name categories:
+
+- `--cp-sequential-1` to `--cp-sequential-9` run from a low amount to a high one, such as posts per hour.
+- `--cp-diverging-1` to `--cp-diverging-9` run either side of a middle that means something: zero, 50%, an average, a threshold or a target. Step 5 is the middle, steps 6 to 9 rise above it in the accent's hue, and steps 4 to 1 fall below it in an opposite hue.
+
+![The default accent's two scales. In the light theme the sequential steps run from a pale sky blue to a deep navy, and the diverging steps from a dark brown through a light orange, a grey middle and a light blue to a deep blue. In the dark theme the sequential steps run from a deep blue to a pale blue, and the diverging steps from a light orange through a deep orange, a dark grey middle and a deep blue to a pale blue.](images/colour-scales.svg)
+
+Step 1 is the lowest amount in both themes, and the further a step is from the middle or from step 1, the further it stands from the page. More is always more contrast, so a scale reads the same way in the dark theme, where its high steps are the light ones. A chart takes 2 to 9 classes, spread evenly over the nine steps with both ends kept: five classes take steps 1, 3, 5, 7 and 9.
+
+The scales come from the accent by rule, as the series colours do:
+
+- Lightness runs in equal steps, from 86% to 29% in the light theme and from 40% to 92% in the dark. Step 1 stops short of the surfaces, so a low cell never vanishes into them.
+- The hue turns with lightness: the lightest step leans up to 30 degrees toward a yellow, hue 95, and the darkest up to 30 degrees toward a blue, hue 265. Yellows hold their colour when light and blues when dark, so a dark step is never a dirty olive. The default accent, 255, runs from a sky blue at hue 225 to a deep blue at 265.
+- Each step takes the series colours' 1.3 times the accent's chroma, between 0.13 and 0.17, so the scales are as saturated as the slots. Above 75% lightness the chroma tapers to 0.4 of that at 94%, because a vivid light cyan reads as white to a protanope. Where a hue would leave sRGB, chroma stops at a fit of sRGB's boundary, [Björn Ottosson's cusp triangle](https://bottosson.github.io/posts/gamutclipping/), which keeps the chroma smooth from step to step.
+- The diverging middle is a grey of the neutral seed, 86% in the light theme and 38% in the dark. The two arms match lightness step for step, so neither side looks heavier: 75, 64, 53 and 42% outward in the light theme, and 54, 63, 72 and 81% in the dark.
+- The opposite arm's hue depends on the accent's: a blue, 245, for accents from 355 to 119 degrees, an orange, 55, for accents from 170 to 307, and 475 minus the accent's hue for the greens and magentas between. Blue against orange is the pair every colour-vision deficiency keeps apart. A fixed turn of 180 degrees would put a cyan accent against a pink that a deuteranope sees as the same colour. The hue changes by pieces, so an accent moved across 120, 170, 308 or 355 degrees swings the opposite arm by 109 to 124 degrees: at 120 it moves from the blue, 245, to a pink red, 355.
+
+Tests check every accent hue by the degree, at five chromas from 0 to 0.2, in both themes, on the page, raised, sunken and overlay surfaces of the default neutral and of twelve neutral hues at chroma 0.015. Distances are in OKLab, under simulated protanopia, deuteranopia and tritanopia as well as full colour vision, and a just-noticeable difference is 0.02:
+
+| Check | Holds |
+| --- | --- |
+| every step inside sRGB | always |
+| neighbouring sequential steps, every vision | 0.05 apart |
+| sequential steps two apart, the five-class set, every vision | 0.10 apart |
+| sequential step 1 from every surface | 0.10 apart in full colour vision, 0.04 under each simulation |
+| neighbouring diverging steps, every vision | 0.05 apart |
+| the two arms at each distance from the middle, every vision | 0.06 apart |
+| the diverging middle from every surface, every vision | 0.06 apart |
+| contrast with the page at each step away from step 1 or the middle | rises |
+| each scale's far steps on every surface | 4.5:1 |
+
+No two steps need 3:1 between them. WCAG 1.4.11 exempts colour gradients that represent a measurement, such as heatmaps ([Understanding 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)), and 3:1 between steps would leave a scale only half the lightness range to work with. A step is never the only signal either: a chart keeps its colour key, its readings and its table, which give each exact amount.
+
+A scale step is meant for a fill that shows an amount. No test yet holds `--cp-ink` on any step, so a chart writes no words on a cell.
