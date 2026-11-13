@@ -2,7 +2,8 @@
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
  * pixel and cut at the plot's ends, rows of dots, bars and points along
- * their rows, a slope's lines and ends, rules and the axis lines.
+ * their rows, a slope's lines and ends, a scatter's dots, rules and the
+ * axis lines.
  * @module
  */
 
@@ -22,6 +23,7 @@ import {
   type PointModel,
   type RectModel,
   type SampleModel,
+  type ScatterModel,
   type SlopeModel,
 } from "./model.js";
 import type { Continuous } from "./scales.js";
@@ -807,6 +809,38 @@ export function slopePaths(m: SlopeModel, f: Frame): { lines: string[]; ends: st
     );
   });
   return { lines, ends };
+}
+
+/** A scatter dot's radius: one more than a timeline's, since each dot is
+ *  an item the reader looks for. */
+export const SCATTER_RADIUS = 4;
+
+/** Dot `i` of series `k` of `m`, its centre in plot px; undefined for a
+ *  dot `m` does not show. */
+export function scatterAt(m: ScatterModel, k: number, i: number, f: Frame): Point | undefined {
+  const s = m.series[k];
+  const x = s?.x[i] ?? null;
+  const y = s?.y[i] ?? null;
+  return x === null || y === null ? undefined : { x: f.xAt(x), y: f.yAt(y) };
+}
+
+// A closed circle, so its outline joins where it starts.
+const circle = (c: Point, r: number): string =>
+  `M${num(c.x - r)} ${num(c.y)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0Z`;
+
+/** One path per series of `m` in series order, a circle per shown dot in
+ *  the app's order. Inside one path every fill paints before any stroke
+ *  (https://www.w3.org/TR/SVG2/painting.html#PaintOrderProperty), so a
+ *  series' outlines all lie over its fills, and a later series over it. */
+export function scatterPaths(m: ScatterModel, f: Frame): string[] {
+  return m.series.map((_, k) =>
+    (m.shown[k] ?? [])
+      .map((i) => {
+        const c = scatterAt(m, k, i, f);
+        return c === undefined ? "" : circle(c, SCATTER_RADIUS);
+      })
+      .join(""),
+  );
 }
 
 /** A 1 px line down the plot at `x`, on whole device pixels. */

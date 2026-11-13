@@ -15,7 +15,7 @@ import { lowerBound, upperBound } from "../scale/reduce.js";
 import { spansDay } from "../scale/time.js";
 
 import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
-import type { BarMark, ChartSpec, Mark, PointMark, RectMark } from "./spec.js";
+import type { BarMark, ChartSpec, Mark, PointMark, RectMark, ScatterMark } from "./spec.js";
 
 type Kind =
   | "stackedColumn"
@@ -40,7 +40,8 @@ type Kind =
   | "dotPlot"
   | "rangePlot"
   | "arrowPlot"
-  | "slope";
+  | "slope"
+  | "scatter";
 
 export interface SeriesModel {
   readonly name: string;
@@ -249,6 +250,25 @@ export function slopeChange(s: SeriesModel): number | null {
   return a === null || b === null ? null : b - a;
 }
 
+interface ScatterSeriesModel {
+  readonly name: string;
+  readonly slot: number;
+  readonly names: readonly string[];
+  /** A value per dot, a gap (`null` or `NaN`) as `null`. */
+  readonly x: readonly (number | null)[];
+  readonly y: readonly (number | null)[];
+}
+
+/** Dots on two continuous scales, each series a group in its slot. */
+export interface ScatterModel {
+  readonly kind: "scatter";
+  readonly unit: Unit | undefined;
+  readonly series: readonly ScatterSeriesModel[];
+  /** Per series, its dots drawn, read and listed in the app's order: those
+   *  with both values, inside both domains. */
+  readonly shown: readonly (readonly number[])[];
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -281,6 +301,7 @@ type MarkModel =
   | BarModel
   | PointModel
   | SlopeModel
+  | ScatterModel
   | RuleModel
   | TextModel;
 
@@ -391,6 +412,32 @@ function checkSlot(slot: unknown, what: string, field = "slot"): void {
   }
 }
 
+function checkSeriesHead(
+  one: unknown,
+  s: number,
+  at: string,
+): asserts one is Record<string, unknown> {
+  if (!isObject(one) || typeof one["name"] !== "string") {
+    fail(`${at} must have a name`);
+  }
+  checkSlot(one["slot"], at);
+  if (one["slot"] === undefined && s >= 9) {
+    fail(`${at} needs a slot, since series past the ninth take none of their own`, RangeError);
+  }
+}
+
+function checkValues(values: unknown, length: number, of: string, against: string): void {
+  if (!arrayLike(values)) {
+    fail(`${of} must be an array of numbers`);
+  }
+  if (values.length !== length) {
+    fail(`${of} must be as long as its ${against}`);
+  }
+  if (Array.from(values).some((v) => v !== null && typeof v !== "number")) {
+    fail(`${of} must hold numbers or null`);
+  }
+}
+
 function checkSeries(
   series: unknown,
   length: number,
@@ -403,23 +450,36 @@ function checkSeries(
   for (let s = 0; s < series.length; s++) {
     const one = series[s];
     const at = `${what}.series[${String(s)}]`;
-    if (!isObject(one) || typeof one["name"] !== "string") {
-      fail(`${at} must have a name`);
+    checkSeriesHead(one, s, at);
+    checkValues(one[channel], length, `${at}.${channel}`, channel === "y" ? "x" : "y");
+  }
+}
+
+// A scatter's series each name their dots, and the readings and the table
+// tell a dot by its name alone, so each is unique across the mark.
+function checkScatter(mark: Record<string, unknown>, what: string): void {
+  checkUnit(mark["unit"], what);
+  const list = mark["series"];
+  if (!arrayLike(list)) {
+    fail(`${what}.series must be an array`);
+  }
+  const seen = new Set<unknown>();
+  for (let s = 0; s < list.length; s++) {
+    const one = list[s];
+    const at = `${what}.series[${String(s)}]`;
+    checkSeriesHead(one, s, at);
+    const names = one["names"];
+    if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
+      fail(`${at}.names must be an array of the dots' names`);
     }
-    checkSlot(one["slot"], at);
-    if (one["slot"] === undefined && s >= 9) {
-      fail(`${at} needs a slot, since series past the ninth take none of their own`, RangeError);
+    for (const name of Array.from(names)) {
+      if (name === "" || seen.has(name)) {
+        fail(`${what} must name each dot once across its series, never ""`, RangeError);
+      }
+      seen.add(name);
     }
-    const values = one[channel];
-    const of = `${at}.${channel}`;
-    if (!arrayLike(values)) {
-      fail(`${of} must be an array of numbers`);
-    }
-    if (values.length !== length) {
-      fail(`${of} must be as long as its ${channel === "y" ? "x" : "y"}`);
-    }
-    if (Array.from(values).some((v) => v !== null && typeof v !== "number")) {
-      fail(`${of} must hold numbers or null`);
+    for (const channel of ["x", "y"]) {
+      checkValues(one[channel], names.length, `${at}.${channel}`, "names");
     }
   }
 }
@@ -640,6 +700,9 @@ function checkMark(mark: unknown, what: string): void {
       }
       return;
     }
+    case "scatter":
+      checkScatter(mark, what);
+      return;
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -675,7 +738,7 @@ function checkMark(mark: unknown, what: string): void {
     }
     default:
       fail(
-        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "rule" or "text"`,
+        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "rule" or "text"`,
       );
   }
 }
@@ -706,13 +769,22 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point or slope mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope or scatter mark and any rules and text marks`,
       );
     }
     data = m;
   }
   const height = spec["height"];
   const primary = marks[data];
+  if (isObject(primary) && primary["mark"] === "scatter") {
+    for (const axis of ["x", "y"]) {
+      const scale = spec[axis];
+      const label = isObject(scale) ? scale["label"] : undefined;
+      if (typeof label !== "string" || label === "") {
+        fail(`${axis}.label is required on a scatter, whose readings name each measure by it`);
+      }
+    }
+  }
   const band =
     isObject(primary) &&
     (primary["mark"] === "dot" || primary["mark"] === "bar" || primary["mark"] === "point");
@@ -747,6 +819,23 @@ const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
 
 const pointSeries = (list: PointMark["series"]): PointSeriesModel[] =>
   list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, x: gaps(s.x, false) }));
+
+// A dot outside a passed domain is not drawn, and with no position it is no stop.
+function scatterModel(mark: ScatterMark, x: Continuous, y: Continuous): ScatterModel {
+  const series = mark.series.map((s, i) => ({
+    name: s.name,
+    slot: s.slot ?? i + 1,
+    names: s.names,
+    x: gaps(s.x, false),
+    y: gaps(s.y, false),
+  }));
+  const inside = (v: number | null | undefined, scale: Continuous): v is number =>
+    v !== null && v !== undefined && v >= scale.lo && v <= scale.hi;
+  const shown = series.map((s) =>
+    s.names.flatMap((_, i) => (inside(s.x[i], x) && inside(s.y[i], y) ? [i] : [])),
+  );
+  return { kind: "scatter", unit: mark.unit, series, shown };
+}
 
 /** One series with a value below 0: its bars run either side of the zero
  *  line, and every value but 0 is written with its sign. */
@@ -828,6 +917,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
           : "dotPlot";
     case "slope":
       return "slope";
+    case "scatter":
+      return "scatter";
   }
 }
 
@@ -852,6 +943,8 @@ function hasData(m: MarkModel, x: Continuous): boolean {
       return m.series.some((s) => s.x.some((v) => v !== null && v >= x.lo && v <= x.hi));
     case "slope":
       return m.series.some((s) => s.y.some((v) => v !== null));
+    case "scatter":
+      return m.shown.some((dots) => dots.length > 0);
     case "rule":
     case "text":
       return false;
@@ -1001,6 +1094,9 @@ export function chartModel(
         return { kind: "point", link: m.link, series: pointSeries(m.series) };
       case "slope":
         return { kind: "slope", columns: m.x, series: series(m.series) };
+      case "scatter":
+        // A band y throws in yScale without band rows, so y is continuous.
+        return scatterModel(m, x, y as Continuous);
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;

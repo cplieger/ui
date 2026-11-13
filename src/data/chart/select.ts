@@ -112,6 +112,8 @@ export function initial(model: Model): Selection | undefined {
       return bandRows(model) > 0 ? { kind: m.kind, row: 0, part: undefined } : undefined;
     case "slope":
       return { kind: "slope", i: 1, part: undefined };
+    case "scatter":
+      return undefined;
   }
 }
 
@@ -377,6 +379,9 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "slope") {
         return sel.kind === "slope" ? moveColumn(m, sel, key) : undefined;
       }
+      if (m.kind === "scatter") {
+        return undefined;
+      }
       if (sel.kind !== m.kind) {
         return undefined;
       }
@@ -452,6 +457,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
           const i = Math.abs(px - f.xAt(0)) < Math.abs(px - f.xAt(1)) ? 0 : 1;
           return { kind: "slope", i, part: undefined };
         }
+        case "scatter":
+          return undefined;
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;

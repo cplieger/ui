@@ -26,6 +26,7 @@ import {
   type PointSeriesModel,
   type RectModel,
   type SampleModel,
+  type ScatterModel,
   type SeriesModel,
   type SlopeModel,
 } from "./model.js";
@@ -49,8 +50,9 @@ export interface Reading {
   readonly chosen?: number;
 }
 
-/** The mark the legend row reads: the chart's one rect, line, area, dot, bar, point or slope. */
-type Primary = RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel | SlopeModel;
+/** The mark the legend row reads: the chart's one data mark. */
+type Primary =
+  RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel | SlopeModel | ScatterModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -219,6 +221,13 @@ export function rowsText(model: Model, words: Words): string {
   return unit === undefined ? words.categories(count, n) : counted(count, n, unit, model);
 }
 
+/** How many dots a scatter shows, in its `unit` or as `words.points`. */
+export function dotsText(model: Model, m: ScatterModel, words: Words): string {
+  const n = m.shown.reduce((a, d) => a + d.length, 0);
+  const count = formatter("number", model.locale)(n);
+  return m.unit === undefined ? words.points(count, n) : counted(count, n, m.unit, model);
+}
+
 /** Series `s`'s value in row `i` as the readings and the table write it,
  *  a gap as No data: under "share" its share of the row's total, or its
  *  value when the total is 0, which has no shares. */
@@ -339,7 +348,8 @@ export function changeText(model: Model, v: number): string {
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
  *  values, an area's last whole stack, a bar or point chart's row count,
- *  a slope's right column. */
+ *  a slope's right column, a scatter's dot count, blank slots for its two
+ *  measures and from two series up each one's count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -406,6 +416,23 @@ export function overall(model: Model, words: Words): Reading | undefined {
     }
     case "slope":
       return columnReading(model, m, 1, words);
+    case "scatter": {
+      // A series' count adds up across the chart, where its measures need not.
+      const count = formatter("number", model.locale);
+      const chips =
+        m.series.length < 2
+          ? []
+          : m.series.map((s, k) => ({
+              slot: s.slot,
+              name: s.name,
+              value: count(m.shown[k]?.length ?? 0),
+            }));
+      return {
+        at: dotsText(model, m, words),
+        entries: [...bare(""), ...bare(""), ...chips],
+        total: undefined,
+      };
+    }
   }
 }
 

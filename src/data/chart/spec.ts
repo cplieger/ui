@@ -12,14 +12,16 @@ type Values = ArrayLike<number | null>;
 
 interface Scale {
   readonly type?: "linear" | "log" | "time" | "band";
-  /** The axis title. */
+  /** The axis title; required on both axes of a scatter, whose readings
+   *  name each measure by it. */
   readonly label?: string;
   /** The measured noun ("posts"), or the band's rows ("agents"). */
   readonly unit?: Unit;
   /** Linear, log and time only. */
   readonly domain?: readonly [number, number];
   /** A linear y under a line or a slope, which holds 0 unless false, or a
-   *  linear x under a point mark, which holds it only when true. */
+   *  linear x under a point mark, or either under a scatter, which holds it
+   *  only when true. */
   readonly zero?: boolean;
   readonly format?: Format;
   /** Band only: names in the mono face. */
@@ -161,6 +163,25 @@ interface SlopeMark {
   readonly series: readonly Series[];
 }
 
+interface ScatterSeries {
+  readonly name: string;
+  readonly slot?: Slot;
+  /** Each dot's name, once across the whole mark. */
+  readonly names: readonly string[];
+  /** A value per dot on each axis; `null` or `NaN` draws no dot. */
+  readonly x: Values;
+  readonly y: Values;
+}
+
+/** A dot per item on the chart's linear or log x and y, each series a
+ *  group of dots in its slot, a later series drawn over an earlier one. */
+export interface ScatterMark {
+  readonly mark: "scatter";
+  /** The dots' noun ("countries"); without one they are points. */
+  readonly unit?: Unit;
+  readonly series: readonly ScatterSeries[];
+}
+
 /** Exactly one of `x` and `y`, finite. Beside a dot, bar or point mark
  *  only `x`, drawn down every row: in every panel of a split, and at its
  *  distance from 0 on both sides of a mirror or a diverging chart, where it
@@ -173,7 +194,7 @@ interface RuleMark {
 }
 
 /** A note at a place on the plot, set 4 px off it on its `side` (default
- *  "above"). Under a rect, line or area `x` and `y` are values on the
+ *  "above"). Under a rect, line, area or scatter `x` and `y` are values on the
  *  chart's scales; under a dot mark `x` is a time and `y` a row's name;
  *  under a bar or point mark `y` names a row and `x` places the note along
  *  it; under a slope `x` names one of its two columns and `y` is a value.
@@ -189,14 +210,25 @@ interface TextMark {
 }
 
 export type Mark =
-  RectMark | LineMark | AreaMark | DotMark | BarMark | PointMark | SlopeMark | RuleMark | TextMark;
+  | RectMark
+  | LineMark
+  | AreaMark
+  | DotMark
+  | BarMark
+  | PointMark
+  | SlopeMark
+  | ScatterMark
+  | RuleMark
+  | TextMark;
 
 export interface ChartSpec {
-  /** Default `{}`. A slope names its columns itself, so there it is a `TypeError`. */
+  /** Default `{}`. A slope names its columns itself, so there it is a
+   *  `TypeError`; a scatter's is linear or log. */
   readonly x?: Scale;
-  /** Band when the chart has a dot, bar or point mark; linear under a slope. */
+  /** Band when the chart has a dot, bar or point mark; linear under a
+   *  slope; linear or log under a scatter. */
   readonly y?: Scale;
-  /** One rect, line, area, dot, bar, point or slope mark and any rules and
+  /** One rect, line, area, dot, bar, point, slope or scatter mark and any rules and
    *  text marks, drawn in order: a rule after a rect draws over it. A
    *  second data mark is a `TypeError`. */
   readonly marks: readonly Mark[];

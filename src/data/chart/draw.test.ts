@@ -12,7 +12,7 @@ import {
   readMetrics,
   writeLegend,
 } from "./draw.js";
-import { snap } from "./geometry.js";
+import { hairline, snap, upright } from "./geometry.js";
 import { layout, type Layout } from "./layout.js";
 import { chartModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, overall, readoutWidths } from "./readout.js";
@@ -1408,5 +1408,128 @@ describe("a slope chart", () => {
     const area = d.svg.querySelector('[data-part="area"]') as Element;
     expect(leader.compareDocumentPosition(area) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(draw(pets([20, 10, 39]), 600).svg.querySelector('[data-part="leader"]')).toBeNull();
+  });
+});
+
+describe("a scatter plot", () => {
+  const countries = (
+    x: NonNullable<ChartSpec["x"]> = {},
+    y: NonNullable<ChartSpec["y"]> = {},
+  ): ChartSpec => ({
+    x: { label: "GDP per capita", ...x },
+    y: { label: "Life expectancy", ...y },
+    marks: [
+      {
+        mark: "scatter",
+        unit: { one: "country", other: "countries" },
+        series: [
+          {
+            name: "Europe",
+            slot: 2,
+            names: ["Albania", "Andorra", "Austria"],
+            x: [18_920, 65_928, 61_000],
+            y: [79.8, 84.1, 82],
+          },
+          {
+            name: "Africa",
+            slot: 5,
+            names: ["Chad", "Kenya", "Mali"],
+            x: [1_500, 5_200, null],
+            y: [53, 62, 59],
+          },
+        ],
+      },
+    ],
+  });
+
+  it("draws each series as one path of opaque circles in its slot, outlined in the surface", () => {
+    const d = draw(countries());
+    const paths = series(d, "scatter");
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["2", "5"]);
+    // Mali has no x, so it draws no dot.
+    expect(paths.map((p) => (p.getAttribute("d")?.match(/Z/g) ?? []).length)).toEqual([3, 2]);
+    for (const p of paths) {
+      const style = getComputedStyle(p);
+      expect(style.fill).toBe(token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`));
+      expect([style.stroke, style.strokeWidth]).toEqual([
+        token(p, "var(--cp-chart-surface)"),
+        "1px",
+      ]);
+      expect([style.opacity, style.fillOpacity]).toEqual(["1", "1"]);
+      // Every dot draws whole, with its ring's room, inside the plot.
+      const box = p.getBBox({ stroke: true });
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(d.lay.frame.height);
+    }
+  });
+
+  it("lays a later series' dot over an earlier one's, and a series' outlines over its own fills", () => {
+    const d = draw({
+      x: { label: "a", domain: [0, 100] },
+      y: { label: "b", domain: [0, 100] },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "Europe", names: ["A", "B"], x: [50, 51], y: [50, 50] },
+            { name: "Africa", names: ["C"], x: [52], y: [50] },
+          ],
+        },
+      ],
+    });
+    const [europe, africa] = series(d, "scatter");
+    const f = d.lay.frame;
+    const [a, b, c] = [50, 51, 52].map((v) => f.xAt(v));
+    const cy = f.yAt(50);
+    // B and C overlap: between their centres the pointer finds Africa's dot.
+    const svg = d.svg.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      svg.left + d.lay.left + ((b ?? 0) + (c ?? 0)) / 2,
+      svg.top + d.lay.top + cy,
+    );
+    expect(hit).toBe(africa);
+    // A's outline crosses B's fill, and both lie in one path, whose strokes
+    // all paint after its fills.
+    const edge = new DOMPoint((a ?? 0) + 4, cy);
+    expect((b ?? 0) - (a ?? 0)).toBeLessThan(8);
+    expect(europe?.isPointInFill(edge)).toBe(true);
+    expect(europe?.isPointInStroke(edge)).toBe(true);
+    expect(getComputedStyle(europe as Element).paintOrder).toBe("normal");
+  });
+
+  it("draws gridlines at both axes' ticks and a zero line on each linear axis that holds 0", () => {
+    const zeroed = draw(countries({ zero: true }, { zero: true }));
+    const f = zeroed.lay.frame;
+    const grid = zeroed.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    const xTicks = zeroed.lay.xAxis.ticks.filter((t) => t.value !== 0);
+    const yTicks = zeroed.lay.yAxis?.ticks.filter((t) => t.value !== 0) ?? [];
+    expect(xTicks.length).toBeGreaterThan(1);
+    expect(yTicks.length).toBeGreaterThan(1);
+    expect(grid).toBe(
+      [
+        ...xTicks.map((t) => upright(t.at, f.height, f.dpr)),
+        ...yTicks.map((t) => hairline(t.at, f.width, f.dpr)),
+      ].join(""),
+    );
+    expect(zeroed.svg.querySelector('[data-part="zero"]')?.getAttribute("d")).toBe(
+      upright(f.xAt(0), f.height, f.dpr) + hairline(f.yAt(0), f.width, f.dpr),
+    );
+    // With neither axis holding 0 there is no zero line.
+    const away = draw(countries({ domain: [1_000, 70_000] }));
+    expect(away.svg.querySelector('[data-part="zero"]')).toBeNull();
+  });
+
+  it("draws a gridline at every tick of a log axis and no zero line there", () => {
+    const d = draw(countries({ type: "log" }, { zero: true }));
+    const f = d.lay.frame;
+    const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    for (const t of d.lay.xAxis.ticks) {
+      expect(grid).toContain(upright(t.at, f.height, f.dpr));
+    }
+    expect(d.svg.querySelector('[data-part="zero"]')?.getAttribute("d")).toBe(
+      hairline(f.yAt(0), f.width, f.dpr),
+    );
   });
 });

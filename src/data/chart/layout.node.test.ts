@@ -975,3 +975,40 @@ describe("a slope chart", () => {
     expect(l.gutters).toEqual({ axis: 100, label: 95 });
   });
 });
+
+describe("a scatter's layout", () => {
+  const countries: ChartSpec = {
+    x: { label: "GDP per capita", domain: [0, 100] },
+    y: { label: "Life expectancy", domain: [50, 90] },
+    marks: [
+      {
+        mark: "scatter",
+        series: [{ name: "All", names: ["Chad", "Monaco"], x: [0, 100], y: [50, 90] }],
+      },
+    ],
+  };
+
+  it("runs both axes 6 px inside the plot, so a dot and its ring at a domain's end draw whole", () => {
+    const l = lay(countries, 600);
+    // The ring reaches 2 px past a 4 px dot.
+    expect(l.frame.xAt(0)).toBeCloseTo(6, 6);
+    expect(l.frame.xAt(100)).toBeCloseTo(l.frame.width - 6, 6);
+    expect(l.frame.yAt(90)).toBeCloseTo(6, 6);
+    expect(l.frame.yAt(50)).toBeCloseTo(l.frame.height - 6, 6);
+    expect(l.frame.height).toBe(240);
+    // The ticks and their labels move with the axes.
+    expect(l.xAxis.ticks[0]?.at).toBeCloseTo(6, 6);
+    expect(l.yAxis?.ticks.find((t) => t.value === 90)?.at).toBeCloseTo(6, 6);
+    const top = l.yLabels.find((t) => t.text === "90");
+    expect(top?.y).toBeCloseTo(l.top + 6, 6);
+  });
+
+  it("titles y above its gutter and x under its ticks at the right end", () => {
+    const l = lay(countries, 600);
+    expect(l.titles.map((t) => [t.text, t.anchor])).toEqual([
+      ["Life expectancy", "start"],
+      ["GDP per capita", "end"],
+    ]);
+    expect(l.titles[1]?.x).toBe(l.left + l.frame.width);
+  });
+});

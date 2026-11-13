@@ -241,6 +241,14 @@
   stroke-width: 10px;
 }
 
+/* A scatter's dots stay opaque, so no blend makes a colour the legend never
+ * names, and their outline of the surface keeps overlapping dots apart. */
+.cp-chart svg [data-part="scatter"] path {
+  fill: var(--cp-tone-9);
+  stroke: var(--cp-chart-surface);
+  stroke-width: 1px;
+}
+
 /* A range's bold link and an arrow, its head showing the direction in any
  * colour, under the dots. */
 .cp-chart svg [data-part="link"] {

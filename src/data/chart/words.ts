@@ -26,7 +26,8 @@ type Kind =
   | "dotPlot"
   | "rangePlot"
   | "arrowPlot"
-  | "slope";
+  | "slope"
+  | "scatter";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -116,6 +117,9 @@ export interface ChartWords {
   /** A band's rows when the y scale names no unit; count is n as a number,
    *  for the plural. Default "{n} categories", or "{n} category" for one. */
   readonly categories?: (n: string, count: number) => string;
+  /** A scatter's dots when its mark names no unit; count is n as a number,
+   *  for the plural. Default "{n} points", or "{n} point" for one. */
+  readonly points?: (n: string, count: number) => string;
   /** Summary, a bar chart's head; series is "" for one series. Default
    *  "{count}, {series}.", or "{count}." with one series. */
   readonly countSummary?: (count: string, series: string) => string;
@@ -195,6 +199,7 @@ const DEFAULTS: Words = {
     rangePlot: "Range plot",
     arrowPlot: "Arrow plot",
     slope: "Slope chart",
+    scatter: "Scatter plot",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -232,6 +237,7 @@ const DEFAULTS: Words = {
   note: (at, text) => sentence(`${at}: ${text}`),
   noteReading: (text) => sentence(`Note: ${text}`),
   categories: (n, count) => (count === 1 ? `${n} category` : `${n} categories`),
+  points: (n, count) => (count === 1 ? `${n} point` : `${n} points`),
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
   extremes: (high, low) => `Highest ${high}, lowest ${low}.`,

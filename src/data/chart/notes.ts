@@ -245,6 +245,7 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
     }
     case "slope":
       return { kind: "stop", i: x };
+    case "scatter":
     case undefined:
       return undefined;
   }

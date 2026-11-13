@@ -1005,3 +1005,36 @@ describe("the summary of a slope chart", () => {
     );
   });
 });
+
+describe("a scatter's short description", () => {
+  const scatter = (unit?: { one: string; other: string }): ChartSpec => ({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        ...(unit === undefined ? {} : { unit }),
+        series: [
+          { name: "Europe", names: ["Albania", "Andorra"], x: [18_920, 65_928], y: [79.8, 84.1] },
+          { name: "Africa", names: ["Chad", "Mali"], x: [1_500, null], y: [53, 59] },
+        ],
+      },
+    ],
+  });
+
+  it("names its kind, its series and the dots it draws, in its unit", () => {
+    expect(shortDescription(model(scatter({ one: "country", other: "countries" })), words)).toBe(
+      `Scatter plot, 2 series, 3${nb}countries`,
+    );
+  });
+
+  it("counts points without a unit, one in the singular", () => {
+    expect(shortDescription(model(scatter()), words)).toBe("Scatter plot, 2 series, 3 points");
+    const one = model({
+      x: { label: "a" },
+      y: { label: "b" },
+      marks: [{ mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1], y: [2] }] }],
+    });
+    expect(shortDescription(one, words)).toBe("Scatter plot, 1 point");
+  });
+});

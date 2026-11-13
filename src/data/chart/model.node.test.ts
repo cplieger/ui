@@ -277,7 +277,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point or slope mark and any rules and text marks",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope or scatter mark and any rules and text marks",
     );
   });
 
@@ -1046,7 +1046,7 @@ describe("the point mark", () => {
       "renderChart: a point's x must be above 0 on a log x",
     );
     expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
-      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "rule" or "text"',
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "rule" or "text"',
     );
   });
 
@@ -1321,5 +1321,207 @@ describe("the slope mark", () => {
 
   it("takes a chart with no x scale for every other mark too", () => {
     expect(build({ marks: [line([1, 2])] }).x).toMatchObject({ type: "linear", lo: 0, hi: 1 });
+  });
+});
+
+const scatter = (
+  series: readonly {
+    readonly names: readonly unknown[];
+    readonly x: readonly (number | null)[];
+    readonly y: readonly (number | null)[];
+  }[],
+  more: Record<string, unknown> = {},
+): Mark =>
+  ({
+    mark: "scatter",
+    series: series.map((s, k) => ({ name: `s${String(k)}`, ...s })),
+    ...more,
+  }) as Mark;
+
+const measures = { x: { label: "GDP per capita" }, y: { label: "Life expectancy" } };
+const one = (x: number | null, y: number | null) => [{ names: ["Japan"], x: [x], y: [y] }];
+
+describe("the scatter mark", () => {
+  it.each<[string, unknown, ErrorConstructor]>([
+    ["no x label", { y: { label: "b" }, marks: [scatter(one(1, 2))] }, TypeError],
+    ["no y label", { x: { label: "a" }, marks: [scatter(one(1, 2))] }, TypeError],
+    ["an empty label", { ...measures, x: { label: "" }, marks: [scatter(one(1, 2))] }, TypeError],
+    [
+      "names of another length",
+      { ...measures, marks: [scatter([{ names: ["a", "b"], x: [1], y: [2] }])] },
+      TypeError,
+    ],
+    [
+      "y of another length",
+      { ...measures, marks: [scatter([{ names: ["a"], x: [1], y: [2, 3] }])] },
+      TypeError,
+    ],
+    [
+      "a name that is not a string",
+      { ...measures, marks: [scatter([{ names: [7], x: [1], y: [2] }])] },
+      TypeError,
+    ],
+    [
+      "a series with no names",
+      { ...measures, marks: [{ mark: "scatter", series: [{ name: "a", x: [1], y: [2] }] }] },
+      TypeError,
+    ],
+    [
+      "an empty dot name",
+      { ...measures, marks: [scatter([{ names: [""], x: [1], y: [2] }])] },
+      RangeError,
+    ],
+    [
+      "a dot name repeated in another series",
+      {
+        ...measures,
+        marks: [
+          scatter([
+            { names: ["Japan"], x: [1], y: [2] },
+            { names: ["Japan"], x: [3], y: [4] },
+          ]),
+        ],
+      },
+      RangeError,
+    ],
+    [
+      "a tenth series with no slot",
+      {
+        ...measures,
+        marks: [
+          scatter(
+            Array.from({ length: 10 }, (_, k) => ({ names: [`d${String(k)}`], x: [1], y: [2] })),
+          ),
+        ],
+      },
+      RangeError,
+    ],
+    [
+      "a time x",
+      { ...measures, x: { label: "a", type: "time" }, marks: [scatter(one(1, 2))] },
+      TypeError,
+    ],
+    [
+      "a time y",
+      { ...measures, y: { label: "b", type: "time" }, marks: [scatter(one(1, 2))] },
+      TypeError,
+    ],
+    [
+      "a band y",
+      { ...measures, y: { label: "b", type: "band" }, marks: [scatter(one(1, 2))] },
+      TypeError,
+    ],
+    [
+      "zero on a log x",
+      { ...measures, x: { label: "a", type: "log", zero: true }, marks: [scatter(one(1, 2))] },
+      TypeError,
+    ],
+    [
+      "zero on a log y",
+      { ...measures, y: { label: "b", type: "log", zero: false }, marks: [scatter(one(1, 2))] },
+      TypeError,
+    ],
+    [
+      "an infinite x",
+      { ...measures, marks: [scatter(one(Number.POSITIVE_INFINITY, 2))] },
+      RangeError,
+    ],
+    [
+      "an infinite y",
+      { ...measures, marks: [scatter(one(1, Number.NEGATIVE_INFINITY))] },
+      RangeError,
+    ],
+    [
+      "an x of 0 on a log x",
+      { ...measures, x: { label: "a", type: "log" }, marks: [scatter(one(0, 2))] },
+      RangeError,
+    ],
+    [
+      "a negative y on a log y",
+      { ...measures, y: { label: "b", type: "log" }, marks: [scatter(one(1, -2))] },
+      RangeError,
+    ],
+    ["a scatter beside a line", { ...measures, marks: [line([1]), scatter(one(1, 2))] }, TypeError],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ y: { label: "b" }, marks: [scatter(one(1, 2))] })).toThrow(
+      "renderChart: x.label is required on a scatter, whose readings name each measure by it",
+    );
+    expect(() =>
+      build({
+        ...measures,
+        marks: [
+          scatter([
+            { names: ["Japan"], x: [1], y: [2] },
+            { names: ["Japan"], x: [3], y: [4] },
+          ]),
+        ],
+      }),
+    ).toThrow('renderChart: marks[0] must name each dot once across its series, never ""');
+    expect(() =>
+      build({ ...measures, x: { label: "a", type: "time" }, marks: [scatter(one(1, 2))] }),
+    ).toThrow("renderChart: a scatter's x is linear or log; a value over time is a line");
+  });
+
+  it("keeps each series' dots with their slots, gaps as null, and shows those it places", () => {
+    const m = build({
+      x: { label: "a", domain: [0, 10] },
+      y: { label: "b" },
+      marks: [
+        {
+          mark: "scatter",
+          unit: { one: "country", other: "countries" },
+          series: [
+            {
+              name: "Europe",
+              names: ["Albania", "Andorra", "Austria"],
+              x: [2, null, 12],
+              y: [8, 9, 7],
+            },
+            {
+              name: "Asia",
+              slot: 6,
+              names: ["Japan", "Laos"],
+              x: [5, Number.NaN],
+              y: [Number.NaN, 4],
+            },
+          ],
+        },
+      ],
+    });
+    expect(m.marks[0]).toEqual({
+      kind: "scatter",
+      unit: { one: "country", other: "countries" },
+      series: [
+        {
+          name: "Europe",
+          slot: 1,
+          names: ["Albania", "Andorra", "Austria"],
+          x: [2, null, 12],
+          y: [8, 9, 7],
+        },
+        { name: "Asia", slot: 6, names: ["Japan", "Laos"], x: [5, null], y: [null, 4] },
+      ],
+      // Andorra has no x, Austria lies past the passed x domain, Japan has no y and Laos no x.
+      shown: [[0], []],
+    });
+    expect(m.kind).toBe("scatter");
+    expect(m.empty).toBe(false);
+  });
+
+  it("is empty when no dot has both its values", () => {
+    expect(build({ ...measures, marks: [scatter(one(null, 2))] }).empty).toBe(true);
+    expect(build({ ...measures, marks: [scatter(one(0, 0))] }).empty).toBe(false);
+  });
+
+  it("places a note at values on both of its scales", () => {
+    const m = build({ ...measures, marks: [scatter(one(1, 2)), note({ x: 1, y: 2 })] });
+    expect(m.marks[1]).toMatchObject({ kind: "text", x: 1, y: 2, row: false });
+    expect(() =>
+      build({ ...measures, marks: [scatter(one(1, 2)), note({ x: "Japan", y: 2 })] }),
+    ).toThrow(TypeError);
   });
 });

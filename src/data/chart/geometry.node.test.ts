@@ -21,6 +21,8 @@ import {
   rangePath,
   rectPaths,
   ruleXs,
+  scatterAt,
+  scatterPaths,
   slopeEnds,
   slopePaths,
   type Frame,
@@ -33,6 +35,7 @@ import {
   type Model,
   type PointModel,
   type RectModel,
+  type ScatterModel,
   type SlopeModel,
 } from "./model.js";
 import type { ChartSpec } from "./spec.js";
@@ -1427,5 +1430,39 @@ describe("slope geometry", () => {
       lines: ["M0 0L200 50", "", ""],
       ends: ["M0 0h0M200 50h0", "M200 80h0", ""],
     });
+  });
+});
+
+describe("scatter geometry", () => {
+  const m = model({
+    x: { label: "a", domain: [0, 100] },
+    y: { label: "b", domain: [0, 100] },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Europe",
+            names: ["A", "B", "C", "D"],
+            x: [50, 20, null, 120],
+            y: [50, 80, 10, 10],
+          },
+          { name: "Asia", names: ["E"], x: [52], y: [50] },
+        ],
+      },
+    ],
+  });
+  const scatterOf = m.marks[0] as ScatterModel;
+  const f = frame(m, 100, 100, 100);
+  const circle = (cx: number, cy: number) =>
+    `M${String(cx - 4)} ${String(cy)}a4 4 0 1 0 8 0a4 4 0 1 0 -8 0Z`;
+
+  it("places each dot at its two values, y down", () => {
+    expect(scatterAt(scatterOf, 0, 1, f)).toEqual({ x: 20, y: 20 });
+    expect(scatterAt(scatterOf, 0, 2, f)).toBeUndefined();
+  });
+
+  it("draws a path per series, a closed 4 px circle per dot it shows", () => {
+    expect(scatterPaths(scatterOf, f)).toEqual([circle(50, 50) + circle(20, 20), circle(52, 50)]);
   });
 });

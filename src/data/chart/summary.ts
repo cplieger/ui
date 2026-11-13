@@ -27,6 +27,7 @@ import {
   changeText,
   counted,
   domainText,
+  dotsText,
   lastSample,
   lastStack,
   linkText,
@@ -413,13 +414,18 @@ export function summaryOf(model: Model, words: Words): string {
 }
 
 /** The plot's name: its kind, its series count from two up, and its x
- *  domain, or on a bar or point chart its row count, since its x is a value. */
+ *  domain, or on a bar or point chart its row count and on a scatter its
+ *  dot count, since their x is a value. */
 export function shortDescription(model: Model, words: Words): string {
   const m = primaryOf(model);
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
   const n = m === undefined || m.kind === "dot" ? 0 : m.series.length;
   const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
   const range =
-    m?.kind === "bar" || m?.kind === "point" ? rowsText(model, words) : domainText(model, words);
+    m?.kind === "bar" || m?.kind === "point"
+      ? rowsText(model, words)
+      : m?.kind === "scatter"
+        ? dotsText(model, m, words)
+        : domainText(model, words);
   return words.shortDescription(kind, series, range);
 }

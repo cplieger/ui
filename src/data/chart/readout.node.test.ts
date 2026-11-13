@@ -923,3 +923,49 @@ describe("the legend row of a slope chart", () => {
     expect(w.values).toEqual([7 * "1,250,000".length, 7 * "No data".length]);
   });
 });
+
+describe("a scatter's legend row with no selection", () => {
+  const scatter = (series: number): Model =>
+    chartModel(
+      {
+        x: { label: "GDP per capita" },
+        y: { label: "Life expectancy" },
+        marks: [
+          {
+            mark: "scatter",
+            unit: { one: "country", other: "countries" },
+            series: [
+              {
+                name: "Europe",
+                slot: 2 as const,
+                names: ["Albania", "Andorra", "Monaco"],
+                x: [1, 2, null],
+                y: [3, 4, 5],
+              },
+              { name: "Africa", slot: 5 as const, names: ["Chad"], x: [6], y: [7] },
+            ].slice(0, series),
+          },
+        ],
+      },
+      "en",
+      "UTC",
+    );
+
+  it("reads the dots drawn, blank slots for both measures, and each series' count", () => {
+    expect(overall(scatter(2), words)).toEqual({
+      at: `3${nb}countries`,
+      entries: [
+        { slot: undefined, name: undefined, value: "" },
+        { slot: undefined, name: undefined, value: "" },
+        { slot: 2, name: "Europe", value: "2" },
+        { slot: 5, name: "Africa", value: "1" },
+      ],
+      total: undefined,
+    });
+  });
+
+  it("has no chip for one series", () => {
+    expect(overall(scatter(1), words)?.entries).toHaveLength(2);
+    expect(overall(scatter(1), words)?.at).toBe(`2${nb}countries`);
+  });
+});

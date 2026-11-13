@@ -6,7 +6,7 @@
 
 import type { Format } from "../scale/format.js";
 
-import type { BarMark, ChartSpec, PointMark, RectMark } from "./spec.js";
+import type { BarMark, ChartSpec, PointMark, RectMark, ScatterMark } from "./spec.js";
 
 /** A log x's one rect whose `x1` is 0 or below. */
 interface Underflow {
@@ -207,6 +207,29 @@ function addPoints(extent: Extent, m: PointMark, log: boolean): void {
   }
 }
 
+// A scatter's dot is placed by its value, so a log axis has no place for 0
+// or below; a dot without its other value is not drawn, so it holds no extent.
+function addScatter(extent: Extent, m: ScatterMark, axis: "x" | "y", log: boolean): void {
+  const other = axis === "x" ? "y" : "x";
+  for (const s of m.series) {
+    for (let i = 0; i < s[axis].length; i++) {
+      const v = s[axis][i];
+      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
+        throw new RangeError(`renderChart: a scatter's ${axis} cannot be infinite`);
+      }
+      if (finite(v)) {
+        if (log && v <= 0) {
+          throw new RangeError(`renderChart: a scatter's ${axis} must be above 0 on a log ${axis}`);
+        }
+        if (finite(s[other][i])) {
+          extent.count(v);
+          extent.add(v);
+        }
+      }
+    }
+  }
+}
+
 // A slope's two columns, named by its mark, at 0 and 1.
 const COLUMNS: Continuous = {
   type: "linear",
@@ -222,10 +245,10 @@ const COLUMNS: Continuous = {
 };
 
 /** The x scale of `spec`: linear unless it says another continuous type,
- *  under a bar mark linear from 0, under a point mark holding 0 only with
- *  `zero: true`, and under a slope its two columns at 0 and 1. Throws for a
- *  band x and for a type, domain, zero or underflow bin that breaks a rule,
- *  and for an x scale or an x rule beside a slope. */
+ *  under a bar mark linear from 0, under a point mark or a scatter holding
+ *  0 only with `zero: true`, and under a slope its two columns at 0 and 1.
+ *  Throws for a band x and for a type, domain, zero or underflow bin that
+ *  breaks a rule, and for an x scale or an x rule beside a slope. */
 export function xScale(spec: ChartSpec): Continuous {
   if (spec.marks.some((m) => m.mark === "slope")) {
     if (spec.x !== undefined) {
@@ -252,13 +275,18 @@ export function xScale(spec: ChartSpec): Continuous {
   if (bars && x.zero === false) {
     throw new TypeError("renderChart: a bar's x always starts at zero");
   }
-  const points = spec.marks.some((m) => m.mark === "point");
-  if (points && x.zero !== undefined && type !== "linear") {
+  const scatter = spec.marks.some((m) => m.mark === "scatter");
+  if (scatter && type === "time") {
+    throw new TypeError("renderChart: a scatter's x is linear or log; a value over time is a line");
+  }
+  // Neither holds 0 unless asked, since a dot's place, not a length, is its value.
+  const placed = scatter || spec.marks.some((m) => m.mark === "point");
+  if (placed && x.zero !== undefined && type !== "linear") {
     throw new TypeError(`renderChart: a ${type} x has no zero to hold`);
   }
   const log = type === "log";
   const extent = new Extent(log);
-  if (bars || (points && x.zero === true)) {
+  if (bars || (placed && x.zero === true)) {
     extent.add(0);
   }
   for (const m of spec.marks) {
@@ -275,6 +303,8 @@ export function xScale(spec: ChartSpec): Continuous {
       addBars(extent, m);
     } else if (m.mark === "point") {
       addPoints(extent, m, log);
+    } else if (m.mark === "scatter") {
+      addScatter(extent, m, "x", log);
     }
   }
   const integer = extent.integer;
@@ -422,6 +452,8 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
           extent.add(total);
         }
       }
+    } else if (m.mark === "scatter") {
+      addScatter(extent, m, "y", log);
     } else if (m.mark === "line" || m.mark === "slope") {
       for (const s of m.series) {
         for (const value of Array.from(s.y)) {
@@ -438,8 +470,10 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
 }
 
 /** The y scale of `spec`: a band of the dot rows or the bar or point categories,
- *  else linear unless it says log, which a slope cannot. Throws for a y type
- *  its mark cannot take and for a domain or zero a rect or an area cannot take. */
+ *  else linear unless it says log, which a slope cannot; a linear y holds 0
+ *  unless `zero: false`, under a scatter only with `zero: true`. Throws for
+ *  a y type its mark cannot take and for a domain or zero a rect or an area
+ *  cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
   const y = spec.y ?? {};
   const kinds = new Set(spec.marks.map((m) => m.mark));
@@ -481,6 +515,10 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     throw new TypeError(`renderChart: ${filled} y always starts at zero`);
   }
   const log = type === "log";
+  const scatter = kinds.has("scatter");
+  if (scatter && log && y.zero !== undefined) {
+    throw new TypeError("renderChart: a log y has no zero to hold");
+  }
   const share = spec.marks.some(
     (m) => (m.mark === "rect" || m.mark === "area") && m.arrange === "share",
   );
@@ -515,7 +553,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
         extent.add(m.y);
       }
     }
-    if (y.zero !== false) {
+    if (scatter ? y.zero === true : y.zero !== false) {
       extent.add(0);
     }
   }

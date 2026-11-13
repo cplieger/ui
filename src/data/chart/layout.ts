@@ -3,7 +3,7 @@
  * and the label gutter, the rule labels' band and the y title above the
  * plot, the x axis under it, the lines' and areas' end labels, a band
  * chart's rows, a bar chart's panels and value labels, a slope's columns
- * and end labels, and the text marks' notes.
+ * and end labels, a scatter's inset axes, and the text marks' notes.
  * @module
  */
 
@@ -27,6 +27,7 @@ import {
   barReach,
   POINT_RADIUS,
   ruleXs,
+  SCATTER_RADIUS,
   type Frame,
   type Panel,
 } from "./geometry.js";
@@ -158,6 +159,9 @@ const SPINE = 8;
  *  selection ring's reach, 1 px off a dot with its 2 px stroke, so a dot at
  *  the domain's end draws whole, ring and all, inside the plot's clip. */
 const POINT_INSET = POINT_RADIUS + 2;
+/** A scatter's x and y run this far inside the plot's edges, by the same
+ *  rule, so a dot at a niced domain's end draws whole, clear of the axes. */
+const SCATTER_INSET = SCATTER_RADIUS + 2;
 
 /** A slope's names stay short enough that each gutter is at most this
  *  share of the chart's width. */
@@ -547,6 +551,7 @@ export function layout(
   const narrow = chart < NARROW_REM * metrics.rem;
   const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
   const points = model.marks.some((m) => m.kind === "point");
+  const scatter = model.marks.some((m) => m.kind === "scatter");
   const mirror = bars?.arrange === "mirror";
   // Under 30rem a name above its bar or its dots leaves the plot the chart's
   // whole width; a mirror's short names stay in the gutter, keeping its rows
@@ -574,7 +579,16 @@ export function layout(
   let names: string[] = [];
   let widestY = 0;
   if (band === undefined) {
-    yAx = yAxis(model.y as Continuous, height, lineHeight, ctx);
+    const yInset = scatter ? SCATTER_INSET : 0;
+    const laid = yAxis(model.y as Continuous, Math.max(1, height - 2 * yInset), lineHeight, ctx);
+    yAx =
+      yInset === 0
+        ? laid
+        : {
+            ...laid,
+            at: (v) => yInset + laid.at(v),
+            ticks: laid.ticks.map((t) => moved(t, (v) => yInset + v)),
+          };
     for (const t of yAx.ticks) {
       widestY = Math.max(widestY, t.label?.width ?? 0);
     }
@@ -624,7 +638,7 @@ export function layout(
   const gap = mirror ? SPINE : PANEL_GAP;
   const panelW = Math.max(1, (plotW - (count - 1) * gap) / count);
   const flip = reverse && !panelled;
-  const inset = points ? POINT_INSET : 0;
+  const inset = points ? POINT_INSET : scatter ? SCATTER_INSET : 0;
   if (panelled) {
     roomRight = Math.max(roomLeft, roomRight);
     roomLeft = 0;

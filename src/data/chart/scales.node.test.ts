@@ -587,3 +587,56 @@ describe("a slope's scales", () => {
     expect(continuous(yScale(ruled))).toMatchObject({ lo: -4, hi: 20 });
   });
 });
+
+describe("a scatter's scales", () => {
+  const scatter = (
+    x: NonNullable<ChartSpec["x"]>,
+    y: NonNullable<ChartSpec["y"]>,
+    ...dots: [number | null, number | null][]
+  ): ChartSpec => ({
+    x: { label: "GDP per capita", ...x },
+    y: { label: "Life expectancy", ...y },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "All",
+            names: dots.map((_, i) => `d${String(i)}`),
+            x: dots.map((d) => d[0]),
+            y: dots.map((d) => d[1]),
+          },
+        ],
+      },
+    ],
+  });
+
+  it("holds 0 on neither axis unless zero is true, since a dot's place is its value", () => {
+    const spec = scatter({}, {}, [18_000, 79.8], [65_000, 84.1], [null, 90]);
+    expect(xScale(spec)).toMatchObject({ type: "linear", lo: 18_000, hi: 65_000 });
+    expect(continuous(yScale(spec))).toMatchObject({ type: "linear", lo: 79.8, hi: 84.1 });
+    const zeroed = scatter({ zero: true }, { zero: true }, [18_000, 79.8], [65_000, 84.1]);
+    expect(xScale(zeroed)).toMatchObject({ lo: 0, hi: 65_000 });
+    expect(continuous(yScale(zeroed))).toMatchObject({ lo: 0, hi: 84.1 });
+  });
+
+  it("takes log scales of positive values", () => {
+    const spec = scatter({ type: "log" }, { type: "log" }, [900, 53], [140_000, 85.9]);
+    expect(xScale(spec)).toMatchObject({ type: "log", lo: 900, hi: 140_000 });
+    expect(continuous(yScale(spec))).toMatchObject({ type: "log", lo: 53, hi: 85.9 });
+  });
+
+  it("takes rules on either axis into its extents", () => {
+    const spec = scatter({}, {}, [10, 50], [20, 60]);
+    const ruled = {
+      ...spec,
+      marks: [
+        ...spec.marks,
+        { mark: "rule" as const, x: 30, label: "Median income" },
+        { mark: "rule" as const, y: 40, label: "Floor" },
+      ],
+    };
+    expect(xScale(ruled)).toMatchObject({ lo: 10, hi: 30 });
+    expect(continuous(yScale(ruled))).toMatchObject({ lo: 40, hi: 60 });
+  });
+});

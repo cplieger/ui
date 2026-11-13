@@ -25,6 +25,7 @@ import {
   rectPaths,
   rulePath,
   ruleXs,
+  scatterPaths,
   SLOPE_RADIUS,
   slopeEnds,
   slopePaths,
@@ -137,17 +138,18 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   const grid: string[] = [];
   let zero = "";
   // A bar's and a point's value axis is x, so their gridlines and zero line
-  // stand upright; a point chart's zero is only a linear x's.
+  // stand upright, and a scatter's stand both ways; a point chart's and a
+  // scatter's zero is only a linear x's.
   const primary = primaryOf(model);
   const bars = primary?.kind === "bar";
   const points = primary?.kind === "point";
-  if (bars || points) {
+  if (bars || points || primary?.kind === "scatter") {
     for (const t of lay.xAxis.ticks) {
       if (t.value !== 0 || model.x.type !== "linear") {
         grid.push(upright(t.at, f.height, f.dpr));
       }
     }
-    if (primary.kind === "point") {
+    if (primary.kind !== "bar") {
       if (model.x.type === "linear" && lay.xAxis.lo <= 0 && lay.xAxis.hi >= 0) {
         zero = upright(f.xAt(0), f.height, f.dpr);
       }
@@ -158,16 +160,19 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       zero = ats.map((at) => upright(at, f.height, f.dpr)).join("");
     }
   }
+  let yZero = "";
   for (const t of lay.yAxis?.ticks ?? []) {
     if (t.value === 0) {
-      zero = hairline(t.at, f.width, f.dpr);
+      yZero = hairline(t.at, f.width, f.dpr);
     } else {
       grid.push(hairline(t.at, f.width, f.dpr));
     }
   }
-  if (lay.yAxis !== undefined && zero === "" && lay.yAxis.lo <= 0 && lay.yAxis.hi >= 0) {
-    zero = hairline(f.yAt(0), f.width, f.dpr);
+  const y = lay.yAxis;
+  if (y !== undefined && yZero === "" && y.lo <= 0 && y.hi >= 0) {
+    yZero = hairline(f.yAt(0), f.width, f.dpr);
   }
+  zero += yZero;
   const rows = bars ? [] : lay.rows.map((r) => hairline(r.y, f.width, f.dpr));
   if (grid.length > 0) {
     area.append(svgEl("path", { "data-part": "grid", d: grid.join("") }));
@@ -253,6 +258,14 @@ function plotArea(model: Model, lay: Layout): SVGElement {
           dots.append(svgEl("path", { "data-series": slot, d: ends[k] ?? "" }));
         });
         area.append(g, dots);
+        break;
+      }
+      case "scatter": {
+        const g = svgEl("g", { "data-part": "scatter" });
+        scatterPaths(m, f).forEach((d, k) => {
+          g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
+        });
+        area.append(g);
         break;
       }
       case "rule":
