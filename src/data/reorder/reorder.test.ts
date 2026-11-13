@@ -245,9 +245,7 @@ describe("enhanceReorder", () => {
     await expect.poll(() => box.scrollTop, { timeout: 2000 }).toBeGreaterThan(40);
     await userEvent.pointer({ keys: "[/MouseLeft]" });
     expect(order(ol).indexOf("Item 1")).toBeGreaterThan(1);
-    // Firefox's driver took 4.4 s for the one pointer move on a loaded host;
-    // the time is the driver's, and the poll keeps its own 2 s bound.
-  }, 30_000);
+  });
 
   it("slides the others from their old place", async () => {
     const ol = list();
