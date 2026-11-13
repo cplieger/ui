@@ -25,7 +25,7 @@ import {
 import type { Words } from "./words.js";
 
 /** A touch that moves this far is a drag, not a tap, in px: along x on a
- *  chart a drag explores, either way on one that only taps select. */
+ *  chart a drag explores, in any direction on one that only taps select. */
 const DRAG = 8;
 
 interface Explorer {
@@ -189,13 +189,12 @@ export function explore(
     if (touch?.id !== e.pointerId) {
       return;
     }
-    const across = Math.abs(e.clientX - touch.x) > DRAG;
     if (nav?.drags === true) {
-      if (touch.dragging || across) {
+      if (touch.dragging || Math.abs(e.clientX - touch.x) > DRAG) {
         touch.dragging = true;
         pointAt(e);
       }
-    } else if (across || Math.abs(e.clientY - touch.y) > DRAG) {
+    } else if (Math.hypot(e.clientX - touch.x, e.clientY - touch.y) > DRAG) {
       touch.moved = true;
     }
   });

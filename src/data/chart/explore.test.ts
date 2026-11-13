@@ -647,6 +647,24 @@ describe("keys and touch on a bar chart", () => {
     expect(legendText(b)).toBe(before);
   });
 
+  it("a tap that jitters under 8 px selects, and a diagonal slide past 8 px does not", () => {
+    const b = build(firms);
+    const w = plotWidth(b);
+    const h = plotHeight(b);
+    const before = legendText(b);
+    // 7 px across and 7 px down: under 8 on each axis, 9.9 px of travel.
+    point(b, "pointerdown", w * 0.5, h * 0.5, "touch");
+    point(b, "pointermove", w * 0.5 + 7, h * 0.5 + 7, "touch");
+    point(b, "pointerup", w * 0.5 + 7, h * 0.5 + 7, "touch");
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(before);
+    point(b, "pointerdown", w * 0.5, h * 0.5, "touch");
+    point(b, "pointermove", w * 0.5 + 3, h * 0.5 + 6, "touch");
+    point(b, "pointerup", w * 0.5 + 3, h * 0.5 + 6, "touch");
+    expect(ring(b)).not.toBe(null);
+    expect(legendText(b)).toBe("Brill · Domestic · 3 · International · 22 · 25");
+  });
+
   it("a mouse selects the row under it anywhere across the plot", () => {
     const b = build(firms);
     point(b, "pointermove", plotWidth(b) - 1, plotHeight(b) * 0.5);
