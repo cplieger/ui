@@ -2,12 +2,18 @@
  * ink so it stands off the bar whatever its harmony colour. The ring is
  * its hover and its open state, so the button paints no fill. */
 .cp-button.cp-account {
-  padding: 0.1875rem;
+  inline-size: var(--cp-control-h);
+  block-size: var(--cp-control-h);
+  padding: 0.125rem;
   border-radius: 50%;
   background: transparent;
 }
 
-.cp-account > .cp-avatar {
+/* The avatar fills the button, so the button is as tall as the header's
+ * other controls on each pointer tier. */
+.cp-button.cp-account > .cp-avatar {
+  inline-size: 100%;
+  block-size: 100%;
   box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
   transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
 }

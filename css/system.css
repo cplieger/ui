@@ -1550,6 +1550,7 @@
   font-synthesis-weight: none;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-wrap: break-word;
   accent-color: var(--cp-accent);
   caret-color: var(--cp-accent-ink);
   scrollbar-color: var(--cp-border-strong) transparent;
@@ -2445,6 +2446,11 @@
   white-space: nowrap;
 }
 
+/* As a link home, the wordmark is a control and takes the hit area. */
+a.cp-wordmark {
+  min-block-size: var(--cp-hit-min);
+}
+
 .cp-mark {
   display: grid;
   place-items: center;
@@ -2810,8 +2816,10 @@
   font: inherit;
   font-weight: var(--cp-weight-medium);
   font-size: var(--cp-text-ui);
-  line-height: 1;
-  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap-style: balance;
+  max-inline-size: 100%;
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
@@ -6177,6 +6185,7 @@ th[aria-sort="descending"] > .cp-sort::after {
  * would fight it. */
 .cp-feed {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-2);
   margin: 0;
   padding: 0;
@@ -6209,6 +6218,7 @@ th[aria-sort="descending"] > .cp-sort::after {
  * fill, keep their text on the same edge as everyone else's. */
 .cp-feed-entry {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-1);
   padding: var(--cp-space-3) var(--cp-space-4);
   border-radius: var(--cp-radius-surface);
@@ -6403,6 +6413,13 @@ th[aria-sort="descending"] > .cp-sort::after {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-medium);
+  text-wrap-style: balance;
+  max-inline-size: 100%;
+}
+
+/* In a table a chip keeps one line: a table wider than its panel scrolls
+ * inside it, so the column keeps the chip's whole width. */
+.cp-table .cp-chip {
   white-space: nowrap;
 }
 
@@ -6841,6 +6858,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
   min-inline-size: 0;
@@ -6856,6 +6874,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
 }
@@ -6962,6 +6981,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-context-panel > section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-2);
   padding: 0 var(--cp-space-3) var(--cp-space-3);
@@ -8315,10 +8335,16 @@ a.cp-media:focus-visible > .cp-cover {
 /* Empty state: what belongs here and the one action that fills it. */
 .cp-empty {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: var(--cp-space-3);
   padding: var(--cp-space-8) var(--cp-space-6);
   color: var(--cp-ink-muted);
+}
+
+/* Each part keeps its own width, held to the column so a long word wraps. */
+.cp-empty > * {
+  max-inline-size: 100%;
 }
 
 /* Its lead glyph, in the accent or the tone it names, such as danger for
@@ -8814,6 +8840,7 @@ a.cp-media:focus-visible > .cp-cover {
 .cp-dialog > form,
 .cp-dialog > .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   max-block-size: inherit;
 }
@@ -8846,6 +8873,7 @@ a.cp-media:focus-visible > .cp-cover {
 .cp-dialog-body,
 .cp-dialog .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-4);
   padding: var(--cp-space-1) var(--cp-space-5) var(--cp-space-5);
@@ -9193,6 +9221,7 @@ a.cp-media:focus-visible > .cp-cover {
 /* A panel of controls rather than a list of choices. */
 .cp-popover[data-variant="panel"] {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-3);
   inline-size: 18rem;
   padding: var(--cp-space-4);
@@ -9322,6 +9351,7 @@ a.cp-media:focus-visible > .cp-cover {
 
 .cp-status-panel > section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-1);
   padding: var(--cp-space-3) var(--cp-space-4);
   border-block-start: var(--cp-line-w) solid var(--cp-line);
@@ -10173,12 +10203,18 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
  * ink so it stands off the bar whatever its harmony colour. The ring is
  * its hover and its open state, so the button paints no fill. */
 .cp-button.cp-account {
-  padding: 0.1875rem;
+  inline-size: var(--cp-control-h);
+  block-size: var(--cp-control-h);
+  padding: 0.125rem;
   border-radius: 50%;
   background: transparent;
 }
 
-.cp-account > .cp-avatar {
+/* The avatar fills the button, so the button is as tall as the header's
+ * other controls on each pointer tier. */
+.cp-button.cp-account > .cp-avatar {
+  inline-size: 100%;
+  block-size: 100%;
   box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
   transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
 }

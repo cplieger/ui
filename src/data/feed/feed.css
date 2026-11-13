@@ -4,6 +4,7 @@
  * would fight it. */
 .cp-feed {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-2);
   margin: 0;
   padding: 0;
@@ -36,6 +37,7 @@
  * fill, keep their text on the same edge as everyone else's. */
 .cp-feed-entry {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-1);
   padding: var(--cp-space-3) var(--cp-space-4);
   border-radius: var(--cp-radius-surface);
