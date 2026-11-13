@@ -86,6 +86,22 @@ describe("equal classes", () => {
     expect(classes({ steps: 4 }, [-0.07, -0.04]).thresholds).toEqual([-0.06, -0.05, -0.04]);
   });
 
+  it("takes a width the span over steps reaches exactly, though the quotient drifts above it", () => {
+    // 0.6 / 6 and 0.3 / 3 are each 0.1 wide, from -0.2 (reaching 0.4) and from -0.1 (reaching 0.2).
+    expect(classes({ steps: 6 }, [-0.2, 0.4]).thresholds).toEqual([-0.1, 0, 0.1, 0.2, 0.3]);
+    expect(classes({ steps: 3 }, [-0.1, 0.2]).thresholds).toEqual([0, 0.1]);
+    // Pivot 0.3, half-span 0.25 over 5 classes: 0.1 wide, the middle class 0.25 to 0.35.
+    expect(classes({ type: "diverging", steps: 5, pivot: 0.3 }, [0.05, 0.55]).thresholds).toEqual([
+      0.15, 0.25, 0.35, 0.45,
+    ]);
+  });
+
+  it("keeps a pivot near 0 as an even diverging count's middle boundary among wide classes", () => {
+    const d = classes({ type: "diverging", steps: 4, pivot: 0.001 }, [-2e6, 2e6]);
+    expect(new Intl.NumberFormat("en").format(d.thresholds[1] ?? Number.NaN)).toBe("0.001");
+    expect(classOf(d, 0)).toBe(1);
+  });
+
   it("centres an odd diverging count's middle class on the pivot", () => {
     // The half-span is 8, so 5 classes are each at least 3.2 wide: 5.
     expect(classes({ type: "diverging" }, [-8, 3])).toEqual({

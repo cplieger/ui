@@ -31,18 +31,25 @@ const NICE = [1, 2, 2.5, 5];
 // boundary a reader could tell apart.
 const tidy = (v: number): number => Number(v.toPrecision(12));
 
-// tidy is relative, so it keeps a boundary that should be 0 at about 1e-17,
-// which would put a 0 cell in the class below and print "-0" in the key.
-const boundary = (v: number, w: number): number => (Math.abs(v) < w * 1e-9 ? 0 : tidy(v));
+// The boundary a + b. When the operands cancel, tidy (relative) keeps the
+// residual near 1e-17, which would put a 0 cell in the class below and print
+// "-0" in the key. The snap is relative to the operands, not the class width,
+// so a real boundary near 0 among wide classes (pivot 0.001) stays.
+const boundary = (a: number, b: number): number => {
+  const v = a + b;
+  return Math.abs(v) <= 1e-12 * Math.max(Math.abs(a), Math.abs(b)) ? 0 : tidy(v);
+};
 
 // The class widths from the smallest at least `min` upward; integer data
 // takes whole widths only, so a sequential boundary, or an even diverging
-// count's about a whole pivot, never falls between two counts.
+// count's about a whole pivot, never falls between two counts. `min` is a
+// quotient, tidied so that 0.6 / 6 (0.10000000000000002) still takes 0.1.
 function* widths(min: number, integer: boolean): Generator<number, never> {
-  for (let k = Math.floor(Math.log10(min)) - 1; ; k++) {
+  const least = tidy(min);
+  for (let k = Math.floor(Math.log10(least)) - 1; ; k++) {
     for (const lead of NICE) {
       const w = tidy(lead * 10 ** k);
-      if (w >= min && (!integer || Number.isInteger(w))) {
+      if (w >= least && (!integer || Number.isInteger(w))) {
         yield w;
       }
     }
@@ -106,10 +113,10 @@ export function classes(spec: ClassSpec, values: readonly number[]): Classes {
     const odd = n % 2 === 1;
     const min = odd ? (2 * half) / n : half / m;
     const w = passed === undefined ? widths(min, integer).next().value : min;
-    const first = odd ? pivot - (m - 0.5) * w : pivot - (m - 1) * w;
+    const offset = odd ? 0.5 - m : 1 - m;
     return {
       type,
-      thresholds: Array.from({ length: n - 1 }, (_, j) => boundary(first + j * w, w)),
+      thresholds: Array.from({ length: n - 1 }, (_, j) => boundary(pivot, (offset + j) * w)),
       steps,
     };
   }
@@ -123,7 +130,7 @@ export function classes(spec: ClassSpec, values: readonly number[]): Classes {
   let w = (hi - lo) / n;
   if (passed === undefined) {
     for (const width of widths(w, integer)) {
-      start = boundary(Math.floor(tidy(lo / width)) * width, width);
+      start = Math.floor(tidy(lo / width)) * width;
       w = width;
       if (tidy(start + n * width) >= hi) {
         break;
@@ -132,7 +139,7 @@ export function classes(spec: ClassSpec, values: readonly number[]): Classes {
   }
   return {
     type,
-    thresholds: Array.from({ length: n - 1 }, (_, j) => boundary(start + (j + 1) * w, w)),
+    thresholds: Array.from({ length: n - 1 }, (_, j) => boundary(start, (j + 1) * w)),
     steps,
   };
 }
