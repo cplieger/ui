@@ -725,3 +725,40 @@ describe("the table of a scatter plot", () => {
     ).toBe(false);
   });
 });
+
+describe("the table of a bubble chart", () => {
+  it("lists each dot's size last under its label, a missing one as No data", () => {
+    const t = tableModel(
+      model({
+        x: { label: "GDP per capita" },
+        y: { label: "Life expectancy" },
+        r: { label: "Population" },
+        marks: [
+          {
+            mark: "scatter",
+            series: [
+              {
+                name: "All",
+                names: ["Japan", "Laos", "Monaco"],
+                x: [48_000, 8_400, 140_000],
+                y: [84.5, 68, 85.9],
+                r: [124_000_000, null, 0],
+              },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "GDP per capita",
+      "Life expectancy",
+      "Population",
+    ]);
+    expect(cells(t)).toEqual([
+      ["Japan", "48,000", "84.5", "124,000,000"],
+      ["Laos", "8,400", "68", "No data"],
+      ["Monaco", "140,000", "85.9", "0"],
+    ]);
+  });
+});

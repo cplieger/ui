@@ -1130,3 +1130,37 @@ describe("a scatter's summary", () => {
     expect(generatedSummary(model(world()), words)).not.toMatch(/correlat|trend/iu);
   });
 });
+
+describe("a bubble chart's summary and short description", () => {
+  const world = model({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    r: { label: "Population", format: { notation: "compact" } },
+    marks: [
+      {
+        mark: "scatter",
+        unit: { one: "country", other: "countries" },
+        series: [
+          {
+            name: "Asia",
+            names: ["India", "Japan", "Laos"],
+            x: [2_500, 48_000, 8_400],
+            y: [72, 84.5, 68],
+            r: [1_440_000_000, 124_000_000, null],
+          },
+          { name: "Oceania", names: ["Tuvalu"], x: [5_000], y: [65], r: [9_800] },
+        ],
+      },
+    ],
+  });
+
+  it("gives the size's highest and lowest dot after the two measures", () => {
+    expect(generatedSummary(world, words)).toBe(
+      `3${nb}countries, 2 series. GDP per capita: highest Japan 48,000, lowest India 2,500. Life expectancy: highest Japan 84.5, lowest Tuvalu 65. Population: highest India 1.4B, lowest Tuvalu 9.8K.`,
+    );
+  });
+
+  it("names it a bubble chart", () => {
+    expect(shortDescription(world, words)).toBe(`Bubble chart, 2 series, 3${nb}countries`);
+  });
+});

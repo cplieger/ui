@@ -5457,6 +5457,20 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-weight: var(--cp-weight-strong);
 }
 
+/* A bubble chart's size key: two circles at the sizes the plot draws,
+ * standing on the row's baseline, each before its value. */
+.cp-chart > [data-part="legend"] > [data-part="size"] {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--cp-space-1);
+}
+
+.cp-chart > [data-part="legend"] > [data-part="size"] circle {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
+}
+
 .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
 }
@@ -5561,12 +5575,52 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-width: 10px;
 }
 
-/* A scatter's dots stay opaque, so no blend makes a colour the legend never
- * names, and their outline of the surface keeps overlapping dots apart. */
-.cp-chart svg [data-part="scatter"] path {
+/* A scatter's dots and bubbles stay opaque, so no blend makes a colour the
+ * legend never names, and their outline of the surface keeps overlapping
+ * dots apart. */
+.cp-chart svg [data-part="scatter"] > path,
+.cp-chart svg [data-part="scatter"] > circle {
   fill: var(--cp-tone-9);
   stroke: var(--cp-chart-surface);
   stroke-width: 1px;
+}
+
+/* A bubble's slot, set by data-slot rather than data-series, which would
+ * give each circle the whole tone ladder to compute. */
+.cp-chart svg [data-part="scatter"] > circle[data-slot="1"] {
+  fill: var(--cp-series-1);
+}
+
+.cp-chart svg [data-part="scatter"] > circle[data-slot="2"] {
+  fill: var(--cp-series-2);
+}
+
+.cp-chart svg [data-part="scatter"] > circle[data-slot="3"] {
+  fill: var(--cp-series-3);
+}
+
+.cp-chart svg [data-part="scatter"] > circle[data-slot="4"] {
+  fill: var(--cp-series-4);
+}
+
+.cp-chart svg [data-part="scatter"] > circle[data-slot="5"] {
+  fill: var(--cp-series-5);
+}
+
+.cp-chart svg [data-part="scatter"] > circle[data-slot="6"] {
+  fill: var(--cp-series-6);
+}
+
+.cp-chart svg [data-part="scatter"] > circle[data-slot="7"] {
+  fill: var(--cp-series-7);
+}
+
+.cp-chart svg [data-part="scatter"] > circle[data-slot="8"] {
+  fill: var(--cp-series-8);
+}
+
+.cp-chart svg [data-part="scatter"] > circle[data-slot="9"] {
+  fill: var(--cp-series-9);
 }
 
 /* A range's bold link and an arrow, its head showing the direction in any

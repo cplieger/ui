@@ -7,7 +7,7 @@
  * @module
  */
 
-import { reduce, type Point } from "../scale/reduce.js";
+import { reduce, upperBound, type Point } from "../scale/reduce.js";
 
 import {
   barsApart,
@@ -45,6 +45,8 @@ export interface Frame {
   /** A split or mirrored bar chart's panels, one per series in series
    *  order; absent once a split folds into one panel under 30rem. */
   readonly panels?: readonly Panel[];
+  /** A bubble chart's largest radius, in px. */
+  readonly bubble?: number;
 }
 
 /** A bar chart's panel: its left and right px in the plot, its share of
@@ -824,9 +826,84 @@ export function scatterAt(m: ScatterModel, k: number, i: number, f: Frame): Poin
   return x === null || y === null ? undefined : { x: f.xAt(x), y: f.yAt(y) };
 }
 
+/** A bubble chart's largest radius from 30rem up, and under it, as
+ *  Datawrapper shrinks its symbols on a small screen. */
+export const BUBBLE_RADIUS = 24;
+export const BUBBLE_RADIUS_NARROW = 12;
+
+/** The radius of dot `i` of series `k` of `m`: a plain dot's, or a
+ *  bubble's, its area proportional to its r from 0 (Plot's square-root
+ *  scale), at least 0.5 px above 0 so it draws 1 px wide, and none at 0. */
+export function dotRadius(m: ScatterModel, k: number, i: number, f: Pick<Frame, "bubble">): number {
+  if (m.size === undefined) {
+    return SCATTER_RADIUS;
+  }
+  const v = m.series[k]?.r?.[i] ?? 0;
+  return v > 0 ? Math.max((f.bubble ?? 0) * Math.sqrt(v / m.size.hi), 0.5) : 0;
+}
+
 // A closed circle, so its outline joins where it starts.
 const circle = (c: Point, r: number): string =>
   `M${num(c.x - r)} ${num(c.y)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0Z`;
+
+/** A path of bubbles in one slot. */
+export interface BubblePath {
+  readonly slot: number;
+  readonly d: string;
+}
+
+/**
+ * `m`'s bubbles as paths in paint order, a 0 drawing none. No two bubbles
+ * in one path touch, outlines included, and each lies in a path after every
+ * path holding a bubble it touches that draws before it, so each outline
+ * lies with its fill over the larger bubbles under it, as one element per
+ * bubble would, in a few elements: each element's styles cost the page.
+ */
+export function bubblePaths(m: ScatterModel, f: Frame): BubblePath[] {
+  const paths: { slot: number; circles: string[] }[] = [];
+  // Per slot, its paths' indices, ascending.
+  const bySlot = new Map<number, number[]>();
+  const placed: { x: number; y: number; r: number; path: number }[] = [];
+  const reach = 2 * (f.bubble ?? 0) + 1;
+  const cells = new Map<string, number[]>();
+  for (const ref of m.drawn) {
+    const c = scatterAt(m, ref.series, ref.i, f);
+    const r = Number(num(dotRadius(m, ref.series, ref.i, f)));
+    if (c === undefined || r <= 0) {
+      continue;
+    }
+    // The last path holding a bubble this one touches, each outline 0.5 px outside.
+    let after = -1;
+    const cx = Math.floor(c.x / reach);
+    const cy = Math.floor(c.y / reach);
+    for (let gx = cx - 1; gx <= cx + 1; gx++) {
+      for (let gy = cy - 1; gy <= cy + 1; gy++) {
+        for (const p of cells.get(`${String(gx)} ${String(gy)}`) ?? []) {
+          const o = placed[p];
+          if (o !== undefined && Math.hypot(o.x - c.x, o.y - c.y) < o.r + r + 1) {
+            after = Math.max(after, o.path);
+          }
+        }
+      }
+    }
+    const slot = m.series[ref.series]?.slot ?? 1;
+    const own = bySlot.get(slot) ?? [];
+    let path = own[upperBound(own, after)];
+    if (path === undefined) {
+      path = paths.length;
+      paths.push({ slot, circles: [] });
+      own.push(path);
+      bySlot.set(slot, own);
+    }
+    paths[path]?.circles.push(circle(c, r));
+    const key = `${String(cx)} ${String(cy)}`;
+    const cell = cells.get(key) ?? [];
+    cell.push(placed.length);
+    cells.set(key, cell);
+    placed.push({ x: c.x, y: c.y, r, path });
+  }
+  return paths.map((p) => ({ slot: p.slot, d: p.circles.join("") }));
+}
 
 /** One path per series of `m` in series order, a circle per shown dot in
  *  the app's order. Inside one path every fill paints before any stroke

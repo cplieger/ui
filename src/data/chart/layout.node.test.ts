@@ -1003,6 +1003,30 @@ describe("a scatter's layout", () => {
     expect(top?.y).toBeCloseTo(l.top + 6, 6);
   });
 
+  it("gives a bubble chart its largest radius by width and runs its axes clear of its largest bubble", () => {
+    const sized = (r: number[]): ChartSpec => ({
+      ...countries,
+      r: { label: "Population", domain: [0, 100] },
+      marks: [
+        {
+          mark: "scatter",
+          series: [{ name: "All", names: ["Chad", "Monaco"], x: [0, 100], y: [50, 90], r }],
+        },
+      ],
+    });
+    const wide = lay(sized([100, 25]), 600);
+    expect(wide.frame.bubble).toBe(24);
+    // The largest bubble, at the domain's high end, and its ring's 2 px.
+    expect(wide.frame.xAt(0)).toBeCloseTo(26, 6);
+    expect(wide.frame.yAt(50)).toBeCloseTo(wide.frame.height - 26, 6);
+    const narrow = lay(sized([100, 25]), 300);
+    expect(narrow.frame.bubble).toBe(12);
+    expect(narrow.frame.xAt(0)).toBeCloseTo(14, 6);
+    // The largest drawn bubble is a quarter of the domain's area: half its radius.
+    expect(lay(sized([25, 0]), 600).frame.xAt(0)).toBeCloseTo(14, 6);
+    expect(lay(countries, 600).frame.bubble).toBeUndefined();
+  });
+
   it("titles y above its gutter and x under its ticks at the right end", () => {
     const l = lay(countries, 600);
     expect(l.titles.map((t) => [t.text, t.anchor])).toEqual([

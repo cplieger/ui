@@ -33,7 +33,9 @@ import {
   lastSample,
   lastStack,
   linkText,
+  dotValue,
   measureText,
+  measuresOf,
   primaryOf,
   rowsText,
   totalWord,
@@ -368,16 +370,16 @@ function scatterSummary(model: Model, m: ScatterModel, words: Words): string[] {
   const out = [words.countSummary(dotsText(model, m, words), series)];
   const dots = m.series.flatMap((s, k) => (m.shown[k] ?? []).map((i) => ({ s, i })));
   const names = dots.map((d) => d.s.names[d.i] ?? "");
-  for (const axis of ["x", "y"] as const) {
+  for (const axis of measuresOf(m)) {
     const at = (j: number) => {
       const d = dots[j];
-      return d === undefined ? null : (d.s[axis][d.i] ?? null);
+      return d === undefined ? null : dotValue(d.s, axis, d.i);
     };
     const e = barExtremes(names, at);
     if (e === undefined) {
       continue;
     }
-    const write = axis === "x" ? model.xText : model.yText;
+    const write = axis === "x" ? model.xText : axis === "y" ? model.yText : model.rText;
     const value = (j: number) => write(at(j) ?? 0);
     const place = (j: number) => `${names[j] ?? ""} ${value(j)}`;
     const label = model.spec[axis]?.label ?? "";

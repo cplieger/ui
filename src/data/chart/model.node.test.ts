@@ -6,7 +6,9 @@ import {
   drawnValue,
   pointLink,
   sampleValue,
+  scatterDotAt,
   type PointModel,
+  type ScatterModel,
 } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 
@@ -1329,6 +1331,7 @@ const scatter = (
     readonly names: readonly unknown[];
     readonly x: readonly (number | null)[];
     readonly y: readonly (number | null)[];
+    readonly r?: readonly (number | null)[];
   }[],
   more: Record<string, unknown> = {},
 ): Mark =>
@@ -1502,11 +1505,21 @@ describe("the scatter mark", () => {
           names: ["Albania", "Andorra", "Austria"],
           x: [2, null, 12],
           y: [8, 9, 7],
+          r: undefined,
         },
-        { name: "Asia", slot: 6, names: ["Japan", "Laos"], x: [5, null], y: [null, 4] },
+        {
+          name: "Asia",
+          slot: 6,
+          names: ["Japan", "Laos"],
+          x: [5, null],
+          y: [null, 4],
+          r: undefined,
+        },
       ],
       // Andorra has no x, Austria lies past the passed x domain, Japan has no y and Laos no x.
       shown: [[0], []],
+      size: undefined,
+      drawn: [{ series: 0, i: 0 }],
     });
     expect(m.kind).toBe("scatter");
     expect(m.empty).toBe(false);
@@ -1523,5 +1536,118 @@ describe("the scatter mark", () => {
     expect(() =>
       build({ ...measures, marks: [scatter(one(1, 2)), note({ x: "Japan", y: 2 })] }),
     ).toThrow(TypeError);
+  });
+});
+
+const sized = { ...measures, r: { label: "Population" } };
+const bubble = (r: readonly (number | null)[], x: readonly (number | null)[] = r.map(() => 1)) =>
+  scatter([{ names: r.map((_, i) => `d${String(i)}`), x, y: r.map(() => 2), r }]);
+
+describe("the scatter mark's sizes", () => {
+  it.each<[string, unknown, ErrorConstructor]>([
+    [
+      "r on one series and not another",
+      {
+        ...sized,
+        marks: [
+          scatter([
+            { names: ["a"], x: [1], y: [2], r: [3] },
+            { names: ["b"], x: [1], y: [2] },
+          ]),
+        ],
+      },
+      TypeError,
+    ],
+    [
+      "r of another length",
+      { ...sized, marks: [scatter([{ names: ["a"], x: [1], y: [2], r: [3, 4] }])] },
+      TypeError,
+    ],
+    ["no r label", { ...measures, marks: [bubble([3])] }, TypeError],
+    ["an r scale beside no r", { ...sized, marks: [scatter(one(1, 2))] }, TypeError],
+    ["an r scale beside a line", { r: { label: "c" }, marks: [line([1])] }, TypeError],
+    ["a log r", { ...measures, r: { label: "c", type: "log" }, marks: [bubble([3])] }, TypeError],
+    ["zero on r", { ...measures, r: { label: "c", zero: true }, marks: [bubble([3])] }, TypeError],
+    [
+      "reverse on r",
+      { ...measures, r: { label: "c", reverse: true }, marks: [bubble([3])] },
+      TypeError,
+    ],
+    ["a negative r", { ...sized, marks: [bubble([-1])] }, RangeError],
+    ["an infinite r", { ...sized, marks: [bubble([Number.POSITIVE_INFINITY])] }, RangeError],
+    [
+      "an r domain from above 0",
+      { ...measures, r: { label: "c", domain: [1, 10] }, marks: [bubble([3])] },
+      RangeError,
+    ],
+    [
+      "an r past its passed domain",
+      { ...measures, r: { label: "c", domain: [0, 10] }, marks: [bubble([11])] },
+      RangeError,
+    ],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ ...measures, marks: [bubble([3])] })).toThrow(
+      "renderChart: r.label is required on a scatter, whose readings name each measure by it",
+    );
+    expect(() => build({ ...sized, marks: [scatter(one(1, 2))] })).toThrow(
+      "renderChart: an r scale sizes a scatter's dots, and none carries r",
+    );
+    expect(() =>
+      build({ ...measures, r: { label: "c", domain: [0, 10] }, marks: [bubble([11])] }),
+    ).toThrow("renderChart: a scatter's r must lie inside r.domain");
+  });
+
+  it("sizes from 0 to the largest r of a placed dot, or to its passed domain", () => {
+    const m = build({ ...sized, marks: [bubble([3, 8, 20], [1, 2, null])] });
+    expect(m.kind).toBe("bubble");
+    expect((m.marks[0] as ScatterModel).size).toEqual({ hi: 8, format: undefined });
+    const passed = build({ ...measures, r: { label: "c", domain: [0, 50] }, marks: [bubble([3])] });
+    expect((passed.marks[0] as ScatterModel).size?.hi).toBe(50);
+    // Every size 0 has no high end to reach, so it spans 0 to 1.
+    expect((build({ ...sized, marks: [bubble([0, 0])] }).marks[0] as ScatterModel).size?.hi).toBe(
+      1,
+    );
+  });
+
+  it("shows a bubble of size 0, and not one with no size", () => {
+    const m = build({ ...sized, marks: [bubble([0, null, Number.NaN, 4])] });
+    expect((m.marks[0] as ScatterModel).shown).toEqual([[0, 3]]);
+    expect(build({ ...sized, marks: [bubble([null])] }).empty).toBe(true);
+  });
+
+  it("draws bubbles largest first across every series, ties in series then the app's order", () => {
+    const m = build({
+      ...sized,
+      marks: [
+        scatter([
+          { names: ["a", "b", "c"], x: [1, 1, 1], y: [1, 1, 1], r: [2, 9, 2] },
+          { names: ["d", "e"], x: [1, 1], y: [1, 1], r: [9, 5] },
+        ]),
+      ],
+    });
+    expect((m.marks[0] as ScatterModel).drawn).toEqual([
+      { series: 0, i: 1 },
+      { series: 1, i: 0 },
+      { series: 1, i: 1 },
+      { series: 0, i: 0 },
+      { series: 0, i: 2 },
+    ]);
+  });
+
+  it("joins a note to the bubble drawn on top among coincident ones: the smallest", () => {
+    const m = build({
+      ...sized,
+      marks: [
+        scatter([
+          { names: ["small"], x: [1], y: [2], r: [1] },
+          { names: ["large"], x: [1], y: [2], r: [9] },
+        ]),
+      ],
+    });
+    expect(scatterDotAt(m.marks[0] as ScatterModel, 1, 2)).toEqual({ series: 0, i: 0 });
   });
 });

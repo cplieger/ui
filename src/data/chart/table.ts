@@ -21,7 +21,9 @@ import {
   barPart,
   bucketText,
   changeText,
+  dotValue,
   linkText,
+  measuresOf,
   partText,
   primaryOf,
   samplePart,
@@ -224,23 +226,31 @@ function slopeTable(model: Model, m: SlopeModel, words: Words, after: string): T
 }
 
 // A row per dot in series order, then the app's order, its name the head,
-// its series from two up, then each measure under its label; a gap reads
-// No data. A dot outside a passed domain is left out, as the plot leaves it.
+// its series from two up, then each measure under its label, a bubble's
+// size last; a gap reads No data. A dot outside a passed domain is left
+// out, as the plot leaves it.
 function scatterTable(model: Model, m: ScatterModel, words: Words, after: string): TableModel {
   const several = m.series.length > 1;
+  // Only a passed domain leaves a dot out: a bubble with no size holds no
+  // extent, so it may lie past an inferred one and is still listed.
   const inside = (v: number | null | undefined, scale: Model["x"] | Model["y"]) =>
-    v === null || v === undefined || scale.type === "band" || (v >= scale.lo && v <= scale.hi);
-  const value = (v: number | null | undefined, write: (v: number) => string) =>
-    v === null || v === undefined ? words.noData : write(v);
+    v === null ||
+    v === undefined ||
+    scale.type === "band" ||
+    !scale.passed ||
+    (v >= scale.lo && v <= scale.hi);
+  const value = (v: number | null, text: (v: number) => string) =>
+    v === null ? words.noData : text(v);
+  const write = { x: model.xText, y: model.yText, r: model.rText };
   const rows = m.series.flatMap((s) =>
     s.names.flatMap((name, i): Row[] => {
       if (!inside(s.x[i], model.x) || !inside(s.y[i], model.y)) {
         return [];
       }
-      const cells: Cell[] = [
-        { parts: [value(s.x[i], model.xText)], num: true },
-        { parts: [value(s.y[i], model.yText)], num: true },
-      ];
+      const cells: Cell[] = measuresOf(m).map((axis) => ({
+        parts: [value(dotValue(s, axis, i), write[axis])],
+        num: true,
+      }));
       return [
         {
           key: name,
@@ -250,10 +260,10 @@ function scatterTable(model: Model, m: ScatterModel, words: Words, after: string
       ];
     }),
   );
-  const columns = [
-    { text: model.spec.x?.label ?? "", num: true },
-    { text: model.spec.y?.label ?? "", num: true },
-  ];
+  const columns = measuresOf(m).map((axis) => ({
+    text: model.spec[axis]?.label ?? "",
+    num: true,
+  }));
   return {
     corner: "",
     columns: several ? [{ text: words.series, num: false }, ...columns] : columns,

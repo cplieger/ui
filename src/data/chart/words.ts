@@ -27,7 +27,8 @@ type Kind =
   | "rangePlot"
   | "arrowPlot"
   | "slope"
-  | "scatter";
+  | "scatter"
+  | "bubble";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -40,7 +41,8 @@ export interface ChartWords {
    *  and the rest). A rect on a log x is a histogram; one series of a rect
    *  is a column chart, of a bar a bar chart or, with a value below 0, a
    *  diverging one; two or more take their arrangement's kind; an area
-   *  mark, or a rect with shape "area", an area chart. */
+   *  mark, or a rect with shape "area", an area chart; a scatter whose
+   *  series carry r a bubble chart. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -206,6 +208,7 @@ const DEFAULTS: Words = {
     arrowPlot: "Arrow plot",
     slope: "Slope chart",
     scatter: "Scatter plot",
+    bubble: "Bubble chart",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>

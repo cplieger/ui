@@ -11,9 +11,11 @@ import {
   barPaths,
   barReach,
   barSegments,
+  bubblePaths,
   bucketEdges,
   dotGroups,
   dotPath,
+  dotRadius,
   groupEdges,
   linePath,
   pointAt,
@@ -1464,5 +1466,84 @@ describe("scatter geometry", () => {
 
   it("draws a path per series, a closed 4 px circle per dot it shows", () => {
     expect(scatterPaths(scatterOf, f)).toEqual([circle(50, 50) + circle(20, 20), circle(52, 50)]);
+  });
+});
+
+describe("bubble geometry", () => {
+  const m = model({
+    x: { label: "a", domain: [0, 100] },
+    y: { label: "b", domain: [0, 100] },
+    r: { label: "c", domain: [0, 400] },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Small",
+            names: ["A", "B", "C", "D"],
+            x: [50, 10, 20, 30],
+            y: [50, 10, 20, 30],
+            r: [25, 400, 0, 0.01],
+          },
+          { name: "Large", names: ["E", "F"], x: [52, 60], y: [50, 60], r: [100, 400] },
+        ],
+      },
+    ],
+  });
+  const bubbleOf = m.marks[0] as ScatterModel;
+  const f = { ...frame(m, 100, 100, 100), bubble: 24 };
+
+  it("sizes each bubble's area by its r from 0, at least 1 px wide, and a 0 as nothing", () => {
+    expect(dotRadius(bubbleOf, 0, 1, f)).toBe(24);
+    // A quarter of the area, half the radius.
+    expect(dotRadius(bubbleOf, 1, 0, f)).toBe(12);
+    expect(dotRadius(bubbleOf, 0, 0, f)).toBe(6);
+    expect(dotRadius(bubbleOf, 0, 3, f)).toBe(0.5);
+    expect(dotRadius(bubbleOf, 0, 2, f)).toBe(0);
+    expect(dotRadius(bubbleOf, 0, 1, { bubble: 12 })).toBe(12);
+  });
+
+  it("paints bubbles largest first across every series, sharing a path where none touch", () => {
+    const at = (x: number, y: number, r: number) =>
+      `M${String(x - r)} ${String(y)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0Z`;
+    expect(bubblePaths(bubbleOf, f)).toEqual([
+      // B, and D far from every other, in the first series' first path.
+      { slot: 1, d: at(10, 90, 24) + at(30, 70, 0.5) },
+      { slot: 2, d: at(60, 40, 24) },
+      // E touches F, so it paints after it, and A, smaller, after E of the later series.
+      { slot: 2, d: at(52, 50, 12) },
+      { slot: 1, d: at(50, 50, 6) },
+    ]);
+  });
+
+  it("keeps two bubbles apart whose outlines alone would touch", () => {
+    const pair = model({
+      x: { label: "a", domain: [0, 100] },
+      y: { label: "b", domain: [0, 100] },
+      r: { label: "c", domain: [0, 4] },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "s", names: ["A", "B", "C"], x: [10, 25.5, 80], y: [50, 50, 50], r: [4, 1, 1] },
+          ],
+        },
+      ],
+    });
+    // A has a 10 px radius and B a 5 px one, 15.5 px apart: only their outlines meet.
+    const paths = bubblePaths(pair.marks[0] as ScatterModel, {
+      ...frame(pair, 100, 100, 100),
+      bubble: 10,
+    });
+    expect(paths.map((p) => (p.d.match(/Z/g) ?? []).length)).toEqual([2, 1]);
+  });
+
+  it("gives a plain dot its fixed radius", () => {
+    const plain = model({
+      x: { label: "a" },
+      y: { label: "b" },
+      marks: [{ mark: "scatter", series: [{ name: "s", names: ["A"], x: [1], y: [2] }] }],
+    }).marks[0] as ScatterModel;
+    expect(dotRadius(plain, 0, 0, f)).toBe(4);
   });
 });

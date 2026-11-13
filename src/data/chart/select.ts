@@ -7,14 +7,7 @@
 
 import { lowerBound, upperBound } from "../scale/reduce.js";
 
-import {
-  dotGroups,
-  SCATTER_RADIUS,
-  scatterAt,
-  snap,
-  type DotGroup,
-  type Frame,
-} from "./geometry.js";
+import { dotGroups, dotRadius, scatterAt, snap, type DotGroup, type Frame } from "./geometry.js";
 import { pointGrid, type Grid } from "./grid.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
@@ -97,25 +90,25 @@ function bucketSpan(m: RectModel, i: number, f: Frame): readonly [number, number
   return a <= b ? [a, b] : [b, a];
 }
 
-/** A scatter's shown dots in draw order (series, then the app's order) and
- *  their two key orders, each a list of draw indices. */
+/** A scatter's shown dots in series order, then the app's order, and their
+ *  two key orders, each a list of indices into `dots`. */
 interface Orders {
   readonly dots: readonly DotRef[];
   readonly x: readonly number[];
   readonly y: readonly number[];
   readonly byX: readonly number[];
   readonly byY: readonly number[];
-  /** Each draw index's place in `byX` and in `byY`. */
+  /** Each dot's place in `byX` and in `byY`. */
   readonly rankX: Int32Array;
   readonly rankY: Int32Array;
-  /** Each series' first draw index. */
+  /** Each series' first index in `dots`. */
   readonly base: readonly number[];
 }
 
 const ordersOf = new WeakMap<ScatterModel, Orders>();
 
-// Ties in either order fall to the other value, then to draw order, so
-// coincident dots are each a stop.
+// Ties in either order fall to the other value, then to series and the
+// app's order, so coincident dots are each a stop.
 function orders(m: ScatterModel): Orders {
   let o = ordersOf.get(m);
   if (o !== undefined) {
@@ -151,8 +144,8 @@ function orders(m: ScatterModel): Orders {
   return o;
 }
 
-// The draw index of `sel` among `m`'s shown dots, or -1 when it is not one.
-function drawIndex(m: ScatterModel, o: Orders, sel: DotRef): number {
+// The index of `sel` in `o.dots`, or -1 when it is not a shown dot.
+function dotIndex(m: ScatterModel, o: Orders, sel: DotRef): number {
   const shown = m.shown[sel.series] ?? [];
   const j = lowerBound(shown, sel.i);
   return shown[j] === sel.i ? (o.base[sel.series] ?? 0) + j : -1;
@@ -373,7 +366,7 @@ function moveScatter(
   lay: Layout,
 ): Selection | undefined {
   const o = orders(m);
-  const d = drawIndex(m, o, sel);
+  const d = dotIndex(m, o, sel);
   if (d === -1) {
     return undefined;
   }
@@ -441,11 +434,12 @@ export function navigator(model: Model, lay: Layout): Navigator {
   let stops: number[] | undefined;
   const lineStopsOnce = (l: SampleModel): number[] => (stops ??= lineStops(l));
   let grid: Grid | undefined;
-  // Built at the first pick, so a draw no pointer reaches never pays for it.
+  // Built at the first pick, so a draw no pointer reaches never pays for it;
+  // in draw order, so among equally near dots it takes the one on top.
   const gridOf = (s: ScatterModel): Grid => {
     if (grid === undefined) {
-      const at = orders(s).dots.map((d) => scatterAt(s, d.series, d.i, f) ?? { x: 0, y: 0 });
-      const r = new Float64Array(at.length).fill(SCATTER_RADIUS);
+      const at = s.drawn.map((d) => scatterAt(s, d.series, d.i, f) ?? { x: 0, y: 0 });
+      const r = s.drawn.map((d) => dotRadius(s, d.series, d.i, f));
       grid = pointGrid({ x: at.map((p) => p.x), y: at.map((p) => p.y), r }, REACH);
     }
     return grid;
@@ -581,8 +575,11 @@ export function navigator(model: Model, lay: Layout): Navigator {
           const i = Math.abs(px - f.xAt(0)) < Math.abs(px - f.xAt(1)) ? 0 : 1;
           return { kind: "slope", i, part: undefined };
         }
-        case "scatter":
-          return dotSelection(orders(m), gridOf(m).nearest(px, py));
+        case "scatter": {
+          const d = gridOf(m).nearest(px, py);
+          const ref = d === undefined ? undefined : m.drawn[d];
+          return ref === undefined ? undefined : { kind: "scatter", ...ref };
+        }
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;
@@ -809,6 +806,7 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
       ...(m.series.length > 1 ? [s?.name ?? ""] : []),
       measureText(model, "x", s?.x[sel.i] ?? null, words),
       measureText(model, "y", s?.y[sel.i] ?? null, words),
+      ...(s?.r === undefined ? [] : [measureText(model, "r", s.r[sel.i] ?? null, words)]),
     ];
     return words.reading(reading.at, parts.join(", "), "");
   } else if (

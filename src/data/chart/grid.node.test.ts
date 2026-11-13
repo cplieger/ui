@@ -77,6 +77,19 @@ describe("the pointer grid", () => {
     expect(under.nearest(110, 100)).toBe(1);
   });
 
+  it("takes the smallest of nested bubbles drawn largest first, and a larger one past its edge", () => {
+    const g = grid([
+      [100, 100, 24],
+      [104, 100, 12],
+      [106, 100, 3],
+    ]);
+    expect(g.nearest(106, 100)).toBe(2);
+    // Inside the two larger ones, 7 px past the smallest's edge.
+    expect(g.nearest(113, 106)).toBe(1);
+    // Inside the largest alone.
+    expect(g.nearest(100, 118)).toBe(0);
+  });
+
   it("reaches from outside the dots' bounds, and has nothing to reach with no dots", () => {
     const g = grid([
       [100, 100, 4],

@@ -1061,3 +1061,67 @@ describe("a scatter's legend row with a dot selected", () => {
     expect(w.values).toEqual([7 * "x 12,345".length, 7 * "y -42".length]);
   });
 });
+
+describe("a bubble chart's legend row", () => {
+  const world = model({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    r: { label: "Population", format: { notation: "compact" } },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Asia",
+            slot: 3 as const,
+            names: ["Japan", "Laos"],
+            x: [48, 8.4],
+            y: [84.5, 68],
+            r: [124_000_000, null],
+          },
+          { name: "Europe", slot: 2 as const, names: ["Monaco"], x: [140], y: [85.9], r: [0] },
+        ],
+      },
+    ],
+  });
+  const bubbleOf = world.marks[0] as ScatterModel;
+
+  it("keeps a blank slot for the size with no selection, and counts the dots with a size", () => {
+    expect(overall(world, words)).toEqual({
+      at: "2 points",
+      entries: [
+        { slot: undefined, name: undefined, value: "" },
+        { slot: undefined, name: undefined, value: "" },
+        { slot: undefined, name: undefined, value: "" },
+        { slot: 3, name: "Asia", value: "1" },
+        { slot: 2, name: "Europe", value: "1" },
+      ],
+      total: undefined,
+    });
+  });
+
+  it("reads a bubble's size after its two measures, its chip after the three", () => {
+    expect(scatterReading(world, bubbleOf, 0, 0, words)).toEqual({
+      at: "Japan",
+      entries: [
+        { slot: undefined, name: undefined, value: "GDP per capita 48" },
+        { slot: undefined, name: undefined, value: "Life expectancy 84.5" },
+        { slot: undefined, name: undefined, value: "Population 124M" },
+        { slot: 3, name: "Asia", value: "1" },
+        { slot: 2, name: "Europe", value: "1" },
+      ],
+      total: undefined,
+      chosen: 3,
+    });
+    expect(scatterReading(world, bubbleOf, 1, 0, words).entries[2]?.value).toBe("Population 0");
+  });
+
+  it("keeps the size's slot as wide as its widest reading", () => {
+    const w = readoutWidths(
+      world,
+      words,
+      measurer((t) => 7 * Array.from(t).length, 7, "en"),
+    );
+    expect(w.values[2]).toBe(7 * "Population 124M".length);
+  });
+});

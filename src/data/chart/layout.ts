@@ -25,13 +25,23 @@ import {
   barBlock,
   barCentre,
   barReach,
+  BUBBLE_RADIUS,
+  BUBBLE_RADIUS_NARROW,
+  dotRadius,
   POINT_RADIUS,
   ruleXs,
   SCATTER_RADIUS,
   type Frame,
   type Panel,
 } from "./geometry.js";
-import { barsApart, sampleValue, type BarModel, type Model, type SlopeModel } from "./model.js";
+import {
+  barsApart,
+  sampleValue,
+  type BarModel,
+  type Model,
+  type ScatterModel,
+  type SlopeModel,
+} from "./model.js";
 import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
@@ -160,8 +170,16 @@ const SPINE = 8;
  *  the domain's end draws whole, ring and all, inside the plot's clip. */
 const POINT_INSET = POINT_RADIUS + 2;
 /** A scatter's x and y run this far inside the plot's edges, by the same
- *  rule, so a dot at a niced domain's end draws whole, clear of the axes. */
+ *  rule, so a dot at a niced domain's end draws whole, clear of the axes;
+ *  a bubble chart's by its largest bubble's radius in its place. */
 const SCATTER_INSET = SCATTER_RADIUS + 2;
+
+function scatterInset(m: ScatterModel, bubble: number | undefined): number {
+  const top = m.drawn[0];
+  return bubble === undefined
+    ? SCATTER_INSET
+    : (top === undefined ? 0 : dotRadius(m, top.series, top.i, { bubble })) + 2;
+}
 
 /** A slope's names stay short enough that each gutter is at most this
  *  share of the chart's width. */
@@ -551,7 +569,9 @@ export function layout(
   const narrow = chart < NARROW_REM * metrics.rem;
   const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
   const points = model.marks.some((m) => m.kind === "point");
-  const scatter = model.marks.some((m) => m.kind === "scatter");
+  const scatter = model.marks.find((m) => m.kind === "scatter");
+  const bubble =
+    scatter?.size === undefined ? undefined : narrow ? BUBBLE_RADIUS_NARROW : BUBBLE_RADIUS;
   const mirror = bars?.arrange === "mirror";
   // Under 30rem a name above its bar or its dots leaves the plot the chart's
   // whole width; a mirror's short names stay in the gutter, keeping its rows
@@ -579,7 +599,7 @@ export function layout(
   let names: string[] = [];
   let widestY = 0;
   if (band === undefined) {
-    const yInset = scatter ? SCATTER_INSET : 0;
+    const yInset = scatter === undefined ? 0 : scatterInset(scatter, bubble);
     const laid = yAxis(model.y as Continuous, Math.max(1, height - 2 * yInset), lineHeight, ctx);
     yAx =
       yInset === 0
@@ -638,7 +658,7 @@ export function layout(
   const gap = mirror ? SPINE : PANEL_GAP;
   const panelW = Math.max(1, (plotW - (count - 1) * gap) / count);
   const flip = reverse && !panelled;
-  const inset = points ? POINT_INSET : scatter ? SCATTER_INSET : 0;
+  const inset = points ? POINT_INSET : scatter === undefined ? 0 : scatterInset(scatter, bubble);
   if (panelled) {
     roomRight = Math.max(roomLeft, roomRight);
     roomLeft = 0;
@@ -873,7 +893,14 @@ export function layout(
     };
   });
 
-  const frame: Frame = { width: plotW, height, dpr, yAt, ...across };
+  const frame: Frame = {
+    width: plotW,
+    height,
+    dpr,
+    yAt,
+    ...across,
+    ...(bubble === undefined ? {} : { bubble }),
+  };
 
   // A note with no x points 4 px past the outer end of its row's last
   // place: the last panel's bar, a mirror's or a diverging row's right

@@ -208,7 +208,8 @@ function addPoints(extent: Extent, m: PointMark, log: boolean): void {
 }
 
 // A scatter's dot is placed by its value, so a log axis has no place for 0
-// or below; a dot without its other value is not drawn, so it holds no extent.
+// or below; a dot without its other value, or a bubble without its size,
+// is not drawn, so it holds no extent.
 function addScatter(extent: Extent, m: ScatterMark, axis: "x" | "y", log: boolean): void {
   const other = axis === "x" ? "y" : "x";
   for (const s of m.series) {
@@ -221,13 +222,61 @@ function addScatter(extent: Extent, m: ScatterMark, axis: "x" | "y", log: boolea
         if (log && v <= 0) {
           throw new RangeError(`renderChart: a scatter's ${axis} must be above 0 on a log ${axis}`);
         }
-        if (finite(s[other][i])) {
+        if (finite(s[other][i]) && (s.r === undefined || finite(s.r[i]))) {
           extent.count(v);
           extent.add(v);
         }
       }
     }
   }
+}
+
+/** A bubble chart's size: a dot's area runs from none at 0 to the largest
+ *  dot's at `hi`. */
+export interface Size {
+  readonly hi: number;
+  readonly format: Format | undefined;
+}
+
+/** The r scale of `spec`, undefined unless its scatter's series carry `r`:
+ *  [0, the largest r of a dot with both positions], or the passed domain.
+ *  Throws for an r scale beside no r, a domain whose low end is not 0, and
+ *  an r infinite, below 0 or past a passed domain, which no area shows. */
+export function rScale(spec: ChartSpec): Size | undefined {
+  const scatter = spec.marks.find((m): m is ScatterMark => m.mark === "scatter");
+  const series = scatter?.series.filter((s) => s.r !== undefined) ?? [];
+  if (series.length === 0) {
+    if (spec.r !== undefined) {
+      throw new TypeError("renderChart: an r scale sizes a scatter's dots, and none carries r");
+    }
+    return undefined;
+  }
+  const passed = passedDomain(spec.r?.domain, "r", false);
+  if (passed !== undefined && passed[0] !== 0) {
+    throw new RangeError("renderChart: r.domain must start at 0, where a dot has no area");
+  }
+  let hi = 0;
+  for (const s of series) {
+    for (let i = 0; i < (s.r?.length ?? 0); i++) {
+      const v = s.r?.[i];
+      if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
+        throw new RangeError("renderChart: a scatter's r cannot be infinite");
+      }
+      if (!finite(v)) {
+        continue;
+      }
+      if (v < 0) {
+        throw new RangeError("renderChart: a scatter's r cannot be below 0, which has no area");
+      }
+      if (passed !== undefined && v > passed[1]) {
+        throw new RangeError("renderChart: a scatter's r must lie inside r.domain");
+      }
+      if (finite(s.x[i]) && finite(s.y[i])) {
+        hi = Math.max(hi, v);
+      }
+    }
+  }
+  return { hi: passed?.[1] ?? (hi > 0 ? hi : 1), format: spec.r?.format };
 }
 
 // A slope's two columns, named by its mark, at 0 and 1.

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { durationEdges } from "../scale/ladder.js";
 
-import { ruleAt, xScale, yScale, type Continuous } from "./scales.js";
+import { rScale, ruleAt, xScale, yScale, type Continuous } from "./scales.js";
 import type { BarMark, ChartSpec, Mark } from "./spec.js";
 
 const S = 1_000;
@@ -638,5 +638,39 @@ describe("a scatter's scales", () => {
     };
     expect(xScale(ruled)).toMatchObject({ lo: 10, hi: 30 });
     expect(continuous(yScale(ruled))).toMatchObject({ lo: 40, hi: 60 });
+  });
+});
+
+describe("a bubble chart's size scale", () => {
+  const bubbles = (r: (number | null)[], x: (number | null)[]): ChartSpec => ({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    r: { label: "Population", format: "integer" },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          { name: "All", names: r.map((_, i) => `d${String(i)}`), x, y: r.map(() => 70), r },
+        ],
+      },
+    ],
+  });
+
+  it("runs from 0 to the largest size of a dot it places, in the scale's format", () => {
+    expect(rScale(bubbles([5, 40, 90], [1, 2, null]))).toEqual({ hi: 40, format: "integer" });
+  });
+
+  it("leaves a dot with no size out of both position extents, since it draws nothing", () => {
+    const spec = bubbles([5, null, 7], [10, 500, 20]);
+    expect(xScale(spec)).toMatchObject({ lo: 10, hi: 20 });
+  });
+
+  it("is absent on plain dots", () => {
+    const plain: ChartSpec = {
+      x: { label: "a" },
+      y: { label: "b" },
+      marks: [{ mark: "scatter", series: [{ name: "All", names: ["d"], x: [1], y: [2] }] }],
+    };
+    expect(rScale(plain)).toBeUndefined();
   });
 });

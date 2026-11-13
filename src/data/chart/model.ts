@@ -14,7 +14,7 @@ import {
 import { lowerBound, upperBound } from "../scale/reduce.js";
 import { spansDay } from "../scale/time.js";
 
-import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
+import { rScale, ruleAt, xScale, yScale, type Band, type Continuous, type Size } from "./scales.js";
 import type { BarMark, ChartSpec, Mark, PointMark, RectMark, ScatterMark } from "./spec.js";
 
 type Kind =
@@ -41,7 +41,8 @@ type Kind =
   | "rangePlot"
   | "arrowPlot"
   | "slope"
-  | "scatter";
+  | "scatter"
+  | "bubble";
 
 export interface SeriesModel {
   readonly name: string;
@@ -257,16 +258,8 @@ interface ScatterSeriesModel {
   /** A value per dot, a gap (`null` or `NaN`) as `null`. */
   readonly x: readonly (number | null)[];
   readonly y: readonly (number | null)[];
-}
-
-/** Dots on two continuous scales, each series a group in its slot. */
-export interface ScatterModel {
-  readonly kind: "scatter";
-  readonly unit: Unit | undefined;
-  readonly series: readonly ScatterSeriesModel[];
-  /** Per series, its dots drawn, read and listed in the app's order: those
-   *  with both values, inside both domains. */
-  readonly shown: readonly (readonly number[])[];
+  /** A bubble chart's sizes, a gap as `null`; undefined without `r`. */
+  readonly r: readonly (number | null)[] | undefined;
 }
 
 /** A scatter's dot: index `i` of series `series`. */
@@ -275,18 +268,30 @@ export interface DotRef {
   readonly i: number;
 }
 
+/** Dots on two continuous scales, each series a group in its slot. */
+export interface ScatterModel {
+  readonly kind: "scatter";
+  readonly unit: Unit | undefined;
+  readonly series: readonly ScatterSeriesModel[];
+  /** Per series, its dots drawn, read and listed in the app's order: those
+   *  with both values, and on a bubble chart a size, inside both domains. */
+  readonly shown: readonly (readonly number[])[];
+  /** The bubbles' size scale; undefined for plain dots. */
+  readonly size: Size | undefined;
+  /** The shown dots in draw order, a later one over an earlier: series,
+   *  then the app's order; bubbles largest first across every series, ties
+   *  in that order, so a small bubble is never hidden under a large one. */
+  readonly drawn: readonly DotRef[];
+}
+
 /** The shown dot of `m` whose values are `x` and `y`, the one drawn on top
- *  among coincident dots: the later series, then the later in the app's
- *  order. Undefined when no shown dot has both. */
+ *  among coincident dots. Undefined when no shown dot has both. */
 export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | undefined {
-  for (let k = m.series.length - 1; k >= 0; k--) {
-    const s = m.series[k];
-    const shown = m.shown[k] ?? [];
-    for (let j = shown.length - 1; j >= 0; j--) {
-      const i = shown[j] ?? 0;
-      if (s?.x[i] === x && s.y[i] === y) {
-        return { series: k, i };
-      }
+  for (let d = m.drawn.length - 1; d >= 0; d--) {
+    const ref = m.drawn[d];
+    const s = ref === undefined ? undefined : m.series[ref.series];
+    if (ref !== undefined && s?.x[ref.i] === x && s.y[ref.i] === y) {
+      return ref;
     }
   }
   return undefined;
@@ -346,6 +351,8 @@ export interface Model {
   readonly xSpan: (from: number, to: number) => readonly [string, string];
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
+  /** A bubble's size, in the r scale's format. */
+  readonly rText: (v: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
    *  bar or point chart, else `yText`), or a plain number under "share",
    *  whose axis writes shares. */
@@ -487,10 +494,17 @@ function checkScatter(mark: Record<string, unknown>, what: string): void {
     fail(`${what}.series must be an array`);
   }
   const seen = new Set<unknown>();
+  let sized: boolean | undefined;
   for (let s = 0; s < list.length; s++) {
     const one = list[s];
     const at = `${what}.series[${String(s)}]`;
     checkSeriesHead(one, s, at);
+    // One series without sizes would have no area to compare with the rest.
+    const r = one["r"] !== undefined;
+    if (sized !== undefined && r !== sized) {
+      fail(`${what}.series must all carry r or none, since a bubble's area compares across them`);
+    }
+    sized = r;
     const names = one["names"];
     if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
       fail(`${at}.names must be an array of the dots' names`);
@@ -501,7 +515,7 @@ function checkScatter(mark: Record<string, unknown>, what: string): void {
       }
       seen.add(name);
     }
-    for (const channel of ["x", "y"]) {
+    for (const channel of r ? ["x", "y", "r"] : ["x", "y"]) {
       checkValues(one[channel], names.length, `${at}.${channel}`, "names");
     }
   }
@@ -777,6 +791,20 @@ function check(spec: unknown): asserts spec is ChartSpec {
   if (spec["y"] !== undefined) {
     checkScale(spec["y"], "y");
   }
+  if (spec["r"] !== undefined) {
+    checkScale(spec["r"], "r");
+  }
+  const r = spec["r"];
+  if (isObject(r)) {
+    if (r["type"] !== undefined && r["type"] !== "linear") {
+      fail('r.type must be "linear", since a bubble\'s area is proportional to its value');
+    }
+    for (const flag of ["zero", "mono", "reverse"]) {
+      if (r[flag] !== undefined) {
+        fail(`r.${flag} has no place on a size scale, which runs from 0 and draws no axis`);
+      }
+    }
+  }
   const marks = spec["marks"];
   if (!arrayLike(marks)) {
     fail("marks must be an array");
@@ -800,7 +828,9 @@ function check(spec: unknown): asserts spec is ChartSpec {
   const height = spec["height"];
   const primary = marks[data];
   if (isObject(primary) && primary["mark"] === "scatter") {
-    for (const axis of ["x", "y"]) {
+    const list = primary["series"];
+    const sized = arrayLike(list) && isObject(list[0]) && list[0]["r"] !== undefined;
+    for (const axis of sized ? ["x", "y", "r"] : ["x", "y"]) {
       const scale = spec[axis];
       const label = isObject(scale) ? scale["label"] : undefined;
       if (typeof label !== "string" || label === "") {
@@ -843,21 +873,36 @@ const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
 const pointSeries = (list: PointMark["series"]): PointSeriesModel[] =>
   list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, x: gaps(s.x, false) }));
 
-// A dot outside a passed domain is not drawn, and with no position it is no stop.
-function scatterModel(mark: ScatterMark, x: Continuous, y: Continuous): ScatterModel {
+// A dot outside a passed domain is not drawn, and with no position, or a
+// bubble with no size, it is no stop.
+function scatterModel(
+  mark: ScatterMark,
+  x: Continuous,
+  y: Continuous,
+  size: Size | undefined,
+): ScatterModel {
   const series = mark.series.map((s, i) => ({
     name: s.name,
     slot: s.slot ?? i + 1,
     names: s.names,
     x: gaps(s.x, false),
     y: gaps(s.y, false),
+    r: s.r === undefined ? undefined : gaps(s.r, false),
   }));
   const inside = (v: number | null | undefined, scale: Continuous): v is number =>
     v !== null && v !== undefined && v >= scale.lo && v <= scale.hi;
   const shown = series.map((s) =>
-    s.names.flatMap((_, i) => (inside(s.x[i], x) && inside(s.y[i], y) ? [i] : [])),
+    s.names.flatMap((_, i) =>
+      inside(s.x[i], x) && inside(s.y[i], y) && s.r?.[i] !== null ? [i] : [],
+    ),
   );
-  return { kind: "scatter", unit: mark.unit, series, shown };
+  const drawn = shown.flatMap((dots, k) => dots.map((i) => ({ series: k, i })));
+  if (size !== undefined) {
+    // Array.prototype.sort is stable, so ties keep series, then the app's order.
+    const r = (d: DotRef) => series[d.series]?.r?.[d.i] ?? 0;
+    drawn.sort((a, b) => r(b) - r(a));
+  }
+  return { kind: "scatter", unit: mark.unit, series, shown, size, drawn };
 }
 
 /** One series with a value below 0: its bars run either side of the zero
@@ -941,7 +986,7 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
     case "slope":
       return "slope";
     case "scatter":
-      return "scatter";
+      return first.size === undefined ? "scatter" : "bubble";
   }
 }
 
@@ -1047,6 +1092,7 @@ export function chartModel(
   check(spec);
   const x = xScale(spec);
   const y = yScale(spec);
+  const size = rScale(spec);
   const ends = spec.marks
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
@@ -1119,7 +1165,7 @@ export function chartModel(
         return { kind: "slope", columns: m.x, series: series(m.series) };
       case "scatter":
         // A band y throws in yScale without band rows, so y is continuous.
-        return scatterModel(m, x, y as Continuous);
+        return scatterModel(m, x, y as Continuous, size);
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;
@@ -1151,6 +1197,7 @@ export function chartModel(
       ? spanFormat(locale, timeZone, days)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
   const yText = formatter(y.type === "band" ? undefined : y.format, locale);
+  const rText = formatter(size?.format, locale);
   const share = marks.some(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
@@ -1165,6 +1212,7 @@ export function chartModel(
     xText,
     xSpan,
     yText,
+    rText,
     amountText: share ? formatter("number", locale) : bars ? xText : yText,
     locale,
     timeZone,

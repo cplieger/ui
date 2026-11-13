@@ -171,10 +171,15 @@ interface ScatterSeries {
   /** A value per dot on each axis; `null` or `NaN` draws no dot. */
   readonly x: Values;
   readonly y: Values;
+  /** A value of 0 or more per dot that its area is proportional to, on the
+   *  chart's `r`: on every series or none. A 0 draws no dot but is read
+   *  and listed; `null` or `NaN` draws none either. */
+  readonly r?: Values;
 }
 
 /** A dot per item on the chart's linear or log x and y, each series a
- *  group of dots in its slot, a later series drawn over an earlier one. */
+ *  group of dots in its slot, a later series drawn over an earlier one;
+ *  with `r`, a bubble per item, the larger drawn first across every series. */
 export interface ScatterMark {
   readonly mark: "scatter";
   /** The dots' noun ("countries"); without one they are points. */
@@ -209,6 +214,18 @@ interface TextMark {
   readonly side?: "above" | "below" | "left" | "right";
 }
 
+/** A bubble chart's size: area proportional to the value from 0. */
+interface SizeScale {
+  readonly type?: "linear";
+  /** Required: the readings name the size by it. */
+  readonly label?: string;
+  readonly unit?: Unit;
+  /** Its low end is 0; every r value lies inside it. Shared by several
+   *  charts, it keeps one size for one value across them. */
+  readonly domain?: readonly [number, number];
+  readonly format?: Format;
+}
+
 export type Mark =
   | RectMark
   | LineMark
@@ -228,6 +245,8 @@ export interface ChartSpec {
   /** Band when the chart has a dot, bar or point mark; linear under a
    *  slope; linear or log under a scatter. */
   readonly y?: Scale;
+  /** A scatter's size, when its series carry `r`; a `TypeError` otherwise. */
+  readonly r?: SizeScale;
   /** One rect, line, area, dot, bar, point, slope or scatter mark and any rules and
    *  text marks, drawn in order: a rule after a rect draws over it. A
    *  second data mark is a `TypeError`. */

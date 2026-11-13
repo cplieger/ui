@@ -137,6 +137,20 @@
   font-weight: var(--cp-weight-strong);
 }
 
+/* A bubble chart's size key: two circles at the sizes the plot draws,
+ * standing on the row's baseline, each before its value. */
+.cp-chart > [data-part="legend"] > [data-part="size"] {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--cp-space-1);
+}
+
+.cp-chart > [data-part="legend"] > [data-part="size"] circle {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
+}
+
 .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
 }

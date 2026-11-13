@@ -10,6 +10,7 @@ import {
   drawSelection,
   frameLegend,
   readMetrics,
+  sizeKey,
   writeLegend,
 } from "./draw.js";
 import { hairline, num, snap, upright } from "./geometry.js";
@@ -1574,5 +1575,103 @@ describe("a scatter plot", () => {
     expect(d.svg.querySelector('[data-part="zero"]')?.getAttribute("d")).toBe(
       hairline(f.yAt(0), f.width, f.dpr),
     );
+  });
+});
+
+describe("a bubble chart", () => {
+  const world: ChartSpec = {
+    x: { label: "GDP per capita", domain: [0, 100] },
+    y: { label: "Life expectancy", domain: [0, 100] },
+    r: { label: "Population", format: { notation: "compact" } },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Asia",
+            slot: 3,
+            names: ["Laos", "Nepal"],
+            x: [50, 20],
+            y: [50, 20],
+            r: [90_000, 0],
+          },
+          { name: "Europe", slot: 2, names: ["Germany"], x: [52], y: [50], r: [1_440_000] },
+        ],
+      },
+    ],
+  };
+  it("paints the bubbles largest first across the series, so a small one lies on top", () => {
+    const d = draw(world);
+    const f = d.lay.frame;
+    const paths = series(d, "scatter");
+    // Nepal's size of 0 draws no dot; Laos, inside Germany, paints after it.
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["2", "3"]);
+    const [germany, laos] = paths;
+    const [lx, ly] = [f.xAt(50), f.yAt(50)];
+    expect(germany?.getBBox().width).toBeCloseTo(48, 1);
+    expect(laos?.getBBox().width).toBeCloseTo(12, 1);
+    for (const p of paths) {
+      const style = getComputedStyle(p);
+      expect(style.fill).toBe(token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`));
+      expect([style.stroke, style.strokeWidth]).toEqual([
+        token(p, "var(--cp-chart-surface)"),
+        "1px",
+      ]);
+    }
+    // At Laos's centre, inside Germany too, the page and the pointer both find Laos.
+    const svg = d.svg.getBoundingClientRect();
+    expect(document.elementFromPoint(svg.left + d.lay.left + lx, svg.top + d.lay.top + ly)).toBe(
+      laos,
+    );
+    expect(navigator(d.model, d.lay).pick(lx, ly)).toEqual({ kind: "scatter", series: 0, i: 0 });
+  });
+
+  it("rings a selected bubble 1 px outside its edge, its rules ending there", () => {
+    const d = draw(world);
+    const f = d.lay.frame;
+    drawSelection(
+      d.svg,
+      d.model,
+      d.lay,
+      { kind: "scatter", series: 1, i: 0 },
+      navigator(d.model, d.lay),
+    );
+    const [cx, cy] = [f.xAt(52), f.yAt(50)];
+    const box = (d.svg.querySelector('[data-part="ring"]') as SVGGeometryElement).getBBox();
+    expect([box.x, box.y, box.width, box.height]).toEqual(
+      [cx - 25, cy - 25, 50, 50].map((v) => expect.closeTo(v, 1)),
+    );
+    expect(d.svg.querySelector('[data-part="crosshair"]')?.getAttribute("d")).toBe(
+      `M${num(snap(cx, f.dpr) + 0.5)} ${num(f.height)}V${num(cy + 24)}M0 ${num(snap(cy, f.dpr) + 0.5)}H${num(cx - 24)}`,
+    );
+  });
+
+  it("keys the sizes with two outlined circles on one baseline at the plot's sizes, hidden from readers", () => {
+    for (const [width, largest] of [
+      [600, 24],
+      [300, 12],
+    ] as const) {
+      const d = draw(world, width);
+      const key = sizeKey(d.model, d.lay);
+      expect(key).toBeDefined();
+      d.legend.append(key as HTMLElement);
+      expect(key?.getAttribute("aria-hidden")).toBe("true");
+      // 1.44M rounds down to 1M; a quarter of it draws half its radius.
+      expect(key?.textContent).toBe("Population250K1M");
+      const [small, large] = [...(key?.querySelectorAll("circle") ?? [])];
+      const radius = largest * Math.sqrt(1_000_000 / 1_440_000);
+      expect(Number(large?.getAttribute("r"))).toBeCloseTo(radius, 1);
+      expect(Number(small?.getAttribute("r"))).toBeCloseTo(radius / 2, 1);
+      const [a, b] = [small, large].map((c) => (c as SVGCircleElement).getBoundingClientRect());
+      expect(a?.bottom).toBeCloseTo(b?.bottom ?? 0, 0);
+      const style = getComputedStyle(large as Element);
+      expect([style.fill, style.stroke, style.strokeWidth]).toEqual([
+        "none",
+        token(large as Element, "var(--cp-ink-muted)"),
+        "1px",
+      ]);
+    }
+    const plain = draw(stacked);
+    expect(sizeKey(plain.model, plain.lay)).toBeUndefined();
   });
 });

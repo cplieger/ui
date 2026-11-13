@@ -11,9 +11,11 @@ import {
   arrowPaths,
   barPaths,
   barSegments,
+  bubblePaths,
   bucketEdges,
   dotGroups,
   dotPath,
+  dotRadius,
   groupEdges,
   hairline,
   linePath,
@@ -25,7 +27,6 @@ import {
   rectPaths,
   rulePath,
   ruleXs,
-  SCATTER_RADIUS,
   scatterAt,
   scatterPaths,
   SLOPE_RADIUS,
@@ -264,9 +265,15 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       }
       case "scatter": {
         const g = svgEl("g", { "data-part": "scatter" });
-        scatterPaths(m, f).forEach((d, k) => {
-          g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
-        });
+        if (m.size === undefined) {
+          scatterPaths(m, f).forEach((d, k) => {
+            g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
+          });
+        } else {
+          for (const p of bubblePaths(m, f)) {
+            g.append(svgEl("path", { "data-series": String(p.slot), d: p.d }));
+          }
+        }
         area.append(g);
         break;
       }
@@ -332,8 +339,10 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
   );
 }
 
-const ring = (cx: number, cy: number, r: number): string =>
-  `M${num(cx - r)} ${num(cy)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0`;
+const ring = (cx: number, cy: number, radius: number): string => {
+  const r = Number(num(radius));
+  return `M${num(cx - r)} ${num(cy)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0`;
+};
 
 // A rectangle's outline drawn 1 px inside its edges, so its 2 px stroke
 // stays on the bar and covers no neighbour.
@@ -440,7 +449,7 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
   }
   if (sel.kind === "scatter" && m?.kind === "scatter") {
     const c = scatterAt(m, sel.series, sel.i, f);
-    return c === undefined ? "" : ring(c.x, c.y, SCATTER_RADIUS + 1);
+    return c === undefined ? "" : ring(c.x, c.y, dotRadius(m, sel.series, sel.i, f) + 1);
   }
   if (sel.kind === "slope" && m?.kind === "slope") {
     // A chosen series rings both its ends, the whole column each end in it.
@@ -465,16 +474,17 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
 function scatterHair(model: Model, lay: Layout, sel: Selection): string {
   const m = primaryOf(model);
   const f = lay.frame;
-  const c =
-    sel.kind === "scatter" && m?.kind === "scatter"
-      ? scatterAt(m, sel.series, sel.i, f)
-      : undefined;
+  if (sel.kind !== "scatter" || m?.kind !== "scatter") {
+    return "";
+  }
+  const c = scatterAt(m, sel.series, sel.i, f);
   if (c === undefined) {
     return "";
   }
+  const r = dotRadius(m, sel.series, sel.i, f);
   const x = snap(c.x, f.dpr) + 0.5;
   const y = snap(c.y, f.dpr) + 0.5;
-  return `M${num(x)} ${num(f.height)}V${num(c.y + SCATTER_RADIUS)}M0 ${num(y)}H${num(c.x - SCATTER_RADIUS)}`;
+  return `M${num(x)} ${num(f.height)}V${num(c.y + r)}M0 ${num(y)}H${num(c.x - r)}`;
 }
 
 /**
@@ -588,6 +598,45 @@ export function frameLegend(
   }
   legend.replaceChildren(...parts);
   writeLegend(legend, reading);
+}
+
+// The largest of 1, 2 and 5 times a power of ten at or below `v`, above 0.
+function roundDown(v: number): number {
+  let p = 10 ** Math.floor(Math.log10(v));
+  p = p * 10 <= v ? p * 10 : p > v ? p / 10 : p;
+  const lead = v / p;
+  return p * (lead >= 5 ? 5 : lead >= 2 ? 2 : 1);
+}
+
+/**
+ * A bubble chart's size key, for the legend row's end: the r label, then a
+ * circle for the r domain's high end rounded down to 1, 2 or 5 times a power
+ * of ten and one for a quarter of that, each drawn at the size `lay` draws
+ * it, with its value. `aria-hidden`, since every reading and the table give
+ * each size. Undefined without bubbles.
+ */
+export function sizeKey(model: Model, lay: Layout): HTMLElement | undefined {
+  const m = primaryOf(model);
+  const largest = lay.frame.bubble;
+  if (m?.kind !== "scatter" || m.size === undefined || largest === undefined) {
+    return undefined;
+  }
+  const { hi } = m.size;
+  const top = roundDown(hi);
+  const key = span("size");
+  key.setAttribute("aria-hidden", "true");
+  key.append(model.spec.r?.label ?? "");
+  for (const v of [top / 4, top]) {
+    const r = largest * Math.sqrt(v / hi);
+    // The 1 px outline lies half outside the circle's edge.
+    const side = num(2 * r + 1);
+    const svg = svgEl("svg", { width: side, height: side, viewBox: `0 0 ${side} ${side}` });
+    svg.append(svgEl("circle", { cx: num(r + 0.5), cy: num(r + 0.5), r: num(r) }));
+    const value = document.createElement("span");
+    value.textContent = model.rText(v);
+    key.append(svg, value);
+  }
+  return key;
 }
 
 /** Writes `reading` into a legend row `frameLegend` built for its shape. */

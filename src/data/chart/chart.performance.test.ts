@@ -216,6 +216,33 @@ const fewPlaces: ChartSpec = {
   marks: [{ mark: "scatter", series: [{ name: "a", names: ["a", "b"], x: [1, 2], y: [3, 4] }] }],
 };
 
+// 2,000 bubbles in five series, sized over four orders of magnitude.
+const bubbles: ChartSpec = {
+  ...scatter,
+  r: { label: "Population" },
+  marks: [
+    {
+      mark: "scatter",
+      series: Array.from({ length: 5 }, (_, k) => ({
+        name: `Region ${String(k + 1)}`,
+        names: Array.from({ length: 400 }, (_, i) => `place-${String(k)}-${String(i)}`),
+        x: Array.from({ length: 400 }, (_, i) => 500 + ((i * 7_919 + k * 104_729) % 99_500)),
+        y: Array.from({ length: 400 }, (_, i) => 50 + ((i * 6_007 + k * 3_571) % 4_000) / 100),
+        r: Array.from({ length: 400 }, (_, i) => 10 ** (3 + ((i * 37 + k * 11) % 400) / 100)),
+      })),
+    },
+  ],
+};
+const fewBubbles: ChartSpec = {
+  ...bubbles,
+  marks: [
+    {
+      mark: "scatter",
+      series: [{ name: "a", names: ["a", "b"], x: [1, 2], y: [3, 4], r: [5, 6] }],
+    },
+  ],
+};
+
 describe("performance", () => {
   it.skipIf(!chromium)("renders a 72-hour step line of 8,640 values within its bound", async () => {
     const { ms, plot } = await timed(stepLine, few);
@@ -235,6 +262,16 @@ describe("performance", () => {
   it.skipIf(!chromium)("renders a scatter plot of 10,000 dots within its bound", async () => {
     const { ms, plot } = await timed(scatter, fewPlaces);
     expect(plot.querySelectorAll('[data-part="scatter"] > path')).toHaveLength(5);
+    expect(ms).toBeLessThan(RENDER_MS);
+    expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
+
+  it.skipIf(!chromium)("renders a bubble chart of 2,000 bubbles within its bound", async () => {
+    const { ms, plot } = await timed(bubbles, fewBubbles);
+    const paths = [...plot.querySelectorAll('[data-part="scatter"] > path')];
+    expect(paths.reduce((n, p) => n + (p.getAttribute("d")?.match(/Z/g) ?? []).length, 0)).toBe(
+      2_000,
+    );
     expect(ms).toBeLessThan(RENDER_MS);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });

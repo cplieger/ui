@@ -344,11 +344,25 @@ export function chipChosen(model: Model): boolean {
   return kind === "slope" || kind === "scatter";
 }
 
-/** A scatter dot's value on `axis` with its axis label, through `words.measure`. */
-export function measureText(model: Model, axis: "x" | "y", v: number | null, words: Words): string {
-  const text = v === null ? words.noData : axis === "x" ? model.xText(v) : model.yText(v);
-  return words.measure(model.spec[axis]?.label ?? "", text);
+/** A scatter dot's value on `axis`, or a bubble's size on "r", with its
+ *  scale's label, through `words.measure`. */
+export function measureText(
+  model: Model,
+  axis: "x" | "y" | "r",
+  v: number | null,
+  words: Words,
+): string {
+  const write = axis === "x" ? model.xText : axis === "y" ? model.yText : model.rText;
+  return words.measure(model.spec[axis]?.label ?? "", v === null ? words.noData : write(v));
 }
+
+/** The measures a scatter's dots read: x and y, and a bubble's size. */
+export const measuresOf = (m: ScatterModel): readonly ("x" | "y" | "r")[] =>
+  m.size === undefined ? ["x", "y"] : ["x", "y", "r"];
+
+/** Dot `i` of `s`'s value on `axis`, `null` for a gap. */
+export const dotValue = (s: ScatterModel["series"][number], axis: "x" | "y" | "r", i: number) =>
+  (axis === "r" ? s.r?.[i] : s[axis][i]) ?? null;
 
 // A scatter's chips, a dot count per series, a figure that adds up across
 // the chart where its measures need not; none with one series.
@@ -373,16 +387,18 @@ export function scatterReading(
   words: Words,
 ): Reading {
   const s = m.series[k];
+  const measures = measuresOf(m);
   const reading = {
     at: s?.names[i] ?? "",
     entries: [
-      ...bare(measureText(model, "x", s?.x[i] ?? null, words)),
-      ...bare(measureText(model, "y", s?.y[i] ?? null, words)),
+      ...measures.flatMap((a) =>
+        bare(measureText(model, a, s === undefined ? null : dotValue(s, a, i), words)),
+      ),
       ...dotChips(model, m),
     ],
     total: undefined,
   };
-  return m.series.length < 2 ? reading : { ...reading, chosen: 2 + k };
+  return m.series.length < 2 ? reading : { ...reading, chosen: measures.length + k };
 }
 
 /** A slope series' change in the y format, signed on every value but 0. */
@@ -393,7 +409,7 @@ export function changeText(model: Model, v: number): string {
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
  *  values, an area's last whole stack, a bar or point chart's row count,
- *  a slope's right column, a scatter's dot count, blank slots for its two
+ *  a slope's right column, a scatter's dot count, blank slots for its
  *  measures and from two series up each one's count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
@@ -464,7 +480,7 @@ export function overall(model: Model, words: Words): Reading | undefined {
     case "scatter":
       return {
         at: dotsText(model, m, words),
-        entries: [...bare(""), ...bare(""), ...dotChips(model, m)],
+        entries: [...measuresOf(m).flatMap(() => bare("")), ...dotChips(model, m)],
         total: undefined,
       };
   }
@@ -627,12 +643,16 @@ function valueTexts(
 
 // The widest measure texts a scatter's `axis` can read: each series' even
 // spread of its shown dots and its extremes, as a line's values are found.
-function scatterTexts(model: Model, m: ScatterModel, axis: "x" | "y", words: Words): string[] {
+function scatterTexts(
+  model: Model,
+  m: ScatterModel,
+  axis: "x" | "y" | "r",
+  words: Words,
+): string[] {
   const out: string[] = [];
   m.series.forEach((s, k) => {
     const shown = m.shown[k] ?? [];
-    const values = s[axis];
-    const at = (j: number) => values[shown[j] ?? 0] ?? null;
+    const at = (j: number) => dotValue(s, axis, shown[j] ?? 0);
     const picked = [...spreadOf(shown.length).map(at), ...extremes(over(0, shown.length, at))];
     out.push(...picked.map((v) => measureText(model, axis, v, words)));
   });
@@ -692,12 +712,9 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
         at.push(s.names[i] ?? "");
       }
     });
-    for (const [slot, axis] of [
-      [0, "x"],
-      [1, "y"],
-    ] as const) {
+    measuresOf(m).forEach((axis, slot) => {
       values[slot]?.push(...scatterTexts(model, m, axis, words));
-    }
+    });
   } else if (m?.kind === "dot") {
     // Each post's time, written once per stretch of x in which its width holds.
     const posts = new Map<string, number>();
