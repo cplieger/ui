@@ -5,6 +5,7 @@ import { position } from "../scale/position.js";
 
 import {
   areaPaths,
+  arrowPaths,
   barBlock,
   barCentre,
   barPaths,
@@ -17,6 +18,7 @@ import {
   linePath,
   pointAt,
   pointPaths,
+  rangePath,
   rectPaths,
   type Frame,
 } from "./geometry.js";
@@ -1292,5 +1294,29 @@ describe("points", () => {
     const f = pointFrame(m, 40, 60, 2);
     expect(pointAt(pointOf(m), 0, 1, f)).toBe(3);
     expect(pointPaths(pointOf(m), [12.2, 36, 60], f)[0]).toBe("M0 12.5h0M3 36.5h0M200 60.5h0");
+  });
+  // x 40 to 60 over 200 px: 10 px a unit.
+  const linkRows = [
+    [40, 60, 50, 50, null, 45],
+    [50, 45, 51.7, 51.8, 50, 45],
+  ];
+  const ys = [12, 36, 60, 84, 108, 132];
+
+  it("joins each row's two drawn dots for a range, none where either is a gap", () => {
+    const m = pointModel({}, linkRows);
+    const f = pointFrame(m, 40, 60);
+    expect(rangePath(pointOf(m), ys, f)).toBe(
+      "M0 12.5H100M200 36.5H50M100 60.5H117M100 84.5H118M50 132.5H50",
+    );
+  });
+
+  it("draws an arrow from the first dot's edge to an 8 px head at the second's, either way", () => {
+    const m = pointModel({}, linkRows);
+    const f = pointFrame(m, 40, 60);
+    const { shafts, heads } = arrowPaths(pointOf(m), ys, f);
+    // Rows 0 and 1 run right and left; row 2's centres stand 17 px apart, too
+    // close for a head, and row 3's 18 px, a head with no shaft.
+    expect(shafts).toBe("M5 12.5H87M195 36.5H63M105 84.5H105");
+    expect(heads).toBe("M95 12.5L87 8.5V16.5ZM55 36.5L63 32.5V40.5ZM113 84.5L105 80.5V88.5Z");
   });
 });

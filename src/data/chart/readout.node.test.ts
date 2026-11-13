@@ -23,6 +23,7 @@ import {
   readoutWidths,
   rowReading,
   sampleReading,
+  totalWord,
   type Reading,
 } from "./readout.js";
 import type { ChartSpec, Mark } from "./spec.js";
@@ -772,5 +773,92 @@ describe("the legend row of a point chart", () => {
       });
     }
     expect(w.at).toBe(measure.number(`2${nb}degrees`));
+  });
+});
+
+describe("the legend row of a range or arrow plot", () => {
+  const plot = (
+    link: "range" | "arrow",
+    x: ChartSpec["x"],
+    women: (number | null)[],
+    men: (number | null)[],
+  ): Model =>
+    model({
+      x,
+      marks: [
+        {
+          mark: "point",
+          y: ["Doctorate", "Master's", "Bachelor's"],
+          link,
+          series: [
+            { name: "Women", x: women },
+            { name: "Men", x: men },
+          ],
+        },
+      ],
+    });
+  const pointOf = (m: Model) => m.marks[0] as PointModel;
+
+  it("keeps a blank Gap or Change slot with no selection", () => {
+    for (const link of ["range", "arrow"] as const) {
+      const m = plot(link, {}, [128_700, 91_000, 70_000], [163_500, 120_000, 81_000]);
+      expect(overall(m, words)?.total).toBe("");
+    }
+    const m = plot("range", {}, [1, 2, 3], [4, 5, 6]);
+    expect(totalWord(m, words)).toBe("Gap");
+    expect(totalWord(plot("arrow", {}, [1, 2, 3], [4, 5, 6]), words)).toBe("Change");
+    const dots = model({
+      x: {},
+      marks: [{ mark: "point", y: ["a"], series: [{ name: "A", x: [1] }] }],
+    });
+    expect(overall(dots, words)?.total).toBeUndefined();
+    expect(totalWord(dots, words)).toBe("Total");
+  });
+
+  it("reads a range's gap either way round, and No data with a gap at an end", () => {
+    const m = plot("range", {}, [128_700, 120_000, null], [163_500, 91_000, 81_000]);
+    expect(pointReading(m, pointOf(m), 0, words)).toEqual({
+      at: "Doctorate",
+      entries: [
+        { slot: 1, name: "Women", value: "128,700" },
+        { slot: 2, name: "Men", value: "163,500" },
+      ],
+      total: "34,800",
+    });
+    expect(pointReading(m, pointOf(m), 1, words).total).toBe("29,000");
+    expect(pointReading(m, pointOf(m), 2, words).total).toBe("No data");
+  });
+
+  it("reads an arrow's change with its sign, in x's format", () => {
+    const pct = { format: { style: "percent", maximumFractionDigits: 1 } } as const;
+    const m = plot("arrow", pct, [0.058, 0.5, 0.2], [0.93, 0.463, 0.2]);
+    const r = pointReading(m, pointOf(m), 0, words);
+    expect(r.entries.map((e) => e.value)).toEqual(["5.8%", "93%"]);
+    expect(r.total).toBe("+87.2%");
+    expect(pointReading(m, pointOf(m), 1, words).total).toBe("-3.7%");
+    expect(pointReading(m, pointOf(m), 2, words).total).toBe("0%");
+  });
+
+  it("writes a gap and a change on a time x as durations", () => {
+    const later = START + 90 * MIN;
+    const range = plot("range", { type: "time" }, [later, START, START], [START, later, START]);
+    expect(pointReading(range, pointOf(range), 0, words).total).toBe(
+      formatDuration(90 * MIN, "en"),
+    );
+    const arrow = plot("arrow", { type: "time" }, [later, START, START], [START, later, START]);
+    expect(pointReading(arrow, pointOf(arrow), 0, words).total).toBe(
+      formatDuration(-90 * MIN, "en"),
+    );
+    expect(pointReading(arrow, pointOf(arrow), 1, words).total).toBe(
+      `+${formatDuration(90 * MIN, "en")}`,
+    );
+  });
+
+  it("keeps the last slot wide enough for every row's gap", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const m = plot("range", {}, [128_700, 1, null], [163_500, 2, 81_000]);
+    const w = readoutWidths(m, words, measure);
+    expect(w.total).toBe(measure.number("No data"));
+    expect(w.total).toBeGreaterThanOrEqual(measure.number("34,800"));
   });
 });

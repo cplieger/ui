@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { chartModel, drawnTotal, drawnValue, sampleValue } from "./model.js";
+import {
+  chartModel,
+  drawnTotal,
+  drawnValue,
+  pointLink,
+  sampleValue,
+  type PointModel,
+} from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 
 const build = (spec: unknown) => chartModel(spec as ChartSpec, "en", "UTC");
@@ -1082,5 +1089,49 @@ describe("the point mark", () => {
     const m = build({ x: { type: "time" }, marks: [points([[at, at + 3_600_000]])] });
     expect(m.amountText(at)).toBe(m.xText(at));
     expect(m.xText(at)).toContain("8:00");
+  });
+});
+
+describe("a point mark's link", () => {
+  const two = [
+    [128_700, 29_100, null],
+    [163_500, 43_350, 50],
+  ];
+
+  it.each([
+    ["a link it does not draw", { link: "line" }, [[1], [2]]],
+    ["a range of one series", { link: "range" }, [[1]]],
+    ["an arrow of three series", { link: "arrow" }, [[1], [2], [3]]],
+  ] as const)("refuses %s", (_, more, series) => {
+    expect(() => build({ x: {}, marks: [points(series, more as never)] })).toThrow(TypeError);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ x: {}, marks: [points([[1]], { link: "range" })] })).toThrow(
+      'renderChart: marks[0].link "range" needs exactly two series, the two ends it joins',
+    );
+    expect(() =>
+      build({ x: {}, marks: [points([[1], [2]], { link: "dumbbell" as "range" })] }),
+    ).toThrow('renderChart: marks[0].link must be "range" or "arrow"');
+  });
+
+  it("keeps the link, names the kind, and gives a range's gap and an arrow's change", () => {
+    const range = build({ x: {}, marks: [points(two, { link: "range" })] });
+    const arrow = build({ x: {}, marks: [points(two, { link: "arrow" })] });
+    const dots = build({ x: {}, marks: [points(two)] });
+    expect([range.kind, arrow.kind, dots.kind]).toEqual(["rangePlot", "arrowPlot", "dotPlot"]);
+    const [r, a, d] = [range, arrow, dots].map((m) => m.marks[0] as PointModel);
+    expect([r?.link, a?.link, d?.link]).toEqual(["range", "arrow", undefined]);
+    // A range's gap is the distance either way; an arrow's change keeps its sign.
+    const reversed = build({
+      x: {},
+      marks: [points([[163_500], [128_700]], { link: "range" })],
+    }).marks[0] as PointModel;
+    expect(pointLink(reversed, 0)).toBe(34_800);
+    expect([0, 1, 2].map((i) => pointLink(r as PointModel, i))).toEqual([34_800, 14_250, null]);
+    const back = build({ x: {}, marks: [points([[5.8], [2.1]], { link: "arrow" })] });
+    expect(pointLink(back.marks[0] as PointModel, 0)).toBeCloseTo(-3.7, 10);
+    expect(pointLink(a as PointModel, 2)).toBeNull();
+    expect(pointLink(d as PointModel, 0)).toBeNull();
   });
 });

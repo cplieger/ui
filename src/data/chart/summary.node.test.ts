@@ -793,3 +793,57 @@ describe("the summary of a dot plot", () => {
     expect(shortDescription(releases, own)).toBe("Punktdiagramm, 1 categories");
   });
 });
+
+describe("the summary of a range or arrow plot", () => {
+  const pay = (link: "range" | "arrow"): ChartSpec => ({
+    x: {},
+    y: { unit: { one: "degree", other: "degrees" } },
+    marks: [
+      {
+        mark: "point",
+        y: ["Doctorate", "Master's", "Less than 9th grade", "None"],
+        link,
+        series: [
+          { name: "Women", x: [128_700, 91_000, 29_100, null] },
+          { name: "Men", x: [163_500, 144_310, 43_350, 20_000] },
+        ],
+      },
+    ],
+  });
+
+  it("names the highest and lowest gap after each series, leaving a row with a gap out", () => {
+    expect(generatedSummary(model(pay("range")), words)).toBe(
+      `4${nb}degrees, 2 series. Women: highest Doctorate 128,700, lowest Less than 9th grade 29,100. Men: highest Doctorate 163,500, lowest None 20,000. Gap: highest Master's 53,310, lowest Less than 9th grade 14,250.`,
+    );
+    expect(shortDescription(model(pay("range")), words)).toBe(
+      `Range plot, 2 series, 4${nb}degrees`,
+    );
+  });
+
+  it("names the largest and smallest change with their signs", () => {
+    const fell = model({
+      x: {},
+      marks: [
+        {
+          mark: "point",
+          y: ["Norway", "Chad"],
+          link: "arrow",
+          series: [
+            { name: "2013", x: [5.8, 3] },
+            { name: "2023", x: [93, 1.5] },
+          ],
+        },
+      ],
+    });
+    expect(generatedSummary(fell, words)).toBe(
+      "2 categories, 2 series. 2013: highest Norway 5.8, lowest Chad 3. 2023: highest Norway 93, lowest Chad 1.5. Change: highest Norway +87.2, lowest Chad -1.5.",
+    );
+    expect(shortDescription(fell, words)).toBe("Arrow plot, 2 series, 2 categories");
+  });
+
+  it("takes the app's nouns", () => {
+    const own = chartWords({ gap: "Écart", kind: { rangePlot: "Intervalle" } });
+    expect(generatedSummary(model(pay("range")), own)).toContain("Écart: highest Master's");
+    expect(shortDescription(model(pay("range")), own)).toBe(`Intervalle, 2 series, 4${nb}degrees`);
+  });
+});

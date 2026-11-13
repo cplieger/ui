@@ -8,6 +8,7 @@ import { fontMeasure } from "../scale/measure.js";
 
 import {
   areaPaths,
+  arrowPaths,
   barPaths,
   barSegments,
   bucketEdges,
@@ -20,6 +21,7 @@ import {
   POINT_RADIUS,
   pointAt,
   pointPaths,
+  rangePath,
   rectPaths,
   rulePath,
   snap,
@@ -218,12 +220,19 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         break;
       }
       case "point": {
+        const ys = lay.rows.map((r) => r.y);
+        // A link lies under its dots, which cover its ends.
+        if (m.link === "range") {
+          area.append(svgEl("path", { "data-part": "link", d: rangePath(m, ys, f) }));
+        } else if (m.link === "arrow") {
+          const { shafts, heads } = arrowPaths(m, ys, f);
+          area.append(
+            svgEl("path", { "data-part": "arrow", d: shafts }),
+            svgEl("path", { "data-part": "arrowhead", d: heads }),
+          );
+        }
         const g = svgEl("g", { "data-part": "point" });
-        pointPaths(
-          m,
-          lay.rows.map((r) => r.y),
-          f,
-        ).forEach((d, k) => {
+        pointPaths(m, ys, f).forEach((d, k) => {
           g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
         });
         area.append(g);

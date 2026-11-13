@@ -218,6 +218,24 @@
   stroke-width: 10px;
 }
 
+/* A range's bold link and an arrow, its head showing the direction in any
+ * colour, under the dots. */
+.cp-chart svg [data-part="link"] {
+  fill: none;
+  stroke: var(--cp-border-strong);
+  stroke-width: 4px;
+}
+
+.cp-chart svg [data-part="arrow"] {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 2px;
+}
+
+.cp-chart svg [data-part="arrowhead"] {
+  fill: var(--cp-ink-muted);
+}
+
 .cp-chart svg [data-part="line"] > path {
   fill: none;
   stroke: var(--cp-tone-9);

@@ -867,6 +867,34 @@ describe("the drawing under update and resize", () => {
     expect(Number(area(narrow).getAttribute("height"))).toBe(200 + 2 * AREA_ROOM);
   });
 
+  it("names a range plot's last legend slot Gap and an arrow plot's Change", () => {
+    for (const [link, word] of [
+      ["range", "Gap"],
+      ["arrow", "Change"],
+    ] as const) {
+      const b = build();
+      start(
+        {
+          x: {},
+          marks: [
+            {
+              mark: "point",
+              y: ["Doctorate"],
+              link,
+              series: [
+                { name: "Women", x: [128_700] },
+                { name: "Men", x: [163_500] },
+              ],
+            },
+          ],
+        },
+        b,
+      );
+      const last = get(b.figure, "legend")?.querySelector('[data-part="total"]');
+      expect(last?.textContent.trim()).toBe(word);
+    }
+  });
+
   it("keeps the legend's slot widths through an update, and measures them again on a resize", async () => {
     const b = build();
     const chart = start(bars([12_345, 1, 1, 1]), b);

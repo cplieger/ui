@@ -15,7 +15,7 @@ import { drawPlot, frameLegend, readMetrics } from "./draw.js";
 import { explore } from "./explore.js";
 import { layout, type Floors } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
-import { overall, readoutWidths, type Widths } from "./readout.js";
+import { overall, readoutWidths, totalWord, type Widths } from "./readout.js";
 import type { ChartSpec } from "./spec.js";
 import { shortDescription, summaryOf } from "./summary.js";
 import { syncTable, tableModel } from "./table.js";
@@ -289,7 +289,7 @@ export function renderChart(
     const none = overall(drawn, words);
     if (none !== undefined) {
       widths = grow(widths, readoutWidths(drawn, words, metrics.measure));
-      frameLegend(legend, none, widths, words.total);
+      frameLegend(legend, none, widths, totalWord(drawn, words));
     }
     explorer.drawn(drawn, lay);
   };

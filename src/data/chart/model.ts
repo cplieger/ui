@@ -37,7 +37,9 @@ type Kind =
   | "splitBar"
   | "divergingStackedBar"
   | "mirrorBar"
-  | "dotPlot";
+  | "dotPlot"
+  | "rangePlot"
+  | "arrowPlot";
 
 export interface SeriesModel {
   readonly name: string;
@@ -214,7 +216,20 @@ export interface PointSeriesModel {
 /** Dots along x, a dot per series on each row of the chart's band y. */
 export interface PointModel {
   readonly kind: "point";
+  /** Joins each row's two dots; with it there are exactly two series. */
+  readonly link: "range" | "arrow" | undefined;
   readonly series: readonly PointSeriesModel[];
+}
+
+/** Row `i`'s gap between the two dots of `m` under "range", or under
+ *  "arrow" the second less the first; `null` with no link or a gap at
+ *  either end. */
+export function pointLink(m: PointModel, i: number): number | null {
+  const [a, b] = m.series.map((s) => s.x[i] ?? null);
+  if (m.link === undefined || a === null || a === undefined || b === null || b === undefined) {
+    return null;
+  }
+  return m.link === "range" ? Math.abs(b - a) : b - a;
 }
 
 interface RuleModel {
@@ -558,9 +573,18 @@ function checkMark(mark: unknown, what: string): void {
       });
       return;
     }
-    case "point":
+    case "point": {
       checkSeries(mark["series"], checkNames(mark["y"], what).length, what, "x");
+      const link = mark["link"];
+      if (link !== undefined && link !== "range" && link !== "arrow") {
+        fail(`${what}.link must be "range" or "arrow"`);
+      }
+      const list = mark["series"];
+      if (link !== undefined && arrayLike(list) && list.length !== 2) {
+        fail(`${what}.link "${link}" needs exactly two series, the two ends it joins`);
+      }
       return;
+    }
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -738,7 +762,11 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
                   ? "mirrorBar"
                   : "stackedBar";
     case "point":
-      return "dotPlot";
+      return first.link === "range"
+        ? "rangePlot"
+        : first.link === "arrow"
+          ? "arrowPlot"
+          : "dotPlot";
   }
 }
 
@@ -883,7 +911,7 @@ export function chartModel(
           series: barSeries(m.series),
         };
       case "point":
-        return { kind: "point", series: pointSeries(m.series) };
+        return { kind: "point", link: m.link, series: pointSeries(m.series) };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;

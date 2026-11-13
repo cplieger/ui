@@ -567,4 +567,34 @@ describe("the table of a point chart", () => {
     expect(t.columns).toEqual([{ text: "Release", num: false }]);
     expect(cells(t)).toEqual([["a", iso(START)]]);
   });
+
+  it("adds a range's Gap column and an arrow's signed Change column", () => {
+    const plot = (link: "range" | "arrow") =>
+      tableModel(
+        model({
+          x: {},
+          marks: [
+            {
+              mark: "point",
+              y: ["Doctorate", "Master's"],
+              link,
+              series: [
+                { name: "Women", x: [128_700, 91_000] },
+                { name: "Men", x: [91_000, null] },
+              ],
+            },
+          ],
+        }),
+        words,
+      );
+    const range = plot("range");
+    expect(range.columns.at(-1)).toEqual({ text: "Gap", num: true });
+    expect(cells(range)).toEqual([
+      ["Doctorate", "128,700", "91,000", "37,700"],
+      ["Master's", "91,000", "No data", "No data"],
+    ]);
+    const arrow = plot("arrow");
+    expect(arrow.columns.at(-1)).toEqual({ text: "Change", num: true });
+    expect(cells(arrow)[0]?.at(-1)).toBe("-37,700");
+  });
 });

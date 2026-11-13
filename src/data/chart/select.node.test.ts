@@ -854,6 +854,21 @@ describe("point keys, pointer and words", () => {
     expect(spoken(one.model, point(0), words, false)).toBe("Japan: 49.8\u00A0years.");
   });
 
+  it("says a range's gap and an arrow's change after the row, and leaves either out at a gap", () => {
+    const linked = (link: "range" | "arrow"): ChartSpec => ({
+      ...degrees(),
+      marks: [{ ...(degrees().marks[0] as Extract<Mark, { mark: "point" }>), link }],
+    });
+    const range = built(linked("range")).model;
+    expect(spoken(range, point(0), words, false)).toBe("Degree 1: Women 50, Men 40. Gap 10.");
+    expect(spoken(range, point(1), words, false)).toBe("Degree 2: Women No data, Men 41.");
+    expect(spoken(range, point(0, 1), words, true)).toBe("Degree 1: Men 40.");
+    const arrow = built(linked("arrow")).model;
+    expect(spoken(arrow, point(2), words, false)).toBe("Degree 3: Women 52, Men 42. Change -10.");
+    const own = chartWords({ changeReading: (at, parts, change) => `${at} (${change}): ${parts}` });
+    expect(spoken(arrow, point(2), own, false)).toBe("Degree 3 (-10): Women 52, Men 42");
+  });
+
   it("selects the row under the pointer across the plot, by tap only, with no crosshair", () => {
     const b = built(degrees());
     expect(b.nav.pick(b.lay.frame.width, 24 * 1.5)).toEqual(point(1));

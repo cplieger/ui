@@ -9,6 +9,7 @@ import { formatDuration, formatter } from "../scale/format.js";
 import {
   barTotal,
   bucketTotal,
+  pointLink,
   sampleTotal,
   sampleValue,
   type BarModel,
@@ -25,8 +26,10 @@ import {
   domainText,
   lastSample,
   lastStack,
+  linkText,
   primaryOf,
   rowsText,
+  totalWord,
 } from "./readout.js";
 import type { Words } from "./words.js";
 
@@ -249,7 +252,8 @@ function barSummary(model: Model, m: BarModel, words: Words): string[] {
 
 // The rows and series head, then each series' highest and lowest row, or
 // on a time x its earliest and latest, since "highest" reads wrong of an
-// instant; one series on a linear or log x through `extremes`.
+// instant; one series on a linear or log x through `extremes`; then a
+// link's highest and lowest gap or change.
 function pointSummary(model: Model, m: PointModel, words: Words): string[] {
   const names = model.y.type === "band" ? model.y.rows : [];
   const several = m.series.length > 1;
@@ -272,6 +276,11 @@ function pointSummary(model: Model, m: PointModel, words: Words): string[] {
           ? words.barSeries(s.name, high, low)
           : words.extremes(high, low),
     );
+  }
+  const e = m.link === undefined ? undefined : barExtremes(names, (i) => pointLink(m, i));
+  if (e !== undefined) {
+    const place = (i: number) => `${names[i] ?? ""} ${linkText(model, m, pointLink(m, i) ?? 0)}`;
+    out.push(words.barSeries(totalWord(model, words), place(e.high), place(e.low)));
   }
   return out;
 }

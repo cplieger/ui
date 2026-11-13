@@ -23,7 +23,9 @@ type Kind =
   | "splitBar"
   | "divergingStackedBar"
   | "mirrorBar"
-  | "dotPlot";
+  | "dotPlot"
+  | "rangePlot"
+  | "arrowPlot";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -35,7 +37,7 @@ export interface ChartWords {
    *  "Stacked", "Grouped" and "100% stacked" forms, the same four of "Bar
    *  chart", "Diverging bar chart", "Area chart", "Stacked area chart", "100%
    *  stacked area chart", "Histogram", "Line chart", "Step line", "Timeline",
-   *  "Dot plot".
+   *  "Dot plot", "Range plot", "Arrow plot".
    *  A rect on a log x is a histogram; any other rect a column or, with shape
    *  "area", an area chart; a bar mark of one series with a value below 0 a
    *  diverging bar chart; two or more series take the stacked, grouped or 100%
@@ -65,6 +67,16 @@ export interface ChartWords {
   readonly under?: (edge: string) => string;
   /** A stack's total. Default "Total". */
   readonly total?: string;
+  /** A range plot's distance between a row's two values, in the legend
+   *  row, the table head and the summary. Default "Gap". */
+  readonly gap?: string;
+  /** An arrow plot's second value less its first, where `gap` names a
+   *  range's. Default "Change". */
+  readonly change?: string;
+  /** A range plot's row, as announced. Default "{at}: {parts}. Gap {gap}." */
+  readonly gapReading?: (at: string, parts: string, gap: string) => string;
+  /** An arrow plot's row, as announced. Default "{at}: {parts}. Change {change}." */
+  readonly changeReading?: (at: string, parts: string, change: string) => string;
   /** A null value. Default "No data". */
   readonly noData?: string;
   /** A silent row's first and last cells. Default "None". */
@@ -162,6 +174,8 @@ const DEFAULTS: Words = {
     divergingStackedBar: "Diverging stacked bar chart",
     mirrorBar: "Back-to-back bar chart",
     dotPlot: "Dot plot",
+    rangePlot: "Range plot",
+    arrowPlot: "Arrow plot",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -175,6 +189,10 @@ const DEFAULTS: Words = {
   range: (from, to) => `${from} to ${to}`,
   under: (edge) => `Under ${edge}`,
   total: "Total",
+  gap: "Gap",
+  change: "Change",
+  gapReading: (at, parts, gap) => `${at}: ${parts}. Gap ${gap}.`,
+  changeReading: (at, parts, change) => `${at}: ${parts}. Change ${change}.`,
   noData: "No data",
   none: "None",
   count: "Count",

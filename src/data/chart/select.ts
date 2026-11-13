@@ -11,7 +11,7 @@ import { dotGroups, snap, type DotGroup, type Frame } from "./geometry.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
 import type { DotModel, Model, RectModel, SampleModel } from "./model.js";
-import { barsApart } from "./model.js";
+import { barsApart, pointLink } from "./model.js";
 import {
   barPart,
   barReading,
@@ -534,7 +534,8 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
 /**
  * What announce says for `sel`: with `part` and a series chosen, that one
  * segment, line or bar part through `words.segment`; otherwise the whole reading
- * through `words.reading`, or a silent row's `words.silentRow`; then each
+ * through `words.reading` (a range plot's `gapReading`, an arrow plot's
+ * `changeReading`), or a silent row's `words.silentRow`; then each
  * note joining the stop through `words.noteReading`.
  */
 export function spoken(model: Model, sel: Selection, words: Words, part: boolean): string {
@@ -622,5 +623,12 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
   const parts = reading.entries
     .map((e) => (e.name === undefined ? e.value : `${e.name} ${e.value}`))
     .join(", ");
+  if (sel.kind === "point" && m.kind === "point" && m.link !== undefined) {
+    // A gap at either end leaves the gap or change out, as the legend row's No data says.
+    const frame = m.link === "range" ? words.gapReading : words.changeReading;
+    return pointLink(m, sel.row) === null
+      ? words.reading(reading.at, parts, "")
+      : frame(reading.at, parts, reading.total ?? "");
+  }
   return words.reading(reading.at, parts, reading.total ?? "");
 }

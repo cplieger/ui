@@ -5,7 +5,7 @@
  * @module
  */
 
-import { formatter, noun, withNoun, type Unit } from "../scale/format.js";
+import { formatter, noun, signedFormatter, withNoun, type Unit } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {
@@ -13,6 +13,7 @@ import {
   barTotal,
   bucketTotal,
   drawnTotal,
+  pointLink,
   sampleTotal,
   sampleValue,
   type AreaModel,
@@ -40,7 +41,8 @@ export interface Reading {
   /** The x it reads, or a dot row's name. */
   readonly at: string;
   readonly entries: readonly Entry[];
-  /** A stack's total, absent without one. */
+  /** A stack's total, or a range plot's gap or an arrow plot's change,
+   *  under `totalWord`; absent without one. */
   readonly total: string | undefined;
 }
 
@@ -269,8 +271,24 @@ export const pointPart = (model: Model, s: PointSeriesModel, i: number, words: W
   return v === null ? words.noData : model.xText(v);
 };
 
+/** `pointLink`'s `v` in x's format, a duration on a time x, and an
+ *  arrow's change with its sign on every value but 0. */
+export function linkText(model: Model, m: PointModel, v: number): string {
+  const format = model.x.type === "time" ? "duration" : model.x.format;
+  return (m.link === "arrow" ? signedFormatter : formatter)(format, model.locale)(v);
+}
+
+/** The word a reading's `total` follows in the legend row and the table:
+ *  a range plot's gap, an arrow plot's change, or a stack's total. */
+export function totalWord(model: Model, words: Words): string {
+  const m = primaryOf(model);
+  const link = m?.kind === "point" ? m.link : undefined;
+  return link === "range" ? words.gap : link === "arrow" ? words.change : words.total;
+}
+
 /** Row `r` of point mark `m`: its name and each series' value, with no
- *  total, since a row's dots are values compared, not parts. */
+ *  total, since a row's dots are values compared, not parts; a link's gap
+ *  or change in its place, No data with a gap at either end. */
 export function pointReading(model: Model, m: PointModel, r: number, words: Words): Reading {
   const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
   if (m.series.length === 1) {
@@ -283,7 +301,10 @@ export function pointReading(model: Model, m: PointModel, r: number, words: Word
     name: s.name,
     value: pointPart(model, s, r, words),
   }));
-  return { at, entries: all, total: undefined };
+  const v = pointLink(m, r);
+  const total =
+    m.link === undefined ? undefined : v === null ? words.noData : linkText(model, m, v);
+  return { at, entries: all, total };
 }
 
 /** The legend row with no selection: a rect's series totals over the
@@ -340,17 +361,19 @@ export function overall(model: Model, words: Words): Reading | undefined {
       };
     }
     case "bar":
-    case "point":
+    case "point": {
       // A category's values need not add up across rows (a median age), so
       // the row has no whole-chart figure to show.
+      const last = m.kind === "bar" ? !barsApart(m) && m.series.length > 1 : m.link !== undefined;
       return {
         at: rowsText(model, words),
         entries:
           m.series.length === 1
             ? bare("")
             : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
-        total: m.kind === "bar" && !barsApart(m) && m.series.length > 1 ? "" : undefined,
+        total: last ? "" : undefined,
       };
+    }
   }
 }
 

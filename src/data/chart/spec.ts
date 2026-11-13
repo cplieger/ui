@@ -144,6 +144,11 @@ export interface PointMark {
   readonly mark: "point";
   /** The categories' names, each once. */
   readonly y: readonly string[];
+  /** Joins each row's two dots, so it needs exactly two series: "range"
+   *  with a bold line under them, read as their gap; "arrow" with an
+   *  arrow from the first to the second, read as the change, and drawn
+   *  only where the dots stand 18 px apart or more. */
+  readonly link?: "range" | "arrow";
   readonly series: readonly PointSeries[];
 }
 

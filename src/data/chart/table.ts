@@ -8,8 +8,17 @@
 import { formatter } from "../scale/format.js";
 
 import type { BarModel, Model, PointModel, RectModel, SampleModel } from "./model.js";
-import { barsApart, barTotal, bucketTotal, sampleTotal } from "./model.js";
-import { barPart, bucketText, partText, primaryOf, samplePart, totalled } from "./readout.js";
+import { barsApart, barTotal, bucketTotal, pointLink, sampleTotal } from "./model.js";
+import {
+  barPart,
+  bucketText,
+  linkText,
+  partText,
+  primaryOf,
+  samplePart,
+  totalWord,
+  totalled,
+} from "./readout.js";
 import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
@@ -157,20 +166,26 @@ function barTable(model: Model, m: BarModel, words: Words, after: string): Table
 }
 
 // A row per category and a column per series, each value as the readings
-// write it, an instant in its `<time>`.
+// write it, an instant in its `<time>`, then a link's Gap or Change.
 function pointTable(model: Model, m: PointModel, words: Words, after: string): TableModel {
   const names = model.y.type === "band" ? model.y.rows : [];
   // Instants are words, not figures to align.
   const num = model.x.type !== "time";
-  const rows = names.map((name, i): Row => ({
-    key: name,
-    head: [name],
-    cells: m.series.map((s) => {
+  const rows = names.map((name, i): Row => {
+    const cells: Cell[] = m.series.map((s) => {
       const v = s.x[i] ?? null;
       return { parts: v === null ? [words.noData] : timed(model, (t) => t.xText(v)), num };
-    }),
-  }));
+    });
+    if (m.link !== undefined) {
+      const v = pointLink(m, i);
+      cells.push({ parts: [v === null ? words.noData : linkText(model, m, v)], num: true });
+    }
+    return { key: name, head: [name], cells };
+  });
   const columns = m.series.map((s) => ({ text: s.name, num }));
+  if (m.link !== undefined) {
+    columns.push({ text: totalWord(model, words), num: true });
+  }
   return { corner: model.spec.y?.label ?? "", columns, rows, after };
 }
 

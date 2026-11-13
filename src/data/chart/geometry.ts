@@ -721,6 +721,54 @@ export function pointPaths(m: PointModel, ys: readonly number[], f: Frame): stri
   );
 }
 
+/** An arrow plot's head length, 8 px, the room it needs between its two
+ *  dots' edges. */
+const ARROW_HEAD = 8;
+
+// Each row's two drawn dots of `m` with their row's line, in series order;
+// none where either is not drawn.
+function linked(m: PointModel, ys: readonly number[], f: Frame) {
+  const out: { a: number; b: number; y: number }[] = [];
+  ys.forEach((cy, i) => {
+    const a = pointAt(m, 0, i, f);
+    const b = pointAt(m, 1, i, f);
+    if (a !== undefined && b !== undefined) {
+      out.push({ a, b, y: snap(cy, f.dpr) + 0.5 });
+    }
+  });
+  return out;
+}
+
+/** A range plot's links, a line between each row's two drawn dots. */
+export const rangePath = (m: PointModel, ys: readonly number[], f: Frame): string =>
+  linked(m, ys, f)
+    .map(({ a, b, y }) => `M${num(a)} ${num(y)}H${num(b)}`)
+    .join("");
+
+/** An arrow plot's shafts and heads: from the first dot's edge to the
+ *  second's, the last `ARROW_HEAD` px a head as wide as it is long; none in
+ *  a row whose dots' edges stand under `ARROW_HEAD` px apart. */
+export function arrowPaths(
+  m: PointModel,
+  ys: readonly number[],
+  f: Frame,
+): { shafts: string; heads: string } {
+  let shafts = "";
+  let heads = "";
+  for (const { a, b, y } of linked(m, ys, f)) {
+    const dir = Math.sign(b - a);
+    if (Math.abs(b - a) < 2 * POINT_RADIUS + ARROW_HEAD) {
+      continue;
+    }
+    const tip = b - dir * POINT_RADIUS;
+    const base = tip - dir * ARROW_HEAD;
+    const half = ARROW_HEAD / 2;
+    shafts += `M${num(a + dir * POINT_RADIUS)} ${num(y)}H${num(base)}`;
+    heads += `M${num(tip)} ${num(y)}L${num(base)} ${num(y - half)}V${num(y + half)}Z`;
+  }
+  return { shafts, heads };
+}
+
 /** A 1 px line down the plot at `x`, on whole device pixels. */
 export const upright = (x: number, height: number, dpr: number): string =>
   `M${num(snap(x, dpr) + 0.5)} 0V${num(height)}`;

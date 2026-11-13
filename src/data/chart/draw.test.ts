@@ -841,6 +841,28 @@ describe("surfaces", () => {
       expect(getComputedStyle(line).stroke).toBe(
         token(line, "var(--cp-series-1)", "color", palette),
       );
+      for (const [link, part, value, prop] of [
+        ["range", "link", "var(--cp-border-strong)", "stroke"],
+        ["arrow", "arrow", "var(--cp-ink-muted)", "stroke"],
+        ["arrow", "arrowhead", "var(--cp-ink-muted)", "fill"],
+      ] as const) {
+        const plot = draw({
+          x: {},
+          marks: [
+            {
+              mark: "point",
+              y: ["a"],
+              link,
+              series: [
+                { name: "A", x: [1] },
+                { name: "B", x: [9] },
+              ],
+            },
+          ],
+        });
+        const el = plot.svg.querySelector(`[data-part="${part}"]`) as Element;
+        expect(getComputedStyle(el)[prop], part).toBe(token(el, value, "color", palette));
+      }
     },
   );
 });
@@ -1150,6 +1172,61 @@ describe("a point chart", () => {
     expect(one.width).toBeCloseTo(12, 1);
     drawSelection(d.svg, d.model, d.lay, { kind: "point", row: 1, part: 1 }, nav);
     expect(d.svg.querySelector('[data-part="ring"]')).toBeNull();
+  });
+
+  const linked = (link: "range" | "arrow", male: (number | null)[]): ChartSpec => ({
+    x: {},
+    marks: [
+      {
+        mark: "point",
+        y: ["Holy See", "Monaco", "Japan"],
+        link,
+        series: [
+          { name: "Female", slot: 1, x: [60.4, 54.5, 51.1] },
+          { name: "Male", slot: 3, x: male },
+        ],
+      },
+    ],
+  });
+
+  it("joins a range's two dots with a 4 px line under them, none at a gap", () => {
+    const d = draw(linked("range", [54.5, null, 48.4]), 600);
+    const link = d.svg.querySelector('[data-part="link"]') as SVGPathElement;
+    const dots = d.svg.querySelector('[data-part="point"]');
+    // Drawn before the dots, so they lie over its ends.
+    expect(link.compareDocumentPosition(dots as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(link.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    const style = getComputedStyle(link);
+    expect([style.strokeWidth, style.fill]).toEqual(["4px", "none"]);
+    expect(style.stroke).toBe(token(link, "var(--cp-border-strong)"));
+    const box = link.getBBox();
+    const f = d.lay.frame;
+    expect(box.x).toBeCloseTo(snap(f.xAt(48.4), f.dpr), 5);
+    expect(box.x + box.width).toBeCloseTo(snap(f.xAt(60.4), f.dpr), 5);
+    expect(d.svg.querySelector('[data-part="arrow"]')).toBeNull();
+  });
+
+  it("points an arrow from the first dot to an 8 px head at the second's edge, dropped when they crowd", () => {
+    // Monaco's dots stand under 18 px apart, so only they draw.
+    const d = draw(linked("arrow", [50, 54.6, 55]), 600);
+    const f = d.lay.frame;
+    const shaft = d.svg.querySelector('[data-part="arrow"]') as SVGPathElement;
+    const head = d.svg.querySelector('[data-part="arrowhead"]') as SVGPathElement;
+    expect(f.xAt(54.6) - f.xAt(54.5)).toBeLessThan(18);
+    expect(head.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    expect(shaft.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    const style = getComputedStyle(shaft);
+    expect([style.strokeWidth, style.fill]).toEqual(["2px", "none"]);
+    expect(style.stroke).toBe(token(shaft, "var(--cp-ink-muted)"));
+    expect(getComputedStyle(head).fill).toBe(token(head, "var(--cp-ink-muted)"));
+    const heads = head.getBBox();
+    // Holy See's head points left to its Male dot's edge; Japan's right to its.
+    expect(heads.x).toBeCloseTo(snap(f.xAt(50), f.dpr) + 5, 5);
+    expect(heads.x + heads.width).toBeCloseTo(snap(f.xAt(55), f.dpr) - 5, 5);
+    expect(heads.height).toBeCloseTo(8 + (d.lay.rows[2]?.y ?? 0) - (d.lay.rows[0]?.y ?? 0), 0);
+    expect(d.svg.querySelector('[data-part="link"]')).toBeNull();
   });
 
   it("sets the names above the dots on a phone", () => {
