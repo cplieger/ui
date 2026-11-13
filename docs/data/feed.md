@@ -6,6 +6,7 @@ An open conversation: its entries in time order, oldest at the top, with the com
 
 ```html
 <div class="cp-detail-body">
+  <div class="cp-feed-head"><button class="cp-button" data-size="sm" type="button">Show older</button></div>
   <ol class="cp-feed" aria-label="Messages">
     <li class="cp-feed-day"><time datetime="2026-11-11">11 November</time></li>
     <li class="cp-feed-entry">
@@ -20,7 +21,7 @@ An open conversation: its entries in time order, oldest at the top, with the com
         <button class="cp-button" data-variant="quiet" data-size="sm" type="button" popovertarget="read-41">Read by 3 of 5</button>
       </footer>
     </li>
-    <li class="cp-feed-marker">New since your last visit</li>
+    <li class="cp-since">New since your last visit</li>
     <li class="cp-feed-entry" data-own>…</li>
   </ol>
   <div class="cp-feed-foot">
@@ -42,12 +43,13 @@ for (const t of list.querySelectorAll("time[datetime*='T']")) {
 
 ## The parts
 
-- `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first. `li.cp-feed-day` separators, each a `<time>` with the day, fall between them, and at most one `li.cp-feed-marker`, "New since your last visit", comes before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full. The New messages button says what arrived.
+- `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first. `li.cp-feed-day` separators, each a `<time>` with the day, fall between them, and at most one `li.cp-since`, "New since your last visit", the marker a [list](list-row.md) holds too, comes before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full. The New messages button says what arrived.
 - An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, which [relative-time](relative-time.md) keeps current. Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
 - `data-own` marks the person's own entry, whose author reads "You". It sits on the sunken fill, with its text on the same edge as everyone else's.
 - An own entry still sending carries `data-state="sending"` and `aria-busy="true"`, and its footer holds a `.cp-inline-load` "Sending…". One that failed carries `data-state="failed"`, and its footer holds a danger `.cp-state` "Not sent." and a small plain Retry button.
 - The read summary, "Read by 3 of 5", is a quiet small button opening a `.cp-popover.cp-feed-readers` with a `<section>` each for "Read" and "Not read yet", an `h4` over a list of links. While the names load, the popover holds a `.cp-inline-load`. When they fail, it holds a danger `.cp-notice` with Retry.
 - While the entries load, the feed carries `aria-busy="true"` and holds `li.cp-feed-entry[data-skeleton]` items of four `.cp-skeleton` lines. With none, the detail says so in a sentence, such as "No messages in the last 72 hours.", in place of the feed.
+- `.cp-feed-head` comes before the feed in its scroller, not pinned, and holds the button that shows older entries above the first, such as "Show older", which [load-more](load-more.md) drives with `edge: "start"`. Its press moves focus to the oldest entry it added, so the reader reads down to where they were, and the feed takes that as the reader's new place. Once the oldest page is in, the head goes.
 - `.cp-feed-foot` follows the feed in its scroller and stays pinned to the scroller's end. It holds `button.cp-feed-jump`, `hidden` until the script shows it, and the composer.
 
 ## The composer
@@ -107,7 +109,7 @@ compose.addEventListener("submit", async (e) => {
 ## Behaviour
 
 - The feed's scroller is the nearest box around it that scrolls, else the page. It is found again as the feed shows, moves or changes, so a detail that moves from its docked place into a dialog keeps its feed followed.
-- The reader's place is either the end or the entry at the top of the view with its distance from the top. The scroller's `scroll-padding-block-start` counts as covered, so under a sticky header the place is the first entry the reader sees below it. Only the reader's own scrolling sets it, and within 2rem of the end counts as at the end. A place the feed scrolled to itself is never taken for the reader's.
+- The reader's place is either the end or the entry at the top of the view with its distance from the top. The scroller's `scroll-padding-block-start` counts as covered, so under a sticky header the place is the first entry the reader sees below it. Only the reader's own scrolling sets it, and the scroll focus makes, such as onto the oldest entry a Show older press added, and within 2rem of the end counts as at the end. A place the feed scrolled to itself is never taken for the reader's.
 - After anything that can move the entries, the feed puts the place back in one step. That covers entries added above or below, an entry or the foot growing or shrinking, the on-screen keyboard opening and closing, and a load. At the end, it scrolls to the end. Scrolled up, the entry at the top goes back to where it was. With that entry gone, as after a list replaced whole, the scroll position itself is the place. The browser's own scroll anchoring is off in the feed, because the two would fight.
 - The feed scrolls for nothing else, the page included. Its own writes are this one step and the reader's ways to the newest: the jump, `toNewest()`, their own entry and the first entries of an empty feed.
 - On the page, the end is where the foot rests under the last entry, whatever follows the feed. When that place already shows, as for a short conversation or a page scrolled past the feed, the feed scrolls nothing: it only ever scrolls down to its end.

@@ -218,6 +218,26 @@ describe("enhanceFeed", () => {
     expect(c.jump.hidden).toBe(true);
   });
 
+  it("takes the entry focus scrolls to as the reader's place, as the feed changes in that frame", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 600);
+    const target = c.feed.children[1] as HTMLLIElement;
+    target.tabIndex = -1;
+    target.focus();
+    expect(target.getBoundingClientRect().top).toBeLessThan(c.box.getBoundingClientRect().bottom);
+    const p = c.feed.children[20]?.querySelector("p") as HTMLParagraphElement;
+    p.style.blockSize = "10rem";
+    for (let i = 0; i < 3; i += 1) {
+      await settle();
+      const seen = c.box.getBoundingClientRect();
+      const r = target.getBoundingClientRect();
+      expect(r.bottom).toBeGreaterThan(seen.top);
+      expect(r.top).toBeLessThan(seen.bottom);
+    }
+  });
+
   it("keeps the reader in place when an entry above grows", async () => {
     const c = conversation();
     enhance(c);

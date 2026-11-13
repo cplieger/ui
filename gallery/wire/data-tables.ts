@@ -231,68 +231,6 @@ for (const details of all<HTMLDetailsElement>('.cp-list[data-variant="timeline"]
   enhanceDisclosure(details);
 }
 
-const weeksAgo = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-
-const event = (
-  tone: string,
-  icon: string,
-  word: string,
-  rest: string,
-  weeks: number,
-): HTMLElement => {
-  const mark = make("span", "", glyph(icon));
-  mark.dataset["part"] = "mark";
-  mark.dataset["tone"] = tone;
-  const time = make("time", "", weeksAgo.format(-weeks, "week")) as HTMLTimeElement;
-  time.dateTime = new Date(Date.now() - weeks * 604_800_000).toISOString();
-  const end = make("span", "", time);
-  end.dataset["part"] = "end";
-  const row = make(
-    "div",
-    "cp-list-row",
-    mark,
-    make("div", "", make("p", "", make("strong", "", word), rest)),
-    end,
-  );
-  row.dataset["lines"] = "wrap";
-  return make("li", "", row);
-};
-
-const timeline = (...events: HTMLElement[]): HTMLElement => {
-  const list = make("ol", "cp-list", ...events);
-  list.dataset["variant"] = "timeline";
-  list.dataset["surface"] = "plain";
-  return list;
-};
-
-// Load older names its history by data-load-older. Each press adds a week
-// and moves focus to its heading; the second says the history has ended.
-for (const button of all<HTMLButtonElement>("button[data-load-older]")) {
-  const history = document.getElementById(button.dataset["loadOlder"] ?? "");
-  if (history === null) {
-    continue;
-  }
-  let weeks = 1;
-  button.addEventListener("click", () => {
-    weeks += 1;
-    const when = weeksAgo.format(-weeks, "week");
-    const day = make("h3", "cp-list-heading", when.charAt(0).toUpperCase() + when.slice(1));
-    day.tabIndex = -1;
-    history.append(
-      day,
-      timeline(
-        event("neutral", "search", "Checked", " against SeaDex", weeks),
-        event("success", "download", "Grabbed", " a web release", weeks),
-      ),
-    );
-    day.focus();
-    announce("2 older events loaded");
-    if (weeks === 3) {
-      button.replaceWith(make("p", "g-note", "That is the whole history."));
-    }
-  });
-}
-
 // A state history from one letter per check: s answered, w slow, d failed,
 // n not checked.
 const CHECKS = {

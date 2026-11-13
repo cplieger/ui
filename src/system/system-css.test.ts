@@ -3910,6 +3910,73 @@ describe("css/system.css lists, feeds and counts", () => {
     expect([small.color, small.fontSize]).toEqual([resolved("var(--cp-ink-muted)"), "13px"]);
   });
 
+  it("puts a list's new-since marker in line with its rows' content, its line standing in for theirs", () => {
+    theme("light");
+    const rowOf = (title: string) =>
+      `<li><div class="cp-list-row"><span class="cp-cell-stack">${title}</span></div></li>`;
+    const el = build(
+      `<ul class="cp-list">${rowOf("Seen")}<li class="cp-since">New since your last visit</li>${rowOf("New")}</ul>` +
+        `<ul class="cp-list" data-density="compact">${rowOf("Seen")}<li class="cp-since">New since your last visit</li>${rowOf("New")}</ul>`,
+    );
+    for (const list of el.querySelectorAll(".cp-list")) {
+      const since = list.querySelector(".cp-since") as Element;
+      const text = (list.querySelector(".cp-cell-stack") as Element).getBoundingClientRect();
+      const words = document.createRange();
+      words.selectNodeContents(since);
+      expect(words.getBoundingClientRect().left).toBeCloseTo(text.left, 0);
+      expect(getComputedStyle(since).borderTopWidth).toBe("0px");
+      expect(getComputedStyle(since.nextElementSibling as Element).borderTopWidth).toBe("0px");
+      expect(getComputedStyle(since, "::after").borderTopColor).toBe(
+        resolved("var(--cp-border-strong)"),
+      );
+      expect(Number(getComputedStyle(since).fontWeight)).toBe(500);
+      expect(getComputedStyle(since).color).toBe(resolved("var(--cp-ink)"));
+    }
+  });
+
+  it("stops a timeline's joining line at its new-since marker and lines the marker up with the marks", () => {
+    theme("light");
+    const event = (tone: string) =>
+      `<li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="${tone}"><span class="cp-icon" data-cp-icon="plus"></span></span><div><p>Added</p></div></div></li>`;
+    const el = build(
+      `<ol class="cp-list" data-variant="timeline" data-surface="plain">${event("neutral")}<li class="cp-since">Since your last visit, Sat 21:40</li>${event("success")}${event("success")}</ol>`,
+    );
+    const [before, since, after] = [...el.querySelectorAll("li")] as [
+      HTMLLIElement,
+      HTMLLIElement,
+      HTMLLIElement,
+    ];
+    expect(getComputedStyle(before, "::before").content).toBe("none");
+    expect(getComputedStyle(since, "::before").content).toBe("none");
+    expect(getComputedStyle(after, "::before").borderLeftWidth).toBe("2px");
+    const mark = (after.querySelector('[data-part="mark"]') as Element).getBoundingClientRect();
+    const words = document.createRange();
+    words.selectNodeContents(since);
+    expect(words.getBoundingClientRect().left).toBeCloseTo(mark.left, 0);
+  });
+
+  it("centres a feed head's one action before the feed, and sets a foot after a list's groups at their start", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-feed-head"><button class="cp-button" data-size="sm" type="button">Show older</button></div><ol class="cp-feed"></ol>' +
+        '<div><h3 class="cp-list-heading">Today</h3><ol class="cp-list" data-variant="timeline" data-surface="plain"><li><div class="cp-list-row">Added</div></li></ol></div>' +
+        '<div class="cp-list-foot"><button class="cp-button" data-size="sm" type="button">Load older</button></div>',
+    );
+    el.style.inlineSize = "30rem";
+    const head = (el.querySelector(".cp-feed-head") as Element).getBoundingClientRect();
+    const older = (el.querySelector(".cp-feed-head > button") as Element).getBoundingClientRect();
+    expect(older.left - head.left).toBeCloseTo(head.right - older.right, 1);
+    expect(older.top - head.top).toBe(8);
+    expect(getComputedStyle(el.querySelector(".cp-feed-head") as Element).position).toBe("static");
+    const groups = (
+      el.querySelector("div:has(> .cp-list-heading)") as Element
+    ).getBoundingClientRect();
+    const foot = el.querySelector("div.cp-list-foot") as Element;
+    const load = (foot.querySelector("button") as Element).getBoundingClientRect();
+    expect(load.left).toBe(groups.left);
+    expect(load.top - groups.bottom).toBe(12);
+  });
+
   it("mutes a job that ended and centres the list's foot action", () => {
     theme("light");
     const el = build(job("data-ended"));
@@ -4564,7 +4631,7 @@ describe("css/system.css lists, feeds and counts", () => {
   it("tells the new-since marker from a day by place and weight, not colour alone", () => {
     theme("light");
     const el = build(
-      '<ol class="cp-feed"><li class="cp-feed-day"><time datetime="2026-11-11">11 November</time></li><li class="cp-feed-marker">New since your last visit</li></ol>',
+      '<ol class="cp-feed"><li class="cp-feed-day"><time datetime="2026-11-11">11 November</time></li><li class="cp-since">New since your last visit</li></ol>',
     );
     el.style.inlineSize = "30rem";
     const [day, marker] = [...el.querySelectorAll("li")] as [HTMLLIElement, HTMLLIElement];

@@ -1,13 +1,14 @@
 /**
  * lists.ts — the gallery's lists on the library: one list set by its
- * attributes, the lists and tables that hold their place, and a long list
- * keyed by its titles.
+ * attributes, the lists and tables that hold their place, a long list
+ * keyed by its titles, and the pages that Load older and Show older add.
  */
 
 import { enhanceHeldList } from "@cplieger/ui/held-list";
 import { createIcons } from "@cplieger/ui/icons";
 import { enhanceKeyedList } from "@cplieger/ui/keyed-list";
 import { markKept } from "@cplieger/ui/list-row";
+import { enhanceLoadMore, type LoadMorePage } from "@cplieger/ui/load-more";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { toast } from "@cplieger/ui/toast";
 
@@ -307,8 +308,13 @@ if (log instanceof HTMLUListElement) {
     }
     held.change(() => {
       const item = activityRow(arrival);
-      log.prepend(item);
-      while (log.children.length > 6) {
+      const since = log.querySelector(":scope > .cp-since");
+      if (since === null) {
+        log.prepend(item);
+      } else {
+        since.after(item);
+      }
+      while (log.querySelectorAll(":scope > li:not(.cp-since)").length > 6) {
         log.lastElementChild?.remove();
       }
       return [item];
@@ -493,5 +499,146 @@ if (longList instanceof HTMLUListElement && longCount !== null) {
       }
     }
     list.update(keys());
+  });
+}
+
+/** The gallery's stand-in for a page request: 600 ms, and the second
+ *  request of a card fails once, so its Retry shows. */
+function pager(
+  pages: readonly (() => LoadMorePage)[],
+): (signal: AbortSignal) => Promise<LoadMorePage> {
+  let asked = 0;
+  let next = 0;
+  return (signal) =>
+    new Promise((resolve, reject) => {
+      asked += 1;
+      const fail = asked === 2;
+      const timer = setTimeout(() => {
+        const page = pages[next];
+        if (fail || page === undefined) {
+          reject(new Error("The server did not answer."));
+          return;
+        }
+        next += 1;
+        resolve(page());
+      }, 600);
+      signal.addEventListener("abort", () => {
+        clearTimeout(timer);
+      });
+    });
+}
+
+const weeksAgo = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+function historyEvent(
+  tone: string,
+  glyph: string,
+  word: string,
+  rest: string,
+  weeks: number,
+): HTMLLIElement {
+  const mark = document.createElement("span");
+  mark.dataset["part"] = "mark";
+  mark.dataset["tone"] = tone;
+  mark.append(icon(glyph));
+  const strong = document.createElement("strong");
+  strong.textContent = word;
+  const words = document.createElement("p");
+  words.append(strong, rest);
+  const body = document.createElement("div");
+  body.append(words);
+  const time = document.createElement("time");
+  time.dateTime = new Date(Date.now() - weeks * 604_800_000).toISOString();
+  time.textContent = weeksAgo.format(-weeks, "week");
+  const end = document.createElement("span");
+  end.dataset["part"] = "end";
+  end.append(time);
+  const row = document.createElement("div");
+  row.className = "cp-list-row";
+  row.dataset["lines"] = "wrap";
+  row.append(mark, body, end);
+  const item = document.createElement("li");
+  item.append(row);
+  return item;
+}
+
+function historyWeek(weeks: number): LoadMorePage {
+  const when = weeksAgo.format(-weeks, "week");
+  const heading = document.createElement("h3");
+  heading.className = "cp-list-heading";
+  heading.textContent = when.charAt(0).toUpperCase() + when.slice(1);
+  const list = document.createElement("ol");
+  list.className = "cp-list";
+  list.dataset["variant"] = "timeline";
+  list.dataset["surface"] = "plain";
+  list.append(
+    historyEvent("neutral", "search", "Checked", " against SeaDex", weeks),
+    historyEvent("success", "download", "Grabbed", " a web release", weeks),
+  );
+  return { items: [heading, list], more: weeks < 3 };
+}
+
+const older = document.querySelector<HTMLButtonElement>("button[data-load-older]");
+if (older !== null) {
+  enhanceLoadMore(older, {
+    load: pager([() => historyWeek(2), () => historyWeek(3)]),
+    words: {
+      count: (n) => (n === 1 ? "1 older event" : `${String(n)} older events`),
+      failed: "The older events did not load.",
+    },
+  });
+}
+
+const POSTS = [
+  { author: "@kiro", subject: "Feed scroll", body: "Who holds internal/feed this week?" },
+  { author: "@codex", subject: "Reservation queue", body: "I can take it after the jump lands." },
+  { author: "@gpt", subject: "Phone check", body: "The composer keeps clear of the keyboard." },
+];
+
+function olderPost(post: (typeof POSTS)[number], at: Date): HTMLLIElement {
+  const author = document.createElement("a");
+  author.href = `#agent-${post.author.slice(1)}`;
+  author.textContent = post.author;
+  const time = document.createElement("time");
+  time.dateTime = at.toISOString();
+  enhanceRelativeTime(time);
+  const header = document.createElement("header");
+  header.append(author, time);
+  const subject = document.createElement("h3");
+  subject.textContent = post.subject;
+  const text = document.createElement("p");
+  text.className = "cp-feed-text";
+  text.textContent = post.body;
+  const item = document.createElement("li");
+  item.className = "cp-feed-entry";
+  item.append(header, subject, text, document.createElement("footer"));
+  return item;
+}
+
+const dayWords = new Intl.DateTimeFormat(document.documentElement.lang, {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
+/** A day of older posts, `days` before the conversation's first. */
+function olderDay(days: number, more: boolean): LoadMorePage {
+  const at = new Date(Date.now() - (days + 2) * 86_400_000);
+  const day = document.createElement("li");
+  day.className = "cp-feed-day";
+  const time = document.createElement("time");
+  time.dateTime = at.toISOString().slice(0, 10);
+  time.textContent = dayWords.format(at);
+  day.append(time);
+  const posts = POSTS.map((post, i) => olderPost(post, new Date(at.getTime() + i * 1_800_000)));
+  return { items: [day, ...posts], more };
+}
+
+const showOlder = document.querySelector<HTMLButtonElement>("button[data-msg-older]");
+if (showOlder !== null) {
+  enhanceLoadMore(showOlder, {
+    edge: "start",
+    load: pager([() => olderDay(1, true), () => olderDay(2, false)]),
+    words: { failed: "The older messages did not load." },
   });
 }

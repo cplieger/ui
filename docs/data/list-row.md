@@ -70,8 +70,8 @@ A list with no items yet, such as a file field's before the first choice, draws 
 ## Groups and markers
 
 - A group is a `.cp-list-heading` followed by its own `.cp-list`, such as one list per day. The heading is any heading element, small and in the heading weight, with more space above it than below; over a list with no box it lines up with the rows' content.
-- `.cp-since` is the "New since your last visit" line, which a list or a feed holds as an item at the place the new rows start.
-- `.cp-list-foot` is the list's last item, holding one action for the whole list, such as Show older (see [load-more](load-more.md)).
+- `.cp-since` is the one "New since your last visit" line, which a list, a timeline or a [feed](feed.md) holds as an item where the new rows start, such as "Since your last visit, Sat 21:40" at the head of an activity log. It lines up with the rows' content, and its strong line stands in for the lines beside it; a timeline's joining line stops at it.
+- `.cp-list-foot` is the list's last item, holding one action for the whole list, such as Show older, centred. A list of groups takes a `div.cp-list-foot` after them, its action at their start edge. [load-more](load-more.md) drives it, and a feed's `.cp-feed-head` above its first entry.
 
 ## What each case writes
 
@@ -87,7 +87,7 @@ A list with no items yet, such as a file field's before the first choice, draws 
 
 - [held-list](held-list.md) holds changes while the reader is in the list and offers them with a count.
 - [keyed-list](keyed-list.md) keeps rows keyed through live updates, with focus and the reader's place kept, and draws only the rows in view of a long list.
-- [load-more](load-more.md) adds the next page before the list's foot.
+- [load-more](load-more.md) adds the next page before the list's foot, or older entries before a feed's first from its head.
 - [reorder](reorder.md) moves rows by handle and keys; [roving-focus](../core/roving-focus.md) gives a list one Tab stop and arrow keys; [relative-time](relative-time.md) keeps each `<time>` current.
 
 ## API

@@ -31,6 +31,7 @@
     "./keyed-list": "./src/data/keyed-list/keyed-list.ts",
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
     "./list-row": "./src/data/list-row/list-row.ts",
+    "./load-more": "./src/data/load-more/load-more.ts",
     "./markdown": "./src/content/markdown/markdown.ts",
     "./menu": "./src/overlays/menu/menu.ts",
     "./meter": "./src/data/meter/meter.ts",

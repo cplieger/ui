@@ -10,6 +10,7 @@ import { enhanceContextPanel } from "@cplieger/ui/context-panel";
 import { enhanceFeed } from "@cplieger/ui/feed";
 import { type FieldError, reportErrors } from "@cplieger/ui/form";
 import { enhanceListDetail } from "@cplieger/ui/list-detail";
+import { enhanceLoadMore } from "@cplieger/ui/load-more";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { enhanceReorder } from "@cplieger/ui/reorder";
@@ -81,22 +82,29 @@ for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
       endJob(job, "Stopped by you", "circle-minus", "neutral");
       announce(`${job.querySelector("[data-job-kind]")?.textContent ?? "The job"} stopped`);
     }
-    const foot = target?.closest("[data-more-jobs]")?.closest(".cp-list-foot");
-    if (foot == null || !(template instanceof HTMLElement)) {
-      return;
-    }
-    const added = Array.from({ length: 3 }, () => template.cloneNode(true) as HTMLElement);
-    for (const item of added) {
-      const bar = item.querySelector("progress");
-      const n = item.querySelector("[data-job-n]");
-      if (bar !== null && n !== null) {
-        bar.value = 0;
-        n.textContent = `0 of ${String(bar.max)}`;
+  });
+  const more = list.querySelector<HTMLButtonElement>("[data-more-jobs]");
+  if (more === null || !(template instanceof HTMLElement)) {
+    continue;
+  }
+  enhanceLoadMore(more, {
+    load: () => {
+      const added = Array.from({ length: 3 }, () => template.cloneNode(true) as HTMLElement);
+      for (const item of added) {
+        const bar = item.querySelector("progress");
+        const n = item.querySelector("[data-job-n]");
+        if (bar !== null && n !== null) {
+          bar.value = 0;
+          n.textContent = `0 of ${String(bar.max)}`;
+        }
       }
-    }
-    foot.before(...added);
-    added[0]?.querySelector("a")?.focus();
-    foot.remove();
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({ items: added, more: false });
+        }, 600);
+      });
+    },
+    words: { count: (n) => (n === 1 ? "1 more job" : `${String(n)} more jobs`) },
   });
 }
 

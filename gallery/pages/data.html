@@ -153,13 +153,14 @@
       <div class="card" data-new>
         <h2>A list that holds its place</h2>
         <ul class="cp-list" id="hold-log" aria-label="Recent activity">
+          <li class="cp-since">Since your last visit, Sat 21:40</li>
           <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="refresh-cw" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Quick check<small>4 s · 2 entries judged · 1 state changed</small></span><span data-part="end"><time data-ago="240"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
           <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="download" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Imported: Dandadan<small>Sonarr S1 · grabbed from the feed</small></span><span data-part="end"><time data-ago="1560"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
           <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="check-check" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Problem ended: SeaDex unreachable<small>Lasted 2 h 15 m</small></span><span data-part="end"><time data-ago="9900"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
           <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="circle-x" data-tone="danger" aria-hidden="true"></span><span class="cp-cell-stack">Download failed, blocklisted by Sonarr: Mob Psycho 100 II<small>S2</small></span><span data-part="end"><time data-ago="12120"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
         </ul>
         <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-log"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button></div>
-        <footer>A row that arrives while the reader is in the list, pointing at it, in one of its rows or scrolled past its start, waits behind one line, “3 newer rows · Show”, so nothing moves under them. Show puts the rows in and moves focus to the first, and the count is said once it stops changing. At the list's start, untouched, a row goes straight in. Start the live changes, then point at the list.</footer>
+        <footer>A row that arrives while the reader is in the list, pointing at it, in one of its rows or scrolled past its start, waits behind one line, “3 newer rows · Show”, so nothing moves under them. Show puts the rows in and moves focus to the first, and the count is said once it stops changing. At the list's start, untouched, a row goes straight in. The log is kept to what is new since the last visit, under one “Since your last visit” line, the marker a feed holds too. Start the live changes, then point at the list.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>A table that holds its place</h2>
@@ -210,8 +211,8 @@
             <li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="neutral"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></span><div><p><strong>Added</strong> from Sonarr</p></div><span data-part="end"><time data-ago="604800"></time></span></div></li>
           </ol>
         </div>
-        <div class="g-row-inline g-gap-top"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-load-older="history-frieren">Load older</button></div>
-        <footer>Newest first under day headings, each day a timeline list: each event with its tone, its words and when; an event with more to say opens in place. Load older adds the next days below and moves focus to the first one it added.</footer>
+        <div class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-load-older>Load older</button></div>
+        <footer>Newest first under day headings, each day a timeline list: each event with its tone, its words and when; an event with more to say opens in place. Load older adds the next week below, moves focus to its heading and says how many events came; the second press fails once and reads Retry, and the last week takes the button away.</footer>
       </div>
       <div class="card g-wide">
         <h2>State history</h2>
@@ -419,7 +420,7 @@
           <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-job-n>20 of 26</span> · <span data-job-phase>Matching cues to the audio</span></small></div></li>
           <li class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-more-jobs>Show all 5 running</button></li>
         </ul>
-        <footer>What, where as a link, how far, the phase, and Stop. An ended job keeps its outcome in words.</footer>
+        <footer>What, where as a link, how far, the phase, and Stop. An ended job keeps its outcome in words. Show all 5 running adds the other jobs before the foot, moves focus to the first one's link, and goes.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Problems</h2>

@@ -120,25 +120,6 @@
   content: "";
 }
 
-/* What is new since the last visit: its words at the start, in ink and a
- * heavier weight than a day's, then a strong line to the end, so the two
- * differ by place, weight and words as well as colour. */
-.cp-feed-marker {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  padding-block: var(--cp-space-2);
-  color: var(--cp-ink);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-}
-
-.cp-feed-marker::after {
-  flex: 1;
-  border-block-start: var(--cp-line-w) solid var(--cp-border-strong);
-  content: "";
-}
-
 .cp-feed-entry[data-skeleton] > .cp-skeleton:nth-child(1) {
   inline-size: 30%;
 }

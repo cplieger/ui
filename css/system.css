@@ -6160,11 +6160,66 @@ button.cp-list-row[aria-pressed] .cp-badge {
   }
 }
 
-/* The list's last item, holding one action for the whole list. */
-.cp-list-foot {
+/* A list's last item and a feed's head before its first entry each hold one
+ * action for the whole list, such as Show older, centred. */
+.cp-list-foot,
+.cp-feed-head {
   display: flex;
   justify-content: center;
   padding: var(--cp-space-2);
+}
+
+/* A foot after a list or its groups, as under a day-by-day history, sits at
+ * their start edge below them, where a plain list's rows begin. */
+div.cp-list-foot {
+  justify-content: start;
+  margin-block-start: var(--cp-space-3);
+  padding: 0;
+}
+
+/* What is new since the last visit, in a list or a feed: its words at the
+ * start, in ink and a heavier weight than a day's, then a strong line to
+ * the end, so it differs from a day by place, weight and words as well as
+ * colour. */
+.cp-since {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  padding-block: var(--cp-space-2);
+  color: var(--cp-ink);
+  font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-since::after {
+  flex: 1;
+  border-block-start: var(--cp-line-w) solid var(--cp-border-strong);
+  content: "";
+}
+
+/* In a list it lines up with the rows' content, and its own line stands in
+ * for the lines on either side of it. */
+.cp-list > .cp-since {
+  padding-inline: var(--cp-space-4);
+}
+
+.cp-list[data-density="compact"] > .cp-since {
+  padding-inline: var(--cp-space-2);
+}
+
+.cp-list[data-variant="timeline"] > .cp-since {
+  padding-inline: var(--cp-timeline-inset);
+}
+
+.cp-list > li.cp-since,
+.cp-list > li.cp-since + li {
+  border-block-start: 0;
+}
+
+/* The joining line stops at the marker, which stands between two runs. */
+.cp-list[data-variant="timeline"] > li.cp-since::before,
+.cp-list[data-variant="timeline"]:has(> .cp-since) > li:has(+ .cp-since)::before {
+  content: none;
 }
 
 .cp-list-row[data-skeleton] > .cp-skeleton {
@@ -6257,6 +6312,12 @@ button.cp-list-row[aria-pressed] .cp-badge {
 
 .cp-table tbody tr[data-skeleton] .cp-skeleton {
   inline-size: 70%;
+}
+
+/* The spinner @cplieger/ui/load-more gives its button, drawn here so a
+ * page that resolves no icons still shows it turn. */
+.cp-button[data-cp-load-more] > .cp-icon[data-part="busy"] {
+  --cp-icon-image: url("../icons/svg/spinner-arc.svg");
 }
 
 /* A list the person puts in order, its items any content: rows when it is
@@ -6451,25 +6512,6 @@ button.cp-list-row[aria-pressed] .cp-badge {
 .cp-feed-day::after {
   flex: 1;
   border-block-start: var(--cp-line-w) solid var(--cp-line);
-  content: "";
-}
-
-/* What is new since the last visit: its words at the start, in ink and a
- * heavier weight than a day's, then a strong line to the end, so the two
- * differ by place, weight and words as well as colour. */
-.cp-feed-marker {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  padding-block: var(--cp-space-2);
-  color: var(--cp-ink);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-}
-
-.cp-feed-marker::after {
-  flex: 1;
-  border-block-start: var(--cp-line-w) solid var(--cp-border-strong);
   content: "";
 }
 

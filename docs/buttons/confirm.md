@@ -39,6 +39,7 @@ button.addEventListener("click", async () => {
 - When `work` rejects, the button returns to rest at once and the rejection passes through. Show the error with a notice or a toast.
 - Work that ends within 150ms skips the busy state. A busy state that shows lasts at least 400ms, so it never flashes.
 - The button returns to the words it had when it was pressed, so a label such as "Grab 3" that follows a selection comes back right.
+- `setRest(text)` gives the button new words to rest on, such as "Retry" after work that failed or "Show the last 3" after a page loaded. At rest it rolls to them at once; during a run it rests on them when the run ends.
 - The words change in sight but are not announced. Announce the outcome yourself.
 
 | Option | Default | What it does |

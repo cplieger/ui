@@ -62,6 +62,7 @@ data/cover/cover.css
 data/list-row/list-row.css
 data/held-list/held-list.css
 data/keyed-list/keyed-list.css
+data/load-more/load-more.css
 data/reorder/reorder.css
 data/feed/feed.css
 feedback/chip/chip.css

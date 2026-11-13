@@ -87,6 +87,10 @@ export function enhanceFeed(
   /** The position the feed last scrolled to, so the scroll event it causes
    *  is not taken for the reader's. */
   let wrote: number | null = null;
+  /** The position the place was last read at or written to. A scroll since
+   *  then that no scroll event has reported yet, such as one that focus
+   *  made, is read before the place is put back. */
+  let at = scroller.scrollTop;
   const focusable = new Set<HTMLElement>();
   /** Whether the feed held an entry after the last batch of changes. */
   let held = [...feed.children].some(isEntry);
@@ -137,6 +141,7 @@ export function enhanceFeed(
     const old = scroller;
     scroller = now;
     wrote = null;
+    at = now.scrollTop;
     if (place !== "end") {
       place = old.isConnected
         ? { el: place.el, off: place.off + viewOf(old).top - viewOf(now).top }
@@ -161,6 +166,7 @@ export function enhanceFeed(
   const write = (top: number, smooth: boolean): void => {
     scroller.scrollTo({ top, behavior: smooth ? "smooth" : "instant" });
     wrote = smooth ? null : scroller.scrollTop;
+    at = scroller.scrollTop;
   };
 
   // The one step that scrolls for the feed, run after anything that can
@@ -173,6 +179,9 @@ export function enhanceFeed(
       return;
     }
     resolve();
+    if (scroller.scrollTop !== at) {
+      read();
+    }
     if (place === "end") {
       const by = gap();
       if (by > 0) {
@@ -196,6 +205,7 @@ export function enhanceFeed(
   const read = (): void => {
     const own = wrote !== null && scroller.scrollTop === wrote;
     wrote = null;
+    at = scroller.scrollTop;
     const end = gap() <= END_REM * remPx();
     if (own || (going && !end)) {
       return;
