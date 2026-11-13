@@ -665,17 +665,6 @@ describe("notes", () => {
     }
   });
 
-  it("takes the raised surface for its halo inside .cp-detail", () => {
-    const parent = place(700);
-    parent.className = "cp-list-detail";
-    const detail = document.createElement("div");
-    detail.className = "cp-detail";
-    parent.append(detail);
-    const d = draw(noted([{ mark: "text", x: 9_000_000, y: 6, text: "Deploy" }]), 700, detail);
-    const t = d.svg.querySelector('[data-part="note"] text') as Element;
-    expect(getComputedStyle(t).stroke).toBe(token(t, "var(--cp-surface-raised)"));
-  });
-
   it("draws in spec order over the marks before it, and leaves out a note off the domain", () => {
     const d = draw(
       noted([
@@ -753,6 +742,142 @@ describe("the legend row", () => {
 });
 
 describe("surfaces", () => {
+  // Each library surface a chart can sit in, built as an app writes it, with
+  // the surface token it paints.
+  const holders: [string, string, () => HTMLElement][] = [
+    [
+      "a list-detail's detail",
+      "raised",
+      () => {
+        const parent = place(700);
+        parent.className = "cp-list-detail";
+        const detail = document.createElement("div");
+        detail.className = "cp-detail";
+        parent.append(detail);
+        return detail;
+      },
+    ],
+    [
+      "a gate's panel",
+      "raised",
+      () => {
+        const gate = place(700);
+        gate.className = "cp-gate";
+        const panel = document.createElement("div");
+        panel.className = "cp-panel";
+        gate.append(panel);
+        return panel;
+      },
+    ],
+    [
+      "a boxed list's row",
+      "raised",
+      () => {
+        const list = document.createElement("ul");
+        list.className = "cp-list";
+        const row = document.createElement("li");
+        list.append(row);
+        place(700).append(list);
+        return row;
+      },
+    ],
+    [
+      "an accordion's section",
+      "raised",
+      () => {
+        const accordion = place(700);
+        accordion.className = "cp-accordion";
+        const details = document.createElement("details");
+        details.open = true;
+        details.append(document.createElement("summary"));
+        accordion.append(details);
+        return details;
+      },
+    ],
+    [
+      "a figure tile",
+      "raised",
+      () => {
+        const tile = place(700);
+        tile.className = "cp-figure";
+        return tile;
+      },
+    ],
+    [
+      "a popover",
+      "overlay",
+      () => {
+        const pop = place(700);
+        pop.className = "cp-popover";
+        pop.popover = "manual";
+        pop.style.inlineSize = "700px";
+        pop.showPopover();
+        return pop;
+      },
+    ],
+    [
+      "a dialog",
+      "overlay",
+      () => {
+        const dialog = document.createElement("dialog");
+        dialog.className = "cp-dialog";
+        place(700).append(dialog);
+        dialog.show();
+        return dialog;
+      },
+    ],
+  ];
+
+  // A scatter's outlines paint the surface at every width, where a note's
+  // halo becomes a marker under 30rem.
+  it.each(holders)("outlines a scatter's dots in the fill of %s", (_, surface, holder) => {
+    const d = draw(
+      {
+        x: { label: "Seeders" },
+        y: { label: "Size" },
+        marks: [
+          {
+            mark: "scatter",
+            series: [{ name: "Releases", names: ["A", "B"], x: [1, 2], y: [3, 4] }],
+          },
+        ],
+      },
+      700,
+      holder(),
+    );
+    const dots = d.svg.querySelector('[data-part="scatter"] path') as Element;
+    expect(getComputedStyle(dots).stroke).toBe(token(dots, `var(--cp-surface-${surface})`));
+  });
+
+  // A surface token named alone as a fill, as `background: var(--cp-surface-raised)`.
+  const surfaceOf = (style: CSSStyleDeclaration): string | undefined =>
+    ["background", "background-color"]
+      .map((p) => /^var\(--cp-surface-[a-z]+\)$/u.exec(style.getPropertyValue(p).trim())?.[0])
+      .find((v) => v !== undefined);
+
+  function styleRules(rules: CSSRuleList): CSSStyleRule[] {
+    return [...rules].flatMap((r) => [
+      ...(r instanceof CSSStyleRule ? [r] : []),
+      ...("cssRules" in r ? styleRules(r.cssRules as CSSRuleList) : []),
+    ]);
+  }
+
+  it("sets the chart surface in every rule that paints a surface, to the token it paints", () => {
+    const rules = styleRules(sheet.sheet!.cssRules);
+    const painted = rules.filter((r) => surfaceOf(r.style) !== undefined);
+    expect(painted.map((r) => r.selectorText)).toContain(".cp-list");
+    // A pseudo-element holds no element, so no chart can sit on it.
+    const wrong = painted
+      .filter((r) => !/::[\w-]+$/u.test(r.selectorText))
+      .filter((r) => r.style.getPropertyValue("--cp-chart-surface").trim() !== surfaceOf(r.style))
+      .map((r) => r.selectorText);
+    expect(wrong).toEqual([]);
+    const stray = rules
+      .filter((r) => r.style.getPropertyValue("--cp-chart-surface") !== "")
+      .filter((r) => r.selectorText !== ":root" && surfaceOf(r.style) === undefined)
+      .map((r) => r.selectorText);
+    expect(stray).toEqual([]);
+  });
   it.each(["light", "dark"] as const)(
     "leaves the plot transparent inside .cp-detail in the %s theme",
     (t) => {

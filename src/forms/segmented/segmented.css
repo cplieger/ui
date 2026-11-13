@@ -55,6 +55,8 @@
 }
 
 .cp-segmented > label:has(:checked) {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
 }

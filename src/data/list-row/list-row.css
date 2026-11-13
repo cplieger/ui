@@ -2,6 +2,8 @@
 /* Rows keep their height in a list stretched taller than them, such as
  * beside a taller detail. */
 .cp-list {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: grid;
   align-content: start;
   margin: 0;
@@ -194,6 +196,8 @@
     /* A plain button shares the row's hover fill and would vanish; lift it
      * to the raised surface. One that confirms in place keeps its state's. */
     .cp-list-row:hover .cp-button:not([data-variant], [data-cp-state]) {
+      --cp-chart-surface: var(--cp-surface-raised);
+
       background: var(--cp-surface-raised);
     }
   }

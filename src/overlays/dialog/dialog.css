@@ -3,6 +3,8 @@
  * middle, and on a phone it rises from the bottom edge. Its parts are a
  * header, a body that scrolls and a footer of buttons, inside a <form>. */
 .cp-dialog {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
   overflow: hidden;
   inline-size: min(32rem, calc(100vw - 2rem));
   max-block-size: calc(100dvh - 4rem);

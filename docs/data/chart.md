@@ -268,7 +268,7 @@ reads.update({
 ## Colour and surfaces
 
 - Each series takes a slot of the [series colours](../design-colour.md#series-colours), its `slot` or its place in the list. Give a category the same slot in every chart, its most common ones the low numbers. A stack of more than five series is hard to read on a phone, so group the smallest into "Other". A dot mark takes one `slot` for all its rows.
-- A chart sits on the page surface or a raised one, never on an overlay such as a dialog or a toast. Under forced colours the plot keeps its theme drawing on that surface inside a border. `--cp-chart-surface` names the surface, which is the page surface, or the raised surface inside a [list-detail](../layout/list-detail.md)'s `.cp-detail` and a `.cp-gate` panel. An app that puts a chart on a raised container of its own sets `--cp-chart-surface: var(--cp-surface-raised)` on it.
+- A chart sits on any of the library's surfaces: the page, a boxed list and its rows, a figure tile, an accordion, a list-detail's `.cp-detail`, a `.cp-gate` panel, a popover or a dialog. `--cp-chart-surface` names the surface it sits on, and every library rule that paints a surface sets it to the same fill, so a note's halo, a dot's outline and a marker's number match what is behind the plot. Under forced colours the plot keeps its theme drawing on that surface inside a border. A `.cp-panel` paints no fill, so a chart in one sits on the surface around it. A container of the app's own that paints a surface sets `--cp-chart-surface` to its fill beside it.
 - Nothing in a chart moves. An update, a selection and a resize change it in place.
 
 ## Words

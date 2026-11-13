@@ -30,15 +30,13 @@
   initial-value: transparent;
 }
 
-/* The surface a chart sits on, which only forced colours paint behind the
- * plot. An app's own raised container sets it to the raised token. */
+/* The surface a chart sits on: its halos, outlines and marker numbers, and
+ * the plot's background under forced colours. Every rule that paints a
+ * surface token sets this to the same token (draw.test.ts holds it), so a
+ * chart takes the fill of whatever library surface holds it; :root is the
+ * page for a chart outside every .cp subtree. */
 :root {
   --cp-chart-surface: var(--cp-surface-page);
-}
-
-.cp-list-detail > .cp-detail,
-.cp-gate > .cp-panel {
-  --cp-chart-surface: var(--cp-surface-raised);
 }
 
 .cp-chart {

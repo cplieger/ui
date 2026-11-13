@@ -95,6 +95,8 @@
 
 /* The person's own entry: a sunken fill, with "You" for its author. */
 .cp-feed-entry[data-own] {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   background: var(--cp-surface-sunken);
 }
 
@@ -181,6 +183,8 @@
  * the on-screen keyboard covers: padding it keeps the controls above the
  * keyboard while the foot stays in flow under the last entry. */
 .cp-feed-foot {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: sticky;
   inset-block-end: 0;
   z-index: 1;
@@ -200,6 +204,8 @@
  * both directions where a translate by half its width would not. Its
  * offset is from the foot's padding box, inside the foot's top line. */
 .cp-feed-jump {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: absolute;
   inset-block-end: calc(100% + var(--cp-line-w) + var(--cp-space-2));
   inset-inline: 0;

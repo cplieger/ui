@@ -52,6 +52,8 @@
 }
 
 .cp-banner > .cp-button:not([data-variant="primary"]) {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   border: var(--cp-line-w) solid var(--cp-tone-8);
   background: var(--cp-surface-raised);
   color: var(--cp-tone-12);
