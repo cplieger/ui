@@ -148,6 +148,9 @@ function addBars(extent: Extent, m: BarMark): void {
       if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
         throw new RangeError("renderChart: a bar's x cannot be infinite");
       }
+      if (m.arrange === "share" && finite(v) && v < 0) {
+        throw new RangeError("renderChart: a 100% stack's x cannot be negative");
+      }
       if (finite(v)) {
         extent.count(v);
         if (group) {
@@ -173,6 +176,10 @@ export function xScale(spec: ChartSpec): Continuous {
     throw new TypeError("renderChart: x cannot be a band scale; rows lie along y");
   }
   const bars = spec.marks.some((m) => m.mark === "bar");
+  const share = spec.marks.some((m) => m.mark === "bar" && m.arrange === "share");
+  if (share && spec.x.domain !== undefined) {
+    throw new TypeError("renderChart: a 100% stack's x runs 0 to 1, so it takes no domain");
+  }
   if (bars && type !== "linear") {
     throw new TypeError("renderChart: a bar's x is linear, so its length is its value");
   }
@@ -207,6 +214,21 @@ export function xScale(spec: ChartSpec): Continuous {
         extent.add(m.x);
       }
     }
+  }
+  if (share) {
+    // Every row drawn reaches 1, so the axis is fixed as a passed domain is:
+    // a rule outside it is off the axis.
+    return {
+      type,
+      lo: 0,
+      hi: 1,
+      passed: true,
+      integer: false,
+      format: spec.x.format ?? "percent",
+      reverse: spec.x.reverse === true,
+      under: undefined,
+      drawnLo: 0,
+    };
   }
   const passed = passedDomain(spec.x.domain, "x", log);
   if (bars && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {

@@ -432,6 +432,31 @@ describe("the table of a bar chart", () => {
     ]);
   });
 
+  it("holds a 100% chart's shares and each row's absolute total, a total of 0 by its values", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Item 1", "Item 2"],
+            arrange: "share",
+            series: [
+              { name: "No", x: [1250, 0] },
+              { name: "Yes", x: [3750, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["No", "Yes", "Total"]);
+    expect(cells(t)).toEqual([
+      ["Item 1", "25%", "75%", "5,000"],
+      ["Item 2", "0", "No data", "0"],
+    ]);
+  });
+
   it("has no Total column for grouped bars", () => {
     const t = tableModel(
       model({

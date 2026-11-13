@@ -12,8 +12,8 @@ import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
 import type { BarModel, DotModel, Model, RectModel, SampleModel } from "./model.js";
 import {
+  barPart,
   barReading,
-  barText,
   bucketReading,
   partText,
   postReading,
@@ -228,7 +228,7 @@ function moveBar(
       return undefined;
     }
     // A group's bars stand one under another, so a reversed x leaves their order.
-    const forward = (key === "ArrowRight") !== (reverse && m.arrange === "stack");
+    const forward = (key === "ArrowRight") !== (reverse && m.arrange !== "group");
     const part = sel.part === undefined ? (forward ? 0 : n - 1) : sel.part + (forward ? 1 : -1);
     return part >= 0 && part < n ? { ...sel, part } : undefined;
   }
@@ -579,7 +579,7 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
   if (sel.kind === "bar" && m.kind === "bar") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
-      return words.segment(reading.at, s.name, barText(model, s.x[sel.row] ?? null, words));
+      return words.segment(reading.at, s.name, barPart(model, m, s, sel.row, words));
     }
   } else if (
     (sel.kind === "rect" || sel.kind === "line" || sel.kind === "area") &&

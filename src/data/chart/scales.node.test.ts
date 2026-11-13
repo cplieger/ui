@@ -376,6 +376,42 @@ describe("a bar chart's scales", () => {
     expect([x.lo, x.hi]).toEqual([0, 60]);
   });
 
+  describe("a 100% stack", () => {
+    const share = (spec: ChartSpec): ChartSpec => ({
+      ...spec,
+      marks: [{ ...(spec.marks[0] as BarMark), arrange: "share" as const }, ...spec.marks.slice(1)],
+    });
+
+    it("spans 0 to 1 as a passed domain, in percent unless x says another format", () => {
+      expect(xScale(share(bars([3, 1], [1, 4])))).toMatchObject({
+        lo: 0,
+        hi: 1,
+        passed: true,
+        integer: false,
+        format: "percent",
+        reverse: false,
+      });
+      const own = { ...share(bars([3], [1])), x: { format: "number" as const, reverse: true } };
+      expect(xScale(own)).toMatchObject({ format: "number", reverse: true });
+    });
+
+    it("leaves a rule above 1 off the axis, where a stack would stretch to hold it", () => {
+      const spec = share(bars([3], [1]));
+      const x = xScale({ ...spec, marks: [...spec.marks, { mark: "rule", x: 2, label: "Cap" }] });
+      expect([x.lo, x.hi]).toEqual([0, 1]);
+      expect(ruleAt(x, 2)).toEqual({ off: "high" });
+    });
+
+    it("refuses a domain and a negative value", () => {
+      expect(() => xScale({ ...share(bars([3], [1])), x: { domain: [0, 1] } })).toThrow(
+        "renderChart: a 100% stack's x runs 0 to 1, so it takes no domain",
+      );
+      expect(() => xScale(share(bars([3], [-1])))).toThrow(
+        "renderChart: a 100% stack's x cannot be negative",
+      );
+    });
+  });
+
   it("names the band y's rows in the app's order", () => {
     expect(yScale(bars([1, 2, 3]))).toEqual({
       type: "band",

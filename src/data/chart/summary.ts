@@ -7,6 +7,7 @@
 import { formatDuration, formatter } from "../scale/format.js";
 
 import {
+  barTotal,
   bucketTotal,
   sampleTotal,
   sampleValue,
@@ -18,7 +19,6 @@ import {
   type SeriesModel,
 } from "./model.js";
 import {
-  barTotal,
   bucketText,
   counted,
   domainText,
@@ -232,7 +232,13 @@ function barSummary(model: Model, m: BarModel, words: Words): string[] {
     out.push(name === undefined ? words.extremes(high, low) : words.barSeries(name, high, low));
   };
   for (const s of m.series) {
-    sentence(several ? s.name : undefined, (i) => s.x[i] ?? null);
+    // Under "share" a series' share exists only in a row whose total is above 0.
+    const share = (i: number) => {
+      const v = s.x[i] ?? null;
+      const total = barTotal(m, i) ?? 0;
+      return v === null || total <= 0 ? null : v / total;
+    };
+    sentence(several ? s.name : undefined, m.arrange === "share" ? share : (i) => s.x[i] ?? null);
   }
   if (several && m.arrange === "stack") {
     sentence(words.total, (i) => barTotal(m, i));

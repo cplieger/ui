@@ -395,4 +395,27 @@ describe("a bar chart", () => {
     expect(l.titles.map((t) => t.text)).toEqual(["Years"]);
     expect(l.frame.xAt(0)).toBe(0);
   });
+
+  it("draws a 100% chart's x axis in percent across the whole plot, with no value labels", () => {
+    const share: ChartSpec = {
+      x: { label: "Answers" },
+      marks: [
+        {
+          mark: "bar",
+          y: ["a", "b"],
+          arrange: "share",
+          series: [
+            { name: "No", x: [3, 1] },
+            { name: "Yes", x: [1, 1] },
+          ],
+        },
+      ],
+    };
+    const l = lay(share, 600);
+    expect(l.valueLabels).toEqual([]);
+    expect(l.xLabels.at(0)?.text).toBe("0%");
+    expect(l.xLabels.at(-1)?.text).toBe("100%");
+    expect(l.titles.map((t) => t.text)).toEqual(["Answers"]);
+    expect([l.frame.xAt(0), l.frame.xAt(1)]).toEqual([0, l.frame.width]);
+  });
 });

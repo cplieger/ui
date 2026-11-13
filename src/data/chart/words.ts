@@ -17,7 +17,8 @@ type Kind =
   | "timeline"
   | "bar"
   | "stackedBar"
-  | "groupedBar";
+  | "groupedBar"
+  | "shareBar";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -29,11 +30,12 @@ export interface ChartWords {
    *  "Grouped column chart", "100% stacked column chart", "Column chart",
    *  "Stacked area chart", "100% stacked area chart", "Area chart",
    *  "Histogram", "Line chart", "Step line", "Timeline", "Bar chart",
-   *  "Stacked bar chart", "Grouped bar chart". A rect on a log x is a histogram however it is
+   *  "Stacked bar chart", "Grouped bar chart", "100% stacked bar chart". A
+   *  rect on a log x is a histogram however it is
    *  shaped or arranged; any other rect is a column or, with shape "area", an
    *  area chart, its stacked, grouped or 100% kind with two or more series.
-   *  A bar mark is a bar chart, its stacked or grouped kind with two or
-   *  more series. */
+   *  A bar mark is a bar chart, its stacked, grouped or 100% kind with two
+   *  or more series. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -146,6 +148,7 @@ const DEFAULTS: Words = {
     bar: "Bar chart",
     stackedBar: "Stacked bar chart",
     groupedBar: "Grouped bar chart",
+    shareBar: "100% stacked bar chart",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>

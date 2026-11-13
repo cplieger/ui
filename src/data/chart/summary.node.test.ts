@@ -588,6 +588,31 @@ describe("the summary of a bar chart", () => {
     );
   });
 
+  it("names each 100% series' highest and lowest share, leaving out a row whose total is 0, and no totals", () => {
+    const share: ChartSpec = {
+      x: {},
+      y: { unit: { one: "company", other: "companies" } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Acme", "Brill", "Corda", "Dune"],
+          arrange: "share",
+          series: [
+            { name: "Domestic", x: [40, 3, 1, 0] },
+            { name: "International", x: [10, 1, 3, 0] },
+          ],
+        },
+      ],
+    };
+    expect(generatedSummary(model(share), words)).toBe(
+      `4${nb}companies, 2 series. Domestic: highest Acme 80%, lowest Corda 25%. ` +
+        "International: highest Corda 75%, lowest Acme 20%.",
+    );
+    expect(shortDescription(model(share), words)).toBe(
+      `100% stacked bar chart, 2 series, 4${nb}companies`,
+    );
+  });
+
   it("says only the count when every value is a gap, in categories without a unit", () => {
     const empty: ChartSpec = {
       x: {},

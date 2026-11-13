@@ -659,6 +659,19 @@ describe("bar keys", () => {
     }
   });
 
+  it("says a 100% row's shares and absolute total, and runs with the drawing on a reversed x", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      const b = built({ ...spec, marks: [{ ...mark, arrange: "share" }] });
+      expect(spoken(b.model, bar(0), words, false)).toBe(
+        "Row 1: Domestic 33%, International 67%. Total 3.",
+      );
+      expect(spoken(b.model, bar(0, 1), words, true)).toBe("Row 1: International 67%.");
+      expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
+    }
+  });
+
   it("one series has no parts for Left and Right to choose", () => {
     const b = built(ages);
     expect(b.nav.move(bar(1), "ArrowLeft", undefined)).toBe(undefined);

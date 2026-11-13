@@ -25,7 +25,8 @@ type Kind =
   | "timeline"
   | "bar"
   | "stackedBar"
-  | "groupedBar";
+  | "groupedBar"
+  | "shareBar";
 
 export interface SeriesModel {
   readonly name: string;
@@ -147,11 +148,36 @@ export interface BarSeriesModel {
 export interface BarModel {
   readonly kind: "bar";
   /** "group" sets two or more series one under another in each row; one
-   *  series grouped is a plain bar, so it reads "stack". */
-  readonly arrange: "stack" | "group";
-  /** Each row's value written at its bar's end, in place of an x axis. */
+   *  series grouped is a plain bar, so it reads "stack". "share" draws each
+   *  series' share of its row's total; `series` keeps the values. */
+  readonly arrange: "stack" | "group" | "share";
+  /** Each row's value written at its bar's end, in place of an x axis;
+   *  never under "share". */
   readonly labels: boolean;
   readonly series: readonly BarSeriesModel[];
+}
+
+/** Row `i`'s total of bar mark `m`, or `null` when every value is a gap. */
+export function barTotal(m: BarModel, i: number): number | null {
+  let total: number | null = null;
+  for (const s of m.series) {
+    const v = s.x[i] ?? null;
+    if (v !== null) {
+      total = (total ?? 0) + v;
+    }
+  }
+  return total;
+}
+
+/** The length series `s` draws in row `i`, a `null` as 0: under "share" its
+ *  share of the row's total, 0 when the total is, else its value. */
+export function barValue(m: BarModel, s: BarSeriesModel, i: number): number {
+  const v = s.x[i] ?? 0;
+  if (m.arrange !== "share") {
+    return v;
+  }
+  const total = barTotal(m, i) ?? 0;
+  return total > 0 ? v / total : 0;
 }
 
 interface RuleModel {
@@ -195,8 +221,9 @@ export interface Model {
   readonly xSpan: (from: number, to: number) => readonly [string, string];
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
-  /** A value or total as an amount: `yText`, or a plain number under
-   *  "share", whose `yText` writes shares. */
+  /** A value or total as an amount: the value axis's format (`xText` on a
+   *  bar chart, else `yText`), or a plain number under "share", whose axis
+   *  writes shares. */
   readonly amountText: (v: number) => string;
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
@@ -410,11 +437,23 @@ function checkMark(mark: unknown, what: string): void {
         seen.add(name);
       }
       const arrange = mark["arrange"];
-      if (arrange !== undefined && arrange !== "stack" && arrange !== "group") {
-        fail(`${what}.arrange must be "stack" or "group"`);
+      if (
+        arrange !== undefined &&
+        arrange !== "stack" &&
+        arrange !== "group" &&
+        arrange !== "share"
+      ) {
+        fail(`${what}.arrange must be "stack", "group" or "share"`);
       }
       optional(mark["labels"], "boolean", `${what}.labels`);
-      checkSeries(mark["series"], names.length, what, "x");
+      if (arrange === "share" && mark["labels"] !== undefined) {
+        fail(`${what}.labels has no place under arrange "share", whose rows all reach 100%`);
+      }
+      const list = mark["series"];
+      checkSeries(list, names.length, what, "x");
+      if (arrange === "share" && arrayLike(list) && list.length < 2) {
+        fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
+      }
       return;
     }
     case "rule": {
@@ -569,7 +608,9 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
         ? "bar"
         : first.arrange === "group"
           ? "groupedBar"
-          : "stackedBar";
+          : first.arrange === "share"
+            ? "shareBar"
+            : "stackedBar";
   }
 }
 
@@ -699,8 +740,11 @@ export function chartModel(
       case "bar":
         return {
           kind: "bar",
-          arrange: m.arrange === "group" && m.series.length > 1 ? "group" : "stack",
-          labels: m.labels !== false,
+          arrange:
+            m.arrange === "share" || (m.arrange === "group" && m.series.length > 1)
+              ? m.arrange
+              : "stack",
+          labels: m.arrange !== "share" && m.labels !== false,
           series: barSeries(m.series),
         };
       case "rule": {
@@ -726,8 +770,9 @@ export function chartModel(
       : (from: number, to: number) => [xText(from), xText(to)] as const;
   const yText = formatter(y.type === "band" ? undefined : y.format, locale);
   const share = marks.some(
-    (m) => (m.kind === "rect" || m.kind === "area") && m.arrange === "share",
+    (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
+  const bars = marks.some((m) => m.kind === "bar");
   return {
     spec,
     x,
@@ -738,7 +783,7 @@ export function chartModel(
     xText,
     xSpan,
     yText,
-    amountText: share ? formatter("number", locale) : yText,
+    amountText: share ? formatter("number", locale) : bars ? xText : yText,
     locale,
     timeZone,
   };

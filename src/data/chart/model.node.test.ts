@@ -642,6 +642,21 @@ const bars = (
   ...more,
 });
 
+const shareBars = (
+  a: (number | null)[],
+  b: (number | null)[],
+  more: Partial<Extract<Mark, { mark: "bar" }>> = {},
+): Mark => ({
+  mark: "bar",
+  y: a.map((_, i) => `c${String(i)}`),
+  arrange: "share",
+  series: [
+    { name: "p", x: a },
+    { name: "q", x: b },
+  ],
+  ...more,
+});
+
 describe("the bar mark", () => {
   it.each([
     ["a y of numbers", { x: {}, marks: [bars([1], { y: [1] as unknown as string[] })] }, TypeError],
@@ -678,6 +693,19 @@ describe("the bar mark", () => {
     ],
     ["a y rule", { x: {}, marks: [bars([1]), { mark: "rule", y: 1, label: "Cap" }] }, TypeError],
     ["a bar beside a rect", { x: {}, marks: [rect([1]), bars([1])] }, TypeError],
+    ["a share of one series", { x: {}, marks: [bars([1], { arrange: "share" })] }, TypeError],
+    ["labels under a share", { x: {}, marks: [shareBars([1], [2], { labels: true })] }, TypeError],
+    [
+      "labels off under a share",
+      { x: {}, marks: [shareBars([1], [2], { labels: false })] },
+      TypeError,
+    ],
+    ["a negative x under a share", { x: {}, marks: [shareBars([1], [-2])] }, RangeError],
+    [
+      "an x domain under a share",
+      { x: { domain: [0, 1] }, marks: [shareBars([1], [2])] },
+      TypeError,
+    ],
   ])("refuses %s", (_, spec, type) => {
     expect(() => build(spec)).toThrow(type);
   });
@@ -740,6 +768,13 @@ describe("the bar mark", () => {
       kind: "bar",
       marks: [{ arrange: "stack" }],
     });
+  });
+
+  it("is a 100% stacked bar chart from two series, with no value labels", () => {
+    const m = build({ x: {}, marks: [shareBars([1, 0], [3, 0])] });
+    expect(m.kind).toBe("shareBar");
+    expect(m.marks[0]).toMatchObject({ arrange: "share", labels: false });
+    expect(m.amountText(1234.5)).toBe("1,234.5");
   });
 
   it("is empty when every value is 0 or a gap, or there are no rows", () => {

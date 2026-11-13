@@ -1012,6 +1012,30 @@ describe("bars", () => {
     expect(barReach(barOf(m), 0)).toEqual({ lo: -10, hi: 30 });
   });
 
+  it("stacks each row's shares to the full width, and draws nothing in a row whose total is 0", () => {
+    const m = model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["a", "b"],
+          arrange: "share",
+          series: [
+            { name: "p", x: [30, 0] },
+            { name: "q", x: [10, null] },
+          ],
+        },
+      ],
+    });
+    const f = barFrame(m, 0, 1, 200);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 150, top: 4, bottom: 20 },
+      { left: 151, right: 200, top: 4, bottom: 20 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([undefined, undefined]);
+    expect(barReach(barOf(m), 0)).toEqual({ lo: 0, hi: 1 });
+  });
+
   it("draws one series grouped as a plain bar", () => {
     const m = grouped([[40]]);
     expect(barOf(m).arrange).toBe("stack");

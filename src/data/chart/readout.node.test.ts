@@ -549,6 +549,46 @@ describe("the legend row of a bar chart", () => {
     expect(overall(m, words)?.total).toBeUndefined();
   });
 
+  const shared = (rows: (number | null)[][]): ChartSpec => ({
+    x: { unit: { one: "respondent", other: "respondents" } },
+    marks: [
+      {
+        mark: "bar",
+        y: rows.map((_, i) => `Item ${String(i + 1)}`),
+        arrange: "share",
+        series: [
+          { name: "No", slot: 1, x: rows.map((r) => r[0] ?? null) },
+          { name: "Yes", slot: 2, x: rows.map((r) => r[1] ?? null) },
+        ],
+      },
+    ],
+  });
+
+  it("reads a 100% row's shares and its absolute total in the x unit", () => {
+    const m = model(shared([[34, 66]]));
+    expect(barReading(m, m.marks[0] as BarModel, 0, words)).toEqual({
+      at: "Item 1",
+      entries: [
+        { slot: 1, name: "No", value: "34%" },
+        { slot: 2, name: "Yes", value: "66%" },
+      ],
+      total: `100${nb}respondents`,
+    });
+    expect(overall(m, words)?.total).toBe("");
+  });
+
+  it("reads a 100% row whose total is 0 by its values, and a gap as No data", () => {
+    const m = model(shared([[0, null]]));
+    expect(barReading(m, m.marks[0] as BarModel, 0, words)).toEqual({
+      at: "Item 1",
+      entries: [
+        { slot: 1, name: "No", value: "0" },
+        { slot: 2, name: "Yes", value: "No data" },
+      ],
+      total: `0${nb}respondents`,
+    });
+  });
+
   it("keeps slots as wide as every row's reading and the whole chart's", () => {
     const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
     const m = model(firms);

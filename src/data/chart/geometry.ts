@@ -9,6 +9,7 @@
 import { reduce, type Point } from "../scale/reduce.js";
 
 import {
+  barValue,
   drawnTotal,
   drawnValue,
   sampleValue,
@@ -429,7 +430,7 @@ export function barReach(m: BarModel, i: number): { readonly lo: number; readonl
   let lo = 0;
   let hi = 0;
   for (const s of m.series) {
-    const v = s.x[i] ?? 0;
+    const v = barValue(m, s, i);
     if (m.arrange === "group") {
       lo = Math.min(lo, v);
       hi = Math.max(hi, v);
@@ -502,7 +503,7 @@ export function barSegments(
   const base = { lo: 0, hi: 0 };
   const drawn = { lo: false, hi: false };
   return m.series.map((s) => {
-    const v = s.x[i] ?? 0;
+    const v = barValue(m, s, i);
     if (v === 0) {
       return undefined;
     }

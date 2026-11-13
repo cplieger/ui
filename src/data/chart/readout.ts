@@ -9,12 +9,14 @@ import { formatter, noun, withNoun, type Unit } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {
+  barTotal,
   bucketTotal,
   drawnTotal,
   sampleTotal,
   sampleValue,
   type AreaModel,
   type BarModel,
+  type BarSeriesModel,
   type DotModel,
   type LineModel,
   type Model,
@@ -209,24 +211,37 @@ export function rowsText(model: Model, words: Words): string {
   return unit === undefined ? words.categories(count) : counted(count, n, unit, model);
 }
 
-/** Row `i`'s total of bar mark `m`, or `null` when every value is a gap. */
-export function barTotal(m: BarModel, i: number): number | null {
-  let total: number | null = null;
-  for (const s of m.series) {
-    const v = s.x[i] ?? null;
-    if (v !== null) {
-      total = (total ?? 0) + v;
-    }
+/** Series `s`'s value in row `i` as the readings and the table write it,
+ *  a gap as No data: under "share" its share of the row's total, or its
+ *  value when the total is 0, which has no shares. */
+export function barPart(
+  model: Model,
+  m: BarModel,
+  s: BarSeriesModel,
+  i: number,
+  words: Words,
+): string {
+  const v = s.x[i] ?? null;
+  if (v === null) {
+    return words.noData;
   }
-  return total;
+  const total = m.arrange === "share" ? (barTotal(m, i) ?? 0) : 0;
+  return total > 0 ? model.xText(v / total) : model.amountText(v);
 }
 
-/** A bar value as the readings and the table write it, a gap as No data. */
-export const barText = (model: Model, v: number | null, words: Words): string =>
-  v === null ? words.noData : model.xText(v);
+// A bar row's total in a reading: under "share" with its unit, since the
+// shares beside it have none.
+function barTotalText(model: Model, m: BarModel, total: number | null, words: Words): string {
+  if (total === null) {
+    return words.noData;
+  }
+  return m.arrange === "share"
+    ? counted(model.amountText(total), total, model.spec.x.unit, model)
+    : model.xText(total);
+}
 
-/** Row `r` of bar mark `m`: its name, each series' value, and from two
- *  stacked series up the row's total. */
+/** Row `r` of bar mark `m`: its name, each series' value or share, and
+ *  from two stacked series up the row's total. */
 export function barReading(model: Model, m: BarModel, r: number, words: Words): Reading {
   const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
   if (m.series.length === 1) {
@@ -238,9 +253,9 @@ export function barReading(model: Model, m: BarModel, r: number, words: Words): 
   const all = m.series.map((s) => ({
     slot: s.slot,
     name: s.name,
-    value: barText(model, s.x[r] ?? null, words),
+    value: barPart(model, m, s, r, words),
   }));
-  const total = m.arrange === "stack" ? barText(model, barTotal(m, r), words) : undefined;
+  const total = m.arrange === "group" ? undefined : barTotalText(model, m, barTotal(m, r), words);
   return { at, entries: all, total };
 }
 
@@ -306,7 +321,7 @@ export function overall(model: Model, words: Words): Reading | undefined {
           m.series.length === 1
             ? bare("")
             : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
-        total: m.arrange === "stack" && m.series.length > 1 ? "" : undefined,
+        total: m.arrange !== "group" && m.series.length > 1 ? "" : undefined,
       };
   }
 }
