@@ -676,7 +676,7 @@ function historyEvent(
   return item;
 }
 
-function historyWeek(weeks: number): LoadMorePage {
+function historyWeek(weeks: number, ...events: HTMLLIElement[]): Element[] {
   const when = weeksAgo.format(-weeks, "week");
   const heading = document.createElement("h3");
   heading.className = "cp-list-heading";
@@ -685,17 +685,26 @@ function historyWeek(weeks: number): LoadMorePage {
   list.className = "cp-list";
   list.dataset["variant"] = "timeline";
   list.dataset["surface"] = "plain";
-  list.append(
-    historyEvent("neutral", "search", "Checked", " against SeaDex", weeks),
-    historyEvent("success", "download", "Grabbed", " a web release", weeks),
-  );
-  return { items: [heading, list], more: weeks < 3 };
+  list.append(...events);
+  return [heading, list];
 }
 
 const older = document.querySelector<HTMLButtonElement>("button[data-load-older]");
 if (older !== null) {
   enhanceLoadMore(older, {
-    load: pager([() => historyWeek(2), () => historyWeek(3)]),
+    load: pager([
+      () => ({
+        items: [
+          historyEvent("success", "download", "Grabbed", " a web release", 1),
+          ...historyWeek(2, historyEvent("neutral", "search", "Checked", " against SeaDex", 2)),
+        ],
+        more: true,
+      }),
+      () => ({
+        items: historyWeek(3, historyEvent("neutral", "plus", "Added", " from Sonarr", 3)),
+        more: false,
+      }),
+    ]),
     words: {
       count: (n) => (n === 1 ? "1 older event" : `${String(n)} older events`),
       failed: "The older events did not load.",
