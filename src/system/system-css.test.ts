@@ -5297,6 +5297,35 @@ describe("css/system.css popup option row", () => {
     }
   });
 
+  it("draws an option led by a cover as an entry, its title over its facts beside it, at both tiers", () => {
+    theme("light");
+    const list = build(
+      '<ul class="cp-popover cp-listbox" role="listbox" aria-label="Entries"><li role="option"><span class="cp-cover"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><strong>Frieren</strong><small>2023 · TV · Sonarr</small></li></ul>',
+    ).firstElementChild as HTMLElement;
+    const option = list.firstElementChild as HTMLElement;
+    const rects = () =>
+      ["span.cp-cover", "strong", "small"].map((s) =>
+        (option.querySelector(s) as HTMLElement).getBoundingClientRect(),
+      ) as [DOMRect, DOMRect, DOMRect];
+    for (const [pointer, token] of [
+      ["fine", "--cp-control-h-sm"],
+      ["coarse", "--cp-control-h"],
+    ] as const) {
+      root.setAttribute("data-pointer", pointer);
+      const height = option.getBoundingClientRect().height;
+      expect(height, pointer).toBeGreaterThan(
+        Number.parseFloat(resolve("blockSize", `var(${token})`)),
+      );
+      expect(rects()[0].height, pointer).toBeCloseTo(height, 0);
+    }
+    const [cover, title, facts] = rects();
+    expect(cover.left).toBeCloseTo(list.getBoundingClientRect().left + list.clientLeft, 0);
+    expect(cover.height).toBeCloseTo((cover.width * 3) / 2, 0);
+    expect(facts.top).toBeGreaterThanOrEqual(title.bottom - 1);
+    expect(facts.left).toBeCloseTo(title.left, 0);
+    expect(title.left).toBeGreaterThan(cover.right);
+  });
+
   it("keeps a reached option's words, end and danger ink at 4.5:1 on the wash, in both themes", () => {
     const ratio = (el: Element) => {
       const row = el.closest('[role^="menuitem"], [role="option"]') as Element;

@@ -157,6 +157,62 @@ describe("guardChanges: saving and discarding", () => {
     expect(guard.count).toBe(0);
   });
 
+  it("takes the answer's values as defaults on saved(values), a field changed during the save still a change", () => {
+    const f = form(FIELDS);
+    const guard = guardChanges(f, { signal: life.signal });
+    const name = get<HTMLInputElement>(f, "#name");
+    const every = get<HTMLSelectElement>(f, '[name="every"]');
+    const notes = get<HTMLTextAreaElement>(f, '[name="notes"]');
+    const notify = get<HTMLInputElement>(f, '[name="notify"]');
+    name.value = "Tracker 4K";
+    every.value = "30";
+    notify.checked = true;
+    // Typed while the save of the three above was busy.
+    name.value = "Tracker 4K HDR";
+    notes.value = "Kept, and more";
+    // The person left the quality at HD; the answer holds 4K.
+    guard.saved({ name: "Tracker 4K", every: "30", notes: "Kept", q: "uhd" });
+    expect(guard.changes()).toEqual([name, notes, notify, get(f, '[value="hd"]')]);
+    expect([name.value, every.value, notes.value]).toEqual([
+      "Tracker 4K HDR",
+      "30",
+      "Kept, and more",
+    ]);
+    expect(f.querySelector("[data-cp-elsewhere]")).toBeNull();
+    guard.discard();
+    expect([name.value, every.value, notes.value, notify.checked]).toEqual([
+      "Tracker 4K",
+      "30",
+      "Kept",
+      false,
+    ]);
+    expect(get<HTMLInputElement>(f, '[value="uhd"]').checked).toBe(true);
+    expect(guard.count).toBe(0);
+  });
+
+  it("throws for a value saved(values) cannot fit, before any field takes a new default", () => {
+    const f = form(FIELDS);
+    const guard = guardChanges(f, { signal: life.signal });
+    get<HTMLInputElement>(f, "#name").value = "Renamed";
+    expect(() => guard.saved({ name: "Renamed", every: true })).toThrow(
+      "saved: every needs a string",
+    );
+    expect(() => guard.saved([] as never)).toThrow(TypeError);
+    expect(guard.changes()).toEqual([get(f, "#name")]);
+  });
+
+  it("takes a chips field's saved chips on saved(values), a chip added during the save still a change", async () => {
+    const f = form('<div class="cp-tokens"><input aria-label="Tags"></div>');
+    const tags = enhanceTokens(get(f, ".cp-tokens"), { name: "tags", signal: life.signal });
+    const guard = guardChanges(f, { signal: life.signal });
+    await userEvent.type(get(f, ".cp-tokens > input"), "anime{Enter}4k{Enter}");
+    guard.saved({ tags: ["anime"] });
+    expect(guard.changes()).toEqual([get(f, ".cp-tokens")]);
+    guard.discard();
+    expect(tags.values).toEqual(["anime"]);
+    expect(guard.count).toBe(0);
+  });
+
   it("counts again after a reset button, once the reset has run", async () => {
     const f = form(`${FIELDS}<button type="reset">Discard</button>`);
     const told: (readonly Element[])[] = [];

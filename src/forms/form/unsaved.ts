@@ -77,9 +77,15 @@ export interface Guard {
   /** Counts again after a change no `input` or `change` event carried, such
    *  as a value set from script. */
   update(): void;
-  /** After a save: each value becomes its field's default, so Discard and
-   *  the count start from it. */
-  saved(): void;
+  /**
+   * After a save: each value becomes its field's default, so Discard and the
+   * count start from it. Given `values`, the saved values the answer holds,
+   * each field they name takes its value as its default instead and keeps
+   * what it holds, so a field changed during the save stays a change, with
+   * no note; fields they do not name are left as they are. Throws a
+   * `TypeError`, changing nothing, when a value does not fit its field.
+   */
+  saved(values?: FreshValues): void;
   /** Puts back every saved value, as the form's reset does. */
   discard(): void;
   /**
@@ -219,13 +225,15 @@ interface Plan {
   /** The controls its note describes. */
   readonly controls: readonly Element[];
   readonly apply: () => void;
+  /** Takes the fresh value as the field's default, keeping its value. */
+  readonly commit: () => void;
   /** The fresh value as shown, for a field changed both here and there;
    *  null for a password. Absent for no note. */
   readonly shown?: string | null;
 }
 
 function wrong(name: string, want: string): TypeError {
-  return new TypeError(`rebase: ${name} needs ${want}`);
+  return new TypeError(`${name} needs ${want}`);
 }
 
 function planRadios(
@@ -251,6 +259,15 @@ function planRadios(
       }
       for (const r of radios) {
         r.checked = kept ? r === checked : r === pick;
+      }
+    },
+    commit: () => {
+      const checked = radios.find((r) => r.checked);
+      for (const r of radios) {
+        r.defaultChecked = r === pick;
+      }
+      for (const r of radios) {
+        r.checked = r === checked;
       }
     },
     ...(kept && v !== was && v !== mine ? { shown: pick === undefined ? "" : labelOf(pick) } : {}),
@@ -284,6 +301,13 @@ function planChecks(
         b.checked = kept ? mine : on(b);
       }
     },
+    commit: () => {
+      for (const b of boxes) {
+        const mine = b.checked;
+        b.defaultChecked = on(b);
+        b.checked = mine;
+      }
+    },
   };
 }
 
@@ -311,6 +335,15 @@ function planSelect(name: string, select: HTMLSelectElement, v: FreshValue): Pla
       }
       for (const [i, o] of options.entries()) {
         o.selected = (kept ? mine : next)[i] === true;
+      }
+    },
+    commit: () => {
+      const now = options.map((o) => o.selected);
+      for (const [i, o] of options.entries()) {
+        o.defaultSelected = next[i] === true;
+      }
+      for (const [i, o] of options.entries()) {
+        o.selected = now[i] === true;
       }
     },
     ...(kept && differs(next, want) && differs(next, mine)
@@ -348,6 +381,11 @@ function planTexts(
       apply: () => {
         f.defaultValue = next;
         f.value = kept ? mine : next;
+      },
+      commit: () => {
+        const now = f.value;
+        f.defaultValue = next;
+        f.value = now;
       },
       ...(kept && next !== was && next !== mine
         ? { shown: f instanceof HTMLInputElement && f.type === "password" ? null : next }
@@ -396,6 +434,9 @@ function planPiece(piece: Piece, fresh: FreshValues): Plan | null {
       }
       commitPiece(piece, nextSaved);
     },
+    commit: () => {
+      commitPiece(piece, nextSaved);
+    },
     ...(shown.length > 0 ? { shown: shown.join("; ") } : {}),
   };
 }
@@ -437,9 +478,36 @@ function plansFor(form: HTMLFormElement, name: string, v: FreshValue): Plan[] {
       (c instanceof HTMLInputElement && c.type !== "checkbox" && c.type !== "radio"),
   );
   if (texts.length !== controls.length) {
-    throw new TypeError(`rebase: ${name} names fields of different kinds`);
+    throw new TypeError(`${name} names fields of different kinds`);
   }
   return planTexts(name, texts, v);
+}
+
+/** Plans the writes of `fresh` into `form`, checking every value first so a
+ *  value that does not fit throws before anything changes. */
+function plan(form: HTMLFormElement, fresh: FreshValues, verb: string): Plan[] {
+  const raw: unknown = fresh;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new TypeError(`${verb} needs an object of values by field name`);
+  }
+  try {
+    const plans: Plan[] = [];
+    for (const [name, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof v !== "string" && typeof v !== "boolean" && !isList(v)) {
+        throw wrong(name, "a string, a boolean or a list of strings");
+      }
+      plans.push(...plansFor(form, name, v));
+    }
+    for (const p of piecesIn(form)) {
+      const piece = planPiece(p, fresh);
+      if (piece !== null) {
+        plans.push(piece);
+      }
+    }
+    return plans;
+  } catch (e) {
+    throw e instanceof TypeError ? new TypeError(`${verb}: ${e.message}`) : e;
+  }
 }
 
 /** Where a field's note goes: its setting's words, its `.cp-field` or its
@@ -581,34 +649,27 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
     clearNotes();
     recount();
   };
-  const saved = (): void => {
-    for (const c of controlsOf(form)) {
-      commitControl(c);
-    }
-    for (const p of piecesIn(form)) {
-      commitPiece(p);
+  const saved = (values?: FreshValues): void => {
+    if (values === undefined) {
+      for (const c of controlsOf(form)) {
+        commitControl(c);
+      }
+      for (const p of piecesIn(form)) {
+        commitPiece(p);
+      }
+    } else {
+      const plans = plan(form, values, "saved");
+      writing = true;
+      for (const p of plans) {
+        p.commit();
+      }
+      writing = false;
     }
     clearNotes();
     recount();
   };
   const rebase = (fresh: FreshValues): number => {
-    const raw: unknown = fresh;
-    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-      throw new TypeError("rebase needs an object of values by field name");
-    }
-    const plans: Plan[] = [];
-    for (const [name, v] of Object.entries(raw as Record<string, unknown>)) {
-      if (typeof v !== "string" && typeof v !== "boolean" && !isList(v)) {
-        throw wrong(name, "a string, a boolean or a list of strings");
-      }
-      plans.push(...plansFor(form, name, v));
-    }
-    for (const p of piecesIn(form)) {
-      const plan = planPiece(p, fresh);
-      if (plan !== null) {
-        plans.push(plan);
-      }
-    }
+    const plans = plan(form, fresh, "rebase");
     writing = true;
     for (const p of plans) {
       unnote(p.anchor);

@@ -68,6 +68,8 @@ const guard = guardChanges(form, {
 });
 // After a save: the saved values become the start.
 guard.saved();
+// Or the answer's saved values, so a field typed into during the save stays a change.
+guard.saved(answer.values);
 // Another tab saved first: the notice's button takes its values, keeping the person's.
 notice.querySelector("button").addEventListener("click", async () => {
   guard.rebase(await api.readChecks());
@@ -79,6 +81,7 @@ notice.querySelector("button").addEventListener("click", async () => {
 - `onChange(changes)` runs each time what waits changes, with the changed fields in page order, not on every key. `count` and `changes()` read it at any time, and `update()` counts again after a value set from script.
 - A `type="reset"` button is Discard. The platform puts each default back, and the guard counts again once the reset has run. `discard()` does the same from script.
 - `saved()` makes each value its field's default, so Discard and the count start from it. A file field empties, since its files were sent.
+- `saved(values)` takes the saved values an answer holds instead, by field name, in the shape `rebase()` takes. Each field they name takes its value as its default and keeps what it holds, so a field typed into while the save was busy stays a change, with no note. A field they do not name is left as it is, and a value that does not fit its field throws a `TypeError` before anything changes.
 - While a change waits, a press on a link that leaves the page is stopped before the page's router sees it and asks first. The answer that drops the changes discards them and presses the link again. A jump to a fragment on the page, a link to another tab, a download and a press with a modifier key ask nothing. A reload or a closed tab gets the browser's own prompt, listened for only while a change waits, so the page stays in the back and forward cache otherwise.
 - The browser's Back cannot be stopped by a page, so an app's router calls `leave()` before it acts on `popstate`, and puts its entry back when the promise resolves false. True means the person chose to go, and the changes are discarded.
 - In a `.cp-dialog`, Escape, a `command="close"` button and a close request ask first too, and the dialog closes and discards on the answer. The submit that does the dialog's work, such as Send, never asks. A press outside a `data-keep-typed` dialog still shakes, as [dialog](../overlays/dialog.md) says, since a stray press should not open a question.
