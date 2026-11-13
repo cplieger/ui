@@ -531,3 +531,71 @@ describe("the spec's own summary", () => {
     expect(generatedSummary(model(stacked), fr)).toMatch(/ Pic : .*, 14\u00A0posts\.$/u);
   });
 });
+
+describe("the summary of a bar chart", () => {
+  const countries = { one: "country", other: "countries" };
+  const ages: ChartSpec = {
+    x: {},
+    y: { unit: countries },
+    marks: [
+      {
+        mark: "bar",
+        y: ["Holy See", "Monaco", "Japan", "Andorra"],
+        series: [{ name: "Median age", x: [57.4, 49.8, 49.8, null] }],
+      },
+    ],
+  };
+  const firms: ChartSpec = {
+    x: {},
+    y: { unit: { one: "company", other: "companies" } },
+    marks: [
+      {
+        mark: "bar",
+        y: ["Acme", "Brill", "Corda"],
+        series: [
+          { name: "Domestic", x: [40, 3, 7] },
+          { name: "International", x: [2, 22, 2] },
+          { name: "Online", x: [null, null, null] },
+        ],
+      },
+    ],
+  };
+
+  it("counts the rows, then names the highest and lowest, the first row on a tie", () => {
+    expect(generatedSummary(model(ages), words)).toBe(
+      `4${nb}countries. Highest Holy See 57.4, lowest Monaco 49.8.`,
+    );
+  });
+
+  it("names each series' extremes and the totals', leaving out a series with no value", () => {
+    expect(generatedSummary(model(firms), words)).toBe(
+      `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
+        "International: highest Brill 22, lowest Acme 2. Total: highest Acme 42, lowest Corda 9.",
+    );
+  });
+
+  it("says only the count when every value is a gap, in categories without a unit", () => {
+    const empty: ChartSpec = {
+      x: {},
+      marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "a", x: [null, null] }] }],
+    };
+    expect(generatedSummary(model(empty), words)).toBe("2 categories.");
+  });
+
+  it("is named by its kind, its series count and its row count", () => {
+    expect(shortDescription(model(ages), words)).toBe(`Bar chart, 4${nb}countries`);
+    expect(shortDescription(model(firms), words)).toBe(
+      `Stacked bar chart, 3 series, 3${nb}companies`,
+    );
+  });
+
+  it("takes the app's words", () => {
+    const own = chartWords({
+      categories: (n) => `${n} rows`,
+      countSummary: (count) => `[${count}]`,
+      extremes: (high, low) => `${high} > ${low}`,
+    });
+    const plain: ChartSpec = { ...ages, y: {} };
+    expect(generatedSummary(model(plain), own)).toBe("[4 rows] Holy See 57.4 > Monaco 49.8");
+  });
+});

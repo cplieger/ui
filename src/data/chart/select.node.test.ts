@@ -570,3 +570,148 @@ describe("a note in a reading", () => {
     expect(at(4)).toBe(`${time(4)}: Live 4, Active 2.`);
   });
 });
+
+const names = (n: number) => Array.from({ length: n }, (_, i) => `Row ${String(i + 1)}`);
+const ages: ChartSpec = {
+  x: { unit: { one: "year", other: "years" } },
+  marks: [
+    {
+      mark: "bar",
+      y: ["Holy See", "Monaco", "Japan"],
+      series: [{ name: "Median age", x: [57.4, 54.5, 49.8] }],
+    },
+  ],
+};
+const reach = (reverse = false, rows = 3): ChartSpec => ({
+  x: { reverse },
+  marks: [
+    {
+      mark: "bar",
+      y: names(rows),
+      series: [
+        { name: "Domestic", x: Array.from({ length: rows }, (_, i) => i + 1) },
+        { name: "International", x: Array.from({ length: rows }, (_, i) => (i === 1 ? null : 2)) },
+      ],
+    },
+  ],
+});
+const bar = (row: number, part?: number): Selection => ({ kind: "bar", row, part });
+
+describe("bar keys", () => {
+  it("focus starts on the first row, whole, and on no rows selects nothing", () => {
+    expect(initial(built(ages).model)).toEqual(bar(0));
+    const none = built({ x: {}, marks: [{ mark: "bar", y: [], series: [{ name: "a", x: [] }] }] });
+    expect(initial(none.model)).toBe(undefined);
+  });
+
+  it("Up and Down step a row, Home and End take the ends, and nothing moves past them", () => {
+    const b = built(ages);
+    expect(press(b, bar(0), "ArrowDown", "ArrowDown", "ArrowDown")).toEqual([
+      bar(1),
+      bar(2),
+      undefined,
+    ]);
+    expect(b.nav.move(bar(0), "ArrowUp", undefined)).toBe(undefined);
+    expect(b.nav.move(bar(0), "End", undefined)).toEqual(bar(2));
+    expect(b.nav.move(bar(2), "Home", undefined)).toEqual(bar(0));
+    expect(b.nav.move(bar(0), "Home", undefined)).toBe(undefined);
+  });
+
+  it("Page keys move ten rows, stopping at the first and last", () => {
+    const b = built(reach(false, 25));
+    expect(press(b, bar(0), "PageDown", "PageDown", "PageDown", "PageDown")).toEqual([
+      bar(10),
+      bar(20),
+      bar(24),
+      undefined,
+    ]);
+    expect(b.nav.move(bar(14, 1), "PageUp", undefined)).toEqual(bar(4, 1));
+    expect(b.nav.move(bar(4), "PageUp", undefined)).toEqual(bar(0));
+  });
+
+  it("Left and Right move through the row's parts in series order, and Up and Down keep the part", () => {
+    const b = built(reach());
+    expect(press(b, bar(0), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      bar(0, 0),
+      bar(0, 1),
+      undefined,
+    ]);
+    expect(b.nav.move(bar(0), "ArrowLeft", undefined)).toEqual(bar(0, 1));
+    expect(b.nav.move(bar(0, 0), "ArrowLeft", undefined)).toBe(undefined);
+    expect(b.nav.move(bar(0, 1), "ArrowDown", undefined)).toEqual(bar(1, 1));
+  });
+
+  it("runs with the drawing on a reversed x: Right moves toward the first series", () => {
+    const b = built(reach(true));
+    expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, 1));
+    expect(b.nav.move(bar(0, 1), "ArrowRight", undefined)).toEqual(bar(0, 0));
+  });
+
+  it("one series has no parts for Left and Right to choose", () => {
+    const b = built(ages);
+    expect(b.nav.move(bar(1), "ArrowLeft", undefined)).toBe(undefined);
+    expect(b.nav.move(bar(1), "ArrowRight", undefined)).toBe(undefined);
+  });
+
+  it("says a row whole with its total, a part through the segment words, a gap as No data", () => {
+    const b = built(reach());
+    expect(spoken(b.model, bar(0), words, false)).toBe(
+      "Row 1: Domestic 1, International 2. Total 3.",
+    );
+    expect(spoken(b.model, bar(0, 1), words, true)).toBe("Row 1: International 2.");
+    expect(spoken(b.model, bar(1, 1), words, false)).toBe(
+      "Row 2: Domestic 2, International No data. Total 2.",
+    );
+    expect(spoken(b.model, bar(1, 1), words, true)).toBe("Row 2: International No data.");
+    expect(spoken(built(ages).model, bar(2), words, false)).toBe("Japan: 49.8\u00A0years.");
+  });
+});
+
+describe("the pointer on a bar chart", () => {
+  it("selects the row under it anywhere across the plot's width, or the nearest past the ends", () => {
+    const b = built(ages);
+    const w = b.lay.frame.width;
+    expect(b.nav.pick(0, 24 * 1.5)).toEqual(bar(1));
+    expect(b.nav.pick(w, 24 * 1.5)).toEqual(bar(1));
+    expect(b.nav.pick(w / 2, 24 * 0.9)).toEqual(bar(0));
+    expect(b.nav.pick(w / 2, -40)).toEqual(bar(0));
+    expect(b.nav.pick(w / 2, 24 * 9)).toEqual(bar(2));
+  });
+
+  it("selects by the row under the name above it on a phone's 44 px rows", () => {
+    const b = built(ages, 300);
+    expect(b.nav.pick(10, 44 * 1.1)).toEqual(bar(1));
+    expect(b.nav.pick(10, 44 * 2.9)).toEqual(bar(2));
+  });
+
+  it("draws no crosshair and selects by tap, not by drag", () => {
+    const b = built(ages);
+    expect(b.nav.crosshair(bar(1))).toBe(undefined);
+    expect(b.nav.drags).toBe(false);
+    expect(built(stacked()).nav.drags).toBe(true);
+  });
+});
+
+describe("a bar row across an update", () => {
+  it("follows its row by name in a new order, keeps its part, and leaves with the row", () => {
+    const a = built(reach()).model;
+    const turned: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["Row 3", "Row 1"],
+          series: [
+            { name: "Domestic", x: [3, 1] },
+            { name: "International", x: [2, 2] },
+          ],
+        },
+      ],
+    };
+    const b = built(turned).model;
+    expect(rekey(a, bar(0, 1), b)).toEqual(bar(1, 1));
+    expect(rekey(a, bar(2), b)).toEqual(bar(0));
+    expect(rekey(a, bar(1), b)).toBe(undefined);
+    expect(rekey(a, bar(0, 1), built(ages).model)).toBe(undefined);
+  });
+});

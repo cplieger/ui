@@ -395,14 +395,14 @@ export function navigator(model: Model, lay: Layout): Navigator {
           return { kind: m.kind, i, part: undefined };
         }
         case "bar": {
-          // The row nearest the pointer, anywhere across the plot's width.
-          let r = -1;
-          lay.rows.forEach((row, k) => {
-            if (r === -1 || Math.abs(row.y - py) < Math.abs((lay.rows[r]?.y ?? 0) - py)) {
-              r = k;
-            }
-          });
-          return r === -1 ? undefined : { kind: "bar", row: r, part: undefined };
+          // The row whose band holds the pointer, anywhere across the plot's
+          // width: on a phone a row's name sits above its bar, inside its band.
+          const n = lay.rows.length;
+          if (n === 0) {
+            return undefined;
+          }
+          const r = Math.floor((py / f.height) * n);
+          return { kind: "bar", row: Math.min(Math.max(r, 0), n - 1), part: undefined };
         }
         case "dot": {
           if (lay.rows.length === 0) {

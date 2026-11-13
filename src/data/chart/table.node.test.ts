@@ -381,3 +381,54 @@ describe("the notes after the table", () => {
     expect(tableModel(model(line([])), words).after).toBe("");
   });
 });
+
+describe("the table of a bar chart", () => {
+  it("holds a row per category in the app's order and a column per series", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        y: { label: "Country" },
+        marks: [
+          {
+            mark: "bar",
+            y: ["Holy See", "Monaco"],
+            series: [{ name: "Median age", x: [57.4, null] }],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Country");
+    expect(t.columns).toEqual([{ text: "Median age", num: true }]);
+    expect(cells(t)).toEqual([
+      ["Holy See", "57.4"],
+      ["Monaco", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Holy See", "Monaco"]);
+  });
+
+  it("adds a Total column from two series, a gap counting for nothing", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Acme", "Brill"],
+            series: [
+              { name: "Domestic", x: [40, 3] },
+              { name: "International", x: [2, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("");
+    expect(t.columns.map((c) => c.text)).toEqual(["Domestic", "International", "Total"]);
+    expect(cells(t)).toEqual([
+      ["Acme", "40", "2", "42"],
+      ["Brill", "3", "No data", "3"],
+    ]);
+  });
+});
