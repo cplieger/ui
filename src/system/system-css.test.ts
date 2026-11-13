@@ -1903,13 +1903,24 @@ describe("css/system.css", () => {
     },
   );
 
-  it("divides an accordion's sections, turns an open one's chevron, and pads its content", () => {
+  // A pseudo-element has no box of its own to measure, so its place is read
+  // from the summary's padding and the chevron's used size and margins.
+  const chevronOf = (summary: Element) => getComputedStyle(summary, "::before");
+  const colourOf = (value: string) =>
+    getComputedStyle(host("", { style: `color: ${value}` })).color;
+  const wordsOf = (summary: Element) => {
+    const words = document.createRange();
+    words.selectNodeContents(summary.firstChild as Text);
+    return words;
+  };
+
+  it("divides an accordion's sections, turns an open one's chevron at the summary's end, and pads its content", () => {
     theme("light");
     const el = build(
       '<div class="cp-accordion" style="inline-size: 24rem">' +
-        '<details open><summary>Season 1<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details>' +
-        '<details open data-cp-closing><summary>Season 2<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>12 episodes</div></details>' +
-        '<details><summary>Specials<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>2 specials</div></details></div>',
+        "<details open><summary>Season 1</summary><div>28 episodes</div></details>" +
+        "<details open data-cp-closing><summary>Season 2</summary><div>12 episodes</div></details>" +
+        "<details><summary>Specials</summary><div>2 specials</div></details></div>",
     );
     const box = el.querySelector(".cp-accordion") as HTMLElement;
     const [open, closing, shut] = [...box.querySelectorAll("details")] as [
@@ -1917,36 +1928,43 @@ describe("css/system.css", () => {
       HTMLDetailsElement,
       HTMLDetailsElement,
     ];
-    const chevron = (d: Element) => d.querySelector("summary > .cp-icon") as HTMLElement;
     const summary = open.querySelector("summary") as HTMLElement;
     const body = open.querySelector("div") as HTMLElement;
-    const raised = build('<span style="color: var(--cp-surface-raised)"></span>')
-      .firstElementChild as HTMLElement;
-    expect(getComputedStyle(box).backgroundColor).toBe(getComputedStyle(raised).color);
+    expect(getComputedStyle(box).backgroundColor).toBe(colourOf("var(--cp-surface-raised)"));
     expect(getComputedStyle(box).borderTopWidth).toBe("1px");
     expect(getComputedStyle(open).borderTopWidth).toBe("0px");
     expect([closing, shut].map((d) => getComputedStyle(d).borderTopWidth)).toEqual(["1px", "1px"]);
     expect(summary.getBoundingClientRect().height).toBeCloseTo(32, 0);
     expect(getComputedStyle(summary).paddingLeft).toBe("16px");
-    expect(getComputedStyle(chevron(open)).rotate).toBe("180deg");
-    expect([closing, shut].map((d) => getComputedStyle(chevron(d)).rotate)).toEqual([
-      "none",
+    expect([getComputedStyle(summary).color, getComputedStyle(summary).listStyleType]).toEqual([
+      colourOf("var(--cp-ink)"),
       "none",
     ]);
-    expect(chevron(open).getBoundingClientRect().right).toBeCloseTo(
-      summary.getBoundingClientRect().right - 16,
+    const chevron = chevronOf(summary);
+    expect(chevron.rotate).toBe("180deg");
+    expect(
+      [closing, shut].map((d) => chevronOf(d.querySelector("summary") as Element).rotate),
+    ).toEqual(["none", "none"]);
+    expect([chevron.width, chevron.height, chevron.color]).toEqual([
+      "18px",
+      "18px",
+      colourOf("var(--cp-ink-muted)"),
+    ]);
+    const s = summary.getBoundingClientRect();
+    const words = wordsOf(summary).getBoundingClientRect();
+    expect(words.left - s.left).toBeCloseTo(16, 0);
+    expect(words.right + 8 + Number.parseFloat(chevron.marginLeft) + 18).toBeCloseTo(
+      s.right - 16,
       0,
     );
-    const muted = build('<span style="color: var(--cp-ink-muted)"></span>')
-      .firstElementChild as HTMLElement;
-    expect(getComputedStyle(body).color).toBe(getComputedStyle(muted).color);
+    expect(getComputedStyle(body).color).toBe(colourOf("var(--cp-ink-muted)"));
     expect(getComputedStyle(body).padding).toBe("0px 16px 16px");
   });
 
   it("draws an accordion summary's focus ring inside it", async () => {
     theme("light");
     const el = build(
-      '<button type="button">Before</button><div class="cp-accordion"><details><summary>Season 1<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details></div>',
+      '<button type="button">Before</button><div class="cp-accordion"><details><summary>Season 1</summary><div>28 episodes</div></details></div>',
     );
     (el.querySelector("button") as HTMLElement).focus();
     await userEvent.tab();
@@ -1955,30 +1973,165 @@ describe("css/system.css", () => {
     expect(getComputedStyle(summary).outlineOffset).toBe("-2px");
   });
 
-  it("puts a section's menu button beside its summary, before the chevron, and wraps a long title short of it", () => {
+  const season = (title: string) =>
+    '<div class="cp-accordion" style="inline-size: 16rem"><div class="cp-accordion-section">' +
+    `<details><summary>${title}<span class="cp-badge" data-variant="quiet">28<span class="cp-visually-hidden"> episodes</span></span></summary><div>28 episodes</div></details>` +
+    '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" popovertarget="season-menu" aria-label="Season 1 actions"><span class="cp-icon" data-cp-icon="ellipsis"></span></button></div></div>' +
+    '<div class="cp-popover cp-menu" id="season-menu" popover role="menu" aria-label="Season actions"><button role="menuitem" type="button">Refresh</button></div>';
+
+  it("puts a section's menu button beside its summary, before the chevron, level with it, and wraps a long title and its count short of it", () => {
     theme("light");
-    const el = build(
-      '<div class="cp-accordion" style="inline-size: 16rem"><div class="cp-accordion-section">' +
-        '<details><summary>Season 1 with a title too long for one line<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details>' +
-        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="Season 1 actions"><span class="cp-icon" data-cp-icon="ellipsis"></span></button></div></div>',
-    );
+    const el = build(season("Season 1 with a title too long for one line"));
     const summary = el.querySelector("summary") as HTMLElement;
-    const button = el.querySelector(".cp-button") as HTMLElement;
-    const chevron = summary.querySelector(".cp-icon") as HTMLElement;
+    const button = el.querySelector(".cp-accordion-section > .cp-button") as HTMLElement;
+    const count = summary.querySelector(".cp-badge") as HTMLElement;
+    const chevron = chevronOf(summary);
     const s = summary.getBoundingClientRect();
     const b = button.getBoundingClientRect();
-    const words = document.createRange();
-    words.selectNodeContents(summary.firstChild as Text);
-    const lines = [...words.getClientRects()];
+    const lines = [...wordsOf(summary).getClientRects()];
     expect(b.top - s.top).toBeCloseTo(3, 0);
     expect(s.right - b.right).toBeCloseTo(40, 0);
-    const c = chevron.getBoundingClientRect();
-    expect(b.right).toBeLessThan(c.left);
-    expect(c.top + c.height / 2).toBeCloseTo(b.top + b.height / 2, 0);
+    expect(b.right).toBeLessThan(s.right - 16 - Number.parseFloat(chevron.width));
+    const chevronMiddle =
+      s.top +
+      Number.parseFloat(getComputedStyle(summary).paddingTop) +
+      Number.parseFloat(chevron.marginTop) +
+      Number.parseFloat(chevron.height) / 2;
+    expect(chevronMiddle).toBeCloseTo(b.top + b.height / 2, 0);
     expect((lines[0] as DOMRect).top - s.top).toBeGreaterThanOrEqual(4);
     expect(lines.length).toBeGreaterThan(1);
     expect(Math.max(...lines.map((r) => r.right))).toBeLessThanOrEqual(b.left);
+    expect(count.getBoundingClientRect().right).toBeLessThanOrEqual(b.left);
     expect(summary.contains(button)).toBe(false);
+  });
+
+  it("opens a section's menu from its button without opening or shutting the section", async () => {
+    theme("light");
+    const el = build(season("Season 1"));
+    const details = el.querySelector("details") as HTMLDetailsElement;
+    await userEvent.click(el.querySelector(".cp-accordion-section > .cp-button") as HTMLElement);
+    expect((el.querySelector("#season-menu") as HTMLElement).matches(":popover-open")).toBe(true);
+    expect(details.open).toBe(false);
+  });
+
+  const lone = (attrs = "", dir = "ltr") =>
+    `<div dir="${dir}"><details ${attrs}><summary>What changed</summary><p>Replaced the web release.</p></details></div>`;
+
+  it("draws a lone details' summary in the accent, its chevron before the words pointing where they run and turning down while open", () => {
+    theme("light");
+    const el = build(
+      lone() + lone("open") + lone("open data-cp-closing") + lone("", "rtl") + lone("open", "rtl"),
+    );
+    const summaries = [...el.querySelectorAll("summary")] as [HTMLElement, ...HTMLElement[]];
+    expect(summaries.map((s) => chevronOf(s).rotate)).toEqual([
+      "-90deg",
+      "none",
+      "-90deg",
+      "90deg",
+      "none",
+    ]);
+    const [ltr] = summaries;
+    const rtl = summaries[3] as HTMLElement;
+    const style = getComputedStyle(ltr);
+    expect([style.color, style.display, style.listStyleType, style.cursor]).toEqual([
+      colourOf("var(--cp-accent-11)"),
+      "flex",
+      "none",
+      "pointer",
+    ]);
+    const chevron = chevronOf(ltr);
+    expect([chevron.width, chevron.height, chevron.backgroundColor]).toEqual([
+      "14px",
+      "14px",
+      style.color,
+    ]);
+    expect(
+      wordsOf(ltr).getBoundingClientRect().left - ltr.getBoundingClientRect().left,
+    ).toBeCloseTo(18, 0);
+    expect(ltr.getBoundingClientRect().width).toBeCloseTo(
+      18 + wordsOf(ltr).getBoundingClientRect().width,
+      0,
+    );
+    expect(
+      rtl.getBoundingClientRect().right - wordsOf(rtl).getBoundingClientRect().right,
+    ).toBeCloseTo(18, 0);
+    const body = el.querySelectorAll("p")[1] as HTMLElement;
+    expect(
+      body.getBoundingClientRect().top -
+        (summaries[1] as HTMLElement).getBoundingClientRect().bottom,
+    ).toBeCloseTo(8, 0);
+  });
+
+  for (const [tier, reach] of [
+    ["fine", 24],
+    ["coarse", 44],
+  ] as const) {
+    it(`reaches a lone details' summary to ${String(reach)}px under a ${tier} pointer`, () => {
+      theme("light");
+      root.dataset["pointer"] = tier;
+      const el = build(lone());
+      const hit = getComputedStyle(el.querySelector("summary") as Element, "::after");
+      expect([hit.position, hit.height]).toEqual(["absolute", `${String(reach)}px`]);
+    });
+  }
+
+  it("gives a details inside an accordion section's content the inline form", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-accordion"><details open><summary>Season 1</summary><div>' +
+        "<details><summary>What changed</summary><p>Replaced</p></details></div></details></div>",
+    );
+    const inner = el.querySelectorAll("summary")[1] as HTMLElement;
+    expect([getComputedStyle(inner).color, getComputedStyle(inner).fontWeight]).toEqual([
+      colourOf("var(--cp-accent-11)"),
+      getComputedStyle(el.querySelector("div > details > div") as Element).fontWeight,
+    ]);
+    expect([chevronOf(inner).rotate, chevronOf(inner).width]).toEqual(["-90deg", "14px"]);
+  });
+
+  it("leaves the context panel's, a history's and a state history's summaries to their own rules", () => {
+    theme("light");
+    const el = build(
+      '<details class="cp-context-panel"><summary>Reservations</summary><section></section></details>' +
+        '<div class="cp-history"><ol><li><span><details><summary><span class="cp-icon" data-cp-icon="chevron-right"></span>What changed</summary><p>Replaced</p></details></span></li></ol></div>' +
+        '<div class="cp-state-history"><details><summary>Show as a table</summary><div class="cp-panel"></div></details></div>',
+    );
+    const [panel, history, states] = [...el.querySelectorAll("summary")] as [
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect([chevronOf(panel).content, chevronOf(history).content]).toEqual(["none", "none"]);
+    expect(getComputedStyle(panel).color).toBe(colourOf("var(--cp-ink)"));
+    expect(chevronOf(states).rotate).toBe("none");
+  });
+
+  it.skipIf(!emulates)("paints both forms' chevrons in forced colours", async () => {
+    theme("light");
+    await media("forced-colors", "active");
+    const el = build(
+      lone() +
+        '<div class="cp-accordion"><details><summary>Season 1</summary><div>28</div></details></div>',
+    );
+    const canvasText = getComputedStyle(
+      host("", { style: "background-color: CanvasText" }),
+    ).backgroundColor;
+    expect([...el.querySelectorAll("summary")].map((s) => chevronOf(s).backgroundColor)).toEqual([
+      canvasText,
+      canvasText,
+    ]);
+  });
+
+  it.skipIf(!emulates)("turns both forms' chevrons at once under reduced motion", async () => {
+    theme("light");
+    await media("prefers-reduced-motion", "reduce");
+    const el = build(
+      lone() +
+        '<div class="cp-accordion"><details><summary>Season 1</summary><div>28</div></details></div>',
+    );
+    expect([...el.querySelectorAll("summary")].map((s) => chevronOf(s).transitionProperty)).toEqual(
+      ["none", "none"],
+    );
   });
 
   for (const t of ["light", "dark"] as const) {

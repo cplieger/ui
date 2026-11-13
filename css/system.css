@@ -7130,7 +7130,86 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* An accordion: native <details> in one raised box, divided by lines. A
+/* The disclosure look: a native <details> in one of two forms with one
+ * chevron, drawn pointing down and turned by the form. Inline, here: the
+ * summary is an accent line with the chevron before its words. Boxed: the
+ * sections of a .cp-accordion (accordion.css). The context panel, a
+ * history's events and a state history still draw their own summaries, so
+ * they are left out. disclosure.ts keeps a closing section open, marked
+ * data-cp-closing, so the chevron turns back as the press lands. */
+:where(.cp details:not(.cp-context-panel, .cp-history details, .cp-state-history > details)) {
+  & > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  & > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  & > summary::before {
+    content: "";
+    flex: none;
+    inline-size: 0.875rem;
+    block-size: 0.875rem;
+    background: currentcolor;
+    mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
+    transition: rotate var(--cp-dur-short) var(--cp-ease-out);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    @media (forced-colors: active) {
+      background: CanvasText;
+    }
+  }
+
+  &:where(:not(:is(.cp-accordion, .cp-accordion-section) > details)) {
+    /* Block level, so no line box adds space under it, and as wide as its
+     * words, so only they and the chevron answer a press. */
+    & > summary {
+      position: relative;
+      display: flex;
+      align-items: center;
+      inline-size: fit-content;
+      gap: 0.25rem;
+      color: var(--cp-accent-11);
+    }
+
+    /* The summary keeps its line, so its hit area reaches past it, sized
+     * rather than inset so it never snaps under the minimum. */
+    & > summary::after {
+      content: "";
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline: 0;
+      block-size: var(--cp-hit-min);
+      translate: 0 -50%;
+    }
+
+    /* Shut, the chevron points where the words run, so it turns the other
+     * way right to left. */
+    & > summary::before {
+      rotate: -90deg;
+    }
+
+    & > summary:where(:dir(rtl))::before {
+      rotate: 90deg;
+    }
+
+    &:where([open]:not([data-cp-closing])) > summary::before {
+      rotate: none;
+    }
+
+    & > summary + * {
+      margin-block-start: var(--cp-space-2);
+    }
+  }
+}
+
+/* An accordion: native <details> in one raised box, divided by lines, the
+ * boxed form of the disclosure look, whose chevron disclosure.css draws. A
  * section with its own menu is a .cp-accordion-section holding the details
  * and the menu's button, which sits beside the summary and not in it, so
  * pressing it never opens or shuts the section. */
@@ -7145,7 +7224,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   border-block-start: var(--cp-line-w) solid var(--cp-line);
 }
 
-.cp-accordion summary {
+:is(.cp-accordion, .cp-accordion-section) > details > summary {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
@@ -7153,35 +7232,31 @@ th[aria-sort="descending"] > .cp-sort::after {
   padding: var(--cp-space-1) var(--cp-space-4);
   border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
   font-weight: var(--cp-weight-medium);
-  cursor: pointer;
-  list-style: none;
-}
-
-.cp-accordion summary::-webkit-details-marker {
-  display: none;
 }
 
 /* A summary spans the box, so its ring is drawn inside it. */
-.cp-accordion summary:focus-visible {
+:is(.cp-accordion, .cp-accordion-section) > details > summary:focus-visible {
   outline-offset: calc(-1 * var(--cp-focus-w));
 }
 
-/* The chevron stays by a wrapped title's first line, level with a menu
- * button. It turns as the press lands, shutting included: disclosure.ts
- * keeps a closing section open, marked data-cp-closing, while it glides. */
-.cp-accordion summary > .cp-icon:last-child {
+/* The chevron ends the summary, by a wrapped title's first line and level
+ * with a menu button. */
+:is(.cp-accordion, .cp-accordion-section) > details > summary::before {
   align-self: start;
+  order: 2;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
   margin-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2 - var(--cp-space-1));
   margin-inline-start: auto;
   color: var(--cp-ink-muted);
-  transition: rotate 200ms var(--cp-ease-out);
+  transition-duration: 200ms;
 }
 
-:where(.cp-accordion) details[open]:not([data-cp-closing]) > summary > .cp-icon:last-child {
+:is(.cp-accordion, .cp-accordion-section) > details[open]:not([data-cp-closing]) > summary::before {
   rotate: 180deg;
 }
 
-.cp-accordion details > summary + * {
+:is(.cp-accordion, .cp-accordion-section) > details > summary + * {
   padding: 0 var(--cp-space-4) var(--cp-space-4);
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
@@ -7214,8 +7289,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   margin-inline-start: auto;
 }
 
-.cp-accordion-section > details > summary > .cp-icon:last-child {
-  order: 2;
+.cp-accordion-section > details > summary::before {
   margin-inline-start: 0;
 }
 

@@ -3,6 +3,7 @@
  * on the library's modules.
  */
 
+import { enhanceDisclosure } from "@cplieger/ui/disclosure";
 import { enhanceTabs } from "@cplieger/ui/tabs";
 
 // Tabs as links under a router: a press moves aria-current in place, as an
@@ -16,4 +17,8 @@ for (const nav of document.querySelectorAll<HTMLElement>("nav.cp-tabs[data-tabs-
       tabs.select(link);
     }
   });
+}
+
+for (const details of document.querySelectorAll<HTMLDetailsElement>("[data-disclosures] details")) {
+  enhanceDisclosure(details);
 }

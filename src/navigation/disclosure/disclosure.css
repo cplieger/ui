@@ -1,0 +1,77 @@
+/* The disclosure look: a native <details> in one of two forms with one
+ * chevron, drawn pointing down and turned by the form. Inline, here: the
+ * summary is an accent line with the chevron before its words. Boxed: the
+ * sections of a .cp-accordion (accordion.css). The context panel, a
+ * history's events and a state history still draw their own summaries, so
+ * they are left out. disclosure.ts keeps a closing section open, marked
+ * data-cp-closing, so the chevron turns back as the press lands. */
+:where(.cp details:not(.cp-context-panel, .cp-history details, .cp-state-history > details)) {
+  & > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  & > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  & > summary::before {
+    content: "";
+    flex: none;
+    inline-size: 0.875rem;
+    block-size: 0.875rem;
+    background: currentcolor;
+    mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
+    transition: rotate var(--cp-dur-short) var(--cp-ease-out);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    @media (forced-colors: active) {
+      background: CanvasText;
+    }
+  }
+
+  &:where(:not(:is(.cp-accordion, .cp-accordion-section) > details)) {
+    /* Block level, so no line box adds space under it, and as wide as its
+     * words, so only they and the chevron answer a press. */
+    & > summary {
+      position: relative;
+      display: flex;
+      align-items: center;
+      inline-size: fit-content;
+      gap: 0.25rem;
+      color: var(--cp-accent-11);
+    }
+
+    /* The summary keeps its line, so its hit area reaches past it, sized
+     * rather than inset so it never snaps under the minimum. */
+    & > summary::after {
+      content: "";
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline: 0;
+      block-size: var(--cp-hit-min);
+      translate: 0 -50%;
+    }
+
+    /* Shut, the chevron points where the words run, so it turns the other
+     * way right to left. */
+    & > summary::before {
+      rotate: -90deg;
+    }
+
+    & > summary:where(:dir(rtl))::before {
+      rotate: 90deg;
+    }
+
+    &:where([open]:not([data-cp-closing])) > summary::before {
+      rotate: none;
+    }
+
+    & > summary + * {
+      margin-block-start: var(--cp-space-2);
+    }
+  }
+}

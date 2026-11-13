@@ -76,6 +76,7 @@ layout/context-panel/context-panel.css
 navigation/rail/filters.css
 navigation/tabs/tabs.css
 forms/segmented/segmented.css
+navigation/disclosure/disclosure.css
 navigation/accordion/accordion.css
 feedback/progress/progress.css
 feedback/track/track.css

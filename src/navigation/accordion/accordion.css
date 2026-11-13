@@ -1,4 +1,5 @@
-/* An accordion: native <details> in one raised box, divided by lines. A
+/* An accordion: native <details> in one raised box, divided by lines, the
+ * boxed form of the disclosure look, whose chevron disclosure.css draws. A
  * section with its own menu is a .cp-accordion-section holding the details
  * and the menu's button, which sits beside the summary and not in it, so
  * pressing it never opens or shuts the section. */
@@ -13,7 +14,7 @@
   border-block-start: var(--cp-line-w) solid var(--cp-line);
 }
 
-.cp-accordion summary {
+:is(.cp-accordion, .cp-accordion-section) > details > summary {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
@@ -21,35 +22,31 @@
   padding: var(--cp-space-1) var(--cp-space-4);
   border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
   font-weight: var(--cp-weight-medium);
-  cursor: pointer;
-  list-style: none;
-}
-
-.cp-accordion summary::-webkit-details-marker {
-  display: none;
 }
 
 /* A summary spans the box, so its ring is drawn inside it. */
-.cp-accordion summary:focus-visible {
+:is(.cp-accordion, .cp-accordion-section) > details > summary:focus-visible {
   outline-offset: calc(-1 * var(--cp-focus-w));
 }
 
-/* The chevron stays by a wrapped title's first line, level with a menu
- * button. It turns as the press lands, shutting included: disclosure.ts
- * keeps a closing section open, marked data-cp-closing, while it glides. */
-.cp-accordion summary > .cp-icon:last-child {
+/* The chevron ends the summary, by a wrapped title's first line and level
+ * with a menu button. */
+:is(.cp-accordion, .cp-accordion-section) > details > summary::before {
   align-self: start;
+  order: 2;
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
   margin-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2 - var(--cp-space-1));
   margin-inline-start: auto;
   color: var(--cp-ink-muted);
-  transition: rotate 200ms var(--cp-ease-out);
+  transition-duration: 200ms;
 }
 
-:where(.cp-accordion) details[open]:not([data-cp-closing]) > summary > .cp-icon:last-child {
+:is(.cp-accordion, .cp-accordion-section) > details[open]:not([data-cp-closing]) > summary::before {
   rotate: 180deg;
 }
 
-.cp-accordion details > summary + * {
+:is(.cp-accordion, .cp-accordion-section) > details > summary + * {
   padding: 0 var(--cp-space-4) var(--cp-space-4);
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
@@ -82,7 +79,6 @@
   margin-inline-start: auto;
 }
 
-.cp-accordion-section > details > summary > .cp-icon:last-child {
-  order: 2;
+.cp-accordion-section > details > summary::before {
   margin-inline-start: 0;
 }

@@ -1117,66 +1117,6 @@ for (const [n, host] of $$(".g-shell[data-frame-name]").entries()) {
 
 
 // ===================================================== motion helpers
-// Heights glide in script, so every engine animates them: CSS can take a
-// height to auto only where interpolate-size ships.
-const glideMs = () => (reduced() ? 0 : 240);
-function glideHeight(node, from, to, done) {
-  // fill:forwards holds the end height until the caller commits open/closed;
-  // without it the close animation reverts to the still-open natural height
-  // for one frame before open=false, which reads as a jump back then a delay.
-  const run = node.animate([{ blockSize: `${from}px`, overflow: "clip" }, { blockSize: `${to}px`, overflow: "clip" }], { duration: glideMs(), easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "forwards" });
-  run.onfinish = () => {
-    done?.();
-    run.cancel();
-  };
-  return run;
-}
-
-// A details opens and closes by gliding its height, the group's others
-// closing as one opens; the open state flips after a close, so the content
-// stays drawn while it shrinks.
-function glideDetails(d) {
-  const sum = $("summary", d);
-  let run = null;
-  // Exclusivity is managed here, not by the browser's <details name> group:
-  // while a sibling is gliding shut it is still open, and restoring the
-  // clicked panel's name made the native group force-close the just-opened
-  // one, so a second click only closed the first. Lift the name and group in
-  // JS by its original value instead.
-  const group = d.getAttribute("name");
-  if (group) {
-    d.removeAttribute("name");
-    d.dataset.group = group;
-  }
-  const shut = (x, after) => {
-    const from = x.getBoundingClientRect().height;
-    const to = $("summary", x).getBoundingClientRect().height;
-    x.dataset.closing = "";
-    x.glide?.cancel();
-    x.glide = glideHeight(x, from, to, () => {
-      delete x.dataset.closing;
-      x.open = false;
-      after?.();
-    });
-  };
-  sum.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (d.open && d.dataset.closing === undefined) return shut(d);
-    const from = d.getBoundingClientRect().height;
-    delete d.dataset.closing;
-    d.glide?.cancel();
-    const now = d.dataset.group;
-    if (now) {
-      for (const o of $$(`details[data-group="${now}"]`)) if (o !== d && o.open) shut(o);
-    }
-    d.open = true;
-    const to = d.getBoundingClientRect().height;
-    d.glide = glideHeight(d, from, to);
-  });
-  void run;
-}
-for (const d of $$("details:not(.cp-accordion details, .cp-context-panel, .cp-history details)")) glideDetails(d);
-
 // A dialog's exit: Chromium animates it in CSS (overlay and display allow
 // discrete); an engine that cannot gets the same fade or slide in script
 // before the dialog really closes.
