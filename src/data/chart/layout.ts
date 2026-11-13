@@ -31,6 +31,7 @@ import {
   BUBBLE_RADIUS_NARROW,
   dayBox,
   dotRadius,
+  OUTLIER_RADIUS,
   POINT_RADIUS,
   ruleXs,
   SCATTER_RADIUS,
@@ -186,6 +187,9 @@ const SPINE = 8;
  *  selection ring's reach, 1 px off a dot with its 2 px stroke, so a dot at
  *  the domain's end draws whole, ring and all, inside the plot's clip. */
 const POINT_INSET = POINT_RADIUS + 2;
+/** A box plot's x runs this far inside each end of the plot, so an outlier
+ *  at the domain's end draws whole, stroke and all, inside the plot's clip. */
+const BOX_INSET = OUTLIER_RADIUS + 1;
 /** A scatter's x and y run this far inside the plot's edges, by the same
  *  rule, so a dot at a niced domain's end draws whole, clear of the axes;
  *  a bubble chart's by its largest bubble's radius in its place. */
@@ -844,7 +848,13 @@ export function layout(
   const gap = mirror ? SPINE : PANEL_GAP;
   const panelW = Math.max(1, (plotW - (count - 1) * gap) / count);
   const flip = reverse && !panelled;
-  const inset = points ? POINT_INSET : scatter === undefined ? 0 : scatterInset(scatter, bubble);
+  const inset = points
+    ? POINT_INSET
+    : boxes !== undefined
+      ? BOX_INSET
+      : scatter === undefined
+        ? 0
+        : scatterInset(scatter, bubble);
   if (panelled) {
     roomRight = Math.max(roomLeft, roomRight);
     roomLeft = 0;

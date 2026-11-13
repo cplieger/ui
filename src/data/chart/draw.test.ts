@@ -2129,6 +2129,24 @@ describe("a heatmap's selection and colour key", () => {
     }
     expect(key?.querySelector('[data-part="none"]')).toBeNull();
   });
+
+  it("keeps a diverging key's pivot when its crowded thresholds thin to the ends", () => {
+    const { key } = keyed({
+      colour: {
+        type: "diverging",
+        steps: 7,
+        format: {
+          style: "unit",
+          unit: "celsius",
+          maximumFractionDigits: 1,
+          signDisplay: "exceptZero",
+        },
+      },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-2.6, 2.5]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["-2.5°C", "0°C", "+2.5°C"]);
+  });
 });
 
 describe("a 2D histogram", () => {

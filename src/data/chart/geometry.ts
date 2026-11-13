@@ -1039,7 +1039,7 @@ const MEDIAN_REACH = 3;
 /** The median tick's width; the box is cut `GAP` wider each side of it. */
 const MEDIAN_W = 2;
 /** An outlier's radius, under its 1.5 px stroke in `chart.css`. */
-const OUTLIER_RADIUS = 3;
+export const OUTLIER_RADIUS = 3;
 
 /** The px across a row that `m`'s boxes take: one box, or a sub-row each. */
 export const boxBlock = (m: BoxModel): number => BOX * m.series.length;

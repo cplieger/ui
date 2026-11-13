@@ -659,6 +659,11 @@ function bdi(text: string): HTMLElement {
   return el;
 }
 
+// A slot of the row itself never holds more than the row's width, so a long
+// place, such as a 2D histogram's two bins, wraps on a phone instead of
+// widening the page. min() since a min-inline-size beats any max.
+const rowHeld = (px: number): string => `min(${num(px)}px, 100%)`;
+
 /**
  * Builds the legend row's entries for readings shaped like `reading`: the
  * x slot, a chip per named series with its swatch, a bare value for a lone
@@ -673,15 +678,16 @@ export function frameLegend(
   chooses = false,
 ): void {
   const at = span("at");
-  at.style.minInlineSize = `${num(widths.at)}px`;
+  at.style.minInlineSize = rowHeld(widths.at);
   const parts: HTMLElement[] = [at];
   reading.entries.forEach((e, k) => {
     const value = span("value");
-    value.style.minInlineSize = `${num(widths.values[k] ?? 0)}px`;
     if (e.name === undefined) {
+      value.style.minInlineSize = rowHeld(widths.values[k] ?? 0);
       parts.push(value);
       return;
     }
+    value.style.minInlineSize = `${num(widths.values[k] ?? 0)}px`;
     const chip = document.createElement("span");
     chip.className = "cp-chip";
     chip.dataset["series"] = String(e.slot ?? 1);
@@ -754,8 +760,9 @@ const GAP_PX = 1;
 const KEY_LABEL_GAP = 4;
 
 // The labels of `at` (centres in px) whose `widths` keep KEY_LABEL_GAP
-// apart: all, every second from the first, or the first and last.
-function thinned(at: readonly number[], widths: readonly number[]): number[] {
+// apart: all, every second from the first, or the first and last, each with
+// `kept`, a diverging key's pivot, which no thinning drops.
+function thinned(at: readonly number[], widths: readonly number[], kept?: number): number[] {
   const clear = (keep: readonly number[]) =>
     keep.every((k, j) => {
       const prev = keep[j - 1];
@@ -766,9 +773,11 @@ function thinned(at: readonly number[], widths: readonly number[]): number[] {
       );
     });
   const all = at.map((_, k) => k);
-  const second = all.filter((k) => k % 2 === 0);
   const ends = all.length < 2 ? all : [0, all.length - 1];
-  return [all, second].find(clear) ?? (clear(ends) ? ends : ends.slice(0, 1));
+  const tries = [all, all.filter((k) => k % 2 === 0), ends].map((keep) =>
+    kept === undefined || keep.includes(kept) ? keep : [...keep, kept].sort((a, b) => a - b),
+  );
+  return tries.find(clear) ?? (kept === undefined ? ends.slice(0, 1) : [kept]);
 }
 
 function swatchSvg(width: number): SVGElement {
@@ -832,14 +841,16 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
     text: model.colourText(t),
   }));
   const pivot = model.spec.colour?.pivot ?? 0;
+  let kept: number | undefined;
   if (classes.type === "diverging" && n % 2 === 1 && model.spec.colour?.thresholds === undefined) {
-    const middle = (n - 1) / 2;
-    marks.splice(middle, 0, { at: x(middle) + SWATCH_W / 2, text: model.colourText(pivot) });
+    kept = (n - 1) / 2;
+    marks.splice(kept, 0, { at: x(kept) + SWATCH_W / 2, text: model.colourText(pivot) });
   }
   const labels = span("thresholds");
   const keep = thinned(
     marks.map((t) => t.at),
     marks.map((t) => measure.number(t.text)),
+    kept,
   );
   for (const k of keep) {
     const t = marks[k];

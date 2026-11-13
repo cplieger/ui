@@ -1225,4 +1225,10 @@ describe("a box plot", () => {
     expect(one.yLabels[1]).toEqual({ text: "export", x: 0, y: 44 + 9, anchor: "start" });
     expect(lay(latency(2), 320).frame.height).toBe(240);
   });
+
+  it("runs x 4 px inside each end, so an outlier at the domain's end draws whole", () => {
+    const l = lay(latency(), 600);
+    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(4);
+    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 4);
+  });
 });
