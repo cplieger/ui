@@ -1,0 +1,95 @@
+# list-row
+
+`@cplieger/ui/list-row`
+
+The list: one element for every set of items a person scans, picks or opens, such as conversations, problems, jobs, the day's history, uploaded files, a rail's filters, a settings page's categories and a library's posters. A `.cp-list` holds `li` items, each holding one `.cp-list-row`. The list's attributes set what every row in it looks like, and each row fills the same slots: a lead, a body, an end and a part under them. Entries a person reads, such as messages, are a [feed](feed.md), and values compared down columns are a [table](table.md).
+
+```html
+<h3 class="cp-list-heading">Today</h3>
+<ul class="cp-list" aria-label="Conversations">
+  <li>
+    <a class="cp-list-row" href="/c/ui" aria-current="page" data-unread>
+      <span class="cp-avatar" data-harmony="3">UI</span>
+      <span class="cp-cell-stack">
+        <span class="cp-truncate cp-mono" data-cut="start">/workspace/ui</span>
+        <small class="cp-truncate">@kiro: the list system</small>
+      </span>
+      <span data-part="end">
+        <time datetime="2026-11-13T09:12:00Z">09:12</time>
+        <span class="cp-cluster"><span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> unread</span></span></span>
+      </span>
+    </a>
+  </li>
+  <li class="cp-list-foot"><button class="cp-button" data-size="sm" type="button">Show older</button></li>
+</ul>
+```
+
+```ts
+import { markKept } from "@cplieger/ui/list-row";
+
+markKept(row, { from: walk.lastComplete, reason: "Sonarr walk partial" });
+markKept(row, null); // fresh again
+```
+
+## The list's attributes
+
+Each one is set on the `.cp-list` and applies to every row in it.
+
+| Attribute | Values | Default | What it does |
+| --- | --- | --- | --- |
+| `data-density` | `compact`, `tall` | regular | Row height. Regular rows are 3.25rem with an icon, an avatar or a small cover. `compact` rows are a small control tall (a full control under a finger), with an icon, a swatch, a dot or a box as their lead, as a rail's filters and a popup's options are. `tall` rows are 4.5rem with a 3rem cover, for a list of posters. |
+| `data-surface` | `plain` | raised | `plain` drops the list's box, border and corners, so the list sits in a rail, a popover, a dialog or a panel. |
+| `data-divider` | `none` | line | `none` drops the line between rows and gives each row the control's corners for its fill, as a rail draws its rows. |
+| `data-layout` | `grid` | rows | `grid` lays the rows out as tiles in columns: the cover on top, the title and facts under it. A library's List and Grid views are this one attribute, switched by a `.cp-segmented[data-variant="icons"]`. |
+| `data-variant` | `timeline` | none | Each row's lead is a round mark in its tone, and a line joins the marks, as a history of events is drawn. |
+| `aria-busy` | `true` | | The list is loading: its rows are skeletons (`data-skeleton`). |
+
+## The row's slots
+
+- **Lead**, the first child, optional, sized by the list's density: a `.cp-icon` (in its `data-tone`'s colour when it has one), a `[data-part="mark"]` (the timeline's round mark holding a glyph), a `.cp-avatar`, a `.cp-cover`, a `.cp-swatch` or `.cp-dot`, a checkbox for a list whose rows are chosen, or the [reorder](reorder.md) handle and rank.
+- **Body**, a `.cp-cell-stack`: the title, then up to two lines (`<small>` or `.cp-meta`). A line in a `.cp-truncate` is cut at the row's edge, and a `.cp-truncate[data-cut="start"]` is cut at its start, so the end of a path or a name stays in view ("…/marotte/web"). Its full text stays in the page for a screen reader, and `data-cp-tip` shows it on hover.
+- **End**, a `[data-part="end"]`: a `<time>` over a `.cp-cluster` of counts (a `.cp-meta` with its icon, a `.cp-badge`) and a `.cp-state`. After the end, at most one of: one worded action (`.cp-button[data-size="sm"]`), one ⋯ button that opens the row's `.cp-menu` of actions, or a chevron for a row that opens a page.
+- **Under**, optional: a direct `<progress>`, `.cp-track-compact` or `<details>` child spans the row under its text, such as a running job's bar.
+- **Sentences**: `data-lines="wrap"` on the row lets its body run to paragraphs, such as a problem, with its `<time>` under them. From 40rem wide the row shows the exact time beside the relative one, in the locale's words.
+
+## The row as a target
+
+- `a.cp-list-row` or `button.cp-list-row` when the whole row opens or picks one thing.
+- Else a `div.cp-list-row` that holds at most a title link and the end's one action or ⋯ button, and nothing else that takes a click.
+
+## The row's states
+
+- `aria-current="page"` marks the open row of a list that navigates, `aria-pressed="true"` a filter that is on, and `aria-selected="true"` a chosen option. The three share one look: the selected wash with the accent's darkest ink, and a quiet count badge in the end turns solid in the accent.
+- `data-unread` sets the title in the heading weight.
+- `data-kept` (from `markKept`) and `data-ended` set the row in muted ink, which still passes AA.
+- `data-skeleton` draws the row as a loading placeholder.
+- An item whose own work is under way, done or failed carries the `.cp-state[data-cp-state]` mark in its end, with Retry as the row's one action when it failed.
+
+## Groups and markers
+
+- A group is a `.cp-list-heading` followed by its own `.cp-list`, such as one list per day.
+- `.cp-since` is the "New since your last visit" line, which a list or a feed holds as an item at the place the new rows start.
+- `.cp-list-foot` is the list's last item, holding one action for the whole list, such as Show older (see [load-more](load-more.md)).
+
+## What each case writes
+
+- **A conversation**: `a.cp-list-row` with an avatar, a title cut at its start, a preview line, and an end of the time over the participants and a quiet unread badge, as above.
+- **A rail's filters, a settings page's categories**: `ul.cp-list[data-surface="plain"][data-divider="none"][data-density="compact"]` of `a.cp-list-row[aria-current="page"]` for one choice written to the URL, or `button.cp-list-row[aria-pressed]` for filters that are on or off each, with the count in the end.
+- **A problem**: `div.cp-list-row[data-lines="wrap"]` with a toned `.cp-icon`, a body of `<p>` and `<time>`, and the link to its fix; a `.cp-state` in the end for its kind.
+- **A history event**: `ol.cp-list[data-variant="timeline"][data-surface="plain"]` under a `.cp-list-heading` for the day, each row `data-lines="wrap"` with its mark, its words, its time in the end and an optional `<details>`.
+- **A running job**: `div.cp-list-row` with its kind and scope, its Stop button and a `<progress>` child; ended, `data-ended` and a `.cp-state` for its outcome.
+- **A file**: `ul.cp-list[data-density="compact"]` of `div.cp-list-row` with a `file-text` icon, the name, and its size in the end; an upload's state in the end.
+- **A library in grid view**: `ul.cp-list[data-layout="grid"]` of `a.cp-list-row` with a `.cp-cover` and a body of the title and its facts; the list view is the same items in a `data-density="tall"` list.
+
+## Behaviours over any list
+
+- [held-list](held-list.md) holds changes while the reader is in the list and offers them with a count.
+- [keyed-list](keyed-list.md) keeps rows keyed through live updates, with focus and the reader's place kept, and draws only the rows in view of a long list.
+- [load-more](load-more.md) adds the next page before the list's foot.
+- [reorder](reorder.md) moves rows by handle and keys; [roving-focus](../core/roving-focus.md) gives a list one Tab stop and arrow keys; [relative-time](relative-time.md) keeps each `<time>` current.
+
+## API
+
+- `markKept(row, kept, opts?)` marks an `li`, a `.cp-list-row` or a `tr` kept: `kept` = `{ from, reason }`, where `from` is a `Date` or ms since the epoch. The row's visible `small` and `.cp-meta` lines in its first `.cp-cell-stack` give way to a `small.cp-kept` line, "Kept from 03:00: Sonarr walk partial", whose clock the stylesheet draws; a row with none takes the line at its end, or in its first cell for a table row. Null marks it fresh again and shows the lines it hid. It throws a `TypeError` for an invalid date.
+- `KeptOptions` = `{ words?, locale? }`. `words(time, reason)` gives the line. `locale` is a BCP 47 language tag for the time, by default the browser's. The time is the time of day when it is today's, "03:00", and the date with the time on another day, "9 Nov 2026, 03:00".
+- The module does nothing when it is imported.
