@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { chartModel, drawnTotal, drawnValue, sampleValue } from "./model.js";
+import {
+  chartModel,
+  drawnTotal,
+  drawnValue,
+  pointLink,
+  sampleValue,
+  type PointModel,
+} from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 
 const build = (spec: unknown) => chartModel(spec as ChartSpec, "en", "UTC");
@@ -270,7 +277,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area or dot mark and any rules",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar or point mark and any rules",
     );
   });
 
@@ -629,5 +636,566 @@ describe("an area stacked to 100%", () => {
     expect(() =>
       build({ x: {}, marks: [area([[1], [2]], { arrange: "group" as "stack" })] }),
     ).toThrow('renderChart: marks[0].arrange must be "stack" or "share"');
+  });
+});
+
+const bars = (
+  values: readonly (number | null)[],
+  more: Partial<Extract<Mark, { mark: "bar" }>> = {},
+): Mark => ({
+  mark: "bar",
+  y: values.map((_, i) => `c${String(i)}`),
+  series: [{ name: "a", x: values }],
+  ...more,
+});
+
+const shareBars = (
+  a: (number | null)[],
+  b: (number | null)[],
+  more: Partial<Extract<Mark, { mark: "bar" }>> = {},
+): Mark => ({
+  mark: "bar",
+  y: a.map((_, i) => `c${String(i)}`),
+  arrange: "share",
+  series: [
+    { name: "p", x: a },
+    { name: "q", x: b },
+  ],
+  ...more,
+});
+
+describe("the bar mark", () => {
+  it.each([
+    ["a y of numbers", { x: {}, marks: [bars([1], { y: [1] as unknown as string[] })] }, TypeError],
+    [
+      "a series without x",
+      { x: {}, marks: [{ mark: "bar", y: ["a"], series: [{ name: "a" }] }] },
+      TypeError,
+    ],
+    ["an x shorter than its y", { x: {}, marks: [bars([1], { y: ["a", "b"] })] }, TypeError],
+    [
+      "labels that are not a boolean",
+      { x: {}, marks: [bars([1], { labels: 1 as unknown as boolean })] },
+      TypeError,
+    ],
+    [
+      "an arrange it does not draw",
+      { x: {}, marks: [bars([1], { arrange: "side" as "stack" })] },
+      TypeError,
+    ],
+    ["an empty name", { x: {}, marks: [bars([1], { y: [""] })] }, RangeError],
+    ["a repeated name", { x: {}, marks: [bars([1, 2], { y: ["a", "a"] })] }, RangeError],
+    ["an infinite x", { x: {}, marks: [bars([Number.POSITIVE_INFINITY])] }, RangeError],
+    ["a log x", { x: { type: "log" }, marks: [bars([1])] }, TypeError],
+    ["a time x", { x: { type: "time" }, marks: [bars([1])] }, TypeError],
+    ["zero false", { x: { zero: false }, marks: [bars([1])] }, TypeError],
+    ["an x domain without 0", { x: { domain: [1, 5] }, marks: [bars([2])] }, RangeError],
+    ["a linear y", { x: {}, y: { type: "linear" }, marks: [bars([1])] }, TypeError],
+    ["a y domain", { x: {}, y: { domain: [0, 1] }, marks: [bars([1])] }, TypeError],
+    ["a height", { x: {}, height: 200, marks: [bars([1])] }, TypeError],
+    [
+      "a height under dot rows",
+      { x: {}, height: 200, marks: [{ mark: "dot", rows: [] }] },
+      TypeError,
+    ],
+    ["a y rule", { x: {}, marks: [bars([1]), { mark: "rule", y: 1, label: "Cap" }] }, TypeError],
+    ["a bar beside a rect", { x: {}, marks: [rect([1]), bars([1])] }, TypeError],
+    ["a share of one series", { x: {}, marks: [bars([1], { arrange: "share" })] }, TypeError],
+    ["labels under a share", { x: {}, marks: [shareBars([1], [2], { labels: true })] }, TypeError],
+    [
+      "labels off under a share",
+      { x: {}, marks: [shareBars([1], [2], { labels: false })] },
+      TypeError,
+    ],
+    ["a negative x under a share", { x: {}, marks: [shareBars([1], [-2])] }, RangeError],
+    [
+      "a negative x under a split",
+      { x: {}, marks: [shareBars([1], [-2], { arrange: "split" })] },
+      RangeError,
+    ],
+    [
+      "a negative x under a split of one series",
+      { x: {}, marks: [bars([1, -2], { arrange: "split" })] },
+      RangeError,
+    ],
+    [
+      "a below slot that is not a number",
+      {
+        x: {},
+        marks: [
+          { mark: "bar", y: ["a"], series: [{ name: "a", below: "2" as unknown as 2, x: [-1] }] },
+        ],
+      },
+      TypeError,
+    ],
+    [
+      "a below slot of 10",
+      {
+        x: {},
+        marks: [{ mark: "bar", y: ["a"], series: [{ name: "a", below: 10 as 2, x: [-1] }] }],
+      },
+      RangeError,
+    ],
+    [
+      "a below slot beside another series",
+      {
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["a"],
+            series: [
+              { name: "p", x: [1] },
+              { name: "q", below: 3, x: [-2] },
+            ],
+          },
+        ],
+      },
+      TypeError,
+    ],
+    [
+      "an x domain under a share",
+      { x: { domain: [0, 1] }, marks: [shareBars([1], [2])] },
+      TypeError,
+    ],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the height rule", () => {
+    expect(() => build({ x: {}, height: 200, marks: [bars([1])] })).toThrow(
+      "renderChart: height has no place on a dot, bar or point chart, which is as tall as its rows",
+    );
+  });
+
+  it("keeps the app's order on a band y, its values, and gaps as null", () => {
+    const m = build({
+      x: {},
+      marks: [bars([3, null, Number.NaN, 1], { y: ["d", "b", "c", "a"] })],
+    });
+    expect(m.y).toEqual({ type: "band", rows: ["d", "b", "c", "a"], mono: false });
+    expect(m.marks[0]).toEqual({
+      kind: "bar",
+      arrange: "stack",
+      left: 0,
+      centre: false,
+      labels: true,
+      series: [{ name: "a", slot: 1, below: 1, x: [3, null, null, 1] }],
+    });
+    expect(m.kind).toBe("bar");
+  });
+
+  it("is a stacked bar chart from two series, with labels off when asked", () => {
+    const m = build({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["a"],
+          labels: false,
+          series: [
+            { name: "p", x: [1] },
+            { name: "q", slot: 4, x: [2] },
+          ],
+        },
+      ],
+    });
+    expect(m.kind).toBe("stackedBar");
+    expect(m.marks[0]).toMatchObject({ labels: false, series: [{ slot: 1 }, { slot: 4 }] });
+  });
+
+  it("is a grouped bar chart from two series, and a plain one grouped with one", () => {
+    const two = (n: number): Mark => ({
+      mark: "bar",
+      y: ["a"],
+      arrange: "group",
+      series: [
+        { name: "p", x: [1] },
+        { name: "q", x: [2] },
+      ].slice(0, n),
+    });
+    expect(build({ x: {}, marks: [two(2)] })).toMatchObject({
+      kind: "groupedBar",
+      marks: [{ arrange: "group" }],
+    });
+    expect(build({ x: {}, marks: [two(1)] })).toMatchObject({
+      kind: "bar",
+      marks: [{ arrange: "stack" }],
+    });
+  });
+
+  it("is a split bar chart from two series with value labels, and a plain one split with one", () => {
+    expect(
+      build({ x: {}, marks: [shareBars([1, 0], [3, 0], { arrange: "split" })] }),
+    ).toMatchObject({ kind: "splitBar", marks: [{ arrange: "split", labels: true }] });
+    expect(build({ x: {}, marks: [bars([1], { arrange: "split" })] })).toMatchObject({
+      kind: "bar",
+      marks: [{ arrange: "stack" }],
+    });
+  });
+
+  it("names the arrangements a bar draws", () => {
+    expect(() => build({ x: {}, marks: [bars([1], { arrange: "side" as "stack" })] })).toThrow(
+      'renderChart: marks[0].arrange must be "stack", "group", "share", "split", "diverge" or "mirror"',
+    );
+  });
+
+  it("is a back-to-back bar chart from exactly two series, with value labels", () => {
+    const pyramid = shareBars([1, 2], [3, 4], { arrange: "mirror" });
+    const m = build({ x: {}, marks: [pyramid] });
+    expect(m.kind).toBe("mirrorBar");
+    expect(m.marks[0]).toMatchObject({ arrange: "mirror", labels: true });
+    expect(build({ x: {}, marks: [{ ...pyramid, labels: false }] }).marks[0]).toMatchObject({
+      labels: false,
+    });
+    for (const series of [
+      [{ name: "a", x: [1, 2] }],
+      [0, 1, 2].map((k) => ({ name: `s${String(k)}`, x: [1, 2] })),
+    ]) {
+      expect(() => build({ x: {}, marks: [{ ...pyramid, series }] })).toThrow(
+        'renderChart: marks[0].arrange "mirror" needs exactly two series, one each side of its spine',
+      );
+    }
+    expect(() => build({ x: {}, marks: [shareBars([1], [-2], { arrange: "mirror" })] })).toThrow(
+      "renderChart: a mirrored bar's x cannot be negative",
+    );
+  });
+
+  const likert = (more: Partial<Extract<Mark, { mark: "bar" }>> = {}, count = 5): Mark => ({
+    mark: "bar",
+    y: ["Item 1"],
+    arrange: "diverge",
+    left: 2,
+    centre: true,
+    series: ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"]
+      .slice(0, count)
+      .map((name, k) => ({ name, x: [10 + k] })),
+    ...more,
+  });
+
+  it("is a diverging stacked bar chart, its left count and centre in the model, no value labels", () => {
+    const m = build({ x: {}, marks: [likert()] });
+    expect(m.kind).toBe("divergingStackedBar");
+    expect(m.marks[0]).toMatchObject({ arrange: "diverge", left: 2, centre: true, labels: false });
+    expect(build({ x: {}, marks: [likert({ centre: false })] }).marks[0]).toMatchObject({
+      left: 2,
+      centre: false,
+    });
+  });
+
+  it("refuses left and centre outside diverge, and labels under it", () => {
+    expect(() => build({ x: {}, marks: [bars([1], { left: 1 })] })).toThrow(
+      'renderChart: marks[0].left has no place outside arrange "diverge"',
+    );
+    expect(() => build({ x: {}, marks: [bars([1], { centre: true })] })).toThrow(
+      'renderChart: marks[0].centre has no place outside arrange "diverge"',
+    );
+    expect(() =>
+      build({ x: {}, marks: [likert({ centre: "yes" as unknown as boolean })] }),
+    ).toThrow("renderChart: marks[0].centre must be a boolean");
+    for (const labels of [true, false]) {
+      expect(() => build({ x: {}, marks: [likert({ labels })] })).toThrow(
+        'renderChart: marks[0].labels has no place under arrange "diverge", whose bars run either side of 0',
+      );
+    }
+  });
+
+  it("needs a series each side of 0, and a third to straddle it with centre", () => {
+    expect(() => build({ x: {}, marks: [likert({ centre: false, left: 1 }, 1)] })).toThrow(
+      'renderChart: marks[0].arrange "diverge" needs two or more series, one each side of 0',
+    );
+    expect(() => build({ x: {}, marks: [likert({ left: 1 }, 2)] })).toThrow(
+      'renderChart: marks[0].arrange "diverge" with centre needs three or more series: left, centre and right',
+    );
+  });
+
+  it("needs left, a whole number leaving a right series and the centre one", () => {
+    const { left: _, ...none } = likert() as Extract<Mark, { mark: "bar" }>;
+    expect(() => build({ x: {}, marks: [none] })).toThrow(TypeError);
+    expect(() => build({ x: {}, marks: [likert({ left: "2" as unknown as number })] })).toThrow(
+      'renderChart: marks[0].left must be a number: how many series lie left of 0 under arrange "diverge"',
+    );
+    for (const left of [0, 1.5, 4]) {
+      expect(() => build({ x: {}, marks: [likert({ left })] })).toThrow(
+        "renderChart: marks[0].left must be a whole number from 1 to 3, leaving a series to straddle 0 and one right of 0",
+      );
+    }
+    expect(() => build({ x: {}, marks: [likert({ left: 5, centre: false })] })).toThrow(
+      "renderChart: marks[0].left must be a whole number from 1 to 4, leaving a series right of 0",
+    );
+    expect(build({ x: {}, marks: [likert({ left: 3 })] }).kind).toBe("divergingStackedBar");
+    expect(build({ x: {}, marks: [likert({ left: 4, centre: false })] }).kind).toBe(
+      "divergingStackedBar",
+    );
+  });
+
+  it("is a 100% stacked bar chart from two series, with no value labels", () => {
+    const m = build({ x: {}, marks: [shareBars([1, 0], [3, 0])] });
+    expect(m.kind).toBe("shareBar");
+    expect(m.marks[0]).toMatchObject({ arrange: "share", labels: false });
+    expect(m.amountText(1234.5)).toBe("1,234.5");
+  });
+
+  it("is a diverging bar chart from one series with a value below 0, signing every value but 0", () => {
+    const m = build({
+      x: { format: "percent" },
+      marks: [
+        {
+          mark: "bar",
+          y: ["a", "b"],
+          series: [{ name: "Change", slot: 2, below: 5, x: [0.16, -0.143] }],
+        },
+      ],
+    });
+    expect(m.kind).toBe("divergingBar");
+    expect(m.marks[0]).toMatchObject({ series: [{ slot: 2, below: 5 }] });
+    expect([m.xText(0.16), m.xText(-0.143), m.xText(0)]).toEqual(["+16%", "-14%", "0%"]);
+    expect(m.amountText(0.16)).toBe("+16%");
+  });
+
+  it("stays a bar chart, unsigned, with no value below 0 or with two series", () => {
+    const plain = build({ x: { format: "percent" }, marks: [bars([0.16, 0, null])] });
+    expect(plain.kind).toBe("bar");
+    expect(plain.xText(0.16)).toBe("16%");
+    const two = build({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["a"],
+          series: [
+            { name: "p", x: [3] },
+            { name: "q", x: [-2] },
+          ],
+        },
+      ],
+    });
+    expect(two.kind).toBe("stackedBar");
+    expect(two.xText(3)).toBe("3");
+  });
+
+  it("is empty when every value is 0 or a gap, or there are no rows", () => {
+    expect(build({ x: {}, marks: [bars([0, null])] }).empty).toBe(true);
+    expect(build({ x: {}, marks: [bars([])] }).empty).toBe(true);
+    expect(build({ x: {}, marks: [bars([0, 2])] }).empty).toBe(false);
+  });
+
+  it("takes a note on a row by its name and an x rule", () => {
+    const m = build({
+      x: {},
+      marks: [
+        bars([1, 2]),
+        { mark: "rule", x: 1.5, label: "Target" },
+        { mark: "text", x: 2, y: "c1", text: "Best" },
+      ],
+    });
+    expect(m.marks[2]).toMatchObject({ kind: "text", x: 2, y: 1, row: true });
+    expect(() =>
+      build({ x: {}, marks: [bars([1]), { mark: "text", x: 1, y: "zz", text: "No" }] }),
+    ).toThrow(RangeError);
+  });
+});
+
+const points = (
+  series: readonly (readonly (number | null)[])[],
+  more: Partial<Extract<Mark, { mark: "point" }>> = {},
+): Mark => ({
+  mark: "point",
+  y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+  series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+  ...more,
+});
+
+describe("the point mark", () => {
+  it.each([
+    [
+      "a y of numbers",
+      { x: {}, marks: [points([[1]], { y: [1] as unknown as string[] })] },
+      TypeError,
+    ],
+    [
+      "a series without x",
+      { x: {}, marks: [{ mark: "point", y: ["a"], series: [{ name: "a" }] }] },
+      TypeError,
+    ],
+    ["an x shorter than its y", { x: {}, marks: [points([[1]], { y: ["a", "b"] })] }, TypeError],
+    ["an empty name", { x: {}, marks: [points([[1]], { y: [""] })] }, RangeError],
+    ["a repeated name", { x: {}, marks: [points([[1, 2]], { y: ["a", "a"] })] }, RangeError],
+    ["an infinite x", { x: {}, marks: [points([[Number.NEGATIVE_INFINITY]])] }, RangeError],
+    ["a value of 0 on a log x", { x: { type: "log" }, marks: [points([[0, 4]])] }, RangeError],
+    ["a band x", { x: { type: "band" }, marks: [points([[1]])] }, TypeError],
+    ["zero on a log x", { x: { type: "log", zero: true }, marks: [points([[1]])] }, TypeError],
+    ["zero on a time x", { x: { type: "time", zero: false }, marks: [points([[1]])] }, TypeError],
+    ["a linear y", { x: {}, y: { type: "linear" }, marks: [points([[1]])] }, TypeError],
+    ["a height", { x: {}, height: 200, marks: [points([[1]])] }, TypeError],
+    [
+      "a y rule",
+      { x: {}, marks: [points([[1]]), { mark: "rule", y: 1, label: "Cap" }] },
+      TypeError,
+    ],
+    ["a point beside a bar", { x: {}, marks: [bars([1]), points([[1]])] }, TypeError],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ x: { type: "log", zero: true }, marks: [points([[1]])] })).toThrow(
+      "renderChart: a log x has no zero to hold",
+    );
+    expect(() => build({ x: { type: "log" }, marks: [points([[-1, 4]])] })).toThrow(
+      "renderChart: a point's x must be above 0 on a log x",
+    );
+    expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "rule" or "text"',
+    );
+  });
+
+  it("keeps the app's order on a band y, its values and slots, and gaps as null", () => {
+    const m = build({
+      x: {},
+      marks: [
+        {
+          mark: "point",
+          y: ["Holy See", "Monaco", "Japan"],
+          series: [
+            { name: "Female", x: [60.4, Number.NaN, 51.1] },
+            { name: "Male", slot: 5, x: [54.5, 53.1, null] },
+          ],
+        },
+      ],
+    });
+    expect(m.y).toEqual({ type: "band", rows: ["Holy See", "Monaco", "Japan"], mono: false });
+    expect(m.marks[0]).toEqual({
+      kind: "point",
+      series: [
+        { name: "Female", slot: 1, x: [60.4, null, 51.1] },
+        { name: "Male", slot: 5, x: [54.5, 53.1, null] },
+      ],
+    });
+    expect(m.kind).toBe("dotPlot");
+    expect(m.amountText(51.1)).toBe("51.1");
+  });
+
+  it("is empty when every value is a gap or outside the domain", () => {
+    expect(build({ x: {}, marks: [points([[null, null]])] }).empty).toBe(true);
+    expect(build({ x: {}, marks: [points([])] }).empty).toBe(true);
+    expect(build({ x: { domain: [10, 20] }, marks: [points([[5, 25]])] }).empty).toBe(true);
+    expect(build({ x: { domain: [10, 20] }, marks: [points([[5, 20]])] }).empty).toBe(false);
+    expect(build({ x: {}, marks: [points([[0, null]])] }).empty).toBe(false);
+  });
+
+  it("writes instants on a time x", () => {
+    const at = Date.UTC(2026, 10, 11, 8);
+    const m = build({ x: { type: "time" }, marks: [points([[at, at + 3_600_000]])] });
+    expect(m.amountText(at)).toBe(m.xText(at));
+    expect(m.xText(at)).toContain("8:00");
+  });
+});
+
+describe("a point mark's link", () => {
+  const two = [
+    [128_700, 29_100, null],
+    [163_500, 43_350, 50],
+  ];
+
+  it.each([
+    ["a link it does not draw", { link: "line" }, [[1], [2]]],
+    ["a range of one series", { link: "range" }, [[1]]],
+    ["an arrow of three series", { link: "arrow" }, [[1], [2], [3]]],
+  ] as const)("refuses %s", (_, more, series) => {
+    expect(() => build({ x: {}, marks: [points(series, more as never)] })).toThrow(TypeError);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ x: {}, marks: [points([[1]], { link: "range" })] })).toThrow(
+      'renderChart: marks[0].link "range" needs exactly two series, the two ends it joins',
+    );
+    expect(() =>
+      build({ x: {}, marks: [points([[1], [2]], { link: "dumbbell" as "range" })] }),
+    ).toThrow('renderChart: marks[0].link must be "range" or "arrow"');
+  });
+
+  it("keeps the link, names the kind, and gives a range's gap and an arrow's change", () => {
+    const range = build({ x: {}, marks: [points(two, { link: "range" })] });
+    const arrow = build({ x: {}, marks: [points(two, { link: "arrow" })] });
+    const dots = build({ x: {}, marks: [points(two)] });
+    expect([range.kind, arrow.kind, dots.kind]).toEqual(["rangePlot", "arrowPlot", "dotPlot"]);
+    const [r, a, d] = [range, arrow, dots].map((m) => m.marks[0] as PointModel);
+    expect([r?.link, a?.link, d?.link]).toEqual(["range", "arrow", undefined]);
+    // A range's gap is the distance either way; an arrow's change keeps its sign.
+    const reversed = build({
+      x: {},
+      marks: [points([[163_500], [128_700]], { link: "range" })],
+    }).marks[0] as PointModel;
+    expect(pointLink(reversed, 0)).toBe(34_800);
+    expect([0, 1, 2].map((i) => pointLink(r as PointModel, i))).toEqual([34_800, 14_250, null]);
+    const back = build({ x: {}, marks: [points([[5.8], [2.1]], { link: "arrow" })] });
+    expect(pointLink(back.marks[0] as PointModel, 0)).toBeCloseTo(-3.7, 10);
+    expect(pointLink(a as PointModel, 2)).toBeNull();
+    expect(pointLink(d as PointModel, 0)).toBeNull();
+  });
+});
+
+describe("rules and notes on bar and point rows", () => {
+  const two = (arrange: "split" | "diverge" | "mirror"): Mark => ({
+    mark: "bar",
+    y: ["c0", "c1"],
+    arrange,
+    ...(arrange === "diverge" ? { left: 1 } : {}),
+    series: [
+      { name: "p", x: [1, 2] },
+      { name: "q", x: [3, 4] },
+    ],
+  });
+  const goal = (x: number): Mark => ({ mark: "rule", x, label: "Goal" });
+  const at = (more: Partial<Extract<Mark, { mark: "text" }>>): Mark => ({
+    mark: "text",
+    y: "c1",
+    text: "Best",
+    ...more,
+  });
+
+  it.each(["split", "diverge", "mirror"] as const)(
+    "refuses a rule below 0 and a note's x under %s",
+    (arrange) => {
+      expect(() => build({ x: {}, marks: [two(arrange), goal(-1)] })).toThrow(
+        `renderChart: a rule under arrange "${arrange}" cannot be below 0`,
+      );
+      expect(() => build({ x: {}, marks: [two(arrange), at({ x: 2 })] })).toThrow(
+        `renderChart: marks[1].x has no place under arrange "${arrange}"; the note sits at its row's end`,
+      );
+      expect(() => build({ x: {}, marks: [two(arrange), { mark: "text", text: "Best" }] })).toThrow(
+        "renderChart: marks[1].y is missing; a note needs a y naming its row on this chart",
+      );
+    },
+  );
+
+  it("sets a note with no x on its row under a split, diverging or mirrored bar", () => {
+    for (const arrange of ["split", "diverge", "mirror"] as const) {
+      const m = build({ x: {}, marks: [two(arrange), goal(0), at({})] });
+      expect(m.marks[2]).toMatchObject({ kind: "text", x: undefined, y: 1, row: true });
+    }
+    // A split of one series draws a plain bar, and its note still sits at the row's end.
+    const one = build({ x: {}, marks: [bars([1, 2], { arrange: "split" }), at({})] });
+    expect(one.marks[1]).toMatchObject({ x: undefined, y: 1 });
+  });
+
+  it("keeps a rule below 0 beside a stack, whose bars run either way", () => {
+    const m = build({ x: {}, marks: [bars([1, -2]), goal(-1)] });
+    expect(m.marks[1]).toMatchObject({ place: { at: -1 } });
+  });
+
+  it.each([
+    ["a bar note without x", [bars([1, 2]), at({})], TypeError],
+    ["a point note without x", [points([[1, 2]]), at({})], TypeError],
+    ["a point note naming no row", [points([[1, 2]]), at({ x: 1, y: "zz" })], RangeError],
+    ["a point note's x as a name", [points([[1, 2]]), at({ x: "c0" })], TypeError],
+  ] as const)("refuses %s", (_, marks, type) => {
+    expect(() => build({ x: {}, marks: [...marks] })).toThrow(type);
+  });
+
+  it("places a point note along its row by its x", () => {
+    const m = build({ x: {}, marks: [points([[1, 2]]), at({ x: 1.5 })] });
+    expect(m.marks[1]).toMatchObject({ kind: "text", x: 1.5, y: 1, row: true });
   });
 });

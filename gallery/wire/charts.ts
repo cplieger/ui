@@ -1,7 +1,8 @@
 /**
  * charts.ts — the gallery wiring for the Charts page: grelot's four
  * statistics drawn by the library's chart from seeded data, the other time
- * series, their loading, empty and error states, and phone-width frames.
+ * series, bars and dots by category, their loading, empty and error states,
+ * and phone-width frames.
  */
 
 import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
@@ -356,6 +357,346 @@ function latency(): ChartSpec {
   };
 }
 
+const COUNTRIES = [
+  ["Monaco", 55.4],
+  ["Japan", 49.9],
+  ["Italy", 48.4],
+  ["Germany", 46.8],
+  ["Greece", 46.5],
+  ["Portugal", 46.4],
+  ["Spain", 45.3],
+  ["Finland", 43.3],
+  ["France", 42.6],
+  ["United Kingdom", 40.8],
+  ["China", 39.8],
+  ["United States", 38.9],
+  ["Brazil", 34.3],
+  ["India", 29.5],
+  ["Nigeria", 18.6],
+] as const;
+
+const YEARS = { one: "year", other: "years" } as const;
+
+function ages(): ChartSpec {
+  return {
+    x: { label: "Median age", unit: YEARS },
+    y: { unit: { one: "country", other: "countries" } },
+    marks: [
+      {
+        mark: "bar",
+        y: COUNTRIES.map(([name]) => name),
+        series: [{ name: "Median age", slot: 1, x: COUNTRIES.map(([, age]) => age) }],
+      },
+      { mark: "rule", x: 30.5, label: "World" },
+    ],
+  };
+}
+
+// Women's and men's median ages, the same countries without Monaco.
+const BY_SEX = [
+  ["Japan", 51.4, 48.2],
+  ["Italy", 49.5, 46.9],
+  ["Germany", 47.9, 45.6],
+  ["Greece", 47.7, 45.3],
+  ["Portugal", 48, 44.6],
+  ["Spain", 46.5, 44.1],
+  ["Finland", 44.8, 41.9],
+  ["France", 44, 40.9],
+  ["United Kingdom", 41.9, 39.7],
+  ["China", 40.9, 38.6],
+  ["United States", 40, 37.7],
+  ["Brazil", 35.3, 33.2],
+  ["India", 30, 29],
+  ["Nigeria", 18.8, 18.4],
+] as const;
+
+function agesBySex(): ChartSpec {
+  return {
+    x: { label: "Median age", unit: YEARS },
+    y: { unit: { one: "country", other: "countries" } },
+    marks: [
+      {
+        mark: "point",
+        y: BY_SEX.map(([name]) => name),
+        series: [
+          { name: "Women", slot: 1, x: BY_SEX.map(([, women]) => women) },
+          { name: "Men", slot: 2, x: BY_SEX.map(([, , men]) => men) },
+        ],
+      },
+      { mark: "text", y: "Nigeria", x: 18.8, text: "Half its people are under 19", side: "right" },
+    ],
+  };
+}
+
+// Each agent's posts over 24 hours by thread kind, in KINDS' order.
+const AGENT_POSTS = [
+  ["lead-ui", [48, 37, 25, 12]],
+  ["codex-review", [40, 30, 20, 9]],
+  ["kiro-web", [33, 28, 17, 10]],
+  ["gpt-planner", [30, 22, 14, 7]],
+  ["ci-sentinel", [26, 18, 12, 6]],
+  ["test-runner", [21, 17, 9, 5]],
+  ["ui-qa", [18, 14, 8, 4]],
+  ["release-notes", [15, 11, 7, 3]],
+] as const;
+
+function agentKinds(arrange?: "share"): ChartSpec {
+  return {
+    x: {
+      label: arrange === undefined ? "Posts" : "Share of posts",
+      unit: { one: "post", other: "posts" },
+    },
+    y: { mono: true, unit: { one: "agent", other: "agents" } },
+    marks: [
+      {
+        mark: "bar",
+        y: AGENT_POSTS.map(([name]) => name),
+        ...(arrange === undefined ? {} : { arrange }),
+        series: KINDS.map(([name], i) => ({
+          name,
+          slot: (i + 1) as 1 | 2 | 3 | 4,
+          x: AGENT_POSTS.map(([, counts]) => counts[i] ?? null),
+        })),
+      },
+    ],
+  };
+}
+
+const AGENT_WEEKS = [
+  ["lead-ui", 702, 815],
+  ["codex-review", 610, 644],
+  ["kiro-web", 498, 560],
+  ["gpt-planner", 455, 430],
+  ["ci-sentinel", 390, 372],
+  ["test-runner", 301, 340],
+] as const;
+
+function agentWeeks(): ChartSpec {
+  return {
+    x: { label: "Posts", unit: { one: "post", other: "posts" } },
+    y: { mono: true, unit: { one: "agent", other: "agents" } },
+    marks: [
+      {
+        mark: "bar",
+        y: AGENT_WEEKS.map(([name]) => name),
+        arrange: "group",
+        series: [
+          { name: "Last week", slot: 2, x: AGENT_WEEKS.map(([, last]) => last) },
+          { name: "This week", slot: 1, x: AGENT_WEEKS.map(([, , now]) => now) },
+        ],
+      },
+    ],
+  };
+}
+
+// The 2020 census against 2010, by state.
+const CHANGE = [
+  ["Utah", 0.184],
+  ["Idaho", 0.173],
+  ["Texas", 0.159],
+  ["North Dakota", 0.158],
+  ["Nevada", 0.15],
+  ["Colorado", 0.148],
+  ["Florida", 0.146],
+  ["Ohio", 0.023],
+  ["Illinois", -0.001],
+  ["Mississippi", -0.002],
+  ["West Virginia", -0.032],
+  ["Puerto Rico", -0.118],
+] as const;
+
+function populationChange(): ChartSpec {
+  return {
+    x: { format: { style: "percent", maximumFractionDigits: 1 } },
+    y: { unit: { one: "state", other: "states" } },
+    marks: [
+      {
+        mark: "bar",
+        y: CHANGE.map(([name]) => name),
+        series: [{ name: "Change", slot: 1, below: 3, x: CHANGE.map(([, change]) => change) }],
+      },
+    ],
+  };
+}
+
+// Shares of adults using each platform daily, weekly or less often.
+const PLATFORMS = [
+  ["YouTube", [0.54, 0.22, 0.13]],
+  ["Facebook", [0.49, 0.14, 0.09]],
+  ["Instagram", [0.36, 0.11, 0.08]],
+  ["TikTok", [0.24, 0.07, 0.06]],
+  ["Snapchat", [0.17, 0.05, 0.05]],
+  ["X", [0.12, 0.08, 0.07]],
+  ["LinkedIn", [0.06, 0.11, 0.13]],
+] as const;
+
+function platforms(): ChartSpec {
+  return {
+    x: { format: "percent" },
+    y: { unit: { one: "platform", other: "platforms" } },
+    marks: [
+      {
+        mark: "bar",
+        y: PLATFORMS.map(([name]) => name),
+        arrange: "split",
+        series: ["Daily", "Weekly", "Less often"].map((name, i) => ({
+          name,
+          slot: (i + 1) as 1 | 2 | 3,
+          x: PLATFORMS.map(([, shares]) => shares[i] ?? null),
+        })),
+      },
+    ],
+  };
+}
+
+const ANSWERS = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
+
+// Bright and deep slots alternate along the bar, so neighbouring answers
+// differ in lightness, and the two extremes take the accent's hue and a
+// harmony partner's.
+const ANSWER_SLOTS = [1, 2, 5, 4, 3] as const;
+
+const STATEMENTS = [
+  ["Alerts reach me in time", [0.04, 0.08, 0.16, 0.42, 0.3]],
+  ["I would recommend it", [0.05, 0.09, 0.2, 0.36, 0.3]],
+  ["Pages load fast enough", [0.06, 0.12, 0.18, 0.38, 0.26]],
+  ["I find the setting I need", [0.1, 0.22, 0.24, 0.3, 0.14]],
+  ["The docs answer my question", [0.14, 0.26, 0.22, 0.26, 0.12]],
+] as const;
+
+function survey(): ChartSpec {
+  return {
+    x: { format: "percent" },
+    y: { unit: { one: "statement", other: "statements" } },
+    marks: [
+      {
+        mark: "bar",
+        y: STATEMENTS.map(([name]) => name),
+        arrange: "diverge",
+        left: 2,
+        centre: true,
+        series: ANSWERS.map((name, i) => ({
+          name,
+          slot: ANSWER_SLOTS[i] ?? 1,
+          x: STATEMENTS.map(([, shares]) => shares[i] ?? null),
+        })),
+      },
+    ],
+  };
+}
+
+// France's population by five-year age group in thousands, oldest first.
+const AGE_GROUPS = [
+  ["100+", 5, 25],
+  ["95-99", 40, 140],
+  ["90-94", 190, 450],
+  ["85-89", 470, 820],
+  ["80-84", 760, 1_060],
+  ["75-79", 1_180, 1_480],
+  ["70-74", 1_680, 1_950],
+  ["65-69", 1_840, 2_050],
+  ["60-64", 1_990, 2_150],
+  ["55-59", 2_120, 2_240],
+  ["50-54", 2_180, 2_250],
+  ["45-49", 2_060, 2_100],
+  ["40-44", 2_060, 2_130],
+  ["35-39", 2_050, 2_140],
+  ["30-34", 1_960, 2_040],
+  ["25-29", 1_860, 1_890],
+  ["20-24", 2_000, 1_940],
+  ["15-19", 2_140, 2_040],
+  ["10-14", 2_130, 2_030],
+  ["5-9", 1_970, 1_880],
+  ["0-4", 1_790, 1_710],
+] as const;
+
+function pyramid(): ChartSpec {
+  return {
+    x: {
+      format: { notation: "compact", maximumFractionDigits: 1 },
+      unit: { one: "person", other: "people" },
+    },
+    y: { unit: { one: "age group", other: "age groups" } },
+    marks: [
+      {
+        mark: "bar",
+        y: AGE_GROUPS.map(([name]) => name),
+        arrange: "mirror",
+        labels: false,
+        series: [
+          { name: "Men", slot: 1, x: AGE_GROUPS.map(([, men]) => men * 1_000) },
+          { name: "Women", slot: 2, x: AGE_GROUPS.map(([, , women]) => women * 1_000) },
+        ],
+      },
+    ],
+  };
+}
+
+const DEGREES = [
+  ["Doctorate", 128_700, 163_500],
+  ["Professional degree", 112_000, 150_300],
+  ["Master's", 86_500, 139_810],
+  ["Bachelor's", 72_300, 101_700],
+  ["Associate", 51_800, 70_200],
+  ["Some college", 46_400, 64_000],
+  ["High school", 40_600, 56_100],
+  ["9th to 12th grade", 31_200, 45_900],
+  ["Less than 9th grade", 29_100, 43_350],
+] as const;
+
+function pay(): ChartSpec {
+  return {
+    x: { format: { style: "currency", currency: "USD", maximumFractionDigits: 0 } },
+    y: { unit: { one: "degree", other: "degrees" } },
+    marks: [
+      {
+        mark: "point",
+        y: DEGREES.map(([name]) => name),
+        link: "range",
+        series: [
+          { name: "Women", slot: 1, x: DEGREES.map(([, women]) => women) },
+          { name: "Men", slot: 2, x: DEGREES.map(([, , men]) => men) },
+        ],
+      },
+    ],
+  };
+}
+
+// Battery and plug-in hybrid cars as a share of new cars sold.
+const ELECTRIC = [
+  ["Norway", 0.058, 0.93],
+  ["Sweden", 0.01, 0.6],
+  ["Finland", 0.004, 0.54],
+  ["Netherlands", 0.056, 0.48],
+  ["Denmark", 0.003, 0.46],
+  ["China", 0.001, 0.38],
+  ["France", 0.008, 0.25],
+  ["Germany", 0.002, 0.24],
+  ["United Kingdom", 0.005, 0.24],
+  ["United States", 0.006, 0.095],
+  ["Italy", 0.001, 0.086],
+  ["Japan", 0.009, 0.036],
+  ["India", 0, 0.02],
+] as const;
+
+function electricCars(): ChartSpec {
+  return {
+    x: { format: { style: "percent", maximumFractionDigits: 1 } },
+    y: { unit: { one: "country", other: "countries" } },
+    marks: [
+      {
+        mark: "point",
+        y: ELECTRIC.map(([name]) => name),
+        link: "arrow",
+        series: [
+          { name: "2013", slot: 2, x: ELECTRIC.map(([, then]) => then) },
+          { name: "2023", slot: 1, x: ELECTRIC.map(([, , now]) => now) },
+        ],
+      },
+    ],
+  };
+}
+
 const SPECS = new Map<string, (hours: number) => ChartSpec>([
   ["posts", (hours) => posts(postCounts(hours))],
   ["reads", (hours) => reads(READS.get(hours) ?? 1_204, hours)],
@@ -424,6 +765,22 @@ make("phone-memory", memory());
 make("phone-latency", latency());
 make("phone-grouped", posts(postCounts(6), { arrange: "group", kinds: 3 }));
 make("reads", reads(1_204, 6));
+make("ages", ages());
+make("agent-kinds", agentKinds());
+make("agent-weeks", agentWeeks());
+make("agent-shares", agentKinds("share"));
+make("population-change", populationChange());
+make("platforms", platforms());
+make("survey", survey());
+make("pyramid", pyramid());
+make("ages-by-sex", agesBySex());
+make("pay", pay());
+make("electric-cars", electricCars());
+make("phone-ages", ages());
+make("phone-platforms", platforms());
+make("phone-ages-by-sex", agesBySex());
+make("phone-pay", pay());
+make("phone-electric-cars", electricCars());
 make("activity", activity(6));
 make("agents", agents(6));
 make("loading", null);

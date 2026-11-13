@@ -1,12 +1,14 @@
 /**
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
- * plot, the x axis under it, the lines' and areas' end labels, and the
- * text marks' notes.
+ * plot, the x axis under it, the lines' and areas' end labels, a band
+ * chart's rows, a bar chart's panels and value labels, and the text marks'
+ * notes.
  * @module
  */
 
 import type { Measure } from "../scale/measure.js";
+import { position } from "../scale/position.js";
 
 import {
   axisGutter,
@@ -17,10 +19,19 @@ import {
   yAxis,
   type Axis,
   type RuleLabel,
+  type Tick,
 } from "./axis.js";
-import type { Frame } from "./geometry.js";
-import { sampleValue, type Model } from "./model.js";
-import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
+import {
+  barBlock,
+  barCentre,
+  barReach,
+  POINT_RADIUS,
+  ruleXs,
+  type Frame,
+  type Panel,
+} from "./geometry.js";
+import { barsApart, sampleValue, type BarModel, type Model } from "./model.js";
+import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
 import type { Words } from "./words.js";
@@ -35,6 +46,8 @@ export interface Metrics {
   readonly rem: number;
   /** A dot row's height, from `--cp-chart-row`. */
   readonly row: number;
+  /** A line of a row's name set above its bar, at `--cp-leading-ui`. */
+  readonly nameLine: number;
   /** The group gutters, from `--cp-chart-axis-gutter` and `--cp-chart-label-gutter`. */
   readonly axisGroup: number;
   readonly labelGroup: number;
@@ -68,8 +81,16 @@ export interface Layout {
   readonly xAxis: Axis;
   /** A continuous y's axis; absent on a band. */
   readonly yAxis: Axis | undefined;
-  /** A band's rows, each name cut to its gutter, `y` its middle in the plot. */
+  /** A band's rows, each name cut to its room, `y` the middle of its dot
+   *  row, its bars or its points in the plot. */
   readonly rows: readonly { readonly name: string; readonly y: number }[];
+  /** A whole bar's thickness, which a group's thinner bars derive from
+   *  (`barBlock`); 0 without a bar mark. */
+  readonly bar: number;
+  /** A bar chart's value labels, in plot px. */
+  readonly valueLabels: readonly Text[];
+  /** A split or mirrored bar chart's panel names over its panels, in SVG px. */
+  readonly heads: readonly Text[];
   readonly mono: boolean;
   readonly gutters: Floors;
   /** Text outside the plot, in SVG px: tick labels, titles, rule and end labels. */
@@ -104,8 +125,28 @@ export interface Note {
 const PAD = 8;
 /** The x tick vectors' length, and the room under them. */
 const TICK = 4;
-/** Under this many rem a chart draws no end labels, and its notes as numbered markers. */
+/** Under this many rem a chart draws no end labels, its notes as numbered
+ *  markers, and a bar row's or a point row's name on its own line above it. */
 const NARROW_REM = 30;
+/** A row's bars take its height less this, half above them and half below. */
+const BAR_SPACE = 8;
+/** A mirrored row's bars take its height less this, so neighbouring rows
+ *  stand close and each side's profile reads as one shape. */
+const MIRROR_SPACE = 2;
+/** The room between a name above a bar and the bar. */
+const NAME_GAP = 2;
+/** The room between a bar's end and its value label. */
+const VALUE_GAP = 4;
+/** The room between a row's last bar, or its label, and a note's point there. */
+const END_GAP = 4;
+/** The room between a split bar chart's panels. */
+const PANEL_GAP = 16;
+/** The spine between a mirrored bar chart's two sides. */
+const SPINE = 8;
+/** A point chart's x runs this far inside each end of the plot: the
+ *  selection ring's reach, 1 px off a dot with its 2 px stroke, so a dot at
+ *  the domain's end draws whole, ring and all, inside the plot's clip. */
+const POINT_INSET = POINT_RADIUS + 2;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
@@ -134,8 +175,15 @@ function endTexts(model: Model, words: Words): { text: string; value: number }[]
   return out;
 }
 
-// Each text mark `notePoint` places, wrapped and placed beside its point.
-function notesOf(model: Model, metrics: Metrics, frame: Frame, rows: Layout["rows"]): Note[] {
+// Each text mark `notePoint` places, wrapped and placed beside its point;
+// `rowEnd` gives the point of a note at its row's end.
+function notesOf(
+  model: Model,
+  metrics: Metrics,
+  frame: Frame,
+  rows: Layout["rows"],
+  rowEnd: (row: number) => number,
+): Note[] {
   const out: Note[] = [];
   const max = Math.min(NOTE_REM * metrics.rem, frame.width);
   model.marks.forEach((m, mark) => {
@@ -143,7 +191,7 @@ function notesOf(model: Model, metrics: Metrics, frame: Frame, rows: Layout["row
     if (m.kind !== "text" || at === undefined) {
       return;
     }
-    const x = frame.xAt(at.x);
+    const x = at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x);
     const y = m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y);
     const texts = wrapNote(m.text, max, metrics.measure.text);
     const w = Math.max(...texts.map(metrics.measure.text));
@@ -186,6 +234,88 @@ function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
   );
 }
 
+/** A bar's value label: the value it writes, its row, and the series whose
+ *  bar it ends, or none for a stack's total. */
+interface BarValue {
+  readonly value: number;
+  readonly row: number;
+  readonly series: number | undefined;
+}
+
+// The values a bar chart writes at its bars' ends: each stacked row's total,
+// or the value of each bar standing apart or on a mirror's side; none for a
+// gap.
+function barValues(m: BarModel, rows: number): BarValue[] {
+  const out: BarValue[] = [];
+  for (let row = 0; row < rows; row++) {
+    if (barsApart(m) || m.arrange === "mirror") {
+      m.series.forEach((s, k) => {
+        const v = s.x[row] ?? null;
+        if (v !== null) {
+          out.push({ value: v, row, series: k });
+        }
+      });
+      continue;
+    }
+    let total: number | null = null;
+    for (const s of m.series) {
+      const v = s.x[row] ?? null;
+      if (v !== null) {
+        total = (total ?? 0) + v;
+      }
+    }
+    if (total !== null) {
+      out.push({ value: total, row, series: undefined });
+    }
+  }
+  return out;
+}
+
+// The panels of `m`'s series in series order, `width` px each, left to
+// right or on a reversed x right to left, each placing a value `along(v)`
+// px from its baseline: a split's 16 px apart with their bars rightward, a
+// mirror's either side of its spine with the first side's bars leftward.
+function panelsOf(
+  m: BarModel,
+  width: number,
+  reverse: boolean,
+  along: (v: number) => number,
+): Panel[] {
+  const mirror = m.arrange === "mirror";
+  const count = m.series.length;
+  const gap = mirror ? SPINE : PANEL_GAP;
+  return Array.from({ length: count }, (_, k) => {
+    const left = (reverse ? count - 1 - k : k) * (width + gap);
+    const right = left + width;
+    const leftward = mirror ? (k === 0) !== reverse : reverse;
+    return {
+      left,
+      right,
+      leftward,
+      at: leftward ? (v: number) => right - along(v) : (v: number) => left + along(v),
+    };
+  });
+}
+
+// A tick of an axis drawn rightward from 0, placed in panel `p`, its
+// label's box with it.
+const inPanel = (t: Tick, p: Panel): Tick =>
+  moved(t, (v) => (p.leftward ? p.right - v : p.left + v));
+
+// A tick and its label's box moved along the axis by `at`.
+function moved(t: Tick, at: (v: number) => number): Tick {
+  const label = t.label;
+  if (label === undefined) {
+    return { ...t, at: at(t.at) };
+  }
+  const [a, b] = [at(label.box.start), at(label.box.end)];
+  return {
+    ...t,
+    at: at(t.at),
+    label: { ...label, box: { start: Math.min(a, b), end: Math.max(a, b) } },
+  };
+}
+
 /** An x rule's label on the plot: its words and value, or off the axis. */
 function ruleText(model: Model, words: Words, label: string, value: number, off: boolean): string {
   const written = model.xText(value);
@@ -211,8 +341,31 @@ export function layout(
   const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
   const band = model.y.type === "band" ? model.y : undefined;
   const mono = band?.mono === true;
+  const narrow = chart < NARROW_REM * metrics.rem;
+  const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
+  const points = model.marks.some((m) => m.kind === "point");
+  const mirror = bars?.arrange === "mirror";
+  // Under 30rem a name above its bar or its dots leaves the plot the chart's
+  // whole width; a mirror's short names stay in the gutter, keeping its rows
+  // short.
+  const above = narrow && ((bars !== undefined && !mirror) || points);
+  // Under 30rem a split's panels would be too thin for their bars, so they
+  // fold into one, each row's bars one under another as a group's.
+  const panelled = (bars?.arrange === "split" && !narrow) || mirror;
+  const thick =
+    bars === undefined ? 0 : Math.max(1, metrics.row - (mirror ? MIRROR_SPACE : BAR_SPACE));
+  const block =
+    bars !== undefined ? (panelled ? thick : barBlock(bars, thick)) : points ? 2 * POINT_RADIUS : 0;
+  // Under its name a point row is its dots and a bar's room.
+  const barRow =
+    points && above
+      ? block + BAR_SPACE
+      : !points && block > thick
+        ? block + BAR_SPACE
+        : metrics.row;
+  const rowH = above ? metrics.nameLine + NAME_GAP + barRow : barRow;
   const height =
-    band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * metrics.row;
+    band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * rowH;
 
   let yAx: Axis | undefined;
   let names: string[] = [];
@@ -222,15 +375,15 @@ export function layout(
     for (const t of yAx.ticks) {
       widestY = Math.max(widestY, t.label?.width ?? 0);
     }
-  } else {
+  } else if (!above) {
     const face = mono ? metrics.mono : measure;
     const limit = bandLimit(metrics.axisGroup, chart, metrics.rem);
     names = band.rows.map((n) => cutName(n, limit, face.text));
     widestY = Math.max(0, ...names.map(face.text));
   }
-  const axisW = Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
+  const axisW = above ? 0 : Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
-  const ends = chart >= NARROW_REM * metrics.rem ? endTexts(model, words) : [];
+  const ends = narrow ? [] : endTexts(model, words);
   const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,
@@ -241,7 +394,81 @@ export function layout(
   const plotW = Math.max(1, width - axisW - labelW);
   const reverse = model.x.reverse;
   const left = reverse ? labelW : axisW;
-  const xAx = xAxis(model.x, plotW, ctx);
+  if (band !== undefined && above) {
+    const face = mono ? metrics.mono : measure;
+    names = band.rows.map((n) => cutName(n, plotW, face.text));
+  }
+
+  // Value labels sit past each bar's end, so x ends short of each side by
+  // the widest label there and its gap; they stand in for the x axis.
+  const valued = bars?.labels === true;
+  const values = valued && band !== undefined ? barValues(bars, band.rows.length) : [];
+  const valueTexts = values.map((t) => model.xText(t.value));
+  let roomLeft = 0;
+  let roomRight = 0;
+  values.forEach((t, i) => {
+    const w = measure.number(valueTexts[i] ?? "") + VALUE_GAP;
+    if (t.value < 0 !== reverse) {
+      roomLeft = Math.max(roomLeft, w);
+    } else {
+      roomRight = Math.max(roomRight, w);
+    }
+  });
+  // Panels share one scale, so each lays the same axis rightward from its
+  // baseline along the same width, its labels' room kept at its outer end,
+  // and turns it to run its own way.
+  const count = panelled ? bars.series.length : 1;
+  const gap = mirror ? SPINE : PANEL_GAP;
+  const panelW = Math.max(1, (plotW - (count - 1) * gap) / count);
+  const flip = reverse && !panelled;
+  const inset = points ? POINT_INSET : 0;
+  if (panelled) {
+    roomRight = Math.max(roomLeft, roomRight);
+    roomLeft = 0;
+  }
+  // A note at its row's end needs its point, and a numbered marker round it,
+  // on the plot: past each panel's outer end, a diverging row's right end,
+  // or the end the bars run to.
+  const endRoom = model.marks.some((m) => m.kind === "text" && m.x === undefined)
+    ? END_GAP + MARKER_RADIUS
+    : 0;
+  const endLeft = !panelled && bars?.arrange !== "diverge" && reverse;
+  if (endLeft) {
+    roomLeft += endRoom;
+  } else {
+    roomRight += endRoom;
+  }
+  const shift = valued ? 0 : inset + (endLeft ? endRoom : 0);
+  const one: Axis = valued
+    ? {
+        lo: model.x.lo,
+        hi: model.x.hi,
+        at: flip
+          ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
+          : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
+        ticks: [],
+      }
+    : xAxis(
+        flip === reverse ? model.x : { ...model.x, reverse: flip },
+        Math.max(1, panelW - 2 * inset - endRoom),
+        ctx,
+      );
+  const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
+  const xAx: Axis =
+    panels[0] === undefined
+      ? shift === 0
+        ? one
+        : {
+            ...one,
+            at: (v) => shift + one.at(v),
+            ticks: one.ticks.map((t) => moved(t, (v) => shift + v)),
+          }
+      : {
+          ...one,
+          at: panels[0].at,
+          ticks: panels.flatMap((p) => one.ticks.map((t) => inPanel(t, p))),
+        };
+  const across = { x: model.x, xAt: xAx.at, ...(panels.length > 0 ? { panels } : {}) };
 
   const xRules = model.marks.filter((m) => m.kind === "rule" && m.axis === "x");
   const ruleTexts: string[] = [];
@@ -259,7 +486,11 @@ export function layout(
       const physical = (r.place.off === "low") !== reverse ? "low" : "high";
       bandLabels.push({ off: physical, width: w });
     } else {
-      bandLabels.push({ at: xAx.at(r.place.at), width: w });
+      // A rule drawn more than once labels its first panel's line, or its
+      // right-hand line on both sides of a spine or a diverging 0.
+      const xs = ruleXs(r.place.at, across);
+      const at = bars?.arrange === "split" ? (xs[0] ?? 0) : Math.max(...xs);
+      bandLabels.push({ at, width: w });
     }
   }
   const placed = ruleBand(bandLabels, plotW);
@@ -275,7 +506,8 @@ export function layout(
   );
   const titleLines = yTitle === undefined ? 0 : titleClear ? 0 : 1;
   const bandLines = Math.max(placed.lines, yTitle === undefined ? 0 : 1 - titleLines);
-  const lines = titleLines + bandLines;
+  const headLine = titleLines + bandLines;
+  const lines = headLine + (panels.length > 0 ? 1 : 0);
   const top = lines === 0 ? 0 : lines * lineHeight + TICK;
 
   const mid = (line: number) => (line + 0.5) * lineHeight;
@@ -293,6 +525,15 @@ export function layout(
         : { text: yTitle, x: 0, y: mid(0), anchor: "start" },
     );
   }
+
+  // A panel's name over it, cut to its width; the legend row and the table
+  // give it whole.
+  const heads: Text[] = panels.map((p, k) => ({
+    text: cutName(bars?.series[k]?.name ?? "", p.right - p.left, measure.text),
+    x: left + (p.leftward ? p.right : p.left),
+    y: mid(headLine),
+    anchor: p.leftward ? "end" : "start",
+  }));
 
   const xLabels: Text[] = [];
   let xLines = 0;
@@ -312,7 +553,7 @@ export function layout(
       });
     });
   }
-  const xTitle = model.x.type === "time" ? undefined : model.spec.x.label;
+  const xTitle = model.x.type === "time" || valued ? undefined : model.spec.x.label;
   if (xTitle !== undefined) {
     titles.push({
       text: xTitle,
@@ -321,7 +562,7 @@ export function layout(
       anchor: reverse ? "start" : "end",
     });
   }
-  const bottom = TICK + 2 + (xLines + (xTitle === undefined ? 0 : 1)) * lineHeight;
+  const bottom = valued ? 0 : TICK + 2 + (xLines + (xTitle === undefined ? 0 : 1)) * lineHeight;
 
   const yLabels: Text[] = [];
   const rows: { name: string; y: number }[] = [];
@@ -340,11 +581,59 @@ export function layout(
     }
   } else {
     names.forEach((name, i) => {
-      const y = (i + 0.5) * metrics.row;
+      if (above) {
+        const y = i * rowH + metrics.nameLine + NAME_GAP + block / 2;
+        rows.push({ name, y });
+        yLabels.push(
+          reverse
+            ? {
+                text: name,
+                x: left + plotW,
+                y: top + i * rowH + metrics.nameLine / 2,
+                anchor: "end",
+              }
+            : { text: name, x: left, y: top + i * rowH + metrics.nameLine / 2, anchor: "start" },
+        );
+        return;
+      }
+      const y = (i + 0.5) * rowH;
       rows.push({ name, y });
       yLabels.push({ text: name, x: gutterX, y: top + y, anchor: gutterAnchor });
     });
   }
+
+  const valueLabels: Text[] = [];
+  // Each label's bar and the label's outer edge.
+  const labelEnds: (BarValue & { readonly edge: number })[] = [];
+  // A bar is cut at a passed domain's end (`barSegments`), so what sits at
+  // its end is placed from its value held to the domain.
+  const held = (v: number) => Math.min(Math.max(v, model.x.lo), model.x.hi);
+  values.forEach((t, i) => {
+    const at = rows[t.row];
+    if (at === undefined || bars === undefined) {
+      return;
+    }
+    const reach = barReach(bars, t.row);
+    const panel = t.series === undefined ? undefined : panels[t.series];
+    const end =
+      panel !== undefined
+        ? panel.at(held(t.value))
+        : xAx.at(held(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi));
+    const leftward = panel?.leftward ?? t.value < 0 !== reverse;
+    const text = valueTexts[i] ?? "";
+    const x = leftward ? end - VALUE_GAP : end + VALUE_GAP;
+    const w = measure.number(text);
+    labelEnds.push({ ...t, edge: leftward ? x - w : x + w });
+    valueLabels.push({
+      text,
+      x,
+      y:
+        t.series === undefined || panel !== undefined
+          ? at.y
+          : barCentre(bars, t.series, at.y, thick),
+      anchor: leftward ? "end" : "start",
+    });
+  });
 
   const yAt = yAx?.at ?? ((v: number) => v);
   const plotLabels: Text[] = [];
@@ -387,8 +676,31 @@ export function layout(
     };
   });
 
-  const frame: Frame = { width: plotW, height, dpr, x: model.x, xAt: xAx.at, yAt };
-  const notes = notesOf(model, metrics, frame, rows);
+  const frame: Frame = { width: plotW, height, dpr, yAt, ...across };
+
+  // A note with no x points 4 px past the outer end of its row's last
+  // place: the last panel's bar, a mirror's or a diverging row's right
+  // side, or else its farthest bar; past that bar's value label if it has one.
+  const rowEnd = (row: number): number => {
+    if (bars === undefined) {
+      return 0;
+    }
+    const k = mirror ? panels.findIndex((p) => !p.leftward) : panels.length - 1;
+    const panel = panels[k];
+    if (panel !== undefined) {
+      const label = labelEnds.find((e) => e.row === row && e.series === k);
+      const dir = panel.leftward ? -1 : 1;
+      return (label?.edge ?? panel.at(held(bars.series[k]?.x[row] ?? 0))) + dir * END_GAP;
+    }
+    const reach = barReach(bars, row);
+    if (bars.arrange === "diverge") {
+      return Math.max(xAx.at(held(reach.lo)), xAx.at(held(reach.hi))) + END_GAP;
+    }
+    // Bars here are 0 or more, so the farthest reaches the row's highest.
+    const label = labelEnds.find((e) => e.row === row && e.value === reach.hi);
+    return (label?.edge ?? xAx.at(held(reach.hi))) + (reverse ? -END_GAP : END_GAP);
+  };
+  const notes = notesOf(model, metrics, frame, rows, rowEnd);
   return {
     width,
     height: top + height + bottom,
@@ -400,6 +712,9 @@ export function layout(
     rows,
     mono,
     gutters: { axis: axisW, label: labelW },
+    bar: thick,
+    valueLabels,
+    heads,
     xLabels,
     yLabels,
     titles,
@@ -407,6 +722,6 @@ export function layout(
     plotLabels,
     endLabels,
     notes,
-    numbered: numberedNotes(notes, chart < NARROW_REM * metrics.rem),
+    numbered: numberedNotes(notes, narrow),
   };
 }

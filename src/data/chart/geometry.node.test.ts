@@ -5,15 +5,33 @@ import { position } from "../scale/position.js";
 
 import {
   areaPaths,
+  arrowPaths,
+  barBlock,
+  barCentre,
+  barPaths,
+  barReach,
+  barSegments,
   bucketEdges,
   dotGroups,
   dotPath,
   groupEdges,
   linePath,
+  pointAt,
+  pointPaths,
+  rangePath,
   rectPaths,
+  ruleXs,
   type Frame,
 } from "./geometry.js";
-import { chartModel, type AreaModel, type LineModel, type Model, type RectModel } from "./model.js";
+import {
+  chartModel,
+  type AreaModel,
+  type BarModel,
+  type LineModel,
+  type Model,
+  type PointModel,
+  type RectModel,
+} from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
 import { tableModel } from "./table.js";
@@ -904,5 +922,474 @@ describe("dot geometry", () => {
       { at: 20, from: 3, to: 4 },
     ]);
     expect(dotPath(groups, 12.5)).toBe("M10 12.5h0M20 12.5h0");
+  });
+});
+
+describe("bars", () => {
+  const barModel = (series: (number | null)[][]) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+        },
+      ],
+    });
+  const barFrame = (m: Model, lo: number, hi: number, width = 100): Frame => ({
+    width,
+    height: 48,
+    dpr: 1,
+    x: { ...m.x, lo, hi },
+    xAt: position("linear", lo, hi, 0, width),
+    yAt: (v) => v,
+  });
+  const barOf = (m: Model) => m.marks[0] as BarModel;
+
+  it("draws each bar from 0 to its value, centred on its row", () => {
+    const m = barModel([[40, 100]]);
+    const f = barFrame(m, 0, 100);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 40, top: 4, bottom: 20 },
+    ]);
+    expect(barPaths(barOf(m), [12, 36], 16, f)).toEqual([
+      { slot: 1, d: "M0 4H40V20H0ZM0 28H100V44H0Z" },
+    ]);
+  });
+
+  it("cuts a bar at a passed domain's end, short of the room past it", () => {
+    const m = barModel([[57.4, -30]]);
+    // The domain [-10, 50] maps to 20 to 80 px, room for labels either side.
+    const f = { ...barFrame(m, -10, 50), xAt: position("linear", -10, 50, 20, 80) };
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 30, right: 80, top: 4, bottom: 20 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([
+      { left: 20, right: 30, top: 28, bottom: 44 },
+    ]);
+  });
+
+  it("draws a negative value leftward from 0, and nothing for 0 or a gap", () => {
+    const m = barModel([[-20, 0, null]]);
+    const f = barFrame(m, -50, 50);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 30, right: 50, top: 4, bottom: 20 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([undefined]);
+    expect(barSegments(barOf(m), 2, f, 36, 16)).toEqual([undefined]);
+  });
+
+  it("draws a series' bars below 0 in its below slot, and keeps one path without it", () => {
+    const spec = (below?: 2 | 4) =>
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["a", "b", "c"],
+            series: [
+              {
+                name: "Change",
+                slot: 3,
+                ...(below === undefined ? {} : { below }),
+                x: [20, -10, 0],
+              },
+            ],
+          },
+        ],
+      });
+    const f = barFrame(spec(), -50, 50);
+    expect(barPaths(barOf(spec(4)), [12, 36, 60], 16, f)).toEqual([
+      { slot: 3, d: "M50 4H70V20H50Z" },
+      { slot: 4, d: "M40 28H50V44H40Z" },
+    ]);
+    expect(barPaths(barOf(spec(3 as 2)), [12, 36, 60], 16, f)).toEqual([
+      { slot: 3, d: "M50 4H70V20H50ZM40 28H50V44H40Z" },
+    ]);
+    expect(barPaths(barOf(spec()), [12, 36, 60], 16, f)).toEqual([
+      { slot: 3, d: "M50 4H70V20H50ZM40 28H50V44H40Z" },
+    ]);
+    expect(barOf(spec()).series[0]?.below).toBe(3);
+  });
+
+  it("stacks series from 0, each beyond another 1 px short unless under 3 px", () => {
+    const m = barModel([
+      [30, 30],
+      [20, 2],
+      [-10, null],
+    ]);
+    const f = barFrame(m, -20, 80);
+    const at = (v: number) => f.xAt(v);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: at(0), right: at(30), top: 4, bottom: 20 },
+      { left: at(30) + 1, right: at(50), top: 4, bottom: 20 },
+      { left: at(-10), right: at(0), top: 4, bottom: 20 },
+    ]);
+    // The 2-unit segment is 2 px, under 3, so it keeps its length and no gap.
+    expect(barSegments(barOf(m), 1, f, 36, 16)[1]).toEqual({
+      left: at(30),
+      right: at(32),
+      top: 28,
+      bottom: 44,
+    });
+    expect(barReach(barOf(m), 0)).toEqual({ lo: -10, hi: 50 });
+  });
+
+  const grouped = (series: (number | null)[][]) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          arrange: "group",
+          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+        },
+      ],
+    });
+
+  it("groups series as 12 px bars one under another, 1 px apart, each from 0", () => {
+    const m = grouped([[30], [-10], [null], [20]]);
+    const f = barFrame(m, -20, 80);
+    const at = (v: number) => f.xAt(v);
+    // Four 12 px bars and three 1 px gaps are 51 px, centred on the row's 30.
+    expect(barBlock(barOf(m), 16)).toBe(51);
+    expect(barSegments(barOf(m), 0, f, 30, 16)).toEqual([
+      { left: at(0), right: at(30), top: 5, bottom: 17 },
+      { left: at(-10), right: at(0), top: 18, bottom: 30 },
+      undefined,
+      { left: at(0), right: at(20), top: 44, bottom: 56 },
+    ]);
+    expect(barCentre(barOf(m), 3, 30, 16)).toBe(49.5);
+    expect(barReach(barOf(m), 0)).toEqual({ lo: -10, hi: 30 });
+  });
+
+  it("stacks each row's shares to the full width, and draws nothing in a row whose total is 0", () => {
+    const m = model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["a", "b"],
+          arrange: "share",
+          series: [
+            { name: "p", x: [30, 0] },
+            { name: "q", x: [10, null] },
+          ],
+        },
+      ],
+    });
+    const f = barFrame(m, 0, 1, 200);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 150, top: 4, bottom: 20 },
+      { left: 151, right: 200, top: 4, bottom: 20 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([undefined, undefined]);
+    expect(barReach(barOf(m), 0)).toEqual({ lo: 0, hi: 1 });
+  });
+
+  it("draws one series grouped as a plain bar", () => {
+    const m = grouped([[40]]);
+    expect(barOf(m).arrange).toBe("stack");
+    expect(barBlock(barOf(m), 16)).toBe(16);
+    expect(barSegments(barOf(m), 0, barFrame(m, 0, 100), 12, 16)).toEqual([
+      { left: 0, right: 40, top: 4, bottom: 20 },
+    ]);
+  });
+
+  const split = (series: (number | null)[][]) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          arrange: "split",
+          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+        },
+      ],
+    });
+  // Two 92 px panels 16 px apart, each 0 to 50 along its first 80 px.
+  const panelled = (m: Model): Frame => ({
+    ...barFrame(m, 0, 50, 200),
+    panels: [0, 108].map((left) => ({
+      left,
+      right: left + 92,
+      leftward: false,
+      at: (v: number) => left + position("linear", 0, 50, 0, 80)(v),
+    })),
+  });
+
+  it("draws each split series' bar from 0 in its own panel, a whole bar thick", () => {
+    const m = split([
+      [25, null],
+      [50, 10],
+    ]);
+    const f = panelled(m);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 40, top: 4, bottom: 20 },
+      { left: 108, right: 188, top: 4, bottom: 20 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([
+      undefined,
+      { left: 108, right: 124, top: 28, bottom: 44 },
+    ]);
+    expect(barReach(barOf(m), 0)).toEqual({ lo: 0, hi: 50 });
+  });
+
+  it("folds a split with no panels into 12 px bars one under another, as a group", () => {
+    const m = split([[25], [50]]);
+    const f = barFrame(m, 0, 50, 100);
+    // Two 12 px bars and the 1 px between them are 25 px, centred on the row's 30.
+    expect(barBlock(barOf(m), 16)).toBe(25);
+    expect(barSegments(barOf(m), 0, f, 30, 16)).toEqual([
+      { left: 0, right: 50, top: 18, bottom: 30 },
+      { left: 0, right: 100, top: 31, bottom: 43 },
+    ]);
+    expect(barCentre(barOf(m), 1, 30, 16)).toBe(36.5);
+  });
+
+  const diverging = (series: (number | null)[][], left: number, centre: boolean) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          arrange: "diverge",
+          left,
+          centre,
+          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+        },
+      ],
+    });
+
+  it("stacks the left series leftward from the centre's half, the rest rightward, each beyond another 1 px short", () => {
+    const m = diverging([[10], [15], [20], [30], [25]], 2, true);
+    // 0 at 40 px, 1 px a unit: the centre spans -10 to 10.
+    const f = barFrame(m, -40, 70, 110);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 5, right: 14, top: 4, bottom: 20 },
+      { left: 15, right: 29, top: 4, bottom: 20 },
+      { left: 30, right: 50, top: 4, bottom: 20 },
+      { left: 51, right: 80, top: 4, bottom: 20 },
+      { left: 81, right: 105, top: 4, bottom: 20 },
+    ]);
+    expect(barReach(barOf(m), 0)).toEqual({ lo: -35, hi: 65 });
+  });
+
+  it("meets at 0 with no centre, the right side giving the gap, and skips a 0 and a gap", () => {
+    const m = diverging(
+      [
+        [10, 0],
+        [20, null],
+        [30, 30],
+      ],
+      1,
+      false,
+    );
+    const f = barFrame(m, -10, 50, 60);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 10, top: 4, bottom: 20 },
+      { left: 11, right: 30, top: 4, bottom: 20 },
+      { left: 31, right: 60, top: 4, bottom: 20 },
+    ]);
+    // Nothing on the left, so the first right bar starts at 0 itself.
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([
+      undefined,
+      undefined,
+      { left: 10, right: 40, top: 28, bottom: 44 },
+    ]);
+    expect(barReach(barOf(m), 1)).toEqual({ lo: 0, hi: 30 });
+  });
+
+  it("starts both sides at 0 when the centre series has no value", () => {
+    const m = diverging([[10], [null], [30]], 1, true);
+    const f = barFrame(m, -10, 50, 60);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 10, top: 4, bottom: 20 },
+      undefined,
+      { left: 11, right: 40, top: 4, bottom: 20 },
+    ]);
+  });
+
+  it("draws one series split as a plain bar", () => {
+    const m = split([[40]]);
+    expect(barOf(m).arrange).toBe("stack");
+    expect(barSegments(barOf(m), 0, barFrame(m, 0, 100), 12, 16)).toEqual([
+      { left: 0, right: 40, top: 4, bottom: 20 },
+    ]);
+  });
+
+  it("draws a mirror's first side leftward from its spine and its second rightward", () => {
+    const m = model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["45-50", "50-55"],
+          arrange: "mirror",
+          series: [
+            { name: "Male", x: [50, null] },
+            { name: "Female", x: [25, 0] },
+          ],
+        },
+      ],
+    });
+    // Two 96 px sides either side of an 8 px spine, each 0 to 50 along 80 px.
+    const along = position("linear", 0, 50, 0, 80);
+    const f: Frame = {
+      ...barFrame(m, 0, 50, 200),
+      panels: [
+        { left: 0, right: 96, leftward: true, at: (v: number) => 96 - along(v) },
+        { left: 104, right: 200, leftward: false, at: (v: number) => 104 + along(v) },
+      ],
+    };
+    expect(barOf(m).arrange).toBe("mirror");
+    expect(barSegments(barOf(m), 0, f, 12, 22)).toEqual([
+      { left: 16, right: 96, top: 1, bottom: 23 },
+      { left: 104, right: 144, top: 1, bottom: 23 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 22)).toEqual([undefined, undefined]);
+    expect(barBlock(barOf(m), 22)).toBe(22);
+  });
+});
+
+describe("points", () => {
+  const pointModel = (x: ChartSpec["x"], series: (number | null)[][]) =>
+    model({
+      x,
+      marks: [
+        {
+          mark: "point",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          series: series.map((v, k) => ({ name: `s${String(k)}`, slot: (k + 2) as 2, x: v })),
+        },
+      ],
+    });
+  const pointOf = (m: Model) => m.marks[0] as PointModel;
+  const pointFrame = (m: Model, lo: number, hi: number, dpr = 1): Frame => ({
+    width: 200,
+    height: 48,
+    dpr,
+    x: m.x,
+    xAt: position("linear", lo, hi, 0, 200),
+    yAt: (v) => v,
+  });
+
+  it("draws a dot per series on each row's line, a later series' last", () => {
+    const m = pointModel({}, [
+      [40, 50],
+      [60, 45],
+    ]);
+    const f = pointFrame(m, 40, 60);
+    expect(pointPaths(pointOf(m), [12, 36], f)).toEqual([
+      "M0 12.5h0M100 36.5h0",
+      "M200 12.5h0M50 36.5h0",
+    ]);
+  });
+
+  it("draws no dot for a gap, nor outside a passed domain", () => {
+    const m = pointModel({ domain: [40, 60] }, [[null, 39, 60, 61]]);
+    const f = pointFrame(m, 40, 60);
+    expect(pointPaths(pointOf(m), [12, 36, 60, 84], f)).toEqual(["M200 60.5h0"]);
+    expect([0, 1, 2, 3].map((i) => pointAt(pointOf(m), 0, i, f))).toEqual([
+      undefined,
+      undefined,
+      200,
+      undefined,
+    ]);
+  });
+
+  it("snaps each dot to device pixels", () => {
+    const m = pointModel({}, [[40, 40.3, 60]]);
+    const f = pointFrame(m, 40, 60, 2);
+    expect(pointAt(pointOf(m), 0, 1, f)).toBe(3);
+    expect(pointPaths(pointOf(m), [12.2, 36, 60], f)[0]).toBe("M0 12.5h0M3 36.5h0M200 60.5h0");
+  });
+  // x 40 to 60 over 200 px: 10 px a unit.
+  const linkRows = [
+    [40, 60, 50, 50, null, 45],
+    [50, 45, 51.7, 51.8, 50, 45],
+  ];
+  const ys = [12, 36, 60, 84, 108, 132];
+
+  it("joins each row's two drawn dots for a range, none where either is a gap", () => {
+    const m = pointModel({}, linkRows);
+    const f = pointFrame(m, 40, 60);
+    expect(rangePath(pointOf(m), ys, f)).toBe(
+      "M0 12.5H100M200 36.5H50M100 60.5H117M100 84.5H118M50 132.5H50",
+    );
+  });
+
+  it("draws an arrow from the first dot's edge to an 8 px head at the second's, either way", () => {
+    const m = pointModel({}, linkRows);
+    const f = pointFrame(m, 40, 60);
+    const { shafts, heads } = arrowPaths(pointOf(m), ys, f);
+    // Rows 0 and 1 run right and left; row 2's centres stand 17 px apart, too
+    // close for a head, and row 3's 18 px, a head with no shaft.
+    expect(shafts).toBe("M5 12.5H87M195 36.5H63M105 84.5H105");
+    expect(heads).toBe("M95 12.5L87 8.5V16.5ZM55 36.5L63 32.5V40.5ZM113 84.5L105 80.5V88.5Z");
+  });
+});
+
+describe("an x rule on bar rows", () => {
+  const diverging = (domain?: readonly [number, number]) =>
+    model({
+      x: domain === undefined ? {} : { domain },
+      marks: [
+        {
+          mark: "bar",
+          y: ["a"],
+          arrange: "diverge",
+          left: 1,
+          series: [
+            { name: "No", x: [20] },
+            { name: "Yes", x: [40] },
+          ],
+        },
+        { mark: "rule", x: 30, label: "Goal" },
+      ],
+    });
+
+  it("draws once on a plain axis", () => {
+    const m = model({
+      x: {},
+      marks: [{ mark: "bar", y: ["a"], series: [{ name: "a", x: [50] }] }],
+    });
+    expect(ruleXs(25, frame(m, 200, 24, 1))).toEqual([100]);
+  });
+
+  it("draws in every panel at its value, in series order", () => {
+    const m = model({ x: {}, marks: [] });
+    const panels = [0, 108].map((left) => ({
+      left,
+      right: left + 92,
+      leftward: false,
+      at: (v: number) => left + v * 2,
+    }));
+    expect(ruleXs(10, { ...frame(m, 200, 24, 1), panels })).toEqual([20, 128]);
+  });
+
+  it("draws at its distance either side of a diverging 0, once at 0", () => {
+    const m = diverging();
+    // The rule's 30 widens both sides: -30 to 40 over 140 px, 2 px a unit.
+    expect([m.x.lo, m.x.hi]).toEqual([-30, 40]);
+    const f = frame(m, 140, 24, 1);
+    expect(ruleXs(30, f)).toEqual([0, 120]);
+    expect(ruleXs(0, f)).toEqual([60]);
+  });
+
+  it("leaves out the side a passed domain does not hold", () => {
+    const m = diverging([-20, 50]);
+    expect(ruleXs(30, frame(m, 140, 24, 1))).toEqual([100]);
+    expect(m.marks[1]).toMatchObject({ place: { at: 30 } });
+    const out = diverging([-40, 20]);
+    expect(ruleXs(30, frame(out, 120, 24, 1))).toEqual([20]);
+    // Its right-hand value lies off the axis, its left one on it, so it is drawn.
+    expect(out.marks[1]).toMatchObject({ place: { at: 30 } });
+    const neither = diverging([-20, 20]);
+    expect(neither.marks[1]).toMatchObject({ place: { off: "high" } });
   });
 });

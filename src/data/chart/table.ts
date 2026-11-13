@@ -1,14 +1,24 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
- * bucket, sample, change point or dot row, kept in place across updates.
+ * bucket, sample, change point, dot row or category, kept in place across
+ * updates.
  * @module
  */
 
 import { formatter } from "../scale/format.js";
 
-import type { Model, RectModel, SampleModel } from "./model.js";
-import { bucketTotal, sampleTotal } from "./model.js";
-import { bucketText, partText, primaryOf, samplePart, totalled } from "./readout.js";
+import type { BarModel, Model, PointModel, RectModel, SampleModel } from "./model.js";
+import { barsApart, barTotal, bucketTotal, pointLink, sampleTotal } from "./model.js";
+import {
+  barPart,
+  bucketText,
+  linkText,
+  partText,
+  primaryOf,
+  samplePart,
+  totalWord,
+  totalled,
+} from "./readout.js";
 import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
@@ -21,7 +31,8 @@ interface Cell {
 }
 
 interface Row {
-  /** The row's x, or its dot row's name and place among rows of that name. */
+  /** The row's x, its dot row's name and place among rows of that name, or
+   *  its category's name. */
   readonly key: string;
   readonly head: readonly Part[];
   readonly cells: readonly Cell[];
@@ -127,6 +138,57 @@ function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
   });
 }
 
+// A row per category, a column per series, and from two stacked series up
+// a Total, under "share" the absolute total the shares hide; none for bars
+// standing apart.
+function barTable(model: Model, m: BarModel, words: Words, after: string): TableModel {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const withTotal = m.series.length > 1 && !barsApart(m);
+  const rows = names.map((name, i): Row => {
+    const cells: Cell[] = m.series.map((s) => ({
+      parts: [barPart(model, m, s, i, words)],
+      num: true,
+    }));
+    if (withTotal) {
+      const total = barTotal(m, i);
+      cells.push({
+        parts: [total === null ? words.noData : model.amountText(total)],
+        num: true,
+      });
+    }
+    return { key: name, head: [name], cells };
+  });
+  const columns = m.series.map((s) => ({ text: s.name, num: true }));
+  if (withTotal) {
+    columns.push({ text: words.total, num: true });
+  }
+  return { corner: model.spec.y?.label ?? "", columns, rows, after };
+}
+
+// A row per category and a column per series, each value as the readings
+// write it, an instant in its `<time>`, then a link's Gap or Change.
+function pointTable(model: Model, m: PointModel, words: Words, after: string): TableModel {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  // Instants are words, not figures to align.
+  const num = model.x.type !== "time";
+  const rows = names.map((name, i): Row => {
+    const cells: Cell[] = m.series.map((s) => {
+      const v = s.x[i] ?? null;
+      return { parts: v === null ? [words.noData] : timed(model, (t) => t.xText(v)), num };
+    });
+    if (m.link !== undefined) {
+      const v = pointLink(m, i);
+      cells.push({ parts: [v === null ? words.noData : linkText(model, m, v)], num: true });
+    }
+    return { key: name, head: [name], cells };
+  });
+  const columns = m.series.map((s) => ({ text: s.name, num }));
+  if (m.link !== undefined) {
+    columns.push({ text: totalWord(model, words), num: true });
+  }
+  return { corner: model.spec.y?.label ?? "", columns, rows, after };
+}
+
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
@@ -161,6 +223,12 @@ export function tableModel(model: Model, words: Words): TableModel {
       rows,
       after,
     };
+  }
+  if (m.kind === "bar") {
+    return barTable(model, m, words, after);
+  }
+  if (m.kind === "point") {
+    return pointTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {

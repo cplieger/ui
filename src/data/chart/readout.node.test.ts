@@ -7,21 +7,26 @@ import { measurer } from "../scale/measure.js";
 import {
   chartModel,
   type AreaModel,
+  type BarModel,
   type DotModel,
   type LineModel,
   type Model,
+  type PointModel,
   type RectModel,
 } from "./model.js";
 import {
+  barReading,
   bucketReading,
   overall,
+  pointReading,
   postReading,
   readoutWidths,
   rowReading,
   sampleReading,
+  totalWord,
   type Reading,
 } from "./readout.js";
-import type { ChartSpec } from "./spec.js";
+import type { ChartSpec, Mark } from "./spec.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -457,5 +462,408 @@ describe("the legend row's widths", () => {
     for (let i = 0; i < x.length; i++) {
       fits(sampleReading(m, line, i, words), w);
     }
+  });
+});
+
+describe("the legend row of a bar chart", () => {
+  const ages = (unit?: { one: string; other: string }): ChartSpec => ({
+    x: { unit: { one: "year", other: "years" } },
+    ...(unit === undefined ? {} : { y: { unit } }),
+    marks: [
+      {
+        mark: "bar",
+        y: ["Holy See", "Monaco", "Japan"],
+        series: [{ name: "Median age", x: [57.4, null, 49.8] }],
+      },
+    ],
+  });
+  const firms: ChartSpec = {
+    x: {},
+    y: { unit: { one: "company", other: "companies" } },
+    marks: [
+      {
+        mark: "bar",
+        y: ["Acme", "Brill"],
+        series: [
+          { name: "Domestic", slot: 1, x: [40, 3] },
+          { name: "International", slot: 3, x: [2, null] },
+        ],
+      },
+    ],
+  };
+
+  it("reads the row count in the y unit, or as categories, with a blank value", () => {
+    expect(overall(model(ages({ one: "country", other: "countries" })), words)).toEqual({
+      at: `3${nb}countries`,
+      entries: [{ slot: undefined, name: undefined, value: "" }],
+      total: undefined,
+    });
+    expect(overall(model(ages()), words)?.at).toBe("3 categories");
+    const one: ChartSpec = {
+      x: {},
+      marks: [{ mark: "bar", y: ["Japan"], series: [{ name: "Median age", x: [49.8] }] }],
+    };
+    expect(overall(model(one), words)?.at).toBe("1 category");
+  });
+
+  it("names the series of a stack with their value and total slots blank", () => {
+    expect(overall(model(firms), words)).toEqual({
+      at: `2${nb}companies`,
+      entries: [
+        { slot: 1, name: "Domestic", value: "" },
+        { slot: 3, name: "International", value: "" },
+      ],
+      total: "",
+    });
+  });
+
+  it("reads a row's value with the x unit, or No data for a gap", () => {
+    const m = model(ages());
+    const bar = m.marks[0] as BarModel;
+    expect(barReading(m, bar, 0, words).entries[0]?.value).toBe(`57.4${nb}years`);
+    expect(barReading(m, bar, 1, words)).toMatchObject({ at: "Monaco", total: undefined });
+    expect(barReading(m, bar, 1, words).entries[0]?.value).toBe("No data");
+  });
+
+  it("signs a diverging bar's readings but 0's", () => {
+    const m = model({
+      x: { format: { style: "percent", maximumFractionDigits: 1 } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Utah", "Texas", "Puerto Rico"],
+          series: [{ name: "Change", x: [0.16, 0, -0.143] }],
+        },
+      ],
+    });
+    const bar = m.marks[0] as BarModel;
+    expect([0, 1, 2].map((r) => barReading(m, bar, r, words).entries[0]?.value)).toEqual([
+      "+16%",
+      "0%",
+      "-14.3%",
+    ]);
+  });
+
+  it("reads a stacked row's parts and total, a gap counting for nothing", () => {
+    const m = model(firms);
+    const bar = m.marks[0] as BarModel;
+    expect(barReading(m, bar, 1, words)).toEqual({
+      at: "Brill",
+      entries: [
+        { slot: 1, name: "Domestic", value: "3" },
+        { slot: 3, name: "International", value: "No data" },
+      ],
+      total: "3",
+    });
+  });
+
+  const grouped: ChartSpec = {
+    ...firms,
+    marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "group" }],
+  };
+
+  it("reads a grouped row's values with no total, and names the series with no total slot", () => {
+    const m = model(grouped);
+    const bar = m.marks[0] as BarModel;
+    expect(barReading(m, bar, 0, words)).toEqual({
+      at: "Acme",
+      entries: [
+        { slot: 1, name: "Domestic", value: "40" },
+        { slot: 3, name: "International", value: "2" },
+      ],
+      total: undefined,
+    });
+    expect(overall(m, words)?.total).toBeUndefined();
+  });
+
+  it("reads a split row's values with no total, and names the series with no total slot", () => {
+    const split: ChartSpec = {
+      ...firms,
+      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "split" }],
+    };
+    const m = model(split);
+    const bar = m.marks[0] as BarModel;
+    expect(barReading(m, bar, 0, words)).toEqual({
+      at: "Acme",
+      entries: [
+        { slot: 1, name: "Domestic", value: "40" },
+        { slot: 3, name: "International", value: "2" },
+      ],
+      total: undefined,
+    });
+    expect(overall(m, words)?.total).toBeUndefined();
+  });
+
+  it("reads a mirrored row's two sides and its total", () => {
+    const m = model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["45-50", "90+"],
+          arrange: "mirror",
+          series: [
+            { name: "Male", x: [2_734_000, null] },
+            { name: "Female", x: [2_690_000, 520_000] },
+          ],
+        },
+      ],
+    });
+    const bars = m.marks[0] as BarModel;
+    const r = barReading(m, bars, 0, words);
+    expect(r?.entries.map((e) => `${e.name} ${e.value}`)).toEqual([
+      "Male 2,734,000",
+      "Female 2,690,000",
+    ]);
+    expect(r?.total).toBe("5,424,000");
+    expect(barReading(m, bars, 1, words)?.entries.map((e) => e.value)).toEqual([
+      "No data",
+      "520,000",
+    ]);
+  });
+
+  it("reads a diverging row's values in series order and its total", () => {
+    const m = model({
+      x: { format: "percent" },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Item 3"],
+          arrange: "diverge",
+          left: 2,
+          centre: true,
+          series: [
+            { name: "Strongly disagree", x: [0.1] },
+            { name: "Disagree", x: [0.15] },
+            { name: "Neutral", x: [0.2] },
+            { name: "Agree", x: [0.3] },
+            { name: "Strongly agree", x: [0.25] },
+          ],
+        },
+      ],
+    });
+    const r = barReading(m, m.marks[0] as BarModel, 0, words);
+    expect(r?.entries.map((e) => `${e.name} ${e.value}`)).toEqual([
+      "Strongly disagree 10%",
+      "Disagree 15%",
+      "Neutral 20%",
+      "Agree 30%",
+      "Strongly agree 25%",
+    ]);
+    expect(r?.total).toBe("100%");
+  });
+
+  const shared = (rows: (number | null)[][]): ChartSpec => ({
+    x: { unit: { one: "respondent", other: "respondents" } },
+    marks: [
+      {
+        mark: "bar",
+        y: rows.map((_, i) => `Item ${String(i + 1)}`),
+        arrange: "share",
+        series: [
+          { name: "No", slot: 1, x: rows.map((r) => r[0] ?? null) },
+          { name: "Yes", slot: 2, x: rows.map((r) => r[1] ?? null) },
+        ],
+      },
+    ],
+  });
+
+  it("reads a 100% row's shares and its absolute total in the x unit", () => {
+    const m = model(shared([[34, 66]]));
+    expect(barReading(m, m.marks[0] as BarModel, 0, words)).toEqual({
+      at: "Item 1",
+      entries: [
+        { slot: 1, name: "No", value: "34%" },
+        { slot: 2, name: "Yes", value: "66%" },
+      ],
+      total: `100${nb}respondents`,
+    });
+    expect(overall(m, words)?.total).toBe("");
+  });
+
+  it("reads a 100% row whose total is 0 by its values, and a gap as No data", () => {
+    const m = model(shared([[0, null]]));
+    expect(barReading(m, m.marks[0] as BarModel, 0, words)).toEqual({
+      at: "Item 1",
+      entries: [
+        { slot: 1, name: "No", value: "0" },
+        { slot: 2, name: "Yes", value: "No data" },
+      ],
+      total: `0${nb}respondents`,
+    });
+  });
+
+  it("keeps slots as wide as every row's reading and the whole chart's", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const m = model(firms);
+    const w = readoutWidths(m, words, measure);
+    const bar = m.marks[0] as BarModel;
+    for (const r of [0, 1]) {
+      const reading = barReading(m, bar, r, words);
+      expect(measure.number(reading.at)).toBeLessThanOrEqual(w.at);
+      reading.entries.forEach((e, k) => {
+        expect(measure.number(e.value)).toBeLessThanOrEqual(w.values[k] ?? 0);
+      });
+      expect(measure.number(reading.total ?? "")).toBeLessThanOrEqual(w.total);
+    }
+    expect(measure.number(overall(m, words)?.at ?? "")).toBeLessThanOrEqual(w.at);
+  });
+});
+
+describe("the legend row of a point chart", () => {
+  const degrees = (x: ChartSpec["x"] = {}, ...series: (number | null)[][]): ChartSpec => ({
+    x,
+    y: { unit: { one: "degree", other: "degrees" } },
+    marks: [
+      {
+        mark: "point",
+        y: ["Doctorate", "Master's"],
+        series: series.map((v, k) => ({
+          name: k === 0 ? "Women" : "Men",
+          slot: (k + 2) as 2,
+          x: v,
+        })),
+      },
+    ],
+  });
+  const pointOf = (m: Model) => m.marks[0] as PointModel;
+
+  it("reads the row count with blank chips and no total", () => {
+    const m = model(degrees({}, [128_700, 91_000], [163_500, null]));
+    expect(overall(m, words)).toEqual({
+      at: `2${nb}degrees`,
+      entries: [
+        { slot: 2, name: "Women", value: "" },
+        { slot: 3, name: "Men", value: "" },
+      ],
+      total: undefined,
+    });
+  });
+
+  it("reads a row's values, a gap as No data, and no total", () => {
+    const m = model(degrees({}, [128_700, 91_000], [163_500, null]));
+    const r = pointReading(m, pointOf(m), 1, words);
+    expect(r).toEqual({
+      at: "Master's",
+      entries: [
+        { slot: 2, name: "Women", value: "91,000" },
+        { slot: 3, name: "Men", value: "No data" },
+      ],
+      total: undefined,
+    });
+  });
+
+  it("reads one series bare with the x unit, and instants on a time x", () => {
+    const one = model(degrees({ unit: { one: "dollar", other: "dollars" } }, [1, null]));
+    expect(pointReading(one, pointOf(one), 0, words).entries).toEqual([
+      { slot: undefined, name: undefined, value: `1${nb}dollar` },
+    ]);
+    expect(pointReading(one, pointOf(one), 1, words).entries[0]?.value).toBe("No data");
+    expect(overall(one, words)?.entries).toEqual([{ slot: undefined, name: undefined, value: "" }]);
+    const timed = model(degrees({ type: "time" }, [START, START + 90 * MIN]));
+    expect(pointReading(timed, pointOf(timed), 1, words).entries[0]?.value).toBe(
+      time(START + 90 * MIN),
+    );
+  });
+
+  it("keeps slots wide enough for every row's reading", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const m = model(degrees({}, [128_700, 91_000], [163_500, null]));
+    const w = readoutWidths(m, words, measure);
+    for (const r of [0, 1]) {
+      const reading = pointReading(m, pointOf(m), r, words);
+      expect(measure.number(reading.at)).toBeLessThanOrEqual(w.at);
+      reading.entries.forEach((e, k) => {
+        expect(measure.number(e.value)).toBeLessThanOrEqual(w.values[k] ?? 0);
+      });
+    }
+    expect(w.at).toBe(measure.number(`2${nb}degrees`));
+  });
+});
+
+describe("the legend row of a range or arrow plot", () => {
+  const plot = (
+    link: "range" | "arrow",
+    x: ChartSpec["x"],
+    women: (number | null)[],
+    men: (number | null)[],
+  ): Model =>
+    model({
+      x,
+      marks: [
+        {
+          mark: "point",
+          y: ["Doctorate", "Master's", "Bachelor's"],
+          link,
+          series: [
+            { name: "Women", x: women },
+            { name: "Men", x: men },
+          ],
+        },
+      ],
+    });
+  const pointOf = (m: Model) => m.marks[0] as PointModel;
+
+  it("keeps a blank Gap or Change slot with no selection", () => {
+    for (const link of ["range", "arrow"] as const) {
+      const m = plot(link, {}, [128_700, 91_000, 70_000], [163_500, 120_000, 81_000]);
+      expect(overall(m, words)?.total).toBe("");
+    }
+    const m = plot("range", {}, [1, 2, 3], [4, 5, 6]);
+    expect(totalWord(m, words)).toBe("Gap");
+    expect(totalWord(plot("arrow", {}, [1, 2, 3], [4, 5, 6]), words)).toBe("Change");
+    const dots = model({
+      x: {},
+      marks: [{ mark: "point", y: ["a"], series: [{ name: "A", x: [1] }] }],
+    });
+    expect(overall(dots, words)?.total).toBeUndefined();
+    expect(totalWord(dots, words)).toBe("Total");
+  });
+
+  it("reads a range's gap either way round, and No data with a gap at an end", () => {
+    const m = plot("range", {}, [128_700, 120_000, null], [163_500, 91_000, 81_000]);
+    expect(pointReading(m, pointOf(m), 0, words)).toEqual({
+      at: "Doctorate",
+      entries: [
+        { slot: 1, name: "Women", value: "128,700" },
+        { slot: 2, name: "Men", value: "163,500" },
+      ],
+      total: "34,800",
+    });
+    expect(pointReading(m, pointOf(m), 1, words).total).toBe("29,000");
+    expect(pointReading(m, pointOf(m), 2, words).total).toBe("No data");
+  });
+
+  it("reads an arrow's change with its sign, in x's format", () => {
+    const pct = { format: { style: "percent", maximumFractionDigits: 1 } } as const;
+    const m = plot("arrow", pct, [0.058, 0.5, 0.2], [0.93, 0.463, 0.2]);
+    const r = pointReading(m, pointOf(m), 0, words);
+    expect(r.entries.map((e) => e.value)).toEqual(["5.8%", "93%"]);
+    expect(r.total).toBe("+87.2%");
+    expect(pointReading(m, pointOf(m), 1, words).total).toBe("-3.7%");
+    expect(pointReading(m, pointOf(m), 2, words).total).toBe("0%");
+  });
+
+  it("writes a gap and a change on a time x as durations", () => {
+    const later = START + 90 * MIN;
+    const range = plot("range", { type: "time" }, [later, START, START], [START, later, START]);
+    expect(pointReading(range, pointOf(range), 0, words).total).toBe(
+      formatDuration(90 * MIN, "en"),
+    );
+    const arrow = plot("arrow", { type: "time" }, [later, START, START], [START, later, START]);
+    expect(pointReading(arrow, pointOf(arrow), 0, words).total).toBe(
+      formatDuration(-90 * MIN, "en"),
+    );
+    expect(pointReading(arrow, pointOf(arrow), 1, words).total).toBe(
+      `+${formatDuration(90 * MIN, "en")}`,
+    );
+  });
+
+  it("keeps the last slot wide enough for every row's gap", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const m = plot("range", {}, [128_700, 1, null], [163_500, 2, 81_000]);
+    const w = readoutWidths(m, words, measure);
+    expect(w.total).toBe(measure.number("No data"));
+    expect(w.total).toBeGreaterThanOrEqual(measure.number("34,800"));
   });
 });

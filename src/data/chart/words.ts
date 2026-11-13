@@ -14,7 +14,18 @@ type Kind =
   | "histogram"
   | "line"
   | "step"
-  | "timeline";
+  | "timeline"
+  | "bar"
+  | "stackedBar"
+  | "groupedBar"
+  | "shareBar"
+  | "divergingBar"
+  | "splitBar"
+  | "divergingStackedBar"
+  | "mirrorBar"
+  | "dotPlot"
+  | "rangePlot"
+  | "arrowPlot";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -22,13 +33,12 @@ export interface ChartWords {
   readonly chart?: string;
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
-  /** The kind in the short description. Defaults "Stacked column chart",
-   *  "Grouped column chart", "100% stacked column chart", "Column chart",
-   *  "Stacked area chart", "100% stacked area chart", "Area chart",
-   *  "Histogram", "Line chart", "Step line", "Timeline". A rect on a log x is
-   *  a histogram however it is shaped or arranged; any other rect is a column
-   *  or, with shape "area", an area chart, its stacked, grouped or 100% kind
-   *  with two or more series. */
+  /** The kind that starts the short description, by key, each with an
+   *  English default ("Column chart", "Back-to-back bar chart", "Dot plot"
+   *  and the rest). A rect on a log x is a histogram; one series of a rect
+   *  is a column chart, of a bar a bar chart or, with a value below 0, a
+   *  diverging one; two or more take their arrangement's kind; an area
+   *  mark, or a rect with shape "area", an area chart. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -54,6 +64,16 @@ export interface ChartWords {
   readonly under?: (edge: string) => string;
   /** A stack's total. Default "Total". */
   readonly total?: string;
+  /** A range plot's distance between a row's two values, in the legend
+   *  row, the table head and the summary. Default "Gap". */
+  readonly gap?: string;
+  /** An arrow plot's second value less its first, where `gap` names a
+   *  range's. Default "Change". */
+  readonly change?: string;
+  /** A range plot's row, as announced. Default "{at}: {parts}. Gap {gap}." */
+  readonly gapReading?: (at: string, parts: string, gap: string) => string;
+  /** An arrow plot's row, as announced. Default "{at}: {parts}. Change {change}." */
+  readonly changeReading?: (at: string, parts: string, change: string) => string;
   /** A null value. Default "No data". */
   readonly noData?: string;
   /** A silent row's first and last cells. Default "None". */
@@ -91,6 +111,30 @@ export interface ChartWords {
   /** A note added to the reading of the stop it joins. Default "Note: {text}.",
    *  with no stop added when the text ends in one. */
   readonly noteReading?: (text: string) => string;
+  /** A band's rows when the y scale names no unit; count is n as a number,
+   *  for the plural. Default "{n} categories", or "{n} category" for one. */
+  readonly categories?: (n: string, count: number) => string;
+  /** Summary, a bar chart's head; series is "" for one series. Default
+   *  "{count}, {series}.", or "{count}." with one series. */
+  readonly countSummary?: (count: string, series: string) => string;
+  /** Summary, one series of a bar or point chart, or its totals under `total`; high
+   *  and low are each "{row} {value}". Default "{name}: highest {high},
+   *  lowest {low}." */
+  readonly barSeries?: (name: string, high: string, low: string) => string;
+  /** Summary, a bar or point chart of one series. Default "Highest {high},
+   *  lowest {low}." */
+  readonly extremes?: (high: string, low: string) => string;
+  /** Summary, a bar or point series whose rows all hold one value; name is
+   *  "" for a chart's one series. Default "{name}: {value} each.", or
+   *  "{value} each." */
+  readonly alike?: (name: string, value: string) => string;
+  /** Summary, a bar or point series with one row holding a value; row is
+   *  "{row} {value}" and name "" for a chart's one series. Default
+   *  "{name}: {row}.", or "{row}." */
+  readonly only?: (name: string, row: string) => string;
+  /** Summary, one series of a point chart on a time x; first and last are
+   *  each "{row} {time}". Default "{name}: earliest {first}, latest {last}." */
+  readonly spanSeries?: (name: string, first: string, last: string) => string;
   /** Summary, line head. Default "{range}, {every}.", or "{range}." when every is "". */
   readonly lineSummary?: (range: string, every: string) => string;
   /** Summary, one line series. Default "{name}: last {last}, low {low}, high {high}." */
@@ -127,6 +171,17 @@ const DEFAULTS: Words = {
     line: "Line chart",
     step: "Step line",
     timeline: "Timeline",
+    bar: "Bar chart",
+    stackedBar: "Stacked bar chart",
+    groupedBar: "Grouped bar chart",
+    shareBar: "100% stacked bar chart",
+    divergingBar: "Diverging bar chart",
+    splitBar: "Split bar chart",
+    divergingStackedBar: "Diverging stacked bar chart",
+    mirrorBar: "Back-to-back bar chart",
+    dotPlot: "Dot plot",
+    rangePlot: "Range plot",
+    arrowPlot: "Arrow plot",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -140,6 +195,10 @@ const DEFAULTS: Words = {
   range: (from, to) => `${from} to ${to}`,
   under: (edge) => `Under ${edge}`,
   total: "Total",
+  gap: "Gap",
+  change: "Change",
+  gapReading: (at, parts, gap) => `${at}: ${parts}. Gap ${gap}.`,
+  changeReading: (at, parts, change) => `${at}: ${parts}. Change ${change}.`,
   noData: "No data",
   none: "None",
   count: "Count",
@@ -159,6 +218,13 @@ const DEFAULTS: Words = {
   rule: (label, value) => `${label} ${value}.`,
   note: (at, text) => sentence(`${at}: ${text}`),
   noteReading: (text) => sentence(`Note: ${text}`),
+  categories: (n, count) => (count === 1 ? `${n} category` : `${n} categories`),
+  countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
+  barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
+  extremes: (high, low) => `Highest ${high}, lowest ${low}.`,
+  alike: (name, value) => (name === "" ? `${value} each.` : `${name}: ${value} each.`),
+  only: (name, row) => (name === "" ? `${row}.` : `${name}: ${row}.`),
+  spanSeries: (name, first, last) => `${name}: earliest ${first}, latest ${last}.`,
   lineSummary: (range, every) => (every === "" ? `${range}.` : `${range}, ${every}.`),
   lineSeries: (name, last, low, high) => `${name}: last ${last}, low ${low}, high ${high}.`,
   dotSummary: (range, rows, n) => `${range}. ${rows}, ${n}.`,

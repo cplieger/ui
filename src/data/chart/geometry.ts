@@ -1,19 +1,25 @@
 /**
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
- * pixel and cut at the plot's ends, rows of dots, rules and the axis lines.
+ * pixel and cut at the plot's ends, rows of dots, bars and points along
+ * their rows, rules and the axis lines.
  * @module
  */
 
 import { reduce, type Point } from "../scale/reduce.js";
 
 import {
+  barsApart,
+  barTotal,
+  barValue,
   drawnTotal,
   drawnValue,
   sampleValue,
   type AreaModel,
+  type BarModel,
   type DotRowModel,
   type LineModel,
+  type PointModel,
   type RectModel,
   type SampleModel,
 } from "./model.js";
@@ -33,6 +39,19 @@ export interface Frame {
   readonly x: Continuous;
   readonly xAt: (v: number) => number;
   readonly yAt: (v: number) => number;
+  /** A split or mirrored bar chart's panels, one per series in series
+   *  order; absent once a split folds into one panel under 30rem. */
+  readonly panels?: readonly Panel[];
+}
+
+/** A bar chart's panel: its left and right px in the plot, its share of
+ *  the chart's one x scale mapped into it, and whether its bars run
+ *  leftward from their baseline at `at(0)`. */
+export interface Panel {
+  readonly left: number;
+  readonly right: number;
+  readonly at: (v: number) => number;
+  readonly leftward: boolean;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
@@ -420,6 +439,233 @@ export function areaPaths(m: AreaModel, f: Frame): string[] {
   });
 }
 
+// Where row `i` of a diverging `m` starts left of 0: its left series' sum
+// and half its centre series' value, each a `null` as 0.
+function divergeStart(m: BarModel, i: number): number {
+  let start = m.centre ? -(m.series[m.left]?.x[i] ?? 0) / 2 : 0;
+  for (const s of m.series.slice(0, m.left)) {
+    start -= s.x[i] ?? 0;
+  }
+  return start;
+}
+
+/** Row `i`'s reach of `m` along x, each end 0 without a value past it: a
+ *  stack's sums of its negative and of its positive values, a diverging
+ *  row's left and right extents, or the lowest and highest value of bars
+ *  standing apart. */
+export function barReach(m: BarModel, i: number): { readonly lo: number; readonly hi: number } {
+  if (m.arrange === "diverge") {
+    const lo = divergeStart(m, i);
+    return { lo, hi: lo + (barTotal(m, i) ?? 0) };
+  }
+  let lo = 0;
+  let hi = 0;
+  for (const s of m.series) {
+    const v = barValue(m, s, i);
+    if (barsApart(m)) {
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    } else if (v < 0) {
+      lo += v;
+    } else {
+      hi += v;
+    }
+  }
+  return { lo, hi };
+}
+
+/** A grouped row's bars are this share of a bar's thickness, 1 px apart. */
+const SUB_BAR = 0.75;
+
+/** The px across a row that `m`'s bars of `thick` px take: one bar, or the
+ *  bars of a group or a folded split and the 1 px between them. A split in
+ *  panels takes one bar's `thick`. */
+export const barBlock = (m: BarModel, thick: number): number =>
+  barsApart(m) ? m.series.length * thick * SUB_BAR + (m.series.length - 1) * GAP : thick;
+
+/** The centre across its row of series `k`'s bar in a row of `m` centred
+ *  at `cy`: `cy` itself unless the row's bars stand one under another, as
+ *  a group's and a folded split's do; a split in panels keeps `cy`. */
+export function barCentre(m: BarModel, k: number, cy: number, thick: number): number {
+  if (!barsApart(m)) {
+    return cy;
+  }
+  const sub = thick * SUB_BAR;
+  return cy - barBlock(m, thick) / 2 + k * (sub + GAP) + sub / 2;
+}
+
+/** A bar segment's px: left to right along x, top to bottom across its row. */
+export interface Segment {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+// The px a bar may fill along `at`: the domain's span, so a bar crossing a
+// passed domain's end is cut there, short of the room kept for value labels
+// and notes, where its label then sits.
+function barSpan(f: Frame, at: (v: number) => number): readonly [number, number] {
+  const [a, b] = [at(f.x.lo), at(f.x.hi)];
+  return [Math.min(a, b), Math.max(a, b)];
+}
+
+/** Row `i`'s segments of `m`, one per series, absent where it draws nothing
+ *  (a `null` counts as 0): centred on `cy`, `thick` px across, snapped to
+ *  device px. Values stack from 0 in series order, rightward above it and
+ *  leftward below; a segment beyond another gives up its first px toward 0
+ *  as the gap unless under 3 px long, so a stack ends at its sum. "diverge"
+ *  stacks through `divergeSegments`; "split" and "mirror" run each bar from
+ *  0 in its panel of `f.panels`; "group" and a folded split from 0 at
+ *  `barCentre`. */
+export function barSegments(
+  m: BarModel,
+  i: number,
+  f: Frame,
+  cy: number,
+  thick: number,
+): (Segment | undefined)[] {
+  const panels = m.arrange === "split" || m.arrange === "mirror" ? f.panels : undefined;
+  if (panels !== undefined) {
+    const top = snap(cy - thick / 2, f.dpr);
+    const bottom = snap(cy + thick / 2, f.dpr);
+    return m.series.map((s, k) => {
+      const p = panels[k];
+      const v = s.x[i] ?? 0;
+      if (p === undefined || v === 0) {
+        return undefined;
+      }
+      const [a, b] = [p.at(0), p.at(v)];
+      const [lo, hi] = barSpan(f, p.at);
+      const left = clamp(Math.min(a, b), lo, hi);
+      const right = clamp(Math.max(a, b), lo, hi);
+      return right > left ? { left, right, top, bottom } : undefined;
+    });
+  }
+  const [lo, hi] = barSpan(f, f.xAt);
+  if (barsApart(m)) {
+    const half = (thick * SUB_BAR) / 2;
+    return m.series.map((s, k) => {
+      const v = s.x[i] ?? 0;
+      const c = barCentre(m, k, cy, thick);
+      const [a, b] = [f.xAt(0), f.xAt(v)];
+      const left = clamp(Math.min(a, b), lo, hi);
+      const right = clamp(Math.max(a, b), lo, hi);
+      return v !== 0 && right > left
+        ? { left, right, top: snap(c - half, f.dpr), bottom: snap(c + half, f.dpr) }
+        : undefined;
+    });
+  }
+  const top = snap(cy - thick / 2, f.dpr);
+  const bottom = snap(cy + thick / 2, f.dpr);
+  if (m.arrange === "diverge") {
+    return divergeSegments(m, i, f, top, bottom);
+  }
+  const base = { lo: 0, hi: 0 };
+  const drawn = { lo: false, hi: false };
+  return m.series.map((s) => {
+    const v = barValue(m, s, i);
+    if (v === 0) {
+      return undefined;
+    }
+    const side = v < 0 ? "lo" : "hi";
+    let a = f.xAt(base[side]);
+    base[side] += v;
+    const b = f.xAt(base[side]);
+    if (drawn[side] && Math.abs(b - a) >= GAP_MIN) {
+      a += Math.sign(b - a) * GAP;
+    }
+    drawn[side] = true;
+    const left = clamp(Math.min(a, b), lo, hi);
+    const right = clamp(Math.max(a, b), lo, hi);
+    return right > left ? { left, right, top, bottom } : undefined;
+  });
+}
+
+// A diverging row's segments: the left series outward from 0 (or from the
+// centre series' left half), the last of them nearest it, then the rest
+// outward on the right. Each segment beyond a drawn one gives up its px
+// toward 0 as the gap unless it is under 3 px long, so each side ends at
+// its sum; at 0 the right side gives it, and the zero line shows there.
+function divergeSegments(
+  m: BarModel,
+  i: number,
+  f: Frame,
+  top: number,
+  bottom: number,
+): (Segment | undefined)[] {
+  const out: (Segment | undefined)[] = m.series.map(() => undefined);
+  const [lo, hi] = barSpan(f, f.xAt);
+  const value = (k: number) => m.series[k]?.x[i] ?? 0;
+  const half = m.centre ? value(m.left) / 2 : 0;
+  const centred = half > 0;
+  const place = (k: number, inner: number, outer: number, drawn: boolean) => {
+    let a = f.xAt(inner);
+    const b = f.xAt(outer);
+    if (drawn && Math.abs(b - a) >= GAP_MIN) {
+      a += Math.sign(b - a) * GAP;
+    }
+    const left = clamp(Math.min(a, b), lo, hi);
+    const right = clamp(Math.max(a, b), lo, hi);
+    out[k] = right > left ? { left, right, top, bottom } : undefined;
+  };
+  if (centred) {
+    place(m.left, -half, half, false);
+  }
+  let at = -half;
+  let drawn = centred;
+  for (let k = m.left - 1; k >= 0; k--) {
+    const v = value(k);
+    if (v > 0) {
+      place(k, at, at - v, drawn);
+      at -= v;
+      drawn = true;
+    }
+  }
+  at = half;
+  for (let k = m.left + (m.centre ? 1 : 0); k < m.series.length; k++) {
+    const v = value(k);
+    if (v > 0) {
+      place(k, at, at + v, drawn);
+      at += v;
+      drawn = true;
+    }
+  }
+  return out;
+}
+
+/** A path in its series slot, the rectangles of every segment it fills. */
+interface BarPath {
+  readonly slot: number;
+  readonly d: string;
+}
+
+/** One path per series of `m` in series order, each row's segment a
+ *  rectangle (`barSegments`) on the bar centred at that row's `ys` entry,
+ *  then for a series whose `below` slot is not its own a path of its
+ *  segments below 0 in that slot. */
+export function barPaths(m: BarModel, ys: readonly number[], thick: number, f: Frame): BarPath[] {
+  const paths = m.series.map(() => ["", ""]);
+  ys.forEach((cy, i) => {
+    barSegments(m, i, f, cy, thick).forEach((g, k) => {
+      const s = m.series[k];
+      const p = paths[k];
+      if (g !== undefined && s !== undefined && p !== undefined) {
+        const side = s.below !== s.slot && (s.x[i] ?? 0) < 0 ? 1 : 0;
+        p[side] =
+          `${p[side] ?? ""}M${num(g.left)} ${num(g.top)}H${num(g.right)}V${num(g.bottom)}H${num(g.left)}Z`;
+      }
+    });
+  });
+  const out = m.series.map((s, k) => ({ slot: s.slot, d: paths[k]?.[0] ?? "" }));
+  m.series.forEach((s, k) => {
+    if (s.below !== s.slot) {
+      out.push({ slot: s.below, d: paths[k]?.[1] ?? "" });
+    }
+  });
+  return out;
+}
+
 /** One drawn dot of a row: its centre's px and the dots `[from, to)` it stands for. */
 export interface DotGroup {
   readonly at: number;
@@ -456,11 +702,102 @@ export function dotPath(groups: readonly DotGroup[], cy: number): string {
 export const hairline = (y: number, width: number, dpr: number): string =>
   `M0 ${num(snap(y, dpr) + 0.5)}H${num(width)}`;
 
+/** A point mark's dot radius, under the 10 px round-capped stroke
+ *  `chart.css` gives it: larger than a timeline's, since each is a value
+ *  the reader compares. */
+export const POINT_RADIUS = 5;
+
+/** Series `k`'s dot in row `i` of `m`: its centre's px along x, snapped to
+ *  device px, or undefined at a gap or outside the domain. */
+export function pointAt(m: PointModel, k: number, i: number, f: Frame): number | undefined {
+  const v = m.series[k]?.x[i] ?? null;
+  return v === null || v < f.x.lo || v > f.x.hi ? undefined : snap(f.xAt(v), f.dpr);
+}
+
+/** One path per series of `m` in series order, each row's dot a zero-length
+ *  segment on the row's line at that row's `ys` entry, so a later series'
+ *  dot lies over an earlier one where they meet. */
+export function pointPaths(m: PointModel, ys: readonly number[], f: Frame): string[] {
+  return m.series.map((_, k) =>
+    ys
+      .map((cy, i) => {
+        const at = pointAt(m, k, i, f);
+        return at === undefined ? "" : `M${num(at)} ${num(snap(cy, f.dpr) + 0.5)}h0`;
+      })
+      .join(""),
+  );
+}
+
+/** An arrow plot's head length, 8 px, the room it needs between its two
+ *  dots' edges. */
+const ARROW_HEAD = 8;
+
+// Each row's two drawn dots of `m` with their row's line, in series order;
+// none where either is not drawn.
+function linked(m: PointModel, ys: readonly number[], f: Frame) {
+  const out: { a: number; b: number; y: number }[] = [];
+  ys.forEach((cy, i) => {
+    const a = pointAt(m, 0, i, f);
+    const b = pointAt(m, 1, i, f);
+    if (a !== undefined && b !== undefined) {
+      out.push({ a, b, y: snap(cy, f.dpr) + 0.5 });
+    }
+  });
+  return out;
+}
+
+/** A range plot's links, a line between each row's two drawn dots. */
+export const rangePath = (m: PointModel, ys: readonly number[], f: Frame): string =>
+  linked(m, ys, f)
+    .map(({ a, b, y }) => `M${num(a)} ${num(y)}H${num(b)}`)
+    .join("");
+
+/** An arrow plot's shafts and heads: from the first dot's edge to the
+ *  second's, the last `ARROW_HEAD` px a head as wide as it is long; none in
+ *  a row whose dots' edges stand under `ARROW_HEAD` px apart. */
+export function arrowPaths(
+  m: PointModel,
+  ys: readonly number[],
+  f: Frame,
+): { shafts: string; heads: string } {
+  let shafts = "";
+  let heads = "";
+  for (const { a, b, y } of linked(m, ys, f)) {
+    const dir = Math.sign(b - a);
+    if (Math.abs(b - a) < 2 * POINT_RADIUS + ARROW_HEAD) {
+      continue;
+    }
+    const tip = b - dir * POINT_RADIUS;
+    const base = tip - dir * ARROW_HEAD;
+    const half = ARROW_HEAD / 2;
+    shafts += `M${num(a + dir * POINT_RADIUS)} ${num(y)}H${num(base)}`;
+    heads += `M${num(tip)} ${num(y)}L${num(base)} ${num(y - half)}V${num(y + half)}Z`;
+  }
+  return { shafts, heads };
+}
+
+/** A 1 px line down the plot at `x`, on whole device pixels. */
+export const upright = (x: number, height: number, dpr: number): string =>
+  `M${num(snap(x, dpr) + 0.5)} 0V${num(height)}`;
+
 /** A 2 px rule across the plot at x `at`, or along it at y `at`. */
 export const rulePath = (axis: "x" | "y", at: number, f: Frame): string =>
   axis === "x"
     ? `M${num(snap(at, f.dpr))} 0V${num(f.height)}`
     : `M0 ${num(snap(at, f.dpr))}H${num(f.width)}`;
+
+/** The px an x rule at `value` draws at: in every panel, in series order;
+ *  at its distance either side of a diverging axis's 0, each inside the
+ *  domain; or once. */
+export function ruleXs(value: number, f: Pick<Frame, "x" | "xAt" | "panels">): number[] {
+  if (f.panels !== undefined) {
+    return f.panels.map((p) => p.at(value));
+  }
+  if (!f.x.absolute || value === 0) {
+    return [f.xAt(value)];
+  }
+  return [-value, value].filter((v) => v >= f.x.lo && v <= f.x.hi).map((v) => f.xAt(v));
+}
 
 /** The 4 px tick vectors under the plot at `ats`, from its bottom edge. */
 export const tickPath = (ats: readonly number[], dpr: number): string =>

@@ -5,18 +5,25 @@
  * @module
  */
 
-import { noun, withNoun, type Unit } from "../scale/format.js";
+import { formatter, noun, signedFormatter, withNoun, type Unit } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {
+  barsApart,
+  barTotal,
   bucketTotal,
   drawnTotal,
+  pointLink,
   sampleTotal,
   sampleValue,
   type AreaModel,
+  type BarModel,
+  type BarSeriesModel,
   type DotModel,
   type LineModel,
   type Model,
+  type PointModel,
+  type PointSeriesModel,
   type RectModel,
   type SampleModel,
   type SeriesModel,
@@ -34,12 +41,13 @@ export interface Reading {
   /** The x it reads, or a dot row's name. */
   readonly at: string;
   readonly entries: readonly Entry[];
-  /** A stack's total, absent without one. */
+  /** A stack's total, or a range plot's gap or an arrow plot's change,
+   *  under `totalWord`; absent without one. */
   readonly total: string | undefined;
 }
 
-/** The mark the legend row reads: the chart's one rect, line, area or dot. */
-type Primary = RectModel | LineModel | AreaModel | DotModel;
+/** The mark the legend row reads: the chart's one rect, line, area, dot, bar or point. */
+type Primary = RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -200,9 +208,108 @@ function totalText(model: Model, m: RectModel, n: number): string {
 
 const dots = (m: DotModel) => m.rows.reduce((n, r) => n + r.to - r.from, 0);
 
+/** A band chart's row count in words: in the y scale's unit, or as categories. */
+export function rowsText(model: Model, words: Words): string {
+  const n = model.y.type === "band" ? model.y.rows.length : 0;
+  const count = formatter("number", model.locale)(n);
+  const unit = model.spec.y?.unit;
+  return unit === undefined ? words.categories(count, n) : counted(count, n, unit, model);
+}
+
+/** Series `s`'s value in row `i` as the readings and the table write it,
+ *  a gap as No data: under "share" its share of the row's total, or its
+ *  value when the total is 0, which has no shares. */
+export function barPart(
+  model: Model,
+  m: BarModel,
+  s: BarSeriesModel,
+  i: number,
+  words: Words,
+): string {
+  const v = s.x[i] ?? null;
+  if (v === null) {
+    return words.noData;
+  }
+  const total = m.arrange === "share" ? (barTotal(m, i) ?? 0) : 0;
+  return total > 0 ? model.xText(v / total) : model.amountText(v);
+}
+
+// A bar row's total in a reading: under "share" with its unit, since the
+// shares beside it have none.
+function barTotalText(model: Model, m: BarModel, total: number | null, words: Words): string {
+  if (total === null) {
+    return words.noData;
+  }
+  return m.arrange === "share"
+    ? counted(model.amountText(total), total, model.spec.x.unit, model)
+    : model.xText(total);
+}
+
+/** Row `r` of bar mark `m`: its name, each series' value or share, and
+ *  from two series up the row's total unless its bars stand apart. */
+export function barReading(model: Model, m: BarModel, r: number, words: Words): Reading {
+  const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
+  if (m.series.length === 1) {
+    const v = m.series[0]?.x[r] ?? null;
+    const unit = model.spec.x.unit;
+    const value = v === null ? words.noData : counted(model.xText(v), v, unit, model);
+    return { at, entries: bare(value), total: undefined };
+  }
+  const all = m.series.map((s) => ({
+    slot: s.slot,
+    name: s.name,
+    value: barPart(model, m, s, r, words),
+  }));
+  const total = barsApart(m) ? undefined : barTotalText(model, m, barTotal(m, r), words);
+  return { at, entries: all, total };
+}
+
+/** Series `s`'s value in row `i` as the readings and the table write it, a
+ *  gap as No data. */
+export const pointPart = (model: Model, s: PointSeriesModel, i: number, words: Words): string => {
+  const v = s.x[i] ?? null;
+  return v === null ? words.noData : model.xText(v);
+};
+
+/** `pointLink`'s `v` in x's format, a duration on a time x, and an
+ *  arrow's change with its sign on every value but 0. */
+export function linkText(model: Model, m: PointModel, v: number): string {
+  const format = model.x.type === "time" ? "duration" : model.x.format;
+  return (m.link === "arrow" ? signedFormatter : formatter)(format, model.locale)(v);
+}
+
+/** The word a reading's `total` follows in the legend row and the table:
+ *  a range plot's gap, an arrow plot's change, or a stack's total. */
+export function totalWord(model: Model, words: Words): string {
+  const m = primaryOf(model);
+  const link = m?.kind === "point" ? m.link : undefined;
+  return link === "range" ? words.gap : link === "arrow" ? words.change : words.total;
+}
+
+/** Row `r` of point mark `m`: its name and each series' value, with no
+ *  total, since a row's dots are values compared, not parts; a link's gap
+ *  or change in its place, No data with a gap at either end. */
+export function pointReading(model: Model, m: PointModel, r: number, words: Words): Reading {
+  const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
+  if (m.series.length === 1) {
+    const v = m.series[0]?.x[r] ?? null;
+    const value = v === null ? words.noData : counted(model.xText(v), v, model.spec.x.unit, model);
+    return { at, entries: bare(value), total: undefined };
+  }
+  const all = m.series.map((s) => ({
+    slot: s.slot,
+    name: s.name,
+    value: pointPart(model, s, r, words),
+  }));
+  const v = pointLink(m, r);
+  const total =
+    m.link === undefined ? undefined : v === null ? words.noData : linkText(model, m, v);
+  return { at, entries: all, total };
+}
+
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
- *  values, an area's last whole stack. */
+ *  values, an area's last whole stack, a bar or point chart's row count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -251,6 +358,20 @@ export function overall(model: Model, words: Words): Reading | undefined {
         at: legendDomain(model, words),
         entries: [{ slot: undefined, name: undefined, value }],
         total: undefined,
+      };
+    }
+    case "bar":
+    case "point": {
+      // A category's values need not add up across rows (a median age), so
+      // the row has no whole-chart figure to show.
+      const last = m.kind === "bar" ? !barsApart(m) && m.series.length > 1 : m.link !== undefined;
+      return {
+        at: rowsText(model, words),
+        entries:
+          m.series.length === 1
+            ? bare("")
+            : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
+        total: last ? "" : undefined,
       };
     }
   }
@@ -445,6 +566,10 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       }
       const all = extremes(over(m.from, m.to, (i) => sampleTotal(m, i)));
       totals.push(words.noData, ...all.map((n) => areaTotal(model, m, n)));
+    }
+  } else if (m?.kind === "bar" || m?.kind === "point") {
+    for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
+      add(m.kind === "bar" ? barReading(model, m, r, words) : pointReading(model, m, r, words));
     }
   } else if (m?.kind === "dot") {
     // Each post's time, written once per stretch of x in which its width holds.

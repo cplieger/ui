@@ -381,3 +381,220 @@ describe("the notes after the table", () => {
     expect(tableModel(model(line([])), words).after).toBe("");
   });
 });
+
+describe("the table of a bar chart", () => {
+  it("holds a row per category in the app's order and a column per series", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        y: { label: "Country" },
+        marks: [
+          {
+            mark: "bar",
+            y: ["Holy See", "Monaco"],
+            series: [{ name: "Median age", x: [57.4, null] }],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Country");
+    expect(t.columns).toEqual([{ text: "Median age", num: true }]);
+    expect(cells(t)).toEqual([
+      ["Holy See", "57.4"],
+      ["Monaco", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Holy See", "Monaco"]);
+  });
+
+  it("adds a Total column from two series, a gap counting for nothing", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Acme", "Brill"],
+            series: [
+              { name: "Domestic", x: [40, 3] },
+              { name: "International", x: [2, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("");
+    expect(t.columns.map((c) => c.text)).toEqual(["Domestic", "International", "Total"]);
+    expect(cells(t)).toEqual([
+      ["Acme", "40", "2", "42"],
+      ["Brill", "3", "No data", "3"],
+    ]);
+  });
+
+  it("holds a 100% chart's shares and each row's absolute total, a total of 0 by its values", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Item 1", "Item 2"],
+            arrange: "share",
+            series: [
+              { name: "No", x: [1250, 0] },
+              { name: "Yes", x: [3750, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["No", "Yes", "Total"]);
+    expect(cells(t)).toEqual([
+      ["Item 1", "25%", "75%", "5,000"],
+      ["Item 2", "0", "No data", "0"],
+    ]);
+  });
+
+  it("has a Total column for diverging bars", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Item 1"],
+            arrange: "diverge",
+            left: 1,
+            series: [
+              { name: "No", x: [12] },
+              { name: "Yes", x: [30] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["No", "Yes", "Total"]);
+    expect(cells(t)).toEqual([["Item 1", "12", "30", "42"]]);
+  });
+
+  it("has a Total column for mirrored bars", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["45-50"],
+            arrange: "mirror",
+            series: [
+              { name: "Male", x: [2_734_000] },
+              { name: "Female", x: [2_690_000] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["Male", "Female", "Total"]);
+    expect(cells(t)).toEqual([["45-50", "2,734,000", "2,690,000", "5,424,000"]]);
+  });
+
+  it.each(["group", "split"] as const)("has no Total column for %s bars", (arrange) => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Japan"],
+            arrange,
+            series: [
+              { name: "Female", x: [51.1] },
+              { name: "Male", x: [48.4] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["Female", "Male"]);
+    expect(cells(t)).toEqual([["Japan", "51.1", "48.4"]]);
+  });
+});
+
+describe("the table of a point chart", () => {
+  it("holds a row per category and a column per series, a gap as No data, no Total", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        y: { label: "Degree" },
+        marks: [
+          {
+            mark: "point",
+            y: ["Doctorate", "Master's"],
+            series: [
+              { name: "Women", x: [128_700, 91_000] },
+              { name: "Men", x: [163_500, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Degree");
+    expect(t.columns).toEqual([
+      { text: "Women", num: true },
+      { text: "Men", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["Doctorate", "128,700", "163,500"],
+      ["Master's", "91,000", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Doctorate", "Master's"]);
+  });
+
+  it("writes each instant in its time element on a time x, as words", () => {
+    const t = tableModel(
+      model({
+        x: { type: "time" },
+        marks: [{ mark: "point", y: ["a"], series: [{ name: "Release", x: [START] }] }],
+      }),
+      words,
+    );
+    expect(t.columns).toEqual([{ text: "Release", num: false }]);
+    expect(cells(t)).toEqual([["a", iso(START)]]);
+  });
+
+  it("adds a range's Gap column and an arrow's signed Change column", () => {
+    const plot = (link: "range" | "arrow") =>
+      tableModel(
+        model({
+          x: {},
+          marks: [
+            {
+              mark: "point",
+              y: ["Doctorate", "Master's"],
+              link,
+              series: [
+                { name: "Women", x: [128_700, 91_000] },
+                { name: "Men", x: [91_000, null] },
+              ],
+            },
+          ],
+        }),
+        words,
+      );
+    const range = plot("range");
+    expect(range.columns.at(-1)).toEqual({ text: "Gap", num: true });
+    expect(cells(range)).toEqual([
+      ["Doctorate", "128,700", "91,000", "37,700"],
+      ["Master's", "91,000", "No data", "No data"],
+    ]);
+    const arrow = plot("arrow");
+    expect(arrow.columns.at(-1)).toEqual({ text: "Change", num: true });
+    expect(cells(arrow)[0]?.at(-1)).toBe("-37,700");
+  });
+});

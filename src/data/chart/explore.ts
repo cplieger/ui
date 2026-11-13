@@ -24,7 +24,8 @@ import {
 } from "./select.js";
 import type { Words } from "./words.js";
 
-/** A touch drag selects once it has moved this far along x, in px. */
+/** A touch that moves this far is a drag, not a tap, in px: along x on a
+ *  chart a drag explores, in any direction on one that only taps select. */
 const DRAG = 8;
 
 interface Explorer {
@@ -41,7 +42,10 @@ interface Explorer {
 interface Touch {
   readonly id: number;
   readonly x: number;
+  readonly y: number;
   dragging: boolean;
+  /** Moved past DRAG on a chart that only taps select, so its lift selects nothing. */
+  moved: boolean;
 }
 
 /**
@@ -145,7 +149,11 @@ export function explore(
     const next = nav.move(sel, e.key, lastX);
     if (next !== undefined) {
       select(next);
-      say(next, e.key === "ArrowUp" || e.key === "ArrowDown");
+      // The keys that choose a part say it alone: Left and Right across a
+      // bar or point row, Up and Down through a stack or the lines.
+      const across = e.key === "ArrowLeft" || e.key === "ArrowRight";
+      const band = next.kind === "bar" || next.kind === "point";
+      say(next, band ? across : e.key === "ArrowUp" || e.key === "ArrowDown");
     }
   });
 
@@ -169,7 +177,7 @@ export function explore(
     pressed = true;
     lifted = undefined;
     if (e.pointerType === "touch") {
-      touch = { id: e.pointerId, x: e.clientX, dragging: false };
+      touch = { id: e.pointerId, x: e.clientX, y: e.clientY, dragging: false, moved: false };
     }
   });
   on("pointermove", (e) => {
@@ -181,9 +189,13 @@ export function explore(
     if (touch?.id !== e.pointerId) {
       return;
     }
-    if (touch.dragging || Math.abs(e.clientX - touch.x) > DRAG) {
-      touch.dragging = true;
-      pointAt(e);
+    if (nav?.drags === true) {
+      if (touch.dragging || Math.abs(e.clientX - touch.x) > DRAG) {
+        touch.dragging = true;
+        pointAt(e);
+      }
+    } else if (Math.hypot(e.clientX - touch.x, e.clientY - touch.y) > DRAG) {
+      touch.moved = true;
     }
   });
   on("pointerup", (e) => {
@@ -192,7 +204,7 @@ export function explore(
       lifted = e.pointerId;
     }
     if (e.pointerType === "touch" && touch?.id === e.pointerId) {
-      if (!touch.dragging) {
+      if (!touch.dragging && !touch.moved) {
         pointAt(e);
       }
       touch = undefined;

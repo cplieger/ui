@@ -574,3 +574,100 @@ describe("forced colours", () => {
     expect(getComputedStyle(ring(b) as Element).stroke).toBe(probe("var(--cp-ink)"));
   });
 });
+
+describe("keys and touch on a bar chart", () => {
+  const firms: ChartSpec = {
+    x: {},
+    y: { unit: { one: "company", other: "companies" } },
+    marks: [
+      {
+        mark: "bar",
+        y: ["Acme", "Brill", "Corda"],
+        series: [
+          { name: "Domestic", x: [40, 3, 7] },
+          { name: "International", x: [2, 22, 2] },
+        ],
+      },
+    ],
+  };
+  const plotHeight = (b: Built) =>
+    Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("height")) - 2 * AREA_ROOM;
+
+  it("focus selects the first row whole, with no crosshair, and the legend row counts the rows", async () => {
+    const b = build(firms);
+    expect(legendText(b)).toBe(`3${nb}companies · Domestic · International`);
+    b.plot.focus();
+    await says("Acme: Domestic 40, International 2. Total 42.");
+    expect(legendText(b)).toBe("Acme · Domestic · 40 · International · 2 · 42");
+    expect(ring(b)).not.toBe(null);
+    expect(crosshair(b)).toBe(null);
+  });
+
+  it("says a part for Left and Right, and the whole row for Up and Down", async () => {
+    const b = build(firms);
+    b.plot.focus();
+    const cases: [string, string][] = [
+      ["ArrowRight", "Acme: Domestic 40."],
+      ["ArrowRight", "Acme: International 2."],
+      ["ArrowDown", "Brill: Domestic 3, International 22. Total 25."],
+      ["ArrowLeft", "Brill: Domestic 3."],
+      ["End", "Corda: Domestic 7, International 2. Total 9."],
+      ["PageUp", "Acme: Domestic 40, International 2. Total 42."],
+    ];
+    for (const [name, text] of cases) {
+      expect(key(b.plot, name).defaultPrevented, name).toBe(true);
+      await says(text);
+    }
+  });
+
+  it("a tap selects the row under it, and a drag never selects", () => {
+    const b = build(firms);
+    const w = plotWidth(b);
+    const h = plotHeight(b);
+    point(b, "pointerdown", w * 0.1, h * 0.5, "touch");
+    point(b, "pointermove", w * 0.9, h * 0.5, "touch");
+    expect(ring(b)).toBe(null);
+    point(b, "pointerup", w * 0.9, h * 0.5, "touch");
+    expect(ring(b)).toBe(null);
+    point(b, "pointerdown", w * 0.9, h * 0.9, "touch");
+    point(b, "pointerup", w * 0.9, h * 0.9, "touch");
+    expect(legendText(b)).toBe("Corda · Domestic · 7 · International · 2 · 9");
+    expect(crosshair(b)).toBe(null);
+  });
+
+  it("a vertical slide the browser does not scroll selects nothing on lift", () => {
+    const b = build(firms);
+    const w = plotWidth(b);
+    const h = plotHeight(b);
+    const before = legendText(b);
+    point(b, "pointerdown", w * 0.5, h * 0.1, "touch");
+    point(b, "pointermove", w * 0.5, h * 0.9, "touch");
+    point(b, "pointerup", w * 0.5, h * 0.9, "touch");
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(before);
+  });
+
+  it("a tap that jitters under 8 px selects, and a diagonal slide past 8 px does not", () => {
+    const b = build(firms);
+    const w = plotWidth(b);
+    const h = plotHeight(b);
+    const before = legendText(b);
+    // 7 px across and 7 px down: under 8 on each axis, 9.9 px of travel.
+    point(b, "pointerdown", w * 0.5, h * 0.5, "touch");
+    point(b, "pointermove", w * 0.5 + 7, h * 0.5 + 7, "touch");
+    point(b, "pointerup", w * 0.5 + 7, h * 0.5 + 7, "touch");
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(before);
+    point(b, "pointerdown", w * 0.5, h * 0.5, "touch");
+    point(b, "pointermove", w * 0.5 + 3, h * 0.5 + 6, "touch");
+    point(b, "pointerup", w * 0.5 + 3, h * 0.5 + 6, "touch");
+    expect(ring(b)).not.toBe(null);
+    expect(legendText(b)).toBe("Brill · Domestic · 3 · International · 22 · 25");
+  });
+
+  it("a mouse selects the row under it anywhere across the plot", () => {
+    const b = build(firms);
+    point(b, "pointermove", plotWidth(b) - 1, plotHeight(b) * 0.5);
+    expect(legendText(b)).toBe("Brill · Domestic · 3 · International · 22 · 25");
+  });
+});

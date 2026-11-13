@@ -5,6 +5,7 @@ import { measurer } from "../scale/measure.js";
 import { layout, type Metrics } from "./layout.js";
 import { chartModel } from "./model.js";
 import { nearestStop, noteJoin, placeNote, wrapNote } from "./notes.js";
+import { spoken } from "./select.js";
 import type { ChartSpec, Mark } from "./spec.js";
 import { generatedSummary } from "./summary.js";
 import { tableModel } from "./table.js";
@@ -18,6 +19,7 @@ const metrics: Metrics = {
   measure: face,
   mono: face,
   lineHeight: 17,
+  nameLine: 18,
   rem: 16,
   row: 24,
   axisGroup: 0,
@@ -413,5 +415,149 @@ describe("numbered markers", () => {
 
   it("is off with no notes", () => {
     expect(lay(posts([]), 320).numbered).toBe(false);
+  });
+});
+
+describe("a note on bar and point rows", () => {
+  const best: Mark = { mark: "text", y: "Facebook", text: "Best", side: "right" };
+  const bars = (
+    more: Partial<Extract<Mark, { mark: "bar" }>> = {},
+    x: ChartSpec["x"] = {},
+    note: Mark = best,
+  ): ChartSpec => ({
+    x,
+    marks: [
+      {
+        mark: "bar",
+        y: ["Instagram", "Facebook"],
+        series: [
+          { name: "Daily", x: [34, 20] },
+          { name: "Weekly", x: [8, 43] },
+        ],
+        ...more,
+      },
+      note,
+    ],
+  });
+  // "43" is 15 px, 4 px past its bar; the note's point stands 4 px past it.
+  const past = 4 + 15 + 4;
+
+  it("sits along its row at its x and joins the row", () => {
+    const spec = bars({}, {}, { mark: "text", x: 30, y: "Facebook", text: "Best" });
+    const l = lay(spec);
+    expect(l.notes[0]?.point).toEqual({ x: l.frame.xAt(30), y: l.rows[1]?.y });
+    expect(joined(spec)).toEqual([{ kind: "row", row: 1 }]);
+  });
+
+  it("sits along a point row inside the axis's inset", () => {
+    const spec: ChartSpec = {
+      x: {},
+      marks: [
+        { mark: "point", y: ["Instagram", "Facebook"], series: [{ name: "Age", x: [40, 60] }] },
+        { mark: "text", x: 50, y: "Facebook", text: "Mid" },
+      ],
+    };
+    const l = lay(spec);
+    expect(l.notes[0]?.point).toEqual({ x: l.frame.xAt(50), y: l.rows[1]?.y });
+    expect(joined(spec)).toEqual([{ kind: "row", row: 1 }]);
+  });
+
+  it("is left out of the plot and the readings off a passed domain, still in the summary", () => {
+    const spec: ChartSpec = {
+      x: { domain: [30, 70] },
+      marks: [
+        { mark: "point", y: ["Instagram", "Facebook"], series: [{ name: "Age", x: [40, 60] }] },
+        { mark: "text", x: 80, y: "Facebook", text: "Far" },
+      ],
+    };
+    expect(lay(spec).notes).toEqual([]);
+    expect(joined(spec)).toEqual([null]);
+    expect(generatedSummary(chartModel(spec, "en", "UTC"), words)).toContain("Facebook: Far.");
+  });
+
+  it("points past the last panel's bar and its label under a split", () => {
+    const l = lay(bars({ arrange: "split" }));
+    const last = l.frame.panels?.[1];
+    expect(l.notes[0]?.point).toEqual({ x: (last?.at(43) ?? 0) + past, y: l.rows[1]?.y });
+    // Every panel keeps a marker's 10 px past the widest bar's point, so it
+    // stands on the plot; with no room right of it the note turns left.
+    expect((l.notes[0]?.point.x ?? 0) + 10).toBeCloseTo(l.frame.width);
+    expect((l.frame.panels?.[0]?.right ?? 0) - (l.frame.panels?.[0]?.at(43) ?? 0)).toBeCloseTo(
+      past + 10,
+    );
+    expect(l.notes[0]?.box.right).toBeCloseTo((l.notes[0]?.point.x ?? 0) - 4);
+  });
+
+  it("leaves the plot's ends alone without a note at a row's end", () => {
+    const l = lay(bars({ arrange: "split" }, {}, { mark: "rule", x: 10, label: "Aim" }));
+    const last = l.frame.panels?.[1];
+    expect((last?.at(43) ?? 0) + 4 + 15).toBeCloseTo(last?.right ?? 0);
+  });
+
+  it("points past the last panel's bar alone with labels off, and leftward on a reversed x", () => {
+    const off = lay(bars({ arrange: "split", labels: false }));
+    expect(off.notes[0]?.point.x).toBe((off.frame.panels?.[1]?.at(43) ?? 0) + 4);
+    const reversed = lay(bars({ arrange: "split" }, { reverse: true }));
+    const last = reversed.frame.panels?.[1];
+    expect(last?.leftward).toBe(true);
+    expect(reversed.notes[0]?.point.x).toBe((last?.at(43) ?? 0) - past);
+  });
+
+  it("points past a bar cut at a passed domain's end, in its panel or folded", () => {
+    const split = bars({ arrange: "split", labels: false }, { domain: [0, 40] });
+    // Facebook's Weekly 43 is cut at 40.
+    const l = lay(split);
+    const last = l.frame.panels?.[1];
+    expect(l.notes[0]?.point.x).toBeCloseTo((last?.at(40) ?? 0) + 4);
+    expect(l.notes[0]?.point.x).toBeLessThanOrEqual(last?.right ?? Number.NaN);
+    const folded = lay(split, 479);
+    expect(folded.notes[0]?.point.x).toBeCloseTo(folded.frame.xAt(40) + 4);
+  });
+
+  it("points past the farthest bar of the folded row under 30rem", () => {
+    const l = lay(bars({ arrange: "split" }), 479);
+    expect(l.frame.panels).toBeUndefined();
+    // Numbered under 30rem, the marker still stands at the row's end.
+    expect(l.numbered).toBe(true);
+    expect(l.notes[0]?.point.x).toBeCloseTo(l.frame.xAt(43) + past);
+  });
+
+  it("points past the right side's bar under a mirror, whichever series takes it", () => {
+    const l = lay(bars({ arrange: "mirror" }));
+    // Facebook's right side is Weekly's 43.
+    expect(l.notes[0]?.point.x).toBe((l.frame.panels?.[1]?.at(43) ?? 0) + past);
+    const reversed = lay(bars({ arrange: "mirror" }, { reverse: true }));
+    // "20" is Daily's label, which takes the right side on a reversed x.
+    const right = reversed.frame.panels?.[0];
+    expect(right?.leftward).toBe(false);
+    expect(reversed.notes[0]?.point.x).toBe((right?.at(20) ?? 0) + past);
+  });
+
+  it("points past a diverging row's right end, on either x direction", () => {
+    const more = { arrange: "diverge", left: 1 } as const;
+    const l = lay(bars(more));
+    // Daily's 20 lies left of 0, Weekly's 43 right of it.
+    expect(l.notes[0]?.point.x).toBe(l.frame.xAt(43) + 4);
+    const reversed = lay(bars(more, { reverse: true }));
+    expect(reversed.notes[0]?.point.x).toBe(reversed.frame.xAt(-20) + 4);
+    // The axis ends a marker's room short of the plot's right edge.
+    const ends = l.xAxis.ticks.map((t) => t.at);
+    expect(Math.max(...ends)).toBeLessThanOrEqual(l.frame.width - 14 + 1e-6);
+  });
+
+  it("joins its row's reading, whole or one part, and writes the row's name as its at", () => {
+    const spec = bars({ arrange: "split" });
+    const m = chartModel(spec, "en", "UTC");
+    expect(joined(spec)).toEqual([{ kind: "row", row: 1 }]);
+    const row = (part: number | undefined) => ({ kind: "bar", row: 1, part }) as const;
+    expect(spoken(m, row(undefined), words, false)).toBe(
+      "Facebook: Daily 20, Weekly 43. Note: Best.",
+    );
+    expect(spoken(m, row(1), words, true)).toBe("Facebook: Weekly 43. Note: Best.");
+    expect(spoken(m, { kind: "bar", row: 0, part: undefined }, words, false)).toBe(
+      "Instagram: Daily 34, Weekly 8.",
+    );
+    expect(generatedSummary(m, words)).toMatch(/ Facebook: Best\.$/u);
+    expect(tableModel(m, words).after).toBe("Facebook: Best.");
   });
 });

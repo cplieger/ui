@@ -7,6 +7,7 @@ import {
   instantFormat,
   keepUnit,
   noun,
+  signedFormatter,
   spanFormat,
   tickFormat,
   withNoun,
@@ -35,6 +36,29 @@ describe("formatter", () => {
     expect(formatter(options, "en")(3)).toBe(new Intl.NumberFormat("en", options).format(3));
     expect(formatter((v) => `v${String(v)}`, "en")(3)).toBe("v3");
     expect(formatter("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
+  });
+});
+
+describe("signedFormatter", () => {
+  it("signs every value but 0 through Intl, in each preset and a format object", () => {
+    expect(signedFormatter(undefined, "en")(1.5)).toBe("+1.5");
+    expect(signedFormatter("number", "en")(-1.5)).toBe("-1.5");
+    expect(signedFormatter("integer", "en")(2.5)).toBe("+3");
+    expect(signedFormatter("percent", "en")(-0.143)).toBe("-14%");
+    expect(signedFormatter("percent", "en")(0)).toBe("0%");
+    const options = { style: "unit", unit: "megabyte" } as const;
+    expect(signedFormatter(options, "en")(3)).toBe(
+      new Intl.NumberFormat("en", { ...options, signDisplay: "exceptZero" }).format(3),
+    );
+    expect(signedFormatter({ signDisplay: "always" }, "en")(0)).toBe("+0");
+  });
+
+  it("puts a plus before a positive duration's or function's text, and only once", () => {
+    expect(signedFormatter("duration", "en")(87_000)).toBe("+1\u00A0min, 27\u00A0sec");
+    expect(signedFormatter("duration", "en")(-87_000)).toBe(formatDuration(-87_000, "en"));
+    expect(signedFormatter((v) => `v${String(v)}`, "en")(3)).toBe("+v3");
+    expect(signedFormatter((v) => `+${String(v)}`, "en")(3)).toBe("+3");
+    expect(signedFormatter((v) => String(v), "en")(0)).toBe("0");
   });
 });
 
