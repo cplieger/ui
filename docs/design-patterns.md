@@ -32,7 +32,7 @@ A form never loses what the person typed, and every error is text that says how 
 4. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it.
 5. Clear a field's error as soon as its value is valid. Never clear what the person typed.
 6. While the form saves, the submit button is busy, and the fields stay as they are.
-7. A form with unsaved changes asks before a navigation that would discard them.
+7. A form with unsaved changes asks before a navigation or a close that would discard them. [form](forms/form.md#unsaved-changes)'s `guardChanges` counts the changes, asks, and takes in values saved elsewhere while keeping the person's.
 
 ![Fields with an error under one of them, and an error summary with a link to the field](images/system-parts-light.png)
 

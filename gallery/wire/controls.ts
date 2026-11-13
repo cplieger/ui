@@ -4,10 +4,13 @@
  */
 
 import { ask } from "@cplieger/ui/ask";
+import { closeDialog } from "@cplieger/ui/dialog";
 import { enhanceDisclosure } from "@cplieger/ui/disclosure";
+import { guardChanges } from "@cplieger/ui/form";
 import { createIcons } from "@cplieger/ui/icons";
 import { enhanceTabs } from "@cplieger/ui/tabs";
 import { toast } from "@cplieger/ui/toast";
+import { enhanceTokens } from "@cplieger/ui/tokens";
 
 const icons = createIcons<string>({ base: new URL("icons/svg/", location.href).href });
 
@@ -98,5 +101,82 @@ for (const b of document.querySelectorAll<HTMLButtonElement>("button[data-ask]")
         toast({ kind: "success", title: said });
       }
     });
+  });
+}
+
+const changes = (n: number): string =>
+  n === 1 ? "1 unsaved change" : `${String(n)} unsaved changes`;
+
+// A form of settings on the guard: the save bar shows its count, Save makes
+// the values the start, and a save in another tab loads at once or, with
+// changes waiting, through the notice that keeps them.
+for (const form of document.querySelectorAll<HTMLFormElement>("form[data-unsaved]")) {
+  const tags = form.querySelector<HTMLElement>(".cp-tokens");
+  if (tags !== null) {
+    enhanceTokens(tags, { name: "tags" });
+  }
+  const bar = form.querySelector<HTMLElement>(".cp-savebar");
+  const count = bar?.querySelector("[data-part='count']");
+  const notice = form.querySelector<HTMLElement>(".cp-notice");
+  const paint = (n: number): void => {
+    if (bar !== null && bar !== undefined && count !== null && count !== undefined) {
+      bar.hidden = n === 0;
+      count.textContent = changes(n);
+    }
+  };
+  const guard = guardChanges(form, {
+    words: { question: "Leave without saving?" },
+    onChange: (c) => {
+      paint(c.length);
+    },
+  });
+  paint(guard.count);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    guard.saved();
+    notice?.setAttribute("hidden", "");
+    toast({ kind: "success", title: "Saved" });
+  });
+  const latest = { name: "Release tracker (home)", every: "60", notify: true, tags: ["anime"] };
+  const load = (): void => {
+    const kept = guard.rebase(latest);
+    if (notice !== null) {
+      notice.hidden = true;
+    }
+    const first = guard.changes()[0];
+    const field =
+      first?.matches("input, select, textarea") === true ? first : first?.querySelector("input");
+    (field as HTMLElement | null | undefined)?.focus();
+    toast({
+      kind: "success",
+      title: "Loaded the latest",
+      ...(kept === 0
+        ? {}
+        : { body: `Your ${changes(kept)} ${kept === 1 ? "is" : "are"} still here.` }),
+    });
+  };
+  notice?.querySelector("[data-rebase]")?.addEventListener("click", load);
+  document.querySelector(`[data-elsewhere="${form.id}"]`)?.addEventListener("click", () => {
+    if (guard.count === 0) {
+      load();
+    } else if (notice !== null) {
+      notice.hidden = false;
+    }
+  });
+}
+
+// The message dialog asks before Escape or Cancel drops what was written;
+// Send closes it without asking.
+for (const form of document.querySelectorAll<HTMLFormElement>("form[data-guard-message]")) {
+  const dialog = form.closest("dialog");
+  guardChanges(form, {
+    words: { question: "Discard this message?", discard: "Discard", keep: "Keep writing" },
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (dialog !== null) {
+      closeDialog(dialog, "sent");
+    }
+    toast({ kind: "success", title: "Message sent" });
   });
 }

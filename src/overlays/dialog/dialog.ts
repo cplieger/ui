@@ -2,12 +2,15 @@
  * dialog.ts — what a native `<dialog class="cp-dialog">` lacks in some
  * engines: a press outside closing a `closedby="any"` dialog, a shake in
  * place of closing for `data-keep-typed` or `holdDialog`, said to a screen
- * reader, and the exit animation out of the top layer.
+ * reader, the question `./form`'s unsaved-changes guard asks before a close
+ * drops a change, and the exit animation out of the top layer.
  * @module
  */
 
 import { reducedMotion, shared } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
+import { changesIn } from "../../forms/form/changed.js";
+import { type Asker, askerOf } from "./asker.js";
 
 export interface DialogOptions {
   /** Ends this call's hold on the listeners. Default: none, held for the
@@ -74,22 +77,33 @@ export function holdDialog(
 
 const isHeld = (dialog: HTMLDialogElement): boolean => holds.get(dialog)?.held() === true;
 
-/** Whether the person changed a field from the value it opened with. */
-export function holdsTypedChanges(dialog: HTMLDialogElement): boolean {
-  return [
-    ...dialog.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-      "input, textarea, select",
-    ),
-  ].some((f) => {
-    if (f instanceof HTMLSelectElement) {
-      return [...f.options].some((o) => o.selected !== o.defaultSelected);
+/** Whether a guard's question waits, or for a dialog with none, whether a
+ *  field holds a change of the person's. */
+const holdsChanges = (dialog: HTMLDialogElement): boolean =>
+  askerOf(dialog)?.waiting() ?? changesIn(dialog).length > 0;
+
+const asking = new WeakSet<HTMLDialogElement>();
+
+/** Asks `asker`'s question, once at a time, and closes `dialog` on a yes. */
+function askThenClose(dialog: HTMLDialogElement, asker: Asker, value: string): void {
+  if (asking.has(dialog)) {
+    return;
+  }
+  asking.add(dialog);
+  void asker.ask().then((yes) => {
+    asking.delete(dialog);
+    if (yes) {
+      dialog.addEventListener("close", asker.dropped, { once: true });
+      closeDialog(dialog, value);
     }
-    if (f instanceof HTMLInputElement && (f.type === "checkbox" || f.type === "radio")) {
-      return f.checked !== f.defaultChecked;
-    }
-    return f.value !== f.defaultValue;
   });
 }
+
+/** The guard's question for `dialog` while a close would drop a change. */
+const waitingAsker = (dialog: HTMLDialogElement): Asker | undefined => {
+  const a = askerOf(dialog);
+  return a?.waiting() === true ? a : undefined;
+};
 
 /** A press on the backdrop: the event's target is the dialog itself, at a
  *  point outside its box. */
@@ -197,7 +211,7 @@ function listen(signal: AbortSignal): void {
         return;
       }
       if (d.hasAttribute(KEEP)) {
-        if (holdsTypedChanges(d)) {
+        if (holdsChanges(d)) {
           refuse(d, KEPT);
         } else {
           closeDialog(d, "cancel");
@@ -205,7 +219,12 @@ function listen(signal: AbortSignal): void {
         return;
       }
       if (d.getAttribute("closedby") === "any" && !nativeClosedBy()) {
-        closeDialog(d, "cancel");
+        const a = waitingAsker(d);
+        if (a === undefined) {
+          closeDialog(d, "cancel");
+        } else {
+          askThenClose(d, a, "cancel");
+        }
       }
     },
     on,
@@ -218,18 +237,25 @@ function listen(signal: AbortSignal): void {
     },
     on,
   );
-  // Escape on a held dialog is refused before the engine turns it into a
-  // close request, in the bubble phase, so a field inside that took the key,
-  // such as a combobox closing its list, keeps it. The cancel below refuses
-  // light dismiss too.
+  // Escape on a held or guarded dialog is stopped before the engine turns it
+  // into a close request, in the bubble phase, so a field inside that took
+  // the key, such as a combobox closing its list, keeps it. The cancel below
+  // covers light dismiss and other close requests.
   document.addEventListener(
     "keydown",
     (e) => {
       const t = e.target;
       const d = e.key === "Escape" && t instanceof Element ? t.closest("dialog") : null;
-      if (d instanceof HTMLDialogElement && d.open && !e.defaultPrevented && isHeld(d)) {
+      if (!(d instanceof HTMLDialogElement) || !d.open || e.defaultPrevented) {
+        return;
+      }
+      const a = waitingAsker(d);
+      if (isHeld(d)) {
         e.preventDefault();
         refuseHeld(d);
+      } else if (a !== undefined) {
+        e.preventDefault();
+        askThenClose(d, a, "cancel");
       }
     },
     { signal },
@@ -241,9 +267,13 @@ function listen(signal: AbortSignal): void {
       if (d === null) {
         return;
       }
+      const a = waitingAsker(d);
       if (isHeld(d)) {
         e.preventDefault();
         refuseHeld(d);
+      } else if (a !== undefined) {
+        e.preventDefault();
+        askThenClose(d, a, "cancel");
       } else if (!cssExit() && !reducedMotion()) {
         // Escape ends the dialog at once in these engines; it goes through
         // closeDialog instead, for the exit.
@@ -253,11 +283,31 @@ function listen(signal: AbortSignal): void {
     },
     on,
   );
+  // A close command on a guarded dialog asks first. Where the engine cannot
+  // animate the exit in CSS, the command goes through closeDialog for it.
+  document.addEventListener(
+    "command",
+    (e) => {
+      const d = dialogOf(e);
+      if (d === null || (e as Event & { command?: string }).command !== "close") {
+        return;
+      }
+      const a = waitingAsker(d);
+      if (a !== undefined) {
+        e.preventDefault();
+        askThenClose(d, a, "");
+      } else if (!cssExit() && !reducedMotion()) {
+        e.preventDefault();
+        closeDialog(d, "");
+      }
+    },
+    on,
+  );
   if (cssExit()) {
     return;
   }
-  // A <form method="dialog"> and a close command end the dialog at once in
-  // these engines; each goes through closeDialog instead.
+  // A <form method="dialog"> ends the dialog at once in these engines; it
+  // goes through closeDialog instead.
   document.addEventListener(
     "submit",
     (e) => {
@@ -270,21 +320,6 @@ function listen(signal: AbortSignal): void {
         e.preventDefault();
         const submitter = e.submitter;
         closeDialog(d, submitter instanceof HTMLButtonElement ? submitter.value : "");
-      }
-    },
-    on,
-  );
-  document.addEventListener(
-    "command",
-    (e) => {
-      const d = dialogOf(e);
-      if (
-        d !== null &&
-        (e as Event & { command?: string }).command === "close" &&
-        !reducedMotion()
-      ) {
-        e.preventDefault();
-        closeDialog(d, "");
       }
     },
     on,

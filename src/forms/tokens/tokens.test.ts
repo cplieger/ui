@@ -229,6 +229,34 @@ describe("enhanceTokens", () => {
     expect(new FormData(f.form).getAll("tag")).toEqual(["a", "c"]);
   });
 
+  it("puts the chips it started with back on the form's reset, quietly, and tells the host", async () => {
+    installAnnouncer({ signal: life.signal });
+    const f = field(["a"]);
+    const { t, seen } = make(f, { name: "tag" });
+    t.add("b");
+    t.remove("a");
+    await new Promise((r) => setTimeout(r, 150));
+    const said = polite();
+    f.form.reset();
+    await expect.poll(() => t.values).toEqual(["a"]);
+    expect(new FormData(f.form).getAll("tag")).toEqual(["a"]);
+    expect(seen.at(-1)).toEqual(["a"]);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(polite()).toBe(said);
+  });
+
+  it("keeps its chips when a listener cancels the form's reset", async () => {
+    const f = field(["a"]);
+    const { t } = make(f);
+    t.add("b");
+    f.form.addEventListener("reset", (e) => {
+      e.preventDefault();
+    });
+    f.form.reset();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(t.values).toEqual(["a", "b"]);
+  });
+
   it("narrows its suggestions to what matches and is not chosen, and adds one on Enter", async () => {
     const f = field(["English"], ["English", "French", "Finnish", "German"]);
     const { t } = make(f);

@@ -17,7 +17,7 @@ This page covers the settings page every app has. It builds on [Design patterns]
 A category saves in one of two ways, never both:
 
 - **At once**, for a preference that is safe to change and easy to change back, such as the theme, notifications or density. The control's new state is the confirmation, with no toast. A change the server refuses goes back, and an error toast says why, with Retry.
-- **With Save**, for settings that are checked together, need a restart, or reach other people or services, such as connections, providers or sign-in. While any change waits, a `.cp-savebar` at the bottom of the form names the count, such as "3 unsaved changes", with "Discard" and the primary "Save changes". A category with waiting changes carries a dot in the list. Leaving with changes asks first, and errors follow the [form rules](design-patterns.md#forms), with the summary and each field's error.
+- **With Save**, for settings that are checked together, need a restart, or reach other people or services, such as connections, providers or sign-in. While any change waits, a `.cp-savebar` at the bottom of the form names the count, such as "3 unsaved changes", with "Discard" and the primary "Save changes". A category with waiting changes carries a dot in the list. Leaving with changes asks first, through [form](forms/form.md#unsaved-changes)'s `guardChanges`, and errors follow the [form rules](design-patterns.md#forms), with the summary and each field's error.
 
 A save says what it did or when it takes effect, such as "Saved. 6 copies changed." or "Saved. Applies after a restart."
 

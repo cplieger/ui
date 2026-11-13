@@ -129,6 +129,30 @@
         <footer>Focus starts in the field it holds and returns to the button on close. A press outside closes it, unless the name was changed: then it shakes and keeps the words.</footer>
       </div>
       <div class="card" data-new>
+        <h2>A message, kept until you drop it</h2>
+        <div class="stage"><button class="cp-button" type="button" commandfor="d-message" command="show-modal"><span class="cp-icon" data-cp-icon="pencil" aria-hidden="true"></span>New message…</button></div>
+        <dialog class="cp-dialog" id="d-message" data-keep-typed aria-labelledby="d-message-title">
+          <form data-guard-message>
+            <header><h2 id="d-message-title">New message</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-message" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
+            <div class="cp-dialog-body cp-stack">
+              <div class="cp-field">
+                <label class="cp-label" for="d-message-to">To</label>
+                <div class="cp-tokens" data-tokens="message-to" data-suggest="d-message-list"><input id="d-message-to" placeholder="Add a recipient"></div>
+                <ul class="cp-popover cp-listbox" id="d-message-list" role="listbox" popover="manual" aria-label="Recipients">
+                  <li role="option" id="dmsg-all">Announcements</li>
+                  <li role="option" id="dmsg-mira">@mira</li>
+                  <li role="option" id="dmsg-otto">@otto<small>Dormant</small></li>
+                </ul>
+              </div>
+              <div class="cp-field"><label class="cp-label" for="d-message-subject">Subject</label><input class="cp-input" id="d-message-subject" name="subject"></div>
+              <div class="cp-field"><label class="cp-label" for="d-message-body">Message</label><textarea class="cp-input" id="d-message-body" name="body" rows="4"></textarea></div>
+            </div>
+            <footer><button class="cp-button" type="button" commandfor="d-message" command="close">Cancel</button><button class="cp-button" data-variant="primary" type="submit">Send</button></footer>
+          </form>
+        </dialog>
+        <footer>Write something, then press Escape, Cancel or Close: it asks "Discard this message?", and Keep writing keeps every word. A press outside shakes instead of asking. Send closes it with no question, and with nothing written it closes at once.</footer>
+      </div>
+      <div class="card" data-new>
         <h2>Confirmation</h2>
         <div class="stage"><button class="cp-button" data-variant="primary" data-tone="danger" type="button" commandfor="d-delete" command="show-modal"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove 3 entries…</button></div>
         <dialog class="cp-dialog" data-variant="confirm" id="d-delete" data-says="3 entries removed" role="alertdialog" aria-labelledby="d-delete-title" aria-describedby="d-delete-body">

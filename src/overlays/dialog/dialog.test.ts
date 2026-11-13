@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { closeDialog, holdDialog, holdsTypedChanges, installDialogs } from "./dialog.js";
+import { closeDialog, holdDialog, installDialogs } from "./dialog.js";
 
 let life = new AbortController();
 
@@ -174,17 +174,27 @@ describe("closeDialog", () => {
   });
 });
 
-describe("holdsTypedChanges", () => {
-  it("compares each field with the value it opened with", () => {
+describe("data-keep-typed", () => {
+  it("counts a choice changed in a select or a box as typed, and lets the dialog close once each is put back", async () => {
+    installDialogs({ signal: life.signal });
     const d = dialog(
-      {},
-      '<input value="a"><textarea>b</textarea><select><option>x</option><option selected>y</option></select><input type="checkbox" checked>',
+      { "data-keep-typed": "" },
+      '<input type="hidden" value="7"><select><option>x</option><option selected>y</option></select><input type="checkbox" checked>',
     );
-    expect(holdsTypedChanges(d)).toBe(false);
-    (d.querySelector("select") as HTMLSelectElement).selectedIndex = 0;
-    expect(holdsTypedChanges(d)).toBe(true);
-    (d.querySelector("select") as HTMLSelectElement).selectedIndex = 1;
-    (d.querySelector('[type="checkbox"]') as HTMLInputElement).checked = false;
-    expect(holdsTypedChanges(d)).toBe(true);
+    d.showModal();
+    const select = d.querySelector("select") as HTMLSelectElement;
+    const box = d.querySelector('[type="checkbox"]') as HTMLInputElement;
+    select.selectedIndex = 0;
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    expect([d.open, d.hasAttribute("data-cp-refused")]).toEqual([true, true]);
+    select.selectedIndex = 1;
+    box.checked = false;
+    d.removeAttribute("data-cp-refused");
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    expect([d.open, d.hasAttribute("data-cp-refused")]).toEqual([true, true]);
+    box.checked = true;
+    const shut = closing(d);
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    expect(await shut).toBe(false);
   });
 });
