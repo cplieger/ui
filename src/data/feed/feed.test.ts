@@ -114,6 +114,12 @@ const scrollTo = async (el: Element, top: number) => {
   await settle();
 };
 const polite = () => document.querySelector('[aria-live="polite"]')?.textContent;
+/** A smooth scroll's length depends on the engine and the host's load, so a
+ *  test waits for it to end rather than polling within a time bound. */
+const scrollEnd = (el: Element) =>
+  new Promise<void>((resolve) => {
+    el.addEventListener("scrollend", () => resolve(), { once: true });
+  });
 
 describe("enhanceFeed", () => {
   it("opens at the newest entry with the foot under it", async () => {
@@ -445,8 +451,10 @@ describe("enhanceFeed", () => {
     await scrollTo(c.box, 0);
     c.feed.append(entry(), entry());
     await settle();
+    const ended = scrollEnd(c.box);
     await userEvent.click(c.jump);
-    await expect.poll(() => gap(c.box)).toBeLessThanOrEqual(1);
+    await ended;
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     expect(c.jump.hidden).toBe(true);
     const newest = c.feed.lastElementChild as HTMLElement;
     expect(document.activeElement).toBe(newest);
@@ -540,8 +548,10 @@ describe("enhanceFeed", () => {
     expect(line.matches('.cp-list-pending[data-edge="end"]')).toBe(true);
     expect(line.textContent).toBe("2 new messagesShow");
     expect(feed.unseen).toBe(2);
+    const ended = scrollEnd(c.box);
     await userEvent.click(line.querySelector("button") as HTMLButtonElement);
-    await expect.poll(() => gap(c.box)).toBeLessThanOrEqual(1);
+    await ended;
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     expect(line.isConnected).toBe(false);
     expect(document.activeElement).toBe(c.feed.lastElementChild);
     expect(feed.unseen).toBe(0);
@@ -618,11 +628,11 @@ describe("enhanceFeed", () => {
     expect(c.box.scrollTop).toBeGreaterThan(0);
   });
 
-  // Thirty Tabs, each awaited until the page settles, take 1.5s alone and
-  // near 6s in WebKit on a loaded machine.
+  // Thirty Tab round trips outlast the 15 s browser default on a loaded
+  // host, and a timed-out run presses Tab into the next tests too.
   it(
     "lets a name that Tab reaches in an entry's popover reach the popover's end",
-    { timeout: 15_000 },
+    { timeout: 30_000 },
     async () => {
       const c = conversation();
       enhance(c);
@@ -976,11 +986,13 @@ describe("enhanceFeed", () => {
     await scrollTo(c.box, 0);
     c.feed.append(entry());
     await settle();
+    const ended = scrollEnd(c.box);
     await userEvent.click(c.jump);
     // Firefox runs a smooth scroll on for a few frames after an instant one,
     // which should end it (https://drafts.csswg.org/cssom-view/#perform-a-scroll),
     // so the press's scroll finishes before the reset.
-    await expect.poll(() => gap(c.box)).toBeLessThanOrEqual(1);
+    await ended;
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
     c.foot.style.setProperty("--cp-keyboard-inset", "10px");
     own.abort();
     expect(c.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe("");

@@ -488,6 +488,12 @@ const scrollTo = async (el: Element, top: number) => {
   el.scrollTop = top;
   await settle();
 };
+/** A smooth scroll's length depends on the engine and the host's load, so a
+ *  test waits for it to end rather than polling within a time bound. */
+const scrollEnd = (el: Element) =>
+  new Promise<void>((resolve) => {
+    el.addEventListener("scrollend", () => resolve(), { once: true });
+  });
 
 describe("enhanceHeldList at the end edge", () => {
   it("puts a change in at once and counts nothing while the reader sees its row", () => {
@@ -525,10 +531,12 @@ describe("enhanceHeldList at the end edge", () => {
     held.change(grow(ul));
     const newest = grow(ul, "Newest")()[0] as HTMLLIElement;
     held.change(() => [newest]);
+    const ended = scrollEnd(box);
     await userEvent.click(showButton() as HTMLButtonElement);
     expect(line()).toBeNull();
     expect(held.held).toBe(0);
-    await expect.poll(() => past(newest, box)).toBeLessThanOrEqual(1);
+    await ended;
+    expect(past(newest, box)).toBeLessThanOrEqual(1);
     const row = newest.querySelector(".cp-list-row") as HTMLElement;
     expect(document.activeElement).toBe(row);
     expect(row.getAttribute("tabindex")).toBe("-1");
@@ -590,12 +598,18 @@ describe("enhanceHeldList at the end edge", () => {
     const { box, ul } = scrolling();
     const held = enhance(ul, { edge: "end" });
     held.change(grow(ul));
+    const ended = scrollEnd(box);
     await userEvent.click(showButton() as HTMLButtonElement);
     const [late] = grow(ul, "Late")();
     held.change(() => (late === undefined ? [] : [late]));
     expect(held.held).toBe(0);
     expect(line()).toBeNull();
-    await expect.poll(() => past(late as Element, box)).toBeLessThanOrEqual(1);
+    await ended;
+    // An engine may end the scroll the late row's replaced before its own.
+    if (past(late as Element, box) > 1) {
+      await scrollEnd(box);
+    }
+    expect(past(late as Element, box)).toBeLessThanOrEqual(1);
   });
 
   it("counts a row under the scroller's end padding, and pins the line above it", async () => {
@@ -615,9 +629,11 @@ describe("enhanceHeldList at the end edge", () => {
       48,
       0,
     );
+    const ended = scrollEnd(box);
     await userEvent.click(showButton() as HTMLButtonElement);
     const newest = ul.lastElementChild as Element;
-    await expect.poll(() => Math.round(past(newest, box))).toBe(-48);
+    await ended;
+    expect(Math.round(past(newest, box))).toBe(-48);
     expect(line()).toBeNull();
   });
 
@@ -642,9 +658,11 @@ describe("enhanceHeldList at the end edge", () => {
     });
     expect(rollText(host)).toBe("2 nouvelles lignes");
     expect(jump.contains(host)).toBe(true);
+    const ended = scrollEnd(box);
     await userEvent.click(jump);
     expect(jump.hidden).toBe(true);
-    await expect.poll(() => past(newest as Element, box)).toBeLessThanOrEqual(1);
+    await ended;
+    expect(past(newest as Element, box)).toBeLessThanOrEqual(1);
     expect(document.activeElement).toBe(newest?.querySelector(".cp-list-row"));
   });
 
@@ -654,10 +672,12 @@ describe("enhanceHeldList at the end edge", () => {
     const jump = hostJump();
     const held = enhanceHeldList(ul, { edge: "end", jump, signal: own.signal });
     held.change(grow(ul));
+    const ended = scrollEnd(box);
     await userEvent.click(jump);
     const row = document.activeElement as HTMLElement;
     expect(row.getAttribute("tabindex")).toBe("-1");
-    await expect.poll(() => past(row, box)).toBeLessThanOrEqual(1);
+    await ended;
+    expect(past(row, box)).toBeLessThanOrEqual(1);
     await settle();
     held.change(grow(ul));
     expect(jump.hidden).toBe(false);

@@ -11,14 +11,14 @@ import { localeOf } from "../../core/locale/locale.js";
 import { skeletonTiming, type SkeletonTimingController } from "../../feedback/skeleton/skeleton.js";
 import { forgetMeasures } from "../scale/measure.js";
 
-import { drawPlot, frameLegend, readMetrics } from "./draw.js";
+import { drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
 import { layout, type Floors } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
-import { overall, readoutWidths, type Widths } from "./readout.js";
+import { chipChosen, overall, readoutWidths, totalWord, type Widths } from "./readout.js";
 import type { ChartSpec } from "./spec.js";
 import { shortDescription, summaryOf } from "./summary.js";
-import { syncTable, tableModel } from "./table.js";
+import { namedRows, syncTable, tableModel } from "./table.js";
 import { chartWords, type ChartWords, type Words } from "./words.js";
 
 export { durationEdges } from "../scale/ladder.js";
@@ -164,6 +164,7 @@ export function renderChart(
   howTo.hidden = true;
   howTo.textContent = words.howTo;
   plot.append(svg, howTo);
+  const list = part("ol", "notes");
   const panel = part("div", "table");
   panel.className = "cp-panel";
   panel.dataset["flush"] = "";
@@ -186,6 +187,8 @@ export function renderChart(
   // The chart's width the drawing was laid out at, which the observer's
   // first entry, sent once observing starts, usually repeats.
   let drawnBox: number | undefined;
+  // The last drawing numbered its notes, so the list below the plot is shown.
+  let listed = false;
 
   let timing: SkeletonTimingController | undefined;
   let committed = false;
@@ -195,7 +198,7 @@ export function renderChart(
   // Puts the parts present in their order after the app's own content,
   // moving none already placed, since a move would blur a focused part.
   const arrange = (present: readonly (Element | undefined)[]): void => {
-    const order = [box, empty, legend, plot, panel, notice];
+    const order = [box, empty, legend, plot, list, panel, notice];
     for (const el of order) {
       if (el !== undefined && !present.includes(el)) {
         el.remove();
@@ -267,10 +270,30 @@ export function renderChart(
     const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox);
     floors = lay.gutters;
     drawPlot(svg, drawn, lay);
+    listed = lay.numbered;
+    if (listed) {
+      const texts = drawn.marks.map((m) => (m.kind === "text" ? m.text : ""));
+      list.replaceChildren(
+        ...lay.notes.map((n) => {
+          const li = document.createElement("li");
+          li.textContent = texts[n.mark] ?? "";
+          return li;
+        }),
+      );
+      if (list.parentElement !== figure) {
+        plot.after(list);
+      }
+    } else {
+      list.remove();
+    }
     const none = overall(drawn, words);
     if (none !== undefined) {
       widths = grow(widths, readoutWidths(drawn, words, metrics.measure));
-      frameLegend(legend, none, widths, words.total);
+      frameLegend(legend, none, widths, totalWord(drawn, words), chipChosen(drawn));
+      const key = sizeKey(drawn, lay);
+      if (key !== undefined) {
+        legend.append(key);
+      }
     }
     explorer.drawn(drawn, lay);
   };
@@ -293,11 +316,12 @@ export function renderChart(
       explorer.clear();
     }
     if (tableOn && tableStale) {
-      syncTable(panel, tableModel(drawn, words), title.textContent, drawn.y.type === "band");
+      syncTable(panel, tableModel(drawn, words), title.textContent, namedRows(drawn));
       tableStale = false;
     }
     panel.hidden = !tableOn;
     legend.hidden = tableOn;
+    list.hidden = tableOn;
     plot.hidden = tableOn;
     toggle?.setAttribute("aria-pressed", String(tableOn));
     if (!tableOn && plotStale) {
@@ -321,6 +345,7 @@ export function renderChart(
     if (model.empty) {
       explorer.reset();
       drawn = undefined;
+      listed = false;
       const text = model.spec.empty ?? words.empty;
       empty.textContent = text;
       setSummary(text, false);
@@ -334,10 +359,12 @@ export function renderChart(
       plot.setAttribute("aria-describedby", howTo.id);
       plot.setAttribute("aria-label", shortDescription(model, words));
       plot.tabIndex = 0;
+      // The drawing showView makes decides whether the new data numbers its notes.
+      listed = false;
       arrange([legend, plot, panel]);
       plotStale = true;
       if (tableOn && !panel.hidden) {
-        syncTable(panel, tableModel(model, words), title.textContent, model.y.type === "band");
+        syncTable(panel, tableModel(model, words), title.textContent, namedRows(model));
         tableStale = false;
       } else {
         tableStale = true;
@@ -354,7 +381,7 @@ export function renderChart(
     old?.remove();
     if (state === "ready" || (state === "refreshFailed" && shown === "ready")) {
       state = "refreshFailed";
-      arrange([legend, plot, panel, el]);
+      arrange([legend, plot, listed ? list : undefined, panel, el]);
     } else if (state === "empty" || (state === "refreshFailed" && shown === "empty")) {
       state = "refreshFailed";
       arrange([empty, el]);
@@ -362,6 +389,7 @@ export function renderChart(
       state = "failed";
       explorer.reset();
       drawn = undefined;
+      listed = false;
       setSummary("", false);
       arrange([el]);
     }
@@ -390,6 +418,7 @@ export function renderChart(
     shown = undefined;
     explorer.reset();
     drawn = undefined;
+    listed = false;
     stored = undefined;
     notice?.remove();
     notice = undefined;
@@ -592,7 +621,7 @@ export function renderChart(
     });
     leftovers.set(
       figure,
-      [box, empty, legend, plot, panel, notice].filter(
+      [box, empty, legend, plot, list, panel, notice].filter(
         (el): el is HTMLElement => el?.isConnected === true,
       ),
     );

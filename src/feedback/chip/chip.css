@@ -10,6 +10,13 @@
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-medium);
+  text-wrap-style: balance;
+  max-inline-size: 100%;
+}
+
+/* In a table a chip keeps one line: a table wider than its panel scrolls
+ * inside it, so the column keeps the chip's whole width. */
+.cp-table .cp-chip {
   white-space: nowrap;
 }
 

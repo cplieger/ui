@@ -128,6 +128,39 @@ const stepLine: ChartSpec = {
   ],
 };
 
+// 8,640 distinct response times, from 100 ms to 90 s.
+const durationLine: ChartSpec = {
+  ...stepLine,
+  y: { label: "Response time", format: "duration" },
+  marks: [
+    {
+      mark: "line",
+      curve: "step",
+      x: minutes,
+      series: Array.from({ length: 2 }, (_, k) => ({
+        name: `p${String(50 + 45 * k)}`,
+        y: minutes.map((_, i) => 100 + ((i * 7_919 + k * 104_729) % 89_900)),
+      })),
+    },
+  ],
+};
+
+// Three layers of 4,320 samples each, a stacked area over 72 hours.
+const stackedArea: ChartSpec = {
+  x: { type: "time", domain: [START, START + HOURS_72] },
+  marks: [
+    {
+      mark: "area",
+      x: minutes,
+      series: [
+        { name: "Gas", y: minutes.map((_, i) => 40 + ((i * 7) % 13)) },
+        { name: "Wind", y: minutes.map((_, i) => 10 + ((i * 5) % 17)) },
+        { name: "Solar", y: minutes.map((_, i) => (i * 3) % 11) },
+      ],
+    },
+  ],
+};
+
 // 20,000 posts over 29 agents, spread unevenly along 72 hours.
 const timeline: ChartSpec = {
   x: { type: "time", domain: [START, START + HOURS_72] },
@@ -160,14 +193,112 @@ const few: ChartSpec = {
     },
   ],
 };
+const fewDurations: ChartSpec = { ...few, y: { format: "duration" } };
+const fewLayers: ChartSpec = {
+  ...stackedArea,
+  marks: [
+    {
+      mark: "area",
+      x: minutes.slice(0, 3),
+      series: [
+        { name: "Gas", y: [1, 2, 3] },
+        { name: "Wind", y: [0, 1, 1] },
+        { name: "Solar", y: [1, 1, 1] },
+      ],
+    },
+  ],
+};
 const fewDots: ChartSpec = {
   ...timeline,
   marks: [{ mark: "dot", rows: [{ name: "a", x: minutes.slice(0, 3) }] }],
 };
 
+// 10,000 dots in five series, spread over both axes by two coprime strides.
+const scatter: ChartSpec = {
+  x: { label: "GDP per capita" },
+  y: { label: "Life expectancy" },
+  marks: [
+    {
+      mark: "scatter",
+      series: Array.from({ length: 5 }, (_, k) => ({
+        name: `Region ${String(k + 1)}`,
+        names: Array.from({ length: 2_000 }, (_, i) => `place-${String(k)}-${String(i)}`),
+        x: Array.from({ length: 2_000 }, (_, i) => 500 + ((i * 7_919 + k * 104_729) % 99_500)),
+        y: Array.from({ length: 2_000 }, (_, i) => 50 + ((i * 6_007 + k * 3_571) % 4_000) / 100),
+      })),
+    },
+  ],
+};
+const fewPlaces: ChartSpec = {
+  ...scatter,
+  marks: [{ mark: "scatter", series: [{ name: "a", names: ["a", "b"], x: [1, 2], y: [3, 4] }] }],
+};
+
+// 2,000 bubbles in five series, sized over four orders of magnitude.
+const bubbles: ChartSpec = {
+  ...scatter,
+  r: { label: "Population" },
+  marks: [
+    {
+      mark: "scatter",
+      series: Array.from({ length: 5 }, (_, k) => ({
+        name: `Region ${String(k + 1)}`,
+        names: Array.from({ length: 400 }, (_, i) => `place-${String(k)}-${String(i)}`),
+        x: Array.from({ length: 400 }, (_, i) => 500 + ((i * 7_919 + k * 104_729) % 99_500)),
+        y: Array.from({ length: 400 }, (_, i) => 50 + ((i * 6_007 + k * 3_571) % 4_000) / 100),
+        r: Array.from({ length: 400 }, (_, i) => 10 ** (3 + ((i * 37 + k * 11) % 400) / 100)),
+      })),
+    },
+  ],
+};
+const fewBubbles: ChartSpec = {
+  ...bubbles,
+  marks: [
+    {
+      mark: "scatter",
+      series: [{ name: "a", names: ["a", "b"], x: [1, 2], y: [3, 4], r: [5, 6] }],
+    },
+  ],
+};
+
 describe("performance", () => {
   it.skipIf(!chromium)("renders a 72-hour step line of 8,640 values within its bound", async () => {
     const { ms, plot } = await timed(stepLine, few);
+    expect(ms).toBeLessThan(RENDER_MS);
+    expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
+
+  it.skipIf(!chromium)(
+    "renders a 72-hour step line of 8,640 distinct durations within its bound",
+    async () => {
+      const { ms, plot } = await timed(durationLine, fewDurations);
+      expect(ms).toBeLessThan(RENDER_MS);
+      expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+    },
+  );
+
+  it.skipIf(!chromium)(
+    "renders a 72-hour stacked area of three layers of 4,320 samples within its bound",
+    async () => {
+      const { ms, plot } = await timed(stackedArea, fewLayers);
+      expect(ms).toBeLessThan(RENDER_MS);
+      expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+    },
+  );
+
+  it.skipIf(!chromium)("renders a scatter plot of 10,000 dots within its bound", async () => {
+    const { ms, plot } = await timed(scatter, fewPlaces);
+    expect(plot.querySelectorAll('[data-part="scatter"] > path')).toHaveLength(5);
+    expect(ms).toBeLessThan(RENDER_MS);
+    expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
+
+  it.skipIf(!chromium)("renders a bubble chart of 2,000 bubbles within its bound", async () => {
+    const { ms, plot } = await timed(bubbles, fewBubbles);
+    const paths = [...plot.querySelectorAll('[data-part="scatter"] > path')];
+    expect(paths.reduce((n, p) => n + (p.getAttribute("d")?.match(/Z/g) ?? []).length, 0)).toBe(
+      2_000,
+    );
     expect(ms).toBeLessThan(RENDER_MS);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });

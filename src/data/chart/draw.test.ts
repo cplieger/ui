@@ -4,10 +4,20 @@ import { cdp, server } from "vitest/browser";
 import { durationEdges } from "../scale/ladder.js";
 import { forgetMeasures } from "../scale/measure.js";
 
-import { AREA_ROOM, drawPlot, frameLegend, readMetrics, writeLegend } from "./draw.js";
+import {
+  AREA_ROOM,
+  drawPlot,
+  drawSelection,
+  frameLegend,
+  readMetrics,
+  sizeKey,
+  writeLegend,
+} from "./draw.js";
+import { hairline, num, snap, upright } from "./geometry.js";
 import { layout, type Layout } from "./layout.js";
 import { chartModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, overall, readoutWidths } from "./readout.js";
+import { navigator } from "./select.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
 
@@ -199,6 +209,170 @@ describe("the marks", () => {
     expect(Number(c?.[2])).toBeCloseTo(Number(a?.[1]) - 1, 6);
   });
 
+  it("sets a group's series side by side from the baseline, and rings each sub-column or the chosen one", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, arrange: "group" }] }, 600);
+    const boxes = (p: Element | null | undefined) =>
+      [...(p?.getAttribute("d") ?? "").matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/g)].map((g) =>
+        g.slice(1).map(Number),
+      );
+    const [announce, path, direct] = series(d, "rect").map(boxes);
+    // Bucket 5: Path is null, so its slot stays empty between Announce and Direct.
+    expect(path).toHaveLength(23);
+    const a = announce?.[5] ?? [];
+    const c = direct?.[5] ?? [];
+    const base = d.lay.frame.yAt(0);
+    expect(a[3]).toBeCloseTo(base, 6);
+    expect(c[3]).toBeCloseTo(base, 6);
+    // Announce 4 stands 4 times as tall as Direct 1, each from the baseline.
+    expect(base - (a[1] ?? 0)).toBeCloseTo(4 * (base - (c[1] ?? 0)), 0);
+    expect((c[0] ?? 0) - (a[2] ?? 0)).toBeGreaterThan(1);
+    const nav = navigator(d.model, d.lay);
+    const rings = (part: number | undefined) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 5, part }, nav);
+      return boxes(d.svg.querySelector('[data-part="ring"]'));
+    };
+    // 1 px inside each drawn sub-column, Path's empty slot left out.
+    const near = (v: number | undefined) => expect.closeTo(v ?? 0, 1);
+    expect(rings(undefined).map((r) => r[0])).toEqual([
+      near((a[0] ?? 0) + 1),
+      near((c[0] ?? 0) + 1),
+    ]);
+    expect(rings(2)).toEqual([
+      [near((c[0] ?? 0) + 1), near((c[1] ?? 0) + 1), near((c[2] ?? 0) - 1), near(base - 1)],
+    ]);
+  });
+
+  it("stacks each 100% bucket to the top of the axis, and rings the bucket or a share", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, arrange: "share" }] }, 600);
+    const boxes = (p: Element | null | undefined) =>
+      [...(p?.getAttribute("d") ?? "").matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/g)].map((g) =>
+        g.slice(1).map(Number),
+      );
+    const [announce, path, direct] = series(d, "rect").map(boxes);
+    const top = d.lay.frame.yAt(1);
+    const base = d.lay.frame.yAt(0);
+    // Bucket 0: Announce 3, Path 2 and Direct 1 of 6, so a half, a third and a sixth.
+    const h = base - top;
+    expect(direct?.[0]?.[1]).toBeCloseTo(top, 1);
+    expect(announce?.[0]?.[1]).toBeCloseTo(base - h / 2, 1);
+    expect(path?.[0]?.[1]).toBeCloseTo(base - (5 / 6) * h, 1);
+    // Bucket 5: Path is null, so Announce 4 and Direct 1 fill it.
+    expect(announce?.[5]?.[1]).toBeCloseTo(base - (4 / 5) * h, 1);
+    expect(direct?.[5]?.[1]).toBeCloseTo(top, 1);
+    const nav = navigator(d.model, d.lay);
+    const ring = (part: number | undefined) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 0, part }, nav);
+      return boxes(d.svg.querySelector('[data-part="ring"]'));
+    };
+    const near = (v: number) => expect.closeTo(v, 1);
+    const [left = 0, , right = 0] = announce?.[0] ?? [];
+    expect(ring(undefined)).toEqual([
+      [near(left + 1), near(top + 1), near(right - 1), near(base - 1)],
+    ]);
+    expect(ring(1)).toEqual([
+      [near(left + 1), near(base - (5 / 6) * h + 1), near(right - 1), near(base - h / 2 - 1)],
+    ]);
+  });
+
+  it("draws a step area as one shape per run, and rings a bucket 1 px inside its flush edges", () => {
+    const mark = stacked.marks[0] as Extract<ChartSpec["marks"][number], { mark: "rect" }>;
+    const d = draw({ ...stacked, marks: [{ ...mark, shape: "area" }] }, 600);
+    const paths = series(d, "rect");
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["1", "2", "4"]);
+    // Path's null in bucket 5 splits it in two; the others run unbroken.
+    const shapes = paths.map((p) => (p.getAttribute("d") ?? "").split("M").length - 1);
+    expect(shapes).toEqual([1, 2, 1]);
+    for (const p of paths) {
+      expect(getComputedStyle(p).fill).toBe(
+        token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`),
+      );
+    }
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "rect", i: 5, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    const [left, , right, bottom] = [...(ring.match(/M([\d.]+) ([\d.]+)H([\d.]+)V([\d.]+)/) ?? [])]
+      .slice(1)
+      .map(Number);
+    expect(left).toBeCloseTo(snap(f.xAt(5 * 900_000), f.dpr) + 1, 2);
+    expect(right).toBeCloseTo(snap(f.xAt(6 * 900_000), f.dpr) - 1, 2);
+    expect(bottom).toBeCloseTo(f.yAt(0) - 1, 2);
+  });
+
+  it("fills an area's layers in their slots with no stroke, and rings each layer's top or the chosen one", () => {
+    const x = per(60, (i) => i * 60_000);
+    const d = draw({
+      x: { type: "time" },
+      marks: [
+        {
+          mark: "area",
+          x,
+          series: [
+            { name: "Gas", slot: 1, y: x.map(() => 4) },
+            { name: "Wind", slot: 3, y: x.map((_, i) => (i === 30 ? null : 2)) },
+          ],
+        },
+      ],
+    });
+    const paths = series(d, "layers");
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["1", "3"]);
+    for (const p of paths) {
+      const cs = getComputedStyle(p);
+      expect(cs.fill).toBe(token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`));
+      expect(cs.stroke).toBe("none");
+      // The gap at sample 30 breaks both layers.
+      expect((p.getAttribute("d")?.match(/Z/g) ?? []).length).toBe(2);
+    }
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    const ring = (part: number | undefined, i = 10) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "area", i, part }, nav);
+      const r = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+      return [...r.matchAll(/M([\d.]+) ([\d.]+)a/g)].map((g) => [Number(g[1]), Number(g[2])]);
+    };
+    const cx = f.xAt(10 * 60_000);
+    expect(ring(undefined)).toEqual([
+      [expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(4), 2)],
+      [expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(6), 2)],
+    ]);
+    expect(ring(1)).toEqual([[expect.closeTo(cx - 4, 2), expect.closeTo(f.yAt(6), 2)]]);
+    expect(ring(undefined, 30)).toEqual([]);
+  });
+
+  it("rings a 100% stacked area's layer tops at their shares, none where the total is 0, and labels each layer from 30rem up", () => {
+    const x = per(60, (i) => i * 60_000);
+    const d = draw(
+      {
+        x: { type: "time" },
+        marks: [
+          {
+            mark: "area",
+            x,
+            arrange: "share",
+            series: [
+              { name: "Gas", slot: 1, y: x.map((_, i) => (i === 20 ? 0 : 1)) },
+              { name: "Wind", slot: 3, y: x.map((_, i) => (i === 20 ? 0 : 3)) },
+            ],
+          },
+        ],
+      },
+      600,
+    );
+    const f = d.lay.frame;
+    const nav = navigator(d.model, d.lay);
+    const ring = (i: number) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "area", i, part: undefined }, nav);
+      const r = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+      return [...r.matchAll(/M([\d.]+) ([\d.]+)a/g)].map((g) => Number(g[2]));
+    };
+    expect(ring(10)).toEqual([expect.closeTo(f.yAt(0.25), 2), expect.closeTo(f.yAt(1), 2)]);
+    expect(ring(20)).toEqual([]);
+    const ends = [...d.svg.querySelectorAll('[data-part="end"] text')].map((t) => t.textContent);
+    expect(ends).toEqual(["Wind 75%", "Gas 25%"]);
+  });
+
   it("strokes each line 2 px in its slot", () => {
     const d = draw(stepLine);
     const paths = series(d, "line");
@@ -298,6 +472,20 @@ describe("the marks", () => {
           marks: [{ ...line([1, 2, 3], [-2, Number.NaN, 5]), curve: "step" as const }],
         },
         {
+          x: type === "log" ? { type, domain: [1, 100] as const } : { type, reverse: true },
+          marks: [
+            {
+              mark: "area" as const,
+              x: [0, 1, 10, 100, 200],
+              curve: "step" as const,
+              series: [
+                { name: "a", y: [2, 0, null, 3, 8] },
+                { name: "b", y: [1, Number.NaN, 4, 0, 2] },
+              ],
+            },
+          ],
+        },
+        {
           x: type === "log" ? { type, domain: [1, 1_000] as const } : { type },
           y: { type: "band" as const },
           marks: [
@@ -388,7 +576,7 @@ describe("charts in a group", () => {
     expect(edges(line)).toEqual(edges(bars));
   });
 
-  it("cut a band name wider than the group gutter, so a strip and a bar chart share their left edge", () => {
+  it("cut a band name wider than the group gutter, so a strip and a column chart share their left edge", () => {
     const parent = place(600);
     parent.style.setProperty("--cp-chart-axis-gutter", "5rem");
     const bars = draw(stacked, 600, parent);
@@ -398,6 +586,46 @@ describe("charts in a group", () => {
     expect(name?.textContent.endsWith("…")).toBe(true);
     expect(name?.hasAttribute("data-mono")).toBe(true);
   });
+
+  const stack = (width: number): HTMLElement => {
+    const box = document.createElement("div");
+    box.className = "cp-chart-stack";
+    box.style.inlineSize = `${String(width)}px`;
+    document.body.append(box);
+    hosts.push(box);
+    return box;
+  };
+  const thousands: ChartSpec = {
+    ...stepLine,
+    y: { label: "Requests" },
+    marks: [
+      {
+        mark: "line",
+        x: minutes,
+        series: [{ name: "All", y: minutes.map((_, i) => 12_000 + (i % 13) * 100) }],
+      },
+    ],
+  };
+
+  it.each([
+    [900, 128, 80],
+    [400, 80, 0],
+  ])(
+    "share their plots' edges in a .cp-chart-stack %i px wide, its gutters %i and %i px",
+    (width, axis, label) => {
+      const box = stack(width);
+      const drawn = [
+        draw(stacked, width, box),
+        draw(strip(["an-agent-with-a-very-long-name", "b"]), width, box),
+        draw(thousands, width, box),
+      ];
+      expect(drawn.map((d) => d.lay.gutters)).toEqual(drawn.map(() => ({ axis, label })));
+      const [first, ...rest] = drawn.map(edges);
+      for (const e of rest) {
+        expect(e).toEqual(first);
+      }
+    },
+  );
 });
 
 describe("labels", () => {
@@ -446,6 +674,81 @@ describe("labels", () => {
   });
 });
 
+describe("notes", () => {
+  const noted = (more: ChartSpec["marks"]): ChartSpec => ({
+    ...stacked,
+    marks: [...stacked.marks, ...more],
+  });
+
+  it("writes each line of a note in the plot at its layout, ink on a halo of the surface", () => {
+    const d = draw(
+      noted([{ mark: "text", x: 9_000_000, y: 6, text: "Deploy of the new feed reader at last" }]),
+    );
+    const lines = [
+      ...d.svg.querySelectorAll<SVGTextElement>('[data-part="area"] [data-part="note"] text'),
+    ];
+    expect(lines.map((t) => t.textContent)).toEqual(d.lay.notes[0]?.lines.map((t) => t.text));
+    expect(lines.length).toBeGreaterThan(1);
+    const box = d.lay.notes[0]?.box;
+    for (const t of lines) {
+      expect(Number(t.getAttribute("x"))).toBeCloseTo(d.lay.frame.xAt(9_000_000), 1);
+      expect(t.getAttribute("text-anchor")).toBe("middle");
+      const cs = getComputedStyle(t);
+      expect(cs.fill).toBe(token(t, "var(--cp-ink)"));
+      expect(cs.stroke).toBe(token(t, "var(--cp-surface-page)"));
+      expect(cs.strokeWidth).toBe("6px");
+      expect(cs.paintOrder).toMatch(/^stroke/u);
+      const b = t.getBBox();
+      expect(b.width).toBeLessThanOrEqual(12 * 16 + 1);
+      expect(b.y).toBeGreaterThanOrEqual((box?.top ?? 0) - 1);
+      expect(b.y + b.height).toBeLessThanOrEqual((box?.bottom ?? 0) + 1);
+    }
+  });
+
+  it("draws in spec order over the marks before it, and leaves out a note off the domain", () => {
+    const d = draw(
+      noted([
+        { mark: "text", x: 30 * 900_000, y: 6, text: "Later" },
+        { mark: "text", x: 900_000, y: 6, text: "Early" },
+      ]),
+    );
+    const notes = [...d.svg.querySelectorAll('[data-part="area"] > [data-part="note"]')];
+    expect(notes.map((n) => n.textContent)).toEqual(["Early"]);
+    expect(notes[0]?.previousElementSibling?.getAttribute("data-part")).toBe("rect");
+  });
+
+  it("draws numbered markers under 30rem: a 20 px ink circle at the point, its number in the surface", () => {
+    const d = draw(
+      noted([
+        { mark: "text", x: 9_000_000, y: 6, text: "Deploy" },
+        { mark: "text", x: 12_600_000, y: 3, text: "Rollback" },
+      ]),
+      320,
+    );
+    expect(d.lay.numbered).toBe(true);
+    expect(d.svg.querySelector('[data-part="note"]')).toBeNull();
+    const marks = [...d.svg.querySelectorAll('[data-part="area"] > [data-part="marker"]')];
+    expect(marks.map((m) => m.textContent)).toEqual(["1", "2"]);
+    const [first] = marks;
+    const circle = first?.querySelector("path") as SVGPathElement;
+    const b = circle.getBBox();
+    expect(b.width).toBeCloseTo(20, 0);
+    expect(b.x + b.width / 2).toBeCloseTo(d.lay.frame.xAt(9_000_000), 1);
+    expect(b.y + b.height / 2).toBeCloseTo(d.lay.frame.yAt(6), 1);
+    expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)"));
+    const number = first?.querySelector("text") as Element;
+    expect(getComputedStyle(number).fill).toBe(token(number, "var(--cp-surface-page)"));
+    expect(getComputedStyle(number).fontSize).toBe("13px");
+  });
+
+  it("keeps a marker at the plot's edge whole inside the area's clip", () => {
+    const d = draw(noted([{ mark: "text", x: 0, y: 0, text: "Start" }]), 320);
+    const b = (d.svg.querySelector('[data-part="marker"] path') as SVGPathElement).getBBox();
+    expect(b.x).toBeGreaterThanOrEqual(-AREA_ROOM - 0.01);
+    expect(b.y + b.height).toBeLessThanOrEqual(d.lay.frame.height + AREA_ROOM + 0.01);
+  });
+});
+
 describe("the legend row", () => {
   it("names each series in a chip with its slot's swatch, and the total", () => {
     const d = draw(stacked);
@@ -479,6 +782,142 @@ describe("the legend row", () => {
 });
 
 describe("surfaces", () => {
+  // Each library surface a chart can sit in, built as an app writes it, with
+  // the surface token it paints.
+  const holders: [string, string, () => HTMLElement][] = [
+    [
+      "a list-detail's detail",
+      "raised",
+      () => {
+        const parent = place(700);
+        parent.className = "cp-list-detail";
+        const detail = document.createElement("div");
+        detail.className = "cp-detail";
+        parent.append(detail);
+        return detail;
+      },
+    ],
+    [
+      "a gate's panel",
+      "raised",
+      () => {
+        const gate = place(700);
+        gate.className = "cp-gate";
+        const panel = document.createElement("div");
+        panel.className = "cp-panel";
+        gate.append(panel);
+        return panel;
+      },
+    ],
+    [
+      "a boxed list's row",
+      "raised",
+      () => {
+        const list = document.createElement("ul");
+        list.className = "cp-list";
+        const row = document.createElement("li");
+        list.append(row);
+        place(700).append(list);
+        return row;
+      },
+    ],
+    [
+      "an accordion's section",
+      "raised",
+      () => {
+        const accordion = place(700);
+        accordion.className = "cp-accordion";
+        const details = document.createElement("details");
+        details.open = true;
+        details.append(document.createElement("summary"));
+        accordion.append(details);
+        return details;
+      },
+    ],
+    [
+      "a figure tile",
+      "raised",
+      () => {
+        const tile = place(700);
+        tile.className = "cp-figure";
+        return tile;
+      },
+    ],
+    [
+      "a popover",
+      "overlay",
+      () => {
+        const pop = place(700);
+        pop.className = "cp-popover";
+        pop.popover = "manual";
+        pop.style.inlineSize = "700px";
+        pop.showPopover();
+        return pop;
+      },
+    ],
+    [
+      "a dialog",
+      "overlay",
+      () => {
+        const dialog = document.createElement("dialog");
+        dialog.className = "cp-dialog";
+        place(700).append(dialog);
+        dialog.show();
+        return dialog;
+      },
+    ],
+  ];
+
+  // A scatter's outlines paint the surface at every width, where a note's
+  // halo becomes a marker under 30rem.
+  it.each(holders)("outlines a scatter's dots in the fill of %s", (_, surface, holder) => {
+    const d = draw(
+      {
+        x: { label: "Seeders" },
+        y: { label: "Size" },
+        marks: [
+          {
+            mark: "scatter",
+            series: [{ name: "Releases", names: ["A", "B"], x: [1, 2], y: [3, 4] }],
+          },
+        ],
+      },
+      700,
+      holder(),
+    );
+    const dots = d.svg.querySelector('[data-part="scatter"] path') as Element;
+    expect(getComputedStyle(dots).stroke).toBe(token(dots, `var(--cp-surface-${surface})`));
+  });
+
+  // A surface token named alone as a fill, as `background: var(--cp-surface-raised)`.
+  const surfaceOf = (style: CSSStyleDeclaration): string | undefined =>
+    ["background", "background-color"]
+      .map((p) => /^var\(--cp-surface-[a-z]+\)$/u.exec(style.getPropertyValue(p).trim())?.[0])
+      .find((v) => v !== undefined);
+
+  function styleRules(rules: CSSRuleList): CSSStyleRule[] {
+    return [...rules].flatMap((r) => [
+      ...(r instanceof CSSStyleRule ? [r] : []),
+      ...("cssRules" in r ? styleRules(r.cssRules as CSSRuleList) : []),
+    ]);
+  }
+
+  it("sets the chart surface in every rule that paints a surface, to the token it paints", () => {
+    const rules = styleRules(sheet.sheet!.cssRules);
+    const painted = rules.filter((r) => surfaceOf(r.style) !== undefined);
+    expect(painted.map((r) => r.selectorText)).toContain(".cp-list");
+    // A pseudo-element holds no element, so no chart can sit on it.
+    const wrong = painted
+      .filter((r) => !/::[\w-]+$/u.test(r.selectorText))
+      .filter((r) => r.style.getPropertyValue("--cp-chart-surface").trim() !== surfaceOf(r.style))
+      .map((r) => r.selectorText);
+    expect(wrong).toEqual([]);
+    const stray = rules
+      .filter((r) => r.style.getPropertyValue("--cp-chart-surface") !== "")
+      .filter((r) => r.selectorText !== ":root" && surfaceOf(r.style) === undefined)
+      .map((r) => r.selectorText);
+    expect(stray).toEqual([]);
+  });
   it.each(["light", "dark"] as const)(
     "leaves the plot transparent inside .cp-detail in the %s theme",
     (t) => {
@@ -542,10 +981,862 @@ describe("surfaces", () => {
       }
       const end = raised.svg.querySelector('[data-part="end"] text') as Element;
       expect(getComputedStyle(end).fill).toBe(token(end, "var(--cp-ink)", "color", palette));
+      const noted = draw({
+        ...stacked,
+        marks: [...stacked.marks, { mark: "text", x: 9_000_000, y: 6, text: "Deploy" }],
+      });
+      const note = noted.svg.querySelector('[data-part="note"] text') as Element;
+      expect(getComputedStyle(note).fill).toBe(token(note, "var(--cp-ink)", "color", palette));
+      expect(getComputedStyle(note).stroke).toBe(
+        token(note, "var(--cp-surface-page)", "color", palette),
+      );
+      const numbered = draw(
+        {
+          ...stacked,
+          marks: [...stacked.marks, { mark: "text", x: 9_000_000, y: 6, text: "Deploy" }],
+        },
+        320,
+      );
+      const circle = numbered.svg.querySelector('[data-part="marker"] path') as Element;
+      expect(getComputedStyle(circle).fill).toBe(token(circle, "var(--cp-ink)", "color", palette));
+      const number = numbered.svg.querySelector('[data-part="marker"] text') as Element;
+      expect(getComputedStyle(number).fill).toBe(
+        token(number, "var(--cp-surface-page)", "color", palette),
+      );
       const line = raised.svg.querySelector('[data-part="line"] path') as Element;
       expect(getComputedStyle(line).stroke).toBe(
         token(line, "var(--cp-series-1)", "color", palette),
       );
+      for (const [link, part, value, prop] of [
+        ["range", "link", "var(--cp-border-strong)", "stroke"],
+        ["arrow", "arrow", "var(--cp-ink-muted)", "stroke"],
+        ["arrow", "arrowhead", "var(--cp-ink-muted)", "fill"],
+      ] as const) {
+        const plot = draw({
+          x: {},
+          marks: [
+            {
+              mark: "point",
+              y: ["a"],
+              link,
+              series: [
+                { name: "A", x: [1] },
+                { name: "B", x: [9] },
+              ],
+            },
+          ],
+        });
+        const el = plot.svg.querySelector(`[data-part="${part}"]`) as Element;
+        expect(getComputedStyle(el)[prop], part).toBe(token(el, value, "color", palette));
+      }
+      const bars = draw({
+        x: {},
+        marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "A", x: [3, 5] }] }],
+      });
+      drawSelection(
+        bars.svg,
+        bars.model,
+        bars.lay,
+        { kind: "bar", row: 1, part: undefined },
+        navigator(bars.model, bars.lay),
+      );
+      const label = bars.svg.querySelector('[data-part="value"] text') as Element;
+      expect(getComputedStyle(label).fill).toBe(token(label, "var(--cp-ink)", "color", palette));
+      expect(getComputedStyle(label).stroke).toBe(
+        token(label, "var(--cp-surface-page)", "color", palette),
+      );
+      const chosen = bars.svg.querySelector('[data-part="y"] > text[data-selected]') as Element;
+      expect(getComputedStyle(chosen).fill).toBe(token(chosen, "var(--cp-ink)", "color", palette));
+      const split = draw({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["a"],
+            arrange: "split",
+            series: [
+              { name: "A", x: [3] },
+              { name: "B", x: [5] },
+            ],
+          },
+        ],
+      });
+      const head = split.svg.querySelector('[data-part="head"] text') as Element;
+      expect(getComputedStyle(head).fill).toBe(
+        token(head, "var(--cp-ink-muted)", "color", palette),
+      );
     },
   );
+});
+
+describe("a bar chart", () => {
+  const ages: ChartSpec = {
+    x: {},
+    marks: [
+      {
+        mark: "bar",
+        y: ["Holy See", "Monaco", "Japan"],
+        series: [{ name: "Median age", slot: 2, x: [57.4, 54.5, 49.8] }],
+      },
+    ],
+  };
+
+  it("draws one path of bars in the series' slot, values at their ends, an upright zero line", () => {
+    const d = draw(ages, 600);
+    const path = d.svg.querySelector('[data-part="bar"] > path');
+    expect(path?.getAttribute("data-series")).toBe("2");
+    expect(getComputedStyle(path as Element).fill).not.toBe("none");
+    const values = [...d.svg.querySelectorAll('[data-part="value"] text')].map(
+      (t) => t.textContent,
+    );
+    expect(values).toEqual(["57.4", "54.5", "49.8"]);
+    expect(d.svg.querySelector('[data-part="rows"]')).toBeNull();
+    expect(d.svg.querySelector('[data-part="grid"]')).toBeNull();
+    const zero = d.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
+    expect(zero).toMatch(/^M[\d.]+ 0V/u);
+    expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBe(0);
+  });
+
+  it("writes value labels in ink on a halo of the surface, over a rule that crosses them", () => {
+    const d = draw(
+      { ...ages, marks: [...ages.marks, { mark: "rule", x: 50, label: "Median" }] },
+      600,
+    );
+    const label = d.svg.querySelector('[data-part="value"] text') as Element;
+    const cs = getComputedStyle(label);
+    expect(cs.fill).toBe(token(label, "var(--cp-ink)"));
+    expect(cs.stroke).toBe(token(label, "var(--cp-surface-page)"));
+    expect(cs.strokeWidth).toBe("6px");
+    expect(cs.paintOrder).toMatch(/^stroke/u);
+    const rule = d.svg.querySelector('[data-part="area"] > [data-part="rule"]') as Element;
+    expect(rule.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("fills a diverging bar's bars below 0 in its below slot and signs its labels", () => {
+    const d = draw(
+      {
+        x: { format: "percent" },
+        marks: [
+          {
+            mark: "bar",
+            y: ["Utah", "Texas", "Puerto Rico"],
+            series: [{ name: "Change", slot: 1, below: 3, x: [0.16, 0, -0.14] }],
+          },
+        ],
+      },
+      600,
+    );
+    const paths = [...d.svg.querySelectorAll('[data-part="bar"] > path')];
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    const [up, down] = paths.map((p) => (p as SVGPathElement).getBBox());
+    const zero = d.lay.frame.xAt(0);
+    expect(up?.x).toBeCloseTo(zero);
+    expect((down?.x ?? 0) + (down?.width ?? 0)).toBeCloseTo(zero);
+    expect(getComputedStyle(paths[1] as Element).fill).not.toBe(
+      getComputedStyle(paths[0] as Element).fill,
+    );
+    const values = [...d.svg.querySelectorAll('[data-part="value"] text')].map(
+      (t) => t.textContent,
+    );
+    expect(values).toEqual(["+16%", "0%", "-14%"]);
+  });
+
+  it("draws vertical gridlines at the x ticks with labels off", () => {
+    const d = draw(
+      {
+        ...ages,
+        marks: [
+          {
+            ...(ages.marks[0] as Extract<ChartSpec["marks"][number], { mark: "bar" }>),
+            labels: false,
+          },
+        ],
+      },
+      600,
+    );
+    const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    expect(grid).toMatch(/^M[\d.]+ 0V/u);
+    expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBeGreaterThan(0);
+  });
+
+  it("rings the selected row's bar 1 px outside it and sets its name in ink at medium weight", () => {
+    const d = draw(ages, 600);
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 1, part: undefined }, nav);
+    const ring = (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
+    const cy = d.lay.rows[1]?.y ?? 0;
+    const end = d.lay.frame.xAt(54.5);
+    // The outline runs 1 px outside the bar on every side, in plot px.
+    expect(ring.y).toBeCloseTo(cy - d.lay.bar / 2 - 1, 1);
+    expect(ring.height).toBeCloseTo(d.lay.bar + 2, 1);
+    expect(ring.x).toBeCloseTo(d.lay.frame.xAt(0) - 1, 1);
+    expect(ring.x + ring.width).toBeCloseTo(end + 1, 1);
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+    const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
+    expect(names.map((n) => n.hasAttribute("data-selected"))).toEqual([false, true, false]);
+    const style = getComputedStyle(names[1] as Element);
+    expect(style.fontWeight).toBe("500");
+    // Ink on the selected name, the muted ink on the others.
+    expect(style.fill).not.toBe(getComputedStyle(names[0] as Element).fill);
+    drawSelection(d.svg, d.model, d.lay, undefined, nav);
+    expect(names.some((n) => n.hasAttribute("data-selected"))).toBe(false);
+  });
+
+  it("draws grouped bars in their slots one under another and rings the row's box", () => {
+    const sexes: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["Japan", "Italy"],
+          arrange: "group",
+          series: [
+            { name: "Female", slot: 1, x: [51.1, 48.6] },
+            { name: "Male", slot: 3, x: [48.4, 45.1] },
+          ],
+        },
+      ],
+    };
+    const d = draw(sexes, 600);
+    const paths = [...d.svg.querySelectorAll('[data-part="bar"] > path')];
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    const values = [...d.svg.querySelectorAll('[data-part="value"] text')].map(
+      (t) => t.textContent,
+    );
+    expect(values).toEqual(["51.1", "48.4", "48.6", "45.1"]);
+    const nav = navigator(d.model, d.lay);
+    const ringBox = () => (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
+    const cy = d.lay.rows[0]?.y ?? 0;
+    // Two 12 px bars and the 1 px between them: the whole row's ring frames all 25 px.
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 0, part: undefined }, nav);
+    expect(ringBox().y).toBeCloseTo(cy - 12.5 - 1, 0);
+    expect(ringBox().height).toBeCloseTo(25 + 2, 0);
+    expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.frame.xAt(51.1) + 1, 1);
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 0, part: 1 }, nav);
+    expect(ringBox().height).toBeCloseTo(12 + 2, 0);
+    expect(ringBox().x + ringBox().width).toBeCloseTo(d.lay.frame.xAt(48.4) + 1, 1);
+  });
+
+  const split: ChartSpec = {
+    x: {},
+    marks: [
+      {
+        mark: "bar",
+        y: ["Instagram", "Facebook"],
+        arrange: "split",
+        series: [
+          { name: "Daily", slot: 1, x: [34, 20] },
+          { name: "Weekly", slot: 3, x: [8, 43] },
+        ],
+      },
+    ],
+  };
+
+  it("draws a split's panels side by side under their heads, a zero line and a ring each", () => {
+    const d = draw(split, 600);
+    const heads = [...d.svg.querySelectorAll('[data-part="head"] text')];
+    expect(heads.map((t) => t.textContent)).toEqual(["Daily", "Weekly"]);
+    const muted = getComputedStyle(d.svg.querySelector('[data-part="y"] > text') as Element).fill;
+    expect(getComputedStyle(heads[0] as Element).fill).toBe(muted);
+    const panels = d.lay.frame.panels ?? [];
+    const paths = [...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path')];
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    const [daily, weekly] = paths.map((p) => p.getBBox());
+    expect(daily?.x).toBeCloseTo(panels[0]?.left ?? -1);
+    expect(weekly?.x).toBeCloseTo(panels[1]?.left ?? -1);
+    // The second panel starts 16 px past the first one's end.
+    expect((panels[1]?.left ?? 0) - (panels[0]?.right ?? 0)).toBe(16);
+    const zero = d.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
+    expect(zero.match(/M/gu)).toHaveLength(2);
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 0, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    // One outline 1 px outside each panel's bar, none spanning the gap between.
+    expect(ring.match(/M/gu)).toHaveLength(2);
+    const box = (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
+    expect(box.x + box.width).toBeCloseTo((panels[1]?.at(8) ?? 0) + 1, 1);
+  });
+
+  it("draws a mirror's sides back to back, a baseline each in the spine and a ring per side", () => {
+    const pyramid: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["90+", "45-50"],
+          arrange: "mirror",
+          series: [
+            { name: "Male", slot: 1, x: [12, 40] },
+            { name: "Female", slot: 3, x: [20, 36] },
+          ],
+        },
+      ],
+    };
+    const d = draw(pyramid, 320);
+    const [male, female] = d.lay.frame.panels ?? [];
+    const paths = [...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path')];
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    const [left, right] = paths.map((p) => p.getBBox());
+    expect((left?.x ?? 0) + (left?.width ?? 0)).toBeCloseTo(male?.right ?? -1);
+    expect(left?.x).toBeCloseTo(male?.at(40) ?? -1);
+    expect(right?.x).toBeCloseTo(female?.left ?? -1);
+    expect((female?.left ?? 0) - (male?.right ?? 0)).toBe(8);
+    // Each baseline is 1 px just outside its side's bars, inside the spine.
+    const zero = d.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
+    const xs = [...zero.matchAll(/M([\d.]+) /gu)].map((x) => Number(x[1]));
+    expect(xs).toHaveLength(2);
+    // Snapped to device px, each line's middle within half a px of the edge's.
+    expect(Math.abs((xs[0] ?? 0) - (male?.right ?? 0) - 0.5)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs((xs[1] ?? 0) - (female?.left ?? 0) + 0.5)).toBeLessThanOrEqual(0.5);
+    const heads = [...d.svg.querySelectorAll('[data-part="head"] text')];
+    expect(heads.map((t) => t.textContent)).toEqual(["Male", "Female"]);
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 1, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    expect(ring.match(/M/gu)).toHaveLength(2);
+  });
+
+  it("folds a split on a phone into bars one under another, with no heads", () => {
+    const d = draw(split, 320);
+    expect(d.lay.frame.panels).toBeUndefined();
+    expect(d.svg.querySelector('[data-part="head"]')?.childElementCount).toBe(0);
+    const [daily, weekly] = [
+      ...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path'),
+    ].map((p) => p.getBBox());
+    expect(daily?.x).toBeCloseTo(d.lay.frame.xAt(0));
+    expect(weekly?.x).toBeCloseTo(d.lay.frame.xAt(0));
+    expect(weekly?.y ?? 0).toBeGreaterThan(daily?.y ?? 0);
+  });
+
+  it("draws a rule in every split panel, once folded, and either side of a diverging 0", () => {
+    const aim = { mark: "rule", x: 10, label: "Aim" } as const;
+    const xs = (d: Drawn) => {
+      const path = d.svg.querySelector('[data-part="rule"]')?.getAttribute("d") ?? "";
+      return [...path.matchAll(/M([\d.]+) /gu)].map((m) => Number(m[1]));
+    };
+    const panelled = draw({ ...split, marks: [...split.marks, aim] }, 600);
+    const panels = panelled.lay.frame.panels ?? [];
+    expect(xs(panelled)).toEqual(panels.map((p) => snap(p.at(10), panelled.lay.frame.dpr)));
+    expect(panelled.svg.querySelectorAll('[data-part="rule-label"] text')).toHaveLength(1);
+    const folded = draw({ ...split, marks: [...split.marks, aim] }, 320);
+    expect(xs(folded)).toEqual([snap(folded.lay.frame.xAt(10), folded.lay.frame.dpr)]);
+    const likert = draw(
+      {
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Item 1"],
+            arrange: "diverge",
+            left: 1,
+            series: [
+              { name: "Disagree", x: [30] },
+              { name: "Agree", x: [40] },
+            ],
+          },
+          aim,
+        ],
+      },
+      600,
+    );
+    const f = likert.lay.frame;
+    expect(xs(likert)).toEqual([snap(f.xAt(-10), f.dpr), snap(f.xAt(10), f.dpr)]);
+  });
+
+  it("sets the names above the bars on a phone", () => {
+    const d = draw(ages, 320);
+    expect(d.lay.left).toBe(0);
+    const first = d.svg.querySelector('[data-part="y"] > text');
+    expect(first?.getAttribute("text-anchor")).toBe("start");
+    // An 18 px name line, 2 px, then a 24 px row: 44 px at 13 px text.
+    expect(d.lay.frame.height).toBe(3 * 44);
+  });
+});
+
+describe("a point chart", () => {
+  const ages = (x: NonNullable<ChartSpec["x"]> = {}): ChartSpec => ({
+    x,
+    marks: [
+      {
+        mark: "point",
+        y: ["Holy See", "Monaco", "Japan"],
+        series: [
+          { name: "Female", slot: 1, x: [60.4, 54.5, 51.1] },
+          { name: "Male", slot: 3, x: [54.5, null, 48.4] },
+        ],
+      },
+    ],
+  });
+
+  it("draws a path of 10 px round dots per series in its slot on row hairlines", () => {
+    const d = draw(ages(), 600);
+    const paths = series(d, "point");
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    expect(paths.map((p) => (p.getAttribute("d")?.match(/h0/g) ?? []).length)).toEqual([3, 2]);
+    const dot = getComputedStyle(paths[1] as Element);
+    expect(dot.stroke).toBe(token(paths[1] as Element, "var(--cp-series-3)"));
+    expect([dot.strokeWidth, dot.strokeLinecap, dot.fill]).toEqual(["10px", "round", "none"]);
+    expect(d.svg.querySelector('[data-part="rows"]')?.getAttribute("d")?.match(/M/g)).toHaveLength(
+      3,
+    );
+    // The dots draw whole inside the plot, 7 px in from its ends.
+    for (const p of paths) {
+      const box = p.getBBox({ stroke: true });
+      expect(box.x).toBeGreaterThanOrEqual(1.99);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width - 1.99);
+    }
+  });
+
+  it("draws upright gridlines at the x ticks, an x axis, and a zero line only for a 0 in x", () => {
+    const d = draw(ages(), 600);
+    const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    expect(grid).toMatch(/^M[\d.]+ 0V/u);
+    expect(grid.match(/M/g)).toHaveLength(d.lay.xAxis.ticks.length);
+    expect(d.svg.querySelector('[data-part="zero"]')).toBeNull();
+    expect(d.svg.querySelector('[data-part="x"]')?.childElementCount).toBeGreaterThan(0);
+    const zeroed = draw(ages({ zero: true }), 600);
+    const zero = zeroed.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
+    expect(zero).toBe(`M${String(snap(zeroed.lay.frame.xAt(0), 1) + 0.5)} 0V72`);
+    const ticks = zeroed.lay.xAxis.ticks.filter((t) => t.value !== 0);
+    expect(
+      zeroed.svg.querySelector('[data-part="grid"]')?.getAttribute("d")?.match(/M/g),
+    ).toHaveLength(ticks.length);
+  });
+
+  it("rings each of the selected row's dots 1 px out and sets its name at medium weight", () => {
+    const d = draw(ages(), 600);
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "point", row: 0, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]') as SVGPathElement;
+    expect(ring.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    const box = ring.getBBox();
+    const [male, female] = [d.lay.frame.xAt(54.5), d.lay.frame.xAt(60.4)];
+    expect(box.x).toBeCloseTo(male - 6, 0);
+    expect(box.x + box.width).toBeCloseTo(female + 6, 0);
+    expect(box.height).toBeCloseTo(12, 1);
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+    const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
+    expect(names.map((n) => n.hasAttribute("data-selected"))).toEqual([true, false, false]);
+    expect(getComputedStyle(names[0] as Element).fontWeight).toBe("500");
+    drawSelection(d.svg, d.model, d.lay, { kind: "point", row: 0, part: 1 }, nav);
+    const one = (d.svg.querySelector('[data-part="ring"]') as SVGPathElement).getBBox();
+    expect(one.x + one.width / 2).toBeCloseTo(male, 0);
+    expect(one.width).toBeCloseTo(12, 1);
+    drawSelection(d.svg, d.model, d.lay, { kind: "point", row: 1, part: 1 }, nav);
+    expect(d.svg.querySelector('[data-part="ring"]')).toBeNull();
+  });
+
+  const linked = (link: "range" | "arrow", male: (number | null)[]): ChartSpec => ({
+    x: {},
+    marks: [
+      {
+        mark: "point",
+        y: ["Holy See", "Monaco", "Japan"],
+        link,
+        series: [
+          { name: "Female", slot: 1, x: [60.4, 54.5, 51.1] },
+          { name: "Male", slot: 3, x: male },
+        ],
+      },
+    ],
+  });
+
+  it("joins a range's two dots with a 4 px line under them, none at a gap", () => {
+    const d = draw(linked("range", [54.5, null, 48.4]), 600);
+    const link = d.svg.querySelector('[data-part="link"]') as SVGPathElement;
+    const dots = d.svg.querySelector('[data-part="point"]');
+    // Drawn before the dots, so they lie over its ends.
+    expect(link.compareDocumentPosition(dots as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(link.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    const style = getComputedStyle(link);
+    expect([style.strokeWidth, style.fill]).toEqual(["4px", "none"]);
+    expect(style.stroke).toBe(token(link, "var(--cp-border-strong)"));
+    const box = link.getBBox();
+    const f = d.lay.frame;
+    expect(box.x).toBeCloseTo(snap(f.xAt(48.4), f.dpr), 5);
+    expect(box.x + box.width).toBeCloseTo(snap(f.xAt(60.4), f.dpr), 5);
+    expect(d.svg.querySelector('[data-part="arrow"]')).toBeNull();
+  });
+
+  it("points an arrow from the first dot to an 8 px head at the second's edge, dropped when they crowd", () => {
+    // Monaco's dots stand under 18 px apart, so only they draw.
+    const d = draw(linked("arrow", [50, 54.6, 55]), 600);
+    const f = d.lay.frame;
+    const shaft = d.svg.querySelector('[data-part="arrow"]') as SVGPathElement;
+    const head = d.svg.querySelector('[data-part="arrowhead"]') as SVGPathElement;
+    expect(f.xAt(54.6) - f.xAt(54.5)).toBeLessThan(18);
+    expect(head.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    expect(shaft.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    const style = getComputedStyle(shaft);
+    expect([style.strokeWidth, style.fill]).toEqual(["2px", "none"]);
+    expect(style.stroke).toBe(token(shaft, "var(--cp-ink-muted)"));
+    expect(getComputedStyle(head).fill).toBe(token(head, "var(--cp-ink-muted)"));
+    const heads = head.getBBox();
+    // Holy See's head points left to its Male dot's edge; Japan's right to its.
+    expect(heads.x).toBeCloseTo(snap(f.xAt(50), f.dpr) + 5, 5);
+    expect(heads.x + heads.width).toBeCloseTo(snap(f.xAt(55), f.dpr) - 5, 5);
+    expect(heads.height).toBeCloseTo(8 + (d.lay.rows[2]?.y ?? 0) - (d.lay.rows[0]?.y ?? 0), 0);
+    expect(d.svg.querySelector('[data-part="link"]')).toBeNull();
+  });
+
+  it("sets the names above the dots on a phone", () => {
+    const d = draw(ages(), 320);
+    expect(d.lay.left).toBe(0);
+    expect(d.svg.querySelector('[data-part="y"] > text')?.getAttribute("text-anchor")).toBe(
+      "start",
+    );
+    // An 18 px name line, 2 px, the 10 px dots and 8 px: 38 px at 13 px text.
+    expect(d.lay.frame.height).toBe(3 * 38);
+  });
+});
+
+describe("a slope chart", () => {
+  const pets = (right: readonly number[]): ChartSpec => ({
+    y: { label: "Share of homes" },
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", slot: 1, y: [50, right[0] ?? null] },
+          { name: "Dogs", slot: 3, y: [40, right[1] ?? null] },
+          { name: "Horses", slot: 5, y: [null, right[2] ?? null] },
+        ],
+      },
+      { mark: "rule", y: 45, label: "Target" },
+    ],
+  });
+
+  it("draws a 2 px line per series and 8 px round ends in its slot, over no axis or gridline", () => {
+    const d = draw(pets([20, 10, 39]), 600);
+    const lines = series(d, "slope");
+    expect(lines.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3", "5"]);
+    expect(lines.map((p) => p.getAttribute("d") === "")).toEqual([false, false, true]);
+    const line = getComputedStyle(lines[1] as Element);
+    expect(line.stroke).toBe(token(lines[1] as Element, "var(--cp-series-3)"));
+    expect([line.strokeWidth, line.fill]).toEqual(["2px", "none"]);
+    const ends = series(d, "ends");
+    expect(ends.map((p) => (p.getAttribute("d")?.match(/h0/g) ?? []).length)).toEqual([2, 2, 1]);
+    const dot = getComputedStyle(ends[2] as Element);
+    expect(dot.stroke).toBe(token(ends[2] as Element, "var(--cp-series-5)"));
+    expect([dot.strokeWidth, dot.strokeLinecap, dot.fill]).toEqual(["8px", "round", "none"]);
+    // Every end draws whole, ring room and all, inside the plot's clip.
+    for (const p of ends) {
+      const box = p.getBBox({ stroke: true });
+      expect(box.x).toBeGreaterThanOrEqual(-AREA_ROOM);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width + AREA_ROOM);
+    }
+    for (const part of ["x", "y", "titles"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`)?.childElementCount).toBe(0);
+    }
+    for (const part of ["grid", "zero", "rows"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`)).toBeNull();
+    }
+    // The y rule runs across both columns.
+    expect(d.svg.querySelector('[data-part="rule"]')?.getAttribute("d")).toBe(
+      `M0 ${String(snap(d.lay.frame.yAt(45), 1))}H${String(d.lay.frame.width)}`,
+    );
+  });
+
+  it("names its columns above them and labels each end in ink beside it", () => {
+    const d = draw(pets([20, 10, 39]), 600);
+    const heads = [...d.svg.querySelectorAll('[data-part="head"] > text')];
+    expect(heads.map((h) => h.textContent)).toEqual(["2005", "2015"]);
+    const ends = [...d.svg.querySelectorAll('[data-part="end"] > text')];
+    expect(ends.map((e) => e.textContent)).toEqual([
+      "Cats 50",
+      "Dogs 40",
+      "Cats 20",
+      "Dogs 10",
+      "Horses 39",
+    ]);
+    const label = ends[0] as SVGTextElement;
+    expect(getComputedStyle(label).fill).toBe(token(label, "var(--cp-ink)"));
+    // "Cats 50" ends 8 px before the plot, centred on its dot.
+    const plotLeft = d.lay.left;
+    const box = label.getBBox();
+    expect(box.x + box.width).toBeCloseTo(plotLeft - 8, 0);
+    expect(box.y + box.height / 2).toBeCloseTo(d.lay.top + d.lay.frame.yAt(50), 0);
+  });
+
+  it("joins a label moved off its dot to it by a 1 px muted leader under the dots", () => {
+    const d = draw(pets([34, 33, 31]), 600);
+    const leader = d.svg.querySelector('[data-part="leader"]') as SVGPathElement;
+    expect(leader.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    const style = getComputedStyle(leader);
+    expect([style.stroke, style.strokeWidth, style.fill]).toEqual([
+      token(leader, "var(--cp-ink-muted)"),
+      "1px",
+      "none",
+    ]);
+    const area = d.svg.querySelector('[data-part="area"]') as Element;
+    expect(leader.compareDocumentPosition(area) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(draw(pets([20, 10, 39]), 600).svg.querySelector('[data-part="leader"]')).toBeNull();
+  });
+});
+
+describe("a scatter plot", () => {
+  const countries = (
+    x: NonNullable<ChartSpec["x"]> = {},
+    y: NonNullable<ChartSpec["y"]> = {},
+  ): ChartSpec => ({
+    x: { label: "GDP per capita", ...x },
+    y: { label: "Life expectancy", ...y },
+    marks: [
+      {
+        mark: "scatter",
+        unit: { one: "country", other: "countries" },
+        series: [
+          {
+            name: "Europe",
+            slot: 2,
+            names: ["Albania", "Andorra", "Austria"],
+            x: [18_920, 65_928, 61_000],
+            y: [79.8, 84.1, 82],
+          },
+          {
+            name: "Africa",
+            slot: 5,
+            names: ["Chad", "Kenya", "Mali"],
+            x: [1_500, 5_200, null],
+            y: [53, 62, 59],
+          },
+        ],
+      },
+    ],
+  });
+
+  it("draws each series as one path of opaque circles in its slot, outlined in the surface", () => {
+    const d = draw(countries());
+    const paths = series(d, "scatter");
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["2", "5"]);
+    // Mali has no x, so it draws no dot.
+    expect(paths.map((p) => (p.getAttribute("d")?.match(/Z/g) ?? []).length)).toEqual([3, 2]);
+    for (const p of paths) {
+      const style = getComputedStyle(p);
+      expect(style.fill).toBe(token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`));
+      expect([style.stroke, style.strokeWidth]).toEqual([
+        token(p, "var(--cp-chart-surface)"),
+        "1px",
+      ]);
+      expect([style.opacity, style.fillOpacity]).toEqual(["1", "1"]);
+      // Every dot draws whole, with its ring's room, inside the plot.
+      const box = p.getBBox({ stroke: true });
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(d.lay.frame.height);
+    }
+  });
+
+  it("lays a later series' dot over an earlier one's, and a series' outlines over its own fills", () => {
+    const d = draw({
+      x: { label: "a", domain: [0, 100] },
+      y: { label: "b", domain: [0, 100] },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "Europe", names: ["A", "B"], x: [50, 51], y: [50, 50] },
+            { name: "Africa", names: ["C"], x: [52], y: [50] },
+          ],
+        },
+      ],
+    });
+    const [europe, africa] = series(d, "scatter");
+    const f = d.lay.frame;
+    const [a, b, c] = [50, 51, 52].map((v) => f.xAt(v));
+    const cy = f.yAt(50);
+    // B and C overlap: between their centres the pointer finds Africa's dot.
+    const svg = d.svg.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      svg.left + d.lay.left + ((b ?? 0) + (c ?? 0)) / 2,
+      svg.top + d.lay.top + cy,
+    );
+    expect(hit).toBe(africa);
+    // A's outline crosses B's fill, and both lie in one path, whose strokes
+    // all paint after its fills.
+    const edge = new DOMPoint((a ?? 0) + 4, cy);
+    expect((b ?? 0) - (a ?? 0)).toBeLessThan(8);
+    expect(europe?.isPointInFill(edge)).toBe(true);
+    expect(europe?.isPointInStroke(edge)).toBe(true);
+    expect(getComputedStyle(europe as Element).paintOrder).toBe("normal");
+  });
+
+  it("draws gridlines at both axes' ticks and a zero line on each linear axis that holds 0", () => {
+    const zeroed = draw(countries({ zero: true }, { zero: true }));
+    const f = zeroed.lay.frame;
+    const grid = zeroed.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    const xTicks = zeroed.lay.xAxis.ticks.filter((t) => t.value !== 0);
+    const yTicks = zeroed.lay.yAxis?.ticks.filter((t) => t.value !== 0) ?? [];
+    expect(xTicks.length).toBeGreaterThan(1);
+    expect(yTicks.length).toBeGreaterThan(1);
+    expect(grid).toBe(
+      [
+        ...xTicks.map((t) => upright(t.at, f.height, f.dpr)),
+        ...yTicks.map((t) => hairline(t.at, f.width, f.dpr)),
+      ].join(""),
+    );
+    expect(zeroed.svg.querySelector('[data-part="zero"]')?.getAttribute("d")).toBe(
+      upright(f.xAt(0), f.height, f.dpr) + hairline(f.yAt(0), f.width, f.dpr),
+    );
+    // With neither axis holding 0 there is no zero line.
+    const away = draw(countries({ domain: [1_000, 70_000] }));
+    expect(away.svg.querySelector('[data-part="zero"]')).toBeNull();
+  });
+
+  it("rings a selected dot over every dot, in its place, with rules from both axes to its edge", () => {
+    const d = draw({
+      x: { label: "a", domain: [0, 100] },
+      y: { label: "b", domain: [0, 100] },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "Europe", names: ["A"], x: [40], y: [30] },
+            { name: "Africa", names: ["B"], x: [41], y: [30] },
+          ],
+        },
+      ],
+    });
+    const f = d.lay.frame;
+    drawSelection(
+      d.svg,
+      d.model,
+      d.lay,
+      { kind: "scatter", series: 0, i: 0 },
+      navigator(d.model, d.lay),
+    );
+    const area = d.svg.querySelector('[data-part="area"]');
+    // The selection draws after both series, and draws no dot of its own.
+    expect(area?.lastElementChild?.getAttribute("data-part")).toBe("selection");
+    expect(area?.querySelectorAll('[data-part="selection"] [data-series]')).toHaveLength(0);
+    const cx = f.xAt(40);
+    const cy = f.yAt(30);
+    const ring = d.svg.querySelector('[data-part="ring"]') as SVGGeometryElement;
+    const box = ring.getBBox();
+    expect([box.x, box.y, box.width, box.height]).toEqual(
+      [cx - 5, cy - 5, 10, 10].map((v) => expect.closeTo(v, 3)),
+    );
+    const hair = d.svg.querySelector('[data-part="crosshair"]') as SVGGeometryElement;
+    const x = snap(cx, f.dpr) + 0.5;
+    const y = snap(cy, f.dpr) + 0.5;
+    expect(hair.getAttribute("d")).toBe(
+      `M${num(x)} ${num(f.height)}V${num(cy + 4)}M0 ${num(y)}H${num(cx - 4)}`,
+    );
+    drawSelection(d.svg, d.model, d.lay, undefined, navigator(d.model, d.lay));
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+  });
+
+  it("draws a gridline at every tick of a log axis and no zero line there", () => {
+    const d = draw(countries({ type: "log" }, { zero: true }));
+    const f = d.lay.frame;
+    const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    for (const t of d.lay.xAxis.ticks) {
+      expect(grid).toContain(upright(t.at, f.height, f.dpr));
+    }
+    expect(d.svg.querySelector('[data-part="zero"]')?.getAttribute("d")).toBe(
+      hairline(f.yAt(0), f.width, f.dpr),
+    );
+  });
+});
+
+describe("a bubble chart", () => {
+  const world: ChartSpec = {
+    x: { label: "GDP per capita", domain: [0, 100] },
+    y: { label: "Life expectancy", domain: [0, 100] },
+    r: { label: "Population", format: { notation: "compact" } },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Asia",
+            slot: 3,
+            names: ["Laos", "Nepal"],
+            x: [50, 20],
+            y: [50, 20],
+            r: [90_000, 0],
+          },
+          { name: "Europe", slot: 2, names: ["Germany"], x: [52], y: [50], r: [1_440_000] },
+        ],
+      },
+    ],
+  };
+  it("paints the bubbles largest first across the series, so a small one lies on top", () => {
+    const d = draw(world);
+    const f = d.lay.frame;
+    const paths = series(d, "scatter");
+    // Nepal's size of 0 draws no dot; Laos, inside Germany, paints after it.
+    expect(paths.map((p) => p.dataset["series"])).toEqual(["2", "3"]);
+    const [germany, laos] = paths;
+    const [lx, ly] = [f.xAt(50), f.yAt(50)];
+    expect(germany?.getBBox().width).toBeCloseTo(48, 1);
+    expect(laos?.getBBox().width).toBeCloseTo(12, 1);
+    for (const p of paths) {
+      const style = getComputedStyle(p);
+      expect(style.fill).toBe(token(p, `var(--cp-series-${p.dataset["series"] ?? ""})`));
+      expect([style.stroke, style.strokeWidth]).toEqual([
+        token(p, "var(--cp-chart-surface)"),
+        "1px",
+      ]);
+    }
+    // At Laos's centre, inside Germany too, the page and the pointer both find Laos.
+    const svg = d.svg.getBoundingClientRect();
+    expect(document.elementFromPoint(svg.left + d.lay.left + lx, svg.top + d.lay.top + ly)).toBe(
+      laos,
+    );
+    expect(navigator(d.model, d.lay).pick(lx, ly)).toEqual({ kind: "scatter", series: 0, i: 0 });
+  });
+
+  it("rings a selected bubble 1 px outside its edge, its rules ending there", () => {
+    const d = draw(world);
+    const f = d.lay.frame;
+    drawSelection(
+      d.svg,
+      d.model,
+      d.lay,
+      { kind: "scatter", series: 1, i: 0 },
+      navigator(d.model, d.lay),
+    );
+    const [cx, cy] = [f.xAt(52), f.yAt(50)];
+    const box = (d.svg.querySelector('[data-part="ring"]') as SVGGeometryElement).getBBox();
+    expect([box.x, box.y, box.width, box.height]).toEqual(
+      [cx - 25, cy - 25, 50, 50].map((v) => expect.closeTo(v, 1)),
+    );
+    expect(d.svg.querySelector('[data-part="crosshair"]')?.getAttribute("d")).toBe(
+      `M${num(snap(cx, f.dpr) + 0.5)} ${num(f.height)}V${num(cy + 24)}M0 ${num(snap(cy, f.dpr) + 0.5)}H${num(cx - 24)}`,
+    );
+  });
+
+  it("keys the sizes with two outlined circles on one baseline at the plot's sizes, hidden from readers", () => {
+    for (const [width, largest] of [
+      [600, 24],
+      [300, 12],
+    ] as const) {
+      const d = draw(world, width);
+      const key = sizeKey(d.model, d.lay);
+      expect(key).toBeDefined();
+      d.legend.append(key as HTMLElement);
+      expect(key?.getAttribute("aria-hidden")).toBe("true");
+      // 1.44M rounds down to 1M; a quarter of it draws half its radius.
+      expect(key?.textContent).toBe("Population250K1M");
+      const [small, large] = [...(key?.querySelectorAll("circle") ?? [])];
+      const radius = largest * Math.sqrt(1_000_000 / 1_440_000);
+      expect(Number(large?.getAttribute("r"))).toBeCloseTo(radius, 1);
+      expect(Number(small?.getAttribute("r"))).toBeCloseTo(radius / 2, 1);
+      const [a, b] = [small, large].map((c) => (c as SVGCircleElement).getBoundingClientRect());
+      expect(a?.bottom).toBeCloseTo(b?.bottom ?? 0, 0);
+      const style = getComputedStyle(large as Element);
+      expect([style.fill, style.stroke, style.strokeWidth]).toEqual([
+        "none",
+        token(large as Element, "var(--cp-ink-muted)"),
+        "1px",
+      ]);
+    }
+    const plain = draw(stacked);
+    expect(sizeKey(plain.model, plain.lay)).toBeUndefined();
+  });
 });

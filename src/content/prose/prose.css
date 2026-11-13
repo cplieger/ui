@@ -148,6 +148,8 @@
 }
 
 .cp-prose :where(code[data-math="block"]) {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   display: block;
   overflow-x: auto;
   padding: var(--cp-space-3) var(--cp-space-4);
@@ -202,6 +204,12 @@
 
 .cp-prose :where(tbody tr:last-child) > :where(td) {
   border-block-end: 0;
+}
+
+/* A cell of running text keeps a readable width: without a floor a table
+ * wider than its box sits at its min-content, a word a line. */
+.cp-prose :where(td[data-cp-wrap]) {
+  min-inline-size: 12em;
 }
 
 /* anywhere counts every character toward a cell's min-content, which would

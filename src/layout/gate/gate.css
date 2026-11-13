@@ -24,6 +24,8 @@
 }
 
 .cp-gate > .cp-panel {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   justify-self: stretch;
   padding: var(--cp-space-6);
   background: var(--cp-surface-raised);

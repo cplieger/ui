@@ -905,12 +905,15 @@
   --cp-series-1-h: var(--cp-accent-h);
   --cp-series-1: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-1-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-1-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-1-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-1-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-1-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-1-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-1-h)
@@ -918,10 +921,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-1-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-1-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-1-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-1-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-1-h)
@@ -930,12 +933,15 @@
   --cp-series-2-h: var(--cp-harmony-2-h);
   --cp-series-2: light-dark(
     oklch(
-      calc(42% + 8% * pow(max(0, cos((var(--cp-series-2-h) - 45) * 1deg)), 4))
+      calc(
+          0.4476 + 0.019 * cos((var(--cp-series-2-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-2-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-2-h) - 90) * 1deg)), 5) - 0.066 *
-              pow(max(0, cos((var(--cp-series-2-h) - 199) * 1deg)), 2)
+            0.154 - 0.034 * pow(max(0, cos((var(--cp-series-2-h) - 91) * 1deg)), 7) - 0.07 *
+              pow(max(0, cos((var(--cp-series-2-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-2-h)
@@ -943,10 +949,10 @@
     oklch(
       60%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-2-h) - 89) * 1deg)), 3) - 0.078 *
-              pow(max(0, cos((var(--cp-series-2-h) - 200) * 1deg)), 2)
+            0.169 - 0.034 * pow(max(0, cos((var(--cp-series-2-h) - 89) * 1deg)), 7) - 0.06 *
+              pow(max(0, cos((var(--cp-series-2-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-2-h)
@@ -955,12 +961,15 @@
   --cp-series-3-h: var(--cp-harmony-3-h);
   --cp-series-3: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-3-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-3-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-3-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-3-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-3-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-3-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-3-h)
@@ -968,10 +977,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-3-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-3-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-3-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-3-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-3-h)
@@ -988,12 +997,15 @@
   );
   --cp-series-4: light-dark(
     oklch(
-      calc(42% + 8% * pow(max(0, cos((var(--cp-series-4-h) - 45) * 1deg)), 4))
+      calc(
+          0.4476 + 0.019 * cos((var(--cp-series-4-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-4-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-4-h) - 90) * 1deg)), 5) - 0.066 *
-              pow(max(0, cos((var(--cp-series-4-h) - 199) * 1deg)), 2)
+            0.154 - 0.034 * pow(max(0, cos((var(--cp-series-4-h) - 91) * 1deg)), 7) - 0.07 *
+              pow(max(0, cos((var(--cp-series-4-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-4-h)
@@ -1001,10 +1013,10 @@
     oklch(
       60%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-4-h) - 89) * 1deg)), 3) - 0.078 *
-              pow(max(0, cos((var(--cp-series-4-h) - 200) * 1deg)), 2)
+            0.169 - 0.034 * pow(max(0, cos((var(--cp-series-4-h) - 89) * 1deg)), 7) - 0.06 *
+              pow(max(0, cos((var(--cp-series-4-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-4-h)
@@ -1021,12 +1033,15 @@
   );
   --cp-series-5: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-5-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-5-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-5-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-5-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-5-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-5-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-5-h)
@@ -1034,10 +1049,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-5-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-5-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-5-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-5-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-5-h)
@@ -1054,12 +1069,15 @@
   );
   --cp-series-6: light-dark(
     oklch(
-      calc(42% + 8% * pow(max(0, cos((var(--cp-series-6-h) - 45) * 1deg)), 4))
+      calc(
+          0.4476 + 0.019 * cos((var(--cp-series-6-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-6-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-6-h) - 90) * 1deg)), 5) - 0.066 *
-              pow(max(0, cos((var(--cp-series-6-h) - 199) * 1deg)), 2)
+            0.154 - 0.034 * pow(max(0, cos((var(--cp-series-6-h) - 91) * 1deg)), 7) - 0.07 *
+              pow(max(0, cos((var(--cp-series-6-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-6-h)
@@ -1067,10 +1085,10 @@
     oklch(
       60%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-6-h) - 89) * 1deg)), 3) - 0.078 *
-              pow(max(0, cos((var(--cp-series-6-h) - 200) * 1deg)), 2)
+            0.169 - 0.034 * pow(max(0, cos((var(--cp-series-6-h) - 89) * 1deg)), 7) - 0.06 *
+              pow(max(0, cos((var(--cp-series-6-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-6-h)
@@ -1087,12 +1105,15 @@
   );
   --cp-series-7: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-7-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-7-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-7-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-7-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-7-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-7-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-7-h)
@@ -1100,10 +1121,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-7-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-7-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-7-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-7-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-7-h)
@@ -1120,12 +1141,15 @@
   );
   --cp-series-8: light-dark(
     oklch(
-      calc(42% + 8% * pow(max(0, cos((var(--cp-series-8-h) - 45) * 1deg)), 4))
+      calc(
+          0.4476 + 0.019 * cos((var(--cp-series-8-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-8-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.157 - 0.034 * pow(max(0, cos((var(--cp-series-8-h) - 90) * 1deg)), 5) - 0.066 *
-              pow(max(0, cos((var(--cp-series-8-h) - 199) * 1deg)), 2)
+            0.154 - 0.034 * pow(max(0, cos((var(--cp-series-8-h) - 91) * 1deg)), 7) - 0.07 *
+              pow(max(0, cos((var(--cp-series-8-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-8-h)
@@ -1133,10 +1157,10 @@
     oklch(
       60%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.188 - 0.049 * pow(max(0, cos((var(--cp-series-8-h) - 89) * 1deg)), 3) - 0.078 *
-              pow(max(0, cos((var(--cp-series-8-h) - 200) * 1deg)), 2)
+            0.169 - 0.034 * pow(max(0, cos((var(--cp-series-8-h) - 89) * 1deg)), 7) - 0.06 *
+              pow(max(0, cos((var(--cp-series-8-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-8-h)
@@ -1153,12 +1177,15 @@
   );
   --cp-series-9: light-dark(
     oklch(
-      61%
+      calc(
+          0.6276 + 0.019 * cos((var(--cp-series-9-h) + 7) * 1deg) + 0.0023 *
+            cos((2 * (var(--cp-series-9-h) - 80)) * 1deg)
+        )
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.189 - 0.049 * pow(max(0, cos((var(--cp-series-9-h) - 88) * 1deg)), 3) - 0.077 *
-              pow(max(0, cos((var(--cp-series-9-h) - 199) * 1deg)), 2)
+            0.18 - 0.038 * pow(max(0, cos((var(--cp-series-9-h) - 91) * 1deg)), 5) - 0.073 *
+              pow(max(0, cos((var(--cp-series-9-h) - 199) * 1deg)), 3)
           )
         )
         var(--cp-series-9-h)
@@ -1166,10 +1193,10 @@
     oklch(
       80%
         min(
-          clamp(0.11, calc(var(--cp-accent-c) * 1.2), 0.16),
+          clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.2),
           calc(
-            0.142 - 0.042 * pow(max(0, cos((var(--cp-series-9-h) - 267) * 1deg)), 4) - 0.024 *
-              pow(max(0, cos((var(--cp-series-9-h) - 27) * 1deg)), 4)
+            0.169 - 0.07 * pow(max(0, cos((var(--cp-series-9-h) - 255) * 1deg)), 1) - 0.059 *
+              pow(max(0, cos((var(--cp-series-9-h) - 24) * 1deg)), 4)
           )
         )
         var(--cp-series-9-h)
@@ -1515,6 +1542,8 @@
 
 /* Element defaults, inside .cp only. */
 :where(.cp) {
+  --cp-chart-surface: var(--cp-surface-page);
+
   background: var(--cp-surface-page);
   color: var(--cp-ink);
   font-family: var(--cp-font-body);
@@ -1523,6 +1552,7 @@
   font-synthesis-weight: none;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-wrap: break-word;
   accent-color: var(--cp-accent);
   caret-color: var(--cp-accent-ink);
   scrollbar-color: var(--cp-border-strong) transparent;
@@ -1662,6 +1692,8 @@
 }
 
 :where(.cp) :where(pre) {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   margin: 0;
   padding: var(--cp-space-3) var(--cp-space-4);
   background: var(--cp-surface-sunken);
@@ -1800,6 +1832,8 @@
 }
 
 .cp-status {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   grid-area: status;
   display: flex;
   flex-wrap: wrap;
@@ -1879,6 +1913,8 @@
 }
 
 .cp-gate > .cp-panel {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   justify-self: stretch;
   padding: var(--cp-space-6);
   background: var(--cp-surface-raised);
@@ -2091,6 +2127,8 @@
 }
 
 .cp-segmented > label:has(:checked) {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
 }
@@ -2202,6 +2240,8 @@
 /* Unsaved changes: a bar that stays in view at the bottom of the form while
  * any change waits. */
 .cp-savebar {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
   position: sticky;
   inset-block-end: var(--cp-space-3);
   z-index: 1;
@@ -2368,6 +2408,11 @@
   white-space: nowrap;
 }
 
+/* As a link home, the wordmark is a control and takes the hit area. */
+a.cp-wordmark {
+  min-block-size: var(--cp-hit-min);
+}
+
 .cp-mark {
   display: grid;
   place-items: center;
@@ -2466,6 +2511,8 @@
  * it. */
 @media (width < 40rem) {
   .cp-header > .cp-nav {
+    --cp-chart-surface: var(--cp-surface-raised);
+
     position: fixed;
     inset: auto 0 0;
     z-index: 1;
@@ -2663,6 +2710,8 @@
 /* The first stop for Tab on a page: a link to the main region, shown only
  * while it has focus. */
 .cp-skip {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: fixed;
   inset-block-start: var(--cp-space-2);
   inset-inline-start: var(--cp-space-2);
@@ -2733,8 +2782,10 @@
   font: inherit;
   font-weight: var(--cp-weight-medium);
   font-size: var(--cp-text-ui);
-  line-height: 1;
-  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap-style: balance;
+  max-inline-size: 100%;
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
@@ -2860,6 +2911,8 @@
 }
 
 .cp-input {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   min-block-size: var(--cp-control-h);
   padding-inline: var(--cp-space-3);
   border: var(--cp-line-w) solid var(--cp-border-strong);
@@ -2959,6 +3012,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
  * that is partly on (:indeterminate). */
 .cp-checkbox {
   --cp-checkbox-size: 1.375rem;
+  --cp-chart-surface: var(--cp-surface-raised);
   /* 2px in from each side, a whole pixel, so the mask lands on the pixel
    * grid the same way when the box turns. */
   --cp-checkbox-mark: calc(var(--cp-checkbox-size) - 0.25rem);
@@ -3089,6 +3143,7 @@ input.cp-input:is([type^="date"], [type="time"]) {
  * dot springs in. The arrow keys move the choice, as the platform's do. */
 .cp-radio {
   --cp-radio-size: 1.375rem;
+  --cp-chart-surface: var(--cp-surface-raised);
   --cp-radio-dot: 0.625rem;
 
   appearance: none;
@@ -3290,6 +3345,8 @@ input.cp-input:is([type^="date"], [type="time"]) {
  * as what it holds. The value is a number field, or for a value the buttons
  * alone set, such as a zoom, a button that resets it. */
 .cp-stepper {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: relative;
   display: inline-flex;
   align-items: stretch;
@@ -3456,6 +3513,8 @@ input.cp-input:is([type^="date"], [type="time"]) {
 /* Machine text to copy, such as a key shown once: the text in a box with
  * Copy attached as one element, one control tall. */
 .cp-code {
+  --cp-chart-surface: var(--cp-surface-page);
+
   display: flex;
   align-items: stretch;
   gap: var(--cp-space-2);
@@ -3511,6 +3570,8 @@ button.cp-button.cp-copy[data-cp-state="done"]:not(:disabled) {
 /* A field with a fixed part of its value beside it, such as https:// or a
  * unit: one box, one control tall, the fixed part outside what is typed. */
 .cp-affix {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: flex;
   align-items: stretch;
   /* Border-box: the border sits inside the control height, and stays
@@ -3826,6 +3887,8 @@ textarea.cp-input {
  * input, wrapping as they grow. Its edge is inset, so a single line is one
  * control tall beside other fields. */
 .cp-tokens {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -4340,6 +4403,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-table tbody tr:has(:focus-visible) .cp-button:not([data-variant], [data-cp-state]) {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   background: var(--cp-surface-raised);
 }
 
@@ -4506,6 +4571,8 @@ th[aria-sort="descending"] > .cp-sort::after {
      * lift it to the raised surface. Only a resting button: one that
      * confirms in place keeps the fill its busy or done state gives it. */
     .cp-table tr:hover .cp-button:not([data-variant], [data-cp-state]) {
+      --cp-chart-surface: var(--cp-surface-raised);
+
       background: var(--cp-surface-raised);
     }
   }
@@ -4683,6 +4750,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-prose :where(code[data-math="block"]) {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   display: block;
   overflow-x: auto;
   padding: var(--cp-space-3) var(--cp-space-4);
@@ -4739,6 +4808,12 @@ th[aria-sort="descending"] > .cp-sort::after {
   border-block-end: 0;
 }
 
+/* A cell of running text keeps a readable width: without a floor a table
+ * wider than its box sits at its min-content, a word a line. */
+.cp-prose :where(td[data-cp-wrap]) {
+  min-inline-size: 12em;
+}
+
 /* anywhere counts every character toward a cell's min-content, which would
  * crush a short column to one letter; the region scrolls instead. */
 .cp-prose :where(th, td) :where(code) {
@@ -4779,6 +4854,8 @@ th[aria-sort="descending"] > .cp-sort::after {
  * A fill, not a line, sets it apart; forced colours draw the transparent
  * border. */
 .cp-code[data-variant="block"] {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   display: block;
   block-size: auto;
   min-inline-size: 0;
@@ -4788,11 +4865,16 @@ th[aria-sort="descending"] > .cp-sort::after {
   background: var(--cp-surface-sunken);
 }
 
+/* The trailing action nests in the block's corner: its inset is the block's
+ * radius less the border and the button's radius, so the corners are
+ * concentric. */
 .cp-code[data-variant="block"] > [data-part="bar"] {
+  --cp-bar-inset: calc(var(--cp-radius-surface) - var(--cp-line-w) - var(--cp-radius-control));
+
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
-  padding: var(--cp-space-1) var(--cp-space-1) var(--cp-space-1) var(--cp-space-3);
+  padding: var(--cp-bar-inset) var(--cp-bar-inset) var(--cp-bar-inset) var(--cp-space-3);
   border-block-end: var(--cp-line-w) solid var(--cp-line);
 }
 
@@ -5213,15 +5295,13 @@ th[aria-sort="descending"] > .cp-sort::after {
   initial-value: transparent;
 }
 
-/* The surface a chart sits on, which only forced colours paint behind the
- * plot. An app's own raised container sets it to the raised token. */
+/* The surface a chart sits on: its halos, outlines and marker numbers, and
+ * the plot's background under forced colours. Every rule that paints a
+ * surface token sets this to the same token (draw.test.ts holds it), so a
+ * chart takes the fill of whatever library surface holds it; :root is the
+ * page for a chart outside every .cp subtree. */
 :root {
   --cp-chart-surface: var(--cp-surface-page);
-}
-
-.cp-list-detail > .cp-detail,
-.cp-gate > .cp-panel {
-  --cp-chart-surface: var(--cp-surface-raised);
 }
 
 .cp-chart {
@@ -5230,6 +5310,26 @@ th[aria-sort="descending"] > .cp-sort::after {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--cp-space-2) var(--cp-space-3);
   margin: 0;
+}
+
+/* Charts on one x range, one under another: the gutters are the stack's, so
+ * every plot starts and ends at the same x whatever its labels. Under 30rem
+ * lines and areas drop their end labels, so the label gutter is 0 there. */
+.cp-chart-stack {
+  --cp-chart-axis-gutter: 8rem;
+  --cp-chart-label-gutter: 5rem;
+
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+@container (width < 30rem) {
+  .cp-chart-stack > * {
+    --cp-chart-axis-gutter: 5rem;
+    --cp-chart-label-gutter: 0;
+  }
 }
 
 .cp-chart > figcaption {
@@ -5300,6 +5400,40 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-weight: var(--cp-weight-body);
 }
 
+/* A chosen series' chip name shows it by weight as well as by its ring,
+ * one step past the chip's own medium. A hidden copy at that weight holds
+ * the name's width, so choosing a series never wraps the row. */
+.cp-chart > [data-part="legend"] .cp-chip > bdi[data-name] {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.cp-chart > [data-part="legend"] .cp-chip > bdi[data-name]::after {
+  overflow: hidden;
+  block-size: 0;
+  font-weight: var(--cp-weight-strong);
+  visibility: hidden;
+  content: attr(data-name) / "";
+}
+
+.cp-chart > [data-part="legend"] .cp-chip[data-selected] > bdi {
+  font-weight: var(--cp-weight-strong);
+}
+
+/* A bubble chart's size key: two circles at the sizes the plot draws,
+ * standing on the row's baseline, each before its value. */
+.cp-chart > [data-part="legend"] > [data-part="size"] {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--cp-space-1);
+}
+
+.cp-chart > [data-part="legend"] > [data-part="size"] circle {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
+}
+
 .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
 }
@@ -5329,8 +5463,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   block-size: 100%;
 }
 
-/* The table view's rules, as a sentence under the table. */
-.cp-chart > [data-part="table"] > [data-part="rules"] {
+/* The table view's rules and notes, as sentences under the table. */
+.cp-chart > [data-part="table"] > [data-part="after"] {
   margin: 0;
   padding: var(--cp-space-2) var(--cp-space-3) var(--cp-space-3);
   font-size: var(--cp-text-sm);
@@ -5371,24 +5505,78 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-width: 1px;
 }
 
-.cp-chart svg [data-part="rect"] path {
+.cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
+.cp-chart svg [data-part="bar"] path {
   fill: var(--cp-tone-9);
 }
 
+/* A selected bar row's name shows by weight as well as colour. */
+.cp-chart svg [data-part="y"] text[data-selected] {
+  fill: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+}
+
 /* Each dot is a zero-length segment its round cap draws as a circle. */
-.cp-chart svg [data-part="dot"] path {
+.cp-chart svg [data-part="dot"] path,
+.cp-chart svg [data-part="point"] path {
   fill: none;
   stroke: var(--cp-tone-9);
   stroke-width: 6px;
   stroke-linecap: round;
 }
 
-.cp-chart svg [data-part="line"] > path {
+/* A slope's ends, between a timeline's dot and a point's. */
+.cp-chart svg [data-part="ends"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 8px;
+  stroke-linecap: round;
+}
+
+/* A point is a value the reader compares, so its dot is larger. */
+.cp-chart svg [data-part="point"] path {
+  stroke-width: 10px;
+}
+
+/* A scatter's dots stay opaque, so no blend makes a colour the legend never
+ * names, and their outline of the surface keeps overlapping dots apart. */
+.cp-chart svg [data-part="scatter"] path {
+  fill: var(--cp-tone-9);
+  stroke: var(--cp-chart-surface);
+  stroke-width: 1px;
+}
+
+/* A range's bold link and an arrow, its head showing the direction in any
+ * colour, under the dots. */
+.cp-chart svg [data-part="link"] {
+  fill: none;
+  stroke: var(--cp-border-strong);
+  stroke-width: 4px;
+}
+
+.cp-chart svg [data-part="arrow"] {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 2px;
+}
+
+.cp-chart svg [data-part="arrowhead"] {
+  fill: var(--cp-ink-muted);
+}
+
+.cp-chart svg :is([data-part="line"], [data-part="slope"]) > path {
   fill: none;
   stroke: var(--cp-tone-9);
   stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* A slope's end label moved off its dot's height points back to it. */
+.cp-chart svg [data-part="leader"] {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
 }
 
 .cp-chart svg [data-part="rule"] {
@@ -5413,6 +5601,37 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {
   fill: var(--cp-ink);
+}
+
+.cp-chart svg [data-part="end"] text[data-selected] {
+  font-weight: var(--cp-weight-medium);
+}
+
+/* A note's or a bar value's 3 px halo of the plot's surface keeps it
+ * legible over bars, gridlines and rules; the stroke paints first, so it
+ * widens the glyphs by half. */
+.cp-chart svg :is([data-part="note"], [data-part="value"]) text {
+  fill: var(--cp-ink);
+  stroke: var(--cp-chart-surface);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
+.cp-chart svg [data-part="marker"] > path {
+  fill: var(--cp-ink);
+}
+
+.cp-chart svg [data-part="marker"] text {
+  fill: var(--cp-chart-surface);
+}
+
+/* The numbered markers' key, below the plot. */
+.cp-chart > [data-part="notes"] {
+  margin: 0;
+  padding-inline-start: 2.5ch;
+  font-size: var(--cp-text-xs);
+  color: var(--cp-ink);
 }
 
 /* Forced colours leave an inline SVG's illustration alone, so the plot keeps
@@ -5458,7 +5677,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* The trigger for the rail's filters, shown only once the rail leaves. */
+/* A toolbar control that serves the rail's filters, shown only once the
+ * rail leaves: the Filters button and its Clear filters companion. */
 .cp-rail-toggle {
   display: none;
 }
@@ -5655,6 +5875,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* Rows keep their height in a list stretched taller than them, such as
  * beside a taller detail. */
 .cp-list {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: grid;
   align-content: start;
   margin: 0;
@@ -6090,6 +6312,8 @@ button.cp-list-row[aria-pressed] .cp-badge {
     /* A plain button shares the row's hover fill and would vanish; lift it
      * to the raised surface. One that confirms in place keeps its state's. */
     .cp-list-row:hover .cp-button:not([data-variant], [data-cp-state]) {
+      --cp-chart-surface: var(--cp-surface-raised);
+
       background: var(--cp-surface-raised);
     }
   }
@@ -6360,6 +6584,8 @@ div.cp-list-foot {
 
 /* The item a drag lifted follows the pointer, above the others. */
 .cp-reorder > li[data-cp-lifted] {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: relative;
   z-index: 2;
   background: var(--cp-surface-raised);
@@ -6423,6 +6649,7 @@ div.cp-list-foot {
  * would fight it. */
 .cp-feed {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-2);
   margin: 0;
   padding: 0;
@@ -6455,6 +6682,7 @@ div.cp-list-foot {
  * fill, keep their text on the same edge as everyone else's. */
 .cp-feed-entry {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-1);
   padding: var(--cp-space-3) var(--cp-space-4);
   border-radius: var(--cp-radius-surface);
@@ -6514,6 +6742,8 @@ div.cp-list-foot {
 
 /* The person's own entry: a sunken fill, with "You" for its author. */
 .cp-feed-entry[data-own] {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   background: var(--cp-surface-sunken);
 }
 
@@ -6581,6 +6811,8 @@ div.cp-list-foot {
  * the on-screen keyboard covers: padding it keeps the controls above the
  * keyboard while the foot stays in flow under the last entry. */
 .cp-feed-foot {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: sticky;
   inset-block-end: 0;
   z-index: 1;
@@ -6600,6 +6832,8 @@ div.cp-list-foot {
  * both directions where a translate by half its width would not. Its
  * offset is from the foot's padding box, inside the foot's top line. */
 .cp-feed-jump {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: absolute;
   inset-block-end: calc(100% + var(--cp-line-w) + var(--cp-space-2));
   inset-inline: 0;
@@ -6630,6 +6864,13 @@ div.cp-list-foot {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-medium);
+  text-wrap-style: balance;
+  max-inline-size: 100%;
+}
+
+/* In a table a chip keeps one line: a table wider than its panel scrolls
+ * inside it, so the column keeps the chip's whole width. */
+.cp-table .cp-chip {
   white-space: nowrap;
 }
 
@@ -6789,6 +7030,8 @@ div.cp-list-foot {
  * or cold tint; it rises off the wash instead, edged with the tone's 3:1
  * step, and its words take the tone's ink. */
 .cp-notice .cp-button:not([data-variant="primary"]) {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   border: var(--cp-line-w) solid var(--cp-tone-8);
   background: var(--cp-surface-raised);
   color: var(--cp-tone-12);
@@ -6872,6 +7115,8 @@ div.cp-list-foot {
 }
 
 .cp-banner > .cp-button:not([data-variant="primary"]) {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   border: var(--cp-line-w) solid var(--cp-tone-8);
   background: var(--cp-surface-raised);
   color: var(--cp-tone-12);
@@ -7068,12 +7313,15 @@ div.cp-list-foot {
 
 .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
   min-inline-size: 0;
 }
 
 .cp-list-detail > .cp-detail {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   padding: var(--cp-space-4);
   border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-surface);
@@ -7083,6 +7331,7 @@ div.cp-list-foot {
 
 .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
 }
@@ -7189,6 +7438,7 @@ div.cp-list-foot {
 
 .cp-context-panel > section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-2);
   padding: 0 var(--cp-space-3) var(--cp-space-3);
@@ -7340,6 +7590,8 @@ div.cp-list-foot {
 }
 
 .cp-tab[aria-selected="true"] {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
 }
@@ -7440,6 +7692,8 @@ div.cp-list-foot {
  * and the menu's button, which sits beside the summary and not in it, so
  * pressing it never opens or shuts the section. */
 .cp-accordion {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: grid;
   border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-surface);
@@ -8027,6 +8281,8 @@ div.cp-list-foot {
  * optional sparkline beside it, on a tile. The same tile as a button or a
  * link opens what is behind the number. */
 .cp-figure {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--cp-space-1) var(--cp-space-3);
@@ -8421,10 +8677,16 @@ button.cp-figure[aria-expanded="true"]::after {
 /* Empty state: what belongs here and the one action that fills it. */
 .cp-empty {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: var(--cp-space-3);
   padding: var(--cp-space-8) var(--cp-space-6);
   color: var(--cp-ink-muted);
+}
+
+/* Each part keeps its own width, held to the column so a long word wraps. */
+.cp-empty > * {
+  max-inline-size: 100%;
 }
 
 /* Its lead glyph, in the accent or the tone it names, such as danger for
@@ -8558,6 +8820,7 @@ button.cp-figure[aria-expanded="true"]::after {
 
 .cp-toast {
   --cp-toast-tone: var(--cp-accent-9);
+  --cp-chart-surface: var(--cp-surface-overlay);
 
   position: relative;
   display: grid;
@@ -8859,6 +9122,8 @@ button.cp-figure[aria-expanded="true"]::after {
  * middle, and on a phone it rises from the bottom edge. Its parts are a
  * header, a body that scrolls and a footer of buttons, inside a <form>. */
 .cp-dialog {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
   overflow: hidden;
   inline-size: min(32rem, calc(100vw - 2rem));
   max-block-size: calc(100dvh - 4rem);
@@ -8920,6 +9185,7 @@ button.cp-figure[aria-expanded="true"]::after {
 .cp-dialog > form,
 .cp-dialog > .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   max-block-size: inherit;
 }
@@ -8952,6 +9218,7 @@ button.cp-figure[aria-expanded="true"]::after {
 .cp-dialog-body,
 .cp-dialog .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-4);
   padding: var(--cp-space-1) var(--cp-space-5) var(--cp-space-5);
@@ -9253,6 +9520,8 @@ button.cp-figure[aria-expanded="true"]::after {
  * nearest its button, and a native popover closes on Escape and on a press
  * outside by itself. */
 .cp-popover {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
   position: fixed;
   inset: auto;
   margin: var(--cp-space-1) 0;
@@ -9299,6 +9568,7 @@ button.cp-figure[aria-expanded="true"]::after {
 /* A panel of controls rather than a list of choices. */
 .cp-popover[data-variant="panel"] {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-3);
   inline-size: 18rem;
   padding: var(--cp-space-4);
@@ -9428,6 +9698,7 @@ button.cp-figure[aria-expanded="true"]::after {
 
 .cp-status-panel > section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cp-space-1);
   padding: var(--cp-space-3) var(--cp-space-4);
   border-block-start: var(--cp-line-w) solid var(--cp-line);
@@ -10214,6 +10485,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
  * aria-pressed. Pressed, it fills with the accent and its check slides in,
  * so the state is never the colour alone. */
 .cp-filter-chip {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: inline-flex;
   align-items: center;
   min-block-size: var(--cp-control-h-sm);
@@ -10279,12 +10552,18 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
  * ink so it stands off the bar whatever its harmony colour. The ring is
  * its hover and its open state, so the button paints no fill. */
 .cp-button.cp-account {
-  padding: 0.1875rem;
+  inline-size: var(--cp-control-h);
+  block-size: var(--cp-control-h);
+  padding: 0.125rem;
   border-radius: 50%;
   background: transparent;
 }
 
-.cp-account > .cp-avatar {
+/* The avatar fills the button, so the button is as tall as the header's
+ * other controls on each pointer tier. */
+.cp-button.cp-account > .cp-avatar {
+  inline-size: 100%;
+  block-size: 100%;
   box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
   transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
 }
@@ -10337,6 +10616,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 .cp-pill {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: absolute;
   inset-block-start: 0;
   inset-inline-start: 0;

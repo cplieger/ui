@@ -1,7 +1,8 @@
 /**
  * charts.ts — the gallery wiring for the Charts page: grelot's four
- * statistics drawn by the library's chart from seeded data, their loading,
- * empty and error states, and the four together at a phone's width.
+ * statistics drawn by the library's chart from seeded data, the other time
+ * series, bars and dots by category, slope and scatter charts, their
+ * loading, empty and error states, and phone-width frames.
  */
 
 import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
@@ -49,8 +50,7 @@ interface Posts {
 
 // 15-minute buckets over 6 hours, 1-hour ones over longer ranges, the last
 // counted only up to now.
-function postCounts(hours: number, quiet = false): Posts {
-  const size = hours <= 6 ? 15 * MIN : HR;
+function postCounts(hours: number, size = hours <= 6 ? 15 * MIN : HR, quiet = false): Posts {
   const peak = size === HR ? 46 : 14;
   const start = END - hours * HR;
   const starts = Array.from({ length: (hours * HR) / size }, (_, i) => start + i * size);
@@ -64,7 +64,14 @@ function postCounts(hours: number, quiet = false): Posts {
   return { start, starts, ends: starts.map((t) => t + size), counts };
 }
 
-function posts({ start, starts, ends, counts }: Posts): ChartSpec {
+interface Drawn {
+  readonly shape?: "bars" | "area";
+  readonly arrange?: "stack" | "group" | "share";
+  readonly kinds?: number;
+}
+
+function posts({ start, starts, ends, counts }: Posts, drawn: Drawn = {}): ChartSpec {
+  const { kinds = KINDS.length, ...rect } = drawn;
   return {
     x: { type: "time", domain: [start, END] },
     y: { label: "Posts", unit: { one: "post", other: "posts" } },
@@ -74,7 +81,8 @@ function posts({ start, starts, ends, counts }: Posts): ChartSpec {
         x1: starts,
         x2: ends,
         open: true,
-        series: KINDS.map(([name], i) => ({
+        ...rect,
+        series: KINDS.slice(0, kinds).map(([name], i) => ({
           name,
           slot: (i + 1) as 1 | 2 | 3 | 4,
           y: [...(counts[i] ?? [])],
@@ -237,6 +245,576 @@ function agents(hours: number): ChartSpec {
   };
 }
 
+// Three processes sampled each minute up to now, four minutes unsampled
+// after 11:00 AM: the worker climbs until each collection, the cache grows.
+function memory(): ChartSpec {
+  const start = END - 6 * HR;
+  const gap = new Date(2026, 10, 11, 11, 3).getTime();
+  const rand = random(300);
+  const x: number[] = [];
+  const api: (number | null)[] = [];
+  const worker: (number | null)[] = [];
+  const cache: (number | null)[] = [];
+  let heap = 180;
+  for (let t = start; t <= NOW; t += MIN) {
+    x.push(t);
+    if (t >= gap && t < gap + 4 * MIN) {
+      api.push(null);
+      worker.push(null);
+      cache.push(null);
+      continue;
+    }
+    heap = heap > 520 || rand() < 0.01 ? 180 : heap + 4 * rand() * (0.5 + busy(t));
+    api.push(Math.round(310 + 160 * busy(t) + 30 * rand()));
+    worker.push(Math.round(heap));
+    cache.push(Math.round(120 + (90 * (t - start)) / (6 * HR)));
+  }
+  return {
+    x: { type: "time", domain: [start, END] },
+    y: { label: "Memory", unit: { one: "MB", other: "MB" } },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "api", slot: 1, y: api },
+          { name: "worker", slot: 2, y: worker },
+          { name: "cache", slot: 3, y: cache },
+        ],
+      },
+    ],
+    empty: "No samples in this range.",
+  };
+}
+
+// A day's generation every 15 minutes: solar follows the daylight, wind
+// drifts, and gas covers the rest of a demand that follows the day.
+function energy(): ChartSpec {
+  const start = END - 24 * HR;
+  const rand = random(400);
+  const x: number[] = [];
+  const gas: number[] = [];
+  const wind: number[] = [];
+  const solar: number[] = [];
+  let w = 900;
+  for (let t = start; t <= NOW; t += 15 * MIN) {
+    const d = new Date(t);
+    const h = d.getHours() + d.getMinutes() / 60;
+    const sun = h < 7 || h > 19 ? 0 : Math.round(950 * Math.sin((Math.PI * (h - 7)) / 12));
+    w = Math.min(1_400, Math.max(300, w + 120 * (rand() - 0.5)));
+    const demand = 2_200 + 900 * busy(t);
+    x.push(t);
+    solar.push(sun);
+    wind.push(Math.round(w));
+    gas.push(Math.round(Math.max(250, demand - sun - w)));
+  }
+  return {
+    x: { type: "time", domain: [start, END] },
+    y: { label: "Share of generation", unit: { one: "MW", other: "MW" } },
+    marks: [
+      {
+        mark: "area",
+        arrange: "share",
+        x,
+        series: [
+          { name: "Gas", slot: 1, y: gas },
+          { name: "Wind", slot: 2, y: wind },
+          { name: "Solar", slot: 3, y: solar },
+        ],
+      },
+    ],
+    empty: "No generation in this range.",
+  };
+}
+
+// The 95th percentile of response time each minute, round 240 ms, with a
+// deploy's spike at 10:20 AM and a flushed cache's dip at 12:40 PM.
+function latency(): ChartSpec {
+  const start = END - 6 * HR;
+  const deploy = new Date(2026, 10, 11, 10, 20).getTime();
+  const flush = new Date(2026, 10, 11, 12, 40).getTime();
+  const rand = random(500);
+  const x: number[] = [];
+  const p95: number[] = [];
+  for (let t = start; t <= NOW; t += MIN) {
+    const after = (t - deploy) / MIN;
+    const spike = after >= 0 && after < 12 ? 520 * Math.exp(-after / 4) : 0;
+    const dip = t >= flush && t < flush + 25 * MIN ? -90 : 0;
+    x.push(t);
+    p95.push(Math.round(200 + 60 * busy(t) + 30 * rand() + spike + dip));
+  }
+  const at = (t: number): number => p95[x.indexOf(t)] ?? 0;
+  return {
+    x: { type: "time", domain: [start, END] },
+    y: { label: "Response time", format: "duration" },
+    marks: [
+      { mark: "line", x, series: [{ name: "95th percentile", slot: 1, y: p95 }] },
+      { mark: "rule", y: 500, label: "Target" },
+      { mark: "text", x: deploy, y: at(deploy), text: "Deploy of 1.4.0", side: "right" },
+      { mark: "text", x: flush, y: at(flush), text: "Cache flushed", side: "below" },
+    ],
+    empty: "No samples in this range.",
+  };
+}
+
+const COUNTRIES = [
+  ["Monaco", 55.4],
+  ["Japan", 49.9],
+  ["Italy", 48.4],
+  ["Germany", 46.8],
+  ["Greece", 46.5],
+  ["Portugal", 46.4],
+  ["Spain", 45.3],
+  ["Finland", 43.3],
+  ["France", 42.6],
+  ["United Kingdom", 40.8],
+  ["China", 39.8],
+  ["United States", 38.9],
+  ["Brazil", 34.3],
+  ["India", 29.5],
+  ["Nigeria", 18.6],
+] as const;
+
+const YEARS = { one: "year", other: "years" } as const;
+
+function ages(): ChartSpec {
+  return {
+    x: { label: "Median age", unit: YEARS },
+    y: { unit: { one: "country", other: "countries" } },
+    marks: [
+      {
+        mark: "bar",
+        y: COUNTRIES.map(([name]) => name),
+        series: [{ name: "Median age", slot: 1, x: COUNTRIES.map(([, age]) => age) }],
+      },
+      { mark: "rule", x: 30.5, label: "World" },
+    ],
+  };
+}
+
+// Women's and men's median ages, the same countries without Monaco.
+const BY_SEX = [
+  ["Japan", 51.4, 48.2],
+  ["Italy", 49.5, 46.9],
+  ["Germany", 47.9, 45.6],
+  ["Greece", 47.7, 45.3],
+  ["Portugal", 48, 44.6],
+  ["Spain", 46.5, 44.1],
+  ["Finland", 44.8, 41.9],
+  ["France", 44, 40.9],
+  ["United Kingdom", 41.9, 39.7],
+  ["China", 40.9, 38.6],
+  ["United States", 40, 37.7],
+  ["Brazil", 35.3, 33.2],
+  ["India", 30, 29],
+  ["Nigeria", 18.8, 18.4],
+] as const;
+
+function agesBySex(): ChartSpec {
+  return {
+    x: { label: "Median age", unit: YEARS },
+    y: { unit: { one: "country", other: "countries" } },
+    marks: [
+      {
+        mark: "point",
+        y: BY_SEX.map(([name]) => name),
+        series: [
+          { name: "Women", slot: 1, x: BY_SEX.map(([, women]) => women) },
+          { name: "Men", slot: 2, x: BY_SEX.map(([, , men]) => men) },
+        ],
+      },
+      { mark: "text", y: "Nigeria", x: 18.8, text: "Half its people are under 19", side: "right" },
+    ],
+  };
+}
+
+// Each agent's posts over 24 hours by thread kind, in KINDS' order.
+const AGENT_POSTS = [
+  ["lead-ui", [48, 37, 25, 12]],
+  ["codex-review", [40, 30, 20, 9]],
+  ["kiro-web", [33, 28, 17, 10]],
+  ["gpt-planner", [30, 22, 14, 7]],
+  ["ci-sentinel", [26, 18, 12, 6]],
+  ["test-runner", [21, 17, 9, 5]],
+  ["ui-qa", [18, 14, 8, 4]],
+  ["release-notes", [15, 11, 7, 3]],
+] as const;
+
+function agentKinds(arrange?: "share"): ChartSpec {
+  return {
+    x: {
+      label: arrange === undefined ? "Posts" : "Share of posts",
+      unit: { one: "post", other: "posts" },
+    },
+    y: { mono: true, unit: { one: "agent", other: "agents" } },
+    marks: [
+      {
+        mark: "bar",
+        y: AGENT_POSTS.map(([name]) => name),
+        ...(arrange === undefined ? {} : { arrange }),
+        series: KINDS.map(([name], i) => ({
+          name,
+          slot: (i + 1) as 1 | 2 | 3 | 4,
+          x: AGENT_POSTS.map(([, counts]) => counts[i] ?? null),
+        })),
+      },
+    ],
+  };
+}
+
+const AGENT_WEEKS = [
+  ["lead-ui", 702, 815],
+  ["codex-review", 610, 644],
+  ["kiro-web", 498, 560],
+  ["gpt-planner", 455, 430],
+  ["ci-sentinel", 390, 372],
+  ["test-runner", 301, 340],
+] as const;
+
+function agentWeeks(): ChartSpec {
+  return {
+    x: { label: "Posts", unit: { one: "post", other: "posts" } },
+    y: { mono: true, unit: { one: "agent", other: "agents" } },
+    marks: [
+      {
+        mark: "bar",
+        y: AGENT_WEEKS.map(([name]) => name),
+        arrange: "group",
+        series: [
+          { name: "Last week", slot: 2, x: AGENT_WEEKS.map(([, last]) => last) },
+          { name: "This week", slot: 1, x: AGENT_WEEKS.map(([, , now]) => now) },
+        ],
+      },
+    ],
+  };
+}
+
+// The 2020 census against 2010, by state.
+const CHANGE = [
+  ["Utah", 0.184],
+  ["Idaho", 0.173],
+  ["Texas", 0.159],
+  ["North Dakota", 0.158],
+  ["Nevada", 0.15],
+  ["Colorado", 0.148],
+  ["Florida", 0.146],
+  ["Ohio", 0.023],
+  ["Illinois", -0.001],
+  ["Mississippi", -0.002],
+  ["West Virginia", -0.032],
+  ["Puerto Rico", -0.118],
+] as const;
+
+function populationChange(): ChartSpec {
+  return {
+    x: { format: { style: "percent", maximumFractionDigits: 1 } },
+    y: { unit: { one: "state", other: "states" } },
+    marks: [
+      {
+        mark: "bar",
+        y: CHANGE.map(([name]) => name),
+        series: [{ name: "Change", slot: 1, below: 3, x: CHANGE.map(([, change]) => change) }],
+      },
+    ],
+  };
+}
+
+// Shares of adults using each platform daily, weekly or less often.
+const PLATFORMS = [
+  ["YouTube", [0.54, 0.22, 0.13]],
+  ["Facebook", [0.49, 0.14, 0.09]],
+  ["Instagram", [0.36, 0.11, 0.08]],
+  ["TikTok", [0.24, 0.07, 0.06]],
+  ["Snapchat", [0.17, 0.05, 0.05]],
+  ["X", [0.12, 0.08, 0.07]],
+  ["LinkedIn", [0.06, 0.11, 0.13]],
+] as const;
+
+function platforms(): ChartSpec {
+  return {
+    x: { format: "percent" },
+    y: { unit: { one: "platform", other: "platforms" } },
+    marks: [
+      {
+        mark: "bar",
+        y: PLATFORMS.map(([name]) => name),
+        arrange: "split",
+        series: ["Daily", "Weekly", "Less often"].map((name, i) => ({
+          name,
+          slot: (i + 1) as 1 | 2 | 3,
+          x: PLATFORMS.map(([, shares]) => shares[i] ?? null),
+        })),
+      },
+    ],
+  };
+}
+
+const ANSWERS = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
+
+// Bright and deep slots alternate along the bar, so neighbouring answers
+// differ in lightness, and the two extremes take the accent's hue and a
+// harmony partner's.
+const ANSWER_SLOTS = [1, 2, 5, 4, 3] as const;
+
+const STATEMENTS = [
+  ["Alerts reach me in time", [0.04, 0.08, 0.16, 0.42, 0.3]],
+  ["I would recommend it", [0.05, 0.09, 0.2, 0.36, 0.3]],
+  ["Pages load fast enough", [0.06, 0.12, 0.18, 0.38, 0.26]],
+  ["I find the setting I need", [0.1, 0.22, 0.24, 0.3, 0.14]],
+  ["The docs answer my question", [0.14, 0.26, 0.22, 0.26, 0.12]],
+] as const;
+
+function survey(): ChartSpec {
+  return {
+    x: { format: "percent" },
+    y: { unit: { one: "statement", other: "statements" } },
+    marks: [
+      {
+        mark: "bar",
+        y: STATEMENTS.map(([name]) => name),
+        arrange: "diverge",
+        left: 2,
+        centre: true,
+        series: ANSWERS.map((name, i) => ({
+          name,
+          slot: ANSWER_SLOTS[i] ?? 1,
+          x: STATEMENTS.map(([, shares]) => shares[i] ?? null),
+        })),
+      },
+    ],
+  };
+}
+
+// France's population by five-year age group in thousands, oldest first.
+const AGE_GROUPS = [
+  ["100+", 5, 25],
+  ["95-99", 40, 140],
+  ["90-94", 190, 450],
+  ["85-89", 470, 820],
+  ["80-84", 760, 1_060],
+  ["75-79", 1_180, 1_480],
+  ["70-74", 1_680, 1_950],
+  ["65-69", 1_840, 2_050],
+  ["60-64", 1_990, 2_150],
+  ["55-59", 2_120, 2_240],
+  ["50-54", 2_180, 2_250],
+  ["45-49", 2_060, 2_100],
+  ["40-44", 2_060, 2_130],
+  ["35-39", 2_050, 2_140],
+  ["30-34", 1_960, 2_040],
+  ["25-29", 1_860, 1_890],
+  ["20-24", 2_000, 1_940],
+  ["15-19", 2_140, 2_040],
+  ["10-14", 2_130, 2_030],
+  ["5-9", 1_970, 1_880],
+  ["0-4", 1_790, 1_710],
+] as const;
+
+function pyramid(): ChartSpec {
+  return {
+    x: {
+      format: { notation: "compact", maximumFractionDigits: 1 },
+      unit: { one: "person", other: "people" },
+    },
+    y: { unit: { one: "age group", other: "age groups" } },
+    marks: [
+      {
+        mark: "bar",
+        y: AGE_GROUPS.map(([name]) => name),
+        arrange: "mirror",
+        labels: false,
+        series: [
+          { name: "Men", slot: 1, x: AGE_GROUPS.map(([, men]) => men * 1_000) },
+          { name: "Women", slot: 2, x: AGE_GROUPS.map(([, , women]) => women * 1_000) },
+        ],
+      },
+    ],
+  };
+}
+
+const DEGREES = [
+  ["Doctorate", 128_700, 163_500],
+  ["Professional degree", 112_000, 150_300],
+  ["Master's", 86_500, 139_810],
+  ["Bachelor's", 72_300, 101_700],
+  ["Associate", 51_800, 70_200],
+  ["Some college", 46_400, 64_000],
+  ["High school", 40_600, 56_100],
+  ["9th to 12th grade", 31_200, 45_900],
+  ["Less than 9th grade", 29_100, 43_350],
+] as const;
+
+function pay(): ChartSpec {
+  return {
+    x: { format: { style: "currency", currency: "USD", maximumFractionDigits: 0 } },
+    y: { unit: { one: "degree", other: "degrees" } },
+    marks: [
+      {
+        mark: "point",
+        y: DEGREES.map(([name]) => name),
+        link: "range",
+        series: [
+          { name: "Women", slot: 1, x: DEGREES.map(([, women]) => women) },
+          { name: "Men", slot: 2, x: DEGREES.map(([, , men]) => men) },
+        ],
+      },
+    ],
+  };
+}
+
+// Battery and plug-in hybrid cars as a share of new cars sold.
+const ELECTRIC = [
+  ["Norway", 0.058, 0.93],
+  ["Sweden", 0.01, 0.6],
+  ["Finland", 0.004, 0.54],
+  ["Netherlands", 0.056, 0.48],
+  ["Denmark", 0.003, 0.46],
+  ["China", 0.001, 0.38],
+  ["France", 0.008, 0.25],
+  ["Germany", 0.002, 0.24],
+  ["United Kingdom", 0.005, 0.24],
+  ["United States", 0.006, 0.095],
+  ["Italy", 0.001, 0.086],
+  ["Japan", 0.009, 0.036],
+  ["India", 0, 0.02],
+] as const;
+
+function electricCars(): ChartSpec {
+  return {
+    x: { format: { style: "percent", maximumFractionDigits: 1 } },
+    y: { unit: { one: "country", other: "countries" } },
+    marks: [
+      {
+        mark: "point",
+        y: ELECTRIC.map(([name]) => name),
+        link: "arrow",
+        series: [
+          { name: "2013", slot: 2, x: ELECTRIC.map(([, then]) => then) },
+          { name: "2023", slot: 1, x: ELECTRIC.map(([, , now]) => now) },
+        ],
+      },
+    ],
+  };
+}
+
+// Life expectancy at birth in years, World Bank, 2000 and 2021.
+const LIFE = [
+  ["Japan", 81.1, 84.4],
+  ["France", 79.1, 82.3],
+  ["United States", 76.6, 76.3],
+  ["China", 71.4, 78.2],
+  ["India", 62.7, 67.2],
+  ["Nigeria", 46.3, 52.7],
+] as const;
+
+function lifeSlope(): ChartSpec {
+  return {
+    y: { label: "Life expectancy", zero: false },
+    marks: [
+      {
+        mark: "slope",
+        x: ["2000", "2021"],
+        series: LIFE.map(([name, then, now], i) => ({
+          name,
+          slot: (i + 1) as 1 | 2 | 3 | 4 | 5 | 6,
+          y: [then, now],
+        })),
+      },
+      { mark: "text", x: "2021", y: 76.3, text: "Below 2000 after Covid-19", side: "below" },
+    ],
+  };
+}
+
+// GDP per capita in US dollars, life expectancy in years and population,
+// rounded from the World Bank's 2022 figures.
+const NATIONS = [
+  ["Europe", "Norway", 106_000, 83.2, 5_460_000],
+  ["Europe", "Switzerland", 93_000, 83.9, 8_780_000],
+  ["Europe", "Germany", 48_700, 80.7, 83_800_000],
+  ["Europe", "United Kingdom", 46_100, 80.7, 67_000_000],
+  ["Europe", "France", 40_900, 82.3, 68_000_000],
+  ["Europe", "Italy", 34_200, 82.9, 59_000_000],
+  ["Europe", "Spain", 29_700, 83.2, 47_800_000],
+  ["Europe", "Poland", 18_700, 77.4, 36_800_000],
+  ["Europe", "Romania", 15_800, 75.3, 19_000_000],
+  ["Europe", "Russia", 15_300, 72.5, 143_600_000],
+  ["Europe", "Ukraine", 4_500, 71.2, 38_000_000],
+  ["Asia and Oceania", "Singapore", 82_800, 83.4, 5_640_000],
+  ["Asia and Oceania", "Australia", 65_000, 83.3, 26_000_000],
+  ["Asia and Oceania", "New Zealand", 48_800, 82.1, 5_120_000],
+  ["Asia and Oceania", "Japan", 34_000, 84, 125_100_000],
+  ["Asia and Oceania", "South Korea", 32_400, 83.7, 51_600_000],
+  ["Asia and Oceania", "China", 12_700, 78.6, 1_412_000_000],
+  ["Asia and Oceania", "Indonesia", 4_800, 70.5, 275_500_000],
+  ["Asia and Oceania", "Vietnam", 4_100, 74.6, 98_200_000],
+  ["Asia and Oceania", "Philippines", 3_500, 71.7, 115_600_000],
+  ["Asia and Oceania", "Bangladesh", 2_700, 73.7, 171_200_000],
+  ["Asia and Oceania", "India", 2_400, 67.7, 1_417_000_000],
+  ["Asia and Oceania", "Pakistan", 1_600, 66.4, 235_800_000],
+  ["Africa", "Botswana", 7_700, 65.6, 2_630_000],
+  ["Africa", "South Africa", 6_800, 62.3, 59_900_000],
+  ["Africa", "Egypt", 4_300, 70.2, 111_000_000],
+  ["Africa", "Morocco", 3_500, 74, 37_500_000],
+  ["Africa", "Nigeria", 2_200, 53.6, 218_500_000],
+  ["Africa", "Kenya", 2_100, 62.1, 54_000_000],
+  ["Africa", "Ethiopia", 1_000, 65, 123_400_000],
+  ["Africa", "Chad", 700, 52.5, 17_700_000],
+  ["Africa", "DR Congo", 650, 59.7, 99_000_000],
+  ["Africa", "Burundi", 260, 61.7, 12_900_000],
+  ["Americas", "United States", 76_400, 76.4, 333_300_000],
+  ["Americas", "Canada", 55_500, 81.3, 38_900_000],
+  ["Americas", "Chile", 15_400, 78.9, 19_600_000],
+  ["Americas", "Argentina", 13_700, 75.4, 46_200_000],
+  ["Americas", "Costa Rica", 13_400, 77, 5_180_000],
+  ["Americas", "Mexico", 11_500, 70.2, 127_500_000],
+  ["Americas", "Brazil", 8_900, 72.8, 215_300_000],
+  ["Americas", "Peru", 7_100, 72.4, 34_000_000],
+  ["Americas", "Colombia", 6_600, 72.8, 51_900_000],
+  ["Americas", "Haiti", 1_700, 63.7, 11_600_000],
+] as const;
+
+const REGIONS = ["Europe", "Asia and Oceania", "Africa", "Americas"] as const;
+
+function nations(sized: boolean): ChartSpec {
+  return {
+    x: {
+      type: "log",
+      label: "GDP per capita",
+      format: { style: "currency", currency: "USD", maximumFractionDigits: 0 },
+    },
+    y: { label: "Life expectancy" },
+    ...(sized
+      ? { r: { label: "Population", format: { notation: "compact", maximumFractionDigits: 1 } } }
+      : {}),
+    marks: [
+      {
+        mark: "scatter",
+        unit: { one: "country", other: "countries" },
+        series: REGIONS.map((region, i) => {
+          const rows = NATIONS.filter(([of]) => of === region);
+          return {
+            name: region,
+            slot: (i + 1) as 1 | 2 | 3 | 4,
+            names: rows.map(([, name]) => name),
+            x: rows.map(([, , gdp]) => gdp),
+            y: rows.map(([, , , life]) => life),
+            ...(sized ? { r: rows.map(([, , , , people]) => people) } : {}),
+          };
+        }),
+      },
+      sized
+        ? { mark: "text", x: 2_400, y: 67.7, text: "1.4 billion people", side: "right" }
+        : {
+            mark: "text",
+            x: 76_400,
+            y: 76.4,
+            text: "Shorter lives than in Chile or Costa Rica",
+            side: "left",
+          },
+    ],
+  };
+}
+
 const SPECS = new Map<string, (hours: number) => ChartSpec>([
   ["posts", (hours) => posts(postCounts(hours))],
   ["reads", (hours) => reads(READS.get(hours) ?? 1_204, hours)],
@@ -274,11 +852,12 @@ const later = (run: () => void): void => {
   setTimeout(run, 700);
 };
 
+// A chart stack draws its own figures, below.
 const figures = new Map<string, HTMLElement>();
-for (const figure of document.querySelectorAll<HTMLElement>(
-  "#statistics figure[data-chart], #states figure[data-chart]",
-)) {
-  figures.set(figure.dataset["chart"] ?? "", figure);
+for (const figure of document.querySelectorAll<HTMLElement>("figure[data-chart]")) {
+  if (figure.closest("[data-chart-group]") === null) {
+    figures.set(figure.dataset["chart"] ?? "", figure);
+  }
 }
 const charts = new Map<string, Chart>();
 const make = (name: string, spec: ChartSpec | null): Chart | undefined => {
@@ -294,11 +873,41 @@ const make = (name: string, spec: ChartSpec | null): Chart | undefined => {
 const sixHours = postCounts(6);
 make("posts-6", posts(sixHours));
 make("posts-72", posts(postCounts(72)));
+make("posts-area", posts(sixHours, { shape: "area" }));
+make("memory", memory());
+make("energy", energy());
+make("grouped", posts(postCounts(6, HR), { arrange: "group", kinds: 3 }));
+make("share-columns", posts(postCounts(24), { arrange: "share" }));
+make("latency", latency());
+make("phone-memory", memory());
+make("phone-latency", latency());
+make("phone-grouped", posts(postCounts(6), { arrange: "group", kinds: 3 }));
 make("reads", reads(1_204, 6));
+make("ages", ages());
+make("agent-kinds", agentKinds());
+make("agent-weeks", agentWeeks());
+make("agent-shares", agentKinds("share"));
+make("population-change", populationChange());
+make("platforms", platforms());
+make("survey", survey());
+make("pyramid", pyramid());
+make("ages-by-sex", agesBySex());
+make("pay", pay());
+make("electric-cars", electricCars());
+make("phone-ages", ages());
+make("phone-platforms", platforms());
+make("phone-ages-by-sex", agesBySex());
+make("phone-pay", pay());
+make("phone-electric-cars", electricCars());
+make("life", lifeSlope());
+make("nations", nations(false));
+make("nations-sized", nations(true));
+make("phone-life", lifeSlope());
+make("phone-nations-sized", nations(true));
 make("activity", activity(6));
 make("agents", agents(6));
 make("loading", null);
-make("empty", posts(postCounts(6, true)));
+make("empty", posts(postCounts(6, 15 * MIN, true)));
 
 const firstLoad = make("failed", null);
 const loadFails = (): void => {
@@ -357,7 +966,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-chart-t
   });
 }
 
-// The tab's four charts share their range: a new one loads all four.
+// A stack's charts share their range: a new one loads them all.
 for (const group of document.querySelectorAll<HTMLElement>("[data-chart-group]")) {
   const tab = [...group.querySelectorAll<HTMLElement>("figure[data-chart]")].flatMap((figure) => {
     const spec = SPECS.get(figure.dataset["chart"] ?? "");

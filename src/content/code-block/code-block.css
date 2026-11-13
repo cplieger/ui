@@ -3,6 +3,8 @@
  * A fill, not a line, sets it apart; forced colours draw the transparent
  * border. */
 .cp-code[data-variant="block"] {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   display: block;
   block-size: auto;
   min-inline-size: 0;
@@ -12,11 +14,16 @@
   background: var(--cp-surface-sunken);
 }
 
+/* The trailing action nests in the block's corner: its inset is the block's
+ * radius less the border and the button's radius, so the corners are
+ * concentric. */
 .cp-code[data-variant="block"] > [data-part="bar"] {
+  --cp-bar-inset: calc(var(--cp-radius-surface) - var(--cp-line-w) - var(--cp-radius-control));
+
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
-  padding: var(--cp-space-1) var(--cp-space-1) var(--cp-space-1) var(--cp-space-3);
+  padding: var(--cp-bar-inset) var(--cp-bar-inset) var(--cp-bar-inset) var(--cp-space-3);
   border-block-end: var(--cp-line-w) solid var(--cp-line);
 }
 

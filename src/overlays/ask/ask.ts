@@ -101,7 +101,7 @@ export function ask(message: string, opts: AskOptions = {}): Promise<boolean | s
     text.append(node("p", undefined, message));
   }
   if (opts.details !== undefined && opts.details.length > 0) {
-    const list = node("dl", "cp-ask-details");
+    const list = node("dl", "cp-facts");
     for (const d of opts.details) {
       list.append(node("dt", undefined, d.label), node("dd", undefined, d.value));
     }

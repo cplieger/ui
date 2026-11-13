@@ -2,6 +2,7 @@
  * dot springs in. The arrow keys move the choice, as the platform's do. */
 .cp-radio {
   --cp-radio-size: 1.375rem;
+  --cp-chart-surface: var(--cp-surface-raised);
   --cp-radio-dot: 0.625rem;
 
   appearance: none;

@@ -15,7 +15,9 @@ afterEach(() => {
 
 const said = () => new Promise((r) => setTimeout(r, 150));
 const region = (host: Element, politeness: "polite" | "assertive") =>
-  host.querySelector(`:scope > .cp-live-regions > [aria-live="${politeness}"]`) as HTMLElement;
+  host.querySelector(
+    `:scope > [data-cp-live-regions] > [aria-live="${politeness}"]`,
+  ) as HTMLElement;
 
 describe("announce", () => {
   it("says a message from the page's polite region", async () => {
@@ -82,10 +84,10 @@ describe("announce", () => {
   it("does nothing with no announcer and no open dialog, and removes its regions when its signal aborts", async () => {
     announce("Nobody hears this");
     await said();
-    expect(document.querySelector(".cp-live-regions")).toBeNull();
+    expect(document.querySelector("[data-cp-live-regions]")).toBeNull();
     installAnnouncer({ signal: life.signal });
-    expect(document.querySelector(".cp-live-regions")).not.toBeNull();
+    expect(document.querySelector("[data-cp-live-regions]")).not.toBeNull();
     life.abort();
-    expect(document.querySelector(".cp-live-regions")).toBeNull();
+    expect(document.querySelector("[data-cp-live-regions]")).toBeNull();
   });
 });

@@ -1,6 +1,8 @@
 /* The first stop for Tab on a page: a link to the main region, shown only
  * while it has focus. */
 .cp-skip {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: fixed;
   inset-block-start: var(--cp-space-2);
   inset-inline-start: var(--cp-space-2);
