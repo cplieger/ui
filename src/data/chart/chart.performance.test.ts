@@ -62,17 +62,10 @@ interface Metrics {
 }
 
 // The main thread's CPU time in ms, which a busy runner's other work does
-// not inflate as it does wall time. On a loaded host Chromium now and then
-// answers Performance.getMetrics with no metrics; a later read has them.
+// not inflate as it does wall time.
 async function cpu(): Promise<number> {
-  for (let k = 0; k < 10; k++) {
-    const { metrics } = (await cdp().send("Performance.getMetrics")) as Metrics;
-    const time = metrics.find((m) => m.name === "ThreadTime");
-    if (time !== undefined) {
-      return time.value * 1000;
-    }
-  }
-  throw new Error("Performance.getMetrics gave no ThreadTime in 10 reads");
+  const { metrics } = (await cdp().send("Performance.getMetrics")) as Metrics;
+  return (metrics.find((m) => m.name === "ThreadTime")?.value ?? Number.NaN) * 1000;
 }
 
 const RUNS = 3;
