@@ -15,10 +15,10 @@ import { focusOn, landing } from "../list-row/row.js";
 
 export interface LoadMorePage {
   /** The items to add, in their order: rows, a feed's entries and its day
-   *  separators, or a group's heading and list. After a list's groups, an
-   *  `li` continues the last group's list and a heading or list goes after
-   *  the last group. An item already in the list, such as a row a keyed
-   *  list drew, stays where it is. */
+   *  separators, a group's heading and list, or a table's rows or bodies.
+   *  After a list's groups, an `li` continues the last group's list and a
+   *  heading or list goes after the last group. An item already in the
+   *  list, such as a row a keyed list drew, stays where it is. */
   readonly items: Iterable<Element>;
   /** Whether another page is left after this one. */
   readonly more: boolean;
@@ -49,9 +49,9 @@ export interface LoadMoreOptions {
   readonly load: (signal: AbortSignal) => Promise<LoadMorePage>;
   /** Where the items go. Default: at `"end"`, the list the button's
    *  `li.cp-list-foot` ends, or what its `div.cp-list-foot` follows: a
-   *  table, or a panel holding one, takes them in its last body, and a
-   *  list's groups, side by side or in one element, at their end; at
-   *  `"start"`, the element after its `.cp-feed-head`. */
+   *  table, or a panel holding one, or a list's groups, side by side or in
+   *  one element; at `"start"`, the element after its `.cp-feed-head`. A
+   *  table takes rows in its body at the edge and bodies beside it. */
   readonly list?: Element;
   /** Default `"end"`. */
   readonly edge?: LoadMoreEdge;
@@ -68,9 +68,13 @@ const counts: Record<LoadMoreEdge, (n: number) => string> = {
   start: (n) => (n === 1 ? "1 older message" : `${String(n)} older messages`),
 };
 
+const isBody = (el: Element): el is HTMLTableSectionElement =>
+  el instanceof HTMLTableSectionElement && el.tagName === "TBODY";
+
 /** The rows `el` stands for: itself when it is one, else its own rows as a
- *  list, a table or a body, or those of the lists directly inside it, as a
- *  group's; never the steps of a row's track or another list in a row. */
+ *  list, a table or a body, or those of the lists or the table directly
+ *  inside it, as a group's or a panel's; never the steps of a row's track
+ *  or another list in a row. */
 function rowsOf(el: Element): readonly Element[] {
   if (el.matches("li, tr")) {
     return el.matches(MARKS) ? [] : [el];
@@ -78,11 +82,15 @@ function rowsOf(el: Element): readonly Element[] {
   if (el instanceof HTMLTableElement) {
     return [...el.tBodies].flatMap((body) => [...body.rows]);
   }
-  if (el instanceof HTMLTableSectionElement && el.tagName === "TBODY") {
+  if (isBody(el)) {
     return [...el.rows];
   }
-  const own = el.matches("ul, ol") ? ":scope > li" : ":scope > :is(ul, ol) > li";
-  return [...el.querySelectorAll(`${own}:not(${MARKS})`)];
+  if (el.matches("ul, ol")) {
+    return [...el.querySelectorAll(`:scope > li:not(${MARKS})`)];
+  }
+  return [
+    ...el.querySelectorAll(`:scope > :is(ul, ol) > li:not(${MARKS}), :scope > table > tbody > tr`),
+  ];
 }
 
 function rowsIn(items: readonly Element[]): number {
@@ -124,18 +132,56 @@ function inList(list: Element, edge: LoadMoreEdge): Place {
   };
 }
 
-// A table with only its head has no body for rows to go in.
-function inTable(table: HTMLTableElement): Place {
-  const last = (): HTMLTableSectionElement | undefined => table.tBodies[table.tBodies.length - 1];
+/** A page's rows go in the table's body at `edge`, made when it has only
+ *  its head, and its bodies beside that body. A made body goes before the
+ *  `tfoot`, where `createTBody()` would not: it appends after the foot
+ *  (https://html.spec.whatwg.org/multipage/tables.html#dom-table-createtbody). */
+function inTable(table: HTMLTableElement, edge: LoadMoreEdge): Place {
+  const edgeBody = (): HTMLTableSectionElement | undefined => {
+    const bodies = table.tBodies;
+    return edge === "start" ? bodies[0] : bodies[bodies.length - 1];
+  };
+  const addBody = (body: HTMLTableSectionElement): void => {
+    const at = edgeBody();
+    if (at === undefined) {
+      table.insertBefore(body, table.tFoot);
+    } else if (edge === "start") {
+      at.before(body);
+    } else {
+      at.after(body);
+    }
+  };
   return {
     put(items) {
-      (last() ?? table.createTBody()).append(...items.filter((el) => !table.contains(el)));
+      const fresh = items.filter((el) => !table.contains(el));
+      // At the start each item goes first, so the page goes in from its end.
+      for (const el of edge === "start" ? fresh.toReversed() : fresh) {
+        if (isBody(el)) {
+          addBody(el);
+          continue;
+        }
+        let body = edgeBody();
+        if (body === undefined) {
+          body = document.createElement("tbody");
+          addBody(body);
+        }
+        if (edge === "start") {
+          body.prepend(el);
+        } else {
+          body.append(el);
+        }
+      }
     },
     edgeRow: () => {
-      const body = last();
-      return body?.rows[body.rows.length - 1] ?? body ?? table;
+      const body = edgeBody();
+      const rows = body?.rows;
+      return (edge === "start" ? rows?.[0] : rows?.[rows.length - 1]) ?? body ?? table;
     },
   };
+}
+
+function placeIn(list: Element, edge: LoadMoreEdge): Place {
+  return list instanceof HTMLTableElement ? inTable(list, edge) : inList(list, edge);
 }
 
 /** The groups a `div.cp-list-foot` follows, each a heading and its list:
@@ -188,7 +234,7 @@ function placeOf(button: HTMLButtonElement, edge: LoadMoreEdge): Place | null {
   }
   const table =
     before instanceof HTMLTableElement ? before : before.querySelector(":scope > table");
-  return table instanceof HTMLTableElement ? inTable(table) : inGroups(foot, before);
+  return table instanceof HTMLTableElement ? inTable(table, edge) : inGroups(foot, before);
 }
 
 /** Gives `button` the `.cp-roll` its words roll in and the busy spinner,
@@ -227,7 +273,7 @@ function prepare(button: HTMLButtonElement): void {
 export function enhanceLoadMore(button: HTMLButtonElement, options: LoadMoreOptions): void {
   const { load, signal } = options;
   const edge = options.edge ?? "end";
-  const place = options.list === undefined ? placeOf(button, edge) : inList(options.list, edge);
+  const place = options.list === undefined ? placeOf(button, edge) : placeIn(options.list, edge);
   if (place === null) {
     throw new TypeError("enhanceLoadMore: the button is in no list's foot or feed's head");
   }

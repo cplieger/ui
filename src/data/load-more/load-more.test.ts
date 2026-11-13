@@ -189,6 +189,26 @@ function headedTable(titles: readonly string[]): HTMLTableElement {
   return table;
 }
 
+/** A `.cp-table` with a head row, a body of `titles` unless there are none,
+ *  and a foot row. */
+function tableWithFoot(titles: readonly string[]): HTMLTableElement {
+  const table = document.createElement("table");
+  table.className = "cp-table";
+  table.createTHead().insertRow().insertCell().textContent = "What";
+  if (titles.length > 0) {
+    table.append(bodyOf(titles));
+  }
+  table.createTFoot().insertRow().insertCell().textContent = "3 of 9";
+  return table;
+}
+
+function panelOf(table: HTMLTableElement): HTMLDivElement {
+  const panel = document.createElement("div");
+  panel.className = "cp-panel";
+  panel.append(table);
+  return panel;
+}
+
 /** `toEqual` passes for a copy with the same markup; a page's items must be
  *  the very elements the load gave. */
 function expectSame(actual: readonly Element[], expected: readonly Element[]): void {
@@ -530,19 +550,85 @@ describe("enhanceLoadMore", () => {
     await expect.poll(polite).toBe("3 more rows");
   });
 
-  it("counts a day table's body rows, not its head's, in a page of the days it was given", async () => {
-    const host = document.createElement("div");
-    host.append(heading("Today"), headedTable(["Fetched"]));
+  it.each([
+    ["a day table", (table: HTMLTableElement): Element => table],
+    ["a day table in a panel", panelOf],
+  ])(
+    "counts the body rows of %s, not its head's, in a page of the days it was given",
+    async (_, wrap) => {
+      const host = document.createElement("div");
+      host.append(heading("Today"), wrap(headedTable(["Fetched"])));
+      const button = moreButton("Load older");
+      document.body.append(host, button);
+      const yesterday = wrap(headedTable(["Synced", "Scanned"]));
+      enhance(button, {
+        list: host,
+        load: () => Promise.resolve(page([heading("Yesterday"), yesterday])),
+      });
+      press(button);
+      await expect.poll(() => host.lastElementChild).toBe(yesterday);
+      await expect.poll(polite).toBe("2 more rows");
+    },
+  );
+
+  it.each([
+    ["its last body", ["Fetched"]],
+    ["a body it makes before its foot, when it has none", []],
+  ])("puts a page of rows in %s, for a table given as its list", async (_, held) => {
+    const table = tableWithFoot(held);
+    const before = [...(table.tBodies[0]?.rows ?? [])];
     const button = moreButton("Load older");
-    document.body.append(host, button);
-    const yesterday = headedTable(["Synced", "Scanned"]);
-    enhance(button, {
-      list: host,
-      load: () => Promise.resolve(page([heading("Yesterday"), yesterday])),
-    });
+    document.body.append(table, button);
+    const older = [tableRow("Synced"), tableRow("Scanned")];
+    enhance(button, { list: table, load: () => Promise.resolve(page(older)) });
     press(button);
-    await expect.poll(() => host.lastElementChild).toBe(yesterday);
     await expect.poll(polite).toBe("2 more rows");
+    expect(table.tBodies).toHaveLength(1);
+    expectSame([...(table.tBodies[0]?.rows ?? [])], [...before, ...older]);
+    expect(table.lastElementChild).toBe(table.tFoot);
+  });
+
+  it("makes a page of bodies the table's own, after its last body, from the foot after it", async () => {
+    const table = tableWithFoot(["Fetched"]);
+    const held = [...table.tBodies];
+    const button = moreButton("Load older");
+    const foot = document.createElement("div");
+    foot.className = "cp-list-foot";
+    foot.append(button);
+    document.body.append(table, foot);
+    const bodies = [bodyOf(["Synced", "Scanned"]), bodyOf(["Renamed"])];
+    enhance(button, { load: () => Promise.resolve(page(bodies)) });
+    press(button);
+    await expect.poll(polite).toBe("3 more rows");
+    expectSame([...table.tBodies], [...held, ...bodies]);
+    expect(table.lastElementChild).toBe(table.tFoot);
+  });
+
+  it("at the start puts a page of rows first in the first body of a table given as its list", async () => {
+    const table = tableWithFoot(["Fetched"]);
+    const before = [...(table.tBodies[0]?.rows ?? [])];
+    const button = moreButton("Show newer");
+    document.body.append(button, table);
+    const newer = [tableRow("Synced"), tableRow("Scanned")];
+    enhance(button, { list: table, edge: "start", load: () => Promise.resolve(page(newer)) });
+    press(button);
+    await expect.poll(() => document.activeElement?.textContent).toBe("Synced");
+    expect(table.tBodies).toHaveLength(1);
+    expectSame([...(table.tBodies[0]?.rows ?? [])], [...newer, ...before]);
+    expect(table.firstElementChild).toBe(table.tHead);
+  });
+
+  it("at the start puts a page of bodies before the first body of a table given as its list", async () => {
+    const table = tableWithFoot(["Fetched"]);
+    const held = [...table.tBodies];
+    const button = moreButton("Show newer");
+    document.body.append(button, table);
+    const bodies = [bodyOf(["Synced", "Scanned"]), bodyOf(["Renamed"])];
+    enhance(button, { list: table, edge: "start", load: () => Promise.resolve(page(bodies)) });
+    press(button);
+    await expect.poll(() => document.activeElement?.textContent).toBe("Synced");
+    expectSame([...table.tBodies], [...bodies, ...held]);
+    expect(table.firstElementChild).toBe(table.tHead);
   });
 
   it("at a feed's start puts older entries first, and focuses the oldest, which stays in view", async () => {
