@@ -1,6 +1,6 @@
 /**
- * lists.ts — the gallery's lists and tables that hold their place, on the
- * library.
+ * lists.ts — the gallery's lists on the library: one list set by its
+ * attributes, and the lists and tables that hold their place.
  */
 
 import { enhanceHeldList, markKept } from "@cplieger/ui/held-list";
@@ -8,6 +8,161 @@ import { createIcons } from "@cplieger/ui/icons";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 
 const { icon } = createIcons<string>({ base: new URL("icons/svg/", location.href).href });
+
+interface Entry {
+  readonly title: string;
+  readonly facts: string;
+  readonly glyph: string;
+  readonly harmony: string;
+  readonly fresh: number;
+  readonly ago: number;
+}
+
+const ENTRIES: readonly Entry[] = [
+  {
+    title: "Frieren: Beyond Journey's End",
+    facts: "Sonarr, TV, 2023",
+    glyph: "tv",
+    harmony: "1",
+    fresh: 3,
+    ago: 240,
+  },
+  {
+    title: "The Boy and the Heron",
+    facts: "Radarr, film, 2023",
+    glyph: "film",
+    harmony: "2",
+    fresh: 1,
+    ago: 5400,
+  },
+  {
+    title: "Delicious in Dungeon",
+    facts: "Sonarr, TV, 2024",
+    glyph: "tv",
+    harmony: "3",
+    fresh: 12,
+    ago: 86_400,
+  },
+  {
+    title: "Mushishi",
+    facts: "Sonarr, TV, 2005",
+    glyph: "tv",
+    harmony: "4",
+    fresh: 2,
+    ago: 259_200,
+  },
+];
+
+interface Shape {
+  readonly lead: string;
+  readonly two: boolean;
+  readonly toggles: boolean;
+}
+
+function entryRow(e: Entry, on: boolean, how: Shape): HTMLLIElement {
+  const row = document.createElement(how.toggles ? "button" : "a");
+  row.className = "cp-list-row";
+  if (row instanceof HTMLButtonElement) {
+    row.type = "button";
+    row.setAttribute("aria-pressed", String(on));
+  } else if (row instanceof HTMLAnchorElement) {
+    row.href = "#lists";
+    if (on) {
+      row.setAttribute("aria-current", "page");
+    }
+  }
+  if (how.lead === "icon") {
+    row.append(icon(e.glyph));
+  } else if (how.lead === "cover") {
+    const cover = document.createElement("span");
+    cover.className = "cp-cover";
+    cover.dataset["harmony"] = e.harmony;
+    cover.append(icon(e.glyph));
+    row.append(cover);
+  }
+  const name = document.createElement("span");
+  name.className = "cp-truncate";
+  name.textContent = e.title;
+  const text = document.createElement("span");
+  text.className = "cp-cell-stack";
+  text.append(name);
+  if (how.two) {
+    const facts = document.createElement("small");
+    facts.className = "cp-truncate";
+    facts.textContent = e.facts;
+    text.append(facts);
+  }
+  const time = document.createElement("time");
+  time.dateTime = new Date(Date.now() - e.ago * 1000).toISOString();
+  enhanceRelativeTime(time);
+  const hidden = document.createElement("span");
+  hidden.className = "cp-visually-hidden";
+  hidden.textContent = " new";
+  const count = document.createElement("span");
+  count.className = "cp-badge";
+  count.dataset["variant"] = "quiet";
+  count.append(String(e.fresh), hidden);
+  const counts = document.createElement("span");
+  counts.className = "cp-cluster";
+  counts.append(count);
+  const end = document.createElement("span");
+  end.dataset["part"] = "end";
+  end.append(time, counts);
+  row.append(text, end);
+  const item = document.createElement("li");
+  item.append(row);
+  return item;
+}
+
+// The settings card's one list: each control sets one of its attributes or
+// the rows' shape, and a click moves the open row or flips a toggle.
+const sample = document.getElementById("ls-sample");
+const settings = document.getElementById("ls-settings");
+if (sample instanceof HTMLUListElement && settings !== null) {
+  const pick = (name: string) =>
+    settings.querySelector<HTMLInputElement>(`input[name="ls-${name}"]:checked`)?.value ?? "";
+  let open = 0;
+  const pressed = new Set([0, 2]);
+  const render = () => {
+    for (const attr of ["density", "surface", "divider"]) {
+      const value = pick(attr);
+      if (value === "") {
+        sample.removeAttribute(`data-${attr}`);
+      } else {
+        sample.setAttribute(`data-${attr}`, value);
+      }
+    }
+    const how = {
+      lead: pick("lead"),
+      two: pick("lines") === "two",
+      toggles: pick("rows") === "toggles",
+    };
+    sample.replaceChildren(
+      ...ENTRIES.map((e, i) => entryRow(e, how.toggles ? pressed.has(i) : i === open, how)),
+    );
+  };
+  settings.addEventListener("change", render);
+  sample.addEventListener("click", (event) => {
+    const row = event.target instanceof Element ? event.target.closest(".cp-list-row") : null;
+    const rows = [...sample.querySelectorAll(".cp-list-row")];
+    const at = row === null ? -1 : rows.indexOf(row);
+    if (row instanceof HTMLButtonElement) {
+      const on = row.getAttribute("aria-pressed") !== "true";
+      row.setAttribute("aria-pressed", String(on));
+      if (on) {
+        pressed.add(at);
+      } else {
+        pressed.delete(at);
+      }
+    } else if (row instanceof HTMLAnchorElement) {
+      event.preventDefault();
+      rows[open]?.removeAttribute("aria-current");
+      row.setAttribute("aria-current", "page");
+      open = at;
+    }
+  });
+  render();
+}
 
 /** Runs `tick` every two seconds between one press of `of`'s live button
  *  and the next, which is the card's pause control; nothing runs on load. */

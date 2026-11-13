@@ -5744,6 +5744,54 @@ th[aria-sort="descending"] > .cp-sort::after {
   border-block-start: var(--cp-line-w) solid var(--cp-line);
 }
 
+/* A list that sits in a rail, a popover, a dialog or a panel: no box. */
+.cp-list[data-surface="plain"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+/* Rows with no line between them: each row's fill takes the control's
+ * corners, a hairline apart so two filled rows still read as two, and a
+ * boxed list holds the fills off its edge. */
+.cp-list[data-divider="none"] {
+  gap: var(--cp-line-w);
+}
+
+.cp-list[data-divider="none"]:not([data-surface="plain"]) {
+  padding: var(--cp-space-1);
+}
+
+.cp-list[data-divider="none"] > li + li {
+  border-block-start: 0;
+}
+
+.cp-list[data-divider="none"] .cp-list-row {
+  border-radius: var(--cp-radius-control);
+}
+
+/* A group's heading over its own list, such as a day or a rail's section. */
+.cp-list-heading {
+  margin: var(--cp-space-4) 0 var(--cp-space-2);
+  color: var(--cp-ink);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+}
+
+.cp-list-heading:first-child {
+  margin-block-start: 0;
+}
+
+/* Over a list with no box, the heading lines up with its rows' content. */
+.cp-list-heading:has(+ .cp-list[data-surface="plain"]) {
+  padding-inline: var(--cp-space-4);
+}
+
+.cp-list-heading:has(+ .cp-list[data-surface="plain"][data-density="compact"]) {
+  padding-inline: var(--cp-space-2);
+}
+
 /* A row: a link or a button when the whole row opens something, or a div
  * holding its one worded action. */
 .cp-list-row {
@@ -5766,6 +5814,56 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 :is(a[href], button).cp-list-row {
   cursor: pointer;
+}
+
+/* Density sets every row's height and its lead's size. Compact rows are a
+ * small control tall, as a rail's filters and a popup's options are, which
+ * the pointer tier lifts to a finger's 44px; tall rows hold a poster. The
+ * list's part is in :where(), so a row's own layout still wins. */
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row {
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding: 0 var(--cp-space-2);
+}
+
+:where(.cp-list[data-density="tall"] > li) > .cp-list-row {
+  min-block-size: 4.5rem;
+  padding-block: var(--cp-space-3);
+}
+
+.cp-list-row > .cp-cover {
+  flex: none;
+  inline-size: 1.5rem;
+}
+
+.cp-list-row > .cp-cover > .cp-icon {
+  --cp-icon-size: 0.875rem;
+}
+
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row > .cp-avatar {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+}
+
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row > .cp-cover {
+  inline-size: 1rem;
+}
+
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row > .cp-cover > .cp-icon {
+  --cp-icon-size: 0.625rem;
+}
+
+:where(.cp-list[data-density="tall"] > li) > .cp-list-row > .cp-avatar {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+}
+
+:where(.cp-list[data-density="tall"] > li) > .cp-list-row > .cp-cover {
+  inline-size: 2rem;
+}
+
+:where(.cp-list[data-density="tall"] > li) > .cp-list-row > .cp-cover > .cp-icon {
+  --cp-icon-size: 1rem;
 }
 
 .cp-list-row > .cp-icon {
@@ -5814,7 +5912,15 @@ th[aria-sort="descending"] > .cp-sort::after {
   gap: 0.125rem;
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-body);
   font-variant-numeric: tabular-nums;
+}
+
+/* A compact row is one line tall, so its end runs along that line. */
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row > [data-part="end"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
 }
 
 .cp-list-row > [data-part="end"] > .cp-cluster {
@@ -5892,8 +5998,42 @@ th[aria-sort="descending"] > .cp-sort::after {
   outline-offset: -2px;
 }
 
-.cp-list-row[aria-current]:not([aria-current="false"]) {
+/* One look for the row that is open, on or chosen: the selected wash in the
+ * accent's darkest ink. Its muted lines keep their ink and weight, which
+ * still pass AA on the wash, and a quiet count turns solid in the accent. */
+.cp-list-row[aria-current]:not([aria-current="false"]),
+.cp-list-row[aria-pressed="true"],
+.cp-list-row[aria-selected="true"] {
   background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-list-row[aria-current]:not([aria-current="false"]) :is(small, .cp-meta, time),
+.cp-list-row[aria-pressed="true"] :is(small, .cp-meta, time),
+.cp-list-row[aria-selected="true"] :is(small, .cp-meta, time) {
+  font-weight: var(--cp-weight-body);
+}
+
+.cp-list-row:where([aria-current]:not([aria-current="false"])) > .cp-cell-stack > a,
+.cp-list-row:where([aria-pressed="true"], [aria-selected="true"]) > .cp-cell-stack > a {
+  color: inherit;
+}
+
+.cp-list-row[aria-current]:not([aria-current="false"]) .cp-badge,
+.cp-list-row[aria-pressed="true"] .cp-badge,
+.cp-list-row[aria-selected="true"] .cp-badge {
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
+}
+
+/* A toggle's wash turns the whole row on or off, so it fades slower than a
+ * colour change, and its count with it. */
+button.cp-list-row[aria-pressed],
+button.cp-list-row[aria-pressed] .cp-badge {
+  transition:
+    background-color var(--cp-dur-medium) var(--cp-ease-out),
+    color var(--cp-dur-medium) var(--cp-ease-out);
 }
 
 :is(a[href], button).cp-list-row:is(:active, [data-cp-pressed]) {
@@ -5906,11 +6046,13 @@ th[aria-sort="descending"] > .cp-sort::after {
       background: var(--cp-fill);
     }
 
-    /* The open row keeps its fill under the mouse. The hover fill above
-     * wins over the selected rule on scope proximity; this one ties it on
-     * specificity and comes later, so the more specific pressed fill still
-     * wins over both. */
-    .cp-list-row:where([aria-current]):not([aria-current="false"]):hover {
+    /* A selected row keeps its fill under the mouse. The hover fill above
+     * outranks the selected rules, on specificity or on scope proximity;
+     * these tie it on specificity and come later, so the more specific
+     * pressed fill still wins over both. */
+    .cp-list-row:where([aria-current]):not([aria-current="false"]):hover,
+    .cp-list-row[aria-pressed="true"]:hover,
+    .cp-list-row[aria-selected="true"]:hover {
       background: var(--cp-selected);
     }
 
@@ -5978,7 +6120,9 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 @media (forced-colors: active) {
-  .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible) {
+  .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible),
+  .cp-list-row[aria-pressed="true"]:not(:focus-visible),
+  .cp-list-row[aria-selected="true"]:not(:focus-visible) {
     outline: var(--cp-line-w) solid CanvasText;
     outline-offset: calc(-1 * var(--cp-line-w));
   }

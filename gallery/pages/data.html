@@ -72,6 +72,20 @@
   <section class="g-section" id="lists">
     <h2>Lists</h2>
     <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>One list, set by its attributes</h2>
+        <div class="cp-cluster" id="ls-settings">
+          <div class="cp-field"><span class="cp-label" id="ls-density-l">Height</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-density-l"><label><input type="radio" name="ls-density" value="compact">Compact</label><label><input type="radio" name="ls-density" value="" checked>Regular</label><label><input type="radio" name="ls-density" value="tall">Tall</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-lead-l">Image</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-lead-l"><label><input type="radio" name="ls-lead" value="">None</label><label><input type="radio" name="ls-lead" value="icon" checked>Icon</label><label><input type="radio" name="ls-lead" value="cover">Cover</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-lines-l">Lines</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-lines-l"><label><input type="radio" name="ls-lines" value="one">One</label><label><input type="radio" name="ls-lines" value="two" checked>Two</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-rows-l">Rows</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-rows-l"><label><input type="radio" name="ls-rows" value="links" checked>Links</label><label><input type="radio" name="ls-rows" value="toggles">Toggles</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-surface-l">Surface</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-surface-l"><label><input type="radio" name="ls-surface" value="" checked>Raised</label><label><input type="radio" name="ls-surface" value="plain">Plain</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-divider-l">Dividers</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-divider-l"><label><input type="radio" name="ls-divider" value="" checked>Lines</label><label><input type="radio" name="ls-divider" value="none">None</label></div></div>
+        </div>
+        <h3 class="cp-list-heading g-gap-top">Library</h3>
+        <ul class="cp-list" id="ls-sample" aria-label="Library"></ul>
+        <footer>Every list is this one element, and its attributes set what all its rows look like: the height (compact as a rail's filters, regular, or tall for posters, each sizing the row's image), surface, dividers and lines. A link row that is open, a toggle that is on and a chosen option share one selected look, the wash in the accent's darkest ink, and a quiet count turns solid with it. Click a link to open it, or a toggle to turn it on or off.</footer>
+      </div>
       <div class="card" data-new>
         <h2>People</h2>
         <ul class="cp-list">

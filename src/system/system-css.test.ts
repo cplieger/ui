@@ -3894,6 +3894,239 @@ describe("css/system.css lists, feeds and counts", () => {
     },
   );
 
+  const item = (lead = "", attrs = "", tag = "a") =>
+    `<li><${tag} class="cp-list-row" ${tag === "a" ? 'href="#l"' : ""} ${attrs}>${lead}<span class="cp-cell-stack">Frieren<small>Sonarr, TV, 2023</small></span><span data-part="end"><time>4 min ago</time><span class="cp-cluster"><span class="cp-badge" data-variant="quiet">3</span></span></span></${tag}></li>`;
+  const titleOnly =
+    '<li><div class="cp-list-row"><span class="cp-cell-stack">Japanese</span></div></li>';
+
+  it("holds a compact row a small control tall, 44px under a finger, and a tall row at 72px", () => {
+    theme("light");
+    for (const [tier, compact] of [
+      ["fine", 26],
+      ["coarse", 44],
+    ] as const) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        `<ul class="cp-list" data-density="compact">${titleOnly}</ul><ul class="cp-list" data-density="tall">${titleOnly}</ul>`,
+      );
+      const [small, tall] = [...el.querySelectorAll<HTMLElement>(".cp-list-row")] as [
+        HTMLElement,
+        HTMLElement,
+      ];
+      expect(small.getBoundingClientRect().height).toBe(compact);
+      expect(tall.getBoundingClientRect().height).toBe(72);
+      const text = (small.firstElementChild as Element).getBoundingClientRect();
+      expect(text.left - small.getBoundingClientRect().left).toBe(8);
+    }
+  });
+
+  it("runs a compact row's time and count along its one line", () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      '<ul class="cp-list" data-density="compact"><li><a class="cp-list-row" href="#l"><span class="cp-cell-stack">Frieren</span><span data-part="end"><time>4 min ago</time><span class="cp-cluster"><span class="cp-badge" data-variant="quiet">3</span></span></span></a></li></ul>',
+    );
+    expect(row(el).getBoundingClientRect().height).toBe(26);
+    const [time, count] = ["time", ".cp-badge"].map((s) =>
+      (el.querySelector(s) as Element).getBoundingClientRect(),
+    ) as [DOMRect, DOMRect];
+    expect(count.left - time.right).toBeCloseTo(8, 0);
+    expect(time.top + time.height / 2).toBeCloseTo(count.top + count.height / 2, 0);
+  });
+
+  it("sizes an avatar and a 2:3 cover lead by the list's density", () => {
+    theme("light");
+    const lead = (density: string, part: string) => {
+      const el = build(`<ul class="cp-list" ${density}>${item(part)}</ul>`);
+      const box = (
+        el.querySelector(".cp-list-row > :first-child") as Element
+      ).getBoundingClientRect();
+      return [box.width, box.height];
+    };
+    const avatar = '<span class="cp-avatar">CP</span>';
+    const cover = '<span class="cp-cover"><span class="cp-icon"></span></span>';
+    expect(lead('data-density="compact"', avatar)).toEqual([24, 24]);
+    expect(lead("", avatar)).toEqual([32, 32]);
+    expect(lead('data-density="tall"', avatar)).toEqual([40, 40]);
+    expect(lead('data-density="compact"', cover)).toEqual([16, 24]);
+    expect(lead("", cover)).toEqual([24, 36]);
+    expect(lead('data-density="tall"', cover)).toEqual([32, 48]);
+  });
+
+  it("drops a plain list's box, and a divider-free list's lines for rounded fills a hairline apart", () => {
+    theme("light");
+    const el = build(
+      `<ul class="cp-list" data-surface="plain">${item()}${item()}</ul><ul class="cp-list" data-divider="none">${item()}${item()}</ul><ul class="cp-list" data-surface="plain" data-divider="none">${item()}</ul>`,
+    );
+    const [plain, boxed, bare] = [...el.querySelectorAll<HTMLElement>(".cp-list")] as [
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+    ];
+    const cs = getComputedStyle(plain);
+    expect([cs.borderTopWidth, cs.borderTopLeftRadius, cs.backgroundColor]).toEqual([
+      "0px",
+      "0px",
+      "rgba(0, 0, 0, 0)",
+    ]);
+    expect(getComputedStyle(plain.children[1] as Element).borderTopWidth).toBe("1px");
+    const [one, two] = [...boxed.querySelectorAll(".cp-list-row")] as [HTMLElement, HTMLElement];
+    expect(getComputedStyle(boxed.children[1] as Element).borderTopWidth).toBe("0px");
+    expect(getComputedStyle(one).borderTopLeftRadius).toBe("4px");
+    expect(two.getBoundingClientRect().top - one.getBoundingClientRect().bottom).toBe(1);
+    expect(one.getBoundingClientRect().left - boxed.getBoundingClientRect().left).toBe(5);
+    const lone = bare.querySelector(".cp-list-row") as HTMLElement;
+    expect(lone.getBoundingClientRect().left).toBe(bare.getBoundingClientRect().left);
+  });
+
+  it("gives an open, a pressed and a chosen row one selected look, readable in both themes", () => {
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      const el = build(
+        `<ul class="cp-list">${item("", 'aria-current="page"')}${item("", 'type="button" aria-pressed="true"', "button")}${item("", 'role="option" aria-selected="true"', "div")}${item("", 'type="button" aria-pressed="false"', "button")}${item("", 'role="option" aria-selected="false"', "div")}</ul>`,
+      );
+      const rows = [...el.querySelectorAll<HTMLElement>(".cp-list-row")];
+      const selected = resolved("var(--cp-selected)", "backgroundColor");
+      const ink = resolved("var(--cp-accent-12)");
+      const muted = resolved("var(--cp-ink-muted)");
+      const look = (r: HTMLElement) => {
+        const [cs, line, time, badge] = [
+          r,
+          r.querySelector("small"),
+          r.querySelector("time"),
+          r.querySelector(".cp-badge"),
+        ].map((n) => getComputedStyle(n as Element)) as [
+          CSSStyleDeclaration,
+          CSSStyleDeclaration,
+          CSSStyleDeclaration,
+          CSSStyleDeclaration,
+        ];
+        return [
+          cs.backgroundColor,
+          cs.color,
+          cs.fontWeight,
+          line.color,
+          line.fontWeight,
+          time.fontWeight,
+          badge.backgroundColor,
+          badge.color,
+        ];
+      };
+      for (const r of rows.slice(0, 3)) {
+        expect(look(r)).toEqual([
+          selected,
+          ink,
+          "500",
+          muted,
+          "400",
+          "400",
+          resolved("var(--cp-accent)", "backgroundColor"),
+          resolved("var(--cp-on-accent)"),
+        ]);
+      }
+      for (const r of rows.slice(3)) {
+        expect(look(r).slice(0, 3)).toEqual(["rgba(0, 0, 0, 0)", resolved("var(--cp-ink)"), "400"]);
+      }
+      expect(contrast(ink, selected)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(muted, selected)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("inks a selected row's title link as the row, until it is focused", () => {
+    theme("light");
+    const el = build(
+      '<ul class="cp-list"><li><div class="cp-list-row" aria-current="true"><span class="cp-cell-stack"><a href="#t">Frieren</a><small>Sonarr, TV, 2023</small></span></div></li></ul>',
+    );
+    const link = el.querySelector("a") as HTMLElement;
+    expect(getComputedStyle(link).color).toBe(resolved("var(--cp-accent-12)"));
+    link.focus({ focusVisible: true } as FocusOptions);
+    expect(getComputedStyle(link).color).toBe(resolved("var(--cp-accent-ink)"));
+  });
+
+  it("keeps the selected fill on a hovered pressed or chosen row, under the pressed fill", async () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      `<ul class="cp-list">${item("", 'type="button" aria-pressed="true"', "button")}${item("", 'role="option" aria-selected="true"', "div")}</ul>`,
+    );
+    const selected = resolved("var(--cp-selected)", "backgroundColor");
+    for (const r of el.querySelectorAll<HTMLElement>(".cp-list-row")) {
+      r.style.transition = "none";
+      await userEvent.hover(r);
+      expect(getComputedStyle(r).backgroundColor).toBe(selected);
+    }
+    const toggle = el.querySelector("button") as HTMLElement;
+    toggle.toggleAttribute("data-cp-pressed", true);
+    expect(getComputedStyle(toggle).backgroundColor).toBe(
+      resolved("var(--cp-fill-active)", "backgroundColor"),
+    );
+    await userEvent.unhover(toggle);
+  });
+
+  it("fades a toggle row's wash and its count over 240ms, and a link row's wash at once", () => {
+    theme("light");
+    const el = build(
+      `<ul class="cp-list">${item("", 'type="button" aria-pressed="false"', "button")}${item()}</ul>`,
+    );
+    const [toggle, link] = [...el.querySelectorAll<HTMLElement>(".cp-list-row")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const badge = getComputedStyle(toggle.querySelector(".cp-badge") as Element);
+    expect(getComputedStyle(toggle).transitionDuration).toBe("0.24s, 0.24s");
+    expect(badge.transitionProperty).toBe("background-color, color");
+    expect(badge.transitionDuration).toBe("0.24s, 0.24s");
+    expect(getComputedStyle(link).transitionDuration).toBe("0.09s");
+  });
+
+  it.skipIf(!emulates)(
+    "outlines a pressed and a chosen row in forced colours, as the open one",
+    async () => {
+      theme("light");
+      await media("forced-colors", "active");
+      const el = build(
+        `<ul class="cp-list">${item("", 'type="button" aria-pressed="true"', "button")}${item("", 'role="option" aria-selected="true"', "div")}</ul>`,
+      );
+      for (const r of el.querySelectorAll(".cp-list-row")) {
+        expect(getComputedStyle(r).outlineStyle).toBe("solid");
+      }
+    },
+  );
+
+  it("heads a group in ink at 13px and the heading weight, lined up with a plain list's rows", () => {
+    theme("light");
+    const el = build(
+      `<h3 class="cp-list-heading">Verdict</h3><ul class="cp-list" data-surface="plain" data-density="compact">${item('<span class="cp-swatch"></span>', 'type="button" aria-pressed="false"', "button")}</ul><h3 class="cp-list-heading">Today</h3><ul class="cp-list" data-surface="plain">${item('<span class="cp-icon"></span>')}</ul><h3 class="cp-list-heading">Library</h3><ul class="cp-list">${item()}</ul>`,
+    );
+    const heads = [...el.querySelectorAll<HTMLElement>(".cp-list-heading")];
+    const lists = [...el.querySelectorAll<HTMLElement>(".cp-list")];
+    const textLeft = (h: HTMLElement) => {
+      const range = document.createRange();
+      range.selectNodeContents(h);
+      return range.getBoundingClientRect().left;
+    };
+    const cs = getComputedStyle(heads[0] as Element);
+    expect([cs.fontSize, cs.fontWeight, cs.color]).toEqual([
+      "13px",
+      "700",
+      resolved("var(--cp-ink)"),
+    ]);
+    expect(cs.marginTop).toBe("0px");
+    expect(getComputedStyle(heads[1] as Element).marginTop).toBe("16px");
+    heads.forEach((h, i) => {
+      expect(
+        (lists[i] as Element).getBoundingClientRect().top - h.getBoundingClientRect().bottom,
+      ).toBe(8);
+    });
+    const leadOf = (list: HTMLElement) =>
+      (list.querySelector(".cp-list-row > :first-child") as Element).getBoundingClientRect().left;
+    const [compact, plain, boxed] = lists as [HTMLElement, HTMLElement, HTMLElement];
+    const [overCompact, overPlain, overBoxed] = heads as [HTMLElement, HTMLElement, HTMLElement];
+    expect(textLeft(overCompact)).toBeCloseTo(leadOf(compact), 0);
+    expect(textLeft(overPlain)).toBeCloseTo(leadOf(plain), 0);
+    expect(textLeft(overBoxed)).toBeCloseTo(boxed.getBoundingClientRect().left, 0);
+  });
+
   const ordered = (lifted = "") =>
     `<ol class="cp-list cp-reorder"><li ${lifted}><div class="cp-list-row"><span data-part="handle"></span><span data-part="rank">1</span><span class="cp-cell-stack">Japanese</span><span data-part="move"><button class="cp-button" data-size="sm" type="button">Up</button></span></div></li><li><div class="cp-list-row">English</div></li></ol>`;
 

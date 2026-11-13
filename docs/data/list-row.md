@@ -37,7 +37,7 @@ Each one is set on the `.cp-list` and applies to every row in it.
 
 | Attribute | Values | Default | What it does |
 | --- | --- | --- | --- |
-| `data-density` | `compact`, `tall` | regular | Row height. Regular rows are 3.25rem with an icon, an avatar or a small cover. `compact` rows are a small control tall (a full control under a finger), with an icon, a swatch, a dot or a box as their lead, as a rail's filters and a popup's options are. `tall` rows are 4.5rem with a 3rem cover, for a list of posters. |
+| `data-density` | `compact`, `tall` | regular | Row height and the lead's size. Regular rows are 3.25rem, with an icon, a 2rem avatar or a cover 2.25rem tall. `compact` rows are a small control tall, 44px under a finger, with an icon, a swatch, a dot, a box, a 1.5rem avatar or a cover 1.5rem tall as their lead and the end along their one line, as a rail's filters and a popup's options are. `tall` rows are 4.5rem, with a 2.5rem avatar or a cover 3rem tall, for a list of posters. A cover keeps its 2:3 shape. |
 | `data-surface` | `plain` | raised | `plain` drops the list's box, border and corners, so the list sits in a rail, a popover, a dialog or a panel. |
 | `data-divider` | `none` | line | `none` drops the line between rows and gives each row the control's corners for its fill, as a rail draws its rows. |
 | `data-layout` | `grid` | rows | `grid` lays the rows out as tiles in columns: the cover on top, the title and facts under it. A library's List and Grid views are this one attribute, switched by a `.cp-segmented[data-variant="icons"]`. |
@@ -59,7 +59,7 @@ Each one is set on the `.cp-list` and applies to every row in it.
 
 ## The row's states
 
-- `aria-current="page"` marks the open row of a list that navigates, `aria-pressed="true"` a filter that is on, and `aria-selected="true"` a chosen option. The three share one look: the selected wash with the accent's darkest ink, and a quiet count badge in the end turns solid in the accent.
+- `aria-current="page"` marks the open row of a list that navigates (`"true"` when the list sits inside the open view), `aria-pressed="true"` a filter that is on, and `aria-selected="true"` a chosen option. The three share one look: the selected wash with the accent's darkest ink at the medium weight, its lines still muted and in the body weight, and a quiet count turns solid in the accent. A toggle's wash fades in and out over 240ms. In forced colours the row is outlined.
 - `data-unread` sets the title in the heading weight.
 - `data-kept` (from `markKept`) and `data-ended` set the row in muted ink, which still passes AA.
 - `data-skeleton` draws the row as a loading placeholder.
@@ -67,7 +67,7 @@ Each one is set on the `.cp-list` and applies to every row in it.
 
 ## Groups and markers
 
-- A group is a `.cp-list-heading` followed by its own `.cp-list`, such as one list per day.
+- A group is a `.cp-list-heading` followed by its own `.cp-list`, such as one list per day. The heading is any heading element, small and in the heading weight, with more space above it than below; over a list with no box it lines up with the rows' content.
 - `.cp-since` is the "New since your last visit" line, which a list or a feed holds as an item at the place the new rows start.
 - `.cp-list-foot` is the list's last item, holding one action for the whole list, such as Show older (see [load-more](load-more.md)).
 
