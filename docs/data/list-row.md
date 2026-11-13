@@ -85,7 +85,7 @@ A list with no items yet, such as a file field's before the first choice, draws 
 
 ## Behaviours over any list
 
-- [held-list](held-list.md) holds changes while the reader is in the list and offers them with a count.
+- [held-list](held-list.md) holds changes while the reader is in the list and offers them with a count, or for a list whose new rows go at its end lets them in and counts those below the reader.
 - [keyed-list](keyed-list.md) keeps rows keyed through live updates, with focus and the reader's place kept, and draws only the rows in view of a long list.
 - [load-more](load-more.md) adds the next page before the list's foot, or older entries before a feed's first from its head.
 - [reorder](reorder.md) moves rows by handle and keys; [roving-focus](../core/roving-focus.md) gives a list one Tab stop and arrow keys; [relative-time](relative-time.md) keeps each `<time>` current.
