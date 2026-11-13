@@ -446,7 +446,7 @@ describe("the legend row's widths", () => {
     });
   });
 
-  it("holds a line value on a linear x wider than its spread and extremes", () => {
+  it("holds a line value on a linear x wider than its extremes and every other value", () => {
     const n = 1_000;
     const y = per(n, (i) => (i === 0 ? 0 : i === n - 1 ? 9_000_000 : i === 2 ? 7_123_456.25 : 50));
     const x = per(n, (i) => (i === 5 ? 5.125 : i));
@@ -1074,8 +1074,7 @@ describe("a scatter's legend row with a dot selected", () => {
     );
     expect(w.values).toEqual([7 * "x 12,345".length, 7 * "y -42".length]);
   });
-  it("holds a value wider than the extremes and every evenly spread dot", () => {
-    // 71.25 at an index no spread of 256 picks, between extremes of 0 and 100.
+  it("holds a value wider than the extremes and every other dot", () => {
     const n = 1_000;
     const x = per(n, (i) => (i === 0 ? 0 : i === n - 1 ? 100 : i === 2 ? 71.25 : 50));
     const m = model({
