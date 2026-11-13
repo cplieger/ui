@@ -227,7 +227,7 @@ for (const button of all<HTMLButtonElement>("button[data-load]")) {
   });
 }
 
-for (const details of all<HTMLDetailsElement>(".cp-history details")) {
+for (const details of all<HTMLDetailsElement>('.cp-list[data-variant="timeline"] details')) {
   enhanceDisclosure(details);
 }
 
@@ -245,7 +245,24 @@ const event = (
   mark.dataset["tone"] = tone;
   const time = make("time", "", weeksAgo.format(-weeks, "week")) as HTMLTimeElement;
   time.dateTime = new Date(Date.now() - weeks * 604_800_000).toISOString();
-  return make("li", "", mark, make("span", "", make("strong", "", word), rest), time);
+  const end = make("span", "", time);
+  end.dataset["part"] = "end";
+  const row = make(
+    "div",
+    "cp-list-row",
+    mark,
+    make("div", "", make("p", "", make("strong", "", word), rest)),
+    end,
+  );
+  row.dataset["lines"] = "wrap";
+  return make("li", "", row);
+};
+
+const timeline = (...events: HTMLElement[]): HTMLElement => {
+  const list = make("ol", "cp-list", ...events);
+  list.dataset["variant"] = "timeline";
+  list.dataset["surface"] = "plain";
+  return list;
 };
 
 // Load older names its history by data-load-older. Each press adds a week
@@ -259,13 +276,11 @@ for (const button of all<HTMLButtonElement>("button[data-load-older]")) {
   button.addEventListener("click", () => {
     weeks += 1;
     const when = weeksAgo.format(-weeks, "week");
-    const day = make("h3", "", when.charAt(0).toUpperCase() + when.slice(1));
+    const day = make("h3", "cp-list-heading", when.charAt(0).toUpperCase() + when.slice(1));
     day.tabIndex = -1;
     history.append(
       day,
-      make(
-        "ol",
-        "",
+      timeline(
         event("neutral", "search", "Checked", " against SeaDex", weeks),
         event("success", "download", "Grabbed", " a web release", weeks),
       ),

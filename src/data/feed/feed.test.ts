@@ -496,50 +496,56 @@ describe("enhanceFeed", () => {
     expect(c.box.scrollTop).toBeGreaterThan(0);
   });
 
-  it("lets a name that Tab reaches in an entry's popover reach the popover's end", async () => {
-    const c = conversation();
-    enhance(c);
-    await settle();
-    const panel = document.createElement("div");
-    panel.className = "cp-popover cp-feed-readers";
-    panel.dataset["variant"] = "panel";
-    panel.popover = "auto";
-    // With no anchor to place it by. A shown position-area popover also
-    // stops WebKit's page scroll anchoring, which a later test relies on.
-    panel.style.positionArea = "none";
-    panel.style.insetBlockStart = "0";
-    panel.style.insetInlineStart = "0";
-    const names = document.createElement("ul");
-    for (let i = 0; i < 40; i += 1) {
-      const a = document.createElement("a");
-      a.href = `#reader-${String(i)}`;
-      a.textContent = `Reader ${String(i + 1)}`;
-      const li = document.createElement("li");
-      li.append(a);
-      names.append(li);
-    }
-    panel.append(names);
-    c.feed.lastElementChild?.append(panel);
-    panel.showPopover();
-    await Promise.all(panel.getAnimations().map((a) => a.finished));
-    const [first, second] = panel.querySelectorAll("a");
-    const pitch =
-      (second?.getBoundingClientRect().top ?? 0) - (first?.getBoundingClientRect().top ?? 0);
-    first?.focus();
-    // An engine scrolls a name into view only once it is not wholly in
-    // view, so one a margin does not push up gets within a name of the end.
-    const gaps: number[] = [];
-    for (let i = 0; i < 30; i += 1) {
-      await userEvent.keyboard("{Tab}");
+  // Thirty Tabs, each awaited until the page settles, take 1.5s alone and
+  // near 6s in WebKit on a loaded machine.
+  it(
+    "lets a name that Tab reaches in an entry's popover reach the popover's end",
+    { timeout: 15_000 },
+    async () => {
+      const c = conversation();
+      enhance(c);
       await settle();
-      const end = panel.getBoundingClientRect().top + panel.clientTop + panel.clientHeight;
-      gaps.push(end - (document.activeElement?.getBoundingClientRect().bottom ?? 0));
-    }
-    expect(document.activeElement?.textContent).toBe("Reader 31");
-    expect(panel.scrollTop).toBeGreaterThan(0);
-    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(-1);
-    expect(Math.min(...gaps)).toBeLessThan(pitch);
-  });
+      const panel = document.createElement("div");
+      panel.className = "cp-popover cp-feed-readers";
+      panel.dataset["variant"] = "panel";
+      panel.popover = "auto";
+      // With no anchor to place it by. A shown position-area popover also
+      // stops WebKit's page scroll anchoring, which a later test relies on.
+      panel.style.positionArea = "none";
+      panel.style.insetBlockStart = "0";
+      panel.style.insetInlineStart = "0";
+      const names = document.createElement("ul");
+      for (let i = 0; i < 40; i += 1) {
+        const a = document.createElement("a");
+        a.href = `#reader-${String(i)}`;
+        a.textContent = `Reader ${String(i + 1)}`;
+        const li = document.createElement("li");
+        li.append(a);
+        names.append(li);
+      }
+      panel.append(names);
+      c.feed.lastElementChild?.append(panel);
+      panel.showPopover();
+      await Promise.all(panel.getAnimations().map((a) => a.finished));
+      const [first, second] = panel.querySelectorAll("a");
+      const pitch =
+        (second?.getBoundingClientRect().top ?? 0) - (first?.getBoundingClientRect().top ?? 0);
+      first?.focus();
+      // An engine scrolls a name into view only once it is not wholly in
+      // view, so one a margin does not push up gets within a name of the end.
+      const gaps: number[] = [];
+      for (let i = 0; i < 30; i += 1) {
+        await userEvent.keyboard("{Tab}");
+        await settle();
+        const end = panel.getBoundingClientRect().top + panel.clientTop + panel.clientHeight;
+        gaps.push(end - (document.activeElement?.getBoundingClientRect().bottom ?? 0));
+      }
+      expect(document.activeElement?.textContent).toBe("Reader 31");
+      expect(panel.scrollTop).toBeGreaterThan(0);
+      expect(Math.min(...gaps)).toBeGreaterThanOrEqual(-1);
+      expect(Math.min(...gaps)).toBeLessThan(pitch);
+    },
+  );
 
   it("keeps a reader who scrolled up in place while they type in the composer", async () => {
     const c = conversation();

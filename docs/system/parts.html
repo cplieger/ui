@@ -573,31 +573,44 @@
                   </button>
                 </header>
                 <div class="cp-dialog-body">
-                  <div class="cp-filter-group">
-                    <div class="cp-filter-title">Verdict</div>
-                    <button
-                      class="cp-filter"
-                      type="button"
-                      aria-pressed="false"
+                  <div>
+                    <div class="cp-list-heading">Verdict</div>
+                    <ul
+                      class="cp-list"
+                      data-surface="plain"
+                      data-divider="none"
+                      data-density="compact"
                     >
-                      All entries<span class="cp-badge" data-variant="quiet">412</span>
-                    </button>
-                    <button
-                      class="cp-filter"
-                      type="button"
-                      aria-pressed="true"
-                      data-tone="worse"
-                    >
-                      <span class="cp-swatch"></span>Not the best<span class="cp-badge" data-variant="quiet">33</span>
-                    </button>
-                    <button
-                      class="cp-filter"
-                      type="button"
-                      aria-pressed="true"
-                      data-tone="missing"
-                    >
-                      <span class="cp-swatch"></span>Missing<span class="cp-badge" data-variant="quiet">9</span>
-                    </button>
+                      <li>
+                        <button
+                          class="cp-list-row"
+                          type="button"
+                          aria-pressed="false"
+                        >
+                          <span class="cp-cell-stack">All entries</span><span data-part="end"><span class="cp-badge" data-variant="quiet">412</span></span>
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          class="cp-list-row"
+                          type="button"
+                          aria-pressed="true"
+                          data-tone="worse"
+                        >
+                          <span class="cp-swatch"></span><span class="cp-cell-stack">Not the best</span><span data-part="end"><span class="cp-badge" data-variant="quiet">33</span></span>
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          class="cp-list-row"
+                          type="button"
+                          aria-pressed="true"
+                          data-tone="missing"
+                        >
+                          <span class="cp-swatch"></span><span class="cp-cell-stack">Missing</span><span data-part="end"><span class="cp-badge" data-variant="quiet">9</span></span>
+                        </button>
+                      </li>
+                    </ul>
                   </div>
                 </div>
                 <footer>

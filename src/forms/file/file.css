@@ -71,41 +71,10 @@
   outline-offset: var(--cp-focus-offset);
 }
 
-/* The files a field took: each a file glyph, its name and its size. */
-.cp-files {
-  display: grid;
-  gap: var(--cp-space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--cp-text-sm);
-}
-
-.cp-files > li {
-  display: flex;
-  gap: var(--cp-space-2);
-  align-items: baseline;
-  min-inline-size: 0;
-}
-
-.cp-files > li::before {
-  content: "";
-  flex: none;
-  align-self: center;
-  inline-size: 1rem;
-  block-size: 1rem;
-  background: var(--cp-ink-muted);
-  mask: url("../icons/svg/file-text.svg") center / contain no-repeat;
-}
-
-.cp-files > li > span {
-  overflow-wrap: anywhere;
-}
-
-.cp-files > li > small {
-  flex: none;
-  color: var(--cp-ink-muted);
-  font-variant-numeric: tabular-nums;
+/* A file row's glyph, which the field's list writes, is drawn here, so it
+ * paints with no icon script. */
+.cp-list-row > .cp-icon[data-cp-icon="file-text"] {
+  --cp-icon-image: url("../icons/svg/file-text.svg");
 }
 
 @media (forced-colors: active) {
@@ -115,9 +84,5 @@
 
   .cp-drop:has(> input:focus-visible) {
     outline-color: Highlight;
-  }
-
-  .cp-files > li::before {
-    background: CanvasText;
   }
 }

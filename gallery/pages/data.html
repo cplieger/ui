@@ -199,19 +199,19 @@
       </div>
       <div class="card" data-new>
         <h2>History</h2>
-        <div class="cp-history" id="history-frieren">
-          <h3>Today</h3>
-          <ol>
-            <li><span data-part="mark" data-tone="success"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span></span><span><strong>Grabbed</strong> Arid's BD release<details><summary><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span>What changed</summary><p>Replaced the web release by Arid's BD remux: 24 episodes, dual audio.</p></details></span><time data-ago="1800"></time></li>
-            <li><span data-part="mark" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span></span><span><strong>Older revision</strong> found on the check</span><time data-ago="5400"></time></li>
+        <div id="history-frieren">
+          <h3 class="cp-list-heading">Today</h3>
+          <ol class="cp-list" data-variant="timeline" data-surface="plain">
+            <li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="success"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span></span><div><p><strong>Grabbed</strong> Arid's BD release</p><details><summary><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span>What changed</summary><p>Replaced the web release by Arid's BD remux: 24 episodes, dual audio.</p></details></div><span data-part="end"><time data-ago="1800"></time></span></div></li>
+            <li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span></span><div><p><strong>Older revision</strong> found on the check</p></div><span data-part="end"><time data-ago="5400"></time></span></div></li>
           </ol>
-          <h3>Last week</h3>
-          <ol>
-            <li><span data-part="mark" data-tone="neutral"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></span><span><strong>Added</strong> from Sonarr</span><time data-ago="604800"></time></li>
+          <h3 class="cp-list-heading">Last week</h3>
+          <ol class="cp-list" data-variant="timeline" data-surface="plain">
+            <li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="neutral"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></span><div><p><strong>Added</strong> from Sonarr</p></div><span data-part="end"><time data-ago="604800"></time></span></div></li>
           </ol>
         </div>
         <div class="g-row-inline g-gap-top"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-load-older="history-frieren">Load older</button></div>
-        <footer>Newest first under day headings, each event with its tone, its words and when; an event with more to say opens in place. Load older adds the next days below and moves focus to the first one it added.</footer>
+        <footer>Newest first under day headings, each day a timeline list: each event with its tone, its words and when; an event with more to say opens in place. Load older adds the next days below and moves focus to the first one it added.</footer>
       </div>
       <div class="card g-wide">
         <h2>State history</h2>
@@ -367,13 +367,13 @@
       </div>
       <div class="card g-wide" data-new>
         <h2>Media cards</h2>
-        <div class="cp-grid" style="--cp-grid-min: 9.5rem">
-          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><strong data-part="title">Frieren: Beyond Journey's End</strong><small data-part="meta">2023, 28 episodes</small></a>
-          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not best</span></span><strong data-part="title">Delicious in Dungeon</strong><small data-part="meta">2024, 24 episodes</small></a>
-          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong data-part="title">The Boy and the Heron</strong><small data-part="meta">2023, film</small></a>
-          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></span><strong data-part="title">Ping Pong the Animation</strong><small data-part="meta">2014, 11 episodes</small></a>
-        </div>
-        <footer>Where the covers carry the meaning, a grid of cards. A cover is the work's own image; without one, the stand-in is a harmony colour and the kind's glyph. The cover grows a little under a mouse, and the focus ring goes round it.</footer>
+        <ul class="cp-list" data-layout="grid" aria-label="Library">
+          <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><span class="cp-cell-stack"><strong>Frieren: Beyond Journey's End</strong><small>2023, 28 episodes</small></span></a></li>
+          <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not best</span></span><span class="cp-cell-stack"><strong>Delicious in Dungeon</strong><small>2024, 24 episodes</small></span></a></li>
+          <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><span class="cp-cell-stack"><strong>The Boy and the Heron</strong><small>2023, film</small></span></a></li>
+          <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></span><span class="cp-cell-stack"><strong>Ping Pong the Animation</strong><small>2014, 11 episodes</small></span></a></li>
+        </ul>
+        <footer>Where the covers carry the meaning, a list laid out as a grid of tiles, <code>data-layout="grid"</code>. A cover is the work's own image; without one, the stand-in is a harmony colour and the kind's glyph. The cover grows a little under a mouse, and the focus ring goes round it.</footer>
       </div>
       <div class="card" data-new>
         <h2>Segmented meter</h2>

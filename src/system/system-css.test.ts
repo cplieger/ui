@@ -643,7 +643,7 @@ describe("css/system.css figure", () => {
   });
 });
 
-describe("css/system.css media card", () => {
+describe("css/system.css list as a grid of tiles", () => {
   const box = (el: Element | null) => (el as Element).getBoundingClientRect();
   const paint = (token: string) => {
     const probe = host("");
@@ -651,19 +651,38 @@ describe("css/system.css media card", () => {
     return getComputedStyle(probe).color;
   };
   const card = (cover = "", title = "Frieren") =>
-    `<a class="cp-media" href="#x"><span class="cp-cover"${cover}><span class="cp-icon" data-cp-icon="tv"></span><span class="cp-chip">Best</span></span><strong data-part="title">${title}</strong><small data-part="meta">2023, 28 episodes</small></a>`;
+    `<li><a class="cp-list-row" href="#x"><span class="cp-cover"${cover}><span class="cp-icon" data-cp-icon="tv"></span><span class="cp-chip">Best</span></span><span class="cp-cell-stack"><strong>${title}</strong><small>2023, 28 episodes</small></span></a></li>`;
   function grid(...cards: string[]): HTMLElement {
     theme("light");
     return build(
-      `<div class="cp-grid" style="inline-size: 40rem; --cp-grid-min: 9.5rem">${cards.join("")}</div>`,
+      `<ul class="cp-list" data-layout="grid" style="inline-size: 40rem">${cards.join("")}</ul>`,
     );
   }
 
-  it("draws a 2:3 cover over a bold title and its muted facts, the card one link", () => {
-    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+  it("lays its tiles out in as many 9.5rem columns as fit, 12px apart, with no box, lines or fill", () => {
+    const list = grid(card(), card(), card(), card()).firstElementChild as HTMLElement;
+    const tiles = [...list.querySelectorAll(".cp-list-row")].map((a) => a.getBoundingClientRect());
+    const [first, second, third, fourth] = tiles as [DOMRect, DOMRect, DOMRect, DOMRect];
+    expect([second.top, third.top]).toEqual([first.top, first.top]);
+    expect(second.left - first.right).toBeCloseTo(12, 1);
+    expect(first.width).toBeCloseTo((640 - 2 * 12) / 3, 1);
+    expect(fourth.top).toBeGreaterThan(first.bottom);
+    const cs = getComputedStyle(list);
+    expect([cs.borderTopStyle, cs.backgroundColor]).toEqual(["none", "rgba(0, 0, 0, 0)"]);
+    expect(getComputedStyle(list.children[1] as Element).borderTopStyle).toBe("none");
+    const row = getComputedStyle(list.querySelector(".cp-list-row") as Element);
+    expect([row.paddingTop, row.paddingLeft, row.backgroundColor]).toEqual([
+      "0px",
+      "0px",
+      "rgba(0, 0, 0, 0)",
+    ]);
+  });
+
+  it("draws a 2:3 cover over a bold title and its muted facts, the tile one link", () => {
+    const a = grid(card()).querySelector(".cp-list-row") as HTMLElement;
     const cover = a.querySelector(".cp-cover") as Element;
-    const title = a.querySelector('[data-part="title"]') as Element;
-    const meta = a.querySelector('[data-part="meta"]') as Element;
+    const title = a.querySelector("strong") as Element;
+    const meta = a.querySelector("small") as Element;
     expect(box(cover).height).toBeCloseTo((box(cover).width * 3) / 2, 0);
     expect(getComputedStyle(cover).borderRadius).toBe("4px");
     expect(box(title).top - box(cover).bottom).toBeCloseTo(8, 2);
@@ -677,15 +696,12 @@ describe("css/system.css media card", () => {
 
   it("keeps each title under its cover when a neighbour's title wraps", () => {
     const long = "Frieren: Beyond Journey's End, the second season and its specials";
-    const [, short] = [...grid(card("", long), card()).querySelectorAll(".cp-media")] as [
+    const [, short] = [...grid(card("", long), card()).querySelectorAll(".cp-list-row")] as [
       Element,
       Element,
     ];
     const cover = short.querySelector(".cp-cover") as Element;
-    expect(box(short.querySelector('[data-part="title"]')).top - box(cover).bottom).toBeCloseTo(
-      8,
-      2,
-    );
+    expect(box(short.querySelector("strong")).top - box(cover).bottom).toBeCloseTo(8, 2);
   });
 
   it("fills a stand-in in a harmony colour with its glyph centred, and a chip at the top start", () => {
@@ -710,7 +726,7 @@ describe("css/system.css media card", () => {
   it("fills the cover with the work's own image", () => {
     const img =
       '<img alt="" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22/%3E">';
-    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+    const a = grid(card()).querySelector(".cp-list-row") as HTMLElement;
     const cover = a.querySelector(".cp-cover") as Element;
     cover.prepend(build(img).firstChild as Node);
     const pic = cover.querySelector("img") as Element;
@@ -720,7 +736,7 @@ describe("css/system.css media card", () => {
 
   it("lifts the cover under a mouse, not a finger, and rings the cover on focus", async () => {
     root.setAttribute("data-pointer", "fine");
-    const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+    const a = grid(card()).querySelector(".cp-list-row") as HTMLElement;
     const cover = a.querySelector(".cp-cover") as HTMLElement;
     cover.style.transition = "none";
     expect(getComputedStyle(cover).boxShadow).toBe("none");
@@ -741,7 +757,7 @@ describe("css/system.css media card", () => {
     async () => {
       await media("prefers-reduced-motion", "reduce");
       root.setAttribute("data-pointer", "fine");
-      const a = grid(card()).querySelector(".cp-media") as HTMLElement;
+      const a = grid(card()).querySelector(".cp-list-row") as HTMLElement;
       const cover = a.querySelector(".cp-cover") as HTMLElement;
       cover.style.transition = "none";
       await userEvent.hover(a);
@@ -2009,21 +2025,31 @@ describe("css/system.css", () => {
     expect(getComputedStyle(system as Element).outlineStyle).toBe("solid");
   });
 
-  it("lays settings categories beside the form, and in a row above it on a narrow screen", async () => {
+  it("lays settings categories beside the form a control tall, and in a row above it on a narrow screen", async () => {
     theme("light");
     const markup =
-      '<div class="cp-settings"><nav class="cp-settings-nav" aria-label="Settings"><a href="#c" aria-current="page">Connections</a><a href="#l">Languages</a><a href="#s">System</a></nav>' +
+      '<div class="cp-settings"><nav class="cp-settings-nav" aria-label="Settings"><ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">' +
+      '<li><a class="cp-list-row" href="#c" aria-current="page"><span class="cp-cell-stack">Connections</span></a></li>' +
+      '<li><a class="cp-list-row" href="#l"><span class="cp-cell-stack">Languages</span></a></li>' +
+      '<li><a class="cp-list-row" href="#s"><span class="cp-cell-stack">System</span></a></li></ul></nav>' +
       '<div><div class="cp-setting"><div><label class="cp-label" for="n">Notifications</label><span class="cp-help">When a check ends</span></div><input class="cp-switch" id="n" type="checkbox" role="switch"></div></div></div>';
     await page.viewport(1280, 720);
     const wide = build(markup);
     const box = (el: HTMLElement, sel: string) =>
       (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
     expect(box(wide, ".cp-settings-nav").right).toBeLessThan(box(wide, ".cp-setting").left);
+    const [first, second] = [...wide.querySelectorAll(".cp-settings-nav .cp-list-row")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect(first.getBoundingClientRect().height).toBe(32);
+    expect(getComputedStyle(first).paddingInlineStart).toBe("12px");
+    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(4);
     const row = box(wide, ".cp-setting");
     expect(box(wide, ".cp-switch").right).toBeCloseTo(row.right, 0);
     await page.viewport(600, 800);
     const narrow = build(markup);
-    const links = [...narrow.querySelectorAll(".cp-settings-nav > a")].map(
+    const links = [...narrow.querySelectorAll(".cp-settings-nav .cp-list-row")].map(
       (a) => a.getBoundingClientRect().top,
     );
     expect(new Set(links).size).toBe(1);
@@ -2287,14 +2313,17 @@ describe("css/system.css", () => {
     expect(r).toBe(m);
   });
 
-  it("ends a filter with its quiet count, solid in the accent while on, and fades the wash over 240ms", () => {
+  it("draws a rail's filters as a plain compact list: rows 1px apart, a swatch, the count at the end", () => {
     theme("light");
+    const filter = (on: boolean, word: string, n: string) =>
+      `<li><button class="cp-list-row" type="button" aria-pressed="${String(on)}"><span class="cp-swatch" data-tone="success"></span>` +
+      `<span class="cp-cell-stack">${word}</span><span data-part="end"><span class="cp-badge" data-variant="quiet">${n}</span></span></button></li>`;
     const el = build(
-      '<div class="cp-filter-group" style="inline-size:14rem">' +
-        '<button class="cp-filter" type="button" aria-pressed="true">On the best<span class="cp-badge" data-variant="quiet">268</span></button>' +
-        '<button class="cp-filter" type="button" aria-pressed="false">Missing<span class="cp-badge" data-variant="quiet">9</span></button></div>',
+      '<div style="inline-size:14rem"><h3 class="cp-list-heading">Verdict</h3>' +
+        '<ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">' +
+        `${filter(true, "On the best", "268")}${filter(false, "Missing", "9")}</ul></div>`,
     );
-    const [on, off] = [...el.querySelectorAll<HTMLElement>(".cp-filter")] as [
+    const [on, off] = [...el.querySelectorAll<HTMLElement>(".cp-list-row")] as [
       HTMLElement,
       HTMLElement,
     ];
@@ -2303,6 +2332,28 @@ describe("css/system.css", () => {
       f.style.transition = "none";
       badge(f).style.transition = "none";
     }
+    expect(on.getBoundingClientRect().height).toBe(26);
+    expect(off.getBoundingClientRect().top - on.getBoundingClientRect().bottom).toBe(1);
+    const cs = getComputedStyle(off);
+    expect([cs.paddingLeft, cs.paddingRight, cs.borderTopLeftRadius]).toEqual([
+      "8px",
+      "8px",
+      getComputedStyle(host("", { style: "border-radius: var(--cp-radius-control)" }))
+        .borderTopLeftRadius,
+    ]);
+    const swatch = off.querySelector(".cp-swatch") as HTMLElement;
+    const square = swatch.getBoundingClientRect();
+    expect([square.width, square.height, getComputedStyle(swatch).borderTopLeftRadius]).toEqual([
+      10,
+      10,
+      "3px",
+    ]);
+    expect(getComputedStyle(swatch).backgroundColor).toBe(
+      getComputedStyle(host("", { "data-tone": "success", style: "color: var(--cp-tone-9)" }))
+        .color,
+    );
+    const heading = (el.querySelector("h3") as HTMLElement).getBoundingClientRect();
+    expect(on.getBoundingClientRect().top - heading.bottom).toBe(8);
     const probe = host("");
     probe.style.color = "var(--cp-accent)";
     probe.style.backgroundColor = "var(--cp-fill)";
@@ -2311,12 +2362,12 @@ describe("css/system.css", () => {
       getComputedStyle(probe).backgroundColor,
     );
     expect(Math.round(badge(off).getBoundingClientRect().right)).toBe(
-      Math.round(
-        off.getBoundingClientRect().right - Number.parseFloat(getComputedStyle(off).paddingRight),
-      ),
+      Math.round(off.getBoundingClientRect().right - 8),
     );
     off.style.removeProperty("transition");
-    expect(getComputedStyle(off).transitionDuration).toBe("0.24s");
+    expect(new Set(getComputedStyle(off).transitionDuration.split(", "))).toEqual(
+      new Set(["0.24s"]),
+    );
   });
 
   it("marks a late part of the status line in the warning ink with a clock, and spaces its wrapped lines", () => {
@@ -4234,6 +4285,26 @@ describe("css/system.css lists, feeds and counts", () => {
     },
   );
 
+  it("draws no box for a list a script has not filled, and its rows once it has", () => {
+    theme("light");
+    const el = build('<div><ul class="cp-list"></ul></div>');
+    const list = el.querySelector(".cp-list") as HTMLElement;
+    expect(getComputedStyle(list).display).toBe("none");
+    list.setHTMLUnsafe(item());
+    expect(getComputedStyle(list).display).toBe("grid");
+  });
+
+  it("wraps a name with no break point inside its row rather than widening it", () => {
+    theme("light");
+    const el = build(
+      `<ul class="cp-list" style="inline-size: 16rem"><li><div class="cp-list-row"><span class="cp-cell-stack">${"x".repeat(80)}.ass</span></div></li></ul>`,
+    );
+    const row = el.querySelector(".cp-list-row") as HTMLElement;
+    const name = (row.querySelector(".cp-cell-stack") as Element).getBoundingClientRect();
+    expect(name.right).toBeLessThanOrEqual(row.getBoundingClientRect().right);
+    expect(name.height).toBeGreaterThan(40);
+  });
+
   it("heads a group in ink at 13px and the heading weight, lined up with a plain list's rows", () => {
     theme("light");
     const el = build(
@@ -4825,37 +4896,36 @@ describe("css/system.css data tables", () => {
   });
 
   const historyEvent = (tone: string, more = "") =>
-    `<li><span data-part="mark" data-tone="${tone}"><span class="cp-icon" data-cp-icon="plus"></span></span>` +
-    `<span><strong>Added</strong> from Sonarr${more}</span><time>today</time></li>`;
+    `<li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="${tone}"><span class="cp-icon" data-cp-icon="plus"></span></span>` +
+    `<div><p><strong>Added</strong> from Sonarr</p>${more}</div><span data-part="end"><time>today</time></span></div></li>`;
+  const timeline = (events: string, attrs = 'data-surface="plain"') =>
+    `<ol class="cp-list" data-variant="timeline" ${attrs}>${events}</ol>`;
 
-  it("heads each day of a history small and muted, the first with no space above", () => {
+  it("heads each day of a timeline with the group heading, lined up with its marks", () => {
     theme("light");
     const el = build(
-      `<div class="cp-history"><h3>Today</h3><ol>${historyEvent("neutral")}</ol>` +
-        `<h3>Last week</h3><ol>${historyEvent("neutral")}</ol>` +
-        `<h1>Last month</h1><ol>${historyEvent("neutral")}</ol></div>`,
+      `<div><h3 class="cp-list-heading">Today</h3>${timeline(historyEvent("neutral"))}` +
+        `<h3 class="cp-list-heading">Last week</h3>${timeline(historyEvent("neutral"))}</div>`,
     );
-    const [first, second, third] = [...el.querySelectorAll("h1, h3")].map((h) =>
-      getComputedStyle(h),
-    );
-    expect([first?.color, first?.fontWeight]).toEqual([resolve("var(--cp-ink-muted)"), "600"]);
-    expect(first?.fontSize).toBe(
-      getComputedStyle(host("", { style: "font-size: var(--cp-text-xs)" })).fontSize,
-    );
-    expect([first?.marginTop, first?.marginBottom]).toEqual(["0px", "8px"]);
-    expect(second?.marginTop).toBe("16px");
-    expect([third?.color, third?.fontSize, third?.fontWeight]).toEqual([
-      first?.color,
-      first?.fontSize,
-      first?.fontWeight,
+    const [first, second] = [...el.querySelectorAll<HTMLElement>("h3")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const heading = getComputedStyle(first);
+    expect([heading.color, heading.fontWeight, heading.paddingLeft]).toEqual([
+      resolve("var(--cp-ink)"),
+      "700",
+      "0px",
     ]);
+    expect([heading.marginTop, heading.marginBottom]).toEqual(["0px", "8px"]);
+    expect(getComputedStyle(second).marginTop).toBe("16px");
+    const mark = el.querySelector('[data-part="mark"]') as Element;
+    expect(mark.getBoundingClientRect().left).toBe(first.getBoundingClientRect().left);
   });
 
   it("marks each event with a round in its tone, joined to the next by a line", () => {
     theme("light");
-    const el = build(
-      `<div class="cp-history"><ol>${historyEvent("success")}${historyEvent("warning")}</ol></div>`,
-    );
+    const el = build(timeline(historyEvent("success") + historyEvent("warning")));
     const [mark] = [...el.querySelectorAll('[data-part="mark"]')];
     const box = (mark as Element).getBoundingClientRect();
     expect([box.width, box.height]).toEqual([32, 32]);
@@ -4864,6 +4934,10 @@ describe("css/system.css data tables", () => {
     expect(style.backgroundColor).toBe(
       getComputedStyle(host("", { "data-tone": "success", style: "background: var(--cp-tone-3)" }))
         .backgroundColor,
+    );
+    expect(style.color).toBe(
+      getComputedStyle(host("", { "data-tone": "success", style: "color: var(--cp-tone-11)" }))
+        .color,
     );
     const [joined, last] = [...el.querySelectorAll("li")].map((li) =>
       getComputedStyle(li, "::before"),
@@ -4874,8 +4948,46 @@ describe("css/system.css data tables", () => {
       "36px",
     ]);
     expect(last?.content).toBe("none");
+    const [first, second] = [...el.querySelectorAll("li")];
+    expect(getComputedStyle(second as Element).borderTopStyle).toBe("none");
+    const row = getComputedStyle(first?.firstElementChild as Element);
+    expect([row.paddingTop, row.paddingLeft, row.alignItems, row.fontSize]).toEqual([
+      "8px",
+      "0px",
+      "start",
+      "14px",
+    ]);
     const time = getComputedStyle(el.querySelector("time") as Element);
     expect([time.color, time.whiteSpace]).toEqual([resolve("var(--cp-ink-muted)"), "nowrap"]);
+    const words = (el.querySelector("p") as Element).getBoundingClientRect();
+    expect(words.left - box.right).toBe(12);
+  });
+
+  it("insets a boxed timeline's rows and moves the line with its marks", () => {
+    theme("light");
+    const el = build(timeline(historyEvent("success") + historyEvent("success"), ""));
+    const li = el.querySelector("li") as Element;
+    const mark = (li.querySelector('[data-part="mark"]') as Element).getBoundingClientRect();
+    expect(mark.left - el.getBoundingClientRect().left).toBe(17);
+    expect(getComputedStyle(li, "::before").insetInlineStart).toBe("31px");
+  });
+
+  it("gives a plain timeline's rows no fill under a mouse", async () => {
+    root.setAttribute("data-pointer", "fine");
+    theme("light");
+    const el = build(timeline(historyEvent("success")));
+    const row = el.querySelector(".cp-list-row") as HTMLElement;
+    row.style.transition = "none";
+    await userEvent.hover(row);
+    expect(getComputedStyle(row).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  });
+
+  it.skipIf(!emulates)("outlines an event's mark in forced colours", async () => {
+    await media("forced-colors", "active");
+    theme("light");
+    const el = build(timeline(historyEvent("success")));
+    const cs = getComputedStyle(el.querySelector('[data-part="mark"]') as Element);
+    expect([cs.borderTopStyle, cs.borderTopWidth]).toEqual(["solid", "1px"]);
   });
 
   it("turns an open event's chevron down in either direction, back as it starts to close", () => {
@@ -4883,9 +4995,8 @@ describe("css/system.css data tables", () => {
     const more = (open: string, closing = "") =>
       `<details ${open} ${closing}><summary><span class="cp-icon" data-cp-icon="chevron-right"></span>What changed</summary><p>Replaced</p></details>`;
     const el = build(
-      `<div class="cp-history"><ol>${historyEvent("success", more(""))}${historyEvent("success", more("open"))}` +
-        `${historyEvent("success", more("open", "data-cp-closing"))}</ol>` +
-        `<ol dir="rtl">${historyEvent("success", more("open"))}</ol></div>`,
+      `<div>${timeline(historyEvent("success", more("")) + historyEvent("success", more("open")) + historyEvent("success", more("open", "data-cp-closing")))}` +
+        `<div dir="rtl">${timeline(historyEvent("success", more("open")))}</div></div>`,
     );
     const turns = [...el.querySelectorAll("summary > .cp-icon")].map(
       (i) => getComputedStyle(i).rotate,
