@@ -8,6 +8,7 @@ import {
   chartModel,
   type AreaModel,
   type BarModel,
+  type BoxModel,
   type CellModel,
   type DotModel,
   type LineModel,
@@ -19,6 +20,7 @@ import {
 } from "./model.js";
 import {
   barReading,
+  boxReading,
   bucketReading,
   cellReading,
   columnReading,
@@ -1297,5 +1299,90 @@ describe("a cell chart's legend row", () => {
     const w = readoutWidths(m, words, face);
     expect(w.at).toBe(width("Wednesday, longest"));
     expect(w.values).toEqual([width(`1,000${nb}posts`)]);
+  });
+});
+
+describe("the legend row of a box plot", () => {
+  const latency = (two = false): ChartSpec => ({
+    y: { unit: { one: "endpoint", other: "endpoints" } },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "health"],
+        series: [
+          {
+            name: "Before",
+            low: [120, null],
+            q1: [180, null],
+            median: [240, null],
+            q3: [410, null],
+            high: [760, null],
+            outliers: [[1100, 2600], []],
+          },
+          ...(two
+            ? [
+                {
+                  name: "After",
+                  low: [100, 1],
+                  q1: [150, 2],
+                  median: [190, 2],
+                  q3: [300, 3],
+                  high: [600, 4],
+                },
+              ]
+            : []),
+        ],
+      },
+    ],
+  });
+  const boxOf = (m: Model) => m.marks[0] as BoxModel;
+
+  it("reads one series' median, middle half, whiskers and outlier count under their labels", () => {
+    const m = model(latency());
+    expect(boxReading(m, boxOf(m), 0, words)).toEqual({
+      at: "search",
+      entries: [
+        { slot: undefined, name: undefined, value: "Median 240" },
+        { slot: undefined, name: undefined, value: "Middle half 180 to 410" },
+        { slot: undefined, name: undefined, value: "Whiskers 120 to 760" },
+        { slot: undefined, name: undefined, value: "Outliers 2" },
+      ],
+      total: undefined,
+    });
+    expect(boxReading(m, boxOf(m), 1, words).entries.map((e) => e.value)).toEqual([
+      "No data",
+      "",
+      "",
+      "",
+    ]);
+  });
+
+  it("reads a median chip per series from two series up", () => {
+    const m = model(latency(true));
+    const r = boxReading(m, boxOf(m), 1, words);
+    expect(r.entries.map((e) => [e.name, e.value])).toEqual([
+      ["Before", "No data"],
+      ["After", "2"],
+    ]);
+  });
+
+  it("with no selection reads the row count and keeps the slots blank", () => {
+    expect(overall(model(latency()), words)).toEqual({
+      at: `2${nb}endpoints`,
+      entries: [0, 1, 2, 3].map(() => ({ slot: undefined, name: undefined, value: "" })),
+      total: undefined,
+    });
+    expect(overall(model(latency(true)), words)?.entries.map((e) => e.value)).toEqual(["", ""]);
+  });
+
+  it("keeps each slot at the widest reading of any row", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 7, "en");
+    const w = readoutWidths(model(latency()), words, measure);
+    expect(w.values).toEqual([
+      7 * "Median 240".length,
+      7 * "Middle half 180 to 410".length,
+      7 * "Whiskers 120 to 760".length,
+      7 * "Outliers 2".length,
+    ]);
   });
 });

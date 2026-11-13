@@ -27,6 +27,8 @@ import { barsApart, cellCount, cellOrder, pointLink, slopeChange } from "./model
 import {
   barPart,
   barReading,
+  boxPart,
+  boxReading,
   bucketReading,
   cellReading,
   changeText,
@@ -50,8 +52,8 @@ import type { Words } from "./words.js";
 /**
  * A bucket, a sample or a slope's column `i`, with one series (`part`) when
  * Up or Down chose it; the posts `[from, to)` of a dot row; a dot row as a
- * whole; a bar or point row, with one series (`part`) when Left or Right
- * chose it; a scatter's dot `i` of `series`; a cell chart's cell at
+ * whole; a bar, point or box row, with one series (`part`) when Left or
+ * Right chose it; a scatter's dot `i` of `series`; a cell chart's cell at
  * `row` and `column`, indices into its axes; or a calendar's day `i`.
  */
 export type Selection =
@@ -61,7 +63,11 @@ export type Selection =
   | { readonly kind: "slope"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "dot"; readonly row: number; readonly from: number; readonly to: number }
   | { readonly kind: "row"; readonly row: number }
-  | { readonly kind: "bar" | "point"; readonly row: number; readonly part: number | undefined }
+  | {
+      readonly kind: "bar" | "point" | "box";
+      readonly row: number;
+      readonly part: number | undefined;
+    }
   | { readonly kind: "scatter"; readonly series: number; readonly i: number }
   | { readonly kind: "cell"; readonly row: number; readonly column: number }
   | { readonly kind: "day"; readonly i: number };
@@ -170,7 +176,7 @@ const lineStops = (m: SampleModel): number[] =>
 
 /** The selection focus gives a chart that has none yet: the newest x or a
  *  slope's right column, on a timeline the first row's last post, or that
- *  row when it is silent, a bar or point chart's first row, whole, a
+ *  row when it is silent, a bar, point or box chart's first row, whole, a
  *  scatter's first dot in x order, a cell chart's first cell in reading
  *  order, or a calendar's newest day. */
 export function initial(model: Model): Selection | undefined {
@@ -198,6 +204,7 @@ export function initial(model: Model): Selection | undefined {
     }
     case "bar":
     case "point":
+    case "box":
       return bandRows(model) > 0 ? { kind: m.kind, row: 0, part: undefined } : undefined;
     case "slope":
       return { kind: "slope", i: 1, part: undefined };
@@ -213,8 +220,6 @@ export function initial(model: Model): Selection | undefined {
     }
     case "calendar":
       return m.values.length === 0 ? undefined : { kind: "day", i: m.values.length - 1 };
-    case "box":
-      return undefined;
   }
 }
 
@@ -323,7 +328,7 @@ function stepPart(order: readonly number[], part: number | undefined, up: boolea
 }
 
 /**
- * Where `key` moves a bar or point row selection over `rows` rows of `n`
+ * Where `key` moves a bar, point or box row selection over `rows` rows of `n`
  * series: Up and Down, Home, End and the Page keys through the rows, keeping
  * the chosen part; Left and Right through the row's parts in series order,
  * from the whole row to its first or last, the other way when `reverse`
@@ -332,7 +337,7 @@ function stepPart(order: readonly number[], part: number | undefined, up: boolea
 function moveRow(
   n: number,
   rows: number,
-  sel: Selection & { kind: "bar" | "point" },
+  sel: Selection & { kind: "bar" | "point" | "box" },
   key: Key,
   reverse: boolean,
 ): Selection | undefined {
@@ -512,8 +517,8 @@ export interface Navigator {
   /** The crosshair's px along x, absent for a row or a scatter's dot,
    *  whose crosshair is two rules to its edge. */
   crosshair(sel: Selection): number | undefined;
-  /** A touch drag moves the selection; on a bar, point or scatter chart
-   *  only a tap does, since a vertical drag is the page's scroll. */
+  /** A touch drag moves the selection; on a bar, point, box or scatter
+   *  chart only a tap does, since a vertical drag is the page's scroll. */
   readonly drags: boolean;
   /** Page Up and Page Down move the selection; on a slope, whose two
    *  columns have no ticks to page by, they are the page's. */
@@ -589,8 +594,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "dot") {
         return sel.kind === "dot" || sel.kind === "row" ? moveDot(m, sel, key, x) : undefined;
       }
-      if (m.kind === "bar" || m.kind === "point") {
-        // Bars one under another and a row's dots, which lie at their
+      if (m.kind === "bar" || m.kind === "point" || m.kind === "box") {
+        // Bars one under another, a row's dots and boxes, which lie at their
         // values, keep series order on a reversed x; a stack's segments and
         // the panels run with it.
         const along = f.x.reverse && m.kind === "bar" && (!barsApart(m) || f.panels !== undefined);
@@ -671,7 +676,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
           return { kind: m.kind, i, part: undefined };
         }
         case "bar":
-        case "point": {
+        case "point":
+        case "box": {
           // The row whose band holds the pointer, anywhere across the plot's
           // width: on a phone a row's name sits above its bars, inside its band.
           const n = lay.rows.length;
@@ -715,8 +721,6 @@ export function navigator(model: Model, lay: Layout): Navigator {
           );
           return block === -1 || i === -1 ? undefined : { kind: "day", i };
         }
-        case "box":
-          return undefined;
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;
@@ -742,7 +746,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
     },
     crosshair: (sel) => selectionPx(model, sel, f),
-    drags: m?.kind !== "bar" && m?.kind !== "point" && m?.kind !== "scatter",
+    drags: m?.kind !== "bar" && m?.kind !== "point" && m?.kind !== "box" && m?.kind !== "scatter",
     pages: m?.kind !== "slope",
     alongRow: m?.kind === "cell" || m?.kind === "calendar",
   };
@@ -773,7 +777,7 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     return now.x[i] === v && i >= now.from && i < now.to ? { kind: sel.kind, i, part } : undefined;
   }
   if (
-    (sel.kind === "bar" || sel.kind === "point") &&
+    (sel.kind === "bar" || sel.kind === "point" || sel.kind === "box") &&
     was.kind === sel.kind &&
     now.kind === sel.kind
   ) {
@@ -867,6 +871,9 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   if (sel.kind === "point" && m?.kind === "point") {
     return pointReading(model, m, sel.row, words);
   }
+  if (sel.kind === "box" && m?.kind === "box") {
+    return boxReading(model, m, sel.row, words);
+  }
   if (sel.kind === "slope" && m?.kind === "slope") {
     return columnReading(model, m, sel.i, words, sel.part);
   }
@@ -924,7 +931,10 @@ const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
           ? sel.kind === "cell" && sel.row === j.row && sel.column === j.column
           : j.kind === "day"
             ? sel.kind === "day" && sel.i === j.i
-            : (sel.kind === "row" || sel.kind === "bar" || sel.kind === "point") &&
+            : (sel.kind === "row" ||
+                sel.kind === "bar" ||
+                sel.kind === "point" ||
+                sel.kind === "box") &&
               sel.row === j.row;
 
 /** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
@@ -962,6 +972,17 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     if (part && s !== undefined) {
       return words.segment(reading.at, s.name, pointPart(model, s, sel.row, words));
     }
+  } else if (sel.kind === "box" && m.kind === "box") {
+    const s = sel.part === undefined ? undefined : m.series[sel.part];
+    if (part && s !== undefined) {
+      return words.segment(reading.at, s.name, boxPart(model, s, sel.row, words));
+    }
+    // Each series' part holds commas, so the parts are joined by "; ".
+    const parts = m.series.map((one) => {
+      const text = boxPart(model, one, sel.row, words);
+      return m.series.length === 1 ? text : `${one.name} ${text}`;
+    });
+    return words.reading(reading.at, parts.join("; "), "");
   } else if (sel.kind === "slope" && m.kind === "slope") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {

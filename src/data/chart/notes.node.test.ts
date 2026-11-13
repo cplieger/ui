@@ -834,3 +834,39 @@ describe("a note on a calendar", () => {
     expect(Math.abs((p?.y ?? 0) - ((g?.tops[0] ?? 0) + 12))).toBeLessThanOrEqual(0.5);
   });
 });
+
+describe("a note on a box plot", () => {
+  const boxes = (note: Mark): ChartSpec => ({
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export"],
+        series: [
+          { name: "Before", low: [1, 3], q1: [2, 4], median: [3, 5], q3: [4, 6], high: [5, 9] },
+          { name: "After", low: [1, 2], q1: [2, 3], median: [2, 4], q3: [3, 5], high: [4, 6] },
+        ],
+      },
+      note,
+    ],
+  });
+  const release: Mark = { mark: "text", x: 6, y: "export", text: "Release 2.1" };
+
+  it("sits along its row at its x and joins the row", () => {
+    const l = lay(boxes(release));
+    expect(l.notes[0]?.point).toEqual({ x: l.frame.xAt(6), y: l.rows[1]?.y });
+    expect(joined(boxes(release))).toEqual([{ kind: "row", row: 1 }]);
+  });
+
+  it("joins the row's reading whole and one series' box, and is said at the row's name", () => {
+    const m = chartModel(boxes(release), "en", "UTC");
+    expect(spoken(m, { kind: "box", row: 1, part: undefined }, words, false)).toMatch(
+      /; After median 4, .*\. Note: Release 2\.1\.$/u,
+    );
+    expect(spoken(m, { kind: "box", row: 1, part: 1 }, words, true)).toBe(
+      "export: After median 4, middle half 3 to 5, whiskers 2 to 6. Note: Release 2.1.",
+    );
+    expect(spoken(m, { kind: "box", row: 0, part: undefined }, words, false)).not.toMatch(/Note/u);
+    expect(generatedSummary(m, words)).toMatch(/ export: Release 2\.1\.$/u);
+    expect(tableModel(m, words).after).toBe("export: Release 2.1.");
+  });
+});

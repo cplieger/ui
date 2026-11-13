@@ -1,7 +1,7 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
- * bucket, sample, change point, dot row, category, slope series or scatter
- * dot, kept in place across updates.
+ * bucket, sample, change point, dot row, category, box, slope series,
+ * scatter dot, cell row or calendar week, kept in place across updates.
  * @module
  */
 
@@ -10,6 +10,7 @@ import { formatter } from "../scale/format.js";
 import { dayFormat, weekCount, weekRow } from "./calendar.js";
 import type {
   BarModel,
+  BoxModel,
   CalendarModel,
   CellModel,
   Model,
@@ -318,6 +319,44 @@ function cellTable(model: Model, m: CellModel, words: Words, after: string): Tab
   };
 }
 
+// A row per category, or per category and series from two series up with a
+// Series column, its five numbers Low to High and its outliers ascending.
+function boxTable(model: Model, m: BoxModel, words: Words, after: string): TableModel {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const several = m.series.length > 1;
+  const l = words.boxLabels;
+  const rows = names.flatMap((name, i) =>
+    m.series.map((s): Row => {
+      const b = s.boxes[i] ?? null;
+      const five = b === null ? [] : [b.low, b.q1, b.median, b.q3, b.high];
+      const cells: Cell[] = Array.from({ length: 5 }, (_, k) => {
+        const v = five[k];
+        return { parts: [v === undefined ? words.noData : model.xText(v)], num: true };
+      });
+      const out = s.outliers[i] ?? [];
+      cells.push({
+        parts: [out.length === 0 ? words.none : out.map((v) => model.xText(v)).join(", ")],
+        num: true,
+      });
+      return {
+        key: several ? `${name}\u0000${s.name}` : name,
+        head: [name],
+        cells: several ? [{ parts: [s.name], num: false }, ...cells] : cells,
+      };
+    }),
+  );
+  const columns = [l.low, l.q1, l.median, l.q3, l.high, l.outliers].map((text) => ({
+    text,
+    num: true,
+  }));
+  return {
+    corner: model.spec.y?.label ?? "",
+    columns: several ? [{ text: words.series, num: false }, ...columns] : columns,
+    rows,
+    after,
+  };
+}
+
 const DAY = 86_400_000;
 
 // A row per week column, headed by its first date, and a column per weekday
@@ -364,7 +403,11 @@ export const namedRows = (model: Model): boolean => {
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
-  const after = [...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
+  const whiskers =
+    m?.kind === "box" && m.whiskers !== undefined ? [words.whiskersNote(m.whiskers)] : [];
+  const after = [...whiskers, ...ruleSentences(model, words), ...noteSentences(model, words)].join(
+    " ",
+  );
   if (m === undefined) {
     return { corner: "", columns: [], rows: [], after };
   }
@@ -415,7 +458,7 @@ export function tableModel(model: Model, words: Words): TableModel {
     return calendarTable(model, m, words, after);
   }
   if (m.kind === "box") {
-    return { corner: "", columns: [], rows: [], after };
+    return boxTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {

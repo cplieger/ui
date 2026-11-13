@@ -14,7 +14,7 @@ import {
   sizeKey,
   writeLegend,
 } from "./draw.js";
-import { cellBox, hairline, num, snap, upright } from "./geometry.js";
+import { boxSegment, cellBox, hairline, num, snap, upright } from "./geometry.js";
 import { layout, type Layout } from "./layout.js";
 import { chartModel, type CellModel, type Model, type RectModel } from "./model.js";
 import { bucketReading, cellReading, overall, readoutWidths } from "./readout.js";
@@ -1420,6 +1420,40 @@ describe("a box plot", () => {
     );
     const log = draw({ ...latency(1), x: { type: "log", label: "Latency" } }, 600);
     expect(log.svg.querySelector('[data-part="zero"]')).toBeNull();
+  });
+
+  it("rings the row's boxes, or the chosen series' box, and turns its name ink", () => {
+    const d = draw(latency(2), 600);
+    const nav = navigator(d.model, d.lay);
+    const ring = (part: number | undefined) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "box", row: 1, part }, nav);
+      return d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    };
+    // A ring 1 px outside each box's edges: one per series, or the chosen one alone.
+    expect(ring(undefined).match(/M/g)).toHaveLength(2);
+    expect(ring(1).match(/M/g)).toHaveLength(1);
+    const m = d.model.marks[0];
+    const box =
+      m?.kind === "box" ? boxSegment(m, 1, 1, d.lay.frame, d.lay.rows[1]?.y ?? 0) : undefined;
+    expect(box).toBeDefined();
+    const { left, top, right, bottom } = box ?? { left: 0, top: 0, right: 0, bottom: 0 };
+    expect(ring(1)).toBe(
+      `M${num(left - 1)} ${num(top - 1)}H${num(right + 1)}V${num(bottom + 1)}H${num(left - 1)}Z`,
+    );
+    const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
+    expect(names.map((n) => n.hasAttribute("data-selected"))).toEqual([false, true, false]);
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+  });
+
+  it("draws an x rule down every row", () => {
+    const d = draw(
+      { ...latency(1), marks: [...latency(1).marks, { mark: "rule", x: 1000, label: "Target" }] },
+      600,
+    );
+    const rule = d.svg.querySelector('[data-part="area"] > [data-part="rule"]');
+    expect(rule?.getAttribute("d")).toBe(
+      `M${num(snap(d.lay.frame.xAt(1000), 1))} 0V${num(d.lay.frame.height)}`,
+    );
   });
 
   it("sets each name above its boxes on a phone", () => {

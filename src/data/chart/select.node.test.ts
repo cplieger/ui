@@ -1466,3 +1466,110 @@ describe("a calendar's selection", () => {
     );
   });
 });
+
+describe("box keys", () => {
+  const latency = (two = false): ChartSpec => ({
+    y: { unit: { one: "endpoint", other: "endpoints" } },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export", "health"],
+        series: [
+          {
+            name: "Before",
+            low: [120, 300, null],
+            q1: [180, 900, null],
+            median: [240, 1400, null],
+            q3: [410, 2100, null],
+            high: [760, 4000, null],
+            outliers: [[1100, 2600], [], []],
+          },
+          ...(two
+            ? [
+                {
+                  name: "After",
+                  low: [100, 200, 1],
+                  q1: [150, 700, 2],
+                  median: [190, 1000, 2],
+                  q3: [300, 1500, 3],
+                  high: [600, 3000, 4],
+                  outliers: [[], [5000], []],
+                },
+              ]
+            : []),
+        ],
+      },
+    ],
+  });
+  const box = (row: number, part?: number): Selection => ({ kind: "box", row, part });
+
+  it("focus starts on the first row, whole, and Up, Down, Home and End move through the rows", () => {
+    const b = built(latency());
+    expect(initial(b.model)).toEqual(box(0));
+    expect(press(b, box(0), "ArrowDown", "ArrowDown", "ArrowDown")).toEqual([
+      box(1),
+      box(2),
+      undefined,
+    ]);
+    expect(press(b, box(1), "Home")).toEqual([box(0)]);
+    expect(press(b, box(1), "End")).toEqual([box(2)]);
+    expect(press(b, box(0), "ArrowUp")).toEqual([undefined]);
+  });
+
+  it("Left and Right do nothing with one series, and step the series with two", () => {
+    expect(press(built(latency()), box(0), "ArrowRight", "ArrowLeft")).toEqual([
+      undefined,
+      undefined,
+    ]);
+    const b = built(latency(true));
+    expect(press(b, box(0), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      box(0, 0),
+      box(0, 1),
+      undefined,
+    ]);
+    expect(press(b, box(0, 1), "ArrowDown")).toEqual([box(1, 1)]);
+  });
+
+  it("picks the row under the pointer by tap only, anywhere across the plot", () => {
+    const b = built(latency());
+    const y = (r: number) => b.lay.rows[r]?.y ?? 0;
+    expect(b.nav.pick(1, y(1))).toEqual(box(1));
+    expect(b.nav.pick(b.lay.frame.width - 1, y(2))).toEqual(box(2));
+    expect(b.nav.drags).toBe(false);
+  });
+
+  it("keeps its row across an update by its name", () => {
+    const before = built(latency()).model;
+    const spec = latency();
+    const mark = spec.marks[0] as Extract<Mark, { mark: "box" }>;
+    const after = chartModel(
+      { ...spec, marks: [{ ...mark, y: ["export", "search", "health"] }] },
+      "en",
+      "UTC",
+    );
+    expect(rekey(before, box(0), after)).toEqual(box(1));
+  });
+
+  it("says one series' five numbers and outliers, No data for a missing box", () => {
+    const model = built(latency()).model;
+    expect(spoken(model, box(0), words, false)).toBe(
+      "search: median 240, middle half 180 to 410, whiskers 120 to 760, 2\u00A0outliers, 1,100 to 2,600.",
+    );
+    expect(spoken(model, box(1), words, false)).toBe(
+      "export: median 1,400, middle half 900 to 2,100, whiskers 300 to 4,000.",
+    );
+    expect(spoken(model, box(2), words, false)).toBe("health: No data.");
+  });
+
+  it("says each series' box joined by semicolons, and a chosen series alone", () => {
+    const model = built(latency(true)).model;
+    expect(spoken(model, box(1), words, false)).toBe(
+      "export: Before median 1,400, middle half 900 to 2,100, whiskers 300 to 4,000; " +
+        "After median 1,000, middle half 700 to 1,500, whiskers 200 to 3,000, 1\u00A0outlier, 5,000.",
+    );
+    expect(spoken(model, box(2, 1), words, true)).toBe(
+      "health: After median 2, middle half 2 to 3, whiskers 1 to 4.",
+    );
+    expect(spoken(model, box(2, 0), words, true)).toBe("health: Before No data.");
+  });
+});

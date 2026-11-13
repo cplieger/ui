@@ -17,6 +17,7 @@ import {
   scatterDotAt,
   slopeChange,
   type BarModel,
+  type BoxModel,
   type CalendarModel,
   type CellAxis,
   type CellModel,
@@ -31,6 +32,7 @@ import {
 } from "./model.js";
 import { noteJoin } from "./notes.js";
 import {
+  boxPart,
   bucketText,
   cellPlaceText,
   cellsText,
@@ -402,6 +404,41 @@ function scatterSummary(model: Model, m: ScatterModel, words: Words): string[] {
   return out;
 }
 
+// The rows and series head, then each series' rows with the highest and
+// lowest median and the widest middle half, the first in the app's order on
+// a tie, or a lone box whole; then the whiskers' convention.
+function boxSummary(model: Model, m: BoxModel, words: Words): string[] {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const n = m.series.length;
+  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const out = [words.countSummary(rowsText(model, words), series)];
+  const t = model.xText;
+  for (const s of m.series) {
+    const median = (i: number) => s.boxes[i]?.median ?? null;
+    const e = barExtremes(names, median);
+    if (e === undefined) {
+      continue;
+    }
+    if (e.held === 1) {
+      out.push(words.only(s.name, `${names[e.high] ?? ""} ${boxPart(model, s, e.high, words)}`));
+      continue;
+    }
+    const spread = (i: number) => {
+      const b = s.boxes[i] ?? null;
+      return b === null ? null : b.q3 - b.q1;
+    };
+    const w = barExtremes(names, spread)?.high ?? e.high;
+    const wide = s.boxes[w];
+    const place = (i: number) => `${names[i] ?? ""} ${t(median(i) ?? 0)}`;
+    const widest = `${names[w] ?? ""} ${words.range(t(wide?.q1 ?? 0), t(wide?.q3 ?? 0))}`;
+    out.push(words.boxSeries(s.name, place(e.high), place(e.low), widest));
+  }
+  if (m.whiskers !== undefined) {
+    out.push(words.whiskersNote(m.whiskers));
+  }
+  return out;
+}
+
 // The cell count, then the highest and lowest cells in reading order, the
 // first on a tie; a missing cell counts for nothing. No total, since cells
 // need not add up.
@@ -523,7 +560,9 @@ export function generatedSummary(model: Model, words: Words): string {
                     ? cellSummary(model, m, words)
                     : m?.kind === "calendar"
                       ? calendarSummary(model, m, words)
-                      : [];
+                      : m?.kind === "box"
+                        ? boxSummary(model, m, words)
+                        : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
@@ -548,7 +587,7 @@ function gridText(model: Model, m: CellModel, words: Words): string {
 }
 
 /** The plot's name: its kind, its series count from two up, and its x
- *  domain, or on a bar or point chart its row count, on a scatter its dot
+ *  domain, or on a bar, point or box chart its row count, on a scatter its dot
  *  count, on a cell chart its rows by its columns and on a calendar its
  *  day count, since their x is no span. */
 export function shortDescription(model: Model, words: Words): string {
@@ -560,7 +599,7 @@ export function shortDescription(model: Model, words: Words): string {
       : m.series.length;
   const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
   const range =
-    m?.kind === "bar" || m?.kind === "point"
+    m?.kind === "bar" || m?.kind === "point" || m?.kind === "box"
       ? rowsText(model, words)
       : m?.kind === "scatter"
         ? dotsText(model, m, words)

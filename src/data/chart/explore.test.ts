@@ -672,6 +672,59 @@ describe("keys and touch on a bar chart", () => {
   });
 });
 
+describe("keys and touch on a box plot", () => {
+  const latency: ChartSpec = {
+    y: { unit: { one: "endpoint", other: "endpoints" } },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export"],
+        series: [
+          { name: "Before", low: [1, 3], q1: [2, 4], median: [3, 5], q3: [4, 6], high: [5, 9] },
+          { name: "After", low: [1, 2], q1: [2, 3], median: [2, 4], q3: [3, 5], high: [4, 6] },
+        ],
+      },
+    ],
+  };
+  const plotHeight = (b: Built) =>
+    Number(b.plot.querySelector('[data-part="area"]')?.getAttribute("height")) - 2 * AREA_ROOM;
+
+  it("focus selects the first row with a median chip per series, Left and Right say one box, Up and Down the row", async () => {
+    const b = build(latency);
+    expect(legendText(b)).toBe(`2${nb}endpoints · Before · After`);
+    b.plot.focus();
+    await says(
+      "search: Before median 3, middle half 2 to 4, whiskers 1 to 5; After median 2, middle half 2 to 3, whiskers 1 to 4.",
+    );
+    expect(legendText(b)).toBe("search · Before · 3 · After · 2");
+    expect(crosshair(b)).toBe(null);
+    const cases: [string, string][] = [
+      ["ArrowRight", "search: Before median 3, middle half 2 to 4, whiskers 1 to 5."],
+      [
+        "ArrowDown",
+        "export: Before median 5, middle half 4 to 6, whiskers 3 to 9; After median 4, middle half 3 to 5, whiskers 2 to 6.",
+      ],
+    ];
+    for (const [name, text] of cases) {
+      expect(key(b.plot, name).defaultPrevented, name).toBe(true);
+      await says(text);
+    }
+  });
+
+  it("a tap selects the row under it, and a drag never selects", () => {
+    const b = build(latency);
+    const w = plotWidth(b);
+    const h = plotHeight(b);
+    point(b, "pointerdown", w * 0.1, h * 0.75, "touch");
+    point(b, "pointermove", w * 0.9, h * 0.75, "touch");
+    point(b, "pointerup", w * 0.9, h * 0.75, "touch");
+    expect(ring(b)).toBe(null);
+    point(b, "pointerdown", w * 0.9, h * 0.75, "touch");
+    point(b, "pointerup", w * 0.9, h * 0.75, "touch");
+    expect(legendText(b)).toBe("export · Before · 5 · After · 4");
+  });
+});
+
 describe("keys and the pointer on a slope chart", () => {
   const pets: ChartSpec = {
     marks: [

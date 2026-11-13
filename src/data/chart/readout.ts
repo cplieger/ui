@@ -28,6 +28,7 @@ import {
   type BarModel,
   type BarSeriesModel,
   type BoxModel,
+  type BoxSeriesModel,
   type CalendarModel,
   type CellModel,
   type DotModel,
@@ -431,6 +432,68 @@ export function changeText(model: Model, v: number): string {
   return signedFormatter(model.y.type === "band" ? undefined : model.y.format, model.locale)(v);
 }
 
+/** A box's outliers in words through `words.outlierReading`, their count
+ *  in `words.outlierUnit`; "" without any. */
+function outliersText(model: Model, s: BoxSeriesModel, r: number, words: Words): string {
+  const all = s.outliers[r] ?? [];
+  const n = all.length;
+  if (n === 0) {
+    return "";
+  }
+  const count = counted(formatter("number", model.locale)(n), n, words.outlierUnit, model);
+  const last = n > 1 ? model.xText(all[n - 1] ?? 0) : "";
+  return words.outlierReading(count, model.xText(all[0] ?? 0), last);
+}
+
+/** Series `s`'s box in row `r` as a reading says it: its five numbers
+ *  through `words.box`, then its outliers, or No data. */
+export function boxPart(model: Model, s: BoxSeriesModel, r: number, words: Words): string {
+  const b = s.boxes[r] ?? null;
+  if (b === null) {
+    return words.noData;
+  }
+  const t = model.xText;
+  const five = words.box(t(b.median), t(b.q1), t(b.q3), t(b.low), t(b.high));
+  const out = outliersText(model, s, r, words);
+  return out === "" ? five : `${five}, ${out}`;
+}
+
+// A lone series' four measure slots, the first `first` and the rest blank.
+const boxSlots = (first: string): Entry[] =>
+  [first, "", "", ""].map((value) => ({ slot: undefined, name: undefined, value }));
+
+/** Row `r` of box mark `m`: its name, then with one series its median,
+ *  middle half, whiskers and outlier count each under its `boxLabels`
+ *  label, or from two series up a chip per series with its median. */
+export function boxReading(model: Model, m: BoxModel, r: number, words: Words): Reading {
+  const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
+  const t = model.xText;
+  if (m.series.length > 1) {
+    const all = m.series.map((s) => {
+      const b = s.boxes[r] ?? null;
+      return { slot: s.slot, name: s.name, value: b === null ? words.noData : t(b.median) };
+    });
+    return { at, entries: all, total: undefined };
+  }
+  const s = m.series[0];
+  const b = s?.boxes[r] ?? null;
+  if (s === undefined || b === null) {
+    return { at, entries: boxSlots(words.noData), total: undefined };
+  }
+  const l = words.boxLabels;
+  const n = s.outliers[r]?.length ?? 0;
+  return {
+    at,
+    entries: [
+      ...bare(words.measure(l.median, t(b.median))),
+      ...bare(words.measure(l.middle, words.range(t(b.q1), t(b.q3)))),
+      ...bare(words.measure(l.whiskers, words.range(t(b.low), t(b.high)))),
+      ...bare(words.measure(l.outliers, formatter("number", model.locale)(n))),
+    ],
+    total: undefined,
+  };
+}
+
 /** How many cells a cell chart has, missing ones included, through `words.cells`. */
 export function cellsText(model: Model, m: CellModel, words: Words): string {
   const n = cellCount(m.x) * cellCount(m.y);
@@ -525,7 +588,7 @@ export function dayReading(model: Model, m: CalendarModel, i: number, words: Wor
  *  values, an area's last whole stack, a bar or point chart's row count,
  *  a slope's right column, a scatter's dot count, blank slots for its
  *  measures and from two series up each one's count, a cell chart's
- *  cell count, or a calendar's day count. */
+ *  cell count, a calendar's day count, or a box chart's row count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -604,7 +667,15 @@ export function overall(model: Model, words: Words): Reading | undefined {
     case "calendar":
       return { at: daysText(model, m, words), entries: bare(""), total: undefined };
     case "box":
-      return undefined;
+      // Distributions do not add up across rows, so the slots are blank.
+      return {
+        at: rowsText(model, words),
+        entries:
+          m.series.length === 1
+            ? boxSlots("")
+            : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
+        total: undefined,
+      };
   }
 }
 
@@ -845,6 +916,10 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
   } else if (m?.kind === "bar" || m?.kind === "point") {
     for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
       add(m.kind === "bar" ? barReading(model, m, r, words) : pointReading(model, m, r, words));
+    }
+  } else if (m?.kind === "box") {
+    for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
+      add(boxReading(model, m, r, words));
     }
   } else if (m?.kind === "slope") {
     add(columnReading(model, m, 0, words));

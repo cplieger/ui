@@ -875,3 +875,76 @@ describe("the table of a calendar", () => {
     ]);
   });
 });
+
+describe("the table of a box plot", () => {
+  const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
+    y: { label: "Endpoint" },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "health"],
+        series: [
+          {
+            name: "Before",
+            low: [120, null],
+            q1: [180, null],
+            median: [240, null],
+            q3: [410, null],
+            high: [760, null],
+            outliers: [[2600, 1100], []],
+          },
+          ...(two
+            ? [
+                {
+                  name: "After",
+                  low: [100, 1],
+                  q1: [150, 2],
+                  median: [190, 2],
+                  q3: [300, 3],
+                  high: [600, 4],
+                },
+              ]
+            : []),
+        ],
+        ...more,
+      },
+      { mark: "rule", x: 500, label: "Target" },
+    ],
+  });
+
+  it("holds a row per category from Low to High, outliers ascending, then the whiskers and rules", () => {
+    const t = tableModel(model(latency({ whiskers: "1.5 × IQR" })), words);
+    expect(t.corner).toBe("Endpoint");
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "Low",
+      "Lower quartile",
+      "Median",
+      "Upper quartile",
+      "High",
+      "Outliers",
+    ]);
+    expect(cells(t)).toEqual([
+      ["search", "120", "180", "240", "410", "760", "1,100, 2,600"],
+      ["health", "No data", "No data", "No data", "No data", "No data", "None"],
+    ]);
+    expect(t.after).toBe("Whiskers: 1.5 × IQR. Target 500.");
+  });
+
+  it("holds a row per category and series from two series up, with a Series column", () => {
+    const t = tableModel(model(latency({}, true)), words);
+    expect(t.columns[0]?.text).toBe("Series");
+    expect(cells(t)).toEqual([
+      ["search", "Before", "120", "180", "240", "410", "760", "1,100, 2,600"],
+      ["search", "After", "100", "150", "190", "300", "600", "None"],
+      ["health", "Before", "No data", "No data", "No data", "No data", "No data", "None"],
+      ["health", "After", "1", "2", "2", "3", "4", "None"],
+    ]);
+    expect(new Set(t.rows.map((r) => r.key)).size).toBe(4);
+  });
+
+  it("takes the app's measure names", () => {
+    const t = tableModel(model(latency()), chartWords({ boxLabels: { median: "Médiane" } }));
+    expect(t.columns.map((c) => c.text)).toContain("Médiane");
+    expect(t.columns.map((c) => c.text)).toContain("Low");
+  });
+});

@@ -1352,3 +1352,60 @@ describe("a cell chart's summary", () => {
     expect(generatedSummary(model(spec), words)).toContain("Tuesday, 3 PM: Release.");
   });
 });
+
+describe("the summary of a box plot", () => {
+  const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
+    y: { unit: { one: "endpoint", other: "endpoints" } },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export", "health"],
+        series: [
+          {
+            name: "Latency",
+            low: [120, 300, 1],
+            q1: [180, 900, 2],
+            median: [240, 1400, 2],
+            q3: [410, 2100, 3],
+            high: [760, 4000, 4],
+          },
+          ...(two
+            ? [
+                {
+                  name: "After",
+                  low: [null, 50, null],
+                  q1: [null, 60, null],
+                  median: [null, 70, null],
+                  q3: [null, 80, null],
+                  high: [null, 90, null],
+                },
+              ]
+            : []),
+        ],
+        ...more,
+      },
+    ],
+  });
+
+  it("names each series' highest and lowest median and widest middle half, then the whiskers", () => {
+    expect(generatedSummary(model(latency({ whiskers: "1.5 × IQR" })), words)).toBe(
+      `3${nb}endpoints. Latency: highest median export 1,400, lowest median health 2, ` +
+        "widest middle half export 900 to 2,100. Whiskers: 1.5 × IQR.",
+    );
+  });
+
+  it("counts the series, and reads a series with one box whole", () => {
+    expect(generatedSummary(model(latency({}, true)), words)).toBe(
+      `3${nb}endpoints, 2 series. Latency: highest median export 1,400, lowest median health 2, ` +
+        "widest middle half export 900 to 2,100. " +
+        "After: export median 70, middle half 60 to 80, whiskers 50 to 90.",
+    );
+  });
+
+  it("is described by its row count", () => {
+    expect(shortDescription(model(latency()), words)).toBe(`Box plot, 3${nb}endpoints`);
+    expect(shortDescription(model(latency({}, true)), words)).toBe(
+      `Box plot, 2 series, 3${nb}endpoints`,
+    );
+  });
+});

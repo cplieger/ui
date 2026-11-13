@@ -11,6 +11,7 @@ import {
   arrowPaths,
   barPaths,
   boxPaths,
+  boxSegment,
   barSegments,
   bubblePaths,
   bucketEdges,
@@ -434,8 +435,8 @@ const outset = (g: Segment): string =>
 /** The ring's path for `sel`: the bar or its segment, a group's sub-columns
  *  or the chosen one, each line's point or each layer's top or the chosen
  *  one, the drawn dot, a row's hairline, a bar row's bar, its bars in each
- *  panel, or the chosen part, a point row's dots or the chosen one, or a
- *  scatter's dot. */
+ *  panel, or the chosen part, a point row's dots or the chosen one, a box
+ *  row's boxes or the chosen one, or a scatter's dot. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -521,6 +522,15 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
       .map((at) => (at === undefined ? "" : ring(at, cy, POINT_RADIUS + 1)))
       .join("");
   }
+  if (sel.kind === "box" && m?.kind === "box") {
+    const cy = lay.rows[sel.row]?.y ?? 0;
+    return m.series
+      .map((_, k) =>
+        sel.part === undefined || sel.part === k ? boxSegment(m, k, sel.row, f, cy) : undefined,
+      )
+      .map((g) => (g === undefined ? "" : outset(g)))
+      .join("");
+  }
   if (sel.kind === "scatter" && m?.kind === "scatter") {
     const c = scatterAt(m, sel.series, sel.i, f);
     return c === undefined ? "" : ring(c.x, c.y, dotRadius(m, sel.series, sel.i, f) + 1);
@@ -580,14 +590,18 @@ export function drawSelection(
 ): void {
   const area = svg.querySelector('[data-part="area"]');
   area?.querySelector('[data-part="selection"]')?.remove();
-  // A bar or point row's selection, and a cell's row and column, show by
-  // their names' weight too, not by colour alone.
+  // A bar, point or box row's selection, and a cell's row and column, show
+  // by their names' weight too, not by colour alone.
   const bandY = model.y.type === "band";
   // A calendar names its weekdays in every block, so the day's own block's name turns.
   const day =
     sel?.kind === "day" && lay.days !== undefined ? dayPlace(lay.days.weeks, sel.i) : undefined;
   svg.querySelectorAll('[data-part="y"] > text').forEach((name, r) => {
-    const row = sel?.kind === "bar" || sel?.kind === "point" || (sel?.kind === "cell" && bandY);
+    const row =
+      sel?.kind === "bar" ||
+      sel?.kind === "point" ||
+      sel?.kind === "box" ||
+      (sel?.kind === "cell" && bandY);
     name.toggleAttribute(
       "data-selected",
       (row && sel.row === r) || (day !== undefined && day.block * 7 + day.row === r),

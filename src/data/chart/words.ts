@@ -3,6 +3,8 @@
  * @module
  */
 
+import type { Unit } from "../scale/format.js";
+
 type Kind =
   | "stackedColumn"
   | "groupedColumn"
@@ -33,6 +35,19 @@ type Kind =
   | "histogram2d"
   | "calendar"
   | "box";
+
+/** A box plot's measure names. Defaults "Low", "Lower quartile", "Median",
+ *  "Upper quartile", "High", "Outliers", "Middle half", "Whiskers". */
+interface BoxLabels {
+  readonly low: string;
+  readonly q1: string;
+  readonly median: string;
+  readonly q3: string;
+  readonly high: string;
+  readonly outliers: string;
+  readonly middle: string;
+  readonly whiskers: string;
+}
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -152,8 +167,27 @@ export interface ChartWords {
    *  {low}.", or "{count}." without them. */
   readonly cellSummary?: (count: string, high: string, low: string) => string;
   /** A scatter dot's value with its axis label, in the legend row, the
-   *  readings and a note's place. Default "{label} {value}". */
+   *  readings and a note's place, and a box's measure with its
+   *  `boxLabels` label in the legend row. Default "{label} {value}". */
   readonly measure?: (label: string, value: string) => string;
+  /** A box's five numbers in a reading and a lone row's summary. Default
+   *  "median {median}, middle half {q1} to {q3}, whiskers {low} to {high}". */
+  readonly box?: (median: string, q1: string, q3: string, low: string, high: string) => string;
+  /** The noun a box's outlier count takes. Default "outlier", "outliers". */
+  readonly outlierUnit?: Unit;
+  /** A box's outliers in a reading; count is already "{n} {outlierUnit}",
+   *  and to is "" for one outlier. Default "{count}, {from} to {to}", or
+   *  "{count}, {from}". */
+  readonly outlierReading?: (count: string, from: string, to: string) => string;
+  /** Summary, one box series; high and low are each "{row} {median}",
+   *  widest "{row} {q1} to {q3}". Default "{name}: highest median {high},
+   *  lowest median {low}, widest middle half {widest}." */
+  readonly boxSeries?: (name: string, high: string, low: string, widest: string) => string;
+  /** Summary and after the table, a box mark's `whiskers`. Default "Whiskers: {text}." */
+  readonly whiskersNote?: (text: string) => string;
+  /** A box's measures, member by member: the table's heads, and the
+   *  legend row's labels (`median`, `middle`, `whiskers`, `outliers`). */
+  readonly boxLabels?: Readonly<Partial<BoxLabels>>;
   /** Summary, a bar, point or scatter chart's head; series is "" for one series. Default
    *  "{count}, {series}.", or "{count}." with one series. */
   readonly countSummary?: (count: string, series: string) => string;
@@ -200,8 +234,9 @@ export interface ChartWords {
   readonly more?: (n: string) => string;
 }
 
-export type Words = Required<Omit<ChartWords, "kind">> & {
+export type Words = Required<Omit<ChartWords, "kind" | "boxLabels">> & {
   readonly kind: Readonly<Record<Kind, string>>;
+  readonly boxLabels: BoxLabels;
 };
 
 // An app's note may already be a sentence ("Deploy of 1.4.0."), which a second stop would end twice.
@@ -286,6 +321,24 @@ const DEFAULTS: Words = {
   cellSummary: (count, high, low) =>
     high === "" ? `${count}.` : `${count}. Highest ${high}. Lowest ${low}.`,
   measure: (label, value) => `${label} ${value}`,
+  box: (median, q1, q3, low, high) =>
+    `median ${median}, middle half ${q1} to ${q3}, whiskers ${low} to ${high}`,
+  outlierUnit: { one: "outlier", other: "outliers" },
+  outlierReading: (count, from, to) =>
+    to === "" ? `${count}, ${from}` : `${count}, ${from} to ${to}`,
+  boxSeries: (name, high, low, widest) =>
+    `${name}: highest median ${high}, lowest median ${low}, widest middle half ${widest}.`,
+  whiskersNote: (text) => `Whiskers: ${text}.`,
+  boxLabels: {
+    low: "Low",
+    q1: "Lower quartile",
+    median: "Median",
+    q3: "Upper quartile",
+    high: "High",
+    outliers: "Outliers",
+    middle: "Middle half",
+    whiskers: "Whiskers",
+  },
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
   extremes: (high, low) => `Highest ${high}, lowest ${low}.`,
@@ -305,8 +358,13 @@ const DEFAULTS: Words = {
   more: (n) => `and ${n} more`,
 };
 
-/** `words` over the defaults, member by member. */
+/** `words` over the defaults, member by member, and `kind` and `boxLabels` key by key. */
 export function chartWords(words: ChartWords = {}): Words {
   const given = Object.fromEntries(Object.entries(words).filter(([, v]) => v !== undefined));
-  return { ...DEFAULTS, ...given, kind: { ...DEFAULTS.kind, ...words.kind } };
+  return {
+    ...DEFAULTS,
+    ...given,
+    kind: { ...DEFAULTS.kind, ...words.kind },
+    boxLabels: { ...DEFAULTS.boxLabels, ...words.boxLabels },
+  };
 }

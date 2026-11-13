@@ -323,7 +323,7 @@ interface Five {
   readonly high: number;
 }
 
-interface BoxSeriesModel {
+export interface BoxSeriesModel {
   readonly name: string;
   readonly slot: number;
   /** Per row of the band, its five numbers, or `null` where all five are gaps. */

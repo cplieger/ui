@@ -156,9 +156,9 @@ export function explore(
     if (next !== undefined) {
       select(next);
       // The keys that choose a part say it alone: Left and Right across a
-      // bar or point row, Up and Down through a stack or the lines.
+      // bar, point or box row, Up and Down through a stack or the lines.
       const across = e.key === "ArrowLeft" || e.key === "ArrowRight";
-      const band = next.kind === "bar" || next.kind === "point";
+      const band = next.kind === "bar" || next.kind === "point" || next.kind === "box";
       say(next, band ? across : e.key === "ArrowUp" || e.key === "ArrowDown");
     }
   });
