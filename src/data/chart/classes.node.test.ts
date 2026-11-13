@@ -66,6 +66,26 @@ describe("equal classes", () => {
     ]);
   });
 
+  it("puts a sequential boundary that falls on 0 exactly on 0, so a 0 cell takes the class above", () => {
+    // From -0.3 in classes 0.1 wide, the third boundary is 0.
+    const c = classes({ steps: 4 }, [-0.3, 0]);
+    expect(c.thresholds).toEqual([-0.2, -0.1, 0]);
+    expect(Object.is(c.thresholds[2], 0)).toBe(true);
+    expect(classOf(c, 0)).toBe(3);
+  });
+
+  it("puts a diverging boundary that falls on 0 exactly on 0", () => {
+    // Pivot 0.3, half-span 0.4 over 4 classes a side: 0.1 wide, the first boundary 0.3 − 3 × 0.1.
+    const d = classes({ type: "diverging", steps: 8, pivot: 0.3 }, [-0.1, 0.7]);
+    expect(d.thresholds).toEqual([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]);
+    expect(Object.is(d.thresholds[0], 0)).toBe(true);
+  });
+
+  it("starts at the multiple of the width at the least value when the least value is one", () => {
+    // 0.03 / 4 = 0.0075, so 0.01 wide from -0.07, which reaches -0.03.
+    expect(classes({ steps: 4 }, [-0.07, -0.04]).thresholds).toEqual([-0.06, -0.05, -0.04]);
+  });
+
   it("centres an odd diverging count's middle class on the pivot", () => {
     // The half-span is 8, so 5 classes are each at least 3.2 wide: 5.
     expect(classes({ type: "diverging" }, [-8, 3])).toEqual({
