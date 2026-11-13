@@ -15,7 +15,8 @@ interface Scale {
   /** The axis title; required on both axes of a scatter, whose readings
    *  name each measure by it. */
   readonly label?: string;
-  /** The measured noun ("posts"), or the band's rows ("agents"). */
+  /** The measured noun ("posts"), or the band's rows ("agents"); none on a
+   *  scatter, whose readings name each measure by its label. */
   readonly unit?: Unit;
   /** Linear, log and time only. */
   readonly domain?: readonly [number, number];
@@ -219,7 +220,6 @@ interface SizeScale {
   readonly type?: "linear";
   /** Required: the readings name the size by it. */
   readonly label?: string;
-  readonly unit?: Unit;
   /** Its low end is 0; every r value lies inside it. Shared by several
    *  charts, it keeps one size for one value across them. */
   readonly domain?: readonly [number, number];

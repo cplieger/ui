@@ -709,7 +709,7 @@ const LIFE = [
 
 function lifeSlope(): ChartSpec {
   return {
-    y: { label: "Life expectancy", unit: YEARS, zero: false },
+    y: { label: "Life expectancy", zero: false },
     marks: [
       {
         mark: "slope",
@@ -782,7 +782,7 @@ function nations(sized: boolean): ChartSpec {
       label: "GDP per capita",
       format: { style: "currency", currency: "USD", maximumFractionDigits: 0 },
     },
-    y: { label: "Life expectancy", unit: YEARS },
+    y: { label: "Life expectancy" },
     ...(sized
       ? { r: { label: "Population", format: { notation: "compact", maximumFractionDigits: 1 } } }
       : {}),

@@ -9,7 +9,9 @@ import {
   instantFormat,
   signedFormatter,
   spanFormat,
+  widthKey,
   type Unit,
+  type WidthKey,
 } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
 import { spansDay } from "../scale/time.js";
@@ -357,6 +359,14 @@ export interface Model {
    *  bar or point chart, else `yText`), or a plain number under "share",
    *  whose axis writes shares. */
   readonly amountText: (v: number) => string;
+  /** The width keys of `xText` off a time x and a slope, `yText`, `rText`
+   *  and `amountText`; undefined where a format has none. */
+  readonly widthKeys: {
+    readonly x: WidthKey | undefined;
+    readonly y: WidthKey | undefined;
+    readonly r: WidthKey | undefined;
+    readonly amount: WidthKey | undefined;
+  };
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
 }
@@ -836,6 +846,11 @@ function check(spec: unknown): asserts spec is ChartSpec {
       if (typeof label !== "string" || label === "") {
         fail(`${axis}.label is required on a scatter, whose readings name each measure by it`);
       }
+      if (isObject(scale) && scale["unit"] !== undefined) {
+        fail(
+          `${axis}.unit has no place on a scatter, whose readings name each measure by its label; the mark's unit names the dots`,
+        );
+      }
     }
   }
   const band =
@@ -1202,6 +1217,8 @@ export function chartModel(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
   const bars = marks.some((m) => m.kind === "bar" || m.kind === "point");
+  const xKey = slope !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
+  const yKey = y.type === "band" ? undefined : widthKey(y.format, locale);
   return {
     spec,
     x,
@@ -1214,6 +1231,12 @@ export function chartModel(
     yText,
     rText,
     amountText: share ? formatter("number", locale) : bars ? xText : yText,
+    widthKeys: {
+      x: xKey,
+      y: yKey,
+      r: widthKey(size?.format, locale),
+      amount: share ? widthKey("number", locale) : bars ? xKey : yKey,
+    },
     locale,
     timeZone,
   };

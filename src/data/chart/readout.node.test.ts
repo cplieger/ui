@@ -446,6 +446,20 @@ describe("the legend row's widths", () => {
     });
   });
 
+  it("holds a line value on a linear x wider than its spread and extremes", () => {
+    const n = 1_000;
+    const y = per(n, (i) => (i === 0 ? 0 : i === n - 1 ? 9_000_000 : i === 2 ? 7_123_456.25 : 50));
+    const x = per(n, (i) => (i === 5 ? 5.125 : i));
+    const m = model({ x: {}, marks: [{ mark: "line", x, series: [{ name: "a", y }] }] });
+    const w = readoutWidths(m, words, measure);
+    expect(w.values[0]).toBe(measure.number("7,123,456.25"));
+    expect(w.at).toBe(measure.number("5.125"));
+    const line = m.marks[0] as LineModel;
+    for (let i = 0; i < n; i++) {
+      fits(sampleReading(m, line, i, words), w);
+    }
+  });
+
   it("holds every sample of a line", () => {
     const x = per(500, (i) => START + i * MIN);
     const m = model({
@@ -1034,7 +1048,7 @@ describe("a scatter's legend row with a dot selected", () => {
     ]);
   });
 
-  it("finds each measure's widest reading among thousands of dots by their extremes", () => {
+  it("finds each measure's widest reading among thousands of dots, past their extremes", () => {
     const n = 5_000;
     const m = model({
       x: { label: "x" },
@@ -1059,6 +1073,60 @@ describe("a scatter's legend row with a dot selected", () => {
       measurer((t) => 7 * Array.from(t).length, 7, "en"),
     );
     expect(w.values).toEqual([7 * "x 12,345".length, 7 * "y -42".length]);
+  });
+  it("holds a value wider than the extremes and every evenly spread dot", () => {
+    // 71.25 at an index no spread of 256 picks, between extremes of 0 and 100.
+    const n = 1_000;
+    const x = per(n, (i) => (i === 0 ? 0 : i === n - 1 ? 100 : i === 2 ? 71.25 : 50));
+    const m = model({
+      x: { label: "x" },
+      y: { label: "y" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [{ name: "All", names: per(n, (i) => `d${String(i)}`), x, y: x }],
+        },
+      ],
+    });
+    const w = readoutWidths(
+      m,
+      words,
+      measurer((t) => 7 * Array.from(t).length, 7, "en"),
+    );
+    expect(w.values).toEqual([7 * "x 71.25".length, 7 * "y 71.25".length]);
+    const dots = m.marks[0] as ScatterModel;
+    for (let i = 0; i < n; i++) {
+      scatterReading(m, dots, 0, i, words).entries.forEach((e, k) => {
+        expect(7 * Array.from(e.value).length).toBeLessThanOrEqual(w.values[k] ?? 0);
+      });
+    }
+  });
+
+  it("writes every value of a format it cannot key, such as a function's", () => {
+    const n = 1_000;
+    const m = model({
+      x: { label: "x", format: (v) => (v === 7 ? "seven" : String(v)) },
+      y: { label: "y" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            {
+              name: "All",
+              names: per(n, (i) => `d${String(i)}`),
+              x: per(n, (i) => (i === 3 ? 7 : i === n - 1 ? 100 : i)),
+              y: per(n, () => 1),
+            },
+          ],
+        },
+      ],
+    });
+    const w = readoutWidths(
+      m,
+      words,
+      measurer((t) => 7 * Array.from(t).length, 7, "en"),
+    );
+    expect(w.values[0]).toBe(7 * "x seven".length);
   });
 });
 

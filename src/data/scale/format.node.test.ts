@@ -10,6 +10,7 @@ import {
   signedFormatter,
   spanFormat,
   tickFormat,
+  widthKey,
   withNoun,
 } from "./format.js";
 
@@ -36,6 +37,62 @@ describe("formatter", () => {
     expect(formatter(options, "en")(3)).toBe(new Intl.NumberFormat("en", options).format(3));
     expect(formatter((v) => `v${String(v)}`, "en")(3)).toBe("v3");
     expect(formatter("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
+  });
+});
+
+describe("widthKey", () => {
+  const shape = (t: string) => t.replace(/\p{Nd}/gu, "0");
+  const values = [
+    0, -0, 1, -1, 9, 10, 99.5, 999.4, 1_234.5, -12_345.678, 0.5, 0.05, 0.0004, 0.0005, 1.005,
+    9.9996, 71.25, 1e9, 123_456_789.123,
+  ];
+
+  it.each([
+    ["en", undefined],
+    ["fr", "number"],
+    ["de", "integer"],
+    ["en", "percent"],
+    ["hi", { maximumFractionDigits: 1 }],
+    [
+      "en",
+      { minimumFractionDigits: 2, maximumFractionDigits: 2, trailingZeroDisplay: "stripIfInteger" },
+    ],
+    ["fr", { style: "currency", currency: "EUR" }],
+    ["ar-EG", { useGrouping: "min2" }],
+  ] as const)("gives texts of one width one key, in %s with %j", (locale, format) => {
+    const key = widthKey(format, locale);
+    expect(key).toBeDefined();
+    for (const signed of [false, true]) {
+      const write = (signed ? signedFormatter : formatter)(format, locale);
+      const seen = new Map<number, string>();
+      for (const v of values) {
+        const k = key?.(v) ?? Number.NaN;
+        if (!Number.isNaN(k)) {
+          const s = seen.get(k) ?? shape(write(v));
+          expect(shape(write(v)), String(v)).toBe(s);
+          seen.set(k, s);
+        }
+      }
+    }
+  });
+
+  it("tells apart texts of another width", () => {
+    const key = widthKey(undefined, "en");
+    expect(key?.(71.25)).not.toBe(key?.(50));
+    expect(key?.(100)).not.toBe(key?.(50));
+    expect(key?.(-5)).not.toBe(key?.(5));
+    expect(key?.(0)).not.toBe(key?.(1));
+  });
+
+  it("has none for what it cannot read", () => {
+    expect(widthKey("duration", "en")).toBeUndefined();
+    expect(widthKey((v) => String(v), "en")).toBeUndefined();
+    expect(widthKey({ notation: "compact" }, "en")).toBeUndefined();
+    expect(widthKey({ maximumSignificantDigits: 2 }, "en")).toBeUndefined();
+    expect(
+      widthKey({ style: "unit", unit: "megabyte", unitDisplay: "long" }, "en"),
+    ).toBeUndefined();
+    expect(widthKey(undefined, "en")?.(2 ** 60)).toBeNaN();
   });
 });
 

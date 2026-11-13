@@ -11,16 +11,24 @@ import { expect, it } from "vitest";
 // its reason.
 const BUDGET = 44_550;
 
-it("@cplieger/ui/chart bundles, minified and gzipped, within its budget", async () => {
-  const out = await build({
-    entryPoints: [resolve(import.meta.dirname, "chart.ts")],
-    bundle: true,
-    minify: true,
-    write: false,
-    format: "esm",
-    platform: "browser",
-    logLevel: "silent",
-  });
-  const code = out.outputFiles.map((f) => f.text).join("");
-  expect(gzipSync(code).length).toBeLessThanOrEqual(BUDGET);
-});
+// The bundling's time is no part of what this measures, and on a busy runner
+// beside three browsers it has run past vitest's 5 s default.
+const BUNDLE_MS = 60_000;
+
+it(
+  "@cplieger/ui/chart bundles, minified and gzipped, within its budget",
+  async () => {
+    const out = await build({
+      entryPoints: [resolve(import.meta.dirname, "chart.ts")],
+      bundle: true,
+      minify: true,
+      write: false,
+      format: "esm",
+      platform: "browser",
+      logLevel: "silent",
+    });
+    const code = out.outputFiles.map((f) => f.text).join("");
+    expect(gzipSync(code).length).toBeLessThanOrEqual(BUDGET);
+  },
+  BUNDLE_MS,
+);

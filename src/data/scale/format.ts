@@ -67,6 +67,72 @@ export function formatter(
   return (v) => nf.format(v);
 }
 
+/** A number whose texts under one format all have the same width when every
+ *  digit is as wide as another; `NaN` for a value whose text must be written. */
+export type WidthKey = (value: number) => number;
+
+// Past 2^53 a scaled value's last digits are lost, and so is its key.
+const EXACT = 2 ** 53;
+// A scaled value within this share of itself from a half, but not on one,
+// may round either way: Intl rounds the shortest decimal that reads back as
+// the value, which the binary product can put on the other side.
+const NEAR = 1e-14;
+
+/**
+ * The width key of `formatter(format, locale)`'s and `signedFormatter`'s
+ * texts: sign, zero, integer digits and fraction digits shown, which fix the
+ * text's separators and affixes. Undefined for a function, a duration, a
+ * notation other than standard, significant-digit or uneven rounding, and a
+ * style whose words follow the count, none of which a key can read.
+ */
+export function widthKey(
+  format: Format | undefined,
+  locale: string | undefined,
+): WidthKey | undefined {
+  const options = typeof format === "object" ? format : preset(format);
+  if (options === undefined) {
+    return undefined;
+  }
+  const r = numbers(locale, options).resolvedOptions();
+  const counted = r.style === "unit" || (r.style === "currency" && r.currencyDisplay === "name");
+  if (
+    r.notation !== "standard" ||
+    counted ||
+    r.maximumSignificantDigits !== undefined ||
+    r.roundingPriority !== "auto" ||
+    r.roundingIncrement !== 1 ||
+    r.roundingMode !== "halfExpand"
+  ) {
+    return undefined;
+  }
+  const scale = r.style === "percent" ? 100 : 1;
+  const most = r.maximumFractionDigits ?? 3;
+  const least = r.minimumFractionDigits ?? 0;
+  const unit = 10 ** most;
+  const strip = r.trailingZeroDisplay === "stripIfInteger";
+  return (v) => {
+    const scaled = Math.abs(v) * scale * unit;
+    const half = Math.abs((scaled % 1) - 0.5);
+    if (!(scaled < EXACT) || (half !== 0 && half < scaled * NEAR)) {
+      return Number.NaN;
+    }
+    const n = Math.round(scaled);
+    const whole = Math.floor(n / unit);
+    let digits = 1;
+    for (let w = whole; w >= 10; w = Math.floor(w / 10)) {
+      digits++;
+    }
+    let rest = n - whole * unit;
+    let shown = rest === 0 ? (strip ? 0 : least) : most;
+    while (rest !== 0 && rest % 10 === 0 && shown > least) {
+      rest /= 10;
+      shown--;
+    }
+    const sign = (v < 0 || Object.is(v, -0) ? 2 : 0) + (n === 0 ? 1 : 0);
+    return (digits * 32 + shown) * 4 + sign;
+  };
+}
+
 /**
  * `formatter`'s writer with a sign on every value but 0: `Intl`'s
  * `signDisplay: "exceptZero"` (a format object's own `signDisplay` kept),

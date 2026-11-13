@@ -1445,6 +1445,16 @@ describe("the scatter mark", () => {
       RangeError,
     ],
     ["a scatter beside a line", { ...measures, marks: [line([1]), scatter(one(1, 2))] }, TypeError],
+    [
+      "a unit on x",
+      { ...measures, x: { label: "a", unit: { other: "dollars" } }, marks: [scatter(one(1, 2))] },
+      TypeError,
+    ],
+    [
+      "a unit on y",
+      { ...measures, y: { label: "b", unit: { other: "years" } }, marks: [scatter(one(1, 2))] },
+      TypeError,
+    ],
   ])("refuses %s", (_, spec, type) => {
     expect(() => build(spec)).toThrow(type);
   });
@@ -1452,6 +1462,15 @@ describe("the scatter mark", () => {
   it("names the rules it breaks", () => {
     expect(() => build({ y: { label: "b" }, marks: [scatter(one(1, 2))] })).toThrow(
       "renderChart: x.label is required on a scatter, whose readings name each measure by it",
+    );
+    expect(() =>
+      build({
+        ...measures,
+        y: { label: "b", unit: { other: "years" } },
+        marks: [scatter(one(1, 2))],
+      }),
+    ).toThrow(
+      "renderChart: y.unit has no place on a scatter, whose readings name each measure by its label; the mark's unit names the dots",
     );
     expect(() =>
       build({
@@ -1571,6 +1590,11 @@ describe("the scatter mark's sizes", () => {
     [
       "reverse on r",
       { ...measures, r: { label: "c", reverse: true }, marks: [bubble([3])] },
+      TypeError,
+    ],
+    [
+      "a unit on r",
+      { ...measures, r: { label: "c", unit: { other: "people" } }, marks: [bubble([3])] },
       TypeError,
     ],
     ["a negative r", { ...sized, marks: [bubble([-1])] }, RangeError],

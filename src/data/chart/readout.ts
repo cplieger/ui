@@ -5,7 +5,14 @@
  * @module
  */
 
-import { formatter, noun, signedFormatter, withNoun, type Unit } from "../scale/format.js";
+import {
+  formatter,
+  noun,
+  signedFormatter,
+  withNoun,
+  type Unit,
+  type WidthKey,
+} from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {
@@ -560,103 +567,125 @@ export interface Widths {
 
 /** Every time zone's offset from UTC is a whole number of quarter hours. */
 const QUARTER_HOUR = 900_000;
-const SAMPLE = 256;
-
-// Indices of `[from, to)` whose x text can differ in width: on a time x one
-// per quarter hour, inside which every zone's local hour and day hold, since
-// every digit is as wide as another; else at most 256 spread evenly, with the ends.
-function spread(model: Model, x: ArrayLike<number>, from: number, to: number): number[] {
-  const out: number[] = [];
-  if (model.x.type === "time") {
-    let last = Number.NaN;
-    for (let i = from; i < to; i++) {
-      const slot = Math.floor((x[i] ?? 0) / QUARTER_HOUR);
-      if (slot !== last) {
-        out.push(i);
-        last = slot;
-      }
-    }
-    return out;
-  }
-  return spreadOf(to - from).map((k) => from + k);
-}
-
-// At most 256 of the indices [0, n) spread evenly, with the ends.
-function spreadOf(n: number): number[] {
-  const out: number[] = [];
-  const step = Math.max(1, Math.ceil(n / SAMPLE));
-  for (let i = 0; i < n; i += step) {
-    out.push(i);
-  }
-  if (n > 0) {
-    out.push(n - 1);
-  }
-  return out;
-}
-
-// The least and greatest of `values`, skipping nulls; none when all are.
-function extremes(values: Iterable<number | null>): number[] {
-  let lo = Number.POSITIVE_INFINITY;
-  let hi = Number.NEGATIVE_INFINITY;
+// One value of `values` for each text width `key` tells apart, and with
+// `noun` for each noun too, nulls skipped; every distinct value the key
+// cannot read, since only writing one tells its width.
+function widthSamples(
+  values: Iterable<number | null>,
+  key: WidthKey | undefined,
+  noun?: (v: number) => string,
+): number[] {
+  const byKey = new Map<number, number>();
+  const nouns = new Map<string, number>();
+  const raw = new Set<number>();
+  let negativeZero = false;
   for (const v of values) {
-    if (v !== null) {
-      lo = Math.min(lo, v);
-      hi = Math.max(hi, v);
+    if (v === null) {
+      continue;
+    }
+    let k = key === undefined ? Number.NaN : key(v);
+    if (Number.isNaN(k)) {
+      negativeZero ||= Object.is(v, -0);
+      raw.add(v);
+      continue;
+    }
+    if (noun !== undefined) {
+      const word = noun(v);
+      let n = nouns.get(word);
+      if (n === undefined) {
+        n = nouns.size;
+        nouns.set(word, n);
+      }
+      // A unit has at most six plural nouns.
+      k = k * 8 + n;
+    }
+    if (!byKey.has(k)) {
+      byKey.set(k, v);
     }
   }
-  return lo <= hi ? [lo, hi] : [];
+  return [...byKey.values(), ...raw, ...(negativeZero ? [-0] : [])];
 }
 
 // The values `at` gives for `[from, to)`.
-function* over(from: number, to: number, at: (i: number) => number | null) {
+function* over<T>(from: number, to: number, at: (i: number) => T) {
   for (let i = from; i < to; i++) {
     yield at(i);
   }
 }
 
-// The widest texts series `s` of `m` can read: an even spread, the extremes
-// (under "share" of its shares and of the values read where no shares are),
-// and No data.
-function valueTexts(
-  model: Model,
-  m: SampleModel,
-  s: SeriesModel,
-  indices: readonly number[],
-  words: Words,
-): string[] {
+// Every width of x text `values` can read: on a time x one instant per
+// quarter hour, inside which every zone's local hour and day hold, since
+// every digit is as wide as another.
+function xTexts(model: Model, values: Iterable<number>): string[] {
+  if (model.x.type !== "time") {
+    return widthSamples(values, model.widthKeys.x).map((v) => model.xText(v));
+  }
+  const slots = new Map<number, number>();
+  for (const v of values) {
+    const slot = Math.floor(v / QUARTER_HOUR);
+    if (!slots.has(slot)) {
+      slots.set(slot, v);
+    }
+  }
+  return [...slots.values()].map((v) => model.xText(v));
+}
+
+// The noun `counted` adds to an amount of `unit`, if any.
+const nounOf = (model: Model, unit: Unit | undefined) =>
+  unit === undefined ? undefined : (v: number) => noun(unit, v, model.locale);
+
+// Every width of text series `s` of `m` can read, No data included: under
+// "share" its shares, and its values where no shares are.
+function valueTexts(model: Model, m: SampleModel, s: SeriesModel, words: Words): string[] {
   const out = [words.noData];
   if (m.kind === "area" && m.arrange === "share") {
-    out.push(...indices.map((i) => samplePart(model, m, s, i, words)));
-    out.push(
-      ...extremes(over(m.from, m.to, (i) => sampleValue(m, s, i))).map((v) => model.yText(v)),
+    const shares = over(m.from, m.to, (i) => sampleValue(m, s, i));
+    out.push(...widthSamples(shares, model.widthKeys.y).map((v) => model.yText(v)));
+    const unshared = over(m.from, m.to, (i) =>
+      drawnTotal(m, i) === null ? (s.y[i] ?? null) : null,
     );
-    const unshared = (i: number) => (drawnTotal(m, i) === null ? (s.y[i] ?? null) : null);
-    out.push(...extremes(over(m.from, m.to, unshared)).map((v) => model.amountText(v)));
+    out.push(...widthSamples(unshared, model.widthKeys.amount).map((v) => model.amountText(v)));
     return out;
   }
-  const write = (v: number) =>
-    m.series.length === 1 ? counted(model.yText(v), v, model.spec.y?.unit, model) : model.yText(v);
-  const values = [...indices.map((i) => s.y[i] ?? null), ...extremes(s.y)];
-  out.push(...values.map((v) => (v === null ? words.noData : write(v))));
+  const unit = m.series.length === 1 ? model.spec.y?.unit : undefined;
+  const values = widthSamples(
+    over(m.from, m.to, (i) => s.y[i] ?? null),
+    model.widthKeys.y,
+    nounOf(model, unit),
+  );
+  out.push(...values.map((v) => counted(model.yText(v), v, unit, model)));
   return out;
 }
 
-// The widest measure texts a scatter's `axis` can read: each series' even
-// spread of its shown dots and its extremes, as a line's values are found.
+// Every width of stack total `m` can read, No data included.
+function totalTexts(model: Model, m: AreaModel, words: Words): string[] {
+  const share = m.arrange === "share";
+  const totals = widthSamples(
+    over(m.from, m.to, (i) => sampleTotal(m, i)),
+    share ? model.widthKeys.amount : model.widthKeys.y,
+    share ? nounOf(model, model.spec.y?.unit) : undefined,
+  );
+  return [words.noData, ...totals.map((n) => areaTotal(model, m, n))];
+}
+
+// Every width of measure text a scatter's `axis` can read.
 function scatterTexts(
   model: Model,
   m: ScatterModel,
   axis: "x" | "y" | "r",
   words: Words,
 ): string[] {
-  const out: string[] = [];
-  m.series.forEach((s, k) => {
-    const shown = m.shown[k] ?? [];
-    const at = (j: number) => dotValue(s, axis, shown[j] ?? 0);
-    const picked = [...spreadOf(shown.length).map(at), ...extremes(over(0, shown.length, at))];
-    out.push(...picked.map((v) => measureText(model, axis, v, words)));
-  });
-  return out;
+  const all = function* () {
+    for (const [k, s] of m.series.entries()) {
+      for (const i of m.shown[k] ?? []) {
+        yield dotValue(s, axis, i);
+      }
+    }
+  };
+  const texts = widthSamples(all(), model.widthKeys[axis]).map((v) =>
+    measureText(model, axis, v, words),
+  );
+  return texts.length === 0 ? [measureText(model, axis, null, words)] : texts;
 }
 
 const widest = (texts: Iterable<string>, measure: Measure): number => {
@@ -685,20 +714,18 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       add(bucketReading(model, m, i, words));
     }
   } else if (m?.kind === "line" || m?.kind === "area") {
-    const indices = spread(model, m.x, m.from, m.to);
-    for (const i of indices) {
-      at.push(model.xText(m.x[i] ?? 0));
-    }
+    const { x } = m;
+    at.push(
+      ...xTexts(
+        model,
+        over(m.from, m.to, (i) => x[i] ?? 0),
+      ),
+    );
     m.series.forEach((s, k) => {
-      values[k]?.push(...valueTexts(model, m, s, indices, words));
+      values[k]?.push(...valueTexts(model, m, s, words));
     });
     if (m.kind === "area" && m.series.length > 1) {
-      // The widest totals: the spread's, the extremes, and No data.
-      for (const i of indices) {
-        totals.push(stackText(model, m, i, words) ?? "");
-      }
-      const all = extremes(over(m.from, m.to, (i) => sampleTotal(m, i)));
-      totals.push(words.noData, ...all.map((n) => areaTotal(model, m, n)));
+      totals.push(...totalTexts(model, m, words));
     }
   } else if (m?.kind === "bar" || m?.kind === "point") {
     for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
@@ -716,23 +743,20 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       values[slot]?.push(...scatterTexts(model, m, axis, words));
     });
   } else if (m?.kind === "dot") {
-    // Each post's time, written once per stretch of x in which its width holds.
-    const posts = new Map<string, number>();
+    const posts = function* () {
+      for (const row of m.rows) {
+        for (let i = row.from; i < row.to; i++) {
+          yield row.x[i] ?? 0;
+        }
+      }
+    };
     m.rows.forEach((row, r) => {
       add(rowReading(model, m, r, words));
       at.push(row.name);
-      for (const i of spread(model, row.x, row.from, row.to)) {
-        const v = row.x[i] ?? 0;
-        const slot = model.x.type === "time" ? String(Math.floor(v / QUARTER_HOUR)) : String(v);
-        if (!posts.has(slot)) {
-          posts.set(slot, v);
-        }
-      }
     });
     let instant = "";
     let instantW = 0;
-    for (const v of posts.values()) {
-      const text = model.xText(v);
+    for (const text of xTexts(model, posts())) {
       const w = measure.number(text);
       if (w > instantW) {
         instant = text;
