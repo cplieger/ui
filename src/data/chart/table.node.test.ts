@@ -480,6 +480,28 @@ describe("the table of a bar chart", () => {
     expect(cells(t)).toEqual([["Item 1", "12", "30", "42"]]);
   });
 
+  it("has a Total column for mirrored bars", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["45-50"],
+            arrange: "mirror",
+            series: [
+              { name: "Male", x: [2_734_000] },
+              { name: "Female", x: [2_690_000] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["Male", "Female", "Total"]);
+    expect(cells(t)).toEqual([["45-50", "2,734,000", "2,690,000", "5,424,000"]]);
+  });
+
   it.each(["group", "split"] as const)("has no Total column for %s bars", (arrange) => {
     const t = tableModel(
       model({

@@ -1018,6 +1018,45 @@ describe("a bar chart", () => {
     expect(box.x + box.width).toBeCloseTo((panels[1]?.at(8) ?? 0) + 1, 1);
   });
 
+  it("draws a mirror's sides back to back, a baseline each in the spine and a ring per side", () => {
+    const pyramid: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["90+", "45-50"],
+          arrange: "mirror",
+          series: [
+            { name: "Male", slot: 1, x: [12, 40] },
+            { name: "Female", slot: 3, x: [20, 36] },
+          ],
+        },
+      ],
+    };
+    const d = draw(pyramid, 320);
+    const [male, female] = d.lay.frame.panels ?? [];
+    const paths = [...d.svg.querySelectorAll<SVGPathElement>('[data-part="bar"] > path')];
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3"]);
+    const [left, right] = paths.map((p) => p.getBBox());
+    expect((left?.x ?? 0) + (left?.width ?? 0)).toBeCloseTo(male?.right ?? -1);
+    expect(left?.x).toBeCloseTo(male?.at(40) ?? -1);
+    expect(right?.x).toBeCloseTo(female?.left ?? -1);
+    expect((female?.left ?? 0) - (male?.right ?? 0)).toBe(8);
+    // Each baseline is 1 px just outside its side's bars, inside the spine.
+    const zero = d.svg.querySelector('[data-part="zero"]')?.getAttribute("d") ?? "";
+    const xs = [...zero.matchAll(/M([\d.]+) /gu)].map((x) => Number(x[1]));
+    expect(xs).toHaveLength(2);
+    // Snapped to device px, each line's middle within half a px of the edge's.
+    expect(Math.abs((xs[0] ?? 0) - (male?.right ?? 0) - 0.5)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs((xs[1] ?? 0) - (female?.left ?? 0) + 0.5)).toBeLessThanOrEqual(0.5);
+    const heads = [...d.svg.querySelectorAll('[data-part="head"] text')];
+    expect(heads.map((t) => t.textContent)).toEqual(["Male", "Female"]);
+    const nav = navigator(d.model, d.lay);
+    drawSelection(d.svg, d.model, d.lay, { kind: "bar", row: 1, part: undefined }, nav);
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    expect(ring.match(/M/gu)).toHaveLength(2);
+  });
+
   it("folds a split on a phone into bars one under another, with no heads", () => {
     const d = draw(split, 320);
     expect(d.lay.frame.panels).toBeUndefined();

@@ -80,7 +80,7 @@ export interface Layout {
   readonly bar: number;
   /** A bar chart's value labels, in plot px. */
   readonly valueLabels: readonly Text[];
-  /** A split bar chart's panel names over its panels, in SVG px. */
+  /** A split or mirrored bar chart's panel names over its panels, in SVG px. */
   readonly heads: readonly Text[];
   readonly mono: boolean;
   readonly gutters: Floors;
@@ -121,12 +121,17 @@ const TICK = 4;
 const NARROW_REM = 30;
 /** A row's bars take its height less this, half above them and half below. */
 const BAR_SPACE = 8;
+/** A mirrored row's bars take its height less this, so neighbouring rows
+ *  stand close and each side's profile reads as one shape. */
+const MIRROR_SPACE = 2;
 /** The room between a name above a bar and the bar. */
 const NAME_GAP = 2;
 /** The room between a bar's end and its value label. */
 const VALUE_GAP = 4;
 /** The room between a split bar chart's panels. */
 const PANEL_GAP = 16;
+/** The spine between a mirrored bar chart's two sides. */
+const SPINE = 8;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
@@ -216,11 +221,12 @@ interface BarValue {
 }
 
 // The values a bar chart writes at its bars' ends: each stacked row's total,
-// or the value of each bar standing apart; none for a gap.
+// or the value of each bar standing apart or on a mirror's side; none for a
+// gap.
 function barValues(m: BarModel, rows: number): BarValue[] {
   const out: BarValue[] = [];
   for (let row = 0; row < rows; row++) {
-    if (barsApart(m)) {
+    if (barsApart(m) || m.arrange === "mirror") {
       m.series.forEach((s, k) => {
         const v = s.x[row] ?? null;
         if (v !== null) {
@@ -243,31 +249,45 @@ function barValues(m: BarModel, rows: number): BarValue[] {
   return out;
 }
 
-// The panels of a split's `count` series in series order, `width` px each
-// and PANEL_GAP apart, left to right or on a reversed x right to left, each
-// placing a value at its left edge plus `at`'s px.
+// The panels of `m`'s series in series order, `width` px each, left to
+// right or on a reversed x right to left, each placing a value `along(v)`
+// px from its baseline: a split's 16 px apart with their bars rightward, a
+// mirror's either side of its spine with the first side's bars leftward.
 function panelsOf(
-  count: number,
+  m: BarModel,
   width: number,
   reverse: boolean,
-  at: (v: number) => number,
+  along: (v: number) => number,
 ): Panel[] {
+  const mirror = m.arrange === "mirror";
+  const count = m.series.length;
+  const gap = mirror ? SPINE : PANEL_GAP;
   return Array.from({ length: count }, (_, k) => {
-    const left = (reverse ? count - 1 - k : k) * (width + PANEL_GAP);
-    return { left, right: left + width, at: (v: number) => left + at(v) };
+    const left = (reverse ? count - 1 - k : k) * (width + gap);
+    const right = left + width;
+    const leftward = mirror ? (k === 0) !== reverse : reverse;
+    return {
+      left,
+      right,
+      leftward,
+      at: leftward ? (v: number) => right - along(v) : (v: number) => left + along(v),
+    };
   });
 }
 
-// A tick `dx` px along, its label's box with it.
-function moved(t: Tick, dx: number): Tick {
+// A tick of an axis drawn rightward from 0, placed in panel `p`, its
+// label's box with it.
+function inPanel(t: Tick, p: Panel): Tick {
+  const at = (v: number) => (p.leftward ? p.right - v : p.left + v);
   const label = t.label;
+  if (label === undefined) {
+    return { ...t, at: at(t.at) };
+  }
+  const [a, b] = [at(label.box.start), at(label.box.end)];
   return {
     ...t,
-    at: t.at + dx,
-    label:
-      label === undefined
-        ? undefined
-        : { ...label, box: { start: label.box.start + dx, end: label.box.end + dx } },
+    at: at(t.at),
+    label: { ...label, box: { start: Math.min(a, b), end: Math.max(a, b) } },
   };
 }
 
@@ -298,12 +318,15 @@ export function layout(
   const mono = band?.mono === true;
   const narrow = chart < NARROW_REM * metrics.rem;
   const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
-  // Under 30rem a name above its bar leaves the plot the chart's whole width.
-  const above = bars !== undefined && narrow;
+  const mirror = bars?.arrange === "mirror";
+  // Under 30rem a name above its bar leaves the plot the chart's whole width;
+  // a mirror's short names stay in the gutter, keeping its rows short.
+  const above = bars !== undefined && narrow && !mirror;
   // Under 30rem a split's panels would be too thin for their bars, so they
   // fold into one, each row's bars one under another as a group's.
-  const panelled = bars?.arrange === "split" && !narrow;
-  const thick = bars === undefined ? 0 : Math.max(1, metrics.row - BAR_SPACE);
+  const panelled = (bars?.arrange === "split" && !narrow) || mirror;
+  const thick =
+    bars === undefined ? 0 : Math.max(1, metrics.row - (mirror ? MIRROR_SPACE : BAR_SPACE));
   const block = bars === undefined ? 0 : panelled ? thick : barBlock(bars, thick);
   const barRow = block > thick ? block + BAR_SPACE : metrics.row;
   const rowH = above ? metrics.nameLine + NAME_GAP + barRow : barRow;
@@ -357,21 +380,28 @@ export function layout(
       roomRight = Math.max(roomRight, w);
     }
   });
-  // A split's panels share one scale, so each lays the same axis along the
-  // same width, its labels' room kept at its own end.
+  // Panels share one scale, so each lays the same axis rightward from its
+  // baseline along the same width, its labels' room kept at its outer end,
+  // and turns it to run its own way.
   const count = panelled ? bars.series.length : 1;
-  const panelW = Math.max(1, (plotW - (count - 1) * PANEL_GAP) / count);
+  const gap = mirror ? SPINE : PANEL_GAP;
+  const panelW = Math.max(1, (plotW - (count - 1) * gap) / count);
+  const flip = reverse && !panelled;
+  if (panelled) {
+    roomRight = Math.max(roomLeft, roomRight);
+    roomLeft = 0;
+  }
   const one: Axis = valued
     ? {
         lo: model.x.lo,
         hi: model.x.hi,
-        at: reverse
+        at: flip
           ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
           : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
         ticks: [],
       }
-    : xAxis(model.x, panelW, ctx);
-  const panels = panelled ? panelsOf(count, panelW, reverse, one.at) : [];
+    : xAxis(flip === reverse ? model.x : { ...model.x, reverse: flip }, panelW, ctx);
+  const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
   // A rule's place reads the first panel's axis.
   const xAx: Axis =
     panels[0] === undefined
@@ -379,7 +409,7 @@ export function layout(
       : {
           ...one,
           at: panels[0].at,
-          ticks: panels.flatMap((p) => one.ticks.map((t) => moved(t, p.left))),
+          ticks: panels.flatMap((p) => one.ticks.map((t) => inPanel(t, p))),
         };
 
   const xRules = model.marks.filter((m) => m.kind === "rule" && m.axis === "x");
@@ -438,9 +468,9 @@ export function layout(
   // give it whole.
   const heads: Text[] = panels.map((p, k) => ({
     text: cutName(bars?.series[k]?.name ?? "", p.right - p.left, measure.text),
-    x: left + (reverse ? p.right : p.left),
+    x: left + (p.leftward ? p.right : p.left),
     y: mid(headLine),
-    anchor: reverse ? "end" : "start",
+    anchor: p.leftward ? "end" : "start",
   }));
 
   const xLabels: Text[] = [];
@@ -522,7 +552,7 @@ export function layout(
       panel !== undefined
         ? panel.at(t.value)
         : xAx.at(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi);
-    const leftward = t.value < 0 !== reverse;
+    const leftward = panel?.leftward ?? t.value < 0 !== reverse;
     valueLabels.push({
       text: valueTexts[i] ?? "",
       x: leftward ? end - VALUE_GAP : end + VALUE_GAP,

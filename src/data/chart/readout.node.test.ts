@@ -586,6 +586,34 @@ describe("the legend row of a bar chart", () => {
     expect(overall(m, words)?.total).toBeUndefined();
   });
 
+  it("reads a mirrored row's two sides and its total", () => {
+    const m = model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["45-50", "90+"],
+          arrange: "mirror",
+          series: [
+            { name: "Male", x: [2_734_000, null] },
+            { name: "Female", x: [2_690_000, 520_000] },
+          ],
+        },
+      ],
+    });
+    const bars = m.marks[0] as BarModel;
+    const r = barReading(m, bars, 0, words);
+    expect(r?.entries.map((e) => `${e.name} ${e.value}`)).toEqual([
+      "Male 2,734,000",
+      "Female 2,690,000",
+    ]);
+    expect(r?.total).toBe("5,424,000");
+    expect(barReading(m, bars, 1, words)?.entries.map((e) => e.value)).toEqual([
+      "No data",
+      "520,000",
+    ]);
+  });
+
   it("reads a diverging row's values in series order and its total", () => {
     const m = model({
       x: { format: "percent" },

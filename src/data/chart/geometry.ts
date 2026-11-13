@@ -38,17 +38,19 @@ export interface Frame {
   readonly x: Continuous;
   readonly xAt: (v: number) => number;
   readonly yAt: (v: number) => number;
-  /** A split bar chart's panels, one per series in series order; absent
-   *  once it folds into one panel under 30rem. */
+  /** A split or mirrored bar chart's panels, one per series in series
+   *  order; absent once a split folds into one panel under 30rem. */
   readonly panels?: readonly Panel[];
 }
 
-/** A split bar chart's panel: its left and right px in the plot, and its
- *  share of the chart's one x scale mapped into it. */
+/** A bar chart's panel: its left and right px in the plot, its share of
+ *  the chart's one x scale mapped into it, and whether its bars run
+ *  leftward from their baseline at `at(0)`. */
 export interface Panel {
   readonly left: number;
   readonly right: number;
   readonly at: (v: number) => number;
+  readonly leftward: boolean;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
@@ -506,8 +508,8 @@ export interface Segment {
  * side in series order; a segment beyond another gives up its first px
  * toward 0 as the gap unless it is under 3 px long, so a stack's end stays
  * at its sum. Under "diverge" the left series stack leftward from 0 and
- * the rest rightward (`divergeSegments`). Under "split" each series' bar
- * runs from 0 in its panel of `f.panels`, and under "group" or a folded
+ * the rest rightward (`divergeSegments`). Under "split" and "mirror" each
+ * series' bar runs from 0 in its panel of `f.panels`, and under "group" or a folded
  * split from 0 at `barCentre`, a sub-bar's thickness across. A `null`
  * counts as 0 and draws nothing.
  */
@@ -518,7 +520,7 @@ export function barSegments(
   cy: number,
   thick: number,
 ): (Segment | undefined)[] {
-  const panels = m.arrange === "split" ? f.panels : undefined;
+  const panels = m.arrange === "split" || m.arrange === "mirror" ? f.panels : undefined;
   if (panels !== undefined) {
     const top = snap(cy - thick / 2, f.dpr);
     const bottom = snap(cy + thick / 2, f.dpr);

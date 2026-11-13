@@ -128,7 +128,8 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   const grid: string[] = [];
   let zero = "";
   // A bar's value axis is x, so its gridlines and zero line stand upright.
-  const bars = primaryOf(model)?.kind === "bar";
+  const primary = primaryOf(model);
+  const bars = primary?.kind === "bar";
   if (bars) {
     for (const t of lay.xAxis.ticks) {
       if (t.value !== 0) {
@@ -136,7 +137,9 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       }
     }
     if (lay.xAxis.lo <= 0 && lay.xAxis.hi >= 0) {
-      const ats = f.panels?.map((p) => p.at(0)) ?? [f.xAt(0)];
+      // A mirror's baselines stand in its spine, each just outside its side's bars.
+      const spine = primary.arrange === "mirror";
+      const ats = f.panels?.map((p) => p.at(0) - (spine && !p.leftward ? 1 : 0)) ?? [f.xAt(0)];
       zero = ats.map((at) => upright(at, f.height, f.dpr)).join("");
     }
   }

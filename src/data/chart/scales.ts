@@ -141,10 +141,10 @@ function underflow(spec: ChartSpec, lo: number): Underflow | undefined {
 
 // A bar row's stack reaches from the sum of its negative values to the sum
 // of its positive ones, through 0; a diverging row from its left series'
-// sum and half its centre series to the rest; grouped and split bars each
-// reach their own value.
+// sum and half its centre series to the rest; grouped, split and mirrored
+// bars each reach their own value.
 function addBars(extent: Extent, m: BarMark): void {
-  const apart = m.arrange === "group" || m.arrange === "split";
+  const apart = m.arrange === "group" || m.arrange === "split" || m.arrange === "mirror";
   const left = m.arrange === "diverge" ? (m.left ?? 0) : -1;
   const centre = m.centre === true ? left : -1;
   for (let i = 0; i < m.y.length; i++) {
@@ -161,6 +161,10 @@ function addBars(extent: Extent, m: BarMark): void {
       // Each panel's bars start at its left edge, with no room left of 0.
       if (m.arrange === "split" && finite(v) && v < 0) {
         throw new RangeError("renderChart: a split bar's x cannot be negative");
+      }
+      // Each side's bars start at the spine, with no room past it.
+      if (m.arrange === "mirror" && finite(v) && v < 0) {
+        throw new RangeError("renderChart: a mirrored bar's x cannot be negative");
       }
       // A diverging bar's side comes from its place in the order, never its sign.
       if (left !== -1 && finite(v) && v < 0) {

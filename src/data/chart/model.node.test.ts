@@ -829,7 +829,28 @@ describe("the bar mark", () => {
 
   it("names the arrangements a bar draws", () => {
     expect(() => build({ x: {}, marks: [bars([1], { arrange: "side" as "stack" })] })).toThrow(
-      'renderChart: marks[0].arrange must be "stack", "group", "share", "split" or "diverge"',
+      'renderChart: marks[0].arrange must be "stack", "group", "share", "split", "diverge" or "mirror"',
+    );
+  });
+
+  it("is a back-to-back bar chart from exactly two series, with value labels", () => {
+    const pyramid = shareBars([1, 2], [3, 4], { arrange: "mirror" });
+    const m = build({ x: {}, marks: [pyramid] });
+    expect(m.kind).toBe("mirrorBar");
+    expect(m.marks[0]).toMatchObject({ arrange: "mirror", labels: true });
+    expect(build({ x: {}, marks: [{ ...pyramid, labels: false }] }).marks[0]).toMatchObject({
+      labels: false,
+    });
+    for (const series of [
+      [{ name: "a", x: [1, 2] }],
+      [0, 1, 2].map((k) => ({ name: `s${String(k)}`, x: [1, 2] })),
+    ]) {
+      expect(() => build({ x: {}, marks: [{ ...pyramid, series }] })).toThrow(
+        'renderChart: marks[0].arrange "mirror" needs exactly two series, one each side of its spine',
+      );
+    }
+    expect(() => build({ x: {}, marks: [shareBars([1], [-2], { arrange: "mirror" })] })).toThrow(
+      "renderChart: a mirrored bar's x cannot be negative",
     );
   });
 

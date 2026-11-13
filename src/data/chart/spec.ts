@@ -107,10 +107,12 @@ export interface BarMark {
    *  (the default); thinner bars one under another; stacked to 100 % of
    *  the row ("share", two or more series, x 0 to 1 in "percent" unless
    *  x.format says another, no domain); a panel each on one shared scale
-   *  ("split", folded under 30rem as a group); or either side of 0
-   *  ("diverge", see `left`), its axis reading distances from 0 both ways.
-   *  "share", "split" and "diverge" take values of 0 or more. */
-  readonly arrange?: "stack" | "group" | "share" | "split" | "diverge";
+   *  ("split", folded under 30rem as a group); either side of 0
+   *  ("diverge", see `left`), its axis reading distances from 0 both ways;
+   *  or back to back ("mirror", exactly two series, the first leftward
+   *  from a spine, as a population pyramid). "share", "split", "diverge"
+   *  and "mirror" take values of 0 or more. */
+  readonly arrange?: "stack" | "group" | "share" | "split" | "diverge" | "mirror";
   /** "diverge" only, and required there: how many series, the first ones,
    *  stack leftward from 0, the last of them nearest it; the rest stack
    *  rightward. From 1 to the series count less one (less two with
@@ -120,7 +122,7 @@ export interface BarMark {
    *  value each side, as a neutral answer does. */
   readonly centre?: boolean;
   /** Each bar's value at its end (default true), in place of an x axis: a
-   *  stack's total, or each grouped or split bar's own value. "share" and
+   *  stack's total, or each grouped, split or mirrored bar's own value. "share" and
    *  "diverge" take none, since their bars have no one length to label, and
    *  keep their x axis. */
   readonly labels?: boolean;

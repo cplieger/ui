@@ -1098,6 +1098,7 @@ describe("bars", () => {
     panels: [0, 108].map((left) => ({
       left,
       right: left + 92,
+      leftward: false,
       at: (v: number) => left + position("linear", 0, 50, 0, 80)(v),
     })),
   });
@@ -1201,5 +1202,38 @@ describe("bars", () => {
     expect(barSegments(barOf(m), 0, barFrame(m, 0, 100), 12, 16)).toEqual([
       { left: 0, right: 40, top: 4, bottom: 20 },
     ]);
+  });
+
+  it("draws a mirror's first side leftward from its spine and its second rightward", () => {
+    const m = model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: ["45-50", "50-55"],
+          arrange: "mirror",
+          series: [
+            { name: "Male", x: [50, null] },
+            { name: "Female", x: [25, 0] },
+          ],
+        },
+      ],
+    });
+    // Two 96 px sides either side of an 8 px spine, each 0 to 50 along 80 px.
+    const along = position("linear", 0, 50, 0, 80);
+    const f: Frame = {
+      ...barFrame(m, 0, 50, 200),
+      panels: [
+        { left: 0, right: 96, leftward: true, at: (v: number) => 96 - along(v) },
+        { left: 104, right: 200, leftward: false, at: (v: number) => 104 + along(v) },
+      ],
+    };
+    expect(barOf(m).arrange).toBe("mirror");
+    expect(barSegments(barOf(m), 0, f, 12, 22)).toEqual([
+      { left: 16, right: 96, top: 1, bottom: 23 },
+      { left: 104, right: 144, top: 1, bottom: 23 },
+    ]);
+    expect(barSegments(barOf(m), 1, f, 36, 22)).toEqual([undefined, undefined]);
+    expect(barBlock(barOf(m), 22)).toBe(22);
   });
 });

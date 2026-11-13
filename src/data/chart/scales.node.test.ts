@@ -421,6 +421,15 @@ describe("a bar chart's scales", () => {
         "renderChart: a split bar's x cannot be negative",
       );
     });
+
+    it("runs a mirror's x from 0 to the larger side's largest value", () => {
+      const spec = bars([30, 5], [20, 44]);
+      const mirror: ChartSpec = {
+        ...spec,
+        marks: spec.marks.map((m) => (m.mark === "bar" ? { ...m, arrange: "mirror" } : m)),
+      };
+      expect(xScale(mirror)).toMatchObject({ lo: 0, hi: 44, absolute: false });
+    });
   });
 
   describe("a diverging stack", () => {

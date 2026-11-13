@@ -335,7 +335,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
       if (m.kind === "bar") {
         // Bars one under another keep series order on a reversed x; a
-        // stack's segments and a split's panels run with it.
+        // stack's segments and the panels run with it.
         const along = f.x.reverse && (!barsApart(m) || f.panels !== undefined);
         return sel.kind === "bar" ? moveBar(m, bandRows(model), sel, key, along) : undefined;
       }

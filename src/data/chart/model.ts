@@ -35,7 +35,8 @@ type Kind =
   | "shareBar"
   | "divergingBar"
   | "splitBar"
-  | "divergingStackedBar";
+  | "divergingStackedBar"
+  | "mirrorBar";
 
 export interface SeriesModel {
   readonly name: string;
@@ -162,8 +163,9 @@ export interface BarModel {
    *  "split" in a panel each; one series grouped or split is a plain bar, so
    *  it reads "stack". "share" draws each series' share of its row's total;
    *  `series` keeps the values. "diverge" stacks the first `left` series
-   *  leftward from 0 and the rest rightward. */
-  readonly arrange: "stack" | "group" | "share" | "split" | "diverge";
+   *  leftward from 0 and the rest rightward; "mirror" sets its two series
+   *  back to back in a panel each. */
+  readonly arrange: "stack" | "group" | "share" | "split" | "diverge" | "mirror";
   /** How many series, the first ones, lie left of 0: 0 unless "diverge". */
   readonly left: number;
   /** Under "diverge", the series after the left ones straddles 0. */
@@ -504,9 +506,10 @@ function checkMark(mark: unknown, what: string): void {
         arrange !== "group" &&
         arrange !== "share" &&
         arrange !== "split" &&
-        arrange !== "diverge"
+        arrange !== "diverge" &&
+        arrange !== "mirror"
       ) {
-        fail(`${what}.arrange must be "stack", "group", "share", "split" or "diverge"`);
+        fail(`${what}.arrange must be "stack", "group", "share", "split", "diverge" or "mirror"`);
       }
       optional(mark["labels"], "boolean", `${what}.labels`);
       if (arrange === "share" && mark["labels"] !== undefined) {
@@ -521,6 +524,9 @@ function checkMark(mark: unknown, what: string): void {
       checkSeries(list, names.length, what, "x");
       if (arrange === "share" && arrayLike(list) && list.length < 2) {
         fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
+      }
+      if (arrange === "mirror" && arrayLike(list) && list.length !== 2) {
+        fail(`${what}.arrange "mirror" needs exactly two series, one each side of its spine`);
       }
       checkDiverge(mark, arrange === "diverge", arrayLike(list) ? list.length : 0, what);
       const all = Array.from(list as ArrayLike<Record<string, unknown>>);
@@ -701,7 +707,9 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
               ? "splitBar"
               : first.arrange === "diverge"
                 ? "divergingStackedBar"
-                : "stackedBar";
+                : first.arrange === "mirror"
+                  ? "mirrorBar"
+                  : "stackedBar";
   }
 }
 
@@ -834,6 +842,7 @@ export function chartModel(
           arrange:
             m.arrange === "share" ||
             m.arrange === "diverge" ||
+            m.arrange === "mirror" ||
             ((m.arrange === "group" || m.arrange === "split") && m.series.length > 1)
               ? m.arrange
               : "stack",

@@ -553,4 +553,92 @@ describe("a bar chart", () => {
     expect(l.heads[0]).toMatchObject({ text: "Daily", x: l.left + 524, anchor: "end" });
     expect(l.valueLabels[0]).toMatchObject({ x: (panels[0]?.at(34) ?? 0) - 4, anchor: "end" });
   });
+
+  const pyramid = (more: Partial<ChartSpec["x"]> = {}, labels = true): ChartSpec => ({
+    x: more,
+    marks: [
+      {
+        mark: "bar",
+        y: ["90+", "45-50"],
+        arrange: "mirror",
+        labels,
+        series: [
+          { name: "Male", x: [12, 40] },
+          { name: "Female", x: [20, 36] },
+        ],
+      },
+    ],
+  });
+
+  it("sets a mirror's sides back to back around an 8 px spine, on one shared scale", () => {
+    const l = lay(pyramid(), 600);
+    // "45-50" and its pad make a 46 px gutter, so the 554 px plot holds two
+    // 273 px sides and the spine.
+    expect(l.frame.width).toBe(554);
+    const panels = l.frame.panels ?? [];
+    expect(panels.map((p) => [p.left, p.right, p.leftward])).toEqual([
+      [0, 273, true],
+      [281, 554, false],
+    ]);
+    expect(panels.map((p) => p.at(0))).toEqual([273, 281]);
+    expect((panels[0]?.at(0) ?? 0) - (panels[0]?.at(20) ?? 0)).toBeCloseTo(
+      (panels[1]?.at(20) ?? 0) - (panels[1]?.at(0) ?? 0),
+    );
+    // Rows keep 24 px, their bars the row less 2 px.
+    expect(l.frame.height).toBe(2 * 24);
+    expect(l.bar).toBe(22);
+    expect(l.top).toBe(17 + 4);
+    expect(l.heads).toEqual([
+      { text: "Male", x: 46 + 273, y: 8.5, anchor: "end" },
+      { text: "Female", x: 46 + 281, y: 8.5, anchor: "start" },
+    ]);
+  });
+
+  it("writes each side's values at its bars' outer ends, both sides keeping the widest label's room", () => {
+    const l = lay(pyramid(), 600);
+    const panels = l.frame.panels ?? [];
+    expect(l.valueLabels.map((t) => t.text)).toEqual(["12", "20", "40", "36"]);
+    const [, , male, female] = l.valueLabels;
+    expect(male).toMatchObject({ x: (panels[0]?.at(40) ?? 0) - 4, y: 36, anchor: "end" });
+    expect(female).toMatchObject({ x: (panels[1]?.at(36) ?? 0) + 4, y: 36, anchor: "start" });
+    // "40" and its gap end the larger side; the other side keeps the same room.
+    expect((panels[0]?.at(40) ?? 0) - 4 - 15).toBeCloseTo(0);
+    expect((panels[1]?.at(40) ?? 0) + 4 + 15).toBeCloseTo(554);
+    expect(l.xAxis.ticks).toEqual([]);
+  });
+
+  it("keeps a mirror's names in the gutter and its 24 px rows on a phone", () => {
+    const l = lay(pyramid(), 320);
+    expect(l.left).toBe(46);
+    expect(l.frame.height).toBe(2 * 24);
+    expect(l.frame.panels).toHaveLength(2);
+    expect(l.yLabels.map((t) => [t.text, t.x, t.anchor])).toEqual([
+      ["90+", 38, "end"],
+      ["45-50", 38, "end"],
+    ]);
+  });
+
+  it("reads a mirror's axis both ways from the spine when labels are off", () => {
+    const l = lay(pyramid({}, false), 600);
+    const zeros = l.xAxis.ticks.filter((t) => t.value === 0).map((t) => t.at);
+    expect(zeros).toEqual([273, 281]);
+    expect(l.xLabels.every((t) => !t.text.startsWith("-"))).toBe(true);
+    const top = Math.max(...l.xAxis.ticks.map((t) => t.value));
+    const [male, female] = l.frame.panels ?? [];
+    const at = (v: number) => l.xAxis.ticks.filter((t) => t.value === v).map((t) => t.at);
+    expect(at(top)).toEqual([male?.at(top), female?.at(top)]);
+    expect(male?.at(top)).toBeGreaterThanOrEqual(-1e-6);
+    expect(female?.at(top)).toBeLessThanOrEqual(554 + 1e-6);
+  });
+
+  it("sets the first side on the right on a reversed x", () => {
+    const l = lay(pyramid({ reverse: true }), 600);
+    const panels = l.frame.panels ?? [];
+    expect(panels.map((p) => [p.left, p.leftward])).toEqual([
+      [281, false],
+      [0, true],
+    ]);
+    expect(l.heads[0]).toMatchObject({ text: "Male", x: l.left + 281, anchor: "start" });
+    expect(l.valueLabels[0]).toMatchObject({ x: (panels[0]?.at(12) ?? 0) + 4, anchor: "start" });
+  });
 });

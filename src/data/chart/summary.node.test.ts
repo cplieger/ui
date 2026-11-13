@@ -675,6 +675,32 @@ describe("the summary of a bar chart", () => {
     );
   });
 
+  it("names each side's extremes and the totals', a back-to-back bar chart", () => {
+    const pyramid: ChartSpec = {
+      x: {},
+      y: { unit: { one: "age group", other: "age groups" } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["90+", "45-50", "0-5"],
+          arrange: "mirror",
+          series: [
+            { name: "Male", x: [210, 2734, 1690] },
+            { name: "Female", x: [520, 2690, 1610] },
+          ],
+        },
+      ],
+    };
+    expect(generatedSummary(model(pyramid), words)).toBe(
+      `3${nb}age groups, 2 series. Male: highest 45-50 2,734, lowest 90+ 210. ` +
+        "Female: highest 45-50 2,690, lowest 90+ 520. " +
+        "Total: highest 45-50 5,424, lowest 90+ 730.",
+    );
+    expect(shortDescription(model(pyramid), words)).toBe(
+      `Back-to-back bar chart, 2 series, 3${nb}age groups`,
+    );
+  });
+
   it("says only the count when every value is a gap, in categories without a unit", () => {
     const empty: ChartSpec = {
       x: {},
