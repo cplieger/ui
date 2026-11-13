@@ -586,6 +586,46 @@ describe("charts in a group", () => {
     expect(name?.textContent.endsWith("…")).toBe(true);
     expect(name?.hasAttribute("data-mono")).toBe(true);
   });
+
+  const stack = (width: number): HTMLElement => {
+    const box = document.createElement("div");
+    box.className = "cp-chart-stack";
+    box.style.inlineSize = `${String(width)}px`;
+    document.body.append(box);
+    hosts.push(box);
+    return box;
+  };
+  const thousands: ChartSpec = {
+    ...stepLine,
+    y: { label: "Requests" },
+    marks: [
+      {
+        mark: "line",
+        x: minutes,
+        series: [{ name: "All", y: minutes.map((_, i) => 12_000 + (i % 13) * 100) }],
+      },
+    ],
+  };
+
+  it.each([
+    [900, 128, 80],
+    [400, 80, 0],
+  ])(
+    "share their plots' edges in a .cp-chart-stack %i px wide, its gutters %i and %i px",
+    (width, axis, label) => {
+      const box = stack(width);
+      const drawn = [
+        draw(stacked, width, box),
+        draw(strip(["an-agent-with-a-very-long-name", "b"]), width, box),
+        draw(thousands, width, box),
+      ];
+      expect(drawn.map((d) => d.lay.gutters)).toEqual(drawn.map(() => ({ axis, label })));
+      const [first, ...rest] = drawn.map(edges);
+      for (const e of rest) {
+        expect(e).toEqual(first);
+      }
+    },
+  );
 });
 
 describe("labels", () => {

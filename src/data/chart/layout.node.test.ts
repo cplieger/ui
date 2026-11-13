@@ -172,6 +172,29 @@ describe("end labels", () => {
     expect(l.gutters.label).toBe(0);
   });
 
+  it("cuts a name to the group's label gutter less its pad, keeping the value whole", () => {
+    const spec: ChartSpec = {
+      x: {},
+      marks: [
+        {
+          mark: "line",
+          x: [0, 1],
+          series: [
+            { name: "Agents waiting on review", y: [3, 12_345] },
+            { name: "Live", y: [1, 4] },
+          ],
+        },
+      ],
+    };
+    const l = lay(spec, 600, { labelGroup: 80 });
+    // 80 - 8 px less " 12,345" leaves 19.5 px, two characters at 7.5 px.
+    expect(l.endLabels.map((e) => e.text)).toEqual(["A… 12,345", "Live 4"]);
+    expect(l.gutters.label).toBe(80);
+    expect(lay(spec, 600).endLabels.map((e) => e.text)).toContain(
+      "Agents waiting on review 12,345",
+    );
+  });
+
   it("reads 30rem off the chart's width, which the plot's borders make wider than its drawing", () => {
     const model = chartModel(line([[1, 5]]), "en", "UTC");
     const floors = { axis: 0, label: 0 };

@@ -734,7 +734,7 @@ const later = (run: () => void): void => {
   setTimeout(run, 700);
 };
 
-// The tab's group draws its own figures, below.
+// A chart stack draws its own figures, below.
 const figures = new Map<string, HTMLElement>();
 for (const figure of document.querySelectorAll<HTMLElement>("figure[data-chart]")) {
   if (figure.closest("[data-chart-group]") === null) {
@@ -843,7 +843,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-chart-t
   });
 }
 
-// The tab's four charts share their range: a new one loads all four.
+// A stack's charts share their range: a new one loads them all.
 for (const group of document.querySelectorAll<HTMLElement>("[data-chart-group]")) {
   const tab = [...group.querySelectorAll<HTMLElement>("figure[data-chart]")].flatMap((figure) => {
     const spec = SPECS.get(figure.dataset["chart"] ?? "");

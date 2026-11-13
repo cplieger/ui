@@ -193,14 +193,22 @@ const ceil = (v: number) => Math.ceil(v - 1e-6);
 
 // The end labels' texts and the y value each sits at: a line series' last
 // value, or the middle of an area layer's thickness at the last whole stack.
-function endTexts(model: Model, words: Words): { text: string; value: number }[] {
+// A name is cut so its label fits `limit`, the value always whole.
+function endTexts(
+  model: Model,
+  words: Words,
+  measure: Measure,
+  limit: number,
+): { text: string; value: number }[] {
+  const label = (name: string, value: string) =>
+    `${cutName(name, limit - measure.number(` ${value}`), measure.number)} ${value}`;
   const out: { text: string; value: number }[] = [];
   for (const m of model.marks) {
     if (m.kind === "line") {
       for (const s of m.series) {
         const value = s.y[lastSample(m, s)];
         if (value !== undefined && value !== null) {
-          out.push({ text: `${s.name} ${model.yText(value)}`, value });
+          out.push({ text: label(s.name, model.yText(value)), value });
         }
       }
     } else if (m.kind === "area") {
@@ -208,7 +216,7 @@ function endTexts(model: Model, words: Words): { text: string; value: number }[]
       let base = 0;
       for (const s of i === -1 ? [] : m.series) {
         const v = sampleValue(m, s, i) ?? 0;
-        out.push({ text: `${s.name} ${samplePart(model, m, s, i, words)}`, value: base + v / 2 });
+        out.push({ text: label(s.name, samplePart(model, m, s, i, words)), value: base + v / 2 });
         base += v;
       }
     }
@@ -620,7 +628,10 @@ export function layout(
   }
   const axisW = above ? 0 : Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
-  const ends = narrow ? [] : endTexts(model, words);
+  // A group's label gutter holds every end label, as its axis gutter holds
+  // band names, so a long series name never moves one plot off the shared edge.
+  const endLimit = metrics.labelGroup > 0 ? metrics.labelGroup - PAD : Number.POSITIVE_INFINITY;
+  const ends = narrow ? [] : endTexts(model, words, measure, endLimit);
   const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,

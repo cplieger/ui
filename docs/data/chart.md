@@ -254,14 +254,15 @@ reads.update({
 
 ## Charts together
 
-- Charts that share an x share its `domain`. Their plots start and end at the same edges through two lengths set once on their common parent. `--cp-chart-axis-gutter` is the least width of the y labels' gutter, and `--cp-chart-label-gutter` of the end labels' gutter.
+- Charts that share an x share its `domain` and sit in a `.cp-chart-stack`, a column of `.cp-chart` figures whose plots start and end at the same edges whatever their y labels. The stack sets two lengths for every chart in it: `--cp-chart-axis-gutter`, the least width of the y labels' gutter, at 8rem, and `--cp-chart-label-gutter`, the least width of the end labels' gutter, at 5rem. Under 30rem, measured on the stack, they are 5rem and 0, since lines and areas have no end labels there. Each chart keeps its own y scale and marks, so a stack is not `facets`. A row name wider than the axis gutter is cut to it, and an end label's name to the label gutter, its value kept whole, so neither moves one plot off the shared edge. The legend row and the table hold each name whole. The same holds wherever an app sets the two lengths on a parent of its own through the CSSOM.
 
-  ```css
-  .stats-charts { container-type: inline-size; --cp-chart-axis-gutter: 8rem; --cp-chart-label-gutter: 5rem; }
-  @container (width < 30rem) { .stats-charts > * { --cp-chart-axis-gutter: 5rem; --cp-chart-label-gutter: 0px; } }
+  ```html
+  <div class="cp-chart-stack">
+    <figure class="cp-chart">…</figure>
+    <figure class="cp-chart">…</figure>
+  </div>
   ```
 
-  Under 30rem lines and areas have no end labels, so the group sets its label gutter to 0 there. A row name wider than the axis gutter is cut to it, so it never moves one plot off the shared edge.
 - A gutter only grows on `update`, so a top label that goes from 9 to 10 never moves the plot sideways. A resize measures it afresh.
 - The plot is 240px tall, 200px under 30rem, or `height` in px. A timeline's, a bar chart's and a point chart's rows are each `max(24px, 1.75em)` tall at the axis's text size, a bar row 44px and a point row 38px under 30rem, and a grouped bar row is its bars and 8px, with the name's line and 2px above them under 30rem, so their height is their rows and a `height` on either is a `TypeError`.
 

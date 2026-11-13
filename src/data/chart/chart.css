@@ -47,6 +47,26 @@
   margin: 0;
 }
 
+/* Charts on one x range, one under another: the gutters are the stack's, so
+ * every plot starts and ends at the same x whatever its labels. Under 30rem
+ * lines and areas drop their end labels, so the label gutter is 0 there. */
+.cp-chart-stack {
+  --cp-chart-axis-gutter: 8rem;
+  --cp-chart-label-gutter: 5rem;
+
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+@container (width < 30rem) {
+  .cp-chart-stack > * {
+    --cp-chart-axis-gutter: 5rem;
+    --cp-chart-label-gutter: 0;
+  }
+}
+
 .cp-chart > figcaption {
   grid-column: 1;
   font-size: var(--cp-text-md);

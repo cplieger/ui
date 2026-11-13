@@ -50,6 +50,27 @@
         </figure>
         <footer>Live and active agents sampled each minute and drawn in steps. The server restarted 40 minutes in, so the lines start there, and the keys read the minutes before as “No data”. From 30rem wide up each line is labelled at its end. Left and Right step through the moments something changed, which are also the table's rows.</footer>
       </div>
+      <div class="card g-wide" data-new>
+        <h2>Three charts on one time range</h2>
+        <div class="cp-segmented" role="radiogroup" aria-label="Range"><label><input type="radio" name="chart-stack-range" value="6" checked>6 hours</label><label><input type="radio" name="chart-stack-range" value="24">24 hours</label><label><input type="radio" name="chart-stack-range" value="72">72 hours</label></div>
+        <div class="g-resizable">
+          <div class="cp-chart-stack" data-chart-group>
+            <figure class="cp-chart" data-chart="posts">
+              <figcaption>Posts by thread kind</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+            <figure class="cp-chart" data-chart="activity">
+              <figcaption>Agent activity</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+            <figure class="cp-chart" data-chart="agents">
+              <figcaption>Agents live and active</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+          </div>
+        </div>
+        <footer>The Statistics tab's posts, agent activity and agents over one time range, in a chart stack. Each chart keeps its own y scale, and the stack gives every one the same y gutter and end-label gutter, 8rem and 5rem, so each x axis starts and ends where the others do and a moment lines up straight down the column. Drag the box's corner narrower than 30rem: the step line drops its end labels and the gutters become 5rem and 0 together. A new range loads all three.</footer>
+      </div>
     </div>
   </section>
 
@@ -249,7 +270,7 @@
         <h2>The tab's four charts together</h2>
         <div class="cp-segmented" role="radiogroup" aria-label="Range"><label><input type="radio" name="chart-range" value="6" checked>6 hours</label><label><input type="radio" name="chart-range" value="24">24 hours</label><label><input type="radio" name="chart-range" value="72">72 hours</label></div>
         <div class="g-resizable" data-start="phone">
-          <div class="cp-stack g-chart-group" data-chart-group>
+          <div class="cp-chart-stack" data-chart-group>
             <figure class="cp-chart" data-chart="posts">
               <figcaption>Posts by thread kind</figcaption>
               <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
@@ -268,7 +289,7 @@
             </figure>
           </div>
         </div>
-        <footer>The tab on a 390 px phone, whose page gutters leave the charts 358 px. The four share their left and right edges through two gutter lengths set on their parent, 5rem and 0 under 30rem, so their x axes line up and agent names are cut at 5rem. Drag the box's corner to widen it: from 30rem the step line gains its end labels and the gutters grow to 8rem and 5rem. A new range loads all four together.</footer>
+        <footer>The tab on a 390 px phone, whose page gutters leave the charts 358 px. The four sit in one chart stack and share their left and right edges through its gutters, 5rem and 0 under 30rem, so their x axes line up and agent names are cut at 5rem. Drag the box's corner to widen it: from 30rem the step line gains its end labels and the gutters grow to 8rem and 5rem. A new range loads all four together.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Stacked area at a phone's width</h2>
