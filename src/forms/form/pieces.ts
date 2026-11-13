@@ -20,6 +20,9 @@ export interface Piece {
   /** Writes `values` with no announcement and no animation, then calls
    *  `touched` with the box. */
   set(values: Values): void;
+  /** What writing `values` would lose, as "<name> needs <what>", or null
+   *  when the piece holds them all. Absent when it holds any values. */
+  fits?(values: Values): string | null;
 }
 
 interface Held {

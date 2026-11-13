@@ -10,7 +10,7 @@
 import { reducedMotion, shared } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
 import { changesIn } from "../../forms/form/changed.js";
-import { type Asker, askerOf } from "./asker.js";
+import { type Asker, askEach, askersOf } from "./asker.js";
 
 export interface DialogOptions {
   /** Ends this call's hold on the listeners. Default: none, held for the
@@ -79,31 +79,41 @@ const isHeld = (dialog: HTMLDialogElement): boolean => holds.get(dialog)?.held()
 
 /** Whether a guard's question waits, or for a dialog with none, whether a
  *  field holds a change of the person's. */
-const holdsChanges = (dialog: HTMLDialogElement): boolean =>
-  askerOf(dialog)?.waiting() ?? changesIn(dialog).length > 0;
+function holdsChanges(dialog: HTMLDialogElement): boolean {
+  const all = askersOf(dialog);
+  return all.length > 0 ? all.some((a) => a.waiting()) : changesIn(dialog).length > 0;
+}
 
 const asking = new WeakSet<HTMLDialogElement>();
 
-/** Asks `asker`'s question, once at a time, and closes `dialog` on a yes. */
-function askThenClose(dialog: HTMLDialogElement, asker: Asker, value: string): void {
+/** Asks each guard's question, once at a time, and closes `dialog` once
+ *  every one said yes, dropping their changes after it closes. */
+function askThenClose(dialog: HTMLDialogElement, askers: readonly Asker[], value: string): void {
   if (asking.has(dialog)) {
     return;
   }
   asking.add(dialog);
-  void asker.ask().then((yes) => {
+  void askEach(askers).then((yes) => {
     asking.delete(dialog);
-    if (yes) {
-      dialog.addEventListener("close", asker.dropped, { once: true });
+    if (yes !== null) {
+      dialog.addEventListener(
+        "close",
+        () => {
+          for (const a of yes) {
+            a.dropped();
+          }
+        },
+        { once: true },
+      );
       closeDialog(dialog, value);
     }
   });
 }
 
-/** The guard's question for `dialog` while a close would drop a change. */
-const waitingAsker = (dialog: HTMLDialogElement): Asker | undefined => {
-  const a = askerOf(dialog);
-  return a?.waiting() === true ? a : undefined;
-};
+/** The guards' questions for `dialog` while a close would drop a change;
+ *  empty when none would. */
+const waitingAskers = (dialog: HTMLDialogElement): readonly Asker[] =>
+  askersOf(dialog).filter((a) => a.waiting());
 
 /** A press on the backdrop: the event's target is the dialog itself, at a
  *  point outside its box. */
@@ -219,8 +229,8 @@ function listen(signal: AbortSignal): void {
         return;
       }
       if (d.getAttribute("closedby") === "any" && !nativeClosedBy()) {
-        const a = waitingAsker(d);
-        if (a === undefined) {
+        const a = waitingAskers(d);
+        if (a.length === 0) {
           closeDialog(d, "cancel");
         } else {
           askThenClose(d, a, "cancel");
@@ -249,11 +259,11 @@ function listen(signal: AbortSignal): void {
       if (!(d instanceof HTMLDialogElement) || !d.open || e.defaultPrevented) {
         return;
       }
-      const a = waitingAsker(d);
+      const a = waitingAskers(d);
       if (isHeld(d)) {
         e.preventDefault();
         refuseHeld(d);
-      } else if (a !== undefined) {
+      } else if (a.length > 0) {
         e.preventDefault();
         askThenClose(d, a, "cancel");
       }
@@ -267,11 +277,11 @@ function listen(signal: AbortSignal): void {
       if (d === null) {
         return;
       }
-      const a = waitingAsker(d);
+      const a = waitingAskers(d);
       if (isHeld(d)) {
         e.preventDefault();
         refuseHeld(d);
-      } else if (a !== undefined) {
+      } else if (a.length > 0) {
         e.preventDefault();
         askThenClose(d, a, "cancel");
       } else if (!cssExit() && !reducedMotion()) {
@@ -292,8 +302,8 @@ function listen(signal: AbortSignal): void {
       if (d === null || (e as Event & { command?: string }).command !== "close") {
         return;
       }
-      const a = waitingAsker(d);
-      if (a !== undefined) {
+      const a = waitingAskers(d);
+      if (a.length > 0) {
         e.preventDefault();
         askThenClose(d, a, "");
       } else if (!cssExit() && !reducedMotion()) {

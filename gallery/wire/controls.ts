@@ -118,6 +118,26 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-unsaved
   const bar = form.querySelector<HTMLElement>(".cp-savebar");
   const count = bar?.querySelector("[data-part='count']");
   const notice = form.querySelector<HTMLElement>(".cp-notice");
+  const nav = form.querySelector<HTMLElement>("nav.cp-tabs");
+  // Each category is a part of the one form, shown by its link's query.
+  const show = (category: string | null): void => {
+    for (const part of form.querySelectorAll<HTMLElement>("[data-category]")) {
+      part.hidden = part.dataset["category"] !== category;
+    }
+    const link = nav?.querySelector<HTMLAnchorElement>(`a[href="?category=${category ?? ""}"]`);
+    link?.setAttribute("aria-current", "page");
+    for (const other of nav?.querySelectorAll("a") ?? []) {
+      if (other !== link) {
+        other.removeAttribute("aria-current");
+      }
+    }
+  };
+  nav?.addEventListener("click", (e) => {
+    const link = e.target instanceof Element ? e.target.closest("a") : null;
+    if (link !== null) {
+      show(new URL(link.href).searchParams.get("category"));
+    }
+  });
   const paint = (n: number): void => {
     if (bar !== null && bar !== undefined && count !== null && count !== undefined) {
       bar.hidden = n === 0;
@@ -126,6 +146,7 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-unsaved
   };
   const guard = guardChanges(form, {
     words: { question: "Leave without saving?" },
+    within: (to) => to.pathname === location.pathname && to.searchParams.has("category"),
     onChange: (c) => {
       paint(c.length);
     },
@@ -144,6 +165,10 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-unsaved
       notice.hidden = true;
     }
     const first = guard.changes()[0];
+    const part = first?.closest<HTMLElement>("[data-category]");
+    if (part?.hidden === true) {
+      show(part.dataset["category"] ?? null);
+    }
     const field =
       first?.matches("input, select, textarea") === true ? first : first?.querySelector("input");
     (field as HTMLElement | null | undefined)?.focus();

@@ -6,6 +6,7 @@
  */
 
 import { until } from "../../core/lifetime/lifetime.js";
+import { holds } from "../form/changed.js";
 import { type Values, registerPiece, touched } from "../form/pieces.js";
 
 export interface PairsOptions {
@@ -38,6 +39,20 @@ function write(c: RowControl, v: string): void {
   } else {
     c.value = v;
   }
+}
+
+/** Whether `c` holds `v` as `write` gives it; `""`, a value left out, is an
+ *  unchecked box. */
+function fits(c: RowControl, v: string): boolean {
+  if (c instanceof HTMLSelectElement) {
+    return [...c.options].some((o) => o.value === v);
+  }
+  if (c instanceof HTMLInputElement) {
+    return c.type === "checkbox" || c.type === "radio"
+      ? v === "true" || v === "false" || v === ""
+      : holds(c, v);
+  }
+  return true;
 }
 
 /**
@@ -137,6 +152,24 @@ export function enhancePairs(box: HTMLElement, options: PairsOptions = {}): void
         }
         touched(box);
         onChange?.();
+      },
+      fits: (next: Values) => {
+        const need = Math.max(0, ...Object.values(next).map((v) => v.length));
+        if (!(model instanceof HTMLLIElement)) {
+          const have = rows().length;
+          const over = Object.entries(next).find(([, v]) => v.length > have);
+          return over === undefined
+            ? null
+            : `${over[0]} needs at most ${String(have)} values, one for each row`;
+        }
+        for (const [key, c] of fieldsOf(model)) {
+          for (let i = 0; i < need; i++) {
+            if (!fits(c, next[key]?.[i] ?? "")) {
+              return `${key} needs a value its field holds`;
+            }
+          }
+        }
+        return null;
       },
     },
     signal,

@@ -351,6 +351,15 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
         }
         tell();
       },
+      fits: (next) => {
+        const vs = next[key] ?? [];
+        if (vs.length > max) {
+          return `${key} needs at most ${String(max)} values`;
+        }
+        return new Set(vs.map((v) => v.toLowerCase())).size === vs.length
+          ? null
+          : `${key} needs each value once`;
+      },
     },
     signal,
   );

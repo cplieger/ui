@@ -10,7 +10,7 @@
 import { type Control, MARK, clearError as clear, idOf, showError as show } from "./field-error.js";
 
 export type { Control } from "./field-error.js";
-export { guardChanges } from "./unsaved.js";
+export { guardChanges, leavePage } from "./unsaved.js";
 export type { FreshValue, FreshValues, Guard, GuardOptions, UnsavedWords } from "./unsaved.js";
 
 /** Marks `field` valid: its error hides and no longer describes it, whoever

@@ -14,9 +14,9 @@ import { pieceChanged, pieceOf, piecesIn } from "./pieces.js";
  *  page sets. */
 const NOT_TYPED = new Set(["button", "submit", "reset", "image", "hidden"]);
 
-/** The value a reset gives `input`: its default, cleaned as its type cleans
- *  a value, so a range or colour with no `value` attribute is no change. */
-export function resetValue(input: HTMLInputElement): string {
+/** A detached input of `input`'s type and limits, given `value`, which it
+ *  cleans as `input` would. */
+function cleaned(input: HTMLInputElement, value: string): HTMLInputElement {
   const fresh = input.ownerDocument.createElement("input");
   for (const name of ["type", "min", "max", "step", "multiple"]) {
     const v = input.getAttribute(name);
@@ -24,8 +24,35 @@ export function resetValue(input: HTMLInputElement): string {
       fresh.setAttribute(name, v);
     }
   }
-  fresh.value = input.defaultValue;
-  return fresh.value;
+  fresh.value = value;
+  return fresh;
+}
+
+/** The value a reset gives `input`: its default, cleaned as its type cleans
+ *  a value, so a range or colour with no `value` attribute is no change. */
+export function resetValue(input: HTMLInputElement): string {
+  return cleaned(input, input.defaultValue).value;
+}
+
+const NUMBERS = new Set(["number", "range"]);
+const MOMENTS = new Set(["date", "month", "week", "time", "datetime-local"]);
+
+/** Whether `input`, given `value`, holds it, however its type spells it, as
+ *  against a value its type cleans away: a line break in text, a number
+ *  past its limits or steps, a moment or colour it cannot read
+ *  (https://html.spec.whatwg.org/multipage/input.html#value-sanitization-algorithm). */
+export function holds(input: HTMLInputElement, value: string): boolean {
+  const c = cleaned(input, value);
+  if (NUMBERS.has(input.type)) {
+    return value === "" ? c.value === "" : c.valueAsNumber === Number(value);
+  }
+  if (MOMENTS.has(input.type)) {
+    return value === "" || c.value !== "";
+  }
+  if (input.type === "color") {
+    return c.value === value.toLowerCase();
+  }
+  return !/[\r\n]/.test(value);
 }
 
 /** Which options a reset selects: the `selected` ones, and for a one-line

@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 
 import { enhancePairs } from "../pairs/pairs.js";
 import { enhanceTokens } from "../tokens/tokens.js";
-import { guardChanges } from "./form.js";
+import { type FreshValues, guardChanges, leavePage } from "./form.js";
 
 let life = new AbortController();
 
@@ -37,18 +37,21 @@ const question = (): HTMLDialogElement | null =>
 const buttons = (): string[] =>
   [...(question()?.querySelectorAll("button") ?? [])].map((b) => b.textContent);
 
+const title = (): string | undefined => question()?.querySelector("h2")?.textContent;
+
+// Waits for this question to go, not for none to be open: the next guard's
+// question may open as it goes.
 async function answer(words: string): Promise<void> {
-  const b = [...(question()?.querySelectorAll("button") ?? [])].find(
-    (x) => x.textContent === words,
-  );
+  const q = question();
+  const b = [...(q?.querySelectorAll("button") ?? [])].find((x) => x.textContent === words);
   await userEvent.click(b as HTMLButtonElement);
-  await expect.poll(question).toBeNull();
+  await expect.poll(() => q?.isConnected).toBe(false);
 }
 
 const FIELDS =
   '<div class="cp-field"><label for="name">Name</label><input id="name" name="name" value="Tracker"></div>' +
   '<textarea name="notes">Kept</textarea>' +
-  '<select name="every"><option value="15">15 minutes</option><option value="30">30 minutes</option></select>' +
+  '<select name="every"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select>' +
   '<select name="langs" multiple><option selected>en</option><option>fr</option></select>' +
   '<input type="checkbox" name="notify">' +
   '<fieldset><legend>Quality</legend><label><input type="radio" name="q" value="hd" checked>HD</label><label><input type="radio" name="q" value="uhd">4K</label></fieldset>' +
@@ -237,6 +240,30 @@ describe("guardChanges: saving and discarding", () => {
     expect(guard.count).toBe(0);
   });
 
+  it("puts nothing back when a listener cancels the reset, and keeps the person on the form", async () => {
+    const f = form(
+      '<input name="name" value="Tracker" aria-label="Name"><div class="cp-tokens"><input aria-label="Tags"></div>',
+    );
+    const tags = enhanceTokens(get(f, ".cp-tokens"), { name: "tags", signal: life.signal });
+    f.addEventListener(
+      "reset",
+      (e) => {
+        e.preventDefault();
+      },
+      { signal: life.signal },
+    );
+    const guard = guardChanges(f, { signal: life.signal });
+    await userEvent.type(get(f, ".cp-tokens > input"), "4k{Enter}");
+    const name = get<HTMLInputElement>(f, '[name="name"]');
+    name.value = "Mine";
+    guard.discard();
+    expect([name.value, tags.values, guard.count]).toEqual(["Mine", ["4k"], 2]);
+    const go = guard.leave();
+    await answer("Discard 2 changes");
+    expect(await go).toBe(false);
+    expect([name.value, tags.values, guard.count]).toEqual(["Mine", ["4k"], 2]);
+  });
+
   it("counts a removed row of a rows field, and puts it back with its values on a discard", async () => {
     const f = form(
       '<div class="cp-stack" id="maps"><ul class="cp-pairs"><li><input name="from" value="/tv" aria-label="From"><input name="to" value="/media/tv" aria-label="To"><button type="button" data-remove-pair>Remove</button></li></ul><button type="button" data-add-pair>Add</button></div>',
@@ -321,9 +348,9 @@ describe("guardChanges: rebase", () => {
     guard.saved();
     get<HTMLSelectElement>(f, '[name="every"]').value = "15";
     get<HTMLInputElement>(f, '[value="hd"]').checked = true;
-    guard.rebase({ every: "", q: "" });
+    guard.rebase({ every: "60", q: "" });
     expect([...f.querySelectorAll("[data-cp-elsewhere]")].map((n) => n.textContent)).toEqual([
-      "Elsewhere: ",
+      "Elsewhere: 1 hour",
       "Elsewhere: ",
     ]);
     guard.rebase({ q: "uhd" });
@@ -370,6 +397,104 @@ describe("guardChanges: rebase", () => {
     expect(get<HTMLInputElement>(f, "#name").value).toBe("Tracker");
     expect(() => guard.rebase([] as never)).toThrow(TypeError);
     expect(guard.rebase({ missing: "x" })).toBe(0);
+  });
+
+  const FIT =
+    '<select name="every" aria-label="Every"><option value="15">15</option><option value="30" selected>30</option></select>' +
+    '<select name="langs" multiple aria-label="Languages"><option selected>en</option><option>fr</option></select>' +
+    '<label><input type="radio" name="q" value="hd" checked>HD</label><label><input type="radio" name="q" value="uhd">4K</label>' +
+    '<input type="checkbox" name="tags" value="anime" checked aria-label="anime"><input type="checkbox" name="tags" value="4k" aria-label="4k">' +
+    '<input type="number" name="n" value="5" aria-label="N"><input type="range" name="vol" aria-label="Volume">' +
+    '<input name="path" value="/a" aria-label="A"><input name="path" value="/b" aria-label="B">' +
+    '<input type="color" name="tint" aria-label="Tint">';
+
+  it.each(["rebase", "saved"] as const)(
+    "refuses on %s a value its field would not hold as given, changing nothing",
+    (verb) => {
+      const f = form(FIT);
+      const guard = guardChanges(f, { signal: life.signal });
+      const drawn = [...new FormData(f).entries()];
+      const cases: [FreshValues, string][] = [
+        [{ n: "6", every: "45" }, "every needs the value of one of its options"],
+        [{ langs: ["en", "de"] }, "langs needs the values of its options"],
+        [{ q: "sd" }, 'q needs the value of one of its radios, or "" for none'],
+        [{ tags: ["anime", "8k"] }, "tags needs the values of its boxes"],
+        [{ n: "abc" }, "n needs a value a number field holds"],
+        [{ vol: "200" }, "vol needs a value a range field holds"],
+        [{ vol: "50.5" }, "vol needs a value a range field holds"],
+        [{ vol: "" }, "vol needs a value a range field holds"],
+        [{ path: ["/a\n/c", "/b"] }, "path needs a value a text field holds"],
+        [{ path: ["/a", "/b", "/c"] }, "path needs at most 2 values, one for each field"],
+      ];
+      for (const [bad, why] of cases) {
+        expect(() => guard[verb](bad)).toThrow(`${verb}: ${why}`);
+      }
+      expect([...new FormData(f).entries()]).toEqual(drawn);
+      f.reset();
+      expect([...new FormData(f).entries()]).toEqual(drawn);
+      expect(guard.count).toBe(0);
+    },
+  );
+
+  it("takes a value its field spells another way, and no radio for a group given nothing", () => {
+    const f = form(FIT);
+    const guard = guardChanges(f, { signal: life.signal });
+    expect(guard.rebase({ tint: "#FF8800", vol: "80", n: "1e3", q: "" })).toBe(0);
+    expect(
+      ["tint", "vol", "n"].map((n) => get<HTMLInputElement>(f, `[name="${n}"]`).value),
+    ).toEqual(["#ff8800", "80", "1e3"]);
+    expect(f.querySelector("[name='q']:checked")).toBeNull();
+    expect(guard.rebase({ n: "" })).toBe(0);
+    expect(get<HTMLInputElement>(f, '[name="n"]').value).toBe("");
+    expect(guard.count).toBe(0);
+  });
+
+  it.each(["rebase", "saved"] as const)(
+    "refuses on %s more chips than a chips field takes, or one twice, changing nothing",
+    (verb) => {
+      const f = form(
+        '<div class="cp-tokens"><span class="cp-token" data-value="anime"><span>anime</span><button></button></span><input aria-label="Tags"></div>',
+      );
+      const tags = enhanceTokens(get(f, ".cp-tokens"), {
+        name: "tags",
+        max: 2,
+        signal: life.signal,
+      });
+      const guard = guardChanges(f, { signal: life.signal });
+      expect(() => guard[verb]({ tags: ["anime", "4k", "hdr"] })).toThrow(
+        `${verb}: tags needs at most 2 values`,
+      );
+      expect(() => guard[verb]({ tags: ["anime", "Anime"] })).toThrow(
+        `${verb}: tags needs each value once`,
+      );
+      expect([tags.values, guard.count]).toEqual([["anime"], 0]);
+      guard[verb]({ tags: ["anime", "4k"] });
+      expect(verb === "rebase" ? tags.values : guard.changes()).toEqual(
+        verb === "rebase" ? ["anime", "4k"] : [get(f, ".cp-tokens")],
+      );
+    },
+  );
+
+  it("refuses a rows field's value that its row's field would not hold, changing nothing", () => {
+    const f = form(
+      '<div class="cp-stack" id="maps"><ul class="cp-pairs"><li><select name="kind" aria-label="Kind"><option>tv</option><option>movies</option></select><input name="to" value="/media/tv" aria-label="To"><button type="button" data-remove-pair>Remove</button></li></ul><button type="button" data-add-pair>Add</button></div>',
+    );
+    enhancePairs(get(f, "#maps"), { signal: life.signal });
+    const guard = guardChanges(f, { signal: life.signal });
+    expect(() =>
+      guard.rebase({ kind: ["tv", "anime"], to: ["/media/tv", "/media/anime"] }),
+    ).toThrow("rebase: kind needs a value its field holds");
+    expect([...new FormData(f).entries()]).toEqual([
+      ["kind", "tv"],
+      ["to", "/media/tv"],
+    ]);
+    expect(guard.rebase({ kind: ["tv", "movies"], to: ["/media/tv", "/media/films"] })).toBe(0);
+    expect([...new FormData(f).entries()]).toEqual([
+      ["kind", "tv"],
+      ["to", "/media/tv"],
+      ["kind", "movies"],
+      ["to", "/media/films"],
+    ]);
   });
 });
 
@@ -486,6 +611,73 @@ describe("guardChanges: leaving the page", () => {
     expect([question(), seen]).toEqual([null, ["/elsewhere?tab=2"]]);
   });
 
+  it("lets a link to an address the guard's page keeps reach the router, and asks for one that leaves it", async () => {
+    const f = form(FIELDS);
+    const { link, seen } = route();
+    const guard = guardChanges(f, {
+      within: (to) => to.pathname.startsWith("/settings/"),
+      signal: life.signal,
+    });
+    get<HTMLInputElement>(f, "#name").value = "Mine";
+    link.href = "/settings/languages";
+    await userEvent.click(link);
+    expect([question(), seen, guard.count]).toEqual([null, ["/settings/languages"], 1]);
+    link.href = "/elsewhere";
+    await userEvent.click(link);
+    expect([title(), seen]).toEqual(["Discard your changes?", ["/settings/languages"]]);
+    await answer("Keep editing");
+    expect(guard.count).toBe(1);
+  });
+
+  it("asks each guard in turn and discards none when a later one keeps its changes", async () => {
+    const a = form(FIELDS);
+    const b = form('<input name="note" aria-label="Note">');
+    const { link, seen } = route();
+    const ga = guardChanges(a, { words: { question: "Leave the tracker?" }, signal: life.signal });
+    const gb = guardChanges(b, { words: { question: "Leave the note?" }, signal: life.signal });
+    get<HTMLInputElement>(a, "#name").value = "Mine";
+    get<HTMLInputElement>(b, "input").value = "Typed";
+    await userEvent.click(link);
+    expect(title()).toBe("Leave the tracker?");
+    await answer("Discard 1 change");
+    expect(title()).toBe("Leave the note?");
+    await answer("Keep editing");
+    expect([seen, ga.count, gb.count, get<HTMLInputElement>(a, "#name").value]).toEqual([
+      [],
+      1,
+      1,
+      "Mine",
+    ]);
+    await userEvent.click(link);
+    await answer("Discard 1 change");
+    await answer("Discard 1 change");
+    expect([seen, ga.count, gb.count]).toEqual([["/elsewhere?tab=2"], 0, 0]);
+  });
+
+  it("asks every guard for a router's Back, and none whose page keeps the address", async () => {
+    const a = form(FIELDS);
+    const b = form('<input name="note" aria-label="Note">');
+    const ga = guardChanges(a, {
+      within: (to) => to.pathname.startsWith("/settings/"),
+      signal: life.signal,
+    });
+    const gb = guardChanges(b, { words: { question: "Leave the note?" }, signal: life.signal });
+    get<HTMLInputElement>(a, "#name").value = "Mine";
+    expect(await leavePage("/settings/languages")).toBe(true);
+    expect([question(), ga.count]).toEqual([null, 1]);
+    get<HTMLInputElement>(b, "input").value = "Typed";
+    const stay = leavePage(new URL("/settings/languages", location.href));
+    expect(title()).toBe("Leave the note?");
+    await answer("Keep editing");
+    expect([await stay, ga.count, gb.count]).toEqual([false, 1, 1]);
+    const go = leavePage();
+    expect(title()).toBe("Discard your changes?");
+    await answer("Discard 1 change");
+    expect(title()).toBe("Leave the note?");
+    await answer("Discard 1 change");
+    expect([await go, ga.count, gb.count]).toEqual([true, 0, 0]);
+  });
+
   it("holds the browser's own prompt for a reload only while a change waits", () => {
     const f = form(FIELDS);
     const guard = guardChanges(f, { signal: life.signal });
@@ -575,6 +767,51 @@ describe("guardChanges: in a dialog", () => {
     await userEvent.click(get(f, '[type="submit"]'));
     expect(await shut).toBe(false);
     expect([question(), d.returnValue]).toEqual([null, "sent"]);
+  });
+
+  function twoForms(): ReturnType<typeof dialog> & { g: HTMLFormElement } {
+    const parts = dialog();
+    const g = document.createElement("form");
+    // Static test markup, never caller text.
+    g.setHTMLUnsafe('<input id="cc" name="cc" aria-label="Copy to">');
+    parts.d.append(g);
+    guardChanges(parts.f, { words, signal: life.signal });
+    guardChanges(g, { words: { question: "Drop the copy list?" }, signal: life.signal });
+    return { ...parts, g };
+  }
+
+  it("asks about each guarded form in a dialog, and closes and discards only once every one may go", async () => {
+    const { d, f, g } = twoForms();
+    const subject = get<HTMLInputElement>(f, "#subject");
+    const cc = get<HTMLInputElement>(g, "#cc");
+    d.showModal();
+    await userEvent.type(subject, "Hello");
+    await userEvent.type(cc, "@otto");
+    await userEvent.keyboard("{Escape}");
+    expect(title()).toBe("Discard this message?");
+    await answer("Discard");
+    expect(title()).toBe("Drop the copy list?");
+    await answer("Keep editing");
+    expect([d.open, subject.value, cc.value]).toEqual([true, "Hello", "@otto"]);
+    await userEvent.keyboard("{Escape}");
+    await answer("Discard");
+    const shut = closing(d);
+    await answer("Discard 1 change");
+    expect(await shut).toBe(false);
+    await expect.poll(() => [subject.value, cc.value]).toEqual(["", ""]);
+  });
+
+  it("asks only about the guarded form that holds a change, and shakes on a press outside", async () => {
+    const { d, f } = twoForms();
+    d.showModal();
+    await userEvent.type(get(f, "#subject"), "Hello");
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    expect([d.open, d.hasAttribute("data-cp-refused"), question()]).toEqual([true, true, null]);
+    await userEvent.keyboard("{Escape}");
+    expect(title()).toBe("Discard this message?");
+    const shut = closing(d);
+    await answer("Discard");
+    expect(await shut).toBe(false);
   });
 
   it("asks nothing about a closed dialog's form when the page's links are pressed", async () => {

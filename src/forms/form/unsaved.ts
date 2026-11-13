@@ -7,11 +7,12 @@
 
 import { shared } from "../../core/lifetime/lifetime.js";
 import { ask } from "../../overlays/ask/ask.js";
-import { setAsker } from "../../overlays/dialog/asker.js";
+import { type Asker, addAsker, askEach } from "../../overlays/dialog/asker.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import {
   changesIn,
   controlsOf,
+  holds,
   isTyped,
   resetSelection,
   resetValue,
@@ -49,9 +50,9 @@ export interface UnsavedWords {
 }
 
 /** One field's latest saved value: a string for a text field, a single
- *  select or a radio group; a boolean for a lone checkbox; a list for a
- *  multiple select, a group of checkboxes, several fields of one name, or
- *  a chips or rows field. */
+ *  select or a radio group (`""` for none checked); a boolean for a lone
+ *  checkbox; a list for a multiple select, a group of checkboxes, several
+ *  fields of one name, or a chips or rows field. */
 export type FreshValue = string | boolean | readonly string[];
 
 /** The latest saved values by field name. A name the form lacks is left
@@ -63,6 +64,10 @@ export interface GuardOptions {
   /** After each change to what waits, with the changed fields in page
    *  order. */
   readonly onChange?: (changes: readonly Element[]) => void;
+  /** Whether `to` keeps this form on the page, such as another category of
+   *  Settings that the app's router shows beside it: a link there asks
+   *  nothing. Default: no address does. */
+  readonly within?: (to: URL) => boolean;
   /** Ends the guard: its listeners, its question and its hold on the page's
    *  links. */
   readonly signal?: AbortSignal;
@@ -86,7 +91,8 @@ export interface Guard {
    * `TypeError`, changing nothing, when a value does not fit its field.
    */
   saved(values?: FreshValues): void;
-  /** Puts back every saved value, as the form's reset does. */
+  /** Puts back every saved value, as the form's reset does; a reset that a
+   *  listener cancels puts back nothing. */
   discard(): void;
   /**
    * Takes `fresh` as the saved values. A field the person changed keeps
@@ -96,8 +102,9 @@ export interface Guard {
    * when a value does not fit its field. Returns the count of changes kept.
    */
   rebase(fresh: FreshValues): number;
-  /** Asks before the person leaves the form while changes wait; resolves
-   *  true to go on, once the changes are discarded, or false to stay. */
+  /** Asks before the person leaves this form alone while changes wait;
+   *  resolves true to go on, once the changes are discarded, or false to
+   *  stay, as when they keep them or a listener cancels the reset. */
   leave(): Promise<boolean>;
 }
 
@@ -113,29 +120,58 @@ const NOTE = "data-cp-elsewhere";
 const guarded = new WeakSet<HTMLFormElement>();
 let seq = 0;
 
-interface Live {
-  readonly guarding: () => boolean;
-  readonly leave: () => Promise<boolean>;
+interface Live extends Asker {
+  readonly within: (to: URL) => boolean;
 }
 
 const live = new Set<Live>();
 let passing: Element | null = null;
 
-/** Whether following `link` in this tab leaves the document, as against a
- *  jump to a fragment on it or another tab, a download or a mail link. */
-function leaves(link: HTMLAnchorElement | HTMLAreaElement): boolean {
+/** Asks each of `guards` that still waits, in turn, and only once every one
+ *  said yes discards each; resolves whether none still waits, so a reset a
+ *  listener cancelled keeps the person where they are. */
+async function dropAll(guards: readonly Live[]): Promise<boolean> {
+  const yes = await askEach(guards);
+  if (yes === null) {
+    return false;
+  }
+  for (const g of yes) {
+    if (g.waiting()) {
+      g.dropped();
+    }
+  }
+  return yes.every((g) => !g.waiting());
+}
+
+/**
+ * Asks every guard holding a change before the page goes to `to`, as a
+ * press on a link that leaves does, for an app's router to call before it
+ * acts on the browser's Back: each guard's question in turn, and only once
+ * every one said yes, each form discarded. A guard whose `within` accepts
+ * `to` asks nothing. Resolves true to go on, or false, nothing discarded,
+ * to stay. Throws a `TypeError` for an address that does not parse.
+ */
+export function leavePage(to?: string | URL): Promise<boolean> {
+  const url = to === undefined ? null : new URL(to, location.href);
+  return dropAll([...live].filter((g) => g.waiting() && (url === null || !g.within(url))));
+}
+
+/** Where following `link` in this tab goes, or null when it stays on the
+ *  document, as a jump to a fragment does, or opens another tab, a download
+ *  or a mail link. */
+function leavingTo(link: HTMLAnchorElement | HTMLAreaElement): URL | null {
   const target = link.target;
   if ((target !== "" && target !== "_self") || link.hasAttribute("download")) {
-    return false;
+    return null;
   }
   const to = URL.parse(link.href);
   if (to === null || (to.protocol !== "http:" && to.protocol !== "https:")) {
-    return false;
+    return null;
   }
   const here = new URL(location.href);
   const sameDoc =
     to.origin === here.origin && to.pathname === here.pathname && to.search === here.search;
-  return !(sameDoc && link.href.includes("#"));
+  return sameDoc && link.href.includes("#") ? null : to;
 }
 
 // A press on a link that leaves is stopped before the page's router sees it,
@@ -159,27 +195,24 @@ const links = shared((signal) => {
       const link = start instanceof Element ? start.closest("a[href], area[href]") : null;
       if (
         !(link instanceof HTMLAnchorElement || link instanceof HTMLAreaElement) ||
-        link === passing ||
-        !leaves(link)
+        link === passing
       ) {
         return;
       }
-      const waiting = [...live].filter((g) => g.guarding());
+      const to = leavingTo(link);
+      const waiting = to === null ? [] : [...live].filter((g) => g.waiting() && !g.within(to));
       if (waiting.length === 0) {
         return;
       }
       e.preventDefault();
       e.stopImmediatePropagation();
-      void (async () => {
-        for (const g of waiting) {
-          if (!(await g.leave())) {
-            return;
-          }
+      void dropAll(waiting).then((go) => {
+        if (go) {
+          passing = link;
+          link.click();
+          passing = null;
         }
-        passing = link;
-        link.click();
-        passing = null;
-      })();
+      });
     },
     { capture: true, signal },
   );
@@ -249,6 +282,9 @@ function planRadios(
   const was = radios.find((r) => r.defaultChecked)?.value ?? "";
   const kept = mine !== was;
   const pick = radios.find((r) => r.value === v);
+  if (pick === undefined && v !== "") {
+    throw wrong(name, 'the value of one of its radios, or "" for none');
+  }
   return {
     anchor,
     controls: radios,
@@ -284,6 +320,9 @@ function planChecks(
   if (typeof v === "boolean" && boxes.length === 1) {
     on = () => v;
   } else if (isList(v)) {
+    if (!v.every((x) => boxes.some((b) => b.value === x))) {
+      throw wrong(name, "the values of its boxes");
+    }
     on = (box) => v.includes(box.value);
   } else {
     throw wrong(name, boxes.length === 1 ? "a boolean or a list" : "a list");
@@ -314,9 +353,16 @@ function planChecks(
 function planSelect(name: string, select: HTMLSelectElement, v: FreshValue): Plan {
   let next: boolean[];
   const options = [...select.options];
+  const known = (x: string): boolean => options.some((o) => o.value === x);
   if (select.multiple && isList(v)) {
+    if (!v.every(known)) {
+      throw wrong(name, "the values of its options");
+    }
     next = options.map((o) => v.includes(o.value));
   } else if (!select.multiple && typeof v === "string") {
+    if (!known(v)) {
+      throw wrong(name, "the value of one of its options");
+    }
     next = options.map((o) => o.value === v);
   } else {
     throw wrong(name, select.multiple ? "a list" : "a string");
@@ -366,12 +412,18 @@ function planTexts(
   if (typeof v === "string" && fields.length === 1) {
     at = () => v;
   } else if (isList(v)) {
+    if (v.length > fields.length) {
+      throw wrong(name, `at most ${String(fields.length)} values, one for each field`);
+    }
     at = (i) => v[i] ?? "";
   } else {
     throw wrong(name, fields.length === 1 ? "a string" : "a list");
   }
   return fields.map((f, i) => {
     const next = at(i);
+    if (f instanceof HTMLInputElement && !holds(f, next)) {
+      throw wrong(name, `a value a ${f.type} field holds`);
+    }
     const mine = f.value;
     const was = f instanceof HTMLTextAreaElement ? textDefault(f) : resetValue(f);
     const kept = mine !== was;
@@ -424,6 +476,10 @@ function planPiece(piece: Piece, fresh: FreshValues): Plan | null {
   }
   if (!touched) {
     return null;
+  }
+  const lost = piece.fits?.(nextSaved) ?? piece.fits?.(nextValue) ?? null;
+  if (lost !== null) {
+    throw new TypeError(lost);
   }
   return {
     anchor: piece.element,
@@ -642,11 +698,27 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
 
   const discard = (): void => {
     writing = true;
+    const seen: { reset?: Event } = {};
+    const listening = new AbortController();
+    form.addEventListener(
+      "reset",
+      (e) => {
+        seen.reset = e;
+      },
+      { capture: true, signal: listening.signal },
+    );
     // A control named "reset" would shadow the form's own method.
     HTMLFormElement.prototype.reset.call(form);
-    resetPieces(form);
+    listening.abort();
+    // Read once the reset's listeners have all run, any of which may cancel it.
+    const done = seen.reset !== undefined && !seen.reset.defaultPrevented;
+    if (done) {
+      resetPieces(form);
+    }
     writing = false;
-    clearNotes();
+    if (done) {
+      clearNotes();
+    }
     recount();
   };
   const saved = (values?: FreshValues): void => {
@@ -682,15 +754,11 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
     recount();
     return last.length;
   };
-  const leave = async (): Promise<boolean> => {
-    if (!guarding()) {
-      return true;
-    }
-    const yes = await question();
-    if (yes) {
-      discard();
-    }
-    return yes;
+  const self: Live = {
+    waiting: guarding,
+    ask: question,
+    dropped: discard,
+    within: options.within ?? (() => false),
   };
 
   const guard: Guard = {
@@ -702,14 +770,13 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
     saved,
     discard,
     rebase,
-    leave,
+    leave: () => dropAll([self]),
   };
   if (stopped) {
     return guard;
   }
 
   guarded.add(form);
-  const self: Live = { guarding, leave };
   live.add(self);
   const hold = signal === undefined ? {} : { signal };
   links.install(hold);
@@ -737,11 +804,7 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
   }, signal);
   if (dialog instanceof HTMLDialogElement) {
     installDialogs(hold);
-    setAsker(
-      dialog,
-      { waiting: () => changesIn(form).length > 0, ask: question, dropped: discard },
-      signal,
-    );
+    addAsker(dialog, self, signal);
   }
   unload(last.length > 0);
   signal?.addEventListener(
