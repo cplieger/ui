@@ -761,7 +761,8 @@ const KEY_LABEL_GAP = 4;
 
 // The labels of `at` (centres in px) whose `widths` keep KEY_LABEL_GAP
 // apart: all, every second from the first, or the first and last, each with
-// `kept`, a diverging key's pivot, which no thinning drops.
+// `kept`, a diverging key's pivot, which no thinning drops; else `kept`
+// alone, or the first alone without one.
 function thinned(at: readonly number[], widths: readonly number[], kept?: number): number[] {
   const clear = (keep: readonly number[]) =>
     keep.every((k, j) => {
