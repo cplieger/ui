@@ -56,7 +56,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   const dockAt = options.dockAt ?? 52;
 
   const dialog = document.createElement("dialog");
-  dialog.className = "cp-dialog cp-detail-dialog";
+  dialog.className = "cp-dialog";
   const labelledBy = detail.getAttribute("aria-labelledby");
   if (labelledBy !== null) {
     dialog.setAttribute("aria-labelledby", labelledBy);
