@@ -111,7 +111,7 @@ describe("enhanceTokens", () => {
     const { t } = make(f);
     f.input.focus();
     await userEvent.keyboard("{Backspace}");
-    const [a, b, c] = chipButtons(f.box);
+    const [, b, c] = chipButtons(f.box);
     expect(document.activeElement).toBe(c);
     await userEvent.keyboard("{ArrowLeft}");
     expect(document.activeElement).toBe(b);
@@ -120,8 +120,14 @@ describe("enhanceTokens", () => {
     expect(document.activeElement).toBe(c);
     await userEvent.keyboard("{ArrowRight}");
     expect(document.activeElement).toBe(f.input);
+  });
+
+  it("removes a chip on a press of its button and gives focus back to the field", async () => {
+    const f = field(["a", "b", "c"]);
+    const { t } = make(f);
+    const [a] = chipButtons(f.box);
     await userEvent.click(a as HTMLButtonElement);
-    expect(t.values).toEqual(["c"]);
+    expect(t.values).toEqual(["b", "c"]);
     expect(document.activeElement).toBe(f.input);
   });
 
