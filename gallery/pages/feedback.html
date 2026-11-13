@@ -108,9 +108,10 @@
       <div class="card" data-new>
         <h2>A known amount</h2>
         <div class="stage">
-          <span class="variant"><span class="cp-progress" id="check-bar" role="progressbar" aria-label="Running a check" aria-valuenow="0"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span></span>Run a check</span>
+          <span class="variant"><span class="cp-progress" id="check-bar"><progress max="100" value="0" aria-label="Running a check"></progress></span>Run a check</span>
           <button class="cp-button" type="button" data-progress-run="check-bar">Start</button>
         </div>
+        <footer>The bar is a native progress, so the page sets its value and nothing else. With the last step it turns green and its check pops in.</footer>
       </div>
       <div class="card">
         <h2>An unknown amount</h2>
@@ -166,7 +167,7 @@
       </div>
       <div class="card" data-new>
         <h2>First sync running</h2>
-        <div class="cp-empty"><strong><span class="cp-loader" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="cp-progress" role="progressbar" aria-label="Reading the library from Sonarr" aria-valuemax="351" aria-valuenow="120" aria-valuetext="Series 120 of 351" data-sync-demo><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>Series 120 of 351</span><a class="cp-button" href="#empty">View activity</a></div>
+        <div class="cp-empty"><strong><span class="cp-loader" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="cp-progress" data-sync-demo><progress max="351" value="120" aria-label="Reading the library from Sonarr"></progress><span>Series 120 of 351</span></span><a class="cp-button" href="#empty">View activity</a></div>
         <footer>The first-run state between connecting and data: what is being read, how far, and a way to watch it. The bar is the one for a known amount, with the step in words beside it, or under it in a narrow box, and both move on as the sync does.</footer>
       </div>
     </div>

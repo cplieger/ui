@@ -22,6 +22,15 @@ Every region that loads data has four designed states, for loading, empty, error
 - Empty says what belongs here and offers the one action that fills it (`.cp-empty`). Error says what broke and what to do next, in a notice where the region would be. It never apologises and never stays vague.
 - A change that will most likely succeed shows at once and rolls back on failure, through `@cplieger/reactive/actions`. A destructive action asks first or offers an Undo.
 
+**A known amount.** Work with known steps is a native `<progress>` in a `.cp-progress`, with the step in words beside it. The page sets the bar's `value` and the words as the work moves, and adds `data-state="done"` with the last step. A run that starts over is a new `<progress>`.
+
+```html
+<span class="cp-progress">
+  <progress max="8" value="3" aria-label="Checking sources"></progress>
+  <span>3 of 8</span>
+</span>
+```
+
 **An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`.
 
 ```html
@@ -215,7 +224,7 @@ An app whose data comes from another service has these states before it shows an
 | The service has no items | that the service answered and holds nothing yet | "Open Sonarr", a link to the service |
 | Filters hide everything | which filters are active | "Clear filters" |
 
-First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, then a `.cp-progress` whose words name the phase and the step, such as "Series 120 of 351", repeated in its `aria-valuetext`, then "View activity". Connection failed and Sync failed lead with a `circle-x` glyph in `data-tone="danger"`.
+First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, then a `.cp-progress` whose words beside the bar name the phase and the step, such as "Series 120 of 351", then "View activity". Connection failed and Sync failed lead with a `circle-x` glyph in `data-tone="danger"`.
 
 ## Navigation and the URL
 

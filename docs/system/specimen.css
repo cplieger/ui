@@ -69,10 +69,6 @@
   margin-block-end: var(--cp-space-3);
 }
 
-.progress-58 {
-  --cp-progress: 58%;
-}
-
 /* The detail a feed scrolls in, drawn at its whole height. As a scroller it
  * keeps the foot's sticky pin inside it, off the window. */
 .feed-frame {
