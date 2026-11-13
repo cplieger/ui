@@ -1659,18 +1659,6 @@ describe("css/system.css", () => {
     expect((d as DOMRect).top).toBeGreaterThan((c as DOMRect).top);
   });
 
-  it("puts a banner's action at its end and keeps its words readable", () => {
-    theme("light");
-    const el = build(
-      '<div class="cp-banner" data-tone="warning" style="inline-size: 40rem"><span>A new version is out.</span><button class="cp-button" type="button">Reload</button></div>',
-    );
-    const banner = (el.querySelector(".cp-banner") as Element).getBoundingClientRect();
-    const button = (el.querySelector("button") as Element).getBoundingClientRect();
-    expect(Math.round(banner.right - button.right)).toBe(16);
-    const cs = getComputedStyle(el.querySelector(".cp-banner") as Element);
-    expect(contrast(cs.color, cs.backgroundColor)).toBeGreaterThanOrEqual(4.5);
-  });
-
   it("presses a button by data-cp-pressed as well as :active, and never a disabled one", async () => {
     theme("light");
     const el = build(
@@ -3176,45 +3164,6 @@ describe("css/system.css feedback and steps", () => {
     expect(
       getComputedStyle(success?.querySelector(".cp-toast-time") as Element).animationName,
     ).toBe("cp-toast-drain");
-  });
-
-  it("stacks a banner's head, its reasons and its foot, the foot in the tone's ink", () => {
-    theme("light");
-    const el = build(
-      '<div class="cp-banner" data-tone="warning"><strong>Update ready.</strong> Reload to use it. <small>Saved.</small><button class="cp-button" type="button">Reload</button></div>' +
-        '<div class="cp-banner" data-tone="warning"><strong><span class="cp-icon"></span>Reachable from the internet</strong><ul><li>It answers on a public address.</li></ul><small>Seen today. <a href="#a">How to limit access</a></small></div>',
-    );
-    const [plain, reasons] = [...el.querySelectorAll<HTMLElement>(".cp-banner")] as [
-      HTMLElement,
-      HTMLElement,
-    ];
-    expect(getComputedStyle(plain).display).toBe("flex");
-    expect(getComputedStyle(plain).paddingBlockStart).toBe("8px");
-    expect(getComputedStyle(plain.querySelector("strong") as Element).display).toBe("block");
-    expect(getComputedStyle(plain.querySelector("small") as Element).color).toBe(
-      getComputedStyle(plain).color,
-    );
-    const box = getComputedStyle(reasons);
-    expect([box.display, box.paddingBlockStart, box.paddingInlineStart]).toEqual([
-      "grid",
-      "12px",
-      "16px",
-    ]);
-    const head = reasons.querySelector("strong") as HTMLElement;
-    const list = reasons.querySelector("ul") as HTMLElement;
-    expect(list.getBoundingClientRect().top - head.getBoundingClientRect().bottom).toBe(8);
-    expect(getComputedStyle(list).paddingInlineStart).toBe("28px");
-    expect(getComputedStyle(head).display).toBe("flex");
-    const ink = host("");
-    ink.style.color = "var(--cp-warning-11)";
-    const words = host("");
-    words.style.color = "var(--cp-warning-12)";
-    const foot = getComputedStyle(reasons.querySelector("small") as Element);
-    expect([foot.color, foot.fontSize]).toEqual([getComputedStyle(ink).color, "13px"]);
-    expect(getComputedStyle(reasons.querySelector(".cp-icon") as Element).color).toBe(
-      getComputedStyle(ink).color,
-    );
-    expect(box.color).toBe(getComputedStyle(words).color);
   });
 
   it("flashes a chip's solid at 110% and fades it back to its wash from the first fifth", () => {

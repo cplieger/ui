@@ -37,21 +37,22 @@
   <section class="g-section" id="notices">
     <h2>Notices and banners</h2>
     <div class="g-grid">
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Notices in the page</h2>
         <div class="cp-stack">
           <div class="cp-notice" data-tone="neutral"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span><span>Verdicts come from SeaDex and refresh every hour.</span></div>
           <div class="cp-notice" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span><span>Every source answered on the last check.</span></div>
           <div class="cp-notice" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>AniList answered with too many requests at 14:02. The refresh resumes at 14:10.</span></div>
           <div class="cp-notice" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><span>Radarr rejected the API key. Paste a new key in Settings, then Sources.</span></div>
+          <div class="cp-notice" data-tone="warning"><strong><span class="cp-icon" data-cp-icon="rotate-ccw" aria-hidden="true"></span>Restart to apply 2 changes</strong><ul><li>Listen port, from 8080 to 8443</li><li>Data folder</li></ul><small>Both are saved and wait for the next start. <a href="#notices">Restart from System</a></small></div>
         </div>
-        <footer>A notice belongs to the screen it is on and stays while its fact holds.</footer>
+        <footer>A notice belongs to the screen it is on and stays while its fact holds. With reasons, it holds a head with its glyph, the list, and a foot with its one way to act, as the banner does.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Banner for the whole app</h2>
-        <div class="cp-banner" data-tone="warning" role="status"><span class="cp-icon" data-cp-icon="wifi-off" aria-hidden="true"></span><span><strong>Connection lost.</strong> Reconnecting in 4 seconds…</span><button class="cp-button" data-size="sm" type="button">Retry now</button></div>
-        <div class="cp-banner g-gap-top" data-tone="warning" role="status"><strong><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>This app can be reached from the internet</strong><ul><li>It answers on a public address, 203.0.113.7.</li><li>Sign-in by password is on, with no passkey required.</li></ul><small>Last seen from outside <time data-ago="2400"></time>. <a href="#announce">How to limit access</a></small></div>
-        <footer>For a state of the whole app, such as an update that needs a reload, or a lost connection in an app with no header status (with one, its offline state says it alone): at the top of the main area, above the page's own content, until the state ends, so it has no dismiss. When the state has reasons, they follow as a short list with one way to act on them.</footer>
+        <div class="cp-notice" data-variant="banner" data-tone="warning" role="status"><span class="cp-icon" data-cp-icon="wifi-off" aria-hidden="true"></span><span><strong>Connection lost.</strong> Reconnecting in 4 seconds…</span><button class="cp-button" data-size="sm" type="button">Retry now</button></div>
+        <div class="cp-notice g-gap-top" data-variant="banner" data-tone="warning" role="status"><strong><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>This app can be reached from the internet</strong><ul><li>It answers on a public address, 203.0.113.7.</li><li>Sign-in by password is on, with no passkey required.</li></ul><small>Last seen from outside <time data-ago="2400"></time>. <a href="#announce">How to limit access</a></small></div>
+        <footer>For a state of the whole app, such as an update that needs a reload, or a lost connection in an app with no header status (with one, its offline state says it alone): at the top of the main area, above the page's own content, until the state ends, so it has no dismiss. When the state has reasons, they follow as a short list with one way to act on them. It is the notice in its banner form: smaller words, a tighter box, and links that keep the accent.</footer>
       </div>
     </div>
   </section>
