@@ -52,7 +52,7 @@ describe("ask", () => {
     const d = open();
     expect(d.querySelector("h2")?.textContent).toBe("Rewind");
     expect(d.querySelector("p")?.textContent).toBe("Rewind the chat to this turn?");
-    expect([...d.querySelectorAll("dt, dd")].map((n) => n.textContent)).toEqual([
+    expect([...d.querySelectorAll("dl.cp-facts > :is(dt, dd)")].map((n) => n.textContent)).toEqual([
       "Turns removed",
       "4",
     ]);

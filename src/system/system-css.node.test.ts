@@ -653,6 +653,12 @@ async function built(): Promise<string> {
   return [await readFile(HEADER, "utf8"), ...parts].join("\n");
 }
 
+// The cp- class names in a module's source. A cp- word right before "-${"
+// is an id prefix, and --cp- and data-cp- are a property and an attribute.
+function cpClasses(source: string): string[] {
+  return source.match(/(?<![-\w$])cp-[a-z0-9]+(?:-[a-z0-9]+)*(?![-\w$])/g) ?? [];
+}
+
 describe("css/system.css", () => {
   it("carries the colour block the ladder writes", async () => {
     const current = await readFile(COLOUR, "utf8");
@@ -690,6 +696,46 @@ describe("css/system.css", () => {
     await walk(join(ROOT, "src"), "");
     expect(new Set(listed).size, "a file listed twice").toBe(listed.length);
     expect([...listed].sort()).toEqual(onDisk.sort());
+  });
+
+  // An app may allow only the classes this stylesheet draws, so a module that
+  // writes or looks up any other cp- class breaks that app. A hook a script
+  // finds an element by is a data-cp-* attribute.
+  it("draws every cp- class a module's source names", async () => {
+    const drawn = new Set(
+      (await readFile(CSS, "utf8")).match(/(?<=\.)cp-[a-z0-9]+(?:-[a-z0-9]+)*/g),
+    );
+    const missing: string[] = [];
+    const walk = async (dir: string): Promise<void> => {
+      for (const e of await readdir(dir, { withFileTypes: true })) {
+        const path = join(dir, e.name);
+        if (e.isDirectory()) {
+          if (e.name !== "test-helpers") {
+            await walk(path);
+          }
+        } else if (e.name.endsWith(".ts") && !e.name.endsWith(".test.ts")) {
+          for (const name of cpClasses(await readFile(path, "utf8"))) {
+            if (!drawn.has(name)) {
+              missing.push(`${path.slice(ROOT.length + 1)}: ${name}`);
+            }
+          }
+        }
+      }
+    };
+    await walk(join(ROOT, "src"));
+    expect(
+      missing,
+      "draw the class in its element's CSS, or make the hook a data-cp-* attribute",
+    ).toEqual([]);
+  });
+
+  it("counts a written or looked-up cp- class, and no id prefix, property or attribute", () => {
+    expect(cpClasses('d.className = "cp-dialog cp-detail-dialog"; q(".cp-live-regions");')).toEqual(
+      ["cp-dialog", "cp-detail-dialog", "cp-live-regions"],
+    );
+    expect(
+      cpClasses('t.id = `cp-ask-${n}`; s.setProperty("--cp-at", v); a["data-cp-state"];'),
+    ).toEqual([]);
   });
 
   it("documents the envelope the ladder gives", async () => {

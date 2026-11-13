@@ -4308,7 +4308,7 @@ describe("css/system.css lists, feeds and counts", () => {
   it("scrolls a conversation in a list-detail dialog with its panel above, the foot pinned edge to edge", () => {
     theme("light");
     const el = build(
-      `<dialog class="cp-dialog cp-detail-dialog"><section class="cp-detail"><header><h2>internal/feed</h2></header><div class="cp-context">${contextPanel()}<div class="cp-context-main"><ol class="cp-feed">${entry().repeat(30)}</ol>${foot}</div></div></section></dialog>`,
+      `<dialog class="cp-dialog"><section class="cp-detail"><header><h2>internal/feed</h2></header><div class="cp-context">${contextPanel()}<div class="cp-context-main"><ol class="cp-feed">${entry().repeat(30)}</ol>${foot}</div></div></section></dialog>`,
     );
     const dialog = el.querySelector("dialog") as HTMLDialogElement;
     dialog.showModal();
