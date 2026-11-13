@@ -567,7 +567,7 @@ const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
     ? stop === j.i
     : j.kind === "post"
       ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
-      : sel.kind === "row" && sel.row === j.row;
+      : (sel.kind === "row" || sel.kind === "bar" || sel.kind === "point") && sel.row === j.row;
 
 /** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
 function noteReadings(model: Model, sel: Selection, words: Words): string {

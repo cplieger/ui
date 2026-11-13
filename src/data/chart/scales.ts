@@ -253,12 +253,24 @@ export function xScale(spec: ChartSpec): Continuous {
     }
   }
   const integer = extent.integer;
+  // A split's panels and a mirror's or diverging chart's sides start at 0,
+  // so a rule there reads as a distance from it, drawn on both sides of a
+  // diverging axis.
+  const from0 = spec.marks
+    .map((m) => (m.mark === "bar" ? m.arrange : undefined))
+    .find((a) => a === "split" || a === "mirror" || a === "diverge");
   // On a log scale a rule never moves the extent, so a sub-second median
   // opens no empty strip left of the underflow bin.
   if (!log) {
     for (const m of spec.marks) {
       if (m.mark === "rule" && finite(m.x)) {
+        if (from0 !== undefined && m.x < 0) {
+          throw new RangeError(`renderChart: a rule under arrange "${from0}" cannot be below 0`);
+        }
         extent.add(m.x);
+        if (from0 === "diverge") {
+          extent.add(-m.x);
+        }
       }
     }
   }

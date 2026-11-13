@@ -21,9 +21,17 @@ import {
   type RuleLabel,
   type Tick,
 } from "./axis.js";
-import { barBlock, barCentre, barReach, POINT_RADIUS, type Frame, type Panel } from "./geometry.js";
+import {
+  barBlock,
+  barCentre,
+  barReach,
+  POINT_RADIUS,
+  ruleXs,
+  type Frame,
+  type Panel,
+} from "./geometry.js";
 import { barsApart, sampleValue, type BarModel, type Model } from "./model.js";
-import { NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
+import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
 import type { Words } from "./words.js";
@@ -129,6 +137,8 @@ const MIRROR_SPACE = 2;
 const NAME_GAP = 2;
 /** The room between a bar's end and its value label. */
 const VALUE_GAP = 4;
+/** The room between a row's last bar, or its label, and a note's point there. */
+const END_GAP = 4;
 /** The room between a split bar chart's panels. */
 const PANEL_GAP = 16;
 /** The spine between a mirrored bar chart's two sides. */
@@ -165,8 +175,15 @@ function endTexts(model: Model, words: Words): { text: string; value: number }[]
   return out;
 }
 
-// Each text mark `notePoint` places, wrapped and placed beside its point.
-function notesOf(model: Model, metrics: Metrics, frame: Frame, rows: Layout["rows"]): Note[] {
+// Each text mark `notePoint` places, wrapped and placed beside its point;
+// `rowEnd` gives the point of a note at its row's end.
+function notesOf(
+  model: Model,
+  metrics: Metrics,
+  frame: Frame,
+  rows: Layout["rows"],
+  rowEnd: (row: number) => number,
+): Note[] {
   const out: Note[] = [];
   const max = Math.min(NOTE_REM * metrics.rem, frame.width);
   model.marks.forEach((m, mark) => {
@@ -174,7 +191,7 @@ function notesOf(model: Model, metrics: Metrics, frame: Frame, rows: Layout["row
     if (m.kind !== "text" || at === undefined) {
       return;
     }
-    const x = frame.xAt(at.x);
+    const x = at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x);
     const y = m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y);
     const texts = wrapNote(m.text, max, metrics.measure.text);
     const w = Math.max(...texts.map(metrics.measure.text));
@@ -409,6 +426,19 @@ export function layout(
     roomRight = Math.max(roomLeft, roomRight);
     roomLeft = 0;
   }
+  // A note at its row's end needs its point, and a numbered marker round it,
+  // on the plot: past each panel's outer end, a diverging row's right end,
+  // or the end the bars run to.
+  const endRoom = model.marks.some((m) => m.kind === "text" && m.x === undefined)
+    ? END_GAP + MARKER_RADIUS
+    : 0;
+  const endLeft = !panelled && bars?.arrange !== "diverge" && reverse;
+  if (endLeft) {
+    roomLeft += endRoom;
+  } else {
+    roomRight += endRoom;
+  }
+  const shift = valued ? 0 : inset + (endLeft ? endRoom : 0);
   const one: Axis = valued
     ? {
         lo: model.x.lo,
@@ -420,25 +450,25 @@ export function layout(
       }
     : xAxis(
         flip === reverse ? model.x : { ...model.x, reverse: flip },
-        Math.max(1, panelW - 2 * inset),
+        Math.max(1, panelW - 2 * inset - endRoom),
         ctx,
       );
   const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
-  // A rule's place reads the first panel's axis.
   const xAx: Axis =
     panels[0] === undefined
-      ? inset === 0
+      ? shift === 0
         ? one
         : {
             ...one,
-            at: (v) => inset + one.at(v),
-            ticks: one.ticks.map((t) => moved(t, (v) => inset + v)),
+            at: (v) => shift + one.at(v),
+            ticks: one.ticks.map((t) => moved(t, (v) => shift + v)),
           }
       : {
           ...one,
           at: panels[0].at,
           ticks: panels.flatMap((p) => one.ticks.map((t) => inPanel(t, p))),
         };
+  const across = { x: model.x, xAt: xAx.at, ...(panels.length > 0 ? { panels } : {}) };
 
   const xRules = model.marks.filter((m) => m.kind === "rule" && m.axis === "x");
   const ruleTexts: string[] = [];
@@ -456,7 +486,11 @@ export function layout(
       const physical = (r.place.off === "low") !== reverse ? "low" : "high";
       bandLabels.push({ off: physical, width: w });
     } else {
-      bandLabels.push({ at: xAx.at(r.place.at), width: w });
+      // A rule drawn more than once labels its first panel's line, or its
+      // right-hand line on both sides of a spine or a diverging 0.
+      const xs = ruleXs(r.place.at, across);
+      const at = bars?.arrange === "split" ? (xs[0] ?? 0) : Math.max(...xs);
+      bandLabels.push({ at, width: w });
     }
   }
   const placed = ruleBand(bandLabels, plotW);
@@ -569,6 +603,8 @@ export function layout(
   }
 
   const valueLabels: Text[] = [];
+  // Each label's bar and the label's outer edge.
+  const labelEnds: (BarValue & { readonly edge: number })[] = [];
   values.forEach((t, i) => {
     const at = rows[t.row];
     if (at === undefined || bars === undefined) {
@@ -581,9 +617,13 @@ export function layout(
         ? panel.at(t.value)
         : xAx.at(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi);
     const leftward = panel?.leftward ?? t.value < 0 !== reverse;
+    const text = valueTexts[i] ?? "";
+    const x = leftward ? end - VALUE_GAP : end + VALUE_GAP;
+    const w = measure.number(text);
+    labelEnds.push({ ...t, edge: leftward ? x - w : x + w });
     valueLabels.push({
-      text: valueTexts[i] ?? "",
-      x: leftward ? end - VALUE_GAP : end + VALUE_GAP,
+      text,
+      x,
       y:
         t.series === undefined || panel !== undefined
           ? at.y
@@ -633,16 +673,31 @@ export function layout(
     };
   });
 
-  const frame: Frame = {
-    width: plotW,
-    height,
-    dpr,
-    x: model.x,
-    xAt: xAx.at,
-    yAt,
-    ...(panels.length > 0 ? { panels } : {}),
+  const frame: Frame = { width: plotW, height, dpr, yAt, ...across };
+
+  // A note with no x points 4 px past the outer end of its row's last
+  // place: the last panel's bar, a mirror's or a diverging row's right
+  // side, or else its farthest bar; past that bar's value label if it has one.
+  const rowEnd = (row: number): number => {
+    if (bars === undefined) {
+      return 0;
+    }
+    const k = mirror ? panels.findIndex((p) => !p.leftward) : panels.length - 1;
+    const panel = panels[k];
+    if (panel !== undefined) {
+      const label = labelEnds.find((e) => e.row === row && e.series === k);
+      const dir = panel.leftward ? -1 : 1;
+      return (label?.edge ?? panel.at(bars.series[k]?.x[row] ?? 0)) + dir * END_GAP;
+    }
+    const reach = barReach(bars, row);
+    if (bars.arrange === "diverge") {
+      return Math.max(xAx.at(reach.lo), xAx.at(reach.hi)) + END_GAP;
+    }
+    // Bars here are 0 or more, so the farthest reaches the row's highest.
+    const label = labelEnds.find((e) => e.row === row && e.value === reach.hi);
+    return (label?.edge ?? xAx.at(reach.hi)) + (reverse ? -END_GAP : END_GAP);
   };
-  const notes = notesOf(model, metrics, frame, rows);
+  const notes = notesOf(model, metrics, frame, rows, rowEnd);
   return {
     width,
     height: top + height + bottom,

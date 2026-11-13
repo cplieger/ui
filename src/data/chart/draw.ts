@@ -24,6 +24,7 @@ import {
   rangePath,
   rectPaths,
   rulePath,
+  ruleXs,
   snap,
   type Segment,
   tickPath,
@@ -240,8 +241,14 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       }
       case "rule":
         if ("at" in m.place) {
-          const at = m.axis === "x" ? f.xAt(m.place.at) : f.yAt(m.place.at);
-          area.append(svgEl("path", { "data-part": "rule", d: rulePath(m.axis, at, f) }));
+          const at = m.place.at;
+          const d =
+            m.axis === "x"
+              ? ruleXs(at, f)
+                  .map((x) => rulePath("x", x, f))
+                  .join("")
+              : rulePath("y", f.yAt(at), f);
+          area.append(svgEl("path", { "data-part": "rule", d }));
         }
         break;
       case "text": {

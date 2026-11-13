@@ -1135,3 +1135,64 @@ describe("a point mark's link", () => {
     expect(pointLink(d as PointModel, 0)).toBeNull();
   });
 });
+
+describe("rules and notes on bar and point rows", () => {
+  const two = (arrange: "split" | "diverge" | "mirror"): Mark => ({
+    mark: "bar",
+    y: ["c0", "c1"],
+    arrange,
+    ...(arrange === "diverge" ? { left: 1 } : {}),
+    series: [
+      { name: "p", x: [1, 2] },
+      { name: "q", x: [3, 4] },
+    ],
+  });
+  const goal = (x: number): Mark => ({ mark: "rule", x, label: "Goal" });
+  const at = (more: Partial<Extract<Mark, { mark: "text" }>>): Mark => ({
+    mark: "text",
+    y: "c1",
+    text: "Best",
+    ...more,
+  });
+
+  it.each(["split", "diverge", "mirror"] as const)(
+    "refuses a rule below 0 and a note's x under %s",
+    (arrange) => {
+      expect(() => build({ x: {}, marks: [two(arrange), goal(-1)] })).toThrow(
+        `renderChart: a rule under arrange "${arrange}" cannot be below 0`,
+      );
+      expect(() => build({ x: {}, marks: [two(arrange), at({ x: 2 })] })).toThrow(
+        `renderChart: marks[1].x has no place under arrange "${arrange}"; the note sits at its row's end`,
+      );
+    },
+  );
+
+  it("sets a note with no x on its row under a split, diverging or mirrored bar", () => {
+    for (const arrange of ["split", "diverge", "mirror"] as const) {
+      const m = build({ x: {}, marks: [two(arrange), goal(0), at({})] });
+      expect(m.marks[2]).toMatchObject({ kind: "text", x: undefined, y: 1, row: true });
+    }
+    // A split of one series draws a plain bar, and its note still sits at the row's end.
+    const one = build({ x: {}, marks: [bars([1, 2], { arrange: "split" }), at({})] });
+    expect(one.marks[1]).toMatchObject({ x: undefined, y: 1 });
+  });
+
+  it("keeps a rule below 0 beside a stack, whose bars run either way", () => {
+    const m = build({ x: {}, marks: [bars([1, -2]), goal(-1)] });
+    expect(m.marks[1]).toMatchObject({ place: { at: -1 } });
+  });
+
+  it.each([
+    ["a bar note without x", [bars([1, 2]), at({})], TypeError],
+    ["a point note without x", [points([[1, 2]]), at({})], TypeError],
+    ["a point note naming no row", [points([[1, 2]]), at({ x: 1, y: "zz" })], RangeError],
+    ["a point note's x as a name", [points([[1, 2]]), at({ x: "c0" })], TypeError],
+  ] as const)("refuses %s", (_, marks, type) => {
+    expect(() => build({ x: {}, marks: [...marks] })).toThrow(type);
+  });
+
+  it("places a point note along its row by its x", () => {
+    const m = build({ x: {}, marks: [points([[1, 2]]), at({ x: 1.5 })] });
+    expect(m.marks[1]).toMatchObject({ kind: "text", x: 1.5, y: 1, row: true });
+  });
+});

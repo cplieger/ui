@@ -1091,6 +1091,41 @@ describe("a bar chart", () => {
     expect(weekly?.y ?? 0).toBeGreaterThan(daily?.y ?? 0);
   });
 
+  it("draws a rule in every split panel, once folded, and either side of a diverging 0", () => {
+    const aim = { mark: "rule", x: 10, label: "Aim" } as const;
+    const xs = (d: Drawn) => {
+      const path = d.svg.querySelector('[data-part="rule"]')?.getAttribute("d") ?? "";
+      return [...path.matchAll(/M([\d.]+) /gu)].map((m) => Number(m[1]));
+    };
+    const panelled = draw({ ...split, marks: [...split.marks, aim] }, 600);
+    const panels = panelled.lay.frame.panels ?? [];
+    expect(xs(panelled)).toEqual(panels.map((p) => snap(p.at(10), panelled.lay.frame.dpr)));
+    expect(panelled.svg.querySelectorAll('[data-part="rule-label"] text')).toHaveLength(1);
+    const folded = draw({ ...split, marks: [...split.marks, aim] }, 320);
+    expect(xs(folded)).toEqual([snap(folded.lay.frame.xAt(10), folded.lay.frame.dpr)]);
+    const likert = draw(
+      {
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Item 1"],
+            arrange: "diverge",
+            left: 1,
+            series: [
+              { name: "Disagree", x: [30] },
+              { name: "Agree", x: [40] },
+            ],
+          },
+          aim,
+        ],
+      },
+      600,
+    );
+    const f = likert.lay.frame;
+    expect(xs(likert)).toEqual([snap(f.xAt(-10), f.dpr), snap(f.xAt(10), f.dpr)]);
+  });
+
   it("sets the names above the bars on a phone", () => {
     const d = draw(ages, 320);
     expect(d.lay.left).toBe(0);

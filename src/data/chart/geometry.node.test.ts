@@ -20,6 +20,7 @@ import {
   pointPaths,
   rangePath,
   rectPaths,
+  ruleXs,
   type Frame,
 } from "./geometry.js";
 import {
@@ -1318,5 +1319,65 @@ describe("points", () => {
     // close for a head, and row 3's 18 px, a head with no shaft.
     expect(shafts).toBe("M5 12.5H87M195 36.5H63M105 84.5H105");
     expect(heads).toBe("M95 12.5L87 8.5V16.5ZM55 36.5L63 32.5V40.5ZM113 84.5L105 80.5V88.5Z");
+  });
+});
+
+describe("an x rule on bar rows", () => {
+  const diverging = (domain?: readonly [number, number]) =>
+    model({
+      x: domain === undefined ? {} : { domain },
+      marks: [
+        {
+          mark: "bar",
+          y: ["a"],
+          arrange: "diverge",
+          left: 1,
+          series: [
+            { name: "No", x: [20] },
+            { name: "Yes", x: [40] },
+          ],
+        },
+        { mark: "rule", x: 30, label: "Goal" },
+      ],
+    });
+
+  it("draws once on a plain axis", () => {
+    const m = model({
+      x: {},
+      marks: [{ mark: "bar", y: ["a"], series: [{ name: "a", x: [50] }] }],
+    });
+    expect(ruleXs(25, frame(m, 200, 24, 1))).toEqual([100]);
+  });
+
+  it("draws in every panel at its value, in series order", () => {
+    const m = model({ x: {}, marks: [] });
+    const panels = [0, 108].map((left) => ({
+      left,
+      right: left + 92,
+      leftward: false,
+      at: (v: number) => left + v * 2,
+    }));
+    expect(ruleXs(10, { ...frame(m, 200, 24, 1), panels })).toEqual([20, 128]);
+  });
+
+  it("draws at its distance either side of a diverging 0, once at 0", () => {
+    const m = diverging();
+    // The rule's 30 widens both sides: -30 to 40 over 140 px, 2 px a unit.
+    expect([m.x.lo, m.x.hi]).toEqual([-30, 40]);
+    const f = frame(m, 140, 24, 1);
+    expect(ruleXs(30, f)).toEqual([0, 120]);
+    expect(ruleXs(0, f)).toEqual([60]);
+  });
+
+  it("leaves out the side a passed domain does not hold", () => {
+    const m = diverging([-20, 50]);
+    expect(ruleXs(30, frame(m, 140, 24, 1))).toEqual([100]);
+    expect(m.marks[1]).toMatchObject({ place: { at: 30 } });
+    const out = diverging([-40, 20]);
+    expect(ruleXs(30, frame(out, 120, 24, 1))).toEqual([20]);
+    // Its right-hand value lies off the axis, its left one on it, so it is drawn.
+    expect(out.marks[1]).toMatchObject({ place: { at: 30 } });
+    const neither = diverging([-20, 20]);
+    expect(neither.marks[1]).toMatchObject({ place: { off: "high" } });
   });
 });

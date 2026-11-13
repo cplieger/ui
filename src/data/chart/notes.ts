@@ -136,7 +136,7 @@ export function placeNote(
 }
 
 /** The stop a note joins: bucket or sample `i`, post `i` of a timeline
- *  row, or a timeline row with no post. */
+ *  row, or a row: a timeline row with no post, or a bar or point row. */
 export type Join =
   | { readonly kind: "stop"; readonly i: number }
   | { readonly kind: "post"; readonly row: number; readonly i: number }
@@ -181,15 +181,19 @@ function bucketAt(m: RectModel, x: number, hi: number): number | undefined {
 }
 
 /**
- * Where note `t` stands, in axis values: a band's row index for `y` on a
- * timeline. Undefined when it lies off either axis's domain, which the scales
- * set without notes. Layout and `noteJoin` both check it, so whether a note is
- * on the plot never depends on the chart's width.
+ * Where note `t` stands, in axis values: a band's row index for `y`, and no
+ * `x` for a note at its row's end. Undefined when it lies off either axis's
+ * domain, which the scales set without notes. Layout and `noteJoin` both
+ * check it, so whether a note is on the plot never depends on the chart's
+ * width.
  */
 export function notePoint(
   model: Model,
   t: TextModel,
-): { readonly x: number; readonly y: number } | undefined {
+): { readonly x: number | undefined; readonly y: number } | undefined {
+  if (t.x === undefined) {
+    return { x: undefined, y: t.y };
+  }
   const x = ruleAt(model.x, t.x);
   if ("off" in x) {
     return undefined;
@@ -203,20 +207,26 @@ export function notePoint(
 
 /** The stop note `t` joins in `model`; none when `notePoint` places it
  *  nowhere or it names no stop. On a step curve that is the stop holding its
- *  nearest sample, since the keys stop only there. */
+ *  nearest sample, since the keys stop only there. A bar or point note
+ *  joins its row, its x only placing it. */
 export function noteJoin(model: Model, t: TextModel): Join | undefined {
-  if (notePoint(model, t) === undefined) {
+  const p = notePoint(model, t);
+  const m = primaryOf(model);
+  if (p === undefined) {
     return undefined;
   }
-  const m = primaryOf(model);
+  if (p.x === undefined || m?.kind === "bar" || m?.kind === "point") {
+    return { kind: "row", row: p.y };
+  }
+  const x = p.x;
   switch (m?.kind) {
     case "rect": {
-      const i = bucketAt(m, t.x, model.x.hi);
+      const i = bucketAt(m, x, model.x.hi);
       return i === undefined ? undefined : { kind: "stop", i };
     }
     case "line":
     case "area": {
-      const i = nearestStop(m.x, m.from, m.to, t.x);
+      const i = nearestStop(m.x, m.from, m.to, x);
       if (i === undefined) {
         return undefined;
       }
@@ -230,11 +240,9 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       if (row.to <= row.from) {
         return { kind: "row", row: t.y };
       }
-      const i = nearestStop(row.x, row.from, row.to, t.x);
+      const i = nearestStop(row.x, row.from, row.to, x);
       return i === undefined ? undefined : { kind: "post", row: t.y, i };
     }
-    case "bar":
-    case "point":
     case undefined:
       return undefined;
   }

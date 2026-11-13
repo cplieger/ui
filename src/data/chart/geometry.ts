@@ -779,6 +779,19 @@ export const rulePath = (axis: "x" | "y", at: number, f: Frame): string =>
     ? `M${num(snap(at, f.dpr))} 0V${num(f.height)}`
     : `M0 ${num(snap(at, f.dpr))}H${num(f.width)}`;
 
+/** The px an x rule at `value` draws at: in every panel, in series order;
+ *  at its distance either side of a diverging axis's 0, each inside the
+ *  domain; or once. */
+export function ruleXs(value: number, f: Pick<Frame, "x" | "xAt" | "panels">): number[] {
+  if (f.panels !== undefined) {
+    return f.panels.map((p) => p.at(value));
+  }
+  if (!f.x.absolute || value === 0) {
+    return [f.xAt(value)];
+  }
+  return [-value, value].filter((v) => v >= f.x.lo && v <= f.x.hi).map((v) => f.xAt(v));
+}
+
 /** The 4 px tick vectors under the plot at `ats`, from its bottom edge. */
 export const tickPath = (ats: readonly number[], dpr: number): string =>
   ats.map((at) => `M${num(snap(at, dpr) + 0.5)} 0v4`).join("");

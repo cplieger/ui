@@ -704,3 +704,60 @@ describe("a point chart", () => {
     expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(7);
   });
 });
+
+describe("an x rule's label on bar rows", () => {
+  const ruled = (
+    arrange: "split" | "mirror" | "diverge" | undefined,
+    x: ChartSpec["x"] = {},
+  ): ChartSpec => ({
+    x,
+    marks: [
+      {
+        mark: "bar",
+        y: ["Instagram", "Facebook"],
+        ...(arrange === undefined ? {} : { arrange }),
+        ...(arrange === "diverge" ? { left: 1 } : {}),
+        series: [
+          { name: "Daily", x: [34, 20] },
+          { name: "Weekly", x: [8, 43] },
+        ],
+      },
+      { mark: "rule", x: 10, label: "Aim" },
+    ],
+  });
+
+  it("starts at its line in the first panel under a split, above the heads", () => {
+    const l = lay(ruled("split"), 600);
+    const first = l.frame.panels?.[0];
+    expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + (first?.at(10) ?? 0) });
+    expect(l.ruleLabels[0]?.y).toBeLessThan(l.heads[0]?.y ?? 0);
+    expect(l.top).toBe(2 * 17 + 4);
+  });
+
+  it("starts at the folded chart's one line under 30rem", () => {
+    const l = lay(ruled("split"), 479);
+    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.frame.xAt(10));
+  });
+
+  it("starts at its right-hand line under a mirror, whichever way x runs", () => {
+    const l = lay(ruled("mirror"), 600);
+    expect(l.ruleLabels[0]?.x).toBe(l.left + (l.frame.panels?.[1]?.at(10) ?? 0));
+    const reversed = lay(ruled("mirror", { reverse: true }), 600);
+    expect(reversed.ruleLabels[0]?.x).toBe(
+      reversed.left + (reversed.frame.panels?.[0]?.at(10) ?? 0),
+    );
+  });
+
+  it("starts at its right-hand line under a diverge, at +10 or on a reversed x at -10", () => {
+    const l = lay(ruled("diverge"), 600);
+    expect(l.ruleLabels[0]?.x).toBeCloseTo(l.left + l.frame.xAt(10));
+    const reversed = lay(ruled("diverge", { reverse: true }), 600);
+    expect(reversed.ruleLabels[0]?.x).toBeCloseTo(reversed.left + reversed.frame.xAt(-10));
+    expect(reversed.frame.xAt(-10)).toBeGreaterThan(reversed.frame.xAt(10));
+  });
+
+  it("starts at its one line on a stacked bar chart", () => {
+    const l = lay(ruled(undefined), 600);
+    expect(l.ruleLabels[0]).toMatchObject({ text: "Aim 10", x: l.left + l.frame.xAt(10) });
+  });
+});

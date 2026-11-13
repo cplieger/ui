@@ -246,8 +246,10 @@ export type Side = "above" | "below" | "left" | "right";
 /** A note at a place on the plot, which joins the reading of the stop it names. */
 export interface TextModel {
   readonly kind: "text";
-  readonly x: number;
-  /** A y value, or under a dot mark the index of the row it names. */
+  /** An x value; none for a note at its row's end beside a split,
+   *  diverging or mirrored bar chart. */
+  readonly x: number | undefined;
+  /** A y value, or on a band y the index of the row it names. */
   readonly y: number;
   readonly row: boolean;
   readonly text: string;
@@ -796,14 +798,20 @@ function hasData(m: MarkModel, x: Continuous): boolean {
 }
 
 // A note's place in the data mark's terms: values on continuous scales, or
-// under a dot mark a time and a row's name.
+// on a band y a row's name. Under `ends`, the arrangement a bar chart's one
+// x value would name a place in every panel or on both sides of, the note
+// takes no x and sits at its row's end.
 function textModel(
   m: Extract<Mark, { mark: "text" }>,
   what: string,
   x: Continuous,
   y: Continuous | Band,
+  ends: string | undefined,
 ): TextModel {
   const side = m.side ?? "above";
+  if (ends !== undefined && m.x !== undefined) {
+    fail(`${what}.x has no place under arrange "${ends}"; the note sits at its row's end`);
+  }
   const place = (v: number | string | undefined, axis: "x" | "y", scale: Continuous | Band) => {
     if (v === undefined) {
       return fail(`${what}.${axis} is missing; a note needs an x and a y on this chart`);
@@ -828,7 +836,7 @@ function textModel(
   };
   return {
     kind: "text",
-    x: place(m.x, "x", x),
+    x: ends === undefined ? place(m.x, "x", x) : undefined,
     y: place(m.y, "y", y),
     row: y.type === "band",
     text: m.text,
@@ -848,6 +856,9 @@ export function chartModel(
   check(spec);
   const x = xScale(spec);
   const y = yScale(spec);
+  const ends = spec.marks
+    .map((m) => (m.mark === "bar" ? m.arrange : undefined))
+    .find((a) => a === "split" || a === "diverge" || a === "mirror");
   const marks = spec.marks.map((m, index): MarkModel => {
     switch (m.mark) {
       case "rect":
@@ -918,10 +929,13 @@ export function chartModel(
         const scale = axis === "x" ? x : y;
         // A y rule on a band throws in yScale, so its scale is continuous.
         const place = scale.type === "band" ? { at: value } : ruleAt(scale, value);
-        return { kind: "rule", axis, value, label: m.label, place };
+        // A diverging axis draws a rule either side of 0, so it is off only
+        // where both its lines are.
+        const either = axis === "x" && x.absolute && "off" in place && "at" in ruleAt(x, -value);
+        return { kind: "rule", axis, value, label: m.label, place: either ? { at: value } : place };
       }
       case "text":
-        return textModel(m, `marks[${String(index)}]`, x, y);
+        return textModel(m, `marks[${String(index)}]`, x, y, ends);
     }
   });
   // The ends of a domain a whole day long can share their clock time, so they

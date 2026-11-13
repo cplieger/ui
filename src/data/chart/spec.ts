@@ -152,7 +152,10 @@ export interface PointMark {
   readonly series: readonly PointSeries[];
 }
 
-/** Exactly one of `x` and `y`, finite. */
+/** Exactly one of `x` and `y`, finite. Beside a dot, bar or point mark
+ *  only `x`, drawn down every row: in every panel of a split, and at its
+ *  distance from 0 on both sides of a mirror or a diverging chart, where it
+ *  cannot be below 0. */
 interface RuleMark {
   readonly mark: "rule";
   readonly x?: number;
@@ -162,8 +165,11 @@ interface RuleMark {
 
 /** A note at a place on the plot, set 4 px off it on its `side` (default
  *  "above"). Under a rect, line or area `x` and `y` are values on the
- *  chart's scales; under a dot mark `x` is a time and `y` a row's name. Both
- *  are required. A note outside the drawn range is not drawn. */
+ *  chart's scales; under a dot mark `x` is a time and `y` a row's name;
+ *  under a bar or point mark `y` names a row and `x` places the note along
+ *  it. Both are required, except under a split, diverging or mirrored bar,
+ *  which refuses `x` and sets the note at its row's end. A note outside the
+ *  drawn range is not drawn. */
 interface TextMark {
   readonly mark: "text";
   readonly x?: number | string;

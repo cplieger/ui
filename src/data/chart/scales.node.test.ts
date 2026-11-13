@@ -452,10 +452,16 @@ describe("a bar chart's scales", () => {
       expect([plain.lo, plain.hi]).toEqual([-40, 30]);
     });
 
-    it("holds a rule and refuses a negative value, whose side comes from its order", () => {
+    it("holds a rule on both sides and refuses a negative value, whose side comes from its order", () => {
       const spec = diverge(bars([10], [30]), 1);
       const x = xScale({ ...spec, marks: [...spec.marks, { mark: "rule", x: 50, label: "Goal" }] });
-      expect([x.lo, x.hi]).toEqual([-10, 50]);
+      // The rule draws at 50 either side of 0, so each side's extent reaches it.
+      expect([x.lo, x.hi]).toEqual([-50, 50]);
+      const near = xScale({
+        ...spec,
+        marks: [...spec.marks, { mark: "rule", x: 5, label: "Aim" }],
+      });
+      expect([near.lo, near.hi]).toEqual([-10, 30]);
       expect(() => xScale(diverge(bars([10], [-3]), 1))).toThrow(
         "renderChart: a diverging bar's x cannot be negative",
       );

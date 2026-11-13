@@ -297,15 +297,18 @@ export function ruleSentences(model: Model, words: Words): string[] {
 }
 
 /** Each note's sentence, in spec order: its x as the readings write it,
- *  under a dot mark after its row's name. */
+ *  under a dot mark after its row's name, on a bar or point chart its row's
+ *  name alone. */
 export function noteSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
   const m = primaryOf(model);
   for (const t of model.marks) {
     if (t.kind === "text") {
-      const x = model.xText(t.x);
-      const row = t.row && m?.kind === "dot" ? m.rows[t.y]?.name : undefined;
-      out.push(words.note(row === undefined ? x : `${row}, ${x}`, t.text));
+      const row = model.y.type === "band" ? (model.y.rows[t.y] ?? "") : undefined;
+      const x = t.x === undefined ? undefined : model.xText(t.x);
+      const at =
+        row === undefined ? x : m?.kind === "dot" && x !== undefined ? `${row}, ${x}` : row;
+      out.push(words.note(at ?? "", t.text));
     }
   }
   return out;
