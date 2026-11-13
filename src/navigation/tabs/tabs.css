@@ -2,10 +2,8 @@
  * of .cp-tab buttons), tabs that are links (a nav whose current link is
  * aria-current="page"), and the segmented control, which sets a value
  * (forms/segmented). The chosen one is a raised fill, which
- * @cplieger/ui/pill turns into a pill that slides. .cp-link-tabs is the
- * earlier name of nav.cp-tabs, drawn the same until it goes. */
+ * @cplieger/ui/pill turns into a pill that slides. */
 .cp-tabs,
-.cp-link-tabs,
 .cp-segmented {
   gap: var(--cp-space-1);
   inline-size: fit-content;
@@ -17,15 +15,14 @@
 
 /* A strip scrolls when it is wider than its place; its padding holds the
  * focus rings, since a scroll box clips at its padding edge. */
-.cp-tabs,
-.cp-link-tabs {
+.cp-tabs {
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
 .cp-tab,
-:is(.cp-tabs, .cp-link-tabs) > a,
+.cp-tabs > a,
 .cp-segmented > label {
   display: inline-flex;
   align-items: center;
@@ -43,7 +40,7 @@
 }
 
 .cp-tab,
-:is(.cp-tabs, .cp-link-tabs) > a {
+.cp-tabs > a {
   flex: none;
   min-block-size: var(--cp-control-h-sm);
 }
@@ -55,12 +52,12 @@
   font-weight: var(--cp-weight-medium);
 }
 
-:is(.cp-tabs, .cp-link-tabs) > a {
+.cp-tabs > a {
   text-decoration: none;
 }
 
 .cp-tab[aria-selected="true"],
-:is(.cp-tabs, .cp-link-tabs) > a[aria-current="page"],
+.cp-tabs > a[aria-current="page"],
 .cp-segmented > label:has(:checked) {
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
@@ -69,7 +66,7 @@
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     .cp-tab:not([aria-selected="true"]):hover,
-    :is(.cp-tabs, .cp-link-tabs) > a:not([aria-current="page"]):hover,
+    .cp-tabs > a:not([aria-current="page"]):hover,
     .cp-segmented > label:hover {
       color: var(--cp-ink);
     }
@@ -78,7 +75,7 @@
 
 @media (forced-colors: active) {
   .cp-tab[aria-selected="true"],
-  :is(.cp-tabs, .cp-link-tabs) > a[aria-current="page"],
+  .cp-tabs > a[aria-current="page"],
   .cp-segmented > label:has(:checked) {
     border: var(--cp-line-w) solid CanvasText;
   }

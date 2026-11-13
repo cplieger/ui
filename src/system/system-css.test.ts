@@ -1812,27 +1812,6 @@ describe("css/system.css", () => {
     ]);
   });
 
-  it("draws .cp-link-tabs, the earlier name, as nav.cp-tabs", () => {
-    theme("light");
-    const strip = (cls: string) =>
-      `<nav class="${cls}" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a></nav>`;
-    const el = build(strip("cp-tabs") + strip("cp-link-tabs"));
-    const [now, then] = [...el.querySelectorAll("nav")] as [HTMLElement, HTMLElement];
-    const look = (n: HTMLElement) =>
-      [n, ...n.querySelectorAll<HTMLElement>("a")].map((x) => {
-        const cs = getComputedStyle(x);
-        return [
-          cs.display,
-          cs.backgroundColor,
-          cs.color,
-          cs.padding,
-          cs.blockSize,
-          cs.textDecorationLine,
-        ];
-      });
-    expect(look(then)).toEqual(look(now));
-  });
-
   it("gives every segment of a segmented control the control's whole height as its target", () => {
     theme("light");
     for (const [tier, min] of [
@@ -5010,5 +4989,145 @@ describe("css/system.css data tables", () => {
     expect(getComputedStyle(selected as Element).backgroundColor).toBe(
       resolve("var(--cp-selected)", "backgroundColor"),
     );
+  });
+});
+
+describe("css/system.css popup option row", () => {
+  // One row of each popup, the first reached as its own keys would reach it.
+  function popups(): HTMLElement[] {
+    const el = build(
+      '<div class="cp-menu" role="menu"><button role="menuitem" type="button">Edit<kbd>E</kbd></button><button role="menuitem" type="button">Report<span class="cp-badge" data-variant="quiet">suggested</span></button><button role="menuitem" type="button" data-tone="danger">Remove</button></div>' +
+        '<ul class="cp-listbox" role="listbox"><li role="option" aria-selected="true">French<small>fr</small></li><li role="option" aria-selected="false">German<small>de</small></li></ul>' +
+        '<div class="cp-select-panel"><ul role="listbox"><li role="option" aria-selected="false" data-cp-active>Watch next</li><li role="option" aria-selected="true">Rewatch</li></ul></div>' +
+        '<div class="cp-palette"><ul role="listbox"><li role="option" aria-selected="true"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span><span>Open settings</span><kbd>,</kbd></li><li role="option" aria-selected="false"><span>Search</span></li></ul></div>',
+    );
+    (el.querySelector('[role="menuitem"]') as HTMLElement).focus();
+    return [
+      ...el.querySelectorAll<HTMLElement>(
+        ".cp-menu > :first-child, .cp-listbox > :first-child, .cp-select-panel li:first-child, .cp-palette li:first-child",
+      ),
+    ];
+  }
+  const resolve = (prop: "backgroundColor" | "color" | "blockSize", value: string) => {
+    const probe = host("");
+    probe.style[prop] = value;
+    return getComputedStyle(probe)[prop];
+  };
+  const rest = (el: HTMLElement) =>
+    el.parentElement?.querySelector<HTMLElement>(":scope > :nth-child(2)") as HTMLElement;
+
+  it("is the menu's compact height in every popup, and the control's under a finger", () => {
+    theme("light");
+    const reached = popups();
+    expect(reached).toHaveLength(4);
+    for (const [pointer, token] of [
+      ["fine", "--cp-control-h-sm"],
+      ["coarse", "--cp-control-h"],
+    ] as const) {
+      root.setAttribute("data-pointer", pointer);
+      const want = Number.parseFloat(resolve("blockSize", `var(${token})`));
+      for (const row of [...reached, ...reached.map(rest)]) {
+        expect(row.getBoundingClientRect().height, `${pointer} ${row.textContent}`).toBeCloseTo(
+          want,
+          0,
+        );
+      }
+    }
+  });
+
+  it("marks the option the keys reach with the selected wash, in each popup", () => {
+    theme("light");
+    const wash = resolve("backgroundColor", "var(--cp-selected)");
+    const ink = resolve("color", "var(--cp-accent-12)");
+    for (const row of popups()) {
+      const cs = getComputedStyle(row);
+      expect([cs.backgroundColor, cs.color], row.textContent).toEqual([wash, ink]);
+      expect(cs.outlineStyle, row.textContent).toBe("none");
+      // A checked select panel option the keys have not reached is not lit.
+      expect(getComputedStyle(rest(row)).backgroundColor, rest(row).textContent).toBe(
+        "rgba(0, 0, 0, 0)",
+      );
+    }
+  });
+
+  it("fills an option under a mouse and keeps the reached one washed under it", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "fine");
+    const wash = resolve("backgroundColor", "var(--cp-selected)");
+    const fill = resolve("backgroundColor", "var(--cp-fill)");
+    for (const row of popups()) {
+      await userEvent.hover(rest(row));
+      expect(getComputedStyle(rest(row)).backgroundColor, rest(row).textContent).toBe(fill);
+      await userEvent.hover(row);
+      expect(getComputedStyle(row).backgroundColor, row.textContent).toBe(wash);
+    }
+    root.setAttribute("data-pointer", "coarse");
+    const [, listbox] = popups();
+    await userEvent.hover(rest(listbox as HTMLElement));
+    expect(getComputedStyle(rest(listbox as HTMLElement)).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  });
+
+  it("ends a row with its keys, its muted word or a quiet badge, 12px from the edge", () => {
+    theme("light");
+    const [menu, listbox, , palette] = popups() as [
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+    ];
+    const muted = resolve("color", "var(--cp-ink-muted)");
+    const badge = rest(menu).querySelector(".cp-badge") as HTMLElement;
+    const ends = [
+      menu.querySelector("kbd"),
+      badge,
+      rest(listbox).querySelector("small"),
+      palette.querySelector("kbd"),
+    ] as HTMLElement[];
+    for (const end of ends) {
+      const row = end.parentElement as HTMLElement;
+      expect(Math.round(end.getBoundingClientRect().right), end.textContent).toBe(
+        Math.round(row.getBoundingClientRect().right) - 12,
+      );
+    }
+    expect(getComputedStyle(rest(listbox).querySelector("small") as Element).color).toBe(muted);
+    expect(getComputedStyle(badge).backgroundColor).toBe(
+      resolve("backgroundColor", "var(--cp-fill)"),
+    );
+    expect(getComputedStyle(badge).color).toBe(muted);
+  });
+
+  it("keeps a reached option's words, end and danger ink at 4.5:1 on the wash, in both themes", () => {
+    const ratio = (el: Element) => {
+      const row = el.closest('[role^="menuitem"], [role="option"]') as Element;
+      return contrast(getComputedStyle(el).color, getComputedStyle(row).backgroundColor);
+    };
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      const reached = popups();
+      for (const el of [
+        ...reached,
+        ...reached.flatMap((r) => [...r.querySelectorAll("kbd, small")]),
+      ]) {
+        expect(ratio(el), `${t} ${el.textContent}`).toBeGreaterThanOrEqual(4.5);
+      }
+      const danger = (reached[0] as HTMLElement).parentElement?.lastElementChild as HTMLElement;
+      danger.focus();
+      expect(ratio(danger), `${t} danger`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.skipIf(!emulates)("fills the reached option with Highlight in forced colours", async () => {
+    await media("forced-colors", "active");
+    theme("light");
+    for (const row of popups()) {
+      const cs = getComputedStyle(row);
+      expect([cs.backgroundColor, cs.color], row.textContent).toEqual([
+        resolve("backgroundColor", "Highlight"),
+        resolve("color", "HighlightText"),
+      ]);
+      for (const end of row.querySelectorAll("kbd, small")) {
+        expect(getComputedStyle(end).color).toBe(resolve("color", "HighlightText"));
+      }
+    }
   });
 });

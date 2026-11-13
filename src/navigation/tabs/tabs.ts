@@ -1,10 +1,9 @@
 /**
  * tabs.ts — `enhanceTabs()` runs a `.cp-tabs` strip. A tablist is the
  * WAI-ARIA tabs pattern: the selected tab is the one Tab stop, the arrows,
- * Home and End move along the tabs, and each tab shows its own panel. A
- * nav of links keeps its current link, `aria-current="page"`, as the
- * browser or the app's router sets it. Either way the selected one stays in
- * view and the pill from `@cplieger/ui/pill` slides under it.
+ * Home and End move along the tabs, and each tab shows its own panel. A nav
+ * of links keeps the current link (`aria-current="page"`) the app sets.
+ * Either way it stays in view under the pill from `@cplieger/ui/pill`.
  * @module
  */
 

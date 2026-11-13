@@ -52,4 +52,3 @@ addEventListener("popstate", () => tabs.select(linkFor(location.pathname)), {
 - `enhanceTabs()` on the nav slides the pill under the current link and keeps it in view in a strip too narrow for its links. It follows `aria-current` whatever sets it, the app's router or `select()`.
 - Each link stays its own Tab stop and a press follows it: the nav has no arrow keys, no panels, no `activation` and no `onSelect`.
 - `select(link)` makes that link the one `aria-current="page"`, for a router that changes the view in place. A nav where the page is none of its links keeps none current.
-- `.cp-link-tabs` is the earlier name of `nav.cp-tabs`, drawn the same until a later release removes it.

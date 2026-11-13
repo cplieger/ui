@@ -6985,10 +6985,8 @@ th[aria-sort="descending"] > .cp-sort::after {
  * of .cp-tab buttons), tabs that are links (a nav whose current link is
  * aria-current="page"), and the segmented control, which sets a value
  * (forms/segmented). The chosen one is a raised fill, which
- * @cplieger/ui/pill turns into a pill that slides. .cp-link-tabs is the
- * earlier name of nav.cp-tabs, drawn the same until it goes. */
+ * @cplieger/ui/pill turns into a pill that slides. */
 .cp-tabs,
-.cp-link-tabs,
 .cp-segmented {
   gap: var(--cp-space-1);
   inline-size: fit-content;
@@ -7000,15 +6998,14 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 /* A strip scrolls when it is wider than its place; its padding holds the
  * focus rings, since a scroll box clips at its padding edge. */
-.cp-tabs,
-.cp-link-tabs {
+.cp-tabs {
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
 .cp-tab,
-:is(.cp-tabs, .cp-link-tabs) > a,
+.cp-tabs > a,
 .cp-segmented > label {
   display: inline-flex;
   align-items: center;
@@ -7026,7 +7023,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-tab,
-:is(.cp-tabs, .cp-link-tabs) > a {
+.cp-tabs > a {
   flex: none;
   min-block-size: var(--cp-control-h-sm);
 }
@@ -7038,12 +7035,12 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-weight: var(--cp-weight-medium);
 }
 
-:is(.cp-tabs, .cp-link-tabs) > a {
+.cp-tabs > a {
   text-decoration: none;
 }
 
 .cp-tab[aria-selected="true"],
-:is(.cp-tabs, .cp-link-tabs) > a[aria-current="page"],
+.cp-tabs > a[aria-current="page"],
 .cp-segmented > label:has(:checked) {
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
@@ -7052,7 +7049,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     .cp-tab:not([aria-selected="true"]):hover,
-    :is(.cp-tabs, .cp-link-tabs) > a:not([aria-current="page"]):hover,
+    .cp-tabs > a:not([aria-current="page"]):hover,
     .cp-segmented > label:hover {
       color: var(--cp-ink);
     }
@@ -7061,7 +7058,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 @media (forced-colors: active) {
   .cp-tab[aria-selected="true"],
-  :is(.cp-tabs, .cp-link-tabs) > a[aria-current="page"],
+  .cp-tabs > a[aria-current="page"],
   .cp-segmented > label:has(:checked) {
     border: var(--cp-line-w) solid CanvasText;
   }
@@ -8977,8 +8974,8 @@ a.cp-media:focus-visible > .cp-cover {
 
 /* A command palette (@cplieger/ui/palette): a .cp-dialog near the top of
  * the window, its search field above a list of actions, each with its icon
- * and, at its end, the keys that run it. On a phone it rises from the
- * bottom edge as every dialog does. */
+ * and, at its end, the keys that run it, drawn as the popup option row in
+ * menu.css. On a phone it rises from the bottom edge as every dialog does. */
 @media (width >= 40rem) {
   .cp-palette {
     inline-size: min(36rem, calc(100vw - 2rem));
@@ -9016,52 +9013,11 @@ a.cp-media:focus-visible > .cp-cover {
   list-style: none;
 }
 
-.cp-palette [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-.cp-palette [role="option"] > .cp-icon {
-  color: var(--cp-ink-muted);
-}
-
-/* The keys that run an action are muted words at its end, as in a menu. */
-.cp-palette [role="option"] > kbd,
-.cp-palette [role="option"] > kbd kbd {
-  margin-inline-start: auto;
-  padding: 0;
-  border: 0;
-  color: var(--cp-ink-muted);
-  font: inherit;
-  font-size: var(--cp-text-xs);
-}
-
-.cp-palette [role="option"][aria-selected="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-}
-
-.cp-palette [role="option"][aria-selected="true"] > .cp-icon {
-  color: inherit;
-}
-
 .cp-palette [data-part="empty"] {
   margin: 0;
   padding: var(--cp-space-6) var(--cp-space-4);
   color: var(--cp-ink-muted);
   text-align: center;
-}
-
-@media (forced-colors: active) {
-  .cp-palette [role="option"][aria-selected="true"] {
-    background: Highlight;
-    color: HighlightText;
-  }
 }
 
 /* A popover: a menu or a panel in the top layer, so no z-index decides it,
@@ -9163,8 +9119,9 @@ a.cp-media:focus-visible > .cp-cover {
 
 /* A select panel (@cplieger/ui/select-panel): a .cp-popover holding a field
  * that filters a list of options to check, and the button that applies
- * them. Its form only groups them, so the popover lays them out. An
- * option's box is drawn with the menu's check items, in menu.css. */
+ * them. Its form only groups them, so the popover lays them out. Its
+ * options are the popup option row, their box the menu's check items', in
+ * menu.css. */
 .cp-popover.cp-select-panel {
   display: grid;
   gap: var(--cp-space-2);
@@ -9189,43 +9146,12 @@ a.cp-media:focus-visible > .cp-cover {
   list-style: none;
 }
 
-.cp-select-panel [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-:root[data-pointer="coarse"] .cp-select-panel [role="option"] {
-  min-block-size: var(--cp-control-h);
-}
-
-/* The option the arrow keys reached, which Enter checks; focus stays in
- * the field. */
-.cp-select-panel [role="option"][data-cp-active] {
-  background: var(--cp-fill);
-}
-
-.cp-select-panel [role="option"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
 /* The words shown while no option matches the filter. */
 .cp-select-panel [data-part="empty"] {
   margin: 0;
   padding: var(--cp-space-1) var(--cp-space-2);
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
-}
-
-@media (forced-colors: active) {
-  .cp-select-panel [role="option"][data-cp-active] {
-    outline: var(--cp-line-w) solid Highlight;
-  }
 }
 
 /* The header status's panel: a .cp-popover[data-variant="panel"] whose
@@ -9258,9 +9184,9 @@ a.cp-media:focus-visible > .cp-cover {
 }
 
 /* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as
- * wide as its field, the active option filled, a muted word at an option's
- * end in a <small>. It is the listbox, or the popup that holds the listbox
- * beside its .cp-listbox-empty line. */
+ * wide as its field. It is the listbox, or the popup that holds the listbox
+ * beside its .cp-listbox-empty line. Its options are the popup option row,
+ * in menu.css. */
 .cp-listbox {
   inline-size: anchor-size(width);
   min-inline-size: 12rem;
@@ -9268,36 +9194,6 @@ a.cp-media:focus-visible > .cp-cover {
   margin-block: var(--cp-space-1) 0;
   overflow: auto;
   list-style: none;
-}
-
-.cp-listbox [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-:root[data-pointer="coarse"] .cp-listbox [role="option"] {
-  min-block-size: var(--cp-control-h);
-}
-
-.cp-listbox [role="option"][aria-selected="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-}
-
-.cp-listbox [role="option"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
-.cp-listbox [role="option"] small {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
 }
 
 .cp-listbox > [role="listbox"] {
@@ -9345,26 +9241,28 @@ a.cp-media:focus-visible > .cp-cover {
   margin-inline-start: 0;
 }
 
-@media (forced-colors: active) {
-  .cp-listbox [role="option"][aria-selected="true"] {
-    background: Highlight;
-    color: HighlightText;
-  }
+/* One option row for every popup: a menu's items and the options of a
+ * combobox (.cp-listbox), a select panel and a palette. A row is a lead
+ * (.cp-icon, a check box, a .cp-cover), its words, and an end: keys in a
+ * <kbd>, a muted <small> or a quiet .cp-badge. The option the keys reach,
+ * where Enter goes, takes the selected wash; a pointer over a row takes the
+ * fill. A menu's keys move focus and the others' aria-activedescendant, and
+ * a select panel's aria-selected means checked, so each marks the reached
+ * option its own way. */
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
+  --cp-option-h: var(--cp-control-h-sm);
 }
 
-/* A menu: a .cp-popover with role="menu", its items buttons or links with a
- * menuitem role. Focus is the highlight, so a key and a mouse land on the
- * same row. */
-.cp-menu {
-  min-inline-size: 12rem;
+:root[data-pointer="coarse"] :is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
+  --cp-option-h: var(--cp-control-h);
 }
 
-.cp-menu [role^="menuitem"] {
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) :is([role^="menuitem"], [role="option"]) {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
   inline-size: 100%;
-  min-block-size: var(--cp-control-h-sm);
+  min-block-size: var(--cp-option-h);
   padding-inline: var(--cp-space-2) var(--cp-space-3);
   border: 0;
   border-radius: var(--cp-radius-control);
@@ -9376,8 +9274,70 @@ a.cp-media:focus-visible > .cp-cover {
   cursor: pointer;
 }
 
-:root[data-pointer="coarse"] .cp-menu [role^="menuitem"] {
-  min-block-size: var(--cp-control-h);
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  > :is(kbd, small, .cp-badge) {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  :is(kbd, small) {
+  padding: 0;
+  border: 0;
+  color: var(--cp-ink-muted);
+  font: inherit;
+  font-size: var(--cp-text-xs);
+}
+
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  > .cp-icon {
+  color: var(--cp-ink-muted);
+}
+
+/* The popups sit in :where() so the reached option's rule outranks the
+ * hover: a scoped rule beats an unscoped one of equal specificity
+ * (https://drafts.csswg.org/css-cascade-6/#cascade-proximity). */
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+      :is([role^="menuitem"], [role="option"]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+.cp-menu [role^="menuitem"]:focus,
+:is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+.cp-select-panel [role="option"][data-cp-active] {
+  outline: none;
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+}
+
+.cp-menu [role^="menuitem"]:focus > .cp-icon,
+:is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"] > .cp-icon,
+.cp-select-panel [role="option"][data-cp-active] > .cp-icon {
+  color: inherit;
+}
+
+.cp-menu [role^="menuitem"][data-tone="danger"],
+.cp-menu [role^="menuitem"][data-tone="danger"] > .cp-icon {
+  color: var(--cp-danger-11);
+}
+
+.cp-menu [role^="menuitem"][aria-disabled="true"],
+:is(.cp-listbox, .cp-select-panel, .cp-palette) [role="option"][aria-disabled="true"] {
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+/* A menu: a .cp-popover with role="menu", its items buttons or links with a
+ * menuitem role. */
+.cp-menu {
+  min-inline-size: 12rem;
 }
 
 /* A zone enhanceContextMenu opens a menu in: under a finger a hold opens it,
@@ -9386,43 +9346,6 @@ a.cp-media:focus-visible > .cp-cover {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-.cp-menu [role^="menuitem"]:focus {
-  outline: none;
-  background: var(--cp-fill);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-menu [role^="menuitem"]:hover {
-      background: var(--cp-fill);
-    }
-  }
-}
-
-.cp-menu [role^="menuitem"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
-.cp-menu [role^="menuitem"] > kbd,
-.cp-menu [role^="menuitem"] > kbd kbd {
-  margin-inline-start: auto;
-  padding: 0;
-  border: 0;
-  color: var(--cp-ink-muted);
-  font: inherit;
-  font-size: var(--cp-text-xs);
-}
-
-.cp-menu [role^="menuitem"] > .cp-icon {
-  color: var(--cp-ink-muted);
-}
-
-.cp-menu [data-tone="danger"],
-.cp-menu [data-tone="danger"] > .cp-icon {
-  color: var(--cp-danger-11);
 }
 
 .cp-menu hr {
@@ -9437,17 +9360,6 @@ a.cp-media:focus-visible > .cp-cover {
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-heading);
-}
-
-/* A count or a word at an item's end, such as a link's "New". */
-.cp-menu-tag {
-  margin-inline-start: auto;
-  padding: 0 var(--cp-space-2);
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-medium);
 }
 
 /* A radio item's tick, the check icon at an icon's size: a single choice
@@ -9543,8 +9455,17 @@ a.cp-media:focus-visible > .cp-cover {
 }
 
 @media (forced-colors: active) {
-  .cp-menu [role^="menuitem"]:focus {
-    outline: var(--cp-line-w) solid Highlight;
+  .cp-menu [role^="menuitem"]:focus,
+  :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+  .cp-select-panel [role="option"][data-cp-active] {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .cp-menu [role^="menuitem"]:focus :is(kbd, small, .cp-icon),
+  :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"] :is(kbd, small, .cp-icon),
+  .cp-select-panel [role="option"][data-cp-active] :is(kbd, small, .cp-icon) {
+    color: inherit;
   }
 
   :is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::before {
@@ -10149,7 +10070,7 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
  * segment, a tab strip's selected tab or a nav's current link. Placed by
  * row and column, so a wrapped choice slides to its line. Once it is
  * there, the choices paint no fill of their own. */
-:is(.cp-segmented, .cp-tabs, .cp-link-tabs):has(> .cp-pill) {
+:is(.cp-segmented, .cp-tabs):has(> .cp-pill) {
   position: relative;
 }
 
@@ -10186,13 +10107,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 .cp-segmented:has(> .cp-pill) > label,
 .cp-tabs:has(> .cp-pill) > .cp-tab,
-:is(.cp-tabs, .cp-link-tabs):has(> .cp-pill) > a {
+.cp-tabs:has(> .cp-pill) > a {
   z-index: 1;
 }
 
 .cp-segmented:has(> .cp-pill) > label:has(:checked),
 .cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"],
-:is(.cp-tabs, .cp-link-tabs):has(> .cp-pill) > a[aria-current="page"] {
+.cp-tabs:has(> .cp-pill) > a[aria-current="page"] {
   background: transparent;
   box-shadow: none;
 }

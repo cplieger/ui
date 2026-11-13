@@ -1,16 +1,25 @@
-/* A menu: a .cp-popover with role="menu", its items buttons or links with a
- * menuitem role. Focus is the highlight, so a key and a mouse land on the
- * same row. */
-.cp-menu {
-  min-inline-size: 12rem;
+/* One option row for every popup: a menu's items and the options of a
+ * combobox (.cp-listbox), a select panel and a palette. A row is a lead
+ * (.cp-icon, a check box, a .cp-cover), its words, and an end: keys in a
+ * <kbd>, a muted <small> or a quiet .cp-badge. The option the keys reach,
+ * where Enter goes, takes the selected wash; a pointer over a row takes the
+ * fill. A menu's keys move focus and the others' aria-activedescendant, and
+ * a select panel's aria-selected means checked, so each marks the reached
+ * option its own way. */
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
+  --cp-option-h: var(--cp-control-h-sm);
 }
 
-.cp-menu [role^="menuitem"] {
+:root[data-pointer="coarse"] :is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
+  --cp-option-h: var(--cp-control-h);
+}
+
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) :is([role^="menuitem"], [role="option"]) {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
   inline-size: 100%;
-  min-block-size: var(--cp-control-h-sm);
+  min-block-size: var(--cp-option-h);
   padding-inline: var(--cp-space-2) var(--cp-space-3);
   border: 0;
   border-radius: var(--cp-radius-control);
@@ -22,8 +31,70 @@
   cursor: pointer;
 }
 
-:root[data-pointer="coarse"] .cp-menu [role^="menuitem"] {
-  min-block-size: var(--cp-control-h);
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  > :is(kbd, small, .cp-badge) {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  :is(kbd, small) {
+  padding: 0;
+  border: 0;
+  color: var(--cp-ink-muted);
+  font: inherit;
+  font-size: var(--cp-text-xs);
+}
+
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  > .cp-icon {
+  color: var(--cp-ink-muted);
+}
+
+/* The popups sit in :where() so the reached option's rule outranks the
+ * hover: a scoped rule beats an unscoped one of equal specificity
+ * (https://drafts.csswg.org/css-cascade-6/#cascade-proximity). */
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+      :is([role^="menuitem"], [role="option"]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+.cp-menu [role^="menuitem"]:focus,
+:is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+.cp-select-panel [role="option"][data-cp-active] {
+  outline: none;
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+}
+
+.cp-menu [role^="menuitem"]:focus > .cp-icon,
+:is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"] > .cp-icon,
+.cp-select-panel [role="option"][data-cp-active] > .cp-icon {
+  color: inherit;
+}
+
+.cp-menu [role^="menuitem"][data-tone="danger"],
+.cp-menu [role^="menuitem"][data-tone="danger"] > .cp-icon {
+  color: var(--cp-danger-11);
+}
+
+.cp-menu [role^="menuitem"][aria-disabled="true"],
+:is(.cp-listbox, .cp-select-panel, .cp-palette) [role="option"][aria-disabled="true"] {
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+/* A menu: a .cp-popover with role="menu", its items buttons or links with a
+ * menuitem role. */
+.cp-menu {
+  min-inline-size: 12rem;
 }
 
 /* A zone enhanceContextMenu opens a menu in: under a finger a hold opens it,
@@ -32,43 +103,6 @@
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-.cp-menu [role^="menuitem"]:focus {
-  outline: none;
-  background: var(--cp-fill);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-menu [role^="menuitem"]:hover {
-      background: var(--cp-fill);
-    }
-  }
-}
-
-.cp-menu [role^="menuitem"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
-.cp-menu [role^="menuitem"] > kbd,
-.cp-menu [role^="menuitem"] > kbd kbd {
-  margin-inline-start: auto;
-  padding: 0;
-  border: 0;
-  color: var(--cp-ink-muted);
-  font: inherit;
-  font-size: var(--cp-text-xs);
-}
-
-.cp-menu [role^="menuitem"] > .cp-icon {
-  color: var(--cp-ink-muted);
-}
-
-.cp-menu [data-tone="danger"],
-.cp-menu [data-tone="danger"] > .cp-icon {
-  color: var(--cp-danger-11);
 }
 
 .cp-menu hr {
@@ -83,17 +117,6 @@
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-heading);
-}
-
-/* A count or a word at an item's end, such as a link's "New". */
-.cp-menu-tag {
-  margin-inline-start: auto;
-  padding: 0 var(--cp-space-2);
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-medium);
 }
 
 /* A radio item's tick, the check icon at an icon's size: a single choice
@@ -189,8 +212,17 @@
 }
 
 @media (forced-colors: active) {
-  .cp-menu [role^="menuitem"]:focus {
-    outline: var(--cp-line-w) solid Highlight;
+  .cp-menu [role^="menuitem"]:focus,
+  :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+  .cp-select-panel [role="option"][data-cp-active] {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .cp-menu [role^="menuitem"]:focus :is(kbd, small, .cp-icon),
+  :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"] :is(kbd, small, .cp-icon),
+  .cp-select-panel [role="option"][data-cp-active] :is(kbd, small, .cp-icon) {
+    color: inherit;
   }
 
   :is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::before {
