@@ -1,6 +1,6 @@
 /**
  * connection-test.ts — the "Test connection" button of a setup or settings
- * form: idle, busy, passed or failed. It runs a check the app supplies,
+ * form: idle, busy, done or failed. It runs a check the app supplies,
  * writes the answer into a status element the app renders, marks the field
  * a failure names, and goes back to idle once the person edits the form.
  * @module
@@ -9,7 +9,7 @@
 import { until } from "../../core/lifetime/lifetime.js";
 import { clearError, isControl, showError, writeError } from "../form/field-error.js";
 
-export type ConnectionTestState = "idle" | "busy" | "passed" | "failed";
+export type ConnectionTestState = "idle" | "busy" | "done" | "failed";
 
 export type ConnectionTestResult =
   | { readonly ok: true; readonly message: string }
@@ -152,7 +152,7 @@ export function enhanceConnectionTest(
               }
             }
           }
-          set(result.ok ? "passed" : "failed", result.message, result);
+          set(result.ok ? "done" : "failed", result.message, result);
         },
         (err: unknown) => {
           if (running !== mine) {

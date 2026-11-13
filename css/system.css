@@ -4211,10 +4211,8 @@ textarea.cp-input {
 /* A state: the state of a thing in its row or field, a short word in its
  * tone after the tone's glyph, such as "set", "not set" or "rejected"
  * beside a setting. With data-cp-state it is the state of the thing's own
- * work, and the stylesheet draws its glyph and tone; "passed" is a check's
- * word for "done". .cp-test-status is the former name of a data-size="ui"
- * state, drawn the same until it is removed. */
-:is(.cp-state, .cp-test-status) {
+ * work, and the stylesheet draws its glyph and tone. */
+.cp-state {
   display: inline-flex;
   align-items: center;
   gap: var(--cp-space-1);
@@ -4229,7 +4227,7 @@ textarea.cp-input {
 
 /* A state that is its line's own content, such as a test's answer beside
  * its button, reads at the interface's size with a control's glyph. */
-:is(.cp-state[data-size="ui"], .cp-test-status) {
+.cp-state[data-size="ui"] {
   font-size: var(--cp-text-ui);
 }
 
@@ -4239,7 +4237,7 @@ textarea.cp-input {
 
 /* Only a state that names a glyph below makes the box, so a state of any
  * other value never paints the unmasked square. */
-:is(.cp-state, .cp-test-status)[data-cp-state]::before {
+.cp-state[data-cp-state]::before {
   flex: none;
   inline-size: 0.875rem;
   block-size: 0.875rem;
@@ -4247,50 +4245,49 @@ textarea.cp-input {
   mask: var(--cp-state-glyph) center / contain no-repeat;
 }
 
-:is(.cp-state[data-size="ui"], .cp-test-status)::before {
+.cp-state[data-size="ui"]::before {
   inline-size: var(--cp-icon-ui);
   block-size: var(--cp-icon-ui);
 }
 
-:is(.cp-state, .cp-test-status):is([data-cp-state="idle"], [data-cp-state="busy"]) {
+.cp-state:is([data-cp-state="idle"], [data-cp-state="busy"]) {
   color: var(--cp-ink-muted);
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="busy"] {
+.cp-state[data-cp-state="busy"] {
   --cp-state-glyph: url("../icons/svg/spinner-arc.svg");
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="busy"]::before {
+.cp-state[data-cp-state="busy"]::before {
   content: "";
   animation: cp-spin 0.8s linear infinite;
 }
 
-:is(.cp-state, .cp-test-status):is([data-cp-state="passed"], [data-cp-state="done"]) {
+.cp-state[data-cp-state="done"] {
   --cp-state-glyph: url("../icons/svg/circle-check.svg");
 
   color: var(--cp-success-11);
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="failed"] {
+.cp-state[data-cp-state="failed"] {
   --cp-state-glyph: url("../icons/svg/circle-x.svg");
 
   color: var(--cp-danger-11);
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="passed"]::before,
-:is(.cp-state, .cp-test-status)[data-cp-state="done"]::before,
-:is(.cp-state, .cp-test-status)[data-cp-state="failed"]::before {
+.cp-state[data-cp-state="done"]::before,
+.cp-state[data-cp-state="failed"]::before {
   content: "";
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(.cp-state, .cp-test-status)[data-cp-state="busy"]::before {
+  .cp-state[data-cp-state="busy"]::before {
     animation: none;
   }
 }
 
 @media (forced-colors: active) {
-  :is(.cp-state, .cp-test-status)[data-cp-state]::before {
+  .cp-state[data-cp-state]::before {
     background: CanvasText;
   }
 }
@@ -6545,9 +6542,9 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* Notice: the state's wash over its container, a glyph and text. The banner
- * variant and its former name, .cp-banner, are selected at one class's
- * weight, so their rules win over these by order and lose to any context. */
-:is(.cp-notice, .cp-banner) {
+ * variant is selected at one class's weight, so its rules win over these by
+ * order and lose to any context. */
+.cp-notice {
   display: flex;
   gap: var(--cp-space-3);
   align-items: start;
@@ -6560,19 +6557,19 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* An action notice carries a button, so its row is button-height; centre the
  * icon and text with the button instead of leaving them at the top. A notice
  * without a button keeps its icon aligned to the first line of its text. */
-:is(.cp-notice, .cp-banner):has(> .cp-button) {
+.cp-notice:has(> .cp-button) {
   align-items: center;
 }
 
 /* The text sits left, the button is pushed to the end of the row. A
  * button's min-inline-size replaces a flex item's min-content floor, so the
  * button keeps its words' width and the text wraps instead. */
-:is(.cp-notice, .cp-banner) > .cp-button {
+.cp-notice > .cp-button {
   flex-shrink: 0;
   margin-inline-start: auto;
 }
 
-:is(.cp-notice, .cp-banner) > .cp-icon {
+.cp-notice > .cp-icon {
   color: var(--cp-tone-11);
   margin-block-start: 0.0625rem;
 }
@@ -6580,7 +6577,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* On a tone's wash the grey fill of a plain button disappears into a warm
  * or cold tint; it rises off the wash instead, edged with the tone's 3:1
  * step, and its words take the tone's ink. */
-:is(.cp-notice, .cp-banner) .cp-button:not([data-variant="primary"]) {
+.cp-notice .cp-button:not([data-variant="primary"]) {
   border: var(--cp-line-w) solid var(--cp-tone-8);
   background: var(--cp-surface-raised);
   color: var(--cp-tone-12);
@@ -6588,15 +6585,14 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-notice .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover,
-    .cp-banner .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover {
+    .cp-notice .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover {
       background: var(--cp-tone-2);
     }
   }
 }
 
 /* A list inside a notice, such as an error summary's links to its fields. */
-:is(.cp-notice, .cp-banner) :where(ul, ol) {
+.cp-notice :where(ul, ol) {
   margin: var(--cp-space-1) 0 0;
   padding-inline-start: 1.25em;
 }
@@ -6609,7 +6605,7 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 /* The banner: a condition of every screen, at the top of main, its words and
  * its action wrapping under each other in a narrow main. */
-:is(.cp-banner, .cp-notice:where([data-variant="banner"])) {
+.cp-notice:where([data-variant="banner"]) {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--cp-space-2) var(--cp-space-3);
@@ -6618,41 +6614,41 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-size: var(--cp-text-sm);
 }
 
-:is(.cp-banner, .cp-notice:where([data-variant="banner"])) > .cp-icon {
+.cp-notice:where([data-variant="banner"]) > .cp-icon {
   margin-block-start: 0;
 }
 
 /* A notice with reasons stacks its head (a <strong> with its glyph), the
  * list, and a <small> foot holding its one way to act. */
-:is(.cp-notice, .cp-banner):has(> ul) {
+.cp-notice:has(> ul) {
   display: grid;
   gap: var(--cp-space-2);
   padding-block: var(--cp-space-3);
 }
 
-:is(.cp-notice, .cp-banner):has(> ul) > strong {
+.cp-notice:has(> ul) > strong {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
 }
 
-:is(.cp-notice, .cp-banner):has(> ul) > strong > .cp-icon {
+.cp-notice:has(> ul) > strong > .cp-icon {
   color: var(--cp-tone-11);
 }
 
-:is(.cp-notice, .cp-banner) > ul {
+.cp-notice > ul {
   margin: 0;
   padding-inline-start: 1.75rem;
   line-height: var(--cp-leading-body);
 }
 
-:is(.cp-notice, .cp-banner):has(> ul) > small {
+.cp-notice:has(> ul) > small {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
 }
 
 @media (forced-colors: active) {
-  :is(.cp-notice, .cp-banner) {
+  .cp-notice {
     border: var(--cp-line-w) solid CanvasText;
   }
 }
@@ -7408,23 +7404,17 @@ th[aria-sort="descending"] > .cp-sort::after {
   color: var(--cp-ink-muted);
 }
 
-/* The bar comes first, then the check's kept place, then the words.
- * .cp-progress-track, with its .cp-progress-fill revealed to --cp-progress,
- * is the former markup, drawn the same until it is removed. */
-.cp-progress > progress,
-.cp-progress-track {
+/* The bar comes first, then the check's kept place, then the words. It is
+ * a size container, so the value's gradient is 100cqi, the bar's width. */
+.cp-progress > progress {
+  --cp-progress-from: var(--cp-tone-9);
+  --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h);
+
   order: -1;
   flex: 0 1 auto;
   inline-size: 14rem;
   min-inline-size: 5rem;
   block-size: 0.5rem;
-}
-
-/* A size container, so the value's gradient is 100cqi, the bar's width. */
-.cp-progress > progress {
-  --cp-progress-from: var(--cp-tone-9);
-  --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h);
-
   container-type: inline-size;
   transition:
     --cp-progress-from 500ms var(--cp-ease-out),
@@ -7455,32 +7445,6 @@ th[aria-sort="descending"] > .cp-sort::after {
   background-position: right;
 }
 
-.cp-progress-track {
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-tone-4);
-  overflow: clip;
-}
-
-.cp-progress-fill {
-  --cp-progress-from: var(--cp-tone-9);
-  --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h);
-
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to));
-  clip-path: inset(0 calc(100% - var(--cp-progress, 0%)) 0 0 round var(--cp-radius-round));
-  transition:
-    clip-path 480ms var(--cp-ease-out),
-    --cp-progress-from 500ms var(--cp-ease-out),
-    --cp-progress-to 500ms var(--cp-ease-out);
-}
-
-.cp-progress-fill:dir(rtl) {
-  background-image: linear-gradient(270deg, var(--cp-progress-from), var(--cp-progress-to));
-  clip-path: inset(0 0 0 calc(100% - var(--cp-progress, 0%)) round var(--cp-radius-round));
-}
-
 /* The check keeps its place while hidden, so the words never move. */
 .cp-progress::before {
   content: "";
@@ -7497,18 +7461,11 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* Green once the last step's fill has arrived, then the check pops in. */
-.cp-progress[data-state="done"] > progress,
-.cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+.cp-progress[data-state="done"] > progress {
   --cp-progress-from: var(--cp-success-9);
   --cp-progress-to: var(--cp-success-9);
-}
 
-.cp-progress[data-state="done"] > progress {
   transition-delay: 480ms, 480ms;
-}
-
-.cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
-  transition-delay: 0s, 480ms, 480ms;
 }
 
 .cp-progress[data-state="done"]::before {
@@ -7523,9 +7480,7 @@ th[aria-sort="descending"] > .cp-sort::after {
  * for a glide that no longer runs. */
 @media (prefers-reduced-motion: reduce) {
   .cp-progress > progress,
-  .cp-progress[data-state="done"] > progress,
-  .cp-progress-fill,
-  .cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+  .cp-progress[data-state="done"] > progress {
     transition:
       --cp-progress-from var(--cp-dur-short) var(--cp-ease-out),
       --cp-progress-to var(--cp-dur-short) var(--cp-ease-out);
@@ -7546,12 +7501,6 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 @media (forced-colors: active) {
-  .cp-progress-track {
-    forced-color-adjust: none;
-    background: Canvas;
-    outline: 1px solid CanvasText;
-  }
-
   .cp-progress > progress::-webkit-progress-value,
   .cp-progress > progress:dir(rtl)::-webkit-progress-value {
     background: Highlight;
@@ -7559,11 +7508,6 @@ th[aria-sort="descending"] > .cp-sort::after {
 
   .cp-progress > progress::-moz-progress-bar,
   .cp-progress > progress:dir(rtl)::-moz-progress-bar {
-    background: Highlight;
-  }
-
-  .cp-progress-fill,
-  .cp-progress-fill:dir(rtl) {
     background: Highlight;
   }
 

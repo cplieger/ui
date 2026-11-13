@@ -1,10 +1,8 @@
 /* A state: the state of a thing in its row or field, a short word in its
  * tone after the tone's glyph, such as "set", "not set" or "rejected"
  * beside a setting. With data-cp-state it is the state of the thing's own
- * work, and the stylesheet draws its glyph and tone; "passed" is a check's
- * word for "done". .cp-test-status is the former name of a data-size="ui"
- * state, drawn the same until it is removed. */
-:is(.cp-state, .cp-test-status) {
+ * work, and the stylesheet draws its glyph and tone. */
+.cp-state {
   display: inline-flex;
   align-items: center;
   gap: var(--cp-space-1);
@@ -19,7 +17,7 @@
 
 /* A state that is its line's own content, such as a test's answer beside
  * its button, reads at the interface's size with a control's glyph. */
-:is(.cp-state[data-size="ui"], .cp-test-status) {
+.cp-state[data-size="ui"] {
   font-size: var(--cp-text-ui);
 }
 
@@ -29,7 +27,7 @@
 
 /* Only a state that names a glyph below makes the box, so a state of any
  * other value never paints the unmasked square. */
-:is(.cp-state, .cp-test-status)[data-cp-state]::before {
+.cp-state[data-cp-state]::before {
   flex: none;
   inline-size: 0.875rem;
   block-size: 0.875rem;
@@ -37,50 +35,49 @@
   mask: var(--cp-state-glyph) center / contain no-repeat;
 }
 
-:is(.cp-state[data-size="ui"], .cp-test-status)::before {
+.cp-state[data-size="ui"]::before {
   inline-size: var(--cp-icon-ui);
   block-size: var(--cp-icon-ui);
 }
 
-:is(.cp-state, .cp-test-status):is([data-cp-state="idle"], [data-cp-state="busy"]) {
+.cp-state:is([data-cp-state="idle"], [data-cp-state="busy"]) {
   color: var(--cp-ink-muted);
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="busy"] {
+.cp-state[data-cp-state="busy"] {
   --cp-state-glyph: url("../icons/svg/spinner-arc.svg");
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="busy"]::before {
+.cp-state[data-cp-state="busy"]::before {
   content: "";
   animation: cp-spin 0.8s linear infinite;
 }
 
-:is(.cp-state, .cp-test-status):is([data-cp-state="passed"], [data-cp-state="done"]) {
+.cp-state[data-cp-state="done"] {
   --cp-state-glyph: url("../icons/svg/circle-check.svg");
 
   color: var(--cp-success-11);
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="failed"] {
+.cp-state[data-cp-state="failed"] {
   --cp-state-glyph: url("../icons/svg/circle-x.svg");
 
   color: var(--cp-danger-11);
 }
 
-:is(.cp-state, .cp-test-status)[data-cp-state="passed"]::before,
-:is(.cp-state, .cp-test-status)[data-cp-state="done"]::before,
-:is(.cp-state, .cp-test-status)[data-cp-state="failed"]::before {
+.cp-state[data-cp-state="done"]::before,
+.cp-state[data-cp-state="failed"]::before {
   content: "";
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(.cp-state, .cp-test-status)[data-cp-state="busy"]::before {
+  .cp-state[data-cp-state="busy"]::before {
     animation: none;
   }
 }
 
 @media (forced-colors: active) {
-  :is(.cp-state, .cp-test-status)[data-cp-state]::before {
+  .cp-state[data-cp-state]::before {
     background: CanvasText;
   }
 }

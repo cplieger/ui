@@ -1,7 +1,7 @@
 /* Notice: the state's wash over its container, a glyph and text. The banner
- * variant and its former name, .cp-banner, are selected at one class's
- * weight, so their rules win over these by order and lose to any context. */
-:is(.cp-notice, .cp-banner) {
+ * variant is selected at one class's weight, so its rules win over these by
+ * order and lose to any context. */
+.cp-notice {
   display: flex;
   gap: var(--cp-space-3);
   align-items: start;
@@ -14,19 +14,19 @@
 /* An action notice carries a button, so its row is button-height; centre the
  * icon and text with the button instead of leaving them at the top. A notice
  * without a button keeps its icon aligned to the first line of its text. */
-:is(.cp-notice, .cp-banner):has(> .cp-button) {
+.cp-notice:has(> .cp-button) {
   align-items: center;
 }
 
 /* The text sits left, the button is pushed to the end of the row. A
  * button's min-inline-size replaces a flex item's min-content floor, so the
  * button keeps its words' width and the text wraps instead. */
-:is(.cp-notice, .cp-banner) > .cp-button {
+.cp-notice > .cp-button {
   flex-shrink: 0;
   margin-inline-start: auto;
 }
 
-:is(.cp-notice, .cp-banner) > .cp-icon {
+.cp-notice > .cp-icon {
   color: var(--cp-tone-11);
   margin-block-start: 0.0625rem;
 }
@@ -34,7 +34,7 @@
 /* On a tone's wash the grey fill of a plain button disappears into a warm
  * or cold tint; it rises off the wash instead, edged with the tone's 3:1
  * step, and its words take the tone's ink. */
-:is(.cp-notice, .cp-banner) .cp-button:not([data-variant="primary"]) {
+.cp-notice .cp-button:not([data-variant="primary"]) {
   border: var(--cp-line-w) solid var(--cp-tone-8);
   background: var(--cp-surface-raised);
   color: var(--cp-tone-12);
@@ -42,15 +42,14 @@
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-notice .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover,
-    .cp-banner .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover {
+    .cp-notice .cp-button:not([data-variant="primary"], :disabled, [aria-disabled="true"]):hover {
       background: var(--cp-tone-2);
     }
   }
 }
 
 /* A list inside a notice, such as an error summary's links to its fields. */
-:is(.cp-notice, .cp-banner) :where(ul, ol) {
+.cp-notice :where(ul, ol) {
   margin: var(--cp-space-1) 0 0;
   padding-inline-start: 1.25em;
 }
@@ -63,7 +62,7 @@
 
 /* The banner: a condition of every screen, at the top of main, its words and
  * its action wrapping under each other in a narrow main. */
-:is(.cp-banner, .cp-notice:where([data-variant="banner"])) {
+.cp-notice:where([data-variant="banner"]) {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--cp-space-2) var(--cp-space-3);
@@ -72,41 +71,41 @@
   font-size: var(--cp-text-sm);
 }
 
-:is(.cp-banner, .cp-notice:where([data-variant="banner"])) > .cp-icon {
+.cp-notice:where([data-variant="banner"]) > .cp-icon {
   margin-block-start: 0;
 }
 
 /* A notice with reasons stacks its head (a <strong> with its glyph), the
  * list, and a <small> foot holding its one way to act. */
-:is(.cp-notice, .cp-banner):has(> ul) {
+.cp-notice:has(> ul) {
   display: grid;
   gap: var(--cp-space-2);
   padding-block: var(--cp-space-3);
 }
 
-:is(.cp-notice, .cp-banner):has(> ul) > strong {
+.cp-notice:has(> ul) > strong {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
 }
 
-:is(.cp-notice, .cp-banner):has(> ul) > strong > .cp-icon {
+.cp-notice:has(> ul) > strong > .cp-icon {
   color: var(--cp-tone-11);
 }
 
-:is(.cp-notice, .cp-banner) > ul {
+.cp-notice > ul {
   margin: 0;
   padding-inline-start: 1.75rem;
   line-height: var(--cp-leading-body);
 }
 
-:is(.cp-notice, .cp-banner):has(> ul) > small {
+.cp-notice:has(> ul) > small {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
 }
 
 @media (forced-colors: active) {
-  :is(.cp-notice, .cp-banner) {
+  .cp-notice {
     border: var(--cp-line-w) solid CanvasText;
   }
 }

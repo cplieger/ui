@@ -67,11 +67,10 @@ for (const row of document.querySelectorAll<HTMLElement>("[data-work-retry]")) {
         state.dataset["cpState"] = "done";
         state.textContent = "Uploaded";
         reason.textContent = row.dataset["doneLine"] ?? "";
-        retry.remove();
         if (focused) {
-          row.tabIndex = -1;
           row.focus({ preventScroll: true });
         }
+        retry.remove();
         announce(`${name} uploaded.`);
       },
       (err: unknown) => {

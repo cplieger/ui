@@ -34,7 +34,7 @@ Every region that loads data has four designed states, for loading, empty, error
 **An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`. A failure that would fail the same way again, such as a file over the size limit or a format the app cannot write, is final: the item shows its reason and no Retry.
 
 ```html
-<div class="cp-list-row">
+<div class="cp-list-row" tabindex="-1">
   <span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span>
   <span class="cp-cell-stack">
     <span class="cp-truncate cp-mono">Frieren.S01E05.en.ass</span>
@@ -50,7 +50,7 @@ Every region that loads data has four designed states, for loading, empty, error
 ```
 
 1. Retry turns busy while the work runs again, and the state and its reason stay until the answer comes, so the item never shows two spinners.
-2. When the work is done, the state turns `done` and Retry leaves. Focus that was on Retry moves to the item.
+2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page; the item carries `tabindex="-1"` so it can take focus.
 3. When it fails again, the reason changes to the new one and Retry is back at rest.
 4. Announce the outcome through `@cplieger/ui/announce`, assertively for a failure of what the person just did.
 

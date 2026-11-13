@@ -10,30 +10,6 @@ const reasonsBanner = (cls: string) =>
   `<div ${cls} data-tone="warning" style="inline-size: 40rem"><strong><span class="cp-icon"></span>Reachable from the internet</strong><ul><li>It answers on a public address.</li></ul><small>Seen today. <a href="#a">How to limit access</a></small></div>`;
 
 const VARIANT = 'class="cp-notice" data-variant="banner"';
-const ALIAS = 'class="cp-banner"';
-
-// Every property either banner rule set, read off the box and its parts.
-function drawing(box: HTMLElement): string[] {
-  const parts = [box, ...box.querySelectorAll<HTMLElement>(":scope > *, :scope > * > .cp-icon")];
-  return parts.flatMap((el) => {
-    const cs = getComputedStyle(el);
-    return [
-      cs.display,
-      cs.flexWrap,
-      cs.alignItems,
-      cs.rowGap,
-      cs.columnGap,
-      cs.padding,
-      cs.borderRadius,
-      cs.backgroundColor,
-      cs.color,
-      cs.fontSize,
-      cs.margin,
-      cs.paddingInlineStart,
-      cs.borderTopColor,
-    ];
-  });
-}
 
 describe("notice", () => {
   it("puts a banner's action at its end and keeps its words readable", () => {
@@ -81,17 +57,6 @@ describe("notice", () => {
     expect(box.color).toBe(resolved("var(--cp-warning-12)"));
   });
 
-  it.each([
-    ["light", "words and action", plainBanner],
-    ["dark", "words and action", plainBanner],
-    ["light", "reasons", reasonsBanner],
-    ["dark", "reasons", reasonsBanner],
-  ] as const)("draws .cp-banner exactly as the banner variant, in %s, with %s", (t, _, markup) => {
-    const variant = q(build(markup(VARIANT), t), ".cp-notice");
-    const alias = q(build(markup(ALIAS), t), ".cp-banner");
-    expect(drawing(alias)).toEqual(drawing(variant));
-  });
-
   it("keeps a notice's own drawing apart from the banner's", () => {
     const el = build(
       `<div class="cp-notice" data-tone="warning"><span class="cp-icon"></span><span>Rate limited.</span></div>` +
@@ -112,15 +77,13 @@ describe("notice", () => {
   it("gives a notice's links its ink and leaves a banner's in the accent", () => {
     const el = build(
       `<div class="cp-notice" data-tone="danger"><span>Two fields need a fix. <a href="#f">Address</a></span></div>` +
-        reasonsBanner(VARIANT) +
-        reasonsBanner(ALIAS),
+        reasonsBanner(VARIANT),
     );
-    const [inNotice, inBanner, inAlias] = [...el.querySelectorAll("a")].map(
+    const [inNotice, inBanner] = [...el.querySelectorAll("a")].map(
       (a) => getComputedStyle(a).color,
     );
     expect(inNotice).toBe(resolved("var(--cp-danger-12)"));
     expect(inBanner).toBe(resolved("var(--cp-accent-ink)"));
-    expect(inAlias).toBe(inBanner);
   });
 
   it("stacks reasons in a notice of one screen too, at the notice's size", () => {

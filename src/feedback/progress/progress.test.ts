@@ -5,12 +5,23 @@ import { build, q, resolved, useSystemSheet } from "../../system/test-helpers/cs
 
 useSystemSheet();
 
-// The approved look is the former track and fill markup, so each case draws
-// the native bar beside it at the same value.
 const bar = (value: number, attrs = "") =>
   `<span class="cp-progress" ${attrs}><progress max="351" value="${String((value / 100) * 351)}" aria-label="Reading the library"></progress><span>Series 120 of 351</span></span>`;
-const former = (value: number, attrs = "") =>
-  `<span class="cp-progress" ${attrs} style="--cp-progress: ${String(value)}%"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span><span>Series 120 of 351</span></span>`;
+
+// The approved look is the track and clipped fill the native bar replaced,
+// which the library no longer ships: its rules live here, so each case draws
+// the native bar beside it at the same value.
+const APPROVED = `<style>
+  .ref-track { order: -1; flex: 0 1 auto; inline-size: 14rem; min-inline-size: 5rem; block-size: 0.5rem; border-radius: var(--cp-radius-round); background: var(--cp-tone-4); overflow: clip; }
+  .ref-fill { --cp-progress-from: var(--cp-tone-9); --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h); display: block; block-size: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to)); clip-path: inset(0 calc(100% - var(--at)) 0 0 round var(--cp-radius-round)); }
+  .ref-fill:dir(rtl) { background-image: linear-gradient(270deg, var(--cp-progress-from), var(--cp-progress-to)); clip-path: inset(0 0 0 calc(100% - var(--at)) round var(--cp-radius-round)); }
+  @media (forced-colors: active) {
+    .ref-track { forced-color-adjust: none; background: Canvas; outline: 1px solid CanvasText; }
+    .ref-fill, .ref-fill:dir(rtl) { background: Highlight; }
+  }
+</style>`;
+const approved = (value: number, attrs = "") =>
+  `<span class="cp-progress" ${attrs} style="--at: ${String(value)}%"><span class="ref-track"><span class="ref-fill"></span></span><span>Series 120 of 351</span></span>`;
 
 const box = (el: Element) => el.getBoundingClientRect();
 const stop = (el: Element, name: string) => getComputedStyle(el).getPropertyValue(name);
@@ -63,23 +74,25 @@ describe("progress", () => {
     expect([progress.width, progress.height, progress.left]).toEqual([224, 8, box(wrap).left]);
     const check = getComputedStyle(wrap, "::before");
     expect([check.width, check.opacity, check.scale]).toEqual(["18px", "0", "0"]);
+    expect(check.maskImage).toMatch(/^url\(/);
     expect(words.left - progress.right).toBe(8 + 18 + 8);
     expect(getComputedStyle(wrap).color).toBe(resolved("var(--cp-ink-muted)"));
   });
 
   it.each(["light", "dark"] as const)(
-    "paints a native bar as the former track and fill, its gradient fixed to the bar, in %s",
+    "paints a native bar as the approved track and fill, its gradient fixed to the bar, in %s",
     async (theme) => {
       const el = build(
-        ["ltr", "rtl"].map((dir) => `<div dir="${dir}">${bar(50)}${former(50)}</div>`).join(""),
+        APPROVED +
+          ["ltr", "rtl"].map((dir) => `<div dir="${dir}">${bar(50)}${approved(50)}</div>`).join(""),
         theme,
       );
       const at = await paint(el);
       const xs = [0.1, 0.25, 0.45, 0.6, 0.9];
       for (const dir of ["ltr", "rtl"]) {
         const native = along(at, q(el, `[dir="${dir}"] progress`), xs);
-        const approved = along(at, q(el, `[dir="${dir}"] .cp-progress-track`), xs);
-        expect(near(native, approved), `${dir}: ${JSON.stringify([native, approved])}`).toBe(true);
+        const ref = along(at, q(el, `[dir="${dir}"] .ref-track`), xs);
+        expect(near(native, ref), `${dir}: ${JSON.stringify([native, ref])}`).toBe(true);
       }
     },
   );
@@ -88,12 +101,10 @@ describe("progress", () => {
     ["the accent", "accent", ""],
     ["its tone", "warning", 'data-tone="warning"'],
   ])("fills from step 9 of %s to a lighter end", (_, tone, attrs) => {
-    const el = build(`${bar(40, attrs)}${former(40, attrs)}`);
+    const el = build(`${APPROVED}${bar(40, attrs)}${approved(40, attrs)}`);
     const progress = q(el, "progress");
     expect(resolved(stop(progress, "--cp-progress-from"))).toBe(resolved(`var(--cp-${tone}-9)`));
-    expect(stop(progress, "--cp-progress-to")).toBe(
-      stop(q(el, ".cp-progress-fill"), "--cp-progress-to"),
-    );
+    expect(stop(progress, "--cp-progress-to")).toBe(stop(q(el, ".ref-fill"), "--cp-progress-to"));
     expect(stop(progress, "--cp-progress-to")).not.toBe(stop(progress, "--cp-progress-from"));
   });
 
@@ -153,13 +164,14 @@ describe("progress", () => {
   it.skipIf(!emulates)("fills with Highlight on a Canvas track in forced colours", async () => {
     await media("forced-colors", "active");
     const el = build(
-      ["ltr", "rtl"].map((dir) => `<div dir="${dir}">${bar(50)}${former(50)}</div>`).join(""),
+      APPROVED +
+        ["ltr", "rtl"].map((dir) => `<div dir="${dir}">${bar(50)}${approved(50)}</div>`).join(""),
     );
     const at = await paint(el);
     for (const dir of ["ltr", "rtl"]) {
       const native = along(at, q(el, `[dir="${dir}"] progress`), [0.25, 0.75]);
-      const approved = along(at, q(el, `[dir="${dir}"] .cp-progress-track`), [0.25, 0.75]);
-      expect(near(native, approved), `${dir}: ${JSON.stringify([native, approved])}`).toBe(true);
+      const ref = along(at, q(el, `[dir="${dir}"] .ref-track`), [0.25, 0.75]);
+      expect(near(native, ref), `${dir}: ${JSON.stringify([native, ref])}`).toBe(true);
       expect(native[0], dir).not.toEqual(native[1]);
       const cs = getComputedStyle(q(el, `[dir="${dir}"] progress`));
       expect([cs.outlineStyle, cs.outlineColor]).toEqual(["solid", resolved("CanvasText")]);
