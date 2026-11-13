@@ -25,7 +25,8 @@ type Kind =
   | "mirrorBar"
   | "dotPlot"
   | "rangePlot"
-  | "arrowPlot";
+  | "arrowPlot"
+  | "slope";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -182,6 +183,7 @@ const DEFAULTS: Words = {
     dotPlot: "Dot plot",
     rangePlot: "Range plot",
     arrowPlot: "Arrow plot",
+    slope: "Slope chart",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>

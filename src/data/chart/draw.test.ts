@@ -1188,7 +1188,7 @@ describe("a bar chart", () => {
 });
 
 describe("a point chart", () => {
-  const ages = (x: ChartSpec["x"] = {}): ChartSpec => ({
+  const ages = (x: NonNullable<ChartSpec["x"]> = {}): ChartSpec => ({
     x,
     marks: [
       {
@@ -1323,5 +1323,90 @@ describe("a point chart", () => {
     );
     // An 18 px name line, 2 px, the 10 px dots and 8 px: 38 px at 13 px text.
     expect(d.lay.frame.height).toBe(3 * 38);
+  });
+});
+
+describe("a slope chart", () => {
+  const pets = (right: readonly number[]): ChartSpec => ({
+    y: { label: "Share of homes" },
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", slot: 1, y: [50, right[0] ?? null] },
+          { name: "Dogs", slot: 3, y: [40, right[1] ?? null] },
+          { name: "Horses", slot: 5, y: [null, right[2] ?? null] },
+        ],
+      },
+      { mark: "rule", y: 45, label: "Target" },
+    ],
+  });
+
+  it("draws a 2 px line per series and 8 px round ends in its slot, over no axis or gridline", () => {
+    const d = draw(pets([20, 10, 39]), 600);
+    const lines = series(d, "slope");
+    expect(lines.map((p) => p.getAttribute("data-series"))).toEqual(["1", "3", "5"]);
+    expect(lines.map((p) => p.getAttribute("d") === "")).toEqual([false, false, true]);
+    const line = getComputedStyle(lines[1] as Element);
+    expect(line.stroke).toBe(token(lines[1] as Element, "var(--cp-series-3)"));
+    expect([line.strokeWidth, line.fill]).toEqual(["2px", "none"]);
+    const ends = series(d, "ends");
+    expect(ends.map((p) => (p.getAttribute("d")?.match(/h0/g) ?? []).length)).toEqual([2, 2, 1]);
+    const dot = getComputedStyle(ends[2] as Element);
+    expect(dot.stroke).toBe(token(ends[2] as Element, "var(--cp-series-5)"));
+    expect([dot.strokeWidth, dot.strokeLinecap, dot.fill]).toEqual(["8px", "round", "none"]);
+    // Every end draws whole, ring room and all, inside the plot's clip.
+    for (const p of ends) {
+      const box = p.getBBox({ stroke: true });
+      expect(box.x).toBeGreaterThanOrEqual(-AREA_ROOM);
+      expect(box.x + box.width).toBeLessThanOrEqual(d.lay.frame.width + AREA_ROOM);
+    }
+    for (const part of ["x", "y", "titles"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`)?.childElementCount).toBe(0);
+    }
+    for (const part of ["grid", "zero", "rows"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`)).toBeNull();
+    }
+    // The y rule runs across both columns.
+    expect(d.svg.querySelector('[data-part="rule"]')?.getAttribute("d")).toBe(
+      `M0 ${String(snap(d.lay.frame.yAt(45), 1))}H${String(d.lay.frame.width)}`,
+    );
+  });
+
+  it("names its columns above them and labels each end in ink beside it", () => {
+    const d = draw(pets([20, 10, 39]), 600);
+    const heads = [...d.svg.querySelectorAll('[data-part="head"] > text')];
+    expect(heads.map((h) => h.textContent)).toEqual(["2005", "2015"]);
+    const ends = [...d.svg.querySelectorAll('[data-part="end"] > text')];
+    expect(ends.map((e) => e.textContent)).toEqual([
+      "Cats 50",
+      "Dogs 40",
+      "Cats 20",
+      "Dogs 10",
+      "Horses 39",
+    ]);
+    const label = ends[0] as SVGTextElement;
+    expect(getComputedStyle(label).fill).toBe(token(label, "var(--cp-ink)"));
+    // "Cats 50" ends 8 px before the plot, centred on its dot.
+    const plotLeft = d.lay.left;
+    const box = label.getBBox();
+    expect(box.x + box.width).toBeCloseTo(plotLeft - 8, 0);
+    expect(box.y + box.height / 2).toBeCloseTo(d.lay.top + d.lay.frame.yAt(50), 0);
+  });
+
+  it("joins a label moved off its dot to it by a 1 px muted leader under the dots", () => {
+    const d = draw(pets([34, 33, 31]), 600);
+    const leader = d.svg.querySelector('[data-part="leader"]') as SVGPathElement;
+    expect(leader.getAttribute("d")?.match(/M/g)).toHaveLength(2);
+    const style = getComputedStyle(leader);
+    expect([style.stroke, style.strokeWidth, style.fill]).toEqual([
+      token(leader, "var(--cp-ink-muted)"),
+      "1px",
+      "none",
+    ]);
+    const area = d.svg.querySelector('[data-part="area"]') as Element;
+    expect(leader.compareDocumentPosition(area) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(draw(pets([20, 10, 39]), 600).svg.querySelector('[data-part="leader"]')).toBeNull();
   });
 });

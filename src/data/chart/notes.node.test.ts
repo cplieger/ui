@@ -101,7 +101,10 @@ describe("placeNote", () => {
 });
 
 const starts = [0, 900_000, 1_800_000, 2_700_000];
-const posts = (more: readonly Mark[], x: ChartSpec["x"] = { type: "time" }): ChartSpec => ({
+const posts = (
+  more: readonly Mark[],
+  x: NonNullable<ChartSpec["x"]> = { type: "time" },
+): ChartSpec => ({
   x,
   marks: [
     {
@@ -422,7 +425,7 @@ describe("a note on bar and point rows", () => {
   const best: Mark = { mark: "text", y: "Facebook", text: "Best", side: "right" };
   const bars = (
     more: Partial<Extract<Mark, { mark: "bar" }>> = {},
-    x: ChartSpec["x"] = {},
+    x: NonNullable<ChartSpec["x"]> = {},
     note: Mark = best,
   ): ChartSpec => ({
     x,

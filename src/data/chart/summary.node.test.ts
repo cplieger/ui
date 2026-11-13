@@ -847,7 +847,7 @@ describe("the summary of band rows alike or alone", () => {
   });
 
   it("reads a point series, a time x's instants and a link's gaps alike once", () => {
-    const point = (x: ChartSpec["x"], a: number[], b: number[], link?: "range") =>
+    const point = (x: NonNullable<ChartSpec["x"]>, a: number[], b: number[], link?: "range") =>
       model({
         x,
         marks: [

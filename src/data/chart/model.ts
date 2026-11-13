@@ -39,7 +39,8 @@ type Kind =
   | "mirrorBar"
   | "dotPlot"
   | "rangePlot"
-  | "arrowPlot";
+  | "arrowPlot"
+  | "slope";
 
 export interface SeriesModel {
   readonly name: string;
@@ -232,6 +233,16 @@ export function pointLink(m: PointModel, i: number): number | null {
   return m.link === "range" ? Math.abs(b - a) : b - a;
 }
 
+/** Each series as one line between two named columns, which sit at x 0
+ *  and 1 of the chart's x. */
+export interface SlopeModel {
+  readonly kind: "slope";
+  /** The columns' names, left to right. */
+  readonly columns: readonly [string, string];
+  /** Each series' `y` holds its two ends. */
+  readonly series: readonly SeriesModel[];
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -257,7 +268,15 @@ export interface TextModel {
 }
 
 type MarkModel =
-  RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel | RuleModel | TextModel;
+  | RectModel
+  | LineModel
+  | AreaModel
+  | DotModel
+  | BarModel
+  | PointModel
+  | SlopeModel
+  | RuleModel
+  | TextModel;
 
 export interface Model {
   readonly spec: ChartSpec;
@@ -270,7 +289,8 @@ export interface Model {
   /** Nothing to draw: every value null, every row empty, every rect 0, no
    *  point inside the domain, or every area sample 0 or a gap. */
   readonly empty: boolean;
-  /** An x value as the readings and the table write it. */
+  /** An x value as the readings and the table write it; on a slope a
+   *  column, 0 or 1, as its name. */
   readonly xText: (v: number) => string;
   /** Both ends of a span of x, the end without a date the start already says. */
   readonly xSpan: (from: number, to: number) => readonly [string, string];
@@ -592,6 +612,28 @@ function checkMark(mark: unknown, what: string): void {
       }
       return;
     }
+    case "slope": {
+      const columns = mark["x"];
+      if (
+        !arrayLike(columns) ||
+        columns.length !== 2 ||
+        Array.from(columns).some((c) => typeof c !== "string")
+      ) {
+        fail(`${what}.x must name its two columns, left to right`);
+      }
+      const [from, to] = Array.from(columns);
+      if (from === "" || to === "" || from === to) {
+        fail(`${what}.x must name two different columns, never ""`, RangeError);
+      }
+      const list = mark["series"];
+      checkSeries(list, 2, what);
+      // The legend row, the readings and the table name a series by its name alone.
+      const names = Array.from(list, (s) => s["name"]);
+      if (names.some((n, k) => n === "" || names.indexOf(n) !== k)) {
+        fail(`${what}.series must name each series once, never ""`, RangeError);
+      }
+      return;
+    }
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -626,7 +668,9 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     default:
-      fail(`${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "rule" or "text"`);
+      fail(
+        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "rule" or "text"`,
+      );
   }
 }
 
@@ -635,7 +679,9 @@ function check(spec: unknown): asserts spec is ChartSpec {
   if (!isObject(spec)) {
     fail("the spec must be an object");
   }
-  checkScale(spec["x"], "x");
+  if (spec["x"] !== undefined) {
+    checkScale(spec["x"], "x");
+  }
   if (spec["y"] !== undefined) {
     checkScale(spec["y"], "y");
   }
@@ -654,7 +700,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar or point mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point or slope mark and any rules and text marks`,
       );
     }
     data = m;
@@ -774,6 +820,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
         : first.link === "arrow"
           ? "arrowPlot"
           : "dotPlot";
+    case "slope":
+      return "slope";
   }
 }
 
@@ -796,6 +844,8 @@ function hasData(m: MarkModel, x: Continuous): boolean {
       return m.series.some((s) => s.x.some((v) => v !== null && v !== 0));
     case "point":
       return m.series.some((s) => s.x.some((v) => v !== null && v >= x.lo && v <= x.hi));
+    case "slope":
+      return m.series.some((s) => s.y.some((v) => v !== null));
     case "rule":
     case "text":
       return false;
@@ -930,6 +980,8 @@ export function chartModel(
         };
       case "point":
         return { kind: "point", link: m.link, series: pointSeries(m.series) };
+      case "slope":
+        return { kind: "slope", columns: m.x, series: series(m.series) };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;
@@ -949,10 +1001,13 @@ export function chartModel(
   // need their dates ("Nov 10, 2:00 PM to Nov 11, 2:00 PM").
   const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
   const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
+  const slope = marks.find((m) => m.kind === "slope");
   const xText =
-    x.type === "time"
-      ? instantFormat(locale, timeZone, days)
-      : (signed ? signedFormatter : formatter)(x.format, locale);
+    slope !== undefined
+      ? (v: number) => slope.columns[v] ?? ""
+      : x.type === "time"
+        ? instantFormat(locale, timeZone, days)
+        : (signed ? signedFormatter : formatter)(x.format, locale);
   const xSpan =
     x.type === "time"
       ? spanFormat(locale, timeZone, days)

@@ -18,8 +18,8 @@ interface Scale {
   readonly unit?: Unit;
   /** Linear, log and time only. */
   readonly domain?: readonly [number, number];
-  /** A linear y under line marks, which holds 0 unless false, or a linear
-   *  x under a point mark, which holds it only when true. */
+  /** A linear y under a line or a slope, which holds 0 unless false, or a
+   *  linear x under a point mark, which holds it only when true. */
   readonly zero?: boolean;
   readonly format?: Format;
   /** Band only: names in the mono face. */
@@ -151,10 +151,20 @@ export interface PointMark {
   readonly series: readonly PointSeries[];
 }
 
+/** Each series as one line between two columns, two moments or two
+ *  conditions, along the chart's linear y; the chart takes no x scale. */
+interface SlopeMark {
+  readonly mark: "slope";
+  /** The two columns' names, left to right. */
+  readonly x: readonly [string, string];
+  /** Each series' `y` holds its two ends; a `null` end draws only the other. */
+  readonly series: readonly Series[];
+}
+
 /** Exactly one of `x` and `y`, finite. Beside a dot, bar or point mark
  *  only `x`, drawn down every row: in every panel of a split, and at its
  *  distance from 0 on both sides of a mirror or a diverging chart, where it
- *  cannot be below 0. */
+ *  cannot be below 0. Beside a slope only `y`. */
 interface RuleMark {
   readonly mark: "rule";
   readonly x?: number;
@@ -178,18 +188,20 @@ interface TextMark {
 }
 
 export type Mark =
-  RectMark | LineMark | AreaMark | DotMark | BarMark | PointMark | RuleMark | TextMark;
+  RectMark | LineMark | AreaMark | DotMark | BarMark | PointMark | SlopeMark | RuleMark | TextMark;
 
 export interface ChartSpec {
-  readonly x: Scale;
-  /** Band when the chart has a dot, bar or point mark. */
+  /** Default `{}`. A slope names its columns itself, so there it is a `TypeError`. */
+  readonly x?: Scale;
+  /** Band when the chart has a dot, bar or point mark; linear under a slope. */
   readonly y?: Scale;
-  /** One rect, line, area, dot, bar or point mark and any rules and text
-   *  marks, drawn in order: a rule after a rect draws over it. A second
-   *  data mark is a `TypeError`. */
+  /** One rect, line, area, dot, bar, point or slope mark and any rules and
+   *  text marks, drawn in order: a rule after a rect draws over it. A
+   *  second data mark is a `TypeError`. */
   readonly marks: readonly Mark[];
   /** The plot's height in px. A band chart (dot, bar or point) is as tall
-   *  as its rows, so there it is a `TypeError`. */
+   *  as its rows, so there it is a `TypeError`; a slope grows past it to
+   *  give each end label a line. */
   readonly height?: number;
   readonly summary?: string | ((generated: string) => string);
   /** Shown instead of the plot when there is nothing to draw. */

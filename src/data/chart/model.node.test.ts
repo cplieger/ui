@@ -277,7 +277,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar or point mark and any rules",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point or slope mark and any rules and text marks",
     );
   });
 
@@ -1046,7 +1046,7 @@ describe("the point mark", () => {
       "renderChart: a point's x must be above 0 on a log x",
     );
     expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
-      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "rule" or "text"',
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "rule" or "text"',
     );
   });
 
@@ -1197,5 +1197,103 @@ describe("rules and notes on bar and point rows", () => {
   it("places a point note along its row by its x", () => {
     const m = build({ x: {}, marks: [points([[1, 2]]), at({ x: 1.5 })] });
     expect(m.marks[1]).toMatchObject({ kind: "text", x: 1.5, y: 1, row: true });
+  });
+});
+
+const slope = (
+  series: readonly (readonly (number | null)[])[],
+  more: Record<string, unknown> = {},
+): Mark =>
+  ({
+    mark: "slope",
+    x: ["2005", "2015"],
+    series: series.map((y, k) => ({ name: `s${String(k)}`, y })),
+    ...more,
+  }) as Mark;
+
+describe("the slope mark", () => {
+  it.each([
+    ["one column", { marks: [slope([[1, 2]], { x: ["2005"] })] }, TypeError],
+    ["three columns", { marks: [slope([[1, 2]], { x: ["a", "b", "c"] })] }, TypeError],
+    ["a column of a number", { marks: [slope([[1, 2]], { x: ["2005", 2015] })] }, TypeError],
+    ["an empty column name", { marks: [slope([[1, 2]], { x: ["", "2015"] })] }, RangeError],
+    ["a repeated column name", { marks: [slope([[1, 2]], { x: ["2005", "2005"] })] }, RangeError],
+    ["a series of one value", { marks: [slope([[1]])] }, TypeError],
+    ["a series of three values", { marks: [slope([[1, 2, 3]])] }, TypeError],
+    [
+      "an empty series name",
+      { marks: [{ mark: "slope", x: ["a", "b"], series: [{ name: "", y: [1, 2] }] }] },
+      RangeError,
+    ],
+    [
+      "a repeated series name",
+      {
+        marks: [
+          {
+            mark: "slope",
+            x: ["a", "b"],
+            series: [
+              { name: "Cats", y: [1, 2] },
+              { name: "Cats", y: [3, 4] },
+            ],
+          },
+        ],
+      },
+      RangeError,
+    ],
+    ["an x scale", { x: {}, marks: [slope([[1, 2]])] }, TypeError],
+    ["a log y", { y: { type: "log" }, marks: [slope([[1, 2]])] }, TypeError],
+    ["a band y", { y: { type: "band" }, marks: [slope([[1, 2]])] }, TypeError],
+    ["an x rule", { marks: [slope([[1, 2]]), { mark: "rule", x: 0, label: "Then" }] }, TypeError],
+    ["an infinite value", { marks: [slope([[1, Number.POSITIVE_INFINITY]])] }, RangeError],
+    ["a slope beside a line", { x: {}, marks: [line([1, 2]), slope([[1, 2]])] }, TypeError],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ x: {}, marks: [slope([[1, 2]])] })).toThrow(
+      "renderChart: a slope takes no x scale; its mark names its two columns",
+    );
+    expect(() => build({ marks: [slope([[1, 2]], { x: ["2005", "2005"] })] })).toThrow(
+      'renderChart: marks[0].x must name two different columns, never ""',
+    );
+  });
+
+  it("takes its columns from the mark, its values and slots, and gaps as null", () => {
+    const m = build({
+      marks: [
+        {
+          mark: "slope",
+          x: ["2005", "2015"],
+          series: [
+            { name: "Cats", y: [50, 34] },
+            { name: "Dogs", slot: 4, y: [Number.NaN, 31] },
+          ],
+        },
+        { mark: "rule", y: 40, label: "Target" },
+      ],
+    });
+    expect(m.marks[0]).toEqual({
+      kind: "slope",
+      columns: ["2005", "2015"],
+      series: [
+        { name: "Cats", slot: 1, y: [50, 34] },
+        { name: "Dogs", slot: 4, y: [null, 31] },
+      ],
+    });
+    expect(m.kind).toBe("slope");
+    expect([m.xText(0), m.xText(1)]).toEqual(["2005", "2015"]);
+    expect(m.xSpan(0, 1)).toEqual(["2005", "2015"]);
+    expect(m.amountText(34)).toBe("34");
+  });
+
+  it("is empty when every end is null", () => {
+    expect(build({ marks: [slope([[null, null]])] }).empty).toBe(true);
+    expect(build({ marks: [slope([[null, 0]])] }).empty).toBe(false);
+  });
+
+  it("takes a chart with no x scale for every other mark too", () => {
+    expect(build({ marks: [line([1, 2])] }).x).toMatchObject({ type: "linear", lo: 0, hi: 1 });
   });
 });

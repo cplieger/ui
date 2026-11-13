@@ -482,7 +482,7 @@ describe("a bar chart's scales", () => {
 });
 
 describe("a point chart's scales", () => {
-  const points = (x: ChartSpec["x"], ...series: (number | null)[][]): ChartSpec => ({
+  const points = (x: NonNullable<ChartSpec["x"]>, ...series: (number | null)[][]): ChartSpec => ({
     x,
     marks: [
       {
@@ -542,5 +542,48 @@ describe("a point chart's scales", () => {
     expect(() => xScale(points({ type: "time", zero: true }, [DAY]))).toThrow(
       "renderChart: a time x has no zero to hold",
     );
+  });
+});
+
+describe("a slope's scales", () => {
+  const slope = (y: ChartSpec["y"], ...series: (number | null)[][]): ChartSpec => ({
+    ...(y === undefined ? {} : { y }),
+    marks: [
+      {
+        mark: "slope",
+        x: ["Before", "After"],
+        series: series.map((v, k) => ({ name: `s${String(k)}`, y: v })),
+      },
+    ],
+  });
+
+  it("puts its two columns at 0 and 1 of an x it names itself", () => {
+    expect(xScale(slope(undefined, [50, 34]))).toMatchObject({
+      type: "linear",
+      lo: 0,
+      hi: 1,
+      passed: true,
+      reverse: false,
+    });
+  });
+
+  it("holds 0 on y unless zero is false, as a line's does", () => {
+    expect(continuous(yScale(slope(undefined, [50, 34], [30, 39])))).toMatchObject({
+      lo: 0,
+      hi: 50,
+    });
+    expect(continuous(yScale(slope({ zero: false }, [50, 34], [30, 39])))).toMatchObject({
+      lo: 30,
+      hi: 50,
+    });
+  });
+
+  it("takes a negative end below 0 and a y rule into its extent", () => {
+    const spec = slope(undefined, [-4, 12]);
+    const ruled = {
+      ...spec,
+      marks: [...spec.marks, { mark: "rule" as const, y: 20, label: "Goal" }],
+    };
+    expect(continuous(yScale(ruled))).toMatchObject({ lo: -4, hi: 20 });
   });
 });

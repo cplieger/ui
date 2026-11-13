@@ -27,6 +27,7 @@ import {
   type RectModel,
   type SampleModel,
   type SeriesModel,
+  type SlopeModel,
 } from "./model.js";
 import type { Words } from "./words.js";
 
@@ -46,8 +47,8 @@ export interface Reading {
   readonly total: string | undefined;
 }
 
-/** The mark the legend row reads: the chart's one rect, line, area, dot, bar or point. */
-type Primary = RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel;
+/** The mark the legend row reads: the chart's one rect, line, area, dot, bar, point or slope. */
+type Primary = RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel | SlopeModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -241,7 +242,7 @@ function barTotalText(model: Model, m: BarModel, total: number | null, words: Wo
     return words.noData;
   }
   return m.arrange === "share"
-    ? counted(model.amountText(total), total, model.spec.x.unit, model)
+    ? counted(model.amountText(total), total, model.spec.x?.unit, model)
     : model.xText(total);
 }
 
@@ -251,7 +252,7 @@ export function barReading(model: Model, m: BarModel, r: number, words: Words): 
   const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
   if (m.series.length === 1) {
     const v = m.series[0]?.x[r] ?? null;
-    const unit = model.spec.x.unit;
+    const unit = model.spec.x?.unit;
     const value = v === null ? words.noData : counted(model.xText(v), v, unit, model);
     return { at, entries: bare(value), total: undefined };
   }
@@ -293,7 +294,7 @@ export function pointReading(model: Model, m: PointModel, r: number, words: Word
   const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
   if (m.series.length === 1) {
     const v = m.series[0]?.x[r] ?? null;
-    const value = v === null ? words.noData : counted(model.xText(v), v, model.spec.x.unit, model);
+    const value = v === null ? words.noData : counted(model.xText(v), v, model.spec.x?.unit, model);
     return { at, entries: bare(value), total: undefined };
   }
   const all = m.series.map((s) => ({
@@ -307,9 +308,19 @@ export function pointReading(model: Model, m: PointModel, r: number, words: Word
   return { at, entries: all, total };
 }
 
+/** Column `c` of slope `m`: its name and each series' value there. */
+function columnReading(model: Model, m: SlopeModel, c: number, words: Words): Reading {
+  return {
+    at: m.columns[c] ?? "",
+    entries: entries(model, m.series, (s) => s.y[c] ?? null, words),
+    total: undefined,
+  };
+}
+
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
- *  values, an area's last whole stack, a bar or point chart's row count. */
+ *  values, an area's last whole stack, a bar or point chart's row count,
+ *  a slope's right column. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -374,6 +385,8 @@ export function overall(model: Model, words: Words): Reading | undefined {
         total: last ? "" : undefined,
       };
     }
+    case "slope":
+      return columnReading(model, m, 1, words);
   }
 }
 
@@ -571,6 +584,8 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
       add(m.kind === "bar" ? barReading(model, m, r, words) : pointReading(model, m, r, words));
     }
+  } else if (m?.kind === "slope") {
+    add(columnReading(model, m, 0, words));
   } else if (m?.kind === "dot") {
     // Each post's time, written once per stretch of x in which its width holds.
     const posts = new Map<string, number>();

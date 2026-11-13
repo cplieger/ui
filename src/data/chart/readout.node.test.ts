@@ -711,7 +711,10 @@ describe("the legend row of a bar chart", () => {
 });
 
 describe("the legend row of a point chart", () => {
-  const degrees = (x: ChartSpec["x"] = {}, ...series: (number | null)[][]): ChartSpec => ({
+  const degrees = (
+    x: NonNullable<ChartSpec["x"]> = {},
+    ...series: (number | null)[][]
+  ): ChartSpec => ({
     x,
     y: { unit: { one: "degree", other: "degrees" } },
     marks: [
@@ -784,7 +787,7 @@ describe("the legend row of a point chart", () => {
 describe("the legend row of a range or arrow plot", () => {
   const plot = (
     link: "range" | "arrow",
-    x: ChartSpec["x"],
+    x: NonNullable<ChartSpec["x"]>,
     women: (number | null)[],
     men: (number | null)[],
   ): Model =>

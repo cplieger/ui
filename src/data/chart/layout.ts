@@ -2,8 +2,8 @@
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
  * plot, the x axis under it, the lines' and areas' end labels, a band
- * chart's rows, a bar chart's panels and value labels, and the text marks'
- * notes.
+ * chart's rows, a bar chart's panels and value labels, a slope's columns
+ * and end labels, and the text marks' notes.
  * @module
  */
 
@@ -30,7 +30,7 @@ import {
   type Frame,
   type Panel,
 } from "./geometry.js";
-import { barsApart, sampleValue, type BarModel, type Model } from "./model.js";
+import { barsApart, sampleValue, type BarModel, type Model, type SlopeModel } from "./model.js";
 import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
@@ -68,6 +68,14 @@ export interface Text {
   readonly x: number;
   readonly y: number;
   readonly anchor: "start" | "middle" | "end";
+  /** A slope's end label's series. */
+  readonly series?: number;
+}
+
+/** A line from `from` to `to`, in SVG px. */
+export interface Leader {
+  readonly from: { readonly x: number; readonly y: number };
+  readonly to: { readonly x: number; readonly y: number };
 }
 
 export interface Layout {
@@ -79,7 +87,7 @@ export interface Layout {
   readonly top: number;
   readonly frame: Frame;
   readonly xAxis: Axis;
-  /** A continuous y's axis; absent on a band. */
+  /** A continuous y's axis; absent on a band and on a slope, which draws none. */
   readonly yAxis: Axis | undefined;
   /** A band's rows, each name cut to its room, `y` the middle of its dot
    *  row, its bars or its points in the plot. */
@@ -89,7 +97,8 @@ export interface Layout {
   readonly bar: number;
   /** A bar chart's value labels, in plot px. */
   readonly valueLabels: readonly Text[];
-  /** A split or mirrored bar chart's panel names over its panels, in SVG px. */
+  /** A split or mirrored bar chart's panel names over its panels, or a
+   *  slope's column names over its columns, in SVG px. */
   readonly heads: readonly Text[];
   readonly mono: boolean;
   readonly gutters: Floors;
@@ -101,6 +110,8 @@ export interface Layout {
   /** Text inside the plot, in plot px: a y rule's label. */
   readonly plotLabels: readonly Text[];
   readonly endLabels: readonly Text[];
+  /** A slope's end labels moved off their dots' heights, each joined to its dot. */
+  readonly leaders: readonly Leader[];
   /** The notes drawn, in spec order: those whose point lies in the plot. */
   readonly notes: readonly Note[];
   /** Every note is drawn as its numbered marker, its words listed below
@@ -147,6 +158,14 @@ const SPINE = 8;
  *  selection ring's reach, 1 px off a dot with its 2 px stroke, so a dot at
  *  the domain's end draws whole, ring and all, inside the plot's clip. */
 const POINT_INSET = POINT_RADIUS + 2;
+
+/** A slope's names stay short enough that each gutter is at most this
+ *  share of the chart's width. */
+const SLOPE_GUTTER = 0.3;
+/** A slope's label moved further than this from its dot's height takes a leader. */
+const LEADER_AT = 4;
+/** The room between a leader's end and its label. */
+const LEADER_GAP = 2;
 
 const ceil = (v: number) => Math.ceil(v - 1e-6);
 
@@ -316,6 +335,186 @@ function moved(t: Tick, at: (v: number) => number): Tick {
   };
 }
 
+/** Each y rule's label inside the plot, in plot px: at its right end, just
+ *  above its line, or at the end of the axis it is off. */
+function yRuleLabels(
+  model: Model,
+  words: Words,
+  yAt: (v: number) => number,
+  width: number,
+  height: number,
+  lineHeight: number,
+): Text[] {
+  const out: Text[] = [];
+  for (const r of model.marks) {
+    if (r.kind !== "rule" || r.axis !== "y") {
+      continue;
+    }
+    const written = model.yText(r.value);
+    out.push(
+      "off" in r.place
+        ? {
+            text: words.offAxis(r.label, written),
+            x: width - PAD / 2,
+            y: r.place.off === "high" ? lineHeight / 2 : height - lineHeight / 2,
+            anchor: "end",
+          }
+        : {
+            text: `${r.label} ${written}`,
+            x: width - PAD / 2,
+            y: yAt(r.place.at) - lineHeight / 2 - 1,
+            anchor: "end",
+          },
+    );
+  }
+  return out;
+}
+
+/** Centres for labels wanted at `want`, in the same order, each `step`
+ *  from the next: labels that would come closer move apart as a group
+ *  centred on their wanted mean, kept inside `[lo, hi]`; ties keep their
+ *  order. */
+export function dodge(want: readonly number[], step: number, lo: number, hi: number): number[] {
+  const order = want.map((_, i) => i).sort((a, b) => (want[a] ?? 0) - (want[b] ?? 0) || a - b);
+  const groups: { members: number[]; sum: number; top: number }[] = [];
+  const place = (g: { members: number[]; sum: number; top: number }) => {
+    const span = (g.members.length - 1) * step;
+    g.top = Math.min(Math.max(g.sum / g.members.length - span / 2, lo), Math.max(lo, hi - span));
+  };
+  for (const i of order) {
+    const g = { members: [i], sum: want[i] ?? 0, top: 0 };
+    place(g);
+    groups.push(g);
+    for (;;) {
+      const b = groups.at(-1);
+      const a = groups.at(-2);
+      if (a === undefined || b === undefined || a.top + a.members.length * step <= b.top + 1e-6) {
+        break;
+      }
+      a.members.push(...b.members);
+      a.sum += b.sum;
+      groups.pop();
+      place(a);
+    }
+  }
+  const out = want.map(() => 0);
+  for (const g of groups) {
+    g.members.forEach((i, k) => {
+      out[i] = g.top + k * step;
+    });
+  }
+  return out;
+}
+
+/**
+ * A slope's layout: its columns at the plot's edges with their names above,
+ * no axes, and each end's label beside its dot, "{name} {value}" in the
+ * gutter on its side, under 30rem the left one the value alone. Names are
+ * cut so neither gutter passes 30 % of `chart`; the labels of a side dodge
+ * one name line apart, and the plot grows to give each a line.
+ */
+function slopeLayout(
+  model: Model,
+  m: SlopeModel,
+  words: Words,
+  metrics: Metrics,
+  width: number,
+  floors: Floors,
+  chart: number,
+): Layout {
+  const { measure, lineHeight, dpr } = metrics;
+  const narrow = chart < NARROW_REM * metrics.rem;
+  const limit = SLOPE_GUTTER * chart - PAD;
+  const sides = ([0, 1] as const).map((c) =>
+    m.series.flatMap((s, series) => {
+      const v = s.y[c] ?? null;
+      if (v === null) {
+        return [];
+      }
+      const value = model.yText(v);
+      if (c === 0 && narrow) {
+        return [{ series, v, text: value }];
+      }
+      const room = limit - measure.number(` ${value}`);
+      return [{ series, v, text: `${cutName(s.name, room, measure.number)} ${value}` }];
+    }),
+  );
+  const [left = [], right = []] = sides;
+  const widest = (side: readonly { text: string }[]) =>
+    Math.max(0, ...side.map((e) => measure.number(e.text)));
+  const axisW = Math.max(ceil(axisGutter(widest(left), metrics.axisGroup)), floors.axis);
+  const labelW = Math.max(ceil(widest(right) + PAD), ceil(metrics.labelGroup), floors.label);
+  const plotW = Math.max(1, width - axisW - labelW);
+  const step = metrics.nameLine;
+  const height = Math.max(
+    model.spec.height ?? metrics.height,
+    step * Math.max(left.length, right.length),
+  );
+  const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
+  const yAt = yAxis(model.y as Continuous, height, lineHeight, ctx).at;
+  const xAt = position("linear", 0, 1, 0, plotW);
+  const top = lineHeight + TICK;
+  const endLabels: Text[] = [];
+  const leaders: Leader[] = [];
+  sides.forEach((side, c) => {
+    const want = side.map((e) => Math.min(Math.max(yAt(e.v), 0), height));
+    const at = dodge(want, step, 0, height);
+    const edge = axisW + xAt(c);
+    const out = c === 0 ? -1 : 1;
+    side.forEach((e, k) => {
+      const y = at[k] ?? 0;
+      const dot = want[k] ?? 0;
+      endLabels.push({
+        text: e.text,
+        x: edge + out * PAD,
+        y: top + y,
+        anchor: c === 0 ? "end" : "start",
+        series: e.series,
+      });
+      if (Math.abs(y - dot) > LEADER_AT) {
+        leaders.push({
+          from: { x: edge, y: top + dot },
+          to: { x: edge + out * (PAD - LEADER_GAP), y: top + y },
+        });
+      }
+    });
+  });
+  const half = (plotW - PAD) / 2;
+  const heads: Text[] = m.columns.map((name, c) => ({
+    text: cutName(name, half, measure.text),
+    x: axisW + xAt(c),
+    y: lineHeight / 2,
+    anchor: c === 0 ? "start" : "end",
+  }));
+  const frame: Frame = { width: plotW, height, dpr, yAt, x: model.x, xAt };
+  const notes = notesOf(model, metrics, frame, [], () => 0);
+  return {
+    width,
+    // Half a label's line under the plot holds a label at its bottom edge.
+    height: top + height + Math.ceil(lineHeight / 2),
+    left: axisW,
+    top,
+    frame,
+    xAxis: { lo: 0, hi: 1, at: xAt, ticks: [] },
+    yAxis: undefined,
+    rows: [],
+    mono: false,
+    gutters: { axis: axisW, label: labelW },
+    bar: 0,
+    valueLabels: [],
+    heads,
+    xLabels: [],
+    yLabels: [],
+    titles: [],
+    ruleLabels: [],
+    plotLabels: yRuleLabels(model, words, yAt, plotW, height, lineHeight),
+    endLabels,
+    leaders,
+    notes,
+    numbered: numberedNotes(notes, narrow),
+  };
+}
+
 /** An x rule's label on the plot: its words and value, or off the axis. */
 function ruleText(model: Model, words: Words, label: string, value: number, off: boolean): string {
   const written = model.xText(value);
@@ -337,6 +536,10 @@ export function layout(
   floors: Floors,
   chart = width,
 ): Layout {
+  const slope = model.marks.find((m) => m.kind === "slope");
+  if (slope !== undefined) {
+    return slopeLayout(model, slope, words, metrics, width, floors, chart);
+  }
   const { measure, lineHeight, dpr } = metrics;
   const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
   const band = model.y.type === "band" ? model.y : undefined;
@@ -553,7 +756,7 @@ export function layout(
       });
     });
   }
-  const xTitle = model.x.type === "time" || valued ? undefined : model.spec.x.label;
+  const xTitle = model.x.type === "time" || valued ? undefined : model.spec.x?.label;
   if (xTitle !== undefined) {
     titles.push({
       text: xTitle,
@@ -636,28 +839,8 @@ export function layout(
   });
 
   const yAt = yAx?.at ?? ((v: number) => v);
-  const plotLabels: Text[] = [];
-  for (const r of model.marks) {
-    if (r.kind !== "rule" || r.axis !== "y" || yAx === undefined) {
-      continue;
-    }
-    const written = model.yText(r.value);
-    if ("off" in r.place) {
-      plotLabels.push({
-        text: words.offAxis(r.label, written),
-        x: plotW - PAD / 2,
-        y: r.place.off === "high" ? lineHeight / 2 : height - lineHeight / 2,
-        anchor: "end",
-      });
-    } else {
-      plotLabels.push({
-        text: `${r.label} ${written}`,
-        x: plotW - PAD / 2,
-        y: yAt(r.place.at) - lineHeight / 2 - 1,
-        anchor: "end",
-      });
-    }
-  }
+  const plotLabels =
+    yAx === undefined ? [] : yRuleLabels(model, words, yAt, plotW, height, lineHeight);
 
   // End labels in the label gutter at their values; a lower one moves
   // down until it clears the one above.
@@ -721,6 +904,7 @@ export function layout(
     ruleLabels,
     plotLabels,
     endLabels,
+    leaders: [],
     notes,
     numbered: numberedNotes(notes, narrow),
   };

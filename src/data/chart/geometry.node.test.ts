@@ -21,6 +21,8 @@ import {
   rangePath,
   rectPaths,
   ruleXs,
+  slopeEnds,
+  slopePaths,
   type Frame,
 } from "./geometry.js";
 import {
@@ -31,6 +33,7 @@ import {
   type Model,
   type PointModel,
   type RectModel,
+  type SlopeModel,
 } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
@@ -1257,7 +1260,7 @@ describe("bars", () => {
 });
 
 describe("points", () => {
-  const pointModel = (x: ChartSpec["x"], series: (number | null)[][]) =>
+  const pointModel = (x: NonNullable<ChartSpec["x"]>, series: (number | null)[][]) =>
     model({
       x,
       marks: [
@@ -1391,5 +1394,38 @@ describe("an x rule on bar rows", () => {
     expect(out.marks[1]).toMatchObject({ place: { at: 30 } });
     const neither = diverging([-20, 20]);
     expect(neither.marks[1]).toMatchObject({ place: { off: "high" } });
+  });
+});
+
+describe("slope geometry", () => {
+  const m = model({
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", y: [50, 25] },
+          { name: "Dogs", y: [null, 10] },
+          { name: "Mice", y: [null, null] },
+        ],
+      },
+    ],
+  });
+  const slopeOf = m.marks[0] as SlopeModel;
+  const f = frame(m, 200, 100, 50);
+
+  it("sets each end at its column's edge of the plot and its value's height", () => {
+    expect(slopeEnds(slopeOf, 0, f)).toEqual([
+      { x: 0, y: 0 },
+      { x: 200, y: 50 },
+    ]);
+    expect(slopeEnds(slopeOf, 1, f)).toEqual([undefined, { x: 200, y: 80 }]);
+  });
+
+  it("draws a line between both ends and a dot at each, a null end drawing neither", () => {
+    expect(slopePaths(slopeOf, f)).toEqual({
+      lines: ["M0 0L200 50", "", ""],
+      ends: ["M0 0h0M200 50h0", "M200 80h0", ""],
+    });
   });
 });

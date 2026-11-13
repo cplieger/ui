@@ -208,6 +208,14 @@
   stroke-linecap: round;
 }
 
+/* A slope's ends, between a timeline's dot and a point's. */
+.cp-chart svg [data-part="ends"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 8px;
+  stroke-linecap: round;
+}
+
 /* A point is a value the reader compares, so its dot is larger. */
 .cp-chart svg [data-part="point"] path {
   stroke-width: 10px;
@@ -231,12 +239,19 @@
   fill: var(--cp-ink-muted);
 }
 
-.cp-chart svg [data-part="line"] > path {
+.cp-chart svg :is([data-part="line"], [data-part="slope"]) > path {
   fill: none;
   stroke: var(--cp-tone-9);
   stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* A slope's end label moved off its dot's height points back to it. */
+.cp-chart svg [data-part="leader"] {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
 }
 
 .cp-chart svg [data-part="rule"] {

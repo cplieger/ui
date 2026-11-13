@@ -106,6 +106,8 @@ export function initial(model: Model): Selection | undefined {
     case "bar":
     case "point":
       return bandRows(model) > 0 ? { kind: m.kind, row: 0, part: undefined } : undefined;
+    case "slope":
+      return undefined;
   }
 }
 
@@ -415,6 +417,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
           const r = Math.floor((py / f.height) * n);
           return { kind: m.kind, row: Math.min(Math.max(r, 0), n - 1), part: undefined };
         }
+        case "slope":
+          return undefined;
         case "dot": {
           if (lay.rows.length === 0) {
             return undefined;

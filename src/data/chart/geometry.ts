@@ -2,7 +2,7 @@
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
  * pixel and cut at the plot's ends, rows of dots, bars and points along
- * their rows, rules and the axis lines.
+ * their rows, a slope's lines and ends, rules and the axis lines.
  * @module
  */
 
@@ -22,6 +22,7 @@ import {
   type PointModel,
   type RectModel,
   type SampleModel,
+  type SlopeModel,
 } from "./model.js";
 import type { Continuous } from "./scales.js";
 
@@ -774,6 +775,35 @@ export function arrowPaths(
     heads += `M${num(tip)} ${num(y)}L${num(base)} ${num(y - half)}V${num(y + half)}Z`;
   }
   return { shafts, heads };
+}
+
+/** Series `k`'s two ends of slope `m`, left then right, in plot px: its
+ *  columns at the plot's edges, each `undefined` at a `null` end. */
+export function slopeEnds(m: SlopeModel, k: number, f: Frame): (Point | undefined)[] {
+  return [0, 1].map((c) => {
+    const v = m.series[k]?.y[c] ?? null;
+    return v === null ? undefined : { x: f.xAt(c), y: f.yAt(v) };
+  });
+}
+
+/** Each series of `m` in series order: its line between its two ends, none
+ *  with a `null` end, and its ends as zero-length segments. */
+export function slopePaths(m: SlopeModel, f: Frame): { lines: string[]; ends: string[] } {
+  const lines: string[] = [];
+  const ends: string[] = [];
+  m.series.forEach((_, k) => {
+    const [a, b] = slopeEnds(m, k, f);
+    lines.push(
+      a === undefined || b === undefined ? "" : `M${num(a.x)} ${num(a.y)}L${num(b.x)} ${num(b.y)}`,
+    );
+    ends.push(
+      [a, b]
+        .filter((p): p is Point => p !== undefined)
+        .map((p) => `M${num(p.x)} ${num(p.y)}h0`)
+        .join(""),
+    );
+  });
+  return { lines, ends };
 }
 
 /** A 1 px line down the plot at `x`, on whole device pixels. */

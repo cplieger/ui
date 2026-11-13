@@ -25,12 +25,13 @@ import {
   rectPaths,
   rulePath,
   ruleXs,
+  slopePaths,
   snap,
   type Segment,
   tickPath,
   upright,
 } from "./geometry.js";
-import type { Layout, Metrics, Note, Text } from "./layout.js";
+import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
 import { primaryOf, type Reading, type Widths } from "./readout.js";
@@ -239,6 +240,19 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         area.append(g);
         break;
       }
+      case "slope": {
+        // Every line lies under every end, so no line crosses a dot.
+        const { lines, ends } = slopePaths(m, f);
+        const g = svgEl("g", { "data-part": "slope" });
+        const dots = svgEl("g", { "data-part": "ends" });
+        m.series.forEach((s, k) => {
+          const slot = String(s.slot);
+          g.append(svgEl("path", { "data-series": slot, d: lines[k] ?? "" }));
+          dots.append(svgEl("path", { "data-series": slot, d: ends[k] ?? "" }));
+        });
+        area.append(g, dots);
+        break;
+      }
       case "rule":
         if ("at" in m.place) {
           const at = m.place.at;
@@ -269,6 +283,9 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   return area;
 }
 
+const leaderPath = (list: readonly Leader[]): string =>
+  list.map((l) => `M${num(l.from.x)} ${num(l.from.y)}L${num(l.to.x)} ${num(l.to.y)}`).join("");
+
 /** Draws `model` laid out as `lay` into `svg`, replacing what it held. */
 export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
   svg.setAttribute("width", num(lay.width));
@@ -289,6 +306,10 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
     texts("titles", lay.titles),
     texts("rule-label", lay.ruleLabels),
     texts("head", lay.heads),
+    // Before the plot, so the dots cover the leaders' ends.
+    ...(lay.leaders.length > 0
+      ? [svgEl("path", { "data-part": "leader", d: leaderPath(lay.leaders) })]
+      : []),
     plotArea(model, lay),
     texts("end", lay.endLabels),
   );
