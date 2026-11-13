@@ -103,18 +103,26 @@ export interface BarMark {
   readonly mark: "bar";
   /** The categories' names, each once. */
   readonly y: readonly string[];
-  /** How several series share a row: stacked in series order from 0, the
-   *  negative values leftward (the default), as thinner bars one under
-   *  another in series order, stacked to 100 % of each row's total, or
-   *  split into a panel per series, left to right on one shared scale
-   *  (under 30rem folded into thinner bars one under another). "share"
-   *  needs two or more series and values of 0 or more; its x runs 0 to 1,
-   *  in "percent" unless x.format says another, and takes no domain.
-   *  "split" takes values of 0 or more. */
-  readonly arrange?: "stack" | "group" | "share" | "split";
+  /** How several series share a row: stacked from 0, negatives leftward
+   *  (the default); thinner bars one under another; stacked to 100 % of
+   *  the row ("share", two or more series, x 0 to 1 in "percent" unless
+   *  x.format says another, no domain); a panel each on one shared scale
+   *  ("split", folded under 30rem as a group); or either side of 0
+   *  ("diverge", see `left`), its axis reading distances from 0 both ways.
+   *  "share", "split" and "diverge" take values of 0 or more. */
+  readonly arrange?: "stack" | "group" | "share" | "split" | "diverge";
+  /** "diverge" only, and required there: how many series, the first ones,
+   *  stack leftward from 0, the last of them nearest it; the rest stack
+   *  rightward. From 1 to the series count less one (less two with
+   *  `centre`). */
+  readonly left?: number;
+  /** "diverge" only: the series after the left ones straddles 0, half its
+   *  value each side, as a neutral answer does. */
+  readonly centre?: boolean;
   /** Each bar's value at its end (default true), in place of an x axis: a
-   *  stack's total, or each grouped or split bar's own value. "share" takes
-   *  none, since its rows all reach 100 %, and keeps its x axis. */
+   *  stack's total, or each grouped or split bar's own value. "share" and
+   *  "diverge" take none, since their bars have no one length to label, and
+   *  keep their x axis. */
   readonly labels?: boolean;
   readonly series: readonly BarSeries[];
 }

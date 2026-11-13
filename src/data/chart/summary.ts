@@ -240,7 +240,7 @@ function barSummary(model: Model, m: BarModel, words: Words): string[] {
     };
     sentence(several ? s.name : undefined, m.arrange === "share" ? share : (i) => s.x[i] ?? null);
   }
-  if (several && m.arrange === "stack") {
+  if (several && (m.arrange === "stack" || m.arrange === "diverge")) {
     sentence(words.total, (i) => barTotal(m, i));
   }
   return out;

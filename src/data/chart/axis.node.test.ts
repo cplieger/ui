@@ -253,6 +253,27 @@ describe("a linear axis", () => {
     expect(words(axis)).toEqual(["0%", "20%", "40%", "60%", "80%", "100%"]);
   });
 
+  it("writes a diverging bar chart's ticks as distances from 0 both ways", () => {
+    const scale = xScale({
+      x: { format: "percent" },
+      marks: [
+        {
+          mark: "bar",
+          y: ["a"],
+          arrange: "diverge",
+          left: 1,
+          series: [
+            { name: "No", x: [0.4] },
+            { name: "Yes", x: [0.6] },
+          ],
+        },
+      ],
+    });
+    const axis = xAxis(scale, 400, ctx());
+    expect([axis.lo, axis.hi]).toEqual([-0.4, 0.6]);
+    expect(words(axis)).toEqual(["40%", "20%", "0%", "20%", "40%", "60%"]);
+  });
+
   it("steps y at whole numbers when every value is an integer", () => {
     const y = yScale({
       x: {},

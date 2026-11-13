@@ -457,6 +457,29 @@ describe("the table of a bar chart", () => {
     ]);
   });
 
+  it("has a Total column for diverging bars", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Item 1"],
+            arrange: "diverge",
+            left: 1,
+            series: [
+              { name: "No", x: [12] },
+              { name: "Yes", x: [30] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["No", "Yes", "Total"]);
+    expect(cells(t)).toEqual([["Item 1", "12", "30", "42"]]);
+  });
+
   it.each(["group", "split"] as const)("has no Total column for %s bars", (arrange) => {
     const t = tableModel(
       model({

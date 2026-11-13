@@ -770,6 +770,8 @@ describe("the bar mark", () => {
     expect(m.marks[0]).toEqual({
       kind: "bar",
       arrange: "stack",
+      left: 0,
+      centre: false,
       labels: true,
       series: [{ name: "a", slot: 1, below: 1, x: [3, null, null, 1] }],
     });
@@ -827,7 +829,75 @@ describe("the bar mark", () => {
 
   it("names the arrangements a bar draws", () => {
     expect(() => build({ x: {}, marks: [bars([1], { arrange: "side" as "stack" })] })).toThrow(
-      'renderChart: marks[0].arrange must be "stack", "group", "share" or "split"',
+      'renderChart: marks[0].arrange must be "stack", "group", "share", "split" or "diverge"',
+    );
+  });
+
+  const likert = (more: Partial<Extract<Mark, { mark: "bar" }>> = {}, count = 5): Mark => ({
+    mark: "bar",
+    y: ["Item 1"],
+    arrange: "diverge",
+    left: 2,
+    centre: true,
+    series: ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"]
+      .slice(0, count)
+      .map((name, k) => ({ name, x: [10 + k] })),
+    ...more,
+  });
+
+  it("is a diverging stacked bar chart, its left count and centre in the model, no value labels", () => {
+    const m = build({ x: {}, marks: [likert()] });
+    expect(m.kind).toBe("divergingStackedBar");
+    expect(m.marks[0]).toMatchObject({ arrange: "diverge", left: 2, centre: true, labels: false });
+    expect(build({ x: {}, marks: [likert({ centre: false })] }).marks[0]).toMatchObject({
+      left: 2,
+      centre: false,
+    });
+  });
+
+  it("refuses left and centre outside diverge, and labels under it", () => {
+    expect(() => build({ x: {}, marks: [bars([1], { left: 1 })] })).toThrow(
+      'renderChart: marks[0].left has no place outside arrange "diverge"',
+    );
+    expect(() => build({ x: {}, marks: [bars([1], { centre: true })] })).toThrow(
+      'renderChart: marks[0].centre has no place outside arrange "diverge"',
+    );
+    expect(() =>
+      build({ x: {}, marks: [likert({ centre: "yes" as unknown as boolean })] }),
+    ).toThrow("renderChart: marks[0].centre must be a boolean");
+    for (const labels of [true, false]) {
+      expect(() => build({ x: {}, marks: [likert({ labels })] })).toThrow(
+        'renderChart: marks[0].labels has no place under arrange "diverge", whose bars run either side of 0',
+      );
+    }
+  });
+
+  it("needs a series each side of 0, and a third to straddle it with centre", () => {
+    expect(() => build({ x: {}, marks: [likert({ centre: false, left: 1 }, 1)] })).toThrow(
+      'renderChart: marks[0].arrange "diverge" needs two or more series, one each side of 0',
+    );
+    expect(() => build({ x: {}, marks: [likert({ left: 1 }, 2)] })).toThrow(
+      'renderChart: marks[0].arrange "diverge" with centre needs three or more series: left, centre and right',
+    );
+  });
+
+  it("needs left, a whole number leaving a right series and the centre one", () => {
+    const { left: _, ...none } = likert() as Extract<Mark, { mark: "bar" }>;
+    expect(() => build({ x: {}, marks: [none] })).toThrow(TypeError);
+    expect(() => build({ x: {}, marks: [likert({ left: "2" as unknown as number })] })).toThrow(
+      'renderChart: marks[0].left must be a number: how many series lie left of 0 under arrange "diverge"',
+    );
+    for (const left of [0, 1.5, 4]) {
+      expect(() => build({ x: {}, marks: [likert({ left })] })).toThrow(
+        "renderChart: marks[0].left must be a whole number from 1 to 3, leaving a series to straddle 0 and one right of 0",
+      );
+    }
+    expect(() => build({ x: {}, marks: [likert({ left: 5, centre: false })] })).toThrow(
+      "renderChart: marks[0].left must be a whole number from 1 to 4, leaving a series right of 0",
+    );
+    expect(build({ x: {}, marks: [likert({ left: 3 })] }).kind).toBe("divergingStackedBar");
+    expect(build({ x: {}, marks: [likert({ left: 4, centre: false })] }).kind).toBe(
+      "divergingStackedBar",
     );
   });
 

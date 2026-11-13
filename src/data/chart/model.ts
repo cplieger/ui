@@ -34,7 +34,8 @@ type Kind =
   | "groupedBar"
   | "shareBar"
   | "divergingBar"
-  | "splitBar";
+  | "splitBar"
+  | "divergingStackedBar";
 
 export interface SeriesModel {
   readonly name: string;
@@ -160,10 +161,15 @@ export interface BarModel {
   /** "group" sets two or more series one under another in each row, and
    *  "split" in a panel each; one series grouped or split is a plain bar, so
    *  it reads "stack". "share" draws each series' share of its row's total;
-   *  `series` keeps the values. */
-  readonly arrange: "stack" | "group" | "share" | "split";
+   *  `series` keeps the values. "diverge" stacks the first `left` series
+   *  leftward from 0 and the rest rightward. */
+  readonly arrange: "stack" | "group" | "share" | "split" | "diverge";
+  /** How many series, the first ones, lie left of 0: 0 unless "diverge". */
+  readonly left: number;
+  /** Under "diverge", the series after the left ones straddles 0. */
+  readonly centre: boolean;
   /** Each row's value written at its bar's end, in place of an x axis;
-   *  never under "share". */
+   *  never under "share" or "diverge". */
   readonly labels: boolean;
   readonly series: readonly BarSeriesModel[];
 }
@@ -353,6 +359,46 @@ function checkSeries(series: unknown, length: number, what: string, channel = "y
   }
 }
 
+// `left` and `centre` place a diverging bar's series either side of 0, so
+// they need "diverge", and it needs a left series and a right one.
+function checkDiverge(
+  mark: Record<string, unknown>,
+  diverge: boolean,
+  count: number,
+  what: string,
+): void {
+  const { left, centre } = mark;
+  optional(centre, "boolean", `${what}.centre`);
+  if (!diverge) {
+    for (const [field, v] of [
+      ["left", left],
+      ["centre", centre],
+    ] as const) {
+      if (v !== undefined) {
+        fail(`${what}.${field} has no place outside arrange "diverge"`);
+      }
+    }
+    return;
+  }
+  if (count < (centre === true ? 3 : 2)) {
+    fail(
+      centre === true
+        ? `${what}.arrange "diverge" with centre needs three or more series: left, centre and right`
+        : `${what}.arrange "diverge" needs two or more series, one each side of 0`,
+    );
+  }
+  if (typeof left !== "number") {
+    fail(`${what}.left must be a number: how many series lie left of 0 under arrange "diverge"`);
+  }
+  const most = count - (centre === true ? 2 : 1);
+  if (!Number.isInteger(left) || left < 1 || left > most) {
+    fail(
+      `${what}.left must be a whole number from 1 to ${String(most)}, leaving a series ${centre === true ? "to straddle 0 and one " : ""}right of 0`,
+      RangeError,
+    );
+  }
+}
+
 function checkCurve(curve: unknown, what: string): void {
   if (curve !== undefined && curve !== "linear" && curve !== "step") {
     fail(`${what}.curve must be "linear" or "step"`);
@@ -457,19 +503,26 @@ function checkMark(mark: unknown, what: string): void {
         arrange !== "stack" &&
         arrange !== "group" &&
         arrange !== "share" &&
-        arrange !== "split"
+        arrange !== "split" &&
+        arrange !== "diverge"
       ) {
-        fail(`${what}.arrange must be "stack", "group", "share" or "split"`);
+        fail(`${what}.arrange must be "stack", "group", "share", "split" or "diverge"`);
       }
       optional(mark["labels"], "boolean", `${what}.labels`);
       if (arrange === "share" && mark["labels"] !== undefined) {
         fail(`${what}.labels has no place under arrange "share", whose rows all reach 100%`);
+      }
+      if (arrange === "diverge" && mark["labels"] !== undefined) {
+        fail(
+          `${what}.labels has no place under arrange "diverge", whose bars run either side of 0`,
+        );
       }
       const list = mark["series"];
       checkSeries(list, names.length, what, "x");
       if (arrange === "share" && arrayLike(list) && list.length < 2) {
         fail(`${what}.arrange "share" needs two or more series, since one reads 100% everywhere`);
       }
+      checkDiverge(mark, arrange === "diverge", arrayLike(list) ? list.length : 0, what);
       const all = Array.from(list as ArrayLike<Record<string, unknown>>);
       all.forEach((one, s) => {
         const at = `${what}.series[${String(s)}]`;
@@ -646,7 +699,9 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
             ? "shareBar"
             : first.arrange === "split"
               ? "splitBar"
-              : "stackedBar";
+              : first.arrange === "diverge"
+                ? "divergingStackedBar"
+                : "stackedBar";
   }
 }
 
@@ -778,10 +833,13 @@ export function chartModel(
           kind: "bar",
           arrange:
             m.arrange === "share" ||
+            m.arrange === "diverge" ||
             ((m.arrange === "group" || m.arrange === "split") && m.series.length > 1)
               ? m.arrange
               : "stack",
-          labels: m.arrange !== "share" && m.labels !== false,
+          left: m.arrange === "diverge" ? (m.left ?? 0) : 0,
+          centre: m.arrange === "diverge" && m.centre === true,
+          labels: m.arrange !== "share" && m.arrange !== "diverge" && m.labels !== false,
           series: barSeries(m.series),
         };
       case "rule": {

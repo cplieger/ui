@@ -423,6 +423,40 @@ describe("a bar chart's scales", () => {
     });
   });
 
+  describe("a diverging stack", () => {
+    const diverge = (spec: ChartSpec, left: number, centre?: boolean): ChartSpec => ({
+      ...spec,
+      marks: spec.marks.map((m) =>
+        m.mark === "bar"
+          ? { ...m, arrange: "diverge", left, ...(centre === undefined ? {} : { centre }) }
+          : m,
+      ),
+    });
+
+    it("reaches from the widest left extent to the widest right one, a centre series half each side", () => {
+      const likert = diverge(bars([10, 5], [15, 5], [20, 0], [30, 40], [25, 50]), 2, true);
+      // Row 1: 10 + 15 + 20 / 2 left and 20 / 2 + 30 + 25 right; row 2: 10 left, 90 right.
+      const x = xScale(likert);
+      expect([x.lo, x.hi]).toEqual([-35, 90]);
+      expect(x.absolute).toBe(true);
+      const plain = xScale(diverge(bars([10, 40], [30, 5], [null, 20]), 1));
+      expect([plain.lo, plain.hi]).toEqual([-40, 30]);
+    });
+
+    it("holds a rule and refuses a negative value, whose side comes from its order", () => {
+      const spec = diverge(bars([10], [30]), 1);
+      const x = xScale({ ...spec, marks: [...spec.marks, { mark: "rule", x: 50, label: "Goal" }] });
+      expect([x.lo, x.hi]).toEqual([-10, 50]);
+      expect(() => xScale(diverge(bars([10], [-3]), 1))).toThrow(
+        "renderChart: a diverging bar's x cannot be negative",
+      );
+    });
+
+    it("writes signed ticks on every other bar chart", () => {
+      expect(xScale(bars([3, -2], [1, 4])).absolute).toBe(false);
+    });
+  });
+
   it("names the band y's rows in the app's order", () => {
     expect(yScale(bars([1, 2, 3]))).toEqual({
       type: "band",

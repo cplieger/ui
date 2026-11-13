@@ -30,6 +30,9 @@ export interface Continuous {
   readonly integer: boolean;
   readonly format: Format | undefined;
   readonly reverse: boolean;
+  /** Its ticks write their distance from 0, as on a diverging bar chart,
+   *  whose left bars hold values of 0 or more. */
+  readonly absolute: boolean;
   readonly under: Underflow | undefined;
   /** Where the drawing starts: `lo`, or an underflow bin's `from` below it. */
   readonly drawnLo: number;
@@ -137,14 +140,17 @@ function underflow(spec: ChartSpec, lo: number): Underflow | undefined {
 }
 
 // A bar row's stack reaches from the sum of its negative values to the sum
-// of its positive ones, through 0; grouped and split bars each reach their
-// own value.
+// of its positive ones, through 0; a diverging row from its left series'
+// sum and half its centre series to the rest; grouped and split bars each
+// reach their own value.
 function addBars(extent: Extent, m: BarMark): void {
   const apart = m.arrange === "group" || m.arrange === "split";
+  const left = m.arrange === "diverge" ? (m.left ?? 0) : -1;
+  const centre = m.centre === true ? left : -1;
   for (let i = 0; i < m.y.length; i++) {
     let lo = 0;
     let hi = 0;
-    for (const s of m.series) {
+    for (const [k, s] of m.series.entries()) {
       const v = s.x[i];
       if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
         throw new RangeError("renderChart: a bar's x cannot be infinite");
@@ -156,12 +162,19 @@ function addBars(extent: Extent, m: BarMark): void {
       if (m.arrange === "split" && finite(v) && v < 0) {
         throw new RangeError("renderChart: a split bar's x cannot be negative");
       }
+      // A diverging bar's side comes from its place in the order, never its sign.
+      if (left !== -1 && finite(v) && v < 0) {
+        throw new RangeError("renderChart: a diverging bar's x cannot be negative");
+      }
       if (finite(v)) {
         extent.count(v);
         if (apart) {
           extent.add(v);
-        } else if (v < 0) {
-          lo += v;
+        } else if (k === centre) {
+          lo -= v / 2;
+          hi += v / 2;
+        } else if (k < left || v < 0) {
+          lo -= Math.abs(v);
         } else {
           hi += v;
         }
@@ -231,6 +244,7 @@ export function xScale(spec: ChartSpec): Continuous {
       integer: false,
       format: spec.x.format ?? "percent",
       reverse: spec.x.reverse === true,
+      absolute: false,
       under: undefined,
       drawnLo: 0,
     };
@@ -260,6 +274,7 @@ export function xScale(spec: ChartSpec): Continuous {
     integer,
     format: spec.x.format,
     reverse: spec.x.reverse === true,
+    absolute: spec.marks.some((m) => m.mark === "bar" && m.arrange === "diverge"),
     under,
     drawnLo: under?.drawn === "below" ? under.from : lo,
   };
@@ -416,6 +431,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
       integer: false,
       format: y.format ?? "percent",
       reverse: false,
+      absolute: false,
       under: undefined,
       drawnLo: 0,
     };
@@ -451,6 +467,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     integer,
     format: y.format,
     reverse: false,
+    absolute: false,
     under: undefined,
     drawnLo: lo,
   };

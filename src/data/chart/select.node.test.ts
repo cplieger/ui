@@ -688,6 +688,19 @@ describe("bar keys", () => {
     }
   });
 
+  it("moves Right through a diverging row left to right as drawn and says its total", () => {
+    for (const reverse of [false, true]) {
+      const spec = reach(reverse);
+      const mark = spec.marks[0] as Extract<Mark, { mark: "bar" }>;
+      // Domestic lies left of 0, so it is drawn first from the left, last on a reversed x.
+      const b = built({ ...spec, marks: [{ ...mark, arrange: "diverge", left: 1 }] });
+      expect(b.nav.move(bar(0), "ArrowRight", undefined)).toEqual(bar(0, reverse ? 1 : 0));
+      expect(spoken(b.model, bar(0), words, false)).toBe(
+        "Row 1: Domestic 1, International 2. Total 3.",
+      );
+    }
+  });
+
   it("one series has no parts for Left and Right to choose", () => {
     const b = built(ages);
     expect(b.nav.move(bar(1), "ArrowLeft", undefined)).toBe(undefined);

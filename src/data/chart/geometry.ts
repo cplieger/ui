@@ -10,6 +10,7 @@ import { reduce, type Point } from "../scale/reduce.js";
 
 import {
   barsApart,
+  barTotal,
   barValue,
   drawnTotal,
   drawnValue,
@@ -435,10 +436,25 @@ export function areaPaths(m: AreaModel, f: Frame): string[] {
   });
 }
 
+// Where row `i` of a diverging `m` starts left of 0: its left series' sum
+// and half its centre series' value, each a `null` as 0.
+function divergeStart(m: BarModel, i: number): number {
+  let start = m.centre ? -(m.series[m.left]?.x[i] ?? 0) / 2 : 0;
+  for (const s of m.series.slice(0, m.left)) {
+    start -= s.x[i] ?? 0;
+  }
+  return start;
+}
+
 /** Row `i`'s reach of `m` along x, each end 0 without a value past it: a
- *  stack's sums of its negative and of its positive values, or the lowest
- *  and highest value of bars standing apart. */
+ *  stack's sums of its negative and of its positive values, a diverging
+ *  row's left and right extents, or the lowest and highest value of bars
+ *  standing apart. */
 export function barReach(m: BarModel, i: number): { readonly lo: number; readonly hi: number } {
+  if (m.arrange === "diverge") {
+    const lo = divergeStart(m, i);
+    return { lo, hi: lo + (barTotal(m, i) ?? 0) };
+  }
   let lo = 0;
   let hi = 0;
   for (const s of m.series) {
@@ -489,9 +505,11 @@ export interface Segment {
  * Positive values stack rightward from 0 and negative ones leftward, each
  * side in series order; a segment beyond another gives up its first px
  * toward 0 as the gap unless it is under 3 px long, so a stack's end stays
- * at its sum. Under "split" each series' bar runs from 0 in its panel of
- * `f.panels`, and under "group" or a folded split from 0 at `barCentre`,
- * a sub-bar's thickness across. A `null` counts as 0 and draws nothing.
+ * at its sum. Under "diverge" the left series stack leftward from 0 and
+ * the rest rightward (`divergeSegments`). Under "split" each series' bar
+ * runs from 0 in its panel of `f.panels`, and under "group" or a folded
+ * split from 0 at `barCentre`, a sub-bar's thickness across. A `null`
+ * counts as 0 and draws nothing.
  */
 export function barSegments(
   m: BarModel,
@@ -531,6 +549,9 @@ export function barSegments(
   }
   const top = snap(cy - thick / 2, f.dpr);
   const bottom = snap(cy + thick / 2, f.dpr);
+  if (m.arrange === "diverge") {
+    return divergeSegments(m, i, f, top, bottom);
+  }
   const base = { lo: 0, hi: 0 };
   const drawn = { lo: false, hi: false };
   return m.series.map((s) => {
@@ -550,6 +571,57 @@ export function barSegments(
     const right = clamp(Math.max(a, b), 0, f.width);
     return right > left ? { left, right, top, bottom } : undefined;
   });
+}
+
+// A diverging row's segments: the left series outward from 0 (or from the
+// centre series' left half), the last of them nearest it, then the rest
+// outward on the right. Each segment beyond a drawn one gives up its px
+// toward 0 as the gap unless it is under 3 px long, so each side ends at
+// its sum; at 0 the right side gives it, and the zero line shows there.
+function divergeSegments(
+  m: BarModel,
+  i: number,
+  f: Frame,
+  top: number,
+  bottom: number,
+): (Segment | undefined)[] {
+  const out: (Segment | undefined)[] = m.series.map(() => undefined);
+  const value = (k: number) => m.series[k]?.x[i] ?? 0;
+  const half = m.centre ? value(m.left) / 2 : 0;
+  const centred = half > 0;
+  const place = (k: number, inner: number, outer: number, drawn: boolean) => {
+    let a = f.xAt(inner);
+    const b = f.xAt(outer);
+    if (drawn && Math.abs(b - a) >= GAP_MIN) {
+      a += Math.sign(b - a) * GAP;
+    }
+    const left = clamp(Math.min(a, b), 0, f.width);
+    const right = clamp(Math.max(a, b), 0, f.width);
+    out[k] = right > left ? { left, right, top, bottom } : undefined;
+  };
+  if (centred) {
+    place(m.left, -half, half, false);
+  }
+  let at = -half;
+  let drawn = centred;
+  for (let k = m.left - 1; k >= 0; k--) {
+    const v = value(k);
+    if (v > 0) {
+      place(k, at, at - v, drawn);
+      at -= v;
+      drawn = true;
+    }
+  }
+  at = half;
+  for (let k = m.left + (m.centre ? 1 : 0); k < m.series.length; k++) {
+    const v = value(k);
+    if (v > 0) {
+      place(k, at, at + v, drawn);
+      at += v;
+      drawn = true;
+    }
+  }
+  return out;
 }
 
 /** A path in its series slot, the rectangles of every segment it fills. */

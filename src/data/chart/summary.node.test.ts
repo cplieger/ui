@@ -645,6 +645,36 @@ describe("the summary of a bar chart", () => {
     );
   });
 
+  it("names each diverging series' extremes and the totals', a diverging stacked bar chart", () => {
+    const likert: ChartSpec = {
+      x: { format: "percent" },
+      y: { unit: { one: "item", other: "items" } },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Item 1", "Item 2"],
+          arrange: "diverge",
+          left: 1,
+          centre: true,
+          series: [
+            { name: "Disagree", x: [0.25, 0.1] },
+            { name: "Neutral", x: [0.2, 0.3] },
+            { name: "Agree", x: [0.55, 0.4] },
+          ],
+        },
+      ],
+    };
+    expect(generatedSummary(model(likert), words)).toBe(
+      `2${nb}items, 3 series. Disagree: highest Item 1 25%, lowest Item 2 10%. ` +
+        "Neutral: highest Item 2 30%, lowest Item 1 20%. " +
+        "Agree: highest Item 1 55%, lowest Item 2 40%. " +
+        "Total: highest Item 1 100%, lowest Item 2 80%.",
+    );
+    expect(shortDescription(model(likert), words)).toBe(
+      `Diverging stacked bar chart, 3 series, 2${nb}items`,
+    );
+  });
+
   it("says only the count when every value is a gap, in categories without a unit", () => {
     const empty: ChartSpec = {
       x: {},

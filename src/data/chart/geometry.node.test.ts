@@ -1131,6 +1131,70 @@ describe("bars", () => {
     expect(barCentre(barOf(m), 1, 30, 16)).toBe(36.5);
   });
 
+  const diverging = (series: (number | null)[][], left: number, centre: boolean) =>
+    model({
+      x: {},
+      marks: [
+        {
+          mark: "bar",
+          y: (series[0] ?? []).map((_, i) => `c${String(i)}`),
+          arrange: "diverge",
+          left,
+          centre,
+          series: series.map((x, k) => ({ name: `s${String(k)}`, x })),
+        },
+      ],
+    });
+
+  it("stacks the left series leftward from the centre's half, the rest rightward, each beyond another 1 px short", () => {
+    const m = diverging([[10], [15], [20], [30], [25]], 2, true);
+    // 0 at 40 px, 1 px a unit: the centre spans -10 to 10.
+    const f = barFrame(m, -40, 70, 110);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 5, right: 14, top: 4, bottom: 20 },
+      { left: 15, right: 29, top: 4, bottom: 20 },
+      { left: 30, right: 50, top: 4, bottom: 20 },
+      { left: 51, right: 80, top: 4, bottom: 20 },
+      { left: 81, right: 105, top: 4, bottom: 20 },
+    ]);
+    expect(barReach(barOf(m), 0)).toEqual({ lo: -35, hi: 65 });
+  });
+
+  it("meets at 0 with no centre, the right side giving the gap, and skips a 0 and a gap", () => {
+    const m = diverging(
+      [
+        [10, 0],
+        [20, null],
+        [30, 30],
+      ],
+      1,
+      false,
+    );
+    const f = barFrame(m, -10, 50, 60);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 10, top: 4, bottom: 20 },
+      { left: 11, right: 30, top: 4, bottom: 20 },
+      { left: 31, right: 60, top: 4, bottom: 20 },
+    ]);
+    // Nothing on the left, so the first right bar starts at 0 itself.
+    expect(barSegments(barOf(m), 1, f, 36, 16)).toEqual([
+      undefined,
+      undefined,
+      { left: 10, right: 40, top: 28, bottom: 44 },
+    ]);
+    expect(barReach(barOf(m), 1)).toEqual({ lo: 0, hi: 30 });
+  });
+
+  it("starts both sides at 0 when the centre series has no value", () => {
+    const m = diverging([[10], [null], [30]], 1, true);
+    const f = barFrame(m, -10, 50, 60);
+    expect(barSegments(barOf(m), 0, f, 12, 16)).toEqual([
+      { left: 0, right: 10, top: 4, bottom: 20 },
+      undefined,
+      { left: 11, right: 40, top: 4, bottom: 20 },
+    ]);
+  });
+
   it("draws one series split as a plain bar", () => {
     const m = split([[40]]);
     expect(barOf(m).arrange).toBe("stack");

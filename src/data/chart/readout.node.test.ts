@@ -586,6 +586,37 @@ describe("the legend row of a bar chart", () => {
     expect(overall(m, words)?.total).toBeUndefined();
   });
 
+  it("reads a diverging row's values in series order and its total", () => {
+    const m = model({
+      x: { format: "percent" },
+      marks: [
+        {
+          mark: "bar",
+          y: ["Item 3"],
+          arrange: "diverge",
+          left: 2,
+          centre: true,
+          series: [
+            { name: "Strongly disagree", x: [0.1] },
+            { name: "Disagree", x: [0.15] },
+            { name: "Neutral", x: [0.2] },
+            { name: "Agree", x: [0.3] },
+            { name: "Strongly agree", x: [0.25] },
+          ],
+        },
+      ],
+    });
+    const r = barReading(m, m.marks[0] as BarModel, 0, words);
+    expect(r?.entries.map((e) => `${e.name} ${e.value}`)).toEqual([
+      "Strongly disagree 10%",
+      "Disagree 15%",
+      "Neutral 20%",
+      "Agree 30%",
+      "Strongly agree 25%",
+    ]);
+    expect(r?.total).toBe("100%");
+  });
+
   const shared = (rows: (number | null)[][]): ChartSpec => ({
     x: { unit: { one: "respondent", other: "respondents" } },
     marks: [

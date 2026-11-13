@@ -145,7 +145,8 @@ function linearAxisAt(
   });
   const [lo, hi] = axis.domain;
   const at = range(lo, hi);
-  const write = formatter(scale.format, locale);
+  const format = formatter(scale.format, locale);
+  const write = scale.absolute ? (v: number) => format(Math.abs(v)) : format;
   for (let step = axis.step; ; step = coarserStep(step)) {
     const values = linearTicks(lo, hi, step);
     const { ticks, shown } = fitted(values, at, write, layout);
