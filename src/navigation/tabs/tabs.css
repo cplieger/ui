@@ -59,6 +59,8 @@
 .cp-tab[aria-selected="true"],
 .cp-tabs > a[aria-current="page"],
 .cp-segmented > label:has(:checked) {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
 }

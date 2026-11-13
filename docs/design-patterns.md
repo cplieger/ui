@@ -87,7 +87,7 @@ Pick the form by the question the data answers, after [Datawrapper's guide to ch
 3. Neighbouring edges differ by a factor of 2 to 3, so on a log axis no bin is over 1.6 times another's width. A bar's height can then be its count. A histogram whose bins range wider plots each bin's count per unit of log width, so that its area carries the count. Its y label says so.
 4. The ladder grows by adding edges above 90 days, such as 180 and 365, never by moving one below, so stored bins keep their edges.
 
-**Charts that share an x.** Charts stacked on one time range pass the range as their x `domain`. They set `--cp-chart-axis-gutter` and `--cp-chart-label-gutter` once on their common parent, so their plots start and end at the same edges. The eye then runs straight down the screen at one moment. Under 30rem the label gutter is 0, since lines drop their end labels there.
+**Charts that share an x.** Charts stacked on one time range pass the range as their x `domain`. They sit in one `.cp-chart-stack`, which sets the y labels' and end labels' gutters once for all of them, so their plots start and end at the same edges. The eye then runs straight down the screen at one moment. Under 30rem the label gutter is 0, since lines drop their end labels there.
 
 ## Lists
 

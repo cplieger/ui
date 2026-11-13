@@ -12,14 +12,17 @@ type Values = ArrayLike<number | null>;
 
 interface Scale {
   readonly type?: "linear" | "log" | "time" | "band";
-  /** The axis title. */
+  /** The axis title; required on both axes of a scatter, whose readings
+   *  name each measure by it. */
   readonly label?: string;
-  /** The measured noun ("posts"), or the band's rows ("agents"). */
+  /** The measured noun ("posts"), or the band's rows ("agents"); none on a
+   *  scatter, whose readings name each measure by its label. */
   readonly unit?: Unit;
   /** Linear, log and time only. */
   readonly domain?: readonly [number, number];
-  /** A linear y under line marks, which holds 0 unless false, or a linear
-   *  x under a point mark, which holds it only when true. */
+  /** A linear y under a line or a slope, which holds 0 unless false, or a
+   *  linear x under a point mark, or either under a scatter, which holds it
+   *  only when true. */
   readonly zero?: boolean;
   readonly format?: Format;
   /** Band only: names in the mono face. */
@@ -151,10 +154,44 @@ export interface PointMark {
   readonly series: readonly PointSeries[];
 }
 
+/** Each series as one line between two columns, two moments or two
+ *  conditions, along the chart's linear y; the chart takes no x scale. */
+interface SlopeMark {
+  readonly mark: "slope";
+  /** The two columns' names, left to right. */
+  readonly x: readonly [string, string];
+  /** Each series' `y` holds its two ends; a `null` end draws only the other. */
+  readonly series: readonly Series[];
+}
+
+interface ScatterSeries {
+  readonly name: string;
+  readonly slot?: Slot;
+  /** Each dot's name, once across the whole mark. */
+  readonly names: readonly string[];
+  /** A value per dot on each axis; `null` or `NaN` draws no dot. */
+  readonly x: Values;
+  readonly y: Values;
+  /** A value of 0 or more per dot that its area is proportional to, on the
+   *  chart's `r`: on every series or none. A 0 draws no dot but is read
+   *  and listed; `null` or `NaN` draws none either. */
+  readonly r?: Values;
+}
+
+/** A dot per item on the chart's linear or log x and y, each series a
+ *  group of dots in its slot, a later series drawn over an earlier one;
+ *  with `r`, a bubble per item, the larger drawn first across every series. */
+export interface ScatterMark {
+  readonly mark: "scatter";
+  /** The dots' noun ("countries"); without one they are points. */
+  readonly unit?: Unit;
+  readonly series: readonly ScatterSeries[];
+}
+
 /** Exactly one of `x` and `y`, finite. Beside a dot, bar or point mark
  *  only `x`, drawn down every row: in every panel of a split, and at its
  *  distance from 0 on both sides of a mirror or a diverging chart, where it
- *  cannot be below 0. */
+ *  cannot be below 0. Beside a slope only `y`. */
 interface RuleMark {
   readonly mark: "rule";
   readonly x?: number;
@@ -163,10 +200,11 @@ interface RuleMark {
 }
 
 /** A note at a place on the plot, set 4 px off it on its `side` (default
- *  "above"). Under a rect, line or area `x` and `y` are values on the
+ *  "above"). Under a rect, line, area or scatter `x` and `y` are values on the
  *  chart's scales; under a dot mark `x` is a time and `y` a row's name;
  *  under a bar or point mark `y` names a row and `x` places the note along
- *  it. Both are required, except under a split, diverging or mirrored bar,
+ *  it; under a slope `x` names one of its two columns and `y` is a value.
+ *  Both are required, except under a split, diverging or mirrored bar,
  *  which refuses `x` and sets the note at its row's end. A note outside the
  *  drawn range is not drawn. */
 interface TextMark {
@@ -177,19 +215,45 @@ interface TextMark {
   readonly side?: "above" | "below" | "left" | "right";
 }
 
+/** A bubble chart's size: area proportional to the value from 0. */
+interface SizeScale {
+  readonly type?: "linear";
+  /** Required: the readings name the size by it. */
+  readonly label?: string;
+  /** Its low end is 0; every r value lies inside it. Shared by several
+   *  charts, it keeps one size for one value across them. */
+  readonly domain?: readonly [number, number];
+  readonly format?: Format;
+}
+
 export type Mark =
-  RectMark | LineMark | AreaMark | DotMark | BarMark | PointMark | RuleMark | TextMark;
+  | RectMark
+  | LineMark
+  | AreaMark
+  | DotMark
+  | BarMark
+  | PointMark
+  | SlopeMark
+  | ScatterMark
+  | RuleMark
+  | TextMark;
 
 export interface ChartSpec {
-  readonly x: Scale;
-  /** Band when the chart has a dot, bar or point mark. */
+  /** Default `{}`. A slope names its columns itself, so there it is a
+   *  `TypeError`; a scatter's is linear or log. */
+  readonly x?: Scale;
+  /** Band when the chart has a dot, bar or point mark; linear under a
+   *  slope; linear or log under a scatter. */
   readonly y?: Scale;
-  /** One rect, line, area, dot, bar or point mark and any rules and text
-   *  marks, drawn in order: a rule after a rect draws over it. A second
-   *  data mark is a `TypeError`. */
+  /** A scatter's size, when its series carry `r`; a `TypeError` otherwise. */
+  readonly r?: SizeScale;
+  /** One rect, line, area, dot, bar, point, slope or scatter mark and any rules and
+   *  text marks, drawn in order: a rule after a rect draws over it. A
+   *  second data mark is a `TypeError`. */
   readonly marks: readonly Mark[];
   /** The plot's height in px. A band chart (dot, bar or point) is as tall
-   *  as its rows, so there it is a `TypeError`. */
+   *  as its rows, so there it is a `TypeError`; a slope grows past it to
+   *  give each end label a line. */
   readonly height?: number;
   readonly summary?: string | ((generated: string) => string);
   /** Shown instead of the plot when there is nothing to draw. */

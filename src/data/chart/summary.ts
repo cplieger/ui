@@ -12,21 +12,30 @@ import {
   pointLink,
   sampleTotal,
   sampleValue,
+  scatterDotAt,
+  slopeChange,
   type BarModel,
   type DotModel,
   type Model,
   type PointModel,
   type RectModel,
   type SampleModel,
+  type ScatterModel,
   type SeriesModel,
+  type SlopeModel,
 } from "./model.js";
 import {
   bucketText,
+  changeText,
   counted,
   domainText,
+  dotsText,
   lastSample,
   lastStack,
   linkText,
+  dotValue,
+  measureText,
+  measuresOf,
   primaryOf,
   rowsText,
   totalWord,
@@ -320,6 +329,69 @@ function pointSummary(model: Model, m: PointModel, words: Words): string[] {
   return out;
 }
 
+// The columns and series head, each series' two ends and change, then the
+// largest rise and fall, the first in series order on a tie; a series with
+// a missing end has no change to rank.
+function slopeSummary(model: Model, m: SlopeModel, words: Words): string[] {
+  const n = m.series.length;
+  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const out = [words.slopeSummary(domainText(model, words), series)];
+  const end = (v: number | null | undefined) =>
+    v === null || v === undefined ? words.noData : model.yText(v);
+  let rise: { name: string; v: number } | undefined;
+  let fall: { name: string; v: number } | undefined;
+  for (const s of m.series) {
+    const v = slopeChange(s);
+    out.push(
+      words.slopeSeries(s.name, end(s.y[0]), end(s.y[1]), v === null ? "" : changeText(model, v)),
+    );
+    if (v !== null && v > (rise?.v ?? 0)) {
+      rise = { name: s.name, v };
+    }
+    if (v !== null && v < (fall?.v ?? 0)) {
+      fall = { name: s.name, v };
+    }
+  }
+  if (rise !== undefined) {
+    out.push(words.rise(rise.name, changeText(model, rise.v)));
+  }
+  if (fall !== undefined) {
+    out.push(words.fall(fall.name, changeText(model, fall.v)));
+  }
+  return out;
+}
+
+// The dots and series head, then each measure's highest and lowest dot, the
+// first in series order, then the app's order, on a tie. A correlation is a
+// statistic, which an app adds through its own summary.
+function scatterSummary(model: Model, m: ScatterModel, words: Words): string[] {
+  const n = m.series.length;
+  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const out = [words.countSummary(dotsText(model, m, words), series)];
+  const dots = m.series.flatMap((s, k) => (m.shown[k] ?? []).map((i) => ({ s, i })));
+  const names = dots.map((d) => d.s.names[d.i] ?? "");
+  for (const axis of measuresOf(m)) {
+    const at = (j: number) => {
+      const d = dots[j];
+      return d === undefined ? null : dotValue(d.s, axis, d.i);
+    };
+    const e = barExtremes(names, at);
+    if (e === undefined) {
+      continue;
+    }
+    const write = axis === "x" ? model.xText : axis === "y" ? model.yText : model.rText;
+    const value = (j: number) => write(at(j) ?? 0);
+    const place = (j: number) => `${names[j] ?? ""} ${value(j)}`;
+    const label = model.spec[axis]?.label ?? "";
+    out.push(
+      extremesText(words, label, e, at, place, value, (high, low) =>
+        words.barSeries(label, high, low),
+      ),
+    );
+  }
+  return out;
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -331,14 +403,22 @@ export function ruleSentences(model: Model, words: Words): string[] {
   return out;
 }
 
-/** Each note's sentence, in spec order: its x as the readings write it,
- *  under a dot mark after its row's name, on a bar or point chart its row's
- *  name alone. */
+/** Each note's sentence, in spec order: its x as the readings write it (a
+ *  slope's column name), under a dot mark after its row's name, on a bar or
+ *  point chart its row's name alone, on a scatter the name of the dot it
+ *  joins or else both its measures. */
 export function noteSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
   const m = primaryOf(model);
   for (const t of model.marks) {
-    if (t.kind === "text") {
+    if (t.kind === "text" && m?.kind === "scatter") {
+      const d = t.x === undefined ? undefined : scatterDotAt(m, t.x, t.y);
+      const at =
+        d === undefined
+          ? `${measureText(model, "x", t.x ?? null, words)}, ${measureText(model, "y", t.y, words)}`
+          : (m.series[d.series]?.names[d.i] ?? "");
+      out.push(words.note(at, t.text));
+    } else if (t.kind === "text") {
       const row = model.y.type === "band" ? (model.y.rows[t.y] ?? "") : undefined;
       const x = t.x === undefined ? undefined : model.xText(t.x);
       const at =
@@ -363,7 +443,11 @@ export function generatedSummary(model: Model, words: Words): string {
             ? barSummary(model, m, words)
             : m?.kind === "point"
               ? pointSummary(model, m, words)
-              : [];
+              : m?.kind === "slope"
+                ? slopeSummary(model, m, words)
+                : m?.kind === "scatter"
+                  ? scatterSummary(model, m, words)
+                  : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
@@ -376,13 +460,18 @@ export function summaryOf(model: Model, words: Words): string {
 }
 
 /** The plot's name: its kind, its series count from two up, and its x
- *  domain, or on a bar or point chart its row count, since its x is a value. */
+ *  domain, or on a bar or point chart its row count and on a scatter its
+ *  dot count, since their x is a value. */
 export function shortDescription(model: Model, words: Words): string {
   const m = primaryOf(model);
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
   const n = m === undefined || m.kind === "dot" ? 0 : m.series.length;
   const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
   const range =
-    m?.kind === "bar" || m?.kind === "point" ? rowsText(model, words) : domainText(model, words);
+    m?.kind === "bar" || m?.kind === "point"
+      ? rowsText(model, words)
+      : m?.kind === "scatter"
+        ? dotsText(model, m, words)
+        : domainText(model, words);
   return words.shortDescription(kind, series, range);
 }

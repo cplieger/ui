@@ -80,6 +80,8 @@
 /* Unsaved changes: a bar that stays in view at the bottom of the form while
  * any change waits. */
 .cp-savebar {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
   position: sticky;
   inset-block-end: var(--cp-space-3);
   z-index: 1;

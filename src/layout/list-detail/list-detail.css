@@ -58,6 +58,8 @@
 }
 
 .cp-list-detail > .cp-detail {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   padding: var(--cp-space-4);
   border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-surface);

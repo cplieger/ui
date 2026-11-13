@@ -7,6 +7,8 @@
 }
 
 .cp-pill {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: absolute;
   inset-block-start: 0;
   inset-inline-start: 0;

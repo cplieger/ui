@@ -4,6 +4,8 @@
  * and the menu's button, which sits beside the summary and not in it, so
  * pressing it never opens or shuts the section. */
 .cp-accordion {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: grid;
   border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-surface);

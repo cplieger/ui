@@ -1,6 +1,8 @@
 /* Machine text to copy, such as a key shown once: the text in a box with
  * Copy attached as one element, one control tall. */
 .cp-code {
+  --cp-chart-surface: var(--cp-surface-page);
+
   display: flex;
   align-items: stretch;
   gap: var(--cp-space-2);

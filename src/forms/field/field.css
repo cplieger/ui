@@ -18,6 +18,8 @@
 }
 
 .cp-input {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   min-block-size: var(--cp-control-h);
   padding-inline: var(--cp-space-3);
   border: var(--cp-line-w) solid var(--cp-border-strong);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { durationEdges } from "../scale/ladder.js";
 
-import { ruleAt, xScale, yScale, type Continuous } from "./scales.js";
+import { rScale, ruleAt, xScale, yScale, type Continuous } from "./scales.js";
 import type { BarMark, ChartSpec, Mark } from "./spec.js";
 
 const S = 1_000;
@@ -482,7 +482,7 @@ describe("a bar chart's scales", () => {
 });
 
 describe("a point chart's scales", () => {
-  const points = (x: ChartSpec["x"], ...series: (number | null)[][]): ChartSpec => ({
+  const points = (x: NonNullable<ChartSpec["x"]>, ...series: (number | null)[][]): ChartSpec => ({
     x,
     marks: [
       {
@@ -542,5 +542,135 @@ describe("a point chart's scales", () => {
     expect(() => xScale(points({ type: "time", zero: true }, [DAY]))).toThrow(
       "renderChart: a time x has no zero to hold",
     );
+  });
+});
+
+describe("a slope's scales", () => {
+  const slope = (y: ChartSpec["y"], ...series: (number | null)[][]): ChartSpec => ({
+    ...(y === undefined ? {} : { y }),
+    marks: [
+      {
+        mark: "slope",
+        x: ["Before", "After"],
+        series: series.map((v, k) => ({ name: `s${String(k)}`, y: v })),
+      },
+    ],
+  });
+
+  it("puts its two columns at 0 and 1 of an x it names itself", () => {
+    expect(xScale(slope(undefined, [50, 34]))).toMatchObject({
+      type: "linear",
+      lo: 0,
+      hi: 1,
+      passed: true,
+      reverse: false,
+    });
+  });
+
+  it("holds 0 on y unless zero is false, as a line's does", () => {
+    expect(continuous(yScale(slope(undefined, [50, 34], [30, 39])))).toMatchObject({
+      lo: 0,
+      hi: 50,
+    });
+    expect(continuous(yScale(slope({ zero: false }, [50, 34], [30, 39])))).toMatchObject({
+      lo: 30,
+      hi: 50,
+    });
+  });
+
+  it("takes a negative end below 0 and a y rule into its extent", () => {
+    const spec = slope(undefined, [-4, 12]);
+    const ruled = {
+      ...spec,
+      marks: [...spec.marks, { mark: "rule" as const, y: 20, label: "Goal" }],
+    };
+    expect(continuous(yScale(ruled))).toMatchObject({ lo: -4, hi: 20 });
+  });
+});
+
+describe("a scatter's scales", () => {
+  const scatter = (
+    x: NonNullable<ChartSpec["x"]>,
+    y: NonNullable<ChartSpec["y"]>,
+    ...dots: [number | null, number | null][]
+  ): ChartSpec => ({
+    x: { label: "GDP per capita", ...x },
+    y: { label: "Life expectancy", ...y },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "All",
+            names: dots.map((_, i) => `d${String(i)}`),
+            x: dots.map((d) => d[0]),
+            y: dots.map((d) => d[1]),
+          },
+        ],
+      },
+    ],
+  });
+
+  it("holds 0 on neither axis unless zero is true, since a dot's place is its value", () => {
+    const spec = scatter({}, {}, [18_000, 79.8], [65_000, 84.1], [null, 90]);
+    expect(xScale(spec)).toMatchObject({ type: "linear", lo: 18_000, hi: 65_000 });
+    expect(continuous(yScale(spec))).toMatchObject({ type: "linear", lo: 79.8, hi: 84.1 });
+    const zeroed = scatter({ zero: true }, { zero: true }, [18_000, 79.8], [65_000, 84.1]);
+    expect(xScale(zeroed)).toMatchObject({ lo: 0, hi: 65_000 });
+    expect(continuous(yScale(zeroed))).toMatchObject({ lo: 0, hi: 84.1 });
+  });
+
+  it("takes log scales of positive values", () => {
+    const spec = scatter({ type: "log" }, { type: "log" }, [900, 53], [140_000, 85.9]);
+    expect(xScale(spec)).toMatchObject({ type: "log", lo: 900, hi: 140_000 });
+    expect(continuous(yScale(spec))).toMatchObject({ type: "log", lo: 53, hi: 85.9 });
+  });
+
+  it("takes rules on either axis into its extents", () => {
+    const spec = scatter({}, {}, [10, 50], [20, 60]);
+    const ruled = {
+      ...spec,
+      marks: [
+        ...spec.marks,
+        { mark: "rule" as const, x: 30, label: "Median income" },
+        { mark: "rule" as const, y: 40, label: "Floor" },
+      ],
+    };
+    expect(xScale(ruled)).toMatchObject({ lo: 10, hi: 30 });
+    expect(continuous(yScale(ruled))).toMatchObject({ lo: 40, hi: 60 });
+  });
+});
+
+describe("a bubble chart's size scale", () => {
+  const bubbles = (r: (number | null)[], x: (number | null)[]): ChartSpec => ({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    r: { label: "Population", format: "integer" },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          { name: "All", names: r.map((_, i) => `d${String(i)}`), x, y: r.map(() => 70), r },
+        ],
+      },
+    ],
+  });
+
+  it("runs from 0 to the largest size of a dot it places, in the scale's format", () => {
+    expect(rScale(bubbles([5, 40, 90], [1, 2, null]))).toEqual({ hi: 40, format: "integer" });
+  });
+
+  it("leaves a dot with no size out of both position extents, since it draws nothing", () => {
+    const spec = bubbles([5, null, 7], [10, 500, 20]);
+    expect(xScale(spec)).toMatchObject({ lo: 10, hi: 20 });
+  });
+
+  it("is absent on plain dots", () => {
+    const plain: ChartSpec = {
+      x: { label: "a" },
+      y: { label: "b" },
+      marks: [{ mark: "scatter", series: [{ name: "All", names: ["d"], x: [1], y: [2] }] }],
+    };
+    expect(rScale(plain)).toBeUndefined();
   });
 });

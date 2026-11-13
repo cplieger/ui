@@ -101,7 +101,10 @@ describe("placeNote", () => {
 });
 
 const starts = [0, 900_000, 1_800_000, 2_700_000];
-const posts = (more: readonly Mark[], x: ChartSpec["x"] = { type: "time" }): ChartSpec => ({
+const posts = (
+  more: readonly Mark[],
+  x: NonNullable<ChartSpec["x"]> = { type: "time" },
+): ChartSpec => ({
   x,
   marks: [
     {
@@ -422,7 +425,7 @@ describe("a note on bar and point rows", () => {
   const best: Mark = { mark: "text", y: "Facebook", text: "Best", side: "right" };
   const bars = (
     more: Partial<Extract<Mark, { mark: "bar" }>> = {},
-    x: ChartSpec["x"] = {},
+    x: NonNullable<ChartSpec["x"]> = {},
     note: Mark = best,
   ): ChartSpec => ({
     x,
@@ -559,5 +562,131 @@ describe("a note on bar and point rows", () => {
     );
     expect(generatedSummary(m, words)).toMatch(/ Facebook: Best\.$/u);
     expect(tableModel(m, words).after).toBe("Facebook: Best.");
+  });
+});
+
+describe("a note on a slope", () => {
+  const slope = (...notes: Mark[]): ChartSpec => ({
+    y: { domain: [0, 60] },
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", y: [50, 34] },
+          { name: "Dogs", y: [40, 31] },
+        ],
+      },
+      ...notes,
+    ],
+  });
+
+  it("sits at its column's edge and its y, and joins that column", () => {
+    const spec = slope(
+      { mark: "text", x: "2005", y: 50, text: "Peak" },
+      { mark: "text", x: "2015", y: 31, text: "Low" },
+    );
+    const l = lay(spec);
+    expect(l.notes.map((n) => n.point)).toEqual([
+      { x: 0, y: l.frame.yAt(50) },
+      { x: l.frame.width, y: l.frame.yAt(31) },
+    ]);
+    expect(joined(spec)).toEqual([
+      { kind: "stop", i: 0 },
+      { kind: "stop", i: 1 },
+    ]);
+  });
+
+  it("is left out of the plot and the readings off the y domain, still in the summary and table", () => {
+    const spec = slope({ mark: "text", x: "2015", y: 80, text: "Goal" });
+    expect(lay(spec).notes).toEqual([]);
+    expect(joined(spec)).toEqual([null]);
+    const m = chartModel(spec, "en", "UTC");
+    expect(spoken(m, { kind: "slope", i: 1, part: undefined }, words, false)).toBe(
+      "2015: Cats 34, Dogs 31.",
+    );
+    expect(generatedSummary(m, words)).toContain("2015: Goal.");
+    expect(tableModel(m, words).after).toBe("2015: Goal.");
+  });
+});
+
+describe("a note on a scatter plot", () => {
+  const world = (...notes: Mark[]): ChartSpec => ({
+    x: { label: "GDP per capita", domain: [0, 150_000] },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Europe",
+            names: ["Albania", "Monaco", "Andorra"],
+            x: [18_920, 140_000, 140_000],
+            y: [79.8, 85.9, 85.9],
+          },
+          { name: "Asia", names: ["Macau"], x: [140_000], y: [85.9] },
+        ],
+      },
+      ...notes,
+    ],
+  });
+
+  it("joins the dot at its values, the one drawn on top among coincident dots", () => {
+    expect(
+      joined(
+        world(
+          { mark: "text", x: 18_920, y: 79.8, text: "Poorest" },
+          { mark: "text", x: 140_000, y: 85.9, text: "Richest" },
+        ),
+      ),
+    ).toEqual([
+      { kind: "dot", series: 0, i: 0 },
+      { kind: "dot", series: 1, i: 0 },
+    ]);
+  });
+
+  it("joins the later dot of one series among coincident ones", () => {
+    const spec: ChartSpec = {
+      ...world(),
+      marks: [
+        {
+          mark: "scatter",
+          series: [{ name: "a", names: ["a1", "a2", "a3"], x: [1, 1, 2], y: [1, 1, 2] }],
+        },
+        { mark: "text", x: 1, y: 1, text: "Two here" },
+      ],
+    };
+    expect(joined(spec)).toEqual([{ kind: "dot", series: 0, i: 1 }]);
+  });
+
+  it("joins no dot when none has its values, nor one off the domain", () => {
+    expect(
+      joined(
+        world(
+          { mark: "text", x: 18_920, y: 80, text: "Near Albania" },
+          { mark: "text", x: 200_000, y: 85.9, text: "Off" },
+        ),
+      ),
+    ).toEqual([null, null]);
+  });
+
+  it("is placed by values, so its summary and table are written before any layout", () => {
+    const m = chartModel(
+      world(
+        { mark: "text", x: 140_000, y: 85.9, text: "Richest" },
+        { mark: "text", x: 50_000, y: 70, text: "Gap" },
+      ),
+      "en",
+      "UTC",
+    );
+    const after = "Macau: Richest. GDP per capita 50,000, Life expectancy 70: Gap.";
+    expect(generatedSummary(m, words).endsWith(` ${after}`)).toBe(true);
+    expect(tableModel(m, words).after).toBe(after);
+    expect(spoken(m, { kind: "scatter", series: 1, i: 0 }, words, false)).toBe(
+      "Macau: Asia, GDP per capita 140,000, Life expectancy 85.9. Note: Richest.",
+    );
+    expect(spoken(m, { kind: "scatter", series: 0, i: 1 }, words, false)).toBe(
+      "Monaco: Europe, GDP per capita 140,000, Life expectancy 85.9.",
+    );
   });
 });
