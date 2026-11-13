@@ -8,7 +8,7 @@
 
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
-import { focusableIn, focusOn } from "../list-row/row.js";
+import { focusOn, landing } from "../list-row/row.js";
 import { scrollerOf, scrollsItself, seenOf } from "../list-row/scroller.js";
 
 /** A row's key, or `undefined` for a row not loaded yet. */
@@ -45,6 +45,11 @@ export interface KeyedListOptions {
   readonly signal?: AbortSignal;
 }
 
+export interface KeyedListRevealOptions {
+  /** Scrolls the row into view. Default true. */
+  readonly scroll?: boolean;
+}
+
 export interface KeyedList {
   /** A live change: the keys in their new order. A drawn row keeps its
    *  element, the row at the top of the view stays where it was, focus
@@ -55,8 +60,10 @@ export interface KeyedList {
   reset(keys: KeyedListKeys, of?: number): void;
   /** The drawn row of `key`, where the host patches a live change. */
   rowOf(key: string): HTMLElement | undefined;
-  /** Scrolls `key`'s row into view and returns it, drawn. */
-  reveal(key: string): HTMLElement | undefined;
+  /** Draws `key`'s row at its place, scrolls it into view unless `scroll`
+   *  is false, and returns it. A held change takes it with `scroll: false`,
+   *  so nothing moves before the reader's Show focuses it. */
+  reveal(key: string, options?: KeyedListRevealOptions): HTMLElement | undefined;
   /** How many rows the list has, drawn or not. */
   readonly length: number;
 }
@@ -639,12 +646,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     // only then does the row go, so focus never drops to the page.
     const refocus = (): void => {
       const k = target === undefined ? undefined : keys[target];
-      const part = k === undefined ? null : focusableIn(rowFor(k, target ?? 0));
-      if (part === null) {
-        focusOn(container);
-      } else {
-        part.focus();
-      }
+      focusOn(k === undefined ? container : landing(rowFor(k, target ?? 0)));
       child?.remove();
     };
     if (fresh) {
@@ -706,14 +708,16 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     rowOf(key) {
       return drawn.get(key);
     },
-    reveal(key) {
+    reveal(key, how) {
       const i = at.get(key);
       if (i === undefined) {
         return undefined;
       }
       draw({ also: i });
-      drawn.get(key)?.scrollIntoView({ block: "nearest", behavior: "instant" });
-      draw({ also: i });
+      if (how?.scroll !== false) {
+        drawn.get(key)?.scrollIntoView({ block: "nearest", behavior: "instant" });
+        draw({ also: i });
+      }
       return drawn.get(key);
     },
     get length() {

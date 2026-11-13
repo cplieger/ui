@@ -10,7 +10,7 @@
 import { reducedMotion, until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { roll } from "../../core/roll/roll.js";
 import { announce } from "../../feedback/announce/announce.js";
-import { focusOn, rowOf } from "../list-row/row.js";
+import { focusOn, landing } from "../list-row/row.js";
 import { coveredEnd, endUnseen, scrollerOf, seenOf } from "../list-row/scroller.js";
 
 export interface HeldListWords {
@@ -26,8 +26,8 @@ export interface HeldListOptions {
    *  first, or its end, as in a log oldest first. */
   readonly edge?: "start" | "end";
   /** The element the offer line goes before at the start edge, and after
-   *  at the end. Default: the list; for a tbody, its table's `.cp-panel`,
-   *  else the table. */
+   *  at the end. Default: the list; for a tbody, the `.cp-panel` its table
+   *  opens, else the table. */
   readonly beside?: Element;
   /** The host's own button for the offer, in place of the line: `hidden`
    *  while nothing waits, its words in its `.cp-roll`, else its whole
@@ -86,8 +86,12 @@ export function enhanceHeldList(
   const atEnd = options.edge === "end";
   const count = options.words?.count ?? defaultCount;
   const region = list instanceof HTMLTableSectionElement ? (list.closest("table") ?? list) : list;
+  // The line sits right above the table's frame: its panel when the table
+  // opens it, else the table, below a heading or toolbar the panel holds.
+  const panel = region === list ? null : region.parentElement;
   const beside =
-    options.beside ?? (region === list ? list : (region.closest(".cp-panel") ?? region));
+    options.beside ??
+    (panel?.matches(".cp-panel") === true && panel.firstElementChild === region ? panel : region);
   const listen = until(signal);
 
   const queue: (() => Iterable<Element> | undefined)[] = [];
@@ -224,7 +228,7 @@ export function enhanceHeldList(
    *  page: at the end edge `row`, else the list. */
   const land = (row: Element | undefined): void => {
     if (atEnd && row !== undefined) {
-      focus(rowOf(row), true);
+      focus(landing(row), true);
     } else {
       focus(region);
     }
@@ -244,7 +248,7 @@ export function enhanceHeldList(
     }
     drop();
     const first = placed.filter((el) => el.isConnected).sort(inPageOrder)[0];
-    focus(first === undefined ? region : rowOf(first));
+    focus(first === undefined ? region : landing(first));
   };
 
   // The engine's own scroll honours each scroller's end padding and the
@@ -265,7 +269,7 @@ export function enhanceHeldList(
       going = !reducedMotion();
       reveal(row, going);
     }
-    focus(rowOf(row), true);
+    focus(landing(row), true);
   };
 
   button.addEventListener("click", atEnd ? toNewest : putIn, listen);

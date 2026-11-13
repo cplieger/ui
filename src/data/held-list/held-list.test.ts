@@ -3,6 +3,7 @@ import { userEvent } from "vitest/browser";
 
 import { rollText } from "../../core/roll/roll.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { enhanceKeyedList } from "../keyed-list/keyed-list.js";
 import { enhanceHeldList, type HeldListOptions } from "./held-list.js";
 
 let life = new AbortController();
@@ -63,6 +64,19 @@ function item(title = `Row ${String(++made)}`): HTMLLIElement {
   const stack = document.createElement("span");
   stack.className = "cp-cell-stack";
   stack.append(link, small);
+  const row = document.createElement("div");
+  row.className = "cp-list-row";
+  row.append(stack);
+  const li = document.createElement("li");
+  li.append(row);
+  return li;
+}
+
+/** A row with nothing in it that takes focus. */
+function plain(title = `Row ${String(++made)}`): HTMLLIElement {
+  const stack = document.createElement("span");
+  stack.className = "cp-cell-stack";
+  stack.textContent = title;
   const row = document.createElement("div");
   row.className = "cp-list-row";
   row.append(stack);
@@ -281,11 +295,46 @@ describe("enhanceHeldList", () => {
       return [upper];
     });
     await userEvent.click(showButton() as HTMLButtonElement);
-    const row = upper.querySelector(".cp-list-row") as HTMLElement;
+    expect(document.activeElement).toBe(upper.querySelector("a"));
+  });
+
+  it("focuses a row with nothing in it that takes focus, which keeps a tabindex until it loses focus", async () => {
+    const ul = list();
+    const held = enhance(ul);
+    ul.querySelector("a")?.focus();
+    const fresh = plain("Fresh");
+    held.change(() => {
+      ul.prepend(fresh);
+      return [fresh];
+    });
+    await userEvent.click(showButton() as HTMLButtonElement);
+    const row = fresh.querySelector(".cp-list-row") as HTMLElement;
     expect(document.activeElement).toBe(row);
     expect(row.getAttribute("tabindex")).toBe("-1");
     ul.querySelector("a")?.focus();
     expect(row.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("passes over a disabled or unshown control to the row's first part that takes focus", async () => {
+    const ul = list();
+    const held = enhance(ul);
+    ul.querySelector("a")?.focus();
+    const fresh = item("Fresh");
+    const stack = fresh.querySelector(".cp-cell-stack") as HTMLElement;
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.disabled = true;
+    const gone = document.createElement("button");
+    gone.hidden = true;
+    const secret = document.createElement("input");
+    secret.type = "hidden";
+    stack.before(box, gone, secret);
+    held.change(() => {
+      ul.prepend(fresh);
+      return [fresh];
+    });
+    await userEvent.click(showButton() as HTMLButtonElement);
+    expect(document.activeElement).toBe(fresh.querySelector("a"));
   });
 
   it("focuses a row that takes focus itself without a tabindex", async () => {
@@ -418,7 +467,28 @@ describe("enhanceHeldList", () => {
     expect(line()?.textContent).toContain("1 row changed");
     await userEvent.click(showButton() as HTMLButtonElement);
     expect(body.rows[0]).toBe(moved);
-    expect(document.activeElement).toBe(moved);
+    expect(document.activeElement).toBe(moved.querySelector("a"));
+  });
+
+  it("offers a table body's changes right above its table under a heading its panel holds", () => {
+    const panel = document.createElement("section");
+    panel.className = "cp-panel";
+    const heading = document.createElement("h2");
+    heading.textContent = "Library";
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    const body = table.createTBody();
+    const link = document.createElement("a");
+    link.href = "#copy";
+    link.textContent = "Copy";
+    body.insertRow().insertCell().append(link);
+    panel.append(heading, table);
+    document.body.append(panel);
+    const held = enhance(body);
+    link.focus();
+    held.change(() => undefined);
+    expect(line()?.parentElement).toBe(panel);
+    expect(line()?.nextElementSibling).toBe(table);
   });
 
   it("drops the line on abort, and runs a later change at once", () => {
@@ -454,7 +524,7 @@ describe("enhanceHeldList", () => {
     await userEvent.click(jump);
     expect(ul.firstElementChild).toBe(fresh);
     expect(jump.hidden).toBe(true);
-    expect(document.activeElement).toBe(fresh.querySelector(".cp-list-row"));
+    expect(document.activeElement).toBe(fresh.querySelector("a"));
   });
 });
 
@@ -537,9 +607,7 @@ describe("enhanceHeldList at the end edge", () => {
     expect(held.held).toBe(0);
     await ended;
     expect(past(newest, box)).toBeLessThanOrEqual(1);
-    const row = newest.querySelector(".cp-list-row") as HTMLElement;
-    expect(document.activeElement).toBe(row);
-    expect(row.getAttribute("tabindex")).toBe("-1");
+    expect(document.activeElement).toBe(newest.querySelector("a"));
   });
 
   it("drops the count once the reader scrolls to the newest row, moving focus there from Show", async () => {
@@ -552,7 +620,7 @@ describe("enhanceHeldList at the end edge", () => {
     await scrollTo(box, box.scrollHeight);
     expect(line()).toBeNull();
     expect(held.held).toBe(0);
-    expect(document.activeElement).toBe(ul.lastElementChild?.querySelector(".cp-list-row"));
+    expect(document.activeElement).toBe(ul.lastElementChild?.querySelector("a"));
   });
 
   it("counts nothing that a change scrolls into view, as a host following the end does", async () => {
@@ -663,7 +731,7 @@ describe("enhanceHeldList at the end edge", () => {
     expect(jump.hidden).toBe(true);
     await ended;
     expect(past(newest as Element, box)).toBeLessThanOrEqual(1);
-    expect(document.activeElement).toBe(newest?.querySelector(".cp-list-row"));
+    expect(document.activeElement).toBe(newest?.querySelector("a"));
   });
 
   it("on abort hides the button, removes the tabindex it gave and counts no later change", async () => {
@@ -671,7 +739,11 @@ describe("enhanceHeldList at the end edge", () => {
     const own = new AbortController();
     const jump = hostJump();
     const held = enhanceHeldList(ul, { edge: "end", jump, signal: own.signal });
-    held.change(grow(ul));
+    held.change(() => {
+      const li = plain();
+      ul.append(li);
+      return [li];
+    });
     const ended = scrollEnd(box);
     await userEvent.click(jump);
     const row = document.activeElement as HTMLElement;
@@ -687,5 +759,55 @@ describe("enhanceHeldList at the end edge", () => {
     held.change(grow(ul));
     expect(jump.hidden).toBe(true);
     expect(held.held).toBe(0);
+  });
+});
+
+// keyed-list.md's "With a held list": a live re-sort of a library whose
+// moved row is far below the view and not drawn.
+function library(n: number) {
+  const ul = document.createElement("ul");
+  ul.className = "cp-list";
+  ul.setAttribute("aria-label", "Library");
+  document.body.append(ul);
+  let ids = Array.from({ length: n }, (_, i) => `c${String(i)}`);
+  const keyed = enhanceKeyedList(ul, { keys: ids, row: (id) => item(id), signal: life.signal });
+  const held = enhance(ul);
+  const resort = (id: string, to: number): void => {
+    held.change(() => {
+      ids = ids.filter((k) => k !== id);
+      ids.splice(to, 0, id);
+      keyed.update(ids);
+      const row = keyed.reveal(id, { scroll: false });
+      return row === undefined ? [] : [row];
+    });
+  };
+  return { ul, keyed, held, resort };
+}
+
+describe("enhanceHeldList over a keyed list", () => {
+  it("leaves the page where it is for a change the reader is not in the list for", async () => {
+    const { keyed, held, resort } = library(300);
+    const page = document.scrollingElement as Element;
+    expect(page.scrollTop).toBe(0);
+    resort("c250", 200);
+    expect(held.held).toBe(0);
+    expect(keyed.rowOf("c250")?.getAttribute("aria-posinset")).toBe("201");
+    await settle();
+    expect(page.scrollTop).toBe(0);
+  });
+
+  it("focuses the moved row's link on Show, drawn at the place the re-sort gave it", async () => {
+    const { ul, keyed, held, resort } = library(300);
+    (ul.querySelector("a") as HTMLAnchorElement).focus();
+    resort("c250", 200);
+    expect(held.held).toBe(1);
+    await userEvent.click(showButton() as HTMLButtonElement);
+    const row = keyed.rowOf("c250");
+    expect(document.activeElement).toBe(row?.querySelector("a"));
+    expect(row?.getAttribute("aria-posinset")).toBe("201");
+    await settle();
+    const box = (row as HTMLElement).getBoundingClientRect();
+    expect(box.top).toBeGreaterThanOrEqual(-1);
+    expect(box.bottom).toBeLessThanOrEqual(innerHeight + 1);
   });
 });

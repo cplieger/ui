@@ -11,12 +11,14 @@ import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { rollText } from "../../core/roll/roll.js";
 import { announce } from "../../feedback/announce/announce.js";
-import { focusableIn, focusOn, rowOf } from "../list-row/row.js";
+import { focusOn, landing } from "../list-row/row.js";
 
 export interface LoadMorePage {
   /** The items to add, in their order: rows, a feed's entries and its day
-   *  separators, or a group's heading and list. An item already in the
-   *  list, such as a row a keyed list drew, stays where it is. */
+   *  separators, or a group's heading and list. After a list's groups, an
+   *  `li` continues the last group's list and a heading or list goes after
+   *  the last group. An item already in the list, such as a row a keyed
+   *  list drew, stays where it is. */
   readonly items: Iterable<Element>;
   /** Whether another page is left after this one. */
   readonly more: boolean;
@@ -46,9 +48,10 @@ export interface LoadMoreOptions {
    *  that comes after that is dropped. */
   readonly load: (signal: AbortSignal) => Promise<LoadMorePage>;
   /** Where the items go. Default: at `"end"`, the list the button's
-   *  `li.cp-list-foot` ends, or the element before its `div.cp-list-foot`,
-   *  for a table or a panel holding one its last body; at `"start"`, the
-   *  element after its `.cp-feed-head`. */
+   *  `li.cp-list-foot` ends, or what its `div.cp-list-foot` follows: a
+   *  table, or a panel holding one, takes them in its last body, and a
+   *  list's groups, side by side or in one element, at their end; at
+   *  `"start"`, the element after its `.cp-feed-head`. */
   readonly list?: Element;
   /** Default `"end"`. */
   readonly edge?: LoadMoreEdge;
@@ -79,27 +82,106 @@ function rowsIn(items: readonly Element[]): number {
   return n;
 }
 
-/** Where focus lands on `item`: a feed's entry, read whole, takes it
- *  itself; a row its first part that takes focus, else the row. */
-function landing(item: Element): Element {
-  const row = rowOf(item);
-  return row.matches(".cp-feed-entry") ? row : (focusableIn(row) ?? row);
+/** Where a page goes: `put` adds its items at the edge, in their order,
+ *  but those already in the list; `edgeRow` is the row at that edge. */
+interface Place {
+  readonly put: (items: readonly Element[]) => void;
+  readonly edgeRow: () => Element;
 }
 
-function listOf(button: HTMLButtonElement, edge: LoadMoreEdge): Element | null {
+/** The row at `edge` of `list`, inside a group when its item is one. */
+function edgeOf(list: Element, edge: LoadMoreEdge): Element {
+  const items = [...list.children].filter((el) => !el.matches(MARKS));
+  const el = (edge === "start" ? items[0] : items.at(-1)) ?? list;
+  if (el === list || el.matches("li, tr")) {
+    return el;
+  }
+  const rows = [...el.querySelectorAll(ROWS)];
+  return (edge === "start" ? rows[0] : rows.at(-1)) ?? el;
+}
+
+function inList(list: Element, edge: LoadMoreEdge): Place {
+  return {
+    put(items) {
+      const fresh = items.filter((el) => !list.contains(el));
+      const foot = list.querySelector(":scope > .cp-list-foot");
+      if (edge === "start") {
+        list.prepend(...fresh);
+      } else if (foot === null) {
+        list.append(...fresh);
+      } else {
+        foot.before(...fresh);
+      }
+    },
+    edgeRow: () => edgeOf(list, edge),
+  };
+}
+
+// A table with only its head has no body for rows to go in.
+function inTable(table: HTMLTableElement): Place {
+  const last = (): HTMLTableSectionElement | undefined => table.tBodies[table.tBodies.length - 1];
+  return {
+    put(items) {
+      (last() ?? table.createTBody()).append(...items.filter((el) => !table.contains(el)));
+    },
+    edgeRow: () => {
+      const body = last();
+      return body?.rows[body.rows.length - 1] ?? body ?? table;
+    },
+  };
+}
+
+/** The groups a `div.cp-list-foot` follows, each a heading and its list:
+ *  side by side before the foot when `before` is the last list, else
+ *  inside `before`. A page's `li` goes into the last list, continuing its
+ *  group, and anything else after the last group. */
+function inGroups(foot: Element, before: Element): Place {
+  const side = before.matches("ul, ol");
+  const lastList = (): Element | undefined => {
+    if (side) {
+      const el = foot.previousElementSibling;
+      return el?.matches("ul, ol") === true ? el : undefined;
+    }
+    return [...before.querySelectorAll(":scope > :is(ul, ol)")].at(-1);
+  };
+  const placed = (el: Element): boolean =>
+    side
+      ? foot.parentElement?.contains(el) === true &&
+        (foot.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING) !== 0
+      : before.contains(el);
+  return {
+    put(items) {
+      for (const el of items.filter((item) => !placed(item))) {
+        const into = el instanceof HTMLLIElement ? lastList() : undefined;
+        if (into !== undefined) {
+          into.append(el);
+        } else if (side) {
+          foot.before(el);
+        } else {
+          before.append(el);
+        }
+      }
+    },
+    edgeRow: () => edgeOf(lastList() ?? before, "end"),
+  };
+}
+
+function placeOf(button: HTMLButtonElement, edge: LoadMoreEdge): Place | null {
   if (edge === "start") {
-    return button.closest(".cp-feed-head")?.nextElementSibling ?? null;
+    const feed = button.closest(".cp-feed-head")?.nextElementSibling;
+    return feed === null || feed === undefined ? null : inList(feed, edge);
   }
   const foot = button.closest(".cp-list-foot");
   if (foot instanceof HTMLLIElement) {
-    return foot.parentElement;
+    return foot.parentElement === null ? null : inList(foot.parentElement, edge);
   }
   const before = foot?.previousElementSibling ?? null;
+  if (foot === null || before === null) {
+    return null;
+  }
   const table =
-    before instanceof HTMLTableElement ? before : before?.querySelector(":scope > table");
-  return table instanceof HTMLTableElement
-    ? (table.tBodies[table.tBodies.length - 1] ?? before)
-    : before;
+    before instanceof HTMLTableElement ? before : before.querySelector(":scope > table");
+  return table instanceof HTMLTableElement ? inTable(table) : inGroups(foot, before);
 }
 
 /** Gives `button` the `.cp-roll` its words roll in and the busy spinner,
@@ -138,8 +220,8 @@ function prepare(button: HTMLButtonElement): void {
 export function enhanceLoadMore(button: HTMLButtonElement, options: LoadMoreOptions): void {
   const { load, signal } = options;
   const edge = options.edge ?? "end";
-  const list = options.list ?? listOf(button, edge);
-  if (list === null) {
+  const place = options.list === undefined ? placeOf(button, edge) : inList(options.list, edge);
+  if (place === null) {
     throw new TypeError("enhanceLoadMore: the button is in no list's foot or feed's head");
   }
   if (signal?.aborted === true) {
@@ -166,28 +248,6 @@ export function enhanceLoadMore(button: HTMLButtonElement, options: LoadMoreOpti
   const waiting = (): boolean =>
     button.contains(document.activeElement) || document.activeElement === document.body;
 
-  const put = (items: readonly Element[]): void => {
-    const fresh = items.filter((el) => el.parentElement !== list);
-    const foot = list.querySelector(":scope > .cp-list-foot");
-    if (edge === "start") {
-      list.prepend(...fresh);
-    } else if (foot !== null) {
-      foot.before(...fresh);
-    } else {
-      list.append(...fresh);
-    }
-  };
-
-  const edgeRow = (): Element => {
-    const items = [...list.children].filter((el) => !el.matches(MARKS));
-    const el = (edge === "start" ? items[0] : items.at(-1)) ?? list;
-    if (el === list || el.matches("li, tr")) {
-      return el;
-    }
-    const rows = [...el.querySelectorAll(ROWS)];
-    return (edge === "start" ? rows[0] : rows.at(-1)) ?? el;
-  };
-
   const page = async (): Promise<boolean> => {
     let next: LoadMorePage;
     try {
@@ -204,7 +264,7 @@ export function enhanceLoadMore(button: HTMLButtonElement, options: LoadMoreOpti
     }
     const items = [...next.items];
     const focus = waiting();
-    put(items);
+    place.put(items);
     label = next.label ?? label;
     cycle.setRest(label);
     const first = items.find((el) => !el.matches(MARKS) && el.isConnected);
@@ -235,10 +295,12 @@ export function enhanceLoadMore(button: HTMLButtonElement, options: LoadMoreOpti
             if (!ran || more || life.signal.aborted) {
               return;
             }
-            const had = button.contains(document.activeElement);
+            // The edge is read while the foot is in the page, since groups
+            // side by side end at it.
+            const to = button.contains(document.activeElement) ? place.edgeRow() : undefined;
             part.remove();
-            if (had) {
-              focusOn(landing(edgeRow()));
+            if (to !== undefined) {
+              focusOn(landing(to));
             }
           },
           () => undefined,

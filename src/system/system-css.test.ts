@@ -4484,11 +4484,12 @@ describe("css/system.css lists, feeds and counts", () => {
 
   it("draws no box for a list a script has not filled, and its rows once it has", () => {
     theme("light");
-    const el = build('<div><ul class="cp-list"></ul></div>');
-    const list = el.querySelector(".cp-list") as HTMLElement;
-    expect(getComputedStyle(list).display).toBe("none");
-    list.setHTMLUnsafe(item());
-    expect(getComputedStyle(list).display).toBe("grid");
+    const el = build('<div><ul class="cp-list"></ul><ul class="cp-list">\n  </ul></div>');
+    const [list, spaced] = el.querySelectorAll<HTMLElement>(".cp-list");
+    expect(getComputedStyle(list as HTMLElement).display).toBe("none");
+    expect(getComputedStyle(spaced as HTMLElement).display).toBe("none");
+    (list as HTMLElement).setHTMLUnsafe(item());
+    expect(getComputedStyle(list as HTMLElement).display).toBe("grid");
   });
 
   it("wraps a name with no break point inside its row rather than widening it", () => {

@@ -5893,8 +5893,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* A list a script has not filled yet, such as a file field's before a
- * choice, draws no empty box. */
-.cp-list:empty {
+ * choice, draws no empty box, whitespace between its tags or not. */
+.cp-list:not(:has(> *)) {
   display: none;
 }
 

@@ -52,29 +52,31 @@ const conversations = enhanceKeyedList(list, { keys, row, window: false });
   - `overscan` is how many rows are drawn past each edge of the view, by default 5.
   - `settle` is how long, in ms, a new set's count stays the same before it is said, by default 500.
   - `signal` removes the listeners and the observer. The drawn rows stay.
-- `KeyedList` = `{ update(keys, of?), reset(keys, of?), rowOf(key), reveal(key), length }`.
+- `KeyedList` = `{ update(keys, of?), reset(keys, of?), rowOf(key), reveal(key, opts?), length }`.
   - `update(keys, of?)` is a live change: the keys in their new order. A drawn row keeps its element and its attributes, so the only changes to the page are the app's own patches and the rows that move, come or go. The count is written but not said.
   - `reset(keys, of?)` is a new set of rows, such as after a filter or a search: the view goes back to the list's start, and the count is written and said once it settles.
   - `rowOf(key)` is the drawn row of `key`, where the app patches a live change, or `undefined` when it is not drawn.
-  - `reveal(key)` scrolls `key`'s row into view and returns it, drawn, or `undefined` for a key not in the list.
+  - `reveal(key, opts?)` draws `key`'s row at its place, scrolls it into view, and returns it, or `undefined` for a key not in the list. `opts` = `{ scroll? }`: `scroll: false` draws the row without scrolling, as a held change needs (below). A row drawn out of view stays drawn while it has focus, and leaves at the next draw otherwise.
   - `length` is the number of rows, drawn or not.
 
 ## Behaviour
 
 - The rows in view are the ones that meet what the reader sees of the list: the window, less what a pinch zoom or the on-screen keyboard hides, cut by every box around the list that clips, and by the list itself when it scrolls. The rows' pitch is measured from the drawn rows, and again when a row or the list changes size, so a compact, regular or tall list, a table's rows and a change of pointer all keep the spacers right.
 - Rows stay in flow and in order, so the reading order and the Tab order are the list's order, and a table keeps its columns. A windowed `li` carries `aria-setsize` and `aria-posinset`, and a windowed `tr` its `aria-rowindex` with the table's `aria-rowcount`, so a screen reader hears "41 of 20,000". The module adds no listener, tab stop or role to a row, so a row whose one interactive part is its title link keeps it as its only stop.
-- The focused row stays drawn wherever the list scrolls, at its place between the spacers. A reorder moves the other rows around it and never the focused row itself, since putting a node back in the page drops its focus. When the focused row's key leaves the list, focus moves to the first part that takes focus of the row now at its place, or the last row, or else the list.
+- The focused row stays drawn wherever the list scrolls, at its place between the spacers. A reorder moves the other rows around it and never the focused row itself, since putting a node back in the page drops its focus. When the focused row's key leaves the list, focus moves to the row now at its place, or the last row, the way a [held list](held-list.md)'s Show lands on a row: its first part that takes focus, else the row itself. With no row left it goes to the list.
 - On `update()` the row at the top of the view stays where it was, so rows that arrive or leave above it move nothing the reader sees. Of the rows in view, the one kept is the first that moved as most of them did, so a row that itself moved to the top is passed over. At the list's start nothing is kept, so a row put first shows. The browser's own scroll anchoring is off for each of the module's writes, so the two never add up.
 - The module does nothing when it is imported.
 
 ## With a held list
 
-A list that both holds its place and keeps its rows keyed, such as a library, makes the keyed list's `update()` the held change:
+A list that both holds its place and keeps its rows keyed, such as a library, makes the keyed list's `update()` the held change, and returns the changed row so Show can focus it:
 
 ```ts
 held.change(() => {
   library.update(store.ids());
-  const row = library.reveal(changed.id);
+  const row = library.reveal(changed.id, { scroll: false });
   return row === undefined ? [] : [row];
 }, 1);
 ```
+
+The change runs at once when the reader is not in the list, so it must not scroll: `reveal()` with `scroll: false` draws the row at its place, wherever the view is, and the page stays still until the reader's Show focuses the row. A list drawn whole (`window: false`) can return `library.rowOf(changed.id)` instead, since every row is drawn.

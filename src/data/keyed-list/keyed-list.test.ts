@@ -331,6 +331,26 @@ describe("enhanceKeyedList", () => {
     expect(document.activeElement).toBe(ul);
   });
 
+  it("passes over a disabled or unshown control in the row it moves focus to", () => {
+    const ul = virtualList();
+    const list = enhance(ul, {
+      keys: keysOf(20),
+      row: (key) => {
+        const li = titleItem(key);
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.disabled = true;
+        const gone = document.createElement("button");
+        gone.hidden = true;
+        li.querySelector(".cp-list-row")?.prepend(box, gone);
+        return li;
+      },
+    });
+    list.rowOf("t4")?.querySelector("a")?.focus();
+    list.update(keysOf(20).filter((k) => k !== "t4"));
+    expect(document.activeElement).toBe(list.rowOf("t5")?.querySelector("a"));
+  });
+
   it("draws a skeleton where a row is not loaded, asks the app for it, and is busy until it comes", () => {
     const ul = virtualList();
     const asked: [number, number][] = [];
@@ -503,6 +523,17 @@ describe("enhanceKeyedList", () => {
     expect(box.bottom).toBeLessThanOrEqual(view.bottom + 1);
     expect(list.reveal("nope")).toBeUndefined();
     expect(list.length).toBe(20_000);
+  });
+
+  it("draws a row out of view at its place without scrolling, given scroll: false", () => {
+    const ul = virtualList();
+    const list = enhance(ul, { keys: keysOf(20_000) });
+    const row = list.reveal("t15000", { scroll: false }) as HTMLElement;
+    expect(ul.scrollTop).toBe(0);
+    expect(row.isConnected).toBe(true);
+    expect(row.getAttribute("aria-posinset")).toBe("15001");
+    expect(row.previousElementSibling?.getAttribute("data-part")).toBe("spacer");
+    expect(row.getBoundingClientRect().top).toBeGreaterThan(ul.getBoundingClientRect().bottom);
   });
 
   it("keeps a list's foot last", () => {

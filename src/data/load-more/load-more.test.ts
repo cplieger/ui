@@ -54,6 +54,15 @@ function row(title = `Row ${String(++made)}`): HTMLLIElement {
   return li;
 }
 
+function tableRow(title: string): HTMLTableRowElement {
+  const tr = document.createElement("tr");
+  const link = document.createElement("a");
+  link.href = `#${title}`;
+  link.textContent = title;
+  tr.insertCell().append(link);
+  return tr;
+}
+
 function moreButton(words = "Show older"): HTMLButtonElement {
   const button = document.createElement("button");
   button.className = "cp-button";
@@ -81,6 +90,46 @@ function footed(n = 3): { readonly ul: HTMLUListElement; readonly button: HTMLBu
 
 function enhance(button: HTMLButtonElement, options: LoadMoreOptions): void {
   enhanceLoadMore(button, { signal: life.signal, ...options });
+}
+
+/** A day's heading and its list of `n` rows. */
+function group(
+  name: string,
+  n: number,
+): { readonly heading: HTMLHeadingElement; readonly list: HTMLOListElement } {
+  const heading = document.createElement("h3");
+  heading.className = "cp-list-heading";
+  heading.textContent = name;
+  const list = document.createElement("ol");
+  list.className = "cp-list";
+  for (let i = 0; i < n; i += 1) {
+    list.append(row());
+  }
+  return { heading, list };
+}
+
+/** Today and Yesterday before a `div.cp-list-foot`, side by side or in one
+ *  element; `last` is Yesterday's list. */
+function days(wrapped: boolean): {
+  readonly button: HTMLButtonElement;
+  readonly foot: HTMLDivElement;
+  readonly last: HTMLOListElement;
+} {
+  const today = group("Today", 2);
+  const yesterday = group("Yesterday", 1);
+  const groups = [today.heading, today.list, yesterday.heading, yesterday.list];
+  const button = moreButton("Load older");
+  const foot = document.createElement("div");
+  foot.className = "cp-list-foot";
+  foot.append(button);
+  if (wrapped) {
+    const host = document.createElement("div");
+    host.append(...groups);
+    document.body.append(host, foot);
+  } else {
+    document.body.append(...groups, foot);
+  }
+  return { button, foot, last: yesterday.list };
 }
 
 const page = (items: Element[], more = true, label?: string): LoadMorePage =>
@@ -225,44 +274,99 @@ describe("enhanceLoadMore", () => {
     await expect.poll(polite).toBe("1 more row");
   });
 
-  it("adds a group after the groups its foot follows, counting its rows and focusing its heading", async () => {
-    const groups = document.createElement("div");
-    const first = document.createElement("ol");
-    first.className = "cp-list";
-    first.append(row());
-    groups.append(first);
-    const button = moreButton("Load older");
-    const foot = document.createElement("div");
-    foot.className = "cp-list-foot";
-    foot.append(button);
-    document.body.append(groups, foot);
-    const heading = document.createElement("h3");
-    heading.className = "cp-list-heading";
-    heading.textContent = "Last week";
-    const week = document.createElement("ol");
-    week.className = "cp-list";
-    week.append(row(), row());
+  it.each([
+    ["side by side", false],
+    ["in one element", true],
+  ])("continues the last day with a page's rows, groups %s", async (_, wrapped) => {
+    const { button, last } = days(wrapped);
+    const older = [row("Older 1"), row("Older 2")];
+    enhance(button, { load: () => Promise.resolve(page(older)) });
+    press(button);
+    await expect.poll(() => document.activeElement?.textContent).toBe("Older 1");
+    expect([...last.children].slice(-2)).toEqual(older);
+    await expect.poll(polite).toBe("2 more rows");
+  });
+
+  it.each([
+    ["side by side", false],
+    ["in one element", true],
+  ])("adds a new day after the last, focusing its heading, groups %s", async (_, wrapped) => {
+    const { button, foot, last } = days(wrapped);
+    const { heading, list: week } = group("Last week", 2);
     enhance(button, { load: () => Promise.resolve(page([heading, week], false)) });
     press(button);
     await expect.poll(() => document.activeElement).toBe(heading);
-    expect([...groups.children]).toEqual([first, heading, week]);
+    expect(last.nextElementSibling).toBe(heading);
+    expect(heading.nextElementSibling).toBe(week);
+    expect(last.children).toHaveLength(1);
     expect(heading.tabIndex).toBe(-1);
     expect(foot.isConnected).toBe(false);
     await expect.poll(polite).toBe("2 more rows");
   });
 
   it.each([
+    ["side by side", false],
+    ["in one element", true],
+  ])("continues the last day and opens a new one in one page, groups %s", async (_, wrapped) => {
+    const { button, last } = days(wrapped);
+    const older = row("Older 1");
+    const { heading, list: week } = group("Last week", 2);
+    enhance(button, { load: () => Promise.resolve(page([older, heading, week])) });
+    press(button);
+    await expect.poll(() => document.activeElement?.textContent).toBe("Older 1");
+    expect(last.lastElementChild).toBe(older);
+    expect(last.nextElementSibling).toBe(heading);
+    expect(heading.nextElementSibling).toBe(week);
+    await expect.poll(polite).toBe("3 more rows");
+  });
+
+  it.each([
+    ["side by side", false],
+    ["in one element", true],
+  ])("keeps rows the load put in the last day itself, groups %s", async (_, wrapped) => {
+    const { button, last } = days(wrapped);
+    const older = [row("Older 1"), row("Older 2")];
+    enhance(button, {
+      load: () => {
+        last.append(...older);
+        return Promise.resolve(page(older));
+      },
+    });
+    press(button);
+    await expect.poll(() => document.activeElement?.textContent).toBe("Older 1");
+    expect([...last.children].slice(-2)).toEqual(older);
+    expect(last.children).toHaveLength(3);
+  });
+
+  it("moves focus to the last day's last row when an empty last page takes the button away", async () => {
+    const { button, last } = days(false);
+    enhance(button, { load: () => Promise.resolve(page([], false)) });
+    press(button);
+    await expect.poll(() => button.isConnected).toBe(false);
+    expect(document.activeElement).toBe(last.lastElementChild?.querySelector("a"));
+  });
+
+  it("passes over a disabled or unshown control in the row focus moves to", async () => {
+    const { ul, button } = footed();
+    const last = ul.children[2]?.querySelector(".cp-list-row") as HTMLElement;
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.disabled = true;
+    const closed = document.createElement("details");
+    const inside = document.createElement("button");
+    inside.type = "button";
+    closed.append(document.createElement("summary"), inside);
+    last.prepend(box, closed);
+    enhance(button, { load: () => Promise.resolve(page([], false)) });
+    press(button);
+    await expect.poll(() => button.isConnected).toBe(false);
+    expect(document.activeElement).toBe(last.querySelector("a"));
+  });
+
+  it.each([
     ["a panel holding a table", true],
     ["a table", false],
   ])("adds rows to the last body of %s that its foot follows", async (_, inPanel) => {
-    const tableRow = (title: string): HTMLTableRowElement => {
-      const tr = document.createElement("tr");
-      const link = document.createElement("a");
-      link.href = `#${title}`;
-      link.textContent = title;
-      tr.insertCell().append(link);
-      return tr;
-    };
     const table = document.createElement("table");
     table.className = "cp-table";
     const head = table.createTHead();
@@ -284,6 +388,30 @@ describe("enhanceLoadMore", () => {
     expect([...body.rows].map((tr) => tr.textContent)).toEqual(["Fetched", "Synced", "Scanned"]);
     expect(head.rows).toHaveLength(1);
     await expect.poll(polite).toBe("2 more rows");
+  });
+
+  it.each([
+    ["a panel holding a table", true],
+    ["a table", false],
+  ])("gives a body to a table with only its head, after %s, for the rows", async (_, inPanel) => {
+    const table = document.createElement("table");
+    table.className = "cp-table";
+    table.createTHead().insertRow().insertCell().textContent = "What";
+    const panel = document.createElement("div");
+    panel.className = "cp-panel";
+    panel.append(table);
+    const button = moreButton("Load older");
+    const foot = document.createElement("div");
+    foot.className = "cp-list-foot";
+    foot.append(button);
+    document.body.append(inPanel ? panel : table, foot);
+    const older = [tableRow("Synced"), tableRow("Scanned")];
+    enhance(button, { load: () => Promise.resolve(page(older)) });
+    press(button);
+    await expect.poll(() => document.activeElement?.textContent).toBe("Synced");
+    expect(table.tBodies).toHaveLength(1);
+    expect([...(table.tBodies[0]?.rows ?? [])]).toEqual(older);
+    expect([...panel.children]).toEqual(inPanel ? [table] : []);
   });
 
   it("at a feed's start puts older entries first, and focuses the oldest, which stays in view", async () => {
