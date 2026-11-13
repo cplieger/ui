@@ -6,6 +6,7 @@
 import { enhanceHeldList, markKept } from "@cplieger/ui/held-list";
 import { createIcons } from "@cplieger/ui/icons";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
+import { toast } from "@cplieger/ui/toast";
 
 const { icon } = createIcons<string>({ base: new URL("icons/svg/", location.href).href });
 
@@ -53,24 +54,63 @@ const ENTRIES: readonly Entry[] = [
   },
 ];
 
+/** A row is the one link or toggle, or it holds a title link and one
+ *  worded action or ⋯ menu at its end. */
+type Rows = "links" | "toggles" | "action" | "menu";
+
 interface Shape {
   readonly lead: string;
   readonly two: boolean;
-  readonly toggles: boolean;
+  readonly rows: Rows;
+}
+
+function rowFor(rows: Rows, on: boolean): HTMLElement {
+  switch (rows) {
+    case "toggles": {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.setAttribute("aria-pressed", String(on));
+      return row;
+    }
+    case "links": {
+      const row = document.createElement("a");
+      row.href = "#lists";
+      if (on) {
+        row.setAttribute("aria-current", "page");
+      }
+      return row;
+    }
+    case "action":
+    case "menu":
+      return document.createElement("div");
+  }
+}
+
+function endAction(e: Entry, rows: Rows): HTMLElement | null {
+  if (rows !== "action" && rows !== "menu") {
+    return null;
+  }
+  const button = document.createElement("button");
+  button.className = "cp-button";
+  button.type = "button";
+  button.dataset["size"] = "sm";
+  if (rows === "action") {
+    button.setAttribute("aria-label", `Search ${e.title}`);
+    button.append(icon("search"), "Search");
+  } else {
+    const name = `More for ${e.title}`;
+    button.dataset["variant"] = "quiet";
+    button.setAttribute("popovertarget", "m-row");
+    button.setAttribute("aria-label", name);
+    button.dataset["cpTip"] = name;
+    button.append(icon("ellipsis"));
+  }
+  return button;
 }
 
 function entryRow(e: Entry, on: boolean, how: Shape): HTMLLIElement {
-  const row = document.createElement(how.toggles ? "button" : "a");
+  const row = rowFor(how.rows, on);
   row.className = "cp-list-row";
-  if (row instanceof HTMLButtonElement) {
-    row.type = "button";
-    row.setAttribute("aria-pressed", String(on));
-  } else if (row instanceof HTMLAnchorElement) {
-    row.href = "#lists";
-    if (on) {
-      row.setAttribute("aria-current", "page");
-    }
-  }
   if (how.lead === "icon") {
     row.append(icon(e.glyph));
   } else if (how.lead === "cover") {
@@ -80,7 +120,11 @@ function entryRow(e: Entry, on: boolean, how: Shape): HTMLLIElement {
     cover.append(icon(e.glyph));
     row.append(cover);
   }
-  const name = document.createElement("span");
+  const action = endAction(e, how.rows);
+  const name = document.createElement(action === null ? "span" : "a");
+  if (name instanceof HTMLAnchorElement) {
+    name.href = "#lists";
+  }
   name.className = "cp-truncate";
   name.textContent = e.title;
   const text = document.createElement("span");
@@ -109,10 +153,15 @@ function entryRow(e: Entry, on: boolean, how: Shape): HTMLLIElement {
   end.dataset["part"] = "end";
   end.append(time, counts);
   row.append(text, end);
+  if (action !== null) {
+    row.append(action);
+  }
   const item = document.createElement("li");
   item.append(row);
   return item;
 }
+
+const ROWS: readonly Rows[] = ["links", "toggles", "action", "menu"];
 
 // The settings card's one list: each control sets one of its attributes or
 // the rows' shape, and a click moves the open row or flips a toggle.
@@ -132,18 +181,24 @@ if (sample instanceof HTMLUListElement && settings !== null) {
         sample.setAttribute(`data-${attr}`, value);
       }
     }
-    const how = {
+    const how: Shape = {
       lead: pick("lead"),
       two: pick("lines") === "two",
-      toggles: pick("rows") === "toggles",
+      rows: ROWS.find((r) => r === pick("rows")) ?? "links",
     };
     sample.replaceChildren(
-      ...ENTRIES.map((e, i) => entryRow(e, how.toggles ? pressed.has(i) : i === open, how)),
+      ...ENTRIES.map((e, i) =>
+        entryRow(e, how.rows === "toggles" ? pressed.has(i) : i === open, how),
+      ),
     );
   };
   settings.addEventListener("change", render);
   sample.addEventListener("click", (event) => {
-    const row = event.target instanceof Element ? event.target.closest(".cp-list-row") : null;
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    const target = event.target;
+    const row = target.closest(".cp-list-row");
     const rows = [...sample.querySelectorAll(".cp-list-row")];
     const at = row === null ? -1 : rows.indexOf(row);
     if (row instanceof HTMLButtonElement) {
@@ -159,6 +214,10 @@ if (sample instanceof HTMLUListElement && settings !== null) {
       rows[open]?.removeAttribute("aria-current");
       row.setAttribute("aria-current", "page");
       open = at;
+    } else if (target.closest("a") !== null) {
+      event.preventDefault();
+    } else if (target.closest(".cp-button:not([popovertarget])") !== null) {
+      toast({ kind: "info", title: "Search started" });
     }
   });
   render();

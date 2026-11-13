@@ -37,15 +37,6 @@
   --cp-press-scale: 1;
 }
 
-.cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
-  background: var(--cp-fill-active);
-}
-
-/* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
-.cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
-  background: var(--cp-fill-active);
-}
-
 .cp-button[data-variant="primary"] {
   background: var(--cp-tone-9);
   color: var(--cp-tone-on);
@@ -76,8 +67,10 @@
       background: var(--cp-tone-10);
     }
 
+    /* A surface whose own hover fill is --cp-fill, such as a hovered row,
+     * sets --cp-quiet-hover, so a quiet button on it still shows its own. */
     .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
-      background: var(--cp-fill);
+      background: var(--cp-quiet-hover, var(--cp-fill));
       color: var(--cp-ink);
     }
 
@@ -85,6 +78,20 @@
       background: var(--cp-shell-hover);
       color: inherit;
     }
+  }
+}
+
+/* An icon-only button's press fill sits in a scope rooted where the hovers'
+ * is and after them, so it ties them on specificity and on scope proximity
+ * and wins by order: a press shows under a mouse as under a finger. */
+@scope (:root) {
+  .cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
+    background: var(--cp-fill-active);
+  }
+
+  /* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
+  .cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
+    background: var(--cp-fill-active);
   }
 }
 

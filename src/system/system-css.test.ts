@@ -3614,6 +3614,70 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(await hovered()).toEqual(rest);
   });
 
+  it("gives a quiet button its own hover in a hovered row, and a press its fill under a mouse", async () => {
+    theme("light");
+    root.dataset["pointer"] = "fine";
+    const el = build(
+      '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-cell-stack">Frieren</span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="More for Frieren"><span class="cp-icon"></span></button></div></li></ul>' +
+        '<table class="cp-table"><tbody><tr><td>Frieren</td><td><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="More for Frieren"><span class="cp-icon"></span></button></td></tr></tbody></table>',
+    );
+    const [inRow, inTable] = [...el.querySelectorAll<HTMLButtonElement>(".cp-button")] as [
+      HTMLButtonElement,
+      HTMLButtonElement,
+    ];
+    const fill = resolved("var(--cp-fill)", "backgroundColor");
+    for (const [more, under] of [
+      [inRow, row(el)],
+      [inTable, el.querySelector("td") as HTMLElement],
+    ] as const) {
+      under.style.transition = "none";
+      more.style.transition = "none";
+      await userEvent.hover(more);
+      expect(getComputedStyle(under).backgroundColor).toBe(fill);
+      expect(getComputedStyle(more).backgroundColor).toBe(
+        resolved("var(--cp-fill-hover)", "backgroundColor"),
+      );
+      more.toggleAttribute("data-cp-pressed", true);
+      expect(getComputedStyle(more).backgroundColor).toBe(
+        resolved("var(--cp-fill-active)", "backgroundColor"),
+      );
+      more.disabled = true;
+      more.toggleAttribute("data-cp-pressed", false);
+      expect(getComputedStyle(more).backgroundColor).toBe(
+        resolved("transparent", "backgroundColor"),
+      );
+      await userEvent.unhover(more);
+    }
+    const bare = build(
+      '<button class="cp-button" data-variant="quiet" type="button" aria-label="Pin"><span class="cp-icon"></span></button>',
+    ).firstElementChild as HTMLElement;
+    bare.style.transition = "none";
+    await userEvent.hover(bare);
+    expect(getComputedStyle(bare).backgroundColor).toBe(fill);
+    bare.toggleAttribute("data-cp-pressed", true);
+    expect(getComputedStyle(bare).backgroundColor).toBe(
+      resolved("var(--cp-fill-active)", "backgroundColor"),
+    );
+    await userEvent.unhover(bare);
+  });
+
+  it("ends a row that opens a page with its chevron, which turns to face right to left", () => {
+    theme("light");
+    const markup =
+      '<ul class="cp-list"><li><a class="cp-list-row" href="#p"><span class="cp-cell-stack">Christophe<small>Owner</small></span><span class="cp-icon" data-cp-icon="chevron-right"></span></a></li></ul>';
+    for (const dir of ["ltr", "rtl"] as const) {
+      const el = build(markup);
+      el.dir = dir;
+      const r = row(el).getBoundingClientRect();
+      const chevron = el.querySelector('[data-cp-icon="chevron-right"]') as Element;
+      const c = chevron.getBoundingClientRect();
+      expect(dir === "ltr" ? r.right - c.right : c.left - r.left).toBeCloseTo(16, 1);
+      expect(getComputedStyle(chevron).transform).toBe(
+        dir === "ltr" ? "none" : "matrix(-1, 0, 0, 1, 0, 0)",
+      );
+    }
+  });
+
   it("keeps the selected fill on a hovered open row, under the pressed fill", async () => {
     theme("light");
     root.dataset["pointer"] = "fine";
@@ -3768,7 +3832,7 @@ describe("css/system.css lists, feeds and counts", () => {
   });
 
   const job = (attrs = "") =>
-    `<ul class="cp-list"><li><div class="cp-list-row" data-variant="progress" ${attrs}><span class="cp-cell-stack"><strong>Finding subtitles</strong><a href="#j">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button">Stop</button><progress max="40" value="12" aria-label="Finding subtitles"></progress><small>12 of 40 · Searching providers</small></div></li><li class="cp-list-foot"><button class="cp-button" data-size="sm" type="button">Show all 5 running</button></li></ul>`;
+    `<ul class="cp-list"><li><div class="cp-list-row" ${attrs}><span class="cp-cell-stack"><strong>Finding subtitles</strong><a href="#j">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button">Stop</button><progress max="40" value="12" aria-label="Finding subtitles"></progress><small>12 of 40 · Searching providers</small></div></li><li class="cp-list-foot"><button class="cp-button" data-size="sm" type="button">Show all 5 running</button></li></ul>`;
 
   it("lays a job row out as its words and action over a bar the row's width, then how far", () => {
     theme("light");
@@ -3832,10 +3896,28 @@ describe("css/system.css lists, feeds and counts", () => {
     },
   );
 
-  it("sets a long row's toned glyph on its first line, before its sentences and its one fix", () => {
+  it("lays a step track or a details child under a row's text, across the row", () => {
+    theme("light");
+    for (const under of [
+      '<ol class="cp-track" aria-label="Grab progress"><li data-state="done">Found</li><li data-state="current">Downloading</li><li data-state="todo">Imported</li></ol>',
+      "<details><summary>What changed</summary><p>Replaced the web release.</p></details>",
+    ]) {
+      const el = build(
+        `<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-cell-stack">Frieren<small>Season 1</small></span><button class="cp-button" data-size="sm" type="button">Stop</button>${under}</div></li></ul>`,
+      );
+      el.style.inlineSize = "24rem";
+      const r = row(el).getBoundingClientRect();
+      const text = (el.querySelector(".cp-cell-stack") as Element).getBoundingClientRect();
+      const part = (row(el).lastElementChild as Element).getBoundingClientRect();
+      expect([part.left - r.left, r.right - part.right]).toEqual([16, 16]);
+      expect(part.top).toBeCloseTo(text.bottom + 4, 1);
+    }
+  });
+
+  it("sets a wrapping row's toned glyph on its first line, before its sentences and its one fix", () => {
     theme("light");
     const el = build(
-      '<ul class="cp-list"><li><div class="cp-list-row" data-variant="long"><span class="cp-icon" data-tone="warning"></span><div><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time>10 minutes ago</time></div><a href="#s">Open storage</a></div></li></ul>',
+      '<ul class="cp-list"><li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-tone="warning"></span><div><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time>10 minutes ago</time></div><a href="#s">Open storage</a></div></li></ul>',
     );
     const r = row(el);
     const glyph = r.querySelector(".cp-icon") as Element;
@@ -3851,6 +3933,65 @@ describe("css/system.css lists, feeds and counts", () => {
     const fix = (r.querySelector("a") as Element).getBoundingClientRect();
     expect(fix.top).toBeCloseTo(first.top, 1);
     expect(fix.right).toBeCloseTo(r.getBoundingClientRect().right - 16, 1);
+  });
+
+  it("shows a wrapping row's exact time beside its words once the row is 40rem wide", () => {
+    theme("light");
+    const markup =
+      '<ul class="cp-list"><li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-tone="warning"></span><div><p>The disk with /media/anime is full.</p><time datetime="2026-11-12T14:02:00Z" data-cp-tip="12 Nov 2026, 14:02">2 hours ago</time></div></div></li></ul>';
+    const widthAt = (rem: number) => {
+      const el = build(markup);
+      el.style.inlineSize = `${String(rem)}rem`;
+      const time = el.querySelector("time") as Element;
+      return [time.getBoundingClientRect().width, getComputedStyle(time, "::after").content];
+    };
+    const [narrow, none] = widthAt(40) as [number, string];
+    const [wide, shown] = widthAt(44) as [number, string];
+    expect(["none", "normal"]).toContain(none);
+    expect(shown).toContain("(");
+    expect(wide - narrow).toBeGreaterThan(80);
+    const plain = build(markup.replace(' data-lines="wrap"', ""));
+    plain.style.inlineSize = "44rem";
+    expect(["none", "normal"]).toContain(
+      getComputedStyle(plain.querySelector("time") as Element, "::after").content,
+    );
+  });
+
+  it("cuts a line marked data-cut=start at its start, its end in view, in either direction", () => {
+    theme("light");
+    const el = build(
+      '<span class="cp-truncate cp-mono" data-cut="start">/workspace/grelot/internal/server/webui</span>' +
+        '<span class="cp-truncate cp-mono" data-cut="start">/ui</span>' +
+        '<div dir="rtl"><span class="cp-truncate" data-cut="start">תיקייה ארוכה מאוד של סדרות אנימה ישנות</span>' +
+        '<span class="cp-truncate cp-mono" data-cut="start" dir="ltr">/workspace/grelot/internal/server/webui</span></div>',
+    );
+    el.style.setProperty("--cp-truncate-w", "8rem");
+    const [path, short, hebrew, machine] = [
+      ...el.querySelectorAll<HTMLElement>(".cp-truncate"),
+    ] as [HTMLElement, HTMLElement, HTMLElement, HTMLElement];
+    const char = (line: HTMLElement, at: number) => {
+      const text = line.firstChild as Text;
+      const range = document.createRange();
+      range.setStart(text, at < 0 ? text.length + at : at);
+      range.setEnd(text, (at < 0 ? text.length + at : at) + 1);
+      return range.getBoundingClientRect();
+    };
+    // WebKit gives a character under the ellipsis an empty box at its edge.
+    const shown = (r: DOMRect, box: DOMRect) =>
+      r.width > 0 && r.left >= box.left - 1 && r.right <= box.right + 1;
+    for (const ltr of [path, machine]) {
+      const box = ltr.getBoundingClientRect();
+      expect(Math.abs(char(ltr, -1).right - box.right)).toBeLessThanOrEqual(1);
+      expect(shown(char(ltr, -1), box)).toBe(true);
+      expect(shown(char(ltr, 0), box)).toBe(false);
+    }
+    const fits = short.getBoundingClientRect();
+    expect(Math.abs(char(short, 0).left - fits.left)).toBeLessThanOrEqual(1);
+    expect(char(short, 0).left).toBeLessThan(char(short, 1).left);
+    const box = hebrew.getBoundingClientRect();
+    expect(Math.abs(char(hebrew, -1).left - box.left)).toBeLessThanOrEqual(1);
+    expect(shown(char(hebrew, -1), box)).toBe(true);
+    expect(shown(char(hebrew, 0), box)).toBe(false);
   });
 
   it("scrolls a virtual list inside its own height, each placed row 48px with its count at 13px", () => {

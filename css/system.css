@@ -2806,15 +2806,6 @@
   --cp-press-scale: 1;
 }
 
-.cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
-  background: var(--cp-fill-active);
-}
-
-/* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
-.cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
-  background: var(--cp-fill-active);
-}
-
 .cp-button[data-variant="primary"] {
   background: var(--cp-tone-9);
   color: var(--cp-tone-on);
@@ -2845,8 +2836,10 @@
       background: var(--cp-tone-10);
     }
 
+    /* A surface whose own hover fill is --cp-fill, such as a hovered row,
+     * sets --cp-quiet-hover, so a quiet button on it still shows its own. */
     .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
-      background: var(--cp-fill);
+      background: var(--cp-quiet-hover, var(--cp-fill));
       color: var(--cp-ink);
     }
 
@@ -2854,6 +2847,20 @@
       background: var(--cp-shell-hover);
       color: inherit;
     }
+  }
+}
+
+/* An icon-only button's press fill sits in a scope rooted where the hovers'
+ * is and after them, so it ties them on specificity and on scope proximity
+ * and wins by order: a press shows under a mouse as under a finger. */
+@scope (:root) {
+  .cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
+    background: var(--cp-fill-active);
+  }
+
+  /* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
+  .cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
+    background: var(--cp-fill-active);
   }
 }
 
@@ -4540,6 +4547,8 @@ th[aria-sort="descending"] > .cp-sort::after {
     }
 
     .cp-table tbody tr:hover :is(td, th) {
+      --cp-quiet-hover: var(--cp-fill-hover);
+
       background: var(--cp-fill);
     }
 
@@ -5577,6 +5586,31 @@ th[aria-sort="descending"] > .cp-sort::after {
   white-space: nowrap;
 }
 
+/* Cut at its start, so a path's leaf stays in view: the line runs against
+ * the text's own direction, where the ellipsis falls at the start. The
+ * marks keep the text's direction for a leading or trailing "/" or ")",
+ * which would otherwise take the line's and jump to the other end. Machine
+ * text in a right-to-left page carries dir="ltr", as it must anyway. */
+.cp-truncate[data-cut="start"] {
+  direction: rtl;
+  text-align: left;
+}
+
+.cp-truncate[data-cut="start"]::before,
+.cp-truncate[data-cut="start"]::after {
+  content: "\200E" / "";
+}
+
+.cp-truncate[data-cut="start"]:dir(rtl) {
+  direction: ltr;
+  text-align: right;
+}
+
+.cp-truncate[data-cut="start"]:dir(rtl)::before,
+.cp-truncate[data-cut="start"]:dir(rtl)::after {
+  content: "\200F" / "";
+}
+
 /* A cell's main text over a muted second line. */
 .cp-cell-stack {
   display: grid;
@@ -5949,33 +5983,48 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-size: var(--cp-text-xs);
 }
 
-/* A running job: what and where beside its action, a bar across the row,
- * then how far it is. The action stretches to the text it sits beside. */
-.cp-list-row[data-variant="progress"] {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+/* A part under the row's text, such as a running job's bar, takes a line of
+ * its own across the row, and what follows it lines up under it. The
+ * action stretches to the text it sits beside. */
+.cp-list-row:has(> :is(progress, .cp-track, details)) {
+  flex-wrap: wrap;
+  align-content: start;
   align-items: stretch;
   gap: var(--cp-space-1) var(--cp-space-4);
-  padding: var(--cp-space-3) var(--cp-space-4);
+  padding-block: var(--cp-space-3);
 }
 
-.cp-list-row > progress {
-  grid-column: 1 / -1;
-  inline-size: 100%;
+.cp-list-row > :is(progress, .cp-track, details),
+.cp-list-row > :is(progress, .cp-track, details) ~ * {
+  flex-basis: 100%;
 }
 
-/* A row that runs to sentences: its glyph on the first line, the words,
- * and one link to its fix at the end. */
-.cp-list-row[data-variant="long"] {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+/* A row that runs to sentences: its lead on the first line, the words,
+ * then its end and its one action at the top. The row is the container
+ * its time reads, so its width comes from its list, never from its words. */
+.cp-list-row[data-lines="wrap"] {
+  container: cp-row / inline-size;
   align-items: start;
-  padding: var(--cp-space-3) var(--cp-space-4);
+  padding-block: var(--cp-space-3);
   font-size: var(--cp-text-sm);
 }
 
-.cp-list-row[data-variant="long"] p {
+.cp-list-row[data-lines="wrap"] > :has(> p) {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.cp-list-row[data-lines="wrap"] p {
   margin: 0;
+}
+
+/* From 40rem the exact time shows beside the words. It is read from the
+ * time's tooltip (relative-time sets both), and its text is hidden from a
+ * screen reader, which already hears the exact time once. */
+@container cp-row (width >= 40rem) {
+  .cp-list-row[data-lines="wrap"] time[data-cp-tip]::after {
+    content: " (" attr(data-cp-tip) ")" / "";
+  }
 }
 
 .cp-list-row[data-unread] > .cp-cell-stack {
@@ -6043,6 +6092,8 @@ button.cp-list-row[aria-pressed] .cp-badge {
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     .cp-list-row:not([data-skeleton]):hover {
+      --cp-quiet-hover: var(--cp-fill-hover);
+
       background: var(--cp-fill);
     }
 

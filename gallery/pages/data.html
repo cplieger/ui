@@ -78,13 +78,13 @@
           <div class="cp-field"><span class="cp-label" id="ls-density-l">Height</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-density-l"><label><input type="radio" name="ls-density" value="compact">Compact</label><label><input type="radio" name="ls-density" value="" checked>Regular</label><label><input type="radio" name="ls-density" value="tall">Tall</label></div></div>
           <div class="cp-field"><span class="cp-label" id="ls-lead-l">Image</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-lead-l"><label><input type="radio" name="ls-lead" value="">None</label><label><input type="radio" name="ls-lead" value="icon" checked>Icon</label><label><input type="radio" name="ls-lead" value="cover">Cover</label></div></div>
           <div class="cp-field"><span class="cp-label" id="ls-lines-l">Lines</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-lines-l"><label><input type="radio" name="ls-lines" value="one">One</label><label><input type="radio" name="ls-lines" value="two" checked>Two</label></div></div>
-          <div class="cp-field"><span class="cp-label" id="ls-rows-l">Rows</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-rows-l"><label><input type="radio" name="ls-rows" value="links" checked>Links</label><label><input type="radio" name="ls-rows" value="toggles">Toggles</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-rows-l">Rows</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-rows-l"><label><input type="radio" name="ls-rows" value="links" checked>Links</label><label><input type="radio" name="ls-rows" value="toggles">Toggles</label><label><input type="radio" name="ls-rows" value="action">Action</label><label><input type="radio" name="ls-rows" value="menu">Menu</label></div></div>
           <div class="cp-field"><span class="cp-label" id="ls-surface-l">Surface</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-surface-l"><label><input type="radio" name="ls-surface" value="" checked>Raised</label><label><input type="radio" name="ls-surface" value="plain">Plain</label></div></div>
           <div class="cp-field"><span class="cp-label" id="ls-divider-l">Dividers</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-divider-l"><label><input type="radio" name="ls-divider" value="" checked>Lines</label><label><input type="radio" name="ls-divider" value="none">None</label></div></div>
         </div>
         <h3 class="cp-list-heading g-gap-top">Library</h3>
         <ul class="cp-list" id="ls-sample" aria-label="Library"></ul>
-        <footer>Every list is this one element, and its attributes set what all its rows look like: the height (compact as a rail's filters, regular, or tall for posters, each sizing the row's image), surface, dividers and lines. A link row that is open, a toggle that is on and a chosen option share one selected look, the wash in the accent's darkest ink, and a quiet count turns solid with it. Click a link to open it, or a toggle to turn it on or off.</footer>
+        <footer>Every list is this one element, and its attributes set what all its rows look like: the height (compact as a rail's filters, regular, or tall for posters, each sizing the row's image), surface, dividers and lines. A row is one link or one toggle, or it holds a title link and one worded action or a ⋯ menu at its end. A link row that is open, a toggle that is on and a chosen option share one selected look, the wash in the accent's darkest ink, and a quiet count turns solid with it. Click a link to open it, or a toggle to turn it on or off.</footer>
       </div>
       <div class="card" data-new>
         <h2>People</h2>
@@ -99,8 +99,9 @@
         <h2>Long names</h2>
         <ul class="cp-list">
           <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="folder" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate" tabindex="0" data-cp-tip="/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01">/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01</span><small>28 files</small></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="folder" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono" data-cut="start" tabindex="0" data-cp-tip="/workspace/grelot/internal/server/webui/static-src">/workspace/grelot/internal/server/webui/static-src</span><small>Cut at its start, so the folder's own name stays</small></span></div></li>
         </ul>
-        <footer>One line cut with an ellipsis at the row's edge, as <code>.cp-truncate</code> does in a row; the whole text is a focusable tooltip, so it reaches a keyboard and a finger as well as a mouse.</footer>
+        <footer>One line cut with an ellipsis at the row's edge, as <code>.cp-truncate</code> does in a row, or at its start with <code>data-cut="start"</code> when the end of a path names it; the whole text is a focusable tooltip, so it reaches a keyboard and a finger as well as a mouse.</footer>
       </div>
       <div class="card">
         <h2>Files</h2>
@@ -414,8 +415,8 @@
       <div class="card" data-new>
         <h2>Jobs</h2>
         <ul class="cp-list" data-jobs>
-          <li><div class="cp-list-row" data-variant="progress"><span class="cp-cell-stack"><strong data-job-kind>Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-job-n>12 of 40</span> · <span data-job-phase>Searching providers</span></small></div></li>
-          <li><div class="cp-list-row" data-variant="progress"><span class="cp-cell-stack"><strong data-job-kind>Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-job-n>20 of 26</span> · <span data-job-phase>Matching cues to the audio</span></small></div></li>
+          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-job-n>12 of 40</span> · <span data-job-phase>Searching providers</span></small></div></li>
+          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-job-n>20 of 26</span> · <span data-job-phase>Matching cues to the audio</span></small></div></li>
           <li class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-more-jobs>Show all 5 running</button></li>
         </ul>
         <footer>What, where as a link, how far, the phase, and Stop. An ended job keeps its outcome in words.</footer>
@@ -423,10 +424,11 @@
       <div class="card g-wide" data-new>
         <h2>Problems</h2>
         <ul class="cp-list">
-          <li><div class="cp-list-row" data-variant="long"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>OpenSubtitles refused the API key, so 18 episodes are waiting.</p><time data-ago="5400"></time></div><a href="#steps">Fix the key</a></div></li>
-          <li><div class="cp-list-row" data-variant="long"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time data-ago="600"></time></div><a href="#steps">Open storage</a></div></li>
+          <li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>OpenSubtitles refused the API key, so 18 episodes are waiting.</p><time data-ago="5400"></time></div><a href="#steps">Fix the key</a></div></li>
+          <li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time data-ago="600"></time></div><a href="#steps">Open storage</a></div></li>
+          <li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>The post to /workspace/ui was refused: the inbox of @codex is full.</p><time data-ago="1500"></time></div><span data-part="end"><span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Refused post</span></span></div></li>
         </ul>
-        <footer>A sentence, since when, and one link to its fix; one problem may need two sentences.</footer>
+        <footer>A sentence, since when, and one link to its fix; one problem may need two sentences, and its kind may stand at the end. From 40rem wide the exact time shows beside the words.</footer>
       </div>
     </div>
   </section>
