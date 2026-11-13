@@ -32,6 +32,7 @@ const PURE = [
   "/held-list",
   "/highlight",
   "/icons",
+  "/keyed-list",
   "/list-detail",
   "/list-row",
   "/markdown",

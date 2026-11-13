@@ -1,10 +1,12 @@
 /**
  * lists.ts — the gallery's lists on the library: one list set by its
- * attributes, and the lists and tables that hold their place.
+ * attributes, the lists and tables that hold their place, and a long list
+ * keyed by its titles.
  */
 
 import { enhanceHeldList } from "@cplieger/ui/held-list";
 import { createIcons } from "@cplieger/ui/icons";
+import { enhanceKeyedList } from "@cplieger/ui/keyed-list";
 import { markKept } from "@cplieger/ui/list-row";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { toast } from "@cplieger/ui/toast";
@@ -399,5 +401,97 @@ if (library instanceof HTMLTableSectionElement) {
       }
     }
     partial.textContent = end ? "Complete Sonarr's walk" : "End Sonarr's walk partial";
+  });
+}
+
+interface Title {
+  readonly id: string;
+  readonly title: string;
+  readonly seen: number;
+}
+
+const NAMES = [
+  "Frieren",
+  "Mushishi",
+  "Dungeon",
+  "Heron",
+  "Monogatari",
+  "Ping Pong",
+  "Haikyu",
+  "Mob Psycho",
+  "Odd Taxi",
+  "Kaiju",
+];
+
+function titleItem(t: Title): HTMLLIElement {
+  const link = document.createElement("a");
+  link.className = "cp-truncate";
+  link.href = `#${t.id}`;
+  link.textContent = t.title;
+  const text = document.createElement("span");
+  text.className = "cp-cell-stack";
+  text.append(link);
+  const end = document.createElement("span");
+  end.dataset["part"] = "end";
+  end.textContent = `${String(t.seen)} of 26 episodes`;
+  const row = document.createElement("div");
+  row.className = "cp-list-row";
+  row.append(text, end);
+  const li = document.createElement("li");
+  li.append(row);
+  return li;
+}
+
+// The server sends the titles a page at a time, so a page not come yet is
+// an undefined key, which the list draws as skeleton rows and asks for.
+const longList = document.getElementById("v-list");
+const longCount = document.getElementById("v-count");
+if (longList instanceof HTMLUListElement && longCount !== null) {
+  const PAGE = 100;
+  let all: readonly Title[] = Array.from({ length: 20_000 }, (_, i) => ({
+    id: `t${String(i)}`,
+    title: `${NAMES[i % NAMES.length] ?? ""} ${String(Math.floor(i / NAMES.length) + 1)}`,
+    seen: (i * 7) % 26,
+  }));
+  let byId = new Map(all.map((t) => [t.id, t]));
+  let view = all;
+  let pages = new Set([0]);
+  const keys = () => view.map((t, i) => (pages.has(Math.floor(i / PAGE)) ? t.id : undefined));
+  const list = enhanceKeyedList(longList, {
+    keys: keys(),
+    of: all.length,
+    count: longCount,
+    row: (id) => titleItem(byId.get(id) ?? { id, title: id, seen: 0 }),
+    need: (start, end) => {
+      const asked = pages;
+      setTimeout(() => {
+        for (let p = Math.floor(start / PAGE); p * PAGE < end; p += 1) {
+          asked.add(p);
+        }
+        if (asked === pages) {
+          list.update(keys());
+        }
+      }, 600);
+    },
+  });
+  const filter = document.getElementById("v-filter");
+  filter?.addEventListener("input", () => {
+    const q = filter instanceof HTMLInputElement ? filter.value.trim().toLowerCase() : "";
+    view = q === "" ? all : all.filter((t) => t.title.toLowerCase().includes(q));
+    pages = new Set([0]);
+    list.reset(keys(), all.length);
+  });
+  document.querySelector(`[data-live-update="${longList.id}"]`)?.addEventListener("click", () => {
+    all = all.map((t) => (Math.random() < 0.3 ? { ...t, seen: Math.min(26, t.seen + 1) } : t));
+    byId = new Map(all.map((t) => [t.id, t]));
+    view = view.map((t) => byId.get(t.id) ?? t);
+    for (const t of view) {
+      const end = list.rowOf(t.id)?.querySelector('[data-part="end"]');
+      const words = `${String(t.seen)} of 26 episodes`;
+      if (end != null && end.textContent !== words) {
+        end.textContent = words;
+      }
+    }
+    list.update(keys());
   });
 }

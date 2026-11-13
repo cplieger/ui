@@ -182,8 +182,8 @@
         <div class="card g-wide" data-new>
           <h2>A long list</h2>
         <div class="g-row-inline"><div class="cp-search g-grow"><input class="cp-input" id="v-filter" type="search" placeholder="Filter titles" aria-label="Filter titles"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><span id="v-count"></span><button class="cp-button" type="button" data-live-update="v-list">Live update</button></div>
-        <div class="cp-list g-gap-top" id="v-list" data-virtual data-total="20000" data-count="v-count" data-filter="v-filter"><div data-part="spacer"></div></div>
-        <footer>20,000 rows, of which only those in view are drawn, each keyed by its id, so a live update changes rows in place and keeps the scroll and the focus. A row's one interactive part is its title link. The count is announced after typing stops.</footer>
+        <ul class="cp-list g-gap-top" id="v-list" data-virtual aria-label="Titles"></ul>
+        <footer>20,000 titles the server sends 100 at a time, of which only those in view are drawn, each keyed by its id. A page that has not come yet shows as skeleton rows until it does. A live update changes rows in place and keeps the scroll and the focus. A row's one interactive part is its title link. The count reads “5 of 640 titles” and is said once typing stops.</footer>
       </div>
     </div>
   </section>

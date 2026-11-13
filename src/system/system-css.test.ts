@@ -4045,35 +4045,52 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(shown(char(hebrew, 0), box)).toBe(false);
   });
 
-  it("scrolls a virtual list inside its own height, each placed row 48px with its count at 13px", () => {
+  it("scrolls a virtual list inside its own 22rem, its rows in flow at the density's height", () => {
     theme("light");
-    const rows = Array.from(
-      { length: 20 },
-      (_, i) =>
-        `<div class="cp-list-row"><span class="cp-cell-stack"><a class="cp-truncate" href="#t${String(i)}">Frieren ${String(i)}</a></span><span data-part="end">3 of 26 episodes</span></div>`,
-    ).join("");
+    const item = (i: number) =>
+      `<li><div class="cp-list-row"><span class="cp-cell-stack"><a class="cp-truncate" href="#t${String(i)}">Frieren ${String(i)}</a></span><span data-part="end">3 of 26 episodes</span></div></li>`;
     const el = build(
-      `<div class="cp-list" data-virtual><div data-part="spacer">${rows}</div></div>`,
+      `<ul class="cp-list" data-virtual><li data-part="spacer" aria-hidden="true"></li>${Array.from({ length: 20 }, (_, i) => item(i)).join("")}</ul>`,
     );
     const list = el.querySelector(".cp-list") as HTMLElement;
-    const spacer = list.firstElementChild as HTMLElement;
-    spacer.style.blockSize = "960px";
+    (list.firstElementChild as HTMLElement).style.blockSize = "530px";
     const placed = [...list.querySelectorAll<HTMLElement>(".cp-list-row")];
-    placed.forEach((r, i) => {
-      r.style.insetBlockStart = `${String(i * 48)}px`;
-    });
     expect(list.getBoundingClientRect().height).toBe(352);
-    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+    expect(getComputedStyle(list).overflowY).toBe("auto");
+    expect(getComputedStyle(list).contain).toBe("strict");
     const [one, two] = placed.map((r) => r.getBoundingClientRect()) as [DOMRect, DOMRect];
-    expect(getComputedStyle(placed[0] as Element).position).toBe("absolute");
-    expect([one.height, two.top - one.top]).toEqual([48, 48]);
-    expect(one.width).toBe(list.clientWidth);
-    list.scrollTop = 480;
-    expect(Math.round((placed[10] as Element).getBoundingClientRect().top)).toBe(
+    expect(getComputedStyle(placed[0] as Element).position).toBe("static");
+    expect([one.height, two.top - one.top]).toEqual([52, 53]);
+    // The list's border, the spacer, then the line above the row's item.
+    expect(one.top - list.getBoundingClientRect().top).toBe(1 + 530 + 1);
+    list.scrollTop = 531;
+    expect(Math.round((placed[0] as Element).getBoundingClientRect().top)).toBe(
       Math.round(list.getBoundingClientRect().top + 1),
     );
-    const end = getComputedStyle(placed[0]?.querySelector('[data-part="end"]') as Element);
-    expect(end.fontSize).toBe("13px");
+  });
+
+  it("holds a windowed table's columns still and paints nothing for its spacer row", () => {
+    theme("light");
+    const el = build(
+      '<table class="cp-table"><thead><tr><th>Copy</th><th>Verdict</th></tr></thead>' +
+        '<tbody data-virtual><tr data-part="spacer" aria-hidden="true"><td colspan="2"></td></tr>' +
+        "<tr><td>Frieren: Beyond Journey&apos;s End, with a title long enough to widen its column</td><td>On the best</td></tr>" +
+        '<tr data-skeleton aria-hidden="true"><td><span class="cp-skeleton"></span></td><td><span class="cp-skeleton"></span></td></tr></tbody></table>',
+    );
+    const table = el.querySelector("table") as HTMLTableElement;
+    const spacer = table.tBodies[0]?.rows[0] as HTMLTableRowElement;
+    spacer.style.blockSize = "5px";
+    expect(getComputedStyle(table).tableLayout).toBe("fixed");
+    const [copy, verdict] = [...(table.tHead?.rows[0]?.cells ?? [])].map(
+      (th) => th.getBoundingClientRect().width,
+    );
+    expect(copy).toBe(verdict);
+    expect(spacer.getBoundingClientRect().height).toBe(5);
+    const cell = getComputedStyle(spacer.cells[0] as Element);
+    expect([cell.paddingTop, cell.borderBottomWidth]).toEqual(["0px", "0px"]);
+    const bar = table.querySelector(".cp-skeleton") as HTMLElement;
+    const td = bar.parentElement as HTMLElement;
+    expect(bar.getBoundingClientRect().width / td.clientWidth).toBeLessThan(0.8);
   });
 
   it.skipIf(!emulates)(

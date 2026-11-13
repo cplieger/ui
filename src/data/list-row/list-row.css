@@ -514,32 +514,6 @@ button.cp-list-row[aria-pressed] .cp-badge {
   padding: var(--cp-space-2);
 }
 
-/* A list too long to draw: a scroller of --cp-list-h whose spacer a script
- * sizes to every row, drawing only the rows in view at their offsets.
- * Strict containment keeps each scroll's layout inside the list. */
-.cp-list[data-virtual] {
-  position: relative;
-  display: block;
-  block-size: var(--cp-list-h, 22rem);
-  overflow: auto;
-  contain: strict;
-}
-
-.cp-list[data-virtual] > [data-part="spacer"] {
-  position: relative;
-}
-
-/* The script places rows 3rem apart, so a row is exactly that tall. */
-.cp-list[data-virtual] .cp-list-row {
-  position: absolute;
-  inset-inline: 0;
-  block-size: 3rem;
-  min-block-size: 0;
-  padding-block: 0;
-  border-block-end: var(--cp-line-w) solid var(--cp-line);
-  font-size: var(--cp-text-sm);
-}
-
 .cp-list-row[data-skeleton] > .cp-skeleton {
   flex: none;
   inline-size: 2rem;

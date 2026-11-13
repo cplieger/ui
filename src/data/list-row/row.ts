@@ -12,6 +12,14 @@ export function rowOf(el: Element): Element {
   return el instanceof HTMLLIElement ? (el.querySelector(":scope > .cp-list-row") ?? el) : el;
 }
 
+/** The first part of `el` that takes focus, `el` itself first. */
+export function focusableIn(el: Element): HTMLElement | null {
+  if (el instanceof HTMLElement && el.matches(FOCUSABLE)) {
+    return el;
+  }
+  return el.querySelector<HTMLElement>(FOCUSABLE);
+}
+
 /** Focuses `el`, which takes `tabindex="-1"` until it loses focus when it
  *  takes no focus of its own. */
 export function focusOn(el: Element): void {

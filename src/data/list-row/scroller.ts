@@ -20,8 +20,7 @@ export function pageScroller(): HTMLElement {
 
 /** Whether `el` scrolls its own content now. */
 function scrolls(el: Element): boolean {
-  const y = getComputedStyle(el).overflowY;
-  return (y === "auto" || y === "scroll") && el.scrollHeight > el.clientHeight;
+  return scrollsItself(el) && el.scrollHeight > el.clientHeight;
 }
 
 /** The nearest box around `el` that scrolls now, else the page. */
@@ -55,18 +54,26 @@ export function viewOf(scroller: HTMLElement): Band {
   return { top: top + pad, bottom: top + scroller.clientHeight };
 }
 
+/** Whether `el` is its own scroller, overflowing now or not. */
+export function scrollsItself(el: Element): boolean {
+  const y = getComputedStyle(el).overflowY;
+  return y === "auto" || y === "scroll";
+}
+
 /**
  * Where `el` can be seen now: the visual viewport, which a pinch zoom or the
  * on-screen keyboard shrinks, cut by every box around `el` that clips, each
- * one's start padding counted as covered.
+ * one's start padding counted as covered. With `inside`, `el`'s own box cuts
+ * it too, for what `el` shows of its content.
  */
-export function seenOf(el: Element): Band {
+export function seenOf(el: Element, inside = false): Band {
   const vv = window.visualViewport;
   const page = pageScroller();
   const root = getComputedStyle(document.documentElement);
   let top = Math.max(vv?.offsetTop ?? 0, padOf(getComputedStyle(page)));
   let bottom = vv === null ? innerHeight : vv.offsetTop + vv.height;
-  for (let at = el.parentElement; at !== null && at !== page; at = at.parentElement) {
+  const from = inside ? el : el.parentElement;
+  for (let at = from; at !== null && at !== page; at = at.parentElement) {
     const style = getComputedStyle(at);
     // The body's overflow is the viewport's while the root's is visible.
     const propagated = at === document.body && root.overflowY === "visible";
