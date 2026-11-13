@@ -1,44 +1,85 @@
-/* Tabs: ARIA tabs; the selected tab is a raised fill. */
-.cp-tabs {
-  display: flex;
+/* One switcher look for three jobs: ARIA tabs that show panels (a tablist
+ * of .cp-tab buttons), tabs that are links (a nav whose current link is
+ * aria-current="page"), and the segmented control, which sets a value
+ * (forms/segmented). The chosen one is a raised fill, which
+ * @cplieger/ui/pill turns into a pill that slides. .cp-link-tabs is the
+ * earlier name of nav.cp-tabs, drawn the same until it goes. */
+.cp-tabs,
+.cp-link-tabs,
+.cp-segmented {
   gap: var(--cp-space-1);
   inline-size: fit-content;
   max-inline-size: 100%;
   padding: var(--cp-space-1);
-  overflow-x: auto;
-  scrollbar-width: none;
   background: var(--cp-fill);
   border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
 }
 
-.cp-tab {
-  min-block-size: var(--cp-control-h-sm);
+/* A strip scrolls when it is wider than its place; its padding holds the
+ * focus rings, since a scroll box clips at its padding edge. */
+.cp-tabs,
+.cp-link-tabs {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cp-tab,
+:is(.cp-tabs, .cp-link-tabs) > a,
+.cp-segmented > label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
   padding-inline: var(--cp-space-3);
-  border: 0;
   border-radius: var(--cp-radius-control);
-  background: transparent;
   color: var(--cp-ink-muted);
-  font: inherit;
   font-weight: var(--cp-weight-medium);
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out);
 }
 
-.cp-tab[aria-selected="true"] {
+.cp-tab,
+:is(.cp-tabs, .cp-link-tabs) > a {
+  flex: none;
+  min-block-size: var(--cp-control-h-sm);
+}
+
+.cp-tab {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+}
+
+:is(.cp-tabs, .cp-link-tabs) > a {
+  text-decoration: none;
+}
+
+.cp-tab[aria-selected="true"],
+:is(.cp-tabs, .cp-link-tabs) > a[aria-current="page"],
+.cp-segmented > label:has(:checked) {
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-tab:not([aria-selected="true"]):hover {
+    .cp-tab:not([aria-selected="true"]):hover,
+    :is(.cp-tabs, .cp-link-tabs) > a:not([aria-current="page"]):hover,
+    .cp-segmented > label:hover {
       color: var(--cp-ink);
     }
   }
 }
 
 @media (forced-colors: active) {
-  .cp-tab[aria-selected="true"] {
+  .cp-tab[aria-selected="true"],
+  :is(.cp-tabs, .cp-link-tabs) > a[aria-current="page"],
+  .cp-segmented > label:has(:checked) {
     border: var(--cp-line-w) solid CanvasText;
   }
 }

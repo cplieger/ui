@@ -2034,98 +2034,6 @@
   }
 }
 
-/* One choice of a few, such as a theme: native radios in labels, so the
- * arrow keys move the choice with no script. */
-.cp-segmented {
-  display: inline-flex;
-  inline-size: fit-content;
-  max-inline-size: 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  /* One control height overall, so a segmented sits level with inputs and
-   * buttons in a row; the pill track is this height less its padding. */
-  min-block-size: var(--cp-control-h);
-  gap: var(--cp-space-1);
-  padding: var(--cp-space-1);
-  border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
-  background: var(--cp-fill);
-}
-
-.cp-segmented > label {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--cp-space-2);
-  min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
-  min-inline-size: var(--cp-hit-min);
-  padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  color: var(--cp-ink-muted);
-  font-weight: var(--cp-weight-medium);
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color var(--cp-dur-micro) var(--cp-ease-out),
-    color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-.cp-segmented > label > input {
-  position: absolute;
-  inset: 0;
-  /* WebKit keeps a radio at its own size under inset: 0. */
-  inline-size: 100%;
-  block-size: 100%;
-  margin: 0;
-  opacity: 0;
-  cursor: inherit;
-}
-
-/* An icon-only choice, such as a List, Grid or Table view: square
- * segments, each named by its radio's aria-label or by visually hidden
- * words in its label. */
-.cp-segmented[data-variant="icons"] > label {
-  inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
-  min-inline-size: 0;
-  padding-inline: 0;
-}
-
-.cp-segmented > label:has(:checked) {
-  background: var(--cp-surface-raised);
-  color: var(--cp-ink);
-}
-
-/* [data-cp-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
- * arrow keys reached where WebKit drops :focus-visible. */
-.cp-segmented > label:has(:focus-visible, [data-cp-focus-ring]:focus) {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
-}
-
-.cp-segmented > label:has(:disabled) {
-  cursor: not-allowed;
-  color: var(--cp-ink-disabled);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-segmented > label:hover {
-      color: var(--cp-ink);
-    }
-
-    /* A scoped rule outranks an unscoped one before specificity counts. */
-    .cp-segmented > label:has(:disabled):hover {
-      color: var(--cp-ink-disabled);
-    }
-  }
-}
-
-@media (forced-colors: active) {
-  .cp-segmented > label:has(:checked) {
-    border: var(--cp-line-w) solid CanvasText;
-  }
-}
-
 /* A settings page: its categories as links beside the open one's form, and
  * the categories in a row above it under 48rem. */
 .cp-settings {
@@ -7073,125 +6981,152 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* Tabs: ARIA tabs; the selected tab is a raised fill. */
-.cp-tabs {
-  display: flex;
+/* One switcher look for three jobs: ARIA tabs that show panels (a tablist
+ * of .cp-tab buttons), tabs that are links (a nav whose current link is
+ * aria-current="page"), and the segmented control, which sets a value
+ * (forms/segmented). The chosen one is a raised fill, which
+ * @cplieger/ui/pill turns into a pill that slides. .cp-link-tabs is the
+ * earlier name of nav.cp-tabs, drawn the same until it goes. */
+.cp-tabs,
+.cp-link-tabs,
+.cp-segmented {
   gap: var(--cp-space-1);
   inline-size: fit-content;
   max-inline-size: 100%;
   padding: var(--cp-space-1);
-  overflow-x: auto;
-  scrollbar-width: none;
   background: var(--cp-fill);
   border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
 }
 
-.cp-tab {
-  min-block-size: var(--cp-control-h-sm);
+/* A strip scrolls when it is wider than its place; its padding holds the
+ * focus rings, since a scroll box clips at its padding edge. */
+.cp-tabs,
+.cp-link-tabs {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cp-tab,
+:is(.cp-tabs, .cp-link-tabs) > a,
+.cp-segmented > label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
   padding-inline: var(--cp-space-3);
-  border: 0;
   border-radius: var(--cp-radius-control);
-  background: transparent;
   color: var(--cp-ink-muted);
-  font: inherit;
   font-weight: var(--cp-weight-medium);
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out);
 }
 
-.cp-tab[aria-selected="true"] {
+.cp-tab,
+:is(.cp-tabs, .cp-link-tabs) > a {
+  flex: none;
+  min-block-size: var(--cp-control-h-sm);
+}
+
+.cp-tab {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+}
+
+:is(.cp-tabs, .cp-link-tabs) > a {
+  text-decoration: none;
+}
+
+.cp-tab[aria-selected="true"],
+:is(.cp-tabs, .cp-link-tabs) > a[aria-current="page"],
+.cp-segmented > label:has(:checked) {
   background: var(--cp-surface-raised);
   color: var(--cp-ink);
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-tab:not([aria-selected="true"]):hover {
+    .cp-tab:not([aria-selected="true"]):hover,
+    :is(.cp-tabs, .cp-link-tabs) > a:not([aria-current="page"]):hover,
+    .cp-segmented > label:hover {
       color: var(--cp-ink);
     }
   }
 }
 
 @media (forced-colors: active) {
-  .cp-tab[aria-selected="true"] {
+  .cp-tab[aria-selected="true"],
+  :is(.cp-tabs, .cp-link-tabs) > a[aria-current="page"],
+  .cp-segmented > label:has(:checked) {
     border: var(--cp-line-w) solid CanvasText;
   }
 }
 
-/* Tabs as links: a nav of links, one address each, the current one
- * aria-current="page" and underlined in the accent. The strip scrolls when
- * it is wider than its place, and a scroll box clips at its padding edge:
- * its padding holds the focus rings, its negative margins take that room
- * back out of the layout, and its line is drawn at the links' foot. */
-.cp-link-tabs {
-  --cp-link-tabs-room: calc(var(--cp-focus-w) + var(--cp-focus-offset));
-  --cp-link-tabs-line: var(--cp-line);
-
-  display: flex;
-  gap: var(--cp-space-1);
-  margin: calc(-1 * var(--cp-link-tabs-room));
-  margin-block-end: calc(var(--cp-line-w) - var(--cp-link-tabs-room));
-  padding: var(--cp-link-tabs-room);
-  overflow-x: auto;
-  scrollbar-width: none;
-  background: linear-gradient(var(--cp-link-tabs-line) 0 0) center bottom
-    calc(var(--cp-link-tabs-room) - var(--cp-line-w)) / calc(100% - 2 * var(--cp-link-tabs-room))
-    var(--cp-line-w) no-repeat;
-}
-
-.cp-link-tabs > a {
-  position: relative;
+/* One choice of a few, such as a theme: native radios in labels, so the
+ * arrow keys move the choice with no script. Its look is the switcher's
+ * (navigation/tabs), so this file follows tabs.css in the cascade. */
+.cp-segmented {
   display: inline-flex;
-  flex: none;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--cp-space-2);
+  /* One control height overall, so a segmented sits level with inputs and
+   * buttons in a row; the pill track is this height less its padding. */
   min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-3);
-  color: var(--cp-ink-muted);
-  font-weight: var(--cp-weight-medium);
-  text-decoration: none;
-  white-space: nowrap;
 }
 
-.cp-link-tabs > a[aria-current="page"] {
-  color: var(--cp-ink);
+.cp-segmented > label {
+  position: relative;
+  min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: var(--cp-hit-min);
 }
 
-/* Over the strip's line, so the current link's mark replaces it. */
-.cp-link-tabs > a[aria-current="page"]::after {
-  content: "";
+/* The radio reaches over the track's padding above and below its label, so
+ * a segment's target is the control's whole height, a finger's under a
+ * coarse pointer. A wrapped line's gap is that padding, so lines never
+ * overlap. */
+.cp-segmented > label > input {
   position: absolute;
-  inset-inline: var(--cp-space-2);
-  inset-block-end: calc(-1 * var(--cp-line-w));
-  block-size: 2px;
-  border-radius: 2px;
-  background: var(--cp-accent);
+  inset: calc(-1 * var(--cp-space-1)) 0;
+  /* WebKit keeps a radio at its own size under inset. */
+  inline-size: 100%;
+  block-size: calc(100% + 2 * var(--cp-space-1));
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+/* An icon-only choice, such as a List, Grid or Table view: square
+ * segments, each named by its radio's aria-label or by visually hidden
+ * words in its label. */
+.cp-segmented[data-variant="icons"] > label {
+  inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: 0;
+  padding-inline: 0;
+}
+
+/* [data-cp-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
+ * arrow keys reached where WebKit drops :focus-visible. */
+.cp-segmented > label:has(:focus-visible, [data-cp-focus-ring]:focus) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-segmented > label:has(:disabled) {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-link-tabs > a:not([aria-current="page"]):hover {
-      color: var(--cp-ink);
+    /* A scoped rule outranks an unscoped one of the same specificity. */
+    .cp-segmented > label:has(:disabled):hover {
+      color: var(--cp-ink-disabled);
     }
-  }
-}
-
-/* Forced colours drop the strip's line, a background image, unless the
- * strip keeps its own colours; its links take the system's back. */
-@media (forced-colors: active) {
-  .cp-link-tabs {
-    --cp-link-tabs-line: CanvasText;
-
-    forced-color-adjust: none;
-  }
-
-  .cp-link-tabs > * {
-    forced-color-adjust: auto;
-  }
-
-  .cp-link-tabs > a[aria-current="page"]::after {
-    background: CanvasText;
-    forced-color-adjust: none;
   }
 }
 
@@ -10137,10 +10072,10 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* The pill @cplieger/ui/pill slides under a segmented choice's chosen
- * segment or a tab strip's selected tab. Placed by row and column, so a
- * wrapped choice slides to its line. Once it is there, the choices paint
- * no fill of their own. */
-:is(.cp-segmented, .cp-tabs):has(> .cp-pill) {
+ * segment, a tab strip's selected tab or a nav's current link. Placed by
+ * row and column, so a wrapped choice slides to its line. Once it is
+ * there, the choices paint no fill of their own. */
+:is(.cp-segmented, .cp-tabs, .cp-link-tabs):has(> .cp-pill) {
   position: relative;
 }
 
@@ -10176,12 +10111,14 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 .cp-segmented:has(> .cp-pill) > label,
-.cp-tabs:has(> .cp-pill) > .cp-tab {
+.cp-tabs:has(> .cp-pill) > .cp-tab,
+:is(.cp-tabs, .cp-link-tabs):has(> .cp-pill) > a {
   z-index: 1;
 }
 
 .cp-segmented:has(> .cp-pill) > label:has(:checked),
-.cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"] {
+.cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"],
+:is(.cp-tabs, .cp-link-tabs):has(> .cp-pill) > a[aria-current="page"] {
   background: transparent;
   box-shadow: none;
 }

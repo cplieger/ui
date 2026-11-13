@@ -1,9 +1,9 @@
 /**
  * pill.ts — `enhancePill()` slides one raised pill under the chosen segment
- * of a `.cp-segmented`, or the selected tab of a `.cp-tabs`, on a spring,
- * instead of each choice filling on its own. The pill lands without motion
- * when the page first draws and when the group resizes, and slides when the
- * choice changes.
+ * of a `.cp-segmented`, the selected tab of a `.cp-tabs` tablist or the
+ * current link of a `nav.cp-tabs`, on a spring, instead of each choice
+ * filling on its own. The pill lands without motion when the page first
+ * draws and when the group resizes, and slides when the choice changes.
  * @module
  */
 
@@ -16,20 +16,34 @@ export interface PillOptions {
 
 const STILL = "data-cp-still";
 const TAB = ':scope > [role="tab"]';
+const LINK = ":scope > a";
 
-const isTablist = (group: HTMLElement): boolean => group.getAttribute("role") === "tablist";
+type Kind = "tab" | "link" | "radio";
 
-/** The selected tab or the label of the checked radio, or null when none is. */
-function chosen(group: HTMLElement): HTMLElement | null {
-  return isTablist(group)
-    ? group.querySelector<HTMLElement>(`${TAB}[aria-selected="true"]`)
-    : group.querySelector<HTMLElement>(":scope > label:has(> input:checked)");
+const kindOf = (group: HTMLElement): Kind => {
+  if (group.getAttribute("role") === "tablist") {
+    return "tab";
+  }
+  return group.querySelector(LINK) === null ? "radio" : "link";
+};
+
+/** The selected tab, the current link or the label of the checked radio,
+ *  or null when none is. */
+function chosen(group: HTMLElement, kind: Kind): HTMLElement | null {
+  switch (kind) {
+    case "tab":
+      return group.querySelector<HTMLElement>(`${TAB}[aria-selected="true"]`);
+    case "link":
+      return group.querySelector<HTMLElement>(`${LINK}[aria-current="page"]`);
+    case "radio":
+      return group.querySelector<HTMLElement>(":scope > label:has(> input:checked)");
+  }
 }
 
 /**
- * Adds the pill to `group`, a `.cp-segmented` or a `.cp-tabs` tablist, once.
- * It follows a radio's `change` and a tab's `aria-selected`, whatever script
- * sets it.
+ * Adds the pill to `group`, a `.cp-segmented`, a `.cp-tabs` tablist or a
+ * `nav.cp-tabs` of links, once. It follows a radio's `change`, a tab's
+ * `aria-selected` and a link's `aria-current`, whatever script sets it.
  */
 export function enhancePill(group: HTMLElement, options: PillOptions = {}): void {
   const { signal } = options;
@@ -42,9 +56,10 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
   pill.setAttribute("aria-hidden", "true");
   group.prepend(pill);
 
+  const kind = kindOf(group);
   let frame = 0;
   const place = (still: boolean): void => {
-    const c = chosen(group);
+    const c = chosen(group, kind);
     pill.hidden = c === null;
     if (c === null) {
       return;
@@ -74,13 +89,16 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
   const selection = new MutationObserver(() => {
     place(false);
   });
-  if (isTablist(group)) {
+  if (kind !== "radio") {
     // A strip held to the width it is given can keep its size while a tab
     // grows, as when its font arrives.
-    for (const tab of group.querySelectorAll(TAB)) {
+    for (const tab of group.querySelectorAll(kind === "tab" ? TAB : LINK)) {
       resize.observe(tab);
     }
-    selection.observe(group, { subtree: true, attributeFilter: ["aria-selected"] });
+    selection.observe(group, {
+      subtree: true,
+      attributeFilter: [kind === "tab" ? "aria-selected" : "aria-current"],
+    });
   } else {
     // Listened on the document, after the page's own listeners: a change
     // elsewhere may clear the choice, as a typed date clears a date range's

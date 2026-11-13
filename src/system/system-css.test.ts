@@ -1769,43 +1769,92 @@ describe("css/system.css", () => {
     expect(line.top - title.bottom).toBeCloseTo(4, 0);
   });
 
-  it("underlines the current link tab over the strip's line, and keeps its focus ring inside the scroll box", () => {
+  it("draws tabs as links as the tab strip: the current link raised, the others muted, no underline, rings inside the scroll box", () => {
     theme("light");
     const el = build(
-      '<div style="display: flow-root; inline-size: 200px"><nav class="cp-link-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a><a href="#c">Timing</a></nav><p>Next</p></div>',
+      '<div style="inline-size: 200px"><nav class="cp-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a><a href="#c">Timing</a></nav></div>' +
+        '<div class="cp-tabs" role="tablist" aria-label="Item"><button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button><button class="cp-tab" role="tab" type="button" aria-selected="false">History</button></div>',
     );
     const nav = el.querySelector("nav") as HTMLElement;
     const [current, other] = [...nav.querySelectorAll<HTMLElement>("a")] as [
       HTMLElement,
       HTMLElement,
     ];
-    const mark = getComputedStyle(current, "::after");
-    const accent = build('<span style="color: var(--cp-accent)"></span>')
-      .firstElementChild as HTMLElement;
-    expect(mark.backgroundColor).toBe(getComputedStyle(accent).color);
-    expect(getComputedStyle(other, "::after").content).toBe("none");
+    const [tab, rest] = [...el.querySelectorAll<HTMLElement>(".cp-tab")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    for (const n of [current, other, tab, rest]) {
+      n.style.transition = "none";
+    }
+    const strip = el.querySelector('[role="tablist"]') as HTMLElement;
+    const look = (n: HTMLElement) => {
+      const cs = getComputedStyle(n);
+      return [cs.backgroundColor, cs.color, cs.borderRadius, cs.fontWeight, cs.blockSize];
+    };
+    expect(look(current)).toEqual(look(tab));
+    expect(look(other)).toEqual(look(rest));
+    expect(getComputedStyle(current).textDecorationLine).toBe("none");
+    const track = (n: HTMLElement) => {
+      const cs = getComputedStyle(n);
+      return [cs.backgroundColor, cs.padding, cs.borderRadius, cs.overflowX];
+    };
+    expect(track(nav)).toEqual(track(strip));
     expect(getComputedStyle(nav).overflowX).toBe("auto");
     expect(nav.scrollWidth).toBeGreaterThan(nav.clientWidth);
-    const box = nav.getBoundingClientRect();
-    const tab = current.getBoundingClientRect();
-    const frame = (nav.parentElement as HTMLElement).getBoundingClientRect();
-    const next = (el.querySelector("p") as HTMLElement).getBoundingClientRect();
-    expect(mark.blockSize).toBe("2px");
-    expect(mark.insetBlockEnd).toBe("-1px");
     // Room for a 2px ring at a 2px offset on every side.
-    expect([tab.top - box.top, tab.left - box.left, box.bottom - tab.bottom]).toEqual([
+    const box = nav.getBoundingClientRect();
+    const link = current.getBoundingClientRect();
+    expect([link.top - box.top, link.left - box.left, box.bottom - link.bottom]).toEqual([
       expect.closeTo(4, 0),
       expect.closeTo(4, 0),
       expect.closeTo(4, 0),
     ]);
-    // The margins take that room back: the tabs sit where an unpadded strip
-    // with a 1px line under it would put them.
-    expect([tab.top, tab.left]).toEqual([
-      expect.closeTo(frame.top, 0),
-      expect.closeTo(frame.left, 0),
-    ]);
-    expect(next.top - tab.bottom).toBeCloseTo(1, 0);
-    expect(getComputedStyle(current).color).not.toBe(getComputedStyle(other).color);
+  });
+
+  it("draws .cp-link-tabs, the earlier name, as nav.cp-tabs", () => {
+    theme("light");
+    const strip = (cls: string) =>
+      `<nav class="${cls}" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a></nav>`;
+    const el = build(strip("cp-tabs") + strip("cp-link-tabs"));
+    const [now, then] = [...el.querySelectorAll("nav")] as [HTMLElement, HTMLElement];
+    const look = (n: HTMLElement) =>
+      [n, ...n.querySelectorAll<HTMLElement>("a")].map((x) => {
+        const cs = getComputedStyle(x);
+        return [
+          cs.display,
+          cs.backgroundColor,
+          cs.color,
+          cs.padding,
+          cs.blockSize,
+          cs.textDecorationLine,
+        ];
+      });
+    expect(look(then)).toEqual(look(now));
+  });
+
+  it("gives every segment of a segmented control the control's whole height as its target", () => {
+    theme("light");
+    for (const [tier, min] of [
+      ["fine", 32],
+      ["coarse", 44],
+    ] as const) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div style="padding: 40px"><div class="cp-segmented" role="radiogroup" aria-label="Theme"><label><input type="radio" name="hit" checked>System</label><label><input type="radio" name="hit">Light</label></div></div>',
+      );
+      const group = el.querySelector(".cp-segmented") as HTMLElement;
+      expect(group.getBoundingClientRect().height).toBe(min);
+      for (const label of group.querySelectorAll("label")) {
+        const input = label.querySelector("input") as HTMLInputElement;
+        const box = group.getBoundingClientRect();
+        const mid = label.getBoundingClientRect().left + label.getBoundingClientRect().width / 2;
+        expect(document.elementFromPoint(mid, box.top + 0.5)).toBe(input);
+        expect(document.elementFromPoint(mid, box.bottom - 0.5)).toBe(input);
+        expect(document.elementFromPoint(mid, box.top - 1)).not.toBe(input);
+      }
+      el.remove();
+    }
   });
 
   it("fills a selected tab itself until the pill is there, then paints the pill only", () => {
@@ -1831,23 +1880,26 @@ describe("css/system.css", () => {
   });
 
   it.skipIf(!emulates)(
-    "keeps the link tabs' line and the current mark in forced colours",
+    "outlines the current link, the selected tab and the chosen segment in forced colours",
     async () => {
       theme("light");
       await media("forced-colors", "active");
       const el = build(
-        '<nav class="cp-link-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a></nav>',
+        '<nav class="cp-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a></nav>' +
+          '<div class="cp-tabs" role="tablist" aria-label="Item"><button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button></div>' +
+          '<div class="cp-segmented" role="radiogroup" aria-label="Theme"><label><input type="radio" name="fc" checked>System</label></div>',
       );
-      const nav = el.querySelector("nav") as HTMLElement;
-      const mark = getComputedStyle(nav.querySelector("a") as HTMLElement, "::after");
       const system = build('<span style="color: CanvasText"></span>')
         .firstElementChild as HTMLElement;
       const ink = getComputedStyle(system).color;
-      expect(getComputedStyle(nav).backgroundImage).toContain(ink);
-      expect(mark.backgroundColor).toBe(ink);
-      expect(getComputedStyle(nav.querySelector("a") as HTMLElement).forcedColorAdjust).toBe(
-        "auto",
-      );
+      for (const chosen of el.querySelectorAll<HTMLElement>(
+        '[aria-current="page"], [aria-selected="true"], label',
+      )) {
+        const cs = getComputedStyle(chosen);
+        expect([cs.borderTopStyle, cs.borderTopColor]).toEqual(["solid", ink]);
+      }
+      const other = el.querySelector("a:not([aria-current])") as HTMLElement;
+      expect(getComputedStyle(other).borderTopStyle).toBe("none");
     },
   );
 
@@ -2000,7 +2052,14 @@ describe("css/system.css", () => {
     const radio = (light as HTMLLabelElement).querySelector("input") as HTMLInputElement;
     const box = radio.getBoundingClientRect();
     const label = (light as HTMLLabelElement).getBoundingClientRect();
-    expect([box.width, box.height]).toEqual([label.width, label.height]);
+    const group = (el.querySelector(".cp-segmented") as HTMLElement).getBoundingClientRect();
+    // The radio spans its label and the track's padding above and below it.
+    expect([box.left, box.width, box.top, box.height]).toEqual([
+      label.left,
+      label.width,
+      group.top,
+      group.height,
+    ]);
     radio.focus();
     await userEvent.keyboard("{ArrowLeft}");
     await new Promise((resolve) => setTimeout(resolve));

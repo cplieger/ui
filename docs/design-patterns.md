@@ -131,7 +131,9 @@ Tabs follow the WAI-ARIA tabs pattern:
 2. The tablist is one Tab stop, the selected tab. [tabs](navigation/tabs.md) moves focus between tabs with the arrow keys, Home and End, and slides the pill under the selected one.
 3. Moving focus selects the tab when its panel is already loaded. When a panel loads on demand, Enter or Space selects it instead.
 4. The selected tab is in the URL.
-5. When each tab is its own address, the tabs are links in a `.cp-link-tabs` nav and the current one carries `aria-current="page"`.
+5. When each tab is its own address, the tabs are links in a `<nav class="cp-tabs">` with an `aria-label`, and the current one carries `aria-current="page"`. They look like the tabs above and need no script.
+
+Tabs and the segmented control share one look, the sliding pill, and differ in what they do. Tabs switch the view: the panel or the page under them changes and the choice is a place, in the URL. A `.cp-segmented` sets a value, such as the theme or a chart's range, and is a field of its form. A list's List and Grid view is a value of the list, so it is a `.cp-segmented` with `data-variant="icons"`.
 
 ## Dialogs and sheets
 

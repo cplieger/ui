@@ -15,7 +15,6 @@ layout/app-frame/app-frame.css
 layout/gate/gate.css
 forms/form/form.css
 forms/switch/switch.css
-forms/segmented/segmented.css
 layout/settings/settings.css
 forms/field/input-row.css
 forms/file/file.css
@@ -76,7 +75,7 @@ layout/list-detail/list-detail.css
 layout/context-panel/context-panel.css
 navigation/rail/filters.css
 navigation/tabs/tabs.css
-navigation/link-tabs/link-tabs.css
+forms/segmented/segmented.css
 navigation/accordion/accordion.css
 feedback/progress/progress.css
 feedback/track/track.css
