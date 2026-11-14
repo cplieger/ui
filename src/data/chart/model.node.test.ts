@@ -283,7 +283,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box or pie mark and any rules and text marks",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks",
     );
   });
 
@@ -1052,7 +1052,7 @@ describe("the point mark", () => {
       "renderChart: a point's x must be above 0 on a log x",
     );
     expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
-      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "pie", "rule" or "text"',
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "pie", "tree", "rule" or "text"',
     );
   });
 
@@ -2351,6 +2351,232 @@ describe("the pie mark", () => {
     ];
     expect(() => build({ marks: [land({}, big)] })).toThrow(
       new RangeError("renderChart: a pie's total must lie within ±1e300"),
+    );
+  });
+});
+
+describe("the tree mark", () => {
+  const regions = (more: Record<string, unknown> = {}, nodes?: unknown) => ({
+    mark: "tree",
+    unit: { other: "USD" },
+    nodes: nodes ?? [
+      {
+        name: "Asia",
+        children: [
+          { name: "China", value: 17.8e12 },
+          { name: "Japan", value: 4.2e12 },
+          { name: "Other", value: null },
+        ],
+      },
+      {
+        name: "Europe",
+        slot: 7,
+        children: [
+          { name: "Germany", value: 4.5e12 },
+          { name: "Other", value: Number.NaN },
+        ],
+      },
+      { name: "Americas", children: [{ name: "United States", value: 27.4e12 }] },
+    ],
+    ...more,
+  });
+  const countries = (more: Record<string, unknown> = {}) =>
+    regions(more, [
+      { name: "United States", value: 27.4e12 },
+      { name: "China", slot: 3, value: 17.8e12 },
+      { name: "Germany", value: 4.5e12 },
+      { name: "Chad", value: 0 },
+    ]);
+
+  it("sums each group's parts, each part taking its group's slot and a group the series rule's", () => {
+    const model = build({ marks: [regions()] });
+    const m = model.marks[0];
+    expect(m?.kind).toBe("tree");
+    if (m?.kind !== "tree") {
+      return;
+    }
+    expect(m.groups).toEqual([
+      { name: "Asia", slot: 1, value: 22e12, first: 0, count: 3 },
+      { name: "Europe", slot: 7, value: 4.5e12, first: 3, count: 2 },
+      { name: "Americas", slot: 3, value: 27.4e12, first: 5, count: 1 },
+    ]);
+    expect(m.parts).toEqual([
+      { name: "China", slot: 1, value: 17.8e12, group: 0 },
+      { name: "Japan", slot: 1, value: 4.2e12, group: 0 },
+      { name: "Other", slot: 1, value: null, group: 0 },
+      { name: "Germany", slot: 7, value: 4.5e12, group: 1 },
+      { name: "Other", slot: 7, value: null, group: 1 },
+      { name: "United States", slot: 3, value: 27.4e12, group: 2 },
+    ]);
+    expect(m.total).toBe(53.9e12);
+    expect(model.kind).toBe("treemap");
+    expect(model.amountText(m.total)).toBe("53,900,000,000,000");
+  });
+
+  it("fills one level's tiles with the mark's slot, 1 by default, a part's own slot picking it out", () => {
+    const one = build({ marks: [countries()] }).marks[0];
+    const slotted = build({ marks: [countries({ slot: 4 })] }).marks[0];
+    expect(one?.kind === "tree" && one.parts.map((p) => [p.slot, p.group])).toEqual([
+      [1, -1],
+      [3, -1],
+      [1, -1],
+      [1, -1],
+    ]);
+    expect(one?.kind === "tree" && one.groups).toEqual([]);
+    expect(slotted?.kind === "tree" && slotted.parts.map((p) => p.slot)).toEqual([4, 3, 4, 4]);
+  });
+
+  it("writes values in its own format and is empty when every part is 0 or no data", () => {
+    expect(build({ marks: [countries({ format: "integer" })] }).amountText(1.5e3)).toBe("1,500");
+    const none = [
+      { name: "A", value: 0 },
+      { name: "B", value: null },
+    ];
+    expect(build({ marks: [regions({}, none)] }).empty).toBe(true);
+    expect(build({ marks: [regions({}, [{ name: "G", children: none }])] }).empty).toBe(true);
+    expect(build({ marks: [regions({}, [])] }).empty).toBe(true);
+    expect(build({ marks: [countries()] }).empty).toBe(false);
+  });
+
+  it("refuses scales, rules and notes, which have no axis to sit on", () => {
+    expect(() => build({ x: {}, marks: [countries()] })).toThrow(
+      new TypeError("renderChart: a tree takes no x scale; it has no axes"),
+    );
+    expect(() => build({ y: {}, marks: [countries()] })).toThrow(
+      new TypeError("renderChart: a tree takes no y scale; it has no axes"),
+    );
+    expect(() => build({ marks: [countries(), { mark: "rule", x: 1, label: "Target" }] })).toThrow(
+      new TypeError(
+        "renderChart: marks[1] is a rule mark beside a tree, which has no scale to place it on",
+      ),
+    );
+    expect(() =>
+      build({ marks: [{ mark: "text", x: 1, y: 1, text: "Note" }, countries()] }),
+    ).toThrow(
+      new TypeError(
+        "renderChart: marks[0] is a text mark beside a tree, which has no scale to place it on",
+      ),
+    );
+    expect(() => build({ marks: [countries(), rect([1])] })).toThrow(TypeError);
+  });
+
+  it("refuses a third level, mixed levels, empty groups and slots on grouped parts with a TypeError", () => {
+    const group = (children: unknown, more: Record<string, unknown> = {}) => ({
+      name: "G",
+      children,
+      ...more,
+    });
+    const cases: [unknown, string][] = [
+      [regions({}, "nodes"), "marks[0].nodes must be an array"],
+      [
+        regions({}, [{ name: "A" }]),
+        "marks[0].nodes[0] must hold a value or children, not both or neither",
+      ],
+      [
+        regions({}, [group([{ name: "a", value: 1 }], { value: 1 })]),
+        "marks[0].nodes[0] must hold a value or children, not both or neither",
+      ],
+      [
+        regions({}, [group([{ name: "a", children: [{ name: "x", value: 1 }] }])]),
+        "marks[0].nodes[0].children[0] cannot hold children; a tree has two levels at most",
+      ],
+      [
+        regions({}, [{ name: "A", value: 1 }, group([{ name: "a", value: 1 }])]),
+        "marks[0].nodes must be all parts or all groups",
+      ],
+      [regions({}, [group([])]), "marks[0].nodes[0].children must hold a part"],
+      [regions({}, [group("parts")]), "marks[0].nodes[0].children must be an array"],
+      [regions({}, [group([{ name: "a" }])]), "marks[0].nodes[0].children[0] must hold a value"],
+      [
+        regions({}, [group([{ name: "a", slot: 2, value: 1 }])]),
+        "marks[0].nodes[0].children[0].slot has no place inside a group, whose slot its parts take",
+      ],
+      [regions({ slot: 2 }), "marks[0].slot has no place beside groups, which take a slot each"],
+      [regions({}, [{ value: 1 }]), "marks[0].nodes[0] must have a name"],
+      [
+        regions({}, [group([{ name: 3, value: 1 }])]),
+        "marks[0].nodes[0].children[0] must have a name",
+      ],
+      [
+        regions({}, [{ name: "A", value: "1" }]),
+        "marks[0].nodes[0].value must be a number or null",
+      ],
+    ];
+    for (const [bad, message] of cases) {
+      expect(() => build({ marks: [bad] }), message).toThrow(
+        new TypeError(`renderChart: ${message}`),
+      );
+    }
+    for (const bad of [
+      countries({ unit: "USD" }),
+      countries({ format: "money" }),
+      countries({ slot: "1" }),
+    ]) {
+      expect(() => build({ marks: [bad] }), JSON.stringify(bad)).toThrow(TypeError);
+    }
+  });
+
+  it("refuses negative, infinite, unnamed and repeated siblings with a RangeError", () => {
+    const parts = (part: Record<string, unknown>) => regions({}, [{ name: "A", value: 1 }, part]);
+    const cases: [unknown, string][] = [
+      [
+        parts({ name: "B", value: -1 }),
+        "marks[0].nodes[1].value cannot be negative; a part is a part of the whole",
+      ],
+      [
+        parts({ name: "B", value: Number.NEGATIVE_INFINITY }),
+        "marks[0].nodes[1].value cannot be infinite",
+      ],
+      [parts({ name: "B", value: 1e301 }), "marks[0].nodes[1].value must lie within ±1e300"],
+      [parts({ name: "", value: 1 }), 'marks[0].nodes must name each node once, never ""'],
+      [parts({ name: "A", value: 2 }), 'marks[0].nodes must name each node once, never ""'],
+      [parts({ name: "B", slot: 10, value: 1 }), "marks[0].nodes[1].slot must be 1 to 9"],
+      [
+        regions({}, [
+          {
+            name: "G",
+            children: [
+              { name: "a", value: 1 },
+              { name: "a", value: 2 },
+            ],
+          },
+        ]),
+        'marks[0].nodes[0].children must name each part once, never ""',
+      ],
+      [
+        regions({}, [{ name: "G", children: [{ name: "a", value: -2 }] }]),
+        "marks[0].nodes[0].children[0].value cannot be negative; a part is a part of the whole",
+      ],
+      [
+        regions(
+          {},
+          Array.from({ length: 10 }, (_, g) => ({
+            name: `G${String(g)}`,
+            children: [{ name: "a", value: 1 }],
+          })),
+        ),
+        "marks[0].nodes[9] needs a slot, since series past the ninth take none of their own",
+      ],
+    ];
+    for (const [bad, message] of cases) {
+      expect(() => build({ marks: [bad] }), message).toThrow(
+        new RangeError(`renderChart: ${message}`),
+      );
+    }
+    // Two groups may each hold an "Other": only siblings must differ.
+    expect(() => build({ marks: [regions()] })).not.toThrow();
+    // Parts of one level take the mark's slot, so a tenth needs none of its own.
+    const many = Array.from({ length: 30 }, (_, i) => ({ name: `P${String(i)}`, value: i + 1 }));
+    expect(build({ marks: [regions({}, many)] }).empty).toBe(false);
+  });
+
+  it("refuses a total past what a scale holds", () => {
+    const big = [
+      { name: "A", value: 1e300 },
+      { name: "B", value: 1e300 },
+    ];
+    expect(() => build({ marks: [regions({}, big)] })).toThrow(
+      new RangeError("renderChart: a tree's total must lie within ±1e300"),
     );
   });
 });

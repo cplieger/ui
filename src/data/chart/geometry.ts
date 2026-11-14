@@ -3,7 +3,8 @@
  * px, y down: rects with their gaps, lines and areas reduced per device
  * pixel and cut at the plot's ends, rows of dots, bars and points along
  * their rows, a slope's lines and ends, a scatter's dots, a grid's cells,
- * boxes with their whiskers and outliers, a pie's slices, rules and the axis lines.
+ * boxes with their whiskers and outliers, a pie's slices, a treemap's tiles,
+ * rules and the axis lines.
  * @module
  */
 
@@ -32,7 +33,9 @@ import {
   type SampleModel,
   type ScatterModel,
   type SlopeModel,
+  type TreeModel,
 } from "./model.js";
+import type { Box } from "./notes.js";
 import type { Continuous } from "./scales.js";
 
 /** The px a device pixel grid is snapped to at `dpr`. */
@@ -1257,3 +1260,20 @@ export const piePaths = (m: PieModel, p: PieFrame): { slot: number; d: string }[
     slot: m.slices[s.index]?.slot ?? 1,
     d: slicePath(p, s.from, s.to),
   }));
+
+/** A tree's tiles, one path per slot in the order the slots first appear. */
+export function treePaths(
+  m: TreeModel,
+  tiles: readonly (Box | undefined)[],
+): { slot: number; d: string }[] {
+  const paths = new Map<number, string>();
+  tiles.forEach((b, i) => {
+    if (b === undefined || b.right <= b.left || b.bottom <= b.top) {
+      return;
+    }
+    const slot = m.parts[i]?.slot ?? 1;
+    const d = `M${num(b.left)} ${num(b.top)}H${num(b.right)}V${num(b.bottom)}H${num(b.left)}Z`;
+    paths.set(slot, (paths.get(slot) ?? "") + d);
+  });
+  return Array.from(paths, ([slot, d]) => ({ slot, d }));
+}

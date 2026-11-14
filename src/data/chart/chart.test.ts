@@ -944,6 +944,32 @@ describe("the drawing under update and resize", () => {
     });
   });
 
+  it("keeps a treemap's rows on an update of the same names, and lays out afresh on new names", () => {
+    const gdp = [27.4, 17.8, 4.5, 4.2, 3.7, 3.3, 3, 2.2, 2.1, 1.7, 1.4, 1.2, 1.1, 0.9, 0.5, 0.3];
+    const moved = gdp.map((v, i) => (i === 0 ? v * 0.4 : i === 1 ? v * 2.5 : v));
+    const tree = (values: readonly number[], prefix = "C"): ChartSpec => ({
+      marks: [
+        {
+          mark: "tree",
+          nodes: values.map((value, i) => ({ name: `${prefix}${String(i)}`, value })),
+        },
+      ],
+    });
+    const tiles = (b: Built) =>
+      b.figure.querySelector('svg [data-part="tree"] path')?.getAttribute("d") ?? "";
+    const fresh = build();
+    start(tree(moved), fresh);
+    const b = build();
+    const chart = start(tree(gdp), b);
+    const before = tiles(b);
+    chart.update(tree(moved));
+    // The edges moved, along the rows the first values made, not afresh.
+    expect(tiles(b)).not.toBe(before);
+    expect(tiles(b)).not.toBe(tiles(fresh));
+    chart.update(tree(moved, "D"));
+    expect(tiles(b)).toBe(tiles(fresh));
+  });
+
   it("measures afresh on a resize, with no two x labels overlapping", async () => {
     const b = build({ width: 1200 });
     start(counts(9), b);

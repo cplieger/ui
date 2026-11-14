@@ -13,7 +13,7 @@ import { forgetMeasures } from "../scale/measure.js";
 
 import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
-import { layout, type Floors } from "./layout.js";
+import { layout, type Floors, type TreeKept } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { chipChosen, overall, readoutWidths, totalWord, type Widths } from "./readout.js";
 import type { ChartSpec } from "./spec.js";
@@ -189,6 +189,8 @@ export function renderChart(
   let drawnBox: number | undefined;
   // The last drawing numbered its notes, so the list below the plot is shown.
   let listed = false;
+  // A treemap's rows, which an update of the same names keeps.
+  let kept: TreeKept | undefined;
 
   let timing: SkeletonTimingController | undefined;
   let committed = false;
@@ -267,8 +269,9 @@ export function renderChart(
     plotStale = false;
     const metrics = readMetrics(plot, locale);
     drawnBox = chartWidth();
-    const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox);
+    const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox, kept);
     floors = lay.gutters;
+    kept = lay.tree?.kept;
     drawPlot(svg, drawn, lay);
     listed = lay.numbered;
     if (listed) {

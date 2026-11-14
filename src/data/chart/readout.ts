@@ -28,6 +28,7 @@ import {
   type LineModel,
   type Model,
   type PieModel,
+  type TreeModel,
   type PointModel,
   type PointSeriesModel,
   type RectModel,
@@ -73,7 +74,8 @@ type Primary =
   | CellModel
   | CalendarModel
   | BoxModel
-  | PieModel;
+  | PieModel
+  | TreeModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -581,8 +583,8 @@ export function dayReading(model: Model, m: CalendarModel, i: number, words: Wor
   };
 }
 
-/** A slice's value, or a pie's whole, in the pie's unit. */
-export const pieAmount = (model: Model, m: PieModel, v: number): string =>
+/** A pie's or a tree's part, or its whole, in its mark's unit. */
+export const partAmount = (model: Model, m: PieModel | TreeModel, v: number): string =>
   counted(model.amountText(v), v, m.unit, model);
 
 /** Slice `i`'s share of its pie's whole; No data for a gap. */
@@ -602,26 +604,41 @@ export function sliceReading(model: Model, m: PieModel, i: number, words: Words)
   const s = m.slices[i];
   const v = s?.value ?? null;
   return {
-    at: `${s?.name ?? ""} ${v === null ? words.noData : pieAmount(model, m, v)}`,
+    at: `${s?.name ?? ""} ${v === null ? words.noData : partAmount(model, m, v)}`,
     entries: sliceChips(model, m, words),
     total: undefined,
     chosen: i,
   };
 }
 
-/** How many slices a pie holds, through `words.parts`. */
-export function partsText(model: Model, m: PieModel, words: Words): string {
-  const n = m.slices.length;
+/** How many slices a pie or parts a tree holds, through `words.parts`. */
+export function partsText(model: Model, m: PieModel | TreeModel, words: Words): string {
+  const n = m.kind === "pie" ? m.slices.length : m.parts.length;
   return words.parts(writer("number", model.locale)(n), n);
 }
+
+/** How many groups a tree holds, through `words.groups`; "" with one level. */
+export function groupsText(model: Model, m: TreeModel, words: Words): string {
+  const n = m.groups.length;
+  return n === 0 ? "" : words.groups(writer("number", model.locale)(n), n);
+}
+
+/** A tree's group chips, in group order, each with its share; none with
+ *  one level, whose parts share a slot and are named by their labels. */
+const groupChips = (model: Model, m: TreeModel): Entry[] =>
+  m.groups.map((g) => ({
+    slot: g.slot,
+    name: g.name,
+    value: model.shareText(m.total > 0 ? g.value / m.total : 0),
+  }));
 
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
  *  values, an area's last whole stack, a bar or point chart's row count,
  *  a slope's right column, a scatter's dot count, blank slots for its
  *  measures and from two series up each one's count, a cell chart's
- *  cell count, a calendar's day count, a box chart's row count, or a
- *  pie's total with each slice's share. */
+ *  cell count, a calendar's day count, a box chart's row count, a pie's
+ *  total with each slice's share, or a tree's total with each group's. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -711,8 +728,14 @@ export function overall(model: Model, words: Words): Reading | undefined {
       };
     case "pie":
       return {
-        at: `${words.total} ${pieAmount(model, m, m.total)}`,
+        at: `${words.total} ${partAmount(model, m, m.total)}`,
         entries: sliceChips(model, m, words),
+        total: undefined,
+      };
+    case "tree":
+      return {
+        at: `${words.total} ${partAmount(model, m, m.total)}`,
+        entries: groupChips(model, m),
         total: undefined,
       };
   }

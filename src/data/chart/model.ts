@@ -40,6 +40,7 @@ import type {
   PointMark,
   RectMark,
   ScatterMark,
+  TreeMark,
 } from "./spec.js";
 
 type Kind =
@@ -73,7 +74,8 @@ type Kind =
   | "calendar"
   | "box"
   | "pie"
-  | "donut";
+  | "donut"
+  | "treemap";
 
 export interface SeriesModel {
   readonly name: string;
@@ -455,6 +457,36 @@ export interface PieModel {
   readonly total: number;
 }
 
+interface TreePartModel {
+  readonly name: string;
+  readonly slot: number;
+  /** Its value, a gap (`null` or `NaN`) as `null`. */
+  readonly value: number | null;
+  /** Its group's index, -1 with one level. */
+  readonly group: number;
+}
+
+interface TreeGroupModel {
+  readonly name: string;
+  readonly slot: number;
+  /** The sum of its parts' values. */
+  readonly value: number;
+  /** Its parts are `parts[first]` to `parts[first + count - 1]`. */
+  readonly first: number;
+  readonly count: number;
+}
+
+/** A treemap's whole: its groups, none with one level, and every part in
+ *  the app's order, each group's parts together. */
+export interface TreeModel {
+  readonly kind: "tree";
+  readonly unit: Unit | undefined;
+  readonly groups: readonly TreeGroupModel[];
+  readonly parts: readonly TreePartModel[];
+  /** The sum of the values, in part order. */
+  readonly total: number;
+}
+
 /** The day of `m` holding instant `t` on the chart's wall clock; -1 outside its days. */
 export function dayOf(model: Model, m: CalendarModel, t: number): number {
   const i = localDay(t, model.timeZone) - m.day;
@@ -498,6 +530,7 @@ type MarkModel =
   | CalendarModel
   | BoxModel
   | PieModel
+  | TreeModel
   | RuleModel
   | TextModel;
 
@@ -527,10 +560,10 @@ export interface Model {
    *  writes its days. */
   readonly dateText: (day: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
-   *  bar, point or box chart, else `yText`), a pie's own format, or a plain
-   *  number under "share", whose axis writes shares. */
+   *  bar, point or box chart, else `yText`), a pie's or a tree's own
+   *  format, or a plain number under "share", whose axis writes shares. */
   readonly amountText: (v: number) => string;
-  /** A share of a whole, a pie's slice's (`shareWriter`). */
+  /** A share of a whole, a pie's slice's or a tree's part's (`shareWriter`). */
   readonly shareText: (v: number) => string;
   /** The width keys of `xText` off a time x and named columns, `yText`, `rText`
    *  and `amountText`; undefined where a format has none. */
@@ -1035,16 +1068,91 @@ function checkPie(mark: Record<string, unknown>, what: string): void {
       fail(`${what}.slices must name each slice once, never ""`, RangeError);
     }
     seen.add(name);
-    if (value !== null && typeof value !== "number") {
-      fail(`${at}.value must be a number or null`);
+    checkPart(value, at, "a slice");
+  }
+}
+
+// A part's value, of a pie's slice or a tree's part: 0 or more, or no data.
+function checkPart(value: unknown, at: string, of: string): void {
+  if (value !== null && typeof value !== "number") {
+    fail(`${at}.value must be a number or null`);
+  }
+  if (value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY) {
+    fail(`${at}.value cannot be infinite`, RangeError);
+  }
+  if (typeof value === "number" && value < 0) {
+    fail(`${at}.value cannot be negative; ${of} is a part of the whole`, RangeError);
+  }
+  within([value], `${at}.value`);
+}
+
+// Siblings' names tell them apart in the legend row, the readings and the
+// table; two groups may each hold an "Other".
+function checkSiblings(list: ArrayLike<unknown>, what: string, of: string): void {
+  const seen = new Set<unknown>();
+  for (let k = 0; k < list.length; k++) {
+    const one = list[k];
+    if (!isObject(one) || typeof one["name"] !== "string") {
+      fail(`${what}[${String(k)}] must have a name`);
     }
-    if (value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY) {
-      fail(`${at}.value cannot be infinite`, RangeError);
+    const name = one["name"];
+    if (name === "" || seen.has(name)) {
+      fail(`${what} must name each ${of} once, never ""`, RangeError);
     }
-    if (typeof value === "number" && value < 0) {
-      fail(`${at}.value cannot be negative; a slice is a part of the whole`, RangeError);
+    seen.add(name);
+  }
+}
+
+function checkTree(mark: Record<string, unknown>, what: string): void {
+  checkUnit(mark["unit"], what);
+  checkFormat(mark["format"], what);
+  checkSlot(mark["slot"], what);
+  const nodes = mark["nodes"];
+  if (!arrayLike(nodes)) {
+    fail(`${what}.nodes must be an array`);
+  }
+  checkSiblings(nodes, `${what}.nodes`, "node");
+  const grouped = isObject(nodes[0]) && nodes[0]["children"] !== undefined;
+  if (grouped && mark["slot"] !== undefined) {
+    fail(`${what}.slot has no place beside groups, which take a slot each`);
+  }
+  for (let k = 0; k < nodes.length; k++) {
+    const node = nodes[k] as Record<string, unknown>;
+    const at = `${what}.nodes[${String(k)}]`;
+    const children = node["children"];
+    if ((children !== undefined) === (node["value"] !== undefined)) {
+      fail(`${at} must hold a value or children, not both or neither`);
     }
-    within([value], `${at}.value`);
+    if ((children !== undefined) !== grouped) {
+      fail(`${what}.nodes must be all parts or all groups`);
+    }
+    if (children === undefined) {
+      checkSlot(node["slot"], at);
+      checkPart(node["value"], at, "a part");
+      continue;
+    }
+    checkSeriesHead(node, k, at);
+    if (!arrayLike(children)) {
+      fail(`${at}.children must be an array`);
+    }
+    if (children.length === 0) {
+      fail(`${at}.children must hold a part`);
+    }
+    checkSiblings(children, `${at}.children`, "part");
+    for (let c = 0; c < children.length; c++) {
+      const part = children[c] as Record<string, unknown>;
+      const on = `${at}.children[${String(c)}]`;
+      if (part["children"] !== undefined) {
+        fail(`${on} cannot hold children; a tree has two levels at most`);
+      }
+      if (part["value"] === undefined) {
+        fail(`${on} must hold a value`);
+      }
+      if (part["slot"] !== undefined) {
+        fail(`${on}.slot has no place inside a group, whose slot its parts take`);
+      }
+      checkPart(part["value"], on, "a part");
+    }
   }
 }
 
@@ -1221,6 +1329,9 @@ function checkMark(mark: unknown, what: string): void {
     case "pie":
       checkPie(mark, what);
       return;
+    case "tree":
+      checkTree(mark, what);
+      return;
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -1258,7 +1369,7 @@ function checkMark(mark: unknown, what: string): void {
     }
     default:
       fail(
-        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "pie", "rule" or "text"`,
+        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "pie", "tree", "rule" or "text"`,
       );
   }
 }
@@ -1303,19 +1414,20 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box or pie mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks`,
       );
     }
     data = m;
   }
   const height = spec["height"];
   const primary = marks[data];
-  if (isObject(primary) && primary["mark"] === "pie") {
+  const whole = isObject(primary) ? primary["mark"] : undefined;
+  if (whole === "pie" || whole === "tree") {
     for (let m = 0; m < marks.length; m++) {
       const mark = marks[m];
       if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
         fail(
-          `marks[${String(m)}] is a ${mark["mark"]} mark beside a pie, which has no scale to place it on`,
+          `marks[${String(m)}] is a ${mark["mark"]} mark beside a ${whole}, which has no scale to place it on`,
         );
       }
     }
@@ -1458,6 +1570,38 @@ function pieModel(mark: PieMark): PieModel {
   };
 }
 
+// The check holds the nodes all parts or all groups of parts.
+function treeModel(mark: TreeMark): TreeModel {
+  const gap = (v: number | null): number | null => (v === null || Number.isNaN(v) ? null : v);
+  const groups: TreeGroupModel[] = [];
+  const parts: TreePartModel[] = [];
+  mark.nodes.forEach((node, g) => {
+    if (!("children" in node)) {
+      parts.push({
+        name: node.name,
+        slot: node.slot ?? mark.slot ?? 1,
+        value: gap(node.value),
+        group: -1,
+      });
+      return;
+    }
+    const slot = node.slot ?? g + 1;
+    const first = parts.length;
+    let value = 0;
+    for (const p of node.children) {
+      const v = gap(p.value);
+      value += v ?? 0;
+      parts.push({ name: p.name, slot, value: v, group: g });
+    }
+    groups.push({ name: node.name, slot, value, first, count: node.children.length });
+  });
+  const total = parts.reduce((n, p) => n + (p.value ?? 0), 0);
+  if (total > LIMIT) {
+    fail("a tree's total must lie within ±1e300", RangeError);
+  }
+  return { kind: "tree", unit: mark.unit, groups, parts, total };
+}
+
 /** One series with a value below 0: its bars run either side of the zero
  *  line, and every value not written as 0 carries its sign. */
 const signedBar = (m: BarModel): boolean =>
@@ -1548,6 +1692,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       return "box";
     case "pie":
       return first.hole ? "donut" : "pie";
+    case "tree":
+      return "treemap";
   }
 }
 
@@ -1581,6 +1727,7 @@ function hasData(m: MarkModel, x: Continuous): boolean {
     case "box":
       return m.series.some((s) => s.boxes.some((b) => b !== null));
     case "pie":
+    case "tree":
       return m.total > 0;
     case "rule":
     case "text":
@@ -1778,6 +1925,8 @@ export function chartModel(
         return { kind: "box", whiskers: m.whiskers, series: boxSeries(m.series) };
       case "pie":
         return pieModel(m);
+      case "tree":
+        return treeModel(m);
       case "slope":
         return { kind: "slope", columns: m.x, series: series(m.series) };
       case "scatter":
@@ -1858,9 +2007,11 @@ export function chartModel(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
   const bars = marks.some((m) => m.kind === "bar" || m.kind === "point" || m.kind === "box");
-  // A pie has no scale, so its mark carries its format.
-  const pie = spec.marks.find((m): m is PieMark => m.mark === "pie");
-  const amount = pie !== undefined ? pie.format : share ? "number" : undefined;
+  // A pie and a tree have no scale, so their mark carries their format.
+  const whole = spec.marks.find(
+    (m): m is PieMark | TreeMark => m.mark === "pie" || m.mark === "tree",
+  );
+  const amount = whole !== undefined ? whole.format : share ? "number" : undefined;
   const xKey = named !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
   const yKey = y.type === "band" ? undefined : widthKey(y.format, locale);
   return {
@@ -1876,13 +2027,13 @@ export function chartModel(
     rText,
     colourText,
     dateText,
-    amountText: pie !== undefined || share ? writer(amount, locale) : bars ? xText : yText,
+    amountText: whole !== undefined || share ? writer(amount, locale) : bars ? xText : yText,
     shareText: shareWriter(locale),
     widthKeys: {
       x: xKey,
       y: yKey,
       r: widthKey(size?.format, locale),
-      amount: pie !== undefined || share ? widthKey(amount, locale) : bars ? xKey : yKey,
+      amount: whole !== undefined || share ? widthKey(amount, locale) : bars ? xKey : yKey,
       colour: widthKey(spec.colour?.format, locale),
     },
     locale,

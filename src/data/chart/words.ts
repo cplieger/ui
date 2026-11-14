@@ -36,7 +36,8 @@ type Kind =
   | "calendar"
   | "box"
   | "pie"
-  | "donut";
+  | "donut"
+  | "treemap";
 
 /** A box plot's measure names. Defaults "Low", "Lower quartile", "Median",
  *  "Upper quartile", "High", "Outliers", "Middle half", "Whiskers". */
@@ -63,7 +64,8 @@ export interface ChartWords {
    *  diverging one; two or more take their arrangement's kind. An area mark, or a rect with
    *  shape "area", is an area chart; a scatter whose series carry r a bubble chart; a cell
    *  mark a heatmap, a 2D histogram when both axes are binned, or a calendar heatmap with
-   *  days; a box mark a box plot; a pie mark a pie chart, or with `hole` a donut chart. */
+   *  days; a box mark a box plot; a pie mark a pie chart, or with `hole` a donut chart; a
+   *  tree mark a treemap. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -164,9 +166,12 @@ export interface ChartWords {
    *  the short description; count is n as a number, for the plural.
    *  Default "{n} days", or "{n} day" for one. */
   readonly days?: (n: string, count: number) => string;
-  /** A pie's slices in the short description; count is n as a number, for
-   *  the plural. Default "{n} parts", or "{n} part" for one. */
+  /** A pie's slices or a tree's parts in the short description; count is n
+   *  as a number, for the plural. Default "{n} parts", or "{n} part" for one. */
   readonly parts?: (n: string, count: number) => string;
+  /** A tree's groups in the short description, before its parts; count is n
+   *  as a number. Default "{n} groups", or "{n} group" for one. */
+  readonly groups?: (n: string, count: number) => string;
   /** Summary, a pie; parts are "{name} {share}" in slice order, joined by
    *  ", ". Default "{total}: {parts}." */
   readonly partsSummary?: (total: string, parts: string) => string;
@@ -289,6 +294,7 @@ const DEFAULTS: Words = {
     box: "Box plot",
     pie: "Pie chart",
     donut: "Donut chart",
+    treemap: "Treemap",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -334,6 +340,7 @@ const DEFAULTS: Words = {
   cells: (n, count) => (count === 1 ? `${n} cell` : `${n} cells`),
   days: (n, count) => (count === 1 ? `${n} day` : `${n} days`),
   parts: (n, count) => (count === 1 ? `${n} part` : `${n} parts`),
+  groups: (n, count) => (count === 1 ? `${n} group` : `${n} groups`),
   partsSummary: (total, parts) => `${total}: ${parts}.`,
   cellPlace: (column, row) => `${row}, ${column}`,
   cellSummary: (count, high, low) =>

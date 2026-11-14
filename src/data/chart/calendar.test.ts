@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { spoken } from "../../feedback/test-helpers/spoken.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { weekStartOf } from "./calendar.js";
@@ -120,9 +121,7 @@ describe("a calendar heatmap drawn", () => {
   it("selects the newest day on focus, rings it and turns its weekday name ink", async () => {
     const { plot, svg } = build(year(), 900);
     plot.focus();
-    await expect
-      .poll(() => document.querySelector('[aria-live="polite"]')?.textContent ?? "")
-      .toBe(`${full.format(Date.UTC(2026, 11, 31))}: 18\u00A0posts.`);
+    await spoken(`${full.format(Date.UTC(2026, 11, 31))}: 18\u00A0posts.`);
     expect(svg.querySelector('[data-part="ring"]')).not.toBeNull();
     const selected = [...svg.querySelectorAll("text[data-selected]")].map((t) => t.textContent);
     expect(selected).toEqual(["Thu"]);

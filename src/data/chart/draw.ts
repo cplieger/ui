@@ -44,6 +44,7 @@ import {
   snap,
   type Segment,
   tickPath,
+  treePaths,
   upright,
 } from "./geometry.js";
 import { dayPlace } from "./calendar.js";
@@ -373,6 +374,17 @@ function plotArea(model: Model, lay: Layout): SVGElement {
           hole.lastElementChild?.setAttribute("data-hole", "");
           area.append(hole);
         }
+        break;
+      }
+      case "tree": {
+        if (lay.tree === undefined) {
+          break;
+        }
+        const g = svgEl("g", { "data-part": "tree" });
+        for (const p of treePaths(m, lay.tree.tiles)) {
+          g.append(svgEl("path", { "data-series": String(p.slot), d: p.d }));
+        }
+        area.append(g, texts("tile", lay.tree.labels));
         break;
       }
       case "rule":

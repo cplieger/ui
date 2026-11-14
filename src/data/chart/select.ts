@@ -46,7 +46,7 @@ import {
   columnReading,
   measureText,
   partText,
-  pieAmount,
+  partAmount,
   pointPart,
   pointReading,
   postReading,
@@ -238,6 +238,8 @@ export function initial(model: Model): Selection | undefined {
       return m.values.length === 0 ? undefined : { kind: "day", i: m.values.length - 1 };
     case "pie":
       return m.slices.length === 0 ? undefined : { kind: "slice", i: 0 };
+    case "tree":
+      return undefined;
   }
 }
 
@@ -578,11 +580,11 @@ export interface Navigator {
   crosshair(sel: Selection): number | undefined;
   /** A touch drag moves the selection; on a bar, point, box or scatter
    *  chart only a tap does, since a vertical drag is the page's scroll,
-   *  and on a pie, which has no axis to drag along. */
+   *  and on a pie or a tree, which have no axis to drag along. */
   readonly drags: boolean;
   /** Page Up and Page Down move the selection; on a slope, whose two
-   *  columns have no ticks to page by, and on a pie, which has no ticks,
-   *  they are the page's. */
+   *  columns have no ticks to page by, and on a pie or a tree, which have
+   *  no ticks, they are the page's. */
   readonly pages: boolean;
   /** A touch drag keeps the row it began on, as along a cell chart's row. */
   readonly alongRow: boolean;
@@ -681,7 +683,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "pie") {
         return sel.kind === "slice" ? moveSlice(m.slices.length, sel.i, key) : undefined;
       }
-      if (sel.kind !== m.kind) {
+      if (m.kind === "tree" || sel.kind !== m.kind) {
         return undefined;
       }
       if (key === "ArrowUp" || key === "ArrowDown") {
@@ -701,6 +703,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
     pick(px, py) {
       switch (m?.kind) {
         case undefined:
+        case "tree":
           return undefined;
         case "pie": {
           const i = sliceAt(slicesOf(m), lay, px, py);
@@ -821,8 +824,9 @@ export function navigator(model: Model, lay: Layout): Navigator {
       m?.kind !== "point" &&
       m?.kind !== "box" &&
       m?.kind !== "scatter" &&
-      m?.kind !== "pie",
-    pages: m?.kind !== "slope" && m?.kind !== "pie",
+      m?.kind !== "pie" &&
+      m?.kind !== "tree",
+    pages: m?.kind !== "slope" && m?.kind !== "pie" && m?.kind !== "tree",
     alongRow: m?.kind === "cell" || m?.kind === "calendar",
   };
 }
@@ -1080,8 +1084,8 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
       ? words.reading(s?.name ?? "", words.noData, "")
       : words.reading(
           s?.name ?? "",
-          `${pieAmount(model, m, v)}, ${sliceShare(model, m, sel.i, words)}`,
-          pieAmount(model, m, m.total),
+          `${partAmount(model, m, v)}, ${sliceShare(model, m, sel.i, words)}`,
+          partAmount(model, m, m.total),
         );
   } else if (sel.kind === "scatter" && m.kind === "scatter") {
     // The dot's series, then each measure; the chips' counts are the chart's, not the dot's.

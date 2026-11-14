@@ -5,7 +5,7 @@ import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
 import { barSegments } from "./geometry.js";
-import { dodge, layout, type Metrics } from "./layout.js";
+import { dodge, layout, type Metrics, type TreeKept } from "./layout.js";
 import { chartModel, type BarModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
@@ -1382,5 +1382,149 @@ describe("a pie", () => {
     };
     expect(phone(small).hole?.total.text).toBe("4,210\u00A0GB");
     expect(wide(land()).hole).toBeUndefined();
+  });
+});
+
+describe("a treemap", () => {
+  const regions = (
+    asia: readonly (number | null)[] = [3, 1],
+    europe = 4,
+    more: Partial<ChartSpec> = {},
+  ): ChartSpec => ({
+    ...more,
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: asia[0] ?? null },
+              { name: "Japan", value: asia[1] ?? null },
+            ],
+          },
+          { name: "Europe", children: [{ name: "Germany", value: europe }] },
+        ],
+      },
+    ],
+  });
+  const parts = (values: readonly (number | null)[], more: Partial<ChartSpec> = {}): ChartSpec => ({
+    ...more,
+    marks: [
+      {
+        mark: "tree",
+        nodes: values.map((value, i) => ({ name: `Country ${String(i + 1)}`, value })),
+      },
+    ],
+  });
+  const box = (b: { left: number; top: number; right: number; bottom: number } | undefined) =>
+    b === undefined ? undefined : [b.left, b.top, b.right, b.bottom];
+
+  it("sets groups 4 px apart and parts 1 px apart, the outer edges flush with the plot", () => {
+    // Two groups of 4 squarify into two upright halves of the 604 by 244 px
+    // the 2 px insets grow the plot to; Asia's 3 and 1 split 299 px 3 to 1.
+    const l = lay(regions(), 600);
+    expect([l.width, l.height, l.left, l.top]).toEqual([600, 240, 0, 0]);
+    expect(l.tree?.groups.map(box)).toEqual([
+      [0, 0, 298, 240],
+      [302, 0, 600, 240],
+    ]);
+    expect(l.tree?.tiles.map(box)).toEqual([
+      [0, 18, 223, 240],
+      [224, 18, 298, 240],
+      [302, 18, 600, 240],
+    ]);
+    expect(l.xLabels).toEqual([]);
+    expect(l.yAxis).toBeUndefined();
+  });
+
+  it("heads a group of 48 by 54 px or more with its muted name in an 18 px band", () => {
+    const l = lay(regions(), 600);
+    expect(l.heads).toEqual([
+      { text: "Asia", x: 4, y: 9, anchor: "start", series: 0 },
+      { text: "Europe", x: 306, y: 9, anchor: "start", series: 1 },
+    ]);
+    const short = lay(regions([3, 1], 4, { height: 53 }), 600);
+    expect(short.heads).toEqual([]);
+    expect(short.tree?.tiles.map((t) => t?.top)).toEqual([0, 0, 0]);
+    expect(lay(regions([3, 1], 4, { height: 54 }), 600).heads).toHaveLength(2);
+    // A group under 48 px wide has no head: Europe's 49 of 599 leaves it 45 px.
+    const thin = lay(regions([550, 0], 49), 600);
+    expect((thin.tree?.groups[1]?.right ?? 0) - (thin.tree?.groups[1]?.left ?? 0)).toBe(45);
+    expect(thin.heads.map((h) => h.text)).toEqual(["Asia"]);
+  });
+
+  it("labels a tile 4 px in from its corner, its name over its value in the mark's unit", () => {
+    const l = lay(regions(), 600);
+    expect(l.tree?.labels).toEqual([
+      { text: "China", x: 4, y: 30.5, anchor: "start", series: 0 },
+      { text: "3\u00A0USD", x: 4, y: 47.5, anchor: "start", series: 0 },
+      { text: "Japan", x: 228, y: 30.5, anchor: "start", series: 1 },
+      { text: "1\u00A0USD", x: 228, y: 47.5, anchor: "start", series: 1 },
+      { text: "Germany", x: 306, y: 30.5, anchor: "start", series: 2 },
+      { text: "4\u00A0USD", x: 306, y: 47.5, anchor: "start", series: 2 },
+    ]);
+  });
+
+  it("labels only a tile 40 px tall and wide enough for four characters and 8 px", () => {
+    // 1 of 10 is 59 px wide, room for 51 px, six characters: the name is cut, and a
+    // value of 17 characters, 127.5 px, is left out rather than cut.
+    const tenth = lay(parts([9e12, 1e12]), 600).tree?.labels.filter((t) => t.series === 1);
+    expect(tenth?.map((t) => t.text)).toEqual(["Count…"]);
+    // 1 of 20 is 29 px wide, under four 7.5 px characters and 8 px.
+    const twentieth = lay(parts([19, 1]), 600).tree;
+    expect(box(twentieth?.tiles[1])).toEqual([571, 0, 600, 240]);
+    expect(twentieth?.labels.filter((t) => t.series === 1)).toEqual([]);
+    expect(lay(parts([19, 1], { height: 39 }), 600).tree?.labels).toEqual([]);
+    expect(lay(parts([19, 1], { height: 40 }), 600).tree?.labels.length).toBeGreaterThan(0);
+  });
+
+  it("draws no tile for a 0 or no data, and keeps a thin tile touching rather than gone", () => {
+    const l = lay(parts([5, 0, null, 3]), 600);
+    expect(l.tree?.tiles.map((t) => t !== undefined)).toEqual([true, false, false, true]);
+    const thin = lay(parts([300, 1]), 600).tree?.tiles[1];
+    expect((thin?.right ?? 0) - (thin?.left ?? 0)).toBeGreaterThan(0);
+  });
+
+  it("snaps every edge to device pixels", () => {
+    const l = lay(parts([7, 5, 3, 2, 1]), 517, { dpr: 2 });
+    for (const t of l.tree?.tiles ?? []) {
+      for (const v of box(t) ?? []) {
+        expect(v * 2).toBe(Math.round(v * 2));
+      }
+    }
+  });
+
+  it("keeps every level's rows on an update of the same names and size, and lays out afresh otherwise", () => {
+    const gdp = [27.4, 17.8, 4.5, 4.2, 3.7, 3.3, 3, 2.2, 2.1, 1.7, 1.4, 1.2, 1.1, 0.9, 0.5, 0.3];
+    const moved = gdp.map((v, i) => (i === 0 ? v * 0.4 : i === 1 ? v * 2.5 : v));
+    const at = (spec: ChartSpec, width: number, kept?: TreeKept) =>
+      layout(
+        chartModel(spec, "en", "UTC"),
+        words,
+        metrics(),
+        width,
+        { axis: 0, label: 0 },
+        width,
+        kept,
+      );
+    const first = at(parts(gdp), 600);
+    const fresh = at(parts(moved), 600);
+    expect(fresh.tree?.kept.top).not.toEqual(first.tree?.kept.top);
+    const kept = at(parts(moved), 600, first.tree?.kept);
+    expect(kept.tree?.kept.top).toEqual(first.tree?.kept.top);
+    expect(kept.tree?.tiles).not.toEqual(first.tree?.tiles);
+    // Another size or other names lay out afresh.
+    expect(at(parts(moved), 590, first.tree?.kept).tree?.kept.top).toEqual(
+      at(parts(moved), 590).tree?.kept.top,
+    );
+    const renamed: ChartSpec = {
+      marks: [{ mark: "tree", nodes: moved.map((value, i) => ({ name: `C${String(i)}`, value })) }],
+    };
+    expect(at(renamed, 600, first.tree?.kept).tree?.kept.top).toEqual(fresh.tree?.kept.top);
+    // Two levels keep their parts' rows inside each group too.
+    const two = at(regions([3, 1]), 600);
+    expect(at(regions([1, 3]), 600, two.tree?.kept).tree?.kept).toEqual(two.tree?.kept);
   });
 });

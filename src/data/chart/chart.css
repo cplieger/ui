@@ -282,7 +282,8 @@
 
 .cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
 .cp-chart svg [data-part="bar"] path,
-.cp-chart svg [data-part="pie"] path {
+.cp-chart svg [data-part="pie"] path,
+.cp-chart svg [data-part="tree"] path {
   fill: var(--cp-tone-9);
 }
 
@@ -496,10 +497,12 @@
   fill: var(--cp-ink);
 }
 
-/* A note's or a bar value's 3 px halo of the plot's surface keeps it
- * legible over bars, gridlines and rules; the stroke paints first, so it
- * widens the glyphs by half. */
-.cp-chart svg :is([data-part="note"], [data-part="value"]) text {
+/* A note's, a bar value's or a tile label's 3 px halo of the plot's surface
+ * keeps it legible over bars, tiles, gridlines and rules, on the surface
+ * its ink was tested on; the stroke paints first, so it widens the glyphs
+ * by half. */
+.cp-chart svg :is([data-part="note"], [data-part="value"]) text,
+.cp-chart svg [data-part="tile"] text {
   fill: var(--cp-ink);
   stroke: var(--cp-chart-surface);
   stroke-width: 6px;

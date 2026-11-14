@@ -15,6 +15,7 @@ import type {
   CellModel,
   Model,
   PieModel,
+  TreeModel,
   PointModel,
   RectModel,
   SampleModel,
@@ -328,6 +329,34 @@ function pieTable(model: Model, m: PieModel, words: Words, after: string): Table
   };
 }
 
+// A row per part in the app's order, its value bare under the unit's
+// plural, then its share of the whole; a part is keyed by its group, since
+// two groups may each hold an "Other".
+function treeTable(model: Model, m: TreeModel, words: Words, after: string): TableModel {
+  const rows = m.parts.map((p): Row => ({
+    key: `${String(p.group)} ${p.name}`,
+    head: [p.name],
+    cells: [
+      { parts: [p.value === null ? words.noData : model.amountText(p.value)], num: true },
+      {
+        parts: [
+          p.value === null ? words.noData : model.shareText(m.total > 0 ? p.value / m.total : 0),
+        ],
+        num: true,
+      },
+    ],
+  }));
+  return {
+    corner: "",
+    columns: [
+      { text: m.unit?.other ?? words.value, num: true },
+      { text: words.share, num: true },
+    ],
+    rows,
+    after,
+  };
+}
+
 // A row per category, or per category and series from two series up with a
 // Series column, its five numbers Low to High and its outliers ascending.
 function boxTable(model: Model, m: BoxModel, words: Words, after: string): TableModel {
@@ -471,6 +500,9 @@ export function tableModel(model: Model, words: Words): TableModel {
   }
   if (m.kind === "pie") {
     return pieTable(model, m, words, after);
+  }
+  if (m.kind === "tree") {
+    return treeTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {

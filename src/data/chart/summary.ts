@@ -49,8 +49,9 @@ import {
   dotValue,
   measureText,
   measuresOf,
+  groupsText,
   partsText,
-  pieAmount,
+  partAmount,
   primaryOf,
   rowsText,
   sliceShare,
@@ -494,7 +495,7 @@ function calendarSummary(model: Model, m: CalendarModel, words: Words): string[]
 // The whole, then each slice's share in the clockwise order.
 function pieSummary(model: Model, m: PieModel, words: Words): string[] {
   const parts = m.slices.map((s, i) => `${s.name} ${sliceShare(model, m, i, words)}`);
-  return [words.partsSummary(pieAmount(model, m, m.total), parts.join(", "))];
+  return [words.partsSummary(partAmount(model, m, m.total), parts.join(", "))];
 }
 
 /** Each rule's sentence, in spec order. */
@@ -597,7 +598,8 @@ function gridText(model: Model, m: CellModel, words: Words): string {
 /** The plot's name: its kind, its series count from two up, and its x
  *  domain, or on a bar, point or box chart its row count, on a scatter its dot
  *  count, on a cell chart its rows by its columns, on a calendar its
- *  day count and on a pie its slice count, since their x is no span. */
+ *  day count, on a pie its slice count and on a tree its group and part
+ *  counts, since their x is no span. */
 export function shortDescription(model: Model, words: Words): string {
   const m = primaryOf(model);
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
@@ -606,10 +608,17 @@ export function shortDescription(model: Model, words: Words): string {
     m.kind === "dot" ||
     m.kind === "cell" ||
     m.kind === "calendar" ||
-    m.kind === "pie"
+    m.kind === "pie" ||
+    m.kind === "tree"
       ? 0
       : m.series.length;
-  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
+  // A tree's groups take the series' place, before its parts.
+  const series =
+    m?.kind === "tree"
+      ? groupsText(model, m, words)
+      : n > 1
+        ? words.seriesCount(writer("number", model.locale)(n))
+        : "";
   const range =
     m?.kind === "bar" || m?.kind === "point" || m?.kind === "box"
       ? rowsText(model, words)
@@ -619,7 +628,7 @@ export function shortDescription(model: Model, words: Words): string {
           ? gridText(model, m, words)
           : m?.kind === "calendar"
             ? daysText(model, m, words)
-            : m?.kind === "pie"
+            : m?.kind === "pie" || m?.kind === "tree"
               ? partsText(model, m, words)
               : domainText(model, words);
   return words.shortDescription(kind, series, range);

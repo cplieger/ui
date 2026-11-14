@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cdp, server, userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { spoken } from "../../feedback/test-helpers/spoken.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type Chart, type ChartSpec } from "./chart.js";
@@ -140,10 +141,6 @@ function key(el: HTMLElement, name: string): KeyboardEvent {
   return e;
 }
 
-async function says(text: string): Promise<void> {
-  await expect.poll(polite).toBe(text);
-}
-
 // A pointer event at plot px (x, y), from the plot's drawing area.
 function point(
   b: Built,
@@ -177,7 +174,7 @@ describe("keys on a stacked column chart", () => {
   it("focus selects the newest bucket and says it", async () => {
     const b = build(bars);
     b.plot.focus();
-    await says(`${span(45, 60)}: Announce 2, Path 1. Total 3.`);
+    await spoken(`${span(45, 60)}: Announce 2, Path 1. Total 3.`);
     expect(legendText(b)).toBe(`${span(45, 60)} · Announce · 2 · Path · 1 · 3`);
     expect(ring(b)).not.toBe(null);
     expect(crosshair(b)).not.toBe(null);
@@ -201,7 +198,7 @@ describe("keys on a stacked column chart", () => {
       const e = key(b.plot, name);
       expect(e.defaultPrevented, name).toBe(true);
       if (text !== "") {
-        await says(text);
+        await spoken(text);
       }
     }
   });
@@ -224,7 +221,7 @@ describe("keys on a stacked column chart", () => {
     key(b.plot, "Home");
     key(b.plot, "Escape");
     key(b.plot, "ArrowRight");
-    await says(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
+    await spoken(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
     expect(ring(b)).not.toBe(null);
   });
 
@@ -239,7 +236,7 @@ describe("keys on a stacked column chart", () => {
     await expect
       .element(b.plot)
       .toHaveAccessibleDescription("Arrow keys read the values. Tab leaves the chart.");
-    await says(`${span(45, 60)}: Announce 2, Path 1. Total 3.`);
+    await spoken(`${span(45, 60)}: Announce 2, Path 1. Total 3.`);
   });
 
   it("never cancels Tab, Space or Enter, and Tab leaves the plot", async () => {
@@ -305,13 +302,13 @@ describe("keys on a step line", () => {
   it("step through the leading gap, the first sample, each change and the last sample", async () => {
     const b = build(step);
     b.plot.focus();
-    await says(`${time(7)}: Live 10, Active 2.`);
+    await spoken(`${time(7)}: Live 10, Active 2.`);
     key(b.plot, "Home");
-    await says(`${time(0)}: No data.`);
+    await spoken(`${time(0)}: No data.`);
     const stops = [2, 4, 5, 7];
     for (const m of stops) {
       key(b.plot, "ArrowRight");
-      await says(`${time(m)}: Live ${String(m < 5 ? 4 : 10)}, Active ${String(m < 4 ? 1 : 2)}.`);
+      await spoken(`${time(m)}: Live ${String(m < 5 ? 4 : 10)}, Active ${String(m < 4 ? 1 : 2)}.`);
     }
   });
 });
@@ -334,13 +331,13 @@ describe("keys on a stacked area", () => {
     });
     expect(legendText(b)).toBe(`${time(3)} · Gas · 9 · Wind · 1 · 10`);
     b.plot.focus();
-    await says(`${time(3)}: Gas 9, Wind 1. Total 10.`);
+    await spoken(`${time(3)}: Gas 9, Wind 1. Total 10.`);
     key(b.plot, "ArrowLeft");
-    await says(`${time(2)}: Gas 7, Wind 3. Total 10.`);
+    await spoken(`${time(2)}: Gas 7, Wind 3. Total 10.`);
     key(b.plot, "ArrowUp");
-    await says(`${time(2)}: Gas 7.`);
+    await spoken(`${time(2)}: Gas 7.`);
     key(b.plot, "ArrowUp");
-    await says(`${time(2)}: Wind 3.`);
+    await spoken(`${time(2)}: Wind 3.`);
     expect(legendText(b)).toBe(`${time(2)} · Gas · 7 · Wind · 3 · 10`);
   });
 });
@@ -349,7 +346,7 @@ describe("keys on a timeline", () => {
   it("focus starts on the first row's last post", async () => {
     const b = build(agents);
     b.plot.focus();
-    await says(`lead-ui: ${time(40)}.`);
+    await spoken(`lead-ui: ${time(40)}.`);
     expect(legendText(b)).toBe(`lead-ui · ${time(40)}`);
   });
 
@@ -361,7 +358,7 @@ describe("keys on a timeline", () => {
       ]),
     );
     b.plot.focus();
-    await says("docs-bot: no posts");
+    await spoken("docs-bot: no posts");
     expect(crosshair(b)).toBe(null);
     expect(ring(b)).not.toBe(null);
   });
@@ -370,7 +367,7 @@ describe("keys on a timeline", () => {
     const b = build(agents);
     b.plot.focus();
     key(b.plot, "ArrowDown");
-    await says("docs-bot: no posts");
+    await spoken("docs-bot: no posts");
     expect(crosshair(b)).toBe(null);
     const before = legendText(b);
     for (const name of ["ArrowLeft", "ArrowRight", "Home", "End"]) {
@@ -378,7 +375,7 @@ describe("keys on a timeline", () => {
       expect(legendText(b)).toBe(before);
     }
     key(b.plot, "ArrowDown");
-    await says(`ha-agent: ${time(38)}.`);
+    await spoken(`ha-agent: ${time(38)}.`);
   });
 });
 
@@ -390,12 +387,12 @@ describe("notes in the readings", () => {
     });
     b.plot.focus();
     key(b.plot, "Home");
-    await says(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
+    await spoken(`${span(0, 15)}: Announce 12, Path 9. Total 21.`);
     key(b.plot, "ArrowRight");
-    await says(`${span(15, 30)}: Announce 3, Path 1. Total 4. Note: Deploy.`);
+    await spoken(`${span(15, 30)}: Announce 3, Path 1. Total 4. Note: Deploy.`);
     expect(legendText(b)).toBe(`${span(15, 30)} · Announce · 3 · Path · 1 · 4`);
     key(b.plot, "ArrowUp");
-    await says(`${span(15, 30)}: Announce 3. Note: Deploy.`);
+    await spoken(`${span(15, 30)}: Announce 3. Note: Deploy.`);
   });
 
   it("on a step line, the change point holding a note's sample reads it", async () => {
@@ -404,13 +401,13 @@ describe("notes in the readings", () => {
       marks: [...step.marks, { mark: "text", x: START + 3 * MIN, y: 4, text: "Restart" }],
     });
     b.plot.focus();
-    await says(`${time(7)}: Live 10, Active 2.`);
+    await spoken(`${time(7)}: Live 10, Active 2.`);
     key(b.plot, "ArrowLeft");
-    await says(`${time(5)}: Live 10, Active 2.`);
+    await spoken(`${time(5)}: Live 10, Active 2.`);
     key(b.plot, "ArrowLeft");
-    await says(`${time(4)}: Live 4, Active 2.`);
+    await spoken(`${time(4)}: Live 4, Active 2.`);
     key(b.plot, "ArrowLeft");
-    await says(`${time(2)}: Live 4, Active 1. Note: Restart.`);
+    await spoken(`${time(2)}: Live 4, Active 1. Note: Restart.`);
   });
 
   it("a silent row's reading adds its note after a full stop, a post's the note nearest it", async () => {
@@ -423,9 +420,9 @@ describe("notes in the readings", () => {
       ],
     });
     b.plot.focus();
-    await says(`lead-ui: ${time(40)}. Note: Release.`);
+    await spoken(`lead-ui: ${time(40)}. Note: Release.`);
     key(b.plot, "ArrowDown");
-    await says("docs-bot: no posts. Note: Paused.");
+    await spoken("docs-bot: no posts. Note: Paused.");
   });
 });
 
@@ -597,7 +594,7 @@ describe("keys and touch on a bar chart", () => {
     const b = build(firms);
     expect(legendText(b)).toBe(`3${nb}companies · Domestic · International`);
     b.plot.focus();
-    await says("Acme: Domestic 40, International 2. Total 42.");
+    await spoken("Acme: Domestic 40, International 2. Total 42.");
     expect(legendText(b)).toBe("Acme · Domestic · 40 · International · 2 · 42");
     expect(ring(b)).not.toBe(null);
     expect(crosshair(b)).toBe(null);
@@ -616,7 +613,7 @@ describe("keys and touch on a bar chart", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
   });
 
@@ -693,7 +690,7 @@ describe("keys and touch on a box plot", () => {
     const b = build(latency);
     expect(legendText(b)).toBe(`2${nb}endpoints · Before · After`);
     b.plot.focus();
-    await says(
+    await spoken(
       "search: Before median 3, middle half 2 to 4, whiskers 1 to 5; After median 2, middle half 2 to 3, whiskers 1 to 4.",
     );
     expect(legendText(b)).toBe("search · Before · 3 · After · 2");
@@ -707,7 +704,7 @@ describe("keys and touch on a box plot", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
   });
 
@@ -751,7 +748,7 @@ describe("keys and the pointer on a slope chart", () => {
     const b = build(pets);
     expect(legendText(b)).toBe("2015 · Cats · 34 · Dogs · 31 · Horses · No data");
     b.plot.focus();
-    await says("2015: Cats 34, Dogs 31, Horses No data.");
+    await spoken("2015: Cats 34, Dogs 31, Horses No data.");
     expect(rings(b)).toBe(2);
     expect(crosshair(b)).not.toBe(null);
   });
@@ -765,7 +762,7 @@ describe("keys and the pointer on a slope chart", () => {
       [...b.legend.querySelectorAll(".cp-chip")].map((c) => c.getBoundingClientRect().width);
     const before = widths();
     expect(key(b.plot, "ArrowUp").defaultPrevented).toBe(true);
-    await says("Dogs: 2005 40, 2015 31. Change -9.");
+    await spoken("Dogs: 2005 40, 2015 31. Change -9.");
     expect(widths()).toEqual(before);
     expect(
       getComputedStyle(b.legend.querySelectorAll(".cp-chip > bdi")[1] as Element).fontWeight,
@@ -776,7 +773,7 @@ describe("keys and the pointer on a slope chart", () => {
     // The chosen line and its ends, drawn again over the others.
     expect(b.plot.querySelectorAll('[data-part="selection"] [data-series="2"]')).toHaveLength(2);
     key(b.plot, "ArrowLeft");
-    await says("2005: Cats 50, Dogs 40, Horses 30.");
+    await spoken("2005: Cats 50, Dogs 40, Horses 30.");
     expect(legendText(b)).toBe("2005 · Cats · 50 · Dogs · 40 · Horses · 30");
     expect(chips(b)).toEqual([false, true, false]);
     key(b.plot, "Escape");
@@ -833,7 +830,7 @@ describe("keys and the pointer on a scatter plot", () => {
     const b = build(world);
     expect(legendText(b)).toBe(`4${nb}countries · Europe · 2 · Africa · 2`);
     b.plot.focus();
-    await says("Chad: Africa, GDP per capita 1.6, Life expectancy 53.");
+    await spoken("Chad: Africa, GDP per capita 1.6, Life expectancy 53.");
     expect(legendText(b)).toBe(
       "Chad · GDP per capita 1.6 · Life expectancy 53 · Europe · 2 · Africa · 2",
     );
@@ -855,7 +852,7 @@ describe("keys and the pointer on a scatter plot", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
     expect(chips(b)).toEqual([false, true]);
   });
@@ -917,7 +914,7 @@ describe("keys, the pointer and touch on a heatmap", () => {
     const b = build(grid);
     expect(legendText(b)).toBe("12 cells");
     b.plot.focus();
-    await says(`Mon, 2 PM: 3${nb}posts.`);
+    await spoken(`Mon, 2 PM: 3${nb}posts.`);
     expect(legendText(b)).toBe(`Mon, 2 PM · 3${nb}posts`);
     expect(ring(b)).not.toBe(null);
     expect(crosshair(b)).toBe(null);
@@ -935,7 +932,7 @@ describe("keys, the pointer and touch on a heatmap", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
   });
 
@@ -1001,7 +998,7 @@ describe("keys, the pointer and touch on a pie", () => {
     const b = build(land());
     expect(legendText(b)).toBe(`Total 357,580${nb}km² · ${chips}`);
     b.plot.focus();
-    await says(`Agriculture: 182,637${nb}km², 51%. Total 357,580${nb}km².`);
+    await spoken(`Agriculture: 182,637${nb}km², 51%. Total 357,580${nb}km².`);
     expect(legendText(b)).toBe(`Agriculture 182,637${nb}km² · ${chips}`);
     expect(chosen(b)).toEqual(["Agriculture"]);
     expect(labelled(b)).toEqual(["Agriculture", "51%"]);
@@ -1021,7 +1018,7 @@ describe("keys, the pointer and touch on a pie", () => {
     ];
     for (const [name, text] of cases) {
       expect(key(b.plot, name).defaultPrevented, name).toBe(true);
-      await says(text);
+      await spoken(text);
     }
     expect(key(b.plot, "PageDown").defaultPrevented).toBe(false);
     expect(chosen(b)).toEqual(["Agriculture"]);

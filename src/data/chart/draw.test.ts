@@ -1069,6 +1069,18 @@ describe("surfaces", () => {
       const box = draw(latency(1));
       const median = box.svg.querySelector('[data-part="median"]') as Element;
       expect(getComputedStyle(median).fill).toBe(token(median, "var(--cp-ink)", "color", palette));
+      const tree = draw(gdp);
+      const tile = tree.svg.querySelector('[data-part="tree"] path[data-series="2"]') as Element;
+      expect(getComputedStyle(tile).fill).toBe(token(tile, "var(--cp-series-2)", "color", palette));
+      const name = tree.svg.querySelector('[data-part="tile"] text') as Element;
+      expect(getComputedStyle(name).fill).toBe(token(name, "var(--cp-ink)", "color", palette));
+      expect(getComputedStyle(name).stroke).toBe(
+        token(name, "var(--cp-surface-page)", "color", palette),
+      );
+      const group = tree.svg.querySelector('[data-part="head"] text') as Element;
+      expect(getComputedStyle(group).fill).toBe(
+        token(group, "var(--cp-ink-muted)", "color", palette),
+      );
     },
   );
 });
@@ -1539,6 +1551,95 @@ describe("a pie", () => {
     expect((total as SVGTextElement).getComputedTextLength()).toBeLessThanOrEqual(2 * inner - 16);
     // A phone's 100 px hole leaves the total to the legend row.
     expect(draw(land(true), 288).svg.querySelector('[data-part="hole"]')).toBeNull();
+  });
+});
+
+// The world's GDP by region and country, in USD.
+const gdp: ChartSpec = {
+  marks: [
+    {
+      mark: "tree",
+      unit: { other: "USD" },
+      format: { notation: "compact" },
+      nodes: [
+        {
+          name: "Asia",
+          children: [
+            { name: "China", value: 17.8e12 },
+            { name: "Japan", value: 4.2e12 },
+            { name: "India", value: 3.6e12 },
+            { name: "Indonesia", value: 1.4e12 },
+          ],
+        },
+        {
+          name: "Americas",
+          slot: 2,
+          children: [
+            { name: "United States", value: 27.4e12 },
+            { name: "Brazil", value: 2.2e12 },
+            { name: "Canada", value: 2.1e12 },
+          ],
+        },
+        {
+          name: "Europe",
+          children: [
+            { name: "Germany", value: 4.5e12 },
+            { name: "France", value: 3e12 },
+            { name: "Italy", value: 2.3e12 },
+            { name: "Vatican City", value: 0 },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+describe("a treemap", () => {
+  it("fills one path per slot with every tile of that slot, with no axis, gridline or tick", () => {
+    const d = draw(gdp, 600);
+    const paths = series(d, "tree");
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "2", "3"]);
+    // A tile per drawn part, Vatican City's 0 drawing none.
+    expect(paths.map((p) => p.getAttribute("d")?.match(/Z/g)?.length)).toEqual([4, 3, 3]);
+    const americas = paths[1] as Element;
+    expect(getComputedStyle(americas).fill).toBe(token(americas, "var(--cp-series-2)"));
+    for (const part of ["grid", "zero", "rows"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`), part).toBeNull();
+    }
+    expect(d.svg.querySelector('[data-part="ticks"]')?.getAttribute("d")).toBe("");
+    const box = (d.svg.querySelector('[data-part="tree"]') as SVGGElement).getBBox();
+    expect([box.x, box.y, box.width, box.height]).toEqual([0, 18, d.lay.width, 222]);
+  });
+
+  it("labels the tiles in ink on a 3 px halo of the surface, and heads each group in its muted name", () => {
+    const d = draw(gdp, 600);
+    const labels = [...d.svg.querySelectorAll('[data-part="tile"] > text')];
+    expect(labels.map((t) => t.textContent)).toContain("United States");
+    expect(labels.map((t) => t.textContent)).toContain("27T\u00A0USD");
+    const t = getComputedStyle(labels[0] as Element);
+    expect([t.fill, t.stroke, t.strokeWidth, t.paintOrder]).toEqual([
+      token(labels[0] as Element, "var(--cp-ink)"),
+      token(labels[0] as Element, "var(--cp-surface-page)"),
+      "6px",
+      "stroke",
+    ]);
+    const heads = [...d.svg.querySelectorAll('[data-part="head"] > text')];
+    expect(heads.map((h) => h.textContent)).toEqual(["Asia", "Americas", "Europe"]);
+    const h = getComputedStyle(heads[0] as Element);
+    expect(h.fill).toBe(token(heads[0] as Element, "var(--cp-ink-muted)"));
+    expect(h.fontSize).toBe(t.fontSize);
+    // Each label stays inside its tile, its halo included.
+    (labels as SVGTextElement[]).forEach((label, k) => {
+      const b = label.getBBox();
+      const tile = d.lay.tree?.tiles[d.lay.tree.labels[k]?.series ?? -1];
+      expect(b.x + b.width + 3).toBeLessThanOrEqual(tile?.right ?? 0);
+    });
+  });
+
+  it("lays a phone's treemap on its 200 px plot", () => {
+    const d = draw(gdp, 288);
+    expect([d.lay.width, d.lay.height]).toEqual([286, 200]);
+    expect(series(d, "tree")).toHaveLength(3);
   });
 });
 

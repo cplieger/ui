@@ -276,6 +276,7 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       return i === -1 ? undefined : { kind: "day", i };
     }
     case "pie":
+    case "tree":
     case undefined:
       return undefined;
   }
