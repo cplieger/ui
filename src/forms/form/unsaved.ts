@@ -784,8 +784,8 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
   form.addEventListener("input", recount, on);
   form.addEventListener("change", recount, on);
   // A field joined by `form=` sends its edits through its own ancestors, so
-  // they are heard at its tree's root: the form's shadow root, else its
-  // document, which a form built before it is mounted joins later.
+  // they are heard at the form's shadow root, else at its document, a form
+  // guarded before it is mounted included, as `./menu` does.
   const tree = form.getRootNode();
   const root = tree instanceof ShadowRoot ? tree : form.ownerDocument;
   const joined = (e: Event): void => {

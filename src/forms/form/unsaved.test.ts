@@ -162,6 +162,38 @@ describe("guardChanges: what counts", () => {
     expect(told).toEqual([[pick]]);
   });
 
+  it("puts a shadow-root form's chips and rows back on its reset button, counting none after", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    // Static test markup, never caller text.
+    shadow.setHTMLUnsafe(
+      '<form><div class="cp-tokens"><span class="cp-token" data-value="anime"><span>anime</span><button></button></span><input aria-label="Tags"></div>' +
+        '<div class="cp-stack" id="maps"><ul class="cp-pairs"><li><input name="from" value="/tv" aria-label="From"><input name="to" value="/media/tv" aria-label="To"><button type="button" data-remove-pair>Remove</button></li></ul><button type="button" data-add-pair>Add</button></div>' +
+        '<button type="reset">Discard</button></form>',
+    );
+    const f = get<HTMLFormElement>(shadow, "form");
+    f.addEventListener("submit", (e) => {
+      e.preventDefault();
+    });
+    const tags = enhanceTokens(get(f, ".cp-tokens"), { name: "tags", signal: life.signal });
+    enhancePairs(get(f, "#maps"), { signal: life.signal });
+    const told: (readonly Element[])[] = [];
+    const guard = guardChanges(f, { onChange: (c) => told.push(c), signal: life.signal });
+    await userEvent.type(get(f, ".cp-tokens > input"), "4k{Enter}");
+    await userEvent.click(get(f, "[data-remove-pair]"));
+    expect(guard.changes()).toEqual([get(f, ".cp-tokens"), get(f, "#maps")]);
+    await userEvent.click(get(f, '[type="reset"]'));
+    await expect.poll(() => told.at(-1)).toEqual([]);
+    const sent = new FormData(f);
+    expect([tags.values, sent.getAll("from"), sent.getAll("to"), guard.count]).toEqual([
+      ["anime"],
+      ["/tv"],
+      ["/media/tv"],
+      0,
+    ]);
+  });
+
   it("stops hearing a joined field once its guard ends", async () => {
     const f = form("");
     f.id = "ended";

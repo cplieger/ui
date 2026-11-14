@@ -100,10 +100,13 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
       attributeFilter: [kind === "tab" ? "aria-selected" : "aria-current"],
     });
   } else {
-    // Listened on the document, after the page's own listeners: a change
-    // elsewhere may clear the choice, as a typed date clears a date range's
-    // quick range, and setting `checked` fires nothing.
-    group.ownerDocument.addEventListener(
+    // Listened at the group's shadow root, else its document (neither event
+    // is composed), after the page's own listeners: a change elsewhere may
+    // clear the choice, as a typed date clears a date range's quick range,
+    // and setting `checked` fires nothing.
+    const tree = group.getRootNode();
+    const root = tree instanceof ShadowRoot ? tree : group.ownerDocument;
+    root.addEventListener(
       "change",
       () => {
         place(false);
@@ -112,7 +115,7 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
     );
     // A reset fires before the controls reset
     // (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset).
-    group.ownerDocument.addEventListener(
+    root.addEventListener(
       "reset",
       () => {
         setTimeout(() => {
