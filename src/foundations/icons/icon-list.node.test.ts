@@ -9,9 +9,12 @@ import { iconNames, ownIconNames } from "./icons.js";
 const ROOT = resolve(import.meta.dirname, "../../..");
 const LIST = join(import.meta.dirname, "icons.css");
 
-/** Not the library's markup: the gallery paints by its own script, `css/`
- *  is built from `src/`, and `icons/` holds the drawings themselves. */
-const SKIP = new Set(["node_modules", ".git", "gallery", "css", "icons", "coverage", "dist"]);
+/** Root folders that are not the library's markup: the gallery paints by its
+ *  own script, `css/` is built from `src/`, `icons/` holds the drawings
+ *  themselves, and `coverage/` and `dist/` are build output. */
+const ROOT_SKIP = new Set(["gallery", "css", "icons", "coverage", "dist"]);
+/** Skipped at any depth. */
+const NAME_SKIP = new Set(["node_modules", ".git"]);
 const USE =
   /data-cp-icon(?:="|", ")([a-z0-9-]+)"|cpIcon"?\]? = "([a-z0-9-]+)"|icons\/svg\/([a-z0-9-]+)\.svg/g;
 
@@ -25,7 +28,7 @@ async function uses(root: string): Promise<Map<string, string[]>> {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (!SKIP.has(entry.name)) {
+        if (!NAME_SKIP.has(entry.name) && !(dir === root && ROOT_SKIP.has(entry.name))) {
           await walk(path);
         }
         continue;
@@ -91,7 +94,7 @@ describe("the icon list", () => {
 });
 
 describe("the use scan", () => {
-  it("finds markup, module and stylesheet uses, and skips tests, the gallery and dependencies", async () => {
+  it("finds markup, module and stylesheet uses, and skips tests, the root's own folders and dependencies", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ui-icon-uses-"));
     try {
       const put = async (path: string, text: string): Promise<void> => {
@@ -103,12 +106,21 @@ describe("the use scan", () => {
       await put("src/a/a.ts", 'span.setAttribute("data-cp-icon", "copy");');
       await put("src/a/b.ts", 'span.dataset["cpIcon"] = "check";');
       await put("src/a/a.css", '.x::before { mask: url("../icons/svg/clock.svg"); }');
+      await put("src/foundations/icons/a.css", '.x { mask: url("../icons/svg/timer.svg"); }');
       await put("src/a/a.test.ts", '<span data-cp-icon="star"></span>');
       await put("gallery/pages/a.html", '<span data-cp-icon="film"></span>');
       await put("node_modules/x/a.md", '<span data-cp-icon="tv"></span>');
+      await put("src/a/node_modules/x/a.md", '<span data-cp-icon="sun"></span>');
       await put("CHANGELOG.md", '<span data-cp-icon="bug"></span>');
       const found = await uses(dir);
-      expect([...found.keys()].sort()).toEqual(["check", "clock", "copy", "pin", "pin-filled"]);
+      expect([...found.keys()].sort()).toEqual([
+        "check",
+        "clock",
+        "copy",
+        "pin",
+        "pin-filled",
+        "timer",
+      ]);
       expect(found.get("clock")).toEqual([join("src", "a", "a.css")]);
     } finally {
       await rm(dir, { recursive: true, force: true });

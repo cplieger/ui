@@ -8,7 +8,6 @@ import { announce } from "@cplieger/ui/announce";
 import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 
-// The state words card's test passes, then fails, then passes again.
 for (const button of document.querySelectorAll<HTMLButtonElement>("button[data-state-test]")) {
   const status = document.getElementById(button.dataset["stateTest"] ?? "");
   if (status === null) {
@@ -35,7 +34,6 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("button[data-s
   });
 }
 
-// The upload's Retry fails once more, then the file uploads.
 for (const row of document.querySelectorAll<HTMLElement>("[data-work-retry]")) {
   const retry = row.querySelector<HTMLButtonElement>("button");
   const state = row.querySelector<HTMLElement>(".cp-state");
@@ -92,7 +90,7 @@ function restart(bar: HTMLProgressElement): HTMLProgressElement {
 }
 
 // Steps come a little faster than the fill's 480ms glide, so it never rests
-// between them; the last one marks the bar done.
+// between them.
 for (const start of document.querySelectorAll<HTMLButtonElement>("[data-progress-run]")) {
   const wrap = document.getElementById(start.dataset["progressRun"] ?? "");
   const first = wrap?.querySelector("progress");
@@ -122,7 +120,6 @@ for (const start of document.querySelectorAll<HTMLButtonElement>("[data-progress
   });
 }
 
-// The first sync reads on through the library and starts over at its end.
 for (const wrap of document.querySelectorAll<HTMLElement>("[data-sync-demo]")) {
   const first = wrap.querySelector("progress");
   const words = wrap.querySelector(":scope > span");
