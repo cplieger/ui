@@ -32,8 +32,9 @@
   pointer-events: none;
 }
 
-/* The failure's notice sits above the old content, apart from it. */
-[data-cp-load] > [data-cp-load-notice]:not(:only-child) {
+/* The failure's notice sits above the old content, apart from it; a stack
+ * spaces it by its own gap. */
+[data-cp-load]:not(.cp-stack) > [data-cp-load-notice]:not(:only-child) {
   margin-block-end: var(--cp-space-3);
 }
 

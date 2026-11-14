@@ -259,6 +259,23 @@ describe("enhanceLoadingRegion: a refresh", () => {
     expect(retryIn(region)?.textContent).toBe("Try again");
   });
 
+  it("spaces its failure from the old content, by the stack's own gap in a stack", async () => {
+    const plain = panel("Old");
+    const stacked = panel("Old");
+    stacked.classList.add("cp-stack");
+    for (const region of [plain, stacked]) {
+      const { handle, loads } = wired(region);
+      const done = handle.load();
+      loads[0]?.reject(new Error("no"));
+      await done;
+    }
+    const gap = (region: Element) =>
+      Number.parseFloat(getComputedStyle(notice(region) ?? region).marginBlockEnd);
+    expect(gap(plain)).toBeGreaterThan(0);
+    expect(gap(stacked)).toBe(0);
+    expect(Number.parseFloat(getComputedStyle(stacked).rowGap)).toBeGreaterThan(0);
+  });
+
   it("runs the line under a table's head when the region starts with one", async () => {
     const region = document.createElement("div");
     region.className = "cp-panel";

@@ -917,41 +917,6 @@ for (const d of $$("[data-upload]")) {
   });
 }
 
-// A refresh that waits turns its own icon: Motion's one turn, repeated
-// while busy. When the work ends, the turn in progress finishes, so
-// the icon always comes to rest upright. Reduced motion pulses it instead.
-const TURN = { duration: 900, easing: "cubic-bezier(0.55, 0, 0.3, 1)" };
-function turnWhileBusy(ic) {
-  const a = reduced()
-    ? ic.animate([{ opacity: 1 }, { opacity: 0.45 }, { opacity: 1 }], { duration: 2000, iterations: Infinity })
-    : ic.animate([{ rotate: "0turn" }, { rotate: "1turn" }], { ...TURN, iterations: Infinity });
-  const length = Number(a.effect.getTiming().duration);
-  return () => a.effect.updateTiming({ iterations: Math.max(1, Math.ceil(Number(a.currentTime ?? 0) / length)) });
-}
-
-// ------------------------------------------------------ stale content
-for (const b of $$("[data-refresh]")) {
-  const region = document.getElementById(b.dataset.refresh);
-  const ic = $(".cp-icon", b);
-  b.addEventListener("click", () => {
-    if (b.getAttribute("aria-busy") === "true") return;
-    $(".cp-notice", region)?.remove();
-    region.setAttribute("aria-busy", "true");
-    b.setAttribute("aria-busy", "true");
-    const settle = ic ? turnWhileBusy(ic) : () => {};
-    setTimeout(() => {
-      region.removeAttribute("aria-busy");
-      b.removeAttribute("aria-busy");
-      settle();
-      if (b.hasAttribute("data-fail")) {
-        const retry = el("button", { class: "cp-button", "data-size": "sm", type: "button", text: "Retry" });
-        retry.addEventListener("click", () => $(`[data-refresh="${region.id}"]:not([data-fail])`)?.click());
-        region.prepend(el("div", { class: "cp-notice", "data-tone": "danger", role: "status" }, icon("circle-x"), el("span", { text: "The refresh failed: Sonarr did not answer. What you see is from 14:02." }), retry));
-      }
-    }, 1500);
-  });
-}
-
 // ------------------------------------------------------------- video
 // Our controls over the native element: play and pause, a seek bar with
 // the times, and one caption track the timing preview re-renders.

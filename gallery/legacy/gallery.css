@@ -1416,34 +1416,6 @@ html:has(.g-header) {
   border-radius: var(--cp-radius-surface);
 }
 
-/* The refreshing region is a panel, and its line runs along the panel's
- * top edge, inside the border, so it belongs to what it refreshes. */
-.g-refreshing {
-  position: relative;
-  overflow: hidden;
-}
-
-.g-refreshing[aria-busy="true"]::before {
-  content: "";
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 0;
-  block-size: 3px;
-  border-radius: var(--cp-radius-round);
-  background: linear-gradient(90deg, transparent, var(--cp-accent-9) 30%, var(--cp-accent-9) 70%, transparent) 0 0 / 40% 100% no-repeat;
-  animation: refresh-line 1.2s cubic-bezier(0.3, 0.25, 0.7, 0.75) infinite;
-}
-
-@keyframes refresh-line {
-  from {
-    background-position: -40% 0;
-  }
-
-  to {
-    background-position: 140% 0;
-  }
-}
-
 /* Video with one caption track: our controls over the native element. */
 .g-player {
   display: grid;
