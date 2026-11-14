@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
@@ -205,12 +205,12 @@ describe("the legend row of one series", () => {
     });
     const rect = m.marks[0] as RectModel;
     expect(overall(m, words)?.at).toBe(
-      `Under ${formatDuration(1_000, "en")} to ${formatDuration(edges.at(-1) ?? 0, "en")}`,
+      `Under ${writer("duration", "en")(1_000)} to ${writer("duration", "en")(edges.at(-1) ?? 0)}`,
     );
     expect(overall(m, words)?.entries[0]?.value).toBe(`32${nb}reads`);
-    expect(bucketReading(m, rect, 0, words).at).toBe(`Under ${formatDuration(1_000, "en")}`);
+    expect(bucketReading(m, rect, 0, words).at).toBe(`Under ${writer("duration", "en")(1_000)}`);
     expect(bucketReading(m, rect, 5, words).at).toBe(
-      `${formatDuration(30_000, "en")} to ${formatDuration(60_000, "en")}`,
+      `${writer("duration", "en")(30_000)} to ${writer("duration", "en")(60_000)}`,
     );
   });
 });
@@ -477,7 +477,7 @@ describe("the legend row's widths", () => {
     let texts = 0;
     const counting = { ...measure, number: (t: string) => (texts++, measure.number(t)) };
     const w = readoutWidths(m, words, counting);
-    expect(w.values[0]).toBe(measure.number(formatDuration(9_420_013, "en")));
+    expect(w.values[0]).toBe(measure.number(writer("duration", "en")(9_420_013)));
     // About a hundred records: 0, 109 to 999 ms, 1 to 9 s, 2 hr 37 min and 9 hr.
     expect(texts).toBeLessThan(150);
     const line = m.marks[0] as LineModel;
@@ -895,14 +895,14 @@ describe("the legend row of a range or arrow plot", () => {
     const later = START + 90 * MIN;
     const range = plot("range", { type: "time" }, [later, START, START], [START, later, START]);
     expect(pointReading(range, pointOf(range), 0, words).total).toBe(
-      formatDuration(90 * MIN, "en"),
+      writer("duration", "en")(90 * MIN),
     );
     const arrow = plot("arrow", { type: "time" }, [later, START, START], [START, later, START]);
     expect(pointReading(arrow, pointOf(arrow), 0, words).total).toBe(
-      formatDuration(-90 * MIN, "en"),
+      writer("duration", "en")(-90 * MIN),
     );
     expect(pointReading(arrow, pointOf(arrow), 1, words).total).toBe(
-      `+${formatDuration(90 * MIN, "en")}`,
+      `+${writer("duration", "en")(90 * MIN)}`,
     );
   });
 

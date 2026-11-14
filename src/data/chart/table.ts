@@ -5,7 +5,7 @@
  * @module
  */
 
-import { formatter } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 
 import { dayFormat, weekCount, weekRow } from "./calendar.js";
 import type {
@@ -412,7 +412,7 @@ export function tableModel(model: Model, words: Words): TableModel {
     return { corner: "", columns: [], rows: [], after };
   }
   if (m.kind === "dot") {
-    const count = formatter("number", model.locale);
+    const count = writer("number", model.locale);
     const seen = new Map<string, number>();
     const rows = m.rows.map((r): Row => {
       const n = seen.get(r.name) ?? 0;

@@ -221,13 +221,14 @@ Niche statistical types such as violin plots and dendrograms are not offered eit
 
 ## Formats
 
-`format` on a scale says how the chart writes its values in its locale, on the axis, the legend row, the summary and the table:
+`format` on a scale says how the chart writes its values in its locale, on the axis, the colour key, the legend row, the summary, the notes and the table. A value that rounds to 0 is written 0, without a minus, in every format but a function: a pivot of -0.0001 reads 0 on a key of whole numbers, and a reading of -0.0001 reads 0. A change, a slope's or an arrow's, carries its sign on every value but 0.
 
-- `"number"`, the default: `Intl.NumberFormat`'s own, up to three fraction digits. A linear axis writes every tick with its step's fraction digits, so ticks 0.5 apart read 0.0, 0.5, 1.0, and a log axis writes each tick with the digits it needs, up to its low end's. `"percent"` does the same for the percentages, so ticks 0.005 apart read 0.0%, 0.5%, 1.0%. An axis or a colour key whose finest label needs more than 100 fraction digits, `Intl.NumberFormat`'s limit, writes all its labels in scientific notation, each with the digits the finest has and at most 15 significant figures, so ticks 1e-101 apart read 0, 1E-101, 2E-101. An axis or colour key label that rounds to 0 is written 0, without a minus, so a pivot of -0.0001 reads 0 on a key of whole numbers.
+- `"number"`, the default: `Intl.NumberFormat`'s own, up to three fraction digits. A linear axis writes every tick with its step's fraction digits, so ticks 0.5 apart read 0.0, 0.5, 1.0, and a log axis writes each tick with the digits it needs, up to its low end's. `"percent"` does the same for the percentages, so ticks 0.005 apart read 0.0%, 0.5%, 1.0%. An axis or a colour key whose finest label needs more than 100 fraction digits, `Intl.NumberFormat`'s limit, writes all its labels in scientific notation, each with the digits the finest has and at most 15 significant figures, so ticks 1e-101 apart read 0, 1E-101, 2E-101.
 - `"integer"`: rounded to a whole number.
 - `"percent"`: a proportion from 0 to 1, so 0.42 writes "42%".
 - `"duration"`: milliseconds, as "1 min, 27 sec", "18 min" or "400 ms". Under 10 of its largest unit a value keeps the next unit too, and from 10 up it keeps the largest alone. A log axis in durations ticks at 1 sec, 10 sec, 1 min, 10 min, 1 hr, 6 hr, 1 day and 3 days. Above 3 days it ticks at each edge of the ladder.
-- An `Intl.NumberFormatOptions` object, passed to `Intl.NumberFormat` as it is, or a function of the value, whose string is used as it is.
+- An `Intl.NumberFormatOptions` object, passed to `Intl.NumberFormat`, whose `signDisplay` is kept unless it signs a zero: `"always"` becomes `"exceptZero"`, and `"auto"`, the default, becomes `"negative"`, or `"exceptZero"` on a change.
+- A function of the value, whose string is used as it is.
 
 ## A histogram of waits
 

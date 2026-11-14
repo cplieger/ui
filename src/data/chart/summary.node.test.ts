@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 
 import { chartModel, type Model } from "./model.js";
@@ -19,7 +19,7 @@ const nb = "\u00A0";
 const time = (t: number) =>
   new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: TZ }).format(t);
 const span = (a: number, b: number) => `${time(a)} to ${time(b)}`;
-const dur = (ms: number) => formatDuration(ms, "en");
+const dur = (ms: number) => writer("duration", "en")(ms);
 const model = (spec: ChartSpec): Model => chartModel(spec, "en", TZ);
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 

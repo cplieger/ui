@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { decimalFormatter } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { linearAxis, linearTicks } from "../scale/linear.js";
 
 import { classes } from "./classes.js";
@@ -82,7 +82,7 @@ describe("decimal ticks and class boundaries", () => {
             expect(written.some((v) => v !== Number(v.toFixed(least - 1)))).toBe(true);
           }
           for (const format of [undefined, "percent"] as const) {
-            const write = decimalFormatter(format, "en", least, most);
+            const write = writer(format, "en", { digits: [least, most] });
             expect(written.map(write).filter((t) => /^-0(\.0+)?%?$/.test(t))).toEqual([]);
           }
         },

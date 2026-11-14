@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
@@ -70,7 +70,7 @@ describe("rule labels", () => {
     const l = lay(readDelays(42_000, 1_087_000), 80 + 276, { axisGroup: 80 });
     expect(l.frame.width).toBe(276);
     const [median, p95] = l.ruleLabels;
-    expect(median?.text).toBe(`Median ${formatDuration(42_000, "en")}`);
+    expect(median?.text).toBe(`Median ${writer("duration", "en")(42_000)}`);
     expect(median?.x).toBeCloseTo(80 + l.frame.xAt(42_000), 6);
     expect(p95?.x).toBe(80);
     expect(p95?.y).toBeGreaterThan(median?.y ?? 0);
@@ -82,7 +82,9 @@ describe("rule labels", () => {
   it("writes a rule outside the domain as a label flush with its end", () => {
     const l = lay(readDelays(42_000, 4 * 86_400_000), 80 + 276, { axisGroup: 80 });
     const off = l.ruleLabels[1];
-    expect(off?.text).toBe(`95th percentile ${formatDuration(4 * 86_400_000, "en")}, off the axis`);
+    expect(off?.text).toBe(
+      `95th percentile ${writer("duration", "en")(4 * 86_400_000)}, off the axis`,
+    );
     expect((off?.x ?? 0) + face.number(off?.text ?? "")).toBe(80 + 276);
   });
 

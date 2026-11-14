@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { measurer } from "../scale/measure.js";
 
 import { layout, type Layout, type Metrics } from "./layout.js";
@@ -210,11 +210,11 @@ describe("histogram keys", () => {
     });
     const first = b.nav.move({ kind: "rect", i: 2, part: undefined }, "Home", undefined);
     expect(spoken(b.model, first as Selection, words, false)).toBe(
-      `Under ${formatDuration(1_000, "en")}: 4\u00A0reads.`,
+      `Under ${writer("duration", "en")(1_000)}: 4\u00A0reads.`,
     );
     const next = b.nav.move(first as Selection, "ArrowRight", undefined);
     expect(spoken(b.model, next as Selection, words, false)).toBe(
-      `${formatDuration(1_000, "en")} to ${formatDuration(60_000, "en")}: 86\u00A0reads.`,
+      `${writer("duration", "en")(1_000)} to ${writer("duration", "en")(60_000)}: 86\u00A0reads.`,
     );
   });
 });

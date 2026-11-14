@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
@@ -74,7 +74,7 @@ describe("a duration axis", () => {
   it("thins the read histogram's ticks at 276 px to 1 sec, 1 min, 1 hr and 3 days", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
     expect(axis.ticks.map((t) => t.value)).toEqual([S, MIN, HR, 3 * DAY]);
-    expect(words(axis)).toEqual([S, MIN, HR, 3 * DAY].map((v) => formatDuration(v, "en")));
+    expect(words(axis)).toEqual([S, MIN, HR, 3 * DAY].map((v) => writer("duration", "en")(v)));
     expect(axis.ticks.at(-1)?.label?.box.end).toBe(276);
     expect(axis.ticks[0]?.label?.box.start).toBe(0);
   });

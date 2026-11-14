@@ -2190,6 +2190,26 @@ describe("a heatmap's selection and colour key", () => {
     expect(labels.map((l) => l.textContent)).toEqual(kept);
   });
 
+  it.each([
+    [
+      "a pivot just below 0 over a passed domain",
+      { type: "diverging", steps: 5, pivot: -0.0001, domain: [-3, 3] },
+      "0",
+    ],
+    ["a passed domain's boundary a hair from 0", { steps: 2, domain: [-0.1 - 0.2, 0.3] }, "0"],
+    ["passed thresholds", { thresholds: [-1, -0.0001, 1] }, "-1 0 1"],
+  ] as const)("writes %s without a signed zero", (_, colour, want) => {
+    const { key } = keyed({
+      colour,
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-3, 3]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])].map(
+      (l) => l.textContent,
+    );
+    expect(labels).toEqual(expect.arrayContaining(want.split(" ")));
+    expect(labels.filter((t) => /^[-\u2212]0$/u.test(t))).toEqual([]);
+  });
+
   it("writes boundaries finer than Intl's 100 fraction digits in scientific notation", () => {
     const { key } = keyed({
       // Four classes 2.5e-102 wide.

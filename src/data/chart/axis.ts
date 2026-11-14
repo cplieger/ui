@@ -4,7 +4,7 @@
  * @module
  */
 
-import { decimalFormatter, formatter, tickFormat } from "../scale/format.js";
+import { tickFormat, writer } from "../scale/format.js";
 import { boxes, greedy, LABEL_GAP, tooSparse, type Box } from "../scale/labels.js";
 import { coarserStep, linearAxis, linearTicks } from "../scale/linear.js";
 import { logTickLists } from "../scale/log.js";
@@ -119,9 +119,9 @@ function logAxis(
 ): Axis {
   const duration = scale.format === "duration";
   // Every tick is 1, 2 or 5 times a power of ten no finer than lo's.
-  const write = duration
-    ? formatter("duration", locale)
-    : decimalFormatter(scale.format, locale, 0, -Math.floor(Math.log10(scale.lo)));
+  const write = writer(duration ? "duration" : scale.format, locale, {
+    digits: [0, -Math.floor(Math.log10(scale.lo))],
+  });
   const lists = logTickLists(scale.lo, scale.hi, duration);
   let chosen: Tick[] = [];
   for (const [n, list] of lists.entries()) {
@@ -149,7 +149,8 @@ function linearAxisAt(
   const at = range(lo, hi);
   for (let step = axis.step; ; step = coarserStep(step)) {
     const values = linearTicks(lo, hi, step);
-    const format = decimalFormatter(scale.format, locale, Math.max(0, -step.exp));
+    const digits = Math.max(0, -step.exp);
+    const format = writer(scale.format, locale, { digits: [digits, digits] });
     const write = scale.absolute ? (v: number) => format(Math.abs(v)) : format;
     const { ticks, shown } = fitted(values, at, write, layout);
     if (!tooSparse(shown, values.length) || values.length <= 1) {

@@ -5,14 +5,7 @@
  * @module
  */
 
-import {
-  formatter,
-  noun,
-  signedFormatter,
-  withNoun,
-  type Unit,
-  type WidthKey,
-} from "../scale/format.js";
+import { noun, withNoun, writer, type Unit, type WidthKey } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {
@@ -242,7 +235,7 @@ const dots = (m: DotModel) => m.rows.reduce((n, r) => n + r.to - r.from, 0);
 /** A band chart's row count in words: in the y scale's unit, or as categories. */
 export function rowsText(model: Model, words: Words): string {
   const n = model.y.type === "band" ? model.y.rows.length : 0;
-  const count = formatter("number", model.locale)(n);
+  const count = writer("number", model.locale)(n);
   const unit = model.spec.y?.unit;
   return unit === undefined ? words.categories(count, n) : counted(count, n, unit, model);
 }
@@ -250,7 +243,7 @@ export function rowsText(model: Model, words: Words): string {
 /** How many dots a scatter shows, in its `unit` or as `words.points`. */
 export function dotsText(model: Model, m: ScatterModel, words: Words): string {
   const n = m.shown.reduce((a, d) => a + d.length, 0);
-  const count = formatter("number", model.locale)(n);
+  const count = writer("number", model.locale)(n);
   return m.unit === undefined ? words.points(count, n) : counted(count, n, m.unit, model);
 }
 
@@ -313,7 +306,7 @@ export const pointPart = (model: Model, s: PointSeriesModel, i: number, words: W
  *  arrow's change with its sign on every value but 0. */
 export function linkText(model: Model, m: PointModel, v: number): string {
   const format = model.x.type === "time" ? "duration" : model.x.format;
-  return (m.link === "arrow" ? signedFormatter : formatter)(format, model.locale)(v);
+  return writer(format, model.locale, { signed: m.link === "arrow" })(v);
 }
 
 /** The word a reading's `total` follows in the legend row and the table:
@@ -393,7 +386,7 @@ export const dotValue = (s: ScatterModel["series"][number], axis: "x" | "y" | "r
 // A scatter's chips, a dot count per series, a figure that adds up across
 // the chart where its measures need not; none with one series.
 function dotChips(model: Model, m: ScatterModel): Entry[] {
-  const count = formatter("number", model.locale);
+  const count = writer("number", model.locale);
   return m.series.length < 2
     ? []
     : m.series.map((s, k) => ({
@@ -429,7 +422,9 @@ export function scatterReading(
 
 /** A slope series' change in the y format, signed on every value but 0. */
 export function changeText(model: Model, v: number): string {
-  return signedFormatter(model.y.type === "band" ? undefined : model.y.format, model.locale)(v);
+  return writer(model.y.type === "band" ? undefined : model.y.format, model.locale, {
+    signed: true,
+  })(v);
 }
 
 /** A box's outliers in words through `words.outlierReading`, their count
@@ -440,7 +435,7 @@ function outliersText(model: Model, s: BoxSeriesModel, r: number, words: Words):
   if (n === 0) {
     return "";
   }
-  const count = counted(formatter("number", model.locale)(n), n, words.outlierUnit, model);
+  const count = counted(writer("number", model.locale)(n), n, words.outlierUnit, model);
   const last = n > 1 ? model.xText(all[n - 1] ?? 0) : "";
   return words.outlierReading(count, model.xText(all[0] ?? 0), last);
 }
@@ -488,7 +483,7 @@ export function boxReading(model: Model, m: BoxModel, r: number, words: Words): 
       ...bare(words.measure(l.median, t(b.median))),
       ...bare(words.measure(l.middle, words.range(t(b.q1), t(b.q3)))),
       ...bare(words.measure(l.whiskers, words.range(t(b.low), t(b.high)))),
-      ...bare(words.measure(l.outliers, formatter("number", model.locale)(n))),
+      ...bare(words.measure(l.outliers, writer("number", model.locale)(n))),
     ],
     total: undefined,
   };
@@ -497,7 +492,7 @@ export function boxReading(model: Model, m: BoxModel, r: number, words: Words): 
 /** How many cells a cell chart has, missing ones included, through `words.cells`. */
 export function cellsText(model: Model, m: CellModel, words: Words): string {
   const n = cellCount(m.x) * cellCount(m.y);
-  return words.cells(formatter("number", model.locale)(n), n);
+  return words.cells(writer("number", model.locale)(n), n);
 }
 
 /** Column or row `i` of a cell chart's `axis` in words: its category's
@@ -563,7 +558,7 @@ export function cellReading(
 /** How many days a calendar holds, missing ones included, through `words.days`. */
 export function daysText(model: Model, m: CalendarModel, words: Words): string {
   const n = m.values.length;
-  return words.days(formatter("number", model.locale)(n), n);
+  return words.days(writer("number", model.locale)(n), n);
 }
 
 /** Day `i` of a calendar in words: its date in full, "so far" on an open last day. */

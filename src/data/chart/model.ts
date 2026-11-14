@@ -5,11 +5,10 @@
  */
 
 import {
-  formatter,
   instantFormat,
-  signedFormatter,
   spanFormat,
   widthKey,
+  writer,
   type Unit,
   type WidthKey,
 } from "../scale/format.js";
@@ -1706,14 +1705,14 @@ export function chartModel(
         ? (v: number) => dateText(localDay(v, timeZone))
         : x.type === "time"
           ? instantFormat(locale, timeZone, days)
-          : (signed ? signedFormatter : formatter)(x.format, locale);
+          : writer(x.format, locale, { signed });
   const xSpan =
     x.type === "time" && !calendar
       ? spanFormat(locale, timeZone, days)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
-  const yText = formatter(y.type === "band" ? undefined : y.format, locale);
-  const rText = formatter(size?.format, locale);
-  const colourText = formatter(spec.colour?.format, locale);
+  const yText = writer(y.type === "band" ? undefined : y.format, locale);
+  const rText = writer(size?.format, locale);
+  const colourText = writer(spec.colour?.format, locale);
   const share = marks.some(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
@@ -1733,7 +1732,7 @@ export function chartModel(
     rText,
     colourText,
     dateText,
-    amountText: share ? formatter("number", locale) : bars ? xText : yText,
+    amountText: share ? writer("number", locale) : bars ? xText : yText,
     widthKeys: {
       x: xKey,
       y: yKey,

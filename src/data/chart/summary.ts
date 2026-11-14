@@ -4,7 +4,7 @@
  * @module
  */
 
-import { formatDuration, formatter, type Unit } from "../scale/format.js";
+import { writer, type Unit } from "../scale/format.js";
 
 import {
   barTotal,
@@ -65,7 +65,7 @@ function sizeText(model: Model, size: number | undefined, words: Words): string 
   if (size === undefined) {
     return "";
   }
-  const text = model.x.type === "time" ? formatDuration(size, model.locale) : model.xText(size);
+  const text = model.x.type === "time" ? writer("duration", model.locale)(size) : model.xText(size);
   return words.every(text);
 }
 
@@ -191,7 +191,7 @@ function lineSummary(model: Model, m: SampleModel, words: Words): string[] {
 const NAMED = 5;
 
 function dotSummary(model: Model, m: DotModel, words: Words): string[] {
-  const count = formatter("number", model.locale);
+  const count = writer("number", model.locale);
   const rows = counted(count(m.rows.length), m.rows.length, model.spec.y?.unit, model);
   const dots = m.rows.reduce((n, r) => n + r.to - r.from, 0);
   const out = [
@@ -265,9 +265,7 @@ function extremesText(
 function barSummary(model: Model, m: BarModel, words: Words): string[] {
   const names = model.y.type === "band" ? model.y.rows : [];
   const several = m.series.length > 1;
-  const series = several
-    ? words.seriesCount(formatter("number", model.locale)(m.series.length))
-    : "";
+  const series = several ? words.seriesCount(writer("number", model.locale)(m.series.length)) : "";
   const out = [words.countSummary(rowsText(model, words), series)];
   const sentence = (name: string | undefined, at: (i: number) => number | null) => {
     const e = barExtremes(names, at);
@@ -304,9 +302,7 @@ function barSummary(model: Model, m: BarModel, words: Words): string[] {
 function pointSummary(model: Model, m: PointModel, words: Words): string[] {
   const names = model.y.type === "band" ? model.y.rows : [];
   const several = m.series.length > 1;
-  const series = several
-    ? words.seriesCount(formatter("number", model.locale)(m.series.length))
-    : "";
+  const series = several ? words.seriesCount(writer("number", model.locale)(m.series.length)) : "";
   const out = [words.countSummary(rowsText(model, words), series)];
   const time = model.x.type === "time";
   for (const s of m.series) {
@@ -346,7 +342,7 @@ function pointSummary(model: Model, m: PointModel, words: Words): string[] {
 // a missing end has no change to rank.
 function slopeSummary(model: Model, m: SlopeModel, words: Words): string[] {
   const n = m.series.length;
-  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
   const out = [words.slopeSummary(domainText(model, words), series)];
   const end = (v: number | null | undefined) =>
     v === null || v === undefined ? words.noData : model.yText(v);
@@ -378,7 +374,7 @@ function slopeSummary(model: Model, m: SlopeModel, words: Words): string[] {
 // statistic, which an app adds through its own summary.
 function scatterSummary(model: Model, m: ScatterModel, words: Words): string[] {
   const n = m.series.length;
-  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
   const out = [words.countSummary(dotsText(model, m, words), series)];
   const dots = m.series.flatMap((s, k) => (m.shown[k] ?? []).map((i) => ({ s, i })));
   const names = dots.map((d) => d.s.names[d.i] ?? "");
@@ -410,7 +406,7 @@ function scatterSummary(model: Model, m: ScatterModel, words: Words): string[] {
 function boxSummary(model: Model, m: BoxModel, words: Words): string[] {
   const names = model.y.type === "band" ? model.y.rows : [];
   const n = m.series.length;
-  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
   const out = [words.countSummary(rowsText(model, words), series)];
   const t = model.xText;
   for (const s of m.series) {
@@ -578,7 +574,7 @@ export function summaryOf(model: Model, words: Words): string {
 // bare; a binned axis's unit is its values', not its bins', so its count
 // is bare.
 function gridText(model: Model, m: CellModel, words: Words): string {
-  const number = formatter("number", model.locale);
+  const number = writer("number", model.locale);
   const count = (axis: CellAxis, unit: Unit | undefined) => {
     const n = cellCount(axis);
     return counted(number(n), n, "names" in axis ? unit : undefined, model);
@@ -597,7 +593,7 @@ export function shortDescription(model: Model, words: Words): string {
     m === undefined || m.kind === "dot" || m.kind === "cell" || m.kind === "calendar"
       ? 0
       : m.series.length;
-  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
   const range =
     m?.kind === "bar" || m?.kind === "point" || m?.kind === "box"
       ? rowsText(model, words)

@@ -1,58 +1,85 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  decimalFormatter,
   durationRecord,
-  formatDuration,
-  formatter,
   instantFormat,
   keepUnit,
   noun,
-  signedFormatter,
   spanFormat,
   tickFormat,
   widthKey,
   withNoun,
+  writer,
 } from "./format.js";
 
 const short = (locale: string, record: Record<string, number>) =>
   new Intl.DurationFormat(locale, { style: "short" }).format(record);
 
-describe("formatter", () => {
+describe("writer", () => {
   it("writes numbers by Intl's default, integers rounded half away from zero, and proportions as percents", () => {
-    expect(formatter(undefined, "en")(1234.5678)).toBe("1,234.568");
-    expect(formatter("number", "fr")(1234.5678)).toBe(
-      new Intl.NumberFormat("fr").format(1234.5678),
-    );
-    expect(formatter("integer", "en")(2.5)).toBe("3");
-    expect(formatter("integer", "en")(-2.5)).toBe("-3");
-    expect(formatter("integer", "fr")(12345.4)).toBe(
+    expect(writer(undefined, "en")(1234.5678)).toBe("1,234.568");
+    expect(writer("number", "fr")(1234.5678)).toBe(new Intl.NumberFormat("fr").format(1234.5678));
+    expect(writer("integer", "en")(2.5)).toBe("3");
+    expect(writer("integer", "en")(-2.5)).toBe("-3");
+    expect(writer("integer", "fr")(12345.4)).toBe(
       new Intl.NumberFormat("fr", { maximumFractionDigits: 0 }).format(12345),
     );
-    expect(formatter("percent", "en")(0.42)).toBe("42%");
-    expect(formatter("percent", "fr")(0.42)).toBe("42\u00A0%");
+    expect(writer("percent", "en")(0.42)).toBe("42%");
+    expect(writer("percent", "fr")(0.42)).toBe("42\u00A0%");
   });
 
-  it("passes options to Intl.NumberFormat as they are, uses a function's string, and writes durations", () => {
+  it("passes options to Intl.NumberFormat, uses a function's string, and writes durations", () => {
     const options = { style: "unit", unit: "megabyte" } as const;
-    expect(formatter(options, "en")(3)).toBe(new Intl.NumberFormat("en", options).format(3));
-    expect(formatter((v) => `v${String(v)}`, "en")(3)).toBe("v3");
-    expect(formatter("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
+    expect(writer(options, "en")(-3)).toBe(new Intl.NumberFormat("en", options).format(-3));
+    expect(writer((v) => `v${String(v)}`, "en")(3)).toBe("v3");
+    expect(writer("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
+  });
+
+  it("writes a value that rounds to 0 without a sign, in every number format", () => {
+    expect(writer(undefined, "en")(-0.0001)).toBe("0");
+    expect(writer("number", "en")(-0)).toBe("0");
+    expect(writer("integer", "en")(-0.4)).toBe("0");
+    expect(writer("integer", "en", { digits: [1, 1] })(-0.4)).toBe("0");
+    expect(writer("percent", "en")(-0.001)).toBe("0%");
+    expect(writer({ maximumFractionDigits: 1 }, "en", { digits: [0, 0] })(-0.01)).toBe("0");
+    expect(writer({ style: "unit", unit: "celsius" }, "en")(-0.0001)).toBe("0°C");
+    // Swedish writes its minus as U+2212.
+    expect(writer(undefined, "sv")(-0.0001)).toBe("0");
+    expect(writer(undefined, "sv")(-1)).toBe("\u22121");
+    expect(writer("integer", "en")(-0.6)).toBe("-1");
+  });
+
+  it("keeps a format's own sign display unless it signs a zero", () => {
+    expect(writer({ signDisplay: "always" }, "en")(3)).toBe("+3");
+    expect([0, -0, 0.0001, -0.0001].map(writer({ signDisplay: "always" }, "en"))).toEqual([
+      "0",
+      "0",
+      "0",
+      "0",
+    ]);
+    expect(writer({ signDisplay: "auto" }, "en")(-0.0001)).toBe("0");
+    expect(writer({ signDisplay: "never" }, "en")(-3)).toBe("3");
+    expect(writer({ signDisplay: "exceptZero" }, "en")(3)).toBe("+3");
+    expect(writer({ signDisplay: "negative" }, "en", { signed: true })(3)).toBe("3");
   });
 });
 
-describe("decimalFormatter", () => {
+describe("writer with digits", () => {
   it("writes the fraction digits asked for, a percent's counted on the share", () => {
-    expect([0, 0.5, 1].map(decimalFormatter("number", "en", 1))).toEqual(["0.0", "0.5", "1.0"]);
-    expect([0.37, 37.142857142857146].map(decimalFormatter(undefined, "en", 0, 3))).toEqual([
+    expect([0, 0.5, 1].map(writer("number", "en", { digits: [1, 1] }))).toEqual([
+      "0.0",
+      "0.5",
+      "1.0",
+    ]);
+    expect([0.37, 37.142857142857146].map(writer(undefined, "en", { digits: [0, 3] }))).toEqual([
       "0.37",
       "37.143",
     ]);
-    expect(decimalFormatter("percent", "en", 3)(0.005)).toBe("0.5%");
+    expect(writer("percent", "en", { digits: [3, 3] })(0.005)).toBe("0.5%");
   });
 
   it("writes past Intl's 100 fraction digits in scientific notation, 0 as 0", () => {
-    const write = decimalFormatter("number", "en", 103);
+    const write = writer("number", "en", { digits: [103, 103] });
     expect([0, 2.5e-102, 5e-102, 7.5e-102].map(write)).toEqual([
       "0",
       "2.5E-102",
@@ -60,27 +87,27 @@ describe("decimalFormatter", () => {
       "7.5E-102",
     ]);
     expect(write(1.23456789012345e-102)).toBe("1.2E-102");
-    expect(decimalFormatter("number", "en", 116)(1.23456789012345e-102)).toBe(
+    expect(writer("number", "en", { digits: [116, 116] })(1.23456789012345e-102)).toBe(
       "1.23456789012345E-102",
     );
     // A key's pivot keeps its digits up to `most`, as under 100 digits.
-    expect(decimalFormatter(undefined, "en", 102, 105)((260 / 7) * 1e-103)).toBe("3.714E-102");
+    expect(writer(undefined, "en", { digits: [102, 105] })((260 / 7) * 1e-103)).toBe("3.714E-102");
     expect([4e-104, 6e-104, -6e-104].map(write)).toEqual(["0", "1E-103", "-1E-103"]);
-    expect(decimalFormatter("number", "en", 0, 101)(1000)).toBe("1E3");
-    const share = decimalFormatter("percent", "en", 0, 103);
+    expect(writer("number", "en", { digits: [0, 101] })(1000)).toBe("1E3");
+    const share = writer("percent", "en", { digits: [0, 103] });
     expect([0, 1e-103].map(share)).toEqual(["0%", "1E-101%"]);
     // 102 digits on the share are 100 on the percentage, within Intl's limit.
-    expect(decimalFormatter("percent", "en", 102)(1e-102)).toBe(`0.${"0".repeat(99)}1%`);
+    expect(writer("percent", "en", { digits: [102, 102] })(1e-102)).toBe(`0.${"0".repeat(99)}1%`);
   });
 
   it("writes a value that rounds to 0 without a minus", () => {
-    expect(decimalFormatter(undefined, "en", 0, 3)(-0.0001)).toBe("0");
-    expect(decimalFormatter(undefined, "en", 1, 4)(-1e-7)).toBe("0.0");
-    expect(decimalFormatter(undefined, "en", 0, 3)(-0.0005)).toBe("-0.001");
-    expect(decimalFormatter("percent", "en", 0, 3)(-0.0001)).toBe("0%");
-    expect(decimalFormatter("number", "en", 1)(-0)).toBe("0.0");
-    expect(decimalFormatter("number", "en", 103)(-0)).toBe("0");
-    expect(decimalFormatter("number", "en", 103)(-4e-104)).toBe("0");
+    expect(writer(undefined, "en", { digits: [0, 3] })(-0.0001)).toBe("0");
+    expect(writer(undefined, "en", { digits: [1, 4] })(-1e-7)).toBe("0.0");
+    expect(writer(undefined, "en", { digits: [0, 3] })(-0.0005)).toBe("-0.001");
+    expect(writer("percent", "en", { digits: [0, 3] })(-0.0001)).toBe("0%");
+    expect(writer("number", "en", { digits: [1, 1] })(-0)).toBe("0.0");
+    expect(writer("number", "en", { digits: [103, 103] })(-0)).toBe("0");
+    expect(writer("number", "en", { digits: [103, 103] })(-4e-104)).toBe("0");
   });
 });
 
@@ -88,7 +115,7 @@ describe("widthKey", () => {
   const shape = (t: string) => t.replace(/\p{Nd}/gu, "0");
   const values = [
     0, -0, 1, -1, 9, 10, 99.5, 999.4, 1_234.5, -12_345.678, 0.5, 0.05, 0.0004, 0.0005, 1.005,
-    9.9996, 71.25, 1e9, 123_456_789.123,
+    9.9996, 71.25, 1e9, 123_456_789.123, -0.0004, -0.4, -0.004,
   ];
 
   it.each([
@@ -107,7 +134,7 @@ describe("widthKey", () => {
     const key = widthKey(format, locale);
     expect(key).toBeDefined();
     for (const signed of [false, true]) {
-      const write = (signed ? signedFormatter : formatter)(format, locale);
+      const write = writer(format, locale, { signed });
       const seen = new Map<number, string>();
       for (const v of values) {
         const k = key?.(v) ?? Number.NaN;
@@ -126,6 +153,7 @@ describe("widthKey", () => {
     expect(key?.(100)).not.toBe(key?.(50));
     expect(key?.(-5)).not.toBe(key?.(5));
     expect(key?.(0)).not.toBe(key?.(1));
+    expect(key?.(-0.0001)).toBe(key?.(0));
   });
 
   it("keys a duration by the record it writes and its sign", () => {
@@ -136,7 +164,7 @@ describe("widthKey", () => {
       61_000, 599_000, 3_723_000, 9_420_013, 82_800_000, 1_080_000_000,
     ];
     for (const signed of [false, true]) {
-      const write = (signed ? signedFormatter : formatter)("duration", "en");
+      const write = writer("duration", "en", { signed });
       const seen = new Map<number, string>();
       for (const v of durations) {
         const k = key?.(v) ?? Number.NaN;
@@ -167,26 +195,28 @@ describe("widthKey", () => {
   });
 });
 
-describe("signedFormatter", () => {
+describe("writer, signed", () => {
   it("signs every value but 0 through Intl, in each preset and a format object", () => {
-    expect(signedFormatter(undefined, "en")(1.5)).toBe("+1.5");
-    expect(signedFormatter("number", "en")(-1.5)).toBe("-1.5");
-    expect(signedFormatter("integer", "en")(2.5)).toBe("+3");
-    expect(signedFormatter("percent", "en")(-0.143)).toBe("-14%");
-    expect(signedFormatter("percent", "en")(0)).toBe("0%");
+    expect(writer(undefined, "en", { signed: true })(1.5)).toBe("+1.5");
+    expect(writer("number", "en", { signed: true })(-1.5)).toBe("-1.5");
+    expect(writer("integer", "en", { signed: true })(2.5)).toBe("+3");
+    expect(writer("percent", "en", { signed: true })(-0.143)).toBe("-14%");
+    expect(writer("percent", "en", { signed: true })(0)).toBe("0%");
     const options = { style: "unit", unit: "megabyte" } as const;
-    expect(signedFormatter(options, "en")(3)).toBe(
+    expect(writer(options, "en", { signed: true })(3)).toBe(
       new Intl.NumberFormat("en", { ...options, signDisplay: "exceptZero" }).format(3),
     );
-    expect(signedFormatter({ signDisplay: "always" }, "en")(0)).toBe("+0");
+    expect(writer({ signDisplay: "always" }, "en", { signed: true })(-0.0001)).toBe("0");
   });
 
   it("puts a plus before a positive duration's or function's text, and only once", () => {
-    expect(signedFormatter("duration", "en")(87_000)).toBe("+1\u00A0min, 27\u00A0sec");
-    expect(signedFormatter("duration", "en")(-87_000)).toBe(formatDuration(-87_000, "en"));
-    expect(signedFormatter((v) => `v${String(v)}`, "en")(3)).toBe("+v3");
-    expect(signedFormatter((v) => `+${String(v)}`, "en")(3)).toBe("+3");
-    expect(signedFormatter((v) => String(v), "en")(0)).toBe("0");
+    expect(writer("duration", "en", { signed: true })(87_000)).toBe("+1\u00A0min, 27\u00A0sec");
+    expect(writer("duration", "en", { signed: true })(-87_000)).toBe(
+      writer("duration", "en")(-87_000),
+    );
+    expect(writer((v) => `v${String(v)}`, "en", { signed: true })(3)).toBe("+v3");
+    expect(writer((v) => `+${String(v)}`, "en", { signed: true })(3)).toBe("+3");
+    expect(writer((v) => String(v), "en", { signed: true })(0)).toBe("0");
   });
 });
 
@@ -219,18 +249,18 @@ describe("the duration rule", () => {
       [108_000_000, { days: 1, hours: 6 }],
       [400, { milliseconds: 400 }],
     ] as const) {
-      expect(formatDuration(ms, "en")).toBe(
+      expect(writer("duration", "en")(ms)).toBe(
         short("en", record).replaceAll(/(\d) (?=\p{L})/gu, "$1\u00A0"),
       );
-      expect(formatDuration(ms, "fr")).toBe(short("fr", record));
+      expect(writer("duration", "fr")(ms)).toBe(short("fr", record));
     }
-    expect(formatDuration(87_000, "en")).toBe("1\u00A0min, 27\u00A0sec");
-    expect(formatDuration(108_000_000, "fr")).toMatch(/^1\u202Fj et 6\u202Fh$/u);
-    expect(formatDuration(87_000, "fr")).toMatch(/^1\u00A0min et 27\u202Fs$/u);
+    expect(writer("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
+    expect(writer("duration", "fr")(108_000_000)).toMatch(/^1\u202Fj et 6\u202Fh$/u);
+    expect(writer("duration", "fr")(87_000)).toMatch(/^1\u00A0min et 27\u202Fs$/u);
   });
 
   it("writes zero as zero milliseconds", () => {
-    expect(formatDuration(0, "en")).toBe("0\u00A0ms");
+    expect(writer("duration", "en")(0)).toBe("0\u00A0ms");
   });
 });
 

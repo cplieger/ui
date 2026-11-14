@@ -4,7 +4,7 @@
  * @module
  */
 
-import { decimalFormatter } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { fontMeasure, type Measure } from "../scale/measure.js";
 
 import {
@@ -124,6 +124,7 @@ function marker(note: Note, f: Layout["frame"]): SVGElement {
   const cy = inside(note.point.y, f.height);
   const g = svgEl("g", { "data-part": "marker" });
   g.append(svgEl("path", { d: ring(cx, cy, r) }));
+  // In Latin digits, as the notes list's decimal markers are, so a marker matches its item.
   g.append(texts("number", [{ text: String(note.number), x: cx, y: cy, anchor: "middle" }]));
   return g;
 }
@@ -842,7 +843,7 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
   const write =
     classes.digits === undefined
       ? model.colourText
-      : decimalFormatter(model.spec.colour?.format, model.locale, ...classes.digits);
+      : writer(model.spec.colour?.format, model.locale, { digits: classes.digits });
   const marks: { at: number; text: string }[] = classes.thresholds.map((t, k) => ({
     at: x(k + 1) - GAP_PX / 2,
     text: write(t),
