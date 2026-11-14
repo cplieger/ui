@@ -1,6 +1,6 @@
 /* A list too long to draw, which @cplieger/ui/keyed-list windows: its own
- * scroller --cp-list-h tall, its rows in flow between spacers at the
- * density's height. Strict containment keeps each scroll's layout inside
+ * scroller --cp-list-h tall, its rows in flow between spacers, each at
+ * its own height. Strict containment keeps each scroll's layout inside
  * the list; the module keeps the reader's place itself. */
 .cp-list[data-virtual] {
   block-size: var(--cp-list-h, 22rem);

@@ -34,7 +34,7 @@ const conversations = enhanceKeyedList(list, { keys, row, window: false });
 
 ## The parts
 
-- `.cp-list[data-virtual]` is a long list's own scroller, `--cp-list-h` tall (22rem by default). Its rows stay in flow, at the height the list's `data-density` gives them, between `li[data-part="spacer"]` items that stand for the rows out of view. A list that scrolls with the page, or inside a panel, needs no attribute.
+- `.cp-list[data-virtual]` is a long list's own scroller, `--cp-list-h` tall (22rem by default). Its rows stay in flow, each at its own height, between `li[data-part="spacer"]` items that stand for the rows out of view. A list that scrolls with the page, or inside a panel, needs no attribute.
 - A table body windows the same way, with `tr[data-part="spacer"]` rows of one cell across the columns. `tbody[data-virtual]` holds the columns at the widths its head gives them, so they do not move as rows come into view and leave it.
 - A row not loaded yet is a skeleton: an `li` holding a `.cp-list-row[data-skeleton]`, or a `tr[data-skeleton]` with one `.cp-skeleton` per column, hidden from a screen reader, and the list carries `aria-busy="true"` while one shows.
 
@@ -43,8 +43,8 @@ const conversations = enhanceKeyedList(list, { keys, row, window: false });
 - `enhanceKeyedList(container, opts)` takes a `ul.cp-list` or `ol.cp-list` of `li` rows, or the `tbody` of a `.cp-table`, and returns a `KeyedList`. The module owns the container's children from then on, but a `.cp-list-foot`, which stays last.
 - `KeyedListOptions` = `{ keys, row, window?, need?, of?, count?, words?, overscan?, settle?, signal? }`.
   - `keys` are the rows' keys in order, each once, with `undefined` for a row not loaded yet. Its length is the list's. A key given twice throws a `TypeError`.
-  - `row(key, index)` makes the row for `key`: an `li` in a list, a `tr` in a table body, else it throws a `TypeError`. It is called when the row is first drawn, and the module keeps the element while the row is drawn. A row that leaves the view is dropped, and made again from the app's current data when it comes back.
-  - `window` draws only the rows in view and `overscan` each side, by default true. False draws every row, for a list short enough to draw whole that still needs its rows keyed. A list with `data-layout="grid"` is drawn whole, since its tiles share a line.
+  - `row(key, index)` makes the row for `key`: an `li` in a list, a `tr` in a table body, else it throws a `TypeError`. A group's heading is a row too, an `li` holding a `.cp-list-heading` (below). It is called when the row is first drawn, and the module keeps the element while the row is drawn. A row that leaves the view is dropped, and made again from the app's current data when it comes back.
+  - `window` draws only the rows in view and `overscan` each side, by default true. False draws every row, for a list short enough to draw whole that still needs its rows keyed. Firefox lays a list out in at most 9,999 rows ([bug 1752237](https://bugzilla.mozilla.org/show_bug.cgi?id=1752237)), so a list drawn whole stays under that. A list with `data-layout="grid"` is drawn whole, since its tiles share a line.
   - `need(start, end)` asks for the drawn rows from `start` to `end` (not including `end`) whose keys are `undefined`, once for each new span. The module never fetches: the app answers with `update()`.
   - `of` is every row before any filter, for the count, by default the keys' length.
   - `count` is the element the count is written in. With none, nothing is written or said.
@@ -61,11 +61,32 @@ const conversations = enhanceKeyedList(list, { keys, row, window: false });
 
 ## Behaviour
 
-- The rows in view are the ones that meet what the reader sees of the list: the window, less what a pinch zoom or the on-screen keyboard hides, cut by every box around the list that clips, and by the list itself when it scrolls. The rows' pitch is measured from the drawn rows, and again when a row or the list changes size, so a compact, regular or tall list, a table's rows and a change of pointer all keep the spacers right.
+- The rows in view are the ones that meet what the reader sees of the list: the window, less what a pinch zoom or the on-screen keyboard hides, cut by every box around the list that clips, and by the list itself when it scrolls. Rows may differ in height: a wrapped row, a row with its `<details>` open or a `<progress>` under it, a day's heading. Each drawn row's height is measured and kept by its key, again whenever it changes size, and a row not drawn yet counts as the mean of those measured, so the spacers stand for the rows they replace and a list scrolled end to end ends where it would with every row drawn. A new text size or pointer tier measures every row again; a new width measures each row again as it is drawn.
+- A change of height above the view, a row there growing or the mean moving as rows are measured, moves the scroller by the difference with `scrollBy()`, so the row at the top of the view stays still. The module never writes an absolute scroll offset for it, since iOS WebKit drops one written during a fling.
 - Rows stay in flow and in order, so the reading order and the Tab order are the list's order, and a table keeps its columns. A windowed `li` carries `aria-setsize` and `aria-posinset`, and a windowed `tr` its `aria-rowindex` with the table's `aria-rowcount`, so a screen reader hears "41 of 20,000". The module adds no listener, tab stop or role to a row, so a row whose one interactive part is its title link keeps it as its only stop.
 - The focused row stays drawn wherever the list scrolls, at its place between the spacers. A reorder moves the other rows around it and never the focused row itself, since putting a node back in the page drops its focus. When the focused row's key leaves the list, focus moves to the row now at its place, or the last row, the way a [held list](held-list.md)'s Show lands on a row: its first part that takes focus, else the row itself. With no row left it goes to the list.
 - On `update()` the row at the top of the view stays where it was, so rows that arrive or leave above it move nothing the reader sees. Of the rows in view, the one kept is the first that moved as most of them did, so a row that itself moved to the top is passed over. At the list's start nothing is kept, so a row put first shows. The browser's own scroll anchoring is off for each of the module's writes, so the two never add up.
 - The module does nothing when it is imported.
+
+## Groups
+
+A long list of groups, such as an activity log by day, is one list whose rows include each group's heading: the app flattens the groups into one run of keys, and its `row()` makes an `li` holding the heading for a heading's key.
+
+```ts
+const log = enhanceKeyedList(list, {
+  keys: days.flatMap((day) => [`day:${day.id}`, ...day.events.map((e) => e.id)]),
+  row: (key) => (key.startsWith("day:") ? dayHeading(key) : eventRow(key)),
+});
+```
+
+```html
+<ol class="cp-list" data-variant="timeline" data-surface="plain" data-virtual aria-label="Activity">
+  <li><h3 class="cp-list-heading">Today</h3></li>
+  <li><div class="cp-list-row" data-lines="wrap">…</div></li>
+</ol>
+```
+
+A heading item draws as a group's heading does (list-row's "Groups"), and a screen reader counts it among the list's items.
 
 ## With a held list
 

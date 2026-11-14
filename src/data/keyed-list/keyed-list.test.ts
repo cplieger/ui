@@ -562,6 +562,143 @@ describe("enhanceKeyedList", () => {
     ).toThrow(TypeError);
   });
 
+  describe("with rows of different heights", () => {
+    /** A day-by-day history: every 40th row a day's heading, the others
+     *  one line, or taller by their index, as a wrapped row or a row with
+     *  its details open is. */
+    const TALL = ["", "5.5rem", "", "9rem", "", "4.25rem", "12.5rem"];
+    function historyItem(key: string): HTMLLIElement {
+      const i = Number(key.slice(1));
+      if (i % 40 === 0) {
+        const heading = document.createElement("h3");
+        heading.className = "cp-list-heading";
+        heading.textContent = `Day ${String(i / 40)}`;
+        const li = document.createElement("li");
+        li.dataset["key"] = key;
+        li.append(heading);
+        return li;
+      }
+      const li = titleItem(key);
+      const row = li.firstElementChild as HTMLElement;
+      row.style.minBlockSize = TALL[i % TALL.length] ?? "";
+      return li;
+    }
+
+    /** Where `el` sits in `scroller`'s content, in px from its start. */
+    const offsetIn = (scroller: Element, el: Element): number =>
+      el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+
+    it("places 10,000 of them as with every row drawn once scrolled end to end, never drawing past the view", async () => {
+      const keys = keysOf(10_000);
+      const marks = ["t1", "t5000", "t9999"];
+      // Gecko lays a grid out in at most 9,999 rows
+      // (https://bugzilla.mozilla.org/show_bug.cgi?id=1752237), so the list
+      // drawn whole is a column of flex items.
+      const whole = virtualList();
+      whole.style.display = "flex";
+      whole.style.flexDirection = "column";
+      const all = enhance(whole, {
+        keys,
+        window: false,
+        row: (key) => {
+          const li = historyItem(key);
+          li.style.flex = "none";
+          return li;
+        },
+      });
+      const placed = marks.map((key) => offsetIn(whole, all.rowOf(key) as HTMLElement));
+      const height = whole.scrollHeight;
+      const least = Math.min(...rows(whole).map((el) => el.getBoundingClientRect().height));
+      whole.remove();
+
+      const ul = virtualList();
+      const list = enhance(ul, { keys, row: historyItem });
+      // Rows a view can hold at their least height, a part row at each
+      // edge, and five past each edge.
+      const bound = Math.ceil(ul.clientHeight / least) + 1 + 2 * 5;
+      let most = rows(ul).length;
+      // The engine sends a scroll's event a frame later; sent at once, each
+      // step draws in this task, so 10,000 rows take seconds, not minutes.
+      for (let step = 0; step < 20_000; step += 1) {
+        if (ul.scrollTop + ul.clientHeight >= ul.scrollHeight - 1) {
+          break;
+        }
+        ul.scrollTop += ul.clientHeight;
+        ul.dispatchEvent(new Event("scroll"));
+        most = Math.max(most, rows(ul).length);
+      }
+      await frames();
+      expect(most).toBeLessThanOrEqual(bound);
+      expect(Math.abs(ul.scrollHeight - height)).toBeLessThan(1);
+      const last = list.rowOf("t9999") as HTMLElement;
+      expect(Math.abs(offsetIn(ul, last) - (placed[2] ?? 0))).toBeLessThan(1);
+      for (const [n, key] of marks.entries()) {
+        const row = list.reveal(key, { scroll: false }) as HTMLElement;
+        expect(Math.abs(offsetIn(ul, row) - (placed[n] ?? 0))).toBeLessThan(1);
+      }
+    }, 120_000);
+
+    it("scrolls a far row into view, where it stays as the rows around it are measured", async () => {
+      const ul = virtualList();
+      const list = enhance(ul, { keys: keysOf(10_000), row: historyItem });
+      const row = list.reveal("t7003") as HTMLElement;
+      const inView = (): boolean => {
+        const box = row.getBoundingClientRect();
+        const view = ul.getBoundingClientRect();
+        return box.top >= view.top - 1 && box.bottom <= view.bottom + 1;
+      };
+      expect(inView()).toBe(true);
+      await frames();
+      await frames();
+      expect(row.isConnected).toBe(true);
+      expect(inView()).toBe(true);
+    });
+
+    it("draws a day's heading as an item of the list: no line above it, the space a group's heading has, lined up with the rows", () => {
+      const item = (inner: string) => `<li>${inner}</li>`;
+      const heading = (day: string) => item(`<h3 class="cp-list-heading">${day}</h3>`);
+      const row = item('<div class="cp-list-row"><span class="cp-cell-stack">Grabbed</span></div>');
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<ul class="cp-list">${heading("Today")}${row}${row}${heading("Yesterday")}${row}</ul>` +
+          `<ol class="cp-list" data-variant="timeline" data-surface="plain">${heading("Today")}${row}${row}${heading("Yesterday")}${row}</ol>`,
+      );
+      const [boxed, timeline] = [...document.querySelectorAll<HTMLElement>(".cp-list")] as [
+        HTMLElement,
+        HTMLElement,
+      ];
+      const items = [...boxed.children];
+      const style = (el: Element | undefined, pseudo?: string) =>
+        getComputedStyle(el as Element, pseudo);
+      const rem = Number.parseFloat(style(document.documentElement).fontSize);
+      expect(items.map((li) => style(li).borderBlockStartWidth)).toEqual([
+        "0px",
+        "1px",
+        "1px",
+        "0px",
+        "1px",
+      ]);
+      const [first, second] = [...boxed.querySelectorAll(".cp-list-heading")];
+      expect(style(first).marginBlockStart).toBe("0px");
+      expect(style(second).marginBlockStart).toBe(`${String(rem)}px`);
+      expect(style(second).marginBlockEnd).toBe(`${String(rem / 2)}px`);
+      // Only the first clears the box's edge; the others have their margin.
+      expect([style(first).paddingBlockStart, style(second).paddingBlockStart]).toEqual([
+        `${String(0.75 * rem)}px`,
+        "0px",
+      ]);
+      expect(style(second).paddingInlineStart).toBe(
+        style(boxed.querySelector(".cp-list-row") ?? undefined).paddingInlineStart,
+      );
+      // A timeline's line joins the marks of one day only.
+      const lines = [...timeline.children].map((li) => style(li, "::before").content);
+      expect(lines).toEqual(["none", '""', "none", "none", "none"]);
+      expect(
+        style(timeline.querySelector(".cp-list-heading") ?? undefined).paddingInlineStart,
+      ).toBe("0px");
+    });
+  });
+
   it("stops following the scroll once its signal aborts", async () => {
     const ul = virtualList();
     const stop = new AbortController();

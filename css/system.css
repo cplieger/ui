@@ -5960,6 +5960,28 @@ th[aria-sort="descending"] > .cp-sort::after {
   padding-inline: var(--cp-space-2);
 }
 
+/* A heading that is an item of one list, as a keyed list draws its days:
+ * no line above it, and lined up with the rows' content. */
+.cp-list > li:has(> .cp-list-heading) {
+  border-block-start: 0;
+}
+
+.cp-list > li:not(:first-child) > .cp-list-heading {
+  margin-block-start: var(--cp-space-4);
+}
+
+.cp-list > li > .cp-list-heading {
+  padding-inline: var(--cp-space-4);
+}
+
+.cp-list:not([data-surface="plain"]) > li:first-child > .cp-list-heading {
+  padding-block-start: var(--cp-space-3);
+}
+
+:where(.cp-list[data-density="compact"]) > li > .cp-list-heading {
+  padding-inline: var(--cp-space-2);
+}
+
 /* A row: a link or a button when the whole row opens something, or a div
  * holding its one worded action. */
 .cp-list-row {
@@ -6237,6 +6259,16 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-list-heading:has(+ .cp-list[data-variant="timeline"][data-surface="plain"]) {
   padding-inline: 0;
+}
+
+/* A day's heading inside a timeline: the line joins one day's marks. */
+.cp-list[data-variant="timeline"]
+  > li:is(:has(> .cp-list-heading), :has(+ li > .cp-list-heading))::before {
+  content: none;
+}
+
+.cp-list[data-variant="timeline"] > li > .cp-list-heading {
+  padding-inline: var(--cp-timeline-inset);
 }
 
 .cp-list-row[data-unread] > .cp-cell-stack {
@@ -6547,8 +6579,8 @@ div.cp-list-foot {
 }
 
 /* A list too long to draw, which @cplieger/ui/keyed-list windows: its own
- * scroller --cp-list-h tall, its rows in flow between spacers at the
- * density's height. Strict containment keeps each scroll's layout inside
+ * scroller --cp-list-h tall, its rows in flow between spacers, each at
+ * its own height. Strict containment keeps each scroll's layout inside
  * the list; the module keeps the reader's place itself. */
 .cp-list[data-virtual] {
   block-size: var(--cp-list-h, 22rem);
