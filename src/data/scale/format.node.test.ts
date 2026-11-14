@@ -16,6 +16,14 @@ const short = (locale: string, record: Record<string, number>) =>
   new Intl.DurationFormat(locale, { style: "short" }).format(record);
 
 describe("writer", () => {
+  it("tells options of NaN or Infinity from null, which Intl reads as 0", () => {
+    expect(writer({ maximumFractionDigits: null as never }, "en")(1.5)).toBe("2");
+    expect(() => writer({ maximumFractionDigits: Number.NaN }, "en")).toThrow(RangeError);
+    expect(() => writer({ maximumFractionDigits: Number.POSITIVE_INFINITY }, "en")).toThrow(
+      RangeError,
+    );
+  });
+
   it("writes numbers by Intl's default, integers rounded half away from zero, and proportions as percents", () => {
     expect(writer(undefined, "en")(1234.5678)).toBe("1,234.568");
     expect(writer("number", "fr")(1234.5678)).toBe(new Intl.NumberFormat("fr").format(1234.5678));

@@ -112,6 +112,17 @@ describe("spec errors", () => {
       RangeError,
     ],
     ["a height of 0", { x: {}, height: 0, marks: [] }, RangeError],
+    ["a height past what a browser lays out", { x: {}, height: 1e301, marks: [] }, RangeError],
+    [
+      "a format whose unit Intl refuses",
+      { x: {}, y: { format: { style: "unit", unit: "" } }, marks: [] },
+      RangeError,
+    ],
+    [
+      "a format option that is a function",
+      { x: {}, y: { format: { style: (() => "x") as never } }, marks: [] },
+      TypeError,
+    ],
     ["a series shorter than its x", { x: {}, marks: [line([1], { x: [0, 1] })] }, TypeError],
     ["dots beside a line", { x: {}, marks: [line([1]), { mark: "dot", rows: [] }] }, TypeError],
     ["a line beside a rect", { x: {}, marks: [rect([1]), line([1])] }, TypeError],
@@ -271,6 +282,15 @@ describe("spec errors", () => {
     ["a unit with no other form", { x: {}, y: { unit: { one: "post" } }, marks: [] }, TypeError],
   ])("%s throws its type", (_, spec, type) => {
     expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the format Intl refuses and the most px a height may be", () => {
+    expect(() => build({ x: {}, y: { format: { style: "unit", unit: "" } }, marks: [] })).toThrow(
+      /^renderChart: y\.format holds options Intl refuses/u,
+    );
+    expect(() => build({ x: {}, height: 2e7, marks: [] })).toThrow(
+      "renderChart: height must be a number of px above 0 and at most 17895697",
+    );
   });
 
   it("names the rule it breaks", () => {

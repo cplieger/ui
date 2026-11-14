@@ -34,9 +34,13 @@ function cached<T>(key: string, make: () => T): T {
   return hit;
 }
 
+// JSON writes NaN and the infinities as null, which Intl reads as 0.
+const optionKey = (_: string, v: unknown): unknown =>
+  typeof v === "number" && !Number.isFinite(v) ? String(v) : v;
+
 const numbers = (locale: string | undefined, options: Intl.NumberFormatOptions = {}) =>
   cached(
-    `n|${locale ?? ""}|${JSON.stringify(options)}`,
+    `n|${locale ?? ""}|${JSON.stringify(options, optionKey)}`,
     () => new Intl.NumberFormat(locale, options),
   );
 

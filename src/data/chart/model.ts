@@ -591,6 +591,10 @@ export interface Model {
   readonly timeZone: string | undefined;
 }
 
+// The tallest box Gecko lays out: 2^30 - 1 app units at 60 a px
+// (https://searchfox.org/mozilla-central/source/gfx/src/nsCoord.h); Blink holds 2^25.
+const MOST_PX = 17_895_697;
+
 const SCALE_TYPES = new Set(["linear", "log", "time", "band"]);
 const FORMATS = new Set(["number", "integer", "percent", "duration"]);
 const SIDES = new Set(["above", "below", "left", "right"]);
@@ -624,6 +628,19 @@ function checkFormat(format: unknown, what: string): void {
     (typeof format === "string" && FORMATS.has(format));
   if (!ok) {
     fail(`${what}.format must be a format name, Intl options or a function`);
+  }
+  if (isObject(format)) {
+    for (const [key, v] of Object.entries(format)) {
+      if (typeof v === "object" || typeof v === "function" || typeof v === "symbol") {
+        fail(`${what}.format.${key} must be a string, a number or a boolean`);
+      }
+    }
+    // Intl names a bad option ("unit", "signDisplay") only once it builds the format.
+    try {
+      writer(format, undefined);
+    } catch (e) {
+      fail(`${what}.format holds options Intl refuses: ${(e as Error).message}`, RangeError);
+    }
   }
 }
 
@@ -1485,8 +1502,8 @@ function check(spec: unknown): asserts spec is ChartSpec {
     checkColour(spec["colour"]);
   }
   optional(height, "number", "height");
-  if (typeof height === "number" && !(Number.isFinite(height) && height > 0)) {
-    fail("height must be a number of px above 0", RangeError);
+  if (typeof height === "number" && !(height > 0 && height <= MOST_PX)) {
+    fail(`height must be a number of px above 0 and at most ${String(MOST_PX)}`, RangeError);
   }
   const summary = spec["summary"];
   if (summary !== undefined && typeof summary !== "string" && typeof summary !== "function") {
