@@ -7,7 +7,8 @@
  * @module
  */
 
-import { shared } from "../../core/lifetime/lifetime.js";
+import { sharedBy } from "../../core/lifetime/lifetime.js";
+import { rootOf } from "../../core/tree/tree.js";
 
 /** A piece's values by the name each saves under; `""` for a piece with no
  *  name. */
@@ -47,35 +48,24 @@ export function sameValues(a: Values, b: Values): boolean {
 }
 
 // A form's reset puts each piece inside it back, a task later as `./file`
-// does, so a listener that cancels the reset keeps the piece too. A reset is
-// not composed, so it is heard at the piece's shadow root, else at its
-// document, a piece made before it is mounted included, as `./menu` does.
-const resets = new WeakMap<Document | ShadowRoot, ReturnType<typeof shared>>();
-
-function resetsAt(root: Document | ShadowRoot): ReturnType<typeof shared> {
-  let found = resets.get(root);
-  if (found === undefined) {
-    found = shared((signal) => {
-      root.addEventListener(
-        "reset",
-        (e) => {
-          const form = e.target;
-          if (!(form instanceof HTMLFormElement)) {
-            return;
-          }
-          setTimeout(() => {
-            if (!e.defaultPrevented) {
-              resetPieces(form);
-            }
-          });
-        },
-        { capture: true, signal },
-      );
-    });
-    resets.set(root, found);
-  }
-  return found;
-}
+// does, so a listener that cancels the reset keeps the piece too.
+const resetsAt = sharedBy<Document | ShadowRoot>((root, signal) => {
+  root.addEventListener(
+    "reset",
+    (e) => {
+      const form = e.target;
+      if (!(form instanceof HTMLFormElement)) {
+        return;
+      }
+      setTimeout(() => {
+        if (!e.defaultPrevented) {
+          resetPieces(form);
+        }
+      });
+    },
+    { capture: true, signal },
+  );
+});
 
 /** Holds `piece`, its values now taken as the ones a reset puts back. */
 export function registerPiece(piece: Piece, signal?: AbortSignal): void {
@@ -85,10 +75,7 @@ export function registerPiece(piece: Piece, signal?: AbortSignal): void {
   const ref = new WeakRef(piece.element);
   held.set(piece.element, { piece, saved: piece.value() });
   boxes.add(ref);
-  const tree = piece.element.getRootNode();
-  resetsAt(tree instanceof ShadowRoot ? tree : piece.element.ownerDocument).install(
-    signal === undefined ? {} : { signal },
-  );
+  resetsAt(rootOf(piece.element)).install(signal === undefined ? {} : { signal });
   signal?.addEventListener(
     "abort",
     () => {

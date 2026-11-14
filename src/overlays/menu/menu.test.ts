@@ -154,6 +154,19 @@ describe("enhanceMenu", () => {
     }
   });
 
+  it("gives focus back to its button after a choice in a shadow root", async () => {
+    const { button, panel } = menu();
+    const host = document.createElement("div");
+    document.body.append(host);
+    const tree = host.attachShadow({ mode: "open" });
+    tree.append(button, panel);
+    enhanceMenu(panel, { signal: life.signal });
+    button.click();
+    await expect.poll(() => panel.contains(tree.activeElement)).toBe(true);
+    await userEvent.keyboard("{Enter}");
+    expect([open(panel), tree.activeElement]).toEqual([false, button]);
+  });
+
   it("lets a disabled item take focus but never run", async () => {
     const chosen: string[] = [];
     const { button, panel, items } = menu();
@@ -407,6 +420,27 @@ describe("enhanceContextMenu", () => {
     row.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerType: "touch" }));
     row.click();
     expect(clicked).toBe(0);
+  });
+
+  it("gives focus back to the row that had it on Escape, in a shadow root", () => {
+    const { panel, items } = menu(["Pin"], "manual");
+    const z = zone();
+    const row = document.createElement("button");
+    row.type = "button";
+    row.textContent = "Frieren";
+    z.replaceChildren(row);
+    const host = document.createElement("div");
+    document.body.append(host);
+    const tree = host.attachShadow({ mode: "open" });
+    tree.append(z, panel);
+    enhanceContextMenu(z, panel, { signal: life.signal });
+    row.focus();
+    row.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 50, clientY: 30 }),
+    );
+    expect(tree.activeElement).toBe(items[0]);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect([open(panel), tree.activeElement]).toEqual([false, row]);
   });
 
   it("marks its zone for the stylesheet until its signal aborts", () => {

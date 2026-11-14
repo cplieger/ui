@@ -6,6 +6,7 @@
  */
 
 import { until } from "../../core/lifetime/lifetime.js";
+import { focusIn } from "../../core/tree/tree.js";
 import { holds } from "../form/changed.js";
 import { type Values, registerPiece, touched } from "../form/pieces.js";
 
@@ -130,7 +131,7 @@ export function enhancePairs(box: HTMLElement, options: PairsOptions = {}): void
       },
       set: (next: Values) => {
         const need = Math.max(0, ...Object.values(next).map((v) => v.length));
-        const focused = document.activeElement;
+        const focused = focusIn(box);
         for (const row of rows().slice(need)) {
           row.remove();
         }

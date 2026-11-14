@@ -290,7 +290,7 @@ interface Bar {
   count: HTMLElement;
 }
 
-function batch(rows = 3): Bar {
+function batch(rows = 3, into: ParentNode = document.body): Bar {
   const box = document.createElement("div");
   // Static test markup, never caller text.
   box.setHTMLUnsafe(
@@ -302,7 +302,7 @@ function batch(rows = 3): Bar {
       '<tr><td data-col="select"><input type="checkbox"></td></tr>'.repeat(rows) +
       "</tbody></table>",
   );
-  document.body.append(box);
+  into.append(box);
   const all = box.querySelector("#all") as HTMLInputElement;
   const boxes = [...box.querySelectorAll<HTMLInputElement>("tbody input")];
   enhanceSelectAll(all, () => boxes, { signal: life.signal });
@@ -446,6 +446,19 @@ describe("enhanceBatchBar", () => {
     b.clear.focus();
     await userEvent.keyboard("{Escape}");
     expect((b.boxes[0] as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("shows for a box's press and clears on Escape in a shadow root", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const tree = host.attachShadow({ mode: "open" });
+    const b = batch(3, tree);
+    enhanceBatchBar(b.bar, { boxes: () => b.boxes, all: b.all, signal: life.signal });
+    await userEvent.click(b.boxes[1] as HTMLInputElement);
+    expect([b.bar.hidden, b.count.textContent]).toEqual([false, "1 selected"]);
+    (b.boxes[1] as HTMLInputElement).focus();
+    await userEvent.keyboard("{Escape}");
+    expect([(b.boxes[1] as HTMLInputElement).checked, tree.activeElement]).toEqual([false, b.all]);
   });
 
   it("clears on Escape in the boxes' table without a header box, focusing the first box", async () => {

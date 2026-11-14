@@ -41,19 +41,25 @@ export function askersOf(dialog: HTMLDialogElement): readonly Asker[] {
 }
 
 /**
- * Asks each of `askers` that still waits, in turn, and resolves those that
- * said yes, or null at the first no. Nothing is dropped here, so a no on a
- * later question leaves every earlier one's changes in place.
+ * Asks each of `askers` that still waits, in turn, and only once every one
+ * said yes drops what each still holds, so a no on a later question leaves
+ * every earlier one's changes in place. Resolves whether nothing waits now:
+ * false at a no, or when a listener cancelled a drop's reset.
  */
-export async function askEach(askers: readonly Asker[]): Promise<readonly Asker[] | null> {
+export async function askThenDrop(askers: readonly Asker[]): Promise<boolean> {
   const yes: Asker[] = [];
   for (const a of askers) {
     if (a.waiting()) {
       if (!(await a.ask())) {
-        return null;
+        return false;
       }
       yes.push(a);
     }
   }
-  return yes;
+  for (const a of yes) {
+    if (a.waiting()) {
+      a.dropped();
+    }
+  }
+  return yes.every((a) => !a.waiting());
 }

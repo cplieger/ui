@@ -194,6 +194,60 @@ describe("guardChanges: what counts", () => {
     ]);
   });
 
+  const mounts = [
+    ["the document", (): ParentNode => document.body],
+    [
+      "a shadow root",
+      (): ParentNode => {
+        const host = document.createElement("div");
+        document.body.append(host);
+        return host.attachShadow({ mode: "open" });
+      },
+    ],
+  ] as const;
+
+  it.each(mounts)(
+    "keeps focus in a chips field when a discard takes the chip that has it, in %s",
+    async (_, mount) => {
+      const f = document.createElement("form");
+      // Static test markup, never caller text.
+      f.setHTMLUnsafe(
+        '<div class="cp-tokens"><span class="cp-token" data-value="anime"><span>anime</span><button></button></span><input aria-label="Tags"></div>',
+      );
+      mount().append(f);
+      enhanceTokens(get(f, ".cp-tokens"), { name: "tags", signal: life.signal });
+      const guard = guardChanges(f, { signal: life.signal });
+      const input = get<HTMLInputElement>(f, ".cp-tokens > input");
+      await userEvent.type(input, "4k{Enter}{Backspace}");
+      const tree = f.getRootNode() as Document | ShadowRoot;
+      expect(tree.activeElement?.closest(".cp-token")).toBe(
+        [...f.querySelectorAll(".cp-token")].at(-1),
+      );
+      guard.discard();
+      expect(tree.activeElement).toBe(input);
+    },
+  );
+
+  it.each(mounts)(
+    "keeps focus in a rows field when a discard takes the row that has it, in %s",
+    async (_, mount) => {
+      const f = document.createElement("form");
+      // Static test markup, never caller text.
+      f.setHTMLUnsafe(
+        '<div class="cp-stack" id="maps"><ul class="cp-pairs"><li><input name="from" value="/tv" aria-label="From"><input name="to" value="/media/tv" aria-label="To"><button type="button" data-remove-pair>Remove</button></li></ul><button type="button" data-add-pair>Add</button></div>',
+      );
+      mount().append(f);
+      enhancePairs(get(f, "#maps"), { signal: life.signal });
+      const guard = guardChanges(f, { signal: life.signal });
+      const add = get<HTMLButtonElement>(f, "[data-add-pair]");
+      await userEvent.click(add);
+      const tree = f.getRootNode() as Document | ShadowRoot;
+      expect(tree.activeElement?.closest("li")).toBe(get(f, "li:last-child"));
+      guard.discard();
+      expect(tree.activeElement).toBe(add);
+    },
+  );
+
   it("stops hearing a joined field once its guard ends", async () => {
     const f = form("");
     f.id = "ended";
@@ -796,7 +850,11 @@ describe("guardChanges: leaving the page", () => {
 });
 
 describe("guardChanges: in a dialog", () => {
-  function dialog(): { d: HTMLDialogElement; f: HTMLFormElement; close: HTMLButtonElement } {
+  function dialog(into: ParentNode = document.body): {
+    d: HTMLDialogElement;
+    f: HTMLFormElement;
+    close: HTMLButtonElement;
+  } {
     const d = document.createElement("dialog");
     d.className = "cp-dialog";
     d.id = "msg";
@@ -810,9 +868,15 @@ describe("guardChanges: in a dialog", () => {
       '<input id="subject" name="subject" aria-label="Subject"><button type="button" commandfor="msg" command="close">Cancel</button><button type="submit" value="sent">Send</button>',
     );
     d.append(f);
-    document.body.append(d);
+    into.append(d);
     return { d, f, close: get(f, "[command]") };
   }
+  function inShadow(): ReturnType<typeof dialog> {
+    const host = document.createElement("div");
+    document.body.append(host);
+    return dialog(host.attachShadow({ mode: "open" }));
+  }
+  const asked = (): number => document.querySelectorAll('dialog[data-variant="confirm"]').length;
   const closing = (d: HTMLDialogElement): Promise<boolean> =>
     new Promise((r) => {
       d.addEventListener("close", () => r(d.open), { once: true });
@@ -912,6 +976,97 @@ describe("guardChanges: in a dialog", () => {
     const shut = closing(d);
     await answer("Discard");
     expect(await shut).toBe(false);
+  });
+
+  it("discards before the dialog closes, so a close listener set first reads the form discarded", async () => {
+    const { d, f, close } = dialog();
+    const subject = get<HTMLInputElement>(f, "#subject");
+    const read: string[] = [];
+    d.addEventListener("close", () => read.push(subject.value));
+    guardChanges(f, { words, signal: life.signal });
+    for (const press of [() => userEvent.keyboard("{Escape}"), () => userEvent.click(close)]) {
+      d.showModal();
+      subject.value = "Hello";
+      await press();
+      const shut = closing(d);
+      await answer("Discard");
+      expect(await shut).toBe(false);
+    }
+    expect(read).toEqual(["", ""]);
+  });
+
+  it("keeps the dialog open with the changes when a listener cancels the reset", async () => {
+    const { d, f } = dialog();
+    const reset = new Promise<void>((r) => {
+      f.addEventListener("reset", (e) => {
+        e.preventDefault();
+        r();
+      });
+    });
+    guardChanges(f, { words, signal: life.signal });
+    d.showModal();
+    await userEvent.type(get(f, "#subject"), "Hello");
+    await userEvent.keyboard("{Escape}");
+    await answer("Discard");
+    await reset;
+    await new Promise((r) => setTimeout(r, 0));
+    expect([
+      d.open,
+      d.hasAttribute("data-cp-leaving"),
+      get<HTMLInputElement>(f, "#subject").value,
+    ]).toEqual([true, false, "Hello"]);
+  });
+
+  it("asks in a shadow root on Escape, once, stays on keep, and closes and discards on the answer", async () => {
+    const { d, f } = inShadow();
+    guardChanges(f, { words, signal: life.signal });
+    d.showModal();
+    const subject = get<HTMLInputElement>(f, "#subject");
+    await userEvent.type(subject, "Hello");
+    await userEvent.keyboard("{Escape}");
+    expect([title(), asked(), d.open]).toEqual(["Discard this message?", 1, true]);
+    await answer("Keep writing");
+    expect([d.open, subject.value]).toEqual([true, "Hello"]);
+    await userEvent.keyboard("{Escape}");
+    const shut = closing(d);
+    await answer("Discard");
+    expect([await shut, subject.value]).toEqual([false, ""]);
+  });
+
+  it("asks in a shadow root on a close command, once, and closes and discards on the answer", async () => {
+    const { d, f, close } = inShadow();
+    guardChanges(f, { words, signal: life.signal });
+    d.showModal();
+    const subject = get<HTMLInputElement>(f, "#subject");
+    await userEvent.type(subject, "Hello");
+    await userEvent.click(close);
+    expect([title(), asked(), d.open]).toEqual(["Discard this message?", 1, true]);
+    const shut = closing(d);
+    await answer("Discard");
+    expect([await shut, subject.value]).toEqual([false, ""]);
+  });
+
+  it("asks nothing of the dialog around a shadow host for Escape in a dialog inside that host", async () => {
+    const { d, f } = dialog();
+    guardChanges(f, { words, signal: life.signal });
+    d.showModal();
+    await userEvent.type(get(f, "#subject"), "Hello");
+    const host = document.createElement("div");
+    d.append(host);
+    const inner = document.createElement("dialog");
+    inner.className = "cp-dialog";
+    // Static test markup, never caller text.
+    inner.setHTMLUnsafe('<button type="button">Done</button>');
+    host.attachShadow({ mode: "open" }).append(inner);
+    inner.showModal();
+    const shut = closing(inner);
+    await userEvent.keyboard("{Escape}");
+    expect(await shut).toBe(false);
+    expect([asked(), d.open, get<HTMLInputElement>(f, "#subject").value]).toEqual([
+      0,
+      true,
+      "Hello",
+    ]);
   });
 
   it("asks nothing about a closed dialog's form when the page's links are pressed", async () => {

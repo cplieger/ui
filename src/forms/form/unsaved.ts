@@ -6,8 +6,9 @@
  */
 
 import { shared } from "../../core/lifetime/lifetime.js";
+import { rootOf } from "../../core/tree/tree.js";
 import { ask } from "../../overlays/ask/ask.js";
-import { type Asker, addAsker, askEach } from "../../overlays/dialog/asker.js";
+import { type Asker, addAsker, askThenDrop } from "../../overlays/dialog/asker.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import {
   changesIn,
@@ -127,22 +128,6 @@ interface Live extends Asker {
 const live = new Set<Live>();
 let passing: Element | null = null;
 
-/** Asks each of `guards` that still waits, in turn, and only once every one
- *  said yes discards each; resolves whether none still waits, so a reset a
- *  listener cancelled keeps the person where they are. */
-async function dropAll(guards: readonly Live[]): Promise<boolean> {
-  const yes = await askEach(guards);
-  if (yes === null) {
-    return false;
-  }
-  for (const g of yes) {
-    if (g.waiting()) {
-      g.dropped();
-    }
-  }
-  return yes.every((g) => !g.waiting());
-}
-
 /**
  * Asks every guard holding a change before the page goes to `to`, as a
  * press on a link that leaves does, for an app's router to call before it
@@ -153,7 +138,7 @@ async function dropAll(guards: readonly Live[]): Promise<boolean> {
  */
 export function leavePage(to?: string | URL): Promise<boolean> {
   const url = to === undefined ? null : new URL(to, location.href);
-  return dropAll([...live].filter((g) => g.waiting() && (url === null || !g.within(url))));
+  return askThenDrop([...live].filter((g) => g.waiting() && (url === null || !g.within(url))));
 }
 
 /** Where following `link` in this tab goes, or null when it stays on the
@@ -206,7 +191,7 @@ const links = shared((signal) => {
       }
       e.preventDefault();
       e.stopImmediatePropagation();
-      void dropAll(waiting).then((go) => {
+      void askThenDrop(waiting).then((go) => {
         if (go) {
           passing = link;
           link.click();
@@ -770,7 +755,7 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
     saved,
     discard,
     rebase,
-    leave: () => dropAll([self]),
+    leave: () => askThenDrop([self]),
   };
   if (stopped) {
     return guard;
@@ -783,11 +768,9 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
   const on = signal === undefined ? {} : { signal };
   form.addEventListener("input", recount, on);
   form.addEventListener("change", recount, on);
-  // A field joined by `form=` sends its edits through its own ancestors, so
-  // they are heard at the form's shadow root, else at its document, a form
-  // guarded before it is mounted included, as `./menu` does.
-  const tree = form.getRootNode();
-  const root = tree instanceof ShadowRoot ? tree : form.ownerDocument;
+  // A field joined by `form=` sends its edits through its own ancestors, not
+  // the form's, so they are heard at the form's root.
+  const root = rootOf(form);
   const joined = (e: Event): void => {
     const t = e.target;
     if (t instanceof Element && isControl(t) && t.form === form && !form.contains(t)) {

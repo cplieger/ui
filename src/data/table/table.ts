@@ -8,6 +8,7 @@
 
 import { announce } from "../../feedback/announce/announce.js";
 import { reducedMotion, until } from "../../core/lifetime/lifetime.js";
+import { rootOf } from "../../core/tree/tree.js";
 import { glideShow } from "../../navigation/disclosure/disclosure.js";
 
 /** A column's order, as `aria-sort` writes it. */
@@ -462,7 +463,8 @@ export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): Bat
   }
 
   const listen = until(signal);
-  bar.ownerDocument.addEventListener(
+  const root = rootOf(bar);
+  root.addEventListener(
     "change",
     (e) => {
       const t = e.target;
@@ -489,13 +491,19 @@ export function enhanceBatchBar(bar: HTMLElement, options: BatchBarOptions): Bat
     },
     listen,
   );
-  bar.ownerDocument.addEventListener(
+  root.addEventListener(
     "keydown",
     (e) => {
       // An open automatic popover takes this Escape to close itself, and a
       // manual menu's own handler has prevented it.
-      const open = bar.ownerDocument.querySelector(AUTO_OPEN);
-      if (e.key !== "Escape" || e.defaultPrevented || selected === 0 || open !== null) {
+      const open = root.querySelector(AUTO_OPEN) ?? bar.ownerDocument.querySelector(AUTO_OPEN);
+      if (
+        !(e instanceof KeyboardEvent) ||
+        e.key !== "Escape" ||
+        e.defaultPrevented ||
+        selected === 0 ||
+        open !== null
+      ) {
         return;
       }
       const table = (all ?? [...boxes()][0])?.closest("table");
