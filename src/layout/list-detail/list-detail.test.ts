@@ -395,6 +395,27 @@ describe("enhanceListDetail", () => {
     expect(dialog.open).toBe(true);
   });
 
+  it("leaves a sheet the engine closed shut when the box resizes before its close event", async () => {
+    const onDismiss = vi.fn();
+    const { root, dialog, api } = mount(400, { onDismiss });
+    api.open();
+    await frames();
+    // The close event is a queued task, so a resize frame can run first.
+    const held = (e: Event): void => {
+      if (e.target === dialog) {
+        e.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("close", held, { capture: true });
+    dialog.close();
+    root.style.inlineSize = "420px";
+    await frames(3);
+    window.removeEventListener("close", held, { capture: true });
+    expect(dialog.open).toBe(false);
+    dialog.dispatchEvent(new Event("close"));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
   it("closes on Escape, Close and an engine close without onDismiss", async () => {
     const { detail, close, dialog, api } = mount(400);
     api.open();

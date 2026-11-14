@@ -109,6 +109,11 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   /** Puts the shown detail where the box's width says. A move between the
    *  dock and the sheet is not an open, so it plays no motion. */
   const place = (opening: boolean): void => {
+    if (!opening && at === "dialog" && !dialog.open) {
+      // Closed outside the module, its close event still queued: that
+      // event dismisses, and reopening here would strand the route.
+      return;
+    }
     const want = root.getBoundingClientRect().width >= dockAt * remPx() ? "dock" : "dialog";
     if (want === at && (want === "dock" || dialog.open)) {
       if (opening) {
