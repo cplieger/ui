@@ -169,6 +169,41 @@
   stroke-width: 1px;
 }
 
+/* A cell chart's colour key: its label, the swatches with each boundary's
+ * value centred under it, and a No data swatch. A swatch's ring shows only
+ * while its class is selected. */
+.cp-chart > [data-part="legend"] > [data-part="key"] {
+  display: inline-flex;
+  align-items: start;
+  gap: var(--cp-space-2);
+}
+
+.cp-chart [data-part="key"] > [data-part="scale"],
+.cp-chart [data-part="key"] > [data-part="none"] {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.cp-chart > [data-part="legend"] [data-part="thresholds"] {
+  position: relative;
+  block-size: 1lh;
+}
+
+.cp-chart > [data-part="legend"] [data-part="thresholds"] > span {
+  position: absolute;
+  inset-block-start: 0;
+  translate: -50% 0;
+  white-space: nowrap;
+}
+
+.cp-chart [data-part="key"] [data-part="ring"] {
+  visibility: hidden;
+}
+
+.cp-chart [data-part="key"] [data-selected] {
+  visibility: visible;
+}
+
 .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
 }
@@ -245,8 +280,10 @@
   fill: var(--cp-tone-9);
 }
 
-/* A selected bar row's name shows by weight as well as colour. */
-.cp-chart svg [data-part="y"] text[data-selected] {
+/* A selected bar row's name, or a cell's row and column names, show by
+ * weight as well as colour. */
+.cp-chart svg [data-part="y"] text[data-selected],
+.cp-chart svg [data-part="x"] text[data-selected] {
   fill: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
 }
@@ -279,6 +316,112 @@
   fill: var(--cp-tone-9);
   stroke: var(--cp-chart-surface);
   stroke-width: 1px;
+}
+
+/* A cell takes its class's step of its scale; markup carries no style, so
+ * each step is a rule. */
+.cp-chart svg [data-scale="sequential"] [data-step="1"] {
+  fill: var(--cp-sequential-1);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="2"] {
+  fill: var(--cp-sequential-2);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="3"] {
+  fill: var(--cp-sequential-3);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="4"] {
+  fill: var(--cp-sequential-4);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="5"] {
+  fill: var(--cp-sequential-5);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="6"] {
+  fill: var(--cp-sequential-6);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="7"] {
+  fill: var(--cp-sequential-7);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="8"] {
+  fill: var(--cp-sequential-8);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="9"] {
+  fill: var(--cp-sequential-9);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="1"] {
+  fill: var(--cp-diverging-1);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="2"] {
+  fill: var(--cp-diverging-2);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="3"] {
+  fill: var(--cp-diverging-3);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="4"] {
+  fill: var(--cp-diverging-4);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="5"] {
+  fill: var(--cp-diverging-5);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="6"] {
+  fill: var(--cp-diverging-6);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="7"] {
+  fill: var(--cp-diverging-7);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="8"] {
+  fill: var(--cp-diverging-8);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="9"] {
+  fill: var(--cp-diverging-9);
+}
+
+/* A missing cell's outline sets it apart from the lowest class, which is
+ * filled. */
+.cp-chart svg [data-part="missing"] {
+  fill: none;
+  stroke: var(--cp-border);
+  stroke-width: 1px;
+}
+
+/* A box fills its slot; its whiskers and its hollow outliers stroke it, so
+ * a single value reads apart from the box. */
+.cp-chart svg [data-part="box"] path {
+  fill: var(--cp-tone-9);
+}
+
+.cp-chart svg [data-part="whisker"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 2px;
+}
+
+.cp-chart svg [data-part="outlier"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 1.5px;
+}
+
+/* The median's ink tick carries it where it meets a quartile and the cut
+ * through the box would vanish into the box's edge. */
+.cp-chart svg [data-part="median"] {
+  fill: var(--cp-ink);
 }
 
 /* A range's bold link and an arrow, its head showing the direction in any

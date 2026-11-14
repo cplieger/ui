@@ -1,8 +1,8 @@
 /**
  * charts.ts — the gallery wiring for the Charts page: grelot's four
  * statistics drawn by the library's chart from seeded data, the other time
- * series, bars and dots by category, slope and scatter charts, their
- * loading, empty and error states, and phone-width frames.
+ * series, bars and dots by category, slope and scatter charts, heatmaps and
+ * box plots, their loading, empty and error states, and phone-width frames.
  */
 
 import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
@@ -815,6 +815,187 @@ function nations(sized: boolean): ChartSpec {
   };
 }
 
+const POSTS = { one: "post", other: "posts" } as const;
+const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const HOURS = Array.from({ length: 24 }, (_, h) => `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`);
+
+// Four weeks of posts by weekday and hour: busy afternoons, quiet weekends,
+// and the release every Tuesday at 2 PM.
+function weekHours(): ChartSpec {
+  const rand = random(600);
+  const values = WEEKDAYS.map((_, d) =>
+    HOURS.map((_, h) => {
+      const day = busy(new Date(2026, 0, 5, h, 30).getTime()) * (d < 5 ? 1 : 0.35);
+      const release = d === 1 && h === 14 ? 2.2 : 1;
+      return Math.round(40 * day * release * (0.75 + 0.5 * rand()));
+    }),
+  );
+  return {
+    x: { unit: { one: "hour", other: "hours" } },
+    y: { unit: { one: "day", other: "days" } },
+    colour: { label: "Posts", unit: POSTS },
+    marks: [
+      { mark: "cell", x: HOURS, y: WEEKDAYS, values },
+      { mark: "text", x: "2 PM", y: "Tuesday", text: "Weekly release" },
+    ],
+  };
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Seeded monthly temperatures against a 30-year average, warming by about
+// 0.08 °C a year, warmer still in summer.
+function anomalies(): ChartSpec {
+  const rand = random(700);
+  const years = Array.from({ length: 10 }, (_, i) => String(2016 + i));
+  return {
+    x: { unit: { one: "month", other: "months" } },
+    y: { unit: { one: "year", other: "years" } },
+    colour: {
+      type: "diverging",
+      steps: 7,
+      reverse: true,
+      label: "Against the average",
+      format: {
+        style: "unit",
+        unit: "celsius",
+        maximumFractionDigits: 1,
+        signDisplay: "exceptZero",
+      },
+    },
+    marks: [
+      {
+        mark: "cell",
+        x: MONTHS,
+        y: years,
+        values: years.map((_, i) =>
+          MONTHS.map((_, m) => {
+            const summer = m >= 5 && m <= 7 ? 0.5 : 0;
+            return Math.round((0.08 * i + summer + 2.6 * (rand() - 0.5)) * 10) / 10;
+          }),
+        ),
+      },
+    ],
+  };
+}
+
+// Milliseconds as a number, since the duration rule writes whole seconds
+// from 1 s up and these bins and boxes differ by a tenth of one.
+const MS = { style: "unit", unit: "millisecond", maximumFractionDigits: 0 } as const;
+
+const SIZE_EDGES = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000];
+const TIME_EDGES = Array.from({ length: 13 }, (_, i) => i * 100);
+
+// 5,000 requests, their payloads log-normal round 40 KB and their response
+// times growing with the payload, those past the edges left out.
+function requests(): ChartSpec {
+  const rand = random(800);
+  const normal = (): number =>
+    Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
+  const values = TIME_EDGES.slice(1).map(() => SIZE_EDGES.slice(1).map(() => 0));
+  for (let n = 0; n < 5_000; n++) {
+    const kb = 40 * Math.exp(1.3 * normal());
+    const ms = (90 + 0.25 * kb) * Math.exp(0.35 * normal());
+    const column = SIZE_EDGES.findIndex((e) => e > kb) - 1;
+    const row = TIME_EDGES.findIndex((e) => e > ms) - 1;
+    const counts = values[row];
+    if (column >= 0 && counts !== undefined) {
+      counts[column] = (counts[column] ?? 0) + 1;
+    }
+  }
+  return {
+    x: {
+      type: "log",
+      label: "Payload",
+      format: { style: "unit", unit: "kilobyte", maximumFractionDigits: 0 },
+    },
+    y: { label: "Response time", format: MS },
+    colour: {
+      label: "Requests",
+      unit: { one: "request", other: "requests" },
+      thresholds: [1, 10, 100],
+    },
+    marks: [{ mark: "cell", x: { edges: SIZE_EDGES }, y: { edges: TIME_EDGES }, values }],
+  };
+}
+
+// A year of posts a day up to today, still counting: fewer at weekends and
+// in August, none counted through a three-day outage in February.
+function postDays(): ChartSpec {
+  const rand = random(900);
+  const start = new Date(2025, 10, 12);
+  const outage = new Date(2026, 1, 9).getTime();
+  const values: (number | null)[] = [];
+  for (const day = new Date(start); day.getTime() < END; day.setDate(day.getDate() + 1)) {
+    const t = day.getTime();
+    const weekend = day.getDay() === 0 || day.getDay() === 6 ? 0.4 : 1;
+    const august = day.getMonth() === 7 ? 0.5 : 1;
+    const growth = 0.7 + (0.6 * values.length) / 365;
+    const today = END - t < 24 * HR ? (NOW - t) / (24 * HR) : 1;
+    values.push(
+      t >= outage && t < outage + 3 * 24 * HR
+        ? null
+        : Math.round(30 * weekend * august * growth * today * (0.6 + 0.8 * rand())),
+    );
+  }
+  return {
+    colour: { label: "Posts", unit: POSTS },
+    marks: [
+      { mark: "cell", days: { start: start.getTime(), values, open: true } },
+      { mark: "text", x: new Date(2026, 3, 14, 12).getTime(), text: "Mobile app released" },
+    ],
+  };
+}
+
+// Response times in milliseconds by endpoint: low, q1, median, q3, high
+// and the outliers beyond the whiskers, before and after release 1.4.0.
+type Five = readonly [number, number, number, number, number, readonly number[]];
+const ENDPOINTS: readonly (readonly [string, Five, Five])[] = [
+  ["search", [40, 120, 180, 260, 450, [720, 1_300]], [30, 70, 95, 130, 210, [380]]],
+  ["feed", [25, 60, 85, 120, 210, [400]], [25, 55, 80, 110, 190, []]],
+  [
+    "export",
+    [300, 900, 1_400, 2_100, 3_900, [5_200, 8_800]],
+    [280, 850, 1_300, 1_900, 3_600, [6_100]],
+  ],
+  ["upload", [90, 210, 320, 520, 980, [1_900]], [90, 200, 300, 500, 950, [2_000]]],
+  ["login", [20, 45, 60, 80, 130, [260]], [20, 40, 55, 75, 120, []]],
+  ["health", [1, 2, 2, 3, 4, []], [1, 2, 2, 3, 4, [9]]],
+];
+
+function boxSeries(name: string, slot: 1 | 2, after: boolean) {
+  const fives = ENDPOINTS.map(([, then, now]) => (after ? now : then));
+  return {
+    name,
+    slot,
+    low: fives.map((f) => f[0]),
+    q1: fives.map((f) => f[1]),
+    median: fives.map((f) => f[2]),
+    q3: fives.map((f) => f[3]),
+    high: fives.map((f) => f[4]),
+    outliers: fives.map((f) => f[5]),
+  };
+}
+
+function latencies(both: boolean): ChartSpec {
+  const after = boxSeries(both ? "After" : "Response time", 1, true);
+  return {
+    x: { type: "log", label: "Response time", format: MS },
+    y: { unit: { one: "endpoint", other: "endpoints" } },
+    marks: [
+      {
+        mark: "box",
+        y: ENDPOINTS.map(([name]) => name),
+        whiskers: "1.5 × IQR",
+        series: both ? [boxSeries("Before", 2, false), after] : [after],
+      },
+      both
+        ? { mark: "text", y: "search", x: 210, text: "Index added in 1.4.0", side: "right" }
+        : { mark: "rule", x: 1_000, label: "Target" },
+    ],
+  };
+}
+
 const SPECS = new Map<string, (hours: number) => ChartSpec>([
   ["posts", (hours) => posts(postCounts(hours))],
   ["reads", (hours) => reads(READS.get(hours) ?? 1_204, hours)],
@@ -904,6 +1085,15 @@ make("nations", nations(false));
 make("nations-sized", nations(true));
 make("phone-life", lifeSlope());
 make("phone-nations-sized", nations(true));
+make("week-hours", weekHours());
+make("anomalies", anomalies());
+make("requests", requests());
+make("post-days", postDays());
+make("latencies", latencies(false));
+make("latencies-release", latencies(true));
+make("phone-week-hours", weekHours());
+make("phone-post-days", postDays());
+make("phone-latencies", latencies(true));
 make("activity", activity(6));
 make("agents", agents(6));
 make("loading", null);

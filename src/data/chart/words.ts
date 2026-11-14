@@ -3,6 +3,8 @@
  * @module
  */
 
+import type { Unit } from "../scale/format.js";
+
 type Kind =
   | "stackedColumn"
   | "groupedColumn"
@@ -28,7 +30,24 @@ type Kind =
   | "arrowPlot"
   | "slope"
   | "scatter"
-  | "bubble";
+  | "bubble"
+  | "heatmap"
+  | "histogram2d"
+  | "calendar"
+  | "box";
+
+/** A box plot's measure names. Defaults "Low", "Lower quartile", "Median",
+ *  "Upper quartile", "High", "Outliers", "Middle half", "Whiskers". */
+interface BoxLabels {
+  readonly low: string;
+  readonly q1: string;
+  readonly median: string;
+  readonly q3: string;
+  readonly high: string;
+  readonly outliers: string;
+  readonly middle: string;
+  readonly whiskers: string;
+}
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -36,13 +55,13 @@ export interface ChartWords {
   readonly chart?: string;
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
-  /** The kind that starts the short description, by key, each with an
-   *  English default ("Column chart", "Back-to-back bar chart", "Dot plot"
-   *  and the rest). A rect on a log x is a histogram; one series of a rect
-   *  is a column chart, of a bar a bar chart or, with a value below 0, a
-   *  diverging one; two or more take their arrangement's kind; an area
-   *  mark, or a rect with shape "area", an area chart; a scatter whose
-   *  series carry r a bubble chart. */
+  /** The kind that starts the short description, by key, each with an English default
+   *  ("Column chart", "Dot plot" and the rest). A rect on a log x is a histogram; one
+   *  series of a rect is a column chart, of a bar a bar chart or, with a value below 0, a
+   *  diverging one; two or more take their arrangement's kind. An area mark, or a rect with
+   *  shape "area", is an area chart; a scatter whose series carry r a bubble chart; a cell
+   *  mark a heatmap, a 2D histogram when both axes are binned, or a calendar heatmap with
+   *  days; a box mark a box plot. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -58,7 +77,8 @@ export interface ChartWords {
   /** A timeline row with no dot in the domain; unit is the dot mark's plural
    *  noun, or "" without one. Default "{name}: no {unit}", or "{name}: none". */
   readonly silentRow?: (name: string, unit: string) => string;
-  /** An open rect's last bucket. Default "{range}, so far". */
+  /** An open rect's last bucket, or a calendar's open last day and its
+   *  value in the table. Default "{range}, so far". */
   readonly soFar?: (range: string) => string;
   /** The empty state, when the spec gives no `empty`. Default "Nothing to show in this range." */
   readonly empty?: string;
@@ -124,9 +144,48 @@ export interface ChartWords {
   /** A scatter's dots when its mark names no unit; count is n as a number,
    *  for the plural. Default "{n} points", or "{n} point" for one. */
   readonly points?: (n: string, count: number) => string;
+  /** A cell chart's size in the short description: rows and columns are
+   *  the y and x counts, each in its axis's unit when it names one.
+   *  Default "{rows} by {columns}". */
+  readonly grid?: (rows: string, columns: string) => string;
+  /** A cell chart's cells in the legend row with no selection and in the
+   *  summary; count is n as a number, for the plural. Default "{n} cells",
+   *  or "{n} cell" for one. */
+  readonly cells?: (n: string, count: number) => string;
+  /** A calendar's days in the legend row with no selection, the summary and
+   *  the short description; count is n as a number, for the plural.
+   *  Default "{n} days", or "{n} day" for one. */
+  readonly days?: (n: string, count: number) => string;
+  /** A cell's place in the legend row, the readings, the summary and a
+   *  note's place: its column's and its row's name, or a bin as
+   *  `measure` of its range. Default "{row}, {column}". */
+  readonly cellPlace?: (column: string, row: string) => string;
+  /** Summary, a cell chart; high and low are each "{place}: {value}", or ""
+   *  when no cell holds a value. Default "{count}. Highest {high}. Lowest
+   *  {low}.", or "{count}." without them. */
+  readonly cellSummary?: (count: string, high: string, low: string) => string;
   /** A scatter dot's value with its axis label, in the legend row, the
-   *  readings and a note's place. Default "{label} {value}". */
+   *  readings and a note's place, and a box's measure with its
+   *  `boxLabels` label in the legend row. Default "{label} {value}". */
   readonly measure?: (label: string, value: string) => string;
+  /** A box's five numbers in a reading and a lone row's summary. Default
+   *  "median {median}, middle half {q1} to {q3}, whiskers {low} to {high}". */
+  readonly box?: (median: string, q1: string, q3: string, low: string, high: string) => string;
+  /** The noun a box's outlier count takes. Default "outlier", "outliers". */
+  readonly outlierUnit?: Unit;
+  /** A box's outliers in a reading; count is already "{n} {outlierUnit}",
+   *  and to is "" for one outlier. Default "{count}, {from} to {to}", or
+   *  "{count}, {from}". */
+  readonly outlierReading?: (count: string, from: string, to: string) => string;
+  /** Summary, one box series; high and low are each "{row} {median}",
+   *  widest "{row} {q1} to {q3}". Default "{name}: highest median {high},
+   *  lowest median {low}, widest middle half {widest}." */
+  readonly boxSeries?: (name: string, high: string, low: string, widest: string) => string;
+  /** Summary and after the table, a box mark's `whiskers`. Default "Whiskers: {text}." */
+  readonly whiskersNote?: (text: string) => string;
+  /** A box's measures, member by member: the table's heads, and the
+   *  legend row's labels (`median`, `middle`, `whiskers`, `outliers`). */
+  readonly boxLabels?: Readonly<Partial<BoxLabels>>;
   /** Summary, a bar, point or scatter chart's head; series is "" for one series. Default
    *  "{count}, {series}.", or "{count}." with one series. */
   readonly countSummary?: (count: string, series: string) => string;
@@ -173,8 +232,9 @@ export interface ChartWords {
   readonly more?: (n: string) => string;
 }
 
-export type Words = Required<Omit<ChartWords, "kind">> & {
+export type Words = Required<Omit<ChartWords, "kind" | "boxLabels">> & {
   readonly kind: Readonly<Record<Kind, string>>;
+  readonly boxLabels: BoxLabels;
 };
 
 // An app's note may already be a sentence ("Deploy of 1.4.0."), which a second stop would end twice.
@@ -209,6 +269,10 @@ const DEFAULTS: Words = {
     slope: "Slope chart",
     scatter: "Scatter plot",
     bubble: "Bubble chart",
+    heatmap: "Heatmap",
+    histogram2d: "2D histogram",
+    calendar: "Calendar heatmap",
+    box: "Box plot",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -248,7 +312,31 @@ const DEFAULTS: Words = {
   noteReading: (text) => sentence(`Note: ${text}`),
   categories: (n, count) => (count === 1 ? `${n} category` : `${n} categories`),
   points: (n, count) => (count === 1 ? `${n} point` : `${n} points`),
+  grid: (rows, columns) => `${rows} by ${columns}`,
+  cells: (n, count) => (count === 1 ? `${n} cell` : `${n} cells`),
+  days: (n, count) => (count === 1 ? `${n} day` : `${n} days`),
+  cellPlace: (column, row) => `${row}, ${column}`,
+  cellSummary: (count, high, low) =>
+    high === "" ? `${count}.` : `${count}. Highest ${high}. Lowest ${low}.`,
   measure: (label, value) => `${label} ${value}`,
+  box: (median, q1, q3, low, high) =>
+    `median ${median}, middle half ${q1} to ${q3}, whiskers ${low} to ${high}`,
+  outlierUnit: { one: "outlier", other: "outliers" },
+  outlierReading: (count, from, to) =>
+    to === "" ? `${count}, ${from}` : `${count}, ${from} to ${to}`,
+  boxSeries: (name, high, low, widest) =>
+    `${name}: highest median ${high}, lowest median ${low}, widest middle half ${widest}.`,
+  whiskersNote: (text) => `Whiskers: ${text}.`,
+  boxLabels: {
+    low: "Low",
+    q1: "Lower quartile",
+    median: "Median",
+    q3: "Upper quartile",
+    high: "High",
+    outliers: "Outliers",
+    middle: "Middle half",
+    whiskers: "Whiskers",
+  },
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
   extremes: (high, low) => `Highest ${high}, lowest ${low}.`,
@@ -268,8 +356,13 @@ const DEFAULTS: Words = {
   more: (n) => `and ${n} more`,
 };
 
-/** `words` over the defaults, member by member. */
+/** `words` over the defaults, member by member, and `kind` and `boxLabels` key by key. */
 export function chartWords(words: ChartWords = {}): Words {
   const given = Object.fromEntries(Object.entries(words).filter(([, v]) => v !== undefined));
-  return { ...DEFAULTS, ...given, kind: { ...DEFAULTS.kind, ...words.kind } };
+  return {
+    ...DEFAULTS,
+    ...given,
+    kind: { ...DEFAULTS.kind, ...words.kind },
+    boxLabels: { ...DEFAULTS.boxLabels, ...words.boxLabels },
+  };
 }

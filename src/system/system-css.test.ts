@@ -212,6 +212,72 @@ describe("css/system.css harmony colours", () => {
   }
 });
 
+// A scale step as the browser resolves it: [lightness 0 to 1, chroma, hue].
+function scaleAt(token: string, accentHue: number, accentChroma = 0.137): [number, number, number] {
+  root.style.setProperty("--cp-accent-h", String(accentHue));
+  root.style.setProperty("--cp-accent-c", String(accentChroma));
+  const el = host("");
+  el.style.color = `var(--cp-${token})`;
+  const m = /oklch\(([\d.]+) ([\d.]+) ([\d.]+)/.exec(getComputedStyle(el).color);
+  if (m === null) {
+    throw new Error(`${token} resolved to ${getComputedStyle(el).color}`);
+  }
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+describe("css/system.css sequential and diverging scales", () => {
+  it("runs the default blue's sequential steps from a light sky blue to a dark deep blue", () => {
+    theme("light");
+    const [l1, , h1] = scaleAt("sequential-1", 255);
+    const [l9, , h9] = scaleAt("sequential-9", 255);
+    expect([l1, h1, l9, h9].map((v) => Number(v.toFixed(3)))).toEqual([0.86, 225, 0.29, 265]);
+  });
+
+  it("keeps step 1 nearest the surface in the dark theme, a dark deep blue", () => {
+    theme("dark");
+    const [l1, , h1] = scaleAt("sequential-1", 255);
+    const [l9, , h9] = scaleAt("sequential-9", 255);
+    expect([l1, h1, l9, h9].map((v) => Number(v.toFixed(3)))).toEqual([0.4, 265, 0.92, 225]);
+  });
+
+  it("gives a muted accent's scale the slots' floor chroma, 0.13", () => {
+    theme("light");
+    // step 5: 57.5% at hue 245, under the taper and inside the gamut cap
+    expect(scaleAt("sequential-5", 255, 0.05)[1]).toBeCloseTo(0.13, 4);
+  });
+
+  it("faces the accent with the opposite piece's hue on both sides of every edge", () => {
+    theme("light");
+    const edges: readonly (readonly [number, number])[] = [
+      [119, 245],
+      [120, 355],
+      [169, 306],
+      [170, 55],
+      [307, 55],
+      [308, 167],
+      [354, 121],
+      [355, 245],
+    ];
+    for (const [accent, opposite] of edges) {
+      expect(scaleAt("diverging-1", accent)[2], `accent ${String(accent)}`).toBeCloseTo(
+        opposite,
+        3,
+      );
+    }
+  });
+
+  it("puts the accent's arm above a neutral grey middle and the opposite arm below it", () => {
+    theme("light");
+    expect(scaleAt("diverging-5", 255)).toEqual([0.86, 0.008, 260]);
+    const [l6, , h6] = scaleAt("diverging-6", 255);
+    const [l1, , h1] = scaleAt("diverging-1", 255);
+    expect([l6, h6, l1, h1].map((v) => Number(v.toFixed(3)))).toEqual([0.75, 255, 0.42, 55]);
+    theme("dark");
+    expect(scaleAt("diverging-5", 255)[0]).toBeCloseTo(0.38, 3);
+    expect(scaleAt("diverging-9", 255)[0]).toBeCloseTo(0.81, 3);
+  });
+});
+
 // A series slot as the browser resolves it: [lightness 0 to 1, chroma, hue].
 function seriesAt(n: number, accentHue: number, accentChroma = 0.137): [number, number, number] {
   root.style.setProperty("--cp-accent-h", String(accentHue));

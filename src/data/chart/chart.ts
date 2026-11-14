@@ -11,7 +11,7 @@ import { localeOf } from "../../core/locale/locale.js";
 import { skeletonTiming, type SkeletonTimingController } from "../../feedback/skeleton/skeleton.js";
 import { forgetMeasures } from "../scale/measure.js";
 
-import { drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
+import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
 import { layout, type Floors } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
@@ -290,7 +290,7 @@ export function renderChart(
     if (none !== undefined) {
       widths = grow(widths, readoutWidths(drawn, words, metrics.measure));
       frameLegend(legend, none, widths, totalWord(drawn, words), chipChosen(drawn));
-      const key = sizeKey(drawn, lay);
+      const key = sizeKey(drawn, lay) ?? colourKey(drawn, words, metrics.measure);
       if (key !== undefined) {
         legend.append(key);
       }

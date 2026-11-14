@@ -6,6 +6,7 @@ import { forgetMeasures } from "../scale/measure.js";
 
 import {
   AREA_ROOM,
+  colourKey,
   drawPlot,
   drawSelection,
   frameLegend,
@@ -13,10 +14,10 @@ import {
   sizeKey,
   writeLegend,
 } from "./draw.js";
-import { hairline, num, snap, upright } from "./geometry.js";
+import { boxSegment, cellBox, hairline, num, snap, upright } from "./geometry.js";
 import { layout, type Layout } from "./layout.js";
-import { chartModel, type Model, type RectModel } from "./model.js";
-import { bucketReading, overall, readoutWidths } from "./readout.js";
+import { chartModel, type CellModel, type Model, type RectModel } from "./model.js";
+import { bucketReading, cellReading, overall, readoutWidths } from "./readout.js";
 import { navigator } from "./select.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
@@ -1065,6 +1066,9 @@ describe("surfaces", () => {
       expect(getComputedStyle(head).fill).toBe(
         token(head, "var(--cp-ink-muted)", "color", palette),
       );
+      const box = draw(latency(1));
+      const median = box.svg.querySelector('[data-part="median"]') as Element;
+      expect(getComputedStyle(median).fill).toBe(token(median, "var(--cp-ink)", "color", palette));
     },
   );
 });
@@ -1350,6 +1354,113 @@ describe("a bar chart", () => {
     expect(first?.getAttribute("text-anchor")).toBe("start");
     // An 18 px name line, 2 px, then a 24 px row: 44 px at 13 px text.
     expect(d.lay.frame.height).toBe(3 * 44);
+  });
+});
+
+const latency = (
+  count: number,
+  more: Partial<Extract<ChartSpec["marks"][number], { mark: "box" }>> = {},
+): ChartSpec => ({
+  x: { label: "Latency" },
+  marks: [
+    {
+      mark: "box",
+      y: ["search", "export", "login"],
+      series: per(count, (k) => ({
+        name: k === 0 ? "Before" : "After",
+        slot: (k === 0 ? 1 : 4) as 1,
+        low: [120, 300, 40],
+        q1: [180, 900, 60],
+        median: [240, 1400, 75],
+        q3: [410, 2100, 90],
+        high: [760, 4000, 130],
+        outliers: [[1100, 2600], [], [400]],
+      })),
+      ...more,
+    },
+  ],
+});
+
+describe("a box plot", () => {
+  it("draws each series' boxes, whiskers and hollow outliers in its slot, the median in ink", () => {
+    const d = draw(latency(2), 600);
+    for (const part of ["box", "whisker", "outlier"]) {
+      expect(
+        series(d, part).map((p) => p.getAttribute("data-series")),
+        part,
+      ).toEqual(["1", "4"]);
+    }
+    const [box, whisker, outlier] = ["box", "whisker", "outlier"].map(
+      (part) => series(d, part)[1] as Element,
+    );
+    const slot = token(box as Element, "var(--cp-series-4)");
+    expect(getComputedStyle(box as Element).fill).toBe(slot);
+    const w = getComputedStyle(whisker as Element);
+    expect([w.stroke, w.strokeWidth, w.fill]).toEqual([slot, "2px", "none"]);
+    const o = getComputedStyle(outlier as Element);
+    expect([o.stroke, o.strokeWidth, o.fill]).toEqual([slot, "1.5px", "none"]);
+    const median = d.svg.querySelector('[data-part="median"]') as Element;
+    expect(getComputedStyle(median).fill).toBe(token(median, "var(--cp-ink)"));
+    // Two series in three rows: six ticks, each 2 px wide and 3 px past its 10 px box.
+    expect(median.getAttribute("d")?.match(/M/g)).toHaveLength(6);
+    expect((median as SVGPathElement).getBBox().height).toBeGreaterThan(16);
+  });
+
+  it("draws upright gridlines at the x ticks, no row hairlines, and a zero line only where x holds 0", () => {
+    const d = draw(latency(1), 600);
+    const grid = d.svg.querySelector('[data-part="grid"]')?.getAttribute("d") ?? "";
+    expect(grid).toMatch(/^M[\d.]+ 0V/u);
+    expect(d.svg.querySelector('[data-part="rows"]')).toBeNull();
+    expect(d.svg.querySelector('[data-part="value"]')).toBeNull();
+    expect(d.lay.frame.height).toBe(3 * 24);
+    // 40 to 4,000 nices down to 0 on a linear x, so the zero line stands there.
+    expect(d.lay.xAxis.lo).toBe(0);
+    expect(d.svg.querySelector('[data-part="zero"]')?.getAttribute("d")).toBe(
+      `M${String(snap(d.lay.frame.xAt(0), 1) + 0.5)} 0V72`,
+    );
+    const log = draw({ ...latency(1), x: { type: "log", label: "Latency" } }, 600);
+    expect(log.svg.querySelector('[data-part="zero"]')).toBeNull();
+  });
+
+  it("rings the row's boxes, or the chosen series' box, and turns its name ink", () => {
+    const d = draw(latency(2), 600);
+    const nav = navigator(d.model, d.lay);
+    const ring = (part: number | undefined) => {
+      drawSelection(d.svg, d.model, d.lay, { kind: "box", row: 1, part }, nav);
+      return d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    };
+    // A ring 1 px outside each box's edges: one per series, or the chosen one alone.
+    expect(ring(undefined).match(/M/g)).toHaveLength(2);
+    expect(ring(1).match(/M/g)).toHaveLength(1);
+    const m = d.model.marks[0];
+    const box =
+      m?.kind === "box" ? boxSegment(m, 1, 1, d.lay.frame, d.lay.rows[1]?.y ?? 0) : undefined;
+    expect(box).toBeDefined();
+    const { left, top, right, bottom } = box ?? { left: 0, top: 0, right: 0, bottom: 0 };
+    expect(ring(1)).toBe(
+      `M${num(left - 1)} ${num(top - 1)}H${num(right + 1)}V${num(bottom + 1)}H${num(left - 1)}Z`,
+    );
+    const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
+    expect(names.map((n) => n.hasAttribute("data-selected"))).toEqual([false, true, false]);
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+  });
+
+  it("draws an x rule down every row", () => {
+    const d = draw(
+      { ...latency(1), marks: [...latency(1).marks, { mark: "rule", x: 1000, label: "Target" }] },
+      600,
+    );
+    const rule = d.svg.querySelector('[data-part="area"] > [data-part="rule"]');
+    expect(rule?.getAttribute("d")).toBe(
+      `M${num(snap(d.lay.frame.xAt(1000), 1))} 0V${num(d.lay.frame.height)}`,
+    );
+  });
+
+  it("sets each name above its boxes on a phone", () => {
+    const d = draw(latency(1), 320);
+    expect(d.lay.gutters.axis).toBe(0);
+    const names = [...d.svg.querySelectorAll('[data-part="y"] > text')];
+    expect(names.map((n) => n.getAttribute("text-anchor"))).toEqual(["start", "start", "start"]);
   });
 });
 
@@ -1838,5 +1949,324 @@ describe("a bubble chart", () => {
     }
     const plain = draw(stacked);
     expect(sizeKey(plain.model, plain.lay)).toBeUndefined();
+  });
+});
+
+describe("a heatmap", () => {
+  const grid = (colour: NonNullable<ChartSpec["colour"]>): ChartSpec => ({
+    colour,
+    marks: [
+      {
+        mark: "cell",
+        x: ["0", "1", "2", "3"],
+        y: ["Mon", "Tue"],
+        values: [
+          [0, 3, 6, 9],
+          [null, 12, 15, 18],
+        ],
+      },
+    ],
+  });
+
+  it.each(["sequential", "diverging"] as const)(
+    "fills each class's cells with its step of the %s scale",
+    (type) => {
+      const d = draw(grid({ type, thresholds: [4, 8, 12, 16] }));
+      const g = d.svg.querySelector('[data-part="cell"]');
+      expect(g?.getAttribute("data-scale")).toBe(type);
+      const paths = [...(g?.querySelectorAll<SVGPathElement>("path[data-step]") ?? [])];
+      expect(paths.map((p) => p.dataset["step"])).toEqual(["1", "3", "5", "7", "9"]);
+      const fills = paths.map((p) => getComputedStyle(p).fill);
+      paths.forEach((p, k) => {
+        expect(fills[k]).toBe(token(p, `var(--cp-${type}-${p.dataset["step"] ?? ""})`));
+      });
+      expect(new Set(fills).size).toBe(5);
+    },
+  );
+
+  it("outlines a missing cell in the border colour with no fill", () => {
+    const d = draw(grid({}));
+    const missing = d.svg.querySelector<SVGPathElement>('[data-part="missing"]');
+    expect(missing).not.toBeNull();
+    const style = getComputedStyle(missing as SVGPathElement);
+    expect([style.fill, style.stroke, style.strokeWidth]).toEqual([
+      "none",
+      token(missing as SVGPathElement, "var(--cp-border)"),
+      "1px",
+    ]);
+  });
+
+  it("names its rows and columns with no tick, gridline or row hairline, the gaps being the grid", () => {
+    const d = draw(grid({}));
+    expect([...d.svg.querySelectorAll('[data-part="y"] text')].map((t) => t.textContent)).toEqual([
+      "Mon",
+      "Tue",
+    ]);
+    expect([...d.svg.querySelectorAll('[data-part="x"] text')].map((t) => t.textContent)).toEqual([
+      "0",
+      "1",
+      "2",
+      "3",
+    ]);
+    expect(d.svg.querySelector('[data-part="ticks"]')?.getAttribute("d")).toBe("");
+    for (const part of ["grid", "rows", "zero"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`)).toBeNull();
+    }
+  });
+});
+
+describe("a heatmap's selection and colour key", () => {
+  const spec: ChartSpec = {
+    colour: { label: "Posts", thresholds: [4, 8, 12, 16] },
+    marks: [
+      {
+        mark: "cell",
+        x: ["0", "1", "2", "3"],
+        y: ["Mon", "Tue"],
+        values: [
+          [0, 3, 6, 9],
+          [null, 12, 15, 18],
+        ],
+      },
+    ],
+  };
+  // The key as the chart draws it, at the legend row's end.
+  const keyed = (s: ChartSpec, width = 600) => {
+    const d = draw(s, width);
+    const key = colourKey(d.model, words, readMetrics(d.legend, "en").measure);
+    if (key !== undefined) {
+      d.legend.append(key);
+    }
+    return { ...d, key };
+  };
+  const box = (el: Element) => el.getBoundingClientRect();
+
+  it("rings the selected cell 1 px outside its edges and turns its row and column names ink", () => {
+    const d = draw(spec);
+    drawSelection(
+      d.svg,
+      d.model,
+      d.lay,
+      { kind: "cell", row: 1, column: 2 },
+      navigator(d.model, d.lay),
+    );
+    const ring = d.svg.querySelector('[data-part="ring"]')?.getAttribute("d") ?? "";
+    const [x0, y0] = ring.slice(1).split(/[ H]/u).map(Number);
+    const fill =
+      d.lay.cells === undefined ? undefined : cellBox(d.lay.cells, 1, 2, d.lay.frame.dpr);
+    expect([x0, y0]).toEqual([(fill?.left ?? 0) - 1, (fill?.top ?? 0) - 1]);
+    expect(d.svg.querySelector('[data-part="crosshair"]')).toBeNull();
+    const selected = [...d.svg.querySelectorAll("text[data-selected]")].map((t) => t.textContent);
+    expect(selected).toEqual(["Tue", "2"]);
+    const name = d.svg.querySelector('[data-part="x"] text[data-selected]') as Element;
+    expect(getComputedStyle(name).fill).toBe(token(name, "var(--cp-ink)"));
+    drawSelection(d.svg, d.model, d.lay, undefined, navigator(d.model, d.lay));
+    expect(d.svg.querySelectorAll("text[data-selected]").length).toBe(0);
+  });
+
+  it("draws a swatch per class in its step, each threshold centred under its boundary", () => {
+    const { key } = keyed(spec);
+    expect(key?.getAttribute("aria-hidden")).toBe("true");
+    expect(key?.querySelector('[data-part="label"]')?.textContent).toBe("Posts");
+    const swatches = [...(key?.querySelectorAll<SVGRectElement>("rect[data-step]") ?? [])];
+    expect(swatches.map((r) => r.dataset["step"])).toEqual(["1", "3", "5", "7", "9"]);
+    swatches.forEach((r) => {
+      expect([box(r).width, box(r).height]).toEqual([24, 12]);
+      expect(getComputedStyle(r).fill).toBe(
+        token(r, `var(--cp-sequential-${r.dataset["step"] ?? ""})`),
+      );
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["4", "8", "12", "16"]);
+    labels.forEach((l, k) => {
+      const centre = (box(l).left + box(l).right) / 2;
+      const between =
+        (box(swatches[k] as Element).right + box(swatches[k + 1] as Element).left) / 2;
+      expect(Math.abs(centre - between)).toBeLessThan(0.6);
+    });
+    expect(key?.querySelector('[data-part="none"]')?.textContent).toBe("No data");
+  });
+
+  it("rings the swatch of the selected cell's class, and the No data swatch for a missing cell", () => {
+    const { legend, model } = keyed(spec);
+    const m = model.marks[0] as CellModel;
+    const ringed = () =>
+      [...legend.querySelectorAll('[data-part="ring"]')].map((r) =>
+        r.hasAttribute("data-selected"),
+      );
+    writeLegend(legend, cellReading(model, m, 1, 2, words));
+    expect(ringed()).toEqual([false, false, false, true, false, false]);
+    const ring = legend.querySelector('[data-part="ring"][data-selected]') as Element;
+    expect(getComputedStyle(ring).visibility).toBe("visible");
+    expect(getComputedStyle(legend.querySelector('[data-part="ring"]') as Element).visibility).toBe(
+      "hidden",
+    );
+    writeLegend(legend, cellReading(model, m, 1, 0, words));
+    expect(ringed()).toEqual([false, false, false, false, false, true]);
+    writeLegend(legend, overall(model, words) as NonNullable<ReturnType<typeof overall>>);
+    expect(ringed().some(Boolean)).toBe(false);
+  });
+
+  it("labels a diverging key's pivot under its middle swatch and thins crowded labels", () => {
+    const diverging: ChartSpec = {
+      colour: { type: "diverging", steps: 5, format: { maximumFractionDigits: 2 } },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-0.123, 0.987]] }],
+    };
+    const { key } = keyed(diverging);
+    const middle = key?.querySelectorAll("rect[data-step]")[2] as Element;
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    const pivot = labels.find((l) => l.textContent === "0") as Element;
+    expect(pivot).toBeDefined();
+    expect(
+      Math.abs(
+        (box(pivot).left + box(pivot).right) / 2 - (box(middle).left + box(middle).right) / 2,
+      ),
+    ).toBeLessThan(0.6);
+    for (let k = 1; k < labels.length; k++) {
+      expect(box(labels[k] as Element).left).toBeGreaterThanOrEqual(
+        box(labels[k - 1] as Element).right,
+      );
+    }
+    expect(key?.querySelector('[data-part="none"]')).toBeNull();
+  });
+
+  it("keeps a diverging key's pivot when its crowded thresholds thin to the ends", () => {
+    const { key } = keyed({
+      colour: {
+        type: "diverging",
+        steps: 7,
+        format: {
+          style: "unit",
+          unit: "celsius",
+          maximumFractionDigits: 1,
+          signDisplay: "exceptZero",
+        },
+      },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-2.6, 2.5]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["-2.5°C", "0°C", "+2.5°C"]);
+  });
+
+  it("writes an inferred key's boundaries with the class width's fraction digits", () => {
+    const { key } = keyed({
+      // Three classes 0.5 wide from 0.
+      colour: { steps: 3 },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[0, 1.4]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["0.5", "1.0"]);
+  });
+
+  it("writes an odd diverging key's half-class boundaries with no digit their values lack", () => {
+    const { key } = keyed({
+      // Five classes 2 wide about 0 break at -3, -1, 1 and 3; the pivot thins out -1 and 1.
+      colour: { type: "diverging" },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-5, 5]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["-3", "0", "3"]);
+  });
+
+  it("writes a computed pivot to three digits past its classes' width", () => {
+    const { key } = keyed({
+      // The mean of seven counts, 37.142857142857146, in classes 20 wide.
+      colour: { type: "diverging", pivot: 260 / 7 },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[12, 70]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toContain("37.143");
+  });
+
+  it.each([
+    [5, ["-3", "0", "3"]],
+    [4, ["-2", "0", "2"]],
+  ])("writes a pivot just below 0 as 0, %i classes", (steps, kept) => {
+    const { key } = keyed({
+      colour: { type: "diverging", steps, pivot: -0.0001 },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-3, 3]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(kept);
+  });
+
+  it.each([
+    [
+      "a pivot just below 0 over a passed domain",
+      { type: "diverging", steps: 5, pivot: -0.0001, domain: [-3, 3] },
+      "0",
+    ],
+    ["a passed domain's boundary a hair from 0", { steps: 2, domain: [-0.1 - 0.2, 0.3] }, "0"],
+    ["passed thresholds", { thresholds: [-1, -0.0001, 1] }, "-1 0 1"],
+  ] as const)("writes %s without a signed zero", (_, colour, want) => {
+    const { key } = keyed({
+      colour,
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-3, 3]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])].map(
+      (l) => l.textContent,
+    );
+    expect(labels).toEqual(expect.arrayContaining(want.split(" ")));
+    expect(labels.filter((t) => /^[-\u2212]0$/u.test(t))).toEqual([]);
+  });
+
+  it("writes boundaries finer than Intl's 100 fraction digits in scientific notation", () => {
+    const { key } = keyed({
+      // Four classes 2.5e-102 wide.
+      colour: { steps: 4 },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[0, 1e-101]] }],
+    });
+    const texts = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])].map(
+      (l) => l.textContent,
+    );
+    expect(texts.length).toBeGreaterThan(0);
+    expect(texts.every((t) => ["2.5E-102", "5E-102", "7.5E-102"].includes(t))).toBe(true);
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+
+  it.each([
+    [4, ["0°C"]],
+    [8, ["-3°C", "0°C", "+3°C"]],
+  ])("keeps an even diverging key's pivot boundary through thinning, %i classes", (steps, kept) => {
+    const { key } = keyed({
+      colour: {
+        type: "diverging",
+        steps,
+        format: { style: "unit", unit: "celsius", signDisplay: "exceptZero" },
+      },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-2.6, 2.5]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(kept);
+  });
+});
+
+describe("a 2D histogram", () => {
+  const spec: ChartSpec = {
+    x: { type: "log" },
+    marks: [
+      {
+        mark: "cell",
+        x: { edges: [1_000, 10_000, 100_000] },
+        y: { edges: [-10, 0, 10, 20] },
+        values: [
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ],
+      },
+    ],
+  };
+
+  it("ticks its binned x and labels its binned y, with no gridline or zero line across the cells", () => {
+    const d = draw(spec);
+    expect(d.svg.querySelector('[data-part="ticks"]')?.getAttribute("d")).not.toBe("");
+    expect([...d.svg.querySelectorAll('[data-part="y"] text')].map((t) => t.textContent)).toContain(
+      "0",
+    );
+    for (const part of ["grid", "rows", "zero"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`)).toBeNull();
+    }
+    expect(d.svg.querySelectorAll('[data-part="cell"] path[data-step]').length).toBeGreaterThan(0);
   });
 });
