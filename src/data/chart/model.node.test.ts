@@ -478,6 +478,29 @@ describe("spec errors", () => {
     expect(() => build({ x: {}, marks: [scatter] })).toThrow("marks[0].series[1000000].names");
   });
 
+  it("builds a stack whose x is an array-like of any length", () => {
+    for (const length of [-1, Number.NaN]) {
+      const area = build({ x: {}, marks: [{ mark: "area", x: { length }, series: [] }] });
+      expect(area.marks[0]).toMatchObject({ kind: "area", totals: [] });
+    }
+    const bars = build({
+      x: {},
+      marks: [{ mark: "rect", x1: { length: -1 }, x2: { length: -1 }, series: [] }],
+    });
+    expect(bars.marks[0]).toMatchObject({ kind: "rect", totals: [] });
+    const one = build({
+      x: {},
+      marks: [
+        {
+          mark: "area",
+          x: { length: 1.9, 0: 0 },
+          series: [{ name: "a", y: { length: 1.9, 0: 5 } }],
+        },
+      ],
+    });
+    expect(one.marks[0]).toMatchObject({ kind: "area", totals: [5] });
+  });
+
   it("names the rule it breaks", () => {
     expect(() => build({ x: {}, marks: [line([1, 2], { x: [0, 0] })] })).toThrow(
       "renderChart: marks[0].x must strictly increase",

@@ -1774,25 +1774,26 @@ function series(list: RectMark["series"], log = false): SeriesModel[] {
   return list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, y: gaps(s.y, log) }));
 }
 
-// A rect's series and each of its `n` buckets' sum, a `null` as 0.
-function rectSeries(list: RectMark["series"], n: number) {
+// A rect's series and each of its `length` buckets' sum, a `null` as 0.
+// Array.from takes `length` as checkX's walk did, a NaN or -1 as 0.
+function rectSeries(list: RectMark["series"], length: number) {
   const out = series(list);
-  const totals = new Array<number>(n).fill(0);
+  const totals = Array.from({ length }, () => 0);
   for (const s of out) {
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < totals.length; i++) {
       totals[i] = (totals[i] ?? 0) + (s.y[i] ?? 0);
     }
   }
   return { series: out, totals };
 }
 
-// An area's series and each of its `n` samples' stack top, `null` where any
-// series is a gap.
-function areaSeries(list: RectMark["series"], n: number) {
+// An area's series and each of its `length` samples' stack top, `null` where
+// any series is a gap; `length` taken as rectSeries takes it.
+function areaSeries(list: RectMark["series"], length: number) {
   const out = series(list);
-  const totals = new Array<number | null>(n).fill(0);
+  const totals = Array.from({ length }, (): number | null => 0);
   for (const s of out) {
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < totals.length; i++) {
       const total = totals[i] ?? null;
       const v = s.y[i] ?? null;
       totals[i] = total === null || v === null ? null : total + v;
