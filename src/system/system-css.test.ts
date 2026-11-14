@@ -2085,6 +2085,46 @@ describe("css/system.css", () => {
     );
   });
 
+  it("turns the categories into the made select on a narrow screen, and pops in only a dot added later", async () => {
+    theme("light");
+    const dot = (added: string) =>
+      `<span data-part="end"><span class="cp-dot" data-tone="accent" aria-hidden="true"${added}></span><span class="cp-visually-hidden">, unsaved changes</span></span>`;
+    const markup =
+      '<div class="cp-settings"><nav class="cp-settings-nav" aria-label="Settings"><ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">' +
+      `<li><a class="cp-list-row" href="#c" aria-current="location"><span class="cp-cell-stack">Connections</span>${dot("")}</a></li>` +
+      `<li><a class="cp-list-row" href="#l"><span class="cp-cell-stack">Languages</span>${dot(" data-cp-added")}</a></li></ul>` +
+      '<div class="cp-field"><label class="cp-label" for="cat">Category</label><div class="cp-select"><select class="cp-input" id="cat"><option>Connections, unsaved changes</option><option>Languages, unsaved changes</option></select></div></div></nav>' +
+      '<div><div class="cp-setting"><div><label class="cp-label" for="n">Notifications</label></div><input class="cp-switch" id="n" type="checkbox" role="switch"></div></div></div>';
+    await page.viewport(1280, 720);
+    const wide = build(markup);
+    const shown = (el: HTMLElement, sel: string) =>
+      getComputedStyle(el.querySelector(sel) as Element).display !== "none";
+    expect([
+      shown(wide, ".cp-settings-nav > .cp-list"),
+      shown(wide, ".cp-settings-nav > .cp-field"),
+    ]).toEqual([true, false]);
+    const [still, added] = [...wide.querySelectorAll(".cp-dot")].map(
+      (d) => getComputedStyle(d).animationName,
+    );
+    expect([still, added]).toEqual(["none", "cp-token-in"]);
+    const end = (wide.querySelector(".cp-list-row") as Element).getBoundingClientRect().right;
+    const mark = (wide.querySelector(".cp-dot") as Element).getBoundingClientRect();
+    expect(mark.width).toBe(8);
+    expect(end - mark.right).toBe(12);
+    await page.viewport(600, 800);
+    const narrow = build(markup);
+    expect([
+      shown(narrow, ".cp-settings-nav > .cp-list"),
+      shown(narrow, ".cp-settings-nav > .cp-field"),
+    ]).toEqual([false, true]);
+    const select = narrow.querySelector("select") as HTMLSelectElement;
+    const nav = (narrow.querySelector(".cp-settings-nav") as Element).getBoundingClientRect();
+    expect(select.getBoundingClientRect().width).toBeCloseTo(nav.width, 0);
+    expect(nav.bottom).toBeLessThanOrEqual(
+      (narrow.querySelector(".cp-setting") as Element).getBoundingClientRect().top,
+    );
+  });
+
   it("keeps the save bar in view at the bottom of a long form, and gone while hidden", () => {
     theme("light");
     const el = build(

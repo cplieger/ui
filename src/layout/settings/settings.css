@@ -1,5 +1,6 @@
 /* A settings page: its categories, a plain compact list of links, beside
- * the open one's form, and in a row above it under 48rem. */
+ * the open one's form. Under 48rem they become the select ./settings makes
+ * as the nav's .cp-field, or, with no script, a scrolling row of links. */
 .cp-settings {
   display: grid;
   grid-template-columns: 13rem minmax(0, 1fr);
@@ -20,7 +21,31 @@
   padding-inline: var(--cp-space-3);
 }
 
+.cp-settings-nav > .cp-field {
+  display: none;
+}
+
+/* A dot ./settings adds after the first paint pops in; one already there
+ * when the page loads stays still. */
+.cp-settings-nav .cp-dot[data-cp-added] {
+  animation: cp-token-in 300ms var(--cp-ease-bounce);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-settings-nav .cp-dot[data-cp-added] {
+    animation-name: cp-fade-in;
+  }
+}
+
 @media (width < 48rem) {
+  .cp-settings-nav > .cp-field {
+    display: grid;
+  }
+
+  .cp-settings-nav:has(> .cp-field) > .cp-list {
+    display: none;
+  }
+
   .cp-settings {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--cp-space-5);
