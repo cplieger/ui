@@ -20,3 +20,4 @@ enhanceRovingFocus(list, { items: '[role="option"]', orientation: "vertical" });
 
 - The inline arrows run the other way in a right-to-left group. Disabled and hidden items are skipped.
 - A press or a focus that reaches an item makes it the one Tab returns to.
+- An item added later, such as a list's next page or a row that comes back after a filter, takes no Tab stop of its own, and when the item that held the stop leaves, the first item takes it. So a list of links whose rows come and go stays one Tab stop.

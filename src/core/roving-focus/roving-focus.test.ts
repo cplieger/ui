@@ -88,4 +88,40 @@ describe("enhanceRovingFocus", () => {
     life.abort();
     expect(buttons.every((b) => !b.hasAttribute("tabindex"))).toBe(true);
   });
+
+  it("keeps one Tab stop when items come later, and hands it on when its item leaves", async () => {
+    const { bar, buttons, after } = toolbar();
+    enhanceRovingFocus(bar, { signal: life.signal, orientation: "vertical" });
+    await userEvent.click(buttons[1] as HTMLElement);
+    const early = document.createElement("button");
+    early.textContent = "Early";
+    const wrap = document.createElement("div");
+    const late = document.createElement("button");
+    late.textContent = "Late";
+    wrap.append(late);
+    bar.prepend(early);
+    bar.append(wrap);
+    await Promise.resolve();
+    expect([early, ...buttons, late].map((b) => b.tabIndex)).toEqual([-1, -1, 0, -1, -1]);
+    buttons[1]?.remove();
+    await Promise.resolve();
+    expect(early.tabIndex).toBe(0);
+    after.focus();
+    await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+    expect(document.activeElement).toBe(early);
+    await userEvent.keyboard("{End}");
+    expect(document.activeElement).toBe(late);
+  });
+
+  it("keeps one Tab stop when an item that held it comes back", async () => {
+    const { bar, buttons } = toolbar();
+    enhanceRovingFocus(bar, { signal: life.signal });
+    await userEvent.click(buttons[2] as HTMLElement);
+    const back = buttons[2] as HTMLButtonElement;
+    back.remove();
+    await Promise.resolve();
+    bar.append(back);
+    await Promise.resolve();
+    expect(buttons.map((b) => b.tabIndex)).toEqual([0, -1, -1]);
+  });
 });

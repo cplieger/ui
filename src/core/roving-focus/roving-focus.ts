@@ -47,6 +47,29 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
   };
   settle();
 
+  // An item added later, such as a list's next page or a live row, would be
+  // a Tab stop of its own, and one put back after it left with the stop
+  // would be a second; one that leaves with the stop hands it on.
+  const added = new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (!(node instanceof HTMLElement)) {
+          continue;
+        }
+        for (const i of [node, ...node.querySelectorAll<HTMLElement>(selector)]) {
+          if (i.matches(selector) && !i.hasAttribute("tabindex")) {
+            i.tabIndex = -1;
+          }
+        }
+      }
+    }
+    const stops = items().filter((i) => i.tabIndex === 0);
+    if (stops.length !== 1) {
+      settle(stops.find((i) => i === document.activeElement) ?? stops[0]);
+    }
+  });
+  added.observe(group, { childList: true, subtree: true });
+
   const back = new Set(
     orientation === "vertical"
       ? ["ArrowUp"]
@@ -111,6 +134,7 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
   signal?.addEventListener(
     "abort",
     () => {
+      added.disconnect();
       for (const i of group.querySelectorAll<HTMLElement>(selector)) {
         i.removeAttribute("tabindex");
       }
