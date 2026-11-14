@@ -2469,6 +2469,35 @@ describe("css/system.css", () => {
     expect(gone?.display).toBe("none");
   });
 
+  it("scrolls a field into view clear of the save bar while it shows, and clears nothing once it hides", () => {
+    theme("light");
+    const fields = Array.from(
+      { length: 12 },
+      (_, i) =>
+        `<div class="cp-field"><input class="cp-input" aria-label="Field ${String(i)}"></div>`,
+    ).join("");
+    const el = build(
+      `<div style="block-size: 20rem; overflow-y: auto"><form class="cp-stack">${fields}<div class="cp-savebar"><span>1 unsaved change</span><button class="cp-button" type="reset">Discard</button></div></form></div>`,
+    );
+    const scroller = el.firstElementChild as HTMLElement;
+    const form = el.querySelector("form") as HTMLFormElement;
+    const bar = el.querySelector(".cp-savebar") as HTMLElement;
+    const last = [...form.querySelectorAll("input")].at(-1) as HTMLInputElement;
+    // The scroll a focus or a link runs; WebKit's focus() in a test page
+    // scrolls nothing.
+    last.scrollIntoView({ block: "nearest" });
+    const ring = last.getBoundingClientRect().bottom + 4;
+    expect(ring).toBeLessThanOrEqual(bar.getBoundingClientRect().top);
+    expect(getComputedStyle(bar.querySelector("button") as Element).scrollMarginBlockEnd).toBe(
+      "0px",
+    );
+    form.style.setProperty("--cp-savebar-size", "100px");
+    expect(getComputedStyle(last).scrollMarginBlockEnd).toBe("116px");
+    bar.hidden = true;
+    scroller.scrollTop = 0;
+    expect(getComputedStyle(last).scrollMarginBlockEnd).toBe("0px");
+  });
+
   it("keeps an aria-disabled button under the pointer, so a press on it keeps focus", async () => {
     theme("light");
     const el = build('<button class="cp-button" type="button" aria-disabled="true">Full</button>');

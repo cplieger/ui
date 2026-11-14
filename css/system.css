@@ -3172,6 +3172,20 @@
   flex: 1 1 auto;
 }
 
+/* Whatever focus scrolls into view lands with its ring clear of the bar
+ * (WCAG 2.4.11). `./settings` sets the bar's measured height, which grows
+ * when it wraps on a phone; one row's height stands in without it. */
+:where(form:has(.cp-savebar:not([hidden]))) * {
+  scroll-margin-block-end: calc(
+    var(--cp-savebar-size, var(--cp-control-h) + 2 * var(--cp-space-3) + 2 * var(--cp-line-w)) +
+      var(--cp-space-3) + var(--cp-focus-w) + var(--cp-focus-offset)
+  );
+}
+
+:where(.cp-savebar) * {
+  scroll-margin-block-end: 0;
+}
+
 @media (forced-colors: active) {
   .cp-savebar {
     border: var(--cp-line-w) solid CanvasText;

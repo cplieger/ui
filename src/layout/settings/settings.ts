@@ -28,7 +28,7 @@ export interface SettingsOptions {
   /** The `.cp-savebar` with its `[data-part="count"]`. Default: the form's. */
   readonly bar?: HTMLElement | null;
   readonly words?: SettingsWords;
-  /** Removes the select, the dots and the listeners. */
+  /** Removes the select, the dots, the bar's height and the listeners. */
   readonly signal?: AbortSignal;
 }
 
@@ -36,10 +36,10 @@ export interface Settings {
   /** Shows `changes`, the changed fields the form's guard lists. Pass it as
    *  the guard's `onChange`, and call it once with `guard.changes()` after
    *  making the guard. */
-  paint(changes: readonly Element[]): void;
+  readonly paint: (changes: readonly Element[]) => void;
   /** Reads the categories again, after the app added, removed or renamed
    *  one. */
-  update(): void;
+  readonly update: () => void;
 }
 
 const DEFAULTS = {
@@ -353,8 +353,15 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   const currents = new MutationObserver(sync);
   currents.observe(nav, { subtree: true, attributeFilter: ["aria-current"] });
   const rest = new MutationObserver(paintBar);
+  const size = new ResizeObserver(([entry]) => {
+    const height = entry?.borderBoxSize[0]?.blockSize ?? 0;
+    if (height > 0) {
+      form.style.setProperty("--cp-savebar-size", `${String(height)}px`);
+    }
+  });
   if (bar !== null) {
     rest.observe(bar, { subtree: true, attributeFilter: ["data-cp-state"] });
+    size.observe(bar);
   }
 
   read();
@@ -362,6 +369,8 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     spy.disconnect();
     currents.disconnect();
     rest.disconnect();
+    size.disconnect();
+    form.style.removeProperty("--cp-savebar-size");
     for (const link of links) {
       mark(link, false);
     }

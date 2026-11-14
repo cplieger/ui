@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
+import { guardChanges } from "../../forms/form/form.js";
 import { enhanceSettings } from "./settings.js";
 
 let life = new AbortController();
@@ -84,6 +86,18 @@ describe("enhanceSettings", () => {
     await vi.waitFor(() => {
       expect(bar.hidden).toBe(true);
     });
+  });
+
+  it("gives the form the save bar's height, and takes it back when its signal ends", async () => {
+    const { form, bar, fields } = page();
+    const s = enhanceSettings(form, { signal: life.signal });
+    s.paint([fields[0] as Element]);
+    bar.style.blockSize = "90px";
+    await vi.waitFor(() => {
+      expect(form.style.getPropertyValue("--cp-savebar-size")).toBe("90px");
+    });
+    life.abort();
+    expect(form.style.getPropertyValue("--cp-savebar-size")).toBe("");
   });
 
   it("puts a dot on each category holding a change, read after its name", async () => {
@@ -335,5 +349,109 @@ describe("enhanceSettings", () => {
   it("throws without a settings nav", () => {
     const form = document.createElement("form");
     expect(() => enhanceSettings(form)).toThrow(TypeError);
+  });
+});
+
+describe("enhanceSettings on the unsaved-changes guard", () => {
+  const type = (field: HTMLInputElement, value: string): void => {
+    field.value = value;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const options = (nav: HTMLElement): string[] =>
+    [...(nav.querySelector("select") as HTMLSelectElement).options].map((o) => o.text);
+
+  function guarded(): ReturnType<typeof page> & {
+    guard: ReturnType<typeof guardChanges>;
+    count: () => string | null | undefined;
+  } {
+    const p = page();
+    const settings = enhanceSettings(p.form, { signal: life.signal });
+    const guard = guardChanges(p.form, { onChange: settings.paint, signal: life.signal });
+    settings.paint(guard.changes());
+    return { ...p, guard, count: () => p.bar.querySelector('[data-part="count"]')?.textContent };
+  }
+
+  it("paints what the guard reports as the person types, and Discard clears it", async () => {
+    const { bar, nav, fields, links, count } = guarded();
+    expect(bar.hidden).toBe(true);
+    type(fields[1] as HTMLInputElement, "45");
+    type(fields[3] as HTMLInputElement, "dark");
+    await vi.waitFor(() => {
+      expect([bar.hidden, count()]).toEqual([false, "2 unsaved changes"]);
+    });
+    expect(dots(links)).toEqual(["", "Checks, unsaved changes", "Display, unsaved changes"]);
+    expect(options(nav)).toEqual([
+      "Connections",
+      "Checks, unsaved changes",
+      "Display, unsaved changes",
+    ]);
+    (bar.querySelector('[type="reset"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(bar.hidden).toBe(true);
+    });
+    expect(dots(links)).toEqual(["", "", ""]);
+    expect(options(nav)).toEqual(["Connections", "Checks", "Display"]);
+  });
+
+  it("keeps the bar through Save changes' cycle, then shows only what was typed during the save", async () => {
+    const { form, bar, fields, links, guard, count } = guarded();
+    const button = bar.querySelector('[type="submit"]') as HTMLButtonElement;
+    button.innerHTML = '<span class="cp-roll">Save changes</span>';
+    const rested = vi.fn();
+    const save = enhanceConfirm(button, {
+      busy: "Saving…",
+      done: "Saved",
+      busyDelay: 0,
+      hold: 50,
+      onRest: rested,
+      signal: life.signal,
+    });
+    type(fields[1] as HTMLInputElement, "45");
+    await vi.waitFor(() => {
+      expect(count()).toBe("1 unsaved change");
+    });
+    let answer = (): void => undefined;
+    const done = save.run(
+      () =>
+        new Promise<void>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    type(fields[3] as HTMLInputElement, "dark");
+    await vi.waitFor(() => {
+      expect(count()).toBe("2 unsaved changes");
+    });
+    guard.saved({ every: "45" });
+    answer();
+    await done;
+    expect([bar.hidden, button.getAttribute("data-cp-state")]).toEqual([false, "done"]);
+    expect(dots(links)).toEqual(["", "", "Display, unsaved changes"]);
+    await vi.waitFor(() => {
+      expect(rested).toHaveBeenCalled();
+    });
+    expect([bar.hidden, count()]).toEqual([false, "1 unsaved change"]);
+    expect(form.querySelector<HTMLInputElement>('[name="every"]')?.defaultValue).toBe("45");
+    guard.saved();
+    await vi.waitFor(() => {
+      expect(bar.hidden).toBe(true);
+    });
+    expect(dots(links)).toEqual(["", "", ""]);
+  });
+
+  it("paints again when the latest values come in, keeping the person's change", async () => {
+    const { bar, fields, links, guard, count } = guarded();
+    type(fields[1] as HTMLInputElement, "45");
+    await vi.waitFor(() => {
+      expect(count()).toBe("1 unsaved change");
+    });
+    expect(guard.rebase({ url: "http://sonarr:8989", every: "60", theme: "light" })).toBe(1);
+    expect([bar.hidden, count()]).toEqual([false, "1 unsaved change"]);
+    expect(dots(links)).toEqual(["", "Checks, unsaved changes", ""]);
+    expect((fields[0] as HTMLInputElement).value).toBe("http://sonarr:8989");
+    guard.discard();
+    await vi.waitFor(() => {
+      expect(bar.hidden).toBe(true);
+    });
+    expect((fields[1] as HTMLInputElement).value).toBe("60");
   });
 });

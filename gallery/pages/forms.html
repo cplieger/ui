@@ -346,6 +346,43 @@
     <h2>Settings parts</h2>
     <div class="g-grid">
       <div class="card g-wide" data-new>
+        <h2>Categories and unsaved changes</h2>
+        <div class="cp-settings">
+          <nav class="cp-settings-nav" aria-label="Settings">
+            <ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">
+              <li><a class="cp-list-row" href="#sc-connections"><span class="cp-cell-stack">Connections</span></a></li>
+              <li><a class="cp-list-row" href="#sc-checks"><span class="cp-cell-stack">Checks</span></a></li>
+              <li><a class="cp-list-row" href="#sc-display"><span class="cp-cell-stack">Display</span></a></li>
+            </ul>
+          </nav>
+          <form class="cp-stack" novalidate id="sc-form">
+            <div class="cp-notice" data-tone="warning" hidden id="sc-notice"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>These settings changed on another device while you were editing.</span><button class="cp-button" type="button" data-rebase>Load the latest and keep my changes</button></div>
+            <section class="cp-stack" id="sc-connections" aria-labelledby="sc-connections-h">
+              <h3 id="sc-connections-h">Connections</h3>
+              <div class="cp-panel">
+                <div class="cp-setting"><div><label class="cp-label" for="sc-sonarr">Sonarr address</label><span class="cp-help">With its port.</span></div><input class="cp-input" id="sc-sonarr" name="sonarr" type="url" value="http://sonarr:8989" spellcheck="false"></div>
+              </div>
+            </section>
+            <section class="cp-stack" id="sc-checks" aria-labelledby="sc-checks-h">
+              <h3 id="sc-checks-h">Checks</h3>
+              <div class="cp-panel">
+                <div class="cp-setting"><div><label class="cp-label" for="sc-night">Check every night</label><span class="cp-help">At 03:00, when nobody is watching.</span></div><input class="cp-switch" id="sc-night" name="night" type="checkbox" role="switch" checked></div>
+                <div class="cp-setting"><div><label class="cp-label" for="sc-every">Check every</label><span class="cp-help">In minutes, 5 or more.</span></div><input class="cp-input" id="sc-every" name="every" type="number" min="5" value="30"></div>
+              </div>
+            </section>
+            <section class="cp-stack" id="sc-display" aria-labelledby="sc-display-h">
+              <h3 id="sc-display-h">Display</h3>
+              <div class="cp-panel">
+                <div class="cp-setting"><div><label class="cp-label" for="sc-name">Display name</label><span class="cp-help">Shown on your sessions.</span></div><input class="cp-input" id="sc-name" name="name" value="Christophe"></div>
+              </div>
+            </section>
+            <div class="cp-savebar" aria-label="Unsaved changes" hidden><span data-part="count"></span><button class="cp-button" type="reset">Discard</button><button class="cp-button" data-variant="primary" type="submit"><span class="cp-icon" data-cp-icon="save" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span><span class="cp-roll">Save changes</span></button></div>
+          </form>
+        </div>
+        <div class="cp-cluster g-gap-top"><a class="cp-button" data-size="sm" href="overlays.html">Go to Overlays</a><button class="cp-button" data-size="sm" type="button" data-elsewhere="sc-form">Save on another device</button></div>
+        <footer>Change a setting: the bar counts what waits, and each category holding a change gets a dot, which a narrow screen's select reads as "Checks, unsaved changes". Discard puts the saved values back. Save changes keeps the bar while it says Saving… and Saved, then counts again, so a change typed during the save still waits. While a change waits, Go to Overlays asks first. Save on another device saves a 1 hour check there: with nothing changed here it loads at once; with changes waiting, the notice's button takes it in and keeps yours.</footer>
+      </div>
+      <div class="card g-wide" data-new>
         <h2>Errors across sections</h2>
         <div class="cp-settings" data-categories>
           <nav class="cp-settings-nav" aria-label="Settings">

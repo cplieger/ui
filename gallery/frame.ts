@@ -6,6 +6,7 @@
  * frame's document.
  */
 
+import { guardChanges } from "@cplieger/ui/form";
 import { createIcons } from "@cplieger/ui/icons";
 import { applyPointerTier, installPointerTier } from "@cplieger/ui/pointer";
 import { enhanceSettings } from "@cplieger/ui/settings";
@@ -63,5 +64,11 @@ for (const item of document.querySelectorAll<HTMLAnchorElement>(".cp-nav-item"))
 }
 
 for (const form of document.querySelectorAll<HTMLFormElement>(".cp-settings form")) {
-  enhanceSettings(form);
+  const settings = enhanceSettings(form);
+  const guard = guardChanges(form, { onChange: settings.paint });
+  settings.paint(guard.changes());
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    guard.saved();
+  });
 }

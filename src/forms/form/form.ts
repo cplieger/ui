@@ -1,10 +1,8 @@
 /**
  * form.ts — a form's errors and its unsaved changes, as the forms pattern in
- * docs/design-patterns.md asks: each error is its field's sentence, tied by
- * `aria-describedby`. One field's error alone focuses it; more fill the
- * summary with links, across the form's sections, and a document's own
- * error goes to its notice. `guardChanges` asks before a navigation or a
- * close drops what the person typed.
+ * docs/design-patterns.md asks: `reportErrors` puts each error by its field,
+ * in the summary across sections or in the document's notice, and
+ * `guardChanges` asks before a navigation or a close drops what was typed.
  * @module
  */
 
@@ -162,14 +160,12 @@ function fill(host: HTMLElement, ...nodes: (Node | string)[]): void {
 }
 
 /**
- * Shows `errors` on `form` and clears each error an earlier call or
- * `showError` showed that `errors` no longer names; one a connection test,
- * date range or file field showed stays until that module clears it or this
- * call names its field. A field's error is the `.cp-field-error` its
- * `aria-describedby` names, else `#<its id>-error`, else one made at the end
- * of its `.cp-field`, or after a bare field. One field's error alone focuses
- * the field; any other mix fills and focuses the summary, or, for form
- * errors alone, the notice. An empty list hides both.
+ * Shows `errors` on `form` and clears what an earlier call or `showError`
+ * showed that `errors` no longer names (docs/forms/form.md says which stay).
+ * A field's error is the `.cp-field-error` its `aria-describedby` names,
+ * else `#<its id>-error`, else one made after it. One field's error alone
+ * focuses the field; any other mix the summary, or for form errors alone
+ * the notice. An empty list hides both.
  */
 export function reportErrors(
   form: HTMLFormElement,

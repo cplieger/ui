@@ -1,16 +1,19 @@
 /**
  * settings.ts — the gallery's wiring for the forms page's file fields, the
- * upload dialog, Add a source, the pair rows, Reset to default and the
- * errors across settings categories with their category select, on the
- * library's modules.
+ * upload dialog, Add a source, the pair rows, Reset to default, the
+ * settings categories with their unsaved changes, and the errors across
+ * them, on the library's modules.
  */
 
+import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceFiles, uploadFile, type UploadResult } from "@cplieger/ui/file";
 import {
   clearError,
+  guardChanges,
   reportErrors,
   showError,
   type Control,
+  type FreshValues,
   type ReportedError,
 } from "@cplieger/ui/form";
 import { enhanceSettings } from "@cplieger/ui/settings";
@@ -191,6 +194,54 @@ if (across instanceof HTMLFormElement) {
     });
     if (errors.length === 0) {
       toast({ kind: "success", title: "Settings saved" });
+    }
+  });
+}
+
+const unsaved = document.getElementById("sc-form");
+if (unsaved instanceof HTMLFormElement) {
+  const settings = enhanceSettings(unsaved);
+  const guard = guardChanges(unsaved, {
+    words: { question: "Leave without saving?" },
+    onChange: settings.paint,
+  });
+  settings.paint(guard.changes());
+  // What the made-up server answers it saved: the form as it was sent.
+  const values = (): FreshValues =>
+    Object.fromEntries(
+      [...unsaved.querySelectorAll<HTMLInputElement>("input[name]")].map((i) => [
+        i.name,
+        i.type === "checkbox" ? i.checked : i.value,
+      ]),
+    );
+  const button = unsaved.querySelector<HTMLButtonElement>('button[type="submit"]');
+  const save = button === null ? null : enhanceConfirm(button, { busy: "Saving…", done: "Saved" });
+  unsaved.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const sent = values();
+    void save?.run(async () => {
+      await new Promise((r) => setTimeout(r, 900));
+      guard.saved(sent);
+    });
+  });
+  const notice = document.getElementById("sc-notice");
+  const load = (): void => {
+    const kept = guard.rebase({ every: "60" });
+    if (notice !== null) {
+      notice.hidden = true;
+    }
+    toast({
+      kind: "success",
+      title: "Loaded the latest",
+      ...(kept === 0 ? {} : { body: "Your changes are still here." }),
+    });
+  };
+  notice?.querySelector("[data-rebase]")?.addEventListener("click", load);
+  document.querySelector('[data-elsewhere="sc-form"]')?.addEventListener("click", () => {
+    if (guard.count === 0) {
+      load();
+    } else if (notice !== null) {
+      notice.hidden = false;
     }
   });
 }
