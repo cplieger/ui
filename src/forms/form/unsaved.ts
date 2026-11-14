@@ -783,6 +783,19 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
   const on = signal === undefined ? {} : { signal };
   form.addEventListener("input", recount, on);
   form.addEventListener("change", recount, on);
+  // A field joined by `form=` sends its edits through its own ancestors, so
+  // they are heard at its tree's root: the form's shadow root, else its
+  // document, which a form built before it is mounted joins later.
+  const tree = form.getRootNode();
+  const root = tree instanceof ShadowRoot ? tree : form.ownerDocument;
+  const joined = (e: Event): void => {
+    const t = e.target;
+    if (t instanceof Element && isControl(t) && t.form === form && !form.contains(t)) {
+      recount();
+    }
+  };
+  root.addEventListener("input", joined, { ...on, capture: true });
+  root.addEventListener("change", joined, { ...on, capture: true });
   // A reset fires no input event, so the count follows it a task later, as
   // the pieces it puts back do.
   form.addEventListener(

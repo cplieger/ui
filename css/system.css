@@ -7323,8 +7323,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 /* The radio reaches over the track's padding above and below its label, so
  * a segment's target is the control's whole height, a finger's under a
- * coarse pointer. A wrapped line's gap is that padding, so lines never
- * overlap. */
+ * coarse pointer. A wrapped line's gap is that padding, so a target reaches
+ * the next line's label and never covers it. */
 .cp-segmented > label > input {
   position: absolute;
   inset: calc(-1 * var(--cp-space-1)) 0;

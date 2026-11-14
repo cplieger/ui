@@ -106,16 +106,75 @@ describe("guardChanges: what counts", () => {
     expect(told).toHaveLength(2);
   });
 
-  it("counts a field joined to the form from outside it", () => {
+  it("counts a field joined to the form from outside it, telling the host and holding the reload", async () => {
     const f = form("");
     f.id = "joined";
     const out = document.createElement("input");
     out.setAttribute("form", "joined");
-    out.value = "";
+    out.setAttribute("aria-label", "Outside");
+    const pick = document.createElement("select");
+    pick.setAttribute("form", "joined");
+    pick.setAttribute("aria-label", "Every");
+    pick.setHTMLUnsafe("<option>15</option><option>30</option>");
+    document.body.append(out, pick);
+    const told: (readonly Element[])[] = [];
+    const guard = guardChanges(f, { onChange: (c) => told.push(c), signal: life.signal });
+    const unload = (): boolean => {
+      const e = new Event("beforeunload", { cancelable: true });
+      dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    await userEvent.type(out, "typed");
+    expect(told).toEqual([[out]]);
+    expect(unload()).toBe(true);
+    await userEvent.selectOptions(pick, "30");
+    expect(told.at(-1)).toEqual([out, pick]);
+    guard.discard();
+    expect([out.value, pick.value, told.at(-1), unload()]).toEqual(["", "15", [], false]);
+  });
+
+  it("hears a joined field in a form built before it is mounted", async () => {
+    const f = document.createElement("form");
+    f.id = "later";
+    const told: (readonly Element[])[] = [];
+    guardChanges(f, { onChange: (c) => told.push(c), signal: life.signal });
+    const out = document.createElement("input");
+    out.setAttribute("form", "later");
+    out.setAttribute("aria-label", "Outside");
+    document.body.append(f, out);
+    await userEvent.type(out, "x");
+    expect(told).toEqual([[out]]);
+  });
+
+  it("hears a joined field in the form's shadow root", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    // Static test markup, never caller text.
+    shadow.setHTMLUnsafe(
+      '<form id="inside"></form><select form="inside" aria-label="Every"><option>15</option><option>30</option></select>',
+    );
+    const f = shadow.querySelector("form") as HTMLFormElement;
+    const pick = shadow.querySelector("select") as HTMLSelectElement;
+    const told: (readonly Element[])[] = [];
+    guardChanges(f, { onChange: (c) => told.push(c), signal: life.signal });
+    await userEvent.selectOptions(pick, "30");
+    expect(told).toEqual([[pick]]);
+  });
+
+  it("stops hearing a joined field once its guard ends", async () => {
+    const f = form("");
+    f.id = "ended";
+    const out = document.createElement("input");
+    out.setAttribute("form", "ended");
+    out.setAttribute("aria-label", "Outside");
     document.body.append(out);
-    const guard = guardChanges(f, { signal: life.signal });
-    out.value = "typed";
-    expect(guard.changes()).toEqual([out]);
+    const told: (readonly Element[])[] = [];
+    const end = new AbortController();
+    guardChanges(f, { onChange: (c) => told.push(c), signal: end.signal });
+    end.abort();
+    await userEvent.type(out, "x");
+    expect(told).toEqual([]);
   });
 
   it("counts a file field while it holds files, and empties it on saved(), telling its list", () => {
