@@ -1,11 +1,17 @@
 /**
  * settings.ts — the gallery's wiring for the forms page's file fields, the
- * upload dialog, Add a source, the pair rows and Reset to default, on the
- * library's modules.
+ * upload dialog, Add a source, the pair rows, Reset to default and the
+ * errors across settings categories, on the library's modules.
  */
 
 import { enhanceFiles, uploadFile, type UploadResult } from "@cplieger/ui/file";
-import { clearError, reportErrors, showError, type Control } from "@cplieger/ui/form";
+import {
+  clearError,
+  reportErrors,
+  showError,
+  type Control,
+  type ReportedError,
+} from "@cplieger/ui/form";
 import { toast } from "@cplieger/ui/toast";
 
 // The gallery's made-up server: every second upload fails once, so the card
@@ -121,6 +127,67 @@ for (const reset of document.querySelectorAll<HTMLButtonElement>("button[data-re
         box.dispatchEvent(new Event("input", { bubbles: true }));
         box.dispatchEvent(new Event("change", { bubbles: true }));
       }
+    }
+  });
+}
+
+// The categories show one at a time, as an app's router would: a press on a
+// link shows its section before the press returns, which reportErrors needs
+// to open a category.
+for (const box of document.querySelectorAll<HTMLElement>("[data-categories]")) {
+  const links = [...box.querySelectorAll<HTMLAnchorElement>(".cp-settings-nav a[href^='#']")];
+  for (const link of links) {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      for (const other of links) {
+        const section = document.getElementById(other.hash.slice(1));
+        if (section !== null) {
+          section.hidden = other !== link;
+        }
+        if (other === link) {
+          other.setAttribute("aria-current", "page");
+        } else {
+          other.removeAttribute("aria-current");
+        }
+      }
+    });
+  }
+}
+
+const across = document.getElementById("se-form");
+if (across instanceof HTMLFormElement) {
+  const field = (id: string): HTMLInputElement => document.getElementById(id) as HTMLInputElement;
+  across.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const errors: ReportedError[] = [];
+    if (e.submitter?.hasAttribute("data-elsewhere") === true) {
+      errors.push({
+        message:
+          "These settings changed on another device while you were editing. Load the latest, then save again.",
+      });
+    }
+    if (field("se-name").value.trim() === "") {
+      errors.push({ field: field("se-name"), message: "Enter the name shown on your sessions." });
+    }
+    if (field("se-sonarr").value.trim() === field("se-radarr").value.trim()) {
+      errors.push({
+        section: document.getElementById("se-sources") as HTMLElement,
+        message: "Sonarr and Radarr use one address.",
+      });
+    }
+    if (Number(field("se-every").value) < 5) {
+      errors.push({ field: field("se-every"), message: "Enter 5 minutes or more." });
+    }
+    reportErrors(across, errors, {
+      summary: document.getElementById("se-summary") as HTMLElement,
+      notice: document.getElementById("se-notice") as HTMLElement,
+      heading: (n) =>
+        n === 1
+          ? "1 error to fix before this saves"
+          : `${String(n)} errors to fix before this saves`,
+    });
+    if (errors.length === 0) {
+      toast({ kind: "success", title: "Settings saved" });
     }
   });
 }

@@ -96,6 +96,13 @@
   min-inline-size: 0;
 }
 
+/* A control's error, which ./form puts right after a control outside a
+ * .cp-field, takes its own line under the row rather than a column beside
+ * the control. */
+.cp-setting > .cp-field-error {
+  flex-basis: 100%;
+}
+
 /* Unsaved changes: a bar that stays in view at the bottom of the form while
  * any change waits. */
 .cp-savebar {

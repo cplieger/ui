@@ -8,6 +8,7 @@
 
 import { createIcons } from "@cplieger/ui/icons";
 import { applyPointerTier, installPointerTier } from "@cplieger/ui/pointer";
+import { enhanceSettings } from "@cplieger/ui/settings";
 
 applyPointerTier();
 installPointerTier();
@@ -59,4 +60,8 @@ for (const item of document.querySelectorAll<HTMLAnchorElement>(".cp-nav-item"))
       heading.textContent = item.querySelector(".cp-nav-label")?.textContent ?? "";
     }
   });
+}
+
+for (const form of document.querySelectorAll<HTMLFormElement>(".cp-settings form")) {
+  enhanceSettings(form);
 }

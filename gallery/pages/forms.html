@@ -313,6 +313,42 @@
     <h2>Settings parts</h2>
     <div class="g-grid">
       <div class="card g-wide" data-new>
+        <h2>Errors across sections</h2>
+        <div class="cp-settings" data-categories>
+          <nav class="cp-settings-nav" aria-label="Settings">
+            <ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact">
+              <li><a class="cp-list-row" href="#se-account" aria-current="page"><span class="cp-cell-stack">Account and security</span></a></li>
+              <li><a class="cp-list-row" href="#se-sources"><span class="cp-cell-stack">Sources</span></a></li>
+            </ul>
+          </nav>
+          <form class="cp-stack" novalidate id="se-form">
+            <div class="cp-notice" data-variant="banner" data-tone="danger" hidden id="se-notice"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
+            <div class="cp-notice" data-tone="danger" hidden id="se-summary"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
+            <section class="cp-stack" id="se-account" aria-labelledby="se-account-h">
+              <h3 id="se-account-h">Account and security</h3>
+              <div class="cp-panel">
+                <div class="cp-setting"><div><label class="cp-label" for="se-name">Display name</label><span class="cp-help">Shown on your sessions and in the security log.</span></div><input class="cp-input" id="se-name" value=""></div>
+              </div>
+            </section>
+            <section class="cp-stack" id="se-sources" aria-labelledby="se-sources-h" hidden>
+              <h3 id="se-sources-h">Sources</h3>
+              <div class="cp-panel">
+                <div class="cp-setting"><div><label class="cp-label" for="se-sonarr">Sonarr address</label></div><input class="cp-input" id="se-sonarr" type="url" value="http://media.lan:8989" spellcheck="false"></div>
+                <div class="cp-setting"><div><label class="cp-label" for="se-radarr">Radarr address</label></div><input class="cp-input" id="se-radarr" type="url" value="http://media.lan:8989" spellcheck="false"></div>
+                <div class="cp-setting"><div><label class="cp-label" for="se-every">Check every</label><span class="cp-help">In minutes, 5 or more.</span></div><input class="cp-input" id="se-every" type="number" min="5" value="2"></div>
+              </div>
+            </section>
+            <div class="cp-cluster"><button class="cp-button" data-variant="primary" type="submit">Save changes</button><button class="cp-button" type="submit" data-elsewhere>Save over a newer copy</button></div>
+          </form>
+        </div>
+        <footer>Save lists each error under its category's name: a link to its field, opening Sources first when it is hidden, or, with no one field to fix, a link to its section's heading. An error of the whole document, here a save over settings changed on another device, shows in the banner at the form's top.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>At a phone's width</h2>
+        <iframe class="g-phone" src="frame-settings.html" title="Settings at a phone's width" data-frame></iframe>
+        <footer>Below 48rem the categories become a select above the form, made from the same links, and the category in view is the one it shows. A change from the arrow keys waits for Enter, so the page never moves under the keys. With no script the links stay, in a row that scrolls.</footer>
+      </div>
+      <div class="card g-wide" data-new>
         <h2>A value set elsewhere</h2>
         <div class="cp-panel">
           <div class="cp-setting"><div><span class="cp-label">Listen port</span><span class="cp-help">Changes only at startup: edit config.yaml and restart subflux.</span></div><div class="cp-set-elsewhere"><code class="cp-mono">8080</code><span class="cp-chip" data-tone="neutral">from config.yaml</span></div></div>

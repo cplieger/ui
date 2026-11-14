@@ -2169,6 +2169,22 @@ describe("css/system.css", () => {
     );
   });
 
+  it("puts a setting's error on its own line under the row, the control still at the end", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-panel" style="inline-size: 40rem"><div class="cp-setting"><div><label class="cp-label" for="e">Check every</label><span class="cp-help">In minutes, 5 or more.</span></div>' +
+        '<input class="cp-input" id="e" type="number" aria-invalid="true"><span class="cp-field-error">Enter 5 minutes or more.</span></div></div>',
+    );
+    const row = (el.querySelector(".cp-setting") as Element).getBoundingClientRect();
+    const words = (el.querySelector(".cp-setting > div") as Element).getBoundingClientRect();
+    const input = (el.querySelector("input") as Element).getBoundingClientRect();
+    const error = (el.querySelector(".cp-field-error") as Element).getBoundingClientRect();
+    expect(input.right).toBeCloseTo(row.right, 0);
+    expect(input.top).toBeLessThan(words.bottom);
+    expect(error.top - Math.max(input.bottom, words.bottom)).toBe(8);
+    expect([error.left, error.width]).toEqual([row.left, row.width]);
+  });
+
   it("keeps the save bar in view at the bottom of a long form, and gone while hidden", () => {
     theme("light");
     const el = build(
