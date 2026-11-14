@@ -2,7 +2,7 @@
  * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
  * and the label gutter, the rule labels' band and the y title above the
  * plot, the x axis under it, the lines' and areas' end labels, a band
- * chart's rows, a bar chart's panels and value labels, a slope's columns
+ * chart's rows, a bar chart's panels and value labels, a box plot's rows, a slope's columns
  * and end labels, a scatter's inset axes, and the text marks' notes.
  * @module
  */
@@ -12,6 +12,7 @@ import { position } from "../scale/position.js";
 
 import {
   axisGutter,
+  bandAxis,
   bandLimit,
   cutName,
   ruleBand,
@@ -25,23 +26,32 @@ import {
   barBlock,
   barCentre,
   barReach,
+  boxBlock,
   BUBBLE_RADIUS,
   BUBBLE_RADIUS_NARROW,
+  dayBox,
   dotRadius,
+  OUTLIER_RADIUS,
   POINT_RADIUS,
   ruleXs,
   SCATTER_RADIUS,
+  type DayGrid,
   type Frame,
   type Panel,
 } from "./geometry.js";
 import {
   barsApart,
+  dayOf,
   sampleValue,
   type BarModel,
+  type BoxModel,
+  type CalendarModel,
+  type CellModel,
   type Model,
   type ScatterModel,
   type SlopeModel,
 } from "./model.js";
+import { dayFormat, dayPlace, foldSize, monthFirst, weekCount, weekRow } from "./calendar.js";
 import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
 import { lastSample, lastStack, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
@@ -81,6 +91,8 @@ export interface Text {
   readonly anchor: "start" | "middle" | "end";
   /** A slope's end label's series. */
   readonly series?: number;
+  /** A cell chart's column a band x label names. */
+  readonly column?: number;
 }
 
 /** A line from `from` to `to`, in SVG px. */
@@ -103,6 +115,12 @@ export interface Layout {
   /** A band's rows, each name cut to its room, `y` the middle of its dot
    *  row, its bars or its points in the plot. */
   readonly rows: readonly { readonly name: string; readonly y: number }[];
+  /** A cell chart's column and row edges in plot px, in its columns' and
+   *  rows' order, so cell (c, r) spans xs[c] to xs[c + 1] and ys[r] to
+   *  ys[r + 1]; a binned y's run up from the plot's bottom. */
+  readonly cells: { readonly xs: readonly number[]; readonly ys: readonly number[] } | undefined;
+  /** A calendar's days on the plot. */
+  readonly days: DayGrid | undefined;
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
   readonly bar: number;
@@ -169,6 +187,9 @@ const SPINE = 8;
  *  selection ring's reach, 1 px off a dot with its 2 px stroke, so a dot at
  *  the domain's end draws whole, ring and all, inside the plot's clip. */
 const POINT_INSET = POINT_RADIUS + 2;
+/** A box plot's x runs this far inside each end of the plot, so an outlier
+ *  at the domain's end draws whole, stroke and all, inside the plot's clip. */
+const BOX_INSET = OUTLIER_RADIUS + 1;
 /** A scatter's x and y run this far inside the plot's edges, by the same
  *  rule, so a dot at a niced domain's end draws whole, clear of the axes;
  *  a bubble chart's by its largest bubble's radius in its place. */
@@ -232,6 +253,7 @@ function notesOf(
   frame: Frame,
   rows: Layout["rows"],
   rowEnd: (row: number) => number,
+  dayPoint?: (t: number) => { readonly x: number; readonly y: number } | undefined,
 ): Note[] {
   const out: Note[] = [];
   const max = Math.min(NOTE_REM * metrics.rem, frame.width);
@@ -240,8 +262,12 @@ function notesOf(
     if (m.kind !== "text" || at === undefined) {
       return;
     }
-    const x = at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x);
-    const y = m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y);
+    const day = dayPoint === undefined ? undefined : dayPoint(at.x ?? 0);
+    if (dayPoint !== undefined && day === undefined) {
+      return;
+    }
+    const x = day?.x ?? (at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x));
+    const y = day?.y ?? (m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y));
     const texts = wrapNote(m.text, max, metrics.measure.text);
     const w = Math.max(...texts.map(metrics.measure.text));
     const h = texts.length * metrics.lineHeight;
@@ -528,6 +554,8 @@ function slopeLayout(
     xAxis: { lo: 0, hi: 1, at: xAt, ticks: [] },
     yAxis: undefined,
     rows: [],
+    cells: undefined,
+    days: undefined,
     mono: false,
     gutters: { axis: axisW, label: labelW },
     bar: 0,
@@ -542,6 +570,130 @@ function slopeLayout(
     leaders,
     notes,
     numbered: numberedNotes(notes, narrow),
+  };
+}
+
+// A binned y's plot: `height`, or taller until its thinnest bin is a `row`
+// tall, as a band's rows are.
+function binnedHeight(
+  y: Continuous,
+  edges: readonly number[],
+  height: number,
+  row: number,
+): number {
+  const at = position(y.type, y.lo, y.hi, 0, 1);
+  let least = 1;
+  for (let i = 1; i < edges.length; i++) {
+    least = Math.min(least, at(edges[i] ?? 0) - at(edges[i - 1] ?? 0));
+  }
+  // A float share (5 / 35) leaves 24 / share a hair over its whole px.
+  return Math.max(height, Math.ceil(row / least - 1e-9));
+}
+
+/** The space between a calendar's folded blocks. */
+const BLOCK_GAP = 16;
+
+// A calendar's week columns of weekday rows, in one block while a week
+// column is WEEK_MIN px or more, else in blocks of 26 or 13 weeks
+// stacked BLOCK_GAP apart, each under a line of its month names.
+function calendarLayout(
+  model: Model,
+  m: CalendarModel,
+  metrics: Metrics,
+  width: number,
+  floors: Floors,
+  chart: number,
+): Layout {
+  const { measure, lineHeight, dpr, row } = metrics;
+  const lead = weekRow(m.day, m.weekStart);
+  const weekday = dayFormat(model.locale, { weekday: "short" });
+  const names = Array.from({ length: 7 }, (_, r) => weekday(m.day - lead + r));
+  const widest = Math.max(0, ...names.map(measure.text));
+  const axisW = Math.max(ceil(axisGutter(widest, metrics.axisGroup)), floors.axis);
+  const labelW = Math.max(ceil(metrics.labelGroup), floors.label);
+  const plotW = Math.max(1, width - axisW - labelW);
+  const total = weekCount(lead, m.values.length);
+  const size = Math.max(1, foldSize(total, plotW));
+  const weeks = { lead, size, days: m.values.length };
+  const blocks = Math.max(1, Math.ceil(total / size));
+  const blockH = lineHeight + 7 * row;
+  const tops = Array.from({ length: blocks }, (_, b) => b * (blockH + BLOCK_GAP) + lineHeight);
+  const height = blocks * blockH + (blocks - 1) * BLOCK_GAP;
+  const grid: DayGrid = { weeks, column: plotW / size, row, tops };
+  const month = dayFormat(model.locale, { month: "short" });
+  const xLabels: Text[] = [];
+  m.values.forEach((_, i) => {
+    if (!monthFirst(m.day + i)) {
+      return;
+    }
+    const p = dayPlace(weeks, i);
+    const text = month(m.day + i);
+    const x = axisW + p.column * grid.column;
+    // A month starting in a block's last columns ends at the plot's edge.
+    const end = x + measure.text(text) > axisW + plotW;
+    xLabels.push({
+      text,
+      x: end ? axisW + plotW : x,
+      y: (tops[p.block] ?? 0) - lineHeight / 2,
+      anchor: end ? "end" : "start",
+    });
+  });
+  const yLabels = tops.flatMap((top) =>
+    names.map((text, r) => ({
+      text,
+      x: axisW - PAD,
+      y: top + (r + 0.5) * row,
+      anchor: "end" as const,
+    })),
+  );
+  const frame: Frame = {
+    width: plotW,
+    height,
+    dpr,
+    yAt: (v) => v,
+    x: model.x,
+    xAt: (v) => v,
+  };
+  const notes = notesOf(
+    model,
+    metrics,
+    frame,
+    [],
+    () => 0,
+    (t) => {
+      const i = dayOf(model, m, t);
+      if (i === -1) {
+        return undefined;
+      }
+      const b = dayBox(grid, i, dpr);
+      return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+    },
+  );
+  return {
+    width,
+    height,
+    left: axisW,
+    top: 0,
+    frame,
+    xAxis: { lo: model.x.lo, hi: model.x.hi, at: (v) => v, ticks: [] },
+    yAxis: undefined,
+    rows: [],
+    cells: undefined,
+    days: grid,
+    mono: false,
+    gutters: { axis: axisW, label: labelW },
+    bar: 0,
+    valueLabels: [],
+    heads: [],
+    xLabels,
+    yLabels,
+    titles: [],
+    ruleLabels: [],
+    plotLabels: [],
+    endLabels: [],
+    leaders: [],
+    notes,
+    numbered: numberedNotes(notes, chart < NARROW_REM * metrics.rem),
   };
 }
 
@@ -570,6 +722,10 @@ export function layout(
   if (slope !== undefined) {
     return slopeLayout(model, slope, words, metrics, width, floors, chart);
   }
+  const calendar = model.marks.find((m) => m.kind === "calendar");
+  if (calendar !== undefined) {
+    return calendarLayout(model, calendar, metrics, width, floors, chart);
+  }
   const { measure, lineHeight, dpr } = metrics;
   const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
   const band = model.y.type === "band" ? model.y : undefined;
@@ -577,31 +733,54 @@ export function layout(
   const narrow = chart < NARROW_REM * metrics.rem;
   const bars = model.marks.find((m): m is BarModel => m.kind === "bar");
   const points = model.marks.some((m) => m.kind === "point");
+  const boxes = model.marks.find((m): m is BoxModel => m.kind === "box");
   const scatter = model.marks.find((m) => m.kind === "scatter");
+  const cells = model.marks.find((m): m is CellModel => m.kind === "cell");
   const bubble =
     scatter?.size === undefined ? undefined : narrow ? BUBBLE_RADIUS_NARROW : BUBBLE_RADIUS;
   const mirror = bars?.arrange === "mirror";
-  // Under 30rem a name above its bar or its dots leaves the plot the chart's
-  // whole width; a mirror's short names stay in the gutter, keeping its rows
-  // short.
-  const above = narrow && ((bars !== undefined && !mirror) || points);
+  // Under 30rem a name above its bar, its dots or its boxes leaves the plot
+  // the chart's whole width; a mirror's short names stay in the gutter,
+  // keeping its rows short.
+  const above = narrow && ((bars !== undefined && !mirror) || points || boxes !== undefined);
   // Under 30rem a split's panels would be too thin for their bars, so they
   // fold into one, each row's bars one under another as a group's.
   const panelled = (bars?.arrange === "split" && !narrow) || mirror;
   const thick =
     bars === undefined ? 0 : Math.max(1, metrics.row - (mirror ? MIRROR_SPACE : BAR_SPACE));
   const block =
-    bars !== undefined ? (panelled ? thick : barBlock(bars, thick)) : points ? 2 * POINT_RADIUS : 0;
-  // Under its name a point row is its dots and a bar's room.
+    bars !== undefined
+      ? panelled
+        ? thick
+        : barBlock(bars, thick)
+      : points
+        ? 2 * POINT_RADIUS
+        : boxes !== undefined
+          ? boxBlock(boxes)
+          : 0;
+  // Under its name a point row is its dots and a bar's room; a box row of
+  // several series grows by a sub-row each.
   const barRow =
-    points && above
-      ? block + BAR_SPACE
-      : !points && block > thick
+    boxes !== undefined
+      ? Math.max(metrics.row, block + BAR_SPACE)
+      : points && above
         ? block + BAR_SPACE
-        : metrics.row;
+        : !points && block > thick
+          ? block + BAR_SPACE
+          : metrics.row;
   const rowH = above ? metrics.nameLine + NAME_GAP + barRow : barRow;
+  const yBins = cells !== undefined && "edges" in cells.y ? cells.y.edges : undefined;
   const height =
-    band === undefined ? (model.spec.height ?? metrics.height) : band.rows.length * rowH;
+    band !== undefined
+      ? band.rows.length * rowH
+      : yBins !== undefined
+        ? binnedHeight(
+            model.y as Continuous,
+            yBins,
+            model.spec.height ?? metrics.height,
+            metrics.row,
+          )
+        : (model.spec.height ?? metrics.height);
 
   let yAx: Axis | undefined;
   let names: string[] = [];
@@ -669,7 +848,13 @@ export function layout(
   const gap = mirror ? SPINE : PANEL_GAP;
   const panelW = Math.max(1, (plotW - (count - 1) * gap) / count);
   const flip = reverse && !panelled;
-  const inset = points ? POINT_INSET : scatter === undefined ? 0 : scatterInset(scatter, bubble);
+  const inset = points
+    ? POINT_INSET
+    : boxes !== undefined
+      ? BOX_INSET
+      : scatter === undefined
+        ? 0
+        : scatterInset(scatter, bubble);
   if (panelled) {
     roomRight = Math.max(roomLeft, roomRight);
     roomLeft = 0;
@@ -687,20 +872,23 @@ export function layout(
     roomRight += endRoom;
   }
   const shift = valued ? 0 : inset + (endLeft ? endRoom : 0);
-  const one: Axis = valued
-    ? {
-        lo: model.x.lo,
-        hi: model.x.hi,
-        at: flip
-          ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
-          : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
-        ticks: [],
-      }
-    : xAxis(
-        flip === reverse ? model.x : { ...model.x, reverse: flip },
-        Math.max(1, panelW - 2 * inset - endRoom),
-        ctx,
-      );
+  const one: Axis =
+    cells !== undefined && "names" in cells.x
+      ? bandAxis(cells.x.names, plotW, reverse, measure)
+      : valued
+        ? {
+            lo: model.x.lo,
+            hi: model.x.hi,
+            at: flip
+              ? position("linear", model.x.lo, model.x.hi, panelW - roomRight, roomLeft)
+              : position("linear", model.x.lo, model.x.hi, roomLeft, panelW - roomRight),
+            ticks: [],
+          }
+        : xAxis(
+            flip === reverse ? model.x : { ...model.x, reverse: flip },
+            Math.max(1, panelW - 2 * inset - endRoom),
+            ctx,
+          );
   const panels = panelled ? panelsOf(bars, panelW, reverse, one.at) : [];
   const xAx: Axis =
     panels[0] === undefined
@@ -786,6 +974,7 @@ export function layout(
   const xLabels: Text[] = [];
   let xLines = 0;
   const labelTop = top + height + TICK + 2;
+  const bandX = cells !== undefined && "names" in cells.x;
   for (const t of xAx.ticks) {
     const label = t.label;
     if (label === undefined) {
@@ -798,6 +987,7 @@ export function layout(
         x: left + (label.box.start + label.box.end) / 2,
         y: labelTop + mid(k),
         anchor: "middle",
+        ...(bandX ? { column: Math.floor(t.value) } : {}),
       });
     });
   }
@@ -945,6 +1135,19 @@ export function layout(
     xAxis: xAx,
     yAxis: yAx,
     rows,
+    cells:
+      cells === undefined
+        ? undefined
+        : {
+            xs:
+              "edges" in cells.x
+                ? cells.x.edges.map((e) => xAx.at(e))
+                : Array.from({ length: cells.x.names.length + 1 }, (_, c) => xAx.at(c)),
+            ys:
+              yBins?.map((e) => yAt(e)) ??
+              Array.from({ length: rows.length + 1 }, (_, r) => r * rowH),
+          },
+    days: undefined,
     mono,
     gutters: { axis: axisW, label: labelW },
     bar: thick,

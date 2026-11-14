@@ -5,8 +5,7 @@
  */
 
 import { DURATION_THIN, DURATION_TICKS } from "./ladder.js";
-
-const clean = (v: number): number => Number(v.toPrecision(12));
+import { decimal } from "./linear.js";
 
 const inside = (lo: number, hi: number) => (v: number) => v >= lo && v <= hi;
 
@@ -29,15 +28,14 @@ export function logTickLists(lo: number, hi: number, duration: boolean): number[
   const ones: number[] = [];
   const all: number[] = [];
   for (let k = Math.floor(Math.log10(lo)); k <= Math.ceil(Math.log10(hi)); k++) {
-    const power = clean(10 ** k);
-    if (inDomain(power)) {
+    if (inDomain(decimal(1, k))) {
       ones.push(k);
     }
-    all.push(...[1, 2, 5].map((m) => clean(m * power)).filter(inDomain));
+    all.push(...[1, 2, 5].map((m) => decimal(m, k)).filter(inDomain));
   }
   return [
     all,
-    ones.map((k) => clean(10 ** k)),
-    ones.filter((k) => k % 2 === 0).map((k) => clean(10 ** k)),
+    ones.map((k) => decimal(1, k)),
+    ones.filter((k) => k % 2 === 0).map((k) => decimal(1, k)),
   ];
 }

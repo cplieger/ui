@@ -11,8 +11,13 @@ import {
   barPaths,
   barReach,
   barSegments,
+  boxAcross,
+  boxBlock,
+  boxPaths,
+  boxSegment,
   bubblePaths,
   bucketEdges,
+  cellPaths,
   dotGroups,
   dotPath,
   dotRadius,
@@ -33,6 +38,8 @@ import {
   chartModel,
   type AreaModel,
   type BarModel,
+  type BoxModel,
+  type CellModel,
   type LineModel,
   type Model,
   type PointModel,
@@ -1545,5 +1552,177 @@ describe("bubble geometry", () => {
       marks: [{ mark: "scatter", series: [{ name: "s", names: ["A"], x: [1], y: [2] }] }],
     }).marks[0] as ScatterModel;
     expect(dotRadius(plain, 0, 0, f)).toBe(4);
+  });
+});
+
+describe("cell geometry", () => {
+  const grid = (
+    values: (number | null)[][],
+    colour: NonNullable<ChartSpec["colour"]> = { thresholds: [5] },
+  ) =>
+    model({
+      colour,
+      marks: [
+        {
+          mark: "cell",
+          x: (values[0] ?? []).map((_, c) => `c${String(c)}`),
+          y: values.map((_, r) => `r${String(r)}`),
+          values,
+        },
+      ],
+    }).marks[0] as CellModel;
+
+  it("draws each class as one path of its cells in class order, each with its scale step", () => {
+    const m = grid([
+      [6, 1],
+      [2, 9],
+    ]);
+    const { classes, missing } = cellPaths(m, { xs: [0, 20, 40], ys: [0, 24, 48] }, 1);
+    expect(classes.map((c) => c.step)).toEqual([1, 9]);
+    // Each cell inset 0.5 px a side, snapped up to whole px: 1 px between neighbours.
+    expect(boxes(classes[0]?.d ?? "")).toEqual([
+      { left: 21, top: 1, right: 40, bottom: 24 },
+      { left: 1, top: 25, right: 20, bottom: 48 },
+    ]);
+    expect(boxes(classes[1]?.d ?? "")).toEqual([
+      { left: 1, top: 1, right: 20, bottom: 24 },
+      { left: 21, top: 25, right: 40, bottom: 48 },
+    ]);
+    expect(missing).toBe("");
+  });
+
+  it("draws no path for a class no cell takes", () => {
+    const m = grid([[1, 2]], { steps: 3, domain: [0, 30] });
+    expect(cellPaths(m, { xs: [0, 20, 40], ys: [0, 24] }, 1).classes.map((c) => c.step)).toEqual([
+      1,
+    ]);
+  });
+
+  it("outlines a missing cell 1 px inside its box, and fills nothing there", () => {
+    const m = grid([[null, 1]]);
+    const { classes, missing } = cellPaths(m, { xs: [0, 20, 40], ys: [0, 24] }, 1);
+    expect(missing).toBe("M1.5 1.5H19.5V23.5H1.5Z");
+    expect(boxes(classes[0]?.d ?? "")).toEqual([{ left: 21, top: 1, right: 40, bottom: 24 }]);
+  });
+
+  it("lets cells touch along an axis where the gap would leave one under 3 px", () => {
+    const m = grid([[1, 1, 1]]);
+    const { classes } = cellPaths(m, { xs: [0, 3.5, 7, 10.5], ys: [0, 24] }, 1);
+    // 3.5 px less the gap is 2.5 px: no inset across, the rows keep theirs.
+    expect(boxes(classes[0]?.d ?? "").map((b) => [b.left, b.right, b.top, b.bottom])).toEqual([
+      [0, 4, 1, 24],
+      [4, 7, 1, 24],
+      [7, 11, 1, 24],
+    ]);
+  });
+
+  it("snaps edges to device pixels and orders a reversed axis's edges", () => {
+    const m = grid([[1]]);
+    const { classes } = cellPaths(m, { xs: [10.3, 0], ys: [0, 10] }, 2);
+    expect(boxes(classes[0]?.d ?? "")).toEqual([{ left: 0.5, top: 0.5, right: 10, bottom: 9.5 }]);
+  });
+});
+
+describe("box geometry", () => {
+  const boxModel = (
+    five: readonly (readonly (number | null)[])[],
+    more: { outliers?: number[][]; domain?: [number, number]; series?: number } = {},
+  ) =>
+    model({
+      x: more.domain === undefined ? {} : { domain: more.domain },
+      marks: [
+        {
+          mark: "box",
+          y: five.map((_, i) => `c${String(i)}`),
+          series: Array.from({ length: more.series ?? 1 }, (_, k) => ({
+            name: `s${String(k)}`,
+            slot: (k + 3) as 3,
+            low: five.map((f) => f[0] ?? null),
+            q1: five.map((f) => f[1] ?? null),
+            median: five.map((f) => f[2] ?? null),
+            q3: five.map((f) => f[3] ?? null),
+            high: five.map((f) => f[4] ?? null),
+            ...(more.outliers === undefined ? {} : { outliers: more.outliers }),
+          })),
+        },
+      ],
+    });
+  const boxOf = (m: Model) => m.marks[0] as BoxModel;
+  // x 0 to 100 over 200 px: 2 px a unit.
+  const boxFrame = (m: Model, dpr = 1): Frame => ({
+    width: 200,
+    height: 48,
+    dpr,
+    x: m.x,
+    xAt: position("linear", 0, 100, 0, 200),
+    yAt: (v) => v,
+  });
+
+  it("draws a 16 px box from q1 to q3, cut 1 px either side of a 2 px median tick 3 px past it", () => {
+    const m = boxModel([[0, 20, 50, 70, 100]]);
+    const { series, medians } = boxPaths(boxOf(m), [12], boxFrame(m));
+    expect(series).toEqual([
+      {
+        slot: 3,
+        boxes: "M40 4H98V20H40ZM102 4H140V20H102Z",
+        whiskers: "M0 12H40M140 12H200",
+        outliers: "",
+      },
+    ]);
+    expect(medians).toBe("M99 1H101V23H99Z");
+  });
+
+  it("keeps the tick where the median meets a quartile, and draws no whisker of length 0", () => {
+    const m = boxModel([[20, 20, 20, 70, 70]]);
+    const { series, medians } = boxPaths(boxOf(m), [12], boxFrame(m));
+    expect(series[0]?.boxes).toBe("M42 4H140V20H42Z");
+    expect(series[0]?.whiskers).toBe("");
+    expect(medians).toBe("M39 1H41V23H39Z");
+  });
+
+  it("draws hollow outliers of radius 3 on the centre line, once a device px, none off the domain", () => {
+    const m = boxModel([[20, 30, 40, 50, 60]], { outliers: [[5, 5.2, 90, 120]], domain: [0, 100] });
+    const out = boxPaths(boxOf(m), [12], boxFrame(m)).series[0]?.outliers;
+    const arcs = "a3 3 0 1 0 6 0a3 3 0 1 0 -6 0Z";
+    expect(out).toBe(`M7 12${arcs}M177 12${arcs}`);
+  });
+
+  it("holds a box crossing a passed domain's end to it", () => {
+    const m = boxModel([[-10, 0, 30, 120, 130]], { domain: [10, 100] });
+    const f: Frame = { ...boxFrame(m), xAt: position("linear", 10, 100, 0, 180) };
+    expect(boxSegment(boxOf(m), 0, 0, f, 12)).toEqual({ left: 0, right: 180, top: 4, bottom: 20 });
+    expect(boxPaths(boxOf(m), [12], f).series[0]?.whiskers).toBe("");
+  });
+
+  it("draws nothing for a category whose five are gaps", () => {
+    const m = boxModel([
+      [null, null, null, null, null],
+      [0, 10, 20, 30, 40],
+    ]);
+    const { series } = boxPaths(boxOf(m), [12, 36], boxFrame(m));
+    expect(series[0]?.boxes).toBe("M20 28H38V44H20ZM42 28H60V44H42Z");
+    expect(boxSegment(boxOf(m), 0, 0, boxFrame(m), 12)).toBeUndefined();
+  });
+
+  it("sets several series' 10 px boxes in 16 px sub-rows, in series order from the top", () => {
+    const m = boxModel([[0, 20, 50, 70, 100]], { series: 2 });
+    expect(boxBlock(boxOf(m))).toBe(32);
+    expect(boxAcross(boxOf(m), 0, 20)).toEqual({ cy: 12, thick: 10 });
+    expect(boxAcross(boxOf(m), 1, 20)).toEqual({ cy: 28, thick: 10 });
+    const { series } = boxPaths(boxOf(m), [20], boxFrame(m));
+    expect(series.map((p) => [p.slot, p.whiskers])).toEqual([
+      [3, "M0 12H40M140 12H200"],
+      [4, "M0 28H40M140 28H200"],
+    ]);
+  });
+
+  it("snaps edges and the centre line to device pixels", () => {
+    const m = boxModel([[0, 20.3, 50, 70, 100]]);
+    expect(boxSegment(boxOf(m), 0, 0, boxFrame(m, 2), 12.2)).toEqual({
+      left: 40.5,
+      right: 140,
+      top: 4,
+      bottom: 20,
+    });
   });
 });

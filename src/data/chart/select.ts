@@ -11,7 +11,10 @@ import { dotGroups, dotRadius, scatterAt, snap, type DotGroup, type Frame } from
 import { pointGrid, type Grid } from "./grid.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
+import { dayAt, monthsFrom } from "./calendar.js";
 import type {
+  CalendarModel,
+  CellModel,
   DotModel,
   DotRef,
   Model,
@@ -20,12 +23,24 @@ import type {
   ScatterModel,
   SlopeModel,
 } from "./model.js";
-import { barsApart, pointLink, slopeChange } from "./model.js";
+import {
+  barsApart,
+  cellCount,
+  cellOrder,
+  pointLink,
+  slopeChange,
+  stepStopAt,
+  stepStops,
+} from "./model.js";
 import {
   barPart,
   barReading,
+  boxPart,
+  boxReading,
   bucketReading,
+  cellReading,
   changeText,
+  dayReading,
   columnReading,
   measureText,
   partText,
@@ -39,14 +54,14 @@ import {
   scatterReading,
   type Reading,
 } from "./readout.js";
-import { stepStopAt, stepStops } from "./table.js";
 import type { Words } from "./words.js";
 
 /**
  * A bucket, a sample or a slope's column `i`, with one series (`part`) when
  * Up or Down chose it; the posts `[from, to)` of a dot row; a dot row as a
- * whole; a bar or point row, with one series (`part`) when Left or Right
- * chose it; or a scatter's dot `i` of `series`.
+ * whole; a bar, point or box row, with one series (`part`) when Left or
+ * Right chose it; a scatter's dot `i` of `series`; a cell chart's cell at
+ * `row` and `column`, indices into its axes; or a calendar's day `i`.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
@@ -55,8 +70,14 @@ export type Selection =
   | { readonly kind: "slope"; readonly i: number; readonly part: number | undefined }
   | { readonly kind: "dot"; readonly row: number; readonly from: number; readonly to: number }
   | { readonly kind: "row"; readonly row: number }
-  | { readonly kind: "bar" | "point"; readonly row: number; readonly part: number | undefined }
-  | { readonly kind: "scatter"; readonly series: number; readonly i: number };
+  | {
+      readonly kind: "bar" | "point" | "box";
+      readonly row: number;
+      readonly part: number | undefined;
+    }
+  | { readonly kind: "scatter"; readonly series: number; readonly i: number }
+  | { readonly kind: "cell"; readonly row: number; readonly column: number }
+  | { readonly kind: "day"; readonly i: number };
 
 export type Key =
   "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End" | "PageUp" | "PageDown";
@@ -78,7 +99,8 @@ export const isKey = (key: string): key is Key => KEYS.has(key);
 const REACH = 40;
 /** One x tick's room when the axis draws fewer than two ticks, in px. */
 const TICK_FALLBACK = 80;
-/** Page Up and Page Down move a band chart's selection this many rows. */
+/** Page Up and Page Down move a band chart's selection this many rows, and
+ *  a cell chart's on a band x this many columns. */
 const PAGE_ROWS = 10;
 
 const bandRows = (model: Model): number => (model.y.type === "band" ? model.y.rows.length : 0);
@@ -161,8 +183,9 @@ const lineStops = (m: SampleModel): number[] =>
 
 /** The selection focus gives a chart that has none yet: the newest x or a
  *  slope's right column, on a timeline the first row's last post, or that
- *  row when it is silent, a bar or point chart's first row, whole, or a
- *  scatter's first dot in x order. */
+ *  row when it is silent, a bar, point or box chart's first row, whole, a
+ *  scatter's first dot in x order, a cell chart's first cell in reading
+ *  order, or a calendar's newest day. */
 export function initial(model: Model): Selection | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -188,6 +211,7 @@ export function initial(model: Model): Selection | undefined {
     }
     case "bar":
     case "point":
+    case "box":
       return bandRows(model) > 0 ? { kind: m.kind, row: 0, part: undefined } : undefined;
     case "slope":
       return { kind: "slope", i: 1, part: undefined };
@@ -195,6 +219,14 @@ export function initial(model: Model): Selection | undefined {
       const o = orders(m);
       return dotSelection(o, o.byX[0]);
     }
+    case "cell": {
+      const first = cellOrder(model, m).next();
+      return first.done === true
+        ? undefined
+        : { kind: "cell", row: first.value[0], column: first.value[1] };
+    }
+    case "calendar":
+      return m.values.length === 0 ? undefined : { kind: "day", i: m.values.length - 1 };
   }
 }
 
@@ -303,7 +335,7 @@ function stepPart(order: readonly number[], part: number | undefined, up: boolea
 }
 
 /**
- * Where `key` moves a bar or point row selection over `rows` rows of `n`
+ * Where `key` moves a bar, point or box row selection over `rows` rows of `n`
  * series: Up and Down, Home, End and the Page keys through the rows, keeping
  * the chosen part; Left and Right through the row's parts in series order,
  * from the whole row to its first or last, the other way when `reverse`
@@ -312,7 +344,7 @@ function stepPart(order: readonly number[], part: number | undefined, up: boolea
 function moveRow(
   n: number,
   rows: number,
-  sel: Selection & { kind: "bar" | "point" },
+  sel: Selection & { kind: "bar" | "point" | "box" },
   key: Key,
   reverse: boolean,
 ): Selection | undefined {
@@ -380,6 +412,88 @@ function moveScatter(
   return p === undefined ? undefined : dotSelection(o, o.byX[p]);
 }
 
+/** Where `key` moves a cell selection, as the drawing runs: Left and Right,
+ *  Home and End along the row, Up and Down to the cell above or below (a
+ *  binned y's rows run up from the bottom), Page Up and Page Down by one x
+ *  tick on a binned x and PAGE_ROWS columns on a band x. */
+function moveCell(
+  m: CellModel,
+  sel: Selection & { kind: "cell" },
+  key: Key,
+  lay: Layout,
+): Selection | undefined {
+  const rows = cellCount(m.y);
+  const columns = cellCount(m.x);
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    const up = (key === "ArrowUp") !== "edges" in m.y;
+    const row = sel.row + (up ? -1 : 1);
+    return row >= 0 && row < rows ? { ...sel, row } : undefined;
+  }
+  const xs = lay.cells?.xs ?? [];
+  if ((key === "PageUp" || key === "PageDown") && "names" in m.x) {
+    const rightward = (key === "PageDown") !== lay.frame.x.reverse;
+    const column = Math.min(
+      Math.max(sel.column + (rightward ? PAGE_ROWS : -PAGE_ROWS), 0),
+      columns - 1,
+    );
+    return column === sel.column ? undefined : { ...sel, column };
+  }
+  const stops = Array.from({ length: columns }, (_, c) => c);
+  const px = (c: number) => ((xs[c] ?? 0) + (xs[c + 1] ?? 0)) / 2;
+  const column = along(stops, sel.column, sel.column, key, px, lay);
+  return column === undefined ? undefined : { ...sel, column };
+}
+
+/** Where `key` moves a calendar's day `i`: Left and Right a week, Up and
+ *  Down a day, Home and End to the first and last, Page Up and Page Down
+ *  to the same date a month away (its last day when it has no such date),
+ *  held at the first and last day. */
+function moveDay(m: CalendarModel, i: number, key: Key): Selection | undefined {
+  const last = m.values.length - 1;
+  const to =
+    key === "ArrowLeft"
+      ? i - 7
+      : key === "ArrowRight"
+        ? i + 7
+        : key === "ArrowUp"
+          ? i - 1
+          : key === "ArrowDown"
+            ? i + 1
+            : key === "Home"
+              ? 0
+              : key === "End"
+                ? last
+                : Math.min(
+                    Math.max(monthsFrom(m.day + i, key === "PageUp" ? -1 : 1) - m.day, 0),
+                    last,
+                  );
+  return to === i || to < 0 || to > last ? undefined : { kind: "day", i: to };
+}
+
+/** The span of `edges`, ascending or descending, holding `v`, the later on
+ *  a shared edge; -1 outside them. */
+function spanOf(edges: readonly number[], v: number): number {
+  const n = edges.length - 1;
+  const first = edges[0] ?? 0;
+  const last = edges[n] ?? 0;
+  if (n < 1 || v < Math.min(first, last) || v > Math.max(first, last)) {
+    return -1;
+  }
+  const up = last >= first;
+  let lo = 0;
+  let hi = n;
+  // The last edge at or before v along the edges' own direction.
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >>> 1;
+    if (up ? (edges[mid] ?? 0) <= v : (edges[mid] ?? 0) >= v) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
 /** A selection's position along x on the plot, in px. */
 function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined {
   const m = primaryOf(model);
@@ -410,12 +524,14 @@ export interface Navigator {
   /** The crosshair's px along x, absent for a row or a scatter's dot,
    *  whose crosshair is two rules to its edge. */
   crosshair(sel: Selection): number | undefined;
-  /** A touch drag moves the selection; on a bar, point or scatter chart
-   *  only a tap does, since a vertical drag is the page's scroll. */
+  /** A touch drag moves the selection; on a bar, point, box or scatter
+   *  chart only a tap does, since a vertical drag is the page's scroll. */
   readonly drags: boolean;
   /** Page Up and Page Down move the selection; on a slope, whose two
    *  columns have no ticks to page by, they are the page's. */
   readonly pages: boolean;
+  /** A touch drag keeps the row it began on, as along a cell chart's row. */
+  readonly alongRow: boolean;
 }
 
 export function navigator(model: Model, lay: Layout): Navigator {
@@ -485,8 +601,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "dot") {
         return sel.kind === "dot" || sel.kind === "row" ? moveDot(m, sel, key, x) : undefined;
       }
-      if (m.kind === "bar" || m.kind === "point") {
-        // Bars one under another and a row's dots, which lie at their
+      if (m.kind === "bar" || m.kind === "point" || m.kind === "box") {
+        // Bars one under another, a row's dots and boxes, which lie at their
         // values, keep series order on a reversed x; a stack's segments and
         // the panels run with it.
         const along = f.x.reverse && m.kind === "bar" && (!barsApart(m) || f.panels !== undefined);
@@ -499,6 +615,12 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
       if (m.kind === "scatter") {
         return sel.kind === "scatter" ? moveScatter(m, sel, key, lay) : undefined;
+      }
+      if (m.kind === "cell") {
+        return sel.kind === "cell" ? moveCell(m, sel, key, lay) : undefined;
+      }
+      if (m.kind === "calendar") {
+        return sel.kind === "day" ? moveDay(m, sel.i, key) : undefined;
       }
       if (sel.kind !== m.kind) {
         return undefined;
@@ -561,7 +683,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
           return { kind: m.kind, i, part: undefined };
         }
         case "bar":
-        case "point": {
+        case "point":
+        case "box": {
           // The row whose band holds the pointer, anywhere across the plot's
           // width: on a phone a row's name sits above its bars, inside its band.
           const n = lay.rows.length;
@@ -579,6 +702,31 @@ export function navigator(model: Model, lay: Layout): Navigator {
           const d = gridOf(m).nearest(px, py);
           const ref = d === undefined ? undefined : m.drawn[d];
           return ref === undefined ? undefined : { kind: "scatter", ...ref };
+        }
+        case "cell": {
+          // The cell whose box holds the pointer, a gap taking the cell past
+          // it; off the grid nothing.
+          const column = spanOf(lay.cells?.xs ?? [], px);
+          const row = spanOf(lay.cells?.ys ?? [], py);
+          return column === -1 || row === -1 ? undefined : { kind: "cell", row, column };
+        }
+        case "calendar": {
+          // The day whose week column and weekday row hold the pointer; a
+          // block's month line, the space between blocks and a place
+          // outside the days select nothing.
+          const g = lay.days;
+          if (g === undefined) {
+            return undefined;
+          }
+          const block = g.tops.findIndex((top) => py >= top && py < top + 7 * g.row);
+          const top = g.tops[block] ?? 0;
+          const i = dayAt(
+            g.weeks,
+            block,
+            Math.floor(px / g.column),
+            Math.floor((py - top) / g.row),
+          );
+          return block === -1 || i === -1 ? undefined : { kind: "day", i };
         }
         case "dot": {
           if (lay.rows.length === 0) {
@@ -605,8 +753,9 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
     },
     crosshair: (sel) => selectionPx(model, sel, f),
-    drags: m?.kind !== "bar" && m?.kind !== "point" && m?.kind !== "scatter",
+    drags: m?.kind !== "bar" && m?.kind !== "point" && m?.kind !== "box" && m?.kind !== "scatter",
     pages: m?.kind !== "slope",
+    alongRow: m?.kind === "cell" || m?.kind === "calendar",
   };
 }
 
@@ -635,7 +784,7 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     return now.x[i] === v && i >= now.from && i < now.to ? { kind: sel.kind, i, part } : undefined;
   }
   if (
-    (sel.kind === "bar" || sel.kind === "point") &&
+    (sel.kind === "bar" || sel.kind === "point" || sel.kind === "box") &&
     was.kind === sel.kind &&
     now.kind === sel.kind
   ) {
@@ -660,6 +809,25 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
       }
     }
     return undefined;
+  }
+  if (sel.kind === "cell" && was.kind === "cell" && now.kind === "cell") {
+    // A column or row is found by its name, or by its bin's low edge.
+    const find = (a: CellModel["x"], b: CellModel["x"], i: number) =>
+      "names" in a
+        ? "names" in b
+          ? b.names.indexOf(a.names[i] ?? "")
+          : -1
+        : "edges" in b && i < a.edges.length - 1
+          ? b.edges.slice(0, -1).indexOf(a.edges[i] ?? Number.NaN)
+          : -1;
+    const row = find(was.y, now.y, sel.row);
+    const column = find(was.x, now.x, sel.column);
+    return row === -1 || column === -1 ? undefined : { kind: "cell", row, column };
+  }
+  if (sel.kind === "day" && was.kind === "calendar" && now.kind === "calendar") {
+    // A day is found by its date.
+    const i = was.day + sel.i - now.day;
+    return i >= 0 && i < now.values.length ? { kind: "day", i } : undefined;
   }
   if ((sel.kind === "dot" || sel.kind === "row") && was.kind === "dot" && now.kind === "dot") {
     const name = was.rows[sel.row]?.name;
@@ -710,11 +878,20 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   if (sel.kind === "point" && m?.kind === "point") {
     return pointReading(model, m, sel.row, words);
   }
+  if (sel.kind === "box" && m?.kind === "box") {
+    return boxReading(model, m, sel.row, words);
+  }
   if (sel.kind === "slope" && m?.kind === "slope") {
     return columnReading(model, m, sel.i, words, sel.part);
   }
   if (sel.kind === "scatter" && m?.kind === "scatter") {
     return scatterReading(model, m, sel.series, sel.i, words);
+  }
+  if (sel.kind === "cell" && m?.kind === "cell") {
+    return cellReading(model, m, sel.row, sel.column, words);
+  }
+  if (sel.kind === "day" && m?.kind === "calendar") {
+    return dayReading(model, m, sel.i, words);
   }
   return undefined;
 }
@@ -757,7 +934,15 @@ const joins = (j: Join, sel: Selection, stop: number | undefined): boolean =>
       ? sel.kind === "dot" && sel.row === j.row && j.i >= sel.from && j.i < sel.to
       : j.kind === "dot"
         ? sel.kind === "scatter" && sel.series === j.series && sel.i === j.i
-        : (sel.kind === "row" || sel.kind === "bar" || sel.kind === "point") && sel.row === j.row;
+        : j.kind === "cell"
+          ? sel.kind === "cell" && sel.row === j.row && sel.column === j.column
+          : j.kind === "day"
+            ? sel.kind === "day" && sel.i === j.i
+            : (sel.kind === "row" ||
+                sel.kind === "bar" ||
+                sel.kind === "point" ||
+                sel.kind === "box") &&
+              sel.row === j.row;
 
 /** Each note joining `sel`'s stop through `words.noteReading`, in spec order. */
 function noteReadings(model: Model, sel: Selection, words: Words): string {
@@ -794,6 +979,17 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     if (part && s !== undefined) {
       return words.segment(reading.at, s.name, pointPart(model, s, sel.row, words));
     }
+  } else if (sel.kind === "box" && m.kind === "box") {
+    const s = sel.part === undefined ? undefined : m.series[sel.part];
+    if (part && s !== undefined) {
+      return words.segment(reading.at, s.name, boxPart(model, s, sel.row, words));
+    }
+    // Each series' part holds commas, so the parts are joined by "; ".
+    const parts = m.series.map((one) => {
+      const text = boxPart(model, one, sel.row, words);
+      return m.series.length === 1 ? text : `${one.name} ${text}`;
+    });
+    return words.reading(reading.at, parts.join("; "), "");
   } else if (sel.kind === "slope" && m.kind === "slope") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {

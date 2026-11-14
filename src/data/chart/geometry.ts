@@ -2,13 +2,15 @@
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
  * pixel and cut at the plot's ends, rows of dots, bars and points along
- * their rows, a slope's lines and ends, a scatter's dots, rules and the
- * axis lines.
+ * their rows, a slope's lines and ends, a scatter's dots, a grid's cells,
+ * boxes with their whiskers and outliers, rules and the axis lines.
  * @module
  */
 
 import { reduce, upperBound, type Point } from "../scale/reduce.js";
 
+import { dayPlace, type Weeks } from "./calendar.js";
+import { classOf } from "./classes.js";
 import {
   barsApart,
   barTotal,
@@ -18,6 +20,9 @@ import {
   sampleValue,
   type AreaModel,
   type BarModel,
+  type BoxModel,
+  type CalendarModel,
+  type CellModel,
   type DotRowModel,
   type LineModel,
   type PointModel,
@@ -928,6 +933,219 @@ export function scatterPaths(m: ScatterModel, f: Frame): string[] {
       })
       .join(""),
   );
+}
+
+/** A cell under this many px across, inset, gives up its gap on that axis. */
+const CELL_MIN = 3;
+
+// A cell's two edges along one axis, snapped, each inset half the gap
+// unless that leaves the cell under CELL_MIN.
+function cellSpan(a: number, b: number, dpr: number): readonly [number, number] {
+  const [lo, hi] = a < b ? [a, b] : [b, a];
+  const half = hi - lo - GAP >= CELL_MIN ? GAP / 2 : 0;
+  return [snap(lo + half, dpr), snap(hi - half, dpr)];
+}
+
+/** The column and row edges of a cell chart in plot px (`Layout.cells`). */
+interface CellEdges {
+  readonly xs: readonly number[];
+  readonly ys: readonly number[];
+}
+
+/** Cell (`row`, `column`)'s drawn box, inset and snapped, as its fill is. */
+export function cellBox(edges: CellEdges, row: number, column: number, dpr: number): Segment {
+  const [top, bottom] = cellSpan(edges.ys[row] ?? 0, edges.ys[row + 1] ?? 0, dpr);
+  const [left, right] = cellSpan(edges.xs[column] ?? 0, edges.xs[column + 1] ?? 0, dpr);
+  return { left, right, top, bottom };
+}
+
+/** A cell chart's paths: one per class holding a cell, in class order,
+ *  with the scale step it fills with, and the 1 px outlines of every
+ *  missing cell, drawn inside its box. Cells stand 1 px apart. */
+export function cellPaths(
+  m: CellModel,
+  edges: CellEdges,
+  dpr: number,
+): {
+  readonly classes: readonly { readonly step: number; readonly d: string }[];
+  readonly missing: string;
+} {
+  const parts = m.classes.steps.map(() => "");
+  let missing = "";
+  m.values.forEach((row, r) => {
+    row.forEach((v, c) => {
+      const { left, right, top, bottom } = cellBox(edges, r, c, dpr);
+      if (right <= left || bottom <= top) {
+        return;
+      }
+      if (v === null) {
+        missing += `M${num(left + 0.5)} ${num(top + 0.5)}H${num(right - 0.5)}V${num(bottom - 0.5)}H${num(left + 0.5)}Z`;
+        return;
+      }
+      const k = classOf(m.classes, v);
+      parts[k] =
+        `${parts[k] ?? ""}M${num(left)} ${num(top)}H${num(right)}V${num(bottom)}H${num(left)}Z`;
+    });
+  });
+  const classes = parts.flatMap((d, k) => (d === "" ? [] : [{ step: m.classes.steps[k] ?? 1, d }]));
+  return { classes, missing };
+}
+
+/** A calendar's days on the plot: their weeks, a week column's width and a
+ *  weekday row's height, and each block's first row's top, in plot px. */
+export interface DayGrid {
+  readonly weeks: Weeks;
+  readonly column: number;
+  readonly row: number;
+  readonly tops: readonly number[];
+}
+
+/** Day `i`'s drawn box, inset and snapped, as its fill is. */
+export function dayBox(grid: DayGrid, i: number, dpr: number): Segment {
+  const p = dayPlace(grid.weeks, i);
+  const top = (grid.tops[p.block] ?? 0) + p.row * grid.row;
+  const left = p.column * grid.column;
+  return cellBox({ xs: [left, left + grid.column], ys: [top, top + grid.row] }, 0, 0, dpr);
+}
+
+/** A calendar's paths, as `cellPaths` gives a grid's. */
+export function calendarPaths(
+  m: CalendarModel,
+  grid: DayGrid,
+  dpr: number,
+): ReturnType<typeof cellPaths> {
+  const parts = m.classes.steps.map(() => "");
+  let missing = "";
+  m.values.forEach((v, i) => {
+    const { left, right, top, bottom } = dayBox(grid, i, dpr);
+    if (v === null) {
+      missing += `M${num(left + 0.5)} ${num(top + 0.5)}H${num(right - 0.5)}V${num(bottom - 0.5)}H${num(left + 0.5)}Z`;
+      return;
+    }
+    const k = classOf(m.classes, v);
+    parts[k] =
+      `${parts[k] ?? ""}M${num(left)} ${num(top)}H${num(right)}V${num(bottom)}H${num(left)}Z`;
+  });
+  const classes = parts.flatMap((d, k) => (d === "" ? [] : [{ step: m.classes.steps[k] ?? 1, d }]));
+  return { classes, missing };
+}
+
+/** A box's thickness across its row with one series, and its sub-row's
+ *  height with several, whose boxes are `BOX_THIN`. */
+const BOX = 16;
+const BOX_THIN = 10;
+/** The median tick's reach past the box's top and bottom. */
+const MEDIAN_REACH = 3;
+/** The median tick's width; the box is cut `GAP` wider each side of it. */
+const MEDIAN_W = 2;
+/** An outlier's radius, under its 1.5 px stroke in `chart.css`. */
+export const OUTLIER_RADIUS = 3;
+
+/** The px across a row that `m`'s boxes take: one box, or a sub-row each. */
+export const boxBlock = (m: BoxModel): number => BOX * m.series.length;
+
+/** Series `k`'s box in a row of `m` centred at `cy`: its centre line and
+ *  its thickness across the row. */
+export function boxAcross(m: BoxModel, k: number, cy: number): { cy: number; thick: number } {
+  return m.series.length === 1
+    ? { cy, thick: BOX }
+    : { cy: cy - boxBlock(m) / 2 + (k + 0.5) * BOX, thick: BOX_THIN };
+}
+
+/** Series `k`'s box in row `i` of `m` centred at `cy`, held to the domain's
+ *  span and snapped to device px; undefined where its five are gaps. */
+export function boxSegment(
+  m: BoxModel,
+  k: number,
+  i: number,
+  f: Frame,
+  cy: number,
+): Segment | undefined {
+  const b = m.series[k]?.boxes[i] ?? null;
+  if (b === null) {
+    return undefined;
+  }
+  const across = boxAcross(m, k, cy);
+  const [lo, hi] = barSpan(f, f.xAt);
+  const [a, c] = [f.xAt(b.q1), f.xAt(b.q3)];
+  return {
+    left: snap(clamp(Math.min(a, c), lo, hi), f.dpr),
+    right: snap(clamp(Math.max(a, c), lo, hi), f.dpr),
+    top: snap(across.cy - across.thick / 2, f.dpr),
+    bottom: snap(across.cy + across.thick / 2, f.dpr),
+  };
+}
+
+/** Series `k`'s paths: its boxes, cut round each median; its whiskers; its
+ *  outliers, those in one device px drawn once. */
+export interface BoxPaths {
+  readonly slot: number;
+  readonly boxes: string;
+  readonly whiskers: string;
+  readonly outliers: string;
+}
+
+const rect = (l: number, r: number, t: number, b: number): string =>
+  `M${num(l)} ${num(t)}H${num(r)}V${num(b)}H${num(l)}Z`;
+
+/** Each series' paths of `m` on the rows centred at `ys`, and every row's
+ *  median ticks as one path. Values past the domain are held to its ends,
+ *  and an outlier outside it is not drawn. */
+export function boxPaths(
+  m: BoxModel,
+  ys: readonly number[],
+  f: Frame,
+): { series: BoxPaths[]; medians: string } {
+  const [lo, hi] = barSpan(f, f.xAt);
+  const at = (v: number) => snap(clamp(f.xAt(v), lo, hi), f.dpr);
+  let medians = "";
+  const series = m.series.map((s, k) => {
+    let boxes = "";
+    let whiskers = "";
+    let outliers = "";
+    ys.forEach((cy, i) => {
+      const b = s.boxes[i] ?? null;
+      const g = boxSegment(m, k, i, f, cy);
+      if (b === null || g === undefined) {
+        return;
+      }
+      // The surface shows a GAP either side of the tick, as between any two parts.
+      const mid = at(b.median);
+      const cut = MEDIAN_W / 2 + GAP;
+      if (mid - cut > g.left) {
+        boxes += rect(g.left, mid - cut, g.top, g.bottom);
+      }
+      if (g.right > mid + cut) {
+        boxes += rect(mid + cut, g.right, g.top, g.bottom);
+      }
+      medians += rect(
+        mid - MEDIAN_W / 2,
+        mid + MEDIAN_W / 2,
+        g.top - MEDIAN_REACH,
+        g.bottom + MEDIAN_REACH,
+      );
+      const line = snap((g.top + g.bottom) / 2, f.dpr);
+      const [low, high] = [at(b.low), at(b.high)];
+      for (const [from, to] of [
+        [Math.min(low, high), g.left],
+        [g.right, Math.max(low, high)],
+      ] as const) {
+        if (to > from) {
+          whiskers += `M${num(from)} ${num(line)}H${num(to)}`;
+        }
+      }
+      let last = Number.NaN;
+      for (const v of s.outliers[i] ?? []) {
+        const x = snap(f.xAt(v), f.dpr);
+        if (v >= f.x.lo && v <= f.x.hi && x !== last) {
+          outliers += `M${num(x - OUTLIER_RADIUS)} ${num(line)}${arcs(OUTLIER_RADIUS)}`;
+          last = x;
+        }
+      }
+    });
+    return { slot: s.slot, boxes, whiskers, outliers };
+  });
+  return { series, medians };
 }
 
 /** A 1 px line down the plot at `x`, on whole device pixels. */

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 
-import { chartModel, type LineModel, type Model } from "./model.js";
+import { chartModel, stepStops, type LineModel, type Model } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
-import { namedRows, stepStops, tableModel, type TableModel } from "./table.js";
+import { namedRows, tableModel, type TableModel } from "./table.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -17,7 +17,7 @@ const words = chartWords();
 
 const time = (t: number) =>
   new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: TZ }).format(t);
-const dur = (ms: number) => formatDuration(ms, "en");
+const dur = (ms: number) => writer("duration", "en")(ms);
 const model = (spec: ChartSpec): Model => chartModel(spec, "en", TZ);
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 
@@ -760,5 +760,191 @@ describe("the table of a bubble chart", () => {
       ["Laos", "8,400", "68", "No data"],
       ["Monaco", "140,000", "85.9", "0"],
     ]);
+  });
+});
+
+describe("the table of a cell chart", () => {
+  it("is a matrix: a column per x entry, a row per y entry, each value or No data", () => {
+    const t = tableModel(
+      model({
+        colour: { unit: { one: "post", other: "posts" } },
+        marks: [
+          {
+            mark: "cell",
+            x: ["2 PM", "3 PM"],
+            y: ["Monday", "Tuesday"],
+            values: [
+              [4, 1200],
+              [null, 0],
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["2 PM", "3 PM"]);
+    expect(cells(t)).toEqual([
+      ["Monday", "4", "1,200"],
+      ["Tuesday", "No data", "0"],
+    ]);
+  });
+
+  it("lists a binned y's highest bin first and names both axes in the corner", () => {
+    const t = tableModel(
+      model({
+        x: { label: "GDP per capita" },
+        y: { label: "Life expectancy" },
+        marks: [
+          {
+            mark: "cell",
+            x: { edges: [1000, 2000, 5000] },
+            y: { edges: [50, 55, 60] },
+            values: [
+              [1, 2],
+              [3, 4],
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Life expectancy / GDP per capita");
+    expect(t.columns.map((c) => c.text)).toEqual(["1,000 to 2,000", "2,000 to 5,000"]);
+    expect(cells(t)).toEqual([
+      ["55 to 60", "3", "4"],
+      ["50 to 55", "1", "2"],
+    ]);
+  });
+
+  it("orders its columns as the plot does on a reversed x", () => {
+    const t = tableModel(
+      model({
+        x: { reverse: true },
+        marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[1, 2]] }],
+      }),
+      words,
+    );
+    expect(cells(t)).toEqual([["r", "2", "1"]]);
+  });
+});
+
+describe("the table of a calendar", () => {
+  // From midnight of Thursday 1 January 2026 in Paris, ten days.
+  const start = Date.UTC(2025, 11, 31, 23);
+  const calendar = (weekStart: number, open = false) =>
+    tableModel(
+      model({
+        marks: [
+          {
+            mark: "cell",
+            days: { start, values: [1, 2, null, 4, 5, 6, 7, 8, 1200, 12], open },
+            weekStart,
+          },
+        ],
+      }),
+      words,
+    );
+
+  it("has a row per week headed by its first date and a column per weekday from the week's start", () => {
+    const t = calendar(1);
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ]);
+    expect(t.rows.map((r) => r.head)).toEqual([
+      [{ at: Date.UTC(2025, 11, 29), text: "Dec 29, 2025", date: true }],
+      [{ at: Date.UTC(2026, 0, 5), text: "Jan 5, 2026", date: true }],
+    ]);
+    expect(t.rows.map((r) => r.cells.map((c) => text(c.parts)))).toEqual([
+      ["", "", "", "1", "2", "No data", "4"],
+      ["5", "6", "7", "8", "1,200", "12", ""],
+    ]);
+  });
+
+  it("starts its columns on Sunday for a week from Sunday, and marks an open day so far", () => {
+    const t = calendar(7, true);
+    expect(t.columns[0]?.text).toBe("Sunday");
+    expect(t.rows.map((r) => r.cells.map((c) => text(c.parts)))).toEqual([
+      ["", "", "", "", "1", "2", "No data"],
+      ["4", "5", "6", "7", "8", "1,200", "12, so far"],
+    ]);
+  });
+});
+
+describe("the table of a box plot", () => {
+  const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
+    y: { label: "Endpoint" },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "health"],
+        series: [
+          {
+            name: "Before",
+            low: [120, null],
+            q1: [180, null],
+            median: [240, null],
+            q3: [410, null],
+            high: [760, null],
+            outliers: [[2600, 1100], []],
+          },
+          ...(two
+            ? [
+                {
+                  name: "After",
+                  low: [100, 1],
+                  q1: [150, 2],
+                  median: [190, 2],
+                  q3: [300, 3],
+                  high: [600, 4],
+                },
+              ]
+            : []),
+        ],
+        ...more,
+      },
+      { mark: "rule", x: 500, label: "Target" },
+    ],
+  });
+
+  it("holds a row per category from Low to High, outliers ascending, then the whiskers and rules", () => {
+    const t = tableModel(model(latency({ whiskers: "1.5 × IQR" })), words);
+    expect(t.corner).toBe("Endpoint");
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "Low",
+      "Lower quartile",
+      "Median",
+      "Upper quartile",
+      "High",
+      "Outliers",
+    ]);
+    expect(cells(t)).toEqual([
+      ["search", "120", "180", "240", "410", "760", "1,100, 2,600"],
+      ["health", "No data", "No data", "No data", "No data", "No data", "None"],
+    ]);
+    expect(t.after).toBe("Whiskers: 1.5 × IQR. Target 500.");
+  });
+
+  it("holds a row per category and series from two series up, with a Series column", () => {
+    const t = tableModel(model(latency({}, true)), words);
+    expect(t.columns[0]?.text).toBe("Series");
+    expect(cells(t)).toEqual([
+      ["search", "Before", "120", "180", "240", "410", "760", "1,100, 2,600"],
+      ["search", "After", "100", "150", "190", "300", "600", "None"],
+      ["health", "Before", "No data", "No data", "No data", "No data", "No data", "None"],
+      ["health", "After", "1", "2", "2", "3", "4", "None"],
+    ]);
+    expect(new Set(t.rows.map((r) => r.key)).size).toBe(4);
+  });
+
+  it("takes the app's measure names", () => {
+    const t = tableModel(model(latency()), chartWords({ boxLabels: { median: "Médiane" } }));
+    expect(t.columns.map((c) => c.text)).toContain("Médiane");
+    expect(t.columns.map((c) => c.text)).toContain("Low");
   });
 });

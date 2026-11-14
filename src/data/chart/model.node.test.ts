@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  binOf,
+  cellOrder,
   chartModel,
   drawnTotal,
   drawnValue,
   pointLink,
   sampleValue,
   scatterDotAt,
+  type BoxModel,
+  type CellModel,
   type PointModel,
   type ScatterModel,
 } from "./model.js";
@@ -279,7 +283,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope or scatter mark and any rules and text marks",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell or box mark and any rules and text marks",
     );
   });
 
@@ -766,7 +770,7 @@ describe("the bar mark", () => {
 
   it("names the height rule", () => {
     expect(() => build({ x: {}, height: 200, marks: [bars([1])] })).toThrow(
-      "renderChart: height has no place on a dot, bar or point chart, which is as tall as its rows",
+      "renderChart: height has no place on a dot, bar, point or box chart, which is as tall as its rows",
     );
   });
 
@@ -1048,7 +1052,7 @@ describe("the point mark", () => {
       "renderChart: a point's x must be above 0 on a log x",
     );
     expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
-      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "rule" or "text"',
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "rule" or "text"',
     );
   });
 
@@ -1673,5 +1677,517 @@ describe("the scatter mark's sizes", () => {
       ],
     });
     expect(scatterDotAt(m.marks[0] as ScatterModel, 1, 2)).toEqual({ series: 0, i: 0 });
+  });
+});
+
+describe("the cell mark", () => {
+  const cell = (more: Partial<Extract<Mark, { mark: "cell" }>> = {}): Mark => ({
+    mark: "cell",
+    x: ["0 h", "1 h", "2 h"],
+    y: ["Mon", "Tue"],
+    values: [
+      [3, 0, 1],
+      [null, Number.NaN, 7],
+    ],
+    ...more,
+  });
+
+  it.each<[string, unknown, ErrorConstructor]>([
+    ["x not names", { marks: [cell({ x: [1, 2] as never })] }, TypeError],
+    ["y not names", { marks: [cell({ y: "Mon" as never })] }, TypeError],
+    ["a repeated column", { marks: [cell({ x: ["a", "a", "b"] })] }, RangeError],
+    ["an empty row name", { marks: [cell({ y: ["", "Tue"] })] }, RangeError],
+    ["a row of values too few", { marks: [cell({ values: [[1, 2, 3]] })] }, TypeError],
+    [
+      "a row of another length",
+      {
+        marks: [
+          cell({
+            values: [
+              [1, 2],
+              [1, 2, 3],
+            ],
+          }),
+        ],
+      },
+      TypeError,
+    ],
+    ["values not rows", { marks: [cell({ values: 3 as never })] }, TypeError],
+    [
+      "a value that is not a number",
+      {
+        marks: [
+          cell({
+            values: [
+              [1, "2", 3],
+              [1, 2, 3],
+            ] as never,
+          }),
+        ],
+      },
+      TypeError,
+    ],
+    [
+      "an infinite value",
+      {
+        marks: [
+          cell({
+            values: [
+              [1, Number.POSITIVE_INFINITY, 3],
+              [1, 2, 3],
+            ],
+          }),
+        ],
+      },
+      RangeError,
+    ],
+    ["a linear x", { x: { type: "linear" }, marks: [cell()] }, TypeError],
+    ["a linear y", { y: { type: "linear" }, marks: [cell()] }, TypeError],
+    ["a domain on its x", { x: { domain: [0, 3] }, marks: [cell()] }, TypeError],
+    ["a height", { height: 200, marks: [cell()] }, TypeError],
+    ["an x rule", { marks: [cell(), { mark: "rule", x: 1, label: "a" }] }, TypeError],
+    ["a y rule", { marks: [cell(), { mark: "rule", y: 1, label: "a" }] }, TypeError],
+    ["a colour scale beside no cell", { colour: {}, marks: [rect([1])], x: {} }, TypeError],
+    ["a colour that is not an object", { colour: 5, marks: [cell()] }, TypeError],
+    ["another colour type", { colour: { type: "qualitative" }, marks: [cell()] }, TypeError],
+    ["one step", { colour: { steps: 1 }, marks: [cell()] }, TypeError],
+    ["ten steps", { colour: { steps: 10 }, marks: [cell()] }, TypeError],
+    ["a fractional step count", { colour: { steps: 4.5 }, marks: [cell()] }, TypeError],
+    [
+      "steps with thresholds",
+      { colour: { steps: 3, thresholds: [1, 2] }, marks: [cell()] },
+      TypeError,
+    ],
+    [
+      "a domain with thresholds",
+      { colour: { domain: [0, 9], thresholds: [1] }, marks: [cell()] },
+      TypeError,
+    ],
+    [
+      "a pivot with thresholds",
+      { colour: { type: "diverging", pivot: 1, thresholds: [1] }, marks: [cell()] },
+      TypeError,
+    ],
+    ["thresholds not numbers", { colour: { thresholds: ["1"] }, marks: [cell()] }, TypeError],
+    ["no thresholds", { colour: { thresholds: [] }, marks: [cell()] }, RangeError],
+    [
+      "nine thresholds",
+      { colour: { thresholds: [1, 2, 3, 4, 5, 6, 7, 8, 9] }, marks: [cell()] },
+      RangeError,
+    ],
+    ["thresholds out of order", { colour: { thresholds: [1, 3, 2] }, marks: [cell()] }, RangeError],
+    ["a repeated threshold", { colour: { thresholds: [1, 1] }, marks: [cell()] }, RangeError],
+    [
+      "an infinite threshold",
+      { colour: { thresholds: [1, Number.POSITIVE_INFINITY] }, marks: [cell()] },
+      RangeError,
+    ],
+    ["a domain low above high", { colour: { domain: [5, 1] }, marks: [cell()] }, RangeError],
+    ["a domain of one value", { colour: { domain: [5, 5] }, marks: [cell()] }, RangeError],
+    ["a domain of names", { colour: { domain: ["a", "b"] }, marks: [cell()] }, TypeError],
+    ["a pivot on a sequential scale", { colour: { pivot: 0 }, marks: [cell()] }, TypeError],
+    ["reverse on a sequential scale", { colour: { reverse: true }, marks: [cell()] }, TypeError],
+    [
+      "an infinite pivot",
+      { colour: { type: "diverging", pivot: Number.NaN }, marks: [cell()] },
+      RangeError,
+    ],
+    ["a colour label not a string", { colour: { label: 3 }, marks: [cell()] }, TypeError],
+    ["another colour format", { colour: { format: "money" }, marks: [cell()] }, TypeError],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("is a heatmap whose x holds its columns from 0 to their count and whose y is a band of its rows", () => {
+    const m = build({ marks: [cell()] });
+    expect(m.kind).toBe("heatmap");
+    expect([m.x.lo, m.x.hi, m.x.passed]).toEqual([0, 3, true]);
+    expect(m.y).toEqual({ type: "band", rows: ["Mon", "Tue"], mono: false });
+    expect([0, 1, 2].map((v) => m.xText(v))).toEqual(["0 h", "1 h", "2 h"]);
+  });
+
+  it("reads a NaN as no data and classes the rest from the chart's colour", () => {
+    const m = build({ colour: { type: "diverging", steps: 3, pivot: 4 }, marks: [cell()] });
+    const c = m.marks[0] as CellModel;
+    expect(c.values).toEqual([
+      [3, 0, 1],
+      [null, null, 7],
+    ]);
+    // The half-span is 4, so 3 classes are each at least 8/3 wide: 5.
+    expect(c.classes).toEqual({
+      type: "diverging",
+      thresholds: [1.5, 6.5],
+      steps: [1, 5, 9],
+      digits: [1, 1],
+    });
+  });
+
+  it("is empty when every value is missing, and not when one is 0", () => {
+    const none = [
+      [null, null, null],
+      [null, null, null],
+    ];
+    expect(build({ marks: [cell({ values: none })] }).empty).toBe(true);
+    expect(build({ marks: [cell({ values: [none[0] ?? [], [null, 0, null]] })] }).empty).toBe(
+      false,
+    );
+  });
+});
+
+describe("a cell mark's binned axes", () => {
+  const bins = (
+    x: Extract<Mark, { mark: "cell"; values: unknown }>["x"],
+    y: Extract<Mark, { mark: "cell"; values: unknown }>["y"],
+  ): Mark => {
+    const columns = "edges" in x ? x.edges.length - 1 : x.length;
+    const rows = "edges" in y ? y.edges.length - 1 : y.length;
+    return {
+      mark: "cell",
+      x,
+      y,
+      values: Array.from({ length: rows }, () => Array.from({ length: columns }, () => 2)),
+    };
+  };
+  const gdp = { edges: [1_000, 2_000, 5_000] };
+  const life = { edges: [50, 60, 70] };
+
+  it.each<[string, Mark, ErrorConstructor]>([
+    ["an axis neither names nor edges", bins({} as never, life), TypeError],
+    ["edges that are not numbers", bins({ edges: ["1", "2"] } as never, life), TypeError],
+    ["edges not an array", bins(gdp, { edges: 5 } as never), TypeError],
+    ["a single edge", bins({ edges: [1] }, life), RangeError],
+    ["edges out of order", bins(gdp, { edges: [50, 70, 60] }), RangeError],
+    ["a repeated edge", bins({ edges: [1, 1, 2] }, life), RangeError],
+    ["an infinite edge", bins(gdp, { edges: [50, Number.POSITIVE_INFINITY] }), RangeError],
+    ["a NaN edge", bins({ edges: [1, Number.NaN] }, life), RangeError],
+  ])("refuses %s", (_, mark, type) => {
+    expect(() => build({ marks: [mark] })).toThrow(type);
+  });
+
+  it("is a 2D histogram when both axes are binned, and a heatmap when one names its categories", () => {
+    expect(build({ marks: [bins(gdp, life)] }).kind).toBe("histogram2d");
+    expect(build({ marks: [bins(["a", "b"], life)] }).kind).toBe("heatmap");
+    expect(build({ marks: [bins(gdp, ["a", "b"])] }).kind).toBe("heatmap");
+  });
+
+  it("keeps each axis's names or edges, and writes a binned x's values as numbers", () => {
+    const m = build({ marks: [bins(gdp, ["Low", "High"])] });
+    const c = m.marks[0] as CellModel;
+    expect([c.x, c.y]).toEqual([gdp, { names: ["Low", "High"] }]);
+    expect(m.xText(2_000)).toBe("2,000");
+  });
+
+  it("takes a height on a binned y, which a named y refuses", () => {
+    expect(build({ height: 120, marks: [bins(["a", "b"], life)] }).spec.height).toBe(120);
+    expect(() => build({ height: 120, marks: [bins(gdp, ["a", "b"])] })).toThrow(TypeError);
+  });
+});
+
+describe("binOf", () => {
+  const edges = [0, 10, 20, 50];
+
+  it("puts a value in the bin from its low edge, the last bin to its high edge too", () => {
+    expect([0, 9.99, 10, 49, 50].map((v) => binOf(edges, v))).toEqual([0, 0, 1, 2, 2]);
+  });
+
+  it("puts a value past either edge, or NaN, in no bin", () => {
+    expect([-0.1, 50.1, Number.NaN].map((v) => binOf(edges, v))).toEqual([-1, -1, -1]);
+  });
+});
+
+describe("a cell chart's reading order", () => {
+  const order = (spec: ChartSpec) => {
+    const m = build(spec);
+    return [...cellOrder(m, m.marks[0] as CellModel)];
+  };
+
+  it("runs from the top left along each row, a binned y from its highest bin", () => {
+    const spec: ChartSpec = {
+      marks: [
+        {
+          mark: "cell",
+          x: ["a", "b"],
+          y: { edges: [0, 1, 2] },
+          values: [
+            [1, 2],
+            [3, 4],
+          ],
+        },
+      ],
+    };
+    expect(order(spec)).toEqual([
+      [1, 0],
+      [1, 1],
+      [0, 0],
+      [0, 1],
+    ]);
+  });
+
+  it("starts each row at its right on a reversed x, as the drawing runs", () => {
+    const spec: ChartSpec = {
+      x: { reverse: true },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[1, 2]] }],
+    };
+    expect(order(spec)).toEqual([
+      [0, 1],
+      [0, 0],
+    ]);
+  });
+});
+
+describe("a cell chart's colour format", () => {
+  it("writes values and boundaries in the colour scale's format", () => {
+    const m = build({
+      colour: { format: "percent" },
+      marks: [{ mark: "cell", x: ["a"], y: ["r"], values: [[0.25]] }],
+    });
+    expect(m.colourText(0.25)).toBe("25%");
+  });
+});
+
+describe("the box mark", () => {
+  const latency = (more: Record<string, unknown> = {}, series: Record<string, unknown> = {}) => ({
+    mark: "box",
+    y: ["search", "export"],
+    series: [
+      {
+        name: "Latency",
+        low: [120, 300],
+        q1: [180, 900],
+        median: [240, 1400],
+        q3: [410, 2100],
+        high: [760, 4000],
+        ...series,
+      },
+    ],
+    ...more,
+  });
+
+  it.each([
+    ["a y of numbers", { marks: [latency({ y: [1, 2] })] }, TypeError],
+    ["a q1 shorter than its y", { marks: [latency({}, { q1: [180] })] }, TypeError],
+    [
+      "outliers not one array per category",
+      { marks: [latency({}, { outliers: [[1]] })] },
+      TypeError,
+    ],
+    ["outliers of strings", { marks: [latency({}, { outliers: [["a"], []] })] }, TypeError],
+    ["a partly null category", { marks: [latency({}, { median: [null, 1400] })] }, TypeError],
+    ["an empty whiskers", { marks: [latency({ whiskers: " " })] }, TypeError],
+    ["whiskers of a number", { marks: [latency({ whiskers: 1.5 })] }, TypeError],
+    ["a time x", { x: { type: "time" }, marks: [latency()] }, TypeError],
+    ["a band x", { x: { type: "band" }, marks: [latency()] }, TypeError],
+    ["zero on a log x", { x: { type: "log", zero: true }, marks: [latency()] }, TypeError],
+    ["a linear y", { y: { type: "linear" }, marks: [latency()] }, TypeError],
+    ["a height", { height: 200, marks: [latency()] }, TypeError],
+    ["a y rule", { marks: [latency(), { mark: "rule", y: 1, label: "Cap" }] }, TypeError],
+    [
+      "a box beside a bar",
+      { marks: [latency(), { mark: "bar", y: ["a"], series: [{ name: "a", x: [1] }] }] },
+      TypeError,
+    ],
+    ["an empty name", { marks: [latency({ y: ["", "export"] })] }, RangeError],
+    ["a repeated name", { marks: [latency({ y: ["a", "a"] })] }, RangeError],
+    [
+      "an infinite high",
+      { marks: [latency({}, { high: [760, Number.POSITIVE_INFINITY] })] },
+      RangeError,
+    ],
+    ["five out of order", { marks: [latency({}, { q1: [250, 900] })] }, RangeError],
+    [
+      "an outlier between the whiskers",
+      { marks: [latency({}, { outliers: [[500], []] })] },
+      RangeError,
+    ],
+    [
+      "an outlier on a whisker's end",
+      { marks: [latency({}, { outliers: [[760], []] })] },
+      RangeError,
+    ],
+    ["an infinite outlier", { marks: [latency({}, { outliers: [[Number.NaN], []] })] }, RangeError],
+    [
+      "a value of 0 on a log x",
+      { x: { type: "log" }, marks: [latency({}, { low: [0, 300] })] },
+      RangeError,
+    ],
+    [
+      "an outlier of 0 on a log x",
+      { x: { type: "log" }, marks: [latency({}, { outliers: [[0], []] })] },
+      RangeError,
+    ],
+  ])("refuses %s", (_, spec, type) => {
+    expect(() => build(spec)).toThrow(type);
+  });
+
+  it("names the rules it breaks", () => {
+    expect(() => build({ marks: [latency({}, { q1: [250, 900] })] })).toThrow(
+      'renderChart: marks[0].series[0] at "search" must have low ≤ q1 ≤ median ≤ q3 ≤ high',
+    );
+    expect(() => build({ marks: [latency({}, { outliers: [[500], []] })] })).toThrow(
+      'renderChart: marks[0].series[0] at "search"\'s outliers must lie beyond its whiskers, below low or above high',
+    );
+    expect(() =>
+      build({ marks: [latency({}, { outliers: [[], [5000]], low: [120, null] })] }),
+    ).toThrow('renderChart: marks[0].series[0] at "export" must have all five numbers');
+    expect(() => build({ height: 100, marks: [latency()] })).toThrow(
+      "renderChart: height has no place on a dot, bar, point or box chart, which is as tall as its rows",
+    );
+  });
+
+  it("keeps each category's five numbers, a gap as null, and sorts its outliers", () => {
+    const m = build({
+      marks: [
+        latency(
+          { whiskers: "1.5 × IQR" },
+          {
+            low: [120, null],
+            q1: [180, Number.NaN],
+            median: [240, null],
+            q3: [410, null],
+            high: [760, null],
+            outliers: [[1100, 20, 2600], []],
+          },
+        ),
+      ],
+    });
+    expect(m.y).toEqual({ type: "band", rows: ["search", "export"], mono: false });
+    expect(m.marks[0] as BoxModel).toEqual({
+      kind: "box",
+      whiskers: "1.5 × IQR",
+      series: [
+        {
+          name: "Latency",
+          slot: 1,
+          boxes: [{ low: 120, q1: 180, median: 240, q3: 410, high: 760 }, null],
+          outliers: [[20, 1100, 2600], []],
+        },
+      ],
+    });
+    expect(m.kind).toBe("box");
+    expect(m.amountText(240)).toBe("240");
+  });
+
+  it("spans x over every whisker's end and outlier, without 0 unless asked", () => {
+    const m = build({ marks: [latency({}, { outliers: [[2600], [50]] })] });
+    expect(m.x.lo).toBeLessThanOrEqual(50);
+    expect(m.x.lo).toBeGreaterThan(0);
+    expect(m.x.hi).toBeGreaterThanOrEqual(4000);
+    expect(build({ x: { zero: true }, marks: [latency()] }).x.lo).toBe(0);
+    const log = build({ x: { type: "log" }, marks: [latency()] });
+    expect([log.x.type, log.x.lo, log.x.hi]).toEqual(["log", 120, 4000]);
+  });
+
+  it("is empty when every category's five are gaps", () => {
+    const none = {
+      low: [null, null],
+      q1: [null, null],
+      median: [null, null],
+      q3: [null, null],
+      high: [null, null],
+    };
+    expect(build({ marks: [latency({}, none)] }).empty).toBe(true);
+    expect(build({ marks: [latency()] }).empty).toBe(false);
+  });
+
+  it("is a box plot whatever its series count", () => {
+    const two = latency({}, {});
+    const series = (two.series as Record<string, unknown>[])[0] ?? {};
+    const m = build({ marks: [{ ...two, series: [series, { ...series, name: "After" }] }] });
+    expect(m.kind).toBe("box");
+  });
+});
+
+describe("the largest value", () => {
+  const grid = (more: Record<string, unknown> = {}) => ({
+    mark: "cell",
+    x: ["a", "b"],
+    y: ["r"],
+    values: [[1, 2]],
+    ...more,
+  });
+  const box = (high: number, outliers?: number[]) => ({
+    mark: "box",
+    y: ["search"],
+    series: [
+      {
+        name: "Latency",
+        low: [120],
+        q1: [180],
+        median: [240],
+        q3: [410],
+        high: [high],
+        ...(outliers === undefined ? {} : { outliers: [outliers] }),
+      },
+    ],
+  });
+  // Each places `v` on a value or colour scale through one check.
+  const at: [string, (v: number) => unknown][] = [
+    ["a line's x", (v) => ({ x: { type: "linear" }, marks: [line([1, 2], { x: [0, v] })] })],
+    ["a line's y", (v) => ({ x: {}, marks: [line([1, v])] })],
+    ["a line's y below 0", (v) => ({ x: {}, marks: [line([1, -v])] })],
+    ["a bar's x", (v) => ({ x: {}, marks: [bars([1, v])] })],
+    ["a point's x", (v) => ({ x: {}, marks: [points([[1, v]])] })],
+    ["a scatter's r", (v) => ({ ...sized, marks: [bubble([1, v])] })],
+    ["a box's high", (v) => ({ marks: [box(v)] })],
+    ["a box's outlier", (v) => ({ marks: [box(760, [v])] })],
+    ["a cell's value", (v) => ({ marks: [grid({ values: [[1, v]] })] })],
+    ["a bin's edge", (v) => ({ marks: [grid({ x: { edges: [0, 1, v] } })] })],
+    [
+      "a calendar's day",
+      (v) => ({ marks: [{ mark: "cell", days: { start: 0, values: [1, v] } }] }),
+    ],
+    ["an x domain", (v) => ({ x: { type: "linear", domain: [0, v] }, marks: [line([1, 2])] })],
+    ["a colour domain", (v) => ({ colour: { domain: [0, v] }, marks: [grid()] })],
+    ["a colour threshold", (v) => ({ colour: { thresholds: [1, v] }, marks: [grid()] })],
+    ["a colour pivot", (v) => ({ colour: { type: "diverging", pivot: v }, marks: [grid()] })],
+    ["a rule", (v) => ({ x: {}, marks: [line([1, 2]), { mark: "rule", y: v, label: "Goal" }] })],
+    ["a note", (v) => ({ x: {}, marks: [line([1, 2]), note({ y: v })] })],
+  ];
+
+  it.each(at)("takes %s of 1e300", (_, spec) => {
+    expect(() => build(spec(1e300))).not.toThrow();
+  });
+
+  it.each(at)("refuses %s of 1e301 with a RangeError", (_, spec) => {
+    expect(() => build(spec(1e301))).toThrow(RangeError);
+    expect(() => build(spec(1e301))).toThrow(/ must lie within ±1e300$/);
+  });
+
+  it("refuses a stack whose total passes 1e300, though each part is within it", () => {
+    const stack = (v: number) => ({
+      x: {},
+      marks: [
+        rect([v], {
+          series: [
+            { name: "a", y: [v] },
+            { name: "b", y: [v] },
+          ],
+        }),
+      ],
+    });
+    expect(() => build(stack(5e299))).not.toThrow();
+    expect(() => build(stack(6e299))).toThrow(
+      new RangeError("renderChart: a stack's total must lie within ±1e300"),
+    );
+  });
+
+  it("gives one cell value past 2^53 finite, strictly increasing classes", () => {
+    const m = build({ marks: [grid({ x: ["a"], values: [[-1e16]] })] });
+    const { thresholds } = (m.marks[0] as CellModel).classes;
+    expect(
+      thresholds.every((t, k) => Number.isFinite(t) && (k === 0 || t > (thresholds[k - 1] ?? 0))),
+    ).toBe(true);
+  });
+
+  it("refuses a colour domain too narrow for increasing class boundaries", () => {
+    expect(() => build({ colour: { domain: [1e16, 1e16 + 2] }, marks: [grid()] })).toThrow(
+      RangeError,
+    );
+  });
+
+  it("refuses a calendar's start past Date's range with a RangeError", () => {
+    expect(() => build({ marks: [{ mark: "cell", days: { start: 1e16, values: [1] } }] })).toThrow(
+      RangeError,
+    );
   });
 });

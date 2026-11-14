@@ -690,3 +690,183 @@ describe("a note on a scatter plot", () => {
     );
   });
 });
+
+describe("a note on a cell chart", () => {
+  const grid = (...notes: Mark[]): ChartSpec => ({
+    marks: [
+      {
+        mark: "cell",
+        x: ["2 PM", "3 PM", "4 PM"],
+        y: ["Monday", "Tuesday"],
+        values: [
+          [1, 2, 3],
+          [4, 5, 6],
+        ],
+      },
+      ...notes,
+    ],
+  });
+  const bins = (...notes: Mark[]): ChartSpec => ({
+    marks: [
+      {
+        mark: "cell",
+        x: { edges: [0, 10, 20] },
+        y: { edges: [100, 200, 300] },
+        values: [
+          [1, 2],
+          [3, 4],
+        ],
+      },
+      ...notes,
+    ],
+  });
+
+  it("joins the cell its column's and row's names give", () => {
+    expect(joined(grid({ mark: "text", x: "3 PM", y: "Tuesday", text: "Release" }))).toEqual([
+      { kind: "cell", row: 1, column: 1 },
+    ]);
+  });
+
+  it("joins the bin holding each value: a bin from its low edge, the last to its high edge", () => {
+    expect(
+      joined(
+        bins(
+          { mark: "text", x: 10, y: 100, text: "a" },
+          { mark: "text", x: 20, y: 300, text: "b" },
+          { mark: "text", x: 9.9, y: 199, text: "c" },
+        ),
+      ),
+    ).toEqual([
+      { kind: "cell", row: 0, column: 1 },
+      { kind: "cell", row: 1, column: 1 },
+      { kind: "cell", row: 0, column: 0 },
+    ]);
+  });
+
+  it("leaves a note beyond the edges out of the drawing and of every reading", () => {
+    const spec = bins({ mark: "text", x: 25, y: 150, text: "far" });
+    expect(joined(spec)).toEqual([null]);
+    expect(lay(spec).notes).toEqual([]);
+  });
+
+  it("sits mid-cell on a band x and joins that cell's reading", () => {
+    const spec = grid({ mark: "text", x: "3 PM", y: "Tuesday", text: "Release" });
+    const l = lay(spec);
+    const xs = l.cells?.xs ?? [];
+    expect(l.notes[0]?.point.x).toBeCloseTo(((xs[1] ?? 0) + (xs[2] ?? 0)) / 2, 6);
+    const m = chartModel(spec, "en", "UTC");
+    expect(spoken(m, { kind: "cell", row: 1, column: 1 }, words, false)).toBe(
+      "Tuesday, 3 PM: 5. Note: Release.",
+    );
+    expect(spoken(m, { kind: "cell", row: 1, column: 0 }, words, false)).toBe("Tuesday, 2 PM: 4.");
+    expect(tableModel(m, words).after).toBe("Tuesday, 3 PM: Release.");
+  });
+
+  it("refuses a column name the chart lacks and a number on a band x", () => {
+    expect(() =>
+      chartModel(grid({ mark: "text", x: "5 PM", y: "Monday", text: "a" }), "en", "UTC"),
+    ).toThrow(new RangeError('renderChart: marks[1].x names no column: "5 PM"'));
+    expect(() =>
+      chartModel(grid({ mark: "text", x: 1, y: "Monday", text: "a" }), "en", "UTC"),
+    ).toThrow(new TypeError("renderChart: marks[1].x must name one of the cell chart's columns"));
+    expect(() => chartModel(grid({ mark: "text", y: "Monday", text: "a" }), "en", "UTC")).toThrow(
+      new TypeError(
+        "renderChart: marks[1].x is missing; a note on a cell chart names one of its columns",
+      ),
+    );
+  });
+});
+
+describe("a note on a calendar", () => {
+  // From midnight of Saturday 28 March 2026 in Paris, the day before the
+  // clocks go forward: 28 March is 24 hours long, 29 March 23.
+  const TZ = "Europe/Paris";
+  const START = Date.UTC(2026, 2, 27, 23);
+  const calendar = (...notes: Mark[]): ChartSpec => ({
+    marks: [{ mark: "cell", days: { start: START, values: [1, 2, 3, 4] }, weekStart: 1 }, ...notes],
+  });
+  const joins = (spec: ChartSpec) => {
+    const m = chartModel(spec, "en", TZ);
+    return m.marks.flatMap((t) => (t.kind === "text" ? [noteJoin(m, t) ?? null] : []));
+  };
+
+  it("joins the day holding its instant on the chart's wall clock, across a DST change", () => {
+    // 11:30 PM on 29 March and 12:30 AM on 30 March in Paris, an hour apart.
+    expect(
+      joins(
+        calendar(
+          { mark: "text", x: Date.UTC(2026, 2, 29, 21, 30), text: "Late" },
+          { mark: "text", x: Date.UTC(2026, 2, 29, 22, 30), text: "Early" },
+        ),
+      ),
+    ).toEqual([
+      { kind: "day", i: 1 },
+      { kind: "day", i: 2 },
+    ]);
+  });
+
+  it("joins the day's reading and writes the day's date in the summary and after the table", () => {
+    const spec = calendar({ mark: "text", x: Date.UTC(2026, 2, 28, 12), text: "Spring" });
+    const m = chartModel(spec, "en", TZ);
+    expect(spoken(m, { kind: "day", i: 0 }, words, false)).toBe(
+      "Saturday, March 28, 2026: 1. Note: Spring.",
+    );
+    expect(generatedSummary(m, words)).toContain("Saturday, March 28, 2026: Spring.");
+    expect(tableModel(m, words).after).toBe("Saturday, March 28, 2026: Spring.");
+  });
+
+  it("leaves an instant outside the days out of the drawing, and keeps it in the summary", () => {
+    const before = Date.UTC(2026, 2, 27, 22);
+    const spec = calendar({ mark: "text", x: before, text: "Before" });
+    const m = chartModel(spec, "en", TZ);
+    expect(joins(spec)).toEqual([null]);
+    expect(layout(m, words, metrics, 600, { axis: 0, label: 0 }).notes).toEqual([]);
+    expect(generatedSummary(m, words)).toContain("Friday, March 27, 2026: Before.");
+  });
+
+  it("draws a note on its day, at the day's centre", () => {
+    const spec = calendar({ mark: "text", x: Date.UTC(2026, 2, 30, 9), text: "Monday" });
+    const l = layout(chartModel(spec, "en", TZ), words, metrics, 600, { axis: 0, label: 0 });
+    const g = l.days;
+    // Monday 30 March starts the second week column; its fill's box is snapped to whole px.
+    const p = l.notes[0]?.point;
+    expect(Math.abs((p?.x ?? 0) - 1.5 * (g?.column ?? 0))).toBeLessThanOrEqual(0.5);
+    expect(Math.abs((p?.y ?? 0) - ((g?.tops[0] ?? 0) + 12))).toBeLessThanOrEqual(0.5);
+  });
+});
+
+describe("a note on a box plot", () => {
+  const boxes = (note: Mark): ChartSpec => ({
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export"],
+        series: [
+          { name: "Before", low: [1, 3], q1: [2, 4], median: [3, 5], q3: [4, 6], high: [5, 9] },
+          { name: "After", low: [1, 2], q1: [2, 3], median: [2, 4], q3: [3, 5], high: [4, 6] },
+        ],
+      },
+      note,
+    ],
+  });
+  const release: Mark = { mark: "text", x: 6, y: "export", text: "Release 2.1" };
+
+  it("sits along its row at its x and joins the row", () => {
+    const l = lay(boxes(release));
+    expect(l.notes[0]?.point).toEqual({ x: l.frame.xAt(6), y: l.rows[1]?.y });
+    expect(joined(boxes(release))).toEqual([{ kind: "row", row: 1 }]);
+  });
+
+  it("joins the row's reading whole and one series' box, and is said at the row's name", () => {
+    const m = chartModel(boxes(release), "en", "UTC");
+    expect(spoken(m, { kind: "box", row: 1, part: undefined }, words, false)).toMatch(
+      /; After median 4, .*\. Note: Release 2\.1\.$/u,
+    );
+    expect(spoken(m, { kind: "box", row: 1, part: 1 }, words, true)).toBe(
+      "export: After median 4, middle half 3 to 5, whiskers 2 to 6. Note: Release 2.1.",
+    );
+    expect(spoken(m, { kind: "box", row: 0, part: undefined }, words, false)).not.toMatch(/Note/u);
+    expect(generatedSummary(m, words)).toMatch(/ export: Release 2\.1\.$/u);
+    expect(tableModel(m, words).after).toBe("export: Release 2.1.");
+  });
+});

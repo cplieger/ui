@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 
 import { chartModel, type Model } from "./model.js";
@@ -19,7 +19,7 @@ const nb = "\u00A0";
 const time = (t: number) =>
   new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: TZ }).format(t);
 const span = (a: number, b: number) => `${time(a)} to ${time(b)}`;
-const dur = (ms: number) => formatDuration(ms, "en");
+const dur = (ms: number) => writer("duration", "en")(ms);
 const model = (spec: ChartSpec): Model => chartModel(spec, "en", TZ);
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 
@@ -1162,5 +1162,250 @@ describe("a bubble chart's summary and short description", () => {
 
   it("names it a bubble chart", () => {
     expect(shortDescription(world, words)).toBe(`Bubble chart, 2 series, 3${nb}countries`);
+  });
+});
+
+describe("a heatmap's short description", () => {
+  const week = (x: ChartSpec["x"], y: ChartSpec["y"]): ChartSpec => ({
+    ...(x === undefined ? {} : { x }),
+    ...(y === undefined ? {} : { y }),
+    marks: [
+      {
+        mark: "cell",
+        x: per(24, String),
+        y: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        values: per(7, () => per(24, () => 1)),
+      },
+    ],
+  });
+
+  it("gives its rows by its columns in the axes' units", () => {
+    expect(
+      shortDescription(
+        model(
+          week({ unit: { one: "hour", other: "hours" } }, { unit: { one: "day", other: "days" } }),
+        ),
+        words,
+      ),
+    ).toBe(`Heatmap, 7${nb}days by 24${nb}hours`);
+  });
+
+  it("gives bare counts where an axis names no unit", () => {
+    expect(shortDescription(model(week(undefined, undefined)), words)).toBe("Heatmap, 7 by 24");
+  });
+
+  it("takes the app's words for the grid", () => {
+    const own = chartWords({
+      grid: (rows, columns) => `${rows} × ${columns}`,
+      kind: { heatmap: "Carte" },
+    });
+    expect(shortDescription(model(week(undefined, undefined)), own)).toBe("Carte, 7 × 24");
+  });
+});
+
+describe("a 2D histogram's short description", () => {
+  const bins = (
+    x: Extract<Mark, { mark: "cell"; values: unknown }>["x"],
+    one: string,
+    other: string,
+  ): ChartSpec => ({
+    x: { unit: { one, other } },
+    y: { unit: { one: "year", other: "years" } },
+    marks: [
+      {
+        mark: "cell",
+        x,
+        y: { edges: per(13, (i) => 25 + 5 * i) },
+        values: per(12, () => per("edges" in x ? x.edges.length - 1 : x.length, () => 1)),
+      },
+    ],
+  });
+
+  it("names it a 2D histogram with bare bin counts, since a binned axis's unit is its values'", () => {
+    expect(
+      shortDescription(
+        model(bins({ edges: per(21, (i) => 1_000 * (i + 1)) }, "dollar", "dollars")),
+        words,
+      ),
+    ).toBe("2D histogram, 12 by 20");
+  });
+
+  it("is a heatmap when one axis names its categories, counted in that axis's unit", () => {
+    expect(
+      shortDescription(
+        model(
+          bins(
+            per(3, (i) => `Q${String(i + 1)}`),
+            "quarter",
+            "quarters",
+          ),
+        ),
+        words,
+      ),
+    ).toBe(`Heatmap, 12 by 3${nb}quarters`);
+  });
+});
+
+describe("a cell chart's summary", () => {
+  const grid = (values: (number | null)[][], over: Partial<ChartSpec> = {}): ChartSpec => ({
+    colour: { unit: posts },
+    marks: [{ mark: "cell", x: ["2 PM", "3 PM"], y: ["Monday", "Tuesday"], values }],
+    ...over,
+  });
+
+  it("counts the cells and names the highest and lowest, each with its value", () => {
+    expect(
+      generatedSummary(
+        model(
+          grid([
+            [4, 57],
+            [0, null],
+          ]),
+        ),
+        words,
+      ),
+    ).toBe(`4 cells. Highest Monday, 3 PM: 57${nb}posts. Lowest Tuesday, 2 PM: 0${nb}posts.`);
+  });
+
+  it("names the first cell in reading order on a tie", () => {
+    expect(
+      generatedSummary(
+        model(
+          grid([
+            [5, 5],
+            [5, 5],
+          ]),
+        ),
+        words,
+      ),
+    ).toBe(`4 cells. Highest Monday, 2 PM: 5${nb}posts. Lowest Monday, 2 PM: 5${nb}posts.`);
+  });
+
+  it("reads a binned y's highest bin first, as the plot draws it from the top", () => {
+    const spec: ChartSpec = {
+      marks: [
+        {
+          mark: "cell",
+          x: { edges: [0, 1, 2] },
+          y: { edges: [0, 10, 20] },
+          values: [
+            [1, 9],
+            [9, 1],
+          ],
+        },
+      ],
+    };
+    expect(generatedSummary(model(spec), words)).toBe(
+      "4 cells. Highest 10 to 20, 0 to 1: 9. Lowest 10 to 20, 1 to 2: 1.",
+    );
+  });
+
+  it("says only the count when every cell is missing", () => {
+    expect(
+      generatedSummary(
+        model(
+          grid([
+            [null, null],
+            [null, null],
+          ]),
+        ),
+        words,
+      ),
+    ).toBe("4 cells.");
+  });
+
+  it("adds no total, which an app whose values add up writes in its own summary", () => {
+    expect(
+      generatedSummary(
+        model(
+          grid([
+            [1, 2],
+            [3, 4],
+          ]),
+        ),
+        words,
+      ),
+    ).not.toContain("Total");
+  });
+
+  it("places a note at the cell it names", () => {
+    const spec = grid(
+      [
+        [1, 2],
+        [3, 4],
+      ],
+      {
+        marks: [
+          {
+            mark: "cell",
+            x: ["2 PM", "3 PM"],
+            y: ["Monday", "Tuesday"],
+            values: [
+              [1, 2],
+              [3, 4],
+            ],
+          },
+          { mark: "text", x: "3 PM", y: "Tuesday", text: "Release" },
+        ],
+      },
+    );
+    expect(generatedSummary(model(spec), words)).toContain("Tuesday, 3 PM: Release.");
+  });
+});
+
+describe("the summary of a box plot", () => {
+  const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
+    y: { unit: { one: "endpoint", other: "endpoints" } },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export", "health"],
+        series: [
+          {
+            name: "Latency",
+            low: [120, 300, 1],
+            q1: [180, 900, 2],
+            median: [240, 1400, 2],
+            q3: [410, 2100, 3],
+            high: [760, 4000, 4],
+          },
+          ...(two
+            ? [
+                {
+                  name: "After",
+                  low: [null, 50, null],
+                  q1: [null, 60, null],
+                  median: [null, 70, null],
+                  q3: [null, 80, null],
+                  high: [null, 90, null],
+                },
+              ]
+            : []),
+        ],
+        ...more,
+      },
+    ],
+  });
+
+  it("names each series' highest and lowest median and widest middle half, then the whiskers", () => {
+    expect(generatedSummary(model(latency({ whiskers: "1.5 × IQR" })), words)).toBe(
+      `3${nb}endpoints. Latency: highest median export 1,400, lowest median health 2, ` +
+        "widest middle half export 900 to 2,100. Whiskers: 1.5 × IQR.",
+    );
+  });
+
+  it("counts the series, and reads a series with one box whole", () => {
+    expect(generatedSummary(model(latency({}, true)), words)).toBe(
+      `3${nb}endpoints, 2 series. Latency: highest median export 1,400, lowest median health 2, ` +
+        "widest middle half export 900 to 2,100. " +
+        "After: export median 70, middle half 60 to 80, whiskers 50 to 90.",
+    );
+  });
+
+  it("is described by its row count", () => {
+    expect(shortDescription(model(latency()), words)).toBe(`Box plot, 3${nb}endpoints`);
+    expect(shortDescription(model(latency({}, true)), words)).toBe(
+      `Box plot, 2 series, 3${nb}endpoints`,
+    );
   });
 });

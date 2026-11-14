@@ -85,6 +85,13 @@ function instants(w: number, timeZone: string | undefined): number[] {
   return [...new Set(found)].sort((a, b) => a - b);
 }
 
+/** The first instant of local day `day` (a day count since 1970) in
+ *  `timeZone`: its midnight, or the instant after a skipped one. */
+export const midnight = (day: number, timeZone: string | undefined): number => {
+  const w = day * DAY;
+  return instants(w, timeZone)[0] ?? w - offset(w - DAY, timeZone);
+};
+
 /** The ticks `TIME_STEPS[at]` apart from `lo` to `hi`, on `timeZone`'s wall
  *  clock: below a day, every instant whose clock reads a multiple of the
  *  step since midnight, so an hour step gives a 23- or 25-tick day and never
@@ -123,8 +130,7 @@ export function timeTicks(
       // 1 January 1970 was a Thursday, three days after a Monday.
       const keep = step === DAY || (step === 2 * DAY ? day % 2 === 0 : (day + 3) % 7 === 0);
       if (keep) {
-        const first = instants(w, timeZone)[0] ?? w - offset(w - DAY, timeZone);
-        ticks.add(first);
+        ticks.add(midnight(day, timeZone));
       }
     }
   }
