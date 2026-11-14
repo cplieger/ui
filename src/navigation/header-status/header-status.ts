@@ -1,10 +1,10 @@
 /**
- * header-status.ts — `createHeaderStatus()` keeps the header's status pill
- * and its panel in step with the app's own model: it computes the state and
- * its words, worst level first, turns the pill offline only after the
- * stream has been down for a while, writes the panel's sections as list
- * rows patched in place by id, and says politely when things turn worse or
- * come right.
+ * header-status.ts — `createHeaderStatus()` keeps the header's status pill,
+ * its panel and the urgent banner in step with the app's own model: it
+ * computes the state and its words, worst level first, turns the pill
+ * offline only after the stream has been down for a while, writes the
+ * panel's sections as list rows patched in place by id, and says politely
+ * when things turn worse or come right.
  * @module
  */
 
@@ -30,9 +30,12 @@ export interface StatusCondition {
   readonly reasons?: readonly string[];
   /** When it began; the longest-standing comes first within its level. */
   readonly since?: Date | number;
+  /** When it was last observed, in an urgent condition's banner. */
   readonly seen?: Date | number;
   /** Where it is fixed: the whole row links there. */
   readonly href?: string;
+  /** The banner's one link; without it the banner links `href` as
+   *  `words.fix`. */
   readonly docs?: { readonly href: string; readonly label: string };
 }
 
@@ -111,8 +114,11 @@ export interface StatusWords {
   readonly asOf: (time: string) => string;
   /** A condition's glyph, for a reader. Default "Problem", "Warning". */
   readonly level: (level: StatusLevel) => string;
-  /** The end of a linked condition's name. Default "Details and fix". */
+  /** The end of a linked condition's name, and its banner link's words.
+   *  Default "Details and fix". */
   readonly fix: string;
+  /** The words before a banner's last-seen time. Default "Last seen". */
+  readonly seen: (condition: StatusCondition) => string;
   /** Default "12 of 40". */
   readonly amount: (value: number, max: number) => string;
   /** Default "Stop", "Cancel", "Stopping…" and "Queued". */
@@ -149,7 +155,10 @@ export interface HeaderStatusParts {
   readonly button: HTMLButtonElement;
   /** Its `.cp-popover.cp-status-panel`, whose content the module writes. */
   readonly panel: HTMLElement;
-  /** Where urgent conditions stand as the every-screen banner. */
+  /** Where urgent conditions stand as the every-screen banner, first in the
+   *  page's banner place. The module owns its children, one `.cp-notice`
+   *  each, and hides it while none holds. The banners take no live role:
+   *  the pill's announcement already names a new urgent condition. */
   readonly banner?: HTMLElement;
 }
 
@@ -207,6 +216,7 @@ function wordsFor(options: HeaderStatusOptions): StatusWords {
     asOf: (t) => `As of ${t}`,
     level: (l) => (l === "problem" ? "Problem" : "Warning"),
     fix: "Details and fix",
+    seen: () => "Last seen",
     amount: (v, m) => `${n.format(v)} of ${n.format(m)}`,
     stop: "Stop",
     cancel: "Cancel",
@@ -389,8 +399,8 @@ function patch(old: Element, fresh: Element): Element {
   return old;
 }
 
-/** Patches `list`'s items to `fresh` by their `data-cp-key`. */
-function syncList(list: Element, fresh: readonly HTMLLIElement[]): void {
+/** Patches `list`'s children to `fresh` by their `data-cp-key`. */
+function syncList(list: Element, fresh: readonly HTMLElement[]): void {
   const old = new Map<string | undefined, Element>();
   for (const li of list.children) {
     old.set((li as HTMLElement).dataset["cpKey"], li);
@@ -408,9 +418,10 @@ let seq = 0;
 
 /**
  * Takes over `parts.button`'s state and words and writes `parts.panel`'s
- * content, which it enhances with `enhancePanel`. The app calls `update()`
- * with its whole model on every change and `connection()` as its stream
- * drops and returns; the first `update()` is never announced.
+ * content, which it enhances with `enhancePanel`, and `parts.banner`'s. The
+ * app calls `update()` with its whole model on every change and
+ * `connection()` as its stream drops and returns; the first `update()` is
+ * never announced.
  */
 export function createHeaderStatus(
   parts: HeaderStatusParts,
@@ -553,6 +564,54 @@ export function createHeaderStatus(
     );
   };
 
+  /** `.cp-notice`'s banner form: with reasons, the stacked head, list and
+   *  foot; without, the glyph beside the title and its foot. */
+  const bannerOf = (c: StatusCondition): HTMLElement => {
+    const to = c.docs ?? (c.href === undefined ? undefined : { href: c.href, label: w.fix });
+    const words: Child[] = [];
+    if (c.seen !== undefined) {
+      words.push(`${w.seen(c)} `, stamp(c.seen), ".");
+    }
+    if (to !== undefined) {
+      words.push(words.length > 0 && " ", h("a", { href: to.href }, to.label));
+    }
+    const foot = words.length > 0 && h("small", {}, ...words);
+    const attrs = {
+      class: "cp-notice",
+      "data-variant": "banner",
+      "data-tone": "danger",
+      "data-cp-key": c.id,
+    };
+    const reasons = c.reasons ?? [];
+    return reasons.length > 0
+      ? h(
+          "div",
+          attrs,
+          h("strong", {}, icon("circle-x"), c.title),
+          h("ul", {}, ...reasons.map((r) => h("li", {}, r))),
+          foot,
+        )
+      : h(
+          "div",
+          attrs,
+          icon("circle-x"),
+          h("span", {}, h("strong", {}, c.title), foot !== false && " ", foot),
+        );
+  };
+
+  const renderBanner = (): void => {
+    const { banner } = parts;
+    if (banner === undefined) {
+      return;
+    }
+    const urgent = conditionOrder(model.conditions).filter((c) => c.urgent === true);
+    syncList(banner, urgent.map(bannerOf));
+    banner.hidden = urgent.length === 0;
+    for (const t of banner.querySelectorAll<HTMLTimeElement>("time:not([data-cp-tip])")) {
+      enhanceRelativeTime(t, { signal: life.signal, ...(locale === undefined ? {} : { locale }) });
+    }
+  };
+
   const renderPanel = (pill: Pill): void => {
     const offline = link === "offline";
     const words = offline
@@ -684,6 +743,7 @@ export function createHeaderStatus(
       }
     }
     renderPanel(pill);
+    renderBanner();
     if (!inside || document.activeElement === active) {
       return;
     }

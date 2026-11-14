@@ -44,9 +44,13 @@ afterEach(async () => {
   await page.viewport(1280, 720);
 });
 
-function mount(options?: Parameters<typeof createHeaderStatus>[1]): {
+function mount(
+  options?: Parameters<typeof createHeaderStatus>[1],
+  { withBanner = true } = {},
+): {
   button: HTMLButtonElement;
   panel: HTMLElement;
+  banner: HTMLElement;
   status: HeaderStatus;
 } {
   const header = document.createElement("header");
@@ -61,8 +65,11 @@ function mount(options?: Parameters<typeof createHeaderStatus>[1]): {
   panel.dataset["variant"] = "panel";
   panel.popover = "auto";
   header.append(button, panel);
-  document.body.append(header);
-  return { button, panel, status: createHeaderStatus({ button, panel }, options) };
+  const banner = document.createElement("div");
+  banner.className = "cp-stack";
+  document.body.append(header, banner);
+  const parts = withBanner ? { button, panel, banner } : { button, panel };
+  return { button, panel, banner, status: createHeaderStatus(parts, options) };
 }
 
 const words = (b: HTMLButtonElement) =>
@@ -770,5 +777,108 @@ describe("live updates", () => {
       expect(stop.firstChild?.textContent).toBe("Stopping…");
     });
     expect(document.activeElement).toBe(stop);
+  });
+});
+
+describe("the urgent banner", () => {
+  const exposed = (extra: Partial<StatusCondition> = {}): StatusCondition =>
+    problem("exposed", {
+      urgent: true,
+      title: "This app can be reached from the internet",
+      reasons: ["It answers on a public address.", "Sign-in by password is on."],
+      since: Date.now() - 7_200_000,
+      seen: Date.now() - 2_400_000,
+      href: "/settings/access",
+      docs: { href: "/docs/access", label: "How to limit access" },
+      ...extra,
+    });
+  const banners = (banner: HTMLElement) => [...banner.querySelectorAll<HTMLElement>(".cp-notice")];
+
+  it("stands each urgent condition as a danger banner: heading, reasons, last seen, one link", () => {
+    const { banner, status } = mount();
+    expect(banner.hidden).toBe(true);
+    status.update(model({ conditions: [warning("w"), problem("p"), exposed()] }));
+    expect(banner.hidden).toBe(false);
+    const [one, ...rest] = banners(banner) as [HTMLElement];
+    expect(rest).toEqual([]);
+    expect(one.dataset["variant"]).toBe("banner");
+    expect(one.dataset["tone"]).toBe("danger");
+    expect(one.hasAttribute("role")).toBe(false);
+    expect(one.querySelector(":scope > strong")?.textContent).toBe(
+      "This app can be reached from the internet",
+    );
+    expect(one.querySelector(':scope > strong > .cp-icon[data-cp-icon="circle-x"]')).not.toBeNull();
+    expect([...one.querySelectorAll(":scope > ul > li")].map((li) => li.textContent)).toEqual([
+      "It answers on a public address.",
+      "Sign-in by password is on.",
+    ]);
+    const foot = one.querySelector(":scope > small") as HTMLElement;
+    expect(foot.textContent).toMatch(/^Last seen 40 minutes ago.* How to limit access$/);
+    expect([...foot.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual([
+      "/docs/access",
+    ]);
+    const cs = getComputedStyle(one);
+    expect(cs.display).toBe("grid");
+  });
+
+  it("links a banner with no docs to the condition's fix, and leaves out a foot with nothing in it", () => {
+    const { banner, status } = mount({ words: { seen: () => "Seen" } });
+    status.update(
+      model({
+        conditions: [
+          problem("a", {
+            urgent: true,
+            title: "Store full",
+            reasons: [],
+            since: Date.now() - 60_000,
+            seen: Date.now() - 2_400_000,
+            href: "/settings/access",
+          }),
+          problem("b", { urgent: true, title: "Sign-in is off", since: Date.now() }),
+        ],
+      }),
+    );
+    const [a, b] = banners(banner) as [HTMLElement, HTMLElement];
+    expect(a.querySelector(":scope > .cp-icon")).not.toBeNull();
+    expect(a.querySelector(":scope > span > strong")?.textContent).toBe("Store full");
+    expect(a.querySelector("ul")).toBeNull();
+    const foot = a.querySelector(":scope > span > small") as HTMLElement;
+    expect(foot.textContent).toMatch(/^Seen 40 minutes ago.* Details and fix$/);
+    expect(foot.querySelector("a")?.getAttribute("href")).toBe("/settings/access");
+    expect(b.querySelector("small")).toBeNull();
+    expect(b.textContent).toBe("Sign-in is off");
+  });
+
+  it("orders banners as the panel does and patches them in place, hiding the place once none holds", () => {
+    const { banner, status } = mount();
+    const app = document.createElement("div");
+    app.className = "cp-notice";
+    app.textContent = "Reload to use the new version.";
+    banner.after(app);
+    const older = exposed({ id: "older", title: "Store full", since: Date.now() - 9_000_000 });
+    status.update(model({ conditions: [exposed(), older] }));
+    const [first, second] = banners(banner) as [HTMLElement, HTMLElement];
+    expect(first.dataset["cpKey"]).toBe("older");
+    expect(second.dataset["cpKey"]).toBe("exposed");
+    status.update(
+      model({ conditions: [exposed({ reasons: ["It answers on a public address."] }), older] }),
+    );
+    expect(banners(banner)[1]).toBe(second);
+    expect(second.querySelectorAll("li")).toHaveLength(1);
+    status.update(model({ conditions: [older] }));
+    expect(banners(banner)).toEqual([first]);
+    status.update(model({ conditions: [problem("p")] }));
+    expect(banners(banner)).toEqual([]);
+    expect(banner.hidden).toBe(true);
+    expect(app.isConnected).toBe(true);
+    expect(app.textContent).toBe("Reload to use the new version.");
+  });
+
+  it("writes no banner when the app gives no place for it", () => {
+    const { banner, button, status } = mount(undefined, { withBanner: false });
+    status.update(model({ conditions: [exposed()] }));
+    expect(words(button)).toBe("This app can be reached from the internet");
+    expect(banner.childElementCount).toBe(0);
+    expect(banner.hidden).toBe(false);
   });
 });
