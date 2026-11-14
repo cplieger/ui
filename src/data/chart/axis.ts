@@ -30,7 +30,8 @@ interface Label {
   readonly box: Box;
 }
 
-interface Tick {
+/** A tick along an axis, with its label if it kept one. */
+export interface Tick {
   readonly value: number;
   /** Its position along the axis, in px. */
   readonly at: number;
@@ -54,7 +55,6 @@ export interface AxisContext {
 }
 
 interface Candidate {
-  readonly value: number;
   readonly at: number;
   readonly lines: readonly string[];
 }
@@ -144,7 +144,8 @@ function linearAxisAt(
   });
   const [lo, hi] = axis.domain;
   const at = range(lo, hi);
-  const write = formatter(scale.format, locale);
+  const format = formatter(scale.format, locale);
+  const write = scale.absolute ? (v: number) => format(Math.abs(v)) : format;
   for (let step = axis.step; ; step = coarserStep(step)) {
     const values = linearTicks(lo, hi, step);
     const { ticks, shown } = fitted(values, at, write, layout);

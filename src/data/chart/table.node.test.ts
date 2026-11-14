@@ -5,7 +5,7 @@ import { durationEdges } from "../scale/ladder.js";
 
 import { chartModel, type LineModel, type Model } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
-import { stepStops, tableModel, type TableModel } from "./table.js";
+import { namedRows, stepStops, tableModel, type TableModel } from "./table.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -68,7 +68,7 @@ describe("the table of bars across days", () => {
   });
 });
 
-describe("the table of stacked bars", () => {
+describe("the table of stacked columns", () => {
   // Four hourly buckets from 7:30, so the first crosses the domain's start; the last is open.
   const starts = per(4, (i) => START - 30 * MIN + i * 60 * MIN);
   const t = tableModel(
@@ -112,6 +112,71 @@ describe("the table of stacked bars", () => {
   });
 });
 
+describe("the table of grouped columns", () => {
+  const starts = per(2, (i) => START + i * 60 * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 120 * MIN] },
+      marks: [
+        {
+          mark: "rect",
+          arrange: "group",
+          x1: starts,
+          x2: starts.map((s) => s + 60 * MIN),
+          series: [
+            { name: "Announce", y: [1, 2] },
+            { name: "Path", y: [5, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("heads a column per series and no Total, and lists each bucket's values", () => {
+    expect(t.columns).toEqual([
+      { text: "Announce", num: true },
+      { text: "Path", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      [`${iso(START)} to ${iso(START + 60 * MIN)}`, "1", "5"],
+      [`${iso(START + 60 * MIN)} to ${iso(START + 120 * MIN)}`, "2", "No data"],
+    ]);
+  });
+});
+
+describe("the table of columns stacked to 100%", () => {
+  const starts = per(3, (i) => START + i * 60 * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 180 * MIN] },
+      marks: [
+        {
+          mark: "rect",
+          arrange: "share",
+          x1: starts,
+          x2: starts.map((s) => s + 60 * MIN),
+          series: [
+            { name: "Announce", y: [1, 0, 1200] },
+            { name: "Path", y: [3, 0, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("lists each bucket's shares and its absolute total, a bucket of 0 by its values", () => {
+    expect(t.columns.map((c) => c.text)).toEqual(["Announce", "Path", "Total"]);
+    const at = (i: number) => starts[i] ?? 0;
+    expect(cells(t)).toEqual([
+      [`${iso(at(0))} to ${iso(at(1))}`, "25%", "75%", "4"],
+      [`${iso(at(1))} to ${iso(at(2))}`, "0", "0", "0"],
+      [`${iso(at(2))} to ${iso(at(2) + 60 * MIN)}`, "100%", "No data", "1,200"],
+    ]);
+  });
+});
+
 describe("the table of a histogram", () => {
   const edges = durationEdges();
   const t = tableModel(
@@ -147,7 +212,7 @@ describe("the table of a histogram", () => {
   });
 
   it("writes the rules as a sentence after the table", () => {
-    expect(t.rules).toBe(`Median ${dur(42_000)}. 95th percentile ${dur(18 * MIN)}.`);
+    expect(t.after).toBe(`Median ${dur(42_000)}. 95th percentile ${dur(18 * MIN)}.`);
   });
 });
 
@@ -197,6 +262,71 @@ describe("the table of a step line", () => {
   });
 });
 
+describe("the table of a stacked area", () => {
+  const x = per(7, (i) => START + i * MIN);
+  const spec = (more: Partial<Extract<Mark, { mark: "area" }>> = {}): ChartSpec => ({
+    x: { type: "time", domain: [START, START + 6 * MIN] },
+    marks: [
+      {
+        mark: "area",
+        x,
+        series: [
+          { name: "Gas", y: [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204] },
+          { name: "Wind", y: [410, 600, 1_020, null, 980, 980, 980] },
+          { name: "Solar", y: [500, 790, 300, 200, 412, 412, 412] },
+        ],
+        ...more,
+      },
+    ],
+  });
+
+  it("heads a column per layer and a Total, and lists every sample, a gap's total as No data", () => {
+    const t = tableModel(model(spec()), words);
+    expect(t.columns.map((c) => c.text)).toEqual(["Gas", "Wind", "Solar", "Total"]);
+    expect(cells(t).slice(2, 4)).toEqual([
+      [iso(x[2] ?? 0), "1,100", "1,020", "300", "2,420"],
+      [iso(x[3] ?? 0), "1,000", "No data", "200", "No data"],
+    ]);
+  });
+
+  it("lists a stepped area's change points and no Total for one series", () => {
+    const stepped = tableModel(model(spec({ curve: "step" })), words);
+    expect(stepped.rows.map((r) => r.key)).toEqual([0, 1, 2, 3, 4, 6].map((i) => String(x[i])));
+    const one = tableModel(model(spec({ series: [{ name: "Gas", y: per(7, () => 1) }] })), words);
+    expect(one.columns.map((c) => c.text)).toEqual(["Gas"]);
+  });
+});
+
+describe("the table of an area stacked to 100%", () => {
+  const x = per(3, (i) => START + i * MIN);
+  const t = tableModel(
+    model({
+      x: { type: "time", domain: [START, START + 2 * MIN] },
+      marks: [
+        {
+          mark: "area",
+          x,
+          arrange: "share",
+          series: [
+            { name: "Gas", y: [0, 1_500, 700] },
+            { name: "Wind", y: [0, 500, null] },
+          ],
+        },
+      ],
+    }),
+    words,
+  );
+
+  it("holds the shares the plot shows and the absolute total, a total of 0 by its values", () => {
+    expect(t.columns.map((c) => c.text)).toEqual(["Gas", "Wind", "Total"]);
+    expect(cells(t)).toEqual([
+      [iso(x[0] ?? 0), "0", "0", "0"],
+      [iso(x[1] ?? 0), "75%", "25%", "2,000"],
+      [iso(x[2] ?? 0), "700", "No data", "No data"],
+    ]);
+  });
+});
+
 describe("the table of a timeline", () => {
   const posts = [START + 10 * MIN, START + 10 * MIN, START + 90 * MIN];
   const t = tableModel(
@@ -227,6 +357,408 @@ describe("the table of a timeline", () => {
       ["lead-ui", "3", iso(posts[0] ?? 0), iso(posts[2] ?? 0)],
       ["docs-bot", "0", "None", "None"],
       ["late", "0", "None", "None"],
+    ]);
+  });
+});
+
+describe("the notes after the table", () => {
+  it("follow the rules, each its x and text, and none leaves the sentence out", () => {
+    const x = per(3, (i) => START + i * MIN);
+    const line = (more: Mark[]): ChartSpec => ({
+      x: { type: "time" },
+      marks: [{ mark: "line", x, series: [{ name: "Live", y: [1, 2, 3] }] }, ...more],
+    });
+    const t = tableModel(
+      model(
+        line([
+          { mark: "text", x: START + MIN, y: 2, text: "Deploy" },
+          { mark: "rule", y: 2, label: "Limit" },
+        ]),
+      ),
+      words,
+    );
+    expect(t.after).toBe(`Limit 2. ${time(START + MIN)}: Deploy.`);
+    expect(tableModel(model(line([])), words).after).toBe("");
+  });
+});
+
+describe("the table of a bar chart", () => {
+  it("holds a row per category in the app's order and a column per series", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        y: { label: "Country" },
+        marks: [
+          {
+            mark: "bar",
+            y: ["Holy See", "Monaco"],
+            series: [{ name: "Median age", x: [57.4, null] }],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Country");
+    expect(t.columns).toEqual([{ text: "Median age", num: true }]);
+    expect(cells(t)).toEqual([
+      ["Holy See", "57.4"],
+      ["Monaco", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Holy See", "Monaco"]);
+  });
+
+  it("adds a Total column from two series, a gap counting for nothing", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Acme", "Brill"],
+            series: [
+              { name: "Domestic", x: [40, 3] },
+              { name: "International", x: [2, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("");
+    expect(t.columns.map((c) => c.text)).toEqual(["Domestic", "International", "Total"]);
+    expect(cells(t)).toEqual([
+      ["Acme", "40", "2", "42"],
+      ["Brill", "3", "No data", "3"],
+    ]);
+  });
+
+  it("holds a 100% chart's shares and each row's absolute total, a total of 0 by its values", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Item 1", "Item 2"],
+            arrange: "share",
+            series: [
+              { name: "No", x: [1250, 0] },
+              { name: "Yes", x: [3750, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["No", "Yes", "Total"]);
+    expect(cells(t)).toEqual([
+      ["Item 1", "25%", "75%", "5,000"],
+      ["Item 2", "0", "No data", "0"],
+    ]);
+  });
+
+  it("has a Total column for diverging bars", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Item 1"],
+            arrange: "diverge",
+            left: 1,
+            series: [
+              { name: "No", x: [12] },
+              { name: "Yes", x: [30] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["No", "Yes", "Total"]);
+    expect(cells(t)).toEqual([["Item 1", "12", "30", "42"]]);
+  });
+
+  it("has a Total column for mirrored bars", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["45-50"],
+            arrange: "mirror",
+            series: [
+              { name: "Male", x: [2_734_000] },
+              { name: "Female", x: [2_690_000] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["Male", "Female", "Total"]);
+    expect(cells(t)).toEqual([["45-50", "2,734,000", "2,690,000", "5,424,000"]]);
+  });
+
+  it.each(["group", "split"] as const)("has no Total column for %s bars", (arrange) => {
+    const t = tableModel(
+      model({
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: ["Japan"],
+            arrange,
+            series: [
+              { name: "Female", x: [51.1] },
+              { name: "Male", x: [48.4] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["Female", "Male"]);
+    expect(cells(t)).toEqual([["Japan", "51.1", "48.4"]]);
+  });
+});
+
+describe("the table of a point chart", () => {
+  it("holds a row per category and a column per series, a gap as No data, no Total", () => {
+    const t = tableModel(
+      model({
+        x: {},
+        y: { label: "Degree" },
+        marks: [
+          {
+            mark: "point",
+            y: ["Doctorate", "Master's"],
+            series: [
+              { name: "Women", x: [128_700, 91_000] },
+              { name: "Men", x: [163_500, null] },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Degree");
+    expect(t.columns).toEqual([
+      { text: "Women", num: true },
+      { text: "Men", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["Doctorate", "128,700", "163,500"],
+      ["Master's", "91,000", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Doctorate", "Master's"]);
+  });
+
+  it("writes each instant in its time element on a time x, as words", () => {
+    const t = tableModel(
+      model({
+        x: { type: "time" },
+        marks: [{ mark: "point", y: ["a"], series: [{ name: "Release", x: [START] }] }],
+      }),
+      words,
+    );
+    expect(t.columns).toEqual([{ text: "Release", num: false }]);
+    expect(cells(t)).toEqual([["a", iso(START)]]);
+  });
+
+  it("adds a range's Gap column and an arrow's signed Change column", () => {
+    const plot = (link: "range" | "arrow") =>
+      tableModel(
+        model({
+          x: {},
+          marks: [
+            {
+              mark: "point",
+              y: ["Doctorate", "Master's"],
+              link,
+              series: [
+                { name: "Women", x: [128_700, 91_000] },
+                { name: "Men", x: [91_000, null] },
+              ],
+            },
+          ],
+        }),
+        words,
+      );
+    const range = plot("range");
+    expect(range.columns.at(-1)).toEqual({ text: "Gap", num: true });
+    expect(cells(range)).toEqual([
+      ["Doctorate", "128,700", "91,000", "37,700"],
+      ["Master's", "91,000", "No data", "No data"],
+    ]);
+    const arrow = plot("arrow");
+    expect(arrow.columns.at(-1)).toEqual({ text: "Change", num: true });
+    expect(cells(arrow)[0]?.at(-1)).toBe("-37,700");
+  });
+});
+
+describe("the table of a slope chart", () => {
+  it("holds a row per series, its two ends and its signed change, under the y label", () => {
+    const t = tableModel(
+      model({
+        y: { label: "Households, %" },
+        marks: [
+          {
+            mark: "slope",
+            x: ["2005", "2015"],
+            series: [
+              { name: "Cats", y: [50, 34] },
+              { name: "Horses", y: [30, 39] },
+              { name: "Mice", y: [null, 44] },
+            ],
+          },
+          { mark: "rule", y: 40, label: "Target" },
+          { mark: "text", x: "2005", y: 50, text: "Peak" },
+        ],
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Households, %");
+    expect(t.columns).toEqual([
+      { text: "2005", num: true },
+      { text: "2015", num: true },
+      { text: "Change", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["Cats", "50", "34", "-16"],
+      ["Horses", "30", "39", "+9"],
+      ["Mice", "No data", "44", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Cats", "Horses", "Mice"]);
+    expect(t.after).toBe("Target 40. 2005: Peak.");
+  });
+});
+
+describe("the table of a scatter plot", () => {
+  const world = (more: readonly Mark[] = [], domain?: readonly [number, number]): ChartSpec => ({
+    x: { label: "GDP per capita", ...(domain === undefined ? {} : { domain }) },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Europe",
+            names: ["Albania", "Monaco", "Kosovo"],
+            x: [18_920, 140_000, null],
+            y: [79.8, 85.9, 79],
+          },
+          { name: "Africa", names: ["Chad", "Mali"], x: [1_500, 2_000], y: [53, Number.NaN] },
+        ],
+      },
+      ...more,
+    ],
+  });
+
+  it("lists a row per dot in series order, its series, then each measure under its label", () => {
+    const t = tableModel(model(world()), words);
+    expect(t.corner).toBe("");
+    expect(t.columns).toEqual([
+      { text: "Series", num: false },
+      { text: "GDP per capita", num: true },
+      { text: "Life expectancy", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["Albania", "Europe", "18,920", "79.8"],
+      ["Monaco", "Europe", "140,000", "85.9"],
+      ["Kosovo", "Europe", "No data", "79"],
+      ["Chad", "Africa", "1,500", "53"],
+      ["Mali", "Africa", "2,000", "No data"],
+    ]);
+    expect(t.rows.map((r) => r.key)).toEqual(["Albania", "Monaco", "Kosovo", "Chad", "Mali"]);
+  });
+
+  it("has no Series column with one series", () => {
+    const t = tableModel(
+      model({
+        x: { label: "GDP per capita" },
+        y: { label: "Life expectancy" },
+        marks: [
+          { mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1_500], y: [53] }] },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["GDP per capita", "Life expectancy"]);
+    expect(cells(t)).toEqual([["Chad", "1,500", "53"]]);
+  });
+
+  it("leaves out a dot outside a passed domain, as the plot does", () => {
+    const t = tableModel(model(world([], [0, 100_000])), words);
+    expect(t.rows.map((r) => r.key)).toEqual(["Albania", "Kosovo", "Chad", "Mali"]);
+  });
+
+  it("follows with its rules and notes, a note placed at the dot it joins", () => {
+    const t = tableModel(
+      model(
+        world([
+          { mark: "rule", y: 70, label: "World average" },
+          { mark: "text", x: 140_000, y: 85.9, text: "A city-state" },
+        ]),
+      ),
+      words,
+    );
+    expect(t.after).toBe("World average 70. Monaco: A city-state.");
+  });
+
+  it("sets the dots' names, as a band's rows and a slope's series, in their own direction", () => {
+    expect(namedRows(model(world()))).toBe(true);
+    expect(
+      namedRows(
+        model({ marks: [{ mark: "slope", x: ["a", "b"], series: [{ name: "s", y: [1, 2] }] }] }),
+      ),
+    ).toBe(true);
+    expect(
+      namedRows(
+        model({
+          x: { type: "time" },
+          marks: [{ mark: "line", x: [START], series: [{ name: "s", y: [1] }] }],
+        }),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the table of a bubble chart", () => {
+  it("lists each dot's size last under its label, a missing one as No data", () => {
+    const t = tableModel(
+      model({
+        x: { label: "GDP per capita" },
+        y: { label: "Life expectancy" },
+        r: { label: "Population" },
+        marks: [
+          {
+            mark: "scatter",
+            series: [
+              {
+                name: "All",
+                names: ["Japan", "Laos", "Monaco"],
+                x: [48_000, 8_400, 140_000],
+                y: [84.5, 68, 85.9],
+                r: [124_000_000, null, 0],
+              },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "GDP per capita",
+      "Life expectancy",
+      "Population",
+    ]);
+    expect(cells(t)).toEqual([
+      ["Japan", "48,000", "84.5", "124,000,000"],
+      ["Laos", "8,400", "68", "No data"],
+      ["Monaco", "140,000", "85.9", "0"],
     ]);
   });
 });

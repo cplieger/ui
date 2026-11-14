@@ -170,6 +170,18 @@ function fitMarkers(ol: Element): void {
   }
 }
 
+/** Running text this long, about 12em, wraps in a narrow column. */
+const PROSE_CELL = 24;
+
+/** Marks a cell of running text `data-cp-wrap`, which `.cp-prose` keeps at
+ *  a readable width once the table is wider than its box and scrolls. */
+function markProse(cell: Element): void {
+  const text = cell.textContent.trim();
+  if (text.length >= PROSE_CELL && /\s/.test(text)) {
+    cell.setAttribute("data-cp-wrap", "");
+  }
+}
+
 function checkLevel(level: number): number {
   if (!Number.isInteger(level) || level < 1 || level > 6) {
     throw new RangeError(`headingLevel must be 1 to 6, not ${String(level)}`);
@@ -667,6 +679,9 @@ export function domSink(
       }
       case "table-row":
         closeRow(frame);
+        return node;
+      case "table-cell":
+        markProse(frame.into);
         return node;
       case "emphasis":
       case "strong":

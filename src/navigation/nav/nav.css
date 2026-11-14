@@ -69,6 +69,8 @@
  * it. */
 @media (width < 40rem) {
   .cp-header > .cp-nav {
+    --cp-chart-surface: var(--cp-surface-raised);
+
     position: fixed;
     inset: auto 0 0;
     z-index: 1;

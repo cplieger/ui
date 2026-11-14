@@ -1,14 +1,36 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
- * bucket, sample, change point or dot row, kept in place across updates.
+ * bucket, sample, change point, dot row, category, slope series or scatter
+ * dot, kept in place across updates.
  * @module
  */
 
 import { formatter } from "../scale/format.js";
 
-import type { LineModel, Model, RectModel } from "./model.js";
-import { bucketText, primaryOf } from "./readout.js";
-import { ruleSentences } from "./summary.js";
+import type {
+  BarModel,
+  Model,
+  PointModel,
+  RectModel,
+  SampleModel,
+  ScatterModel,
+  SlopeModel,
+} from "./model.js";
+import { barsApart, barTotal, bucketTotal, pointLink, sampleTotal, slopeChange } from "./model.js";
+import {
+  barPart,
+  bucketText,
+  changeText,
+  dotValue,
+  linkText,
+  measuresOf,
+  partText,
+  primaryOf,
+  samplePart,
+  totalWord,
+  totalled,
+} from "./readout.js";
+import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
 /** Text, or an instant written in a `<time datetime>`. */
@@ -20,7 +42,8 @@ interface Cell {
 }
 
 interface Row {
-  /** The row's x, or its dot row's name and place among rows of that name. */
+  /** The row's x, its dot row's name and place among rows of that name, or
+   *  its category's name. */
   readonly key: string;
   readonly head: readonly Part[];
   readonly cells: readonly Cell[];
@@ -30,7 +53,8 @@ export interface TableModel {
   readonly corner: string;
   readonly columns: readonly { readonly text: string; readonly num: boolean }[];
   readonly rows: readonly Row[];
-  readonly rules: string;
+  /** The rules' and notes' sentences after the table. */
+  readonly after: string;
 }
 
 // Private-use characters stand in for instants while the words place them.
@@ -61,36 +85,41 @@ function timed(model: Model, write: (m: Model) => string): Part[] {
     .map((s) => (s.length === 1 ? (at[(s.codePointAt(0) ?? 0) - MARK] ?? s) : s));
 }
 
-const value = (model: Model, v: number | null | undefined, words: Words): Cell => ({
-  parts: [v === null || v === undefined ? words.noData : model.yText(v)],
-  num: true,
-});
+const isStop = (m: SampleModel, i: number): boolean =>
+  i === m.from || i === m.to - 1 || m.series.some((s) => s.y[i] !== s.y[i - 1]);
 
 /** The samples a step line's table lists and its keys stop at: the first
  *  and last inside the domain, and each where any series changes value or
  *  turns to or from a gap. */
-export function stepStops(m: LineModel): number[] {
+export function stepStops(m: SampleModel): number[] {
   const out: number[] = [];
   for (let i = m.from; i < m.to; i++) {
-    if (i === m.from || i === m.to - 1 || m.series.some((s) => s.y[i] !== s.y[i - 1])) {
+    if (isStop(m, i)) {
       out.push(i);
     }
   }
   return out;
 }
 
+/** The stop holding sample `i` of a step line inside its domain: the last of
+ *  `stepStops` at or before it. */
+export function stepStopAt(m: SampleModel, i: number): number {
+  let k = i;
+  while (k > m.from && !isStop(m, k)) {
+    k--;
+  }
+  return k;
+}
+
 function rectRows(model: Model, m: RectModel, words: Words): Row[] {
-  const stacked = m.series.length > 1;
+  const total = totalled(m);
   return m.shown.map((i) => {
-    const cells = m.series.map((s) => value(model, s.y[i], words));
-    if (stacked) {
-      cells.push(
-        value(
-          model,
-          m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0),
-          words,
-        ),
-      );
+    const cells: Cell[] = m.series.map((s) => ({
+      parts: [partText(model, m, s, i, words)],
+      num: true,
+    }));
+    if (total) {
+      cells.push({ parts: [model.amountText(bucketTotal(m, i))], num: true });
     }
     return {
       key: String(m.x1[i]),
@@ -100,23 +129,163 @@ function rectRows(model: Model, m: RectModel, words: Words): Row[] {
   });
 }
 
-function lineRows(model: Model, m: LineModel, words: Words): Row[] {
+function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
   const indices = m.step
     ? stepStops(m)
     : Array.from({ length: m.to - m.from }, (_, k) => m.from + k);
-  return indices.map((i) => ({
-    key: String(m.x[i]),
-    head: timed(model, (t) => t.xText(m.x[i] ?? 0)),
-    cells: m.series.map((s) => value(model, s.y[i], words)),
-  }));
+  return indices.map((i) => {
+    const cells: Cell[] = m.series.map((s) => ({
+      parts: [samplePart(model, m, s, i, words)],
+      num: true,
+    }));
+    if (m.kind === "area" && m.series.length > 1) {
+      const total = sampleTotal(m, i);
+      cells.push({
+        parts: [total === null ? words.noData : model.amountText(total)],
+        num: true,
+      });
+    }
+    return { key: String(m.x[i]), head: timed(model, (t) => t.xText(m.x[i] ?? 0)), cells };
+  });
 }
+
+// A row per category, a column per series, and from two stacked series up
+// a Total, under "share" the absolute total the shares hide; none for bars
+// standing apart.
+function barTable(model: Model, m: BarModel, words: Words, after: string): TableModel {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const withTotal = m.series.length > 1 && !barsApart(m);
+  const rows = names.map((name, i): Row => {
+    const cells: Cell[] = m.series.map((s) => ({
+      parts: [barPart(model, m, s, i, words)],
+      num: true,
+    }));
+    if (withTotal) {
+      const total = barTotal(m, i);
+      cells.push({
+        parts: [total === null ? words.noData : model.amountText(total)],
+        num: true,
+      });
+    }
+    return { key: name, head: [name], cells };
+  });
+  const columns = m.series.map((s) => ({ text: s.name, num: true }));
+  if (withTotal) {
+    columns.push({ text: words.total, num: true });
+  }
+  return { corner: model.spec.y?.label ?? "", columns, rows, after };
+}
+
+// A row per category and a column per series, each value as the readings
+// write it, an instant in its `<time>`, then a link's Gap or Change.
+function pointTable(model: Model, m: PointModel, words: Words, after: string): TableModel {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  // Instants are words, not figures to align.
+  const num = model.x.type !== "time";
+  const rows = names.map((name, i): Row => {
+    const cells: Cell[] = m.series.map((s) => {
+      const v = s.x[i] ?? null;
+      return { parts: v === null ? [words.noData] : timed(model, (t) => t.xText(v)), num };
+    });
+    if (m.link !== undefined) {
+      const v = pointLink(m, i);
+      cells.push({ parts: [v === null ? words.noData : linkText(model, m, v)], num: true });
+    }
+    return { key: name, head: [name], cells };
+  });
+  const columns = m.series.map((s) => ({ text: s.name, num }));
+  if (m.link !== undefined) {
+    columns.push({ text: totalWord(model, words), num: true });
+  }
+  return { corner: model.spec.y?.label ?? "", columns, rows, after };
+}
+
+// A slope's unit is one series' change, so a row is a series, its two ends
+// and the change, and the corner names the measure, which no axis writes.
+function slopeTable(model: Model, m: SlopeModel, words: Words, after: string): TableModel {
+  const end = (v: number | null | undefined) =>
+    v === null || v === undefined ? words.noData : model.yText(v);
+  const rows = m.series.map((s): Row => {
+    const v = slopeChange(s);
+    return {
+      key: s.name,
+      head: [s.name],
+      cells: [
+        { parts: [end(s.y[0])], num: true },
+        { parts: [end(s.y[1])], num: true },
+        { parts: [v === null ? words.noData : changeText(model, v)], num: true },
+      ],
+    };
+  });
+  return {
+    corner: model.spec.y?.label ?? "",
+    columns: [...m.columns.map((text) => ({ text, num: true })), { text: words.change, num: true }],
+    rows,
+    after,
+  };
+}
+
+// A row per dot in series order, then the app's order, its name the head,
+// its series from two up, then each measure under its label, a bubble's
+// size last; a gap reads No data. A dot outside a passed domain is left
+// out, as the plot leaves it.
+function scatterTable(model: Model, m: ScatterModel, words: Words, after: string): TableModel {
+  const several = m.series.length > 1;
+  // Only a passed domain leaves a dot out: a bubble with no size holds no
+  // extent, so it may lie past an inferred one and is still listed.
+  const inside = (v: number | null | undefined, scale: Model["x"] | Model["y"]) =>
+    v === null ||
+    v === undefined ||
+    scale.type === "band" ||
+    !scale.passed ||
+    (v >= scale.lo && v <= scale.hi);
+  const value = (v: number | null, text: (v: number) => string) =>
+    v === null ? words.noData : text(v);
+  const write = { x: model.xText, y: model.yText, r: model.rText };
+  const rows = m.series.flatMap((s) =>
+    s.names.flatMap((name, i): Row[] => {
+      if (!inside(s.x[i], model.x) || !inside(s.y[i], model.y)) {
+        return [];
+      }
+      const cells: Cell[] = measuresOf(m).map((axis) => ({
+        parts: [value(dotValue(s, axis, i), write[axis])],
+        num: true,
+      }));
+      return [
+        {
+          key: name,
+          head: [name],
+          cells: several ? [{ parts: [s.name], num: false }, ...cells] : cells,
+        },
+      ];
+    }),
+  );
+  const columns = measuresOf(m).map((axis) => ({
+    text: model.spec[axis]?.label ?? "",
+    num: true,
+  }));
+  return {
+    corner: "",
+    columns: several ? [{ text: words.series, num: false }, ...columns] : columns,
+    rows,
+    after,
+  };
+}
+
+/** Whether the table's row heads are the app's names, each set in a `<bdi>`
+ *  so a right-to-left name keeps its place: a band's rows, a slope's series
+ *  or a scatter's dots. */
+export const namedRows = (model: Model): boolean => {
+  const kind = primaryOf(model)?.kind;
+  return model.y.type === "band" || kind === "slope" || kind === "scatter";
+};
 
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
-  const rules = ruleSentences(model, words).join(" ");
+  const after = [...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
   if (m === undefined) {
-    return { corner: "", columns: [], rows: [], rules };
+    return { corner: "", columns: [], rows: [], after };
   }
   if (m.kind === "dot") {
     const count = formatter("number", model.locale);
@@ -143,18 +312,30 @@ export function tableModel(model: Model, words: Words): TableModel {
         { text: words.last, num: false },
       ],
       rows,
-      rules,
+      after,
     };
   }
+  if (m.kind === "bar") {
+    return barTable(model, m, words, after);
+  }
+  if (m.kind === "point") {
+    return pointTable(model, m, words, after);
+  }
+  if (m.kind === "slope") {
+    return slopeTable(model, m, words, after);
+  }
+  if (m.kind === "scatter") {
+    return scatterTable(model, m, words, after);
+  }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
-  if (m.kind === "rect" && m.series.length > 1) {
+  if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {
     columns.push({ text: words.total, num: true });
   }
   return {
-    corner: model.spec.x.label ?? "",
+    corner: model.spec.x?.label ?? "",
     columns,
     rows: m.kind === "rect" ? rectRows(model, m, words) : lineRows(model, m, words),
-    rules,
+    after,
   };
 }
 
@@ -231,7 +412,7 @@ function rewrite(el: Element, fresh: Element): void {
  * table with the same columns keeps its rows: changed cells are rewritten
  * in place, new rows inserted and rows that left removed.
  */
-export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot: boolean): void {
+export function syncTable(panel: HTMLElement, t: TableModel, title: string, named: boolean): void {
   let table = panel.querySelector("table");
   if (table?.dataset["head"] !== headSignature(t)) {
     table = document.createElement("table");
@@ -244,7 +425,7 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot:
     // One append per row, since a long line's rows overflow an argument list.
     const body = table.createTBody();
     for (const r of t.rows) {
-      body.append(bodyRow(r, dot));
+      body.append(bodyRow(r, named));
     }
     panel.querySelector("table")?.remove();
     panel.prepend(table);
@@ -267,7 +448,7 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot:
     }
     let after: HTMLTableRowElement | null = null;
     for (const row of t.rows) {
-      const fresh = bodyRow(row, dot);
+      const fresh = bodyRow(row, named);
       let tr = old.get(row.key);
       if (tr === undefined) {
         tr = fresh;
@@ -291,17 +472,17 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, dot:
       after = tr;
     }
   }
-  let rules = panel.querySelector<HTMLElement>('[data-part="rules"]');
-  if (t.rules === "") {
-    rules?.remove();
+  let after = panel.querySelector<HTMLElement>('[data-part="after"]');
+  if (t.after === "") {
+    after?.remove();
   } else {
-    if (rules === null) {
-      rules = document.createElement("p");
-      rules.dataset["part"] = "rules";
-      panel.append(rules);
+    if (after === null) {
+      after = document.createElement("p");
+      after.dataset["part"] = "after";
+      panel.append(after);
     }
-    if (rules.textContent !== t.rules) {
-      rules.textContent = t.rules;
+    if (after.textContent !== t.after) {
+      after.textContent = t.after;
     }
   }
 }

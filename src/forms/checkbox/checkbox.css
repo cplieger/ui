@@ -3,6 +3,7 @@
  * that is partly on (:indeterminate). */
 .cp-checkbox {
   --cp-checkbox-size: 1.375rem;
+  --cp-chart-surface: var(--cp-surface-raised);
   /* 2px in from each side, a whole pixel, so the mask lands on the pixel
    * grid the same way when the box turns. */
   --cp-checkbox-mark: calc(var(--cp-checkbox-size) - 0.25rem);

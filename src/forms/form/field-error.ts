@@ -7,6 +7,8 @@
  * @module
  */
 
+import { byId } from "../../core/tree/tree.js";
+
 export type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
 /** The attribute on a field whose error is showing, valued by who showed
@@ -57,14 +59,13 @@ function errorOf(field: Control): HTMLElement | null {
   if (kept?.isConnected === true) {
     return kept;
   }
-  const root = field.getRootNode() as Document | ShadowRoot;
   for (const id of (field.getAttribute("aria-describedby") ?? "").split(/\s+/)) {
-    const el = id === "" ? null : root.getElementById(id);
+    const el = id === "" ? null : byId(field, id);
     if (el?.classList.contains("cp-field-error") === true) {
       return el;
     }
   }
-  return root.getElementById(`${idOf(field)}-error`);
+  return byId(field, `${idOf(field)}-error`);
 }
 
 /** Writes `message` into `error`, keeping an icon the markup gave it. */

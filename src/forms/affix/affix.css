@@ -1,6 +1,8 @@
 /* A field with a fixed part of its value beside it, such as https:// or a
  * unit: one box, one control tall, the fixed part outside what is typed. */
 .cp-affix {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: flex;
   align-items: stretch;
   /* Border-box: the border sits inside the control height, and stays

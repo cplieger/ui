@@ -131,6 +131,12 @@ export function timeTicks(
   return [...ticks].filter((t) => t >= lo && t <= hi).sort((a, b) => a - b);
 }
 
+/** Whether `lo` to `hi` spans a whole day: 24 hours elapsed, or 24 hours on
+ *  `timeZone`'s wall clock, as a 23-hour spring-forward day does. A shorter
+ *  span across midnight does not. */
+export const spansDay = (lo: number, hi: number, timeZone: string | undefined): boolean =>
+  hi - lo >= DAY || wall(hi, timeZone) - wall(lo, timeZone) >= DAY;
+
 /** The local day `t` falls on in `timeZone`, as a day count since 1970. */
 export const localDay = (t: number, timeZone: string | undefined): number =>
   Math.floor(wall(t, timeZone) / DAY);

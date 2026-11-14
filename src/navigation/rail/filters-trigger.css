@@ -1,4 +1,5 @@
-/* The trigger for the rail's filters, shown only once the rail leaves. */
+/* A toolbar control that serves the rail's filters, shown only once the
+ * rail leaves: the Filters button and its Clear filters companion. */
 .cp-rail-toggle {
   display: none;
 }

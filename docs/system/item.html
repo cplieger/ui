@@ -96,53 +96,79 @@
         class="cp-rail"
         aria-label="Library filters"
       >
-        <div class="cp-filter-group">
-          <div class="cp-filter-title">Show</div>
-          <button
-            class="cp-filter"
-            type="button"
-            aria-pressed="false"
+        <div>
+          <div class="cp-list-heading">Show</div>
+          <ul
+            class="cp-list"
+            data-surface="plain"
+            data-divider="none"
+            data-density="compact"
           >
-            Everything<span class="cp-badge" data-variant="quiet">1,204</span>
-          </button>
-          <button
-            class="cp-filter"
-            type="button"
-            aria-pressed="true"
-          >
-            Needs subtitles<span class="cp-badge" data-variant="quiet">14</span>
-          </button>
-          <button
-            class="cp-filter"
-            type="button"
-            aria-pressed="false"
-          >
-            Pinned<span class="cp-badge" data-variant="quiet">203</span>
-          </button>
-          <button
-            class="cp-filter"
-            type="button"
-            aria-pressed="false"
-          >
-            Timing to fix<span class="cp-badge" data-variant="quiet">3</span>
-          </button>
+            <li>
+              <button
+                class="cp-list-row"
+                type="button"
+                aria-pressed="false"
+              >
+                <span class="cp-cell-stack">Everything</span><span data-part="end"><span class="cp-badge" data-variant="quiet">1,204</span></span>
+              </button>
+            </li>
+            <li>
+              <button
+                class="cp-list-row"
+                type="button"
+                aria-pressed="true"
+              >
+                <span class="cp-cell-stack">Needs subtitles</span><span data-part="end"><span class="cp-badge" data-variant="quiet">14</span></span>
+              </button>
+            </li>
+            <li>
+              <button
+                class="cp-list-row"
+                type="button"
+                aria-pressed="false"
+              >
+                <span class="cp-cell-stack">Pinned</span><span data-part="end"><span class="cp-badge" data-variant="quiet">203</span></span>
+              </button>
+            </li>
+            <li>
+              <button
+                class="cp-list-row"
+                type="button"
+                aria-pressed="false"
+              >
+                <span class="cp-cell-stack">Timing to fix</span><span data-part="end"><span class="cp-badge" data-variant="quiet">3</span></span>
+              </button>
+            </li>
+          </ul>
         </div>
-        <div class="cp-filter-group">
-          <div class="cp-filter-title">Languages</div>
-          <button
-            class="cp-filter"
-            type="button"
-            aria-pressed="false"
+        <div>
+          <div class="cp-list-heading">Languages</div>
+          <ul
+            class="cp-list"
+            data-surface="plain"
+            data-divider="none"
+            data-density="compact"
           >
-            English<span class="cp-badge" data-variant="quiet">1,190</span>
-          </button>
-          <button
-            class="cp-filter"
-            type="button"
-            aria-pressed="false"
-          >
-            French<span class="cp-badge" data-variant="quiet">812</span>
-          </button>
+            <li>
+              <button
+                class="cp-list-row"
+                type="button"
+                aria-pressed="false"
+              >
+                <span class="cp-cell-stack">English</span><span data-part="end"><span class="cp-badge" data-variant="quiet">1,190</span></span>
+              </button>
+            </li>
+            <li>
+              <button
+                class="cp-list-row"
+                type="button"
+                aria-pressed="false"
+              >
+                <span class="cp-cell-stack">French</span><span data-part="end"><span class="cp-badge" data-variant="quiet">812</span></span>
+              </button>
+            </li>
+          </ul>
         </div>
       </aside>
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { localDay, TIME_STEPS, timeStep, timeTicks } from "./time.js";
+import { localDay, spansDay, TIME_STEPS, timeStep, timeTicks } from "./time.js";
 
 const MIN = 60_000;
 const HR = 60 * MIN;
@@ -145,6 +145,31 @@ describe("timeTicks", () => {
       lo + 6 * HR,
     ]);
     expect(timeTicks(lo + 1, lo + 2 * HR - 1, at(2 * HR), "Europe/Paris")).toEqual([]);
+  });
+});
+
+describe("spansDay", () => {
+  const paris = "Europe/Paris";
+  // Paris springs forward on 29 March 2026 and falls back on 25 October.
+  const spring = Date.UTC(2026, 2, 28, 13);
+  const fall = Date.UTC(2026, 9, 24, 12);
+
+  it.each([
+    ["24 hours elapsed", 0, DAY, "UTC", true],
+    ["a minute under 24 hours", 0, DAY - MIN, "UTC", false],
+    ["a 23-hour spring-forward day", spring, spring + 23 * HR, paris, true],
+    ["a minute under that day", spring, spring + 23 * HR - MIN, paris, false],
+    ["a 25-hour fall-back day", fall, fall + 25 * HR, paris, true],
+    ["24 hours elapsed into the fall-back day", fall, fall + DAY, paris, true],
+    [
+      "6 hours across midnight",
+      Date.UTC(2026, 10, 11, 21),
+      Date.UTC(2026, 10, 12, 3),
+      paris,
+      false,
+    ],
+  ] as const)("is %s: %s", (_, lo, hi, zone, spans) => {
+    expect(spansDay(lo, hi, zone)).toBe(spans);
   });
 });
 

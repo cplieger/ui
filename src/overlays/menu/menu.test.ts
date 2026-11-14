@@ -48,6 +48,18 @@ function menu(
 const open = (p: HTMLElement) => p.matches(":popover-open");
 
 describe("enhanceMenu", () => {
+  it("works for a menu built before it joins the document", async () => {
+    const { button, panel, items } = menu();
+    const host = document.createElement("div");
+    host.append(panel);
+    enhanceMenu(panel, { signal: life.signal });
+    document.body.append(host);
+    await userEvent.click(button);
+    expect(open(panel)).toBe(true);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(items[0]);
+  });
+
   it("ties the button to its menu and says whether it is open", async () => {
     const { button, panel } = menu();
     enhanceMenu(panel, { signal: life.signal });

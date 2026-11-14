@@ -30,15 +30,13 @@
   initial-value: transparent;
 }
 
-/* The surface a chart sits on, which only forced colours paint behind the
- * plot. An app's own raised container sets it to the raised token. */
+/* The surface a chart sits on: its halos, outlines and marker numbers, and
+ * the plot's background under forced colours. Every rule that paints a
+ * surface token sets this to the same token (draw.test.ts holds it), so a
+ * chart takes the fill of whatever library surface holds it; :root is the
+ * page for a chart outside every .cp subtree. */
 :root {
   --cp-chart-surface: var(--cp-surface-page);
-}
-
-.cp-list-detail > .cp-detail,
-.cp-gate > .cp-panel {
-  --cp-chart-surface: var(--cp-surface-raised);
 }
 
 .cp-chart {
@@ -47,6 +45,26 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--cp-space-2) var(--cp-space-3);
   margin: 0;
+}
+
+/* Charts on one x range, one under another: the gutters are the stack's, so
+ * every plot starts and ends at the same x whatever its labels. Under 30rem
+ * lines and areas drop their end labels, so the label gutter is 0 there. */
+.cp-chart-stack {
+  --cp-chart-axis-gutter: 8rem;
+  --cp-chart-label-gutter: 5rem;
+
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--cp-space-4);
+}
+
+@container (width < 30rem) {
+  .cp-chart-stack > * {
+    --cp-chart-axis-gutter: 5rem;
+    --cp-chart-label-gutter: 0;
+  }
 }
 
 .cp-chart > figcaption {
@@ -117,6 +135,40 @@
   font-weight: var(--cp-weight-body);
 }
 
+/* A chosen series' chip name shows it by weight as well as by its ring,
+ * one step past the chip's own medium. A hidden copy at that weight holds
+ * the name's width, so choosing a series never wraps the row. */
+.cp-chart > [data-part="legend"] .cp-chip > bdi[data-name] {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.cp-chart > [data-part="legend"] .cp-chip > bdi[data-name]::after {
+  overflow: hidden;
+  block-size: 0;
+  font-weight: var(--cp-weight-strong);
+  visibility: hidden;
+  content: attr(data-name) / "";
+}
+
+.cp-chart > [data-part="legend"] .cp-chip[data-selected] > bdi {
+  font-weight: var(--cp-weight-strong);
+}
+
+/* A bubble chart's size key: two circles at the sizes the plot draws,
+ * standing on the row's baseline, each before its value. */
+.cp-chart > [data-part="legend"] > [data-part="size"] {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--cp-space-1);
+}
+
+.cp-chart > [data-part="legend"] > [data-part="size"] circle {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
+}
+
 .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
 }
@@ -146,8 +198,8 @@
   block-size: 100%;
 }
 
-/* The table view's rules, as a sentence under the table. */
-.cp-chart > [data-part="table"] > [data-part="rules"] {
+/* The table view's rules and notes, as sentences under the table. */
+.cp-chart > [data-part="table"] > [data-part="after"] {
   margin: 0;
   padding: var(--cp-space-2) var(--cp-space-3) var(--cp-space-3);
   font-size: var(--cp-text-sm);
@@ -188,24 +240,78 @@
   stroke-width: 1px;
 }
 
-.cp-chart svg [data-part="rect"] path {
+.cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
+.cp-chart svg [data-part="bar"] path {
   fill: var(--cp-tone-9);
 }
 
+/* A selected bar row's name shows by weight as well as colour. */
+.cp-chart svg [data-part="y"] text[data-selected] {
+  fill: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+}
+
 /* Each dot is a zero-length segment its round cap draws as a circle. */
-.cp-chart svg [data-part="dot"] path {
+.cp-chart svg [data-part="dot"] path,
+.cp-chart svg [data-part="point"] path {
   fill: none;
   stroke: var(--cp-tone-9);
   stroke-width: 6px;
   stroke-linecap: round;
 }
 
-.cp-chart svg [data-part="line"] > path {
+/* A slope's ends, between a timeline's dot and a point's. */
+.cp-chart svg [data-part="ends"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 8px;
+  stroke-linecap: round;
+}
+
+/* A point is a value the reader compares, so its dot is larger. */
+.cp-chart svg [data-part="point"] path {
+  stroke-width: 10px;
+}
+
+/* A scatter's dots stay opaque, so no blend makes a colour the legend never
+ * names, and their outline of the surface keeps overlapping dots apart. */
+.cp-chart svg [data-part="scatter"] path {
+  fill: var(--cp-tone-9);
+  stroke: var(--cp-chart-surface);
+  stroke-width: 1px;
+}
+
+/* A range's bold link and an arrow, its head showing the direction in any
+ * colour, under the dots. */
+.cp-chart svg [data-part="link"] {
+  fill: none;
+  stroke: var(--cp-border-strong);
+  stroke-width: 4px;
+}
+
+.cp-chart svg [data-part="arrow"] {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 2px;
+}
+
+.cp-chart svg [data-part="arrowhead"] {
+  fill: var(--cp-ink-muted);
+}
+
+.cp-chart svg :is([data-part="line"], [data-part="slope"]) > path {
   fill: none;
   stroke: var(--cp-tone-9);
   stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* A slope's end label moved off its dot's height points back to it. */
+.cp-chart svg [data-part="leader"] {
+  fill: none;
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
 }
 
 .cp-chart svg [data-part="rule"] {
@@ -230,6 +336,37 @@
 
 .cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {
   fill: var(--cp-ink);
+}
+
+.cp-chart svg [data-part="end"] text[data-selected] {
+  font-weight: var(--cp-weight-medium);
+}
+
+/* A note's or a bar value's 3 px halo of the plot's surface keeps it
+ * legible over bars, gridlines and rules; the stroke paints first, so it
+ * widens the glyphs by half. */
+.cp-chart svg :is([data-part="note"], [data-part="value"]) text {
+  fill: var(--cp-ink);
+  stroke: var(--cp-chart-surface);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
+.cp-chart svg [data-part="marker"] > path {
+  fill: var(--cp-ink);
+}
+
+.cp-chart svg [data-part="marker"] text {
+  fill: var(--cp-chart-surface);
+}
+
+/* The numbered markers' key, below the plot. */
+.cp-chart > [data-part="notes"] {
+  margin: 0;
+  padding-inline-start: 2.5ch;
+  font-size: var(--cp-text-xs);
+  color: var(--cp-ink);
 }
 
 /* Forced colours leave an inline SVG's illustration alone, so the plot keeps

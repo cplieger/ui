@@ -46,9 +46,11 @@ export const pageNames: readonly string[] = PAGES.map(([page]) => page);
 
 /** The pages in `frames/`, each shown in an `<iframe>` on a card: a piece
  *  that exists only under a media query's width, which the gallery's own
- *  window is wider than. Each is built as `frame-<name>.html`. */
-const FRAMES: readonly (readonly [frame: string, title: string])[] = [
-  ["bottom-nav", "Bottom navigation"],
+ *  window is wider than, or one that must paint with no script, which the
+ *  gallery's pages run. Each is built as `frame-<name>.html`. */
+const FRAMES: readonly (readonly [frame: string, title: string, script: boolean])[] = [
+  ["bottom-nav", "Bottom navigation", true],
+  ["icons", "Icons with no script", false],
 ];
 
 export const frameNames: readonly string[] = FRAMES.map(([frame]) => `frame-${frame}`);
@@ -75,6 +77,18 @@ async function iconGrid(): Promise<string> {
     )
     .join("");
   return `<div class="g-icons">${cells}</div>`;
+}
+
+/** The glyphs the system stylesheet draws by name, each beside its name. */
+async function drawnIcons(): Promise<string> {
+  const css = await readFile(join(ROOT, "src", "foundations", "icons", "icons.css"), "utf8");
+  const cells = [...css.matchAll(/\.cp-icon:where\(\[data-cp-icon="([a-z0-9-]+)"\]\)/g)]
+    .map(
+      ([, n = ""]) =>
+        `<span class="cp-cluster" data-gap="tight"><span class="cp-icon" data-cp-icon="${n}" aria-hidden="true"></span><small>${n}</small></span>`,
+    )
+    .join("");
+  return `<div class="cp-cluster">${cells}</div>`;
 }
 
 /** The `g-` classes the gallery's own stylesheet draws, for review.ts. */
@@ -117,7 +131,7 @@ ${body}
 }
 
 /** A frame's page: the library alone, no gallery header or controls. */
-function bare(title: string, body: string): string {
+function bare(title: string, body: string, script: boolean): string {
   return `<!DOCTYPE html>
 <html lang="en" class="cp" data-theme="light">
 <head>
@@ -129,8 +143,7 @@ function bare(title: string, body: string): string {
 </head>
 <body>
 ${body}
-<script type="module" src="frame.js"></script>
-</body>
+${script ? '<script type="module" src="frame.js"></script>\n' : ""}</body>
 </html>
 `;
 }
@@ -147,9 +160,12 @@ export async function buildGallery(out = join(HERE, "dist")): Promise<void> {
       .replace('<div class="g-icons" data-icon-grid></div>', grid);
     await writeFile(join(out, `${page}.html`), frame(title, page, body, classes));
   }
-  for (const [name, title] of FRAMES) {
-    const body = (await readFile(join(HERE, "frames", `${name}.html`), "utf8")).trimEnd();
-    await writeFile(join(out, `frame-${name}.html`), bare(title, body));
+  const drawn = await drawnIcons();
+  for (const [name, title, script] of FRAMES) {
+    const body = (await readFile(join(HERE, "frames", `${name}.html`), "utf8"))
+      .trimEnd()
+      .replaceAll("<div data-drawn-icons></div>", drawn);
+    await writeFile(join(out, `frame-${name}.html`), bare(title, body, script));
   }
   await build({
     // Against the repo root, where npm runs the script, and literals, so a

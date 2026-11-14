@@ -2,6 +2,8 @@
  * optional sparkline beside it, on a tile. The same tile as a button or a
  * link opens what is behind the number. */
 .cp-figure {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--cp-space-1) var(--cp-space-3);

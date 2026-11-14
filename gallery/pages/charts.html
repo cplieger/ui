@@ -1,30 +1,30 @@
 <main class="play">
   <header>
     <h1>Charts</h1>
-    <p>Charts with axes, drawn by the library from data: grelot's Statistics tab, with its four charts and their states. Point at a plot, tap it, or Tab to it and use the arrow keys; each chart's Table view shows the same data as a table.</p>
+    <p>Charts with axes, drawn by the library from data: grelot's Statistics tab, with its four charts and their states, the other time series a chart draws, bars and dots that compare categories, and slope, scatter and bubble charts. Point at a plot, tap it, or Tab to it and use the arrow keys; each chart's Table view shows the same data as a table.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#statistics">Statistics</a><a href="#states">Loading, empty and error</a><a href="#phone">At a phone's width</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#statistics">Statistics</a><a href="#time-series">Time series</a><a href="#categories">Categories</a><a href="#two-scales">Slope and scatter</a><a href="#states">Loading, empty and error</a><a href="#phone">At a phone's width</a></nav>
 
   <section class="g-section" id="statistics">
     <h2>Statistics</h2>
     <div class="g-grid">
       <div class="card g-wide" data-new>
-        <h2>Stacked bars over 6 hours</h2>
+        <h2>Stacked columns over 6 hours</h2>
         <figure class="cp-chart" data-chart="posts-6">
           <figcaption>Posts by thread kind</figcaption>
           <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
         </figure>
         <div class="g-row-inline"><button class="cp-button" data-size="sm" type="button" data-chart-tick="posts-6">A minute passes</button></div>
-        <footer>Four thread kinds stacked in 15-minute buckets, the last one still filling: its readings say “so far”, and the summary's busiest bucket leaves it out. Point at a bar, tap it, or Tab to the plot and use the arrows; the legend row above carries the values and never changes size, and Up and Down read one kind. A minute passes adds posts to the newest bucket, keeping the selection and an open table in place.</footer>
+        <footer>Four thread kinds stacked in 15-minute buckets, the last one still filling: its readings say “so far”, and the summary's busiest bucket leaves it out. Point at a column, tap it, or Tab to the plot and use the arrows; the legend row above carries the values and never changes size, and Up and Down read one kind. A minute passes adds posts to the newest bucket, keeping the selection and an open table in place.</footer>
       </div>
       <div class="card g-wide" data-new>
-        <h2>Stacked bars over 72 hours</h2>
+        <h2>Stacked columns over 72 hours</h2>
         <figure class="cp-chart" data-chart="posts-72">
           <figcaption>Posts by thread kind</figcaption>
           <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
         </figure>
-        <footer>The same chart over 72 hours in 1-hour buckets. Ticks step as the width allows, each new day's date on a second line, and the nights show as low bars. Neighbouring bars stay 1 px apart until a bucket is too narrow for a gap and a bar.</footer>
+        <footer>The same chart over 72 hours in 1-hour buckets. Ticks step as the width allows, each new day's date on a second line, and the nights show as low columns. Neighbouring columns stay 1 px apart until a bucket is too narrow for a gap and a column.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Histogram with its median and 95th percentile</h2>
@@ -49,6 +49,205 @@
           <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
         </figure>
         <footer>Live and active agents sampled each minute and drawn in steps. The server restarted 40 minutes in, so the lines start there, and the keys read the minutes before as “No data”. From 30rem wide up each line is labelled at its end. Left and Right step through the moments something changed, which are also the table's rows.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Three charts on one time range</h2>
+        <div class="cp-segmented" role="radiogroup" aria-label="Range"><label><input type="radio" name="chart-stack-range" value="6" checked>6 hours</label><label><input type="radio" name="chart-stack-range" value="24">24 hours</label><label><input type="radio" name="chart-stack-range" value="72">72 hours</label></div>
+        <div class="g-resizable">
+          <div class="cp-chart-stack" data-chart-group>
+            <figure class="cp-chart" data-chart="posts">
+              <figcaption>Posts by thread kind</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+            <figure class="cp-chart" data-chart="activity">
+              <figcaption>Agent activity</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+            <figure class="cp-chart" data-chart="agents">
+              <figcaption>Agents live and active</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+          </div>
+        </div>
+        <footer>The Statistics tab's posts, agent activity and agents over one time range, in a chart stack. Each chart keeps its own y scale, and the stack gives every one the same y gutter and end-label gutter, 8rem and 5rem, so each x axis starts and ends where the others do and a moment lines up straight down the column. Drag the box's corner narrower than 30rem: the step line drops its end labels and the gutters become 5rem and 0 together. A new range loads all three.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="time-series">
+    <h2>Time series</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Step area over 6 hours</h2>
+        <figure class="cp-chart" data-chart="posts-area">
+          <figcaption>Posts by thread kind</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>The 6-hour posts above drawn with <code>shape: "area"</code>: each kind's run of touching buckets is one shape, flat across each bucket, so neighbouring buckets meet with no gap or seam. An empty bucket ends the run rather than being bridged. The keys, readings, summary and table are the columns' own, “so far” included. Columns suit few, often empty buckets of small counts; the area suits many buckets that are rarely empty.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Stacked area over samples</h2>
+        <figure class="cp-chart" data-chart="memory">
+          <figcaption>Memory by process</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Three processes sampled each minute and stacked, the first on the baseline. The worker's memory climbs until each collection; four minutes went unsampled after 11:00 AM, which breaks every layer, since the layers above would otherwise dip. From 30rem wide up each layer is labelled at its end with its last value; the legend row adds the total. Up and Down move through the layers in order.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>100% stacked area</h2>
+        <figure class="cp-chart" data-chart="energy">
+          <figcaption>Electricity by source</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Gas, wind and solar every 15 minutes over a day, each as its share of the total, so solar rises through the day while the total stays out of the shape. The readings, the end labels and the table give the shares with the absolute total in megawatts.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Grouped columns</h2>
+        <figure class="cp-chart" data-chart="grouped">
+          <figcaption>Posts by thread kind</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Three kinds side by side in each hour, to compare the kinds hour by hour. Each group is inset an eighth of its bucket a side, so groups stand further apart than their columns. The readings, summary and table give no total, since a total read from groups misleads, and the summary names the highest single value.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>100% stacked columns</h2>
+        <figure class="cp-chart" data-chart="share-columns">
+          <figcaption>Posts by thread kind</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>The kinds' shares of each hour's posts over 24 hours. An hour with no posts would draw nothing and read its values. The table adds a Total column with the counts the shares hide.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A line with notes</h2>
+        <figure class="cp-chart" data-chart="latency">
+          <figcaption>Response time</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>The 95th percentile of response time each minute, with a target rule and two notes the app wrote: the chart places each beside its point, flips it off an edge and wraps it at 12rem on a halo of the chart's surface. A reading of the minute a note names adds the note. Narrower than 30rem, or when two notes would overlap, every note becomes a numbered marker listed under the plot.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="categories">
+    <h2>Categories</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Bar chart, sorted by value</h2>
+        <figure class="cp-chart" data-chart="ages">
+          <figcaption>Median age by country</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Fifteen countries, oldest first, as the app sent them: the chart never sorts, so an update never moves a row under the reader. Each bar carries its value at its end, so there is no x axis, and the world's median is a rule down every row. Up and Down move through the rows, Page keys by ten; a pointer picks the row under it, and only a tap selects, so a finger can scroll past.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Stacked bars</h2>
+        <figure class="cp-chart" data-chart="agent-kinds">
+          <figcaption>Posts by agent and thread kind</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Eight agents' posts over 24 hours, each split into the four thread kinds, the first on the baseline. Each bar carries its total; a row's reading names each kind and the total, and Left and Right step through the kinds.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Grouped bars</h2>
+        <figure class="cp-chart" data-chart="agent-weeks">
+          <figcaption>Posts by agent, last week and this</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Two weeks one under another in each row, each bar with its own value, to compare the weeks agent by agent. The readings and the table give no total, since a group compares its series rather than adding them.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>100% stacked bars</h2>
+        <figure class="cp-chart" data-chart="agent-shares">
+          <figcaption>Thread kinds by agent</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>The same posts as each kind's share of its agent's, so every bar reaches 100% and an x axis reads the shares. The readings and the table add the count the shares hide.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Diverging bars</h2>
+        <figure class="cp-chart" data-chart="population-change">
+          <figcaption>Population change, 2010 to 2020</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>One series either side of 0: growth rightward, decline leftward in its own slot. Every value but 0 is written with its sign, on the labels, the readings, the summary and the table, so the sign never rests on colour or side alone.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Split bars</h2>
+        <figure class="cp-chart" data-chart="platforms">
+          <figcaption>How often adults use each platform</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>A panel per answer, 16 px apart on one shared scale, so equal lengths are equal shares in every panel and each answer reads from its own baseline. Left and Right move through the panels. Narrower than 30rem the panels fold into grouped bars on the same scale; the phone frame below shows it.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Diverging stacked bars</h2>
+        <figure class="cp-chart" data-chart="survey">
+          <figcaption>What 412 users said</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Five answers from strongly disagree to strongly agree, the two disagreeing ones left of 0 and the neutral one straddling it, so agreement reads as the length right of the line. The axis writes distances from 0 both ways. A row reads its answers in order and their total.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Population pyramid</h2>
+        <figure class="cp-chart" data-chart="pyramid">
+          <figcaption>Population of France by age and sex, 2024</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Two series back to back from an 8 px spine on one shared scale, the oldest age group at the top. Each side is headed by its name, and with value labels off an axis under each side reads distances from the spine. The names keep the gutter at every width, so 21 age groups stay 24 px rows on a phone.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Dot plot</h2>
+        <figure class="cp-chart" data-chart="ages-by-sex">
+          <figcaption>Median age by country, women and men</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Two dots on each country's row. No length encodes a value, so x runs over the data alone, without 0, and close values stay apart. Left and Right move between a row's dots. The note joins its row: a reading of Nigeria adds it.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Range plot</h2>
+        <figure class="cp-chart" data-chart="pay">
+          <figcaption>Median yearly earnings by degree, women and men</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Each row's two dots joined by a bold line, for when the gap matters more than the values. A row reads both values and the gap; the legend row and the table add a Gap column, and the summary names the widest and narrowest gap.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Arrow plot</h2>
+        <figure class="cp-chart" data-chart="electric-cars">
+          <figcaption>Electric share of new car sales, 2013 and 2023</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>An arrow from each country's 2013 share to its 2023 one, so the direction reads in any colour. Where the two dots stand under 18 px apart, as for Japan and India at a phone's width, the arrow has no room for its head and only the dots draw; the reading and the table still give the change, with its sign.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="two-scales">
+    <h2>Slope and scatter</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Slope chart</h2>
+        <figure class="cp-chart" data-chart="life">
+          <figcaption>Life expectancy at birth, 2000 and 2021</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Six countries between two years, each a line from its 2000 value to its 2021 one, so China passing the United States reads as two lines crossing. Every end carries its name and value, so there is no y axis, and labels that would touch move apart, joined to their dots by a leader. Left and Right move between the two years and Up and Down through the countries at that year; choosing one reads both ends and the change. The note joins 2021: a reading of that year adds it.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Scatter plot</h2>
+        <figure class="cp-chart" data-chart="nations">
+          <figcaption>Life expectancy against income, 2022</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>43 countries in four regions, each a dot at its income on a log x and its life expectancy on y, neither axis starting at 0. Dots are outlined in the chart's surface, so a crowd of one region still shows each dot. A pointer picks the dot whose edge is nearest within 40 px, and only a tap selects on a touch screen; Left and Right walk the dots in income order, Up and Down in life expectancy order. A reading of the United States adds the note.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Bubble chart</h2>
+        <figure class="cp-chart" data-chart="nations-sized">
+          <figcaption>Life expectancy against income, sized by population, 2022</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>The same countries with each dot's area proportional to its population, the largest drawn first across every region so a small country is never hidden under a large one. The size key at the end of the legend row shows two sizes the plot draws. A pointer inside several bubbles picks the smallest, the one it sees on top. The readings, the summary and the table add the population.</footer>
       </div>
     </div>
   </section>
@@ -101,7 +300,7 @@
         <h2>The tab's four charts together</h2>
         <div class="cp-segmented" role="radiogroup" aria-label="Range"><label><input type="radio" name="chart-range" value="6" checked>6 hours</label><label><input type="radio" name="chart-range" value="24">24 hours</label><label><input type="radio" name="chart-range" value="72">72 hours</label></div>
         <div class="g-resizable" data-start="phone">
-          <div class="cp-stack g-chart-group" data-chart-group>
+          <div class="cp-chart-stack" data-chart-group>
             <figure class="cp-chart" data-chart="posts">
               <figcaption>Posts by thread kind</figcaption>
               <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
@@ -120,7 +319,97 @@
             </figure>
           </div>
         </div>
-        <footer>The tab on a 390 px phone, whose page gutters leave the charts 358 px. The four share their left and right edges through two gutter lengths set on their parent, 5rem and 0 under 30rem, so their x axes line up and agent names are cut at 5rem. Drag the box's corner to widen it: from 30rem the step line gains its end labels and the gutters grow to 8rem and 5rem. A new range loads all four together.</footer>
+        <footer>The tab on a 390 px phone, whose page gutters leave the charts 358 px. The four sit in one chart stack and share their left and right edges through its gutters, 5rem and 0 under 30rem, so their x axes line up and agent names are cut at 5rem. Drag the box's corner to widen it: from 30rem the step line gains its end labels and the gutters grow to 8rem and 5rem. A new range loads all four together.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Stacked area at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-memory">
+            <figcaption>Memory by process</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>The memory chart on a 390 px phone. Under 30rem the layers lose their end labels and the legend row carries the names and values. Drag the corner wider than 30rem and the labels return in the gutter, moved apart where they would overlap.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Notes at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-latency">
+            <figcaption>Response time</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Under 30rem every note is a numbered marker, a 20 px circle at its point, and the notes are listed below the plot, all together. Drag the corner wider than 30rem and they return to the plot as text.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Grouped columns at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-grouped">
+            <figcaption>Posts by thread kind</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Three kinds in 24 buckets of 15 minutes on 358 px, each group still inset an eighth of its bucket a side. Drag the corner narrower: once a column would be under 2 px the inset drops first, then the columns of a group touch, and the gap between groups goes last, so a column is never paired with the next bucket's.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Bars at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-ages">
+            <figcaption>Median age by country</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Under 30rem each name sits on its own line above its bar, so the bars take the frame's whole width and a row is 44 px, tall enough for a finger. Drag the corner wider than 30rem and the names return to the gutter beside 24 px rows.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Split bars at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-platforms">
+            <figcaption>How often adults use each platform</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Three panels on 358 px would leave each about 85 px, too thin for its bars, so under 30rem they fold into one: each platform's answers stand one under another on the same scale, and the panel heads go, leaving the legend row to name the answers. Drag the corner wider than 30rem and the panels return.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Dot, range and arrow plots at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <div class="cp-stack">
+            <figure class="cp-chart" data-chart="phone-ages-by-sex">
+              <figcaption>Median age by country, women and men</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+            <figure class="cp-chart" data-chart="phone-pay">
+              <figcaption>Median yearly earnings by degree, women and men</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+            <figure class="cp-chart" data-chart="phone-electric-cars">
+              <figcaption>Electric share of new car sales, 2013 and 2023</figcaption>
+              <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+            </figure>
+          </div>
+        </div>
+        <footer>Under 30rem each name sits above its dots, with the 10 px dots on a 38 px row, so the dots take the frame's whole width. On the phone the dot plot's note becomes a numbered marker listed under the plot, and more arrows lose their heads, since their dots stand closer.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Slope chart at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-life">
+            <figcaption>Life expectancy at birth, 2000 and 2021</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Under 30rem each country's name is written once, at the 2021 end, and the 2000 end holds its value alone, so the lines keep most of the frame's width. Drag the corner wider than 30rem and the names return at both ends.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Bubble chart at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-nations-sized">
+            <figcaption>Life expectancy against income, sized by population, 2022</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Under 30rem the largest bubble's radius halves, from 24 px to 12 px, so China and India stay under a tenth of the plot's width, and the size key shrinks with them. The note becomes a numbered marker listed under the plot. Drag the corner wider than 30rem and both return to their full size.</footer>
       </div>
     </div>
   </section>

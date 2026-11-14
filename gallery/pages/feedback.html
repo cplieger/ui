@@ -37,21 +37,22 @@
   <section class="g-section" id="notices">
     <h2>Notices and banners</h2>
     <div class="g-grid">
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Notices in the page</h2>
         <div class="cp-stack">
           <div class="cp-notice" data-tone="neutral"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span><span>Verdicts come from SeaDex and refresh every hour.</span></div>
           <div class="cp-notice" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span><span>Every source answered on the last check.</span></div>
           <div class="cp-notice" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>AniList answered with too many requests at 14:02. The refresh resumes at 14:10.</span></div>
           <div class="cp-notice" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><span>Radarr rejected the API key. Paste a new key in Settings, then Sources.</span></div>
+          <div class="cp-notice" data-tone="warning"><strong><span class="cp-icon" data-cp-icon="rotate-ccw" aria-hidden="true"></span>Restart to apply 2 changes</strong><ul><li>Listen port, from 8080 to 8443</li><li>Data folder</li></ul><small>Both are saved and wait for the next start. <a href="#notices">Restart from System</a></small></div>
         </div>
-        <footer>A notice belongs to the screen it is on and stays while its fact holds.</footer>
+        <footer>A notice belongs to the screen it is on and stays while its fact holds. With reasons, it holds a head with its glyph, the list, and a foot with its one way to act, as the banner does.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Banner for the whole app</h2>
-        <div class="cp-banner" data-tone="warning" role="status"><span class="cp-icon" data-cp-icon="wifi-off" aria-hidden="true"></span><span><strong>Connection lost.</strong> Reconnecting in 4 seconds…</span><button class="cp-button" data-size="sm" type="button">Retry now</button></div>
-        <div class="cp-banner g-gap-top" data-tone="warning" role="status"><strong><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>This app can be reached from the internet</strong><ul><li>It answers on a public address, 203.0.113.7.</li><li>Sign-in by password is on, with no passkey required.</li></ul><small>Last seen from outside <time data-ago="2400"></time>. <a href="#announce">How to limit access</a></small></div>
-        <footer>For a state of the whole app, such as an update that needs a reload, or a lost connection in an app with no header status (with one, its offline state says it alone): at the top of the main area, above the page's own content, until the state ends, so it has no dismiss. When the state has reasons, they follow as a short list with one way to act on them.</footer>
+        <div class="cp-notice" data-variant="banner" data-tone="warning" role="status"><span class="cp-icon" data-cp-icon="wifi-off" aria-hidden="true"></span><span><strong>Connection lost.</strong> Reconnecting in 4 seconds…</span><button class="cp-button" data-size="sm" type="button">Retry now</button></div>
+        <div class="cp-notice g-gap-top" data-variant="banner" data-tone="warning" role="status"><strong><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>This app can be reached from the internet</strong><ul><li>It answers on a public address, 203.0.113.7.</li><li>Sign-in by password is on, with no passkey required.</li></ul><small>Last seen from outside <time data-ago="2400"></time>. <a href="#announce">How to limit access</a></small></div>
+        <footer>For a state of the whole app, such as an update that needs a reload, or a lost connection in an app with no header status (with one, its offline state says it alone): at the top of the main area, above the page's own content, until the state ends, so it has no dismiss. When the state has reasons, they follow as a short list with one way to act on them. It is the notice in its banner form: smaller words, a tighter box, and links that keep the accent.</footer>
       </div>
     </div>
   </section>
@@ -69,7 +70,26 @@
           <span class="cp-chip" data-tone="success" data-chip-demo><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span><span>Up</span></span>
         </div>
         <div class="g-row-inline g-gap-top"><button class="cp-button" type="button" data-chip-next>Next state</button></div>
-        <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once, a little larger, and fades back to its wash; the change is announced, since the flash is only seen. Next state moves the last chip from Up to Slow to Down. A chip is a state, never a control.</footer>
+        <footer>A glyph and a word in a tone. A state that changes while you watch flashes its solid once, a little larger, and fades back to its wash; the change is announced, since the flash is only seen. Next state moves the last chip from Up to Slow to Down. A chip is a label that travels with its thing, such as a copy's state on its cover, never a control.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>State words</h2>
+        <div class="cp-form">
+          <span class="g-row-inline"><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Set</span><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>Not set</span><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Rejected</span></span>
+          <span class="cp-state" data-size="ui" data-cp-state="done">Connected, Sonarr 4.0.9</span>
+          <span class="cp-state" data-size="ui" data-cp-state="failed">Sonarr did not answer at this address and port.</span>
+          <div class="cp-cluster"><button class="cp-button" type="button" data-state-test="st-status"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-state" data-size="ui" id="st-status"></span></div>
+        </div>
+        <footer>The state of a thing in its row or field: its tone's glyph and its word, here a setting's. A test or a task says the state of its own work with data-cp-state, and the stylesheet draws the glyph: the spinner while it runs, a check once it is done, a cross once it failed. Press Test connection twice to see both answers. A label that travels with the thing is a chip.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>An item's own work</h2>
+        <ul class="cp-list" aria-label="Subtitles to upload">
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono">Frieren.S01E04.en.ass</span><small>41 KB</small></span><span data-part="end"><span class="cp-state" data-cp-state="done">Uploaded</span></span></div></li>
+          <li><div class="cp-list-row" tabindex="-1" data-work-retry data-done-line="38 KB"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono">Frieren.S01E05.en.ass</span><small>The server did not answer.</small></span><span data-part="end"><span class="cp-state" data-cp-state="failed">Not uploaded</span></span><button class="cp-button" data-size="sm" type="button" aria-label="Retry Frieren.S01E05.en.ass"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Retry</span></button></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono">Frieren.S01E06.en.ass</span><small>Larger than 10 MB, the most the server takes.</small></span><span data-part="end"><span class="cp-state" data-cp-state="failed">Not uploaded</span></span></div></li>
+        </ul>
+        <footer>An upload, a send or a check says where its own work is with data-cp-state, and the stylesheet draws the glyph: busy, done, or failed with the reason on the row's second line. A failed item has one small action, Retry, which turns busy while the work runs again; the reason stays until the answer, and Retry leaves once the work is done. A failure that would fail the same way again, such as a file over the limit, has no Retry. Press Retry twice: it fails once more, then the file uploads.</footer>
       </div>
       <div class="card" data-new>
         <h2>Live dot, badges, times</h2>
@@ -89,9 +109,10 @@
       <div class="card" data-new>
         <h2>A known amount</h2>
         <div class="stage">
-          <span class="variant"><span class="cp-progress" id="check-bar" role="progressbar" aria-label="Running a check" aria-valuenow="0"><span class="cp-progress-track"><span class="cp-progress-fill"></span></span></span>Run a check</span>
+          <span class="variant"><span class="cp-progress" id="check-bar"><progress max="100" value="0" aria-label="Running a check"></progress></span>Run a check</span>
           <button class="cp-button" type="button" data-progress-run="check-bar">Start</button>
         </div>
+        <footer>The bar is a native progress, so the page sets its value and nothing else. With the last step it turns green and its check pops in.</footer>
       </div>
       <div class="card">
         <h2>An unknown amount</h2>
@@ -118,11 +139,11 @@
       </div>
       <div class="card g-wide">
         <h2>Loading content</h2>
-        <div class="cp-panel cp-stack" aria-busy="true" aria-label="Loading the library">
+        <section class="cp-panel cp-stack" aria-busy="true" aria-label="Loading the library">
           <div class="cp-skeleton" data-variant="heading"></div>
           <div class="cp-skeleton"></div>
           <div class="cp-skeleton" data-variant="last"></div>
-        </div>
+        </section>
         <footer>A region that loads draws its shape at once with skeleton lines and marks itself busy; a whole screen loading uses the three twirls above.</footer>
       </div>
     </div>
@@ -147,7 +168,7 @@
       </div>
       <div class="card" data-new>
         <h2>First sync running</h2>
-        <div class="cp-empty"><strong><span class="cp-loader" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="cp-progress" role="progressbar" aria-label="Reading the library from Sonarr" aria-valuemax="351" aria-valuenow="120" aria-valuetext="Series 120 of 351" data-sync-demo><span class="cp-progress-track"><span class="cp-progress-fill"></span></span>Series 120 of 351</span><a class="cp-button" href="#empty">View activity</a></div>
+        <div class="cp-empty"><strong><span class="cp-loader" aria-hidden="true"><span></span></span>Reading your library from Sonarr</strong><span class="cp-progress" data-sync-demo><progress max="351" value="120" aria-label="Reading the library from Sonarr"></progress><span>Series 120 of 351</span></span><a class="cp-button" href="#empty">View activity</a></div>
         <footer>The first-run state between connecting and data: what is being read, how far, and a way to watch it. The bar is the one for a known amount, with the step in words beside it, or under it in a narrow box, and both move on as the sync does.</footer>
       </div>
     </div>

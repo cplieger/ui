@@ -37,6 +37,10 @@ describe("detectLanguage reads a language from its first lines", () => {
     ["shell prompts", "$ npm install\n$ npm test", "sh"],
     ["shell commands", "cd /srv/app\ngit pull --rebase\nmake build && make install", "sh"],
     ["a pipeline", "cat log.txt | grep error | wc -l", "sh"],
+    ["a shell function", "function greet() {\n  echo hello\n}", "sh"],
+    ["a shell function that deploys", "function deploy() {\n  kubectl apply -f k8s/\n}", "sh"],
+    ["a POSIX shell function", "greet() {\n  echo hi\n}", "sh"],
+    ["a function with a JavaScript body", "function init() {\n  console.log(1);\n}", "js"],
     ["a Dockerfile", "FROM golang:1.27 AS build\nWORKDIR /src\nRUN go build ./...", "docker"],
     ["a Dockerfile with an ARG first", "ARG GO=1.27\nFROM golang:${GO}\nCOPY . .", "docker"],
     ["a Dockerfile under a comment", "# syntax=docker/dockerfile:1\nFROM alpine:3.22", "docker"],
@@ -50,6 +54,10 @@ describe("detectLanguage reads a language from its first lines", () => {
     ["a bare hunk", "@@ -10,3 +10,4 @@ func f() {\n context\n+added", "diff"],
   ])("detects %s", (_name, code, lang) => {
     expect(detectLanguage(code)).toBe(lang);
+  });
+
+  it("leaves a header both shell and JavaScript share, with nothing else to go on, uncoloured", () => {
+    expect(detectLanguage("function init() {\n  setup();\n}")).toBe("");
   });
 
   it("gives a key every other function takes", () => {
