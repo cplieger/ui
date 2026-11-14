@@ -5028,7 +5028,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* Facts: a native <dl>, the labels muted in one column and the values in
- * the next, in one column under 40rem as .cp-pairs stacks. A compared fact,
+ * the next, in one column under 40rem as .cp-pairs stacks, or in a panel
+ * narrower than 24rem, such as a side column's card. A compared fact,
  * data-variant="compare", holds a .cp-state word and a <small> note in its
  * <dd>, the three in aligned columns. */
 .cp-facts {
@@ -5078,7 +5079,7 @@ th[aria-sort="descending"] > .cp-sort::after {
     gap: 0;
   }
 
-  .cp-facts > dd {
+  .cp-facts > dd:not(:last-child) {
     margin-block-end: var(--cp-space-3);
   }
 
@@ -5092,7 +5093,36 @@ th[aria-sort="descending"] > .cp-sort::after {
     grid-column: 1 / -1;
   }
 
-  .cp-facts[data-variant="compare"] > dd > * {
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
+    margin-block-end: var(--cp-space-3);
+  }
+}
+
+/* A panel holding facts is their container, as a flush panel is a table's. */
+.cp-panel:has(> .cp-facts) {
+  container: cp-facts / inline-size;
+}
+
+@container cp-facts (width < 24rem) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cp-facts > dd:not(:last-child) {
+    margin-block-end: var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] > dt {
+    grid-column: 1 / -1;
+  }
+
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
     margin-block-end: var(--cp-space-3);
   }
 }
@@ -7246,12 +7276,15 @@ a.cp-chip[data-cp-pressed] {
 /* A side column beside the rest, such as a poster beside its facts or a
  * form's help beside the form. It stacks above the rest once the rest would
  * be narrower than half the box, with no media or container query: the
- * element sizes to whatever holds it. The side's width is --cp-side-width. */
+ * element sizes to whatever holds it. The side's width is --cp-side-width.
+ * Each column keeps its own height, so a card beside a longer column ends
+ * where its content does. */
 .cp-side-main {
   --cp-side-width: 16rem;
 
   display: flex;
   flex-wrap: wrap;
+  align-items: start;
   gap: var(--cp-space-4);
 }
 

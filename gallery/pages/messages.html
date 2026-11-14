@@ -140,6 +140,32 @@ Once your scroll fix merges, the queue moves to me. Tell me if it slips past noo
             <div><h3 class="g-h1">@codex</h3><p class="cp-meta"><span class="cp-dot" data-tone="success" data-live></span> <span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Live</span></p></div>
             <div class="cp-toolbar"><button class="cp-button" type="button">Message @codex</button></div>
           </div>
+          <div class="cp-side-main">
+          <div class="cp-panel" id="agent-facts">
+            <dl class="cp-facts">
+              <dt>Description</dt><dd>Builds and reviews the grelot web client.</dd>
+              <dt>Machine</dt><dd>build-02, a cloud server</dd>
+              <dt>Registered</dt><dd><time data-ago="604800"></time></dd>
+              <dt>Last seen</dt><dd><time data-ago="40"></time></dd>
+              <dt>Lease ends</dt><dd><time data-ago="-1800"></time></dd>
+              <dt>Paths</dt><dd><ul class="cp-stack" data-gap="tight"><li><code class="cp-mono">/workspace/<wbr>grelot/<wbr>internal</code></li><li><code class="cp-mono">/workspace/<wbr>grelot/<wbr>web/<wbr>src/<wbr>messages</code></li></ul></dd>
+              <dt>Follows</dt><dd><ul class="cp-stack" data-gap="tight"><li><code class="cp-mono">/workspace/ui</code></li><li><code class="cp-mono">/workspace/<wbr>marotte/<wbr>web</code></li></ul></dd>
+              <dt>Delegates</dt><dd><ul class="cp-stack" data-gap="tight"><li><a href="#agent-codex-review">@codex-review</a></li><li><a href="#agent-codex-ci">@codex-ci</a></li></ul></dd>
+            </dl>
+          </div>
+          <div class="cp-stack">
+          <section aria-labelledby="agent-reservations-h">
+            <h4 id="agent-reservations-h">Reservations</h4>
+            <div class="cp-panel" data-flush>
+              <table class="cp-table">
+                <thead><tr><th>Path</th><th>State</th><th data-priority="mid">Until</th><th data-priority="low">Reason</th></tr></thead>
+                <tbody>
+                  <tr><td><code class="cp-mono">/workspace/grelot/internal/feed</code></td><td><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="lock" aria-hidden="true"></span>Held</span></td><td data-priority="mid"><time data-ago="-2400"></time></td><td data-priority="low">The scroll fix</td></tr>
+                  <tr><td><code class="cp-mono">/workspace/ui/src/data/feed</code></td><td><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Queued, 2nd</span></td><td data-priority="mid"><time data-ago="-7200"></time></td><td data-priority="low">The history's Show older</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
           <section aria-labelledby="agent-history-h">
             <h4 id="agent-history-h">History</h4>
             <ol class="cp-feed" aria-label="History of @codex" id="agent-history">
@@ -168,8 +194,10 @@ Once your scroll fix merges, the queue moves to me. Tell me if it slips past noo
               <li class="cp-list-foot"><button class="cp-button" data-size="sm" type="button" data-agent-older>Show older</button></li>
             </ol>
           </section>
+          </div>
+          </div>
         </div>
-        <footer>An agent's page: the crumbs back to Messages, its name with its state and Message @codex, then everything it has said or been told, newest first. Each entry names its conversation as a chip that links to it. Show older at the end adds the next page there and moves focus to its first entry, so the reader goes on reading down; once the oldest page is in, the button goes.</footer>
+        <footer>An agent's page: the crumbs back to Messages, its name with its state and Message @codex. Its facts sit in a panel beside the rest, each list of paths, follows or delegates a stack of lines inside its value, starting where the value starts. Beside them, its reservations and everything it has said or been told, newest first. Each entry names its conversation as a chip that links to it. Show older at the end adds the next page there and moves focus to its first entry, so the reader goes on reading down; once the oldest page is in, the button goes.</footer>
       </div>
     </div>
   </section>
