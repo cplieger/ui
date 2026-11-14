@@ -81,8 +81,10 @@ describe("decimal ticks and class boundaries", () => {
           if (least > 0) {
             expect(written.some((v) => v !== Number(v.toFixed(least - 1)))).toBe(true);
           }
-          const write = decimalFormatter(undefined, "en", least, most);
-          expect(written.map(write).filter((t) => /^-0(\.0+)?%?$/.test(t))).toEqual([]);
+          for (const format of [undefined, "percent"] as const) {
+            const write = decimalFormatter(format, "en", least, most);
+            expect(written.map(write).filter((t) => /^-0(\.0+)?%?$/.test(t))).toEqual([]);
+          }
         },
       ),
     );
