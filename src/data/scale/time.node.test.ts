@@ -98,6 +98,20 @@ describe("timeTicks", () => {
     expect(clock(ticks, "Europe/Paris").every((t) => t === "00:00" || t === "12:00")).toBe(true);
   });
 
+  it("keeps hour ticks on local hours over a week of summer time between equal ends", () => {
+    // Boa Vista kept summer time from 8 to 15 October 2000 only.
+    const ticks = timeTicks(
+      Date.UTC(2000, 9, 7, 4),
+      Date.UTC(2000, 9, 16, 4),
+      at(12 * HR),
+      "America/Boa_Vista",
+    );
+    expect(ticks).toHaveLength(18);
+    expect(clock(ticks, "America/Boa_Vista").every((t) => t === "00:00" || t === "12:00")).toBe(
+      true,
+    );
+  });
+
   it("does the same in a southern-hemisphere zone", () => {
     // Sydney falls back on 5 April 2026 and springs forward on 4 October.
     const april = timeTicks(

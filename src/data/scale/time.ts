@@ -181,6 +181,26 @@ function stepDays(step: TimeStep, from: number, to: number): number[] {
   return days;
 }
 
+// Whether a span of at most two weeks keeps one offset throughout, read once
+// a day: tzdata holds no change and its return within a day of each other.
+function sameOffset(
+  lo: number,
+  hi: number,
+  offLo: number,
+  offHi: number,
+  timeZone: string | undefined,
+): boolean {
+  if (offLo !== offHi || hi - lo > 14 * DAY) {
+    return false;
+  }
+  for (let t = lo + DAY; t < hi; t += DAY) {
+    if (offset(t, timeZone) !== offLo) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** The ticks `TIME_STEPS[at]` apart from `lo` to `hi`, on `timeZone`'s wall
  *  clock, generating only those: below a day, every instant whose clock
  *  reads a multiple of the step since midnight, so an hour step gives a 23-
@@ -206,8 +226,7 @@ export function timeTicks(
     for (const day of stepDays(step, from, Math.floor((hi + offHi) / DAY))) {
       ticks.add(midnight(day, timeZone));
     }
-  } else if (offLo === offHi && hi - lo <= 14 * DAY) {
-    // One offset at both ends of a span of at most weeks: no change between.
+  } else if (sameOffset(lo, hi, offLo, offHi, timeZone)) {
     for (let w = Math.ceil((lo + offLo) / ms) * ms; w - offLo <= hi; w += ms) {
       ticks.add(w - offLo);
     }

@@ -1236,7 +1236,7 @@ export function sliceRing(p: PieFrame, from: number, to: number): string {
 // The slice from `from` to `to` on `p`, its straight edges each moved `g` into it.
 function sliceOutline(p: PieFrame, from: number, to: number, g: number): string {
   const span = to - from;
-  const d = p.r > 0 ? Math.asin(Math.min(1, g / p.r)) : 0;
+  const d = p.r > 0 ? Math.asin(g / p.r) : 0;
   const outer = `M${pt(rimPoint(p, from + d, p.r))}${arcTo(p.r, span - 2 * d > Math.PI, true, rimPoint(p, to - d, p.r))}`;
   const di = p.inner > 0 ? Math.asin(Math.min(1, g / p.inner)) : 0;
   if (p.inner > 0 && span - 2 * di > 0) {
