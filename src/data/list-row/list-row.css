@@ -91,7 +91,7 @@
   padding-block-start: var(--cp-space-3);
 }
 
-:where(.cp-list[data-density="compact"]) > li > .cp-list-heading {
+.cp-list[data-density="compact"] > li > .cp-list-heading {
   padding-inline: var(--cp-space-2);
 }
 
@@ -375,8 +375,8 @@
 }
 
 /* A day's heading inside a timeline: the line joins one day's marks. */
-.cp-list[data-variant="timeline"]
-  > li:is(:has(> .cp-list-heading), :has(+ li > .cp-list-heading))::before {
+.cp-list[data-variant="timeline"] > li:has(> .cp-list-heading)::before,
+.cp-list[data-variant="timeline"]:has(.cp-list-heading) > li:has(+ li > .cp-list-heading)::before {
   content: none;
 }
 

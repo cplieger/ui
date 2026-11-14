@@ -654,6 +654,56 @@ describe("enhanceKeyedList", () => {
       expect(inView()).toBe(true);
     });
 
+    it("ends a windowed table body of mixed heights where it ends drawn whole", async () => {
+      /** A body of copies, every fifth with a second line, in its panel. */
+      const panelOf = (): { panel: HTMLDivElement; body: HTMLTableSectionElement } => {
+        const panel = document.createElement("div");
+        panel.style.blockSize = "15rem";
+        panel.style.inlineSize = "40rem";
+        panel.style.overflowY = "auto";
+        const table = document.createElement("table");
+        table.className = "cp-table";
+        const body = table.createTBody();
+        body.dataset["virtual"] = "";
+        panel.append(table);
+        document.body.append(panel);
+        return { panel, body };
+      };
+      const copy = (key: string): HTMLTableRowElement => {
+        const tr = copyRow(key);
+        if (Number(key.slice(1)) % 5 === 0) {
+          const line = document.createElement("div");
+          line.textContent = "Kept: the release with the better subtitles";
+          tr.cells[0]?.append(line);
+        }
+        return tr;
+      };
+      const keys = keysOf(400);
+      const whole = panelOf();
+      const all = enhanceKeyedList(whole.body, {
+        keys,
+        row: copy,
+        window: false,
+        signal: life.signal,
+      });
+      const end = offsetIn(whole.panel, all.rowOf("t399") as HTMLElement);
+      const height = whole.panel.scrollHeight;
+      whole.panel.remove();
+
+      const { panel, body } = panelOf();
+      const list = enhanceKeyedList(body, { keys, row: copy, signal: life.signal });
+      for (let step = 0; step < 2000; step += 1) {
+        if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1) {
+          break;
+        }
+        panel.scrollTop += panel.clientHeight;
+        panel.dispatchEvent(new Event("scroll"));
+      }
+      await frames();
+      expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
+      expect(Math.abs(offsetIn(panel, list.rowOf("t399") as HTMLElement) - end)).toBeLessThan(1);
+    });
+
     it("draws a day's heading as an item of the list: no line above it, the space a group's heading has, lined up with the rows", () => {
       const item = (inner: string) => `<li>${inner}</li>`;
       const heading = (day: string) => item(`<h3 class="cp-list-heading">${day}</h3>`);
@@ -696,6 +746,10 @@ describe("enhanceKeyedList", () => {
       expect(
         style(timeline.querySelector(".cp-list-heading") ?? undefined).paddingInlineStart,
       ).toBe("0px");
+      boxed.dataset["density"] = "compact";
+      expect(style(second).paddingInlineStart).toBe(
+        style(boxed.querySelector(".cp-list-row") ?? undefined).paddingInlineStart,
+      );
     });
   });
 
@@ -820,6 +874,30 @@ describe("enhanceKeyedList", () => {
     );
 
     it.each(SHAPES)(
+      "keeps a drawn row that grows above the view, with the app's patch, under the engine's own anchoring, in %s",
+      async (_, make) => {
+        const { ul, scroller } = make();
+        const list = enhance(ul, { keys: keysOf(5000) });
+        scroller.scrollTop += 300.5 * pitchOf(ul);
+        await frames();
+        const top = viewTop(scroller);
+        const seen = rowAt(ul, top);
+        const was = seen.getBoundingClientRect().top;
+        const above = rows(ul)[0] as HTMLElement;
+        const key = above.dataset["key"] ?? "";
+        expect(above.getBoundingClientRect().bottom).toBeLessThan(top);
+        // The app's patch: a row's details opened, which `row` does not know.
+        above.dataset["open"] = "";
+        (above.firstElementChild as HTMLElement).style.minBlockSize = "10rem";
+        await frames();
+        await frames();
+        expect(list.rowOf(key)).toBe(above);
+        expect(above.dataset["open"]).toBe("");
+        expect(Math.abs(seen.getBoundingClientRect().top - was)).toBeLessThan(1);
+      },
+    );
+
+    it.each(SHAPES)(
       "goes back to the list's start by a relative scroll on a new set of rows, in %s",
       async (_, make) => {
         const { ul, scroller } = make();
@@ -839,12 +917,15 @@ describe("enhanceKeyedList", () => {
     );
   });
 
-  it("stops following the scroll once its signal aborts", async () => {
+  it("stops following the scroll once its signal aborts, its own anchoring given back", async () => {
     const ul = virtualList();
+    ul.style.overflowAnchor = "auto";
     const stop = new AbortController();
     enhance(ul, { keys: keysOf(20_000), signal: stop.signal });
+    expect(ul.style.overflowAnchor).toBe("none");
     const first = keysIn(ul);
     stop.abort();
+    expect(ul.style.overflowAnchor).toBe("auto");
     ul.scrollTop = 5000 * pitchOf(ul);
     await frames();
     expect(keysIn(ul)).toEqual(first);

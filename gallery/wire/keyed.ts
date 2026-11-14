@@ -152,7 +152,10 @@ const relative = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
 const clock = new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit" });
 
 function heading(day: Day, now: Date): HTMLLIElement {
-  const back = Math.round((now.getTime() - day.at.getTime()) / DAY);
+  const midnight = new Date(now);
+  midnight.setHours(0, 0, 0, 0);
+  // Midnight to midnight, rounded, as a day of a clock change is 23 or 25 hours.
+  const back = Math.round((midnight.getTime() - day.at.getTime()) / DAY);
   const h = document.createElement("h3");
   h.className = "cp-list-heading";
   if (back < 2) {

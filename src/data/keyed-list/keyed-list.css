@@ -16,12 +16,25 @@
 
 /* A spacer stands for rows out of view: the module sets its height, and it
  * paints nothing. Its second attribute outranks the table's hover fill,
- * which would win a tie on its scope's proximity. */
+ * which would win a tie on its scope's proximity. Its cell's borders are
+ * a row's width, as collapsed borders share their width between the rows
+ * they part, and a borderless spacer would leave each row beside it half
+ * a line short of its height drawn whole. */
 .cp-table tbody tr[data-part="spacer"][aria-hidden] > td {
   block-size: auto;
   padding: 0;
-  border: 0;
+  border-inline: 0;
+  border-block: var(--cp-line-w) solid transparent;
   background: none;
+}
+
+/* At the table's edge a row has no line, so a spacer there has none. */
+.cp-table tbody tr[data-part="spacer"][aria-hidden]:first-child > td {
+  border-block-start: 0;
+}
+
+.cp-table tbody tr[data-part="spacer"][aria-hidden]:last-child > td {
+  border-block-end: 0;
 }
 
 .cp-table tbody tr[data-skeleton] .cp-skeleton {

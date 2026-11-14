@@ -365,7 +365,9 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
 
   const shown = (): boolean => container.getClientRects().length > 0;
 
-  const range = (): readonly [number, number] => {
+  /** The rows to draw, about `mark`'s row put back at its top when given,
+   *  as the draw's correction will. */
+  const range = (mark?: Mark): readonly [number, number] => {
     const n = keys.length;
     if (!windows()) {
       return [0, n];
@@ -374,8 +376,14 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       return [0, Math.min(n, Math.max(1, overscan))];
     }
     const band = seenOf(container, true);
-    const top = startOf();
     const tops = sumsOf();
+    const i = mark === undefined ? undefined : at.get(mark.key);
+    // A row measured since the last layout moves the slots the page has not
+    // taken yet, so the rows' start is read off the kept row, never the page.
+    const top =
+      mark === undefined || i === undefined || !drawn.has(mark.key)
+        ? startOf()
+        : mark.top - (tops[i] ?? 0);
     // Row i spans tops[i] to tops[i + 1] - gap below the first child's top.
     const start = clamp(past(tops, band.top - top + gap) - 1 - overscan, 0, n);
     return [start, clamp(past(tops, band.bottom - top) + overscan, start, n)];
@@ -658,7 +666,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
               ? { key: still.key, top: viewOf(scroller).top + still.off }
               : anchorOf(pass.before ?? at);
       for (let round = 0; round < 6; round += 1) {
-        const [start, end] = range();
+        const [start, end] = range(mark);
         rows = layout(
           start,
           end,
@@ -675,8 +683,8 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
             : kept.getBoundingClientRect().top - mark.top;
         const scrolled = Math.abs(by) >= 0.5;
         if (scrolled) {
-          // iOS WebKit drops an absolute scroll write made during a fling,
-          // and keeps a relative one.
+          // Relative, so a scroll the reader makes meanwhile is added to,
+          // never undone by an offset read before it.
           scroller.scrollBy({ top: by, behavior: "instant" });
         }
         if (!windows()) {
@@ -741,7 +749,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       scroller === container
         ? -container.scrollTop
         : shown()
-          ? Math.min(0, startOf() - seenOf(container, true).top)
+          ? startOf() - seenOf(container, true).top
           : 0;
     if (by < 0) {
       scroller.scrollBy({ top: by, behavior: "instant" });
@@ -773,6 +781,17 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     writeCount(fresh);
   };
 
+  // The engine's anchoring would move the scroller for a row that grows
+  // above the view before the next draw, which would take that for the
+  // reader's scroll and draw a drawn row again from `row`, losing the app's
+  // patches; the module keeps the place itself.
+  if (sizes !== undefined && signal?.aborted !== true) {
+    const anchoring = container.style.overflowAnchor;
+    container.style.overflowAnchor = "none";
+    whenAborted(signal, () => {
+      container.style.overflowAnchor = anchoring;
+    });
+  }
   setKeys(options.keys, options.of);
   for (const child of [...container.children]) {
     if (!child.matches(".cp-list-foot")) {
