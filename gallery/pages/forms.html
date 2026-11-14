@@ -444,11 +444,28 @@
         <fieldset class="cp-choices" id="sp-codecs">
           <legend class="cp-label" id="sp-codecs-l">Embedded subtitles to ignore</legend>
           <button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-describedby="sp-codecs-l" data-reset="pgs vobsub">Reset to default</button>
-          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="pgs" checked><span>PGS<small>Pictures, from a Blu-ray</small></span></label>
-          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="vobsub"><span>VobSub<small>Pictures, from a DVD</small></span></label>
-          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="ass" checked><span>ASS<small>Styled text</small></span></label>
+          <fieldset class="cp-choices">
+            <legend>Text</legend>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="srt"><span>SRT</span></label>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="ass" checked><span>ASS</span></label>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="ssa"><span>SSA</span></label>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="webvtt"><span>WebVTT</span></label>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="mov_text"><span>mov_text</span></label>
+          </fieldset>
+          <fieldset class="cp-choices">
+            <legend>Picture</legend>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="pgs" checked><span>PGS<small>From a Blu-ray</small></span></label>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="vobsub"><span>VobSub<small>From a DVD</small></span></label>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="dvb"><span>DVB<small>From digital TV</small></span></label>
+          </fieldset>
+          <fieldset class="cp-choices">
+            <legend>Broadcast</legend>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="teletext"><span>Teletext</span></label>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="cea608"><span>CEA-608</span></label>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="ttml"><span>TTML</span></label>
+          </fieldset>
         </fieldset>
-        <footer>A few values from a fixed set are checkboxes in a fieldset, with Reset to default at the end of the legend's line. Filters over a list are filter chips, and a set too long to scan is the select panel.</footer>
+        <footer>Up to about seven values from a fixed set are checkboxes in a fieldset; a longer set that falls into named groups, here eleven formats in three, keeps its checkboxes with a fieldset per group. Reset to default sits at the end of the legend's line. Filters over a list are filter chips, and a set too long to scan, or with no groups, is the select panel.</footer>
       </div>
     </div>
   </section>

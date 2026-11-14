@@ -40,6 +40,20 @@
   margin-block-start: var(--cp-space-2);
 }
 
+/* A longer set split into named groups, such as subtitle formats by kind: a
+ * fieldset of its own per group inside the set's, its legend quieter than
+ * the set's, and twice a row's gap between two groups. */
+.cp-choices .cp-choices > legend {
+  margin-block-end: var(--cp-space-1);
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-choices > .cp-choices:not(:first-of-type) > legend {
+  padding-block-start: var(--cp-space-2);
+}
+
 .cp-choice {
   display: flex;
   align-items: center;

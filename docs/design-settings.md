@@ -37,7 +37,7 @@ While any saved change waits for a restart, a warning `.cp-notice` with reasons 
 - A setting this page cannot change, because a config file, the environment or an administrator sets it, shows its value in a `.cp-set-elsewhere` line where the control would be, with a neutral `.cp-chip` naming where it is set, such as "from config.yaml", and one sentence of help on how to change it, such as "Changes only at startup: edit config.yaml and restart subflux." It is never a disabled control, so its value stays readable and selectable.
 - A stored secret, such as an API key, shows "Saved" and "Replace". Replace opens an empty field with a Show button inside it, in a `.cp-input-wrap`, and "Keep saved value" puts the saved one back. A save sends nothing for a kept secret. [secret](forms/secret.md) drives Replace, Keep saved value and the Show button.
 - A secret the server takes from its environment is a `.cp-set-elsewhere` line too: its `.cp-state`, such as Set, Not set or Rejected, stands in place of its value, which it never shows.
-- Several values from a fixed set, such as the subtitle formats to ignore, follow [Several from a fixed set](design-patterns.md#forms): a few are checkboxes in a `.cp-choices` with "Reset to default" at the end of the legend's line.
+- Several values from a fixed set, such as the subtitle formats to ignore, follow [Several from a fixed set](design-patterns.md#forms): a few, or a longer set in named groups such as text, picture and broadcast formats, are checkboxes in a `.cp-choices` with "Reset to default" at the end of the legend's line.
 - A service the app reaches gets "Test connection" from [`@cplieger/ui/connection-test`](forms/connection-test.md), which marks the field at fault.
 
 ## Appearance

@@ -1405,6 +1405,52 @@ describe("css/system.css", () => {
     expect(page.getByRole("group", { name: "Embedded subtitles to ignore" }).element()).toBe(set);
   });
 
+  it("splits a longer set into named groups, each legend quieter than the set's, groups twice a row's gap apart", () => {
+    theme("light");
+    const group = (name: string, boxes: string[]) =>
+      `<fieldset class="cp-choices"><legend>${name}</legend>` +
+      boxes
+        .map(
+          (b) =>
+            `<label class="cp-choice"><input class="cp-checkbox" type="checkbox"><span>${b}</span></label>`,
+        )
+        .join("") +
+      "</fieldset>";
+    const el = build(
+      '<span id="gr-muted" style="color: var(--cp-ink-muted)"></span>' +
+        '<fieldset class="cp-choices" style="inline-size: 24rem"><legend class="cp-label" id="gr-l">Embedded subtitles to ignore</legend>' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-describedby="gr-l">Reset to default</button>' +
+        group("Text", ["SRT", "ASS"]) +
+        group("Picture", ["PGS", "VobSub"]) +
+        "</fieldset>",
+    );
+    const set = el.querySelector("fieldset") as HTMLFieldSetElement;
+    const [text, picture] = [...set.querySelectorAll(":scope > fieldset")] as [Element, Element];
+    const rect = (e: Element) => e.getBoundingClientRect();
+    // Where a legend's words start: its box top past its own padding.
+    const words = (g: Element) => {
+      const legend = g.querySelector("legend") as Element;
+      return {
+        top: rect(legend).top + Number.parseFloat(getComputedStyle(legend).paddingTop),
+        bottom: rect(legend).bottom,
+      };
+    };
+    const [t1, t2] = [...text.querySelectorAll(".cp-choice")].map(rect) as [DOMRect, DOMRect];
+    const [p1] = [...picture.querySelectorAll(".cp-choice")].map(rect) as [DOMRect];
+    expect(words(text).top - rect(set.querySelector("button") as Element).bottom).toBe(8);
+    expect([t1.top - words(text).bottom, p1.top - words(picture).bottom]).toEqual([4, 4]);
+    expect(t2.top - t1.bottom).toBe(8);
+    expect(words(picture).top - t2.bottom).toBe(16);
+    const [outer, inner] = [set, text].map((g) =>
+      getComputedStyle(g.querySelector("legend") as Element),
+    );
+    const muted = getComputedStyle(el.querySelector("#gr-muted") as Element).color;
+    expect([inner?.fontSize, inner?.fontWeight, inner?.color]).toEqual(["13px", "500", muted]);
+    expect(outer?.color).not.toBe(muted);
+    expect(page.getByRole("group", { name: "Picture" }).element()).toBe(picture);
+    expect(page.getByRole("group", { name: "Embedded subtitles to ignore" }).element()).toBe(set);
+  });
+
   it("draws the danger glyph for an error written without one, and not twice for one with it", () => {
     theme("light");
     const el = build(
