@@ -1140,22 +1140,6 @@ input.cp-input::-webkit-calendar-picker-indicator {
   block-size: 0.875rem;
 }
 
-/* A cover's stand-in: a harmony colour and the kind's glyph. */
-.g-cover {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 2 / 3;
-  border-radius: var(--cp-radius-control);
-  background: var(--av, var(--cp-harmony-2));
-  color: var(--av-on, var(--cp-harmony-2-on));
-  overflow: hidden;
-}
-
-.g-cover > .cp-icon {
-  --cp-icon-size: 2rem;
-}
-
 .g-list .g-row {
   cursor: default;
 }
@@ -1414,43 +1398,6 @@ html:has(.g-header) {
   background: var(--cp-success-3);
 }
 
-/* A media header: poster, title, facts, a quiet link and the actions. */
-.g-media-head {
-  display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr);
-  gap: var(--cp-space-5);
-  align-items: start;
-  container-type: inline-size;
-}
-
-.g-media-head .g-cover {
-  inline-size: 7rem;
-}
-
-.g-media-head h2 {
-  font-size: var(--cp-text-2xl);
-}
-
-.g-media-head .g-media-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-1) var(--cp-space-3);
-  margin: var(--cp-space-1) 0 var(--cp-space-3);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-}
-
-@media (width < 40rem) {
-  .g-media-head {
-    grid-template-columns: 5rem minmax(0, 1fr);
-    gap: var(--cp-space-3);
-  }
-
-  .g-media-head .g-cover {
-    inline-size: 5rem;
-  }
-}
-
 /* Settings at compact width: the categories become a select; a category
  * with unsaved changes carries a dot in both forms. */
 .g-cat-select {
@@ -1516,24 +1463,7 @@ html:has(.g-header) {
 }
 
 
-/* The item hero: an alternative title in its own language, link chips. */
-.g-alt-title {
-  margin: 0.125rem 0 0;
-  color: var(--cp-ink-muted);
-}
-
-.g-linkchips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cp-space-2);
-  margin-block-start: var(--cp-space-3);
-}
-
 /* ===== Data: the table and its rules ===== */
-
-.g-media-head h2 + .g-alt-title + .g-media-meta {
-  margin-block-start: var(--cp-space-2);
-}
 
 /* ===== Layouts: frames at three widths, and arrangements inside a region ===== */
 .g-shell {
