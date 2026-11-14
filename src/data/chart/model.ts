@@ -97,13 +97,15 @@ export interface RectModel {
   readonly arrange: "stack" | "group" | "share";
   readonly shape: "bars" | "area";
   readonly series: readonly SeriesModel[];
+  /** Each bucket's sum, found once so a reading per series costs no pass
+   *  over the others; read through `bucketTotal`. */
+  readonly totals: readonly number[];
   /** The buckets drawn, read and listed: every one not wholly outside the domain. */
   readonly shown: readonly number[];
 }
 
 /** The sum of bucket `i`'s values, a `null` as 0. */
-export const bucketTotal = (m: RectModel, i: number): number =>
-  m.series.reduce((n, s) => n + (s.y[i] ?? 0), 0);
+export const bucketTotal = (m: RectModel, i: number): number => m.totals[i] ?? 0;
 
 /** The height series `s` draws in bucket `i`, a `null` as 0: under "share"
  *  its share of the bucket's total, 0 when the total is, else its value. */
@@ -135,6 +137,9 @@ export interface LineModel extends Samples {
 export interface AreaModel extends Samples {
   readonly kind: "area";
   readonly arrange: "stack" | "share";
+  /** Each sample's stack top, found once so a reading per series costs no
+   *  pass over the others; read through `sampleTotal`. */
+  readonly totals: readonly (number | null)[];
 }
 
 /** A mark over `x` samples, read by the same stops and keys. */
@@ -168,17 +173,7 @@ export function stepStopAt(m: SampleModel, i: number): number {
 
 /** The stack's top at sample `i` of `m`, or `null` where any series is a
  *  gap, which breaks every layer there. */
-export function sampleTotal(m: AreaModel, i: number): number | null {
-  let total = 0;
-  for (const s of m.series) {
-    const v = s.y[i] ?? null;
-    if (v === null) {
-      return null;
-    }
-    total += v;
-  }
-  return total;
-}
+export const sampleTotal = (m: AreaModel, i: number): number | null => m.totals[i] ?? null;
 
 /** The total area `m` draws its stack to at sample `i`, or `null` where it
  *  draws none: a gap in any series, or under "share" a total of 0, which
@@ -1778,6 +1773,33 @@ function series(list: RectMark["series"], log = false): SeriesModel[] {
   return list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, y: gaps(s.y, log) }));
 }
 
+// A rect's series and each of its `n` buckets' sum, a `null` as 0.
+function rectSeries(list: RectMark["series"], n: number) {
+  const out = series(list);
+  const totals = new Array<number>(n).fill(0);
+  for (const s of out) {
+    for (let i = 0; i < n; i++) {
+      totals[i] = (totals[i] ?? 0) + (s.y[i] ?? 0);
+    }
+  }
+  return { series: out, totals };
+}
+
+// An area's series and each of its `n` samples' stack top, `null` where any
+// series is a gap.
+function areaSeries(list: RectMark["series"], n: number) {
+  const out = series(list);
+  const totals = new Array<number | null>(n).fill(0);
+  for (const s of out) {
+    for (let i = 0; i < n; i++) {
+      const total = totals[i] ?? null;
+      const v = s.y[i] ?? null;
+      totals[i] = total === null || v === null ? null : total + v;
+    }
+  }
+  return { series: out, totals };
+}
+
 const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
   list.map((s, i) => {
     const slot = s.slot ?? i + 1;
@@ -2160,7 +2182,7 @@ export function chartModel(
               ? m.arrange
               : "stack",
           shape: m.shape ?? "bars",
-          series: series(m.series),
+          ...rectSeries(m.series, m.x1.length),
           shown: shownBuckets(m, index, x),
         };
       case "line":
@@ -2178,7 +2200,7 @@ export function chartModel(
           x: m.x,
           step: m.curve === "step",
           arrange: m.arrange ?? "stack",
-          series: series(m.series),
+          ...areaSeries(m.series, m.x.length),
           from: lowerBound(m.x, x.lo),
           to: upperBound(m.x, x.hi),
         };
