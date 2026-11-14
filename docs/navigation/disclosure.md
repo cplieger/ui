@@ -44,7 +44,7 @@ A `<details>` takes one look in one of two forms, with one chevron that the styl
 
 ## Accordion
 
-`.cp-accordion` draws sections in one raised box, divided by lines, the chevron at the end of each summary. A summary holds its title, then an optional count and chip: the count is a quiet `.cp-badge` whose number carries its words for a screen reader in a `.cp-visually-hidden` span, such as "episodes". The element after the summary is the section's content.
+`.cp-accordion` draws sections in one raised box, divided by lines, the chevron at the end of each summary. A summary holds its title, then an optional count and chip: the count is a quiet `.cp-badge` whose number carries its words for a screen reader in a `.cp-visually-hidden` span, such as "episodes". In a narrow box the count and the chip move under the title whole, so neither the title nor the chip breaks. The element after the summary is the section's content.
 
 A section with its own menu is a `.cp-accordion-section` holding the `<details>` and a small quiet button that opens a [menu](../overlays/menu.md). The button sits beside the summary before the chevron, outside it, so opening the menu never opens or shuts the section, and the summary keeps the button's room free so a long title wraps short of it. One menu can serve every section's button.
 

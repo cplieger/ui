@@ -1975,10 +1975,9 @@ describe("css/system.css", () => {
     const s = summary.getBoundingClientRect();
     const words = wordsOf(summary).getBoundingClientRect();
     expect(words.left - s.left).toBeCloseTo(16, 0);
-    expect(words.right + 8 + Number.parseFloat(chevron.marginLeft) + 18).toBeCloseTo(
-      s.right - 16,
-      0,
-    );
+    expect([chevron.position, chevron.right]).toEqual(["absolute", "16px"]);
+    expect(Number.parseFloat(chevron.top) + 9).toBeCloseTo(s.height / 2, 0);
+    expect(getComputedStyle(summary).paddingRight, "the chevron's room and its gap").toBe("42px");
     expect(getComputedStyle(body).color).toBe(colourOf("var(--cp-ink-muted)"));
     expect(getComputedStyle(body).padding).toBe("0px 16px 16px");
   });
@@ -2015,16 +2014,34 @@ describe("css/system.css", () => {
     expect(s.right - b.right).toBeCloseTo(40, 0);
     expect(b.right).toBeLessThan(s.right - 16 - Number.parseFloat(chevron.width));
     const chevronMiddle =
-      s.top +
-      Number.parseFloat(getComputedStyle(summary).paddingTop) +
-      Number.parseFloat(chevron.marginTop) +
-      Number.parseFloat(chevron.height) / 2;
+      s.top + Number.parseFloat(chevron.top) + Number.parseFloat(chevron.height) / 2;
     expect(chevronMiddle).toBeCloseTo(b.top + b.height / 2, 0);
     expect((lines[0] as DOMRect).top - s.top).toBeGreaterThanOrEqual(4);
     expect(lines.length).toBeGreaterThan(1);
     expect(Math.max(...lines.map((r) => r.right))).toBeLessThanOrEqual(b.left);
     expect(count.getBoundingClientRect().right).toBeLessThanOrEqual(b.left);
     expect(summary.contains(button)).toBe(false);
+  });
+
+  it("puts a section's chip under its title in a narrow box, breaking neither, short of the menu button", () => {
+    theme("light");
+    const el = build(season("Season 2"));
+    (el.querySelector(".cp-badge") as HTMLElement).insertAdjacentHTML(
+      "afterend",
+      '<span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert"></span>Older revision</span>',
+    );
+    const summary = el.querySelector("summary") as HTMLElement;
+    const chip = summary.querySelector(".cp-chip") as HTMLElement;
+    const count = summary.querySelector(".cp-badge") as HTMLElement;
+    const button = el.querySelector(".cp-accordion-section > .cp-button") as HTMLElement;
+    const title = [...wordsOf(summary).getClientRects()];
+    const c = chip.getBoundingClientRect();
+    expect(title, "the title breaks").toHaveLength(1);
+    expect(count.getBoundingClientRect().top).toBeLessThan((title[0] as DOMRect).bottom);
+    expect(c.top).toBeGreaterThanOrEqual((title[0] as DOMRect).bottom);
+    expect(c.height, "the chip breaks").toBeCloseTo(22, 0);
+    expect(c.left).toBeCloseTo(summary.getBoundingClientRect().left + 16, 0);
+    expect(c.right).toBeLessThanOrEqual(button.getBoundingClientRect().left);
   });
 
   it("opens a section's menu from its button without opening or shutting the section", async () => {

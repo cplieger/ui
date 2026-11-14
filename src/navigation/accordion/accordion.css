@@ -16,12 +16,18 @@
   border-block-start: var(--cp-line-w) solid var(--cp-line);
 }
 
+/* The title, its count and its chip wrap as whole pieces, so a narrow box
+ * puts the chip under the title rather than breaking either. The end
+ * padding keeps the chevron's room, which sits outside the flow. */
 :is(.cp-accordion, .cp-accordion-section) > details > summary {
+  position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--cp-space-2);
+  gap: var(--cp-space-1) var(--cp-space-2);
   min-block-size: var(--cp-control-h);
-  padding: var(--cp-space-1) var(--cp-space-4);
+  padding-block: var(--cp-space-1);
+  padding-inline: var(--cp-space-4) calc(var(--cp-space-4) + var(--cp-icon-ui) + var(--cp-space-2));
   border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
   font-weight: var(--cp-weight-medium);
 }
@@ -34,12 +40,11 @@
 /* The chevron ends the summary, by a wrapped title's first line and level
  * with a menu button. */
 :is(.cp-accordion, .cp-accordion-section) > details > summary::before {
-  align-self: start;
-  order: 2;
+  position: absolute;
+  inset-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2);
+  inset-inline-end: var(--cp-space-4);
   inline-size: var(--cp-icon-ui);
   block-size: var(--cp-icon-ui);
-  margin-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2 - var(--cp-space-1));
-  margin-inline-start: auto;
   color: var(--cp-ink-muted);
   transition-duration: 200ms;
 }
@@ -73,14 +78,8 @@
 
 /* Keeps the menu button's width free before the chevron, so a long title
  * or chip wraps short of the button instead of running under it. */
-.cp-accordion-section > details > summary::after {
-  content: "";
-  flex: none;
-  order: 1;
-  inline-size: var(--cp-accordion-menu-w);
-  margin-inline-start: auto;
-}
-
-.cp-accordion-section > details > summary::before {
-  margin-inline-start: 0;
+.cp-accordion-section > details > summary {
+  padding-inline-end: calc(
+    var(--cp-space-4) + 1.5rem + var(--cp-accordion-menu-w) + var(--cp-space-2)
+  );
 }
