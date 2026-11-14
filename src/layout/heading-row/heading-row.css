@@ -1,0 +1,144 @@
+/* A heading row: a title block, then the .cp-toolbar of what the page or
+ * section can do. A leading .cp-cover makes it an item's hero. */
+.cp-heading-row {
+  container: cp-heading / inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--cp-space-3) var(--cp-space-6);
+  margin-block-end: var(--cp-space-5);
+}
+
+.cp-heading-row > :is(:first-child, .cp-cover + *) {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+/* The poster leads and the title block starts at its top, beside it until
+ * the row cannot hold both, then under it. The toolbar stays level with
+ * the title, since the block beside a poster runs long. */
+.cp-heading-row:has(> .cp-cover:first-child) {
+  align-items: start;
+}
+
+.cp-heading-row > .cp-cover:first-child {
+  flex: none;
+  inline-size: 7rem;
+}
+
+/* A title's line of facts sits close under it, read as one block. */
+.cp-heading-row > :is(:first-child, .cp-cover + *) > :is(h1, h2, h3) + p {
+  margin-block-start: var(--cp-space-1);
+}
+
+/* The title in its own language: the app sets its lang. */
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="alt-title"] {
+  margin-block-start: 0.125rem;
+  color: var(--cp-ink-muted);
+}
+
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="alt-title"] + p {
+  margin-block-start: var(--cp-space-2);
+}
+
+/* Separate facts, a span each: the gap stands between them, so no dot
+ * joins them into one string. */
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="meta"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-1) var(--cp-space-3);
+  color: var(--cp-ink-muted);
+}
+
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="lines"] {
+  display: grid;
+  gap: 0.125rem;
+  margin-block-end: 0;
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.cp-heading-row
+  > :is(:first-child, .cp-cover + *)
+  > * + :is([data-part="lines"], [data-part="links"], .cp-cluster) {
+  margin-block-start: var(--cp-space-3);
+}
+
+.cp-heading-row > :is(:first-child, .cp-cover + *) > [data-part="links"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+}
+
+/* A link chip. The mark drawn after its words says where it goes: the
+ * chevron stays in the app, the external mark leaves it. The app writes
+ * the words a screen reader needs, such as ", opens AniList". */
+.cp-heading-row [data-part="links"] > a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+  min-block-size: var(--cp-control-h-sm);
+  padding-inline: var(--cp-space-3);
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-round);
+  color: var(--cp-ink);
+  font-size: var(--cp-text-sm);
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    border-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+.cp-heading-row [data-part="links"] > a::after {
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background-color: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+}
+
+.cp-heading-row [data-part="links"] > a[rel~="external"]::after {
+  mask-image: url("../icons/svg/external-link.svg");
+}
+
+.cp-heading-row [data-part="links"] > a:not([rel~="external"]):dir(rtl)::after {
+  transform: scaleX(-1);
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-heading-row [data-part="links"] > a:hover {
+      border-color: var(--cp-border-strong);
+      background: var(--cp-fill);
+    }
+
+    .cp-heading-row [data-part="links"] > a:hover::after {
+      background-color: var(--cp-ink);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-heading-row [data-part="links"] > a::after {
+    background: LinkText;
+  }
+}
+
+.cp-heading-row > .cp-toolbar {
+  flex: 0 1 auto;
+  justify-content: end;
+}
+
+@container cp-heading (width < 40rem) {
+  .cp-heading-row > .cp-toolbar {
+    flex: 1 1 100%;
+    justify-content: start;
+  }
+
+  .cp-heading-row > .cp-toolbar > .cp-input {
+    flex: 1 1 8rem;
+    min-inline-size: 0;
+  }
+}

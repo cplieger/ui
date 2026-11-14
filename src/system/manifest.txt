@@ -68,6 +68,7 @@ feedback/dot/dot.css
 feedback/notice/notice.css
 feedback/banner/banner.css
 layout/panel/panel.css
+layout/heading-row/heading-row.css
 layout/stack/stack.css
 layout/cluster/cluster.css
 layout/side-main/side-main.css
