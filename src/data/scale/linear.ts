@@ -19,12 +19,7 @@ const POWERS = Array.from({ length: 23 }, (_, k) => Number(`1e${k}`));
  *  one exact multiplication or division rounds once; past it the decimal is parsed. */
 export function decimal(n: number, exp: number): number {
   const power = POWERS[Math.abs(exp)];
-  const v =
-    power === undefined || !Number.isSafeInteger(n)
-      ? Number(`${n}e${exp}`)
-      : exp < 0
-        ? n / power
-        : n * power;
+  const v = power === undefined ? Number(`${n}e${exp}`) : exp < 0 ? n / power : n * power;
   return v + 0;
 }
 
@@ -123,8 +118,8 @@ interface LinearAxisOptions {
 /**
  * The axis for values from `lo` to `hi` (lo < hi) along `px` pixels: the
  * smallest step, at least the values' `resolution`, whose ticks stand at least
- * `spacing` px apart on the domain it gives, or the first step as wide as `lo`
- * to `hi` when none does. A niced domain's ends are multiples of the step, and
+ * `spacing` px apart on the domain it gives, or, when none does, the first step
+ * from the spacing's quotient on that is as wide as `lo` to `hi`. A niced domain's ends are multiples of the step, and
  * hold `lo` and `hi` unless one passes its multiple by no more than `drift`.
  */
 export function linearAxis(

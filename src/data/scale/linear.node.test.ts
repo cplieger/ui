@@ -103,7 +103,7 @@ describe("linearAxis", () => {
     // 0.6 / 6 is 0.10000000000000002, and 0.000005 / 5 is 1.0000000000000002e-6.
     expect(axis(-0.2, 0.4, 240, 40)).toEqual({ domain: [-0.2, 0.4], step: 0.1 });
     expect(axis(0, 0.000005, 200, 40)).toEqual({ domain: [0, 0.000005], step: 0.000001 });
-    // An end 4e-12 of a step past a multiple is on it.
+    // An end 2.4e-11 past 6, under a billionth of the step, is read as on it.
     expect(axis(0, 6.000000000024, 240, 40)).toEqual({ domain: [0, 6], step: 1 });
   });
 

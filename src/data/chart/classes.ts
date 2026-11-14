@@ -96,14 +96,11 @@ const places = (exp: number): number => Math.max(0, -exp);
 
 /**
  * The classes of `spec` over `values`, the finite values a chart fills: `thresholds` as
- * sent, a passed `domain` divided into equal classes, each boundary the nearest double to
- * the exact division, or an inferred one (from 0 when no value is below it) at the smallest
- * width (1, 2, 2.5 or 5 times a power of ten) whose classes, from a multiple of it, reach
- * the greatest value. A diverging scale's classes are symmetric about `pivot`, which an odd
- * count centres in its middle class and an even count makes a boundary, as sent; an inferred
- * boundary is the exact decimal pivot + k × the half-width. An inferred width is never finer
- * than the values' (and pivot's) `resolution`; a passed `domain` too narrow for strictly
- * increasing boundaries is a `RangeError`.
+ * sent; a passed `domain` in equal classes, each boundary the nearest double to the exact
+ * division; else the smallest width of 1, 2, 2.5 or 5 times a power of ten, never finer
+ * than the values' (and pivot's) `resolution`, whose classes reach the data, from 0 when
+ * no value is below it. A diverging scale is symmetric about `pivot`, a boundary as sent
+ * when the count is even. A passed `domain` too narrow to divide is a `RangeError`.
  */
 export function classes(spec: ClassSpec, values: readonly number[]): Classes {
   const type = spec.type ?? "sequential";
