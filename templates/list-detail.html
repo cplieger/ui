@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" class="cp">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Releases · Release tracker</title>
+    <link rel="stylesheet" href="../css/system.css">
+  </head>
+  <body>
+    <!-- region: skip: the first focusable element, shown only while focused -->
+    <a class="cp-skip" href="#main">Skip to content</a>
+    <div class="cp-app">
+      <!-- region: header -->
+      <header class="cp-header">
+        <!-- slot: brand: the mark and the app's name, a link home -->
+        <a class="cp-wordmark" href="#">
+          <span class="cp-mark" aria-hidden="true">R</span>
+          <span class="cp-hidden-narrow">Release tracker</span>
+        </a>
+        <!-- slot: destinations: the current one aria-current="page" -->
+        <nav class="cp-nav" aria-label="Main">
+          <a class="cp-nav-item" href="#">
+            <span class="cp-icon" data-cp-icon="layout-dashboard" aria-hidden="true"></span>
+            <span class="cp-nav-label">Overview</span>
+          </a>
+          <a class="cp-nav-item" href="#">
+            <span class="cp-icon" data-cp-icon="library" aria-hidden="true"></span>
+            <span class="cp-nav-label">Library</span>
+          </a>
+          <a class="cp-nav-item" href="#" aria-current="page">
+            <span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span>
+            <span class="cp-nav-label">Releases</span>
+          </a>
+        </nav>
+        <!-- slot: toolbar: the header status and its panel, the theme toggle, the global actions, the account button last -->
+        <div class="cp-toolbar">
+          <!-- slot: header status: the button, then its .cp-popover.cp-status-panel; run controls go in the panel's last section -->
+          <button class="cp-header-status" type="button" data-state="ok">
+            <span>All good</span>
+          </button>
+          <button class="cp-button cp-toggle" data-variant="quiet" data-kind="theme" type="button" aria-label="Dark theme" aria-pressed="false">
+            <span class="cp-icon" data-cp-icon="sun" aria-hidden="true"></span>
+            <span class="cp-icon" data-cp-icon="moon" data-part="on" aria-hidden="true"></span>
+          </button>
+          <a class="cp-button" data-variant="quiet" href="#" aria-label="Settings">
+            <span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span>
+          </a>
+          <button class="cp-button cp-account" data-variant="quiet" type="button" aria-label="Account">
+            <span class="cp-avatar" data-size="sm">CP</span>
+          </button>
+        </div>
+      </header>
+      <!-- region: main -->
+      <main class="cp-main" id="main" tabindex="-1">
+        <div class="cp-stack">
+          <!-- slot: heading -->
+          <div class="cp-heading-row">
+            <div>
+              <h1>Releases</h1>
+              <p class="cp-meta">3 new since this morning.</p>
+            </div>
+          </div>
+          <!-- slot: notices -->
+          <!-- slot: content: the list beside the open entry's detail; docked from 52rem wide, a modal dialog below; enhanceListDetail runs it from the app's route -->
+          <div class="cp-list-detail" id="releases">
+            <!-- slot: list: one row per entry, a link to its address; the open one aria-current="true" -->
+            <ul class="cp-list" aria-label="Releases">
+              <li>
+                <a class="cp-list-row" href="#releases/frieren-s01" aria-current="true">
+                  <span class="cp-cell-stack">Frieren S01<small>Arid, BD, dual audio</small></span>
+                  <span data-part="end"><time datetime="2026-11-14T09:12">09:12</time></span>
+                </a>
+              </li>
+              <li>
+                <a class="cp-list-row" href="#releases/dungeon-meshi-s01">
+                  <span class="cp-cell-stack">Dungeon Meshi S01<small>Okay-Subs, web</small></span>
+                  <span data-part="end"><time datetime="2026-11-14T08:40">08:40</time></span>
+                </a>
+              </li>
+            </ul>
+            <!-- slot: detail: hidden until the route opens it; its heading takes focus -->
+            <section class="cp-detail" hidden aria-labelledby="detail-title">
+              <!-- slot: detail header: the heading and the close button -->
+              <header>
+                <h2 id="detail-title" tabindex="-1">Frieren S01</h2>
+                <button class="cp-button" data-variant="quiet" type="button" data-detail-close aria-label="Close">
+                  <span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span>
+                </button>
+              </header>
+              <!-- slot: detail body -->
+              <div class="cp-detail-body">
+                <dl class="cp-facts">
+                  <dt>Group</dt>
+                  <dd>Arid</dd>
+                  <dt>Source</dt>
+                  <dd>BD, dual audio</dd>
+                </dl>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+      <!-- region: status -->
+      <footer class="cp-status">
+        <span>Data as of <time datetime="2026-11-14T14:02">14:02</time></span>
+      </footer>
+    </div>
+  </body>
+</html>
