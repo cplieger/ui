@@ -7,8 +7,7 @@
  * @module
  */
 
-import { sharedBy } from "../../core/lifetime/lifetime.js";
-import { rootOf } from "../../core/tree/tree.js";
+import { shared } from "../../core/lifetime/lifetime.js";
 
 /** A piece's values by the name each saves under; `""` for a piece with no
  *  name. */
@@ -49,8 +48,8 @@ export function sameValues(a: Values, b: Values): boolean {
 
 // A form's reset puts each piece inside it back, a task later as `./file`
 // does, so a listener that cancels the reset keeps the piece too.
-const resetsAt = sharedBy<Document | ShadowRoot>((root, signal) => {
-  root.addEventListener(
+const resets = shared((signal) => {
+  document.addEventListener(
     "reset",
     (e) => {
       const form = e.target;
@@ -75,7 +74,7 @@ export function registerPiece(piece: Piece, signal?: AbortSignal): void {
   const ref = new WeakRef(piece.element);
   held.set(piece.element, { piece, saved: piece.value() });
   boxes.add(ref);
-  resetsAt(rootOf(piece.element)).install(signal === undefined ? {} : { signal });
+  resets.install(signal === undefined ? {} : { signal });
   signal?.addEventListener(
     "abort",
     () => {

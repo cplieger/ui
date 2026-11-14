@@ -31,12 +31,6 @@ function dialog(
   return d;
 }
 
-function shadowRoot(): ShadowRoot {
-  const host = document.createElement("div");
-  document.body.append(host);
-  return host.attachShadow({ mode: "open" });
-}
-
 /** Counts each refusal: the attribute that plays the shake, set again. */
 function refusals(d: HTMLDialogElement): () => number {
   let n = 0;
@@ -168,46 +162,23 @@ describe("installDialogs", () => {
     expect(await shut).toBe(false);
   });
 
+  it("refuses a close request on a held dialog that opened before the listeners and the hold", async () => {
+    const d = dialog({}, '<button type="button">Done</button>');
+    d.showModal();
+    installDialogs({ signal: life.signal });
+    holdDialog(d, () => true, { signal: life.signal });
+    const refused = refusals(d);
+    d.requestClose();
+    await settled();
+    expect([d.open, refused()]).toEqual([true, 1]);
+  });
+
   it("measures the scrollbar the page lock pads by, and forgets it once its signals abort", () => {
     installDialogs({ signal: life.signal });
     const w = document.documentElement.style.getPropertyValue("--cp-scrollbar-w");
     expect(w).toBe(`${String(Math.max(0, innerWidth - document.documentElement.clientWidth))}px`);
     life.abort();
     expect(document.documentElement.style.getPropertyValue("--cp-scrollbar-w")).toBe("");
-  });
-});
-
-describe("installDialogs: a dialog in a shadow root", () => {
-  it("keeps a held dialog open on Escape, shaking it", async () => {
-    installDialogs({ signal: life.signal });
-    const d = dialog({}, '<button type="button">Done</button>', shadowRoot());
-    holdDialog(d, () => true, { signal: life.signal });
-    d.showModal();
-    (d.querySelector("button") as HTMLButtonElement).focus();
-    await userEvent.keyboard("{Escape}");
-    await settled();
-    expect([d.open, d.hasAttribute("data-cp-refused")]).toEqual([true, true]);
-  });
-
-  it("refuses a press outside a held dialog once", async () => {
-    installDialogs({ signal: life.signal });
-    const d = dialog({}, '<button type="button">Done</button>', shadowRoot());
-    holdDialog(d, () => true, { signal: life.signal });
-    d.showModal();
-    const refused = refusals(d);
-    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
-    await settled();
-    expect([d.open, refused()]).toEqual([true, 1]);
-  });
-
-  it("shakes a dialog holding typed changes on a press outside, though it opened before the listeners started", async () => {
-    const d = dialog({ "data-keep-typed": "" }, '<input value="Sonarr">', shadowRoot());
-    d.showModal();
-    (d.querySelector("input") as HTMLInputElement).value = "Sonarr 4K";
-    installDialogs({ signal: life.signal });
-    const refused = refusals(d);
-    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
-    expect([d.open, refused()]).toEqual([true, 1]);
   });
 });
 

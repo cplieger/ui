@@ -6,7 +6,6 @@
  */
 
 import { shared } from "../../core/lifetime/lifetime.js";
-import { rootOf } from "../../core/tree/tree.js";
 import { ask } from "../../overlays/ask/ask.js";
 import { type Asker, addAsker, askThenDrop } from "../../overlays/dialog/asker.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
@@ -769,8 +768,8 @@ export function guardChanges(form: HTMLFormElement, options: GuardOptions = {}):
   form.addEventListener("input", recount, on);
   form.addEventListener("change", recount, on);
   // A field joined by `form=` sends its edits through its own ancestors, not
-  // the form's, so they are heard at the form's root.
-  const root = rootOf(form);
+  // the form's, so they are heard at the document.
+  const root = form.ownerDocument;
   const joined = (e: Event): void => {
     const t = e.target;
     if (t instanceof Element && isControl(t) && t.form === form && !form.contains(t)) {

@@ -146,107 +146,39 @@ describe("guardChanges: what counts", () => {
     expect(told).toEqual([[out]]);
   });
 
-  it("hears a joined field in the form's shadow root", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const shadow = host.attachShadow({ mode: "open" });
+  it("keeps focus in a chips field when a discard takes the chip that has it", async () => {
+    const f = document.createElement("form");
     // Static test markup, never caller text.
-    shadow.setHTMLUnsafe(
-      '<form id="inside"></form><select form="inside" aria-label="Every"><option>15</option><option>30</option></select>',
+    f.setHTMLUnsafe(
+      '<div class="cp-tokens"><span class="cp-token" data-value="anime"><span>anime</span><button></button></span><input aria-label="Tags"></div>',
     );
-    const f = shadow.querySelector("form") as HTMLFormElement;
-    const pick = shadow.querySelector("select") as HTMLSelectElement;
-    const told: (readonly Element[])[] = [];
-    guardChanges(f, { onChange: (c) => told.push(c), signal: life.signal });
-    await userEvent.selectOptions(pick, "30");
-    expect(told).toEqual([[pick]]);
+    document.body.append(f);
+    enhanceTokens(get(f, ".cp-tokens"), { name: "tags", signal: life.signal });
+    const guard = guardChanges(f, { signal: life.signal });
+    const input = get<HTMLInputElement>(f, ".cp-tokens > input");
+    await userEvent.type(input, "4k{Enter}{Backspace}");
+    expect(document.activeElement?.closest(".cp-token")).toBe(
+      [...f.querySelectorAll(".cp-token")].at(-1),
+    );
+    guard.discard();
+    expect(document.activeElement).toBe(input);
   });
 
-  it("puts a shadow-root form's chips and rows back on its reset button, counting none after", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const shadow = host.attachShadow({ mode: "open" });
+  it("keeps focus in a rows field when a discard takes the row that has it", async () => {
+    const f = document.createElement("form");
     // Static test markup, never caller text.
-    shadow.setHTMLUnsafe(
-      '<form><div class="cp-tokens"><span class="cp-token" data-value="anime"><span>anime</span><button></button></span><input aria-label="Tags"></div>' +
-        '<div class="cp-stack" id="maps"><ul class="cp-pairs"><li><input name="from" value="/tv" aria-label="From"><input name="to" value="/media/tv" aria-label="To"><button type="button" data-remove-pair>Remove</button></li></ul><button type="button" data-add-pair>Add</button></div>' +
-        '<button type="reset">Discard</button></form>',
+    f.setHTMLUnsafe(
+      '<div class="cp-stack" id="maps"><ul class="cp-pairs"><li><input name="from" value="/tv" aria-label="From"><input name="to" value="/media/tv" aria-label="To"><button type="button" data-remove-pair>Remove</button></li></ul><button type="button" data-add-pair>Add</button></div>',
     );
-    const f = get<HTMLFormElement>(shadow, "form");
-    f.addEventListener("submit", (e) => {
-      e.preventDefault();
-    });
-    const tags = enhanceTokens(get(f, ".cp-tokens"), { name: "tags", signal: life.signal });
+    document.body.append(f);
     enhancePairs(get(f, "#maps"), { signal: life.signal });
-    const told: (readonly Element[])[] = [];
-    const guard = guardChanges(f, { onChange: (c) => told.push(c), signal: life.signal });
-    await userEvent.type(get(f, ".cp-tokens > input"), "4k{Enter}");
-    await userEvent.click(get(f, "[data-remove-pair]"));
-    expect(guard.changes()).toEqual([get(f, ".cp-tokens"), get(f, "#maps")]);
-    await userEvent.click(get(f, '[type="reset"]'));
-    await expect.poll(() => told.at(-1)).toEqual([]);
-    const sent = new FormData(f);
-    expect([tags.values, sent.getAll("from"), sent.getAll("to"), guard.count]).toEqual([
-      ["anime"],
-      ["/tv"],
-      ["/media/tv"],
-      0,
-    ]);
+    const guard = guardChanges(f, { signal: life.signal });
+    const add = get<HTMLButtonElement>(f, "[data-add-pair]");
+    await userEvent.click(add);
+    expect(document.activeElement?.closest("li")).toBe(get(f, "li:last-child"));
+    guard.discard();
+    expect(document.activeElement).toBe(add);
   });
-
-  const mounts = [
-    ["the document", (): ParentNode => document.body],
-    [
-      "a shadow root",
-      (): ParentNode => {
-        const host = document.createElement("div");
-        document.body.append(host);
-        return host.attachShadow({ mode: "open" });
-      },
-    ],
-  ] as const;
-
-  it.each(mounts)(
-    "keeps focus in a chips field when a discard takes the chip that has it, in %s",
-    async (_, mount) => {
-      const f = document.createElement("form");
-      // Static test markup, never caller text.
-      f.setHTMLUnsafe(
-        '<div class="cp-tokens"><span class="cp-token" data-value="anime"><span>anime</span><button></button></span><input aria-label="Tags"></div>',
-      );
-      mount().append(f);
-      enhanceTokens(get(f, ".cp-tokens"), { name: "tags", signal: life.signal });
-      const guard = guardChanges(f, { signal: life.signal });
-      const input = get<HTMLInputElement>(f, ".cp-tokens > input");
-      await userEvent.type(input, "4k{Enter}{Backspace}");
-      const tree = f.getRootNode() as Document | ShadowRoot;
-      expect(tree.activeElement?.closest(".cp-token")).toBe(
-        [...f.querySelectorAll(".cp-token")].at(-1),
-      );
-      guard.discard();
-      expect(tree.activeElement).toBe(input);
-    },
-  );
-
-  it.each(mounts)(
-    "keeps focus in a rows field when a discard takes the row that has it, in %s",
-    async (_, mount) => {
-      const f = document.createElement("form");
-      // Static test markup, never caller text.
-      f.setHTMLUnsafe(
-        '<div class="cp-stack" id="maps"><ul class="cp-pairs"><li><input name="from" value="/tv" aria-label="From"><input name="to" value="/media/tv" aria-label="To"><button type="button" data-remove-pair>Remove</button></li></ul><button type="button" data-add-pair>Add</button></div>',
-      );
-      mount().append(f);
-      enhancePairs(get(f, "#maps"), { signal: life.signal });
-      const guard = guardChanges(f, { signal: life.signal });
-      const add = get<HTMLButtonElement>(f, "[data-add-pair]");
-      await userEvent.click(add);
-      const tree = f.getRootNode() as Document | ShadowRoot;
-      expect(tree.activeElement?.closest("li")).toBe(get(f, "li:last-child"));
-      guard.discard();
-      expect(tree.activeElement).toBe(add);
-    },
-  );
 
   it("stops hearing a joined field once its guard ends", async () => {
     const f = form("");
@@ -871,11 +803,6 @@ describe("guardChanges: in a dialog", () => {
     into.append(d);
     return { d, f, close: get(f, "[command]") };
   }
-  function inShadow(): ReturnType<typeof dialog> {
-    const host = document.createElement("div");
-    document.body.append(host);
-    return dialog(host.attachShadow({ mode: "open" }));
-  }
   const asked = (): number => document.querySelectorAll('dialog[data-variant="confirm"]').length;
   const closing = (d: HTMLDialogElement): Promise<boolean> =>
     new Promise((r) => {
@@ -1017,26 +944,10 @@ describe("guardChanges: in a dialog", () => {
     ]).toEqual([true, false, "Hello"]);
   });
 
-  it("asks in a shadow root on Escape, once, stays on keep, and closes and discards on the answer", async () => {
-    const { d, f } = inShadow();
-    guardChanges(f, { words, signal: life.signal });
+  it("asks on a close command though the guard came once the dialog was open, and discards on the answer", async () => {
+    const { d, f, close } = dialog();
     d.showModal();
-    const subject = get<HTMLInputElement>(f, "#subject");
-    await userEvent.type(subject, "Hello");
-    await userEvent.keyboard("{Escape}");
-    expect([title(), asked(), d.open]).toEqual(["Discard this message?", 1, true]);
-    await answer("Keep writing");
-    expect([d.open, subject.value]).toEqual([true, "Hello"]);
-    await userEvent.keyboard("{Escape}");
-    const shut = closing(d);
-    await answer("Discard");
-    expect([await shut, subject.value]).toEqual([false, ""]);
-  });
-
-  it("asks in a shadow root on a close command, once, and closes and discards on the answer", async () => {
-    const { d, f, close } = inShadow();
     guardChanges(f, { words, signal: life.signal });
-    d.showModal();
     const subject = get<HTMLInputElement>(f, "#subject");
     await userEvent.type(subject, "Hello");
     await userEvent.click(close);
@@ -1046,27 +957,24 @@ describe("guardChanges: in a dialog", () => {
     expect([await shut, subject.value]).toEqual([false, ""]);
   });
 
-  it("asks nothing of the dialog around a shadow host for Escape in a dialog inside that host", async () => {
+  it("asks on a press outside a closedby=any dialog though the guard came once it was open", async () => {
     const { d, f } = dialog();
-    guardChanges(f, { words, signal: life.signal });
+    d.removeAttribute("data-keep-typed");
+    d.setAttribute("closedby", "any");
     d.showModal();
+    guardChanges(f, { words, signal: life.signal });
     await userEvent.type(get(f, "#subject"), "Hello");
-    const host = document.createElement("div");
-    d.append(host);
-    const inner = document.createElement("dialog");
-    inner.className = "cp-dialog";
-    // Static test markup, never caller text.
-    inner.setHTMLUnsafe('<button type="button">Done</button>');
-    host.attachShadow({ mode: "open" }).append(inner);
-    inner.showModal();
-    const shut = closing(inner);
-    await userEvent.keyboard("{Escape}");
-    expect(await shut).toBe(false);
-    expect([asked(), d.open, get<HTMLInputElement>(f, "#subject").value]).toEqual([
-      0,
-      true,
-      "Hello",
-    ]);
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    expect([title(), asked(), d.open]).toEqual(["Discard this message?", 1, true]);
+  });
+
+  it("asks on a close request though the guard came once the dialog was open", () => {
+    const { d, f } = dialog();
+    d.showModal();
+    guardChanges(f, { words, signal: life.signal });
+    get<HTMLInputElement>(f, "#subject").value = "Hello";
+    d.requestClose();
+    expect([title(), asked(), d.open]).toEqual(["Discard this message?", 1, true]);
   });
 
   it("asks nothing about a closed dialog's form when the page's links are pressed", async () => {

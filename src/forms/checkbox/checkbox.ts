@@ -7,7 +7,6 @@
  */
 
 import { until } from "../../core/lifetime/lifetime.js";
-import { rootOf } from "../../core/tree/tree.js";
 
 export interface SelectAllOptions {
   /** Removes the listeners. */
@@ -60,7 +59,7 @@ export function enhanceSelectAll(
     },
     listen,
   );
-  rootOf(all).addEventListener(
+  all.ownerDocument.addEventListener(
     "change",
     (e) => {
       const t = e.target;

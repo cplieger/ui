@@ -176,19 +176,4 @@ describe("enhancePill", () => {
     form.reset();
     await expect.poll(() => at(pillOf(group))).toEqual(box(labels[0] as HTMLElement));
   });
-
-  it("follows a choice and its form's reset in a shadow root", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const form = document.createElement("form");
-    host.attachShadow({ mode: "open" }).append(form);
-    const { group, labels } = segmented(0);
-    (labels[0]?.querySelector("input") as HTMLInputElement).defaultChecked = true;
-    form.append(group);
-    enhancePill(group, { signal: life.signal });
-    await userEvent.click(labels[2] as HTMLElement);
-    expect(at(pillOf(group))).toEqual(box(labels[2] as HTMLElement));
-    form.reset();
-    await expect.poll(() => at(pillOf(group))).toEqual(box(labels[0] as HTMLElement));
-  });
 });

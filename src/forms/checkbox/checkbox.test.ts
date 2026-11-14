@@ -90,16 +90,6 @@ describe("enhanceSelectAll", () => {
     expect([all.checked, all.indeterminate]).toEqual([false, false]);
   });
 
-  it("follows a box's press in a shadow root", async () => {
-    const { all, boxes } = group(["off", "off"]);
-    const host = document.createElement("div");
-    document.body.append(host);
-    host.attachShadow({ mode: "open" }).append(all, ...boxes);
-    enhanceSelectAll(all, () => boxes, { signal: life.signal });
-    await userEvent.click(boxes[0] as HTMLInputElement);
-    expect([all.checked, all.indeterminate]).toEqual([false, true]);
-  });
-
   it("stops once its signal aborts", async () => {
     const { all, boxes } = group(["off", "off"]);
     enhanceSelectAll(all, () => boxes, { signal: life.signal });

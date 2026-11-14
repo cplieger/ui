@@ -12,7 +12,6 @@
 
 import { announce } from "../../feedback/announce/announce.js";
 import { until } from "../../core/lifetime/lifetime.js";
-import { focusIn } from "../../core/tree/tree.js";
 import { enhanceCombobox } from "../combobox/combobox.js";
 import { registerPiece, touched } from "../form/pieces.js";
 
@@ -332,7 +331,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
       element: box,
       value: () => ({ [key]: values() }),
       set: (next) => {
-        const chip = focusIn(box)?.closest(".cp-token");
+        const chip = document.activeElement?.closest(".cp-token");
         const focused = chip !== null && chip !== undefined && box.contains(chip);
         for (const c of box.querySelectorAll(":scope > .cp-token")) {
           c.remove();

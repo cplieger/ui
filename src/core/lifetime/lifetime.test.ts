@@ -1,30 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { shared, sharedBy, until, whenAborted } from "./lifetime.js";
-
-describe("sharedBy", () => {
-  it("starts one install for each key, each held by its own calls", () => {
-    const runs = new Map<string, AbortSignal[]>();
-    const per = sharedBy<{ readonly name: string }>((key, signal) => {
-      runs.set(key.name, [...(runs.get(key.name) ?? []), signal]);
-    });
-    const a = { name: "a" };
-    const b = { name: "b" };
-    const one = new AbortController();
-    const two = new AbortController();
-    const three = new AbortController();
-    per(a).install({ signal: one.signal });
-    per(a).install({ signal: two.signal });
-    per(b).install({ signal: three.signal });
-    expect([runs.get("a")?.length, runs.get("b")?.length]).toEqual([1, 1]);
-    three.abort();
-    one.abort();
-    expect([runs.get("a")?.[0]?.aborted, runs.get("b")?.[0]?.aborted]).toEqual([false, true]);
-    expect([per(a).active, per(b).active]).toEqual([true, false]);
-    two.abort();
-    expect(per(a).active).toBe(false);
-  });
-});
+import { shared, until, whenAborted } from "./lifetime.js";
 
 describe("shared", () => {
   it("starts once for every caller and stops when the last caller's signal aborts", () => {

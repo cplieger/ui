@@ -15,7 +15,6 @@
 
 import { anchorTo, showPopoverAt } from "../anchor/anchor.js";
 import { shared, until } from "../../core/lifetime/lifetime.js";
-import { focusIn, rootOf } from "../../core/tree/tree.js";
 
 export interface MenuOptions {
   /** The person chose an item: a `menuitem` after the menu closed, a
@@ -239,7 +238,9 @@ export function enhanceMenu(menu: HTMLElement, options: MenuOptions = {}): void 
   const listen = until(signal);
   const capture = until(signal, true);
   const id = ensureId(menu);
-  const root = rootOf(menu);
+  // A menu built before it joins the document listens on its document.
+  const tree = menu.getRootNode();
+  const root = tree instanceof ShadowRoot ? tree : menu.ownerDocument;
   const OPENER = `[popovertarget="${CSS.escape(id)}"], [commandfor="${CSS.escape(id)}"]`;
   const openerOf = (t: EventTarget | null): HTMLElement | null => {
     const b = t instanceof Element ? t.closest<HTMLElement>(OPENER) : null;
@@ -261,9 +262,9 @@ export function enhanceMenu(menu: HTMLElement, options: MenuOptions = {}): void 
     // Safari focuses no button on a click, so hiding can find no opener to
     // give focus back to (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#clicking_and_focus).
     close: () => {
-      const inside = menu.contains(focusIn(menu));
+      const inside = menu.contains(document.activeElement);
       hide(menu);
-      if (inside && opener?.isConnected === true && focusIn(menu) !== opener) {
+      if (inside && opener?.isConnected === true && document.activeElement !== opener) {
         opener.focus();
       }
     },
@@ -392,7 +393,7 @@ export function enhanceContextMenu(
     if (
       opener instanceof HTMLElement &&
       opener.isConnected &&
-      (menu.contains(focusIn(menu)) || menu.ownerDocument.activeElement === menu.ownerDocument.body)
+      (menu.contains(document.activeElement) || document.activeElement === document.body)
     ) {
       opener.focus();
     }
@@ -408,7 +409,7 @@ export function enhanceContextMenu(
   };
   const open = (x: number, y: number, at: Element): void => {
     onOpen?.(at);
-    opener = focusIn(menu);
+    opener = document.activeElement;
     own(menu, me);
     showPopoverAt(menu, x, y);
     menu.querySelector<HTMLElement>(ITEM)?.focus();

@@ -8,7 +8,6 @@
  */
 
 import { until } from "../lifetime/lifetime.js";
-import { rootOf } from "../tree/tree.js";
 
 export interface PillOptions {
   /** Removes the pill and its listeners. */
@@ -101,11 +100,10 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
       attributeFilter: [kind === "tab" ? "aria-selected" : "aria-current"],
     });
   } else {
-    // Listened at the group's root, after the page's own listeners: a change
+    // Listened on the document, after the page's own listeners: a change
     // elsewhere may clear the choice, as a typed date clears a date range's
     // quick range, and setting `checked` fires nothing.
-    const root = rootOf(group);
-    root.addEventListener(
+    group.ownerDocument.addEventListener(
       "change",
       () => {
         place(false);
@@ -114,7 +112,7 @@ export function enhancePill(group: HTMLElement, options: PillOptions = {}): void
     );
     // A reset fires before the controls reset
     // (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset).
-    root.addEventListener(
+    group.ownerDocument.addEventListener(
       "reset",
       () => {
         setTimeout(() => {

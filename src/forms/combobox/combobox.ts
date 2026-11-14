@@ -11,7 +11,6 @@
 
 import { anchorTo } from "../../overlays/anchor/anchor.js";
 import { until } from "../../core/lifetime/lifetime.js";
-import { focusIn } from "../../core/tree/tree.js";
 
 export interface ComboboxOptions {
   /** Runs on each edit with the field's text, before the options are read:
@@ -121,7 +120,8 @@ export function enhanceCombobox(
       popup.hidePopover();
     }
   };
-  const focused = (): boolean => focusIn(input) === input;
+  const focused = (): boolean =>
+    (input.getRootNode() as Document | ShadowRoot).activeElement === input;
   /** Shows or hides the popup for the options now visible. */
   const update = (activate: "keep" | "first" | "last" | "none"): void => {
     const list = visible();

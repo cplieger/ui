@@ -59,24 +59,6 @@ export function shared<O extends object = object>(
   };
 }
 
-/** One `shared()` install for each key, such as each tree root a component
- *  listens at, started with its key. */
-export function sharedBy<K extends object>(
-  start: (key: K, signal: AbortSignal) => void,
-): (key: K) => Shared<object> {
-  const installs = new WeakMap<K, Shared<object>>();
-  return (key) => {
-    let found = installs.get(key);
-    if (found === undefined) {
-      found = shared((signal) => {
-        start(key, signal);
-      });
-      installs.set(key, found);
-    }
-    return found;
-  };
-}
-
 /** Listener options that end with `signal`, which may be absent. */
 export function until(signal: AbortSignal | undefined, capture = false): AddEventListenerOptions {
   return signal === undefined ? { capture } : { capture, signal };

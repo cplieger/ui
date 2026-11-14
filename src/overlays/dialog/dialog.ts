@@ -7,7 +7,7 @@
  * @module
  */
 
-import { reducedMotion, shared, sharedBy } from "../../core/lifetime/lifetime.js";
+import { reducedMotion, shared } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
 import { changesIn } from "../../forms/form/changed.js";
 import { type Asker, askThenDrop, askersOf } from "./asker.js";
@@ -27,6 +27,11 @@ const nativeClosedBy = (): boolean => "closedBy" in HTMLDialogElement.prototype;
 /** Chromium animates a dialog out of the top layer in CSS; Firefox and
  *  WebKit drop it at once, so the exit runs in script there. */
 const cssExit = (): boolean => CSS.supports("overlay", "auto");
+
+function dialogOf(e: Event): HTMLDialogElement | null {
+  const t = e.composedPath()[0];
+  return t instanceof HTMLDialogElement && t.classList.contains("cp-dialog") ? t : null;
+}
 
 interface Hold {
   readonly held: () => boolean;
@@ -172,34 +177,34 @@ function measureScrollbar(): void {
   }
 }
 
-/** The listeners at a dialog's tree root, for its presses, keys, close
- *  requests, commands and forms. */
-function hear(root: Document | ShadowRoot, signal: AbortSignal): void {
+function listen(signal: AbortSignal): void {
   const on = { capture: true, signal };
-  // The `.cp-dialog` an event is aimed at, if this root's listeners act for it.
-  const at = (e: Event): HTMLDialogElement | null => {
-    const t = e.composedPath()[0];
-    return t instanceof HTMLDialogElement && t.classList.contains("cp-dialog") && hears(root, t)
-      ? t
-      : null;
-  };
+  measureScrollbar();
+  addEventListener("resize", measureScrollbar, { signal });
+  signal.addEventListener(
+    "abort",
+    () => {
+      document.documentElement.style.removeProperty("--cp-scrollbar-w");
+    },
+    { once: true },
+  );
   let startedOutside: HTMLDialogElement | null = null;
 
-  root.addEventListener(
+  document.addEventListener(
     "pointerdown",
     (e) => {
-      const d = at(e);
-      startedOutside = d !== null && e instanceof MouseEvent && outside(d, e) ? d : null;
+      const d = dialogOf(e);
+      startedOutside = d !== null && outside(d, e) ? d : null;
     },
     on,
   );
-  root.addEventListener(
+  document.addEventListener(
     "click",
     (e) => {
-      const d = at(e);
+      const d = dialogOf(e);
       // The press must start and end outside, so a drag out of a field
       // closes nothing.
-      if (d === null || d !== startedOutside || !(e instanceof MouseEvent) || !outside(d, e)) {
+      if (d === null || d !== startedOutside || !outside(d, e)) {
         return;
       }
       startedOutside = null;
@@ -226,10 +231,11 @@ function hear(root: Document | ShadowRoot, signal: AbortSignal): void {
     },
     on,
   );
-  root.addEventListener(
+  document.addEventListener(
     "animationend",
     (e) => {
-      at(e)?.removeAttribute(REFUSED);
+      const d = dialogOf(e);
+      d?.removeAttribute(REFUSED);
     },
     on,
   );
@@ -237,18 +243,12 @@ function hear(root: Document | ShadowRoot, signal: AbortSignal): void {
   // into a close request, in the bubble phase, so a field inside that took
   // the key, such as a combobox closing its list, keeps it. The cancel below
   // covers light dismiss and other close requests.
-  root.addEventListener(
+  document.addEventListener(
     "keydown",
     (e) => {
-      const d = e.composedPath().find((n) => n instanceof HTMLDialogElement);
-      if (
-        !(e instanceof KeyboardEvent) ||
-        e.key !== "Escape" ||
-        d === undefined ||
-        !hears(root, d) ||
-        !d.open ||
-        e.defaultPrevented
-      ) {
+      const t = e.target;
+      const d = e.key === "Escape" && t instanceof Element ? t.closest("dialog") : null;
+      if (!(d instanceof HTMLDialogElement) || !d.open || e.defaultPrevented) {
         return;
       }
       const a = waitingAskers(d);
@@ -262,10 +262,10 @@ function hear(root: Document | ShadowRoot, signal: AbortSignal): void {
     },
     { signal },
   );
-  root.addEventListener(
+  document.addEventListener(
     "cancel",
     (e) => {
-      const d = at(e);
+      const d = dialogOf(e);
       if (d === null) {
         return;
       }
@@ -287,10 +287,10 @@ function hear(root: Document | ShadowRoot, signal: AbortSignal): void {
   );
   // A close command on a guarded dialog asks first. Where the engine cannot
   // animate the exit in CSS, the command goes through closeDialog for it.
-  root.addEventListener(
+  document.addEventListener(
     "command",
     (e) => {
-      const d = at(e);
+      const d = dialogOf(e);
       if (d === null || (e as Event & { command?: string }).command !== "close") {
         return;
       }
@@ -310,7 +310,7 @@ function hear(root: Document | ShadowRoot, signal: AbortSignal): void {
   }
   // A <form method="dialog"> ends the dialog at once in these engines; it
   // goes through closeDialog instead.
-  root.addEventListener(
+  document.addEventListener(
     "submit",
     (e) => {
       const form = e.target;
@@ -320,7 +320,7 @@ function hear(root: Document | ShadowRoot, signal: AbortSignal): void {
       const d = form.closest("dialog");
       if (d instanceof HTMLDialogElement && d.classList.contains("cp-dialog")) {
         e.preventDefault();
-        const submitter = e instanceof SubmitEvent ? e.submitter : null;
+        const submitter = e.submitter;
         closeDialog(d, submitter instanceof HTMLButtonElement ? submitter.value : "");
       }
     },
@@ -328,48 +328,8 @@ function hear(root: Document | ShadowRoot, signal: AbortSignal): void {
   );
 }
 
-const trees = sharedBy<Document | ShadowRoot>((root, signal) => {
-  hear(root, signal);
-});
-
-/** Whether the listeners at `root` act for `dialog`: those of its own tree,
- *  and the document's for a dialog in a shadow root no listeners hear yet,
- *  which a composed press still reaches, so one press is handled once. */
-function hears(root: Document | ShadowRoot, dialog: HTMLDialogElement): boolean {
-  const own = dialog.getRootNode();
-  return (
-    own === root || (root instanceof Document && own instanceof ShadowRoot && !trees(own).active)
-  );
-}
-
 const page = shared((signal) => {
-  measureScrollbar();
-  addEventListener("resize", measureScrollbar, { signal });
-  signal.addEventListener(
-    "abort",
-    () => {
-      document.documentElement.style.removeProperty("--cp-scrollbar-w");
-    },
-    { once: true },
-  );
-  trees(document).install({ signal });
-  // A close request, a close command and a dialog form's submit never leave a
-  // shadow root: a dialog in an open one is heard there once focus enters it.
-  const reached = new WeakSet<ShadowRoot>();
-  document.addEventListener(
-    "focusin",
-    (e) => {
-      const own = e
-        .composedPath()
-        .find((n) => n instanceof HTMLDialogElement)
-        ?.getRootNode();
-      if (own instanceof ShadowRoot && !reached.has(own)) {
-        reached.add(own);
-        trees(own).install({ signal });
-      }
-    },
-    { capture: true, signal },
-  );
+  listen(signal);
 });
 
 /**
