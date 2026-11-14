@@ -46,8 +46,8 @@ const SPECS: readonly Record<string, unknown>[] = [
         x2: [10, 20],
         arrange: "group",
         series: [
-          { name: "a", y: [1, 2] },
-          { name: "b", y: [2, 1] },
+          { name: "a", y: [1.5, 2] },
+          { name: "b", y: [2, 0.25] },
         ],
       },
     ],
@@ -407,7 +407,8 @@ function clone(v: unknown): unknown {
 
 const DROP = Symbol("drop");
 
-// Values a mistyped field might hold, near and far from what each expects.
+// Values a mistyped field might hold, near and far from what each expects,
+// the most px a plot may be among them.
 const WRONG: readonly unknown[] = [
   DROP,
   undefined,
@@ -416,6 +417,8 @@ const WRONG: readonly unknown[] = [
   -1,
   1.5,
   10,
+  40_000,
+  1e6,
   Number.NaN,
   Number.POSITIVE_INFINITY,
   9e15,
@@ -493,9 +496,23 @@ afterEach(() => {
 
 const KEYS = ["ArrowRight", "ArrowDown", "PageDown", "End", "ArrowLeft", "PageUp", "Home"];
 
+// The elements of `figure` and the subpaths of its paths: a tick, a
+// gridline, a bar or a dot each starts one.
+function drawnIn(figure: Element | undefined): number {
+  if (figure === undefined) {
+    return 0;
+  }
+  let n = figure.querySelectorAll("*").length;
+  for (const path of figure.querySelectorAll("[d]")) {
+    n += path.getAttribute("d")?.split("M").length ?? 1;
+  }
+  return n;
+}
+
 // Draws `spec`, reads it key by key, shows its table and updates a second
-// chart to it, so every part that reads the spec runs.
-function exercise(spec: unknown, timeZone: string): void {
+// chart to it, so every part that reads the spec runs; returns how many
+// elements the first figure holds, its table's included.
+function exercise(spec: unknown, timeZone: string): number {
   const box = document.createElement("div");
   box.style.inlineSize = "480px";
   document.body.append(box);
@@ -515,11 +532,13 @@ function exercise(spec: unknown, timeZone: string): void {
     }
     chart.showTable(true);
     void chart.summary;
+    const drawn = drawnIn(one);
     const later = renderChart(two as HTMLElement, SPECS[0] as unknown as ChartSpec, {
       signal: life.signal,
       timeZone,
     });
     later.update(spec as ChartSpec);
+    return drawn;
   } finally {
     life.abort();
     box.remove();
@@ -540,12 +559,43 @@ function refusedByName(e: unknown): boolean {
   return FIELD.test(e.message.slice(PREFIX.length).split(VERB)[0] ?? "");
 }
 
+// A plot at its tallest, 40,000px, draws about a thousand y ticks, each a
+// gridline and a label, and a spec here a few hundred elements more.
+const MOST_DRAWN = 3_000;
+
 // A run draws two whole figures, so fewer than the shared thousand fit its time limit.
 const RUNS = { numRuns: 200 };
+const EACH = { numRuns: 60 };
 
 const zone = fc.constantFrom("UTC", "America/New_York", "Asia/Kolkata");
 
 describe("a chart spec", () => {
+  // Each at a ceiling the check holds: the tallest plot on a fine linear
+  // y, on a log y of every decade, and a binned y of a thousand rows.
+  it("draws a plot at its tallest in at most MOST_DRAWN elements and subpaths", () => {
+    const line = {
+      mark: "line",
+      x: [0, 1, 2],
+      series: [{ name: "a", y: [0.1, 0.5, 0.2] }],
+    };
+    const bins = {
+      mark: "cell",
+      x: { edges: [1, 10, 100] },
+      y: { edges: [0, 0.1, 100] },
+      values: [
+        [1, 2],
+        [3, null],
+      ],
+    };
+    for (const spec of [
+      { height: 40_000, y: { domain: [0, 1] }, marks: [line] },
+      { height: 40_000, y: { type: "log", label: "a", domain: [1e-300, 1e300] }, marks: [line] },
+      { ...SPECS[12], height: 40_000, marks: [bins] },
+    ]) {
+      expect(exercise(spec, "UTC"), JSON.stringify(spec)).toBeLessThanOrEqual(MOST_DRAWN);
+    }
+  });
+
   it("sets every documented field in some spec the property mutates", () => {
     const set = new Set([...FIELDS_AT.values()].flatMap((f) => [...f]));
     expect(FIELDS.filter((f) => !set.has(f))).toEqual([]);
@@ -569,7 +619,45 @@ describe("a chart spec", () => {
     }
   });
 
-  it("with fields dropped or mistyped draws, or throws a TypeError or RangeError naming one", () => {
+  // Each number a spec holds is where a size the chart derives from data
+  // starts, a plot's rows or ticks, and its height sets the plot's own.
+  it.each(SPECS.map((_, k) => k))(
+    "draws spec %i in at most MOST_DRAWN whatever its numbers, or refuses one by name",
+    (k) => {
+      const spec = SPECS[k];
+      const numbers = paths(spec).filter((path) => typeof at(spec, path) === "number");
+      const size = fc
+        .tuple(
+          fc.constantFrom(1, 2.5, 4, 9),
+          fc.integer({ min: -3, max: 16 }),
+          fc.constantFrom(1, -1),
+        )
+        .map(([m, e, sign]) => sign * m * 10 ** e);
+      const place = fc.oneof(
+        { arbitrary: fc.constant<Path>(["height"]), weight: 1 },
+        { arbitrary: fc.constantFrom(...numbers), weight: 3 },
+      );
+      const changes = fc.array(fc.tuple(place, size), { minLength: 1, maxLength: 3 });
+      fc.assert(
+        fc.property(changes, (list) => {
+          const changed = mutate(spec, list);
+          let drawn: number;
+          try {
+            drawn = exercise(changed, "UTC");
+          } catch (e) {
+            if (!refusedByName(e)) {
+              throw e;
+            }
+            return;
+          }
+          expect(drawn, JSON.stringify(changed)).toBeLessThanOrEqual(MOST_DRAWN);
+        }),
+        EACH,
+      );
+    },
+  );
+
+  it("with fields dropped or mistyped draws in at most MOST_DRAWN, or throws a TypeError or RangeError naming one", () => {
     const changed = fc.integer({ min: 0, max: SPECS.length - 1 }).chain((k) => {
       const wrong = fc.constantFrom(...WRONG);
       const left = absent(SPECS[k]);
@@ -600,15 +688,18 @@ describe("a chart spec", () => {
     fc.assert(
       fc.property(changed, zone, ([k, changes], timeZone) => {
         const spec = mutate(SPECS[k], changes);
+        let drawn: number;
         try {
-          exercise(spec, timeZone);
-          seen.drawn++;
+          drawn = exercise(spec, timeZone);
         } catch (e) {
           if (!refusedByName(e)) {
             throw e;
           }
           seen.refused++;
+          return;
         }
+        seen.drawn++;
+        expect(drawn, JSON.stringify(spec)).toBeLessThanOrEqual(MOST_DRAWN);
       }),
       RUNS,
     );

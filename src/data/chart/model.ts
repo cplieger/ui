@@ -13,6 +13,7 @@ import {
   type Unit,
   type WidthKey,
 } from "../scale/format.js";
+import { position } from "../scale/position.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
 import { localDay, localYear, spansDay } from "../scale/time.js";
 
@@ -495,7 +496,11 @@ const DAY = 86_400_000;
 // week's end; each is a UTC date written through Intl.
 function withinWeeks(day: number, weekStart: number, days: number): void {
   const first = day - weekRow(day, weekStart);
-  const last = first + 7 * Math.max(1, weekCount(day - first, days)) - 1;
+  const weeks = Math.max(1, weekCount(day - first, days));
+  if (weeks > MOST_ROWS) {
+    fail(`the days of a calendar must fit in ${String(MOST_ROWS)} weeks`, RangeError);
+  }
+  const last = first + 7 * weeks - 1;
   withinDate(first * DAY, "the days of a calendar's first week");
   withinDate(last * DAY, "the days of a calendar's last week");
 }
@@ -591,9 +596,25 @@ export interface Model {
   readonly timeZone: string | undefined;
 }
 
-// The tallest box Gecko lays out: 2^30 - 1 app units at 60 a px
-// (https://searchfox.org/mozilla-central/source/gfx/src/nsCoord.h); Blink holds 2^25.
-const MOST_PX = 17_895_697;
+// No reader scans a plot past a thousand rows, and at a row's 24px a
+// thousand already make it 24,000px tall: the most rows a plot holds, a
+// binned y's included, and the most weeks a calendar holds.
+const MOST_ROWS = 1_000;
+
+// A thousand of the y axis's 40px tick spaces, so a plot draws at most
+// about a thousand y ticks.
+const MOST_HEIGHT = 40_000;
+
+/** The thinnest of `edges`' bins, as a share of the axis from the first
+ *  edge to the last on a `type` scale. */
+export function thinnestBin(type: "linear" | "log" | "time", edges: readonly number[]): number {
+  const at = position(type, edges[0] ?? 0, edges.at(-1) ?? 1, 0, 1);
+  let least = 1;
+  for (let i = 1; i < edges.length; i++) {
+    least = Math.min(least, at(edges[i] ?? 0) - at(edges[i - 1] ?? 0));
+  }
+  return least;
+}
 
 const SCALE_TYPES = new Set(["linear", "log", "time", "band"]);
 const FORMATS = new Set(["number", "integer", "percent", "duration"]);
@@ -928,6 +949,9 @@ function checkDiverge(
 function checkNames(names: unknown, what: string, axis = "y"): ArrayLike<unknown> {
   if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
     fail(`${what}.${axis} must be an array of the categories' names`);
+  }
+  if (axis === "y" && names.length > MOST_ROWS) {
+    fail(`${what}.y must name at most ${String(MOST_ROWS)} rows`, RangeError);
   }
   const seen = new Set<unknown>();
   for (const name of Array.from(names)) {
@@ -1286,6 +1310,9 @@ function checkMark(mark: unknown, what: string): void {
       if (!arrayLike(rows)) {
         fail(`${what}.rows must be an array`);
       }
+      if (rows.length > MOST_ROWS) {
+        fail(`${what}.rows must hold at most ${String(MOST_ROWS)} rows`, RangeError);
+      }
       for (let r = 0; r < rows.length; r++) {
         const row = rows[r];
         const at = `${what}.rows[${String(r)}]`;
@@ -1580,6 +1607,21 @@ function check(spec: unknown): asserts spec is ChartSpec {
         : `height has no place on a ${cellChart ? "cell chart of categories" : "dot, bar, point or box chart"}, which is as tall as its rows`,
     );
   }
+  if (binnedY) {
+    const edges = Array.from((primary["y"] as { edges: ArrayLike<number> }).edges);
+    const log = isObject(spec["y"]) && spec["y"]["type"] === "log";
+    // A log y's edge at or below 0 is the y scale's to name; the 1e-9 lets a
+    // float share of exactly a thousandth (1 / 1000) through.
+    if (
+      !(log && (edges[0] ?? 0) <= 0) &&
+      thinnestBin(log ? "log" : "linear", edges) * MOST_ROWS < 1 - 1e-9
+    ) {
+      fail(
+        `marks[${String(data)}].y.edges' thinnest bin must be at least 1/${String(MOST_ROWS)} of the axis, since the plot grows until it is a row tall`,
+        RangeError,
+      );
+    }
+  }
   if (spec["colour"] !== undefined) {
     if (!(isObject(primary) && primary["mark"] === "cell")) {
       fail("colour has no place without a cell mark, whose classes it colours");
@@ -1587,8 +1629,8 @@ function check(spec: unknown): asserts spec is ChartSpec {
     checkColour(spec["colour"]);
   }
   optional(height, "number", "height");
-  if (typeof height === "number" && !(height > 0 && height <= MOST_PX)) {
-    fail(`height must be a number of px above 0 and at most ${String(MOST_PX)}`, RangeError);
+  if (typeof height === "number" && !(height > 0 && height <= MOST_HEIGHT)) {
+    fail(`height must be a number of px above 0 and at most ${String(MOST_HEIGHT)}`, RangeError);
   }
   const summary = spec["summary"];
   if (summary !== undefined && typeof summary !== "string" && typeof summary !== "function") {

@@ -112,7 +112,7 @@ describe("spec errors", () => {
       RangeError,
     ],
     ["a height of 0", { x: {}, height: 0, marks: [] }, RangeError],
-    ["a height past what a browser lays out", { x: {}, height: 1e301, marks: [] }, RangeError],
+    ["a height past the most px a plot may be", { x: {}, height: 1e301, marks: [] }, RangeError],
     [
       "a format whose unit Intl refuses",
       { x: {}, y: { format: { style: "unit", unit: "" } }, marks: [] },
@@ -325,9 +325,53 @@ describe("spec errors", () => {
         "renderChart: y.format holds options Intl refuses: Currency code is required with currency style.",
       ),
     );
-    expect(() => build({ x: {}, height: 2e7, marks: [] })).toThrow(
-      "renderChart: height must be a number of px above 0 and at most 17895697",
+    expect(() => build({ x: {}, height: 40_001, marks: [] })).toThrow(
+      new RangeError("renderChart: height must be a number of px above 0 and at most 40000"),
     );
+    expect(build({ x: {}, height: 40_000, marks: [line([1])] }).spec.height).toBe(40_000);
+  });
+
+  it("names the most rows a plot and the most weeks a calendar may hold", () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
+    const bars = (n: number): Mark => ({
+      mark: "bar",
+      y: names(n),
+      series: [{ name: "a", x: names(n).map(() => 1) }],
+    });
+    expect(() => build({ marks: [bars(1_001)] })).toThrow(
+      new RangeError("renderChart: marks[0].y must name at most 1000 rows"),
+    );
+    expect(build({ marks: [bars(1_000)] }).kind).toBe("bar");
+    const rows = (n: number): Mark => ({
+      mark: "dot",
+      rows: names(n).map((name) => ({ name, x: [] })),
+    });
+    expect(() => build({ x: {}, marks: [rows(1_001)] })).toThrow(
+      new RangeError("renderChart: marks[0].rows must hold at most 1000 rows"),
+    );
+    expect(build({ x: {}, marks: [rows(1_000)] }).kind).toBe("timeline");
+    const grid = (n: number): Mark => ({
+      mark: "cell",
+      x: names(n),
+      y: names(1),
+      values: [names(n).map(() => 1)],
+    });
+    expect(build({ marks: [grid(1_001)] }).kind).toBe("heatmap");
+    expect(() =>
+      build({
+        marks: [{ mark: "cell", x: ["a"], y: names(1_001), values: names(1_001).map(() => [1]) }],
+      }),
+    ).toThrow(new RangeError("renderChart: marks[0].y must name at most 1000 rows"));
+    // 1 January 1970 was a Thursday, so with weeks from Thursday 7,000 days are 1,000 weeks.
+    const days = (n: number): Mark => ({
+      mark: "cell",
+      weekStart: 4,
+      days: { start: 0, values: Array.from({ length: n }, () => 1) },
+    });
+    expect(() => build({ marks: [days(7_001)] })).toThrow(
+      new RangeError("renderChart: the days of a calendar must fit in 1000 weeks"),
+    );
+    expect(build({ marks: [days(7_000)] }).kind).toBe("calendar");
   });
 
   it("names the rule it breaks", () => {
@@ -1945,6 +1989,26 @@ describe("a cell mark's binned axes", () => {
   it("takes a height on a binned y, which a named y refuses", () => {
     expect(build({ height: 120, marks: [bins(["a", "b"], life)] }).spec.height).toBe(120);
     expect(() => build({ height: 120, marks: [bins(gdp, ["a", "b"])] })).toThrow(TypeError);
+  });
+
+  it("refuses a binned y whose thinnest bin is under a thousandth of the axis", () => {
+    const thin = new RangeError(
+      "renderChart: marks[0].y.edges' thinnest bin must be at least 1/1000 of the axis, since the plot grows until it is a row tall",
+    );
+    for (const edges of [
+      [0, 1, 1e9],
+      [0, 1, 1e6],
+      [0, 999, 1000, 1001],
+    ]) {
+      expect(() => build({ marks: [bins(["a"], { edges })] }), String(edges)).toThrow(thin);
+    }
+    expect(() =>
+      build({ y: { type: "log" }, marks: [bins(["a"], { edges: [1, 1.001, 10] })] }),
+    ).toThrow(thin);
+    expect(build({ marks: [bins(["a"], { edges: [0, 1, 1000] })] }).kind).toBe("heatmap");
+    expect(
+      build({ y: { type: "log" }, marks: [bins(["a"], { edges: [1, 10, 1e300] })] }).kind,
+    ).toBe("heatmap");
   });
 });
 

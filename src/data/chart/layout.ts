@@ -44,6 +44,7 @@ import {
   barsApart,
   dayOf,
   sampleValue,
+  thinnestBin,
   type BarModel,
   type BoxModel,
   type CalendarModel,
@@ -624,13 +625,8 @@ function binnedHeight(
   height: number,
   row: number,
 ): number {
-  const at = position(y.type, y.lo, y.hi, 0, 1);
-  let least = 1;
-  for (let i = 1; i < edges.length; i++) {
-    least = Math.min(least, at(edges[i] ?? 0) - at(edges[i - 1] ?? 0));
-  }
   // A float share (5 / 35) leaves 24 / share a hair over its whole px.
-  return Math.max(height, Math.ceil(row / least - 1e-9));
+  return Math.max(height, Math.ceil(row / thinnestBin(y.type, edges) - 1e-9));
 }
 
 /** The space between a calendar's folded blocks. */
