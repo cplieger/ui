@@ -9,7 +9,7 @@
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
 import { focusOn, landing } from "../list-row/row.js";
-import { scrollerOf, scrollsItself, seenOf, viewOf } from "../list-row/scroller.js";
+import { scrollerOf, seenOf, viewOf } from "../list-row/scroller.js";
 
 /** A row's key, or `undefined` for a row not loaded yet. */
 export type KeyedListKeys = readonly (string | undefined)[];
@@ -614,8 +614,15 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
   };
 
   /** The row the last draw kept in view, where it was in the scroller's
-   *  view, and the scroller's offset then. */
-  let last: { readonly key: string; readonly off: number; readonly scroll: number } | undefined;
+   *  view, and the scroller and its offset then. */
+  let last:
+    | {
+        readonly key: string;
+        readonly off: number;
+        readonly scroller: HTMLElement;
+        readonly scroll: number;
+      }
+    | undefined;
 
   const markOf = (key: string): Mark | undefined => {
     const el = drawn.get(key);
@@ -623,7 +630,9 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
   };
 
   const draw = (pass: Pass = {}): void => {
-    const scroller = scrollsItself(container) ? container : scrollerOf(container);
+    // The list itself only while its rows overflow it: a list set to scroll
+    // whose box grows with its rows moves with the box around it.
+    const scroller = scrollerOf(container, true);
     const anchoring = scroller.style.overflowAnchor;
     // The engine's own anchoring would add its correction to this one;
     // WebKit has none, so the module keeps the place itself.
@@ -634,7 +643,10 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       // With no scroll since the last draw, a row that moved moved because
       // one above it changed height, so it goes back to where it was.
       const still =
-        last !== undefined && pass.before === undefined && scroller.scrollTop === last.scroll
+        last !== undefined &&
+        pass.before === undefined &&
+        scroller === last.scroller &&
+        scroller.scrollTop === last.scroll
           ? last
           : undefined;
       let mark =
@@ -685,7 +697,12 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     last =
       seen === undefined
         ? undefined
-        : { key: seen.key, off: seen.top - viewOf(scroller).top, scroll: scroller.scrollTop };
+        : {
+            key: seen.key,
+            off: seen.top - viewOf(scroller).top,
+            scroller,
+            scroll: scroller.scrollTop,
+          };
     ask(rows);
   };
 
@@ -716,18 +733,18 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     }, settle);
   };
 
+  /** Scrolls the list's start into view by a relative scroll, as `draw`'s
+   *  correction does. */
   const toStart = (): void => {
-    if (scrollsItself(container)) {
-      container.scrollTop = 0;
-      return;
-    }
-    if (!shown()) {
-      return;
-    }
-    const by = startOf() - seenOf(container, true).top;
+    const scroller = scrollerOf(container, true);
+    const by =
+      scroller === container
+        ? -container.scrollTop
+        : shown()
+          ? Math.min(0, startOf() - seenOf(container, true).top)
+          : 0;
     if (by < 0) {
-      const scroller = scrollerOf(container);
-      scroller.scrollTo({ top: scroller.scrollTop + by, behavior: "instant" });
+      scroller.scrollBy({ top: by, behavior: "instant" });
     }
   };
 

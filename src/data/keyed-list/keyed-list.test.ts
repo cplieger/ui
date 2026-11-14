@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { enhanceKeyedList, type KeyedListOptions } from "./keyed-list.js";
@@ -697,6 +697,146 @@ describe("enhanceKeyedList", () => {
         style(timeline.querySelector(".cp-list-heading") ?? undefined).paddingInlineStart,
       ).toBe("0px");
     });
+  });
+
+  describe("in a box taller than the window, or one that grows with its rows", () => {
+    interface Shape {
+      readonly ul: HTMLUListElement;
+      /** What the reader scrolls. */
+      readonly scroller: HTMLElement;
+    }
+    const page = (): HTMLElement => document.scrollingElement as HTMLElement;
+    const SHAPES: readonly (readonly [string, () => Shape])[] = [
+      [
+        "its own scroller, taller than the window",
+        () => {
+          const ul = virtualList();
+          ul.style.setProperty("--cp-list-h", "300vh");
+          return { ul, scroller: ul };
+        },
+      ],
+      [
+        "a scrolling box taller than the window",
+        () => {
+          const box = document.createElement("div");
+          box.style.blockSize = "300vh";
+          box.style.overflowY = "auto";
+          const ul = document.createElement("ul");
+          ul.className = "cp-list";
+          box.append(ul);
+          document.body.append(box);
+          return { ul, scroller: box };
+        },
+      ],
+      [
+        "a clipping box that grows with it",
+        () => {
+          const box = document.createElement("div");
+          box.style.overflowY = "clip";
+          const ul = document.createElement("ul");
+          ul.className = "cp-list";
+          box.append(ul);
+          document.body.append(box);
+          return { ul, scroller: page() };
+        },
+      ],
+      [
+        "a list set to scroll that grows with its rows",
+        () => {
+          const ul = virtualList();
+          ul.style.blockSize = "auto";
+          ul.style.contain = "none";
+          return { ul, scroller: page() };
+        },
+      ],
+    ];
+
+    /** The top of what `scroller` shows, in px of the window. */
+    const viewTop = (scroller: HTMLElement): number =>
+      scroller === page() ? 0 : Math.max(0, scroller.getBoundingClientRect().top);
+
+    /** Spies on every way to move a scroller; each calls through. */
+    function scrollWrites() {
+      return {
+        by: vi.spyOn(Element.prototype, "scrollBy"),
+        top: vi.spyOn(Element.prototype, "scrollTop", "set"),
+        to: vi.spyOn(Element.prototype, "scrollTo"),
+        windowTo: vi.spyOn(window, "scrollTo"),
+        windowBy: vi.spyOn(window, "scrollBy"),
+      };
+    }
+
+    afterEach(() => {
+      document.documentElement.style.removeProperty("overflow-anchor");
+    });
+
+    it.each(SHAPES)("draws no more rows than the window holds, in %s", async (_, make) => {
+      const { ul, scroller } = make();
+      enhance(ul, { keys: keysOf(5000) });
+      const pitch = pitchOf(ul);
+      // The rows the window holds, a part row at each edge, five past each.
+      const bound = Math.ceil(innerHeight / pitch) + 1 + 2 * 5;
+      expect(rows(ul).length).toBeLessThanOrEqual(bound);
+      scroller.scrollTop += 2000 * pitch;
+      await frames();
+      expect(rows(ul).length).toBeLessThanOrEqual(bound);
+      expect(rowAt(ul, viewTop(scroller)).dataset["key"]).toMatch(/^t(19\d\d|20\d\d)$/);
+    });
+
+    it.each(SHAPES)(
+      "keeps the row in view still by a relative scroll when a row above it grows, in %s",
+      async (_, make) => {
+        const { ul, scroller } = make();
+        // WebKit has no scroll anchoring; with the engine's off, the module
+        // alone keeps the place, in every engine.
+        scroller.style.overflowAnchor = "none";
+        enhance(ul, { keys: keysOf(5000) });
+        scroller.scrollTop += 300.5 * pitchOf(ul);
+        await frames();
+        const top = viewTop(scroller);
+        const seen = rowAt(ul, top);
+        const was = seen.getBoundingClientRect().top;
+        const above = rows(ul)[0] as HTMLElement;
+        expect(above.getBoundingClientRect().bottom).toBeLessThan(top);
+        const from = scroller.scrollTop;
+        const writes = scrollWrites();
+        (above.firstElementChild as HTMLElement).style.minBlockSize = "10rem";
+        await frames();
+        await frames();
+        expect(Math.abs(seen.getBoundingClientRect().top - was)).toBeLessThan(1);
+        // The grown row's slot moves the guess for the rows not drawn too, so
+        // the scroller may move by more than the row grew, all of it relative.
+        expect(writes.by).toHaveBeenCalled();
+        const moved = (writes.by.mock.calls as unknown as readonly [ScrollToOptions][]).reduce(
+          (sum, [how]) => sum + (how.top ?? 0),
+          0,
+        );
+        expect(Math.abs(scroller.scrollTop - from - moved)).toBeLessThan(1);
+        expect(writes.top).not.toHaveBeenCalled();
+        expect(writes.to).not.toHaveBeenCalled();
+        expect(writes.windowTo).not.toHaveBeenCalled();
+        expect(writes.windowBy).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(SHAPES)(
+      "goes back to the list's start by a relative scroll on a new set of rows, in %s",
+      async (_, make) => {
+        const { ul, scroller } = make();
+        const list = enhance(ul, { keys: keysOf(5000) });
+        const pitch = pitchOf(ul);
+        scroller.scrollTop += 2000 * pitch;
+        await frames();
+        const writes = scrollWrites();
+        list.reset(keysOf(500, 1));
+        const first = list.rowOf("t1") as HTMLElement;
+        expect(Math.abs(first.getBoundingClientRect().top - viewTop(scroller))).toBeLessThan(pitch);
+        expect(writes.by).toHaveBeenCalled();
+        expect(writes.top).not.toHaveBeenCalled();
+        expect(writes.to).not.toHaveBeenCalled();
+        expect(writes.windowTo).not.toHaveBeenCalled();
+      },
+    );
   });
 
   it("stops following the scroll once its signal aborts", async () => {
