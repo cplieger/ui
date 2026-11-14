@@ -269,6 +269,34 @@ describe("enhanceSettings", () => {
     });
   });
 
+  it("leaves the current category to a router that marks it page, one section shown at a time", async () => {
+    const { form, links } = page(true);
+    links[0]?.setAttribute("aria-current", "page");
+    for (const link of links) {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        for (const other of links) {
+          const section = document.getElementById(other.hash.slice(1)) as HTMLElement;
+          section.hidden = other !== link;
+          if (other === link) {
+            other.setAttribute("aria-current", "page");
+          } else {
+            other.removeAttribute("aria-current");
+          }
+        }
+      });
+    }
+    enhanceSettings(form, { signal: life.signal });
+    const currents = (): (string | null)[] => links.map((l) => l.getAttribute("aria-current"));
+    links[1]?.click();
+    expect(currents()).toEqual([null, "page", null]);
+    dispatchEvent(new WheelEvent("wheel"));
+    scrollTo(0, 0);
+    await new Promise(requestAnimationFrame);
+    await task();
+    expect(currents()).toEqual([null, "page", null]);
+  });
+
   it("reads the categories again on update and removes what it made when its signal ends", () => {
     const { form, fields, nav, links } = page();
     const s = enhanceSettings(form, { signal: life.signal });

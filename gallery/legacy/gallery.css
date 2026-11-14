@@ -1536,7 +1536,7 @@ html:has(.g-header) {
 }
 
 @media (width < 48rem) {
-  .cp-settings-nav {
+  .cp-settings-nav:has(+ .g-cat-select) {
     display: none;
   }
 

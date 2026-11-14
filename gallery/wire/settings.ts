@@ -1,7 +1,8 @@
 /**
  * settings.ts — the gallery's wiring for the forms page's file fields, the
  * upload dialog, Add a source, the pair rows, Reset to default and the
- * errors across settings categories, on the library's modules.
+ * errors across settings categories with their category select, on the
+ * library's modules.
  */
 
 import { enhanceFiles, uploadFile, type UploadResult } from "@cplieger/ui/file";
@@ -12,6 +13,7 @@ import {
   type Control,
   type ReportedError,
 } from "@cplieger/ui/form";
+import { enhanceSettings } from "@cplieger/ui/settings";
 import { toast } from "@cplieger/ui/toast";
 
 // The gallery's made-up server: every second upload fails once, so the card
@@ -156,6 +158,7 @@ for (const box of document.querySelectorAll<HTMLElement>("[data-categories]")) {
 
 const across = document.getElementById("se-form");
 if (across instanceof HTMLFormElement) {
+  enhanceSettings(across);
   const field = (id: string): HTMLInputElement => document.getElementById(id) as HTMLInputElement;
   across.addEventListener("submit", (e) => {
     e.preventDefault();

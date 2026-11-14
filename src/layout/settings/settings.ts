@@ -217,11 +217,17 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   // last section too short to reach the band still reads as current after
   // its link is pressed.
   let held: HTMLAnchorElement | null = null;
+  // A link the app marks "page" means its router shows one section at a
+  // time and owns which is current.
+  const routed = (): boolean => links.some((l) => l.getAttribute("aria-current") === "page");
   const setCurrent = (link: HTMLAnchorElement): void => {
+    if (routed()) {
+      return;
+    }
     for (const other of targets.keys()) {
       if (other === link) {
         other.setAttribute("aria-current", "location");
-      } else {
+      } else if (other.getAttribute("aria-current") === "location") {
         other.removeAttribute("aria-current");
       }
     }
