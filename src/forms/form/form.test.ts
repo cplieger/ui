@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { clearError, reportErrors } from "./form.js";
+import { clearError, reportErrors, showError } from "./form.js";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -148,5 +148,26 @@ describe("reportErrors", () => {
       error.hidden,
       url.hasAttribute("aria-describedby"),
     ]).toEqual([false, true, false]);
+  });
+});
+
+describe("a form not yet in the document", () => {
+  it("shows a field's error under it, joined by aria-describedby, then clears it", () => {
+    const form = document.createElement("form");
+    // Static test markup, never caller text.
+    form.setHTMLUnsafe(
+      '<div class="cp-field"><label class="cp-label" for="msg">Message</label><textarea class="cp-input" id="msg" aria-describedby="msg-help"></textarea><span class="cp-help" id="msg-help">Markdown works.</span><p class="cp-field-error" id="msg-error" hidden></p></div>',
+    );
+    const field = form.querySelector("textarea") as HTMLTextAreaElement;
+    const error = form.querySelector("#msg-error") as HTMLElement;
+    showError(field, "This conversation takes no reply.");
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toBe("This conversation takes no reply.");
+    expect(field.getAttribute("aria-describedby")?.split(" ")).toContain("msg-error");
+    document.body.append(form);
+    clearError(field);
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    expect(error.hidden).toBe(true);
   });
 });
