@@ -6,13 +6,18 @@
 
 import { codeOf, reasonOf } from "../answer.js";
 import type {
-  MeView,
+  AccountView,
   MethodsView,
   OIDCReturn,
   PasskeyMiss,
+  PasskeyView,
+  ProofOutcome,
   Refusal,
   RegisterOutcome,
   Result,
+  SecondFactorProof,
+  SecurityAccess,
+  SecurityClient,
   SetupAccess,
   SetupClient,
   SignInAccess,
@@ -23,6 +28,7 @@ import type {
   StepUpAccess,
   StepUpClient,
   StepUpResult,
+  TotpBegin,
 } from "../client.js";
 
 export interface Call {
@@ -51,9 +57,38 @@ const holdsAll: MethodsView = {
   locks: [],
 };
 
-export function meWith(methods: Partial<MethodsView> = {}): MeView {
-  return { user: { username: "mika" }, methods: { ...holdsAll, ...methods } };
+/** An HTTPS session signed in with a passkey, ending in hours. */
+export const SESSION = {
+  id: "s1",
+  method: "passkey",
+  auth_time: "2026-11-14T09:00:00Z",
+  idle_deadline: "2099-01-01T12:00:00Z",
+  absolute_deadline: "2099-01-01T18:00:00Z",
+  secure: true,
+} as const;
+
+export function meWith(
+  methods: Partial<MethodsView> = {},
+  rest: Partial<Omit<AccountView, "methods">> = {},
+): AccountView {
+  return {
+    user: { username: "mika" },
+    methods: { ...holdsAll, ...methods },
+    can_link_oidc: false,
+    sso_governed: false,
+    session: SESSION,
+    ...rest,
+  };
 }
+
+export const PHONE: PasskeyView = {
+  id: 7,
+  name: "Phone",
+  created_at: "2026-09-14T10:00:00Z",
+  last_used_at: "2026-11-08T16:41:00Z",
+  backed_up: true,
+  rp_id: "localhost",
+};
 
 export function ok<T>(data: T): Result<T> {
   return { ok: true, data };
@@ -92,6 +127,7 @@ interface StepUpCalls {
 export type FakeClient = SignInClient &
   SetupClient &
   StepUpClient &
+  SecurityClient &
   StepUpCalls & { readonly prefix: string; readonly oidcPrefix: string };
 
 export class Fake {
@@ -116,6 +152,32 @@ export class Fake {
     ["passkeyAssertion", { kind: "credential" }],
     ["stepUpPasskeyFinish", ok(undefined)],
     ["oidcStartStepUp", ok({ url: "https://id.example/authorize?state=s1" })],
+    [
+      "updateProfile",
+      (r: { readonly display_name: string }) =>
+        ok(meWith({}, { user: { username: "mika", display_name: r.display_name } })),
+    ],
+    ["setPassword", ok(undefined)],
+    ["removePassword", ok(undefined)],
+    ["passkeys", ok([PHONE])],
+    ["renamePasskey", ok(undefined)],
+    ["removePasskey", ok(undefined)],
+    ["reenableMethod", ok(undefined)],
+    ["oidcStartLink", ok({ url: "https://id.example/authorize?state=link" })],
+    ["oidcUnlink", ok(undefined)],
+    [
+      "beginTOTP",
+      ok({
+        uri: "otpauth://totp/App:mika?secret=JBSWY3DPEHPK3PXP&issuer=App",
+        text: "JBSWY3DPEHPK3PXP",
+        ticket: "t1",
+      }),
+    ],
+    ["finishTOTP", ok({ recovery_code: "ABCD2345EFGH6789" })],
+    ["removeTOTP", ok(undefined)],
+    ["regenerateRecoveryCode", ok({ recovery_code: "WXYZ2345EFGH6789" })],
+    ["sendSignals", undefined],
+    ["passkeyProof", { kind: "proof", proof: { ceremony: "cer-2", assertion: {} } }],
   ]);
   readonly #gates = new Map<string, Promise<void>>();
 
@@ -238,7 +300,23 @@ export class Fake {
       state: () => call<Result<StateResponse>>("state", []),
       loginPassword: (r) => call<Result<SignedIn>>("loginPassword", [r]),
       setupPassword: (r) => call<Result<SignedIn>>("setupPassword", [r]),
-      me: () => call<Result<MeView>>("me", []),
+      me: () => call<Result<AccountView>>("me", []),
+      updateProfile: (r) => call<Result<AccountView>>("updateProfile", [r]),
+      setPassword: (r) => call<Result<void>>("setPassword", [r]),
+      removePassword: (r) => call<Result<void>>("removePassword", [r]),
+      passkeys: () => call<Result<readonly PasskeyView[]>>("passkeys", []),
+      renamePasskey: (id, r) => call<Result<void>>("renamePasskey", [id, r]),
+      removePasskey: (id, proof?: SecondFactorProof) =>
+        call<Result<void>>("removePasskey", proof === undefined ? [id] : [id, proof]),
+      reenableMethod: (method) => call<Result<void>>("reenableMethod", [method]),
+      oidcStartLink: (r) => call<Result<{ readonly url: string }>>("oidcStartLink", [r]),
+      oidcUnlink: () => call<Result<void>>("oidcUnlink", []),
+      beginTOTP: () => call<Result<TotpBegin>>("beginTOTP", []),
+      finishTOTP: (r) => call<Result<{ readonly recovery_code?: string }>>("finishTOTP", [r]),
+      removeTOTP: (proof?: SecondFactorProof) =>
+        call<Result<void>>("removeTOTP", proof === undefined ? [] : [proof]),
+      regenerateRecoveryCode: (proof) =>
+        call<Result<{ readonly recovery_code: string }>>("regenerateRecoveryCode", [proof]),
       stepUpPassword: (r) => call<Result<void>>("stepUpPassword", [r]),
       stepUpCode: (code) => call<Result<void>>("stepUpCode", [code]),
       stepUpPasskeyBegin: () =>
@@ -250,7 +328,10 @@ export class Fake {
   }
 
   /** The access module, as the screens type it. */
-  access(): SignInAccess<FakeClient> & SetupAccess<FakeClient> & StepUpAccess<FakeClient> {
+  access(): SignInAccess<FakeClient> &
+    SetupAccess<FakeClient> &
+    StepUpAccess<FakeClient> &
+    SecurityAccess<FakeClient> {
     const call = <T>(name: string, args: readonly unknown[]): Promise<T> =>
       this.call(name, args) as Promise<T>;
     return {
@@ -261,7 +342,12 @@ export class Fake {
         await call("storePasswordCredential", [username, password]);
       },
       setupWithPasskey: (c, r) => call<SignInOutcome>("setupWithPasskey", [c, r]),
-      registerPasskey: (c) => call<RegisterOutcome>("registerPasskey", [c]),
+      registerPasskey: (c, proof?: SecondFactorProof) =>
+        call<RegisterOutcome>("registerPasskey", proof === undefined ? [c] : [c, proof]),
+      sendSignals: async (c) => {
+        await call("sendSignals", [c]);
+      },
+      passkeyProof: (c) => call<ProofOutcome>("passkeyProof", [c]),
       takeFragmentToken: (name) => {
         this.calls.push({ name: "takeFragmentToken", args: [name] });
         return this.fragment;

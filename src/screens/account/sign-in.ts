@@ -50,7 +50,8 @@ import { wordsOf } from "./words.js";
 
 /** The notice a sign-in opens with, after the step that sent the person
  *  here. */
-export type SignInArrival = "session-ended" | "setup-complete" | "password-set";
+export type SignInArrival =
+  "session-ended" | "setup-complete" | "password-set" | "transport-changed";
 
 export interface SignedInEvent {
   /** Where to go: the `next` path, else "/". */
@@ -547,7 +548,12 @@ export function mountSignIn<C extends SignInClient>(
   void load();
 }
 
-const ARRIVALS: readonly SignInArrival[] = ["session-ended", "setup-complete", "password-set"];
+const ARRIVALS: readonly SignInArrival[] = [
+  "session-ended",
+  "setup-complete",
+  "password-set",
+  "transport-changed",
+];
 
 function arrivalOf(value: string | null): SignInArrival | undefined {
   return ARRIVALS.find((a) => a === value);

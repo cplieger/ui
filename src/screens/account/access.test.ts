@@ -4,6 +4,8 @@ import { expect, it } from "vitest";
 
 import type {
   Result,
+  SecurityAccess,
+  SecurityClient,
   SetupAccess,
   SetupClient,
   SignInAccess,
@@ -22,9 +24,11 @@ export function hostPasses(client: access.AuthClient, answer: ApiResult<number>)
     fits<SignInClient>(client),
     fits<SetupClient>(client),
     fits<StepUpClient>(client),
+    fits<SecurityClient>(client),
     fits<SignInAccess<access.AuthClient>>(access),
     fits<SetupAccess<access.AuthClient>>(access),
     fits<StepUpAccess<access.AuthClient>>(access),
+    fits<SecurityAccess<access.AuthClient>>(access),
   ];
 }
 
@@ -34,6 +38,7 @@ it("finds every function the screens call in the access module", () => {
     "readOIDCReturn",
     "oidcSignInURL",
     "registerPasskey",
+    "sendSignals",
     "setupWithPasskey",
     "signInWithPasskey",
     "storePasswordCredential",

@@ -7,9 +7,10 @@
 
 import type { Confirm } from "../../buttons/confirm/confirm.js";
 import { announce } from "../../feedback/announce/announce.js";
+import { ask } from "../../overlays/ask/ask.js";
 import { clock, type Tone } from "./answer.js";
 import type { Result, StateResponse } from "./client.js";
-import { el, glyph, line, notice } from "./dom.js";
+import { el, glyph, line, notice, uid } from "./dom.js";
 import type { Runner } from "./run.js";
 import type { AccountWords } from "./words.js";
 
@@ -23,7 +24,6 @@ export type AccountPart =
   | "setup-passkey"
   | "second-factor"
   | "profile"
-  | "password-remove"
   | "sessions"
   | "session-rename"
   | "keys"
@@ -241,7 +241,11 @@ function length(seconds: number, w: AccountWords): string {
 }
 
 /** A link to the app's HTTPS address, or undefined without one. */
-function httpsLink(t: Transport, app: string, w: AccountWords): HTMLAnchorElement | undefined {
+function httpsLink(
+  t: { readonly httpsOrigin?: string | undefined },
+  app: string,
+  w: AccountWords,
+): HTMLAnchorElement | undefined {
   if (t.httpsOrigin === undefined) {
     return undefined;
   }
@@ -294,4 +298,51 @@ export function needsHttps(t: Transport, app: string, w: AccountWords): HTMLElem
     box.append(link);
   }
   return box;
+}
+
+/** Whether `button` is held: by "Needs HTTPS", or by a rate limit's
+ *  countdown. A held button keeps focus and ignores a press. */
+export function isHeld(button: HTMLElement): boolean {
+  return button.getAttribute("aria-disabled") === "true";
+}
+
+/** Holds each of `buttons` as needing HTTPS, focusable so the reason is
+ *  heard, and answers the "Needs HTTPS." line that describes them, linked
+ *  to the app's HTTPS address when it named one. */
+export function holdForHttps(
+  buttons: readonly HTMLElement[],
+  t: { readonly httpsOrigin?: string | undefined },
+  app: string,
+  w: AccountWords,
+): HTMLElement {
+  const help = line("cp-help", w["security.needsHttps"]);
+  help.id = uid("https");
+  const link = httpsLink(t, app, w);
+  if (link !== undefined) {
+    help.append(" ", link, ".");
+  }
+  for (const b of buttons) {
+    b.setAttribute("aria-disabled", "true");
+    b.setAttribute("aria-describedby", help.id);
+  }
+  return help;
+}
+
+/** Asks one question through `ask()`: true when the person answers. A
+ *  danger question takes focus on its declining button. */
+export function question(
+  message: string,
+  o: {
+    readonly title: string;
+    readonly answer: string;
+    readonly cancel: string;
+    readonly danger?: boolean;
+  },
+): Promise<boolean> {
+  return ask(message, {
+    title: o.title,
+    confirmLabel: o.answer,
+    cancelLabel: o.cancel,
+    ...(o.danger === true ? { tone: "danger" as const } : {}),
+  });
 }

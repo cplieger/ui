@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#qr">QR code</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -141,6 +141,47 @@
         <h2>Sign in again over plain HTTP</h2>
         <div class="cp-cluster"><button class="cp-button" type="button" data-step-up-demo="plain">Change password…</button></div>
         <footer>A plain session cannot step up, so the server asks for a fresh sign-in: the sign-in form with the username fixed, then the action runs once more.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="account-security">
+    <h2>Account and security</h2>
+    <p><code>mountSecurity(region, options)</code> fills the signed-in person's own screen: who is signed in, the profile, then the sign-in methods with each one's state as a <code>.cp-state</code> and its actions, then the passkeys. Here it sits inside a settings part, its sections at <code>level: 3</code>. A write that needs a recent sign-in asks "Confirm it is you" first.</p>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Every method</h2>
+        <div data-security-demo="every"></div>
+        <footer>A password, two passkeys, an authenticator app with its recovery code, and single sign-on. Type "wrong" as the current password for its field error, or a new password under 15 characters. In a code field, 111111 is a wrong code and 222222 one already used. Remove password asks to confirm it is you first. Rename edits the name in its cell: Enter saves, Escape puts it back.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Set up an authenticator app</h2>
+        <div data-security-demo="set-up"></div>
+        <footer>The QR code of the app's link and its key in groups of four, then the first code turns it on. The recovery code follows once, held open until "I saved my recovery code" is checked.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A second factor held</h2>
+        <div data-security-demo="proof"></div>
+        <footer>Adding or removing a passkey asks for a code from the authenticator app or a passkey first.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A plain session</h2>
+        <div data-security-demo="plain"></div>
+        <footer>Signed in over plain HTTP: "Plain HTTP" with the session's end, no Remove password, and each action that needs HTTPS held with its reason and the way to the HTTPS address.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A locked password</h2>
+        <div data-security-demo="locked"></div>
+        <footer>Password sign-in turned off after many failed attempts, with Turn it back on.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Managed by single sign-on</h2>
+        <div data-security-demo="sso"></div>
+        <footer>The identity provider manages this person's sign-in: each method keeps its state, with no form to change it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Only a passkey</h2>
+        <div data-security-demo="passkey-only"></div>
+        <footer>One passkey is the only way in: the row suggests a second one, and there is no authenticator app to set up without a password.</footer>
       </div>
     </div>
   </section>

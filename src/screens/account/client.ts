@@ -37,6 +37,8 @@ export interface StateResponse {
    *  withholds. */
   readonly https_required?: readonly ("password" | "setup" | "passkeys" | "oidc")[];
   readonly https_origin?: string;
+  /** From access Part 4: the app offers authenticator apps. Absent: no. */
+  readonly totp?: boolean;
 }
 
 export interface SignedIn {
@@ -121,12 +123,67 @@ export interface MethodsView {
   };
   /** From access Part 4; absent reads as true. */
   readonly password_step_up?: boolean;
+  /** From access Part 4: the person holds a recovery code. */
+  readonly recovery_code?: boolean;
+  /** From access Part 4: adding or removing a passkey needs a proof of a
+   *  second factor. Absent reads as false. */
+  readonly second_factor_held?: boolean;
 }
 
 /** `GET /me`, as far as the screens read it. */
 export interface MeView {
   readonly user: { readonly username: string; readonly display_name?: string };
   readonly methods: MethodsView;
+}
+
+/** `MeResponse.session`: the session this page runs on. */
+export interface SessionNow {
+  readonly method: string;
+  readonly auth_time: string;
+  readonly idle_deadline: string;
+  readonly absolute_deadline: string;
+  /** False for a session made over plain HTTP (access Part 3). */
+  readonly secure: boolean;
+}
+
+/** `GET /me` as Account and security reads it. */
+export interface AccountView extends MeView {
+  readonly can_link_oidc: boolean;
+  /** From access Part 5: the identity provider manages this person's
+   *  sign-in, so their local methods are dormant. */
+  readonly sso_only?: boolean;
+  /** Before access Part 5, the same as `sso_only`. */
+  readonly sso_governed?: boolean;
+  /** From access Part 5: an owner keeps every local method. */
+  readonly owner?: boolean;
+  readonly session: SessionNow;
+}
+
+/** A passkey on the person's account. */
+export interface PasskeyView {
+  readonly id: number;
+  readonly name: string;
+  readonly created_at: string;
+  readonly last_used_at?: string;
+  readonly backed_up: boolean;
+  readonly clone_warning?: boolean;
+  readonly rp_id: string;
+  /** From access Part 4: Remove would not be refused. Absent reads as
+   *  true. */
+  readonly removable?: boolean;
+}
+
+/** Proof of a second factor (access Part 4): a code from the
+ *  authenticator app, or a passkey assertion from `stepUpPasskeyBegin`. */
+export type SecondFactorProof =
+  { readonly code: string } | { readonly ceremony: string; readonly assertion: unknown };
+
+/** `beginTOTP()`'s answer: the authenticator link, its key as text, and
+ *  the ticket the finish takes. */
+export interface TotpBegin {
+  readonly uri: string;
+  readonly text: string;
+  readonly ticket: string;
 }
 
 /** How a step-up confirms the person: `"totp"` is a code from their
@@ -184,4 +241,49 @@ export interface SetupAccess<C> {
   passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
   storePasswordCredential(username: string, password: string): Promise<void>;
   takeFragmentToken(name: string): string | undefined;
+}
+
+/** The client calls Account and security's profile and sign-in methods
+ *  make. The calls access Part 4 adds are optional: a control that needs
+ *  one shows only when the client has it. */
+export interface SecurityClient extends StepUpClient {
+  state(): Promise<Result<StateResponse>>;
+  me(): Promise<Result<AccountView>>;
+  updateProfile(r: { readonly display_name: string }): Promise<Result<AccountView>>;
+  setPassword(r: {
+    readonly current_password?: string;
+    readonly password: string;
+  }): Promise<Result<void>>;
+  removePassword(r: { readonly current_password: string }): Promise<Result<void>>;
+  passkeys(): Promise<Result<readonly PasskeyView[]>>;
+  renamePasskey(id: number, r: { readonly name: string }): Promise<Result<void>>;
+  removePasskey(id: number, proof?: SecondFactorProof): Promise<Result<void>>;
+  reenableMethod(method: string): Promise<Result<void>>;
+  oidcStartLink(r: { readonly redirect?: string }): Promise<Result<{ readonly url: string }>>;
+  oidcUnlink(): Promise<Result<void>>;
+  beginTOTP?(): Promise<Result<TotpBegin>>;
+  finishTOTP?(r: {
+    readonly ticket: string;
+    readonly code: string;
+    readonly current_code?: string;
+  }): Promise<Result<{ readonly recovery_code?: string }>>;
+  removeTOTP?(proof?: SecondFactorProof): Promise<Result<void>>;
+  regenerateRecoveryCode?(
+    proof: SecondFactorProof,
+  ): Promise<Result<{ readonly recovery_code: string }>>;
+}
+
+/** A passkey assertion taken as a proof, or why there is none. */
+export type ProofOutcome =
+  { readonly kind: "proof"; readonly proof: SecondFactorProof } | PasskeyMiss;
+
+/** The `@cplieger/access` functions Account and security calls. */
+export interface SecurityAccess<C> extends StepUpAccess<C> {
+  /** `proof` from access Part 4, while `second_factor_held`. */
+  registerPasskey(c: C, proof?: SecondFactorProof): Promise<RegisterOutcome>;
+  sendSignals(c: C): Promise<void>;
+  storePasswordCredential(username: string, password: string): Promise<void>;
+  readOIDCReturn(search: string): OIDCReturn;
+  /** From access Part 4: a passkey assertion as a second-factor proof. */
+  passkeyProof?(c: C): Promise<ProofOutcome>;
 }

@@ -112,9 +112,185 @@ export interface AccountWords {
   readonly "plain.hours": (n: number) => string;
   readonly "plain.minutes": (n: number) => string;
 
+  readonly "security.signedIn": (who: string, how: string) => string;
+  /** How this session signed in, from `session.method`. */
+  readonly "security.method": (method: string, provider: string) => string;
+  readonly "security.plain": string;
+  /** `time` is the session's end, such as "18:40". */
+  readonly "security.plainUntil": (time: string) => string;
+  readonly "security.needsHttps": string;
+  readonly "security.cancel": string;
+  /** A write that needs a recent sign-in, named for "Confirm it is you". */
+  readonly "security.recent": string;
+
+  readonly "profile.title": string;
+  readonly "profile.username": string;
+  readonly "profile.displayName": string;
+  readonly "profile.save": string;
+  readonly "profile.busy": string;
+  readonly "profile.done": string;
+  readonly "auth_bad_request.display_name_disallowed_character": string;
+  readonly "auth_bad_request.display_name_too_long": string;
+
+  readonly "methods.title": string;
+  readonly "methods.method": string;
+  readonly "methods.state": string;
+  readonly "methods.actions": string;
+  readonly "methods.actionsFor": (name: string) => string;
+  readonly "methods.set": string;
+  readonly "methods.notSet": string;
+  readonly "methods.locked": string;
+  /** A lock's line; `method` is the method's row name. */
+  readonly "methods.lockedLine": (method: string) => string;
+  readonly "methods.reenable": string;
+  readonly "methods.unlock": string;
+  readonly "methods.reenableBusy": string;
+  /** The locked method can be turned back on only from a session signed in
+   *  another way. */
+  readonly "methods.reenableElsewhere": string;
+  /** The identity provider manages the person's sign-in. */
+  readonly "methods.ssoOnly": (provider: string) => string;
+
+  readonly "password.title": string;
+  readonly "password.change": string;
+  readonly "password.changeShort": string;
+  readonly "password.set": string;
+  readonly "password.setShort": string;
+  readonly "password.remove": string;
+  readonly "password.changeTitle": string;
+  readonly "password.setTitle": string;
+  readonly "password.current": string;
+  readonly "password.new": string;
+  readonly "password.newHelp": string;
+  readonly "password.save": string;
+  readonly "password.busy": string;
+  readonly "password.done": string;
+  readonly "password.currentEmpty": string;
+  readonly "password.newEmpty": string;
+  readonly "password.wrong": string;
+  readonly "password.changed": string;
+  readonly "password.removeQuestion": string;
+  readonly "password.removeSentence": string;
+  readonly "password.removeAnswer": string;
+  readonly "password.removed": string;
+  readonly "password.recentSet": string;
+  readonly "password.recentRemove": string;
+  readonly auth_last_method: string;
+  readonly "auth_last_method.last_second_factor": string;
+
+  readonly "passkeys.title": string;
+  readonly "passkeys.count": (n: number) => string;
+  readonly "passkeys.add": string;
+  readonly "passkeys.addShort": string;
+  readonly "passkeys.addBusy": string;
+  readonly "passkeys.added": string;
+  readonly "passkeys.name": string;
+  readonly "passkeys.created": string;
+  readonly "passkeys.lastUsed": string;
+  readonly "passkeys.where": string;
+  readonly "passkeys.never": string;
+  readonly "passkeys.synced": string;
+  readonly "passkeys.device": string;
+  readonly "passkeys.copied": string;
+  readonly "passkeys.elsewhere": string;
+  readonly "passkeys.rename": string;
+  readonly "passkeys.renameLabel": (name: string) => string;
+  readonly "passkeys.remove": string;
+  readonly "passkeys.removeLabel": (name: string) => string;
+  readonly "passkeys.removeQuestion": (name: string) => string;
+  readonly "passkeys.removeSentence": string;
+  readonly "passkeys.removeAnswer": string;
+  readonly "passkeys.removed": (name: string) => string;
+  /** A person whose one way in is a single passkey. */
+  readonly "passkeys.second": string;
+  readonly "passkeys.recentAdd": string;
+  readonly "passkeys.recentRemove": string;
+
+  readonly "rename.empty": string;
+  readonly "rename.tooLong": (max: number) => string;
+  readonly "auth_bad_request.label_disallowed_character": string;
+
+  readonly "totp.title": string;
+  readonly "totp.since": (date: string) => string;
+  /** Enrolled, but the app has authenticator apps turned off. */
+  readonly "totp.paused": string;
+  readonly "totp.pausedLine": string;
+  readonly "totp.setUp": string;
+  readonly "totp.setUpShort": string;
+  readonly "totp.replace": string;
+  readonly "totp.remove": string;
+  readonly "totp.removeShort": string;
+  readonly "totp.setUpTitle": string;
+  readonly "totp.replaceTitle": string;
+  readonly "totp.scan": string;
+  readonly "totp.key": string;
+  readonly "totp.code": string;
+  readonly "totp.codeHelp": string;
+  readonly "totp.oldCode": string;
+  readonly "totp.oldCodeHelp": string;
+  readonly "totp.confirm": string;
+  readonly "totp.busy": string;
+  readonly "totp.done": string;
+  readonly "totp.loading": string;
+  readonly "totp.added": string;
+  readonly "totp.replaced": string;
+  readonly "totp.removeQuestion": string;
+  readonly "totp.removeSentence": string;
+  readonly "totp.removeAnswer": string;
+  readonly "totp.removed": string;
+  readonly "totp.recentSetUp": string;
+  readonly "totp.recentRemove": string;
+  readonly "totp.expired": string;
+  readonly "auth_code_invalid.current_code_invalid": string;
+
+  readonly "recoveryCode.title": string;
+  readonly "recoveryCode.replace": string;
+  readonly "recoveryCode.replaceLabel": string;
+  readonly "recoveryCode.replaceQuestion": string;
+  readonly "recoveryCode.replaceSentence": string;
+  readonly "recoveryCode.replaceAnswer": string;
+  readonly "recoveryCode.recent": string;
+  readonly "recoveryCode.shownTitle": string;
+  readonly "recoveryCode.shownLine": string;
+  readonly "recoveryCode.label": string;
+  readonly "recoveryCode.offline": string;
+  readonly "recoveryCode.saved": string;
+  readonly "recoveryCode.continue": string;
+  readonly "recoveryCode.saveFirst": string;
+
+  readonly "proof.title": string;
+  readonly "proof.add": string;
+  readonly "proof.remove": string;
+  readonly "proof.replace": string;
+  readonly "proof.removeTotp": string;
+  readonly "proof.usePasskey": string;
+  readonly "proof.passkeyBusy": string;
+
+  readonly "shown.warning": string;
+  readonly "shown.copy": string;
+  readonly "shown.copied": string;
+  readonly "shown.download": string;
+  readonly "shown.done": string;
+
+  readonly "oidc.title": string;
+  readonly "oidc.linkedTo": (provider: string) => string;
+  readonly "oidc.notLinked": string;
+  readonly "oidc.link": (provider: string) => string;
+  readonly "oidc.linkBusy": string;
+  readonly "oidc.unlink": string;
+  readonly "oidc.unlinkLabel": (provider: string) => string;
+  readonly "oidc.unlinkQuestion": (provider: string) => string;
+  readonly "oidc.unlinkSentence": (provider: string) => string;
+  readonly "oidc.unlinkAnswer": string;
+  readonly "oidc.unlinked": (provider: string) => string;
+  readonly "oidc.linked": (provider: string) => string;
+  readonly auth_identity_taken: string;
+  readonly auth_already_linked: string;
+
   readonly "arrived.session-ended": string;
   readonly "arrived.setup-complete": string;
   readonly "arrived.password-set": string;
+  readonly "arrived.transport-changed": string;
 
   readonly auth_invalid_credentials: string;
   /** `time` is the wait, such as "0:42". */
@@ -258,9 +434,195 @@ export const defaultAccountWords: AccountWords = {
   "plain.hours": (n) => (n === 1 ? "1 hour" : `${String(n)} hours`),
   "plain.minutes": (n) => (n === 1 ? "1 minute" : `${String(n)} minutes`),
 
+  "security.signedIn": (who, how) => `Signed in as ${who} with ${how}.`,
+  "security.method": (method, provider) => {
+    switch (method) {
+      case "password":
+        return "a password";
+      case "passkey":
+        return "a passkey";
+      case "oidc":
+        return provider;
+      default:
+        return "another way";
+    }
+  },
+  "security.plain": "Plain HTTP",
+  "security.plainUntil": (time) => `This session ends at ${time}, or when you close the browser.`,
+  "security.needsHttps": "Needs HTTPS.",
+  "security.cancel": "Cancel",
+  "security.recent": "This change needs a recent sign-in.",
+
+  "profile.title": "Profile",
+  "profile.username": "Username",
+  "profile.displayName": "Display name",
+  "profile.save": "Save profile",
+  "profile.busy": "Saving…",
+  "profile.done": "Saved",
+  "auth_bad_request.display_name_disallowed_character":
+    "Keep it on one line, with no control characters.",
+  "auth_bad_request.display_name_too_long": "Use at most 128 characters.",
+
+  "methods.title": "Sign-in methods",
+  "methods.method": "Method",
+  "methods.state": "State",
+  "methods.actions": "Actions",
+  "methods.actionsFor": (name) => `Actions for ${name}`,
+  "methods.set": "Set",
+  "methods.notSet": "Not set",
+  "methods.locked": "Turned off",
+  "methods.lockedLine": (method) => `${method} was turned off after many failed attempts.`,
+  "methods.reenable": "Turn it back on",
+  "methods.unlock": "Unlock",
+  "methods.reenableBusy": "Turning on…",
+  "methods.reenableElsewhere": "Sign in with another method first, then turn this one back on.",
+  "methods.ssoOnly": (provider) => `${provider} manages how you sign in.`,
+
+  "password.title": "Password",
+  "password.change": "Change password…",
+  "password.changeShort": "Change…",
+  "password.set": "Set a password…",
+  "password.setShort": "Set…",
+  "password.remove": "Remove password…",
+  "password.changeTitle": "Change password",
+  "password.setTitle": "Set a password",
+  "password.current": "Current password",
+  "password.new": "New password",
+  "password.newHelp": "15 to 128 characters. A few unrelated words make a strong one.",
+  "password.save": "Save password",
+  "password.busy": "Saving…",
+  "password.done": "Saved",
+  "password.currentEmpty": "Enter your current password.",
+  "password.newEmpty": "Enter a new password.",
+  "password.wrong": "The current password is wrong.",
+  "password.changed": "Password saved.",
+  "password.removeQuestion": "Remove your password?",
+  "password.removeSentence":
+    "You will sign in with your passkeys or single sign-on only. Enter your current password to remove it.",
+  "password.removeAnswer": "Remove password",
+  "password.removed": "Password removed.",
+  "password.recentSet": "Setting a password needs a recent sign-in.",
+  "password.recentRemove": "Removing your password needs a recent sign-in.",
+  auth_last_method: "Add a passkey or link single sign-on before you remove this.",
+  "auth_last_method.last_second_factor":
+    "This app requires a second factor. Set up another one before you remove this.",
+
+  "passkeys.title": "Passkeys",
+  "passkeys.count": (n) => (n === 1 ? "1 passkey" : `${String(n)} passkeys`),
+  "passkeys.add": "Add a passkey",
+  "passkeys.addShort": "Add",
+  "passkeys.addBusy": "Waiting for your passkey…",
+  "passkeys.added": "Passkey added.",
+  "passkeys.name": "Name",
+  "passkeys.created": "Added",
+  "passkeys.lastUsed": "Last used",
+  "passkeys.where": "Where",
+  "passkeys.never": "Never",
+  "passkeys.synced": "Synced",
+  "passkeys.device": "This device only",
+  "passkeys.copied": "May be copied",
+  "passkeys.elsewhere": "Not usable here",
+  "passkeys.rename": "Rename…",
+  "passkeys.renameLabel": (name) => `Rename ${name}`,
+  "passkeys.remove": "Remove…",
+  "passkeys.removeLabel": (name) => `Remove ${name}`,
+  "passkeys.removeQuestion": (name) => `Remove ${name}?`,
+  "passkeys.removeSentence": "You can no longer sign in with it.",
+  "passkeys.removeAnswer": "Remove passkey",
+  "passkeys.removed": (name) => `${name} removed.`,
+  "passkeys.second": "Add a second passkey in case you lose this one.",
+  "passkeys.recentAdd": "Adding a passkey needs a recent sign-in.",
+  "passkeys.recentRemove": "Removing a passkey needs a recent sign-in.",
+
+  "rename.empty": "Give it a name.",
+  "rename.tooLong": (max) => `Use at most ${String(max)} characters.`,
+  "auth_bad_request.label_disallowed_character": "Keep it on one line, with no control characters.",
+
+  "totp.title": "Authenticator app",
+  "totp.since": (date) => `Set up ${date}`,
+  "totp.paused": "Off in this app",
+  "totp.pausedLine": "Authenticator apps are turned off in this app. Yours is kept.",
+  "totp.setUp": "Set up an authenticator app",
+  "totp.setUpShort": "Set up",
+  "totp.replace": "Replace authenticator app",
+  "totp.remove": "Remove authenticator app…",
+  "totp.removeShort": "Remove…",
+  "totp.setUpTitle": "Set up an authenticator app",
+  "totp.replaceTitle": "Replace authenticator app",
+  "totp.scan": "Scan this code with your authenticator app, or type the key.",
+  "totp.key": "Or type this key",
+  "totp.code": "Code from the app",
+  "totp.codeHelp": "Enter the 6-digit code the app shows now.",
+  "totp.oldCode": "Code from your current app",
+  "totp.oldCodeHelp": "The app you are replacing, so we know it is still yours.",
+  "totp.confirm": "Turn on",
+  "totp.busy": "Checking…",
+  "totp.done": "Turned on",
+  "totp.loading": "Making a key…",
+  "totp.added": "Authenticator app set up. Sign-in now asks for its code.",
+  "totp.replaced": "Authenticator app replaced. The old one no longer works.",
+  "totp.removeQuestion": "Remove your authenticator app?",
+  "totp.removeSentence": "Signing in will no longer ask for its code.",
+  "totp.removeAnswer": "Remove app",
+  "totp.removed": "Authenticator app removed.",
+  "totp.recentSetUp": "Setting up an authenticator app needs a recent sign-in.",
+  "totp.recentRemove": "Removing your authenticator app needs a recent sign-in.",
+  "totp.expired": "This setup timed out. Start again.",
+  "auth_code_invalid.current_code_invalid": "That code is not right for your current app.",
+
+  "recoveryCode.title": "Recovery code",
+  "recoveryCode.replace": "Replace…",
+  "recoveryCode.replaceLabel": "Replace recovery code…",
+  "recoveryCode.replaceQuestion": "Replace your recovery code?",
+  "recoveryCode.replaceSentence": "The one you saved stops working at once.",
+  "recoveryCode.replaceAnswer": "Replace code",
+  "recoveryCode.recent": "Replacing your recovery code needs a recent sign-in.",
+  "recoveryCode.shownTitle": "Your recovery code",
+  "recoveryCode.shownLine":
+    "If you lose your authenticator app, this code signs you in once. It is shown only now.",
+  "recoveryCode.label": "Recovery code",
+  "recoveryCode.offline": "Keep it offline, such as on paper, away from this device.",
+  "recoveryCode.saved": "I saved my recovery code",
+  "recoveryCode.continue": "Continue",
+  "recoveryCode.saveFirst": "Save the recovery code first, then check the box.",
+
+  "proof.title": "Confirm with your second factor",
+  "proof.add": "Adding a passkey needs a code from your authenticator app or one of your passkeys.",
+  "proof.remove":
+    "Removing a passkey needs a code from your authenticator app or one of your passkeys.",
+  "proof.replace":
+    "A new recovery code needs a code from your authenticator app or one of your passkeys.",
+  "proof.removeTotp":
+    "Removing your authenticator app needs a code from it or one of your passkeys.",
+  "proof.usePasskey": "Use a passkey",
+  "proof.passkeyBusy": "Waiting for your passkey…",
+
+  "shown.warning": "Copy it now. It will not be shown again.",
+  "shown.copy": "Copy",
+  "shown.copied": "Copied",
+  "shown.download": "Download",
+  "shown.done": "Done",
+
+  "oidc.title": "Single sign-on",
+  "oidc.linkedTo": (provider) => `Linked to ${provider}`,
+  "oidc.notLinked": "Not linked",
+  "oidc.link": (provider) => `Link ${provider}`,
+  "oidc.linkBusy": "Opening…",
+  "oidc.unlink": "Unlink…",
+  "oidc.unlinkLabel": (provider) => `Unlink ${provider}…`,
+  "oidc.unlinkQuestion": (provider) => `Unlink ${provider}?`,
+  "oidc.unlinkSentence": (provider) => `You will no longer sign in here with ${provider}.`,
+  "oidc.unlinkAnswer": "Unlink",
+  "oidc.unlinked": (provider) => `${provider} is unlinked.`,
+  "oidc.linked": (provider) => `${provider} is linked. You can sign in with it.`,
+  auth_identity_taken: "That identity is linked to another account.",
+  auth_already_linked: "Your account already has a single sign-on identity. Unlink it first.",
+
   "arrived.session-ended": "Your session ended. Sign in to continue.",
   "arrived.setup-complete": "Setup is already done. Sign in.",
   "arrived.password-set": "Password set. Sign in with it.",
+  "arrived.transport-changed":
+    "You were signed out because the connection changed between HTTP and HTTPS.",
 
   auth_invalid_credentials: "The username or password is wrong.",
   auth_rate_limited: (time) => `Too many attempts. Try again in ${time}.`,

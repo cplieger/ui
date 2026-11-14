@@ -10,7 +10,7 @@ import type { Tone } from "./answer.js";
 let seq = 0;
 
 /** An id unique on the page. */
-function uid(part: string): string {
+export function uid(part: string): string {
   seq += 1;
   return `cp-account-${part}-${String(seq)}`;
 }
@@ -171,4 +171,93 @@ export function sketch(): HTMLElement {
     box.append(bar);
   }
   return box;
+}
+
+/** A `.cp-state`: the state of a thing in its row, its tone's glyph then
+ *  its word. */
+export function stateMark(tone: Tone, icon: string, text: string): HTMLSpanElement {
+  const span = el("span", "cp-state");
+  span.dataset["tone"] = tone;
+  span.append(glyph(icon), text);
+  return span;
+}
+
+/** A small `.cp-button` for a table row's actions. */
+export function rowButton(
+  text: string,
+  spec: ButtonSpec & { readonly label?: string } = {},
+): HTMLButtonElement {
+  const button = actionButton(text, spec);
+  button.dataset["size"] = "sm";
+  if (spec.label !== undefined) {
+    button.setAttribute("aria-label", spec.label);
+  }
+  return button;
+}
+
+export interface Column {
+  readonly text: string;
+  /** `"actions"` for the last column of row buttons. */
+  readonly col?: "actions";
+  readonly priority?: "low" | "mid";
+}
+
+/** A flush `.cp-panel` holding a `.cp-table` named by `labelledBy`, and
+ *  its body. */
+export function table(
+  labelledBy: string,
+  columns: readonly Column[],
+): { readonly root: HTMLElement; readonly body: HTMLTableSectionElement } {
+  const root = el("div", "cp-panel");
+  root.dataset["flush"] = "";
+  const t = el("table", "cp-table");
+  t.setAttribute("aria-labelledby", labelledBy);
+  const row = el("tr");
+  for (const c of columns) {
+    const th = el("th");
+    th.scope = "col";
+    if (c.col === "actions") {
+      th.dataset["col"] = "actions";
+      th.append(el("span", "cp-hidden-narrow", c.text));
+    } else {
+      th.textContent = c.text;
+    }
+    if (c.priority !== undefined) {
+      th.dataset["priority"] = c.priority;
+    }
+    row.append(th);
+  }
+  const head = el("thead");
+  head.append(row);
+  const body = el("tbody");
+  t.append(head, body);
+  root.append(t);
+  return { root, body };
+}
+
+/** A table cell holding `content`. */
+export function cell(...content: (string | Node)[]): HTMLTableCellElement {
+  const td = el("td");
+  td.append(...content);
+  return td;
+}
+
+/** A `.cp-cell-stack` of `top` over a muted `<small>` line for each of
+ *  `lines`. */
+export function cellStack(top: string | Node, ...lines: (string | Node)[]): HTMLDivElement {
+  const box = el("div", "cp-cell-stack");
+  box.append(top);
+  for (const l of lines) {
+    const small = el("small");
+    small.append(l);
+    box.append(small);
+  }
+  return box;
+}
+
+/** A `<time>` of `iso`, worded by `format`. */
+export function time(iso: string, format: Intl.DateTimeFormatOptions): HTMLTimeElement {
+  const t = el("time", undefined, new Date(iso).toLocaleString(undefined, format));
+  t.dateTime = iso;
+  return t;
 }

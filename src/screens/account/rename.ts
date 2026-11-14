@@ -1,0 +1,108 @@
+/**
+ * rename.ts — a name edited in its own table cell: Rename… turns the name
+ * into a field holding it, selected; Enter saves, Escape puts the name
+ * back, and focus returns to the Rename… button either way.
+ * @module
+ */
+
+import { clearError, showError } from "../../forms/form/form.js";
+import { el } from "./dom.js";
+import type { AccountWords } from "./words.js";
+
+/** A display name, a passkey's name and a key's label: one line of at
+ *  most this many characters (access `maxDisplayRunes`). */
+export const NAME_MAX = 128;
+
+/** How many code points `text` holds, as access counts a name's runes. */
+export function runes(text: string): number {
+  let n = 0;
+  for (const _ of text) {
+    n += 1;
+  }
+  return n;
+}
+
+export interface RenameSpec {
+  /** The node showing the name, replaced by the field while it is edited. */
+  readonly name: HTMLElement;
+  readonly value: string;
+  /** The field's accessible name, such as "Rename Phone". */
+  readonly label: string;
+  /** Gets focus back once the edit ends. */
+  readonly button: HTMLElement;
+  readonly words: AccountWords;
+  /** Saves `value`: undefined once saved, the words of the refusal to
+   *  show on the field, or false to keep the field as it is. */
+  readonly save: (value: string) => Promise<string | false | undefined>;
+  /** Runs once the edit ends, `saved` when the new name was stored. */
+  readonly ended: (saved: boolean) => void;
+}
+
+export function renameInPlace(spec: RenameSpec): void {
+  const w = spec.words;
+  const box = el("div");
+  const input = el("input", "cp-input");
+  input.type = "text";
+  input.value = spec.value;
+  input.setAttribute("aria-label", spec.label);
+  input.setAttribute("autocomplete", "off");
+  input.enterKeyHint = "done";
+  box.append(input);
+  spec.name.replaceWith(box);
+  input.focus();
+  input.select();
+
+  let saving = false;
+  const end = (saved: boolean): void => {
+    box.replaceWith(spec.name);
+    spec.button.focus();
+    spec.ended(saved);
+  };
+  input.addEventListener("input", () => {
+    clearError(input);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!saving) {
+        end(false);
+      }
+      return;
+    }
+    if (e.key !== "Enter" || saving || e.isComposing) {
+      return;
+    }
+    e.preventDefault();
+    const value = input.value.trim();
+    if (value === spec.value) {
+      end(false);
+      return;
+    }
+    if (value === "") {
+      showError(input, w["rename.empty"]);
+      return;
+    }
+    if (runes(value) > NAME_MAX) {
+      showError(input, w["rename.tooLong"](NAME_MAX));
+      return;
+    }
+    saving = true;
+    input.readOnly = true;
+    input.setAttribute("aria-busy", "true");
+    void spec.save(value).then((refused) => {
+      saving = false;
+      input.readOnly = false;
+      input.removeAttribute("aria-busy");
+      if (refused === undefined) {
+        end(true);
+      } else if (box.isConnected) {
+        if (refused !== false) {
+          showError(input, refused);
+        }
+        input.focus();
+        input.select();
+      }
+    });
+  });
+}

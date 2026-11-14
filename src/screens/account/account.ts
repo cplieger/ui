@@ -7,13 +7,20 @@
  */
 
 export type {
+  AccountView,
   MeView,
   MethodsView,
   OIDCReturn,
   PasskeyMiss,
+  PasskeyView,
+  ProofOutcome,
   Refusal,
   RegisterOutcome,
   Result,
+  SecondFactorProof,
+  SecurityAccess,
+  SecurityClient,
+  SessionNow,
   SetupAccess,
   SetupClient,
   SignInAccess,
@@ -26,10 +33,13 @@ export type {
   StepUpChoice,
   StepUpClient,
   StepUpResult,
+  TotpBegin,
 } from "./client.js";
 export { accountActions, accountRunner, runDirect } from "./run.js";
 export type { AccountAction, DefineAction, Runner } from "./run.js";
 export type { AccountPart, ScreenOptions } from "./screen.js";
+export { mountSecurity } from "./security.js";
+export type { SecurityOptions, SecurityScreen } from "./security.js";
 export { mountSetup } from "./setup.js";
 export type { SetupOptions } from "./setup.js";
 export { mountSignIn } from "./sign-in.js";

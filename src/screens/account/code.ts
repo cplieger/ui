@@ -29,3 +29,9 @@ export function sixDigits(value: string): string | undefined {
   const code = value.replace(/\s/g, "");
   return /^\d{6}$/.test(code) ? code : undefined;
 }
+
+/** `text` with spaces and dashes dropped, in groups of four joined by
+ *  `by`, as a key or a code is read aloud and typed. */
+export function inFours(text: string, by: string): string {
+  return (text.replace(/[\s-]/g, "").match(/.{1,4}/g) ?? []).join(by);
+}
