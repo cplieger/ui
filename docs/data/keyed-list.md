@@ -2,7 +2,7 @@
 
 `@cplieger/ui/keyed-list`
 
-A list whose rows are keyed. The app gives the rows' keys in order and makes each row once; on a live update it gives the keys again, and each drawn row keeps its element, so the app patches only the rows that changed. A reorder moves the other rows around the focused one, and the row at the top of the view stays where it was. A long list, such as tens of thousands of titles, draws only the rows in view, and a page the server has not sent yet shows as skeleton rows. It serves a `.cp-list` and the body of a `.cp-table` alike, and the app renders and patches every row itself.
+A list whose rows are keyed. The app gives the rows' keys in order and makes each row once. On a live update it gives the keys again, and each drawn row keeps its element, so the app patches only the rows that changed. A reorder moves the other rows around the focused one, and the row at the top of the view stays where it was. A long list, such as tens of thousands of titles, draws only the rows in view, and a page the server has not sent yet shows as skeleton rows. It serves a `.cp-list` and the body of a `.cp-table` alike, and the app renders and patches every row itself.
 
 ```html
 <span id="title-count"></span>
