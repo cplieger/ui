@@ -29,6 +29,29 @@
   --cp-icon-size: 0.875rem;
 }
 
+/* A chip that is a link, such as a feed entry's origin or a legend's part,
+ * keeps its wash and words: no underline, a deeper wash under a mouse and
+ * the press. */
+a.cp-chip {
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+a.cp-chip:active,
+a.cp-chip[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    a.cp-chip:hover {
+      background: var(--cp-tone-4);
+    }
+  }
+}
+
 /* flashChip() sets data-cp-flash and removes it when the flash ends. The
  * keyframes read the tone, so a chip whose tone changes mid-flash flashes
  * its new one. */

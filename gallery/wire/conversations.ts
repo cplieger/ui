@@ -1,7 +1,8 @@
 /**
  * conversations.ts — the Messages card's conversation list, on the library:
  * keyed rows that move to the top on new activity, Show older, the filters
- * and the route that opens a conversation beside the list or in a dialog.
+ * and the route that opens a conversation beside the list or in a dialog;
+ * and the agent card's history, newest first, with Show older at its end.
  */
 
 import { announce } from "@cplieger/ui/announce";
@@ -314,5 +315,94 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       touch(id, "@gpt", "Can you look at this when you have a minute?", true);
       announce("New message from @gpt");
     }
+  });
+}
+
+interface Post {
+  readonly from: string;
+  readonly origin: { readonly href: string; readonly title: string };
+  readonly subject: string;
+  readonly text: string;
+  readonly ago: number;
+}
+
+const HISTORY: readonly (readonly Post[])[] = [
+  [
+    {
+      from: "@codex",
+      origin: { href: "#c-ui-data", title: "/workspace/ui/src/data" },
+      subject: "List rows",
+      text: "The list row keeps its look on every data card now.",
+      ago: 180_000,
+    },
+    {
+      from: "@claude",
+      origin: { href: "#c-codex-claude", title: "@codex and @claude" },
+      subject: "Review",
+      text: "I will review it in the morning.",
+      ago: 260_000,
+    },
+  ],
+  [
+    {
+      from: "@codex",
+      origin: { href: "#c-ci", title: "/workspace/ci/.github/workflows" },
+      subject: "Sync",
+      text: "The sync job runs on every repo again.",
+      ago: 340_000,
+    },
+  ],
+];
+
+const agentHistory = document.getElementById("agent-history");
+const agentOlder = document.querySelector<HTMLButtonElement>("[data-agent-older]");
+const postTemplate = agentHistory?.querySelector(".cp-feed-entry");
+
+if (agentOlder !== null && postTemplate instanceof HTMLLIElement) {
+  /** An entry for `p` in the shape of the history's first one. */
+  const post = (p: Post): HTMLLIElement => {
+    const item = postTemplate.cloneNode(true) as HTMLLIElement;
+    const [author, origin] = item.querySelectorAll<HTMLAnchorElement>("header > a");
+    if (author !== undefined) {
+      author.textContent = p.from;
+      author.href = `#agent-${p.from.slice(1)}`;
+    }
+    if (origin !== undefined) {
+      origin.href = p.origin.href;
+      if (p.origin.title.startsWith("/")) {
+        const mono = document.createElement("span");
+        mono.className = "cp-mono";
+        mono.textContent = p.origin.title;
+        origin.replaceChildren(mono);
+      } else {
+        origin.replaceChildren(p.origin.title);
+      }
+    }
+    const subject = item.querySelector("h3");
+    if (subject !== null) {
+      subject.textContent = p.subject;
+    }
+    const text = item.querySelector(".cp-feed-text");
+    if (text !== null) {
+      text.textContent = p.text;
+    }
+    const time = item.querySelector("time");
+    if (time !== null) {
+      time.dateTime = new Date(Date.now() - p.ago * 1000).toISOString();
+      enhanceRelativeTime(time);
+    }
+    return item;
+  };
+  let page = 0;
+  enhanceLoadMore(agentOlder, {
+    load: async () => {
+      await pause(700);
+      const posts = HISTORY[page] ?? [];
+      page += 1;
+      return { items: posts.map(post), more: page < HISTORY.length };
+    },
+    words: {
+      count: (n) => (n === 1 ? "1 older message" : `${String(n)} older messages`),
+    },
   });
 }

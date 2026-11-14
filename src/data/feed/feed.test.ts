@@ -3,6 +3,7 @@ import { userEvent } from "vitest/browser";
 
 import { rollText } from "../../core/roll/roll.js";
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { enhanceLoadMore } from "../load-more/load-more.js";
 import { enhanceFeed, type FeedOptions } from "./feed.js";
 
 let life = new AbortController();
@@ -1013,5 +1014,90 @@ describe("enhanceFeed", () => {
     feed.toNewest();
     expect(c.box.scrollTop).toBe(0);
     expect(c.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe("");
+  });
+});
+
+// An agent's history: a feed newest first that no enhanceFeed follows, its
+// origins links to their conversations and Show older at its end.
+describe("a history", () => {
+  function history(n: number): {
+    box: HTMLDivElement;
+    feed: HTMLOListElement;
+    more: HTMLButtonElement;
+  } {
+    const box = document.createElement("div");
+    box.style.blockSize = "20rem";
+    box.style.inlineSize = "30rem";
+    box.style.overflowY = "auto";
+    const feed = document.createElement("ol");
+    feed.className = "cp-feed";
+    feed.setAttribute("aria-label", "History");
+    for (let i = 0; i < n; i += 1) {
+      feed.append(entry());
+    }
+    const foot = document.createElement("li");
+    foot.className = "cp-list-foot";
+    const more = document.createElement("button");
+    more.className = "cp-button";
+    more.type = "button";
+    more.textContent = "Show older";
+    foot.append(more);
+    feed.append(foot);
+    box.append(feed);
+    document.body.append(box);
+    return { box, feed, more };
+  }
+
+  it("draws an origin that is a link as its chip, apart from the author's link", () => {
+    const { feed } = history(1);
+    const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
+    const link = document.createElement("a");
+    link.className = "cp-chip";
+    link.href = "#c-internal";
+    link.textContent = "/workspace/grelot/internal";
+    const plain = document.createElement("span");
+    plain.className = "cp-chip";
+    plain.textContent = "internal/feed";
+    header.append(link, plain);
+    const author = getComputedStyle(header.querySelector("a:not(.cp-chip)") as Element);
+    const chip = getComputedStyle(link);
+    const words = getComputedStyle(plain);
+    expect(chip.textDecorationLine).toBe("none");
+    for (const p of ["color", "backgroundColor", "fontWeight", "fontSize"] as const) {
+      expect(chip[p], p).toBe(words[p]);
+    }
+    expect(chip.color).not.toBe(author.color);
+  });
+
+  it("adds an older page at its end, focuses its first entry and never scrolls back up", async () => {
+    const { box, feed, more } = history(8);
+    await scrollTo(box, box.scrollHeight);
+    const before = box.scrollTop;
+    const page = [entry(), entry(), entry()];
+    let pages = 2;
+    enhanceLoadMore(more, {
+      load: () => {
+        pages -= 1;
+        return Promise.resolve({ items: pages === 1 ? page : [entry()], more: pages > 0 });
+      },
+      words: { count: (n) => `${String(n)} older messages` },
+      signal: life.signal,
+    });
+    more.focus();
+    await userEvent.click(more);
+    await expect.poll(() => document.activeElement).toBe(page[0]);
+    expect(feed.lastElementChild?.classList.contains("cp-list-foot")).toBe(true);
+    expect([...feed.children].indexOf(page[0] as Element)).toBe(8);
+    expect(box.scrollTop).toBeGreaterThanOrEqual(before);
+    const view = box.getBoundingClientRect();
+    const at = (page[0] as Element).getBoundingClientRect();
+    // Its start shows; Firefox scrolls focus only into partial view.
+    expect(at.top).toBeGreaterThanOrEqual(view.top - 1);
+    expect(at.top).toBeLessThan(view.bottom);
+    await expect.poll(polite).toBe("3 older messages");
+    more.focus();
+    await userEvent.click(more);
+    await expect.poll(() => feed.querySelector(".cp-list-foot")).toBe(null);
+    expect(document.activeElement).toBe(feed.lastElementChild);
   });
 });

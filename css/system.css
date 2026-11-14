@@ -6709,20 +6709,20 @@ div.cp-list-foot {
   gap: var(--cp-space-1) var(--cp-space-2);
 }
 
-.cp-feed-entry > header > a {
+.cp-feed-entry > header > a:not(.cp-chip) {
   color: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
   text-decoration-color: transparent;
 }
 
-.cp-feed-entry > header > a:focus-visible {
+.cp-feed-entry > header > a:not(.cp-chip):focus-visible {
   color: var(--cp-accent-ink);
   text-decoration-color: currentcolor;
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-feed-entry > header > a:hover {
+    .cp-feed-entry > header > a:not(.cp-chip):hover {
       color: var(--cp-accent-ink);
     }
   }
@@ -6895,6 +6895,29 @@ div.cp-list-foot {
 
 .cp-chip .cp-icon {
   --cp-icon-size: 0.875rem;
+}
+
+/* A chip that is a link, such as a feed entry's origin or a legend's part,
+ * keeps its wash and words: no underline, a deeper wash under a mouse and
+ * the press. */
+a.cp-chip {
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+a.cp-chip:active,
+a.cp-chip[data-cp-pressed] {
+  transform: scale(var(--cp-press-scale));
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    a.cp-chip:hover {
+      background: var(--cp-tone-4);
+    }
+  }
 }
 
 /* flashChip() sets data-cp-flash and removes it when the flash ends. The
@@ -8189,26 +8212,6 @@ div.cp-list-foot {
 /* A plain chip is a tap target too: it toggles its tip. */
 .cp-share-legend .cp-chip {
   min-block-size: var(--cp-hit-min);
-}
-
-.cp-share-legend a.cp-chip {
-  text-decoration: none;
-  transition:
-    background-color var(--cp-dur-micro) var(--cp-ease-out),
-    transform var(--cp-dur-press) var(--cp-ease-out);
-}
-
-.cp-share-legend a.cp-chip:active,
-.cp-share-legend a.cp-chip[data-cp-pressed] {
-  transform: scale(var(--cp-press-scale));
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-share-legend a.cp-chip:hover {
-      background: var(--cp-tone-4);
-    }
-  }
 }
 
 @media (forced-colors: active) {

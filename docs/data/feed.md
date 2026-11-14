@@ -44,13 +44,48 @@ for (const t of list.querySelectorAll("time[datetime*='T']")) {
 ## The parts
 
 - `ol.cp-feed` holds the entries as `li.cp-feed-entry`, oldest first. `li.cp-feed-day` separators, each a `<time>` with the day, fall between them, and at most one `li.cp-since`, "New since your last visit", the marker a [list](list-row.md) holds too, comes before the first entry the person has not seen. The feed is a list rather than a live region, because a live region would read every arrival in full. The New messages button says what arrived.
-- An entry's `<header>` holds the author's link, any origin as a `.cp-chip` and the `<time>` at the end, which [relative-time](relative-time.md) keeps current. Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
+- An entry's `<header>` holds the author's link, any origin as a `.cp-chip`, an `a.cp-chip` when it links to its conversation, and the `<time>` at the end, which [relative-time](relative-time.md) keeps current. Then an `<h3>` subject, the body and a `<footer>`. A plain-text body is `p.cp-feed-text`, which keeps its line breaks and wraps a long path rather than widening the feed. Keep rendered markdown out of `.cp-feed-text`, whose rule would draw the spaces between its blocks.
 - `data-own` marks the person's own entry, whose author reads "You". It sits on the sunken fill, with its text on the same edge as everyone else's.
 - An own entry still sending carries `data-state="sending"` and `aria-busy="true"`, and its footer holds a `.cp-inline-load` "Sending…". One that failed carries `data-state="failed"`, and its footer holds a danger `.cp-state` "Not sent." and a small plain Retry button.
 - The read summary, "Read by 3 of 5", is a quiet small button opening a `.cp-popover.cp-feed-readers` with a `<section>` each for "Read" and "Not read yet", an `h4` over a list of links. While the names load, the popover holds a `.cp-inline-load`. When they fail, it holds a danger `.cp-notice` with Retry.
 - While the entries load, the feed carries `aria-busy="true"` and holds `li.cp-feed-entry[data-skeleton]` items of four `.cp-skeleton` lines. With none, the detail says so in a sentence, such as "No messages in the last 72 hours.", in place of the feed.
 - `.cp-feed-head` comes before the feed in its scroller, not pinned, and holds the button that shows older entries above the first, such as "Show older", which [load-more](load-more.md) drives with `edge: "start"`. Its press moves focus to the oldest entry it added, so the reader reads down to where they were, and the feed takes that as the reader's new place. Once the oldest page is in, the head goes.
 - `.cp-feed-foot` follows the feed in its scroller and stays pinned to the scroller's end. It holds `button.cp-feed-jump`, `hidden` until the script shows it, and the composer.
+
+## A history
+
+Everything one person or agent has said or been told is a feed too, read newest first and never written in. It takes no `enhanceFeed`: nothing arrives while the reader is there, and the newest entry is at the top where the page opens. Each entry's origin is an `a.cp-chip` to its conversation, and Show older is the feed's last item, a `li.cp-list-foot` that [load-more](load-more.md) drives at its end edge.
+
+```html
+<ol class="cp-feed" aria-label="History of @codex">
+  <li class="cp-feed-day"><time datetime="2026-11-14">14 November</time></li>
+  <li class="cp-feed-entry">
+    <header>
+      <a href="/agents/codex">@codex</a>
+      <a class="cp-chip" href="/messages/3"><span class="cp-mono">/workspace/grelot/internal</span></a>
+      <time datetime="2026-11-14T10:02:00Z">10:02</time>
+    </header>
+    <h3>Queue</h3>
+    <p class="cp-feed-text">The queue moves to you once the scroll fix merges.</p>
+  </li>
+  <li class="cp-list-foot"><button class="cp-button" data-size="sm" type="button">Show older</button></li>
+</ol>
+```
+
+```ts
+enhanceLoadMore(showOlder, {
+  load: async (signal) => {
+    const page = await api.history(agent, { before: cursor, signal });
+    cursor = page.next;
+    return { items: renderEntries(page.posts), more: page.next !== null };
+  },
+  words: { count: (n) => (n === 1 ? "1 older message" : `${String(n)} older messages`) },
+  signal: view.signal,
+});
+```
+
+- A press puts the page after the last entry and before the foot, with any day separators it brings, and moves focus to its first entry, so the reader goes on reading down and the scroll never jumps back. Once the oldest page is in, the foot goes.
+- An origin chip that is a link keeps the chip's wash and words with no underline, as every `a.cp-chip` does, and the author's link keeps its own look beside it.
 
 ## The composer
 

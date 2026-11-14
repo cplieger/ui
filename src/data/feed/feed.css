@@ -50,20 +50,20 @@
   gap: var(--cp-space-1) var(--cp-space-2);
 }
 
-.cp-feed-entry > header > a {
+.cp-feed-entry > header > a:not(.cp-chip) {
   color: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
   text-decoration-color: transparent;
 }
 
-.cp-feed-entry > header > a:focus-visible {
+.cp-feed-entry > header > a:not(.cp-chip):focus-visible {
   color: var(--cp-accent-ink);
   text-decoration-color: currentcolor;
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-feed-entry > header > a:hover {
+    .cp-feed-entry > header > a:not(.cp-chip):hover {
       color: var(--cp-accent-ink);
     }
   }
