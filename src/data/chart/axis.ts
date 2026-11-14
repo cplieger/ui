@@ -4,7 +4,7 @@
  * @module
  */
 
-import { formatter, tickFormat } from "../scale/format.js";
+import { tickFormat, writer } from "../scale/format.js";
 import { boxes, greedy, LABEL_GAP, tooSparse, type Box } from "../scale/labels.js";
 import { coarserStep, linearAxis, linearTicks } from "../scale/linear.js";
 import { logTickLists } from "../scale/log.js";
@@ -118,7 +118,10 @@ function logAxis(
   locale: string | undefined,
 ): Axis {
   const duration = scale.format === "duration";
-  const write = formatter(duration ? "duration" : scale.format, locale);
+  // Every tick is 1, 2 or 5 times a power of ten no finer than lo's.
+  const write = writer(duration ? "duration" : scale.format, locale, {
+    digits: [0, -Math.floor(Math.log10(scale.lo))],
+  });
   const lists = logTickLists(scale.lo, scale.hi, duration);
   let chosen: Tick[] = [];
   for (const [n, list] of lists.entries()) {
@@ -144,10 +147,11 @@ function linearAxisAt(
   });
   const [lo, hi] = axis.domain;
   const at = range(lo, hi);
-  const format = formatter(scale.format, locale);
-  const write = scale.absolute ? (v: number) => format(Math.abs(v)) : format;
   for (let step = axis.step; ; step = coarserStep(step)) {
     const values = linearTicks(lo, hi, step);
+    const digits = Math.max(0, -step.exp);
+    const format = writer(scale.format, locale, { digits: [digits, digits] });
+    const write = scale.absolute ? (v: number) => format(Math.abs(v)) : format;
     const { ticks, shown } = fitted(values, at, write, layout);
     if (!tooSparse(shown, values.length) || values.length <= 1) {
       return { lo, hi, at, ticks };
@@ -228,6 +232,44 @@ export function xAxis(scale: Continuous, width: number, ctx: AxisContext): Axis 
     case "linear":
       return linearAxisAt(scale, X_SPACING, range, layout, ctx.locale);
   }
+}
+
+// Every 1st, 2nd, 5th, 10th, 20th… category, up to one past all `n`.
+function* bandSteps(n: number): Generator<number> {
+  for (let p = 1; ; p *= 10) {
+    for (const lead of [1, 2, 5]) {
+      yield lead * p;
+      if (lead * p >= n) {
+        return;
+      }
+    }
+  }
+}
+
+/** A band x of `names` along `width` px, each category a column from i to
+ *  i + 1, right to left when `reverse`: a label under every column's
+ *  middle, or under every 2nd, 5th, 10th… from the first when they would
+ *  overlap. */
+export function bandAxis(
+  names: readonly string[],
+  width: number,
+  reverse: boolean,
+  measure: Measure,
+): Axis {
+  const n = names.length;
+  const at = reverse ? position("linear", 0, n, width, 0) : position("linear", 0, n, 0, width);
+  const layout = { length: width, lineHeight: undefined, measure };
+  const write = (v: number) => names[Math.floor(v)] ?? "";
+  let ticks: Tick[] = [];
+  for (const every of bandSteps(n)) {
+    const values = names.flatMap((_, i) => (i % every === 0 ? [i + 0.5] : []));
+    const laid = fitted(values, at, write, layout);
+    ticks = laid.ticks;
+    if (laid.clear) {
+      break;
+    }
+  }
+  return { lo: 0, hi: n, at, ticks };
 }
 
 /** The y axis of `scale` up `height` px, its labels `lineHeight` px tall. */

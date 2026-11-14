@@ -1,14 +1,18 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
- * bucket, sample, change point, dot row, category, slope series or scatter
- * dot, kept in place across updates.
+ * bucket, sample, change point, dot row, category, box, slope series,
+ * scatter dot, cell row or calendar week, kept in place across updates.
  * @module
  */
 
-import { formatter } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 
+import { dayFormat, weekCount, weekRow } from "./calendar.js";
 import type {
   BarModel,
+  BoxModel,
+  CalendarModel,
+  CellModel,
   Model,
   PointModel,
   RectModel,
@@ -16,10 +20,20 @@ import type {
   ScatterModel,
   SlopeModel,
 } from "./model.js";
-import { barsApart, barTotal, bucketTotal, pointLink, sampleTotal, slopeChange } from "./model.js";
+import {
+  barsApart,
+  barTotal,
+  bucketTotal,
+  cellCount,
+  pointLink,
+  sampleTotal,
+  slopeChange,
+  stepStops,
+} from "./model.js";
 import {
   barPart,
   bucketText,
+  cellAxisText,
   changeText,
   dotValue,
   linkText,
@@ -33,8 +47,9 @@ import {
 import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
-/** Text, or an instant written in a `<time datetime>`. */
-type Part = string | { readonly at: number; readonly text: string };
+/** Text, or an instant written in a `<time datetime>`, as a calendar date
+ *  (`YYYY-MM-DD` of `at` in UTC) when `date` is set. */
+type Part = string | { readonly at: number; readonly text: string; readonly date?: boolean };
 
 interface Cell {
   readonly parts: readonly Part[];
@@ -83,32 +98,6 @@ function timed(model: Model, write: (m: Model) => string): Part[] {
     .split(MARKS)
     .filter((s) => s !== "")
     .map((s) => (s.length === 1 ? (at[(s.codePointAt(0) ?? 0) - MARK] ?? s) : s));
-}
-
-const isStop = (m: SampleModel, i: number): boolean =>
-  i === m.from || i === m.to - 1 || m.series.some((s) => s.y[i] !== s.y[i - 1]);
-
-/** The samples a step line's table lists and its keys stop at: the first
- *  and last inside the domain, and each where any series changes value or
- *  turns to or from a gap. */
-export function stepStops(m: SampleModel): number[] {
-  const out: number[] = [];
-  for (let i = m.from; i < m.to; i++) {
-    if (isStop(m, i)) {
-      out.push(i);
-    }
-  }
-  return out;
-}
-
-/** The stop holding sample `i` of a step line inside its domain: the last of
- *  `stepStops` at or before it. */
-export function stepStopAt(m: SampleModel, i: number): number {
-  let k = i;
-  while (k > m.from && !isStop(m, k)) {
-    k--;
-  }
-  return k;
 }
 
 function rectRows(model: Model, m: RectModel, words: Words): Row[] {
@@ -272,6 +261,112 @@ function scatterTable(model: Model, m: ScatterModel, words: Words, after: string
   };
 }
 
+// A matrix as the plot draws it: a column per x entry, a row per y entry
+// from the top (a binned y's highest bin first), each value in the colour
+// scale's format, the axes' labels in the corner.
+function cellTable(model: Model, m: CellModel, words: Words, after: string): TableModel {
+  const rows = cellCount(m.y);
+  const order = Array.from({ length: rows }, (_, k) => ("edges" in m.y ? rows - 1 - k : k));
+  const xs = Array.from({ length: cellCount(m.x) }, (_, c) => c);
+  const columns = (model.x.reverse ? xs.reverse() : xs).map((c) => ({
+    text: cellAxisText(model, m, "x", c, words, false),
+    num: true,
+    c,
+  }));
+  const corner = [model.spec.y?.label, model.spec.x?.label]
+    .filter((l): l is string => l !== undefined && l !== "")
+    .join(" / ");
+  return {
+    corner,
+    columns: columns.map(({ text, num }) => ({ text, num })),
+    rows: order.map((r): Row => {
+      const head = cellAxisText(model, m, "y", r, words, false);
+      return {
+        key: head,
+        head: [head],
+        cells: columns.map(({ c }) => {
+          const v = m.values[r]?.[c] ?? null;
+          return { parts: [v === null ? words.noData : model.colourText(v)], num: true };
+        }),
+      };
+    }),
+    after,
+  };
+}
+
+// A row per category, or per category and series from two series up with a
+// Series column, its five numbers Low to High and its outliers ascending.
+function boxTable(model: Model, m: BoxModel, words: Words, after: string): TableModel {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const several = m.series.length > 1;
+  const l = words.boxLabels;
+  const rows = names.flatMap((name, i) =>
+    m.series.map((s): Row => {
+      const b = s.boxes[i] ?? null;
+      const five = b === null ? [] : [b.low, b.q1, b.median, b.q3, b.high];
+      const cells: Cell[] = Array.from({ length: 5 }, (_, k) => {
+        const v = five[k];
+        return { parts: [v === undefined ? words.noData : model.xText(v)], num: true };
+      });
+      const out = s.outliers[i] ?? [];
+      cells.push({
+        parts: [out.length === 0 ? words.none : out.map((v) => model.xText(v)).join(", ")],
+        num: true,
+      });
+      return {
+        key: several ? `${name}\u0000${s.name}` : name,
+        head: [name],
+        cells: several ? [{ parts: [s.name], num: false }, ...cells] : cells,
+      };
+    }),
+  );
+  const columns = [l.low, l.q1, l.median, l.q3, l.high, l.outliers].map((text) => ({
+    text,
+    num: true,
+  }));
+  return {
+    corner: model.spec.y?.label ?? "",
+    columns: several ? [{ text: words.series, num: false }, ...columns] : columns,
+    rows,
+    after,
+  };
+}
+
+const DAY = 86_400_000;
+
+// A row per week column, headed by its first date, and a column per weekday
+// from the week's start; a place outside the days is an empty cell.
+function calendarTable(model: Model, m: CalendarModel, words: Words, after: string): TableModel {
+  const lead = weekRow(m.day, m.weekStart);
+  const weekday = dayFormat(model.locale, { weekday: "long" });
+  const date = dayFormat(model.locale, { dateStyle: "medium" });
+  const first = m.day - lead;
+  return {
+    corner: "",
+    columns: Array.from({ length: 7 }, (_, r) => ({ text: weekday(first + r), num: true })),
+    rows: Array.from({ length: weekCount(lead, m.values.length) }, (_, w): Row => {
+      const start = first + 7 * w;
+      return {
+        key: String(start),
+        head: [{ at: start * DAY, text: date(start), date: true }],
+        cells: Array.from({ length: 7 }, (_, r): Cell => {
+          const i = 7 * w + r - lead;
+          if (i < 0 || i >= m.values.length) {
+            return { parts: [""], num: true };
+          }
+          const v = m.values[i] ?? null;
+          const text = v === null ? words.noData : model.colourText(v);
+          return {
+            parts: [m.open && i === m.values.length - 1 && v !== null ? words.soFar(text) : text],
+            num: true,
+          };
+        }),
+      };
+    }),
+    after,
+  };
+}
+
 /** Whether the table's row heads are the app's names, each set in a `<bdi>`
  *  so a right-to-left name keeps its place: a band's rows, a slope's series
  *  or a scatter's dots. */
@@ -283,12 +378,16 @@ export const namedRows = (model: Model): boolean => {
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
   const m = primaryOf(model);
-  const after = [...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
+  const whiskers =
+    m?.kind === "box" && m.whiskers !== undefined ? [words.whiskersNote(m.whiskers)] : [];
+  const after = [...whiskers, ...ruleSentences(model, words), ...noteSentences(model, words)].join(
+    " ",
+  );
   if (m === undefined) {
     return { corner: "", columns: [], rows: [], after };
   }
   if (m.kind === "dot") {
-    const count = formatter("number", model.locale);
+    const count = writer("number", model.locale);
     const seen = new Map<string, number>();
     const rows = m.rows.map((r): Row => {
       const n = seen.get(r.name) ?? 0;
@@ -327,6 +426,15 @@ export function tableModel(model: Model, words: Words): TableModel {
   if (m.kind === "scatter") {
     return scatterTable(model, m, words, after);
   }
+  if (m.kind === "cell") {
+    return cellTable(model, m, words, after);
+  }
+  if (m.kind === "calendar") {
+    return calendarTable(model, m, words, after);
+  }
+  if (m.kind === "box") {
+    return boxTable(model, m, words, after);
+  }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {
     columns.push({ text: words.total, num: true });
@@ -350,7 +458,8 @@ function write(el: HTMLElement, parts: readonly Part[], isolate: boolean): void 
       return bdi;
     }
     const time = document.createElement("time");
-    time.dateTime = new Date(p.at).toISOString();
+    const iso = new Date(p.at).toISOString();
+    time.dateTime = p.date === true ? iso.slice(0, 10) : iso;
     time.textContent = p.text;
     return time;
   });

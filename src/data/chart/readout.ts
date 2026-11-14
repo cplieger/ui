@@ -5,20 +5,14 @@
  * @module
  */
 
-import {
-  formatter,
-  noun,
-  signedFormatter,
-  withNoun,
-  type Unit,
-  type WidthKey,
-} from "../scale/format.js";
+import { noun, withNoun, writer, type Unit, type WidthKey } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import {
   barsApart,
   barTotal,
   bucketTotal,
+  cellCount,
   drawnTotal,
   pointLink,
   sampleTotal,
@@ -26,6 +20,10 @@ import {
   type AreaModel,
   type BarModel,
   type BarSeriesModel,
+  type BoxModel,
+  type BoxSeriesModel,
+  type CalendarModel,
+  type CellModel,
   type DotModel,
   type LineModel,
   type Model,
@@ -37,6 +35,7 @@ import {
   type SeriesModel,
   type SlopeModel,
 } from "./model.js";
+import { classOf } from "./classes.js";
 import type { Words } from "./words.js";
 
 /** One legend entry: a series' chip with its value, or a bare value. */
@@ -55,11 +54,24 @@ export interface Reading {
   readonly total: string | undefined;
   /** The entry of the series chosen, whose chip name turns semibold. */
   readonly chosen?: number;
+  /** A cell chart's selected class, whose swatch in the colour key takes
+   *  the ring; -1 for a missing cell, whose No data swatch does. */
+  readonly swatch?: number;
 }
 
 /** The mark the legend row reads: the chart's one data mark. */
 type Primary =
-  RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel | SlopeModel | ScatterModel;
+  | RectModel
+  | LineModel
+  | AreaModel
+  | DotModel
+  | BarModel
+  | PointModel
+  | SlopeModel
+  | ScatterModel
+  | CellModel
+  | CalendarModel
+  | BoxModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -223,7 +235,7 @@ const dots = (m: DotModel) => m.rows.reduce((n, r) => n + r.to - r.from, 0);
 /** A band chart's row count in words: in the y scale's unit, or as categories. */
 export function rowsText(model: Model, words: Words): string {
   const n = model.y.type === "band" ? model.y.rows.length : 0;
-  const count = formatter("number", model.locale)(n);
+  const count = writer("number", model.locale)(n);
   const unit = model.spec.y?.unit;
   return unit === undefined ? words.categories(count, n) : counted(count, n, unit, model);
 }
@@ -231,7 +243,7 @@ export function rowsText(model: Model, words: Words): string {
 /** How many dots a scatter shows, in its `unit` or as `words.points`. */
 export function dotsText(model: Model, m: ScatterModel, words: Words): string {
   const n = m.shown.reduce((a, d) => a + d.length, 0);
-  const count = formatter("number", model.locale)(n);
+  const count = writer("number", model.locale)(n);
   return m.unit === undefined ? words.points(count, n) : counted(count, n, m.unit, model);
 }
 
@@ -291,10 +303,10 @@ export const pointPart = (model: Model, s: PointSeriesModel, i: number, words: W
 };
 
 /** `pointLink`'s `v` in x's format, a duration on a time x, and an
- *  arrow's change with its sign on every value but 0. */
+ *  arrow's change with its sign on every value not written as 0. */
 export function linkText(model: Model, m: PointModel, v: number): string {
   const format = model.x.type === "time" ? "duration" : model.x.format;
-  return (m.link === "arrow" ? signedFormatter : formatter)(format, model.locale)(v);
+  return writer(format, model.locale, { signed: m.link === "arrow" })(v);
 }
 
 /** The word a reading's `total` follows in the legend row and the table:
@@ -374,7 +386,7 @@ export const dotValue = (s: ScatterModel["series"][number], axis: "x" | "y" | "r
 // A scatter's chips, a dot count per series, a figure that adds up across
 // the chart where its measures need not; none with one series.
 function dotChips(model: Model, m: ScatterModel): Entry[] {
-  const count = formatter("number", model.locale);
+  const count = writer("number", model.locale);
   return m.series.length < 2
     ? []
     : m.series.map((s, k) => ({
@@ -408,16 +420,170 @@ export function scatterReading(
   return m.series.length < 2 ? reading : { ...reading, chosen: measures.length + k };
 }
 
-/** A slope series' change in the y format, signed on every value but 0. */
+/** A slope series' change in the y format, signed on every value not written as 0. */
 export function changeText(model: Model, v: number): string {
-  return signedFormatter(model.y.type === "band" ? undefined : model.y.format, model.locale)(v);
+  return writer(model.y.type === "band" ? undefined : model.y.format, model.locale, {
+    signed: true,
+  })(v);
+}
+
+/** A box's outliers in words through `words.outlierReading`, their count
+ *  in `words.outlierUnit`; "" without any. */
+function outliersText(model: Model, s: BoxSeriesModel, r: number, words: Words): string {
+  const all = s.outliers[r] ?? [];
+  const n = all.length;
+  if (n === 0) {
+    return "";
+  }
+  const count = counted(writer("number", model.locale)(n), n, words.outlierUnit, model);
+  const last = n > 1 ? model.xText(all[n - 1] ?? 0) : "";
+  return words.outlierReading(count, model.xText(all[0] ?? 0), last);
+}
+
+/** Series `s`'s box in row `r` as a reading says it: its five numbers
+ *  through `words.box`, then its outliers, or No data. */
+export function boxPart(model: Model, s: BoxSeriesModel, r: number, words: Words): string {
+  const b = s.boxes[r] ?? null;
+  if (b === null) {
+    return words.noData;
+  }
+  const t = model.xText;
+  const five = words.box(t(b.median), t(b.q1), t(b.q3), t(b.low), t(b.high));
+  const out = outliersText(model, s, r, words);
+  return out === "" ? five : `${five}, ${out}`;
+}
+
+// A lone series' four measure slots, the first `first` and the rest blank.
+const boxSlots = (first: string): Entry[] =>
+  [first, "", "", ""].map((value) => ({ slot: undefined, name: undefined, value }));
+
+/** Row `r` of box mark `m`: its name, then with one series its median,
+ *  middle half, whiskers and outlier count each under its `boxLabels`
+ *  label, or from two series up a chip per series with its median. */
+export function boxReading(model: Model, m: BoxModel, r: number, words: Words): Reading {
+  const at = model.y.type === "band" ? (model.y.rows[r] ?? "") : "";
+  const t = model.xText;
+  if (m.series.length > 1) {
+    const all = m.series.map((s) => {
+      const b = s.boxes[r] ?? null;
+      return { slot: s.slot, name: s.name, value: b === null ? words.noData : t(b.median) };
+    });
+    return { at, entries: all, total: undefined };
+  }
+  const s = m.series[0];
+  const b = s?.boxes[r] ?? null;
+  if (s === undefined || b === null) {
+    return { at, entries: boxSlots(words.noData), total: undefined };
+  }
+  const l = words.boxLabels;
+  const n = s.outliers[r]?.length ?? 0;
+  return {
+    at,
+    entries: [
+      ...bare(words.measure(l.median, t(b.median))),
+      ...bare(words.measure(l.middle, words.range(t(b.q1), t(b.q3)))),
+      ...bare(words.measure(l.whiskers, words.range(t(b.low), t(b.high)))),
+      ...bare(words.measure(l.outliers, writer("number", model.locale)(n))),
+    ],
+    total: undefined,
+  };
+}
+
+/** How many cells a cell chart has, missing ones included, through `words.cells`. */
+export function cellsText(model: Model, m: CellModel, words: Words): string {
+  const n = cellCount(m.x) * cellCount(m.y);
+  return words.cells(writer("number", model.locale)(n), n);
+}
+
+/** Column or row `i` of a cell chart's `axis` in words: its category's
+ *  name, or its bin's range, after the axis's label through `words.measure`
+ *  when it has one and `labelled`. */
+export function cellAxisText(
+  model: Model,
+  m: CellModel,
+  axis: "x" | "y",
+  i: number,
+  words: Words,
+  labelled = true,
+): string {
+  const a = m[axis];
+  if ("names" in a) {
+    return a.names[i] ?? "";
+  }
+  const lo = a.edges[i] ?? 0;
+  const hi = a.edges[i + 1] ?? 0;
+  const range =
+    axis === "x"
+      ? words.range(...model.xSpan(lo, hi))
+      : words.range(model.yText(lo), model.yText(hi));
+  const label = model.spec[axis]?.label ?? "";
+  return label === "" || !labelled ? range : words.measure(label, range);
+}
+
+/** Cell (`row`, `column`)'s place through `words.cellPlace`. */
+export const cellPlaceText = (
+  model: Model,
+  m: CellModel,
+  row: number,
+  column: number,
+  words: Words,
+): string =>
+  words.cellPlace(
+    cellAxisText(model, m, "x", column, words),
+    cellAxisText(model, m, "y", row, words),
+  );
+
+/** A cell's value in the colour scale's format and unit, a gap as No data. */
+export const cellValueText = (model: Model, v: number | null, words: Words): string =>
+  v === null ? words.noData : counted(model.colourText(v), v, model.spec.colour?.unit, model);
+
+/** Cell (`row`, `column`) of `m`: its place and its value, with its class's
+ *  swatch to ring. */
+export function cellReading(
+  model: Model,
+  m: CellModel,
+  row: number,
+  column: number,
+  words: Words,
+): Reading {
+  const v = m.values[row]?.[column] ?? null;
+  return {
+    at: cellPlaceText(model, m, row, column, words),
+    entries: bare(cellValueText(model, v, words)),
+    total: undefined,
+    swatch: v === null ? -1 : classOf(m.classes, v),
+  };
+}
+
+/** How many days a calendar holds, missing ones included, through `words.days`. */
+export function daysText(model: Model, m: CalendarModel, words: Words): string {
+  const n = m.values.length;
+  return words.days(writer("number", model.locale)(n), n);
+}
+
+/** Day `i` of a calendar in words: its date in full, "so far" on an open last day. */
+function dayText(model: Model, m: CalendarModel, i: number, words: Words): string {
+  const date = model.dateText(m.day + i);
+  return m.open && i === m.values.length - 1 ? words.soFar(date) : date;
+}
+
+/** Day `i` of `m`: its date and its value, with its class's swatch to ring. */
+export function dayReading(model: Model, m: CalendarModel, i: number, words: Words): Reading {
+  const v = m.values[i] ?? null;
+  return {
+    at: dayText(model, m, i, words),
+    entries: bare(cellValueText(model, v, words)),
+    total: undefined,
+    swatch: v === null ? -1 : classOf(m.classes, v),
+  };
 }
 
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
  *  values, an area's last whole stack, a bar or point chart's row count,
  *  a slope's right column, a scatter's dot count, blank slots for its
- *  measures and from two series up each one's count. */
+ *  measures and from two series up each one's count, a cell chart's
+ *  cell count, a calendar's day count, or a box chart's row count. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -488,6 +654,21 @@ export function overall(model: Model, words: Words): Reading | undefined {
       return {
         at: dotsText(model, m, words),
         entries: [...measuresOf(m).flatMap(() => bare("")), ...dotChips(model, m)],
+        total: undefined,
+      };
+    case "cell":
+      // Cells need not add up (a median, a temperature), so the value slot is blank.
+      return { at: cellsText(model, m, words), entries: bare(""), total: undefined };
+    case "calendar":
+      return { at: daysText(model, m, words), entries: bare(""), total: undefined };
+    case "box":
+      // Distributions do not add up across rows, so the slots are blank.
+      return {
+        at: rowsText(model, words),
+        entries:
+          m.series.length === 1
+            ? boxSlots("")
+            : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
         total: undefined,
       };
   }
@@ -731,6 +912,10 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
       add(m.kind === "bar" ? barReading(model, m, r, words) : pointReading(model, m, r, words));
     }
+  } else if (m?.kind === "box") {
+    for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
+      add(boxReading(model, m, r, words));
+    }
   } else if (m?.kind === "slope") {
     add(columnReading(model, m, 0, words));
   } else if (m?.kind === "scatter") {
@@ -742,6 +927,42 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     measuresOf(m).forEach((axis, slot) => {
       values[slot]?.push(...scatterTexts(model, m, axis, words));
     });
+  } else if (m?.kind === "cell") {
+    // A place joins a column's words to a row's, so the widest of each makes the widest place.
+    const widestOf = (axis: "x" | "y") => {
+      let text = "";
+      let w = -1;
+      for (let i = 0; i < cellCount(m[axis]); i++) {
+        const t = cellAxisText(model, m, axis, i, words);
+        const tw = measure.number(t);
+        if (tw > w) {
+          text = t;
+          w = tw;
+        }
+      }
+      return text;
+    };
+    at.push(words.cellPlace(widestOf("x"), widestOf("y")));
+    const unit = model.spec.colour?.unit;
+    const all = function* () {
+      for (const row of m.values) {
+        yield* row;
+      }
+    };
+    values[0]?.push(
+      words.noData,
+      ...widthSamples(all(), model.widthKeys.colour, nounOf(model, unit)).map((v) =>
+        cellValueText(model, v, words),
+      ),
+    );
+  } else if (m?.kind === "calendar") {
+    m.values.forEach((_, i) => at.push(dayText(model, m, i, words)));
+    values[0]?.push(
+      words.noData,
+      ...widthSamples(m.values, model.widthKeys.colour, nounOf(model, model.spec.colour?.unit)).map(
+        (v) => cellValueText(model, v, words),
+      ),
+    );
   } else if (m?.kind === "dot") {
     const posts = function* () {
       for (const row of m.rows) {

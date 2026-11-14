@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
@@ -70,7 +70,7 @@ describe("rule labels", () => {
     const l = lay(readDelays(42_000, 1_087_000), 80 + 276, { axisGroup: 80 });
     expect(l.frame.width).toBe(276);
     const [median, p95] = l.ruleLabels;
-    expect(median?.text).toBe(`Median ${formatDuration(42_000, "en")}`);
+    expect(median?.text).toBe(`Median ${writer("duration", "en")(42_000)}`);
     expect(median?.x).toBeCloseTo(80 + l.frame.xAt(42_000), 6);
     expect(p95?.x).toBe(80);
     expect(p95?.y).toBeGreaterThan(median?.y ?? 0);
@@ -82,7 +82,9 @@ describe("rule labels", () => {
   it("writes a rule outside the domain as a label flush with its end", () => {
     const l = lay(readDelays(42_000, 4 * 86_400_000), 80 + 276, { axisGroup: 80 });
     const off = l.ruleLabels[1];
-    expect(off?.text).toBe(`95th percentile ${formatDuration(4 * 86_400_000, "en")}, off the axis`);
+    expect(off?.text).toBe(
+      `95th percentile ${writer("duration", "en")(4 * 86_400_000)}, off the axis`,
+    );
     expect((off?.x ?? 0) + face.number(off?.text ?? "")).toBe(80 + 276);
   });
 
@@ -1057,5 +1059,178 @@ describe("a scatter's layout", () => {
       ["GDP per capita", "end"],
     ]);
     expect(l.titles[1]?.x).toBe(l.left + l.frame.width);
+  });
+});
+
+describe("a cell chart's layout", () => {
+  const hours = Array.from({ length: 24 }, (_, h) => String(h));
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const week = (x: ChartSpec["x"] = {}): ChartSpec => ({
+    x,
+    marks: [{ mark: "cell", x: hours, y: days, values: days.map(() => hours.map(() => 1)) }],
+  });
+
+  it("gives each row the band's row height with its name in the y gutter", () => {
+    const l = lay(week(), 400);
+    expect(l.frame.height).toBe(7 * 24);
+    expect(l.yAxis).toBeUndefined();
+    expect(l.yLabels.map((t) => [t.text, t.y - l.top, t.anchor])).toEqual(
+      days.map((d, r) => [d, (r + 0.5) * 24, "end"]),
+    );
+    // "Mon" is 22.5 px and its pad 8.
+    expect(l.left).toBe(31);
+  });
+
+  it("holds each cell's column and row edges, the columns sharing the plot's width", () => {
+    const l = lay(week(), 400);
+    const w = 400 - 31;
+    expect(l.cells?.ys).toEqual(Array.from({ length: 8 }, (_, r) => r * 24));
+    expect(l.cells?.xs.length).toBe(25);
+    l.cells?.xs.forEach((x, c) => {
+      expect(x).toBeCloseTo((c * w) / 24, 6);
+    });
+  });
+
+  it("runs a reversed x's columns right to left", () => {
+    const l = lay(week({ reverse: true }), 400);
+    expect(l.cells?.xs[0]).toBeCloseTo(l.frame.width, 6);
+    expect(l.cells?.xs[24]).toBeCloseTo(0, 6);
+  });
+
+  it("labels each column under its middle, or every 2nd, 5th or 10th when labels would overlap", () => {
+    // 369 px over 24 columns is 15.4 px a column, under two-digit labels and their 8 px gap.
+    const wide = lay(week(), 400);
+    expect(wide.xLabels.map((t) => t.text)).toEqual(hours.filter((_, h) => h % 2 === 0));
+    const middle = (c: number) => wide.left + ((c + 0.5) * wide.frame.width) / 24;
+    expect(wide.xLabels[1]?.x).toBeCloseTo(middle(2), 6);
+    // 119 px is 5 px a column: every 2nd is 10 px apart, every 5th 25 px.
+    expect(lay(week(), 150).xLabels.map((t) => t.text)).toEqual(["0", "5", "10", "15", "20"]);
+    // 2.4 px a column: every 10th.
+    expect(lay(week(), 89).xLabels.map((t) => t.text)).toEqual(["0", "10", "20"]);
+  });
+
+  it("titles x under its labels at the plot's right end", () => {
+    const l = lay(week({ label: "Hour" }), 400);
+    expect(l.titles.map((t) => [t.text, t.x, t.anchor])).toEqual([
+      ["Hour", l.left + l.frame.width, "end"],
+    ]);
+  });
+});
+
+describe("a binned cell chart's layout", () => {
+  const binned = (
+    x: readonly number[] | readonly string[],
+    y: readonly number[],
+    more: Partial<ChartSpec> = {},
+  ): ChartSpec => {
+    const columns = x.length - (typeof x[0] === "number" ? 1 : 0);
+    return {
+      ...more,
+      marks: [
+        {
+          mark: "cell",
+          x:
+            typeof x[0] === "number" ? { edges: x as readonly number[] } : (x as readonly string[]),
+          y: { edges: y },
+          values: y.slice(1).map(() => Array.from({ length: columns }, () => 1)),
+        },
+      ],
+    };
+  };
+  const life = [50, 55, 60, 65, 70, 75, 80, 85];
+
+  it("puts each column's edges at its bin's edges on the x scale", () => {
+    const l = lay(binned([1_000, 2_000, 5_000, 10_000], life, { x: { type: "log" } }), 400);
+    const xs = l.cells?.xs ?? [];
+    expect(xs).toHaveLength(4);
+    expect(xs[0]).toBe(0);
+    expect(xs[3]).toBe(l.frame.width);
+    // On a log x, 1,000 to 2,000 and 5,000 to 10,000 are the same width.
+    expect((xs[1] ?? 0) - (xs[0] ?? 0)).toBeCloseTo((xs[3] ?? 0) - (xs[2] ?? 0), 6);
+    expect(l.xLabels.length).toBeGreaterThan(0);
+  });
+
+  it("runs a binned y's rows up from the plot's bottom at its edges, in the plot's height", () => {
+    const l = lay(binned(["a", "b"], life), 400);
+    expect(l.frame.height).toBe(240);
+    const ys = l.cells?.ys ?? [];
+    expect(ys).toHaveLength(8);
+    ys.forEach((y, r) => {
+      expect(y).toBeCloseTo(240 - (r * 240) / 7, 6);
+    });
+    expect(l.rows).toEqual([]);
+    expect(l.yAxis).toBeDefined();
+  });
+
+  it("keeps a passed height while every bin is a row tall, and grows past it until the thinnest is", () => {
+    // Seven bins of 168 px are a row each.
+    expect(lay(binned(["a"], life, { height: 168 }), 400).frame.height).toBe(168);
+    // Seven bins of 120 px would be 17 px: a 24 px row takes 168.
+    expect(lay(binned(["a"], life, { height: 120 }), 400).frame.height).toBe(168);
+    // Twelve equal bins of 240 px would be 20 px.
+    const twelve = Array.from({ length: 13 }, (_, i) => 20 + 5 * i);
+    expect(lay(binned(["a"], twelve), 400).frame.height).toBe(12 * 24);
+  });
+
+  it("grows by the thinnest bin on the scale, not the bin count", () => {
+    // 0 to 1 is a fortieth of 0 to 40, so it takes 24 × 40 px.
+    expect(lay(binned(["a"], [0, 1, 40]), 400).frame.height).toBe(960);
+    // On a log y, 1 to 10 and 10 to 100 are halves: 240 px holds them.
+    expect(lay(binned(["a"], [1, 10, 100], { y: { type: "log" } }), 400).frame.height).toBe(240);
+  });
+
+  it("titles a binned y above the plot, as a continuous y", () => {
+    const l = lay(binned(["a"], life, { y: { label: "Life expectancy" } }), 400);
+    expect(l.titles.map((t) => t.text)).toEqual(["Life expectancy"]);
+  });
+});
+
+describe("a box plot", () => {
+  const latency = (series = 1): ChartSpec => ({
+    x: { label: "Latency" },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export", "login", "health"],
+        series: Array.from({ length: series }, (_, k) => ({
+          name: k === 0 ? "Before" : "After",
+          low: [120, 300, 40, 1],
+          q1: [180, 900, 60, 2],
+          median: [240, 1400, 75, 2],
+          q3: [410, 2100, 90, 3],
+          high: [760, 4000, 130, 4],
+        })),
+      },
+    ],
+  });
+
+  it("sets a 24 px row per category with one series, its name in the gutter, from 30rem up", () => {
+    const l = lay(latency(), 600);
+    expect(l.frame.height).toBe(4 * 24);
+    expect(l.rows.map((r) => r.y)).toEqual([12, 36, 60, 84]);
+    expect(l.gutters.axis).toBe(7.5 * "health".length + 8);
+    expect(l.valueLabels).toEqual([]);
+    expect(l.titles).toContainEqual(expect.objectContaining({ text: "Latency", anchor: "end" }));
+  });
+
+  it("grows a row by a 16 px sub-row per series, 8 px to spare", () => {
+    const l = lay(latency(2), 600);
+    expect(l.frame.height).toBe(4 * 40);
+    expect(l.rows.map((r) => r.y)).toEqual([20, 60, 100, 140]);
+  });
+
+  it("puts each name above its boxes under 30rem: 44 px a row with one series, 60 with two", () => {
+    const one = lay(latency(), 320);
+    expect(one.gutters.axis).toBe(0);
+    expect(one.frame.height).toBe(176);
+    expect(one.rows[0]?.y).toBe(18 + 2 + 8);
+    expect(one.yLabels[1]).toEqual({ text: "export", x: 0, y: 44 + 9, anchor: "start" });
+    expect(lay(latency(2), 320).frame.height).toBe(240);
+  });
+
+  it("runs x 4 px inside each end, so an outlier at the domain's end draws whole", () => {
+    const l = lay(latency(), 600);
+    expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(4);
+    expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 4);
   });
 });

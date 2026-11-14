@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
@@ -74,7 +74,7 @@ describe("a duration axis", () => {
   it("thins the read histogram's ticks at 276 px to 1 sec, 1 min, 1 hr and 3 days", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
     expect(axis.ticks.map((t) => t.value)).toEqual([S, MIN, HR, 3 * DAY]);
-    expect(words(axis)).toEqual([S, MIN, HR, 3 * DAY].map((v) => formatDuration(v, "en")));
+    expect(words(axis)).toEqual([S, MIN, HR, 3 * DAY].map((v) => writer("duration", "en")(v)));
     expect(axis.ticks.at(-1)?.label?.box.end).toBe(276);
     expect(axis.ticks[0]?.label?.box.start).toBe(0);
   });
@@ -196,6 +196,10 @@ describe("a time axis", () => {
     expect(axis.ticks.map((t) => t.value)).toEqual([6, 4, 2, 0].map((h) => eight + h * HR));
     expect(axis.ticks.at(-1)?.label?.lines).toHaveLength(2);
   });
+
+  it("refuses an instant past Date's range with a RangeError, long before 1e300", () => {
+    expect(() => xAxis(time(0, 1e16), 276, ctx())).toThrow(RangeError);
+  });
 });
 
 describe("a linear axis", () => {
@@ -285,6 +289,124 @@ describe("a linear axis", () => {
     // In px order along the axis, the top first.
     expect(yAxis(y, 240, 16, ctx()).ticks.map((t) => t.value)).toEqual([3, 2, 1, 0]);
   });
+
+  it("ends a stack's y at its round total, though the sum drifts past it", () => {
+    // 0.4 + 0.8 is 1.2000000000000002.
+    const y = yScale({
+      x: {},
+      marks: [
+        {
+          mark: "rect",
+          x1: [0],
+          x2: [1],
+          series: [
+            { name: "a", y: [0.4] },
+            { name: "b", y: [0.8] },
+          ],
+        },
+      ],
+    });
+    if (y.type === "band") {
+      throw new Error("expected a linear y");
+    }
+    const axis = yAxis(y, 240, 16, ctx());
+    expect([axis.lo, axis.hi]).toEqual([0, 1.2]);
+    expect(axis.ticks.map((t) => t.value)).toEqual([1.2, 1, 0.8, 0.6, 0.4, 0.2, 0]);
+  });
+
+  it("ticks only inside a passed domain, wherever its ends fall between multiples", () => {
+    for (const domain of [
+      [123456789012.4, 123456789013.9],
+      [1e15 + 24000, 1e15 + 40000],
+      [0.1 + 0.2, 0.7],
+    ] as const) {
+      const axis = xAxis(xScale({ x: { domain }, marks: [] }), 600, ctx());
+      expect(axis.ticks.length).toBeGreaterThan(0);
+      for (const t of axis.ticks) {
+        expect(t.value >= domain[0] && t.value <= domain[1]).toBe(true);
+        expect(t.at >= 0 && t.at <= 600).toBe(true);
+      }
+    }
+  });
+
+  it("writes every tick with its step's fraction digits", () => {
+    const line: ChartSpec["marks"][number] = {
+      mark: "line",
+      x: [0.1, 1.9],
+      series: [{ name: "a", y: [1, 2] }],
+    };
+    const one = (format?: "percent") =>
+      xScale({ x: { domain: [0, 2], ...(format && { format }) }, marks: [line] });
+    expect(words(xAxis(one(), 400, fixed(10)))).toEqual(["0.0", "0.5", "1.0", "1.5", "2.0"]);
+    const fine = xScale({ x: { domain: [0, 0.0004] }, marks: [line] });
+    expect(words(xAxis(fine, 400, fixed(10)))).toEqual([
+      "0.0000",
+      "0.0001",
+      "0.0002",
+      "0.0003",
+      "0.0004",
+    ]);
+    expect(words(xAxis(one("percent"), 400, fixed(10)))).toEqual([
+      "0%",
+      "50%",
+      "100%",
+      "150%",
+      "200%",
+    ]);
+    const share = xScale({ x: { domain: [0, 0.02], format: "percent" }, marks: [line] });
+    expect(words(xAxis(share, 400, fixed(10)))).toEqual(["0.0%", "0.5%", "1.0%", "1.5%", "2.0%"]);
+  });
+
+  it("writes ticks finer than Intl's 100 fraction digits in scientific notation, 0 as 0", () => {
+    const tiny = xScale({
+      x: { domain: [0, 4e-101] },
+      marks: [{ mark: "line", x: [0, 4e-101], series: [{ name: "a", y: [1, 2] }] }],
+    });
+    expect(words(xAxis(tiny, 400, fixed(10)))).toEqual([
+      "0",
+      "1E-101",
+      "2E-101",
+      "3E-101",
+      "4E-101",
+    ]);
+  });
+
+  it("writes a log axis's ticks with the digits each needs", () => {
+    const log = xScale({ x: { type: "log", domain: [0.0001, 1] }, marks: [] });
+    expect(words(xAxis(log, 400, fixed(10)))).toEqual(
+      [1e-4, 1e-3, 1e-2, 1e-1].flatMap((p) => [1, 2, 5].map((m) => String(m * p))).concat("1"),
+    );
+  });
+
+  it("widens one value from 1e12 by its twelfth figure, the finest step the axis takes", () => {
+    const one = (v: number) =>
+      xScale({
+        x: { type: "linear" },
+        marks: [{ mark: "line", x: [v], series: [{ name: "a", y: [1] }] }],
+      });
+    expect([one(100).lo, one(100).hi]).toEqual([99, 101]);
+    const axis = xAxis(one(1e16), 400, ctx());
+    expect([axis.lo, axis.hi].every(Number.isFinite)).toBe(true);
+    expect(axis.lo < 1e16 && 1e16 < axis.hi).toBe(true);
+    expect(axis.ticks.length).toBeGreaterThan(1);
+  });
+
+  it("spans ±1e300, the largest value a chart takes, with finite ticks in order", () => {
+    for (const x of [{ type: "linear", domain: [-1e300, 1e300] }, { type: "linear" }] as const) {
+      const scale = xScale({
+        x,
+        marks: [{ mark: "line", x: [-1e300, 1e300], series: [{ name: "a", y: [1, 2] }] }],
+      });
+      const axis = xAxis(scale, 400, ctx());
+      const values = axis.ticks.map((t) => t.value);
+      // Each label writes all 301 digits, so only the tick at 0 fits.
+      expect(values).toContain(0);
+      expect([axis.lo, axis.hi]).toEqual([-1e300, 1e300]);
+      expect(
+        values.every((v, k) => Number.isFinite(v) && (k === 0 || v > (values[k - 1] ?? 0))),
+      ).toBe(true);
+    }
+  });
 });
 
 describe("the y gutter", () => {
@@ -368,5 +490,41 @@ describe("the rule label band", () => {
     expect(ruleBand([{ at: 100, width: 200 }], 276).placed).toEqual([{ start: 0, line: 0 }]);
     expect(ruleBand([{ at: 200, width: 300 }], 276).placed).toEqual([{ start: 0, line: 0 }]);
     expect(ruleBand([], 276).lines).toBe(0);
+  });
+});
+
+describe("a binned axis", () => {
+  const binned = (
+    x: readonly number[],
+    y: readonly number[],
+    type: "linear" | "log",
+  ): ChartSpec => ({
+    x: { type },
+    y: { type },
+    marks: [
+      {
+        mark: "cell",
+        x: { edges: x },
+        y: { edges: y },
+        values: y.slice(1).map(() => x.slice(1).map(() => 1)),
+      },
+    ],
+  });
+
+  it("runs a linear x and y from the first edge to the last, unniced, with ticks of its type between", () => {
+    const spec = binned([52, 57, 62, 67, 72, 77, 82], [52, 57, 62, 67, 72, 77, 82], "linear");
+    const x = xAxis(xScale(spec), 276, ctx());
+    expect([x.lo, x.hi, x.at(52), x.at(82)]).toEqual([52, 82, 0, 276]);
+    expect(x.ticks.map((t) => t.value)).toEqual([60, 70, 80]);
+    const y = yAxis(yScale(spec) as Continuous, 240, 17, ctx());
+    expect([y.lo, y.hi, y.at(52), y.at(82)]).toEqual([52, 82, 240, 0]);
+    expect(y.ticks.every((t) => t.value >= 52 && t.value <= 82)).toBe(true);
+  });
+
+  it("ticks a log x of bins at its powers of ten between its ends", () => {
+    const edges = [500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000];
+    const x = xAxis(xScale(binned(edges, [0, 1], "log")), 276, ctx());
+    expect([x.lo, x.hi, x.at(500), x.at(200_000)]).toEqual([500, 200_000, 0, 276]);
+    expect(words(x)).toEqual(["1,000", "10,000", "100,000"]);
   });
 });

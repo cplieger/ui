@@ -51,19 +51,99 @@ const preset = (format: Format | undefined): Intl.NumberFormatOptions | undefine
       ? PRESETS[format]
       : undefined;
 
-/** The writer `format` names, in `locale`; "number" when it is undefined. */
-export function formatter(
+/** How `writer` writes beyond its format. */
+interface Writing {
+  /** The least and most fraction digits "number" and "percent" write (a
+   *  percent's counted on the share, so 0.005 has three), such as a linear
+   *  axis's ticks; past 100, Intl's most, every value in scientific notation
+   *  with its digits up to the most, at most 15 significant figures, and 0
+   *  as 0. Any other format keeps its own. */
+  readonly digits?: readonly [least: number, most: number];
+  /** A sign on every value not written as 0, such as a change. */
+  readonly signed?: boolean;
+}
+
+// Intl.NumberFormat's fraction-digit limit (ECMA-402 since 2023).
+const MOST_DIGITS = 100;
+
+/**
+ * The one way the chart and the sparkline write a number: `format` in
+ * `locale`, "number" when undefined, never with a signed zero. A number
+ * format's own `signDisplay` is kept unless it signs a zero: "always"
+ * becomes "exceptZero", and "auto" (the default) "exceptZero" when `signed`
+ * and "negative" when not. When `signed`, a duration gets a "+" before a
+ * value it writes above 0 ms, and a function's string, as it is, before a
+ * positive value's text unless it has one.
+ */
+export function writer(
   format: Format | undefined,
   locale: string | undefined,
+  { digits, signed = false }: Writing = {},
 ): (value: number) => string {
-  if (typeof format === "function") {
-    return format;
+  if (typeof format === "function" || format === "duration") {
+    const write = typeof format === "function" ? format : (v: number) => formatDuration(v, locale);
+    // `durationRecord` rounds |v| half up to whole ms, so the plus starts at 0.5.
+    const positive = typeof format === "function" ? (v: number) => v > 0 : (v: number) => v >= 0.5;
+    return signed
+      ? (v) => {
+          const text = write(v);
+          return positive(v) && !text.startsWith("+") ? `+${text}` : text;
+        }
+      : write;
   }
-  const options = typeof format === "object" ? format : preset(format);
-  if (options === undefined) {
-    return (v) => formatDuration(v, locale);
+  const own: Intl.NumberFormatOptions =
+    typeof format === "object" ? format : PRESETS[format ?? "number"];
+  const display = own.signDisplay ?? "auto";
+  // Only "always" and "auto" sign a zero; any other value, an invalid one
+  // included, reaches Intl as given, which throws a RangeError on the invalid.
+  const base = {
+    ...own,
+    signDisplay:
+      display === "always"
+        ? ("exceptZero" as const)
+        : display === "auto"
+          ? signed
+            ? ("exceptZero" as const)
+            : ("negative" as const)
+          : display,
+  };
+  if (
+    digits === undefined ||
+    (format !== undefined && format !== "number" && format !== "percent")
+  ) {
+    const nf = numbers(locale, base);
+    return (v) => nf.format(v);
   }
-  const nf = numbers(locale, options);
+  const [least, most] = digits;
+  const shift = format === "percent" ? 2 : 0;
+  const share = (d: number) => Math.max(0, d - shift);
+  const fine = Math.max(least, most);
+  if (share(fine) > MOST_DIGITS) {
+    // Fifteen figures name the decimal a double was read from. Intl writes 0 as 0E0.
+    const zero = numbers(locale, base);
+    const figures = (n: number) =>
+      numbers(locale, { ...base, notation: "scientific", maximumSignificantDigits: n });
+    return (v) => {
+      if (v === 0) {
+        return zero.format(v);
+      }
+      const [lead = "", exp = ""] = v.toExponential().split("e");
+      // The figures down to the 10^-fine digit, the share's place even under "percent".
+      const n = fine + Number(exp) + 1;
+      if (n >= 1) {
+        return figures(Math.min(15, n)).format(v);
+      }
+      // Under the 10^-fine digit: rounds half away from 0, as Intl does.
+      return n === 0 && Math.abs(Number(lead)) >= 5
+        ? figures(1).format(Math.sign(v) * Number(`1e-${fine}`))
+        : zero.format(0);
+    };
+  }
+  const nf = numbers(locale, {
+    ...base,
+    minimumFractionDigits: share(least),
+    maximumFractionDigits: share(fine),
+  });
   return (v) => nf.format(v);
 }
 
@@ -80,12 +160,12 @@ const EXACT = 2 ** 53;
 const NEAR = 1e-14;
 
 /**
- * The width key of `formatter(format, locale)`'s and `signedFormatter`'s
- * texts: for a number its sign, zero, integer digits and fraction digits
- * shown, which fix the text's separators and affixes; for a duration the
- * record it writes and whether it is above 0. Undefined for a function, a
- * notation other than standard, significant-digit or uneven rounding, and a
- * style whose words follow the count, none of which a key can read.
+ * The width key of `writer(format, locale)`'s texts, signed or not: for a
+ * number its sign, zero, integer digits and fraction digits shown, which fix
+ * the text's separators and affixes; for a duration the record it writes
+ * and whether its count is above, below or at 0. Undefined for a function,
+ * a notation other than standard, significant-digit or uneven rounding, and
+ * a style whose words follow the count, none of which a key can read.
  */
 export function widthKey(
   format: Format | undefined,
@@ -133,29 +213,8 @@ export function widthKey(
       rest /= 10;
       shown--;
     }
-    const sign = (v < 0 || Object.is(v, -0) ? 2 : 0) + (n === 0 ? 1 : 0);
+    const sign = n === 0 ? 1 : v < 0 ? 2 : 0;
     return (digits * 32 + shown) * 4 + sign;
-  };
-}
-
-/**
- * `formatter`'s writer with a sign on every value but 0: `Intl`'s
- * `signDisplay: "exceptZero"` (a format object's own `signDisplay` kept),
- * or for a duration or a function a "+" before a positive value's text
- * unless it already starts with one.
- */
-export function signedFormatter(
-  format: Format | undefined,
-  locale: string | undefined,
-): (value: number) => string {
-  const options = typeof format === "object" ? format : preset(format);
-  if (options !== undefined) {
-    return formatter({ signDisplay: "exceptZero", ...options }, locale);
-  }
-  const write = formatter(format, locale);
-  return (v) => {
-    const text = write(v);
-    return v > 0 && !text.startsWith("+") ? `+${text}` : text;
   };
 }
 
@@ -204,8 +263,8 @@ export function durationRecord(ms: number): Partial<Record<DurationUnit | "milli
 
 const FIELDS = ["days", "hours", "minutes", "seconds", "milliseconds"] as const;
 
-// The text is the record's alone but for `signedFormatter`'s "+" on any value
-// above 0, a record of zero included: 0.3 writes "+0 ms" and 0 writes "0 ms".
+// The text is the record's alone but for a signed writer's "+" on a record
+// above 0; a record of zero is written unsigned, so 0.3 writes "0 ms".
 function durationKey(v: number): number {
   const record = durationRecord(v);
   const at = FIELDS.findIndex((unit) => record[unit] !== undefined);
@@ -214,15 +273,15 @@ function durationKey(v: number): number {
   // `* 60` holds the smaller count, which `durationRecord` keeps under 60.
   const small = next === undefined ? 0 : (record[next] ?? 0);
   const k = ((Math.abs(big) * 60 + Math.abs(small)) * FIELDS.length + at) * 3;
-  const key = k + (v > 0 ? 1 : big < 0 ? 2 : 0);
+  const key = k + (big > 0 ? 1 : big < 0 ? 2 : 0);
   return key < 2 ** 50 ? key : Number.NaN;
 }
 
 /** A plain space between a number and the word after it, made non-breaking. */
 export const keepUnit = (text: string): string => text.replace(/(\p{Nd}) (?=\p{L})/gu, `$1${NBSP}`);
 
-/** `ms` by the duration rule, in `Intl.DurationFormat`'s short style. */
-export function formatDuration(ms: number, locale: string | undefined): string {
+// `ms` by the duration rule, in Intl.DurationFormat's short style.
+function formatDuration(ms: number, locale: string | undefined): string {
   const record = durationRecord(ms);
   // The style's "auto" display writes nothing for a lone zero.
   const zero = record.milliseconds === 0;

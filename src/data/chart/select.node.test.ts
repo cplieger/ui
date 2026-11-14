@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { measurer } from "../scale/measure.js";
 
 import { layout, type Layout, type Metrics } from "./layout.js";
@@ -210,11 +210,11 @@ describe("histogram keys", () => {
     });
     const first = b.nav.move({ kind: "rect", i: 2, part: undefined }, "Home", undefined);
     expect(spoken(b.model, first as Selection, words, false)).toBe(
-      `Under ${formatDuration(1_000, "en")}: 4\u00A0reads.`,
+      `Under ${writer("duration", "en")(1_000)}: 4\u00A0reads.`,
     );
     const next = b.nav.move(first as Selection, "ArrowRight", undefined);
     expect(spoken(b.model, next as Selection, words, false)).toBe(
-      `${formatDuration(1_000, "en")} to ${formatDuration(60_000, "en")}: 86\u00A0reads.`,
+      `${writer("duration", "en")(1_000)} to ${writer("duration", "en")(60_000)}: 86\u00A0reads.`,
     );
   });
 });
@@ -1251,5 +1251,325 @@ describe("scatter keys, pointer and words", () => {
     expect(rekey(a, chad, moved)).toEqual(dot(1, 1));
     expect(rekey(a, ghana, moved)).toBe(undefined);
     expect(rekey(a, { kind: "line", i: 0, part: undefined }, moved)).toBe(undefined);
+  });
+});
+
+describe("a cell chart's selection", () => {
+  const days = ["Mon", "Tue", "Wed"];
+  const hours = ["0", "1", "2", "3"];
+  const grid = (over: Partial<ChartSpec> = {}): ChartSpec => ({
+    colour: { unit: { one: "post", other: "posts" } },
+    marks: [
+      {
+        mark: "cell",
+        x: hours,
+        y: days,
+        values: [
+          [3, 0, 1, 2],
+          [4, null, 6, 7],
+          [8, 9, 10, 11],
+        ],
+      },
+    ],
+    ...over,
+  });
+  const cell = (row: number, column: number): Selection => ({ kind: "cell", row, column });
+
+  it("starts on the first cell in reading order, the top left", () => {
+    expect(initial(built(grid()).model)).toEqual(cell(0, 0));
+  });
+
+  it("starts on the top right when x runs right to left", () => {
+    expect(initial(built(grid({ x: { reverse: true } })).model)).toEqual(cell(0, 3));
+  });
+
+  it("moves by cell with the arrows and to the row's ends with Home and End", () => {
+    const b = built(grid());
+    expect(press(b, cell(1, 1), "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp")).toEqual([
+      cell(1, 2),
+      cell(2, 2),
+      cell(2, 1),
+      cell(1, 1),
+    ]);
+    expect(press(b, cell(1, 1), "End")).toEqual([cell(1, 3)]);
+    expect(press(b, cell(1, 1), "Home")).toEqual([cell(1, 0)]);
+  });
+
+  it("stops at the grid's edges", () => {
+    const b = built(grid());
+    expect(press(b, cell(0, 0), "ArrowUp")).toEqual([undefined]);
+    expect(press(b, cell(0, 0), "ArrowLeft")).toEqual([undefined]);
+    expect(press(b, cell(2, 3), "ArrowDown")).toEqual([undefined]);
+    expect(press(b, cell(2, 3), "ArrowRight")).toEqual([undefined]);
+  });
+
+  it("moves Right rightward on a reversed x, as the drawing runs", () => {
+    expect(press(built(grid({ x: { reverse: true } })), cell(0, 2), "ArrowRight")).toEqual([
+      cell(0, 1),
+    ]);
+  });
+
+  it("pages ten columns on a band x, held at the row's ends", () => {
+    const names = Array.from({ length: 24 }, (_, i) => String(i));
+    const b = built({
+      marks: [{ mark: "cell", x: names, y: ["a"], values: [names.map((_, i) => i)] }],
+    });
+    expect(press(b, cell(0, 0), "PageDown", "PageDown", "PageDown", "PageUp")).toEqual([
+      cell(0, 10),
+      cell(0, 20),
+      cell(0, 23),
+      cell(0, 13),
+    ]);
+  });
+
+  it("moves Up to the higher bin on a binned y, whose rows run up from the bottom", () => {
+    const b = built({
+      marks: [
+        {
+          mark: "cell",
+          x: { edges: [0, 10, 20] },
+          y: { edges: [0, 5, 10] },
+          values: [
+            [1, 2],
+            [3, 4],
+          ],
+        },
+      ],
+    });
+    expect(press(b, cell(0, 0), "ArrowUp", "ArrowUp")).toEqual([cell(1, 0), undefined]);
+    expect(initial(b.model)).toEqual(cell(1, 0));
+  });
+
+  it("pages one x tick on a binned x", () => {
+    const edges = Array.from({ length: 101 }, (_, i) => i);
+    const b = built({
+      marks: [{ mark: "cell", x: { edges }, y: ["a"], values: [edges.slice(1)] }],
+    });
+    const next = b.nav.move(cell(0, 0), "PageDown", undefined);
+    const ticks = b.lay.xAxis.ticks.map((t) => t.value).sort((p, q) => p - q);
+    const step = (ticks[1] ?? 0) - (ticks[0] ?? 0);
+    expect(next).toEqual(cell(0, step));
+  });
+
+  it("picks the cell under the pointer, the cell past a gap, and nothing off the grid", () => {
+    const b = built(grid());
+    const xs = b.lay.cells?.xs ?? [];
+    const ys = b.lay.cells?.ys ?? [];
+    const mid = (a: readonly number[], i: number) => ((a[i] ?? 0) + (a[i + 1] ?? 0)) / 2;
+    expect(b.nav.pick(mid(xs, 2), mid(ys, 1))).toEqual(cell(1, 2));
+    // The 1 px gap between two cells lies on their shared edge.
+    expect(b.nav.pick(xs[2] ?? 0, ys[1] ?? 0)).toEqual(cell(1, 2));
+    expect(b.nav.pick(-1, mid(ys, 1))).toBeUndefined();
+    expect(b.nav.pick(mid(xs, 0), (ys.at(-1) ?? 0) + 1)).toBeUndefined();
+  });
+
+  it("drags along the row it began on and draws no crosshair", () => {
+    const b = built(grid());
+    expect(b.nav.drags).toBe(true);
+    expect(b.nav.alongRow).toBe(true);
+    expect(b.nav.crosshair(cell(0, 0))).toBeUndefined();
+  });
+
+  it("keeps a cell across an update by its column's and row's names", () => {
+    const before = built(grid()).model;
+    const after = built({
+      marks: [
+        {
+          mark: "cell",
+          x: ["3", "2"],
+          y: ["Wed", "Tue"],
+          values: [
+            [1, 2],
+            [3, 4],
+          ],
+        },
+      ],
+    }).model;
+    expect(rekey(before, cell(1, 2), after)).toEqual(cell(1, 1));
+    expect(rekey(before, cell(0, 0), after)).toBeUndefined();
+  });
+
+  it("says the cell's place and value, and No data for a missing one", () => {
+    const { model } = built(grid());
+    expect(spoken(model, cell(1, 2), words, false)).toBe("Tue, 2: 6\u00A0posts.");
+    expect(spoken(model, cell(1, 1), words, true)).toBe("Tue, 1: No data.");
+    expect(spoken(model, cell(0, 0), words, false)).toBe("Mon, 0: 3\u00A0posts.");
+  });
+});
+
+describe("a calendar's selection", () => {
+  const DAY = 86_400_000;
+  // From Thursday 1 January 2026, 66 days, weeks from Monday.
+  const JAN1 = Date.UTC(2026, 0, 1);
+  const calendar = (values: (number | null)[], open = false): ChartSpec => ({
+    colour: { unit: { one: "post", other: "posts" } },
+    marks: [{ mark: "cell", days: { start: JAN1, values, open }, weekStart: 1 }],
+  });
+  const days = (n: number) => Array.from({ length: n }, (_, i) => i % 7);
+  const day = (i: number): Selection => ({ kind: "day", i });
+  const b = built(calendar(days(66)));
+
+  it("starts on the newest day", () => {
+    expect(initial(b.model)).toEqual(day(65));
+    expect(initial(built(calendar([])).model)).toBeUndefined();
+  });
+
+  it("moves a week with Left and Right, a day with Up and Down, and to the ends with Home and End", () => {
+    expect(press(b, day(10), "ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp")).toEqual([
+      day(17),
+      day(10),
+      day(11),
+      day(10),
+    ]);
+    expect(press(b, day(10), "Home")).toEqual([day(0)]);
+    expect(press(b, day(10), "End")).toEqual([day(65)]);
+    expect(press(b, day(3), "ArrowLeft")).toEqual([undefined]);
+    expect(press(b, day(0), "ArrowUp")).toEqual([undefined]);
+    expect(press(b, day(60), "ArrowRight")).toEqual([undefined]);
+    expect(press(b, day(65), "ArrowDown")).toEqual([undefined]);
+  });
+
+  it("pages to the same date a month away, the month's last day when it has none, held at the ends", () => {
+    // 31 January, then 28 February, then 28 January.
+    expect(press(b, day(30), "PageDown", "PageUp")).toEqual([day(58), day(27)]);
+    expect(press(b, day(45), "PageDown")).toEqual([day(65)]);
+    expect(press(b, day(20), "PageUp")).toEqual([day(0)]);
+    expect(press(b, day(0), "PageUp")).toEqual([undefined]);
+  });
+
+  it("picks the day under the pointer, and nothing above the weeks or outside the days", () => {
+    const g = b.lay.days;
+    const at = (column: number, row: number) =>
+      b.nav.pick((column + 0.5) * (g?.column ?? 0), (g?.tops[0] ?? 0) + (row + 0.5) * 24);
+    // Thursday 1 January is in the first column's fourth row, 8 January the next column's.
+    expect(at(0, 3)).toEqual(day(0));
+    expect(at(1, 3)).toEqual(day(7));
+    expect(at(0, 2)).toBeUndefined();
+    expect(b.nav.pick(1, (g?.tops[0] ?? 0) - 1)).toBeUndefined();
+    expect(b.nav.alongRow).toBe(true);
+  });
+
+  it("keeps a day across an update by its date", () => {
+    const later: ChartSpec = {
+      marks: [{ mark: "cell", days: { start: JAN1 + 7 * DAY, values: days(66) } }],
+    };
+    expect(rekey(b.model, day(10), chartModel(later, "en", "UTC"))).toEqual(day(3));
+    expect(rekey(b.model, day(3), chartModel(later, "en", "UTC"))).toBeUndefined();
+  });
+
+  it("says the day's date and value, so far on an open last day, and No data for a missing one", () => {
+    const model = built(calendar([3, null, 1], true)).model;
+    expect(spoken(model, day(0), words, false)).toBe("Thursday, January 1, 2026: 3\u00A0posts.");
+    expect(spoken(model, day(1), words, false)).toBe("Friday, January 2, 2026: No data.");
+    expect(spoken(model, day(2), words, false)).toBe(
+      "Saturday, January 3, 2026, so far: 1\u00A0post.",
+    );
+  });
+});
+
+describe("box keys", () => {
+  const latency = (two = false): ChartSpec => ({
+    y: { unit: { one: "endpoint", other: "endpoints" } },
+    marks: [
+      {
+        mark: "box",
+        y: ["search", "export", "health"],
+        series: [
+          {
+            name: "Before",
+            low: [120, 300, null],
+            q1: [180, 900, null],
+            median: [240, 1400, null],
+            q3: [410, 2100, null],
+            high: [760, 4000, null],
+            outliers: [[1100, 2600], [], []],
+          },
+          ...(two
+            ? [
+                {
+                  name: "After",
+                  low: [100, 200, 1],
+                  q1: [150, 700, 2],
+                  median: [190, 1000, 2],
+                  q3: [300, 1500, 3],
+                  high: [600, 3000, 4],
+                  outliers: [[], [5000], []],
+                },
+              ]
+            : []),
+        ],
+      },
+    ],
+  });
+  const box = (row: number, part?: number): Selection => ({ kind: "box", row, part });
+
+  it("focus starts on the first row, whole, and Up, Down, Home and End move through the rows", () => {
+    const b = built(latency());
+    expect(initial(b.model)).toEqual(box(0));
+    expect(press(b, box(0), "ArrowDown", "ArrowDown", "ArrowDown")).toEqual([
+      box(1),
+      box(2),
+      undefined,
+    ]);
+    expect(press(b, box(1), "Home")).toEqual([box(0)]);
+    expect(press(b, box(1), "End")).toEqual([box(2)]);
+    expect(press(b, box(0), "ArrowUp")).toEqual([undefined]);
+  });
+
+  it("Left and Right do nothing with one series, and step the series with two", () => {
+    expect(press(built(latency()), box(0), "ArrowRight", "ArrowLeft")).toEqual([
+      undefined,
+      undefined,
+    ]);
+    const b = built(latency(true));
+    expect(press(b, box(0), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      box(0, 0),
+      box(0, 1),
+      undefined,
+    ]);
+    expect(press(b, box(0, 1), "ArrowDown")).toEqual([box(1, 1)]);
+  });
+
+  it("picks the row under the pointer by tap only, anywhere across the plot", () => {
+    const b = built(latency());
+    const y = (r: number) => b.lay.rows[r]?.y ?? 0;
+    expect(b.nav.pick(1, y(1))).toEqual(box(1));
+    expect(b.nav.pick(b.lay.frame.width - 1, y(2))).toEqual(box(2));
+    expect(b.nav.drags).toBe(false);
+  });
+
+  it("keeps its row across an update by its name", () => {
+    const before = built(latency()).model;
+    const spec = latency();
+    const mark = spec.marks[0] as Extract<Mark, { mark: "box" }>;
+    const after = chartModel(
+      { ...spec, marks: [{ ...mark, y: ["export", "search", "health"] }] },
+      "en",
+      "UTC",
+    );
+    expect(rekey(before, box(0), after)).toEqual(box(1));
+  });
+
+  it("says one series' five numbers and outliers, No data for a missing box", () => {
+    const model = built(latency()).model;
+    expect(spoken(model, box(0), words, false)).toBe(
+      "search: median 240, middle half 180 to 410, whiskers 120 to 760, 2\u00A0outliers, 1,100 to 2,600.",
+    );
+    expect(spoken(model, box(1), words, false)).toBe(
+      "export: median 1,400, middle half 900 to 2,100, whiskers 300 to 4,000.",
+    );
+    expect(spoken(model, box(2), words, false)).toBe("health: No data.");
+  });
+
+  it("says each series' box joined by semicolons, and a chosen series alone", () => {
+    const model = built(latency(true)).model;
+    expect(spoken(model, box(1), words, false)).toBe(
+      "export: Before median 1,400, middle half 900 to 2,100, whiskers 300 to 4,000; " +
+        "After median 1,000, middle half 700 to 1,500, whiskers 200 to 3,000, 1\u00A0outlier, 5,000.",
+    );
+    expect(spoken(model, box(2, 1), words, true)).toBe(
+      "health: After median 2, middle half 2 to 3, whiskers 1 to 4.",
+    );
+    expect(spoken(model, box(2, 0), words, true)).toBe("health: Before No data.");
   });
 });

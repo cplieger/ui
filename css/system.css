@@ -1249,6 +1249,980 @@
   --cp-tone-c: 0.09;
   --cp-tone-9: var(--cp-series-9);
 }
+
+@property --cp-scale-to-light {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-to-dark {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-1-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-2-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-3-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-4-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-5-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-6-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-7-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-8-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-9-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-opposite-h {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-1-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-1-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-2-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-2-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-3-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-3-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-4-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-4-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-5-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-5-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-6-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-6-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-7-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-7-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-8-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-8-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-9-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-9-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-accent-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-accent-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-opposite-lc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --cp-scale-opposite-cc {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+:root {
+  --cp-scale-to-light: clamp(
+    -30,
+    mod(95 - var(--cp-accent-h), 360) - 360 *
+      clamp(0, (mod(95 - var(--cp-accent-h), 360) - 180) * 100000, 1),
+    30
+  );
+  --cp-scale-to-dark: clamp(
+    -30,
+    mod(265 - var(--cp-accent-h), 360) - 360 *
+      clamp(0, (mod(265 - var(--cp-accent-h), 360) - 180) * 100000, 1),
+    30
+  );
+  --cp-scale-1-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 1
+    ),
+    360
+  );
+  --cp-scale-2-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 0.875
+    ),
+    360
+  );
+  --cp-scale-3-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 0.75
+    ),
+    360
+  );
+  --cp-scale-4-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 0.625
+    ),
+    360
+  );
+  --cp-scale-5-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 0.5
+    ),
+    360
+  );
+  --cp-scale-6-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 0.375
+    ),
+    360
+  );
+  --cp-scale-7-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 0.25
+    ),
+    360
+  );
+  --cp-scale-8-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 0.125
+    ),
+    360
+  );
+  --cp-scale-9-h: mod(
+    calc(
+      var(--cp-accent-h) + var(--cp-scale-to-dark) +
+        (var(--cp-scale-to-light) - var(--cp-scale-to-dark)) * 0
+    ),
+    360
+  );
+  --cp-scale-opposite-h: calc(
+    245 +
+      (
+        clamp(0, (mod(var(--cp-accent-h), 360) - 120) * 100000 + 1, 1) *
+          clamp(0, (170 - mod(var(--cp-accent-h), 360)) * 100000, 1) +
+          clamp(0, (mod(var(--cp-accent-h), 360) - 308) * 100000 + 1, 1) *
+          clamp(0, (355 - mod(var(--cp-accent-h), 360)) * 100000, 1)
+      ) *
+      (230 - mod(var(--cp-accent-h), 360)) -
+      clamp(0, (mod(var(--cp-accent-h), 360) - 170) * 100000 + 1, 1) *
+      clamp(0, (308 - mod(var(--cp-accent-h), 360)) * 100000, 1) * 190
+  );
+  --cp-scale-1-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-1-h) * 1deg) + 0.1233 * sin(var(--cp-scale-1-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-1-h) * 2deg) - 0.0114 * sin(var(--cp-scale-1-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-1-h) * 3deg) - 0.0628 * sin(var(--cp-scale-1-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-1-h) * 4deg) - 0.0047 * sin(var(--cp-scale-1-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-1-h) * 5deg) - 0.0001 * sin(var(--cp-scale-1-h) * 5deg)
+  );
+  --cp-scale-1-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-1-h) * 1deg) - 0.0233 * sin(var(--cp-scale-1-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-1-h) * 2deg) - 0.0506 * sin(var(--cp-scale-1-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-1-h) * 3deg) + 0.0221 * sin(var(--cp-scale-1-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-1-h) * 4deg) + 0.0043 * sin(var(--cp-scale-1-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-1-h) * 5deg) - 0.0082 * sin(var(--cp-scale-1-h) * 5deg)
+  );
+  --cp-scale-2-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-2-h) * 1deg) + 0.1233 * sin(var(--cp-scale-2-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-2-h) * 2deg) - 0.0114 * sin(var(--cp-scale-2-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-2-h) * 3deg) - 0.0628 * sin(var(--cp-scale-2-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-2-h) * 4deg) - 0.0047 * sin(var(--cp-scale-2-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-2-h) * 5deg) - 0.0001 * sin(var(--cp-scale-2-h) * 5deg)
+  );
+  --cp-scale-2-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-2-h) * 1deg) - 0.0233 * sin(var(--cp-scale-2-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-2-h) * 2deg) - 0.0506 * sin(var(--cp-scale-2-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-2-h) * 3deg) + 0.0221 * sin(var(--cp-scale-2-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-2-h) * 4deg) + 0.0043 * sin(var(--cp-scale-2-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-2-h) * 5deg) - 0.0082 * sin(var(--cp-scale-2-h) * 5deg)
+  );
+  --cp-scale-3-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-3-h) * 1deg) + 0.1233 * sin(var(--cp-scale-3-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-3-h) * 2deg) - 0.0114 * sin(var(--cp-scale-3-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-3-h) * 3deg) - 0.0628 * sin(var(--cp-scale-3-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-3-h) * 4deg) - 0.0047 * sin(var(--cp-scale-3-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-3-h) * 5deg) - 0.0001 * sin(var(--cp-scale-3-h) * 5deg)
+  );
+  --cp-scale-3-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-3-h) * 1deg) - 0.0233 * sin(var(--cp-scale-3-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-3-h) * 2deg) - 0.0506 * sin(var(--cp-scale-3-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-3-h) * 3deg) + 0.0221 * sin(var(--cp-scale-3-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-3-h) * 4deg) + 0.0043 * sin(var(--cp-scale-3-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-3-h) * 5deg) - 0.0082 * sin(var(--cp-scale-3-h) * 5deg)
+  );
+  --cp-scale-4-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-4-h) * 1deg) + 0.1233 * sin(var(--cp-scale-4-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-4-h) * 2deg) - 0.0114 * sin(var(--cp-scale-4-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-4-h) * 3deg) - 0.0628 * sin(var(--cp-scale-4-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-4-h) * 4deg) - 0.0047 * sin(var(--cp-scale-4-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-4-h) * 5deg) - 0.0001 * sin(var(--cp-scale-4-h) * 5deg)
+  );
+  --cp-scale-4-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-4-h) * 1deg) - 0.0233 * sin(var(--cp-scale-4-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-4-h) * 2deg) - 0.0506 * sin(var(--cp-scale-4-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-4-h) * 3deg) + 0.0221 * sin(var(--cp-scale-4-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-4-h) * 4deg) + 0.0043 * sin(var(--cp-scale-4-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-4-h) * 5deg) - 0.0082 * sin(var(--cp-scale-4-h) * 5deg)
+  );
+  --cp-scale-5-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-5-h) * 1deg) + 0.1233 * sin(var(--cp-scale-5-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-5-h) * 2deg) - 0.0114 * sin(var(--cp-scale-5-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-5-h) * 3deg) - 0.0628 * sin(var(--cp-scale-5-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-5-h) * 4deg) - 0.0047 * sin(var(--cp-scale-5-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-5-h) * 5deg) - 0.0001 * sin(var(--cp-scale-5-h) * 5deg)
+  );
+  --cp-scale-5-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-5-h) * 1deg) - 0.0233 * sin(var(--cp-scale-5-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-5-h) * 2deg) - 0.0506 * sin(var(--cp-scale-5-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-5-h) * 3deg) + 0.0221 * sin(var(--cp-scale-5-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-5-h) * 4deg) + 0.0043 * sin(var(--cp-scale-5-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-5-h) * 5deg) - 0.0082 * sin(var(--cp-scale-5-h) * 5deg)
+  );
+  --cp-scale-6-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-6-h) * 1deg) + 0.1233 * sin(var(--cp-scale-6-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-6-h) * 2deg) - 0.0114 * sin(var(--cp-scale-6-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-6-h) * 3deg) - 0.0628 * sin(var(--cp-scale-6-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-6-h) * 4deg) - 0.0047 * sin(var(--cp-scale-6-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-6-h) * 5deg) - 0.0001 * sin(var(--cp-scale-6-h) * 5deg)
+  );
+  --cp-scale-6-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-6-h) * 1deg) - 0.0233 * sin(var(--cp-scale-6-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-6-h) * 2deg) - 0.0506 * sin(var(--cp-scale-6-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-6-h) * 3deg) + 0.0221 * sin(var(--cp-scale-6-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-6-h) * 4deg) + 0.0043 * sin(var(--cp-scale-6-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-6-h) * 5deg) - 0.0082 * sin(var(--cp-scale-6-h) * 5deg)
+  );
+  --cp-scale-7-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-7-h) * 1deg) + 0.1233 * sin(var(--cp-scale-7-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-7-h) * 2deg) - 0.0114 * sin(var(--cp-scale-7-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-7-h) * 3deg) - 0.0628 * sin(var(--cp-scale-7-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-7-h) * 4deg) - 0.0047 * sin(var(--cp-scale-7-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-7-h) * 5deg) - 0.0001 * sin(var(--cp-scale-7-h) * 5deg)
+  );
+  --cp-scale-7-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-7-h) * 1deg) - 0.0233 * sin(var(--cp-scale-7-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-7-h) * 2deg) - 0.0506 * sin(var(--cp-scale-7-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-7-h) * 3deg) + 0.0221 * sin(var(--cp-scale-7-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-7-h) * 4deg) + 0.0043 * sin(var(--cp-scale-7-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-7-h) * 5deg) - 0.0082 * sin(var(--cp-scale-7-h) * 5deg)
+  );
+  --cp-scale-8-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-8-h) * 1deg) + 0.1233 * sin(var(--cp-scale-8-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-8-h) * 2deg) - 0.0114 * sin(var(--cp-scale-8-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-8-h) * 3deg) - 0.0628 * sin(var(--cp-scale-8-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-8-h) * 4deg) - 0.0047 * sin(var(--cp-scale-8-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-8-h) * 5deg) - 0.0001 * sin(var(--cp-scale-8-h) * 5deg)
+  );
+  --cp-scale-8-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-8-h) * 1deg) - 0.0233 * sin(var(--cp-scale-8-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-8-h) * 2deg) - 0.0506 * sin(var(--cp-scale-8-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-8-h) * 3deg) + 0.0221 * sin(var(--cp-scale-8-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-8-h) * 4deg) + 0.0043 * sin(var(--cp-scale-8-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-8-h) * 5deg) - 0.0082 * sin(var(--cp-scale-8-h) * 5deg)
+  );
+  --cp-scale-9-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-9-h) * 1deg) + 0.1233 * sin(var(--cp-scale-9-h) * 1deg) +
+      0.0365 * cos(var(--cp-scale-9-h) * 2deg) - 0.0114 * sin(var(--cp-scale-9-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-9-h) * 3deg) - 0.0628 * sin(var(--cp-scale-9-h) * 3deg) - 0.0126 *
+      cos(var(--cp-scale-9-h) * 4deg) - 0.0047 * sin(var(--cp-scale-9-h) * 4deg) - 0.0171 *
+      cos(var(--cp-scale-9-h) * 5deg) - 0.0001 * sin(var(--cp-scale-9-h) * 5deg)
+  );
+  --cp-scale-9-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-9-h) * 1deg) - 0.0233 * sin(var(--cp-scale-9-h) * 1deg) -
+      0.0002 * cos(var(--cp-scale-9-h) * 2deg) - 0.0506 * sin(var(--cp-scale-9-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-9-h) * 3deg) + 0.0221 * sin(var(--cp-scale-9-h) * 3deg) - 0.0041 *
+      cos(var(--cp-scale-9-h) * 4deg) + 0.0043 * sin(var(--cp-scale-9-h) * 4deg) + 0.0028 *
+      cos(var(--cp-scale-9-h) * 5deg) - 0.0082 * sin(var(--cp-scale-9-h) * 5deg)
+  );
+  --cp-scale-accent-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-accent-h) * 1deg) + 0.1233 * sin(var(--cp-accent-h) * 1deg) +
+      0.0365 * cos(var(--cp-accent-h) * 2deg) - 0.0114 * sin(var(--cp-accent-h) * 2deg) + 0.0153 *
+      cos(var(--cp-accent-h) * 3deg) - 0.0628 * sin(var(--cp-accent-h) * 3deg) - 0.0126 *
+      cos(var(--cp-accent-h) * 4deg) - 0.0047 * sin(var(--cp-accent-h) * 4deg) - 0.0171 *
+      cos(var(--cp-accent-h) * 5deg) - 0.0001 * sin(var(--cp-accent-h) * 5deg)
+  );
+  --cp-scale-accent-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-accent-h) * 1deg) - 0.0233 * sin(var(--cp-accent-h) * 1deg) -
+      0.0002 * cos(var(--cp-accent-h) * 2deg) - 0.0506 * sin(var(--cp-accent-h) * 2deg) + 0.0043 *
+      cos(var(--cp-accent-h) * 3deg) + 0.0221 * sin(var(--cp-accent-h) * 3deg) - 0.0041 *
+      cos(var(--cp-accent-h) * 4deg) + 0.0043 * sin(var(--cp-accent-h) * 4deg) + 0.0028 *
+      cos(var(--cp-accent-h) * 5deg) - 0.0082 * sin(var(--cp-accent-h) * 5deg)
+  );
+  --cp-scale-opposite-lc: calc(
+    0.7427 - 0.1278 * cos(var(--cp-scale-opposite-h) * 1deg) + 0.1233 *
+      sin(var(--cp-scale-opposite-h) * 1deg) + 0.0365 * cos(var(--cp-scale-opposite-h) * 2deg) -
+      0.0114 * sin(var(--cp-scale-opposite-h) * 2deg) + 0.0153 *
+      cos(var(--cp-scale-opposite-h) * 3deg) - 0.0628 * sin(var(--cp-scale-opposite-h) * 3deg) -
+      0.0126 * cos(var(--cp-scale-opposite-h) * 4deg) - 0.0047 *
+      sin(var(--cp-scale-opposite-h) * 4deg) - 0.0171 * cos(var(--cp-scale-opposite-h) * 5deg) -
+      0.0001 * sin(var(--cp-scale-opposite-h) * 5deg)
+  );
+  --cp-scale-opposite-cc: calc(
+    0.2243 + 0.0468 * cos(var(--cp-scale-opposite-h) * 1deg) - 0.0233 *
+      sin(var(--cp-scale-opposite-h) * 1deg) - 0.0002 * cos(var(--cp-scale-opposite-h) * 2deg) -
+      0.0506 * sin(var(--cp-scale-opposite-h) * 2deg) + 0.0043 *
+      cos(var(--cp-scale-opposite-h) * 3deg) + 0.0221 * sin(var(--cp-scale-opposite-h) * 3deg) -
+      0.0041 * cos(var(--cp-scale-opposite-h) * 4deg) + 0.0043 *
+      sin(var(--cp-scale-opposite-h) * 4deg) + 0.0028 * cos(var(--cp-scale-opposite-h) * 5deg) -
+      0.0082 * sin(var(--cp-scale-opposite-h) * 5deg)
+  );
+  --cp-sequential-1: light-dark(
+    oklch(
+      86%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.11 / 0.19)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-1-cc) * 0.86 / var(--cp-scale-1-lc),
+              0.89 * var(--cp-scale-1-cc) * pow(0.14 / (1 - var(--cp-scale-1-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-1-h)
+    ),
+    oklch(
+      40%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-9-cc) * 0.4 / var(--cp-scale-9-lc),
+              0.89 * var(--cp-scale-9-cc) * pow(0.6 / (1 - var(--cp-scale-9-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-9-h)
+    )
+  );
+  --cp-sequential-2: light-dark(
+    oklch(
+      78.87%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.0387 / 0.19)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-2-cc) * 0.7887 / var(--cp-scale-2-lc),
+              0.89 * var(--cp-scale-2-cc) * pow(0.2113 / (1 - var(--cp-scale-2-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-2-h)
+    ),
+    oklch(
+      46.5%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-8-cc) * 0.465 / var(--cp-scale-8-lc),
+              0.89 * var(--cp-scale-8-cc) * pow(0.535 / (1 - var(--cp-scale-8-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-8-h)
+    )
+  );
+  --cp-sequential-3: light-dark(
+    oklch(
+      71.75%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-3-cc) * 0.7175 / var(--cp-scale-3-lc),
+              0.89 * var(--cp-scale-3-cc) * pow(0.2825 / (1 - var(--cp-scale-3-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-3-h)
+    ),
+    oklch(
+      53%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-7-cc) * 0.53 / var(--cp-scale-7-lc),
+              0.89 * var(--cp-scale-7-cc) * pow(0.47 / (1 - var(--cp-scale-7-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-7-h)
+    )
+  );
+  --cp-sequential-4: light-dark(
+    oklch(
+      64.62%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-4-cc) * 0.6462 / var(--cp-scale-4-lc),
+              0.89 * var(--cp-scale-4-cc) * pow(0.3538 / (1 - var(--cp-scale-4-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-4-h)
+    ),
+    oklch(
+      59.5%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-6-cc) * 0.595 / var(--cp-scale-6-lc),
+              0.89 * var(--cp-scale-6-cc) * pow(0.405 / (1 - var(--cp-scale-6-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-6-h)
+    )
+  );
+  --cp-sequential-5: light-dark(
+    oklch(
+      57.5%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-5-cc) * 0.575 / var(--cp-scale-5-lc),
+              0.89 * var(--cp-scale-5-cc) * pow(0.425 / (1 - var(--cp-scale-5-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-5-h)
+    ),
+    oklch(
+      66%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-5-cc) * 0.66 / var(--cp-scale-5-lc),
+              0.89 * var(--cp-scale-5-cc) * pow(0.34 / (1 - var(--cp-scale-5-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-5-h)
+    )
+  );
+  --cp-sequential-6: light-dark(
+    oklch(
+      50.37%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-6-cc) * 0.5037 / var(--cp-scale-6-lc),
+              0.89 * var(--cp-scale-6-cc) * pow(0.4963 / (1 - var(--cp-scale-6-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-6-h)
+    ),
+    oklch(
+      72.5%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-4-cc) * 0.725 / var(--cp-scale-4-lc),
+              0.89 * var(--cp-scale-4-cc) * pow(0.275 / (1 - var(--cp-scale-4-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-4-h)
+    )
+  );
+  --cp-sequential-7: light-dark(
+    oklch(
+      43.25%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-7-cc) * 0.4325 / var(--cp-scale-7-lc),
+              0.89 * var(--cp-scale-7-cc) * pow(0.5675 / (1 - var(--cp-scale-7-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-7-h)
+    ),
+    oklch(
+      79%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.04 / 0.19)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-3-cc) * 0.79 / var(--cp-scale-3-lc),
+              0.89 * var(--cp-scale-3-cc) * pow(0.21 / (1 - var(--cp-scale-3-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-3-h)
+    )
+  );
+  --cp-sequential-8: light-dark(
+    oklch(
+      36.12%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-8-cc) * 0.3612 / var(--cp-scale-8-lc),
+              0.89 * var(--cp-scale-8-cc) * pow(0.6388 / (1 - var(--cp-scale-8-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-8-h)
+    ),
+    oklch(
+      85.5%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.105 / 0.19)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-2-cc) * 0.855 / var(--cp-scale-2-lc),
+              0.89 * var(--cp-scale-2-cc) * pow(0.145 / (1 - var(--cp-scale-2-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-2-h)
+    )
+  );
+  --cp-sequential-9: light-dark(
+    oklch(
+      29%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-9-cc) * 0.29 / var(--cp-scale-9-lc),
+              0.89 * var(--cp-scale-9-cc) * pow(0.71 / (1 - var(--cp-scale-9-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-9-h)
+    ),
+    oklch(
+      92%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.17 / 0.19)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-1-cc) * 0.92 / var(--cp-scale-1-lc),
+              0.89 * var(--cp-scale-1-cc) * pow(0.08 / (1 - var(--cp-scale-1-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-1-h)
+    )
+  );
+  --cp-diverging-1: light-dark(
+    oklch(
+      42%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-opposite-cc) * 0.42 / var(--cp-scale-opposite-lc),
+              0.89 * var(--cp-scale-opposite-cc) *
+                pow(0.58 / (1 - var(--cp-scale-opposite-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-opposite-h)
+    ),
+    oklch(
+      81%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.06 / 0.19)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-opposite-cc) * 0.81 / var(--cp-scale-opposite-lc),
+              0.89 * var(--cp-scale-opposite-cc) *
+                pow(0.19 / (1 - var(--cp-scale-opposite-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-opposite-h)
+    )
+  );
+  --cp-diverging-2: light-dark(
+    oklch(
+      53%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-opposite-cc) * 0.53 / var(--cp-scale-opposite-lc),
+              0.89 * var(--cp-scale-opposite-cc) *
+                pow(0.47 / (1 - var(--cp-scale-opposite-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-opposite-h)
+    ),
+    oklch(
+      72%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-opposite-cc) * 0.72 / var(--cp-scale-opposite-lc),
+              0.89 * var(--cp-scale-opposite-cc) *
+                pow(0.28 / (1 - var(--cp-scale-opposite-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-opposite-h)
+    )
+  );
+  --cp-diverging-3: light-dark(
+    oklch(
+      64%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-opposite-cc) * 0.64 / var(--cp-scale-opposite-lc),
+              0.89 * var(--cp-scale-opposite-cc) *
+                pow(0.36 / (1 - var(--cp-scale-opposite-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-opposite-h)
+    ),
+    oklch(
+      63%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-opposite-cc) * 0.63 / var(--cp-scale-opposite-lc),
+              0.89 * var(--cp-scale-opposite-cc) *
+                pow(0.37 / (1 - var(--cp-scale-opposite-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-opposite-h)
+    )
+  );
+  --cp-diverging-4: light-dark(
+    oklch(
+      75%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-opposite-cc) * 0.75 / var(--cp-scale-opposite-lc),
+              0.89 * var(--cp-scale-opposite-cc) *
+                pow(0.25 / (1 - var(--cp-scale-opposite-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-opposite-h)
+    ),
+    oklch(
+      54%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-opposite-cc) * 0.54 / var(--cp-scale-opposite-lc),
+              0.89 * var(--cp-scale-opposite-cc) *
+                pow(0.46 / (1 - var(--cp-scale-opposite-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-scale-opposite-h)
+    )
+  );
+  --cp-diverging-5: light-dark(
+    oklch(86% var(--cp-neutral-c) var(--cp-neutral-h)),
+    oklch(38% var(--cp-neutral-c) var(--cp-neutral-h))
+  );
+  --cp-diverging-6: light-dark(
+    oklch(
+      75%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-accent-cc) * 0.75 / var(--cp-scale-accent-lc),
+              0.89 * var(--cp-scale-accent-cc) * pow(0.25 / (1 - var(--cp-scale-accent-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-accent-h)
+    ),
+    oklch(
+      54%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-accent-cc) * 0.54 / var(--cp-scale-accent-lc),
+              0.89 * var(--cp-scale-accent-cc) * pow(0.46 / (1 - var(--cp-scale-accent-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-accent-h)
+    )
+  );
+  --cp-diverging-7: light-dark(
+    oklch(
+      64%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-accent-cc) * 0.64 / var(--cp-scale-accent-lc),
+              0.89 * var(--cp-scale-accent-cc) * pow(0.36 / (1 - var(--cp-scale-accent-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-accent-h)
+    ),
+    oklch(
+      63%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-accent-cc) * 0.63 / var(--cp-scale-accent-lc),
+              0.89 * var(--cp-scale-accent-cc) * pow(0.37 / (1 - var(--cp-scale-accent-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-accent-h)
+    )
+  );
+  --cp-diverging-8: light-dark(
+    oklch(
+      53%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-accent-cc) * 0.53 / var(--cp-scale-accent-lc),
+              0.89 * var(--cp-scale-accent-cc) * pow(0.47 / (1 - var(--cp-scale-accent-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-accent-h)
+    ),
+    oklch(
+      72%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-accent-cc) * 0.72 / var(--cp-scale-accent-lc),
+              0.89 * var(--cp-scale-accent-cc) * pow(0.28 / (1 - var(--cp-scale-accent-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-accent-h)
+    )
+  );
+  --cp-diverging-9: light-dark(
+    oklch(
+      42%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-accent-cc) * 0.42 / var(--cp-scale-accent-lc),
+              0.89 * var(--cp-scale-accent-cc) * pow(0.58 / (1 - var(--cp-scale-accent-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-accent-h)
+    ),
+    oklch(
+      81%
+        min(
+          calc(clamp(0.13, calc(var(--cp-accent-c) * 1.3), 0.17) * (1 - 0.6 * 0.06 / 0.19)),
+          max(
+            0,
+            min(
+              0.88 * var(--cp-scale-accent-cc) * 0.81 / var(--cp-scale-accent-lc),
+              0.89 * var(--cp-scale-accent-cc) * pow(0.19 / (1 - var(--cp-scale-accent-lc)), 1.2)
+            )
+          )
+        )
+        var(--cp-accent-h)
+    )
+  );
+}
 /* colour:end */
 
 /* Roles. App CSS reads these; component classes read a tone's or a family's steps. */
@@ -5354,6 +6328,41 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-width: 1px;
 }
 
+/* A cell chart's colour key: its label, the swatches with each boundary's
+ * value centred under it, and a No data swatch. A swatch's ring shows only
+ * while its class is selected. */
+.cp-chart > [data-part="legend"] > [data-part="key"] {
+  display: inline-flex;
+  align-items: start;
+  gap: var(--cp-space-2);
+}
+
+.cp-chart [data-part="key"] > [data-part="scale"],
+.cp-chart [data-part="key"] > [data-part="none"] {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.cp-chart > [data-part="legend"] [data-part="thresholds"] {
+  position: relative;
+  block-size: 1lh;
+}
+
+.cp-chart > [data-part="legend"] [data-part="thresholds"] > span {
+  position: absolute;
+  inset-block-start: 0;
+  translate: -50% 0;
+  white-space: nowrap;
+}
+
+.cp-chart [data-part="key"] [data-part="ring"] {
+  visibility: hidden;
+}
+
+.cp-chart [data-part="key"] [data-selected] {
+  visibility: visible;
+}
+
 .cp-chart > :is([data-part="plot"], [data-part="loading"]) {
   --cp-chart-height: 240px;
 }
@@ -5430,8 +6439,10 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-tone-9);
 }
 
-/* A selected bar row's name shows by weight as well as colour. */
-.cp-chart svg [data-part="y"] text[data-selected] {
+/* A selected bar row's name, or a cell's row and column names, show by
+ * weight as well as colour. */
+.cp-chart svg [data-part="y"] text[data-selected],
+.cp-chart svg [data-part="x"] text[data-selected] {
   fill: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
 }
@@ -5464,6 +6475,112 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-tone-9);
   stroke: var(--cp-chart-surface);
   stroke-width: 1px;
+}
+
+/* A cell takes its class's step of its scale; markup carries no style, so
+ * each step is a rule. */
+.cp-chart svg [data-scale="sequential"] [data-step="1"] {
+  fill: var(--cp-sequential-1);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="2"] {
+  fill: var(--cp-sequential-2);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="3"] {
+  fill: var(--cp-sequential-3);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="4"] {
+  fill: var(--cp-sequential-4);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="5"] {
+  fill: var(--cp-sequential-5);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="6"] {
+  fill: var(--cp-sequential-6);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="7"] {
+  fill: var(--cp-sequential-7);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="8"] {
+  fill: var(--cp-sequential-8);
+}
+
+.cp-chart svg [data-scale="sequential"] [data-step="9"] {
+  fill: var(--cp-sequential-9);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="1"] {
+  fill: var(--cp-diverging-1);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="2"] {
+  fill: var(--cp-diverging-2);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="3"] {
+  fill: var(--cp-diverging-3);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="4"] {
+  fill: var(--cp-diverging-4);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="5"] {
+  fill: var(--cp-diverging-5);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="6"] {
+  fill: var(--cp-diverging-6);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="7"] {
+  fill: var(--cp-diverging-7);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="8"] {
+  fill: var(--cp-diverging-8);
+}
+
+.cp-chart svg [data-scale="diverging"] [data-step="9"] {
+  fill: var(--cp-diverging-9);
+}
+
+/* A missing cell's outline sets it apart from the lowest class, which is
+ * filled. */
+.cp-chart svg [data-part="missing"] {
+  fill: none;
+  stroke: var(--cp-border);
+  stroke-width: 1px;
+}
+
+/* A box fills its slot; its whiskers and its hollow outliers stroke it, so
+ * a single value reads apart from the box. */
+.cp-chart svg [data-part="box"] path {
+  fill: var(--cp-tone-9);
+}
+
+.cp-chart svg [data-part="whisker"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 2px;
+}
+
+.cp-chart svg [data-part="outlier"] path {
+  fill: none;
+  stroke: var(--cp-tone-9);
+  stroke-width: 1.5px;
+}
+
+/* The median's ink tick carries it where it meets a quartile and the cut
+ * through the box would vanish into the box's edge. */
+.cp-chart svg [data-part="median"] {
+  fill: var(--cp-ink);
 }
 
 /* A range's bold link and an arrow, its head showing the direction in any

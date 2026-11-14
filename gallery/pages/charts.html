@@ -1,10 +1,10 @@
 <main class="play">
   <header>
     <h1>Charts</h1>
-    <p>Charts with axes, drawn by the library from data: grelot's Statistics tab, with its four charts and their states, the other time series a chart draws, bars and dots that compare categories, and slope, scatter and bubble charts. Point at a plot, tap it, or Tab to it and use the arrow keys; each chart's Table view shows the same data as a table.</p>
+    <p>Charts with axes, drawn by the library from data: grelot's Statistics tab, with its four charts and their states, the other time series a chart draws, bars and dots that compare categories, slope, scatter and bubble charts, and heatmaps and box plots. Point at a plot, tap it, or Tab to it and use the arrow keys; each chart's Table view shows the same data as a table.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#statistics">Statistics</a><a href="#time-series">Time series</a><a href="#categories">Categories</a><a href="#two-scales">Slope and scatter</a><a href="#states">Loading, empty and error</a><a href="#phone">At a phone's width</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#statistics">Statistics</a><a href="#time-series">Time series</a><a href="#categories">Categories</a><a href="#two-scales">Slope and scatter</a><a href="#grids">Heatmaps and box plots</a><a href="#states">Loading, empty and error</a><a href="#phone">At a phone's width</a></nav>
 
   <section class="g-section" id="statistics">
     <h2>Statistics</h2>
@@ -252,6 +252,60 @@
     </div>
   </section>
 
+  <section class="g-section" id="grids">
+    <h2>Heatmaps and box plots</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Heatmap of weekday by hour</h2>
+        <figure class="cp-chart" data-chart="week-hours">
+          <figcaption>Posts by weekday and hour, last four weeks</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Each cell is coloured by its count's class on the sequential scale from the accent, the lowest class nearest the surface. The colour key in the legend row labels the boundaries between classes, and a reading gives the cell's exact count. The arrow keys move through the cells, Page Up and Page Down ten columns at a time. The note joins Tuesday at 2 PM: a reading of that cell adds it.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Heatmap on a diverging scale</h2>
+        <figure class="cp-chart" data-chart="anomalies">
+          <figcaption>Monthly temperature against the 30-year average</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Seven classes symmetric about 0, the middle one grey. With <code>reverse</code> the accent's arm takes the colder months, below 0, and the opposite arm the warmer ones, since more is worse here. The key labels 0 under the middle swatch.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>2D histogram</h2>
+        <figure class="cp-chart" data-chart="requests">
+          <figcaption>Requests by payload and response time</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>5,000 requests binned by payload on a log x and by response time on y, each cell their count. Counts span orders of magnitude, so the classes break at 1, 10 and 100 requests through <code>thresholds</code>. A scatter plot of the same requests would hide where they crowd. A reading names both bins.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Calendar heatmap</h2>
+        <figure class="cp-chart" data-chart="post-days">
+          <figcaption>Posts a day, last 365 days</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>A column per week from the locale's first weekday, a row per weekday, and each month's name above the column holding its first day. A three-day outage in February has no counts: those days draw an outline and read No data. Today is still counting, so it reads &ldquo;so far&rdquo; and the summary leaves it out. Focus selects today; Left and Right move a week, Up and Down a day, Page Up and Page Down a month. The note joins its day.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Box plot with a target</h2>
+        <figure class="cp-chart" data-chart="latencies">
+          <figcaption>Response time by endpoint</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>Each box runs from the lower to the upper quartile on a log x, cut at the median by an ink tick, with whiskers to the low and high values and hollow circles for the outliers beyond them. The app sends the five numbers and names its whiskers' convention, which the summary and the table repeat. The target draws down every row. Up and Down move through the endpoints, and a reading gives the five numbers and the outliers at once.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Box plot of two series</h2>
+        <figure class="cp-chart" data-chart="latencies-release">
+          <figcaption>Response time by endpoint, before and after 1.4.0</figcaption>
+          <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+        </figure>
+        <footer>A 10 px box per series in each row, in series order from the top. The legend row holds each series' median; Left and Right choose one series' box, and the table adds a Series column. The note on search joins its row's reading.</footer>
+      </div>
+    </div>
+  </section>
+
   <section class="g-section" id="states">
     <h2>Loading, empty and error</h2>
     <div class="g-grid">
@@ -410,6 +464,36 @@
           </figure>
         </div>
         <footer>Under 30rem the largest bubble's radius halves, from 24 px to 12 px, so China and India stay under a tenth of the plot's width, and the size key shrinks with them. The note becomes a numbered marker listed under the plot. Drag the corner wider than 30rem and both return to their full size.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Heatmap at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-week-hours">
+            <figcaption>Posts by weekday and hour, last four weeks</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>The 24 columns share the frame's width, so the hour labels thin until no two touch. Drag the corner wider and more hours get their label.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Calendar heatmap at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-post-days">
+            <figcaption>Posts a day, last 365 days</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>When a week's column would be narrower than 12 px, the year folds into blocks of 26 and then 13 week columns, stacked top to bottom 16 px apart with month names above each. The keys still walk the days in time order across the blocks. Drag the corner wider and the blocks join.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Box plot at a phone's width</h2>
+        <div class="g-resizable" data-start="phone">
+          <figure class="cp-chart" data-chart="phone-latencies">
+            <figcaption>Response time by endpoint, before and after 1.4.0</figcaption>
+            <div class="cp-toolbar"><button class="cp-filter-chip" type="button" aria-pressed="false" hidden><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Table view</button></div>
+          </figure>
+        </div>
+        <footer>Under 30rem each endpoint's name sits on its own line above its row, so the boxes take the frame's whole width. Drag the corner wider than 30rem and the names return to the gutter.</footer>
       </div>
     </div>
   </section>
