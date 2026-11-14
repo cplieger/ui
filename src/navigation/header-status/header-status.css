@@ -96,8 +96,25 @@
   outline-offset: var(--cp-focus-offset);
 }
 
-/* Compact: the glyph and the state's words; the detail waits in the panel. */
+/* Compact: the glyph alone. The words stay in the button's name, so they are
+ * clipped rather than hidden; the detail waits in the panel's heading. */
 @media (width < 40rem) {
+  .cp-header-status {
+    justify-content: center;
+    min-inline-size: var(--cp-control-h-sm);
+    padding-inline: 0;
+  }
+
+  .cp-header-status > :not([data-part="detail"]) {
+    position: absolute;
+    overflow: hidden;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    white-space: nowrap;
+  }
+
   .cp-header-status > [data-part="detail"] {
     display: none;
   }
