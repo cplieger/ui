@@ -1341,7 +1341,7 @@ function scatterModel(
 }
 
 /** One series with a value below 0: its bars run either side of the zero
- *  line, and every value but 0 is written with its sign. */
+ *  line, and every value not written as 0 carries its sign. */
 const signedBar = (m: BarModel): boolean =>
   m.series.length === 1 && (m.series[0]?.x.some((v) => v !== null && v < 0) ?? false);
 

@@ -303,7 +303,7 @@ export const pointPart = (model: Model, s: PointSeriesModel, i: number, words: W
 };
 
 /** `pointLink`'s `v` in x's format, a duration on a time x, and an
- *  arrow's change with its sign on every value but 0. */
+ *  arrow's change with its sign on every value not written as 0. */
 export function linkText(model: Model, m: PointModel, v: number): string {
   const format = model.x.type === "time" ? "duration" : model.x.format;
   return writer(format, model.locale, { signed: m.link === "arrow" })(v);
@@ -420,7 +420,7 @@ export function scatterReading(
   return m.series.length < 2 ? reading : { ...reading, chosen: measures.length + k };
 }
 
-/** A slope series' change in the y format, signed on every value but 0. */
+/** A slope series' change in the y format, signed on every value not written as 0. */
 export function changeText(model: Model, v: number): string {
   return writer(model.y.type === "band" ? undefined : model.y.format, model.locale, {
     signed: true,

@@ -59,7 +59,7 @@ interface Writing {
    *  with its digits up to the most, at most 15 significant figures, and 0
    *  as 0. Any other format keeps its own. */
   readonly digits?: readonly [least: number, most: number];
-  /** A sign on every value but 0, such as a change. */
+  /** A sign on every value not written as 0, such as a change. */
   readonly signed?: boolean;
 }
 
@@ -82,7 +82,7 @@ export function writer(
 ): (value: number) => string {
   if (typeof format === "function" || format === "duration") {
     const write = typeof format === "function" ? format : (v: number) => formatDuration(v, locale);
-    // `durationRecord` rounds half up to whole milliseconds, so under 0.5 it writes 0 ms.
+    // `durationRecord` rounds |v| half up to whole ms, so the plus starts at 0.5.
     const positive = typeof format === "function" ? (v: number) => v > 0 : (v: number) => v >= 0.5;
     return signed
       ? (v) => {
@@ -163,9 +163,9 @@ const NEAR = 1e-14;
  * The width key of `writer(format, locale)`'s texts, signed or not: for a
  * number its sign, zero, integer digits and fraction digits shown, which fix
  * the text's separators and affixes; for a duration the record it writes
- * and whether it is above 0. Undefined for a function, a notation other than
- * standard, significant-digit or uneven rounding, and a style whose words
- * follow the count, none of which a key can read.
+ * and whether its count is above, below or at 0. Undefined for a function,
+ * a notation other than standard, significant-digit or uneven rounding, and
+ * a style whose words follow the count, none of which a key can read.
  */
 export function widthKey(
   format: Format | undefined,
