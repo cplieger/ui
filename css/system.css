@@ -2840,6 +2840,11 @@
   mask: url("../icons/svg/clock.svg") center / contain no-repeat;
 }
 
+/* The product's line ends the status line, on the line it wraps to too. */
+.cp-status > [data-part="about"] {
+  margin-inline-start: auto;
+}
+
 /* Width tiers: compact under 40rem (a phone), medium to 60rem (a tablet
  * held upright), expanded above. The rail leaves at medium. */
 @media (width < 60rem) {
@@ -2904,6 +2909,10 @@
 .cp-gate > :not(.cp-wordmark, .cp-panel) {
   justify-self: stretch;
   text-align: center;
+}
+
+.cp-gate > [data-part="about"] {
+  justify-content: center;
 }
 
 /* A setup of several steps: a wider column whose panel is the steps'
@@ -6846,6 +6855,36 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-meta {
   color: var(--cp-ink-muted);
+}
+
+/* The product's own line: its version and its source, licence and docs
+ * links. The links keep the line's muted ink until pointed at or focused,
+ * so they never compete with the screen. */
+.cp-meta[data-part="about"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--cp-space-3);
+}
+
+.cp-meta[data-part="about"] a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--cp-hit-min);
+  color: inherit;
+}
+
+.cp-meta[data-part="about"] a:focus-visible {
+  color: var(--cp-accent-ink);
+  text-decoration-color: currentcolor;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    .cp-meta[data-part="about"] a:hover {
+      color: var(--cp-accent-ink);
+    }
+  }
 }
 
 /* A link that is a row's title names a thing, not a sentence: it reads as

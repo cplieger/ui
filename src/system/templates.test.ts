@@ -159,6 +159,34 @@ describe("the page templates", () => {
     expect(doc.querySelectorAll('.cp-main [data-variant="primary"]').length).toBeLessThanOrEqual(1);
   });
 
+  it.each([...APP_PAGES, ...GATE_PAGES])(
+    "%s ends with the about line: the version, then the product's own links",
+    async (name) => {
+      const doc = await parse(name);
+      const about = doc.querySelector('[data-part="about"]');
+      expect(doc.querySelectorAll('[data-part="about"]')).toHaveLength(1);
+      expect(
+        about?.matches(
+          name.startsWith("gate")
+            ? ".cp-gate > p.cp-meta:last-child"
+            : ".cp-status > span.cp-meta:last-child",
+        ),
+      ).toBe(true);
+      if (!name.startsWith("gate")) {
+        expect(marks(doc, "slot").at(-1)).toBe("about");
+      }
+      expect(about?.firstElementChild?.matches("span")).toBe(true);
+      expect(about?.firstElementChild?.textContent).toMatch(/^Version \d+\.\d+\.\d+$/);
+      const links = [...(about?.querySelectorAll(":scope > a") ?? [])];
+      expect(links.map((a) => a.firstChild?.textContent)).toEqual(["Source", "Licence"]);
+      for (const a of links) {
+        expect(a.getAttribute("href")).toMatch(/^https:\/\//);
+        expect(a.getAttribute("rel")).toBe("external");
+        expect(a.querySelector(":scope > .cp-visually-hidden")?.textContent).toBe(", opens GitHub");
+      }
+    },
+  );
+
   it("list-detail.html holds the list, a hidden detail and its close", async () => {
     const doc = await parse("list-detail.html");
     expect(marks(doc, "slot")).toEqual(
@@ -210,6 +238,14 @@ describe("the page templates", () => {
     expect(status && main && status.top >= main.bottom - 0.5).toBe(true);
     const content = doc.querySelector(".cp-main > .cp-stack")?.getBoundingClientRect();
     expect(content && content.width <= 90 * 16).toBe(true);
+    const footer = doc.querySelector(".cp-status");
+    const about = doc.querySelector('.cp-status > [data-part="about"]')?.getBoundingClientRect();
+    if (!footer || !about) {
+      throw new Error("no about line");
+    }
+    const end =
+      footer.getBoundingClientRect().right - parseFloat(view.getComputedStyle(footer).paddingRight);
+    expect(about.right).toBeCloseTo(end, 0);
   });
 
   it("settings.html holds the categories beside the open one's form and its save bar", async () => {
@@ -273,7 +309,9 @@ describe("the page templates", () => {
       region(doc, "brand")?.querySelector(":scope > .cp-mark[aria-hidden='true']"),
     ).not.toBeNull();
     expect(region(doc, "panel")?.matches(".cp-gate > section.cp-panel")).toBe(true);
-    expect(region(doc, "foot")?.matches(".cp-gate > p.cp-meta:last-child")).toBe(true);
+    expect(region(doc, "foot")?.matches('.cp-gate > p.cp-meta[data-part="about"]:last-child')).toBe(
+      true,
+    );
     expect(doc.title).toMatch(/ · /);
     expect(doc.querySelectorAll('[data-variant="primary"]').length).toBeLessThanOrEqual(1);
   });
@@ -338,6 +376,12 @@ describe("the page templates", () => {
     }
     expect(panel.width).toBeLessThanOrEqual(24 * 16 + 0.5);
     expect(Math.abs(panel.left + panel.width / 2 - 640)).toBeLessThan(1);
+    const parts = [...doc.querySelectorAll('[data-part="about"] > *')].map((el) =>
+      el.getBoundingClientRect(),
+    );
+    const mid =
+      (Math.min(...parts.map((r) => r.left)) + Math.max(...parts.map((r) => r.right))) / 2;
+    expect(Math.abs(mid - 640)).toBeLessThan(1);
   });
 
   it("gate-message.html tells what happened and how to fix it, with no control", async () => {

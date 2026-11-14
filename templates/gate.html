@@ -14,8 +14,12 @@
       </div>
       <!-- region: panel: the one task; mountSignIn, mountSetup, mountInvite or mountRecovery from @cplieger/ui/account fills it with its h1, notice slot and form -->
       <section class="cp-panel" id="gate-panel"></section>
-      <!-- region: foot: at most one line under the panel -->
-      <p class="cp-meta"><a href="#">Help with signing in</a></p>
+      <!-- region: foot: the about line, the one line under the panel: the product's version, then its source, licence or docs links -->
+      <p class="cp-meta" data-part="about">
+        <span>Version 3.0.0</span>
+        <a href="https://github.com/example/release-tracker" rel="external">Source<span class="cp-visually-hidden">, opens GitHub</span></a>
+        <a href="https://github.com/example/release-tracker/blob/main/LICENSE" rel="external">Licence<span class="cp-visually-hidden">, opens GitHub</span></a>
+      </p>
     </main>
   </body>
 </html>
