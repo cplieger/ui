@@ -374,6 +374,79 @@ describe("spec errors", () => {
     expect(build({ marks: [days(7_000)] }).kind).toBe("calendar");
   });
 
+  // A series of bars standing apart or of boxes takes a sub-row of each row.
+  it("names the most sub-rows a band's series may take, and the most series a slope names", () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
+    const ones = (n: number) => names(n).map(() => 1);
+    const bars = (n: number, k: number, arrange: "group" | "split" | "stack"): Mark => ({
+      mark: "bar",
+      y: names(n),
+      arrange,
+      series: names(k).map((name) => ({ name, x: ones(n) })),
+    });
+    const boxes = (n: number, k: number): Mark => {
+      const v = ones(n);
+      return {
+        mark: "box",
+        y: names(n),
+        series: names(k).map((name) => ({ name, low: v, q1: v, median: v, q3: v, high: v })),
+      };
+    };
+    const subRows = new RangeError(
+      "renderChart: marks[0].series must take at most 2500 sub-rows, a sub-row per series in each row, since the plot is as tall as its rows",
+    );
+    for (const mark of [bars(1_000, 3, "group"), bars(1_000, 3, "split"), boxes(1_000, 3)]) {
+      expect(() => build({ marks: [mark] })).toThrow(subRows);
+    }
+    expect(build({ marks: [bars(1_000, 2, "group")] }).kind).toBe("groupedBar");
+    expect(build({ marks: [bars(1_000, 3, "stack")] }).kind).toBe("stackedBar");
+    expect(build({ marks: [boxes(1_000, 2)] }).kind).toBe("box");
+    const ends = (k: number): Mark => ({
+      mark: "slope",
+      x: ["2005", "2015"],
+      series: Array.from({ length: k }, (_, s) => ({
+        name: `s${String(s)}`,
+        slot: 1,
+        y: [s, s + 1],
+      })),
+    });
+    expect(() => build({ marks: [ends(1_001)] })).toThrow(
+      new RangeError(
+        "renderChart: marks[0].series must hold at most 1000 series, since each end names every series on a line of its own",
+      ),
+    );
+    expect(build({ marks: [ends(1_000)] }).kind).toBe("slope");
+  });
+
+  it("names the field that takes a spec past a million values", () => {
+    const zeros = (n: number) => new Array<number>(n).fill(0);
+    const past = (field: string) =>
+      new RangeError(
+        `renderChart: ${field} must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together`,
+      );
+    const lines = (n: number, k: number): Mark => ({
+      mark: "line",
+      x: Array.from({ length: n }, (_, i) => i),
+      series: Array.from({ length: k }, (_, s) => ({ name: `s${String(s)}`, y: zeros(n) })),
+    });
+    expect(build({ x: {}, marks: [lines(500_000, 2)] }).kind).toBe("line");
+    expect(() => build({ x: {}, marks: [lines(333_334, 3)] })).toThrow(
+      past("marks[0].series[2].y"),
+    );
+    expect(() =>
+      build({ x: {}, marks: [lines(500_000, 2), { mark: "rule", y: 0, label: "Zero" }] }),
+    ).toThrow(past("marks[1]"));
+    const timeline = (last: number): Mark => ({
+      mark: "dot",
+      rows: [
+        { name: "a", x: zeros(600_000) },
+        { name: "b", x: zeros(last) },
+      ],
+    });
+    expect(build({ x: {}, marks: [timeline(400_000)] }).kind).toBe("timeline");
+    expect(() => build({ x: {}, marks: [timeline(400_001)] })).toThrow(past("marks[0].rows[1].x"));
+  });
+
   it("names the rule it breaks", () => {
     expect(() => build({ x: {}, marks: [line([1, 2], { x: [0, 0] })] })).toThrow(
       "renderChart: marks[0].x must strictly increase",

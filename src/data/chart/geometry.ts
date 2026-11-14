@@ -19,6 +19,7 @@ import {
   drawnTotal,
   drawnValue,
   sampleValue,
+  subRows,
   type AreaModel,
   type BarModel,
   type BoxModel,
@@ -493,8 +494,10 @@ const SUB_BAR = 0.75;
 /** The px across a row that `m`'s bars of `thick` px take: one bar, or the
  *  bars of a group or a folded split and the 1 px between them. A split in
  *  panels takes one bar's `thick`. */
-export const barBlock = (m: BarModel, thick: number): number =>
-  barsApart(m) ? m.series.length * thick * SUB_BAR + (m.series.length - 1) * GAP : thick;
+export function barBlock(m: BarModel, thick: number): number {
+  const n = subRows(m);
+  return barsApart(m) ? n * thick * SUB_BAR + (n - 1) * GAP : thick;
+}
 
 /** The centre across its row of series `k`'s bar in a row of `m` centred
  *  at `cy`: `cy` itself unless the row's bars stand one under another, as
@@ -1044,7 +1047,7 @@ const MEDIAN_W = 2;
 export const OUTLIER_RADIUS = 3;
 
 /** The px across a row that `m`'s boxes take: one box, or a sub-row each. */
-export const boxBlock = (m: BoxModel): number => BOX * m.series.length;
+export const boxBlock = (m: BoxModel): number => BOX * subRows(m);
 
 /** Series `k`'s box in a row of `m` centred at `cy`: its centre line and
  *  its thickness across the row. */

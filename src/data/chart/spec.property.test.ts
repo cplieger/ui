@@ -563,6 +563,19 @@ function refusedByName(e: unknown): boolean {
 // gridline and a label, and a spec here a few hundred elements more.
 const MOST_DRAWN = 3_000;
 
+// Past the plot's own, a value the app sends draws at most this many: a
+// grouped bar's, the most measured at about 3.3, is its bar, its label, its
+// table cell and a share of its row and the row's head.
+const PER_VALUE = 4;
+
+// Every number, string, boolean and null `v` holds, at least the values it sends.
+const leaves = (v: unknown): number =>
+  typeof v === "object" && v !== null
+    ? Object.values(v).reduce<number>((n, x) => n + leaves(x), 0)
+    : 1;
+
+const mostDrawn = (spec: unknown): number => MOST_DRAWN + PER_VALUE * leaves(spec);
+
 // A run draws two whole figures, so fewer than the shared thousand fit its time limit.
 const RUNS = { numRuns: 200 };
 const EACH = { numRuns: 60 };
@@ -596,6 +609,66 @@ describe("a chart spec", () => {
     }
   });
 
+  // The data marks at their most values for a test's time, one way each
+  // value draws: samples a pixel apart, dots, bars and their labels, cells.
+  it("draws a spec of many values in at most MOST_DRAWN and PER_VALUE a value", () => {
+    const n = 1_000;
+    const at = Array.from({ length: n }, (_, i) => i);
+    const names = at.map((i) => `n${String(i)}`);
+    const wave = at.map((i) => (i % 7) - 3);
+    for (const spec of [
+      {
+        marks: [
+          {
+            mark: "line",
+            x: at,
+            series: [
+              { name: "a", y: wave },
+              { name: "b", y: at },
+            ],
+          },
+        ],
+      },
+      {
+        marks: [
+          { mark: "dot", rows: names.slice(0, 50).map((name) => ({ name, x: at.slice(0, 40) })) },
+        ],
+      },
+      {
+        marks: [
+          {
+            mark: "bar",
+            y: names,
+            arrange: "group",
+            series: [
+              { name: "a", x: at },
+              { name: "b", x: wave },
+            ],
+          },
+        ],
+      },
+      {
+        x: { label: "x" },
+        y: { label: "y" },
+        marks: [{ mark: "scatter", series: [{ name: "a", names, x: at, y: wave }] }],
+      },
+      {
+        marks: [
+          {
+            mark: "cell",
+            x: names.slice(0, 10),
+            y: names.slice(0, 100),
+            values: names.slice(0, 100).map(() => wave.slice(0, 10)),
+          },
+        ],
+      },
+    ]) {
+      expect(exercise(spec, "UTC"), JSON.stringify(spec).slice(0, 80)).toBeLessThanOrEqual(
+        mostDrawn(spec),
+      );
+    }
+  });
+
   it("sets every documented field in some spec the property mutates", () => {
     const set = new Set([...FIELDS_AT.values()].flatMap((f) => [...f]));
     expect(FIELDS.filter((f) => !set.has(f))).toEqual([]);
@@ -622,7 +695,7 @@ describe("a chart spec", () => {
   // Each number a spec holds is where a size the chart derives from data
   // starts, a plot's rows or ticks, and its height sets the plot's own.
   it.each(SPECS.map((_, k) => k))(
-    "draws spec %i in at most MOST_DRAWN whatever its numbers, or refuses one by name",
+    "draws spec %i within its bound whatever its numbers, or refuses one by name",
     (k) => {
       const spec = SPECS[k];
       const numbers = paths(spec).filter((path) => typeof at(spec, path) === "number");
@@ -650,14 +723,14 @@ describe("a chart spec", () => {
             }
             return;
           }
-          expect(drawn, JSON.stringify(changed)).toBeLessThanOrEqual(MOST_DRAWN);
+          expect(drawn, JSON.stringify(changed)).toBeLessThanOrEqual(mostDrawn(changed));
         }),
         EACH,
       );
     },
   );
 
-  it("with fields dropped or mistyped draws in at most MOST_DRAWN, or throws a TypeError or RangeError naming one", () => {
+  it("with fields dropped or mistyped draws within its bound, or throws a TypeError or RangeError naming one", () => {
     const changed = fc.integer({ min: 0, max: SPECS.length - 1 }).chain((k) => {
       const wrong = fc.constantFrom(...WRONG);
       const left = absent(SPECS[k]);
@@ -699,7 +772,7 @@ describe("a chart spec", () => {
           return;
         }
         seen.drawn++;
-        expect(drawn, JSON.stringify(spec)).toBeLessThanOrEqual(MOST_DRAWN);
+        expect(drawn, JSON.stringify(spec)).toBeLessThanOrEqual(mostDrawn(spec));
       }),
       RUNS,
     );

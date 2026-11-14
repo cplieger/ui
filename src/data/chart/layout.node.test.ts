@@ -1221,6 +1221,43 @@ describe("a box plot", () => {
     expect(l.rows.map((r) => r.y)).toEqual([20, 60, 100, 140]);
   });
 
+  it("lays grouped bars and boxes at the most sub-rows a plot takes within 48,000 px", () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
+    const ones = (n: number) => names(n).map(() => 1);
+    const grouped = lay(
+      {
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: names(500),
+            arrange: "group",
+            series: names(5).map((name) => ({ name, x: ones(500) })),
+          },
+        ],
+      },
+      600,
+    );
+    // 5 × 12 + 4 + 8 px a row.
+    expect(grouped.frame.height).toBe(500 * 72);
+    const v = ones(625);
+    const boxes = lay(
+      {
+        x: {},
+        marks: [
+          {
+            mark: "box",
+            y: names(625),
+            series: names(4).map((name) => ({ name, low: v, q1: v, median: v, q3: v, high: v })),
+          },
+        ],
+      },
+      600,
+    );
+    // 4 × 16 + 8 px a row.
+    expect(boxes.frame.height).toBe(625 * 72);
+  });
+
   it("puts each name above its boxes under 30rem: 44 px a row with one series, 60 with two", () => {
     const one = lay(latency(), 320);
     expect(one.gutters.axis).toBe(0);

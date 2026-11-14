@@ -245,7 +245,16 @@ export interface BarModel {
 
 /** Whether each of `m`'s bars stands on its own from 0, as a group's and a
  *  split's do, so its rows read no total. */
-export const barsApart = (m: BarModel): boolean => m.arrange === "group" || m.arrange === "split";
+export const barsApart = (m: { readonly arrange?: string | undefined }): boolean =>
+  m.arrange === "group" || m.arrange === "split";
+
+/** The sub-rows each row of a bar or box mark takes across the band: a
+ *  series each where its bars stand apart or it holds boxes, else one. */
+export const subRows = (m: {
+  readonly kind: "bar" | "box";
+  readonly arrange?: string | undefined;
+  readonly series: ArrayLike<unknown>;
+}): number => (m.kind === "box" || barsApart(m) ? m.series.length : 1);
 
 /** Row `i`'s total of bar mark `m`, or `null` when every value is a gap. */
 export function barTotal(m: BarModel, i: number): number | null {
@@ -597,14 +606,28 @@ export interface Model {
   readonly timeZone: string | undefined;
 }
 
-// No reader scans a plot past a thousand rows, and at a row's 24px a
-// thousand already make it 24,000px tall: the most rows a plot holds, a
-// binned y's included, and the most weeks a calendar holds.
+// No reader scans a plot past a thousand rows: the most rows a plot holds, a
+// binned y's included, the most weeks a calendar holds and the most series a
+// slope names at each end, a line each.
 const MOST_ROWS = 1_000;
 
 // A thousand of the y axis's 40px tick spaces, so a plot draws at most
 // about a thousand y ticks.
 const MOST_HEIGHT = 40_000;
+
+// A box's sub-row is 16px and a grouped bar's 13px at the default text size,
+// so this many keep a band plot's sub-rows within MOST_HEIGHT there, its
+// rows' own spacing aside.
+const MOST_SUB_ROWS = MOST_HEIGHT / 16;
+
+function checkSubRows(rows: number, across: number, what: string): void {
+  if (rows * across > MOST_SUB_ROWS) {
+    fail(
+      `${what}.series must take at most ${String(MOST_SUB_ROWS)} sub-rows, a sub-row per series in each row, since the plot is as tall as its rows`,
+      RangeError,
+    );
+  }
+}
 
 /** The thinnest of `edges`' bins, as a share of the axis from the first
  *  edge to the last on a `type` scale. */
@@ -1073,6 +1096,7 @@ function checkBox(mark: Record<string, unknown>, what: string): void {
   if (!arrayLike(list)) {
     fail(`${what}.series must be an array`);
   }
+  checkSubRows(names.length, subRows({ kind: "box", series: list }), what);
   for (let s = 0; s < list.length; s++) {
     const one = list[s];
     const at = `${what}.series[${String(s)}]`;
@@ -1356,6 +1380,7 @@ function checkMark(mark: unknown, what: string): void {
         fail(`${what}.arrange "mirror" needs exactly two series, one each side of its spine`);
       }
       checkDiverge(mark, arrange === "diverge", list.length, what);
+      checkSubRows(names.length, subRows({ kind: "bar", arrange, series: list }), what);
       const all = Array.from(list);
       all.forEach((one, s) => {
         const at = `${what}.series[${String(s)}]`;
@@ -1392,6 +1417,12 @@ function checkMark(mark: unknown, what: string): void {
         fail(`${what}.x must name two different columns, never ""`, RangeError);
       }
       const list = mark["series"];
+      if (arrayLike(list) && list.length > MOST_ROWS) {
+        fail(
+          `${what}.series must hold at most ${String(MOST_ROWS)} series, since each end names every series on a line of its own`,
+          RangeError,
+        );
+      }
       checkSeries(list, 2, what);
       // The legend row, the readings and the table name a series by its name alone.
       const names = Array.from(list, (s) => s["name"]);
@@ -1516,6 +1547,103 @@ function checkInstants(spec: Record<string, unknown>, marks: ArrayLike<unknown>)
   }
 }
 
+// About seven series of a minute's samples over 90 days, the largest data a
+// chart is designed for; past it the readings and the table grow without end.
+const MOST_VALUES = 1_000_000;
+
+// Counts each value a mark places, a sample per series, a bucket, bar, dot,
+// box, outlier, cell, day, slice, part, rule or note, in spec order; a mark
+// with no series still places its x.
+function checkValueCount(marks: ArrayLike<unknown>): void {
+  let count = 0;
+  const add = (n: number, field: string): void => {
+    count += n;
+    if (count > MOST_VALUES) {
+      fail(
+        `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
+        RangeError,
+      );
+    }
+  };
+  const lengthOf = (v: unknown): number => (v as ArrayLike<unknown>).length;
+  for (let m = 0; m < marks.length; m++) {
+    const mark = marks[m] as Record<string, unknown>;
+    const what = `marks[${String(m)}]`;
+    const series = (mark["series"] ?? []) as ArrayLike<Record<string, unknown>>;
+    const across = (n: number, channel: string, empty: string): void => {
+      if (series.length === 0) {
+        add(n, empty);
+      }
+      for (let s = 0; s < series.length; s++) {
+        add(n, `${what}.series[${String(s)}].${channel}`);
+      }
+    };
+    switch (mark["mark"]) {
+      case "rect":
+        across(lengthOf(mark["x1"]), "y", `${what}.x1`);
+        break;
+      case "line":
+      case "area":
+        across(lengthOf(mark["x"]), "y", `${what}.x`);
+        break;
+      case "bar":
+      case "point":
+        across(lengthOf(mark["y"]), "x", `${what}.y`);
+        break;
+      case "slope":
+        across(2, "y", `${what}.x`);
+        break;
+      case "dot":
+        Array.from(mark["rows"] as ArrayLike<Record<string, unknown>>, (row, r) => {
+          add(lengthOf(row["x"]), `${what}.rows[${String(r)}].x`);
+        });
+        break;
+      case "scatter":
+        Array.from(series, (one, s) => {
+          add(lengthOf(one["names"]), `${what}.series[${String(s)}].names`);
+        });
+        break;
+      case "box":
+        across(lengthOf(mark["y"]), "median", `${what}.y`);
+        Array.from(series, (one, s) => {
+          const outliers = (one["outliers"] ?? []) as ArrayLike<ArrayLike<number>>;
+          add(
+            Array.from(outliers).reduce((n, o) => n + o.length, 0),
+            `${what}.series[${String(s)}].outliers`,
+          );
+        });
+        break;
+      case "cell": {
+        const days = mark["days"];
+        if (isObject(days)) {
+          add(lengthOf(days["values"]), `${what}.days.values`);
+          break;
+        }
+        const values = mark["values"] as ArrayLike<ArrayLike<unknown>>;
+        Array.from(values, (row, r) => {
+          add(row.length, `${what}.values[${String(r)}]`);
+        });
+        break;
+      }
+      case "pie":
+        add(lengthOf(mark["slices"]), `${what}.slices`);
+        break;
+      case "tree": {
+        const nodes = mark["nodes"] as ArrayLike<Record<string, unknown>>;
+        add(nodes.length, `${what}.nodes`);
+        Array.from(nodes, (node, k) => {
+          if (node["children"] !== undefined) {
+            add(lengthOf(node["children"]), `${what}.nodes[${String(k)}].children`);
+          }
+        });
+        break;
+      }
+      default:
+        add(1, what);
+    }
+  }
+}
+
 /** Throws a `TypeError` or `RangeError` naming the first rule `spec` breaks. */
 function check(spec: unknown): asserts spec is ChartSpec {
   if (!isObject(spec)) {
@@ -1561,6 +1689,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     }
     data = m;
   }
+  checkValueCount(marks);
   checkInstants(spec, marks);
   const height = spec["height"];
   const primary = marks[data];
