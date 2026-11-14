@@ -5,19 +5,38 @@
  */
 
 import {
-  formatter,
   instantFormat,
-  signedFormatter,
   spanFormat,
   widthKey,
+  writer,
   type Unit,
   type WidthKey,
 } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
-import { spansDay } from "../scale/time.js";
+import { localDay, spansDay } from "../scale/time.js";
 
-import { rScale, ruleAt, xScale, yScale, type Band, type Continuous, type Size } from "./scales.js";
-import type { BarMark, ChartSpec, Mark, PointMark, RectMark, ScatterMark } from "./spec.js";
+import { dayFormat, weekStartOf } from "./calendar.js";
+import { classes, type Classes } from "./classes.js";
+import {
+  LIMIT,
+  rScale,
+  ruleAt,
+  xScale,
+  yScale,
+  type Band,
+  type Continuous,
+  type Size,
+} from "./scales.js";
+import type {
+  BarMark,
+  BoxMark,
+  CellMark,
+  ChartSpec,
+  Mark,
+  PointMark,
+  RectMark,
+  ScatterMark,
+} from "./spec.js";
 
 type Kind =
   | "stackedColumn"
@@ -44,7 +63,11 @@ type Kind =
   | "arrowPlot"
   | "slope"
   | "scatter"
-  | "bubble";
+  | "bubble"
+  | "heatmap"
+  | "histogram2d"
+  | "calendar"
+  | "box";
 
 export interface SeriesModel {
   readonly name: string;
@@ -106,6 +129,32 @@ export interface AreaModel extends Samples {
 
 /** A mark over `x` samples, read by the same stops and keys. */
 export type SampleModel = LineModel | AreaModel;
+
+const isStop = (m: SampleModel, i: number): boolean =>
+  i === m.from || i === m.to - 1 || m.series.some((s) => s.y[i] !== s.y[i - 1]);
+
+/** The samples a step line's table lists and its keys stop at: the first
+ *  and last inside the domain, and each where any series changes value or
+ *  turns to or from a gap. */
+export function stepStops(m: SampleModel): number[] {
+  const out: number[] = [];
+  for (let i = m.from; i < m.to; i++) {
+    if (isStop(m, i)) {
+      out.push(i);
+    }
+  }
+  return out;
+}
+
+/** The stop holding sample `i` of a step line inside its domain: the last of
+ *  `stepStops` at or before it. */
+export function stepStopAt(m: SampleModel, i: number): number {
+  let k = i;
+  while (k > m.from && !isStop(m, k)) {
+    k--;
+  }
+  return k;
+}
 
 /** The stack's top at sample `i` of `m`, or `null` where any series is a
  *  gap, which breaks every layer there. */
@@ -299,6 +348,95 @@ export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | un
   return undefined;
 }
 
+/** A category's five numbers, each at most the next. */
+interface Five {
+  readonly low: number;
+  readonly q1: number;
+  readonly median: number;
+  readonly q3: number;
+  readonly high: number;
+}
+
+export interface BoxSeriesModel {
+  readonly name: string;
+  readonly slot: number;
+  /** Per row of the band, its five numbers, or `null` where all five are gaps. */
+  readonly boxes: readonly (Five | null)[];
+  /** Per row of the band, its outliers in ascending order. */
+  readonly outliers: readonly (readonly number[])[];
+}
+
+/** A box per series on each row of the chart's band y. */
+export interface BoxModel {
+  readonly kind: "box";
+  /** The app's words for its whiskers' convention. */
+  readonly whiskers: string | undefined;
+  readonly series: readonly BoxSeriesModel[];
+}
+
+/** A cell chart's axis: its categories' names, at 0 to n − 1 of a named x,
+ *  or its bins' edges, one more than its bins. */
+export type CellAxis =
+  { readonly names: readonly string[] } | { readonly edges: readonly number[] };
+
+/** The columns or rows along `axis`. */
+export const cellCount = (axis: CellAxis): number =>
+  "names" in axis ? axis.names.length : axis.edges.length - 1;
+
+/** The bin of ascending `edges` holding `v`, each from its low edge, the
+ *  last to its high edge too; -1 outside them. */
+export function binOf(edges: readonly number[], v: number): number {
+  const last = edges.length - 1;
+  if (last < 1 || !(v >= (edges[0] ?? 0) && v <= (edges[last] ?? 0))) {
+    return -1;
+  }
+  return v === edges[last] ? last - 1 : upperBound(edges, v) - 1;
+}
+
+/** A cell chart's cells in reading order, as `[row, column]`: rows from the
+ *  top (a binned y's highest bin first), columns from the left. */
+export function* cellOrder(model: Model, m: CellModel): Generator<readonly [number, number]> {
+  const rows = cellCount(m.y);
+  const columns = cellCount(m.x);
+  const up = "edges" in m.y;
+  for (let k = 0; k < rows; k++) {
+    const r = up ? rows - 1 - k : k;
+    for (let j = 0; j < columns; j++) {
+      yield [r, model.x.reverse ? columns - 1 - j : j];
+    }
+  }
+}
+
+/** A grid of cells, each coloured by its value's class. */
+export interface CellModel {
+  readonly kind: "cell";
+  readonly x: CellAxis;
+  readonly y: CellAxis;
+  /** A row of values per row of the band, a gap (`null` or `NaN`) as `null`. */
+  readonly values: readonly (readonly (number | null)[])[];
+  readonly classes: Classes;
+}
+
+/** A calendar of days from local day `day`, each coloured by its value's class. */
+export interface CalendarModel {
+  readonly kind: "calendar";
+  /** The first day, as a local day count since 1970. */
+  readonly day: number;
+  /** A value per day, a gap (`null` or `NaN`) as `null`. */
+  readonly values: readonly (number | null)[];
+  /** The last day is still running. */
+  readonly open: boolean;
+  /** The ISO weekday a week column starts on. */
+  readonly weekStart: number;
+  readonly classes: Classes;
+}
+
+/** The day of `m` holding instant `t` on the chart's wall clock; -1 outside its days. */
+export function dayOf(model: Model, m: CalendarModel, t: number): number {
+  const i = localDay(t, model.timeZone) - m.day;
+  return i >= 0 && i < m.values.length ? i : -1;
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -332,6 +470,9 @@ type MarkModel =
   | PointModel
   | SlopeModel
   | ScatterModel
+  | CellModel
+  | CalendarModel
+  | BoxModel
   | RuleModel
   | TextModel;
 
@@ -346,8 +487,8 @@ export interface Model {
   /** Nothing to draw: every value null, every row empty, every rect 0, no
    *  point inside the domain, or every area sample 0 or a gap. */
   readonly empty: boolean;
-  /** An x value as the readings and the table write it; on a slope a
-   *  column, 0 or 1, as its name. */
+  /** An x value as the readings and the table write it; on a slope or a
+   *  cell chart of categories a column's index as its name. */
   readonly xText: (v: number) => string;
   /** Both ends of a span of x, the end without a date the start already says. */
   readonly xSpan: (from: number, to: number) => readonly [string, string];
@@ -355,17 +496,23 @@ export interface Model {
   readonly yText: (v: number) => string;
   /** A bubble's size, in the r scale's format. */
   readonly rText: (v: number) => string;
+  /** A cell's value or a class boundary, in the colour scale's format. */
+  readonly colourText: (v: number) => string;
+  /** A local day's date in full (a day count since 1970), as a calendar
+   *  writes its days. */
+  readonly dateText: (day: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
-   *  bar or point chart, else `yText`), or a plain number under "share",
+   *  bar, point or box chart, else `yText`), or a plain number under "share",
    *  whose axis writes shares. */
   readonly amountText: (v: number) => string;
-  /** The width keys of `xText` off a time x and a slope, `yText`, `rText`
+  /** The width keys of `xText` off a time x and named columns, `yText`, `rText`
    *  and `amountText`; undefined where a format has none. */
   readonly widthKeys: {
     readonly x: WidthKey | undefined;
     readonly y: WidthKey | undefined;
     readonly r: WidthKey | undefined;
     readonly amount: WidthKey | undefined;
+    readonly colour: WidthKey | undefined;
   };
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
@@ -396,11 +543,40 @@ function checkUnit(unit: unknown, what: string): void {
   }
 }
 
+function checkFormat(format: unknown, what: string): void {
+  const ok =
+    format === undefined ||
+    typeof format === "function" ||
+    isObject(format) ||
+    (typeof format === "string" && FORMATS.has(format));
+  if (!ok) {
+    fail(`${what}.format must be a format name, Intl options or a function`);
+  }
+}
+
+// Infinite and non-numeric values are each check's own to refuse, in its own words.
+function within(values: Iterable<unknown>, what: string): void {
+  for (const v of values) {
+    if (typeof v === "number" && Number.isFinite(v) && Math.abs(v) > LIMIT) {
+      fail(`${what} must lie within ±1e300`, RangeError);
+    }
+  }
+}
+
+function checkDomain(domain: unknown, what: string): void {
+  if (domain !== undefined && !(arrayLike(domain) && domain.length === 2)) {
+    fail(`${what}.domain must be a low and a high`);
+  }
+  if (arrayLike(domain)) {
+    within(Array.from(domain), `${what}.domain`);
+  }
+}
+
 function checkScale(scale: unknown, what: string): void {
   if (!isObject(scale)) {
     fail(`${what} must be an object`);
   }
-  const { type, format, domain } = scale;
+  const { type } = scale;
   if (type !== undefined && !(typeof type === "string" && SCALE_TYPES.has(type))) {
     fail(`${what}.type must be "linear", "log", "time" or "band"`);
   }
@@ -409,16 +585,76 @@ function checkScale(scale: unknown, what: string): void {
     optional(scale[flag], "boolean", `${what}.${flag}`);
   }
   checkUnit(scale["unit"], what);
-  const formatOk =
-    format === undefined ||
-    typeof format === "function" ||
-    isObject(format) ||
-    (typeof format === "string" && FORMATS.has(format));
-  if (!formatOk) {
-    fail(`${what}.format must be a format name, Intl options or a function`);
+  checkFormat(scale["format"], what);
+  checkDomain(scale["domain"], what);
+}
+
+// A cell chart's colour classes come from `steps` over a domain, or from
+// `thresholds` alone; `pivot` and `reverse` place a diverging scale's arms.
+function checkColour(colour: unknown): void {
+  if (!isObject(colour)) {
+    fail("colour must be an object");
   }
-  if (domain !== undefined && !(arrayLike(domain) && domain.length === 2)) {
-    fail(`${what}.domain must be a low and a high`);
+  const { type, steps, domain, thresholds, pivot, reverse } = colour;
+  if (type !== undefined && type !== "sequential" && type !== "diverging") {
+    fail('colour.type must be "sequential" or "diverging"');
+  }
+  optional(colour["label"], "string", "colour.label");
+  checkUnit(colour["unit"], "colour");
+  checkFormat(colour["format"], "colour");
+  checkDomain(domain, "colour");
+  if (
+    steps !== undefined &&
+    !(typeof steps === "number" && Number.isInteger(steps) && steps >= 2 && steps <= 9)
+  ) {
+    fail("colour.steps must be a whole number of classes from 2 to 9");
+  }
+  if (thresholds !== undefined) {
+    if (!arrayLike(thresholds) || Array.from(thresholds).some((t) => typeof t !== "number")) {
+      fail("colour.thresholds must be an array of numbers");
+    }
+    for (const [field, v] of [
+      ["steps", steps],
+      ["domain", domain],
+      ["pivot", pivot],
+    ] as const) {
+      if (v !== undefined) {
+        fail(`colour.${field} has no place beside thresholds, which place every class`);
+      }
+    }
+    const list = Array.from(thresholds as ArrayLike<number>);
+    if (list.length < 1 || list.length > 8) {
+      fail("colour.thresholds must hold one to eight boundaries, for 2 to 9 classes", RangeError);
+    }
+    if (list.some((t, k) => !Number.isFinite(t) || (k > 0 && t <= (list[k - 1] ?? 0)))) {
+      fail("colour.thresholds must be finite and strictly increase", RangeError);
+    }
+    within(list, "colour.thresholds");
+  }
+  if (arrayLike(domain)) {
+    const [lo, hi] = Array.from(domain);
+    if (typeof lo !== "number" || typeof hi !== "number") {
+      fail("colour.domain must be two numbers");
+    }
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo >= hi) {
+      fail("colour.domain must be finite, low below high", RangeError);
+    }
+  }
+  optional(pivot, "number", "colour.pivot");
+  if (typeof pivot === "number" && !Number.isFinite(pivot)) {
+    fail("colour.pivot must be finite", RangeError);
+  }
+  within([pivot], "colour.pivot");
+  optional(reverse, "boolean", "colour.reverse");
+  if (type !== "diverging") {
+    for (const [field, v] of [
+      ["pivot", pivot],
+      ["reverse", reverse],
+    ] as const) {
+      if (v !== undefined) {
+        fail(`colour.${field} has no place on a sequential scale, which has no middle`);
+      }
+    }
   }
 }
 
@@ -437,6 +673,7 @@ function checkX(values: unknown, what: string, ties: boolean): ArrayLike<number>
     }
     before = v;
   }
+  within(Array.from(values), what);
   return values as ArrayLike<number>;
 }
 
@@ -476,6 +713,7 @@ function checkValues(values: unknown, length: number, of: string, against: strin
   if (Array.from(values).some((v) => v !== null && typeof v !== "number")) {
     fail(`${of} must hold numbers or null`);
   }
+  within(Array.from(values), of);
 }
 
 function checkSeries(
@@ -571,19 +809,183 @@ function checkDiverge(
   }
 }
 
-// The readings and the table name a row by its name alone.
-function checkNames(names: unknown, what: string): ArrayLike<unknown> {
+// The readings and the table name a row, or a cell's column, by its name alone.
+function checkNames(names: unknown, what: string, axis = "y"): ArrayLike<unknown> {
   if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
-    fail(`${what}.y must be an array of the categories' names`);
+    fail(`${what}.${axis} must be an array of the categories' names`);
   }
   const seen = new Set<unknown>();
   for (const name of Array.from(names)) {
     if (name === "" || seen.has(name)) {
-      fail(`${what}.y must name each category once, never ""`, RangeError);
+      fail(`${what}.${axis} must name each category once, never ""`, RangeError);
     }
     seen.add(name);
   }
   return names;
+}
+
+// A cell axis names its categories or gives its bins' edges; returns its
+// column or row count.
+function checkCellAxis(axis: unknown, what: string, name: "x" | "y"): number {
+  if (!isObject(axis)) {
+    fail(`${what}.${name} must name its categories or give its bins' edges`);
+  }
+  if (arrayLike(axis)) {
+    return checkNames(axis, what, name).length;
+  }
+  const edges = axis["edges"];
+  if (!arrayLike(edges) || Array.from(edges).some((e) => typeof e !== "number")) {
+    fail(`${what}.${name}.edges must be an array of numbers`);
+  }
+  const list = Array.from(edges as ArrayLike<number>);
+  if (list.length < 2) {
+    fail(`${what}.${name}.edges must hold two or more, a bin's low and high edges`, RangeError);
+  }
+  if (list.some((e, k) => !Number.isFinite(e) || (k > 0 && e <= (list[k - 1] ?? 0)))) {
+    fail(`${what}.${name}.edges must be finite and strictly increase`, RangeError);
+  }
+  within(list, `${what}.${name}.edges`);
+  return list.length - 1;
+}
+
+// A calendar lays out its own days, so it takes no axis or grid of values.
+function checkDays(mark: Record<string, unknown>, what: string): void {
+  for (const field of ["x", "y", "values"]) {
+    if (mark[field] !== undefined) {
+      fail(`${what}.${field} has no place beside days; a calendar lays out its days itself`);
+    }
+  }
+  const days = mark["days"];
+  if (!isObject(days)) {
+    fail(`${what}.days must be an object`);
+  }
+  const start = days["start"];
+  if (typeof start !== "number") {
+    fail(`${what}.days.start must be a number, the first day's midnight`);
+  }
+  if (!Number.isFinite(start)) {
+    fail(`${what}.days.start must be finite`, RangeError);
+  }
+  const values = days["values"];
+  if (!arrayLike(values) || Array.from(values).some((v) => v !== null && typeof v !== "number")) {
+    fail(`${what}.days.values must be an array of numbers or null`);
+  }
+  if (
+    Array.from(values).some((v) => v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY)
+  ) {
+    fail(`${what}.days.values cannot hold an infinite value`, RangeError);
+  }
+  within(Array.from(values), `${what}.days.values`);
+  optional(days["open"], "boolean", `${what}.days.open`);
+  const weekStart = mark["weekStart"];
+  if (
+    weekStart !== undefined &&
+    !(
+      typeof weekStart === "number" &&
+      Number.isInteger(weekStart) &&
+      weekStart >= 1 &&
+      weekStart <= 7
+    )
+  ) {
+    fail(`${what}.weekStart must be an ISO weekday from 1 (Monday) to 7 (Sunday)`);
+  }
+}
+
+function checkCells(mark: Record<string, unknown>, what: string): void {
+  if (mark["days"] !== undefined) {
+    checkDays(mark, what);
+    return;
+  }
+  if (mark["weekStart"] !== undefined) {
+    fail(`${what}.weekStart has no place without days, which it lays out in weeks`);
+  }
+  const columns = checkCellAxis(mark["x"], what, "x");
+  const rows = checkCellAxis(mark["y"], what, "y");
+  const values = mark["values"];
+  if (!arrayLike(values) || values.length !== rows) {
+    fail(`${what}.values must hold one row per y entry`);
+  }
+  for (let r = 0; r < rows; r++) {
+    const row = values[r];
+    const at = `${what}.values[${String(r)}]`;
+    checkValues(row, columns, at, "x");
+    if (
+      Array.from(row as ArrayLike<unknown>).some(
+        (v) => v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY,
+      )
+    ) {
+      fail(`${at} cannot hold an infinite value`, RangeError);
+    }
+  }
+}
+
+const FIVE = ["low", "q1", "median", "q3", "high"] as const;
+
+// The chart computes no quartile, so it takes each category's five numbers
+// as sent, all or none, in order, with its outliers beyond them.
+function checkBox(mark: Record<string, unknown>, what: string): void {
+  const names = Array.from(checkNames(mark["y"], what)) as string[];
+  const whiskers = mark["whiskers"];
+  if (whiskers !== undefined && !(typeof whiskers === "string" && whiskers.trim() !== "")) {
+    fail(`${what}.whiskers must be a non-empty string naming the whiskers' convention`);
+  }
+  const list = mark["series"];
+  if (!arrayLike(list)) {
+    fail(`${what}.series must be an array`);
+  }
+  for (let s = 0; s < list.length; s++) {
+    const one = list[s];
+    const at = `${what}.series[${String(s)}]`;
+    checkSeriesHead(one, s, at);
+    for (const field of FIVE) {
+      checkValues(one[field], names.length, `${at}.${field}`, "y");
+    }
+    const outliers = one["outliers"];
+    if (
+      outliers !== undefined &&
+      !(
+        arrayLike(outliers) &&
+        outliers.length === names.length &&
+        Array.from(outliers).every(
+          (o) => arrayLike(o) && Array.from(o).every((v) => typeof v === "number"),
+        )
+      )
+    ) {
+      fail(`${at}.outliers must hold an array of numbers per category`);
+    }
+    names.forEach((name, i) => {
+      const where = `${at} at "${name}"`;
+      const five = FIVE.map((field) => (one[field] as ArrayLike<number | null>)[i] ?? null);
+      const gaps = five.filter((v) => v === null || Number.isNaN(v)).length;
+      const extra = Array.from((outliers as ArrayLike<ArrayLike<number>> | undefined)?.[i] ?? []);
+      if (gaps === FIVE.length) {
+        if (extra.length > 0) {
+          fail(`${where} has outliers but no five numbers for them to lie beyond`);
+        }
+        return;
+      }
+      if (gaps > 0) {
+        fail(`${where} must have all five numbers, low, q1, median, q3 and high, or none`);
+      }
+      const [low = 0, , , , high = 0] = five as number[];
+      if (five.some((v) => !Number.isFinite(v))) {
+        fail(`${where} cannot hold an infinite value`, RangeError);
+      }
+      if (five.some((v, k) => k > 0 && (v ?? 0) < (five[k - 1] ?? 0))) {
+        fail(`${where} must have low ≤ q1 ≤ median ≤ q3 ≤ high`, RangeError);
+      }
+      if (extra.some((v) => !Number.isFinite(v))) {
+        fail(`${where}'s outliers must be finite`, RangeError);
+      }
+      within(extra, `${where}'s outliers`);
+      if (extra.some((v) => v >= low && v <= high)) {
+        fail(
+          `${where}'s outliers must lie beyond its whiskers, below low or above high`,
+          RangeError,
+        );
+      }
+    });
+  }
 }
 
 function checkCurve(curve: unknown, what: string): void {
@@ -750,6 +1152,12 @@ function checkMark(mark: unknown, what: string): void {
     case "scatter":
       checkScatter(mark, what);
       return;
+    case "cell":
+      checkCells(mark, what);
+      return;
+    case "box":
+      checkBox(mark, what);
+      return;
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -759,6 +1167,7 @@ function checkMark(mark: unknown, what: string): void {
       if (typeof value !== "number" || !Number.isFinite(value)) {
         fail(`${what}'s value must be a finite number`, RangeError);
       }
+      within([value], `${what}'s value`);
       if (typeof mark["label"] !== "string") {
         fail(`${what}.label must be a string`);
       }
@@ -780,12 +1189,13 @@ function checkMark(mark: unknown, what: string): void {
         if (typeof v === "number" && !Number.isFinite(v)) {
           fail(`${what}.${axis} must be finite`, RangeError);
         }
+        within([v], `${what}.${axis}`);
       }
       return;
     }
     default:
       fail(
-        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "rule" or "text"`,
+        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "rule" or "text"`,
       );
   }
 }
@@ -830,7 +1240,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope or scatter mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell or box mark and any rules and text marks`,
       );
     }
     data = m;
@@ -853,11 +1263,28 @@ function check(spec: unknown): asserts spec is ChartSpec {
       }
     }
   }
+  const cellChart = isObject(primary) && primary["mark"] === "cell";
+  const calendar = cellChart && primary["days"] !== undefined;
+  const binnedY = cellChart && isObject(primary["y"]) && !arrayLike(primary["y"]);
   const band =
     isObject(primary) &&
-    (primary["mark"] === "dot" || primary["mark"] === "bar" || primary["mark"] === "point");
+    (primary["mark"] === "dot" ||
+      primary["mark"] === "bar" ||
+      primary["mark"] === "point" ||
+      primary["mark"] === "box" ||
+      (cellChart && !binnedY));
   if (band && height !== undefined) {
-    fail("height has no place on a dot, bar or point chart, which is as tall as its rows");
+    fail(
+      calendar
+        ? "height has no place on a calendar, which is as tall as its weeks"
+        : `height has no place on a ${cellChart ? "cell chart of categories" : "dot, bar, point or box chart"}, which is as tall as its rows`,
+    );
+  }
+  if (spec["colour"] !== undefined) {
+    if (!(isObject(primary) && primary["mark"] === "cell")) {
+      fail("colour has no place without a cell mark, whose classes it colours");
+    }
+    checkColour(spec["colour"]);
   }
   optional(height, "number", "height");
   if (typeof height === "number" && !(Number.isFinite(height) && height > 0)) {
@@ -887,6 +1314,25 @@ const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
 
 const pointSeries = (list: PointMark["series"]): PointSeriesModel[] =>
   list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, x: gaps(s.x, false) }));
+
+const boxSeries = (list: BoxMark["series"]): BoxSeriesModel[] =>
+  list.map((s, i) => ({
+    name: s.name,
+    slot: s.slot ?? i + 1,
+    // The check holds a category's five all or none, so its low tells.
+    boxes: Array.from(s.low, (low, r) =>
+      low === null || Number.isNaN(low)
+        ? null
+        : {
+            low,
+            q1: s.q1[r] ?? low,
+            median: s.median[r] ?? low,
+            q3: s.q3[r] ?? low,
+            high: s.high[r] ?? low,
+          },
+    ),
+    outliers: Array.from(s.low, (_, r) => [...(s.outliers?.[r] ?? [])].sort((a, b) => a - b)),
+  }));
 
 // A dot outside a passed domain is not drawn, and with no position, or a
 // bubble with no size, it is no stop.
@@ -921,7 +1367,7 @@ function scatterModel(
 }
 
 /** One series with a value below 0: its bars run either side of the zero
- *  line, and every value but 0 is written with its sign. */
+ *  line, and every value not written as 0 carries its sign. */
 const signedBar = (m: BarModel): boolean =>
   m.series.length === 1 && (m.series[0]?.x.some((v) => v !== null && v < 0) ?? false);
 
@@ -1002,6 +1448,12 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       return "slope";
     case "scatter":
       return first.size === undefined ? "scatter" : "bubble";
+    case "cell":
+      return "edges" in first.x && "edges" in first.y ? "histogram2d" : "heatmap";
+    case "calendar":
+      return "calendar";
+    case "box":
+      return "box";
   }
 }
 
@@ -1028,6 +1480,12 @@ function hasData(m: MarkModel, x: Continuous): boolean {
       return m.series.some((s) => s.y.some((v) => v !== null));
     case "scatter":
       return m.shown.some((dots) => dots.length > 0);
+    case "cell":
+      return m.values.some((row) => row.some((v) => v !== null));
+    case "calendar":
+      return m.values.some((v) => v !== null);
+    case "box":
+      return m.series.some((s) => s.boxes.some((b) => b !== null));
     case "rule":
     case "text":
       return false;
@@ -1044,22 +1502,39 @@ function textModel(
   x: Continuous,
   y: Continuous | Band,
   ends: string | undefined,
-  columns: readonly [string, string] | undefined,
+  columns: { readonly names: readonly string[]; readonly cell: boolean } | undefined,
+  calendar: boolean,
 ): TextModel {
   const side = m.side ?? "above";
+  if (calendar) {
+    if (m.y !== undefined) {
+      fail(`${what}.y has no place on a calendar; a note's x is an instant in its day`);
+    }
+    if (typeof m.x !== "number") {
+      fail(`${what}.x must be a number on a calendar, an instant in its day`);
+    }
+    return { kind: "text", x: m.x, y: 0, row: false, text: m.text, side };
+  }
   if (ends !== undefined && m.x !== undefined) {
     fail(`${what}.x has no place under arrange "${ends}"; the note sits at its row's end`);
   }
-  // A slope's columns sit at x 0 and 1, so a note names its column by index there.
+  // A slope's columns sit at x 0 and 1, so a note names its column by index
+  // there; a cell chart's column c spans c to c + 1, so its note sits mid-column.
   const column = (v: number | string | undefined): number => {
+    const of = columns?.cell === true ? "the cell chart's columns" : "the slope's two columns";
     if (v === undefined) {
-      return fail(`${what}.x is missing; a note on a slope names one of its two columns`);
+      return fail(
+        `${what}.x is missing; a note on ${columns?.cell === true ? "a cell chart names one of its columns" : "a slope names one of its two columns"}`,
+      );
     }
     if (typeof v !== "string") {
-      return fail(`${what}.x must name one of the slope's two columns`);
+      return fail(`${what}.x must name one of ${of}`);
     }
-    const c = columns?.indexOf(v) ?? -1;
-    return c === -1 ? fail(`${what}.x names no column: "${v}"`, RangeError) : c;
+    const c = columns?.names.indexOf(v) ?? -1;
+    if (c === -1) {
+      return fail(`${what}.x names no column: "${v}"`, RangeError);
+    }
+    return columns?.cell === true ? c + 0.5 : c;
   };
   const place = (v: number | string | undefined, axis: "x" | "y", scale: Continuous | Band) => {
     if (v === undefined) {
@@ -1105,13 +1580,21 @@ export function chartModel(
   timeZone: string | undefined,
 ): Model {
   check(spec);
-  const x = xScale(spec);
+  const x = xScale(spec, timeZone);
   const y = yScale(spec);
   const size = rScale(spec);
   const ends = spec.marks
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
   const columns = spec.marks.find((m) => m.mark === "slope")?.x;
+  const cellMark = spec.marks.find((m): m is CellMark => m.mark === "cell" && !("days" in m));
+  const calendar = spec.marks.some((m) => m.mark === "cell" && "days" in m);
+  const cellNames = cellMark === undefined || "edges" in cellMark.x ? undefined : cellMark.x;
+  // The values a cell chart's inferred classes span.
+  const filled = (m: CellMark): number[] =>
+    m.values.flatMap((row) =>
+      Array.from(row).flatMap((v) => (v === null || Number.isNaN(v) ? [] : [v])),
+    );
   const marks = spec.marks.map((m, index): MarkModel => {
     switch (m.mark) {
       case "rect":
@@ -1176,11 +1659,35 @@ export function chartModel(
         };
       case "point":
         return { kind: "point", link: m.link, series: pointSeries(m.series) };
+      case "box":
+        return { kind: "box", whiskers: m.whiskers, series: boxSeries(m.series) };
       case "slope":
         return { kind: "slope", columns: m.x, series: series(m.series) };
       case "scatter":
         // A band y throws in yScale without band rows, so y is continuous.
         return scatterModel(m, x, y as Continuous, size);
+      case "cell":
+        if ("days" in m) {
+          const values = gaps(m.days.values, false);
+          return {
+            kind: "calendar",
+            day: localDay(m.days.start, timeZone),
+            values,
+            open: m.days.open === true,
+            weekStart: m.weekStart ?? weekStartOf(locale),
+            classes: classes(
+              spec.colour ?? {},
+              values.filter((v) => v !== null),
+            ),
+          };
+        }
+        return {
+          kind: "cell",
+          x: "edges" in m.x ? { edges: m.x.edges } : { names: m.x },
+          y: "edges" in m.y ? { edges: m.y.edges } : { names: m.y },
+          values: m.values.map((row) => gaps(row, false)),
+          classes: classes(spec.colour ?? {}, filled(m)),
+        };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;
@@ -1193,7 +1700,19 @@ export function chartModel(
         return { kind: "rule", axis, value, label: m.label, place: either ? { at: value } : place };
       }
       case "text":
-        return textModel(m, `marks[${String(index)}]`, x, y, ends, columns);
+        return textModel(
+          m,
+          `marks[${String(index)}]`,
+          x,
+          y,
+          ends,
+          columns === undefined
+            ? cellNames === undefined
+              ? undefined
+              : { names: cellNames, cell: true }
+            : { names: columns, cell: false },
+          calendar,
+        );
     }
   });
   // The ends of a domain a whole day long can share their clock time, so they
@@ -1201,23 +1720,30 @@ export function chartModel(
   const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
   const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
   const slope = marks.find((m) => m.kind === "slope");
+  const cellX = marks.find((m) => m.kind === "cell")?.x;
+  const named =
+    slope?.columns ?? (cellX !== undefined && "names" in cellX ? cellX.names : undefined);
+  const dateText = dayFormat(locale, { dateStyle: "full" });
   const xText =
-    slope !== undefined
-      ? (v: number) => slope.columns[v] ?? ""
-      : x.type === "time"
-        ? instantFormat(locale, timeZone, days)
-        : (signed ? signedFormatter : formatter)(x.format, locale);
+    named !== undefined
+      ? (v: number) => named[Math.floor(v)] ?? ""
+      : calendar
+        ? (v: number) => dateText(localDay(v, timeZone))
+        : x.type === "time"
+          ? instantFormat(locale, timeZone, days)
+          : writer(x.format, locale, { signed });
   const xSpan =
-    x.type === "time"
+    x.type === "time" && !calendar
       ? spanFormat(locale, timeZone, days)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
-  const yText = formatter(y.type === "band" ? undefined : y.format, locale);
-  const rText = formatter(size?.format, locale);
+  const yText = writer(y.type === "band" ? undefined : y.format, locale);
+  const rText = writer(size?.format, locale);
+  const colourText = writer(spec.colour?.format, locale);
   const share = marks.some(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
-  const bars = marks.some((m) => m.kind === "bar" || m.kind === "point");
-  const xKey = slope !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
+  const bars = marks.some((m) => m.kind === "bar" || m.kind === "point" || m.kind === "box");
+  const xKey = named !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
   const yKey = y.type === "band" ? undefined : widthKey(y.format, locale);
   return {
     spec,
@@ -1230,12 +1756,15 @@ export function chartModel(
     xSpan,
     yText,
     rText,
-    amountText: share ? formatter("number", locale) : bars ? xText : yText,
+    colourText,
+    dateText,
+    amountText: share ? writer("number", locale) : bars ? xText : yText,
     widthKeys: {
       x: xKey,
       y: yKey,
       r: widthKey(size?.format, locale),
       amount: share ? widthKey("number", locale) : bars ? xKey : yKey,
+      colour: widthKey(spec.colour?.format, locale),
     },
     locale,
     timeZone,

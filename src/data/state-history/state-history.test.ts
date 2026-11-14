@@ -135,9 +135,23 @@ describe("createStateHistory", () => {
     });
     document.body.append(el);
     const details = el.querySelector("details") as HTMLDetailsElement;
+    // Read and held as the press lands: the glide can end before a loaded
+    // driver's click returns.
+    let gliding = 0;
+    document.addEventListener(
+      "click",
+      () => {
+        const runs = details.getAnimations();
+        gliding = runs.length;
+        for (const run of runs) {
+          run.pause();
+        }
+      },
+      { once: true },
+    );
     await userEvent.click(el.querySelector("summary") as HTMLElement);
     expect(details.open).toBe(true);
-    expect(details.getAnimations()).toHaveLength(1);
+    expect(gliding).toBe(1);
     life.abort();
     await new Promise((tick) => setTimeout(tick));
     expect(details.getAnimations()).toHaveLength(0);

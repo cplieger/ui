@@ -28,4 +28,5 @@ enhancePairs(box, { onChange: save, signal: page.signal });
 - `data-add-pair` appends a row copied from the first row as the page drew it, with its values and errors cleared. Each id is numbered anew, so `from-1` becomes `from-2` and `from-1-error` becomes `from-2-error`, and every `aria-describedby` and `for` follows. Focus goes to the new row's first field. The row fades in and settles 4px, and only fades under reduced motion.
 - A row's `data-remove-pair` takes it away, and focus goes to the next row's first field, or the one before it, or to the add button.
 - Each field's checks are the app's. Show and clear its error with [form](form.md)'s `showError` and `clearError` as the person leaves it.
-- `onChange` runs after each add and removal, and `signal` removes the listeners.
+- The form's reset puts back the rows the list started with and their values, and [form](form.md#unsaved-changes)'s `guardChanges` counts the list as one change against them.
+- `onChange` runs after each add and removal and after a reset, and `signal` removes the listeners.

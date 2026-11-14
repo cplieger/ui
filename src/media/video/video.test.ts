@@ -94,6 +94,13 @@ function cues(video: HTMLVideoElement): TextTrackCue[] {
   return [...(video.textTracks[0]?.cues ?? [])];
 }
 
+// Registered after load(), so the module's own listener has seeked when this resolves.
+function metadata(video: HTMLVideoElement): Promise<unknown> {
+  return new Promise((resolve) => {
+    video.addEventListener("loadedmetadata", resolve, { once: true });
+  });
+}
+
 async function seeked(video: HTMLVideoElement, at: number): Promise<void> {
   const done = new Promise((resolve) => {
     video.addEventListener("seeked", resolve, { once: true });
@@ -205,10 +212,14 @@ describe("enhanceVideo", () => {
   it("starts a new source from where the old one was", async () => {
     const { video, handle } = await pane();
     await seeked(video, 7.5);
-    handle.load(await sample());
-    await expect.poll(() => handle.position).toBeCloseTo(7.5, 1);
+    const first = await sample();
+    handle.load(first);
+    await metadata(video);
+    expect(video.currentSrc).toBe(first);
+    expect(handle.position).toBeCloseTo(7.5, 1);
     handle.load(await sample(), 3);
-    await expect.poll(() => handle.position).toBeCloseTo(3, 1);
+    await metadata(video);
+    expect(handle.position).toBeCloseTo(3, 1);
   });
 
   it("marks a source that fails and turns its controls off", async () => {

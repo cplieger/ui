@@ -7,10 +7,18 @@
 
 import { lowerBound } from "../scale/reduce.js";
 
-import { scatterDotAt, type Model, type RectModel, type Side, type TextModel } from "./model.js";
+import {
+  binOf,
+  dayOf,
+  scatterDotAt,
+  stepStopAt,
+  type Model,
+  type RectModel,
+  type Side,
+  type TextModel,
+} from "./model.js";
 import { primaryOf } from "./readout.js";
 import { ruleAt } from "./scales.js";
-import { stepStopAt } from "./table.js";
 
 /** The room between a note and its point. */
 const NOTE_OFFSET = 4;
@@ -137,12 +145,15 @@ export function placeNote(
 
 /** The stop a note joins: bucket, sample or slope column `i`, post `i` of
  *  a timeline row, a row (a timeline row with no post, or a bar or point
- *  row), or a scatter's dot `i` of `series`. */
+ *  row), a scatter's dot `i` of `series`, a grid's cell, or a calendar's
+ *  day `i`. */
 export type Join =
   | { readonly kind: "stop"; readonly i: number }
   | { readonly kind: "post"; readonly row: number; readonly i: number }
   | { readonly kind: "row"; readonly row: number }
-  | { readonly kind: "dot"; readonly series: number; readonly i: number };
+  | { readonly kind: "dot"; readonly series: number; readonly i: number }
+  | { readonly kind: "cell"; readonly row: number; readonly column: number }
+  | { readonly kind: "day"; readonly i: number };
 
 /**
  * The index in `[from, to)` of ascending `xs` nearest `x`, the earlier on a
@@ -209,17 +220,19 @@ export function notePoint(
 
 /** The stop note `t` joins in `model`; none when `notePoint` places it
  *  nowhere or it names no stop. On a step curve that is the stop holding its
- *  nearest sample, since the keys stop only there. A bar or point note
+ *  nearest sample, since the keys stop only there. A bar, point or box note
  *  joins its row, its x only placing it; a slope note its column; a
  *  scatter note the dot at its values, by value, never by px, so its join
- *  holds before any layout and at every width. */
+ *  holds before any layout and at every width; a cell note the cell its
+ *  names or the bins holding its values give; a calendar note the day
+ *  holding its instant on the chart's wall clock. */
 export function noteJoin(model: Model, t: TextModel): Join | undefined {
   const p = notePoint(model, t);
   const m = primaryOf(model);
   if (p === undefined) {
     return undefined;
   }
-  if (p.x === undefined || m?.kind === "bar" || m?.kind === "point") {
+  if (p.x === undefined || m?.kind === "bar" || m?.kind === "point" || m?.kind === "box") {
     return { kind: "row", row: p.y };
   }
   const x = p.x;
@@ -252,6 +265,15 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
     case "scatter": {
       const d = scatterDotAt(m, x, p.y);
       return d === undefined ? undefined : { kind: "dot", ...d };
+    }
+    case "cell": {
+      const column = "names" in m.x ? Math.floor(x) : binOf(m.x.edges, x);
+      const row = "names" in m.y ? p.y : binOf(m.y.edges, p.y);
+      return column === -1 || row === -1 ? undefined : { kind: "cell", row, column };
+    }
+    case "calendar": {
+      const i = dayOf(model, m, x);
+      return i === -1 ? undefined : { kind: "day", i };
     }
     case undefined:
       return undefined;
