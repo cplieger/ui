@@ -14,8 +14,8 @@ import { classOf } from "./classes.js";
 import { rimPoint, sliceAngles, TURN, type PieFrame } from "./pie.js";
 import {
   barsApart,
+  barLengths,
   barTotal,
-  barValue,
   drawnTotal,
   drawnValue,
   sampleValue,
@@ -474,8 +474,7 @@ export function barReach(m: BarModel, i: number): { readonly lo: number; readonl
   }
   let lo = 0;
   let hi = 0;
-  for (const s of m.series) {
-    const v = barValue(m, s, i);
+  for (const v of barLengths(m, i)) {
     if (barsApart(m)) {
       lo = Math.min(lo, v);
       hi = Math.max(hi, v);
@@ -577,8 +576,7 @@ export function barSegments(
   }
   const base = { lo: 0, hi: 0 };
   const drawn = { lo: false, hi: false };
-  return m.series.map((s) => {
-    const v = barValue(m, s, i);
+  return barLengths(m, i).map((v) => {
     if (v === 0) {
       return undefined;
     }

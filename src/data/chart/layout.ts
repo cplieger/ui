@@ -1392,12 +1392,12 @@ export function layout(
     if (at === undefined || bars === undefined) {
       return;
     }
-    const reach = barReach(bars, t.row);
     const panel = t.series === undefined ? undefined : panels[t.series];
+    const reach = t.series === undefined ? barReach(bars, t.row) : undefined;
     const end =
       panel !== undefined
         ? panel.at(held(t.value))
-        : xAx.at(held(t.series !== undefined ? t.value : t.value < 0 ? reach.lo : reach.hi));
+        : xAx.at(held(reach === undefined ? t.value : t.value < 0 ? reach.lo : reach.hi));
     const leftward = panel?.leftward ?? t.value < 0 !== reverse;
     const text = valueTexts[i] ?? "";
     const x = leftward ? end - VALUE_GAP : end + VALUE_GAP;

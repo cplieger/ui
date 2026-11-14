@@ -259,15 +259,16 @@ export function barTotal(m: BarModel, i: number): number | null {
   return total;
 }
 
-/** The length series `s` draws in row `i`, a `null` as 0: under "share" its
- *  share of the row's total, 0 when the total is, else its value. */
-export function barValue(m: BarModel, s: BarSeriesModel, i: number): number {
-  const v = s.x[i] ?? 0;
+/** The length each series draws in row `i`, in series order, a `null` as
+ *  0: under "share" its share of the row's total, 0 when the total is,
+ *  else its value. */
+export function barLengths(m: BarModel, i: number): number[] {
+  const values = m.series.map((s) => s.x[i] ?? 0);
   if (m.arrange !== "share") {
-    return v;
+    return values;
   }
   const total = barTotal(m, i) ?? 0;
-  return total > 0 ? v / total : 0;
+  return values.map((v) => (total > 0 ? v / total : 0));
 }
 
 export interface PointSeriesModel {
