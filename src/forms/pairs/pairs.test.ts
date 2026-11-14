@@ -58,6 +58,29 @@ describe("enhancePairs", () => {
     expect(document.activeElement).toBe(add);
   });
 
+  it("puts its rows and their values back on the form's reset, and tells the host", async () => {
+    const { box, list, add } = pairs();
+    const form = document.createElement("form");
+    form.append(box);
+    document.body.append(form);
+    let changes = 0;
+    enhancePairs(box, { onChange: () => changes++, signal: life.signal });
+    await userEvent.click(add);
+    await userEvent.type(list.querySelector("#from-2") as HTMLInputElement, "/films");
+    await userEvent.click(list.querySelector("[data-remove-pair]") as HTMLButtonElement);
+    expect(list.querySelectorAll("li")).toHaveLength(1);
+    const values = (): string[] => [...list.querySelectorAll("input")].map((i) => i.value);
+    // The rows follow the reset a task later, after the form's own fields.
+    form.reset();
+    await expect.poll(values).toEqual(["/tv", "/media/tv"]);
+    expect(changes).toBe(3);
+    await userEvent.click(list.querySelector("[data-remove-pair]") as HTMLButtonElement);
+    expect(list.querySelectorAll("li")).toHaveLength(0);
+    form.reset();
+    await expect.poll(values).toEqual(["/tv", "/media/tv"]);
+    expect(document.activeElement).toBe(add);
+  });
+
   it("adds a row like the page's first even after that row is removed, and stops once its signal aborts", async () => {
     const { box, list, add } = pairs();
     enhancePairs(box, { signal: life.signal });
