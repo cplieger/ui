@@ -71,8 +71,9 @@ const MOST_DIGITS = 100;
  * `locale`, "number" when undefined, never with a signed zero. A number
  * format's own `signDisplay` is kept unless it signs a zero: "always"
  * becomes "exceptZero", and "auto" (the default) "exceptZero" when `signed`
- * and "negative" when not. A duration, and a function's string as it is,
- * get a "+" before a positive value's text when `signed` unless it has one.
+ * and "negative" when not. When `signed`, a duration gets a "+" before a
+ * value it writes above 0 ms, and a function's string, as it is, before a
+ * positive value's text unless it has one.
  */
 export function writer(
   format: Format | undefined,
@@ -81,10 +82,12 @@ export function writer(
 ): (value: number) => string {
   if (typeof format === "function" || format === "duration") {
     const write = typeof format === "function" ? format : (v: number) => formatDuration(v, locale);
+    // `durationRecord` rounds half up to whole milliseconds, so under 0.5 it writes 0 ms.
+    const positive = typeof format === "function" ? (v: number) => v > 0 : (v: number) => v >= 0.5;
     return signed
       ? (v) => {
           const text = write(v);
-          return v > 0 && !text.startsWith("+") ? `+${text}` : text;
+          return positive(v) && !text.startsWith("+") ? `+${text}` : text;
         }
       : write;
   }
@@ -260,8 +263,8 @@ export function durationRecord(ms: number): Partial<Record<DurationUnit | "milli
 
 const FIELDS = ["days", "hours", "minutes", "seconds", "milliseconds"] as const;
 
-// The text is the record's alone but for a signed writer's "+" on any value
-// above 0, a record of zero included: 0.3 writes "+0 ms" and 0 writes "0 ms".
+// The text is the record's alone but for a signed writer's "+" on a record
+// above 0; a record of zero is written unsigned, so 0.3 writes "0 ms".
 function durationKey(v: number): number {
   const record = durationRecord(v);
   const at = FIELDS.findIndex((unit) => record[unit] !== undefined);
@@ -270,7 +273,7 @@ function durationKey(v: number): number {
   // `* 60` holds the smaller count, which `durationRecord` keeps under 60.
   const small = next === undefined ? 0 : (record[next] ?? 0);
   const k = ((Math.abs(big) * 60 + Math.abs(small)) * FIELDS.length + at) * 3;
-  const key = k + (v > 0 ? 1 : big < 0 ? 2 : 0);
+  const key = k + (big > 0 ? 1 : big < 0 ? 2 : 0);
   return key < 2 ** 50 ? key : Number.NaN;
 }
 

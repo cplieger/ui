@@ -164,8 +164,8 @@ describe("widthKey", () => {
     const key = widthKey("duration", "en");
     expect(key).toBeDefined();
     const durations = [
-      0, -0, 0.3, -0.3, 1, 999.4, 999.6, 1_000, 1_234, 1_456, 9_999, 12_345, -5_000, 59_600, 60_000,
-      61_000, 599_000, 3_723_000, 9_420_013, 82_800_000, 1_080_000_000,
+      0, -0, 0.3, -0.3, 0.4, 0.5, 0.6, 1, 999.4, 999.6, 1_000, 1_234, 1_456, 9_999, 12_345, -5_000,
+      59_600, 60_000, 61_000, 599_000, 3_723_000, 9_420_013, 82_800_000, 1_080_000_000,
     ];
     for (const signed of [false, true]) {
       const write = writer("duration", "en", { signed });
@@ -184,7 +184,8 @@ describe("widthKey", () => {
     expect(key?.(1_234)).not.toBe(key?.(12_345));
     expect(key?.(61_000)).not.toBe(key?.(60_000));
     expect(key?.(-5_000)).not.toBe(key?.(5_000));
-    expect(key?.(0.3)).not.toBe(key?.(0));
+    expect(key?.(0.3)).toBe(key?.(0));
+    expect(key?.(0.6)).not.toBe(key?.(0));
     expect(key?.(Infinity)).toBeNaN();
   });
 
@@ -213,12 +214,16 @@ describe("writer, signed", () => {
     expect(writer({ signDisplay: "always" }, "en", { signed: true })(-0.0001)).toBe("0");
   });
 
-  it("puts a plus before a positive duration's or function's text, and only once", () => {
+  it("puts a plus before a duration above 0 ms or a positive function's text, and only once", () => {
     expect(writer("duration", "en", { signed: true })(87_000)).toBe("+1\u00A0min, 27\u00A0sec");
     expect(writer("duration", "en", { signed: true })(-87_000)).toBe(
       writer("duration", "en")(-87_000),
     );
+    expect(writer("duration", "en", { signed: true })(0.3)).toBe("0\u00A0ms");
+    expect(writer("duration", "en", { signed: true })(0.4)).toBe("0\u00A0ms");
+    expect(writer("duration", "en", { signed: true })(0.6)).toBe("+1\u00A0ms");
     expect(writer((v) => `v${String(v)}`, "en", { signed: true })(3)).toBe("+v3");
+    expect(writer((v) => `v${String(v)}`, "en", { signed: true })(0.3)).toBe("+v0.3");
     expect(writer((v) => `+${String(v)}`, "en", { signed: true })(3)).toBe("+3");
     expect(writer((v) => String(v), "en", { signed: true })(0)).toBe("0");
   });

@@ -6,9 +6,10 @@ import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type ChartSpec } from "./chart.js";
 
-// A minus, maybe a currency sign, before a zero whose separator has only zeros
-// after it: "-0", "−0.00", "-€0.00", "-0%", never "-0.5" or the "-05" of a date.
-const SIGNED_ZERO = /(?<![\p{Nd}\p{L}])[-\u2212]\p{Sc}?\s?0(?:[.,]0+)?(?!\p{Nd}|[.,]\p{Nd})/u;
+// A sign, maybe a currency sign, before a zero whose separator has only zeros
+// after it: "-0", "−0.00", "-€0.00", "-0%", "+0 ms", never "-0.5", the "-05"
+// of a date or the "E+0" of an exponent.
+const SIGNED_ZERO = /(?<![\p{Nd}\p{L}])[-+\u2212]\p{Sc}?\s?0(?:[.,]0+)?(?!\p{Nd}|[.,]\p{Nd})/u;
 
 const signedZeros = (texts: readonly string[]): string[] =>
   texts.filter((t) => SIGNED_ZERO.test(t));
@@ -25,34 +26,33 @@ const near = fc.oneof(
   fc.double({ min: -1e-3, max: 1e-3, noNaN: true }),
 );
 
-// Every number format an app can name: the presets and Intl options with
-// each sign display, rounding and style.
-const format: fc.Arbitrary<Exclude<Format, "duration" | ((v: number) => string)> | undefined> =
-  fc.oneof(
-    fc.constantFrom(undefined, "number", "integer", "percent"),
-    fc
-      .tuple(
-        fc.constantFrom<Intl.NumberFormatOptions>(
-          {},
-          { style: "percent" },
-          { style: "unit", unit: "celsius" },
-          { style: "currency", currency: "EUR" },
-          { notation: "compact" },
-          { notation: "scientific" },
-        ),
-        fc.record(
-          {
-            maximumFractionDigits: fc.integer({ min: 0, max: 4 }),
-            signDisplay: fc.constantFrom("auto", "always", "exceptZero", "negative", "never"),
-          },
-          { requiredKeys: [] },
-        ),
-      )
-      .map(([style, rest]): Intl.NumberFormatOptions => ({ ...style, ...rest })),
-  );
+// Every format an app can name but a function: the presets, durations and
+// Intl options with each sign display, rounding and style.
+const format: fc.Arbitrary<Exclude<Format, (v: number) => string> | undefined> = fc.oneof(
+  fc.constantFrom(undefined, "number", "integer", "percent", "duration"),
+  fc
+    .tuple(
+      fc.constantFrom<Intl.NumberFormatOptions>(
+        {},
+        { style: "percent" },
+        { style: "unit", unit: "celsius" },
+        { style: "currency", currency: "EUR" },
+        { notation: "compact" },
+        { notation: "scientific" },
+      ),
+      fc.record(
+        {
+          maximumFractionDigits: fc.integer({ min: 0, max: 4 }),
+          signDisplay: fc.constantFrom("auto", "always", "exceptZero", "negative", "never"),
+        },
+        { requiredKeys: [] },
+      ),
+    )
+    .map(([style, rest]): Intl.NumberFormatOptions => ({ ...style, ...rest })),
+);
 
 describe("the writer", () => {
-  it("writes no signed zero in any number format, signed or not, at any digits", () => {
+  it("writes no signed zero in any format but a function, signed or not, at any digits", () => {
     fc.assert(
       fc.property(
         format,
