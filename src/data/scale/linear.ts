@@ -9,9 +9,12 @@ const clean = (v: number): number => Number(v.toPrecision(12));
 
 /** The smallest of 1, 2 and 5 times a power of ten at or above `min` (> 0). */
 export function niceStep(min: number): number {
-  const power = 10 ** Math.floor(Math.log10(min));
+  // `min` is a quotient that drifts (0.6 / 6 is 0.10000000000000002), so it is
+  // cleaned as the steps are, or an exact span would skip its step.
+  const least = clean(min);
+  const power = 10 ** Math.floor(Math.log10(least));
   for (const m of [1, 2, 5]) {
-    if (clean(m * power) >= min) {
+    if (clean(m * power) >= least) {
       return clean(m * power);
     }
   }

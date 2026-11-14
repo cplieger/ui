@@ -12,6 +12,11 @@ describe("steps", () => {
     expect(niceStep(1)).toBe(1);
   });
 
+  it("take the exact step a span's quotient names, though the quotient drifts above it", () => {
+    expect(niceStep((0.4 - -0.2) / 6)).toBe(0.1);
+    expect(niceStep(0.000005 / 5)).toBe(0.000001);
+  });
+
   it("move to the next of 1, 2 and 5 when coarser", () => {
     expect([1, 2, 5, 0.2, 50].map(coarserStep)).toEqual([2, 5, 10, 0.5, 100]);
   });
@@ -57,5 +62,13 @@ describe("linearAxis", () => {
 
   it("stops at one interval over the domain when no step meets the target", () => {
     expect(linearAxis(0, 11, 30, 40, nice)).toEqual({ domain: [0, 20], step: 20 });
+  });
+
+  it("stays finite at ±1e300, the largest value a chart takes", () => {
+    for (const options of [nice, { nice: false, integer: false }]) {
+      const { domain, step } = linearAxis(-1e300, 1e300, 600, 40, options);
+      expect([...domain, step].every(Number.isFinite)).toBe(true);
+      expect(domain[0] < domain[1] && step > 0).toBe(true);
+    }
   });
 });
