@@ -123,6 +123,34 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
 
   const title = document.getElementById("msg-title");
   const kind = document.getElementById("msg-kind");
+  const compose = document.getElementById("msg-compose");
+  const readOnly = document.getElementById("msg-read-only");
+  // The person posts only as You, so a direct conversation between two
+  // others takes no reply: the foot names who writes there instead.
+  function replyFor(row: HTMLAnchorElement): void {
+    if (compose === null || readOnly === null) {
+      return;
+    }
+    const names = row.querySelector(".cp-cell-stack > .cp-truncate")?.textContent ?? "";
+    const people = row.dataset["kind"] === "Direct" ? names.split(" and ") : [];
+    const closed = people.length === 2 && !people.includes("You");
+    compose.hidden = closed;
+    readOnly.hidden = !closed;
+    const [words, actions] = readOnly.children;
+    if (!closed || words === undefined || actions === undefined) {
+      return;
+    }
+    words.textContent = `Only ${names} write here.`;
+    actions.replaceChildren(
+      ...people.map((name) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "cp-button";
+        b.textContent = `Message ${name}`;
+        return b;
+      }),
+    );
+  }
   const detail = enhanceListDetail(root, {
     onDismiss: () => {
       history.replaceState(null, "", location.pathname + location.search);
@@ -153,6 +181,7 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     if (kind !== null) {
       kind.textContent = row.dataset["kind"] ?? "";
     }
+    replyFor(row);
     detail.open({ still });
     messageFeed?.toNewest();
   }

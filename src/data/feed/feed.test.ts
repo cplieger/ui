@@ -1017,6 +1017,63 @@ describe("enhanceFeed", () => {
   });
 });
 
+describe("a feed that takes no reply", () => {
+  /** The foot's composer replaced by who writes there and a way to write to each. */
+  function readOnly(c: Conversation): HTMLDivElement {
+    const stack = document.createElement("div");
+    stack.className = "cp-stack";
+    stack.dataset["gap"] = "tight";
+    const words = document.createElement("p");
+    words.textContent = "Only @alpha and @bravo write here.";
+    const actions = document.createElement("div");
+    actions.className = "cp-cluster";
+    actions.dataset["gap"] = "tight";
+    for (const name of ["@alpha", "@bravo"]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "cp-button";
+      b.textContent = `Message ${name}`;
+      actions.append(b);
+    }
+    stack.append(words, actions);
+    c.foot.querySelector("textarea")?.replaceWith(stack);
+    return stack;
+  }
+
+  it("sits where the composer sits, pinned to the scroller's end, and sizes the foot", async () => {
+    const writes = conversation();
+    const reads = conversation();
+    const stack = readOnly(reads);
+    enhance(writes);
+    enhance(reads);
+    await settle();
+    const area = writes.foot.querySelector("textarea") as HTMLTextAreaElement;
+    const from = (el: Element, box: Element) => {
+      const r = el.getBoundingClientRect();
+      const b = box.getBoundingClientRect();
+      return { start: r.left - b.left, end: b.bottom - r.bottom };
+    };
+    expect(from(stack, reads.foot).start).toBeCloseTo(from(area, writes.foot).start, 1);
+    expect(from(stack, reads.foot).end).toBeCloseTo(from(area, writes.foot).end, 1);
+    const [words, actions] = [...stack.children] as [Element, Element];
+    expect(actions.getBoundingClientRect().top - words.getBoundingClientRect().bottom).toBeCloseTo(
+      4,
+      1,
+    );
+    expect(reads.feed.style.getPropertyValue("--cp-feed-foot-size")).toBe(
+      `${String(reads.foot.offsetHeight)}px`,
+    );
+    for (const top of [0, reads.box.scrollHeight]) {
+      await scrollTo(reads.box, top);
+      expect(
+        Math.abs(
+          reads.foot.getBoundingClientRect().bottom - reads.box.getBoundingClientRect().bottom,
+        ),
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 // An agent's history: a feed newest first that no enhanceFeed follows, its
 // origins links to their conversations and Show older at its end.
 describe("a history", () => {

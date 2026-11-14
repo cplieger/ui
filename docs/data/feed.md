@@ -51,6 +51,20 @@ for (const t of list.querySelectorAll("time[datetime*='T']")) {
 - While the entries load, the feed carries `aria-busy="true"` and holds `li.cp-feed-entry[data-skeleton]` items of four `.cp-skeleton` lines. With none, the detail says so in a sentence, such as "No messages in the last 72 hours.", in place of the feed.
 - `.cp-feed-head` comes before the feed in its scroller, not pinned, and holds the button that shows older entries above the first, such as "Show older", which [load-more](load-more.md) drives with `edge: "start"`. Its press moves focus to the oldest entry it added, so the reader reads down to where they were, and the feed takes that as the reader's new place. Once the oldest page is in, the head goes.
 - `.cp-feed-foot` follows the feed in its scroller and stays pinned to the scroller's end. It holds `button.cp-feed-jump`, `hidden` until the script shows it, and the composer.
+- A feed the reader can read but not write in, such as a conversation between two others, a locked or archived thread, or one the reader has no right to post in, keeps its foot and puts in the composer's place a tight stack: a sentence saying who writes there and a tight cluster with one button per way to write. The foot needs no other rule, and the script measures it as it measures the composer.
+
+```html
+<div class="cp-feed-foot">
+  <button class="cp-button cp-feed-jump" data-size="sm" type="button" hidden></button>
+  <div class="cp-stack" data-gap="tight">
+    <p>Only @alpha and @bravo write here.</p>
+    <div class="cp-cluster" data-gap="tight">
+      <button class="cp-button" type="button">Message @alpha</button>
+      <button class="cp-button" type="button">Message @bravo</button>
+    </div>
+  </div>
+</div>
+```
 
 ## A history
 
