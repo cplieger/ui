@@ -2166,6 +2166,20 @@ describe("the largest value", () => {
     );
   });
 
+  it("gives one cell value past 2^53 finite, strictly increasing classes", () => {
+    const m = build({ marks: [grid({ x: ["a"], values: [[-1e16]] })] });
+    const { thresholds } = (m.marks[0] as CellModel).classes;
+    expect(
+      thresholds.every((t, k) => Number.isFinite(t) && (k === 0 || t > (thresholds[k - 1] ?? 0))),
+    ).toBe(true);
+  });
+
+  it("refuses a colour domain too narrow for increasing class boundaries", () => {
+    expect(() => build({ colour: { domain: [1e16, 1e16 + 2] }, marks: [grid()] })).toThrow(
+      RangeError,
+    );
+  });
+
   it("refuses a calendar's start past Date's range with a RangeError", () => {
     expect(() => build({ marks: [{ mark: "cell", days: { start: 1e16, values: [1] } }] })).toThrow(
       RangeError,

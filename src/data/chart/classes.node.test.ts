@@ -124,6 +124,48 @@ describe("equal classes", () => {
     expect(small.thresholds[1]).toBe(1e-7);
   });
 
+  it("makes a full-precision pivot an even count's middle boundary as sent", () => {
+    for (const c of [
+      classes({ type: "diverging", steps: 4, pivot: 2 / 3 }, [-1, 2]),
+      classes({ type: "diverging", steps: 4, pivot: 2 / 3, domain: [-1, 2] }, []),
+      classes({ type: "diverging", steps: 6, pivot: Math.PI }, [0, 10]),
+    ]) {
+      const pivot = c.thresholds[Math.floor(c.thresholds.length / 2)] ?? Number.NaN;
+      expect(pivot === 2 / 3 || pivot === Math.PI).toBe(true);
+      expect(classOf(c, pivot)).toBe(Math.ceil(c.thresholds.length / 2));
+    }
+  });
+
+  it.each<[string, Parameters<typeof classes>]>([
+    ["one value past 2^53", [{}, [-1e16]]],
+    ["a span below 1e-300", [{}, [0, 5e-324]]],
+    ["a span below the twelfth figure", [{}, [-1e15 - 1, -1e15]]],
+    [
+      "a diverging pivot past 2^53 at its one value",
+      [{ type: "diverging", steps: 4, pivot: 1e16 }, [1e16]],
+    ],
+    ["a diverging span below 1e-300", [{ type: "diverging" }, [-5e-324, 5e-324]]],
+  ])("keeps finite, strictly increasing boundaries for %s", (_, [spec, values]) => {
+    const { thresholds } = classes(spec, values);
+    expect(thresholds.every(Number.isFinite)).toBe(true);
+    expect(thresholds.every((t, k) => k === 0 || t > (thresholds[k - 1] ?? 0))).toBe(true);
+  });
+
+  it.each<[string, Parameters<typeof classes>[0]]>([
+    ["below the twelfth figure", { domain: [1e16, 1e16 + 2] }],
+    ["below 1e-300", { domain: [0, 5e-324] }],
+    [
+      "about a pivot past 2^53",
+      { type: "diverging", steps: 4, pivot: 1e16, domain: [1e16 - 2, 1e16 + 2] },
+    ],
+  ])("refuses a passed domain %s, too narrow for increasing boundaries", (_, spec) => {
+    expect(() => classes(spec, [])).toThrow(
+      new RangeError(
+        "renderChart: colour.domain is too narrow for its classes' boundaries to strictly increase",
+      ),
+    );
+  });
+
   it("stays finite and in order at ±1e300, the largest value a chart takes", () => {
     for (const c of [
       classes({}, [-1e300, 1e300]),

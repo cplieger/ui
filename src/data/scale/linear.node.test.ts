@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { coarserStep, linearAxis, linearTicks, niceStep } from "./linear.js";
+import { coarserStep, linearAxis, linearTicks, niceStep, resolution } from "./linear.js";
 
 describe("steps", () => {
   it("are 1, 2 or 5 times a power of ten, the smallest at or above the minimum", () => {
@@ -15,6 +15,15 @@ describe("steps", () => {
   it("take the exact step a span's quotient names, though the quotient drifts above it", () => {
     expect(niceStep((0.4 - -0.2) / 6)).toBe(0.1);
     expect(niceStep(0.000005 / 5)).toBe(0.000001);
+    // Compared to twelve figures, so a step 4e-12 above 1 is 1.
+    expect(niceStep(1.000000000004)).toBe(1);
+  });
+
+  it("are never finer than the twelfth figure of the values, nor than 1e-300", () => {
+    expect(resolution(1e16, 1e16)).toBe(1e5);
+    expect(resolution(-250, 3)).toBe(1e-9);
+    expect(resolution(0, 0)).toBe(1e-300);
+    expect(resolution(0, 5e-324)).toBe(1e-300);
   });
 
   it("move to the next of 1, 2 and 5 when coarser", () => {
@@ -62,6 +71,29 @@ describe("linearAxis", () => {
 
   it("stops at one interval over the domain when no step meets the target", () => {
     expect(linearAxis(0, 11, 30, 40, nice)).toEqual({ domain: [0, 20], step: 20 });
+  });
+
+  it("holds both ends when the span lies below the twelfth figure", () => {
+    for (const [lo, hi] of [
+      [1e15, 1e15 + 1],
+      [1e12, 1e12 + 0.5],
+      [1e16 - 1e5, 1e16 + 1e5],
+    ] as const) {
+      const { domain, step } = linearAxis(lo, hi, 600, 40, nice);
+      expect(domain[0] <= lo && hi <= domain[1] && domain[0] < domain[1]).toBe(true);
+      expect(step).toBeGreaterThanOrEqual(resolution(lo, hi));
+    }
+  });
+
+  it("steps at least 1e-300 over a span below it", () => {
+    expect(linearAxis(0, 5e-324, 600, 40, nice)).toEqual({ domain: [0, 1e-300], step: 1e-300 });
+  });
+
+  it("keeps a passed domain narrower than its resolution", () => {
+    expect(linearAxis(1e16, 1e16 + 2, 600, 40, { nice: false, integer: false })).toEqual({
+      domain: [1e16, 1e16 + 2],
+      step: 1e5,
+    });
   });
 
   it("stays finite at ±1e300, the largest value a chart takes", () => {

@@ -6,6 +6,7 @@
 
 import type { Format } from "../scale/format.js";
 
+import { resolution } from "../scale/linear.js";
 import { localDay, midnight } from "../scale/time.js";
 
 import type {
@@ -122,7 +123,9 @@ class Extent {
   }
 }
 
-// A linear extent of one value spans 1 each way of it, or 0 to 1 at 0.
+// A linear extent of one value spans 1 each way of it, or 0 to 1 at 0. Past
+// 1e12, 1 is finer than the axis tells apart (1e16 + 1 is 1e16), so the
+// value's resolution, its twelfth figure, is the bump.
 function widen(lo: number, hi: number): readonly [number, number] {
   if (lo < hi) {
     return [lo, hi];
@@ -130,7 +133,8 @@ function widen(lo: number, hi: number): readonly [number, number] {
   if (lo === 0) {
     return [0, 1];
   }
-  return [lo - 1, hi + 1];
+  const bump = Math.max(1, resolution(lo, hi));
+  return [lo - bump, hi + bump];
 }
 
 function rectAt(mark: RectMark, i: number): readonly [number, number] {

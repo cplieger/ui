@@ -290,6 +290,19 @@ describe("a linear axis", () => {
     expect(yAxis(y, 240, 16, ctx()).ticks.map((t) => t.value)).toEqual([3, 2, 1, 0]);
   });
 
+  it("widens one value past 1e12 by its twelfth figure, since 1 no longer moves it", () => {
+    const one = (v: number) =>
+      xScale({
+        x: { type: "linear" },
+        marks: [{ mark: "line", x: [v], series: [{ name: "a", y: [1] }] }],
+      });
+    expect([one(100).lo, one(100).hi]).toEqual([99, 101]);
+    const axis = xAxis(one(1e16), 400, ctx());
+    expect([axis.lo, axis.hi].every(Number.isFinite)).toBe(true);
+    expect(axis.lo < 1e16 && 1e16 < axis.hi).toBe(true);
+    expect(axis.ticks.length).toBeGreaterThan(1);
+  });
+
   it("spans ±1e300, the largest value a chart takes, with finite ticks in order", () => {
     for (const x of [{ type: "linear", domain: [-1e300, 1e300] }, { type: "linear" }] as const) {
       const scale = xScale({

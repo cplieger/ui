@@ -4,6 +4,8 @@
  * @module
  */
 
+import { resolution } from "../scale/linear.js";
+
 export interface Classes {
   readonly type: "sequential" | "diverging";
   /** The n − 1 strictly increasing boundaries of n classes. */
@@ -33,20 +35,25 @@ const tidy = (v: number): number => Number(v.toPrecision(12));
 
 // The boundary a + b to the operands' fourteenth figure. Their binary residue
 // (a few ulps: -0.3 + 0.30000000000000004, 3 × 0.1) lies below it, so a
-// cancelling sum is exactly 0 and -2999.999 + 3000 exactly 0.001, while every
-// figure the operands state stays (0.5 beside 1e12). A cap relative to the sum
-// alone, as tidy's, keeps a cancelled residue or cuts a 13-figure pivot.
+// cancelling sum is exactly 0 and -2999.999 + 3000 exactly 0.001, while their
+// figures up to the fourteenth stay (0.5 beside 1e12). A cap relative to the sum
+// alone, as tidy's, keeps a cancelled residue or cuts a 13-figure pivot. b = 0 is
+// an even count's middle boundary, the pivot as sent: rounded, a full-precision
+// pivot such as 2/3 would fall below itself and its own value take the lower arm.
 const boundary = (a: number, b: number): number => {
   const v = a + b;
   if (v === 0) {
     return 0;
+  }
+  if (b === 0) {
+    return a;
   }
   const big = Math.max(Math.abs(a), Math.abs(b));
   const figures = Math.floor(Math.log10(Math.abs(v))) - Math.floor(Math.log10(big)) + 14;
   return figures < 1 ? 0 : Number(v.toPrecision(Math.min(figures, 14)));
 };
 
-// The class widths from the smallest at least `min` upward; integer data
+// The class widths from the smallest at least `min` (above 0) upward; integer data
 // takes whole widths only, so a sequential boundary, or an even diverging
 // count's about a whole pivot, never falls between two counts. `min` is a
 // quotient, tidied so that 0.6 / 6 (0.10000000000000002) still takes 0.1.
@@ -87,7 +94,9 @@ export function classSteps(type: "sequential" | "diverging", n: number, reverse 
  * when no value is below it) at the smallest rounded width (1, 2, 2.5 or 5 times a power
  * of ten) whose classes, from a multiple of it, reach the greatest value. A diverging
  * scale's classes are symmetric about `pivot`, which an odd count centres in its middle
- * class and an even count makes a boundary.
+ * class and an even count makes a boundary. An inferred width is never finer than the
+ * values' (and pivot's) `resolution`, so the boundaries always strictly increase; a passed
+ * `domain` too narrow for that is a `RangeError`.
  */
 export function classes(spec: ClassSpec, values: readonly number[]): Classes {
   const type = spec.type ?? "sequential";
@@ -114,28 +123,31 @@ export function classes(spec: ClassSpec, values: readonly number[]): Classes {
   }
   if (type === "diverging") {
     const pivot = spec.pivot ?? 0;
-    const half = Math.max(hi - pivot, pivot - lo) || 1;
+    // A pivot far from the values is the boundaries' magnitude.
+    const finest = resolution(Math.max(Math.abs(lo), Math.abs(hi)), pivot);
+    const half = Math.max(hi - pivot, pivot - lo) || Math.max(1, finest);
     const m = Math.floor(n / 2);
     const odd = n % 2 === 1;
     const min = odd ? (2 * half) / n : half / m;
-    const w = passed === undefined ? widths(min, integer).next().value : min;
+    const w = passed === undefined ? widths(Math.max(min, finest), integer).next().value : min;
     const offset = odd ? 0.5 - m : 1 - m;
-    return {
+    return increasing({
       type,
       thresholds: Array.from({ length: n - 1 }, (_, j) => boundary(pivot, (offset + j) * w)),
       steps,
-    };
+    });
   }
   if (passed === undefined && lo >= 0) {
     lo = 0;
   }
   if (lo === hi) {
-    [lo, hi] = lo === 0 ? [0, 1] : [lo - 1, hi + 1];
+    const bump = Math.max(1, resolution(lo, hi));
+    [lo, hi] = lo === 0 ? [0, 1] : [lo - bump, hi + bump];
   }
   let start = lo;
   let w = (hi - lo) / n;
   if (passed === undefined) {
-    for (const width of widths(w, integer)) {
+    for (const width of widths(Math.max(w, resolution(lo, hi)), integer)) {
       start = Math.floor(tidy(lo / width)) * width;
       w = width;
       if (tidy(start + n * width) >= hi) {
@@ -143,11 +155,21 @@ export function classes(spec: ClassSpec, values: readonly number[]): Classes {
       }
     }
   }
-  return {
+  return increasing({
     type,
     thresholds: Array.from({ length: n - 1 }, (_, j) => boundary(start, (j + 1) * w)),
     steps,
-  };
+  });
+}
+
+// Only a passed domain can fail: an inferred width is at least the resolution.
+function increasing(c: Classes): Classes {
+  if (c.thresholds.some((t, k) => k > 0 && t <= (c.thresholds[k - 1] ?? 0))) {
+    throw new RangeError(
+      "renderChart: colour.domain is too narrow for its classes' boundaries to strictly increase",
+    );
+  }
+  return c;
 }
 
 /** The class `v` takes: the count of boundaries at or below it, so a value
