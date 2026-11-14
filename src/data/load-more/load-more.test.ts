@@ -313,6 +313,20 @@ describe("enhanceLoadMore", () => {
     await expect.poll(polite).toBe("2 older posts");
   });
 
+  it("says the failure in words built from what the page rejected with", async () => {
+    const { button } = footed();
+    enhance(button, {
+      load: () => Promise.reject(new Error("The store is busy.")),
+      words: {
+        failed: (reason) =>
+          `Older messages could not be loaded. ${reason instanceof Error ? reason.message : ""}`,
+      },
+    });
+    press(button);
+    await expect.poll(polite).toBe("Older messages could not be loaded. The store is busy.");
+    await expect.poll(() => words(button)).toBe("Retry");
+  });
+
   it("loads once for presses while a page loads", async () => {
     const { button } = footed();
     const wait = Promise.withResolvers<LoadMorePage>();
