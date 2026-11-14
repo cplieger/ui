@@ -339,6 +339,23 @@ describe("scale errors", () => {
   ])("y: %s throws its type", (_, spec, type) => {
     expect(() => yScale(spec)).toThrow(type);
   });
+
+  it.each<[readonly [number, number]]>([[[1e16 + 2, 1e16 + 6]], [[1e16, 1e16 + 2]], [[0, 5e-324]]])(
+    "refuses a passed linear domain %j narrower than its resolution, which holds no tick",
+    (domain) => {
+      expect(() => xScale({ x: { domain }, marks: [line] })).toThrow(
+        new RangeError("renderChart: x.domain is too narrow for its ticks to tell its ends apart"),
+      );
+      expect(() => yScale({ x: {}, y: { domain }, marks: [line] })).toThrow(
+        new RangeError("renderChart: y.domain is too narrow for its ticks to tell its ends apart"),
+      );
+    },
+  );
+
+  it("takes a passed linear domain as wide as its resolution, and any time domain", () => {
+    expect(xScale({ x: { domain: [1e16, 1e16 + 1e5] }, marks: [line] }).hi).toBe(1e16 + 1e5);
+    expect(xScale({ x: { type: "time", domain: [1e12, 1e12 + 1] }, marks: [] }).hi).toBe(1e12 + 1);
+  });
 });
 
 describe("a bar chart's scales", () => {

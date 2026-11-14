@@ -290,7 +290,81 @@ describe("a linear axis", () => {
     expect(yAxis(y, 240, 16, ctx()).ticks.map((t) => t.value)).toEqual([3, 2, 1, 0]);
   });
 
-  it("widens one value from 1e12 by its twelfth figure, since a difference of 1 cleans away", () => {
+  it("ends a stack's y at its round total, though the sum drifts past it", () => {
+    // 0.4 + 0.8 is 1.2000000000000002.
+    const y = yScale({
+      x: {},
+      marks: [
+        {
+          mark: "rect",
+          x1: [0],
+          x2: [1],
+          series: [
+            { name: "a", y: [0.4] },
+            { name: "b", y: [0.8] },
+          ],
+        },
+      ],
+    });
+    if (y.type === "band") {
+      throw new Error("expected a linear y");
+    }
+    const axis = yAxis(y, 240, 16, ctx());
+    expect([axis.lo, axis.hi]).toEqual([0, 1.2]);
+    expect(axis.ticks.map((t) => t.value)).toEqual([1.2, 1, 0.8, 0.6, 0.4, 0.2, 0]);
+  });
+
+  it("ticks only inside a passed domain, wherever its ends fall between multiples", () => {
+    for (const domain of [
+      [123456789012.4, 123456789013.9],
+      [1e15 + 24000, 1e15 + 40000],
+      [0.1 + 0.2, 0.7],
+    ] as const) {
+      const axis = xAxis(xScale({ x: { domain }, marks: [] }), 600, ctx());
+      expect(axis.ticks.length).toBeGreaterThan(0);
+      for (const t of axis.ticks) {
+        expect(t.value >= domain[0] && t.value <= domain[1]).toBe(true);
+        expect(t.at >= 0 && t.at <= 600).toBe(true);
+      }
+    }
+  });
+
+  it("writes every tick with its step's fraction digits", () => {
+    const line: ChartSpec["marks"][number] = {
+      mark: "line",
+      x: [0.1, 1.9],
+      series: [{ name: "a", y: [1, 2] }],
+    };
+    const one = (format?: "percent") =>
+      xScale({ x: { domain: [0, 2], ...(format && { format }) }, marks: [line] });
+    expect(words(xAxis(one(), 400, fixed(10)))).toEqual(["0.0", "0.5", "1.0", "1.5", "2.0"]);
+    const fine = xScale({ x: { domain: [0, 0.0004] }, marks: [line] });
+    expect(words(xAxis(fine, 400, fixed(10)))).toEqual([
+      "0.0000",
+      "0.0001",
+      "0.0002",
+      "0.0003",
+      "0.0004",
+    ]);
+    expect(words(xAxis(one("percent"), 400, fixed(10)))).toEqual([
+      "0%",
+      "50%",
+      "100%",
+      "150%",
+      "200%",
+    ]);
+    const share = xScale({ x: { domain: [0, 0.02], format: "percent" }, marks: [line] });
+    expect(words(xAxis(share, 400, fixed(10)))).toEqual(["0.0%", "0.5%", "1.0%", "1.5%", "2.0%"]);
+  });
+
+  it("writes a log axis's ticks with the digits each needs", () => {
+    const log = xScale({ x: { type: "log", domain: [0.0001, 1] }, marks: [] });
+    expect(words(xAxis(log, 400, fixed(10)))).toEqual(
+      [1e-4, 1e-3, 1e-2, 1e-1].flatMap((p) => [1, 2, 5].map((m) => String(m * p))).concat("1"),
+    );
+  });
+
+  it("widens one value from 1e12 by its twelfth figure, the finest step the axis takes", () => {
     const one = (v: number) =>
       xScale({
         x: { type: "linear" },

@@ -35,6 +35,7 @@ describe("equal classes", () => {
       type: "sequential",
       thresholds: [20, 40, 60, 80],
       steps: [1, 3, 5, 7, 9],
+      digits: [0, 0],
     });
   });
 
@@ -53,6 +54,8 @@ describe("equal classes", () => {
   it("divides a passed domain exactly", () => {
     expect(classes({ steps: 4, domain: [0, 100] }, [3, 7]).thresholds).toEqual([25, 50, 75]);
     expect(classes({ steps: 2, domain: [3, 10] }, []).thresholds).toEqual([6.5]);
+    // 0.1 + 0.2 is 0.30000000000000004; the exact division is 0.3.
+    expect(classes({ steps: 3, domain: [0.1, 0.7] }, []).thresholds).toEqual([0.3, 0.5]);
   });
 
   it("spans 0 to 1 with no value, or with every value 0", () => {
@@ -124,6 +127,23 @@ describe("equal classes", () => {
     expect(small.thresholds[1]).toBe(1e-7);
   });
 
+  it("reaches a greatest value that drifts past a round boundary", () => {
+    // 0.4 + 0.8 is 1.2000000000000002, which six classes 0.2 wide reach.
+    expect(classes({ steps: 6 }, [0, 0.4 + 0.8]).thresholds).toEqual([0.2, 0.4, 0.6, 0.8, 1]);
+  });
+
+  it("names the fraction digits that write every inferred boundary and the pivot", () => {
+    expect(classes({ steps: 4 }, [0.12, 0.93]).digits).toEqual([2, 2]);
+    // Half-widths of 0.00025 about 0.0007501.
+    const small = classes(
+      { type: "diverging", steps: 7, pivot: 0.0007501 },
+      [-0.0007864, -0.00037],
+    );
+    expect(small.digits).toEqual([5, 7]);
+    expect(classes({ steps: 2, domain: [3, 10] }, []).digits).toBeUndefined();
+    expect(classes({ thresholds: [1] }, []).digits).toBeUndefined();
+  });
+
   it("makes a full-precision pivot an even count's middle boundary as sent", () => {
     for (const c of [
       classes({ type: "diverging", steps: 4, pivot: 2 / 3 }, [-1, 2]),
@@ -183,6 +203,7 @@ describe("equal classes", () => {
       type: "diverging",
       thresholds: [-7.5, -2.5, 2.5, 7.5],
       steps: [1, 3, 5, 7, 9],
+      digits: [1, 1],
     });
     expect(classes({ type: "diverging", steps: 3, pivot: 50 }, [20, 90]).thresholds).toEqual([
       25, 75,

@@ -4,7 +4,7 @@
  * @module
  */
 
-import { resolution } from "../scale/linear.js";
+import { drift, floorCount, multiple, resolution, step, type Step } from "../scale/linear.js";
 
 export interface Classes {
   readonly type: "sequential" | "diverging";
@@ -12,6 +12,9 @@ export interface Classes {
   readonly thresholds: readonly number[];
   /** Each class's step of its scale, 1 to 9, in class order. */
   readonly steps: readonly number[];
+  /** The least and most fraction digits that write every inferred boundary
+   *  and the pivot exactly; undefined for passed thresholds or a passed domain. */
+  readonly digits: readonly [number, number] | undefined;
 }
 
 /** What the classes are built from: the chart's `colour`, checked. */
@@ -26,48 +29,49 @@ export interface ClassSpec {
 
 const DEFAULT_STEPS = 5;
 
-/** A class width's leading figures; the width is one of them times a power of ten. */
-const NICE = [1, 2, 2.5, 5];
+/** A class width's leads in order, as an integer lead and its shift of the
+ *  exponent: 1, 2, 2.5 and 5 times a power of ten. */
+const LEADS = [
+  [1, 0],
+  [2, 0],
+  [25, -1],
+  [5, 0],
+] as const;
 
-// A width, a start or a reach drifts in binary (0.6 / 6 is 0.10000000000000002);
-// twelve figures clear the drift and keep every width a reader could tell apart.
-const tidy = (v: number): number => Number(v.toPrecision(12));
-
-// The boundary a + b to the operands' fourteenth figure. Their binary residue
-// (a few ulps: -0.3 + 0.30000000000000004, 3 × 0.1) lies below it, so a
-// cancelling sum is exactly 0 and -2999.999 + 3000 exactly 0.001, while their
-// figures up to the fourteenth stay (0.5 beside 1e12). A cap relative to the sum
-// alone, as tidy's, keeps a cancelled residue or cuts a 13-figure pivot. b = 0 is
-// an even count's middle boundary, the pivot as sent: rounded, a full-precision
-// pivot such as 2/3 would fall below itself and its own value take the lower arm.
-const boundary = (a: number, b: number): number => {
-  const v = a + b;
-  if (v === 0) {
-    return 0;
-  }
-  if (b === 0) {
-    return a;
-  }
-  const big = Math.max(Math.abs(a), Math.abs(b));
-  const figures = Math.floor(Math.log10(Math.abs(v))) - Math.floor(Math.log10(big)) + 14;
-  return figures < 1 ? 0 : Number(v.toPrecision(Math.min(figures, 14)));
-};
-
-// The class widths from the smallest at least `min` (above 0) upward; integer data
-// takes whole widths only, so a sequential boundary, or an even diverging
-// count's about a whole pivot, never falls between two counts. `min` is a
-// quotient, tidied so that 0.6 / 6 (0.10000000000000002) still takes 0.1.
-function* widths(min: number, integer: boolean): Generator<number, never> {
-  const least = tidy(min);
-  for (let k = Math.floor(Math.log10(least)) - 1; ; k++) {
-    for (const lead of NICE) {
-      const w = tidy(lead * 10 ** k);
-      if (w >= least && (!integer || Number.isInteger(w))) {
-        yield w;
+// The smallest class width that `fits`, from a power of ten below `from` (above 0)
+// upward and none finer than `floor`; integer data takes whole widths only, so a
+// sequential boundary, or an even diverging count's about a whole pivot, never
+// falls between two counts.
+function width(from: number, floor: number, integer: boolean, fits: (w: Step) => boolean): Step {
+  for (let exp = Math.floor(Math.log10(from)) - 1; ; exp++) {
+    for (const [lead, shift] of LEADS) {
+      const w = step(lead, exp + shift);
+      if (w.value >= floor && (!integer || w.exp >= 0) && fits(w)) {
+        return w;
       }
     }
   }
 }
+
+/** A finite double as the decimal `String` writes for it: `n` × 10^`exp`. */
+interface Decimal {
+  readonly n: bigint;
+  readonly exp: number;
+}
+
+function decimalOf(v: number): Decimal {
+  const [, sign = "", whole = "0", fraction = "", exp = "0"] =
+    /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/.exec(String(v)) ?? [];
+  return { n: BigInt(`${sign}${whole}${fraction}`), exp: Number(exp) - fraction.length };
+}
+
+// `d`'s count at exponent `exp`, at or below its own.
+const at = (d: Decimal, exp: number): bigint => d.n * 10n ** BigInt(d.exp - exp);
+
+// The nearest double to n / d × 10^exp, d from 1 to 9: the quotient to twenty
+// figures past its point, then read as a decimal, which rounds once.
+const ratio = (n: bigint, d: bigint, exp: number): number =>
+  Number(`${(n * 10n ** 20n) / d}e${exp - 20}`) + 0;
 
 /** The step of a nine-step scale each of `n` classes takes: spread evenly
  *  over a sequential scale, both ends included; on a diverging one the
@@ -88,21 +92,29 @@ export function classSteps(type: "sequential" | "diverging", n: number, reverse 
   return reverse ? steps.map((s) => 10 - s) : steps;
 }
 
+const places = (exp: number): number => Math.max(0, -exp);
+
 /**
  * The classes of `spec` over `values`, the finite values a chart fills: `thresholds` as
- * sent, a passed `domain` divided into equal classes exactly, or an inferred one (from 0
- * when no value is below it) at the smallest rounded width (1, 2, 2.5 or 5 times a power
- * of ten) whose classes, from a multiple of it, reach the greatest value. A diverging
- * scale's classes are symmetric about `pivot`, which an odd count centres in its middle
- * class and an even count makes a boundary. An inferred width is never finer than the
- * values' (and pivot's) `resolution`, so the boundaries always strictly increase; a passed
- * `domain` too narrow for that is a `RangeError`.
+ * sent, a passed `domain` divided into equal classes, each boundary the nearest double to
+ * the exact division, or an inferred one (from 0 when no value is below it) at the smallest
+ * width (1, 2, 2.5 or 5 times a power of ten) whose classes, from a multiple of it, reach
+ * the greatest value. A diverging scale's classes are symmetric about `pivot`, which an odd
+ * count centres in its middle class and an even count makes a boundary, as sent; an inferred
+ * boundary is the exact decimal pivot + k × the half-width. An inferred width is never finer
+ * than the values' (and pivot's) `resolution`; a passed `domain` too narrow for strictly
+ * increasing boundaries is a `RangeError`.
  */
 export function classes(spec: ClassSpec, values: readonly number[]): Classes {
   const type = spec.type ?? "sequential";
   if (spec.thresholds !== undefined) {
     const n = spec.thresholds.length + 1;
-    return { type, thresholds: [...spec.thresholds], steps: classSteps(type, n, spec.reverse) };
+    return {
+      type,
+      thresholds: [...spec.thresholds],
+      steps: classSteps(type, n, spec.reverse),
+      digits: undefined,
+    };
   }
   const n = spec.steps ?? DEFAULT_STEPS;
   const steps = classSteps(type, n, spec.reverse);
@@ -117,49 +129,86 @@ export function classes(spec: ClassSpec, values: readonly number[]): Classes {
   const passed = spec.domain;
   if (passed !== undefined) {
     [lo, hi] = passed;
-    integer = false;
   } else if (lo > hi) {
     [lo, hi] = [0, 1];
   }
+  const count = (k: number) => Array.from({ length: n - 1 }, (_, j) => k + j);
   if (type === "diverging") {
-    const pivot = spec.pivot ?? 0;
-    // A pivot far from the values is the boundaries' magnitude.
-    const finest = resolution(Math.max(Math.abs(lo), Math.abs(hi)), pivot);
-    const half = Math.max(hi - pivot, pivot - lo) || Math.max(1, finest);
+    const pivot = decimalOf(spec.pivot ?? 0);
     const m = Math.floor(n / 2);
     const odd = n % 2 === 1;
-    const min = odd ? (2 * half) / n : half / m;
-    const w = passed === undefined ? widths(Math.max(min, finest), integer).next().value : min;
-    const offset = odd ? 0.5 - m : 1 - m;
+    // Each boundary's count from the pivot: of half-widths, odd, for an odd n; else of widths.
+    const offsets = count(0).map((j) => BigInt(odd ? 1 - 2 * m + 2 * j : 1 - m + j));
+    if (passed !== undefined) {
+      const [a, b] = [decimalOf(passed[0]), decimalOf(passed[1])];
+      const exp = Math.min(a.exp, b.exp, pivot.exp);
+      const p = at(pivot, exp);
+      const above = at(b, exp) - p;
+      const below = p - at(a, exp);
+      const half = above > below ? above : below;
+      const d = BigInt(odd ? n : m);
+      return increasing({
+        type,
+        thresholds: offsets.map((c) => ratio(p * d + c * half, d, exp)),
+        steps,
+        digits: undefined,
+      });
+    }
+    const centre = spec.pivot ?? 0;
+    // A pivot far from the values is the boundaries' magnitude.
+    const floor = resolution(Math.max(Math.abs(lo), Math.abs(hi)), centre);
+    const half = Math.max(hi - centre, centre - lo) || Math.max(1, floor);
+    const reach = odd ? n / 2 : m;
+    const w = width(
+      Math.max(half / reach, floor),
+      floor,
+      integer,
+      (c) => c.value * reach >= half - drift(c, half),
+    );
+    const unit = odd ? step(5 * w.lead, w.exp - 1) : w;
+    const exp = Math.min(unit.exp, pivot.exp);
+    const p = at(pivot, exp);
+    const u = at({ n: BigInt(unit.lead), exp: unit.exp }, exp);
+    return {
+      type,
+      thresholds: offsets.map((c) => ratio(p + c * u, 1n, exp)),
+      steps,
+      digits: [places(unit.exp), places(exp)],
+    };
+  }
+  if (passed !== undefined) {
+    const [a, b] = [decimalOf(passed[0]), decimalOf(passed[1])];
+    const exp = Math.min(a.exp, b.exp);
+    const [x, y] = [at(a, exp), at(b, exp)];
+    const d = BigInt(n);
     return increasing({
       type,
-      thresholds: Array.from({ length: n - 1 }, (_, j) => boundary(pivot, (offset + j) * w)),
+      thresholds: count(1).map((j) => ratio(x * (d - BigInt(j)) + y * BigInt(j), d, exp)),
       steps,
+      digits: undefined,
     });
   }
-  if (passed === undefined && lo >= 0) {
+  if (lo >= 0) {
     lo = 0;
   }
   if (lo === hi) {
     const bump = Math.max(1, resolution(lo, hi));
     [lo, hi] = lo === 0 ? [0, 1] : [lo - bump, hi + bump];
   }
-  let start = lo;
-  let w = (hi - lo) / n;
-  if (passed === undefined) {
-    for (const width of widths(Math.max(w, resolution(lo, hi)), integer)) {
-      start = Math.floor(tidy(lo / width)) * width;
-      w = width;
-      if (tidy(start + n * width) >= hi) {
-        break;
-      }
-    }
-  }
-  return increasing({
+  const floor = resolution(lo, hi);
+  const start = (c: Step) => floorCount(lo + drift(c, hi - lo), c);
+  const w = width(
+    Math.max((hi - lo) / n, floor),
+    floor,
+    integer,
+    (c) => multiple(start(c) + n, c) >= hi - drift(c, hi - lo),
+  );
+  return {
     type,
-    thresholds: Array.from({ length: n - 1 }, (_, j) => boundary(start, (j + 1) * w)),
+    thresholds: count(start(w) + 1).map((k) => multiple(k, w)),
     steps,
-  });
+    digits: [places(w.exp), places(w.exp)],
+  };
 }
 
 // Only a passed domain can fail: an inferred width is at least the resolution.

@@ -67,6 +67,32 @@ export function formatter(
   return (v) => nf.format(v);
 }
 
+// Intl.NumberFormat's fraction-digit limit (ECMA-402 since 2023).
+const MOST_DIGITS = 100;
+
+/** The writer of decimals with `least` to `most` fraction digits, such as a
+ *  linear axis's ticks: "number" and "percent" (counted on the share, so 0.005
+ *  has three) write each with at least `least` and every digit up to `most`,
+ *  at most 100; any other format writes them as `formatter` does. */
+export function decimalFormatter(
+  format: Format | undefined,
+  locale: string | undefined,
+  least: number,
+  most = least,
+): (value: number) => string {
+  if (format !== undefined && format !== "number" && format !== "percent") {
+    return formatter(format, locale);
+  }
+  const shift = format === "percent" ? 2 : 0;
+  const digits = (d: number) => Math.min(Math.max(0, d - shift), MOST_DIGITS);
+  const nf = numbers(locale, {
+    ...preset(format),
+    minimumFractionDigits: digits(least),
+    maximumFractionDigits: digits(Math.max(least, most)),
+  });
+  return (v) => nf.format(v);
+}
+
 /** A number whose texts under one format all have the same width when every
  *  digit is as wide as another; `NaN` for a value whose text must be written.
  *  A key is an integer under 2^50, so a caller can fold three bits more in. */

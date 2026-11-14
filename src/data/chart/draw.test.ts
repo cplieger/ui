@@ -2148,6 +2148,16 @@ describe("a heatmap's selection and colour key", () => {
     expect(labels.map((l) => l.textContent)).toEqual(["-2.5°C", "0°C", "+2.5°C"]);
   });
 
+  it("writes an inferred key's boundaries with the class width's fraction digits", () => {
+    const { key } = keyed({
+      // Three classes 0.5 wide from 0.
+      colour: { steps: 3 },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[0, 1.4]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["0.5", "1.0"]);
+  });
+
   it.each([
     [4, ["0°C"]],
     [8, ["-3°C", "0°C", "+3°C"]],

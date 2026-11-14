@@ -1814,7 +1814,12 @@ describe("the cell mark", () => {
       [null, null, 7],
     ]);
     // The half-span is 4, so 3 classes are each at least 8/3 wide: 5.
-    expect(c.classes).toEqual({ type: "diverging", thresholds: [1.5, 6.5], steps: [1, 5, 9] });
+    expect(c.classes).toEqual({
+      type: "diverging",
+      thresholds: [1.5, 6.5],
+      steps: [1, 5, 9],
+      digits: [1, 1],
+    });
   });
 
   it("is empty when every value is missing, and not when one is 0", () => {

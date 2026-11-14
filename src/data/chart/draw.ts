@@ -4,6 +4,7 @@
  * @module
  */
 
+import { decimalFormatter } from "../scale/format.js";
 import { fontMeasure, type Measure } from "../scale/measure.js";
 
 import {
@@ -838,16 +839,20 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
     );
   });
   svg.append(g, ...classes.steps.map((_, k) => swatchRing(x(k))));
+  const write =
+    classes.digits === undefined
+      ? model.colourText
+      : decimalFormatter(model.spec.colour?.format, model.locale, ...classes.digits);
   const marks: { at: number; text: string }[] = classes.thresholds.map((t, k) => ({
     at: x(k + 1) - GAP_PX / 2,
-    text: model.colourText(t),
+    text: write(t),
   }));
   const pivot = model.spec.colour?.pivot ?? 0;
   let kept: number | undefined;
   if (classes.type === "diverging" && model.spec.colour?.thresholds === undefined) {
     if (n % 2 === 1) {
       kept = (n - 1) / 2;
-      marks.splice(kept, 0, { at: x(kept) + SWATCH_W / 2, text: model.colourText(pivot) });
+      marks.splice(kept, 0, { at: x(kept) + SWATCH_W / 2, text: write(pivot) });
     } else {
       // `classes` makes an even count's middle boundary the pivot itself.
       kept = n / 2 - 1;

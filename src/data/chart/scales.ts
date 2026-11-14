@@ -66,10 +66,11 @@ export const LIMIT = 1e300;
 const finite = (v: number | null | undefined): v is number =>
   typeof v === "number" && Number.isFinite(v);
 
+// `type` is the axis's, or undefined for the r scale, which has no ticks.
 function passedDomain(
   domain: readonly [number, number] | undefined,
   axis: string,
-  log: boolean,
+  type: string | undefined,
 ): readonly [number, number] | undefined {
   if (domain === undefined) {
     return undefined;
@@ -78,8 +79,14 @@ function passedDomain(
   if (!finite(lo) || !finite(hi) || lo >= hi) {
     throw new RangeError(`renderChart: ${axis}.domain must be finite, low below high`);
   }
-  if (log && lo <= 0) {
+  if (type === "log" && lo <= 0) {
     throw new RangeError(`renderChart: a log ${axis}.domain must be above 0`);
+  }
+  // A linear axis steps at least the resolution, so a narrower domain holds no tick.
+  if (type === "linear" && hi - lo < resolution(lo, hi)) {
+    throw new RangeError(
+      `renderChart: ${axis}.domain is too narrow for its ticks to tell its ends apart`,
+    );
   }
   return domain;
 }
@@ -123,9 +130,8 @@ class Extent {
   }
 }
 
-// A linear extent of one value spans 1 each way of it, or 0 to 1 at 0. Past
-// 1e12, 1 is finer than the axis tells apart (1e16 + 1 is 1e16), so the
-// value's resolution, its twelfth figure, is the bump.
+// A linear extent of one value spans 1 each way of it, or 0 to 1 at 0; from
+// 1e12 its resolution, the finest step the axis takes, is the bump.
 function widen(lo: number, hi: number): readonly [number, number] {
   if (lo < hi) {
     return [lo, hi];
@@ -297,7 +303,7 @@ export function rScale(spec: ChartSpec): Size | undefined {
     }
     return undefined;
   }
-  const passed = passedDomain(spec.r?.domain, "r", false);
+  const passed = passedDomain(spec.r?.domain, "r", undefined);
   if (passed !== undefined && passed[0] !== 0) {
     throw new RangeError("renderChart: r.domain must start at 0, where a dot has no area");
   }
@@ -539,7 +545,7 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
       drawnLo: 0,
     };
   }
-  const passed = passedDomain(x.domain, "x", log);
+  const passed = passedDomain(x.domain, "x", type);
   if (bars && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
     throw new RangeError("renderChart: a bar's x domain must hold 0");
   }
@@ -736,7 +742,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
   if (share && y.domain !== undefined) {
     throw new TypeError("renderChart: a 100% stack's y runs 0 to 1, so it takes no domain");
   }
-  const passed = passedDomain(y.domain, "y", log);
+  const passed = passedDomain(y.domain, "y", type);
   if (filled !== undefined && passed !== undefined && (passed[0] > 0 || passed[1] < 0)) {
     throw new RangeError(`renderChart: ${filled} y domain must hold 0`);
   }
