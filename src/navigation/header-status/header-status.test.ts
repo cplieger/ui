@@ -46,6 +46,7 @@ afterEach(async () => {
 
 function mount(options?: Parameters<typeof createHeaderStatus>[1]): {
   button: HTMLButtonElement;
+  panel: HTMLElement;
   status: HeaderStatus;
 } {
   const header = document.createElement("header");
@@ -61,7 +62,7 @@ function mount(options?: Parameters<typeof createHeaderStatus>[1]): {
   panel.popover = "auto";
   header.append(button, panel);
   document.body.append(header);
-  return { button, status: createHeaderStatus({ button, panel }, options) };
+  return { button, panel, status: createHeaderStatus({ button, panel }, options) };
 }
 
 const words = (b: HTMLButtonElement) =>
@@ -352,5 +353,422 @@ describe("at compact width", () => {
     await expect
       .element(page.getByRole("button", { name: "1 problem", exact: true }))
       .toBeInTheDocument();
+  });
+});
+
+const sections = (panel: HTMLElement) =>
+  [...panel.children].map((c) =>
+    c instanceof HTMLElement && c.dataset["cpStatus"] !== undefined
+      ? c.dataset["cpStatus"]
+      : c.tagName.toLowerCase(),
+  );
+const rows = (panel: HTMLElement, name: string) => [
+  ...panel.querySelectorAll<HTMLElement>(
+    `[data-cp-status="${name}"] li[data-cp-key] > .cp-list-row`,
+  ),
+];
+const heading = (panel: HTMLElement) => panel.querySelector("h2")?.textContent;
+const stopButton = (panel: HTMLElement, id: string) =>
+  panel.querySelector<HTMLButtonElement>(`[data-cp-stop="${id}"]`) as HTMLButtonElement;
+
+const full = (starts: HTMLElement): StatusModel =>
+  model({
+    starts,
+    conditions: [warning("w"), problem("p", { href: "/fix/p" })],
+    work: [job("a", { stop: { run: () => Promise.resolve() } })],
+    notices: [{ id: "n", title: "Backup restored" }],
+    recent: [{ id: "r", words: "Check finished", at: Date.now() - 60_000 }],
+    history: { href: "/activity", label: "Open activity" },
+  });
+
+describe("the panel's sections", () => {
+  it("writes the heading, then starts, conditions, running, notices, recent and the foot", () => {
+    const { panel, status } = mount();
+    const starts = document.createElement("div");
+    starts.className = "cp-cluster";
+    status.update(full(starts));
+    expect(sections(panel)).toEqual([
+      "header",
+      "starts",
+      "conditions",
+      "work",
+      "notices",
+      "recent",
+      "footer",
+    ]);
+    expect(panel.querySelector('[data-cp-status="starts"] > .cp-cluster')).toBe(starts);
+    expect(panel.querySelector("footer > a")?.getAttribute("href")).toBe("/activity");
+    expect(panel.getAttribute("aria-labelledby")).toBe(panel.querySelector("h2")?.id);
+    for (const list of panel.querySelectorAll("section > .cp-list")) {
+      expect(list.getAttribute("data-surface")).toBe("plain");
+      expect(document.getElementById(list.getAttribute("aria-labelledby") ?? "")).toBe(
+        list.previousElementSibling,
+      );
+    }
+  });
+
+  it("leaves out every empty section", () => {
+    const { panel, status } = mount();
+    status.update(full(document.createElement("div")));
+    status.update(model({ work: [job("a")] }));
+    expect(sections(panel)).toEqual(["header", "work"]);
+    status.update(model({}));
+    expect(sections(panel)).toEqual(["header"]);
+  });
+
+  it("heads the panel with the pill's words in full", () => {
+    const { panel, status } = mount();
+    status.update(model({ conditions: [problem("a"), problem("b")], work: [job("x"), job("y")] }));
+    expect(heading(panel)).toBe("2 problems · Working: 2");
+    status.update(model({}));
+    expect(heading(panel)).toBe("All good");
+  });
+
+  it("orders conditions urgent, problem, warning, the longest-standing first", () => {
+    const { panel, status } = mount();
+    status.update(
+      model({
+        conditions: [
+          warning("w", { since: 1 }),
+          problem("p2", { since: 3000 }),
+          problem("p1", { since: 2000 }),
+          warning("u", { urgent: true, title: "Sign-in is off", since: 5000 }),
+        ],
+      }),
+    );
+    expect(rows(panel, "conditions").map((r) => r.closest("li")?.dataset["cpKey"])).toEqual([
+      "u",
+      "p1",
+      "p2",
+      "w",
+    ]);
+  });
+
+  it("writes a condition's reasons as lines and links the whole row to its fix", async () => {
+    const { panel, status } = mount();
+    status.update(
+      model({
+        conditions: [
+          problem("p", {
+            title: "Restart pending",
+            reasons: ["Port changed", "Base URL changed"],
+            since: Date.now() - 3_600_000,
+            href: "/settings#restart",
+          }),
+          warning("w", { title: "Indexer slow" }),
+        ],
+      }),
+    );
+    panel.showPopover();
+    const [linked, fact] = rows(panel, "conditions") as [HTMLElement, HTMLElement];
+    expect(linked.tagName).toBe("A");
+    expect(linked.getAttribute("href")).toBe("/settings#restart");
+    expect(linked.querySelector('[data-cp-icon="chevron-right"]')).not.toBeNull();
+    expect(
+      [...linked.querySelectorAll(".cp-cell-stack > small")].map((s) => s.textContent),
+    ).toEqual(["Port changed", "Base URL changed"]);
+    expect(linked.querySelector("[data-part='end'] time")?.textContent).toMatch(/^1 hour ago/);
+    await expect
+      .element(page.getByRole("link", { name: /^Problem Restart pending.*Details and fix$/ }))
+      .toBeInTheDocument();
+    expect(fact.tagName).toBe("DIV");
+    expect(fact.querySelector('[data-cp-icon="chevron-right"]')).toBeNull();
+    expect(fact.querySelector('[role="img"]')?.getAttribute("aria-label")).toBe("Warning");
+  });
+
+  it("writes notices with the info glyph, and five recent events at most", () => {
+    const { panel, status } = mount();
+    const at = Date.now();
+    status.update(
+      model({
+        notices: [{ id: "n", title: "View rebuilt", href: "/notes" }],
+        recent: Array.from({ length: 7 }, (_, i) => ({
+          id: `r${String(i)}`,
+          words: `Event ${String(i)}`,
+          at: at - i * 60_000,
+        })),
+      }),
+    );
+    const [notice] = rows(panel, "notices") as [HTMLElement];
+    expect(notice.tagName).toBe("A");
+    expect(notice.querySelector('[data-cp-icon="info"]')).not.toBeNull();
+    const recent = rows(panel, "recent");
+    expect(recent.map((r) => r.querySelector(".cp-cell-stack")?.textContent)).toEqual([
+      "Event 0",
+      "Event 1",
+      "Event 2",
+      "Event 3",
+      "Event 4",
+    ]);
+    expect(recent[0]?.querySelector("time")?.dataset["cpTip"]).toBeTruthy();
+  });
+
+  it("refuses an invalid date", () => {
+    const { status } = mount();
+    expect(() =>
+      status.update(model({ recent: [{ id: "r", words: "x", at: Number.NaN }] })),
+    ).toThrow(RangeError);
+  });
+});
+
+describe("the running section", () => {
+  it("shows the newest three, then Show all N running", () => {
+    const { panel, status } = mount();
+    status.update(
+      model({
+        work: [job("a"), job("b"), job("c"), job("d")],
+        workTotal: 12,
+        workHref: "/running",
+      }),
+    );
+    expect(rows(panel, "work").map((r) => r.closest("li")?.dataset["cpKey"])).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+    const more = panel.querySelector<HTMLAnchorElement>(
+      '[data-cp-status="work"] .cp-list-foot > a',
+    );
+    expect(more?.textContent).toBe("Show all 12 running");
+    expect(more?.getAttribute("href")).toBe("/running");
+    status.update(model({ work: [job("a"), job("b")], workHref: "/running" }));
+    expect(panel.querySelector(".cp-list-foot")).toBeNull();
+  });
+
+  it("writes a row's progress, how far it is and its phase", () => {
+    const { panel, status } = mount();
+    status.update(
+      model({
+        work: [
+          job("Scanning Sonarr", { value: 12, max: 40, phase: "Searching providers" }),
+          job("Full check"),
+        ],
+      }),
+    );
+    const [counted, open] = rows(panel, "work") as [HTMLElement, HTMLElement];
+    const bar = counted.querySelector(":scope > progress") as HTMLProgressElement;
+    expect(bar.value).toBe(12);
+    expect(bar.max).toBe(40);
+    expect(bar.getAttribute("aria-label")).toBe("Scanning Sonarr");
+    expect(counted.querySelector(":scope > small")?.textContent).toBe(
+      "12 of 40 · Searching providers",
+    );
+    expect(open.querySelector(":scope > progress")?.hasAttribute("value")).toBe(false);
+    expect(open.querySelector(":scope > small")).toBeNull();
+  });
+
+  it("shows the idle line while nothing runs", () => {
+    const { panel, status } = mount();
+    status.update(model({ next: "Next scan 03:00" }));
+    expect(panel.querySelector('[data-cp-status="work"] .cp-cell-stack')?.textContent).toBe(
+      "Next scan 03:00",
+    );
+    status.update(model({ next: "Next scan 03:00", work: [job("a")] }));
+    expect(panel.querySelector('[data-cp-status="work"]')?.textContent).not.toContain("Next scan");
+  });
+
+  it("links the whole row with no Stop, and the title beside a Stop", () => {
+    const { panel, status } = mount();
+    status.update(
+      model({
+        work: [
+          job("a", { href: "/a" }),
+          job("b", { href: "/b", stop: { run: () => Promise.resolve() } }),
+        ],
+      }),
+    );
+    const [whole, both] = rows(panel, "work") as [HTMLElement, HTMLElement];
+    expect(whole.tagName).toBe("A");
+    expect(whole.querySelector('[data-cp-icon="chevron-right"]')).not.toBeNull();
+    expect(both.tagName).toBe("DIV");
+    expect(both.querySelector(".cp-cell-stack > a")?.getAttribute("href")).toBe("/b");
+    expect(both.querySelector("[data-cp-stop]")).not.toBeNull();
+  });
+
+  it("stops at once, reading Stopping… until the item leaves", async () => {
+    const { panel, status } = mount();
+    const run = vi.fn(() => Promise.resolve());
+    const m = model({ work: [job("Scanning Sonarr", { stop: { run } })] });
+    status.update(m);
+    panel.showPopover();
+    await expect
+      .element(page.getByRole("button", { name: "Stop Scanning Sonarr" }))
+      .toBeInTheDocument();
+    stopButton(panel, "Scanning Sonarr").click();
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledOnce();
+    });
+    const button = stopButton(panel, "Scanning Sonarr");
+    expect(button.firstChild?.textContent).toBe("Stopping…");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    button.click();
+    status.update(m);
+    expect(stopButton(panel, "Scanning Sonarr").firstChild?.textContent).toBe("Stopping…");
+    expect(run).toHaveBeenCalledOnce();
+    status.update(model({}));
+    status.update(m);
+    expect(stopButton(panel, "Scanning Sonarr").firstChild?.textContent).toBe("Stop");
+  });
+
+  it("asks first when the app says so, and stops only on the answer", async () => {
+    vi.useRealTimers();
+    const { panel, status } = mount();
+    const run = vi.fn(() => Promise.resolve());
+    status.update(
+      model({
+        work: [
+          job("Full check", {
+            stop: { run, ask: { message: "Stop the full check?", confirmLabel: "Stop the check" } },
+          }),
+        ],
+      }),
+    );
+    stopButton(panel, "Full check").click();
+    const dialog = await vi.waitFor(() => {
+      const d = document.querySelector<HTMLDialogElement>("dialog[open]");
+      expect(d?.textContent).toContain("Stop the full check?");
+      return d as HTMLDialogElement;
+    });
+    (dialog.querySelector("footer > button:not([value])") as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(document.querySelector("dialog")).toBeNull();
+    });
+    expect(run).not.toHaveBeenCalled();
+    expect(stopButton(panel, "Full check").firstChild?.textContent).toBe("Stop");
+    stopButton(panel, "Full check").click();
+    const again = await vi.waitFor(() => {
+      const d = document.querySelector<HTMLDialogElement>("dialog[open]");
+      expect(d).not.toBeNull();
+      return d as HTMLDialogElement;
+    });
+    (again.querySelector('button[value="confirm"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledOnce();
+    });
+    expect(stopButton(panel, "Full check").firstChild?.textContent).toBe("Stopping…");
+  });
+
+  it("writes a refusal as the row's reason line, and Stop again", async () => {
+    const { panel, status } = mount();
+    const run = vi.fn(() => Promise.reject(new Error("The pass is writing; try in a minute")));
+    status.update(model({ work: [job("a", { stop: { run } })] }));
+    stopButton(panel, "a").click();
+    await vi.waitFor(() => {
+      expect(rows(panel, "work")[0]?.querySelector(".cp-cell-stack > small")?.textContent).toBe(
+        "The pass is writing; try in a minute",
+      );
+    });
+    expect(stopButton(panel, "a").firstChild?.textContent).toBe("Stop");
+    expect(stopButton(panel, "a").hasAttribute("aria-disabled")).toBe(false);
+  });
+
+  it("shows a queued item as Queued with Cancel, never counted", async () => {
+    const { button, panel, status } = mount();
+    status.update(
+      model({ work: [job("Next pass", { queued: true, stop: { run: () => Promise.resolve() } })] }),
+    );
+    panel.showPopover();
+    expect(button.dataset["state"]).toBe("ok");
+    const [queued] = rows(panel, "work") as [HTMLElement];
+    expect(queued.querySelector("[data-part='end'] > .cp-state")?.textContent).toBe("Queued");
+    expect(queued.querySelector("progress")).toBeNull();
+    await expect
+      .element(page.getByRole("button", { name: "Cancel Next pass" }))
+      .toBeInTheDocument();
+  });
+});
+
+describe("the panel while offline", () => {
+  it("heads it Offline since, with Retry, and keeps every row as of the drop", () => {
+    const reconnect = vi.fn();
+    const { panel, status } = mount({ locale: "en-GB" });
+    const lost = new Date(2026, 10, 14, 14, 2).getTime();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"], now: lost });
+    status.update(
+      model({
+        conditions: [problem("p", { reasons: ["Port changed"] })],
+        work: [job("a", { phase: "Searching" })],
+        recent: [{ id: "r", words: "Done", at: lost - 60_000 }],
+        reconnect,
+      }),
+    );
+    status.connection("lost");
+    expect(panel.querySelector("[data-cp-retry]")).toBeNull();
+    vi.advanceTimersByTime(10_000);
+    expect(heading(panel)).toBe("Offline since 14:02");
+    const retry = panel.querySelector<HTMLButtonElement>("header > [data-cp-retry]");
+    expect(retry?.textContent).toBe("Retry");
+    retry?.click();
+    expect(reconnect).toHaveBeenCalledOnce();
+    for (const r of [...rows(panel, "conditions"), ...rows(panel, "work")]) {
+      expect(r.hasAttribute("data-kept")).toBe(true);
+      expect(r.querySelector(".cp-kept")?.textContent).toBe("As of 14:02");
+    }
+    expect(rows(panel, "recent")[0]?.hasAttribute("data-kept")).toBe(false);
+    status.update(model({ conditions: [problem("p", { reasons: ["Port changed"] })], reconnect }));
+    expect(rows(panel, "conditions")[0]?.querySelector(".cp-kept")?.textContent).toBe(
+      "As of 14:02",
+    );
+    status.connection("live");
+    expect(panel.querySelector("[data-cp-retry]")).toBeNull();
+    const [row] = rows(panel, "conditions") as [HTMLElement];
+    expect(row.hasAttribute("data-kept")).toBe(false);
+    expect(row.querySelector(".cp-kept")).toBeNull();
+    expect(row.querySelector("small:not([hidden])")?.textContent).toBe("Port changed");
+  });
+});
+
+describe("live updates", () => {
+  it("patches rows in place by id", () => {
+    const { panel, status } = mount();
+    status.update(model({ work: [job("a", { value: 1, max: 4 }), job("b")] }));
+    const [a, b] = rows(panel, "work");
+    status.update(model({ work: [job("c"), job("a", { value: 2, max: 4 }), job("b")] }));
+    const now = rows(panel, "work");
+    expect(now[1]).toBe(a);
+    expect(now[2]).toBe(b);
+    expect((a?.querySelector("progress") as HTMLProgressElement).value).toBe(2);
+  });
+
+  it("keeps focus on a row that stays, and moves it to the next when it leaves", () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const link = (id: string) => job(id, { href: `/${id}` });
+    status.update(model({ work: [link("a"), link("b"), link("c")] }));
+    const b = rows(panel, "work")[1] as HTMLElement;
+    b.focus();
+    status.update(model({ work: [link("x"), link("b"), link("c")] }));
+    expect(document.activeElement).toBe(b);
+    status.update(model({ work: [link("x"), link("c")] }));
+    expect(document.activeElement).toBe(rows(panel, "work")[1]);
+  });
+
+  it("moves focus to the section's heading, else the panel's heading", () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    status.update(
+      model({ conditions: [problem("p", { href: "/p" }), problem("q", { href: "/q" })] }),
+    );
+    (rows(panel, "conditions")[1] as HTMLElement).focus();
+    status.update(model({ conditions: [problem("p", { href: "/p" })] }));
+    expect(document.activeElement).toBe(panel.querySelector('[data-cp-status="conditions"] h3'));
+    (rows(panel, "conditions")[0] as HTMLElement).focus();
+    status.update(model({}));
+    expect(document.activeElement).toBe(panel.querySelector("h2"));
+  });
+
+  it("keeps focus on Stop when its row turns Stopping…", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    status.update(
+      model({ work: [job("a", { stop: { run: () => new Promise<void>(() => undefined) } })] }),
+    );
+    const stop = stopButton(panel, "a");
+    stop.focus();
+    stop.click();
+    await vi.waitFor(() => {
+      expect(stop.firstChild?.textContent).toBe("Stopping…");
+    });
+    expect(document.activeElement).toBe(stop);
   });
 });

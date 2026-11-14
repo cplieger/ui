@@ -9733,17 +9733,34 @@ button.cp-figure[aria-expanded="true"]::after {
 }
 
 /* The header status's panel: a .cp-popover[data-variant="panel"] whose
- * heading repeats the state's words, over one <section> per fact, each a
- * <strong> head with its glyph and a sentence, divided edge to edge. After
- * popover.css, whose panel padding this replaces. */
+ * heading repeats the state's words, over one <section> per fact, divided
+ * edge to edge. A section of rows holds a plain .cp-list under its
+ * heading; its foot, the history link, stays at the panel's end while the
+ * rest scrolls. After popover.css, whose panel padding this replaces. */
 .cp-popover.cp-status-panel {
   gap: 0;
   inline-size: 20rem;
+  max-block-size: min(36rem, calc(100dvh - 5rem));
   padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-.cp-status-panel > h2 {
+.cp-status-panel > h2,
+.cp-status-panel > header {
   padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.cp-status-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-3);
+}
+
+.cp-status-panel > h2,
+.cp-status-panel > header > h2 {
+  margin: 0;
   font-size: var(--cp-text-md);
 }
 
@@ -9756,10 +9773,26 @@ button.cp-figure[aria-expanded="true"]::after {
   font-size: var(--cp-text-sm);
 }
 
+/* Rows carry their own inset, so a section of rows drops its own. */
+.cp-status-panel > section:has(> .cp-list) {
+  gap: 0;
+  padding-inline: 0;
+  padding-block: var(--cp-space-3) var(--cp-space-1);
+}
+
 .cp-status-panel > section > strong {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
+}
+
+.cp-status-panel > footer {
+  position: sticky;
+  inset-block-end: 0;
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border-block-start: var(--cp-line-w) solid var(--cp-line);
+  background: var(--cp-surface-overlay);
+  font-size: var(--cp-text-sm);
 }
 
 /* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as
