@@ -1,3 +1,4 @@
+import { announce } from "@cplieger/ui/announce";
 import { clearError, reportErrors, showError } from "@cplieger/ui/form";
 import { toast } from "@cplieger/ui/toast";
 
@@ -814,35 +815,6 @@ if (snav) {
 }
 
 // ===================================================== pieces for app screens
-
-// ------------------------------------------------------- the announcer
-// One polite and one assertive region at the root, and a pair inside each
-// modal dialog, made before it opens: showModal() makes everything outside
-// the dialog inert, including the root's regions. announce() writes to the
-// topmost open modal's pair, else the root's.
-function regionsIn(host) {
-  let pair = host.querySelector(":scope > .g-announce");
-  if (!pair) {
-    pair = el("div", { class: "g-announce g-sr" }, el("div", { "aria-live": "polite" }), el("div", { "aria-live": "assertive" }));
-    host.append(pair);
-  }
-  return pair;
-}
-for (const d of $$("dialog")) regionsIn(d);
-regionsIn(document.body);
-function announce(text, assertive = false) {
-  const open = $$("dialog[open]").filter((d) => d.matches(":modal")).at(-1);
-  const pair = regionsIn(open ?? document.body);
-  const region = pair.children[assertive ? 1 : 0];
-  region.textContent = "";
-  requestAnimationFrame(() => (region.textContent = text));
-  return open ? open.id : "page";
-}
-$$("[data-announce]").forEach((b) => b.addEventListener("click", () => {
-  const where = announce(b.dataset.announce, b.hasAttribute("data-assertive"));
-  const log = document.getElementById(b.dataset.log);
-  if (log) log.append(el("li", {}, el("q", { text: b.dataset.announce }), where === "page" ? ", from the page's live region" : ", from the dialog's own live region, while the page is inert"));
-}));
 
 // ------------------------------------------------------ master and detail
 // The route opens the panel, so Back closes it. Wide: docked beside the

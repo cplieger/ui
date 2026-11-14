@@ -190,11 +190,11 @@
   <section class="g-section" id="announce">
     <h2>Announcements that reach a dialog</h2>
     <div class="g-grid">
-      <div class="card">
-        <div class="g-buttons"><button class="cp-button" type="button" data-announce="3 subtitles found" data-log="heard">Say something from the page</button><button class="cp-button" type="button" commandfor="d-announce" command="show-modal">Open a dialog, then say something</button></div>
+      <div class="card" data-new>
+        <div class="g-buttons"><button class="cp-button" type="button" data-announce="3 subtitles found">Say something from the page</button><button class="cp-button" type="button" commandfor="d-announce" command="show-modal">Open a dialog, then say something</button></div>
         <ol class="g-heard g-gap-top" id="heard" aria-label="What a screen reader heard"></ol>
-        <dialog class="g-dialog" id="d-announce" aria-labelledby="d-announce-title">
-          <form method="dialog"><header><h2 id="d-announce-title">Timing</h2></header><div class="g-body"><p>While this dialog is open, the page behind it is inert, its live regions too. A message for the person has to be said from inside the dialog.</p><button class="cp-button" type="button" data-announce="Timing applied" data-log="heard">Apply the timing</button></div><footer><button class="cp-button" value="ok">Close</button></footer></form>
+        <dialog class="cp-dialog" id="d-announce" aria-labelledby="d-announce-title">
+          <form method="dialog"><header><h2 id="d-announce-title">Timing</h2></header><div class="cp-dialog-body"><p>While this dialog is open, the page behind it is inert, its live regions too. A message for the person has to be said from inside the dialog.</p><button class="cp-button" type="button" data-announce="Timing applied">Apply the timing</button></div><footer><button class="cp-button" type="submit" value="ok">Close</button></footer></form>
         </dialog>
         <footer>An announcement is for a screen reader: it is heard, never seen, so the list above shows what was said and from where. A modal dialog makes the rest of the page inert, live regions included, so each dialog has its own pair, made before it opens, and an announcement goes to the topmost.</footer>
       </div>

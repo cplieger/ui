@@ -1,10 +1,12 @@
 /**
  * feedback.ts — the gallery's wiring for the feedback lane's cards that run
- * on the library: the region refreshing over its old content and the
- * message feed's read summaries, which load on first open.
+ * on the library: the region refreshing over its old content, the message
+ * feed's read summaries, which load on first open, and announcements that
+ * reach a dialog.
  */
 
 import { anchorTo } from "@cplieger/ui/anchor";
+import { announce } from "@cplieger/ui/announce";
 import { enhanceLoadingRegion } from "@cplieger/ui/loading-region";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
@@ -138,4 +140,37 @@ export function readSummary(button: HTMLButtonElement): void {
       void names.load();
     }
   });
+}
+
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-announce]")) {
+  button.addEventListener("click", () => {
+    announce(button.dataset["announce"] ?? "");
+  });
+}
+
+// The heard log reads what the library wrote into its live regions, so it
+// shows where a message was said from, not where the gallery meant it to go.
+for (const log of document.querySelectorAll<HTMLOListElement>("ol#heard")) {
+  new MutationObserver((records) => {
+    for (const { target } of records) {
+      const said = target.textContent ?? "";
+      if (
+        !(target instanceof HTMLElement) ||
+        !target.matches("[data-cp-live-regions] > [aria-live]") ||
+        said === ""
+      ) {
+        continue;
+      }
+      const quote = document.createElement("q");
+      quote.textContent = said;
+      const item = document.createElement("li");
+      item.append(
+        quote,
+        target.closest("dialog") === null
+          ? ", from the page's live region"
+          : ", from the dialog's own live region, while the page is inert",
+      );
+      log.append(item);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
 }
