@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { server } from "vitest/browser";
 
-const APP_PAGES = ["app.html", "list-detail.html"] as const;
+const APP_PAGES = ["app.html", "list-detail.html", "settings.html"] as const;
+const GATE_PAGES = ["gate.html", "gate-steps.html"] as const;
 
 async function parse(name: string): Promise<Document> {
   // As the file ships: the dev server's copy carries its client script.
@@ -66,21 +67,24 @@ async function load(name: string, width: number): Promise<Document> {
   return doc;
 }
 
-describe("the app templates", () => {
-  it.each(APP_PAGES)("%s holds no inline style, script or handler", async (name) => {
-    const doc = await parse(name);
-    expect(doc.querySelectorAll("style, script, [style]")).toHaveLength(0);
-    const handlers = [...doc.querySelectorAll("*")].flatMap((el) =>
-      el.getAttributeNames().filter((a) => a.startsWith("on")),
-    );
-    expect(handlers).toEqual([]);
-    expect(doc.documentElement.classList.contains("cp")).toBe(true);
-    expect(doc.documentElement.lang).toBe("en");
-    expect(doc.documentElement.hasAttribute("data-theme")).toBe(false);
-    expect(doc.querySelector('link[rel="stylesheet"]')?.getAttribute("href")).toBe(
-      "../css/system.css",
-    );
-  });
+describe("the page templates", () => {
+  it.each([...APP_PAGES, ...GATE_PAGES])(
+    "%s holds no inline style, script or handler",
+    async (name) => {
+      const doc = await parse(name);
+      expect(doc.querySelectorAll("style, script, [style]")).toHaveLength(0);
+      const handlers = [...doc.querySelectorAll("*")].flatMap((el) =>
+        el.getAttributeNames().filter((a) => a.startsWith("on")),
+      );
+      expect(handlers).toEqual([]);
+      expect(doc.documentElement.classList.contains("cp")).toBe(true);
+      expect(doc.documentElement.lang).toBe("en");
+      expect(doc.documentElement.hasAttribute("data-theme")).toBe(false);
+      expect(doc.querySelector('link[rel="stylesheet"]')?.getAttribute("href")).toBe(
+        "../css/system.css",
+      );
+    },
+  );
 
   it.each(APP_PAGES)("%s names its regions in the frame's order", async (name) => {
     const doc = await parse(name);
@@ -104,7 +108,7 @@ describe("the app templates", () => {
     expect(doc.querySelector("main")?.matches('.cp-main#main[tabindex="-1"]')).toBe(true);
     expect(doc.querySelector(".cp-app > :last-child")?.matches("footer.cp-status")).toBe(true);
     expect(marks(doc, "slot").slice(0, 3)).toEqual(["brand", "destinations", "toolbar"]);
-    expect(doc.querySelectorAll('.cp-nav [aria-current="page"]')).toHaveLength(1);
+    expect(doc.querySelectorAll('.cp-header [aria-current="page"]')).toHaveLength(1);
     expect(doc.querySelectorAll('.cp-main [data-variant="primary"]').length).toBeLessThanOrEqual(1);
   });
 
@@ -146,5 +150,133 @@ describe("the app templates", () => {
     expect(status && main && status.top >= main.bottom - 0.5).toBe(true);
     const content = doc.querySelector(".cp-main > .cp-stack")?.getBoundingClientRect();
     expect(content && content.width <= 90 * 16).toBe(true);
+  });
+
+  it("settings.html holds the categories beside the open one's form and its save bar", async () => {
+    const doc = await parse("settings.html");
+    expect(marks(doc, "slot")).toEqual(
+      expect.arrayContaining([
+        "categories",
+        "category",
+        "category heading",
+        "errors",
+        "groups",
+        "save bar",
+      ]),
+    );
+    const rows = doc.querySelectorAll(
+      ".cp-settings > nav.cp-settings-nav > ul.cp-list > li > a.cp-list-row",
+    );
+    expect(rows.length).toBeGreaterThan(1);
+    expect(doc.querySelectorAll('.cp-settings-nav [aria-current="page"]')).toHaveLength(1);
+    for (const dot of doc.querySelectorAll(".cp-settings-nav .cp-dot")) {
+      expect(dot.nextElementSibling?.matches(".cp-visually-hidden")).toBe(true);
+      expect(dot.nextElementSibling?.textContent).toBe(", unsaved changes");
+    }
+    const form = doc.querySelector(".cp-settings > form");
+    expect(form?.querySelector(":scope > h2")).not.toBeNull();
+    const errors = form?.querySelector(":scope > .cp-notice[data-tone='danger'][hidden]");
+    expect(errors?.querySelector('[data-part="body"]')).not.toBeNull();
+    expect(
+      form?.querySelectorAll(":scope > section > .cp-panel > .cp-setting").length,
+    ).toBeGreaterThan(0);
+    const bar = form?.lastElementChild;
+    expect(bar?.matches(".cp-savebar")).toBe(true);
+    expect(bar?.querySelector('[data-part="count"]')).not.toBeNull();
+    expect(bar?.querySelector('button[type="reset"]')?.textContent).toBe("Discard");
+    expect(bar?.lastElementChild?.matches('button[type="submit"][data-variant="primary"]')).toBe(
+      true,
+    );
+  });
+
+  it.each([1280, 390])(
+    "settings.html puts the categories beside the form at %ipx",
+    async (width) => {
+      const doc = await load("settings.html", width);
+      const nav = doc.querySelector(".cp-settings-nav")?.getBoundingClientRect();
+      const form = doc.querySelector(".cp-settings > form")?.getBoundingClientRect();
+      if (!nav || !form) {
+        throw new Error("no categories or form");
+      }
+      expect(form.left >= nav.right).toBe(width >= 768);
+      expect(form.top >= nav.bottom - 0.5).toBe(width < 768);
+    },
+  );
+
+  it.each(GATE_PAGES)("%s names the gate's three regions", async (name) => {
+    const doc = await parse(name);
+    expect(marks(doc, "region")).toEqual(["brand", "panel", "foot"]);
+    const gate = doc.querySelector("body > main.cp-gate");
+    expect(gate?.children).toHaveLength(3);
+    expect(region(doc, "brand")?.matches(".cp-gate > .cp-wordmark")).toBe(true);
+    expect(
+      region(doc, "brand")?.querySelector(":scope > .cp-mark[aria-hidden='true']"),
+    ).not.toBeNull();
+    expect(region(doc, "panel")?.matches(".cp-gate > section.cp-panel")).toBe(true);
+    expect(region(doc, "foot")?.matches(".cp-gate > p.cp-meta:last-child")).toBe(true);
+    expect(doc.title).toMatch(/ · /);
+    expect(doc.querySelectorAll('[data-variant="primary"]').length).toBeLessThanOrEqual(1);
+  });
+
+  it("gate.html leaves its panel to the account screen", async () => {
+    const doc = await parse("gate.html");
+    const panel = region(doc, "panel");
+    expect(panel?.id).toBe("gate-panel");
+    expect(panel?.children).toHaveLength(0);
+  });
+
+  it("gate-steps.html marks each step's state in words and holds one step", async () => {
+    const doc = await parse("gate-steps.html");
+    expect(doc.querySelector("main")?.getAttribute("data-variant")).toBe("steps");
+    expect(marks(doc, "slot")).toEqual(["steps", "heading", "notices", "form", "actions"]);
+    const steps = [...doc.querySelectorAll(".cp-panel ol.cp-steps > li")];
+    const at = steps.findIndex((li) => li.getAttribute("aria-current") === "step");
+    expect(doc.querySelectorAll('[aria-current="step"]')).toHaveLength(1);
+    steps.forEach((li, k) => {
+      const state = k < at ? "done" : k === at ? "current" : "todo";
+      expect(li.getAttribute("data-state")).toBe(state);
+      expect(li.querySelector(":scope > a[href]") !== null).toBe(state === "done");
+      const hidden = li.querySelector(".cp-visually-hidden")?.textContent;
+      expect(hidden).toBe({ done: ", done", current: " (current step)", todo: undefined }[state]);
+    });
+    const counted = `Step ${at + 1} of ${steps.length}`;
+    expect(doc.querySelector(".cp-steps-compact")?.textContent).toBe(counted);
+    const h1 = doc.querySelector(".cp-panel h1");
+    expect(h1?.textContent?.startsWith(`${counted}: `)).toBe(true);
+    expect(doc.querySelector(".cp-panel")?.getAttribute("aria-labelledby")).toBe(h1?.id);
+    const actions = doc.querySelector('form > [data-part="actions"]:last-child');
+    expect(actions?.firstElementChild?.matches("a.cp-button[href]")).toBe(true);
+    expect(
+      actions?.lastElementChild?.matches('button[type="submit"][data-variant="primary"]'),
+    ).toBe(true);
+  });
+
+  it.each([1280, 390])("gate-steps.html shows the steps or their count at %ipx", async (width) => {
+    const doc = await load("gate-steps.html", width);
+    const view = doc.defaultView;
+    if (!view) {
+      throw new Error("no window");
+    }
+    const shown = (sel: string): boolean => {
+      const el = doc.querySelector(sel);
+      return el !== null && view.getComputedStyle(el).display !== "none";
+    };
+    expect(shown(".cp-steps")).toBe(width >= 640);
+    expect(shown(".cp-steps-compact")).toBe(width < 640);
+    const back = doc.querySelector('[data-part="actions"] > a')?.getBoundingClientRect();
+    const next = doc.querySelector('[data-part="actions"] > button')?.getBoundingClientRect();
+    const panel = doc.querySelector(".cp-panel")?.getBoundingClientRect();
+    expect(back && next && next.left > back.right).toBe(true);
+    expect(panel && panel.width <= 28 * 16 + 0.5).toBe(true);
+  });
+
+  it("gate.html centres a panel at most 24rem wide", async () => {
+    const doc = await load("gate.html", 1280);
+    const panel = doc.querySelector(".cp-panel")?.getBoundingClientRect();
+    if (!panel) {
+      throw new Error("no panel");
+    }
+    expect(panel.width).toBeLessThanOrEqual(24 * 16 + 0.5);
+    expect(Math.abs(panel.left + panel.width / 2 - 640)).toBeLessThan(1);
   });
 });

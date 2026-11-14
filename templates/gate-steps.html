@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" class="cp">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connect Sonarr · Set up Release tracker</title>
+    <link rel="stylesheet" href="../css/system.css">
+  </head>
+  <body>
+    <main class="cp-gate" data-variant="steps">
+      <!-- region: brand: the app's mark and name -->
+      <div class="cp-wordmark">
+        <span class="cp-mark" aria-hidden="true">R</span>Release tracker
+      </div>
+      <!-- region: panel: one step of the setup; each step is its own address, so the page needs no script -->
+      <section class="cp-panel" aria-labelledby="step-title">
+        <div class="cp-stack">
+          <!-- slot: steps: a done step a link back to its address, the current one aria-current="step"; each says its state in hidden words -->
+          <ol class="cp-steps" aria-label="Setup steps">
+            <li data-state="done"><a href="#">Account</a><span class="cp-visually-hidden">, done</span></li>
+            <li data-state="current" aria-current="step">Sonarr<span class="cp-visually-hidden"> (current step)</span></li>
+            <li data-state="todo">Check</li>
+          </ol>
+          <p class="cp-steps-compact">Step 2 of 3</p>
+          <!-- slot: heading: the step's number and its task -->
+          <h1 id="step-title">Step 2 of 3: Connect Sonarr</h1>
+          <!-- slot: notices: a .cp-notice for the step as a whole -->
+          <!-- slot: form: the step's fields, then its actions; the account step is mountSetup(region, { heading: false }) -->
+          <form class="cp-stack" action="#" method="post">
+            <div class="cp-field">
+              <label class="cp-label" for="sonarr-url">Address</label>
+              <input class="cp-input" id="sonarr-url" name="url" type="url" value="http://sonarr.lan:8989" spellcheck="false">
+            </div>
+            <div class="cp-field">
+              <label class="cp-label" for="sonarr-key">API key</label>
+              <input class="cp-input" id="sonarr-key" name="key" type="text" autocomplete="off" spellcheck="false" aria-describedby="sonarr-key-help">
+              <span class="cp-help" id="sonarr-key-help">In Sonarr: Settings, then General.</span>
+            </div>
+            <div class="cp-cluster">
+              <button class="cp-button" type="button">
+                <span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection
+              </button>
+              <span class="cp-state" data-size="ui"></span>
+            </div>
+            <!-- slot: actions: Back, a link to the step before, first; the one primary last -->
+            <div data-part="actions">
+              <a class="cp-button" data-variant="quiet" href="#">Back</a>
+              <button class="cp-button" data-variant="primary" type="submit">Next</button>
+            </div>
+          </form>
+        </div>
+      </section>
+      <!-- region: foot: at most one line under the panel -->
+      <p class="cp-meta">You can change these later in Settings.</p>
+    </main>
+  </body>
+</html>
