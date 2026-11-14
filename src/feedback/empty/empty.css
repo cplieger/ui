@@ -21,6 +21,24 @@
   color: var(--cp-tone-9);
 }
 
+/* The page for an address that matches no route. Its heading is the page's
+ * h1, so it takes the ink back from the box's muted colour, which it would
+ * inherit. */
+.cp-empty[data-variant="page"] {
+  justify-items: center;
+  padding: 12vh 0;
+  text-align: center;
+
+  & > h1 {
+    color: var(--cp-ink);
+  }
+
+  & > p {
+    font-size: var(--cp-text-xs);
+    line-height: var(--cp-leading-body);
+  }
+}
+
 /* A heading with a loader, for work that runs before there is data. */
 .cp-empty > :has(> .cp-loader:first-child) {
   display: inline-flex;

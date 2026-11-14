@@ -40,7 +40,6 @@ forms/search/search.css
 forms/textarea/textarea.css
 forms/range/range.css
 forms/tokens/tokens.css
-forms/connection-test/connection-test.css
 forms/rules/rules.css
 forms/pairs/pairs.css
 feedback/state/state.css
@@ -69,7 +68,6 @@ feedback/chip/chip.css
 feedback/badge/badge.css
 feedback/dot/dot.css
 feedback/notice/notice.css
-feedback/banner/banner.css
 layout/panel/panel.css
 layout/stack/stack.css
 layout/cluster/cluster.css
