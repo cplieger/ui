@@ -102,6 +102,39 @@ describe("equal classes", () => {
     expect(classOf(d, 0)).toBe(1);
   });
 
+  it("keeps every figure a boundary's operands state, and none of their binary residue", () => {
+    // A passed domain divides exactly: the middle of [-1e12, 1e12 + 1] is 0.5.
+    const wide = classes({ steps: 2, domain: [-1e12, 1e12 + 1] }, []);
+    expect(wide.thresholds).toEqual([0.5]);
+    expect(classOf(wide, 0)).toBe(0);
+    // A 13-figure pivot is an even count's middle boundary as sent.
+    const pivot = 1e12 + 0.5;
+    const big = classes({ type: "diverging", steps: 4, pivot }, [pivot - 1.5e12, pivot + 1.5e12]);
+    expect(big.thresholds[1]).toBe(pivot);
+    expect(classOf(big, 1e12 + 0.25)).toBe(1);
+    // -2999.999 + 3000 is 0.001, though binary leaves 0.0010000000002.
+    const near = classes({ steps: 6, domain: [-2999.999, 3000.001] }, []);
+    expect(near.thresholds).toEqual([-1999.999, -999.999, 0.001, 1000.001, 2000.001]);
+    expect(classOf(near, 0.001)).toBe(3);
+    // Width 0.0005 about pivot 0.0007501: the second boundary is 1.5 widths below it.
+    const small = classes(
+      { type: "diverging", steps: 7, pivot: 0.0007501 },
+      [-0.0007864, -0.00037],
+    );
+    expect(small.thresholds[1]).toBe(1e-7);
+  });
+
+  it("stays finite and in order at ±1e300, the largest value a chart takes", () => {
+    for (const c of [
+      classes({}, [-1e300, 1e300]),
+      classes({ type: "diverging" }, [-1e300, 1e300]),
+      classes({ steps: 9, domain: [-1e300, 1e300] }, []),
+    ]) {
+      expect(c.thresholds.every(Number.isFinite)).toBe(true);
+      expect(c.thresholds.every((t, k) => k === 0 || t > (c.thresholds[k - 1] ?? 0))).toBe(true);
+    }
+  });
+
   it("centres an odd diverging count's middle class on the pivot", () => {
     // The half-span is 8, so 5 classes are each at least 3.2 wide: 5.
     expect(classes({ type: "diverging" }, [-8, 3])).toEqual({

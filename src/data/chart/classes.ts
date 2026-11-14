@@ -27,17 +27,23 @@ const DEFAULT_STEPS = 5;
 /** A class width's leading figures; the width is one of them times a power of ten. */
 const NICE = [1, 2, 2.5, 5];
 
-// Sums of a class width drift in binary (0.1 × 3); twelve figures hold every
-// boundary a reader could tell apart.
+// A width, a start or a reach drifts in binary (0.6 / 6 is 0.10000000000000002);
+// twelve figures clear the drift and keep every width a reader could tell apart.
 const tidy = (v: number): number => Number(v.toPrecision(12));
 
-// The boundary a + b. When the operands cancel, tidy (relative) keeps the
-// residual near 1e-17, which would put a 0 cell in the class below and print
-// "-0" in the key. The snap is relative to the operands, not the class width,
-// so a real boundary near 0 among wide classes (pivot 0.001) stays.
+// The boundary a + b to the operands' fourteenth figure. Their binary residue
+// (a few ulps: -0.3 + 0.30000000000000004, 3 × 0.1) lies below it, so a
+// cancelling sum is exactly 0 and -2999.999 + 3000 exactly 0.001, while every
+// figure the operands state stays (0.5 beside 1e12). A cap relative to the sum
+// alone, as tidy's, keeps a cancelled residue or cuts a 13-figure pivot.
 const boundary = (a: number, b: number): number => {
   const v = a + b;
-  return Math.abs(v) <= 1e-12 * Math.max(Math.abs(a), Math.abs(b)) ? 0 : tidy(v);
+  if (v === 0) {
+    return 0;
+  }
+  const big = Math.max(Math.abs(a), Math.abs(b));
+  const figures = Math.floor(Math.log10(Math.abs(v))) - Math.floor(Math.log10(big)) + 14;
+  return figures < 1 ? 0 : Number(v.toPrecision(Math.min(figures, 14)));
 };
 
 // The class widths from the smallest at least `min` upward; integer data
