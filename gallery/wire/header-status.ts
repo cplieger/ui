@@ -1,7 +1,7 @@
 /**
- * header-status.ts — the gallery's header status on the library: a pill and
- * its panel kept by `createHeaderStatus`, whose problem link lands on a
- * component's status block, and that block's answer-time chart and test.
+ * header-status.ts — the gallery's header status on the library: pills in
+ * each state, an urgent condition's banner, a pill and panel whose problem
+ * link lands on a component's status block, and that block's chart and test.
  */
 
 import { renderChart } from "@cplieger/ui/chart";
@@ -67,6 +67,104 @@ if (button !== null && panel !== null) {
       },
     },
   ]);
+}
+
+const STATES: readonly StatusModel[] = [
+  {
+    conditions: [
+      {
+        id: "store",
+        level: "problem",
+        urgent: true,
+        title: "Store full",
+        since: now - 20 * MINUTE,
+      },
+      { id: "push", level: "problem", title: "Pushes failing", since: now - 5 * MINUTE },
+    ],
+    work: [],
+  },
+  {
+    conditions: [{ id: "sonarr", level: "problem", title: "Sonarr rejected the API key" }],
+    work: [{ id: "full", title: "Full check", value: 3, max: 8 }],
+  },
+  { conditions: [{ id: "nyaa", level: "warning", title: "The Nyaa indexer is slow" }], work: [] },
+  {
+    conditions: [],
+    work: [
+      { id: "a", title: "Scanning Sonarr" },
+      { id: "b", title: "Scanning Radarr" },
+      { id: "c", title: "Fetching subtitles" },
+    ],
+  },
+  { conditions: [], work: [], next: "Next quick check at 14:32" },
+  {
+    conditions: [],
+    work: [{ id: "full", title: "Full check", phase: "Reading series", value: 3, max: 8 }],
+  },
+];
+
+const row = document.querySelector<HTMLElement>("[data-hs-states]");
+if (row !== null) {
+  let live: ReturnType<typeof createHeaderStatus> | undefined;
+  STATES.forEach((state, i) => {
+    const pill = document.createElement("button");
+    pill.className = "cp-header-status";
+    pill.type = "button";
+    pill.setAttribute("popovertarget", `hs-state-${String(i)}`);
+    const sheet = document.createElement("div");
+    sheet.className = "cp-popover cp-status-panel";
+    sheet.dataset["variant"] = "panel";
+    sheet.id = `hs-state-${String(i)}`;
+    sheet.popover = "auto";
+    row.append(pill, sheet);
+    const status = createHeaderStatus({ button: pill, panel: sheet });
+    status.update({
+      ...state,
+      reconnect: () => {
+        status.connection("live");
+      },
+    });
+    live = status;
+  });
+  const drop = document.querySelector<HTMLButtonElement>("button[data-hs-drop]");
+  drop?.addEventListener("click", () => {
+    live?.connection("lost");
+  });
+}
+
+const urgentPill = document.querySelector<HTMLButtonElement>("button[data-hs-urgent]");
+const urgentPanel = document.querySelector<HTMLElement>("[data-hs-urgent-panel]");
+const banner = document.querySelector<HTMLElement>("[data-hs-banner]");
+if (urgentPill !== null && urgentPanel !== null && banner !== null) {
+  createHeaderStatus({ button: urgentPill, panel: urgentPanel, banner }).update({
+    conditions: [
+      {
+        id: "exposed",
+        level: "problem",
+        urgent: true,
+        title: "This hub can be reached from the internet",
+        reasons: [
+          "It answers on a public address, 203.0.113.7.",
+          "Sign-in by password is on, with no passkey required.",
+        ],
+        since: now - 3 * 60 * MINUTE,
+        seen: now - 2 * MINUTE,
+        docs: { href: "#status", label: "How to close it" },
+      },
+      {
+        id: "store",
+        level: "problem",
+        urgent: true,
+        title: "Store full",
+        since: now - 20 * MINUTE,
+        seen: now - MINUTE,
+        href: "#status",
+      },
+    ],
+    work: [],
+    recent: [{ id: "r1", words: "Pushes recovered", at: now - 30 * MINUTE }],
+    history: { href: "#status", label: "Open statistics" },
+  });
 }
 
 // Every 15 minutes over the last day, the last three checks unanswered.

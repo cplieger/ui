@@ -82,7 +82,7 @@ Each module is one subpath, grouped here by what it is for:
 - Buttons: [confirm](docs/buttons/confirm.md), [overflow](docs/buttons/overflow.md), [toggle](docs/buttons/toggle.md) and [turn](docs/buttons/turn.md).
 - Forms: [form](docs/forms/form.md), [checkbox](docs/forms/checkbox.md), [choice](docs/forms/choice.md), [stepper](docs/forms/stepper.md), [secret](docs/forms/secret.md), [copy](docs/forms/copy.md), [tokens](docs/forms/tokens.md), [combobox](docs/forms/combobox.md), [search](docs/forms/search.md), [textarea](docs/forms/textarea.md), [range](docs/forms/range.md), [date-range](docs/forms/date-range.md), [file](docs/forms/file.md), [rules](docs/forms/rules.md), [pairs](docs/forms/pairs.md) and [connection-test](docs/forms/connection-test.md).
 - Content: [markdown](docs/content/markdown.md) and [highlight](docs/content/highlight.md).
-- Navigation and layout: [disclosure](docs/navigation/disclosure.md), [tabs](docs/navigation/tabs.md), [list-detail](docs/layout/list-detail.md) and [context-panel](docs/layout/context-panel.md).
+- Navigation and layout: [disclosure](docs/navigation/disclosure.md), [tabs](docs/navigation/tabs.md), [header-status](docs/navigation/header-status.md), [list-detail](docs/layout/list-detail.md) and [context-panel](docs/layout/context-panel.md).
 - Data: [list-row](docs/data/list-row.md), [table](docs/data/table.md), [active-filters](docs/data/active-filters.md), [state-history](docs/data/state-history.md), [share-bar](docs/data/share-bar.md), [sparkline](docs/data/sparkline.md), [chart](docs/data/chart.md), [meter](docs/data/meter.md), [ranked-bars](docs/data/ranked-bars.md), [relative-time](docs/data/relative-time.md), [reorder](docs/data/reorder.md), [held-list](docs/data/held-list.md), [keyed-list](docs/data/keyed-list.md), [load-more](docs/data/load-more.md) and [feed](docs/data/feed.md).
 - Behaviour every page shares: [press](docs/core/press.md), [pointer](docs/core/pointer.md), [radio-focus](docs/core/radio-focus.md), [roving-focus](docs/core/roving-focus.md), [roll](docs/core/roll.md), [pill](docs/core/pill.md), [theme](docs/core/theme.md) and [view-transition](docs/core/view-transition.md).
 - [icons](docs/foundations/icons.md): `createIcons`, `iconNames` and `ownIconNames`, and the glyphs the stylesheet paints [with no script](docs/foundations/icons.md#with-no-script).
@@ -94,7 +94,7 @@ The full reference, generated from the doc comments, is on [JSR](https://jsr.io/
 - The [principles](docs/principles.md) are the decisions every part follows.
 - The [design language](docs/design.md) covers type, layout, touch, shape and motion, and [colour](docs/design-colour.md) the seeds, steps, tones, harmony colours and series colours.
 - [Components](docs/design-components.md) lists every class the stylesheet ships.
-- [Design patterns](docs/design-patterns.md) covers loading, forms, tables, lists, tabs, dialogs, notifications, messages, first run, navigation and words, with [settings](docs/design-settings.md) and [account screens](docs/design-account.md) on their own pages.
+- [Design patterns](docs/design-patterns.md) covers loading, forms, tables, lists, tabs, dialogs, notifications, the header status, messages, first run, navigation and words, with [settings](docs/design-settings.md) and [account screens](docs/design-account.md) on their own pages.
 - [Moving from the earlier subpaths](docs/migrating.md) maps each subpath earlier releases carried to its replacement.
 
 ## Credits

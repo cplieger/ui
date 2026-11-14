@@ -262,6 +262,8 @@ describe("the stream", () => {
   it("refuses an offline delay that is not a count of ms", () => {
     expect(() => mount({ offlineAfter: -1 })).toThrow(RangeError);
     expect(() => mount({ offlineAfter: Number.NaN })).toThrow(RangeError);
+    expect(() => mount({ offlineAfter: 2 ** 31 })).toThrow(RangeError);
+    expect(() => mount({ offlineAfter: 2 ** 31 - 1 })).not.toThrow();
   });
 
   it("stops on destroy", () => {

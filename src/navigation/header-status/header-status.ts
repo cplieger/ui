@@ -143,10 +143,10 @@ export interface StatusWords {
 
 export interface HeaderStatusOptions {
   readonly words?: Partial<StatusWords>;
-  /** Formats the counts and times. Default: the page's language. */
+  /** Formats the counts and times. Default: the browser's. */
   readonly locale?: string;
-  /** How long the stream stays down before the pill turns offline, in ms.
-   *  Default 10000. */
+  /** How long the stream stays down before the pill turns offline, in ms,
+   *  from 0 to 2147483647 (a RangeError otherwise). Default 10000. */
   readonly offlineAfter?: number;
 }
 
@@ -429,9 +429,11 @@ export function createHeaderStatus(
 ): HeaderStatus {
   const { button, panel } = parts;
   const { offlineAfter = 10_000, locale } = options;
-  if (!Number.isFinite(offlineAfter) || offlineAfter < 0) {
+  // A timer longer than a signed 32-bit count of ms fires at once
+  // (https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timers).
+  if (!Number.isFinite(offlineAfter) || offlineAfter < 0 || offlineAfter > 2_147_483_647) {
     throw new RangeError(
-      "createHeaderStatus: offlineAfter must be a finite number of ms, 0 or more",
+      "createHeaderStatus: offlineAfter must be a number of ms from 0 to 2147483647",
     );
   }
   const w = wordsFor(options);
