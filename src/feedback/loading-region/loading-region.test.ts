@@ -314,3 +314,93 @@ describe("enhanceLoadingRegion: a refresh", () => {
     expect(await handle.load()).toBe(false);
   });
 });
+
+describe("enhanceLoadingRegion: a popover that loads on its first open", () => {
+  function popover(): { invoker: HTMLButtonElement; region: HTMLDivElement } {
+    const region = document.createElement("div");
+    region.className = "cp-popover";
+    region.popover = "auto";
+    region.id = "readers";
+    const invoker = document.createElement("button");
+    invoker.type = "button";
+    invoker.textContent = "Read by 2 of 4";
+    invoker.setAttribute("popovertarget", region.id);
+    document.body.append(invoker, region);
+    return { invoker, region };
+  }
+
+  /** Loads on the first open, as a host does. Resolves once toggle, which
+   *  fires on a task after the press, has started the load, with that load
+   *  boxed so awaiting the open does not await the load. */
+  function openOnToggle(
+    region: HTMLElement,
+    handle: { load(): Promise<boolean>; state: string },
+  ): Promise<{ readonly done: Promise<boolean> }> {
+    return new Promise((opened) => {
+      region.addEventListener("toggle", (e) => {
+        if (e.newState === "open" && handle.state === "idle") {
+          opened({ done: handle.load() });
+        }
+      });
+    });
+  }
+
+  it("takes focus from its opener to Retry when it fails, then to the content's heading", async () => {
+    const { invoker, region } = popover();
+    const { handle, loads } = wired(region, {
+      words: { loading: "Loading who read it…", failed: "The readers could not be loaded." },
+    });
+    const opened = openOnToggle(region, handle);
+    invoker.focus();
+    invoker.click();
+    const { done: first } = await opened;
+    expect(region.matches(":popover-open")).toBe(true);
+    expect(handle.state).toBe("loading");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    await sleep(260);
+    expect(region.textContent).toBe("Loading who read it…");
+    loads[0]?.reject(new Error("timeout"));
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(notice(region)?.textContent).toContain("The readers could not be loaded.");
+    expect(document.activeElement).toBe(retryIn(region));
+
+    retryIn(region)?.click();
+    await sleep(0);
+    loads[1]?.resolve("Read");
+    await sleep(500);
+    expect(handle.state).toBe("ready");
+    expect(notice(region)).toBeNull();
+    expect(document.activeElement).toBe(region.querySelector("h3"));
+  });
+
+  it("moves focus from its opener to the content's heading when the names arrive", async () => {
+    const { invoker, region } = popover();
+    const { handle, loads } = wired(region);
+    const opened = openOnToggle(region, handle);
+    invoker.focus();
+    invoker.click();
+    const { done: first } = await opened;
+    loads[0]?.resolve("Read");
+    expect(await first).toBe(true);
+    expect(handle.state).toBe("ready");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(document.activeElement).toBe(region.querySelector("h3"));
+  });
+
+  it("leaves focus where the person moved it while the names loaded", async () => {
+    const { invoker, region } = popover();
+    const elsewhere = document.createElement("input");
+    document.body.append(elsewhere);
+    const { handle, loads } = wired(region);
+    const opened = openOnToggle(region, handle);
+    invoker.focus();
+    invoker.click();
+    const { done: first } = await opened;
+    elsewhere.focus();
+    loads[0]?.resolve("Read");
+    expect(await first).toBe(true);
+    expect(handle.state).toBe("ready");
+    expect(document.activeElement).toBe(elsewhere);
+  });
+});

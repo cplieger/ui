@@ -2,7 +2,6 @@
  * feed.ts — the gallery's lists, feeds and times, on the library.
  */
 
-import { anchorTo } from "@cplieger/ui/anchor";
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
 import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
@@ -11,10 +10,11 @@ import { enhanceFeed } from "@cplieger/ui/feed";
 import { type FieldError, reportErrors } from "@cplieger/ui/form";
 import { enhanceListDetail } from "@cplieger/ui/list-detail";
 import { enhanceLoadMore } from "@cplieger/ui/load-more";
-import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { enhanceReorder } from "@cplieger/ui/reorder";
 import { enhanceTextarea, utf8Length } from "@cplieger/ui/textarea";
+
+import { readButton, readSummary } from "./feedback.js";
 
 installAnnouncer();
 
@@ -196,125 +196,6 @@ function inlineLoad(words: string): HTMLSpanElement {
   load.className = "cp-inline-load";
   load.append(square, words);
   return load;
-}
-
-function people(list: string | undefined): string[] {
-  return (list ?? "").split(" ").filter((name) => name !== "");
-}
-
-function readers(title: string, names: readonly string[]): HTMLElement {
-  const heading = document.createElement("h4");
-  heading.textContent = title;
-  const section = document.createElement("section");
-  section.append(heading);
-  if (names.length === 0) {
-    const none = document.createElement("p");
-    none.className = "cp-meta";
-    none.textContent = "No one yet.";
-    section.append(none);
-    return section;
-  }
-  const list = document.createElement("ul");
-  for (const name of names) {
-    const link = document.createElement("a");
-    link.href = `#agent-${name === "You" ? "user" : name.slice(1)}`;
-    link.textContent = name;
-    const item = document.createElement("li");
-    item.append(link);
-    list.append(item);
-  }
-  section.append(list);
-  return section;
-}
-
-let readSeq = 0;
-
-const wait = (): Promise<void> =>
-  new Promise((resolve) => {
-    setTimeout(resolve, 600);
-  });
-
-// The names load each time the panel first opens, after 600 ms, and a
-// button marked data-read-fails fails once, so its Retry shows.
-function readSummary(button: HTMLButtonElement): void {
-  const panel = document.createElement("div");
-  panel.className = "cp-popover cp-feed-readers";
-  panel.dataset["variant"] = "panel";
-  panel.popover = "auto";
-  panel.id = `msg-readers-${String(++readSeq)}`;
-  panel.setAttribute("aria-label", "Who read this message");
-  button.setAttribute("popovertarget", panel.id);
-  button.after(panel);
-  anchorTo(panel, button);
-  enhancePanel(panel);
-  let fails = button.hasAttribute("data-read-fails");
-  let state: "idle" | "loading" | "loaded" = "idle";
-  const settle = () => {
-    panel.removeAttribute("aria-busy");
-    const regain =
-      panel.matches(":popover-open") &&
-      (panel.contains(document.activeElement) ||
-        document.activeElement === button ||
-        document.activeElement === document.body);
-    if (fails) {
-      fails = false;
-      state = "idle";
-      const retry = smallButton("");
-      const words = document.createElement("span");
-      words.className = "cp-roll";
-      words.textContent = "Retry";
-      const spinner = icon("spinner-arc");
-      spinner.dataset["part"] = "busy";
-      const check = icon("check");
-      check.dataset["part"] = "done";
-      retry.append(spinner, check, words);
-      const again = enhanceConfirm(retry, { busy: "Retrying…", done: false });
-      retry.addEventListener("click", () => {
-        state = "loading";
-        void again.run(wait).then(settle);
-      });
-      const body = document.createElement("div");
-      body.dataset["part"] = "body";
-      body.append("The readers could not be loaded.", " ", retry);
-      const notice = document.createElement("div");
-      notice.className = "cp-notice";
-      notice.dataset["tone"] = "danger";
-      notice.append(icon("circle-x"), body);
-      panel.replaceChildren(notice);
-      if (regain) {
-        retry.focus();
-      }
-      return;
-    }
-    state = "loaded";
-    panel.replaceChildren(
-      readers("Read", people(button.dataset["read"])),
-      readers("Not read yet", people(button.dataset["waiting"])),
-    );
-    const heading = panel.querySelector("h4");
-    if (regain && heading !== null) {
-      heading.tabIndex = -1;
-      heading.focus();
-    }
-  };
-  panel.addEventListener("toggle", (e) => {
-    if (e.newState === "open" && state === "idle") {
-      state = "loading";
-      panel.setAttribute("aria-busy", "true");
-      panel.replaceChildren(inlineLoad("Loading who read it…"));
-      void wait().then(settle);
-    }
-  });
-}
-
-function readButton(read: readonly string[], waiting: readonly string[]): HTMLButtonElement {
-  const button = smallButton(
-    `Read by ${String(read.length)} of ${String(read.length + waiting.length)}`,
-  );
-  button.dataset["variant"] = "quiet";
-  button.dataset["read"] = read.join(" ");
-  button.dataset["waiting"] = waiting.join(" ");
-  return button;
 }
 
 interface Post {

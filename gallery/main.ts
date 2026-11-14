@@ -109,7 +109,7 @@ for (const range of all<HTMLInputElement>("input.cp-range")) {
   const output = document.getElementById(range.dataset["out"] ?? "");
   enhanceRange(range, output instanceof HTMLOutputElement ? { output } : {});
 }
-// A feed's read summaries are wired with their entries in wire/feed.ts.
+// A feed's read summaries are wired with their entries, by wire/feedback.ts.
 for (const panel of all<HTMLElement>(".cp-popover[data-variant='panel']:not(.cp-feed-readers)")) {
   enhancePanel(panel);
 }
