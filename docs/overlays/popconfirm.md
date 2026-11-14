@@ -31,4 +31,4 @@ enhancePopconfirm(popover, { onConfirm: () => removeLabel(), signal: page.signal
 - A popover with no `<form>` or no `type="button"` button throws a `TypeError`.
 - `signal` removes the listeners.
 
-A removal that cannot be undone, or that names many things, asks in a [dialog](dialog.md) with `data-variant="confirm"` instead.
+A removal that cannot be undone, or that names many things, asks in a confirmation dialog instead: [ask](ask.md) from script, or a [dialog](dialog.md) with `data-variant="confirm"`.

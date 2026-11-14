@@ -53,7 +53,7 @@
           </div>
           <button class="cp-button" data-variant="quiet" type="button" popovertarget="m-report">Report to animap<span class="cp-icon" data-cp-icon="chevron-down" aria-hidden="true"></span></button>
           <div class="cp-popover cp-menu" id="m-report" popover role="menu" aria-label="Report to animap">
-            <a role="menuitem" href="#inline">Wrong season mapping<span class="cp-menu-tag">suggested</span></a>
+            <a role="menuitem" href="#inline">Wrong season mapping<span class="cp-badge" data-variant="quiet">suggested</span></a>
             <a role="menuitem" href="#inline">Missing entry<span class="cp-icon" data-cp-icon="external-link" aria-hidden="true"></span></a>
           </div>
         </div>
@@ -129,6 +129,30 @@
         <footer>Focus starts in the field it holds and returns to the button on close. A press outside closes it, unless the name was changed: then it shakes and keeps the words.</footer>
       </div>
       <div class="card" data-new>
+        <h2>A message, kept until you drop it</h2>
+        <div class="stage"><button class="cp-button" type="button" commandfor="d-message" command="show-modal"><span class="cp-icon" data-cp-icon="pencil" aria-hidden="true"></span>New message…</button></div>
+        <dialog class="cp-dialog" id="d-message" data-keep-typed aria-labelledby="d-message-title">
+          <form data-guard-message>
+            <header><h2 id="d-message-title">New message</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-message" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
+            <div class="cp-dialog-body cp-stack">
+              <div class="cp-field">
+                <label class="cp-label" for="d-message-to">To</label>
+                <div class="cp-tokens" data-tokens="message-to" data-suggest="d-message-list"><input id="d-message-to" placeholder="Add a recipient"></div>
+                <ul class="cp-popover cp-listbox" id="d-message-list" role="listbox" popover="manual" aria-label="Recipients">
+                  <li role="option" id="dmsg-all">Announcements</li>
+                  <li role="option" id="dmsg-mira">@mira</li>
+                  <li role="option" id="dmsg-otto">@otto<small>Dormant</small></li>
+                </ul>
+              </div>
+              <div class="cp-field"><label class="cp-label" for="d-message-subject">Subject</label><input class="cp-input" id="d-message-subject" name="subject"></div>
+              <div class="cp-field"><label class="cp-label" for="d-message-body">Message</label><textarea class="cp-input" id="d-message-body" name="body" rows="4"></textarea></div>
+            </div>
+            <footer><button class="cp-button" type="button" commandfor="d-message" command="close">Cancel</button><button class="cp-button" data-variant="primary" type="submit">Send</button></footer>
+          </form>
+        </dialog>
+        <footer>Write something, then press Escape, Cancel or Close: it asks "Discard this message?", and Keep writing keeps every word. A press outside shakes instead of asking. Send closes it with no question, and with nothing written it closes at once.</footer>
+      </div>
+      <div class="card" data-new>
         <h2>Confirmation</h2>
         <div class="stage"><button class="cp-button" data-variant="primary" data-tone="danger" type="button" commandfor="d-delete" command="show-modal"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Remove 3 entries…</button></div>
         <dialog class="cp-dialog" data-variant="confirm" id="d-delete" data-says="3 entries removed" role="alertdialog" aria-labelledby="d-delete-title" aria-describedby="d-delete-body">
@@ -138,6 +162,11 @@
           </form>
         </dialog>
         <footer>Its buttons say what they do. Focus starts on the safe one, and only Escape or a button closes it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Questions from script</h2>
+        <div class="stage"><div class="cp-cluster"><button class="cp-button" data-tone="danger" type="button" data-ask="danger">Revoke the key…</button><button class="cp-button" type="button" data-ask="unchecked">Apply anyway…</button><button class="cp-button" type="button" data-ask="value">Rename the passkey…</button></div></div>
+        <footer>Asked by <code>ask()</code>. A danger answer is red and focus starts on declining. An unchecked change is neither: its answer stays the plain primary and focus still starts on declining. A value question focuses its field, and Enter answers.</footer>
       </div>
       <div class="card" data-new>
         <h2>Sheet</h2>
@@ -228,18 +257,8 @@
     <div class="g-grid">
       <div class="card" data-new>
         <h2>Delete in groups</h2>
-        <div class="stage"><button class="cp-button" data-variant="primary" data-tone="danger" type="button" commandfor="d-grouped" command="show-modal"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Delete subtitles…</button></div>
-        <dialog class="cp-dialog" data-variant="confirm" id="d-grouped" data-grouped data-says="Deleted" role="alertdialog" aria-labelledby="d-grouped-title" closedby="any">
-          <form method="dialog">
-            <div class="cp-dialog-body"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><div><h2 id="d-grouped-title">Delete subtitles for 4 episodes?</h2><p id="d-grouped-ask">Choose which to delete. The files are removed from the disk.</p>
-              <fieldset class="cp-choices" aria-labelledby="d-grouped-ask">
-                <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-count="3"><span>3 managed files<small>Fetched by this app</small></span></label>
-                <label class="cp-choice"><input class="cp-checkbox" type="checkbox" data-count="1"><span>1 found on disk<small>Not fetched by this app</small></span></label>
-              </fieldset></div></div>
-            <footer><button class="cp-button" type="button" commandfor="d-grouped" command="close" autofocus>Keep them</button><button class="cp-button" data-variant="primary" data-tone="danger" type="submit" value="delete">Delete</button></footer>
-          </form>
-        </dialog>
-        <footer>No group is chosen for you. The button says how many files it deletes, in two or three words, and stays disabled until something is chosen. A press outside closes it, deleting nothing.</footer>
+        <div class="stage"><button class="cp-button" data-variant="primary" data-tone="danger" type="button" data-ask="grouped"><span class="cp-icon" data-cp-icon="trash-2" aria-hidden="true"></span>Delete subtitles…</button></div>
+        <footer>Asked by <code>ask()</code> with <code>choices</code>. No group is chosen for you. The button counts the files the chosen groups hold, and stays disabled until something is chosen. Escape or Keep them deletes nothing.</footer>
       </div>
     </div>
   </section>

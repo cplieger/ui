@@ -39,9 +39,10 @@ export interface StatusCondition {
   readonly docs?: { readonly href: string; readonly label: string };
 }
 
-/** The question a Stop asks first, through `ask()`. */
-export interface StopQuestion extends Omit<AskOptions, "input"> {
+/** The yes or no question a Stop asks first, through `ask()`. */
+export interface StopQuestion extends Omit<AskOptions, "input" | "choices" | "confirmLabel"> {
   readonly message: string;
+  readonly confirmLabel?: string;
 }
 
 export interface StatusWork {

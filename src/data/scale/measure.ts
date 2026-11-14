@@ -4,6 +4,8 @@
  * @module
  */
 
+import { writer } from "./format.js";
+
 const DIGIT = /\p{Nd}/gu;
 
 /** The decimal digits in `text`, of any numbering system. */
@@ -16,7 +18,7 @@ export function probeDigits(locale: string | undefined): string {
   const key = locale ?? "";
   let digits = digitsOf.get(key);
   if (digits === undefined) {
-    digits = new Intl.NumberFormat(locale, { useGrouping: false }).format(1234567890);
+    digits = writer({ useGrouping: false }, locale)(1234567890);
     digitsOf.set(key, digits);
   }
   return digits;

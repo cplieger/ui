@@ -179,6 +179,18 @@ describe("enhanceCombobox", () => {
     expect(active(input)).toBe("Fruits Basket");
   });
 
+  it("reaches and accepts an option that ends with a word, as any other", async () => {
+    const { input, accepted } = combo();
+    const word = document.createElement("small");
+    word.textContent = "Dormant";
+    (document.querySelectorAll("li")[1] as HTMLElement).append(word);
+    input.focus();
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+    expect(active(input)).toBe("Fruits BasketDormant");
+    await userEvent.keyboard("{Enter}");
+    expect(accepted).toEqual(["Fruits BasketDormant"]);
+  });
+
   it("reports the text once typing pauses, once for a burst", async () => {
     const settled: string[] = [];
     const { input } = combo({ onSettle: (t) => settled.push(t), settle: 40 });

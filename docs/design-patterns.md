@@ -66,7 +66,7 @@ A form never loses what the person typed, and every error is text that says how 
 4. On a submit with one error, focus its field. With two or more, show a danger notice at the top of the form that lists each field as a link to it. Head it with the count, such as "2 settings need a fix before they save", give it `tabindex="-1"` and focus it.
 5. Clear a field's error as soon as its value is valid. Never clear what the person typed.
 6. While the form saves, the submit button is busy, and the fields stay as they are.
-7. A form with unsaved changes asks before a navigation that would discard them.
+7. A form with unsaved changes asks before a navigation or a close that would discard them. [form](forms/form.md#unsaved-changes)'s `guardChanges` counts the changes, asks, and takes in values saved elsewhere while keeping the person's.
 
 ![Fields with an error under one of them, and an error summary with a link to the field](images/system-parts-light.png)
 
@@ -162,7 +162,9 @@ Tabs follow the WAI-ARIA tabs pattern:
 2. The tablist is one Tab stop, the selected tab. [tabs](navigation/tabs.md) moves focus between tabs with the arrow keys, Home and End, and slides the pill under the selected one.
 3. Moving focus selects the tab when its panel is already loaded. When a panel loads on demand, Enter or Space selects it instead.
 4. The selected tab is in the URL.
-5. When each tab is its own address, the tabs are links in a `.cp-link-tabs` nav and the current one carries `aria-current="page"`.
+5. When each tab is its own address, the tabs are links in a `<nav class="cp-tabs">` with an `aria-label`, and the current one carries `aria-current="page"`. They look like the tabs above and need no script.
+
+Tabs and the segmented control share one look, the sliding pill, and differ in what they do. Tabs switch the view: the panel or the page under them changes and the choice is a place, in the URL. A `.cp-segmented` sets a value, such as the theme or a chart's range, and is a field of its form. A list's List and Grid view is a value of the list, so it is a `.cp-segmented` with `data-variant="icons"`.
 
 ## Dialogs and sheets
 
@@ -171,6 +173,7 @@ A dialog is the last answer, after inline editing and disclosure. When one is ne
 - Make it a native `<dialog class="cp-dialog">` opened with `commandfor` or `showModal()`, as [dialog](overlays/dialog.md) describes. The modal dialog makes the page inert, closes on Escape and returns focus to the control that opened it.
 - Move focus by what the dialog holds. A form focuses its first field. A confirmation focuses its least destructive action. A dialog of content to read focuses its heading.
 - A destructive confirmation names the action and its object on its button, such as "Delete 3 subtitles", and uses `data-tone="danger"` on it.
+- Pick the question by what it holds. A short removal with no list and no input asks next to its button, in a [popconfirm](overlays/popconfirm.md). Anything else asks in a confirmation dialog: [ask](overlays/ask.md) from script, with `tone`, `focus`, an `input` or the `choices` of groups it takes, or a `.cp-dialog[data-variant="confirm"]` written in the page. A confirmation with groups chooses none for the person and counts by group on its button. [confirm](buttons/confirm.md) asks nothing: it is the button's busy and done cycle.
 
 A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, body and footer. It opens at the inline end at full height, and across the whole window in the compact tier. The filter sheet is the standard one:
 

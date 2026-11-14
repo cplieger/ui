@@ -60,6 +60,26 @@ function inView(list: HTMLElement, tab: HTMLElement | undefined): boolean {
   return box.left >= port.left - 0.5 && box.right <= port.right + 0.5;
 }
 
+function nav(current: number | null = 0): { list: HTMLElement; links: HTMLAnchorElement[] } {
+  const list = document.createElement("nav");
+  list.className = "cp-tabs";
+  list.setAttribute("aria-label", "Item");
+  const links = WORDS.map((word, i) => {
+    const a = document.createElement("a");
+    a.href = `#${word.toLowerCase()}`;
+    a.textContent = word;
+    if (i === current) {
+      a.setAttribute("aria-current", "page");
+    }
+    list.append(a);
+    return a;
+  });
+  document.body.append(list);
+  return { list, links };
+}
+
+const currents = (links: HTMLElement[]) => links.map((a) => a.getAttribute("aria-current"));
+
 const chosen = (tabs: HTMLElement[]) => tabs.map((t) => t.getAttribute("aria-selected"));
 const shown = (panels: HTMLElement[]) => panels.map((p) => !p.hidden);
 
@@ -293,6 +313,83 @@ describe("enhanceTabs", () => {
     tabs[0]?.focus();
     await userEvent.keyboard("{ArrowRight}");
     expect(chosen(tabs)).toEqual(["true", "false", "false"]);
+  });
+  describe("on a nav of links", () => {
+    it("keeps the current link, leaves every link a Tab stop and its press followed", async () => {
+      const { list, links } = nav(1);
+      const onSelect = vi.fn();
+      const api = enhanceTabs(list, { onSelect, signal: life.signal });
+      expect(api.selected).toBe(links[1]);
+      expect(links.map((a) => a.tabIndex)).toEqual([0, 0, 0]);
+      expect(links.map((a) => a.getAttribute("role"))).toEqual([null, null, null]);
+      links[0]?.focus();
+      await userEvent.keyboard("{ArrowRight}");
+      expect(document.activeElement).toBe(links[0]);
+      await userEvent.click(links[2] as HTMLElement);
+      expect(location.hash).toBe("#history");
+      expect(currents(links)).toEqual([null, "page", null]);
+      expect(onSelect).not.toHaveBeenCalled();
+      history.replaceState(null, "", location.pathname + location.search);
+    });
+
+    it("marks none current when the page is none of its links", () => {
+      const { list, links } = nav(null);
+      const api = enhanceTabs(list, { signal: life.signal });
+      expect(api.selected).toBeNull();
+      expect(currents(links)).toEqual([null, null, null]);
+    });
+
+    it("makes the link select() names the one aria-current, and ignores a link from elsewhere", () => {
+      const { list, links } = nav(0);
+      const api = enhanceTabs(list, { signal: life.signal });
+      api.select(links[2] as HTMLElement);
+      expect(currents(links)).toEqual([null, null, "page"]);
+      const stranger = document.createElement("a");
+      stranger.href = "#elsewhere";
+      document.body.append(stranger);
+      api.select(stranger);
+      expect(api.selected).toBe(links[2]);
+      expect(stranger.hasAttribute("aria-current")).toBe(false);
+    });
+
+    it("scrolls a narrow strip to the link select() names, never the page", () => {
+      const { list, links } = nav(0);
+      narrow(list, links);
+      const spacer = document.createElement("div");
+      spacer.style.blockSize = "300vh";
+      document.body.prepend(spacer);
+      const page = document.scrollingElement as Element;
+      page.scrollTop = 0;
+      enhanceTabs(list, { signal: life.signal }).select(links[2] as HTMLElement);
+      expect(inView(list, links[2])).toBe(true);
+      expect(page.scrollTop).toBe(0);
+    });
+
+    it("starts with the current link in view, and follows a router that moves aria-current", async () => {
+      const { list, links } = nav(2);
+      narrow(list, links);
+      enhanceTabs(list, { signal: life.signal });
+      await vi.waitFor(() => {
+        expect(inView(list, links[2])).toBe(true);
+      });
+      links[2]?.removeAttribute("aria-current");
+      links[0]?.setAttribute("aria-current", "page");
+      await vi.waitFor(() => {
+        expect(inView(list, links[0])).toBe(true);
+      });
+    });
+
+    it("slides the pill under the current link, and its signal removes the pill", async () => {
+      const { list, links } = nav(0);
+      enhanceTabs(list, { signal: life.signal });
+      const pill = list.querySelector(":scope > .cp-pill") as HTMLElement;
+      expect(pill.hidden).toBe(false);
+      links[0]?.removeAttribute("aria-current");
+      await Promise.resolve();
+      expect(pill.hidden).toBe(true);
+      life.abort();
+      expect(list.querySelector(".cp-pill")).toBeNull();
+    });
   });
 
   it("shows the selected tab's panel in a strip enhanced before it joins the document", () => {
