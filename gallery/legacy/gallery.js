@@ -1,4 +1,3 @@
-import { clearError, reportErrors, showError } from "@cplieger/ui/form";
 import { toast } from "@cplieger/ui/toast";
 
 // The gallery's own behaviour for the cards that do not run on src/ yet, in plain DOM.
@@ -781,22 +780,6 @@ for (const host of $$("[data-ladder]")) {
   }
 }
 
-// ------------------------------------------------------- form validation
-// The gallery's own checks for Add a source; the library shows what they
-// find, and typed values stay.
-for (const form of $$("form.cp-form:not([data-sign-in])")) {
-  const summary = $("#f-summary", form);
-  if (!summary) continue;
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const errors = $$("[required]", form)
-      .filter((f) => !f.value.trim() || (f.type === "url" && !/^https?:\/\/\S+/.test(f.value)))
-      .map((field) => ({ field, message: field.type === "url" ? "Enter the address, starting with http:// or https://." : "Paste the key from Sonarr." }));
-    reportErrors(form, errors, { summary, heading: (n) => `${n} fields need a fix before this saves` });
-    if (errors.length === 0) toast({ kind: "success", title: "Source added" });
-  });
-}
-
 // ------------------------------------------------------- settings nav
 // The category in view is the current one; a press scrolls to it.
 const snav = $(".cp-settings-nav");
@@ -886,21 +869,6 @@ for (const md of $$("[data-md]")) {
     history.back();
   });
   render();
-}
-
-// ------------------------------------------------------------ pair rows
-// A path must start with /, said once the field is left. main.ts runs the
-// rows.
-for (const ed of $$("[data-pairs]")) {
-  ed.addEventListener("focusout", (e) => {
-    const f = e.target;
-    if (!f.matches("input")) return;
-    if (f.value.trim() !== "" && !f.value.startsWith("/")) {
-      showError(f, "Start with /");
-    } else {
-      clearError(f);
-    }
-  });
 }
 
 // A refresh that waits turns its own icon: Motion's one turn, repeated

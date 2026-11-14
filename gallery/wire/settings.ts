@@ -1,10 +1,11 @@
 /**
- * settings.ts — the gallery's wiring for the forms page's file fields and
- * the upload dialog, on the library's file and form modules.
+ * settings.ts — the gallery's wiring for the forms page's file fields, the
+ * upload dialog, Add a source and the pair rows, on the library's modules.
  */
 
 import { enhanceFiles, uploadFile, type UploadResult } from "@cplieger/ui/file";
-import { reportErrors } from "@cplieger/ui/form";
+import { clearError, reportErrors, showError, type Control } from "@cplieger/ui/form";
+import { toast } from "@cplieger/ui/toast";
 
 // The gallery's made-up server: every second upload fails once, so the card
 // shows Retry.
@@ -58,6 +59,49 @@ for (const input of document.querySelectorAll<HTMLInputElement>("input[type='fil
       for (const file of files.files) {
         uploadFile(uploads, file, send);
       }
+    }
+  });
+}
+
+// Add a source runs the gallery's own checks; the library shows what they
+// find, and typed values stay.
+const source = document.getElementById("f-summary");
+const sourceForm = source?.closest("form");
+if (source !== null && sourceForm !== null && sourceForm !== undefined) {
+  sourceForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const errors = [...sourceForm.querySelectorAll<Control>("[required]")]
+      .filter(
+        (f) => f.value.trim() === "" || (f.type === "url" && !/^https?:\/\/\S+/.test(f.value)),
+      )
+      .map((field) => ({
+        field,
+        message:
+          field.type === "url"
+            ? "Enter the address, starting with http:// or https://."
+            : "Paste the key from Sonarr.",
+      }));
+    reportErrors(sourceForm, errors, {
+      summary: source,
+      heading: (n) => `${String(n)} fields need a fix before this saves`,
+    });
+    if (errors.length === 0) {
+      toast({ kind: "success", title: "Source added" });
+    }
+  });
+}
+
+// A path must start with /, said once the field is left.
+for (const box of document.querySelectorAll<HTMLElement>("[data-pairs]")) {
+  box.addEventListener("focusout", (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLInputElement)) {
+      return;
+    }
+    if (f.value.trim() !== "" && !f.value.startsWith("/")) {
+      showError(f, "Start with /");
+    } else {
+      clearError(f);
     }
   });
 }
