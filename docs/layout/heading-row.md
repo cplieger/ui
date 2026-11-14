@@ -53,7 +53,7 @@ Each part of the title block is optional, in this order:
 - `data-part="alt-title"`: the title in its own language, muted, 2px under the title. Give it the `lang` of its language.
 - The line of facts: a `p.cp-meta` for a sentence, or a `p.cp-cluster.cp-meta` of one `<span>` per fact, which the cluster spaces apart, so no dot joins them. It sits 8px under an alternative title.
 - A `ul.cp-stack[data-gap="tight"]`: one line per copy or source, each saying its state in words, with a `.cp-state` for the state.
-- A `nav.cp-cluster[data-gap="tight"]` of `a.cp-filter-chip`: the item's other pages and the services that hold it. The chip draws a chevron after a link that stays in the app and the external mark after one with `rel="external"`. Write what a screen reader needs to know in a `.cp-visually-hidden` span, such as ", opens AniList", since the mark is drawn.
+- A `nav.cp-cluster[data-gap="tight"]` of `a.cp-filter-chip`: the item's other pages and the services that hold it. The chip draws a chevron after a link that stays in the app and the external mark after one with `rel="external"`. Write what a screen reader needs to know in a `.cp-visually-hidden` span, such as ", opens AniList", since the mark is drawn. A service the browser cannot reach, such as one with no public address, keeps its place as plain words, a `span.cp-meta` in the same row, so nothing looks like a link that goes nowhere.
 - A last `.cp-cluster` of `.cp-chip`s: the item's states.
 
 The lines, the links and the chips each sit 12px under what comes before them.

@@ -176,6 +176,19 @@ describe("heading row with a poster: the item hero", () => {
     expect(words.getBoundingClientRect().width).toBeLessThanOrEqual(1);
   });
 
+  it("names a service with no address as muted words among the links, with no link and no mark", () => {
+    const row = hero(900);
+    const links = row.querySelector("nav.cp-cluster") as HTMLElement;
+    links.insertAdjacentHTML("beforeend", '<span class="cp-meta">Sonarr</span>');
+    const name = links.lastElementChild as HTMLElement;
+    const chip = links.querySelector("a.cp-filter-chip") as HTMLElement;
+    expect(getComputedStyle(name).color).toBe(muted());
+    expect(getComputedStyle(name, "::after").content).toBe("none");
+    const n = name.getBoundingClientRect();
+    const c = chip.getBoundingClientRect();
+    expect(n.top + n.height / 2).toBeCloseTo(c.top + c.height / 2, 0);
+  });
+
   it("keeps the title block beside the poster down to 26.5rem of row, then puts it under", () => {
     const beside = hero(424);
     expect(box(beside, ".cp-cover + div").top).toBeCloseTo(box(beside, ".cp-cover").top, 0);
