@@ -34,8 +34,9 @@ export interface LoadMoreWords {
   readonly count?: (n: number) => string;
   /** The button's words while a page loads. Default "Loading…". */
   readonly busy?: string;
-  /** Said when a page fails. Default "The next page did not load." */
-  readonly failed?: string;
+  /** Said when a page fails, or built from what `load` rejected with, such
+   *  as the server's reason. Default "The next page did not load." */
+  readonly failed?: string | ((reason: unknown) => string);
   /** The button's words after a page failed. Default "Retry". */
   readonly retry?: string;
 }
@@ -308,7 +309,7 @@ export function enhanceLoadMore(button: HTMLButtonElement, options: LoadMoreOpti
     } catch (err) {
       if (!life.signal.aborted) {
         cycle.setRest(retry);
-        announce(failed);
+        announce(typeof failed === "function" ? failed(err) : failed);
       }
       throw err;
     }
