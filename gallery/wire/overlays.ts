@@ -82,7 +82,7 @@ for (const b of document.querySelectorAll("[data-turn]")) {
   });
 }
 for (const b of document.querySelectorAll<HTMLButtonElement>(
-  '.cp-toggle:is([data-kind="pin"], [data-kind="favourite"])',
+  ".cp-toggle:not([data-theme-toggle])",
 )) {
   enhanceToggle(b);
 }
@@ -225,31 +225,6 @@ for (const d of document.querySelectorAll<HTMLDialogElement>(".cp-dialog[data-sa
       toast({ kind: value === "delete" ? "success" : "info", title: d.dataset["says"] ?? "" });
     }
   });
-}
-
-// The delete names how many files the chosen groups hold, and waits for one.
-for (const d of document.querySelectorAll<HTMLDialogElement>("[data-grouped]")) {
-  const boxes = [...d.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
-  const go = d.querySelector<HTMLButtonElement>('[type="submit"]');
-  if (go === null) {
-    continue;
-  }
-  const update = (): void => {
-    const n = boxes
-      .filter((b) => b.checked)
-      .reduce((sum, b) => sum + Number(b.dataset["count"]), 0);
-    go.disabled = n === 0;
-    go.textContent =
-      n === 0 ? "Choose what to delete" : `Delete ${String(n)} ${n === 1 ? "file" : "files"}`;
-  };
-  d.addEventListener("change", update);
-  d.addEventListener("close", () => {
-    for (const b of boxes) {
-      b.checked = false;
-    }
-    update();
-  });
-  update();
 }
 
 // The filter sheet stages, as docs/design-patterns.md describes: the foot

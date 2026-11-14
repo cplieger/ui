@@ -1,15 +1,17 @@
 /**
- * form.ts — a form's errors, as the forms pattern in docs/design-patterns.md
- * asks: each field with an error is marked invalid and gets its sentence
- * under it, tied by `aria-describedby`. One error moves focus to its field;
- * two or more fill the form's summary, a list of links to each field, and
- * move focus to it. What the person typed stays.
+ * form.ts — a form's errors and its unsaved changes, as the forms pattern in
+ * docs/design-patterns.md asks: each error is its field's sentence, tied by
+ * `aria-describedby`; one focuses its field, two or more fill the summary
+ * and focus it. `guardChanges` asks before a navigation or a close drops
+ * what the person typed.
  * @module
  */
 
 import { type Control, MARK, clearError as clear, idOf, showError as show } from "./field-error.js";
 
 export type { Control } from "./field-error.js";
+export { guardChanges, leavePage } from "./unsaved.js";
+export type { FreshValue, FreshValues, Guard, GuardOptions, UnsavedWords } from "./unsaved.js";
 
 /** Marks `field` valid: its error hides and no longer describes it, whoever
  *  showed it. */

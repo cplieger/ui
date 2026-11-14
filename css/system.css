@@ -3044,100 +3044,6 @@
   }
 }
 
-/* One choice of a few, such as a theme: native radios in labels, so the
- * arrow keys move the choice with no script. */
-.cp-segmented {
-  display: inline-flex;
-  inline-size: fit-content;
-  max-inline-size: 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  /* One control height overall, so a segmented sits level with inputs and
-   * buttons in a row; the pill track is this height less its padding. */
-  min-block-size: var(--cp-control-h);
-  gap: var(--cp-space-1);
-  padding: var(--cp-space-1);
-  border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
-  background: var(--cp-fill);
-}
-
-.cp-segmented > label {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--cp-space-2);
-  min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
-  min-inline-size: var(--cp-hit-min);
-  padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  color: var(--cp-ink-muted);
-  font-weight: var(--cp-weight-medium);
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color var(--cp-dur-micro) var(--cp-ease-out),
-    color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-.cp-segmented > label > input {
-  position: absolute;
-  inset: 0;
-  /* WebKit keeps a radio at its own size under inset: 0. */
-  inline-size: 100%;
-  block-size: 100%;
-  margin: 0;
-  opacity: 0;
-  cursor: inherit;
-}
-
-/* An icon-only choice, such as a List, Grid or Table view: square
- * segments, each named by its radio's aria-label or by visually hidden
- * words in its label. */
-.cp-segmented[data-variant="icons"] > label {
-  inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
-  min-inline-size: 0;
-  padding-inline: 0;
-}
-
-.cp-segmented > label:has(:checked) {
-  --cp-chart-surface: var(--cp-surface-raised);
-
-  background: var(--cp-surface-raised);
-  color: var(--cp-ink);
-}
-
-/* [data-cp-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
- * arrow keys reached where WebKit drops :focus-visible. */
-.cp-segmented > label:has(:focus-visible, [data-cp-focus-ring]:focus) {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
-}
-
-.cp-segmented > label:has(:disabled) {
-  cursor: not-allowed;
-  color: var(--cp-ink-disabled);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-segmented > label:hover {
-      color: var(--cp-ink);
-    }
-
-    /* A scoped rule outranks an unscoped one before specificity counts. */
-    .cp-segmented > label:has(:disabled):hover {
-      color: var(--cp-ink-disabled);
-    }
-  }
-}
-
-@media (forced-colors: active) {
-  .cp-segmented > label:has(:checked) {
-    border: var(--cp-line-w) solid CanvasText;
-  }
-}
-
 /* A settings page: its categories, a plain compact list of links, beside
  * the open one's form, and in a row above it under 48rem. */
 .cp-settings {
@@ -8680,33 +8586,67 @@ div.cp-list-foot {
   }
 }
 
-/* Tabs: ARIA tabs; the selected tab is a raised fill. */
-.cp-tabs {
-  display: flex;
+/* One switcher look for three jobs: ARIA tabs that show panels (a tablist
+ * of .cp-tab buttons), tabs that are links (a nav whose current link is
+ * aria-current="page"), and the segmented control, which sets a value
+ * (forms/segmented). The chosen one is a raised fill, which
+ * @cplieger/ui/pill turns into a pill that slides. */
+.cp-tabs,
+.cp-segmented {
   gap: var(--cp-space-1);
   inline-size: fit-content;
   max-inline-size: 100%;
   padding: var(--cp-space-1);
-  overflow-x: auto;
-  scrollbar-width: none;
   background: var(--cp-fill);
   border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
 }
 
-.cp-tab {
-  min-block-size: var(--cp-control-h-sm);
+/* A strip scrolls when it is wider than its place; its padding holds the
+ * focus rings, since a scroll box clips at its padding edge. */
+.cp-tabs {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cp-tab,
+.cp-tabs > a,
+.cp-segmented > label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
   padding-inline: var(--cp-space-3);
-  border: 0;
   border-radius: var(--cp-radius-control);
-  background: transparent;
   color: var(--cp-ink-muted);
-  font: inherit;
   font-weight: var(--cp-weight-medium);
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    color var(--cp-dur-micro) var(--cp-ease-out);
 }
 
-.cp-tab[aria-selected="true"] {
+.cp-tab,
+.cp-tabs > a {
+  flex: none;
+  min-block-size: var(--cp-control-h-sm);
+}
+
+.cp-tab {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-tabs > a {
+  text-decoration: none;
+}
+
+.cp-tab[aria-selected="true"],
+.cp-tabs > a[aria-current="page"],
+.cp-segmented > label:has(:checked) {
   --cp-chart-surface: var(--cp-surface-raised);
 
   background: var(--cp-surface-raised);
@@ -8715,96 +8655,172 @@ div.cp-list-foot {
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-tab:not([aria-selected="true"]):hover {
+    .cp-tab:not([aria-selected="true"]):hover,
+    .cp-tabs > a:not([aria-current="page"]):hover,
+    .cp-segmented > label:hover {
       color: var(--cp-ink);
     }
   }
 }
 
 @media (forced-colors: active) {
-  .cp-tab[aria-selected="true"] {
+  .cp-tab[aria-selected="true"],
+  .cp-tabs > a[aria-current="page"],
+  .cp-segmented > label:has(:checked) {
     border: var(--cp-line-w) solid CanvasText;
   }
 }
 
-/* Tabs as links: a nav of links, one address each, the current one
- * aria-current="page" and underlined in the accent. The strip scrolls when
- * it is wider than its place, and a scroll box clips at its padding edge:
- * its padding holds the focus rings, its negative margins take that room
- * back out of the layout, and its line is drawn at the links' foot. */
-.cp-link-tabs {
-  --cp-link-tabs-room: calc(var(--cp-focus-w) + var(--cp-focus-offset));
-  --cp-link-tabs-line: var(--cp-line);
-
-  display: flex;
-  gap: var(--cp-space-1);
-  margin: calc(-1 * var(--cp-link-tabs-room));
-  margin-block-end: calc(var(--cp-line-w) - var(--cp-link-tabs-room));
-  padding: var(--cp-link-tabs-room);
-  overflow-x: auto;
-  scrollbar-width: none;
-  background: linear-gradient(var(--cp-link-tabs-line) 0 0) center bottom
-    calc(var(--cp-link-tabs-room) - var(--cp-line-w)) / calc(100% - 2 * var(--cp-link-tabs-room))
-    var(--cp-line-w) no-repeat;
-}
-
-.cp-link-tabs > a {
-  position: relative;
+/* One choice of a few, such as a theme: native radios in labels, so the
+ * arrow keys move the choice with no script. Its look is the switcher's
+ * (navigation/tabs), so this file follows tabs.css in the cascade. */
+.cp-segmented {
   display: inline-flex;
-  flex: none;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--cp-space-2);
+  /* One control height overall, so a segmented sits level with inputs and
+   * buttons in a row; the pill track is this height less its padding. */
   min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-3);
-  color: var(--cp-ink-muted);
-  font-weight: var(--cp-weight-medium);
-  text-decoration: none;
-  white-space: nowrap;
 }
 
-.cp-link-tabs > a[aria-current="page"] {
-  color: var(--cp-ink);
+.cp-segmented > label {
+  position: relative;
+  min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: var(--cp-hit-min);
 }
 
-/* Over the strip's line, so the current link's mark replaces it. */
-.cp-link-tabs > a[aria-current="page"]::after {
-  content: "";
+/* The radio reaches over the track's padding above and below its label, so
+ * a segment's target is the control's whole height, a finger's under a
+ * coarse pointer. A wrapped line's gap is that padding, so a target reaches
+ * the next line's label and never covers it. */
+.cp-segmented > label > input {
   position: absolute;
-  inset-inline: var(--cp-space-2);
-  inset-block-end: calc(-1 * var(--cp-line-w));
-  block-size: 2px;
-  border-radius: 2px;
-  background: var(--cp-accent);
+  inset: calc(-1 * var(--cp-space-1)) 0;
+  /* WebKit keeps a radio at its own size under inset. */
+  inline-size: 100%;
+  block-size: calc(100% + 2 * var(--cp-space-1));
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+/* An icon-only choice, such as a List, Grid or Table view: square
+ * segments, each named by its radio's aria-label or by visually hidden
+ * words in its label. */
+.cp-segmented[data-variant="icons"] > label {
+  inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
+  min-inline-size: 0;
+  padding-inline: 0;
+}
+
+/* [data-cp-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
+ * arrow keys reached where WebKit drops :focus-visible. */
+.cp-segmented > label:has(:focus-visible, [data-cp-focus-ring]:focus) {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+.cp-segmented > label:has(:disabled) {
+  cursor: not-allowed;
+  color: var(--cp-ink-disabled);
 }
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-link-tabs > a:not([aria-current="page"]):hover {
-      color: var(--cp-ink);
+    /* A scoped rule outranks an unscoped one of the same specificity. */
+    .cp-segmented > label:has(:disabled):hover {
+      color: var(--cp-ink-disabled);
     }
   }
 }
 
-/* Forced colours drop the strip's line, a background image, unless the
- * strip keeps its own colours; its links take the system's back. */
-@media (forced-colors: active) {
-  .cp-link-tabs {
-    --cp-link-tabs-line: CanvasText;
-
-    forced-color-adjust: none;
+/* The disclosure look: a native <details> in one of two forms with one
+ * chevron, drawn pointing down and turned by the form. Inline, here: the
+ * summary is an accent line with the chevron before its words. Boxed: the
+ * sections of a .cp-accordion (accordion.css). The context panel, a
+ * timeline's events and a state history still draw their own summaries, so
+ * they are left out. disclosure.ts keeps a closing section open, marked
+ * data-cp-closing, so the chevron turns back as the press lands. */
+:where(
+  .cp
+    details:not(
+      .cp-context-panel,
+      .cp-list[data-variant="timeline"] details,
+      .cp-state-history > details
+    )
+) {
+  & > summary {
+    list-style: none;
+    cursor: pointer;
   }
 
-  .cp-link-tabs > * {
-    forced-color-adjust: auto;
+  & > summary::-webkit-details-marker {
+    display: none;
   }
 
-  .cp-link-tabs > a[aria-current="page"]::after {
-    background: CanvasText;
-    forced-color-adjust: none;
+  & > summary::before {
+    content: "";
+    flex: none;
+    inline-size: 0.875rem;
+    block-size: 0.875rem;
+    background: currentcolor;
+    mask: url("../icons/svg/chevron-down.svg") center / contain no-repeat;
+    transition: rotate var(--cp-dur-short) var(--cp-ease-out);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    @media (forced-colors: active) {
+      background: CanvasText;
+    }
+  }
+
+  &:where(:not(:is(.cp-accordion, .cp-accordion-section) > details)) {
+    /* Block level, so no line box adds space under it, and as wide as its
+     * words, so only they and the chevron answer a press. */
+    & > summary {
+      position: relative;
+      display: flex;
+      align-items: center;
+      inline-size: fit-content;
+      gap: 0.25rem;
+      color: var(--cp-accent-11);
+    }
+
+    /* The summary keeps its line, so its hit area reaches past it, sized
+     * rather than inset so it never snaps under the minimum. */
+    & > summary::after {
+      content: "";
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline: 0;
+      block-size: var(--cp-hit-min);
+      translate: 0 -50%;
+    }
+
+    /* Shut, the chevron points where the words run, so it turns the other
+     * way right to left. */
+    & > summary::before {
+      rotate: -90deg;
+    }
+
+    & > summary:where(:dir(rtl))::before {
+      rotate: 90deg;
+    }
+
+    &:where([open]:not([data-cp-closing])) > summary::before {
+      rotate: none;
+    }
+
+    & > summary + * {
+      margin-block-start: var(--cp-space-2);
+    }
   }
 }
 
-/* An accordion: native <details> in one raised box, divided by lines. A
+/* An accordion: native <details> in one raised box, divided by lines, the
+ * boxed form of the disclosure look, whose chevron disclosure.css draws. A
  * section with its own menu is a .cp-accordion-section holding the details
  * and the menu's button, which sits beside the summary and not in it, so
  * pressing it never opens or shuts the section. */
@@ -8821,43 +8837,44 @@ div.cp-list-foot {
   border-block-start: var(--cp-line-w) solid var(--cp-line);
 }
 
-.cp-accordion summary {
+/* The title, its count and its chip wrap as whole pieces, so a narrow box
+ * puts the chip under the title rather than breaking either. The end
+ * padding keeps the chevron's room, which sits outside the flow. */
+:is(.cp-accordion, .cp-accordion-section) > details > summary {
+  position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--cp-space-2);
+  gap: var(--cp-space-1) var(--cp-space-2);
   min-block-size: var(--cp-control-h);
-  padding: var(--cp-space-1) var(--cp-space-4);
+  padding-block: var(--cp-space-1);
+  padding-inline: var(--cp-space-4) calc(var(--cp-space-4) + var(--cp-icon-ui) + var(--cp-space-2));
   border-radius: calc(var(--cp-radius-surface) - var(--cp-line-w));
   font-weight: var(--cp-weight-medium);
-  cursor: pointer;
-  list-style: none;
-}
-
-.cp-accordion summary::-webkit-details-marker {
-  display: none;
 }
 
 /* A summary spans the box, so its ring is drawn inside it. */
-.cp-accordion summary:focus-visible {
+:is(.cp-accordion, .cp-accordion-section) > details > summary:focus-visible {
   outline-offset: calc(-1 * var(--cp-focus-w));
 }
 
-/* The chevron stays by a wrapped title's first line, level with a menu
- * button. It turns as the press lands, shutting included: disclosure.ts
- * keeps a closing section open, marked data-cp-closing, while it glides. */
-.cp-accordion summary > .cp-icon:last-child {
-  align-self: start;
-  margin-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2 - var(--cp-space-1));
-  margin-inline-start: auto;
+/* The chevron ends the summary, by a wrapped title's first line and level
+ * with a menu button. */
+:is(.cp-accordion, .cp-accordion-section) > details > summary::before {
+  position: absolute;
+  inset-block-start: calc((var(--cp-control-h) - var(--cp-icon-ui)) / 2);
+  inset-inline-end: var(--cp-space-4);
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
   color: var(--cp-ink-muted);
-  transition: rotate 200ms var(--cp-ease-out);
+  transition-duration: 200ms;
 }
 
-:where(.cp-accordion) details[open]:not([data-cp-closing]) > summary > .cp-icon:last-child {
+:is(.cp-accordion, .cp-accordion-section) > details[open]:not([data-cp-closing]) > summary::before {
   rotate: 180deg;
 }
 
-.cp-accordion details > summary + * {
+:is(.cp-accordion, .cp-accordion-section) > details > summary + * {
   padding: 0 var(--cp-space-4) var(--cp-space-4);
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
@@ -8882,17 +8899,10 @@ div.cp-list-foot {
 
 /* Keeps the menu button's width free before the chevron, so a long title
  * or chip wraps short of the button instead of running under it. */
-.cp-accordion-section > details > summary::after {
-  content: "";
-  flex: none;
-  order: 1;
-  inline-size: var(--cp-accordion-menu-w);
-  margin-inline-start: auto;
-}
-
-.cp-accordion-section > details > summary > .cp-icon:last-child {
-  order: 2;
-  margin-inline-start: 0;
+.cp-accordion-section > details > summary {
+  padding-inline-end: calc(
+    var(--cp-space-4) + 1.5rem + var(--cp-accordion-menu-w) + var(--cp-space-2)
+  );
 }
 
 /* Progress for a known amount: a native <progress> in a .cp-progress that
@@ -10406,9 +10416,9 @@ button.cp-figure[aria-expanded="true"]::after {
   color: var(--cp-ink-muted);
 }
 
-/* A confirmation that asks which groups its action takes, such as which
- * files to delete, lists them under its words. */
-.cp-dialog[data-variant="confirm"] .cp-dialog-body .cp-choices {
+/* A confirmation lists the groups its action takes, such as which files to
+ * delete, or the facts to see before answering, under its words. */
+.cp-dialog[data-variant="confirm"] .cp-dialog-body :is(.cp-choices, .cp-facts) {
   margin-block-start: var(--cp-space-3);
 }
 
@@ -10576,8 +10586,8 @@ button.cp-figure[aria-expanded="true"]::after {
 
 /* A command palette (@cplieger/ui/palette): a .cp-dialog near the top of
  * the window, its search field above a list of actions, each with its icon
- * and, at its end, the keys that run it. On a phone it rises from the
- * bottom edge as every dialog does. */
+ * and, at its end, the keys that run it, drawn as the popup option row in
+ * menu.css. On a phone it rises from the bottom edge as every dialog does. */
 @media (width >= 40rem) {
   .cp-palette {
     inline-size: min(36rem, calc(100vw - 2rem));
@@ -10615,52 +10625,11 @@ button.cp-figure[aria-expanded="true"]::after {
   list-style: none;
 }
 
-.cp-palette [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  min-block-size: var(--cp-control-h);
-  padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-.cp-palette [role="option"] > .cp-icon {
-  color: var(--cp-ink-muted);
-}
-
-/* The keys that run an action are muted words at its end, as in a menu. */
-.cp-palette [role="option"] > kbd,
-.cp-palette [role="option"] > kbd kbd {
-  margin-inline-start: auto;
-  padding: 0;
-  border: 0;
-  color: var(--cp-ink-muted);
-  font: inherit;
-  font-size: var(--cp-text-xs);
-}
-
-.cp-palette [role="option"][aria-selected="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-}
-
-.cp-palette [role="option"][aria-selected="true"] > .cp-icon {
-  color: inherit;
-}
-
 .cp-palette [data-part="empty"] {
   margin: 0;
   padding: var(--cp-space-6) var(--cp-space-4);
   color: var(--cp-ink-muted);
   text-align: center;
-}
-
-@media (forced-colors: active) {
-  .cp-palette [role="option"][aria-selected="true"] {
-    background: Highlight;
-    color: HighlightText;
-  }
 }
 
 /* A popover: a menu or a panel in the top layer, so no z-index decides it,
@@ -10765,8 +10734,9 @@ button.cp-figure[aria-expanded="true"]::after {
 
 /* A select panel (@cplieger/ui/select-panel): a .cp-popover holding a field
  * that filters a list of options to check, and the button that applies
- * them. Its form only groups them, so the popover lays them out. An
- * option's box is drawn with the menu's check items, in menu.css. */
+ * them. Its form only groups them, so the popover lays them out. Its
+ * options are the popup option row, their box the menu's check items', in
+ * menu.css. */
 .cp-popover.cp-select-panel {
   display: grid;
   gap: var(--cp-space-2);
@@ -10791,43 +10761,12 @@ button.cp-figure[aria-expanded="true"]::after {
   list-style: none;
 }
 
-.cp-select-panel [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-:root[data-pointer="coarse"] .cp-select-panel [role="option"] {
-  min-block-size: var(--cp-control-h);
-}
-
-/* The option the arrow keys reached, which Enter checks; focus stays in
- * the field. */
-.cp-select-panel [role="option"][data-cp-active] {
-  background: var(--cp-fill);
-}
-
-.cp-select-panel [role="option"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
 /* The words shown while no option matches the filter. */
 .cp-select-panel [data-part="empty"] {
   margin: 0;
   padding: var(--cp-space-1) var(--cp-space-2);
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
-}
-
-@media (forced-colors: active) {
-  .cp-select-panel [role="option"][data-cp-active] {
-    outline: var(--cp-line-w) solid Highlight;
-  }
 }
 
 /* The header status's panel: a .cp-popover[data-variant="panel"] whose
@@ -10861,9 +10800,9 @@ button.cp-figure[aria-expanded="true"]::after {
 }
 
 /* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as
- * wide as its field, the active option filled, a muted word at an option's
- * end in a <small>. It is the listbox, or the popup that holds the listbox
- * beside its .cp-listbox-empty line. */
+ * wide as its field. It is the listbox, or the popup that holds the listbox
+ * beside its .cp-listbox-empty line. Its options are the popup option row,
+ * in menu.css. */
 .cp-listbox {
   inline-size: anchor-size(width);
   min-inline-size: 12rem;
@@ -10871,36 +10810,6 @@ button.cp-figure[aria-expanded="true"]::after {
   margin-block: var(--cp-space-1) 0;
   overflow: auto;
   list-style: none;
-}
-
-.cp-listbox [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-:root[data-pointer="coarse"] .cp-listbox [role="option"] {
-  min-block-size: var(--cp-control-h);
-}
-
-.cp-listbox [role="option"][aria-selected="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-}
-
-.cp-listbox [role="option"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
-.cp-listbox [role="option"] small {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
 }
 
 .cp-listbox > [role="listbox"] {
@@ -10948,26 +10857,28 @@ button.cp-figure[aria-expanded="true"]::after {
   margin-inline-start: 0;
 }
 
-@media (forced-colors: active) {
-  .cp-listbox [role="option"][aria-selected="true"] {
-    background: Highlight;
-    color: HighlightText;
-  }
+/* One option row for every popup: a menu's items and the options of a
+ * combobox (.cp-listbox), a select panel and a palette. A row is a lead
+ * (.cp-icon, a check box, a .cp-cover), its words, and an end: keys in a
+ * <kbd>, a muted <small> or a quiet .cp-badge. The option the keys reach,
+ * where Enter goes, takes the selected wash; a pointer over a row takes the
+ * fill. A menu's keys move focus and the others' aria-activedescendant, and
+ * a select panel's aria-selected means checked, so each marks the reached
+ * option its own way. */
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
+  --cp-option-h: var(--cp-control-h-sm);
 }
 
-/* A menu: a .cp-popover with role="menu", its items buttons or links with a
- * menuitem role. Focus is the highlight, so a key and a mouse land on the
- * same row. */
-.cp-menu {
-  min-inline-size: 12rem;
+:root[data-pointer="coarse"] :is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) {
+  --cp-option-h: var(--cp-control-h);
 }
 
-.cp-menu [role^="menuitem"] {
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette) :is([role^="menuitem"], [role="option"]) {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
   inline-size: 100%;
-  min-block-size: var(--cp-control-h-sm);
+  min-block-size: var(--cp-option-h);
   padding-inline: var(--cp-space-2) var(--cp-space-3);
   border: 0;
   border-radius: var(--cp-radius-control);
@@ -10979,8 +10890,70 @@ button.cp-figure[aria-expanded="true"]::after {
   cursor: pointer;
 }
 
-:root[data-pointer="coarse"] .cp-menu [role^="menuitem"] {
-  min-block-size: var(--cp-control-h);
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  > :is(kbd, small, .cp-badge) {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  :is(kbd, small) {
+  padding: 0;
+  border: 0;
+  color: var(--cp-ink-muted);
+  font: inherit;
+  font-size: var(--cp-text-xs);
+}
+
+:is(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+  :is([role^="menuitem"], [role="option"])
+  > .cp-icon {
+  color: var(--cp-ink-muted);
+}
+
+/* The popups sit in :where() so the reached option's rule outranks the
+ * hover: a scoped rule beats an unscoped one of equal specificity
+ * (https://drafts.csswg.org/css-cascade-6/#cascade-proximity). */
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-menu, .cp-listbox, .cp-select-panel, .cp-palette)
+      :is([role^="menuitem"], [role="option"]):hover {
+      background: var(--cp-fill);
+    }
+  }
+}
+
+.cp-menu [role^="menuitem"]:focus,
+:is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+.cp-select-panel [role="option"][data-cp-active] {
+  outline: none;
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+}
+
+.cp-menu [role^="menuitem"]:focus > .cp-icon,
+:is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"] > .cp-icon,
+.cp-select-panel [role="option"][data-cp-active] > .cp-icon {
+  color: inherit;
+}
+
+.cp-menu [role^="menuitem"][data-tone="danger"],
+.cp-menu [role^="menuitem"][data-tone="danger"] > .cp-icon {
+  color: var(--cp-danger-11);
+}
+
+.cp-menu [role^="menuitem"][aria-disabled="true"],
+:is(.cp-listbox, .cp-select-panel, .cp-palette) [role="option"][aria-disabled="true"] {
+  color: var(--cp-ink-disabled);
+  cursor: not-allowed;
+}
+
+/* A menu: a .cp-popover with role="menu", its items buttons or links with a
+ * menuitem role. */
+.cp-menu {
+  min-inline-size: 12rem;
 }
 
 /* A zone enhanceContextMenu opens a menu in: under a finger a hold opens it,
@@ -10989,43 +10962,6 @@ button.cp-figure[aria-expanded="true"]::after {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-.cp-menu [role^="menuitem"]:focus {
-  outline: none;
-  background: var(--cp-fill);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-menu [role^="menuitem"]:hover {
-      background: var(--cp-fill);
-    }
-  }
-}
-
-.cp-menu [role^="menuitem"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
-.cp-menu [role^="menuitem"] > kbd,
-.cp-menu [role^="menuitem"] > kbd kbd {
-  margin-inline-start: auto;
-  padding: 0;
-  border: 0;
-  color: var(--cp-ink-muted);
-  font: inherit;
-  font-size: var(--cp-text-xs);
-}
-
-.cp-menu [role^="menuitem"] > .cp-icon {
-  color: var(--cp-ink-muted);
-}
-
-.cp-menu [data-tone="danger"],
-.cp-menu [data-tone="danger"] > .cp-icon {
-  color: var(--cp-danger-11);
 }
 
 .cp-menu hr {
@@ -11040,17 +10976,6 @@ button.cp-figure[aria-expanded="true"]::after {
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-heading);
-}
-
-/* A count or a word at an item's end, such as a link's "New". */
-.cp-menu-tag {
-  margin-inline-start: auto;
-  padding: 0 var(--cp-space-2);
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-medium);
 }
 
 /* A radio item's tick, the check icon at an icon's size: a single choice
@@ -11146,8 +11071,17 @@ button.cp-figure[aria-expanded="true"]::after {
 }
 
 @media (forced-colors: active) {
-  .cp-menu [role^="menuitem"]:focus {
-    outline: var(--cp-line-w) solid Highlight;
+  .cp-menu [role^="menuitem"]:focus,
+  :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"],
+  .cp-select-panel [role="option"][data-cp-active] {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .cp-menu [role^="menuitem"]:focus :is(kbd, small, .cp-icon),
+  :is(.cp-listbox, .cp-palette) [role="option"][aria-selected="true"] :is(kbd, small, .cp-icon),
+  .cp-select-panel [role="option"][data-cp-active] :is(kbd, small, .cp-icon) {
+    color: inherit;
   }
 
   :is(.cp-menu [role="menuitemcheckbox"], .cp-select-panel [role="option"])::before {
@@ -11483,23 +11417,59 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 
 /* A toggle (@cplieger/ui/toggle): a quiet icon button that is on or off,
  * such as Pin, Favourite or the theme. While on it shows its other drawing,
- * in its own colour for a pin (the accent) and a favourite (a red), and a
- * change plays the drawing's motion: a pin drops in as if into a board and
- * lifts out, a heart beats, and the theme's sun turns over into a moon.
- * Under a mouse a pin lifts 2px and an off heart tints, as a hint of what a
- * press does. */
+ * in its data-tone when it has one (the drawing in step 9, any words in
+ * step 11), and a change plays its data-motion. data-kind is a preset of
+ * both: pin is the accent and drop, favourite its own red and beat, theme
+ * the ink it sits on and turn. */
 .cp-toggle {
-  --cp-toggle-on: var(--cp-accent);
+  --cp-toggle-on: currentcolor;
+  --cp-toggle-ink: currentcolor;
 }
 
-.cp-toggle[data-kind="favourite"] {
+/* A preset is (0,1,0) and a toggle's own data-tone or data-motion (0,2,0),
+ * so its own wins whatever the order. Each motion sets all four of its
+ * properties, so none of a preset's leaks past it. */
+:where(.cp-toggle)[data-kind="pin"] {
+  --cp-toggle-on: var(--cp-accent);
+  --cp-toggle-ink: var(--cp-accent-ink);
+}
+
+/* A heart's red is no tone, since a tone reads as a state; it has no step
+ * for words, so a favourite's words keep their ink. */
+:where(.cp-toggle)[data-kind="favourite"] {
   --cp-toggle-on: oklch(62% 0.21 20deg);
 }
 
-/* The theme toggle keeps the ink it sits on, in the header or a page: its
- * pressed state is dark, not a colour. */
-.cp-toggle[data-kind="theme"] {
-  --cp-toggle-on: currentcolor;
+.cp-toggle[data-tone] {
+  --cp-toggle-on: var(--cp-tone-9);
+  --cp-toggle-ink: var(--cp-tone-11);
+}
+
+/* Drop: lifts under a mouse, drops in as if into a board, lifts out. */
+:where(.cp-toggle)[data-kind="pin"],
+.cp-toggle[data-motion="drop"] {
+  --cp-toggle-lift: 0 -2px;
+  --cp-toggle-hint: currentcolor;
+  --cp-toggle-in: cp-toggle-drop 640ms;
+  --cp-toggle-out: cp-toggle-lift 360ms var(--cp-ease-out);
+}
+
+/* Beat: tints under a mouse, beats once as it turns on. */
+:where(.cp-toggle)[data-kind="favourite"],
+.cp-toggle[data-motion="beat"] {
+  --cp-toggle-lift: none;
+  --cp-toggle-hint: var(--cp-toggle-on);
+  --cp-toggle-in: cp-toggle-beat 1100ms var(--cp-ease-out);
+  --cp-toggle-out: none;
+}
+
+/* Turn: the drawing now shown turns over into place, both ways. */
+:where(.cp-toggle)[data-kind="theme"],
+.cp-toggle[data-motion="turn"] {
+  --cp-toggle-lift: none;
+  --cp-toggle-hint: currentcolor;
+  --cp-toggle-in: cp-toggle-turn 420ms var(--cp-ease-spring);
+  --cp-toggle-out: cp-toggle-turn 420ms var(--cp-ease-spring);
 }
 
 .cp-toggle > .cp-icon[data-part="on"],
@@ -11514,45 +11484,53 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 /* (0,4,1) lifts the colour over a quiet button's hover ink, a (0,4,0)
  * scoped rule that wins a tie by proximity. */
 button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
-  color: var(--cp-toggle-on);
+  color: var(--cp-toggle-ink);
 }
 
-.cp-toggle[data-kind="pin"] > .cp-icon {
+/* The drawing's fill is its own colour; (0,4,0) holds it over the hover
+ * hint. Forced colours keep the system's ink. */
+@media (forced-colors: none) {
+  .cp-toggle[aria-pressed="true"]:where(:enabled) > .cp-icon[data-part="on"] {
+    background-color: var(--cp-toggle-on);
+  }
+}
+
+.cp-toggle > .cp-icon {
   transition: translate 180ms var(--cp-ease-out);
 }
 
-@media (any-hover: hover) {
+/* The hint tints the drawing alone, so the words keep the quiet hover's
+ * ink, which differs in the header. */
+@media (any-hover: hover) and (forced-colors: none) {
   @scope (:root:not([data-pointer="coarse"])) {
-    :where(.cp-toggle[data-kind="pin"]):hover:enabled > .cp-icon {
-      translate: 0 -2px;
-    }
-
-    button.cp-toggle[data-kind="favourite"]:hover:enabled {
-      color: var(--cp-toggle-on);
+    :where(.cp-toggle):hover:enabled > .cp-icon {
+      background-color: var(--cp-toggle-hint, currentcolor);
     }
   }
 }
 
-/* The keyframes name no first or last frame, so the arc starts and ends at
- * the pin's own position: lifted under a mouse, at rest under a finger. */
-.cp-toggle[data-kind="pin"][data-cp-toggled="on"] > .cp-icon {
-  animation: cp-pin-drop 640ms;
+@media (any-hover: hover) and (prefers-reduced-motion: no-preference) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-toggle):hover:enabled > .cp-icon {
+      translate: var(--cp-toggle-lift, none);
+    }
+  }
 }
 
-.cp-toggle[data-kind="pin"][data-cp-toggled="off"] > .cp-icon {
-  animation: cp-pin-lift 360ms var(--cp-ease-out);
+/* The keyframes name no first or last frame, so a motion starts and ends
+ * at the drawing's own position: lifted under a mouse, at rest under a
+ * finger. */
+@media (prefers-reduced-motion: no-preference) {
+  .cp-toggle[data-cp-toggled="on"] > .cp-icon {
+    animation: var(--cp-toggle-in, none);
+  }
+
+  .cp-toggle[data-cp-toggled="off"] > .cp-icon {
+    animation: var(--cp-toggle-out, none);
+  }
 }
 
-.cp-toggle[data-kind="favourite"][data-cp-toggled="on"] > .cp-icon {
-  animation: cp-heart-beat 1100ms var(--cp-ease-out);
-}
-
-/* The drawing now shown turns over into place, so sun becomes moon. */
-.cp-toggle[data-kind="theme"][data-cp-toggled] > .cp-icon {
-  animation: cp-theme-turn 420ms var(--cp-ease-spring);
-}
-
-@keyframes cp-theme-turn {
+@keyframes cp-toggle-turn {
   from {
     opacity: 0;
     rotate: -120deg;
@@ -11560,7 +11538,7 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   }
 }
 
-@keyframes cp-pin-drop {
+@keyframes cp-toggle-drop {
   30% {
     translate: 0 -7px;
     animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
@@ -11577,13 +11555,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   }
 }
 
-@keyframes cp-pin-lift {
+@keyframes cp-toggle-lift {
   40% {
     translate: 0 -5px;
   }
 }
 
-@keyframes cp-heart-beat {
+@keyframes cp-toggle-beat {
   0% {
     scale: 1;
   }
@@ -11602,12 +11580,6 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
   100% {
     scale: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cp-toggle[data-cp-toggled] > .cp-icon {
-    animation: none;
   }
 }
 
@@ -11821,9 +11793,9 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 /* The pill @cplieger/ui/pill slides under a segmented choice's chosen
- * segment or a tab strip's selected tab. Placed by row and column, so a
- * wrapped choice slides to its line. Once it is there, the choices paint
- * no fill of their own. */
+ * segment, a tab strip's selected tab or a nav's current link. Placed by
+ * row and column, so a wrapped choice slides to its line. Once it is
+ * there, the choices paint no fill of their own. */
 :is(.cp-segmented, .cp-tabs):has(> .cp-pill) {
   position: relative;
 }
@@ -11862,12 +11834,14 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 }
 
 .cp-segmented:has(> .cp-pill) > label,
-.cp-tabs:has(> .cp-pill) > .cp-tab {
+.cp-tabs:has(> .cp-pill) > .cp-tab,
+.cp-tabs:has(> .cp-pill) > a {
   z-index: 1;
 }
 
 .cp-segmented:has(> .cp-pill) > label:has(:checked),
-.cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"] {
+.cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"],
+.cp-tabs:has(> .cp-pill) > a[aria-current="page"] {
   background: transparent;
   box-shadow: none;
 }
@@ -11908,6 +11882,14 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 :where(.cp) .cp-icon:where([data-cp-icon="arrow-up"]) {
   --cp-icon-image: url("../icons/svg/arrow-up.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="bell"]) {
+  --cp-icon-image: url("../icons/svg/bell.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="bell-ring"]) {
+  --cp-icon-image: url("../icons/svg/bell-ring.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="check"]) {

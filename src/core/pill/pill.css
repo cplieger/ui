@@ -1,7 +1,7 @@
 /* The pill @cplieger/ui/pill slides under a segmented choice's chosen
- * segment or a tab strip's selected tab. Placed by row and column, so a
- * wrapped choice slides to its line. Once it is there, the choices paint
- * no fill of their own. */
+ * segment, a tab strip's selected tab or a nav's current link. Placed by
+ * row and column, so a wrapped choice slides to its line. Once it is
+ * there, the choices paint no fill of their own. */
 :is(.cp-segmented, .cp-tabs):has(> .cp-pill) {
   position: relative;
 }
@@ -40,12 +40,14 @@
 }
 
 .cp-segmented:has(> .cp-pill) > label,
-.cp-tabs:has(> .cp-pill) > .cp-tab {
+.cp-tabs:has(> .cp-pill) > .cp-tab,
+.cp-tabs:has(> .cp-pill) > a {
   z-index: 1;
 }
 
 .cp-segmented:has(> .cp-pill) > label:has(:checked),
-.cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"] {
+.cp-tabs:has(> .cp-pill) > .cp-tab[aria-selected="true"],
+.cp-tabs:has(> .cp-pill) > a[aria-current="page"] {
   background: transparent;
   box-shadow: none;
 }

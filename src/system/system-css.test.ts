@@ -1657,7 +1657,7 @@ describe("css/system.css", () => {
     );
     const b = el.querySelector("button") as HTMLElement;
     expect(getComputedStyle(b.querySelector('[data-part="on"]') as Element).animationName).toBe(
-      "cp-theme-turn",
+      "cp-toggle-turn",
     );
     expect(getComputedStyle(b).color).toBe(
       getComputedStyle(el.querySelector("header") as Element).color,
@@ -1878,43 +1878,71 @@ describe("css/system.css", () => {
     expect(line.top - title.bottom).toBeCloseTo(4, 0);
   });
 
-  it("underlines the current link tab over the strip's line, and keeps its focus ring inside the scroll box", () => {
+  it("draws tabs as links as the tab strip: the current link raised, the others muted, no underline, rings inside the scroll box", () => {
     theme("light");
     const el = build(
-      '<div style="display: flow-root; inline-size: 200px"><nav class="cp-link-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a><a href="#c">Timing</a></nav><p>Next</p></div>',
+      '<div style="inline-size: 200px"><nav class="cp-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a><a href="#c">Timing</a></nav></div>' +
+        '<div class="cp-tabs" role="tablist" aria-label="Item"><button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button><button class="cp-tab" role="tab" type="button" aria-selected="false">History</button></div>',
     );
     const nav = el.querySelector("nav") as HTMLElement;
     const [current, other] = [...nav.querySelectorAll<HTMLElement>("a")] as [
       HTMLElement,
       HTMLElement,
     ];
-    const mark = getComputedStyle(current, "::after");
-    const accent = build('<span style="color: var(--cp-accent)"></span>')
-      .firstElementChild as HTMLElement;
-    expect(mark.backgroundColor).toBe(getComputedStyle(accent).color);
-    expect(getComputedStyle(other, "::after").content).toBe("none");
+    const [tab, rest] = [...el.querySelectorAll<HTMLElement>(".cp-tab")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    for (const n of [current, other, tab, rest]) {
+      n.style.transition = "none";
+    }
+    const strip = el.querySelector('[role="tablist"]') as HTMLElement;
+    const look = (n: HTMLElement) => {
+      const cs = getComputedStyle(n);
+      return [cs.backgroundColor, cs.color, cs.borderRadius, cs.fontWeight, cs.blockSize];
+    };
+    expect(look(current)).toEqual(look(tab));
+    expect(look(other)).toEqual(look(rest));
+    expect(getComputedStyle(current).textDecorationLine).toBe("none");
+    const track = (n: HTMLElement) => {
+      const cs = getComputedStyle(n);
+      return [cs.backgroundColor, cs.padding, cs.borderRadius, cs.overflowX];
+    };
+    expect(track(nav)).toEqual(track(strip));
     expect(getComputedStyle(nav).overflowX).toBe("auto");
     expect(nav.scrollWidth).toBeGreaterThan(nav.clientWidth);
-    const box = nav.getBoundingClientRect();
-    const tab = current.getBoundingClientRect();
-    const frame = (nav.parentElement as HTMLElement).getBoundingClientRect();
-    const next = (el.querySelector("p") as HTMLElement).getBoundingClientRect();
-    expect(mark.blockSize).toBe("2px");
-    expect(mark.insetBlockEnd).toBe("-1px");
     // Room for a 2px ring at a 2px offset on every side.
-    expect([tab.top - box.top, tab.left - box.left, box.bottom - tab.bottom]).toEqual([
+    const box = nav.getBoundingClientRect();
+    const link = current.getBoundingClientRect();
+    expect([link.top - box.top, link.left - box.left, box.bottom - link.bottom]).toEqual([
       expect.closeTo(4, 0),
       expect.closeTo(4, 0),
       expect.closeTo(4, 0),
     ]);
-    // The margins take that room back: the tabs sit where an unpadded strip
-    // with a 1px line under it would put them.
-    expect([tab.top, tab.left]).toEqual([
-      expect.closeTo(frame.top, 0),
-      expect.closeTo(frame.left, 0),
-    ]);
-    expect(next.top - tab.bottom).toBeCloseTo(1, 0);
-    expect(getComputedStyle(current).color).not.toBe(getComputedStyle(other).color);
+  });
+
+  it("gives every segment of a segmented control the control's whole height as its target", () => {
+    theme("light");
+    for (const [tier, min] of [
+      ["fine", 32],
+      ["coarse", 44],
+    ] as const) {
+      root.dataset["pointer"] = tier;
+      const el = build(
+        '<div style="padding: 40px"><div class="cp-segmented" role="radiogroup" aria-label="Theme"><label><input type="radio" name="hit" checked>System</label><label><input type="radio" name="hit">Light</label></div></div>',
+      );
+      const group = el.querySelector(".cp-segmented") as HTMLElement;
+      expect(group.getBoundingClientRect().height).toBe(min);
+      for (const label of group.querySelectorAll("label")) {
+        const input = label.querySelector("input") as HTMLInputElement;
+        const box = group.getBoundingClientRect();
+        const mid = label.getBoundingClientRect().left + label.getBoundingClientRect().width / 2;
+        expect(document.elementFromPoint(mid, box.top + 0.5)).toBe(input);
+        expect(document.elementFromPoint(mid, box.bottom - 0.5)).toBe(input);
+        expect(document.elementFromPoint(mid, box.top - 1)).not.toBe(input);
+      }
+      el.remove();
+    }
   });
 
   it("fills a selected tab itself until the pill is there, then paints the pill only", () => {
@@ -1940,33 +1968,47 @@ describe("css/system.css", () => {
   });
 
   it.skipIf(!emulates)(
-    "keeps the link tabs' line and the current mark in forced colours",
+    "outlines the current link, the selected tab and the chosen segment in forced colours",
     async () => {
       theme("light");
       await media("forced-colors", "active");
       const el = build(
-        '<nav class="cp-link-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a></nav>',
+        '<nav class="cp-tabs" aria-label="Item"><a href="#a" aria-current="page">Episodes</a><a href="#b">Subtitles</a></nav>' +
+          '<div class="cp-tabs" role="tablist" aria-label="Item"><button class="cp-tab" role="tab" type="button" aria-selected="true">Episodes</button></div>' +
+          '<div class="cp-segmented" role="radiogroup" aria-label="Theme"><label><input type="radio" name="fc" checked>System</label></div>',
       );
-      const nav = el.querySelector("nav") as HTMLElement;
-      const mark = getComputedStyle(nav.querySelector("a") as HTMLElement, "::after");
       const system = build('<span style="color: CanvasText"></span>')
         .firstElementChild as HTMLElement;
       const ink = getComputedStyle(system).color;
-      expect(getComputedStyle(nav).backgroundImage).toContain(ink);
-      expect(mark.backgroundColor).toBe(ink);
-      expect(getComputedStyle(nav.querySelector("a") as HTMLElement).forcedColorAdjust).toBe(
-        "auto",
-      );
+      for (const chosen of el.querySelectorAll<HTMLElement>(
+        '[aria-current="page"], [aria-selected="true"], label',
+      )) {
+        const cs = getComputedStyle(chosen);
+        expect([cs.borderTopStyle, cs.borderTopColor]).toEqual(["solid", ink]);
+      }
+      const other = el.querySelector("a:not([aria-current])") as HTMLElement;
+      expect(getComputedStyle(other).borderTopStyle).toBe("none");
     },
   );
 
-  it("divides an accordion's sections, turns an open one's chevron, and pads its content", () => {
+  // A pseudo-element has no box of its own to measure, so its place is read
+  // from the summary's padding and the chevron's used size and margins.
+  const chevronOf = (summary: Element) => getComputedStyle(summary, "::before");
+  const colourOf = (value: string) =>
+    getComputedStyle(host("", { style: `color: ${value}` })).color;
+  const wordsOf = (summary: Element) => {
+    const words = document.createRange();
+    words.selectNodeContents(summary.firstChild as Text);
+    return words;
+  };
+
+  it("divides an accordion's sections, turns an open one's chevron at the summary's end, and pads its content", () => {
     theme("light");
     const el = build(
       '<div class="cp-accordion" style="inline-size: 24rem">' +
-        '<details open><summary>Season 1<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details>' +
-        '<details open data-cp-closing><summary>Season 2<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>12 episodes</div></details>' +
-        '<details><summary>Specials<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>2 specials</div></details></div>',
+        "<details open><summary>Season 1</summary><div>28 episodes</div></details>" +
+        "<details open data-cp-closing><summary>Season 2</summary><div>12 episodes</div></details>" +
+        "<details><summary>Specials</summary><div>2 specials</div></details></div>",
     );
     const box = el.querySelector(".cp-accordion") as HTMLElement;
     const [open, closing, shut] = [...box.querySelectorAll("details")] as [
@@ -1974,36 +2016,42 @@ describe("css/system.css", () => {
       HTMLDetailsElement,
       HTMLDetailsElement,
     ];
-    const chevron = (d: Element) => d.querySelector("summary > .cp-icon") as HTMLElement;
     const summary = open.querySelector("summary") as HTMLElement;
     const body = open.querySelector("div") as HTMLElement;
-    const raised = build('<span style="color: var(--cp-surface-raised)"></span>')
-      .firstElementChild as HTMLElement;
-    expect(getComputedStyle(box).backgroundColor).toBe(getComputedStyle(raised).color);
+    expect(getComputedStyle(box).backgroundColor).toBe(colourOf("var(--cp-surface-raised)"));
     expect(getComputedStyle(box).borderTopWidth).toBe("1px");
     expect(getComputedStyle(open).borderTopWidth).toBe("0px");
     expect([closing, shut].map((d) => getComputedStyle(d).borderTopWidth)).toEqual(["1px", "1px"]);
     expect(summary.getBoundingClientRect().height).toBeCloseTo(32, 0);
     expect(getComputedStyle(summary).paddingLeft).toBe("16px");
-    expect(getComputedStyle(chevron(open)).rotate).toBe("180deg");
-    expect([closing, shut].map((d) => getComputedStyle(chevron(d)).rotate)).toEqual([
-      "none",
+    expect([getComputedStyle(summary).color, getComputedStyle(summary).listStyleType]).toEqual([
+      colourOf("var(--cp-ink)"),
       "none",
     ]);
-    expect(chevron(open).getBoundingClientRect().right).toBeCloseTo(
-      summary.getBoundingClientRect().right - 16,
-      0,
-    );
-    const muted = build('<span style="color: var(--cp-ink-muted)"></span>')
-      .firstElementChild as HTMLElement;
-    expect(getComputedStyle(body).color).toBe(getComputedStyle(muted).color);
+    const chevron = chevronOf(summary);
+    expect(chevron.rotate).toBe("180deg");
+    expect(
+      [closing, shut].map((d) => chevronOf(d.querySelector("summary") as Element).rotate),
+    ).toEqual(["none", "none"]);
+    expect([chevron.width, chevron.height, chevron.color]).toEqual([
+      "18px",
+      "18px",
+      colourOf("var(--cp-ink-muted)"),
+    ]);
+    const s = summary.getBoundingClientRect();
+    const words = wordsOf(summary).getBoundingClientRect();
+    expect(words.left - s.left).toBeCloseTo(16, 0);
+    expect([chevron.position, chevron.right]).toEqual(["absolute", "16px"]);
+    expect(Number.parseFloat(chevron.top) + 9).toBeCloseTo(s.height / 2, 0);
+    expect(getComputedStyle(summary).paddingRight, "the chevron's room and its gap").toBe("42px");
+    expect(getComputedStyle(body).color).toBe(colourOf("var(--cp-ink-muted)"));
     expect(getComputedStyle(body).padding).toBe("0px 16px 16px");
   });
 
   it("draws an accordion summary's focus ring inside it", async () => {
     theme("light");
     const el = build(
-      '<button type="button">Before</button><div class="cp-accordion"><details><summary>Season 1<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details></div>',
+      '<button type="button">Before</button><div class="cp-accordion"><details><summary>Season 1</summary><div>28 episodes</div></details></div>',
     );
     (el.querySelector("button") as HTMLElement).focus();
     await userEvent.tab();
@@ -2012,30 +2060,183 @@ describe("css/system.css", () => {
     expect(getComputedStyle(summary).outlineOffset).toBe("-2px");
   });
 
-  it("puts a section's menu button beside its summary, before the chevron, and wraps a long title short of it", () => {
+  const season = (title: string) =>
+    '<div class="cp-accordion" style="inline-size: 16rem"><div class="cp-accordion-section">' +
+    `<details><summary>${title}<span class="cp-badge" data-variant="quiet">28<span class="cp-visually-hidden"> episodes</span></span></summary><div>28 episodes</div></details>` +
+    '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" popovertarget="season-menu" aria-label="Season 1 actions"><span class="cp-icon" data-cp-icon="ellipsis"></span></button></div></div>' +
+    '<div class="cp-popover cp-menu" id="season-menu" popover role="menu" aria-label="Season actions"><button role="menuitem" type="button">Refresh</button></div>';
+
+  it("puts a section's menu button beside its summary, before the chevron, level with it, and wraps a long title and its count short of it", () => {
     theme("light");
-    const el = build(
-      '<div class="cp-accordion" style="inline-size: 16rem"><div class="cp-accordion-section">' +
-        '<details><summary>Season 1 with a title too long for one line<span class="cp-icon" data-cp-icon="chevron-down"></span></summary><div>28 episodes</div></details>' +
-        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="Season 1 actions"><span class="cp-icon" data-cp-icon="ellipsis"></span></button></div></div>',
-    );
+    const el = build(season("Season 1 with a title too long for one line"));
     const summary = el.querySelector("summary") as HTMLElement;
-    const button = el.querySelector(".cp-button") as HTMLElement;
-    const chevron = summary.querySelector(".cp-icon") as HTMLElement;
+    const button = el.querySelector(".cp-accordion-section > .cp-button") as HTMLElement;
+    const count = summary.querySelector(".cp-badge") as HTMLElement;
+    const chevron = chevronOf(summary);
     const s = summary.getBoundingClientRect();
     const b = button.getBoundingClientRect();
-    const words = document.createRange();
-    words.selectNodeContents(summary.firstChild as Text);
-    const lines = [...words.getClientRects()];
+    const lines = [...wordsOf(summary).getClientRects()];
     expect(b.top - s.top).toBeCloseTo(3, 0);
     expect(s.right - b.right).toBeCloseTo(40, 0);
-    const c = chevron.getBoundingClientRect();
-    expect(b.right).toBeLessThan(c.left);
-    expect(c.top + c.height / 2).toBeCloseTo(b.top + b.height / 2, 0);
+    expect(b.right).toBeLessThan(s.right - 16 - Number.parseFloat(chevron.width));
+    const chevronMiddle =
+      s.top + Number.parseFloat(chevron.top) + Number.parseFloat(chevron.height) / 2;
+    expect(chevronMiddle).toBeCloseTo(b.top + b.height / 2, 0);
     expect((lines[0] as DOMRect).top - s.top).toBeGreaterThanOrEqual(4);
     expect(lines.length).toBeGreaterThan(1);
     expect(Math.max(...lines.map((r) => r.right))).toBeLessThanOrEqual(b.left);
+    expect(count.getBoundingClientRect().right).toBeLessThanOrEqual(b.left);
     expect(summary.contains(button)).toBe(false);
+  });
+
+  it("puts a section's chip under its title in a narrow box, breaking neither, short of the menu button", () => {
+    theme("light");
+    const el = build(season("Season 2"));
+    (el.querySelector(".cp-badge") as HTMLElement).insertAdjacentHTML(
+      "afterend",
+      '<span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert"></span>Older revision</span>',
+    );
+    const summary = el.querySelector("summary") as HTMLElement;
+    const chip = summary.querySelector(".cp-chip") as HTMLElement;
+    const count = summary.querySelector(".cp-badge") as HTMLElement;
+    const button = el.querySelector(".cp-accordion-section > .cp-button") as HTMLElement;
+    const title = [...wordsOf(summary).getClientRects()];
+    const c = chip.getBoundingClientRect();
+    expect(title, "the title breaks").toHaveLength(1);
+    expect(count.getBoundingClientRect().top).toBeLessThan((title[0] as DOMRect).bottom);
+    expect(c.top).toBeGreaterThanOrEqual((title[0] as DOMRect).bottom);
+    expect(c.height, "the chip breaks").toBeCloseTo(22, 0);
+    expect(c.left).toBeCloseTo(summary.getBoundingClientRect().left + 16, 0);
+    expect(c.right).toBeLessThanOrEqual(button.getBoundingClientRect().left);
+  });
+
+  it("opens a section's menu from its button without opening or shutting the section", async () => {
+    theme("light");
+    const el = build(season("Season 1"));
+    const details = el.querySelector("details") as HTMLDetailsElement;
+    await userEvent.click(el.querySelector(".cp-accordion-section > .cp-button") as HTMLElement);
+    expect((el.querySelector("#season-menu") as HTMLElement).matches(":popover-open")).toBe(true);
+    expect(details.open).toBe(false);
+  });
+
+  const lone = (attrs = "", dir = "ltr") =>
+    `<div dir="${dir}"><details ${attrs}><summary>What changed</summary><p>Replaced the web release.</p></details></div>`;
+
+  it("draws a lone details' summary in the accent, its chevron before the words pointing where they run and turning down while open", () => {
+    theme("light");
+    const el = build(
+      lone() + lone("open") + lone("open data-cp-closing") + lone("", "rtl") + lone("open", "rtl"),
+    );
+    const summaries = [...el.querySelectorAll("summary")] as [HTMLElement, ...HTMLElement[]];
+    expect(summaries.map((s) => chevronOf(s).rotate)).toEqual([
+      "-90deg",
+      "none",
+      "-90deg",
+      "90deg",
+      "none",
+    ]);
+    const [ltr] = summaries;
+    const rtl = summaries[3] as HTMLElement;
+    const style = getComputedStyle(ltr);
+    expect([style.color, style.display, style.listStyleType, style.cursor]).toEqual([
+      colourOf("var(--cp-accent-11)"),
+      "flex",
+      "none",
+      "pointer",
+    ]);
+    const chevron = chevronOf(ltr);
+    expect([chevron.width, chevron.height, chevron.backgroundColor]).toEqual([
+      "14px",
+      "14px",
+      style.color,
+    ]);
+    expect(
+      wordsOf(ltr).getBoundingClientRect().left - ltr.getBoundingClientRect().left,
+    ).toBeCloseTo(18, 0);
+    expect(ltr.getBoundingClientRect().width).toBeCloseTo(
+      18 + wordsOf(ltr).getBoundingClientRect().width,
+      0,
+    );
+    expect(
+      rtl.getBoundingClientRect().right - wordsOf(rtl).getBoundingClientRect().right,
+    ).toBeCloseTo(18, 0);
+    const body = el.querySelectorAll("p")[1] as HTMLElement;
+    expect(
+      body.getBoundingClientRect().top -
+        (summaries[1] as HTMLElement).getBoundingClientRect().bottom,
+    ).toBeCloseTo(8, 0);
+  });
+
+  for (const [tier, reach] of [
+    ["fine", 24],
+    ["coarse", 44],
+  ] as const) {
+    it(`reaches a lone details' summary to ${String(reach)}px under a ${tier} pointer`, () => {
+      theme("light");
+      root.dataset["pointer"] = tier;
+      const el = build(lone());
+      const hit = getComputedStyle(el.querySelector("summary") as Element, "::after");
+      expect([hit.position, hit.height]).toEqual(["absolute", `${String(reach)}px`]);
+    });
+  }
+
+  it("gives a details inside an accordion section's content the inline form", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-accordion"><details open><summary>Season 1</summary><div>' +
+        "<details><summary>What changed</summary><p>Replaced</p></details></div></details></div>",
+    );
+    const inner = el.querySelectorAll("summary")[1] as HTMLElement;
+    expect([getComputedStyle(inner).color, getComputedStyle(inner).fontWeight]).toEqual([
+      colourOf("var(--cp-accent-11)"),
+      getComputedStyle(el.querySelector("div > details > div") as Element).fontWeight,
+    ]);
+    expect([chevronOf(inner).rotate, chevronOf(inner).width]).toEqual(["-90deg", "14px"]);
+  });
+
+  it("leaves the context panel's, a timeline event's and a state history's summaries to their own rules", () => {
+    theme("light");
+    const el = build(
+      '<details class="cp-context-panel"><summary>Reservations</summary><section></section></details>' +
+        '<ol class="cp-list" data-variant="timeline" data-surface="plain"><li><div class="cp-list-row" data-lines="wrap"><div><p>Grabbed</p><details><summary><span class="cp-icon" data-cp-icon="chevron-right"></span>What changed</summary><p>Replaced</p></details></div></div></li></ol>' +
+        '<div class="cp-state-history"><details><summary>Show as a table</summary><div class="cp-panel"></div></details></div>',
+    );
+    const [panel, history, states] = [...el.querySelectorAll("summary")] as [
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect([chevronOf(panel).content, chevronOf(history).content]).toEqual(["none", "none"]);
+    expect(getComputedStyle(panel).color).toBe(colourOf("var(--cp-ink)"));
+    expect(chevronOf(states).rotate).toBe("none");
+  });
+
+  it.skipIf(!emulates)("paints both forms' chevrons in forced colours", async () => {
+    theme("light");
+    await media("forced-colors", "active");
+    const el = build(
+      lone() +
+        '<div class="cp-accordion"><details><summary>Season 1</summary><div>28</div></details></div>',
+    );
+    const canvasText = getComputedStyle(
+      host("", { style: "background-color: CanvasText" }),
+    ).backgroundColor;
+    expect([...el.querySelectorAll("summary")].map((s) => chevronOf(s).backgroundColor)).toEqual([
+      canvasText,
+      canvasText,
+    ]);
+  });
+
+  it.skipIf(!emulates)("turns both forms' chevrons at once under reduced motion", async () => {
+    theme("light");
+    await media("prefers-reduced-motion", "reduce");
+    const el = build(
+      lone() +
+        '<div class="cp-accordion"><details><summary>Season 1</summary><div>28</div></details></div>',
+    );
+    expect([...el.querySelectorAll("summary")].map((s) => chevronOf(s).transitionProperty)).toEqual(
+      ["none", "none"],
+    );
   });
 
   for (const t of ["light", "dark"] as const) {
@@ -2109,7 +2310,14 @@ describe("css/system.css", () => {
     const radio = (light as HTMLLabelElement).querySelector("input") as HTMLInputElement;
     const box = radio.getBoundingClientRect();
     const label = (light as HTMLLabelElement).getBoundingClientRect();
-    expect([box.width, box.height]).toEqual([label.width, label.height]);
+    const group = (el.querySelector(".cp-segmented") as HTMLElement).getBoundingClientRect();
+    // The radio spans its label and the track's padding above and below it.
+    expect([box.left, box.width, box.top, box.height]).toEqual([
+      label.left,
+      label.width,
+      group.top,
+      group.height,
+    ]);
     radio.focus();
     await userEvent.keyboard("{ArrowLeft}");
     await new Promise((resolve) => setTimeout(resolve));
@@ -2949,9 +3157,182 @@ describe("css/system.css buttons and arrangements", () => {
     expect(shown()).toEqual([false, true]);
     const accent = host("");
     accent.style.color = "var(--cp-accent)";
-    expect(getComputedStyle(b).color).toBe(getComputedStyle(accent).color);
+    expect(getComputedStyle(b.querySelector('[data-part="on"]') as Element).backgroundColor).toBe(
+      getComputedStyle(accent).color,
+    );
     expect(getComputedStyle(b).color).not.toBe(off);
   });
+
+  const toggle = (attrs: string, words = "") =>
+    `<button class="cp-button cp-toggle" data-variant="quiet" ${attrs} aria-pressed="true" type="button"><span class="cp-icon"></span><span class="cp-icon" data-part="on"></span>${words}</button>`;
+  const colourOf = (value: string): string => {
+    const probe = host("");
+    probe.style.color = value;
+    return getComputedStyle(probe).color;
+  };
+  // A toggle that is on: its drawing's colour, its words' colour, and the
+  // motion each change plays as [name, duration].
+  const looks = (b: HTMLElement) => {
+    const icon = b.querySelector('[data-part="on"]') as HTMLElement;
+    const motion = (way: "on" | "off") => {
+      b.dataset["cpToggled"] = way;
+      const s = getComputedStyle(icon);
+      return [s.animationName, s.animationDuration];
+    };
+    const look = {
+      drawing: getComputedStyle(icon).backgroundColor,
+      words: getComputedStyle(b).color,
+      on: motion("on"),
+      off: motion("off"),
+    };
+    delete b.dataset["cpToggled"];
+    return look;
+  };
+
+  it("makes each kind a preset of a tone and a motion", () => {
+    theme("light");
+    const el = build(
+      `<p>${toggle('data-kind="pin"')}${toggle('data-tone="accent" data-motion="drop"')}</p>` +
+        `<p>${toggle('data-kind="favourite"')}${toggle('data-motion="beat"')}</p>` +
+        `<p>${toggle('data-kind="theme"')}${toggle('data-motion="turn"')}</p>`,
+    );
+    const [pin, drop, favourite, beat, themed, turn] = [
+      ...el.querySelectorAll<HTMLElement>("button"),
+    ].map(looks);
+    const ink = getComputedStyle(el.querySelector("p") as Element).color;
+    expect(pin).toEqual({
+      drawing: colourOf("var(--cp-accent)"),
+      words: colourOf("var(--cp-accent-ink)"),
+      on: ["cp-toggle-drop", "0.64s"],
+      off: ["cp-toggle-lift", "0.36s"],
+    });
+    expect(drop).toEqual(pin);
+    expect(favourite).toEqual({
+      drawing: colourOf("oklch(62% 0.21 20deg)"),
+      words: ink,
+      on: ["cp-toggle-beat", "1.1s"],
+      off: ["none", "0s"],
+    });
+    // With no tone, the on drawing alone marks the state, in the ink around it.
+    expect(beat).toEqual({ ...favourite, drawing: ink });
+    expect(themed).toEqual({
+      drawing: ink,
+      words: ink,
+      on: ["cp-toggle-turn", "0.42s"],
+      off: ["cp-toggle-turn", "0.42s"],
+    });
+    expect(turn).toEqual(themed);
+  });
+
+  it("lets a toggle's own tone and motion win over its kind's preset", () => {
+    theme("light");
+    const el = build(
+      `<p>${toggle('data-kind="pin" data-tone="danger" data-motion="beat"')}${toggle('data-kind="favourite" data-motion="drop"')}</p>`,
+    );
+    const [pin, favourite] = [...el.querySelectorAll<HTMLElement>("button")].map(looks);
+    expect(pin).toEqual({
+      drawing: colourOf("var(--cp-danger-9)"),
+      words: colourOf("var(--cp-danger-11)"),
+      on: ["cp-toggle-beat", "1.1s"],
+      off: ["none", "0s"],
+    });
+    expect(favourite).toEqual({
+      drawing: colourOf("oklch(62% 0.21 20deg)"),
+      words: getComputedStyle(el.querySelector("p") as Element).color,
+      on: ["cp-toggle-drop", "0.64s"],
+      off: ["cp-toggle-lift", "0.36s"],
+    });
+  });
+
+  for (const t of ["light", "dark"] as const) {
+    it(`gives a toned toggle's words 4.5:1 and its drawing 3:1 on the page and a raised surface, ${t}`, () => {
+      theme(t);
+      const tones = ["accent", "neutral", "danger", "warning", "success"];
+      const el = build(tones.map((tone) => toggle(`data-tone="${tone}"`, "Watch")).join(""));
+      const surfaces = ["--cp-surface-page", "--cp-surface-raised"].map((s) => {
+        const probe = host("");
+        probe.style.backgroundColor = `var(${s})`;
+        return getComputedStyle(probe).backgroundColor;
+      });
+      const low = [...el.querySelectorAll<HTMLElement>("button")].flatMap((b, i) => {
+        const { drawing, words } = looks(b);
+        return surfaces.flatMap((s, j) => [
+          ...(contrast(words, s) < 4.5 ? [`${tones[i] ?? ""} words on surface ${String(j)}`] : []),
+          ...(contrast(drawing, s) < 3
+            ? [`${tones[i] ?? ""} drawing on surface ${String(j)}`]
+            : []),
+        ]);
+      });
+      expect(low).toEqual([]);
+    });
+  }
+
+  const hovered = async (markup: string, pointer: "fine" | "coarse") => {
+    theme("light");
+    root.dataset["pointer"] = pointer;
+    const el = build(markup);
+    const b = el.querySelector("button") as HTMLElement;
+    const icon = b.querySelector(".cp-icon") as HTMLElement;
+    icon.style.transition = "none";
+    b.style.transition = "none";
+    b.setAttribute("aria-pressed", "false");
+    await userEvent.hover(b, { force: true });
+    const s = getComputedStyle(icon);
+    const look = {
+      lift: s.translate,
+      drawing: s.backgroundColor,
+      words: getComputedStyle(b).color,
+    };
+    await userEvent.unhover(b, { force: true });
+    return look;
+  };
+
+  it("hints at each motion under a mouse: drop lifts the drawing, beat tints it", async () => {
+    const quiet = await hovered(toggle(""), "fine");
+    expect(quiet).toEqual({ lift: "none", drawing: quiet.words, words: colourOf("var(--cp-ink)") });
+    const drop = await hovered(toggle('data-motion="drop" data-tone="accent"'), "fine");
+    expect(drop).toEqual({ ...quiet, lift: "0px -2px" });
+    const beat = await hovered(toggle('data-kind="favourite"'), "fine");
+    expect(beat).toEqual({ ...quiet, drawing: colourOf("oklch(62% 0.21 20deg)") });
+    expect(await hovered(toggle('data-kind="theme"'), "fine")).toEqual(quiet);
+  });
+
+  it("keeps the header's ink on a hovered toggle's words while beat tints its drawing", async () => {
+    const look = await hovered(
+      `<header class="cp-header">${toggle('data-motion="beat" data-tone="accent"')}</header>`,
+      "fine",
+    );
+    const header = document.querySelector(".cp-header") as Element;
+    expect(look.words).toBe(getComputedStyle(header).color);
+    expect(look.drawing).toBe(colourOf("var(--cp-accent)"));
+  });
+
+  it("gives no hover hint under a finger", async () => {
+    const look = await hovered(toggle('data-kind="favourite" data-motion="drop"'), "coarse");
+    expect(look.lift).toBe("none");
+    expect(look.drawing).toBe(look.words);
+  });
+
+  it.skipIf(!emulates)("plays no motion and lifts nothing under reduced motion", async () => {
+    await media("prefers-reduced-motion", "reduce");
+    expect((await hovered(toggle('data-kind="pin"'), "fine")).lift).toBe("none");
+    const el = build(toggle('data-kind="pin"') + toggle('data-kind="theme"'));
+    expect([...el.querySelectorAll<HTMLElement>("button")].map((b) => looks(b).on[0])).toEqual([
+      "none",
+      "none",
+    ]);
+  });
+
+  it.skipIf(!emulates)(
+    "keeps the system's ink on a toggle's drawing in forced colours",
+    async () => {
+      await media("forced-colors", "active");
+      theme("light");
+      const el = build(toggle('data-tone="danger"', "Watch"));
+      const { drawing, words } = looks(el.querySelector("button") as HTMLElement);
+      expect(drawing).toBe(words);
+    },
+  );
 
   it("makes an icon segmented choice's segments square", () => {
     theme("light");
@@ -3231,20 +3612,27 @@ describe("css/system.css overlays", () => {
     confirm.close();
   });
 
-  it("sets a confirmation's groups 12px under its words", () => {
+  it.each([
+    [
+      "groups",
+      '<fieldset class="cp-choices"><label class="cp-choice"><input type="checkbox"><span>3 files</span></label></fieldset>',
+    ],
+    ["facts", '<dl class="cp-facts"><dt>Key</dt><dd>ci-deploy</dd></dl>'],
+  ])("sets a confirmation's %s 12px under its words", (_, under) => {
     theme("light");
     const d = document.createElement("dialog");
     d.className = "cp-dialog";
     d.dataset["variant"] = "confirm";
     d.innerHTML =
       '<form><div class="cp-dialog-body"><span class="cp-icon"></span><div><h2>Delete?</h2><p>Choose which.</p>' +
-      '<fieldset class="cp-choices"><label class="cp-choice"><input type="checkbox"><span>3 files</span></label></fieldset></div></div></form>';
+      under +
+      "</div></div></form>";
     hosts.push(d as unknown as HTMLElement);
     document.body.append(d);
     d.showModal();
     const words = (d.querySelector("p") as Element).getBoundingClientRect();
-    const groups = (d.querySelector("fieldset") as Element).getBoundingClientRect();
-    expect(Math.round(groups.top - words.bottom)).toBe(12);
+    const list = (d.querySelector("p + *") as Element).getBoundingClientRect();
+    expect(Math.round(list.top - words.bottom)).toBe(12);
     d.close();
   });
 
@@ -5388,6 +5776,203 @@ describe("css/system.css data tables", () => {
     expect(getComputedStyle(selected as Element).backgroundColor).toBe(
       resolve("var(--cp-selected)", "backgroundColor"),
     );
+  });
+});
+
+describe("css/system.css popup option row", () => {
+  // One row of each popup, the first reached as its own keys would reach it.
+  function popups(): HTMLElement[] {
+    const el = build(
+      '<div class="cp-menu" role="menu"><button role="menuitem" type="button">Edit<kbd>E</kbd></button><button role="menuitem" type="button">Report<span class="cp-badge" data-variant="quiet">suggested</span></button><button role="menuitem" type="button" data-tone="danger">Remove</button></div>' +
+        '<ul class="cp-listbox" role="listbox"><li role="option" aria-selected="true">French<small>fr</small></li><li role="option" aria-selected="false">German<small>de</small></li></ul>' +
+        '<div class="cp-select-panel"><ul role="listbox"><li role="option" aria-selected="false" data-cp-active>Watch next</li><li role="option" aria-selected="true">Rewatch</li></ul></div>' +
+        '<div class="cp-palette"><ul role="listbox"><li role="option" aria-selected="true"><span class="cp-icon" data-cp-icon="settings" aria-hidden="true"></span><span>Open settings</span><kbd>,</kbd></li><li role="option" aria-selected="false"><span>Search</span></li></ul></div>',
+    );
+    (el.querySelector('[role="menuitem"]') as HTMLElement).focus();
+    return [
+      ...el.querySelectorAll<HTMLElement>(
+        ".cp-menu > :first-child, .cp-listbox > :first-child, .cp-select-panel li:first-child, .cp-palette li:first-child",
+      ),
+    ];
+  }
+  const resolve = (prop: "backgroundColor" | "color" | "blockSize", value: string) => {
+    const probe = host("");
+    probe.style[prop] = value;
+    return getComputedStyle(probe)[prop];
+  };
+  const rest = (el: HTMLElement) =>
+    el.parentElement?.querySelector<HTMLElement>(":scope > :nth-child(2)") as HTMLElement;
+
+  it("is the menu's compact height in every popup, and the control's under a finger", () => {
+    theme("light");
+    const reached = popups();
+    expect(reached).toHaveLength(4);
+    for (const [pointer, token] of [
+      ["fine", "--cp-control-h-sm"],
+      ["coarse", "--cp-control-h"],
+    ] as const) {
+      root.setAttribute("data-pointer", pointer);
+      const want = Number.parseFloat(resolve("blockSize", `var(${token})`));
+      for (const row of [...reached, ...reached.map(rest)]) {
+        expect(row.getBoundingClientRect().height, `${pointer} ${row.textContent}`).toBeCloseTo(
+          want,
+          0,
+        );
+      }
+    }
+  });
+
+  it("marks the option the keys reach with the selected wash, in each popup", () => {
+    theme("light");
+    const wash = resolve("backgroundColor", "var(--cp-selected)");
+    const ink = resolve("color", "var(--cp-accent-12)");
+    for (const row of popups()) {
+      const cs = getComputedStyle(row);
+      expect([cs.backgroundColor, cs.color], row.textContent).toEqual([wash, ink]);
+      expect(cs.outlineStyle, row.textContent).toBe("none");
+      // A checked select panel option the keys have not reached is not lit.
+      expect(getComputedStyle(rest(row)).backgroundColor, rest(row).textContent).toBe(
+        "rgba(0, 0, 0, 0)",
+      );
+    }
+  });
+
+  for (const [at, popup] of ["menu", "listbox", "select panel", "palette"].entries()) {
+    it(`fills a ${popup} option under a mouse and keeps the reached one washed under it`, async () => {
+      theme("light");
+      root.setAttribute("data-pointer", "fine");
+      const row = popups()[at] as HTMLElement;
+      await userEvent.hover(rest(row));
+      expect(getComputedStyle(rest(row)).backgroundColor).toBe(
+        resolve("backgroundColor", "var(--cp-fill)"),
+      );
+      await userEvent.hover(row);
+      expect(getComputedStyle(row).backgroundColor).toBe(
+        resolve("backgroundColor", "var(--cp-selected)"),
+      );
+    });
+  }
+
+  it("fills no option under a finger", async () => {
+    theme("light");
+    root.setAttribute("data-pointer", "coarse");
+    const [, listbox] = popups();
+    await userEvent.hover(rest(listbox as HTMLElement));
+    expect(getComputedStyle(rest(listbox as HTMLElement)).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  });
+
+  it("ends a row with its keys, its muted word or a quiet badge, 12px from the edge", () => {
+    theme("light");
+    const [menu, listbox, , palette] = popups() as [
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+    ];
+    const muted = resolve("color", "var(--cp-ink-muted)");
+    const badge = rest(menu).querySelector(".cp-badge") as HTMLElement;
+    const ends = [
+      menu.querySelector("kbd"),
+      badge,
+      rest(listbox).querySelector("small"),
+      palette.querySelector("kbd"),
+    ] as HTMLElement[];
+    for (const end of ends) {
+      const row = end.parentElement as HTMLElement;
+      expect(Math.round(end.getBoundingClientRect().right), end.textContent).toBe(
+        Math.round(row.getBoundingClientRect().right) - 12,
+      );
+    }
+    expect(getComputedStyle(rest(listbox).querySelector("small") as Element).color).toBe(muted);
+    expect(getComputedStyle(badge).backgroundColor).toBe(
+      resolve("backgroundColor", "var(--cp-fill)"),
+    );
+    expect(getComputedStyle(badge).color).toBe(muted);
+  });
+
+  it("ends a choosable option with a muted word read with its name, at 4.5:1 on the popup", async () => {
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      const list = build(
+        '<ul class="cp-popover cp-listbox" role="listbox" aria-label="To"><li role="option">@mira</li><li role="option">@otto<small>Dormant</small></li></ul>',
+      ).firstElementChild as HTMLElement;
+      const option = list.lastElementChild as HTMLElement;
+      const word = option.querySelector("small") as HTMLElement;
+      await expect.element(option).toHaveAccessibleName("@otto Dormant");
+      expect([getComputedStyle(option).color, getComputedStyle(option).cursor], t).toEqual([
+        resolve("color", "var(--cp-ink)"),
+        "pointer",
+      ]);
+      expect(getComputedStyle(word).color, t).toBe(resolve("color", "var(--cp-ink-muted)"));
+      expect(
+        contrast(getComputedStyle(word).color, getComputedStyle(list).backgroundColor),
+        t,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("draws an option led by a cover as an entry, its title over its facts beside it, at both tiers", () => {
+    theme("light");
+    const list = build(
+      '<ul class="cp-popover cp-listbox" role="listbox" aria-label="Entries"><li role="option"><span class="cp-cover"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span></span><strong>Frieren</strong><small>2023 · TV · Sonarr</small></li></ul>',
+    ).firstElementChild as HTMLElement;
+    const option = list.firstElementChild as HTMLElement;
+    const rects = () =>
+      ["span.cp-cover", "strong", "small"].map((s) =>
+        (option.querySelector(s) as HTMLElement).getBoundingClientRect(),
+      ) as [DOMRect, DOMRect, DOMRect];
+    for (const [pointer, token] of [
+      ["fine", "--cp-control-h-sm"],
+      ["coarse", "--cp-control-h"],
+    ] as const) {
+      root.setAttribute("data-pointer", pointer);
+      const height = option.getBoundingClientRect().height;
+      expect(height, pointer).toBeGreaterThan(
+        Number.parseFloat(resolve("blockSize", `var(${token})`)),
+      );
+      expect(rects()[0].height, pointer).toBeCloseTo(height, 0);
+    }
+    const [cover, title, facts] = rects();
+    expect(cover.left).toBeCloseTo(list.getBoundingClientRect().left + list.clientLeft, 0);
+    expect(cover.height).toBeCloseTo((cover.width * 3) / 2, 0);
+    expect(facts.top).toBeGreaterThanOrEqual(title.bottom - 1);
+    expect(facts.left).toBeCloseTo(title.left, 0);
+    expect(title.left).toBeGreaterThan(cover.right);
+  });
+
+  it("keeps a reached option's words, end and danger ink at 4.5:1 on the wash, in both themes", () => {
+    const ratio = (el: Element) => {
+      const row = el.closest('[role^="menuitem"], [role="option"]') as Element;
+      return contrast(getComputedStyle(el).color, getComputedStyle(row).backgroundColor);
+    };
+    for (const t of ["light", "dark"] as const) {
+      theme(t);
+      const reached = popups();
+      for (const el of [
+        ...reached,
+        ...reached.flatMap((r) => [...r.querySelectorAll("kbd, small")]),
+      ]) {
+        expect(ratio(el), `${t} ${el.textContent}`).toBeGreaterThanOrEqual(4.5);
+      }
+      const danger = (reached[0] as HTMLElement).parentElement?.lastElementChild as HTMLElement;
+      danger.focus();
+      expect(ratio(danger), `${t} danger`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.skipIf(!emulates)("fills the reached option with Highlight in forced colours", async () => {
+    await media("forced-colors", "active");
+    theme("light");
+    for (const row of popups()) {
+      const cs = getComputedStyle(row);
+      expect([cs.backgroundColor, cs.color], row.textContent).toEqual([
+        resolve("backgroundColor", "Highlight"),
+        resolve("color", "HighlightText"),
+      ]);
+      for (const end of row.querySelectorAll("kbd, small")) {
+        expect(getComputedStyle(end).color).toBe(resolve("color", "HighlightText"));
+      }
+    }
   });
 });
 

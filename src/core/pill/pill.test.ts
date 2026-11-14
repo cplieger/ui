@@ -108,6 +108,35 @@ describe("enhancePill", () => {
     expect(pill.hidden).toBe(true);
   });
 
+  it("lies under a nav's current link and follows aria-current whatever sets it", async () => {
+    const list = document.createElement("nav");
+    list.style.cssText = "display: flex; gap: 4px; padding: 4px; position: relative";
+    const links = ["Episodes", "Subtitles", "History"].map((word, i) => {
+      const a = document.createElement("a");
+      a.href = `#${word}`;
+      a.style.padding = `0 ${String(8 + i * 6)}px`;
+      a.textContent = word;
+      if (i === 1) {
+        a.setAttribute("aria-current", "page");
+      }
+      list.append(a);
+      return a;
+    });
+    document.body.append(list);
+    enhancePill(list, { signal: life.signal });
+    const pill = pillOf(list);
+    expect(at(pill)).toEqual(box(links[1] as HTMLElement));
+    await frames(6);
+    links[1]?.removeAttribute("aria-current");
+    links[0]?.setAttribute("aria-current", "page");
+    await Promise.resolve();
+    expect(at(pill)).toEqual(box(links[0] as HTMLElement));
+    expect(pill.hasAttribute("data-cp-still")).toBe(false);
+    links[0]?.removeAttribute("aria-current");
+    await Promise.resolve();
+    expect(pill.hidden).toBe(true);
+  });
+
   it("removes the pill when its signal aborts, and adds none under one already aborted", () => {
     const { group } = segmented();
     enhancePill(group, { signal: life.signal });

@@ -13,6 +13,7 @@
 import { announce } from "../../feedback/announce/announce.js";
 import { until } from "../../core/lifetime/lifetime.js";
 import { enhanceCombobox } from "../combobox/combobox.js";
+import { registerPiece, touched } from "../form/pieces.js";
 
 /** The words the field writes and says, each given the value or number. */
 export interface TokensWords {
@@ -179,6 +180,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
     return [...together()].every((v) => mine.has(v));
   };
   const tell = (): void => {
+    touched(box);
     options.onChange?.(values());
   };
 
@@ -254,6 +256,17 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
     dress(c);
   }
 
+  const make = (v: string): HTMLElement => {
+    const chip = document.createElement("span");
+    chip.className = "cp-token";
+    chip.dataset["value"] = v;
+    const text = document.createElement("span");
+    text.textContent = v;
+    const button = document.createElement("button");
+    chip.append(text, button);
+    dress(chip);
+    return chip;
+  };
   const add = (raw: string): boolean => {
     const v = raw.trim();
     if (v === "") {
@@ -273,15 +286,7 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
       }
       return false;
     }
-    const chip = document.createElement("span");
-    chip.className = "cp-token";
-    chip.dataset["value"] = v;
-    const text = document.createElement("span");
-    text.textContent = v;
-    const button = document.createElement("button");
-    chip.append(text, button);
-    dress(chip);
-    input.before(chip);
+    input.before(make(v));
     announce(words.added(v));
     changed();
     tell();
@@ -318,6 +323,46 @@ export function enhanceTokens(box: HTMLElement, options: TokensOptions = {}): To
   if (shared !== undefined) {
     members.get(shared)?.add(self);
   }
+  // A form's reset and the unsaved-changes guard put the chips back by
+  // these, silently, as a reset puts a native field back.
+  const key = name ?? "";
+  registerPiece(
+    {
+      element: box,
+      value: () => ({ [key]: values() }),
+      set: (next) => {
+        const chip = document.activeElement?.closest(".cp-token");
+        const focused = chip !== null && chip !== undefined && box.contains(chip);
+        for (const c of box.querySelectorAll(":scope > .cp-token")) {
+          c.remove();
+        }
+        for (const v of next[key] ?? []) {
+          input.before(make(v));
+        }
+        if (focused) {
+          input.focus();
+        }
+        limit(true);
+        combo?.refresh();
+        for (const m of shared === undefined ? [] : (members.get(shared) ?? [])) {
+          if (m !== self) {
+            m.refresh();
+          }
+        }
+        tell();
+      },
+      fits: (next) => {
+        const vs = next[key] ?? [];
+        if (vs.length > max) {
+          return `${key} needs at most ${String(max)} values`;
+        }
+        return new Set(vs.map((v) => v.toLowerCase())).size === vs.length
+          ? null
+          : `${key} needs each value once`;
+      },
+    },
+    signal,
+  );
 
   box.addEventListener(
     "click",

@@ -18,7 +18,7 @@ The components here need no foundation. Each takes an `AbortSignal` for its life
 | Earlier subpath | Replacement |
 | --- | --- |
 | `dialog`, `modal`, `focus-trap` | A native `<dialog class="cp-dialog">` opened with `commandfor` or `showModal()`. The modal dialog moves focus in, makes the page inert and returns focus. [dialog](overlays/dialog.md) adds a press outside, the keep-typed shake and the exit animation where an engine lacks them, and the stylesheet stops the page scrolling. |
-| `ask` | [ask](overlays/ask.md), with the same `ask(message, options)` call over a `.cp-dialog`. |
+| `ask` | [ask](overlays/ask.md), with the same `ask(message, options)` call over a `.cp-dialog`. `variant: "destructive"` is `tone: "danger"`, which also puts focus on declining. |
 | `popover`, `popup` | A native `popover` opened by `popovertarget`, placed by CSS anchor positioning in `.cp-popover`, which closes on Escape and on a press outside by itself. [anchor](overlays/anchor.md) names each opener and panel pair and opens a panel at a point. A menu is [menu](overlays/menu.md). |
 | `tooltip` | [tooltip](overlays/tooltip.md): `data-cp-tip` on the control and `installTooltips()` once. |
 | `toast` | [toast](feedback/toast.md): `toast({ kind, title, body, actions })`, returning `{ dismiss, update }`. |

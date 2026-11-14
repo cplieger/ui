@@ -26,9 +26,12 @@ function section(title: string, name?: string): HTMLDetailsElement {
   return d;
 }
 
-// A glide ends on an animation frame, which a busy machine can hold past any fixed wait.
+// Ends every glide now, so no test waits out frames a busy host holds back; a press
+// on a section a glide is still moving waits for it to stop.
 const settle = async () => {
-  await Promise.allSettled(document.getAnimations().map((a) => a.finished));
+  for (const a of document.getAnimations()) {
+    a.finish();
+  }
   await new Promise((r) => setTimeout(r, 0));
 };
 
@@ -90,6 +93,7 @@ describe("enhanceDisclosure", () => {
       enhanceDisclosure(d, { signal: life.signal });
     }
     await userEvent.click(a.querySelector("summary") as HTMLElement);
+    await settle();
     await userEvent.click(b.querySelector("summary") as HTMLElement);
     await settle();
     expect([a.open, b.open]).toEqual([true, true]);
@@ -106,9 +110,14 @@ describe("enhanceDisclosure", () => {
     }
     await userEvent.click(a.querySelector("summary") as HTMLElement);
     await settle();
+    let closing = false;
+    // Aborts as the press lands, while the glide still holds the sibling open.
+    (b.querySelector("summary") as HTMLElement).addEventListener("click", () => {
+      closing = a.hasAttribute("data-cp-closing") && a.open;
+      life.abort();
+    });
     await userEvent.click(b.querySelector("summary") as HTMLElement);
-    expect(a.hasAttribute("data-cp-closing")).toBe(true);
-    life.abort();
+    expect(closing).toBe(true);
     await settle();
     expect([a.open, b.open]).toEqual([false, true]);
     expect([a.getAttribute("name"), b.getAttribute("name")]).toEqual(["settings", "settings"]);
@@ -121,8 +130,8 @@ describe("groupDisclosures", () => {
     for (const d of [a, b, c]) {
       enhanceDisclosure(d, { signal: life.signal });
       await userEvent.click(d.querySelector("summary") as HTMLElement);
+      await settle();
     }
-    await settle();
     groupDisclosures([a, b, c], "seasons");
     expect(a.hasAttribute("data-cp-closing")).toBe(false);
     expect([b, c].map((d) => d.hasAttribute("data-cp-closing"))).toEqual([true, true]);
@@ -142,6 +151,7 @@ describe("groupDisclosures", () => {
     groupDisclosures([a, b], null);
     groupDisclosures([c], "other");
     await userEvent.click(a.querySelector("summary") as HTMLElement);
+    await settle();
     await userEvent.click(b.querySelector("summary") as HTMLElement);
     await settle();
     expect([a.open, b.open]).toEqual([true, true]);

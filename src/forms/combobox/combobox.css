@@ -1,7 +1,7 @@
 /* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as
- * wide as its field, the active option filled, a muted word at an option's
- * end in a <small>. It is the listbox, or the popup that holds the listbox
- * beside its .cp-listbox-empty line. */
+ * wide as its field. It is the listbox, or the popup that holds the listbox
+ * beside its .cp-listbox-empty line. Its options are the popup option row,
+ * in menu.css. */
 .cp-listbox {
   inline-size: anchor-size(width);
   min-inline-size: 12rem;
@@ -9,36 +9,6 @@
   margin-block: var(--cp-space-1) 0;
   overflow: auto;
   list-style: none;
-}
-
-.cp-listbox [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-:root[data-pointer="coarse"] .cp-listbox [role="option"] {
-  min-block-size: var(--cp-control-h);
-}
-
-.cp-listbox [role="option"][aria-selected="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-}
-
-.cp-listbox [role="option"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
-.cp-listbox [role="option"] small {
-  margin-inline-start: auto;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
 }
 
 .cp-listbox > [role="listbox"] {
@@ -84,11 +54,4 @@
 
 .cp-listbox [role="option"]:has(> .cp-cover) small {
   margin-inline-start: 0;
-}
-
-@media (forced-colors: active) {
-  .cp-listbox [role="option"][aria-selected="true"] {
-    background: Highlight;
-    color: HighlightText;
-  }
 }

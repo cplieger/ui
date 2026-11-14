@@ -36,6 +36,14 @@
   --cp-icon-image: url("../icons/svg/arrow-up.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="bell"]) {
+  --cp-icon-image: url("../icons/svg/bell.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="bell-ring"]) {
+  --cp-icon-image: url("../icons/svg/bell-ring.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="check"]) {
   --cp-icon-image: url("../icons/svg/check.svg");
 }

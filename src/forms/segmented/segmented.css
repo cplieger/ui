@@ -1,45 +1,31 @@
 /* One choice of a few, such as a theme: native radios in labels, so the
- * arrow keys move the choice with no script. */
+ * arrow keys move the choice with no script. Its look is the switcher's
+ * (navigation/tabs), so this file follows tabs.css in the cascade. */
 .cp-segmented {
   display: inline-flex;
-  inline-size: fit-content;
-  max-inline-size: 100%;
   flex-wrap: wrap;
   align-items: center;
   /* One control height overall, so a segmented sits level with inputs and
    * buttons in a row; the pill track is this height less its padding. */
   min-block-size: var(--cp-control-h);
-  gap: var(--cp-space-1);
-  padding: var(--cp-space-1);
-  border-radius: calc(var(--cp-radius-control) + var(--cp-space-1));
-  background: var(--cp-fill);
 }
 
 .cp-segmented > label {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--cp-space-2);
   min-block-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
   min-inline-size: var(--cp-hit-min);
-  padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  color: var(--cp-ink-muted);
-  font-weight: var(--cp-weight-medium);
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color var(--cp-dur-micro) var(--cp-ease-out),
-    color var(--cp-dur-micro) var(--cp-ease-out);
 }
 
+/* The radio reaches over the track's padding above and below its label, so
+ * a segment's target is the control's whole height, a finger's under a
+ * coarse pointer. A wrapped line's gap is that padding, so a target reaches
+ * the next line's label and never covers it. */
 .cp-segmented > label > input {
   position: absolute;
-  inset: 0;
-  /* WebKit keeps a radio at its own size under inset: 0. */
+  inset: calc(-1 * var(--cp-space-1)) 0;
+  /* WebKit keeps a radio at its own size under inset. */
   inline-size: 100%;
-  block-size: 100%;
+  block-size: calc(100% + 2 * var(--cp-space-1));
   margin: 0;
   opacity: 0;
   cursor: inherit;
@@ -52,13 +38,6 @@
   inline-size: calc(var(--cp-control-h) - 2 * var(--cp-space-1));
   min-inline-size: 0;
   padding-inline: 0;
-}
-
-.cp-segmented > label:has(:checked) {
-  --cp-chart-surface: var(--cp-surface-raised);
-
-  background: var(--cp-surface-raised);
-  color: var(--cp-ink);
 }
 
 /* [data-cp-focus-ring] is @cplieger/ui/radio-focus's mark for a radio the
@@ -75,19 +54,9 @@
 
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
-    .cp-segmented > label:hover {
-      color: var(--cp-ink);
-    }
-
-    /* A scoped rule outranks an unscoped one before specificity counts. */
+    /* A scoped rule outranks an unscoped one of the same specificity. */
     .cp-segmented > label:has(:disabled):hover {
       color: var(--cp-ink-disabled);
     }
-  }
-}
-
-@media (forced-colors: active) {
-  .cp-segmented > label:has(:checked) {
-    border: var(--cp-line-w) solid CanvasText;
   }
 }

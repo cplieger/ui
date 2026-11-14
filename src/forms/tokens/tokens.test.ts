@@ -111,7 +111,7 @@ describe("enhanceTokens", () => {
     const { t } = make(f);
     f.input.focus();
     await userEvent.keyboard("{Backspace}");
-    const [a, b, c] = chipButtons(f.box);
+    const [, b, c] = chipButtons(f.box);
     expect(document.activeElement).toBe(c);
     await userEvent.keyboard("{ArrowLeft}");
     expect(document.activeElement).toBe(b);
@@ -120,8 +120,14 @@ describe("enhanceTokens", () => {
     expect(document.activeElement).toBe(c);
     await userEvent.keyboard("{ArrowRight}");
     expect(document.activeElement).toBe(f.input);
+  });
+
+  it("removes a chip on a press of its button and gives focus back to the field", async () => {
+    const f = field(["a", "b", "c"]);
+    const { t } = make(f);
+    const [a] = chipButtons(f.box);
     await userEvent.click(a as HTMLButtonElement);
-    expect(t.values).toEqual(["c"]);
+    expect(t.values).toEqual(["b", "c"]);
     expect(document.activeElement).toBe(f.input);
   });
 
@@ -227,6 +233,34 @@ describe("enhanceTokens", () => {
     t.add("c");
     t.remove("b");
     expect(new FormData(f.form).getAll("tag")).toEqual(["a", "c"]);
+  });
+
+  it("puts the chips it started with back on the form's reset, quietly, and tells the host", async () => {
+    installAnnouncer({ signal: life.signal });
+    const f = field(["a"]);
+    const { t, seen } = make(f, { name: "tag" });
+    t.add("b");
+    t.remove("a");
+    await new Promise((r) => setTimeout(r, 150));
+    const said = polite();
+    f.form.reset();
+    await expect.poll(() => t.values).toEqual(["a"]);
+    expect(new FormData(f.form).getAll("tag")).toEqual(["a"]);
+    expect(seen.at(-1)).toEqual(["a"]);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(polite()).toBe(said);
+  });
+
+  it("keeps its chips when a listener cancels the form's reset", async () => {
+    const f = field(["a"]);
+    const { t } = make(f);
+    t.add("b");
+    f.form.addEventListener("reset", (e) => {
+      e.preventDefault();
+    });
+    f.form.reset();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(t.values).toEqual(["a", "b"]);
   });
 
   it("narrows its suggestions to what matches and is not chosen, and adds one on Enter", async () => {

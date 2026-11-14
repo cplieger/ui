@@ -2,7 +2,7 @@
 
 `@cplieger/ui/tabs`
 
-Runs a `.cp-tabs` strip as the WAI-ARIA tabs pattern. The selected tab is the strip's one Tab stop, the arrows, Home and End move along the tabs, and each tab shows its own panel. A raised pill slides under the selected tab on a spring, as [pill](../core/pill.md) does for a segmented choice. The panels never animate.
+Runs a `.cp-tabs` strip, the library's one switcher: a tablist of tabs that show panels, or a nav of links. On a tablist it is the WAI-ARIA tabs pattern: the selected tab is the strip's one Tab stop, the arrows, Home and End move along the tabs, and each tab shows its own panel. A raised pill slides under the selected tab on a spring, as [pill](../core/pill.md) does for a segmented choice, which shares the look. The panels never animate.
 
 ```html
 <div class="cp-tabs" role="tablist" aria-label="Item">
@@ -33,11 +33,22 @@ addEventListener("popstate", () => tabs.select(tabFromUrl()), { signal: page.sig
 
 ## Tabs as links
 
-When each tab is its own address, the tabs are links in a `<nav class="cp-link-tabs">` with an `aria-label`, and the current one carries `aria-current="page"`, which underlines it in the accent. They need no script. ARIA tabs are for panels on one page.
+When each tab is its own address, the tabs are links in a `<nav class="cp-tabs">` with an `aria-label`, and the current one carries `aria-current="page"`, which raises it as a selected tab is raised. They need no script. ARIA tabs are for panels on one page.
 
 ```html
-<nav class="cp-link-tabs" aria-label="Frieren">
+<nav class="cp-tabs" aria-label="Frieren">
   <a href="/item/42/episodes" aria-current="page">Episodes</a>
   <a href="/item/42/history">History</a>
 </nav>
 ```
+
+```ts
+const tabs = enhanceTabs(nav, { signal: page.signal });
+addEventListener("popstate", () => tabs.select(linkFor(location.pathname)), {
+  signal: page.signal,
+});
+```
+
+- `enhanceTabs()` on the nav slides the pill under the current link and keeps it in view in a strip too narrow for its links. It follows `aria-current` whatever sets it, the app's router or `select()`.
+- Each link stays its own Tab stop and a press follows it: the nav has no arrow keys, no panels, no `activation` and no `onSelect`.
+- `select(link)` makes that link the one `aria-current="page"`, for a router that changes the view in place. A nav where the page is none of its links keeps none current.

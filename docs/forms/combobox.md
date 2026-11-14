@@ -32,6 +32,14 @@ enhanceCombobox(input, list, {
 - `popup` and `empty` show a line in place of the options while the typed text matches none. `popup` is the `.cp-popover.cp-listbox` that becomes the popover in the listbox's place, holding the listbox and `empty`, a `<p class="cp-listbox-empty" hidden>` whose words you write in `onQuery`. Without `empty`, the popup closes when no option is left.
 - `signal` removes the listeners and the field's combobox attributes, and closes the popup.
 
+## An option's end word
+
+An option is the [popup option row](../overlays/menu.md#the-option-row). A muted word at its end, in a `<small>`, marks an option that can still be chosen, such as a recipient who is away. The word is part of the option's name, so a screen reader hears "@otto Dormant". An option that cannot be chosen takes `aria-disabled="true"` instead, and the keys pass it.
+
+```html
+<li role="option">@otto<small>Dormant</small></li>
+```
+
 ## Options with a cover
 
 An option that starts with a [`.cp-cover`](../design-components.md) is drawn as an entry: its cover flush with the row's start, its title in a `<strong>` over a line of facts in a `<small>`, and the list running edge to edge. Give an `<img>` in the cover `alt=""`, since the title names the entry.
