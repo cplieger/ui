@@ -453,11 +453,17 @@ function calendarTable(model: Model, m: CalendarModel, words: Words, after: stri
 }
 
 /** Whether the table's row heads are the app's names, each set in a `<bdi>`
- *  so a right-to-left name keeps its place: a band's rows, a slope's series
- *  or a scatter's dots. */
+ *  so a right-to-left name keeps its place: a band's rows, a slope's series,
+ *  a scatter's dots, a pie's slices or a treemap's groups and parts. */
 export const namedRows = (model: Model): boolean => {
   const kind = primaryOf(model)?.kind;
-  return model.y.type === "band" || kind === "slope" || kind === "scatter";
+  return (
+    model.y.type === "band" ||
+    kind === "slope" ||
+    kind === "scatter" ||
+    kind === "pie" ||
+    kind === "tree"
+  );
 };
 
 /** What the table view shows for `model`. */

@@ -2234,6 +2234,16 @@ describe("an instant's words on a time x", () => {
         ],
       }),
     ).toThrow("renderChart: marks[1].x must lie within 8.64e15 ms");
+    expect(() =>
+      build({
+        marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2, 3, 4] } }],
+      }),
+    ).toThrow(
+      "renderChart: a calendar's last day must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    expect(
+      build({ marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1] } }] }).x.hi,
+    ).toBe(8.64e15);
   });
 });
 
@@ -2424,6 +2434,28 @@ describe("the tree mark", () => {
     ]);
     expect(one?.kind === "tree" && one.groups).toEqual([]);
     expect(slotted?.kind === "tree" && slotted.parts.map((p) => p.slot)).toEqual([4, 3, 4, 4]);
+  });
+
+  it("takes a node written with children: undefined as a part, as its check does", () => {
+    const parts = (more: Record<string, unknown> = {}) =>
+      build({
+        marks: [
+          regions({}, [
+            { name: "Spain", value: 1.6e12, children: undefined, ...more },
+            { name: "Italy", value: 2.3e12 },
+          ]),
+        ],
+      }).marks[0];
+    const plain = parts();
+    const slotted = parts({ slot: 5 });
+    expect(plain?.kind === "tree" && plain.parts[0]).toEqual({
+      name: "Spain",
+      slot: 1,
+      value: 1.6e12,
+      group: -1,
+    });
+    expect(plain?.kind === "tree" && plain.groups).toEqual([]);
+    expect(slotted?.kind === "tree" && slotted.parts.map((p) => p.slot)).toEqual([5, 1]);
   });
 
   it("writes values in its own format and is empty when every part is 0 or no data", () => {

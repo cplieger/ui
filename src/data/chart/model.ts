@@ -1570,13 +1570,19 @@ function pieModel(mark: PieMark): PieModel {
   };
 }
 
+type TreeNode = TreeMark["nodes"][number];
+
+// The check's own test, so a part written with `children: undefined` is a part.
+const isGroup = (node: TreeNode): node is Extract<TreeNode, { children: unknown }> =>
+  (node as { readonly children?: unknown }).children !== undefined;
+
 // The check holds the nodes all parts or all groups of parts.
 function treeModel(mark: TreeMark): TreeModel {
   const gap = (v: number | null): number | null => (v === null || Number.isNaN(v) ? null : v);
   const groups: TreeGroupModel[] = [];
   const parts: TreePartModel[] = [];
   mark.nodes.forEach((node, g) => {
-    if (!("children" in node)) {
+    if (!isGroup(node)) {
       parts.push({
         name: node.name,
         slot: node.slot ?? mark.slot ?? 1,

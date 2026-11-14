@@ -827,6 +827,11 @@ describe("the table view on update", () => {
     const total = row?.cells[1];
     expect(row?.querySelector("th")?.scope).toBe("row");
     expect([...(row?.cells ?? [])].map((c) => c.textContent)).toEqual(["Total", "289,282", "100%"]);
+    expect(
+      [...(table?.tBodies[0]?.querySelectorAll("th") ?? [])].map(
+        (th) => th.querySelector("bdi")?.textContent,
+      ),
+    ).toEqual(["Agriculture", "Forest"]);
     chart.update(pie(17_363));
     expect(get(b.figure, "table")?.querySelector("table")).toBe(table);
     expect(foot()).toBe(row);
@@ -867,6 +872,9 @@ describe("the table view on update", () => {
       [...(tb?.querySelectorAll("th") ?? [])].map((th) => `${th.scope} ${th.textContent ?? ""}`);
     expect(bodies()).toHaveLength(3);
     expect(heads(asia)).toEqual(["rowgroup Asia", "row A", "row B"]);
+    expect(
+      [...(asia?.querySelectorAll("th") ?? [])].map((th) => th.querySelector("bdi")?.textContent),
+    ).toEqual(["Asia", "A", "B"]);
     expect([...(asia?.rows[0]?.cells ?? [])].map((c) => c.textContent)).toEqual([
       "Asia",
       "4",

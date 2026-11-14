@@ -427,14 +427,10 @@ function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undef
   withinDate(m.days.start, "a calendar's days.start");
   const day = localDay(m.days.start, timeZone);
   const lo = midnight(day, timeZone);
-  return {
-    ...COLUMNS,
-    type: "time",
-    lo,
-    hi: midnight(day + m.days.values.length, timeZone),
-    integer: false,
-    drawnLo: lo,
-  };
+  const hi = midnight(day + m.days.values.length, timeZone);
+  withinDate(lo, "a calendar's first day");
+  withinDate(hi, "a calendar's last day");
+  return { ...COLUMNS, type: "time", lo, hi, integer: false, drawnLo: lo };
 }
 
 // A pie's or a tree's mark name: a whole of parts, drawn on no axis.

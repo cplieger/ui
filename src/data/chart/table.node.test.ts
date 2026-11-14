@@ -708,11 +708,23 @@ describe("the table of a scatter plot", () => {
     expect(t.after).toBe("World average 70. Monaco: A city-state.");
   });
 
-  it("sets the dots' names, as a band's rows and a slope's series, in their own direction", () => {
+  it("sets the dots' names, as a band's rows, a slope's series and a whole's parts, in their own direction", () => {
     expect(namedRows(model(world()))).toBe(true);
     expect(
       namedRows(
         model({ marks: [{ mark: "slope", x: ["a", "b"], series: [{ name: "s", y: [1, 2] }] }] }),
+      ),
+    ).toBe(true);
+    expect(
+      namedRows(model({ marks: [{ mark: "pie", slices: [{ name: "Forest", value: 1 }] }] })),
+    ).toBe(true);
+    expect(
+      namedRows(
+        model({
+          marks: [
+            { mark: "tree", nodes: [{ name: "Asia", children: [{ name: "China", value: 1 }] }] },
+          ],
+        }),
       ),
     ).toBe(true);
     expect(
