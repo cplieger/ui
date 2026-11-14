@@ -12,8 +12,10 @@ export interface Classes {
   readonly thresholds: readonly number[];
   /** Each class's step of its scale, 1 to 9, in class order. */
   readonly steps: readonly number[];
-  /** The least and most fraction digits that write every inferred boundary
-   *  and the pivot exactly; undefined for passed thresholds or a passed domain. */
+  /** The least and most fraction digits a key writes inferred boundaries and the
+   *  pivot with: the fewest that write them exactly, at least their spacing's (a
+   *  class, or half a class on an odd diverging count) where they need that many,
+   *  and at most three past it; undefined for passed thresholds or a passed domain. */
   readonly digits: readonly [number, number] | undefined;
 }
 
@@ -94,6 +96,19 @@ export function classSteps(type: "sequential" | "diverging", n: number, reverse 
 
 const places = (exp: number): number => Math.max(0, -exp);
 
+// A key's least and most fraction digits for boundaries `ns` × 10^`exp` spaced by
+// `unit`: the fewest that write them all, capped at the unit's to start with and
+// three past it at most, so a pivot computed as a mean is not written to its
+// seventeenth figure.
+function keyDigits(ns: readonly bigint[], exp: number, unit: Step): [number, number] {
+  let fewest = places(exp);
+  for (let p = 10n; fewest > 0 && ns.every((v) => v % p === 0n); p *= 10n) {
+    fewest--;
+  }
+  const own = places(unit.exp);
+  return [Math.min(fewest, own), Math.min(fewest, own + 3)];
+}
+
 /**
  * The classes of `spec` over `values`, the finite values a chart fills: `thresholds` as
  * sent; a passed `domain` in equal classes, each boundary the nearest double to the exact
@@ -162,15 +177,18 @@ export function classes(spec: ClassSpec, values: readonly number[]): Classes {
       integer,
       (c) => c.value * reach >= half - drift(c, half),
     );
-    const unit = odd ? step(5 * w.lead, w.exp - 1) : w;
+    // Half of 2 × 10^e is 1 × 10^e: as 10 × 10^(e-1) the key's digit cap would rise by one.
+    const halfClass = w.lead === 2 ? step(1, w.exp) : step(5 * w.lead, w.exp - 1);
+    const unit = odd ? halfClass : w;
     const exp = Math.min(unit.exp, pivot.exp);
     const p = at(pivot, exp);
     const u = at({ n: BigInt(unit.lead), exp: unit.exp }, exp);
+    const ns = offsets.map((c) => p + c * u);
     return {
       type,
-      thresholds: offsets.map((c) => ratio(p + c * u, 1n, exp)),
+      thresholds: ns.map((v) => ratio(v, 1n, exp)),
       steps,
-      digits: [places(unit.exp), places(exp)],
+      digits: keyDigits([...ns, p], exp, unit),
     };
   }
   if (passed !== undefined) {
@@ -200,11 +218,16 @@ export function classes(spec: ClassSpec, values: readonly number[]): Classes {
     integer,
     (c) => multiple(start(c) + n, c) >= hi - drift(c, hi - lo),
   );
+  const ks = count(start(w) + 1);
   return {
     type,
-    thresholds: count(start(w) + 1).map((k) => multiple(k, w)),
+    thresholds: ks.map((k) => multiple(k, w)),
     steps,
-    digits: [places(w.exp), places(w.exp)],
+    digits: keyDigits(
+      ks.map((k) => BigInt(k) * BigInt(w.lead)),
+      w.exp,
+      w,
+    ),
   };
 }
 

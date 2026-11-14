@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  decimalFormatter,
   durationRecord,
   formatDuration,
   formatter,
@@ -37,6 +38,32 @@ describe("formatter", () => {
     expect(formatter(options, "en")(3)).toBe(new Intl.NumberFormat("en", options).format(3));
     expect(formatter((v) => `v${String(v)}`, "en")(3)).toBe("v3");
     expect(formatter("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
+  });
+});
+
+describe("decimalFormatter", () => {
+  it("writes the fraction digits asked for, a percent's counted on the share", () => {
+    expect([0, 0.5, 1].map(decimalFormatter("number", "en", 1))).toEqual(["0.0", "0.5", "1.0"]);
+    expect([0.37, 37.142857142857146].map(decimalFormatter(undefined, "en", 0, 3))).toEqual([
+      "0.37",
+      "37.143",
+    ]);
+    expect(decimalFormatter("percent", "en", 3)(0.005)).toBe("0.5%");
+  });
+
+  it("writes past Intl's 100 fraction digits in scientific notation, 0 as 0", () => {
+    const write = decimalFormatter("number", "en", 103);
+    expect([0, 2.5e-102, 5e-102, 7.5e-102].map(write)).toEqual([
+      "0",
+      "2.5E-102",
+      "5E-102",
+      "7.5E-102",
+    ]);
+    expect(write(1.23456789012345e-102)).toBe("1.23456789012345E-102");
+    const share = decimalFormatter("percent", "en", 0, 103);
+    expect([0, 1e-103].map(share)).toEqual(["0%", "1E-101%"]);
+    // 102 digits on the share are 100 on the percentage, within Intl's limit.
+    expect(decimalFormatter("percent", "en", 102)(1e-102)).toBe(`0.${"0".repeat(99)}1%`);
   });
 });
 

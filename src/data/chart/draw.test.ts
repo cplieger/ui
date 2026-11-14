@@ -2158,6 +2158,40 @@ describe("a heatmap's selection and colour key", () => {
     expect(labels.map((l) => l.textContent)).toEqual(["0.5", "1.0"]);
   });
 
+  it("writes an odd diverging key's half-class boundaries with no digit their values lack", () => {
+    const { key } = keyed({
+      // Five classes 2 wide about 0 break at -3, -1, 1 and 3; the pivot thins out -1 and 1.
+      colour: { type: "diverging" },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-5, 5]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["-3", "0", "3"]);
+  });
+
+  it("writes a computed pivot to three digits past its classes' width", () => {
+    const { key } = keyed({
+      // The mean of seven counts, 37.142857142857146, in classes 20 wide.
+      colour: { type: "diverging", pivot: 260 / 7 },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[12, 70]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toContain("37.143");
+  });
+
+  it("writes boundaries finer than Intl's 100 fraction digits in scientific notation", () => {
+    const { key } = keyed({
+      // Four classes 2.5e-102 wide.
+      colour: { steps: 4 },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[0, 1e-101]] }],
+    });
+    const texts = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])].map(
+      (l) => l.textContent,
+    );
+    expect(texts.length).toBeGreaterThan(0);
+    expect(texts.every((t) => ["2.5E-102", "5E-102", "7.5E-102"].includes(t))).toBe(true);
+    expect(new Set(texts).size).toBe(texts.length);
+  });
+
   it.each([
     [4, ["0°C"]],
     [8, ["-3°C", "0°C", "+3°C"]],

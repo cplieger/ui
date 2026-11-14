@@ -357,6 +357,20 @@ describe("a linear axis", () => {
     expect(words(xAxis(share, 400, fixed(10)))).toEqual(["0.0%", "0.5%", "1.0%", "1.5%", "2.0%"]);
   });
 
+  it("writes ticks finer than Intl's 100 fraction digits in scientific notation, 0 as 0", () => {
+    const tiny = xScale({
+      x: { domain: [0, 4e-101] },
+      marks: [{ mark: "line", x: [0, 4e-101], series: [{ name: "a", y: [1, 2] }] }],
+    });
+    expect(words(xAxis(tiny, 400, fixed(10)))).toEqual([
+      "0",
+      "1E-101",
+      "2E-101",
+      "3E-101",
+      "4E-101",
+    ]);
+  });
+
   it("writes a log axis's ticks with the digits each needs", () => {
     const log = xScale({ x: { type: "log", domain: [0.0001, 1] }, marks: [] });
     expect(words(xAxis(log, 400, fixed(10)))).toEqual(

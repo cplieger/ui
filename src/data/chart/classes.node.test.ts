@@ -144,6 +144,31 @@ describe("equal classes", () => {
     expect(classes({ thresholds: [1] }, []).digits).toBeUndefined();
   });
 
+  it("writes a computed pivot to at most three digits past the spacing's", () => {
+    // 260 / 7 is 37.142857142857146, a mean; the classes are 20 wide.
+    expect(classes({ type: "diverging", steps: 5, pivot: 260 / 7 }, [12, 70]).digits).toEqual([
+      0, 3,
+    ]);
+  });
+
+  it("names no more digits than the boundaries need", () => {
+    // Half of a class 2 wide is 1, so integer counts key as -1, 0, 1.
+    expect(classes({ type: "diverging", steps: 3 }, [-3, 3])).toMatchObject({
+      thresholds: [-1, 1],
+      digits: [0, 0],
+    });
+    expect(classes({ type: "diverging", steps: 5 }, [-0.3, 0.3])).toMatchObject({
+      thresholds: [-0.3, -0.1, 0.1, 0.3],
+      digits: [1, 1],
+    });
+    // A lone boundary at the pivot, or at -1 in classes 0.2 wide.
+    expect(classes({ type: "diverging", steps: 2 }, [-0.3, 0.3]).digits).toEqual([0, 0]);
+    expect(classes({ steps: 2 }, [-1.2, -0.8])).toMatchObject({
+      thresholds: [-1],
+      digits: [0, 0],
+    });
+  });
+
   it("makes a full-precision pivot an even count's middle boundary as sent", () => {
     for (const c of [
       classes({ type: "diverging", steps: 4, pivot: 2 / 3 }, [-1, 2]),

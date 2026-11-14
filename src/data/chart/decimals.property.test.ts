@@ -63,8 +63,23 @@ describe("decimal ticks and class boundaries", () => {
               ? { steps }
               : { type: "diverging" as const, steps, pivot: dec(pivot, e) };
           const c = classes(spec, values);
-          const [, most] = c.digits ?? [0, Number.NaN];
-          exact(c.thresholds, most, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY);
+          const [least, most] = c.digits ?? [Number.NaN, Number.NaN];
+          // The boundaries are exact at the values' own digits; `most` writes them unless capped.
+          exact(
+            c.thresholds,
+            Math.max(most, -e),
+            Number.NEGATIVE_INFINITY,
+            Number.POSITIVE_INFINITY,
+          );
+          expect(least <= most && most <= least + 3).toBe(true);
+          if (most < least + 3) {
+            exact(c.thresholds, most, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY);
+          }
+          // `least` is the least: one fewer fails to write some boundary or the pivot.
+          const written = pivot === undefined ? c.thresholds : [...c.thresholds, dec(pivot, e)];
+          if (least > 0) {
+            expect(written.some((v) => v !== Number(v.toFixed(least - 1)))).toBe(true);
+          }
         },
       ),
     );
