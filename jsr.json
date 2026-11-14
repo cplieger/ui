@@ -65,6 +65,7 @@
     "./tokens": "./src/forms/tokens/tokens.ts",
     "./tooltip": "./src/overlays/tooltip/tooltip.ts",
     "./turn": "./src/buttons/turn/turn.ts",
+    "./video": "./src/media/video/video.ts",
     "./view-transition": "./src/core/view-transition/view-transition.ts"
   },
   "publish": {
