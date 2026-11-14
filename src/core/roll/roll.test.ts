@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 
 import { measureRoll, roll, rollText } from "./roll.js";
 
@@ -38,6 +39,15 @@ describe("roll", () => {
     await settle(host);
     expect([...host.children].map((c) => c.textContent)).toEqual(["Grabbed"]);
     expect(rollText(host)).toBe("Grabbed");
+  });
+
+  it("names the button it is in by the line it rolls to, while the roll runs", () => {
+    const button = document.createElement("button");
+    button.append(windowOf("Grab"));
+    document.body.append(button);
+    roll(button.firstElementChild as HTMLElement, "Grabbed");
+    expect(button.children[0]?.children).toHaveLength(2);
+    expect(page.getByRole("button", { name: "Grabbed", exact: true }).query()).toBe(button);
   });
 
   it("glides the window to the new line's width", () => {

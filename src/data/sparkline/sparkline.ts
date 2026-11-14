@@ -6,7 +6,7 @@
  */
 
 import { localeOf } from "../../core/locale/locale.js";
-import { formatter } from "../scale/format.js";
+import { writer } from "../scale/format.js";
 import { reduce } from "../scale/reduce.js";
 
 export interface SparklineSummary {
@@ -77,7 +77,7 @@ export function renderSparkline(
   ) {
     throw new RangeError(`sparkline domain [${String(domain)}] is not a finite low to high`);
   }
-  const format = options.format ?? formatter("number", localeOf(host));
+  const format = options.format ?? writer("number", localeOf(host));
   const finite = values.map((v) => (v !== null && Number.isFinite(v) ? v : null));
   const known = finite.filter((v) => v !== null);
   const end = finite.findLastIndex((v) => v !== null);

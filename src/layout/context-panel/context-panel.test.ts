@@ -174,8 +174,21 @@ describe("enhanceContextPanel", () => {
 
   it("stops a shutting glide when it docks, so the docked panel stays open", async () => {
     const { root, panel, summary } = mount(480, {}, true);
+    // Read and held as the press lands: the glide can end before a loaded
+    // driver's click returns.
+    let closing = false;
+    document.addEventListener(
+      "click",
+      () => {
+        closing = panel.hasAttribute("data-cp-closing");
+        for (const run of panel.getAnimations()) {
+          run.pause();
+        }
+      },
+      { once: true, signal: life.signal },
+    );
     await userEvent.click(summary);
-    expect(panel.hasAttribute("data-cp-closing")).toBe(true);
+    expect(closing).toBe(true);
     let shut = 0;
     const watch = new MutationObserver(() => {
       if (!panel.open) {
@@ -185,6 +198,10 @@ describe("enhanceContextPanel", () => {
     root.style.inlineSize = "960px";
     await frames();
     watch.observe(panel, { attributes: true, attributeFilter: ["open"] });
+    // A glide the dock left would shut the panel as it ends.
+    for (const run of panel.getAnimations()) {
+      run.finish();
+    }
     await new Promise((resolve) => setTimeout(resolve, 400));
     watch.disconnect();
     expect(shut, "shut while docked").toBe(0);

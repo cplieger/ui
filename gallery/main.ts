@@ -33,6 +33,7 @@ import "./wire/conversations.js";
 import { markCards } from "./review.js";
 import "./wire/charts.js";
 import "./wire/content.js";
+import "./wire/controls.js";
 import "./wire/data-figures.js";
 import "./wire/data-tables.js";
 import "./wire/lists.js";
