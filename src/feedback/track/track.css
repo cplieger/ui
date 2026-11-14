@@ -17,6 +17,7 @@
   --cp-track-todo: var(--cp-fill);
   --cp-track-done: var(--cp-accent);
   --cp-track-rest: var(--cp-accent-4);
+  --cp-track-now: var(--cp-ink);
   --cp-track-way: to right;
 
   display: grid;
@@ -49,21 +50,18 @@
 }
 
 .cp-track > li[data-state="current"] {
-  color: var(--cp-ink);
+  color: var(--cp-track-now);
   font-weight: var(--cp-weight-medium);
 }
 
 /* A kept track, the last known state of a job no longer reporting, goes
  * grey, its current step solid; a .cp-kept line under it says when it was
- * true. */
-.cp-track[data-kept] > li {
+ * true. A track in a kept list or table row is kept with its row. */
+.cp-track:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) > li {
   --cp-track-todo: var(--cp-neutral-5);
   --cp-track-done: var(--cp-neutral-8);
   --cp-track-rest: var(--cp-neutral-8);
-}
-
-.cp-track[data-kept] > li[data-state="current"] {
-  color: var(--cp-ink-muted);
+  --cp-track-now: var(--cp-ink-muted);
 }
 
 .cp-kept {
@@ -105,6 +103,10 @@
   font-weight: var(--cp-weight-medium);
 }
 
+.cp-track-compact:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) {
+  color: var(--cp-ink-muted);
+}
+
 @media (forced-colors: active) {
   .cp-track > li {
     --cp-track-todo: Canvas;
@@ -112,7 +114,7 @@
     --cp-track-rest: Canvas;
   }
 
-  .cp-track[data-kept] > li {
+  .cp-track:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) > li {
     --cp-track-todo: Canvas;
     --cp-track-done: GrayText;
     --cp-track-rest: Canvas;
@@ -125,5 +127,9 @@
 
   .cp-kept::before {
     background: CanvasText;
+  }
+
+  .cp-track-compact:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) {
+    color: GrayText;
   }
 }

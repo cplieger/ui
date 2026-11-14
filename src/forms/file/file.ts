@@ -23,7 +23,7 @@ export interface FilesWords {
 export interface FilesOptions {
   /** The largest file taken, in bytes. */
   readonly maxSize?: number;
-  /** A `<ul class="cp-files">` that lists the files taken. */
+  /** A `.cp-list`, best `data-density="compact"`, that lists the files taken. */
   readonly list?: HTMLElement;
   readonly words?: FilesWords;
   /** After each choice or drop, with the files taken. */
@@ -125,12 +125,21 @@ export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}
     if (list !== undefined) {
       list.replaceChildren(
         ...kept.map((f) => {
-          const item = document.createElement("li");
+          const glyph = document.createElement("span");
+          glyph.className = "cp-icon";
+          glyph.dataset["cpIcon"] = "file-text";
+          glyph.setAttribute("aria-hidden", "true");
           const name = document.createElement("span");
+          name.className = "cp-cell-stack";
           name.textContent = f.name;
-          const size = document.createElement("small");
+          const size = document.createElement("span");
+          size.dataset["part"] = "end";
           size.textContent = fileSize(f.size);
-          item.append(name, size);
+          const row = document.createElement("div");
+          row.className = "cp-list-row";
+          row.append(glyph, name, size);
+          const item = document.createElement("li");
+          item.append(row);
           return item;
         }),
       );

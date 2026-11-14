@@ -60,6 +60,9 @@ data/text/text.css
 data/avatar/avatar.css
 data/cover/cover.css
 data/list-row/list-row.css
+data/held-list/held-list.css
+data/keyed-list/keyed-list.css
+data/load-more/load-more.css
 data/reorder/reorder.css
 data/feed/feed.css
 feedback/chip/chip.css
@@ -74,7 +77,6 @@ layout/side-main/side-main.css
 layout/grid/grid.css
 layout/list-detail/list-detail.css
 layout/context-panel/context-panel.css
-navigation/rail/filters.css
 navigation/tabs/tabs.css
 navigation/link-tabs/link-tabs.css
 navigation/accordion/accordion.css
@@ -86,7 +88,6 @@ data/sparkline/sparkline.css
 data/figure/figure.css
 data/meter/meter.css
 data/ranked-bars/ranked-bars.css
-data/media-card/media-card.css
 feedback/skeleton/skeleton.css
 feedback/empty/empty.css
 feedback/loader/loader.css

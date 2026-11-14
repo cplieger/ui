@@ -1318,10 +1318,17 @@ input.cp-input::-webkit-calendar-picker-indicator {
   align-self: flex-start;
 }
 
-/* Focus and scrolling stop below the sticky header, so it never covers what
- * they bring into view. */
+/* Focus and scrolling stop below the sticky header and above the controls
+ * bar fixed at the window's foot, which wraps to two lines on a phone, so
+ * neither covers what they bring into view. */
 html:has(.g-header) {
-  scroll-padding-block-start: 4.5rem;
+  scroll-padding-block: 4.5rem 6.5rem;
+}
+
+@media (width >= 48rem) {
+  html:has(.g-header) {
+    scroll-padding-block-end: 4.5rem;
+  }
 }
 
 /* The gallery's own nav scrolls sideways on a phone rather than widening

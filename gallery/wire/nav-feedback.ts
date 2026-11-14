@@ -111,7 +111,7 @@ for (const row of document.querySelectorAll<HTMLElement>("[data-jump]")) {
 }
 
 for (const filter of document.querySelectorAll<HTMLButtonElement>(
-  ".cp-filter-group > .cp-filter",
+  ".cp-rail button.cp-list-row[aria-pressed]",
 )) {
   filter.addEventListener("click", () => {
     filter.setAttribute("aria-pressed", String(filter.getAttribute("aria-pressed") !== "true"));
