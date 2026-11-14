@@ -1318,10 +1318,17 @@ input.cp-input::-webkit-calendar-picker-indicator {
   align-self: flex-start;
 }
 
-/* Focus and scrolling stop below the sticky header, so it never covers what
- * they bring into view. */
+/* Focus and scrolling stop below the sticky header and above the controls
+ * bar fixed at the window's foot, which wraps to two lines on a phone, so
+ * neither covers what they bring into view. */
 html:has(.g-header) {
-  scroll-padding-block-start: 4.5rem;
+  scroll-padding-block: 4.5rem 6.5rem;
+}
+
+@media (width >= 48rem) {
+  html:has(.g-header) {
+    scroll-padding-block-end: 4.5rem;
+  }
 }
 
 /* The gallery's own nav scrolls sideways on a phone rather than widening
@@ -1710,19 +1717,6 @@ html:has(.g-header) {
 /* A frame as wide as a 390px phone's page, less its 16px gutters. */
 .g-resizable[data-start="phone"] {
   inline-size: min(calc(358px + 2 * var(--cp-space-3) + 2 * var(--cp-line-w)), 100%);
-}
-
-/* The tab's charts share their plot edges, as an app sets the gutters. */
-.g-chart-group {
-  --cp-chart-axis-gutter: 8rem;
-  --cp-chart-label-gutter: 5rem;
-}
-
-@container (width < 30rem) {
-  .g-chart-group {
-    --cp-chart-axis-gutter: 5rem;
-    --cp-chart-label-gutter: 0px;
-  }
 }
 
 /* A card is a raised surface, which forced colours paint behind a plot. */

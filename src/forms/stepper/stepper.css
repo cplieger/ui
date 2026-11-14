@@ -2,6 +2,8 @@
  * as what it holds. The value is a number field, or for a value the buttons
  * alone set, such as a zoom, a button that resets it. */
 .cp-stepper {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: relative;
   display: inline-flex;
   align-items: stretch;

@@ -10,6 +10,7 @@ import {
   signedFormatter,
   spanFormat,
   tickFormat,
+  widthKey,
   withNoun,
 } from "./format.js";
 
@@ -36,6 +37,89 @@ describe("formatter", () => {
     expect(formatter(options, "en")(3)).toBe(new Intl.NumberFormat("en", options).format(3));
     expect(formatter((v) => `v${String(v)}`, "en")(3)).toBe("v3");
     expect(formatter("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
+  });
+});
+
+describe("widthKey", () => {
+  const shape = (t: string) => t.replace(/\p{Nd}/gu, "0");
+  const values = [
+    0, -0, 1, -1, 9, 10, 99.5, 999.4, 1_234.5, -12_345.678, 0.5, 0.05, 0.0004, 0.0005, 1.005,
+    9.9996, 71.25, 1e9, 123_456_789.123,
+  ];
+
+  it.each([
+    ["en", undefined],
+    ["fr", "number"],
+    ["de", "integer"],
+    ["en", "percent"],
+    ["hi", { maximumFractionDigits: 1 }],
+    [
+      "en",
+      { minimumFractionDigits: 2, maximumFractionDigits: 2, trailingZeroDisplay: "stripIfInteger" },
+    ],
+    ["fr", { style: "currency", currency: "EUR" }],
+    ["ar-EG", { useGrouping: "min2" }],
+  ] as const)("gives texts of one width one key, in %s with %j", (locale, format) => {
+    const key = widthKey(format, locale);
+    expect(key).toBeDefined();
+    for (const signed of [false, true]) {
+      const write = (signed ? signedFormatter : formatter)(format, locale);
+      const seen = new Map<number, string>();
+      for (const v of values) {
+        const k = key?.(v) ?? Number.NaN;
+        if (!Number.isNaN(k)) {
+          const s = seen.get(k) ?? shape(write(v));
+          expect(shape(write(v)), String(v)).toBe(s);
+          seen.set(k, s);
+        }
+      }
+    }
+  });
+
+  it("tells apart texts of another width", () => {
+    const key = widthKey(undefined, "en");
+    expect(key?.(71.25)).not.toBe(key?.(50));
+    expect(key?.(100)).not.toBe(key?.(50));
+    expect(key?.(-5)).not.toBe(key?.(5));
+    expect(key?.(0)).not.toBe(key?.(1));
+  });
+
+  it("keys a duration by the record it writes and its sign", () => {
+    const key = widthKey("duration", "en");
+    expect(key).toBeDefined();
+    const durations = [
+      0, -0, 0.3, -0.3, 1, 999.4, 999.6, 1_000, 1_234, 1_456, 9_999, 12_345, -5_000, 59_600, 60_000,
+      61_000, 599_000, 3_723_000, 9_420_013, 82_800_000, 1_080_000_000,
+    ];
+    for (const signed of [false, true]) {
+      const write = (signed ? signedFormatter : formatter)("duration", "en");
+      const seen = new Map<number, string>();
+      for (const v of durations) {
+        const k = key?.(v) ?? Number.NaN;
+        expect(k, String(v)).not.toBeNaN();
+        const text = seen.get(k) ?? write(v);
+        expect(write(v), String(v)).toBe(text);
+        seen.set(k, text);
+      }
+    }
+    expect(key?.(1_234)).toBe(key?.(1_456));
+    expect(key?.(59_600)).toBe(key?.(60_000));
+    expect(key?.(-0.3)).toBe(key?.(0));
+    expect(key?.(1_234)).not.toBe(key?.(12_345));
+    expect(key?.(61_000)).not.toBe(key?.(60_000));
+    expect(key?.(-5_000)).not.toBe(key?.(5_000));
+    expect(key?.(0.3)).not.toBe(key?.(0));
+    expect(key?.(Infinity)).toBeNaN();
+  });
+
+  it("has none for what it cannot read", () => {
+    expect(widthKey((v) => String(v), "en")).toBeUndefined();
+    expect(widthKey({ notation: "compact" }, "en")).toBeUndefined();
+    expect(widthKey({ maximumSignificantDigits: 2 }, "en")).toBeUndefined();
+    expect(
+      widthKey({ style: "unit", unit: "megabyte", unitDisplay: "long" }, "en"),
+    ).toBeUndefined();
+    expect(widthKey(undefined, "en")?.(2 ** 60)).toBeNaN();
   });
 });
 

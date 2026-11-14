@@ -11,14 +11,14 @@ import { localeOf } from "../../core/locale/locale.js";
 import { skeletonTiming, type SkeletonTimingController } from "../../feedback/skeleton/skeleton.js";
 import { forgetMeasures } from "../scale/measure.js";
 
-import { drawPlot, frameLegend, readMetrics } from "./draw.js";
+import { drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
 import { layout, type Floors } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
-import { overall, readoutWidths, totalWord, type Widths } from "./readout.js";
+import { chipChosen, overall, readoutWidths, totalWord, type Widths } from "./readout.js";
 import type { ChartSpec } from "./spec.js";
 import { shortDescription, summaryOf } from "./summary.js";
-import { syncTable, tableModel } from "./table.js";
+import { namedRows, syncTable, tableModel } from "./table.js";
 import { chartWords, type ChartWords, type Words } from "./words.js";
 
 export { durationEdges } from "../scale/ladder.js";
@@ -289,7 +289,11 @@ export function renderChart(
     const none = overall(drawn, words);
     if (none !== undefined) {
       widths = grow(widths, readoutWidths(drawn, words, metrics.measure));
-      frameLegend(legend, none, widths, totalWord(drawn, words));
+      frameLegend(legend, none, widths, totalWord(drawn, words), chipChosen(drawn));
+      const key = sizeKey(drawn, lay);
+      if (key !== undefined) {
+        legend.append(key);
+      }
     }
     explorer.drawn(drawn, lay);
   };
@@ -312,7 +316,7 @@ export function renderChart(
       explorer.clear();
     }
     if (tableOn && tableStale) {
-      syncTable(panel, tableModel(drawn, words), title.textContent, drawn.y.type === "band");
+      syncTable(panel, tableModel(drawn, words), title.textContent, namedRows(drawn));
       tableStale = false;
     }
     panel.hidden = !tableOn;
@@ -360,7 +364,7 @@ export function renderChart(
       arrange([legend, plot, panel]);
       plotStale = true;
       if (tableOn && !panel.hidden) {
-        syncTable(panel, tableModel(model, words), title.textContent, model.y.type === "band");
+        syncTable(panel, tableModel(model, words), title.textContent, namedRows(model));
         tableStale = false;
       } else {
         tableStale = true;

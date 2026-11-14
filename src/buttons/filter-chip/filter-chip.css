@@ -3,6 +3,8 @@
  * so the state is never the colour alone. As an <a> it is the same pill
  * leading to a related page. */
 .cp-filter-chip {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   display: inline-flex;
   align-items: center;
   min-block-size: var(--cp-control-h-sm);

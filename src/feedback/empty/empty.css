@@ -1,10 +1,16 @@
 /* Empty state: what belongs here and the one action that fills it. */
 .cp-empty {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: var(--cp-space-3);
   padding: var(--cp-space-8) var(--cp-space-6);
   color: var(--cp-ink-muted);
+}
+
+/* Each part keeps its own width, held to the column so a long word wraps. */
+.cp-empty > * {
+  max-inline-size: 100%;
 }
 
 /* Its lead glyph, in the accent or the tone it names, such as danger for

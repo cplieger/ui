@@ -11,9 +11,11 @@ import {
   barPaths,
   barReach,
   barSegments,
+  bubblePaths,
   bucketEdges,
   dotGroups,
   dotPath,
+  dotRadius,
   groupEdges,
   linePath,
   pointAt,
@@ -21,6 +23,10 @@ import {
   rangePath,
   rectPaths,
   ruleXs,
+  scatterAt,
+  scatterPaths,
+  slopeEnds,
+  slopePaths,
   type Frame,
 } from "./geometry.js";
 import {
@@ -31,6 +37,8 @@ import {
   type Model,
   type PointModel,
   type RectModel,
+  type ScatterModel,
+  type SlopeModel,
 } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
@@ -1257,7 +1265,7 @@ describe("bars", () => {
 });
 
 describe("points", () => {
-  const pointModel = (x: ChartSpec["x"], series: (number | null)[][]) =>
+  const pointModel = (x: NonNullable<ChartSpec["x"]>, series: (number | null)[][]) =>
     model({
       x,
       marks: [
@@ -1391,5 +1399,151 @@ describe("an x rule on bar rows", () => {
     expect(out.marks[1]).toMatchObject({ place: { at: 30 } });
     const neither = diverging([-20, 20]);
     expect(neither.marks[1]).toMatchObject({ place: { off: "high" } });
+  });
+});
+
+describe("slope geometry", () => {
+  const m = model({
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", y: [50, 25] },
+          { name: "Dogs", y: [null, 10] },
+          { name: "Mice", y: [null, null] },
+        ],
+      },
+    ],
+  });
+  const slopeOf = m.marks[0] as SlopeModel;
+  const f = frame(m, 200, 100, 50);
+
+  it("sets each end at its column's edge of the plot and its value's height", () => {
+    expect(slopeEnds(slopeOf, 0, f)).toEqual([
+      { x: 0, y: 0 },
+      { x: 200, y: 50 },
+    ]);
+    expect(slopeEnds(slopeOf, 1, f)).toEqual([undefined, { x: 200, y: 80 }]);
+  });
+
+  it("draws a line between both ends and a dot at each, a null end drawing neither", () => {
+    expect(slopePaths(slopeOf, f)).toEqual({
+      lines: ["M0 0L200 50", "", ""],
+      ends: ["M0 0h0M200 50h0", "M200 80h0", ""],
+    });
+  });
+});
+
+describe("scatter geometry", () => {
+  const m = model({
+    x: { label: "a", domain: [0, 100] },
+    y: { label: "b", domain: [0, 100] },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Europe",
+            names: ["A", "B", "C", "D"],
+            x: [50, 20, null, 120],
+            y: [50, 80, 10, 10],
+          },
+          { name: "Asia", names: ["E"], x: [52], y: [50] },
+        ],
+      },
+    ],
+  });
+  const scatterOf = m.marks[0] as ScatterModel;
+  const f = frame(m, 100, 100, 100);
+  const circle = (cx: number, cy: number) =>
+    `M${String(cx - 4)} ${String(cy)}a4 4 0 1 0 8 0a4 4 0 1 0 -8 0Z`;
+
+  it("places each dot at its two values, y down", () => {
+    expect(scatterAt(scatterOf, 0, 1, f)).toEqual({ x: 20, y: 20 });
+    expect(scatterAt(scatterOf, 0, 2, f)).toBeUndefined();
+  });
+
+  it("draws a path per series, a closed 4 px circle per dot it shows", () => {
+    expect(scatterPaths(scatterOf, f)).toEqual([circle(50, 50) + circle(20, 20), circle(52, 50)]);
+  });
+});
+
+describe("bubble geometry", () => {
+  const m = model({
+    x: { label: "a", domain: [0, 100] },
+    y: { label: "b", domain: [0, 100] },
+    r: { label: "c", domain: [0, 400] },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Small",
+            names: ["A", "B", "C", "D"],
+            x: [50, 10, 20, 30],
+            y: [50, 10, 20, 30],
+            r: [25, 400, 0, 0.01],
+          },
+          { name: "Large", names: ["E", "F"], x: [52, 60], y: [50, 60], r: [100, 400] },
+        ],
+      },
+    ],
+  });
+  const bubbleOf = m.marks[0] as ScatterModel;
+  const f = { ...frame(m, 100, 100, 100), bubble: 24 };
+
+  it("sizes each bubble's area by its r from 0, at least 1 px wide, and a 0 as nothing", () => {
+    expect(dotRadius(bubbleOf, 0, 1, f)).toBe(24);
+    // A quarter of the area, half the radius.
+    expect(dotRadius(bubbleOf, 1, 0, f)).toBe(12);
+    expect(dotRadius(bubbleOf, 0, 0, f)).toBe(6);
+    expect(dotRadius(bubbleOf, 0, 3, f)).toBe(0.5);
+    expect(dotRadius(bubbleOf, 0, 2, f)).toBe(0);
+    expect(dotRadius(bubbleOf, 0, 1, { bubble: 12 })).toBe(12);
+  });
+
+  it("paints bubbles largest first across every series, sharing a path where none touch", () => {
+    const at = (x: number, y: number, r: number) =>
+      `M${String(x - r)} ${String(y)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0Z`;
+    expect(bubblePaths(bubbleOf, f)).toEqual([
+      // B, and D far from every other, in the first series' first path.
+      { slot: 1, d: at(10, 90, 24) + at(30, 70, 0.5) },
+      { slot: 2, d: at(60, 40, 24) },
+      // E touches F, so it paints after it, and A, smaller, after E of the later series.
+      { slot: 2, d: at(52, 50, 12) },
+      { slot: 1, d: at(50, 50, 6) },
+    ]);
+  });
+
+  it("keeps two bubbles apart whose outlines alone would touch", () => {
+    const pair = model({
+      x: { label: "a", domain: [0, 100] },
+      y: { label: "b", domain: [0, 100] },
+      r: { label: "c", domain: [0, 4] },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "s", names: ["A", "B", "C"], x: [10, 25.5, 80], y: [50, 50, 50], r: [4, 1, 1] },
+          ],
+        },
+      ],
+    });
+    // A has a 10 px radius and B a 5 px one, 15.5 px apart: only their outlines meet.
+    const paths = bubblePaths(pair.marks[0] as ScatterModel, {
+      ...frame(pair, 100, 100, 100),
+      bubble: 10,
+    });
+    expect(paths.map((p) => (p.d.match(/Z/g) ?? []).length)).toEqual([2, 1]);
+  });
+
+  it("gives a plain dot its fixed radius", () => {
+    const plain = model({
+      x: { label: "a" },
+      y: { label: "b" },
+      marks: [{ mark: "scatter", series: [{ name: "s", names: ["A"], x: [1], y: [2] }] }],
+    }).marks[0] as ScatterModel;
+    expect(dotRadius(plain, 0, 0, f)).toBe(4);
   });
 });

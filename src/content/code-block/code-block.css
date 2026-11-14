@@ -3,6 +3,8 @@
  * A fill, not a line, sets it apart; forced colours draw the transparent
  * border. */
 .cp-code[data-variant="block"] {
+  --cp-chart-surface: var(--cp-surface-sunken);
+
   display: block;
   block-size: auto;
   min-inline-size: 0;

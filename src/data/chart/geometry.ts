@@ -2,11 +2,12 @@
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
  * pixel and cut at the plot's ends, rows of dots, bars and points along
- * their rows, rules and the axis lines.
+ * their rows, a slope's lines and ends, a scatter's dots, rules and the
+ * axis lines.
  * @module
  */
 
-import { reduce, type Point } from "../scale/reduce.js";
+import { reduce, upperBound, type Point } from "../scale/reduce.js";
 
 import {
   barsApart,
@@ -22,6 +23,8 @@ import {
   type PointModel,
   type RectModel,
   type SampleModel,
+  type ScatterModel,
+  type SlopeModel,
 } from "./model.js";
 import type { Continuous } from "./scales.js";
 
@@ -42,6 +45,8 @@ export interface Frame {
   /** A split or mirrored bar chart's panels, one per series in series
    *  order; absent once a split folds into one panel under 30rem. */
   readonly panels?: readonly Panel[];
+  /** A bubble chart's largest radius, in px. */
+  readonly bubble?: number;
 }
 
 /** A bar chart's panel: its left and right px in the plot, its share of
@@ -774,6 +779,155 @@ export function arrowPaths(
     heads += `M${num(tip)} ${num(y)}L${num(base)} ${num(y - half)}V${num(y + half)}Z`;
   }
   return { shafts, heads };
+}
+
+/** A slope end's radius, the half of chart.css's 8 px round cap. */
+export const SLOPE_RADIUS = 4;
+
+/** Series `k`'s two ends of slope `m`, left then right, in plot px: its
+ *  columns at the plot's edges, each `undefined` at a `null` end. */
+export function slopeEnds(m: SlopeModel, k: number, f: Frame): (Point | undefined)[] {
+  return [0, 1].map((c) => {
+    const v = m.series[k]?.y[c] ?? null;
+    return v === null ? undefined : { x: f.xAt(c), y: f.yAt(v) };
+  });
+}
+
+/** Each series of `m` in series order: its line between its two ends, none
+ *  with a `null` end, and its ends as zero-length segments. */
+export function slopePaths(m: SlopeModel, f: Frame): { lines: string[]; ends: string[] } {
+  const lines: string[] = [];
+  const ends: string[] = [];
+  m.series.forEach((_, k) => {
+    const [a, b] = slopeEnds(m, k, f);
+    lines.push(
+      a === undefined || b === undefined ? "" : `M${num(a.x)} ${num(a.y)}L${num(b.x)} ${num(b.y)}`,
+    );
+    ends.push(
+      [a, b]
+        .filter((p): p is Point => p !== undefined)
+        .map((p) => `M${num(p.x)} ${num(p.y)}h0`)
+        .join(""),
+    );
+  });
+  return { lines, ends };
+}
+
+/** A scatter dot's radius: one more than a timeline's, since each dot is
+ *  an item the reader looks for. */
+export const SCATTER_RADIUS = 4;
+
+/** Dot `i` of series `k` of `m`, its centre in plot px; undefined for a
+ *  dot `m` does not show. */
+export function scatterAt(m: ScatterModel, k: number, i: number, f: Frame): Point | undefined {
+  const s = m.series[k];
+  const x = s?.x[i] ?? null;
+  const y = s?.y[i] ?? null;
+  return x === null || y === null ? undefined : { x: f.xAt(x), y: f.yAt(y) };
+}
+
+/** A bubble chart's largest radius from 30rem up, and under it, as
+ *  Datawrapper shrinks its symbols on a small screen. */
+export const BUBBLE_RADIUS = 24;
+export const BUBBLE_RADIUS_NARROW = 12;
+
+/** The radius of dot `i` of series `k` of `m`: a plain dot's, or a
+ *  bubble's, its area proportional to its r from 0 (Plot's square-root
+ *  scale), at least 0.5 px above 0 so it draws 1 px wide, and none at 0. */
+export function dotRadius(m: ScatterModel, k: number, i: number, f: Pick<Frame, "bubble">): number {
+  if (m.size === undefined) {
+    return SCATTER_RADIUS;
+  }
+  const v = m.series[k]?.r?.[i] ?? 0;
+  return v > 0 ? Math.max((f.bubble ?? 0) * Math.sqrt(v / m.size.hi), 0.5) : 0;
+}
+
+// A closed circle of radius r from its left end, so its outline joins
+// where it starts.
+const arcs = (r: number): string =>
+  `a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0Z`;
+const SCATTER_ARCS = arcs(SCATTER_RADIUS);
+const circle = (c: Point, r: number, tail = arcs(r)): string =>
+  `M${num(c.x - r)} ${num(c.y)}${tail}`;
+
+/** A path of bubbles in one slot. */
+export interface BubblePath {
+  readonly slot: number;
+  readonly d: string;
+}
+
+/**
+ * `m`'s bubbles as paths in paint order, a 0 drawing none. No two bubbles
+ * in one path touch, outlines included, and each lies in a path after every
+ * path holding a bubble it touches that draws before it, so each outline
+ * lies with its fill over the larger bubbles under it, as one element per
+ * bubble would, in a few elements: each element's styles cost the page.
+ */
+export function bubblePaths(m: ScatterModel, f: Frame): BubblePath[] {
+  const paths: { slot: number; circles: string[] }[] = [];
+  // Per slot, its paths' indices, ascending.
+  const bySlot = new Map<number, number[]>();
+  const reach = 2 * (f.bubble ?? 0) + 1;
+  // A cell's key packs its column and row; two cells sharing a key only add
+  // neighbours the distance test then drops.
+  const cells = new Map<number, { x: number; y: number; r: number; path: number }[]>();
+  for (const ref of m.drawn) {
+    const c = scatterAt(m, ref.series, ref.i, f);
+    const r = Math.round(dotRadius(m, ref.series, ref.i, f) * 100) / 100;
+    if (c === undefined || r <= 0) {
+      continue;
+    }
+    // The last path holding a bubble this one touches, each outline 0.5 px outside.
+    let after = -1;
+    const cx = Math.floor(c.x / reach);
+    const cy = Math.floor(c.y / reach);
+    for (let gx = cx - 1; gx <= cx + 1; gx++) {
+      for (let gy = cy - 1; gy <= cy + 1; gy++) {
+        for (const o of cells.get(gx * 0x100000 + gy) ?? []) {
+          const dx = o.x - c.x;
+          const dy = o.y - c.y;
+          const near = o.r + r + 1;
+          if (o.path > after && dx * dx + dy * dy < near * near) {
+            after = o.path;
+          }
+        }
+      }
+    }
+    const slot = m.series[ref.series]?.slot ?? 1;
+    const own = bySlot.get(slot) ?? [];
+    let path = own[upperBound(own, after)];
+    if (path === undefined) {
+      path = paths.length;
+      paths.push({ slot, circles: [] });
+      own.push(path);
+      bySlot.set(slot, own);
+    }
+    paths[path]?.circles.push(circle(c, r));
+    const key = cx * 0x100000 + cy;
+    const cell = cells.get(key);
+    const at = { x: c.x, y: c.y, r, path };
+    if (cell === undefined) {
+      cells.set(key, [at]);
+    } else {
+      cell.push(at);
+    }
+  }
+  return paths.map((p) => ({ slot: p.slot, d: p.circles.join("") }));
+}
+
+/** One path per series of `m` in series order, a circle per shown dot in
+ *  the app's order. Inside one path every fill paints before any stroke
+ *  (https://www.w3.org/TR/SVG2/painting.html#PaintOrderProperty), so a
+ *  series' outlines all lie over its fills, and a later series over it. */
+export function scatterPaths(m: ScatterModel, f: Frame): string[] {
+  return m.series.map((_, k) =>
+    (m.shown[k] ?? [])
+      .map((i) => {
+        const c = scatterAt(m, k, i, f);
+        return c === undefined ? "" : circle(c, SCATTER_RADIUS, SCATTER_ARCS);
+      })
+      .join(""),
+  );
 }
 
 /** A 1 px line down the plot at `x`, on whole device pixels. */

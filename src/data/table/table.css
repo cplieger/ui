@@ -130,6 +130,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-table tbody tr:has(:focus-visible) .cp-button:not([data-variant], [data-cp-state]) {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   background: var(--cp-surface-raised);
 }
 
@@ -287,6 +289,8 @@ th[aria-sort="descending"] > .cp-sort::after {
     }
 
     .cp-table tbody tr:hover :is(td, th) {
+      --cp-quiet-hover: var(--cp-fill-hover);
+
       background: var(--cp-fill);
     }
 
@@ -294,6 +298,8 @@ th[aria-sort="descending"] > .cp-sort::after {
      * lift it to the raised surface. Only a resting button: one that
      * confirms in place keeps the fill its busy or done state gives it. */
     .cp-table tr:hover .cp-button:not([data-variant], [data-cp-state]) {
+      --cp-chart-surface: var(--cp-surface-raised);
+
       background: var(--cp-surface-raised);
     }
   }

@@ -9,13 +9,15 @@ import {
   instantFormat,
   signedFormatter,
   spanFormat,
+  widthKey,
   type Unit,
+  type WidthKey,
 } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
 import { spansDay } from "../scale/time.js";
 
-import { ruleAt, xScale, yScale, type Band, type Continuous } from "./scales.js";
-import type { BarMark, ChartSpec, Mark, PointMark, RectMark } from "./spec.js";
+import { rScale, ruleAt, xScale, yScale, type Band, type Continuous, type Size } from "./scales.js";
+import type { BarMark, ChartSpec, Mark, PointMark, RectMark, ScatterMark } from "./spec.js";
 
 type Kind =
   | "stackedColumn"
@@ -39,7 +41,10 @@ type Kind =
   | "mirrorBar"
   | "dotPlot"
   | "rangePlot"
-  | "arrowPlot";
+  | "arrowPlot"
+  | "slope"
+  | "scatter"
+  | "bubble";
 
 export interface SeriesModel {
   readonly name: string;
@@ -232,6 +237,68 @@ export function pointLink(m: PointModel, i: number): number | null {
   return m.link === "range" ? Math.abs(b - a) : b - a;
 }
 
+/** Each series as one line between two named columns, which sit at x 0
+ *  and 1 of the chart's x. */
+export interface SlopeModel {
+  readonly kind: "slope";
+  /** The columns' names, left to right. */
+  readonly columns: readonly [string, string];
+  /** Each series' `y` holds its two ends. */
+  readonly series: readonly SeriesModel[];
+}
+
+/** A slope series' right end less its left; `null` with either end missing. */
+export function slopeChange(s: SeriesModel): number | null {
+  const [a = null, b = null] = s.y;
+  return a === null || b === null ? null : b - a;
+}
+
+interface ScatterSeriesModel {
+  readonly name: string;
+  readonly slot: number;
+  readonly names: readonly string[];
+  /** A value per dot, a gap (`null` or `NaN`) as `null`. */
+  readonly x: readonly (number | null)[];
+  readonly y: readonly (number | null)[];
+  /** A bubble chart's sizes, a gap as `null`; undefined without `r`. */
+  readonly r: readonly (number | null)[] | undefined;
+}
+
+/** A scatter's dot: index `i` of series `series`. */
+export interface DotRef {
+  readonly series: number;
+  readonly i: number;
+}
+
+/** Dots on two continuous scales, each series a group in its slot. */
+export interface ScatterModel {
+  readonly kind: "scatter";
+  readonly unit: Unit | undefined;
+  readonly series: readonly ScatterSeriesModel[];
+  /** Per series, its dots drawn, read and listed in the app's order: those
+   *  with both values, and on a bubble chart a size, inside both domains. */
+  readonly shown: readonly (readonly number[])[];
+  /** The bubbles' size scale; undefined for plain dots. */
+  readonly size: Size | undefined;
+  /** The shown dots in draw order, a later one over an earlier: series,
+   *  then the app's order; bubbles largest first across every series, ties
+   *  in that order, so a small bubble is never hidden under a large one. */
+  readonly drawn: readonly DotRef[];
+}
+
+/** The shown dot of `m` whose values are `x` and `y`, the one drawn on top
+ *  among coincident dots. Undefined when no shown dot has both. */
+export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | undefined {
+  for (let d = m.drawn.length - 1; d >= 0; d--) {
+    const ref = m.drawn[d];
+    const s = ref === undefined ? undefined : m.series[ref.series];
+    if (ref !== undefined && s?.x[ref.i] === x && s.y[ref.i] === y) {
+      return ref;
+    }
+  }
+  return undefined;
+}
+
 interface RuleModel {
   readonly kind: "rule";
   readonly axis: "x" | "y";
@@ -257,7 +324,16 @@ export interface TextModel {
 }
 
 type MarkModel =
-  RectModel | LineModel | AreaModel | DotModel | BarModel | PointModel | RuleModel | TextModel;
+  | RectModel
+  | LineModel
+  | AreaModel
+  | DotModel
+  | BarModel
+  | PointModel
+  | SlopeModel
+  | ScatterModel
+  | RuleModel
+  | TextModel;
 
 export interface Model {
   readonly spec: ChartSpec;
@@ -270,16 +346,27 @@ export interface Model {
   /** Nothing to draw: every value null, every row empty, every rect 0, no
    *  point inside the domain, or every area sample 0 or a gap. */
   readonly empty: boolean;
-  /** An x value as the readings and the table write it. */
+  /** An x value as the readings and the table write it; on a slope a
+   *  column, 0 or 1, as its name. */
   readonly xText: (v: number) => string;
   /** Both ends of a span of x, the end without a date the start already says. */
   readonly xSpan: (from: number, to: number) => readonly [string, string];
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
+  /** A bubble's size, in the r scale's format. */
+  readonly rText: (v: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
    *  bar or point chart, else `yText`), or a plain number under "share",
    *  whose axis writes shares. */
   readonly amountText: (v: number) => string;
+  /** The width keys of `xText` off a time x and a slope, `yText`, `rText`
+   *  and `amountText`; undefined where a format has none. */
+  readonly widthKeys: {
+    readonly x: WidthKey | undefined;
+    readonly y: WidthKey | undefined;
+    readonly r: WidthKey | undefined;
+    readonly amount: WidthKey | undefined;
+  };
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
 }
@@ -365,6 +452,32 @@ function checkSlot(slot: unknown, what: string, field = "slot"): void {
   }
 }
 
+function checkSeriesHead(
+  one: unknown,
+  s: number,
+  at: string,
+): asserts one is Record<string, unknown> {
+  if (!isObject(one) || typeof one["name"] !== "string") {
+    fail(`${at} must have a name`);
+  }
+  checkSlot(one["slot"], at);
+  if (one["slot"] === undefined && s >= 9) {
+    fail(`${at} needs a slot, since series past the ninth take none of their own`, RangeError);
+  }
+}
+
+function checkValues(values: unknown, length: number, of: string, against: string): void {
+  if (!arrayLike(values)) {
+    fail(`${of} must be an array of numbers`);
+  }
+  if (values.length !== length) {
+    fail(`${of} must be as long as its ${against}`);
+  }
+  if (Array.from(values).some((v) => v !== null && typeof v !== "number")) {
+    fail(`${of} must hold numbers or null`);
+  }
+}
+
 function checkSeries(
   series: unknown,
   length: number,
@@ -377,23 +490,43 @@ function checkSeries(
   for (let s = 0; s < series.length; s++) {
     const one = series[s];
     const at = `${what}.series[${String(s)}]`;
-    if (!isObject(one) || typeof one["name"] !== "string") {
-      fail(`${at} must have a name`);
+    checkSeriesHead(one, s, at);
+    checkValues(one[channel], length, `${at}.${channel}`, channel === "y" ? "x" : "y");
+  }
+}
+
+// A scatter's series each name their dots, and the readings and the table
+// tell a dot by its name alone, so each is unique across the mark.
+function checkScatter(mark: Record<string, unknown>, what: string): void {
+  checkUnit(mark["unit"], what);
+  const list = mark["series"];
+  if (!arrayLike(list)) {
+    fail(`${what}.series must be an array`);
+  }
+  const seen = new Set<unknown>();
+  let sized: boolean | undefined;
+  for (let s = 0; s < list.length; s++) {
+    const one = list[s];
+    const at = `${what}.series[${String(s)}]`;
+    checkSeriesHead(one, s, at);
+    // One series without sizes would have no area to compare with the rest.
+    const r = one["r"] !== undefined;
+    if (sized !== undefined && r !== sized) {
+      fail(`${what}.series must all carry r or none, since a bubble's area compares across them`);
     }
-    checkSlot(one["slot"], at);
-    if (one["slot"] === undefined && s >= 9) {
-      fail(`${at} needs a slot, since series past the ninth take none of their own`, RangeError);
+    sized = r;
+    const names = one["names"];
+    if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
+      fail(`${at}.names must be an array of the dots' names`);
     }
-    const values = one[channel];
-    const of = `${at}.${channel}`;
-    if (!arrayLike(values)) {
-      fail(`${of} must be an array of numbers`);
+    for (const name of Array.from(names)) {
+      if (name === "" || seen.has(name)) {
+        fail(`${what} must name each dot once across its series, never ""`, RangeError);
+      }
+      seen.add(name);
     }
-    if (values.length !== length) {
-      fail(`${of} must be as long as its ${channel === "y" ? "x" : "y"}`);
-    }
-    if (Array.from(values).some((v) => v !== null && typeof v !== "number")) {
-      fail(`${of} must hold numbers or null`);
+    for (const channel of r ? ["x", "y", "r"] : ["x", "y"]) {
+      checkValues(one[channel], names.length, `${at}.${channel}`, "names");
     }
   }
 }
@@ -592,6 +725,31 @@ function checkMark(mark: unknown, what: string): void {
       }
       return;
     }
+    case "slope": {
+      const columns = mark["x"];
+      if (
+        !arrayLike(columns) ||
+        columns.length !== 2 ||
+        Array.from(columns).some((c) => typeof c !== "string")
+      ) {
+        fail(`${what}.x must name its two columns, left to right`);
+      }
+      const [from, to] = Array.from(columns);
+      if (from === "" || to === "" || from === to) {
+        fail(`${what}.x must name two different columns, never ""`, RangeError);
+      }
+      const list = mark["series"];
+      checkSeries(list, 2, what);
+      // The legend row, the readings and the table name a series by its name alone.
+      const names = Array.from(list, (s) => s["name"]);
+      if (names.some((n, k) => n === "" || names.indexOf(n) !== k)) {
+        fail(`${what}.series must name each series once, never ""`, RangeError);
+      }
+      return;
+    }
+    case "scatter":
+      checkScatter(mark, what);
+      return;
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -626,7 +784,9 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     default:
-      fail(`${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "rule" or "text"`);
+      fail(
+        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "rule" or "text"`,
+      );
   }
 }
 
@@ -635,9 +795,25 @@ function check(spec: unknown): asserts spec is ChartSpec {
   if (!isObject(spec)) {
     fail("the spec must be an object");
   }
-  checkScale(spec["x"], "x");
+  if (spec["x"] !== undefined) {
+    checkScale(spec["x"], "x");
+  }
   if (spec["y"] !== undefined) {
     checkScale(spec["y"], "y");
+  }
+  if (spec["r"] !== undefined) {
+    checkScale(spec["r"], "r");
+  }
+  const r = spec["r"];
+  if (isObject(r)) {
+    if (r["type"] !== undefined && r["type"] !== "linear") {
+      fail('r.type must be "linear", since a bubble\'s area is proportional to its value');
+    }
+    for (const flag of ["zero", "mono", "reverse"]) {
+      if (r[flag] !== undefined) {
+        fail(`r.${flag} has no place on a size scale, which runs from 0 and draws no axis`);
+      }
+    }
   }
   const marks = spec["marks"];
   if (!arrayLike(marks)) {
@@ -654,13 +830,29 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar or point mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope or scatter mark and any rules and text marks`,
       );
     }
     data = m;
   }
   const height = spec["height"];
   const primary = marks[data];
+  if (isObject(primary) && primary["mark"] === "scatter") {
+    const list = primary["series"];
+    const sized = arrayLike(list) && isObject(list[0]) && list[0]["r"] !== undefined;
+    for (const axis of sized ? ["x", "y", "r"] : ["x", "y"]) {
+      const scale = spec[axis];
+      const label = isObject(scale) ? scale["label"] : undefined;
+      if (typeof label !== "string" || label === "") {
+        fail(`${axis}.label is required on a scatter, whose readings name each measure by it`);
+      }
+      if (isObject(scale) && scale["unit"] !== undefined) {
+        fail(
+          `${axis}.unit has no place on a scatter, whose readings name each measure by its label; the mark's unit names the dots`,
+        );
+      }
+    }
+  }
   const band =
     isObject(primary) &&
     (primary["mark"] === "dot" || primary["mark"] === "bar" || primary["mark"] === "point");
@@ -695,6 +887,38 @@ const barSeries = (list: BarMark["series"]): BarSeriesModel[] =>
 
 const pointSeries = (list: PointMark["series"]): PointSeriesModel[] =>
   list.map((s, i) => ({ name: s.name, slot: s.slot ?? i + 1, x: gaps(s.x, false) }));
+
+// A dot outside a passed domain is not drawn, and with no position, or a
+// bubble with no size, it is no stop.
+function scatterModel(
+  mark: ScatterMark,
+  x: Continuous,
+  y: Continuous,
+  size: Size | undefined,
+): ScatterModel {
+  const series = mark.series.map((s, i) => ({
+    name: s.name,
+    slot: s.slot ?? i + 1,
+    names: s.names,
+    x: gaps(s.x, false),
+    y: gaps(s.y, false),
+    r: s.r === undefined ? undefined : gaps(s.r, false),
+  }));
+  const inside = (v: number | null | undefined, scale: Continuous): v is number =>
+    v !== null && v !== undefined && v >= scale.lo && v <= scale.hi;
+  const shown = series.map((s) =>
+    s.names.flatMap((_, i) =>
+      inside(s.x[i], x) && inside(s.y[i], y) && s.r?.[i] !== null ? [i] : [],
+    ),
+  );
+  const drawn = shown.flatMap((dots, k) => dots.map((i) => ({ series: k, i })));
+  if (size !== undefined) {
+    // Array.prototype.sort is stable, so ties keep series, then the app's order.
+    const r = (d: DotRef) => series[d.series]?.r?.[d.i] ?? 0;
+    drawn.sort((a, b) => r(b) - r(a));
+  }
+  return { kind: "scatter", unit: mark.unit, series, shown, size, drawn };
+}
 
 /** One series with a value below 0: its bars run either side of the zero
  *  line, and every value but 0 is written with its sign. */
@@ -774,6 +998,10 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
         : first.link === "arrow"
           ? "arrowPlot"
           : "dotPlot";
+    case "slope":
+      return "slope";
+    case "scatter":
+      return first.size === undefined ? "scatter" : "bubble";
   }
 }
 
@@ -796,6 +1024,10 @@ function hasData(m: MarkModel, x: Continuous): boolean {
       return m.series.some((s) => s.x.some((v) => v !== null && v !== 0));
     case "point":
       return m.series.some((s) => s.x.some((v) => v !== null && v >= x.lo && v <= x.hi));
+    case "slope":
+      return m.series.some((s) => s.y.some((v) => v !== null));
+    case "scatter":
+      return m.shown.some((dots) => dots.length > 0);
     case "rule":
     case "text":
       return false;
@@ -812,11 +1044,23 @@ function textModel(
   x: Continuous,
   y: Continuous | Band,
   ends: string | undefined,
+  columns: readonly [string, string] | undefined,
 ): TextModel {
   const side = m.side ?? "above";
   if (ends !== undefined && m.x !== undefined) {
     fail(`${what}.x has no place under arrange "${ends}"; the note sits at its row's end`);
   }
+  // A slope's columns sit at x 0 and 1, so a note names its column by index there.
+  const column = (v: number | string | undefined): number => {
+    if (v === undefined) {
+      return fail(`${what}.x is missing; a note on a slope names one of its two columns`);
+    }
+    if (typeof v !== "string") {
+      return fail(`${what}.x must name one of the slope's two columns`);
+    }
+    const c = columns?.indexOf(v) ?? -1;
+    return c === -1 ? fail(`${what}.x names no column: "${v}"`, RangeError) : c;
+  };
   const place = (v: number | string | undefined, axis: "x" | "y", scale: Continuous | Band) => {
     if (v === undefined) {
       return fail(
@@ -843,7 +1087,7 @@ function textModel(
   };
   return {
     kind: "text",
-    x: ends === undefined ? place(m.x, "x", x) : undefined,
+    x: columns !== undefined ? column(m.x) : ends === undefined ? place(m.x, "x", x) : undefined,
     y: place(m.y, "y", y),
     row: y.type === "band",
     text: m.text,
@@ -863,9 +1107,11 @@ export function chartModel(
   check(spec);
   const x = xScale(spec);
   const y = yScale(spec);
+  const size = rScale(spec);
   const ends = spec.marks
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
+  const columns = spec.marks.find((m) => m.mark === "slope")?.x;
   const marks = spec.marks.map((m, index): MarkModel => {
     switch (m.mark) {
       case "rect":
@@ -930,6 +1176,11 @@ export function chartModel(
         };
       case "point":
         return { kind: "point", link: m.link, series: pointSeries(m.series) };
+      case "slope":
+        return { kind: "slope", columns: m.x, series: series(m.series) };
+      case "scatter":
+        // A band y throws in yScale without band rows, so y is continuous.
+        return scatterModel(m, x, y as Continuous, size);
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";
         const value = m.x ?? m.y ?? 0;
@@ -942,26 +1193,32 @@ export function chartModel(
         return { kind: "rule", axis, value, label: m.label, place: either ? { at: value } : place };
       }
       case "text":
-        return textModel(m, `marks[${String(index)}]`, x, y, ends);
+        return textModel(m, `marks[${String(index)}]`, x, y, ends, columns);
     }
   });
   // The ends of a domain a whole day long can share their clock time, so they
   // need their dates ("Nov 10, 2:00 PM to Nov 11, 2:00 PM").
   const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
   const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
+  const slope = marks.find((m) => m.kind === "slope");
   const xText =
-    x.type === "time"
-      ? instantFormat(locale, timeZone, days)
-      : (signed ? signedFormatter : formatter)(x.format, locale);
+    slope !== undefined
+      ? (v: number) => slope.columns[v] ?? ""
+      : x.type === "time"
+        ? instantFormat(locale, timeZone, days)
+        : (signed ? signedFormatter : formatter)(x.format, locale);
   const xSpan =
     x.type === "time"
       ? spanFormat(locale, timeZone, days)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
   const yText = formatter(y.type === "band" ? undefined : y.format, locale);
+  const rText = formatter(size?.format, locale);
   const share = marks.some(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
   const bars = marks.some((m) => m.kind === "bar" || m.kind === "point");
+  const xKey = slope !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
+  const yKey = y.type === "band" ? undefined : widthKey(y.format, locale);
   return {
     spec,
     x,
@@ -972,7 +1229,14 @@ export function chartModel(
     xText,
     xSpan,
     yText,
+    rText,
     amountText: share ? formatter("number", locale) : bars ? xText : yText,
+    widthKeys: {
+      x: xKey,
+      y: yKey,
+      r: widthKey(size?.format, locale),
+      amount: share ? widthKey("number", locale) : bars ? xKey : yKey,
+    },
     locale,
     timeZone,
   };

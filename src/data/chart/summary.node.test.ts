@@ -847,7 +847,7 @@ describe("the summary of band rows alike or alone", () => {
   });
 
   it("reads a point series, a time x's instants and a link's gaps alike once", () => {
-    const point = (x: ChartSpec["x"], a: number[], b: number[], link?: "range") =>
+    const point = (x: NonNullable<ChartSpec["x"]>, a: number[], b: number[], link?: "range") =>
       model({
         x,
         marks: [
@@ -938,5 +938,229 @@ describe("the summary of a range or arrow plot", () => {
     const own = chartWords({ gap: "Écart", kind: { rangePlot: "Intervalle" } });
     expect(generatedSummary(model(pay("range")), own)).toContain("Écart: highest Master's");
     expect(shortDescription(model(pay("range")), own)).toBe(`Intervalle, 2 series, 4${nb}degrees`);
+  });
+});
+
+describe("the summary of a slope chart", () => {
+  const slope = (
+    series: readonly { name: string; y: (number | null)[] }[],
+    more: readonly Mark[] = [],
+  ): ChartSpec => ({
+    marks: [{ mark: "slope", x: ["2005", "2015"], series }, ...more],
+  });
+  const pets = slope([
+    { name: "Cats", y: [50, 34] },
+    { name: "Dogs", y: [40, 31] },
+    { name: "Horses", y: [30, 39] },
+    { name: "Mice", y: [null, 44] },
+    { name: "Sheep", y: [20, 35] },
+    { name: "Goats", y: [10, 25] },
+  ]);
+
+  it("gives each series' ends and change, then the largest rise and fall", () => {
+    expect(generatedSummary(model(pets), words)).toBe(
+      "2005 to 2015, 6 series. Cats: 50 to 34, -16. Dogs: 40 to 31, -9. Horses: 30 to 39, +9. " +
+        "Mice: No data to 44. Sheep: 20 to 35, +15. Goats: 10 to 25, +15. " +
+        "Largest rise: Sheep +15. Largest fall: Cats -16.",
+    );
+  });
+
+  it("leaves out the rise when none rose and the fall when none fell, and 0 is neither", () => {
+    expect(
+      generatedSummary(
+        model(
+          slope([
+            { name: "a", y: [3, 1] },
+            { name: "b", y: [2, 2] },
+          ]),
+        ),
+        words,
+      ),
+    ).toBe("2005 to 2015, 2 series. a: 3 to 1, -2. b: 2 to 2, 0. Largest fall: a -2.");
+    expect(generatedSummary(model(slope([{ name: "a", y: [1, 3] }])), words)).toBe(
+      "2005 to 2015. a: 1 to 3, +2. Largest rise: a +2.",
+    );
+  });
+
+  it("says its notes at their column, and names the columns in its short description", () => {
+    const noted = slope(
+      [{ name: "a", y: [1, 3] }],
+      [{ mark: "text", x: "2015", y: 3, text: "New high" }],
+    );
+    expect(generatedSummary(model(noted), words)).toBe(
+      "2005 to 2015. a: 1 to 3, +2. Largest rise: a +2. 2015: New high.",
+    );
+    expect(shortDescription(model(pets), words)).toBe("Slope chart, 6 series, 2005 to 2015");
+  });
+
+  it("takes the app's words", () => {
+    const own = chartWords({
+      slopeSummary: (range, series) => `[${range}|${series}]`,
+      slopeSeries: (name, from, to, change) => `<${name} ${from} ${to} ${change}>`,
+      rise: (name, change) => `up ${name} ${change}`,
+      fall: (name, change) => `down ${name} ${change}`,
+    });
+    expect(generatedSummary(model(slope([{ name: "a", y: [1, null] }])), own)).toBe(
+      "[2005 to 2015|] <a 1 No data >",
+    );
+  });
+});
+
+describe("a scatter's short description", () => {
+  const scatter = (unit?: { one: string; other: string }): ChartSpec => ({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        ...(unit === undefined ? {} : { unit }),
+        series: [
+          { name: "Europe", names: ["Albania", "Andorra"], x: [18_920, 65_928], y: [79.8, 84.1] },
+          { name: "Africa", names: ["Chad", "Mali"], x: [1_500, null], y: [53, 59] },
+        ],
+      },
+    ],
+  });
+
+  it("names its kind, its series and the dots it draws, in its unit", () => {
+    expect(shortDescription(model(scatter({ one: "country", other: "countries" })), words)).toBe(
+      `Scatter plot, 2 series, 3${nb}countries`,
+    );
+  });
+
+  it("counts points without a unit, one in the singular", () => {
+    expect(shortDescription(model(scatter()), words)).toBe("Scatter plot, 2 series, 3 points");
+    const one = model({
+      x: { label: "a" },
+      y: { label: "b" },
+      marks: [{ mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1], y: [2] }] }],
+    });
+    expect(shortDescription(one, words)).toBe("Scatter plot, 1 point");
+  });
+});
+
+describe("a scatter's summary", () => {
+  const countries = { one: "country", other: "countries" };
+  const world = (more: readonly Mark[] = []): ChartSpec => ({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        unit: countries,
+        series: [
+          {
+            name: "Europe",
+            names: ["Albania", "Monaco", "Norway", "Kosovo"],
+            x: [18_920, 140_000, 82_000, null],
+            y: [79.8, 85.9, 83.2, 79],
+          },
+          { name: "Africa", names: ["Burundi", "Chad"], x: [900, 1_500], y: [62, 53] },
+        ],
+      },
+      ...more,
+    ],
+  });
+
+  it("counts the dots and series, then gives each measure's highest and lowest dot", () => {
+    expect(generatedSummary(model(world()), words)).toBe(
+      `5${nb}countries, 2 series. GDP per capita: highest Monaco 140,000, lowest Burundi 900. Life expectancy: highest Monaco 85.9, lowest Chad 53.`,
+    );
+  });
+
+  it("gives a tie to the first dot in series order, then in the app's order", () => {
+    const tied = model({
+      x: { label: "x" },
+      y: { label: "y" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "a", names: ["a1", "a2"], x: [1, 3], y: [2, 2] },
+            { name: "b", names: ["b1", "b2"], x: [3, 1], y: [5, 1] },
+          ],
+        },
+      ],
+    });
+    expect(generatedSummary(tied, words)).toBe(
+      "4 points, 2 series. x: highest a2 3, lowest a1 1. y: highest b1 5, lowest b2 1.",
+    );
+  });
+
+  it("reads one dot once and dots all alike as one value", () => {
+    const one = model({
+      x: { label: "GDP per capita" },
+      y: { label: "Life expectancy" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [{ name: "All", names: ["Chad", "Mali"], x: [1_500, 2_000], y: [53, 53] }],
+        },
+      ],
+    });
+    expect(generatedSummary(one, words)).toBe(
+      "2 points. GDP per capita: highest Mali 2,000, lowest Chad 1,500. Life expectancy: 53 each.",
+    );
+    const lone = model({
+      x: { label: "GDP per capita" },
+      y: { label: "Life expectancy" },
+      marks: [{ mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1_500], y: [53] }] }],
+    });
+    expect(generatedSummary(lone, words)).toBe(
+      "1 point. GDP per capita: Chad 1,500. Life expectancy: Chad 53.",
+    );
+  });
+
+  it("writes a note's place as the dot it joins, or else both its measures", () => {
+    const notes: Mark[] = [
+      { mark: "text", x: 140_000, y: 85.9, text: "A city-state" },
+      { mark: "text", x: 50_000, y: 70, text: "Nobody here" },
+    ];
+    expect(generatedSummary(model(world(notes)), words)).toMatch(
+      / Monaco: A city-state\. GDP per capita 50,000, Life expectancy 70: Nobody here\.$/u,
+    );
+  });
+
+  it("states no correlation, which an app adds through its summary function", () => {
+    const own = summaryOf(
+      model({ ...world(), summary: (generated) => `${generated} Richer countries live longer.` }),
+      words,
+    );
+    expect(own).toMatch(/lowest Chad 53\. Richer countries live longer\.$/u);
+    expect(generatedSummary(model(world()), words)).not.toMatch(/correlat|trend/iu);
+  });
+});
+
+describe("a bubble chart's summary and short description", () => {
+  const world = model({
+    x: { label: "GDP per capita" },
+    y: { label: "Life expectancy" },
+    r: { label: "Population", format: { notation: "compact" } },
+    marks: [
+      {
+        mark: "scatter",
+        unit: { one: "country", other: "countries" },
+        series: [
+          {
+            name: "Asia",
+            names: ["India", "Japan", "Laos"],
+            x: [2_500, 48_000, 8_400],
+            y: [72, 84.5, 68],
+            r: [1_440_000_000, 124_000_000, null],
+          },
+          { name: "Oceania", names: ["Tuvalu"], x: [5_000], y: [65], r: [9_800] },
+        ],
+      },
+    ],
+  });
+
+  it("gives the size's highest and lowest dot after the two measures", () => {
+    expect(generatedSummary(world, words)).toBe(
+      `3${nb}countries, 2 series. GDP per capita: highest Japan 48,000, lowest India 2,500. Life expectancy: highest Japan 84.5, lowest Tuvalu 65. Population: highest India 1.4B, lowest Tuvalu 9.8K.`,
+    );
+  });
+
+  it("names it a bubble chart", () => {
+    expect(shortDescription(world, words)).toBe(`Bubble chart, 2 series, 3${nb}countries`);
   });
 });

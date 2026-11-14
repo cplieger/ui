@@ -11,9 +11,11 @@ import {
   arrowPaths,
   barPaths,
   barSegments,
+  bubblePaths,
   bucketEdges,
   dotGroups,
   dotPath,
+  dotRadius,
   groupEdges,
   hairline,
   linePath,
@@ -25,12 +27,17 @@ import {
   rectPaths,
   rulePath,
   ruleXs,
+  scatterAt,
+  scatterPaths,
+  SLOPE_RADIUS,
+  slopeEnds,
+  slopePaths,
   snap,
   type Segment,
   tickPath,
   upright,
 } from "./geometry.js";
-import type { Layout, Metrics, Note, Text } from "./layout.js";
+import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
 import { primaryOf, type Reading, type Widths } from "./readout.js";
@@ -134,17 +141,18 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   const grid: string[] = [];
   let zero = "";
   // A bar's and a point's value axis is x, so their gridlines and zero line
-  // stand upright; a point chart's zero is only a linear x's.
+  // stand upright, and a scatter's stand both ways; a point chart's and a
+  // scatter's zero is only a linear x's.
   const primary = primaryOf(model);
   const bars = primary?.kind === "bar";
   const points = primary?.kind === "point";
-  if (bars || points) {
+  if (bars || points || primary?.kind === "scatter") {
     for (const t of lay.xAxis.ticks) {
       if (t.value !== 0 || model.x.type !== "linear") {
         grid.push(upright(t.at, f.height, f.dpr));
       }
     }
-    if (primary.kind === "point") {
+    if (primary.kind !== "bar") {
       if (model.x.type === "linear" && lay.xAxis.lo <= 0 && lay.xAxis.hi >= 0) {
         zero = upright(f.xAt(0), f.height, f.dpr);
       }
@@ -155,16 +163,19 @@ function plotArea(model: Model, lay: Layout): SVGElement {
       zero = ats.map((at) => upright(at, f.height, f.dpr)).join("");
     }
   }
+  let yZero = "";
   for (const t of lay.yAxis?.ticks ?? []) {
     if (t.value === 0) {
-      zero = hairline(t.at, f.width, f.dpr);
+      yZero = hairline(t.at, f.width, f.dpr);
     } else {
       grid.push(hairline(t.at, f.width, f.dpr));
     }
   }
-  if (lay.yAxis !== undefined && zero === "" && lay.yAxis.lo <= 0 && lay.yAxis.hi >= 0) {
-    zero = hairline(f.yAt(0), f.width, f.dpr);
+  const y = lay.yAxis;
+  if (y !== undefined && yZero === "" && y.lo <= 0 && y.hi >= 0) {
+    yZero = hairline(f.yAt(0), f.width, f.dpr);
   }
+  zero += yZero;
   const rows = bars ? [] : lay.rows.map((r) => hairline(r.y, f.width, f.dpr));
   if (grid.length > 0) {
     area.append(svgEl("path", { "data-part": "grid", d: grid.join("") }));
@@ -239,6 +250,33 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         area.append(g);
         break;
       }
+      case "slope": {
+        // Every line lies under every end, so no line crosses a dot.
+        const { lines, ends } = slopePaths(m, f);
+        const g = svgEl("g", { "data-part": "slope" });
+        const dots = svgEl("g", { "data-part": "ends" });
+        m.series.forEach((s, k) => {
+          const slot = String(s.slot);
+          g.append(svgEl("path", { "data-series": slot, d: lines[k] ?? "" }));
+          dots.append(svgEl("path", { "data-series": slot, d: ends[k] ?? "" }));
+        });
+        area.append(g, dots);
+        break;
+      }
+      case "scatter": {
+        const g = svgEl("g", { "data-part": "scatter" });
+        if (m.size === undefined) {
+          scatterPaths(m, f).forEach((d, k) => {
+            g.append(svgEl("path", { "data-series": String(m.series[k]?.slot ?? 1), d }));
+          });
+        } else {
+          for (const p of bubblePaths(m, f)) {
+            g.append(svgEl("path", { "data-series": String(p.slot), d: p.d }));
+          }
+        }
+        area.append(g);
+        break;
+      }
       case "rule":
         if ("at" in m.place) {
           const at = m.place.at;
@@ -269,6 +307,9 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   return area;
 }
 
+const leaderPath = (list: readonly Leader[]): string =>
+  list.map((l) => `M${num(l.from.x)} ${num(l.from.y)}L${num(l.to.x)} ${num(l.to.y)}`).join("");
+
 /** Draws `model` laid out as `lay` into `svg`, replacing what it held. */
 export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
   svg.setAttribute("width", num(lay.width));
@@ -289,13 +330,19 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
     texts("titles", lay.titles),
     texts("rule-label", lay.ruleLabels),
     texts("head", lay.heads),
+    // Before the plot, so the dots cover the leaders' ends.
+    ...(lay.leaders.length > 0
+      ? [svgEl("path", { "data-part": "leader", d: leaderPath(lay.leaders) })]
+      : []),
     plotArea(model, lay),
     texts("end", lay.endLabels),
   );
 }
 
-const ring = (cx: number, cy: number, r: number): string =>
-  `M${num(cx - r)} ${num(cy)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0`;
+const ring = (cx: number, cy: number, radius: number): string => {
+  const r = Number(num(radius));
+  return `M${num(cx - r)} ${num(cy)}a${String(r)} ${String(r)} 0 1 0 ${String(2 * r)} 0a${String(r)} ${String(r)} 0 1 0 ${String(-2 * r)} 0`;
+};
 
 // A rectangle's outline drawn 1 px inside its edges, so its 2 px stroke
 // stays on the bar and covers no neighbour.
@@ -313,7 +360,8 @@ const outset = (g: Segment): string =>
 /** The ring's path for `sel`: the bar or its segment, a group's sub-columns
  *  or the chosen one, each line's point or each layer's top or the chosen
  *  one, the drawn dot, a row's hairline, a bar row's bar, its bars in each
- *  panel, or the chosen part, or a point row's dots or the chosen one. */
+ *  panel, or the chosen part, a point row's dots or the chosen one, or a
+ *  scatter's dot. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -399,12 +447,44 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
       .map((at) => (at === undefined ? "" : ring(at, cy, POINT_RADIUS + 1)))
       .join("");
   }
+  if (sel.kind === "scatter" && m?.kind === "scatter") {
+    const c = scatterAt(m, sel.series, sel.i, f);
+    return c === undefined ? "" : ring(c.x, c.y, dotRadius(m, sel.series, sel.i, f) + 1);
+  }
+  if (sel.kind === "slope" && m?.kind === "slope") {
+    // A chosen series rings both its ends, the whole column each end in it.
+    return m.series
+      .flatMap((_, k) => {
+        const ends = slopeEnds(m, k, f);
+        return sel.part === undefined ? [ends[sel.i]] : sel.part === k ? ends : [];
+      })
+      .map((p) => (p === undefined ? "" : ring(p.x, p.y, SLOPE_RADIUS + 1)))
+      .join("");
+  }
   const cy = snap(lay.rows[sel.kind === "dot" || sel.kind === "row" ? sel.row : 0]?.y ?? 0, f.dpr);
   if (sel.kind === "row") {
     return `M0 ${num(cy + 0.5)}H${num(f.width)}`;
   }
   const at = nav.crosshair(sel);
   return at === undefined ? "" : ring(at, cy + 0.5, 4);
+}
+
+// A scatter dot's crosshair: a rule up from the x axis and one across from
+// the y axis, each ending at the dot's edge so neither crosses it.
+function scatterHair(model: Model, lay: Layout, sel: Selection): string {
+  const m = primaryOf(model);
+  const f = lay.frame;
+  if (sel.kind !== "scatter" || m?.kind !== "scatter") {
+    return "";
+  }
+  const c = scatterAt(m, sel.series, sel.i, f);
+  if (c === undefined) {
+    return "";
+  }
+  const r = dotRadius(m, sel.series, sel.i, f);
+  const x = snap(c.x, f.dpr) + 0.5;
+  const y = snap(c.y, f.dpr) + 0.5;
+  return `M${num(x)} ${num(f.height)}V${num(c.y + r)}M0 ${num(y)}H${num(c.x - r)}`;
 }
 
 /**
@@ -426,14 +506,34 @@ export function drawSelection(
     const row = sel?.kind === "bar" || sel?.kind === "point";
     name.toggleAttribute("data-selected", row && sel.row === r);
   });
+  const chosen = sel?.kind === "slope" ? sel.part : undefined;
+  svg.querySelectorAll('[data-part="end"] > text').forEach((label, k) => {
+    const s = lay.endLabels[k]?.series;
+    label.toggleAttribute("data-selected", s !== undefined && s === chosen);
+  });
   if (area === null || sel === undefined) {
     return;
   }
   const g = svgEl("g", { "data-part": "selection" });
+  const m = primaryOf(model);
+  const s = m?.kind === "slope" && chosen !== undefined ? m.series[chosen] : undefined;
+  if (m?.kind === "slope" && s !== undefined) {
+    // The chosen series lies over the others where lines cross.
+    const { lines, ends } = slopePaths({ ...m, series: [s] }, lay.frame);
+    const slot = String(s.slot);
+    const line = svgEl("g", { "data-part": "slope" });
+    line.append(svgEl("path", { "data-series": slot, d: lines[0] ?? "" }));
+    const dots = svgEl("g", { "data-part": "ends" });
+    dots.append(svgEl("path", { "data-series": slot, d: ends[0] ?? "" }));
+    g.append(line, dots);
+  }
   const at = nav.crosshair(sel);
+  const hair = at === undefined ? scatterHair(model, lay, sel) : "";
   if (at !== undefined) {
     const x = num(snap(at, lay.frame.dpr) + 0.5);
     g.append(svgEl("path", { "data-part": "crosshair", d: `M${x} 0V${num(lay.frame.height)}` }));
+  } else if (hair !== "") {
+    g.append(svgEl("path", { "data-part": "crosshair", d: hair }));
   }
   const d = ringPath(model, lay, sel, nav);
   if (d !== "") {
@@ -458,12 +558,14 @@ function bdi(text: string): HTMLElement {
  * Builds the legend row's entries for readings shaped like `reading`: the
  * x slot, a chip per named series with its swatch, a bare value for a lone
  * series, and a stack's total, each slot kept at its width in `widths`.
+ * With `chooses`, each chip name keeps the width its chosen weight needs.
  */
 export function frameLegend(
   legend: HTMLElement,
   reading: Reading,
   widths: Widths,
   total: string,
+  chooses = false,
 ): void {
   const at = span("at");
   at.style.minInlineSize = `${num(widths.at)}px`;
@@ -480,7 +582,11 @@ export function frameLegend(
     chip.dataset["series"] = String(e.slot ?? 1);
     const swatch = document.createElement("span");
     swatch.className = "cp-swatch";
-    chip.append(swatch, bdi(e.name), value);
+    const name = bdi(e.name);
+    if (chooses) {
+      name.dataset["name"] = e.name;
+    }
+    chip.append(swatch, name, value);
     parts.push(chip);
   });
   if (reading.total !== undefined) {
@@ -494,6 +600,45 @@ export function frameLegend(
   writeLegend(legend, reading);
 }
 
+// The largest of 1, 2 and 5 times a power of ten at or below `v`, above 0.
+function roundDown(v: number): number {
+  let p = 10 ** Math.floor(Math.log10(v));
+  p = p * 10 <= v ? p * 10 : p > v ? p / 10 : p;
+  const lead = v / p;
+  return p * (lead >= 5 ? 5 : lead >= 2 ? 2 : 1);
+}
+
+/**
+ * A bubble chart's size key, for the legend row's end: the r label, then a
+ * circle for the r domain's high end rounded down to 1, 2 or 5 times a power
+ * of ten and one for a quarter of that, each drawn at the size `lay` draws
+ * it, with its value. `aria-hidden`, since every reading and the table give
+ * each size. Undefined without bubbles.
+ */
+export function sizeKey(model: Model, lay: Layout): HTMLElement | undefined {
+  const m = primaryOf(model);
+  const largest = lay.frame.bubble;
+  if (m?.kind !== "scatter" || m.size === undefined || largest === undefined) {
+    return undefined;
+  }
+  const { hi } = m.size;
+  const top = roundDown(hi);
+  const key = span("size");
+  key.setAttribute("aria-hidden", "true");
+  key.append(model.spec.r?.label ?? "");
+  for (const v of [top / 4, top]) {
+    const r = largest * Math.sqrt(v / hi);
+    // The 1 px outline lies half outside the circle's edge.
+    const side = num(2 * r + 1);
+    const svg = svgEl("svg", { width: side, height: side, viewBox: `0 0 ${side} ${side}` });
+    svg.append(svgEl("circle", { cx: num(r + 0.5), cy: num(r + 0.5), r: num(r) }));
+    const value = document.createElement("span");
+    value.textContent = model.rText(v);
+    key.append(svg, value);
+  }
+  return key;
+}
+
 /** Writes `reading` into a legend row `frameLegend` built for its shape. */
 export function writeLegend(legend: HTMLElement, reading: Reading): void {
   const at = legend.querySelector('[data-part="at"]');
@@ -503,6 +648,9 @@ export function writeLegend(legend: HTMLElement, reading: Reading): void {
     const el = values[k];
     if (el !== undefined) {
       el.textContent = e.value;
+      if (e.name !== undefined) {
+        el.parentElement?.toggleAttribute("data-selected", reading.chosen === k);
+      }
     }
   });
   const total = values[reading.entries.length];

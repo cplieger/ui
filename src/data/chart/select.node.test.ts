@@ -900,3 +900,356 @@ describe("point keys, pointer and words", () => {
     expect(rekey(a, { kind: "bar", row: 0, part: undefined }, b)).toBe(undefined);
   });
 });
+
+describe("slope keys, pointer and words", () => {
+  const column = (i: number, part?: number): Selection => ({ kind: "slope", i, part });
+  const pets = (more: readonly Mark[] = []): ChartSpec => ({
+    marks: [
+      {
+        mark: "slope",
+        x: ["2005", "2015"],
+        series: [
+          { name: "Cats", y: [50, 34] },
+          { name: "Dogs", y: [40, 31] },
+          { name: "Horses", y: [30, 39] },
+          { name: "Mice", y: [null, 31] },
+        ],
+      },
+      ...more,
+    ],
+  });
+
+  it("focus starts on the right column, whole", () => {
+    expect(initial(built(pets()).model)).toEqual(column(1));
+  });
+
+  it("moves between the columns with Left, Right, Home and End, keeping the series", () => {
+    const b = built(pets());
+    expect(press(b, column(1, 2), "ArrowLeft", "ArrowLeft", "End", "Home", "ArrowRight")).toEqual([
+      column(0, 2),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(b.nav.move(column(0, 2), "End", undefined)).toEqual(column(1, 2));
+    expect(b.nav.move(column(1), "Home", undefined)).toEqual(column(0));
+  });
+
+  it("leaves the Page keys to the page", () => {
+    const b = built(pets());
+    expect(b.nav.pages).toBe(false);
+    expect(b.nav.move(column(0), "PageDown", undefined)).toBe(undefined);
+    expect(b.nav.move(column(1), "PageUp", undefined)).toBe(undefined);
+    expect(built(stacked()).nav.pages).toBe(true);
+  });
+
+  it("moves Up and Down through the series by value at the column, ties in series order", () => {
+    const b = built(pets());
+    // 2015: Dogs 31 and Mice 31 tie, then Cats 34, then Horses 39.
+    expect(press(b, column(1), "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      column(1, 1),
+      column(1, 3),
+      column(1, 0),
+      column(1, 2),
+      undefined,
+    ]);
+    expect(b.nav.move(column(1), "ArrowDown", undefined)).toEqual(column(1, 2));
+    // 2005 has no Mice: Horses 30, Dogs 40, Cats 50.
+    expect(press(b, column(0), "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      column(0, 2),
+      column(0, 1),
+      column(0, 0),
+      undefined,
+    ]);
+  });
+
+  it("selects the nearer column anywhere in the plot's height, by drag too", () => {
+    const b = built(pets());
+    const w = b.lay.frame.width;
+    expect(b.nav.pick(w / 2 - 1, 0)).toEqual(column(0));
+    expect(b.nav.pick(w / 2 + 1, b.lay.frame.height)).toEqual(column(1));
+    expect(b.nav.pick(-20, 100)).toEqual(column(0));
+    expect(b.nav.pick(w + 20, 100)).toEqual(column(1));
+    expect(b.nav.crosshair(column(0))).toBe(0);
+    expect(b.nav.crosshair(column(1))).toBe(w);
+    expect(b.nav.drags).toBe(true);
+  });
+
+  it("says a column whole and a chosen series' ends and change", () => {
+    const b = built(pets());
+    expect(spoken(b.model, column(1), words, false)).toBe(
+      "2015: Cats 34, Dogs 31, Horses 39, Mice 31.",
+    );
+    expect(spoken(b.model, column(0), words, false)).toBe(
+      "2005: Cats 50, Dogs 40, Horses 30, Mice No data.",
+    );
+    expect(spoken(b.model, column(0, 1), words, true)).toBe("Dogs: 2005 40, 2015 31. Change -9.");
+    expect(spoken(b.model, column(1, 2), words, true)).toBe("Horses: 2005 30, 2015 39. Change +9.");
+    expect(spoken(b.model, column(1, 3), words, true)).toBe("Mice: 2005 No data, 2015 31.");
+    expect(spoken(b.model, column(1, 0), words, false)).toBe(
+      "2015: Cats 34, Dogs 31, Horses 39, Mice 31.",
+    );
+  });
+
+  it("says a change of 0 with no sign and in the y format", () => {
+    const b = built({
+      y: { format: "percent" },
+      marks: [
+        {
+          mark: "slope",
+          x: ["Before", "After"],
+          series: [
+            { name: "a", y: [0.5, 0.5] },
+            { name: "b", y: [0.25, 0.5] },
+          ],
+        },
+      ],
+    });
+    expect(spoken(b.model, column(0, 0), words, true)).toBe("a: Before 50%, After 50%. Change 0%.");
+    expect(spoken(b.model, column(0, 1), words, true)).toBe(
+      "b: Before 25%, After 50%. Change +25%.",
+    );
+  });
+
+  it("adds a note to its column's reading, whole or a chosen series", () => {
+    const note: Mark = { mark: "text", x: "2005", y: 50, text: "Peak" };
+    const b = built(pets([note]));
+    expect(spoken(b.model, column(0), words, false)).toBe(
+      "2005: Cats 50, Dogs 40, Horses 30, Mice No data. Note: Peak.",
+    );
+    expect(spoken(b.model, column(0, 1), words, true)).toBe(
+      "Dogs: 2005 40, 2015 31. Change -9. Note: Peak.",
+    );
+    expect(spoken(b.model, column(1), words, false)).toBe(
+      "2015: Cats 34, Dogs 31, Horses 39, Mice 31.",
+    );
+  });
+
+  it("keeps its column by name across an update, its series by place, and leaves with the name", () => {
+    const a = built(pets()).model;
+    const turned = (x: readonly [string, string]): Model =>
+      built({
+        marks: [{ mark: "slope", x, series: [{ name: "Cats", y: [1, 2] }] }],
+      }).model;
+    expect(rekey(a, column(1, 0), turned(["2015", "2025"]))).toEqual(column(0, 0));
+    expect(rekey(a, column(1, 3), turned(["2005", "2015"]))).toEqual(column(1));
+    expect(rekey(a, column(0), turned(["2015", "2025"]))).toBe(undefined);
+    expect(rekey(a, { kind: "line", i: 0, part: undefined }, a)).toBe(undefined);
+  });
+});
+
+describe("scatter keys, pointer and words", () => {
+  const dot = (series: number, i: number): Selection => ({ kind: "scatter", series, i });
+  // GDP per capita in thousands of dollars against life expectancy in years.
+  const world = (more: readonly Mark[] = [], reverse = false): ChartSpec => ({
+    x: { label: "GDP per capita", reverse },
+    y: { label: "Life expectancy" },
+    marks: [
+      {
+        mark: "scatter",
+        series: [
+          {
+            name: "Europe",
+            names: ["Albania", "Monaco", "Norway", "Kosovo"],
+            x: [19, 140, 82, null],
+            y: [79.8, 85.9, 83.2, 79],
+          },
+          {
+            name: "Africa",
+            names: ["Chad", "Ghana", "Kenya"],
+            x: [1.6, 6.3, 5.2],
+            y: [53, 64.1, 62.7],
+          },
+        ],
+      },
+      ...more,
+    ],
+  });
+  const chad = dot(1, 0);
+  const kenya = dot(1, 2);
+  const ghana = dot(1, 1);
+  const albania = dot(0, 0);
+  const norway = dot(0, 2);
+  const monaco = dot(0, 1);
+
+  it("focus starts on the first dot in x order", () => {
+    expect(initial(built(world()).model)).toEqual(chad);
+    expect(initial(built(world([], true)).model)).toEqual(chad);
+  });
+
+  it("walks every drawn dot in x order with Left and Right, Home and End at its ends", () => {
+    const b = built(world());
+    const right = press(b, chad, ...Array<Key>(6).fill("ArrowRight"));
+    expect(right).toEqual([kenya, ghana, albania, norway, monaco, undefined]);
+    expect(press(b, monaco, "ArrowLeft", "ArrowLeft")).toEqual([norway, albania]);
+    expect(b.nav.move(ghana, "Home", undefined)).toEqual(chad);
+    expect(b.nav.move(ghana, "End", undefined)).toEqual(monaco);
+    expect(b.nav.move(chad, "ArrowLeft", undefined)).toBe(undefined);
+    expect(b.nav.move(chad, "Home", undefined)).toBe(undefined);
+  });
+
+  it("walks y order with Up to the next higher value and Down to the next lower", () => {
+    const b = built(world());
+    const up = press(b, chad, ...Array<Key>(6).fill("ArrowUp"));
+    expect(up).toEqual([kenya, ghana, albania, norway, monaco, undefined]);
+    expect(press(b, norway, "ArrowDown", "ArrowDown")).toEqual([albania, ghana]);
+    expect(b.nav.move(chad, "ArrowDown", undefined)).toBe(undefined);
+  });
+
+  it("runs Left and Right as the drawing does on a reversed x", () => {
+    const b = built(world([], true));
+    expect(b.nav.move(ghana, "ArrowRight", undefined)).toEqual(kenya);
+    expect(b.nav.move(ghana, "ArrowLeft", undefined)).toEqual(albania);
+    expect(b.nav.move(ghana, "Home", undefined)).toEqual(monaco);
+  });
+
+  it("breaks a tie in x by y, and coincident dots by series, then the app's order", () => {
+    const b = built({
+      x: { label: "x" },
+      y: { label: "y" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "a", names: ["a1", "a2", "a3"], x: [1, 1, 2], y: [5, 3, 5] },
+            { name: "b", names: ["b1"], x: [1], y: [3] },
+          ],
+        },
+      ],
+    });
+    expect(press(b, dot(0, 1), "ArrowRight", "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      dot(1, 0),
+      dot(0, 0),
+      dot(0, 2),
+      undefined,
+    ]);
+    // y order: a2 3, b1 3 (x 1 each), then a1 5 (x 1), a3 5 (x 2).
+    expect(press(b, dot(0, 1), "ArrowUp", "ArrowUp", "ArrowUp", "ArrowUp")).toEqual([
+      dot(1, 0),
+      dot(0, 0),
+      dot(0, 2),
+      undefined,
+    ]);
+  });
+
+  it("pages to the nearest dot at least one x tick away", () => {
+    const xs = Array.from({ length: 21 }, (_, i) => i * 5);
+    const b = built({
+      x: { label: "x", domain: [0, 100] },
+      y: { label: "y" },
+      marks: [{ mark: "scatter", series: [{ name: "a", names: xs.map(String), x: xs, y: xs }] }],
+    });
+    const [first, second] = b.lay.xAxis.ticks.map((t) => t.value);
+    const step = (second ?? 0) - (first ?? 0);
+    expect(step).toBeGreaterThan(5);
+    expect(b.nav.pages).toBe(true);
+    expect(b.nav.move(dot(0, 0), "PageDown", undefined)).toEqual(dot(0, step / 5));
+    expect(b.nav.move(dot(0, 20), "PageUp", undefined)).toEqual(dot(0, 20 - step / 5));
+  });
+
+  it("points at the dot whose edge is nearest within 40 px, taps only, with no crosshair along x", () => {
+    const b = built(world());
+    const f = b.lay.frame;
+    const at = (x: number, y: number) => ({ x: f.xAt(x), y: f.yAt(y) });
+    const c = at(1.6, 53);
+    expect(b.nav.pick(c.x, c.y)).toEqual(chad);
+    // Left of the leftmost dot, so no other is as near: 4 px of radius, then 40 of reach.
+    expect(b.nav.pick(c.x - 44, c.y)).toEqual(chad);
+    expect(b.nav.pick(c.x - 44.5, c.y)).toBe(undefined);
+    expect(b.nav.drags).toBe(false);
+    expect(b.nav.crosshair(chad)).toBe(undefined);
+  });
+
+  it("points at the dot drawn on top among coincident dots: the later series, then the later dot", () => {
+    const b = built({
+      x: { label: "x" },
+      y: { label: "y" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "a", names: ["a1", "a2"], x: [1, 1], y: [1, 1] },
+            { name: "b", names: ["b1", "b2", "b3"], x: [1, 1, 2], y: [1, 1, 2] },
+          ],
+        },
+      ],
+    });
+    const f = b.lay.frame;
+    expect(b.nav.pick(f.xAt(1), f.yAt(1))).toEqual(dot(1, 1));
+    const solo = built({
+      x: { label: "x" },
+      y: { label: "y" },
+      marks: [
+        { mark: "scatter", series: [{ name: "a", names: ["a1", "a2"], x: [1, 1], y: [1, 1] }] },
+      ],
+    });
+    expect(solo.nav.pick(solo.lay.frame.xAt(1), solo.lay.frame.yAt(1))).toEqual(dot(0, 1));
+  });
+
+  it("says a dot's name, its series and both measures", () => {
+    const b = built(world());
+    expect(spoken(b.model, monaco, words, false)).toBe(
+      "Monaco: Europe, GDP per capita 140, Life expectancy 85.9.",
+    );
+    expect(spoken(b.model, chad, words, true)).toBe(
+      "Chad: Africa, GDP per capita 1.6, Life expectancy 53.",
+    );
+    const one = built({
+      x: { label: "GDP per capita" },
+      y: { label: "Life expectancy" },
+      marks: [{ mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1.6], y: [53] }] }],
+    });
+    expect(spoken(one.model, dot(0, 0), words, false)).toBe(
+      "Chad: GDP per capita 1.6, Life expectancy 53.",
+    );
+  });
+
+  it("adds a note to the dot at its values, on top among coincident dots, and to no other", () => {
+    const note: Mark = { mark: "text", x: 140, y: 85.9, text: "Richest" };
+    const b = built(world([note, { mark: "text", x: 50, y: 70, text: "Nowhere" }]));
+    expect(spoken(b.model, monaco, words, false)).toBe(
+      "Monaco: Europe, GDP per capita 140, Life expectancy 85.9. Note: Richest.",
+    );
+    expect(spoken(b.model, norway, words, false)).toBe(
+      "Norway: Europe, GDP per capita 82, Life expectancy 83.2.",
+    );
+    const twins = built({
+      x: { label: "x" },
+      y: { label: "y" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "a", names: ["a1"], x: [1], y: [1] },
+            { name: "b", names: ["b1"], x: [1], y: [1] },
+          ],
+        },
+        { mark: "text", x: 1, y: 1, text: "Here" },
+      ],
+    });
+    expect(spoken(twins.model, dot(1, 0), words, false)).toBe("b1: b, x 1, y 1. Note: Here.");
+    expect(spoken(twins.model, dot(0, 0), words, false)).toBe("a1: a, x 1, y 1.");
+  });
+
+  it("keeps a dot by its name across an update, in any series, and leaves with the name", () => {
+    const a = built(world()).model;
+    const moved = built({
+      x: { label: "GDP per capita" },
+      y: { label: "Life expectancy" },
+      marks: [
+        {
+          mark: "scatter",
+          series: [
+            { name: "Rich", names: ["Monaco", "Norway"], x: [150, 90], y: [86, 83] },
+            { name: "Poor", names: ["Kosovo", "Chad"], x: [5, 1.7], y: [79, 53] },
+          ],
+        },
+      ],
+    }).model;
+    expect(rekey(a, monaco, moved)).toEqual(dot(0, 0));
+    expect(rekey(a, chad, moved)).toEqual(dot(1, 1));
+    expect(rekey(a, ghana, moved)).toBe(undefined);
+    expect(rekey(a, { kind: "line", i: 0, part: undefined }, moved)).toBe(undefined);
+  });
+});

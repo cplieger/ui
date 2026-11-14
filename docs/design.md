@@ -68,7 +68,7 @@ The width tiers follow the space in the window, not the device:
 
 Below 60rem, the rail's filters move into a sheet behind a Filters button, as [Design patterns](design-patterns.md#dialogs-and-sheets) describes.
 
-Inside a region, an element follows its own box. A heading row's toolbar takes a line of its own once the row is under 40rem wide, in a narrow detail panel as on a phone. A table column carries its priority. In a container under 64rem, `data-priority="low"` columns leave. Under 44rem, `data-priority="mid"` columns leave too. The selection box, the title, the state and the row's action never leave. A table wider than its panel scrolls inside `.cp-panel[data-flush]`. Nothing else is wider than the window at 320px, and nothing is clipped.
+Inside a region, an element follows its own box. A heading row's toolbar takes a line of its own once the row is under 40rem wide, in a narrow detail panel as on a phone. A table column carries its priority. In a container under 64rem, `data-priority="low"` columns leave. Under 44rem, `data-priority="mid"` columns leave too. The selection box, the title, the state and the row's action never leave. A table wider than its panel scrolls inside `.cp-panel[data-flush]`. Nothing else is wider than the window at 320px, and nothing is clipped: a word with no break point breaks at the edge of its box, a code block's long line scrolls inside the block, and a button's or chip's words wrap once they would leave their box.
 
 ## Touch and mouse
 
@@ -78,6 +78,8 @@ Width and input are separate, since a tablet can have a trackpad and a laptop a 
 | --- | --- | --- | --- |
 | `fine` | 32px, 26px small | 36px | 24px at least |
 | `coarse` | 44px, small too | 48px | 44px at least |
+
+The hit area binds every control, the header's account button and wordmark among them. A link inside a line of text, such as an author's name at the head of an entry, a value in a facts list or a chip's words, is an inline target: it keeps its line's height, which the inline exception of [WCAG 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) allows.
 
 [`@cplieger/ui/pointer`](core/pointer.md) sets it. `applyPointerTier` writes a first value from the pre-paint script, and `installPointerTier` follows each real pointer, a mouse or a trackpad as `fine` and a finger or a pen as `coarse`:
 

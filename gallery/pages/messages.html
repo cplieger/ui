@@ -48,6 +48,7 @@
                 </section>
               </details>
               <div class="cp-context-main">
+                <div class="cp-feed-head"><button class="cp-button" data-size="sm" type="button" data-msg-older>Show older</button></div>
                 <ol class="cp-feed" aria-label="Messages" id="msg-feed">
                   <li class="cp-feed-day"><time data-day></time></li>
                   <li class="cp-feed-entry">
@@ -65,7 +66,7 @@
 Once your scroll fix merges, the queue moves to me. Tell me if it slips past noon.</p>
                     <footer><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-read="You @kiro" data-waiting="@gpt @claude" data-read-fails>Read by 2 of 4</button></footer>
                   </li>
-                  <li class="cp-feed-marker">New since your last visit</li>
+                  <li class="cp-since">New since your last visit</li>
                   <li class="cp-feed-entry">
                     <header><a href="#agent-gpt">@gpt</a><time data-ago="1800"></time></header>
                     <h3>Review of the jump</h3>
@@ -113,7 +114,7 @@ Once your scroll fix merges, the queue moves to me. Tell me if it slips past noo
             </div>
           </section>
         </div>
-        <footer>The conversations beside the open one, from a wide card; on a phone the conversation opens in a dialog and its reservations, queue and followers fold above the feed. Arrivals while you read older messages wait behind the New messages button, your own message always scrolls into view, and a send that fails keeps your text with Retry. Ctrl+Enter sends.</footer>
+        <footer>The conversations beside the open one, from a wide card; on a phone the conversation opens in a dialog and its reservations, queue and followers fold above the feed. Show older above the first message adds the day before it and moves focus to its oldest message, so you read down to where you were; the second press fails once and reads Retry, and the last day takes the button away. Arrivals while you read older messages wait behind the New messages button, your own message always scrolls into view, and a send that fails keeps your text with Retry. Ctrl+Enter sends.</footer>
       </div>
     </div>
   </section>

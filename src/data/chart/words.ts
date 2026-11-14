@@ -25,7 +25,10 @@ type Kind =
   | "mirrorBar"
   | "dotPlot"
   | "rangePlot"
-  | "arrowPlot";
+  | "arrowPlot"
+  | "slope"
+  | "scatter"
+  | "bubble";
 
 /** The words the chart writes and says, each given its values already formatted. */
 export interface ChartWords {
@@ -38,7 +41,8 @@ export interface ChartWords {
    *  and the rest). A rect on a log x is a histogram; one series of a rect
    *  is a column chart, of a bar a bar chart or, with a value below 0, a
    *  diverging one; two or more take their arrangement's kind; an area
-   *  mark, or a rect with shape "area", an area chart. */
+   *  mark, or a rect with shape "area", an area chart; a scatter whose
+   *  series carry r a bubble chart. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -68,11 +72,12 @@ export interface ChartWords {
    *  row, the table head and the summary. Default "Gap". */
   readonly gap?: string;
   /** An arrow plot's second value less its first, where `gap` names a
-   *  range's. Default "Change". */
+   *  range's, and a slope's right end less its left. Default "Change". */
   readonly change?: string;
   /** A range plot's row, as announced. Default "{at}: {parts}. Gap {gap}." */
   readonly gapReading?: (at: string, parts: string, gap: string) => string;
-  /** An arrow plot's row, as announced. Default "{at}: {parts}. Change {change}." */
+  /** An arrow plot's row, or a slope's chosen series, as announced.
+   *  Default "{at}: {parts}. Change {change}." */
   readonly changeReading?: (at: string, parts: string, change: string) => string;
   /** A null value. Default "No data". */
   readonly noData?: string;
@@ -83,6 +88,8 @@ export interface ChartWords {
   readonly count?: string;
   readonly first?: string;
   readonly last?: string;
+  /** A scatter's table head over each dot's series. Default "Series". */
+  readonly series?: string;
   /** A rule outside a passed domain, on the plot. Default "{label} {value}, off the axis". */
   readonly offAxis?: (label: string, value: string) => string;
   /** Equal buckets or samples. Default "every {size}". */
@@ -114,23 +121,30 @@ export interface ChartWords {
   /** A band's rows when the y scale names no unit; count is n as a number,
    *  for the plural. Default "{n} categories", or "{n} category" for one. */
   readonly categories?: (n: string, count: number) => string;
-  /** Summary, a bar chart's head; series is "" for one series. Default
+  /** A scatter's dots when its mark names no unit; count is n as a number,
+   *  for the plural. Default "{n} points", or "{n} point" for one. */
+  readonly points?: (n: string, count: number) => string;
+  /** A scatter dot's value with its axis label, in the legend row, the
+   *  readings and a note's place. Default "{label} {value}". */
+  readonly measure?: (label: string, value: string) => string;
+  /** Summary, a bar, point or scatter chart's head; series is "" for one series. Default
    *  "{count}, {series}.", or "{count}." with one series. */
   readonly countSummary?: (count: string, series: string) => string;
-  /** Summary, one series of a bar or point chart, or its totals under `total`; high
-   *  and low are each "{row} {value}". Default "{name}: highest {high},
-   *  lowest {low}." */
+  /** Summary, one series of a bar or point chart, or its totals under
+   *  `total`, or one measure of a scatter under its label; high and low are
+   *  each "{row} {value}" or "{dot} {value}". Default "{name}: highest
+   *  {high}, lowest {low}." */
   readonly barSeries?: (name: string, high: string, low: string) => string;
   /** Summary, a bar or point chart of one series. Default "Highest {high},
    *  lowest {low}." */
   readonly extremes?: (high: string, low: string) => string;
-  /** Summary, a bar or point series whose rows all hold one value; name is
-   *  "" for a chart's one series. Default "{name}: {value} each.", or
-   *  "{value} each." */
+  /** Summary, a bar or point series whose rows all hold one value, or a
+   *  scatter measure whose dots do; name is "" for a chart's one series.
+   *  Default "{name}: {value} each.", or "{value} each." */
   readonly alike?: (name: string, value: string) => string;
-  /** Summary, a bar or point series with one row holding a value; row is
-   *  "{row} {value}" and name "" for a chart's one series. Default
-   *  "{name}: {row}.", or "{row}." */
+  /** Summary, a bar or point series with one row holding a value, or a
+   *  scatter of one dot; row is "{row} {value}" and name "" for a chart's
+   *  one series. Default "{name}: {row}.", or "{row}." */
   readonly only?: (name: string, row: string) => string;
   /** Summary, one series of a point chart on a time x; first and last are
    *  each "{row} {time}". Default "{name}: earliest {first}, latest {last}." */
@@ -141,6 +155,16 @@ export interface ChartWords {
   readonly lineSeries?: (name: string, last: string, low: string, high: string) => string;
   /** Summary, dot head. Default "{range}. {rows}, {n}." */
   readonly dotSummary?: (range: string, rows: string, n: string) => string;
+  /** Summary, slope head; series is "" for one series. Default "{range},
+   *  {series}.", or "{range}." with one series. */
+  readonly slopeSummary?: (range: string, series: string) => string;
+  /** Summary, one slope series; change is "" when an end is missing.
+   *  Default "{name}: {from} to {to}, {change}.", or "{name}: {from} to {to}." */
+  readonly slopeSeries?: (name: string, from: string, to: string, change: string) => string;
+  /** Summary, a slope's largest rise. Default "Largest rise: {name} {change}." */
+  readonly rise?: (name: string, change: string) => string;
+  /** Summary, a slope's largest fall. Default "Largest fall: {name} {change}." */
+  readonly fall?: (name: string, change: string) => string;
   /** Summary, the busiest row. Default "Most: {name}, {n}." */
   readonly most?: (name: string, n: string) => string;
   /** Summary, rows with no dot. Default "None: {names}." */
@@ -182,6 +206,9 @@ const DEFAULTS: Words = {
     dotPlot: "Dot plot",
     rangePlot: "Range plot",
     arrowPlot: "Arrow plot",
+    slope: "Slope chart",
+    scatter: "Scatter plot",
+    bubble: "Bubble chart",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -204,6 +231,7 @@ const DEFAULTS: Words = {
   count: "Count",
   first: "First",
   last: "Last",
+  series: "Series",
   offAxis: (label, value) => `${label} ${value}, off the axis`,
   every: (size) => `every ${size}`,
   stackSummary: (total, every, range, parts) => {
@@ -219,6 +247,8 @@ const DEFAULTS: Words = {
   note: (at, text) => sentence(`${at}: ${text}`),
   noteReading: (text) => sentence(`Note: ${text}`),
   categories: (n, count) => (count === 1 ? `${n} category` : `${n} categories`),
+  points: (n, count) => (count === 1 ? `${n} point` : `${n} points`),
+  measure: (label, value) => `${label} ${value}`,
   countSummary: (count, series) => (series === "" ? `${count}.` : `${count}, ${series}.`),
   barSeries: (name, high, low) => `${name}: highest ${high}, lowest ${low}.`,
   extremes: (high, low) => `Highest ${high}, lowest ${low}.`,
@@ -228,6 +258,11 @@ const DEFAULTS: Words = {
   lineSummary: (range, every) => (every === "" ? `${range}.` : `${range}, ${every}.`),
   lineSeries: (name, last, low, high) => `${name}: last ${last}, low ${low}, high ${high}.`,
   dotSummary: (range, rows, n) => `${range}. ${rows}, ${n}.`,
+  slopeSummary: (range, series) => (series === "" ? `${range}.` : `${range}, ${series}.`),
+  slopeSeries: (name, from, to, change) =>
+    change === "" ? `${name}: ${from} to ${to}.` : `${name}: ${from} to ${to}, ${change}.`,
+  rise: (name, change) => `Largest rise: ${name} ${change}.`,
+  fall: (name, change) => `Largest fall: ${name} ${change}.`,
   most: (name, n) => `Most: ${name}, ${n}.`,
   silent: (names) => `None: ${names}.`,
   more: (n) => `and ${n} more`,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { rollText } from "../../core/roll/roll.js";
@@ -26,6 +26,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   life.abort();
   life = new AbortController();
   if (viewport !== undefined) {
@@ -149,18 +150,21 @@ describe("enhanceFeed", () => {
     const feed = enhance(c);
     await settle();
     await scrollTo(c.box, 200);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     c.feed.append(entry());
     await settle();
     expect(c.box.scrollTop).toBe(200);
     expect(c.jump.hidden).toBe(false);
     expect(c.jump.textContent).toBe("1 new message");
-    await expect.poll(polite).toBe("1 new message");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(polite()).toBe("1 new message");
     c.feed.append(entry());
     await settle();
     expect(c.box.scrollTop).toBe(200);
     expect(c.jump.textContent).toBe("2 new messages");
     expect(feed.unseen).toBe(2);
-    await expect.poll(polite).toBe("2 new messages");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(polite()).toBe("2 new messages");
   });
 
   it("rolls the count in a jump that has a roll, in the app's words", async () => {
@@ -224,6 +228,26 @@ describe("enhanceFeed", () => {
     expect(c.jump.hidden).toBe(true);
   });
 
+  it("takes the entry focus scrolls to as the reader's place, as the feed changes in that frame", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 600);
+    const target = c.feed.children[1] as HTMLLIElement;
+    target.tabIndex = -1;
+    target.focus();
+    expect(target.getBoundingClientRect().top).toBeLessThan(c.box.getBoundingClientRect().bottom);
+    const p = c.feed.children[20]?.querySelector("p") as HTMLParagraphElement;
+    p.style.blockSize = "10rem";
+    for (let i = 0; i < 3; i += 1) {
+      await settle();
+      const seen = c.box.getBoundingClientRect();
+      const r = target.getBoundingClientRect();
+      expect(r.bottom).toBeGreaterThan(seen.top);
+      expect(r.top).toBeLessThan(seen.bottom);
+    }
+  });
+
   it("keeps the reader in place when an entry above grows", async () => {
     const c = conversation();
     enhance(c);
@@ -238,6 +262,23 @@ describe("enhanceFeed", () => {
     p.style.blockSize = "10rem";
     await settle();
     expect(Math.abs(on.getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
+  });
+
+  it("keeps in place the first entry below the scroller's start padding, as under a sticky header", async () => {
+    const c = conversation();
+    c.box.style.scrollPaddingBlockStart = "160px";
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 300);
+    const top = c.box.getBoundingClientRect().top;
+    const kids = [...c.feed.children];
+    const under = kids.find((el) => el.getBoundingClientRect().bottom > top) as Element;
+    const seen = kids.find((el) => el.getBoundingClientRect().bottom > top + 160) as Element;
+    expect(seen).not.toBe(under);
+    const before = seen.getBoundingClientRect().top;
+    under.append(block("3rem"));
+    await settle();
+    expect(Math.abs(seen.getBoundingClientRect().top - before)).toBeLessThanOrEqual(1);
   });
 
   it("opens a feed loaded from skeletons at its newest, and counts nothing a later load adds", async () => {
@@ -386,6 +427,23 @@ describe("enhanceFeed", () => {
     expect(feed.unseen).toBe(0);
   });
 
+  it("hides the jump once the reader is within 2rem of the end, where the feed follows", async () => {
+    const c = conversation();
+    const feed = enhance(c);
+    await settle();
+    await scrollTo(c.box, 0);
+    c.feed.append(entry());
+    await settle();
+    expect(c.jump.hidden).toBe(false);
+    await scrollTo(c.box, c.box.scrollHeight - c.box.clientHeight - 16);
+    expect(c.jump.hidden).toBe(true);
+    expect(feed.unseen).toBe(0);
+    c.feed.append(entry());
+    await settle();
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    expect(c.jump.hidden).toBe(true);
+  });
+
   it("scrolls to the newest on a press of the jump, hides it and focuses the newest entry", async () => {
     const c = conversation();
     enhance(c);
@@ -419,6 +477,89 @@ describe("enhanceFeed", () => {
     await scrollTo(c.box, c.box.scrollHeight);
     expect(c.jump.hidden).toBe(true);
     expect(document.activeElement).toBe(c.feed.lastElementChild);
+  });
+
+  it("sizes the foot with the jump while it shows, and without it once it hides", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    const size = () => c.feed.style.getPropertyValue("--cp-feed-foot-size");
+    await scrollTo(c.box, 0);
+    c.feed.append(entry());
+    await settle();
+    const both = c.foot.getBoundingClientRect().bottom - c.jump.getBoundingClientRect().top;
+    expect(both).toBeGreaterThan(c.foot.offsetHeight);
+    expect(size()).toBe(`${String(both)}px`);
+    await scrollTo(c.box, c.box.scrollHeight);
+    await settle();
+    expect(c.jump.hidden).toBe(true);
+    expect(size()).toBe(`${String(c.foot.offsetHeight)}px`);
+  });
+
+  it("says a burst of arrivals once, when its count has settled", async () => {
+    const c = conversation();
+    enhance(c);
+    await settle();
+    await scrollTo(c.box, 0);
+    const said: string[] = [];
+    const region = document.querySelector('[aria-live="polite"]') as HTMLElement;
+    const heard = new MutationObserver(() => {
+      said.push(region.textContent);
+    });
+    heard.observe(region, { childList: true, characterData: true, subtree: true });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    c.feed.append(entry());
+    await settle();
+    // Past the announcer's own 100ms merge, within the count's settling.
+    await vi.advanceTimersByTimeAsync(400);
+    c.feed.append(entry());
+    await settle();
+    await vi.advanceTimersByTimeAsync(499);
+    expect(polite()).toBe("");
+    await vi.advanceTimersByTimeAsync(101);
+    heard.disconnect();
+    expect(polite()).toBe("2 new messages");
+    expect(said.filter((s) => s !== "")).toEqual(["2 new messages"]);
+  });
+
+  it("on the page, follows an arrival at the end and counts nothing", async () => {
+    const c = conversation(60, "auto");
+    c.box.style.overflowY = "visible";
+    document.body.append(block("150vh"));
+    const feed = enhance(c);
+    await settle();
+    c.feed.append(entry());
+    await settle();
+    const end = c.feed.getBoundingClientRect().bottom + c.foot.offsetHeight;
+    expect(Math.abs(end - innerHeight)).toBeLessThanOrEqual(1);
+    expect(feed.unseen).toBe(0);
+    expect(c.jump.hidden).toBe(true);
+  });
+
+  it("offers arrivals on a line after a feed with neither foot nor jump, whose Show goes to the newest", async () => {
+    const c = conversation();
+    c.foot.remove();
+    const feed = enhanceFeed(c.feed, { signal: life.signal });
+    await settle();
+    await scrollTo(c.box, 0);
+    c.feed.append(entry(), entry());
+    await settle();
+    const line = c.feed.nextElementSibling as HTMLElement;
+    expect(line.matches('.cp-list-pending[data-edge="end"]')).toBe(true);
+    expect(line.textContent).toBe("2 new messagesShow");
+    expect(feed.unseen).toBe(2);
+    const ended = scrollEnd(c.box);
+    await userEvent.click(line.querySelector("button") as HTMLButtonElement);
+    await ended;
+    expect(gap(c.box)).toBeLessThanOrEqual(1);
+    expect(line.isConnected).toBe(false);
+    expect(document.activeElement).toBe(c.feed.lastElementChild);
+    expect(feed.unseen).toBe(0);
+  });
+
+  it("refuses a foot with no jump to offer the arrivals on", () => {
+    const c = conversation();
+    expect(() => enhanceFeed(c.feed, { foot: c.foot, signal: life.signal })).toThrow(TypeError);
   });
 
   it("keeps the foot's height as the feed's --cp-feed-foot-size", async () => {
@@ -487,50 +628,56 @@ describe("enhanceFeed", () => {
     expect(c.box.scrollTop).toBeGreaterThan(0);
   });
 
-  it("lets a name that Tab reaches in an entry's popover reach the popover's end", async () => {
-    const c = conversation();
-    enhance(c);
-    await settle();
-    const panel = document.createElement("div");
-    panel.className = "cp-popover cp-feed-readers";
-    panel.dataset["variant"] = "panel";
-    panel.popover = "auto";
-    // With no anchor to place it by. A shown position-area popover also
-    // stops WebKit's page scroll anchoring, which a later test relies on.
-    panel.style.positionArea = "none";
-    panel.style.insetBlockStart = "0";
-    panel.style.insetInlineStart = "0";
-    const names = document.createElement("ul");
-    for (let i = 0; i < 40; i += 1) {
-      const a = document.createElement("a");
-      a.href = `#reader-${String(i)}`;
-      a.textContent = `Reader ${String(i + 1)}`;
-      const li = document.createElement("li");
-      li.append(a);
-      names.append(li);
-    }
-    panel.append(names);
-    c.feed.lastElementChild?.append(panel);
-    panel.showPopover();
-    await Promise.all(panel.getAnimations().map((a) => a.finished));
-    const [first, second] = panel.querySelectorAll("a");
-    const pitch =
-      (second?.getBoundingClientRect().top ?? 0) - (first?.getBoundingClientRect().top ?? 0);
-    first?.focus();
-    // An engine scrolls a name into view only once it is not wholly in
-    // view, so one a margin does not push up gets within a name of the end.
-    const gaps: number[] = [];
-    for (let i = 0; i < 30; i += 1) {
-      await userEvent.keyboard("{Tab}");
+  // Thirty Tab round trips outlast the 15 s browser default on a loaded
+  // host, and a timed-out run presses Tab into the next tests too.
+  it(
+    "lets a name that Tab reaches in an entry's popover reach the popover's end",
+    { timeout: 30_000 },
+    async () => {
+      const c = conversation();
+      enhance(c);
       await settle();
-      const end = panel.getBoundingClientRect().top + panel.clientTop + panel.clientHeight;
-      gaps.push(end - (document.activeElement?.getBoundingClientRect().bottom ?? 0));
-    }
-    expect(document.activeElement?.textContent).toBe("Reader 31");
-    expect(panel.scrollTop).toBeGreaterThan(0);
-    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(-1);
-    expect(Math.min(...gaps)).toBeLessThan(pitch);
-  });
+      const panel = document.createElement("div");
+      panel.className = "cp-popover cp-feed-readers";
+      panel.dataset["variant"] = "panel";
+      panel.popover = "auto";
+      // With no anchor to place it by. A shown position-area popover also
+      // stops WebKit's page scroll anchoring, which a later test relies on.
+      panel.style.positionArea = "none";
+      panel.style.insetBlockStart = "0";
+      panel.style.insetInlineStart = "0";
+      const names = document.createElement("ul");
+      for (let i = 0; i < 40; i += 1) {
+        const a = document.createElement("a");
+        a.href = `#reader-${String(i)}`;
+        a.textContent = `Reader ${String(i + 1)}`;
+        const li = document.createElement("li");
+        li.append(a);
+        names.append(li);
+      }
+      panel.append(names);
+      c.feed.lastElementChild?.append(panel);
+      panel.showPopover();
+      await Promise.all(panel.getAnimations().map((a) => a.finished));
+      const [first, second] = panel.querySelectorAll("a");
+      const pitch =
+        (second?.getBoundingClientRect().top ?? 0) - (first?.getBoundingClientRect().top ?? 0);
+      first?.focus();
+      // An engine scrolls a name into view only once it is not wholly in
+      // view, so one a margin does not push up gets within a name of the end.
+      const gaps: number[] = [];
+      for (let i = 0; i < 30; i += 1) {
+        await userEvent.keyboard("{Tab}");
+        await settle();
+        const end = panel.getBoundingClientRect().top + panel.clientTop + panel.clientHeight;
+        gaps.push(end - (document.activeElement?.getBoundingClientRect().bottom ?? 0));
+      }
+      expect(document.activeElement?.textContent).toBe("Reader 31");
+      expect(panel.scrollTop).toBeGreaterThan(0);
+      expect(Math.min(...gaps)).toBeGreaterThanOrEqual(-1);
+      expect(Math.min(...gaps)).toBeLessThan(pitch);
+    },
+  );
 
   it("keeps a reader who scrolled up in place while they type in the composer", async () => {
     const c = conversation();
@@ -586,6 +733,26 @@ describe("enhanceFeed", () => {
     Object.assign(keyboard, { height: innerHeight / 2, scale: 2 });
     keyboard.dispatchEvent(new Event("resize"));
     expect(c.foot.style.getPropertyValue("--cp-keyboard-inset")).toBe("");
+    document.body.style.removeProperty("margin");
+  });
+
+  it("measures what the keyboard covers from the scroller's inner edge, not its border", async () => {
+    const keyboard = new EventTarget() as EventTarget & {
+      height: number;
+      offsetTop: number;
+      scale: number;
+    };
+    Object.assign(keyboard, { height: innerHeight - 200, offsetTop: 0, scale: 1 });
+    Object.defineProperty(window, "visualViewport", { value: keyboard, configurable: true });
+    document.body.style.margin = "0";
+    const c = conversation(30, `${String(innerHeight - 100)}px`);
+    c.box.style.boxSizing = "border-box";
+    c.box.style.borderBlockEnd = "40px solid";
+    enhance(c);
+    await settle();
+    // The foot rests on the inner edge, innerHeight - 140; the keyboard
+    // starts at innerHeight - 200.
+    expect(c.foot.style.getPropertyValue("--cp-keyboard-inset")).toBe("60px");
     document.body.style.removeProperty("margin");
   });
 
