@@ -21,6 +21,7 @@ export type AccountPart =
   | "single-sign-on"
   | "pending-link"
   | "setup-passkey"
+  | "second-factor"
   | "profile"
   | "password-remove"
   | "sessions"

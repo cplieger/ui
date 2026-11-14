@@ -1,0 +1,46 @@
+import * as access from "@cplieger/access";
+import type { ApiResult } from "@cplieger/reactive/fetch";
+import { expect, it } from "vitest";
+
+import type {
+  Result,
+  SetupAccess,
+  SetupClient,
+  SignInAccess,
+  SignInClient,
+  StepUpAccess,
+  StepUpClient,
+} from "./client.js";
+
+// typecheck:tests compiles these against the pinned @cplieger/access, so a
+// structural type that drifts from the release fails there.
+const fits = <T>(value: T): T => value;
+
+export function hostPasses(client: access.AuthClient, answer: ApiResult<number>): unknown[] {
+  return [
+    fits<Result<number>>(answer),
+    fits<SignInClient>(client),
+    fits<SetupClient>(client),
+    fits<StepUpClient>(client),
+    fits<SignInAccess<access.AuthClient>>(access),
+    fits<SetupAccess<access.AuthClient>>(access),
+    fits<StepUpAccess<access.AuthClient>>(access),
+  ];
+}
+
+it("finds every function the screens call in the access module", () => {
+  const called = [
+    "passkeySupport",
+    "readOIDCReturn",
+    "oidcSignInURL",
+    "registerPasskey",
+    "setupWithPasskey",
+    "signInWithPasskey",
+    "storePasswordCredential",
+    "takeFragmentToken",
+    "withStepUp",
+  ] as const;
+  for (const name of called) {
+    expect(typeof access[name], name).toBe("function");
+  }
+});

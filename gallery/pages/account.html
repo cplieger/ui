@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#qr">QR code</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -115,6 +115,32 @@
         <h2>This app needs HTTPS</h2>
         <section class="cp-panel" data-setup-demo="strict"></section>
         <footer>An app that refuses setup over plain HTTP: no form, only the way to its HTTPS address.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="step-up">
+    <h2>Step-up</h2>
+    <p><code>stepUp(action, options)</code> runs a write that needs a recent sign-in. When the server asks for one, "Confirm it is you" names the action and offers only what the account holds and the app mounts, then runs the action once more. Cancel and Escape close it with no error and give focus back to the button.</p>
+    <div class="g-grid">
+      <div class="card" data-new>
+        <h2>Confirm it is you</h2>
+        <div class="cp-cluster"><button class="cp-button" type="button" data-step-up-demo="password">Revoke…</button></div>
+        <footer>A password, a passkey and single sign-on. Type "wrong" for the wrong password's field error, or "limit" for a rate limit; any other password confirms. The passkey runs out of time once, then confirms.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>With an authenticator app</h2>
+        <div class="cp-cluster"><button class="cp-button" type="button" data-step-up-demo="code">Rotate…</button></div>
+        <footer>An account with an authenticator app, on an app that offers no password at step-up: the code field first, with numeric keys. Type 111111 for a wrong code, 222222 for one already used, 333333 for a locked app; any other six digits confirm.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Only a passkey</h2>
+        <div class="cp-cluster"><button class="cp-button" type="button" data-step-up-demo="passkey">Remove password…</button></div>
+        <footer>No password and no single sign-on: the passkey is the one method and the primary, with focus on it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Sign in again over plain HTTP</h2>
+        <div class="cp-cluster"><button class="cp-button" type="button" data-step-up-demo="plain">Change password…</button></div>
+        <footer>A plain session cannot step up, so the server asks for a fresh sign-in: the sign-in form with the username fixed, then the action runs once more.</footer>
       </div>
     </div>
   </section>

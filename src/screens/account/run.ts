@@ -18,6 +18,7 @@ export const accountActions = [
   "auth.recovery_password",
   "auth.recovery_passkey",
   "auth.step_up",
+  "auth.step_up_code",
   "auth.profile_save",
   "auth.password_set",
   "auth.password_remove",

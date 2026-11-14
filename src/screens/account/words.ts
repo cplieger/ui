@@ -66,6 +66,43 @@ export interface AccountWords {
   readonly "setup.offerSkip": string;
   readonly "setup.created": string;
 
+  readonly "stepUp.title": string;
+  readonly "stepUp.password": string;
+  readonly "stepUp.code": string;
+  readonly "stepUp.codeHelp": string;
+  readonly "stepUp.confirm": string;
+  readonly "stepUp.busy": string;
+  readonly "stepUp.done": string;
+  readonly "stepUp.cancel": string;
+  readonly "stepUp.usePassword": string;
+  readonly "stepUp.useCode": string;
+  readonly "stepUp.usePasskey": string;
+  readonly "stepUp.passkeyBusy": string;
+  readonly "stepUp.useProvider": (provider: string) => string;
+  readonly "stepUp.passwordEmpty": string;
+  readonly "stepUp.codeFormat": string;
+  /** A wrong password: the person is signed in, so it names the password. */
+  readonly "stepUp.wrong": string;
+  /** Password step-up was turned off after the methods were read. */
+  readonly "stepUp.passwordOff": string;
+  /** The account holds no method this page can confirm with. */
+  readonly "stepUp.none": string;
+  readonly "stepUp.https": string;
+  /** Said when a rate limit's countdown ends. */
+  readonly "stepUp.again": string;
+  /** A plain session's fresh sign-in, in place of the step-up. */
+  readonly "stepUp.signInTitle": string;
+  readonly "stepUp.signIn": string;
+  readonly "stepUp.signInBusy": string;
+  /** The fresh sign-in needs a step this dialog does not hold. */
+  readonly "stepUp.signInElsewhere": string;
+
+  readonly "auth_code_invalid.code_invalid": string;
+  readonly "auth_code_invalid.code_reused": string;
+  /** `passkey`: the person can sign in with a passkey to unlock it. */
+  readonly "auth_code_invalid.method_locked": (passkey: boolean) => string;
+  readonly auth_totp_disabled: string;
+  readonly auth_second_factor_unavailable: string;
   /** What HTTPS would add on a plain request, from `https_required`. */
   readonly "plain.withheld": (methods: readonly ("passkeys" | "oidc")[]) => string;
   /** The plain session's length, each part already worded ("12 hours"). */
@@ -169,6 +206,44 @@ export const defaultAccountWords: AccountWords = {
   "setup.offerDone": "Passkey added",
   "setup.offerSkip": "Skip",
   "setup.created": "Your account is ready.",
+
+  "stepUp.title": "Confirm it is you",
+  "stepUp.password": "Password",
+  "stepUp.code": "Code",
+  "stepUp.codeHelp": "Enter the 6-digit code from your authenticator app.",
+  "stepUp.confirm": "Confirm",
+  "stepUp.busy": "Confirming…",
+  "stepUp.done": "Confirmed",
+  "stepUp.cancel": "Cancel",
+  "stepUp.usePassword": "Use your password",
+  "stepUp.useCode": "Use your authenticator app",
+  "stepUp.usePasskey": "Use a passkey",
+  "stepUp.passkeyBusy": "Waiting for your passkey…",
+  "stepUp.useProvider": (provider) => `Use ${provider}`,
+  "stepUp.passwordEmpty": "Enter your password.",
+  "stepUp.codeFormat": "Enter the 6 digits from your authenticator app.",
+  "stepUp.wrong": "The password is wrong.",
+  "stepUp.passwordOff": "Password sign-in is turned off. Confirm it is you another way.",
+  "stepUp.none":
+    "Nothing on this account can confirm it is you here. Sign out, then sign in again.",
+  "stepUp.https": "Confirming it is you needs HTTPS. Open the app over HTTPS to do this.",
+  "stepUp.again": "You can try again.",
+  "stepUp.signInTitle": "Sign in again to continue",
+  "stepUp.signIn": "Sign in",
+  "stepUp.signInBusy": "Signing in…",
+  "stepUp.signInElsewhere":
+    "This sign-in needs another step. Sign out, then sign in on the sign-in page.",
+
+  "auth_code_invalid.code_invalid": "That code is not right.",
+  "auth_code_invalid.code_reused":
+    "That code was already used. Wait for the next one. If you did not just sign in elsewhere, someone else may have, and you should change your password.",
+  "auth_code_invalid.method_locked": (passkey) =>
+    passkey
+      ? "Too many wrong codes. Sign in with a passkey to unlock it, or ask an admin to reset your authenticator app."
+      : "Too many wrong codes. Ask an admin to reset your authenticator app.",
+  auth_totp_disabled: "Authenticator apps were just turned off in this app.",
+  auth_second_factor_unavailable:
+    "Codes from an authenticator app cannot be checked right now. Try again later, or confirm it is you another way.",
 
   "plain.withheld": (methods) =>
     methods.length === 2

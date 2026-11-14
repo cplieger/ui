@@ -7,6 +7,9 @@
 import {
   mountSetup,
   mountSignIn,
+  stepUp,
+  type MeView,
+  type MethodsView,
   type Refusal,
   type RegisterOutcome,
   type Result,
@@ -19,6 +22,10 @@ import {
   type SignInOutcome,
   type SignedIn,
   type StateResponse,
+  type StepUpAccess,
+  type StepUpCallbacks,
+  type StepUpClient,
+  type StepUpResult,
 } from "@cplieger/ui/account";
 import { qrCode } from "@cplieger/ui/qr";
 import { toast } from "@cplieger/ui/toast";
@@ -417,4 +424,174 @@ for (const panel of document.querySelectorAll<HTMLElement>("[data-setup-demo]"))
 
 for (const box of document.querySelectorAll<HTMLElement>("[data-qr-demo]")) {
   box.replaceChildren(qrCode(box.dataset["qrDemo"] ?? ""));
+}
+
+const HOLDS: MethodsView = {
+  password: true,
+  passkey_count: 1,
+  oidc_linked: true,
+  oidc_available: true,
+  passkeys_available: true,
+  password_login: true,
+  locks: [],
+};
+
+interface StepUpScript {
+  readonly methods: MethodsView;
+  /** The refusal the action answers first. */
+  readonly first: Refusal;
+  /** A plain session: the server asks for a fresh sign-in. */
+  readonly signInAgain?: boolean;
+}
+
+const STEP_UP: Readonly<Record<string, StepUpScript & { readonly reason: string }>> = {
+  password: {
+    methods: HOLDS,
+    first: refusal(403, "auth_recent_auth_required"),
+    reason: "Revoking a key needs a recent sign-in.",
+  },
+  code: {
+    methods: {
+      ...HOLDS,
+      password_step_up: false,
+      totp: { enrolled: true, usable: true, removable: true },
+    },
+    first: refusal(403, "auth_recent_auth_required"),
+    reason: "Rotating a key needs a recent sign-in.",
+  },
+  passkey: {
+    methods: { ...HOLDS, password: false, oidc_linked: false },
+    first: refusal(403, "auth_recent_auth_required"),
+    reason: "Removing your password needs a recent sign-in.",
+  },
+  plain: {
+    methods: HOLDS,
+    first: refusal(403, "auth_recent_auth_required", "sign_in_again"),
+    signInAgain: true,
+    reason: "Changing your password needs a recent sign-in.",
+  },
+};
+
+/** A step-up's answers by what the person types, and `withStepUp` as
+ *  `@cplieger/access` runs it, its passkey and provider steps faked. */
+function stepUpFake(script: StepUpScript): {
+  readonly client: StepUpClient;
+  readonly access: StepUpAccess<StepUpClient>;
+} {
+  let passkeys = 0;
+  const client: StepUpClient = {
+    async me(): Promise<Result<MeView>> {
+      await wait(200);
+      return { ok: true, data: { user: { username: "mika" }, methods: script.methods } };
+    },
+    async loginPassword(r) {
+      await wait(700);
+      return r.password === "wrong"
+        ? refusal(401, "auth_invalid_credentials")
+        : { ok: true, data: SIGNED_IN };
+    },
+  };
+  const password = async (value: string): Promise<Result<void>> => {
+    await wait(700);
+    switch (value) {
+      case "wrong":
+        return refusal(401, "auth_invalid_credentials");
+      case "limit":
+        return refusal(429, "auth_rate_limited", undefined, 30);
+      default:
+        return { ok: true, data: undefined };
+    }
+  };
+  const code = async (value: string): Promise<Result<void>> => {
+    await wait(700);
+    switch (value) {
+      case "111111":
+        return refusal(401, "auth_code_invalid", "code_invalid");
+      case "222222":
+        return refusal(401, "auth_code_invalid", "code_reused");
+      case "333333":
+        return refusal(401, "auth_code_invalid", "method_locked");
+      default:
+        return { ok: true, data: undefined };
+    }
+  };
+  const access: StepUpAccess<StepUpClient> = {
+    passkeySupport: () => Promise.resolve({ webauthn: true, conditional: false }),
+    async withStepUp<T>(
+      c: StepUpClient,
+      action: () => Promise<Result<T>>,
+      o: StepUpCallbacks,
+    ): Promise<StepUpResult<T>> {
+      const first = await action();
+      if (first.ok) {
+        return { kind: "done", result: first };
+      }
+      const retry = async (): Promise<StepUpResult<T>> => ({
+        kind: "done",
+        result: await action(),
+      });
+      if (script.signInAgain === true && o.signInAgain !== undefined) {
+        return (await o.signInAgain()) ? retry() : { kind: "cancelled" };
+      }
+      const me = await c.me();
+      if (!me.ok) {
+        return { kind: "step-up-failed", error: me };
+      }
+      const choice = await o.prompt(me.data.methods);
+      switch (choice) {
+        case "cancel":
+          return { kind: "cancelled" };
+        case "password": {
+          const value = await o.password();
+          if (value === null) {
+            return { kind: "cancelled" };
+          }
+          const res = await password(value);
+          return res.ok ? retry() : { kind: "step-up-failed", error: res };
+        }
+        case "totp": {
+          const value = (await o.code?.()) ?? null;
+          if (value === null) {
+            return { kind: "cancelled" };
+          }
+          const res = await code(value);
+          return res.ok ? retry() : { kind: "step-up-failed", error: res };
+        }
+        case "passkey":
+          await wait(900);
+          passkeys += 1;
+          return passkeys === 1 ? { kind: "step-up-failed", error: { kind: "timeout" } } : retry();
+        case "oidc":
+          await wait(400);
+          toast({ title: "The page would leave for Authelia here" });
+          return { kind: "cancelled" };
+      }
+    },
+  };
+  return { client, access };
+}
+
+for (const opener of document.querySelectorAll<HTMLButtonElement>("[data-step-up-demo]")) {
+  const script = STEP_UP[opener.dataset["stepUpDemo"] ?? ""];
+  if (script === undefined) {
+    continue;
+  }
+  opener.addEventListener("click", () => {
+    const { client, access } = stepUpFake(script);
+    let sent = 0;
+    void stepUp(
+      async (): Promise<Result<string>> => {
+        sent += 1;
+        await wait(300);
+        return sent === 1 ? script.first : { ok: true, data: "done" };
+      },
+      { client, access, reason: script.reason, provider: "Authelia", opener },
+    ).then((answer) => {
+      if (answer.kind === "done" && answer.result.ok) {
+        toast({ title: "Confirmed: the action ran again" });
+      } else if (answer.kind === "failed") {
+        toast({ title: answer.words });
+      }
+    });
+  });
 }

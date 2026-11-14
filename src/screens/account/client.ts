@@ -98,6 +98,82 @@ export interface SetupClient {
   }): Promise<Result<SignedIn>>;
 }
 
+/** `MeResponse.methods`: what the signed-in person holds, and what the
+ *  app has on. */
+export interface MethodsView {
+  readonly password: boolean;
+  readonly passkey_count: number;
+  readonly oidc_linked: boolean;
+  readonly oidc_available: boolean;
+  readonly passkeys_available: boolean;
+  readonly password_login: boolean;
+  readonly locks: readonly {
+    readonly method: string;
+    readonly untrusted: boolean;
+    readonly trusted: boolean;
+  }[];
+  /** From access Part 4; absent reads as no authenticator app. */
+  readonly totp?: {
+    readonly enrolled: boolean;
+    readonly since?: string;
+    readonly usable: boolean;
+    readonly removable: boolean;
+  };
+  /** From access Part 4; absent reads as true. */
+  readonly password_step_up?: boolean;
+}
+
+/** `GET /me`, as far as the screens read it. */
+export interface MeView {
+  readonly user: { readonly username: string; readonly display_name?: string };
+  readonly methods: MethodsView;
+}
+
+/** How a step-up confirms the person: `"totp"` is a code from their
+ *  authenticator app (access Part 4). */
+export type StepUpChoice = "password" | "passkey" | "oidc" | "totp" | "cancel";
+
+/** What `withStepUp` takes, as `@cplieger/access` defines it. The prompt is
+ *  a method, so a release whose union lacks `"totp"` still assigns. */
+export interface StepUpCallbacks {
+  prompt(methods: MethodsView): Promise<StepUpChoice>;
+  readonly password: () => Promise<string | null>;
+  /** Read from access Part 4. */
+  readonly code?: () => Promise<string | null>;
+  /** Read from access Part 3: a fresh sign-in for a plain session. */
+  readonly signInAgain?: () => Promise<boolean>;
+  readonly redirect?: string;
+  readonly navigate?: (url: string) => void;
+}
+
+/** A passkey assertion that did not confirm the person. */
+export type PasskeyMiss = Exclude<SignInOutcome, { kind: "signed-in" }>;
+
+export type StepUpResult<T> =
+  | { readonly kind: "done"; readonly result: Result<T> }
+  | { readonly kind: "cancelled" }
+  | { readonly kind: "redirecting" }
+  | { readonly kind: "step-up-failed"; readonly error: Refusal | PasskeyMiss };
+
+/** The client calls a step-up makes itself; `withStepUp` makes the rest. */
+export interface StepUpClient {
+  me(): Promise<Result<MeView>>;
+  loginPassword(r: {
+    readonly username: string;
+    readonly password: string;
+  }): Promise<Result<SignedIn>>;
+}
+
+/** The `@cplieger/access` functions a step-up calls. */
+export interface StepUpAccess<C> {
+  withStepUp<T>(
+    c: C,
+    action: () => Promise<Result<T>>,
+    o: StepUpCallbacks,
+  ): Promise<StepUpResult<T>>;
+  passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
+}
+
 /** The `@cplieger/access` functions the setup screen calls. */
 export interface SetupAccess<C> {
   setupWithPasskey(

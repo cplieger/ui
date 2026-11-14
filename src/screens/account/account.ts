@@ -7,7 +7,10 @@
  */
 
 export type {
+  MeView,
+  MethodsView,
   OIDCReturn,
+  PasskeyMiss,
   Refusal,
   RegisterOutcome,
   Result,
@@ -18,6 +21,11 @@ export type {
   SignInOutcome,
   SignedIn,
   StateResponse,
+  StepUpAccess,
+  StepUpCallbacks,
+  StepUpChoice,
+  StepUpClient,
+  StepUpResult,
 } from "./client.js";
 export { accountActions, accountRunner, runDirect } from "./run.js";
 export type { AccountAction, DefineAction, Runner } from "./run.js";
@@ -26,5 +34,7 @@ export { mountSetup } from "./setup.js";
 export type { SetupOptions } from "./setup.js";
 export { mountSignIn } from "./sign-in.js";
 export type { SignInArrival, SignInOptions, SignedInEvent } from "./sign-in.js";
+export { stepUp } from "./step-up.js";
+export type { StepUpAnswer, StepUpOptions } from "./step-up.js";
 export { defaultAccountWords, wordsOf } from "./words.js";
 export type { AccountWords, PageHost } from "./words.js";

@@ -4,8 +4,12 @@
  * next of the answers queued for it, else its default.
  */
 
+import { codeOf, reasonOf } from "../answer.js";
 import type {
+  MeView,
+  MethodsView,
   OIDCReturn,
+  PasskeyMiss,
   Refusal,
   RegisterOutcome,
   Result,
@@ -16,6 +20,9 @@ import type {
   SignInOutcome,
   SignedIn,
   StateResponse,
+  StepUpAccess,
+  StepUpClient,
+  StepUpResult,
 } from "../client.js";
 
 export interface Call {
@@ -31,6 +38,22 @@ const everyMethod: StateResponse = {
 };
 
 export const signedIn: SignedIn = { user: { username: "mika" } };
+
+/** A person holding a password and a passkey, on an app with every method
+ *  on, before access Part 4. */
+const holdsAll: MethodsView = {
+  password: true,
+  passkey_count: 1,
+  oidc_linked: true,
+  oidc_available: true,
+  passkeys_available: true,
+  password_login: true,
+  locks: [],
+};
+
+export function meWith(methods: Partial<MethodsView> = {}): MeView {
+  return { user: { username: "mika" }, methods: { ...holdsAll, ...methods } };
+}
 
 export function ok<T>(data: T): Result<T> {
   return { ok: true, data };
@@ -57,8 +80,19 @@ export const noAnswer: Refusal = { ok: false, status: 0, error: "network", code:
 
 type Answer = unknown;
 
+/** The step-up calls `withStepUp` makes on the client it is given. */
+interface StepUpCalls {
+  stepUpPassword(r: { readonly password: string }): Promise<Result<void>>;
+  stepUpCode(code: string): Promise<Result<void>>;
+  stepUpPasskeyBegin(): Promise<Result<{ readonly ceremony: string }>>;
+  stepUpPasskeyFinish(ceremony: string, credential: unknown): Promise<Result<void>>;
+  oidcStartStepUp(r: { readonly redirect?: string }): Promise<Result<{ readonly url: string }>>;
+}
+
 export type FakeClient = SignInClient &
-  SetupClient & { readonly prefix: string; readonly oidcPrefix: string };
+  SetupClient &
+  StepUpClient &
+  StepUpCalls & { readonly prefix: string; readonly oidcPrefix: string };
 
 export class Fake {
   readonly calls: Call[] = [];
@@ -75,6 +109,13 @@ export class Fake {
     ["registerPasskey", { kind: "registered" }],
     ["signInWithPasskey", { kind: "signed-in", result: signedIn }],
     ["passkeySupport", { webauthn: true, conditional: false }],
+    ["me", ok(meWith())],
+    ["stepUpPassword", ok(undefined)],
+    ["stepUpCode", ok(undefined)],
+    ["stepUpPasskeyBegin", ok({ ceremony: "cer-1" })],
+    ["passkeyAssertion", { kind: "credential" }],
+    ["stepUpPasskeyFinish", ok(undefined)],
+    ["oidcStartStepUp", ok({ url: "https://id.example/authorize?state=s1" })],
   ]);
   readonly #gates = new Map<string, Promise<void>>();
 
@@ -114,6 +155,79 @@ export class Fake {
       : next;
   }
 
+  /** `@cplieger/access`'s `withStepUp` as dev.13 runs it, with access
+   *  Part 4's code; the passkey's browser step answers `passkeyAssertion`. */
+  async #withStepUp<T>(
+    c: FakeClient,
+    action: () => Promise<Result<T>>,
+    o: Parameters<StepUpAccess<FakeClient>["withStepUp"]>[2],
+  ): Promise<StepUpResult<T>> {
+    this.calls.push({ name: "withStepUp", args: [] });
+    const first = await action();
+    if (first.ok || codeOf(first) !== "auth_recent_auth_required") {
+      return { kind: "done", result: first };
+    }
+    const retry = async (): Promise<StepUpResult<T>> => ({ kind: "done", result: await action() });
+    const reason = reasonOf(first);
+    if (reason === "sign_in_again" && o.signInAgain !== undefined) {
+      return (await o.signInAgain()) ? retry() : { kind: "cancelled" };
+    }
+    if (reason !== undefined) {
+      return { kind: "done", result: first };
+    }
+    const me = await c.me();
+    if (!me.ok) {
+      return { kind: "step-up-failed", error: me };
+    }
+    const choice = await o.prompt(me.data.methods);
+    switch (choice) {
+      case "cancel":
+        return { kind: "cancelled" };
+      case "password": {
+        const password = await o.password();
+        if (password === null) {
+          return { kind: "cancelled" };
+        }
+        const res = await c.stepUpPassword({ password });
+        return res.ok ? retry() : { kind: "step-up-failed", error: res };
+      }
+      case "totp": {
+        const code = (await o.code?.()) ?? null;
+        if (code === null) {
+          return { kind: "cancelled" };
+        }
+        const res = await c.stepUpCode(code);
+        return res.ok ? retry() : { kind: "step-up-failed", error: res };
+      }
+      case "passkey": {
+        const begin = await c.stepUpPasskeyBegin();
+        if (!begin.ok) {
+          return { kind: "step-up-failed", error: { kind: "failed", error: begin } };
+        }
+        const got = (await this.call("passkeyAssertion", [])) as
+          { readonly kind: "credential" } | PasskeyMiss;
+        if (got.kind === "cancelled") {
+          return { kind: "cancelled" };
+        }
+        if (got.kind !== "credential") {
+          return { kind: "step-up-failed", error: got };
+        }
+        const res = await c.stepUpPasskeyFinish(begin.data.ceremony, {});
+        return res.ok ? retry() : { kind: "step-up-failed", error: { kind: "failed", error: res } };
+      }
+      case "oidc": {
+        const res = await c.oidcStartStepUp(
+          o.redirect === undefined ? {} : { redirect: o.redirect },
+        );
+        if (!res.ok) {
+          return { kind: "step-up-failed", error: res };
+        }
+        o.navigate?.(res.data.url);
+        return { kind: "redirecting" };
+      }
+    }
+  }
+
   /** The client, as the screens type it. */
   get client(): FakeClient {
     const call = <T>(name: string, args: readonly unknown[]): Promise<T> =>
@@ -124,11 +238,19 @@ export class Fake {
       state: () => call<Result<StateResponse>>("state", []),
       loginPassword: (r) => call<Result<SignedIn>>("loginPassword", [r]),
       setupPassword: (r) => call<Result<SignedIn>>("setupPassword", [r]),
+      me: () => call<Result<MeView>>("me", []),
+      stepUpPassword: (r) => call<Result<void>>("stepUpPassword", [r]),
+      stepUpCode: (code) => call<Result<void>>("stepUpCode", [code]),
+      stepUpPasskeyBegin: () =>
+        call<Result<{ readonly ceremony: string }>>("stepUpPasskeyBegin", []),
+      stepUpPasskeyFinish: (ceremony, credential) =>
+        call<Result<void>>("stepUpPasskeyFinish", [ceremony, credential]),
+      oidcStartStepUp: (r) => call<Result<{ readonly url: string }>>("oidcStartStepUp", [r]),
     };
   }
 
   /** The access module, as the screens type it. */
-  access(): SignInAccess<FakeClient> & SetupAccess<FakeClient> {
+  access(): SignInAccess<FakeClient> & SetupAccess<FakeClient> & StepUpAccess<FakeClient> {
     const call = <T>(name: string, args: readonly unknown[]): Promise<T> =>
       this.call(name, args) as Promise<T>;
     return {
@@ -145,6 +267,7 @@ export class Fake {
         return this.fragment;
       },
       readOIDCReturn: readReturn,
+      withStepUp: (c, action, o) => this.#withStepUp(c, action, o),
       oidcSignInURL: (c, redirect) =>
         `${c.oidcPrefix}/start/signin${redirect === undefined ? "" : `?${new URLSearchParams({ redirect }).toString()}`}`,
     };

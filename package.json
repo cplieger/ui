@@ -92,6 +92,8 @@
     "lint:fix": "eslint . --fix && prettier --write ."
   },
   "devDependencies": {
+    "@cplieger/access": "1.0.0-dev.13",
+    "@cplieger/reactive": "2.4.0",
     "@eslint/js": "10.0.1",
     "@fontsource-variable/atkinson-hyperlegible-mono": "5.3.0",
     "@fontsource-variable/atkinson-hyperlegible-next": "5.3.0",
