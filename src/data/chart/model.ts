@@ -16,13 +16,14 @@ import {
 import { lowerBound, upperBound } from "../scale/reduce.js";
 import { localDay, localYear, spansDay } from "../scale/time.js";
 
-import { dayFormat, weekStartOf } from "./calendar.js";
+import { dayFormat, weekCount, weekRow, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
 import { shareWriter } from "./pie.js";
 import {
   LIMIT,
   rScale,
   ruleAt,
+  isCalendar,
   withinDate,
   xScale,
   yScale,
@@ -485,6 +486,18 @@ export interface TreeModel {
   readonly parts: readonly TreePartModel[];
   /** The sum of the values, in part order. */
   readonly total: number;
+}
+
+const DAY = 86_400_000;
+
+// A calendar writes every day of its weeks, its weekday names and its
+// table's empty places included, from the first week's start to the last
+// week's end; each is a UTC date written through Intl.
+function withinWeeks(day: number, weekStart: number, days: number): void {
+  const first = day - weekRow(day, weekStart);
+  const last = first + 7 * Math.max(1, weekCount(day - first, days)) - 1;
+  withinDate(first * DAY, "the first day of a calendar's first week");
+  withinDate(last * DAY, "the last day of a calendar's last week");
 }
 
 /** The day of `m` holding instant `t` on the chart's wall clock; -1 outside its days. */
@@ -1855,8 +1868,8 @@ export function chartModel(
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
   const columns = spec.marks.find((m) => m.mark === "slope")?.x;
-  const cellMark = spec.marks.find((m): m is CellMark => m.mark === "cell" && !("days" in m));
-  const calendar = spec.marks.some((m) => m.mark === "cell" && "days" in m);
+  const cellMark = spec.marks.find((m): m is CellMark => m.mark === "cell" && !isCalendar(m));
+  const calendar = spec.marks.some(isCalendar);
   const cellNames = cellMark === undefined || "edges" in cellMark.x ? undefined : cellMark.x;
   // The values a cell chart's inferred classes span.
   const filled = (m: CellMark): number[] =>
@@ -1939,14 +1952,17 @@ export function chartModel(
         // A band y throws in yScale without band rows, so y is continuous.
         return scatterModel(m, x, y as Continuous, size);
       case "cell":
-        if ("days" in m) {
+        if (isCalendar(m)) {
           const values = gaps(m.days.values, false);
+          const day = localDay(m.days.start, timeZone);
+          const weekStart = m.weekStart ?? weekStartOf(locale);
+          withinWeeks(day, weekStart, values.length);
           return {
             kind: "calendar",
-            day: localDay(m.days.start, timeZone),
+            day,
             values,
             open: m.days.open === true,
-            weekStart: m.weekStart ?? weekStartOf(locale),
+            weekStart,
             classes: classes(
               spec.colour ?? {},
               values.filter((v) => v !== null),
@@ -1987,7 +2003,8 @@ export function chartModel(
         );
     }
   });
-  const reach = x.type === "time" ? timeReach(x.lo, x.hi, timeZone) : "time";
+  // A calendar writes its days as dates, never its x ends, which may lie past Date.
+  const reach = x.type === "time" && !calendar ? timeReach(x.lo, x.hi, timeZone) : "time";
   const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
   const slope = marks.find((m) => m.kind === "slope");
   const cellX = marks.find((m) => m.kind === "cell")?.x;

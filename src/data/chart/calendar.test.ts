@@ -118,6 +118,18 @@ describe("a calendar heatmap drawn", () => {
     );
   });
 
+  it("draws and reads a calendar whose last week ends on the last day Date holds", async () => {
+    const spec: ChartSpec = {
+      colour: { unit: { one: "post", other: "posts" } },
+      marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2] } }],
+    };
+    const { plot, svg } = build(spec, 900, "en-US");
+    expect(names(svg, "y")).toEqual(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+    plot.focus();
+    const us = new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" });
+    await spoken(`${us.format(8.64e15)}: 2\u00A0posts.`);
+  });
+
   it("selects the newest day on focus, rings it and turns its weekday name ink", async () => {
     const { plot, svg } = build(year(), 900);
     plot.focus();

@@ -1798,6 +1798,14 @@ describe("the cell mark", () => {
     expect(() => build(spec)).toThrow(type);
   });
 
+  it("is a heatmap when written with days: undefined, as its check reads it", () => {
+    const m = build({ marks: [{ ...cell(), days: undefined }] });
+    expect(m.kind).toBe("heatmap");
+    expect([m.x.lo, m.x.hi]).toEqual([0, 3]);
+    expect(m.y).toEqual({ type: "band", rows: ["Mon", "Tue"], mono: false });
+    expect((m.marks[0] as CellModel).kind).toBe("cell");
+  });
+
   it("is a heatmap whose x holds its columns from 0 to their count and whose y is a band of its rows", () => {
     const m = build({ marks: [cell()] });
     expect(m.kind).toBe("heatmap");
@@ -2239,11 +2247,37 @@ describe("an instant's words on a time x", () => {
         marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2, 3, 4] } }],
       }),
     ).toThrow(
-      "renderChart: a calendar's last day must lie within 8.64e15 ms either side of 1970, the range Date holds",
+      "renderChart: the last day of a calendar's last week must lie within 8.64e15 ms either side of 1970, the range Date holds",
     );
     expect(
       build({ marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1] } }] }).x.hi,
     ).toBe(8.64e15);
+  });
+
+  // 8.64e15 ms is Saturday 13 September 275760, -8.64e15 a Tuesday.
+  const days = (start: number, values: number[], locale: string, timeZone: string) =>
+    chartModel({ marks: [{ mark: "cell", days: { start, values } }] }, locale, timeZone);
+
+  it("refuses a calendar whose first week starts before what Date holds, west of UTC too", () => {
+    const first =
+      "renderChart: the first day of a calendar's first week must lie within 8.64e15 ms either side of 1970, the range Date holds";
+    // A week from Sunday in en starts two days before the Tuesday.
+    expect(() => days(-8.64e15, [1], "en", "UTC")).toThrow(first);
+    // New York's wall clock puts -8.64e15 on the Monday before it.
+    expect(() => days(-8.64e15, [1], "en", "America/New_York")).toThrow(first);
+    expect(() => days(-8.64e15 + 2 * 86_400_000, [1], "en-GB", "UTC")).toThrow(first);
+    expect(days(-8.64e15 + 5 * 86_400_000, [1], "en", "UTC").x.lo).toBe(-8.64e15 + 5 * 86_400_000);
+  });
+
+  it("refuses a calendar whose last week ends after what Date holds, and draws one ending at it", () => {
+    // fr's week from Monday puts the Friday's week end on Sunday 14 September.
+    expect(() => days(8.64e15 - 86_400_000, [1], "fr", "UTC")).toThrow(
+      "renderChart: the last day of a calendar's last week must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    // en's week from Sunday ends on the Saturday, the last day Date holds.
+    const m = days(8.64e15 - 86_400_000, [1, 2], "en", "UTC");
+    expect(m.kind).toBe("calendar");
+    expect(m.x.hi).toBe(8.64e15 + 86_400_000);
   });
 });
 

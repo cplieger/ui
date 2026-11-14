@@ -15,6 +15,7 @@ import type {
   CalendarMark,
   CellMark,
   ChartSpec,
+  Mark,
   PointMark,
   RectMark,
   ScatterMark,
@@ -412,11 +413,16 @@ function cellColumns(spec: ChartSpec, m: CellMark): Continuous {
   return { ...COLUMNS, hi: m.x.length, reverse: x.reverse === true };
 }
 
-const calendarOf = (spec: ChartSpec): CalendarMark | undefined =>
-  spec.marks.find((m): m is CalendarMark => m.mark === "cell" && "days" in m);
+/** Whether `m` is a calendar, decided as the spec's check decides it, so a
+ *  cell mark written `days: undefined` is a grid. */
+export const isCalendar = (m: Mark): m is CalendarMark =>
+  m.mark === "cell" && (m as Partial<CalendarMark>).days !== undefined;
+
+const calendarOf = (spec: ChartSpec): CalendarMark | undefined => spec.marks.find(isCalendar);
 
 // A calendar's x runs from its first day's midnight to the midnight after
 // its last on the chart's wall clock, so a note's instant finds its day.
+// Nothing writes those two ends; the model checks the days a calendar writes.
 function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undefined): Continuous {
   if (spec.x !== undefined) {
     throw new TypeError("renderChart: a calendar takes no x scale; its days are its x");
@@ -428,8 +434,6 @@ function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undef
   const day = localDay(m.days.start, timeZone);
   const lo = midnight(day, timeZone);
   const hi = midnight(day + m.days.values.length, timeZone);
-  withinDate(lo, "a calendar's first day");
-  withinDate(hi, "a calendar's last day");
   return { ...COLUMNS, type: "time", lo, hi, integer: false, drawnLo: lo };
 }
 
@@ -473,7 +477,7 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
     }
     return COLUMNS;
   }
-  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell" && !("days" in m));
+  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell" && !isCalendar(m));
   if (cell !== undefined) {
     return cellColumns(spec, cell);
   }
@@ -719,7 +723,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
     return { ...COLUMNS, hi: 7 };
   }
   const y = spec.y ?? {};
-  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell" && !("days" in m));
+  const cell = spec.marks.find((m): m is CellMark => m.mark === "cell" && !isCalendar(m));
   if (cell !== undefined && "edges" in cell.y) {
     return binned(cell.y.edges, y, "y");
   }
@@ -742,7 +746,7 @@ export function yScale(spec: ChartSpec): Continuous | Band {
         ? m.rows.map((r) => r.name)
         : m.mark === "bar" || m.mark === "point" || m.mark === "box"
           ? [...m.y]
-          : m.mark === "cell" && "y" in m && !("edges" in m.y)
+          : m.mark === "cell" && !isCalendar(m) && !("edges" in m.y)
             ? [...m.y]
             : [],
     );

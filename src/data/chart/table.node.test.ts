@@ -888,6 +888,34 @@ describe("the table of a calendar", () => {
   });
 });
 
+describe("the table of a calendar at the end of what Date holds", () => {
+  it("writes the last week, ending on Saturday 13 September 275760", () => {
+    const t = tableModel(
+      chartModel(
+        { marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2] } }] },
+        "en",
+        "UTC",
+      ),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ]);
+    expect(t.rows.map((r) => r.head)).toEqual([
+      [{ at: 8.64e15 - 6 * 86_400_000, text: "Sep 7, 275760", date: true }],
+    ]);
+    expect(t.rows.map((r) => r.cells.map((c) => text(c.parts)))).toEqual([
+      ["", "", "", "", "", "1", "2"],
+    ]);
+  });
+});
+
 describe("the table of a box plot", () => {
   const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
     y: { label: "Endpoint" },
