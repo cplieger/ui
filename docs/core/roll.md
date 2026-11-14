@@ -17,7 +17,7 @@ roll(zoom, "110%");
 roll(zoom, "100%", { down: true });
 ```
 
-- `roll(host, text, { down })` rolls a `.cp-roll` to `text`. A roll that starts while another runs takes over from the line that one was rolling to, so two lines never show side by side.
+- `roll(host, text, { down })` rolls a `.cp-roll` to `text`. A roll that starts while another runs takes over from the line that one was rolling to, so two lines never show side by side. The line sliding out leaves the accessible name at once, so a button holding the window is named by its new words.
 - `rollText(host)` returns the text the window shows or is rolling to.
 - `measureRoll(host, text)` returns the width `text` would take in the window, in pixels, at its laid-out size, so a button scaled by its press measures as it rests.
 

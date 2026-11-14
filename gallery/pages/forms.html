@@ -102,13 +102,13 @@
         </fieldset>
         <footer>The number is live only while its choice is; focusing it chooses it, and it is never disabled while it has focus.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Switches and segments</h2>
         <div class="cp-form">
           <div class="cp-setting"><div><label class="cp-label" for="f-sw1">Check every night</label><span class="cp-help">At 03:00, when nobody is watching.</span></div><input class="cp-switch" id="f-sw1" type="checkbox" role="switch" checked></div>
           <div class="cp-setting"><div><span class="cp-label" id="f-seg">Theme</span></div><div class="cp-segmented" role="radiogroup" aria-labelledby="f-seg"><label><input type="radio" name="seg" checked>System</label><label><input type="radio" name="seg">Light</label><label><input type="radio" name="seg">Dark</label></div></div>
         </div>
-        <footer>A switch acts at once; a choice of two or three short words is a segmented control.</footer>
+        <footer>A switch acts at once; a choice of two or three short words is a segmented control. It sets a value in the look the tabs switch views in, and each segment answers a press over the control's whole height.</footer>
       </div>
       <div class="card">
         <h2>Select</h2>
@@ -207,7 +207,7 @@
         </div>
         <footer>Each term pops in and shrinks away; a term already there shakes instead of doubling.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Pick from suggestions</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-langs">Subtitle languages, in order</label>
@@ -225,7 +225,7 @@
         </div>
         <footer>The combobox pattern: the list narrows as you type, Alt+Down opens it whole, arrows move through it and Enter takes one. A language already chosen leaves the list, and the list holds only real languages, so there is no free text. Three is the limit here, and the field says so.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>Tags, with new ones</h2>
         <div class="cp-field">
           <label class="cp-label" for="f-tags">Tags</label>
@@ -240,6 +240,21 @@
           <span class="cp-help" id="f-tags-note" hidden></span>
         </div>
         <footer>Like the language picker, and each tag says how many entries carry it. Words that match no tag end the list with Add “…”, so Enter takes a match first and a new tag only when nothing matches. Five is the limit.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Recipients, some away</h2>
+        <div class="cp-field">
+          <label class="cp-label" for="f-recipients">To</label>
+          <div class="cp-tokens" data-tokens="to" data-suggest="f-recipients-list"><span class="cp-token" data-value="@mira"><span>@mira</span><button type="button" aria-label="Remove @mira" tabindex="-1"></button></span><input id="f-recipients" placeholder="Add a recipient"></div>
+          <ul class="cp-popover cp-listbox" id="f-recipients-list" role="listbox" popover="manual" aria-label="Recipients">
+            <li role="option" id="rcp-all">Announcements</li>
+            <li role="option" id="rcp-mira">@mira</li>
+            <li role="option" id="rcp-otto">@otto<small>Dormant</small></li>
+            <li role="option" id="rcp-sana">@sana</li>
+            <li role="option" id="rcp-jules">@jules<small>Dormant</small></li>
+          </ul>
+        </div>
+        <footer>The To field of a message. A dormant recipient can still be chosen: Dormant ends its row in muted words and is read with the name, and its chip holds the name alone.</footer>
       </div>
       <div class="card" data-new>
         <h2>One limit across pickers</h2>
@@ -305,6 +320,24 @@
           <div class="g-gap-top"><button class="cp-button" data-size="sm" type="button" data-add-pair><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span>Add a mapping</button></div>
         </div>
         <footer>Each field has its own error, shown when you leave it. Type a path without a leading / to see one.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Unsaved changes</h2>
+        <form class="cp-form" id="f-unsaved" data-unsaved novalidate>
+          <div class="cp-notice" data-tone="warning" hidden><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span><span>These settings were saved in another tab at 14:05.</span><button class="cp-button" type="button" data-rebase>Load the latest and keep my changes</button></div>
+          <nav class="cp-tabs" aria-label="Settings" data-tabs-router><a href="?category=tracker" aria-current="page">Tracker</a><a href="?category=alerts">Alerts</a></nav>
+          <div class="cp-stack" data-category="tracker">
+            <div class="cp-field"><label class="cp-label" for="f-unsaved-name">Name</label><input class="cp-input" id="f-unsaved-name" name="name" value="Release tracker"></div>
+            <div class="cp-field"><label class="cp-label" for="f-unsaved-every">Check every</label><div class="cp-select"><select class="cp-input" id="f-unsaved-every" name="every"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="60">1 hour</option></select></div></div>
+          </div>
+          <div class="cp-stack" data-category="alerts" hidden>
+            <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="notify" checked><span>Tell me when a grab fails</span></label>
+            <div class="cp-field"><label class="cp-label" for="f-unsaved-tags">Tags</label><div class="cp-tokens"><span class="cp-token" data-value="anime"><span>anime</span><button type="button" aria-label="Remove anime" tabindex="-1"></button></span><input id="f-unsaved-tags" placeholder="Add a tag"></div></div>
+          </div>
+          <div class="cp-savebar" aria-label="Unsaved changes" hidden><span data-part="count"></span><button class="cp-button" type="reset">Discard</button><button class="cp-button" data-variant="primary" type="submit">Save changes</button></div>
+        </form>
+        <div class="cp-cluster g-gap-top"><a class="cp-button" data-size="sm" href="overlays.html">Go to Overlays</a><button class="cp-button" data-size="sm" type="button" data-elsewhere="f-unsaved">Save in another tab</button></div>
+        <footer>Change a field or a tag: the bar counts the changes, and Discard puts them back. Tracker and Alerts are two categories of one form, so moving between them keeps every change; while one waits, Go to Overlays asks first. Save in another tab saves a new name and a 1 hour check there: with nothing changed here they load at once; with changes waiting, the notice's button takes them in and keeps yours, and a field changed on both sides says what was saved there.</footer>
       </div>
     </div>
   </section>

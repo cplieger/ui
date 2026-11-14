@@ -105,12 +105,13 @@ export function explore(
     }
   };
 
-  const pointAt = (e: PointerEvent): void => {
+  // `y` holds a drag on a cell chart to the row it began on.
+  const pointAt = (e: PointerEvent, y = e.clientY): void => {
     if (lay === undefined || nav === undefined) {
       return;
     }
     const box = svg.getBoundingClientRect();
-    const next = nav.pick(e.clientX - box.left - lay.left, e.clientY - box.top - lay.top);
+    const next = nav.pick(e.clientX - box.left - lay.left, y - box.top - lay.top);
     if (next === undefined) {
       clear();
     } else {
@@ -155,9 +156,9 @@ export function explore(
     if (next !== undefined) {
       select(next);
       // The keys that choose a part say it alone: Left and Right across a
-      // bar or point row, Up and Down through a stack or the lines.
+      // bar, point or box row, Up and Down through a stack or the lines.
       const across = e.key === "ArrowLeft" || e.key === "ArrowRight";
-      const band = next.kind === "bar" || next.kind === "point";
+      const band = next.kind === "bar" || next.kind === "point" || next.kind === "box";
       say(next, band ? across : e.key === "ArrowUp" || e.key === "ArrowDown");
     }
   });
@@ -197,7 +198,7 @@ export function explore(
     if (nav?.drags === true) {
       if (touch.dragging || Math.abs(e.clientX - touch.x) > DRAG) {
         touch.dragging = true;
-        pointAt(e);
+        pointAt(e, nav.alongRow ? touch.y : e.clientY);
       }
     } else if (Math.hypot(e.clientX - touch.x, e.clientY - touch.y) > DRAG) {
       touch.moved = true;

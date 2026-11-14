@@ -4,17 +4,23 @@
  * @module
  */
 
-import { formatDuration, formatter } from "../scale/format.js";
+import { writer, type Unit } from "../scale/format.js";
 
 import {
   barTotal,
   bucketTotal,
+  cellCount,
+  cellOrder,
   pointLink,
   sampleTotal,
   sampleValue,
   scatterDotAt,
   slopeChange,
   type BarModel,
+  type BoxModel,
+  type CalendarModel,
+  type CellAxis,
+  type CellModel,
   type DotModel,
   type Model,
   type PointModel,
@@ -24,9 +30,15 @@ import {
   type SeriesModel,
   type SlopeModel,
 } from "./model.js";
+import { noteJoin } from "./notes.js";
 import {
+  boxPart,
   bucketText,
+  cellPlaceText,
+  cellsText,
+  cellValueText,
   changeText,
+  daysText,
   counted,
   domainText,
   dotsText,
@@ -53,7 +65,7 @@ function sizeText(model: Model, size: number | undefined, words: Words): string 
   if (size === undefined) {
     return "";
   }
-  const text = model.x.type === "time" ? formatDuration(size, model.locale) : model.xText(size);
+  const text = model.x.type === "time" ? writer("duration", model.locale)(size) : model.xText(size);
   return words.every(text);
 }
 
@@ -179,7 +191,7 @@ function lineSummary(model: Model, m: SampleModel, words: Words): string[] {
 const NAMED = 5;
 
 function dotSummary(model: Model, m: DotModel, words: Words): string[] {
-  const count = formatter("number", model.locale);
+  const count = writer("number", model.locale);
   const rows = counted(count(m.rows.length), m.rows.length, model.spec.y?.unit, model);
   const dots = m.rows.reduce((n, r) => n + r.to - r.from, 0);
   const out = [
@@ -253,9 +265,7 @@ function extremesText(
 function barSummary(model: Model, m: BarModel, words: Words): string[] {
   const names = model.y.type === "band" ? model.y.rows : [];
   const several = m.series.length > 1;
-  const series = several
-    ? words.seriesCount(formatter("number", model.locale)(m.series.length))
-    : "";
+  const series = several ? words.seriesCount(writer("number", model.locale)(m.series.length)) : "";
   const out = [words.countSummary(rowsText(model, words), series)];
   const sentence = (name: string | undefined, at: (i: number) => number | null) => {
     const e = barExtremes(names, at);
@@ -292,9 +302,7 @@ function barSummary(model: Model, m: BarModel, words: Words): string[] {
 function pointSummary(model: Model, m: PointModel, words: Words): string[] {
   const names = model.y.type === "band" ? model.y.rows : [];
   const several = m.series.length > 1;
-  const series = several
-    ? words.seriesCount(formatter("number", model.locale)(m.series.length))
-    : "";
+  const series = several ? words.seriesCount(writer("number", model.locale)(m.series.length)) : "";
   const out = [words.countSummary(rowsText(model, words), series)];
   const time = model.x.type === "time";
   for (const s of m.series) {
@@ -334,7 +342,7 @@ function pointSummary(model: Model, m: PointModel, words: Words): string[] {
 // a missing end has no change to rank.
 function slopeSummary(model: Model, m: SlopeModel, words: Words): string[] {
   const n = m.series.length;
-  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
   const out = [words.slopeSummary(domainText(model, words), series)];
   const end = (v: number | null | undefined) =>
     v === null || v === undefined ? words.noData : model.yText(v);
@@ -366,7 +374,7 @@ function slopeSummary(model: Model, m: SlopeModel, words: Words): string[] {
 // statistic, which an app adds through its own summary.
 function scatterSummary(model: Model, m: ScatterModel, words: Words): string[] {
   const n = m.series.length;
-  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
   const out = [words.countSummary(dotsText(model, m, words), series)];
   const dots = m.series.flatMap((s, k) => (m.shown[k] ?? []).map((i) => ({ s, i })));
   const names = dots.map((d) => d.s.names[d.i] ?? "");
@@ -392,6 +400,93 @@ function scatterSummary(model: Model, m: ScatterModel, words: Words): string[] {
   return out;
 }
 
+// The rows and series head, then each series' rows with the highest and
+// lowest median and the widest middle half, the first in the app's order on
+// a tie, or a lone box whole; then the whiskers' convention.
+function boxSummary(model: Model, m: BoxModel, words: Words): string[] {
+  const names = model.y.type === "band" ? model.y.rows : [];
+  const n = m.series.length;
+  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
+  const out = [words.countSummary(rowsText(model, words), series)];
+  const t = model.xText;
+  for (const s of m.series) {
+    const median = (i: number) => s.boxes[i]?.median ?? null;
+    const e = barExtremes(names, median);
+    if (e === undefined) {
+      continue;
+    }
+    if (e.held === 1) {
+      out.push(words.only(s.name, `${names[e.high] ?? ""} ${boxPart(model, s, e.high, words)}`));
+      continue;
+    }
+    const spread = (i: number) => {
+      const b = s.boxes[i] ?? null;
+      return b === null ? null : b.q3 - b.q1;
+    };
+    const w = barExtremes(names, spread)?.high ?? e.high;
+    const wide = s.boxes[w];
+    const place = (i: number) => `${names[i] ?? ""} ${t(median(i) ?? 0)}`;
+    const widest = `${names[w] ?? ""} ${words.range(t(wide?.q1 ?? 0), t(wide?.q3 ?? 0))}`;
+    out.push(words.boxSeries(s.name, place(e.high), place(e.low), widest));
+  }
+  if (m.whiskers !== undefined) {
+    out.push(words.whiskersNote(m.whiskers));
+  }
+  return out;
+}
+
+// The cell count, then the highest and lowest cells in reading order, the
+// first on a tie; a missing cell counts for nothing. No total, since cells
+// need not add up.
+function cellSummary(model: Model, m: CellModel, words: Words): string[] {
+  let high: readonly [number, number] | undefined;
+  let low: readonly [number, number] | undefined;
+  const at = (c: readonly [number, number] | undefined) =>
+    c === undefined ? null : (m.values[c[0]]?.[c[1]] ?? null);
+  for (const c of cellOrder(model, m)) {
+    const v = at(c);
+    if (v === null) {
+      continue;
+    }
+    if (high === undefined || v > (at(high) ?? v)) {
+      high = c;
+    }
+    if (low === undefined || v < (at(low) ?? v)) {
+      low = c;
+    }
+  }
+  const place = (c: readonly [number, number] | undefined) =>
+    c === undefined
+      ? ""
+      : `${cellPlaceText(model, m, c[0], c[1], words)}: ${cellValueText(model, at(c), words)}`;
+  return [words.cellSummary(cellsText(model, m, words), place(high), place(low))];
+}
+
+// The day count, then the highest and lowest days, the earliest on a tie; a
+// missing day and an open last day count for nothing.
+function calendarSummary(model: Model, m: CalendarModel, words: Words): string[] {
+  let high = -1;
+  let low = -1;
+  const last = m.open ? m.values.length - 1 : m.values.length;
+  for (let i = 0; i < last; i++) {
+    const v = m.values[i] ?? null;
+    if (v === null) {
+      continue;
+    }
+    if (high === -1 || v > (m.values[high] ?? v)) {
+      high = i;
+    }
+    if (low === -1 || v < (m.values[low] ?? v)) {
+      low = i;
+    }
+  }
+  const place = (i: number) =>
+    i === -1
+      ? ""
+      : `${model.dateText(m.day + i)}: ${cellValueText(model, m.values[i] ?? null, words)}`;
+  return [words.cellSummary(daysText(model, m, words), place(high), place(low))];
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -406,7 +501,8 @@ export function ruleSentences(model: Model, words: Words): string[] {
 /** Each note's sentence, in spec order: its x as the readings write it (a
  *  slope's column name), under a dot mark after its row's name, on a bar or
  *  point chart its row's name alone, on a scatter the name of the dot it
- *  joins or else both its measures. */
+ *  joins or else both its measures, on a cell chart the place of the cell it
+ *  joins or else both its values, on a calendar its instant's date. */
 export function noteSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
   const m = primaryOf(model);
@@ -418,6 +514,15 @@ export function noteSentences(model: Model, words: Words): string[] {
           ? `${measureText(model, "x", t.x ?? null, words)}, ${measureText(model, "y", t.y, words)}`
           : (m.series[d.series]?.names[d.i] ?? "");
       out.push(words.note(at, t.text));
+    } else if (t.kind === "text" && m?.kind === "cell") {
+      const j = noteJoin(model, t);
+      const at =
+        j?.kind === "cell"
+          ? cellPlaceText(model, m, j.row, j.column, words)
+          : words.cellPlace(model.xText(t.x ?? 0), model.yText(t.y));
+      out.push(words.note(at, t.text));
+    } else if (t.kind === "text" && m?.kind === "calendar") {
+      out.push(words.note(model.xText(t.x ?? 0), t.text));
     } else if (t.kind === "text") {
       const row = model.y.type === "band" ? (model.y.rows[t.y] ?? "") : undefined;
       const x = t.x === undefined ? undefined : model.xText(t.x);
@@ -447,7 +552,13 @@ export function generatedSummary(model: Model, words: Words): string {
                 ? slopeSummary(model, m, words)
                 : m?.kind === "scatter"
                   ? scatterSummary(model, m, words)
-                  : [];
+                  : m?.kind === "cell"
+                    ? cellSummary(model, m, words)
+                    : m?.kind === "calendar"
+                      ? calendarSummary(model, m, words)
+                      : m?.kind === "box"
+                        ? boxSummary(model, m, words)
+                        : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
@@ -459,19 +570,39 @@ export function summaryOf(model: Model, words: Words): string {
   return typeof own === "string" ? own : typeof own === "function" ? own(generated) : generated;
 }
 
+// A cell chart's rows by its columns, each count in its axis's unit or
+// bare; a binned axis's unit is its values', not its bins', so its count
+// is bare.
+function gridText(model: Model, m: CellModel, words: Words): string {
+  const number = writer("number", model.locale);
+  const count = (axis: CellAxis, unit: Unit | undefined) => {
+    const n = cellCount(axis);
+    return counted(number(n), n, "names" in axis ? unit : undefined, model);
+  };
+  return words.grid(count(m.y, model.spec.y?.unit), count(m.x, model.spec.x?.unit));
+}
+
 /** The plot's name: its kind, its series count from two up, and its x
- *  domain, or on a bar or point chart its row count and on a scatter its
- *  dot count, since their x is a value. */
+ *  domain, or on a bar, point or box chart its row count, on a scatter its dot
+ *  count, on a cell chart its rows by its columns and on a calendar its
+ *  day count, since their x is no span. */
 export function shortDescription(model: Model, words: Words): string {
   const m = primaryOf(model);
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
-  const n = m === undefined || m.kind === "dot" ? 0 : m.series.length;
-  const series = n > 1 ? words.seriesCount(formatter("number", model.locale)(n)) : "";
+  const n =
+    m === undefined || m.kind === "dot" || m.kind === "cell" || m.kind === "calendar"
+      ? 0
+      : m.series.length;
+  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
   const range =
-    m?.kind === "bar" || m?.kind === "point"
+    m?.kind === "bar" || m?.kind === "point" || m?.kind === "box"
       ? rowsText(model, words)
       : m?.kind === "scatter"
         ? dotsText(model, m, words)
-        : domainText(model, words);
+        : m?.kind === "cell"
+          ? gridText(model, m, words)
+          : m?.kind === "calendar"
+            ? daysText(model, m, words)
+            : domainText(model, words);
   return words.shortDescription(kind, series, range);
 }

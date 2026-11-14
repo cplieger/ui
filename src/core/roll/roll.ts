@@ -73,6 +73,9 @@ export function roll(host: HTMLElement, text: string, options: RollOptions = {})
   for (const a of from.getAnimations()) {
     a.cancel();
   }
+  // The line sliding out leaves the name at once, so a control holding the
+  // window is read, and found by its name, as the words it rolls to.
+  from.setAttribute("aria-hidden", "true");
   const to = document.createElement("span");
   to.textContent = text;
   if (reducedMotion() || !host.isConnected) {
