@@ -2592,7 +2592,9 @@ a.cp-wordmark {
  * stands, worst first, and opens its panel. data-state names the state; the
  * stylesheet draws its glyph and fill, and the words are the app's: the
  * state's words, then an optional data-part="detail", such as a running
- * check. A state that needs the person fills the button in its tone. */
+ * check. A state that needs the person fills the button in its tone. The
+ * rest fill moves away from the shell ink, as the nav's hover does: a tint
+ * of the ink itself dropped its words to 3.94:1 on a light shell. */
 .cp-header-status {
   --cp-status-glyph: none;
 
@@ -2603,7 +2605,7 @@ a.cp-wordmark {
   padding-inline: var(--cp-space-3);
   border: 0;
   border-radius: var(--cp-radius-round);
-  background: oklch(from var(--cp-shell-ink) l c h / 12%);
+  background: var(--cp-shell-hover);
   color: var(--cp-shell-ink);
   font: inherit;
   font-size: var(--cp-text-sm);
@@ -2675,7 +2677,7 @@ a.cp-wordmark {
 
 @keyframes cp-status-breathe {
   50% {
-    background-color: oklch(from var(--cp-shell-ink) l c h / 22%);
+    background-color: var(--cp-shell-current);
   }
 }
 
