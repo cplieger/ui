@@ -523,12 +523,15 @@ describe.skipIf(server.browser !== "chromium")("installPress with real input", (
     const b = mount<HTMLButtonElement>("<button>Go</button>", "button");
     const types: string[] = [];
     b.addEventListener("pointerdown", (e) => types.push(e.pointerType));
+    // The press shows for 150ms, which the protocol's reply to touchEnd can
+    // outlast on a loaded machine, so it is watched as it happens.
+    const seen = watch(b);
     const at = pageCentre(b);
     await cdp().send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at] });
     await cdp().send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     expect(types).toEqual(["touch"]);
-    expect(pressed(b)).toBe(true);
     await vi.waitFor(() => {
+      expect(seen.ever).toBe(true);
       expect(pressed(b)).toBe(false);
     });
   });
