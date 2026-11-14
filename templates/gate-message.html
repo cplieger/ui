@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" class="cp">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Store unavailable · Release tracker</title>
+    <link rel="stylesheet" href="../css/system.css">
+  </head>
+  <body>
+    <main class="cp-gate">
+      <!-- region: brand: the app's mark and name -->
+      <div class="cp-wordmark">
+        <span class="cp-mark" aria-hidden="true">R</span>Release tracker
+      </div>
+      <!-- region: panel: what happened and how to fix it; the page runs no script and holds no control, so it passes default-src 'none'; style-src 'self'; img-src 'self' data: -->
+      <section class="cp-panel" aria-labelledby="message-title">
+        <div class="cp-stack">
+          <!-- slot: heading: what happened, in the app's words -->
+          <h1 id="message-title">Release tracker cannot open its store</h1>
+          <!-- slot: notices: a danger .cp-notice naming the class of the error in words -->
+          <div class="cp-notice" data-tone="danger">
+            <span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>
+            <div>The store file cannot be read.</div>
+          </div>
+          <!-- slot: facts: what the person needs to choose a remedy -->
+          <dl class="cp-facts">
+            <dt>Free space on <code class="cp-mono">/config</code></dt>
+            <dd>1.2 GB</dd>
+            <dt>Store file</dt>
+            <dd>2.4 GB</dd>
+            <dt>Newest backup</dt>
+            <dd><code class="cp-mono">store-2026-11-13.db</code>, <time datetime="2026-11-13T03:00">13 Nov, 03:00</time></dd>
+          </dl>
+          <!-- slot: remedies: an ol in .cp-prose, in the order to try them, each command in .cp-mono, which breaks anywhere; a warning .cp-notice leads the remedy that needs it -->
+          <div class="cp-prose">
+            <ol>
+              <li>
+                <div class="cp-stack" data-gap="tight">
+                  <div class="cp-notice" data-tone="warning">
+                    <span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>
+                    <div>Free space is under twice the store's size.</div>
+                  </div>
+                  <p>Free space on <code class="cp-mono">/config</code>, then restart the container.</p>
+                </div>
+              </li>
+              <li>Restore the newest backup with <code class="cp-mono">docker exec release-tracker release-tracker store restore /config/backups/store-2026-11-13.db</code>, then restart the container.</li>
+              <li>Or start again with an empty store: <code class="cp-mono">docker exec release-tracker release-tracker store reset</code>, then restart the container.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+      <!-- region: foot: the build version, the one line under the panel -->
+      <p class="cp-meta">Release tracker 3.0.0</p>
+    </main>
+  </body>
+</html>

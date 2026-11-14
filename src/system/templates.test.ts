@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { server } from "vitest/browser";
 
+import { drawing, maskUrl, shipped } from "./test-helpers/css.js";
+
 const APP_PAGES = ["app.html", "list-detail.html", "settings.html"] as const;
-const GATE_PAGES = ["gate.html", "gate-steps.html"] as const;
+const GATE_PAGES = ["gate.html", "gate-steps.html", "gate-message.html"] as const;
+const STRICT = "default-src 'none'; style-src 'self'; img-src 'self' data:";
 
 async function parse(name: string): Promise<Document> {
   // As the file ships: the dev server's copy carries its client script.
@@ -64,6 +67,48 @@ async function load(name: string, width: number): Promise<Document> {
     throw new Error(`${name} did not load`);
   }
   await doc.fonts.ready;
+  return doc;
+}
+
+const written: string[] = [];
+
+afterEach(async () => {
+  for (const path of written.splice(0)) {
+    await server.commands.removeFile(path);
+  }
+});
+
+/** Loads a template as it ships, scripts off, under `policy`, with a probe
+ *  whose style attribute the policy must refuse. The copy is a served file:
+ *  Firefox matches no source of 'self' in an about:srcdoc document. */
+async function loadStrict(name: string, policy: string): Promise<Document> {
+  const text = await server.commands.readFile(`templates/${name}`);
+  const base = new URL("../../templates/", import.meta.url).href;
+  const head = `<meta http-equiv="Content-Security-Policy" content="${policy}"><base href="${base}">`;
+  const path = `dist/strict/${crypto.randomUUID()}.html`;
+  await server.commands.writeFile(
+    path,
+    text
+      .replace("<head>", `<head>${head}`)
+      .replace("<body>", '<body><p id="probe" style="display: none">probe</p>'),
+  );
+  written.push(path);
+  const frame = document.createElement("iframe");
+  frame.title = name;
+  frame.width = "390";
+  frame.height = "800";
+  frame.sandbox.add("allow-same-origin");
+  const loaded = new Promise((resolve) => {
+    frame.addEventListener("load", resolve, { once: true });
+  });
+  frame.src = new URL(path, new URL("../../", import.meta.url)).href;
+  document.body.append(frame);
+  frames.push(frame);
+  await loaded;
+  const doc = frame.contentDocument;
+  if (!doc) {
+    throw new Error(`${name} did not load`);
+  }
   return doc;
 }
 
@@ -278,5 +323,49 @@ describe("the page templates", () => {
     }
     expect(panel.width).toBeLessThanOrEqual(24 * 16 + 0.5);
     expect(Math.abs(panel.left + panel.width / 2 - 640)).toBeLessThan(1);
+  });
+
+  it("gate-message.html tells what happened and how to fix it, with no control", async () => {
+    const doc = await parse("gate-message.html");
+    expect(marks(doc, "slot")).toEqual(["heading", "notices", "facts", "remedies"]);
+    expect(doc.querySelectorAll("form, button, input, select, textarea")).toHaveLength(0);
+    const panel = region(doc, "panel");
+    const h1 = panel?.querySelector("h1");
+    expect(panel?.getAttribute("aria-labelledby")).toBe(h1?.id);
+    expect(
+      panel?.querySelector('.cp-notice[data-tone="danger"] > .cp-icon[data-cp-icon="circle-x"]'),
+    ).not.toBeNull();
+    expect(panel?.querySelector("dl.cp-facts")).not.toBeNull();
+    const remedies = [...(panel?.querySelectorAll(".cp-prose > ol > li") ?? [])];
+    expect(remedies.length).toBeGreaterThan(1);
+    expect(remedies.every((li) => li.querySelector("code.cp-mono") !== null)).toBe(true);
+    const lead = remedies[0]?.querySelector('.cp-notice[data-tone="warning"]');
+    expect(lead?.querySelector('.cp-icon[data-cp-icon="triangle-alert"]')).not.toBeNull();
+    expect(region(doc, "foot")?.textContent).toMatch(/\d+\.\d+\.\d+/);
+  });
+
+  it("gate-message.html paints its look and glyphs with no script under a strict policy", async () => {
+    const doc = await loadStrict("gate-message.html", STRICT);
+    const view = doc.defaultView;
+    if (!view) {
+      throw new Error("no window");
+    }
+    const probe = doc.getElementById("probe");
+    if (!probe) {
+      throw new Error("no probe");
+    }
+    expect(view.getComputedStyle(probe).display).not.toBe("none");
+    const gate = doc.querySelector(".cp-gate");
+    expect(gate && view.getComputedStyle(gate).display).toBe("grid");
+    const icons = [...doc.querySelectorAll(".cp-icon")];
+    expect(icons.length).toBeGreaterThan(1);
+    for (const icon of icons) {
+      const url = new URL(maskUrl(icon), doc.baseURI);
+      expect(url.protocol === "data:" || url.origin === location.origin).toBe(true);
+      const name = icon.getAttribute("data-cp-icon") ?? "";
+      expect(await drawing(url)).toBe(await shipped(name));
+    }
+    const panel = doc.querySelector(".cp-panel");
+    expect(panel && panel.scrollWidth <= panel.clientWidth).toBe(true);
   });
 });
