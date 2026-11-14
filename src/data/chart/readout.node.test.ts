@@ -18,6 +18,7 @@ import {
   type RectModel,
   type ScatterModel,
   type SlopeModel,
+  type TreeModel,
 } from "./model.js";
 import {
   barReading,
@@ -25,6 +26,7 @@ import {
   bucketReading,
   cellReading,
   columnReading,
+  chipChosen,
   overall,
   pointReading,
   postReading,
@@ -34,6 +36,7 @@ import {
   scatterReading,
   sliceReading,
   totalWord,
+  treeReading,
   type Reading,
 } from "./readout.js";
 import type { ChartSpec, Mark } from "./spec.js";
@@ -1436,5 +1439,100 @@ describe("the legend row of a pie", () => {
     const m = model(land);
     const w = readoutWidths(m, words, measure);
     expect(w.at).toBe(measure.number(`Housing & traffic 48,631${nb}km²`));
+  });
+});
+
+describe("the legend row of a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  const gdp = (india: number | null = 3550): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "Japan", value: 4213 },
+              { name: "India", value: india },
+            ],
+          },
+          {
+            name: "Americas",
+            slot: 6,
+            children: [
+              { name: "United States", value: 27_361 },
+              { name: "Brazil", value: 2174 },
+            ],
+          },
+          {
+            name: "Europe",
+            children: [
+              { name: "Germany", value: 4456 },
+              { name: "France", value: 3031 },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const flat: ChartSpec = {
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          { name: "United States", value: 27_361 },
+          { name: "China", slot: 3, value: 17_795 },
+          { name: "Germany", value: 4456 },
+        ],
+      },
+    ],
+  };
+  const tree = (m: Model) => m.marks[0] as TreeModel;
+  const shares = [
+    [1, "Asia", "41%"],
+    [6, "Americas", "47%"],
+    [3, "Europe", "12%"],
+  ];
+
+  it("reads the total with no selection, a chip per group with its share", () => {
+    const r = overall(model(gdp()), words);
+    expect(r?.at).toBe(`Total 62,580${nb}bn USD`);
+    expect(chips(r)).toEqual(shares);
+    expect(chipChosen(model(gdp()))).toBe(true);
+  });
+
+  it("reads a part by its path, value and share, the chips kept, its group's chosen", () => {
+    const m = model(gdp());
+    const r = treeReading(m, tree(m), false, 3, words);
+    expect(r.at).toBe(`Americas, United States 27,361${nb}bn USD, 44%`);
+    expect(chips(r)).toEqual(shares);
+    expect(r.chosen).toBe(1);
+    const gap = model(gdp(null));
+    expect(treeReading(gap, tree(gap), false, 2, words).at).toBe("Asia, India No data");
+  });
+
+  it("reads a group by its name, sum and share, its own chip chosen", () => {
+    const m = model(gdp());
+    const r = treeReading(m, tree(m), true, 2, words);
+    expect(r.at).toBe(`Europe 7,487${nb}bn USD, 12%`);
+    expect(r.chosen).toBe(2);
+  });
+
+  it("has no chips with one level, the part named alone", () => {
+    const m = model(flat);
+    expect(chips(overall(m, words))).toEqual([]);
+    const r = treeReading(m, tree(m), false, 1, words);
+    expect(r.at).toBe(`China 17,795${nb}bn USD, 36%`);
+    expect(chips(r)).toEqual([]);
+    expect(r.chosen).toBe(undefined);
+  });
+
+  it("keeps the x slot as wide as the widest node's reading", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const w = readoutWidths(model(gdp()), words, measure);
+    expect(w.at).toBe(measure.number(`Americas, United States 27,361${nb}bn USD, 44%`));
   });
 });

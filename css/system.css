@@ -6742,7 +6742,9 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: var(--cp-ink);
 }
 
-.cp-chart svg [data-part="end"] text[data-selected] {
+.cp-chart svg [data-part="end"] text[data-selected],
+.cp-chart svg [data-part="tile"] text[data-selected],
+.cp-chart svg [data-part="head"] text[data-selected] {
   font-weight: var(--cp-weight-medium);
 }
 

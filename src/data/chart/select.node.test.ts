@@ -1664,3 +1664,182 @@ describe("a pie's keys, pointer and readings", () => {
     expect(spoken(model, slice(4), words, false)).toBe("Water: No data.");
   });
 });
+
+describe("a tree's keys, pointer and readings", () => {
+  // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  interface Node {
+    readonly name: string;
+    readonly value: number | null;
+  }
+  const ASIA: Node[] = [
+    { name: "China", value: 17_795 },
+    { name: "Japan", value: 4213 },
+    { name: "India", value: 3550 },
+  ];
+  const AMERICAS: Node[] = [
+    { name: "United States", value: 27_361 },
+    { name: "Brazil", value: 2174 },
+  ];
+  const EUROPE: Node[] = [
+    { name: "Germany", value: 4456 },
+    { name: "France", value: 3031 },
+  ];
+  const gdp = (asia = ASIA, order: readonly number[] = [0, 1, 2]): ChartSpec => {
+    const groups = [
+      { name: "Asia", children: asia },
+      { name: "Americas", children: AMERICAS },
+      { name: "Europe", children: EUROPE },
+    ];
+    return {
+      marks: [
+        {
+          mark: "tree",
+          unit: { other: "bn USD" },
+          nodes: order.flatMap((g) => groups[g] ?? []),
+        },
+      ],
+    };
+  };
+  const flat = (parts: readonly Node[] = [...ASIA, ...AMERICAS]): ChartSpec => ({
+    marks: [{ mark: "tree", unit: { other: "bn USD" }, nodes: parts }],
+  });
+  const part = (i: number): Selection => ({ kind: "part", i });
+  const group = (i: number): Selection => ({ kind: "group", i });
+  const tiles = (b: Built) => b.lay.tree?.tiles ?? [];
+  const bands = (b: Built) => b.lay.tree?.bands ?? [];
+  const middle = (box: { left: number; top: number; right: number; bottom: number }) =>
+    [(box.left + box.right) / 2, (box.top + box.bottom) / 2] as const;
+
+  it("focus selects the first group, or with one level the first part", () => {
+    expect(initial(built(gdp()).model)).toEqual(group(0));
+    expect(initial(built(flat()).model)).toEqual(part(0));
+    expect(initial(built(flat([])).model)).toBe(undefined);
+  });
+
+  it("walks one level's parts with all four arrows, stopping at the ends, Home and End to them", () => {
+    const b = built(flat());
+    expect(press(b, part(0), "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "ArrowUp")).toEqual(
+      [part(1), part(2), part(1), part(0), undefined],
+    );
+    expect(press(b, part(1), "End", "ArrowRight")).toEqual([part(4), undefined]);
+    expect(press(b, part(3), "Home", "Home")).toEqual([part(0), undefined]);
+  });
+
+  it("moves through two levels by the band map: Up and Down the groups, Left and Right the parts", () => {
+    const b = built(gdp());
+    expect(press(b, group(0), "ArrowDown", "ArrowDown", "ArrowDown")).toEqual([
+      group(1),
+      group(2),
+      undefined,
+    ]);
+    expect(press(b, group(0), "ArrowUp")).toEqual([undefined]);
+    // A group's Right takes its first part, its Left the last part of the group before.
+    expect(press(b, group(1), "ArrowRight")).toEqual([part(3)]);
+    expect(press(b, group(1), "ArrowLeft")).toEqual([part(2)]);
+    expect(press(b, group(0), "ArrowLeft")).toEqual([undefined]);
+    // The parts' walk crosses groups, and stops at the first and the last.
+    expect(press(b, part(1), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      part(2),
+      part(3),
+      part(4),
+    ]);
+    expect(press(b, part(6), "ArrowRight")).toEqual([undefined]);
+    expect(press(b, part(0), "ArrowLeft")).toEqual([undefined]);
+    // From a part, Up and Down take the group before or after its own.
+    expect(press(b, part(3), "ArrowUp")).toEqual([group(0)]);
+    expect(press(b, part(3), "ArrowDown")).toEqual([group(2)]);
+    expect(press(b, part(0), "ArrowUp")).toEqual([undefined]);
+  });
+
+  it("takes Home and End to the first and last node at the selected level", () => {
+    const b = built(gdp());
+    expect(press(b, group(1), "Home", "Home")).toEqual([group(0), undefined]);
+    expect(press(b, group(1), "End", "End")).toEqual([group(2), undefined]);
+    expect(press(b, part(3), "Home", "End")).toEqual([part(0), part(6)]);
+  });
+
+  it("stops at a 0 and a gap part, which draw no tile", () => {
+    const b = built(
+      gdp([
+        { name: "China", value: 0 },
+        { name: "Japan", value: null },
+      ]),
+    );
+    expect(tiles(b).slice(0, 2)).toEqual([undefined, undefined]);
+    expect(press(b, group(0), "ArrowRight", "ArrowRight", "ArrowRight")).toEqual([
+      part(0),
+      part(1),
+      part(2),
+    ]);
+  });
+
+  it("leaves the Page keys and a drag to the page, and draws no crosshair", () => {
+    const b = built(gdp());
+    expect(press(b, group(0), "PageDown", "PageUp")).toEqual([undefined, undefined]);
+    expect(press(b, part(0), "PageDown")).toEqual([undefined]);
+    expect(b.nav.pages).toBe(false);
+    expect(b.nav.drags).toBe(false);
+    expect(b.nav.crosshair(part(0))).toBe(undefined);
+    expect(b.nav.crosshair(group(0))).toBe(undefined);
+  });
+
+  it("picks the tile under the pointer, or the group whose head band is under it", () => {
+    const b = built(gdp());
+    tiles(b).forEach((t, i) => {
+      expect(t === undefined ? undefined : b.nav.pick(...middle(t)), String(i)).toEqual(part(i));
+    });
+    expect(bands(b).every((band) => band !== undefined)).toBe(true);
+    bands(b).forEach((band, g) => {
+      expect(band === undefined ? undefined : b.nav.pick(...middle(band))).toEqual(group(g));
+    });
+  });
+
+  it("picks the nearest tile within 4 px in a gap or past the plot's edge, and nothing farther", () => {
+    const b = built(gdp());
+    const china = tiles(b)[0];
+    const asia = b.lay.tree?.groups[0];
+    expect(china?.left).toBe(0);
+    expect(asia?.left).toBe(0);
+    const y = china === undefined ? 0 : (china.top + china.bottom) / 2;
+    expect(b.nav.pick(-4, y)).toEqual(part(0));
+    expect(b.nav.pick(-4.1, y)).toBe(undefined);
+    // Asia's right edge stands 4 px from the next group's: 1 px out is Asia's.
+    const right = Math.max(
+      ...tiles(b)
+        .slice(0, 3)
+        .map((t) => t?.right ?? 0),
+    );
+    const edge = tiles(b)
+      .slice(0, 3)
+      .findIndex((t) => t?.right === right && t.top <= y && t.bottom >= y);
+    expect(edge).not.toBe(-1);
+    expect(b.nav.pick(right + 1, y)).toEqual(part(edge));
+  });
+
+  it("keeps a node across an update by its group's name and its own, and drops one that left", () => {
+    const before = built(gdp()).model;
+    const after = built(gdp(ASIA, [2, 0, 1])).model;
+    expect(rekey(before, group(0), after)).toEqual(group(1));
+    expect(rekey(before, part(3), after)).toEqual(part(5));
+    expect(rekey(before, part(0), built(gdp(ASIA.slice(1))).model)).toBe(undefined);
+    expect(rekey(before, part(0), built(flat()).model)).toBe(undefined);
+    expect(rekey(built(flat()).model, part(3), built(flat([...AMERICAS, ...ASIA])).model)).toEqual(
+      part(0),
+    );
+  });
+
+  it("says a part's path, value and share, a group's with its part count, and a gap No data", () => {
+    const model = built(gdp()).model;
+    expect(spoken(model, part(0), words, false)).toBe("Asia, China: 17,795\u00A0bn USD, 28%.");
+    expect(spoken(model, part(3), words, true)).toBe(
+      "Americas, United States: 27,361\u00A0bn USD, 44%.",
+    );
+    expect(spoken(model, group(0), words, false)).toBe("Asia: 25,558\u00A0bn USD, 41%, 3 parts.");
+    expect(spoken(model, group(2), words, false)).toBe("Europe: 7,487\u00A0bn USD, 12%, 2 parts.");
+    const gap = built(gdp([...ASIA.slice(0, 2), { name: "India", value: null }])).model;
+    expect(spoken(gap, part(2), words, false)).toBe("Asia, India: No data.");
+    expect(spoken(built(flat()).model, part(0), words, false)).toBe(
+      "China: 17,795\u00A0bn USD, 32%.",
+    );
+  });
+});

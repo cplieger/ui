@@ -991,3 +991,90 @@ describe("the table of a pie", () => {
     expect(t.foot).toBe(undefined);
   });
 });
+
+describe("the table of a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all.
+  const gdp = (india: number | null = 3550): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "India", value: india },
+            ],
+          },
+          {
+            name: "Americas",
+            children: [
+              { name: "United States", value: 27_361 },
+              { name: "Brazil", value: 2174 },
+              { name: "Other", value: 11_700 },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const foot = (t: TableModel) =>
+    t.foot === undefined ? [] : [text(t.foot.head), ...t.foot.cells.map((c) => text(c.parts))];
+
+  it("has a group per tbody, its head row its sum and share, then its parts in the order sent", () => {
+    const t = tableModel(model(gdp()), words);
+    expect(t.columns.map((c) => c.text)).toEqual(["bn USD", "Share"]);
+    expect(cells(t)).toEqual([
+      ["China", "17,795", "28%"],
+      ["India", "3,550", "5.7%"],
+      ["United States", "27,361", "44%"],
+      ["Brazil", "2,174", "3.5%"],
+      ["Other", "11,700", "19%"],
+    ]);
+    expect(
+      t.groups?.map((g) => [
+        g.key,
+        g.count,
+        g.head.scope,
+        text(g.head.head),
+        ...g.head.cells.map((c) => text(c.parts)),
+      ]),
+    ).toEqual([
+      ["Asia", 2, "rowgroup", "Asia", "21,345", "34%"],
+      ["Americas", 3, "rowgroup", "Americas", "41,235", "66%"],
+    ]);
+    expect(foot(t)).toEqual(["Total", "62,580", "100%"]);
+  });
+
+  it("writes a gap No data, its group's sum and the whole without it", () => {
+    const t = tableModel(model(gdp(null)), words);
+    expect(cells(t)[1]).toEqual(["India", "No data", "No data"]);
+    expect(t.groups?.[0]?.head.cells.map((c) => text(c.parts))).toEqual(["17,795", "30%"]);
+    expect(foot(t)).toEqual(["Total", "59,030", "100%"]);
+  });
+
+  it("has one body of parts with one level, and the whole in its foot", () => {
+    const t = tableModel(
+      model({
+        marks: [
+          {
+            mark: "tree",
+            nodes: [
+              { name: "United States", value: 3 },
+              { name: "China", value: 1 },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.groups).toBe(undefined);
+    expect(t.columns[0]?.text).toBe("Value");
+    expect(cells(t)).toEqual([
+      ["United States", "3", "75%"],
+      ["China", "1", "25%"],
+    ]);
+    expect(foot(t)).toEqual(["Total", "4", "100%"]);
+  });
+});

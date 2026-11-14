@@ -120,6 +120,8 @@ interface TreeFrame {
   readonly tiles: readonly (Box | undefined)[];
   /** Each group's rectangle, its head band included. */
   readonly groups: readonly Box[];
+  /** Each group's head band, undefined for a group with no head. */
+  readonly bands: readonly (Box | undefined)[];
   /** The tiles' labels, a name and then its value, each `series` its part. */
   readonly labels: readonly Text[];
   readonly kept: TreeKept;
@@ -948,6 +950,7 @@ function treeLayout(
     return t.rows;
   };
   const groups: Box[] = [];
+  const bands: (Box | undefined)[] = [];
   const heads: Text[] = [];
   const inner: (readonly Row[])[] = [];
   let top: readonly Row[];
@@ -962,6 +965,7 @@ function treeLayout(
       const box = inset(t.boxes[k] ?? plot, GROUP_INSET, plot, dpr);
       groups.push(box);
       const headed = box.right - box.left >= HEAD_WIDE && box.bottom - box.top >= HEAD_TALL;
+      bands.push(headed ? { ...box, bottom: box.top + HEAD_BAND } : undefined);
       if (headed) {
         heads.push({
           text: cutName(g.name, box.right - box.left - 2 * TILE_PAD, measure.text),
@@ -1010,7 +1014,7 @@ function treeLayout(
     days: undefined,
     pie: undefined,
     hole: undefined,
-    tree: { tiles, groups, labels, kept: { key, top, inner } },
+    tree: { tiles, groups, bands, labels, kept: { key, top, inner } },
     mono: false,
     gutters: floors,
     bar: 0,

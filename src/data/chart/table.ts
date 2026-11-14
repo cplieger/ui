@@ -1,7 +1,8 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
  * bucket, sample, change point, dot row, category, box, slope series,
- * scatter dot, cell row, calendar week or slice, kept in place across updates.
+ * scatter dot, cell row, calendar week, slice or tree's part, a tree's
+ * groups each in a `<tbody>` of their own, kept in place across updates.
  * @module
  */
 
@@ -46,6 +47,7 @@ import {
   sliceShare,
   totalWord,
   totalled,
+  treeShare,
 } from "./readout.js";
 import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
@@ -61,17 +63,31 @@ interface Cell {
 
 interface Row {
   /** The row's x, its dot row's name and place among rows of that name, or
-   *  its category's name. */
+   *  its category's name; unique within its `<tbody>`. */
   readonly key: string;
   readonly head: readonly Part[];
+  /** A group's head row's header names its `<tbody>`; any other row's its row. */
+  readonly scope?: "rowgroup";
   readonly cells: readonly Cell[];
+}
+
+/** A run of a table's rows in a `<tbody>` of its own, after its head row. */
+interface Group {
+  /** The group's name, unique among the table's groups. */
+  readonly key: string;
+  readonly head: Row;
+  /** How many of the table's rows, in order from the last group's, it holds. */
+  readonly count: number;
 }
 
 export interface TableModel {
   readonly corner: string;
   readonly columns: readonly { readonly text: string; readonly num: boolean }[];
   readonly rows: readonly Row[];
-  /** A pie's Total row, in the table's `<tfoot>`. */
+  /** A tree's groups, which split `rows` into a `<tbody>` each; one
+   *  `<tbody>` for every row without them. */
+  readonly groups?: readonly Group[];
+  /** A pie's or a tree's Total row, in the table's `<tfoot>`. */
   readonly foot?: Row;
   /** The rules' and notes' sentences after the table. */
   readonly after: string;
@@ -330,21 +346,18 @@ function pieTable(model: Model, m: PieModel, words: Words, after: string): Table
 }
 
 // A row per part in the app's order, its value bare under the unit's
-// plural, then its share of the whole; a part is keyed by its group, since
-// two groups may each hold an "Other".
+// plural, then its share of the whole; with two levels each group's parts
+// after its own head row, its sum and share; the whole in the foot.
 function treeTable(model: Model, m: TreeModel, words: Words, after: string): TableModel {
-  const rows = m.parts.map((p): Row => ({
-    key: `${String(p.group)} ${p.name}`,
-    head: [p.name],
-    cells: [
-      { parts: [p.value === null ? words.noData : model.amountText(p.value)], num: true },
-      {
-        parts: [
-          p.value === null ? words.noData : model.shareText(m.total > 0 ? p.value / m.total : 0),
-        ],
-        num: true,
-      },
-    ],
+  const amounts = (v: number | null): Cell[] => [
+    { parts: [v === null ? words.noData : model.amountText(v)], num: true },
+    { parts: [v === null ? words.noData : treeShare(model, m, v)], num: true },
+  ];
+  const rows = m.parts.map((p): Row => ({ key: p.name, head: [p.name], cells: amounts(p.value) }));
+  const groups = m.groups.map((g): Group => ({
+    key: g.name,
+    head: { key: "", head: [g.name], scope: "rowgroup", cells: amounts(g.value) },
+    count: g.count,
   }));
   return {
     corner: "",
@@ -353,6 +366,15 @@ function treeTable(model: Model, m: TreeModel, words: Words, after: string): Tab
       { text: words.share, num: true },
     ],
     rows,
+    ...(groups.length > 0 ? { groups } : {}),
+    foot: {
+      key: "",
+      head: [words.total],
+      cells: [
+        { parts: [model.amountText(m.total)], num: true },
+        { parts: [model.shareText(1)], num: true },
+      ],
+    },
     after,
   };
 }
@@ -549,7 +571,7 @@ function bodyRow(row: Row, isolate: boolean): HTMLTableRowElement {
   const tr = document.createElement("tr");
   tr.dataset["key"] = row.key;
   const th = document.createElement("th");
-  th.scope = "row";
+  th.scope = row.scope ?? "row";
   write(th, row.head, isolate);
   tr.append(th);
   for (const c of row.cells) {
@@ -605,6 +627,91 @@ function syncFoot(table: HTMLTableElement, foot: Row | undefined, named: boolean
   });
 }
 
+// Each `<tbody>` of `t` with its rows: a group's head row first, or one
+// `<tbody>` keyed "" for every row.
+function bodiesOf(t: TableModel): { readonly key: string; readonly rows: readonly Row[] }[] {
+  if (t.groups === undefined) {
+    return [{ key: "", rows: t.rows }];
+  }
+  let from = 0;
+  return t.groups.map((g) => {
+    const rows = [g.head, ...t.rows.slice(from, from + g.count)];
+    from += g.count;
+    return { key: g.key, rows };
+  });
+}
+
+// Puts `rows` in `body` by key: changed cells rewritten in place, new rows
+// inserted and rows that left removed.
+function syncRows(body: HTMLTableSectionElement, rows: readonly Row[], named: boolean): void {
+  // Rows that left go first, so no kept row is moved, which would blur it.
+  const keys = new Set(rows.map((r) => r.key));
+  const old = new Map<string, HTMLTableRowElement>();
+  for (const tr of [...body.rows]) {
+    const key = tr.dataset["key"] ?? "";
+    if (keys.has(key)) {
+      old.set(key, tr);
+    } else {
+      tr.remove();
+    }
+  }
+  let after: HTMLTableRowElement | null = null;
+  for (const row of rows) {
+    const fresh = bodyRow(row, named);
+    let tr = old.get(row.key);
+    if (tr === undefined) {
+      tr = fresh;
+    } else {
+      [...tr.cells].forEach((cell, k) => {
+        const now = fresh.cells[k];
+        if (now !== undefined) {
+          rewrite(cell, now);
+        }
+      });
+    }
+    const placed: boolean =
+      after === null ? body.firstElementChild === tr : after.nextElementSibling === tr;
+    if (!placed) {
+      if (after === null) {
+        body.prepend(tr);
+      } else {
+        after.after(tr);
+      }
+    }
+    after = tr;
+  }
+}
+
+// Puts `t`'s `<tbody>`s after `table`'s head by key, as `syncRows` puts rows.
+function syncBodies(table: HTMLTableElement, t: TableModel, named: boolean): void {
+  const bodies = bodiesOf(t);
+  const keys = new Set(bodies.map((b) => b.key));
+  const old = new Map<string, HTMLTableSectionElement>();
+  for (const tb of [...table.tBodies]) {
+    const key = tb.dataset["key"] ?? "";
+    if (keys.has(key)) {
+      old.set(key, tb);
+    } else {
+      tb.remove();
+    }
+  }
+  let after: Element | null = table.tHead;
+  for (const b of bodies) {
+    let tb = old.get(b.key);
+    if (tb === undefined) {
+      tb = document.createElement("tbody");
+      if (b.key !== "") {
+        tb.dataset["key"] = b.key;
+      }
+    }
+    syncRows(tb, b.rows, named);
+    if (after?.nextElementSibling !== tb) {
+      after?.after(tb);
+    }
+    after = tb;
+  }
+}
+
 /**
  * Shows `t` in `panel`, the chart's `.cp-panel`, its caption `title`. A
  * table with the same columns keeps its rows: changed cells are rewritten
@@ -620,11 +727,8 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, name
     caption.textContent = title;
     const head = table.createTHead().insertRow();
     head.append(cornerCell(t.corner), ...t.columns.map((c) => headCell(c.text, c.num)));
-    // One append per row, since a long line's rows overflow an argument list.
-    const body = table.createTBody();
-    for (const r of t.rows) {
-      body.append(bodyRow(r, named));
-    }
+    // Filled before it is shown, so its rows cost no layout.
+    syncBodies(table, t, named);
     panel.querySelector("table")?.remove();
     panel.prepend(table);
   } else {
@@ -632,43 +736,7 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, name
     if (caption !== null && caption.textContent !== title) {
       caption.textContent = title;
     }
-    const body = table.tBodies[0] ?? table.createTBody();
-    // Rows that left go first, so no kept row is moved, which would blur it.
-    const keys = new Set(t.rows.map((r) => r.key));
-    const old = new Map<string, HTMLTableRowElement>();
-    for (const tr of [...body.rows]) {
-      const key = tr.dataset["key"] ?? "";
-      if (keys.has(key)) {
-        old.set(key, tr);
-      } else {
-        tr.remove();
-      }
-    }
-    let after: HTMLTableRowElement | null = null;
-    for (const row of t.rows) {
-      const fresh = bodyRow(row, named);
-      let tr = old.get(row.key);
-      if (tr === undefined) {
-        tr = fresh;
-      } else {
-        [...tr.cells].forEach((cell, k) => {
-          const now = fresh.cells[k];
-          if (now !== undefined) {
-            rewrite(cell, now);
-          }
-        });
-      }
-      const placed: boolean =
-        after === null ? body.firstElementChild === tr : after.nextElementSibling === tr;
-      if (!placed) {
-        if (after === null) {
-          body.prepend(tr);
-        } else {
-          after.after(tr);
-        }
-      }
-      after = tr;
-    }
+    syncBodies(table, t, named);
   }
   syncFoot(table, t.foot, named);
   let after = panel.querySelector<HTMLElement>('[data-part="after"]');

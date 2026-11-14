@@ -834,6 +834,60 @@ describe("the table view on update", () => {
     expect(total?.textContent).toBe("200,000");
     expect(table?.tFoot?.rows).toHaveLength(1);
   });
+
+  it("writes a treemap's groups in a tbody each, kept and moved by name on update", () => {
+    const tree = (groups: readonly (readonly [string, number])[]): ChartSpec => ({
+      marks: [
+        {
+          mark: "tree",
+          nodes: groups.map(([name, value]) => ({
+            name,
+            children: [
+              { name: "A", value },
+              { name: "B", value: 1 },
+            ],
+          })),
+        },
+      ],
+    });
+    const b = build();
+    const chart = start(
+      tree([
+        ["Asia", 3],
+        ["Europe", 2],
+        ["Africa", 1],
+      ]),
+      b,
+    );
+    chart.showTable(true);
+    const table = get(b.figure, "table")?.querySelector("table");
+    const bodies = () => [...(table?.tBodies ?? [])];
+    const [asia, europe] = bodies();
+    const heads = (tb: HTMLTableSectionElement | undefined) =>
+      [...(tb?.querySelectorAll("th") ?? [])].map((th) => `${th.scope} ${th.textContent ?? ""}`);
+    expect(bodies()).toHaveLength(3);
+    expect(heads(asia)).toEqual(["rowgroup Asia", "row A", "row B"]);
+    expect([...(asia?.rows[0]?.cells ?? [])].map((c) => c.textContent)).toEqual([
+      "Asia",
+      "4",
+      "44%",
+    ]);
+    const cell = europe?.rows[1]?.cells[1];
+    chart.update(
+      tree([
+        ["Europe", 7],
+        ["Asia", 3],
+      ]),
+    );
+    expect(get(b.figure, "table")?.querySelector("table")).toBe(table);
+    expect(bodies()).toHaveLength(2);
+    expect(bodies()[0]).toBe(europe);
+    expect(bodies()[1]).toBe(asia);
+    expect(europe?.rows[1]?.cells[1]).toBe(cell);
+    expect(cell?.textContent).toBe("7");
+    expect(table?.tHead?.nextElementSibling).toBe(europe);
+    expect(table?.lastElementChild).toBe(table?.tFoot);
+  });
 });
 
 describe("the drawing under update and resize", () => {

@@ -30,6 +30,7 @@ import {
   type ScatterModel,
   type SeriesModel,
   type SlopeModel,
+  type TreeModel,
 } from "./model.js";
 import { noteJoin } from "./notes.js";
 import {
@@ -50,12 +51,14 @@ import {
   measureText,
   measuresOf,
   groupsText,
+  partName,
   partsText,
   partAmount,
   primaryOf,
   rowsText,
   sliceShare,
   totalWord,
+  treeShare,
 } from "./readout.js";
 import type { Words } from "./words.js";
 
@@ -498,6 +501,43 @@ function pieSummary(model: Model, m: PieModel, words: Words): string[] {
   return [words.partsSummary(partAmount(model, m, m.total), parts.join(", "))];
 }
 
+/** A tree of one level's summary names this many of its largest parts:
+ *  a sentence of every share in a treemap of many would not be read to
+ *  its end, and the table holds them all. */
+const LARGEST = 5;
+
+// Two levels: the whole and each group's share, then the largest part. One
+// level: the whole and its LARGEST largest parts, largest first, ties in
+// the app's order, then how many more.
+function treeSummary(model: Model, m: TreeModel, words: Words): string[] {
+  const total = partAmount(model, m, m.total);
+  const value = (i: number) => m.parts[i]?.value ?? null;
+  const ranked = m.parts
+    .map((_, i) => i)
+    .filter((i) => value(i) !== null)
+    .sort((a, b) => (value(b) ?? 0) - (value(a) ?? 0) || a - b);
+  if (m.groups.length > 0) {
+    const shares = m.groups.map((g) => `${g.name} ${treeShare(model, m, g.value)}`);
+    const out = [words.partsSummary(total, shares.join(", "))];
+    const top = ranked[0];
+    const v = top === undefined ? 0 : (value(top) ?? 0);
+    if (top !== undefined && v > 0) {
+      out.push(
+        words.largest(partName(m, top, words), partAmount(model, m, v), treeShare(model, m, v)),
+      );
+    }
+    return out;
+  }
+  const named = ranked
+    .slice(0, LARGEST)
+    .map((i) => `${m.parts[i]?.name ?? ""} ${treeShare(model, m, value(i) ?? 0)}`);
+  const rest = m.parts.length - named.length;
+  if (rest > 0) {
+    named.push(words.more(writer("number", model.locale)(rest)));
+  }
+  return [words.partsSummary(total, named.join(", "))];
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -571,7 +611,9 @@ export function generatedSummary(model: Model, words: Words): string {
                         ? boxSummary(model, m, words)
                         : m?.kind === "pie"
                           ? pieSummary(model, m, words)
-                          : [];
+                          : m?.kind === "tree"
+                            ? treeSummary(model, m, words)
+                            : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 

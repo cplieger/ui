@@ -73,7 +73,7 @@ export interface ChartWords {
    *  for one series (series is then ""). */
   readonly shortDescription?: (kind: string, series: string, range: string) => string;
   /** A selection, as announced. parts are joined by ", "; total is a stack's
-   *  or a pie's formatted total, or "" when there is none. Default "{at}: {parts}. Total
+   *  or a pie's formatted total, or "" when there is none, as on a tree. Default "{at}: {parts}. Total
    *  {total}.", or "{at}: {parts}." without a total. */
   readonly reading?: (at: string, parts: string, total: string) => string;
   /** One segment of a stack or one line series. Default "{at}: {name} {value}." */
@@ -90,8 +90,8 @@ export interface ChartWords {
   readonly range?: (from: string, to: string) => string;
   /** The underflow bin. Default "Under {edge}". */
   readonly under?: (edge: string) => string;
-  /** A stack's total, and a pie's whole in the legend row, its hole and its
-   *  table's Total row. Default "Total". */
+  /** A stack's total, and a pie's or a tree's whole in the legend row, a
+   *  donut's hole and the table's Total row. Default "Total". */
   readonly total?: string;
   /** A range plot's distance between a row's two values, in the legend
    *  row, the table head and the summary. Default "Gap". */
@@ -107,7 +107,7 @@ export interface ChartWords {
   /** A pie's table head over each slice's value when its mark names no
    *  unit. Default "Value". */
   readonly value?: string;
-  /** A pie's table head over each slice's share of the whole. Default "Share". */
+  /** A pie's or a tree's table head over each part's share of the whole. Default "Share". */
   readonly share?: string;
   /** A null value. Default "No data". */
   readonly noData?: string;
@@ -166,15 +166,23 @@ export interface ChartWords {
    *  the short description; count is n as a number, for the plural.
    *  Default "{n} days", or "{n} day" for one. */
   readonly days?: (n: string, count: number) => string;
-  /** A pie's slices or a tree's parts in the short description; count is n
-   *  as a number, for the plural. Default "{n} parts", or "{n} part" for one. */
+  /** A pie's slices or a tree's parts in the short description, and a tree
+   *  group's parts in its reading; count is n as a number, for the plural.
+   *  Default "{n} parts", or "{n} part" for one. */
   readonly parts?: (n: string, count: number) => string;
   /** A tree's groups in the short description, before its parts; count is n
    *  as a number. Default "{n} groups", or "{n} group" for one. */
   readonly groups?: (n: string, count: number) => string;
-  /** Summary, a pie; parts are "{name} {share}" in slice order, joined by
-   *  ", ". Default "{total}: {parts}." */
+  /** Summary, a pie or a tree; parts are "{name} {share}" joined by ", ",
+   *  a pie's slices and a tree's groups in order, or a tree of one level's
+   *  five largest parts and `more` for the rest. Default "{total}: {parts}." */
   readonly partsSummary?: (total: string, parts: string) => string;
+  /** A tree's part in its group, in the legend row, the readings and the
+   *  summary. Default "{group}, {part}". */
+  readonly path?: (group: string, part: string) => string;
+  /** Summary, a tree of two levels' largest part; name is its `path`.
+   *  Default "Largest: {name} {value}, {share}." */
+  readonly largest?: (name: string, value: string, share: string) => string;
   /** A cell's place in the legend row, the readings, the summary and a
    *  note's place: its column's and its row's name, or a bin as
    *  `measure` of its range. Default "{row}, {column}". */
@@ -247,7 +255,8 @@ export interface ChartWords {
   readonly most?: (name: string, n: string) => string;
   /** Summary, rows with no dot. Default "None: {names}." */
   readonly silent?: (names: string) => string;
-  /** After the fifth silent name. Default "and {n} more". */
+  /** After the fifth silent name, or a tree of one level's fifth part in
+   *  the summary. Default "and {n} more". */
   readonly more?: (n: string) => string;
 }
 
@@ -342,6 +351,8 @@ const DEFAULTS: Words = {
   parts: (n, count) => (count === 1 ? `${n} part` : `${n} parts`),
   groups: (n, count) => (count === 1 ? `${n} group` : `${n} groups`),
   partsSummary: (total, parts) => `${total}: ${parts}.`,
+  path: (group, part) => `${group}, ${part}`,
+  largest: (name, value, share) => `Largest: ${name} ${value}, ${share}.`,
   cellPlace: (column, row) => `${row}, ${column}`,
   cellSummary: (count, high, low) =>
     high === "" ? `${count}.` : `${count}. Highest ${high}. Lowest ${low}.`,

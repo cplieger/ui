@@ -361,11 +361,12 @@ export function columnReading(
 
 /** Whether a chosen series marks its legend chip: on a slope, whose series
  *  Up and Down choose while the row reads a column, on a scatter, whose
- *  chips keep their counts while the row reads a dot, and on a pie, whose
- *  chips keep their shares while the row reads a slice. */
+ *  chips keep their counts while the row reads a dot, and on a pie or a
+ *  tree, whose chips keep their shares while the row reads a slice or a
+ *  tree's node. */
 export function chipChosen(model: Model): boolean {
   const kind = primaryOf(model)?.kind;
-  return kind === "slope" || kind === "scatter" || kind === "pie";
+  return kind === "slope" || kind === "scatter" || kind === "pie" || kind === "tree";
 }
 
 /** A scatter dot's value on `axis`, or a bubble's size on "r", with its
@@ -623,14 +624,59 @@ export function groupsText(model: Model, m: TreeModel, words: Words): string {
   return n === 0 ? "" : words.groups(writer("number", model.locale)(n), n);
 }
 
+/** A tree's value `v` as a share of its whole. */
+export const treeShare = (model: Model, m: TreeModel, v: number): string =>
+  model.shareText(m.total > 0 ? v / m.total : 0);
+
+/** A tree's part `i` in words: its group's name and its own through
+ *  `words.path`, or its own alone with one level. */
+export function partName(m: TreeModel, i: number, words: Words): string {
+  const p = m.parts[i];
+  const g = p === undefined ? undefined : m.groups[p.group];
+  return g === undefined ? (p?.name ?? "") : words.path(g.name, p?.name ?? "");
+}
+
+/** A tree's group `i`, or part `i` when not `group`: its name, a part's
+ *  through `partName`, and its value and share of the whole, No data for a
+ *  part's gap. */
+export function treeNode(
+  model: Model,
+  m: TreeModel,
+  group: boolean,
+  i: number,
+  words: Words,
+): { readonly name: string; readonly text: string } {
+  const g = group ? m.groups[i] : undefined;
+  const v = group ? (g?.value ?? 0) : (m.parts[i]?.value ?? null);
+  return {
+    name: group ? (g?.name ?? "") : partName(m, i, words),
+    text: v === null ? words.noData : `${partAmount(model, m, v)}, ${treeShare(model, m, v)}`,
+  };
+}
+
 /** A tree's group chips, in group order, each with its share; none with
  *  one level, whose parts share a slot and are named by their labels. */
 const groupChips = (model: Model, m: TreeModel): Entry[] =>
-  m.groups.map((g) => ({
-    slot: g.slot,
-    name: g.name,
-    value: model.shareText(m.total > 0 ? g.value / m.total : 0),
-  }));
+  m.groups.map((g) => ({ slot: g.slot, name: g.name, value: treeShare(model, m, g.value) }));
+
+/** A tree's group `i`, or part `i` when not `group`, through `treeNode`,
+ *  with every group's chip and the node's own group chosen. */
+export function treeReading(
+  model: Model,
+  m: TreeModel,
+  group: boolean,
+  i: number,
+  words: Words,
+): Reading {
+  const node = treeNode(model, m, group, i, words);
+  const reading = {
+    at: `${node.name} ${node.text}`,
+    entries: groupChips(model, m),
+    total: undefined,
+  };
+  const chosen = group ? i : (m.parts[i]?.group ?? -1);
+  return chosen === -1 ? reading : { ...reading, chosen };
+}
 
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
@@ -988,6 +1034,13 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
   } else if (m?.kind === "pie") {
     m.slices.forEach((_, i) => {
       add(sliceReading(model, m, i, words));
+    });
+  } else if (m?.kind === "tree") {
+    m.groups.forEach((_, i) => {
+      add(treeReading(model, m, true, i, words));
+    });
+    m.parts.forEach((_, i) => {
+      add(treeReading(model, m, false, i, words));
     });
   } else if (m?.kind === "scatter") {
     m.series.forEach((s, k) => {

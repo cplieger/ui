@@ -476,7 +476,8 @@ const outset = (g: Segment): string =>
  *  or the chosen one, each line's point or each layer's top or the chosen
  *  one, the drawn dot, a row's hairline, a bar row's bar, its bars in each
  *  panel, or the chosen part, a point row's dots or the chosen one, a box
- *  row's boxes or the chosen one, a scatter's dot, or a drawn slice. */
+ *  row's boxes or the chosen one, a scatter's dot, a drawn slice, a tree's
+ *  drawn tile, or a group's rectangle. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -585,6 +586,15 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
     const s = sliceAngles(m).find((a) => a.index === sel.i);
     return s === undefined || lay.pie === undefined ? "" : sliceRing(lay.pie, s.from, s.to);
   }
+  if ((sel.kind === "part" || sel.kind === "group") && m?.kind === "tree") {
+    // Tiles stand 1 px apart, so a part rings inside its tile; groups stand
+    // 4 px apart, so a group rings around its rectangle, head band included.
+    const b = sel.kind === "part" ? lay.tree?.tiles[sel.i] : lay.tree?.groups[sel.i];
+    if (b === undefined || (sel.kind === "group" && (m.groups[sel.i]?.value ?? 0) <= 0)) {
+      return "";
+    }
+    return sel.kind === "part" ? inset(b.left, b.right, b.top, b.bottom) : outset(b);
+  }
   if (sel.kind === "slope" && m?.kind === "slope") {
     // A chosen series rings both its ends, the whole column each end in it.
     return m.series
@@ -660,6 +670,17 @@ export function drawSelection(
     const s = lay.endLabels[k]?.series;
     label.toggleAttribute("data-selected", s !== undefined && s === chosen);
   });
+  // A tree's selected part's label, both its lines, or its group's head.
+  svg.querySelectorAll('[data-part="tile"] > text').forEach((label, k) => {
+    const p = lay.tree?.labels[k]?.series;
+    label.toggleAttribute("data-selected", sel?.kind === "part" && p === sel.i);
+  });
+  if (lay.tree !== undefined) {
+    svg.querySelectorAll('[data-part="head"] > text').forEach((head, k) => {
+      const g = lay.heads[k]?.series;
+      head.toggleAttribute("data-selected", sel?.kind === "group" && g === sel.i);
+    });
+  }
   if (area === null || sel === undefined) {
     return;
   }

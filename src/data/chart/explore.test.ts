@@ -1053,3 +1053,121 @@ describe("keys, the pointer and touch on a pie", () => {
     expect(ring(b)).toBe(null);
   });
 });
+
+describe("keys, the pointer and touch on a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  const gdp: ChartSpec = {
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "Japan", value: 4213 },
+              { name: "India", value: 3550 },
+            ],
+          },
+          {
+            name: "Americas",
+            children: [
+              { name: "United States", value: 27_361 },
+              { name: "Brazil", value: 2174 },
+            ],
+          },
+          {
+            name: "Europe",
+            children: [
+              { name: "Germany", value: 4456 },
+              { name: "France", value: 3031 },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const chips = "Asia · 41% · Americas · 47% · Europe · 12%";
+  const chosen = (b: Built) =>
+    [...b.legend.querySelectorAll(".cp-chip[data-selected] > bdi")].map((el) => el.textContent);
+  const marked = (b: Built, part: string) =>
+    [...b.plot.querySelectorAll(`[data-part="${part}"] > text[data-selected]`)].map(
+      (el) => el.textContent,
+    );
+  // A text's own place on the plot, inside the tile or the head band it names.
+  const textAt = (b: Built, part: string, text: string): [number, number] => {
+    const el = [...b.plot.querySelectorAll(`[data-part="${part}"] > text`)].find(
+      (t) => t.textContent === text,
+    );
+    return [Number(el?.getAttribute("x")) + 2, Number(el?.getAttribute("y"))];
+  };
+  // The ring's outline as its first corner and its far corner, in plot px.
+  const corners = (b: Built) =>
+    (ring(b)?.getAttribute("d") ?? "").match(/-?[\d.]+/gu)?.map(Number) ?? [];
+
+  it("reads the total with no selection and focus selects the first group, ringed, its head marked", async () => {
+    const b = build(gdp);
+    expect(legendText(b)).toBe(`Total 62,580${nb}bn USD · ${chips}`);
+    b.plot.focus();
+    await spoken(`Asia: 25,558${nb}bn USD, 41%, 3 parts.`);
+    expect(legendText(b)).toBe(`Asia 25,558${nb}bn USD, 41% · ${chips}`);
+    expect(chosen(b)).toEqual(["Asia"]);
+    expect(marked(b, "head")).toEqual(["Asia"]);
+    expect(marked(b, "tile")).toEqual([]);
+    expect(ring(b)).not.toBe(null);
+    expect(crosshair(b)).toBe(null);
+    // A group's ring stands 1 px outside its rectangle, which starts at the plot's corner.
+    expect(corners(b).slice(0, 2)).toEqual([-1, -1]);
+  });
+
+  it("walks the groups with Up and Down and the parts with Left and Right, leaving the Page keys", async () => {
+    const b = build(gdp);
+    b.plot.focus();
+    const cases: [string, string][] = [
+      ["ArrowDown", `Americas: 29,535${nb}bn USD, 47%, 2 parts.`],
+      ["ArrowLeft", `Asia, India: 3,550${nb}bn USD, 5.7%.`],
+      ["ArrowRight", `Americas, United States: 27,361${nb}bn USD, 44%.`],
+      ["End", `Europe, France: 3,031${nb}bn USD, 4.8%.`],
+      ["ArrowUp", `Americas: 29,535${nb}bn USD, 47%, 2 parts.`],
+      ["Home", `Asia: 25,558${nb}bn USD, 41%, 3 parts.`],
+    ];
+    for (const [name, text] of cases) {
+      expect(key(b.plot, name).defaultPrevented, name).toBe(true);
+      await spoken(text);
+    }
+    expect(key(b.plot, "PageDown").defaultPrevented).toBe(false);
+    key(b.plot, "ArrowRight");
+    await spoken(`Asia, China: 17,795${nb}bn USD, 28%.`);
+    expect(marked(b, "tile")).toEqual(["China", `17,795${nb}bn USD`]);
+    expect(marked(b, "head")).toEqual([]);
+    expect(chosen(b)).toEqual(["Asia"]);
+    // A part's ring stands 1 px inside its tile, at the plot's left edge under Asia's 18 px head.
+    expect(corners(b).slice(0, 2)).toEqual([1, 19]);
+  });
+
+  it("a mouse selects the tile or the head band under it, and clears beyond every tile's reach", () => {
+    const b = build(gdp);
+    point(b, "pointermove", ...textAt(b, "tile", "Germany"));
+    expect(legendText(b)).toBe(`Europe, Germany 4,456${nb}bn USD, 7.1% · ${chips}`);
+    expect(chosen(b)).toEqual(["Europe"]);
+    point(b, "pointermove", ...textAt(b, "head", "Americas"));
+    expect(legendText(b)).toBe(`Americas 29,535${nb}bn USD, 47% · ${chips}`);
+    point(b, "pointermove", -4.5, 100);
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(`Total 62,580${nb}bn USD · ${chips}`);
+  });
+
+  it("a tap selects a tile and a slide does not", () => {
+    const b = build(gdp);
+    const [x, y] = textAt(b, "tile", "China");
+    point(b, "pointerdown", x, y, "touch");
+    point(b, "pointerup", x, y, "touch");
+    expect(legendText(b)).toBe(`Asia, China 17,795${nb}bn USD, 28% · ${chips}`);
+    const [gx, gy] = textAt(b, "tile", "Germany");
+    point(b, "pointerdown", gx, gy, "touch");
+    point(b, "pointermove", gx + 20, gy, "touch");
+    point(b, "pointerup", gx + 20, gy, "touch");
+    expect(legendText(b)).toBe(`Asia, China 17,795${nb}bn USD, 28% · ${chips}`);
+  });
+});

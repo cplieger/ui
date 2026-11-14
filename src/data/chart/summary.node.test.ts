@@ -1452,3 +1452,81 @@ describe("the summary and short description of a pie", () => {
     expect(shortDescription(model(land(true)), words)).toBe("Donut chart, 5 parts");
   });
 });
+
+describe("the summary of a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
+  const gdp = (us: number | null = 27_361): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "Japan", value: 4213 },
+              { name: "India", value: 3550 },
+            ],
+          },
+          {
+            name: "Americas",
+            children: [
+              { name: "United States", value: us },
+              { name: "Brazil", value: 2174 },
+            ],
+          },
+          {
+            name: "Europe",
+            children: [
+              { name: "Germany", value: 4456 },
+              { name: "France", value: 3031 },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const flat = (values: readonly (number | null)[]): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        nodes: values.map((value, i) => ({ name: `Country ${String(i + 1)}`, value })),
+      },
+    ],
+  });
+
+  it("gives the whole and each group's share in the order sent, then the largest part", () => {
+    expect(generatedSummary(model(gdp()), words)).toBe(
+      `62,580${nb}bn USD: Asia 41%, Americas 47%, Europe 12%. Largest: Americas, United States 27,361${nb}bn USD, 44%.`,
+    );
+  });
+
+  it("takes the largest part among those with a value", () => {
+    expect(generatedSummary(model(gdp(null)), words)).toBe(
+      `35,219${nb}bn USD: Asia 73%, Americas 6.2%, Europe 21%. Largest: Asia, China 17,795${nb}bn USD, 51%.`,
+    );
+  });
+
+  it("gives one level's five largest parts, largest first, ties in the order sent, then how many more", () => {
+    expect(generatedSummary(model(flat([5, 30, 10, null, 20, 10, 0, 25])), words)).toBe(
+      "100: Country 2 30%, Country 8 25%, Country 5 20%, Country 3 10%, Country 6 10%, and 3 more.",
+    );
+    expect(generatedSummary(model(flat([1, 3])), words)).toBe("4: Country 2 75%, Country 1 25%.");
+  });
+
+  it("frames the parts through partsSummary, the largest through largest and the path through path", () => {
+    const own = chartWords({
+      partsSummary: (total, parts) => `${parts} (${total})`,
+      largest: (name, value, share) => `Top ${name} = ${value} = ${share}.`,
+      path: (group, part) => `${part} in ${group}`,
+      more: (n) => `+${n}`,
+    });
+    expect(generatedSummary(model(gdp()), own)).toBe(
+      `Asia 41%, Americas 47%, Europe 12% (62,580${nb}bn USD) Top United States in Americas = 27,361${nb}bn USD = 44%.`,
+    );
+    expect(generatedSummary(model(flat([1, 1, 1, 1, 1, 1])), own)).toBe(
+      "Country 1 17%, Country 2 17%, Country 3 17%, Country 4 17%, Country 5 17%, +1 (6)",
+    );
+  });
+});
