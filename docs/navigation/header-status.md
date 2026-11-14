@@ -89,7 +89,7 @@ The module writes the panel's content and calls [panel](../overlays/panel.md) fo
 4. Running: the newest three, then "Show all N running" to `workHref` when more run. Each row has its title, a `<progress>` under it with "12 of 40 · phase", and Stop named for the item, "Stop Scanning Sonarr". With `stop.ask`, Stop asks first through [ask](../overlays/ask.md). It then reads "Stopping…" until the item leaves the model, and a rejected `run()` puts its message back as the row's reason line, says it, and gives Stop back. A queued item shows "Queued" and Cancel. A row with `href` and no Stop links as a whole. With both, its title is the link. While nothing runs, the section shows the `next` line, "Next scan 03:00".
 5. Notices: lasting facts that never change the pill, one line each with the info glyph.
 6. Recent: the first five events, each with its relative time.
-7. The foot: the `history` link, held at the panel's end while the rest scrolls.
+7. The foot: the `history` link, held at the panel's end while the rest scrolls, its box 24px tall under a mouse and 44px under a finger.
 
 - While offline, every condition and running row is kept, as `markKept()` in [list-row](../data/list-row.md) marks a row, with "As of 14:02". They turn live again when the stream returns.
 - Rows are patched in place by `id`, so a focused Stop keeps its focus through "Stopping…". When a focused row leaves, focus moves to the next row of its section, else to the section's heading, else to the panel's heading.

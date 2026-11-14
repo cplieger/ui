@@ -416,6 +416,21 @@ describe("the panel's sections", () => {
     }
   });
 
+  it("gives the foot's history link the hit size under a mouse and a finger", () => {
+    const { panel, status } = mount();
+    status.update(full(document.createElement("div")));
+    panel.showPopover();
+    const link = panel.querySelector("footer > a") as HTMLElement;
+    // offsetHeight, since the panel's entry scales its box.
+    expect(link.offsetHeight).toBeGreaterThanOrEqual(24);
+    document.documentElement.dataset["pointer"] = "coarse";
+    try {
+      expect(link.offsetHeight).toBeGreaterThanOrEqual(44);
+    } finally {
+      delete document.documentElement.dataset["pointer"];
+    }
+  });
+
   it("leaves out every empty section", () => {
     const { panel, status } = mount();
     status.update(full(document.createElement("div")));
@@ -656,13 +671,26 @@ describe("the running section", () => {
 
   it("asks first when the app says so, and stops only on the answer", async () => {
     vi.useRealTimers();
+    // Less motion closes the question at once, so its answer arrives without
+    // waiting on the exit Firefox and WebKit play in script.
+    const real = matchMedia.bind(window);
+    vi.stubGlobal("matchMedia", (q: string) =>
+      q === "(prefers-reduced-motion: reduce)" ? { ...real(q), matches: true } : real(q),
+    );
     const { panel, status } = mount();
     const run = vi.fn(() => Promise.resolve());
     status.update(
       model({
         work: [
           job("Full check", {
-            stop: { run, ask: { message: "Stop the full check?", confirmLabel: "Stop the check" } },
+            stop: {
+              run,
+              ask: {
+                message: "Stop the full check?",
+                confirmLabel: "Stop the check",
+                tone: "danger",
+              },
+            },
           }),
         ],
       }),
@@ -685,7 +713,9 @@ describe("the running section", () => {
       expect(d).not.toBeNull();
       return d as HTMLDialogElement;
     });
-    (again.querySelector('button[value="confirm"]') as HTMLButtonElement).click();
+    const answer = again.querySelector<HTMLButtonElement>('button[value="confirm"]');
+    expect(answer?.dataset["tone"]).toBe("danger");
+    (answer as HTMLButtonElement).click();
     await vi.waitFor(() => {
       expect(run).toHaveBeenCalledOnce();
     });

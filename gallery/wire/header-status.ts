@@ -15,16 +15,45 @@ const now = Date.now();
 const button = document.querySelector<HTMLButtonElement>("button[data-hs-pill]");
 const panel = document.querySelector<HTMLElement>("[data-hs-panel]");
 if (button !== null && panel !== null) {
-  const scanning = {
+  const scanning: StatusModel["work"][number] = {
     id: "scan",
     title: "Scanning Sonarr",
     phase: "Reading series",
     value: 12,
     max: 40,
     href: "#cs-sonarr",
+    stop: {
+      ask: {
+        message: "The series read so far are kept.",
+        title: "Stop the scan?",
+        confirmLabel: "Stop the scan",
+        cancelLabel: "Keep scanning",
+        tone: "danger",
+      },
+      run: () =>
+        new Promise<void>((done) => {
+          setTimeout(() => {
+            show(work.filter((w) => w.id !== "scan"));
+            done();
+          }, 900);
+        }),
+    },
+  };
+  const queued: StatusModel["work"][number] = {
+    id: "quick",
+    title: "Quick check",
+    queued: true,
+    stop: {
+      run: () => {
+        show(work.filter((w) => w.id !== "quick"));
+        return Promise.resolve();
+      },
+    },
   };
   const status = createHeaderStatus({ button, panel });
-  const show = (work: StatusModel["work"]): void => {
+  let work: StatusModel["work"] = [];
+  const show = (next: StatusModel["work"]): void => {
+    work = next;
     status.update({
       conditions: [
         {
@@ -53,20 +82,7 @@ if (button !== null && panel !== null) {
       history: { href: "#status", label: "Open the activity log" },
     });
   };
-  show([
-    {
-      ...scanning,
-      stop: {
-        run: () =>
-          new Promise<void>((done) => {
-            setTimeout(() => {
-              show([]);
-              done();
-            }, 900);
-          }),
-      },
-    },
-  ]);
+  show([scanning, queued]);
 }
 
 const STATES: readonly StatusModel[] = [

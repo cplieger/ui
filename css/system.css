@@ -10842,13 +10842,23 @@ button.cp-figure[aria-expanded="true"]::after {
   gap: var(--cp-space-2);
 }
 
+/* The foot's link holds the hit size, and the foot's padding gives back what
+ * the link grows by, so the foot keeps its height under a mouse. */
 .cp-status-panel > footer {
   position: sticky;
   inset-block-end: 0;
-  padding: var(--cp-space-3) var(--cp-space-4);
+  display: flex;
+  align-items: center;
+  padding: max(0px, var(--cp-space-3) - (var(--cp-hit-min) - 1lh) / 2) var(--cp-space-4);
   border-block-start: var(--cp-line-w) solid var(--cp-line);
   background: var(--cp-surface-overlay);
   font-size: var(--cp-text-sm);
+}
+
+.cp-status-panel > footer > a {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--cp-hit-min);
 }
 
 /* The options under a combobox (@cplieger/ui/combobox): a .cp-popover as
