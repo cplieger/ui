@@ -13,6 +13,7 @@ import {
   type DotModel,
   type LineModel,
   type Model,
+  type PieModel,
   type PointModel,
   type RectModel,
   type ScatterModel,
@@ -31,6 +32,7 @@ import {
   rowReading,
   sampleReading,
   scatterReading,
+  sliceReading,
   totalWord,
   type Reading,
 } from "./readout.js";
@@ -1384,5 +1386,55 @@ describe("the legend row of a box plot", () => {
       7 * "Whiskers 120 to 760".length,
       7 * "Outliers 2".length,
     ]);
+  });
+});
+
+describe("the legend row of a pie", () => {
+  // Germany's land by use, in km², with water missing: 52%, 31%, 14% and 3.3% of 349,356.
+  const land: ChartSpec = {
+    marks: [
+      {
+        mark: "pie",
+        unit: { other: "km²" },
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", slot: 5, value: 106_645 },
+          { name: "Housing & traffic", value: 48_631 },
+          { name: "Other land", value: 11_443 },
+          { name: "Water", value: null },
+        ],
+      },
+    ],
+  };
+  const pie = (m: Model) => m.marks[0] as PieModel;
+  const shares = [
+    [1, "Agriculture", "52%"],
+    [5, "Forest", "31%"],
+    [3, "Housing & traffic", "14%"],
+    [4, "Other land", "3.3%"],
+    [5, "Water", "No data"],
+  ];
+
+  it("reads the total with no selection, a chip per slice with its share", () => {
+    const r = overall(model(land), words);
+    expect(r?.at).toBe(`Total 349,356${nb}km²`);
+    expect(chips(r)).toEqual(shares);
+    expect(r?.total).toBe(undefined);
+  });
+
+  it("reads a selected slice's name and value, the chips keeping their shares, its own chosen", () => {
+    const m = model(land);
+    const r = sliceReading(m, pie(m), 1, words);
+    expect(r.at).toBe(`Forest 106,645${nb}km²`);
+    expect(chips(r)).toEqual(shares);
+    expect(r.chosen).toBe(1);
+    expect(sliceReading(m, pie(m), 4, words).at).toBe("Water No data");
+  });
+
+  it("keeps the x slot as wide as the widest slice's reading", () => {
+    const measure = measurer((t) => 7 * Array.from(t).length, 6, "en");
+    const m = model(land);
+    const w = readoutWidths(m, words, measure);
+    expect(w.at).toBe(measure.number(`Housing & traffic 48,631${nb}km²`));
   });
 });

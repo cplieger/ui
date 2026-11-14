@@ -23,6 +23,7 @@ import {
   type CellModel,
   type DotModel,
   type Model,
+  type PieModel,
   type PointModel,
   type RectModel,
   type SampleModel,
@@ -49,8 +50,10 @@ import {
   measureText,
   measuresOf,
   partsText,
+  pieAmount,
   primaryOf,
   rowsText,
+  sliceShare,
   totalWord,
 } from "./readout.js";
 import type { Words } from "./words.js";
@@ -488,6 +491,12 @@ function calendarSummary(model: Model, m: CalendarModel, words: Words): string[]
   return [words.cellSummary(daysText(model, m, words), place(high), place(low))];
 }
 
+// The whole, then each slice's share in the clockwise order.
+function pieSummary(model: Model, m: PieModel, words: Words): string[] {
+  const parts = m.slices.map((s, i) => `${s.name} ${sliceShare(model, m, i, words)}`);
+  return [words.partsSummary(pieAmount(model, m, m.total), parts.join(", "))];
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -559,7 +568,9 @@ export function generatedSummary(model: Model, words: Words): string {
                       ? calendarSummary(model, m, words)
                       : m?.kind === "box"
                         ? boxSummary(model, m, words)
-                        : [];
+                        : m?.kind === "pie"
+                          ? pieSummary(model, m, words)
+                          : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 

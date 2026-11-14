@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { slicePath } from "./geometry.js";
+import { slicePath, sliceRing } from "./geometry.js";
 import { chartModel, type PieModel } from "./model.js";
 import { shareWriter, sliceAngles, TURN, type PieFrame } from "./pie.js";
 import type { ChartSpec } from "./spec.js";
@@ -133,6 +133,56 @@ describe("slicePath", () => {
     expect(slicePath({ ...frame, inner: 50 }, 0, TURN)).toBe(
       "M120 20A100 100 0 1 1 120 220A100 100 0 1 1 120 20ZM120 70A50 50 0 1 0 120 170A50 50 0 1 0 120 70Z",
     );
+  });
+});
+
+describe("sliceRing", () => {
+  it("runs 1 px inside the slice's edges, so its 2 px stroke stays on the slice", () => {
+    const from = 0.3;
+    const to = 1.6;
+    const [start, end, apex] = points(sliceRing(frame, from, to));
+    // On a circle 1 px inside the rim, each 1.5 px off its edge: the slice's 0.5 and 1 more.
+    for (const [p, a] of [
+      [start, from],
+      [end, to],
+    ] as const) {
+      expect(Math.hypot((p?.x ?? 0) - 120, (p?.y ?? 0) - 120)).toBeCloseTo(99, 1);
+      expect(fromEdge(p ?? { x: 0, y: 0 }, a)).toBeCloseTo(1.5, 1);
+    }
+    expect(fromEdge(apex ?? { x: 0, y: 0 }, from)).toBeCloseTo(1.5, 1);
+    expect(fromEdge(apex ?? { x: 0, y: 0 }, to)).toBeCloseTo(1.5, 1);
+  });
+
+  it("runs 1 px outside a donut's hole", () => {
+    const f = { ...frame, inner: 50 };
+    const [, , inEnd, inStart] = points(sliceRing(f, 1, 2));
+    for (const [p, a] of [
+      [inEnd, 2],
+      [inStart, 1],
+    ] as const) {
+      expect(Math.hypot((p?.x ?? 0) - 120, (p?.y ?? 0) - 120)).toBeCloseTo(51, 1);
+      expect(fromEdge(p ?? { x: 0, y: 0 }, a, f)).toBeCloseTo(1.5, 1);
+    }
+  });
+
+  it("stops 1.5 px from the centre past a half turn", () => {
+    const [, , end, start] = points(sliceRing(frame, 0.2, 4.2));
+    for (const p of [end, start]) {
+      expect(Math.hypot((p?.x ?? 0) - 120, (p?.y ?? 0) - 120)).toBeCloseTo(1.5, 1);
+    }
+  });
+
+  it("rings the whole circle 1 px inside it, a donut's hole 1 px outside", () => {
+    expect(sliceRing(frame, 0, TURN)).toBe("M120 21A99 99 0 1 1 120 219A99 99 0 1 1 120 21Z");
+    expect(sliceRing({ ...frame, inner: 50 }, 0, TURN)).toBe(
+      "M120 21A99 99 0 1 1 120 219A99 99 0 1 1 120 21ZM120 69A51 51 0 1 0 120 171A51 51 0 1 0 120 69Z",
+    );
+  });
+
+  it("rings a slice too thin to hold it on the slice's own edges", () => {
+    // 2.5 px of rim: edges 1.5 px in would leave the ring no arc at the 99 px rim.
+    const span = 2.5 / 100;
+    expect(sliceRing(frame, 1, 1 + span)).toBe(slicePath(frame, 1, 1 + span));
   });
 });
 

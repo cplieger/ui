@@ -948,3 +948,46 @@ describe("the table of a box plot", () => {
     expect(t.columns.map((c) => c.text)).toContain("Low");
   });
 });
+
+describe("the table of a pie", () => {
+  const land = (unit = true): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        ...(unit ? { unit: { other: "km²" } } : {}),
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", value: 106_645 },
+          { name: "Water", value: null },
+        ],
+      },
+    ],
+  });
+
+  it("has a row per slice in the order sent, its value and share, and the whole in its foot", () => {
+    const t = tableModel(model(land()), words);
+    expect(t.corner).toBe("");
+    expect(t.columns.map((c) => c.text)).toEqual(["km²", "Share"]);
+    expect(cells(t)).toEqual([
+      ["Agriculture", "182,637", "63%"],
+      ["Forest", "106,645", "37%"],
+      ["Water", "No data", "No data"],
+    ]);
+    const foot = t.foot;
+    expect(
+      foot === undefined ? [] : [text(foot.head), ...foot.cells.map((c) => text(c.parts))],
+    ).toEqual(["Total", "289,282", "100%"]);
+  });
+
+  it("heads the values Value without a unit", () => {
+    expect(tableModel(model(land(false)), words).columns[0]?.text).toBe("Value");
+  });
+
+  it("has no foot under any other mark", () => {
+    const t = tableModel(
+      model({ x: {}, marks: [{ mark: "line", x: [0, 1], series: [{ name: "A", y: [1, 2] }] }] }),
+      words,
+    );
+    expect(t.foot).toBe(undefined);
+  });
+});

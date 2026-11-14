@@ -963,3 +963,96 @@ describe("keys, the pointer and touch on a heatmap", () => {
     point(b, "pointerup", end.x, end.y, "touch");
   });
 });
+
+describe("keys, the pointer and touch on a pie", () => {
+  // Germany's land by use, in km²: 51%, 30%, 14%, 3.2% and 2.3% of 357,580.
+  const land = (hole = false): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        hole,
+        unit: { other: "km²" },
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", value: 106_645 },
+          { name: "Housing & traffic", value: 48_631 },
+          { name: "Other land", value: 11_443 },
+          { name: "Water", value: 8224 },
+        ],
+      },
+    ],
+  });
+  const chips =
+    "Agriculture · 51% · Forest · 30% · Housing & traffic · 14% · Other land · 3.2% · Water · 2.3%";
+  // Plot px at angle `a` clockwise from 12 o'clock, `d` from the centre of
+  // the plot, where the pie sits; its diameter is the plot's 240 px height.
+  const at = (b: Built, a: number, d: number): [number, number] => [
+    plotWidth(b) / 2 + d * Math.sin(a),
+    120 - d * Math.cos(a),
+  ];
+  const chosen = (b: Built) =>
+    [...b.legend.querySelectorAll(".cp-chip[data-selected] > bdi")].map((el) => el.textContent);
+  const labelled = (b: Built) =>
+    [...b.plot.querySelectorAll('[data-part="end"] > text[data-selected]')].map(
+      (el) => el.textContent,
+    );
+
+  it("reads the total with no selection and focus selects the first slice, ringed, with no crosshair", async () => {
+    const b = build(land());
+    expect(legendText(b)).toBe(`Total 357,580${nb}km² · ${chips}`);
+    b.plot.focus();
+    await says(`Agriculture: 182,637${nb}km², 51%. Total 357,580${nb}km².`);
+    expect(legendText(b)).toBe(`Agriculture 182,637${nb}km² · ${chips}`);
+    expect(chosen(b)).toEqual(["Agriculture"]);
+    expect(labelled(b)).toEqual(["Agriculture", "51%"]);
+    expect(ring(b)).not.toBe(null);
+    expect(crosshair(b)).toBe(null);
+  });
+
+  it("walks the slices with all four arrows and Home and End, leaving the Page keys to the page", async () => {
+    const b = build(land());
+    b.plot.focus();
+    const cases: [string, string][] = [
+      ["ArrowRight", `Forest: 106,645${nb}km², 30%. Total 357,580${nb}km².`],
+      ["ArrowDown", `Housing & traffic: 48,631${nb}km², 14%. Total 357,580${nb}km².`],
+      ["End", `Water: 8,224${nb}km², 2.3%. Total 357,580${nb}km².`],
+      ["ArrowUp", `Other land: 11,443${nb}km², 3.2%. Total 357,580${nb}km².`],
+      ["Home", `Agriculture: 182,637${nb}km², 51%. Total 357,580${nb}km².`],
+    ];
+    for (const [name, text] of cases) {
+      expect(key(b.plot, name).defaultPrevented, name).toBe(true);
+      await says(text);
+    }
+    expect(key(b.plot, "PageDown").defaultPrevented).toBe(false);
+    expect(chosen(b)).toEqual(["Agriculture"]);
+  });
+
+  it("a mouse selects the slice its angle falls in, within 8 px past the rim, and clears beyond", () => {
+    const b = build(land());
+    // Forest runs from 51% to 81% of the turn.
+    point(b, "pointermove", ...at(b, 0.66 * 2 * Math.PI, 127));
+    expect(legendText(b)).toBe(`Forest 106,645${nb}km² · ${chips}`);
+    expect(chosen(b)).toEqual(["Forest"]);
+    point(b, "pointermove", ...at(b, 0.66 * 2 * Math.PI, 129));
+    expect(ring(b)).toBe(null);
+    expect(legendText(b)).toBe(`Total 357,580${nb}km² · ${chips}`);
+    expect(chosen(b)).toEqual([]);
+  });
+
+  it("a tap selects a slice, a slide does not, and a tap in a donut's hole clears it", () => {
+    const b = build(land(true));
+    const [x, y] = at(b, 1, 90);
+    point(b, "pointerdown", x, y, "touch");
+    point(b, "pointerup", x, y, "touch");
+    expect(legendText(b)).toBe(`Agriculture 182,637${nb}km² · ${chips}`);
+    const [fx, fy] = at(b, 0.66 * 2 * Math.PI, 90);
+    point(b, "pointerdown", fx, fy, "touch");
+    point(b, "pointermove", fx + 20, fy, "touch");
+    point(b, "pointerup", fx + 20, fy, "touch");
+    expect(legendText(b)).toBe(`Agriculture 182,637${nb}km² · ${chips}`);
+    const [hx, hy] = at(b, 1, 30);
+    point(b, "pointerdown", hx, hy, "touch");
+    point(b, "pointerup", hx, hy, "touch");
+    expect(ring(b)).toBe(null);
+  });
+});

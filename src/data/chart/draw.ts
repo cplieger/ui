@@ -30,6 +30,7 @@ import {
   POINT_RADIUS,
   pointAt,
   piePaths,
+  sliceRing,
   pointPaths,
   rangePath,
   rectPaths,
@@ -49,6 +50,7 @@ import { dayPlace } from "./calendar.js";
 import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
+import { sliceAngles } from "./pie.js";
 import { primaryOf, type Reading, type Widths } from "./readout.js";
 import type { Words } from "./words.js";
 import type { Navigator, Selection } from "./select.js";
@@ -462,7 +464,7 @@ const outset = (g: Segment): string =>
  *  or the chosen one, each line's point or each layer's top or the chosen
  *  one, the drawn dot, a row's hairline, a bar row's bar, its bars in each
  *  panel, or the chosen part, a point row's dots or the chosen one, a box
- *  row's boxes or the chosen one, or a scatter's dot. */
+ *  row's boxes or the chosen one, a scatter's dot, or a drawn slice. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
   const m = primaryOf(model);
@@ -567,6 +569,10 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
   if (sel.kind === "day" && m?.kind === "calendar") {
     return lay.days === undefined ? "" : outset(dayBox(lay.days, sel.i, f.dpr));
   }
+  if (sel.kind === "slice" && m?.kind === "pie") {
+    const s = sliceAngles(m).find((a) => a.index === sel.i);
+    return s === undefined || lay.pie === undefined ? "" : sliceRing(lay.pie, s.from, s.to);
+  }
   if (sel.kind === "slope" && m?.kind === "slope") {
     // A chosen series rings both its ends, the whole column each end in it.
     return m.series
@@ -637,7 +643,7 @@ export function drawSelection(
     const c = lay.xLabels[k]?.column;
     name.toggleAttribute("data-selected", sel?.kind === "cell" && c === sel.column);
   });
-  const chosen = sel?.kind === "slope" ? sel.part : undefined;
+  const chosen = sel?.kind === "slope" ? sel.part : sel?.kind === "slice" ? sel.i : undefined;
   svg.querySelectorAll('[data-part="end"] > text').forEach((label, k) => {
     const s = lay.endLabels[k]?.series;
     label.toggleAttribute("data-selected", s !== undefined && s === chosen);

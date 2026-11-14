@@ -71,7 +71,7 @@ export interface ChartWords {
    *  for one series (series is then ""). */
   readonly shortDescription?: (kind: string, series: string, range: string) => string;
   /** A selection, as announced. parts are joined by ", "; total is a stack's
-   *  formatted total, or "" when there is none. Default "{at}: {parts}. Total
+   *  or a pie's formatted total, or "" when there is none. Default "{at}: {parts}. Total
    *  {total}.", or "{at}: {parts}." without a total. */
   readonly reading?: (at: string, parts: string, total: string) => string;
   /** One segment of a stack or one line series. Default "{at}: {name} {value}." */
@@ -88,7 +88,8 @@ export interface ChartWords {
   readonly range?: (from: string, to: string) => string;
   /** The underflow bin. Default "Under {edge}". */
   readonly under?: (edge: string) => string;
-  /** A stack's total. Default "Total". */
+  /** A stack's total, and a pie's whole in the legend row, its hole and its
+   *  table's Total row. Default "Total". */
   readonly total?: string;
   /** A range plot's distance between a row's two values, in the legend
    *  row, the table head and the summary. Default "Gap". */
@@ -166,6 +167,9 @@ export interface ChartWords {
   /** A pie's slices in the short description; count is n as a number, for
    *  the plural. Default "{n} parts", or "{n} part" for one. */
   readonly parts?: (n: string, count: number) => string;
+  /** Summary, a pie; parts are "{name} {share}" in slice order, joined by
+   *  ", ". Default "{total}: {parts}." */
+  readonly partsSummary?: (total: string, parts: string) => string;
   /** A cell's place in the legend row, the readings, the summary and a
    *  note's place: its column's and its row's name, or a bin as
    *  `measure` of its range. Default "{row}, {column}". */
@@ -330,6 +334,7 @@ const DEFAULTS: Words = {
   cells: (n, count) => (count === 1 ? `${n} cell` : `${n} cells`),
   days: (n, count) => (count === 1 ? `${n} day` : `${n} days`),
   parts: (n, count) => (count === 1 ? `${n} part` : `${n} parts`),
+  partsSummary: (total, parts) => `${total}: ${parts}.`,
   cellPlace: (column, row) => `${row}, ${column}`,
   cellSummary: (count, high, low) =>
     high === "" ? `${count}.` : `${count}. Highest ${high}. Lowest ${low}.`,

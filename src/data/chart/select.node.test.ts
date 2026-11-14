@@ -1575,3 +1575,92 @@ describe("box keys", () => {
     expect(spoken(model, box(2, 0), words, true)).toBe("health: Before No data.");
   });
 });
+
+describe("a pie's keys, pointer and readings", () => {
+  // Germany's land by use, in km²: 51%, 30%, 14%, 3.2% and 2.3% of 357,580.
+  const LAND = [
+    { name: "Agriculture", value: 182_637 },
+    { name: "Forest", value: 106_645 },
+    { name: "Housing & traffic", value: 48_631 },
+    { name: "Other land", value: 11_443 },
+    { name: "Water", value: 8224 },
+  ];
+  const land = (
+    slices: readonly { name: string; value: number | null }[] = LAND,
+    hole = false,
+  ): ChartSpec => ({ marks: [{ mark: "pie", hole, unit: { other: "km²" }, slices }] });
+  const slice = (i: number): Selection => ({ kind: "slice", i });
+  // Plot px at angle `a` clockwise from 12 o'clock, `d` from the pie's centre.
+  const at = (b: Built, a: number, d: number): [number, number] => {
+    const p = b.lay.pie ?? { cx: 0, cy: 0 };
+    return [p.cx + d * Math.sin(a), p.cy - d * Math.cos(a)];
+  };
+  const radius = (b: Built) => b.lay.pie?.r ?? 0;
+  const turn = (share: number) => share * 2 * Math.PI;
+
+  it("focus selects the first slice, at 12 o'clock", () => {
+    expect(initial(built(land()).model)).toEqual(slice(0));
+  });
+
+  it("walks the slices with all four arrows, stopping at the ends, Home and End to them", () => {
+    const b = built(land());
+    expect(
+      press(b, slice(0), "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "ArrowUp"),
+    ).toEqual([slice(1), slice(2), slice(1), slice(0), undefined]);
+    expect(press(b, slice(1), "End", "ArrowRight")).toEqual([slice(4), undefined]);
+    expect(press(b, slice(3), "Home", "Home")).toEqual([slice(0), undefined]);
+  });
+
+  it("stops at a 0 and a gap slice, which draw nothing", () => {
+    const b = built(
+      land([...LAND.slice(0, 2), { name: "Glaciers", value: 0 }, { name: "Moor", value: null }]),
+    );
+    expect(press(b, slice(1), "ArrowRight", "ArrowRight")).toEqual([slice(2), slice(3)]);
+  });
+
+  it("leaves the Page keys and a drag to the page", () => {
+    const b = built(land());
+    expect(b.nav.pages).toBe(false);
+    expect(b.nav.drags).toBe(false);
+    expect(b.nav.crosshair(slice(0))).toBe(undefined);
+  });
+
+  it("picks the slice whose angle holds the pointer, within the rim and 8 px past it", () => {
+    const b = built(land());
+    const r = radius(b);
+    expect(b.nav.pick(...at(b, 0.1, r / 2))).toEqual(slice(0));
+    // Forest runs from 51% to 81% of the turn.
+    const forest = turn((182_637 + 106_645 / 2) / 357_580);
+    expect(b.nav.pick(...at(b, forest, r + 7.9))).toEqual(slice(1));
+    expect(b.nav.pick(...at(b, forest, r + 8.1))).toBe(undefined);
+    // Just before 12 o'clock is the last slice.
+    expect(b.nav.pick(...at(b, -0.01, r / 2))).toEqual(slice(4));
+  });
+
+  it("selects nothing inside a donut's hole", () => {
+    const b = built(land(LAND, true));
+    const inner = b.lay.pie?.inner ?? 0;
+    expect(inner).toBeGreaterThan(0);
+    expect(b.nav.pick(...at(b, 1, inner - 1))).toBe(undefined);
+    expect(b.nav.pick(...at(b, 1, inner + 1))).toEqual(slice(0));
+  });
+
+  it("keeps a slice across an update by its name, and drops one that left", () => {
+    const before = built(land()).model;
+    const after = built(land([...LAND].reverse())).model;
+    expect(rekey(before, slice(1), after)).toEqual(slice(3));
+    expect(rekey(before, slice(0), built(land(LAND.slice(1))).model)).toBe(undefined);
+  });
+
+  it("says a slice's value and share, then the whole, and a gap No data", () => {
+    const model = built(land([...LAND.slice(0, 4), { name: "Water", value: null }])).model;
+    const total = 182_637 + 106_645 + 48_631 + 11_443;
+    expect(spoken(built(land()).model, slice(0), words, false)).toBe(
+      "Agriculture: 182,637\u00A0km², 51%. Total 357,580\u00A0km².",
+    );
+    expect(spoken(model, slice(3), words, false)).toBe(
+      `Other land: 11,443\u00A0km², 3.3%. Total ${writer("number", "en")(total)}\u00A0km².`,
+    );
+    expect(spoken(model, slice(4), words, false)).toBe("Water: No data.");
+  });
+});

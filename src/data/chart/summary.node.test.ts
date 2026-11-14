@@ -1409,3 +1409,46 @@ describe("the summary of a box plot", () => {
     );
   });
 });
+
+describe("the summary and short description of a pie", () => {
+  const land = (hole = false, water: number | null = 8224): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        hole,
+        unit: { other: "km²" },
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", value: 106_645 },
+          { name: "Housing & traffic", value: 48_631 },
+          { name: "Other land", value: 11_443 },
+          { name: "Water", value: water },
+        ],
+      },
+    ],
+  });
+
+  it("gives the whole, then each slice's share in the order sent", () => {
+    expect(generatedSummary(model(land()), words)).toBe(
+      `357,580${nb}km²: Agriculture 51%, Forest 30%, Housing & traffic 14%, Other land 3.2%, Water 2.3%.`,
+    );
+  });
+
+  it("writes a gap's share as No data, the shares of the values sent", () => {
+    expect(generatedSummary(model(land(false, null)), words)).toBe(
+      `349,356${nb}km²: Agriculture 52%, Forest 31%, Housing & traffic 14%, Other land 3.3%, Water No data.`,
+    );
+  });
+
+  it("frames it through partsSummary", () => {
+    const own = chartWords({ partsSummary: (total, parts) => `${parts} (${total})` });
+    expect(generatedSummary(model(land()), own)).toMatch(
+      /^Agriculture 51%, .* \(357,580\u00A0km²\)$/u,
+    );
+  });
+
+  it("names a pie and a donut by their slice count", () => {
+    expect(shortDescription(model(land()), words)).toBe("Pie chart, 5 parts");
+    expect(shortDescription(model(land(true)), words)).toBe("Donut chart, 5 parts");
+  });
+});

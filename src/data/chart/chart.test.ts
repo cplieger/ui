@@ -805,6 +805,35 @@ describe("the table view on update", () => {
     start(full, b);
     expect(get(b.figure, "table")?.querySelector("table")).toBeNull();
   });
+
+  it("writes a pie's Total row in the foot, its cells rewritten in place on update", () => {
+    const pie = (forest: number): ChartSpec => ({
+      marks: [
+        {
+          mark: "pie",
+          slices: [
+            { name: "Agriculture", value: 182_637 },
+            { name: "Forest", value: forest },
+          ],
+        },
+      ],
+    });
+    const b = build();
+    const chart = start(pie(106_645), b);
+    chart.showTable(true);
+    const table = get(b.figure, "table")?.querySelector("table");
+    const foot = () => table?.tFoot?.rows[0];
+    const row = foot();
+    const total = row?.cells[1];
+    expect(row?.querySelector("th")?.scope).toBe("row");
+    expect([...(row?.cells ?? [])].map((c) => c.textContent)).toEqual(["Total", "289,282", "100%"]);
+    chart.update(pie(17_363));
+    expect(get(b.figure, "table")?.querySelector("table")).toBe(table);
+    expect(foot()).toBe(row);
+    expect(foot()?.cells[1]).toBe(total);
+    expect(total?.textContent).toBe("200,000");
+    expect(table?.tFoot?.rows).toHaveLength(1);
+  });
 });
 
 describe("the drawing under update and resize", () => {

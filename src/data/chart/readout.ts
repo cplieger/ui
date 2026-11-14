@@ -53,7 +53,7 @@ export interface Reading {
   /** A stack's total, or a range plot's gap or an arrow plot's change,
    *  under `totalWord`; absent without one. */
   readonly total: string | undefined;
-  /** The entry of the series chosen, whose chip name turns semibold. */
+  /** The entry of the series or slice chosen, whose chip name turns semibold. */
   readonly chosen?: number;
   /** A cell chart's selected class, whose swatch in the colour key takes
    *  the ring; -1 for a missing cell, whose No data swatch does. */
@@ -358,11 +358,12 @@ export function columnReading(
 }
 
 /** Whether a chosen series marks its legend chip: on a slope, whose series
- *  Up and Down choose while the row reads a column, and on a scatter, whose
- *  chips keep their counts while the row reads a dot. */
+ *  Up and Down choose while the row reads a column, on a scatter, whose
+ *  chips keep their counts while the row reads a dot, and on a pie, whose
+ *  chips keep their shares while the row reads a slice. */
 export function chipChosen(model: Model): boolean {
   const kind = primaryOf(model)?.kind;
-  return kind === "slope" || kind === "scatter";
+  return kind === "slope" || kind === "scatter" || kind === "pie";
 }
 
 /** A scatter dot's value on `axis`, or a bubble's size on "r", with its
@@ -590,6 +591,24 @@ export function sliceShare(model: Model, m: PieModel, i: number, words: Words): 
   return v === null ? words.noData : model.shareText(m.total > 0 ? v / m.total : 0);
 }
 
+// A chip per slice in the clockwise order, each with its share, at every
+// selection: the chips name the slices where colour alone would not.
+const sliceChips = (model: Model, m: PieModel, words: Words): Entry[] =>
+  m.slices.map((s, i) => ({ slot: s.slot, name: s.name, value: sliceShare(model, m, i, words) }));
+
+/** Slice `i` of `m`: its name and value, No data for a gap, with every
+ *  slice's chip and its own chosen. */
+export function sliceReading(model: Model, m: PieModel, i: number, words: Words): Reading {
+  const s = m.slices[i];
+  const v = s?.value ?? null;
+  return {
+    at: `${s?.name ?? ""} ${v === null ? words.noData : pieAmount(model, m, v)}`,
+    entries: sliceChips(model, m, words),
+    total: undefined,
+    chosen: i,
+  };
+}
+
 /** How many slices a pie holds, through `words.parts`. */
 export function partsText(model: Model, m: PieModel, words: Words): string {
   const n = m.slices.length;
@@ -691,14 +710,9 @@ export function overall(model: Model, words: Words): Reading | undefined {
         total: undefined,
       };
     case "pie":
-      // The chips name every slice, in the clockwise order, where colour alone would not.
       return {
         at: `${words.total} ${pieAmount(model, m, m.total)}`,
-        entries: m.slices.map((s, i) => ({
-          slot: s.slot,
-          name: s.name,
-          value: sliceShare(model, m, i, words),
-        })),
+        entries: sliceChips(model, m, words),
         total: undefined,
       };
   }
@@ -948,6 +962,10 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     }
   } else if (m?.kind === "slope") {
     add(columnReading(model, m, 0, words));
+  } else if (m?.kind === "pie") {
+    m.slices.forEach((_, i) => {
+      add(sliceReading(model, m, i, words));
+    });
   } else if (m?.kind === "scatter") {
     m.series.forEach((s, k) => {
       for (const i of m.shown[k] ?? []) {

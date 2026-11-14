@@ -70,6 +70,8 @@ export interface TableModel {
   readonly corner: string;
   readonly columns: readonly { readonly text: string; readonly num: boolean }[];
   readonly rows: readonly Row[];
+  /** A pie's Total row, in the table's `<tfoot>`. */
+  readonly foot?: Row;
   /** The rules' and notes' sentences after the table. */
   readonly after: string;
 }
@@ -297,7 +299,7 @@ function cellTable(model: Model, m: CellModel, words: Words, after: string): Tab
 }
 
 // A row per slice in the app's order, its value bare under the unit's
-// plural, then its share.
+// plural, then its share, and the whole in the foot.
 function pieTable(model: Model, m: PieModel, words: Words, after: string): TableModel {
   const rows = m.slices.map((s, i): Row => ({
     key: s.name,
@@ -314,6 +316,14 @@ function pieTable(model: Model, m: PieModel, words: Words, after: string): Table
       { text: words.share, num: true },
     ],
     rows,
+    foot: {
+      key: "",
+      head: [words.total],
+      cells: [
+        { parts: [model.amountText(m.total)], num: true },
+        { parts: [model.shareText(1)], num: true },
+      ],
+    },
     after,
   };
 }
@@ -543,6 +553,26 @@ function rewrite(el: Element, fresh: Element): void {
   }
 }
 
+// Writes `foot` as the table's `<tfoot>` row, its cells rewritten in place.
+function syncFoot(table: HTMLTableElement, foot: Row | undefined, named: boolean): void {
+  if (foot === undefined) {
+    table.tFoot?.remove();
+    return;
+  }
+  const fresh = bodyRow(foot, named);
+  const tr = table.tFoot?.rows[0];
+  if (tr === undefined) {
+    table.createTFoot().append(fresh);
+    return;
+  }
+  [...tr.cells].forEach((cell, k) => {
+    const now = fresh.cells[k];
+    if (now !== undefined) {
+      rewrite(cell, now);
+    }
+  });
+}
+
 /**
  * Shows `t` in `panel`, the chart's `.cp-panel`, its caption `title`. A
  * table with the same columns keeps its rows: changed cells are rewritten
@@ -608,6 +638,7 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, name
       after = tr;
     }
   }
+  syncFoot(table, t.foot, named);
   let after = panel.querySelector<HTMLElement>('[data-part="after"]');
   if (t.after === "") {
     after?.remove();

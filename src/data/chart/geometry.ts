@@ -1197,6 +1197,9 @@ function wholePie(p: PieFrame): string {
   return ring(p.r, true) + (p.inner > 0 ? ring(p.inner, false) : "");
 }
 
+// A slice whose arc at the rim is under 2 px is too thin to keep 1 px beside its gaps.
+const sliceGap = (p: PieFrame, span: number): number => (p.r * span < 4 * HALF_GAP ? 0 : HALF_GAP);
+
 /**
  * The slice from angle `from` to `to` on `p`, its straight edges each moved
  * 0.5 px into it. A slice whose arc at the rim is under 2 px, too thin to
@@ -1204,11 +1207,30 @@ function wholePie(p: PieFrame): string {
  * slice of the whole turn is the whole circle.
  */
 export function slicePath(p: PieFrame, from: number, to: number): string {
-  const span = to - from;
-  if (span >= TURN) {
-    return wholePie(p);
+  return to - from >= TURN ? wholePie(p) : sliceOutline(p, from, to, sliceGap(p, to - from));
+}
+
+/** The ring's path round the slice `slicePath` draws, 1 px inside its edges,
+ *  so its 2 px stroke stays on the slice; a slice too thin to hold it
+ *  takes it on its own edges. */
+export function sliceRing(p: PieFrame, from: number, to: number): string {
+  const r = p.r - 1;
+  const inner = p.inner > 0 ? p.inner + 1 : 0;
+  const shrunk = { ...p, r, inner };
+  if (to - from >= TURN) {
+    return wholePie(shrunk);
   }
-  const g = p.r * span < 4 * HALF_GAP ? 0 : HALF_GAP;
+  const g = sliceGap(p, to - from) + 1;
+  const span = to - from;
+  // The moved edges must still leave the rim an arc between them.
+  return r > Math.max(inner, g) && (span > Math.PI || r * Math.sin(span / 2) > g)
+    ? sliceOutline(shrunk, from, to, g)
+    : slicePath(p, from, to);
+}
+
+// The slice from `from` to `to` on `p`, its straight edges each moved `g` into it.
+function sliceOutline(p: PieFrame, from: number, to: number, g: number): string {
+  const span = to - from;
   const d = Math.asin(g / p.r);
   const outer = `M${pt(rimPoint(p, from + d, p.r))}${arcTo(p.r, span - 2 * d > Math.PI, true, rimPoint(p, to - d, p.r))}`;
   const di = p.inner > 0 ? Math.asin(Math.min(1, g / p.inner)) : 0;

@@ -12,12 +12,14 @@ import { pointGrid, type Grid } from "./grid.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
 import { dayAt, monthsFrom } from "./calendar.js";
+import { sliceAngles, TURN, type Slice } from "./pie.js";
 import type {
   CalendarModel,
   CellModel,
   DotModel,
   DotRef,
   Model,
+  PieModel,
   RectModel,
   SampleModel,
   ScatterModel,
@@ -44,6 +46,7 @@ import {
   columnReading,
   measureText,
   partText,
+  pieAmount,
   pointPart,
   pointReading,
   postReading,
@@ -52,6 +55,8 @@ import {
   samplePart,
   sampleReading,
   scatterReading,
+  sliceReading,
+  sliceShare,
   type Reading,
 } from "./readout.js";
 import type { Words } from "./words.js";
@@ -61,7 +66,8 @@ import type { Words } from "./words.js";
  * Up or Down chose it; the posts `[from, to)` of a dot row; a dot row as a
  * whole; a bar, point or box row, with one series (`part`) when Left or
  * Right chose it; a scatter's dot `i` of `series`; a cell chart's cell at
- * `row` and `column`, indices into its axes; or a calendar's day `i`.
+ * `row` and `column`, indices into its axes; a calendar's day `i`; or a
+ * pie's slice `i`, an index into its slices.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
@@ -77,7 +83,8 @@ export type Selection =
     }
   | { readonly kind: "scatter"; readonly series: number; readonly i: number }
   | { readonly kind: "cell"; readonly row: number; readonly column: number }
-  | { readonly kind: "day"; readonly i: number };
+  | { readonly kind: "day"; readonly i: number }
+  | { readonly kind: "slice"; readonly i: number };
 
 export type Key =
   "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End" | "PageUp" | "PageDown";
@@ -97,6 +104,8 @@ export const isKey = (key: string): key is Key => KEYS.has(key);
 
 /** How far a pointer reaches for a dot in its row, or for a scatter dot's edge, in px. */
 const REACH = 40;
+/** How far past a pie's rim a pointer still selects a slice, in px. */
+const RIM_REACH = 8;
 /** One x tick's room when the axis draws fewer than two ticks, in px. */
 const TICK_FALLBACK = 80;
 /** Page Up and Page Down move a band chart's selection this many rows, and
@@ -185,7 +194,7 @@ const lineStops = (m: SampleModel): number[] =>
  *  slope's right column, on a timeline the first row's last post, or that
  *  row when it is silent, a bar, point or box chart's first row, whole, a
  *  scatter's first dot in x order, a cell chart's first cell in reading
- *  order, or a calendar's newest day. */
+ *  order, a calendar's newest day, or a pie's first slice, at 12 o'clock. */
 export function initial(model: Model): Selection | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -228,7 +237,7 @@ export function initial(model: Model): Selection | undefined {
     case "calendar":
       return m.values.length === 0 ? undefined : { kind: "day", i: m.values.length - 1 };
     case "pie":
-      return undefined;
+      return m.slices.length === 0 ? undefined : { kind: "slice", i: 0 };
   }
 }
 
@@ -446,6 +455,47 @@ function moveCell(
   return column === undefined ? undefined : { ...sel, column };
 }
 
+/** Where `key` moves a pie's slice `i` of `n`: Right and Down to the next
+ *  clockwise, Left and Up to the one before, Home and End to the first and
+ *  last; the Page keys are the page's. */
+function moveSlice(n: number, i: number, key: Key): Selection | undefined {
+  const to =
+    key === "ArrowRight" || key === "ArrowDown"
+      ? i + 1
+      : key === "ArrowLeft" || key === "ArrowUp"
+        ? i - 1
+        : key === "Home"
+          ? 0
+          : key === "End"
+            ? n - 1
+            : i;
+  return to === i || to < 0 || to >= n ? undefined : { kind: "slice", i: to };
+}
+
+/** The drawn slice of `m` whose angle from `lay`'s pie centre holds plot px
+ *  `(px, py)`, within the rim and RIM_REACH past it and outside a donut's
+ *  hole; undefined elsewhere. */
+function sliceAt(
+  slices: readonly Slice[],
+  lay: Layout,
+  px: number,
+  py: number,
+): number | undefined {
+  const p = lay.pie;
+  if (p === undefined) {
+    return undefined;
+  }
+  const dx = px - p.cx;
+  const dy = py - p.cy;
+  const d = Math.hypot(dx, dy);
+  if (d > p.r + RIM_REACH || d < p.inner) {
+    return undefined;
+  }
+  // Clockwise from 12 o'clock, as the slices' angles run.
+  const a = (Math.atan2(dx, -dy) + TURN) % TURN;
+  return slices.find((s) => a >= s.from && a < s.to)?.index;
+}
+
 /** Where `key` moves a calendar's day `i`: Left and Right a week, Up and
  *  Down a day, Home and End to the first and last, Page Up and Page Down
  *  to the same date a month away (its last day when it has no such date),
@@ -523,14 +573,16 @@ export interface Navigator {
   /** What a pointer at plot px `(px, py)` selects; undefined when nothing
    *  is within reach, which clears the selection. */
   pick(px: number, py: number): Selection | undefined;
-  /** The crosshair's px along x, absent for a row or a scatter's dot,
-   *  whose crosshair is two rules to its edge. */
+  /** The crosshair's px along x, absent for a row, a scatter's dot, whose
+   *  crosshair is two rules to its edge, or a slice. */
   crosshair(sel: Selection): number | undefined;
   /** A touch drag moves the selection; on a bar, point, box or scatter
-   *  chart only a tap does, since a vertical drag is the page's scroll. */
+   *  chart only a tap does, since a vertical drag is the page's scroll,
+   *  and on a pie, which has no axis to drag along. */
   readonly drags: boolean;
   /** Page Up and Page Down move the selection; on a slope, whose two
-   *  columns have no ticks to page by, they are the page's. */
+   *  columns have no ticks to page by, and on a pie, which has no ticks,
+   *  they are the page's. */
   readonly pages: boolean;
   /** A touch drag keeps the row it began on, as along a cell chart's row. */
   readonly alongRow: boolean;
@@ -552,6 +604,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
   let stops: number[] | undefined;
   const lineStopsOnce = (l: SampleModel): number[] => (stops ??= lineStops(l));
   let grid: Grid | undefined;
+  let slices: Slice[] | undefined;
+  const slicesOf = (p: PieModel): Slice[] => (slices ??= sliceAngles(p));
   // Built at the first pick, so a draw no pointer reaches never pays for it;
   // in draw order, so among equally near dots it takes the one on top.
   const gridOf = (s: ScatterModel): Grid => {
@@ -624,7 +678,10 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "calendar") {
         return sel.kind === "day" ? moveDay(m, sel.i, key) : undefined;
       }
-      if (m.kind === "pie" || sel.kind !== m.kind) {
+      if (m.kind === "pie") {
+        return sel.kind === "slice" ? moveSlice(m.slices.length, sel.i, key) : undefined;
+      }
+      if (sel.kind !== m.kind) {
         return undefined;
       }
       if (key === "ArrowUp" || key === "ArrowDown") {
@@ -644,8 +701,11 @@ export function navigator(model: Model, lay: Layout): Navigator {
     pick(px, py) {
       switch (m?.kind) {
         case undefined:
-        case "pie":
           return undefined;
+        case "pie": {
+          const i = sliceAt(slicesOf(m), lay, px, py);
+          return i === undefined ? undefined : { kind: "slice", i };
+        }
         case "rect": {
           let best: number | undefined;
           let gap = Number.POSITIVE_INFINITY;
@@ -756,8 +816,13 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
     },
     crosshair: (sel) => selectionPx(model, sel, f),
-    drags: m?.kind !== "bar" && m?.kind !== "point" && m?.kind !== "box" && m?.kind !== "scatter",
-    pages: m?.kind !== "slope",
+    drags:
+      m?.kind !== "bar" &&
+      m?.kind !== "point" &&
+      m?.kind !== "box" &&
+      m?.kind !== "scatter" &&
+      m?.kind !== "pie",
+    pages: m?.kind !== "slope" && m?.kind !== "pie",
     alongRow: m?.kind === "cell" || m?.kind === "calendar",
   };
 }
@@ -827,6 +892,12 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     const column = find(was.x, now.x, sel.column);
     return row === -1 || column === -1 ? undefined : { kind: "cell", row, column };
   }
+  if (sel.kind === "slice" && was.kind === "pie" && now.kind === "pie") {
+    // Names are unique, so a slice is found by its name in any order.
+    const name = was.slices[sel.i]?.name;
+    const i = now.slices.findIndex((s) => s.name === name);
+    return i === -1 ? undefined : { kind: "slice", i };
+  }
   if (sel.kind === "day" && was.kind === "calendar" && now.kind === "calendar") {
     // A day is found by its date.
     const i = was.day + sel.i - now.day;
@@ -895,6 +966,9 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   }
   if (sel.kind === "day" && m?.kind === "calendar") {
     return dayReading(model, m, sel.i, words);
+  }
+  if (sel.kind === "slice" && m?.kind === "pie") {
+    return sliceReading(model, m, sel.i, words);
   }
   return undefined;
 }
@@ -998,6 +1072,17 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     if (part && s !== undefined) {
       return slopeWords(model, m, s, words);
     }
+  } else if (sel.kind === "slice" && m.kind === "pie") {
+    // The slice's own value and share, then the whole the share is of.
+    const s = m.slices[sel.i];
+    const v = s?.value ?? null;
+    return v === null
+      ? words.reading(s?.name ?? "", words.noData, "")
+      : words.reading(
+          s?.name ?? "",
+          `${pieAmount(model, m, v)}, ${sliceShare(model, m, sel.i, words)}`,
+          pieAmount(model, m, m.total),
+        );
   } else if (sel.kind === "scatter" && m.kind === "scatter") {
     // The dot's series, then each measure; the chips' counts are the chart's, not the dot's.
     const s = m.series[sel.series];
