@@ -11,7 +11,7 @@ it("builds a table of 129,600 rows, a 90-day line sampled each minute", () => {
       head: [String(i)],
       cells: [{ parts: ["1"], num: true }],
     })),
-    rules: "",
+    after: "",
   };
   const panel = document.createElement("div");
   syncTable(panel, t, "Agents", false);

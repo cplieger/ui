@@ -49,7 +49,7 @@ enhanceReorder(list, {
 - A move takes the moved item's neighbours across it and never takes the item itself out of the document. Focus stays on the button pressed, or the field it was in, and the item scrolls into view when focus is in it.
 - The first item's Move up and the last item's Move down carry `aria-disabled="true"` and do nothing, so they keep focus and are still read. Items the app adds or removes later are numbered and given the right ends too.
 - Alt with an arrow is left to a text field, a `<select>`, a combobox, a listbox and editable text, where it already moves the caret or the choice.
-- A drag starts on a primary pointer's press on the handle. The item lifts with the overlay shadow and follows the pointer within the list, and the others slide aside by its height. The nearest scroller scrolls while the pointer is within 2rem of its edge, and the release, or a lost pointer, drops it at the slot it is over.
+- A drag starts on a primary pointer's press on the handle. The item lifts with the overlay shadow and follows the pointer within the list, and the others slide aside by its height. The nearest scroller scrolls while the pointer is within 2rem of the edge of what the reader sees of the list: the window, less what a pinch zoom or the on-screen keyboard hides, cut by every box around the list that clips, and the release, or a lost pointer, drops it at the slot it is over.
 - Items slide over `--cp-dur-medium` on `--cp-ease-move`. Under reduced motion they move at once.
 - A list inside an item is its own: its buttons, keys and handle move its own items only.
 - The module does nothing when it is imported.

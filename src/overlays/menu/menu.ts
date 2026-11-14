@@ -238,7 +238,9 @@ export function enhanceMenu(menu: HTMLElement, options: MenuOptions = {}): void 
   const listen = until(signal);
   const capture = until(signal, true);
   const id = ensureId(menu);
-  const root = menu.getRootNode() as Document | ShadowRoot;
+  // A menu built before it joins the document listens on its document.
+  const tree = menu.getRootNode();
+  const root = tree instanceof ShadowRoot ? tree : menu.ownerDocument;
   const OPENER = `[popovertarget="${CSS.escape(id)}"], [commandfor="${CSS.escape(id)}"]`;
   const openerOf = (t: EventTarget | null): HTMLElement | null => {
     const b = t instanceof Element ? t.closest<HTMLElement>(OPENER) : null;

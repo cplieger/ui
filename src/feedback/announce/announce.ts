@@ -19,7 +19,10 @@ export interface AnnouncerOptions {
   readonly signal?: AbortSignal;
 }
 
-const PAIR = "cp-live-regions";
+/** Marks a host's pair of regions for this script to find. A hook is an
+ *  attribute, never a class: the stylesheet draws the pair as any visually
+ *  hidden box. */
+const PAIR = "data-cp-live-regions";
 /** The pause between emptying a region and writing to it, so the same
  *  message twice is read twice. */
 const GAP_MS = 100;
@@ -29,13 +32,14 @@ const pending = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
 /** The pair of regions directly inside `host`, made if it has none. */
 function pairIn(host: Element): HTMLElement {
   const own = [...host.children].find(
-    (c): c is HTMLElement => c instanceof HTMLElement && c.classList.contains(PAIR),
+    (c): c is HTMLElement => c instanceof HTMLElement && c.hasAttribute(PAIR),
   );
   if (own !== undefined) {
     return own;
   }
   const pair = document.createElement("div");
-  pair.className = `${PAIR} cp-visually-hidden`;
+  pair.className = "cp-visually-hidden";
+  pair.setAttribute(PAIR, "");
   for (const politeness of ["polite", "assertive"] as const) {
     const region = document.createElement("div");
     region.setAttribute("aria-live", politeness);
@@ -116,7 +120,7 @@ const page = shared((signal) => {
         clearTimeout(t);
       }
       pending.clear();
-      for (const pair of document.querySelectorAll(`.${PAIR}`)) {
+      for (const pair of document.querySelectorAll(`[${PAIR}]`)) {
         pair.remove();
       }
     },

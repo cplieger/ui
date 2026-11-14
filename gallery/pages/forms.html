@@ -166,13 +166,13 @@
   <section class="g-section" id="files">
     <h2>Files</h2>
     <div class="g-grid">
-      <div class="card">
+      <div class="card" data-new>
         <h2>Drop zone</h2>
         <div class="cp-field">
           <label class="cp-drop"><span class="cp-icon" data-cp-icon="cloud-upload" aria-hidden="true"></span><strong>Drop subtitle files here</strong><span>or <u>choose files</u>, .ass or .srt</span><input type="file" multiple accept=".ass,.srt" data-files="f-files" data-max-size="10485760"></label>
-          <ul class="cp-files" id="f-files"></ul>
+          <ul class="cp-list" data-density="compact" id="f-files" aria-label="Files chosen"><li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack">Frieren.S01E05.en.ass</span><span data-part="end">42&nbsp;KB</span></div></li><li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span class="cp-cell-stack">Frieren.S01E06.en.ass</span><span data-part="end">39&nbsp;KB</span></div></li></ul>
         </div>
-        <footer>The whole area is the file input's label, so a press anywhere opens the picker; a drag over it lifts the icon.</footer>
+        <footer>The whole area is the file input's label, so a press anywhere opens the picker; a drag over it lifts the icon. The files taken are a compact list, each row its glyph, its name and its size.</footer>
       </div>
       <div class="card" data-new>
         <h2>Upload with limits</h2>
@@ -183,7 +183,7 @@
             <header><h2 id="d-upload-title">Add a subtitle file</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-upload" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
             <div class="cp-dialog-body">
               <div class="cp-notice" data-tone="danger" data-summary hidden></div>
-              <div class="cp-field"><label class="cp-label" for="up-file">File, .ass, .srt or .vtt</label><input class="cp-input" id="up-file" type="file" accept=".ass,.srt,.vtt" data-files="up-file-list" data-max-size="10485760" aria-describedby="up-file-error"><ul class="cp-files" id="up-file-list"></ul><span class="cp-field-error" id="up-file-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span></span></div>
+              <div class="cp-field"><label class="cp-label" for="up-file">File, .ass, .srt or .vtt</label><input class="cp-input" id="up-file" type="file" accept=".ass,.srt,.vtt" data-files="up-file-list" data-max-size="10485760" aria-describedby="up-file-error"><ul class="cp-list" data-density="compact" id="up-file-list" aria-label="File chosen"></ul><span class="cp-field-error" id="up-file-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span></span></div>
               <div class="cp-field"><label class="cp-label" for="up-lang">Language</label><div class="cp-select"><select class="cp-input" id="up-lang"><option>English</option><option>French</option></select></div></div>
               <div class="cp-field"><label class="cp-label" for="up-kind">Kind</label><div class="cp-select"><select class="cp-input" id="up-kind"><option>Full</option><option>Signs and songs</option></select></div></div>
             </div>

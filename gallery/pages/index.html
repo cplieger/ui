@@ -104,6 +104,11 @@
       <div class="card g-wide">
         <div class="g-icons" data-icon-grid></div>
       </div>
+      <div class="card g-wide" data-new>
+        <h2>Icons with no script</h2>
+        <iframe class="g-frame" src="frame-icons.html" title="The glyphs the stylesheet paints on a page with no script"></iframe>
+        <footer>The stylesheet paints every glyph the library's own markup and stylesheet use from its <code>data-cp-icon</code> alone, so a page under a strict content policy that runs no script writes only the span. The frame is such a page, in both themes. Any other glyph takes <code>createIcons</code> or a rule of the app's own, and both win over these.</footer>
+      </div>
     </div>
   </section>
 </main>

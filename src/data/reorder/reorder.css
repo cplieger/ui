@@ -14,6 +14,8 @@
 
 /* The item a drag lifted follows the pointer, above the others. */
 .cp-reorder > li[data-cp-lifted] {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   position: relative;
   z-index: 2;
   background: var(--cp-surface-raised);

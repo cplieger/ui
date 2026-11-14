@@ -11,6 +11,11 @@
   white-space: nowrap;
 }
 
+/* As a link home, the wordmark is a control and takes the hit area. */
+a.cp-wordmark {
+  min-block-size: var(--cp-hit-min);
+}
+
 .cp-mark {
   display: grid;
   place-items: center;

@@ -6,7 +6,7 @@ This page covers the settings page every app has. It builds on [Design patterns]
 
 ## The page
 
-1. The page heads with the `<h1>` "Settings". Its categories are links in a `.cp-settings-nav`, the open one with `aria-current="page"`, beside the open category in a `.cp-settings`. Below 48rem they sit in a row above it.
+1. The page heads with the `<h1>` "Settings". Its categories are a plain compact [list](data/list-row.md) of `a.cp-list-row` links in a `.cp-settings-nav`, the open one with `aria-current="page"` and a category with unsaved changes holding a `.cp-dot` in its end with ", unsaved changes" for a screen reader, beside the open category in a `.cp-settings`. Below 48rem they sit in a row above it.
 2. Each category has its own address, such as `/settings/connections`, and its own `<h2>`. Opening Settings opens the first category.
 3. A category holds its settings in groups, each a `<section>` with a heading over a `.cp-panel` of `.cp-setting` rows.
 4. A row holds the label and its `.cp-help` at the start and the control at the end. A wide control, such as a text field or a list, wraps under the words.

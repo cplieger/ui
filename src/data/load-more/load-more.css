@@ -1,0 +1,5 @@
+/* The spinner @cplieger/ui/load-more gives its button, drawn here so a
+ * page that resolves no icons still shows it turn. */
+.cp-button[data-cp-load-more] > .cp-icon[data-part="busy"] {
+  --cp-icon-image: url("../icons/svg/spinner-arc.svg");
+}

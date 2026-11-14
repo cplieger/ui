@@ -51,12 +51,15 @@
 
 .cp-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
   min-inline-size: 0;
 }
 
 .cp-list-detail > .cp-detail {
+  --cp-chart-surface: var(--cp-surface-raised);
+
   padding: var(--cp-space-4);
   border: var(--cp-line-w) solid var(--cp-line);
   border-radius: var(--cp-radius-surface);
@@ -66,6 +69,7 @@
 
 .cp-detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--cp-space-3);
 }

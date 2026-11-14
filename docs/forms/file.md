@@ -12,7 +12,7 @@ A file field with its limits and its list. A file of a type the field does not a
     <span>or <u>choose files</u>, .ass or .srt</span>
     <input type="file" multiple accept=".ass,.srt">
   </label>
-  <ul class="cp-files"></ul>
+  <ul class="cp-list" data-density="compact" aria-label="Files chosen"></ul>
 </div>
 ```
 
@@ -29,7 +29,7 @@ subs.files; // the files the field holds
 - A refused file leaves the field, so a form sends only the files taken. Its sentence goes on the field as [form](form.md)'s `reportErrors` shows errors, and clears with the next choice that takes everything. The field clears only its own error, and `reportErrors` leaves it.
 - The sentence is by default "Only .ass or .srt files can be added." or "Files over 10 MB cannot be added.", and `words` gives other `tooBig`, `wrongType` and `chosen` words.
 - Without `multiple` the field takes the first file only.
-- `list`, a `<ul class="cp-files">`, gets one item per file taken: its glyph, its name and its size. `fileSize(bytes)` gives the same size words, such as "12 KB" or "4.2 MB".
+- `list`, a [list](../data/list-row.md) such as a `ul.cp-list[data-density="compact"]`, gets one row per file taken: a `div.cp-list-row` of the `file-text` glyph, the name in a `.cp-cell-stack` and the size in its `data-part="end"`. The stylesheet draws the glyph, so it paints with no icon script, and a name with no break point wraps inside its row. The list draws nothing until the first file is taken. `fileSize(bytes)` gives the same size words, such as "12 KB" or "4.2 MB".
 - Each choice is said through [announce](../feedback/announce.md), by default "2 files chosen", with a refused file's sentence after it, and `onChange` gets the files taken.
 - A field nobody filled is the form's to report on submit, since the forms pattern keeps submit enabled. That error clears with the next choice the field takes whole.
 - A reset of the field's form empties the list and clears the refusal.

@@ -232,6 +232,22 @@ describe(".cp-code[data-variant=block]", () => {
     expect(css(check).display).not.toBe("none");
   });
 
+  it("nests its trailing action in the block's corner, the corners concentric", () => {
+    const el = prose("```sh\nls\n```\n");
+    const block = q(el, ".cp-code");
+    const copy = q(block, ".cp-copy");
+    const [b, c] = [block, copy].map((x) => x.getBoundingClientRect()) as [DOMRect, DOMRect];
+    const border = Number.parseFloat(css(block).borderTopWidth);
+    // https://www.w3.org/TR/css-backgrounds-3/#corner-shaping: an inner corner
+    // follows its outer one when its radius is the outer less the gap.
+    const want =
+      Number.parseFloat(css(block).borderTopRightRadius) -
+      border -
+      Number.parseFloat(css(copy).borderTopRightRadius);
+    expect(c.top - b.top - border).toBeCloseTo(want, 1);
+    expect(b.right - border - c.right).toBeCloseTo(want, 1);
+  });
+
   it("keeps Copy's hit area at the tier's minimum", () => {
     for (const [tier, min] of [
       ["fine", 24],
@@ -267,6 +283,21 @@ describe(".cp-table-scroll", () => {
     expect(region.scrollWidth).toBeGreaterThan(region.clientWidth);
     expect(el.scrollWidth).toBeLessThanOrEqual(el.clientWidth);
     expect(css(region).overflowX).toBe("auto");
+  });
+
+  it("keeps a cell of running text readable once a wide table scrolls", async () => {
+    const md =
+      "| File | Status | Bytes | Owner | Last change | Notes |\n|:--|:-:|--:|:--|:-:|:--|\n" +
+      "| alpha.ts | ok | 1,024 | parser | 2026-11-10 | first row with a long note that keeps going |\n";
+    const el = prose(md, 332);
+    const region = q(el, ".cp-table-scroll");
+    await frame();
+    expect(region.scrollWidth).toBeGreaterThan(region.clientWidth);
+    const cells = [...el.querySelectorAll("tbody td")];
+    const em = Number.parseFloat(css(el).fontSize);
+    const width = (c: Element | undefined) => c?.getBoundingClientRect().width ?? 0;
+    expect(width(cells[5])).toBeGreaterThanOrEqual(12 * em - 0.5);
+    expect(width(cells[1])).toBeLessThan(6 * em);
   });
 
   it("is as wide as a table that fits", () => {

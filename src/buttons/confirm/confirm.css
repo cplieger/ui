@@ -26,18 +26,20 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
   color: var(--cp-danger-on);
 }
 
+/* Only a button's parts: a row, a form or a state also takes a
+ * data-cp-state, and its own icons stay. */
 :where(.cp-button[data-cp-confirm]) > .cp-icon[data-part],
-[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
-[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
+.cp-button[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
+.cp-button[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
   display: none;
 }
 
-[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
+.cp-button[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
   display: inline-block;
   animation: cp-spin 0.8s linear infinite;
 }
 
-[data-cp-state="done"] > .cp-icon[data-part="done"] {
+.cp-button[data-cp-state="done"] > .cp-icon[data-part="done"] {
   display: inline-block;
   animation: cp-check-draw 320ms var(--cp-ease-out);
 }
@@ -56,8 +58,8 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-cp-state="busy"] > .cp-icon[data-part],
-  [data-cp-state="done"] > .cp-icon[data-part] {
+  .cp-button[data-cp-state="busy"] > .cp-icon[data-part],
+  .cp-button[data-cp-state="done"] > .cp-icon[data-part] {
     animation: none;
   }
 }

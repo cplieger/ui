@@ -49,10 +49,24 @@ Without `@cplieger/ui/css/system`, which carries this rule, add the rule below t
 
 In forced colours Chromium replaces `background-color` with a system colour, which paints the mask in the page's background colour, so the icon would vanish. The rule opts the icon out, so it keeps `currentColor`, and the two engines then differ. Firefox forces colours during the cascade, so with `none` the icon's own `color` is already the forced colour of its button, link or selected row. Chromium forces them afterwards, so with `none` the icon would inherit the author's colour, and `preserve-parent-color` is what makes it inherit the forced one. Firefox does not support that value, so the `@supports` block applies only where it is needed.
 
+## With no script
+
+`@cplieger/ui/css/system` paints every glyph the library's own markup and stylesheet use by its `data-cp-icon` alone, so a page that runs no script, such as a sign-in page under a strict content policy, writes the span and nothing else:
+
+```html
+<span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>
+```
+
+The glyphs it paints with no script: `arrow-down`, `arrow-right`, `arrow-up`, `check`, `chevron-down`, `chevron-right`, `circle-alert`, `circle-check`, `circle-dashed`, `circle-x`, `clock`, `cloud-upload`, `copy`, `download`, `ellipsis`, `external-link`, `eye`, `eye-off`, `file-text`, `funnel`, `funnel-x`, `grip-vertical`, `heart`, `heart-filled`, `history`, `info`, `key-round`, `layout-dashboard`, `layout-grid`, `library`, `list`, `lock`, `log-in`, `log-out`, `moon`, `octagon-alert`, `pin`, `pin-filled`, `plus`, `radio-tower`, `refresh-cw`, `save`, `search`, `settings`, `shield-check`, `spinner-arc`, `sun`, `tag`, `telescope`, `timer`, `trash-2`, `triangle-alert`, `tv`, `user`, `users`, `wifi-off`, `x`.
+
+The URL `createIcons` sets on its span wins over these rules, and since they weigh one class, so does a rule for the same name in a stylesheet loaded after the system's. Any other glyph takes `createIcons`, or a rule in your own stylesheet that sets `--cp-icon-image` for its name, since a strict `style-src` blocks a `style` attribute.
+
+A test fails when the library's markup or stylesheet uses a glyph this list does not draw.
+
 ## API
 
 - `createIcons(opts)` returns `{ icon(name, size?) }`. Give exactly one of `opts.url`, a function from a name to its file's URL, and `opts.base`, a URL prefix ending in `/` that `name + ".svg"` is appended to. Any other `opts` throws a `TypeError`.
-- `icon(name, size = "ui")` returns a new `<span class="cp-icon" aria-hidden="true">` with `data-cp-icon` set to the name and `data-cp-icon-size` set to the size. It sets `--cp-icon-image: url("…")` through the CSSOM, which a `style-src` without `'unsafe-inline'` allows. A page that runs no script writes the same span and sets `--cp-icon-image` from a class in its own stylesheet, since that policy blocks a `style` attribute.
+- `icon(name, size = "ui")` returns a new `<span class="cp-icon" aria-hidden="true">` with `data-cp-icon` set to the name and `data-cp-icon-size` set to the size. It sets `--cp-icon-image: url("…")` through the CSSOM, which a `style-src` without `'unsafe-inline'` allows. A page that runs no script writes the same span, which the system stylesheet paints for the glyphs [With no script](#with-no-script) lists and a rule of your own paints for any other.
 - `iconNames` lists the Lucide drawings, typed `LucideIconName`, and `ownIconNames` the package's own, typed `OwnIconName`. Each list is sorted. Together they name every shipped file, and `IconName` is their union.
 - `IconSize` is `"inline" | "ui" | "lg" | "hero"`.
 
@@ -65,4 +79,4 @@ In forced colours Chromium replaces `background-color` with a system colour, whi
 - The Lucide drawings keep the pinned `lucide-static` release's lines and take the package's own style: a 2.25-unit stroke, round caps and joins, and one root element. `npm run icons:sync` writes the names in `iconNames` from that release in this style, and a test fails when a shipped file differs from what it would write. A drawing is added when an app needs it. Lucide's ISC notice, with the MIT notice for the drawings derived from Feather, ships as `icons/LICENSE-lucide`, and each file keeps Lucide's licence line.
 - The set covers the generic actions, states and objects the cplieger apps share.
 - Five drawings are the package's own, for states and motions Lucide lacks. `pin-filled`, `heart-filled`, `funnel-filled` and `tag-filled` are Lucide's `pin`, `heart`, `funnel` and `tag` filled, for an on state that reads as the same mark. `spinner-arc` is a quarter arc for a button's busy state. All use the same grid and stroke, and a test fails if a Lucide release ever ships one of their names.
-- `@cplieger/ui/css/system` carries the `.cp-icon` rule inside `class="cp"`, with sizes of 1em, 18px, 24px and 48px.
+- `@cplieger/ui/css/system` carries the `.cp-icon` rule inside `class="cp"`, with sizes of 1em, 18px, 24px and 48px, and the rules that draw the glyphs [With no script](#with-no-script) lists.

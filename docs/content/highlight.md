@@ -61,7 +61,7 @@ highlightInto(rowCode, line, "ts", { marks: [{ start: 6, end: 11 }], markClass: 
 
 ## Detection
 
-`detectLanguage` reads the first 40 lines and scores each language by the shapes its lines take: a shebang, `package` and `func`, `def` with a closing colon, `fn` and `let mut`, `=>` and `const`, a `$` prompt, `FROM` then `RUN`, `---` and `key:` lines, `@@` and `+++`. A whole text that parses as a JSON object or array is JSON. A language needs a score of 3, and two languages tied give `""`, since a wrong colour is worse than none. Prose, a list of paths and a markdown table are never detected as code.
+`detectLanguage` reads the first 40 lines and scores each language by the shapes its lines take: a shebang, `package` and `func`, `def` with a closing colon, `fn` and `let mut`, `=>` and `const`, a `$` prompt, a shell function and the commands indented in its body, `FROM` then `RUN`, `---` and `key:` lines, `@@` and `+++`. A whole text that parses as a JSON object or array is JSON. A language needs a score of 3, and two languages tied give `""`, since a wrong colour is worse than none. A line both languages share, such as `function name() {`, counts for both, so the lines after it decide. Prose, a list of paths and a markdown table are never detected as code.
 
 ## Colours
 

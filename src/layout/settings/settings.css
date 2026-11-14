@@ -1,5 +1,5 @@
-/* A settings page: its categories as links beside the open one's form, and
- * the categories in a row above it under 48rem. */
+/* A settings page: its categories, a plain compact list of links, beside
+ * the open one's form, and in a row above it under 48rem. */
 .cp-settings {
   display: grid;
   grid-template-columns: 13rem minmax(0, 1fr);
@@ -7,26 +7,17 @@
   align-items: start;
 }
 
-.cp-settings-nav {
-  display: grid;
+/* The categories keep the page's control height and a wider inset than a
+ * rail's filters, beside a form of controls that tall. This file comes
+ * before the list's in the cascade, so the gap names the list's element to
+ * outrank its divider rule. */
+.cp-settings-nav > :is(ul, ol).cp-list {
   gap: var(--cp-space-1);
 }
 
-.cp-settings-nav > a {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
+.cp-settings-nav > .cp-list > li > .cp-list-row {
   min-block-size: var(--cp-control-h);
   padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  color: var(--cp-ink);
-  text-decoration: none;
-}
-
-.cp-settings-nav > a[aria-current] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-weight: var(--cp-weight-medium);
 }
 
 @media (width < 48rem) {
@@ -36,12 +27,15 @@
   }
 
   .cp-settings-nav {
-    display: flex;
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  .cp-settings-nav > a {
+  .cp-settings-nav > .cp-list {
+    display: flex;
+  }
+
+  .cp-settings-nav > .cp-list > li {
     flex: none;
   }
 }
@@ -80,6 +74,8 @@
 /* Unsaved changes: a bar that stays in view at the bottom of the form while
  * any change waits. */
 .cp-savebar {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
   position: sticky;
   inset-block-end: var(--cp-space-3);
   z-index: 1;
@@ -98,17 +94,8 @@
   flex: 1 1 auto;
 }
 
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-settings-nav > a:not([aria-current]):hover {
-      background: var(--cp-fill);
-    }
-  }
-}
-
 @media (forced-colors: active) {
-  .cp-savebar,
-  .cp-settings-nav > a[aria-current] {
+  .cp-savebar {
     border: var(--cp-line-w) solid CanvasText;
   }
 }

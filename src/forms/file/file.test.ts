@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
@@ -30,7 +30,8 @@ function zone(multiple = true): {
   input.multiple = multiple;
   drop.append(input);
   const list = document.createElement("ul");
-  list.className = "cp-files";
+  list.className = "cp-list";
+  list.dataset["density"] = "compact";
   field.append(drop, list);
   document.body.append(field);
   return { field, drop, input, list };
@@ -81,10 +82,22 @@ describe("enhanceFiles", () => {
       signal: life.signal,
     });
     choose(input, [file("a.ass"), file("b.SRT", 5000)]);
-    expect([...list.children].map((li) => li.textContent)).toEqual([
-      "a.ass2\u00a0KB",
-      "b.SRT5\u00a0KB",
+    expect(
+      [...list.querySelectorAll(":scope > li > .cp-list-row")].map((row) =>
+        [...row.children].map((part) => part.textContent),
+      ),
+    ).toEqual([
+      ["", "a.ass", "2\u00a0KB"],
+      ["", "b.SRT", "5\u00a0KB"],
     ]);
+    const [glyph, name, size] = [...(list.querySelector(".cp-list-row")?.children ?? [])];
+    expect([
+      glyph?.className,
+      glyph?.getAttribute("data-cp-icon"),
+      glyph?.getAttribute("aria-hidden"),
+      name?.className,
+      size?.getAttribute("data-part"),
+    ]).toEqual(["cp-icon", "file-text", "true", "cp-cell-stack", "end"]);
     expect(f.files.map((x) => x.name)).toEqual(["a.ass", "b.SRT"]);
     expect(seen).toEqual([["a.ass", "b.SRT"]]);
   });
@@ -201,5 +214,54 @@ describe("enhanceFiles", () => {
     expect(input.getAttribute("aria-invalid")).toBe("true");
     choose(input, [file("a.ass")]);
     expect(input.hasAttribute("aria-invalid")).toBe(false);
+  });
+});
+
+describe("a file field's list, drawn by the stylesheet", () => {
+  let sheet: HTMLLinkElement;
+
+  beforeAll(async () => {
+    document.documentElement.classList.add("cp");
+    sheet = document.createElement("link");
+    sheet.rel = "stylesheet";
+    sheet.href = new URL("../../../css/system.css", import.meta.url).href;
+    const loaded = new Promise((resolve, reject) => {
+      sheet.addEventListener("load", resolve, { once: true });
+      sheet.addEventListener("error", reject, { once: true });
+    });
+    document.head.append(sheet);
+    await loaded;
+  });
+
+  afterAll(() => {
+    sheet.remove();
+    document.documentElement.classList.remove("cp");
+  });
+
+  it("draws no box before a choice, then each file as a compact row with its glyph painted", () => {
+    const { input, list } = zone();
+    enhanceFiles(input, { list, signal: life.signal });
+    expect(getComputedStyle(list).display).toBe("none");
+    choose(input, [file("Frieren.S01E05.en.ass"), file("b.srt")]);
+    expect(getComputedStyle(list).display).toBe("grid");
+    const row = list.querySelector(".cp-list-row") as HTMLElement;
+    expect(row.getBoundingClientRect().height).toBe(26);
+    const glyph = getComputedStyle(row.querySelector(".cp-icon") as Element);
+    expect(decodeURIComponent(glyph.maskImage)).toContain("M16 13H8");
+    const name = (row.querySelector(".cp-cell-stack") as Element).getBoundingClientRect();
+    const size = (row.querySelector('[data-part="end"]') as Element).getBoundingClientRect();
+    expect(size.left).toBeGreaterThan(name.right - 1);
+    expect(size.right).toBeCloseTo(row.getBoundingClientRect().right - 8, 0);
+  });
+
+  it("wraps a name with no break point inside its row", () => {
+    const { field, input, list } = zone();
+    field.style.inlineSize = "16rem";
+    enhanceFiles(input, { list, signal: life.signal });
+    choose(input, [file(`${"x".repeat(80)}.ass`)]);
+    const row = list.querySelector(".cp-list-row") as HTMLElement;
+    const name = row.querySelector(".cp-cell-stack") as Element;
+    expect(row.scrollWidth).toBe(row.clientWidth);
+    expect(name.getBoundingClientRect().height).toBeGreaterThan(40);
   });
 });

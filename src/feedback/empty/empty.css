@@ -1,10 +1,16 @@
 /* Empty state: what belongs here and the one action that fills it. */
 .cp-empty {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: var(--cp-space-3);
   padding: var(--cp-space-8) var(--cp-space-6);
   color: var(--cp-ink-muted);
+}
+
+/* Each part keeps its own width, held to the column so a long word wraps. */
+.cp-empty > * {
+  max-inline-size: 100%;
 }
 
 /* Its lead glyph, in the accent or the tone it names, such as danger for
@@ -13,6 +19,24 @@
   --cp-icon-size: 3rem;
 
   color: var(--cp-tone-9);
+}
+
+/* The page for an address that matches no route. Its heading is the page's
+ * h1, so it takes the ink back from the box's muted colour, which it would
+ * inherit. */
+.cp-empty[data-variant="page"] {
+  justify-items: center;
+  padding: 12vh 0;
+  text-align: center;
+
+  & > h1 {
+    color: var(--cp-ink);
+  }
+
+  & > p {
+    font-size: var(--cp-text-xs);
+    line-height: var(--cp-leading-body);
+  }
 }
 
 /* A heading with a loader, for work that runs before there is data. */

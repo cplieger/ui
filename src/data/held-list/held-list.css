@@ -1,0 +1,27 @@
+/* The rows a list holds back while the reader is in it, or at its end edge
+ * those that went in below the reader: their count and the Show button. */
+.cp-list-pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-2) var(--cp-space-4);
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-size: var(--cp-text-sm);
+}
+
+/* At the end edge the line follows the list, pinned to its scroller's end
+ * while the rows it counts are below the reader; the script lifts it above
+ * the scroller's end padding. */
+.cp-list-pending[data-edge="end"] {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+}
+
+@media (forced-colors: active) {
+  .cp-list-pending {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+}

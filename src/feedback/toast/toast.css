@@ -38,6 +38,7 @@
 
 .cp-toast {
   --cp-toast-tone: var(--cp-accent-9);
+  --cp-chart-surface: var(--cp-surface-overlay);
 
   position: relative;
   display: grid;

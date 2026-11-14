@@ -30,6 +30,9 @@ const SIGNALS: readonly Signal[] = [
   ["js", 1, /\) => |\w => /],
   ["js", 2, /^\s*(?:export )?(?:const|let) \w+ = /],
   ["js", 3, /^\s*(?:export )?(?:async )?function\*? ?\w*\(/],
+  // A function header shell shares with JavaScript counts for both, so the body decides.
+  ["sh", 3, /^\s*function [\w-]+(?: ?\(\))? ?\{\s*$/],
+  ["sh", 3, /^[\w-]+\(\) ?\{\s*$/],
   ["js", 3, /^import .+ from ["'][^"']+["'];?\s*$/],
   ["js", 2, /^export (?:default|class) /],
   ["js", 2, /\bconsole\.\w+\(/],
@@ -47,6 +50,8 @@ const SIGNALS: readonly Signal[] = [
     ),
   ],
   ["sh", 2, /^[^|].* \| ?(?:grep|sed|awk|xargs|sort|head|tail|jq|wc)\b/],
+  // A known command indented in a function body; not an assignment or a line closed by ; { }.
+  ["sh", 1, new RegExp(String.raw`^\s+(?:${SHELL_COMMANDS})(?:$| (?!.* = )(?!.*[;{}]$))`)],
   ["diff", 5, /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/],
   ["diff", 5, /^diff --git /],
   ["diff", 2, /^(?:---|\+\+\+) [ab]?\/?\S/],

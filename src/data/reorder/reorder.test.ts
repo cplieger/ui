@@ -242,9 +242,40 @@ describe("enhanceReorder", () => {
       { target: handle, keys: "[MouseLeft>]" },
       { target: box, coords: { x: 20, y: 156 } },
     ]);
-    await expect.poll(() => box.scrollTop, { timeout: 2000 }).toBeGreaterThan(40);
-    await userEvent.pointer({ keys: "[/MouseLeft]" });
+    // Released either way, or the held button breaks the next test.
+    try {
+      await expect.poll(() => box.scrollTop, { timeout: 2000 }).toBeGreaterThan(40);
+    } finally {
+      await userEvent.pointer({ keys: "[/MouseLeft]" });
+    }
     expect(order(ol).indexOf("Item 1")).toBeGreaterThan(1);
+  });
+
+  it("scrolls the scroller while a drag nears the edge of what a box around it shows", async () => {
+    const clip = document.createElement("div");
+    clip.style.overflow = "hidden";
+    clip.style.blockSize = "120px";
+    const box = document.createElement("div");
+    box.style.overflowY = "auto";
+    box.style.blockSize = "400px";
+    clip.append(box);
+    document.body.append(clip);
+    const ol = list(
+      Array.from({ length: 30 }, (_, i) => `Item ${String(i + 1)}`),
+      box,
+    );
+    enhanceReorder(ol, { signal: life.signal });
+    const handle = ol.querySelector('[data-part="handle"]') as HTMLElement;
+    await userEvent.pointer([
+      { target: handle, keys: "[MouseLeft>]" },
+      { target: clip, coords: { x: 20, y: 110 } },
+    ]);
+    // Released either way, or the held button breaks the next test.
+    try {
+      await expect.poll(() => box.scrollTop, { timeout: 2000 }).toBeGreaterThan(40);
+    } finally {
+      await userEvent.pointer({ keys: "[/MouseLeft]" });
+    }
   });
 
   it("slides the others from their old place", async () => {
