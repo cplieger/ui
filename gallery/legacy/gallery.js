@@ -908,53 +908,6 @@ for (const b of $$("[data-refresh]")) {
   });
 }
 
-// ------------------------------------------------------------- video
-// Our controls over the native element: play and pause, a seek bar with
-// the times, and one caption track the timing preview re-renders.
-for (const p of $$(".g-player")) {
-  const v = $("video", p);
-  const seek = $(".g-seek", p);
-  const play = $("[data-play]", p);
-  const time = $(".g-time-label", p);
-  const offset = document.getElementById(p.dataset.offset);
-  const t = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-  let base = null;
-  const track = v.textTracks[0];
-  v.addEventListener("loadedmetadata", () => {
-    seek.max = String(v.duration);
-    time.textContent = `${t(0)} / ${t(v.duration)}`;
-    track.mode = "showing";
-  });
-  v.addEventListener("timeupdate", () => {
-    seek.value = String(v.currentTime);
-    seek.dispatchEvent(new Event("input"));
-    time.textContent = `${t(v.currentTime)} / ${t(v.duration || 0)}`;
-  });
-  seek.addEventListener("change", () => (v.currentTime = Number(seek.value)));
-  play.addEventListener("click", () => (v.paused ? v.play() : v.pause()));
-  v.addEventListener("play", () => {
-    play.querySelector(".cp-icon").dataset.cpIcon = "pause";
-    play.setAttribute("aria-label", "Pause");
-  });
-  v.addEventListener("pause", () => {
-    play.querySelector(".cp-icon").dataset.cpIcon = "play";
-    play.setAttribute("aria-label", "Play");
-  });
-  // The timing preview: every cue moves by the offset, and the caption on
-  // screen redraws at once.
-  offset?.addEventListener("change", (e) => {
-    const by = Number(e.target.value.replace("\u2212", "-")) || 0;
-    const cues = [...(track.cues ?? [])];
-    base ??= cues.map((c) => [c.startTime, c.endTime]);
-    cues.forEach((c, i) => {
-      c.startTime = Math.max(0, base[i][0] + by);
-      c.endTime = Math.max(0.1, base[i][1] + by);
-    });
-    track.mode = "hidden";
-    track.mode = "showing";
-  });
-}
-
 // ------------------------------------------------------------- proposal
 for (const card of $$(".g-proposal")) {
   const apply = () => {

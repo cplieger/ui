@@ -1340,38 +1340,6 @@ html:has(.g-header) {
   }
 }
 
-/* Video with one caption track: our controls over the native element. */
-.g-player {
-  display: grid;
-  gap: var(--cp-space-2);
-  max-inline-size: 40rem;
-}
-
-.g-player video {
-  inline-size: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--cp-radius-surface);
-  background: black;
-}
-
-.g-player video::cue {
-  background: oklch(0% 0 0deg / 70%);
-  color: white;
-  font-family: var(--cp-font-sans, inherit);
-}
-
-.g-player-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--cp-text-sm);
-}
-
-.g-player-bar > .cp-range {
-  flex: 1;
-}
-
 /* A proposal: a change shown before it applies. */
 .g-proposal {
   display: grid;

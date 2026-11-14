@@ -1,10 +1,22 @@
 /**
  * views.ts — the gallery's wiring for the view cards that run on the
- * library: the list and detail, routed by the page's hash.
+ * library: the list and detail, routed by the page's hash, and the video
+ * preview whose caption offset the nudge stepper sets.
  */
 
 import { enhanceListDetail } from "@cplieger/ui/list-detail";
 import { enhanceTabs } from "@cplieger/ui/tabs";
+import { enhanceVideo } from "@cplieger/ui/video";
+
+const pane = document.getElementById("video-preview");
+const nudge = document.getElementById("nudge-video-input");
+if (pane !== null && nudge instanceof HTMLInputElement) {
+  const video = enhanceVideo(pane);
+  // The stepper writes a typographic minus, which Number() refuses.
+  nudge.addEventListener("change", () => {
+    video.offset = Number(nudge.value.replace("\u2212", "-")) || 0;
+  });
+}
 
 const md = document.getElementById("md");
 const mdTabs = document.getElementById("md-tabs");
