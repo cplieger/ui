@@ -34,6 +34,7 @@ forms/choice/choice.css
 forms/select/select.css
 forms/stepper/stepper.css
 forms/secret/secret.css
+forms/set-elsewhere/set-elsewhere.css
 forms/copy/copy.css
 forms/affix/affix.css
 forms/search/search.css

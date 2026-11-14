@@ -1,6 +1,7 @@
 /**
  * settings.ts — the gallery's wiring for the forms page's file fields, the
- * upload dialog, Add a source and the pair rows, on the library's modules.
+ * upload dialog, Add a source, the pair rows and Reset to default, on the
+ * library's modules.
  */
 
 import { enhanceFiles, uploadFile, type UploadResult } from "@cplieger/ui/file";
@@ -102,6 +103,24 @@ for (const box of document.querySelectorAll<HTMLElement>("[data-pairs]")) {
       showError(f, "Start with /");
     } else {
       clearError(f);
+    }
+  });
+}
+
+// Reset to default checks the fieldset's boxes its data-reset names, firing
+// input and change for each box it changes, as a press would.
+for (const reset of document.querySelectorAll<HTMLButtonElement>("button[data-reset]")) {
+  const defaults = new Set((reset.dataset["reset"] ?? "").split(" "));
+  reset.addEventListener("click", () => {
+    for (const box of reset
+      .closest("fieldset")
+      ?.querySelectorAll<HTMLInputElement>("input[type='checkbox']") ?? []) {
+      const on = defaults.has(box.value);
+      if (box.checked !== on) {
+        box.checked = on;
+        box.dispatchEvent(new Event("input", { bubbles: true }));
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     }
   });
 }

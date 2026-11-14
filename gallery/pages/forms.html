@@ -4,7 +4,7 @@
     <p>Every field the apps ask for, each a native element in the language's look, with its label, help, error and disabled states. Type, check and choose with a finger, a mouse or the keyboard.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#text">Text</a><a href="#choice">Choices</a><a href="#numbers">Numbers and dates</a><a href="#files">Files</a><a href="#chosen">Chosen items</a><a href="#form">A whole form</a><a href="buttons.html">Buttons and toolbars</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#text">Text</a><a href="#choice">Choices</a><a href="#numbers">Numbers and dates</a><a href="#files">Files</a><a href="#chosen">Chosen items</a><a href="#form">A whole form</a><a href="#settings-parts">Settings parts</a><a href="buttons.html">Buttons and toolbars</a></nav>
 
   <section class="g-section" id="text">
     <h2>Text</h2>
@@ -42,14 +42,14 @@
         </div>
         <footer>A fixed part of the value sits beside the field, outside what you type.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>A secret's state</h2>
         <div class="cp-form">
-          <div class="cp-secret-source"><strong>Sonarr API key</strong><span>from <code class="cp-mono">SONARR_API_KEY</code></span><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>set</span></div>
-          <div class="cp-secret-source"><strong>Radarr API key</strong><span>from <code class="cp-mono">RADARR_API_KEY</code></span><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>not set</span></div>
-          <div class="cp-field"><div class="cp-secret-source"><strong>Prowlarr API key</strong><span>from <code class="cp-mono">PROWLARR_API_KEY</code></span><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>rejected</span></div><span class="cp-field-error"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Prowlarr refused this key: set a new one in the environment and restart.</span></div>
+          <div class="cp-set-elsewhere"><strong>Sonarr API key</strong><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Set</span><span class="cp-chip" data-tone="neutral">from <code class="cp-mono">SONARR_API_KEY</code></span></div>
+          <div class="cp-set-elsewhere"><strong>Radarr API key</strong><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-dashed" aria-hidden="true"></span>Not set</span><span class="cp-chip" data-tone="neutral">from <code class="cp-mono">RADARR_API_KEY</code></span></div>
+          <div class="cp-field"><div class="cp-set-elsewhere"><strong>Prowlarr API key</strong><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Rejected</span><span class="cp-chip" data-tone="neutral">from <code class="cp-mono">PROWLARR_API_KEY</code></span></div><span class="cp-field-error"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Prowlarr refused this key: set a new one in the environment and restart.</span></div>
         </div>
-        <footer>A key that comes from the environment shows where it comes from and its state, never its value.</footer>
+        <footer>A key that comes from the environment is a value set elsewhere: its name, its state in place of its value, and a chip naming where it is set.</footer>
       </div>
       <div class="card">
         <h2>Saved secret</h2>
@@ -305,6 +305,44 @@
           <div class="g-gap-top"><button class="cp-button" data-size="sm" type="button" data-add-pair><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span>Add a mapping</button></div>
         </div>
         <footer>Each field has its own error, shown when you leave it. Type a path without a leading / to see one.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="settings-parts">
+    <h2>Settings parts</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>A value set elsewhere</h2>
+        <div class="cp-panel">
+          <div class="cp-setting"><div><span class="cp-label">Listen port</span><span class="cp-help">Changes only at startup: edit config.yaml and restart subflux.</span></div><div class="cp-set-elsewhere"><code class="cp-mono">8080</code><span class="cp-chip" data-tone="neutral">from config.yaml</span></div></div>
+          <div class="cp-setting"><div><span class="cp-label">Data folder</span><span class="cp-help">Changes only at startup: edit config.yaml and restart subflux.</span></div><div class="cp-set-elsewhere"><code class="cp-mono">/var/lib/subflux/data</code><span class="cp-chip" data-tone="neutral">from config.yaml</span></div></div>
+          <div class="cp-setting"><div><span class="cp-label">Client secret</span><span class="cp-help">The identity provider gives it. Set it in the environment and restart.</span></div><div class="cp-set-elsewhere"><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Set</span><span class="cp-chip" data-tone="neutral">from <code class="cp-mono">SEADEX_SCOUT_OIDC_CLIENT_SECRET</code></span></div></div>
+          <div class="cp-setting"><div><span class="cp-label">Sign-in by password</span><span class="cp-help">Your administrator decides this for every app.</span></div><div class="cp-set-elsewhere"><span>Off</span><span class="cp-chip" data-tone="neutral">set by your administrator</span></div></div>
+        </div>
+        <footer>The value stands where the control would, readable and selectable, with a chip naming where it is set and one sentence on how to change it. There is no field, so nothing looks editable and nothing is disabled. A secret shows its state, never its value.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A restart pending</h2>
+        <form class="cp-form">
+          <div class="cp-notice" data-tone="warning"><strong><span class="cp-icon" data-cp-icon="rotate-ccw" aria-hidden="true"></span>2 saved changes wait for a restart</strong><ul><li>Authentication turns off at the next restart.</li><li>The listen port moves from 8080 to 8443 at the next restart.</li></ul><small>Restart subflux to apply them.</small></div>
+          <div class="cp-panel">
+            <div class="cp-setting"><div><label class="cp-label" for="rs-auth">Authentication</label><span class="cp-help">Applies after a restart.</span></div><input class="cp-checkbox" id="rs-auth" type="checkbox"></div>
+            <div class="cp-setting"><div><label class="cp-label" for="rs-port">Listen port</label><span class="cp-help">Applies after a restart.</span></div><input class="cp-input" id="rs-port" type="number" min="1" max="65535" value="8443"></div>
+          </div>
+        </form>
+        <footer>A notice with reasons at the top of the settings, one line per saved change that waits, each saying what happens and in which direction. It stays while any change waits, and blocks nothing.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Several from a fixed set</h2>
+        <fieldset class="cp-choices" id="sp-codecs">
+          <legend class="cp-label" id="sp-codecs-l">Embedded subtitles to ignore</legend>
+          <button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-describedby="sp-codecs-l" data-reset="pgs vobsub">Reset to default</button>
+          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="pgs" checked><span>PGS<small>Pictures, from a Blu-ray</small></span></label>
+          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="vobsub"><span>VobSub<small>Pictures, from a DVD</small></span></label>
+          <label class="cp-choice"><input class="cp-checkbox" type="checkbox" name="ignore" value="ass" checked><span>ASS<small>Styled text</small></span></label>
+        </fieldset>
+        <footer>A few values from a fixed set are checkboxes in a fieldset, with Reset to default at the end of the legend's line. Filters over a list are filter chips, and a set too long to scan is the select panel.</footer>
       </div>
     </div>
   </section>

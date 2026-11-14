@@ -1295,6 +1295,50 @@ describe("css/system.css", () => {
     expect(shown()).toEqual([false, true]);
   });
 
+  it("writes a value set elsewhere in the ink as selectable words, a long one wrapping inside its row", () => {
+    theme("light");
+    const el = build(
+      '<div style="inline-size: 20rem"><div class="cp-setting"><div><span class="cp-label">Data folder</span><span class="cp-help">Changes only at startup.</span></div>' +
+        '<div class="cp-set-elsewhere"><code class="cp-mono">averyveryverylongvaluewithnoplacetobreakatallinsidethisrow</code><span class="cp-chip" data-tone="neutral">from config.yaml</span></div></div>' +
+        '<div class="cp-set-elsewhere"><strong>Sonarr API key</strong><span class="cp-state" data-tone="success">Set</span></div>' +
+        '<span style="color: var(--cp-ink)"></span></div>',
+    );
+    const [line, secret] = [...el.querySelectorAll(".cp-set-elsewhere")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    const value = line.querySelector("code") as HTMLElement;
+    const ink = getComputedStyle(el.querySelector("[style^='color']") as Element).color;
+    expect(getComputedStyle(value).color).toBe(ink);
+    expect(getComputedStyle(value).userSelect).not.toBe("none");
+    expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(
+      (el.firstElementChild as Element).getBoundingClientRect().right + 0.5,
+    );
+    const name = getComputedStyle(secret.querySelector("strong") as Element);
+    expect([name.color, name.fontWeight]).toEqual([ink, "500"]);
+  });
+
+  it("sets a button after a choices legend at the end of its line, the boxes under both, the legend still naming the group", () => {
+    theme("light");
+    const el = build(
+      '<fieldset class="cp-choices" style="inline-size: 24rem"><legend class="cp-label" id="ig-l">Embedded subtitles to ignore</legend>' +
+        '<button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-describedby="ig-l">Reset to default</button>' +
+        '<label class="cp-choice"><input class="cp-checkbox" type="checkbox" checked><span>PGS</span></label>' +
+        '<label class="cp-choice"><input class="cp-checkbox" type="checkbox"><span>ASS</span></label></fieldset>',
+    );
+    const set = el.querySelector("fieldset") as HTMLFieldSetElement;
+    const box = (sel: string) => (set.querySelector(sel) as Element).getBoundingClientRect();
+    const [legend, button, first] = [box("legend"), box("button"), box(".cp-choice")];
+    const second = box(".cp-choice + .cp-choice");
+    const edge = set.getBoundingClientRect();
+    expect(legend.left).toBeCloseTo(edge.left, 0);
+    expect(button.right).toBeCloseTo(edge.right, 0);
+    expect(legend.top + legend.height / 2).toBeCloseTo(button.top + button.height / 2, 0);
+    expect([first.top - button.bottom, second.top - first.bottom]).toEqual([8, 8]);
+    expect(first.width).toBeCloseTo(edge.width, 0);
+    expect(page.getByRole("group", { name: "Embedded subtitles to ignore" }).element()).toBe(set);
+  });
+
   it("draws the danger glyph for an error written without one, and not twice for one with it", () => {
     theme("light");
     const el = build(

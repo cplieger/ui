@@ -68,6 +68,10 @@ A form never loses what the person typed, and every error is text that says how 
 6. While the form saves, the submit button is busy, and the fields stay as they are.
 7. A form with unsaved changes asks before a navigation that would discard them.
 
+**A value set elsewhere.** A value the page shows but cannot change, because a config file, the environment or an administrator sets it, is a `.cp-set-elsewhere` line where its control would be: the value as text, a neutral `.cp-chip` naming where it is set, such as "from config.yaml", and one sentence of help on how to change it. It is never a disabled control, which would hide the value from some readers and say nothing about why. A secret shows its state in place of its value.
+
+**Several from a fixed set.** The set's size picks the shape. A few values, up to about seven, are checkboxes in a `.cp-choices` fieldset, all in view under a legend that names the set. Values that filter a list are `.cp-filter-chip` buttons. A set too long to scan, such as the labels on an entry, is the [select panel](overlays/select-panel.md). When the app has a default set, a quiet small "Reset to default" button sits at the end of the legend's line, described by the legend, and checks the default set again, each box it changes firing `input` and `change` as a press would.
+
 ![Fields with an error under one of them, and an error summary with a link to the field](images/system-parts-light.png)
 
 ## Tables
