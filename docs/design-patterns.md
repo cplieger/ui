@@ -50,7 +50,7 @@ Every region that loads data has four designed states, for loading, empty, error
 ```
 
 1. Retry turns busy while the work runs again, and the state and its reason stay until the answer comes, so the item never shows two spinners.
-2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page; the item carries `tabindex="-1"` so it can take focus.
+2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page. The item carries `tabindex="-1"` so it can take focus.
 3. When it fails again, the reason changes to the new one and Retry is back at rest.
 4. Announce the outcome through `@cplieger/ui/announce`, assertively for a failure of what the person just did.
 
