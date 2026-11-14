@@ -3,9 +3,11 @@
  * file of a type its `accept` does not name, or over `maxSize`, is refused
  * with a sentence on the field, the files taken are listed by name and
  * size, and a field inside a `.cp-drop` also takes files dropped on it.
+ * `uploadFile()` lists one file's upload with its state and Retry.
  * @module
  */
 
+import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { announce } from "../../feedback/announce/announce.js";
 import { until } from "../../core/lifetime/lifetime.js";
 import { clearError, showError } from "../form/field-error.js";
@@ -67,6 +69,31 @@ function accepts(accept: readonly string[], file: File): boolean {
   );
 }
 
+/** A file's list item: its glyph, its name and its size. */
+function fileRow(file: File): {
+  item: HTMLLIElement;
+  row: HTMLDivElement;
+  body: HTMLSpanElement;
+  end: HTMLSpanElement;
+} {
+  const glyph = document.createElement("span");
+  glyph.className = "cp-icon";
+  glyph.dataset["cpIcon"] = "file-text";
+  glyph.setAttribute("aria-hidden", "true");
+  const name = document.createElement("span");
+  name.className = "cp-cell-stack";
+  name.textContent = file.name;
+  const end = document.createElement("span");
+  end.dataset["part"] = "end";
+  end.textContent = fileSize(file.size);
+  const row = document.createElement("div");
+  row.className = "cp-list-row";
+  row.append(glyph, name, end);
+  const item = document.createElement("li");
+  item.append(row);
+  return { item, row, body: name, end };
+}
+
 /** "a, b or c". */
 function either(items: readonly string[]): string {
   return items.length < 2
@@ -123,26 +150,7 @@ export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}
       clearError(input, "file");
     }
     if (list !== undefined) {
-      list.replaceChildren(
-        ...kept.map((f) => {
-          const glyph = document.createElement("span");
-          glyph.className = "cp-icon";
-          glyph.dataset["cpIcon"] = "file-text";
-          glyph.setAttribute("aria-hidden", "true");
-          const name = document.createElement("span");
-          name.className = "cp-cell-stack";
-          name.textContent = f.name;
-          const size = document.createElement("span");
-          size.dataset["part"] = "end";
-          size.textContent = fileSize(f.size);
-          const row = document.createElement("div");
-          row.className = "cp-list-row";
-          row.append(glyph, name, size);
-          const item = document.createElement("li");
-          item.append(row);
-          return item;
-        }),
-      );
+      list.replaceChildren(...kept.map((f) => fileRow(f).item));
     }
     if (kept.length > 0 || refusal !== "") {
       announce(
@@ -226,4 +234,169 @@ export function enhanceFiles(input: HTMLInputElement, options: FilesOptions = {}
       return held();
     },
   };
+}
+
+/** What the server made of one upload. A `final` failure, such as a format
+ *  the server refuses, would fail the same way again, so it offers no Retry. */
+export type UploadResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly message: string; readonly final?: boolean };
+
+/** The words an upload's row shows and says. */
+export interface UploadWords {
+  /** Default "Uploading…". */
+  readonly uploading?: string;
+  /** Default "Uploaded". */
+  readonly uploaded?: string;
+  /** Default "Not uploaded". */
+  readonly failed?: string;
+  /** The reason when `send` rejects. Default "The upload did not finish." */
+  readonly failedWhy?: string;
+  /** Default "Retry". */
+  readonly retry?: string;
+  /** Default "Retrying…". */
+  readonly retrying?: string;
+  /** Retry's accessible name. Default "Retry {name}". */
+  readonly retryFor?: (name: string) => string;
+  /** Said politely once it is uploaded. Default "{name} uploaded". */
+  readonly saidUploaded?: (name: string) => string;
+  /** Said assertively when it fails. Default "{name} not uploaded. {why}". */
+  readonly saidFailed?: (name: string, why: string) => string;
+}
+
+export interface UploadOptions {
+  readonly words?: UploadWords;
+  /** Aborts the send in flight and ends the row's Retry. */
+  readonly signal?: AbortSignal;
+}
+
+function iconSpan(name: string, part?: string): HTMLSpanElement {
+  const icon = document.createElement("span");
+  icon.className = "cp-icon";
+  icon.dataset["cpIcon"] = name;
+  if (part !== undefined) {
+    icon.dataset["part"] = part;
+  }
+  icon.setAttribute("aria-hidden", "true");
+  return icon;
+}
+
+/**
+ * Appends `file`'s row to `list`, its size under its name, and uploads it
+ * through `send`: its state reads Uploading…, then Uploaded, or Not uploaded
+ * with the reason in place of the size and Retry, unless the failure is final. A `send` that rejects is
+ * a failure that can be retried. Each outcome is announced. Returns the
+ * row's item.
+ */
+export function uploadFile(
+  list: HTMLElement,
+  file: File,
+  send: (file: File, signal: AbortSignal) => Promise<UploadResult>,
+  options: UploadOptions = {},
+): HTMLLIElement {
+  const w = options.words;
+  const words = {
+    uploading: w?.uploading ?? "Uploading…",
+    uploaded: w?.uploaded ?? "Uploaded",
+    failed: w?.failed ?? "Not uploaded",
+    failedWhy: w?.failedWhy ?? "The upload did not finish.",
+    retry: w?.retry ?? "Retry",
+    retrying: w?.retrying ?? "Retrying…",
+    retryFor: w?.retryFor ?? ((name: string) => `Retry ${name}`),
+    saidUploaded: w?.saidUploaded ?? ((name: string) => `${name} uploaded`),
+    saidFailed: w?.saidFailed ?? ((name: string, why: string) => `${name} not uploaded. ${why}`),
+  };
+  const signal = options.signal ?? new AbortController().signal;
+  const { item, row, body, end } = fileRow(file);
+  // Focus lands on the row when its Retry leaves, so it never falls to the page.
+  row.tabIndex = -1;
+  // The size moves under the name, so the end holds the state alone and a
+  // failed row's Retry still leaves the name room at a phone's width.
+  const line = document.createElement("small");
+  line.textContent = fileSize(file.size);
+  body.append(line);
+  const state = document.createElement("span");
+  state.className = "cp-state";
+  end.replaceChildren(state);
+  let retry: HTMLButtonElement | null = null;
+  if (signal.aborted) {
+    return item;
+  }
+
+  const show = (to: "busy" | "done" | "failed", text: string): void => {
+    state.dataset["cpState"] = to;
+    state.textContent = text;
+  };
+  const dropRetry = (): void => {
+    if (retry !== null && retry === document.activeElement) {
+      row.focus();
+    }
+    retry?.remove();
+    retry = null;
+  };
+  const attempt = async (): Promise<UploadResult | null> => {
+    let result: UploadResult;
+    try {
+      result = await send(file, signal);
+    } catch {
+      result = { ok: false, message: words.failedWhy };
+    }
+    return signal.aborted ? null : result;
+  };
+  const makeRetry = (): HTMLButtonElement => {
+    const button = document.createElement("button");
+    button.className = "cp-button";
+    button.type = "button";
+    button.dataset["size"] = "sm";
+    button.setAttribute("aria-label", words.retryFor(file.name));
+    const roll = document.createElement("span");
+    roll.className = "cp-roll";
+    roll.textContent = words.retry;
+    button.append(iconSpan("refresh-cw"), iconSpan("spinner-arc", "busy"), roll);
+    row.append(button);
+    const cycle = enhanceConfirm(button, { busy: words.retrying, done: false, signal });
+    button.addEventListener(
+      "click",
+      () => {
+        let result: UploadResult | null = null;
+        void cycle
+          .run(async () => {
+            result = await attempt();
+          })
+          .then(() => {
+            if (result !== null) {
+              settle(result);
+            }
+          });
+      },
+      until(signal),
+    );
+    return button;
+  };
+
+  const settle = (result: UploadResult): void => {
+    if (result.ok) {
+      line.textContent = fileSize(file.size);
+      dropRetry();
+      show("done", words.uploaded);
+      announce(words.saidUploaded(file.name));
+      return;
+    }
+    show("failed", words.failed);
+    line.textContent = result.message;
+    if (result.final === true) {
+      dropRetry();
+    } else {
+      retry ??= makeRetry();
+    }
+    announce(words.saidFailed(file.name, result.message), "assertive");
+  };
+  show("busy", words.uploading);
+  list.append(item);
+  void attempt().then((result) => {
+    if (result !== null) {
+      settle(result);
+    }
+  });
+  return item;
 }

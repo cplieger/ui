@@ -73,11 +73,12 @@ function sectionName(section: HTMLElement): string {
   const ids = (section.getAttribute("aria-labelledby") ?? "").split(/\s+/).filter((t) => t !== "");
   const root = section.getRootNode() as ParentNode;
   const labelled = ids.map((id) => textOf(root.querySelector(`#${CSS.escape(id)}`))).join(" ");
-  return (
-    labelled ||
-    section.getAttribute("aria-label") ||
-    textOf(section.querySelector(HEADING))
-  ).trim();
+  const names = [
+    labelled,
+    section.getAttribute("aria-label") ?? "",
+    textOf(section.querySelector(HEADING)),
+  ];
+  return names.map((n) => n.trim()).find((n) => n !== "") ?? "";
 }
 
 /** The name of the outermost named `<section>` of `form` holding `field`. */
@@ -129,7 +130,13 @@ function sectionTarget(section: HTMLElement): HTMLElement {
 function focusOn(el: HTMLElement): void {
   if (el.tabIndex < 0 && !el.hasAttribute("tabindex")) {
     el.tabIndex = -1;
-    el.addEventListener("blur", () => el.removeAttribute("tabindex"), { once: true });
+    el.addEventListener(
+      "blur",
+      () => {
+        el.removeAttribute("tabindex");
+      },
+      { once: true },
+    );
   }
   el.focus();
 }

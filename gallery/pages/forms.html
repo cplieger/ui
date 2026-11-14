@@ -177,8 +177,8 @@
       <div class="card" data-new>
         <h2>Upload with limits</h2>
         <button class="cp-button" type="button" commandfor="d-upload" command="show-modal"><span class="cp-icon" data-cp-icon="upload" aria-hidden="true"></span>Add a file…</button>
-        <ul class="g-list g-gap-top"><li id="up-row" hidden><div class="g-row"><span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span><span>The uploaded file<small class="g-up-state"></small></span></div></li></ul>
-        <dialog class="cp-dialog" id="d-upload" data-upload="up-row" data-keep-typed aria-labelledby="d-upload-title">
+        <ul class="cp-list" data-density="compact" id="up-list" aria-label="Uploaded files"></ul>
+        <dialog class="cp-dialog" id="d-upload" data-upload="up-list" data-keep-typed aria-labelledby="d-upload-title">
           <form>
             <header><h2 id="d-upload-title">Add a subtitle file</h2><button class="cp-button" data-variant="quiet" type="button" commandfor="d-upload" command="close" aria-label="Close"><span class="cp-icon" data-cp-icon="x" aria-hidden="true"></span></button></header>
             <div class="cp-dialog-body">
@@ -190,7 +190,7 @@
             <footer><button class="cp-button" type="button" commandfor="d-upload" command="close">Cancel</button><button class="cp-button" data-variant="primary" type="submit" value="upload">Upload</button></footer>
           </form>
         </dialog>
-        <footer>The dialog refuses an oversized file with its sentence before anything is sent; the row then shows Uploading… and its outcome.</footer>
+        <footer>The dialog refuses an oversized file with its sentence before anything is sent. Each upload is a file row, its size under its name, whose state reads Uploading…, then Uploaded, or Not uploaded with the reason in place of the size and Retry; every second upload here fails once.</footer>
       </div>
     </div>
   </section>

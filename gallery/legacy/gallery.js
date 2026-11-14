@@ -903,20 +903,6 @@ for (const ed of $$("[data-pairs]")) {
   });
 }
 
-// ---------------------------------------------------------- upload dialog
-for (const d of $$("[data-upload]")) {
-  d.addEventListener("close", () => {
-    if (d.returnValue !== "upload") return;
-    const row = document.getElementById(d.dataset.upload);
-    row.hidden = false;
-    $(".g-up-state", row).replaceChildren(el("span", { class: "loader load-twirl g-toast-load", "aria-hidden": "true" }, el("span")), " Uploading…");
-    setTimeout(() => {
-      $(".g-up-state", row).replaceChildren(icon("circle-check"), " Uploaded");
-      announce("Subtitle file uploaded");
-    }, 1500);
-  });
-}
-
 // A refresh that waits turns its own icon: Motion's one turn, repeated
 // while busy. When the work ends, the turn in progress finishes, so
 // the icon always comes to rest upright. Reduced motion pulses it instead.
