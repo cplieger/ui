@@ -290,7 +290,7 @@ describe("a linear axis", () => {
     expect(yAxis(y, 240, 16, ctx()).ticks.map((t) => t.value)).toEqual([3, 2, 1, 0]);
   });
 
-  it("widens one value past 1e12 by its twelfth figure, since 1 no longer moves it", () => {
+  it("widens one value from 1e12 by its twelfth figure, since a difference of 1 cleans away", () => {
     const one = (v: number) =>
       xScale({
         x: { type: "linear" },
