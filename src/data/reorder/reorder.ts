@@ -8,6 +8,7 @@
 
 import { reducedMotion, until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { announce } from "../../feedback/announce/announce.js";
+import { scrollerOf, seenOf } from "../list-row/scroller.js";
 
 export interface ReorderOptions {
   /** An item's name in what is said. Default: its `data-name`, else its
@@ -25,7 +26,8 @@ export interface ReorderOptions {
 }
 
 const LIFTED = "data-cp-lifted";
-/** How near the scroller's edge, in rem, a drag starts scrolling it. */
+/** How near the edge of what the reader sees of the list, in rem, a drag
+ *  starts scrolling its scroller. */
 const EDGE_REM = 2;
 /** The scroll per frame, in px, with the pointer at or past the edge. */
 const EDGE_SPEED = 14;
@@ -46,7 +48,7 @@ interface Drag {
   readonly step: number;
   /** The pointer's offset from the list's top at the start. */
   readonly y0: number;
-  readonly scroller: Element;
+  readonly scroller: HTMLElement;
   y: number;
   to: number;
   frame: number;
@@ -67,26 +69,6 @@ function takesArrows(t: Element): boolean {
     (t instanceof HTMLElement && t.isContentEditable) ||
     t.closest('[role="combobox"], [role="listbox"]') !== null
   );
-}
-
-function scrollerOf(list: Element): Element {
-  for (let el = list.parentElement; el !== null; el = el.parentElement) {
-    const y = getComputedStyle(el).overflowY;
-    if ((y === "auto" || y === "scroll") && el.scrollHeight > el.clientHeight) {
-      return el;
-    }
-  }
-  return document.scrollingElement ?? document.documentElement;
-}
-
-/** The part of the viewport `scroller` shows, top and bottom. */
-function viewOf(scroller: Element): readonly [number, number] {
-  if (scroller === document.scrollingElement) {
-    const top = visualViewport?.offsetTop ?? 0;
-    return [top, top + (visualViewport?.height ?? innerHeight)];
-  }
-  const r = scroller.getBoundingClientRect();
-  return [r.top, r.bottom];
 }
 
 /**
@@ -288,14 +270,15 @@ export function enhanceReorder(
     });
   };
 
-  // While the pointer is near the scroller's edge, scroll it toward the
-  // pointer, faster the nearer the edge, and keep the item under it.
+  // While the pointer is near the edge of what the reader sees of the list,
+  // scroll its scroller toward the pointer, faster the nearer the edge, and
+  // keep the item under it.
   const edge = (): void => {
     if (drag === null) {
       return;
     }
     const near = EDGE_REM * parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const [top, bottom] = viewOf(drag.scroller);
+    const { top, bottom } = seenOf(list);
     const into = drag.y < top + near ? drag.y - top - near : Math.max(0, drag.y - bottom + near);
     if (into !== 0) {
       const speed = Math.max(-1, Math.min(1, into / near)) * EDGE_SPEED;

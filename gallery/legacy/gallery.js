@@ -1175,7 +1175,7 @@ function glideDetails(d) {
   });
   void run;
 }
-for (const d of $$("details:not(.cp-accordion details, .cp-context-panel, .cp-history details)")) glideDetails(d);
+for (const d of $$('details:not(.cp-accordion details, .cp-context-panel, .cp-list[data-variant="timeline"] details)')) glideDetails(d);
 
 // A dialog's exit: Chromium animates it in CSS (overlay and display allow
 // discrete); an engine that cannot gets the same fade or slide in script

@@ -110,14 +110,15 @@ A list is a column of rows that each open or name one thing, such as conversatio
 </ul>
 ```
 
-1. A row is one target. When the whole row opens one thing, the row is the link (`a.cp-list-row`) or a button. Otherwise it is a `<div>` that holds at most a title link and one worded action, a small plain button whose accessible name adds the row, such as "Download Frieren.S01E04.en.ass".
-2. The title and the line under it stay on one line each, cut with an ellipsis at the row's edge. Machine text, such as a path, is `.cp-mono`. A time is a `<time>` through [relative-time](data/relative-time.md), which keeps its words current and gives the exact time on hover and to a screen reader.
+1. A row is one target. When the whole row opens one thing, the row is the link (`a.cp-list-row`) or a button. Otherwise it is a `<div>` that holds at most a title link and, at its end, one worded action, a small plain button whose accessible name adds the row, such as "Download Frieren.S01E04.en.ass", or one ⋯ button that opens the row's menu of actions, named and tipped "More for Frieren".
+2. The title and the line under it stay on one line each, cut with an ellipsis at the row's edge. Machine text, such as a path, is `.cp-mono`, and a path or name whose end tells it apart is cut at its start, `data-cut="start"`, so "…/marotte/web" keeps its leaf. A time is a `<time>` through [relative-time](data/relative-time.md), which keeps its words current and gives the exact time on hover and to a screen reader.
 3. An unread row carries `data-unread`, which sets its title in the heading weight, beside a badge whose number has the word "unread" for a screen reader, so colour is never the only sign. The open row carries `aria-current="page"`, or `"true"` when the list sits inside the open view.
 4. While the list loads, it carries `aria-busy="true"` and holds skeleton rows (`data-skeleton`) in the rows' shape. Empty, it is a `.cp-empty` that names what belongs there and offers the action that fills it, such as "No conversations in the last 72 hours." with New message.
-5. Rows that arrive while the person is in the list never push the rows they are reading. A `.cp-list-pending` line above the list says how many wait, and its Show puts them in and moves focus to the first.
-6. A row the app could not refresh carries `data-kept`, muted, with a `clock` and the reason in its second line, such as "Kept from 03:00: Radarr is not answering".
-7. A list too long to draw is a `.cp-list[data-virtual]` that holds only the rows in view. Each row is keyed by its id, so a live update changes a row in place and the focused row stays drawn. When a filter narrows it, the count of matches is said once typing stops.
-8. A list the person puts in order uses [reorder](data/reorder.md): every item has Move up and Move down, so a drag is never the only way, the others slide aside and the new place is said.
+5. Rows that arrive while the person is in the list never push the rows they are reading. [held-list](data/held-list.md) holds them behind a `.cp-list-pending` line above the list that says how many wait, and its Show puts them in and moves focus to the first. A list whose new rows go at its end, oldest first, lets them in below the reader and counts them on the same line pinned under the list, whose Show goes to the newest.
+6. A row the app could not refresh, in a list or a table, carries `data-kept`, muted, with a `clock`, the time it is from and the reason in place of its second line, such as "Kept from 03:00: Sonarr walk partial". `markKept()` in [list-row](data/list-row.md) writes both, and a step track in the row goes grey with it.
+7. A list whose rows change while it is read is keyed by [keyed-list](data/keyed-list.md): each row keeps its element through a live update, a reorder moves the other rows around the focused one, and the row at the top of the view stays where it was. A list too long to draw, such as a library of tens of thousands, is a `.cp-list[data-virtual]` or a table body that holds only the rows in view and the focused one, a page not loaded yet in skeleton rows. When a filter narrows it, the count of matches, "5 of 640 titles", is said once typing stops.
+8. A list that pages ends in a `.cp-list-foot` with one button, such as "Show older", which [load-more](data/load-more.md) drives: it adds the next page before the foot, moves focus to the first row it added and says how many came, and the foot goes once no page is left. A conversation's older messages come the same way from a `.cp-feed-head` above its first entry. "New since your last visit" is one `.cp-since` line, in a list or a feed, where the new rows start.
+9. A list the person puts in order uses [reorder](data/reorder.md): every item has Move up and Move down, so a drag is never the only way, the others slide aside and the new place is said.
 
 ## Tabs
 
@@ -157,7 +158,7 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 | A short confirmation of the person's own action, such as "Source added", whose result stays visible on the screen or in the history | a toast | 7 seconds, paused while hovered or focused |
 | A confirmation whose result is not visible anywhere else | a toast | until dismissed |
 | A failure of the person's own action | a toast, with Retry when it can be retried | until dismissed |
-| The outcome of background work, such as a finished check | the app's activity history (`.cp-history`), and a toast only when the person started it | in the history |
+| The outcome of background work, such as a finished check | the app's activity history (a `.cp-list[data-variant="timeline"]` per day), and a toast only when the person started it | in the history |
 
 - Show each toast with `toast()` from `@cplieger/ui/toast`. A passing toast stays 7 seconds, and an error or a toast with an action, such as Undo, stays until dismissed on its own.
 - Toasts announce themselves, confirmations politely and errors assertively, so use an error toast only for a failure of what the person just did. A failure of background work, such as a refresh, is a notice, announced politely.

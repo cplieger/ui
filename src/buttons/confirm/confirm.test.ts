@@ -168,6 +168,31 @@ describe("enhanceConfirm", () => {
     await expect(c.run(() => Promise.resolve())).resolves.toBe(true);
   });
 
+  it("rests on words set during the run, and rolls to words set at rest", async () => {
+    const b = button("Show older");
+    const c = confirm(b, { busy: "Loading…", done: false });
+    const states: (string | null)[] = [];
+    new MutationObserver(() => states.push(words(b))).observe(b, {
+      childList: true,
+      subtree: true,
+    });
+    await expect(
+      c.run(() =>
+        sleep(40).then(() => {
+          c.setRest("Retry");
+          throw new Error("refused");
+        }),
+      ),
+    ).rejects.toThrow("refused");
+    expect(b.hasAttribute("data-cp-state")).toBe(false);
+    expect(words(b)).toBe("Retry");
+    expect(states).not.toContain("Show older");
+    c.setRest("Show 3 more");
+    expect(words(b)).toBe("Show 3 more");
+    await c.run(() => Promise.resolve());
+    expect(words(b)).toBe("Show 3 more");
+  });
+
   it("returns to the words on the button at the press, such as a count that changed", async () => {
     const b = button("Grab 2");
     const c = confirm(b, { busy: "Grabbing…", done: "Grabbed" });
