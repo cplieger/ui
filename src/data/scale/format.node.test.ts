@@ -72,6 +72,16 @@ describe("decimalFormatter", () => {
     // 102 digits on the share are 100 on the percentage, within Intl's limit.
     expect(decimalFormatter("percent", "en", 102)(1e-102)).toBe(`0.${"0".repeat(99)}1%`);
   });
+
+  it("writes a value that rounds to 0 without a minus", () => {
+    expect(decimalFormatter(undefined, "en", 0, 3)(-0.0001)).toBe("0");
+    expect(decimalFormatter(undefined, "en", 1, 4)(-1e-7)).toBe("0.0");
+    expect(decimalFormatter(undefined, "en", 0, 3)(-0.0005)).toBe("-0.001");
+    expect(decimalFormatter("percent", "en", 0, 3)(-0.0001)).toBe("0%");
+    expect(decimalFormatter("number", "en", 1)(-0)).toBe("0.0");
+    expect(decimalFormatter("number", "en", 103)(-0)).toBe("0");
+    expect(decimalFormatter("number", "en", 103)(-4e-104)).toBe("0");
+  });
 });
 
 describe("widthKey", () => {

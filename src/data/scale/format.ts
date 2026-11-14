@@ -72,10 +72,11 @@ const MOST_DIGITS = 100;
 
 /** The writer of decimals with `least` to `most` fraction digits, such as a
  *  linear axis's ticks: "number" and "percent" (counted on the share, so 0.005
- *  has three) write each with at least `least` and every digit up to `most`;
- *  when `most` passes 100, Intl's most, every value in scientific notation with
- *  its digits up to `most`, at most 15 significant figures, and 0 as 0. Any
- *  other format writes them as `formatter` does. */
+ *  has three) write each with at least `least` and every digit up to `most`,
+ *  a value that rounds to 0 without a minus; when `most` passes 100, Intl's
+ *  most, every value in scientific notation with its digits up to `most`, at
+ *  most 15 significant figures, and 0 as 0. Any other format writes them as
+ *  `formatter` does. */
 export function decimalFormatter(
   format: Format | undefined,
   locale: string | undefined,
@@ -88,11 +89,12 @@ export function decimalFormatter(
   const shift = format === "percent" ? 2 : 0;
   const digits = (d: number) => Math.max(0, d - shift);
   const fine = Math.max(least, most);
+  const base = { ...preset(format), signDisplay: "negative" } as const;
   if (digits(fine) > MOST_DIGITS) {
     // Fifteen figures name the decimal a double was read from. Intl writes 0 as 0E0.
-    const zero = numbers(locale, preset(format));
+    const zero = numbers(locale, base);
     const figures = (n: number) =>
-      numbers(locale, { ...preset(format), notation: "scientific", maximumSignificantDigits: n });
+      numbers(locale, { ...base, notation: "scientific", maximumSignificantDigits: n });
     return (v) => {
       if (v === 0) {
         return zero.format(v);
@@ -110,7 +112,7 @@ export function decimalFormatter(
     };
   }
   const nf = numbers(locale, {
-    ...preset(format),
+    ...base,
     minimumFractionDigits: digits(least),
     maximumFractionDigits: digits(fine),
   });

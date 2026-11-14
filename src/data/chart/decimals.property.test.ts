@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
+import { decimalFormatter } from "../scale/format.js";
 import { linearAxis, linearTicks } from "../scale/linear.js";
 
 import { classes } from "./classes.js";
@@ -80,6 +81,8 @@ describe("decimal ticks and class boundaries", () => {
           if (least > 0) {
             expect(written.some((v) => v !== Number(v.toFixed(least - 1)))).toBe(true);
           }
+          const write = decimalFormatter(undefined, "en", least, most);
+          expect(written.map(write).filter((t) => /^-0(\.0+)?%?$/.test(t))).toEqual([]);
         },
       ),
     );

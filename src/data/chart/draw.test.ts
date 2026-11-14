@@ -2178,6 +2178,18 @@ describe("a heatmap's selection and colour key", () => {
     expect(labels.map((l) => l.textContent)).toContain("37.143");
   });
 
+  it.each([
+    [5, ["-3", "0", "3"]],
+    [4, ["-2", "0", "2"]],
+  ])("writes a pivot just below 0 as 0, %i classes", (steps, kept) => {
+    const { key } = keyed({
+      colour: { type: "diverging", steps, pivot: -0.0001 },
+      marks: [{ mark: "cell", x: ["a", "b"], y: ["r"], values: [[-3, 3]] }],
+    });
+    const labels = [...(key?.querySelectorAll('[data-part="thresholds"] > span') ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(kept);
+  });
+
   it("writes boundaries finer than Intl's 100 fraction digits in scientific notation", () => {
     const { key } = keyed({
       // Four classes 2.5e-102 wide.
