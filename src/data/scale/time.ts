@@ -38,8 +38,8 @@ const steps = (unit: TimeUnit, counts: readonly number[]): TimeStep[] =>
   counts.map((count) => ({ unit, count, ms: count * LENGTH[unit] }));
 
 /** The time axis's increments, finest first, as uPlot's are: years go on
- *  by 1, 2 and 5 times each power of ten past the longest span `Date`
- *  holds. */
+ *  by 1, 2 and 5 times each power of ten up to 500,000, whose one tick
+ *  across all that `Date` holds is year 0. */
 export const TIME_STEPS: readonly TimeStep[] = [
   ...steps("minute", [1, 5, 10, 15, 30]),
   ...steps("hour", [1, 2, 3, 6, 12]),
@@ -206,7 +206,7 @@ export function timeTicks(
     for (const day of stepDays(step, from, Math.floor((hi + offHi) / DAY))) {
       ticks.add(midnight(day, timeZone));
     }
-  } else if (offLo === offHi) {
+  } else if (offLo === offHi && hi - lo <= 14 * DAY) {
     // One offset at both ends of a span of at most weeks: no change between.
     for (let w = Math.ceil((lo + offLo) / ms) * ms; w - offLo <= hi; w += ms) {
       ticks.add(w - offLo);

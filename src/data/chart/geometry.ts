@@ -1200,8 +1200,10 @@ function wholePie(p: PieFrame): string {
   return ring(p.r, true) + (p.inner > 0 ? ring(p.inner, false) : "");
 }
 
-// A slice whose arc at the rim is under 2 px is too thin to keep 1 px beside its gaps.
-const sliceGap = (p: PieFrame, span: number): number => (p.r * span < 4 * HALF_GAP ? 0 : HALF_GAP);
+// A slice whose arc at the rim is under 2 px is too thin to keep 1 px beside
+// its gaps, and a circle no wider than the gap has no rim to move an edge on.
+const sliceGap = (p: PieFrame, span: number): number =>
+  p.r * span < 4 * HALF_GAP || p.r <= HALF_GAP ? 0 : HALF_GAP;
 
 /**
  * The slice from angle `from` to `to` on `p`, its straight edges each moved
@@ -1234,7 +1236,7 @@ export function sliceRing(p: PieFrame, from: number, to: number): string {
 // The slice from `from` to `to` on `p`, its straight edges each moved `g` into it.
 function sliceOutline(p: PieFrame, from: number, to: number, g: number): string {
   const span = to - from;
-  const d = Math.asin(g / p.r);
+  const d = p.r > 0 ? Math.asin(Math.min(1, g / p.r)) : 0;
   const outer = `M${pt(rimPoint(p, from + d, p.r))}${arcTo(p.r, span - 2 * d > Math.PI, true, rimPoint(p, to - d, p.r))}`;
   const di = p.inner > 0 ? Math.asin(Math.min(1, g / p.inner)) : 0;
   if (p.inner > 0 && span - 2 * di > 0) {

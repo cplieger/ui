@@ -134,6 +134,18 @@ describe("slicePath", () => {
       "M120 20A100 100 0 1 1 120 220A100 100 0 1 1 120 20ZM120 70A50 50 0 1 0 120 170A50 50 0 1 0 120 70Z",
     );
   });
+
+  it("draws a numeric path on a circle too small to hold the 0.5 px gap", () => {
+    for (const f of [
+      { ...frame, r: 0.4 },
+      { ...frame, r: 0.4, inner: 0.2 },
+      { ...frame, r: 0 },
+    ]) {
+      const d = slicePath(f, 0, 6);
+      expect(d).not.toContain("NaN");
+      expect(sliceRing(f, 0, 6)).not.toContain("NaN");
+    }
+  });
 });
 
 describe("sliceRing", () => {

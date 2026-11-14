@@ -86,6 +86,18 @@ describe("timeTicks", () => {
     }
   });
 
+  it("keeps hour ticks on local hours over a winter whose ends share an offset", () => {
+    // 1 October 2023 to 1 April 2024 in Paris: both ends on summer time.
+    const ticks = timeTicks(
+      Date.UTC(2023, 8, 30, 22),
+      Date.UTC(2024, 2, 31, 22),
+      at(12 * HR),
+      "Europe/Paris",
+    );
+    expect(ticks).toHaveLength(367);
+    expect(clock(ticks, "Europe/Paris").every((t) => t === "00:00" || t === "12:00")).toBe(true);
+  });
+
   it("does the same in a southern-hemisphere zone", () => {
     // Sydney falls back on 5 April 2026 and springs forward on 4 October.
     const april = timeTicks(
