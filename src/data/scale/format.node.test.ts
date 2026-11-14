@@ -62,6 +62,10 @@ describe("writer", () => {
     expect(writer({ signDisplay: "exceptZero" }, "en")(3)).toBe("+3");
     expect(writer({ signDisplay: "negative" }, "en", { signed: true })(3)).toBe("3");
   });
+
+  it("passes a sign display Intl does not know to Intl, which throws", () => {
+    expect(() => writer({ signDisplay: "exceptzero" as never }, "en")).toThrow(RangeError);
+  });
 });
 
 describe("writer with digits", () => {

@@ -52,7 +52,7 @@ const preset = (format: Format | undefined): Intl.NumberFormatOptions | undefine
       : undefined;
 
 /** How `writer` writes beyond its format. */
-export interface Writing {
+interface Writing {
   /** The least and most fraction digits "number" and "percent" write (a
    *  percent's counted on the share, so 0.005 has three), such as a linear
    *  axis's ticks; past 100, Intl's most, every value in scientific notation
@@ -65,9 +65,6 @@ export interface Writing {
 
 // Intl.NumberFormat's fraction-digit limit (ECMA-402 since 2023).
 const MOST_DIGITS = 100;
-
-// The displays that write -0, and a value that rounds to 0, without a minus.
-const UNSIGNED_ZERO: ReadonlySet<string> = new Set(["negative", "exceptZero", "never"]);
 
 /**
  * The one way the chart and the sparkline write a number: `format` in
@@ -94,13 +91,18 @@ export function writer(
   const own: Intl.NumberFormatOptions =
     typeof format === "object" ? format : PRESETS[format ?? "number"];
   const display = own.signDisplay ?? "auto";
+  // Only "always" and "auto" sign a zero; any other value, an invalid one
+  // included, reaches Intl as given, which throws a RangeError on the invalid.
   const base = {
     ...own,
-    signDisplay: UNSIGNED_ZERO.has(display)
-      ? display
-      : signed || display === "always"
+    signDisplay:
+      display === "always"
         ? ("exceptZero" as const)
-        : ("negative" as const),
+        : display === "auto"
+          ? signed
+            ? ("exceptZero" as const)
+            : ("negative" as const)
+          : display,
   };
   if (
     digits === undefined ||
