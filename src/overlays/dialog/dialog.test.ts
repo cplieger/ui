@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { closeDialog, holdDialog, holdsTypedChanges, installDialogs } from "./dialog.js";
+import { closeDialog, holdDialog, installDialogs } from "./dialog.js";
 
 let life = new AbortController();
 
@@ -14,7 +14,11 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function dialog(attrs: Record<string, string> = {}, inner = ""): HTMLDialogElement {
+function dialog(
+  attrs: Record<string, string> = {},
+  inner = "",
+  into: ParentNode = document.body,
+): HTMLDialogElement {
   const d = document.createElement("dialog");
   d.className = "cp-dialog";
   // A box well inside the window, so a press at its corner is outside it.
@@ -23,8 +27,22 @@ function dialog(attrs: Record<string, string> = {}, inner = ""): HTMLDialogEleme
     d.setAttribute(k, v);
   }
   d.innerHTML = inner;
-  document.body.append(d);
+  into.append(d);
   return d;
+}
+
+/** Counts each refusal: the attribute that plays the shake, set again. */
+function refusals(d: HTMLDialogElement): () => number {
+  let n = 0;
+  const count = (records: MutationRecord[]): void => {
+    n += records.filter((r) => r.oldValue === null).length;
+  };
+  const watch = new MutationObserver(count);
+  watch.observe(d, { attributeFilter: ["data-cp-refused"], attributeOldValue: true });
+  return () => {
+    count(watch.takeRecords());
+    return n;
+  };
 }
 
 // A dialog's exit ends on an animation frame, which a busy machine can hold past any fixed wait.
@@ -144,6 +162,17 @@ describe("installDialogs", () => {
     expect(await shut).toBe(false);
   });
 
+  it("refuses a close request on a held dialog that opened before the listeners and the hold", async () => {
+    const d = dialog({}, '<button type="button">Done</button>');
+    d.showModal();
+    installDialogs({ signal: life.signal });
+    holdDialog(d, () => true, { signal: life.signal });
+    const refused = refusals(d);
+    d.requestClose();
+    await settled();
+    expect([d.open, refused()]).toEqual([true, 1]);
+  });
+
   it("measures the scrollbar the page lock pads by, and forgets it once its signals abort", () => {
     installDialogs({ signal: life.signal });
     const w = document.documentElement.style.getPropertyValue("--cp-scrollbar-w");
@@ -174,17 +203,27 @@ describe("closeDialog", () => {
   });
 });
 
-describe("holdsTypedChanges", () => {
-  it("compares each field with the value it opened with", () => {
+describe("data-keep-typed", () => {
+  it("counts a choice changed in a select or a box as typed, and lets the dialog close once each is put back", async () => {
+    installDialogs({ signal: life.signal });
     const d = dialog(
-      {},
-      '<input value="a"><textarea>b</textarea><select><option>x</option><option selected>y</option></select><input type="checkbox" checked>',
+      { "data-keep-typed": "" },
+      '<input type="hidden" value="7"><select><option>x</option><option selected>y</option></select><input type="checkbox" checked>',
     );
-    expect(holdsTypedChanges(d)).toBe(false);
-    (d.querySelector("select") as HTMLSelectElement).selectedIndex = 0;
-    expect(holdsTypedChanges(d)).toBe(true);
-    (d.querySelector("select") as HTMLSelectElement).selectedIndex = 1;
-    (d.querySelector('[type="checkbox"]') as HTMLInputElement).checked = false;
-    expect(holdsTypedChanges(d)).toBe(true);
+    d.showModal();
+    const select = d.querySelector("select") as HTMLSelectElement;
+    const box = d.querySelector('[type="checkbox"]') as HTMLInputElement;
+    select.selectedIndex = 0;
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    expect([d.open, d.hasAttribute("data-cp-refused")]).toEqual([true, true]);
+    select.selectedIndex = 1;
+    box.checked = false;
+    d.removeAttribute("data-cp-refused");
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    expect([d.open, d.hasAttribute("data-cp-refused")]).toEqual([true, true]);
+    box.checked = true;
+    const shut = closing(d);
+    await userEvent.click(document.body, { position: { x: 5, y: 5 } });
+    expect(await shut).toBe(false);
   });
 });

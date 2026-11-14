@@ -934,6 +934,34 @@ describe("the drawing under update and resize", () => {
       }
     }
   });
+
+  it("wraps a legend place wider than the figure inside it, on a 2D histogram at a phone's width", () => {
+    const b = build({ width: 280 });
+    start(
+      {
+        x: { type: "log", label: "Payload of the request", format: "duration" },
+        y: { label: "Response time of the request", format: "duration" },
+        marks: [
+          {
+            mark: "cell",
+            x: { edges: [1_000, 2_000, 5_000] },
+            y: { edges: [100_000, 200_000, 500_000] },
+            values: [
+              [1, 2],
+              [3, 4],
+            ],
+          },
+        ],
+      },
+      b,
+    );
+    const right = b.figure.getBoundingClientRect().right;
+    const slots = [...(get(b.figure, "legend")?.children ?? [])];
+    expect(slots.length).toBeGreaterThan(0);
+    for (const slot of slots) {
+      expect(slot.getBoundingClientRect().right).toBeLessThanOrEqual(right + 0.5);
+    }
+  });
 });
 
 describe("the notes", () => {

@@ -32,6 +32,21 @@ enhanceMenu(menu, { onSelect: (item) => run(item), signal: page.signal });
 - A `popover="manual"` menu closes on Escape and on a press outside it and its openers, as an automatic popover does by itself.
 - Aborting `signal` removes the listeners and the openers' ARIA, and closes the menu if this call opened it.
 
+## The option row
+
+A menu's items and the options of a [combobox](../forms/combobox.md), a [select panel](select-panel.md) and a [palette](palette.md) are one row, drawn by the stylesheet with no class of its own:
+
+- The lead, optional: a `.cp-icon` in the muted ink, a check item's box, or in a combobox a `.cp-cover`.
+- The words: the item's name.
+- The end, optional, pushed to the row's end: the keys that run it in a `<kbd>`, a muted `<small>` such as a language code, a count or "Dormant", or a quiet `.cp-badge` for a word that should stand out, such as "suggested". Its text is part of the option's name, so give the row an `aria-label` when the end needs words of its own, as "French, fr".
+- The height: `--cp-control-h-sm` under a mouse and `--cp-control-h` under a finger.
+- The option the keys reach, where Enter goes, takes the selected wash in `--cp-accent-12` ink: the focused menu item, the combobox's or palette's active option (`aria-selected`), and the select panel's (`data-cp-active`, since its `aria-selected` means checked). An option under a mouse takes the fill.
+- `aria-disabled="true"` draws the row in the disabled ink, and `data-tone="danger"` on a menu item in the danger ink.
+
+```html
+<a role="menuitem" href="/report?kind=season">Wrong season mapping<span class="cp-badge" data-variant="quiet">suggested</span></a>
+```
+
 ## Context menu
 
 `enhanceContextMenu(zone, menu, { onOpen, onSelect, hold, signal })` opens a `popover="manual"` menu at the pointer on a right click inside `zone`, or on a finger held still for `hold` ms (500 by default). `onOpen` gets the element pressed, so the menu can be filled for that row. A press outside or Escape closes it. The hold selects no text and opens no browser menu, and the lift that ends it clicks nothing. The call marks `zone` with `data-cp-context`, so under `data-pointer="coarse"` the stylesheet turns off text selection and iOS's link callout there. A mouse still selects. Aborting `signal` removes the mark.

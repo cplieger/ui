@@ -281,10 +281,20 @@ describe("enhanceReorder", () => {
   it("slides the others from their old place", async () => {
     const ol = list();
     enhanceReorder(ol, { signal: life.signal });
+    const english = ol.querySelector('[data-name="English"]') as HTMLElement;
+    // Read as the press lands, after the list's own listener: the slide can
+    // end before a loaded driver's click returns.
+    let seen: [number, string] | undefined;
+    document.addEventListener(
+      "click",
+      () => {
+        seen = [slides(english).length, english.style.translate];
+      },
+      { once: true, signal: life.signal },
+    );
     await userEvent.click(button(ol, "Japanese", "down"));
-    const english = ol.children[0] as HTMLElement;
-    expect(slides(english)).toHaveLength(1);
-    expect(english.style.translate).toBe("");
+    expect(ol.children[0]).toBe(english);
+    expect(seen).toEqual([1, ""]);
   });
 
   it.runIf(server.browser === "chromium")("moves at once under reduced motion", async () => {
