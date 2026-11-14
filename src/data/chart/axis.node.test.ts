@@ -237,12 +237,13 @@ describe("a time axis", () => {
     expect(words(axis)).toContain("1000 AD");
   });
 
-  it("refuses an instant past Date's range with a RangeError naming it, long before 1e300", () => {
+  it("refuses an instant past Date's range with a RangeError naming the limit", () => {
     expect(() => xAxis(time(0, 1e16), 276, ctx())).toThrow(
-      "renderChart: a time x must lie within 8.64e15 ms either side of 1970, the range Date holds",
+      new RangeError(
+        "an instant the chart writes must lie within 8.64e15 ms either side of 1970, the range Date holds",
+      ),
     );
-    expect(() => time(-8.64e15 - 1, 0)).toThrow(RangeError);
-    expect(time(-8.64e15, 8.64e15).hi).toBe(8.64e15);
+    expect(words(xAxis(time(-8.64e15, 8.64e15), 990, ctx())).length).toBeGreaterThan(1);
   });
 });
 

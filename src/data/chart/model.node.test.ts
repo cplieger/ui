@@ -298,6 +298,24 @@ describe("spec errors", () => {
     );
   });
 
+  it("names a unit's form that is not a string or no plural form", () => {
+    expect(() => build({ x: {}, y: { unit: { one: 5, other: "posts" } }, marks: [] })).toThrow(
+      new TypeError("renderChart: y.unit.one must be a string"),
+    );
+    expect(() =>
+      build({ x: {}, marks: [{ mark: "dot", unit: { few: Symbol("a"), other: "x" }, rows: [] }] }),
+    ).toThrow(new TypeError("renderChart: marks[0].unit.few must be a string"));
+    expect(() =>
+      build({ x: {}, y: { unit: { single: "post", other: "posts" } }, marks: [] }),
+    ).toThrow(
+      new TypeError(
+        "renderChart: y.unit.single is no plural form; a unit takes zero, one, two, few, many and other",
+      ),
+    );
+    const forms = { zero: "a", one: "b", two: "c", few: "d", many: "e", other: "f" };
+    expect(build({ x: {}, y: { unit: forms }, marks: [line([1])] }).kind).toBe("line");
+  });
+
   it("names the format Intl refuses and the most px a height may be", () => {
     expect(() => build({ x: {}, y: { format: { style: "unit", unit: "" } }, marks: [] })).toThrow(
       /^renderChart: y\.format holds options Intl refuses/u,
@@ -2259,7 +2277,7 @@ describe("an instant's words on a time x", () => {
 
   it("refuses a time x past what Date holds, naming the limit", () => {
     expect(() => over(0, 8.64e15 + 1)).toThrow(
-      "renderChart: a time x must lie within 8.64e15 ms either side of 1970, the range Date holds",
+      "renderChart: marks[0].x[1] must lie within 8.64e15 ms either side of 1970, the range Date holds",
     );
     expect(over(-8.64e15, 8.64e15).x.lo).toBe(-8.64e15);
     expect(() =>
@@ -2291,6 +2309,38 @@ describe("an instant's words on a time x", () => {
     expect(
       build({ marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1] } }] }).x.hi,
     ).toBe(8.64e15);
+  });
+
+  it("names every instant past what Date holds on a time x, whatever its domain", () => {
+    const limit = "must lie within 8.64e15 ms either side of 1970, the range Date holds";
+    const x = { type: "time", domain: [0, 1000] };
+    const cases: [unknown, string][] = [
+      [{ x, marks: [line([1]), { mark: "rule", x: -9e15, label: "far" }] }, "marks[1].x"],
+      [{ x, marks: [rect([1, 2], { x1: [-9e15, 1], x2: [1, 2] })] }, "marks[0].x1[0]"],
+      [{ x, marks: [rect([1], { x1: [0], x2: [9e15] })] }, "marks[0].x2[0]"],
+      [{ x, marks: [area([[1, 2]], { x: [0, 9e15] })] }, "marks[0].x[1]"],
+      [
+        { x, marks: [{ mark: "dot", rows: [{ name: "a", x: [0, 9e15] }] }] },
+        "marks[0].rows[0].x[1]",
+      ],
+      [
+        { x, marks: [{ mark: "point", y: ["a"], series: [{ name: "s", x: [9e15] }] }] },
+        "marks[0].series[0].x[0]",
+      ],
+      [
+        {
+          x: { type: "time" },
+          marks: [{ mark: "cell", x: { edges: [0, 9e15] }, y: ["a"], values: [[1]] }],
+        },
+        "marks[0].x.edges[1]",
+      ],
+      [{ x: { type: "time", domain: [-9e15, 0] }, marks: [] }, "x.domain[0]"],
+      [{ x, marks: [line([1]), note({ x: 9e15 })] }, "marks[1].x"],
+    ];
+    for (const [spec, field] of cases) {
+      expect(() => build(spec)).toThrow(new RangeError(`renderChart: ${field} ${limit}`));
+    }
+    expect(build({ x, marks: [rect([1], { x1: [-8.64e15], x2: [8.64e15] })] }).x.lo).toBe(0);
   });
 
   // 8.64e15 ms is Saturday 13 September 275760, -8.64e15 a Tuesday.

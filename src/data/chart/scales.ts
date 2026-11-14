@@ -586,10 +586,6 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
     [lo, hi] = type === "linear" ? widen(extent.lo, extent.hi) : [extent.lo, extent.hi];
   }
   const under = log ? underflow(spec, lo) : undefined;
-  if (type === "time") {
-    withinDate(lo, "a time x");
-    withinDate(hi, "a time x");
-  }
   return {
     type,
     lo,

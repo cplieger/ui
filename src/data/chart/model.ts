@@ -616,9 +616,23 @@ function optional(v: unknown, type: "string" | "boolean" | "number", what: strin
   }
 }
 
+// Intl.PluralRules selects only these (Intl.LDMLPluralRule).
+const PLURALS = new Set(["zero", "one", "two", "few", "many", "other"]);
+
 function checkUnit(unit: unknown, what: string): void {
-  if (unit !== undefined && !(isObject(unit) && typeof unit["other"] === "string")) {
+  if (unit === undefined) {
+    return;
+  }
+  if (!(isObject(unit) && typeof unit["other"] === "string")) {
     fail(`${what}.unit must name its "other" form`);
+  }
+  for (const [key, v] of Object.entries(unit)) {
+    if (!PLURALS.has(key)) {
+      fail(
+        `${what}.unit.${key} is no plural form; a unit takes zero, one, two, few, many and other`,
+      );
+    }
+    optional(v, "string", `${what}.unit.${key}`);
   }
 }
 
@@ -669,6 +683,9 @@ function checkDomain(domain: unknown, what: string): void {
     fail(`${what}.domain must be an array of a low and a high`);
   }
   if (isArray(domain)) {
+    if (domain.some((v) => typeof v !== "number")) {
+      fail(`${what}.domain must be two numbers`);
+    }
     within(domain, `${what}.domain`);
   }
 }
@@ -733,10 +750,7 @@ function checkColour(colour: unknown): void {
     within(list, "colour.thresholds");
   }
   if (isArray(domain)) {
-    const [lo, hi] = domain;
-    if (typeof lo !== "number" || typeof hi !== "number") {
-      fail("colour.domain must be two numbers");
-    }
+    const [lo, hi] = domain as readonly [number, number];
     if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo >= hi) {
       fail("colour.domain must be finite, low below high", RangeError);
     }
@@ -1415,6 +1429,65 @@ function checkMark(mark: unknown, what: string): void {
   }
 }
 
+// Every instant a time x places is written through Intl, so each is held to
+// what Date holds by its own field, whatever the domain.
+function checkInstants(spec: Record<string, unknown>, marks: ArrayLike<unknown>): void {
+  const x = spec["x"];
+  if (!isObject(x) || x["type"] !== "time") {
+    return;
+  }
+  const each = (values: unknown, what: string): void => {
+    if (!arrayLike(values)) {
+      return;
+    }
+    Array.from(values).forEach((v, i) => {
+      if (typeof v === "number" && Number.isFinite(v)) {
+        withinDate(v, `${what}[${String(i)}]`);
+      }
+    });
+  };
+  each(x["domain"], "x.domain");
+  for (let m = 0; m < marks.length; m++) {
+    const mark = marks[m] as Record<string, unknown>;
+    const what = `marks[${String(m)}]`;
+    switch (mark["mark"]) {
+      case "rect":
+        each(mark["x1"], `${what}.x1`);
+        each(mark["x2"], `${what}.x2`);
+        break;
+      case "line":
+      case "area":
+        each(mark["x"], `${what}.x`);
+        break;
+      case "dot":
+        Array.from(mark["rows"] as ArrayLike<Record<string, unknown>>).forEach((row, r) => {
+          each(row["x"], `${what}.rows[${String(r)}].x`);
+        });
+        break;
+      case "point":
+        Array.from(mark["series"] as ArrayLike<Record<string, unknown>>).forEach((one, s) => {
+          each(one["x"], `${what}.series[${String(s)}].x`);
+        });
+        break;
+      case "cell": {
+        const axis = mark["x"];
+        if (isObject(axis) && !arrayLike(axis)) {
+          each(axis["edges"], `${what}.x.edges`);
+        }
+        break;
+      }
+      case "rule":
+      case "text":
+        if (typeof mark["x"] === "number") {
+          withinDate(mark["x"], `${what}.x`);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 /** Throws a `TypeError` or `RangeError` naming the first rule `spec` breaks. */
 function check(spec: unknown): asserts spec is ChartSpec {
   if (!isObject(spec)) {
@@ -1460,6 +1533,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     }
     data = m;
   }
+  checkInstants(spec, marks);
   const height = spec["height"];
   const primary = marks[data];
   const whole = isObject(primary) ? primary["mark"] : undefined;
@@ -1848,9 +1922,6 @@ function textModel(
     }
     if (scale.type === "log" && v <= 0) {
       return fail(`${what}.${axis} must be above 0 on a log scale`, RangeError);
-    }
-    if (scale.type === "time") {
-      withinDate(v, `${what}.${axis}`);
     }
     return v;
   };

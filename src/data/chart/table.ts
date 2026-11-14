@@ -54,7 +54,9 @@ import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
 /** Text, or an instant written in a `<time datetime>`, as a calendar date
- *  (`YYYY-MM-DD` of `at` in UTC) when `date` is set. */
+ *  (the UTC day of `at`) when `date` is set. HTML's date strings take a
+ *  year above 0 with no sign, so an instant before year 1 is its text alone
+ *  (https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#dates). */
 type Part = string | { readonly at: number; readonly text: string; readonly date?: boolean };
 
 interface Cell {
@@ -546,18 +548,25 @@ export function tableModel(model: Model, words: Words): TableModel {
 }
 
 function write(el: HTMLElement, parts: readonly Part[], isolate: boolean): void {
+  const text = (s: string): Node | string => {
+    if (!isolate) {
+      return s;
+    }
+    const bdi = document.createElement("bdi");
+    bdi.textContent = s;
+    return bdi;
+  };
   const nodes = parts.map((p) => {
     if (typeof p === "string") {
-      if (!isolate) {
-        return p;
-      }
-      const bdi = document.createElement("bdi");
-      bdi.textContent = p;
-      return bdi;
+      return text(p);
+    }
+    const at = dateAt(p.at, "renderChart: an instant the table writes");
+    if (at.getUTCFullYear() < 1) {
+      return text(p.text);
     }
     const time = document.createElement("time");
-    const iso = dateAt(p.at, "renderChart: an instant the table writes").toISOString();
-    time.dateTime = p.date === true ? iso.slice(0, 10) : iso;
+    const iso = at.toISOString().replace(/^\+/u, "");
+    time.dateTime = p.date === true ? iso.slice(0, iso.indexOf("T")) : iso;
     time.textContent = p.text;
     return time;
   });

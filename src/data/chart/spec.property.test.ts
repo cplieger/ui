@@ -201,7 +201,14 @@ const SPECS: readonly Record<string, unknown>[] = [
       pivot: 0,
       reverse: true,
       label: "Change",
-      unit: UNIT,
+      unit: {
+        zero: "posts",
+        one: "post",
+        two: "posts",
+        few: "posts",
+        many: "posts",
+        other: "posts",
+      },
       format: "number",
     },
     marks: [
@@ -323,8 +330,11 @@ const SPECS: readonly Record<string, unknown>[] = [
 
 type Path = readonly (string | number)[];
 
+// A unit's plural forms, named in a message after their unit.
+const PLURALS = ["few", "many", "one", "other", "two", "zero"];
+
 // Every field name the spec documents, for a field a spec leaves out.
-const FIELDS = [
+const NAMES = [
   ..."arrange below centre children colour curve days domain edges empty format height high".split(
     " ",
   ),
@@ -334,6 +344,7 @@ const FIELDS = [
   ..."pivot q1 q3 r reverse rows series shape side slices slot start steps summary text".split(" "),
   ..."thresholds type unit value values weekStart whiskers x x1 x2 y zero".split(" "),
 ];
+const FIELDS = [...new Set([...NAMES, ...PLURALS])];
 
 // Every place in `v` a field or an element sits.
 function paths(v: unknown, at: Path = []): Path[] {
@@ -520,7 +531,7 @@ function exercise(spec: unknown, timeZone: string): void {
 // "Invalid time value") and a backstop's ("a calendar day must lie") do not.
 const PREFIX = "renderChart: ";
 const VERB = / (?:must|cannot|needs|need|has|holds|is|are) /u;
-const FIELD = new RegExp(`\\b(?:${FIELDS.join("|")})\\b`, "u");
+const FIELD = new RegExp(`\\b(?:${NAMES.join("|")})\\b`, "u");
 
 function refusedByName(e: unknown): boolean {
   if (!(e instanceof TypeError || e instanceof RangeError) || !e.message.startsWith(PREFIX)) {
