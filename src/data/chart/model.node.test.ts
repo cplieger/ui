@@ -284,9 +284,28 @@ describe("spec errors", () => {
     expect(() => build(spec)).toThrow(type);
   });
 
+  it("names a domain that is not an array and a bigint format option", () => {
+    const like = { 0: 0, 1: 10, length: 2 };
+    for (const axis of ["x", "y"]) {
+      expect(() => build({ x: {}, [axis]: { domain: like }, marks: [line([1, 2])] })).toThrow(
+        `renderChart: ${axis}.domain must be an array of a low and a high`,
+      );
+    }
+    expect(() => build({ x: {}, y: { format: { maximumFractionDigits: 1n } }, marks: [] })).toThrow(
+      new TypeError(
+        "renderChart: y.format.maximumFractionDigits must be a string, a number or a boolean",
+      ),
+    );
+  });
+
   it("names the format Intl refuses and the most px a height may be", () => {
     expect(() => build({ x: {}, y: { format: { style: "unit", unit: "" } }, marks: [] })).toThrow(
       /^renderChart: y\.format holds options Intl refuses/u,
+    );
+    expect(() => build({ x: {}, y: { format: { style: "currency" } }, marks: [] })).toThrow(
+      new TypeError(
+        "renderChart: y.format holds options Intl refuses: Currency code is required with currency style.",
+      ),
     );
     expect(() => build({ x: {}, height: 2e7, marks: [] })).toThrow(
       "renderChart: height must be a number of px above 0 and at most 17895697",
@@ -2267,7 +2286,7 @@ describe("an instant's words on a time x", () => {
         marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2, 3, 4] } }],
       }),
     ).toThrow(
-      "renderChart: the last day of a calendar's last week must lie within 8.64e15 ms either side of 1970, the range Date holds",
+      "renderChart: the days of a calendar's last week must lie within 8.64e15 ms either side of 1970, the range Date holds",
     );
     expect(
       build({ marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1] } }] }).x.hi,
@@ -2280,7 +2299,7 @@ describe("an instant's words on a time x", () => {
 
   it("refuses a calendar whose first week starts before what Date holds, west of UTC too", () => {
     const first =
-      "renderChart: the first day of a calendar's first week must lie within 8.64e15 ms either side of 1970, the range Date holds";
+      "renderChart: the days of a calendar's first week must lie within 8.64e15 ms either side of 1970, the range Date holds";
     // A week from Sunday in en starts two days before the Tuesday.
     expect(() => days(-8.64e15, [1], "en", "UTC")).toThrow(first);
     // New York's wall clock puts -8.64e15 on the Monday before it.
@@ -2292,7 +2311,7 @@ describe("an instant's words on a time x", () => {
   it("refuses a calendar whose last week ends after what Date holds, and draws one ending at it", () => {
     // fr's week from Monday puts the Friday's week end on Sunday 14 September.
     expect(() => days(8.64e15 - 86_400_000, [1], "fr", "UTC")).toThrow(
-      "renderChart: the last day of a calendar's last week must lie within 8.64e15 ms either side of 1970, the range Date holds",
+      "renderChart: the days of a calendar's last week must lie within 8.64e15 ms either side of 1970, the range Date holds",
     );
     // en's week from Sunday ends on the Saturday, the last day Date holds.
     const m = days(8.64e15 - 86_400_000, [1, 2], "en", "UTC");
@@ -2414,7 +2433,7 @@ describe("the pie mark", () => {
       { name: "B", value: 1e300 },
     ];
     expect(() => build({ marks: [land({}, big)] })).toThrow(
-      new RangeError("renderChart: a pie's total must lie within ±1e300"),
+      new RangeError("renderChart: the total of a pie's slices must lie within ±1e300"),
     );
   });
 });
@@ -2662,7 +2681,7 @@ describe("the tree mark", () => {
       { name: "B", value: 1e300 },
     ];
     expect(() => build({ marks: [regions({}, big)] })).toThrow(
-      new RangeError("renderChart: a tree's total must lie within ±1e300"),
+      new RangeError("renderChart: the total of a tree's nodes must lie within ±1e300"),
     );
   });
 });

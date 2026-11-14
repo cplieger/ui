@@ -58,4 +58,23 @@ describe("one maker of a Date", () => {
     expect(text.indexOf("new Date")).toBeGreaterThan(from);
     expect(text.indexOf("new Date")).toBeLessThan(text.indexOf("\n}\n", from));
   });
+
+  // Intl.DateTimeFormat's format and formatToParts build a Date from a number
+  // themselves (ECMA-402 ToDateTimeFormattable), with the engine's bare error.
+  it("hands every date format an instant from dateAt", async () => {
+    const calls = (await sources()).flatMap(({ name, text }) =>
+      [...text.matchAll(/\.(?:format|formatToParts)\(\s*(?!dateAt\()[^,)]*/gu)].map(
+        (m) => `${name}: ${m[0]}`,
+      ),
+    );
+    expect(calls).toEqual([
+      "scale/format.ts: .format(v",
+      "scale/format.ts: .format(v",
+      "scale/format.ts: .format(v",
+      "scale/format.ts: .format(Math.sign(v",
+      "scale/format.ts: .format(0",
+      "scale/format.ts: .format(v",
+      "scale/format.ts: .format(record",
+    ]);
+  });
 });

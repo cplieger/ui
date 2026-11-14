@@ -496,8 +496,8 @@ const DAY = 86_400_000;
 function withinWeeks(day: number, weekStart: number, days: number): void {
   const first = day - weekRow(day, weekStart);
   const last = first + 7 * Math.max(1, weekCount(day - first, days)) - 1;
-  withinDate(first * DAY, "the first day of a calendar's first week");
-  withinDate(last * DAY, "the last day of a calendar's last week");
+  withinDate(first * DAY, "the days of a calendar's first week");
+  withinDate(last * DAY, "the days of a calendar's last week");
 }
 
 /** The day of `m` holding instant `t` on the chart's wall clock; -1 outside its days. */
@@ -605,6 +605,8 @@ function fail(message: string, type: ErrorConstructor = TypeError): never {
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
+const isArray = (v: unknown): v is readonly unknown[] => Array.isArray(v);
+
 const arrayLike = (v: unknown): v is ArrayLike<unknown> =>
   isObject(v) && typeof v["length"] === "number";
 
@@ -631,15 +633,24 @@ function checkFormat(format: unknown, what: string): void {
   }
   if (isObject(format)) {
     for (const [key, v] of Object.entries(format)) {
-      if (typeof v === "object" || typeof v === "function" || typeof v === "symbol") {
+      if (
+        v !== undefined &&
+        typeof v !== "string" &&
+        typeof v !== "number" &&
+        typeof v !== "boolean"
+      ) {
         fail(`${what}.format.${key} must be a string, a number or a boolean`);
       }
     }
-    // Intl names a bad option ("unit", "signDisplay") only once it builds the format.
+    // Intl names a bad option ("unit", "signDisplay") only once it builds the
+    // format: a RangeError for a value it lacks, a TypeError for a missing one.
     try {
       writer(format, undefined);
     } catch (e) {
-      fail(`${what}.format holds options Intl refuses: ${(e as Error).message}`, RangeError);
+      fail(
+        `${what}.format holds options Intl refuses: ${(e as Error).message}`,
+        e instanceof TypeError ? TypeError : RangeError,
+      );
     }
   }
 }
@@ -654,11 +665,11 @@ function within(values: Iterable<unknown>, what: string): void {
 }
 
 function checkDomain(domain: unknown, what: string): void {
-  if (domain !== undefined && !(arrayLike(domain) && domain.length === 2)) {
-    fail(`${what}.domain must be a low and a high`);
+  if (domain !== undefined && !(isArray(domain) && domain.length === 2)) {
+    fail(`${what}.domain must be an array of a low and a high`);
   }
-  if (arrayLike(domain)) {
-    within(Array.from(domain), `${what}.domain`);
+  if (isArray(domain)) {
+    within(domain, `${what}.domain`);
   }
 }
 
@@ -721,8 +732,8 @@ function checkColour(colour: unknown): void {
     }
     within(list, "colour.thresholds");
   }
-  if (arrayLike(domain)) {
-    const [lo, hi] = Array.from(domain);
+  if (isArray(domain)) {
+    const [lo, hi] = domain;
     if (typeof lo !== "number" || typeof hi !== "number") {
       fail("colour.domain must be two numbers");
     }
@@ -1589,7 +1600,7 @@ function pieModel(mark: PieMark): PieModel {
   }));
   const total = slices.reduce((n, s) => n + (s.value ?? 0), 0);
   if (total > LIMIT) {
-    fail("a pie's total must lie within ±1e300", RangeError);
+    fail("the total of a pie's slices must lie within ±1e300", RangeError);
   }
   return {
     kind: "pie",
@@ -1633,7 +1644,7 @@ function treeModel(mark: TreeMark): TreeModel {
   });
   const total = parts.reduce((n, p) => n + (p.value ?? 0), 0);
   if (total > LIMIT) {
-    fail("a tree's total must lie within ±1e300", RangeError);
+    fail("the total of a tree's nodes must lie within ±1e300", RangeError);
   }
   return { kind: "tree", unit: mark.unit, groups, parts, total };
 }

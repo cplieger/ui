@@ -515,12 +515,18 @@ function exercise(spec: unknown, timeZone: string): void {
   }
 }
 
-// The chart's own errors start with its name and name what broke; an
-// engine's ("undefined is not iterable", "Invalid time value") do not.
-const NAMED = new RegExp(`^renderChart: .*\\b(?:${FIELDS.join("|")})\\b`, "u");
+// The chart's own errors start with its name and name what broke as the
+// subject, before the verb; an engine's ("undefined is not iterable",
+// "Invalid time value") and a backstop's ("a calendar day must lie") do not.
+const PREFIX = "renderChart: ";
+const VERB = / (?:must|cannot|needs|need|has|holds|is|are) /u;
+const FIELD = new RegExp(`\\b(?:${FIELDS.join("|")})\\b`, "u");
 
 function refusedByName(e: unknown): boolean {
-  return (e instanceof TypeError || e instanceof RangeError) && NAMED.test(e.message);
+  if (!(e instanceof TypeError || e instanceof RangeError) || !e.message.startsWith(PREFIX)) {
+    return false;
+  }
+  return FIELD.test(e.message.slice(PREFIX.length).split(VERB)[0] ?? "");
 }
 
 // A run draws two whole figures, so fewer than the shared thousand fit its time limit.
