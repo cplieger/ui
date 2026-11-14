@@ -483,6 +483,41 @@ describe("the panel's sections", () => {
     expect(fact.querySelector('[role="img"]')?.getAttribute("aria-label")).toBe("Warning");
   });
 
+  it("closes on a problem's link, so the component's status heading it lands on takes focus", async () => {
+    const { panel, status } = mount();
+    const block = document.createElement("h3");
+    block.id = "cs-sonarr";
+    block.tabIndex = -1;
+    block.textContent = "Sonarr";
+    document.body.append(block);
+    status.update(model({ conditions: [problem("p", { href: "#cs-sonarr" })] }));
+    panel.showPopover();
+    const [link] = rows(panel, "conditions") as [HTMLAnchorElement];
+    try {
+      link.click();
+      expect(panel.matches(":popover-open")).toBe(false);
+      await expect.poll(() => document.activeElement).toBe(block);
+    } finally {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  });
+
+  it("stays open on a link pressed to open elsewhere", () => {
+    const { panel, status } = mount();
+    status.update(model({ conditions: [problem("p", { href: "#cs-sonarr" })] }));
+    panel.showPopover();
+    const [link] = rows(panel, "conditions") as [HTMLAnchorElement];
+    const away = new AbortController();
+    document.addEventListener("click", (e) => e.preventDefault(), { signal: away.signal });
+    for (const key of ["ctrlKey", "metaKey", "shiftKey", "altKey"] as const) {
+      link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, [key]: true }));
+      expect(panel.matches(":popover-open"), key).toBe(true);
+    }
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 1 }));
+    expect(panel.matches(":popover-open")).toBe(true);
+    away.abort();
+  });
+
   it("writes notices with the info glyph, and five recent events at most", () => {
     const { panel, status } = mount();
     const at = Date.now();

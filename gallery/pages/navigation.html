@@ -4,7 +4,7 @@
     <p>How a person moves through an app: the header and the rail, content tabs, breadcrumbs, pages of results, and sections that open in place.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#frame">Header, rail and status line</a><a href="#tabs">Tabs</a><a href="#paths">Breadcrumbs and pages</a><a href="#sections">Sections</a><a href="#detail">Master and detail</a><a href="#compact">Compact width</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#frame">Header, rail and status line</a><a href="#status">Header status</a><a href="#tabs">Tabs</a><a href="#paths">Breadcrumbs and pages</a><a href="#sections">Sections</a><a href="#detail">Master and detail</a><a href="#compact">Compact width</a></nav>
 
   <section class="g-section" id="frame">
     <h2>Header, rail and status line</h2>
@@ -67,6 +67,37 @@
         <h2>Status line</h2>
         <div class="cp-status g-statusline" role="status"><span>412 entries</span><span>All sources reachable</span><span data-state="late">Late: the 14:00 check has not run</span></div>
         <footer>The frame's last line: facts about the whole app, and a late state with its glyph and word.</footer>
+      </div>
+    </div>
+  </section>
+
+  <section class="g-section" id="status">
+    <h2>Header status</h2>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Status panel</h2>
+        <div class="g-mini-header">
+          <header class="cp-header">
+            <a class="cp-wordmark" href="#status"><span class="cp-mark" aria-hidden="true">S</span><span class="cp-hidden-narrow">Release scout</span></a>
+            <div class="cp-toolbar">
+              <button class="cp-header-status" type="button" popovertarget="hs-panel" data-hs-pill><span>All good</span></button>
+              <div class="cp-popover cp-status-panel" data-variant="panel" id="hs-panel" popover data-hs-panel></div>
+            </div>
+          </header>
+        </div>
+        <footer>The pill and its panel follow the app's model: a problem, a warning, one scan running and the recent events. SeaDex's row links to its status block below: pressing it closes the panel, and the block's heading takes focus. Stop on the scan reads Stopping… until the scan leaves, and the idle line then shows the next check.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A component's status</h2>
+        <div class="cp-stack">
+          <ul class="cp-list" aria-labelledby="cs-sonarr">
+            <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><div class="cp-cell-stack"><h3 id="cs-sonarr" tabindex="-1">Sonarr</h3><small>Answered in 140 ms, checked <time data-ago="60"></time></small></div><span data-part="end"><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>OK</span></span><details><summary>Show details</summary><dl class="cp-facts"><dt>Version</dt><dd>4.0.15</dd><dt>Checked</dt><dd>Every 5 minutes</dd><dt>Series watched</dt><dd>212</dd></dl><div data-state-history="sssssssssssswsssssssssss" data-name="Sonarr, the last 24 checks"></div></details></div></li>
+          </ul>
+          <ul class="cp-list" aria-labelledby="cs-seadex">
+            <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><div class="cp-cell-stack"><h3 id="cs-seadex" tabindex="-1">SeaDex</h3><small>Its API answers 503 Service Unavailable</small><small>Since <time data-ago="2700"></time></small></div><span data-part="end"><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Failing</span></span><div class="cp-cluster" data-part="actions"><button class="cp-button" data-size="sm" type="button" data-hs-test><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span><span class="cp-roll">Test again</span></button><a class="cp-button" data-size="sm" href="#status">Open SeaDex's status page</a></div><details open><summary>Show details</summary><dl class="cp-facts"><dt>Last answer</dt><dd>503 Service Unavailable</dd><dt>Checked</dt><dd>Every 15 minutes</dd><dt>Releases waiting</dt><dd>14</dd></dl><div data-state-history="sssssssssssssssssssswddd" data-name="SeaDex, the last 24 checks"></div><figure class="cp-chart" data-hs-chart><figcaption>SeaDex's answer time, the last 24 hours</figcaption></figure></details></div></li>
+          </ul>
+        </div>
+        <footer>One block per component the app depends on, a one-row list. While it is OK it shows its heading row, a line of facts and its state, its details shut. While it is not, its reason and since when stand under its name, its remedies on a line of their own, and its details open on its facts, its last 24 checks and its answer time. The heading is where a problem's link in the status panel lands, and takes focus there. Test again fails here, as SeaDex still answers 503.</footer>
       </div>
     </div>
   </section>

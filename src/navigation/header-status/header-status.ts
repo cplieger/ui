@@ -833,6 +833,17 @@ export function createHeaderStatus(
         void stop(stopper.dataset["cpStop"] ?? "");
       } else if (target?.closest("[data-cp-retry]") !== null && target !== null) {
         model.reconnect?.();
+      } else if (
+        target?.closest("a[href]") !== null &&
+        target !== null &&
+        e.button === 0 &&
+        !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) &&
+        panel.matches(":popover-open")
+      ) {
+        // A link opened here may land on this page, such as on a component's
+        // status heading: the panel goes first so that heading keeps the
+        // focus the arrival gives it, and nothing covers it.
+        panel.hidePopover();
       }
     },
     { signal: life.signal },
