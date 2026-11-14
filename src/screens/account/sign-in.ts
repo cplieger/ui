@@ -117,7 +117,6 @@ export function mountSignIn<C extends SignInClient>(
   const life = signal === undefined ? {} : { signal };
   installAnnouncer(life);
   installTooltips(life);
-  panel.dataset["cpAccount"] = "";
 
   const back = access.readOIDCReturn(search);
   if (back.kind !== "none") {

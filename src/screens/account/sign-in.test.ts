@@ -87,7 +87,7 @@ async function settled(check: () => boolean): Promise<void> {
 }
 
 const said = (politeness: "polite" | "assertive"): string =>
-  document.querySelector(`body > .cp-live-regions [data-cp-politeness='${politeness}']`)
+  document.querySelector(`body > [data-cp-live-regions] [data-cp-politeness='${politeness}']`)
     ?.textContent ?? "";
 
 describe("mountSignIn: the panel", () => {
@@ -124,7 +124,7 @@ describe("mountSignIn: the panel", () => {
     expect(panel.querySelectorAll("[style]")).toHaveLength(0);
   });
 
-  it("draws its glyphs from the stylesheet", async () => {
+  it("draws its glyphs from the system's icon list, with no rule of its own", async () => {
     const { panel } = mount();
     await drawn(panel);
     const image = (icon: Element): string =>
@@ -136,7 +136,7 @@ describe("mountSignIn: the panel", () => {
     expect(image(key)).toMatch(/^url\(/);
     expect(image(eye)).toMatch(/^url\(/);
     expect(image(eye)).not.toBe(image(key));
-    expect(image(outside)).toBe("");
+    expect(image(outside)).toBe(image(key));
   });
 
   it("shows a method only while the state and the mounted parts both have it", async () => {

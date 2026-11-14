@@ -30,7 +30,7 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-/** A glyph account.css draws, inside an element marked `data-cp-account`. */
+/** A glyph the system stylesheet draws by its name. */
 export function glyph(name: string, part?: string): HTMLSpanElement {
   const span = el("span", "cp-icon");
   span.dataset["cpIcon"] = name;

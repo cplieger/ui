@@ -10680,50 +10680,6 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   }
 }
 
-/* The glyphs the account screens draw (@cplieger/ui/account), from the
- * stylesheet, so a host resolves no icon and a strict style-src holds. Each
- * screen marks its host element, and each dialog it opens, with
- * data-cp-account. */
-[data-cp-account] .cp-icon[data-cp-icon="key-round"] {
-  --cp-icon-image: url("../icons/svg/key-round.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="log-in"] {
-  --cp-icon-image: url("../icons/svg/log-in.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="eye"] {
-  --cp-icon-image: url("../icons/svg/eye.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="eye-off"] {
-  --cp-icon-image: url("../icons/svg/eye-off.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="circle-x"] {
-  --cp-icon-image: url("../icons/svg/circle-x.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="circle-check"] {
-  --cp-icon-image: url("../icons/svg/circle-check.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="triangle-alert"] {
-  --cp-icon-image: url("../icons/svg/triangle-alert.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="info"] {
-  --cp-icon-image: url("../icons/svg/info.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="spinner-arc"] {
-  --cp-icon-image: url("../icons/svg/spinner-arc.svg");
-}
-
-[data-cp-account] .cp-icon[data-cp-icon="check"] {
-  --cp-icon-image: url("../icons/svg/check.svg");
-}
-
 /* A roll: words or a number that change by sliding, the old line out and the
  * new one in, inside a one-line window. @cplieger/ui/roll writes the lines
  * and the window's width, which glides to the new line's. */
