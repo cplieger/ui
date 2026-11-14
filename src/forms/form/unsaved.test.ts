@@ -816,9 +816,11 @@ describe("guardChanges: in a dialog", () => {
     Object.assign(d.style, { inlineSize: "300px", blockSize: "200px", padding: "0" });
     const f = document.createElement("form");
     f.method = "dialog";
-    // Static test markup, never caller text.
+    // Static test markup, never caller text. Once a test has sent "Hello",
+    // Firefox offers it from its form history, and its open list takes the
+    // next Escape before the page sees it.
     f.setHTMLUnsafe(
-      '<input id="subject" name="subject" aria-label="Subject"><button type="button" commandfor="msg" command="close">Cancel</button><button type="submit" value="sent">Send</button>',
+      '<input id="subject" name="subject" aria-label="Subject" autocomplete="off"><button type="button" commandfor="msg" command="close">Cancel</button><button type="submit" value="sent">Send</button>',
     );
     d.append(f);
     into.append(d);
