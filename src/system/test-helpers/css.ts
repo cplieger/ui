@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll } from "vitest";
+import { userEvent } from "vitest/browser";
 
 const root = document.documentElement;
 const hosts: HTMLElement[] = [];
@@ -20,6 +21,19 @@ export function useSystemSheet(): void {
     document.head.append(el);
     await loaded;
     sheet = el;
+    // The mouse stays where an earlier file left it, which can be over the
+    // first host a test builds, hovering what it reads at rest.
+    const corner = document.createElement("div");
+    Object.assign(corner.style, {
+      position: "fixed",
+      right: "0",
+      bottom: "0",
+      width: "4px",
+      height: "4px",
+    });
+    document.body.append(corner);
+    await userEvent.hover(corner);
+    corner.remove();
   });
   afterEach(() => {
     for (const h of hosts.splice(0)) {
