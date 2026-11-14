@@ -59,7 +59,14 @@ describe("decimalFormatter", () => {
       "5E-102",
       "7.5E-102",
     ]);
-    expect(write(1.23456789012345e-102)).toBe("1.23456789012345E-102");
+    expect(write(1.23456789012345e-102)).toBe("1.2E-102");
+    expect(decimalFormatter("number", "en", 116)(1.23456789012345e-102)).toBe(
+      "1.23456789012345E-102",
+    );
+    // A key's pivot keeps its digits up to `most`, as under 100 digits.
+    expect(decimalFormatter(undefined, "en", 102, 105)((260 / 7) * 1e-103)).toBe("3.714E-102");
+    expect([4e-104, 6e-104, -6e-104].map(write)).toEqual(["0", "1E-103", "-1E-103"]);
+    expect(decimalFormatter("number", "en", 0, 101)(1000)).toBe("1E3");
     const share = decimalFormatter("percent", "en", 0, 103);
     expect([0, 1e-103].map(share)).toEqual(["0%", "1E-101%"]);
     // 102 digits on the share are 100 on the percentage, within Intl's limit.

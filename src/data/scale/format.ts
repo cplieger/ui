@@ -73,8 +73,9 @@ const MOST_DIGITS = 100;
 /** The writer of decimals with `least` to `most` fraction digits, such as a
  *  linear axis's ticks: "number" and "percent" (counted on the share, so 0.005
  *  has three) write each with at least `least` and every digit up to `most`;
- *  past 100, Intl's most, in scientific notation to 15 significant figures with
- *  0 as 0. Any other format writes them as `formatter` does. */
+ *  when `most` passes 100, Intl's most, every value in scientific notation with
+ *  its digits up to `most`, at most 15 significant figures, and 0 as 0. Any
+ *  other format writes them as `formatter` does. */
 export function decimalFormatter(
   format: Format | undefined,
   locale: string | undefined,
@@ -86,21 +87,32 @@ export function decimalFormatter(
   }
   const shift = format === "percent" ? 2 : 0;
   const digits = (d: number) => Math.max(0, d - shift);
-  if (digits(Math.max(least, most)) > MOST_DIGITS) {
-    // Fifteen figures name the decimal a double was read from, and neighbouring ticks
-    // or class boundaries differ by their twelfth figure at least. Intl writes 0 as 0E0.
-    const nf = numbers(locale, {
-      ...preset(format),
-      notation: "scientific",
-      maximumSignificantDigits: 15,
-    });
+  const fine = Math.max(least, most);
+  if (digits(fine) > MOST_DIGITS) {
+    // Fifteen figures name the decimal a double was read from. Intl writes 0 as 0E0.
     const zero = numbers(locale, preset(format));
-    return (v) => (v === 0 ? zero : nf).format(v);
+    const figures = (n: number) =>
+      numbers(locale, { ...preset(format), notation: "scientific", maximumSignificantDigits: n });
+    return (v) => {
+      if (v === 0) {
+        return zero.format(v);
+      }
+      const [lead = "", exp = ""] = v.toExponential().split("e");
+      // The figures down to the 10^-fine digit, the share's place even under "percent".
+      const n = fine + Number(exp) + 1;
+      if (n >= 1) {
+        return figures(Math.min(15, n)).format(v);
+      }
+      // Under the 10^-fine digit: rounds half away from 0, as Intl does.
+      return n === 0 && Math.abs(Number(lead)) >= 5
+        ? figures(1).format(Math.sign(v) * Number(`1e-${fine}`))
+        : zero.format(0);
+    };
   }
   const nf = numbers(locale, {
     ...preset(format),
     minimumFractionDigits: digits(least),
-    maximumFractionDigits: digits(Math.max(least, most)),
+    maximumFractionDigits: digits(fine),
   });
   return (v) => nf.format(v);
 }
