@@ -57,6 +57,11 @@ export interface Band {
   readonly mono: boolean;
 }
 
+/** The largest magnitude a chart places on a value or colour scale: past
+ *  about 1e306 a span times a tick spacing overflows to Infinity, and the
+ *  axis's search for a step never ends. */
+export const LIMIT = 1e300;
+
 const finite = (v: number | null | undefined): v is number =>
   typeof v === "number" && Number.isFinite(v);
 
@@ -99,6 +104,10 @@ class Extent {
   }
 
   add(v: number): void {
+    // The spec check holds every value within LIMIT, so only a stack's sum passes it here.
+    if (Math.abs(v) > LIMIT && Number.isFinite(v)) {
+      throw new RangeError("renderChart: a stack's total must lie within ±1e300");
+    }
     if (Number.isFinite(v) && (!this.#log || v > 0)) {
       this.lo = Math.min(this.lo, v);
       this.hi = Math.max(this.hi, v);

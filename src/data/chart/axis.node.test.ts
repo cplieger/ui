@@ -196,6 +196,10 @@ describe("a time axis", () => {
     expect(axis.ticks.map((t) => t.value)).toEqual([6, 4, 2, 0].map((h) => eight + h * HR));
     expect(axis.ticks.at(-1)?.label?.lines).toHaveLength(2);
   });
+
+  it("refuses an instant past Date's range with a RangeError, long before 1e300", () => {
+    expect(() => xAxis(time(0, 1e16), 276, ctx())).toThrow(RangeError);
+  });
 });
 
 describe("a linear axis", () => {
@@ -284,6 +288,23 @@ describe("a linear axis", () => {
     }
     // In px order along the axis, the top first.
     expect(yAxis(y, 240, 16, ctx()).ticks.map((t) => t.value)).toEqual([3, 2, 1, 0]);
+  });
+
+  it("spans ±1e300, the largest value a chart takes, with finite ticks in order", () => {
+    for (const x of [{ type: "linear", domain: [-1e300, 1e300] }, { type: "linear" }] as const) {
+      const scale = xScale({
+        x,
+        marks: [{ mark: "line", x: [-1e300, 1e300], series: [{ name: "a", y: [1, 2] }] }],
+      });
+      const axis = xAxis(scale, 400, ctx());
+      const values = axis.ticks.map((t) => t.value);
+      // Each label writes all 301 digits, so only the tick at 0 fits.
+      expect(values).toContain(0);
+      expect([axis.lo, axis.hi]).toEqual([-1e300, 1e300]);
+      expect(
+        values.every((v, k) => Number.isFinite(v) && (k === 0 || v > (values[k - 1] ?? 0))),
+      ).toBe(true);
+    }
   });
 });
 

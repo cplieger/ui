@@ -2091,3 +2091,84 @@ describe("the box mark", () => {
     expect(m.kind).toBe("box");
   });
 });
+
+describe("the largest value", () => {
+  const grid = (more: Record<string, unknown> = {}) => ({
+    mark: "cell",
+    x: ["a", "b"],
+    y: ["r"],
+    values: [[1, 2]],
+    ...more,
+  });
+  const box = (high: number, outliers?: number[]) => ({
+    mark: "box",
+    y: ["search"],
+    series: [
+      {
+        name: "Latency",
+        low: [120],
+        q1: [180],
+        median: [240],
+        q3: [410],
+        high: [high],
+        ...(outliers === undefined ? {} : { outliers: [outliers] }),
+      },
+    ],
+  });
+  // Each places `v` on a value or colour scale through one check.
+  const at: [string, (v: number) => unknown][] = [
+    ["a line's x", (v) => ({ x: { type: "linear" }, marks: [line([1, 2], { x: [0, v] })] })],
+    ["a line's y", (v) => ({ x: {}, marks: [line([1, v])] })],
+    ["a line's y below 0", (v) => ({ x: {}, marks: [line([1, -v])] })],
+    ["a bar's x", (v) => ({ x: {}, marks: [bars([1, v])] })],
+    ["a point's x", (v) => ({ x: {}, marks: [points([[1, v]])] })],
+    ["a scatter's r", (v) => ({ ...sized, marks: [bubble([1, v])] })],
+    ["a box's high", (v) => ({ marks: [box(v)] })],
+    ["a box's outlier", (v) => ({ marks: [box(760, [v])] })],
+    ["a cell's value", (v) => ({ marks: [grid({ values: [[1, v]] })] })],
+    ["a bin's edge", (v) => ({ marks: [grid({ x: { edges: [0, 1, v] } })] })],
+    [
+      "a calendar's day",
+      (v) => ({ marks: [{ mark: "cell", days: { start: 0, values: [1, v] } }] }),
+    ],
+    ["an x domain", (v) => ({ x: { type: "linear", domain: [0, v] }, marks: [line([1, 2])] })],
+    ["a colour domain", (v) => ({ colour: { domain: [0, v] }, marks: [grid()] })],
+    ["a colour threshold", (v) => ({ colour: { thresholds: [1, v] }, marks: [grid()] })],
+    ["a colour pivot", (v) => ({ colour: { type: "diverging", pivot: v }, marks: [grid()] })],
+    ["a rule", (v) => ({ x: {}, marks: [line([1, 2]), { mark: "rule", y: v, label: "Goal" }] })],
+    ["a note", (v) => ({ x: {}, marks: [line([1, 2]), note({ y: v })] })],
+  ];
+
+  it.each(at)("takes %s of 1e300", (_, spec) => {
+    expect(() => build(spec(1e300))).not.toThrow();
+  });
+
+  it.each(at)("refuses %s of 1e301 with a RangeError", (_, spec) => {
+    expect(() => build(spec(1e301))).toThrow(RangeError);
+    expect(() => build(spec(1e301))).toThrow(/ must lie within ±1e300$/);
+  });
+
+  it("refuses a stack whose total passes 1e300, though each part is within it", () => {
+    const stack = (v: number) => ({
+      x: {},
+      marks: [
+        rect([v], {
+          series: [
+            { name: "a", y: [v] },
+            { name: "b", y: [v] },
+          ],
+        }),
+      ],
+    });
+    expect(() => build(stack(5e299))).not.toThrow();
+    expect(() => build(stack(6e299))).toThrow(
+      new RangeError("renderChart: a stack's total must lie within ±1e300"),
+    );
+  });
+
+  it("refuses a calendar's start past Date's range with a RangeError", () => {
+    expect(() => build({ marks: [{ mark: "cell", days: { start: 1e16, values: [1] } }] })).toThrow(
+      RangeError,
+    );
+  });
+});

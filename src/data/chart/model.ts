@@ -18,7 +18,16 @@ import { localDay, spansDay } from "../scale/time.js";
 
 import { dayFormat, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
-import { rScale, ruleAt, xScale, yScale, type Band, type Continuous, type Size } from "./scales.js";
+import {
+  LIMIT,
+  rScale,
+  ruleAt,
+  xScale,
+  yScale,
+  type Band,
+  type Continuous,
+  type Size,
+} from "./scales.js";
 import type {
   BarMark,
   BoxMark,
@@ -520,9 +529,21 @@ function checkFormat(format: unknown, what: string): void {
   }
 }
 
+// Infinite and non-numeric values are each check's own to refuse, in its own words.
+function within(values: Iterable<unknown>, what: string): void {
+  for (const v of values) {
+    if (typeof v === "number" && Number.isFinite(v) && Math.abs(v) > LIMIT) {
+      fail(`${what} must lie within ±1e300`, RangeError);
+    }
+  }
+}
+
 function checkDomain(domain: unknown, what: string): void {
   if (domain !== undefined && !(arrayLike(domain) && domain.length === 2)) {
     fail(`${what}.domain must be a low and a high`);
+  }
+  if (arrayLike(domain)) {
+    within(Array.from(domain), `${what}.domain`);
   }
 }
 
@@ -583,6 +604,7 @@ function checkColour(colour: unknown): void {
     if (list.some((t, k) => !Number.isFinite(t) || (k > 0 && t <= (list[k - 1] ?? 0)))) {
       fail("colour.thresholds must be finite and strictly increase", RangeError);
     }
+    within(list, "colour.thresholds");
   }
   if (arrayLike(domain)) {
     const [lo, hi] = Array.from(domain);
@@ -597,6 +619,7 @@ function checkColour(colour: unknown): void {
   if (typeof pivot === "number" && !Number.isFinite(pivot)) {
     fail("colour.pivot must be finite", RangeError);
   }
+  within([pivot], "colour.pivot");
   optional(reverse, "boolean", "colour.reverse");
   if (type !== "diverging") {
     for (const [field, v] of [
@@ -625,6 +648,7 @@ function checkX(values: unknown, what: string, ties: boolean): ArrayLike<number>
     }
     before = v;
   }
+  within(Array.from(values), what);
   return values as ArrayLike<number>;
 }
 
@@ -664,6 +688,7 @@ function checkValues(values: unknown, length: number, of: string, against: strin
   if (Array.from(values).some((v) => v !== null && typeof v !== "number")) {
     fail(`${of} must hold numbers or null`);
   }
+  within(Array.from(values), of);
 }
 
 function checkSeries(
@@ -794,6 +819,7 @@ function checkCellAxis(axis: unknown, what: string, name: "x" | "y"): number {
   if (list.some((e, k) => !Number.isFinite(e) || (k > 0 && e <= (list[k - 1] ?? 0)))) {
     fail(`${what}.${name}.edges must be finite and strictly increase`, RangeError);
   }
+  within(list, `${what}.${name}.edges`);
   return list.length - 1;
 }
 
@@ -824,6 +850,7 @@ function checkDays(mark: Record<string, unknown>, what: string): void {
   ) {
     fail(`${what}.days.values cannot hold an infinite value`, RangeError);
   }
+  within(Array.from(values), `${what}.days.values`);
   optional(days["open"], "boolean", `${what}.days.open`);
   const weekStart = mark["weekStart"];
   if (
@@ -925,6 +952,7 @@ function checkBox(mark: Record<string, unknown>, what: string): void {
       if (extra.some((v) => !Number.isFinite(v))) {
         fail(`${where}'s outliers must be finite`, RangeError);
       }
+      within(extra, `${where}'s outliers`);
       if (extra.some((v) => v >= low && v <= high)) {
         fail(
           `${where}'s outliers must lie beyond its whiskers, below low or above high`,
@@ -1114,6 +1142,7 @@ function checkMark(mark: unknown, what: string): void {
       if (typeof value !== "number" || !Number.isFinite(value)) {
         fail(`${what}'s value must be a finite number`, RangeError);
       }
+      within([value], `${what}'s value`);
       if (typeof mark["label"] !== "string") {
         fail(`${what}.label must be a string`);
       }
@@ -1135,6 +1164,7 @@ function checkMark(mark: unknown, what: string): void {
         if (typeof v === "number" && !Number.isFinite(v)) {
           fail(`${what}.${axis} must be finite`, RangeError);
         }
+        within([v], `${what}.${axis}`);
       }
       return;
     }
