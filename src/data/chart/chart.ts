@@ -1,5 +1,5 @@
 /**
- * chart.ts — `renderChart()` builds a chart with axes inside an app's
+ * chart.ts — `renderChart()` builds a chart inside an app's
  * `<figure class="cp-chart">`: its plot, legend row, summary and table
  * view, through one lifecycle of loading, empty, error and full states.
  * `durationEdges()` gives the duration ladder a histogram bins on.

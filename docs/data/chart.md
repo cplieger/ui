@@ -2,7 +2,7 @@
 
 `@cplieger/ui/chart`
 
-Charts with axes come in nine forms. Stacked columns count per time bucket. A histogram bins waits on the duration ladder, a timeline strip shows who acts when, lines run plain or stepped, and areas stack the parts of a sampled amount. Bars compare categories, stacked, grouped, split or either side of a middle, and dot, range and arrow plots set a few values per category along one axis. A slope chart sets two moments side by side, and scatter and bubble charts place each item by two measures, or three. Each chart has a summary in words and a legend row that carries the selection's values. Keys read each point aloud, and a table view holds the same data.
+A chart draws its data in one of these forms. Stacked columns count per time bucket. A histogram bins waits on the duration ladder, a timeline strip shows who acts when, lines run plain or stepped, and areas stack the parts of a sampled amount. Bars compare categories, stacked, grouped, split or either side of a middle, and dot, range and arrow plots set a few values per category along one axis. A slope chart sets two moments side by side, and scatter and bubble charts place each item by two measures, or three. Heatmaps colour the cells of a grid or the days of a calendar, and box plots set spreads side by side. Pies, donuts and treemaps divide one whole into its parts, with no axes. Each chart has a summary in words and a legend row that carries the selection's values. Keys read each point aloud, and a table view holds the same data.
 
 Install the announcer once at startup, beside the chart's first use. The keys speak through [announce](../feedback/announce.md), which says nothing without it.
 
@@ -125,8 +125,21 @@ Pick a chart by the question its data answers, after [Datawrapper's guide to cha
 | Question | Chart | Write |
 | --- | --- | --- |
 | What makes up the whole? | Share bar, one bar with no axis | [`@cplieger/ui/share-bar`](share-bar.md) |
+| How do a few parts make one whole, as a chart? | Pie chart, or a donut chart with the total in its hole | `pie`, `hole: true` |
+| How do many parts, or parts in groups, make one whole? | Treemap | `tree` |
 | How do several wholes split into the same parts? | 100% stacked bar chart | `bar`, `arrange: "share"` |
 | How did a whole's parts change over time? | 100% stacked area or column chart | `area` or `rect`, `arrange: "share"` |
+
+Pies and donuts, after [Datawrapper's advice](https://www.datawrapper.de/blog/pie-charts):
+
+- A pie works best with five slices at most. Past five, group the smallest into "Other", or use a stacked bar chart, whose labels stay tidier ([Datawrapper: how to create a pie chart](https://www.datawrapper.de/academy/how-to-create-a-pie-chart)).
+- A pie shows values near a quarter, a half or three quarters well, and shares that differ little badly: compare those in a bar chart.
+- Two values are one number and the rest of 100%: write the number instead of drawing it.
+- One pie shows one whole. Two polls compare in a 100% stacked bar chart, not in two pies.
+- The slices are parts of one whole that exclude each other, never the answers to a question that allowed several ([Datawrapper: how to create a donut chart](https://www.datawrapper.de/academy/how-to-create-a-donut-chart)).
+- The chart keeps the slices in the order sent, clockwise from 12 o'clock, so put the slice that matters most first.
+
+A treemap holds more parts than a pie and can nest them in groups, and it is harder to read than a bar chart: many small tiles lose their labels ([FT Visual Vocabulary, Part-to-whole](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary)). Send the largest parts first, since its tiles come out squarest that way, and group the smallest into "Other".
 
 ### Marking a moment or a level
 
@@ -143,9 +156,9 @@ On a phone, or when notes would overlap, every note becomes a numbered marker wi
 | --- | --- |
 | Maps: choropleth, symbol and locator maps | A bar chart of the regions sorted by value, or a table with [ranked bars](ranked-bars.md). A map needs shapes and a projection that this module does not carry. |
 | Stream graphs | A stacked area chart. Exact values are hard to read in a stream graph ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)): no layer sits on a flat baseline, so none can be read against the axis. |
-| Marimekko charts | A 100% stacked bar chart beside a bar chart of the totals. A Marimekko challenges the reader to compare absolute and relative values at once, as widths and heights ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
+| Marimekko charts | A 100% stacked bar chart beside a bar chart of the totals, or a treemap of groups. A Marimekko challenges the reader to compare absolute and relative values at once, as widths and heights ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
 | Parliament charts | A bar chart of the seats, as election results are almost always shown ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)), or a 100% stacked bar chart against a majority `rule`. |
-| Waffle and pictogram charts | A [share bar](share-bar.md) for the shares of one whole, a 100% stacked bar chart for several, a bar chart for counts. Both trade readability for illustration ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
+| Waffle and pictogram charts | A [share bar](share-bar.md) for the shares of one whole, or a pie as a chart, a 100% stacked bar chart for several, a bar chart for counts. Both trade readability for illustration ([Datawrapper](https://www.datawrapper.de/blog/chart-types-guide)). |
 | Connected scatter plots | Two line charts over the same time x, one per measure. A connected scatter plot carries time only in its path's order, which a reader must trace dot by dot. |
 | Radar charts | A dot plot with a row per variable and a dot per series. A radar's outline depends on the order of its axes ([FT Visual Vocabulary, Magnitude](https://github.com/Financial-Times/chart-doctor/tree/main/visual-vocabulary)). |
 | 3D charts | The same chart in two dimensions, a third value as a bubble's size. Projection distorts lengths, angles and areas ([Claus Wilke on 3D charts](https://clauswilke.com/dataviz/no-3d.html)). |

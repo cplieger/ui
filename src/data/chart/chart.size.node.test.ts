@@ -5,11 +5,11 @@ import { build } from "esbuild";
 import { expect, it } from "vitest";
 
 // No standard sizes a chart module, so the budget makes growth a decision:
-// measured at 58,394 bytes with the rect, line, area, dot, bar, point,
+// measured at 60,004 bytes with the rect, line, area, dot, bar, point,
 // slope, scatter (bubbles included), cell (grid, bins and calendar), box,
 // pie, tree, rule and text marks, plus 10 %. A change that passes it raises
 // the budget in the same pull request, with its reason.
-const BUDGET = 64_233;
+const BUDGET = 66_004;
 
 // The bundling's time is no part of what this measures, and on a busy runner
 // beside three browsers it has run past vitest's 5 s default.

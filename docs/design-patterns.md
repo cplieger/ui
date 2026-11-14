@@ -103,7 +103,7 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 ## Charts
 
-Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes is a [chart](data/chart.md), whose [Choosing a chart](data/chart.md#choosing-a-chart) says which form answers which question, from stacked columns per time bucket and bars by category to a timeline strip of who acts when. Outside it:
+Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes, or a pie or treemap of one whole, is a [chart](data/chart.md), whose [Choosing a chart](data/chart.md#choosing-a-chart) says which form answers which question, from stacked columns per time bucket and bars by category to a timeline strip of who acts when. Outside it:
 
 - A number now is a `.cp-figure` from [Components](design-components.md), with a [sparkline](data/sparkline.md) for how it moved over the range.
 - A count that is almost always zero, such as failed checks, is a `.cp-figure`, since a chart of zeros says less than the number.
