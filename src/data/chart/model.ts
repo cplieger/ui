@@ -1549,7 +1549,8 @@ const MOST_VALUES = 1_000_000;
 // Counts each value a mark places, a sample per series, a bucket, bar, dot,
 // box, outlier, cell, day, slice, part, rule or note, in spec order; a mark
 // with no series still places its x. A series, timeline row or cell row counts
-// as one value at least, so its legend chip or row name is bounded too.
+// as one value at least, and a cell grid with no rows counts its columns, so
+// every legend chip, row and column name is bounded too.
 function checkValueCount(marks: ArrayLike<unknown>): void {
   let count = 0;
   const add = (n: number, field: string): void => {
@@ -1616,6 +1617,13 @@ function checkValueCount(marks: ArrayLike<unknown>): void {
           break;
         }
         const values = mark["values"] as ArrayLike<ArrayLike<unknown>>;
+        if (values.length === 0) {
+          const x = mark["x"];
+          add(
+            arrayLike(x) ? x.length : lengthOf((x as Record<string, unknown>)["edges"]) - 1,
+            `${what}.x`,
+          );
+        }
         Array.from(values, (row, r) => {
           add(Math.max(1, row.length), `${what}.values[${String(r)}]`);
         });

@@ -478,6 +478,28 @@ describe("spec errors", () => {
     expect(() => build({ x: {}, marks: [scatter] })).toThrow("marks[0].series[1000000].names");
   });
 
+  it("counts a cell grid's columns when it has no rows", () => {
+    const past = new RangeError(
+      "renderChart: marks[0].x must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
+    );
+    const named = (n: number): Mark => ({
+      mark: "cell",
+      x: Array.from({ length: n }, (_, i) => `c${String(i)}`),
+      y: [],
+      values: [],
+    });
+    expect(build({ x: {}, marks: [named(1_000_000)] }).kind).toBe("heatmap");
+    expect(() => build({ x: {}, marks: [named(1_000_001)] })).toThrow(past);
+    const binned = (bins: number): Mark => ({
+      mark: "cell",
+      x: { edges: Array.from({ length: bins + 1 }, (_, i) => i) },
+      y: [],
+      values: [],
+    });
+    expect(build({ x: {}, marks: [binned(1_000_000)] }).kind).toBe("heatmap");
+    expect(() => build({ x: {}, marks: [binned(1_000_001)] })).toThrow(past);
+  });
+
   it("builds a stack whose x is an array-like of any length", () => {
     for (const length of [-1, Number.NaN]) {
       const area = build({ x: {}, marks: [{ mark: "area", x: { length }, series: [] }] });
