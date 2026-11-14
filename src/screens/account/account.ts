@@ -9,7 +9,10 @@
 export type {
   OIDCReturn,
   Refusal,
+  RegisterOutcome,
   Result,
+  SetupAccess,
+  SetupClient,
   SignInAccess,
   SignInClient,
   SignInOutcome,
@@ -19,7 +22,9 @@ export type {
 export { accountActions, accountRunner, runDirect } from "./run.js";
 export type { AccountAction, DefineAction, Runner } from "./run.js";
 export type { AccountPart, ScreenOptions } from "./screen.js";
+export { mountSetup } from "./setup.js";
+export type { SetupOptions } from "./setup.js";
 export { mountSignIn } from "./sign-in.js";
 export type { SignInArrival, SignInOptions, SignedInEvent } from "./sign-in.js";
 export { defaultAccountWords, wordsOf } from "./words.js";
-export type { AccountWords } from "./words.js";
+export type { AccountWords, PageHost } from "./words.js";

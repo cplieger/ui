@@ -26,6 +26,17 @@ export interface StateResponse {
   readonly password_login: boolean;
   readonly passkeys: boolean;
   readonly oidc: boolean;
+  /** Absent before access Part 3: read as true. */
+  readonly secure?: boolean;
+  /** Only on a plain request to an app that allows one. */
+  readonly plain_session?: {
+    readonly idle_seconds: number;
+    readonly absolute_seconds: number;
+  };
+  /** What HTTPS would add: only what the app offers and the transport
+   *  withholds. */
+  readonly https_required?: readonly ("password" | "setup" | "passkeys" | "oidc")[];
+  readonly https_origin?: string;
 }
 
 export interface SignedIn {
@@ -44,6 +55,11 @@ export type SignInOutcome =
       /** The server's refusal, or the browser's `DOMException` name. */
       readonly error: Refusal | string;
     };
+
+export type RegisterOutcome =
+  | { readonly kind: "registered" }
+  | { readonly kind: "cancelled" | "duplicate" | "timeout" | "not-discoverable" }
+  | { readonly kind: "failed"; readonly error: Refusal | string };
 
 /** Where a single sign-on round trip came back, from the address. */
 export type OIDCReturn =
@@ -70,4 +86,26 @@ export interface SignInAccess<C> {
   storePasswordCredential(username: string, password: string): Promise<void>;
   readOIDCReturn(search: string): OIDCReturn;
   oidcSignInURL(c: C, redirect?: string): string;
+}
+
+/** The client calls the setup screen makes. */
+export interface SetupClient {
+  state(): Promise<Result<StateResponse>>;
+  setupPassword(r: {
+    readonly token?: string;
+    readonly username: string;
+    readonly password: string;
+  }): Promise<Result<SignedIn>>;
+}
+
+/** The `@cplieger/access` functions the setup screen calls. */
+export interface SetupAccess<C> {
+  setupWithPasskey(
+    c: C,
+    r: { readonly token?: string; readonly username: string },
+  ): Promise<SignInOutcome>;
+  registerPasskey(c: C): Promise<RegisterOutcome>;
+  passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
+  storePasswordCredential(username: string, password: string): Promise<void>;
+  takeFragmentToken(name: string): string | undefined;
 }

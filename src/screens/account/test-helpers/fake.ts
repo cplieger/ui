@@ -7,7 +7,10 @@
 import type {
   OIDCReturn,
   Refusal,
+  RegisterOutcome,
   Result,
+  SetupAccess,
+  SetupClient,
   SignInAccess,
   SignInClient,
   SignInOutcome,
@@ -54,16 +57,22 @@ export const noAnswer: Refusal = { ok: false, status: 0, error: "network", code:
 
 type Answer = unknown;
 
-export type FakeClient = SignInClient & { readonly prefix: string; readonly oidcPrefix: string };
+export type FakeClient = SignInClient &
+  SetupClient & { readonly prefix: string; readonly oidcPrefix: string };
 
 export class Fake {
   readonly calls: Call[] = [];
   readonly prefix = "/api/auth";
   readonly oidcPrefix = "/api/auth/oidc";
+  /** What `takeFragmentToken` answers. */
+  fragment: string | undefined;
   readonly #queued = new Map<string, Answer[]>();
   readonly #defaults = new Map<string, Answer>([
     ["state", ok(everyMethod)],
     ["loginPassword", ok(signedIn)],
+    ["setupPassword", ok(signedIn)],
+    ["setupWithPasskey", { kind: "signed-in", result: signedIn }],
+    ["registerPasskey", { kind: "registered" }],
     ["signInWithPasskey", { kind: "signed-in", result: signedIn }],
     ["passkeySupport", { webauthn: true, conditional: false }],
   ]);
@@ -114,11 +123,12 @@ export class Fake {
       oidcPrefix: this.oidcPrefix,
       state: () => call<Result<StateResponse>>("state", []),
       loginPassword: (r) => call<Result<SignedIn>>("loginPassword", [r]),
+      setupPassword: (r) => call<Result<SignedIn>>("setupPassword", [r]),
     };
   }
 
   /** The access module, as the screens type it. */
-  access(): SignInAccess<FakeClient> {
+  access(): SignInAccess<FakeClient> & SetupAccess<FakeClient> {
     const call = <T>(name: string, args: readonly unknown[]): Promise<T> =>
       this.call(name, args) as Promise<T>;
     return {
@@ -127,6 +137,12 @@ export class Fake {
         call<{ readonly webauthn: boolean; readonly conditional: boolean }>("passkeySupport", []),
       storePasswordCredential: async (username, password) => {
         await call("storePasswordCredential", [username, password]);
+      },
+      setupWithPasskey: (c, r) => call<SignInOutcome>("setupWithPasskey", [c, r]),
+      registerPasskey: (c) => call<RegisterOutcome>("registerPasskey", [c]),
+      takeFragmentToken: (name) => {
+        this.calls.push({ name: "takeFragmentToken", args: [name] });
+        return this.fragment;
       },
       readOIDCReturn: readReturn,
       oidcSignInURL: (c, redirect) =>

@@ -6,6 +6,14 @@
  * @module
  */
 
+/** The page's address, for words that depend on how it was reached. */
+export interface PageHost {
+  /** `location.hostname`, such as "nas.lan" or "192.168.1.20". */
+  readonly hostname: string;
+  /** True at an IP address or `localhost`, false at any other name. */
+  readonly ipOrLocalhost: boolean;
+}
+
 export interface AccountWords {
   /** A request that got no answer. */
   readonly "generic.network": string;
@@ -36,6 +44,37 @@ export interface AccountWords {
   /** Said when a rate limit's countdown ends. */
   readonly "signIn.again": string;
 
+  readonly "setup.title": (app: string) => string;
+  readonly "setup.token": string;
+  readonly "setup.username": string;
+  readonly "setup.usernameHelp": string;
+  readonly "setup.password": string;
+  readonly "setup.passwordHelp": string;
+  readonly "setup.submit": string;
+  readonly "setup.busy": string;
+  readonly "setup.done": string;
+  readonly "setup.passkey": string;
+  readonly "setup.passkeyBusy": string;
+  readonly "setup.tokenEmpty": string;
+  readonly "setup.usernameEmpty": string;
+  readonly "setup.passwordEmpty": string;
+  /** The passkey offer after a password setup. */
+  readonly "setup.offer": string;
+  readonly "setup.offerAdd": string;
+  readonly "setup.offerBusy": string;
+  readonly "setup.offerDone": string;
+  readonly "setup.offerSkip": string;
+  readonly "setup.created": string;
+
+  /** What HTTPS would add on a plain request, from `https_required`. */
+  readonly "plain.withheld": (methods: readonly ("passkeys" | "oidc")[]) => string;
+  /** The plain session's length, each part already worded ("12 hours"). */
+  readonly "plain.session": (absolute: string, idle: string) => string;
+  readonly "plain.needed": string;
+  readonly "plain.open": (app: string) => string;
+  readonly "plain.hours": (n: number) => string;
+  readonly "plain.minutes": (n: number) => string;
+
   readonly "arrived.session-ended": string;
   readonly "arrived.setup-complete": string;
   readonly "arrived.password-set": string;
@@ -58,6 +97,23 @@ export interface AccountWords {
   /** A single sign-on identity no account uses, where no pending link is
    *  mounted. `place` names where the person links it. */
   readonly "oidc.not_linked": (provider: string, place: string) => string;
+
+  /** A function words it by the address the page was opened at. */
+  readonly auth_setup_token_required: string | ((page: PageHost) => string);
+  readonly auth_token_invalid: string;
+  readonly auth_breach_check_unavailable: string;
+  /** A refused new password; `min` and `max` are the answer's bounds. */
+  readonly "auth_password_rejected.too_short": (min: number, max: number) => string;
+  readonly "auth_password_rejected.too_long": (min: number, max: number) => string;
+  readonly "auth_password_rejected.contains_username": string;
+  readonly "auth_password_rejected.contains_forbidden_word": string;
+  readonly "auth_password_rejected.common": string;
+  readonly "auth_password_rejected.breached": string;
+  readonly auth_password_rejected: string;
+  readonly "auth_forbidden.no_usable_method": string;
+
+  readonly "register.duplicate": string;
+  readonly "register.not-discoverable": string;
 
   readonly "passkey.timeout": string;
   readonly "passkey.ceremony-expired": string;
@@ -92,6 +148,41 @@ export const defaultAccountWords: AccountWords = {
   "signIn.passwordEmpty": "Enter your password.",
   "signIn.again": "You can sign in again.",
 
+  "setup.title": (app) => `Set up ${app}`,
+  "setup.token": "Setup token",
+  "setup.username": "Username",
+  "setup.usernameHelp": "Letters, digits, dots, dashes and underscores. No spaces.",
+  "setup.password": "Password",
+  "setup.passwordHelp": "15 to 128 characters. A few unrelated words make a strong one.",
+  "setup.submit": "Create account",
+  "setup.busy": "Creating account…",
+  "setup.done": "Account created",
+  "setup.passkey": "Create with a passkey",
+  "setup.passkeyBusy": "Waiting for your passkey…",
+  "setup.tokenEmpty": "Enter the setup token.",
+  "setup.usernameEmpty": "Enter a username.",
+  "setup.passwordEmpty": "Enter a password.",
+  "setup.offer":
+    "Add a passkey to sign in without typing your password. You can also add one later.",
+  "setup.offerAdd": "Add a passkey",
+  "setup.offerBusy": "Waiting for your passkey…",
+  "setup.offerDone": "Passkey added",
+  "setup.offerSkip": "Skip",
+  "setup.created": "Your account is ready.",
+
+  "plain.withheld": (methods) =>
+    methods.length === 2
+      ? "Passkeys and single sign-on need HTTPS."
+      : methods[0] === "oidc"
+        ? "Single sign-on needs HTTPS."
+        : "Passkeys need HTTPS.",
+  "plain.session": (absolute, idle) =>
+    `You stay signed in for up to ${absolute}, ${idle} when idle, until you close the browser.`,
+  "plain.needed": "This app needs HTTPS.",
+  "plain.open": (app) => `Open ${app} over HTTPS`,
+  "plain.hours": (n) => (n === 1 ? "1 hour" : `${String(n)} hours`),
+  "plain.minutes": (n) => (n === 1 ? "1 minute" : `${String(n)} minutes`),
+
   "arrived.session-ended": "Your session ended. Sign in to continue.",
   "arrived.setup-complete": "Setup is already done. Sign in.",
   "arrived.password-set": "Password set. Sign in with it.",
@@ -112,6 +203,27 @@ export const defaultAccountWords: AccountWords = {
   "oidc.not_linked": (provider, place) =>
     `This ${provider} identity is not linked to an account here. Sign in another way, then link it in ${place}.`,
 
+  auth_setup_token_required: "Enter the setup token.",
+  auth_token_invalid: "That setup token does not work. Make a new one with the command above.",
+  auth_breach_check_unavailable:
+    "The password check is not answering. Try again in a moment. Your password can stay as it is.",
+  "auth_password_rejected.too_short": (min, max) =>
+    `Use ${String(min)} to ${String(max)} characters.`,
+  "auth_password_rejected.too_long": (min, max) =>
+    `Use ${String(min)} to ${String(max)} characters.`,
+  "auth_password_rejected.contains_username": "Leave your username out of the password.",
+  "auth_password_rejected.contains_forbidden_word":
+    'Leave the app\'s name and words like "password" out of it.',
+  "auth_password_rejected.common": "That password is too common. Choose another.",
+  "auth_password_rejected.breached": "That password has appeared in a data breach. Choose another.",
+  auth_password_rejected: "Choose another password.",
+  "auth_forbidden.no_usable_method":
+    "This app allows no second factor this account can set up. Ask an administrator.",
+
+  "register.duplicate": "That passkey is already on your account.",
+  "register.not-discoverable":
+    "That authenticator cannot keep a passkey for this app. Try another one.",
+
   "passkey.timeout": outOfTime,
   "passkey.ceremony-expired": outOfTime,
   "passkey.unknown-credential":
@@ -123,4 +235,15 @@ export const defaultAccountWords: AccountWords = {
 /** The defaults with `overrides` on top. */
 export function wordsOf(overrides: Partial<AccountWords> = {}): AccountWords {
   return { ...defaultAccountWords, ...overrides };
+}
+
+/** Reads `hostname` (a `location.hostname`) into a `PageHost`. The URL
+ *  parser has already written an IPv4 address as four decimal parts and
+ *  put an IPv6 one in brackets. */
+export function pageHost(hostname: string): PageHost {
+  const ipOrLocalhost =
+    hostname === "localhost" ||
+    hostname.startsWith("[") ||
+    /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+  return { hostname, ipOrLocalhost };
 }

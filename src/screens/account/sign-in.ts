@@ -11,7 +11,7 @@ import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { clearError, reportErrors, type FieldError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
-import { codeOf, generic, reasonOf, retryAfter, type Said } from "./answer.js";
+import { codeOf, generic, retryAfter, usernameWords, type Said } from "./answer.js";
 import type {
   OIDCReturn,
   Refusal,
@@ -22,20 +22,31 @@ import type {
   SignedIn,
   StateResponse,
 } from "./client.js";
-import { actionButton, el, field, glyph, heading, line, notice, passwordField } from "./dom.js";
+import {
+  actionButton,
+  el,
+  field,
+  glyph,
+  heading,
+  line,
+  notice,
+  passwordField,
+  sketch,
+} from "./dom.js";
 import { runDirect } from "./run.js";
 import {
   cleanAddress,
   cycle,
   holdFor,
   partsOf,
+  read,
   samePath,
   sleep,
   slot,
   type Hold,
   type ScreenOptions,
 } from "./screen.js";
-import { wordsOf, type AccountWords } from "./words.js";
+import { wordsOf } from "./words.js";
 
 /** The notice a sign-in opens with, after the step that sent the person
  *  here. */
@@ -62,6 +73,7 @@ export interface SignInOptions<C extends SignInClient> extends ScreenOptions {
   /** Where the person links a single sign-on identity, named in the words
    *  for one that no account uses. Default "Security". */
   readonly place?: string;
+  /** Default: the `arrived` query value, as setup's default sends it. */
   readonly arrived?: SignInArrival;
   /** The username to fill in. */
   readonly username?: string;
@@ -113,13 +125,15 @@ export function mountSignIn<C extends SignInClient>(
       location.assign(url);
     });
   const search = options.search ?? location.search;
-  const next = options.next ?? samePath(new URLSearchParams(search).get("next")) ?? "/";
+  const query = new URLSearchParams(search);
+  const next = options.next ?? samePath(query.get("next")) ?? "/";
+  const arrived = options.arrived ?? arrivalOf(query.get("arrived"));
   const life = signal === undefined ? {} : { signal };
   installAnnouncer(life);
   installTooltips(life);
 
   const back = access.readOIDCReturn(search);
-  if (back.kind !== "none") {
+  if (back.kind !== "none" || query.has("arrived")) {
     cleanAddress();
   }
 
@@ -252,12 +266,12 @@ export function mountSignIn<C extends SignInClient>(
   /** The notice the screen opens with: a single sign-on outcome first. */
   const opening = (): Said | undefined => {
     const said = returned(back);
-    if (said !== undefined || options.arrived === undefined) {
+    if (said !== undefined || arrived === undefined) {
       return said;
     }
     return {
-      tone: options.arrived === "password-set" ? "success" : "neutral",
-      text: w[`arrived.${options.arrived}`],
+      tone: arrived === "password-set" ? "success" : "neutral",
+      text: w[`arrived.${arrived}`],
     };
   };
 
@@ -410,7 +424,7 @@ export function mountSignIn<C extends SignInClient>(
         f.password.select();
         return;
       case "auth_username_invalid":
-        reportErrors(f.form, [{ field: f.username, message: usernameWords(reasonOf(r), w) }], {
+        reportErrors(f.form, [{ field: f.username, message: usernameWords(r, w) }], {
           summary: f.summary,
           heading: w["form.summary"],
         });
@@ -533,37 +547,8 @@ export function mountSignIn<C extends SignInClient>(
   void load();
 }
 
-/** The words for `auth_username_invalid`, by its reason. */
-function usernameWords(reason: string | undefined, w: AccountWords): string {
-  switch (reason) {
-    case "empty":
-      return w["auth_username_invalid.empty"];
-    case "disallowed_character":
-      return w["auth_username_invalid.disallowed_character"];
-    default:
-      return w.auth_username_invalid;
-  }
-}
+const ARRIVALS: readonly SignInArrival[] = ["session-ended", "setup-complete", "password-set"];
 
-/** A read that answers a refusal instead of rejecting. */
-async function read<T>(work: () => Promise<Result<T>>): Promise<Result<T>> {
-  try {
-    return await work();
-  } catch {
-    return { ok: false, status: 0, error: "no answer" };
-  }
-}
-
-/** The form's shape while the state loads. */
-function sketch(): HTMLElement {
-  const box = el("div", "cp-stack");
-  box.setAttribute("aria-hidden", "true");
-  for (const variant of ["heading", "", "heading", "", "last"]) {
-    const bar = el("span", "cp-skeleton");
-    if (variant !== "") {
-      bar.dataset["variant"] = variant;
-    }
-    box.append(bar);
-  }
-  return box;
+function arrivalOf(value: string | null): SignInArrival | undefined {
+  return ARRIVALS.find((a) => a === value);
 }

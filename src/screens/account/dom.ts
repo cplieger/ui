@@ -158,3 +158,17 @@ export function line(className: string, content: string | Node): HTMLParagraphEl
   p.append(content);
   return p;
 }
+
+/** A form's shape while its state loads. */
+export function sketch(): HTMLElement {
+  const box = el("div", "cp-stack");
+  box.setAttribute("aria-hidden", "true");
+  for (const variant of ["heading", "", "heading", "", "last"]) {
+    const bar = el("span", "cp-skeleton");
+    if (variant !== "") {
+      bar.dataset["variant"] = variant;
+    }
+    box.append(bar);
+  }
+  return box;
+}

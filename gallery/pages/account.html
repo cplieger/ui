@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#qr">QR code</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -68,6 +68,53 @@
         <h2>Sign-in turned off</h2>
         <section class="cp-panel" data-account-demo="off"></section>
         <footer>No method is on.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="setup">
+    <h2>Setup</h2>
+    <p><code>mountSetup(region, options)</code> creates the first account: the setup token when the app asks for one, a username and a password, or a passkey under a rule. It fills the gate page's panel, or a step of the app's own setup with no heading of its own. After a password setup the app may offer a passkey.</p>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>The setup page</h2>
+        <div class="cp-gate">
+          <div class="cp-wordmark"><span class="cp-mark" aria-hidden="true">R</span>Release tracker</div>
+          <section class="cp-panel" data-setup-demo="page"></section>
+        </div>
+        <footer>The token field with the app's help naming its command, then the passkey under a rule. Type the token "wrong" for a token that does not work, the password "common", "breached" or "short" for each refused password, "limit" for a rate limit, or a username with a space. A password setup that works offers a passkey next.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Inside the app's own step</h2>
+        <section class="cp-stack" aria-labelledby="setup-step-title">
+          <h3 id="setup-step-title">Step 2 of 3: your account</h3>
+          <div data-setup-demo="step"></div>
+        </section>
+        <footer>With <code>heading: false</code> the screen draws no heading: the app's step heads it. No token field, since this app asks for none.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>The passkey offer</h2>
+        <section class="cp-panel" data-setup-demo="offer"></section>
+        <footer>After a password setup, when the app's own check says passkeys work at this address: Add a passkey, or Skip.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A token that does not work</h2>
+        <section class="cp-panel" data-setup-demo="token"></section>
+        <footer>The answer's words on the token field; every value typed stays.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>The token's words by address</h2>
+        <section class="cp-panel" data-setup-demo="host"></section>
+        <footer>The app passes a function for a missing token, given the page's host name and whether it is an IP address or localhost, and words each case its own way. Opened at a name, this card names it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Over plain HTTP</h2>
+        <section class="cp-panel" data-setup-demo="plain"></section>
+        <footer>An app that allows plain HTTP: the password setup only, the line naming what needs HTTPS with the way there, and the shorter session.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>This app needs HTTPS</h2>
+        <section class="cp-panel" data-setup-demo="strict"></section>
+        <footer>An app that refuses setup over plain HTTP: no form, only the way to its HTTPS address.</footer>
       </div>
     </div>
   </section>

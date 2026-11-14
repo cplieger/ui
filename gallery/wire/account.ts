@@ -5,9 +5,14 @@
  */
 
 import {
+  mountSetup,
   mountSignIn,
   type Refusal,
+  type RegisterOutcome,
   type Result,
+  type SetupAccess,
+  type SetupClient,
+  type SetupOptions,
   type SignInAccess,
   type SignInClient,
   type SignInOptions,
@@ -213,6 +218,27 @@ const CARDS: Readonly<Record<string, Card>> = {
   },
 };
 
+/** Runs `then` once `panel` is drawn and in view, so the focus it moves
+ *  never scrolls the page. */
+function whenShown(panel: HTMLElement, then: (panel: HTMLElement) => void): void {
+  const seen = new IntersectionObserver(
+    ([entry]) => {
+      if (entry?.isIntersecting === true && !panel.hasAttribute("aria-busy")) {
+        seen.disconnect();
+        then(panel);
+      }
+    },
+    { threshold: 0.6 },
+  );
+  const drawn = new MutationObserver(() => {
+    if (!panel.hasAttribute("aria-busy")) {
+      drawn.disconnect();
+      seen.observe(panel);
+    }
+  });
+  drawn.observe(panel, { attributes: true, attributeFilter: ["aria-busy"] });
+}
+
 for (const panel of document.querySelectorAll<HTMLElement>("[data-account-demo]")) {
   const card = CARDS[panel.dataset["accountDemo"] ?? ""];
   if (card === undefined) {
@@ -230,24 +256,162 @@ for (const panel of document.querySelectorAll<HTMLElement>("[data-account-demo]"
     access,
   });
   if (then !== undefined) {
-    // Each state is driven once its card is in view, so the focus it moves
-    // never scrolls the page.
-    const seen = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting === true && !panel.hasAttribute("aria-busy")) {
-          seen.disconnect();
-          then(panel);
-        }
+    whenShown(panel, then);
+  }
+}
+
+const SETUP: StateResponse = { ...EVERY, setup_required: true, oidc: false };
+
+/** The setup answers, by what the person types. */
+function setupByWords(r: {
+  readonly token?: string;
+  readonly username: string;
+  readonly password: string;
+}): Result<SignedIn> {
+  if (r.token === "wrong") {
+    return refusal(401, "auth_token_invalid");
+  }
+  if (r.username.includes(" ")) {
+    return refusal(400, "auth_username_invalid", "disallowed_character");
+  }
+  switch (r.password) {
+    case "common":
+      return refusal(400, "auth_password_rejected", "common");
+    case "breached":
+      return refusal(400, "auth_password_rejected", "breached");
+    case "short":
+      return refusal(400, "auth_password_rejected", "too_short");
+    case "limit":
+      return refusal(429, "auth_rate_limited", undefined, 42);
+    default:
+      return { ok: true, data: SIGNED_IN };
+  }
+}
+
+interface SetupScript {
+  readonly state?: StateResponse;
+  readonly setup?: typeof setupByWords;
+  readonly register?: RegisterOutcome;
+}
+
+function setupFake(script: SetupScript): {
+  readonly client: SetupClient;
+  readonly access: SetupAccess<SetupClient>;
+} {
+  const client: SetupClient = {
+    async state() {
+      await wait(300);
+      return { ok: true, data: script.state ?? SETUP };
+    },
+    async setupPassword(r) {
+      await wait(700);
+      return (script.setup ?? setupByWords)(r);
+    },
+  };
+  const access: SetupAccess<SetupClient> = {
+    async setupWithPasskey() {
+      await wait(900);
+      return { kind: "signed-in", result: SIGNED_IN };
+    },
+    async registerPasskey() {
+      await wait(900);
+      return script.register ?? { kind: "registered" };
+    },
+    passkeySupport: () => Promise.resolve({ webauthn: true, conditional: false }),
+    storePasswordCredential: () => Promise.resolve(),
+    takeFragmentToken: () => undefined,
+  };
+  return { client, access };
+}
+
+type SetupCard = Omit<SetupOptions<SetupClient>, "client" | "access" | "app"> & {
+  readonly script?: SetupScript;
+  readonly then?: (panel: HTMLElement) => void;
+};
+
+const tokenHelp = (): Node => {
+  const help = document.createDocumentFragment();
+  const command = document.createElement("code");
+  command.textContent = "release-tracker setup-token";
+  help.append("Run ", command, " on the server to print it.");
+  return help;
+};
+
+const createAccount = (panel: HTMLElement): void => {
+  fill(panel, "username", "mika");
+  fill(panel, "password", "lantern harbour quietly");
+  submitForm(panel);
+};
+
+const SETUP_CARDS: Readonly<Record<string, SetupCard>> = {
+  page: { token: { help: tokenHelp() }, offerPasskey: () => true },
+  step: { heading: false },
+  offer: { offerPasskey: () => true, then: createAccount },
+  token: {
+    token: { help: tokenHelp(), value: "wrong" },
+    then: createAccount,
+  },
+  host: {
+    token: { help: "Paste it from the container log." },
+    script: { setup: () => refusal(400, "auth_setup_token_required") },
+    words: {
+      auth_setup_token_required: (page) =>
+        page.ipOrLocalhost
+          ? "The setup token is in the container log."
+          : `You opened Release tracker at ${page.hostname}, a name it does not trust yet. Paste the setup token from the container log, or add ${page.hostname} to allowed_hosts and restart it.`,
+    },
+    then: (panel) => {
+      fill(panel, "token", "tok-1");
+      createAccount(panel);
+    },
+  },
+  plain: {
+    script: {
+      state: {
+        ...SETUP,
+        passkeys: false,
+        secure: false,
+        https_required: ["passkeys"],
+        plain_session: { idle_seconds: 1800, absolute_seconds: 43200 },
+        https_origin: "https://tracker.example",
       },
-      { threshold: 0.6 },
-    );
-    const drawn = new MutationObserver(() => {
-      if (!panel.hasAttribute("aria-busy")) {
-        drawn.disconnect();
-        seen.observe(panel);
-      }
-    });
-    drawn.observe(panel, { attributes: true, attributeFilter: ["aria-busy"] });
+    },
+  },
+  strict: {
+    script: {
+      state: {
+        ...SETUP,
+        password_login: false,
+        passkeys: false,
+        secure: false,
+        https_required: ["password", "setup", "passkeys"],
+        https_origin: "https://tracker.example",
+      },
+    },
+  },
+};
+
+for (const panel of document.querySelectorAll<HTMLElement>("[data-setup-demo]")) {
+  const card = SETUP_CARDS[panel.dataset["setupDemo"] ?? ""];
+  if (card === undefined) {
+    continue;
+  }
+  const { script = {}, then, ...options } = card;
+  const { client, access } = setupFake(script);
+  mountSetup(panel, {
+    app: "Release tracker",
+    onDone: () => {
+      toast({ title: "Account created: the app would open" });
+    },
+    onSetupComplete: () => {
+      toast({ title: "Setup was done: the app would open sign-in" });
+    },
+    ...options,
+    client,
+    access,
+  });
+  if (then !== undefined) {
+    whenShown(panel, then);
   }
 }
 

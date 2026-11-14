@@ -54,6 +54,49 @@ export function clock(seconds: number): string {
   return `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+/** The words for `auth_username_invalid`, by its reason. */
+export function usernameWords(r: Refusal, w: AccountWords): string {
+  switch (reasonOf(r)) {
+    case "empty":
+      return w["auth_username_invalid.empty"];
+    case "disallowed_character":
+      return w["auth_username_invalid.disallowed_character"];
+    default:
+      return w.auth_username_invalid;
+  }
+}
+
+/** The words for `auth_password_rejected`, by its reason. The bounds come
+ *  only in access's `Error.Detail` sentence ("Length: 15 to 128
+ *  characters."), which the app's envelope sends as the message or a
+ *  `detail` field. */
+export function passwordWords(r: Refusal, w: AccountWords): string {
+  const reason = reasonOf(r);
+  switch (reason) {
+    case "too_short":
+    case "too_long": {
+      const body = r.body;
+      const detail =
+        typeof body === "object" && body !== null && Object.hasOwn(body, "detail")
+          ? (body as Record<string, unknown>)["detail"]
+          : undefined;
+      const said = `${r.error} ${typeof detail === "string" ? detail : ""}`;
+      const bounds = /Length: (\d+) to (\d+) characters/.exec(said);
+      return w[`auth_password_rejected.${reason}`](
+        Number(bounds?.[1] ?? 15),
+        Number(bounds?.[2] ?? 128),
+      );
+    }
+    case "contains_username":
+    case "contains_forbidden_word":
+    case "common":
+    case "breached":
+      return w[`auth_password_rejected.${reason}`];
+    default:
+      return w.auth_password_rejected;
+  }
+}
+
 /** The words for a refusal no screen words itself. */
 export function generic(r: Refusal, w: AccountWords): Said {
   if (r.status === 0) {

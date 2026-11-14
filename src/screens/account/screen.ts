@@ -8,7 +8,8 @@
 import type { Confirm } from "../../buttons/confirm/confirm.js";
 import { announce } from "../../feedback/announce/announce.js";
 import { clock, type Tone } from "./answer.js";
-import { notice } from "./dom.js";
+import type { Result, StateResponse } from "./client.js";
+import { el, glyph, line, notice } from "./dom.js";
 import type { Runner } from "./run.js";
 import type { AccountWords } from "./words.js";
 
@@ -59,11 +60,13 @@ export function samePath(value: string | null): string | undefined {
   return url.origin === location.origin ? url.pathname + url.search + url.hash : undefined;
 }
 
-/** Removes the single sign-on outcome from the address bar. */
+/** Removes the single sign-on outcome and the arrival from the address
+ *  bar. */
 export function cleanAddress(): void {
   const url = new URL(location.href);
   url.searchParams.delete("oidc");
   url.searchParams.delete("auth_error");
+  url.searchParams.delete("arrived");
   if (url.href !== location.href) {
     history.replaceState(history.state, "", url);
   }
@@ -187,4 +190,107 @@ export async function cycle<T>(
     }
   }
   return got;
+}
+
+/** A read that answers a refusal instead of rejecting. */
+export async function read<T>(work: () => Promise<Result<T>>): Promise<Result<T>> {
+  try {
+    return await work();
+  } catch {
+    return { ok: false, status: 0, error: "no answer" };
+  }
+}
+
+/** How the request that read `state()` travelled (access Part 3). */
+export interface Transport {
+  readonly plain: boolean;
+  /** What HTTPS would add here, of what the screen offers. */
+  readonly withheld: readonly ("passkeys" | "oidc")[];
+  readonly session?: { readonly idle: number; readonly absolute: number };
+  readonly httpsOrigin?: string;
+}
+
+export function transportOf(s: StateResponse): Transport {
+  const plain = s.secure === false;
+  const withheld = (s.https_required ?? []).filter(
+    (m): m is "passkeys" | "oidc" => m === "passkeys" || m === "oidc",
+  );
+  return {
+    plain,
+    withheld: plain ? withheld : [],
+    ...(plain && s.plain_session !== undefined
+      ? {
+          session: {
+            idle: s.plain_session.idle_seconds,
+            absolute: s.plain_session.absolute_seconds,
+          },
+        }
+      : {}),
+    ...(plain && s.https_origin !== undefined && s.https_origin !== ""
+      ? { httpsOrigin: s.https_origin }
+      : {}),
+  };
+}
+
+/** "12 hours" or "30 minutes", rounded to the larger unit that is whole. */
+function length(seconds: number, w: AccountWords): string {
+  return seconds >= 3600 && seconds % 3600 === 0
+    ? w["plain.hours"](seconds / 3600)
+    : w["plain.minutes"](Math.max(1, Math.round(seconds / 60)));
+}
+
+/** A link to the app's HTTPS address, or undefined without one. */
+function httpsLink(t: Transport, app: string, w: AccountWords): HTMLAnchorElement | undefined {
+  if (t.httpsOrigin === undefined) {
+    return undefined;
+  }
+  const a = el("a", undefined, w["plain.open"](app));
+  a.href = t.httpsOrigin + location.pathname + location.search;
+  return a;
+}
+
+/** The lines a plain screen shows under its form: what HTTPS would add,
+ *  linked to the HTTPS address, and the shorter session. */
+export function plainLines(
+  t: Transport,
+  offered: readonly ("passkeys" | "oidc")[],
+  app: string,
+  w: AccountWords,
+): HTMLElement[] {
+  if (!t.plain) {
+    return [];
+  }
+  const lines: HTMLElement[] = [];
+  const withheld = t.withheld.filter((m) => offered.includes(m));
+  const link = httpsLink(t, app, w);
+  if (withheld.length > 0) {
+    const p = line("cp-help", w["plain.withheld"](withheld));
+    if (link !== undefined) {
+      p.append(" ", link, ".");
+    }
+    p.dataset["part"] = "https";
+    lines.push(p);
+  }
+  if (t.session !== undefined) {
+    const p = line(
+      "cp-help",
+      w["plain.session"](length(t.session.absolute, w), length(t.session.idle, w)),
+    );
+    p.dataset["part"] = "plain-session";
+    lines.push(p);
+  }
+  return lines;
+}
+
+/** "This app needs HTTPS", with the way there when the app named one. */
+export function needsHttps(t: Transport, app: string, w: AccountWords): HTMLElement {
+  const box = el("div", "cp-empty");
+  box.append(glyph("lock"), el("p", undefined, w["plain.needed"]));
+  const link = httpsLink(t, app, w);
+  if (link !== undefined) {
+    link.className = "cp-button";
+    link.dataset["variant"] = "primary";
+    box.append(link);
+  }
+  return box;
 }
