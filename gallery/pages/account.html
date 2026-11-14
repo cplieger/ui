@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -68,6 +68,23 @@
         <h2>Sign-in turned off</h2>
         <section class="cp-panel" data-account-demo="off"></section>
         <footer>No method is on.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="qr">
+    <h2>QR code</h2>
+    <p><code>qrCode(text)</code> from <code>@cplieger/ui/qr</code> draws a text as a QR code in the page, so the secret in an authenticator link never leaves it. The key beside it, in groups of four, is the way in for a person who cannot scan.</p>
+    <div class="g-grid">
+      <div class="card" data-new>
+        <h2>An authenticator link</h2>
+        <div class="cp-cluster">
+          <div data-qr-demo="otpauth://totp/Release%20tracker:mika?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&amp;issuer=Release%20tracker"></div>
+          <div class="cp-field">
+            <span class="cp-label" id="qr-key-label">Or type this key</span>
+            <div class="cp-code" role="group" aria-labelledby="qr-key-label"><code class="cp-mono">JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP</code><button class="cp-button cp-copy" type="button"><span class="cp-icon" data-cp-icon="copy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span>Copy</button></div>
+          </div>
+        </div>
+        <footer>A version 6 code at level M, dark on light in both themes and under forced colours, hidden from assistive technology since the key beside it says the same.</footer>
       </div>
     </div>
   </section>

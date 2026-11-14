@@ -58,6 +58,7 @@ navigation/rail/filters-trigger.css
 data/text/text.css
 data/avatar/avatar.css
 data/cover/cover.css
+media/qr/qr.css
 data/list-row/list-row.css
 data/held-list/held-list.css
 data/keyed-list/keyed-list.css

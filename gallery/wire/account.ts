@@ -15,6 +15,7 @@ import {
   type SignedIn,
   type StateResponse,
 } from "@cplieger/ui/account";
+import { qrCode } from "@cplieger/ui/qr";
 import { toast } from "@cplieger/ui/toast";
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -248,4 +249,8 @@ for (const panel of document.querySelectorAll<HTMLElement>("[data-account-demo]"
     });
     drawn.observe(panel, { attributes: true, attributeFilter: ["aria-busy"] });
   }
+}
+
+for (const box of document.querySelectorAll<HTMLElement>("[data-qr-demo]")) {
+  box.replaceChildren(qrCode(box.dataset["qrDemo"] ?? ""));
 }

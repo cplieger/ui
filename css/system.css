@@ -5885,6 +5885,23 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
+/* A QR code (@cplieger/ui/qr): dark modules on a light square in both
+ * themes and under forced colours, since a scanner reads only dark on light
+ * with its quiet zone around it. */
+.cp-qr {
+  display: block;
+  flex: none;
+  inline-size: var(--cp-qr-size, 12rem);
+  block-size: var(--cp-qr-size, 12rem);
+  border-radius: var(--cp-radius-control);
+  background: oklch(100% 0 0deg);
+  forced-color-adjust: none;
+}
+
+.cp-qr path {
+  fill: oklch(0% 0 0deg);
+}
+
 /* A list: rows on one raised surface, a line between them. */
 /* Rows keep their height in a list stretched taller than them, such as
  * beside a taller detail. */
