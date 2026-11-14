@@ -22,6 +22,40 @@ Every region that loads data has four designed states, for loading, empty, error
 - Empty says what belongs here and offers the one action that fills it (`.cp-empty`). Error says what broke and what to do next, in a notice where the region would be. It never apologises and never stays vague.
 - A change that will most likely succeed shows at once and rolls back on failure, through `@cplieger/reactive/actions`. A destructive action asks first or offers an Undo.
 
+**A known amount.** Work with known steps is a native `<progress>` in a `.cp-progress`, with the step in words beside it. The page sets the bar's `value` and the words as the work moves, and adds `data-state="done"` with the last step. A run that starts over is a new `<progress>`.
+
+```html
+<span class="cp-progress">
+  <progress max="8" value="3" aria-label="Checking sources"></progress>
+  <span>3 of 8</span>
+</span>
+```
+
+**An item's own work.** An item that runs work of its own, such as an upload, a send or a check, says where that work is in a `.cp-state` with `data-cp-state`, which holds only its word: `busy`, such as "Uploading…", `done`, such as "Uploaded", or `failed`, such as "Not uploaded". The stylesheet draws the spinner, the check or the cross. In a list row the state sits in the row's end and a failure's reason is the row's second line. A state that is its line's own content, such as a test's answer beside its button, holds the whole sentence. A failed item that can run again has one action, Retry, a small `.cp-button` whose accessible name adds the item, such as "Retry Frieren.S01E05.en.ass", run through [confirm](buttons/confirm.md) with `done: false`. A failure that would fail the same way again, such as a file over the size limit or a format the app cannot write, is final: the item shows its reason and no Retry.
+
+```html
+<div class="cp-list-row" tabindex="-1">
+  <span class="cp-icon" data-cp-icon="file-text" aria-hidden="true"></span>
+  <span class="cp-cell-stack">
+    <span class="cp-truncate cp-mono">Frieren.S01E05.en.ass</span>
+    <small>The server did not answer.</small>
+  </span>
+  <span data-part="end"><span class="cp-state" data-cp-state="failed">Not uploaded</span></span>
+  <button class="cp-button" data-size="sm" type="button" aria-label="Retry Frieren.S01E05.en.ass">
+    <span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>
+    <span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span>
+    <span class="cp-roll">Retry</span>
+  </button>
+</div>
+```
+
+1. Retry turns busy while the work runs again, and the state and its reason stay until the answer comes, so the item never shows two spinners.
+2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page; the item carries `tabindex="-1"` so it can take focus.
+3. When it fails again, the reason changes to the new one and Retry is back at rest.
+4. Announce the outcome through `@cplieger/ui/announce`, assertively for a failure of what the person just did.
+
+A field's error stays a `.cp-field-error` under its field.
+
 ## Forms
 
 A form never loses what the person typed, and every error is text that says how to fix it. [form](forms/form.md) shows and clears the errors as steps 3 to 5 ask, from the app's own checks.
@@ -152,7 +186,7 @@ A sheet is a `.cp-dialog` marked `data-variant="sheet"`, with the same header, b
 | --- | --- | --- |
 | A problem with one region, such as a source that failed to answer | a notice where the region is | until the problem ends |
 | A condition of one screen, such as a rate limit on the source it lists | a notice at the top of `.cp-main` | until the condition ends |
-| A condition that stops the person's work on every screen, such as an update that needs a reload, or a lost connection in an app with no header status | a `.cp-banner` at the top of `.cp-main`, with its one action and no dismiss | until the condition ends |
+| A condition that stops the person's work on every screen, such as an update that needs a reload, or a lost connection in an app with no header status | a `.cp-notice` with `data-variant="banner"` at the top of `.cp-main`, with its one action and no dismiss | until the condition ends |
 | A lost connection in an app with a header status | the status's offline state alone, with its way to retry in the status's panel | until the connection is back |
 | A confirmation on the control the person pressed, such as Saved on Save or Copied on Copy | the control itself, through [confirm](buttons/confirm.md) or [copy](forms/copy.md). Copy announces its word, and a confirm's outcome is yours to announce | 1.6 seconds |
 | A short confirmation of the person's own action, such as "Source added", whose result stays visible on the screen or in the history | a toast | 7 seconds, paused while hovered or focused |
@@ -191,7 +225,7 @@ An app whose data comes from another service has these states before it shows an
 | The service has no items | that the service answered and holds nothing yet | "Open Sonarr", a link to the service |
 | Filters hide everything | which filters are active | "Clear filters" |
 
-First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, then a `.cp-progress` whose words name the phase and the step, such as "Series 120 of 351", repeated in its `aria-valuetext`, then "View activity". Connection failed and Sync failed lead with a `circle-x` glyph in `data-tone="danger"`.
+First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, then a `.cp-progress` whose words beside the bar name the phase and the step, such as "Series 120 of 351", then "View activity". Connection failed and Sync failed lead with a `circle-x` glyph in `data-tone="danger"`.
 
 ## Navigation and the URL
 
@@ -201,10 +235,24 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
 - A route change moves focus to the new screen's `<h1>` and sets `<title>` to the screen's name.
 - A link to something that is gone, or a query value the app does not know, opens the nearest valid view with a notice that says what was dropped.
 - A destination is a link (`<a href>`), so a middle click, a new tab and a copied address all work. A button is for an action on this screen.
+- A link that leaves the app, to another service or site, carries `rel="external"` and says where it goes in its words, such as "AniList" with ", opens AniList" in a `.cp-visually-hidden` span. As a pill, an `a.cp-filter-chip`, the stylesheet then draws the external mark in place of the chevron.
 - A destination that shows only its icon, from 40rem to 60rem, keeps its word as its accessible name through `.cp-nav-label`, which the stylesheet hides from sight only, and a tooltip with the same word. Under 40rem the header's destinations move to a bar at the window's foot, each an icon over its word.
 - The header holds four destinations at most, so each keeps its word on one line in the bar under 40rem. Others go in a menu or on a screen of their own.
 - The current destination carries `aria-current="page"`, or `"true"` when the screen sits inside it, as an item sits inside its library.
 - A screen opens with its `.cp-crumbs`, then a `.cp-heading-row` holding the `<h1>` with its `.cp-meta` line of facts under it, and the screen's `.cp-toolbar` at its end.
+
+**A page that does not exist.** An address that matches no route opens the not-found page: the app's frame with a `.cp-empty` marked `data-variant="page"` in `.cp-main`. It holds the `telescope` glyph, an `<h1>` that says the page does not exist, one sentence on why the address may be wrong, and a link to the app's start page. The stylesheet draws the glyph with no script. An address that matches a route but names an item the app does not hold, such as an entry the server answers it does not know, is not this page: it stays that item's screen, with its breadcrumbs, and shows a plain `.cp-empty` where the item would be, which says the item is not there, such as "This entry is not in your library", and links to the list it belongs to.
+
+```html
+<main class="cp-main" id="main" tabindex="-1">
+  <section class="cp-empty" data-variant="page" aria-labelledby="not-found-title">
+    <span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span>
+    <h1 id="not-found-title" tabindex="-1">This page does not exist</h1>
+    <p>The address may be old, or it was mistyped.</p>
+    <a class="cp-button" data-variant="primary" href="/">Go to the start</a>
+  </section>
+</main>
+```
 
 ## Language and direction
 

@@ -30,3 +30,11 @@
 .cp-crumbs > :not(:first-child):dir(rtl)::before {
   scale: -1 1;
 }
+
+/* Forced colours paint a non-system background as Canvas, which would
+ * hide the mark. */
+@media (forced-colors: active) {
+  .cp-crumbs > :not(:first-child)::before {
+    background: CanvasText;
+  }
+}

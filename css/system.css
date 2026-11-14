@@ -3740,6 +3740,14 @@ a.cp-wordmark {
   scale: -1 1;
 }
 
+/* Forced colours paint a non-system background as Canvas, which would
+ * hide the mark. */
+@media (forced-colors: active) {
+  .cp-crumbs > :not(:first-child)::before {
+    background: CanvasText;
+  }
+}
+
 /* Buttons: one primary per surface; danger is data-tone="danger". */
 .cp-button {
   display: inline-flex;
@@ -5015,69 +5023,6 @@ textarea.cp-input {
   }
 }
 
-/* The connection test's answer (@cplieger/ui/connection-test): its words
- * after a glyph, in a tone drawn from data-cp-state: the spinner while busy,
- * circle-check in the success tone once passed, circle-x in the danger tone
- * once failed, and nothing at rest. */
-.cp-test-status {
-  --cp-test-glyph: none;
-
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-}
-
-.cp-test-status::before {
-  content: "";
-  display: none;
-  flex: none;
-  inline-size: var(--cp-icon-ui);
-  block-size: var(--cp-icon-ui);
-  background: currentcolor;
-  mask: var(--cp-test-glyph) center / contain no-repeat;
-}
-
-.cp-test-status[data-cp-state="busy"] {
-  --cp-test-glyph: url("../icons/svg/spinner-arc.svg");
-}
-
-.cp-test-status[data-cp-state="busy"]::before {
-  display: block;
-  animation: cp-spin 0.8s linear infinite;
-}
-
-.cp-test-status[data-cp-state="passed"] {
-  --cp-test-glyph: url("../icons/svg/circle-check.svg");
-
-  color: var(--cp-success-11);
-}
-
-.cp-test-status[data-cp-state="failed"] {
-  --cp-test-glyph: url("../icons/svg/circle-x.svg");
-
-  color: var(--cp-danger-11);
-}
-
-.cp-test-status[data-cp-state="passed"]::before,
-.cp-test-status[data-cp-state="failed"]::before {
-  display: block;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cp-test-status[data-cp-state="busy"]::before {
-    animation: none;
-  }
-}
-
-@media (forced-colors: active) {
-  .cp-test-status::before {
-    background: CanvasText;
-  }
-}
-
 /* Rules that read as sentences, such as "When the audio is [Japanese],
  * fetch [English] [+]", set in columns like a table: the condition, the
  * verb, the targets and the row's buttons, so every picker starts where the
@@ -5230,12 +5175,14 @@ textarea.cp-input {
   }
 }
 
-/* A state word: a short word in its tone, after the tone's glyph, such as
- * "set", "not set" or "rejected" beside a setting. */
+/* A state: the state of a thing in its row or field, a short word in its
+ * tone after the tone's glyph, such as "set", "not set" or "rejected"
+ * beside a setting. With data-cp-state it is the state of the thing's own
+ * work, and the stylesheet draws its glyph and tone. */
 .cp-state {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--cp-space-1);
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-medium);
@@ -5243,6 +5190,73 @@ textarea.cp-input {
 
 .cp-state > .cp-icon {
   --cp-icon-size: 0.875rem;
+}
+
+/* A state that is its line's own content, such as a test's answer beside
+ * its button, reads at the interface's size with a control's glyph. */
+.cp-state[data-size="ui"] {
+  font-size: var(--cp-text-ui);
+}
+
+.cp-state[data-size="ui"] > .cp-icon {
+  --cp-icon-size: var(--cp-icon-ui);
+}
+
+/* Only a state that names a glyph below makes the box, so a state of any
+ * other value never paints the unmasked square. */
+.cp-state[data-cp-state]::before {
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: currentcolor;
+  mask: var(--cp-state-glyph) center / contain no-repeat;
+}
+
+.cp-state[data-size="ui"]::before {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+}
+
+.cp-state:is([data-cp-state="idle"], [data-cp-state="busy"]) {
+  color: var(--cp-ink-muted);
+}
+
+.cp-state[data-cp-state="busy"] {
+  --cp-state-glyph: url("../icons/svg/spinner-arc.svg");
+}
+
+.cp-state[data-cp-state="busy"]::before {
+  content: "";
+  animation: cp-spin 0.8s linear infinite;
+}
+
+.cp-state[data-cp-state="done"] {
+  --cp-state-glyph: url("../icons/svg/circle-check.svg");
+
+  color: var(--cp-success-11);
+}
+
+.cp-state[data-cp-state="failed"] {
+  --cp-state-glyph: url("../icons/svg/circle-x.svg");
+
+  color: var(--cp-danger-11);
+}
+
+.cp-state[data-cp-state="done"]::before,
+.cp-state[data-cp-state="failed"]::before {
+  content: "";
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-state[data-cp-state="busy"]::before {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-state[data-cp-state]::before {
+    background: CanvasText;
+  }
 }
 
 /* Data table: rows are never interactive; actions are buttons in a cell.
@@ -8112,7 +8126,9 @@ div.cp-list-foot {
   }
 }
 
-/* Notice: the state's wash over its container, a glyph and text. */
+/* Notice: the state's wash over its container, a glyph and text. The banner
+ * variant is selected at one class's weight, so its rules win over these by
+ * order and lose to any context. */
 .cp-notice {
   display: flex;
   gap: var(--cp-space-3);
@@ -8168,87 +8184,58 @@ div.cp-list-foot {
   padding-inline-start: 1.25em;
 }
 
-.cp-notice :where(a) {
+/* A banner's links keep the accent, so its one way to act reads as a link
+ * in the small foot. */
+.cp-notice:where(:not([data-variant="banner"])) :where(a) {
   color: inherit;
 }
 
-@media (forced-colors: active) {
-  .cp-notice {
-    border: var(--cp-line-w) solid CanvasText;
-  }
-}
-
-/* A banner at the top of main, for a condition that stops the person's work
- * on every screen, such as an update that needs a reload: the words at the
- * start and its one action at the end, with no dismiss. */
-.cp-banner {
-  display: flex;
+/* The banner: a condition of every screen, at the top of main, its words and
+ * its action wrapping under each other in a narrow main. */
+.cp-notice:where([data-variant="banner"]) {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--cp-space-2) var(--cp-space-3);
   padding: var(--cp-space-2) var(--cp-space-4);
   border-radius: var(--cp-radius-control);
-  background: var(--cp-tone-3);
-  color: var(--cp-tone-12);
   font-size: var(--cp-text-sm);
 }
 
-.cp-banner > .cp-icon {
-  color: var(--cp-tone-11);
+.cp-notice:where([data-variant="banner"]) > .cp-icon {
+  margin-block-start: 0;
 }
 
-/* A banner with reasons stacks its head (a <strong> with its glyph), the
+/* A notice with reasons stacks its head (a <strong> with its glyph), the
  * list, and a <small> foot holding its one way to act. */
-.cp-banner:has(> ul) {
+.cp-notice:has(> ul) {
   display: grid;
   gap: var(--cp-space-2);
   padding-block: var(--cp-space-3);
 }
 
-.cp-banner:has(> ul) > strong {
+.cp-notice:has(> ul) > strong {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
 }
 
-.cp-banner:has(> ul) > strong > .cp-icon {
+.cp-notice:has(> ul) > strong > .cp-icon {
   color: var(--cp-tone-11);
 }
 
-.cp-banner > ul {
+.cp-notice > ul {
   margin: 0;
   padding-inline-start: 1.75rem;
-  font-size: var(--cp-text-sm);
   line-height: var(--cp-leading-body);
 }
 
-.cp-banner:has(> ul) > small {
+.cp-notice:has(> ul) > small {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
 }
 
-.cp-banner > .cp-button {
-  margin-inline-start: auto;
-}
-
-.cp-banner > .cp-button:not([data-variant="primary"]) {
-  --cp-chart-surface: var(--cp-surface-raised);
-
-  border: var(--cp-line-w) solid var(--cp-tone-8);
-  background: var(--cp-surface-raised);
-  color: var(--cp-tone-12);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-banner > .cp-button:not([data-variant="primary"]):hover {
-      background: var(--cp-tone-2);
-    }
-  }
-}
-
 @media (forced-colors: active) {
-  .cp-banner {
+  .cp-notice {
     border: var(--cp-line-w) solid CanvasText;
   }
 }
@@ -8319,9 +8306,22 @@ div.cp-list-foot {
 
 /* A stack's gap is its children's spacing. */
 .cp-stack > hr,
+.cp-stack > li,
 .cp-stack > .cp-heading-row,
 .cp-stack > .cp-steps {
   margin-block: 0;
+}
+
+/* A list stacked as lines, with no marker or indent, at one class's weight
+ * so that an app's own class on the list, in a later sheet, still wins. */
+:where(ul, ol).cp-stack {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-stack[data-gap="tight"] {
+  gap: var(--cp-space-1);
 }
 
 /* A cluster: a row of small things, such as chips, buttons or facts, that
@@ -8895,26 +8895,26 @@ div.cp-list-foot {
   margin-inline-start: 0;
 }
 
-/* Progress for a known amount: the host sets --cp-progress (0% to 100%) on
- * .cp-progress and data-state="done" with its last step. The fill is one
- * gradient fixed to the track, revealed by a clip that grows, so the
- * lighter end only shows near the finish. Its two stops are registered
- * colours, so done fades both to green; plain colours would swap at once. */
+/* Progress for a known amount: a native <progress> in a .cp-progress that
+ * holds the step in words, and data-state="done" with its last step. The
+ * fill is one gradient fixed to the track, so the lighter end only shows
+ * near the finish. Its two stops are registered colours, so done fades both
+ * to green; plain colours would swap at once. They inherit, because the
+ * engines draw the value in a pseudo-element of the <progress>. */
 @property --cp-progress-from {
   syntax: "<color>";
-  inherits: false;
+  inherits: true;
   initial-value: transparent;
 }
 
 @property --cp-progress-to {
   syntax: "<color>";
-  inherits: false;
+  inherits: true;
   initial-value: transparent;
 }
 
-/* It wraps and never outgrows its box, so in a narrow box the track
- * shrinks toward its 5rem floor and the words go under it instead of
- * overflowing. */
+/* It wraps and never outgrows its box, so in a narrow box the bar shrinks
+ * toward its 5rem floor and the words go under it instead of overflowing. */
 .cp-progress {
   display: inline-flex;
   flex-wrap: wrap;
@@ -8927,35 +8927,45 @@ div.cp-list-foot {
   color: var(--cp-ink-muted);
 }
 
-.cp-progress-track {
+/* The bar comes first, then the check's kept place, then the words. It is
+ * a size container, so the value's gradient is 100cqi, the bar's width. */
+.cp-progress > progress {
+  --cp-progress-from: var(--cp-tone-9);
+  --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h);
+
   order: -1;
   flex: 0 1 auto;
   inline-size: 14rem;
   min-inline-size: 5rem;
   block-size: 0.5rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-tone-4);
-  overflow: clip;
-}
-
-.cp-progress-fill {
-  --cp-progress-from: var(--cp-tone-9);
-  --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h);
-
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to));
-  clip-path: inset(0 calc(100% - var(--cp-progress, 0%)) 0 0 round var(--cp-radius-round));
+  container-type: inline-size;
   transition:
-    clip-path 480ms var(--cp-ease-out),
     --cp-progress-from 500ms var(--cp-ease-out),
     --cp-progress-to 500ms var(--cp-ease-out);
 }
 
-.cp-progress-fill:dir(rtl) {
+/* Gecko sets the value's width in layout, so it moves to each step without
+ * the glide; Blink and WebKit transition it.
+ * https://github.com/mozilla-firefox/firefox/blob/main/layout/forms/nsProgressFrame.cpp */
+.cp-progress > progress::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to)) left / 100cqi
+    100% no-repeat;
+  transition: inline-size 480ms var(--cp-ease-out);
+}
+
+.cp-progress > progress::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to)) left / 100cqi
+    100% no-repeat;
+}
+
+.cp-progress > progress:dir(rtl)::-webkit-progress-value {
   background-image: linear-gradient(270deg, var(--cp-progress-from), var(--cp-progress-to));
-  clip-path: inset(0 0 0 calc(100% - var(--cp-progress, 0%)) round var(--cp-radius-round));
+  background-position: right;
+}
+
+.cp-progress > progress:dir(rtl)::-moz-progress-bar {
+  background-image: linear-gradient(270deg, var(--cp-progress-from), var(--cp-progress-to));
+  background-position: right;
 }
 
 /* The check keeps its place while hidden, so the words never move. */
@@ -8974,11 +8984,11 @@ div.cp-list-foot {
 }
 
 /* Green once the last step's fill has arrived, then the check pops in. */
-.cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+.cp-progress[data-state="done"] > progress {
   --cp-progress-from: var(--cp-success-9);
   --cp-progress-to: var(--cp-success-9);
 
-  transition-delay: 0s, 480ms, 480ms;
+  transition-delay: 480ms, 480ms;
 }
 
 .cp-progress[data-state="done"]::before {
@@ -8992,11 +9002,15 @@ div.cp-list-foot {
 /* The fill jumps to each step and the check only fades in, with no wait
  * for a glide that no longer runs. */
 @media (prefers-reduced-motion: reduce) {
-  .cp-progress-fill,
-  .cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+  .cp-progress > progress,
+  .cp-progress[data-state="done"] > progress {
     transition:
       --cp-progress-from var(--cp-dur-short) var(--cp-ease-out),
       --cp-progress-to var(--cp-dur-short) var(--cp-ease-out);
+  }
+
+  .cp-progress > progress::-webkit-progress-value {
+    transition: none;
   }
 
   .cp-progress::before {
@@ -9010,14 +9024,13 @@ div.cp-list-foot {
 }
 
 @media (forced-colors: active) {
-  .cp-progress-track {
-    forced-color-adjust: none;
-    background: Canvas;
-    outline: 1px solid CanvasText;
+  .cp-progress > progress::-webkit-progress-value,
+  .cp-progress > progress:dir(rtl)::-webkit-progress-value {
+    background: Highlight;
   }
 
-  .cp-progress-fill,
-  .cp-progress-fill:dir(rtl) {
+  .cp-progress > progress::-moz-progress-bar,
+  .cp-progress > progress:dir(rtl)::-moz-progress-bar {
     background: Highlight;
   }
 
@@ -9026,9 +9039,10 @@ div.cp-list-foot {
   }
 }
 
-/* A native <progress> wears the same track and fill. Each engine draws the
- * value through its own pseudo-element, and one unknown pseudo-element
- * drops a whole rule, so each gets its own. */
+/* A native <progress> on its own, such as a job row's, wears a thinner
+ * track and a solid fill. Each engine draws the value through its own
+ * pseudo-element, and one unknown pseudo-element drops a whole rule, so
+ * each gets its own. */
 :where(.cp) :where(progress) {
   block-size: 0.375rem;
   appearance: none;
@@ -9812,6 +9826,24 @@ button.cp-figure[aria-expanded="true"]::after {
   --cp-icon-size: 3rem;
 
   color: var(--cp-tone-9);
+}
+
+/* The page for an address that matches no route. Its heading is the page's
+ * h1, so it takes the ink back from the box's muted colour, which it would
+ * inherit. */
+.cp-empty[data-variant="page"] {
+  justify-items: center;
+  padding: 12vh 0;
+  text-align: center;
+
+  & > h1 {
+    color: var(--cp-ink);
+  }
+
+  & > p {
+    font-size: var(--cp-text-xs);
+    line-height: var(--cp-leading-body);
+  }
 }
 
 /* A heading with a loader, for work that runs before there is data. */
@@ -11259,18 +11291,20 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
   color: var(--cp-danger-on);
 }
 
+/* Only a button's parts: a row, a form or a state also takes a
+ * data-cp-state, and its own icons stay. */
 :where(.cp-button[data-cp-confirm]) > .cp-icon[data-part],
-[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
-[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
+.cp-button[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
+.cp-button[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
   display: none;
 }
 
-[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
+.cp-button[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
   display: inline-block;
   animation: cp-spin 0.8s linear infinite;
 }
 
-[data-cp-state="done"] > .cp-icon[data-part="done"] {
+.cp-button[data-cp-state="done"] > .cp-icon[data-part="done"] {
   display: inline-block;
   animation: cp-check-draw 320ms var(--cp-ease-out);
 }
@@ -11289,8 +11323,8 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-cp-state="busy"] > .cp-icon[data-part],
-  [data-cp-state="done"] > .cp-icon[data-part] {
+  .cp-button[data-cp-state="busy"] > .cp-icon[data-part],
+  .cp-button[data-cp-state="done"] > .cp-icon[data-part] {
     animation: none;
   }
 }
@@ -11600,7 +11634,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 /* A filter chip: a pill button that turns one filter on or off by
  * aria-pressed. Pressed, it fills with the accent and its check slides in,
- * so the state is never the colour alone. */
+ * so the state is never the colour alone. As an <a> it is the same pill
+ * leading to a related page. */
 .cp-filter-chip {
   --cp-chart-surface: var(--cp-surface-raised);
 
@@ -11622,10 +11657,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
-/* The check, held at no width until the chip is pressed. */
 .cp-filter-chip > .cp-icon {
   --cp-icon-size: 0.875rem;
+}
 
+/* The check, held at no width until the chip is pressed. A link has no
+ * pressed state, so its own glyph shows. */
+.cp-filter-chip:where(:not(a)) > .cp-icon {
   inline-size: 0;
   margin-inline-end: 0;
   opacity: 0;
@@ -11653,6 +11691,56 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   transform: scale(var(--cp-press-scale));
 }
 
+/* A link is outlined on the page, with a mark after its words drawn from
+ * its rel: a chevron for a page in the app, the external mark for one
+ * that leaves it. The mark is never read, so a link that leaves says so
+ * in a .cp-visually-hidden span. */
+:where(a).cp-filter-chip {
+  gap: var(--cp-space-1);
+  border-color: var(--cp-line);
+  background: none;
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    border-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+:where(a).cp-filter-chip::after {
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+:where(a).cp-filter-chip:not([rel~="external"]):dir(rtl)::after {
+  scale: -1 1;
+}
+
+:where(a).cp-filter-chip:where([rel~="external"])::after {
+  mask-image: url("../icons/svg/external-link.svg");
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(a).cp-filter-chip:hover {
+      border-color: var(--cp-border-strong);
+      background: var(--cp-fill);
+    }
+
+    /* Forced colours would paint this ink as Canvas, so the mark keeps
+     * its system colour there. */
+    @media (forced-colors: none) {
+      :where(a).cp-filter-chip:hover::after {
+        background: var(--cp-ink);
+      }
+    }
+  }
+}
+
 @media (forced-colors: active) {
   .cp-filter-chip {
     border-color: ButtonText;
@@ -11662,6 +11750,14 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
+  }
+
+  :where(a).cp-filter-chip {
+    border-color: LinkText;
+  }
+
+  :where(a).cp-filter-chip::after {
+    background: LinkText;
   }
 }
 
@@ -11797,6 +11893,237 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 :where(.cp) .cp-icon[data-cp-icon-size="hero"] {
   --cp-icon-size: 3rem;
+}
+
+/* Each glyph the library's own markup and CSS use, by its name, so a page
+ * with no script paints it. One class's weight, so an app's rule for the
+ * same name in a later stylesheet wins, as createIcons' inline URL does. */
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-down"]) {
+  --cp-icon-image: url("../icons/svg/arrow-down.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-right"]) {
+  --cp-icon-image: url("../icons/svg/arrow-right.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-up"]) {
+  --cp-icon-image: url("../icons/svg/arrow-up.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="check"]) {
+  --cp-icon-image: url("../icons/svg/check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="chevron-down"]) {
+  --cp-icon-image: url("../icons/svg/chevron-down.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="chevron-right"]) {
+  --cp-icon-image: url("../icons/svg/chevron-right.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-alert"]) {
+  --cp-icon-image: url("../icons/svg/circle-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-check"]) {
+  --cp-icon-image: url("../icons/svg/circle-check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-dashed"]) {
+  --cp-icon-image: url("../icons/svg/circle-dashed.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-x"]) {
+  --cp-icon-image: url("../icons/svg/circle-x.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="clock"]) {
+  --cp-icon-image: url("../icons/svg/clock.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="cloud-upload"]) {
+  --cp-icon-image: url("../icons/svg/cloud-upload.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="copy"]) {
+  --cp-icon-image: url("../icons/svg/copy.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="download"]) {
+  --cp-icon-image: url("../icons/svg/download.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="ellipsis"]) {
+  --cp-icon-image: url("../icons/svg/ellipsis.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="external-link"]) {
+  --cp-icon-image: url("../icons/svg/external-link.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="eye"]) {
+  --cp-icon-image: url("../icons/svg/eye.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="eye-off"]) {
+  --cp-icon-image: url("../icons/svg/eye-off.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="file-text"]) {
+  --cp-icon-image: url("../icons/svg/file-text.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="funnel"]) {
+  --cp-icon-image: url("../icons/svg/funnel.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="funnel-x"]) {
+  --cp-icon-image: url("../icons/svg/funnel-x.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="grip-vertical"]) {
+  --cp-icon-image: url("../icons/svg/grip-vertical.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="heart"]) {
+  --cp-icon-image: url("../icons/svg/heart.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="heart-filled"]) {
+  --cp-icon-image: url("../icons/svg/heart-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="history"]) {
+  --cp-icon-image: url("../icons/svg/history.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="info"]) {
+  --cp-icon-image: url("../icons/svg/info.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="key-round"]) {
+  --cp-icon-image: url("../icons/svg/key-round.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="layout-dashboard"]) {
+  --cp-icon-image: url("../icons/svg/layout-dashboard.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="layout-grid"]) {
+  --cp-icon-image: url("../icons/svg/layout-grid.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="library"]) {
+  --cp-icon-image: url("../icons/svg/library.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="list"]) {
+  --cp-icon-image: url("../icons/svg/list.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="lock"]) {
+  --cp-icon-image: url("../icons/svg/lock.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="log-in"]) {
+  --cp-icon-image: url("../icons/svg/log-in.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="log-out"]) {
+  --cp-icon-image: url("../icons/svg/log-out.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="moon"]) {
+  --cp-icon-image: url("../icons/svg/moon.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="octagon-alert"]) {
+  --cp-icon-image: url("../icons/svg/octagon-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="pin"]) {
+  --cp-icon-image: url("../icons/svg/pin.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="pin-filled"]) {
+  --cp-icon-image: url("../icons/svg/pin-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="plus"]) {
+  --cp-icon-image: url("../icons/svg/plus.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="radio-tower"]) {
+  --cp-icon-image: url("../icons/svg/radio-tower.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="refresh-cw"]) {
+  --cp-icon-image: url("../icons/svg/refresh-cw.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="save"]) {
+  --cp-icon-image: url("../icons/svg/save.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="search"]) {
+  --cp-icon-image: url("../icons/svg/search.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="settings"]) {
+  --cp-icon-image: url("../icons/svg/settings.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="shield-check"]) {
+  --cp-icon-image: url("../icons/svg/shield-check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="spinner-arc"]) {
+  --cp-icon-image: url("../icons/svg/spinner-arc.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="sun"]) {
+  --cp-icon-image: url("../icons/svg/sun.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="tag"]) {
+  --cp-icon-image: url("../icons/svg/tag.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="telescope"]) {
+  --cp-icon-image: url("../icons/svg/telescope.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="timer"]) {
+  --cp-icon-image: url("../icons/svg/timer.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="trash-2"]) {
+  --cp-icon-image: url("../icons/svg/trash-2.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="triangle-alert"]) {
+  --cp-icon-image: url("../icons/svg/triangle-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="tv"]) {
+  --cp-icon-image: url("../icons/svg/tv.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="user"]) {
+  --cp-icon-image: url("../icons/svg/user.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="users"]) {
+  --cp-icon-image: url("../icons/svg/users.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="wifi-off"]) {
+  --cp-icon-image: url("../icons/svg/wifi-off.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="x"]) {
+  --cp-icon-image: url("../icons/svg/x.svg");
 }
 
 /* A drawing that points along the line of text faces the other way in a

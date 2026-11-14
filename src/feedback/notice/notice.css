@@ -1,4 +1,6 @@
-/* Notice: the state's wash over its container, a glyph and text. */
+/* Notice: the state's wash over its container, a glyph and text. The banner
+ * variant is selected at one class's weight, so its rules win over these by
+ * order and lose to any context. */
 .cp-notice {
   display: flex;
   gap: var(--cp-space-3);
@@ -54,8 +56,54 @@
   padding-inline-start: 1.25em;
 }
 
-.cp-notice :where(a) {
+/* A banner's links keep the accent, so its one way to act reads as a link
+ * in the small foot. */
+.cp-notice:where(:not([data-variant="banner"])) :where(a) {
   color: inherit;
+}
+
+/* The banner: a condition of every screen, at the top of main, its words and
+ * its action wrapping under each other in a narrow main. */
+.cp-notice:where([data-variant="banner"]) {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-2) var(--cp-space-3);
+  padding: var(--cp-space-2) var(--cp-space-4);
+  border-radius: var(--cp-radius-control);
+  font-size: var(--cp-text-sm);
+}
+
+.cp-notice:where([data-variant="banner"]) > .cp-icon {
+  margin-block-start: 0;
+}
+
+/* A notice with reasons stacks its head (a <strong> with its glyph), the
+ * list, and a <small> foot holding its one way to act. */
+.cp-notice:has(> ul) {
+  display: grid;
+  gap: var(--cp-space-2);
+  padding-block: var(--cp-space-3);
+}
+
+.cp-notice:has(> ul) > strong {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+.cp-notice:has(> ul) > strong > .cp-icon {
+  color: var(--cp-tone-11);
+}
+
+.cp-notice > ul {
+  margin: 0;
+  padding-inline-start: 1.75rem;
+  line-height: var(--cp-leading-body);
+}
+
+.cp-notice:has(> ul) > small {
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
 }
 
 @media (forced-colors: active) {
