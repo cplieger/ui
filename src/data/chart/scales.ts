@@ -439,13 +439,19 @@ function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undef
 
 /** The x scale of `spec`: linear unless it says another continuous type,
  *  under a bar mark linear from 0, under a point or box mark or a scatter
- *  holding 0 only with `zero: true`, under a slope its two columns at 0 and 1, and
+ *  holding 0 only with `zero: true`, under a slope its two columns at 0 and 1,
  *  under a cell mark its columns from 0 to their count or its bins' edges,
- *  and under a calendar its days in `timeZone`. Throws for a band x and for
- *  a type, domain, zero or underflow bin that breaks a rule, for an x scale
- *  or an x rule beside a slope, and for an x scale or a rule beside a
- *  calendar. */
+ *  under a calendar its days in `timeZone`, and under a pie an unread 0 to 1.
+ *  Throws for a band x, for a type, domain, zero or underflow bin that breaks
+ *  a rule, for an x scale or an x rule beside a slope, for an x scale or a
+ *  rule beside a calendar, and for an x scale beside a pie. */
 export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
+  if (spec.marks.some((m) => m.mark === "pie")) {
+    if (spec.x !== undefined) {
+      throw new TypeError("renderChart: a pie takes no x scale; it has no axes");
+    }
+    return COLUMNS;
+  }
   const calendar = calendarOf(spec);
   if (calendar !== undefined) {
     return calendarDays(spec, calendar, timeZone);
@@ -686,11 +692,17 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
 
 /** The y scale of `spec`: a band of the dot rows or the bar, point, box or
  *  cell categories, a cell mark's bins' edges, a calendar's seven weekday rows
- *  from 0 to 7, else linear unless it says log, which a slope cannot; a
+ *  from 0 to 7, a pie's unread 0 to 1, else linear unless it says log, which a slope cannot; a
  *  linear y holds 0 unless `zero: false`, under a scatter only with
  *  `zero: true`. Throws for a y type its mark cannot take and for a
  *  domain or zero a rect, an area or bins cannot take. */
 export function yScale(spec: ChartSpec): Continuous | Band {
+  if (spec.marks.some((m) => m.mark === "pie")) {
+    if (spec.y !== undefined) {
+      throw new TypeError("renderChart: a pie takes no y scale; it has no axes");
+    }
+    return COLUMNS;
+  }
   if (calendarOf(spec) !== undefined) {
     if (spec.y !== undefined) {
       throw new TypeError("renderChart: a calendar takes no y scale; its rows are weekdays");

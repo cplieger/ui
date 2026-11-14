@@ -29,6 +29,7 @@ import {
   num,
   POINT_RADIUS,
   pointAt,
+  piePaths,
   pointPaths,
   rangePath,
   rectPaths,
@@ -89,12 +90,19 @@ export function readMetrics(plot: HTMLElement, locale: string | undefined): Metr
   const measure = fontMeasure(plot, locale);
   const probe = document.createElement("span");
   probe.dataset["mono"] = "";
-  plot.append(probe);
+  const holeProbe = document.createElement("span");
+  holeProbe.dataset["hole"] = "";
+  plot.append(probe, holeProbe);
   const mono = fontMeasure(probe, locale);
+  const hole = fontMeasure(holeProbe, locale);
+  const holeSize = Number.parseFloat(getComputedStyle(holeProbe).fontSize) || 16;
   probe.remove();
+  holeProbe.remove();
   return {
     measure,
     mono,
+    hole,
+    holeLine: Math.ceil(holeSize * 1.3),
     lineHeight: Math.ceil(size * 1.3),
     ...read,
     dpr: window.devicePixelRatio || 1,
@@ -347,6 +355,22 @@ function plotArea(model: Model, lay: Layout): SVGElement {
           g.append(svgEl("path", { "data-part": "missing", d: missing }));
         }
         area.append(g);
+        break;
+      }
+      case "pie": {
+        if (lay.pie === undefined) {
+          break;
+        }
+        const g = svgEl("g", { "data-part": "pie" });
+        for (const p of piePaths(m, lay.pie)) {
+          g.append(svgEl("path", { "data-series": String(p.slot), d: p.d }));
+        }
+        area.append(g);
+        if (lay.hole !== undefined) {
+          const hole = texts("hole", [lay.hole.label, lay.hole.total]);
+          hole.lastElementChild?.setAttribute("data-hole", "");
+          area.append(hole);
+        }
         break;
       }
       case "rule":

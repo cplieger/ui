@@ -27,6 +27,7 @@ import {
   type DotModel,
   type LineModel,
   type Model,
+  type PieModel,
   type PointModel,
   type PointSeriesModel,
   type RectModel,
@@ -71,7 +72,8 @@ type Primary =
   | ScatterModel
   | CellModel
   | CalendarModel
-  | BoxModel;
+  | BoxModel
+  | PieModel;
 
 export function primaryOf(model: Model): Primary | undefined {
   for (const m of model.marks) {
@@ -578,12 +580,29 @@ export function dayReading(model: Model, m: CalendarModel, i: number, words: Wor
   };
 }
 
+/** A slice's value, or a pie's whole, in the pie's unit. */
+export const pieAmount = (model: Model, m: PieModel, v: number): string =>
+  counted(model.amountText(v), v, m.unit, model);
+
+/** Slice `i`'s share of its pie's whole; No data for a gap. */
+export function sliceShare(model: Model, m: PieModel, i: number, words: Words): string {
+  const v = m.slices[i]?.value ?? null;
+  return v === null ? words.noData : model.shareText(m.total > 0 ? v / m.total : 0);
+}
+
+/** How many slices a pie holds, through `words.parts`. */
+export function partsText(model: Model, m: PieModel, words: Words): string {
+  const n = m.slices.length;
+  return words.parts(writer("number", model.locale)(n), n);
+}
+
 /** The legend row with no selection: a rect's series totals over the
  *  domain with a stack's grand total, a dot chart's count, a line's last
  *  values, an area's last whole stack, a bar or point chart's row count,
  *  a slope's right column, a scatter's dot count, blank slots for its
  *  measures and from two series up each one's count, a cell chart's
- *  cell count, a calendar's day count, or a box chart's row count. */
+ *  cell count, a calendar's day count, a box chart's row count, or a
+ *  pie's total with each slice's share. */
 export function overall(model: Model, words: Words): Reading | undefined {
   const m = primaryOf(model);
   switch (m?.kind) {
@@ -669,6 +688,17 @@ export function overall(model: Model, words: Words): Reading | undefined {
           m.series.length === 1
             ? boxSlots("")
             : m.series.map((s) => ({ slot: s.slot, name: s.name, value: "" })),
+        total: undefined,
+      };
+    case "pie":
+      // The chips name every slice, in the clockwise order, where colour alone would not.
+      return {
+        at: `${words.total} ${pieAmount(model, m, m.total)}`,
+        entries: m.slices.map((s, i) => ({
+          slot: s.slot,
+          name: s.name,
+          value: sliceShare(model, m, i, words),
+        })),
         total: undefined,
       };
   }

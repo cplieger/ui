@@ -262,6 +262,28 @@ export interface BoxMark {
   readonly series: readonly BoxSeries[];
 }
 
+interface PieSlice {
+  readonly name: string;
+  readonly slot?: Slot;
+  /** 0 or more; `null` or `NaN` is no data. A 0 or no data draws no slice
+   *  but is still read and listed. */
+  readonly value: number | null;
+}
+
+/** A few parts of one whole as slices of a circle, clockwise from 12
+ *  o'clock in the order sent, never sorted. The chart takes no x or y scale
+ *  and no rule or text mark, which would have no scale to sit on. */
+export interface PieMark {
+  readonly mark: "pie";
+  /** A donut: the inner half of the radius left open, the total in it. */
+  readonly hole?: boolean;
+  /** The values' noun ("km²"). */
+  readonly unit?: Unit;
+  /** The values' format; default "number". Shares are always percent. */
+  readonly format?: Format;
+  readonly slices: readonly PieSlice[];
+}
+
 /** A cell chart's colour classes: equal rounded classes over the data, or
  *  the app's `thresholds`; a value past either end takes the end class. */
 interface ColourScale {
@@ -333,6 +355,7 @@ export type Mark =
   | CellMark
   | CalendarMark
   | BoxMark
+  | PieMark
   | RuleMark
   | TextMark;
 
@@ -340,21 +363,22 @@ export interface ChartSpec {
   /** Default `{}`. A slope names its columns itself, so there it is a
    *  `TypeError`; a scatter's is linear or log; a cell mark's categories
    *  make it a band, and its bins' edges are its domain. A calendar's days
-   *  are its x, so there it is a `TypeError` too. */
+   *  are its x and a pie has no axes, so beside either it is a `TypeError` too. */
   readonly x?: Scale;
   /** Band when the chart has a dot, bar, point or box mark or a cell
    *  mark's categories; linear under a slope; linear or log under a scatter or a
    *  cell mark's bins; a `TypeError` beside a calendar, whose rows are
-   *  weekdays. */
+   *  weekdays, and beside a pie. */
   readonly y?: Scale;
   /** A scatter's size, when its series carry `r`; a `TypeError` otherwise. */
   readonly r?: SizeScale;
   /** A cell mark's classes, a grid's or a calendar's; a `TypeError` beside
    *  any other mark. */
   readonly colour?: ColourScale;
-  /** One rect, line, area, dot, bar, point, slope, scatter, cell or box
+  /** One rect, line, area, dot, bar, point, slope, scatter, cell, box or pie
    *  mark and any rules and text marks, drawn in order: a rule after a rect draws
-   *  over it. A second data mark is a `TypeError`. */
+   *  over it. A second data mark, or a rule or text mark beside a pie, is a
+   *  `TypeError`. */
   readonly marks: readonly Mark[];
   /** The plot's height in px. A band chart (dot, bar, point or box, or a
    *  cell mark with categories on y) is as tall as its rows, and a calendar as

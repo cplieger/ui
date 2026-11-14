@@ -1464,6 +1464,84 @@ describe("a box plot", () => {
   });
 });
 
+describe("a pie", () => {
+  const land = (hole = false): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        hole,
+        unit: { other: "km²" },
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", slot: 5, value: 106_839 },
+          { name: "Empty", value: 0 },
+          { name: "Housing & traffic", value: 50_000 },
+          { name: "Water", value: null },
+          { name: "Other land", value: 18_104 },
+        ],
+      },
+    ],
+  });
+
+  it("fills one path per slice above 0 in its slot, with no axis, gridline or tick", () => {
+    const d = draw(land(), 600);
+    const paths = series(d, "pie");
+    expect(paths.map((p) => p.getAttribute("data-series"))).toEqual(["1", "5", "4", "6"]);
+    const forest = paths[1] as Element;
+    expect(getComputedStyle(forest).fill).toBe(token(forest, "var(--cp-series-5)"));
+    for (const part of ["grid", "zero", "rows"]) {
+      expect(d.svg.querySelector(`[data-part="${part}"]`), part).toBeNull();
+    }
+    expect(d.svg.querySelector('[data-part="ticks"]')?.getAttribute("d")).toBe("");
+    // The circle is as tall as the plot, centred on it.
+    const box = (d.svg.querySelector('[data-part="pie"]') as SVGGElement).getBBox();
+    expect(box.height).toBeCloseTo(240, 0);
+    expect(box.x + box.width / 2).toBeCloseTo(d.lay.width / 2, 0);
+  });
+
+  it("labels the slices outside it in ink from 30rem, each joined to its rim by a muted leader", () => {
+    const d = draw(land(), 600);
+    const labels = [...d.svg.querySelectorAll('[data-part="end"] > text')];
+    expect(labels).toHaveLength(2 * 4);
+    expect(getComputedStyle(labels[0] as Element).fill).toBe(
+      token(labels[0] as Element, "var(--cp-ink)"),
+    );
+    const leader = d.svg.querySelector('[data-part="leader"]') as Element;
+    const l = getComputedStyle(leader);
+    expect([l.stroke, l.strokeWidth, l.fill]).toEqual([
+      token(leader, "var(--cp-ink-muted)"),
+      "1px",
+      "none",
+    ]);
+    expect(leader.getAttribute("d")?.match(/M/g)).toHaveLength(2 * 4);
+  });
+
+  it("draws no outside label on a phone", () => {
+    const d = draw(land(), 288);
+    expect(d.svg.querySelector('[data-part="end"] > text')).toBeNull();
+    expect(d.svg.querySelector('[data-part="leader"]')).toBeNull();
+    expect(d.lay.pie?.r).toBe(100);
+  });
+
+  it("writes a donut's total in its hole, the word muted over the value in ink at the larger size", () => {
+    const d = draw(land(true), 600);
+    const [label, total] = [...d.svg.querySelectorAll('[data-part="hole"] > text')];
+    expect(label?.textContent).toBe("Total");
+    expect(total?.textContent).toBe("357,580\u00A0km²");
+    expect(getComputedStyle(label as Element).fill).toBe(
+      token(label as Element, "var(--cp-ink-muted)"),
+    );
+    const t = getComputedStyle(total as Element);
+    expect(t.fill).toBe(token(total as Element, "var(--cp-ink)"));
+    expect(t.fontSize).toBe("16px");
+    // The value fits the hole less 16 px, measured in the face it is drawn in.
+    const inner = d.lay.pie?.inner ?? 0;
+    expect((total as SVGTextElement).getComputedTextLength()).toBeLessThanOrEqual(2 * inner - 16);
+    // A phone's 100 px hole leaves the total to the legend row.
+    expect(draw(land(true), 288).svg.querySelector('[data-part="hole"]')).toBeNull();
+  });
+});
+
 describe("a point chart", () => {
   const ages = (x: NonNullable<ChartSpec["x"]> = {}): ChartSpec => ({
     x,

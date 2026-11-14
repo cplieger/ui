@@ -283,7 +283,7 @@ describe("spec errors", () => {
     expect(() =>
       build({ x: {}, marks: [{ mark: "rule", x: 1, label: "Median" }, line([1]), rect([1])] }),
     ).toThrow(
-      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell or box mark and any rules and text marks",
+      "renderChart: marks[2] is a second data mark beside marks[1]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box or pie mark and any rules and text marks",
     );
   });
 
@@ -1052,7 +1052,7 @@ describe("the point mark", () => {
       "renderChart: a point's x must be above 0 on a log x",
     );
     expect(() => build({ x: {}, marks: [{ mark: "plot" }] })).toThrow(
-      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "rule" or "text"',
+      'renderChart: marks[0].mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "pie", "rule" or "text"',
     );
   });
 
@@ -2234,5 +2234,123 @@ describe("an instant's words on a time x", () => {
         ],
       }),
     ).toThrow("renderChart: marks[1].x must lie within 8.64e15 ms");
+  });
+});
+
+describe("the pie mark", () => {
+  const land = (more: Record<string, unknown> = {}, slices?: unknown) => ({
+    mark: "pie",
+    unit: { other: "km²" },
+    slices: slices ?? [
+      { name: "Agriculture", value: 182_637 },
+      { name: "Forest", slot: 5, value: 106_000 },
+      { name: "Water", value: null },
+      { name: "Other", value: Number.NaN },
+    ],
+    ...more,
+  });
+
+  it("keeps the slices in the app's order, each in its slot, a gap as null, totalling the rest", () => {
+    const model = build({ marks: [land()] });
+    const m = model.marks[0];
+    expect(m?.kind).toBe("pie");
+    if (m?.kind !== "pie") {
+      return;
+    }
+    expect(m.slices).toEqual([
+      { name: "Agriculture", slot: 1, value: 182_637 },
+      { name: "Forest", slot: 5, value: 106_000 },
+      { name: "Water", slot: 3, value: null },
+      { name: "Other", slot: 4, value: null },
+    ]);
+    expect(m.total).toBe(288_637);
+    expect(m.hole).toBe(false);
+    expect(model.amountText(m.total)).toBe("288,637");
+    expect(model.shareText(182_637 / 288_637)).toBe("63%");
+  });
+
+  it("is a pie chart, or with a hole a donut chart, and writes values in its own format", () => {
+    expect(build({ marks: [land()] }).kind).toBe("pie");
+    const donut = build({ marks: [land({ hole: true, format: "percent" })] });
+    expect(donut.kind).toBe("donut");
+    expect(donut.amountText(0.5)).toBe("50%");
+  });
+
+  it("is empty when every slice is 0 or no data", () => {
+    const zero = [
+      { name: "A", value: 0 },
+      { name: "B", value: null },
+    ];
+    expect(build({ marks: [land({}, zero)] }).empty).toBe(true);
+    expect(build({ marks: [land({}, [])] }).empty).toBe(true);
+    expect(build({ marks: [land()] }).empty).toBe(false);
+  });
+
+  it("takes a height, since its circle is as tall as the plot", () => {
+    expect(build({ height: 300, marks: [land()] }).spec.height).toBe(300);
+  });
+
+  it("refuses scales, rules and notes, which have no axis to sit on", () => {
+    expect(() => build({ x: {}, marks: [land()] })).toThrow(
+      new TypeError("renderChart: a pie takes no x scale; it has no axes"),
+    );
+    expect(() => build({ y: {}, marks: [land()] })).toThrow(
+      new TypeError("renderChart: a pie takes no y scale; it has no axes"),
+    );
+    expect(() => build({ marks: [land(), { mark: "rule", y: 1, label: "Target" }] })).toThrow(
+      new TypeError(
+        "renderChart: marks[1] is a rule mark beside a pie, which has no scale to place it on",
+      ),
+    );
+    expect(() => build({ marks: [{ mark: "text", x: 1, y: 1, text: "Note" }, land()] })).toThrow(
+      new TypeError(
+        "renderChart: marks[0] is a text mark beside a pie, which has no scale to place it on",
+      ),
+    );
+    expect(() => build({ marks: [land(), rect([1])] })).toThrow(TypeError);
+  });
+
+  it("refuses slices of the wrong type with a TypeError", () => {
+    for (const bad of [
+      land({}, "slices"),
+      land({ hole: "yes" }),
+      land({}, [{ value: 1 }]),
+      land({}, [{ name: "A", value: "1" }]),
+      land({}, [{ name: "A", value: 1, slot: "1" }]),
+      land({ unit: "km²" }),
+      land({ format: "money" }),
+    ]) {
+      expect(() => build({ marks: [bad] }), JSON.stringify(bad)).toThrow(TypeError);
+    }
+  });
+
+  it("refuses negative, infinite, unnamed and repeated slices with a RangeError", () => {
+    const one = (slice: Record<string, unknown>) => land({}, [{ name: "A", value: 1 }, slice]);
+    for (const bad of [
+      one({ name: "B", value: -1 }),
+      one({ name: "B", value: Number.POSITIVE_INFINITY }),
+      one({ name: "B", value: 1e301 }),
+      one({ name: "", value: 1 }),
+      one({ name: "A", value: 2 }),
+      one({ name: "B", value: 1, slot: 10 }),
+    ]) {
+      expect(() => build({ marks: [bad] }), JSON.stringify(bad)).toThrow(RangeError);
+    }
+    expect(() => build({ marks: [one({ name: "B", value: -1 })] })).toThrow(
+      "renderChart: marks[0].slices[1].value cannot be negative; a slice is a part of the whole",
+    );
+    expect(() => build({ marks: [one({ name: "A", value: 2 })] })).toThrow(
+      'renderChart: marks[0].slices must name each slice once, never ""',
+    );
+  });
+
+  it("refuses a total past what a scale holds", () => {
+    const big = [
+      { name: "A", value: 1e300 },
+      { name: "B", value: 1e300 },
+    ];
+    expect(() => build({ marks: [land({}, big)] })).toThrow(
+      new RangeError("renderChart: a pie's total must lie within ±1e300"),
+    );
   });
 });

@@ -18,6 +18,7 @@ import { localDay, localYear, spansDay } from "../scale/time.js";
 
 import { dayFormat, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
+import { shareWriter } from "./pie.js";
 import {
   LIMIT,
   rScale,
@@ -35,6 +36,7 @@ import type {
   CellMark,
   ChartSpec,
   Mark,
+  PieMark,
   PointMark,
   RectMark,
   ScatterMark,
@@ -69,7 +71,9 @@ type Kind =
   | "heatmap"
   | "histogram2d"
   | "calendar"
-  | "box";
+  | "box"
+  | "pie"
+  | "donut";
 
 export interface SeriesModel {
   readonly name: string;
@@ -433,6 +437,24 @@ export interface CalendarModel {
   readonly classes: Classes;
 }
 
+interface SliceModel {
+  readonly name: string;
+  readonly slot: number;
+  /** Its value, a gap (`null` or `NaN`) as `null`. */
+  readonly value: number | null;
+}
+
+/** Slices of one whole, clockwise from 12 o'clock in the app's order. */
+export interface PieModel {
+  readonly kind: "pie";
+  /** A donut, its total in the hole. */
+  readonly hole: boolean;
+  readonly unit: Unit | undefined;
+  readonly slices: readonly SliceModel[];
+  /** The sum of the values, in slice order. */
+  readonly total: number;
+}
+
 /** The day of `m` holding instant `t` on the chart's wall clock; -1 outside its days. */
 export function dayOf(model: Model, m: CalendarModel, t: number): number {
   const i = localDay(t, model.timeZone) - m.day;
@@ -475,6 +497,7 @@ type MarkModel =
   | CellModel
   | CalendarModel
   | BoxModel
+  | PieModel
   | RuleModel
   | TextModel;
 
@@ -504,9 +527,11 @@ export interface Model {
    *  writes its days. */
   readonly dateText: (day: number) => string;
   /** A value or total as an amount: the value axis's format (`xText` on a
-   *  bar, point or box chart, else `yText`), or a plain number under "share",
-   *  whose axis writes shares. */
+   *  bar, point or box chart, else `yText`), a pie's own format, or a plain
+   *  number under "share", whose axis writes shares. */
   readonly amountText: (v: number) => string;
+  /** A share of a whole, a pie's slice's (`shareWriter`). */
+  readonly shareText: (v: number) => string;
   /** The width keys of `xText` off a time x and named columns, `yText`, `rText`
    *  and `amountText`; undefined where a format has none. */
   readonly widthKeys: {
@@ -990,6 +1015,39 @@ function checkBox(mark: Record<string, unknown>, what: string): void {
   }
 }
 
+// The legend row, the readings and the table name a slice by its name
+// alone, and a share needs a whole of values of 0 or more.
+function checkPie(mark: Record<string, unknown>, what: string): void {
+  optional(mark["hole"], "boolean", `${what}.hole`);
+  checkUnit(mark["unit"], what);
+  checkFormat(mark["format"], what);
+  const list = mark["slices"];
+  if (!arrayLike(list)) {
+    fail(`${what}.slices must be an array`);
+  }
+  const seen = new Set<unknown>();
+  for (let s = 0; s < list.length; s++) {
+    const one = list[s];
+    const at = `${what}.slices[${String(s)}]`;
+    checkSeriesHead(one, s, at);
+    const { name, value } = one;
+    if (name === "" || seen.has(name)) {
+      fail(`${what}.slices must name each slice once, never ""`, RangeError);
+    }
+    seen.add(name);
+    if (value !== null && typeof value !== "number") {
+      fail(`${at}.value must be a number or null`);
+    }
+    if (value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY) {
+      fail(`${at}.value cannot be infinite`, RangeError);
+    }
+    if (typeof value === "number" && value < 0) {
+      fail(`${at}.value cannot be negative; a slice is a part of the whole`, RangeError);
+    }
+    within([value], `${at}.value`);
+  }
+}
+
 function checkCurve(curve: unknown, what: string): void {
   if (curve !== undefined && curve !== "linear" && curve !== "step") {
     fail(`${what}.curve must be "linear" or "step"`);
@@ -1160,6 +1218,9 @@ function checkMark(mark: unknown, what: string): void {
     case "box":
       checkBox(mark, what);
       return;
+    case "pie":
+      checkPie(mark, what);
+      return;
     case "rule": {
       const { x, y } = mark;
       if ((x === undefined) === (y === undefined)) {
@@ -1197,7 +1258,7 @@ function checkMark(mark: unknown, what: string): void {
     }
     default:
       fail(
-        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "rule" or "text"`,
+        `${what}.mark must be "rect", "line", "area", "dot", "bar", "point", "slope", "scatter", "cell", "box", "pie", "rule" or "text"`,
       );
   }
 }
@@ -1242,13 +1303,23 @@ function check(spec: unknown): asserts spec is ChartSpec {
     // second would draw values none of them give.
     if (data !== -1) {
       fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell or box mark and any rules and text marks`,
+        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box or pie mark and any rules and text marks`,
       );
     }
     data = m;
   }
   const height = spec["height"];
   const primary = marks[data];
+  if (isObject(primary) && primary["mark"] === "pie") {
+    for (let m = 0; m < marks.length; m++) {
+      const mark = marks[m];
+      if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
+        fail(
+          `marks[${String(m)}] is a ${mark["mark"]} mark beside a pie, which has no scale to place it on`,
+        );
+      }
+    }
+  }
   if (isObject(primary) && primary["mark"] === "scatter") {
     const list = primary["series"];
     const sized = arrayLike(list) && isObject(list[0]) && list[0]["r"] !== undefined;
@@ -1368,6 +1439,25 @@ function scatterModel(
   return { kind: "scatter", unit: mark.unit, series, shown, size, drawn };
 }
 
+function pieModel(mark: PieMark): PieModel {
+  const slices = mark.slices.map((s, i) => ({
+    name: s.name,
+    slot: s.slot ?? i + 1,
+    value: s.value === null || Number.isNaN(s.value) ? null : s.value,
+  }));
+  const total = slices.reduce((n, s) => n + (s.value ?? 0), 0);
+  if (total > LIMIT) {
+    fail("a pie's total must lie within ±1e300", RangeError);
+  }
+  return {
+    kind: "pie",
+    hole: mark.hole === true,
+    unit: mark.unit,
+    slices,
+    total,
+  };
+}
+
 /** One series with a value below 0: its bars run either side of the zero
  *  line, and every value not written as 0 carries its sign. */
 const signedBar = (m: BarModel): boolean =>
@@ -1456,6 +1546,8 @@ function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
       return "calendar";
     case "box":
       return "box";
+    case "pie":
+      return first.hole ? "donut" : "pie";
   }
 }
 
@@ -1488,6 +1580,8 @@ function hasData(m: MarkModel, x: Continuous): boolean {
       return m.values.some((v) => v !== null);
     case "box":
       return m.series.some((s) => s.boxes.some((b) => b !== null));
+    case "pie":
+      return m.total > 0;
     case "rule":
     case "text":
       return false;
@@ -1682,6 +1776,8 @@ export function chartModel(
         return { kind: "point", link: m.link, series: pointSeries(m.series) };
       case "box":
         return { kind: "box", whiskers: m.whiskers, series: boxSeries(m.series) };
+      case "pie":
+        return pieModel(m);
       case "slope":
         return { kind: "slope", columns: m.x, series: series(m.series) };
       case "scatter":
@@ -1762,6 +1858,9 @@ export function chartModel(
     (m) => (m.kind === "rect" || m.kind === "area" || m.kind === "bar") && m.arrange === "share",
   );
   const bars = marks.some((m) => m.kind === "bar" || m.kind === "point" || m.kind === "box");
+  // A pie has no scale, so its mark carries its format.
+  const pie = spec.marks.find((m): m is PieMark => m.mark === "pie");
+  const amount = pie !== undefined ? pie.format : share ? "number" : undefined;
   const xKey = named !== undefined || x.type === "time" ? undefined : widthKey(x.format, locale);
   const yKey = y.type === "band" ? undefined : widthKey(y.format, locale);
   return {
@@ -1777,12 +1876,13 @@ export function chartModel(
     rText,
     colourText,
     dateText,
-    amountText: share ? writer("number", locale) : bars ? xText : yText,
+    amountText: pie !== undefined || share ? writer(amount, locale) : bars ? xText : yText,
+    shareText: shareWriter(locale),
     widthKeys: {
       x: xKey,
       y: yKey,
       r: widthKey(size?.format, locale),
-      amount: share ? widthKey("number", locale) : bars ? xKey : yKey,
+      amount: pie !== undefined || share ? widthKey(amount, locale) : bars ? xKey : yKey,
       colour: widthKey(spec.colour?.format, locale),
     },
     locale,

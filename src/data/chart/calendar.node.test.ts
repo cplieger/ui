@@ -24,6 +24,8 @@ const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
 const metrics: Metrics = {
   measure: face,
   mono: face,
+  hole: face,
+  holeLine: 21,
   lineHeight: 17,
   nameLine: 18,
   rem: 16,

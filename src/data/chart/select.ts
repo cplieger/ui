@@ -227,6 +227,8 @@ export function initial(model: Model): Selection | undefined {
     }
     case "calendar":
       return m.values.length === 0 ? undefined : { kind: "day", i: m.values.length - 1 };
+    case "pie":
+      return undefined;
   }
 }
 
@@ -622,7 +624,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "calendar") {
         return sel.kind === "day" ? moveDay(m, sel.i, key) : undefined;
       }
-      if (sel.kind !== m.kind) {
+      if (m.kind === "pie" || sel.kind !== m.kind) {
         return undefined;
       }
       if (key === "ArrowUp" || key === "ArrowDown") {
@@ -642,6 +644,7 @@ export function navigator(model: Model, lay: Layout): Navigator {
     pick(px, py) {
       switch (m?.kind) {
         case undefined:
+        case "pie":
           return undefined;
         case "rect": {
           let best: number | undefined;

@@ -6498,6 +6498,11 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-size: 0.92em;
 }
 
+/* A donut's total in its hole; the script measures it by this face. */
+.cp-chart [data-part="plot"] [data-hole] {
+  font-size: var(--cp-text-md);
+}
+
 .cp-chart svg {
   display: block;
   overflow: visible;
@@ -6529,7 +6534,8 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
-.cp-chart svg [data-part="bar"] path {
+.cp-chart svg [data-part="bar"] path,
+.cp-chart svg [data-part="pie"] path {
   fill: var(--cp-tone-9);
 }
 
@@ -6703,7 +6709,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   stroke-linejoin: round;
 }
 
-/* A slope's end label moved off its dot's height points back to it. */
+/* A slope's end label moved off its dot's height, or a pie's outside label,
+ * points back to its mark. */
 .cp-chart svg [data-part="leader"] {
   fill: none;
   stroke: var(--cp-ink-muted);
@@ -6736,6 +6743,10 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-chart svg [data-part="end"] text[data-selected] {
   font-weight: var(--cp-weight-medium);
+}
+
+.cp-chart svg [data-part="hole"] text[data-hole] {
+  fill: var(--cp-ink);
 }
 
 /* A note's or a bar value's 3 px halo of the plot's surface keeps it

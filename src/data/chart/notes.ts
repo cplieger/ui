@@ -275,6 +275,7 @@ export function noteJoin(model: Model, t: TextModel): Join | undefined {
       const i = dayOf(model, m, x);
       return i === -1 ? undefined : { kind: "day", i };
     }
+    case "pie":
     case undefined:
       return undefined;
   }

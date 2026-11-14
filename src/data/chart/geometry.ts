@@ -3,7 +3,7 @@
  * px, y down: rects with their gaps, lines and areas reduced per device
  * pixel and cut at the plot's ends, rows of dots, bars and points along
  * their rows, a slope's lines and ends, a scatter's dots, a grid's cells,
- * boxes with their whiskers and outliers, rules and the axis lines.
+ * boxes with their whiskers and outliers, a pie's slices, rules and the axis lines.
  * @module
  */
 
@@ -11,6 +11,7 @@ import { reduce, upperBound, type Point } from "../scale/reduce.js";
 
 import { dayPlace, type Weeks } from "./calendar.js";
 import { classOf } from "./classes.js";
+import { rimPoint, sliceAngles, TURN, type PieFrame } from "./pie.js";
 import {
   barsApart,
   barTotal,
@@ -25,6 +26,7 @@ import {
   type CellModel,
   type DotRowModel,
   type LineModel,
+  type PieModel,
   type PointModel,
   type RectModel,
   type SampleModel,
@@ -1174,3 +1176,62 @@ export function ruleXs(value: number, f: Pick<Frame, "x" | "xAt" | "panels">): n
 /** The 4 px tick vectors under the plot at `ats`, from its bottom edge. */
 export const tickPath = (ats: readonly number[], dpr: number): string =>
   ats.map((at) => `M${num(snap(at, dpr) + 0.5)} 0v4`).join("");
+
+/** Half the 1 px gap between neighbouring slices: each straight edge moves
+ *  this far into its slice, so a gap is as wide at the rim as at the centre. */
+const HALF_GAP = 0.5;
+
+const pt = (p: { x: number; y: number }): string => `${num(p.x)} ${num(p.y)}`;
+
+const arcTo = (r: number, large: boolean, clockwise: boolean, to: { x: number; y: number }) =>
+  `A${num(r)} ${num(r)} 0 ${large ? "1" : "0"} ${clockwise ? "1" : "0"} ${pt(to)}`;
+
+// The whole circle as two half arcs, a donut's hole drawn the other way so
+// the nonzero fill leaves it open.
+function wholePie(p: PieFrame): string {
+  const ring = (r: number, clockwise: boolean) => {
+    const top = { x: p.cx, y: p.cy - r };
+    const bottom = { x: p.cx, y: p.cy + r };
+    return `M${pt(top)}${arcTo(r, true, clockwise, bottom)}${arcTo(r, true, clockwise, top)}Z`;
+  };
+  return ring(p.r, true) + (p.inner > 0 ? ring(p.inner, false) : "");
+}
+
+/**
+ * The slice from angle `from` to `to` on `p`, its straight edges each moved
+ * 0.5 px into it. A slice whose arc at the rim is under 2 px, too thin to
+ * keep 1 px beside its gaps, keeps its edges and touches its neighbours; a
+ * slice of the whole turn is the whole circle.
+ */
+export function slicePath(p: PieFrame, from: number, to: number): string {
+  const span = to - from;
+  if (span >= TURN) {
+    return wholePie(p);
+  }
+  const g = p.r * span < 4 * HALF_GAP ? 0 : HALF_GAP;
+  const d = Math.asin(g / p.r);
+  const outer = `M${pt(rimPoint(p, from + d, p.r))}${arcTo(p.r, span - 2 * d > Math.PI, true, rimPoint(p, to - d, p.r))}`;
+  const di = p.inner > 0 ? Math.asin(Math.min(1, g / p.inner)) : 0;
+  if (p.inner > 0 && span - 2 * di > 0) {
+    const back = arcTo(p.inner, span - 2 * di > Math.PI, false, rimPoint(p, from + di, p.inner));
+    return `${outer}L${pt(rimPoint(p, to - di, p.inner))}${back}Z`;
+  }
+  if (g === 0 || span <= Math.PI) {
+    // The moved edges meet on the bisector, g / sin(span / 2) out, past
+    // a donut's hole when it leaves the slice no inner arc.
+    const apex = g === 0 ? 0 : g / Math.sin(span / 2);
+    return `${outer}L${pt(rimPoint(p, (from + to) / 2, apex))}Z`;
+  }
+  // Past a half turn the moved edges never meet: each stops g from the
+  // centre, joined round it, so every point stays g from the other slices.
+  const end = rimPoint(p, to - Math.PI / 2, g);
+  const start = rimPoint(p, from + Math.PI / 2, g);
+  return `${outer}L${pt(end)}${arcTo(g, false, false, start)}Z`;
+}
+
+/** Each slice `m` draws on `p`, with its slot. */
+export const piePaths = (m: PieModel, p: PieFrame): { slot: number; d: string }[] =>
+  sliceAngles(m).map((s) => ({
+    slot: m.slices[s.index]?.slot ?? 1,
+    d: slicePath(p, s.from, s.to),
+  }));

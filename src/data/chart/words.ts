@@ -34,7 +34,9 @@ type Kind =
   | "heatmap"
   | "histogram2d"
   | "calendar"
-  | "box";
+  | "box"
+  | "pie"
+  | "donut";
 
 /** A box plot's measure names. Defaults "Low", "Lower quartile", "Median",
  *  "Upper quartile", "High", "Outliers", "Middle half", "Whiskers". */
@@ -61,7 +63,7 @@ export interface ChartWords {
    *  diverging one; two or more take their arrangement's kind. An area mark, or a rect with
    *  shape "area", is an area chart; a scatter whose series carry r a bubble chart; a cell
    *  mark a heatmap, a 2D histogram when both axes are binned, or a calendar heatmap with
-   *  days; a box mark a box plot. */
+   *  days; a box mark a box plot; a pie mark a pie chart, or with `hole` a donut chart. */
   readonly kind?: Readonly<Partial<Record<Kind, string>>>;
   /** Default "{n} series". */
   readonly seriesCount?: (n: string) => string;
@@ -99,6 +101,11 @@ export interface ChartWords {
   /** An arrow plot's row, or a slope's chosen series, as announced.
    *  Default "{at}: {parts}. Change {change}." */
   readonly changeReading?: (at: string, parts: string, change: string) => string;
+  /** A pie's table head over each slice's value when its mark names no
+   *  unit. Default "Value". */
+  readonly value?: string;
+  /** A pie's table head over each slice's share of the whole. Default "Share". */
+  readonly share?: string;
   /** A null value. Default "No data". */
   readonly noData?: string;
   /** A silent row's first and last cells. Default "None". */
@@ -156,6 +163,9 @@ export interface ChartWords {
    *  the short description; count is n as a number, for the plural.
    *  Default "{n} days", or "{n} day" for one. */
   readonly days?: (n: string, count: number) => string;
+  /** A pie's slices in the short description; count is n as a number, for
+   *  the plural. Default "{n} parts", or "{n} part" for one. */
+  readonly parts?: (n: string, count: number) => string;
   /** A cell's place in the legend row, the readings, the summary and a
    *  note's place: its column's and its row's name, or a bin as
    *  `measure` of its range. Default "{row}, {column}". */
@@ -273,6 +283,8 @@ const DEFAULTS: Words = {
     histogram2d: "2D histogram",
     calendar: "Calendar heatmap",
     box: "Box plot",
+    pie: "Pie chart",
+    donut: "Donut chart",
   },
   seriesCount: (n) => `${n} series`,
   shortDescription: (kind, series, range) =>
@@ -290,6 +302,8 @@ const DEFAULTS: Words = {
   change: "Change",
   gapReading: (at, parts, gap) => `${at}: ${parts}. Gap ${gap}.`,
   changeReading: (at, parts, change) => `${at}: ${parts}. Change ${change}.`,
+  value: "Value",
+  share: "Share",
   noData: "No data",
   none: "None",
   count: "Count",
@@ -315,6 +329,7 @@ const DEFAULTS: Words = {
   grid: (rows, columns) => `${rows} by ${columns}`,
   cells: (n, count) => (count === 1 ? `${n} cell` : `${n} cells`),
   days: (n, count) => (count === 1 ? `${n} day` : `${n} days`),
+  parts: (n, count) => (count === 1 ? `${n} part` : `${n} parts`),
   cellPlace: (column, row) => `${row}, ${column}`,
   cellSummary: (count, high, low) =>
     high === "" ? `${count}.` : `${count}. Highest ${high}. Lowest ${low}.`,

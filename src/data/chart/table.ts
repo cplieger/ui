@@ -1,7 +1,7 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
  * bucket, sample, change point, dot row, category, box, slope series,
- * scatter dot, cell row or calendar week, kept in place across updates.
+ * scatter dot, cell row, calendar week or slice, kept in place across updates.
  * @module
  */
 
@@ -14,6 +14,7 @@ import type {
   CalendarModel,
   CellModel,
   Model,
+  PieModel,
   PointModel,
   RectModel,
   SampleModel,
@@ -41,6 +42,7 @@ import {
   partText,
   primaryOf,
   samplePart,
+  sliceShare,
   totalWord,
   totalled,
 } from "./readout.js";
@@ -294,6 +296,28 @@ function cellTable(model: Model, m: CellModel, words: Words, after: string): Tab
   };
 }
 
+// A row per slice in the app's order, its value bare under the unit's
+// plural, then its share.
+function pieTable(model: Model, m: PieModel, words: Words, after: string): TableModel {
+  const rows = m.slices.map((s, i): Row => ({
+    key: s.name,
+    head: [s.name],
+    cells: [
+      { parts: [s.value === null ? words.noData : model.amountText(s.value)], num: true },
+      { parts: [sliceShare(model, m, i, words)], num: true },
+    ],
+  }));
+  return {
+    corner: "",
+    columns: [
+      { text: m.unit?.other ?? words.value, num: true },
+      { text: words.share, num: true },
+    ],
+    rows,
+    after,
+  };
+}
+
 // A row per category, or per category and series from two series up with a
 // Series column, its five numbers Low to High and its outliers ascending.
 function boxTable(model: Model, m: BoxModel, words: Words, after: string): TableModel {
@@ -434,6 +458,9 @@ export function tableModel(model: Model, words: Words): TableModel {
   }
   if (m.kind === "box") {
     return boxTable(model, m, words, after);
+  }
+  if (m.kind === "pie") {
+    return pieTable(model, m, words, after);
   }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {

@@ -48,6 +48,7 @@ import {
   dotValue,
   measureText,
   measuresOf,
+  partsText,
   primaryOf,
   rowsText,
   totalWord,
@@ -584,13 +585,17 @@ function gridText(model: Model, m: CellModel, words: Words): string {
 
 /** The plot's name: its kind, its series count from two up, and its x
  *  domain, or on a bar, point or box chart its row count, on a scatter its dot
- *  count, on a cell chart its rows by its columns and on a calendar its
- *  day count, since their x is no span. */
+ *  count, on a cell chart its rows by its columns, on a calendar its
+ *  day count and on a pie its slice count, since their x is no span. */
 export function shortDescription(model: Model, words: Words): string {
   const m = primaryOf(model);
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
   const n =
-    m === undefined || m.kind === "dot" || m.kind === "cell" || m.kind === "calendar"
+    m === undefined ||
+    m.kind === "dot" ||
+    m.kind === "cell" ||
+    m.kind === "calendar" ||
+    m.kind === "pie"
       ? 0
       : m.series.length;
   const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
@@ -603,6 +608,8 @@ export function shortDescription(model: Model, words: Words): string {
           ? gridText(model, m, words)
           : m?.kind === "calendar"
             ? daysText(model, m, words)
-            : domainText(model, words);
+            : m?.kind === "pie"
+              ? partsText(model, m, words)
+              : domainText(model, words);
   return words.shortDescription(kind, series, range);
 }

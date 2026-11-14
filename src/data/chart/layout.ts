@@ -1,9 +1,8 @@
 /**
- * layout.ts — where a chart's parts sit in its SVG at a width: the y gutter
- * and the label gutter, the rule labels' band and the y title above the
- * plot, the x axis under it, the lines' and areas' end labels, a band
- * chart's rows, a bar chart's panels and value labels, a box plot's rows, a slope's columns
- * and end labels, a scatter's inset axes, and the text marks' notes.
+ * layout.ts — where a chart's parts sit in its SVG at a width: gutters, the
+ * rule band and y title, the x axis, end labels, a band chart's rows, a bar
+ * chart's panels and value labels, a slope's columns and end labels, a
+ * scatter's inset axes, a pie's circle, outside labels and hole, and notes.
  * @module
  */
 
@@ -48,12 +47,14 @@ import {
   type CalendarModel,
   type CellModel,
   type Model,
+  type PieModel,
   type ScatterModel,
   type SlopeModel,
 } from "./model.js";
 import { dayFormat, dayPlace, foldSize, monthFirst, weekCount, weekRow } from "./calendar.js";
 import { MARKER_RADIUS, NOTE_REM, notePoint, placeNote, wrapNote, type Box } from "./notes.js";
-import { lastSample, lastStack, samplePart } from "./readout.js";
+import { rimPoint, sliceAngles, type PieFrame } from "./pie.js";
+import { lastSample, lastStack, pieAmount, samplePart } from "./readout.js";
 import type { Continuous } from "./scales.js";
 import type { Words } from "./words.js";
 
@@ -74,6 +75,9 @@ export interface Metrics {
   readonly labelGroup: number;
   /** The plot's height when the spec gives none, from `--cp-chart-height`. */
   readonly height: number;
+  /** A donut's total's face, `[data-hole]`, and a line of it in px. */
+  readonly hole: Measure;
+  readonly holeLine: number;
   readonly dpr: number;
 }
 
@@ -89,7 +93,7 @@ export interface Text {
   readonly x: number;
   readonly y: number;
   readonly anchor: "start" | "middle" | "end";
-  /** A slope's end label's series. */
+  /** A slope's end label's series, or a pie's outside label's slice. */
   readonly series?: number;
   /** A cell chart's column a band x label names. */
   readonly column?: number;
@@ -121,6 +125,11 @@ export interface Layout {
   readonly cells: { readonly xs: readonly number[]; readonly ys: readonly number[] } | undefined;
   /** A calendar's days on the plot. */
   readonly days: DayGrid | undefined;
+  /** A pie's circle on the plot. */
+  readonly pie: PieFrame | undefined;
+  /** A donut's total in its hole, in plot px: `words.total` over the value;
+   *  absent when the value is wider than the hole less 16 px. */
+  readonly hole: { readonly label: Text; readonly total: Text } | undefined;
   /** A whole bar's thickness, which a group's thinner bars derive from
    *  (`barBlock`); 0 without a bar mark. */
   readonly bar: number;
@@ -139,7 +148,8 @@ export interface Layout {
   /** Text inside the plot, in plot px: a y rule's label. */
   readonly plotLabels: readonly Text[];
   readonly endLabels: readonly Text[];
-  /** A slope's end labels moved off their dots' heights, each joined to its dot. */
+  /** A slope's end labels moved off their dots' heights, each joined to
+   *  its dot, or a pie's outside labels, each joined to its slice's rim. */
   readonly leaders: readonly Leader[];
   /** The notes drawn, in spec order: those whose point lies in the plot. */
   readonly notes: readonly Note[];
@@ -556,6 +566,8 @@ function slopeLayout(
     rows: [],
     cells: undefined,
     days: undefined,
+    pie: undefined,
+    hole: undefined,
     mono: false,
     gutters: { axis: axisW, label: labelW },
     bar: 0,
@@ -680,6 +692,8 @@ function calendarLayout(
     rows: [],
     cells: undefined,
     days: grid,
+    pie: undefined,
+    hole: undefined,
     mono: false,
     gutters: { axis: axisW, label: labelW },
     bar: 0,
@@ -694,6 +708,124 @@ function calendarLayout(
     leaders: [],
     notes,
     numbered: numberedNotes(notes, chart < NARROW_REM * metrics.rem),
+  };
+}
+
+/** A pie's outside label column is at most this many rem wide, and at most
+ *  PIE_COLUMN of the chart's width. */
+const PIE_COLUMN_REM = 12;
+const PIE_COLUMN = 0.25;
+/** The room a donut's total keeps from its hole's edge, in px, all told. */
+const HOLE_ROOM = 16;
+
+/**
+ * A pie's layout: its circle centred on the plot, as tall as the plot or as
+ * wide as the label columns leave it. From 30rem up each drawn slice's name
+ * and share sit in a column on the side its middle angle falls on, dodged
+ * a name line each apart, joined to the rim at that angle; when a side's
+ * labels cannot fit the plot's height none is drawn and the legend row
+ * names the slices, as it does under 30rem.
+ */
+function pieLayout(
+  model: Model,
+  m: PieModel,
+  words: Words,
+  metrics: Metrics,
+  width: number,
+  floors: Floors,
+  chart: number,
+): Layout {
+  const { measure, lineHeight, dpr, nameLine } = metrics;
+  const height = model.spec.height ?? metrics.height;
+  const slices = sliceAngles(m);
+  const step = 2 * nameLine;
+  const mids = slices.map((s) => (s.from + s.to) / 2);
+  const right = mids.filter((a) => a < Math.PI).length;
+  const labelled =
+    chart >= NARROW_REM * metrics.rem && Math.max(right, slices.length - right) * step <= height;
+  const column = labelled ? Math.min(PIE_COLUMN_REM * metrics.rem, PIE_COLUMN * chart) : 0;
+  const r = Math.max(0, Math.min(height, width - 2 * column)) / 2;
+  const p: PieFrame = { cx: width / 2, cy: height / 2, r, inner: m.hole ? r / 2 : 0 };
+  const endLabels: Text[] = [];
+  const leaders: Leader[] = [];
+  for (const side of labelled ? [1, -1] : []) {
+    const on = mids.flatMap((mid, k) => (mid < Math.PI === (side === 1) ? [k] : []));
+    const rims = on.map((k) => rimPoint(p, mids[k] ?? 0, r));
+    const want = rims.map((pt) => Math.min(Math.max(pt.y, step / 2), height - step / 2));
+    const at = dodge(want, step, step / 2, height - step / 2);
+    const edge = p.cx + side * r;
+    on.forEach((k, j) => {
+      const slice = slices[k];
+      const s = slice === undefined ? undefined : m.slices[slice.index];
+      const rim = rims[j];
+      const y = at[j] ?? 0;
+      if (slice === undefined || s === undefined || rim === undefined) {
+        return;
+      }
+      const x = edge + side * PAD;
+      const anchor = side === 1 ? "start" : "end";
+      const share = model.shareText((s.value ?? 0) / m.total);
+      endLabels.push(
+        {
+          text: cutName(s.name, column - PAD, measure.text),
+          x,
+          y: y - nameLine / 2,
+          anchor,
+          series: slice.index,
+        },
+        { text: share, x, y: y + nameLine / 2, anchor, series: slice.index },
+      );
+      // Out along the rim's height past the circle, which a level line from
+      // a point on its own half never crosses, then to the label.
+      const bend = { x: edge + side * LEADER_GAP, y: rim.y };
+      leaders.push({ from: rim, to: bend }, { from: bend, to: { x: x - side * LEADER_GAP, y } });
+    });
+  }
+  let hole: Layout["hole"];
+  if (m.hole && m.total > 0) {
+    const value = pieAmount(model, m, m.total);
+    const room = 2 * p.inner - HOLE_ROOM;
+    if (metrics.hole.number(value) <= room && measure.text(words.total) <= room) {
+      const top = p.cy - (lineHeight + metrics.holeLine) / 2;
+      hole = {
+        label: { text: words.total, x: p.cx, y: top + lineHeight / 2, anchor: "middle" },
+        total: {
+          text: value,
+          x: p.cx,
+          y: top + lineHeight + metrics.holeLine / 2,
+          anchor: "middle",
+        },
+      };
+    }
+  }
+  const frame: Frame = { width, height, dpr, yAt: (v) => v, x: model.x, xAt: (v) => v };
+  return {
+    width,
+    height,
+    left: 0,
+    top: 0,
+    frame,
+    xAxis: { lo: 0, hi: 1, at: (v) => v, ticks: [] },
+    yAxis: undefined,
+    rows: [],
+    cells: undefined,
+    days: undefined,
+    pie: p,
+    hole,
+    mono: false,
+    gutters: floors,
+    bar: 0,
+    valueLabels: [],
+    heads: [],
+    xLabels: [],
+    yLabels: [],
+    titles: [],
+    ruleLabels: [],
+    plotLabels: [],
+    endLabels,
+    leaders,
+    notes: [],
+    numbered: false,
   };
 }
 
@@ -725,6 +857,10 @@ export function layout(
   const calendar = model.marks.find((m) => m.kind === "calendar");
   if (calendar !== undefined) {
     return calendarLayout(model, calendar, metrics, width, floors, chart);
+  }
+  const pie = model.marks.find((m) => m.kind === "pie");
+  if (pie !== undefined) {
+    return pieLayout(model, pie, words, metrics, width, floors, chart);
   }
   const { measure, lineHeight, dpr } = metrics;
   const ctx = { locale: model.locale, timeZone: model.timeZone, measure };
@@ -1148,6 +1284,8 @@ export function layout(
               Array.from({ length: rows.length + 1 }, (_, r) => r * rowH),
           },
     days: undefined,
+    pie: undefined,
+    hole: undefined,
     mono,
     gutters: { axis: axisW, label: labelW },
     bar: thick,

@@ -15,6 +15,8 @@ const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
 const metrics = (more: Partial<Metrics> = {}): Metrics => ({
   measure: face,
   mono: face,
+  hole: face,
+  holeLine: 21,
   lineHeight: 17,
   nameLine: 18,
   rem: 16,
@@ -1232,5 +1234,153 @@ describe("a box plot", () => {
     const l = lay(latency(), 600);
     expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(4);
     expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 4);
+  });
+});
+
+describe("a pie", () => {
+  const land = (hole = false, values = [182_637, 106_839, 50_000, 11_443, 6_661]): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        hole,
+        unit: { other: "km²" },
+        slices: ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"].map(
+          (name, i) => ({ name, value: values[i] ?? null }),
+        ),
+      },
+    ],
+  });
+  // The hole's face, 9 px a character, wider than the axis face.
+  const hole = measurer((t) => 9 * Array.from(t).length, 9, "en");
+  // A 480 px figure's 478 px plot, and a 320 px phone's 288 px figure.
+  const wide = (spec: ChartSpec) =>
+    layout(
+      chartModel(spec, "en", "UTC"),
+      words,
+      metrics({ hole }),
+      478,
+      { axis: 0, label: 0 },
+      480,
+    );
+  const phone = (spec: ChartSpec) =>
+    layout(
+      chartModel(spec, "en", "UTC"),
+      words,
+      metrics({ hole, height: 200 }),
+      286,
+      { axis: 0, label: 0 },
+      288,
+    );
+
+  it("centres its circle, as wide as a quarter of the chart's width a side leaves it from 30rem", () => {
+    const l = wide(land());
+    expect(l.pie).toEqual({ cx: 239, cy: 120, r: 119, inner: 0 });
+    expect([l.width, l.height, l.left, l.top]).toEqual([478, 240, 0, 0]);
+    expect(l.xLabels).toEqual([]);
+    expect(l.yAxis).toBeUndefined();
+  });
+
+  it("labels each slice in the column on its middle angle's side, its name over its share", () => {
+    const l = wide(land());
+    const right = l.endLabels.filter((t) => t.anchor === "start");
+    const left = l.endLabels.filter((t) => t.anchor === "end");
+    // Agriculture's middle falls right of 12 o'clock's line, every later slice's left.
+    expect(right.map((t) => t.text)).toEqual(["Agriculture", "51%"]);
+    expect(left.map((t) => t.series)).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
+    expect(left.filter((_, k) => k % 2 === 1).map((t) => t.text)).toEqual([
+      "30%",
+      "14%",
+      "3.2%",
+      "1.9%",
+    ]);
+    expect(right.every((t) => t.x === 239 + 119 + 8)).toBe(true);
+    expect(left.every((t) => t.x === 239 - 119 - 8)).toBe(true);
+    // Each share sits a name line under its name.
+    expect((right[1]?.y ?? 0) - (right[0]?.y ?? 0)).toBe(18);
+  });
+
+  it("cuts a name to its column with an ellipsis", () => {
+    const name = wide(land()).endLabels.find((t) => t.series === 2)?.text ?? "";
+    expect(name).not.toBe("Housing & traffic");
+    expect(name.endsWith("…")).toBe(true);
+    expect(face.text(name)).toBeLessThanOrEqual(120 - 8);
+  });
+
+  it("dodges a side's labels 36 px apart, inside the plot", () => {
+    const l = wide(land());
+    const middles = l.endLabels
+      .filter((t, k) => t.anchor === "end" && k % 2 === 0)
+      .map((t) => t.y + 9)
+      .sort((a, b) => a - b);
+    middles.forEach((y, k) => {
+      expect(y).toBeGreaterThanOrEqual(18);
+      expect(y).toBeLessThanOrEqual(240 - 18);
+      if (k > 0) {
+        expect(y - (middles[k - 1] ?? 0)).toBeGreaterThanOrEqual(36 - 1e-9);
+      }
+    });
+  });
+
+  it("joins each label to its slice's rim by a level line out past the circle, then to the label", () => {
+    const l = wide(land());
+    expect(l.leaders).toHaveLength(2 * 5);
+    for (let k = 0; k < l.leaders.length; k += 2) {
+      const [out, up] = [l.leaders[k], l.leaders[k + 1]];
+      const rim = out?.from ?? { x: 0, y: 0 };
+      expect(Math.hypot(rim.x - 239, rim.y - 120)).toBeCloseTo(119, 6);
+      expect(out?.to.y).toBe(rim.y);
+      expect(Math.abs((out?.to.x ?? 0) - 239)).toBe(119 + 2);
+      expect(up?.from).toEqual(out?.to);
+      expect(Math.abs((up?.to.x ?? 0) - 239)).toBe(119 + 6);
+    }
+  });
+
+  it("drops every label together when a side's cannot fit the plot's height", () => {
+    // n thin slices near 12 o'clock, all right of it, then one for the rest.
+    const thin = (n: number): ChartSpec => ({
+      marks: [
+        {
+          mark: "pie",
+          slices: [
+            ...Array.from({ length: n }, (_, i) => ({ name: `T${String(i)}`, value: 1 })),
+            { name: "Rest", value: 1000 },
+          ],
+        },
+      ],
+    });
+    // Seven need 7 × 36 = 252 px on the right, past the 240 px plot.
+    const l = wide(thin(7));
+    expect(l.endLabels).toEqual([]);
+    expect(l.leaders).toEqual([]);
+    expect(l.pie?.r).toBe(120);
+    // Six fit in 216 px: their names and shares, and Rest's on the left.
+    expect(wide(thin(6)).endLabels).toHaveLength(2 * 7);
+    expect(wide(thin(6)).pie?.r).toBe(119);
+  });
+
+  it("draws no outside label under 30rem, the circle as tall as the plot", () => {
+    const l = phone(land());
+    expect(l.endLabels).toEqual([]);
+    expect(l.leaders).toEqual([]);
+    expect(l.pie).toEqual({ cx: 143, cy: 100, r: 100, inner: 0 });
+  });
+
+  it("writes a donut's total in its hole while it fits the hole less 16 px", () => {
+    const l = wide(land(true));
+    expect(l.pie?.inner).toBe(59.5);
+    // "357,580 km²" is 99 px in the hole's face, inside 119 − 16.
+    expect(l.hole).toEqual({
+      label: { text: "Total", x: 239, y: 120 - 19 + 8.5, anchor: "middle" },
+      total: { text: "357,580\u00A0km²", x: 239, y: 120 - 19 + 17 + 10.5, anchor: "middle" },
+    });
+    // On a phone the hole is 100 px across, 84 px of room.
+    expect(phone(land(true)).hole).toBeUndefined();
+    const small: ChartSpec = {
+      marks: [
+        { mark: "pie", hole: true, unit: { other: "GB" }, slices: [{ name: "A", value: 4210 }] },
+      ],
+    };
+    expect(phone(small).hole?.total.text).toBe("4,210\u00A0GB");
+    expect(wide(land()).hole).toBeUndefined();
   });
 });
