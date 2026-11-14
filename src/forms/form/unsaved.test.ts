@@ -677,6 +677,27 @@ describe("guardChanges: leaving the page", () => {
     expect(seen).toEqual(["#part", "/elsewhere", "/elsewhere"]);
   });
 
+  it("asks for this page's address without a fragment from one with it, and nothing for a bare #", async () => {
+    const was = location.href;
+    const page = location.pathname + location.search;
+    history.replaceState(history.state, "", `${page}#audio`);
+    try {
+      const f = form(FIELDS);
+      const { link, seen } = route();
+      const guard = guardChanges(f, { signal: life.signal });
+      get<HTMLInputElement>(f, "#name").value = "Mine";
+      link.href = page;
+      await userEvent.click(link);
+      expect([title(), seen]).toEqual(["Discard your changes?", []]);
+      await answer("Keep editing");
+      link.setAttribute("href", "#");
+      await userEvent.click(link);
+      expect([question(), seen, guard.count]).toEqual([null, ["#"], 1]);
+    } finally {
+      history.replaceState(history.state, "", was);
+    }
+  });
+
   it("asks nothing once its signal ends", async () => {
     const f = form(FIELDS);
     const { link, seen } = route();

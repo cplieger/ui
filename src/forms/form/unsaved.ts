@@ -155,6 +155,9 @@ function leavingTo(link: HTMLAnchorElement | HTMLAreaElement): URL | null {
   const here = new URL(location.href);
   const sameDoc =
     to.origin === here.origin && to.pathname === here.pathname && to.search === here.search;
+  // Only a non-null fragment, an empty one included, keeps the document
+  // (https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate),
+  // and `to.hash` reads "" for both an empty fragment and none.
   return sameDoc && link.href.includes("#") ? null : to;
 }
 
