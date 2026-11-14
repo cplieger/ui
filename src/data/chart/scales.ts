@@ -7,7 +7,7 @@
 import type { Format } from "../scale/format.js";
 
 import { resolution } from "../scale/linear.js";
-import { localDay, midnight } from "../scale/time.js";
+import { localDay, midnight, TIME_LIMIT } from "../scale/time.js";
 
 import type {
   BarMark,
@@ -331,6 +331,16 @@ export function rScale(spec: ChartSpec): Size | undefined {
   return { hi: passed?.[1] ?? (hi > 0 ? hi : 1), format: spec.r?.format };
 }
 
+/** Throws a `RangeError` naming `what` unless instant `t` lies within what
+ *  `Date` holds, since every instant is ticked and written through `Intl`. */
+export function withinDate(t: number, what: string): void {
+  if (Math.abs(t) > TIME_LIMIT) {
+    throw new RangeError(
+      `renderChart: ${what} must lie within 8.64e15 ms either side of 1970, the range Date holds`,
+    );
+  }
+}
+
 // A slope's two columns, named by its mark, at 0 and 1.
 const COLUMNS: Continuous = {
   type: "linear",
@@ -414,6 +424,7 @@ function calendarDays(spec: ChartSpec, m: CalendarMark, timeZone: string | undef
   if (spec.marks.some((r) => r.mark === "rule")) {
     throw new TypeError("renderChart: a rule on a calendar has no value scale to sit on");
   }
+  withinDate(m.days.start, "a calendar's days.start");
   const day = localDay(m.days.start, timeZone);
   const lo = midnight(day, timeZone);
   return {
@@ -562,6 +573,10 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
     [lo, hi] = type === "linear" ? widen(extent.lo, extent.hi) : [extent.lo, extent.hi];
   }
   const under = log ? underflow(spec, lo) : undefined;
+  if (type === "time") {
+    withinDate(lo, "a time x");
+    withinDate(hi, "a time x");
+  }
   return {
     type,
     lo,

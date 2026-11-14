@@ -81,8 +81,9 @@ export function monthsFrom(day: number, months: number): number {
   const d = new Date(day * DAY);
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth() + months;
-  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-  return Date.UTC(y, m, Math.min(d.getUTCDate(), last)) / DAY;
+  // setUTCFullYear, since Date.UTC reads a year from 0 to 99 as 1900 on.
+  const last = new Date(new Date(0).setUTCFullYear(y, m + 1, 0)).getUTCDate();
+  return new Date(0).setUTCFullYear(y, m, Math.min(d.getUTCDate(), last)) / DAY;
 }
 
 /** Whether local day `day` is the first of its month. */

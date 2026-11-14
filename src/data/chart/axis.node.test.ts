@@ -197,8 +197,52 @@ describe("a time axis", () => {
     expect(axis.ticks.at(-1)?.label?.lines).toHaveLength(2);
   });
 
-  it("refuses an instant past Date's range with a RangeError, long before 1e300", () => {
-    expect(() => xAxis(time(0, 1e16), 276, ctx())).toThrow(RangeError);
+  it("steps a month over a year, writing the year at the first tick and where it changes", () => {
+    const lo = Date.UTC(2026, 0, 15);
+    const axis = xAxis(time(lo, lo + 365 * DAY), 990, ctx());
+    const month = new Intl.DateTimeFormat("en", { month: "short", timeZone: "Europe/Paris" });
+    const year = new Intl.DateTimeFormat("en", { year: "numeric", timeZone: "Europe/Paris" });
+    const local = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Paris",
+      hourCycle: "h23",
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+    const values = axis.ticks.map((t) => t.value);
+    expect(values.map((v) => local.format(v))).toEqual(
+      [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        .map((m) => `2026-${String(m).padStart(2, "0")}-01, 00:00`)
+        .concat("2027-01-01, 00:00"),
+    );
+    expect(axis.ticks.map((t) => t.label?.lines)).toEqual(
+      values.map((v, i) =>
+        i === 0 || i === 11 ? [month.format(v), year.format(v)] : [month.format(v)],
+      ),
+    );
+    expect(words(axis).at(-1)).toBe("Jan\n2027");
+  });
+
+  it("steps a decade over 30 years at 276 px, each tick its year alone", () => {
+    const axis = xAxis(time(Date.UTC(1996, 0, 1), Date.UTC(2026, 0, 1)), 276, ctx());
+    expect(axis.ticks.map((t) => t.value)).toEqual(
+      [2000, 2010, 2020].map((y) => Date.UTC(y, 0, 1) - HR),
+    );
+    expect(words(axis)).toEqual(["2000", "2010", "2020"]);
+  });
+
+  it("writes the era on every year of a domain that starts before year 1", () => {
+    const year = (y: number) => new Date(Date.UTC(2000, 0, 1)).setUTCFullYear(y);
+    const axis = xAxis(time(year(-3000), year(7000)), 990, ctx());
+    expect(words(axis)[0]).toBe("2001 BC");
+    expect(words(axis)).toContain("1000 AD");
+  });
+
+  it("refuses an instant past Date's range with a RangeError naming it, long before 1e300", () => {
+    expect(() => xAxis(time(0, 1e16), 276, ctx())).toThrow(
+      "renderChart: a time x must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    expect(() => time(-8.64e15 - 1, 0)).toThrow(RangeError);
+    expect(time(-8.64e15, 8.64e15).hi).toBe(8.64e15);
   });
 });
 

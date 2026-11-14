@@ -4,6 +4,8 @@
  * @module
  */
 
+import type { TimeUnit } from "./time.js";
+
 /** How a scale writes its values; see `docs/data/chart.md` "Formats". */
 export type Format =
   | "number"
@@ -320,14 +322,25 @@ const HOUR = { hour: "numeric" } as const;
 const MINUTE = { hour: "numeric", minute: "2-digit" } as const;
 const DAY = { month: "short", day: "numeric" } as const;
 
+/** How much of a date an instant's words carry: its time alone, with its
+ *  month and day, with its year too, or with its era as well. */
+export type Reach = "time" | "day" | "year" | "era";
+
+const DATE_PARTS: Readonly<Record<Reach, Intl.DateTimeFormatOptions>> = {
+  time: {},
+  day: DAY,
+  year: { ...DAY, year: "numeric" },
+  era: { ...DAY, year: "numeric", era: "short" },
+};
+
 /** An instant in the summary, the readings and the table: its hour and
- *  minute, with its month and day when `days` is set. */
+ *  minute, with as much of its date as `reach` asks. */
 export function instantFormat(
   locale: string | undefined,
   timeZone: string | undefined,
-  days: boolean,
+  reach: Reach,
 ): (ms: number) => string {
-  const df = dates(locale, timeZone, days ? { ...DAY, ...MINUTE } : MINUTE);
+  const df = dates(locale, timeZone, { ...DATE_PARTS[reach], ...MINUTE });
   return (ms) => df.format(ms);
 }
 
@@ -337,30 +350,46 @@ export function instantFormat(
 export function spanFormat(
   locale: string | undefined,
   timeZone: string | undefined,
-  days: boolean,
+  reach: Reach,
 ): (from: number, to: number) => readonly [string, string] {
-  const at = instantFormat(locale, timeZone, days);
-  if (!days) {
+  const at = instantFormat(locale, timeZone, reach);
+  if (reach === "time") {
     return (from, to) => [at(from), at(to)];
   }
-  const day = dates(locale, timeZone, DAY);
+  const day = dates(locale, timeZone, DATE_PARTS[reach]);
   const time = dates(locale, timeZone, MINUTE);
   return (from, to) => [at(from), day.format(from) === day.format(to) ? time.format(to) : at(to)];
 }
 
-/** A time tick's two lines for ticks `stepMs` apart: `time`, absent for a
- *  step of a day or more, and `date`, which the axis writes at its first tick
- *  and where the day changes. */
+const TICK_PARTS: Readonly<
+  Record<TimeUnit, readonly [Intl.DateTimeFormatOptions | undefined, Intl.DateTimeFormatOptions]>
+> = {
+  minute: [MINUTE, DAY],
+  hour: [HOUR, DAY],
+  day: [undefined, DAY],
+  month: [{ month: "short" }, { year: "numeric" }],
+  year: [undefined, { year: "numeric" }],
+};
+
+/** A time tick's two lines for a step of `unit`: `fine`, the time or the
+ *  month, absent for a day or a year step, and `coarse`, the date or the
+ *  year, which the axis writes at its first tick and where it changes. A
+ *  year carries its era when `era` is set. */
 export function tickFormat(
   locale: string | undefined,
   timeZone: string | undefined,
-  stepMs: number,
-): { readonly time: ((ms: number) => string) | undefined; readonly date: (ms: number) => string } {
-  const day = dates(locale, timeZone, DAY);
-  const date = (ms: number): string => day.format(ms);
-  if (stepMs >= 86_400_000) {
-    return { time: undefined, date };
-  }
-  const tf = dates(locale, timeZone, stepMs >= 3_600_000 ? HOUR : MINUTE);
-  return { time: (ms) => tf.format(ms), date };
+  unit: TimeUnit,
+  era: boolean,
+): {
+  readonly fine: ((ms: number) => string) | undefined;
+  readonly coarse: (ms: number) => string;
+} {
+  const [fine, coarse] = TICK_PARTS[unit];
+  const year = era && "year" in coarse ? { ...coarse, era: "short" as const } : coarse;
+  const second = dates(locale, timeZone, year);
+  const first = fine === undefined ? undefined : dates(locale, timeZone, fine);
+  return {
+    fine: first === undefined ? undefined : (ms) => first.format(ms),
+    coarse: (ms) => second.format(ms),
+  };
 }

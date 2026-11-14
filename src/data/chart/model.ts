@@ -9,11 +9,12 @@ import {
   spanFormat,
   widthKey,
   writer,
+  type Reach,
   type Unit,
   type WidthKey,
 } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
-import { localDay, spansDay } from "../scale/time.js";
+import { localDay, localYear, spansDay } from "../scale/time.js";
 
 import { dayFormat, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
@@ -21,6 +22,7 @@ import {
   LIMIT,
   rScale,
   ruleAt,
+  withinDate,
   xScale,
   yScale,
   type Band,
@@ -1513,6 +1515,7 @@ function textModel(
     if (typeof m.x !== "number") {
       fail(`${what}.x must be a number on a calendar, an instant in its day`);
     }
+    withinDate(m.x, `${what}.x`);
     return { kind: "text", x: m.x, y: 0, row: false, text: m.text, side };
   }
   if (ends !== undefined && m.x !== undefined) {
@@ -1558,6 +1561,9 @@ function textModel(
     if (scale.type === "log" && v <= 0) {
       return fail(`${what}.${axis} must be above 0 on a log scale`, RangeError);
     }
+    if (scale.type === "time") {
+      withinDate(v, `${what}.${axis}`);
+    }
     return v;
   };
   return {
@@ -1568,6 +1574,21 @@ function textModel(
     text: m.text,
     side,
   };
+}
+
+// How much of a date an instant's words need on a domain from `lo` to `hi`:
+// ends a whole day apart can share their clock time ("Nov 10, 2:00 PM to
+// Nov 11, 2:00 PM"), ends in two years their years, and a year before 1 its
+// era.
+function timeReach(lo: number, hi: number, timeZone: string | undefined): Reach {
+  if (!spansDay(lo, hi, timeZone)) {
+    return "time";
+  }
+  const first = localYear(lo, timeZone);
+  if (first === localYear(hi, timeZone)) {
+    return "day";
+  }
+  return first < 1 ? "era" : "year";
 }
 
 /**
@@ -1715,9 +1736,7 @@ export function chartModel(
         );
     }
   });
-  // The ends of a domain a whole day long can share their clock time, so they
-  // need their dates ("Nov 10, 2:00 PM to Nov 11, 2:00 PM").
-  const days = x.type === "time" && spansDay(x.lo, x.hi, timeZone);
+  const reach = x.type === "time" ? timeReach(x.lo, x.hi, timeZone) : "time";
   const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
   const slope = marks.find((m) => m.kind === "slope");
   const cellX = marks.find((m) => m.kind === "cell")?.x;
@@ -1730,11 +1749,11 @@ export function chartModel(
       : calendar
         ? (v: number) => dateText(localDay(v, timeZone))
         : x.type === "time"
-          ? instantFormat(locale, timeZone, days)
+          ? instantFormat(locale, timeZone, reach)
           : writer(x.format, locale, { signed });
   const xSpan =
     x.type === "time" && !calendar
-      ? spanFormat(locale, timeZone, days)
+      ? spanFormat(locale, timeZone, reach)
       : (from: number, to: number) => [xText(from), xText(to)] as const;
   const yText = writer(y.type === "band" ? undefined : y.format, locale);
   const rText = writer(size?.format, locale);

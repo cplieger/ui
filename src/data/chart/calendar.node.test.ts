@@ -106,6 +106,10 @@ describe("calendar days and weeks", () => {
     expect(monthsFrom(day(2026, 2, 31), -1)).toBe(day(2026, 1, 28));
     expect(monthsFrom(day(2026, 11, 15), 1)).toBe(day(2027, 0, 15));
     expect(monthsFrom(day(2026, 0, 15), -1)).toBe(day(2025, 11, 15));
+    // In the years 0 to 99, which Date.UTC reads as 1900 to 1999.
+    const early = (y: number, m: number, d: number) => new Date(0).setUTCFullYear(y, m, d) / DAY;
+    expect(monthsFrom(early(50, 0, 31), 1)).toBe(early(50, 1, 28));
+    expect(monthsFrom(early(0, 0, 31), 1)).toBe(early(0, 1, 29));
   });
 
   it("knows a month's first day and writes a day's own date", () => {

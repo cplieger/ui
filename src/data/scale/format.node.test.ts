@@ -298,14 +298,14 @@ describe("time formats", () => {
 
   it("writes an instant's hour and minute, with its month and day across days, in the zone", () => {
     for (const locale of ["en", "fr"]) {
-      expect(instantFormat(locale, "Europe/Paris", false)(at)).toBe(
+      expect(instantFormat(locale, "Europe/Paris", "time")(at)).toBe(
         intl(locale, { hour: "numeric", minute: "2-digit" }),
       );
-      expect(instantFormat(locale, "Europe/Paris", true)(at)).toBe(
+      expect(instantFormat(locale, "Europe/Paris", "day")(at)).toBe(
         intl(locale, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
       );
     }
-    expect(instantFormat("en", "UTC", false)(at)).toBe("2:15 PM");
+    expect(instantFormat("en", "UTC", "time")(at)).toBe("2:15 PM");
   });
 
   it("writes a span's end without the date its start already says, and with it on another day", () => {
@@ -315,7 +315,7 @@ describe("time formats", () => {
     // 11:00 PM in Paris, then midnight, the next day.
     const late = Date.UTC(2026, 10, 11, 22);
     for (const locale of ["en", "fr"]) {
-      const span = spanFormat(locale, "Europe/Paris", true);
+      const span = spanFormat(locale, "Europe/Paris", "day");
       expect(span(at, at + 3_600_000)).toEqual([
         intl(locale, full),
         paris(locale, at + 3_600_000, { hour: "numeric", minute: "2-digit" }),
@@ -324,22 +324,67 @@ describe("time formats", () => {
         paris(locale, late, full),
         paris(locale, late + 3_600_000, full),
       ]);
-      expect(spanFormat(locale, "Europe/Paris", false)(at, at + 3_600_000)).toEqual([
+      expect(spanFormat(locale, "Europe/Paris", "time")(at, at + 3_600_000)).toEqual([
         intl(locale, { hour: "numeric", minute: "2-digit" }),
         paris(locale, at + 3_600_000, { hour: "numeric", minute: "2-digit" }),
       ]);
     }
   });
 
+  it("writes an instant's year where the domain's ends lie in different years, its era before year 1", () => {
+    const full = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" } as const;
+    const bc = new Date(at).setUTCFullYear(-500);
+    for (const locale of ["en", "fr"]) {
+      expect(instantFormat(locale, "Europe/Paris", "year")(at)).toBe(
+        intl(locale, { ...full, year: "numeric" }),
+      );
+      expect(instantFormat(locale, "UTC", "era")(bc)).toBe(
+        new Intl.DateTimeFormat(locale, {
+          ...full,
+          year: "numeric",
+          era: "short",
+          timeZone: "UTC",
+        }).format(bc),
+      );
+      // The same day in two years is two dates, so the end keeps its own.
+      const span = spanFormat(locale, "Europe/Paris", "year");
+      const later = new Date(at).setUTCFullYear(2027);
+      expect(span(at, later)[1]).toBe(
+        new Intl.DateTimeFormat(locale, {
+          ...full,
+          year: "numeric",
+          timeZone: "Europe/Paris",
+        }).format(later),
+      );
+    }
+    expect(instantFormat("en", "UTC", "era")(bc)).toBe("Nov 11, 501 BC, 2:15 PM");
+  });
+
   it("writes an hour tick's first line as the hour, a shorter step's with minutes, a day step's as none", () => {
     for (const locale of ["en", "fr"]) {
-      const hours = tickFormat(locale, "Europe/Paris", 3_600_000);
-      expect(hours.time?.(at)).toBe(intl(locale, { hour: "numeric" }));
-      expect(hours.date(at)).toBe(intl(locale, { month: "short", day: "numeric" }));
-      expect(tickFormat(locale, "Europe/Paris", 900_000).time?.(at)).toBe(
+      const hours = tickFormat(locale, "Europe/Paris", "hour", false);
+      expect(hours.fine?.(at)).toBe(intl(locale, { hour: "numeric" }));
+      expect(hours.coarse(at)).toBe(intl(locale, { month: "short", day: "numeric" }));
+      expect(tickFormat(locale, "Europe/Paris", "minute", false).fine?.(at)).toBe(
         intl(locale, { hour: "numeric", minute: "2-digit" }),
       );
-      expect(tickFormat(locale, "Europe/Paris", 86_400_000).time).toBeUndefined();
+      expect(tickFormat(locale, "Europe/Paris", "day", false).fine).toBeUndefined();
     }
+  });
+
+  it("writes a month tick as the month over its year, and a year tick as its year alone", () => {
+    for (const locale of ["en", "fr"]) {
+      const months = tickFormat(locale, "Europe/Paris", "month", false);
+      expect(months.fine?.(at)).toBe(intl(locale, { month: "short" }));
+      expect(months.coarse(at)).toBe(intl(locale, { year: "numeric" }));
+      const years = tickFormat(locale, "Europe/Paris", "year", false);
+      expect(years.fine).toBeUndefined();
+      expect(years.coarse(at)).toBe(intl(locale, { year: "numeric" }));
+    }
+    expect(tickFormat("en", "Europe/Paris", "month", false).fine?.(at)).toBe("Nov");
+    expect(tickFormat("en", "UTC", "year", true).coarse(new Date(at).setUTCFullYear(-500))).toBe(
+      "501 BC",
+    );
+    expect(tickFormat("en", "UTC", "year", true).coarse(at)).toBe("2026 AD");
   });
 });

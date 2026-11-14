@@ -2191,3 +2191,48 @@ describe("the largest value", () => {
     );
   });
 });
+
+describe("an instant's words on a time x", () => {
+  const over = (lo: number, hi: number) =>
+    build({ x: { type: "time" }, marks: [line([1, 2], { x: [lo, hi] })] });
+  const newYear = Date.UTC(2026, 0, 1);
+
+  it("adds the year when the domain's ends lie in different years, and the era before year 1", () => {
+    expect(over(newYear, newYear + 10 * 86_400_000).xText(newYear)).toBe("Jan 1, 12:00 AM");
+    expect(over(newYear - 86_400_000, newYear + 86_400_000).xText(newYear)).toBe(
+      "Jan 1, 2026, 12:00 AM",
+    );
+    const bc = new Date(newYear).setUTCFullYear(-500);
+    expect(over(bc, newYear).xText(bc)).toBe("Jan 1, 501 BC, 12:00 AM");
+    expect(over(bc, newYear).xSpan(bc, newYear)).toEqual([
+      "Jan 1, 501 BC, 12:00 AM",
+      "Jan 1, 2026 AD, 12:00 AM",
+    ]);
+  });
+
+  it("refuses a time x past what Date holds, naming the limit", () => {
+    expect(() => over(0, 8.64e15 + 1)).toThrow(
+      "renderChart: a time x must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    expect(over(-8.64e15, 8.64e15).x.lo).toBe(-8.64e15);
+    expect(() =>
+      build({
+        x: { type: "time" },
+        marks: [line([1, 2], { x: [0, 1] }), { mark: "text", x: -1e16, y: 1, text: "far" }],
+      }),
+    ).toThrow(
+      "renderChart: marks[1].x must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    expect(() => build({ marks: [{ mark: "cell", days: { start: 1e16, values: [1] } }] })).toThrow(
+      "renderChart: a calendar's days.start must lie within 8.64e15 ms either side of 1970",
+    );
+    expect(() =>
+      build({
+        marks: [
+          { mark: "cell", days: { start: 0, values: [1] } },
+          { mark: "text", x: 9e15, text: "far" },
+        ],
+      }),
+    ).toThrow("renderChart: marks[1].x must lie within 8.64e15 ms");
+  });
+});
