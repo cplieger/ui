@@ -7,7 +7,7 @@
  * @module
  */
 
-import type { Measure } from "../scale/measure.js";
+import { widestOf, type Measure } from "../scale/measure.js";
 import { position } from "../scale/position.js";
 
 import {
@@ -310,7 +310,7 @@ function notesOf(
     const x = day?.x ?? (at.x === undefined ? rowEnd(at.y) : frame.xAt(at.x));
     const y = day?.y ?? (m.row ? (rows[at.y]?.y ?? 0) : frame.yAt(at.y));
     const texts = wrapNote(m.text, max, metrics.measure.text);
-    const w = Math.max(...texts.map(metrics.measure.text));
+    const w = widestOf(texts, metrics.measure.text);
     const h = texts.length * metrics.lineHeight;
     const placed = placeNote(x, y, m.side, w, h, frame.width, frame.height);
     const { box, side } = placed;
@@ -488,7 +488,9 @@ export function dodge(want: readonly number[], step: number, lo: number, hi: num
       if (a === undefined || b === undefined || a.top + a.members.length * step <= b.top + 1e-6) {
         break;
       }
-      a.members.push(...b.members);
+      for (const member of b.members) {
+        a.members.push(member);
+      }
       a.sum += b.sum;
       groups.pop();
       place(a);
@@ -538,7 +540,7 @@ function slopeLayout(
   );
   const [left = [], right = []] = sides;
   const widest = (side: readonly { text: string }[]) =>
-    Math.max(0, ...side.map((e) => measure.number(e.text)));
+    widestOf(side, (e) => measure.number(e.text));
   const axisW = Math.max(ceil(axisGutter(widest(left), metrics.axisGroup)), floors.axis);
   const labelW = Math.max(ceil(widest(right) + PAD), ceil(metrics.labelGroup), floors.label);
   const plotW = Math.max(1, width - axisW - labelW);
@@ -647,7 +649,7 @@ function calendarLayout(
   const lead = weekRow(m.day, m.weekStart);
   const weekday = dayFormat(model.locale, { weekday: "short" });
   const names = Array.from({ length: 7 }, (_, r) => weekday(m.day - lead + r));
-  const widest = Math.max(0, ...names.map(measure.text));
+  const widest = widestOf(names, measure.text);
   const axisW = Math.max(ceil(axisGutter(widest, metrics.axisGroup)), floors.axis);
   const labelW = Math.max(ceil(metrics.labelGroup), floors.label);
   const plotW = Math.max(1, width - axisW - labelW);
@@ -1144,7 +1146,7 @@ export function layout(
     const face = mono ? metrics.mono : measure;
     const limit = bandLimit(metrics.axisGroup, chart, metrics.rem);
     names = band.rows.map((n) => cutName(n, limit, face.text));
-    widestY = Math.max(0, ...names.map(face.text));
+    widestY = widestOf(names, face.text);
   }
   const axisW = above ? 0 : Math.max(ceil(axisGutter(widestY, metrics.axisGroup)), floors.axis);
 
@@ -1152,7 +1154,7 @@ export function layout(
   // band names, so a long series name never moves one plot off the shared edge.
   const endLimit = metrics.labelGroup > 0 ? metrics.labelGroup - PAD : Number.POSITIVE_INFINITY;
   const ends = narrow ? [] : endTexts(model, words, measure, endLimit);
-  const widestEnd = Math.max(0, ...ends.map((e) => measure.number(e.text)));
+  const widestEnd = widestOf(ends, (e) => measure.number(e.text));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,
     ceil(metrics.labelGroup),
@@ -1266,7 +1268,10 @@ export function layout(
       // A rule drawn more than once labels its first panel's line, or its
       // right-hand line on both sides of a spine or a diverging 0.
       const xs = ruleXs(r.place.at, across);
-      const at = bars?.arrange === "split" ? (xs[0] ?? 0) : Math.max(...xs);
+      const at =
+        bars?.arrange === "split"
+          ? (xs[0] ?? 0)
+          : xs.reduce((most, x) => Math.max(most, x), Number.NEGATIVE_INFINITY);
       bandLabels.push({ at, width: w });
     }
   }

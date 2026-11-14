@@ -8,7 +8,7 @@ import { tickFormat, writer } from "../scale/format.js";
 import { boxes, greedy, LABEL_GAP, tooSparse, type Box } from "../scale/labels.js";
 import { coarserStep, linearAxis, linearTicks } from "../scale/linear.js";
 import { logTickLists } from "../scale/log.js";
-import type { Measure } from "../scale/measure.js";
+import { widestOf, type Measure } from "../scale/measure.js";
 import { position } from "../scale/position.js";
 import { localYear, TIME_STEPS, timeStep, timeTicks } from "../scale/time.js";
 
@@ -72,9 +72,7 @@ function place(
   candidates: readonly Candidate[],
   layout: Layout,
 ): { labels: Label[]; kept: number[] } {
-  const widths = candidates.map((c) =>
-    Math.max(0, ...c.lines.map((line) => layout.measure.number(line))),
-  );
+  const widths = candidates.map((c) => widestOf(c.lines, layout.measure.number));
   const { lineHeight } = layout;
   const placed = boxes(
     candidates.map((c) => c.at),

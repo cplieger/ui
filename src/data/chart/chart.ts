@@ -91,7 +91,9 @@ function caption(figure: HTMLElement): { title: HTMLElement; summary: HTMLElemen
   let title = cap.querySelector<HTMLElement>(':scope > [data-part="title"]');
   if (title === null) {
     title = part("span", "title");
-    title.append(...cap.childNodes);
+    const content = document.createRange();
+    content.selectNodeContents(cap);
+    title.append(content.extractContents());
     cap.append(title);
   }
   let summary = cap.querySelector<HTMLElement>(':scope > [data-part="summary"]');
@@ -276,13 +278,13 @@ export function renderChart(
     listed = lay.numbered;
     if (listed) {
       const texts = drawn.marks.map((m) => (m.kind === "text" ? m.text : ""));
-      list.replaceChildren(
-        ...lay.notes.map((n) => {
-          const li = document.createElement("li");
-          li.textContent = texts[n.mark] ?? "";
-          return li;
-        }),
-      );
+      const items = document.createDocumentFragment();
+      for (const n of lay.notes) {
+        const li = document.createElement("li");
+        li.textContent = texts[n.mark] ?? "";
+        items.append(li);
+      }
+      list.replaceChildren(items);
       if (list.parentElement !== figure) {
         plot.after(list);
       }

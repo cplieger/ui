@@ -16,6 +16,8 @@ import {
 } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 
+type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"]>;
+
 const build = (spec: unknown) => chartModel(spec as ChartSpec, "en", "UTC");
 
 const rect = (
@@ -445,6 +447,35 @@ describe("spec errors", () => {
     });
     expect(build({ x: {}, marks: [timeline(400_000)] }).kind).toBe("timeline");
     expect(() => build({ x: {}, marks: [timeline(400_001)] })).toThrow(past("marks[0].rows[1].x"));
+  });
+
+  it("counts a series with no samples as one value", () => {
+    const empty = (k: number): Mark => ({
+      mark: "line",
+      x: [],
+      series: Array.from({ length: k }, (_, s) => ({
+        name: `s${String(s)}`,
+        slot: ((s % 9) + 1) as Slot,
+        y: [],
+      })),
+    });
+    expect(build({ x: {}, marks: [empty(1_000_000)] }).kind).toBe("line");
+    expect(() => build({ x: {}, marks: [empty(1_000_001)] })).toThrow(
+      new RangeError(
+        "renderChart: marks[0].series[1000000].y must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
+      ),
+    );
+    const scatter: Mark = {
+      mark: "scatter",
+      series: Array.from({ length: 1_000_001 }, (_, s) => ({
+        name: `s${String(s)}`,
+        slot: ((s % 9) + 1) as Slot,
+        x: [],
+        y: [],
+        names: [],
+      })),
+    };
+    expect(() => build({ x: {}, marks: [scatter] })).toThrow("marks[0].series[1000000].names");
   });
 
   it("names the rule it breaks", () => {

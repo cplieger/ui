@@ -1548,7 +1548,8 @@ const MOST_VALUES = 1_000_000;
 
 // Counts each value a mark places, a sample per series, a bucket, bar, dot,
 // box, outlier, cell, day, slice, part, rule or note, in spec order; a mark
-// with no series still places its x.
+// with no series still places its x. A series, timeline row or cell row counts
+// as one value at least, so its legend chip or row name is bounded too.
 function checkValueCount(marks: ArrayLike<unknown>): void {
   let count = 0;
   const add = (n: number, field: string): void => {
@@ -1570,7 +1571,7 @@ function checkValueCount(marks: ArrayLike<unknown>): void {
         add(n, empty);
       }
       for (let s = 0; s < series.length; s++) {
-        add(n, `${what}.series[${String(s)}].${channel}`);
+        add(Math.max(1, n), `${what}.series[${String(s)}].${channel}`);
       }
     };
     switch (mark["mark"]) {
@@ -1590,12 +1591,12 @@ function checkValueCount(marks: ArrayLike<unknown>): void {
         break;
       case "dot":
         Array.from(mark["rows"] as ArrayLike<Record<string, unknown>>, (row, r) => {
-          add(lengthOf(row["x"]), `${what}.rows[${String(r)}].x`);
+          add(Math.max(1, lengthOf(row["x"])), `${what}.rows[${String(r)}].x`);
         });
         break;
       case "scatter":
         Array.from(series, (one, s) => {
-          add(lengthOf(one["names"]), `${what}.series[${String(s)}].names`);
+          add(Math.max(1, lengthOf(one["names"])), `${what}.series[${String(s)}].names`);
         });
         break;
       case "box":
@@ -1616,7 +1617,7 @@ function checkValueCount(marks: ArrayLike<unknown>): void {
         }
         const values = mark["values"] as ArrayLike<ArrayLike<unknown>>;
         Array.from(values, (row, r) => {
-          add(row.length, `${what}.values[${String(r)}]`);
+          add(Math.max(1, row.length), `${what}.values[${String(r)}]`);
         });
         break;
       }

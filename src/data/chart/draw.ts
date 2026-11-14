@@ -438,6 +438,7 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
           lay.frame.dpr,
         ),
   });
+  const plot = plotArea(model, lay);
   svg.replaceChildren(
     texts("y", lay.yLabels, lay.mono),
     ticks,
@@ -445,13 +446,13 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
     texts("titles", lay.titles),
     texts("rule-label", lay.ruleLabels),
     texts("head", lay.heads),
-    // Before the plot, so the dots cover the leaders' ends.
-    ...(lay.leaders.length > 0
-      ? [svgEl("path", { "data-part": "leader", d: leaderPath(lay.leaders) })]
-      : []),
-    plotArea(model, lay),
+    plot,
     texts("end", lay.endLabels),
   );
+  if (lay.leaders.length > 0) {
+    // Before the plot, so the dots cover the leaders' ends.
+    plot.before(svgEl("path", { "data-part": "leader", d: leaderPath(lay.leaders) }));
+  }
 }
 
 const ring = (cx: number, cy: number, radius: number): string => {
@@ -744,12 +745,13 @@ export function frameLegend(
 ): void {
   const at = span("at");
   at.style.minInlineSize = rowHeld(widths.at);
-  const parts: HTMLElement[] = [at];
+  const parts = document.createDocumentFragment();
+  parts.append(at);
   reading.entries.forEach((e, k) => {
     const value = span("value");
     if (e.name === undefined) {
       value.style.minInlineSize = rowHeld(widths.values[k] ?? 0);
-      parts.push(value);
+      parts.append(value);
       return;
     }
     value.style.minInlineSize = `${num(widths.values[k] ?? 0)}px`;
@@ -763,16 +765,16 @@ export function frameLegend(
       name.dataset["name"] = e.name;
     }
     chip.append(swatch, name, value);
-    parts.push(chip);
+    parts.append(chip);
   });
   if (reading.total !== undefined) {
     const whole = span("total");
     const value = span("value");
     value.style.minInlineSize = `${num(widths.total)}px`;
     whole.append(total, " ", value);
-    parts.push(whole);
+    parts.append(whole);
   }
-  legend.replaceChildren(...parts);
+  legend.replaceChildren(parts);
   writeLegend(legend, reading);
 }
 
@@ -902,7 +904,10 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
       }),
     );
   });
-  svg.append(g, ...classes.steps.map((_, k) => swatchRing(x(k))));
+  svg.append(g);
+  classes.steps.forEach((_, k) => {
+    svg.append(swatchRing(x(k)));
+  });
   const write =
     classes.digits === undefined
       ? model.colourText

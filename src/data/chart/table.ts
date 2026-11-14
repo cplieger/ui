@@ -556,21 +556,24 @@ function write(el: HTMLElement, parts: readonly Part[], isolate: boolean): void 
     bdi.textContent = s;
     return bdi;
   };
-  const nodes = parts.map((p) => {
+  const nodes = document.createDocumentFragment();
+  for (const p of parts) {
     if (typeof p === "string") {
-      return text(p);
+      nodes.append(text(p));
+      continue;
     }
     const at = dateAt(p.at, "renderChart: an instant the table writes");
     if (at.getUTCFullYear() < 1) {
-      return text(p.text);
+      nodes.append(text(p.text));
+      continue;
     }
     const time = document.createElement("time");
     const iso = at.toISOString().replace(/^\+/u, "");
     time.dateTime = p.date === true ? iso.slice(0, iso.indexOf("T")) : iso;
     time.textContent = p.text;
-    return time;
-  });
-  el.replaceChildren(...nodes);
+    nodes.append(time);
+  }
+  el.replaceChildren(nodes);
 }
 
 function headCell(text: string, num: boolean): HTMLElement {
@@ -619,7 +622,9 @@ const headSignature = (t: TableModel): string =>
 // a reader's place on it, stays.
 function rewrite(el: Element, fresh: Element): void {
   if (el.innerHTML !== fresh.innerHTML) {
-    el.replaceChildren(...fresh.childNodes);
+    const children = document.createRange();
+    children.selectNodeContents(fresh);
+    el.replaceChildren(children.extractContents());
   }
 }
 
@@ -742,7 +747,10 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, name
     const caption = table.createCaption();
     caption.textContent = title;
     const head = table.createTHead().insertRow();
-    head.append(cornerCell(t.corner), ...t.columns.map((c) => headCell(c.text, c.num)));
+    head.append(cornerCell(t.corner));
+    for (const c of t.columns) {
+      head.append(headCell(c.text, c.num));
+    }
     // Filled before it is shown, so its rows cost no layout.
     syncBodies(table, t, named);
     panel.querySelector("table")?.remove();

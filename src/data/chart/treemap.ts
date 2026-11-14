@@ -25,11 +25,18 @@ const sumOf = (values: readonly number[], from = 0, to = values.length): number 
   return n;
 };
 
-// Lays values[from, to) along one strip of `b`, the last ending at its far
-// edge exactly so no drift opens a sliver; a strip of 0s has no length.
-function strip(values: readonly number[], from: number, to: number, b: Box, dice: boolean): Box[] {
+// Appends to `out` values[from, to) laid along one strip of `b`, the last
+// ending at its far edge exactly so no drift opens a sliver; a strip of 0s
+// has no length.
+function strip(
+  out: Box[],
+  values: readonly number[],
+  from: number,
+  to: number,
+  b: Box,
+  dice: boolean,
+): void {
   const total = sumOf(values, from, to);
-  const out: Box[] = [];
   const lo = dice ? b.left : b.top;
   const hi = dice ? b.right : b.bottom;
   const k = total > 0 ? (hi - lo) / total : 0;
@@ -43,7 +50,6 @@ function strip(values: readonly number[], from: number, to: number, b: Box, dice
     );
     at = end;
   }
-  return out;
 }
 
 // Lays `values` along `rows` in `b`: each row takes its share of what is
@@ -60,11 +66,11 @@ function place(values: readonly number[], b: Box, rows: readonly Row[]): Box[] {
     const f = last || rest <= 0 ? 1 : v / rest;
     if (row.dice) {
       const end = last ? bottom : top + (bottom - top) * f;
-      out.push(...strip(values, i, i + row.count, { left, top, right, bottom: end }, true));
+      strip(out, values, i, i + row.count, { left, top, right, bottom: end }, true);
       top = end;
     } else {
       const end = last ? right : left + (right - left) * f;
-      out.push(...strip(values, i, i + row.count, { left, top, right: end, bottom }, false));
+      strip(out, values, i, i + row.count, { left, top, right: end, bottom }, false);
       left = end;
     }
     rest -= v;

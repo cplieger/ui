@@ -40,6 +40,8 @@ import {
   type Reading,
 } from "./readout.js";
 import type { ChartSpec, Mark } from "./spec.js";
+
+type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"]>;
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -252,6 +254,40 @@ describe("the legend row of a step line", () => {
     const r = sampleReading(m, line, 0, words);
     expect(r.at).toBe(time(START));
     expect(chips(r)?.map((c) => c[2])).toEqual(["No data", "No data"]);
+  });
+});
+
+describe("the legend row of 200,000 lines", () => {
+  const m = model({
+    x: { type: "time", domain: [START, START + 10 * MIN] },
+    marks: [
+      {
+        mark: "line",
+        x: [START, START + MIN],
+        series: per(200_000, (k) => ({
+          name: `s${String(k)}`,
+          slot: ((k % 9) + 1) as Slot,
+          y: [k, k % 2 === 0 ? 1 : null],
+        })),
+      },
+    ],
+  });
+
+  it("reads each line's last value, at the latest of them", () => {
+    const r = overall(m, words);
+    expect(r?.at).toBe(time(START + MIN));
+    expect(r?.entries).toHaveLength(200_000);
+    expect(chips(r)?.slice(0, 2)).toEqual([
+      [1, "s0", "1"],
+      [2, "s1", "1"],
+    ]);
+    expect(
+      readoutWidths(
+        m,
+        words,
+        measurer((t) => 7 * t.length, 6, "en"),
+      ).values,
+    ).toHaveLength(200_000);
   });
 });
 

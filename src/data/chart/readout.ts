@@ -718,7 +718,10 @@ export function overall(model: Model, words: Words): Reading | undefined {
       return sampleReading(model, m, last, words);
     }
     case "line": {
-      const last = Math.max(...m.series.map((s) => lastSample(m, s)));
+      const last = m.series.reduce(
+        (most, s) => Math.max(most, lastSample(m, s)),
+        Number.NEGATIVE_INFINITY,
+      );
       const at = last === -1 ? legendDomain(model, words) : model.xText(m.x[last] ?? 0);
       const value = (s: SeriesModel) => {
         const i = lastSample(m, s);
@@ -924,6 +927,14 @@ function xTexts(model: Model, values: Iterable<number>): string[] {
   return [...slots.values()].map((v) => model.xText(v));
 }
 
+// Appends `items` one by one: a call spread of a list the spec sets throws
+// past about 125,000 arguments in V8 (source.node.test.ts).
+function pushAll<T>(to: T[] | undefined, items: Iterable<T>): void {
+  for (const item of items) {
+    to?.push(item);
+  }
+}
+
 // The noun `counted` adds to an amount of `unit`, if any.
 const nounOf = (model: Model, unit: Unit | undefined) =>
   unit === undefined ? undefined : (v: number) => noun(unit, v, model.locale);
@@ -934,11 +945,17 @@ function valueTexts(model: Model, m: SampleModel, s: SeriesModel, words: Words):
   const out = [words.noData];
   if (m.kind === "area" && m.arrange === "share") {
     const shares = over(m.from, m.to, (i) => sampleValue(m, s, i));
-    out.push(...widthSamples(shares, model.widthKeys.y).map((v) => model.yText(v)));
+    pushAll(
+      out,
+      widthSamples(shares, model.widthKeys.y).map((v) => model.yText(v)),
+    );
     const unshared = over(m.from, m.to, (i) =>
       drawnTotal(m, i) === null ? (s.y[i] ?? null) : null,
     );
-    out.push(...widthSamples(unshared, model.widthKeys.amount).map((v) => model.amountText(v)));
+    pushAll(
+      out,
+      widthSamples(unshared, model.widthKeys.amount).map((v) => model.amountText(v)),
+    );
     return out;
   }
   const unit = m.series.length === 1 ? model.spec.y?.unit : undefined;
@@ -947,7 +964,10 @@ function valueTexts(model: Model, m: SampleModel, s: SeriesModel, words: Words):
     model.widthKeys.y,
     nounOf(model, unit),
   );
-  out.push(...values.map((v) => counted(model.yText(v), v, unit, model)));
+  pushAll(
+    out,
+    values.map((v) => counted(model.yText(v), v, unit, model)),
+  );
   return out;
 }
 
@@ -1009,17 +1029,18 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
     }
   } else if (m?.kind === "line" || m?.kind === "area") {
     const { x } = m;
-    at.push(
-      ...xTexts(
+    pushAll(
+      at,
+      xTexts(
         model,
         over(m.from, m.to, (i) => x[i] ?? 0),
       ),
     );
     m.series.forEach((s, k) => {
-      values[k]?.push(...valueTexts(model, m, s, words));
+      pushAll(values[k], valueTexts(model, m, s, words));
     });
     if (m.kind === "area" && m.series.length > 1) {
-      totals.push(...totalTexts(model, m, words));
+      pushAll(totals, totalTexts(model, m, words));
     }
   } else if (m?.kind === "bar" || m?.kind === "point") {
     for (let r = 0; r < (model.y.type === "band" ? model.y.rows.length : 0); r++) {
@@ -1049,7 +1070,7 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
       }
     });
     measuresOf(m).forEach((axis, slot) => {
-      values[slot]?.push(...scatterTexts(model, m, axis, words));
+      pushAll(values[slot], scatterTexts(model, m, axis, words));
     });
   } else if (m?.kind === "cell") {
     // A place joins a column's words to a row's, so the widest of each makes the widest place.
@@ -1073,17 +1094,19 @@ export function readoutWidths(model: Model, words: Words, measure: Measure): Wid
         yield* row;
       }
     };
-    values[0]?.push(
-      words.noData,
-      ...widthSamples(all(), model.widthKeys.colour, nounOf(model, unit)).map((v) =>
+    values[0]?.push(words.noData);
+    pushAll(
+      values[0],
+      widthSamples(all(), model.widthKeys.colour, nounOf(model, unit)).map((v) =>
         cellValueText(model, v, words),
       ),
     );
   } else if (m?.kind === "calendar") {
     m.values.forEach((_, i) => at.push(dayText(model, m, i, words)));
-    values[0]?.push(
-      words.noData,
-      ...widthSamples(m.values, model.widthKeys.colour, nounOf(model, model.spec.colour?.unit)).map(
+    values[0]?.push(words.noData);
+    pushAll(
+      values[0],
+      widthSamples(m.values, model.widthKeys.colour, nounOf(model, model.spec.colour?.unit)).map(
         (v) => cellValueText(model, v, words),
       ),
     );
