@@ -1,10 +1,9 @@
 /**
  * geometry.ts — the SVG path of each mark inside a plot `width` by `height`
  * px, y down: rects with their gaps, lines and areas reduced per device
- * pixel and cut at the plot's ends, rows of dots, bars and points along
- * their rows, a slope's lines and ends, a scatter's dots, a grid's cells,
- * boxes with their whiskers and outliers, a pie's slices, a treemap's tiles,
- * rules and the axis lines.
+ * pixel and cut at the plot's ends, rows of dots, bars and points, a slope's
+ * lines and ends, a scatter's dots, a grid's cells, boxes with their whiskers
+ * and outliers, a pie's slices, a treemap's tiles, rules and the axis lines.
  * @module
  */
 

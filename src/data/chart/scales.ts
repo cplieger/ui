@@ -451,11 +451,10 @@ function wholeOf(spec: ChartSpec): "pie" | "tree" | undefined {
  *  under a bar mark linear from 0, under a point or box mark or a scatter
  *  holding 0 only with `zero: true`, under a slope its two columns at 0 and 1,
  *  under a cell mark its columns from 0 to their count or its bins' edges,
- *  under a calendar its days in `timeZone`, and under a pie or a tree an
- *  unread 0 to 1. Throws for a band x, for a type, domain, zero or underflow
- *  bin that breaks a rule, for an x scale or an x rule beside a slope, for an
- *  x scale or a rule beside a calendar, and for an x scale beside a pie or a
- *  tree. */
+ *  under a calendar its days in `timeZone`, under a pie or a tree an unread 0
+ *  to 1. Throws for a band x, a type, domain, zero or underflow bin that breaks
+ *  a rule, an x scale or x rule beside a slope, an x scale or rule beside a
+ *  calendar, and an x scale beside a pie or a tree. */
 export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
   const whole = wholeOf(spec);
   if (whole !== undefined) {

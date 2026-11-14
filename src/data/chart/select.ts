@@ -68,11 +68,10 @@ import type { Words } from "./words.js";
 /**
  * A bucket, a sample or a slope's column `i`, with one series (`part`) when
  * Up or Down chose it; the posts `[from, to)` of a dot row; a dot row as a
- * whole; a bar, point or box row, with one series (`part`) when Left or
- * Right chose it; a scatter's dot `i` of `series`; a cell chart's cell at
- * `row` and `column`, indices into its axes; a calendar's day `i`; a
- * pie's slice `i`, an index into its slices; or a tree's part `i` or
- * group `i`, indices into its parts and its groups.
+ * whole; a bar, point or box row, with one series (`part`) when Left or Right
+ * chose it; a scatter's dot `i` of `series`; a cell chart's cell at `row` and
+ * `column`, indices into its axes; a calendar's day `i`; a pie's slice `i`; or
+ * a tree's part `i` or group `i`, indices into its parts and its groups.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
