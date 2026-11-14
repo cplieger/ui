@@ -1834,32 +1834,6 @@ html:has(.g-header) {
   border-width: 1px;
 }
 
-/* List and detail: the detail docks beside the list once the main region
- * is wide enough, and is a full-screen dialog below that. */
-.f-md {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--cp-space-4);
-}
-
-.f-md > .f-detail {
-  display: none;
-}
-
-@container (width >= 52rem) {
-  .f-md {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
-  }
-
-  .f-md > .f-detail {
-    display: grid;
-  }
-
-  .f-md > .f-note {
-    display: none;
-  }
-}
-
 /* The header card is a frame inside a card, so its skip link sits at the
  * card's corner rather than the window's. */
 .g-mini-header {

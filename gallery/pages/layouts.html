@@ -11,37 +11,17 @@
     <div class="g-grid">
       <div class="card g-wide" data-new>
         <h2>App frame</h2>
-        <div class="g-shell" data-frame-name="The app frame">
-          <div class="g-shell-view"><div class="g-shell-page">
-            <div class="cp-app">
-              <div class="cp-header"><span class="f-box">Header<small>mark, destinations, status, account</small></span></div>
-              <div class="cp-rail"><span class="f-box f-tall">Rail<small>filters and sections; leaves under 60rem for a Filters sheet</small></span></div>
-              <div class="cp-main"><div class="f-box f-tall">Main<small>the page; a container, so what is in it sizes to it</small></div></div>
-              <div class="cp-status"><span class="f-box">Status line<small>the tool's footer</small></span></div>
-            </div>
-          </div></div>
+        <div class="g-shell">
+          <div class="g-shell-view" data-template-frame="The app page template"><iframe data-frame src="templates/app.html" title="The app page template"></iframe></div>
         </div>
-        <footer><code>.cp-app</code>: header across the top, the rail beside main, the status line at the foot. Under 60rem the rail leaves and a Filters button opens its contents in a sheet; under 40rem the header keeps only icons. A tool has no page footer: the status line is its foot.</footer>
+        <footer><code>templates/app.html</code>, on <code>.cp-app</code>: the header across the top (the mark, the destinations, then the toolbar: the header status, the theme, the global actions, the account last), the rail of filters beside main, the status line at the foot with the freshness fact first. Main holds, in order, the banner, the heading row with the page's actions, the screen's notices and the content, at most 90rem wide and centred. Under 60rem the rail leaves and the Filters button opens it in a sheet; under 40rem the destinations move to a bar at the window's foot. A tool has no page footer: the status line is its foot. Each region and slot is named by a comment in the file. <a href="templates/app.html">Open the template</a>.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>List and detail</h2>
-        <div class="g-shell" data-frame-name="List and detail">
-          <div class="g-shell-view"><div class="g-shell-page">
-            <div class="cp-app">
-              <div class="cp-header"><span class="f-box">Header</span></div>
-              <div class="cp-rail"><span class="f-box f-tall">Rail</span></div>
-              <div class="cp-main">
-                <div class="f-md">
-                  <div class="f-box f-tall">List<small>the rows; a row's link opens its detail</small></div>
-                  <div class="f-box f-tall f-detail">Detail<small>docked beside the list from 52rem of main</small></div>
-                  <div class="f-box f-note">Detail<small>under 52rem of main, a full-screen dialog over the list</small></div>
-                </div>
-              </div>
-              <div class="cp-status"><span class="f-box">Status line</span></div>
-            </div>
-          </div></div>
+        <div class="g-shell">
+          <div class="g-shell-view" data-template-frame="The list and detail template"><iframe data-frame src="templates/list-detail.html" title="The list and detail template"></iframe></div>
         </div>
-        <footer>Inside main, the detail docks beside the list once main is 52rem wide, and opens as a full-screen dialog below that, with Back closing it. It keys on main's width, not the window's, so it works with or without the rail.</footer>
+        <footer><code>templates/list-detail.html</code>: the app page whose main holds <code>.cp-list-detail</code>, a list of row links and the detail they open. The detail docks beside the list once main is 52rem wide and opens as a full-screen dialog below that, with Back closing it; <code>enhanceListDetail</code> and the app's route open it, so the template shows the list with its detail closed. It keys on main's width, not the window's. <a href="templates/list-detail.html">Open the template</a>.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Settings</h2>
@@ -61,18 +41,26 @@
         </div>
         <footer><code>.cp-settings</code>: categories beside one category's form, then a row of categories above it under 48rem.</footer>
       </div>
-      <div class="card g-wide">
+      <div class="card g-wide" data-new>
         <h2>Gate page</h2>
-        <div class="g-shell" data-frame-name="The gate page">
-          <div class="g-shell-view"><div class="g-shell-page">
-            <div class="cp-gate">
-              <span class="f-box">Mark and app name</span>
-              <div class="cp-panel"><span class="f-box f-tall">One panel<small>sign-in, setup, an invite or a recovery link; 24rem at most, or 28rem for a setup of several steps</small></span></div>
-              <span class="f-box">A link back, or help</span>
-            </div>
-          </div></div>
+        <div class="g-shell">
+          <div class="g-shell-view" data-template-frame="The gate page template, in its steps form"><iframe data-frame src="templates/gate-steps.html" title="The gate page template, in its steps form"></iframe></div>
         </div>
-        <footer><code>.cp-gate</code>: a page outside the frame for one short task, its mark and name over one panel.</footer>
+        <footer><code>.cp-gate</code>: a page outside the app frame for one short task, its mark and name over one panel and at most one line under it. <code>templates/gate.html</code> leaves the panel empty for the account screen that mounts there (the Sign-in screen shows it); <code>templates/gate-steps.html</code>, shown here, is its steps form for a first-run setup: the step track, or "Step 2 of 3" on a phone, each done step a link back, the step's heading, its form and Back before the one primary. Each step is its own address, so the page needs no script. <a href="templates/gate.html">Open the gate</a>, <a href="templates/gate-steps.html">open the steps form</a>.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A gate page with no script</h2>
+        <div class="g-shell">
+          <div class="g-shell-view" data-template-frame="The scriptless gate page template"><iframe data-frame src="templates/gate-message.html" title="The scriptless gate page template"></iframe></div>
+        </div>
+        <footer><code>templates/gate-message.html</code>: the page a server sends when it cannot serve the app, such as a store that will not open. It runs no script and paints under <code>default-src 'none'; style-src 'self'; img-src 'self' data:</code>: what happened as its heading, a danger notice naming the kind of error, the facts, the remedies as numbered steps with each command to copy, a warning leading the one that needs it, and the build version as the line under the panel. It holds no control, since the page accepts nothing. <a href="templates/gate-message.html">Open the template</a>.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Not found</h2>
+        <div class="g-shell">
+          <div class="g-shell-view" data-template-frame="The not-found template"><iframe data-frame src="templates/not-found.html" title="The not-found template"></iframe></div>
+        </div>
+        <footer><code>templates/not-found.html</code>: the app page for an address that matches no screen, its main holding <code>.cp-empty[data-variant="page"]</code>: the glyph, the heading, one sentence and the one link home. It keeps the app's header, with no destination current, since the person is still inside the app; a server that cannot serve the app at all sends the gate page with no script instead. <a href="templates/not-found.html">Open the template</a>.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>A logo in the mark</h2>

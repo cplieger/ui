@@ -57,6 +57,20 @@ const FRAMES: readonly (readonly [frame: string, title: string, script: boolean]
 
 export const frameNames: readonly string[] = FRAMES.map(([frame]) => `frame-${frame}`);
 
+/** The page templates, copied to `templates/` as they ship. Each but the
+ *  scriptless one gains the frame script, so its look follows the card's. */
+const TEMPLATES: readonly (readonly [template: string, script: boolean])[] = [
+  ["app", true],
+  ["list-detail", true],
+  ["settings", true],
+  ["not-found", true],
+  ["gate", true],
+  ["gate-steps", true],
+  ["gate-message", false],
+];
+
+export const templateNames: readonly string[] = TEMPLATES.map(([t]) => `templates/${t}`);
+
 function nav(current: string): string {
   const parent = PAGES.find(([page]) => page === current)?.[4] ?? current;
   return PAGES.filter((p) => p[4] === undefined)
@@ -168,6 +182,20 @@ export async function buildGallery(out = join(HERE, "dist")): Promise<void> {
       .trimEnd()
       .replaceAll("<div data-drawn-icons></div>", drawn);
     await writeFile(join(out, `frame-${name}.html`), bare(title, body, script));
+  }
+  await mkdir(join(out, "templates"));
+  for (const [name, script] of TEMPLATES) {
+    // A template links no icon, the app's to choose; with none a browser
+    // asks the server for /favicon.ico, which the gallery has not.
+    const page = (await readFile(join(ROOT, "templates", `${name}.html`), "utf8")).replace(
+      "  </head>",
+      '    <link rel="icon" href="data:,">\n  </head>',
+    );
+    const tag = '    <script type="module" src="../frame.js"></script>\n  </body>';
+    await writeFile(
+      join(out, "templates", `${name}.html`),
+      script ? page.replace("  </body>", tag) : page,
+    );
   }
   await build({
     // Against the repo root, where npm runs the script, and literals, so a

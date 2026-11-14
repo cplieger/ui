@@ -13,9 +13,12 @@ applyPointerTier();
 installPointerTier();
 
 const root = document.documentElement;
-const icons = createIcons<string>({ base: new URL("icons/svg/", location.href).href });
+const icons = createIcons<string>({ base: new URL("icons/svg/", import.meta.url).href });
+// In place, so a span keeps its other attributes, such as a toggle's
+// data-part="on".
 for (const span of document.querySelectorAll<HTMLElement>("[data-cp-icon]")) {
-  span.replaceWith(icons.icon(span.dataset["cpIcon"] ?? ""));
+  const image = icons.icon(span.dataset["cpIcon"] ?? "").style.getPropertyValue("--cp-icon-image");
+  span.style.setProperty("--cp-icon-image", image);
 }
 
 const HUE = /^\d{1,3}$/;

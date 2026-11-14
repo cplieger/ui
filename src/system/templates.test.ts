@@ -3,7 +3,7 @@ import { server } from "vitest/browser";
 
 import { drawing, maskUrl, shipped } from "./test-helpers/css.js";
 
-const APP_PAGES = ["app.html", "list-detail.html", "settings.html"] as const;
+const APP_PAGES = ["app.html", "list-detail.html", "settings.html", "not-found.html"] as const;
 const GATE_PAGES = ["gate.html", "gate-steps.html", "gate-message.html"] as const;
 const STRICT = "default-src 'none'; style-src 'self'; img-src 'self' data:";
 
@@ -153,7 +153,9 @@ describe("the page templates", () => {
     expect(doc.querySelector("main")?.matches('.cp-main#main[tabindex="-1"]')).toBe(true);
     expect(doc.querySelector(".cp-app > :last-child")?.matches("footer.cp-status")).toBe(true);
     expect(marks(doc, "slot").slice(0, 3)).toEqual(["brand", "destinations", "toolbar"]);
-    expect(doc.querySelectorAll('.cp-header [aria-current="page"]')).toHaveLength(1);
+    expect(doc.querySelectorAll('.cp-header [aria-current="page"]')).toHaveLength(
+      name === "not-found.html" ? 0 : 1,
+    );
     expect(doc.querySelectorAll('.cp-main [data-variant="primary"]').length).toBeLessThanOrEqual(1);
   });
 
@@ -171,6 +173,19 @@ describe("the page templates", () => {
     );
     expect(detail?.querySelector("header > [data-detail-close]")).not.toBeNull();
     expect(detail?.querySelector(":scope > .cp-detail-body")).not.toBeNull();
+  });
+
+  it("not-found.html holds the page's empty state and the one way home", async () => {
+    const doc = await parse("not-found.html");
+    const page = doc.querySelector('.cp-main > .cp-empty[data-variant="page"]');
+    expect(page?.getAttribute("aria-labelledby")).toBe(page?.querySelector("h1")?.id);
+    expect(
+      [...(page?.children ?? [])].map(
+        (el) => el.tagName.toLowerCase() + (el.className ? `.${el.className}` : ""),
+      ),
+    ).toEqual(["span.cp-icon", "h1", "p", "a.cp-button"]);
+    expect(page?.querySelector(":scope > a")?.getAttribute("data-variant")).toBe("primary");
+    expect(doc.querySelectorAll("h1")).toHaveLength(1);
   });
 
   it.each([1600, 820, 390])("app.html lays out its regions at %ipx", async (width) => {

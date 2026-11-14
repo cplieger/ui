@@ -7,7 +7,7 @@ import { extname, join, normalize } from "node:path";
 import { chromium, firefox, webkit, type Browser, type BrowserType } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { buildGallery, frameNames, pageNames } from "./build.js";
+import { buildGallery, frameNames, pageNames, templateNames } from "./build.js";
 
 const TYPES: Record<string, string> = {
   ".html": "text/html",
@@ -85,7 +85,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
     await browser?.close();
   });
 
-  it.each([...pageNames, ...frameNames])(
+  it.each([...pageNames, ...frameNames, ...templateNames])(
     "loads %s with no error, every icon painted and nothing wider than a phone",
     async (page) => {
       const report: Record<string, unknown> = {};
