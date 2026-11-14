@@ -12,9 +12,27 @@ const DAY = 24 * HR;
 const MONTH = 2_629_746_000;
 const YEAR = 12 * MONTH;
 
-/** How far from 1970 an instant may lie, in ms: what `Date` holds
- *  (ECMA-262, "Time Values and Time Range"). */
-export const TIME_LIMIT = 8.64e15;
+// How far from 1970 an instant may lie, in ms: what `Date` holds
+// (ECMA-262, "Time Values and Time Range").
+const TIME_LIMIT = 8.64e15;
+
+/** Throws a `RangeError` naming `what` unless instant `t` lies within
+ *  `TIME_LIMIT`. */
+export function withinTime(t: number, what: string): void {
+  if (!(Math.abs(t) <= TIME_LIMIT)) {
+    throw new RangeError(
+      `${what} must lie within 8.64e15 ms either side of 1970, the range Date holds`,
+    );
+  }
+}
+
+/** The one way the chart and its scales make a `Date`, so an instant past
+ *  `TIME_LIMIT` is a `RangeError` naming `what`, never the engine's
+ *  "Invalid time value" from wherever it is written. */
+export function dateAt(t: number, what: string): Date {
+  withinTime(t, what);
+  return new Date(t);
+}
 
 /** What a time step counts. */
 export type TimeUnit = "minute" | "hour" | "day" | "month" | "year";
@@ -60,11 +78,11 @@ export function timeStep(span: number, px: number, spacing: number): number {
 
 const mod = (a: number, n: number): number => ((a % n) + n) % n;
 
-// The day count since 1970 of a proleptic Gregorian date, month 1 to 12, by
-// Howard Hinnant's days_from_civil, so year 0 to 99 and years past what
-// `Date` holds count as written:
-// https://howardhinnant.github.io/date_algorithms.html#days_from_civil
-function civilDays(year: number, month: number, day: number): number {
+/** The day count since 1970 of a proleptic Gregorian date, month 1 to 12, by
+ *  Howard Hinnant's days_from_civil, so year 0 to 99 and years past what
+ *  `Date` holds count as written:
+ *  https://howardhinnant.github.io/date_algorithms.html#days_from_civil */
+export function civilDays(year: number, month: number, day: number): number {
   const y = month <= 2 ? year - 1 : year;
   const era = Math.floor(y / 400);
   const yoe = y - era * 400;
@@ -72,8 +90,13 @@ function civilDays(year: number, month: number, day: number): number {
   return era * 146_097 + yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy - 719_468;
 }
 
-// The year and month (1 to 12) of a day count since 1970, by civil_from_days.
-function civil(days: number): { readonly year: number; readonly month: number } {
+/** The year, month (1 to 12) and day of a day count since 1970, by
+ *  civil_from_days, for any whole count. */
+export function civil(days: number): {
+  readonly year: number;
+  readonly month: number;
+  readonly day: number;
+} {
   const z = days + 719_468;
   const era = Math.floor(z / 146_097);
   const doe = z - era * 146_097;
@@ -83,7 +106,11 @@ function civil(days: number): { readonly year: number; readonly month: number } 
   const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
   const mp = Math.floor((5 * doy + 2) / 153);
   const month = mp < 10 ? mp + 3 : mp - 9;
-  return { year: yoe + era * 400 + (month <= 2 ? 1 : 0), month };
+  return {
+    year: yoe + era * 400 + (month <= 2 ? 1 : 0),
+    month,
+    day: doy - Math.floor((153 * mp + 2) / 5) + 1,
+  };
 }
 
 const parts = new Map<string, Intl.DateTimeFormat>();
@@ -116,7 +143,7 @@ function clock(timeZone: string | undefined): Intl.DateTimeFormat {
 function wall(t: number, timeZone: string | undefined): number {
   const f: Record<string, number> = {};
   let before = false;
-  for (const p of clock(timeZone).formatToParts(t)) {
+  for (const p of clock(timeZone).formatToParts(dateAt(t, "an instant on the wall clock"))) {
     if (p.type === "era") {
       before = p.value === "BC";
     } else {

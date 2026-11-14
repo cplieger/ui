@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { localDay, spansDay, TIME_STEPS, timeStep, timeTicks } from "./time.js";
+import {
+  civil,
+  civilDays,
+  dateAt,
+  localDay,
+  spansDay,
+  TIME_STEPS,
+  timeStep,
+  timeTicks,
+} from "./time.js";
 
 const MIN = 60_000;
 const HR = 60 * MIN;
 const DAY = 24 * HR;
+
+const dayNo = (t: number) => t / DAY;
 
 const stepAt = (span: number, px: number) => TIME_STEPS[timeStep(span, px, 80)];
 const msAt = (span: number, px: number) => stepAt(span, px)?.ms;
@@ -316,5 +327,32 @@ describe("localDay", () => {
     const t = Date.UTC(2026, 10, 11, 23, 30);
     expect(localDay(t, "UTC")).toBe(Math.floor(t / DAY));
     expect(localDay(t, "Europe/Paris")).toBe(Math.floor(t / DAY) + 1);
+  });
+});
+
+describe("dateAt", () => {
+  it("makes a Date at either end of what Date holds, and a RangeError naming the instant past them", () => {
+    expect(dateAt(8.64e15, "x").toISOString()).toBe("+275760-09-13T00:00:00.000Z");
+    expect(dateAt(-8.64e15, "x").toISOString()).toBe("-271821-04-20T00:00:00.000Z");
+    const past = new RangeError(
+      "a tick must lie within 8.64e15 ms either side of 1970, the range Date holds",
+    );
+    expect(() => dateAt(8.64e15 + 1, "a tick")).toThrow(past);
+    expect(() => dateAt(-8.64e15 - 1, "a tick")).toThrow(past);
+    expect(() => dateAt(Number.NaN, "a tick")).toThrow(past);
+  });
+});
+
+describe("civil and civilDays", () => {
+  it("name the proleptic Gregorian date of a day count, past what Date holds too", () => {
+    expect(civil(0)).toEqual({ year: 1970, month: 1, day: 1 });
+    expect(civil(dayNo(Date.UTC(2028, 1, 29)))).toEqual({ year: 2028, month: 2, day: 29 });
+    // ECMA-262's last and first days, then a day past each.
+    expect(civil(1e8)).toEqual({ year: 275_760, month: 9, day: 13 });
+    expect(civil(1e8 + 1)).toEqual({ year: 275_760, month: 9, day: 14 });
+    expect(civil(-1e8)).toEqual({ year: -271_821, month: 4, day: 20 });
+    expect(civil(-1e8 - 1)).toEqual({ year: -271_821, month: 4, day: 19 });
+    expect(civilDays(275_760, 9, 13)).toBe(1e8);
+    expect(civilDays(-271_821, 4, 20)).toBe(-1e8);
   });
 });

@@ -1439,6 +1439,16 @@ describe("a calendar's selection", () => {
     expect(press(b, day(0), "PageUp")).toEqual([undefined]);
   });
 
+  it("pages to the first and last day at either end of what Date holds, a month away lying past it", () => {
+    // Day 1e8 is Saturday 13 September 275760, the last Date holds; day -1e8
+    // is Tuesday 20 April -271821, the first, so -1e8 + 5 is a Sunday.
+    const sundays = (start: number, n: number): ChartSpec => ({
+      marks: [{ mark: "cell", days: { start: start * DAY, values: days(n) }, weekStart: 7 }],
+    });
+    expect(press(built(sundays(1e8 - 1, 2)), day(0), "PageDown")).toEqual([day(1)]);
+    expect(press(built(sundays(-1e8 + 5, 3)), day(2), "PageUp")).toEqual([day(0)]);
+  });
+
   it("picks the day under the pointer, and nothing above the weeks or outside the days", () => {
     const g = b.lay.days;
     const at = (column: number, row: number) =>

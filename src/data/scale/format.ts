@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { TimeUnit } from "./time.js";
+import { dateAt, type TimeUnit } from "./time.js";
 
 /** How a scale writes its values; see `docs/data/chart.md` "Formats". */
 export type Format =
@@ -318,6 +318,11 @@ const dates = (
       new Intl.DateTimeFormat(locale, timeZone === undefined ? options : { ...options, timeZone }),
   );
 
+const writes =
+  (df: Intl.DateTimeFormat) =>
+  (ms: number): string =>
+    df.format(dateAt(ms, "an instant the chart writes"));
+
 const HOUR = { hour: "numeric" } as const;
 const MINUTE = { hour: "numeric", minute: "2-digit" } as const;
 const DAY = { month: "short", day: "numeric" } as const;
@@ -340,8 +345,7 @@ export function instantFormat(
   timeZone: string | undefined,
   reach: Reach,
 ): (ms: number) => string {
-  const df = dates(locale, timeZone, { ...DATE_PARTS[reach], ...MINUTE });
-  return (ms) => df.format(ms);
+  return writes(dates(locale, timeZone, { ...DATE_PARTS[reach], ...MINUTE }));
 }
 
 /** Both ends of a span of instants as `instantFormat` writes them, the end
@@ -356,9 +360,9 @@ export function spanFormat(
   if (reach === "time") {
     return (from, to) => [at(from), at(to)];
   }
-  const day = dates(locale, timeZone, DATE_PARTS[reach]);
-  const time = dates(locale, timeZone, MINUTE);
-  return (from, to) => [at(from), day.format(from) === day.format(to) ? time.format(to) : at(to)];
+  const day = writes(dates(locale, timeZone, DATE_PARTS[reach]));
+  const time = writes(dates(locale, timeZone, MINUTE));
+  return (from, to) => [at(from), day(from) === day(to) ? time(to) : at(to)];
 }
 
 const TICK_PARTS: Readonly<
@@ -386,10 +390,8 @@ export function tickFormat(
 } {
   const [fine, coarse] = TICK_PARTS[unit];
   const year = era && "year" in coarse ? { ...coarse, era: "short" as const } : coarse;
-  const second = dates(locale, timeZone, year);
-  const first = fine === undefined ? undefined : dates(locale, timeZone, fine);
   return {
-    fine: first === undefined ? undefined : (ms) => first.format(ms),
-    coarse: (ms) => second.format(ms),
+    fine: fine === undefined ? undefined : writes(dates(locale, timeZone, fine)),
+    coarse: writes(dates(locale, timeZone, year)),
   };
 }

@@ -46,3 +46,16 @@ describe("one path from a number to its words", () => {
     expect(outside).toEqual(["numbers(locale, options).resolvedOptions"]);
   });
 });
+
+describe("one maker of a Date", () => {
+  it("leaves new Date and Date.UTC to dateAt, which range-checks every instant", async () => {
+    const calls = (await sources()).flatMap(({ name, text }) =>
+      [...text.matchAll(/\bnew\s+Date\b|\bDate\.(?:UTC|parse)\b/gu)].map((m) => `${name}: ${m[0]}`),
+    );
+    expect(calls).toEqual(["scale/time.ts: new Date"]);
+    const text = code(await readFile(join(DATA, "scale/time.ts"), "utf8"));
+    const from = text.indexOf("export function dateAt(");
+    expect(text.indexOf("new Date")).toBeGreaterThan(from);
+    expect(text.indexOf("new Date")).toBeLessThan(text.indexOf("\n}\n", from));
+  });
+});

@@ -7,7 +7,7 @@
 import type { Format } from "../scale/format.js";
 
 import { resolution } from "../scale/linear.js";
-import { localDay, midnight, TIME_LIMIT } from "../scale/time.js";
+import { localDay, midnight, withinTime } from "../scale/time.js";
 
 import type {
   BarMark,
@@ -334,13 +334,9 @@ export function rScale(spec: ChartSpec): Size | undefined {
 
 /** Throws a `RangeError` naming `what` unless instant `t` lies within what
  *  `Date` holds, since every instant is ticked and written through `Intl`. */
-export function withinDate(t: number, what: string): void {
-  if (Math.abs(t) > TIME_LIMIT) {
-    throw new RangeError(
-      `renderChart: ${what} must lie within 8.64e15 ms either side of 1970, the range Date holds`,
-    );
-  }
-}
+export const withinDate = (t: number, what: string): void => {
+  withinTime(t, `renderChart: ${what}`);
+};
 
 // A slope's two columns, named by its mark, at 0 and 1.
 const COLUMNS: Continuous = {

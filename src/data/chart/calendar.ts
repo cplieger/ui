@@ -5,6 +5,8 @@
  * @module
  */
 
+import { civil, civilDays, dateAt } from "../scale/time.js";
+
 const DAY = 86_400_000;
 
 /** A week column narrower than this folds the calendar into blocks. */
@@ -78,16 +80,17 @@ export function dayAt(w: Weeks, block: number, column: number, row: number): num
 /** The local day `months` months from `day` on the same date, or that
  *  month's last day when it has no such date. */
 export function monthsFrom(day: number, months: number): number {
-  const d = new Date(day * DAY);
-  const y = d.getUTCFullYear();
-  const m = d.getUTCMonth() + months;
-  // setUTCFullYear, since Date.UTC reads a year from 0 to 99 as 1900 on.
-  const last = new Date(new Date(0).setUTCFullYear(y, m + 1, 0)).getUTCDate();
-  return new Date(0).setUTCFullYear(y, m, Math.min(d.getUTCDate(), last)) / DAY;
+  const from = civil(day);
+  const q = from.year * 12 + from.month - 1 + months;
+  const year = Math.floor(q / 12);
+  const month = q - year * 12 + 1;
+  const first = civilDays(year, month, 1);
+  const length = civilDays(month === 12 ? year + 1 : year, month === 12 ? 1 : month + 1, 1) - first;
+  return first + Math.min(from.day, length) - 1;
 }
 
 /** Whether local day `day` is the first of its month. */
-export const monthFirst = (day: number): boolean => new Date(day * DAY).getUTCDate() === 1;
+export const monthFirst = (day: number): boolean => civil(day).day === 1;
 
 /** `day` written by `options` in `locale`, on its own calendar date
  *  whatever the chart's time zone. */
@@ -96,5 +99,5 @@ export function dayFormat(
   options: Intl.DateTimeFormatOptions,
 ): (day: number) => string {
   const df = new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" });
-  return (day) => df.format(day * DAY);
+  return (day) => df.format(dateAt(day * DAY, "renderChart: a calendar day"));
 }

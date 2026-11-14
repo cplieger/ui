@@ -7,6 +7,7 @@
  */
 
 import { writer } from "../scale/format.js";
+import { dateAt } from "../scale/time.js";
 
 import { dayFormat, weekCount, weekRow } from "./calendar.js";
 import type {
@@ -555,7 +556,7 @@ function write(el: HTMLElement, parts: readonly Part[], isolate: boolean): void 
       return bdi;
     }
     const time = document.createElement("time");
-    const iso = new Date(p.at).toISOString();
+    const iso = dateAt(p.at, "renderChart: an instant the table writes").toISOString();
     time.dateTime = p.date === true ? iso.slice(0, 10) : iso;
     time.textContent = p.text;
     return time;
