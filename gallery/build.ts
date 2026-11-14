@@ -46,11 +46,13 @@ export const pageNames: readonly string[] = PAGES.map(([page]) => page);
 
 /** The pages in `frames/`, each shown in an `<iframe>` on a card: a piece
  *  that exists only under a media query's width, which the gallery's own
- *  window is wider than, or one that must paint with no script, which the
- *  gallery's pages run. Each is built as `frame-<name>.html`. */
+ *  window is wider than, one that must paint with no script, which the
+ *  gallery's pages run, or a gate page, which fills its window's height.
+ *  Each is built as `frame-<name>.html`. */
 const FRAMES: readonly (readonly [frame: string, title: string, script: boolean])[] = [
   ["bottom-nav", "Bottom navigation", true],
   ["icons", "Icons with no script", false],
+  ["mark", "A logo in the mark", true],
 ];
 
 export const frameNames: readonly string[] = FRAMES.map(([frame]) => `frame-${frame}`);

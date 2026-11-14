@@ -74,6 +74,23 @@
         </div>
         <footer><code>.cp-gate</code>: a page outside the frame for one short task, its mark and name over one panel.</footer>
       </div>
+      <div class="card g-wide" data-new>
+        <h2>A logo in the mark</h2>
+        <div class="cp-stack">
+          <div class="g-mini-header">
+            <header class="cp-header">
+              <a class="cp-wordmark" href="#frames"><span class="cp-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 12 5l7 14M8.5 14h7" fill="none" stroke="currentcolor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="cp-hidden-narrow">Release tracker</span></a>
+            </header>
+          </div>
+          <div class="g-mini-header">
+            <header class="cp-header">
+              <a class="cp-wordmark" href="#frames"><span class="cp-mark"><img src="media/logo-light.svg" alt="" data-cp-scheme="light"><img src="media/logo-dark.svg" alt="" data-cp-scheme="dark"></span><span class="cp-hidden-narrow">Release tracker</span></a>
+            </header>
+          </div>
+          <iframe class="g-frame" data-frame src="frame-mark.html" title="A gate page whose mark holds a logo"></iframe>
+        </div>
+        <footer><code>.cp-mark</code> holding an <code>&lt;img&gt;</code> or an inline <code>&lt;svg&gt;</code> in place of its letter: the image fills the mark's box at its own aspect ratio and the letter's fill goes. An svg drawn in <code>currentcolor</code> takes the header's ink, and on a gate page the ink of the name beside it, in both themes. A fixed-colour logo comes as two images, <code>data-cp-scheme="light"</code> and <code>"dark"</code>, and the stylesheet shows the one that matches the page's theme, chosen or the system's, with no script. Beside the written name the image takes <code>alt=""</code>; a mark alone takes the name as its <code>alt</code>. Switch the gallery's theme to see the second header's image change.</footer>
+      </div>
     </div>
   </section>
 

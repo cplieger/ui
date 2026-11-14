@@ -23,6 +23,13 @@
   font-size: var(--cp-text-md);
 }
 
+/* Off the shell, a logo in currentcolor takes the name's ink beside it: the
+ * shell's ink would vanish on the page's surface in light. */
+.cp-gate .cp-mark:has(> img, > svg) {
+  background: none;
+  color: inherit;
+}
+
 .cp-gate > .cp-panel {
   --cp-chart-surface: var(--cp-surface-raised);
 

@@ -1912,6 +1912,13 @@
   font-size: var(--cp-text-md);
 }
 
+/* Off the shell, a logo in currentcolor takes the name's ink beside it: the
+ * shell's ink would vanish on the page's surface in light. */
+.cp-gate .cp-mark:has(> img, > svg) {
+  background: none;
+  color: inherit;
+}
+
 .cp-gate > .cp-panel {
   --cp-chart-surface: var(--cp-surface-raised);
 
@@ -2423,6 +2430,57 @@ a.cp-wordmark {
   color: var(--cp-shell-bg);
   font-size: var(--cp-text-xs);
   font-weight: 700;
+}
+
+/* A logo in place of the letter: an <img> or an inline <svg> fills the box
+ * at its own aspect ratio, and an svg drawn in currentcolor takes the colour
+ * the fill had, so it reads on the header in both themes. */
+.cp-mark:has(> img, > svg) {
+  background: none;
+  color: var(--cp-shell-ink);
+}
+
+.cp-mark > :is(img, svg) {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+/* A fixed-colour logo comes as a light and a dark image. The one shown
+ * follows the nearest data-theme pin, else the system: scope proximity
+ * lets the innermost pin win at any depth. */
+.cp-mark > [data-cp-scheme="dark"] {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .cp-mark > [data-cp-scheme="light"] {
+    display: none;
+  }
+
+  .cp-mark > [data-cp-scheme="dark"] {
+    display: block;
+  }
+}
+
+@scope (.cp[data-theme="light"]) {
+  .cp-mark > [data-cp-scheme="light"] {
+    display: block;
+  }
+
+  .cp-mark > [data-cp-scheme="dark"] {
+    display: none;
+  }
+}
+
+@scope (.cp[data-theme="dark"]) {
+  .cp-mark > [data-cp-scheme="dark"] {
+    display: block;
+  }
+
+  .cp-mark > [data-cp-scheme="light"] {
+    display: none;
+  }
 }
 
 /* Visually hidden, still named: a label that a narrow screen drops. */
