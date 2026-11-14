@@ -58,6 +58,7 @@ The composer is a form like any other:
 
 ```html
 <form class="cp-form" id="compose" novalidate>
+  <div class="cp-notice" data-tone="danger" id="summary" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span><div data-part="body"></div></div>
   <div class="cp-field">
     <label class="cp-label" for="subject">Subject</label>
     <input class="cp-input" id="subject" name="subject" required>
@@ -85,7 +86,7 @@ const send = enhanceConfirm(sendButton, { busy: "Sending…", done: false, signa
 compose.addEventListener("submit", async (e) => {
   e.preventDefault();
   const errors = check(compose); // [{ field, message }]
-  reportErrors(compose, errors);
+  reportErrors(compose, errors, { summary, heading: (n) => `${n} fields need a fix before the message sends` });
   if (errors.length === 0) {
     await send.run(() => api.send(compose)); // the own entry shows sending, then sent or failed
   }
