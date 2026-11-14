@@ -2,8 +2,8 @@
  * nav-feedback.ts — the gallery's wiring for the navigation and feedback
  * cards that run on the library: the header's account menu and its status
  * demo, the jump field, the rail's filters, the content tabs, the
- * accordion, the toasts, the status chip that changes, the progress bars,
- * and the look of the frames that show the bottom bar.
+ * accordion, the toasts, the status chip that changes, and the look of the
+ * frames that show the bottom bar.
  */
 
 import { announce, installAnnouncer } from "@cplieger/ui/announce";
@@ -111,7 +111,7 @@ for (const row of document.querySelectorAll<HTMLElement>("[data-jump]")) {
 }
 
 for (const filter of document.querySelectorAll<HTMLButtonElement>(
-  ".cp-filter-group > .cp-filter",
+  ".cp-rail button.cp-list-row[aria-pressed]",
 )) {
   filter.addEventListener("click", () => {
     filter.setAttribute("aria-pressed", String(filter.getAttribute("aria-pressed") !== "true"));
@@ -267,68 +267,4 @@ for (const frame of document.querySelectorAll<HTMLIFrameElement>("iframe[data-fr
     attributeFilter: ["data-theme", "style"],
   });
   send();
-}
-
-// A bar's fill glides to each step; `still` places it at once, for a value
-// shown from the start or a run that starts over.
-function setProgress(bar: HTMLElement, percent: number, still = false): void {
-  const fill = bar.querySelector<HTMLElement>(".cp-progress-fill");
-  if (still && fill) {
-    fill.style.transition = "none";
-  }
-  bar.style.setProperty("--cp-progress", `${percent}%`);
-  if (still && fill) {
-    fill.getBoundingClientRect();
-    fill.style.removeProperty("transition");
-  }
-}
-
-// Steps come a little faster than the fill's 480ms glide, so it never rests
-// between them; the last one marks the bar done.
-for (const start of document.querySelectorAll<HTMLButtonElement>("[data-progress-run]")) {
-  const bar = document.getElementById(start.dataset["progressRun"] ?? "");
-  if (!bar) {
-    continue;
-  }
-  let run = 0;
-  start.addEventListener("click", () => {
-    const mine = ++run;
-    delete bar.dataset["state"];
-    setProgress(bar, 0, true);
-    let p = 0;
-    const step = (): void => {
-      if (mine !== run) {
-        return;
-      }
-      p = Math.min(100, p + 3 + Math.random() * 5);
-      setProgress(bar, p);
-      bar.setAttribute("aria-valuenow", String(Math.round(p)));
-      if (p < 100) {
-        setTimeout(step, 260);
-      } else {
-        bar.dataset["state"] = "done";
-      }
-    };
-    step();
-  });
-}
-
-for (const bar of document.querySelectorAll<HTMLElement>("[data-sync-demo]")) {
-  const max = Number(bar.getAttribute("aria-valuemax"));
-  const words = [...bar.childNodes].find((n) => n.nodeType === Node.TEXT_NODE);
-  let at = Number(bar.getAttribute("aria-valuenow"));
-  const show = (still: boolean): void => {
-    const text = `Series ${at} of ${max}`;
-    setProgress(bar, (at / max) * 100, still);
-    bar.setAttribute("aria-valuenow", String(at));
-    bar.setAttribute("aria-valuetext", text);
-    if (words) {
-      words.textContent = text;
-    }
-  };
-  show(true);
-  setInterval(() => {
-    at = at + 7 > max ? 0 : at + 7;
-    show(at === 0);
-  }, 900);
 }

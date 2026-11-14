@@ -27,7 +27,9 @@ for (const nav of document.querySelectorAll<HTMLElement>("nav.cp-tabs[data-tabs-
   });
 }
 
-for (const details of document.querySelectorAll<HTMLDetailsElement>("[data-disclosures] details")) {
+for (const details of document.querySelectorAll<HTMLDetailsElement>(
+  "[data-disclosures] details, .cp-list-row > details",
+)) {
   enhanceDisclosure(details);
 }
 

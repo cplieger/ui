@@ -35,6 +35,8 @@ import "./wire/content.js";
 import "./wire/controls.js";
 import "./wire/data-figures.js";
 import "./wire/data-tables.js";
+import "./wire/lists.js";
+import "./wire/marks.js";
 import "./wire/nav-feedback.js";
 import "./wire/overlays.js";
 
@@ -169,9 +171,9 @@ for (const button of all<HTMLButtonElement>("button[data-test]")) {
   });
 }
 // A filter chip's state is the app's filter; here a press flips it. A share
-// bar's toggle and a chart's are their own.
+// bar's toggle and a chart's are their own, and a link chip has no state.
 for (const chip of all<HTMLButtonElement>(
-  ".cp-filter-chip:not([data-share-toggle], .cp-chart *)",
+  "button.cp-filter-chip:not([data-share-toggle], .cp-chart *)",
 )) {
   chip.addEventListener("click", () => {
     chip.setAttribute("aria-pressed", String(chip.getAttribute("aria-pressed") !== "true"));

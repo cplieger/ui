@@ -1318,10 +1318,17 @@ input.cp-input::-webkit-calendar-picker-indicator {
   align-self: flex-start;
 }
 
-/* Focus and scrolling stop below the sticky header, so it never covers what
- * they bring into view. */
+/* Focus and scrolling stop below the sticky header and above the controls
+ * bar fixed at the window's foot, which wraps to two lines on a phone, so
+ * neither covers what they bring into view. */
 html:has(.g-header) {
-  scroll-padding-block-start: 4.5rem;
+  scroll-padding-block: 4.5rem 6.5rem;
+}
+
+@media (width >= 48rem) {
+  html:has(.g-header) {
+    scroll-padding-block-end: 4.5rem;
+  }
 }
 
 /* The gallery's own nav scrolls sideways on a phone rather than widening
@@ -1398,6 +1405,15 @@ html:has(.g-header) {
   border: 6px solid var(--cp-neutral-12);
   border-radius: 1.75rem;
   background: var(--cp-surface-page);
+}
+
+/* A page of its own at the card's width, such as one that runs no script. */
+.g-frame {
+  display: block;
+  inline-size: 100%;
+  block-size: 26rem;
+  border: var(--cp-line-w) solid var(--cp-line);
+  border-radius: var(--cp-radius-surface);
 }
 
 /* The refreshing region is a panel, and its line runs along the panel's
@@ -1549,20 +1565,6 @@ html:has(.g-header) {
   animation: token-in 300ms var(--ease-bounce);
 }
 
-.g-not-found {
-  display: grid;
-  justify-items: center;
-  gap: var(--cp-space-3);
-  padding-block: 12vh;
-  text-align: center;
-}
-
-.g-not-found > .cp-icon {
-  --cp-icon-size: 3rem;
-
-  color: var(--cp-accent);
-}
-
 /* ===== Layouts and the rest of the scope ===== */
 
 
@@ -1613,49 +1615,6 @@ html:has(.g-header) {
   flex-wrap: wrap;
   gap: var(--cp-space-2);
   margin-block-start: var(--cp-space-3);
-}
-
-.g-linkchips > a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-3);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-round);
-  color: var(--cp-ink);
-  font-size: var(--cp-text-sm);
-  text-decoration: none;
-}
-
-.g-linkchips > a > .cp-icon {
-  --cp-icon-size: 0.875rem;
-
-  color: var(--cp-ink-muted);
-}
-
-.g-linkchips > a {
-  transition:
-    background-color var(--cp-dur-micro) var(--cp-ease-out),
-    border-color var(--cp-dur-micro) var(--cp-ease-out);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .g-linkchips > a:hover {
-      border-color: var(--cp-border-strong);
-      background: var(--cp-fill);
-    }
-
-    .g-linkchips > a:hover > .cp-icon {
-      color: var(--cp-ink);
-    }
-  }
-}
-
-.g-linkchips > a:focus-visible {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
 }
 
 /* ===== Data: the table and its rules ===== */

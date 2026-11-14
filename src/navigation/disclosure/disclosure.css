@@ -2,10 +2,17 @@
  * chevron, drawn pointing down and turned by the form. Inline, here: the
  * summary is an accent line with the chevron before its words. Boxed: the
  * sections of a .cp-accordion (accordion.css). The context panel, a
- * history's events and a state history still draw their own summaries, so
+ * timeline's events and a state history still draw their own summaries, so
  * they are left out. disclosure.ts keeps a closing section open, marked
  * data-cp-closing, so the chevron turns back as the press lands. */
-:where(.cp details:not(.cp-context-panel, .cp-history details, .cp-state-history > details)) {
+:where(
+  .cp
+    details:not(
+      .cp-context-panel,
+      .cp-list[data-variant="timeline"] details,
+      .cp-state-history > details
+    )
+) {
   & > summary {
     list-style: none;
     cursor: pointer;

@@ -58,17 +58,10 @@
       <div class="card" data-new>
         <h2>Rail</h2>
         <aside class="cp-rail" aria-label="Filters">
-          <div class="cp-filter-group"><h3 class="cp-filter-title">Verdict</h3>
-            <button class="cp-filter" type="button" aria-pressed="true"><span class="cp-swatch" data-tone="success"></span>On the best<span class="cp-badge" data-variant="quiet">268</span></button>
-            <button class="cp-filter" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="warning"></span>Older revision<span class="cp-badge" data-variant="quiet">17</span></button>
-            <button class="cp-filter" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="danger"></span>Missing<span class="cp-badge" data-variant="quiet">9</span></button>
-          </div>
-          <div class="cp-filter-group"><h3 class="cp-filter-title">Source</h3>
-            <button class="cp-filter" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="accent"></span>Sonarr<span class="cp-badge" data-variant="quiet">351</span></button>
-            <button class="cp-filter" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="neutral"></span>Radarr<span class="cp-badge" data-variant="quiet">61</span></button>
-          </div>
+          <div><h3 class="cp-list-heading">Verdict</h3><ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact"><li><button class="cp-list-row" type="button" aria-pressed="true"><span class="cp-swatch" data-tone="success"></span><span class="cp-cell-stack">On the best</span><span data-part="end"><span class="cp-badge" data-variant="quiet">268</span></span></button></li><li><button class="cp-list-row" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="warning"></span><span class="cp-cell-stack">Older revision</span><span data-part="end"><span class="cp-badge" data-variant="quiet">17</span></span></button></li><li><button class="cp-list-row" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="danger"></span><span class="cp-cell-stack">Missing</span><span data-part="end"><span class="cp-badge" data-variant="quiet">9</span></span></button></li></ul></div>
+          <div><h3 class="cp-list-heading">Source</h3><ul class="cp-list" data-surface="plain" data-divider="none" data-density="compact"><li><button class="cp-list-row" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="accent"></span><span class="cp-cell-stack">Sonarr</span><span data-part="end"><span class="cp-badge" data-variant="quiet">351</span></span></button></li><li><button class="cp-list-row" type="button" aria-pressed="false"><span class="cp-swatch" data-tone="neutral"></span><span class="cp-cell-stack">Radarr</span><span data-part="end"><span class="cp-badge" data-variant="quiet">61</span></span></button></li></ul></div>
         </aside>
-        <footer>The library's rail, with filters and their counts. Below 60rem the rail leaves for a Filters button that opens it as a sheet, so on a window that narrow this card is empty.</footer>
+        <footer>The library's rail, with filters and their counts: under each heading a plain, compact list of rows that toggle. Below 60rem the rail leaves for a Filters button that opens it as a sheet, so on a window that narrow this card is empty.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Status line</h2>
@@ -131,6 +124,11 @@
         <h2>Pages</h2>
         <nav class="cp-pager" aria-label="Pages"><span>21 to 40 of 412</span><a class="cp-button" data-size="sm" href="#paths">Previous</a><a class="cp-button" data-size="sm" href="#paths">Next</a></nav>
         <footer>Previous and Next with the range, as links, so Back works.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Links to related pages</h2>
+        <nav class="cp-cluster" data-gap="tight" aria-label="Frieren elsewhere"><a class="cp-filter-chip" href="#paths">Releases</a><a class="cp-filter-chip" href="#paths">Activity</a><a class="cp-filter-chip" href="#paths" rel="external">Sonarr<span class="cp-visually-hidden">, opens Sonarr</span></a><a class="cp-filter-chip" href="#paths" rel="external">AniList<span class="cp-visually-hidden">, opens AniList</span></a></nav>
+        <footer>The filter chip's pill as a link. Its mark comes from rel: a chevron stays in the app, the external mark leaves it.</footer>
       </div>
     </div>
   </section>

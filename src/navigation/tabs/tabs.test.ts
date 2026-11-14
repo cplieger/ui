@@ -391,4 +391,15 @@ describe("enhanceTabs", () => {
       expect(list.querySelector(".cp-pill")).toBeNull();
     });
   });
+
+  it("shows the selected tab's panel in a strip enhanced before it joins the document", () => {
+    const host = document.createElement("div");
+    const { list, tabs, panels } = strip();
+    host.append(list, ...panels);
+    enhanceTabs(list, { signal: life.signal });
+    expect(shown(panels)).toEqual([true, false, false]);
+    document.body.append(host);
+    (tabs[2] as HTMLButtonElement).click();
+    expect(shown(panels)).toEqual([false, false, true]);
+  });
 });

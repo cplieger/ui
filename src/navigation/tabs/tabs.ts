@@ -10,6 +10,7 @@
 import { reducedMotion, until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { enhancePill } from "../../core/pill/pill.js";
 import { enhanceRovingFocus } from "../../core/roving-focus/roving-focus.js";
+import { byId } from "../../core/tree/tree.js";
 
 export interface TabsOptions {
   /** `"automatic"` selects the tab focus moves to, for panels already on
@@ -49,7 +50,6 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
   const links = list.getAttribute("role") !== "tablist";
   const item = links ? LINK : TAB;
   const listen = until(signal);
-  const root = list.getRootNode() as Document | ShadowRoot;
   const tabs = (): HTMLElement[] => [...list.querySelectorAll<HTMLElement>(item)];
   const tabOf = (t: EventTarget | null): HTMLElement | null => {
     const tab = t instanceof Element ? t.closest<HTMLElement>(links ? "a" : '[role="tab"]') : null;
@@ -57,7 +57,7 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
   };
   const panelOf = (tab: HTMLElement): HTMLElement | null => {
     const id = tab.getAttribute("aria-controls");
-    return id === null ? null : root.getElementById(id);
+    return id === null ? null : byId(list, id);
   };
   const selected = (): HTMLElement | null =>
     tabs().find((t) =>

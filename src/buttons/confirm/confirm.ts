@@ -52,6 +52,9 @@ export interface Confirm {
    * returns to rest and the rejection passes through.
    */
   run(work: () => Promise<unknown>): Promise<boolean>;
+  /** Sets the words the button rests on, such as "Retry" after work that
+   *  failed: rolled to at once at rest, else as the cycle ends. */
+  setRest(text: string): void;
 }
 
 const STATE = "data-cp-state";
@@ -199,6 +202,13 @@ export function enhanceConfirm(button: HTMLButtonElement, options: ConfirmOption
         }
       }, hold);
       return true;
+    },
+    setRest(text) {
+      rest = text;
+      if (!button.hasAttribute(STATE)) {
+        roll(words, text);
+        fit(text);
+      }
     },
   };
 }

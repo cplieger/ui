@@ -72,6 +72,20 @@
   <section class="g-section" id="lists">
     <h2>Lists</h2>
     <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>One list, set by its attributes</h2>
+        <div class="cp-cluster" id="ls-settings">
+          <div class="cp-field"><span class="cp-label" id="ls-density-l">Height</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-density-l"><label><input type="radio" name="ls-density" value="compact">Compact</label><label><input type="radio" name="ls-density" value="" checked>Regular</label><label><input type="radio" name="ls-density" value="tall">Tall</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-lead-l">Image</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-lead-l"><label><input type="radio" name="ls-lead" value="">None</label><label><input type="radio" name="ls-lead" value="icon" checked>Icon</label><label><input type="radio" name="ls-lead" value="cover">Cover</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-lines-l">Lines</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-lines-l"><label><input type="radio" name="ls-lines" value="one">One</label><label><input type="radio" name="ls-lines" value="two" checked>Two</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-rows-l">Rows</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-rows-l"><label><input type="radio" name="ls-rows" value="links" checked>Links</label><label><input type="radio" name="ls-rows" value="toggles">Toggles</label><label><input type="radio" name="ls-rows" value="action">Action</label><label><input type="radio" name="ls-rows" value="menu">Menu</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-surface-l">Surface</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-surface-l"><label><input type="radio" name="ls-surface" value="" checked>Raised</label><label><input type="radio" name="ls-surface" value="plain">Plain</label></div></div>
+          <div class="cp-field"><span class="cp-label" id="ls-divider-l">Dividers</span><div class="cp-segmented" role="radiogroup" aria-labelledby="ls-divider-l"><label><input type="radio" name="ls-divider" value="" checked>Lines</label><label><input type="radio" name="ls-divider" value="none">None</label></div></div>
+        </div>
+        <h3 class="cp-list-heading g-gap-top">Library</h3>
+        <ul class="cp-list" id="ls-sample" aria-label="Library"></ul>
+        <footer>Every list is this one element, and its attributes set what all its rows look like: the height (compact as a rail's filters, regular, or tall for posters, each sizing the row's image), surface, dividers and lines. A row is one link or one toggle, or it holds a title link and one worded action or a ⋯ menu at its end. A link row that is open, a toggle that is on and a chosen option share one selected look, the wash in the accent's darkest ink, and a quiet count turns solid with it. Click a link to open it, or a toggle to turn it on or off.</footer>
+      </div>
       <div class="card" data-new>
         <h2>People</h2>
         <ul class="cp-list">
@@ -84,9 +98,10 @@
       <div class="card" data-new>
         <h2>Long names</h2>
         <ul class="cp-list">
-          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="folder" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate" tabindex="0" data-cp-tip="/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01">/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01</span><small>28 files</small></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="folder" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate" tabindex="0" data-cp-tip-toggle data-cp-tip="/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01">/media/anime/Frieren Beyond Journey's End (2023) [tvdb-424536]/Season 01</span><small>28 files</small></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="folder" aria-hidden="true"></span><span class="cp-cell-stack"><span class="cp-truncate cp-mono" data-cut="start" dir="ltr" tabindex="0" data-cp-tip-toggle data-cp-tip="/workspace/grelot/internal/server/webui/static-src">/workspace/grelot/internal/server/webui/static-src</span><small>Cut at its start, so the folder's own name stays</small></span></div></li>
         </ul>
-        <footer>One line cut with an ellipsis at the row's edge, as <code>.cp-truncate</code> does in a row; the whole text is a focusable tooltip, so it reaches a keyboard and a finger as well as a mouse.</footer>
+        <footer>One line cut with an ellipsis at the row's edge, as <code>.cp-truncate</code> does in a row, or at its start with <code>data-cut="start"</code> when the end of a path names it; the whole text is a focusable tooltip, so it reaches a keyboard and a finger as well as a mouse.</footer>
       </div>
       <div class="card">
         <h2>Files</h2>
@@ -113,7 +128,7 @@
               <div class="cp-toolbar"><span data-part="handle" aria-hidden="true"><span class="cp-icon" data-cp-icon="grip-vertical"></span></span><span data-part="rank">1</span><h3 id="pv-opensubtitles-h">OpenSubtitles</h3><input class="cp-switch" type="checkbox" role="switch" aria-label="Use OpenSubtitles" checked><span data-part="move"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="up" aria-label="Move OpenSubtitles up" data-cp-tip="Move OpenSubtitles up"><span class="cp-icon" data-cp-icon="arrow-up" aria-hidden="true"></span></button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="down" aria-label="Move OpenSubtitles down" data-cp-tip="Move OpenSubtitles down"><span class="cp-icon" data-cp-icon="arrow-down" aria-hidden="true"></span></button></span></div>
               <p class="cp-meta">Asked first. 182 subtitles found in the last 30 days.</p>
               <div class="cp-field"><label class="cp-label" for="pv-opensubtitles-key">API key</label><input class="cp-input cp-mono" type="text" id="pv-opensubtitles-key" autocomplete="off" spellcheck="false" aria-describedby="pv-opensubtitles-key-error" value="os-4f9a"><span class="cp-field-error" id="pv-opensubtitles-key-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Enter the key from your OpenSubtitles account.</span></div>
-              <div class="cp-cluster"><button class="cp-button" type="button" data-provider-test="pv-opensubtitles-status" data-key="pv-opensubtitles-key"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-test-status" id="pv-opensubtitles-status"></span></div>
+              <div class="cp-cluster"><button class="cp-button" type="button" data-provider-test="pv-opensubtitles-status" data-key="pv-opensubtitles-key"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-state" data-size="ui" id="pv-opensubtitles-status"></span></div>
             </section>
           </li>
           <li data-name="Jimaku">
@@ -121,7 +136,7 @@
               <div class="cp-toolbar"><span data-part="handle" aria-hidden="true"><span class="cp-icon" data-cp-icon="grip-vertical"></span></span><span data-part="rank">1</span><h3 id="pv-jimaku-h">Jimaku</h3><input class="cp-switch" type="checkbox" role="switch" aria-label="Use Jimaku" checked><span data-part="move"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="up" aria-label="Move Jimaku up" data-cp-tip="Move Jimaku up"><span class="cp-icon" data-cp-icon="arrow-up" aria-hidden="true"></span></button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="down" aria-label="Move Jimaku down" data-cp-tip="Move Jimaku down"><span class="cp-icon" data-cp-icon="arrow-down" aria-hidden="true"></span></button></span></div>
               <p class="cp-meta">Japanese subtitles for anime. 64 found in the last 30 days.</p>
               <div class="cp-field"><label class="cp-label" for="pv-jimaku-key">API key</label><input class="cp-input cp-mono" type="text" id="pv-jimaku-key" autocomplete="off" spellcheck="false" aria-describedby="pv-jimaku-key-error" value="jm-0b3e"><span class="cp-field-error" id="pv-jimaku-key-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Enter the key from your Jimaku account.</span></div>
-              <div class="cp-cluster"><button class="cp-button" type="button" data-provider-test="pv-jimaku-status" data-key="pv-jimaku-key"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-test-status" id="pv-jimaku-status"></span></div>
+              <div class="cp-cluster"><button class="cp-button" type="button" data-provider-test="pv-jimaku-status" data-key="pv-jimaku-key"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-state" data-size="ui" id="pv-jimaku-status"></span></div>
             </section>
           </li>
           <li data-name="SubDL">
@@ -129,27 +144,63 @@
               <div class="cp-toolbar"><span data-part="handle" aria-hidden="true"><span class="cp-icon" data-cp-icon="grip-vertical"></span></span><span data-part="rank">1</span><h3 id="pv-subdl-h">SubDL</h3><input class="cp-switch" type="checkbox" role="switch" aria-label="Use SubDL"><span data-part="move"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="up" aria-label="Move SubDL up" data-cp-tip="Move SubDL up"><span class="cp-icon" data-cp-icon="arrow-up" aria-hidden="true"></span></button><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-move="down" aria-label="Move SubDL down" data-cp-tip="Move SubDL down"><span class="cp-icon" data-cp-icon="arrow-down" aria-hidden="true"></span></button></span></div>
               <p class="cp-meta">Off, so never asked.</p>
               <div class="cp-field"><label class="cp-label" for="pv-subdl-key">API key</label><input class="cp-input cp-mono" type="text" id="pv-subdl-key" autocomplete="off" spellcheck="false" aria-describedby="pv-subdl-key-error" value="sd-71c2"><span class="cp-field-error" id="pv-subdl-key-error" hidden><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Enter the key from your SubDL account.</span></div>
-              <div class="cp-cluster"><button class="cp-button" type="button" data-provider-test="pv-subdl-status" data-key="pv-subdl-key"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-test-status" id="pv-subdl-status"></span></div>
+              <div class="cp-cluster"><button class="cp-button" type="button" data-provider-test="pv-subdl-status" data-key="pv-subdl-key"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Test connection</button><span class="cp-state" data-size="ui" id="pv-subdl-status"></span></div>
             </section>
           </li>
         </ol>
         <footer>The same reorder holds whole cards: each provider has its switch in its header, a summary, its key and a Test connection that checks it. Alt with an arrow moves the card from its switch or a button, and is left to the key field, where it moves the caret. Clear a key and test it to see a failure.</footer>
       </div>
-      <div class="card">
+      <div class="card" data-new>
         <h2>A list that holds its place</h2>
-        <ul class="cp-list" id="hold-list" data-hold>
-          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-cell-stack">Frieren, Season 1<small>Grabbed <time data-ago="900"></time></small></span></div></li>
-          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><span class="cp-cell-stack">Mushishi<small>Checked <time data-ago="2400"></time></small></span></div></li>
-          <li><div class="cp-list-row" data-kept><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-cell-stack">Radarr's queue<small><span class="cp-icon" data-cp-icon="clock" aria-hidden="true"></span>Kept from 03:00: Radarr is not answering</small></span></div></li>
+        <ul class="cp-list" id="hold-log" aria-label="Recent activity">
+          <li class="cp-since">Since your last visit, Sat 21:40</li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="refresh-cw" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Quick check<small>4 s · 2 entries judged · 1 state changed</small></span><span data-part="end"><time data-ago="240"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="download" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Imported: Dandadan<small>Sonarr S1 · grabbed from the feed</small></span><span data-part="end"><time data-ago="1560"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="check-check" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Problem ended: SeaDex unreachable<small>Lasted 2 h 15 m</small></span><span data-part="end"><time data-ago="9900"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
+          <li><a class="cp-list-row" href="#lists"><span class="cp-icon" data-cp-icon="circle-x" data-tone="danger" aria-hidden="true"></span><span class="cp-cell-stack">Download failed, blocklisted by Sonarr: Mob Psycho 100 II<small>S2</small></span><span data-part="end"><time data-ago="12120"></time></span><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></a></li>
         </ul>
-        <div class="g-row-inline g-gap-top"><button class="cp-button" data-size="sm" type="button" data-hold-push="hold-list">Three rows arrive</button></div>
-        <footer>New rows never push the list under the reader: a line offers them, “3 newer rows · Show”, and Show puts them in and moves focus to the first. A row the app could not refresh stays, in muted ink with a clock and the reason.</footer>
+        <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-log"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button></div>
+        <footer>A row that arrives while the reader is in the list, pointing at it, in one of its rows or scrolled past its start, waits behind one line, “3 newer rows · Show”, so nothing moves under them. Show puts the rows in and moves focus to the first, and the count is said once it stops changing. At the list's start, untouched, a row goes straight in. The log is kept to what is new since the last visit, under one “Since your last visit” line, the marker a feed holds too. Start the live changes, then point at the list.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A table that holds its place</h2>
+        <div class="cp-panel" data-flush>
+          <table class="cp-table">
+            <caption>Library, the worst verdict first</caption>
+            <thead><tr><th>Copy</th><th>Verdict</th><th>Grab</th></tr></thead>
+            <tbody id="hold-library">
+              <tr data-copy="ping-pong" data-verdict="missing"><td><div class="cp-cell-stack"><a href="#lists">Ping Pong the Animation</a><span class="cp-meta">Sonarr, TV, 2014</span></div></td><td><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></td><td><span class="cp-meta">None</span></td></tr>
+              <tr data-copy="dungeon" data-verdict="worse"><td><div class="cp-cell-stack"><a href="#lists">Delicious in Dungeon</a><span class="cp-meta">Sonarr, TV, 2024</span></div></td><td><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not the best</span></td><td><button class="cp-track-compact" type="button" data-cp-tip="Step 2 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Sent, 60 %"><span class="cp-icon" data-cp-icon="send-horizontal" aria-hidden="true"></span>Sent</button></td></tr>
+              <tr data-copy="mushishi" data-verdict="alt"><td><div class="cp-cell-stack"><a href="#lists">Mushishi</a><span class="cp-meta">Sonarr, TV, 2005</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>On an alt</span></td><td><button class="cp-track-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Downloading, 42 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></td></tr>
+              <tr data-copy="frieren" data-verdict="best"><td><div class="cp-cell-stack"><a href="#lists">Frieren: Beyond Journey's End</a><span class="cp-meta">Sonarr, TV, 2023</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></td><td><button class="cp-track-compact" type="button" data-cp-tip="Step 3 of 4: Found, Sent, Downloading, Imported" data-cp-tip-toggle aria-label="Downloading, 87 %"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span>Downloading</button></td></tr>
+              <tr data-copy="heron" data-verdict="best"><td><div class="cp-cell-stack"><a href="#lists">The Boy and the Heron</a><span class="cp-meta">Radarr, film, 2023</span></div></td><td><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>On the best</span></td><td><span class="cp-meta">None</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-load-copies="hold-library">Show 2 more</button></div>
+        <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-library"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button><button class="cp-button" data-size="sm" type="button" data-hold-partial="hold-library">End Sonarr's walk partial</button></div>
+        <footer>The Library is a table and holds its rows the same way: a copy whose verdict changes while the reader is in the table waits behind “1 row changed · Show”, and Show moves it to its sorted place. A Sonarr walk that ends partial keeps the copies it did not reach in muted ink, with the list's clock and the reason, “Kept from 03:00: Sonarr walk partial”, and their grabs go grey with them. Show 2 more adds the next copies at the table's end, as a table that pages its rows does, and moves focus to the first one's link.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A log that grows at its end</h2>
+        <ol class="cp-list" id="hold-steps" data-density="compact" aria-label="Full checks, oldest first">
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span class="cp-cell-stack">Full check started</span><span data-part="end"><time data-ago="10930"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="globe" aria-hidden="true"></span><span class="cp-cell-stack">Read SeaDex: 1,204 entries</span><span data-part="end"><time data-ago="10920"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-cell-stack">Read Sonarr: 412 series</span><span data-part="end"><time data-ago="10905"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span><span class="cp-cell-stack">Read Radarr: 96 films</span><span data-part="end"><time data-ago="10890"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><span class="cp-cell-stack">Read Nyaa's feed: 318 releases</span><span data-part="end"><time data-ago="10870"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="scale" aria-hidden="true"></span><span class="cp-cell-stack">Judged 508 copies: 3 states changed</span><span data-part="end"><time data-ago="10850"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="download" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Grabbed: Frieren S01 from Nyaa</span><span data-part="end"><time data-ago="10830"></time></span></div></li>
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="check-check" data-tone="success" aria-hidden="true"></span><span class="cp-cell-stack">Full check done in 2 m 10 s</span><span data-part="end"><time data-ago="10800"></time></span></div></li>
+        </ol>
+        <div class="cp-cluster"><button class="cp-button" data-size="sm" type="button" data-hold-live="hold-steps"><span class="cp-icon" data-cp-icon="play" aria-hidden="true"></span>Start live changes</button></div>
+        <footer>A log oldest first lets each new row in at once, since it goes in below the reader and moves nothing they see. A row that goes in out of view is counted on a line pinned to the window's end, “2 newer rows · Show”: Show goes to the newest row and moves focus to it, and the count goes once the reader scrolls there. Start the live changes, which run one full check, then scroll the page up until the log's end is below the window.</footer>
       </div>
         <div class="card g-wide" data-new>
           <h2>A long list</h2>
         <div class="g-row-inline"><div class="cp-search g-grow"><input class="cp-input" id="v-filter" type="search" placeholder="Filter titles" aria-label="Filter titles"><button class="cp-button" data-variant="quiet" type="button" aria-label="Clear"></button></div><span id="v-count"></span><button class="cp-button" type="button" data-live-update="v-list">Live update</button></div>
-        <div class="cp-list g-gap-top" id="v-list" data-virtual data-total="20000" data-count="v-count" data-filter="v-filter"><div data-part="spacer"></div></div>
-        <footer>20,000 rows, of which only those in view are drawn, each keyed by its id, so a live update changes rows in place and keeps the scroll and the focus. A row's one interactive part is its title link. The count is announced after typing stops.</footer>
+        <ul class="cp-list g-gap-top" id="v-list" data-virtual aria-label="Titles"></ul>
+        <footer>20,000 titles the server sends 100 at a time, of which only those in view are drawn, each keyed by its id. A page that has not come yet shows as skeleton rows until it does. A live update changes rows in place and keeps the scroll and the focus. A row's one interactive part is its title link. The count reads “20,000 of 20,000 titles”; once a filter leaves some, it reads how many, such as “2,000 of 20,000 titles” for Frieren, and is said once typing stops.</footer>
       </div>
     </div>
   </section>
@@ -165,19 +216,19 @@
       </div>
       <div class="card" data-new>
         <h2>History</h2>
-        <div class="cp-history" id="history-frieren">
-          <h3>Today</h3>
-          <ol>
-            <li><span data-part="mark" data-tone="success"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span></span><span><strong>Grabbed</strong> Arid's BD release<details><summary><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span>What changed</summary><p>Replaced the web release by Arid's BD remux: 24 episodes, dual audio.</p></details></span><time data-ago="1800"></time></li>
-            <li><span data-part="mark" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span></span><span><strong>Older revision</strong> found on the check</span><time data-ago="5400"></time></li>
+        <div id="history-frieren">
+          <h3 class="cp-list-heading">Today</h3>
+          <ol class="cp-list" data-variant="timeline" data-surface="plain">
+            <li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="success"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span></span><div><p><strong>Grabbed</strong> Arid's BD release</p><details><summary><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span>What changed</summary><p>Replaced the web release by Arid's BD remux: 24 episodes, dual audio.</p></details></div><span data-part="end"><time data-ago="1800"></time></span></div></li>
+            <li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span></span><div><p><strong>Older revision</strong> found on the check</p></div><span data-part="end"><time data-ago="5400"></time></span></div></li>
           </ol>
-          <h3>Last week</h3>
-          <ol>
-            <li><span data-part="mark" data-tone="neutral"><span class="cp-icon" data-cp-icon="plus" aria-hidden="true"></span></span><span><strong>Added</strong> from Sonarr</span><time data-ago="604800"></time></li>
+          <h3 class="cp-list-heading">Last week</h3>
+          <ol class="cp-list" data-variant="timeline" data-surface="plain">
+            <li><div class="cp-list-row" data-lines="wrap"><span data-part="mark" data-tone="neutral"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span></span><div><p><strong>Checked</strong> against SeaDex</p></div><span data-part="end"><time data-ago="604800"></time></span></div></li>
           </ol>
         </div>
-        <div class="g-row-inline g-gap-top"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-load-older="history-frieren">Load older</button></div>
-        <footer>Newest first under day headings, each event with its tone, its words and when; an event with more to say opens in place. Load older adds the next days below and moves focus to the first one it added.</footer>
+        <div class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-load-older>Load older</button></div>
+        <footer>Newest first under day headings, each day a timeline list: each event with its tone, its words and when; an event with more to say opens in place. Load older adds the next page below the days: its first event continues last week's list and the week before comes as a new day, focus moves to the first event added and how many came is said; the second press fails once and reads Retry, and the last week takes the button away.</footer>
       </div>
       <div class="card g-wide">
         <h2>State history</h2>
@@ -333,13 +384,13 @@
       </div>
       <div class="card g-wide" data-new>
         <h2>Media cards</h2>
-        <div class="cp-grid" style="--cp-grid-min: 9.5rem">
-          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><strong data-part="title">Frieren: Beyond Journey's End</strong><small data-part="meta">2023, 28 episodes</small></a>
-          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not best</span></span><strong data-part="title">Delicious in Dungeon</strong><small data-part="meta">2024, 24 episodes</small></a>
-          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><strong data-part="title">The Boy and the Heron</strong><small data-part="meta">2023, film</small></a>
-          <a class="cp-media" href="#cards"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></span><strong data-part="title">Ping Pong the Animation</strong><small data-part="meta">2014, 11 episodes</small></a>
-        </div>
-        <footer>Where the covers carry the meaning, a grid of cards. A cover is the work's own image; without one, the stand-in is a harmony colour and the kind's glyph. The cover grows a little under a mouse, and the focus ring goes round it.</footer>
+        <ul class="cp-list" data-layout="grid" aria-label="Library">
+          <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="2"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="success"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Best</span></span><span class="cp-cell-stack"><strong>Frieren: Beyond Journey's End</strong><small>2023, 28 episodes</small></span></a></li>
+          <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="3"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Not best</span></span><span class="cp-cell-stack"><strong>Delicious in Dungeon</strong><small>2024, 24 episodes</small></span></a></li>
+          <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="1"><span class="cp-icon" data-cp-icon="film" aria-hidden="true"></span></span><span class="cp-cell-stack"><strong>The Boy and the Heron</strong><small>2023, film</small></span></a></li>
+          <li><a class="cp-list-row" href="#cards"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv" aria-hidden="true"></span><span class="cp-chip" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Missing</span></span><span class="cp-cell-stack"><strong>Ping Pong the Animation</strong><small>2014, 11 episodes</small></span></a></li>
+        </ul>
+        <footer>Where the covers carry the meaning, a list laid out as a grid of tiles, <code>data-layout="grid"</code>. A cover is the work's own image; without one, the stand-in is a harmony colour and the kind's glyph. The cover grows a little under a mouse, and the focus ring goes round it.</footer>
       </div>
       <div class="card" data-new>
         <h2>Segmented meter</h2>
@@ -381,19 +432,27 @@
       <div class="card" data-new>
         <h2>Jobs</h2>
         <ul class="cp-list" data-jobs>
-          <li><div class="cp-list-row" data-variant="progress"><span class="cp-cell-stack"><strong data-job-kind>Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-job-n>12 of 40</span> · <span data-job-phase>Searching providers</span></small></div></li>
-          <li><div class="cp-list-row" data-variant="progress"><span class="cp-cell-stack"><strong data-job-kind>Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-job-n>20 of 26</span> · <span data-job-phase>Matching cues to the audio</span></small></div></li>
+          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-job-n>12 of 40</span> · <span data-job-phase>Searching providers</span></small></div></li>
+          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-job-n>20 of 26</span> · <span data-job-phase>Matching cues to the audio</span></small></div></li>
           <li class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-more-jobs>Show all 5 running</button></li>
         </ul>
-        <footer>What, where as a link, how far, the phase, and Stop. An ended job keeps its outcome in words.</footer>
+        <footer>What, where as a link, how far, the phase, and Stop. An ended job drops its bar and Stop, and keeps its outcome at its end and its cause under its scope. Show all 5 running adds the other jobs before the foot, moves focus to the first one's link, and goes.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>Problems</h2>
         <ul class="cp-list">
-          <li><div class="cp-list-row" data-variant="long"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>OpenSubtitles refused the API key, so 18 episodes are waiting.</p><time data-ago="5400"></time></div><a href="#steps">Fix the key</a></div></li>
-          <li><div class="cp-list-row" data-variant="long"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time data-ago="600"></time></div><a href="#steps">Open storage</a></div></li>
+          <li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>OpenSubtitles refused the API key, so 18 episodes are waiting.</p><time data-ago="5400"></time></div><a href="#steps">Fix the key</a></div></li>
+          <li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>The disk with /media/anime is full.</p><p>New subtitles cannot be saved until there is room.</p><time data-ago="600"></time></div><a href="#steps">Open storage</a></div></li>
+          <li><div class="cp-list-row" data-lines="wrap"><span class="cp-icon" data-cp-icon="triangle-alert" data-tone="warning" aria-hidden="true"></span><div><p>The post to /workspace/ui was refused: the inbox of @codex is full.</p><time data-ago="1500"></time></div><span data-part="end"><span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Refused post</span></span></div></li>
         </ul>
-        <footer>A sentence, since when, and one link to its fix; one problem may need two sentences.</footer>
+        <footer>A sentence, since when, and one link to its fix; one problem may need two sentences, and its kind may stand at the end. From 40rem wide the exact time shows beside the words.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>A row that stands alone</h2>
+        <ul class="cp-list" aria-label="Subtitle providers">
+          <li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span><div class="cp-cell-stack"><h3 id="ls-opensubtitles" tabindex="-1">OpenSubtitles</h3><small>The API key was refused, since <time data-ago="5400"></time></small></div><span data-part="end"><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Failing</span></span><div class="cp-cluster" data-part="actions"><a class="cp-button" data-size="sm" href="#steps">Replace the key</a><button class="cp-button" data-size="sm" type="button" data-status-test="OpenSubtitles"><span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="check" data-part="done" aria-hidden="true"></span><span class="cp-roll">Test again</span></button></div><details open><summary>Show details</summary><dl class="cp-facts"><dt>Last answer</dt><dd>401 Unauthorized</dd><dt>Checked</dt><dd>Every 15 minutes</dd><dt>Episodes waiting</dt><dd>18</dd></dl></details></div></li>
+        </ul>
+        <footer>A row that stands alone, or one of a few that each need more than one action, such as a provider's status: its title is a heading a link elsewhere lands on, its remedies sit on a line of their own under its words, and its details stay open while it is failing. A list of many rows keeps one action or a ⋯ menu at each row's end. Test again fails here, as the key is still refused.</footer>
       </div>
     </div>
   </section>

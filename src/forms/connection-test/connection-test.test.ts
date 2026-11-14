@@ -90,12 +90,12 @@ describe("enhanceConnectionTest", () => {
     a.give({ ok: true, message: "Sonarr 4.0 answered." });
     await tick();
     expect([status.dataset["cpState"], f.dataset["cpState"], status.textContent]).toEqual([
-      "passed",
-      "passed",
+      "done",
+      "done",
       "Sonarr 4.0 answered.",
     ]);
     expect(button.hasAttribute("aria-disabled")).toBe(false);
-    expect(states).toEqual(["busy", "passed"]);
+    expect(states).toEqual(["busy", "done"]);
   });
 
   it("ignores a press while busy, without moving focus off the button", async () => {

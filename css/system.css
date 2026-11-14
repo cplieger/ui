@@ -2070,8 +2070,8 @@
   }
 }
 
-/* A settings page: its categories as links beside the open one's form, and
- * the categories in a row above it under 48rem. */
+/* A settings page: its categories, a plain compact list of links, beside
+ * the open one's form, and in a row above it under 48rem. */
 .cp-settings {
   display: grid;
   grid-template-columns: 13rem minmax(0, 1fr);
@@ -2079,26 +2079,17 @@
   align-items: start;
 }
 
-.cp-settings-nav {
-  display: grid;
+/* The categories keep the page's control height and a wider inset than a
+ * rail's filters, beside a form of controls that tall. This file comes
+ * before the list's in the cascade, so the gap names the list's element to
+ * outrank its divider rule. */
+.cp-settings-nav > :is(ul, ol).cp-list {
   gap: var(--cp-space-1);
 }
 
-.cp-settings-nav > a {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
+.cp-settings-nav > .cp-list > li > .cp-list-row {
   min-block-size: var(--cp-control-h);
   padding-inline: var(--cp-space-3);
-  border-radius: var(--cp-radius-control);
-  color: var(--cp-ink);
-  text-decoration: none;
-}
-
-.cp-settings-nav > a[aria-current] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-weight: var(--cp-weight-medium);
 }
 
 @media (width < 48rem) {
@@ -2108,12 +2099,15 @@
   }
 
   .cp-settings-nav {
-    display: flex;
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  .cp-settings-nav > a {
+  .cp-settings-nav > .cp-list {
+    display: flex;
+  }
+
+  .cp-settings-nav > .cp-list > li {
     flex: none;
   }
 }
@@ -2172,17 +2166,8 @@
   flex: 1 1 auto;
 }
 
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-settings-nav > a:not([aria-current]):hover {
-      background: var(--cp-fill);
-    }
-  }
-}
-
 @media (forced-colors: active) {
-  .cp-savebar,
-  .cp-settings-nav > a[aria-current] {
+  .cp-savebar {
     border: var(--cp-line-w) solid CanvasText;
   }
 }
@@ -2271,41 +2256,10 @@
   outline-offset: var(--cp-focus-offset);
 }
 
-/* The files a field took: each a file glyph, its name and its size. */
-.cp-files {
-  display: grid;
-  gap: var(--cp-space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--cp-text-sm);
-}
-
-.cp-files > li {
-  display: flex;
-  gap: var(--cp-space-2);
-  align-items: baseline;
-  min-inline-size: 0;
-}
-
-.cp-files > li::before {
-  content: "";
-  flex: none;
-  align-self: center;
-  inline-size: 1rem;
-  block-size: 1rem;
-  background: var(--cp-ink-muted);
-  mask: url("../icons/svg/file-text.svg") center / contain no-repeat;
-}
-
-.cp-files > li > span {
-  overflow-wrap: anywhere;
-}
-
-.cp-files > li > small {
-  flex: none;
-  color: var(--cp-ink-muted);
-  font-variant-numeric: tabular-nums;
+/* A file row's glyph, which the field's list writes, is drawn here, so it
+ * paints with no icon script. */
+.cp-list-row > .cp-icon[data-cp-icon="file-text"] {
+  --cp-icon-image: url("../icons/svg/file-text.svg");
 }
 
 @media (forced-colors: active) {
@@ -2315,10 +2269,6 @@
 
   .cp-drop:has(> input:focus-visible) {
     outline-color: Highlight;
-  }
-
-  .cp-files > li::before {
-    background: CanvasText;
   }
 }
 
@@ -2722,6 +2672,14 @@ a.cp-wordmark {
   scale: -1 1;
 }
 
+/* Forced colours paint a non-system background as Canvas, which would
+ * hide the mark. */
+@media (forced-colors: active) {
+  .cp-crumbs > :not(:first-child)::before {
+    background: CanvasText;
+  }
+}
+
 /* Buttons: one primary per surface; danger is data-tone="danger". */
 .cp-button {
   display: inline-flex;
@@ -2763,15 +2721,6 @@ a.cp-wordmark {
   --cp-press-scale: 1;
 }
 
-.cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
-  background: var(--cp-fill-active);
-}
-
-/* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
-.cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
-  background: var(--cp-fill-active);
-}
-
 .cp-button[data-variant="primary"] {
   background: var(--cp-tone-9);
   color: var(--cp-tone-on);
@@ -2802,8 +2751,10 @@ a.cp-wordmark {
       background: var(--cp-tone-10);
     }
 
+    /* A surface whose own hover fill is --cp-fill, such as a hovered row,
+     * sets --cp-quiet-hover, so a quiet button on it still shows its own. */
     .cp-button[data-variant="quiet"]:hover:not(:disabled, [aria-disabled="true"]) {
-      background: var(--cp-fill);
+      background: var(--cp-quiet-hover, var(--cp-fill));
       color: var(--cp-ink);
     }
 
@@ -2811,6 +2762,20 @@ a.cp-wordmark {
       background: var(--cp-shell-hover);
       color: inherit;
     }
+  }
+}
+
+/* An icon-only button's press fill sits in a scope rooted where the hovers'
+ * is and after them, so it ties them on specificity and on scope proximity
+ * and wins by order: a press shows under a mouse as under a finger. */
+@scope (:root) {
+  .cp-button[aria-label][data-cp-pressed]:not(:has(> :not(.cp-icon))) {
+    background: var(--cp-fill-active);
+  }
+
+  /* stylelint-disable-next-line selector-max-pseudo-class -- the same fill from :active, so a page without installPress still sees the press */
+  .cp-button[aria-label]:active:not(:has(> :not(.cp-icon))) {
+    background: var(--cp-fill-active);
   }
 }
 
@@ -3990,69 +3955,6 @@ textarea.cp-input {
   }
 }
 
-/* The connection test's answer (@cplieger/ui/connection-test): its words
- * after a glyph, in a tone drawn from data-cp-state: the spinner while busy,
- * circle-check in the success tone once passed, circle-x in the danger tone
- * once failed, and nothing at rest. */
-.cp-test-status {
-  --cp-test-glyph: none;
-
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-1);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-}
-
-.cp-test-status::before {
-  content: "";
-  display: none;
-  flex: none;
-  inline-size: var(--cp-icon-ui);
-  block-size: var(--cp-icon-ui);
-  background: currentcolor;
-  mask: var(--cp-test-glyph) center / contain no-repeat;
-}
-
-.cp-test-status[data-cp-state="busy"] {
-  --cp-test-glyph: url("../icons/svg/spinner-arc.svg");
-}
-
-.cp-test-status[data-cp-state="busy"]::before {
-  display: block;
-  animation: cp-spin 0.8s linear infinite;
-}
-
-.cp-test-status[data-cp-state="passed"] {
-  --cp-test-glyph: url("../icons/svg/circle-check.svg");
-
-  color: var(--cp-success-11);
-}
-
-.cp-test-status[data-cp-state="failed"] {
-  --cp-test-glyph: url("../icons/svg/circle-x.svg");
-
-  color: var(--cp-danger-11);
-}
-
-.cp-test-status[data-cp-state="passed"]::before,
-.cp-test-status[data-cp-state="failed"]::before {
-  display: block;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cp-test-status[data-cp-state="busy"]::before {
-    animation: none;
-  }
-}
-
-@media (forced-colors: active) {
-  .cp-test-status::before {
-    background: CanvasText;
-  }
-}
-
 /* Rules that read as sentences, such as "When the audio is [Japanese],
  * fetch [English] [+]", set in columns like a table: the condition, the
  * verb, the targets and the row's buttons, so every picker starts where the
@@ -4205,12 +4107,14 @@ textarea.cp-input {
   }
 }
 
-/* A state word: a short word in its tone, after the tone's glyph, such as
- * "set", "not set" or "rejected" beside a setting. */
+/* A state: the state of a thing in its row or field, a short word in its
+ * tone after the tone's glyph, such as "set", "not set" or "rejected"
+ * beside a setting. With data-cp-state it is the state of the thing's own
+ * work, and the stylesheet draws its glyph and tone. */
 .cp-state {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--cp-space-1);
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
   font-weight: var(--cp-weight-medium);
@@ -4218,6 +4122,73 @@ textarea.cp-input {
 
 .cp-state > .cp-icon {
   --cp-icon-size: 0.875rem;
+}
+
+/* A state that is its line's own content, such as a test's answer beside
+ * its button, reads at the interface's size with a control's glyph. */
+.cp-state[data-size="ui"] {
+  font-size: var(--cp-text-ui);
+}
+
+.cp-state[data-size="ui"] > .cp-icon {
+  --cp-icon-size: var(--cp-icon-ui);
+}
+
+/* Only a state that names a glyph below makes the box, so a state of any
+ * other value never paints the unmasked square. */
+.cp-state[data-cp-state]::before {
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: currentcolor;
+  mask: var(--cp-state-glyph) center / contain no-repeat;
+}
+
+.cp-state[data-size="ui"]::before {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+}
+
+.cp-state:is([data-cp-state="idle"], [data-cp-state="busy"]) {
+  color: var(--cp-ink-muted);
+}
+
+.cp-state[data-cp-state="busy"] {
+  --cp-state-glyph: url("../icons/svg/spinner-arc.svg");
+}
+
+.cp-state[data-cp-state="busy"]::before {
+  content: "";
+  animation: cp-spin 0.8s linear infinite;
+}
+
+.cp-state[data-cp-state="done"] {
+  --cp-state-glyph: url("../icons/svg/circle-check.svg");
+
+  color: var(--cp-success-11);
+}
+
+.cp-state[data-cp-state="failed"] {
+  --cp-state-glyph: url("../icons/svg/circle-x.svg");
+
+  color: var(--cp-danger-11);
+}
+
+.cp-state[data-cp-state="done"]::before,
+.cp-state[data-cp-state="failed"]::before {
+  content: "";
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-state[data-cp-state="busy"]::before {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .cp-state[data-cp-state]::before {
+    background: CanvasText;
+  }
 }
 
 /* Data table: rows are never interactive; actions are buttons in a cell.
@@ -4511,6 +4482,8 @@ th[aria-sort="descending"] > .cp-sort::after {
     }
 
     .cp-table tbody tr:hover :is(td, th) {
+      --cp-quiet-hover: var(--cp-fill-hover);
+
       background: var(--cp-fill);
     }
 
@@ -5030,65 +5003,12 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* A history: a heading per day, then an <ol> of that day's events, newest
- * first. An event is its round mark (data-part="mark", in its data-tone,
- * holding the event's glyph), its words, and its <time> at the end; a line
- * joins the marks. An event with more to say holds a native <details>. */
-.cp-history > :is(h1, h2, h3, h4, h5, h6) {
-  margin: var(--cp-space-4) 0 var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-strong);
-}
-
-.cp-history > :first-child {
-  margin-block-start: 0;
-}
-
-.cp-history > ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.cp-history > ol > li {
-  position: relative;
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) auto;
-  gap: var(--cp-space-3);
-  align-items: start;
-  padding-block: var(--cp-space-2);
-  font-size: var(--cp-text-sm);
-}
-
-/* The line runs from under this event's mark to the next event's. */
-.cp-history > ol > li:not(:last-child)::before {
-  content: "";
-  position: absolute;
-  inset-block: 2.25rem 0;
-  inset-inline-start: calc(1rem - 1px);
-  border-inline-start: 2px solid var(--cp-line);
-}
-
-.cp-history [data-part="mark"] {
-  display: grid;
-  place-items: center;
-  inline-size: 2rem;
-  block-size: 2rem;
-  border-radius: 50%;
-  background: var(--cp-tone-3);
-  color: var(--cp-tone-11);
-}
-
-.cp-history > ol > li > time {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-  white-space: nowrap;
-}
+/* A timeline event with more to say holds a native <details>: its summary
+ * an accent line after a chevron, its words muted under it. */
 
 /* The summary keeps its 19px line, so its hit area reaches past it, sized
  * rather than inset so it never snaps under the minimum. */
-.cp-history details > summary {
+.cp-list[data-variant="timeline"] details > summary {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -5098,11 +5018,11 @@ th[aria-sort="descending"] > .cp-sort::after {
   cursor: pointer;
 }
 
-.cp-history details > summary::-webkit-details-marker {
+.cp-list[data-variant="timeline"] details > summary::-webkit-details-marker {
   display: none;
 }
 
-.cp-history details > summary::after {
+.cp-list[data-variant="timeline"] details > summary::after {
   content: "";
   position: absolute;
   inset-block-start: 50%;
@@ -5112,35 +5032,30 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* The chevron turns to point down, so a mirrored one turns the other way. */
-.cp-history details > summary > .cp-icon {
+.cp-list[data-variant="timeline"] details > summary > .cp-icon {
   --cp-icon-size: 0.875rem;
-  --cp-history-turn: 90deg;
+  --cp-timeline-turn: 90deg;
 
   transition: rotate 160ms var(--cp-ease-out);
 }
 
-.cp-history details > summary > .cp-icon:dir(rtl) {
-  --cp-history-turn: -90deg;
+.cp-list[data-variant="timeline"] details > summary > .cp-icon:dir(rtl) {
+  --cp-timeline-turn: -90deg;
 }
 
-.cp-history details[open]:not([data-cp-closing]) > summary > .cp-icon {
-  rotate: var(--cp-history-turn);
+/* Only a timeline sets the turn, so a chevron in another row stays put. */
+.cp-list-row details[open]:not([data-cp-closing]) > summary > .cp-icon {
+  rotate: var(--cp-timeline-turn);
 }
 
-.cp-history details > :not(summary) {
+.cp-list[data-variant="timeline"] details > :not(summary) {
   margin: var(--cp-space-1) 0 0;
   color: var(--cp-ink-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cp-history details > summary > .cp-icon {
+  .cp-list[data-variant="timeline"] details > summary > .cp-icon {
     transition: none;
-  }
-}
-
-@media (forced-colors: active) {
-  .cp-history [data-part="mark"] {
-    border: var(--cp-line-w) solid CanvasText;
   }
 }
 
@@ -5703,6 +5618,31 @@ th[aria-sort="descending"] > .cp-sort::after {
   white-space: nowrap;
 }
 
+/* Cut at its start, so a path's leaf stays in view: the line runs against
+ * the text's own direction, where the ellipsis falls at the start. The
+ * marks keep the text's direction for a leading or trailing "/" or ")",
+ * which would otherwise take the line's and jump to the other end. Machine
+ * text in a right-to-left page carries dir="ltr", as it must anyway. */
+.cp-truncate[data-cut="start"] {
+  direction: rtl;
+  text-align: left;
+}
+
+.cp-truncate[data-cut="start"]::before,
+.cp-truncate[data-cut="start"]::after {
+  content: "\200E" / "";
+}
+
+.cp-truncate[data-cut="start"]:dir(rtl) {
+  direction: ltr;
+  text-align: right;
+}
+
+.cp-truncate[data-cut="start"]:dir(rtl)::before,
+.cp-truncate[data-cut="start"]:dir(rtl)::after {
+  content: "\200F" / "";
+}
+
 /* A cell's main text over a muted second line. */
 .cp-cell-stack {
   display: grid;
@@ -5872,6 +5812,60 @@ th[aria-sort="descending"] > .cp-sort::after {
   border-block-start: var(--cp-line-w) solid var(--cp-line);
 }
 
+/* A list a script has not filled yet, such as a file field's before a
+ * choice, draws no empty box, whitespace between its tags or not. */
+.cp-list:not(:has(> *)) {
+  display: none;
+}
+
+/* A list that sits in a rail, a popover, a dialog or a panel: no box. */
+.cp-list[data-surface="plain"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+/* Rows with no line between them: each row's fill takes the control's
+ * corners, a hairline apart so two filled rows still read as two, and a
+ * boxed list holds the fills off its edge. */
+.cp-list[data-divider="none"] {
+  gap: var(--cp-line-w);
+}
+
+.cp-list[data-divider="none"]:not([data-surface="plain"]) {
+  padding: var(--cp-space-1);
+}
+
+.cp-list[data-divider="none"] > li + li {
+  border-block-start: 0;
+}
+
+.cp-list[data-divider="none"] .cp-list-row {
+  border-radius: var(--cp-radius-control);
+}
+
+/* A group's heading over its own list, such as a day or a rail's section. */
+.cp-list-heading {
+  margin: var(--cp-space-4) 0 var(--cp-space-2);
+  color: var(--cp-ink);
+  font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-heading);
+}
+
+.cp-list-heading:first-child {
+  margin-block-start: 0;
+}
+
+/* Over a list with no box, the heading lines up with its rows' content. */
+.cp-list-heading:has(+ .cp-list[data-surface="plain"]) {
+  padding-inline: var(--cp-space-4);
+}
+
+.cp-list-heading:has(+ .cp-list[data-surface="plain"][data-density="compact"]) {
+  padding-inline: var(--cp-space-2);
+}
+
 /* A row: a link or a button when the whole row opens something, or a div
  * holding its one worded action. */
 .cp-list-row {
@@ -5896,26 +5890,97 @@ th[aria-sort="descending"] > .cp-sort::after {
   cursor: pointer;
 }
 
+/* Density sets every row's height and its lead's size. Compact rows are a
+ * small control tall, as a rail's filters and a popup's options are, which
+ * the pointer tier lifts to a finger's 44px; tall rows hold a poster. The
+ * list's part is in :where(), so a row's own layout still wins. */
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row {
+  gap: var(--cp-space-2);
+  min-block-size: var(--cp-control-h-sm);
+  padding: 0 var(--cp-space-2);
+}
+
+:where(.cp-list[data-density="tall"] > li) > .cp-list-row {
+  min-block-size: 4.5rem;
+  padding-block: var(--cp-space-3);
+}
+
+.cp-list-row > .cp-cover {
+  flex: none;
+  inline-size: 1.5rem;
+}
+
+.cp-list-row > .cp-cover > .cp-icon {
+  --cp-icon-size: 0.875rem;
+}
+
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row > .cp-avatar {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+}
+
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row > .cp-cover {
+  inline-size: 1rem;
+}
+
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row > .cp-cover > .cp-icon {
+  --cp-icon-size: 0.625rem;
+}
+
+:where(.cp-list[data-density="tall"] > li) > .cp-list-row > .cp-avatar {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+}
+
+:where(.cp-list[data-density="tall"] > li) > .cp-list-row > .cp-cover {
+  inline-size: 2rem;
+}
+
+:where(.cp-list[data-density="tall"] > li) > .cp-list-row > .cp-cover > .cp-icon {
+  --cp-icon-size: 1rem;
+}
+
 .cp-list-row > .cp-icon {
   color: var(--cp-ink-muted);
 }
 
+/* A colour's square: a row's lead, or a chip's or a legend's mark. */
+.cp-swatch {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: 0.1875rem;
+  background: var(--cp-tone-9);
+}
+
+/* A round mark in its tone holding the item's glyph, as a timeline's
+ * events have. Positioned, so it paints over the line joining the marks. */
+.cp-list-row > [data-part="mark"] {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 50%;
+  background: var(--cp-tone-3);
+  color: var(--cp-tone-11);
+}
+
+/* A name with no break point, such as a file's or a path, wraps inside the
+ * row rather than widening it. */
 .cp-list-row > .cp-cell-stack {
   flex: 1;
   justify-items: stretch;
   min-inline-size: 0;
   padding-block: 0;
+  overflow-wrap: anywhere;
 }
 
 /* A row's title is its main text, so a cut title ends at the row's edge,
  * not at the 14rem a table cell's does. */
 .cp-list-row .cp-cell-stack > .cp-truncate {
   max-inline-size: none;
-}
-
-/* Machine text has no break points, so a long name would widen the row. */
-.cp-list-row .cp-cell-stack > :is(.cp-mono, code) {
-  overflow-wrap: anywhere;
 }
 
 .cp-list-row time {
@@ -5942,7 +6007,15 @@ th[aria-sort="descending"] > .cp-sort::after {
   gap: 0.125rem;
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-xs);
+  font-weight: var(--cp-weight-body);
   font-variant-numeric: tabular-nums;
+}
+
+/* A compact row is one line tall, so its end runs along that line. */
+:where(.cp-list[data-density="compact"] > li) > .cp-list-row > [data-part="end"] {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
 }
 
 .cp-list-row > [data-part="end"] > .cp-cluster {
@@ -5971,33 +6044,105 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-size: var(--cp-text-xs);
 }
 
-/* A running job: what and where beside its action, a bar across the row,
- * then how far it is. The action stretches to the text it sits beside. */
-.cp-list-row[data-variant="progress"] {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+/* A part under the row's text, such as a running job's bar or a status
+ * row's remedies, takes a line of its own across the row, and what follows
+ * it lines up under it. The action stretches to the text it sits beside. */
+.cp-list-row:has(> :is(progress, .cp-track, details, [data-part="actions"])) {
+  flex-wrap: wrap;
+  align-content: start;
   align-items: stretch;
   gap: var(--cp-space-1) var(--cp-space-4);
-  padding: var(--cp-space-3) var(--cp-space-4);
+  padding-block: var(--cp-space-3);
 }
 
-.cp-list-row > progress {
-  grid-column: 1 / -1;
-  inline-size: 100%;
+.cp-list-row > :is(progress, .cp-track, details, [data-part="actions"]),
+.cp-list-row > :is(progress, .cp-track, details, [data-part="actions"]) ~ * {
+  flex-basis: 100%;
 }
 
-/* A row that runs to sentences: its glyph on the first line, the words,
- * and one link to its fix at the end. */
-.cp-list-row[data-variant="long"] {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+.cp-list-row > [data-part="actions"] {
+  margin-block-start: var(--cp-space-1);
+}
+
+/* A row that stands alone, such as a component's status, may be titled by
+ * a heading a link lands on; it keeps a row title's size and font, in the
+ * medium weight a title link has. A tile's title rule outranks this. */
+.cp-list-row > .cp-cell-stack > :is(h2, h3, h4) {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--cp-weight-medium);
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+/* A row that runs to sentences: its lead on the first line, the words,
+ * then its end and its one action at the top. The row is the container
+ * its time reads, so its width comes from its list, never from its words. */
+.cp-list-row[data-lines="wrap"] {
+  container: cp-row / inline-size;
   align-items: start;
-  padding: var(--cp-space-3) var(--cp-space-4);
+  padding-block: var(--cp-space-3);
   font-size: var(--cp-text-sm);
 }
 
-.cp-list-row[data-variant="long"] p {
+.cp-list-row[data-lines="wrap"] > :has(> p) {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.cp-list-row[data-lines="wrap"] p {
   margin: 0;
+}
+
+/* From 40rem the exact time shows beside the words. It is read from the
+ * time's tooltip (relative-time sets both), and its text is hidden from a
+ * screen reader, which already hears the exact time once. */
+@container cp-row (width >= 40rem) {
+  .cp-list-row[data-lines="wrap"] time[data-cp-tip]::after {
+    content: " (" attr(data-cp-tip) ")" / "";
+  }
+}
+
+/* A timeline: each row's mark joined to the next row's by a line, and no
+ * line between the rows. Its rows keep one inset whatever the density, so
+ * the line meets the marks' centres; with no box, the marks sit at its
+ * edge and the rows take no fill under a mouse. */
+.cp-list[data-variant="timeline"] {
+  --cp-timeline-inset: var(--cp-space-4);
+}
+
+.cp-list[data-variant="timeline"][data-surface="plain"] {
+  --cp-timeline-inset: 0px;
+  --cp-list-row-hover: transparent;
+}
+
+.cp-list[data-variant="timeline"] > li {
+  position: relative;
+}
+
+.cp-list[data-variant="timeline"] > li + li {
+  border-block-start: 0;
+}
+
+.cp-list[data-variant="timeline"] > li > .cp-list-row {
+  align-items: start;
+  padding: var(--cp-space-2) var(--cp-timeline-inset);
+}
+
+.cp-list[data-variant="timeline"] > li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-block: 2.25rem 0;
+  inset-inline-start: calc(var(--cp-timeline-inset) + 1rem - 1px);
+  border-inline-start: 2px solid var(--cp-line);
+}
+
+.cp-list[data-variant="timeline"] time {
+  white-space: nowrap;
+}
+
+.cp-list-heading:has(+ .cp-list[data-variant="timeline"][data-surface="plain"]) {
+  padding-inline: 0;
 }
 
 .cp-list-row[data-unread] > .cp-cell-stack {
@@ -6020,8 +6165,42 @@ th[aria-sort="descending"] > .cp-sort::after {
   outline-offset: -2px;
 }
 
-.cp-list-row[aria-current]:not([aria-current="false"]) {
+/* One look for the row that is open, on or chosen: the selected wash in the
+ * accent's darkest ink. Its muted lines keep their ink and weight, which
+ * still pass AA on the wash, and a quiet count turns solid in the accent. */
+.cp-list-row[aria-current]:not([aria-current="false"]),
+.cp-list-row[aria-pressed="true"],
+.cp-list-row[aria-selected="true"] {
   background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-list-row[aria-current]:not([aria-current="false"]) :is(small, .cp-meta, time),
+.cp-list-row[aria-pressed="true"] :is(small, .cp-meta, time),
+.cp-list-row[aria-selected="true"] :is(small, .cp-meta, time) {
+  font-weight: var(--cp-weight-body);
+}
+
+.cp-list-row:where([aria-current]:not([aria-current="false"])) > .cp-cell-stack > a,
+.cp-list-row:where([aria-pressed="true"], [aria-selected="true"]) > .cp-cell-stack > a {
+  color: inherit;
+}
+
+.cp-list-row[aria-current]:not([aria-current="false"]) .cp-badge,
+.cp-list-row[aria-pressed="true"] .cp-badge,
+.cp-list-row[aria-selected="true"] .cp-badge {
+  background: var(--cp-accent);
+  color: var(--cp-on-accent);
+}
+
+/* A toggle's wash turns the whole row on or off, so it fades slower than a
+ * colour change, and its count with it. */
+button.cp-list-row[aria-pressed],
+button.cp-list-row[aria-pressed] .cp-badge {
+  transition:
+    background-color var(--cp-dur-medium) var(--cp-ease-out),
+    color var(--cp-dur-medium) var(--cp-ease-out);
 }
 
 :is(a[href], button).cp-list-row:is(:active, [data-cp-pressed]) {
@@ -6031,14 +6210,18 @@ th[aria-sort="descending"] > .cp-sort::after {
 @media (any-hover: hover) {
   @scope (:root:not([data-pointer="coarse"])) {
     .cp-list-row:not([data-skeleton]):hover {
-      background: var(--cp-fill);
+      --cp-quiet-hover: var(--cp-fill-hover);
+
+      background: var(--cp-list-row-hover, var(--cp-fill));
     }
 
-    /* The open row keeps its fill under the mouse. The hover fill above
-     * wins over the selected rule on scope proximity; this one ties it on
-     * specificity and comes later, so the more specific pressed fill still
-     * wins over both. */
-    .cp-list-row:where([aria-current]):not([aria-current="false"]):hover {
+    /* A selected row keeps its fill under the mouse. The hover fill above
+     * outranks the selected rules, on specificity or on scope proximity;
+     * these tie it on specificity and come later, so the more specific
+     * pressed fill still wins over both. */
+    .cp-list-row:where([aria-current]):not([aria-current="false"]):hover,
+    .cp-list-row[aria-pressed="true"]:hover,
+    .cp-list-row[aria-selected="true"]:hover {
       background: var(--cp-selected);
     }
 
@@ -6056,50 +6239,146 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* The rows a list holds back while the reader is in it: their count and the
- * Show button that puts them in, above the list, in a role="status". */
-.cp-list-pending {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* Tiles: each row a cover over its title and facts, in as many columns of
+ * --cp-grid-min as fit, and its end under them. The cover takes the
+ * focus ring and grows a little under a mouse, so a tile has no fill. The
+ * row rule ties the press fill above on specificity and comes after it,
+ * and the parts' rules tie the row's and the density's and come after. */
+.cp-list[data-layout="grid"] {
+  --cp-grid-min: 9.5rem;
+
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cp-grid-min)), 1fr));
+  gap: var(--cp-space-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.cp-list[data-layout="grid"] > li + li {
+  border-block-start: 0;
+}
+
+.cp-list[data-layout="grid"] > li > .cp-list-row {
+  display: grid;
+  align-content: start;
   gap: var(--cp-space-2);
-  padding: var(--cp-space-2) var(--cp-space-4);
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
+  min-block-size: 0;
+  padding: 0;
+  background: none;
+}
+
+.cp-list[data-layout="grid"] > li > .cp-list-row:focus-visible {
+  outline: none;
+}
+
+:where(.cp-list[data-layout="grid"] > li) > .cp-list-row > .cp-cover {
+  inline-size: auto;
+  transition:
+    scale var(--cp-dur-medium) var(--cp-ease-spring),
+    box-shadow var(--cp-dur-medium) var(--cp-ease-out);
+}
+
+:where(.cp-list[data-layout="grid"] > li) > .cp-list-row > .cp-cover > .cp-icon {
+  --cp-icon-size: 2rem;
+}
+
+:where(.cp-list[data-layout="grid"] > li) > .cp-list-row:focus-visible > .cp-cover {
+  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
+  outline-offset: var(--cp-focus-offset);
+}
+
+:where(.cp-list[data-layout="grid"] > li) > .cp-list-row > .cp-cell-stack {
+  gap: var(--cp-space-2);
   font-size: var(--cp-text-sm);
 }
 
-/* The list's last item, holding one action for the whole list. */
-.cp-list-foot {
+:where(.cp-list[data-layout="grid"] > li) > .cp-list-row > .cp-cell-stack > :first-child {
+  font-weight: var(--cp-weight-heading);
+  line-height: 1.3;
+}
+
+:where(.cp-list[data-layout="grid"] > li) > .cp-list-row > [data-part="end"] {
+  justify-items: start;
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(.cp-list[data-layout="grid"] > li) > :is(a[href], button).cp-list-row:hover > .cp-cover {
+      scale: 1.03;
+      box-shadow: var(--cp-shadow-overlay);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      :where(.cp-list[data-layout="grid"] > li)
+        > :is(a[href], button).cp-list-row:hover
+        > .cp-cover {
+        scale: none;
+      }
+    }
+  }
+}
+
+/* A list's last item and a feed's head before its first entry each hold one
+ * action for the whole list, such as Show older, centred. */
+.cp-list-foot,
+.cp-feed-head {
   display: flex;
   justify-content: center;
   padding: var(--cp-space-2);
 }
 
-/* A list too long to draw: a scroller of --cp-list-h whose spacer a script
- * sizes to every row, drawing only the rows in view at their offsets.
- * Strict containment keeps each scroll's layout inside the list. */
-.cp-list[data-virtual] {
-  position: relative;
-  display: block;
-  block-size: var(--cp-list-h, 22rem);
-  overflow: auto;
-  contain: strict;
+/* A foot after a list or its groups, as under a day-by-day history, sits at
+ * their start edge below them, where a plain list's rows begin. */
+div.cp-list-foot {
+  justify-content: start;
+  margin-block-start: var(--cp-space-3);
+  padding: 0;
 }
 
-.cp-list[data-virtual] > [data-part="spacer"] {
-  position: relative;
-}
-
-/* The script places rows 3rem apart, so a row is exactly that tall. */
-.cp-list[data-virtual] .cp-list-row {
-  position: absolute;
-  inset-inline: 0;
-  block-size: 3rem;
-  min-block-size: 0;
-  padding-block: 0;
-  border-block-end: var(--cp-line-w) solid var(--cp-line);
+/* What is new since the last visit, in a list or a feed: its words at the
+ * start, in ink and a heavier weight than a day's, then a strong line to
+ * the end, so it differs from a day by place, weight and words as well as
+ * colour. */
+.cp-since {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  padding-block: var(--cp-space-2);
+  color: var(--cp-ink);
   font-size: var(--cp-text-sm);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-since::after {
+  flex: 1;
+  border-block-start: var(--cp-line-w) solid var(--cp-border-strong);
+  content: "";
+}
+
+/* In a list it lines up with the rows' content, and its own line stands in
+ * for the lines on either side of it. */
+.cp-list > .cp-since {
+  padding-inline: var(--cp-space-4);
+}
+
+.cp-list[data-density="compact"] > .cp-since {
+  padding-inline: var(--cp-space-2);
+}
+
+.cp-list[data-variant="timeline"] > .cp-since {
+  padding-inline: var(--cp-timeline-inset);
+}
+
+.cp-list > li.cp-since,
+.cp-list > li.cp-since + li {
+  border-block-start: 0;
+}
+
+/* The joining line stops at the marker, which stands between two runs. */
+.cp-list[data-variant="timeline"] > li.cp-since::before,
+.cp-list[data-variant="timeline"]:has(> .cp-since) > li:has(+ .cp-since)::before {
+  content: none;
 }
 
 .cp-list-row[data-skeleton] > .cp-skeleton {
@@ -6120,15 +6399,93 @@ th[aria-sort="descending"] > .cp-sort::after {
   inline-size: 85%;
 }
 
+/* A table row kept the same way: muted ink in every cell. */
+.cp-table tbody tr[data-kept] > :is(td, th) {
+  color: var(--cp-ink-muted);
+}
+
+/* A kept row's title link is muted too, so the row does not read as fresh;
+ * it still takes the accent under a mouse or the keyboard. This ties the
+ * title rule above on specificity, so it stays after it. */
+:where(.cp-list-row[data-kept], .cp-table tbody tr[data-kept]) .cp-cell-stack > a:first-child {
+  color: var(--cp-ink-muted);
+}
+
 @media (forced-colors: active) {
-  .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible) {
+  .cp-list-row > [data-part="mark"] {
+    border: var(--cp-line-w) solid CanvasText;
+  }
+
+  .cp-list-row[aria-current]:not([aria-current="false"], :focus-visible),
+  .cp-list-row[aria-pressed="true"]:not(:focus-visible),
+  .cp-list-row[aria-selected="true"]:not(:focus-visible) {
     outline: var(--cp-line-w) solid CanvasText;
     outline-offset: calc(-1 * var(--cp-line-w));
   }
+}
 
+/* The rows a list holds back while the reader is in it, or at its end edge
+ * those that went in below the reader: their count and the Show button. */
+.cp-list-pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-2);
+  padding: var(--cp-space-2) var(--cp-space-4);
+  background: var(--cp-selected);
+  color: var(--cp-accent-12);
+  font-size: var(--cp-text-sm);
+}
+
+/* At the end edge the line follows the list, pinned to its scroller's end
+ * while the rows it counts are below the reader; the script lifts it above
+ * the scroller's end padding. */
+.cp-list-pending[data-edge="end"] {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+}
+
+@media (forced-colors: active) {
   .cp-list-pending {
     border: var(--cp-line-w) solid CanvasText;
   }
+}
+
+/* A list too long to draw, which @cplieger/ui/keyed-list windows: its own
+ * scroller --cp-list-h tall, its rows in flow between spacers at the
+ * density's height. Strict containment keeps each scroll's layout inside
+ * the list; the module keeps the reader's place itself. */
+.cp-list[data-virtual] {
+  block-size: var(--cp-list-h, 22rem);
+  overflow: auto;
+  contain: strict;
+}
+
+/* A windowed table body: the columns take their widths from the head, so
+ * they hold still as rows come into view and leave it. */
+.cp-table:has(> tbody[data-virtual]) {
+  table-layout: fixed;
+}
+
+/* A spacer stands for rows out of view: the module sets its height, and it
+ * paints nothing. Its second attribute outranks the table's hover fill,
+ * which would win a tie on its scope's proximity. */
+.cp-table tbody tr[data-part="spacer"][aria-hidden] > td {
+  block-size: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.cp-table tbody tr[data-skeleton] .cp-skeleton {
+  inline-size: 70%;
+}
+
+/* The spinner @cplieger/ui/load-more gives its button, drawn here so a
+ * page that resolves no icons still shows it turn. */
+.cp-button[data-cp-load-more] > .cp-icon[data-part="busy"] {
+  --cp-icon-image: url("../icons/svg/spinner-arc.svg");
 }
 
 /* A list the person puts in order, its items any content: rows when it is
@@ -6329,25 +6686,6 @@ th[aria-sort="descending"] > .cp-sort::after {
 .cp-feed-day::after {
   flex: 1;
   border-block-start: var(--cp-line-w) solid var(--cp-line);
-  content: "";
-}
-
-/* What is new since the last visit: its words at the start, in ink and a
- * heavier weight than a day's, then a strong line to the end, so the two
- * differ by place, weight and words as well as colour. */
-.cp-feed-marker {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  padding-block: var(--cp-space-2);
-  color: var(--cp-ink);
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-medium);
-}
-
-.cp-feed-marker::after {
-  flex: 1;
-  border-block-start: var(--cp-line-w) solid var(--cp-border-strong);
   content: "";
 }
 
@@ -6577,7 +6915,9 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* Notice: the state's wash over its container, a glyph and text. */
+/* Notice: the state's wash over its container, a glyph and text. The banner
+ * variant is selected at one class's weight, so its rules win over these by
+ * order and lose to any context. */
 .cp-notice {
   display: flex;
   gap: var(--cp-space-3);
@@ -6633,87 +6973,58 @@ th[aria-sort="descending"] > .cp-sort::after {
   padding-inline-start: 1.25em;
 }
 
-.cp-notice :where(a) {
+/* A banner's links keep the accent, so its one way to act reads as a link
+ * in the small foot. */
+.cp-notice:where(:not([data-variant="banner"])) :where(a) {
   color: inherit;
 }
 
-@media (forced-colors: active) {
-  .cp-notice {
-    border: var(--cp-line-w) solid CanvasText;
-  }
-}
-
-/* A banner at the top of main, for a condition that stops the person's work
- * on every screen, such as an update that needs a reload: the words at the
- * start and its one action at the end, with no dismiss. */
-.cp-banner {
-  display: flex;
+/* The banner: a condition of every screen, at the top of main, its words and
+ * its action wrapping under each other in a narrow main. */
+.cp-notice:where([data-variant="banner"]) {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--cp-space-2) var(--cp-space-3);
   padding: var(--cp-space-2) var(--cp-space-4);
   border-radius: var(--cp-radius-control);
-  background: var(--cp-tone-3);
-  color: var(--cp-tone-12);
   font-size: var(--cp-text-sm);
 }
 
-.cp-banner > .cp-icon {
-  color: var(--cp-tone-11);
+.cp-notice:where([data-variant="banner"]) > .cp-icon {
+  margin-block-start: 0;
 }
 
-/* A banner with reasons stacks its head (a <strong> with its glyph), the
+/* A notice with reasons stacks its head (a <strong> with its glyph), the
  * list, and a <small> foot holding its one way to act. */
-.cp-banner:has(> ul) {
+.cp-notice:has(> ul) {
   display: grid;
   gap: var(--cp-space-2);
   padding-block: var(--cp-space-3);
 }
 
-.cp-banner:has(> ul) > strong {
+.cp-notice:has(> ul) > strong {
   display: flex;
   align-items: center;
   gap: var(--cp-space-2);
 }
 
-.cp-banner:has(> ul) > strong > .cp-icon {
+.cp-notice:has(> ul) > strong > .cp-icon {
   color: var(--cp-tone-11);
 }
 
-.cp-banner > ul {
+.cp-notice > ul {
   margin: 0;
   padding-inline-start: 1.75rem;
-  font-size: var(--cp-text-sm);
   line-height: var(--cp-leading-body);
 }
 
-.cp-banner:has(> ul) > small {
+.cp-notice:has(> ul) > small {
   color: var(--cp-tone-11);
   font-size: var(--cp-text-xs);
 }
 
-.cp-banner > .cp-button {
-  margin-inline-start: auto;
-}
-
-.cp-banner > .cp-button:not([data-variant="primary"]) {
-  --cp-chart-surface: var(--cp-surface-raised);
-
-  border: var(--cp-line-w) solid var(--cp-tone-8);
-  background: var(--cp-surface-raised);
-  color: var(--cp-tone-12);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-banner > .cp-button:not([data-variant="primary"]):hover {
-      background: var(--cp-tone-2);
-    }
-  }
-}
-
 @media (forced-colors: active) {
-  .cp-banner {
+  .cp-notice {
     border: var(--cp-line-w) solid CanvasText;
   }
 }
@@ -6784,9 +7095,22 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 /* A stack's gap is its children's spacing. */
 .cp-stack > hr,
+.cp-stack > li,
 .cp-stack > .cp-heading-row,
 .cp-stack > .cp-steps {
   margin-block: 0;
+}
+
+/* A list stacked as lines, with no marker or indent, at one class's weight
+ * so that an app's own class on the list, in a later sheet, still wins. */
+:where(ul, ol).cp-stack {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-stack[data-gap="tight"] {
+  gap: var(--cp-space-1);
 }
 
 /* A cluster: a row of small things, such as chips, buttons or facts, that
@@ -7145,79 +7469,6 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* Filter list: a rail section of options with counts. */
-.cp-filter-group {
-  display: grid;
-  gap: 1px;
-}
-
-.cp-filter-title {
-  margin: 0;
-  font-size: var(--cp-text-xs);
-  font-weight: var(--cp-weight-heading);
-  color: var(--cp-ink);
-  padding: 0 var(--cp-space-2) var(--cp-space-2);
-}
-
-.cp-filter {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border: 0;
-  border-radius: var(--cp-radius-control);
-  background: transparent;
-  color: var(--cp-ink);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-  /* Slower than a colour change: the wash turns the whole row on or off. */
-  transition: background-color var(--cp-dur-medium) var(--cp-ease-out);
-}
-
-.cp-filter[aria-pressed="true"] {
-  background: var(--cp-selected);
-  color: var(--cp-accent-12);
-  font-weight: var(--cp-weight-medium);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    .cp-filter:not([aria-pressed="true"]):hover {
-      background: var(--cp-fill);
-    }
-  }
-}
-
-.cp-swatch {
-  flex: none;
-  inline-size: 0.625rem;
-  block-size: 0.625rem;
-  border-radius: 0.1875rem;
-  background: var(--cp-tone-9);
-}
-
-/* A filter's count, a quiet .cp-badge at the row's end, turns solid in the
- * accent with its row. */
-.cp-filter > .cp-badge {
-  margin-inline-start: auto;
-  transition:
-    background-color var(--cp-dur-medium) var(--cp-ease-out),
-    color var(--cp-dur-medium) var(--cp-ease-out);
-}
-
-.cp-filter[aria-pressed="true"] > .cp-badge {
-  background: var(--cp-accent);
-  color: var(--cp-on-accent);
-}
-
-@media (forced-colors: active) {
-  .cp-filter[aria-pressed="true"] {
-    border: var(--cp-line-w) solid CanvasText;
-  }
-}
-
 /* One switcher look for three jobs: ARIA tabs that show panels (a tablist
  * of .cp-tab buttons), tabs that are links (a nav whose current link is
  * aria-current="page"), and the segmented control, which sets a value
@@ -7370,10 +7621,17 @@ th[aria-sort="descending"] > .cp-sort::after {
  * chevron, drawn pointing down and turned by the form. Inline, here: the
  * summary is an accent line with the chevron before its words. Boxed: the
  * sections of a .cp-accordion (accordion.css). The context panel, a
- * history's events and a state history still draw their own summaries, so
+ * timeline's events and a state history still draw their own summaries, so
  * they are left out. disclosure.ts keeps a closing section open, marked
  * data-cp-closing, so the chevron turns back as the press lands. */
-:where(.cp details:not(.cp-context-panel, .cp-history details, .cp-state-history > details)) {
+:where(
+  .cp
+    details:not(
+      .cp-context-panel,
+      .cp-list[data-variant="timeline"] details,
+      .cp-state-history > details
+    )
+) {
   & > summary {
     list-style: none;
     cursor: pointer;
@@ -7531,26 +7789,26 @@ th[aria-sort="descending"] > .cp-sort::after {
   margin-inline-start: 0;
 }
 
-/* Progress for a known amount: the host sets --cp-progress (0% to 100%) on
- * .cp-progress and data-state="done" with its last step. The fill is one
- * gradient fixed to the track, revealed by a clip that grows, so the
- * lighter end only shows near the finish. Its two stops are registered
- * colours, so done fades both to green; plain colours would swap at once. */
+/* Progress for a known amount: a native <progress> in a .cp-progress that
+ * holds the step in words, and data-state="done" with its last step. The
+ * fill is one gradient fixed to the track, so the lighter end only shows
+ * near the finish. Its two stops are registered colours, so done fades both
+ * to green; plain colours would swap at once. They inherit, because the
+ * engines draw the value in a pseudo-element of the <progress>. */
 @property --cp-progress-from {
   syntax: "<color>";
-  inherits: false;
+  inherits: true;
   initial-value: transparent;
 }
 
 @property --cp-progress-to {
   syntax: "<color>";
-  inherits: false;
+  inherits: true;
   initial-value: transparent;
 }
 
-/* It wraps and never outgrows its box, so in a narrow box the track
- * shrinks toward its 5rem floor and the words go under it instead of
- * overflowing. */
+/* It wraps and never outgrows its box, so in a narrow box the bar shrinks
+ * toward its 5rem floor and the words go under it instead of overflowing. */
 .cp-progress {
   display: inline-flex;
   flex-wrap: wrap;
@@ -7563,35 +7821,45 @@ th[aria-sort="descending"] > .cp-sort::after {
   color: var(--cp-ink-muted);
 }
 
-.cp-progress-track {
+/* The bar comes first, then the check's kept place, then the words. It is
+ * a size container, so the value's gradient is 100cqi, the bar's width. */
+.cp-progress > progress {
+  --cp-progress-from: var(--cp-tone-9);
+  --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h);
+
   order: -1;
   flex: 0 1 auto;
   inline-size: 14rem;
   min-inline-size: 5rem;
   block-size: 0.5rem;
-  border-radius: var(--cp-radius-round);
-  background: var(--cp-tone-4);
-  overflow: clip;
-}
-
-.cp-progress-fill {
-  --cp-progress-from: var(--cp-tone-9);
-  --cp-progress-to: oklch(from var(--cp-tone-9) calc(l + 0.14) c h);
-
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to));
-  clip-path: inset(0 calc(100% - var(--cp-progress, 0%)) 0 0 round var(--cp-radius-round));
+  container-type: inline-size;
   transition:
-    clip-path 480ms var(--cp-ease-out),
     --cp-progress-from 500ms var(--cp-ease-out),
     --cp-progress-to 500ms var(--cp-ease-out);
 }
 
-.cp-progress-fill:dir(rtl) {
+/* Gecko sets the value's width in layout, so it moves to each step without
+ * the glide; Blink and WebKit transition it.
+ * https://github.com/mozilla-firefox/firefox/blob/main/layout/forms/nsProgressFrame.cpp */
+.cp-progress > progress::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to)) left / 100cqi
+    100% no-repeat;
+  transition: inline-size 480ms var(--cp-ease-out);
+}
+
+.cp-progress > progress::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--cp-progress-from), var(--cp-progress-to)) left / 100cqi
+    100% no-repeat;
+}
+
+.cp-progress > progress:dir(rtl)::-webkit-progress-value {
   background-image: linear-gradient(270deg, var(--cp-progress-from), var(--cp-progress-to));
-  clip-path: inset(0 0 0 calc(100% - var(--cp-progress, 0%)) round var(--cp-radius-round));
+  background-position: right;
+}
+
+.cp-progress > progress:dir(rtl)::-moz-progress-bar {
+  background-image: linear-gradient(270deg, var(--cp-progress-from), var(--cp-progress-to));
+  background-position: right;
 }
 
 /* The check keeps its place while hidden, so the words never move. */
@@ -7610,11 +7878,11 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 /* Green once the last step's fill has arrived, then the check pops in. */
-.cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+.cp-progress[data-state="done"] > progress {
   --cp-progress-from: var(--cp-success-9);
   --cp-progress-to: var(--cp-success-9);
 
-  transition-delay: 0s, 480ms, 480ms;
+  transition-delay: 480ms, 480ms;
 }
 
 .cp-progress[data-state="done"]::before {
@@ -7628,11 +7896,15 @@ th[aria-sort="descending"] > .cp-sort::after {
 /* The fill jumps to each step and the check only fades in, with no wait
  * for a glide that no longer runs. */
 @media (prefers-reduced-motion: reduce) {
-  .cp-progress-fill,
-  .cp-progress[data-state="done"] > .cp-progress-track > .cp-progress-fill {
+  .cp-progress > progress,
+  .cp-progress[data-state="done"] > progress {
     transition:
       --cp-progress-from var(--cp-dur-short) var(--cp-ease-out),
       --cp-progress-to var(--cp-dur-short) var(--cp-ease-out);
+  }
+
+  .cp-progress > progress::-webkit-progress-value {
+    transition: none;
   }
 
   .cp-progress::before {
@@ -7646,14 +7918,13 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 @media (forced-colors: active) {
-  .cp-progress-track {
-    forced-color-adjust: none;
-    background: Canvas;
-    outline: 1px solid CanvasText;
+  .cp-progress > progress::-webkit-progress-value,
+  .cp-progress > progress:dir(rtl)::-webkit-progress-value {
+    background: Highlight;
   }
 
-  .cp-progress-fill,
-  .cp-progress-fill:dir(rtl) {
+  .cp-progress > progress::-moz-progress-bar,
+  .cp-progress > progress:dir(rtl)::-moz-progress-bar {
     background: Highlight;
   }
 
@@ -7662,9 +7933,10 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* A native <progress> wears the same track and fill. Each engine draws the
- * value through its own pseudo-element, and one unknown pseudo-element
- * drops a whole rule, so each gets its own. */
+/* A native <progress> on its own, such as a job row's, wears a thinner
+ * track and a solid fill. Each engine draws the value through its own
+ * pseudo-element, and one unknown pseudo-element drops a whole rule, so
+ * each gets its own. */
 :where(.cp) :where(progress) {
   block-size: 0.375rem;
   appearance: none;
@@ -7730,6 +8002,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   --cp-track-todo: var(--cp-fill);
   --cp-track-done: var(--cp-accent);
   --cp-track-rest: var(--cp-accent-4);
+  --cp-track-now: var(--cp-ink);
   --cp-track-way: to right;
 
   display: grid;
@@ -7762,21 +8035,18 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-track > li[data-state="current"] {
-  color: var(--cp-ink);
+  color: var(--cp-track-now);
   font-weight: var(--cp-weight-medium);
 }
 
 /* A kept track, the last known state of a job no longer reporting, goes
  * grey, its current step solid; a .cp-kept line under it says when it was
- * true. */
-.cp-track[data-kept] > li {
+ * true. A track in a kept list or table row is kept with its row. */
+.cp-track:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) > li {
   --cp-track-todo: var(--cp-neutral-5);
   --cp-track-done: var(--cp-neutral-8);
   --cp-track-rest: var(--cp-neutral-8);
-}
-
-.cp-track[data-kept] > li[data-state="current"] {
-  color: var(--cp-ink-muted);
+  --cp-track-now: var(--cp-ink-muted);
 }
 
 .cp-kept {
@@ -7818,6 +8088,10 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-weight: var(--cp-weight-medium);
 }
 
+.cp-track-compact:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) {
+  color: var(--cp-ink-muted);
+}
+
 @media (forced-colors: active) {
   .cp-track > li {
     --cp-track-todo: Canvas;
@@ -7825,7 +8099,7 @@ th[aria-sort="descending"] > .cp-sort::after {
     --cp-track-rest: Canvas;
   }
 
-  .cp-track[data-kept] > li {
+  .cp-track:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) > li {
     --cp-track-todo: Canvas;
     --cp-track-done: GrayText;
     --cp-track-rest: Canvas;
@@ -7838,6 +8112,10 @@ th[aria-sort="descending"] > .cp-sort::after {
 
   .cp-kept::before {
     background: CanvasText;
+  }
+
+  .cp-track-compact:is([data-kept], :where(.cp-list-row, .cp-table tr)[data-kept] *) {
+    color: GrayText;
   }
 }
 
@@ -8389,60 +8667,6 @@ button.cp-figure[aria-expanded="true"]::after {
   }
 }
 
-/* A media card: a .cp-cover over the work's title and its facts, the whole
- * card one link. */
-.cp-media {
-  display: grid;
-  align-content: start;
-  gap: var(--cp-space-2);
-  color: var(--cp-ink);
-  text-decoration: none;
-}
-
-.cp-media > [data-part="title"] {
-  font-size: var(--cp-text-sm);
-  font-weight: var(--cp-weight-heading);
-  line-height: 1.3;
-}
-
-.cp-media > [data-part="meta"] {
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-xs);
-}
-
-.cp-media > .cp-cover {
-  transition:
-    scale var(--cp-dur-medium) var(--cp-ease-spring),
-    box-shadow var(--cp-dur-medium) var(--cp-ease-out);
-}
-
-/* The ring goes round the cover, the card's shape, and not round its words. */
-a.cp-media:focus-visible {
-  outline: none;
-}
-
-a.cp-media:focus-visible > .cp-cover {
-  outline: var(--cp-focus-w) solid var(--cp-focus-ring);
-  outline-offset: var(--cp-focus-offset);
-}
-
-@media (any-hover: hover) {
-  @scope (:root:not([data-pointer="coarse"])) {
-    a.cp-media:hover > .cp-cover {
-      scale: 1.03;
-      box-shadow: var(--cp-shadow-overlay);
-    }
-
-    /* Inside the scope: a scoped rule outranks an unscoped one of the same
-     * specificity, whatever their order. */
-    @media (prefers-reduced-motion: reduce) {
-      a.cp-media:hover > .cp-cover {
-        scale: none;
-      }
-    }
-  }
-}
-
 /* Skeleton: the shape of what is coming, with a slow opacity beat that stops
  * under reduced motion. @cplieger/ui/skeleton decides when it shows. */
 .cp-skeleton {
@@ -8496,6 +8720,24 @@ a.cp-media:focus-visible > .cp-cover {
   --cp-icon-size: 3rem;
 
   color: var(--cp-tone-9);
+}
+
+/* The page for an address that matches no route. Its heading is the page's
+ * h1, so it takes the ink back from the box's muted colour, which it would
+ * inherit. */
+.cp-empty[data-variant="page"] {
+  justify-items: center;
+  padding: 12vh 0;
+  text-align: center;
+
+  & > h1 {
+    color: var(--cp-ink);
+  }
+
+  & > p {
+    font-size: var(--cp-text-xs);
+    line-height: var(--cp-leading-body);
+  }
 }
 
 /* A heading with a loader, for work that runs before there is data. */
@@ -9867,18 +10109,20 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
   color: var(--cp-danger-on);
 }
 
+/* Only a button's parts: a row, a form or a state also takes a
+ * data-cp-state, and its own icons stay. */
 :where(.cp-button[data-cp-confirm]) > .cp-icon[data-part],
-[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
-[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
+.cp-button[data-cp-state="busy"] > .cp-icon:not([data-part="busy"]),
+.cp-button[data-cp-state="done"] > .cp-icon:not([data-part="done"]) {
   display: none;
 }
 
-[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
+.cp-button[data-cp-state="busy"] > .cp-icon[data-part="busy"] {
   display: inline-block;
   animation: cp-spin 0.8s linear infinite;
 }
 
-[data-cp-state="done"] > .cp-icon[data-part="done"] {
+.cp-button[data-cp-state="done"] > .cp-icon[data-part="done"] {
   display: inline-block;
   animation: cp-check-draw 320ms var(--cp-ease-out);
 }
@@ -9897,8 +10141,8 @@ button.cp-button[data-tone="danger"][data-cp-state="done"]:not(:disabled) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-cp-state="busy"] > .cp-icon[data-part],
-  [data-cp-state="done"] > .cp-icon[data-part] {
+  .cp-button[data-cp-state="busy"] > .cp-icon[data-part],
+  .cp-button[data-cp-state="done"] > .cp-icon[data-part] {
     animation: none;
   }
 }
@@ -10246,7 +10490,8 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 /* A filter chip: a pill button that turns one filter on or off by
  * aria-pressed. Pressed, it fills with the accent and its check slides in,
- * so the state is never the colour alone. */
+ * so the state is never the colour alone. As an <a> it is the same pill
+ * leading to a related page. */
 .cp-filter-chip {
   --cp-chart-surface: var(--cp-surface-raised);
 
@@ -10268,10 +10513,13 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     transform var(--cp-dur-press) var(--cp-ease-out);
 }
 
-/* The check, held at no width until the chip is pressed. */
 .cp-filter-chip > .cp-icon {
   --cp-icon-size: 0.875rem;
+}
 
+/* The check, held at no width until the chip is pressed. A link has no
+ * pressed state, so its own glyph shows. */
+.cp-filter-chip:where(:not(a)) > .cp-icon {
   inline-size: 0;
   margin-inline-end: 0;
   opacity: 0;
@@ -10299,6 +10547,56 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
   transform: scale(var(--cp-press-scale));
 }
 
+/* A link is outlined on the page, with a mark after its words drawn from
+ * its rel: a chevron for a page in the app, the external mark for one
+ * that leaves it. The mark is never read, so a link that leaves says so
+ * in a .cp-visually-hidden span. */
+:where(a).cp-filter-chip {
+  gap: var(--cp-space-1);
+  border-color: var(--cp-line);
+  background: none;
+  text-decoration: none;
+  transition:
+    background-color var(--cp-dur-micro) var(--cp-ease-out),
+    border-color var(--cp-dur-micro) var(--cp-ease-out),
+    transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+:where(a).cp-filter-chip::after {
+  content: "";
+  flex: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  background: var(--cp-ink-muted);
+  mask: url("../icons/svg/chevron-right.svg") center / contain no-repeat;
+  transition: background-color var(--cp-dur-micro) var(--cp-ease-out);
+}
+
+:where(a).cp-filter-chip:not([rel~="external"]):dir(rtl)::after {
+  scale: -1 1;
+}
+
+:where(a).cp-filter-chip:where([rel~="external"])::after {
+  mask-image: url("../icons/svg/external-link.svg");
+}
+
+@media (any-hover: hover) {
+  @scope (:root:not([data-pointer="coarse"])) {
+    :where(a).cp-filter-chip:hover {
+      border-color: var(--cp-border-strong);
+      background: var(--cp-fill);
+    }
+
+    /* Forced colours would paint this ink as Canvas, so the mark keeps
+     * its system colour there. */
+    @media (forced-colors: none) {
+      :where(a).cp-filter-chip:hover::after {
+        background: var(--cp-ink);
+      }
+    }
+  }
+}
+
 @media (forced-colors: active) {
   .cp-filter-chip {
     border-color: ButtonText;
@@ -10308,6 +10606,14 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
+  }
+
+  :where(a).cp-filter-chip {
+    border-color: LinkText;
+  }
+
+  :where(a).cp-filter-chip::after {
+    background: LinkText;
   }
 }
 
@@ -10445,6 +10751,237 @@ button.cp-toggle.cp-button[aria-pressed="true"]:enabled {
 
 :where(.cp) .cp-icon[data-cp-icon-size="hero"] {
   --cp-icon-size: 3rem;
+}
+
+/* Each glyph the library's own markup and CSS use, by its name, so a page
+ * with no script paints it. One class's weight, so an app's rule for the
+ * same name in a later stylesheet wins, as createIcons' inline URL does. */
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-down"]) {
+  --cp-icon-image: url("../icons/svg/arrow-down.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-right"]) {
+  --cp-icon-image: url("../icons/svg/arrow-right.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="arrow-up"]) {
+  --cp-icon-image: url("../icons/svg/arrow-up.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="check"]) {
+  --cp-icon-image: url("../icons/svg/check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="chevron-down"]) {
+  --cp-icon-image: url("../icons/svg/chevron-down.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="chevron-right"]) {
+  --cp-icon-image: url("../icons/svg/chevron-right.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-alert"]) {
+  --cp-icon-image: url("../icons/svg/circle-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-check"]) {
+  --cp-icon-image: url("../icons/svg/circle-check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-dashed"]) {
+  --cp-icon-image: url("../icons/svg/circle-dashed.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-x"]) {
+  --cp-icon-image: url("../icons/svg/circle-x.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="clock"]) {
+  --cp-icon-image: url("../icons/svg/clock.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="cloud-upload"]) {
+  --cp-icon-image: url("../icons/svg/cloud-upload.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="copy"]) {
+  --cp-icon-image: url("../icons/svg/copy.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="download"]) {
+  --cp-icon-image: url("../icons/svg/download.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="ellipsis"]) {
+  --cp-icon-image: url("../icons/svg/ellipsis.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="external-link"]) {
+  --cp-icon-image: url("../icons/svg/external-link.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="eye"]) {
+  --cp-icon-image: url("../icons/svg/eye.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="eye-off"]) {
+  --cp-icon-image: url("../icons/svg/eye-off.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="file-text"]) {
+  --cp-icon-image: url("../icons/svg/file-text.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="funnel"]) {
+  --cp-icon-image: url("../icons/svg/funnel.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="funnel-x"]) {
+  --cp-icon-image: url("../icons/svg/funnel-x.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="grip-vertical"]) {
+  --cp-icon-image: url("../icons/svg/grip-vertical.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="heart"]) {
+  --cp-icon-image: url("../icons/svg/heart.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="heart-filled"]) {
+  --cp-icon-image: url("../icons/svg/heart-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="history"]) {
+  --cp-icon-image: url("../icons/svg/history.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="info"]) {
+  --cp-icon-image: url("../icons/svg/info.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="key-round"]) {
+  --cp-icon-image: url("../icons/svg/key-round.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="layout-dashboard"]) {
+  --cp-icon-image: url("../icons/svg/layout-dashboard.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="layout-grid"]) {
+  --cp-icon-image: url("../icons/svg/layout-grid.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="library"]) {
+  --cp-icon-image: url("../icons/svg/library.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="list"]) {
+  --cp-icon-image: url("../icons/svg/list.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="lock"]) {
+  --cp-icon-image: url("../icons/svg/lock.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="log-in"]) {
+  --cp-icon-image: url("../icons/svg/log-in.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="log-out"]) {
+  --cp-icon-image: url("../icons/svg/log-out.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="moon"]) {
+  --cp-icon-image: url("../icons/svg/moon.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="octagon-alert"]) {
+  --cp-icon-image: url("../icons/svg/octagon-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="pin"]) {
+  --cp-icon-image: url("../icons/svg/pin.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="pin-filled"]) {
+  --cp-icon-image: url("../icons/svg/pin-filled.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="plus"]) {
+  --cp-icon-image: url("../icons/svg/plus.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="radio-tower"]) {
+  --cp-icon-image: url("../icons/svg/radio-tower.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="refresh-cw"]) {
+  --cp-icon-image: url("../icons/svg/refresh-cw.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="save"]) {
+  --cp-icon-image: url("../icons/svg/save.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="search"]) {
+  --cp-icon-image: url("../icons/svg/search.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="settings"]) {
+  --cp-icon-image: url("../icons/svg/settings.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="shield-check"]) {
+  --cp-icon-image: url("../icons/svg/shield-check.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="spinner-arc"]) {
+  --cp-icon-image: url("../icons/svg/spinner-arc.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="sun"]) {
+  --cp-icon-image: url("../icons/svg/sun.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="tag"]) {
+  --cp-icon-image: url("../icons/svg/tag.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="telescope"]) {
+  --cp-icon-image: url("../icons/svg/telescope.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="timer"]) {
+  --cp-icon-image: url("../icons/svg/timer.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="trash-2"]) {
+  --cp-icon-image: url("../icons/svg/trash-2.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="triangle-alert"]) {
+  --cp-icon-image: url("../icons/svg/triangle-alert.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="tv"]) {
+  --cp-icon-image: url("../icons/svg/tv.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="user"]) {
+  --cp-icon-image: url("../icons/svg/user.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="users"]) {
+  --cp-icon-image: url("../icons/svg/users.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="wifi-off"]) {
+  --cp-icon-image: url("../icons/svg/wifi-off.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="x"]) {
+  --cp-icon-image: url("../icons/svg/x.svg");
 }
 
 /* A drawing that points along the line of text faces the other way in a

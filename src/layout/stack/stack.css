@@ -1,6 +1,19 @@
 /* A stack's gap is its children's spacing. */
 .cp-stack > hr,
+.cp-stack > li,
 .cp-stack > .cp-heading-row,
 .cp-stack > .cp-steps {
   margin-block: 0;
+}
+
+/* A list stacked as lines, with no marker or indent, at one class's weight
+ * so that an app's own class on the list, in a later sheet, still wins. */
+:where(ul, ol).cp-stack {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-stack[data-gap="tight"] {
+  gap: var(--cp-space-1);
 }
