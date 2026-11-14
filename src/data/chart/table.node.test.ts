@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { writer } from "../scale/format.js";
 import { durationEdges } from "../scale/ladder.js";
 
-import { chartModel, type LineModel, type Model } from "./model.js";
+import { chartModel, stepStops, type LineModel, type Model } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
-import { namedRows, stepStops, tableModel, type TableModel } from "./table.js";
+import { namedRows, tableModel, type TableModel } from "./table.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";

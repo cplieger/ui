@@ -23,7 +23,15 @@ import type {
   ScatterModel,
   SlopeModel,
 } from "./model.js";
-import { barsApart, cellCount, cellOrder, pointLink, slopeChange } from "./model.js";
+import {
+  barsApart,
+  cellCount,
+  cellOrder,
+  pointLink,
+  slopeChange,
+  stepStopAt,
+  stepStops,
+} from "./model.js";
 import {
   barPart,
   barReading,
@@ -46,7 +54,6 @@ import {
   scatterReading,
   type Reading,
 } from "./readout.js";
-import { stepStopAt, stepStops } from "./table.js";
 import type { Words } from "./words.js";
 
 /**

@@ -130,6 +130,32 @@ export interface AreaModel extends Samples {
 /** A mark over `x` samples, read by the same stops and keys. */
 export type SampleModel = LineModel | AreaModel;
 
+const isStop = (m: SampleModel, i: number): boolean =>
+  i === m.from || i === m.to - 1 || m.series.some((s) => s.y[i] !== s.y[i - 1]);
+
+/** The samples a step line's table lists and its keys stop at: the first
+ *  and last inside the domain, and each where any series changes value or
+ *  turns to or from a gap. */
+export function stepStops(m: SampleModel): number[] {
+  const out: number[] = [];
+  for (let i = m.from; i < m.to; i++) {
+    if (isStop(m, i)) {
+      out.push(i);
+    }
+  }
+  return out;
+}
+
+/** The stop holding sample `i` of a step line inside its domain: the last of
+ *  `stepStops` at or before it. */
+export function stepStopAt(m: SampleModel, i: number): number {
+  let k = i;
+  while (k > m.from && !isStop(m, k)) {
+    k--;
+  }
+  return k;
+}
+
 /** The stack's top at sample `i` of `m`, or `null` where any series is a
  *  gap, which breaks every layer there. */
 export function sampleTotal(m: AreaModel, i: number): number | null {

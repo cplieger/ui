@@ -11,6 +11,7 @@ import {
   binOf,
   dayOf,
   scatterDotAt,
+  stepStopAt,
   type Model,
   type RectModel,
   type Side,
@@ -18,7 +19,6 @@ import {
 } from "./model.js";
 import { primaryOf } from "./readout.js";
 import { ruleAt } from "./scales.js";
-import { stepStopAt } from "./table.js";
 
 /** The room between a note and its point. */
 const NOTE_OFFSET = 4;
