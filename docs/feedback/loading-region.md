@@ -1,0 +1,63 @@
+# loading-region
+
+`@cplieger/ui/loading-region`
+
+A region that loads its own content, such as a panel of facts, a table's panel or a popover that fills on first open. It runs the region's whole cycle. A first load shows a placeholder, and only when the answer is slow. A refresh keeps the old content in view while a thin line runs along the region's top edge, and the region is marked `aria-busy`. A failure says what broke, with Retry: in the region's place on a first load, and above the old content on a refresh, with the time that content is from. The app fetches and renders the content itself.
+
+```html
+<button class="cp-button" type="button" data-cp-refresh>
+  <span class="cp-icon" data-cp-icon="refresh-cw" aria-hidden="true"></span>Refresh
+</button>
+<div class="cp-panel" id="library-facts">
+  <dl class="cp-facts">…</dl>
+</div>
+```
+
+```ts
+import { enhanceLoadingRegion } from "@cplieger/ui/loading-region";
+
+const facts = enhanceLoadingRegion(panel, {
+  load: (signal) => api.libraryFacts({ signal }),
+  render: (data) => panel.replaceChildren(factsList(data)),
+  words: {
+    refreshFailed: (reason, at) =>
+      `The refresh failed: ${messageOf(reason)} What you see is from ${time(at)}.`,
+  },
+  signal: view.signal,
+});
+refresh.addEventListener("click", () => void facts.load(refresh));
+
+// A popover that loads on its first open.
+const readers = enhanceLoadingRegion(popover, {
+  load: (signal) => api.readers(post, { signal }),
+  render: (list) => popover.replaceChildren(...readerSections(list)),
+  words: { loading: "Loading who read it…", failed: "The readers could not be loaded." },
+});
+popover.addEventListener("toggle", (e) => {
+  if (e.newState === "open" && readers.state === "idle") void readers.load();
+});
+```
+
+## API
+
+- `enhanceLoadingRegion(region, opts)` wires `region` and returns `{ load(from?), state }`. Nothing loads until `load()` is called.
+- `load(from?)` loads the content. `from` is the button pressed, whose icon turns through [turn](../buttons/turn.md)'s `turnWhile` while it runs, with `aria-busy` on it. It resolves `true` once the content is rendered, and `false` when the load failed, the signal aborted, or another load was already running, in which case it does nothing.
+- `state` is `"idle"` (never loaded, nothing in it), `"loading"` (a first load), `"failed"` (a load failed with nothing to show), `"ready"`, `"refreshing"` (a load over the content) or `"stale"` (a refresh failed, so the content is older than asked). A region that holds content when it is wired starts `"ready"`, else `"idle"`.
+- `LoadingRegionOptions` = `{ load, render, placeholder?, loadedAt?, locale?, words?, signal? }`.
+  - `load(signal)` fetches the content. A rejection is the failed state. `signal` aborts with the module's.
+  - `render(data)` puts the content in. After a first load the region is empty when it runs. After a refresh it still holds the old content, which `render` replaces or updates in place.
+  - `placeholder()` makes the first load's placeholder, such as a skeleton in the content's shape. By default it is a `.cp-inline-load` with the loading words.
+  - `loadedAt` is when the content the region holds was loaded, by default the time it is wired. Each load that renders sets it again.
+  - `locale` writes the time in the refresh failure, by default the document's language.
+  - `words` = `{ loading?, failed?, refreshFailed?, retry?, retrying? }`. `loading` is the placeholder's words, by default "Loading…". `failed` is the sentence of a first load's failure, or a function given what `load` rejected with, by default "The content did not load.". `refreshFailed(reason, loadedAt)` is the sentence of a refresh's failure, by default "The refresh failed. What you see is from 14:02.", with the date too when the content is from another day. `retry` and `retrying` are Retry's words at rest and while it loads, by default "Retry" and "Retrying…".
+  - `signal` ends a load under way and the region's wiring.
+
+## Behaviour
+
+- The region carries `aria-busy="true"` while it loads or refreshes, and `aria-busy="false"` once it settles, as [Loading](../design-patterns.md#loading) says. Its `data-cp-load` holds the state for the stylesheet.
+- A first load paints the placeholder only after 200ms, and keeps it at least 400ms once painted, through [skeleton](skeleton.md)'s `skeletonTiming`.
+- While it refreshes, a 3px accent line runs along the region's top edge, inside its border. When the region starts with a table, or with a panel holding one first, the line runs under the table's head instead. Under reduced motion the line stays whole and pulses. In forced colours it is `Highlight`.
+- A failure is a danger `.cp-notice` with `circle-x`, its sentence and a small Retry that runs the same load through [confirm](../buttons/confirm.md)'s busy cycle. A later failure rewrites the same notice, and a load that renders removes it. The failure is said politely through [announce](announce.md), as a failure of background work is. The content's arrival is the app's to say in `render`, such as "12 results".
+- Focus: when a load fails while focus is in the region, lost to the page, or on the button that opens a popover region, Retry takes it. When content replaces the Retry that held focus, focus goes to the content's first heading, else to the button `load` was given, else to the region. A refresh pressed from a button outside the region leaves focus on that button.
+- The module writes no `style` attribute in markup. The line's place under a table's head is a custom property set through the CSSOM.
+- The module does nothing when it is imported.

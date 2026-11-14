@@ -36,6 +36,7 @@ const PURE = [
   "/list-detail",
   "/list-row",
   "/load-more",
+  "/loading-region",
   "/markdown",
   "/menu",
   "/meter",

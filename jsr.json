@@ -29,6 +29,7 @@
     "./list-detail": "./src/layout/list-detail/list-detail.ts",
     "./list-row": "./src/data/list-row/list-row.ts",
     "./load-more": "./src/data/load-more/load-more.ts",
+    "./loading-region": "./src/feedback/loading-region/loading-region.ts",
     "./markdown": "./src/content/markdown/markdown.ts",
     "./menu": "./src/overlays/menu/menu.ts",
     "./meter": "./src/data/meter/meter.ts",

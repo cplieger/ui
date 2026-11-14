@@ -1,0 +1,68 @@
+/* A region that loads its own content (@cplieger/ui/loading-region). While
+ * it refreshes, its old content stays and a line runs along its top edge,
+ * inside its border, or under the head of the table it starts with, at
+ * --cp-load-line-at, which the script measures. */
+/* At zero specificity, so a popover's or a sticky box's own position and a
+ * flush panel's scroll win; the clip keeps the line inside a rounded edge. */
+:where([data-cp-load]) {
+  position: relative;
+}
+
+:where([data-cp-load="refreshing"]) {
+  overflow: clip;
+}
+
+[data-cp-load="refreshing"]::before {
+  content: "";
+  position: absolute;
+  z-index: calc(var(--cp-z-sticky) + 1);
+  inset-block-start: var(--cp-load-line-at, 0);
+  inset-inline: 0;
+  block-size: 3px;
+  border-radius: var(--cp-radius-round);
+  background: linear-gradient(
+      90deg,
+      transparent,
+      var(--cp-accent-9) 30%,
+      var(--cp-accent-9) 70%,
+      transparent
+    )
+    0 0 / 40% 100% no-repeat;
+  animation: cp-load-line 1.2s cubic-bezier(0.3, 0.25, 0.7, 0.75) infinite;
+  pointer-events: none;
+}
+
+/* The failure's notice sits above the old content, apart from it. */
+[data-cp-load] > [data-cp-load-notice]:not(:only-child) {
+  margin-block-end: var(--cp-space-3);
+}
+
+@keyframes cp-load-line {
+  from {
+    background-position: -40% 0;
+  }
+
+  to {
+    background-position: 140% 0;
+  }
+}
+
+/* Under reduced motion the line stays whole and pulses. */
+@media (prefers-reduced-motion: reduce) {
+  [data-cp-load="refreshing"]::before {
+    background: var(--cp-accent-9);
+    animation: cp-load-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes cp-load-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (forced-colors: active) {
+  [data-cp-load="refreshing"]::before {
+    background: Highlight;
+  }
+}
