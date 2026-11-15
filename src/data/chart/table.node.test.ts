@@ -1159,6 +1159,117 @@ describe("the table of small multiples", () => {
     expect(t.after).toBe("Target 5%. North, 1: Strike.");
   });
 
+  const step = (name: string, x: number[], y: (number | null)[]) => ({
+    marks: [{ mark: "line" as const, curve: "step" as const, x, series: [{ name, y }] }],
+  });
+  const stepTable = (panels: ReturnType<typeof step>[], x: ChartSpec["x"] = {}) =>
+    cells(tableModel(model({ x, marks: [], facets: { panels } }), words));
+
+  it("gives a step-line panel the level its line holds at another panel's change point", () => {
+    expect(
+      stepTable([
+        step("North", [0, 1, 2, 3], [5, 5, 7, 7]),
+        step("South", [0, 1, 2, 3], [2, 4, 4, 4]),
+      ]),
+    ).toEqual([
+      ["0", "5", "2"],
+      ["1", "5", "4"],
+      ["2", "7", "4"],
+      ["3", "7", "4"],
+    ]);
+  });
+
+  it("writes No data where a step-line panel's line draws nothing: before it, in a gap and after it", () => {
+    expect(
+      stepTable([
+        step("North", [1, 2, 3], [5, null, 6]),
+        step("South", [0, 1, 1.5, 2, 2.5, 3, 4], [1, 2, 1, 2, 1, 2, 1]),
+      ]),
+    ).toEqual([
+      ["0", "No data", "1"],
+      ["1", "5", "2"],
+      ["1.5", "No data", "1"],
+      ["2", "No data", "2"],
+      ["2.5", "No data", "1"],
+      ["3", "6", "2"],
+      ["4", "No data", "1"],
+    ]);
+  });
+
+  it("holds a step-line panel's level drawn in from a sample beyond either end of the domain", () => {
+    expect(
+      stepTable([step("North", [0, 2, 6], [5, 6, 8]), step("South", [1, 3, 4], [1, 2, 1])], {
+        domain: [1, 4],
+      }),
+    ).toEqual([
+      ["1", "5", "1"],
+      ["2", "6", "1"],
+      ["3", "6", "2"],
+      ["4", "6", "1"],
+    ]);
+  });
+
+  it("holds no layer of a stepped area panel where a gap in any series ends the drawn step", () => {
+    const area = (name: string, x: number[], a: (number | null)[], b: number[]) => ({
+      name,
+      marks: [
+        {
+          mark: "area" as const,
+          curve: "step" as const,
+          x,
+          series: [
+            { name: "A", y: a },
+            { name: "B", y: b },
+          ],
+        },
+      ],
+    });
+    const t = tableModel(
+      model({
+        marks: [],
+        facets: {
+          panels: [
+            area("Germany", [0, 2, 4], [1, 3, null], [2, 2, 5]),
+            area("France", [0, 1, 2, 3, 4], [1, 2, 1, 2, 1], [1, 1, 1, 1, 1]),
+          ],
+        },
+      }),
+      words,
+    );
+    expect(cells(t)).toEqual([
+      ["0", "1", "2", "3", "1", "1", "2"],
+      ["1", "1", "2", "3", "2", "1", "3"],
+      ["2", "3", "2", "5", "1", "1", "2"],
+      ["3", "No data", "No data", "No data", "2", "1", "3"],
+      ["4", "No data", "5", "No data", "1", "1", "2"],
+    ]);
+  });
+
+  it("gives each rect bucket its own row, by both edges, where panels' buckets share a start", () => {
+    const buckets = (name: string, x1: number[], x2: number[], y: number[]) => ({
+      marks: [{ mark: "rect" as const, x1, x2, series: [{ name, y }] }],
+    });
+    const t = tableModel(
+      model({
+        marks: [],
+        facets: {
+          panels: [
+            buckets("North", [0, 10], [10, 20], [1, 2]),
+            buckets("South", [0, 5], [5, 20], [9, 8]),
+          ],
+        },
+      }),
+      words,
+    );
+    expect(cells(t)).toEqual([
+      ["0 to 5", "No data", "9"],
+      ["0 to 10", "1", "No data"],
+      ["5 to 20", "No data", "8"],
+      ["10 to 20", "2", "No data"],
+    ]);
+    expect(new Set(t.rows.map((r) => r.key)).size).toBe(4);
+  });
+
   it("gives per-category panels a column group each over the mark's columns and its Total", () => {
     const panel = (name: string, coal: number[], gas: number[]) => ({
       name,

@@ -557,6 +557,19 @@ describe("the selection across an update", () => {
     expect(rekey(a, { kind: "rect", i: 0, part: undefined }, b)).toBe(undefined);
   });
 
+  it("finds a bucket by both its edges, never another bucket with the same start", () => {
+    const rect = (x2: number[]): ChartSpec => ({
+      marks: [{ mark: "rect", x1: [0, 10], x2, series: [{ name: "Reads", y: [1, 2] }] }],
+    });
+    const a = built(rect([10, 20])).model;
+    expect(rekey(a, { kind: "rect", i: 0, part: 0 }, built(rect([5, 20])).model)).toBe(undefined);
+    expect(rekey(a, { kind: "rect", i: 1, part: 0 }, built(rect([5, 20])).model)).toEqual({
+      kind: "rect",
+      i: 1,
+      part: 0,
+    });
+  });
+
   it("follows a dot row by its name when the rows come in a new order", () => {
     const rows = [
       { name: "lead-ui", x: [START + 10 * MIN] },

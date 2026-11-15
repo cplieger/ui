@@ -911,8 +911,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
   };
 }
 
-/** `sel` from `before` in `after`, where its x, or its row, is still in the
- *  data; undefined when it left. */
+/** `sel` from `before` in `after`, where its x, its bucket's two edges, or
+ *  its row, is still in the data; undefined when it left. */
 export function rekey(before: Model, sel: Selection, after: Model): Selection | undefined {
   const was = before.primary;
   const now = after.primary;
@@ -923,7 +923,9 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     const v = was.x1[sel.i];
     const i = v === undefined ? -1 : lowerBound(now.x1, v);
     const part = sel.part !== undefined && sel.part < now.series.length ? sel.part : undefined;
-    return now.x1[i] === v && now.shown.includes(i) ? { kind: "rect", i, part } : undefined;
+    return now.x1[i] === v && now.x2[i] === was.x2[sel.i] && now.shown.includes(i)
+      ? { kind: "rect", i, part }
+      : undefined;
   }
   if (
     (sel.kind === "line" || sel.kind === "area") &&

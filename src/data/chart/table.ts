@@ -8,6 +8,7 @@
  */
 
 import { writer } from "../scale/format.js";
+import { upperBound } from "../scale/reduce.js";
 import { dateAt } from "../scale/time.js";
 
 import { dayFormat, weekCount, weekRow } from "./calendar.js";
@@ -24,6 +25,7 @@ import type {
   RectModel,
   SampleModel,
   ScatterModel,
+  SeriesModel,
   SlopeModel,
 } from "./model.js";
 import {
@@ -149,31 +151,71 @@ function rectRows(model: Model, m: RectModel, words: Words): Row[] {
       cells.push({ parts: [model.amountText(bucketTotal(m, i))], num: true });
     }
     return {
-      key: String(m.x1[i]),
+      // Both edges: panels' buckets may share a start and differ in end.
+      key: `${String(m.x1[i])} ${String(m.x2[i])}`,
       head: timed(model, (t) => bucketText(t, m, i, words)),
       cells,
     };
   });
 }
 
+// Sample `i`'s cells: each series' value where `holds` does, else No data,
+// then from two area series up their Total.
+function sampleCells(
+  model: Model,
+  m: SampleModel,
+  i: number,
+  words: Words,
+  holds: (s: SeriesModel) => boolean = () => true,
+): Cell[] {
+  const cells: Cell[] = m.series.map((s) => ({
+    parts: [holds(s) ? samplePart(model, m, s, i, words) : words.noData],
+    num: true,
+  }));
+  if (m.kind === "area" && m.series.length > 1) {
+    const total = m.series.every(holds) ? sampleTotal(m, i) : null;
+    cells.push({
+      parts: [total === null ? words.noData : model.amountText(total)],
+      num: true,
+    });
+  }
+  return cells;
+}
+
 function lineRows(model: Model, m: SampleModel, words: Words): Row[] {
   const indices = m.step
     ? stepStops(m)
     : Array.from({ length: m.to - m.from }, (_, k) => m.from + k);
-  return indices.map((i) => {
-    const cells: Cell[] = m.series.map((s) => ({
-      parts: [samplePart(model, m, s, i, words)],
-      num: true,
-    }));
-    if (m.kind === "area" && m.series.length > 1) {
-      const total = sampleTotal(m, i);
-      cells.push({
-        parts: [total === null ? words.noData : model.amountText(total)],
-        num: true,
-      });
-    }
-    return { key: String(m.x[i]), head: timed(model, (t) => t.xText(m.x[i] ?? 0)), cells };
-  });
+  return indices.map((i) => ({
+    key: String(m.x[i]),
+    head: timed(model, (t) => t.xText(m.x[i] ?? 0)),
+    cells: sampleCells(model, m, i, words),
+  }));
+}
+
+/** The cells a step line or stepped area draws at `x`, none of its rows:
+ *  the level of its last sample at or before `x`, the one beyond the
+ *  domain's start included, as the plot holds it until the next sample;
+ *  undefined before that, and No data where a gap or its end stops the
+ *  drawn step. */
+function heldCells(model: Model, m: SampleModel, x: number, words: Words): Cell[] | undefined {
+  const i = upperBound(m.x, x) - 1;
+  if (i < 0 || i < m.from - 1) {
+    return undefined;
+  }
+  const next = i + 1;
+  if (m.x[i] === x) {
+    return sampleCells(model, m, i, words);
+  }
+  // A gap in any series breaks every layer of an area.
+  const whole = m.kind !== "area" || sampleTotal(m, next) !== null;
+  return sampleCells(
+    model,
+    m,
+    i,
+    words,
+    (s) => next < m.x.length && whole && (s.y[next] ?? null) !== null,
+  );
 }
 
 // A row per category, a column per series, and from two stacked series up
@@ -525,15 +567,29 @@ function facetTable(model: Model, facets: FacetsModel, words: Words): TableModel
   }
   const keys = [...heads.keys()];
   if (ON_X.has(m.kind)) {
-    keys.sort((a, b) => Number(a) - Number(b));
+    // A bucket's key is its two edges, a sample's its x.
+    const edges = (k: string) => k.split(" ").map(Number);
+    keys.sort((a, b) => {
+      const [a1 = 0, a2 = 0] = edges(a);
+      const [b1 = 0, b2 = 0] = edges(b);
+      return a1 - b1 || a2 - b2;
+    });
   }
   const missing = (n: number): Cell[] =>
     Array.from({ length: n }, () => ({ parts: [words.noData], num: true }));
+  // A step's table lists only its change points; between them it holds.
+  const held = (k: number, key: string): Cell[] | undefined => {
+    const p = facets.panels[k]?.model;
+    const s = p?.primary;
+    return p !== undefined && (s?.kind === "line" || s?.kind === "area") && s.step
+      ? heldCells(p, s, Number(key), words)
+      : undefined;
+  };
   const rows = keys.map((key): Row => {
     const head = heads.get(key);
     const cells = tables.flatMap((t, k) => {
       const r = byKey[k]?.get(key);
-      return r === undefined ? missing(width(t)) : r.cells.slice(lead);
+      return r === undefined ? (held(k, key) ?? missing(width(t))) : r.cells.slice(lead);
     });
     return {
       key,
