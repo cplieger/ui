@@ -168,24 +168,62 @@ describe("widthKey", () => {
     expect(key?.(-0.0001)).toBe(key?.(0));
   });
 
-  it("keys a duration by the record it writes and its sign", () => {
-    const key = widthKey("duration", "en");
-    expect(key).toBeDefined();
-    const durations = [
-      0, -0, 0.3, -0.3, 0.4, 0.5, 0.6, 1, 999.4, 999.6, 1_000, 1_234, 1_456, 9_999, 12_345, -5_000,
-      59_600, 60_000, 61_000, 599_000, 3_723_000, 9_420_013, 82_800_000, 1_080_000_000,
-    ];
-    for (const signed of [false, true]) {
-      const write = writer("duration", "en", { signed });
-      const seen = new Map<number, string>();
-      for (const v of durations) {
-        const k = key?.(v) ?? Number.NaN;
-        expect(k, String(v)).not.toBeNaN();
-        const text = seen.get(k) ?? write(v);
-        expect(write(v), String(v)).toBe(text);
-        seen.set(k, text);
+  const SECOND = 1_000;
+  const MINUTE = 60 * SECOND;
+  const HOUR = 60 * MINUTE;
+  const DAY = 24 * HOUR;
+  const durations = [
+    0,
+    -0,
+    0.3,
+    -0.3,
+    0.4,
+    0.5,
+    0.6,
+    999.4,
+    999.6,
+    1_234,
+    1_456,
+    9_999,
+    12_345,
+    -5_000,
+    59_600,
+    9_420_013,
+    1_080_000_000,
+    ...Array.from({ length: 1_000 }, (_, i) => i),
+    ...Array.from({ length: 120 }, (_, i) => (i + 1) * SECOND),
+    ...Array.from({ length: 540 }, (_, i) => (1 + Math.floor(i / 60)) * MINUTE + (i % 60) * SECOND),
+    ...Array.from({ length: 540 }, (_, i) => (1 + Math.floor(i / 60)) * HOUR + (i % 60) * MINUTE),
+    ...Array.from({ length: 216 }, (_, i) => (1 + Math.floor(i / 24)) * DAY + (i % 24) * HOUR),
+    ...Array.from({ length: 300 }, (_, i) => (10 + i * 7) * DAY),
+  ];
+
+  it.each(["en", "fr", "ru", "pl", "ar", "cy", "ar-EG", "ja"])(
+    "gives durations of one width one key, in %s",
+    (locale) => {
+      const key = widthKey("duration", locale);
+      expect(key).toBeDefined();
+      for (const signed of [false, true]) {
+        const write = writer("duration", locale, { signed });
+        const seen = new Map<number, string>();
+        for (const v of [...durations, ...durations.map((d) => -d)]) {
+          const k = key?.(v) ?? Number.NaN;
+          expect(k, String(v)).not.toBeNaN();
+          const s = seen.get(k) ?? shape(write(v));
+          expect(shape(write(v)), String(v)).toBe(s);
+          seen.set(k, s);
+        }
       }
-    }
+    },
+  );
+
+  it("keys a duration by its units, each count's digits and plural form, and its sign", () => {
+    const key = widthKey("duration", "en");
+    expect(key?.(100)).toBe(key?.(999));
+    expect(key?.(2 * SECOND)).toBe(key?.(9 * SECOND));
+    expect(key?.(2 * HOUR + 37 * MINUTE)).toBe(key?.(9 * HOUR + 12 * MINUTE));
+    expect(key?.(99)).not.toBe(key?.(100));
+    expect(key?.(1 * SECOND)).not.toBe(key?.(2 * SECOND));
     expect(key?.(1_234)).toBe(key?.(1_456));
     expect(key?.(59_600)).toBe(key?.(60_000));
     expect(key?.(-0.3)).toBe(key?.(0));

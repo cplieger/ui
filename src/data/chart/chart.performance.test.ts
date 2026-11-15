@@ -467,15 +467,15 @@ describe("performance", () => {
   });
 });
 
-// Wall time, so the bound holds in every engine: a few dots draw in well
-// under it, and only ticks generated across the span's days could reach it.
+// The fastest of three renders' main-thread CPU time: a few dots draw in well
+// under the bound, and only ticks generated across the span's days could reach it.
 describe("a time axis over a long span", () => {
   const year = (y: number) => new Date(Date.UTC(2000, 0, 1)).setUTCFullYear(y);
 
-  it.each([
+  it.skipIf(!chromium).each([
     ["10,000 years", year(-3000), year(7000)],
     ["all that Date holds", -8.64e15, 8.64e15],
-  ])("renders a line over %s within the render bound", (_, lo, hi) => {
+  ])("renders a line over %s within the render bound", async (_, lo, hi) => {
     const spec: ChartSpec = {
       x: { type: "time", domain: [lo, hi] },
       marks: [{ mark: "line", x: [lo, 0, hi], series: [{ name: "a", y: [1, 3, 2] }] }],
@@ -486,9 +486,9 @@ describe("a time axis over a long span", () => {
     let fig = figure();
     for (let k = 0; k < RUNS; k++) {
       fig = figure();
-      const t0 = performance.now();
+      const t0 = await cpu();
       renderChart(fig, spec, { signal: life.signal });
-      ms = Math.min(ms, performance.now() - t0);
+      ms = Math.min(ms, (await cpu()) - t0);
     }
     expect(fig.querySelectorAll('[data-part="x"] text').length).toBeGreaterThan(2);
     expect(ms).toBeLessThan(RENDER_MS);

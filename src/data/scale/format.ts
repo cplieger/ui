@@ -168,17 +168,18 @@ const NEAR = 1e-14;
 /**
  * The width key of `writer(format, locale)`'s texts, signed or not: for a
  * number its sign, zero, integer digits and fraction digits shown, which fix
- * the text's separators and affixes; for a duration the record it writes
- * and whether its count is above, below or at 0. Undefined for a function,
- * a notation other than standard, significant-digit or uneven rounding, and
- * a style whose words follow the count, none of which a key can read.
+ * the text's separators and affixes; for a duration its units, each count's
+ * digits and plural form, and whether it is above, below or at 0. Undefined
+ * for a function, a notation other than standard, significant-digit or
+ * uneven rounding, and a style whose words follow the count, none of which a
+ * key can read.
  */
 export function widthKey(
   format: Format | undefined,
   locale: string | undefined,
 ): WidthKey | undefined {
   if (format === "duration") {
-    return durationKey;
+    return durationKey(locale);
   }
   const options = typeof format === "object" ? format : preset(format);
   if (options === undefined) {
@@ -209,10 +210,7 @@ export function widthKey(
     }
     const n = Math.round(scaled);
     const whole = Math.floor(n / unit);
-    let digits = 1;
-    for (let w = whole; w >= 10; w = Math.floor(w / 10)) {
-      digits++;
-    }
+    const digits = digitCount(whole);
     let rest = n - whole * unit;
     let shown = rest === 0 ? (strip ? 0 : least) : most;
     while (rest !== 0 && rest % 10 === 0 && shown > least) {
@@ -268,19 +266,48 @@ export function durationRecord(ms: number): Partial<Record<DurationUnit | "milli
 }
 
 const FIELDS = ["days", "hours", "minutes", "seconds", "milliseconds"] as const;
+const FORMS = ["zero", "one", "two", "few", "many", "other"] as const;
 
-// The text is the record's alone but for a signed writer's "+" on a record
-// above 0; a record of zero is written unsigned, so 0.3 writes "0 ms".
-function durationKey(v: number): number {
-  const record = durationRecord(v);
-  const at = FIELDS.findIndex((unit) => record[unit] !== undefined);
-  const next = FIELDS[at + 1];
-  const big = record[FIELDS[at] ?? "milliseconds"] ?? 0;
-  // `* 60` holds the smaller count, which `durationRecord` keeps under 60.
-  const small = next === undefined ? 0 : (record[next] ?? 0);
-  const k = ((Math.abs(big) * 60 + Math.abs(small)) * FIELDS.length + at) * 3;
-  const key = k + (big > 0 ? 1 : big < 0 ? 2 : 0);
-  return key < 2 ** 50 ? key : Number.NaN;
+const pluralRules = (locale: string | undefined) =>
+  cached(`p|${locale ?? ""}`, () => new Intl.PluralRules(locale));
+
+// The digits of whole number `n`, which with the locale fix its separators.
+function digitCount(n: number): number {
+  let digits = 1;
+  for (let w = n; w >= 10; w = Math.floor(w / 10)) {
+    digits++;
+  }
+  return digits;
+}
+
+// A count's text is its digits and its unit's plural form, so a record's
+// width is fixed by its units and those, but for a signed writer's "+" on a
+// record above 0; a record of zero is written unsigned, so 0.3 writes "0 ms".
+function durationKey(locale: string | undefined): WidthKey {
+  const rules = pluralRules(locale);
+  const forms = new Map<number, number>();
+  const count = (n: number) => {
+    let form = forms.get(n);
+    if (form === undefined) {
+      form = FORMS.indexOf(rules.select(n));
+      forms.set(n, form);
+    }
+    return digitCount(n) * FORMS.length + form;
+  };
+  return (v) => {
+    const record = durationRecord(v);
+    const at = FIELDS.findIndex((unit) => record[unit] !== undefined);
+    const next = FIELDS[at + 1];
+    const big = record[FIELDS[at] ?? "milliseconds"] ?? 0;
+    if (!Number.isFinite(big)) {
+      return Number.NaN;
+    }
+    const small = next === undefined ? undefined : record[next];
+    // `durationRecord` keeps the smaller count under 60, so `rest` is at most 18.
+    const rest = small === undefined ? 0 : count(Math.abs(small)) + 1;
+    const k = ((count(Math.abs(big)) * 19 + rest) * FIELDS.length + at) * 3;
+    return k + (big > 0 ? 1 : big < 0 ? 2 : 0);
+  };
 }
 
 /** A plain space between a number and the word after it, made non-breaking. */
@@ -319,8 +346,7 @@ export const grainStep = (
 
 /** `unit`'s noun for `count` in `locale`. */
 export function noun(unit: Unit, count: number, locale: string | undefined): string {
-  const rules = cached(`p|${locale ?? ""}`, () => new Intl.PluralRules(locale));
-  return unit[rules.select(count)] ?? unit.other;
+  return unit[pluralRules(locale).select(count)] ?? unit.other;
 }
 
 /** A written number and its noun, joined by a non-breaking space. */

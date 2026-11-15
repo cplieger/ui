@@ -507,7 +507,7 @@ describe("the legend row's widths", () => {
     }
   });
 
-  it("holds a duration wider than its extremes, writing one text per duration record", () => {
+  it("holds a duration wider than its extremes, writing one text per duration width", () => {
     const n = 1_000;
     const y = per(n, (i) =>
       i === 0 ? 0 : i === n - 1 ? 9 * 60 * MIN : i === 500 ? 9_420_013 : 100 + i * 9,
@@ -521,8 +521,9 @@ describe("the legend row's widths", () => {
     const counting = { ...measure, number: (t: string) => (texts++, measure.number(t)) };
     const w = readoutWidths(m, words, counting);
     expect(w.values[0]).toBe(measure.number(writer("duration", "en")(9_420_013)));
-    // About a hundred records: 0, 109 to 999 ms, 1 to 9 s, 2 hr 37 min and 9 hr.
-    expect(texts).toBeLessThan(150);
+    // Six duration widths (0 ms, 109 to 999 ms, 1 sec, 2 to 9 sec, 2 hr 37 min,
+    // 9 hr), with No data, the x's three digit counts and the overall row.
+    expect(texts).toBeLessThan(20);
     const line = m.marks[0] as LineModel;
     for (let i = 0; i < n; i++) {
       fits(sampleReading(m, line, i, words), w);
