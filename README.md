@@ -71,6 +71,7 @@ toast({ kind: "success", title: "Source added" });
 | `@cplieger/ui/css/system` | the design language's stylesheet, on npm only |
 | `@cplieger/ui/fonts/*` | its two fonts, on npm only |
 | `@cplieger/ui/icons` | Lucide's lines in the package's own stroke, a few drawings of its own, and the factory that paints them |
+| `@cplieger/ui/templates/*` | whole screens in plain HTML on the stylesheet, each region named, on npm only: see [Page templates](templates/README.md) |
 | `@cplieger/ui/<module>` | one component's script |
 
 ## API
@@ -95,6 +96,7 @@ The full reference, generated from the doc comments, is on [JSR](https://jsr.io/
 - The [design language](docs/design.md) covers type, layout, touch, shape and motion, and [colour](docs/design-colour.md) the seeds, steps, tones, harmony colours and series colours.
 - [Components](docs/design-components.md) lists every class the stylesheet ships.
 - [Design patterns](docs/design-patterns.md) covers loading, forms, tables, lists, tabs, dialogs, notifications, messages, first run, navigation and words, with [settings](docs/design-settings.md) and [account screens](docs/design-account.md) on their own pages.
+- The [page templates](templates/README.md) are whole screens to copy: the app page, list and detail, settings, not found, and the gate pages, one of them for a message with no script.
 - [Moving from the earlier subpaths](docs/migrating.md) maps each subpath earlier releases carried to its replacement.
 
 ## Credits

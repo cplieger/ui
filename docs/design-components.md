@@ -1,6 +1,6 @@
 # Components
 
-This page lists the classes in `@cplieger/ui/css/system`. [Design language](design.md) covers the foundations they apply, and [Design patterns](design-patterns.md) how screens use them. Every class applies only where markup uses it.
+This page lists the classes in `@cplieger/ui/css/system`. [Design language](design.md) covers the foundations they apply, and [Design patterns](design-patterns.md) how screens use them. Every class applies only where markup uses it. The [page templates](../templates/README.md) put them together into whole screens.
 
 | Class | What it is |
 | --- | --- |
