@@ -395,14 +395,16 @@ const absent = (spec: unknown): Path[] =>
       : [];
   });
 
-function clone(v: unknown): unknown {
+// A deep copy of `v`, each object it makes added to `made`.
+function clone(v: unknown, made: WeakSet<object>): unknown {
   if (typeof v !== "object" || v === null) {
     return v;
   }
-  if (Array.isArray(v)) {
-    return v.map(clone);
-  }
-  return Object.fromEntries(Object.entries(v).map(([k, e]) => [k, clone(e)]));
+  const copy = Array.isArray(v)
+    ? v.map((e) => clone(e, made))
+    : Object.fromEntries(Object.entries(v).map(([k, e]) => [k, clone(e, made)]));
+  made.add(copy);
+  return copy;
 }
 
 const DROP = Symbol("drop");
@@ -445,13 +447,17 @@ const WRONG: readonly unknown[] = [
 ];
 
 // `spec` with each of `changes` applied: the field at a path dropped or set.
+// A change writes only into the copy's own objects: one reached through a
+// value an earlier change set (a shared list, a wrong value) is SPECS' or
+// WRONG's, or a generated value fast-check replays, so it is skipped.
 function mutate(spec: unknown, changes: readonly (readonly [Path, unknown])[]): unknown {
-  const out = clone(spec);
+  const made = new WeakSet<object>();
+  const out = clone(spec, made);
   for (const [path, value] of changes) {
     let parent = out as Record<string | number, unknown>;
     for (const key of path.slice(0, -1)) {
       const next = parent[key];
-      if (typeof next !== "object" || next === null) {
+      if (typeof next !== "object" || next === null || !made.has(next)) {
         parent = undefined as never;
         break;
       }
