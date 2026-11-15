@@ -1,7 +1,8 @@
 /* A select panel (@cplieger/ui/select-panel): a .cp-popover holding a field
  * that filters a list of options to check, and the button that applies
- * them. Its form only groups them, so the popover lays them out. An
- * option's box is drawn with the menu's check items, in menu.css. */
+ * them. Its form only groups them, so the popover lays them out. Its
+ * options are the popup option row, their box the menu's check items', in
+ * menu.css. */
 .cp-popover.cp-select-panel {
   display: grid;
   gap: var(--cp-space-2);
@@ -26,41 +27,10 @@
   list-style: none;
 }
 
-.cp-select-panel [role="option"] {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  min-block-size: var(--cp-control-h-sm);
-  padding-inline: var(--cp-space-2);
-  border-radius: var(--cp-radius-control);
-  cursor: pointer;
-}
-
-:root[data-pointer="coarse"] .cp-select-panel [role="option"] {
-  min-block-size: var(--cp-control-h);
-}
-
-/* The option the arrow keys reached, which Enter checks; focus stays in
- * the field. */
-.cp-select-panel [role="option"][data-cp-active] {
-  background: var(--cp-fill);
-}
-
-.cp-select-panel [role="option"][aria-disabled="true"] {
-  color: var(--cp-ink-disabled);
-  cursor: not-allowed;
-}
-
 /* The words shown while no option matches the filter. */
 .cp-select-panel [data-part="empty"] {
   margin: 0;
   padding: var(--cp-space-1) var(--cp-space-2);
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
-}
-
-@media (forced-colors: active) {
-  .cp-select-panel [role="option"][data-cp-active] {
-    outline: var(--cp-line-w) solid Highlight;
-  }
 }

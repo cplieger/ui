@@ -4,6 +4,8 @@
 
 A button that confirms its own action in place. While the work runs it turns busy, with the spinner and its busy words. Then it turns green, a check draws and its words roll to the done words. After a moment it returns to rest by itself. Save, Grab and a confirmed Delete all use this cycle, and a danger button stays red as it confirms.
 
+It asks nothing: it is the button's own busy and done cycle, once the person has chosen to act. A question before the action is [ask](../overlays/ask.md), a [dialog](../overlays/dialog.md) with `data-variant="confirm"`, or [popconfirm](../overlays/popconfirm.md) by its button.
+
 ## Markup
 
 ```html
