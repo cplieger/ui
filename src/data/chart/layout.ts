@@ -341,13 +341,27 @@ const overlap = (a: Box, b: Box): boolean =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
 // All notes switch together, so a reader never matches some on the plot and
-// some in the list below it.
-function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
-  return (
-    notes.length > 0 &&
-    (narrow ||
-      notes.some((n, k) => !n.fits || notes.slice(k + 1).some((o) => overlap(n.box, o.box))))
-  );
+// some in the list below it. The sweep by left edge tests a box only against
+// the kept boxes still crossing that edge: until an overlap they are apart, fit
+// the plot and cross one vertical line, so at most plot height / line height
+// of them, however many notes pile up.
+export function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
+  if (notes.length === 0) {
+    return false;
+  }
+  if (narrow || notes.some((n) => !n.fits)) {
+    return true;
+  }
+  const boxes = notes.map((n) => n.box).sort((a, b) => a.left - b.left);
+  let kept: Box[] = [];
+  for (const box of boxes) {
+    kept = kept.filter((k) => k.right > box.left);
+    if (kept.some((k) => overlap(k, box))) {
+      return true;
+    }
+    kept.push(box);
+  }
+  return false;
 }
 
 /** A bar's value label: the value it writes, its row, and the series whose

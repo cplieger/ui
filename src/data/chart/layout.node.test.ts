@@ -5,7 +5,7 @@ import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
 import { barSegments } from "./geometry.js";
-import { dodge, layout, type Metrics, type TreeKept } from "./layout.js";
+import { dodge, layout, numberedNotes, type Metrics, type Note, type TreeKept } from "./layout.js";
 import { chartModel, type BarModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
@@ -1578,5 +1578,51 @@ describe("a treemap", () => {
     // Two levels keep their parts' rows inside each group too.
     const two = at(regions([3, 1]), 600);
     expect(at(regions([1, 3]), 600, two.tree?.kept).tree?.kept).toEqual(two.tree?.kept);
+  });
+});
+
+describe("numberedNotes", () => {
+  const HEIGHT = 200;
+  const LINE = 17;
+  const ROWS = Math.floor(HEIGHT / LINE);
+  // A note whose box counts every read of its edges into `reads`, and throws
+  // past `most` so a quadratic check fails fast.
+  const counted =
+    (reads: { n: number }, most: number) =>
+    (left: number, top: number): Note => {
+      const edges = { left, top, right: left + 2, bottom: top + LINE };
+      const box = new Proxy(edges, {
+        get(target, key, receiver) {
+          if (++reads.n > most) {
+            throw new Error(`more than ${String(most)} edge reads`);
+          }
+          return Reflect.get(target, key, receiver) as unknown;
+        },
+      });
+      return { mark: 0, point: { x: left, y: top }, box, lines: [], fits: true, number: 1 };
+    };
+
+  it("finds a pile after many notes apart in work near n x (plot height / line height)", () => {
+    const APART = 2_000;
+    const PILED = 40_000;
+    const n = APART + PILED;
+    const most = 8 * n * (ROWS + Math.log2(n));
+    const reads = { n: 0 };
+    const note = counted(reads, most);
+    const apart = Array.from({ length: APART }, (_, k) =>
+      note(3 * Math.floor(k / ROWS), LINE * (k % ROWS)),
+    );
+    const piled = Array.from({ length: PILED }, () => note(300, 0));
+    expect(numberedNotes([...apart, ...piled], false)).toBe(true);
+    expect(reads.n).toBeLessThanOrEqual(most);
+  });
+
+  it("keeps notes apart unnumbered, even ones touching edge to edge", () => {
+    const reads = { n: 0 };
+    const note = counted(reads, Infinity);
+    const apart = Array.from({ length: 2_000 }, (_, k) =>
+      note(2 * Math.floor(k / ROWS), LINE * (k % ROWS)),
+    );
+    expect(numberedNotes(apart, false)).toBe(false);
   });
 });
