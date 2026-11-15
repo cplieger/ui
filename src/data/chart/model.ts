@@ -1564,7 +1564,7 @@ const ALL: List = { charge: (length) => length };
 // chip and row name is counted too.
 const ONE_AT_LEAST: List = { charge: (length) => Math.max(1, length) };
 
-// What a list holds past the `n` values its series is charged for.
+// What a list holds past the `n` values charged for it elsewhere.
 const past = (n: number): List => ({ charge: (length) => Math.max(0, length - n) });
 
 // `names` of `v`, each read once, in an object of the chart's own.
@@ -1891,8 +1891,9 @@ function copyMark(
 // so no check or model reads the app's objects again. It counts a sample per
 // series, a bucket, bar, dot, box, outlier, cell, day, slice, part, rule or
 // note, and a mark with no series its x. Every list a series, row, node or
-// part holds is charged before its first entry is read, so a list shared by
-// reference across them is read only up to the ceiling.
+// part holds is charged before its first entry is read, so a list they share
+// by reference is copied only for those the ceiling admits, once per field
+// that holds it: a fixed multiple of the ceiling in all.
 function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
   let count = 0;
   const add = (n: number, field: string): void => {
