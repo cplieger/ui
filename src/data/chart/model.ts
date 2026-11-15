@@ -496,11 +496,11 @@ const DAY = 86_400_000;
 // A calendar writes every day of its weeks, its weekday names and its
 // table's empty places included, from the first week's start to the last
 // week's end; each is a UTC date written through Intl.
-function withinWeeks(day: number, weekStart: number, days: number): void {
+function withinWeeks(day: number, weekStart: number, days: number, most: Room): void {
   const first = day - weekRow(day, weekStart);
   const weeks = Math.max(1, weekCount(day - first, days));
-  if (weeks > MOST_ROWS) {
-    fail(`the days of a calendar must fit in ${String(MOST_ROWS)} weeks`, RangeError);
+  if (weeks > most.rows) {
+    fail(`the days of a calendar must fit in ${String(most.rows)} weeks${most.each}`, RangeError);
   }
   const last = first + 7 * weeks - 1;
   withinDate(first * DAY, "the days of a calendar's first week");
@@ -634,10 +634,31 @@ const MOST_HEIGHT = 40_000;
 // rows' own spacing aside.
 const MOST_SUB_ROWS = MOST_HEIGHT / 16;
 
-function checkSubRows(rows: number, across: number, what: string): void {
-  if (rows * across > MOST_SUB_ROWS) {
+/** A plot's ceilings: the figure's, shared out evenly among its panels,
+ *  since each panel draws a plot of its own. */
+interface Room {
+  readonly rows: number;
+  readonly subRows: number;
+  readonly height: number;
+  /** What an error adds after a ceiling: "" for a lone plot. */
+  readonly each: string;
+}
+
+function room(panels: number): Room {
+  return {
+    rows: Math.floor(MOST_ROWS / panels),
+    subRows: Math.floor(MOST_SUB_ROWS / panels),
+    height: Math.floor(MOST_HEIGHT / panels),
+    each: panels > 1 ? ` in each of ${String(panels)} panels` : "",
+  };
+}
+
+const ALONE = room(1);
+
+function checkSubRows(rows: number, across: number, what: string, most: Room): void {
+  if (rows * across > most.subRows) {
     fail(
-      `${what}.series must take at most ${String(MOST_SUB_ROWS)} sub-rows, a sub-row per series in each row, since the plot is as tall as its rows`,
+      `${what}.series must take at most ${String(most.subRows)} sub-rows${most.each}, a sub-row per series in each row, since the plot is as tall as its rows`,
       RangeError,
     );
   }
@@ -984,12 +1005,12 @@ function checkDiverge(
 }
 
 // The readings and the table name a row, or a cell's column, by its name alone.
-function checkNames(names: unknown, what: string, axis = "y"): readonly string[] {
+function checkNames(names: unknown, what: string, axis: "x" | "y", most: Room): readonly string[] {
   if (!isArray(names) || anyBut(names, (n) => typeof n === "string")) {
     fail(`${what}.${axis} must be an array of the categories' names`);
   }
-  if (axis === "y" && names.length > MOST_ROWS) {
-    fail(`${what}.y must name at most ${String(MOST_ROWS)} rows`, RangeError);
+  if (axis === "y" && names.length > most.rows) {
+    fail(`${what}.y must name at most ${String(most.rows)} rows${most.each}`, RangeError);
   }
   const seen = new Set<unknown>();
   for (const name of names) {
@@ -1003,12 +1024,12 @@ function checkNames(names: unknown, what: string, axis = "y"): readonly string[]
 
 // A cell axis names its categories or gives its bins' edges; returns its
 // column or row count.
-function checkCellAxis(axis: unknown, what: string, name: "x" | "y"): number {
+function checkCellAxis(axis: unknown, what: string, name: "x" | "y", most: Room): number {
   if (!isObject(axis)) {
     fail(`${what}.${name} must name its categories or give its bins' edges`);
   }
   if (isArray(axis)) {
-    return checkNames(axis, what, name).length;
+    return checkNames(axis, what, name, most).length;
   }
   const edges = axis["edges"];
   if (!isArray(edges) || anyBut(edges, (e) => typeof e === "number")) {
@@ -1066,7 +1087,7 @@ function checkDays(mark: Record<string, unknown>, what: string): void {
   }
 }
 
-function checkCells(mark: Record<string, unknown>, what: string): void {
+function checkCells(mark: Record<string, unknown>, what: string, most: Room): void {
   if (mark["days"] !== undefined) {
     checkDays(mark, what);
     return;
@@ -1074,8 +1095,8 @@ function checkCells(mark: Record<string, unknown>, what: string): void {
   if (mark["weekStart"] !== undefined) {
     fail(`${what}.weekStart has no place without days, which it lays out in weeks`);
   }
-  const columns = checkCellAxis(mark["x"], what, "x");
-  const rows = checkCellAxis(mark["y"], what, "y");
+  const columns = checkCellAxis(mark["x"], what, "x", most);
+  const rows = checkCellAxis(mark["y"], what, "y", most);
   const values = mark["values"];
   if (!isArray(values) || values.length !== rows) {
     fail(`${what}.values must hold one row per y entry`);
@@ -1098,8 +1119,8 @@ const FIVE = ["low", "q1", "median", "q3", "high"] as const;
 
 // The chart computes no quartile, so it takes each category's five numbers
 // as sent, all or none, in order, with its outliers beyond them.
-function checkBox(mark: Record<string, unknown>, what: string): void {
-  const names = checkNames(mark["y"], what);
+function checkBox(mark: Record<string, unknown>, what: string, most: Room): void {
+  const names = checkNames(mark["y"], what, "y", most);
   const whiskers = mark["whiskers"];
   if (whiskers !== undefined && !(typeof whiskers === "string" && whiskers.trim() !== "")) {
     fail(`${what}.whiskers must be a non-empty string naming the whiskers' convention`);
@@ -1108,7 +1129,7 @@ function checkBox(mark: Record<string, unknown>, what: string): void {
   if (!isArray(list)) {
     fail(`${what}.series must be an array`);
   }
-  checkSubRows(names.length, subRows({ kind: "box", series: list }), what);
+  checkSubRows(names.length, subRows({ kind: "box", series: list }), what, most);
   for (let s = 0; s < list.length; s++) {
     const one = list[s];
     const at = `${what}.series[${String(s)}]`;
@@ -1273,7 +1294,7 @@ function checkCurve(curve: unknown, what: string): void {
   }
 }
 
-function checkMark(mark: unknown, what: string): void {
+function checkMark(mark: unknown, what: string, most: Room): void {
   if (!isObject(mark)) {
     fail(`${what} must be an object`);
   }
@@ -1356,7 +1377,7 @@ function checkMark(mark: unknown, what: string): void {
       return;
     }
     case "bar": {
-      const names = checkNames(mark["y"], what);
+      const names = checkNames(mark["y"], what, "y", most);
       const arrange = mark["arrange"];
       if (
         arrange !== undefined &&
@@ -1387,7 +1408,7 @@ function checkMark(mark: unknown, what: string): void {
         fail(`${what}.arrange "mirror" needs exactly two series, one each side of its spine`);
       }
       checkDiverge(mark, arrange === "diverge", list.length, what);
-      checkSubRows(names.length, subRows({ kind: "bar", arrange, series: list }), what);
+      checkSubRows(names.length, subRows({ kind: "bar", arrange, series: list }), what, most);
       list.forEach((one, s) => {
         const at = `${what}.series[${String(s)}]`;
         checkSlot(one["below"], at, "below");
@@ -1399,7 +1420,7 @@ function checkMark(mark: unknown, what: string): void {
     }
     case "point": {
       const list = mark["series"];
-      checkSeries(list, checkNames(mark["y"], what).length, what, "x");
+      checkSeries(list, checkNames(mark["y"], what, "y", most).length, what, "x");
       const link = mark["link"];
       if (link !== undefined && link !== "range" && link !== "arrow") {
         fail(`${what}.link must be "range" or "arrow"`);
@@ -1441,10 +1462,10 @@ function checkMark(mark: unknown, what: string): void {
       checkScatter(mark, what);
       return;
     case "cell":
-      checkCells(mark, what);
+      checkCells(mark, what, most);
       return;
     case "box":
-      checkBox(mark, what);
+      checkBox(mark, what, most);
       return;
     case "pie":
       checkPie(mark, what);
@@ -1918,11 +1939,15 @@ function copyMark(
 // that holds it: a fixed multiple of the ceiling in all.
 function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
   let count = 0;
-  const add = (n: number, field: string): void => {
+  const add = (
+    n: number,
+    field: string,
+    what = "its samples, bars, dots, cells, parts, rules and notes together",
+  ): void => {
     count += n;
     if (count > MOST_VALUES) {
       fail(
-        `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
+        `${field} must not take the spec past ${String(MOST_VALUES)} values, ${what}`,
         RangeError,
       );
     }
@@ -2018,6 +2043,7 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
     }
     const own = fields(v, ["unit", "context", "panels"]);
     put(own, "unit", entries);
+    let values = 0;
     put(own, "panels", (list) =>
       door.list(list, "facets.panels", {
         most: MOST_PANELS,
@@ -2028,11 +2054,20 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
             return panel;
           }
           const one = fields(panel, ["name", "marks"]);
+          const before = count;
           put(one, "marks", (marks) => copyMarks(marks, `facets.panels[${String(p)}].marks`));
+          values += count - before;
           return one;
         },
       }),
     );
+    if (own["context"] === true) {
+      add(
+        Math.max(0, size(own["panels"]) - 1) * values,
+        "facets.context",
+        "each panel's values counted again for every other panel, behind which they are drawn",
+      );
+    }
     return own;
   });
   return copy;
@@ -2069,19 +2104,26 @@ function check(given: unknown): ChartSpec {
   if (!isArray(marks)) {
     fail("marks must be an array");
   }
-  if (spec["facets"] === undefined) {
+  const facets = spec["facets"];
+  const panels = isObject(facets) ? size(facets["panels"]) : 0;
+  const most = room(Math.max(1, panels));
+  if (facets === undefined) {
     checkMarks(
       spec,
       marks,
       marks.map((_, m) => `marks[${String(m)}]`),
+      most,
     );
   } else {
-    checkFacets(spec, spec["facets"], marks);
+    checkFacets(spec, facets, marks, most);
   }
   const height = spec["height"];
   optional(height, "number", "height");
-  if (typeof height === "number" && !(height > 0 && height <= MOST_HEIGHT)) {
-    fail(`height must be a number of px above 0 and at most ${String(MOST_HEIGHT)}`, RangeError);
+  if (typeof height === "number" && !(height > 0 && height <= most.height)) {
+    fail(
+      `height must be a number of px above 0 and at most ${String(most.height)}${most.each}`,
+      RangeError,
+    );
   }
   const summary = spec["summary"];
   if (summary !== undefined && typeof summary !== "string" && typeof summary !== "function") {
@@ -2091,17 +2133,19 @@ function check(given: unknown): ChartSpec {
   return spec as unknown as ChartSpec;
 }
 
-/** Checks one chart's `marks`, each named by `names`, against `spec`'s
- *  scales and height; returns the data mark's index, or -1. */
+/** Checks one plot's `marks`, each named by `names`, against `spec`'s
+ *  scales and height and the plot's ceilings; returns the data mark's
+ *  index, or -1. */
 function checkMarks(
   spec: Record<string, unknown>,
   marks: readonly unknown[],
   names: readonly string[],
+  most: Room,
 ): number {
   let data = -1;
   for (let m = 0; m < marks.length; m++) {
     const mark = marks[m];
-    checkMark(mark, names[m] ?? "");
+    checkMark(mark, names[m] ?? "", most);
     if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
       continue;
     }
@@ -2162,10 +2206,10 @@ function checkMarks(
     // float share of exactly a thousandth (1 / 1000) through.
     if (
       !(log && (edges[0] ?? 0) <= 0) &&
-      thinnestBin(log ? "log" : "linear", edges) * MOST_ROWS < 1 - 1e-9
+      thinnestBin(log ? "log" : "linear", edges) * most.rows < 1 - 1e-9
     ) {
       fail(
-        `${names[data] ?? ""}.y.edges' thinnest bin must be at least 1/${String(MOST_ROWS)} of the axis, since the plot grows until it is a row tall`,
+        `${names[data] ?? ""}.y.edges' thinnest bin must be at least 1/${String(most.rows)} of the axis${most.each}, since the plot grows until it is a row tall`,
         RangeError,
       );
     }
@@ -2249,7 +2293,12 @@ function sharedFields(mark: Record<string, unknown>): [string, unknown][] {
 const sameList = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((n, i) => n === b[i]);
 
-function checkFacets(spec: Record<string, unknown>, facets: unknown, rules: readonly unknown[]) {
+function checkFacets(
+  spec: Record<string, unknown>,
+  facets: unknown,
+  rules: readonly unknown[],
+  most: Room,
+) {
   if (!isObject(facets)) {
     fail("facets must be an object");
   }
@@ -2283,7 +2332,7 @@ function checkFacets(spec: Record<string, unknown>, facets: unknown, rules: read
       fail(`${at}.marks must be an array`);
     }
     const names = [...own.map((_, m) => `${at}.marks[${String(m)}]`), ...ruleNames];
-    const data = checkMarks(spec, [...own, ...rules], names);
+    const data = checkMarks(spec, [...own, ...rules], names, most);
     const mark = own[data];
     if (!isObject(mark)) {
       fail(`${at}.marks must hold one data mark`);
@@ -2789,7 +2838,7 @@ export function chartModel(
       classes: colourClasses(spec),
       grain: timeGrain(spec, x, timeZone),
     };
-    return build(spec, scales, "marks", locale, timeZone);
+    return build(spec, scales, "marks", ALONE, locale, timeZone);
   }
   // The scales are the chart's: their domains are taken over every panel.
   const each = facets.panels.map((p) => ({ ...rest, marks: [...p.marks, ...spec.marks] }));
@@ -2806,7 +2855,14 @@ export function chartModel(
   };
   const panels = facets.panels.map((p, k) => ({
     name: panelName(p),
-    model: build(each[k] ?? all, scales, `facets.panels[${String(k)}].marks`, locale, timeZone),
+    model: build(
+      each[k] ?? all,
+      scales,
+      `facets.panels[${String(k)}].marks`,
+      room(facets.panels.length),
+      locale,
+      timeZone,
+    ),
   }));
   const [first] = panels;
   if (first === undefined) {
@@ -2820,11 +2876,13 @@ export function chartModel(
   };
 }
 
-/** The model of a checked `spec` on `scales`, its marks named under `field`. */
+/** The model of a checked `spec` on `scales`, its marks named under `field`,
+ *  within the plot's ceilings `most`. */
 function build(
   spec: ChartSpec,
   { x, y, size, classes: colour, grain }: Scales,
   field: string,
+  most: Room,
   locale: string | undefined,
   timeZone: string | undefined,
 ): Model {
@@ -2915,7 +2973,7 @@ function build(
           const values = gaps(m.days.values, false);
           const day = localDay(m.days.start, timeZone);
           const weekStart = m.weekStart ?? weekStartOf(locale);
-          withinWeeks(day, weekStart, values.length);
+          withinWeeks(day, weekStart, values.length, most);
           return {
             kind: "calendar",
             day,

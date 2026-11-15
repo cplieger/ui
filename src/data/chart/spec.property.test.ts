@@ -786,6 +786,45 @@ describe("a chart spec", () => {
     }
   });
 
+  // The panels share the tallest plot out among them, so a grid of them at
+  // any height the check takes draws what one tallest plot does beside its
+  // values. Context draws each panel's values again behind every other panel,
+  // and the check counts each of those as a value too.
+  it("draws a grid of the most panels at their tallest within the bound, context included", () => {
+    const panels = 100;
+    const samples = 2;
+    const grid = (height: number, context: boolean) => ({
+      height,
+      y: { domain: [0, 1] },
+      marks: [{ mark: "rule", y: 0.5, label: "Half" }],
+      facets: {
+        context,
+        panels: Array.from({ length: panels }, (_, k) => ({
+          marks: [{ mark: "line", x: [0, 1], series: [{ name: `P${String(k)}`, y: [0.1, 0.9] }] }],
+        })),
+      },
+    });
+    const behind = (panels - 1) * panels * samples;
+    let drawn = 0;
+    for (const height of [400, 40_000]) {
+      for (const context of [false, true]) {
+        const spec = grid(height, context);
+        try {
+          const n = exercise(spec, "UTC", false);
+          expect(n, `${String(height)} ${String(context)}`).toBeLessThanOrEqual(
+            mostDrawn(spec) + (context ? PER_VALUE * behind : 0),
+          );
+          drawn++;
+        } catch (e) {
+          if (!refusedByName(e)) {
+            throw e;
+          }
+        }
+      }
+    }
+    expect(drawn).toBeGreaterThan(0);
+  });
+
   // The data marks at their most values for a test's time, one way each
   // value draws: samples a pixel apart, dots, bars and their labels, cells.
   it("draws a spec of many values in at most MOST_DRAWN and PER_VALUE a value", () => {

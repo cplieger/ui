@@ -245,6 +245,90 @@ describe("facets: the spec", () => {
     );
   });
 
+  // Each panel draws a plot of its own, so the figure's ceilings are shared out.
+  it("shares the figure's height, row, sub-row, week and bin ceilings out among its panels", () => {
+    expect(() => model(lines(100, { height: 401 }))).toThrow(
+      new RangeError(
+        "renderChart: height must be a number of px above 0 and at most 400 in each of 100 panels",
+      ),
+    );
+    expect(model(lines(100, { height: 400 })).spec.height).toBe(400);
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
+    const ones = (n: number) => names(n).map(() => 1);
+    const panels = (mark: Mark): ChartSpec => ({
+      marks: [],
+      facets: { panels: names(10).map((name) => ({ name, marks: [mark] })) },
+    });
+    const rows = (n: number, k = 1): Mark => ({
+      mark: "bar",
+      y: names(n),
+      arrange: "group",
+      series: names(k).map((name) => ({ name, x: ones(n) })),
+    });
+    expect(() => model(panels(rows(101)))).toThrow(
+      new RangeError(
+        "renderChart: facets.panels[0].marks[0].y must name at most 100 rows in each of 10 panels",
+      ),
+    );
+    expect(model(panels(rows(100))).facets?.panels).toHaveLength(10);
+    expect(() => model(panels(rows(100, 3)))).toThrow(
+      new RangeError(
+        "renderChart: facets.panels[0].marks[0].series must take at most 250 sub-rows in each of 10 panels, a sub-row per series in each row, since the plot is as tall as its rows",
+      ),
+    );
+    // 1 January 1970 was a Thursday, so with weeks from Thursday 700 days are 100 weeks.
+    const days = (n: number): Mark => ({
+      mark: "cell",
+      weekStart: 4,
+      days: { start: 0, values: ones(n) },
+    });
+    expect(() => model(panels(days(701)))).toThrow(
+      new RangeError(
+        "renderChart: the days of a calendar must fit in 100 weeks in each of 10 panels",
+      ),
+    );
+    expect(model(panels(days(700))).facets?.panels).toHaveLength(10);
+    const bins = (thinnest: number): Mark => ({
+      mark: "cell",
+      x: ["a"],
+      y: { edges: [0, thinnest, 1] },
+      values: [[1], [2]],
+    });
+    expect(() => model(panels(bins(0.009)))).toThrow(
+      new RangeError(
+        "renderChart: facets.panels[0].marks[0].y.edges' thinnest bin must be at least 1/100 of the axis in each of 10 panels, since the plot grows until it is a row tall",
+      ),
+    );
+    expect(model(panels(bins(0.01))).facets?.panels).toHaveLength(10);
+  });
+
+  it("counts each panel's values again for every other panel it is drawn behind", () => {
+    const samples = (n: number, context?: true): ChartSpec => ({
+      marks: [],
+      facets: {
+        ...(context === undefined ? {} : { context }),
+        panels: Array.from({ length: 100 }, (_, k) => ({
+          marks: [
+            {
+              mark: "line",
+              x: Array.from({ length: n }, (_, i) => i),
+              series: [{ name: `P${String(k)}`, y: Array.from({ length: n }, () => 1) }],
+            },
+          ],
+        })),
+      },
+    });
+    // 100 panels of n samples draw 100 × n values each, 10,000 × n in all,
+    // beside the panels' own charge of one a panel.
+    expect(() => model(samples(100, true))).toThrow(
+      new RangeError(
+        "renderChart: facets.context must not take the spec past 1000000 values, each panel's values counted again for every other panel, behind which they are drawn",
+      ),
+    );
+    expect(model(samples(99, true)).facets?.context).toBe(true);
+    expect(model(samples(100)).facets?.panels).toHaveLength(100);
+  });
+
   it("draws context behind one-series line or scatter panels only", () => {
     expect(
       model(lines(2, { facets: { context: true, panels: lines(2).facets?.panels ?? [] } })).facets
