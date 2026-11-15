@@ -2,7 +2,8 @@
  * charts.ts — the gallery wiring for the Charts page: grelot's four
  * statistics drawn by the library's chart from seeded data, the other time
  * series, bars and dots by category, slope and scatter charts, heatmaps and
- * box plots, their loading, empty and error states, and phone-width frames.
+ * box plots, pies and treemaps, their loading, empty and error states, and
+ * phone-width frames.
  */
 
 import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
@@ -996,6 +997,161 @@ function latencies(both: boolean): ChartSpec {
   };
 }
 
+// Germany's land by use, 2022, in km²: a long total, so on a phone the
+// donut's hole stays empty and the legend row gives it.
+function landUse(): ChartSpec {
+  return {
+    marks: [
+      {
+        mark: "pie",
+        hole: true,
+        unit: { other: "km²" },
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", value: 106_000 },
+          { name: "Housing & traffic", value: 49_276 },
+          { name: "Other land", value: 11_443 },
+          { name: "Water", value: 8_224 },
+        ],
+      },
+    ],
+  };
+}
+
+function browsers(): ChartSpec {
+  return {
+    marks: [
+      {
+        mark: "pie",
+        unit: { one: "visit", other: "visits" },
+        slices: [
+          { name: "Chrome", value: 41_830 },
+          { name: "Safari", value: 12_420 },
+          { name: "Edge", value: 3_390 },
+          { name: "Firefox", value: 1_830 },
+          { name: "Other", value: 5_890 },
+        ],
+      },
+    ],
+  };
+}
+
+const GB = { style: "unit", unit: "gigabyte", maximumFractionDigits: 0 } as const;
+
+// A media server's folders, largest first, Downloads picked out by its own
+// slot as the folder to clear.
+function storage(): ChartSpec {
+  const folders: readonly (readonly [string, number])[] = [
+    ["Movies", 4_820],
+    ["TV", 3_960],
+    ["Backups", 1_240],
+    ["Music", 612],
+    ["Photos", 488],
+    ["Downloads", 410],
+    ["Audiobooks", 236],
+    ["Containers", 142],
+    ["Documents", 64],
+    ["Home videos", 58],
+    ["Podcasts", 31],
+    ["Other", 22],
+  ];
+  return {
+    marks: [
+      {
+        mark: "tree",
+        format: GB,
+        nodes: folders.map(([name, value]) =>
+          name === "Downloads" ? { name, slot: 3, value } : { name, value },
+        ),
+      },
+    ],
+  };
+}
+
+// GDP in billions of US dollars, 2023, rounded from the IMF's World Economic
+// Outlook, by continent and country, each continent's smallest grouped.
+const GDP: readonly (readonly [string, readonly (readonly [string, number])[]])[] = [
+  [
+    "Asia",
+    [
+      ["China", 17_795],
+      ["Japan", 4_213],
+      ["India", 3_550],
+      ["South Korea", 1_713],
+      ["Indonesia", 1_371],
+      ["Turkey", 1_108],
+      ["Saudi Arabia", 1_068],
+      ["Taiwan", 756],
+      ["Thailand", 515],
+      ["Israel", 510],
+      ["Singapore", 501],
+      ["Other Asia", 4_420],
+    ],
+  ],
+  [
+    "Americas",
+    [
+      ["United States", 27_361],
+      ["Brazil", 2_174],
+      ["Canada", 2_140],
+      ["Mexico", 1_789],
+      ["Argentina", 641],
+      ["Colombia", 364],
+      ["Chile", 335],
+      ["Other Americas", 980],
+    ],
+  ],
+  [
+    "Europe",
+    [
+      ["Germany", 4_456],
+      ["United Kingdom", 3_340],
+      ["France", 3_031],
+      ["Italy", 2_255],
+      ["Russia", 2_021],
+      ["Spain", 1_581],
+      ["Netherlands", 1_118],
+      ["Switzerland", 885],
+      ["Poland", 811],
+      ["Other Europe", 4_310],
+    ],
+  ],
+  [
+    "Africa",
+    [
+      ["Egypt", 396],
+      ["South Africa", 381],
+      ["Nigeria", 363],
+      ["Algeria", 240],
+      ["Other Africa", 1_620],
+    ],
+  ],
+  [
+    "Oceania",
+    [
+      ["Australia", 1_724],
+      ["New Zealand", 253],
+      ["Other Oceania", 40],
+    ],
+  ],
+];
+
+function gdp(): ChartSpec {
+  return {
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "USD" },
+        format: { notation: "compact", maximumSignificantDigits: 3 },
+        nodes: GDP.map(([name, countries]) => ({
+          name,
+          children: countries.map(([country, bn]) => ({ name: country, value: bn * 1e9 })),
+        })),
+      },
+    ],
+  };
+}
+
 const SPECS = new Map<string, (hours: number) => ChartSpec>([
   ["posts", (hours) => posts(postCounts(hours))],
   ["reads", (hours) => reads(READS.get(hours) ?? 1_204, hours)],
@@ -1094,6 +1250,13 @@ make("latencies-release", latencies(true));
 make("phone-week-hours", weekHours());
 make("phone-post-days", postDays());
 make("phone-latencies", latencies(true));
+make("browsers", browsers());
+make("land", landUse());
+make("storage", storage());
+make("gdp", gdp());
+make("phone-browsers", browsers());
+make("phone-land", landUse());
+make("phone-gdp", gdp());
 make("activity", activity(6));
 make("agents", agents(6));
 make("loading", null);

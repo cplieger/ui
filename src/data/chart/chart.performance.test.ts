@@ -284,6 +284,27 @@ const fewCells: ChartSpec = {
   marks: [{ mark: "cell", x: { edges: [0, 1] }, y: { edges: [0, 1] }, values: [[1]] }],
 };
 
+// A treemap of 1,000 parts in 9 groups of a long tail each.
+const treemap: ChartSpec = {
+  marks: [
+    {
+      mark: "tree",
+      unit: { other: "USD" },
+      format: { notation: "compact" },
+      nodes: Array.from({ length: 9 }, (_, g) => ({
+        name: `Region ${String(g + 1)}`,
+        children: Array.from({ length: g < 1 ? 112 : 111 }, (_, i) => ({
+          name: `Country ${String(g)}-${String(i)}`,
+          value: 1e12 / (1 + i + g * 7),
+        })),
+      })),
+    },
+  ],
+};
+const fewParts: ChartSpec = {
+  marks: [{ mark: "tree", nodes: [{ name: "a", value: 1 }] }],
+};
+
 describe("performance", () => {
   it.skipIf(!chromium)("renders a 72-hour step line of 8,640 values within its bound", async () => {
     const { ms, plot } = await timed(stepLine, few);
@@ -334,11 +355,49 @@ describe("performance", () => {
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
   });
 
+  it.skipIf(!chromium)("renders a treemap of 1,000 parts within its bound", async () => {
+    const nodes = treemap.marks[0]?.mark === "tree" ? treemap.marks[0].nodes : [];
+    expect(nodes.reduce((n, g) => n + ("children" in g ? g.children.length : 1), 0)).toBe(1_000);
+    const { ms, plot } = await timed(treemap, fewParts);
+    // One path per group's slot.
+    expect(plot.querySelectorAll('[data-part="tree"] > path')).toHaveLength(9);
+    expect(ms).toBeLessThan(RENDER_MS);
+    expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
+
   it.skipIf(!chromium)("renders a timeline of 20,000 dots within its bound", async () => {
     const dots = timeline.marks[0]?.mark === "dot" ? timeline.marks[0].rows : [];
     expect(dots.reduce((n, r) => n + r.x.length, 0)).toBeGreaterThanOrEqual(20_000);
     const { ms, plot } = await timed(timeline, fewDots);
     expect(ms).toBeLessThan(RENDER_MS);
     expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+  });
+});
+
+// Wall time, so the bound holds in every engine: a few dots draw in well
+// under it, and only ticks generated across the span's days could reach it.
+describe("a time axis over a long span", () => {
+  const year = (y: number) => new Date(Date.UTC(2000, 0, 1)).setUTCFullYear(y);
+
+  it.each([
+    ["10,000 years", year(-3000), year(7000)],
+    ["all that Date holds", -8.64e15, 8.64e15],
+  ])("renders a line over %s within the render bound", (_, lo, hi) => {
+    const spec: ChartSpec = {
+      x: { type: "time", domain: [lo, hi] },
+      marks: [{ mark: "line", x: [lo, 0, hi], series: [{ name: "a", y: [1, 3, 2] }] }],
+    };
+    const life = new AbortController();
+    lives.push(life);
+    let ms = Infinity;
+    let fig = figure();
+    for (let k = 0; k < RUNS; k++) {
+      fig = figure();
+      const t0 = performance.now();
+      renderChart(fig, spec, { signal: life.signal });
+      ms = Math.min(ms, performance.now() - t0);
+    }
+    expect(fig.querySelectorAll('[data-part="x"] text').length).toBeGreaterThan(2);
+    expect(ms).toBeLessThan(RENDER_MS);
   });
 });
