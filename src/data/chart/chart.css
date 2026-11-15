@@ -250,6 +250,42 @@
   font-size: var(--cp-text-md);
 }
 
+/* Small multiples run left to right whatever the text direction, as the
+ * plot's geometry does; the script sets the columns and gaps it laid out. */
+.cp-chart [data-part="panels"] {
+  display: grid;
+  justify-content: start;
+  direction: ltr;
+}
+
+/* A head never widens its column: a long name is cut. */
+.cp-chart [data-part="panels"] [data-part="head"] {
+  display: flex;
+  gap: var(--cp-space-2);
+  contain: inline-size;
+  block-size: 18px;
+  line-height: 18px;
+  color: var(--cp-ink-muted);
+}
+
+.cp-chart [data-part="head"] > [data-part="name"] {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-chart [data-part="head"] > [data-part="figure"] {
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--cp-ink);
+  white-space: nowrap;
+}
+
+.cp-chart [data-part="panels"] [data-part="frame"] {
+  border: 1px solid transparent;
+}
+
 .cp-chart svg {
   display: block;
   overflow: visible;

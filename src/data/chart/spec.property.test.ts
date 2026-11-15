@@ -326,6 +326,28 @@ const SPECS: readonly Record<string, unknown>[] = [
       },
     ],
   },
+  {
+    y: { format: "percent" },
+    marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+    facets: {
+      unit: UNIT,
+      context: true,
+      panels: [
+        {
+          marks: [
+            { mark: "line", x: [0, 1, 2], series: [{ name: "North", y: [0.02, 0.06, 0.04] }] },
+            { mark: "text", x: 1, y: 0.06, text: "Strike" },
+          ],
+        },
+        {
+          name: "Southern",
+          marks: [
+            { mark: "line", x: [0, 1, 2], series: [{ name: "South", y: [0.03, 0.01, null] }] },
+          ],
+        },
+      ],
+    },
+  },
 ];
 
 type Path = readonly (string | number)[];
@@ -335,13 +357,16 @@ const PLURALS = ["few", "many", "one", "other", "two", "zero"];
 
 // Every field name the spec documents, for a field a spec leaves out.
 const NAMES = [
-  ..."arrange below centre children colour curve days domain edges empty format height high".split(
+  ..."arrange below centre children colour context curve days domain edges empty facets format".split(
     " ",
   ),
-  ..."hole label labels left link low mark marks median mono name names nodes open outliers".split(
+  ..."height high hole label labels left link low mark marks median mono name names nodes".split(
     " ",
   ),
-  ..."pivot q1 q3 r reverse rows series shape side slices slot start steps summary text".split(" "),
+  ..."open outliers panels pivot q1 q3 r reverse rows series shape side slices slot start".split(
+    " ",
+  ),
+  ..."steps summary text".split(" "),
   ..."thresholds type unit value values weekStart whiskers x x1 x2 y zero".split(" "),
 ];
 const FIELDS = [...new Set([...NAMES, ...PLURALS])];

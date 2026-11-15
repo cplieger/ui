@@ -187,6 +187,11 @@ export interface Layout {
   /** Every note is drawn as its numbered marker, its words listed below
    *  the plot: under 30rem, or when two notes overlap or one cannot fit. */
   readonly numbered: boolean;
+  /** A panel beside the grid's y gutter: the SVG starts at the plot's
+   *  edge, and holds no y labels. */
+  readonly clip?: boolean;
+  /** A panel with a panel below it draws no x ticks. Default true. */
+  readonly ticks?: boolean;
 }
 
 /** A text mark's note laid out beside its point, in plot px. */
@@ -208,7 +213,7 @@ const PAD = 8;
 const TICK = 4;
 /** Under this many rem a chart draws no end labels, its notes as numbered
  *  markers, and a bar row's or a point row's name on its own line above it. */
-const NARROW_REM = 30;
+export const NARROW_REM = 30;
 /** A row's bars take its height less this, half above them and half below. */
 const BAR_SPACE = 8;
 /** A mirrored row's bars take its height less this, so neighbouring rows
@@ -220,8 +225,8 @@ const NAME_GAP = 2;
 const VALUE_GAP = 4;
 /** The room between a row's last bar, or its label, and a note's point there. */
 const END_GAP = 4;
-/** The room between a split bar chart's panels. */
-const PANEL_GAP = 16;
+/** The room between panels: a split bar chart's, and small multiples' rows and columns. */
+export const PANEL_GAP = 16;
 /** The spine between a mirrored bar chart's two sides. */
 const SPINE = 8;
 /** A point chart's x runs this far inside each end of the plot: the
@@ -1077,7 +1082,8 @@ function ruleText(model: Model, words: Words, label: string, value: number, off:
  * `gutters` as the next update's floors so the plot never moves sideways.
  * `chart` is the chart's own width, which the 30rem rule and the band
  * names' cut read, `width` by default. `kept` is the last layout's
- * `tree.kept`, which a treemap of the same names and size keeps.
+ * `tree.kept`, which a treemap of the same names and size keeps. A
+ * `panel` of small multiples draws no end labels, which the heads replace.
  */
 export function layout(
   model: Model,
@@ -1087,6 +1093,7 @@ export function layout(
   floors: Floors,
   chart = width,
   kept?: TreeKept,
+  panel = false,
 ): Layout {
   const slope = model.marks.find((m) => m.kind === "slope");
   if (slope !== undefined) {
@@ -1188,7 +1195,7 @@ export function layout(
   // A group's label gutter holds every end label, as its axis gutter holds
   // band names, so a long series name never moves one plot off the shared edge.
   const endLimit = metrics.labelGroup > 0 ? metrics.labelGroup - PAD : Number.POSITIVE_INFINITY;
-  const ends = narrow ? [] : endTexts(model, words, measure, endLimit);
+  const ends = narrow || panel ? [] : endTexts(model, words, measure, endLimit);
   const widestEnd = widestOf(ends, (e) => measure.number(e.text));
   const labelW = Math.max(
     ends.length > 0 ? ceil(widestEnd + PAD) : 0,

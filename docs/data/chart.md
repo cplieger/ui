@@ -217,6 +217,35 @@ Niche statistical types such as violin plots and dendrograms are not offered eit
 - Dots keep their glyph when posts crowd, since one pixel column's posts draw once. An agent that posts more often than a dot is wide draws a run, which reads as continuous activity. The legend row, the keys and the table give each post and each count.
 - The chart computes nothing statistical. The app sends the bins, the counts and the percentiles it draws.
 
+## Small multiples
+
+`facets` draws one panel per series or per category, in a grid that follows the figure's width, every panel on the chart's scales. Panels untangle lines that overlap into a tangle and show each one's shape, at the cost of comparing two of them at one moment, so show few: six fit a phone in two columns, and twelve already scroll two screens.
+
+```ts
+{
+  x: { type: "time", domain: [start, end] },
+  y: { label: "Unemployment", format: "percent" },
+  facets: {
+    unit: { one: "region", other: "regions" },
+    panels: [
+      { marks: [{ mark: "line", x: months, series: [{ name: "North", y: north }] }] },
+      { marks: [{ mark: "line", x: months, series: [{ name: "South", y: south }] }] },
+    ],
+  },
+  marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+}
+```
+
+- **Two forms.** Per series, every panel's data mark holds one series, and the panel takes its name. Per category, every panel's data mark holds the same series, the same names in the same order, such as a stacked column per region, and each panel needs its own `name`. A panel of two or more series without a `name` is a `TypeError`, and an empty or repeated name a `RangeError`.
+- **One data mark a panel**, a `rect`, `line`, `area`, `bar`, `point`, `scatter`, `box`, `cell` or `pie`, of one kind with one set of options across the panels (`shape`, `arrange`, `curve`, `open`, `left`, `centre`, `labels`, `link`, `whiskers`, `weekStart`, `hole`, `unit` and `format`), plus its own rules and text notes. A `dot` timeline is already a row per name on one scale, a `slope` holds few lines, and a `tree`'s equal areas in two panels would be unequal values, so each is a `TypeError` in a panel.
+- **The chart's `marks` hold rules only** beside `facets`, each drawn in every panel. A data mark or a text mark there is a `TypeError`, and so is a rule the panels' mark refuses on its own, such as a `y` rule beside bar panels or any rule beside pie panels.
+- **The scales are the chart's**: `x`, `y`, `r` and `colour` apply to every panel, and a domain the app does not pass is taken over every panel's data, so equal heights are equal values in every panel. There are no independent scales, since readers assume one.
+- **The grid.** Panels run in the order sent, left to right and then down, in columns of equal width 16px apart: as many as fit at the mark's narrowest plot, at most the panel count. That is 112px for a `rect`, `line`, `area` or `scatter`, 120px for a `bar`, `point`, `box` or `pie`, and 160px for a `cell`; under 30rem bar, point and box panels take one column each, since their names sit above their rows there. The columns change only when the figure's width does. Under `dir="rtl"` the grid keeps its left-to-right order, as the plot's geometry does.
+- **One y gutter**, at the grid's left (its right on a reversed x), where each grid row's first panel writes the y labels or band names; the other panels draw their gridlines alone, so every plot is the same width. The x axis sits under each panel with no panel below it, and gridlines run in every panel.
+- **The panel head** is one 18px line above each plot: its name in the muted ink, cut with an ellipsis, then the one number the panel's own legend row would carry, in ink: a one-series panel's value, a stack's total, a pie's total, or a scatter panel's dot count. A group, a box plot and a heatmap have no one number, and their heads hold the name alone.
+- **Height.** `height` sets each panel's plot height, 120px by default at every width. A band panel is as tall as its rows. Panels draw no end labels, since the heads and the legend row name every series.
+- More than 100 panels is a `RangeError`, and every panel draws the chart's rules, so the rules count toward the values ceiling once per panel.
+
 ## Scales and axes
 
 | `type` | For | Domain when the spec gives none |

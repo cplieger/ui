@@ -423,21 +423,24 @@ const leaderPath = (list: readonly Leader[]): string =>
 
 /** Draws `model` laid out as `lay` into `svg`, replacing what it held. */
 export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
-  svg.setAttribute("width", num(lay.width));
+  const from = lay.clip === true ? lay.left : 0;
+  const width = lay.clip === true ? lay.frame.width : lay.width;
+  svg.setAttribute("width", num(width));
   svg.setAttribute("height", num(lay.height));
-  svg.setAttribute("viewBox", `0 0 ${num(lay.width)} ${num(lay.height)}`);
+  svg.setAttribute("viewBox", `${num(from)} 0 ${num(width)} ${num(lay.height)}`);
   // A band x labels its columns, as a band y its rows, with no tick.
   const primary = model.primary;
   const band = primary?.kind === "cell" && "names" in primary.x;
   const ticks = svgEl("path", {
     "data-part": "ticks",
     transform: `translate(${num(lay.left)} ${num(lay.top + lay.frame.height)})`,
-    d: band
-      ? ""
-      : tickPath(
-          lay.xAxis.ticks.map((t) => t.at),
-          lay.frame.dpr,
-        ),
+    d:
+      band || lay.ticks === false
+        ? ""
+        : tickPath(
+            lay.xAxis.ticks.map((t) => t.at),
+            lay.frame.dpr,
+          ),
   });
   const plot = plotArea(model, lay);
   svg.replaceChildren(

@@ -13,6 +13,7 @@ import { forgetMeasures } from "../scale/measure.js";
 
 import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
+import { drawPanels, facetLayout } from "./facets.js";
 import { layout, type Floors, type TreeKept } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { chipChosen, overall, readoutWidths, totalWord, type Widths } from "./readout.js";
@@ -166,6 +167,8 @@ export function renderChart(
   howTo.hidden = true;
   howTo.textContent = words.howTo;
   plot.append(svg, howTo);
+  // Small multiples' grid, in the svg's place while the drawing has facets.
+  const panels = part("div", "panels");
   const list = part("ol", "notes");
   const panel = part("div", "table");
   panel.className = "cp-panel";
@@ -271,6 +274,26 @@ export function renderChart(
     plotStale = false;
     const metrics = readMetrics(plot, locale);
     drawnBox = chartWidth();
+    const facets = drawn.facets;
+    if (facets !== undefined) {
+      const grid = facetLayout(drawn, facets, words, metrics, plot.clientWidth, floors, drawnBox);
+      floors = grid.gutters;
+      if (panels.parentElement !== plot) {
+        svg.replaceWith(panels);
+      }
+      drawPanels(panels, facets, grid, words);
+      listed = false;
+      list.remove();
+      const none = overall(drawn, words);
+      if (none !== undefined) {
+        widths = grow(widths, readoutWidths(drawn, words, metrics.measure));
+        frameLegend(legend, none, widths, totalWord(drawn, words), chipChosen(drawn));
+      }
+      return;
+    }
+    if (panels.parentElement === plot) {
+      panels.replaceWith(svg);
+    }
     const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox, kept);
     floors = lay.gutters;
     kept = lay.tree?.kept;
@@ -356,7 +379,11 @@ export function renderChart(
       setSummary(text, false);
       arrange([empty]);
     } else {
-      explorer.data(model);
+      if (model.facets === undefined) {
+        explorer.data(model);
+      } else {
+        explorer.reset();
+      }
       drawn = model;
       setSummary(summaryOf(model, words), true);
       plot.setAttribute("role", "application");

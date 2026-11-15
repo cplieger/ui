@@ -555,6 +555,13 @@ type MarkModel =
 /** A mark drawing the chart's data, every mark but a rule or a note. */
 type DataModel = Exclude<MarkModel, RuleModel | TextModel>;
 
+/** Small multiples: a model per panel, on the chart's scales. */
+export interface FacetsModel {
+  readonly unit: Unit | undefined;
+  readonly context: boolean;
+  readonly panels: readonly { readonly name: string; readonly model: Model }[];
+}
+
 export interface Model {
   readonly spec: ChartSpec;
   readonly x: Continuous;
@@ -600,12 +607,19 @@ export interface Model {
   };
   readonly locale: string | undefined;
   readonly timeZone: string | undefined;
+  /** Under `facets`, the panels; the rest of the model is the first panel's,
+   *  `spec` and `empty` aside, which are the chart's. */
+  readonly facets?: FacetsModel;
 }
 
 // No reader scans a plot past a thousand rows: the most rows a plot holds, a
 // binned y's included, the most weeks a calendar holds and the most series a
 // slope names at each end, a line each.
 const MOST_ROWS = 1_000;
+
+// Datawrapper's advice is to show fewer panels than first planned; past this
+// many no reader compares them, and the grid would scroll for screens.
+const MOST_PANELS = 100;
 
 // A thousand of the y axis's 40px tick spaces, so a plot draws at most
 // about a thousand y ticks.
@@ -1478,7 +1492,11 @@ function checkMark(mark: unknown, what: string): void {
 
 // Every instant a time x places is written through Intl, so each is held to
 // what Date holds by its own field, whatever the domain.
-function checkInstants(spec: Record<string, unknown>, marks: readonly unknown[]): void {
+function checkInstants(
+  spec: Record<string, unknown>,
+  marks: readonly unknown[],
+  names: readonly string[],
+): void {
   const x = spec["x"];
   if (!isObject(x) || x["type"] !== "time") {
     return;
@@ -1496,7 +1514,7 @@ function checkInstants(spec: Record<string, unknown>, marks: readonly unknown[])
   each(x["domain"], "x.domain");
   for (let m = 0; m < marks.length; m++) {
     const mark = marks[m] as Record<string, unknown>;
-    const what = `marks[${String(m)}]`;
+    const what = names[m] ?? "";
     switch (mark["mark"]) {
       case "rect":
         each(mark["x1"], `${what}.x1`);
@@ -1937,7 +1955,17 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
     },
     add,
   };
-  const copy = fields(spec, ["x", "y", "r", "colour", "marks", "height", "summary", "empty"]);
+  const copy = fields(spec, [
+    "x",
+    "y",
+    "r",
+    "colour",
+    "marks",
+    "facets",
+    "height",
+    "summary",
+    "empty",
+  ]);
   for (const name of ["x", "y", "r", "colour"]) {
     put(copy, name, (scale) => {
       if (!isObject(scale)) {
@@ -1951,11 +1979,12 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
       return own;
     });
   }
-  let data: number | undefined;
-  put(copy, "marks", (v) =>
-    door.list(v, "marks", {
+  // A list of marks, at `field`: one data mark at most.
+  const copyMarks = (v: unknown, field: string): unknown => {
+    let data: number | undefined;
+    return door.list(v, field, {
       each: (mark, m) => {
-        const what = `marks[${String(m)}]`;
+        const what = `${field}[${String(m)}]`;
         if (!isObject(mark)) {
           add(1, what);
           return mark;
@@ -1967,15 +1996,41 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
         if (typeof kind === "string" && kind !== "rule" && kind !== "text" && MARKS.has(kind)) {
           if (data !== undefined) {
             fail(
-              `${what} is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks`,
+              `${what} is a second data mark beside ${field}[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks`,
             );
           }
           data = m;
         }
         return copyMark(mark, kind, what, door);
       },
-    }),
-  );
+    });
+  };
+  put(copy, "marks", (v) => copyMarks(v, "marks"));
+  // Every panel draws the chart's rules, so each is charged them again.
+  const rules = size(copy["marks"]);
+  put(copy, "facets", (v) => {
+    if (!isObject(v)) {
+      return v;
+    }
+    const own = fields(v, ["unit", "context", "panels"]);
+    put(own, "unit", entries);
+    put(own, "panels", (list) =>
+      door.list(list, "facets.panels", {
+        most: MOST_PANELS,
+        why: "past which no reader compares them",
+        charge: (length) => length * Math.max(1, rules),
+        each: (panel, p) => {
+          if (!isObject(panel)) {
+            return panel;
+          }
+          const one = fields(panel, ["name", "marks"]);
+          put(one, "marks", (marks) => copyMarks(marks, `facets.panels[${String(p)}].marks`));
+          return one;
+        },
+      }),
+    );
+    return own;
+  });
   return copy;
 }
 
@@ -2010,17 +2065,46 @@ function check(given: unknown): ChartSpec {
   if (!isArray(marks)) {
     fail("marks must be an array");
   }
+  if (spec["facets"] === undefined) {
+    checkMarks(
+      spec,
+      marks,
+      marks.map((_, m) => `marks[${String(m)}]`),
+    );
+  } else {
+    checkFacets(spec, spec["facets"], marks);
+  }
+  const height = spec["height"];
+  optional(height, "number", "height");
+  if (typeof height === "number" && !(height > 0 && height <= MOST_HEIGHT)) {
+    fail(`height must be a number of px above 0 and at most ${String(MOST_HEIGHT)}`, RangeError);
+  }
+  const summary = spec["summary"];
+  if (summary !== undefined && typeof summary !== "string" && typeof summary !== "function") {
+    fail("summary must be a string or a function");
+  }
+  optional(spec["empty"], "string", "empty");
+  return spec as unknown as ChartSpec;
+}
+
+/** Checks one chart's `marks`, each named by `names`, against `spec`'s
+ *  scales and height; returns the data mark's index, or -1. */
+function checkMarks(
+  spec: Record<string, unknown>,
+  marks: readonly unknown[],
+  names: readonly string[],
+): number {
   let data = -1;
   for (let m = 0; m < marks.length; m++) {
     const mark = marks[m];
-    checkMark(mark, `marks[${String(m)}]`);
+    checkMark(mark, names[m] ?? "");
     if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
       continue;
     }
     // copySpec refuses a second data mark.
     data = m;
   }
-  checkInstants(spec, marks);
+  checkInstants(spec, marks, names);
   const height = spec["height"];
   const primary = marks[data];
   const whole = isObject(primary) ? primary["mark"] : undefined;
@@ -2029,7 +2113,7 @@ function check(given: unknown): ChartSpec {
       const mark = marks[m];
       if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
         fail(
-          `marks[${String(m)}] is a ${mark["mark"]} mark beside a ${whole}, which has no scale to place it on`,
+          `${names[m] ?? ""} is a ${mark["mark"]} mark beside a ${whole}, which has no scale to place it on`,
         );
       }
     }
@@ -2077,7 +2161,7 @@ function check(given: unknown): ChartSpec {
       thinnestBin(log ? "log" : "linear", edges) * MOST_ROWS < 1 - 1e-9
     ) {
       fail(
-        `marks[${String(data)}].y.edges' thinnest bin must be at least 1/${String(MOST_ROWS)} of the axis, since the plot grows until it is a row tall`,
+        `${names[data] ?? ""}.y.edges' thinnest bin must be at least 1/${String(MOST_ROWS)} of the axis, since the plot grows until it is a row tall`,
         RangeError,
       );
     }
@@ -2088,16 +2172,136 @@ function check(given: unknown): ChartSpec {
     }
     checkColour(spec["colour"]);
   }
-  optional(height, "number", "height");
-  if (typeof height === "number" && !(height > 0 && height <= MOST_HEIGHT)) {
-    fail(`height must be a number of px above 0 and at most ${String(MOST_HEIGHT)}`, RangeError);
+  return data;
+}
+
+// The marks that draw in panels: a timeline is already a row per name on one
+// scale, a slope holds few lines, and a treemap's equal areas in two panels
+// would be unequal values.
+const FACETED = new Set(["rect", "line", "area", "bar", "point", "scatter", "box", "cell", "pie"]);
+
+// Every option a faceted data mark takes beside its data.
+const OPTIONS = [
+  "shape",
+  "arrange",
+  "curve",
+  "open",
+  "left",
+  "centre",
+  "labels",
+  "link",
+  "whiskers",
+  "weekStart",
+  "hole",
+  "unit",
+  "format",
+];
+
+const same = (a: unknown, b: unknown): boolean =>
+  a === b || (isObject(a) && isObject(b) && JSON.stringify(a) === JSON.stringify(b));
+
+/** A faceted data mark's series' names, or a pie's slices', in order; none
+ *  for a cell grid. Read after checkMark. */
+function seriesNames(mark: Record<string, unknown>): string[] {
+  const list = mark["mark"] === "pie" ? mark["slices"] : mark["series"];
+  return isArray(list) ? list.map((s) => (isObject(s) ? String(s["name"]) : "")) : [];
+}
+
+/** A checked panel's name: its own, or its data mark's one series'. */
+function panelName(panel: NonNullable<ChartSpec["facets"]>["panels"][number]): string {
+  const mark = panel.marks.find((m) => m.mark !== "rule" && m.mark !== "text");
+  const names = mark === undefined ? [] : seriesNames(mark as unknown as Record<string, unknown>);
+  return panel.name ?? names[0] ?? "";
+}
+
+function checkFacets(spec: Record<string, unknown>, facets: unknown, rules: readonly unknown[]) {
+  if (!isObject(facets)) {
+    fail("facets must be an object");
   }
-  const summary = spec["summary"];
-  if (summary !== undefined && typeof summary !== "string" && typeof summary !== "function") {
-    fail("summary must be a string or a function");
+  const panels = facets["panels"];
+  if (!isArray(panels) || panels.length === 0) {
+    fail("facets.panels must be a non-empty array, a panel each");
   }
-  optional(spec["empty"], "string", "empty");
-  return spec as unknown as ChartSpec;
+  if (facets["unit"] !== undefined) {
+    checkUnit(facets["unit"], "facets.unit");
+  }
+  optional(facets["context"], "boolean", "facets.context");
+  rules.forEach((mark, m) => {
+    if (!(isObject(mark) && mark["mark"] === "rule")) {
+      fail(
+        `marks[${String(m)}] must be a rule beside facets, which draws in every panel; a panel's own marks hold its data and notes`,
+      );
+    }
+  });
+  const ruleNames = rules.map((_, m) => `marks[${String(m)}]`);
+  let first: Record<string, unknown> | undefined;
+  const lists: string[][] = [];
+  const seen = new Set<string>();
+  panels.forEach((panel, p) => {
+    const at = `facets.panels[${String(p)}]`;
+    if (!isObject(panel)) {
+      fail(`${at} must be an object`);
+    }
+    optional(panel["name"], "string", `${at}.name`);
+    const own = panel["marks"];
+    if (!isArray(own)) {
+      fail(`${at}.marks must be an array`);
+    }
+    const names = [...own.map((_, m) => `${at}.marks[${String(m)}]`), ...ruleNames];
+    const data = checkMarks(spec, [...own, ...rules], names);
+    const mark = own[data];
+    if (!isObject(mark)) {
+      fail(`${at}.marks must hold one data mark`);
+    }
+    const kind = String(mark["mark"]);
+    const what = names[data] ?? at;
+    if (!FACETED.has(kind)) {
+      fail(
+        `${what} is a ${kind} mark, which draws no panels; facet a rect, line, area, bar, point, scatter, box, cell or pie mark`,
+      );
+    }
+    if (first === undefined) {
+      first = mark;
+    } else if (kind !== first["mark"]) {
+      fail(
+        `${what} is a ${kind} mark beside ${String(first["mark"])} panels; every panel draws one kind`,
+      );
+    } else {
+      for (const option of OPTIONS) {
+        if (!same(mark[option], first[option])) {
+          fail(`${what}.${option} must be facets.panels[0]'s; the panels share one set of options`);
+        }
+      }
+    }
+    const list = seriesNames(mark);
+    lists.push(list);
+    const given = panel["name"];
+    const name = typeof given === "string" ? given : list.length === 1 ? list[0] : undefined;
+    if (name === undefined) {
+      fail(`${at}.name is required on a panel of ${String(list.length)} series`);
+    }
+    if (name === "" || seen.has(name)) {
+      fail(`${at}'s name "${name}" must be unique and not empty`, RangeError);
+    }
+    seen.add(name);
+  });
+  const [head = []] = lists;
+  const perSeries = lists.every((l) => l.length === 1);
+  if (
+    !perSeries &&
+    !lists.every((l) => l.length === head.length && l.every((n, i) => n === head[i]))
+  ) {
+    fail("facets.panels must each hold one series, or all the same series in the same order");
+  }
+  if (facets["context"] === true) {
+    const kind = first?.["mark"];
+    if (kind !== "line" && kind !== "scatter") {
+      fail("facets.context draws behind line or scatter panels only");
+    }
+    if (!perSeries) {
+      fail("facets.context needs one series a panel, each drawn behind the others");
+    }
+  }
 }
 
 // A log axis has no place for 0 or below, so a line reads such a value as a
@@ -2489,6 +2693,12 @@ function timeReach(lo: number, hi: number, timeZone: string | undefined): Reach 
   return first < 1 ? "era" : "year";
 }
 
+interface Scales {
+  readonly x: Continuous;
+  readonly y: Continuous | Band;
+  readonly size: Size | undefined;
+}
+
 /**
  * Checks `spec` and builds its model in `locale` and `timeZone`. Throws a
  * `RangeError` or `TypeError` naming the first rule the spec breaks.
@@ -2499,9 +2709,45 @@ export function chartModel(
   timeZone: string | undefined,
 ): Model {
   const spec = check(given);
-  const x = xScale(spec, timeZone);
-  const y = yScale(spec);
-  const size = rScale(spec);
+  const { facets, ...rest } = spec;
+  if (facets === undefined) {
+    const scales = { x: xScale(spec, timeZone), y: yScale(spec), size: rScale(spec) };
+    return build(spec, scales, "marks", locale, timeZone);
+  }
+  // The scales are the chart's: their domains are taken over every panel.
+  const each = facets.panels.map((p) => ({ ...rest, marks: [...p.marks, ...spec.marks] }));
+  const all = { ...rest, marks: [...facets.panels.flatMap((p) => p.marks), ...spec.marks] };
+  const y = yScale(all);
+  const scales: Scales = {
+    x: xScale(all, timeZone),
+    // Every panel holds the same band, so the first names its rows once.
+    y: y.type === "band" ? yScale(each[0] ?? all) : y,
+    size: rScale(all),
+  };
+  const panels = facets.panels.map((p, k) => ({
+    name: panelName(p),
+    model: build(each[k] ?? all, scales, `facets.panels[${String(k)}].marks`, locale, timeZone),
+  }));
+  const [first] = panels;
+  if (first === undefined) {
+    throw new TypeError("renderChart: facets.panels must be a non-empty array, a panel each");
+  }
+  return {
+    ...first.model,
+    spec,
+    empty: panels.every((p) => p.model.empty),
+    facets: { unit: facets.unit, context: facets.context === true, panels },
+  };
+}
+
+/** The model of a checked `spec` on `scales`, its marks named under `field`. */
+function build(
+  spec: ChartSpec,
+  { x, y, size }: Scales,
+  field: string,
+  locale: string | undefined,
+  timeZone: string | undefined,
+): Model {
   const ends = spec.marks
     .map((m) => (m.mark === "bar" ? m.arrange : undefined))
     .find((a) => a === "split" || a === "diverge" || a === "mirror");
@@ -2626,7 +2872,7 @@ export function chartModel(
       case "text":
         return textModel(
           m,
-          `marks[${String(index)}]`,
+          `${field}[${String(index)}]`,
           x,
           y,
           ends,

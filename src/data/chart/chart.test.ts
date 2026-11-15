@@ -1265,3 +1265,113 @@ describe("a scatter plot's notes with the table view on from the start", () => {
     expect(rows.map((th) => th.querySelector("bdi")?.textContent)).toEqual(["Albania", "Monaco"]);
   });
 });
+
+describe("small multiples' panels", () => {
+  const months = per(12, (i) => Date.UTC(2024, i, 1));
+  const regions = (names: readonly string[]): ChartSpec => ({
+    x: { type: "time", domain: [months[0] ?? 0, months.at(-1) ?? 0] },
+    y: { format: "percent" },
+    marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+    facets: {
+      unit: { one: "region", other: "regions" },
+      panels: names.map((name, k) => ({
+        marks: [
+          {
+            mark: "line",
+            x: months,
+            series: [{ name, y: months.map((_, i) => 0.03 + 0.001 * i * (k + 1)) }],
+          },
+        ],
+      })),
+    },
+  });
+  const panelsOf = (b: Built) => [
+    ...(get(b.figure, "plot")?.querySelectorAll<HTMLElement>('[data-part="panel"]') ?? []),
+  ];
+  const plotOf = (panel: HTMLElement) => panel.querySelector("svg") as SVGSVGElement;
+
+  it("draws a grid of panels in the plot, each with its head and its own SVG", () => {
+    const setAttribute = vi.spyOn(Element.prototype, "setAttribute");
+    const b = build({ width: 600 });
+    start(regions(["North", "South", "East", "West"]), b);
+    const plot = get(b.figure, "plot");
+    expect(plot?.querySelector(':scope > [data-part="panels"]')).not.toBeNull();
+    expect(plot?.querySelector(":scope > svg")).toBeNull();
+    const panels = panelsOf(b);
+    expect(panels.map((p) => p.querySelector('[data-part="name"]')?.textContent)).toEqual([
+      "North",
+      "South",
+      "East",
+      "West",
+    ]);
+    // Panels on one row start their plots at the same height, a column's at the same x.
+    const tops = panels.map((p) => plotOf(p).getBoundingClientRect().top);
+    expect(new Set(tops).size).toBe(1);
+    const widths = panels.slice(1).map((p) => plotOf(p).getBoundingClientRect().width);
+    expect(new Set(widths).size).toBe(1);
+    // Only the first column writes y labels; every panel draws the target rule.
+    expect(
+      plotOf(panels[0] as HTMLElement).querySelector('[data-part="y"]')?.childElementCount,
+    ).toBeGreaterThan(0);
+    expect(
+      plotOf(panels[1] as HTMLElement).querySelector('[data-part="y"]')?.childElementCount,
+    ).toBe(0);
+    expect(setAttribute.mock.calls.map((call) => call[0])).not.toContain("style");
+  });
+
+  it("keeps the grid inside the figure at a phone's width, in columns of the left-to-right order", async () => {
+    const b = build({ width: 600 });
+    start(regions(["North", "South", "East", "West", "Centre", "Coast"]), b);
+    await resize(b, 288);
+    const panels = panelsOf(b);
+    const figure = b.figure.getBoundingClientRect();
+    for (const p of panels) {
+      const r = p.getBoundingClientRect();
+      expect(r.left).toBeGreaterThanOrEqual(figure.left - 0.5);
+      expect(r.right).toBeLessThanOrEqual(figure.right + 0.5);
+    }
+    const [first, second, third] = panels.map((p) => p.getBoundingClientRect());
+    expect(second?.top).toBe(first?.top);
+    expect(second?.left).toBeGreaterThan(first?.left ?? 0);
+    expect(third?.top).toBeGreaterThan(first?.bottom ?? 0);
+  });
+
+  it("keeps left-to-right order in a right-to-left page", () => {
+    const b = build({ width: 600 });
+    b.figure.dir = "rtl";
+    start(regions(["North", "South"]), b);
+    const [first, second] = panelsOf(b).map((p) => p.getBoundingClientRect());
+    expect(second?.left).toBeGreaterThan(first?.left ?? 0);
+  });
+
+  it("swaps the grid and the lone SVG as an update adds or drops facets, through loading", () => {
+    const b = build();
+    const chart = start(full, b);
+    const svg = get(b.figure, "plot")?.querySelector(":scope > svg");
+    chart.update(regions(["North", "South"]));
+    expect(get(b.figure, "plot")?.querySelector(":scope > svg")).toBeNull();
+    const panels = panelsOf(b);
+    expect(panels).toHaveLength(2);
+    chart.update(regions(["North", "South", "East"]));
+    const grown = panelsOf(b);
+    expect(grown).toHaveLength(3);
+    expect(grown[0]).toBe(panels[0]);
+    expect(grown[1]).toBe(panels[1]);
+    chart.update(full);
+    expect(get(b.figure, "plot")?.querySelector(":scope > svg")).toBe(svg);
+    expect(get(b.figure, "plot")?.querySelector('[data-part="panels"]')).toBeNull();
+    chart.loading();
+    expect(get(b.figure, "plot")).toBeNull();
+    chart.update(regions(["North"]));
+    expect(panelsOf(b)).toHaveLength(1);
+  });
+
+  it("tears down to a static image of its panels", () => {
+    const b = build();
+    start(regions(["North", "South"]), b);
+    b.life.abort();
+    const plot = get(b.figure, "plot");
+    expect(plot?.getAttribute("role")).toBe("img");
+    expect(panelsOf(b)).toHaveLength(2);
+  });
+});
