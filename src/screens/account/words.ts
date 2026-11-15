@@ -20,6 +20,8 @@ export interface AccountWords {
   /** An answer with no words of its own. */
   readonly "generic.server": string;
   readonly "generic.retry": string;
+  /** `auth_unavailable` on a signed-in screen. */
+  readonly "generic.unavailable": string;
   /** The heading of a form's error summary. */
   readonly "form.summary": (count: number) => string;
   readonly "password.show": string;
@@ -291,6 +293,107 @@ export interface AccountWords {
   readonly "arrived.setup-complete": string;
   readonly "arrived.password-set": string;
   readonly "arrived.transport-changed": string;
+  readonly "arrived.signed-out": string;
+
+  readonly "sessions.title": string;
+  readonly "sessions.device": string;
+  readonly "sessions.method": string;
+  readonly "sessions.lastActive": string;
+  readonly "sessions.address": string;
+  readonly "sessions.this": string;
+  /** A session whose browser the user agent does not name. */
+  readonly "sessions.unknownDevice": string;
+  readonly "sessions.browserOn": (browser: string, system: string) => string;
+  readonly "sessions.rename": string;
+  readonly "sessions.renameLabel": (name: string) => string;
+  readonly "sessions.signOut": string;
+  readonly "sessions.signOutLabel": (name: string) => string;
+  readonly "sessions.signedOut": (name: string) => string;
+  readonly "sessions.others": string;
+  readonly "sessions.othersQuestion": string;
+  readonly "sessions.othersSentence": string;
+  readonly "sessions.othersAnswer": (n: number) => string;
+  readonly "sessions.othersBusy": string;
+  readonly "sessions.othersDone": string;
+  /** A plain session's end, such as "18:40". */
+  readonly "sessions.plainUntil": (time: string) => string;
+
+  readonly "keys.title": string;
+  readonly "keys.label": string;
+  readonly "keys.key": string;
+  readonly "keys.scopes": string;
+  readonly "keys.expires": string;
+  readonly "keys.lastUsed": string;
+  readonly "keys.state": string;
+  readonly "keys.never": string;
+  readonly "keys.notUsed": string;
+  /** A key made before labels were required. */
+  readonly "keys.unnamed": string;
+  readonly "keys.noScope": string;
+  /** The key that minted this one, by its label. */
+  readonly "keys.mintedBy": (label: string) => string;
+  /** A minting key no longer in the list. */
+  readonly "keys.revokedParent": (id: number) => string;
+  readonly "keys.active": string;
+  readonly "keys.retiring": (time: string) => string;
+  readonly "keys.retiringLine": (time: string) => string;
+  readonly "keys.expired": (date: string) => string;
+  readonly "keys.empty": string;
+  readonly "keys.create": string;
+  readonly "keys.createTitle": string;
+  readonly "keys.labelHelp": string;
+  readonly "keys.level": string;
+  readonly "keys.noLevel": string;
+  readonly "keys.permissions": string;
+  readonly "keys.scopeNeeded": string;
+  readonly "keys.expiresIn": string;
+  readonly "keys.days": (n: number) => string;
+  readonly "keys.createSubmit": string;
+  readonly "keys.createBusy": string;
+  readonly "keys.created": (label: string) => string;
+  readonly "keys.labelEmpty": string;
+  readonly "keys.recent": string;
+  readonly "keys.createdTitle": (label: string) => string;
+  readonly "keys.secret": string;
+  readonly "keys.rename": string;
+  readonly "keys.renameLabel": (label: string) => string;
+  readonly "keys.rotate": string;
+  readonly "keys.rotateLabel": (label: string) => string;
+  readonly "keys.rotateQuestion": (label: string) => string;
+  /** `overlap` is how long the current secret keeps working, such as
+   *  "1 hour". */
+  readonly "keys.rotateSentence": (overlap: string) => string;
+  /** Rotating a Retiring key: its older secret goes. */
+  readonly "keys.rotateAgain": string;
+  readonly "keys.rotateLeaked": string;
+  readonly "keys.rotateAnswer": string;
+  readonly "keys.rotateBusy": string;
+  readonly "keys.rotateRecent": string;
+  readonly "keys.rotatedTitle": (label: string) => string;
+  readonly "keys.rotatedLine": (time: string) => string;
+  /** Rotate on a server with no rotation: a new key, the old one revoked. */
+  readonly "keys.swappedLine": string;
+  readonly "keys.swapRevokeFailed": string;
+  readonly "keys.overlap": string;
+  readonly "keys.revoke": string;
+  readonly "keys.revokeLabel": (label: string) => string;
+  /** `minted` is how many keys it minted, which go with it. */
+  readonly "keys.revokeQuestion": (label: string, minted: number) => string;
+  readonly "keys.revokeSentence": string;
+  readonly "keys.revokeRecent": string;
+  readonly "keys.revokeAnswer": string;
+  readonly "keys.revoked": (label: string) => string;
+  readonly "keys.gone": string;
+  /** An expired key's Rotate, refused. */
+  readonly "keys.expiredRefused": string;
+  /** A credential beside the session failed on a key route. */
+  readonly "keys.signInAgain": string;
+  readonly auth_key_label_taken: (label: string) => string;
+  /** `scope` is the scope the server named, when it named one. */
+  readonly auth_unknown_scope: (scope: string | undefined) => string;
+  readonly auth_body_too_large: string;
+  readonly auth_forbidden: string;
+  readonly auth_session_required: string;
 
   readonly auth_invalid_credentials: string;
   /** `time` is the wait, such as "0:42". */
@@ -341,6 +444,7 @@ export const defaultAccountWords: AccountWords = {
   "generic.network": "The app is not answering. Check your connection, then try again.",
   "generic.server": "The server could not do this. Try again in a moment.",
   "generic.retry": "Retry",
+  "generic.unavailable": "The app cannot do this right now. Try again in a few seconds.",
   "form.summary": (count) => `${String(count)} fields need a fix`,
   "password.show": "Show password",
   provider: "single sign-on",
@@ -623,6 +727,104 @@ export const defaultAccountWords: AccountWords = {
   "arrived.password-set": "Password set. Sign in with it.",
   "arrived.transport-changed":
     "You were signed out because the connection changed between HTTP and HTTPS.",
+  "arrived.signed-out": "You signed out.",
+
+  "sessions.title": "Sessions",
+  "sessions.device": "Device",
+  "sessions.method": "Signed in with",
+  "sessions.lastActive": "Last active",
+  "sessions.address": "Address",
+  "sessions.this": "This device",
+  "sessions.unknownDevice": "A browser",
+  "sessions.browserOn": (browser, system) => `${browser} on ${system}`,
+  "sessions.rename": "Rename…",
+  "sessions.renameLabel": (name) => `Rename ${name}`,
+  "sessions.signOut": "Sign out",
+  "sessions.signOutLabel": (name) => `Sign out ${name}`,
+  "sessions.signedOut": (name) => `${name} is signed out.`,
+  "sessions.others": "Sign out everywhere else…",
+  "sessions.othersQuestion": "Sign out everywhere else?",
+  "sessions.othersSentence": "Every other device signed in as you is signed out. This one stays.",
+  "sessions.othersAnswer": (n) =>
+    n === 1 ? "Sign out 1 other session" : `Sign out ${String(n)} other sessions`,
+  "sessions.othersBusy": "Signing out…",
+  "sessions.othersDone": "Every other session is signed out.",
+  "sessions.plainUntil": (time) => `Until ${time}, or when the browser closes`,
+
+  "keys.title": "API keys",
+  "keys.label": "Label",
+  "keys.key": "Key",
+  "keys.scopes": "Scopes",
+  "keys.expires": "Expires",
+  "keys.lastUsed": "Last used",
+  "keys.state": "State",
+  "keys.never": "Never",
+  "keys.notUsed": "Not yet",
+  "keys.unnamed": "Unnamed key",
+  "keys.noScope": "None",
+  "keys.mintedBy": (label) => `Minted by ${label}`,
+  "keys.revokedParent": (id) => `revoked key ${String(id)}`,
+  "keys.active": "Active",
+  "keys.retiring": (time) => `Retiring until ${time}`,
+  "keys.retiringLine": (time) =>
+    `The old key works until this machine first uses the new one, or until ${time}.`,
+  "keys.expired": (date) => `Expired ${date}`,
+  "keys.empty": "No API keys yet.",
+  "keys.create": "Create key…",
+  "keys.createTitle": "Create an API key",
+  "keys.labelHelp": "Name what will use it, such as backup script.",
+  "keys.level": "Access level",
+  "keys.noLevel": "No level",
+  "keys.permissions": "Extra permissions",
+  "keys.scopeNeeded": "Choose a level or a permission.",
+  "keys.expiresIn": "Expires",
+  "keys.days": (n) => `In ${String(n)} days`,
+  "keys.createSubmit": "Create key",
+  "keys.createBusy": "Creating…",
+  "keys.created": (label) => `${label} is ready to use.`,
+  "keys.labelEmpty": "Give the key a name.",
+  "keys.recent": "Creating a key needs a recent sign-in.",
+  "keys.createdTitle": (label) => `New key for ${label}`,
+  "keys.secret": "API key",
+  "keys.rename": "Rename…",
+  "keys.renameLabel": (label) => `Rename ${label}`,
+  "keys.rotate": "Rotate…",
+  "keys.rotateLabel": (label) => `Rotate ${label}…`,
+  "keys.rotateQuestion": (label) => `Rotate ${label}?`,
+  "keys.rotateSentence": (overlap) =>
+    `A new secret replaces the current one, shown once. The current secret keeps working until this machine first uses the new one, or for ${overlap}.`,
+  "keys.rotateAgain": "The secret from the last rotation stops working at once.",
+  "keys.rotateLeaked": "Lost or leaked? Revoke it instead.",
+  "keys.rotateAnswer": "Rotate key",
+  "keys.rotateBusy": "Rotating…",
+  "keys.rotateRecent": "Rotating a key needs a recent sign-in.",
+  "keys.rotatedTitle": (label) => `New secret for ${label}`,
+  "keys.rotatedLine": (time) =>
+    `The old secret stops working at ${time}, or as soon as the new one is used.`,
+  "keys.swappedLine": "The old key is revoked. Put this one where the old one was.",
+  "keys.swapRevokeFailed":
+    "The new key is made, but the old one could not be revoked. Revoke it in the list.",
+  "keys.overlap": "1 hour",
+  "keys.revoke": "Revoke…",
+  "keys.revokeLabel": (label) => `Revoke ${label}…`,
+  "keys.revokeQuestion": (label, minted) =>
+    minted === 0
+      ? `Revoke ${label}?`
+      : `Revoke ${label} and the ${minted === 1 ? "key" : `${String(minted)} keys`} it minted?`,
+  "keys.revokeSentence":
+    "Anything using it stops working at once, both its current and its previous secret.",
+  "keys.revokeAnswer": "Revoke key",
+  "keys.revokeRecent": "Revoking a key needs a recent sign-in.",
+  "keys.revoked": (label) => `${label} is revoked.`,
+  "keys.gone": "This key is gone.",
+  "keys.expiredRefused": "This key has expired. Revoke it, or create a new one.",
+  "keys.signInAgain": "Your sign-in did not check out. Sign in again, then try once more.",
+  auth_key_label_taken: (label) => `You already have a key named ${label}.`,
+  auth_unknown_scope: (scope) =>
+    scope === undefined ? "This app has no such scope." : `This app has no scope named ${scope}.`,
+  auth_body_too_large: "That was too long to send. Shorten it and try again.",
+  auth_forbidden: "This is not allowed.",
+  auth_session_required: "Only a signed-in session can do this, not an API key.",
 
   auth_invalid_credentials: "The username or password is wrong.",
   auth_rate_limited: (time) => `Too many attempts. Try again in ${time}.`,

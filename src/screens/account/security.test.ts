@@ -1,173 +1,26 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { AccountAction } from "./run.js";
-import { mountSecurity, type SecurityOptions } from "./security.js";
-import { Fake, PHONE, SESSION, meWith, ok, refuse, type FakeClient } from "./test-helpers/fake.js";
+import { Fake, PHONE, SESSION, meWith, ok, refuse } from "./test-helpers/fake.js";
+import {
+  actions,
+  answerQuestion,
+  button,
+  dialogOf,
+  errorOf,
+  field,
+  mount,
+  named,
+  noticeOf,
+  passkeyRows,
+  press,
+  ready,
+  rowOf,
+  useScreen,
+  words,
+} from "./test-helpers/security.js";
 
-let life = new AbortController();
-let sheet: HTMLLinkElement;
-
-beforeEach(async () => {
-  document.documentElement.classList.add("cp");
-  sheet = document.createElement("link");
-  sheet.rel = "stylesheet";
-  sheet.href = new URL("../../../css/system.css", import.meta.url).href;
-  const loaded = new Promise((resolve, reject) => {
-    sheet.addEventListener("load", resolve, { once: true });
-    sheet.addEventListener("error", reject, { once: true });
-  });
-  document.head.append(sheet);
-  await loaded;
-});
-
-afterEach(() => {
-  life.abort();
-  life = new AbortController();
-  sheet.remove();
-  document.documentElement.classList.remove("cp");
-  document.body.replaceChildren();
-});
-
-type Options = Partial<Omit<SecurityOptions<FakeClient>, "client" | "access">>;
-
-interface Mounted {
-  readonly fake: Fake;
-  readonly region: HTMLElement;
-  readonly ran: AccountAction[];
-  readonly went: string[];
-}
-
-/** Mounts the screen on `fake`, recording every write's name and every
- *  address it opens. */
-function mount(fake = new Fake(), options: Options = {}): Mounted {
-  const region = document.createElement("div");
-  document.body.append(region);
-  const ran: AccountAction[] = [];
-  const went: string[] = [];
-  mountSecurity(region, {
-    client: fake.client,
-    access: fake.access(),
-    app: "Release tracker",
-    provider: "Authelia",
-    search: "",
-    run: (name, work) => {
-      ran.push(name);
-      return work();
-    },
-    navigate: (url) => {
-      went.push(url);
-    },
-    signal: life.signal,
-    ...options,
-  });
-  return { fake, region, ran, went };
-}
-
-const shown = (el: Element): boolean => el.closest("[hidden]") === null;
-
-const ready = (region: HTMLElement): Promise<HTMLTableElement> =>
-  vi.waitFor(() => {
-    const t = region.querySelector<HTMLTableElement>("table.cp-table");
-    expect(t).not.toBeNull();
-    return t as HTMLTableElement;
-  });
-
-/** The methods table's row for `name`. */
-const rowOf = (region: HTMLElement, name: string): HTMLTableRowElement => {
-  const row = [...region.querySelectorAll<HTMLTableRowElement>("tbody tr")].find(
-    (r) => r.cells[0]?.textContent === name,
-  );
-  expect(row, name).toBeDefined();
-  return row as HTMLTableRowElement;
-};
-
-const button = (root: ParentNode, text: string): HTMLButtonElement => {
-  const b = [...root.querySelectorAll<HTMLButtonElement>("button")].find(
-    (x) => shown(x) && x.textContent.includes(text),
-  );
-  expect(b, text).toBeDefined();
-  return b as HTMLButtonElement;
-};
-
-const words = (root: ParentNode): string[] =>
-  [...root.querySelectorAll<HTMLButtonElement>("button")]
-    .filter((b) => shown(b) && b.closest(".cp-input-wrap") === null)
-    .map((b) => b.textContent.trim());
-
-/** The actions a row offers: its button, or the items of its ⋯ menu. */
-const actions = (row: HTMLElement): string[] => {
-  const menu = row.querySelector("[role='menu']");
-  return menu === null
-    ? [...(row.querySelector("[data-col='actions']")?.querySelectorAll("button") ?? [])].map(nameOf)
-    : [...menu.querySelectorAll("[role='menuitem']")].map((i) => i.textContent);
-};
-
-/** A button's accessible name, as a screen reader hears it. */
-const nameOf = (b: HTMLElement): string => b.getAttribute("aria-label") ?? b.textContent.trim();
-
-/** The row's own button named `name`. */
-const named = (row: HTMLElement, name: string): HTMLButtonElement => {
-  const b = [...row.querySelectorAll<HTMLButtonElement>("[data-col='actions'] button")].find(
-    (x) => nameOf(x) === name,
-  );
-  expect(b, name).toBeDefined();
-  return b as HTMLButtonElement;
-};
-
-/** Presses the row's action worded `text`, through its ⋯ menu when the
- *  row has more than one. Answers the control that opened it. */
-async function press(row: HTMLElement, text: string): Promise<HTMLButtonElement> {
-  const cell = row.querySelector("[data-col='actions']") as HTMLElement;
-  const menu = cell.querySelector<HTMLElement>("[role='menu']");
-  if (menu === null) {
-    const b = named(row, text);
-    await userEvent.click(b);
-    return b;
-  }
-  const more = cell.querySelector<HTMLButtonElement>("[popovertarget]") as HTMLButtonElement;
-  await userEvent.click(more);
-  const item = [...menu.querySelectorAll<HTMLElement>("[role='menuitem']")].find(
-    (i) => i.textContent === text,
-  );
-  expect(item, text).toBeDefined();
-  await userEvent.click(item as HTMLElement);
-  return more;
-}
-
-/** The passkeys table's rows. */
-const passkeyRows = (region: HTMLElement): HTMLTableRowElement[] => [
-  ...([...region.querySelectorAll<HTMLTableElement>("table")][1]?.tBodies[0]?.rows ?? []),
-];
-
-const dialogOf = (title: string): Promise<HTMLDialogElement> =>
-  vi.waitFor(() => {
-    const d = [...document.querySelectorAll<HTMLDialogElement>("dialog.cp-dialog")].find(
-      (x) => x.open && x.querySelector("h2")?.textContent === title,
-    );
-    expect(d, title).toBeDefined();
-    return d as HTMLDialogElement;
-  });
-
-const field = (root: ParentNode, name: string): HTMLInputElement =>
-  root.querySelector<HTMLInputElement>(`input[name='${name}']`) as HTMLInputElement;
-
-const errorOf = (input: HTMLInputElement): string => {
-  expect(input.getAttribute("aria-invalid")).toBe("true");
-  const id = (input.getAttribute("aria-describedby") ?? "")
-    .split(" ")
-    .find((x) => document.getElementById(x)?.classList.contains("cp-field-error"));
-  return id === undefined ? "" : (document.getElementById(id)?.textContent ?? "");
-};
-
-const noticeOf = (root: ParentNode): string =>
-  root.querySelector("[data-part='notice'] .cp-notice [data-part='body']")?.textContent ?? "";
-
-/** Answers the open `ask()` question with its button worded `answer`. */
-async function answerQuestion(title: string, answer: string): Promise<void> {
-  const d = await dialogOf(title);
-  await userEvent.click(button(d, answer));
-}
+useScreen();
 
 describe("mountSecurity: the screen", () => {
   it("says who is signed in and heads its sections at the level the host gives", async () => {
@@ -179,6 +32,8 @@ describe("mountSecurity: the screen", () => {
     expect([...region.querySelectorAll("h3")].map((h) => h.textContent)).toEqual([
       "Profile",
       "Sign-in methods",
+      "Sessions",
+      "API keys",
     ]);
     expect(region.querySelector("h4")?.textContent).toBe("Passkeys");
     expect(region.querySelectorAll("h2")).toHaveLength(0);
@@ -207,6 +62,13 @@ describe("mountSecurity: the screen", () => {
     for (const part of link.querySelectorAll("[data-part]")) {
       expect(getComputedStyle(part).display).toBe("none");
     }
+  });
+
+  it("draws no methods section when the host mounts no method", async () => {
+    const { region } = mount(new Fake(), { parts: ["sessions"] });
+    await vi.waitFor(() => {
+      expect([...region.querySelectorAll("h2")].map((h) => h.textContent)).toEqual(["Sessions"]);
+    });
   });
 
   it("leaves out each method the host does not mount", async () => {

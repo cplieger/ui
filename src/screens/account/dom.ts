@@ -152,6 +152,18 @@ export function actionButton(text: string, spec: ButtonSpec = {}): HTMLButtonEle
   return button;
 }
 
+/** A `.cp-button` of `icon` and `text`, for a press with no busy state of
+ *  its own, such as one opening a dialog. */
+export function plainButton(text: string, icon?: string): HTMLButtonElement {
+  const button = el("button", "cp-button");
+  button.type = "button";
+  if (icon !== undefined) {
+    button.append(glyph(icon));
+  }
+  button.append(text);
+  return button;
+}
+
 /** A `<p>` of `className` holding `content`, a host's words or node. */
 export function line(className: string, content: string | Node): HTMLParagraphElement {
   const p = el("p", className);
@@ -255,9 +267,29 @@ export function cellStack(top: string | Node, ...lines: (string | Node)[]): HTML
   return box;
 }
 
+/** A date or a time is one unit, so a narrow column never splits it. */
+const unbroken = (text: string): string => text.replace(/\s/g, "\u00a0");
+
 /** A `<time>` of `iso`, worded by `format`. */
 export function time(iso: string, format: Intl.DateTimeFormatOptions): HTMLTimeElement {
-  const t = el("time", undefined, new Date(iso).toLocaleString(undefined, format));
+  const t = el("time", undefined, unbroken(new Date(iso).toLocaleString(undefined, format)));
   t.dateTime = iso;
   return t;
+}
+
+/** "18:40" today, else "14 Nov, 18:40". */
+export function clockAt(at: Date): string {
+  const now = new Date();
+  const today =
+    at.getFullYear() === now.getFullYear() &&
+    at.getMonth() === now.getMonth() &&
+    at.getDate() === now.getDate();
+  return unbroken(
+    at.toLocaleString(
+      undefined,
+      today
+        ? { hour: "2-digit", minute: "2-digit" }
+        : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
+    ),
+  );
 }

@@ -7,6 +7,8 @@
 import { codeOf, reasonOf } from "../answer.js";
 import type {
   AccountView,
+  KeyCreated,
+  KeyView,
   MethodsView,
   OIDCReturn,
   PasskeyMiss,
@@ -18,6 +20,7 @@ import type {
   SecondFactorProof,
   SecurityAccess,
   SecurityClient,
+  SessionView,
   SetupAccess,
   SetupClient,
   SignInAccess,
@@ -80,6 +83,31 @@ export function meWith(
     ...rest,
   };
 }
+
+/** This device's session in the Sessions list. */
+export const HERE: SessionView = {
+  id: "s1",
+  user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0",
+  last_ip: "192.0.2.10",
+  method: "passkey",
+  created_at: "2026-11-14T09:00:00Z",
+  last_activity: "2026-11-14T09:30:00Z",
+  idle_deadline: "2099-01-01T12:00:00Z",
+  absolute_deadline: "2099-01-01T18:00:00Z",
+  current: true,
+  secure: true,
+};
+
+/** An active API key with no expiry. */
+export const BACKUP: KeyView = {
+  id: 12,
+  label: "backup script",
+  prefix: "rt_exa",
+  suffix: "nce",
+  scopes: ["read"],
+  created_at: "2026-10-01T10:00:00Z",
+  last_used_at: "2026-11-13T03:00:00Z",
+};
 
 export const PHONE: PasskeyView = {
   id: 7,
@@ -178,7 +206,32 @@ export class Fake {
     ["regenerateRecoveryCode", ok({ recovery_code: "WXYZ2345EFGH6789" })],
     ["sendSignals", undefined],
     ["passkeyProof", { kind: "proof", proof: { ceremony: "cer-2", assertion: {} } }],
+    ["sessions", ok([HERE])],
+    ["renameSession", ok(undefined)],
+    ["revokeSession", ok(undefined)],
+    ["revokeOtherSessions", ok(undefined)],
+    ["keys", ok([])],
+    [
+      "createKey",
+      (r: { readonly label: string; readonly scopes: readonly string[] }) =>
+        ok({
+          key: "rt_example_new_secret",
+          details: { ...BACKUP, id: 20, label: r.label, scopes: r.scopes, prefix: "rt_new" },
+        }),
+    ],
+    ["renameKey", ok(undefined)],
+    [
+      "rotateKey",
+      (id: number) =>
+        ok({
+          key: "rt_example_rotated",
+          details: { ...BACKUP, id, previous_until: "2099-01-01T14:32:00Z" },
+        }),
+    ],
+    ["revokeKey", ok(undefined)],
   ]);
+  /** Calls the client leaves out, as a server before access Part 2. */
+  readonly #without = new Set<string>();
   readonly #gates = new Map<string, Promise<void>>();
 
   /** Queues `answers` for `name`, one per call; each is a value, or a
@@ -201,6 +254,14 @@ export class Fake {
       this.#gates.delete(name);
       release();
     };
+  }
+
+  /** Leaves `names` out of the client. */
+  without(...names: string[]): this {
+    for (const n of names) {
+      this.#without.add(n);
+    }
+    return this;
   }
 
   named(name: string): Call[] {
@@ -294,7 +355,7 @@ export class Fake {
   get client(): FakeClient {
     const call = <T>(name: string, args: readonly unknown[]): Promise<T> =>
       this.call(name, args) as Promise<T>;
-    return {
+    const client: FakeClient = {
       prefix: this.prefix,
       oidcPrefix: this.oidcPrefix,
       state: () => call<Result<StateResponse>>("state", []),
@@ -324,7 +385,20 @@ export class Fake {
       stepUpPasskeyFinish: (ceremony, credential) =>
         call<Result<void>>("stepUpPasskeyFinish", [ceremony, credential]),
       oidcStartStepUp: (r) => call<Result<{ readonly url: string }>>("oidcStartStepUp", [r]),
+      sessions: () => call<Result<readonly SessionView[]>>("sessions", []),
+      renameSession: (id, r) => call<Result<void>>("renameSession", [id, r]),
+      revokeSession: (id) => call<Result<void>>("revokeSession", [id]),
+      revokeOtherSessions: () => call<Result<void>>("revokeOtherSessions", []),
+      keys: () => call<Result<readonly KeyView[]>>("keys", []),
+      createKey: (r) => call<Result<KeyCreated>>("createKey", [r]),
+      renameKey: (id, r) => call<Result<void>>("renameKey", [id, r]),
+      rotateKey: (id) => call<Result<KeyCreated>>("rotateKey", [id]),
+      revokeKey: (id) => call<Result<void>>("revokeKey", [id]),
     };
+    for (const n of this.#without) {
+      Reflect.deleteProperty(client, n);
+    }
+    return client;
   }
 
   /** The access module, as the screens type it. */

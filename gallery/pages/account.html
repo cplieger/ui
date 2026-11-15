@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#qr">QR code</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -146,12 +146,12 @@
   </section>
   <section class="g-section" id="account-security">
     <h2>Account and security</h2>
-    <p><code>mountSecurity(region, options)</code> fills the signed-in person's own screen: who is signed in, the profile, then the sign-in methods with each one's state as a <code>.cp-state</code> and its actions, then the passkeys. Here it sits inside a settings part, its sections at <code>level: 3</code>. A write that needs a recent sign-in asks "Confirm it is you" first.</p>
+    <p><code>mountSecurity(region, options)</code> fills the signed-in person's own screen: who is signed in, the profile, then the sign-in methods with each one's state as a <code>.cp-state</code> and its actions, the passkeys, the sessions and the API keys. The cards here leave out the parts another card shows. Here it sits inside a settings part, its sections at <code>level: 3</code>. A write that needs a recent sign-in asks "Confirm it is you" first.</p>
     <div class="g-grid">
       <div class="card g-wide" data-new>
-        <h2>Every method</h2>
+        <h2>The whole screen</h2>
         <div data-security-demo="every"></div>
-        <footer>A password, two passkeys, an authenticator app with its recovery code, and single sign-on. Type "wrong" as the current password for its field error, or a new password under 15 characters. In a code field, 111111 is a wrong code and 222222 one already used. Remove password asks to confirm it is you first. Rename edits the name in its cell: Enter saves, Escape puts it back.</footer>
+        <footer>Profile, then every method: a password, two passkeys, an authenticator app with its recovery code, and single sign-on; then Sessions and API keys, as the cards below them show. Type "wrong" as the current password for its field error, or a new password under 15 characters. In a code field, 111111 is a wrong code and 222222 one already used. Remove password asks to confirm it is you first. Rename edits the name in its cell: Enter saves, Escape puts it back.</footer>
       </div>
       <div class="card" data-new>
         <h2>Set up an authenticator app</h2>
@@ -182,6 +182,42 @@
         <h2>Only a passkey</h2>
         <div data-security-demo="passkey-only"></div>
         <footer>One passkey is the only way in: the row suggests a second one, and there is no authenticator app to set up without a password.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="account-keys">
+    <h2>Sessions and API keys</h2>
+    <p>The last two sections of Account and security. Sessions lists where the person is signed in, this device first. API keys lists their keys with each one's state. In the whole screen's card above, the first key write asks to confirm it is you, as an older sign-in would.</p>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Sessions</h2>
+        <div data-security-demo="sessions"></div>
+        <footer>This device, a phone the person named, and a session made over plain HTTP with its end. Rename names a device in its cell, and an empty name puts back the browser's. Sign out ends one session; Sign out everywhere else ends every other, counted on its button.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>API keys</h2>
+        <div data-security-demo="keys"></div>
+        <footer>An active key; "ci", rotated a moment ago, Retiring until its old secret stops; a key "ci" minted; an expired key, with no Rotate; and an unnamed key from before labels were required. Create key asks for a label, an access level and any extra permission, and refuses "backup script" in any case as a label already taken. The new secret shows once. Revoke counts the keys that go with it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>No keys yet</h2>
+        <div data-security-demo="keys-none"></div>
+        <footer>The empty state holds Create key.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Keys made elsewhere</h2>
+        <div data-security-demo="keys-elsewhere"></div>
+        <footer>A person who may not make keys here reads the app's line, linked to where keys are made, in place of Create key.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A server that cannot rotate</h2>
+        <div data-security-demo="keys-swap"></div>
+        <footer>On a server with no rotation, Rotate makes a key like it, with its label, scopes and the days it had left, then revokes the old one, as one step.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Over plain HTTP</h2>
+        <div data-security-demo="plain-keys"></div>
+        <footer>Signed in over plain HTTP: this device reads "Plain HTTP" with its end, and Create key and Rotate are held with "Needs HTTPS." and the way to the HTTPS address.</footer>
       </div>
     </div>
   </section>

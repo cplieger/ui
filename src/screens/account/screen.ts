@@ -234,7 +234,7 @@ export function transportOf(s: StateResponse): Transport {
 }
 
 /** "12 hours" or "30 minutes", rounded to the larger unit that is whole. */
-function length(seconds: number, w: AccountWords): string {
+export function duration(seconds: number, w: AccountWords): string {
   return seconds >= 3600 && seconds % 3600 === 0
     ? w["plain.hours"](seconds / 3600)
     : w["plain.minutes"](Math.max(1, Math.round(seconds / 60)));
@@ -279,7 +279,7 @@ export function plainLines(
   if (t.session !== undefined) {
     const p = line(
       "cp-help",
-      w["plain.session"](length(t.session.absolute, w), length(t.session.idle, w)),
+      w["plain.session"](duration(t.session.absolute, w), duration(t.session.idle, w)),
     );
     p.dataset["part"] = "plain-session";
     lines.push(p);
@@ -321,11 +321,17 @@ export function holdForHttps(
   if (link !== undefined) {
     help.append(" ", link, ".");
   }
+  holdBy(buttons, help);
+  return help;
+}
+
+/** Holds each of `buttons` as needing HTTPS, described by `help`, a line
+ *  `holdForHttps` made. */
+export function holdBy(buttons: readonly HTMLElement[], help: HTMLElement): void {
   for (const b of buttons) {
     b.setAttribute("aria-disabled", "true");
     b.setAttribute("aria-describedby", help.id);
   }
-  return help;
 }
 
 /** Asks one question through `ask()`: true when the person answers. A

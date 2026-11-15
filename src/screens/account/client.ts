@@ -246,7 +246,7 @@ export interface SetupAccess<C> {
 /** The client calls Account and security's profile and sign-in methods
  *  make. The calls access Part 4 adds are optional: a control that needs
  *  one shows only when the client has it. */
-export interface SecurityClient extends StepUpClient {
+export interface SecurityClient extends StepUpClient, SessionsClient, KeysClient {
   state(): Promise<Result<StateResponse>>;
   me(): Promise<Result<AccountView>>;
   updateProfile(r: { readonly display_name: string }): Promise<Result<AccountView>>;
@@ -271,6 +271,68 @@ export interface SecurityClient extends StepUpClient {
   regenerateRecoveryCode?(
     proof: SecondFactorProof,
   ): Promise<Result<{ readonly recovery_code: string }>>;
+}
+
+/** A signed-in device of the person's. */
+export interface SessionView {
+  readonly id: string;
+  readonly label?: string;
+  readonly user_agent?: string;
+  readonly last_ip?: string;
+  readonly method: string;
+  readonly created_at: string;
+  readonly last_activity: string;
+  readonly idle_deadline: string;
+  readonly absolute_deadline: string;
+  readonly current: boolean;
+  /** False for a session made over plain HTTP (access Part 3). */
+  readonly secure: boolean;
+}
+
+/** An API key of the person's. `previous_until` is set while a rotated
+ *  key's previous secret still works. */
+export interface KeyView {
+  readonly id: number;
+  /** Empty only on a key made before labels were required. */
+  readonly label: string;
+  readonly prefix: string;
+  readonly suffix: string;
+  readonly scopes: readonly string[];
+  readonly created_at: string;
+  readonly expires_at?: string;
+  readonly last_used_at?: string;
+  readonly previous_until?: string;
+  /** The key that minted this one, when a key did. */
+  readonly parent_key_id?: number;
+}
+
+/** `createKey` and `rotateKey`'s answer: the plaintext, shown once. */
+export interface KeyCreated {
+  readonly key: string;
+  readonly details: KeyView;
+}
+
+/** The client calls the Sessions and API keys sections make. */
+export interface SessionsClient {
+  sessions(): Promise<Result<readonly SessionView[]>>;
+  renameSession(id: string, r: { readonly name: string }): Promise<Result<void>>;
+  revokeSession(id: string): Promise<Result<void>>;
+  revokeOtherSessions(): Promise<Result<void>>;
+}
+
+export interface KeysClient {
+  keys(): Promise<Result<readonly KeyView[]>>;
+  createKey(r: {
+    readonly label: string;
+    readonly scopes: readonly string[];
+    readonly expires_in_days?: number;
+  }): Promise<Result<KeyCreated>>;
+  /** From access Part 2; absent, a key has no Rename…. */
+  renameKey?(id: number, r: { readonly name: string }): Promise<Result<void>>;
+  /** From access Part 2; absent, Rotate… creates a key like it and revokes
+   *  the old one. */
+  rotateKey?(id: number): Promise<Result<KeyCreated>>;
+  revokeKey(id: number): Promise<Result<void>>;
 }
 
 /** A passkey assertion taken as a proof, or why there is none. */

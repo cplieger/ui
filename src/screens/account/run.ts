@@ -32,6 +32,7 @@ export const accountActions = [
   "auth.session_revoke",
   "auth.sessions_revoke_others",
   "auth.api_key_create",
+  "auth.api_key_rename",
   "auth.api_key_revoke",
   "auth.api_key_rotate",
 ] as const;

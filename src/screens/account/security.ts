@@ -1,7 +1,8 @@
 /**
  * security.ts — Account and security, the signed-in person's own screen:
- * the session line, then a section each for the profile and the sign-in
- * methods, each heading at the host's level, as docs/design-account.md
+ * the session line, then a section each for the profile, the sign-in
+ * methods, the sessions and the API keys, each heading at the host's level,
+ * as docs/design-account.md
  * "Account and security" lays it out.
  * @module
  */
@@ -10,6 +11,7 @@ import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
+import { focusAction } from "./actions.js";
 import { clock, codeOf, generic, reasonOf, retryAfter, type Said } from "./answer.js";
 import type {
   AccountView,
@@ -19,7 +21,8 @@ import type {
   SecurityAccess,
   SecurityClient,
 } from "./client.js";
-import { el, heading, sketch, stateMark } from "./dom.js";
+import { clockAt, el, heading, sketch, stateMark } from "./dom.js";
+import { drawKeys, type KeyScopes, type KeysSection } from "./keys.js";
 import { drawMethods } from "./methods.js";
 import { drawProfile } from "./profile.js";
 import { runDirect, type AccountAction } from "./run.js";
@@ -32,6 +35,7 @@ import {
   type ScreenOptions,
   type Slot,
 } from "./screen.js";
+import { drawSessions, type SessionsSection } from "./sessions.js";
 import { stepUp, type StepUpAnswer } from "./step-up.js";
 import { wordsOf, type AccountWords } from "./words.js";
 
@@ -52,15 +56,25 @@ export interface SecurityOptions<C extends SecurityClient> extends ScreenOptions
   readonly rpId?: string;
   /** Where linking single sign-on comes back. Default: this page. */
   readonly redirect?: string;
-  /** Runs when the session is gone. Default: navigate to `signInPath`
-   *  with `arrived` saying why. */
-  readonly onSignedOut?: (why: { readonly reason: "session-ended" | "transport-changed" }) => void;
+  /** The scopes Create key… offers. Default: none, so a key is made with
+   *  no scope. */
+  readonly scopes?: KeyScopes;
+  /** In place of Create key…, for a person who may not make keys here: a
+   *  link to where they are made, worded by `words`. */
+  readonly keysCreatedElsewhere?: { readonly words: string; readonly href: string };
+  /** Runs when the session is gone, or the person signed this one out.
+   *  Default: navigate to `signInPath` with `arrived` saying why. */
+  readonly onSignedOut?: (why: { readonly reason: SignedOutReason }) => void;
   /** Default "/sign-in". */
   readonly signInPath?: string;
 }
 
+/** Why the screen ended its session: it expired, the connection changed
+ *  between HTTP and HTTPS, or the person signed this device out. */
+export type SignedOutReason = "session-ended" | "transport-changed" | "signed-out";
+
 export interface SecurityScreen {
-  /** Reads the account again and redraws the sign-in methods. */
+  /** Reads the account, its sessions and its keys again and redraws them. */
   refresh(): Promise<void>;
 }
 
@@ -84,6 +98,12 @@ export interface Ctx<C extends SecurityClient> {
   /** The app offers authenticator apps. */
   readonly appTotp: boolean;
   readonly webauthn: boolean;
+  /** This page's session was made over plain HTTP. */
+  readonly plain: boolean;
+  readonly scopes: KeyScopes | undefined;
+  readonly keysElsewhere: { readonly words: string; readonly href: string } | undefined;
+  /** Ends the screen for `reason`, as `onSignedOut` says. */
+  signedOut(reason: SignedOutReason): void;
   /**
    * Runs a write through the host's runner under `name`; when the server
    * asks for a recent sign-in, asks with `reason` and runs it once more.
@@ -149,12 +169,22 @@ export function mountSecurity<C extends SecurityClient>(
   const profile = section(w["profile.title"]);
   const methods = section(w["methods.title"]);
   methods.heading.tabIndex = -1;
+  // With no method's routes mounted, the screen has no methods section.
+  const anyMethod = (["password", "passkeys", "second-factor", "single-sign-on"] as const).some(
+    has,
+  );
+  const sessionsPart = section(w["sessions.title"]);
+  sessionsPart.heading.tabIndex = -1;
+  const keysPart = section(w["keys.title"]);
+  keysPart.heading.tabIndex = -1;
   top.append(session, notices.root);
   region.replaceChildren(top);
 
   let me: AccountView | undefined;
   let passkeys: readonly PasskeyView[] = [];
   let ctx: Ctx<C> | undefined;
+  let sessionsView: SessionsSection | undefined;
+  let keysView: KeysSection | undefined;
 
   function section(title: string): {
     readonly root: HTMLElement;
@@ -169,17 +199,20 @@ export function mountSecurity<C extends SecurityClient>(
     return { root, heading: h, body };
   }
 
-  const signedOut = (r: Refusal): boolean => {
-    const code = codeOf(r);
-    if (code !== "auth_session_expired" && code !== "auth_required") {
-      return false;
-    }
-    const reason = reasonOf(r) === "transport_changed" ? "transport-changed" : "session-ended";
+  const leave = (reason: SignedOutReason): void => {
     if (options.onSignedOut === undefined) {
       navigate(`${options.signInPath ?? "/sign-in"}?arrived=${reason}`);
     } else {
       options.onSignedOut({ reason });
     }
+  };
+
+  const signedOut = (r: Refusal): boolean => {
+    const code = codeOf(r);
+    if (code !== "auth_session_expired" && code !== "auth_required") {
+      return false;
+    }
+    leave(reasonOf(r) === "transport_changed" ? "transport-changed" : "session-ended");
     return true;
   };
 
@@ -291,7 +324,7 @@ export function mountSecurity<C extends SecurityClient>(
       line.dataset["part"] = "plain-session";
       line.append(stateMark("warning", "lock", w["security.plain"]));
       if (ends !== undefined && !Number.isNaN(ends.getTime())) {
-        line.append(el("span", undefined, w["security.plainUntil"](endWords(ends))));
+        line.append(el("span", undefined, w["security.plainUntil"](clockAt(ends))));
       }
       session.append(line);
     }
@@ -312,16 +345,11 @@ export function mountSecurity<C extends SecurityClient>(
     me = got.data;
     passkeys = keys;
     drawSession(me);
-    drawMethods(ctx, methods.body, me, passkeys);
-    if (focus !== undefined) {
-      const target = methods.body.querySelector<HTMLElement>(`[data-cp-action="${focus}"]`);
-      // An action in a row's menu: its ⋯ button takes focus.
-      const menu = target?.closest<HTMLElement>("[role='menu']");
-      const opener =
-        menu === null || menu === undefined
-          ? target
-          : methods.body.querySelector<HTMLElement>(`[popovertarget="${menu.id}"]`);
-      (opener ?? methods.heading).focus();
+    if (anyMethod) {
+      drawMethods(ctx, methods.body, me, passkeys);
+    }
+    if (focus !== undefined && !focusAction(methods.body, focus)) {
+      methods.heading.focus();
     }
   };
 
@@ -384,6 +412,10 @@ export function mountSecurity<C extends SecurityClient>(
         httpsOrigin: state.ok ? state.data.https_origin : undefined,
         appTotp: state.ok && state.data.totp === true,
         webauthn: support.webauthn,
+        plain: !me.session.secure,
+        scopes: options.scopes,
+        keysElsewhere: options.keysCreatedElsewhere,
+        signedOut: leave,
         write,
         settle,
         refresh,
@@ -393,8 +425,18 @@ export function mountSecurity<C extends SecurityClient>(
         drawProfile(ctx, profile.body, me);
         top.append(profile.root);
       }
-      drawMethods(ctx, methods.body, me, passkeys);
-      top.append(methods.root);
+      if (anyMethod) {
+        drawMethods(ctx, methods.body, me, passkeys);
+        top.append(methods.root);
+      }
+      if (has("sessions")) {
+        sessionsView = drawSessions(ctx, sessionsPart.body, sessionsPart.heading);
+        top.append(sessionsPart.root);
+      }
+      if (has("keys")) {
+        keysView = drawKeys(ctx, keysPart.body, keysPart.heading);
+        top.append(keysPart.root);
+      }
       const said = returned();
       if (said !== undefined) {
         const into = methods.body.querySelector<HTMLElement>("[data-part='notice']");
@@ -431,20 +473,9 @@ export function mountSecurity<C extends SecurityClient>(
   };
 
   void load();
-  return { refresh: () => refresh() };
-}
-
-/** "18:40" today, else "14 Nov, 18:40". */
-function endWords(at: Date): string {
-  const now = new Date();
-  const today =
-    at.getFullYear() === now.getFullYear() &&
-    at.getMonth() === now.getMonth() &&
-    at.getDate() === now.getDate();
-  return at.toLocaleString(
-    undefined,
-    today
-      ? { hour: "2-digit", minute: "2-digit" }
-      : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" },
-  );
+  return {
+    refresh: async () => {
+      await Promise.all([refresh(), sessionsView?.refresh(), keysView?.refresh()]);
+    },
+  };
 }

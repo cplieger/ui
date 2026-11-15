@@ -254,6 +254,13 @@ describe("mountSignIn: the panel", () => {
     expect(input(set.panel, "username").value).toBe("mika");
   });
 
+  it("reads a sign-out of this device from the address", async () => {
+    const { panel } = mount(new Fake(), { search: "?arrived=signed-out" });
+    await drawn(panel);
+    expect(noticeOf(panel)?.dataset["tone"]).toBe("neutral");
+    expect(noticeOf(panel)?.textContent).toBe("You signed out.");
+  });
+
   it("fits a 320px phone without a sideways scroll", async () => {
     await page.viewport(320, 640);
     const { panel } = mount(new Fake(), { provider: "Authelia" });

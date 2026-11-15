@@ -1,0 +1,769 @@
+/**
+ * keys.ts — Account and security's API keys: a `.cp-table` of the person's
+ * keys and their state, Create key… with the scope picker, Rename… in
+ * place, Rotate… and Revoke…, as access Part 2's UI contract says.
+ * @module
+ */
+
+import { clearError, showError } from "../../forms/form/form.js";
+import { focusAction, rowActions, rowHead, type Action } from "./actions.js";
+import { codeOf, reasonOf, retryAfter } from "./answer.js";
+import type { KeyCreated, KeyView, Refusal, SecurityClient } from "./client.js";
+import { formDialog, type FormDialog } from "./dialogs.js";
+import {
+  cell,
+  cellStack,
+  clockAt,
+  el,
+  field,
+  glyph,
+  plainButton,
+  stateMark,
+  table,
+  time,
+  uid,
+} from "./dom.js";
+import { NAME_MAX, nameRefused, renameInPlace, runes } from "./rename.js";
+import { duration, holdBy, holdFor, holdForHttps, isHeld, question, read, slot } from "./screen.js";
+import type { Ctx } from "./security.js";
+import { showSecret } from "./shown.js";
+import type { StepUpAnswer } from "./step-up.js";
+
+/** One scope a key may carry, as the host's app defines it. */
+export interface KeyScope {
+  /** The scope's name in access's `Rules.Scopes`. */
+  readonly value: string;
+  readonly label: string;
+  /** What a key with it can do, under its label. */
+  readonly line?: string;
+}
+
+/**
+ * The scope picker of Create key…: an ordered level, one of `levels` or
+ * none, then any of `permissions`. With either group, a key needs a level
+ * or a permission.
+ */
+export interface KeyScopes {
+  readonly levels?: readonly KeyScope[];
+  readonly permissions?: readonly KeyScope[];
+}
+
+export interface KeysSection {
+  /** Reads the keys again and redraws them. */
+  refresh(focus?: string): Promise<void>;
+}
+
+const DAY: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
+const LIFETIMES = [30, 90, 365, 0] as const;
+const LIFETIME = 90;
+const MINUTE = 60_000;
+const DAY_MS = 86_400_000;
+
+/** Fills `body` with the person's API keys, read from the client. */
+export function drawKeys<C extends SecurityClient>(
+  ctx: Ctx<C>,
+  body: HTMLElement,
+  heading: HTMLHeadingElement,
+): KeysSection {
+  const { w, client, has } = ctx;
+  const notices = slot(el("div"));
+  notices.root.dataset["part"] = "notice";
+  const content = el("div", "cp-stack");
+  content.dataset["part"] = "keys";
+  body.replaceChildren(notices.root, content);
+  const levels = ctx.scopes?.levels ?? [];
+  const permissions = ctx.scopes?.permissions ?? [];
+  const picked = levels.length > 0 || permissions.length > 0;
+  const scopeLabel = new Map([...levels, ...permissions].map((s) => [s.value, s.label]));
+  let list: readonly KeyView[] = [];
+  let editing = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // How long the previous secret worked after the last rotation here, which
+  // the app sets and only a rotation's answer tells.
+  let overlap: string | undefined;
+
+  const labelOf = (k: KeyView): string => (k.label === "" ? w["keys.unnamed"] : k.label);
+
+  const refresh = async (focus?: string): Promise<void> => {
+    const got = await read(() => client.keys());
+    if (ctx.signal?.aborted === true || editing) {
+      return;
+    }
+    if (!got.ok) {
+      ctx.settle({ kind: "done", result: got }, notices, (r) => unavailable(r, refresh));
+      return;
+    }
+    list = got.data;
+    const kept = focus ?? activeAction(content);
+    draw();
+    if (kept !== undefined && !focusAction(content, kept) && focus !== undefined) {
+      heading.focus();
+    }
+  };
+
+  /** The soonest previous secret's end, when the row goes Active again. */
+  const schedule = (): void => {
+    clearTimeout(timer);
+    const ends = list
+      .map((k) => (k.previous_until === undefined ? Number.NaN : Date.parse(k.previous_until)))
+      .filter((t) => !Number.isNaN(t));
+    if (ends.length === 0) {
+      return;
+    }
+    const wait = Math.max(1000, Math.min(...ends) - Date.now() + 1000);
+    timer = setTimeout(() => void refresh(), Math.min(wait, DAY_MS));
+  };
+
+  window.addEventListener("focus", () => void refresh(), ctx.life);
+  ctx.signal?.addEventListener(
+    "abort",
+    () => {
+      clearTimeout(timer);
+    },
+    { once: true },
+  );
+
+  /** Offers Retry on `auth_unavailable`, the one answer worth repeating. */
+  const unavailable = (r: Refusal, again: () => unknown): null | undefined => {
+    if (codeOf(r) !== "auth_unavailable") {
+      return undefined;
+    }
+    const retry = el("button", "cp-button", w["generic.retry"]);
+    retry.type = "button";
+    retry.addEventListener("click", () => void again(), { once: true });
+    notices.show("danger", w["generic.unavailable"], retry);
+    return null;
+  };
+
+  /** The key routes' own answers, then Retry, else the shared words. */
+  const refused = (r: Refusal, again: () => unknown): null | undefined => {
+    switch (codeOf(r)) {
+      case "auth_not_found":
+        notices.show("neutral", w["keys.gone"]);
+        void refresh();
+        return null;
+      case "auth_invalid_credentials":
+      case "auth_key_invalid":
+        notices.show("danger", w["keys.signInAgain"]);
+        return null;
+      case "auth_body_too_large":
+        notices.show("danger", w.auth_body_too_large);
+        return null;
+      case "auth_forbidden":
+        notices.show(
+          "danger",
+          reasonOf(r) === "key_expired" ? w["keys.expiredRefused"] : w.auth_forbidden,
+        );
+        return null;
+      case "auth_session_required":
+        notices.show("danger", w.auth_session_required);
+        return null;
+      default:
+        return unavailable(r, again);
+    }
+  };
+
+  const draw = (): void => {
+    schedule();
+    const now = Date.now();
+    const parts: Node[] = [];
+    // One "Needs HTTPS." line for Create key and every row's Rotate.
+    const https = ctx.plain ? holdForHttps([], ctx, ctx.app, w) : undefined;
+    const create = createControl(https);
+    if (list.length === 0) {
+      const empty = el("div", "cp-empty");
+      empty.append(glyph("key-round"), el("p", undefined, w["keys.empty"]), ...create);
+      content.replaceChildren(empty);
+      return;
+    }
+    parts.push(...create);
+    if (https !== undefined && ctx.keysElsewhere !== undefined) {
+      parts.push(https);
+    }
+    const scoped = picked || list.some((k) => k.scopes.length > 0);
+    const t = table(heading.id, [
+      { text: w["keys.label"] },
+      { text: w["keys.key"], priority: "mid" },
+      ...(scoped ? [{ text: w["keys.scopes"], priority: "low" as const }] : []),
+      { text: w["keys.expires"], priority: "low" },
+      { text: w["keys.lastUsed"], priority: "low" },
+      { text: w["keys.state"] },
+      { text: w["methods.actions"], col: "actions" },
+    ]);
+    for (const k of list) {
+      t.body.append(row(k, now, scoped, https));
+    }
+    parts.push(t.root);
+    content.replaceChildren(...parts);
+  };
+
+  /** Create key…, or the host's line where keys are made elsewhere. */
+  const createControl = (https: HTMLElement | undefined): Node[] => {
+    if (ctx.keysElsewhere !== undefined) {
+      const p = el("p", "cp-help");
+      const a = el("a", undefined, ctx.keysElsewhere.words);
+      a.href = ctx.keysElsewhere.href;
+      p.append(a);
+      return [p];
+    }
+    const b = plainButton(w["keys.create"], "plus");
+    b.dataset["cpAction"] = "key-create";
+    b.addEventListener(
+      "click",
+      () => {
+        if (!isHeld(b)) {
+          createKey(b);
+        }
+      },
+      ctx.life,
+    );
+    const bar = el("div", "cp-cluster");
+    bar.append(b);
+    if (https === undefined) {
+      return [bar];
+    }
+    holdBy([b], https);
+    return [bar, https];
+  };
+
+  const row = (
+    k: KeyView,
+    now: number,
+    scoped: boolean,
+    https: HTMLElement | undefined,
+  ): HTMLTableRowElement => {
+    const name = labelOf(k);
+    const nameNode = el("span", undefined, name);
+    const expired = k.expires_at !== undefined && Date.parse(k.expires_at) <= now;
+    const lines: string[] = [];
+    if (k.parent_key_id !== undefined) {
+      const parent = list.find((p) => p.id === k.parent_key_id);
+      lines.push(
+        w["keys.mintedBy"](
+          parent === undefined ? w["keys.revokedParent"](k.parent_key_id) : labelOf(parent),
+        ),
+      );
+    }
+    const actions: Action[] = [];
+    if (client.renameKey !== undefined) {
+      actions.push({
+        text: w["keys.rename"],
+        key: `key-rename-${String(k.id)}`,
+        label: w["keys.renameLabel"](name),
+        run: (opener) => {
+          rename(k, nameNode, opener);
+        },
+      });
+    }
+    if (has("key-rotate") && !expired) {
+      actions.push({
+        text: w["keys.rotate"],
+        key: `key-rotate-${String(k.id)}`,
+        label: w["keys.rotateLabel"](name),
+        https: ctx.plain,
+        run: (opener) => {
+          void rotate(k, opener);
+        },
+      });
+    }
+    actions.push({
+      text: w["keys.revoke"],
+      key: `key-revoke-${String(k.id)}`,
+      label: w["keys.revokeLabel"](name),
+      danger: true,
+      run: (opener) => {
+        void revoke(k, opener);
+      },
+    });
+    const [controls] = rowActions(ctx, name, actions, https);
+
+    let state: Node;
+    if (expired) {
+      state = stateMark(
+        "neutral",
+        "clock",
+        w["keys.expired"](new Date(k.expires_at).toLocaleDateString(undefined, DAY)),
+      );
+    } else if (k.previous_until !== undefined) {
+      const until = clockAt(new Date(k.previous_until));
+      state = cellStack(
+        stateMark("warning", "timer", w["keys.retiring"](until)),
+        w["keys.retiringLine"](until),
+      );
+    } else {
+      state = stateMark("success", "circle-check", w["keys.active"]);
+    }
+
+    // Word joiners keep the key's two ends on one line.
+    const key = cell(el("span", "cp-mono", `${k.prefix}\u2060…\u2060${k.suffix}`));
+    key.dataset["priority"] = "mid";
+    const cells: HTMLTableCellElement[] = [
+      rowHead(lines.length === 0 ? nameNode : cellStack(nameNode, ...lines)),
+      key,
+    ];
+    if (scoped) {
+      const chips = el("div", "cp-cluster");
+      for (const s of k.scopes) {
+        chips.append(el("span", "cp-chip", scopeLabel.get(s) ?? s));
+      }
+      const scopes = cell(k.scopes.length === 0 ? w["keys.noScope"] : chips);
+      scopes.dataset["priority"] = "low";
+      cells.push(scopes);
+    }
+    const expires = cell(k.expires_at === undefined ? w["keys.never"] : time(k.expires_at, DAY));
+    expires.dataset["priority"] = "low";
+    const used = cell(k.last_used_at === undefined ? w["keys.notUsed"] : time(k.last_used_at, DAY));
+    used.dataset["priority"] = "low";
+    cells.push(expires, used, cell(state), controls);
+    const tr = el("tr");
+    tr.append(...cells);
+    return tr;
+  };
+
+  function createKey(opener: HTMLElement): void {
+    notices.clear();
+    const d = formDialog({
+      title: w["keys.createTitle"],
+      submit: w["keys.createSubmit"],
+      busy: w["keys.createBusy"],
+      done: false,
+      cancel: w["security.cancel"],
+      opener,
+      ...ctx.life,
+    });
+    const label = field({
+      label: w["keys.label"],
+      name: "label",
+      autocomplete: "off",
+      help: w["keys.labelHelp"],
+    });
+    label.input.required = true;
+    const picker = scopePicker();
+    const lifetime = lifetimeField();
+    d.stack.append(label.root, ...(picker === undefined ? [] : [picker.root]), lifetime.root);
+    label.input.addEventListener("input", () => {
+      clearError(label.input);
+    });
+    label.input.focus();
+
+    d.form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (d.busy() || isHeld(d.submit)) {
+        return;
+      }
+      const text = label.input.value.trim();
+      const bad =
+        text === ""
+          ? w["keys.labelEmpty"]
+          : runes(text) > NAME_MAX
+            ? w["rename.tooLong"](NAME_MAX)
+            : undefined;
+      if (bad !== undefined) {
+        showError(label.input, bad);
+        label.input.focus();
+        return;
+      }
+      const scopes = picker?.value() ?? [];
+      if (picker !== undefined && scopes.length === 0) {
+        picker.refuse(w["keys.scopeNeeded"]);
+        return;
+      }
+      d.notices.clear();
+      const days = Number(lifetime.select.value);
+      const request = { label: text, scopes, ...(days > 0 ? { expires_in_days: days } : {}) };
+      void d
+        .run(
+          () => ctx.write("auth.api_key_create", w["keys.recent"], () => client.createKey(request)),
+          (a) => a.kind === "done" && a.result.ok,
+        )
+        .then(async (got) => {
+          if (got === undefined) {
+            return;
+          }
+          const made = kept(d, got.answer, (r) => {
+            switch (codeOf(r)) {
+              case "auth_key_label_taken":
+                showError(label.input, w.auth_key_label_taken(text));
+                label.input.focus();
+                label.input.select();
+                return true;
+              case "auth_unknown_scope": {
+                const [only] = scopes;
+                picker?.refuse(
+                  w.auth_unknown_scope(
+                    scopes.length === 1 && only !== undefined
+                      ? (scopeLabel.get(only) ?? only)
+                      : undefined,
+                  ),
+                );
+                return picker !== undefined;
+              }
+              case "auth_bad_request": {
+                const said =
+                  reasonOf(r) === "label_empty" ? w["keys.labelEmpty"] : nameRefused(r, w);
+                if (said === undefined) {
+                  return false;
+                }
+                showError(label.input, said);
+                label.input.focus();
+                return true;
+              }
+              case "auth_unavailable":
+                // Pressing Create key again is the retry.
+                d.notices.show("danger", w["generic.unavailable"]);
+                return true;
+              default:
+                return waited(d, r);
+            }
+          });
+          if (made !== undefined) {
+            await showSecret(
+              {
+                title: w["keys.createdTitle"](made.details.label),
+                label: w["keys.secret"],
+                secret: made.key,
+              },
+              w,
+              ctx.signal,
+            );
+            notices.show("success", w["keys.created"](made.details.label));
+            await refresh(`key-rename-${String(made.details.id)}`);
+          }
+        });
+    });
+  }
+
+  /**
+   * What a dialog's write answered: the new key, or undefined. A refusal
+   * `stay` shows on a field keeps the dialog open; any other closes it and
+   * shows in the section's notices.
+   */
+  function kept(
+    d: FormDialog,
+    answer: StepUpAnswer<KeyCreated>,
+    stay: (r: Refusal) => boolean,
+  ): KeyCreated | undefined {
+    if (answer.kind === "cancelled") {
+      return undefined;
+    }
+    if (answer.kind === "done" && !answer.result.ok && stay(answer.result)) {
+      return undefined;
+    }
+    d.close();
+    if (answer.kind === "done" && answer.result.ok) {
+      return answer.result.data;
+    }
+    ctx.settle(answer, notices, (r) => refused(r, () => undefined));
+    return undefined;
+  }
+
+  /** Holds `d`'s primary for a rate limit's wait; false with no wait. */
+  function waited(d: FormDialog, r: Refusal): boolean {
+    const seconds = retryAfter(r);
+    if (codeOf(r) !== "auth_rate_limited" || seconds === undefined || seconds <= 0) {
+      return false;
+    }
+    holdFor(
+      seconds,
+      d.notices,
+      [d.submit],
+      { text: w.auth_rate_limited, again: w["stepUp.again"] },
+      ctx.signal,
+    );
+    return true;
+  }
+
+  /** The level's radios and the permissions' boxes, in one `.cp-field`
+   *  whose error names a missing or unknown scope. */
+  function scopePicker():
+    | {
+        readonly root: HTMLElement;
+        value(): string[];
+        refuse(text: string): void;
+      }
+    | undefined {
+    if (!picked) {
+      return undefined;
+    }
+    const root = el("div", "cp-field");
+    const inputs: HTMLInputElement[] = [];
+    const group = (
+      legend: string,
+      type: "radio" | "checkbox",
+      scopes: readonly (KeyScope | undefined)[],
+    ): HTMLFieldSetElement => {
+      const set = el("fieldset", "cp-choices");
+      set.append(el("legend", "cp-label", legend));
+      const name = uid("scope");
+      for (const s of scopes) {
+        const choice = el("label", "cp-choice");
+        const input = el("input", type === "radio" ? "cp-radio" : "cp-checkbox");
+        input.type = type;
+        input.name = name;
+        input.value = s?.value ?? "";
+        const words = el("span", undefined, s?.label ?? w["keys.noLevel"]);
+        if (s?.line !== undefined) {
+          words.append(el("small", undefined, s.line));
+        }
+        choice.append(input, words);
+        set.append(choice);
+        inputs.push(input);
+      }
+      return set;
+    };
+    if (levels.length > 0) {
+      root.append(group(w["keys.level"], "radio", [undefined, ...levels]));
+    }
+    if (permissions.length > 0) {
+      root.append(group(w["keys.permissions"], "checkbox", permissions));
+    }
+    const [first] = inputs;
+    root.addEventListener("change", () => {
+      if (first !== undefined) {
+        clearError(first);
+      }
+    });
+    return {
+      root,
+      value: () => inputs.filter((i) => i.checked && i.value !== "").map((i) => i.value),
+      refuse: (text) => {
+        if (first !== undefined) {
+          showError(first, text);
+          first.focus();
+        }
+      },
+    };
+  }
+
+  function lifetimeField(): { readonly root: HTMLElement; readonly select: HTMLSelectElement } {
+    const root = el("div", "cp-field");
+    const select = el("select", "cp-input");
+    select.id = uid("expires");
+    select.name = "expires_in_days";
+    for (const days of LIFETIMES) {
+      const o = el("option", undefined, days === 0 ? w["keys.never"] : w["keys.days"](days));
+      o.value = String(days);
+      o.selected = days === LIFETIME;
+      select.append(o);
+    }
+    const label = el("label", "cp-label", w["keys.expiresIn"]);
+    label.htmlFor = select.id;
+    const box = el("div", "cp-select");
+    box.append(select);
+    root.append(label, box);
+    return { root, select };
+  }
+
+  function rename(k: KeyView, node: HTMLElement, opener: HTMLElement): void {
+    const renameKey = client.renameKey?.bind(client);
+    if (renameKey === undefined) {
+      return;
+    }
+    notices.clear();
+    editing = true;
+    renameInPlace({
+      name: node,
+      value: k.label,
+      label: w["keys.renameLabel"](labelOf(k)),
+      button: opener,
+      words: w,
+      save: async (name) => {
+        const a = await ctx.write("auth.api_key_rename", w["security.recent"], () =>
+          renameKey(k.id, { name }),
+        );
+        if (a.kind === "cancelled" || a.kind === "redirecting") {
+          return false;
+        }
+        if (a.kind === "failed") {
+          return a.words;
+        }
+        if (a.result.ok) {
+          return undefined;
+        }
+        if (codeOf(a.result) === "auth_key_label_taken") {
+          return w.auth_key_label_taken(name);
+        }
+        const said = nameRefused(a.result, w);
+        if (said !== undefined) {
+          return said;
+        }
+        editing = false;
+        ctx.settle(a, notices, (r) =>
+          refused(r, () => {
+            opener.click();
+          }),
+        );
+        return false;
+      },
+      ended: (saved) => {
+        editing = false;
+        if (saved) {
+          void refresh(`key-rename-${String(k.id)}`);
+        }
+      },
+    });
+  }
+
+  async function rotate(k: KeyView, opener: HTMLElement): Promise<void> {
+    notices.clear();
+    const name = labelOf(k);
+    const sentence = [
+      w["keys.rotateSentence"](overlap ?? w["keys.overlap"]),
+      ...(k.previous_until === undefined ? [] : [w["keys.rotateAgain"]]),
+      w["keys.rotateLeaked"],
+    ].join(" ");
+    const yes = await question(sentence, {
+      title: w["keys.rotateQuestion"](name),
+      answer: w["keys.rotateAnswer"],
+      cancel: w["security.cancel"],
+    });
+    if (!yes) {
+      opener.focus();
+      return;
+    }
+    const rotateKey = client.rotateKey?.bind(client);
+    await (rotateKey === undefined ? swap(k, opener) : send(k, rotateKey, opener));
+  }
+
+  async function send(
+    k: KeyView,
+    rotateKey: (id: number) => ReturnType<NonNullable<SecurityClient["rotateKey"]>>,
+    opener: HTMLElement,
+  ): Promise<void> {
+    const name = labelOf(k);
+    const a = await ctx.write("auth.api_key_rotate", w["keys.rotateRecent"], () => rotateKey(k.id));
+    if (a.kind === "done" && a.result.ok) {
+      const made = a.result.data;
+      const until = made.details.previous_until;
+      const end = until === undefined ? Number.NaN : Date.parse(until);
+      if (!Number.isNaN(end)) {
+        overlap = duration(Math.max(1, Math.round((end - Date.now()) / MINUTE)) * 60, w);
+      }
+      await showSecret(
+        {
+          title: w["keys.rotatedTitle"](name),
+          ...(Number.isNaN(end) ? {} : { line: w["keys.rotatedLine"](clockAt(new Date(end))) }),
+          label: w["keys.secret"],
+          secret: made.key,
+        },
+        w,
+        ctx.signal,
+      );
+      await refresh(`key-rotate-${String(k.id)}`);
+      return;
+    }
+    ctx.settle(a, notices, (r) => refused(r, () => send(k, rotateKey, opener)));
+    if (opener.isConnected) {
+      opener.focus();
+    }
+  }
+
+  /** Rotate on a client with no `rotateKey`: a key like `k`, with its
+   *  label, scopes and remaining days, then `k` revoked. */
+  async function swap(k: KeyView, opener: HTMLElement): Promise<void> {
+    const left =
+      k.expires_at === undefined
+        ? 0
+        : Math.max(1, Math.ceil((Date.parse(k.expires_at) - Date.now()) / DAY_MS));
+    const request = {
+      label: k.label,
+      scopes: k.scopes,
+      ...(left > 0 ? { expires_in_days: left } : {}),
+    };
+    const made = await ctx.write("auth.api_key_rotate", w["keys.rotateRecent"], () =>
+      client.createKey(request),
+    );
+    if (made.kind !== "done" || !made.result.ok) {
+      ctx.settle(made, notices, (r) => refused(r, () => void swap(k, opener)));
+      if (opener.isConnected) {
+        opener.focus();
+      }
+      return;
+    }
+    const gone = await ctx.write("auth.api_key_revoke", w["keys.revokeRecent"], () =>
+      client.revokeKey(k.id),
+    );
+    const revoked = gone.kind === "done" && gone.result.ok;
+    await showSecret(
+      {
+        title: w["keys.rotatedTitle"](labelOf(k)),
+        ...(revoked ? { line: w["keys.swappedLine"] } : {}),
+        label: w["keys.secret"],
+        secret: made.result.data.key,
+      },
+      w,
+      ctx.signal,
+    );
+    await refresh(`key-rename-${String(made.result.data.details.id)}`);
+    if (!revoked) {
+      notices.show("warning", w["keys.swapRevokeFailed"]);
+    }
+  }
+
+  async function revoke(k: KeyView, opener: HTMLElement): Promise<void> {
+    notices.clear();
+    const name = labelOf(k);
+    const minted = list.filter((c) => descends(c, k.id)).length;
+    const yes = await question(w["keys.revokeSentence"], {
+      title: w["keys.revokeQuestion"](name, minted),
+      answer: w["keys.revokeAnswer"],
+      cancel: w["security.cancel"],
+      danger: true,
+    });
+    if (!yes) {
+      opener.focus();
+      return;
+    }
+    const run = async (): Promise<void> => {
+      const a = await ctx.write("auth.api_key_revoke", w["keys.revokeRecent"], () =>
+        client.revokeKey(k.id),
+      );
+      if (a.kind === "done" && a.result.ok) {
+        notices.show("success", w["keys.revoked"](name));
+        await refresh();
+        heading.focus();
+        return;
+      }
+      ctx.settle(a, notices, (r) => refused(r, run));
+      if (opener.isConnected) {
+        opener.focus();
+      }
+    };
+    await run();
+  }
+
+  /** Whether `c` was minted, at any depth, by the key `id` in the list. */
+  function descends(c: KeyView, id: number): boolean {
+    const seen = new Set<number>();
+    let parent = c.parent_key_id;
+    while (parent !== undefined && !seen.has(parent)) {
+      if (parent === id) {
+        return true;
+      }
+      seen.add(parent);
+      parent = list.find((p) => p.id === parent)?.parent_key_id;
+    }
+    return false;
+  }
+
+  void refresh();
+  return { refresh };
+}
+
+/** The `data-cp-action` of the control in `root` that has focus, or of the
+ *  first item of the menu whose ⋯ button has it, so a redraw can give
+ *  focus back. */
+function activeAction(root: HTMLElement): string | undefined {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !root.contains(active)) {
+    return undefined;
+  }
+  const own = active.dataset["cpAction"];
+  if (own !== undefined) {
+    return own;
+  }
+  const menu = active.getAttribute("popovertarget");
+  const item =
+    menu === null ? null : root.querySelector<HTMLElement>(`[id="${menu}"] [data-cp-action]`);
+  return item?.dataset["cpAction"];
+}

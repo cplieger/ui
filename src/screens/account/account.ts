@@ -8,6 +8,9 @@
 
 export type {
   AccountView,
+  KeyCreated,
+  KeyView,
+  KeysClient,
   MeView,
   MethodsView,
   OIDCReturn,
@@ -21,6 +24,8 @@ export type {
   SecurityAccess,
   SecurityClient,
   SessionNow,
+  SessionView,
+  SessionsClient,
   SetupAccess,
   SetupClient,
   SignInAccess,
@@ -36,10 +41,11 @@ export type {
   TotpBegin,
 } from "./client.js";
 export { accountActions, accountRunner, runDirect } from "./run.js";
+export type { KeyScope, KeyScopes } from "./keys.js";
 export type { AccountAction, DefineAction, Runner } from "./run.js";
 export type { AccountPart, ScreenOptions } from "./screen.js";
 export { mountSecurity } from "./security.js";
-export type { SecurityOptions, SecurityScreen } from "./security.js";
+export type { SecurityOptions, SecurityScreen, SignedOutReason } from "./security.js";
 export { mountSetup } from "./setup.js";
 export type { SetupOptions } from "./setup.js";
 export { mountSignIn } from "./sign-in.js";

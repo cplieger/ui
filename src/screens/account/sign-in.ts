@@ -51,7 +51,7 @@ import { wordsOf } from "./words.js";
 /** The notice a sign-in opens with, after the step that sent the person
  *  here. */
 export type SignInArrival =
-  "session-ended" | "setup-complete" | "password-set" | "transport-changed";
+  "session-ended" | "setup-complete" | "password-set" | "transport-changed" | "signed-out";
 
 export interface SignedInEvent {
   /** Where to go: the `next` path, else "/". */
@@ -553,6 +553,7 @@ const ARRIVALS: readonly SignInArrival[] = [
   "setup-complete",
   "password-set",
   "transport-changed",
+  "signed-out",
 ];
 
 function arrivalOf(value: string | null): SignInArrival | undefined {

@@ -6,6 +6,11 @@
 
 import {
   mountSecurity,
+  type AccountPart,
+  type KeyScopes,
+  type KeyView,
+  type SecurityOptions,
+  type SessionView,
   mountSetup,
   mountSignIn,
   stepUp,
@@ -605,10 +610,125 @@ for (const opener of document.querySelectorAll<HTMLButtonElement>("[data-step-up
 interface Account {
   me: AccountView;
   passkeys: PasskeyView[];
+  sessions: SessionView[];
+  keys: KeyView[];
   /** The app offers authenticator apps. */
   readonly totp: boolean;
   readonly secure: boolean;
+  /** The server rotates a key in place (access Part 2). */
+  readonly rotates: boolean;
+  /** The session's sign-in is old, so a key write asks to confirm it is you. */
+  readonly stale: boolean;
 }
+
+const ago = (ms: number): string => new Date(Date.now() - ms).toISOString();
+
+/** This device, a phone the person named, and a session over plain HTTP. */
+function sessionsOf(secure: boolean): SessionView[] {
+  const session = (s: Partial<SessionView> & Pick<SessionView, "id">): SessionView => ({
+    method: "passkey",
+    created_at: ago(30 * 24 * HOUR),
+    last_activity: ago(0),
+    idle_deadline: later(0.5 * HOUR),
+    absolute_deadline: later(12 * HOUR),
+    current: false,
+    secure: true,
+    ...s,
+  });
+  return [
+    session({
+      id: "here",
+      user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0",
+      last_ip: "192.0.2.10",
+      current: true,
+      secure,
+      method: secure ? "passkey" : "password",
+    }),
+    session({
+      id: "phone",
+      label: "Mika's phone",
+      user_agent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1",
+      last_ip: "198.51.100.23",
+      last_activity: ago(2 * HOUR),
+    }),
+    session({
+      id: "lan",
+      user_agent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      last_ip: "10.0.0.14",
+      method: "password",
+      last_activity: ago(26 * HOUR),
+      idle_deadline: later(0.25 * HOUR),
+      absolute_deadline: later(4 * HOUR),
+      secure: false,
+    }),
+  ];
+}
+
+/** An active key, one rotated a moment ago, a key it minted, an expired
+ *  key and one made before labels were required. */
+function keysOf(): KeyView[] {
+  const key = (k: Partial<KeyView> & Pick<KeyView, "id" | "label">): KeyView => ({
+    prefix: "rt_exa",
+    suffix: "nce",
+    scopes: ["read"],
+    created_at: ago(40 * 24 * HOUR),
+    ...k,
+  });
+  return [
+    key({
+      id: 12,
+      label: "backup script",
+      last_used_at: ago(5 * HOUR),
+      expires_at: later(50 * 24 * HOUR),
+    }),
+    key({
+      id: 14,
+      label: "ci",
+      prefix: "rt_9fk",
+      suffix: "q2Z",
+      scopes: ["write", "users"],
+      previous_until: later(0.7 * HOUR),
+    }),
+    key({
+      id: 15,
+      label: "ci deploy step",
+      prefix: "rt_m3x",
+      suffix: "7Lp",
+      parent_key_id: 14,
+      last_used_at: ago(HOUR),
+    }),
+    key({
+      id: 9,
+      label: "old laptop",
+      prefix: "rt_k1d",
+      suffix: "wQ8",
+      expires_at: ago(11 * 24 * HOUR),
+      last_used_at: ago(20 * 24 * HOUR),
+    }),
+    key({
+      id: 3,
+      label: "",
+      prefix: "rt_a7c",
+      suffix: "0nE",
+      scopes: [],
+      last_used_at: ago(90 * 24 * HOUR),
+    }),
+  ];
+}
+
+/** A tracker's access levels, in order, and one extra permission. */
+const SCOPES: KeyScopes = {
+  levels: [
+    { value: "read", label: "Read", line: "See releases, checks and settings." },
+    { value: "write", label: "Read and change", line: "Also start checks and change settings." },
+    { value: "admin", label: "Administer", line: "Also manage people and the app's access." },
+  ],
+  permissions: [
+    { value: "users", label: "Manage users", line: "Create, invite and reset people's sign-in." },
+  ],
+};
 
 const HOUR = 3_600_000;
 const later = (ms: number): string => new Date(Date.now() + ms).toISOString();
@@ -660,13 +780,17 @@ function account(
         rp_id: location.hostname,
       },
     ].slice(0, methods.passkey_count ?? 2),
+    sessions: more.sessions ?? sessionsOf(more.secure ?? true),
+    keys: more.keys ?? keysOf(),
     totp: more.totp ?? true,
     secure: more.secure ?? true,
+    rotates: more.rotates ?? true,
+    stale: more.stale ?? false,
   };
 }
 
 const ACCOUNTS: Readonly<Record<string, () => Account>> = {
-  every: () => account(),
+  every: () => account({}, {}, { stale: true }),
   "set-up": () =>
     account({ totp: { enrolled: false, usable: false, removable: false }, recovery_code: false }),
   proof: () => account({ second_factor_held: true }),
@@ -678,6 +802,17 @@ const ACCOUNTS: Readonly<Record<string, () => Account>> = {
     ),
   locked: () => account({ locks: [{ method: "password", untrusted: true, trusted: false }] }),
   sso: () => account({}, { sso_only: true }),
+  sessions: () => account(),
+  keys: () => account(),
+  "keys-none": () => account({}, {}, { keys: [] }),
+  "keys-elsewhere": () => account({}, {}, { keys: keysOf().slice(0, 2) }),
+  "keys-swap": () => account({}, {}, { keys: keysOf().slice(0, 1), rotates: false }),
+  "plain-keys": () =>
+    account(
+      {},
+      { session: { ...account().me.session, method: "password", secure: false } },
+      { secure: false, keys: keysOf().slice(0, 2) },
+    ),
   "passkey-only": () =>
     account(
       {
@@ -702,6 +837,22 @@ function securityFake(a: Account): {
 } {
   const done = { ok: true as const, data: undefined };
   let removals = 0;
+  // On a stale session the first key write asks for a recent sign-in.
+  let recent = !a.stale;
+  const fresh = (): Refusal | undefined => {
+    if (recent) {
+      return undefined;
+    }
+    recent = true;
+    return refusal(401, "auth_recent_auth_required");
+  };
+  const fold = (label: string): string => label.normalize("NFC").toLowerCase();
+  const taken = (label: string, but?: number): boolean =>
+    a.keys.some((k) => k.id !== but && fold(k.label) === fold(label));
+  const secret = (): string =>
+    `rt_${Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31] ?? "a").join("")}`;
+  const minted = (id: number): number[] =>
+    a.keys.filter((k) => k.parent_key_id === id).flatMap((k) => [k.id, ...minted(k.id)]);
   const after = async <T>(value: T, ms = 600): Promise<T> => {
     await wait(ms);
     return value;
@@ -831,6 +982,96 @@ function securityFake(a: Account): {
       await wait(600);
       return proofRefused(proof) ?? { ok: true, data: { recovery_code: "R3VD8KQ2PX7MTN4B" } };
     },
+    sessions: () => after({ ok: true, data: a.sessions }, 300),
+    async renameSession(id, r) {
+      await wait(500);
+      a.sessions = a.sessions.map((s) => (s.id === id ? { ...s, label: r.name } : s));
+      return done;
+    },
+    async revokeSession(id) {
+      await wait(500);
+      a.sessions = a.sessions.filter((s) => s.id !== id);
+      return done;
+    },
+    async revokeOtherSessions() {
+      await wait(700);
+      a.sessions = a.sessions.filter((s) => s.current);
+      return done;
+    },
+    keys: () => after({ ok: true, data: a.keys }, 300),
+    async createKey(r) {
+      await wait(700);
+      const no = fresh();
+      if (no !== undefined) {
+        return no;
+      }
+      if (taken(r.label)) {
+        return refusal(409, "auth_key_label_taken");
+      }
+      const key = secret();
+      const details: KeyView = {
+        id: Math.max(0, ...a.keys.map((k) => k.id)) + 1,
+        label: r.label,
+        prefix: key.slice(0, 6),
+        suffix: key.slice(-3),
+        scopes: r.scopes,
+        created_at: new Date().toISOString(),
+        ...(r.expires_in_days === undefined
+          ? {}
+          : { expires_at: later(r.expires_in_days * 24 * HOUR) }),
+      };
+      a.keys = [details, ...a.keys];
+      return { ok: true, data: { key, details } };
+    },
+    async renameKey(id, r) {
+      await wait(500);
+      if (taken(r.name, id)) {
+        return refusal(409, "auth_key_label_taken");
+      }
+      a.keys = a.keys.map((k) => (k.id === id ? { ...k, label: r.name } : k));
+      return done;
+    },
+    ...(a.rotates
+      ? {
+          async rotateKey(
+            id: number,
+          ): Promise<Result<{ readonly key: string; readonly details: KeyView }>> {
+            await wait(700);
+            const no = fresh();
+            if (no !== undefined) {
+              return no;
+            }
+            const key = secret();
+            let details: KeyView | undefined;
+            a.keys = a.keys.map((k) => {
+              if (k.id !== id) {
+                return k;
+              }
+              const { last_used_at: _, ...rest } = k;
+              details = {
+                ...rest,
+                prefix: key.slice(0, 6),
+                suffix: key.slice(-3),
+                previous_until: later(HOUR),
+              };
+              return details;
+            });
+            return details === undefined
+              ? refusal(404, "auth_not_found")
+              : { ok: true, data: { key, details } };
+          },
+        }
+      : {}),
+    async revokeKey(id) {
+      await wait(600);
+      const no = fresh();
+      if (no !== undefined) {
+        return no;
+      }
+      const gone = new Set([id, ...minted(id)]);
+      a.keys = a.keys.filter((k) => !gone.has(k.id));
+      return done;
+    },
   };
   const access: SecurityAccess<SecurityDemo> = {
     ...stepUpFake({ methods: a.me.methods, first: refusal(403, "auth_recent_auth_required") })
@@ -863,13 +1104,44 @@ function securityFake(a: Account): {
   return { client, access };
 }
 
+/** The parts each card mounts: the method cards leave out sessions and
+ *  keys, the sessions and keys cards leave out the methods. */
+const METHOD_PARTS: readonly AccountPart[] = [
+  "profile",
+  "password",
+  "passkeys",
+  "second-factor",
+  "single-sign-on",
+];
+const KEY_PARTS: readonly AccountPart[] = ["keys", "key-rotate"];
+const SESSION_PARTS: readonly AccountPart[] = ["sessions", "session-rename"];
+
+const CARD_OPTIONS: Readonly<Record<string, Partial<SecurityOptions<SecurityDemo>>>> = {
+  every: { parts: [...METHOD_PARTS, ...SESSION_PARTS, ...KEY_PARTS], scopes: SCOPES },
+  sessions: { parts: SESSION_PARTS },
+  keys: { parts: KEY_PARTS, scopes: SCOPES },
+  "keys-none": { parts: KEY_PARTS, scopes: SCOPES },
+  "keys-elsewhere": {
+    parts: KEY_PARTS,
+    keysCreatedElsewhere: {
+      words: "An admin makes keys for you in Access.",
+      href: "#account-keys",
+    },
+  },
+  "keys-swap": { parts: KEY_PARTS },
+  "plain-keys": { parts: [...SESSION_PARTS, ...KEY_PARTS], scopes: SCOPES },
+};
+
 for (const region of document.querySelectorAll<HTMLElement>("[data-security-demo]")) {
-  const make = ACCOUNTS[region.dataset["securityDemo"] ?? ""];
+  const name = region.dataset["securityDemo"] ?? "";
+  const make = ACCOUNTS[name];
   if (make === undefined) {
     continue;
   }
   const { client, access } = securityFake(make());
   mountSecurity(region, {
+    parts: METHOD_PARTS,
+    ...CARD_OPTIONS[name],
     client,
     access,
     app: "Release tracker",

@@ -6,10 +6,9 @@
  * @module
  */
 
-import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
+import type { Confirm } from "../../buttons/confirm/confirm.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
-import { enhanceMenu } from "../../overlays/menu/menu.js";
 import { codeOf, passwordWords, reasonOf, retryAfter, type Said } from "./answer.js";
 import type {
   AccountView,
@@ -19,6 +18,7 @@ import type {
   SecondFactorProof,
   SecurityClient,
 } from "./client.js";
+import { rowActions, rowHead, type Action } from "./actions.js";
 import { formDialog, type FormDialog } from "./dialogs.js";
 import {
   cell,
@@ -28,41 +28,18 @@ import {
   heading,
   line,
   passwordField,
-  rowButton,
   stateMark,
   table,
   time,
-  uid,
 } from "./dom.js";
 import { setUpFactor, showRecoveryCode } from "./factor.js";
 import { proofWays, withProof } from "./proof.js";
-import { renameInPlace } from "./rename.js";
-import { cycle, holdFor, holdForHttps, isHeld, question, slot } from "./screen.js";
+import { nameRefused, renameInPlace } from "./rename.js";
+import { cycle, holdFor, isHeld, question, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 import type { StepUpAnswer } from "./step-up.js";
 
 const DAY: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
-
-/** One thing a row's person can do. */
-interface Action {
-  /** Its words in a menu, and its accessible name. */
-  readonly text: string;
-  /** Its visible words as the row's one button, when shorter than `text`,
-   *  as the row names what it acts on. */
-  readonly short?: string;
-  /** Marks its control with `data-cp-action`, for focus after a redraw. */
-  readonly key: string;
-  /** Its busy words, when it runs a request in place. */
-  readonly busy?: string;
-  readonly icon?: string;
-  readonly danger?: boolean;
-  /** The row's name added to its accessible name, as "Rename Phone". */
-  readonly label?: string;
-  /** Held on this plain session, since it needs HTTPS. */
-  readonly https?: boolean;
-  /** `confirm` is the control's own busy cycle, absent in a menu. */
-  readonly run: (opener: HTMLElement, confirm: Confirm | undefined) => void;
-}
 
 interface Row {
   readonly name: string;
@@ -344,7 +321,7 @@ export function drawMethods<C extends SecurityClient>(
     { text: w["methods.actions"], col: "actions" },
   ]);
   for (const r of rows) {
-    const [controls, help] = actionsOf(r.name, r.actions);
+    const [controls, help] = rowActions(ctx, r.name, r.actions);
     const state = help === undefined ? r.state : cellStack(r.state, help);
     const tr = el("tr");
     tr.append(rowHead(r.name), cell(state), controls);
@@ -360,86 +337,6 @@ export function drawMethods<C extends SecurityClient>(
     content.append(...passkeyTable());
   }
   body.replaceChildren(notes, content);
-
-  /**
-   * A row's actions cell: its one action as a button, or a quiet ⋯ button
-   * opening a menu of them, as a table row holds at most one worded
-   * action. Answers the cell, and the "Needs HTTPS." line its held actions
-   * name, for the state column.
-   */
-  function actionsOf(
-    name: string,
-    actions: readonly Action[],
-  ): [HTMLTableCellElement, HTMLElement | undefined] {
-    const td = cell();
-    td.dataset["col"] = "actions";
-    const held: HTMLElement[] = [];
-    const [only] = actions;
-    if (actions.length === 1 && only !== undefined) {
-      const label = only.label ?? (only.short === undefined ? undefined : only.text);
-      const b = rowButton(only.short ?? only.text, {
-        ...(only.icon === undefined ? {} : { icon: only.icon }),
-        ...(label === undefined ? {} : { label }),
-      });
-      b.dataset["cpAction"] = only.key;
-      if (only.danger === true) {
-        b.dataset["tone"] = "danger";
-      }
-      const confirm = enhanceConfirm(b, {
-        busy: only.busy ?? only.text,
-        done: false,
-        ...ctx.life,
-      });
-      b.addEventListener(
-        "click",
-        () => {
-          if (!isHeld(b)) {
-            only.run(b, only.busy === undefined ? undefined : confirm);
-          }
-        },
-        ctx.life,
-      );
-      if (only.https === true) {
-        held.push(b);
-      }
-      td.append(b);
-    } else if (actions.length > 1) {
-      const more = el("button", "cp-button");
-      more.type = "button";
-      more.dataset["variant"] = "quiet";
-      more.dataset["size"] = "sm";
-      more.setAttribute("aria-label", w["methods.actionsFor"](name));
-      more.append(glyph("ellipsis"));
-      const menu = el("div", "cp-popover cp-menu");
-      menu.id = uid("menu");
-      menu.popover = "auto";
-      menu.setAttribute("role", "menu");
-      more.setAttribute("popovertarget", menu.id);
-      const chosen = new Map<HTMLElement, Action>();
-      for (const a of actions) {
-        const item = el("button", undefined, a.text);
-        item.type = "button";
-        item.setAttribute("role", "menuitem");
-        item.dataset["cpAction"] = a.key;
-        if (a.danger === true) {
-          item.dataset["tone"] = "danger";
-        }
-        if (a.https === true) {
-          held.push(item);
-        }
-        chosen.set(item, a);
-        menu.append(item);
-      }
-      enhanceMenu(menu, {
-        onSelect: (item) => {
-          chosen.get(item)?.run(more, undefined);
-        },
-        ...ctx.life,
-      });
-      td.append(more, menu);
-    }
-    return [td, held.length === 0 ? undefined : holdForHttps(held, ctx, ctx.app, w)];
-  }
 
   function passkeyTable(): Node[] {
     const h = heading(ctx.level + 1, w["passkeys.title"]);
@@ -484,7 +381,7 @@ export function drawMethods<C extends SecurityClient>(
           });
         }
       }
-      const [controls, help] = actionsOf(k.name, actions);
+      const [controls, help] = rowActions(ctx, k.name, actions);
       const whereCell = help === undefined ? where : cellStack(where, help);
       const last = cell(
         k.last_used_at === undefined ? w["passkeys.never"] : time(k.last_used_at, DAY),
@@ -497,13 +394,6 @@ export function drawMethods<C extends SecurityClient>(
       p.body.append(tr);
     }
     return [h, p.root];
-  }
-
-  function rowHead(content: string | Node): HTMLTableCellElement {
-    const th = el("th");
-    th.scope = "row";
-    th.append(content);
-    return th;
   }
 
   function chip(tone: "neutral" | "warning", text: string, icon?: string): HTMLSpanElement {
@@ -838,7 +728,7 @@ export function drawMethods<C extends SecurityClient>(
           void access.sendSignals(client);
           return undefined;
         }
-        return labelWords(a.result) ?? (ctx.settle(a, notices), false);
+        return nameRefused(a.result, w) ?? (ctx.settle(a, notices), false);
       },
       ended: (saved) => {
         if (saved) {
@@ -846,24 +736,6 @@ export function drawMethods<C extends SecurityClient>(
         }
       },
     });
-  }
-
-  /** A refused name's words on its field, or undefined for any other
-   *  refusal. */
-  function labelWords(r: Refusal): string | undefined {
-    if (codeOf(r) !== "auth_bad_request") {
-      return undefined;
-    }
-    switch (reasonOf(r)) {
-      case "label_empty":
-        return w["rename.empty"];
-      case "label_too_long":
-        return w["rename.tooLong"](128);
-      case "label_disallowed_character":
-        return w["auth_bad_request.label_disallowed_character"];
-      default:
-        return undefined;
-    }
   }
 
   function removePasskey(k: PasskeyView, opener: HTMLElement): void {

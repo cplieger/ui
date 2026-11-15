@@ -6,6 +6,8 @@
  */
 
 import { clearError, showError } from "../../forms/form/form.js";
+import { codeOf, reasonOf } from "./answer.js";
+import type { Refusal } from "./client.js";
 import { el } from "./dom.js";
 import type { AccountWords } from "./words.js";
 
@@ -28,6 +30,9 @@ export interface RenameSpec {
   readonly value: string;
   /** The field's accessible name, such as "Rename Phone". */
   readonly label: string;
+  /** An empty name is saved, clearing it; the placeholder shows what an
+   *  unnamed one reads as. */
+  readonly clearable?: { readonly placeholder: string };
   /** Gets focus back once the edit ends. */
   readonly button: HTMLElement;
   readonly words: AccountWords;
@@ -46,6 +51,9 @@ export function renameInPlace(spec: RenameSpec): void {
   input.value = spec.value;
   input.setAttribute("aria-label", spec.label);
   input.setAttribute("autocomplete", "off");
+  if (spec.clearable !== undefined) {
+    input.placeholder = spec.clearable.placeholder;
+  }
   input.enterKeyHint = "done";
   box.append(input);
   spec.name.replaceWith(box);
@@ -79,7 +87,7 @@ export function renameInPlace(spec: RenameSpec): void {
       end(false);
       return;
     }
-    if (value === "") {
+    if (value === "" && spec.clearable === undefined) {
       showError(input, w["rename.empty"]);
       return;
     }
@@ -105,4 +113,22 @@ export function renameInPlace(spec: RenameSpec): void {
       }
     });
   });
+}
+
+/** A refused name's words on its field, or undefined for any other
+ *  refusal. */
+export function nameRefused(r: Refusal, w: AccountWords): string | undefined {
+  if (codeOf(r) !== "auth_bad_request") {
+    return undefined;
+  }
+  switch (reasonOf(r)) {
+    case "label_empty":
+      return w["rename.empty"];
+    case "label_too_long":
+      return w["rename.tooLong"](NAME_MAX);
+    case "label_disallowed_character":
+      return w["auth_bad_request.label_disallowed_character"];
+    default:
+      return undefined;
+  }
 }
