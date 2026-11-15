@@ -24,7 +24,6 @@ import {
   type BoxSeriesModel,
   type CalendarModel,
   type CellModel,
-  type DataModel,
   type DotModel,
   type Model,
   type PieModel,
@@ -60,9 +59,6 @@ export interface Reading {
    *  the ring; -1 for a missing cell, whose No data swatch does. */
   readonly swatch?: number;
 }
-
-/** The mark the legend row reads: the chart's one data mark. */
-export const primaryOf = (model: Model): DataModel | undefined => model.primary;
 
 export const counted = (
   value: string,
@@ -294,7 +290,7 @@ export function linkText(model: Model, m: PointModel, v: number): string {
 /** The word a reading's `total` follows in the legend row and the table:
  *  a range plot's gap, an arrow plot's change, or a stack's total. */
 export function totalWord(model: Model, words: Words): string {
-  const m = primaryOf(model);
+  const m = model.primary;
   const link = m?.kind === "point" ? m.link : undefined;
   return link === "range" ? words.gap : link === "arrow" ? words.change : words.total;
 }
@@ -343,7 +339,7 @@ export function columnReading(
  *  tree, whose chips keep their shares while the row reads a slice or a
  *  tree's node. */
 export function chipChosen(model: Model): boolean {
-  const kind = primaryOf(model)?.kind;
+  const kind = model.primary?.kind;
   return kind === "slope" || kind === "scatter" || kind === "pie" || kind === "tree";
 }
 
@@ -664,7 +660,7 @@ export function treeReading(
  *  cell count, a calendar's day count, a box chart's row count, a pie's
  *  total with each slice's share, or a tree's total with each group's. */
 export function overall(model: Model, words: Words): Reading | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   switch (m?.kind) {
     case undefined:
       return undefined;
@@ -991,7 +987,7 @@ const widest = (texts: Iterable<string>, measure: Measure): number => {
 /** Each slot's width over every reading the chart can show, measured by
  *  `measure` with numbers as tabular figures. */
 export function readoutWidths(model: Model, words: Words, measure: Measure): Widths {
-  const m = primaryOf(model);
+  const m = model.primary;
   const none = overall(model, words);
   const at = [none?.at ?? ""];
   const values: string[][] = (none?.entries ?? []).map((e) => [e.value]);

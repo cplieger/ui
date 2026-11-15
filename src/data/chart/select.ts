@@ -52,7 +52,6 @@ import {
   pointPart,
   pointReading,
   postReading,
-  primaryOf,
   rowReading,
   samplePart,
   sampleReading,
@@ -204,7 +203,7 @@ const lineStops = (m: SampleModel): number[] =>
  *  order, a calendar's newest day, a pie's first slice, at 12 o'clock, or a
  *  tree's first group, or with one level its first part. */
 export function initial(model: Model): Selection | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   switch (m?.kind) {
     case undefined:
       return undefined;
@@ -257,7 +256,7 @@ export function initial(model: Model): Selection | undefined {
 
 /** The x value a dot selection stands at, which Up and Down aim for. */
 export function xOf(model: Model, sel: Selection): number | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   return sel.kind === "dot" && m?.kind === "dot" ? m.rows[sel.row]?.x[sel.from] : undefined;
 }
 
@@ -613,7 +612,7 @@ function spanOf(edges: readonly number[], v: number): number {
 
 /** A selection's position along x on the plot, in px. */
 function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   if (sel.kind === "rect" && m?.kind === "rect") {
     const [a, b] = bucketSpan(m, sel.i, f);
     return (a + b) / 2;
@@ -655,7 +654,7 @@ export interface Navigator {
 
 export function navigator(model: Model, lay: Layout): Navigator {
   const f = lay.frame;
-  const m = primaryOf(model);
+  const m = model.primary;
   const cache = new Map<number, DotGroup[]>();
   const groups = (r: number): DotGroup[] => {
     let g = cache.get(r);
@@ -915,8 +914,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
 /** `sel` from `before` in `after`, where its x, or its row, is still in the
  *  data; undefined when it left. */
 export function rekey(before: Model, sel: Selection, after: Model): Selection | undefined {
-  const was = primaryOf(before);
-  const now = primaryOf(after);
+  const was = before.primary;
+  const now = after.primary;
   if (was === undefined || now === undefined) {
     return undefined;
   }
@@ -1031,7 +1030,7 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
 
 /** What the legend row reads for `sel`. */
 export function selectionReading(model: Model, sel: Selection, words: Words): Reading | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   if (sel.kind === "rect" && m?.kind === "rect") {
     return bucketReading(model, m, sel.i, words);
   }
@@ -1101,7 +1100,7 @@ function stopOf(model: Model, sel: Selection): number | undefined {
   if (sel.kind !== "line" && sel.kind !== "area") {
     return undefined;
   }
-  const m = primaryOf(model);
+  const m = model.primary;
   return m?.kind === sel.kind && m.step ? stepStopAt(m, sel.i) : sel.i;
 }
 
@@ -1137,7 +1136,7 @@ function noteReadings(model: Model, sel: Selection, words: Words): string {
 
 function readingWords(model: Model, sel: Selection, words: Words, part: boolean): string {
   const reading = selectionReading(model, sel, words);
-  const m = primaryOf(model);
+  const m = model.primary;
   if (reading === undefined || m === undefined) {
     return "";
   }

@@ -17,7 +17,6 @@ import {
   type Side,
   type TextModel,
 } from "./model.js";
-import { primaryOf } from "./readout.js";
 import { ruleAt } from "./scales.js";
 
 /** The room between a note and its point. */
@@ -186,8 +185,8 @@ export function nearestStop(
 
 // The shown bucket whose [x1, x2) holds x, or at the domain's high end the
 // bucket ending there, which no bucket's interval holds. checkX keeps x1
-// strictly increasing and x2 never decreasing, so the first shown bucket
-// ending past x is the only one that can hold it.
+// strictly increasing and x2 never decreasing, so the shown buckets ending
+// past x are a run whose first has the lowest x1, and it holds x if any does.
 function bucketAt(m: RectModel, x: number, hi: number): number | undefined {
   const x2 = (i: number) => m.x2[i] ?? 0;
   const held = m.shown[firstShown(m, (i) => x2(i) > x)];
@@ -249,7 +248,7 @@ export function notePoint(
  *  holding its instant on the chart's wall clock. */
 export function noteJoin(model: Model, t: TextModel): Join | undefined {
   const p = notePoint(model, t);
-  const m = primaryOf(model);
+  const m = model.primary;
   if (p === undefined) {
     return undefined;
   }

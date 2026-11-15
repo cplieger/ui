@@ -54,7 +54,6 @@ import {
   partName,
   partsText,
   partAmount,
-  primaryOf,
   rowsText,
   sliceShare,
   totalWord,
@@ -556,7 +555,7 @@ export function ruleSentences(model: Model, words: Words): string[] {
  *  joins or else both its values, on a calendar its instant's date. */
 export function noteSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
-  const m = primaryOf(model);
+  const m = model.primary;
   for (const t of model.marks) {
     if (t.kind === "text" && m?.kind === "scatter") {
       const d = t.x === undefined ? undefined : scatterDotAt(m, t.x, t.y);
@@ -587,7 +586,7 @@ export function noteSentences(model: Model, words: Words): string[] {
 
 /** The summary the chart writes for `model`, before the spec's own `summary`. */
 export function generatedSummary(model: Model, words: Words): string {
-  const m = primaryOf(model);
+  const m = model.primary;
   const head =
     m?.kind === "rect"
       ? rectSummary(model, m, words)
@@ -643,7 +642,7 @@ function gridText(model: Model, m: CellModel, words: Words): string {
  *  day count, on a pie its slice count and on a tree its group and part
  *  counts, since their x is no span. */
 export function shortDescription(model: Model, words: Words): string {
-  const m = primaryOf(model);
+  const m = model.primary;
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
   const n =
     m === undefined ||

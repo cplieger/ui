@@ -43,7 +43,6 @@ import {
   linkText,
   measuresOf,
   partText,
-  primaryOf,
   samplePart,
   sliceShare,
   totalWord,
@@ -459,7 +458,7 @@ function calendarTable(model: Model, m: CalendarModel, words: Words, after: stri
  *  so a right-to-left name keeps its place: a band's rows, a slope's series,
  *  a scatter's dots, a pie's slices or a treemap's groups and parts. */
 export const namedRows = (model: Model): boolean => {
-  const kind = primaryOf(model)?.kind;
+  const kind = model.primary?.kind;
   return (
     model.y.type === "band" ||
     kind === "slope" ||
@@ -471,7 +470,7 @@ export const namedRows = (model: Model): boolean => {
 
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
-  const m = primaryOf(model);
+  const m = model.primary;
   const whiskers =
     m?.kind === "box" && m.whiskers !== undefined ? [words.whiskersNote(m.whiskers)] : [];
   const after = [...whiskers, ...ruleSentences(model, words), ...noteSentences(model, words)].join(

@@ -52,7 +52,7 @@ import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
 import { sliceAngles } from "./pie.js";
-import { primaryOf, type Reading, type Widths } from "./readout.js";
+import type { Reading, Widths } from "./readout.js";
 import type { Words } from "./words.js";
 import type { Navigator, Selection } from "./select.js";
 
@@ -164,7 +164,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   // A bar's, a point's and a box's value axis is x, so their gridlines and
   // zero line stand upright, and a scatter's stand both ways; a point
   // chart's, a box plot's and a scatter's zero is only a linear x's.
-  const primary = primaryOf(model);
+  const primary = model.primary;
   const bars = primary?.kind === "bar";
   const placed = primary?.kind === "point" || primary?.kind === "box";
   if (bars || placed || primary?.kind === "scatter") {
@@ -427,7 +427,7 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
   svg.setAttribute("height", num(lay.height));
   svg.setAttribute("viewBox", `0 0 ${num(lay.width)} ${num(lay.height)}`);
   // A band x labels its columns, as a band y its rows, with no tick.
-  const primary = primaryOf(model);
+  const primary = model.primary;
   const band = primary?.kind === "cell" && "names" in primary.x;
   const ticks = svgEl("path", {
     "data-part": "ticks",
@@ -482,7 +482,7 @@ const outset = (g: Segment): string =>
  *  drawn tile, or a group's rectangle. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
-  const m = primaryOf(model);
+  const m = model.primary;
   if (sel.kind === "rect" && m?.kind === "rect") {
     if (m.arrange === "group") {
       const subs = groupEdges(m, sel.i, f);
@@ -618,7 +618,7 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
 // A scatter dot's crosshair: a rule up from the x axis and one across from
 // the y axis, each ending at the dot's edge so neither crosses it.
 function scatterHair(model: Model, lay: Layout, sel: Selection): string {
-  const m = primaryOf(model);
+  const m = model.primary;
   const f = lay.frame;
   if (sel.kind !== "scatter" || m?.kind !== "scatter") {
     return "";
@@ -687,7 +687,7 @@ export function drawSelection(
     return;
   }
   const g = svgEl("g", { "data-part": "selection" });
-  const m = primaryOf(model);
+  const m = model.primary;
   const s = m?.kind === "slope" && chosen !== undefined ? m.series[chosen] : undefined;
   if (m?.kind === "slope" && s !== undefined) {
     // The chosen series lies over the others where lines cross.
@@ -795,7 +795,7 @@ function roundDown(v: number): number {
  * each size. Undefined without bubbles.
  */
 export function sizeKey(model: Model, lay: Layout): HTMLElement | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   const largest = lay.frame.bubble;
   if (m?.kind !== "scatter" || m.size === undefined || largest === undefined) {
     return undefined;
@@ -876,7 +876,7 @@ const swatchRing = (x: number): SVGElement =>
  * Undefined without a cell mark, a grid's or a calendar's.
  */
 export function colourKey(model: Model, words: Words, measure: Measure): HTMLElement | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   if (m?.kind !== "cell" && m?.kind !== "calendar") {
     return undefined;
   }

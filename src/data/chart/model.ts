@@ -553,7 +553,7 @@ type MarkModel =
   | TextModel;
 
 /** A mark drawing the chart's data, every mark but a rule or a note. */
-export type DataModel = Exclude<MarkModel, RuleModel | TextModel>;
+type DataModel = Exclude<MarkModel, RuleModel | TextModel>;
 
 export interface Model {
   readonly spec: ChartSpec;
