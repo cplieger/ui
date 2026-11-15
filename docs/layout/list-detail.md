@@ -68,6 +68,7 @@ function route(entry: string | null): void {
 - `open()` shows the detail and focuses its heading. Calling it again while the detail shows moves focus back to the heading. `open({ still: true })` shows it without its entrance, for a page that loads with an entry open.
 - `close()` hides the detail and returns focus to the element that had it before `open()`, usually the entry's link. When another entry's link opens the docked detail, focus returns to that link. The sheet slides out with the detail still in it; calling `open()` during that exit keeps it open.
 - An open detail moves between the dock and the sheet when the box crosses the docking width, without its entrance, and keeps focus inside it.
+- While the box is hidden, such as in a closed tab panel, the detail stays in it and opens no sheet; an open sheet shuts without asking `onDismiss`, and the detail docks or opens its sheet again once the box shows.
 
 The script measures the box, not the window, so the frame works in any region that gives it room. Mark the open entry's link with `aria-current="true"`, so a screen reader hears which entry the detail shows and the list fills its row.
 

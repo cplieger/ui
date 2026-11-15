@@ -254,6 +254,72 @@ describe("enhanceVideo", () => {
     expect(times(track).at(-1)).toEqual([9, 10]);
   });
 
+  it("takes the times the app gives a cue it removes and adds again as its own", () => {
+    const { root, track } = bare();
+    enhanceVideo(root, { offset: 1, signal: life.signal });
+    const cue = new VTTCue(1, 2, "One");
+    track.addCue(cue);
+    track.removeCue(cue);
+    cue.startTime = 5;
+    cue.endTime = 6;
+    track.addCue(cue);
+    expect(times(track)).toEqual([[6, 7]]);
+  });
+
+  it("takes the times the app gives a cue in place as its own, and keeps them once it aborts", () => {
+    const { root, track } = bare();
+    const handle = enhanceVideo(root, { offset: 1, signal: life.signal });
+    const cue = new VTTCue(10, 11, "One");
+    track.addCue(cue);
+    expect(times(track)).toEqual([[11, 12]]);
+    cue.startTime = 20;
+    cue.endTime = 21;
+    handle.offset = 2;
+    expect(times(track)).toEqual([[22, 23]]);
+    cue.startTime = 30;
+    cue.endTime = 31;
+    life.abort();
+    expect(times(track)).toEqual([[30, 31]]);
+  });
+
+  it("leaves the captions alone under a signal that has already aborted", () => {
+    const { root, track } = bare();
+    track.addCue(new VTTCue(1, 2, "One"));
+    const mode = track.mode;
+    const handle = enhanceVideo(root, { offset: 1, signal: AbortSignal.abort() });
+    expect(root.querySelector('[data-part="bar"]')).toBeNull();
+    expect(times(track)).toEqual([[1, 2]]);
+    expect(track.mode).toBe(mode);
+    expect(Object.hasOwn(track, "addCue")).toBe(false);
+    track.addCue(new VTTCue(5, 6, "Two"));
+    handle.offset = 3;
+    expect(times(track)).toEqual([
+      [1, 2],
+      [5, 6],
+    ]);
+  });
+
+  it("moves no caption on an offset set after its signal aborts", () => {
+    const { root, track } = bare();
+    track.addCue(new VTTCue(1, 2, "One"));
+    const handle = enhanceVideo(root, { offset: 1, signal: life.signal });
+    expect(times(track)).toEqual([[2, 3]]);
+    life.abort();
+    handle.offset = 3;
+    expect(times(track)).toEqual([[1, 2]]);
+  });
+
+  it("loads nothing on a load() after its signal aborts", async () => {
+    const { video, handle } = await pane();
+    const before = video.currentSrc;
+    const next = await sample();
+    life.abort();
+    handle.load(next, 5);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(video.currentSrc).toBe(before);
+    expect(handle.position).toBe(0);
+  });
+
   it("moves a script-built track created after it starts", async () => {
     const root = document.createElement("div");
     root.className = "cp-video";

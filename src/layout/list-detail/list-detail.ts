@@ -41,6 +41,8 @@ export interface ListDetail {
 const DOCKED = "data-cp-docked";
 const CLOSE = "[data-detail-close]";
 const STILL = "data-cp-still";
+/** closeDialog's mark on a sheet whose exit plays in script. */
+const LEAVING = "data-cp-leaving";
 
 function remPx(): number {
   return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -108,11 +110,15 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   };
 
   /** Cancels the exit closeDialog plays in script, which keeps the sheet
-   *  open: its cancelled exit only drops the leaving mark. */
+   *  open. closeDialog drops its leaving mark a microtask after the cancel,
+   *  and refuses to close a sheet that carries it, so the mark goes here: a
+   *  `close()` in the same task, as a route makes inside `onDismiss`, then
+   *  plays a fresh exit instead of leaving an empty sheet open. */
   const stopExit = (): void => {
     for (const a of dialog.getAnimations()) {
       if (!(a instanceof CSSTransition || a instanceof CSSAnimation)) {
         a.cancel();
+        dialog.removeAttribute(LEAVING);
       }
     }
   };
@@ -123,6 +129,18 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     if (!opening && at === "dialog" && !dialog.open) {
       // Closed outside the module, its close event still queued: that
       // event dismisses, and reopening here would strand the route.
+      return;
+    }
+    if (!root.checkVisibility()) {
+      // A hidden box measures 0 wide, and the sheet, the box's sibling, would
+      // open over the page. The resize observer places the detail once the
+      // box shows; until then the detail waits in it, and is not dismissed.
+      if (at === "dialog") {
+        at = null;
+        root.append(detail);
+        stopExit();
+        dialog.close();
+      }
       return;
     }
     const want = root.getBoundingClientRect().width >= dockAt * remPx() ? "dock" : "dialog";

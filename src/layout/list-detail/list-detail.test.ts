@@ -403,6 +403,66 @@ describe("enhanceListDetail", () => {
     await expect.poll(() => onDismiss.mock.calls.length).toBe(2);
   });
 
+  it("closes the sheet for a route that closes inside onDismiss on a page that runs installDialogs", async () => {
+    installDialogs({ signal: life.signal });
+    const route = { close: (): void => undefined };
+    const onDismiss = vi.fn(() => {
+      route.close();
+    });
+    const m = mount(400, { onDismiss });
+    route.close = m.api.close;
+    m.api.open();
+    await played(m.dialog);
+    await userEvent.keyboard("{Escape}");
+    await exited(m.dialog);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect([m.dialog.open, m.detail.hidden]).toEqual([false, true]);
+    expect(m.detail.parentElement).toBe(m.root);
+    expect(document.activeElement).toBe(m.opener);
+  });
+
+  it("closes the sheet when it is opened and closed again in one task while it leaves", async () => {
+    const { root, opener, detail, dialog, api } = mount(400);
+    api.open();
+    await played(dialog);
+    api.close();
+    api.open();
+    api.close();
+    await exited(dialog);
+    expect([dialog.open, detail.hidden]).toEqual([false, true]);
+    expect(detail.parentElement).toBe(root);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("opens no sheet while the list is hidden, and opens it once the list shows", async () => {
+    const { root, detail, heading, dialog, api } = mount(400);
+    root.hidden = true;
+    api.open({ still: true });
+    expect(dialog.open, "no sheet over the page").toBe(false);
+    expect(detail.parentElement).toBe(root);
+    root.hidden = false;
+    await frames(3);
+    expect(dialog.matches(":modal")).toBe(true);
+    expect(detail.parentElement).toBe(dialog);
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it("shuts an open sheet without dismissing while the list is hidden, and opens it again once it shows", async () => {
+    const onDismiss = vi.fn();
+    const { root, detail, dialog, api } = mount(400, { onDismiss });
+    api.open({ still: true });
+    root.hidden = true;
+    await frames(3);
+    expect(dialog.open, "shut while hidden").toBe(false);
+    expect(detail.parentElement).toBe(root);
+    root.hidden = false;
+    await frames(3);
+    expect(dialog.open, "open once shown").toBe(true);
+    expect(detail.parentElement).toBe(dialog);
+    expect(detail.hidden).toBe(false);
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
   it("closes nothing on a press inside the sheet or one that starts inside and ends outside", async () => {
     const onDismiss = vi.fn();
     const { heading, dialog, api } = mount(400, { onDismiss });

@@ -19,7 +19,8 @@ export interface VideoWords {
 
 export interface VideoOptions {
   /** Removes the bar and the listeners, and gives back the native controls
-   *  and each caption's own times. */
+   *  and each caption's own times; after it aborts, setting `offset` and
+   *  `load()` do nothing. */
   readonly signal?: AbortSignal;
   /** Seconds added to every caption's times. Default 0. */
   readonly offset?: number;
@@ -70,20 +71,32 @@ function cueTimes(start: number, end: number): readonly [number, number] | undef
   return Number.isFinite(from) && !Number.isNaN(to) ? [from, to] : undefined;
 }
 
-/** Moves `cue`, which is in `track`. A cue moved in place keeps its old slot
- *  in Gecko's active list, so it goes out and back in, which also reruns the
- *  engine's choice of the showing cue while the video is paused (pinned by
- *  the test "moves every cue by the offset and redraws the showing caption
- *  while paused", red in Firefox without it). */
-function place(track: TextTrack, cue: TextTrackCue, start: number, end: number): void {
+/** Moves `cue`, which is in `track`, and returns the times it now has. A cue
+ *  moved in place keeps its old slot in Gecko's active list, so it goes out
+ *  and back in, which also reruns the engine's choice of the showing cue
+ *  while the video is paused (pinned by the test "moves every cue by the
+ *  offset and redraws the showing caption while paused", red in Firefox
+ *  without it). */
+function place(
+  track: TextTrack,
+  cue: TextTrackCue,
+  start: number,
+  end: number,
+): readonly [number, number] | undefined {
   const times = cueTimes(start, end);
   if (times === undefined) {
-    return;
+    return undefined;
   }
   track.removeCue(cue);
   [cue.startTime, cue.endTime] = times;
   TextTrack.prototype.addCue.call(track, cue);
+  return times;
 }
+
+type Times = readonly [number, number];
+
+const carries = (cue: TextTrackCue, [start, end]: Times): boolean =>
+  cue.startTime === start && cue.endTime === end;
 
 /** `root` is a `.cp-video` holding the `<video>`, which carries `controls`
  *  so a page with no script still plays it. */
@@ -123,8 +136,15 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   bar.append(play, seek, time);
   root.append(bar);
 
-  // Each cue's own times, kept the first time an offset moves it.
-  const own = new WeakMap<TextTrackCue, readonly [number, number]>();
+  /** Each moved cue's own times and the times the module gave it. */
+  const moved = new WeakMap<TextTrackCue, { readonly own: Times; readonly wrote: Times }>();
+  /** A cue's own times: the kept ones while it carries what the module
+   *  wrote, else the ones the app last gave it, since cue times are
+   *  writable (https://html.spec.whatwg.org/multipage/media.html#texttrackcue). */
+  const ownTimes = (cue: TextTrackCue): Times => {
+    const m = moved.get(cue);
+    return m !== undefined && carries(cue, m.wrote) ? m.own : [cue.startTime, cue.endTime];
+  };
   let held = false;
   let busy = video.readyState < HTMLMediaElement.HAVE_METADATA && video.currentSrc !== "";
 
@@ -191,8 +211,14 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
 
   /** Tracks whose own `addCue` places a new cue at the offset. */
   const placing = new Set<TextTrack>();
+  /** Set by the teardown, or at once for a signal that has already aborted,
+   *  so the captions are never moved after their times were given back. */
+  let dead = signal?.aborted === true;
 
   const applyOffset = (): void => {
+    if (dead) {
+      return;
+    }
     const track = captionTrack(video);
     if (track === undefined) {
       return;
@@ -205,19 +231,21 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       // A cue the app adds later, such as a MediaSource window's captions,
       // fires no event.
       track.addCue = (cue: TextTrackCue): void => {
-        const [start, end] = own.get(cue) ?? [cue.startTime, cue.endTime];
-        own.set(cue, [start, end]);
-        const times = cueTimes(start + offset, end + offset);
+        const own = ownTimes(cue);
+        const times = cueTimes(own[0] + offset, own[1] + offset);
         if (times !== undefined) {
           [cue.startTime, cue.endTime] = times;
+          moved.set(cue, { own, wrote: times });
         }
         TextTrack.prototype.addCue.call(track, cue);
       };
     }
     for (const cue of [...(track.cues ?? [])]) {
-      const [start, end] = own.get(cue) ?? [cue.startTime, cue.endTime];
-      own.set(cue, [start, end]);
-      place(track, cue, start + offset, end + offset);
+      const own = ownTimes(cue);
+      const wrote = place(track, cue, own[0] + offset, own[1] + offset);
+      if (wrote !== undefined) {
+        moved.set(cue, { own, wrote });
+      }
     }
   };
 
@@ -370,7 +398,12 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   let pending:
     { readonly stop: AbortController; readonly from: number; readonly resume: boolean } | undefined;
 
+  applyOffset();
+  draw();
+
+  // After the setup, so a signal that has already aborted undoes it.
   whenAborted(signal, () => {
+    dead = true;
     shown.disconnect();
     bar.remove();
     root.removeAttribute(ERROR);
@@ -378,25 +411,24 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     video.controls = hadControls;
     const track = captionTrack(video);
     for (const cue of [...(track?.cues ?? [])]) {
-      const times = own.get(cue);
-      if (track !== undefined && times !== undefined) {
-        place(track, cue, ...times);
+      const m = moved.get(cue);
+      // A cue the app retimed since the last move keeps the app's times.
+      if (track !== undefined && m !== undefined && carries(cue, m.wrote)) {
+        place(track, cue, ...m.own);
       }
     }
     for (const t of placing) {
       Reflect.deleteProperty(t, "addCue");
     }
+    placing.clear();
   });
-
-  applyOffset();
-  draw();
 
   return {
     get offset() {
       return offset;
     },
     set offset(value: number) {
-      if (Number.isFinite(value)) {
+      if (!dead && Number.isFinite(value)) {
         offset = value;
         applyOffset();
       }
@@ -405,6 +437,9 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       return video.currentTime;
     },
     load(src: string, at?: number) {
+      if (dead) {
+        return;
+      }
       // A pending load has already reset the element to paused at 0.
       const resume = pending?.resume ?? (!video.paused && !video.ended);
       const from = at ?? pending?.from ?? video.currentTime;
