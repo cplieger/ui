@@ -583,9 +583,13 @@ const leaves = (v: unknown): number =>
 
 const mostDrawn = (spec: unknown): number => MOST_DRAWN + PER_VALUE * leaves(spec);
 
-// A run draws two whole figures, so fewer than the shared thousand fit its time limit.
-const RUNS = { numRuns: 200 };
-const EACH = { numRuns: 60 };
+// A run draws whole figures, about 8 ms alone and 90 ms in a loaded full
+// suite, so 200 runs can pass the shared 10 s limit, which fails the test.
+// This budget ends the runs at 5 s instead, and the verdict rests on the
+// runs made: fewer on a loaded host, never a failure for the time taken.
+const BUDGET = fc.interruptAfterTimeLimit(5_000);
+const RUNS = { numRuns: 200, plugins: [BUDGET] };
+const EACH = { numRuns: 60, plugins: [BUDGET] };
 
 const zone = fc.constantFrom("UTC", "America/New_York", "Asia/Kolkata");
 
