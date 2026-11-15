@@ -15,11 +15,11 @@ const path = (p: string) =>
   `<li><code class="cp-mono">${p.replaceAll("/", "/<wbr>").replace("/<wbr>", "/")}</code></li>`;
 
 const AGENT =
-  '<dl class="cp-facts"><dt>Machine</dt><dd>build-02, a cloud server</dd>' +
+  '<dl class="cp-facts"><dt>Machine</dt><dd>borgcube (kiro-cli)</dd>' +
   '<dt>Paths</dt><dd><ul class="cp-stack" data-gap="tight">' +
   `${path("/workspace/grelot/internal")}${path("/workspace/grelot/web/src/messages")}</ul></dd>` +
   '<dt>Delegates</dt><dd><ul class="cp-stack" data-gap="tight">' +
-  '<li><a href="#a">@codex-review</a></li><li><a href="#b">@codex-ci</a></li></ul></dd></dl>';
+  "<li>@codex/review</li><li>@codex/ci</li></ul></dd></dl>";
 
 const panel = (width: string) =>
   build(`<div class="cp-panel" style="inline-size: ${width}">${AGENT}</div>`);
