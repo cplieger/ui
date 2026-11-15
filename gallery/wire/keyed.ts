@@ -125,14 +125,13 @@ function eventAt(id: string, at: Date, r: () => number): Event {
 function activity(now: number): Day[] {
   const r = seeded(17);
   const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
+  const [year, month, date] = [today.getFullYear(), today.getMonth(), today.getDate()];
   const days: Day[] = [];
   for (let d = 0; d < 365; d += 1) {
-    // Calendar steps keep each start a local midnight across a clock change.
-    const at = new Date(today);
-    at.setDate(today.getDate() - d);
-    const next = new Date(at);
-    next.setDate(at.getDate() + 1);
+    // Built from the calendar fields, each start is its day's first local
+    // time, where a clock change skips midnight too.
+    const at = new Date(year, month, date - d);
+    const next = new Date(year, month, date - d + 1);
     const span = d === 0 ? now - at.getTime() : next.getTime() - at.getTime();
     const count = 4 + Math.floor(r() * 41);
     const events = Array.from({ length: count }, (_, i) =>

@@ -1,5 +1,4 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { server } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { enhanceKeyedList, type KeyedListOptions } from "./keyed-list.js";
@@ -609,7 +608,9 @@ describe("enhanceKeyedList", () => {
       });
       const placed = marks.map((key) => offsetIn(whole, all.rowOf(key) as HTMLElement));
       const height = whole.scrollHeight;
-      const least = Math.min(...rows(whole).map((el) => el.getBoundingClientRect().height));
+      const heights = rows(whole).map((el) => el.getBoundingClientRect().height);
+      const least = Math.min(...heights);
+      const tallest = Math.max(...heights);
       whole.remove();
 
       const ul = virtualList();
@@ -618,15 +619,17 @@ describe("enhanceKeyedList", () => {
       // edge, and five past each edge.
       const bound = Math.ceil(ul.clientHeight / least) + 1 + 2 * 5;
       let most = rows(ul).length;
-      // The engine sends a scroll's event a frame later; sent at once, each
-      // step draws in this task, so 10,000 rows take seconds, not minutes.
+      // Each step reveals a row past the last one drawn by fewer rows than
+      // the view holds, so the rows between are in view once it is scrolled
+      // to, and every row is drawn once in this task.
+      const ahead = Math.max(1, Math.floor(ul.clientHeight / tallest) - 1);
       for (let step = 0; step < 20_000; step += 1) {
-        if (ul.scrollTop + ul.clientHeight >= ul.scrollHeight - 1) {
+        const next = Number(rows(ul).at(-1)?.dataset["key"]?.slice(1)) + ahead;
+        list.reveal(`t${String(Math.min(next, keys.length - 1))}`);
+        most = Math.max(most, rows(ul).length);
+        if (next >= keys.length - 1) {
           break;
         }
-        ul.scrollTop += ul.clientHeight;
-        ul.dispatchEvent(new Event("scroll"));
-        most = Math.max(most, rows(ul).length);
       }
       await frames();
       expect(most).toBeLessThanOrEqual(bound);
@@ -698,9 +701,8 @@ describe("enhanceKeyedList", () => {
           break;
         }
         panel.scrollTop += panel.clientHeight;
-        panel.dispatchEvent(new Event("scroll"));
+        await frames();
       }
-      await frames();
       expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
       expect(Math.abs(offsetIn(panel, list.rowOf("t399") as HTMLElement) - end)).toBeLessThan(1);
     });
@@ -907,12 +909,8 @@ describe("enhanceKeyedList", () => {
         expect(list.rowOf(key)).toBe(above);
         expect(above.dataset["open"]).toBe("");
         expect(Math.abs(seen.getBoundingClientRect().top - was)).toBeLessThan(1);
-        // Until the next draw only the engine's anchoring keeps the place,
-        // and WebKit does not anchor the page's own scroller.
-        if (scroller !== page() || server.browser !== "webkit") {
-          expect(painted.length).toBeGreaterThan(0);
-          expect(Math.abs(painted[0] ?? Infinity)).toBeLessThan(1);
-        }
+        expect(painted.length).toBeGreaterThan(0);
+        expect(Math.abs(painted[0] ?? Infinity)).toBeLessThan(1);
       },
     );
 

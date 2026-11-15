@@ -188,20 +188,19 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
   let said: string | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let frame = 0;
+  const soon = (): void => {
+    if (frame === 0) {
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        draw();
+      });
+    }
+  };
   // A drawn row or the list resizing, such as at a pointer tier change,
   // moves the slots. Drawing inside the observer's own callback resizes
   // what it observes and raises "ResizeObserver loop completed", so it
   // waits a frame.
-  const sizes = windowed
-    ? new ResizeObserver(() => {
-        if (frame === 0) {
-          frame = requestAnimationFrame(() => {
-            frame = 0;
-            draw();
-          });
-        }
-      })
-    : undefined;
+  const sizes = windowed ? new ResizeObserver(soon) : undefined;
 
   const spacer = (): HTMLElement => {
     const el = document.createElement(table ? "tr" : "li");
@@ -800,7 +799,11 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       (e) => {
         const t = e.target;
         if (t === document || (t instanceof Node && t.contains(container))) {
-          draw();
+          // Laying out a change inside a scroll event's dispatch stops WebKit
+          // anchoring that scroller for good (the FIXME in
+          // https://commits.webkit.org/325991@main), so the draw waits for
+          // the frame's animation callbacks, which run before its paint.
+          soon();
         }
       },
       { ...until(signal, true), passive: true },
