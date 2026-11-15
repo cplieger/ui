@@ -1509,6 +1509,114 @@ describe("small multiples' panels", () => {
     },
   );
 
+  // The same three sources per country: the per-category form of a bar panel.
+  const mixes: ChartSpec = {
+    marks: [],
+    facets: {
+      unit: { one: "country", other: "countries" },
+      panels: [
+        ["Germany", [26, 15, 31]],
+        ["France", [1, 7, 9]],
+        ["Spain", [2, 18, 24]],
+      ].map(([name, x]) => ({
+        name: String(name),
+        marks: [
+          {
+            mark: "bar" as const,
+            y: ["Coal", "Gas", "Wind"],
+            series: [{ name: "Share", x: x as number[] }],
+          },
+        ],
+      })),
+    },
+  };
+
+  it("sets bar panels side by side, then in one column at a phone's width, each with its value labels", async () => {
+    const b = build({ width: 600 });
+    start(mixes, b);
+    const lefts = () => panelsOf(b).map((p) => Math.round(p.getBoundingClientRect().left));
+    expect(new Set(lefts()).size).toBe(3);
+    await resize(b, 288);
+    expect(new Set(lefts()).size).toBe(1);
+    const figure = b.figure.getBoundingClientRect();
+    for (const p of panelsOf(b)) {
+      expect(p.getBoundingClientRect().right).toBeLessThanOrEqual(figure.right + 0.5);
+      expect(plotOf(p).querySelectorAll('[data-part="value"] > text')).toHaveLength(3);
+    }
+  });
+
+  it("draws a pie in each panel as wide as its plot, with no outside labels or leaders", () => {
+    const slices = (k: number) => [
+      { name: "Coal", value: 3 + k },
+      { name: "Gas", value: 2 },
+      { name: "Wind", value: 1 },
+    ];
+    const alone = build({ width: 600 });
+    start({ marks: [{ mark: "pie", slices: slices(0) }] }, alone);
+    const lone = get(alone.figure, "plot")?.querySelector("svg") as SVGSVGElement;
+    expect(lone.querySelectorAll('[data-part="end"] > text').length).toBeGreaterThan(0);
+    const b = build({ width: 600 });
+    start(
+      {
+        marks: [],
+        facets: {
+          panels: [0, 1, 2].map((k) => ({
+            name: String(2022 + k),
+            marks: [{ mark: "pie" as const, slices: slices(k) }],
+          })),
+        },
+      },
+      b,
+    );
+    for (const p of panelsOf(b)) {
+      const plot = plotOf(p);
+      expect(plot.querySelectorAll('[data-part="end"] text')).toHaveLength(0);
+      expect(plot.querySelector('[data-part="leader"]')).toBeNull();
+      const area = plot.querySelector('[data-part="area"]') as SVGSVGElement;
+      // Within a pixel: the arcs' bounds are the curves' own.
+      expect(
+        Math.abs(box(plot, "pie").width - (area.width.baseVal.value - 2 * AREA_ROOM)),
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("keys heatmap panels once in the legend row and fills them by the chart's classes", () => {
+    const b = build({ width: 600 });
+    start(
+      {
+        marks: [],
+        facets: {
+          panels: [
+            ["Low", 10],
+            ["High", 100],
+          ].map(([name, top]) => ({
+            name: String(name),
+            marks: [
+              {
+                mark: "cell" as const,
+                x: ["Mon", "Tue"],
+                y: ["Night"],
+                values: [[0, Number(top)]],
+              },
+            ],
+          })),
+        },
+      },
+      b,
+    );
+    expect(get(b.figure, "legend")?.querySelectorAll('[data-part="key"]')).toHaveLength(1);
+    const steps = panelsOf(b).map((p) =>
+      [...plotOf(p).querySelectorAll('[data-part="cell"] > path[data-step]')].map((c) =>
+        Number(c.getAttribute("data-step")),
+      ),
+    );
+    // On one scale from 0 to 100, the low panel's 10 sits in a lower class
+    // than the high panel's 100, which takes the top step.
+    const [low = [], high = []] = steps;
+    expect(Math.max(...low)).toBeLessThan(Math.max(...high));
+    expect(Math.min(...low)).toBe(Math.min(...high));
+  });
+
   it("gives the plot back its region and tab stop when an update drops the facets", () => {
     const b = build();
     const chart = start(regions(["North", "South"]), b);

@@ -785,6 +785,8 @@ function calendarLayout(
  *  PIE_COLUMN of the chart's width. */
 const PIE_COLUMN_REM = 12;
 const PIE_COLUMN = 0.25;
+/** The widest pie a panel of small multiples draws, in px. */
+const PANEL_PIE = 240;
 /** The room a donut's total keeps from its hole's edge, in px, all told. */
 const HOLE_ROOM = 16;
 
@@ -794,7 +796,8 @@ const HOLE_ROOM = 16;
  * and share sit in a column on the side its middle angle falls on, dodged
  * a name line each apart, joined to the rim at that angle; when a side's
  * labels cannot fit the plot's height none is drawn and the legend row
- * names the slices, as it does under 30rem.
+ * names the slices, as it does under 30rem. A `panel`'s pie is as wide as
+ * its plot, at most PANEL_PIE px, and draws no outside labels.
  */
 function pieLayout(
   model: Model,
@@ -804,15 +807,18 @@ function pieLayout(
   width: number,
   floors: Floors,
   chart: number,
+  panel: boolean,
 ): Layout {
   const { measure, lineHeight, dpr, nameLine } = metrics;
-  const height = model.spec.height ?? metrics.height;
+  const height = model.spec.height ?? (panel ? Math.min(width, PANEL_PIE) : metrics.height);
   const slices = sliceAngles(m);
   const step = 2 * nameLine;
   const mids = slices.map((s) => (s.from + s.to) / 2);
   const right = mids.filter((a) => a < Math.PI).length;
   const labelled =
-    chart >= NARROW_REM * metrics.rem && Math.max(right, slices.length - right) * step <= height;
+    !panel &&
+    chart >= NARROW_REM * metrics.rem &&
+    Math.max(right, slices.length - right) * step <= height;
   const column = labelled ? Math.min(PIE_COLUMN_REM * metrics.rem, PIE_COLUMN * chart) : 0;
   const r = Math.max(0, Math.min(height, width - 2 * column)) / 2;
   const p: PieFrame = { cx: width / 2, cy: height / 2, r, inner: m.hole ? r / 2 : 0 };
@@ -1105,7 +1111,7 @@ export function layout(
   }
   const pie = model.marks.find((m) => m.kind === "pie");
   if (pie !== undefined) {
-    return pieLayout(model, pie, words, metrics, width, floors, chart);
+    return pieLayout(model, pie, words, metrics, width, floors, chart, panel);
   }
   const tree = model.marks.find((m) => m.kind === "tree");
   if (tree !== undefined) {

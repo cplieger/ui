@@ -291,13 +291,14 @@ export interface Size {
   readonly format: Format | undefined;
 }
 
-/** The r scale of `spec`, undefined unless its scatter's series carry `r`:
+/** The r scale of `spec`, undefined unless its scatters' series carry `r`:
  *  [0, the largest r of a dot with both positions], or the passed domain.
  *  Throws for an r scale beside no r, a domain whose low end is not 0, and
  *  an r infinite, below 0 or past a passed domain, which no area shows. */
 export function rScale(spec: ChartSpec): Size | undefined {
-  const scatter = spec.marks.find((m): m is ScatterMark => m.mark === "scatter");
-  const series = scatter?.series.filter((s) => s.r !== undefined) ?? [];
+  const series = spec.marks.flatMap((m) =>
+    m.mark === "scatter" ? m.series.filter((s) => s.r !== undefined) : [],
+  );
   if (series.length === 0) {
     if (spec.r !== undefined) {
       throw new TypeError("renderChart: an r scale sizes a scatter's dots, and none carries r");

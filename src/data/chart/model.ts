@@ -2214,6 +2214,37 @@ function panelName(panel: NonNullable<ChartSpec["facets"]>["panels"][number]): s
   return panel.name ?? names[0] ?? "";
 }
 
+/** What every panel's checked data mark must hold as the first's, with
+ *  the field naming it: a band's rows, a heatmap's axes, a calendar's days. */
+function sharedFields(mark: Record<string, unknown>): [string, unknown][] {
+  switch (mark["mark"]) {
+    case "bar":
+    case "point":
+    case "box":
+      return [["y", mark["y"]]];
+    case "cell": {
+      const days = mark["days"];
+      if (!isObject(days)) {
+        return [
+          ["x", mark["x"]],
+          ["y", mark["y"]],
+        ];
+      }
+      const values = days["values"];
+      return [
+        ["days.start", days["start"]],
+        ["days.values.length", isArray(values) ? values.length : undefined],
+        ["days.open", days["open"]],
+      ];
+    }
+    default:
+      return [];
+  }
+}
+
+const sameList = (a: readonly string[], b: readonly string[]): boolean =>
+  a.length === b.length && a.every((n, i) => n === b[i]);
+
 function checkFacets(spec: Record<string, unknown>, facets: unknown, rules: readonly unknown[]) {
   if (!isObject(facets)) {
     fail("facets must be an object");
@@ -2272,13 +2303,25 @@ function checkFacets(spec: Record<string, unknown>, facets: unknown, rules: read
           fail(`${what}.${option} must be facets.panels[0]'s; the panels share one set of options`);
         }
       }
+      const theirs = sharedFields(first);
+      sharedFields(mark).forEach(([field, value], j) => {
+        if (!same(value, theirs[j]?.[1])) {
+          fail(
+            `${what}.${field} must be facets.panels[0]'s; the panels share one ${kind === "cell" ? (field.startsWith("days") ? "calendar" : "grid") : "band of rows"}`,
+          );
+        }
+      });
     }
     const list = seriesNames(mark);
     lists.push(list);
     const given = panel["name"];
     const name = typeof given === "string" ? given : list.length === 1 ? list[0] : undefined;
     if (name === undefined) {
-      fail(`${at}.name is required on a panel of ${String(list.length)} series`);
+      fail(
+        list.length === 0
+          ? `${at}.name is required; a ${kind} panel has no series to name it`
+          : `${at}.name is required on a panel of ${String(list.length)} series`,
+      );
     }
     if (name === "" || seen.has(name)) {
       fail(`${at}'s name "${name}" must be unique and not empty`, RangeError);
@@ -2286,11 +2329,13 @@ function checkFacets(spec: Record<string, unknown>, facets: unknown, rules: read
     seen.add(name);
   });
   const [head = []] = lists;
+  const alike = lists.every((l) => sameList(l, head));
+  // A pie's slices are its whole's parts, so every pie holds the same ones.
+  if (first?.["mark"] === "pie" && !alike) {
+    fail("facets.panels must each hold the same slices in the same order");
+  }
   const perSeries = lists.every((l) => l.length === 1);
-  if (
-    !perSeries &&
-    !lists.every((l) => l.length === head.length && l.every((n, i) => n === head[i]))
-  ) {
+  if (!perSeries && !alike) {
     fail("facets.panels must each hold one series, or all the same series in the same order");
   }
   if (facets["context"] === true) {
@@ -2697,6 +2742,26 @@ interface Scales {
   readonly x: Continuous;
   readonly y: Continuous | Band;
   readonly size: Size | undefined;
+  readonly classes: Classes;
+}
+
+/** `spec`'s colour classes, inferred over every cell grid's or calendar's
+ *  values when the spec passes no thresholds or domain. */
+function colourClasses(spec: ChartSpec): Classes {
+  const values: number[] = [];
+  for (const m of spec.marks) {
+    if (m.mark !== "cell") {
+      continue;
+    }
+    for (const row of isCalendar(m) ? [m.days.values] : m.values) {
+      for (const v of row) {
+        if (v !== null && !Number.isNaN(v)) {
+          values.push(v);
+        }
+      }
+    }
+  }
+  return classes(spec.colour ?? {}, values);
 }
 
 /**
@@ -2711,7 +2776,12 @@ export function chartModel(
   const spec = check(given);
   const { facets, ...rest } = spec;
   if (facets === undefined) {
-    const scales = { x: xScale(spec, timeZone), y: yScale(spec), size: rScale(spec) };
+    const scales = {
+      x: xScale(spec, timeZone),
+      y: yScale(spec),
+      size: rScale(spec),
+      classes: colourClasses(spec),
+    };
     return build(spec, scales, "marks", locale, timeZone);
   }
   // The scales are the chart's: their domains are taken over every panel.
@@ -2723,6 +2793,7 @@ export function chartModel(
     // Every panel holds the same band, so the first names its rows once.
     y: y.type === "band" ? yScale(each[0] ?? all) : y,
     size: rScale(all),
+    classes: colourClasses(all),
   };
   const panels = facets.panels.map((p, k) => ({
     name: panelName(p),
@@ -2743,7 +2814,7 @@ export function chartModel(
 /** The model of a checked `spec` on `scales`, its marks named under `field`. */
 function build(
   spec: ChartSpec,
-  { x, y, size }: Scales,
+  { x, y, size, classes: colour }: Scales,
   field: string,
   locale: string | undefined,
   timeZone: string | undefined,
@@ -2755,9 +2826,6 @@ function build(
   const cellMark = spec.marks.find((m): m is CellMark => m.mark === "cell" && !isCalendar(m));
   const calendar = spec.marks.some(isCalendar);
   const cellNames = cellMark === undefined || "edges" in cellMark.x ? undefined : cellMark.x;
-  // The values a cell chart's inferred classes span.
-  const filled = (m: CellMark): number[] =>
-    m.values.flatMap((row) => row.flatMap((v) => (v === null || Number.isNaN(v) ? [] : [v])));
   const marks = spec.marks.map((m, index): MarkModel => {
     switch (m.mark) {
       case "rect":
@@ -2845,10 +2913,7 @@ function build(
             values,
             open: m.days.open === true,
             weekStart,
-            classes: classes(
-              spec.colour ?? {},
-              values.filter((v) => v !== null),
-            ),
+            classes: colour,
           };
         }
         return {
@@ -2856,7 +2921,7 @@ function build(
           x: "edges" in m.x ? { edges: m.x.edges } : { names: m.x },
           y: "edges" in m.y ? { edges: m.y.edges } : { names: m.y },
           values: m.values.map((row) => gaps(row, false)),
-          classes: classes(spec.colour ?? {}, filled(m)),
+          classes: colour,
         };
       case "rule": {
         const axis = m.x === undefined ? "y" : "x";

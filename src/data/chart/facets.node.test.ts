@@ -265,6 +265,183 @@ describe("facets: the spec", () => {
       /height has no place on a dot, bar, point or box chart/,
     );
   });
+
+  it("refuses band panels whose rows differ, naming the field", () => {
+    const [a] = bars(["A", "B"]).facets?.panels ?? [];
+    const moved: ChartSpec = {
+      marks: [],
+      facets: {
+        panels: [
+          a ?? { marks: [] },
+          {
+            name: "B",
+            marks: [
+              {
+                mark: "bar",
+                y: ["Coal", "Wind", "Gas"],
+                series: [{ name: "Share", x: [1, 2, 3] }],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    expect(() => model(moved)).toThrow(
+      new TypeError(
+        "renderChart: facets.panels[1].marks[0].y must be facets.panels[0]'s; the panels share one band of rows",
+      ),
+    );
+    const boxes = (y: string[]): Mark => ({
+      mark: "box",
+      y,
+      series: [{ name: "Wait", low: [1, 1], q1: [2, 2], median: [3, 3], q3: [4, 4], high: [5, 5] }],
+    });
+    expect(() =>
+      model({
+        marks: [],
+        facets: {
+          panels: [
+            { name: "A", marks: [boxes(["x", "y"])] },
+            { name: "B", marks: [boxes(["x", "z"])] },
+          ],
+        },
+      }),
+    ).toThrow(/facets\.panels\[1\]\.marks\[0\]\.y must be facets\.panels\[0\]'s/);
+  });
+
+  it("refuses heatmap panels whose axes differ and calendar panels whose days differ", () => {
+    const cells = (x: string[] | { edges: number[] }): Mark => ({
+      mark: "cell",
+      x,
+      y: ["Mon", "Tue"],
+      values: [
+        [1, 2],
+        [3, 4],
+      ],
+    });
+    const grids = (second: Mark): ChartSpec => ({
+      marks: [],
+      facets: {
+        panels: [
+          { name: "A", marks: [cells(["0h", "1h"])] },
+          { name: "B", marks: [second] },
+        ],
+      },
+    });
+    expect(() => model(grids(cells(["0h", "1h"])))).not.toThrow();
+    expect(() => model(grids(cells(["1h", "0h"])))).toThrow(
+      new TypeError(
+        "renderChart: facets.panels[1].marks[0].x must be facets.panels[0]'s; the panels share one grid",
+      ),
+    );
+    const start = Date.UTC(2024, 0, 1);
+    const days = (from: number, count: number, open?: boolean): Mark => ({
+      mark: "cell",
+      days: {
+        start: from,
+        values: Array.from({ length: count }, (_, i) => i),
+        ...(open === undefined ? {} : { open }),
+      },
+    });
+    const calendars = (second: Mark): ChartSpec => ({
+      marks: [],
+      facets: {
+        panels: [
+          { name: "A", marks: [days(start, 28)] },
+          { name: "B", marks: [second] },
+        ],
+      },
+    });
+    expect(() => model(calendars(days(start, 28)))).not.toThrow();
+    expect(() => model(calendars(days(start + 86_400_000, 28)))).toThrow(
+      /facets\.panels\[1\]\.marks\[0\]\.days\.start must be facets\.panels\[0\]'s; the panels share one calendar/,
+    );
+    expect(() => model(calendars(days(start, 21)))).toThrow(/days\.values\.length must be/);
+    expect(() => model(calendars(days(start, 28, true)))).toThrow(/days\.open must be/);
+    expect(() => model({ marks: [], facets: { panels: [{ marks: [days(start, 28)] }] } })).toThrow(
+      new TypeError(
+        "renderChart: facets.panels[0].name is required; a cell panel has no series to name it",
+      ),
+    );
+  });
+
+  it("refuses pie panels whose slices differ, even one slice each", () => {
+    const pie = (names: string[]): Mark => ({
+      mark: "pie",
+      slices: names.map((name, k) => ({ name, value: k + 1 })),
+    });
+    const pies = (a: string[], b: string[]): ChartSpec => ({
+      marks: [],
+      facets: {
+        panels: [
+          { name: "2023", marks: [pie(a)] },
+          { name: "2024", marks: [pie(b)] },
+        ],
+      },
+    });
+    expect(() => model(pies(["Coal", "Gas"], ["Coal", "Gas"]))).not.toThrow();
+    for (const [a, b] of [
+      [
+        ["Coal", "Gas"],
+        ["Gas", "Coal"],
+      ],
+      [["Coal"], ["Gas"]],
+    ]) {
+      expect(() => model(pies(a ?? [], b ?? []))).toThrow(
+        new TypeError(
+          "renderChart: facets.panels must each hold the same slices in the same order",
+        ),
+      );
+    }
+  });
+
+  it("colours every heatmap panel by one set of classes over every panel's values", () => {
+    const cells = (top: number): Mark => ({
+      mark: "cell",
+      x: ["a", "b"],
+      y: ["c"],
+      values: [[0, top]],
+    });
+    const m = model({
+      marks: [],
+      facets: {
+        panels: [
+          { name: "Low", marks: [cells(10)] },
+          { name: "High", marks: [cells(100)] },
+        ],
+      },
+    });
+    // A lone heatmap of the high panel's values spans the same 0 to 100.
+    const lone = model({ marks: [cells(100)] }).primary;
+    const classesOf = (p: Model["primary"]) => (p?.kind === "cell" ? p.classes : undefined);
+    expect(lone?.kind).toBe("cell");
+    for (const p of m.facets?.panels ?? []) {
+      expect(classesOf(p.model.primary)).toEqual(classesOf(lone));
+    }
+  });
+
+  it("sizes every bubble panel on one r scale over every panel's sizes", () => {
+    const bubbles = (r: number): Mark => ({
+      mark: "scatter",
+      series: [{ name: "Towns", names: ["a", "b"], x: [1, 2], y: [1, 2], r: [1, r] }],
+    });
+    const m = model({
+      x: { label: "Area" },
+      y: { label: "People" },
+      r: { label: "Jobs" },
+      marks: [],
+      facets: {
+        panels: [
+          { name: "North", marks: [bubbles(10)] },
+          { name: "South", marks: [bubbles(40)] },
+        ],
+      },
+    });
+    const his = (m.facets?.panels ?? []).map((p) =>
+      p.model.primary?.kind === "scatter" ? p.model.primary.size?.hi : undefined,
+    );
+    expect(his).toEqual([40, 40]);
+  });
 });
 
 describe("facets: the grid", () => {
@@ -321,6 +498,86 @@ describe("facets: the grid", () => {
   it("stacks band panels in one column under 30rem", () => {
     expect(grid(bars(["A", "B", "C"]), 1000).columns).toBe(3);
     expect(grid(bars(["A", "B", "C"]), 470).columns).toBe(1);
+  });
+
+  it("keeps a bar panel's value labels", () => {
+    for (const p of grid(bars(["A", "B"]), 1000).panels) {
+      expect(p.lay.valueLabels.map((t) => t.text)).toEqual(expect.arrayContaining(["2", "3"]));
+    }
+  });
+
+  describe("pie panels", () => {
+    const pies = (count: number, more: Partial<ChartSpec> = {}): ChartSpec => ({
+      marks: [],
+      facets: {
+        panels: Array.from({ length: count }, (_, k) => ({
+          name: String(2020 + k),
+          marks: [
+            {
+              mark: "pie",
+              slices: [
+                { name: "Coal", value: 3 + k },
+                { name: "Gas", value: 2 },
+                { name: "Wind", value: 1 },
+              ],
+            },
+          ],
+        })),
+      },
+      ...more,
+    });
+
+    it("draw each pie as wide as its plot, at most 240 px, with no gutter and no outside labels", () => {
+      const phone = grid(pies(4), 288);
+      expect(phone.gutter).toBe(0);
+      // Two to a row on a phone: (288 - 16) / 2, less each plot's border.
+      expect(phone.columns).toBe(2);
+      for (const p of phone.panels) {
+        expect(p.lay.frame.width).toBe(134);
+        expect(2 * (p.lay.pie?.r ?? 0)).toBe(134);
+        expect(p.lay.endLabels).toEqual([]);
+        expect(p.lay.leaders).toEqual([]);
+      }
+      const wide = grid(pies(1), 1000);
+      expect(2 * (wide.panels[0]?.lay.pie?.r ?? 0)).toBe(240);
+      expect(wide.panels[0]?.lay.endLabels).toEqual([]);
+    });
+
+    it("take a passed height as each pie's plot height", () => {
+      const p = grid(pies(2, { height: 100 }), 1000).panels[0];
+      expect(p?.lay.frame.height).toBe(100);
+      expect(2 * (p?.lay.pie?.r ?? 0)).toBe(100);
+    });
+  });
+
+  it("fits heatmap panels at 160 px a plot and scatter panels at 112", () => {
+    const cells: ChartSpec = {
+      marks: [],
+      facets: {
+        panels: ["A", "B", "C"].map((name) => ({
+          name,
+          marks: [{ mark: "cell", x: ["a", "b"], y: ["c"], values: [[1, 2]] }] as Mark[],
+        })),
+      },
+    };
+    // Three 160 px plots, their borders and two gaps take 518 px beside the gutter.
+    expect(grid(cells, 600).columns).toBe(3);
+    expect(grid(cells, 400).columns).toBe(2);
+    const dots: ChartSpec = {
+      x: { label: "Area" },
+      y: { label: "People" },
+      marks: [],
+      facets: {
+        panels: ["A", "B", "C"].map((name) => ({
+          marks: [{ mark: "scatter", series: [{ name, names: ["a"], x: [1], y: [2] }] }] as Mark[],
+        })),
+      },
+    };
+    const g = grid(dots, 600);
+    expect(g.columns).toBe(3);
+    for (const p of g.panels) {
+      expect(p.lay.frame.width).toBeGreaterThanOrEqual(112);
+    }
   });
 
   describe("numbers notes across the panels", () => {

@@ -97,9 +97,14 @@ export function facetLayout(
   // Every panel shares the y scale, so its ticks or band names, and the
   // first panel's gutter is every panel's.
   const [first] = facets.panels;
-  const gutter =
-    first === undefined ? floors.axis : lay(first.model, width, floors.axis).gutters.axis;
   const kind = model.primary?.kind ?? "";
+  // A pie has no axis, so its panels keep no gutter.
+  const pie = kind === "pie";
+  const gutter = pie
+    ? 0
+    : first === undefined
+      ? floors.axis
+      : lay(first.model, width, floors.axis).gutters.axis;
   const narrow = chart < NARROW_REM * metrics.rem;
   const n = facets.panels.length;
   const least = MIN_PLOT.get(kind) ?? MIN_PLOT_DEFAULT;
@@ -143,7 +148,13 @@ export function facetLayout(
     before += notes.length;
     return { ...p, lay: { ...p.lay, notes, numbered: numbered && notes.length > 0 } };
   });
-  return { columns, reverse, gutter, panels, gutters: { axis: gutter, label: 0 } };
+  return {
+    columns,
+    reverse,
+    gutter,
+    panels,
+    gutters: { axis: pie ? floors.axis : gutter, label: 0 },
+  };
 }
 
 /** The other panels' data marks drawn behind panel `k` under `context`:
