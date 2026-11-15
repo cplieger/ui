@@ -36,6 +36,7 @@ import "./wire/content.js";
 import "./wire/controls.js";
 import "./wire/data-figures.js";
 import "./wire/data-tables.js";
+import "./wire/keyed.js";
 import "./wire/lists.js";
 import "./wire/marks.js";
 import "./wire/nav-feedback.js";

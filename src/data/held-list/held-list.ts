@@ -157,7 +157,7 @@ export function enhanceHeldList(
     el.getClientRects().length > 0 && endUnseen(el, marginEnd(el));
 
   // The engine's own scroll anchoring is off for the one write, so it never
-  // adds its correction to this one; WebKit has none to add.
+  // adds its correction to this one.
   const putLine = (): void => {
     const scroller = scrollerOf(region);
     const top = region.getBoundingClientRect().top;
