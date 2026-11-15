@@ -1135,6 +1135,35 @@ describe("surfaces", () => {
       );
       const chosen = bars.svg.querySelector('[data-part="y"] > text[data-selected]') as Element;
       expect(getComputedStyle(chosen).fill).toBe(token(chosen, "var(--cp-ink)", "color", palette));
+      drawSelection(
+        bars.svg,
+        bars.model,
+        bars.lay,
+        { kind: "bar", row: 1, part: 0 },
+        navigator(bars.model, bars.lay),
+        true,
+      );
+      const synced = bars.svg.querySelector('[data-part="ring"]') as Element;
+      expect(getComputedStyle(synced).stroke).toBe(
+        token(synced, "var(--cp-ink-muted)", "color", palette),
+      );
+      const faceted = draw({
+        x: { label: "Month", domain: [0, 2] },
+        y: { label: "Rate", domain: [0, 4] },
+        marks: [],
+        facets: {
+          context: true,
+          panels: ["North", "South"].map((name, k) => ({
+            marks: [{ mark: "line" as const, x: [0, 1, 2], series: [{ name, y: [k, 2, 3 - k] }] }],
+          })),
+        },
+      });
+      const other = faceted.model.facets?.panels[1]?.model.primary;
+      drawPlot(faceted.svg, faceted.model, faceted.lay, other?.kind === "line" ? [other] : []);
+      const context = faceted.svg.querySelector('[data-part="context"]') as Element;
+      expect(getComputedStyle(context).stroke).toBe(
+        token(context, "var(--cp-border)", "color", palette),
+      );
       const split = draw({
         x: {},
         marks: [
