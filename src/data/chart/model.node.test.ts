@@ -681,6 +681,102 @@ describe("spec errors", () => {
     expect(second.read.n).toBe(0);
   });
 
+  it("reads a list its series, rows or nodes share only up to the ceiling", MILLION, () => {
+    const named = (prefix: string) => (i: number) => `${prefix}${String(i)}`;
+    const cases: readonly (readonly [string, (list: unknown) => unknown, unknown, string])[] = [
+      [
+        "scatter x",
+        (x) => ({
+          mark: "scatter",
+          series: times(2_000, (s) => ({ name: named("s")(s), names: ["a"], x, y: [1] })),
+        }),
+        1,
+        "marks[0].series[1000].names",
+      ],
+      [
+        "cell rows",
+        (row) => ({
+          mark: "cell",
+          x: ["a"],
+          y: times(2_000, named("r")),
+          values: times(2_000, () => row),
+        }),
+        1,
+        "marks[0].values[1000]",
+      ],
+      [
+        "tree children",
+        (children) => ({
+          mark: "tree",
+          nodes: times(2_000, (k) => ({ name: named("n")(k), children })),
+        }),
+        { name: "p", value: 1 },
+        "marks[0].nodes[998].children",
+      ],
+      [
+        "box outlier rows",
+        (row) => ({
+          mark: "box",
+          y: ["a"],
+          series: times(2_000, (s) => ({
+            name: named("s")(s),
+            low: [1],
+            q1: [2],
+            median: [3],
+            q3: [4],
+            high: [5],
+            outliers: [row],
+          })),
+        }),
+        6,
+        "marks[0].series[999].outliers[0]",
+      ],
+    ];
+    for (const [what, mark, entry, field] of cases) {
+      const shared = counted(1_000, entry);
+      expect(() => build({ x: {}, marks: [mark(shared.list)] }), what).toThrow(past(field));
+      expect(shared.read.n, what).toBeLessThanOrEqual(MOST);
+    }
+  });
+
+  it("counts each slice, node and day value as one value", MILLION, () => {
+    const rule: Mark = { mark: "rule", x: 1, label: "a" };
+    const million = <T>(entry: T): T[] => new Array<T>(MOST).fill(entry);
+    const marks: readonly (readonly [string, unknown])[] = [
+      ["pie", { mark: "pie", slices: million({ name: "a", value: 1 }) }],
+      ["tree", { mark: "tree", nodes: million({ name: "a", value: 1 }) }],
+      ["calendar", { mark: "cell", days: { start: 0, values: million(1) } }],
+    ];
+    for (const [what, mark] of marks) {
+      expect(() => build({ x: {}, marks: [mark, rule] }), what).toThrow(past("marks[1]"));
+    }
+  });
+
+  // A field of a million entries beside one series or row charges what it
+  // holds past the series' or row's values: the spec totals the ceiling, so a
+  // rule after it crosses, and `leading` rules before it cross at the field.
+  it("charges a list what it holds past the values charged for it elsewhere", MILLION, () => {
+    const rule: Mark = { mark: "rule", x: 1, label: "a" };
+    const million = <T>(entry: T): T[] => new Array<T>(MOST).fill(entry);
+    const cases: readonly (readonly [string, unknown, number, string])[] = [
+      [
+        "rect x2",
+        { mark: "rect", x1: [0], x2: million(1), series: [{ name: "a", y: [1] }] },
+        2,
+        "x2",
+      ],
+      ["slope x", { mark: "slope", x: million(1), series: [{ name: "a", y: [1, 2] }] }, 3, "x"],
+      ["cell y", { mark: "cell", x: ["a"], y: million("r"), values: [[1]] }, 1, "y"],
+    ];
+    for (const [what, mark, leading, field] of cases) {
+      expect(() => build({ x: {}, marks: [mark, rule] }), what).toThrow(past("marks[1]"));
+      const marks = [...times(leading, () => rule), mark];
+      expect(() => build({ x: {}, marks }), what).toThrow(
+        past(`marks[${String(leading)}].${field}`),
+      );
+    }
+  });
+
   it("counts a timeline row whose x is no array as one value", () => {
     const timeline: Mark = {
       mark: "dot",
