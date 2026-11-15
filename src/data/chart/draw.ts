@@ -19,6 +19,7 @@ import {
   calendarPaths,
   cellBox,
   cellPaths,
+  contextPath,
   dayBox,
   dotGroups,
   dotPath,
@@ -49,7 +50,14 @@ import {
 } from "./geometry.js";
 import { dayPlace } from "./calendar.js";
 import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
-import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
+import {
+  drawnTotal,
+  drawnValue,
+  sampleValue,
+  type LineModel,
+  type Model,
+  type ScatterModel,
+} from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
 import { sliceAngles } from "./pie.js";
 import type { Reading, Widths } from "./readout.js";
@@ -147,7 +155,11 @@ export const AREA_ROOM = 5;
 
 // The plot's marks, in spec order, inside a nested SVG that clips them to
 // the plot outset by AREA_ROOM; its user space keeps 0 0 at the plot's corner.
-function plotArea(model: Model, lay: Layout): SVGElement {
+function plotArea(
+  model: Model,
+  lay: Layout,
+  others: readonly (LineModel | ScatterModel)[],
+): SVGElement {
   const f = lay.frame;
   const w = num(f.width + 2 * AREA_ROOM);
   const h = num(f.height + 2 * AREA_ROOM);
@@ -213,6 +225,13 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   }
   if (zero !== "") {
     area.append(svgEl("path", { "data-part": "zero", d: zero }));
+  }
+  if (others.length > 0) {
+    const context = svgEl("path", { "data-part": "context", d: contextPath(others, f) });
+    if (primary?.kind === "scatter") {
+      context.setAttribute("data-dots", "");
+    }
+    area.append(context);
   }
   const notes = new Map(lay.notes.map((n) => [n.mark, n]));
   model.marks.forEach((m, index) => {
@@ -421,8 +440,14 @@ function plotArea(model: Model, lay: Layout): SVGElement {
 const leaderPath = (list: readonly Leader[]): string =>
   list.map((l) => `M${num(l.from.x)} ${num(l.from.y)}L${num(l.to.x)} ${num(l.to.y)}`).join("");
 
-/** Draws `model` laid out as `lay` into `svg`, replacing what it held. */
-export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
+/** Draws `model` laid out as `lay` into `svg`, replacing what it held,
+ *  with `others`, small multiples' other panels' marks, faintly behind it. */
+export function drawPlot(
+  svg: SVGSVGElement,
+  model: Model,
+  lay: Layout,
+  others: readonly (LineModel | ScatterModel)[] = [],
+): void {
   const from = lay.clip === true ? lay.left : 0;
   const width = lay.clip === true ? lay.frame.width : lay.width;
   svg.setAttribute("width", num(width));
@@ -442,7 +467,7 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
             lay.frame.dpr,
           ),
   });
-  const plot = plotArea(model, lay);
+  const plot = plotArea(model, lay, others);
   svg.replaceChildren(
     texts("y", lay.yLabels, lay.mono),
     ticks,

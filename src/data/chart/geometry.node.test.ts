@@ -18,6 +18,7 @@ import {
   bubblePaths,
   bucketEdges,
   cellPaths,
+  contextPath,
   dotGroups,
   dotPath,
   dotRadius,
@@ -1473,6 +1474,48 @@ describe("scatter geometry", () => {
 
   it("draws a path per series, a closed 4 px circle per dot it shows", () => {
     expect(scatterPaths(scatterOf, f)).toEqual([circle(50, 50) + circle(20, 20), circle(52, 50)]);
+  });
+});
+
+describe("small multiples' context", () => {
+  const panels = (mark: "line" | "scatter"): ChartSpec => ({
+    x: { label: "a", domain: [0, 100] },
+    y: { label: "b", domain: [0, 100] },
+    marks: [],
+    facets: {
+      context: true,
+      panels: ["North", "South", "East"].map((name, k) => ({
+        marks: [
+          mark === "line"
+            ? { mark, x: [0, 100], series: [{ name, y: [10 * k, 50] }] }
+            : {
+                mark,
+                series: [{ name, names: ["A", "B", "C"], x: [10, 90, null], y: [10 * k, 50, 20] }],
+              },
+        ],
+      })),
+    },
+  });
+  const primaries = (m: Model) => (m.facets?.panels ?? []).map((p) => p.model.primary);
+
+  it("draws every other panel's line as its panel would, in one path", () => {
+    const m = model(panels("line"));
+    const [north, south, east] = primaries(m) as LineModel[];
+    const f = frame(m, 100, 100, 100);
+    expect(contextPath([south as LineModel, east as LineModel], f)).toBe(
+      linePath(south as LineModel, 0, f) + linePath(east as LineModel, 0, f),
+    );
+    expect(points(contextPath([north as LineModel], f))).toEqual([[0, 100, 100, 50]]);
+  });
+
+  it("draws every other panel's dots as 2 px circles, a dot it does not show left out", () => {
+    const m = model(panels("scatter"));
+    const [, south] = primaries(m) as ScatterModel[];
+    const f = frame(m, 100, 100, 100);
+    const dot = (cx: number, cy: number) =>
+      `M${String(cx - 2)} ${String(cy)}a2 2 0 1 0 4 0a2 2 0 1 0 -4 0Z`;
+    expect(contextPath([south as ScatterModel], f)).toBe(dot(10, 90) + dot(90, 50));
+    expect(contextPath([], f)).toBe("");
   });
 });
 

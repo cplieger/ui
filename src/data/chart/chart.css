@@ -322,6 +322,21 @@
   stroke-width: 1px;
 }
 
+/* Small multiples' other panels behind this one's data, faint enough that
+ * only the panel's own series reads as data. */
+.cp-chart svg [data-part="context"] {
+  fill: none;
+  stroke: var(--cp-border);
+  stroke-width: 1px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cp-chart svg [data-part="context"][data-dots] {
+  fill: var(--cp-border);
+  stroke: none;
+}
+
 .cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
 .cp-chart svg [data-part="bar"] path,
 .cp-chart svg [data-part="pie"] path,

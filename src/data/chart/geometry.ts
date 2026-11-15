@@ -940,6 +940,32 @@ export function scatterPaths(m: ScatterModel, f: Frame): string[] {
   );
 }
 
+/** A context dot's radius, half a scatter dot's, so it reads as background. */
+const CONTEXT_RADIUS = 2;
+
+/** Small multiples' context behind a panel on frame `f`, the chart's scales
+ *  in that panel's px: every series of `others`, the other panels' marks,
+ *  as one path, lines as drawn and dots at `CONTEXT_RADIUS`. */
+export function contextPath(others: readonly (LineModel | ScatterModel)[], f: Frame): string {
+  const out: string[] = [];
+  const dot = arcs(CONTEXT_RADIUS);
+  for (const m of others) {
+    m.series.forEach((_, k) => {
+      if (m.kind === "line") {
+        out.push(linePath(m, k, f));
+        return;
+      }
+      for (const i of m.shown[k] ?? []) {
+        const c = scatterAt(m, k, i, f);
+        if (c !== undefined) {
+          out.push(circle(c, CONTEXT_RADIUS, dot));
+        }
+      }
+    });
+  }
+  return out.join("");
+}
+
 /** A cell under this many px across, inset, gives up its gap on that axis. */
 const CELL_MIN = 3;
 

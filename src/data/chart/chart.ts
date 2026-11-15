@@ -14,7 +14,7 @@ import { forgetMeasures } from "../scale/measure.js";
 import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
 import { facetLayout, facetWidths, panelGrid } from "./facets.js";
-import { layout, type Floors, type TreeKept } from "./layout.js";
+import { layout, type Floors, type Layout, type TreeKept } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { chipChosen, overall, readoutWidths, totalWord, type Widths } from "./readout.js";
 import type { ChartSpec } from "./spec.js";
@@ -104,6 +104,13 @@ function caption(figure: HTMLElement): { title: HTMLElement; summary: HTMLElemen
   }
   return { title, summary };
 }
+
+// The words of the notes `lay` draws on `model`'s plot, in their numbers' order.
+const noteTexts = (model: Model, lay: Layout): string[] =>
+  lay.notes.map((n) => {
+    const m = model.marks[n.mark];
+    return m?.kind === "text" ? m.text : "";
+  });
 
 const grow = (floor: Widths | undefined, now: Widths): Widths =>
   floor?.values.length !== now.values.length
@@ -269,6 +276,25 @@ export function renderChart(
   const hasDrawing = (): boolean =>
     state === "ready" || (state === "refreshFailed" && shown === "ready");
 
+  // The numbered markers' words below the plot, in their numbers' order.
+  const showNotes = (texts: readonly string[]): void => {
+    listed = texts.length > 0;
+    if (!listed) {
+      list.remove();
+      return;
+    }
+    const items = document.createDocumentFragment();
+    for (const text of texts) {
+      const li = document.createElement("li");
+      li.textContent = text;
+      items.append(li);
+    }
+    list.replaceChildren(items);
+    if (list.parentElement !== figure) {
+      plot.after(list);
+    }
+  };
+
   const drawGeometry = (): void => {
     if (drawn === undefined) {
       return;
@@ -287,8 +313,12 @@ export function renderChart(
       if (panels.parentElement !== plot) {
         svg.replaceWith(panels);
       }
-      listed = false;
-      list.remove();
+      showNotes(
+        facets.panels.flatMap((p, k) => {
+          const lay = at.panels[k]?.lay;
+          return lay?.numbered === true ? noteTexts(p.model, lay) : [];
+        }),
+      );
       widths = grow(widths, facetWidths(drawn, facets, words, metrics.measure));
       grid.draw(drawn, at, widths, metrics);
       return;
@@ -300,22 +330,7 @@ export function renderChart(
     floors = lay.gutters;
     kept = lay.tree?.kept;
     drawPlot(svg, drawn, lay);
-    listed = lay.numbered;
-    if (listed) {
-      const texts = drawn.marks.map((m) => (m.kind === "text" ? m.text : ""));
-      const items = document.createDocumentFragment();
-      for (const n of lay.notes) {
-        const li = document.createElement("li");
-        li.textContent = texts[n.mark] ?? "";
-        items.append(li);
-      }
-      list.replaceChildren(items);
-      if (list.parentElement !== figure) {
-        plot.after(list);
-      }
-    } else {
-      list.remove();
-    }
+    showNotes(lay.numbered ? noteTexts(drawn, lay) : []);
     const none = overall(drawn, words);
     if (none !== undefined) {
       widths = grow(widths, readoutWidths(drawn, words, metrics.measure));

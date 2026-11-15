@@ -322,6 +322,55 @@ describe("facets: the grid", () => {
     expect(grid(bars(["A", "B", "C"]), 1000).columns).toBe(3);
     expect(grid(bars(["A", "B", "C"]), 470).columns).toBe(1);
   });
+
+  describe("numbers notes across the panels", () => {
+    const note = (x: number, text: string): Mark => ({ mark: "text", x, y: 0.03, text });
+    const noted = (notes: Mark[][]): ChartSpec => {
+      const spec = lines(notes.length);
+      return {
+        ...spec,
+        facets: {
+          panels: (spec.facets?.panels ?? []).map((p, k) => ({
+            marks: [...p.marks, ...(notes[k] ?? [])],
+          })),
+        },
+      };
+    };
+    const numbers = (g: ReturnType<typeof grid>) =>
+      g.panels.map((p) => ({
+        numbered: p.lay.numbered,
+        numbers: p.lay.notes.map((n) => n.number),
+      }));
+
+    it("keeps every note on its plot while none overlaps", () => {
+      const g = grid(noted([[note(1, "Strike")], [note(2, "Flood")], []]), 1000);
+      expect(numbers(g)).toEqual([
+        { numbered: false, numbers: [1] },
+        { numbered: false, numbers: [2] },
+        { numbered: false, numbers: [] },
+      ]);
+    });
+
+    it("switches every panel's notes to markers when one panel's overlap, numbered on in panel order", () => {
+      const g = grid(
+        noted([[note(1, "Strike")], [], [note(2, "Flood"), note(2, "Flood again")]]),
+        1000,
+      );
+      expect(numbers(g)).toEqual([
+        { numbered: true, numbers: [1] },
+        { numbered: false, numbers: [] },
+        { numbered: true, numbers: [2, 3] },
+      ]);
+    });
+
+    it("numbers them on under 30rem", () => {
+      const g = grid(noted([[note(1, "Strike")], [note(2, "Flood")]]), 400);
+      expect(numbers(g)).toEqual([
+        { numbered: true, numbers: [1] },
+        { numbered: true, numbers: [2] },
+      ]);
+    });
+  });
 });
 
 describe("facets: the head figure", () => {

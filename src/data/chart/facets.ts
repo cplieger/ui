@@ -9,7 +9,13 @@ import type { Measure } from "../scale/measure.js";
 import { colourKey, drawPlot, frameLegend, sizeKey, writeLegend } from "./draw.js";
 import { explore, type Explorer } from "./explore.js";
 import { layout, NARROW_REM, PANEL_GAP, type Floors, type Layout, type Metrics } from "./layout.js";
-import { barsApart, type FacetsModel, type Model } from "./model.js";
+import {
+  barsApart,
+  type FacetsModel,
+  type LineModel,
+  type Model,
+  type ScatterModel,
+} from "./model.js";
 import {
   chipChosen,
   dotsText,
@@ -104,7 +110,7 @@ export function facetLayout(
     Math.floor((width - gutter - (columns - 1) * PANEL_GAP) / columns - BORDER),
   );
   const reverse = model.x.reverse;
-  const panels = facets.panels.map((p, k): PanelPlace => {
+  const placed = facets.panels.map((p, k): PanelPlace => {
     const column = k % columns;
     const row = Math.floor(k / columns);
     const edge = reverse ? column === columns - 1 : column === 0;
@@ -128,7 +134,28 @@ export function facetLayout(
       },
     };
   });
+  // All notes switch together, as on a lone plot, and number on across the
+  // panels in their order, so the one list under the grid keys every marker.
+  const numbered = placed.some((p) => p.lay.numbered);
+  let before = 0;
+  const panels = placed.map((p): PanelPlace => {
+    const notes = p.lay.notes.map((n) => ({ ...n, number: before + n.number }));
+    before += notes.length;
+    return { ...p, lay: { ...p.lay, notes, numbered: numbered && notes.length > 0 } };
+  });
   return { columns, reverse, gutter, panels, gutters: { axis: gutter, label: 0 } };
+}
+
+/** The other panels' data marks drawn behind panel `k` under `context`:
+ *  every panel's line or dots but its own. */
+function contextOf(facets: FacetsModel, k: number): (LineModel | ScatterModel)[] {
+  if (!facets.context) {
+    return [];
+  }
+  return facets.panels.flatMap((p, j) => {
+    const m = p.model.primary;
+    return j !== k && (m?.kind === "line" || m?.kind === "scatter") ? [m] : [];
+  });
 }
 
 /** The one number a panel's own legend row would carry at `sel`, or with
@@ -426,7 +453,7 @@ export function panelGrid(
         const inset = place.gutter ? `${String(grid.gutter)}px` : "";
         it.head.style.paddingLeft = grid.reverse ? "" : inset;
         it.head.style.paddingRight = grid.reverse ? inset : "";
-        drawPlot(it.svg, p.model, place.lay);
+        drawPlot(it.svg, p.model, place.lay, contextOf(next, k));
         head = Math.max(
           head,
           headWidth(

@@ -1379,6 +1379,38 @@ describe("small multiples' panels", () => {
     ]);
   });
 
+  it("lists every panel's numbered notes once under the grid, numbered on across the panels", async () => {
+    const b = build({ width: 600 });
+    const spec = regions(["North", "South", "East"]);
+    const noted: ChartSpec = {
+      ...spec,
+      facets: {
+        ...spec.facets,
+        panels: (spec.facets?.panels ?? []).map((p, k) => ({
+          marks: [
+            ...p.marks,
+            ...(k === 1
+              ? []
+              : [{ mark: "text" as const, x: months[3] ?? 0, y: 0.04, text: `Note ${String(k)}` }]),
+          ],
+        })),
+      },
+    };
+    const chart = start(noted, b);
+    const markers = () =>
+      [...b.figure.querySelectorAll('svg [data-part="marker"] text')].map((t) => t.textContent);
+    const listed = () =>
+      [...(get(b.figure, "notes")?.querySelectorAll("li") ?? [])].map((li) => li.textContent);
+    expect(markers()).toEqual([]);
+    expect(get(b.figure, "notes")).toBeNull();
+    await resize(b, 288);
+    expect(markers()).toEqual(["1", "2"]);
+    expect(listed()).toEqual(["Note 0", "Note 2"]);
+    expect(showing(b.figure)).toEqual(["legend", "plot", "notes", "table"]);
+    chart.update(regions(["North", "South"]));
+    expect(get(b.figure, "notes")).toBeNull();
+  });
+
   it("gives the plot back its region and tab stop when an update drops the facets", () => {
     const b = build();
     const chart = start(regions(["North", "South"]), b);
