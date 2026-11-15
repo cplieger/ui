@@ -1366,12 +1366,28 @@ describe("small multiples' panels", () => {
     expect(panelsOf(b)).toHaveLength(1);
   });
 
-  it("tears down to a static image of its panels", () => {
+  it("tears down to a static image per panel, each named by its label", () => {
     const b = build();
     start(regions(["North", "South"]), b);
     b.life.abort();
+    expect(get(b.figure, "plot")?.hasAttribute("role")).toBe(false);
+    const frames = panelsOf(b).map((p) => p.querySelector('[data-part="frame"]'));
+    expect(frames.map((f) => f?.getAttribute("role"))).toEqual(["img", "img"]);
+    expect(frames.map((f) => f?.getAttribute("aria-label")?.split(":")[0])).toEqual([
+      "North",
+      "South",
+    ]);
+  });
+
+  it("gives the plot back its region and tab stop when an update drops the facets", () => {
+    const b = build();
+    const chart = start(regions(["North", "South"]), b);
+    chart.update(full);
     const plot = get(b.figure, "plot");
-    expect(plot?.getAttribute("role")).toBe("img");
-    expect(panelsOf(b)).toHaveLength(2);
+    expect(plot?.getAttribute("role")).toBe("application");
+    expect(plot?.tabIndex).toBe(0);
+    expect(plot?.querySelector('[id$="-howto"]')?.textContent).toBe(
+      "Arrow keys read the values. Tab leaves the chart.",
+    );
   });
 });

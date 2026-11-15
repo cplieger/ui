@@ -47,6 +47,8 @@ interface Entry {
 }
 
 export interface Reading {
+  /** Under `facets`, the selected panel's name, or the panel count. */
+  readonly panel?: string;
   /** The x it reads, or a dot row's name. */
   readonly at: string;
   readonly entries: readonly Entry[];
@@ -831,6 +833,8 @@ export function rowReading(model: Model, m: DotModel, r: number, words: Words): 
 
 /** The legend's slot widths, in px. */
 export interface Widths {
+  /** Under `facets`, the panel slot's. */
+  readonly panel?: number;
   readonly at: number;
   readonly values: readonly number[];
   readonly total: number;
@@ -976,7 +980,8 @@ function scatterTexts(
   return texts.length === 0 ? [measureText(model, axis, null, words)] : texts;
 }
 
-const widest = (texts: Iterable<string>, measure: Measure): number => {
+/** The widest of `texts`, measured with numbers as tabular figures. */
+export const widest = (texts: Iterable<string>, measure: Measure): number => {
   let w = 0;
   for (const t of texts) {
     w = Math.max(w, measure.number(t));

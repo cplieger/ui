@@ -1078,16 +1078,25 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
  * segment, line or bar part through `words.segment`; otherwise the whole reading
  * through `words.reading` (a range plot's `gapReading`, an arrow plot's
  * `changeReading`), or a silent row's `words.silentRow`; then each
- * note joining the stop through `words.noteReading`.
+ * note joining the stop through `words.noteReading`. In a `panel` of small
+ * multiples the place is `words.panelAt` of the panel's name and its own.
  */
-export function spoken(model: Model, sel: Selection, words: Words, part: boolean): string {
-  const said = readingWords(model, sel, words, part);
+export function spoken(
+  model: Model,
+  sel: Selection,
+  words: Words,
+  part: boolean,
+  panel?: string,
+): string {
+  const said = readingWords(model, sel, words, part, panel);
   const notes = noteReadings(model, sel, words);
   if (said === "" || notes === "") {
     return said;
   }
   // A silent row's words end without a full stop, which the notes need before them.
-  const silent = sel.kind === "row" && said === selectionReading(model, sel, words)?.at;
+  const m = model.primary;
+  const row = sel.kind === "row" && m?.kind === "dot" ? m.rows[sel.row] : undefined;
+  const silent = row !== undefined && row.to <= row.from;
   return `${said}${silent ? "." : ""} ${notes}`;
 }
 
@@ -1134,39 +1143,47 @@ function noteReadings(model: Model, sel: Selection, words: Words): string {
   return out.join(" ");
 }
 
-function readingWords(model: Model, sel: Selection, words: Words, part: boolean): string {
+function readingWords(
+  model: Model,
+  sel: Selection,
+  words: Words,
+  part: boolean,
+  panel: string | undefined,
+): string {
   const reading = selectionReading(model, sel, words);
   const m = model.primary;
   if (reading === undefined || m === undefined) {
     return "";
   }
+  const place = (t: string): string => (panel === undefined ? t : words.panelAt(panel, t));
+  const at = place(reading.at);
   if (sel.kind === "row" && m.kind === "dot") {
     const row = m.rows[sel.row];
     return row === undefined || row.to <= row.from
-      ? reading.at
-      : words.reading(reading.at, reading.entries[0]?.value ?? "", "");
+      ? at
+      : words.reading(at, reading.entries[0]?.value ?? "", "");
   }
   if (sel.kind === "bar" && m.kind === "bar") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
-      return words.segment(reading.at, s.name, barPart(model, m, s, sel.row, words));
+      return words.segment(at, s.name, barPart(model, m, s, sel.row, words));
     }
   } else if (sel.kind === "point" && m.kind === "point") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
-      return words.segment(reading.at, s.name, pointPart(model, s, sel.row, words));
+      return words.segment(at, s.name, pointPart(model, s, sel.row, words));
     }
   } else if (sel.kind === "box" && m.kind === "box") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
-      return words.segment(reading.at, s.name, boxPart(model, s, sel.row, words));
+      return words.segment(at, s.name, boxPart(model, s, sel.row, words));
     }
     // Each series' part holds commas, so the parts are joined by "; ".
     const parts = m.series.map((one) => {
       const text = boxPart(model, one, sel.row, words);
       return m.series.length === 1 ? text : `${one.name} ${text}`;
     });
-    return words.reading(reading.at, parts.join("; "), "");
+    return words.reading(at, parts.join("; "), "");
   } else if (sel.kind === "slope" && m.kind === "slope") {
     const s = sel.part === undefined ? undefined : m.series[sel.part];
     if (part && s !== undefined) {
@@ -1177,9 +1194,9 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     const s = m.slices[sel.i];
     const v = s?.value ?? null;
     return v === null
-      ? words.reading(s?.name ?? "", words.noData, "")
+      ? words.reading(place(s?.name ?? ""), words.noData, "")
       : words.reading(
-          s?.name ?? "",
+          place(s?.name ?? ""),
           `${partAmount(model, m, v)}, ${sliceShare(model, m, sel.i, words)}`,
           partAmount(model, m, m.total),
         );
@@ -1191,7 +1208,7 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
       g === undefined
         ? node.text
         : `${node.text}, ${words.parts(writer("number", model.locale)(g.count), g.count)}`;
-    return words.reading(node.name, parts, "");
+    return words.reading(place(node.name), parts, "");
   } else if (sel.kind === "scatter" && m.kind === "scatter") {
     // The dot's series, then each measure; the chips' counts are the chart's, not the dot's.
     const s = m.series[sel.series];
@@ -1201,7 +1218,7 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
       measureText(model, "y", s?.y[sel.i] ?? null, words),
       ...(s?.r === undefined ? [] : [measureText(model, "r", s.r[sel.i] ?? null, words)]),
     ];
-    return words.reading(reading.at, parts.join(", "), "");
+    return words.reading(at, parts.join(", "), "");
   } else if (
     (sel.kind === "rect" || sel.kind === "line" || sel.kind === "area") &&
     (m.kind === "rect" || m.kind === "line" || m.kind === "area")
@@ -1212,10 +1229,10 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
         m.kind === "rect"
           ? partText(model, m, s, sel.i, words)
           : samplePart(model, m, s, sel.i, words);
-      return words.segment(reading.at, s.name, value);
+      return words.segment(at, s.name, value);
     }
     if (m.kind === "line" && m.series.every((one) => one.y[sel.i] === null)) {
-      return words.reading(reading.at, words.noData, "");
+      return words.reading(at, words.noData, "");
     }
   }
   const parts = reading.entries
@@ -1225,10 +1242,10 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     // A gap at either end leaves the gap or change out, as the legend row's No data says.
     const frame = m.link === "range" ? words.gapReading : words.changeReading;
     return pointLink(m, sel.row) === null
-      ? words.reading(reading.at, parts, "")
-      : frame(reading.at, parts, reading.total ?? "");
+      ? words.reading(at, parts, "")
+      : frame(at, parts, reading.total ?? "");
   }
-  return words.reading(reading.at, parts, reading.total ?? "");
+  return words.reading(at, parts, reading.total ?? "");
 }
 
 // A chosen slope series, both its ends and its change, which a missing end leaves out.

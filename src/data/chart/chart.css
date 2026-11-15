@@ -122,7 +122,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cp-chart > [data-part="legend"] [data-part="at"] {
+.cp-chart > [data-part="legend"] :is([data-part="panel"], [data-part="at"]) {
   display: inline-block;
 }
 
@@ -273,6 +273,12 @@
   min-inline-size: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The selected panel's name, by weight as well as ink. */
+.cp-chart [data-part="panel"][data-selected] > [data-part="head"] > [data-part="name"] {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
 }
 
 .cp-chart [data-part="head"] > [data-part="figure"] {
@@ -519,6 +525,17 @@
   fill: none;
   stroke: var(--cp-ink);
   stroke-width: 2px;
+}
+
+/* Another panel's selection at this panel's same position: a fainter ring,
+ * and its row's name in ink alone, so the one real selection stands out. */
+.cp-chart svg[data-synced] [data-part="ring"] {
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
+}
+
+.cp-chart svg[data-synced] :is([data-part="y"], [data-part="x"]) text[data-selected] {
+  font-weight: inherit;
 }
 
 .cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {

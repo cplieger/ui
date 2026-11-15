@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { measurer } from "../scale/measure.js";
 
-import { facetLayout, headFigure, PANEL_HEIGHT } from "./facets.js";
+import { facetLayout, facetOverall, facetWidths, headFigure, PANEL_HEIGHT } from "./facets.js";
 import type { Metrics } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
@@ -34,7 +34,11 @@ const grid = (spec: ChartSpec, width: number) => {
 };
 
 const x = [0, 1, 2, 3];
-const line = (name: string, y: number[]): Mark => ({ mark: "line", x, series: [{ name, y }] });
+const line = (name: string, y: (number | null)[]): Mark => ({
+  mark: "line",
+  x,
+  series: [{ name, y }],
+});
 const lines = (count: number, more: Partial<ChartSpec> = {}): ChartSpec => ({
   y: { format: "percent" },
   marks: [],
@@ -326,5 +330,118 @@ describe("facets: the head figure", () => {
     expect(m.facets?.panels.map((p) => headFigure(p.model, words))).toEqual(["5%", "5%"]);
     const b = model(bars(["A", "B"]));
     expect(b.facets?.panels.map((p) => headFigure(p.model, words))).toEqual(["", ""]);
+  });
+
+  it("follows the selection: a line's value there, a bar's, a stack's total, a pie's slice share", () => {
+    const m = model(lines(2));
+    const at = { kind: "line", i: 1, part: undefined } as const;
+    expect(m.facets?.panels.map((p) => headFigure(p.model, words, at))).toEqual(["4%", "8%"]);
+    const b = model(bars(["A", "B"]));
+    const row = { kind: "bar", row: 2, part: undefined } as const;
+    expect(b.facets?.panels.map((p) => headFigure(p.model, words, row))).toEqual(["3", "3"]);
+    const stacks = model({
+      x: { domain: [0, 2] },
+      marks: [],
+      facets: {
+        panels: ["Germany", "France"].map((name, k) => ({
+          name,
+          marks: [
+            {
+              mark: "rect",
+              x1: [0, 1],
+              x2: [1, 2],
+              series: [
+                { name: "Coal", y: [1, 2 + k] },
+                { name: "Wind", y: [3, 4] },
+              ],
+            },
+          ],
+        })),
+      },
+    });
+    const bucket = { kind: "rect", i: 1, part: undefined } as const;
+    expect(stacks.facets?.panels.map((p) => headFigure(p.model, words))).toEqual(["10", "11"]);
+    expect(stacks.facets?.panels.map((p) => headFigure(p.model, words, bucket))).toEqual([
+      "6",
+      "7",
+    ]);
+    const pies = model({
+      marks: [],
+      facets: {
+        panels: ["2023", "2024"].map((name, k) => ({
+          name,
+          marks: [
+            {
+              mark: "pie",
+              slices: [
+                { name: "Coal", value: 1 + k },
+                { name: "Wind", value: 3 },
+              ],
+            },
+          ],
+        })),
+      },
+    });
+    const slice = { kind: "slice", i: 0 } as const;
+    expect(pies.facets?.panels.map((p) => headFigure(p.model, words))).toEqual(["4", "5"]);
+    expect(pies.facets?.panels.map((p) => headFigure(p.model, words, slice))).toEqual([
+      "25%",
+      "40%",
+    ]);
+  });
+});
+
+describe("facets: the figure's legend row", () => {
+  it("counts the panels in their unit or as panels, keeps an x every panel shares and blanks the values", () => {
+    const m = model(lines(3));
+    if (m.facets === undefined) {
+      throw new Error("no facets");
+    }
+    expect(facetOverall(m, m.facets, words)).toEqual({
+      panel: "3 panels",
+      at: "3",
+      entries: [{ slot: undefined, name: undefined, value: "" }],
+      total: undefined,
+    });
+    const one = model(
+      lines(1, {
+        facets: {
+          unit: { one: "region", other: "regions" },
+          panels: [{ marks: [line("North", [0.1, 0.2, 0.3, 0.4])] }],
+        },
+      }),
+    );
+    expect(one.facets && facetOverall(one, one.facets, words)?.panel).toBe("1\u00A0region");
+    // Panels whose last samples differ share no x.
+    const apart = model({
+      y: { format: "percent" },
+      marks: [],
+      facets: {
+        panels: [
+          { marks: [line("North", [0.1, 0.2, 0.3, 0.4])] },
+          { marks: [line("South", [0.1, 0.2, 0.3, null])] },
+        ],
+      },
+    });
+    expect(apart.facets && facetOverall(apart, apart.facets, words)?.at).toBe("");
+  });
+
+  it("measures each slot over every panel, and the panel slot over the count and the names", () => {
+    const m = model({
+      y: { format: "percent" },
+      marks: [],
+      facets: {
+        panels: [
+          { marks: [line("N", [0.1, 0.2, 0.3, 0.4])] },
+          { marks: [line("A long name", [0.1, 0.2, 0.3, 0.123])] },
+        ],
+      },
+    });
+    if (m.facets === undefined) {
+      throw new Error("no facets");
+    }
+    const w = facetWidths(m, m.facets, words, face);
+    expect(w.panel).toBe(face.number("A long name"));
+    expect(w.values[0]).toBeGreaterThanOrEqual(face.number("12.3%"));
   });
 });

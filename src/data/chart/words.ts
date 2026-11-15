@@ -58,6 +58,18 @@ export interface ChartWords {
   readonly chart?: string;
   /** The plot's description. Default "Arrow keys read the values. Tab leaves the chart." */
   readonly howTo?: string;
+  /** A panel's description under `facets`, in `howTo`'s place. Default
+   *  "Arrow keys read the values. Tab moves to the next panel, then out of the chart." */
+  readonly howToPanels?: string;
+  /** A panel's plot's name; description is its mark's short description.
+   *  Default "{panel}: {description}". */
+  readonly panelLabel?: (panel: string, description: string) => string;
+  /** The panels in the legend row with no selection, when `facets` names no
+   *  unit; count is n as a number, for the plural. Default "{n} panels", or
+   *  "{n} panel" for one. */
+  readonly panels?: (n: string, count: number) => string;
+  /** A place inside a panel, in what a panel's keys say. Default "{panel}, {at}". */
+  readonly panelAt?: (panel: string, at: string) => string;
   /** The kind that starts the short description, by key, each with an English default
    *  ("Column chart", "Dot plot" and the rest). A rect on a log x is a histogram; one
    *  series of a rect is a column chart, of a bar a bar chart or, with a value below 0, a
@@ -271,6 +283,10 @@ const sentence = (t: string): string => (/[.!?\u2026]$/u.test(t) ? t : `${t}.`);
 const DEFAULTS: Words = {
   chart: "chart",
   howTo: "Arrow keys read the values. Tab leaves the chart.",
+  howToPanels: "Arrow keys read the values. Tab moves to the next panel, then out of the chart.",
+  panelLabel: (panel, description) => `${panel}: ${description}`,
+  panels: (n, count) => (count === 1 ? `${n} panel` : `${n} panels`),
+  panelAt: (panel, at) => `${panel}, ${at}`,
   kind: {
     stackedColumn: "Stacked column chart",
     groupedColumn: "Grouped column chart",

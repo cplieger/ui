@@ -1171,3 +1171,205 @@ describe("keys, the pointer and touch on a treemap", () => {
     expect(legendText(b)).toBe(`Asia, China 17,795${nb}bn USD, 28% · ${chips}`);
   });
 });
+
+describe("keys, the pointer and the synced selection in small multiples", () => {
+  const months = Array.from({ length: 6 }, (_, i) => Date.UTC(2024, i, 1));
+  const regions: ChartSpec = {
+    x: { type: "time", domain: [months[0] ?? 0, months.at(-1) ?? 0] },
+    y: { label: "Unemployment", format: "percent" },
+    marks: [],
+    facets: {
+      unit: { one: "region", other: "regions" },
+      panels: [
+        {
+          marks: [
+            {
+              mark: "line",
+              x: months,
+              series: [{ name: "North", y: [5, 6, 7, 8, 9, 10].map((v) => v / 100) }],
+            },
+          ],
+        },
+        {
+          marks: [
+            {
+              mark: "line",
+              x: months,
+              series: [{ name: "South", y: [3, 3, 4, 4, 5, 5].map((v) => v / 100) }],
+            },
+          ],
+        },
+        // East starts a month late, so it has no January.
+        {
+          marks: [
+            {
+              mark: "line",
+              x: months.slice(1),
+              series: [{ name: "East", y: [2, 2, 2, 2, 2].map((v) => v / 100) }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  // A time domain of months reads its instants to the minute.
+  const instant = new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+  const jan = instant.format(months[0]);
+  const jun = instant.format(months[5]);
+  const frames = (b: Built) => [...b.plot.querySelectorAll<HTMLElement>('[data-part="frame"]')];
+  const frame = (b: Built, k: number) => frames(b)[k] as HTMLElement;
+  const svgOf = (b: Built, k: number) => frame(b, k).querySelector("svg") as SVGSVGElement;
+  const ringIn = (b: Built, k: number) => svgOf(b, k).querySelector('[data-part="ring"]');
+  const heads = (b: Built) =>
+    [...b.plot.querySelectorAll('[data-part="head"] > [data-part="figure"]')].map(
+      (f) => f.textContent,
+    );
+  const slot = (b: Built) => b.legend.querySelector(':scope > [data-part="panel"]')?.textContent;
+  // A pointer event at plot px (x, y) of panel k's drawing area.
+  const pointIn = (b: Built, k: number, type: string, x: number, y = 10) => {
+    const svg = svgOf(b, k);
+    const area = svg.querySelector('[data-part="area"]') as SVGSVGElement;
+    const view = svg.viewBox.baseVal;
+    const box = svg.getBoundingClientRect();
+    frame(b, k).dispatchEvent(
+      new PointerEvent(type, {
+        clientX: box.left + Number(area.getAttribute("x")) - view.x + AREA_ROOM + x,
+        clientY: box.top + Number(area.getAttribute("y")) + AREA_ROOM + y,
+        pointerType: "mouse",
+        pointerId: 1,
+        bubbles: type !== "pointerleave",
+      }),
+    );
+  };
+
+  it("makes each panel's plot a tab stop and an application region, not the plot around them", async () => {
+    const b = build(regions);
+    expect(b.plot.hasAttribute("role")).toBe(false);
+    expect(b.plot.hasAttribute("tabindex")).toBe(false);
+    for (const [k, name] of ["North", "South", "East"].entries()) {
+      const f = frame(b, k);
+      expect(f.getAttribute("role")).toBe("application");
+      expect(f.getAttribute("aria-roledescription")).toBe("chart");
+      expect(f.tabIndex).toBe(0);
+      await expect
+        .element(f)
+        .toHaveAccessibleName(expect.stringMatching(new RegExp(`^${name}: Line chart, `)));
+      await expect
+        .element(f)
+        .toHaveAccessibleDescription(
+          "Arrow keys read the values. Tab moves to the next panel, then out of the chart.",
+        );
+    }
+    expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+  });
+
+  it("Tab moves from panel to panel in grid order, carrying the selected month, then out", async () => {
+    const b = build(regions);
+    (b.figure.previousElementSibling as HTMLElement).focus();
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(frame(b, 0));
+    await spoken(`North, ${jun}: 10%.`);
+    expect(slot(b)).toBe("North");
+    key(frame(b, 0), "Home");
+    await spoken(`North, ${jan}: 5%.`);
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(frame(b, 1));
+    await spoken(`South, ${jan}: 3%.`);
+    expect(legendText(b)).toBe(`South · ${jan} · 3%`);
+    // East has no January, so it makes its own first selection, its newest month.
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(frame(b, 2));
+    await spoken(`East, ${jun}: 2%.`);
+    await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+    expect(document.activeElement).toBe(frame(b, 1));
+    await spoken(`South, ${jun}: 5%.`);
+    await userEvent.keyboard("{Tab}{Tab}");
+    expect(document.activeElement).toBe(b.figure.nextElementSibling);
+    expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
+    expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+  });
+
+  it("syncs the selection into every panel holding its month, with a fainter ring, and the heads follow", () => {
+    const b = build(regions);
+    expect(heads(b)).toEqual(["10%", "5%", "2%"]);
+    frame(b, 0).focus();
+    key(frame(b, 0), "Home");
+    expect(svgOf(b, 0).hasAttribute("data-synced")).toBe(false);
+    expect(ringIn(b, 0)).not.toBeNull();
+    expect(svgOf(b, 1).hasAttribute("data-synced")).toBe(true);
+    expect(ringIn(b, 1)).not.toBeNull();
+    expect(svgOf(b, 1).querySelector('[data-part="crosshair"]')).not.toBeNull();
+    expect(svgOf(b, 2).hasAttribute("data-synced")).toBe(false);
+    expect(ringIn(b, 2)).toBeNull();
+    expect(heads(b)).toEqual(["5%", "3%", "2%"]);
+    const selected = [...b.plot.querySelectorAll('[data-part="panel"]')].map((p) =>
+      p.hasAttribute("data-selected"),
+    );
+    expect(selected).toEqual([true, false, false]);
+    const synced = getComputedStyle(ringIn(b, 1) as Element);
+    const own = getComputedStyle(ringIn(b, 0) as Element);
+    expect(synced.strokeWidth).toBe("1px");
+    expect(own.strokeWidth).toBe("2px");
+    expect(synced.stroke).not.toBe(own.stroke);
+    key(frame(b, 0), "Escape");
+    expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
+    expect(heads(b)).toEqual(["10%", "5%", "2%"]);
+    expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+  });
+
+  it("a mouse selects in the panel under it, clearing the one the keys left elsewhere", () => {
+    const b = build(regions);
+    frame(b, 0).focus();
+    const width =
+      Number(svgOf(b, 1).querySelector('[data-part="area"]')?.getAttribute("width")) -
+      2 * AREA_ROOM;
+    // The second panel's SVG starts at its plot's edge: its first month is at 0.
+    pointIn(b, 1, "pointermove", 1);
+    expect(legendText(b)).toBe(`South · ${jan} · 3%`);
+    expect(svgOf(b, 0).hasAttribute("data-synced")).toBe(true);
+    pointIn(b, 1, "pointermove", width - 1);
+    expect(legendText(b)).toBe(`South · ${jun} · 5%`);
+    pointIn(b, 1, "pointerleave", width + 40);
+    expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+    expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
+  });
+
+  it("keeps the legend row's slots as the selection moves between panels", () => {
+    const b = build(regions);
+    // WebKit lays text out in 1/64 px units, so a slot may round 1/64 px wider.
+    const slots = () =>
+      [':scope > [data-part="panel"]', ':scope > [data-part="at"]', '[data-part="value"]'].map(
+        (q) => b.legend.querySelector(q)?.getBoundingClientRect().right ?? 0,
+      );
+    const none = slots();
+    const height = b.legend.getBoundingClientRect().height;
+    frame(b, 2).focus();
+    for (const [k, right] of slots().entries()) {
+      expect(right).toBeCloseTo(none[k] ?? 0, 1);
+    }
+    key(frame(b, 2), "Home");
+    for (const [k, right] of slots().entries()) {
+      expect(right).toBeCloseTo(none[k] ?? 0, 1);
+    }
+    expect(b.legend.getBoundingClientRect().height).toBe(height);
+  });
+
+  it("tears down to an image per panel, moving focus from a focused panel to the figure", () => {
+    const b = build(regions);
+    frame(b, 1).focus();
+    b.life.abort();
+    expect(document.activeElement).toBe(b.figure);
+    for (const f of frames(b)) {
+      expect(f.getAttribute("role")).toBe("img");
+      expect(f.hasAttribute("tabindex")).toBe(false);
+      expect(f.hasAttribute("aria-roledescription")).toBe(false);
+    }
+    expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
+  });
+});

@@ -171,6 +171,33 @@ describe("rect keys", () => {
     );
   });
 
+  it("starts every place a panel's keys say with the panel's name", () => {
+    const path: Selection = { kind: "rect", i: 1, part: 1 };
+    expect(spoken(b.model, path, words, true, "Germany")).toBe(`Germany, ${span(15, 30)}: Path 9.`);
+    expect(spoken(b.model, { kind: "rect", i: 0, part: undefined }, words, false, "Germany")).toBe(
+      `Germany, ${span(0, 15)}: Announce 3, Path 1. Total 4.`,
+    );
+    const pie = chartModel(
+      {
+        marks: [
+          {
+            mark: "pie",
+            slices: [
+              { name: "Coal", value: 1 },
+              { name: "Wind", value: 3 },
+            ],
+          },
+        ],
+      },
+      "en",
+      "UTC",
+    );
+    const ownWords = chartWords({ panelAt: (panel, at) => `${at} (${panel})` });
+    expect(spoken(pie, { kind: "slice", i: 1 }, ownWords, false, "2024")).toBe(
+      "Wind (2024): 3, 75%. Total 4.",
+    );
+  });
+
   it("says one segment for Up and Down, and the whole bucket again for Left and Right", () => {
     const path: Selection = { kind: "rect", i: 1, part: 1 };
     expect(spoken(b.model, path, words, true)).toBe(`${span(15, 30)}: Path 9.`);

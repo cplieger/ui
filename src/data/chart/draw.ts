@@ -638,7 +638,8 @@ function scatterHair(model: Model, lay: Layout, sel: Selection): string {
 
 /**
  * Draws `sel`'s crosshair and ring over the plot `drawPlot` drew in `svg`,
- * replacing the last; none with no selection.
+ * replacing the last; none with no selection. A `synced` selection is
+ * another panel's, which the stylesheet draws fainter.
  */
 export function drawSelection(
   svg: SVGSVGElement,
@@ -646,7 +647,9 @@ export function drawSelection(
   lay: Layout,
   sel: Selection | undefined,
   nav: Navigator,
+  synced = false,
 ): void {
+  svg.toggleAttribute("data-synced", synced && sel !== undefined);
   const area = svg.querySelector('[data-part="area"]');
   area?.querySelector('[data-part="selection"]')?.remove();
   // A bar, point or box row's selection, and a cell's row and column, show
@@ -736,8 +739,9 @@ const rowHeld = (px: number): string => `min(${num(px)}px, 100%)`;
 
 /**
  * Builds the legend row's entries for readings shaped like `reading`: the
- * x slot, a chip per named series with its swatch, a bare value for a lone
- * series, and a stack's total, each slot kept at its width in `widths`.
+ * panel slot under `facets`, the x slot, a chip per named series with its
+ * swatch, a bare value for a lone series, and a stack's total, each slot
+ * kept at its width in `widths`.
  * With `chooses`, each chip name keeps the width its chosen weight needs.
  */
 export function frameLegend(
@@ -750,6 +754,11 @@ export function frameLegend(
   const at = span("at");
   at.style.minInlineSize = rowHeld(widths.at);
   const parts = document.createDocumentFragment();
+  if (reading.panel !== undefined) {
+    const panel = span("panel");
+    panel.style.minInlineSize = rowHeld(widths.panel ?? 0);
+    parts.append(panel);
+  }
   parts.append(at);
   reading.entries.forEach((e, k) => {
     const value = span("value");
@@ -971,6 +980,9 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
 
 /** Writes `reading` into a legend row `frameLegend` built for its shape. */
 export function writeLegend(legend: HTMLElement, reading: Reading): void {
+  if (reading.panel !== undefined) {
+    legend.querySelector(':scope > [data-part="panel"]')?.replaceChildren(bdi(reading.panel));
+  }
   const at = legend.querySelector('[data-part="at"]');
   at?.replaceChildren(bdi(reading.at));
   const values = legend.querySelectorAll('[data-part="value"]');
