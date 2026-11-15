@@ -1,10 +1,8 @@
 /**
- * header-status.ts — `createHeaderStatus()` keeps the header's status pill,
- * its panel and the urgent banner in step with the app's own model: it
- * computes the state and its words, worst level first, turns the pill
- * offline only after the stream has been down for a while, writes the
- * panel's sections as list rows patched in place by id, and says politely
- * when things turn worse or come right.
+ * `createHeaderStatus()` keeps the header's status pill, its panel and the
+ * urgent banner in step with the app's own model: worst level first, offline
+ * only after the stream has been down a while, the panel's rows patched in
+ * place by id, and a polite word when things turn worse or come right.
  * @module
  */
 
@@ -324,6 +322,19 @@ const hidden = (text: string): HTMLElement => h("span", { class: "cp-visually-hi
 const stamp = (d: Date | number): HTMLTimeElement =>
   h("time", { datetime: new Date(+d).toISOString() });
 
+/** Throws before `model` is kept, so the kept model always renders. */
+function checkDates(model: StatusModel): void {
+  const dates = [
+    ...model.conditions.flatMap((c) => [c.since, c.seen]),
+    ...(model.recent ?? []).map((r) => r.at),
+  ];
+  for (const d of dates) {
+    if (d !== undefined && Number.isNaN(new Date(+d).getTime())) {
+      throw new RangeError(`createHeaderStatus: invalid date ${String(d)}`);
+    }
+  }
+}
+
 const chevron = (): HTMLElement => icon("chevron-right");
 
 /** A row of a list section: `a.cp-list-row` when it links, else a div. */
@@ -457,6 +468,9 @@ export function createHeaderStatus(
   const stopping = new Set<string>();
   const refused = new Map<string, string>();
   const kept = new Set<Element>();
+  /** One signal per shown time, so a time that leaves or is enhanced again
+   *  releases its relative-time entry rather than holding it until destroy. */
+  const times = new Map<HTMLTimeElement, AbortController>();
 
   const id = `cp-status-${String(++seq)}`;
   const title = h("h2", { id: `${id}-h`, tabindex: "-1" });
@@ -614,8 +628,27 @@ export function createHeaderStatus(
     const urgent = conditionOrder(model.conditions).filter((c) => c.urgent === true);
     syncList(banner, urgent.map(bannerOf));
     banner.hidden = urgent.length === 0;
-    for (const t of banner.querySelectorAll<HTMLTimeElement>("time:not([data-cp-tip])")) {
-      enhanceRelativeTime(t, { signal: life.signal, ...(locale === undefined ? {} : { locale }) });
+    enhanceTimes(banner);
+  };
+
+  const enhanceTimes = (root: Element): void => {
+    for (const t of root.querySelectorAll<HTMLTimeElement>("time:not([data-cp-tip])")) {
+      times.get(t)?.abort();
+      const own = new AbortController();
+      times.set(t, own);
+      enhanceRelativeTime(t, {
+        signal: AbortSignal.any([life.signal, own.signal]),
+        ...(locale === undefined ? {} : { locale }),
+      });
+    }
+  };
+
+  const releaseTimes = (): void => {
+    for (const [t, own] of times) {
+      if (!panel.contains(t) && parts.banner?.contains(t) !== true) {
+        own.abort();
+        times.delete(t);
+      }
     }
   };
 
@@ -650,15 +683,16 @@ export function createHeaderStatus(
     );
     const shown = model.work.slice(0, 3);
     const total = model.workTotal ?? model.work.filter((x) => x.queued !== true).length;
+    const runningShown = shown.filter((x) => x.queued !== true).length;
     const workRows = shown.map(workRow);
-    if (shown.length === 0 && model.next !== undefined) {
+    if (total === 0 && runningShown === 0 && model.next !== undefined) {
       workRows.push(
         item(
           undefined,
           row(undefined, icon("clock"), h("span", { class: "cp-cell-stack" }, model.next)),
         ),
       );
-    } else if (model.workHref !== undefined && Math.max(total, model.work.length) > shown.length) {
+    } else if (model.workHref !== undefined && total > runningShown) {
       workRows.push(
         h(
           "li",
@@ -705,13 +739,7 @@ export function createHeaderStatus(
       kids.push(foot);
     }
     place(panel, kids);
-
-    for (const time of panel.querySelectorAll<HTMLTimeElement>("time:not([data-cp-tip])")) {
-      enhanceRelativeTime(time, {
-        signal: life.signal,
-        ...(locale === undefined ? {} : { locale }),
-      });
-    }
+    enhanceTimes(panel);
     if (offline) {
       for (const s of [conditions, work]) {
         for (const li of s?.querySelectorAll("li[data-cp-key]") ?? []) {
@@ -751,6 +779,7 @@ export function createHeaderStatus(
     }
     renderPanel(pill);
     renderBanner();
+    releaseTimes();
     if (!inside || document.activeElement === active) {
       return;
     }
@@ -807,23 +836,32 @@ export function createHeaderStatus(
     if (gone || work?.stop === undefined || stopping.has(key)) {
       return;
     }
-    const { run, ask: question } = work.stop;
+    const question = work.stop.ask;
     if (question !== undefined) {
       const { message, ...rest } = question;
       if (!(await ask(message, rest)) || ended()) {
         return;
       }
     }
+    // The model may have moved while the question was open: stop the item
+    // shown now, never the one read at the click.
+    const current = model.work.find((x) => x.id === key);
+    if (current?.stop === undefined || stopping.has(key)) {
+      return;
+    }
     stopping.add(key);
     refused.delete(key);
     render();
     try {
-      await run();
+      await current.stop.run();
     } catch (error) {
       if (ended()) {
         return;
       }
       stopping.delete(key);
+      if (!model.work.some((x) => x.id === key)) {
+        return;
+      }
       const reason = w.refused(error);
       refused.set(key, reason);
       announce(reason);
@@ -863,6 +901,7 @@ export function createHeaderStatus(
       if (gone) {
         return;
       }
+      checkDates(next);
       model = next;
       const present = new Set(model.work.map((x) => x.id));
       for (const key of [...stopping, ...refused.keys()]) {

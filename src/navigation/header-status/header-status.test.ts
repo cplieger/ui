@@ -577,11 +577,42 @@ describe("the panel's sections", () => {
     expect(recent[0]?.querySelector("time")?.dataset["cpTip"]).toBeTruthy();
   });
 
-  it("refuses an invalid date", () => {
-    const { status } = mount();
+  it("refuses an invalid date and keeps working on the model before it", () => {
+    const { button, status } = mount({ offlineAfter: 500 });
+    status.update(model({ conditions: [warning("w")] }));
     expect(() =>
       status.update(model({ recent: [{ id: "r", words: "x", at: Number.NaN }] })),
     ).toThrow(RangeError);
+    expect(() => {
+      status.update(model({ conditions: [problem("p", { since: Number.NaN })] }));
+    }).toThrow(RangeError);
+    expect(() => {
+      status.update(model({ conditions: [problem("p", { seen: new Date(Number.NaN) })] }));
+    }).toThrow(RangeError);
+    expect(words(button)).toBe("1 warning");
+    status.connection("lost");
+    expect(detail(button)).toBe("Reconnecting…");
+    vi.advanceTimersByTime(500);
+    expect(button.dataset["state"]).toBe("offline");
+  });
+
+  it("lets go of a time once its row leaves or its moment changes", () => {
+    const signals = vi.spyOn(AbortSignal, "any");
+    const { status } = mount();
+    status.update(model({ recent: [{ id: "r", words: "Scan ended", at: Date.now() - 60_000 }] }));
+    const recent = signals.mock.results.at(-1)?.value as AbortSignal;
+    expect(recent.aborted).toBe(false);
+    status.update(model({}));
+    expect(recent.aborted).toBe(true);
+    const urgent = (seen: number) =>
+      model({ conditions: [problem("u", { urgent: true, seen, href: "/u" })] });
+    status.update(urgent(Date.now() - 60_000));
+    const first = signals.mock.results.at(-1)?.value as AbortSignal;
+    expect(first.aborted).toBe(false);
+    status.update(urgent(Date.now() - 30_000));
+    expect(first.aborted).toBe(true);
+    expect((signals.mock.results.at(-1)?.value as AbortSignal).aborted).toBe(false);
+    signals.mockRestore();
   });
 });
 
@@ -607,6 +638,27 @@ describe("the running section", () => {
     expect(more?.getAttribute("href")).toBe("/running");
     status.update(model({ work: [job("a"), job("b")], workHref: "/running" }));
     expect(panel.querySelector(".cp-list-foot")).toBeNull();
+  });
+
+  it("counts only running work in Show all, never the queue", () => {
+    const { panel, status } = mount();
+    const queued = (id: string) => job(id, { queued: true });
+    status.update(
+      model({
+        work: [queued("q1"), queued("q2"), queued("q3"), queued("q4")],
+        workHref: "/running",
+      }),
+    );
+    expect(rows(panel, "work")).toHaveLength(3);
+    expect(panel.querySelector(".cp-list-foot")).toBeNull();
+    status.update(
+      model({ work: [job("a"), queued("q1"), queued("q2"), queued("q3")], workHref: "/running" }),
+    );
+    expect(panel.querySelector(".cp-list-foot")).toBeNull();
+    status.update(
+      model({ work: [queued("q1"), job("a"), job("b"), job("c")], workHref: "/running" }),
+    );
+    expect(panel.querySelector(".cp-list-foot > a")?.textContent).toBe("Show all 3 running");
   });
 
   it("writes a row's progress, how far it is and its phase", () => {
@@ -639,6 +691,11 @@ describe("the running section", () => {
     );
     status.update(model({ next: "Next scan 03:00", work: [job("a")] }));
     expect(panel.querySelector('[data-cp-status="work"]')?.textContent).not.toContain("Next scan");
+    status.update(model({ next: "Next scan 03:00", work: [job("q", { queued: true })] }));
+    const lines = [
+      ...panel.querySelectorAll('[data-cp-status="work"] li > .cp-list-row > .cp-cell-stack'),
+    ].map((s) => s.textContent);
+    expect(lines).toEqual(["q", "Next scan 03:00"]);
   });
 
   it("links the whole row with no Stop, and the title beside a Stop", () => {
@@ -771,11 +828,89 @@ describe("the running section", () => {
     expect(stopButton(panel, "a").hasAttribute("aria-disabled")).toBe(false);
   });
 
-  it("shows a queued item as Queued with Cancel, never counted", async () => {
-    const { button, panel, status } = mount();
-    status.update(
-      model({ work: [job("Next pass", { queued: true, stop: { run: () => Promise.resolve() } })] }),
+  it("stops nothing when its item left while the question was open", async () => {
+    vi.useRealTimers();
+    const real = matchMedia.bind(window);
+    vi.stubGlobal("matchMedia", (q: string) =>
+      q === "(prefers-reduced-motion: reduce)" ? { ...real(q), matches: true } : real(q),
     );
+    const { panel, status } = mount();
+    const run = vi.fn(() => Promise.resolve());
+    const m = model({
+      work: [job("Full check", { stop: { run, ask: { message: "Stop the full check?" } } })],
+    });
+    status.update(m);
+    stopButton(panel, "Full check").click();
+    const dialog = await vi.waitFor(() => {
+      const d = document.querySelector<HTMLDialogElement>("dialog[open]");
+      expect(d).not.toBeNull();
+      return d as HTMLDialogElement;
+    });
+    status.update(model({}));
+    (dialog.querySelector('button[value="confirm"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(document.querySelector("dialog")).toBeNull();
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(run).not.toHaveBeenCalled();
+    expect(document.querySelector('[aria-live="polite"]')?.textContent ?? "").toBe("");
+    status.update(m);
+    expect(stopButton(panel, "Full check").firstChild?.textContent).toBe("Stop");
+  });
+
+  it("stops the item shown when the question closes, not the one asked about", async () => {
+    vi.useRealTimers();
+    const real = matchMedia.bind(window);
+    vi.stubGlobal("matchMedia", (q: string) =>
+      q === "(prefers-reduced-motion: reduce)" ? { ...real(q), matches: true } : real(q),
+    );
+    const { panel, status } = mount();
+    const before = vi.fn(() => Promise.resolve());
+    const after = vi.fn(() => Promise.resolve());
+    const ask = { message: "Stop the full check?" };
+    status.update(model({ work: [job("Full check", { stop: { run: before, ask } })] }));
+    stopButton(panel, "Full check").click();
+    const dialog = await vi.waitFor(() => {
+      const d = document.querySelector<HTMLDialogElement>("dialog[open]");
+      expect(d).not.toBeNull();
+      return d as HTMLDialogElement;
+    });
+    status.update(model({ work: [job("Full check", { stop: { run: after, ask } })] }));
+    (dialog.querySelector('button[value="confirm"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(after).toHaveBeenCalledOnce();
+    });
+    expect(before).not.toHaveBeenCalled();
+  });
+
+  it("drops a refusal that comes back after its item left", async () => {
+    const { panel, status } = mount();
+    let refuse = (_: Error): void => undefined;
+    const run = vi.fn(
+      () =>
+        new Promise<void>((_, reject) => {
+          refuse = reject;
+        }),
+    );
+    const m = model({ work: [job("a", { stop: { run } })] });
+    status.update(m);
+    stopButton(panel, "a").click();
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledOnce();
+    });
+    status.update(model({}));
+    refuse(new Error("No such pass"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(said()).toBe("");
+    status.update(m);
+    expect(rows(panel, "work")[0]?.querySelector(".cp-cell-stack > small")).toBeNull();
+    expect(stopButton(panel, "a").firstChild?.textContent).toBe("Stop");
+  });
+
+  it("shows a queued item as Queued with Cancel, never counted, and cancels at once", async () => {
+    const { button, panel, status } = mount();
+    const run = vi.fn(() => Promise.resolve());
+    status.update(model({ work: [job("Next pass", { queued: true, stop: { run } })] }));
     panel.showPopover();
     expect(button.dataset["state"]).toBe("ok");
     const [queued] = rows(panel, "work") as [HTMLElement];
@@ -784,6 +919,11 @@ describe("the running section", () => {
     await expect
       .element(page.getByRole("button", { name: "Cancel Next pass" }))
       .toBeInTheDocument();
+    stopButton(panel, "Next pass").click();
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledOnce();
+    });
+    expect(document.querySelector("dialog")).toBeNull();
   });
 });
 
