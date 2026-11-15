@@ -1530,3 +1530,106 @@ describe("the summary of a treemap", () => {
     );
   });
 });
+
+describe("the summary of small multiples", () => {
+  const line = (name: string, y: (number | null)[], more: Mark[] = []) => ({
+    marks: [{ mark: "line" as const, x: [0, 1, 2, 3], series: [{ name, y }] }, ...more],
+  });
+  const regions = { one: "region", other: "regions" };
+
+  it("says the panel count, the shared range once, each panel's series, the rules, then the notes", () => {
+    const m = model({
+      y: { format: "percent" },
+      marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+      facets: {
+        unit: regions,
+        panels: [
+          line(
+            "North",
+            [0.042, 0.098, 0.07, 0.061],
+            [{ mark: "text", x: 1, y: 0.098, text: "Strike" }],
+          ),
+          line("South", [0.031, 0.074, 0.05, 0.039]),
+        ],
+      },
+    });
+    expect(generatedSummary(m, words)).toBe(
+      `2${nb}regions. 0 to 3, every 1. North: last 6%, low 4%, high 10%. South: last 4%, low 3%, high 7%. Target 5%. North, 1: Strike.`,
+    );
+  });
+
+  it("puts a panel's own sentences after its name when they do not start with it", () => {
+    const panel = (name: string, coal: number[], gas: number[]) => ({
+      name,
+      marks: [
+        {
+          mark: "rect" as const,
+          x1: [0, 10],
+          x2: [10, 20],
+          series: [
+            { name: "Coal", y: coal },
+            { name: "Gas", y: gas },
+          ],
+        },
+      ],
+    });
+    const m = model({
+      marks: [],
+      facets: { panels: [panel("Germany", [3, 4], [1, 2]), panel("France", [1, 0], [5, 6])] },
+    });
+    expect(generatedSummary(m, words)).toBe(
+      "2 panels. Germany. 10, every 10 from 0 to 20: Coal 7, Gas 3. Busiest: 10 to 20, 6. France. 12, every 10 from 0 to 20: Coal 1, Gas 11. Busiest: 0 to 10, 6.",
+    );
+  });
+
+  it("names per-series bar panels whose sentences do not name their series, and says the shared rows once", () => {
+    const panel = (name: string, coal: number) => ({
+      name,
+      marks: [
+        {
+          mark: "bar" as const,
+          y: ["Coal", "Gas"],
+          series: [{ name: "Share", x: [coal, 2] }],
+        },
+      ],
+    });
+    const m = model({ marks: [], facets: { panels: [panel("2023", 3), panel("2024", 1)] } });
+    expect(generatedSummary(m, words)).toBe(
+      "2 panels. 2 categories. 2023. Highest Coal 3, lowest Gas 2. 2024. Highest Gas 2, lowest Coal 1.",
+    );
+  });
+
+  it("shares nothing in a grid of one, so the panel keeps its name", () => {
+    const m = model({ marks: [], facets: { panels: [line("North", [1, 2, 3, 4])] } });
+    expect(generatedSummary(m, words)).toBe(
+      "1 panel. North. 0 to 3, every 1. North: last 4, low 1, high 4.",
+    );
+  });
+
+  it("writes the summary in the app's words for the head and each panel", () => {
+    const own = chartWords({
+      facetSummary: (count) => `Panels: ${count}.`,
+      panel: (name, sentences) => `[${name}] ${sentences}`,
+    });
+    const m = model({
+      marks: [],
+      facets: {
+        panels: ["A", "B"].map((name, k) => ({
+          name,
+          marks: [
+            {
+              mark: "pie" as const,
+              slices: [
+                { name: "X", value: k + 1 },
+                { name: "Y", value: 1 },
+              ],
+            },
+          ],
+        })),
+      },
+    });
+    expect(generatedSummary(m, own)).toBe(
+      "Panels: 2 panels. [A] 2: X 50%, Y 50%. [B] 3: X 67%, Y 33%.",
+    );
+  });
+});

@@ -70,6 +70,12 @@ export interface ChartWords {
   readonly panels?: (n: string, count: number) => string;
   /** A place inside a panel, in what a panel's keys say. Default "{panel}, {at}". */
   readonly panelAt?: (panel: string, at: string) => string;
+  /** Summary under `facets`, its head; count is the panel count in
+   *  `facets.unit` or as `panels`. Default "{count}." */
+  readonly facetSummary?: (count: string) => string;
+  /** Summary under `facets`, one panel's own sentences, joined by spaces.
+   *  Default "{name}. {sentences}" */
+  readonly panel?: (name: string, sentences: string) => string;
   /** The kind that starts the short description, by key, each with an English default
    *  ("Column chart", "Dot plot" and the rest). A rect on a log x is a histogram; one
    *  series of a rect is a column chart, of a bar a bar chart or, with a value below 0, a
@@ -287,6 +293,8 @@ const DEFAULTS: Words = {
   panelLabel: (panel, description) => `${panel}: ${description}`,
   panels: (n, count) => (count === 1 ? `${n} panel` : `${n} panels`),
   panelAt: (panel, at) => `${panel}, ${at}`,
+  facetSummary: (count) => `${count}.`,
+  panel: (name, sentences) => `${name}. ${sentences}`,
   kind: {
     stackedColumn: "Stacked column chart",
     groupedColumn: "Grouped column chart",

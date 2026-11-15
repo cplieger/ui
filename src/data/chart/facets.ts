@@ -4,7 +4,6 @@
  * @module
  */
 
-import { writer } from "../scale/format.js";
 import type { Measure } from "../scale/measure.js";
 
 import { colourKey, drawPlot, frameLegend, sizeKey, writeLegend } from "./draw.js";
@@ -13,9 +12,9 @@ import { layout, NARROW_REM, PANEL_GAP, type Floors, type Layout, type Metrics }
 import { barsApart, type FacetsModel, type Model } from "./model.js";
 import {
   chipChosen,
-  counted,
   dotsText,
   overall,
+  panelCount,
   partAmount,
   readoutWidths,
   sliceShare,
@@ -186,13 +185,6 @@ function headWidth(model: Model, words: Words, w: Widths, measure: Measure): num
   const [one, ...more] = overall(model, words)?.entries ?? [];
   const single = more.length === 0 && one !== undefined && one.name === undefined;
   return Math.max(none, single ? (w.values[0] ?? 0) : w.total);
-}
-
-/** The panel count, in `facets.unit` or as `words.panels`. */
-function panelCount(model: Model, facets: FacetsModel, words: Words): string {
-  const n = facets.panels.length;
-  const count = writer("number", model.locale)(n);
-  return facets.unit === undefined ? words.panels(count, n) : counted(count, n, facets.unit, model);
 }
 
 /** The figure's legend row with no selection: the panel count, the x

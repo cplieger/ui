@@ -25,6 +25,7 @@ import {
   type CalendarModel,
   type CellModel,
   type DotModel,
+  type FacetsModel,
   type Model,
   type PieModel,
   type TreeModel,
@@ -68,6 +69,13 @@ export const counted = (
   unit: Unit | undefined,
   model: Model,
 ): string => (unit === undefined ? value : withNoun(value, noun(unit, count, model.locale)));
+
+/** Small multiples' panel count, in `facets.unit` or as `words.panels`. */
+export function panelCount(model: Model, facets: FacetsModel, words: Words): string {
+  const n = facets.panels.length;
+  const count = writer("number", model.locale)(n);
+  return facets.unit === undefined ? words.panels(count, n) : counted(count, n, facets.unit, model);
+}
 
 /** The x domain in words, `underRange` when a log x's underflow bin is drawn below it. */
 export function domainText(model: Model, words: Words): string {

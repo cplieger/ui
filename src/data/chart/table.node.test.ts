@@ -1118,3 +1118,176 @@ describe("the table of a treemap", () => {
     expect(foot(t)).toEqual(["Total", "4", "100%"]);
   });
 });
+
+describe("the table of small multiples", () => {
+  const line = (name: string, x: number[], y: (number | null)[], more: Mark[] = []) => ({
+    marks: [{ mark: "line" as const, x, series: [{ name, y }] }, ...more],
+  });
+
+  it("gives per-series panels a column each under the panel's name, No data where one has no sample", () => {
+    const t = tableModel(
+      model({
+        x: { label: "Week" },
+        y: { format: "percent" },
+        marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+        facets: {
+          panels: [
+            line(
+              "North",
+              [0, 1, 2],
+              [0.02, 0.04, 0.06],
+              [{ mark: "text", x: 1, y: 0.04, text: "Strike" }],
+            ),
+            line("South", [1, 2, 3], [0.03, 0.05, 0.07]),
+          ],
+        },
+      }),
+      words,
+    );
+    expect(t.corner).toBe("Week");
+    expect(t.bands).toBeUndefined();
+    expect(t.columns).toEqual([
+      { text: "North", num: true },
+      { text: "South", num: true },
+    ]);
+    expect(cells(t)).toEqual([
+      ["0", "2%", "No data"],
+      ["1", "4%", "3%"],
+      ["2", "6%", "5%"],
+      ["3", "No data", "7%"],
+    ]);
+    expect(t.after).toBe("Target 5%. North, 1: Strike.");
+  });
+
+  it("gives per-category panels a column group each over the mark's columns and its Total", () => {
+    const panel = (name: string, coal: number[], gas: number[]) => ({
+      name,
+      marks: [
+        {
+          mark: "rect" as const,
+          x1: [0, 10],
+          x2: [10, 20],
+          series: [
+            { name: "Coal", y: coal },
+            { name: "Gas", y: gas },
+          ],
+        },
+      ],
+    });
+    const t = tableModel(
+      model({
+        marks: [],
+        facets: { panels: [panel("Germany", [3, 4], [1, 2]), panel("France", [1, 0], [5, 6])] },
+      }),
+      words,
+    );
+    expect(t.bands).toEqual([
+      { text: "Germany", span: 3 },
+      { text: "France", span: 3 },
+    ]);
+    expect(t.lead).toBe(0);
+    expect(t.columns.map((c) => c.text)).toEqual(["Coal", "Gas", "Total", "Coal", "Gas", "Total"]);
+    expect(cells(t).map((r) => r.slice(1))).toEqual([
+      ["3", "1", "4", "1", "5", "6"],
+      ["4", "2", "6", "0", "6", "6"],
+    ]);
+  });
+
+  it("keeps a box plot's Series column once, before the panels' groups", () => {
+    const box = (name: string, median: number) => ({
+      name,
+      marks: [
+        {
+          mark: "box" as const,
+          y: ["search"],
+          series: ["Before", "After"].map((s, k) => ({
+            name: s,
+            low: [1],
+            q1: [2],
+            median: [median + k],
+            q3: [8],
+            high: [9],
+          })),
+        },
+      ],
+    });
+    const t = tableModel(
+      model({ marks: [], facets: { panels: [box("EU", 4), box("US", 5)] } }),
+      words,
+    );
+    expect(t.lead).toBe(1);
+    expect(t.bands).toEqual([
+      { text: "EU", span: 6 },
+      { text: "US", span: 6 },
+    ]);
+    expect(t.columns.map((c) => c.text).slice(0, 2)).toEqual(["Series", "Low"]);
+    expect(cells(t)).toEqual([
+      ["search", "Before", "1", "2", "4", "8", "9", "None", "1", "2", "5", "8", "9", "None"],
+      ["search", "After", "1", "2", "5", "8", "9", "None", "1", "2", "6", "8", "9", "None"],
+    ]);
+  });
+
+  it("sums each pie in the foot under its own group", () => {
+    const pie = (name: string, a: number, b: number) => ({
+      name,
+      marks: [
+        {
+          mark: "pie" as const,
+          slices: [
+            { name: "Wind", value: a },
+            { name: "Solar", value: b },
+          ],
+        },
+      ],
+    });
+    const t = tableModel(
+      model({ marks: [], facets: { panels: [pie("2023", 3, 1), pie("2024", 1, 1)] } }),
+      words,
+    );
+    expect(t.bands?.map((b) => b.text)).toEqual(["2023", "2024"]);
+    expect(cells(t)).toEqual([
+      ["Wind", "3", "75%", "1", "50%"],
+      ["Solar", "1", "25%", "1", "50%"],
+    ]);
+    expect([text(t.foot?.head ?? []), ...(t.foot?.cells ?? []).map((c) => text(c.parts))]).toEqual([
+      "Total",
+      "4",
+      "100%",
+      "2",
+      "100%",
+    ]);
+  });
+
+  it("gives scatter panels a tbody each, headed by the panel's name across every column", () => {
+    const dots = (name: string, names: string[]) => ({
+      marks: [
+        {
+          mark: "scatter" as const,
+          series: [{ name, names, x: names.map((_, i) => i + 1), y: names.map((_, i) => 2 * i) }],
+        },
+      ],
+    });
+    const t = tableModel(
+      model({
+        x: { label: "Income" },
+        y: { label: "Age" },
+        marks: [],
+        facets: { panels: [dots("Europe", ["Albania", "Monaco"]), dots("Africa", ["Chad"])] },
+      }),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual(["Income", "Age"]);
+    expect(t.bands).toBeUndefined();
+    expect(
+      t.groups?.map((g) => [g.key, text(g.head.head), g.head.scope, g.head.span, g.count]),
+    ).toEqual([
+      ["Europe", "Europe", "rowgroup", 3, 2],
+      ["Africa", "Africa", "rowgroup", 3, 1],
+    ]);
+    expect(cells(t)).toEqual([
+      ["Albania", "1", "0"],
+      ["Monaco", "2", "2"],
+      ["Chad", "1", "0"],
+    ]);
+  });
+});
