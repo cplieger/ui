@@ -82,8 +82,9 @@ export interface Field {
   readonly input: HTMLInputElement;
 }
 
-/** A `.cp-field`: label, input, and help under them. A username field
- *  takes no capitals or spell check. */
+/** A `.cp-field`: label, input, and help under them. A text field takes
+ *  no capitals, correction or spell check, since it holds names and
+ *  codes. */
 export function field(spec: FieldSpec): Field {
   const root = el("div", "cp-field");
   const input = el("input", "cp-input");
@@ -93,6 +94,7 @@ export function field(spec: FieldSpec): Field {
   input.setAttribute("autocomplete", spec.autocomplete);
   if (spec.type !== "password") {
     input.setAttribute("autocapitalize", "none");
+    input.setAttribute("autocorrect", "off");
     input.spellcheck = false;
   }
   if (spec.value !== undefined) {

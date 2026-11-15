@@ -23,6 +23,7 @@ export type AccountPart =
   | "pending-link"
   | "setup-passkey"
   | "second-factor"
+  | "temporary-password"
   | "profile"
   | "sessions"
   | "session-rename"
@@ -278,7 +279,7 @@ export function duration(seconds: number, w: AccountWords): string {
 }
 
 /** A link to the app's HTTPS address, or undefined without one. */
-function httpsLink(
+export function httpsLink(
   t: { readonly httpsOrigin?: string | undefined },
   app: string,
   w: AccountWords,

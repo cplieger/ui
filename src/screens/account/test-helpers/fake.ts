@@ -13,6 +13,8 @@ import type {
   OIDCReturn,
   PasskeyMiss,
   PasskeyView,
+  PasswordAnswer,
+  PendingPasskeyOutcome,
   PersonView,
   ProofOutcome,
   Refusal,
@@ -28,6 +30,7 @@ import type {
   SignInAccess,
   SignInClient,
   SignInOutcome,
+  PasskeySignInOutcome,
   SignedIn,
   StateResponse,
   StepUpAccess,
@@ -237,6 +240,20 @@ export class Fake {
     ],
     ["revokeKey", ok(undefined)],
     ["adminSecurityLog", ok({ entries: [], classes: [] })],
+    ["loginCode", ok({ signed_in: signedIn })],
+    ["loginRecoveryCode", ok({ signed_in: signedIn })],
+    ["loginSetPassword", ok({ signed_in: signedIn })],
+    [
+      "pendingTOTPBegin",
+      ok({
+        uri: "otpauth://totp/App:mika?secret=JBSWY3DPEHPK3PXP&issuer=App",
+        text: "JBSWY3DPEHPK3PXP",
+      }),
+    ],
+    ["pendingTOTPFinish", ok({ signed_in: signedIn })],
+    ["loginSecondPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
+    ["loginSetPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
+    ["pendingPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
     ["adminUsers", ok([])],
   ]);
   /** Calls the client leaves out, as a server before access Part 2. */
@@ -272,7 +289,7 @@ export class Fake {
     };
   }
 
-  /** Leaves `names` out of the client. */
+  /** Leaves `names` out of the client and the access module. */
   without(...names: string[]): this {
     for (const n of names) {
       this.#without.add(n);
@@ -375,7 +392,16 @@ export class Fake {
       prefix: this.prefix,
       oidcPrefix: this.oidcPrefix,
       state: () => call<Result<StateResponse>>("state", []),
-      loginPassword: (r) => call<Result<SignedIn>>("loginPassword", [r]),
+      loginPassword: (r) => call<Result<PasswordAnswer>>("loginPassword", [r]),
+      loginCode: (ticket, code) => call<Result<SignInOutcome>>("loginCode", [ticket, code]),
+      loginRecoveryCode: (ticket, code) =>
+        call<Result<SignInOutcome>>("loginRecoveryCode", [ticket, code]),
+      loginSetPassword: (ticket, password) =>
+        call<Result<SignInOutcome>>("loginSetPassword", [ticket, password]),
+      pendingTOTPBegin: (ticket) =>
+        call<Result<{ readonly uri: string; readonly text: string }>>("pendingTOTPBegin", [ticket]),
+      pendingTOTPFinish: (ticket, code) =>
+        call<Result<{ readonly signed_in: SignedIn }>>("pendingTOTPFinish", [ticket, code]),
       setupPassword: (r) => call<Result<SignedIn>>("setupPassword", [r]),
       me: () => call<Result<AccountView>>("me", []),
       updateProfile: (r) => call<Result<AccountView>>("updateProfile", [r]),
@@ -426,20 +452,28 @@ export class Fake {
     SecurityAccess<FakeClient> {
     const call = <T>(name: string, args: readonly unknown[]): Promise<T> =>
       this.call(name, args) as Promise<T>;
-    return {
-      signInWithPasskey: (c, o) => call<SignInOutcome>("signInWithPasskey", [c, o]),
+    const module = {
+      signInWithPasskey: (c, o) => call<PasskeySignInOutcome>("signInWithPasskey", [c, o]),
       passkeySupport: () =>
         call<{ readonly webauthn: boolean; readonly conditional: boolean }>("passkeySupport", []),
       storePasswordCredential: async (username, password) => {
         await call("storePasswordCredential", [username, password]);
       },
-      setupWithPasskey: (c, r) => call<SignInOutcome>("setupWithPasskey", [c, r]),
+      setupWithPasskey: (c, r) => call<PasskeySignInOutcome>("setupWithPasskey", [c, r]),
       registerPasskey: (c, proof?: SecondFactorProof) =>
         call<RegisterOutcome>("registerPasskey", proof === undefined ? [c] : [c, proof]),
       sendSignals: async (c) => {
         await call("sendSignals", [c]);
       },
       passkeyProof: (c) => call<ProofOutcome>("passkeyProof", [c]),
+      looksLikeTemporaryPassword: (value) => {
+        this.calls.push({ name: "looksLikeTemporaryPassword", args: [value] });
+        return /^[0-9a-z]{4}(?:[-\s]?[0-9a-z]{4}){3}$/i.test(value.trim());
+      },
+      loginSecondPasskey: (c, ticket) =>
+        call<PendingPasskeyOutcome>("loginSecondPasskey", [c, ticket]),
+      loginSetPasskey: (c, ticket) => call<PendingPasskeyOutcome>("loginSetPasskey", [c, ticket]),
+      pendingPasskey: (c, ticket) => call<PendingPasskeyOutcome>("pendingPasskey", [c, ticket]),
       takeFragmentToken: (name) => {
         this.calls.push({ name: "takeFragmentToken", args: [name] });
         return this.fragment;
@@ -448,7 +482,14 @@ export class Fake {
       withStepUp: (c, action, o) => this.#withStepUp(c, action, o),
       oidcSignInURL: (c, redirect) =>
         `${c.oidcPrefix}/start/signin${redirect === undefined ? "" : `?${new URLSearchParams({ redirect }).toString()}`}`,
-    };
+    } satisfies SignInAccess<FakeClient> &
+      SetupAccess<FakeClient> &
+      StepUpAccess<FakeClient> &
+      SecurityAccess<FakeClient>;
+    for (const n of this.#without) {
+      Reflect.deleteProperty(module, n);
+    }
+    return module;
   }
 }
 

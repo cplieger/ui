@@ -19,7 +19,12 @@ export type {
   MethodsView,
   OIDCReturn,
   PasskeyMiss,
+  PasskeySignInOutcome,
   PasskeyView,
+  PasswordAnswer,
+  Pending,
+  PendingMethod,
+  PendingPasskeyOutcome,
   PersonView,
   ProofOutcome,
   Refusal,
@@ -45,6 +50,7 @@ export type {
   StepUpClient,
   StepUpResult,
   TotpBegin,
+  WaitingApproval,
 } from "./client.js";
 export { accountActions, accountRunner, runDirect } from "./run.js";
 export type { KeyScope, KeyScopes } from "./keys.js";

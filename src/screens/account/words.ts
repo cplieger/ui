@@ -47,6 +47,65 @@ export interface AccountWords {
   readonly "signIn.passwordEmpty": string;
   /** Said when a rate limit's countdown ends. */
   readonly "signIn.again": string;
+  /** The app's name, in "Open Release tracker over HTTPS", when the host
+   *  gives none. */
+  readonly "signIn.app": string;
+  readonly "signIn.temporary": string;
+  readonly "signIn.ownPassword": string;
+  readonly "signIn.temporaryLabel": string;
+  readonly "signIn.temporaryHelp": string;
+  /** On a plain screen where a temporary password cannot finish; `origin`
+   *  is the app's HTTPS address when it named one. */
+  readonly "signIn.temporaryHttps": (origin: string | undefined) => string;
+  /** The refusal before sending a typed value that reads as a temporary
+   *  password, on such a screen. */
+  readonly "signIn.looksTemporary": (origin: string | undefined) => string;
+  readonly "auth_https_required.temporary_password_exposed": (origin: string | undefined) => string;
+  /** `auth_https_required` at the first step: the next one needs HTTPS. */
+  readonly "signIn.nextNeedsHttps": string;
+  readonly "auth_second_factor_required.enrol_needs_known_device": string;
+  /** `auth_forbidden` `no_usable_method` on the sign-in screen, or a step
+   *  holding no method this page can run. */
+  readonly "signIn.noUsableMethod": string;
+  readonly auth_sso_only: string;
+  /** Under `sso: "only"`, the one provider button. */
+  readonly "sso.only": (provider: string) => string;
+  readonly "sso.forLinked": (provider: string) => string;
+  readonly "sso.ownerSignIn": string;
+  readonly "sso.ownerLine": string;
+
+  readonly "pending.code": string;
+  readonly "pending.codeHelp": string;
+  readonly "pending.continue": string;
+  readonly "pending.busy": string;
+  readonly "pending.done": string;
+  readonly "pending.usePasskey": string;
+  readonly "pending.passkeyLine": string;
+  readonly "pending.passkeyBusy": string;
+  readonly "pending.useRecovery": string;
+  readonly "pending.useCode": string;
+  readonly "pending.recovery": string;
+  readonly "pending.recoveryHelp": string;
+  readonly "pending.recoveryFormat": string;
+  readonly "pending.choose": string;
+  readonly "pending.chooseLine": string;
+  readonly "pending.newPassword": string;
+  readonly "pending.save": string;
+  readonly "pending.saveBusy": string;
+  readonly "pending.registerInstead": string;
+  readonly "pending.registerPasskey": string;
+  readonly "pending.enrol": string;
+  readonly "pending.recovered": string;
+  readonly "pending.enrolLine": string;
+  readonly "pending.startAgain": string;
+  readonly "pending.timedOut": string;
+  readonly "pending.unavailable": string;
+  readonly "pending.passwordOff": string;
+  readonly "pending.waiting": string;
+  readonly "pending.newPasswordEmpty": string;
+  /** `passkey`: the person can sign in with a passkey to unlock it. */
+  readonly "pending.recoveryLocked": (passkey: boolean) => string;
+  readonly "auth_password_rejected.is_temporary_password": string;
 
   readonly "setup.title": (app: string) => string;
   readonly "setup.token": string;
@@ -655,12 +714,74 @@ export const defaultAccountWords: AccountWords = {
   "signIn.passkey": "Sign in with a passkey",
   "signIn.passkeyBusy": "Waiting for your passkey…",
   "signIn.provider": (provider) => `Continue with ${provider}`,
-  "signIn.recoveryHint": "Lost access? Ask an admin for a recovery link.",
+  "signIn.recoveryHint": "Lost access? Ask an admin for a temporary password.",
   "signIn.off": "Sign-in is turned off. Ask the app's admin.",
   "signIn.passwordOff": "Password sign-in is turned off. Sign in another way.",
   "signIn.usernameEmpty": "Enter your username.",
   "signIn.passwordEmpty": "Enter your password.",
   "signIn.again": "You can sign in again.",
+  "signIn.app": "the app",
+  "signIn.temporary": "Use a temporary password",
+  "signIn.ownPassword": "Use your own password",
+  "signIn.temporaryLabel": "Temporary password",
+  "signIn.temporaryHelp": "An admin gave it to you. You choose your own password next.",
+  "signIn.temporaryHttps": (origin) =>
+    origin === undefined
+      ? "A temporary password works only over HTTPS. Open the app over HTTPS to use one."
+      : `A temporary password works only on ${origin}.`,
+  "signIn.looksTemporary": (origin) =>
+    origin === undefined
+      ? "This looks like a temporary password, which works only over HTTPS. If this is your password, open the app over HTTPS and sign in there."
+      : `This looks like a temporary password, which works only on ${origin}. If this is your password, sign in there.`,
+  "auth_https_required.temporary_password_exposed": (origin) =>
+    `This temporary password was sent over an unencrypted connection and no longer works. Ask for a new one, and use ${origin ?? "the app's HTTPS address"}.`,
+  "signIn.nextNeedsHttps": "The next step of this sign-in needs HTTPS.",
+  "auth_second_factor_required.enrol_needs_known_device":
+    "Set up a second factor from a device you have signed in on before, or ask an admin for a temporary password.",
+  "signIn.noUsableMethod": "This account cannot finish signing in to this app. Ask an admin.",
+  auth_sso_only: "Use your organisation's sign-in.",
+  "sso.only": (provider) => `Sign in with ${provider}`,
+  "sso.forLinked": (provider) => `Accounts linked to ${provider} sign in with it.`,
+  "sso.ownerSignIn": "Owner sign-in",
+  "sso.ownerLine": "For the app's owners.",
+
+  "pending.code": "Code",
+  "pending.codeHelp": "Enter the 6-digit code from your authenticator app.",
+  "pending.continue": "Continue",
+  "pending.busy": "Checking…",
+  "pending.done": "Signed in",
+  "pending.usePasskey": "Use a passkey",
+  "pending.passkeyLine": "Confirm with one of your passkeys to finish signing in.",
+  "pending.passkeyBusy": "Waiting for your passkey…",
+  "pending.useRecovery": "Use your recovery code",
+  "pending.useCode": "Use your authenticator app",
+  "pending.recovery": "Recovery code",
+  "pending.recoveryHelp": "The 16 characters you saved. Dashes and spaces are optional.",
+  "pending.recoveryFormat": "Enter the 16 characters of your recovery code.",
+  "pending.choose": "Choose your password",
+  "pending.chooseLine": "Your temporary password worked. Choose your own to finish signing in.",
+  "pending.newPassword": "New password",
+  "pending.save": "Save and sign in",
+  "pending.saveBusy": "Saving…",
+  "pending.registerInstead": "Register a passkey instead",
+  "pending.registerPasskey": "Register a passkey",
+  "pending.enrol": "Set up a second factor",
+  "pending.recovered": "You used your recovery code. Set up a new authenticator",
+  "pending.enrolLine": "This app asks for a second factor after your password.",
+  "pending.startAgain": "Start again",
+  "pending.timedOut": "This sign-in timed out. Start again.",
+  "pending.unavailable":
+    "Sign-in with an authenticator app is unavailable right now. Try again later, or use a passkey or your recovery code.",
+  "pending.passwordOff": "Password sign-in is off in this app. Register a passkey instead.",
+  "pending.waiting":
+    "Your account is waiting for an administrator's approval. You can sign in once it is approved.",
+  "pending.newPasswordEmpty": "Enter a password.",
+  "pending.recoveryLocked": (passkey) =>
+    passkey
+      ? "Too many wrong recovery codes. Sign in with a passkey to unlock it, or ask an admin to reset your second factor."
+      : "Too many wrong recovery codes. Ask an admin to reset your second factor.",
+  "auth_password_rejected.is_temporary_password":
+    "This is the temporary password you were given. Choose your own.",
 
   "setup.title": (app) => `Set up ${app}`,
   "setup.token": "Setup token",

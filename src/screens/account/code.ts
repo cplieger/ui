@@ -35,3 +35,45 @@ export function sixDigits(value: string): string | undefined {
 export function inFours(text: string, by: string): string {
   return (text.replace(/[\s-]/g, "").match(/.{1,4}/g) ?? []).join(by);
 }
+
+/** A recovery code as access Part 4 (d) normalises it: dashes and spaces
+ *  dropped, upper case, O read as 0 and I or L as 1, ASCII only; undefined
+ *  unless that leaves 16 letters and digits. */
+export function recoveryCode(value: string): string | undefined {
+  const code = value.replace(/[\s-]/g, "").toUpperCase().replace(/O/g, "0").replace(/[IL]/g, "1");
+  return /^[0-9A-Z]{16}$/.test(code) ? code : undefined;
+}
+
+/** A `.cp-field` for a recovery code, which groups what is typed in fours
+ *  as it is typed, keeping the caret after the same character. */
+export function groupedField(
+  spec: { readonly label: string; readonly help?: string; readonly name?: string },
+  signal?: AbortSignal,
+): Field {
+  const f = field({
+    label: spec.label,
+    name: spec.name ?? "recovery_code",
+    autocomplete: "off",
+    ...(spec.help === undefined ? {} : { help: spec.help }),
+  });
+  const input = f.input;
+  input.classList.add("cp-mono");
+  input.setAttribute("autocapitalize", "characters");
+  input.addEventListener(
+    "input",
+    () => {
+      const caret = input.selectionStart ?? input.value.length;
+      const before = input.value.slice(0, caret).replace(/[\s-]/g, "").length;
+      const grouped = inFours(input.value, "-");
+      if (grouped === input.value) {
+        return;
+      }
+      input.value = grouped;
+      // Each full group before the caret adds one dash.
+      const at = before + Math.floor(Math.max(0, before - 1) / 4);
+      input.setSelectionRange(at, at);
+    },
+    signal === undefined ? {} : { signal },
+  );
+  return f;
+}

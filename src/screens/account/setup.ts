@@ -19,7 +19,7 @@ import type {
   Result,
   SetupAccess,
   SetupClient,
-  SignInOutcome,
+  PasskeySignInOutcome,
   SignedIn,
 } from "./client.js";
 import { actionButton, el, field, heading, line, notice, passwordField, sketch } from "./dom.js";
@@ -432,7 +432,7 @@ export function mountSetup<C extends SetupClient>(
           if (got === undefined || signal?.aborted === true) {
             return;
           }
-          const outcome: SignInOutcome | null = got.answer;
+          const outcome: PasskeySignInOutcome | null = got.answer;
           if (outcome === null) {
             notices.show("danger", w["generic.server"]);
           } else if (outcome.kind === "signed-in") {

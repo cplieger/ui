@@ -12,7 +12,7 @@ import { clearError, showError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
 import { closeDialog, holdDialog, installDialogs } from "../../overlays/dialog/dialog.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
-import { codeOf, generic, reasonOf, retryAfter, type Said } from "./answer.js";
+import { codeOf, generic, passkeyMiss, reasonOf, retryAfter, type Said } from "./answer.js";
 import type {
   MethodsView,
   PasskeyMiss,
@@ -324,25 +324,14 @@ export async function stepUp<T, C extends StepUpClient>(
   };
 
   const missed = (d: Dialog, miss: PasskeyMiss): void => {
-    switch (miss.kind) {
-      case "cancelled":
-        return;
-      case "timeout":
-      case "ceremony-expired":
-      case "unknown-credential":
-        d.say({ tone: "warning", text: w[`passkey.${miss.kind}`] });
-        return;
-      case "verification-failed":
-        d.say({ tone: "danger", text: w["passkey.verification-failed"] });
-        return;
-      case "failed":
-        if (typeof miss.error !== "string") {
-          refused(d, miss.error);
-        } else if (miss.error === "SecurityError") {
-          d.say({ tone: "danger", text: w.auth_origin_refused });
-        } else {
-          d.say({ tone: "danger", text: w["passkey.failed"] });
-        }
+    const said = passkeyMiss(miss, w);
+    if (said === undefined) {
+      return;
+    }
+    if ("ok" in said) {
+      refused(d, said);
+    } else {
+      d.say(said);
     }
   };
 

@@ -56,27 +56,7 @@ export async function setUpFactor(spec: FactorSpec): Promise<FactorEnd> {
     ...life,
   });
 
-  const pair = el("div", "cp-cluster");
-  const key = el("div", "cp-field");
-  const keyLabel = el("span", "cp-label", w["totp.key"]);
-  keyLabel.id = uid("key");
-  const box = el("div", "cp-code");
-  box.setAttribute("role", "group");
-  box.setAttribute("aria-labelledby", keyLabel.id);
-  const text = el("code", "cp-mono", inFours(spec.begun.text, " "));
-  const copy = el("button", "cp-button cp-copy");
-  copy.type = "button";
-  copy.append(glyph("copy"), glyph("check", "done"), w["shown.copy"]);
-  box.append(text, copy);
-  key.append(keyLabel, box);
-  pair.append(qrCode(spec.begun.uri), key);
-  enhanceCopy(copy, {
-    source: text,
-    text: () => spec.begun.text.replace(/\s/g, ""),
-    copied: w["shown.copied"],
-    ...life,
-  });
-
+  const pair = authenticatorKey(spec.begun, w, signal);
   const fresh = codeField({ label: w["totp.code"], help: w["totp.codeHelp"], name: "code" });
   const old = spec.replace
     ? codeField({ label: w["totp.oldCode"], help: w["totp.oldCodeHelp"], name: "current_code" })
@@ -209,6 +189,36 @@ export async function setUpFactor(spec: FactorSpec): Promise<FactorEnd> {
     await showRecoveryCode(code, w, signal);
   }
   return ended;
+}
+
+/** The QR code of an authenticator link beside its key as text, in groups
+ *  of four with Copy, which copies the key alone. */
+export function authenticatorKey(
+  begun: { readonly uri: string; readonly text: string },
+  w: AccountWords,
+  signal?: AbortSignal,
+): HTMLElement {
+  const pair = el("div", "cp-cluster");
+  const key = el("div", "cp-field");
+  const keyLabel = el("span", "cp-label", w["totp.key"]);
+  keyLabel.id = uid("key");
+  const box = el("div", "cp-code");
+  box.setAttribute("role", "group");
+  box.setAttribute("aria-labelledby", keyLabel.id);
+  const text = el("code", "cp-mono", inFours(begun.text, " "));
+  const copy = el("button", "cp-button cp-copy");
+  copy.type = "button";
+  copy.append(glyph("copy"), glyph("check", "done"), w["shown.copy"]);
+  box.append(text, copy);
+  key.append(keyLabel, box);
+  pair.append(qrCode(begun.uri), key);
+  enhanceCopy(copy, {
+    source: text,
+    text: () => begun.text.replace(/\s/g, ""),
+    copied: w["shown.copied"],
+    ...(signal === undefined ? {} : { signal }),
+  });
+  return pair;
 }
 
 /** The recovery code, shown once: copy, download and a box to say it is

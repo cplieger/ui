@@ -1,94 +1,24 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { accountRunner, type DefineAction } from "./run.js";
-import { mountSignIn, type SignInOptions } from "./sign-in.js";
-import { Fake, noAnswer, ok, refuse, signedIn, type FakeClient } from "./test-helpers/fake.js";
+import { Fake, noAnswer, ok, refuse, signedIn } from "./test-helpers/fake.js";
+import {
+  button,
+  drawn,
+  endBeforeMount,
+  endScreen,
+  input,
+  mount,
+  noticeOf,
+  said,
+  settled,
+  signIn,
+  submit,
+  useSignIn,
+} from "./test-helpers/sign-in.js";
 
-let life = new AbortController();
-let sheet: HTMLLinkElement;
-
-// The glyphs and the hidden summary need the stylesheet, as an app's page
-// links it.
-beforeEach(async () => {
-  document.documentElement.classList.add("cp");
-  sheet = document.createElement("link");
-  sheet.rel = "stylesheet";
-  sheet.href = new URL("../../../css/system.css", import.meta.url).href;
-  const loaded = new Promise((resolve, reject) => {
-    sheet.addEventListener("load", resolve, { once: true });
-    sheet.addEventListener("error", reject, { once: true });
-  });
-  document.head.append(sheet);
-  await loaded;
-});
-
-afterEach(async () => {
-  life.abort();
-  life = new AbortController();
-  sheet.remove();
-  document.documentElement.classList.remove("cp");
-  document.body.replaceChildren();
-  await page.viewport(1280, 720);
-});
-
-type Options = Omit<SignInOptions<FakeClient>, "client" | "access">;
-
-function mount(fake = new Fake(), options: Options = {}): { panel: HTMLElement; fake: Fake } {
-  const panel = document.createElement("section");
-  panel.className = "cp-panel";
-  document.body.append(panel);
-  mountSignIn(panel, {
-    client: fake.client,
-    access: fake.access(),
-    navigate: () => undefined,
-    search: "",
-    signal: life.signal,
-    ...options,
-  });
-  return { panel, fake };
-}
-
-const drawn = (panel: HTMLElement): Promise<void> =>
-  vi.waitFor(() => {
-    expect(panel.getAttribute("aria-busy")).toBeNull();
-  });
-
-const noticeOf = (panel: HTMLElement): HTMLElement | null =>
-  panel.querySelector<HTMLElement>("[data-part='notice'] > .cp-notice");
-
-const input = (panel: HTMLElement, name: string): HTMLInputElement =>
-  panel.querySelector<HTMLInputElement>(`input[name='${name}']`) as HTMLInputElement;
-
-const submit = (panel: HTMLElement): HTMLButtonElement =>
-  panel.querySelector<HTMLButtonElement>("button[type='submit']") as HTMLButtonElement;
-
-const button = (panel: HTMLElement, text: string): HTMLElement =>
-  [...panel.querySelectorAll<HTMLElement>("button, a")].find((b) =>
-    b.textContent.includes(text),
-  ) as HTMLElement;
-
-async function signIn(
-  panel: HTMLElement,
-  username = "mika",
-  password = "lantern harbour",
-): Promise<void> {
-  await userEvent.fill(input(panel, "username"), username);
-  await userEvent.fill(input(panel, "password"), password);
-  await userEvent.click(submit(panel));
-}
-
-/** Waits on real time until `check` holds. */
-async function settled(check: () => boolean): Promise<void> {
-  for (let i = 0; i < 100 && !check(); i++) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  expect(check()).toBe(true);
-}
-
-const said = (politeness: "polite" | "assertive"): string =>
-  document.querySelector(`body > [data-cp-live-regions] [data-cp-politeness='${politeness}']`)
-    ?.textContent ?? "";
+useSignIn();
 
 describe("mountSignIn: the panel", () => {
   it("holds the heading, the password form, a rule, the passkey and single sign-on, and the hint, in order", async () => {
@@ -100,6 +30,7 @@ describe("mountSignIn: the panel", () => {
     const user = input(panel, "username");
     expect(user.getAttribute("autocomplete")).toBe("username");
     expect(user.getAttribute("autocapitalize")).toBe("none");
+    expect(user.getAttribute("autocorrect")).toBe("off");
     expect(user.spellcheck).toBe(false);
     expect(input(panel, "password").getAttribute("autocomplete")).toBe("current-password");
     expect(input(panel, "password").type).toBe("password");
@@ -116,7 +47,7 @@ describe("mountSignIn: the panel", () => {
       "hr",
       "button:Sign in with a passkey",
       "a:Continue with Authelia",
-      "p:Lost access? Ask an admin for a recovery link.",
+      "p:Lost access? Ask an admin for a temporary password.",
     ]);
     const link = button(panel, "Continue with") as HTMLAnchorElement;
     expect(new URL(link.href).pathname).toBe("/api/auth/oidc/start/signin");
@@ -703,15 +634,340 @@ describe("mountSignIn: lifetime", () => {
     await vi.waitFor(() => {
       expect(submit(panel).getAttribute("aria-disabled")).toBe("true");
     });
-    life.abort();
+    endScreen();
     expect(o.signal?.aborted).toBe(true);
     expect(submit(panel).hasAttribute("aria-disabled")).toBe(false);
   });
 
   it("does nothing on an aborted signal", () => {
-    life.abort();
+    endBeforeMount();
     const { panel, fake } = mount();
     expect(panel.childElementCount).toBe(0);
     expect(fake.calls).toHaveLength(0);
+  });
+});
+
+const plain = {
+  setup_required: false,
+  totp: true,
+  password_login: true,
+  passkeys: false,
+  oidc: false,
+  secure: false,
+  https_required: ["passkeys", "oidc"],
+  plain_session: { idle_seconds: 1800, absolute_seconds: 43200 },
+  https_origin: "https://tracker.example",
+} as const;
+
+describe("mountSignIn: over plain HTTP", () => {
+  it("draws the password form with what HTTPS adds, linked there, and the shorter session", async () => {
+    const fake = new Fake().answer("state", ok(plain));
+    const { panel } = mount(fake, { app: "Release tracker" });
+    await drawn(panel);
+    expect(panel.querySelector("form")).not.toBeNull();
+    expect(button(panel, "passkey")).toBeUndefined();
+    const https = panel.querySelector<HTMLElement>("[data-part='https']");
+    expect(https?.textContent).toBe(
+      "Passkeys and single sign-on need HTTPS. Open Release tracker over HTTPS.",
+    );
+    expect(https?.querySelector("a")?.href.startsWith("https://tracker.example/")).toBe(true);
+    expect(panel.querySelector("[data-part='plain-session']")?.textContent).toBe(
+      "You stay signed in for up to 12 hours, 30 minutes when idle, until you close the browser.",
+    );
+  });
+
+  it("names only what the host mounts among what HTTPS adds", async () => {
+    const fake = new Fake().answer("state", ok(plain));
+    const { panel } = mount(fake, { parts: ["password", "passkeys"] });
+    await drawn(panel);
+    expect(panel.querySelector("[data-part='https']")?.textContent).toBe(
+      "Passkeys need HTTPS. Open the app over HTTPS.",
+    );
+  });
+
+  it("shows This app needs HTTPS with no form under the strict posture", async () => {
+    const fake = new Fake().answer(
+      "state",
+      ok({ ...plain, password_login: false, https_required: ["password", "passkeys", "oidc"] }),
+    );
+    const { panel } = mount(fake, { app: "Release tracker", arrived: "transport-changed" });
+    await drawn(panel);
+    expect(panel.querySelector("form")).toBeNull();
+    const empty = panel.querySelector(".cp-empty");
+    expect(empty?.querySelector("p")?.textContent).toBe("This app needs HTTPS.");
+    const link = empty?.querySelector("a");
+    expect(link?.textContent).toBe("Open Release tracker over HTTPS");
+    expect(link?.dataset["variant"]).toBe("primary");
+    expect(noticeOf(panel)?.textContent).toBe(
+      "You were signed out because the connection changed between HTTP and HTTPS.",
+    );
+  });
+
+  it("says the sentence alone when the app named no HTTPS address", async () => {
+    const { https_origin: _gone, ...bare } = plain;
+    const fake = new Fake().answer("state", ok({ ...bare, https_required: ["password"] }));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    expect(panel.querySelector(".cp-empty")?.textContent).toBe("This app needs HTTPS.");
+    expect(panel.querySelector(".cp-empty a")).toBeNull();
+  });
+
+  it("shows the same state where password sign-in is off and a temporary password could not finish", async () => {
+    const fake = new Fake().answer(
+      "state",
+      ok({ ...plain, password_login: false, temporary_password_https_only: true }),
+    );
+    const { panel } = mount(fake);
+    await drawn(panel);
+    expect(panel.querySelector("form")).toBeNull();
+    expect(panel.querySelector(".cp-empty p")?.textContent).toBe("This app needs HTTPS.");
+  });
+
+  it("points to HTTPS when the next step needs it", async () => {
+    const fake = new Fake()
+      .answer("state", ok(plain))
+      .answer("loginPassword", refuse(403, "auth_https_required"));
+    const { panel } = mount(fake, { app: "Release tracker" });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe(
+        "The next step of this sign-in needs HTTPS. Open Release tracker over HTTPS.",
+      );
+    });
+    expect(noticeOf(panel)?.dataset["tone"]).toBe("warning");
+  });
+});
+
+/** A state from access Part 4, which brings temporary passwords. */
+const part4 = {
+  setup_required: false,
+  password_login: true,
+  passkeys: true,
+  oidc: true,
+  totp: true,
+} as const;
+
+describe("mountSignIn: a temporary password", () => {
+  it("switches the field to a temporary password and back, which the browser never keeps", async () => {
+    const fake = new Fake()
+      .answer("state", ok(part4))
+      .answer(
+        "loginPassword",
+        ok({ pending: { ticket: "t1", next: "set_credential", methods: ["password"] } }),
+      );
+    const { panel } = mount(fake);
+    await drawn(panel);
+    const pass = input(panel, "password");
+    const label = (): string | null | undefined =>
+      panel.querySelector(`label[for='${pass.id}']`)?.textContent;
+    const toggle = button(panel, "Use a temporary password");
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(pass.hasAttribute("aria-describedby")).toBe(false);
+    await userEvent.click(toggle);
+    expect(label()).toBe("Temporary password");
+    expect(toggle.textContent).toBe("Use your own password");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(pass.getAttribute("autocomplete")).toBe("one-time-code");
+    expect(document.getElementById(pass.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "An admin gave it to you. You choose your own password next.",
+    );
+    expect(document.activeElement).toBe(pass);
+    await userEvent.click(toggle);
+    expect(label()).toBe("Password");
+    expect(pass.getAttribute("autocomplete")).toBe("current-password");
+    expect(pass.hasAttribute("aria-describedby")).toBe(false);
+    await userEvent.click(toggle);
+    await signIn(panel, "mika", "ABCD-2345-EFGH-6789");
+    await vi.waitFor(() => {
+      expect(input(panel, "new_password")).not.toBeNull();
+    });
+    expect(fake.named("loginPassword")[0]?.args).toEqual([
+      { username: "mika", password: "ABCD-2345-EFGH-6789" },
+    ]);
+    expect(fake.named("storePasswordCredential")).toHaveLength(0);
+  });
+
+  it("labels the form for a temporary password only when password sign-in is off", async () => {
+    const fake = new Fake().answer("state", ok({ ...part4, password_login: false, oidc: false }));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    const pass = input(panel, "password");
+    expect(panel.querySelector(`label[for='${pass.id}']`)?.textContent).toBe("Temporary password");
+    expect(button(panel, "Use a temporary password")).toBeUndefined();
+    expect(button(panel, "Sign in with a passkey")).toBeDefined();
+  });
+
+  it("is left out when the host does not mount it, or the server has none", async () => {
+    const fake = new Fake().answer("state", ok({ ...part4, password_login: false, oidc: false }));
+    const { panel } = mount(fake, { parts: ["password", "passkeys"] });
+    await drawn(panel);
+    expect(panel.querySelector("form")).toBeNull();
+    const before = mount(new Fake());
+    await drawn(before.panel);
+    expect(button(before.panel, "Use a temporary password")).toBeUndefined();
+    const again = mount(new Fake().answer("state", ok(part4)), { parts: ["password", "passkeys"] });
+    await drawn(again.panel);
+    expect(button(again.panel, "Use a temporary password")).toBeUndefined();
+  });
+
+  it("refuses to send what reads as a temporary password over plain HTTP, sending nothing", async () => {
+    const fake = new Fake().answer("state", ok({ ...plain, temporary_password_https_only: true }));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    expect(button(panel, "Use a temporary password")).toBeUndefined();
+    const pass = input(panel, "password");
+    expect(document.getElementById(pass.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "A temporary password works only on https://tracker.example.",
+    );
+    await signIn(panel, "mika", "abcd 2345 efgh 6789");
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe(
+        "This looks like a temporary password, which works only on https://tracker.example. If this is your password, sign in there.",
+      );
+    });
+    expect(fake.named("loginPassword")).toHaveLength(0);
+    expect(document.activeElement).toBe(pass);
+    await userEvent.fill(pass, "lantern harbour");
+    await userEvent.click(submit(panel));
+    await vi.waitFor(() => {
+      expect(fake.named("loginPassword")).toHaveLength(1);
+    });
+  });
+
+  it("says where to go without an HTTPS address", async () => {
+    const { https_origin: _gone, ...bare } = plain;
+    const fake = new Fake().answer("state", ok({ ...bare, temporary_password_https_only: true }));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await signIn(panel, "mika", "ABCD-2345-EFGH-6789");
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe(
+        "This looks like a temporary password, which works only over HTTPS. If this is your password, open the app over HTTPS and sign in there.",
+      );
+    });
+    expect(fake.named("loginPassword")).toHaveLength(0);
+  });
+
+  it("says a temporary password sent in clear no longer works", async () => {
+    const fake = new Fake()
+      .answer("state", ok(plain))
+      .answer("loginPassword", refuse(403, "auth_https_required", "temporary_password_exposed"));
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe(
+        "This temporary password was sent over an unencrypted connection and no longer works. Ask for a new one, and use https://tracker.example.",
+      );
+    });
+    expect(noticeOf(panel)?.dataset["tone"]).toBe("danger");
+  });
+});
+
+describe("mountSignIn: answers at the first step", () => {
+  it.each([
+    [
+      refuse(403, "auth_second_factor_required", "enrol_needs_known_device"),
+      "Set up a second factor from a device you have signed in on before, or ask an admin for a temporary password.",
+    ],
+    [
+      refuse(403, "auth_forbidden", "no_usable_method"),
+      "This account cannot finish signing in to this app. Ask an admin.",
+    ],
+  ])("words %j", async (answer, words) => {
+    const fake = new Fake().answer("loginPassword", answer);
+    const { panel } = mount(fake);
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe(words);
+    });
+    expect(noticeOf(panel)?.dataset["tone"]).toBe("danger");
+  });
+
+  it("points a linked account to its organisation's sign-in", async () => {
+    const fake = new Fake()
+      .answer(
+        "state",
+        ok({
+          setup_required: false,
+          password_login: true,
+          passkeys: true,
+          oidc: true,
+          sso: "for_linked",
+        }),
+      )
+      .answer("loginPassword", refuse(403, "auth_sso_only"));
+    const { panel } = mount(fake, { provider: "Authelia" });
+    await drawn(panel);
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(noticeOf(panel)?.textContent).toBe("Use your organisation's sign-in.");
+    });
+    expect(document.activeElement).toBe(button(panel, "Continue with Authelia"));
+  });
+});
+
+describe("mountSignIn: the single sign-on mode", () => {
+  const sso = (mode: "for_linked" | "only", over: object = {}): ReturnType<typeof ok> =>
+    ok({
+      setup_required: false,
+      password_login: true,
+      passkeys: true,
+      oidc: true,
+      sso: mode,
+      ...over,
+    });
+
+  it("says who signs in with the provider for linked accounts", async () => {
+    const { panel } = mount(new Fake().answer("state", sso("for_linked")), {
+      provider: "Authelia",
+    });
+    await drawn(panel);
+    const link = button(panel, "Continue with Authelia");
+    expect(link.nextElementSibling?.textContent).toBe(
+      "Accounts linked to Authelia sign in with it.",
+    );
+    expect(panel.querySelector("form")).not.toBeNull();
+  });
+
+  it("leads with the provider and keeps the owners' form behind Owner sign-in", async () => {
+    const { panel, fake } = mount(new Fake().answer("state", sso("only")), {
+      provider: "Authelia",
+    });
+    await drawn(panel);
+    const first = panel.querySelector("[data-part='notice'] + .cp-stack > *");
+    expect(first?.textContent).toBe("Sign in with Authelia");
+    expect((first as HTMLElement).dataset["variant"]).toBe("primary");
+    const details = panel.querySelector("details");
+    expect(details?.open).toBe(false);
+    expect(details?.querySelector("summary")?.textContent).toBe("Owner sign-in");
+    expect(details?.textContent).toContain("For the app's owners.");
+    expect(details?.querySelector("form")).not.toBeNull();
+    expect(details?.querySelector("button[type='submit']")?.hasAttribute("data-variant")).toBe(
+      false,
+    );
+    expect(panel.querySelectorAll("[data-variant='primary']")).toHaveLength(1);
+    expect(button(panel, "Continue with")).toBeUndefined();
+    await userEvent.click(details?.querySelector("summary") as HTMLElement);
+    await vi.waitFor(() => {
+      expect(details?.open).toBe(true);
+    });
+    await signIn(panel);
+    await vi.waitFor(() => {
+      expect(fake.named("loginPassword")).toHaveLength(1);
+    });
+  });
+
+  it("shows the owners' form alone over plain HTTP, where the provider cannot run", async () => {
+    const fake = new Fake().answer("state", sso("only", { ...plain, sso: "only" }));
+    const { panel } = mount(fake, { provider: "Authelia" });
+    await drawn(panel);
+    expect(panel.querySelector("details")).toBeNull();
+    expect(panel.querySelector("form")?.previousElementSibling?.textContent).toBe(
+      "For the app's owners.",
+    );
+    expect(button(panel, "Authelia")).toBeUndefined();
   });
 });

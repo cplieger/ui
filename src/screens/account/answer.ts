@@ -5,7 +5,7 @@
  * @module
  */
 
-import type { Refusal } from "./client.js";
+import type { PasskeyMiss, Refusal } from "./client.js";
 import type { AccountWords } from "./words.js";
 
 export type Tone = "danger" | "warning" | "neutral" | "success";
@@ -91,9 +91,36 @@ export function passwordWords(r: Refusal, w: AccountWords): string {
     case "contains_forbidden_word":
     case "common":
     case "breached":
+    case "is_temporary_password":
       return w[`auth_password_rejected.${reason}`];
     default:
       return w.auth_password_rejected;
+  }
+}
+
+/** The words for a passkey ceremony that confirmed no one, the server's
+ *  refusal for the caller to word, or undefined for a prompt the person
+ *  closed. */
+export function passkeyMiss(outcome: PasskeyMiss, w: AccountWords): Said | Refusal | undefined {
+  switch (outcome.kind) {
+    case "cancelled":
+      return undefined;
+    case "timeout":
+    case "ceremony-expired":
+    case "unknown-credential":
+      return { tone: "warning", text: w[`passkey.${outcome.kind}`] };
+    case "verification-failed":
+      return { tone: "danger", text: w["passkey.verification-failed"] };
+    case "failed":
+      if (typeof outcome.error !== "string") {
+        return outcome.error;
+      }
+      // The browser refuses a ceremony whose relying party does not fit
+      // this origin, before it asks the person.
+      return {
+        tone: "danger",
+        text: outcome.error === "SecurityError" ? w.auth_origin_refused : w["passkey.failed"],
+      };
   }
 }
 

@@ -36,6 +36,10 @@ import {
   type SignInAccess,
   type SignInClient,
   type SignInOptions,
+  type PasskeySignInOutcome,
+  type PasswordAnswer,
+  type Pending,
+  type PendingPasskeyOutcome,
   type SignInOutcome,
   type SignedIn,
   type StateResponse,
@@ -80,9 +84,48 @@ interface Script {
   readonly login?: (r: {
     readonly username: string;
     readonly password: string;
-  }) => Result<SignedIn>;
-  readonly passkeys?: readonly SignInOutcome[];
+  }) => Result<PasswordAnswer>;
+  readonly passkeys?: readonly PasskeySignInOutcome[];
+  /** The code step's answer. Default: by the code typed. */
+  readonly code?: (code: string) => Result<SignInOutcome>;
+  /** The recovery code step's answer. Default: set up a new authenticator. */
+  readonly recovery?: () => Result<SignInOutcome>;
 }
+
+/** A pending sign-in from access Part 4. */
+const step = (
+  next: Pending["next"],
+  methods: Pending["methods"],
+  recovered = false,
+): Result<SignInOutcome> => ({
+  ok: true,
+  data: { pending: { ticket: "t1", next, methods, ...(recovered ? { recovered } : {}) } },
+});
+
+/** The code step's answers, by the code typed. */
+function byCode(code: string): Result<SignInOutcome> {
+  switch (code) {
+    case "000000":
+      return refusal(401, "auth_code_invalid", "code_invalid");
+    case "111111":
+      return refusal(401, "auth_code_invalid", "code_reused");
+    default:
+      return { ok: true, data: { signed_in: SIGNED_IN } };
+  }
+}
+
+const PART4: StateResponse = { ...EVERY, totp: true };
+const PLAIN: StateResponse = {
+  setup_required: false,
+  password_login: true,
+  passkeys: false,
+  oidc: false,
+  totp: true,
+  secure: false,
+  https_required: ["passkeys", "oidc"],
+  plain_session: { idle_seconds: 1800, absolute_seconds: 43200 },
+  https_origin: "https://tracker.example",
+};
 
 /** The answers of the page card, by what the person types. */
 function byWords(r: { readonly username: string; readonly password: string }): Result<SignedIn> {
@@ -114,6 +157,38 @@ function fake(script: Script): { readonly client: Demo; readonly access: SignInA
       await wait(700);
       return (script.login ?? byWords)(r);
     },
+    async loginCode(_ticket, code) {
+      await wait(600);
+      return (script.code ?? byCode)(code);
+    },
+    async loginRecoveryCode() {
+      await wait(600);
+      return (script.recovery ?? (() => step("enrol", ["totp", "passkey"], true)))();
+    },
+    async loginSetPassword() {
+      await wait(600);
+      return { ok: true, data: { signed_in: SIGNED_IN } };
+    },
+    async pendingTOTPBegin() {
+      await wait(400);
+      return {
+        ok: true,
+        data: {
+          uri: "otpauth://totp/Release%20tracker:mika?secret=JBSWY3DPEHPK3PXP&issuer=Release%20tracker",
+          text: "JBSWY3DPEHPK3PXP",
+        },
+      };
+    },
+    async pendingTOTPFinish(_ticket, code) {
+      await wait(600);
+      return code === "000000"
+        ? refusal(401, "auth_code_invalid", "code_invalid")
+        : { ok: true, data: { signed_in: { ...SIGNED_IN, recovery_code: "WXYZ2345EFGH6789" } } };
+    },
+  };
+  const ceremony = async (): Promise<PendingPasskeyOutcome> => {
+    await wait(900);
+    return { kind: "answered", answer: { signed_in: SIGNED_IN } };
   };
   const access: SignInAccess<Demo> = {
     async signInWithPasskey(_c, o) {
@@ -137,6 +212,11 @@ function fake(script: Script): { readonly client: Demo; readonly access: SignInA
       return q.get("oidc") === "not_linked" ? { kind: "not_linked" } : { kind: "none" };
     },
     oidcSignInURL: () => "#sign-in",
+    looksLikeTemporaryPassword: (value) =>
+      /^[0-9a-z]{4}(?:[-\s]?[0-9a-z]{4}){3}$/i.test(value.trim()),
+    loginSecondPasskey: ceremony,
+    loginSetPasskey: ceremony,
+    pendingPasskey: ceremony,
   };
   return { client, access };
 }
@@ -156,6 +236,42 @@ const fill = (panel: HTMLElement, name: string, value: string): void => {
 
 const submitForm = (panel: HTMLElement): void => {
   panel.querySelector("form")?.requestSubmit();
+};
+
+/** Signs in with a password, as the person would. */
+const signInNow = (panel: HTMLElement, password = "lantern harbour"): void => {
+  fill(panel, "username", "mika");
+  fill(panel, "password", password);
+  submitForm(panel);
+};
+
+/** Runs `then` once `selector` matches inside `panel`. */
+function once(panel: HTMLElement, selector: string, then: (found: HTMLElement) => void): void {
+  const look = (): boolean => {
+    const found = panel.querySelector<HTMLElement>(selector);
+    if (found !== null) {
+      then(found);
+    }
+    return found !== null;
+  };
+  if (look()) {
+    return;
+  }
+  const watch = new MutationObserver(() => {
+    if (look()) {
+      watch.disconnect();
+    }
+  });
+  watch.observe(panel, { childList: true, subtree: true });
+}
+
+/** Signs in, then sends `code` at the code step. */
+const codeStep = (code: string) => (panel: HTMLElement) => {
+  signInNow(panel);
+  once(panel, "input[name='code']", (input) => {
+    (input as HTMLInputElement).value = code;
+    submitForm(panel);
+  });
 };
 
 const ownerHint = (): Node => {
@@ -239,6 +355,94 @@ const CARDS: Readonly<Record<string, Card>> = {
         data: { ...EVERY, password_login: false, passkeys: false, oidc: false },
       }),
     },
+  },
+  plain: { app: "Release tracker", script: { state: () => ({ ok: true, data: PLAIN }) } },
+  strict: {
+    app: "Release tracker",
+    script: {
+      state: () => ({
+        ok: true,
+        data: { ...PLAIN, password_login: false, https_required: ["password", "passkeys", "oidc"] },
+      }),
+    },
+  },
+  temporary: {
+    script: {
+      state: () => ({ ok: true, data: PART4 }),
+      login: () => step("set_credential", ["password", "passkey"]),
+    },
+    then: (panel) => {
+      panel.querySelector<HTMLButtonElement>("[data-part='temporary']")?.click();
+    },
+  },
+  "temporary-plain": {
+    script: {
+      state: () => ({ ok: true, data: { ...PLAIN, temporary_password_https_only: true } }),
+    },
+    then: (panel) => {
+      signInNow(panel, "abcd-2345-efgh-6789");
+    },
+  },
+  "for-linked": {
+    provider: "Authelia",
+    script: { state: () => ({ ok: true, data: { ...PART4, sso: "for_linked" } }) },
+  },
+  "sso-only": {
+    provider: "Authelia",
+    script: { state: () => ({ ok: true, data: { ...PART4, sso: "only" } }) },
+  },
+  code: {
+    script: { login: () => step("second_factor", ["totp", "passkey", "recovery_code"]) },
+    then: signInNow,
+  },
+  "second-passkey": {
+    script: { login: () => step("second_factor", ["passkey", "recovery_code"]) },
+    then: signInNow,
+  },
+  recovered: {
+    script: { login: () => step("second_factor", ["totp", "recovery_code"]) },
+    then: (panel) => {
+      signInNow(panel);
+      once(panel, "input[name='code']", () => {
+        [...panel.querySelectorAll<HTMLButtonElement>("button")]
+          .find((b) => b.textContent === "Use your recovery code")
+          ?.click();
+        once(panel, "input[name='recovery_code']", (input) => {
+          (input as HTMLInputElement).value = "ABCD-2345-EFGH-6789";
+          submitForm(panel);
+        });
+      });
+    },
+  },
+  locked: {
+    script: {
+      login: () => step("second_factor", ["totp", "passkey"]),
+      code: () => refusal(401, "auth_code_invalid", "method_locked"),
+    },
+    then: codeStep("123456"),
+  },
+  "timed-out": {
+    script: {
+      login: () => step("second_factor", ["totp"]),
+      code: () => refusal(401, "auth_token_invalid"),
+    },
+    then: codeStep("123456"),
+  },
+  choose: {
+    script: { login: () => step("set_credential", ["password", "passkey"]) },
+    then: (panel) => {
+      signInNow(panel, "ABCD-2345-EFGH-6789");
+    },
+  },
+  enrol: {
+    script: { login: () => step("enrol", ["totp", "passkey"]) },
+    then: signInNow,
+  },
+  "known-device": {
+    script: {
+      login: () => refusal(403, "auth_second_factor_required", "enrol_needs_known_device"),
+    },
+    then: signInNow,
   },
 };
 

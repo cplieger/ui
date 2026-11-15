@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#security-log">Security log</a><a href="#qr">QR code</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#sign-in-steps">The next steps</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#security-log">Security log</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -68,6 +68,82 @@
         <h2>Sign-in turned off</h2>
         <section class="cp-panel" data-account-demo="off"></section>
         <footer>No method is on.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Over plain HTTP</h2>
+        <section class="cp-panel" data-account-demo="plain"></section>
+        <footer>A relaxed app read over plain HTTP: the password form only, the line naming what HTTPS adds with a link to the app's HTTPS address, and the shorter session.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>This app needs HTTPS</h2>
+        <section class="cp-panel" data-account-demo="strict"></section>
+        <footer>The strict posture over plain HTTP: no form, and the way to the app's HTTPS address.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A temporary password</h2>
+        <section class="cp-panel" data-account-demo="temporary"></section>
+        <footer>Use a temporary password switches the field's label and help, and the browser is never asked to keep it. Sign in to choose your own password next.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A temporary password over plain HTTP</h2>
+        <section class="cp-panel" data-account-demo="temporary-plain"></section>
+        <footer>Here a temporary password could not finish, so the line beside the field says where it works, and a value that reads as one is refused before anything is sent.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Accounts linked to single sign-on</h2>
+        <section class="cp-panel" data-account-demo="for-linked"></section>
+        <footer>The single sign-on mode for linked accounts: sign-in as usual, with a line under the provider.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Single sign-on only</h2>
+        <section class="cp-panel" data-account-demo="sso-only"></section>
+        <footer>The provider leads, and Owner sign-in opens the password and passkey form in place, for the app's owners.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="sign-in-steps">
+    <h2>The next steps of a sign-in</h2>
+    <p>When a correct password needs more, the panel's form gives way to the next step, under the same heading: a second factor, a password of the person's own after a temporary one, or a second factor set up there and then. Each step offers only the ways the server lists and this page can run, and Start again goes back to the form.</p>
+    <div class="g-grid">
+      <div class="card" data-new>
+        <h2>A code from the authenticator app</h2>
+        <section class="cp-panel" data-account-demo="code"></section>
+        <footer>The code field first, with the other ways under it. Type 000000 for a wrong code, 111111 for one already used, any other six digits to sign in.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A passkey as the second step</h2>
+        <section class="cp-panel" data-account-demo="second-passkey"></section>
+        <footer>No authenticator app: the passkey leads, the recovery code under it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A recovery code, then a new authenticator</h2>
+        <section class="cp-panel" data-account-demo="recovered"></section>
+        <footer>The recovery code typed in any spelling, grouped in fours. It leads to setting up a new authenticator; its finish shows the new recovery code once.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Too many wrong codes</h2>
+        <section class="cp-panel" data-account-demo="locked"></section>
+        <footer>The authenticator app is locked, so its field goes and the passkey leads, with the way to unlock it.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>This sign-in timed out</h2>
+        <section class="cp-panel" data-account-demo="timed-out"></section>
+        <footer>An expired step goes back to the form, the username kept.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Choose your password</h2>
+        <section class="cp-panel" data-account-demo="choose"></section>
+        <footer>After a temporary password: the person's own password, or a passkey instead.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Set up a second factor</h2>
+        <section class="cp-panel" data-account-demo="enrol"></section>
+        <footer>The app requires one: the QR code and its key in fours, the first code confirming it, or a passkey.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>From a device signed in before</h2>
+        <section class="cp-panel" data-account-demo="known-device"></section>
+        <footer>The rule is on and this browser has not signed in to the account before, so no step can start here.</footer>
       </div>
     </div>
   </section>

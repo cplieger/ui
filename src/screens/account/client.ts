@@ -39,14 +39,53 @@ export interface StateResponse {
   readonly https_origin?: string;
   /** From access Part 4: the app offers authenticator apps. Absent: no. */
   readonly totp?: boolean;
+  /** From access Part 4, on a plain request only: this form must not send
+   *  a temporary password. */
+  readonly temporary_password_https_only?: boolean;
+  /** From access Part 5: how single sign-on sits beside local sign-in.
+   *  Absent reads as `"alongside"`. */
+  readonly sso?: "alongside" | "for_linked" | "only";
 }
 
 export interface SignedIn {
   readonly user: { readonly username: string };
   readonly clone_warning?: boolean;
+  /** From access Part 4: set once, when this sign-in bound a factor that
+   *  issued one. */
+  readonly recovery_code?: string;
 }
 
-export type SignInOutcome =
+/** A method a pending sign-in's step accepts (access Part 4). */
+export type PendingMethod = "totp" | "passkey" | "recovery_code" | "password";
+
+/** A sign-in that needs another step. The ticket lives in memory only, and
+ *  each answer's newer ticket replaces it. */
+export interface Pending {
+  readonly ticket: string;
+  readonly next: "second_factor" | "set_credential" | "enrol";
+  /** Already filtered by this request's transport. */
+  readonly methods: readonly PendingMethod[];
+  /** Set after a recovery code: the enrolment that follows completes the
+   *  recovery. */
+  readonly recovered?: boolean;
+}
+
+/** A sign-in step's answer (access Part 4). */
+export type SignInOutcome = { readonly signed_in: SignedIn } | { readonly pending: Pending };
+
+/** A finish that created an account waiting for an administrator, with no
+ *  session. */
+export interface WaitingApproval {
+  readonly waiting_approval: true;
+  readonly recovery_code?: string;
+}
+
+/** What a passkey step of a pending sign-in ends with: the server's
+ *  answer, or why the browser gave none. */
+export type PendingPasskeyOutcome =
+  { readonly kind: "answered"; readonly answer: SignInOutcome | WaitingApproval } | PasskeyMiss;
+
+export type PasskeySignInOutcome =
   | { readonly kind: "signed-in"; readonly result: SignedIn }
   | {
       readonly kind:
@@ -68,26 +107,50 @@ export type OIDCReturn =
   | { readonly kind: "none" | "not_linked" | "linked" | "stepped_up" }
   | { readonly kind: "error"; readonly code: string | undefined };
 
-/** The client calls the sign-in screen makes. */
+/** `loginPassword`'s answer: the session before access Part 4, a step's
+ *  answer from it. */
+export type PasswordAnswer = SignedIn | SignInOutcome;
+
+/** The client calls the sign-in screen makes. The pending steps' calls
+ *  come with access Part 4: a step shows a method only when the client has
+ *  its call. */
 export interface SignInClient {
   state(): Promise<Result<StateResponse>>;
   loginPassword(r: {
     readonly username: string;
     readonly password: string;
-  }): Promise<Result<SignedIn>>;
+  }): Promise<Result<PasswordAnswer>>;
+  loginCode?(ticket: string, code: string): Promise<Result<SignInOutcome>>;
+  loginRecoveryCode?(ticket: string, code: string): Promise<Result<SignInOutcome>>;
+  loginSetPassword?(ticket: string, password: string): Promise<Result<SignInOutcome>>;
+  pendingTOTPBegin?(
+    ticket: string,
+  ): Promise<Result<{ readonly uri: string; readonly text: string }>>;
+  pendingTOTPFinish?(
+    ticket: string,
+    code: string,
+  ): Promise<Result<{ readonly signed_in: SignedIn } | WaitingApproval>>;
 }
 
 /** The `@cplieger/access` functions the sign-in screen calls, over the host's
- *  client type `C`. */
+ *  client type `C`. The ones access Part 4 adds are optional. */
 export interface SignInAccess<C> {
   signInWithPasskey(
     c: C,
     o?: { readonly mediation?: "conditional"; readonly signal?: AbortSignal },
-  ): Promise<SignInOutcome>;
+  ): Promise<PasskeySignInOutcome>;
   passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
   storePasswordCredential(username: string, password: string): Promise<void>;
   readOIDCReturn(search: string): OIDCReturn;
   oidcSignInURL(c: C, redirect?: string): string;
+  /** True when `value` reads as a temporary password, in any spelling. */
+  looksLikeTemporaryPassword?(value: string): boolean;
+  /** A passkey as the second step. */
+  readonly loginSecondPasskey?: (c: C, ticket: string) => Promise<PendingPasskeyOutcome>;
+  /** A passkey in place of a password, after a temporary password. */
+  readonly loginSetPasskey?: (c: C, ticket: string) => Promise<PendingPasskeyOutcome>;
+  /** A passkey enrolled as the second factor inside a sign-in. */
+  readonly pendingPasskey?: (c: C, ticket: string) => Promise<PendingPasskeyOutcome>;
 }
 
 /** The client calls the setup screen makes. */
@@ -207,7 +270,7 @@ export interface StepUpCallbacks {
 }
 
 /** A passkey assertion that did not confirm the person. */
-export type PasskeyMiss = Exclude<SignInOutcome, { kind: "signed-in" }>;
+export type PasskeyMiss = Exclude<PasskeySignInOutcome, { kind: "signed-in" }>;
 
 export type StepUpResult<T> =
   | { readonly kind: "done"; readonly result: Result<T> }
@@ -221,7 +284,7 @@ export interface StepUpClient {
   loginPassword(r: {
     readonly username: string;
     readonly password: string;
-  }): Promise<Result<SignedIn>>;
+  }): Promise<Result<PasswordAnswer>>;
 }
 
 /** The `@cplieger/access` functions a step-up calls. */
@@ -239,7 +302,7 @@ export interface SetupAccess<C> {
   setupWithPasskey(
     c: C,
     r: { readonly token?: string; readonly username: string },
-  ): Promise<SignInOutcome>;
+  ): Promise<PasskeySignInOutcome>;
   registerPasskey(c: C): Promise<RegisterOutcome>;
   passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
   storePasswordCredential(username: string, password: string): Promise<void>;
