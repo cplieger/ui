@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { server } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { enhanceKeyedList, type KeyedListOptions } from "./keyed-list.js";
@@ -841,8 +842,7 @@ describe("enhanceKeyedList", () => {
       "keeps the row in view still by a relative scroll when a row above it grows, in %s",
       async (_, make) => {
         const { ul, scroller } = make();
-        // WebKit has no scroll anchoring; with the engine's off, the module
-        // alone keeps the place, in every engine.
+        // With the engine's anchoring off, the module alone keeps the place.
         scroller.style.overflowAnchor = "none";
         enhance(ul, { keys: keysOf(5000) });
         scroller.scrollTop += 300.5 * pitchOf(ul);
@@ -886,14 +886,33 @@ describe("enhanceKeyedList", () => {
         const above = rows(ul)[0] as HTMLElement;
         const key = above.dataset["key"] ?? "";
         expect(above.getBoundingClientRect().bottom).toBeLessThan(top);
+        // A resize observer runs after layout and before paint, so it reads
+        // the place the reader sees in the frame the growth is painted.
+        const painted: number[] = [];
+        let grown = false;
+        const watch = new ResizeObserver(() => {
+          if (grown) {
+            painted.push(seen.getBoundingClientRect().top - was);
+          }
+        });
+        watch.observe(above);
+        await frames();
+        grown = true;
         // The app's patch: a row's details opened, which `row` does not know.
         above.dataset["open"] = "";
         (above.firstElementChild as HTMLElement).style.minBlockSize = "10rem";
         await frames();
         await frames();
+        watch.disconnect();
         expect(list.rowOf(key)).toBe(above);
         expect(above.dataset["open"]).toBe("");
         expect(Math.abs(seen.getBoundingClientRect().top - was)).toBeLessThan(1);
+        // Until the next draw only the engine's anchoring keeps the place,
+        // and WebKit does not anchor the page's own scroller.
+        if (scroller !== page() || server.browser !== "webkit") {
+          expect(painted.length).toBeGreaterThan(0);
+          expect(Math.abs(painted[0] ?? Infinity)).toBeLessThan(1);
+        }
       },
     );
 
@@ -917,15 +936,12 @@ describe("enhanceKeyedList", () => {
     );
   });
 
-  it("stops following the scroll once its signal aborts, its own anchoring given back", async () => {
+  it("stops following the scroll once its signal aborts", async () => {
     const ul = virtualList();
-    ul.style.overflowAnchor = "auto";
     const stop = new AbortController();
     enhance(ul, { keys: keysOf(20_000), signal: stop.signal });
-    expect(ul.style.overflowAnchor).toBe("none");
     const first = keysIn(ul);
     stop.abort();
-    expect(ul.style.overflowAnchor).toBe("auto");
     ul.scrollTop = 5000 * pitchOf(ul);
     await frames();
     expect(keysIn(ul)).toEqual(first);

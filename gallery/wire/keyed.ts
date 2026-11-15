@@ -128,8 +128,12 @@ function activity(now: number): Day[] {
   today.setHours(0, 0, 0, 0);
   const days: Day[] = [];
   for (let d = 0; d < 365; d += 1) {
-    const at = new Date(today.getTime() - d * DAY);
-    const span = d === 0 ? now - at.getTime() : DAY;
+    // Calendar steps keep each start a local midnight across a clock change.
+    const at = new Date(today);
+    at.setDate(today.getDate() - d);
+    const next = new Date(at);
+    next.setDate(at.getDate() + 1);
+    const span = d === 0 ? now - at.getTime() : next.getTime() - at.getTime();
     const count = 4 + Math.floor(r() * 41);
     const events = Array.from({ length: count }, (_, i) =>
       eventAt(`e${String(d)}-${String(i)}`, new Date(at.getTime() + r() * span), r),

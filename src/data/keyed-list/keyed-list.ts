@@ -642,8 +642,7 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     // whose box grows with its rows moves with the box around it.
     const scroller = scrollerOf(container, true);
     const anchoring = scroller.style.overflowAnchor;
-    // The engine's own anchoring would add its correction to this one;
-    // WebKit has none, so the module keeps the place itself.
+    // The engine's own anchoring would add its correction to this one.
     scroller.style.overflowAnchor = "none";
     let rows: readonly { readonly el: HTMLElement; readonly i: number }[] = [];
     try {
@@ -781,17 +780,6 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
     writeCount(fresh);
   };
 
-  // The engine's anchoring would move the scroller for a row that grows
-  // above the view before the next draw, which would take that for the
-  // reader's scroll and draw a drawn row again from `row`, losing the app's
-  // patches; the module keeps the place itself.
-  if (sizes !== undefined && signal?.aborted !== true) {
-    const anchoring = container.style.overflowAnchor;
-    container.style.overflowAnchor = "none";
-    whenAborted(signal, () => {
-      container.style.overflowAnchor = anchoring;
-    });
-  }
   setKeys(options.keys, options.of);
   for (const child of [...container.children]) {
     if (!child.matches(".cp-list-foot")) {
