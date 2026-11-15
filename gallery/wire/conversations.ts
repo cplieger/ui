@@ -1,10 +1,3 @@
-/**
- * conversations.ts — the Messages card's conversation list, on the library:
- * keyed rows that move to the top on new activity, Show older, the filters
- * and the route that opens a conversation beside the list or in a dialog;
- * and the agent card's history, newest first, with Show older at its end.
- */
-
 import { announce } from "@cplieger/ui/announce";
 import { enhanceKeyedList } from "@cplieger/ui/keyed-list";
 import { enhanceListDetail } from "@cplieger/ui/list-detail";
@@ -151,8 +144,20 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       }),
     );
   }
+  // A conversation a press opened has its own history entry, so closing it
+  // goes back to the list's; the entry a page loaded on is the list's too,
+  // so closing that one rewrites its address instead.
+  const LANDED = "cp-gallery-landed";
+  let closing = false;
   const detail = enhanceListDetail(root, {
     onDismiss: () => {
+      const state: unknown = history.state;
+      const landed = typeof state === "object" && state !== null && LANDED in state;
+      if (byHash() !== undefined && !landed) {
+        closing = true;
+        history.back();
+        return;
+      }
       history.replaceState(null, "", location.pathname + location.search);
       route(null, false);
     },
@@ -191,20 +196,28 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
   const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const first = linkOf(byHash()) ?? current() ?? null;
   if (first !== null && root.getBoundingClientRect().width >= 52 * rem) {
+    if (byHash() !== undefined) {
+      history.replaceState({ [LANDED]: true }, "");
+    }
     route(first, true);
     title?.blur();
   } else {
     first?.removeAttribute("aria-current");
+    // A press on a link to the address's own hash fires no hashchange.
+    if (byHash() !== undefined) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
   }
   // Back to a hash naming no conversation closes the phone's dialog; wide,
   // the docked conversation stays, so the layout never loses its detail.
   addEventListener("hashchange", () => {
-    const row = linkOf(byHash());
+    const row = closing ? null : linkOf(byHash());
     if (row !== null) {
       route(row, false);
-    } else if (root.getBoundingClientRect().width < 52 * rem) {
+    } else if (closing || root.getBoundingClientRect().width < 52 * rem) {
       route(null, false);
     }
+    closing = false;
   });
 
   // A filter replaces the rows; the open conversation stays open, and its

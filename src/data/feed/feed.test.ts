@@ -1153,9 +1153,59 @@ describe("a history", () => {
       const x = box.left + box.width / 2;
       const reach = (min - box.height) / 2 - 0.5;
       expect(document.elementFromPoint(x, box.top - reach), tier).toBe(link);
-      expect(document.elementFromPoint(x, box.bottom + reach), tier).toBe(link);
     }
     delete document.documentElement.dataset["pointer"];
+  });
+
+  it("leaves the lines under a one-line header their own taps under a finger", () => {
+    const { feed } = history(2);
+    const [titled, plain] = feed.querySelectorAll<HTMLLIElement>(".cp-feed-entry");
+    if (titled === undefined || plain === undefined) {
+      throw new TypeError("no entries");
+    }
+    const chipIn = (item: HTMLLIElement): HTMLAnchorElement => {
+      const link = document.createElement("a");
+      link.className = "cp-chip";
+      link.href = "#c-announce";
+      link.textContent = "Announcements";
+      item.querySelector("header")?.append(link);
+      return link;
+    };
+    const subject = document.createElement("h3");
+    subject.textContent = "List rows";
+    titled.querySelector("header")?.after(subject);
+    const origin = chipIn(titled);
+    const other = chipIn(plain);
+    const text = plain.querySelector(".cp-feed-text") as HTMLElement;
+    const body = document.createElement("a");
+    body.href = "https://example.com/runs/1234567890";
+    body.textContent = "https://example.com/runs/1234567890";
+    text.replaceChildren(body, " has the log.");
+    document.documentElement.dataset["pointer"] = "coarse";
+
+    const chip = origin.getBoundingClientRect();
+    const line = subject.getBoundingClientRect();
+    const x = chip.left + chip.width / 2;
+    expect(document.elementFromPoint(x, (chip.bottom + line.top) / 2), "the gap").toBe(origin);
+    expect(document.elementFromPoint(x, line.top + 2), "the subject").toBe(subject);
+    const next = body.getBoundingClientRect();
+    const at = other.getBoundingClientRect().left + 4;
+    expect(next.right, "the body link reaches under the chip").toBeGreaterThan(at);
+    expect(document.elementFromPoint(at, next.top + 2), "the body link").toBe(body);
+  });
+
+  it("keeps the author's link under a fixed bar earlier in the page", () => {
+    const { feed } = history(1);
+    const author = feed.querySelector(".cp-feed-entry > header > a") as HTMLAnchorElement;
+    const a = author.getBoundingClientRect();
+    const bar = document.createElement("div");
+    bar.style.position = "fixed";
+    bar.style.zIndex = "1";
+    bar.style.insetInline = "0";
+    bar.style.insetBlockStart = `${String(a.top - 4)}px`;
+    bar.style.blockSize = `${String(a.height + 8)}px`;
+    document.body.prepend(bar);
+    expect(document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2)).toBe(bar);
   });
 
   it("keeps the author's link above an origin link's target when the header wraps under a finger", () => {

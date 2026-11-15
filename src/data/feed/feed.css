@@ -43,11 +43,20 @@
   border-radius: var(--cp-radius-surface);
 }
 
+/* The header holds its links' stacking, so the author's raise above an
+ * origin chip's target never reaches a page's fixed bar. */
 .cp-feed-entry > header {
+  isolation: isolate;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--cp-space-1) var(--cp-space-2);
+}
+
+/* Painted over the header, so a chip's target that reaches below it keeps
+ * to the gap and leaves the subject and the text their own taps. */
+.cp-feed-entry > header ~ * {
+  position: relative;
 }
 
 /* Above an origin chip's target, which reaches over a wrapped header's gap. */

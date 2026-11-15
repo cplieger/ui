@@ -118,22 +118,77 @@ describe.each(browsers)("the gallery in %s", (name) => {
 
   it("closes an open conversation on Back at a phone's width and focuses its row", async () => {
     const tab = await (browser as Browser).newPage({ viewport: { width: 390, height: 800 } });
+    await tab.goto(`${origin}/index.html`);
     await tab.goto(`${origin}/messages.html`);
     await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
     const row = tab.locator("#msg-list a.cp-list-row").nth(1);
     const id = await row.getAttribute("href");
+    const shown = () => document.querySelector<HTMLDialogElement>("#msg + dialog")?.open;
+    const hidden = () => !document.querySelector<HTMLDialogElement>("#msg + dialog")?.open;
     await row.focus();
     await tab.keyboard.press("Enter");
-    await tab.waitForFunction(
-      () => document.querySelector<HTMLDialogElement>("#msg + dialog")?.open,
-    );
+    await tab.waitForFunction(shown);
     await tab.goBack();
-    await tab.waitForFunction(
-      () => !document.querySelector<HTMLDialogElement>("#msg + dialog")?.open,
-    );
+    await tab.waitForFunction(hidden);
     const focused = await tab.evaluate(() => document.activeElement?.getAttribute("href"));
+
+    await row.focus();
+    await tab.keyboard.press("Enter");
+    await tab.waitForFunction(shown);
+    await tab.keyboard.press("Escape");
+    await tab.waitForFunction(hidden);
+    const closed = new URL(tab.url());
+    await tab.goBack();
+    const left = new URL(tab.url()).pathname;
     await tab.close();
-    expect(focused).toBe(id);
+    expect({ focused, closed: closed.pathname + closed.hash, left }).toEqual({
+      focused: id,
+      closed: "/messages.html",
+      left: "/index.html",
+    });
+  }, 60_000);
+
+  it("keeps a docked conversation on Back and closes it on Close", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 1280, height: 800 } });
+    await tab.goto(`${origin}/index.html`);
+    await tab.goto(`${origin}/messages.html`);
+    await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
+    const row = tab.locator("#msg-list a.cp-list-row").nth(1);
+    await row.focus();
+    await tab.keyboard.press("Enter");
+    await tab.waitForFunction(() => location.hash !== "");
+    const state = () =>
+      tab.evaluate(() => ({
+        docked: document.getElementById("msg")?.hasAttribute("data-cp-docked") ?? false,
+        shown: document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === false,
+        current: document
+          .querySelectorAll("#msg-list a.cp-list-row")[1]
+          ?.getAttribute("aria-current"),
+      }));
+    await tab.goBack();
+    await tab.waitForFunction(() => location.hash === "");
+    const back = await state();
+
+    await row.focus();
+    await tab.keyboard.press("Enter");
+    await tab.waitForFunction(() => location.hash !== "");
+    await tab.locator("#msg > .cp-detail [data-detail-close]").click();
+    await tab.waitForFunction(
+      () => document.querySelector<HTMLElement>("#msg > .cp-detail")?.hidden === true,
+    );
+    const closed = {
+      ...(await state()),
+      path: new URL(tab.url()).pathname,
+      hash: new URL(tab.url()).hash,
+    };
+    await tab.goBack();
+    const left = new URL(tab.url()).pathname;
+    await tab.close();
+    expect({ back, closed, left }).toEqual({
+      back: { docked: true, shown: true, current: "page" },
+      closed: { docked: false, shown: false, current: null, path: "/messages.html", hash: "" },
+      left: "/index.html",
+    });
   }, 60_000);
 
   it.each(pageNames)(
