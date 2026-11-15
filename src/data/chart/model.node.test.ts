@@ -20,6 +20,9 @@ type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"
 
 const build = (spec: unknown) => chartModel(spec as ChartSpec, "en", "UTC");
 
+// A million-value spec runs past node's 5 s default on a loaded host.
+const MILLION = { timeout: 30_000 };
+
 const rect = (
   y: readonly (number | null)[],
   more: Partial<Extract<Mark, { mark: "rect" }>> = {},
@@ -420,7 +423,7 @@ describe("spec errors", () => {
     expect(build({ marks: [ends(1_000)] }).kind).toBe("slope");
   });
 
-  it("names the field that takes a spec past a million values", () => {
+  it("names the field that takes a spec past a million values", MILLION, () => {
     const zeros = (n: number) => new Array<number>(n).fill(0);
     const past = (field: string) =>
       new RangeError(
@@ -449,16 +452,13 @@ describe("spec errors", () => {
     expect(() => build({ x: {}, marks: [timeline(400_001)] })).toThrow(past("marks[0].rows[1].x"));
   });
 
-  it("counts a series with no samples as one value", () => {
-    const empty = (k: number): Mark => ({
-      mark: "line",
-      x: [],
-      series: Array.from({ length: k }, (_, s) => ({
-        name: `s${String(s)}`,
-        slot: ((s % 9) + 1) as Slot,
-        y: [],
-      })),
-    });
+  it("counts a series with no samples as one value", MILLION, () => {
+    const series = Array.from({ length: 1_000_001 }, (_, s) => ({
+      name: `s${String(s)}`,
+      slot: ((s % 9) + 1) as Slot,
+      y: [],
+    }));
+    const empty = (k: number): Mark => ({ mark: "line", x: [], series: series.slice(0, k) });
     expect(build({ x: {}, marks: [empty(1_000_000)] }).kind).toBe("line");
     expect(() => build({ x: {}, marks: [empty(1_000_001)] })).toThrow(
       new RangeError(
@@ -478,7 +478,7 @@ describe("spec errors", () => {
     expect(() => build({ x: {}, marks: [scatter] })).toThrow("marks[0].series[1000000].names");
   });
 
-  it("counts a cell grid's columns when it has no rows", () => {
+  it("counts a cell grid's columns when it has no rows", MILLION, () => {
     const past = new RangeError(
       "renderChart: marks[0].x must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
     );

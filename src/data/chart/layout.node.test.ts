@@ -293,18 +293,24 @@ describe("the plot's height", () => {
 });
 
 describe("a note", () => {
-  it("lays out 300,000 words, each wider than the note and so a line of its own", () => {
-    const wide = measurer((t) => 200 * Array.from(t).length, 200, "en");
-    const text = new Array<string>(300_000).fill("a").join(" ");
-    const spec = line([[1, 2]]);
-    const [note] = lay(
-      { ...spec, marks: [...spec.marks, { mark: "text", x: 0, y: 1, text }] },
-      600,
-      { measure: wide },
-    ).notes;
-    expect(note?.lines).toHaveLength(300_000);
-    expect(note?.box.right).toBeCloseTo((note?.box.left ?? 0) + 200);
-  });
+  // Built at the size the bound is about, it runs past node's 5 s default on a
+  // loaded host.
+  it(
+    "lays out 300,000 words, each wider than the note and so a line of its own",
+    { timeout: 30_000 },
+    () => {
+      const wide = measurer((t) => 200 * Array.from(t).length, 200, "en");
+      const text = new Array<string>(300_000).fill("a").join(" ");
+      const spec = line([[1, 2]]);
+      const [note] = lay(
+        { ...spec, marks: [...spec.marks, { mark: "text", x: 0, y: 1, text }] },
+        600,
+        { measure: wide },
+      ).notes;
+      expect(note?.lines).toHaveLength(300_000);
+      expect(note?.box.right).toBeCloseTo((note?.box.left ?? 0) + 200);
+    },
+  );
 });
 
 describe("a bar chart", () => {

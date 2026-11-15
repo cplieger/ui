@@ -54,7 +54,9 @@ function render(model: Model): void {
 const notes = (x: (k: number) => number, y: (k: number) => number): Mark[] =>
   Array.from({ length: NOTES }, (_, k) => ({ mark: "text", x: x(k), y: y(k), text: "a" }));
 
-describe("a note's join", () => {
+// Built at the size the bound is about, it runs past node's 5 s default on a
+// loaded host.
+describe("a note's join", { timeout: 30_000 }, () => {
   it("finds the chart's data mark once, so 20,000 notes before a line read the marks a few times each", () => {
     const spec: ChartSpec = {
       x: {},

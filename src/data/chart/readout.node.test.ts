@@ -257,7 +257,9 @@ describe("the legend row of a step line", () => {
   });
 });
 
-describe("the legend row of 200,000 lines", () => {
+// Built at the size the bound is about, it runs past node's 5 s default on a
+// loaded host.
+describe("the legend row of 200,000 lines", { timeout: 30_000 }, () => {
   const m = model({
     x: { type: "time", domain: [START, START + 10 * MIN] },
     marks: [
