@@ -590,6 +590,97 @@ describe("spec errors", () => {
     expect(held?.mark === "line" ? held.series[0] : undefined).not.toBe(series);
   });
 
+  // The values ceiling; a list is charged where it sits, before it is read.
+  const MOST = 1_000_000;
+  const past = (field: string) =>
+    new RangeError(
+      `renderChart: ${field} must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together`,
+    );
+  const counted = (length: number, entry: unknown) => {
+    const read = { n: 0 };
+    const list = new Proxy(new Array<unknown>(length).fill(entry), {
+      get: (target, key) => {
+        if (typeof key === "string" && /^\d+$/u.test(key)) {
+          read.n++;
+        }
+        return Reflect.get(target, key) as unknown;
+      },
+    });
+    return { list, read };
+  };
+  const times = <T>(n: number, make: (i: number) => T): T[] =>
+    Array.from({ length: n }, (_, i) => make(i));
+
+  it("reads a list shared across series or marks only up to the ceiling", MILLION, () => {
+    const cases: readonly (readonly [string, (list: unknown) => unknown, unknown])[] = [
+      [
+        "series y",
+        (y) => ({
+          marks: [
+            { mark: "line", x: [0], series: times(2_000, (s) => ({ name: `s${String(s)}`, y })) },
+          ],
+        }),
+        past("marks[0].series[1000].y"),
+      ],
+      [
+        "box outliers",
+        (outliers) => ({
+          marks: [
+            {
+              mark: "box",
+              y: ["a"],
+              series: times(2_000, (s) => ({
+                name: `s${String(s)}`,
+                low: [1],
+                q1: [2],
+                median: [3],
+                q3: [4],
+                high: [5],
+                outliers,
+              })),
+            },
+          ],
+        }),
+        past("marks[0].series[1000].median"),
+      ],
+      [
+        "rect x2",
+        (x2) => ({ marks: times(2_000, () => ({ mark: "rect", x1: [0], x2, series: [] })) }),
+        "renderChart: marks[1] is a second data mark beside marks[0]",
+      ],
+      [
+        "cell y",
+        (y) => ({ marks: times(2_000, () => ({ mark: "cell", x: ["a"], y, values: [] })) }),
+        "renderChart: marks[1] is a second data mark beside marks[0]",
+      ],
+    ];
+    for (const [what, spec, error] of cases) {
+      const shared = counted(1_000, what === "cell y" ? "a" : 1);
+      expect(() => build({ x: {}, ...(spec(shared.list) as object) }), what).toThrow(
+        error as string,
+      );
+      expect(shared.read.n, what).toBeLessThanOrEqual(MOST);
+    }
+  });
+
+  it("charges each series' samples before it copies them", MILLION, () => {
+    const y = (): number[] => new Array<number>(200_000).fill(1);
+    const series = times(8, (s) => ({ name: `s${String(s)}`, y: y() }));
+    expect(() => build({ x: {}, marks: [{ mark: "line", x: [0], series }] })).toThrow(
+      past("marks[0].series[5].y"),
+    );
+    const second = counted(600_000, 0);
+    const timeline: Mark = {
+      mark: "dot",
+      rows: [
+        { name: "a", x: new Array<number>(600_000).fill(0) },
+        { name: "b", x: second.list as number[] },
+      ],
+    };
+    expect(() => build({ x: {}, marks: [timeline] })).toThrow(past("marks[0].rows[1].x"));
+    expect(second.read.n).toBe(0);
+  });
+
   it("counts a timeline row whose x is no array as one value", () => {
     const timeline: Mark = {
       mark: "dot",

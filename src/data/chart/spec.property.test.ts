@@ -646,6 +646,45 @@ function liars(list: readonly unknown[]): readonly unknown[] {
   return [iterated, growing];
 }
 
+const MOST_VALUES = 1_000_000;
+
+// The index reads of the list each `share` change spreads, by the change's value.
+const READS = new WeakMap<object, { n: number }>();
+
+// Each list with a place it repeats at: the index of the series, row, node or
+// mark holding it, or its own in a list of lists.
+const repeats = (spec: unknown): (readonly [Path, number])[] =>
+  lists(spec).flatMap((path) =>
+    path.flatMap((k, j) => (typeof k === "number" ? [[path, j] as const] : [])),
+  );
+
+// The change that puts `copies` of the entry at `path[j]` in its list, all
+// holding one counted list at `path`, long enough that together they hold
+// twice the values a spec takes.
+function share(spec: unknown, path: Path, j: number, copies: number): readonly [Path, unknown] {
+  const list = at(spec, path) as readonly unknown[];
+  const read = { n: 0 };
+  const length = Math.min(MOST_ENTRIES(path), Math.ceil((2 * MOST_VALUES) / copies));
+  const shared = new Proxy(new Array<unknown>(length).fill(list[0] ?? 0), {
+    get(target, key) {
+      if (typeof key === "string" && /^\d+$/u.test(key)) {
+        read.n++;
+      }
+      return Reflect.get(target, key) as unknown;
+    },
+  });
+  const tail = path.slice(j + 1);
+  const entry = at(spec, path.slice(0, j + 1));
+  const copied = Array.from({ length: copies }, () =>
+    tail.length === 0 ? shared : mutate(entry, [[tail, shared]]),
+  );
+  // fast-check prints a failing case, which would spell out every entry.
+  const what = `${String(copies)} copies sharing ${named(path)} of ${String(length)}`;
+  Object.defineProperty(copied, fc.toStringMethod, { value: () => what });
+  READS.set(copied, read);
+  return [path.slice(0, j), copied];
+}
+
 describe("a chart spec", () => {
   it.each(SPECS.map((_, k) => k))(
     "refuses each list of spec %i given anything but an array within the ceiling, by its name, before reading it",
@@ -837,13 +876,24 @@ describe("a chart spec", () => {
     },
   );
 
-  it("with fields dropped or mistyped draws within its bound, or throws a TypeError or RangeError naming one", () => {
+  it("with fields dropped, mistyped or shared draws within its bound, or throws a TypeError or RangeError naming one", () => {
     const changed = fc.integer({ min: 0, max: SPECS.length - 1 }).chain((k) => {
       const wrong = fc.constantFrom(...WRONG);
       const left = absent(SPECS[k]);
+      const spread = repeats(SPECS[k]);
       // A field left out is most often written undefined, which "in" reads as present.
       const change = fc.oneof(
         { arbitrary: fc.tuple(fc.constantFrom(...paths(SPECS[k])), wrong), weight: 3 },
+        ...(spread.length === 0
+          ? []
+          : [
+              {
+                arbitrary: fc
+                  .tuple(fc.constantFrom(...spread), fc.integer({ min: 4, max: 2_000 }))
+                  .map(([[path, j], copies]) => share(SPECS[k], path, j, copies)),
+                weight: 1,
+              },
+            ]),
         ...(left.length === 0
           ? []
           : [
@@ -868,6 +918,11 @@ describe("a chart spec", () => {
     fc.assert(
       fc.property(changed, zone, ([k, changes], timeZone) => {
         const spec = mutate(SPECS[k], changes);
+        const reads = changes.flatMap(([, value]) => {
+          const read = READS.get(value as object);
+          return read === undefined ? [] : [[value, read] as const];
+        });
+        reads.forEach(([, read]) => (read.n = 0));
         let drawn: number;
         try {
           drawn = exercise(spec, timeZone);
@@ -877,6 +932,11 @@ describe("a chart spec", () => {
           }
           seen.refused++;
           return;
+        } finally {
+          // Each place a shared list sits is charged before it is read.
+          for (const [value, read] of reads) {
+            expect(read.n, fc.stringify(value)).toBeLessThanOrEqual(MOST_VALUES);
+          }
         }
         seen.drawn++;
         expect(drawn, JSON.stringify(spec)).toBeLessThanOrEqual(mostDrawn(spec));

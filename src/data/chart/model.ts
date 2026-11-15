@@ -1539,18 +1539,33 @@ function checkInstants(spec: Record<string, unknown>, marks: readonly unknown[])
 // chart is designed for; past it the readings and the table grow without end.
 const MOST_VALUES = 1_000_000;
 
-type Entry = (v: unknown, i: number, length: number) => unknown;
+interface List {
+  readonly each?: (v: unknown, i: number, length: number) => unknown;
+  readonly most?: number;
+  readonly why?: string;
+  readonly charge?: (length: number) => number;
+}
 
 interface Door {
   /** A copy of `v` read by index, each entry through `each`, when it is an
    *  array; `v` itself otherwise, for its field's check to refuse. An array
    *  whose one length read is not a whole number from 0 to `most` is the
-   *  `RangeError` naming `field`. */
-  readonly list: (v: unknown, field: string, each?: Entry, most?: number, why?: string) => unknown;
+   *  `RangeError` naming `field`; `charge` of that length is added to the
+   *  values count before the first entry is read. */
+  readonly list: (v: unknown, field: string, options?: List) => unknown;
   readonly add: (n: number, field: string) => void;
 }
 
 const size = (copy: unknown): number => (isArray(copy) ? copy.length : 0);
+
+const ALL: List = { charge: (length) => length };
+
+// A series, timeline row or cell row is one value at least, so every legend
+// chip and row name is counted too.
+const ONE_AT_LEAST: List = { charge: (length) => Math.max(1, length) };
+
+// What a list holds past the `n` values its series is charged for.
+const past = (n: number): List => ({ charge: (length) => Math.max(0, length - n) });
 
 // `names` of `v`, each read once, in an object of the chart's own.
 function fields(v: Record<string, unknown>, names: readonly string[]): Record<string, unknown> {
@@ -1654,11 +1669,18 @@ const MARKS = new Map<string, readonly (readonly string[])[]>([
 ]);
 
 // A cell axis's columns or rows: its names, or its bins between its edges.
-function copyAxis(m: Record<string, unknown>, key: "x" | "y", what: string, door: Door): number {
+// `covered` of them are charged elsewhere, and the axis charges the rest.
+function copyAxis(
+  m: Record<string, unknown>,
+  key: "x" | "y",
+  what: string,
+  door: Door,
+  covered = Number.POSITIVE_INFINITY,
+): number {
   const axis = m[key];
   const field = `${what}.${key}`;
   if (isArray(axis)) {
-    m[key] = door.list(axis, field);
+    m[key] = door.list(axis, field, past(covered));
     return size(m[key]);
   }
   if (!isObject(axis)) {
@@ -1667,7 +1689,11 @@ function copyAxis(m: Record<string, unknown>, key: "x" | "y", what: string, door
   const bins = fields(axis, ["edges"]);
   // A bin per value, on one more edge.
   put(bins, "edges", (v) =>
-    door.list(v, `${field}.edges`, undefined, MOST_VALUES + 1, "a bin per value a spec takes"),
+    door.list(v, `${field}.edges`, {
+      most: MOST_VALUES + 1,
+      why: "a bin per value a spec takes",
+      ...past(covered + 1),
+    }),
   );
   m[key] = bins;
   return Math.max(0, size(bins["edges"]) - 1);
@@ -1678,33 +1704,38 @@ function copyCells(m: Record<string, unknown>, what: string, door: Door): void {
   const days = m["days"];
   if (isObject(days)) {
     const copy = fields(days, ["start", "values", "open"]);
-    put(copy, "values", (v) => list(v, `${what}.days.values`));
-    add(size(copy["values"]), `${what}.days.values`);
+    put(copy, "values", (v) => list(v, `${what}.days.values`, ALL));
     m["days"] = copy;
     return;
   }
   const columns = copyAxis(m, "x", what, door);
-  copyAxis(m, "y", what, door);
   put(m, "values", (v) =>
-    list(v, `${what}.values`, (row, r) => {
-      const at = `${what}.values[${String(r)}]`;
-      const copy = list(row, at);
-      add(Math.max(1, size(copy)), at);
-      return copy;
+    list(v, `${what}.values`, {
+      each: (row, r) => {
+        const at = `${what}.values[${String(r)}]`;
+        if (isArray(row)) {
+          return list(row, at, ONE_AT_LEAST);
+        }
+        add(1, at);
+        return row;
+      },
     }),
   );
-  if (size(m["values"]) === 0) {
+  const rows = size(m["values"]);
+  copyAxis(m, "y", what, door, rows);
+  // A grid with no rows is its columns, so every column name is counted.
+  if (rows === 0) {
     add(columns, `${what}.x`);
   }
 }
 
 function copyMark(
   mark: Record<string, unknown>,
+  kind: unknown,
   what: string,
   door: Door,
 ): Record<string, unknown> {
   const { list, add } = door;
-  const kind = mark["mark"];
   const [names = [], parts = []] = (typeof kind === "string" ? MARKS.get(kind) : undefined) ?? [];
   const m = fields(mark, names);
   if (kind !== undefined) {
@@ -1712,32 +1743,40 @@ function copyMark(
   }
   put(m, "unit", entries);
   put(m, "format", entries);
-  const own = (key: string): number => {
-    put(m, key, (v) => list(v, `${what}.${key}`));
+  const own = (key: string, options?: List): number => {
+    put(m, key, (v) => list(v, `${what}.${key}`, options));
     return size(m[key]);
   };
   const eachSeries = (fill: (one: Record<string, unknown> | undefined, at: string) => void) => {
     put(m, "series", (v) =>
-      list(v, `${what}.series`, (one, s) => {
-        const copy = isObject(one) ? fields(one, parts) : undefined;
-        fill(copy, `${what}.series[${String(s)}]`);
-        return copy ?? one;
+      list(v, `${what}.series`, {
+        each: (one, s) => {
+          const copy = isObject(one) ? fields(one, parts) : undefined;
+          fill(copy, `${what}.series[${String(s)}]`);
+          return copy ?? one;
+        },
       }),
     );
     return size(m["series"]);
   };
-  const channels = (one: Record<string, unknown> | undefined, at: string, keys: string[]) => {
+  const channels = (
+    one: Record<string, unknown> | undefined,
+    at: string,
+    keys: string[],
+    n: number,
+  ) => {
     if (one !== undefined) {
       for (const key of keys) {
-        put(one, key, (v) => list(v, `${at}.${key}`));
+        put(one, key, (v) => list(v, `${at}.${key}`, past(n)));
       }
     }
   };
-  // Each series is n values, one at least, and a mark with no series its x.
+  // Each series is n values, one at least, charged before its channels, which
+  // charge what they hold past n; a mark with no series is its x.
   const across = (n: number, keys: string[], empty: string): void => {
     const count = eachSeries((one, at) => {
-      channels(one, at, keys);
       add(Math.max(1, n), `${at}.${keys[0] ?? ""}`);
+      channels(one, at, keys, n);
     });
     if (count === 0) {
       add(n, empty);
@@ -1745,8 +1784,9 @@ function copyMark(
   };
   switch (kind) {
     case "rect": {
-      own("x2");
-      across(own("x1"), ["y"], `${what}.x1`);
+      const n = own("x1");
+      own("x2", past(n));
+      across(n, ["y"], `${what}.x1`);
       return m;
     }
     case "line":
@@ -1758,25 +1798,20 @@ function copyMark(
       across(own("y"), ["x"], `${what}.y`);
       return m;
     case "slope":
-      own("x");
+      own("x", past(2));
       across(2, ["y"], `${what}.x`);
       return m;
     case "box": {
       const n = own("y");
-      const five = ["median", "low", "q1", "q3", "high"];
       const count = eachSeries((one, at) => {
-        channels(one, at, five);
         add(Math.max(1, n), `${at}.median`);
-        // Read only when one per category, as the box check takes them.
+        channels(one, at, ["median", "low", "q1", "q3", "high"], n);
+        // Its rows are read only when one per category, as the box check takes them.
         put(one ?? {}, "outliers", (v) =>
-          list(v, `${at}.outliers`, (o, i, length) => {
-            if (length !== n) {
-              return o;
-            }
-            const where = `${at}.outliers[${String(i)}]`;
-            const copy = list(o, where);
-            add(size(copy), where);
-            return copy;
+          list(v, `${at}.outliers`, {
+            ...past(n),
+            each: (o, i, length) =>
+              length === n ? list(o, `${at}.outliers[${String(i)}]`, ALL) : o,
           }),
         );
       });
@@ -1787,19 +1822,31 @@ function copyMark(
     }
     case "dot":
       put(m, "rows", (v) =>
-        list(v, `${what}.rows`, (row, r) => {
-          const at = `${what}.rows[${String(r)}].x`;
-          const copy = isObject(row) ? fields(row, ["name", "x"]) : undefined;
-          put(copy ?? {}, "x", (x) => list(x, at));
-          add(Math.max(1, size(copy?.["x"])), at);
-          return copy ?? row;
+        list(v, `${what}.rows`, {
+          each: (row, r) => {
+            const at = `${what}.rows[${String(r)}].x`;
+            const copy = isObject(row) ? fields(row, ["name", "x"]) : undefined;
+            const x = copy?.["x"];
+            if (copy !== undefined && isArray(x)) {
+              copy["x"] = list(x, at, ONE_AT_LEAST);
+            } else {
+              add(1, at);
+            }
+            return copy ?? row;
+          },
         }),
       );
       return m;
     case "scatter":
       eachSeries((one, at) => {
-        channels(one, at, ["x", "y", "r", "names"]);
-        add(Math.max(1, size(one?.["names"])), `${at}.names`);
+        const field = `${at}.names`;
+        const dots = one?.["names"];
+        if (one !== undefined && isArray(dots)) {
+          one["names"] = list(dots, field, ONE_AT_LEAST);
+        } else {
+          add(1, field);
+        }
+        channels(one, at, ["x", "y", "r"], size(one?.["names"]));
       });
       return m;
     case "cell":
@@ -1807,28 +1854,29 @@ function copyMark(
       return m;
     case "pie":
       put(m, "slices", (v) =>
-        list(v, `${what}.slices`, (one) => {
-          add(1, `${what}.slices`);
-          return isObject(one) ? fields(one, ["name", "slot", "value"]) : one;
+        list(v, `${what}.slices`, {
+          ...ALL,
+          each: (one) => (isObject(one) ? fields(one, ["name", "slot", "value"]) : one),
         }),
       );
       return m;
     case "tree":
       put(m, "nodes", (v) =>
-        list(v, `${what}.nodes`, (node, k) => {
-          add(1, `${what}.nodes`);
-          if (!isObject(node)) {
-            return node;
-          }
-          const copy = fields(node, PART);
-          const at = `${what}.nodes[${String(k)}].children`;
-          put(copy, "children", (c) =>
-            list(c, at, (part) => {
-              add(1, at);
-              return isObject(part) ? fields(part, PART) : part;
-            }),
-          );
-          return copy;
+        list(v, `${what}.nodes`, {
+          ...ALL,
+          each: (node, k) => {
+            if (!isObject(node)) {
+              return node;
+            }
+            const copy = fields(node, PART);
+            put(copy, "children", (c) =>
+              list(c, `${what}.nodes[${String(k)}].children`, {
+                ...ALL,
+                each: (part) => (isObject(part) ? fields(part, PART) : part),
+              }),
+            );
+            return copy;
+          },
         }),
       );
       return m;
@@ -1840,25 +1888,33 @@ function copyMark(
 
 // The door every spec passes before a check reads it: the chart's own copy of
 // the fields spec.ts documents, each read once, every list through Door.list,
-// so no check or model reads the app's objects again. It counts each value a
-// mark places as it copies it: a sample per series, a bucket, bar, dot, box,
-// outlier, cell, day, slice, part, rule or note, and a mark with no series its
-// x. A series, timeline row or cell row is one value at least, and a cell grid
-// with no rows its columns, so every legend chip, row and column name is
-// bounded too.
+// so no check or model reads the app's objects again. It counts a sample per
+// series, a bucket, bar, dot, box, outlier, cell, day, slice, part, rule or
+// note, and a mark with no series its x. Every list a series, row, node or
+// part holds is charged before its first entry is read, so a list shared by
+// reference across them is read only up to the ceiling.
 function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
   let count = 0;
+  const add = (n: number, field: string): void => {
+    count += n;
+    if (count > MOST_VALUES) {
+      fail(
+        `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
+        RangeError,
+      );
+    }
+  };
   const door: Door = {
-    list: (
-      v,
-      field,
-      each = (entry) => entry,
-      most = MOST_VALUES,
-      why = "the most values a spec takes",
-    ) => {
+    list: (v, field, options = {}) => {
       if (!isArray(v)) {
         return v;
       }
+      const {
+        each = (entry) => entry,
+        most = MOST_VALUES,
+        why = "the most values a spec takes",
+        charge,
+      } = options;
       // A Proxy over an array may claim any length, NaN included.
       const length: unknown = v.length;
       if (!(
@@ -1869,21 +1925,16 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
       )) {
         fail(`${field} must hold at most ${String(most)} entries, ${why}`, RangeError);
       }
+      if (charge !== undefined) {
+        add(charge(length), field);
+      }
       const out: unknown[] = [];
       for (let i = 0; i < length; i++) {
         out.push(each(v[i], i, length));
       }
       return out;
     },
-    add: (n, field) => {
-      count += n;
-      if (count > MOST_VALUES) {
-        fail(
-          `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
-          RangeError,
-        );
-      }
-    },
+    add,
   };
   const copy = fields(spec, ["x", "y", "r", "colour", "marks", "height", "summary", "empty"]);
   for (const name of ["x", "y", "r", "colour"]) {
@@ -1899,14 +1950,29 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
       return own;
     });
   }
+  let data: number | undefined;
   put(copy, "marks", (v) =>
-    door.list(v, "marks", (mark, m) => {
-      const what = `marks[${String(m)}]`;
-      if (!isObject(mark)) {
-        door.add(1, what);
-        return mark;
-      }
-      return copyMark(mark, what, door);
+    door.list(v, "marks", {
+      each: (mark, m) => {
+        const what = `marks[${String(m)}]`;
+        if (!isObject(mark)) {
+          add(1, what);
+          return mark;
+        }
+        const kind = mark["mark"];
+        // The keys, the legend row, the summary and the table read one mark,
+        // so a second would draw values none of them give. Refused before its
+        // copy, so lists the marks share are read once.
+        if (typeof kind === "string" && kind !== "rule" && kind !== "text" && MARKS.has(kind)) {
+          if (data !== undefined) {
+            fail(
+              `${what} is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks`,
+            );
+          }
+          data = m;
+        }
+        return copyMark(mark, kind, what, door);
+      },
     }),
   );
   return copy;
@@ -1950,13 +2016,7 @@ function check(given: unknown): ChartSpec {
     if (isObject(mark) && (mark["mark"] === "rule" || mark["mark"] === "text")) {
       continue;
     }
-    // The keys, the legend row, the summary and the table read one mark, so a
-    // second would draw values none of them give.
-    if (data !== -1) {
-      fail(
-        `marks[${String(m)}] is a second data mark beside marks[${String(data)}]; a chart holds one rect, line, area, dot, bar, point, slope, scatter, cell, box, pie or tree mark and any rules and text marks`,
-      );
-    }
+    // copySpec refuses a second data mark.
     data = m;
   }
   checkInstants(spec, marks);
