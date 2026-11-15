@@ -429,7 +429,15 @@ export function mountSecurity<C extends SecurityClient>(
         top.append(sessionsPart.root);
       }
       if (has("keys")) {
-        keysView = drawKeys(ctx, keysPart.body, keysPart.heading);
+        keysView = drawKeys(ctx, keysPart.body, keysPart.heading, {
+          list: () => client.keys(),
+          revoke: (id) => client.revokeKey(id),
+          own: {
+            create: (r) => client.createKey(r),
+            ...(client.renameKey === undefined ? {} : { rename: client.renameKey.bind(client) }),
+            ...(client.rotateKey === undefined ? {} : { rotate: client.rotateKey.bind(client) }),
+          },
+        });
         top.append(keysPart.root);
       }
       // access reads the log only to a viewer its policy lets list users,

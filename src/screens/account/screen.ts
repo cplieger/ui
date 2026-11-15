@@ -29,7 +29,9 @@ export type AccountPart =
   | "session-rename"
   | "keys"
   | "key-rotate"
-  | "security-log";
+  | "security-log"
+  | "invites"
+  | "admin-keys";
 
 export interface ScreenOptions {
   /** Any word on the screen, the words for each answer's code included. */
@@ -381,6 +383,7 @@ export function question(
     readonly answer: string;
     readonly cancel: string;
     readonly danger?: boolean;
+    readonly link?: { readonly text: string; readonly href: string };
   },
 ): Promise<boolean> {
   return ask(message, {
@@ -388,5 +391,6 @@ export function question(
     confirmLabel: o.answer,
     cancelLabel: o.cancel,
     ...(o.danger === true ? { tone: "danger" as const } : {}),
+    ...(o.link === undefined ? {} : { link: o.link }),
   });
 }

@@ -452,6 +452,23 @@ export interface AccountWords {
   readonly "keys.expiredRefused": string;
   /** A credential beside the session failed on a key route. */
   readonly "keys.signInAgain": string;
+  readonly "keys.everyTitle": string;
+  readonly "keys.noneAnywhere": string;
+  readonly "keys.owner": string;
+  readonly "keys.invites": string;
+  /** A key no other key minted, on the every-account table. */
+  readonly "keys.bySession": string;
+  readonly "keys.reached": string;
+  readonly "keys.reachedBy": (label: string) => string;
+  readonly "keys.invitesOf": (label: string, count: number) => string;
+  readonly "keys.inviteLine": (i: {
+    readonly purpose: string;
+    readonly role: string | undefined;
+    readonly made: string;
+    readonly until: string;
+  }) => string;
+  /** The admin's revoke: what goes with the key, and what stays. */
+  readonly "keys.revokeAnySentence": (minted: number, invites: number) => string;
 
   readonly "users.title": string;
   readonly "users.person": string;
@@ -540,6 +557,38 @@ export interface AccountWords {
   readonly "users.deleteSentence": string;
   readonly "users.deleteAnswer": string;
   readonly "users.deleted": (name: string) => string;
+  readonly "users.add": string;
+  readonly "users.addTitle": string;
+  readonly "users.addSentence": string;
+  readonly "users.username": string;
+  readonly "users.addSubmit": string;
+  readonly "users.addBusy": string;
+  readonly "users.added": (name: string) => string;
+  readonly "users.addedNoPassword": (name: string) => string;
+  readonly "users.invite": string;
+  readonly "users.inviteTitle": string;
+  readonly "users.inviteSentence": string;
+  readonly "users.inviteSubmit": string;
+  readonly "users.inviteBusy": string;
+  readonly "users.inviteShown": string;
+  readonly "users.inviteLabel": string;
+  readonly "users.inviteLine": (until: string) => string;
+  readonly "users.invited": string;
+  readonly "users.through": string;
+  readonly "users.keyPath": (name: string) => string;
+  readonly "users.keyName": (id: number) => string;
+  readonly "users.reachedTitle": (label: string) => string;
+  readonly "users.showAll": string;
+  readonly "users.reachedNone": string;
+  readonly "invites.title": string;
+  readonly "invites.kind": string;
+  readonly "invites.made": string;
+  readonly "invites.until": string;
+  readonly "invites.by": string;
+  readonly "invites.purpose": (purpose: string) => string;
+  readonly "invites.byKey": (label: string) => string;
+  readonly "invites.bySession": string;
+  readonly "invites.empty": string;
   readonly "auth_forbidden.self_recovery": string;
   readonly "auth_forbidden.owner_target": string;
   readonly "auth_forbidden.owner_role": string;
@@ -1274,6 +1323,33 @@ export const defaultAccountWords: AccountWords = {
   "keys.gone": "This key is gone.",
   "keys.expiredRefused": "This key has expired. Revoke it, or create a new one.",
   "keys.signInAgain": "Your sign-in did not check out. Sign in again, then try once more.",
+  "keys.everyTitle": "Every API key",
+  "keys.noneAnywhere": "Nobody has an API key yet.",
+  "keys.owner": "Belongs to",
+  "keys.invites": "Live invites",
+  "keys.bySession": "Made in a signed-in session",
+  "keys.reached": "People it reached",
+  "keys.reachedBy": (label) => `Show the people ${label} reached`,
+  "keys.invitesOf": (label, count) =>
+    `${count === 1 ? "1 live invite" : `${String(count)} live invites`} from ${label} and the keys it minted`,
+  "keys.inviteLine": ({ purpose, role, made, until }) =>
+    `${purpose === "setup" ? "Setup link" : purpose === "invite" ? "Invite" : purpose}${
+      role === undefined
+        ? ""
+        : ` as ${role === "admin" ? "Admin" : role === "user" ? "User" : role}`
+    }, made ${made}, works until ${until}`,
+  "keys.revokeAnySentence": (minted, invites) => {
+    const many = minted > 0;
+    return [
+      `Anything using ${many ? "them" : "it"} stops working at once, current and previous secrets alike.`,
+      ...(invites === 0
+        ? []
+        : [
+            `${many ? "Their" : "Its"} ${invites === 1 ? "unused invite stops" : `${String(invites)} unused invites stop`} working too.`,
+          ]),
+      `People ${many ? "they" : "it"} added or changed stay, with any password a key set: disable them or issue a temporary password in the users list.`,
+    ].join(" ");
+  },
   "users.title": "Users",
   "users.person": "Person",
   "users.role": "Role",
@@ -1374,6 +1450,43 @@ export const defaultAccountWords: AccountWords = {
   "users.deleteSentence": "Their account goes for good, and nothing signed in as them works.",
   "users.deleteAnswer": "Delete user",
   "users.deleted": (name) => `${name} is deleted.`,
+  "users.add": "Add user…",
+  "users.addTitle": "Add a user",
+  "users.addSentence":
+    "They get a temporary password to pass on, and with it choose their own password or passkey.",
+  "users.username": "Username",
+  "users.addSubmit": "Add user",
+  "users.addBusy": "Adding…",
+  "users.added": (name) => `${name} is added.`,
+  "users.addedNoPassword": (name) =>
+    `${name} is added, but no temporary password was issued. Use Issue a temporary password… on their row.`,
+  "users.invite": "Invite…",
+  "users.inviteTitle": "Invite someone",
+  "users.inviteSentence":
+    "The link lets one person make their own account with this role. Send it only to them.",
+  "users.inviteSubmit": "Make the link",
+  "users.inviteBusy": "Making…",
+  "users.inviteShown": "Invite link",
+  "users.inviteLabel": "Invite link",
+  "users.inviteLine": (until) =>
+    `Send this link to the person you invite. It works once, until ${until}.`,
+  "users.invited": "The invite link is made.",
+  "users.through": "Through key",
+  "users.keyPath": (name) => `Keys that last acted on ${name}`,
+  "users.keyName": (id) => `key ${String(id)}`,
+  "users.reachedTitle": (label) => `Users reached through ${label}`,
+  "users.showAll": "Show all users",
+  "users.reachedNone": "No one was reached through this key.",
+  "invites.title": "Waiting invites",
+  "invites.kind": "Kind",
+  "invites.made": "Made",
+  "invites.until": "Works until",
+  "invites.by": "Made by",
+  "invites.purpose": (purpose) =>
+    purpose === "invite" ? "Invite" : purpose === "setup" ? "Setup link" : purpose,
+  "invites.byKey": (label) => `Key ${label}`,
+  "invites.bySession": "A signed-in admin",
+  "invites.empty": "No invite is waiting.",
   "auth_forbidden.self_recovery": "Use Account and security for your own account.",
   "auth_forbidden.owner_target": "Only an owner can change an owner.",
   "auth_forbidden.owner_role": "An owner is always an admin. Remove them as an owner first.",

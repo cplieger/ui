@@ -47,6 +47,9 @@ export interface AskOptions {
   readonly icon?: Element;
   /** Facts to see before answering, as label and value pairs, in order. */
   readonly details?: readonly { readonly label: string; readonly value: string }[];
+  /** A link under the message to what the answer concerns. Following it
+   *  declines the question. */
+  readonly link?: { readonly text: string; readonly href: string };
   /** Ask for a value instead of a yes or no. */
   readonly input?: AskInput | true;
   /** Ask which groups the action takes, none chosen to start; the answer
@@ -128,6 +131,10 @@ function checkOptions(opts: AskOptions): void {
     throw new TypeError('ask: focus must be "answer" or "decline"');
   }
   checkDetails(opts.details);
+  const link = opts.link as { text?: unknown; href?: unknown } | null | undefined;
+  if (link !== undefined && (typeof link?.text !== "string" || typeof link.href !== "string")) {
+    throw new TypeError("ask: link needs a string text and href");
+  }
   if (choices !== undefined) {
     if (input !== undefined) {
       throw new TypeError("ask: give input or choices, not both");
@@ -195,6 +202,16 @@ export function ask(
     words.id = wordsId;
     dialog.setAttribute("aria-describedby", wordsId);
     text.append(words);
+  }
+  if (opts.link !== undefined) {
+    const a = node("a", undefined, opts.link.text);
+    a.href = opts.link.href;
+    a.addEventListener("click", () => {
+      closeDialog(dialog, "cancel");
+    });
+    const line = node("p");
+    line.append(a);
+    text.append(line);
   }
   if (opts.details !== undefined && opts.details.length > 0) {
     const list = node("dl", "cp-facts");

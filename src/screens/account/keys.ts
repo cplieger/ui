@@ -1,14 +1,17 @@
 /**
- * keys.ts — Account and security's API keys: a `.cp-table` of the person's
- * keys and their state, Create key… with the scope picker, Rename… in
- * place, Rotate… and Revoke…, as access Part 2's UI contract says.
+ * keys.ts — the one API keys table: Account and security's own keys, with
+ * Create key…, the scope picker, Rename… in place and Rotate…, as access
+ * Part 2's UI contract says; and the admin's every-account table, with
+ * each key's owner, origin, the people it reached and its live invites.
+ * Both revoke.
  * @module
  */
 
+import { enhanceRowDetail } from "../../data/table/table.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { focusAction, rowActions, rowHead, type Action } from "./actions.js";
 import { codeOf, reasonOf, retryAfter } from "./answer.js";
-import type { KeyCreated, KeyView, Refusal, SecurityClient } from "./client.js";
+import type { KeyCreated, KeyView, Refusal, Result, SecurityClient, TokenView } from "./client.js";
 import { formDialog, type FormDialog } from "./dialogs.js";
 import {
   cell,
@@ -48,6 +51,48 @@ export interface KeyScopes {
   readonly permissions?: readonly KeyScope[];
 }
 
+/** What a keys table reads from the screen it is part of. */
+export type KeysCtx = Pick<
+  Ctx<SecurityClient>,
+  | "w"
+  | "has"
+  | "app"
+  | "signal"
+  | "life"
+  | "plain"
+  | "httpsOrigin"
+  | "scopes"
+  | "keysElsewhere"
+  | "write"
+  | "settle"
+>;
+
+/** The calls a keys table makes. */
+export interface KeyCalls {
+  list(): Promise<Result<readonly KeyView[]>>;
+  revoke(id: number): Promise<Result<void>>;
+  /** The person's own keys: Create key…, Rename… and Rotate…. */
+  readonly own?: {
+    readonly create: SecurityClient["createKey"];
+    readonly rename?: NonNullable<SecurityClient["renameKey"]>;
+    readonly rotate?: NonNullable<SecurityClient["rotateKey"]>;
+  };
+  /** The admin's every-account table. */
+  readonly admin?: KeysAdmin;
+}
+
+/** What the every-account table shows beside each key. */
+interface KeysAdmin {
+  /** The address of the people a key reached. */
+  reached(id: number): string;
+  /** Shows `reached(id)` in place. */
+  follow(id: number): void;
+  /** The live invites. */
+  invites(): readonly TokenView[];
+  /** Runs after a revoke, before the table is read again. */
+  revoked(): Promise<void>;
+}
+
 export interface KeysSection {
   /** Reads the keys again and redraws them. */
   refresh(focus?: string): Promise<void>;
@@ -59,13 +104,15 @@ const LIFETIME = 90;
 const MINUTE = 60_000;
 const DAY_MS = 86_400_000;
 
-/** Fills `body` with the person's API keys, read from the client. */
-export function drawKeys<C extends SecurityClient>(
-  ctx: Ctx<C>,
+/** Fills `body` with the keys `calls` reads. */
+export function drawKeys(
+  ctx: KeysCtx,
   body: HTMLElement,
   heading: HTMLHeadingElement,
+  calls: KeyCalls,
 ): KeysSection {
-  const { w, client, has } = ctx;
+  const { w, has } = ctx;
+  const { own, admin } = calls;
   const notices = slot(el("div"));
   notices.root.dataset["part"] = "notice";
   const content = el("div", "cp-stack");
@@ -85,7 +132,7 @@ export function drawKeys<C extends SecurityClient>(
   const labelOf = (k: KeyView): string => (k.label === "" ? w["keys.unnamed"] : k.label);
 
   const refresh = async (focus?: string): Promise<void> => {
-    const got = await read(() => client.keys());
+    const got = await read(() => calls.list());
     if (ctx.signal?.aborted === true || editing) {
       return;
     }
@@ -172,7 +219,11 @@ export function drawKeys<C extends SecurityClient>(
     const create = createControl(https);
     if (list.length === 0) {
       const empty = el("div", "cp-empty");
-      empty.append(glyph("key-round"), el("p", undefined, w["keys.empty"]), ...create);
+      empty.append(
+        glyph("key-round"),
+        el("p", undefined, admin === undefined ? w["keys.empty"] : w["keys.noneAnywhere"]),
+        ...create,
+      );
       content.replaceChildren(empty);
       return;
     }
@@ -181,8 +232,12 @@ export function drawKeys<C extends SecurityClient>(
       parts.push(https);
     }
     const scoped = picked || list.some((k) => k.scopes.length > 0);
+    const invites = new Map(list.map((k) => [k.id, invitesOf(k.id)]));
+    const detailed = [...invites.values()].some((i) => i.length > 0);
     const t = table(heading.id, [
+      ...(detailed ? [{ text: w["keys.invites"], col: "expand" as const }] : []),
       { text: w["keys.label"] },
+      ...(admin === undefined ? [] : [{ text: w["keys.owner"], priority: "mid" as const }]),
       { text: w["keys.key"], priority: "mid" },
       ...(scoped ? [{ text: w["keys.scopes"], priority: "low" as const }] : []),
       { text: w["keys.expires"], priority: "low" },
@@ -191,14 +246,44 @@ export function drawKeys<C extends SecurityClient>(
       { text: w["methods.actions"], col: "actions" },
     ]);
     for (const k of list) {
-      t.body.append(row(k, now, scoped, https));
+      t.body.append(
+        ...row(k, now, scoped, https, detailed ? (invites.get(k.id) ?? []) : undefined),
+      );
     }
     parts.push(t.root);
     content.replaceChildren(...parts);
+    const tableEl = t.root.querySelector("table");
+    if (detailed && tableEl !== null) {
+      enhanceRowDetail(tableEl, ctx.life);
+    }
+  };
+
+  /** The live invites `id` or a key it minted issued. */
+  const invitesOf = (id: number): readonly TokenView[] =>
+    admin?.invites().filter((i) => i.issuer_lineage?.includes(id) === true) ?? [];
+
+  /** A link to the people the key `id` reached, shown in place. */
+  const reachedLink = (id: number, text: string): HTMLAnchorElement => {
+    const a = el("a", undefined, text);
+    a.href = admin?.reached(id) ?? "";
+    a.addEventListener(
+      "click",
+      (e) => {
+        if (admin !== undefined && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+          e.preventDefault();
+          admin.follow(id);
+        }
+      },
+      ctx.life,
+    );
+    return a;
   };
 
   /** Create key…, or the host's line where keys are made elsewhere. */
   const createControl = (https: HTMLElement | undefined): Node[] => {
+    if (own === undefined) {
+      return [];
+    }
     if (ctx.keysElsewhere !== undefined) {
       const p = el("p", "cp-help");
       const a = el("a", undefined, ctx.keysElsewhere.words);
@@ -226,26 +311,33 @@ export function drawKeys<C extends SecurityClient>(
     return [bar, https];
   };
 
+  /** `k`'s row, and with `invites` its detail row when it has any. */
   const row = (
     k: KeyView,
     now: number,
     scoped: boolean,
     https: HTMLElement | undefined,
-  ): HTMLTableRowElement => {
+    invites: readonly TokenView[] | undefined,
+  ): HTMLTableRowElement[] => {
     const name = labelOf(k);
     const nameNode = el("span", undefined, name);
     const expired = k.expires_at !== undefined && Date.parse(k.expires_at) <= now;
-    const lines: string[] = [];
+    const lines: (string | Node)[] = [];
+    const parent =
+      k.parent_key_id === undefined ? undefined : list.find((p) => p.id === k.parent_key_id);
     if (k.parent_key_id !== undefined) {
-      const parent = list.find((p) => p.id === k.parent_key_id);
-      lines.push(
-        w["keys.mintedBy"](
-          parent === undefined ? w["keys.revokedParent"](k.parent_key_id) : labelOf(parent),
-        ),
+      const minted = w["keys.mintedBy"](
+        parent === undefined ? w["keys.revokedParent"](k.parent_key_id) : labelOf(parent),
       );
+      lines.push(parent === undefined || admin === undefined ? minted : parentLink(parent, minted));
+    } else if (admin !== undefined) {
+      lines.push(w["keys.bySession"]);
+    }
+    if (admin !== undefined) {
+      lines.push(reachedLink(k.id, w["keys.reached"]));
     }
     const actions: Action[] = [];
-    if (client.renameKey !== undefined) {
+    if (own?.rename !== undefined) {
       actions.push({
         text: w["keys.rename"],
         key: `key-rename-${String(k.id)}`,
@@ -255,7 +347,7 @@ export function drawKeys<C extends SecurityClient>(
         },
       });
     }
-    if (has("key-rotate") && !expired) {
+    if (own !== undefined && has("key-rotate") && !expired) {
       actions.push({
         text: w["keys.rotate"],
         key: `key-rotate-${String(k.id)}`,
@@ -297,10 +389,41 @@ export function drawKeys<C extends SecurityClient>(
     // Word joiners keep the key's two ends on one line.
     const key = cell(el("span", "cp-mono", `${k.prefix}\u2060…\u2060${k.suffix}`));
     key.dataset["priority"] = "mid";
-    const cells: HTMLTableCellElement[] = [
-      rowHead(lines.length === 0 ? nameNode : cellStack(nameNode, ...lines)),
-      key,
-    ];
+    const head = rowHead(lines.length === 0 ? nameNode : cellStack(nameNode, ...lines));
+    head.id = rowIdOf(k.id);
+    head.tabIndex = -1;
+    const cells: HTMLTableCellElement[] = [];
+    let detail: HTMLTableRowElement | undefined;
+    if (invites !== undefined) {
+      const expand = cell();
+      expand.dataset["col"] = "expand";
+      if (invites.length > 0) {
+        detail = el("tr");
+        detail.id = `${head.id}-invites`;
+        detail.dataset["part"] = "detail";
+        detail.hidden = true;
+        const td = el("td");
+        td.append(inviteList(invites));
+        detail.append(td);
+        const open = el("button", "cp-button");
+        open.type = "button";
+        open.dataset["variant"] = "quiet";
+        open.dataset["size"] = "sm";
+        open.setAttribute("aria-expanded", "false");
+        open.setAttribute("aria-controls", detail.id);
+        open.setAttribute("aria-label", w["keys.invitesOf"](name, invites.length));
+        open.append(glyph("chevron-right"));
+        expand.append(open);
+      }
+      cells.push(expand);
+    }
+    cells.push(head);
+    if (admin !== undefined) {
+      const owner = cell(k.owner ?? "");
+      owner.dataset["priority"] = "mid";
+      cells.push(owner);
+    }
+    cells.push(key);
     if (scoped) {
       const chips = el("div", "cp-cluster");
       for (const s of k.scopes) {
@@ -315,12 +438,61 @@ export function drawKeys<C extends SecurityClient>(
     const used = cell(k.last_used_at === undefined ? w["keys.notUsed"] : time(k.last_used_at, DAY));
     used.dataset["priority"] = "low";
     cells.push(expires, used, cell(state), controls);
+    const across = detail?.cells[0];
+    if (across !== undefined) {
+      across.colSpan = cells.length;
+    }
     const tr = el("tr");
     tr.append(...cells);
-    return tr;
+    return detail === undefined ? [tr] : [tr, detail];
+  };
+
+  const rowIdOf = (id: number): string => `${heading.id}-key-${String(id)}`;
+
+  /** "Minted by ci", taking focus to ci's row. */
+  const parentLink = (parent: KeyView, text: string): HTMLAnchorElement => {
+    const a = el("a", undefined, text);
+    a.href = `#${rowIdOf(parent.id)}`;
+    a.addEventListener(
+      "click",
+      (e) => {
+        const target = document.getElementById(rowIdOf(parent.id));
+        if (target !== null) {
+          e.preventDefault();
+          target.focus();
+        }
+      },
+      ctx.life,
+    );
+    return a;
+  };
+
+  /** The live invites under a key, never their secrets. */
+  const inviteList = (invites: readonly TokenView[]): HTMLElement => {
+    const ul = el("ul", "cp-stack");
+    ul.dataset["gap"] = "tight";
+    for (const i of invites) {
+      ul.append(
+        el(
+          "li",
+          undefined,
+          w["keys.inviteLine"]({
+            purpose: i.purpose,
+            role: i.role,
+            made: clockAt(new Date(i.created_at)),
+            until: clockAt(new Date(i.expires_at)),
+          }),
+        ),
+      );
+    }
+    return ul;
   };
 
   function createKey(opener: HTMLElement): void {
+    const create = own?.create;
+    if (create === undefined) {
+      return;
+    }
     notices.clear();
     const d = formDialog({
       title: w["keys.createTitle"],
@@ -373,7 +545,7 @@ export function drawKeys<C extends SecurityClient>(
       const request = { label: text, scopes, ...(days > 0 ? { expires_in_days: days } : {}) };
       void d
         .run(
-          () => ctx.write("auth.api_key_create", w["keys.recent"], () => client.createKey(request)),
+          () => ctx.write("auth.api_key_create", w["keys.recent"], () => create(request)),
           (a) => a.kind === "done" && a.result.ok,
         )
         .then(async (got) => {
@@ -555,7 +727,7 @@ export function drawKeys<C extends SecurityClient>(
   }
 
   function rename(k: KeyView, node: HTMLElement, opener: HTMLElement): void {
-    const renameKey = client.renameKey?.bind(client);
+    const renameKey = own?.rename;
     if (renameKey === undefined) {
       return;
     }
@@ -621,13 +793,13 @@ export function drawKeys<C extends SecurityClient>(
       opener.focus();
       return;
     }
-    const rotateKey = client.rotateKey?.bind(client);
+    const rotateKey = own?.rotate;
     await (rotateKey === undefined ? swap(k, opener) : send(k, rotateKey, opener));
   }
 
   async function send(
     k: KeyView,
-    rotateKey: (id: number) => ReturnType<NonNullable<SecurityClient["rotateKey"]>>,
+    rotateKey: NonNullable<SecurityClient["rotateKey"]>,
     opener: HTMLElement,
   ): Promise<void> {
     const name = labelOf(k);
@@ -661,6 +833,10 @@ export function drawKeys<C extends SecurityClient>(
   /** Rotate on a client with no `rotateKey`: a key like `k`, with its
    *  label, scopes and remaining days, then `k` revoked. */
   async function swap(k: KeyView, opener: HTMLElement): Promise<void> {
+    const create = own?.create;
+    if (create === undefined) {
+      return;
+    }
     const left =
       k.expires_at === undefined
         ? 0
@@ -671,7 +847,7 @@ export function drawKeys<C extends SecurityClient>(
       ...(left > 0 ? { expires_in_days: left } : {}),
     };
     const made = await ctx.write("auth.api_key_rotate", w["keys.rotateRecent"], () =>
-      client.createKey(request),
+      create(request),
     );
     if (made.kind !== "done" || !made.result.ok) {
       ctx.settle(made, notices, (r) => refused(r, () => void swap(k, opener)));
@@ -681,7 +857,7 @@ export function drawKeys<C extends SecurityClient>(
       return;
     }
     const gone = await ctx.write("auth.api_key_revoke", w["keys.revokeRecent"], () =>
-      client.revokeKey(k.id),
+      calls.revoke(k.id),
     );
     const revoked = gone.kind === "done" && gone.result.ok;
     await showSecret(
@@ -704,22 +880,33 @@ export function drawKeys<C extends SecurityClient>(
     notices.clear();
     const name = labelOf(k);
     const minted = list.filter((c) => descends(c, k.id)).length;
-    const yes = await question(w["keys.revokeSentence"], {
-      title: w["keys.revokeQuestion"](name, minted),
-      answer: w["keys.revokeAnswer"],
-      cancel: w["security.cancel"],
-      danger: true,
-    });
+    const yes = await question(
+      admin === undefined
+        ? w["keys.revokeSentence"]
+        : w["keys.revokeAnySentence"](minted, invitesOf(k.id).length),
+      {
+        title: w["keys.revokeQuestion"](name, minted),
+        answer: w["keys.revokeAnswer"],
+        cancel: w["security.cancel"],
+        danger: true,
+        ...(admin === undefined
+          ? {}
+          : { link: { text: w["keys.reachedBy"](name), href: admin.reached(k.id) } }),
+      },
+    );
     if (!yes) {
       opener.focus();
       return;
     }
     const run = async (): Promise<void> => {
-      const a = await ctx.write("auth.api_key_revoke", w["keys.revokeRecent"], () =>
-        client.revokeKey(k.id),
+      const a = await ctx.write(
+        admin === undefined ? "auth.api_key_revoke" : "auth.admin_key_revoke",
+        w["keys.revokeRecent"],
+        () => calls.revoke(k.id),
       );
       if (a.kind === "done" && a.result.ok) {
         notices.show("success", w["keys.revoked"](name));
+        await admin?.revoked();
         await refresh();
         heading.focus();
         return;

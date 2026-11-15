@@ -1,8 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { StateResponse, UserView } from "./client.js";
-import { ALICE_USER, Fake, SESSION, TEMPORARY, meWith, ok, refuse } from "./test-helpers/fake.js";
+import type { KeyView, StateResponse, TokenView, UserView } from "./client.js";
+import {
+  ALICE_USER,
+  BACKUP,
+  Fake,
+  SESSION,
+  TEMPORARY,
+  meWith,
+  ok,
+  refuse,
+} from "./test-helpers/fake.js";
 import {
   actions,
   answerQuestion,
@@ -389,5 +398,275 @@ describe("mountUsers", () => {
     const { region } = mount(fake);
     await userEvent.click(await vi.waitFor(() => button(region, "Retry")));
     await rowOf(region, "mika");
+  });
+
+  it("adds a user with no way in, then shows the temporary password once", async () => {
+    const fake = people(ME);
+    const { region, ran } = mount(fake);
+    await userEvent.click(await vi.waitFor(() => button(region, "Add user…")));
+    const d = await dialogOf("Add a user");
+    await userEvent.fill(d.querySelector<HTMLInputElement>("input[name='username']")!, "  noor ");
+    await userEvent.selectOptions(d.querySelector("select[name='role']")!, "admin");
+    await userEvent.selectOptions(d.querySelector("select[name='ttl_hours']")!, "72");
+    await userEvent.click(button(d, "Add user"));
+    const shown = await dialogOf("Temporary password for noor");
+    expect(shown.querySelector("code")?.textContent).toBe(TEMPORARY.password);
+    expect(fake.named("adminCreateUser")[0]?.args).toEqual([{ username: "noor", role: "admin" }]);
+    expect(fake.named("adminTemporaryPassword")[0]?.args).toEqual([9, { ttl_hours: 72 }]);
+    expect(ran).toEqual(["auth.admin_user_create", "auth.admin_temporary_password"]);
+    expect(noticeOf(region)).toBe("noor is added.");
+  });
+
+  it.each([
+    ["auth_username_taken", undefined, "That username is taken. Choose another."],
+    ["auth_username_invalid", "disallowed_character", undefined],
+  ] as const)("keeps %s on the username field", async (code, reason, said) => {
+    const fake = people(ME).answer("adminCreateUser", refuse(400, code, reason));
+    const { region } = mount(fake);
+    await userEvent.click(await vi.waitFor(() => button(region, "Add user…")));
+    const d = await dialogOf("Add a user");
+    const name = d.querySelector<HTMLInputElement>("input[name='username']")!;
+    await userEvent.fill(name, "noor");
+    await userEvent.click(button(d, "Add user"));
+    await vi.waitFor(() => {
+      expect(errorOf(name)).not.toBe("");
+    });
+    if (said !== undefined) {
+      expect(errorOf(name)).toBe(said);
+    }
+    expect(d.open).toBe(true);
+    expect(fake.named("adminTemporaryPassword")).toHaveLength(0);
+  });
+
+  it("refuses an empty username before sending", async () => {
+    const fake = people(ME);
+    const { region } = mount(fake);
+    await userEvent.click(await vi.waitFor(() => button(region, "Add user…")));
+    const d = await dialogOf("Add a user");
+    await userEvent.click(button(d, "Add user"));
+    expect(errorOf(d.querySelector<HTMLInputElement>("input[name='username']")!)).not.toBe("");
+    expect(fake.named("adminCreateUser")).toHaveLength(0);
+  });
+
+  it("says a new user has no temporary password when issuing it failed", async () => {
+    const fake = people(ME).answer("adminTemporaryPassword", refuse(503, "auth_unavailable"));
+    const { region } = mount(fake);
+    await userEvent.click(await vi.waitFor(() => button(region, "Add user…")));
+    const d = await dialogOf("Add a user");
+    await userEvent.fill(d.querySelector<HTMLInputElement>("input[name='username']")!, "noor");
+    await userEvent.click(button(d, "Add user"));
+    await vi.waitFor(() => {
+      expect(noticeOf(region)).toBe(
+        "noor is added, but no temporary password was issued. Use Issue a temporary password… on their row.",
+      );
+    });
+  });
+
+  it("makes an invite link and shows it once, its token in the fragment", async () => {
+    const fake = people(ME);
+    const { region, ran } = mount(fake, { invitePath: "/join" });
+    await userEvent.click(await vi.waitFor(() => button(region, "Invite…")));
+    const d = await dialogOf("Invite someone");
+    expect(d.querySelector<HTMLSelectElement>("select[name='hours']")?.value).toBe("168");
+    await userEvent.selectOptions(d.querySelector("select[name='hours']")!, "24");
+    await userEvent.click(button(d, "Make the link"));
+    const shown = await dialogOf("Invite link");
+    expect(shown.querySelector("code")?.textContent).toBe(
+      `${location.origin}/join#token=inv-test-token`,
+    );
+    expect(fake.named("adminInvite")[0]?.args).toEqual([{ role: "user", hours: 24 }]);
+    expect(ran).toEqual(["auth.admin_invite"]);
+    expect(fake.named("adminTokens").length).toBeGreaterThan(0);
+  });
+
+  it("holds Add user and Invite on a plain session", async () => {
+    const fake = people(ME).always(
+      "me",
+      ok(meWith({}, { owner: true, session: { ...SESSION, secure: false } })),
+    );
+    const { region } = mount(fake);
+    const add = await vi.waitFor(() => button(region, "Add user…"));
+    expect(add.getAttribute("aria-disabled")).toBe("true");
+    expect(button(region, "Invite…").getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(add.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "Needs HTTPS.",
+    );
+    add.click();
+    expect(document.querySelector("dialog[open]")).toBeNull();
+  });
+
+  it("offers no Add user, Invite or invites in an app with one account", async () => {
+    const fake = people(ME).always("me", ok(meWith({}, { owner: true, single_user: true })));
+    const { region } = mount(fake);
+    await rowOf(region, "mika");
+    expect(region.textContent).not.toContain("Add user…");
+    expect(region.querySelector("[data-part='invites']")).toBeNull();
+  });
+});
+
+const CI: KeyView = { ...BACKUP, id: 12, label: "ci", owner: "mika", scopes: ["manage_users"] };
+const NIGHTLY: KeyView = { ...BACKUP, id: 14, label: "nightly", owner: "mika", parent_key_id: 12 };
+const BOT: UserView = { ...ALICE_USER, id: 5, username: "bot", key_lineage: [12, 14] };
+const KAI: UserView = { ...ALICE_USER, id: 6, username: "kai", key_lineage: [9] };
+const FROM_ADMIN: TokenView = {
+  purpose: "invite",
+  role: "user",
+  created_at: "2026-11-14T09:00:00Z",
+  expires_at: "2099-01-01T09:00:00Z",
+};
+const FROM_NIGHTLY: TokenView = {
+  ...FROM_ADMIN,
+  role: "admin",
+  issued_by_key: 14,
+  issuer_lineage: [12, 14],
+};
+
+const reached = (): Fake =>
+  people(ME, BOT, KAI)
+    .always("adminKeys", ok([CI, NIGHTLY]))
+    .always("adminTokens", ok([FROM_ADMIN, FROM_NIGHTLY]));
+
+const section = (region: HTMLElement, part: string): Promise<HTMLElement> =>
+  vi.waitFor(() => {
+    const s = region.querySelector<HTMLElement>(`[data-part='${part}']`);
+    expect(s, part).not.toBeNull();
+    return s!;
+  });
+
+describe("mountUsers, who a key reached", () => {
+  it("shows each person's key path root first, a gone key by its id", async () => {
+    const { region } = mount(reached());
+    const bot = await rowOf(region, "bot");
+    const crumbs = bot.querySelector("nav.cp-crumbs")!;
+    expect(crumbs.getAttribute("aria-label")).toBe("Keys that last acted on bot");
+    expect([...crumbs.querySelectorAll("a")].map((a) => a.textContent)).toEqual(["ci", "nightly"]);
+    expect(crumbs.querySelector("a")?.getAttribute("href")).toMatch(/[?&]key=12$/);
+    const kai = await rowOf(region, "kai");
+    expect(kai.querySelector("nav.cp-crumbs a")?.textContent).toBe("revoked key 9");
+  });
+
+  it("filters by a key in place, asking the server, and Show all users drops it", async () => {
+    const fake = reached();
+    const queries: string[] = [];
+    const { region } = mount(fake, { search: "", onQuery: (p) => queries.push(p.toString()) });
+    const bot = await rowOf(region, "bot");
+    fake.answer("adminUsers", ok([BOT]));
+    await userEvent.click(bot.querySelector("nav.cp-crumbs a")!);
+    await vi.waitFor(() => {
+      expect(region.querySelector("h2")?.textContent).toBe("Users reached through ci");
+    });
+    expect(queries).toEqual(["key=12"]);
+    expect(fake.named("adminUsers").at(-1)?.args).toEqual([{ key: 12 }]);
+    const invites = await section(region, "invites");
+    expect(invites.querySelectorAll("tbody tr")).toHaveLength(1);
+    expect(invites.querySelector("tbody tr")?.textContent).toContain("Key nightly");
+    await userEvent.click(
+      [...region.querySelectorAll("a")].find((a) => a.textContent === "Show all users")!,
+    );
+    await vi.waitFor(() => {
+      expect(region.querySelector("h2")?.textContent).toBe("Users");
+    });
+    expect(queries).toEqual(["key=12", ""]);
+    expect(fake.named("adminUsers").at(-1)?.args).toEqual([]);
+  });
+
+  it("reads the filter from the address, and says when no one was reached", async () => {
+    const fake = reached().always("adminUsers", ok([]));
+    const { region } = mount(fake, { search: "?key=14", onQuery: () => undefined });
+    await vi.waitFor(() => {
+      expect(region.textContent).toContain("No one was reached through this key.");
+    });
+    expect(region.querySelector("h2")?.textContent).toBe("Users reached through nightly");
+    expect(fake.named("adminUsers")[0]?.args).toEqual([{ key: 14 }]);
+  });
+
+  it.each(["?key=0", "?key=-3", "?key=1.5", "?key=abc", "?key=99999999999999999"])(
+    "ignores a key filter %s that names no key",
+    async (search) => {
+      const fake = reached();
+      const { region } = mount(fake, { search, onQuery: () => undefined });
+      await rowOf(region, "bot");
+      expect(fake.named("adminUsers")[0]?.args).toEqual([]);
+    },
+  );
+
+  it("lists the waiting invites with who made each, never a secret", async () => {
+    const { region } = mount(reached());
+    const invites = await section(region, "invites");
+    const rows = await vi.waitFor(() => {
+      const r = [...invites.querySelectorAll<HTMLTableRowElement>("tbody tr")];
+      expect(r).toHaveLength(2);
+      return r;
+    });
+    expect(rows[0]?.cells[0]?.textContent).toBe("Invite");
+    expect(rows[0]?.cells[1]?.textContent).toBe("User");
+    expect(rows[0]?.cells[4]?.textContent).toBe("A signed-in admin");
+    expect(rows[1]?.cells[1]?.textContent).toBe("Admin");
+    expect(rows[1]?.cells[4]?.textContent).toBe("Key nightly");
+  });
+
+  it("lists every account's keys with their owner, origin and the people they reached", async () => {
+    const { region } = mount(reached());
+    const keys = await section(region, "admin-keys");
+    const rows = await vi.waitFor(() => {
+      const r = [...keys.querySelectorAll<HTMLTableRowElement>("tbody tr:not([data-part])")];
+      expect(r).toHaveLength(2);
+      return r;
+    });
+    const [ci, nightly] = rows;
+    expect(ci?.textContent).toContain("Made in a signed-in session");
+    expect(ci?.textContent).toContain("mika");
+    expect(nightly?.querySelector("th a")?.textContent).toBe("Minted by ci");
+    const reachedLink = [...(ci?.querySelectorAll("a") ?? [])].find(
+      (a) => a.textContent === "People it reached",
+    );
+    expect(reachedLink?.getAttribute("href")).toMatch(/[?&]key=12$/);
+    expect(actions(ci!)).toEqual(["Revoke ci…"]);
+    await userEvent.click(nightly!.querySelector("th a")!);
+    expect(document.activeElement).toBe(ci?.querySelector("th"));
+  });
+
+  it("opens a key's live invites under its row, its subtree's included", async () => {
+    const { region } = mount(reached());
+    const keys = await section(region, "admin-keys");
+    const open = await vi.waitFor(() => {
+      const b = keys.querySelector<HTMLButtonElement>("[data-col='expand'] button");
+      expect(b).not.toBeNull();
+      return b!;
+    });
+    expect(open.getAttribute("aria-label")).toBe("1 live invite from ci and the keys it minted");
+    const detail = document.getElementById(open.getAttribute("aria-controls")!)!;
+    expect(detail.hidden).toBe(true);
+    await userEvent.click(open);
+    expect(detail.hidden).toBe(false);
+    expect(detail.textContent).toMatch(/^Invite as Admin, made .+, works until .+$/);
+    expect(keys.querySelectorAll("[data-col='expand'] button")).toHaveLength(2);
+  });
+
+  it("asks before revoking any key, counting what goes with it and linking who it reached", async () => {
+    const fake = reached();
+    const { region, ran } = mount(fake);
+    const keys = await section(region, "admin-keys");
+    const ci = await vi.waitFor(() => {
+      const r = keys.querySelector<HTMLTableRowElement>("tbody tr:not([data-part])");
+      expect(r).not.toBeNull();
+      return r!;
+    });
+    await press(ci, "Revoke ci…");
+    const d = await dialogOf("Revoke ci and the key it minted?");
+    expect(d.textContent).toContain("Their unused invite stops working too.");
+    expect(d.textContent).toContain("People they added or changed stay");
+    const link = [...d.querySelectorAll("a")].find(
+      (a) => a.textContent === "Show the people ci reached",
+    );
+    expect(link?.getAttribute("href")).toMatch(/[?&]key=12$/);
+    const before = fake.named("adminUsers").length;
+    await userEvent.click(button(d, "Revoke key"));
+    await vi.waitFor(() => {
+      expect(noticeOf(keys)).toBe("ci is revoked.");
+    });
+    expect(fake.named("adminRevokeKey")[0]?.args).toEqual([12]);
+    expect(ran).toEqual(["auth.admin_key_revoke"]);
+    expect(fake.named("adminUsers").length).toBeGreaterThan(before);
   });
 });

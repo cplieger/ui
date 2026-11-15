@@ -413,6 +413,8 @@ export interface KeyView {
   readonly previous_until?: string;
   /** The key that minted this one, when a key did. */
   readonly parent_key_id?: number;
+  /** On the every-account list: the username of the key's owner. */
+  readonly owner?: string;
 }
 
 /** `createKey` and `rotateKey`'s answer: the plaintext, shown once. */
@@ -542,6 +544,27 @@ export interface UserView extends PersonView {
   readonly owner?: boolean;
   readonly created_at: string;
   readonly methods?: UserMethodsView;
+  /** On the admin list: the path of keys that last acted on the person,
+   *  root first, that key last. */
+  readonly key_lineage?: readonly number[];
+}
+
+/** A one-time token, shown once. */
+export interface TokenResponse {
+  readonly token: string;
+  readonly expires_at: string;
+}
+
+/** A live one-time token, with neither the token nor its hash. */
+export interface TokenView {
+  /** `"invite"` or `"setup"`, or an app's own. */
+  readonly purpose: string;
+  readonly role?: string;
+  readonly created_at: string;
+  readonly expires_at: string;
+  readonly issued_by_key?: number;
+  /** The issuing key's path, root first, that key last. */
+  readonly issuer_lineage?: readonly number[];
 }
 
 /** What Issue a temporary password asks for. */
@@ -576,6 +599,18 @@ export interface UsersClient extends StepUpClient {
     r: { readonly role?: string; readonly enabled?: boolean },
   ): Promise<Result<UserView>>;
   adminDeleteUser(id: number): Promise<Result<void>>;
+  /** Makes an account with no way in; a temporary password gives it one. */
+  adminCreateUser(r: {
+    readonly username: string;
+    readonly role: string;
+  }): Promise<Result<UserView>>;
+  adminInvite(r: {
+    readonly role: string;
+    readonly hours?: number;
+  }): Promise<Result<TokenResponse>>;
+  adminTokens(): Promise<Result<readonly TokenView[]>>;
+  adminKeys(): Promise<Result<readonly KeyView[]>>;
+  adminRevokeKey(id: number): Promise<Result<void>>;
   adminTemporaryPassword?(
     id: number,
     o: TemporaryPasswordOptions,

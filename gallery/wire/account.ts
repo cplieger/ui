@@ -55,6 +55,7 @@ import {
   type StepUpResult,
   type TemporaryPasswordOptions,
   type TemporaryPasswordResponse,
+  type TokenView,
   type UserView,
   type UsersClient,
 } from "@cplieger/ui/account";
@@ -1874,6 +1875,87 @@ function peopleOf(): UserView[] {
       created_at: at,
       methods: { password: true, passkey_count: 0, waiting_approval: true },
     },
+    {
+      id: 5,
+      username: "nightly-bot",
+      role: "user",
+      enabled: true,
+      oidc_linked: false,
+      owner: false,
+      created_at: at,
+      key_lineage: [12, 14],
+      methods: { password: true, passkey_count: 0 },
+    },
+    {
+      id: 6,
+      username: "kai",
+      role: "user",
+      enabled: true,
+      oidc_linked: false,
+      owner: false,
+      created_at: at,
+      key_lineage: [12],
+      methods: { password: false, passkey_count: 0 },
+    },
+  ];
+}
+
+/** Every account's keys: mika's provisioning key ci, the key it minted,
+ *  alice's own, and the users each reached. */
+function everyKeyOf(): KeyView[] {
+  return [
+    {
+      id: 12,
+      owner: "mika",
+      label: "ci",
+      prefix: "rt_ci3",
+      suffix: "q2Z",
+      scopes: ["manage_users"],
+      created_at: ago(40 * 24 * HOUR),
+      last_used_at: ago(2 * HOUR),
+    },
+    {
+      id: 14,
+      owner: "mika",
+      label: "nightly",
+      prefix: "rt_n8k",
+      suffix: "Lw4",
+      scopes: ["manage_users"],
+      created_at: ago(10 * 24 * HOUR),
+      expires_at: later(80 * 24 * HOUR),
+      parent_key_id: 12,
+    },
+    {
+      id: 21,
+      owner: "alice",
+      label: "backup script",
+      prefix: "rt_b7a",
+      suffix: "m0P",
+      scopes: ["read"],
+      created_at: ago(5 * 24 * HOUR),
+      expires_at: later(85 * 24 * HOUR),
+      last_used_at: ago(26 * HOUR),
+    },
+  ];
+}
+
+/** The waiting invites: one from a signed-in admin, one nightly issued. */
+function tokensOf(): TokenView[] {
+  return [
+    {
+      purpose: "invite",
+      role: "user",
+      created_at: ago(3 * HOUR),
+      expires_at: later(6 * 24 * HOUR),
+    },
+    {
+      purpose: "invite",
+      role: "user",
+      created_at: ago(HOUR),
+      expires_at: later(2 * 24 * HOUR),
+      issued_by_key: 14,
+      issuer_lineage: [12, 14],
+    },
   ];
 }
 
@@ -1885,6 +1967,9 @@ function usersFake(o: {
   readonly sso?: "alongside" | "for_linked" | "only";
 }): { readonly client: UsersClient; readonly access: StepUpAccess<UsersClient> } {
   let people = peopleOf();
+  let keys = everyKeyOf();
+  let tokens = tokensOf();
+  let next = 7;
   const done = { ok: true as const, data: undefined };
   const find = (id: number): UserView | Refusal =>
     people.find((u) => u.id === id) ?? refusal(404, "auth_not_found");
@@ -1960,9 +2045,65 @@ function usersFake(o: {
       await wait(500);
       return { ok: true, data: SIGNED_IN };
     },
-    async adminUsers() {
+    async adminUsers(q) {
       await wait(400);
-      return { ok: true, data: people };
+      const key = q?.key;
+      return {
+        ok: true,
+        data: key === undefined ? people : people.filter((u) => u.key_lineage?.includes(key)),
+      };
+    },
+    async adminCreateUser(r) {
+      await wait(500);
+      if (people.some((u) => u.username === r.username)) {
+        return refusal(409, "auth_username_taken");
+      }
+      const u: UserView = {
+        id: next++,
+        username: r.username,
+        role: r.role,
+        enabled: true,
+        oidc_linked: false,
+        owner: false,
+        created_at: new Date().toISOString(),
+        methods: { password: false, passkey_count: 0 },
+      };
+      people = [...people, u];
+      return { ok: true, data: u };
+    },
+    async adminInvite(r) {
+      await wait(500);
+      const expires = later((r.hours ?? 168) * HOUR);
+      tokens = [
+        ...tokens,
+        {
+          purpose: "invite",
+          role: r.role,
+          created_at: new Date().toISOString(),
+          expires_at: expires,
+        },
+      ];
+      return { ok: true, data: { token: "inv_Q4mT9xVb2LcR7pWz", expires_at: expires } };
+    },
+    async adminTokens() {
+      await wait(300);
+      return { ok: true, data: tokens };
+    },
+    async adminKeys() {
+      await wait(300);
+      return { ok: true, data: keys };
+    },
+    async adminRevokeKey(id) {
+      await wait(600);
+      const gone = new Set([id]);
+      for (const k of keys) {
+        if (k.parent_key_id !== undefined && gone.has(k.parent_key_id)) {
+          gone.add(k.id);
+        }
+      }
+      keys = keys.filter((k) => !gone.has(k.id));
+      tokens = tokens.filter((t) => !(t.issuer_lineage ?? []).some((k) => gone.has(k)));
+      return done;
     },
     async adminUpdateUser(id, r) {
       await wait(600);
@@ -2043,6 +2184,9 @@ for (const region of document.querySelectorAll<HTMLElement>("[data-users-demo]")
     app: "Release tracker",
     provider: "Authelia",
     level: 3,
+    // The gallery's address stays the page's: a filter shows in place.
+    search: name === "reached" ? "?key=12" : "",
+    onQuery: () => undefined,
     onSignedOut: () => {
       toast({ title: "Signed out: the app would open its sign-in page" });
     },

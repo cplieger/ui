@@ -92,6 +92,18 @@ describe("ask", () => {
     await expect(reply).resolves.toBe(true);
   });
 
+  it("links under the message to what it concerns, and declines when the link is followed", async () => {
+    const reply = ask("Their unused invites stop working too.", {
+      title: "Revoke ci?",
+      link: { text: "Show the people ci reached", href: "#reached" },
+    });
+    const a = open().querySelector("a");
+    expect(a?.textContent).toBe("Show the people ci reached");
+    expect(a?.getAttribute("href")).toBe("#reached");
+    await userEvent.click(a!);
+    await expect(reply).resolves.toBe(false);
+  });
+
   it("asks for a value, answering on Enter with what was typed, and null when declined", async () => {
     const name = ask("Rename the passkey", { input: { initialValue: "Laptop", maxLength: 64 } });
     expect(open().getAttribute("role")).toBeNull();
@@ -183,6 +195,8 @@ describe("ask", () => {
       },
       { choices: [{ value: "a", label: "A" }], input: true },
       { confirmLabel: () => "Go" },
+      { link: { text: "People it reached" } },
+      { link: null },
     ];
     for (const opts of bad) {
       expect(() => ask("x", opts as never), JSON.stringify(opts)).toThrow(TypeError);

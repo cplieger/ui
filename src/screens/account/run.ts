@@ -45,6 +45,7 @@ export const accountActions = [
   "auth.api_key_rename",
   "auth.api_key_revoke",
   "auth.api_key_rotate",
+  "auth.admin_user_create",
   "auth.admin_user_update",
   "auth.admin_user_delete",
   "auth.admin_temporary_password",
@@ -52,6 +53,8 @@ export const accountActions = [
   "auth.admin_owner",
   "auth.admin_unlink_oidc",
   "auth.admin_relink_oidc",
+  "auth.admin_invite",
+  "auth.admin_key_revoke",
 ] as const;
 
 export type AccountAction = (typeof accountActions)[number];

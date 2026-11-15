@@ -54,6 +54,8 @@ export type {
   StepUpResult,
   TemporaryPasswordOptions,
   TemporaryPasswordResponse,
+  TokenResponse,
+  TokenView,
   TotpBegin,
   UserMethodsView,
   UserView,

@@ -211,8 +211,9 @@ export function rowButton(
 
 export interface Column {
   readonly text: string;
-  /** `"actions"` for the last column of row buttons. */
-  readonly col?: "actions";
+  /** `"actions"` for the last column of row buttons, `"expand"` for the
+   *  first, of the buttons that open a row's detail. */
+  readonly col?: "actions" | "expand";
   readonly priority?: "low" | "mid";
 }
 
@@ -233,6 +234,9 @@ export function table(
     if (c.col === "actions") {
       th.dataset["col"] = "actions";
       th.append(el("span", "cp-hidden-narrow", c.text));
+    } else if (c.col === "expand") {
+      th.dataset["col"] = "expand";
+      th.append(el("span", "cp-visually-hidden", c.text));
     } else {
       th.textContent = c.text;
     }

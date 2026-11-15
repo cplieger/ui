@@ -394,12 +394,17 @@
   </section>
   <section class="g-section" id="users">
     <h2>Users</h2>
-    <p><code>mountUsers(region, options)</code> is the admin's list of the app's people: each one's role, with "from the identity provider" when the role follows it, the Owner badge, whether they can sign in, and their ways in, a live temporary password and dormant local sign-in among them. Each row's actions sit in its menu, and the list is read again after every change, so what a row says is the server's.</p>
+    <p><code>mountUsers(region, options)</code> is the admin's list of the app's people: each one's role, with "from the identity provider" when the role follows it, the Owner badge, whether they can sign in, their ways in, a live temporary password and dormant local sign-in among them, and the keys that reached them. Each row's actions sit in its menu, and the list is read again after every change, so what a row says is the server's. Add user and Invite sit above it, the waiting invites and every account's API keys below.</p>
     <div class="g-grid">
       <div class="card g-wide" data-new>
         <h2>An owner's view</h2>
         <div data-users-demo="owner"></div>
-        <footer>Signed in as mika, an owner. Issue a temporary password shows it once, with the words to pass on and Copy. Reset second factor asks first, naming the person and what stays. Make owner needs an enabled admin; removing the last owner is refused in words. Unlink single sign-on says what the person can do next. Approve enables robin's waiting registration.</footer>
+        <footer>Signed in as mika, an owner. Add user makes an account with no way in and shows its temporary password once; Invite shows the link once. Issue a temporary password shows it once, with the words to pass on and Copy. Reset second factor asks first, naming the person and what stays. Make owner needs an enabled admin; removing the last owner is refused in words. Unlink single sign-on says what the person can do next. Approve enables robin's waiting registration. Through key shows the path of keys that last acted on a person, root first; each key opens the people it reached. Under it, the waiting invites, then every account's API keys: who each belongs to, which key minted it or that a signed-in session made it, a link to the people it reached, and the live invites its keys issued behind the chevron. Revoke counts what goes with the key and links to the people it reached.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Users reached through a key</h2>
+        <div data-users-demo="reached"></div>
+        <footer>The list filtered by the key ci, as the address <code>?key=12</code> names it: the app's server does the filtering. Show all users drops the filter, and the invites shown are the ones ci's keys issued.</footer>
       </div>
       <div class="card g-wide" data-new>
         <h2>An admin who is not an owner</h2>

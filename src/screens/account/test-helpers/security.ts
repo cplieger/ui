@@ -18,6 +18,12 @@ let sheet: HTMLLinkElement;
  *  screen and page after it. Call once at the top of a test file. */
 export function useScreen(): void {
   beforeEach(async () => {
+    // Dialogs close without their exit glide, so an assertion after a close
+    // never waits on animation frames a loaded host starves.
+    const real = matchMedia.bind(window);
+    vi.stubGlobal("matchMedia", (q: string) =>
+      real(q.includes("prefers-reduced-motion: reduce") ? "all" : q),
+    );
     document.documentElement.classList.add("cp");
     sheet = document.createElement("link");
     sheet.rel = "stylesheet";
@@ -31,6 +37,7 @@ export function useScreen(): void {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     life.abort();
     life = new AbortController();
     sheet.remove();
