@@ -16,7 +16,10 @@ The list: one element for every set of items a person scans, picks or opens, suc
       </span>
       <span data-part="end">
         <time datetime="2026-11-13T09:12:00Z">09:12</time>
-        <span class="cp-cluster"><span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> unread</span></span></span>
+        <span class="cp-cluster">
+          <span class="cp-meta"><span class="cp-icon" data-cp-icon="users" aria-hidden="true"></span>5<span class="cp-visually-hidden"> participants</span></span>
+          <span class="cp-badge" data-variant="quiet">3<span class="cp-visually-hidden"> unread</span></span>
+        </span>
       </span>
     </a>
   </li>
@@ -76,7 +79,7 @@ A list with no items yet, such as a file field's before the first choice, draws 
 
 ## What each case writes
 
-- A conversation is an `a.cp-list-row` with an avatar, a title cut at its start with its full text in `data-cp-tip`, a preview line, and an end of the time over the participants and a quiet unread badge, as above.
+- A conversation is an `a.cp-list-row` with an optional avatar, a title, a preview line "@sender: subject", and an end of the time over the participants and a quiet unread badge, as above. A path title is `.cp-mono` and `dir="ltr"`, cut at its start with its full text in `data-cp-tip`. The participants are a `.cp-meta` with the `users` icon and " participants" for a screen reader, and the badge is left out at 0. The list takes [roving-focus](../core/roving-focus.md) for Up, Down, Home and End, and [keyed-list](keyed-list.md) with `window: false`, so a conversation with new activity moves to the top and keeps `aria-current` and focus. Show older is its `.cp-list-foot`.
 - A rail's filters and a settings page's categories sit under a `.cp-list-heading` for the section, in a `ul.cp-list[data-surface="plain"][data-divider="none"][data-density="compact"]` of `a.cp-list-row[aria-current="page"]` for one choice written to the URL, or of `button.cp-list-row[aria-pressed]` for filters that are on or off each (a `<div role="group">` labelled by the heading's `id` names the group), with a `.cp-swatch` lead for a filter's tone and its count, a quiet `.cp-badge`, in the end. A settings page's `.cp-settings-nav` keeps its categories a control tall, 4px apart and inset 12px, beside a form of controls that tall. A category with unsaved changes holds a `.cp-dot` in its end with ", unsaved changes" for a screen reader.
 - A problem is a `div.cp-list-row[data-lines="wrap"]` with a toned `.cp-icon`, a body of `<p>` and `<time>` (a pair for each sentence), the link to its fix, left out for a person who cannot fix it, and a `.cp-state` in the end for its kind.
 - A history event is an item of an `ol.cp-list[data-variant="timeline"][data-surface="plain"]` under a `.cp-list-heading` for the day, each `div.cp-list-row[data-lines="wrap"]` holding its `[data-part="mark"][data-tone]` with the glyph, a `<div>` of its words in a `<p>` and an optional `<details>`, and its `<time>` in the end.

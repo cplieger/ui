@@ -132,12 +132,15 @@ A list is a column of rows that each open or name one thing, such as conversatio
   <li>
     <a class="cp-list-row" href="#c-feed" data-unread>
       <span class="cp-cell-stack">
-        <span class="cp-truncate cp-mono">/workspace/ui/src/data/feed</span>
+        <span class="cp-truncate cp-mono" data-cut="start" dir="ltr" data-cp-tip="/workspace/ui/src/data/feed">/workspace/ui/src/data/feed</span>
         <small class="cp-truncate">@codex: The queue moves to you once the scroll fix merges.</small>
       </span>
       <span data-part="end">
         <time datetime="2026-11-11T09:40:00Z">09:40</time>
-        <span class="cp-cluster"><span class="cp-badge">2<span class="cp-visually-hidden"> unread</span></span></span>
+        <span class="cp-cluster">
+          <span class="cp-meta"><span class="cp-icon" data-cp-icon="users" aria-hidden="true"></span>5<span class="cp-visually-hidden"> participants</span></span>
+          <span class="cp-badge" data-variant="quiet">2<span class="cp-visually-hidden"> unread</span></span>
+        </span>
       </span>
     </a>
   </li>
@@ -146,13 +149,14 @@ A list is a column of rows that each open or name one thing, such as conversatio
 
 1. A row is one target. When the whole row opens one thing, the row is the link (`a.cp-list-row`) or a button. Otherwise it is a `<div>` that holds at most a title link and, at its end, one worded action, a small plain button whose accessible name adds the row, such as "Download Frieren.S01E04.en.ass", or one ⋯ button that opens the row's menu of actions, named and tipped "More for Frieren".
 2. The title and the line under it stay on one line each, cut with an ellipsis at the row's edge. Machine text, such as a path, is `.cp-mono`, and a path or name whose end tells it apart is cut at its start, `data-cut="start"`, so "…/marotte/web" keeps its leaf. A time is a `<time>` through [relative-time](data/relative-time.md), which keeps its words current and gives the exact time on hover and to a screen reader.
-3. An unread row carries `data-unread`, which sets its title in the heading weight, beside a badge whose number has the word "unread" for a screen reader, so colour is never the only sign. The open row carries `aria-current="page"`, or `"true"` when the list sits inside the open view.
-4. While the list loads, it carries `aria-busy="true"` and holds skeleton rows (`data-skeleton`) in the rows' shape. Empty, it is a `.cp-empty` that names what belongs there and offers the action that fills it, such as "No conversations in the last 72 hours." with New message.
-5. Rows that arrive while the person is in the list never push the rows they are reading. [held-list](data/held-list.md) holds them behind a `.cp-list-pending` line above the list that says how many wait, and its Show puts them in and moves focus to the first. A list whose new rows go at its end, oldest first, lets them in below the reader and counts them on the same line pinned under the list, whose Show goes to the newest.
-6. A row the app could not refresh, in a list or a table, carries `data-kept`, muted, with a `clock`, the time it is from and the reason in place of its second line, such as "Kept from 03:00: Sonarr walk partial". `markKept()` in [list-row](data/list-row.md) writes both, and a step track in the row goes grey with it.
-7. A list whose rows change while it is read is keyed by [keyed-list](data/keyed-list.md): each row keeps its element through a live update, a reorder moves the other rows around the focused one, and the row at the top of the view stays where it was. A list too long to draw, such as a library of tens of thousands, is a `.cp-list[data-virtual]` or a table body that holds only the rows in view and the focused one, a page not loaded yet in skeleton rows. When a filter narrows it, the count of matches, "5 of 640 titles", is said once typing stops.
-8. A list that pages ends in a `.cp-list-foot` with one button, such as "Show older", which [load-more](data/load-more.md) drives: it adds the next page before the foot, moves focus to the first row it added and says how many came, and the foot goes once no page is left. A conversation's older messages come the same way from a `.cp-feed-head` above its first entry. "New since your last visit" is one `.cp-since` line, in a list or a feed, where the new rows start.
-9. A list the person puts in order uses [reorder](data/reorder.md): every item has Move up and Move down, so a drag is never the only way, the others slide aside and the new place is said.
+3. An unread row carries `data-unread`, which sets its title in the heading weight, beside a quiet badge whose number has the word "unread" for a screen reader, so colour is never the only sign. The open row carries `aria-current="page"`, or `"true"` when the list sits inside the open view.
+4. A list of many rows that the person moves through, such as conversations, is one Tab stop: [roving-focus](core/roving-focus.md) moves between its rows with Up and Down, and Home and End go to its ends. A short set of links, such as a rail's filters, keeps each in Tab order.
+5. While the list loads, it carries `aria-busy="true"` and holds skeleton rows (`data-skeleton`) in the rows' shape. Empty, it is a `.cp-empty` that names what belongs there and offers the action that fills it, such as "No conversations in the last 72 hours." with New message.
+6. Rows that arrive while the person is in the list never push the rows they are reading. [held-list](data/held-list.md) holds them behind a `.cp-list-pending` line above the list that says how many wait, and its Show puts them in and moves focus to the first. A list whose new rows go at its end, oldest first, lets them in below the reader and counts them on the same line pinned under the list, whose Show goes to the newest.
+7. A row the app could not refresh, in a list or a table, carries `data-kept`, muted, with a `clock`, the time it is from and the reason in place of its second line, such as "Kept from 03:00: Sonarr walk partial". `markKept()` in [list-row](data/list-row.md) writes both, and a step track in the row goes grey with it.
+8. A list whose rows change while it is read is keyed by [keyed-list](data/keyed-list.md): each row keeps its element through a live update, a reorder moves the other rows around the focused one, the open row keeps `aria-current` wherever it moves, and the row at the top of the view stays where it was. A move says nothing of its own: the event that caused it is said once, such as the feed's "New message from @codex". A list too long to draw, such as a library of tens of thousands, is a `.cp-list[data-virtual]` or a table body that holds only the rows in view and the focused one, a page not loaded yet in skeleton rows. When a filter narrows it, the count of matches, "5 of 640 titles", is said once typing stops.
+9. A list that pages ends in a `.cp-list-foot` with one button, such as "Show older", which [load-more](data/load-more.md) drives: it adds the next page before the foot, moves focus to the first row it added and says how many came, and the foot goes once no page is left. A conversation's older messages come the same way from a `.cp-feed-head` above its first entry. "New since your last visit" is one `.cp-since` line, in a list or a feed, where the new rows start.
+10. A list the person puts in order uses [reorder](data/reorder.md): every item has Move up and Move down, so a drag is never the only way, the others slide aside and the new place is said.
 
 ## Tabs
 
@@ -213,6 +217,8 @@ A conversation is a [feed](data/feed.md): its messages oldest first, with the co
 5. The composer is a form like any other. Send stays enabled, so a press with an empty field says what is missing. Ctrl+Enter, or Command+Enter on a Mac, sends, and Enter breaks the line. On a phone the composer stays above the on-screen keyboard, and it never covers the last message.
 6. "Read by 3 of 5" opens who has read the message and who has not yet, with its own loading and error states.
 7. What surrounds the conversation, such as its reservations and followers, is a [context-panel](layout/context-panel.md): a column beside the feed in a wide box, and a disclosure above it in a narrow one.
+8. A conversation the person can read but not write in, such as one between two others, a locked thread or one they have no right to post in, keeps its foot. In the composer's place it says who writes there, "Only @alpha and @bravo write here.", over one button per way to write, such as "Message @alpha".
+9. Everything one person or agent has said or been told is a feed read newest first and never written in: each entry's origin is a chip that links to its conversation, and Show older is its last item.
 
 ## First run
 

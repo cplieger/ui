@@ -88,6 +88,11 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
   group.addEventListener(
     "keydown",
     (e) => {
+      // A key with a modifier is the browser's or the page's, such as
+      // Alt+Left for Back.
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+        return;
+      }
       const list = items();
       const at = list.indexOf(e.target as HTMLElement);
       if (at < 0) {
@@ -109,6 +114,11 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
       } else if (key === "End") {
         next = list.length - 1;
       } else {
+        return;
+      }
+      // With nowhere to go, the key scrolls the page as it would without
+      // the group.
+      if (next === at) {
         return;
       }
       e.preventDefault();

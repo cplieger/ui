@@ -7952,12 +7952,20 @@ div.cp-list-foot {
 
 /* A chip that is a link, such as a feed entry's origin or a legend's part,
  * keeps its wash and words: no underline, a deeper wash under a mouse and
- * the press. */
+ * the press. Its target reaches the pointer tier's minimum in height, which
+ * the 22px chip is under at every tier. */
 a.cp-chip {
+  position: relative;
   text-decoration: none;
   transition:
     background-color var(--cp-dur-micro) var(--cp-ease-out),
     transform var(--cp-dur-press) var(--cp-ease-out);
+}
+
+a.cp-chip::after {
+  content: "";
+  position: absolute;
+  inset: calc((100% - var(--cp-hit-min)) / 2) 0;
 }
 
 a.cp-chip:active,

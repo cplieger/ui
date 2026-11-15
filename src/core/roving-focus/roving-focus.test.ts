@@ -70,6 +70,37 @@ describe("enhanceRovingFocus", () => {
     expect(document.activeElement).toBe(buttons[1]);
   });
 
+  it("leaves a key to the browser at an end it cannot pass, so the page scrolls", () => {
+    const { bar, buttons } = toolbar();
+    enhanceRovingFocus(bar, { signal: life.signal, orientation: "vertical", wrap: false });
+    const last = buttons[2] as HTMLButtonElement;
+    last.focus();
+    const press = (key: string) =>
+      last.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    expect(press("ArrowDown"), "ArrowDown").toBe(true);
+    expect(press("End"), "End").toBe(true);
+    expect(document.activeElement).toBe(last);
+    expect(press("ArrowUp"), "ArrowUp").toBe(false);
+    expect(document.activeElement).toBe(buttons[1]);
+  });
+
+  it("leaves a key with a modifier to the browser, such as Alt+Left for Back", () => {
+    const { bar, buttons } = toolbar();
+    enhanceRovingFocus(bar, { signal: life.signal });
+    const first = buttons[0] as HTMLButtonElement;
+    first.focus();
+    for (const mod of ["altKey", "ctrlKey", "metaKey", "shiftKey"] as const) {
+      const e = new KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        bubbles: true,
+        cancelable: true,
+        [mod]: true,
+      });
+      expect(first.dispatchEvent(e), mod).toBe(true);
+      expect(document.activeElement, mod).toBe(first);
+    }
+  });
+
   it("uses the up and down arrows for a vertical group, and skips a disabled item", async () => {
     const { bar, buttons } = toolbar(["One", "Two", "Three"]);
     (buttons[1] as HTMLButtonElement).disabled = true;

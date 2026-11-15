@@ -1126,6 +1126,29 @@ describe("a history", () => {
     expect(chip.color).not.toBe(author.color);
   });
 
+  it("gives an origin link a target of the tier's minimum height", () => {
+    const { feed } = history(1);
+    const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
+    const link = document.createElement("a");
+    link.className = "cp-chip";
+    link.href = "#c-internal";
+    link.textContent = "Announcements";
+    header.append(link);
+    for (const [tier, min] of [
+      ["fine", 24],
+      ["coarse", 44],
+    ] as const) {
+      document.documentElement.dataset["pointer"] = tier;
+      const box = link.getBoundingClientRect();
+      expect(box.height, tier).toBeLessThan(min);
+      const x = box.left + box.width / 2;
+      const reach = (min - box.height) / 2 - 0.5;
+      expect(document.elementFromPoint(x, box.top - reach), tier).toBe(link);
+      expect(document.elementFromPoint(x, box.bottom + reach), tier).toBe(link);
+    }
+    delete document.documentElement.dataset["pointer"];
+  });
+
   it("adds an older page at its end, focuses its first entry and never scrolls back up", async () => {
     const { box, feed, more } = history(8);
     await scrollTo(box, box.scrollHeight);
