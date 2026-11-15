@@ -272,6 +272,28 @@ describe("reportErrors across sections", () => {
     expect(document.activeElement).toBe(quiet);
   });
 
+  it("opens the category of a lone field's error and focuses the field, the summary hidden", () => {
+    const { form, summary, every, sources } = settings();
+    reportErrors(form, [{ field: every, message: "Enter 5 minutes or more." }], {
+      summary,
+      heading,
+    });
+    expect(sources.hidden).toBe(false);
+    expect(document.activeElement).toBe(every);
+    expect(summary.hidden).toBe(true);
+  });
+
+  it("opens a closed details inside a hidden category for a lone field's error", () => {
+    const { form, summary, alerts } = settings();
+    const quiet = form.querySelector("#quiet") as HTMLInputElement;
+    reportErrors(form, [{ field: quiet, message: "End after it starts." }], { summary, heading });
+    expect([alerts.hidden, (alerts.querySelector("details") as HTMLDetailsElement).open]).toEqual([
+      false,
+      true,
+    ]);
+    expect(document.activeElement).toBe(quiet);
+  });
+
   it("lists an error with no control under its section's link, which focuses the section's heading", async () => {
     const { form, summary, sources } = settings();
     reportErrors(form, [{ section: sources, message: "Two sources use one address." }], {

@@ -2,7 +2,7 @@
 
 `@cplieger/ui/form`
 
-A form's errors and its unsaved changes, as the [forms pattern](../design-patterns.md#forms) asks. Each field with an error is marked invalid and gets its sentence under it. One field's error alone moves focus to its field. Any other mix fills the form's summary with a link to each field and each section with an error, across the form's sections, and moves focus to it. An error of the whole document shows in its notice. What the person typed stays, and [the guard](#unsaved-changes) asks before a navigation or a close drops it.
+A form's errors and its unsaved changes, as the [forms pattern](../design-patterns.md#forms) asks. Each field with an error is marked invalid and gets its sentence under it. One field's error alone opens what hides its field, as a summary link does, and moves focus to it. Any other mix fills the form's summary with a link to each field and each section with an error, across the form's sections, and moves focus to it. An error of the whole document shows in its notice. What the person typed stays, and [the guard](#unsaved-changes) asks before a navigation or a close drops it.
 
 ```html
 <form class="cp-form" novalidate>

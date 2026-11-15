@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { guardChanges } from "../../forms/form/form.js";
@@ -49,6 +50,10 @@ function page(tall = false): {
     links: [...host.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")],
   };
 }
+
+/** Whether the select's picker shows, where the engine can say. */
+const open = (select: HTMLSelectElement): boolean =>
+  CSS.supports("selector(:open)") && select.matches(":open");
 
 const dots = (links: readonly HTMLAnchorElement[]): string[] =>
   links.map((l) => (l.querySelector(".cp-dot") === null ? "" : (l.textContent ?? "")));
@@ -189,7 +194,7 @@ describe("enhanceSettings", () => {
     expect(select.selectedIndex).toBe(2);
   });
 
-  it("waits for Enter after a key moves the closed select, and Escape or leaving puts it back", () => {
+  it("waits for Enter after a key moves the closed select, and Escape or leaving puts it back", async () => {
     const { form, nav } = page();
     enhanceSettings(form, { signal: life.signal });
     const pressed: string[] = [];
@@ -199,25 +204,36 @@ describe("enhanceSettings", () => {
     });
     const select = nav.querySelector("select") as HTMLSelectElement;
     select.focus();
-    const key = (k: string): void => {
-      select.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
-    };
-    const move = (k: string, to: number): void => {
-      key(k);
-      select.selectedIndex = to;
-      select.dispatchEvent(new Event("change"));
-    };
-    move("ArrowDown", 1);
-    move("ArrowDown", 2);
-    expect(pressed).toEqual([]);
-    key("Enter");
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+    expect([pressed, select.selectedIndex]).toEqual([[], 2]);
+    await userEvent.keyboard("{Enter}");
+    await task();
     expect(pressed).toEqual(["#s-dis"]);
-    move("ArrowUp", 1);
-    key("Escape");
+    expect(open(select)).toBe(false);
+    await userEvent.keyboard("{ArrowUp}");
+    await userEvent.keyboard("{Escape}");
     expect([pressed.length, select.selectedIndex]).toEqual([1, 2]);
-    move("c", 0);
+    await userEvent.keyboard("c");
+    expect(select.selectedIndex).toBe(0);
     select.blur();
     expect([pressed.length, select.selectedIndex]).toEqual([1, 2]);
+  });
+
+  it("moves at once on a change a task after the key, as a picker the arrows opened commits", async () => {
+    const { form, nav } = page();
+    enhanceSettings(form, { signal: life.signal });
+    const pressed: string[] = [];
+    nav.addEventListener("click", (e) => {
+      e.preventDefault();
+      pressed.push((e.target as HTMLAnchorElement).hash);
+    });
+    const select = nav.querySelector("select") as HTMLSelectElement;
+    select.focus();
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    await task();
+    select.selectedIndex = 1;
+    select.dispatchEvent(new Event("change"));
+    expect(pressed).toEqual(["#s-chk"]);
   });
 
   it("follows the current link the app moves, and puts back a choice the page refused", async () => {
@@ -344,6 +360,61 @@ describe("enhanceSettings", () => {
       shadow.querySelectorAll("input")[1] as Element,
     ]);
     expect(dots(links)).toEqual(["", "Checks, unsaved changes"]);
+  });
+
+  it("keeps a pressed category through a key inside the nav in a shadow root", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    const tall = ' style="min-block-size: 120vh"';
+    shadow.innerHTML =
+      '<div class="cp-settings"><nav class="cp-settings-nav"><ul class="cp-list">' +
+      row("Connections", "#s-con", ' aria-current="location"') +
+      row("Checks", "#s-chk") +
+      row("Display", "#s-dis") +
+      `</ul></nav><form><section id="s-con"${tall}><input></section>` +
+      `<section id="s-chk"${tall}><input></section><section id="s-dis"><input></section></form></div>`;
+    const form = shadow.querySelector("form") as HTMLFormElement;
+    const links = [...shadow.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    for (const link of links) {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+      });
+    }
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    const checks = shadow.getElementById("s-chk") as HTMLElement;
+    const seen = new Promise<void>((resolve) => {
+      const probe = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            probe.disconnect();
+            resolve();
+          }
+        },
+        { rootMargin: "-20% 0px -60% 0px" },
+      );
+      probe.observe(checks);
+    });
+    links[2]?.click();
+    links[2]?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Tab", bubbles: true, composed: true }),
+    );
+    checks.scrollIntoView();
+    await seen;
+    await new Promise(requestAnimationFrame);
+    await task();
+    expect(current()).toBe(2);
+  });
+
+  it("finds a section whose fragment does not percent-decode, as the browser does", () => {
+    const { form, nav, fields } = page();
+    nav.querySelector("ul")?.insertAdjacentHTML("beforeend", row("Offers", "#50%-off"));
+    form.insertAdjacentHTML("beforeend", '<section id="50%-off"><input name="rate"></section>');
+    const s = enhanceSettings(form, { signal: life.signal });
+    const links = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
+    s.paint([form.querySelector('[name="rate"]') as Element, fields[1] as Element]);
+    expect(dots(links)).toEqual(["", "Checks, unsaved changes", "", "Offers, unsaved changes"]);
   });
 
   it("throws without a settings nav", () => {

@@ -4196,9 +4196,9 @@ input.cp-input:is([type^="date"], [type="time"]) {
 
 /* A button right after the legend, such as "Reset to default", sits at the
  * end of the legend's line. Floated, the legend still names the group, but
- * HTML no longer renders it as the fieldset's legend. Grid layout would drop
- * both floats in WebKit, so this fieldset lays out as blocks, its rows
- * cleared under the floats' margins. */
+ * HTML no longer renders it as the fieldset's legend. Floats have no effect
+ * on grid items (https://www.w3.org/TR/css-grid-1/#grid-containers), so this
+ * fieldset lays out as blocks, its rows cleared under the floats' margins. */
 .cp-choices:has(> legend + .cp-button) {
   display: block;
 }

@@ -284,9 +284,10 @@ function iconSpan(name: string, part?: string): HTMLSpanElement {
 /**
  * Appends `file`'s row to `list`, its size under its name, and uploads it
  * through `send`: its state reads Uploading…, then Uploaded, or Not uploaded
- * with the reason in place of the size and Retry, unless the failure is final. A `send` that rejects is
- * a failure that can be retried. Each outcome is announced. Returns the
- * row's item.
+ * with the reason in place of the size and Retry, unless the failure is
+ * final. A `send` that rejects is a failure that can be retried. Each
+ * outcome is announced. Returns the row's item; with `signal` already
+ * aborted it lists and sends nothing and returns the item unattached.
  */
 export function uploadFile(
   list: HTMLElement,

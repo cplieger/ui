@@ -51,7 +51,8 @@ const DEFAULTS = {
 
 const ADDED = "data-cp-added";
 const END = '[data-part="end"]';
-// Keys that move a closed select's value without opening it.
+// Keys that change a closed select's value on Linux and Windows; on macOS
+// the arrows open its picker.
 const MOVES = new Set([
   "ArrowUp",
   "ArrowDown",
@@ -68,6 +69,25 @@ const isCurrent = (link: Element): boolean => {
   const v = link.getAttribute("aria-current");
   return v !== null && v !== "false";
 };
+
+/** The element a fragment names, found as the browser finds it: the raw
+ *  id, then the percent-decoded one
+ *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-a-potential-indicated-element).
+ *  A fragment that does not decode names no second element. */
+function byFragment(root: Document | ShadowRoot, fragment: string): Element | null {
+  if (fragment === "") {
+    return null;
+  }
+  const raw = root.getElementById(fragment);
+  if (raw !== null) {
+    return raw;
+  }
+  try {
+    return root.getElementById(decodeURIComponent(fragment));
+  } catch {
+    return null;
+  }
+}
 
 /** The link's words without its end part or the words read after them. */
 function nameOf(link: HTMLAnchorElement): string {
@@ -253,7 +273,7 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     { rootMargin: "-20% 0px -60% 0px" },
   );
   const release = (e: Event): void => {
-    if (!(e.target instanceof Node && nav.contains(e.target))) {
+    if (!e.composedPath().includes(nav)) {
       held = null;
     }
   };
@@ -282,8 +302,7 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       const here = new URL(location.href);
       url.hash = "";
       here.hash = "";
-      const id = decodeURIComponent(link.hash.slice(1));
-      const target = id === "" || url.href !== here.href ? null : root.getElementById(id);
+      const target = url.href === here.href ? byFragment(root, link.hash.slice(1)) : null;
       if (target !== null) {
         targets.set(link, target);
         spy.observe(target);
@@ -302,22 +321,19 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     sync();
   };
   // A closed select's arrow and letter keys change its value at each press
-  // in Firefox and in Chromium on Windows; moving to a category then would
-  // change the page under the person's keys (WCAG 3.2.2), so the choice
-  // waits for Enter, and Escape or leaving the select puts the current back.
+  // in Firefox and in Chromium on Linux and Windows; moving to a category
+  // then would change the page under the person's keys (WCAG 3.2.2), so the
+  // choice waits for Enter, and Escape or leaving the select puts the current
+  // back. That change fires inside the key's own task; a picker's commit
+  // comes in a later one and moves at once.
   let keyed = false;
   let waiting = false;
-  select.addEventListener(
-    "pointerdown",
-    () => {
-      keyed = false;
-    },
-    listen,
-  );
   select.addEventListener(
     "keydown",
     (e) => {
       if (e.key === "Enter" && waiting) {
+        // Chromium on Linux and Windows would also open the picker.
+        e.preventDefault();
         waiting = false;
         go();
       } else if (e.key === "Escape" && waiting) {
@@ -325,6 +341,11 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
         sync();
       }
       keyed = !e.altKey && (MOVES.has(e.key) || (e.key.length === 1 && e.key !== " "));
+      if (keyed) {
+        setTimeout(() => {
+          keyed = false;
+        });
+      }
     },
     listen,
   );
@@ -359,12 +380,6 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
       form.style.setProperty("--cp-savebar-size", `${String(height)}px`);
     }
   });
-  if (bar !== null) {
-    rest.observe(bar, { subtree: true, attributeFilter: ["data-cp-state"] });
-    size.observe(bar);
-  }
-
-  read();
   whenAborted(signal, () => {
     spy.disconnect();
     currents.disconnect();
@@ -376,6 +391,13 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     }
     field.remove();
   });
+  if (signal?.aborted !== true) {
+    if (bar !== null) {
+      rest.observe(bar, { subtree: true, attributeFilter: ["data-cp-state"] });
+      size.observe(bar);
+    }
+    read();
+  }
 
   return { paint, update: read };
 }

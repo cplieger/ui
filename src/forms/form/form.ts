@@ -142,6 +142,12 @@ function focusOn(el: HTMLElement): void {
   el.focus();
 }
 
+function toField(field: Control, own: readonly HTMLElement[]): void {
+  reveal(field, own);
+  field.focus();
+  (field.labels?.[0] ?? field).scrollIntoView({ block: "nearest" });
+}
+
 function link(href: string, words: string, go: () => void): HTMLAnchorElement {
   const a = document.createElement("a");
   a.href = href;
@@ -164,8 +170,8 @@ function fill(host: HTMLElement, ...nodes: (Node | string)[]): void {
  * showed that `errors` no longer names (docs/forms/form.md says which stay).
  * A field's error is the `.cp-field-error` its `aria-describedby` names,
  * else `#<its id>-error`, else one made after it. One field's error alone
- * focuses the field; any other mix the summary, or for form errors alone
- * the notice. An empty list hides both.
+ * opens what hides its field and focuses it; any other mix the summary, or
+ * for form errors alone the notice. An empty list hides both.
  */
 export function reportErrors(
   form: HTMLFormElement,
@@ -204,7 +210,7 @@ export function reportErrors(
   if (listed.length === 0 || lone !== undefined) {
     summary.hidden = true;
     if (lone !== undefined) {
-      lone.field.focus();
+      toField(lone.field, own);
     } else if (noticed) {
       focusOn(notice);
     }
@@ -221,9 +227,7 @@ export function reportErrors(
       const words = section === "" ? nameOf(field) : `${section}: ${nameOf(field)}`;
       item.append(
         link(`#${idOf(field)}`, words, () => {
-          reveal(field, own);
-          field.focus();
-          (field.labels?.[0] ?? field).scrollIntoView({ block: "nearest" });
+          toField(field, own);
         }),
       );
     } else if ("section" in e) {
