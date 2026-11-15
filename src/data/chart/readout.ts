@@ -88,13 +88,7 @@ export function domainText(model: Model, words: Words): string {
 }
 
 /** The span from `from` to `to` in words, `open` for a bucket's (`Model.xSpan`). */
-function spanText(
-  model: Model,
-  from: number,
-  to: number,
-  words: Words,
-  open = false,
-): string {
+function spanText(model: Model, from: number, to: number, words: Words, open = false): string {
   const [first, last] = model.xSpan(from, to, open);
   return last === undefined ? first.text : words.range(first.text, last.text);
 }

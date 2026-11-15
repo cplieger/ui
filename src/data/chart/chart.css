@@ -122,7 +122,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cp-chart > [data-part="legend"] :is([data-part="panel"], [data-part="at"]) {
+.cp-chart > [data-part="legend"] [data-part="panel"],
+.cp-chart > [data-part="legend"] [data-part="at"] {
   display: inline-block;
 }
 
@@ -276,7 +277,7 @@
 }
 
 /* The selected panel's name, by weight as well as ink. */
-.cp-chart [data-part="panel"][data-selected] > [data-part="head"] > [data-part="name"] {
+.cp-chart [data-selected] > [data-part="head"] > bdi {
   color: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
 }
@@ -549,7 +550,7 @@
   stroke-width: 1px;
 }
 
-.cp-chart svg[data-synced] :is([data-part="y"], [data-part="x"]) text[data-selected] {
+.cp-chart svg[data-synced] text[data-selected] {
   font-weight: inherit;
 }
 

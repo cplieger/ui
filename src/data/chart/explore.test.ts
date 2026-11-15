@@ -1310,6 +1310,10 @@ describe("keys, the pointer and the synced selection in small multiples", () => 
       p.hasAttribute("data-selected"),
     );
     expect(selected).toEqual([true, false, false]);
+    const weights = [...b.plot.querySelectorAll('[data-part="head"] > [data-part="name"]')].map(
+      (n) => getComputedStyle(n).fontWeight,
+    );
+    expect(weights).toEqual(["500", "400", "400"]);
     const synced = getComputedStyle(ringIn(b, 1) as Element);
     const own = getComputedStyle(ringIn(b, 0) as Element);
     expect(synced.strokeWidth).toBe("1px");
@@ -1319,6 +1323,36 @@ describe("keys, the pointer and the synced selection in small multiples", () => 
     expect(frames(b).map((f) => f.querySelector('[data-part="ring"]'))).toEqual([null, null, null]);
     expect(heads(b)).toEqual(["10%", "5%", "2%"]);
     expect(legendText(b)).toBe(`3${nb}regions · ${jun}`);
+  });
+
+  it("weights the selected row's name in its own panel only, the synced names keeping its ink", () => {
+    // Under 30rem the bar panels stack in one column, each naming its rows.
+    const b = build(
+      {
+        marks: [],
+        facets: {
+          panels: ["Lyon", "Nice"].map((name) => ({
+            name,
+            marks: [
+              {
+                mark: "bar",
+                y: ["Coal", "Gas", "Wind"],
+                series: [{ name: "Share", x: [1, 2, 3] }],
+              },
+            ],
+          })),
+        },
+      },
+      320,
+    );
+    frame(b, 0).focus();
+    key(frame(b, 0), "Home");
+    const picked = (k: number) =>
+      svgOf(b, k).querySelector('[data-part="y"] text[data-selected]') as Element;
+    expect(svgOf(b, 1).hasAttribute("data-synced")).toBe(true);
+    expect(getComputedStyle(picked(0)).fontWeight).toBe("500");
+    expect(getComputedStyle(picked(1)).fontWeight).toBe("400");
+    expect(getComputedStyle(picked(1)).fill).toBe(getComputedStyle(picked(0)).fill);
   });
 
   it("a mouse selects in the panel under it, clearing the one the keys left elsewhere", () => {
