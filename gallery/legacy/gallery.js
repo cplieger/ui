@@ -637,54 +637,6 @@ for (const form of $$("form[data-sign-in]")) {
   });
 }
 
-// -------------------------------------------------------------- stepper
-// First-run setup, its steps on one page where an app gives each its own
-// address. The host says which step is current (data-current); the page's
-// h1 names it, "Step 2 of 3: Connect Sonarr"; a done step is a link back to
-// it; the current one is ringed and named current. main.ts wires Test
-// connection.
-for (const flow of $$("[data-steps]")) {
-  const steps = $$("[data-step]", flow);
-  const marks = $$(".cp-steps > li", flow);
-  const title = $("[data-step-title]", flow);
-  const compact = $(".cp-steps-compact", flow);
-  // Focus follows a change of step, so a screen reader lands on the new
-  // one; the first step on load takes none.
-  const show = (i, moved = true) => {
-    flow.dataset.current = String(i);
-    steps.forEach((s, k) => (s.hidden = k !== i));
-    marks.forEach((m, k) => {
-      const name = m.dataset.name;
-      m.dataset.state = k < i ? "done" : k === i ? "current" : "todo";
-      if (k < i) m.replaceChildren(el("a", { href: "#setup", "data-go": String(k), text: name }), el("span", { class: "cp-visually-hidden", text: ", done" }));
-      else m.replaceChildren(name, ...(k === i ? [el("span", { class: "cp-visually-hidden", text: " (current step)" })] : []));
-      if (k === i) m.setAttribute("aria-current", "step");
-      else m.removeAttribute("aria-current");
-    });
-    title.textContent = `Step ${i + 1} of ${steps.length}: ${steps[i].dataset.title}`;
-    compact.textContent = `Step ${i + 1} of ${steps.length}`;
-    if (moved) title.focus();
-  };
-  flow.addEventListener("click", (e) => {
-    const go = e.target.closest("[data-go]");
-    if (go) {
-      e.preventDefault();
-      return show(Number(go.dataset.go));
-    }
-    const at = Number(flow.dataset.current);
-    if (e.target.closest("[data-next]")) {
-      if (at === steps.length - 1) {
-        sparkle(e.target.closest("button"), 8);
-        $(".label", e.target.closest("button")).textContent = "All set";
-        return;
-      }
-      show(at + 1);
-    }
-    if (e.target.closest("[data-back]")) show(Math.max(0, at - 1));
-  });
-  show(Number(flow.dataset.current ?? 0), false);
-}
-
 // ---------------------------------------------------------- foundations
 for (const host of $$("[data-ladder]")) {
   for (const fam of host.dataset.ladder.split(" ")) {

@@ -2,10 +2,14 @@
  * templates.ts — the gallery's wiring for the page templates' cards: each
  * template in an `<iframe>` drawn at a phone's, a tablet's or a desktop's
  * width and scaled to its card, so the template's own media queries answer
- * to the width chosen. And the search screen's demo, which narrows its
- * results as an app's server would.
+ * to the width chosen. The search screen's demo, which narrows its results
+ * as an app's server would. And the setup screen's steps, which an app
+ * serves each at its own address and this page holds on one.
  */
 
+import { announce } from "@cplieger/ui/announce";
+import { enhanceConfirm } from "@cplieger/ui/confirm";
+import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 import { enhanceTokens } from "@cplieger/ui/tokens";
 
 const WIDTHS = [
@@ -129,6 +133,124 @@ if (
     later();
   });
   run();
+}
+
+const setup = document.getElementById("setup");
+if (setup !== null) {
+  wireSetup(setup);
+}
+
+function wireSetup(panel: HTMLElement): void {
+  const steps = [...panel.querySelectorAll<HTMLFormElement>("form[data-setup-step]")];
+  const marks = [...panel.querySelectorAll<HTMLLIElement>(".cp-steps > li")];
+  const names = marks.map((m) => m.firstChild?.textContent ?? "");
+  const title = panel.querySelector<HTMLElement>("h1");
+  const compact = panel.querySelector(".cp-steps-compact");
+  if (title === null || compact === null || steps.length !== marks.length) {
+    return;
+  }
+  let at = 0;
+  const hidden = (text: string): HTMLElement => {
+    const words = document.createElement("span");
+    words.className = "cp-visually-hidden";
+    words.textContent = text;
+    return words;
+  };
+  // Focus follows a move, so a screen reader lands on the new step.
+  const show = (i: number): void => {
+    at = i;
+    steps.forEach((s, k) => (s.hidden = k !== i));
+    marks.forEach((m, k) => {
+      const name = names[k] ?? "";
+      m.dataset["state"] = k < i ? "done" : k === i ? "current" : "todo";
+      if (k < i) {
+        const back = document.createElement("a");
+        back.href = "#setup";
+        back.textContent = name;
+        m.replaceChildren(back, hidden(", done"));
+      } else {
+        m.replaceChildren(name, ...(k === i ? [hidden(" (current step)")] : []));
+      }
+      if (k === i) {
+        m.setAttribute("aria-current", "step");
+      } else {
+        m.removeAttribute("aria-current");
+      }
+    });
+    const label = `Step ${String(i + 1)} of ${String(steps.length)}`;
+    title.textContent = `${label}: ${steps[i]?.dataset["setupStep"] ?? ""}`;
+    compact.textContent = label;
+    title.focus();
+  };
+  panel.addEventListener("click", (event) => {
+    const link = event.target instanceof Element ? event.target.closest("a") : null;
+    if (link === null) {
+      return;
+    }
+    const done = marks.findIndex((m) => m.contains(link));
+    if (done !== -1) {
+      event.preventDefault();
+      show(done);
+    } else if (link.closest('[data-part="actions"]') !== null) {
+      event.preventDefault();
+      show(Math.max(0, at - 1));
+    }
+  });
+  const last = steps.at(-1)?.querySelector<HTMLButtonElement>('button[type="submit"]');
+  const finish =
+    last === null || last === undefined
+      ? null
+      : enhanceConfirm(last, { busy: "Starting…", done: "All set" });
+  for (const [k, form] of steps.entries()) {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (k < steps.length - 1) {
+        show(k + 1);
+      } else {
+        void finish
+          ?.run(() => new Promise((done) => setTimeout(done, 900)))
+          .then((ran) => {
+            if (ran) {
+              announce("Setup is done. The first check is running.");
+            }
+          });
+      }
+    });
+  }
+  const test = document.getElementById("su-test");
+  const verdict = document.getElementById("su-verdict");
+  const url = document.getElementById("su-url");
+  const mark = document.getElementById("su-url-error");
+  if (
+    test instanceof HTMLButtonElement &&
+    verdict !== null &&
+    url instanceof HTMLInputElement &&
+    mark !== null
+  ) {
+    // The test passes for an address with a port, after a second.
+    enhanceConnectionTest(test, verdict, {
+      run: (signal) =>
+        new Promise((done, fail) => {
+          const timer = setTimeout(() => {
+            done(
+              /^https?:\/\/\S+:\d+/.test(url.value)
+                ? { ok: true, message: "Connected, Sonarr 4.0.9" }
+                : {
+                    ok: false,
+                    message: "Sonarr did not answer at this address and port.",
+                    field: "url",
+                    fix: "Check the address and its port, such as http://sonarr.lan:8989.",
+                  },
+            );
+          }, 1100);
+          signal.addEventListener("abort", () => {
+            clearTimeout(timer);
+            fail(new DOMException("The check was ended.", "AbortError"));
+          });
+        }),
+      fields: { url: { input: url, mark } },
+    });
+  }
 }
 
 function unmark(node: HTMLElement): void {

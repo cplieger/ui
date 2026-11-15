@@ -8,7 +8,6 @@
 import { installAnnouncer } from "@cplieger/ui/announce";
 import { enhanceSelectAll } from "@cplieger/ui/checkbox";
 import { enhanceChoiceFields } from "@cplieger/ui/choice";
-import { enhanceConnectionTest } from "@cplieger/ui/connection-test";
 import { enhanceCopy } from "@cplieger/ui/copy";
 import { enhanceDateRange } from "@cplieger/ui/date-range";
 import { enhanceFiles } from "@cplieger/ui/file";
@@ -136,39 +135,6 @@ for (const button of all<HTMLButtonElement>("[data-theme-toggle]")) {
   };
   new MutationObserver(show).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
   show();
-}
-// The setup card's test passes for an address with a port, after a second.
-for (const button of all<HTMLButtonElement>("button[data-test]")) {
-  const status = document.getElementById(button.dataset["test"] ?? "");
-  const url = document.getElementById(button.dataset["url"] ?? "");
-  const mark = document.getElementById(`${url?.id ?? ""}-error`);
-  const step = button.closest<HTMLElement>("[data-step]");
-  if (status === null || !(url instanceof HTMLInputElement) || mark === null || step === null) {
-    continue;
-  }
-  enhanceConnectionTest(button, status, {
-    root: step,
-    run: (signal) =>
-      new Promise((done, fail) => {
-        const timer = setTimeout(() => {
-          done(
-            /^https?:\/\/\S+:\d+/.test(url.value)
-              ? { ok: true, message: "Connected, Sonarr 4.0.9" }
-              : {
-                  ok: false,
-                  message: "Sonarr did not answer at this address and port.",
-                  field: "url",
-                  fix: "Check the address and its port, such as http://sonarr.lan:8989.",
-                },
-          );
-        }, 1100);
-        signal.addEventListener("abort", () => {
-          clearTimeout(timer);
-          fail(new DOMException("The check was ended.", "AbortError"));
-        });
-      }),
-    fields: { url: { input: url, mark } },
-  });
 }
 // A filter chip's state is the app's filter; here a press flips it. A share
 // bar's toggle and a chart's are their own, and a link chip has no state.
