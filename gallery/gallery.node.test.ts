@@ -124,9 +124,13 @@ describe.each(browsers)("the gallery in %s", (name) => {
     const id = await row.getAttribute("href");
     await row.focus();
     await tab.keyboard.press("Enter");
-    await tab.waitForFunction(() => document.querySelector<HTMLDialogElement>("#msg + dialog")?.open);
+    await tab.waitForFunction(
+      () => document.querySelector<HTMLDialogElement>("#msg + dialog")?.open,
+    );
     await tab.goBack();
-    await tab.waitForFunction(() => !document.querySelector<HTMLDialogElement>("#msg + dialog")?.open);
+    await tab.waitForFunction(
+      () => !document.querySelector<HTMLDialogElement>("#msg + dialog")?.open,
+    );
     const focused = await tab.evaluate(() => document.activeElement?.getAttribute("href"));
     await tab.close();
     expect(focused).toBe(id);
