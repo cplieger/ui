@@ -40,18 +40,17 @@ const buttons = (): string[] =>
 const title = (): string | undefined => question()?.querySelector("h2")?.textContent;
 
 // Waits for this question to go, not for none to be open: the next guard's
-// question may open as it goes. Its close event, not a timed poll: where the
-// exit runs in script (no CSS `overlay`), a loaded machine outlasts the
-// poll's second. ask() removes the dialog in its own close listener, added
-// first, so it is gone once this one runs.
+// question may open as it goes.
 async function answer(words: string): Promise<void> {
   const q = question();
   if (q === null) {
     throw new Error(`no question open to answer "${words}"`);
   }
   const b = [...q.querySelectorAll("button")].find((x) => x.textContent === words);
-  const gone = new Promise<void>((resolve) => {
-    q.addEventListener("close", () => resolve(), { once: true });
+  // The question goes in its own close listener, which runs before this one;
+  // its exit animation is the engine's to time, so no poll bounds the wait.
+  const gone = new Promise((r) => {
+    q.addEventListener("close", r, { once: true });
   });
   await userEvent.click(b as HTMLButtonElement);
   await gone;

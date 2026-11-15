@@ -5,7 +5,7 @@ import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
 import { barSegments } from "./geometry.js";
-import { dodge, layout, type Metrics } from "./layout.js";
+import { dodge, layout, numberedNotes, type Metrics, type Note, type TreeKept } from "./layout.js";
 import { chartModel, type BarModel } from "./model.js";
 import type { ChartSpec } from "./spec.js";
 import { chartWords } from "./words.js";
@@ -15,6 +15,8 @@ const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
 const metrics = (more: Partial<Metrics> = {}): Metrics => ({
   measure: face,
   mono: face,
+  hole: face,
+  holeLine: 21,
   lineHeight: 17,
   nameLine: 18,
   rem: 16,
@@ -288,6 +290,27 @@ describe("the plot's height", () => {
     expect(lay(spec, 600, { height: 200 }).frame.height).toBe(200);
     expect(lay({ ...spec, height: 120 }, 600).frame.height).toBe(120);
   });
+});
+
+describe("a note", () => {
+  // Built at the size the bound is about, it runs past node's 5 s default on a
+  // loaded host.
+  it(
+    "lays out 300,000 words, each wider than the note and so a line of its own",
+    { timeout: 30_000 },
+    () => {
+      const wide = measurer((t) => 200 * Array.from(t).length, 200, "en");
+      const text = new Array<string>(300_000).fill("a").join(" ");
+      const spec = line([[1, 2]]);
+      const [note] = lay(
+        { ...spec, marks: [...spec.marks, { mark: "text", x: 0, y: 1, text }] },
+        600,
+        { measure: wide },
+      ).notes;
+      expect(note?.lines).toHaveLength(300_000);
+      expect(note?.box.right).toBeCloseTo((note?.box.left ?? 0) + 200);
+    },
+  );
 });
 
 describe("a bar chart", () => {
@@ -1219,6 +1242,43 @@ describe("a box plot", () => {
     expect(l.rows.map((r) => r.y)).toEqual([20, 60, 100, 140]);
   });
 
+  it("lays grouped bars and boxes at the most sub-rows a plot takes within 48,000 px", () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `r${String(i)}`);
+    const ones = (n: number) => names(n).map(() => 1);
+    const grouped = lay(
+      {
+        x: {},
+        marks: [
+          {
+            mark: "bar",
+            y: names(500),
+            arrange: "group",
+            series: names(5).map((name) => ({ name, x: ones(500) })),
+          },
+        ],
+      },
+      600,
+    );
+    // 5 × 12 + 4 + 8 px a row.
+    expect(grouped.frame.height).toBe(500 * 72);
+    const v = ones(625);
+    const boxes = lay(
+      {
+        x: {},
+        marks: [
+          {
+            mark: "box",
+            y: names(625),
+            series: names(4).map((name) => ({ name, low: v, q1: v, median: v, q3: v, high: v })),
+          },
+        ],
+      },
+      600,
+    );
+    // 4 × 16 + 8 px a row.
+    expect(boxes.frame.height).toBe(625 * 72);
+  });
+
   it("puts each name above its boxes under 30rem: 44 px a row with one series, 60 with two", () => {
     const one = lay(latency(), 320);
     expect(one.gutters.axis).toBe(0);
@@ -1232,5 +1292,345 @@ describe("a box plot", () => {
     const l = lay(latency(), 600);
     expect(l.frame.xAt(l.xAxis.lo)).toBeCloseTo(4);
     expect(l.frame.xAt(l.xAxis.hi)).toBeCloseTo(l.frame.width - 4);
+  });
+});
+
+describe("a pie", () => {
+  const land = (hole = false, values = [182_637, 106_839, 50_000, 11_443, 6_661]): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        hole,
+        unit: { other: "km²" },
+        slices: ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"].map(
+          (name, i) => ({ name, value: values[i] ?? null }),
+        ),
+      },
+    ],
+  });
+  // The hole's face, 9 px a character, wider than the axis face.
+  const hole = measurer((t) => 9 * Array.from(t).length, 9, "en");
+  // A 480 px figure's 478 px plot, and a 320 px phone's 288 px figure.
+  const wide = (spec: ChartSpec) =>
+    layout(
+      chartModel(spec, "en", "UTC"),
+      words,
+      metrics({ hole }),
+      478,
+      { axis: 0, label: 0 },
+      480,
+    );
+  const phone = (spec: ChartSpec) =>
+    layout(
+      chartModel(spec, "en", "UTC"),
+      words,
+      metrics({ hole, height: 200 }),
+      286,
+      { axis: 0, label: 0 },
+      288,
+    );
+
+  it("centres its circle, as wide as a quarter of the chart's width a side leaves it from 30rem", () => {
+    const l = wide(land());
+    expect(l.pie).toEqual({ cx: 239, cy: 120, r: 119, inner: 0 });
+    expect([l.width, l.height, l.left, l.top]).toEqual([478, 240, 0, 0]);
+    expect(l.xLabels).toEqual([]);
+    expect(l.yAxis).toBeUndefined();
+  });
+
+  it("labels each slice in the column on its middle angle's side, its name over its share", () => {
+    const l = wide(land());
+    const right = l.endLabels.filter((t) => t.anchor === "start");
+    const left = l.endLabels.filter((t) => t.anchor === "end");
+    // Agriculture's middle falls right of 12 o'clock's line, every later slice's left.
+    expect(right.map((t) => t.text)).toEqual(["Agriculture", "51%"]);
+    expect(left.map((t) => t.series)).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
+    expect(left.filter((_, k) => k % 2 === 1).map((t) => t.text)).toEqual([
+      "30%",
+      "14%",
+      "3.2%",
+      "1.9%",
+    ]);
+    expect(right.every((t) => t.x === 239 + 119 + 8)).toBe(true);
+    expect(left.every((t) => t.x === 239 - 119 - 8)).toBe(true);
+    // Each share sits a name line under its name.
+    expect((right[1]?.y ?? 0) - (right[0]?.y ?? 0)).toBe(18);
+  });
+
+  it("cuts a name to its column with an ellipsis", () => {
+    const name = wide(land()).endLabels.find((t) => t.series === 2)?.text ?? "";
+    expect(name).not.toBe("Housing & traffic");
+    expect(name.endsWith("…")).toBe(true);
+    expect(face.text(name)).toBeLessThanOrEqual(120 - 8);
+  });
+
+  it("dodges a side's labels 36 px apart, inside the plot", () => {
+    const l = wide(land());
+    const middles = l.endLabels
+      .filter((t, k) => t.anchor === "end" && k % 2 === 0)
+      .map((t) => t.y + 9)
+      .sort((a, b) => a - b);
+    middles.forEach((y, k) => {
+      expect(y).toBeGreaterThanOrEqual(18);
+      expect(y).toBeLessThanOrEqual(240 - 18);
+      if (k > 0) {
+        expect(y - (middles[k - 1] ?? 0)).toBeGreaterThanOrEqual(36 - 1e-9);
+      }
+    });
+  });
+
+  it("joins each label to its slice's rim by a level line out past the circle, then to the label", () => {
+    const l = wide(land());
+    expect(l.leaders).toHaveLength(2 * 5);
+    for (let k = 0; k < l.leaders.length; k += 2) {
+      const [out, up] = [l.leaders[k], l.leaders[k + 1]];
+      const rim = out?.from ?? { x: 0, y: 0 };
+      expect(Math.hypot(rim.x - 239, rim.y - 120)).toBeCloseTo(119, 6);
+      expect(out?.to.y).toBe(rim.y);
+      expect(Math.abs((out?.to.x ?? 0) - 239)).toBe(119 + 2);
+      expect(up?.from).toEqual(out?.to);
+      expect(Math.abs((up?.to.x ?? 0) - 239)).toBe(119 + 6);
+    }
+  });
+
+  it("drops every label together when a side's cannot fit the plot's height", () => {
+    // n thin slices near 12 o'clock, all right of it, then one for the rest.
+    const thin = (n: number): ChartSpec => ({
+      marks: [
+        {
+          mark: "pie",
+          slices: [
+            ...Array.from({ length: n }, (_, i) => ({ name: `T${String(i)}`, value: 1 })),
+            { name: "Rest", value: 1000 },
+          ],
+        },
+      ],
+    });
+    // Seven need 7 × 36 = 252 px on the right, past the 240 px plot.
+    const l = wide(thin(7));
+    expect(l.endLabels).toEqual([]);
+    expect(l.leaders).toEqual([]);
+    expect(l.pie?.r).toBe(120);
+    // Six fit in 216 px: their names and shares, and Rest's on the left.
+    expect(wide(thin(6)).endLabels).toHaveLength(2 * 7);
+    expect(wide(thin(6)).pie?.r).toBe(119);
+  });
+
+  it("draws no outside label under 30rem, the circle as tall as the plot", () => {
+    const l = phone(land());
+    expect(l.endLabels).toEqual([]);
+    expect(l.leaders).toEqual([]);
+    expect(l.pie).toEqual({ cx: 143, cy: 100, r: 100, inner: 0 });
+  });
+
+  it("writes a donut's total in its hole while it fits the hole less 16 px", () => {
+    const l = wide(land(true));
+    expect(l.pie?.inner).toBe(59.5);
+    // "357,580 km²" is 99 px in the hole's face, inside 119 − 16.
+    expect(l.hole).toEqual({
+      label: { text: "Total", x: 239, y: 120 - 19 + 8.5, anchor: "middle" },
+      total: { text: "357,580\u00A0km²", x: 239, y: 120 - 19 + 17 + 10.5, anchor: "middle" },
+    });
+    // On a phone the hole is 100 px across, 84 px of room.
+    expect(phone(land(true)).hole).toBeUndefined();
+    const small: ChartSpec = {
+      marks: [
+        { mark: "pie", hole: true, unit: { other: "GB" }, slices: [{ name: "A", value: 4210 }] },
+      ],
+    };
+    expect(phone(small).hole?.total.text).toBe("4,210\u00A0GB");
+    expect(wide(land()).hole).toBeUndefined();
+  });
+});
+
+describe("a treemap", () => {
+  const regions = (
+    asia: readonly (number | null)[] = [3, 1],
+    europe = 4,
+    more: Partial<ChartSpec> = {},
+  ): ChartSpec => ({
+    ...more,
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: asia[0] ?? null },
+              { name: "Japan", value: asia[1] ?? null },
+            ],
+          },
+          { name: "Europe", children: [{ name: "Germany", value: europe }] },
+        ],
+      },
+    ],
+  });
+  const parts = (values: readonly (number | null)[], more: Partial<ChartSpec> = {}): ChartSpec => ({
+    ...more,
+    marks: [
+      {
+        mark: "tree",
+        nodes: values.map((value, i) => ({ name: `Country ${String(i + 1)}`, value })),
+      },
+    ],
+  });
+  const box = (b: { left: number; top: number; right: number; bottom: number } | undefined) =>
+    b === undefined ? undefined : [b.left, b.top, b.right, b.bottom];
+
+  it("sets groups 4 px apart and parts 1 px apart, the outer edges flush with the plot", () => {
+    // Two groups of 4 squarify into two upright halves of the 604 by 244 px
+    // the 2 px insets grow the plot to; Asia's 3 and 1 split 299 px 3 to 1.
+    const l = lay(regions(), 600);
+    expect([l.width, l.height, l.left, l.top]).toEqual([600, 240, 0, 0]);
+    expect(l.tree?.groups.map(box)).toEqual([
+      [0, 0, 298, 240],
+      [302, 0, 600, 240],
+    ]);
+    expect(l.tree?.tiles.map(box)).toEqual([
+      [0, 18, 223, 240],
+      [224, 18, 298, 240],
+      [302, 18, 600, 240],
+    ]);
+    expect(l.xLabels).toEqual([]);
+    expect(l.yAxis).toBeUndefined();
+  });
+
+  it("heads a group of 48 by 54 px or more with its muted name in an 18 px band", () => {
+    const l = lay(regions(), 600);
+    expect(l.heads).toEqual([
+      { text: "Asia", x: 4, y: 9, anchor: "start", series: 0 },
+      { text: "Europe", x: 306, y: 9, anchor: "start", series: 1 },
+    ]);
+    const short = lay(regions([3, 1], 4, { height: 53 }), 600);
+    expect(short.heads).toEqual([]);
+    expect(short.tree?.tiles.map((t) => t?.top)).toEqual([0, 0, 0]);
+    expect(lay(regions([3, 1], 4, { height: 54 }), 600).heads).toHaveLength(2);
+    // A group under 48 px wide has no head: Europe's 49 of 599 leaves it 45 px.
+    const thin = lay(regions([550, 0], 49), 600);
+    expect((thin.tree?.groups[1]?.right ?? 0) - (thin.tree?.groups[1]?.left ?? 0)).toBe(45);
+    expect(thin.heads.map((h) => h.text)).toEqual(["Asia"]);
+  });
+
+  it("labels a tile 4 px in from its corner, its name over its value in the mark's unit", () => {
+    const l = lay(regions(), 600);
+    expect(l.tree?.labels).toEqual([
+      { text: "China", x: 4, y: 30.5, anchor: "start", series: 0 },
+      { text: "3\u00A0USD", x: 4, y: 47.5, anchor: "start", series: 0 },
+      { text: "Japan", x: 228, y: 30.5, anchor: "start", series: 1 },
+      { text: "1\u00A0USD", x: 228, y: 47.5, anchor: "start", series: 1 },
+      { text: "Germany", x: 306, y: 30.5, anchor: "start", series: 2 },
+      { text: "4\u00A0USD", x: 306, y: 47.5, anchor: "start", series: 2 },
+    ]);
+  });
+
+  it("labels only a tile 40 px tall and wide enough for four characters and 8 px", () => {
+    // 1 of 10 is 59 px wide, room for 51 px, six characters: the name is cut, and a
+    // value of 17 characters, 127.5 px, is left out rather than cut.
+    const tenth = lay(parts([9e12, 1e12]), 600).tree?.labels.filter((t) => t.series === 1);
+    expect(tenth?.map((t) => t.text)).toEqual(["Count…"]);
+    // 1 of 20 is 29 px wide, under four 7.5 px characters and 8 px.
+    const twentieth = lay(parts([19, 1]), 600).tree;
+    expect(box(twentieth?.tiles[1])).toEqual([571, 0, 600, 240]);
+    expect(twentieth?.labels.filter((t) => t.series === 1)).toEqual([]);
+    expect(lay(parts([19, 1], { height: 39 }), 600).tree?.labels).toEqual([]);
+    expect(lay(parts([19, 1], { height: 40 }), 600).tree?.labels.length).toBeGreaterThan(0);
+  });
+
+  it("draws no tile for a 0 or no data, and keeps a thin tile touching rather than gone", () => {
+    const l = lay(parts([5, 0, null, 3]), 600);
+    expect(l.tree?.tiles.map((t) => t !== undefined)).toEqual([true, false, false, true]);
+    const thin = lay(parts([300, 1]), 600).tree?.tiles[1];
+    expect((thin?.right ?? 0) - (thin?.left ?? 0)).toBeGreaterThan(0);
+  });
+
+  it("snaps every edge to device pixels", () => {
+    const l = lay(parts([7, 5, 3, 2, 1]), 517, { dpr: 2 });
+    for (const t of l.tree?.tiles ?? []) {
+      for (const v of box(t) ?? []) {
+        expect(v * 2).toBe(Math.round(v * 2));
+      }
+    }
+  });
+
+  it("keeps every level's rows on an update of the same names and size, and lays out afresh otherwise", () => {
+    const gdp = [27.4, 17.8, 4.5, 4.2, 3.7, 3.3, 3, 2.2, 2.1, 1.7, 1.4, 1.2, 1.1, 0.9, 0.5, 0.3];
+    const moved = gdp.map((v, i) => (i === 0 ? v * 0.4 : i === 1 ? v * 2.5 : v));
+    const at = (spec: ChartSpec, width: number, kept?: TreeKept) =>
+      layout(
+        chartModel(spec, "en", "UTC"),
+        words,
+        metrics(),
+        width,
+        { axis: 0, label: 0 },
+        width,
+        kept,
+      );
+    const first = at(parts(gdp), 600);
+    const fresh = at(parts(moved), 600);
+    expect(fresh.tree?.kept.top).not.toEqual(first.tree?.kept.top);
+    const kept = at(parts(moved), 600, first.tree?.kept);
+    expect(kept.tree?.kept.top).toEqual(first.tree?.kept.top);
+    expect(kept.tree?.tiles).not.toEqual(first.tree?.tiles);
+    // Another size or other names lay out afresh.
+    expect(at(parts(moved), 590, first.tree?.kept).tree?.kept.top).toEqual(
+      at(parts(moved), 590).tree?.kept.top,
+    );
+    const renamed: ChartSpec = {
+      marks: [{ mark: "tree", nodes: moved.map((value, i) => ({ name: `C${String(i)}`, value })) }],
+    };
+    expect(at(renamed, 600, first.tree?.kept).tree?.kept.top).toEqual(fresh.tree?.kept.top);
+    // Two levels keep their parts' rows inside each group too.
+    const two = at(regions([3, 1]), 600);
+    expect(at(regions([1, 3]), 600, two.tree?.kept).tree?.kept).toEqual(two.tree?.kept);
+  });
+});
+
+describe("numberedNotes", () => {
+  const LINE = 17;
+  // A note whose box counts every read of its edges into `reads`, and throws
+  // past `most` so a slower sweep fails fast.
+  const counted =
+    (reads: { n: number }, most: number) =>
+    (left: number, top: number, width: number): Note => {
+      const edges = { left, top, right: left + width, bottom: top + LINE };
+      const box = new Proxy(edges, {
+        get(target, key, receiver) {
+          if (++reads.n > most) {
+            throw new Error(`more than ${String(most)} edge reads`);
+          }
+          return Reflect.get(target, key, receiver) as unknown;
+        },
+      });
+      return { mark: 0, point: { x: left, y: top }, box, lines: [], fits: true, number: 1 };
+    };
+
+  it("sweeps notes apart on a 40,000px plot and a pile past them in n log n reads", () => {
+    // A staircase: note k sits on row k mod ROWS and spans ROWS px, so it ends
+    // where the next note on its row starts and every row holds a note at
+    // every left edge, ROWS of them crossing each sweep line.
+    const ROWS = Math.floor(40_000 / LINE);
+    const APART = 20_000;
+    const n = APART + 2;
+    const most = 8 * n * Math.log2(n);
+    const reads = { n: 0 };
+    const note = counted(reads, most);
+    const apart = Array.from({ length: APART }, (_, k) => note(k, LINE * (k % ROWS), ROWS));
+    expect(numberedNotes(apart, false)).toBe(false);
+    expect(reads.n).toBeLessThanOrEqual(most);
+    reads.n = 0;
+    const piled = [note(APART + ROWS, 0, 2), note(APART + ROWS, 0, 2)];
+    expect(numberedNotes([...apart, ...piled], false)).toBe(true);
+    expect(reads.n).toBeLessThanOrEqual(most);
+  });
+
+  it("keeps notes apart unnumbered, even ones touching edge to edge", () => {
+    const rows = Math.floor(200 / LINE);
+    const note = counted({ n: 0 }, Infinity);
+    const apart = Array.from({ length: 2_000 }, (_, k) =>
+      note(2 * Math.floor(k / rows), LINE * (k % rows), 2),
+    );
+    expect(numberedNotes(apart, false)).toBe(false);
   });
 });

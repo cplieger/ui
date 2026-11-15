@@ -1,11 +1,13 @@
 /**
  * table.ts — a chart's table view: the same data as the plot, one row per
  * bucket, sample, change point, dot row, category, box, slope series,
- * scatter dot, cell row or calendar week, kept in place across updates.
+ * scatter dot, cell row, calendar week, slice or tree's part, a tree's
+ * groups each in a `<tbody>` of their own, kept in place across updates.
  * @module
  */
 
 import { writer } from "../scale/format.js";
+import { dateAt } from "../scale/time.js";
 
 import { dayFormat, weekCount, weekRow } from "./calendar.js";
 import type {
@@ -14,6 +16,8 @@ import type {
   CalendarModel,
   CellModel,
   Model,
+  PieModel,
+  TreeModel,
   PointModel,
   RectModel,
   SampleModel,
@@ -39,16 +43,19 @@ import {
   linkText,
   measuresOf,
   partText,
-  primaryOf,
   samplePart,
+  sliceShare,
   totalWord,
   totalled,
+  treeShare,
 } from "./readout.js";
 import { noteSentences, ruleSentences } from "./summary.js";
 import type { Words } from "./words.js";
 
 /** Text, or an instant written in a `<time datetime>`, as a calendar date
- *  (`YYYY-MM-DD` of `at` in UTC) when `date` is set. */
+ *  (the UTC day of `at`) when `date` is set. HTML's date strings take a
+ *  year above 0 with no sign, so an instant before year 1 is its text alone
+ *  (https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#dates). */
 type Part = string | { readonly at: number; readonly text: string; readonly date?: boolean };
 
 interface Cell {
@@ -58,16 +65,32 @@ interface Cell {
 
 interface Row {
   /** The row's x, its dot row's name and place among rows of that name, or
-   *  its category's name. */
+   *  its category's name; unique within its `<tbody>`. */
   readonly key: string;
   readonly head: readonly Part[];
+  /** A group's head row's header names its `<tbody>`; any other row's its row. */
+  readonly scope?: "rowgroup";
   readonly cells: readonly Cell[];
+}
+
+/** A run of a table's rows in a `<tbody>` of its own, after its head row. */
+interface Group {
+  /** The group's name, unique among the table's groups. */
+  readonly key: string;
+  readonly head: Row;
+  /** How many of the table's rows, in order from the last group's, it holds. */
+  readonly count: number;
 }
 
 export interface TableModel {
   readonly corner: string;
   readonly columns: readonly { readonly text: string; readonly num: boolean }[];
   readonly rows: readonly Row[];
+  /** A tree's groups, which split `rows` into a `<tbody>` each; one
+   *  `<tbody>` for every row without them. */
+  readonly groups?: readonly Group[];
+  /** A pie's or a tree's Total row, in the table's `<tfoot>`. */
+  readonly foot?: Row;
   /** The rules' and notes' sentences after the table. */
   readonly after: string;
 }
@@ -294,6 +317,70 @@ function cellTable(model: Model, m: CellModel, words: Words, after: string): Tab
   };
 }
 
+// A row per slice in the app's order, its value bare under the unit's
+// plural, then its share, and the whole in the foot.
+function pieTable(model: Model, m: PieModel, words: Words, after: string): TableModel {
+  const rows = m.slices.map((s, i): Row => ({
+    key: s.name,
+    head: [s.name],
+    cells: [
+      { parts: [s.value === null ? words.noData : model.amountText(s.value)], num: true },
+      { parts: [sliceShare(model, m, i, words)], num: true },
+    ],
+  }));
+  return {
+    corner: "",
+    columns: [
+      { text: m.unit?.other ?? words.value, num: true },
+      { text: words.share, num: true },
+    ],
+    rows,
+    foot: {
+      key: "",
+      head: [words.total],
+      cells: [
+        { parts: [model.amountText(m.total)], num: true },
+        { parts: [model.shareText(1)], num: true },
+      ],
+    },
+    after,
+  };
+}
+
+// A row per part in the app's order, its value bare under the unit's
+// plural, then its share of the whole; with two levels each group's parts
+// after its own head row, its sum and share; the whole in the foot.
+function treeTable(model: Model, m: TreeModel, words: Words, after: string): TableModel {
+  const amounts = (v: number | null): Cell[] => [
+    { parts: [v === null ? words.noData : model.amountText(v)], num: true },
+    { parts: [v === null ? words.noData : treeShare(model, m, v)], num: true },
+  ];
+  const rows = m.parts.map((p): Row => ({ key: p.name, head: [p.name], cells: amounts(p.value) }));
+  const groups = m.groups.map((g): Group => ({
+    key: g.name,
+    head: { key: "", head: [g.name], scope: "rowgroup", cells: amounts(g.value) },
+    count: g.count,
+  }));
+  return {
+    corner: "",
+    columns: [
+      { text: m.unit?.other ?? words.value, num: true },
+      { text: words.share, num: true },
+    ],
+    rows,
+    ...(groups.length > 0 ? { groups } : {}),
+    foot: {
+      key: "",
+      head: [words.total],
+      cells: [
+        { parts: [model.amountText(m.total)], num: true },
+        { parts: [model.shareText(1)], num: true },
+      ],
+    },
+    after,
+  };
+}
+
 // A row per category, or per category and series from two series up with a
 // Series column, its five numbers Low to High and its outliers ascending.
 function boxTable(model: Model, m: BoxModel, words: Words, after: string): TableModel {
@@ -368,16 +455,22 @@ function calendarTable(model: Model, m: CalendarModel, words: Words, after: stri
 }
 
 /** Whether the table's row heads are the app's names, each set in a `<bdi>`
- *  so a right-to-left name keeps its place: a band's rows, a slope's series
- *  or a scatter's dots. */
+ *  so a right-to-left name keeps its place: a band's rows, a slope's series,
+ *  a scatter's dots, a pie's slices or a treemap's groups and parts. */
 export const namedRows = (model: Model): boolean => {
-  const kind = primaryOf(model)?.kind;
-  return model.y.type === "band" || kind === "slope" || kind === "scatter";
+  const kind = model.primary?.kind;
+  return (
+    model.y.type === "band" ||
+    kind === "slope" ||
+    kind === "scatter" ||
+    kind === "pie" ||
+    kind === "tree"
+  );
 };
 
 /** What the table view shows for `model`. */
 export function tableModel(model: Model, words: Words): TableModel {
-  const m = primaryOf(model);
+  const m = model.primary;
   const whiskers =
     m?.kind === "box" && m.whiskers !== undefined ? [words.whiskersNote(m.whiskers)] : [];
   const after = [...whiskers, ...ruleSentences(model, words), ...noteSentences(model, words)].join(
@@ -435,6 +528,12 @@ export function tableModel(model: Model, words: Words): TableModel {
   if (m.kind === "box") {
     return boxTable(model, m, words, after);
   }
+  if (m.kind === "pie") {
+    return pieTable(model, m, words, after);
+  }
+  if (m.kind === "tree") {
+    return treeTable(model, m, words, after);
+  }
   const columns = m.series.map((s) => ({ text: s.name, num: true }));
   if (m.kind === "rect" ? totalled(m) : m.kind === "area" && m.series.length > 1) {
     columns.push({ text: words.total, num: true });
@@ -448,22 +547,32 @@ export function tableModel(model: Model, words: Words): TableModel {
 }
 
 function write(el: HTMLElement, parts: readonly Part[], isolate: boolean): void {
-  const nodes = parts.map((p) => {
+  const text = (s: string): Node | string => {
+    if (!isolate) {
+      return s;
+    }
+    const bdi = document.createElement("bdi");
+    bdi.textContent = s;
+    return bdi;
+  };
+  const nodes = document.createDocumentFragment();
+  for (const p of parts) {
     if (typeof p === "string") {
-      if (!isolate) {
-        return p;
-      }
-      const bdi = document.createElement("bdi");
-      bdi.textContent = p;
-      return bdi;
+      nodes.append(text(p));
+      continue;
+    }
+    const at = dateAt(p.at, "renderChart: an instant the table writes");
+    if (at.getUTCFullYear() < 1) {
+      nodes.append(text(p.text));
+      continue;
     }
     const time = document.createElement("time");
-    const iso = new Date(p.at).toISOString();
-    time.dateTime = p.date === true ? iso.slice(0, 10) : iso;
+    const iso = at.toISOString().replace(/^\+/u, "");
+    time.dateTime = p.date === true ? iso.slice(0, iso.indexOf("T")) : iso;
     time.textContent = p.text;
-    return time;
-  });
-  el.replaceChildren(...nodes);
+    nodes.append(time);
+  }
+  el.replaceChildren(nodes);
 }
 
 function headCell(text: string, num: boolean): HTMLElement {
@@ -480,7 +589,7 @@ function bodyRow(row: Row, isolate: boolean): HTMLTableRowElement {
   const tr = document.createElement("tr");
   tr.dataset["key"] = row.key;
   const th = document.createElement("th");
-  th.scope = "row";
+  th.scope = row.scope ?? "row";
   write(th, row.head, isolate);
   tr.append(th);
   for (const c of row.cells) {
@@ -512,7 +621,114 @@ const headSignature = (t: TableModel): string =>
 // a reader's place on it, stays.
 function rewrite(el: Element, fresh: Element): void {
   if (el.innerHTML !== fresh.innerHTML) {
-    el.replaceChildren(...fresh.childNodes);
+    const children = document.createRange();
+    children.selectNodeContents(fresh);
+    el.replaceChildren(children.extractContents());
+  }
+}
+
+// Writes `foot` as the table's `<tfoot>` row, its cells rewritten in place.
+function syncFoot(table: HTMLTableElement, foot: Row | undefined, named: boolean): void {
+  if (foot === undefined) {
+    table.tFoot?.remove();
+    return;
+  }
+  const fresh = bodyRow(foot, named);
+  const tr = table.tFoot?.rows[0];
+  if (tr === undefined) {
+    table.createTFoot().append(fresh);
+    return;
+  }
+  [...tr.cells].forEach((cell, k) => {
+    const now = fresh.cells[k];
+    if (now !== undefined) {
+      rewrite(cell, now);
+    }
+  });
+}
+
+// Each `<tbody>` of `t` with its rows: a group's head row first, or one
+// `<tbody>` keyed "" for every row.
+function bodiesOf(t: TableModel): { readonly key: string; readonly rows: readonly Row[] }[] {
+  if (t.groups === undefined) {
+    return [{ key: "", rows: t.rows }];
+  }
+  let from = 0;
+  return t.groups.map((g) => {
+    const rows = [g.head, ...t.rows.slice(from, from + g.count)];
+    from += g.count;
+    return { key: g.key, rows };
+  });
+}
+
+// Puts `rows` in `body` by key: changed cells rewritten in place, new rows
+// inserted and rows that left removed.
+function syncRows(body: HTMLTableSectionElement, rows: readonly Row[], named: boolean): void {
+  // Rows that left go first, so no kept row is moved, which would blur it.
+  const keys = new Set(rows.map((r) => r.key));
+  const old = new Map<string, HTMLTableRowElement>();
+  for (const tr of [...body.rows]) {
+    const key = tr.dataset["key"] ?? "";
+    if (keys.has(key)) {
+      old.set(key, tr);
+    } else {
+      tr.remove();
+    }
+  }
+  let after: HTMLTableRowElement | null = null;
+  for (const row of rows) {
+    const fresh = bodyRow(row, named);
+    let tr = old.get(row.key);
+    if (tr === undefined) {
+      tr = fresh;
+    } else {
+      [...tr.cells].forEach((cell, k) => {
+        const now = fresh.cells[k];
+        if (now !== undefined) {
+          rewrite(cell, now);
+        }
+      });
+    }
+    const placed: boolean =
+      after === null ? body.firstElementChild === tr : after.nextElementSibling === tr;
+    if (!placed) {
+      if (after === null) {
+        body.prepend(tr);
+      } else {
+        after.after(tr);
+      }
+    }
+    after = tr;
+  }
+}
+
+// Puts `t`'s `<tbody>`s after `table`'s head by key, as `syncRows` puts rows.
+function syncBodies(table: HTMLTableElement, t: TableModel, named: boolean): void {
+  const bodies = bodiesOf(t);
+  const keys = new Set(bodies.map((b) => b.key));
+  const old = new Map<string, HTMLTableSectionElement>();
+  for (const tb of [...table.tBodies]) {
+    const key = tb.dataset["key"] ?? "";
+    if (keys.has(key)) {
+      old.set(key, tb);
+    } else {
+      tb.remove();
+    }
+  }
+  let after: Element | null = table.tHead;
+  for (const b of bodies) {
+    let tb = old.get(b.key);
+    if (tb === undefined) {
+      tb = document.createElement("tbody");
+      if (b.key !== "") {
+        tb.dataset["key"] = b.key;
+      }
+    }
+    syncRows(tb, b.rows, named);
+    if (after?.nextElementSibling !== tb) {
+      after?.after(tb);
+    }
+    after = tb;
   }
 }
 
@@ -530,12 +746,12 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, name
     const caption = table.createCaption();
     caption.textContent = title;
     const head = table.createTHead().insertRow();
-    head.append(cornerCell(t.corner), ...t.columns.map((c) => headCell(c.text, c.num)));
-    // One append per row, since a long line's rows overflow an argument list.
-    const body = table.createTBody();
-    for (const r of t.rows) {
-      body.append(bodyRow(r, named));
+    head.append(cornerCell(t.corner));
+    for (const c of t.columns) {
+      head.append(headCell(c.text, c.num));
     }
+    // Filled before it is shown, so its rows cost no layout.
+    syncBodies(table, t, named);
     panel.querySelector("table")?.remove();
     panel.prepend(table);
   } else {
@@ -543,44 +759,9 @@ export function syncTable(panel: HTMLElement, t: TableModel, title: string, name
     if (caption !== null && caption.textContent !== title) {
       caption.textContent = title;
     }
-    const body = table.tBodies[0] ?? table.createTBody();
-    // Rows that left go first, so no kept row is moved, which would blur it.
-    const keys = new Set(t.rows.map((r) => r.key));
-    const old = new Map<string, HTMLTableRowElement>();
-    for (const tr of [...body.rows]) {
-      const key = tr.dataset["key"] ?? "";
-      if (keys.has(key)) {
-        old.set(key, tr);
-      } else {
-        tr.remove();
-      }
-    }
-    let after: HTMLTableRowElement | null = null;
-    for (const row of t.rows) {
-      const fresh = bodyRow(row, named);
-      let tr = old.get(row.key);
-      if (tr === undefined) {
-        tr = fresh;
-      } else {
-        [...tr.cells].forEach((cell, k) => {
-          const now = fresh.cells[k];
-          if (now !== undefined) {
-            rewrite(cell, now);
-          }
-        });
-      }
-      const placed: boolean =
-        after === null ? body.firstElementChild === tr : after.nextElementSibling === tr;
-      if (!placed) {
-        if (after === null) {
-          body.prepend(tr);
-        } else {
-          after.after(tr);
-        }
-      }
-      after = tr;
-    }
+    syncBodies(table, t, named);
   }
+  syncFoot(table, t.foot, named);
   let after = panel.querySelector<HTMLElement>('[data-part="after"]');
   if (t.after === "") {
     after?.remove();

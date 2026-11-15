@@ -8,9 +8,9 @@ import { tickFormat, writer } from "../scale/format.js";
 import { boxes, greedy, LABEL_GAP, tooSparse, type Box } from "../scale/labels.js";
 import { coarserStep, linearAxis, linearTicks } from "../scale/linear.js";
 import { logTickLists } from "../scale/log.js";
-import type { Measure } from "../scale/measure.js";
+import { widestOf, type Measure } from "../scale/measure.js";
 import { position } from "../scale/position.js";
-import { localDay, TIME_STEPS, timeStep, timeTicks } from "../scale/time.js";
+import { localYear, TIME_STEPS, timeStep, timeTicks } from "../scale/time.js";
 
 import type { Continuous } from "./scales.js";
 
@@ -72,9 +72,7 @@ function place(
   candidates: readonly Candidate[],
   layout: Layout,
 ): { labels: Label[]; kept: number[] } {
-  const widths = candidates.map((c) =>
-    Math.max(0, ...c.lines.map((line) => layout.measure.number(line))),
-  );
+  const widths = candidates.map((c) => widestOf(c.lines, layout.measure.number));
   const { lineHeight } = layout;
   const placed = boxes(
     candidates.map((c) => c.at),
@@ -159,28 +157,26 @@ function linearAxisAt(
   }
 }
 
-// A time axis's labels at `values`: the date line goes on the first kept
-// label and wherever the day changes from the kept label before it, so a
-// label dropped for room passes its date on.
+// A time axis's labels at `values`: the coarse line goes on the first kept
+// label and wherever it changes from the kept label before it, so a label
+// dropped for room passes its date or year on.
 function timeLabels(
   values: readonly number[],
   at: (v: number) => number,
   words: ReturnType<typeof tickFormat>,
   layout: Layout,
-  timeZone: string | undefined,
 ): Map<number, Label> {
   let kept = [...values];
   for (;;) {
     const candidates = kept.map((value, k) => {
       const before = kept[k - 1];
-      const dated =
-        words.time === undefined ||
-        before === undefined ||
-        localDay(before, timeZone) !== localDay(value, timeZone);
-      const lines = [
-        ...(words.time === undefined ? [] : [words.time(value)]),
-        ...(dated ? [words.date(value)] : []),
-      ];
+      const coarse = words.coarse(value);
+      const lines =
+        words.fine === undefined
+          ? [coarse]
+          : before === undefined || words.coarse(before) !== coarse
+            ? [words.fine(value), coarse]
+            : [words.fine(value)];
       return { value, at: at(value), lines };
     });
     candidates.sort(byPosition);
@@ -205,11 +201,12 @@ function timeAxis(
   ctx: AxisContext,
 ): Axis {
   const { lo, hi } = scale;
+  const era = localYear(lo, ctx.timeZone) < 1;
   for (let index = timeStep(hi - lo, layout.length, X_SPACING); ; index++) {
-    const step = TIME_STEPS[index] ?? 0;
+    const unit = TIME_STEPS[index]?.unit ?? "year";
     const values = timeTicks(lo, hi, index, ctx.timeZone);
-    const words = tickFormat(ctx.locale, ctx.timeZone, step);
-    const labels = timeLabels(values, at, words, layout, ctx.timeZone);
+    const words = tickFormat(ctx.locale, ctx.timeZone, unit, era);
+    const labels = timeLabels(values, at, words, layout);
     if (!tooSparse(labels.size, values.length) || index >= TIME_STEPS.length - 1) {
       const ticks = values.map((value) => ({ value, at: at(value), label: labels.get(value) }));
       return { lo, hi, at, ticks: ticks.sort(byPosition) };
