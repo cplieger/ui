@@ -55,6 +55,8 @@
 /* The foot's link holds the hit size, and the foot's padding gives back what
  * the link grows by, so the foot keeps its height under a mouse. */
 .cp-status-panel > footer {
+  --cp-chart-surface: var(--cp-surface-overlay);
+
   position: sticky;
   inset-block-end: 0;
   display: flex;
