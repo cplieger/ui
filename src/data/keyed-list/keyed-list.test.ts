@@ -934,6 +934,19 @@ describe("enhanceKeyedList", () => {
     );
   });
 
+  it("draws in the frame after a resize or a visual viewport scroll, never inside the event", async () => {
+    const ul = virtualList();
+    enhance(ul, { keys: keysOf(20_000) });
+    const first = keysIn(ul);
+    ul.scrollTop = 5000 * pitchOf(ul);
+    dispatchEvent(new Event("resize"));
+    window.visualViewport?.dispatchEvent(new Event("resize"));
+    window.visualViewport?.dispatchEvent(new Event("scroll"));
+    expect(keysIn(ul)).toEqual(first);
+    await frames();
+    expect(keysIn(ul)).not.toEqual(first);
+  });
+
   it("stops following the scroll once its signal aborts", async () => {
     const ul = virtualList();
     const stop = new AbortController();

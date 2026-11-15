@@ -791,9 +791,6 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
 
   if (sizes !== undefined && signal?.aborted !== true) {
     const listen = until(signal);
-    const follow = (): void => {
-      draw();
-    };
     document.addEventListener(
       "scroll",
       (e) => {
@@ -808,9 +805,9 @@ export function enhanceKeyedList(container: Body, options: KeyedListOptions): Ke
       },
       { ...until(signal, true), passive: true },
     );
-    addEventListener("resize", follow, listen);
-    window.visualViewport?.addEventListener("resize", follow, listen);
-    window.visualViewport?.addEventListener("scroll", follow, listen);
+    addEventListener("resize", soon, listen);
+    window.visualViewport?.addEventListener("resize", soon, listen);
+    window.visualViewport?.addEventListener("scroll", soon, listen);
     sizes.observe(container);
   }
   whenAborted(signal, () => {
