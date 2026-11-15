@@ -21,8 +21,8 @@ export interface StatusCondition {
   /** Stable across updates. */
   readonly id: string;
   readonly level: StatusLevel;
-  /** Stops the app doing its job or leaves it open. Counted as a problem
-   *  whatever its level; its title becomes the pill's words. */
+  /** Reaches every screen: its title names the pill unless a worse level
+   *  holds, and it stands as the banner in its level's tone. */
   readonly urgent?: boolean;
   /** The condition's sentence, short enough to name the pill when urgent. */
   readonly title: string;
@@ -122,6 +122,9 @@ export interface StatusWords {
   readonly seen: (condition: StatusCondition) => string;
   /** Default "12 of 40". */
   readonly amount: (value: number, max: number) => string;
+  /** The Stop button's name for a reader, from its shown word. Default
+   *  "Stop Scanning Sonarr". */
+  readonly stopName: (verb: string, work: StatusWork) => string;
   /** Default "Stop", "Cancel", "Stopping…" and "Queued". */
   readonly stop: string;
   readonly cancel: string;
@@ -182,20 +185,20 @@ interface Pill {
   readonly detail?: string | undefined;
 }
 
-const RANK = { urgent: 0, problem: 1, warning: 2 } as const;
+const RANK = { problem: 0, warning: 2 } as const;
 
-const rankOf = (c: StatusCondition): number => (c.urgent === true ? RANK.urgent : RANK[c.level]);
+const rankOf = (c: StatusCondition): number => RANK[c.level] + (c.urgent === true ? 0 : 1);
 
 const time = (d: Date | number | undefined): number =>
   d === undefined ? Number.POSITIVE_INFINITY : +d;
 
-/** Urgent first, then problems, then warnings; the longest-standing first
- *  within a level, so a cause comes before what it causes. */
+/** Problems before warnings, urgent first within each; the longest-standing
+ *  first within a rank, so a cause comes before what it causes. */
 function conditionOrder(conditions: readonly StatusCondition[]): StatusCondition[] {
   return [...conditions].sort((a, b) => rankOf(a) - rankOf(b) || time(a.since) - time(b.since));
 }
 
-const isProblem = (c: StatusCondition): boolean => c.urgent === true || c.level === "problem";
+const isProblem = (c: StatusCondition): boolean => c.level === "problem";
 
 function wordsFor(options: HeaderStatusOptions): StatusWords {
   const n = new Intl.NumberFormat(options.locale);
@@ -219,6 +222,7 @@ function wordsFor(options: HeaderStatusOptions): StatusWords {
     fix: "Details and fix",
     seen: () => "Last seen",
     amount: (v, m) => `${n.format(v)} of ${n.format(m)}`,
+    stopName: (v, x) => `${v} ${x.title}`,
     stop: "Stop",
     cancel: "Cancel",
     stopping: "Stopping…",
@@ -245,18 +249,16 @@ function pillOf(model: StatusModel, w: StatusWords): Pill {
   const ordered = conditionOrder(model.conditions);
   const problems = ordered.filter(isProblem).length;
   const [first] = ordered;
-  if (first?.urgent === true) {
-    return {
-      state: "problem",
-      words: first.title,
-      detail: problems > 1 ? w.problems(problems) : work,
-    };
-  }
   if (problems > 0) {
-    return { state: "problem", words: w.problems(problems), detail: work };
+    return first?.urgent === true
+      ? { state: "problem", words: first.title, detail: problems > 1 ? w.problems(problems) : work }
+      : { state: "problem", words: w.problems(problems), detail: work };
   }
-  if (ordered.length > 0) {
-    return { state: "warning", words: w.warnings(ordered.length), detail: work };
+  if (first !== undefined) {
+    const many = ordered.length > 1 ? w.warnings(ordered.length) : work;
+    return first.urgent === true
+      ? { state: "warning", words: first.title, detail: many }
+      : { state: "warning", words: w.warnings(ordered.length), detail: work };
   }
   if (work !== undefined) {
     return { state: "working", words: work };
@@ -522,6 +524,7 @@ export function createHeaderStatus(
 
   const workRow = (x: StatusWork): HTMLLIElement => {
     const busy = stopping.has(x.id);
+    const verb = busy ? w.stopping : x.queued === true ? w.cancel : w.stop;
     const action =
       x.stop !== undefined &&
       h(
@@ -532,9 +535,9 @@ export function createHeaderStatus(
           type: "button",
           "data-cp-stop": x.id,
           "aria-disabled": busy ? "true" : undefined,
+          "aria-label": w.stopName(verb, x),
         },
-        busy ? w.stopping : x.queued === true ? w.cancel : w.stop,
-        hidden(` ${x.title}`),
+        verb,
       );
     const whole = x.href !== undefined && action === false;
     const reason = refused.get(x.id);
@@ -579,10 +582,11 @@ export function createHeaderStatus(
       words.push(words.length > 0 && " ", h("a", { href: to.href }, to.label));
     }
     const foot = words.length > 0 && h("small", {}, ...words);
+    const glyph = isProblem(c) ? "circle-x" : "triangle-alert";
     const attrs = {
       class: "cp-notice",
       "data-variant": "banner",
-      "data-tone": "danger",
+      "data-tone": isProblem(c) ? "danger" : "warning",
       "data-cp-key": c.id,
     };
     const reasons = c.reasons ?? [];
@@ -590,14 +594,14 @@ export function createHeaderStatus(
       ? h(
           "div",
           attrs,
-          h("strong", {}, icon("circle-x"), c.title),
+          h("strong", {}, icon(glyph), c.title),
           h("ul", {}, ...reasons.map((r) => h("li", {}, r))),
           foot,
         )
       : h(
           "div",
           attrs,
-          icon("circle-x"),
+          icon(glyph),
           h("span", {}, h("strong", {}, c.title), foot !== false && " ", foot),
         );
   };

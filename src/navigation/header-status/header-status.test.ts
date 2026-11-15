@@ -172,9 +172,26 @@ describe("the pill's words", () => {
     ],
     [
       "an urgent warning",
-      { conditions: [warning("w1", { urgent: true, title: "Sign-in is off" })] },
+      {
+        conditions: [warning("w1", { urgent: true, title: "Sign-in turns off at restart" })],
+        work: [job("a")],
+      },
+      "warning",
+      "Sign-in turns off at restart",
+      "a",
+    ],
+    [
+      "an urgent warning among warnings",
+      { conditions: [warning("w1"), warning("w2", { urgent: true, title: "Sign-in turns off" })] },
+      "warning",
+      "Sign-in turns off",
+      "2 warnings",
+    ],
+    [
+      "an urgent warning beside a problem",
+      { conditions: [problem("p1"), warning("w1", { urgent: true, title: "Sign-in turns off" })] },
       "problem",
-      "Sign-in is off",
+      "1 problem",
       undefined,
     ],
   ];
@@ -448,7 +465,7 @@ describe("the panel's sections", () => {
     expect(heading(panel)).toBe("All good");
   });
 
-  it("orders conditions urgent, problem, warning, the longest-standing first", () => {
+  it("orders problems before warnings, urgent first in each, the longest-standing first", () => {
     const { panel, status } = mount();
     status.update(
       model({
@@ -456,16 +473,14 @@ describe("the panel's sections", () => {
           warning("w", { since: 1 }),
           problem("p2", { since: 3000 }),
           problem("p1", { since: 2000 }),
-          warning("u", { urgent: true, title: "Sign-in is off", since: 5000 }),
+          warning("u", { urgent: true, title: "Sign-in turns off", since: 5000 }),
+          problem("x", { urgent: true, title: "Store full", since: 9000 }),
         ],
       }),
     );
-    expect(rows(panel, "conditions").map((r) => r.closest("li")?.dataset["cpKey"])).toEqual([
-      "u",
-      "p1",
-      "p2",
-      "w",
-    ]);
+    const list = rows(panel, "conditions");
+    expect(list.map((r) => r.closest("li")?.dataset["cpKey"])).toEqual(["x", "p1", "p2", "u", "w"]);
+    expect(list[3]?.querySelector('[data-cp-icon="triangle-alert"]')).not.toBeNull();
   });
 
   it("writes a condition's reasons as lines and links the whole row to its fix", async () => {
@@ -667,6 +682,26 @@ describe("the running section", () => {
     status.update(model({}));
     status.update(m);
     expect(stopButton(panel, "Scanning Sonarr").firstChild?.textContent).toBe("Stop");
+  });
+
+  it("names Stop for a reader in the app's words, its shown word kept", async () => {
+    const stopName = (verb: string, x: StatusWork) => `${verb} ${x.title.toLowerCase()}`;
+    const { panel, status } = mount({ words: { stop: "Cancel", stopName } });
+    status.update(
+      model({
+        work: [job("Full check", { stop: { run: () => new Promise<void>(() => undefined) } })],
+      }),
+    );
+    panel.showPopover();
+    const button = stopButton(panel, "Full check");
+    expect(button.textContent).toBe("Cancel");
+    await expect
+      .element(page.getByRole("button", { name: "Cancel full check" }))
+      .toBeInTheDocument();
+    button.click();
+    await vi.waitFor(() => {
+      expect(button.getAttribute("aria-label")).toBe("Stopping… full check");
+    });
   });
 
   it("asks first when the app says so, and stops only on the answer", async () => {
@@ -886,6 +921,24 @@ describe("the urgent banner", () => {
     ]);
     const cs = getComputedStyle(one);
     expect(cs.display).toBe("grid");
+  });
+
+  it("stands an urgent warning as a warning banner, after an urgent problem's", () => {
+    const { banner, status } = mount();
+    status.update(
+      model({
+        conditions: [
+          warning("restart", { urgent: true, title: "Sign-in turns off at the next restart" }),
+          exposed(),
+        ],
+      }),
+    );
+    const [first, second] = banners(banner) as [HTMLElement, HTMLElement];
+    expect(first.dataset["tone"]).toBe("danger");
+    expect(second.dataset["cpKey"]).toBe("restart");
+    expect(second.dataset["tone"]).toBe("warning");
+    expect(second.querySelector('[data-cp-icon="triangle-alert"]')).not.toBeNull();
+    expect(second.querySelector('[data-cp-icon="circle-x"]')).toBeNull();
   });
 
   it("links a banner with no docs to the condition's fix, and leaves out a foot with nothing in it", () => {
