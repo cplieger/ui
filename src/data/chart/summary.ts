@@ -639,9 +639,9 @@ function headSentences(model: Model, words: Words): string[] {
 const NAMING = new Set(["line", "area", "box"]);
 
 // The panel count, the sentences every panel writes alike, once, from two
-// panels up, then each panel's own: bare when its one series' sentence is
-// all that is left and already starts with the panel's name, else after
-// `panel`. A panel left with none says nothing, as the shared ones say it.
+// panels up, then each panel's own: led by its one series' sentence when
+// that starts with the panel's name, so the name is written once, else
+// after `panel`. A panel left with none says nothing, as the shared ones say it.
 function facetSentences(model: Model, facets: FacetsModel, words: Words): string[] {
   const each = facets.panels.map((p) => headSentences(p.model, words));
   const [first = []] = each;
@@ -654,8 +654,9 @@ function facetSentences(model: Model, facets: FacetsModel, words: Words): string
     const m = p.model.primary;
     const series = m !== undefined && "series" in m ? m.series : [];
     const named = NAMING.has(m?.kind ?? "") && series.length === 1 && series[0]?.name === p.name;
-    if (own.length === 1 && named) {
-      out.push(own.join(" "));
+    const heads = named ? own.filter((s) => s.startsWith(p.name)) : [];
+    if (heads.length === 1) {
+      out.push(...heads, ...own.filter((s) => !heads.includes(s)));
     } else if (own.length > 0) {
       out.push(words.panel(p.name, own.join(" ")));
     }

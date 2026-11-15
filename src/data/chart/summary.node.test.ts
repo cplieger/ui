@@ -1599,10 +1599,10 @@ describe("the summary of small multiples", () => {
     );
   });
 
-  it("shares nothing in a grid of one, so the panel keeps its name", () => {
+  it("shares nothing in a grid of one, so the panel's series sentence leads and names it once", () => {
     const m = model({ marks: [], facets: { panels: [line("North", [1, 2, 3, 4])] } });
     expect(generatedSummary(m, words)).toBe(
-      "1 panel. North. 0 to 3, every 1. North: last 4, low 1, high 4.",
+      "1 panel. North: last 4, low 1, high 4. 0 to 3, every 1.",
     );
   });
 
