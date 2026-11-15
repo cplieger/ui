@@ -120,7 +120,13 @@ describe("enhanceMenu", () => {
     // A pause longer than the typeahead window starts a new search.
     await new Promise((r) => setTimeout(r, 550));
     items[0]?.focus();
-    await userEvent.keyboard("er");
+    // Typed in one task, so the two letters fall inside the typeahead window
+    // however slowly the driver delivers keys on a loaded host.
+    for (const key of "er") {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+      );
+    }
     expect(document.activeElement).toBe(items[4]);
   });
 
