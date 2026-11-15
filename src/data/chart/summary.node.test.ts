@@ -1599,6 +1599,35 @@ describe("the summary of small multiples", () => {
     );
   });
 
+  it("reads the chart's rules once, then each panel's own after its name, before the notes", () => {
+    const m = model({
+      marks: [{ mark: "rule", y: 1, label: "Chart" }],
+      facets: {
+        panels: [
+          line(
+            "North",
+            [1, 2, 3, 4],
+            [
+              { mark: "rule", y: 2, label: "Only north" },
+              { mark: "text", x: 1, y: 2, text: "Strike" },
+            ],
+          ),
+          line("South", [4, 3, 2, 1], [{ mark: "rule", x: 2, label: "Only south" }]),
+        ],
+      },
+    });
+    expect(generatedSummary(m, words)).toBe(
+      "2 panels. 0 to 3, every 1. North: last 4, low 1, high 4. South: last 1, low 1, high 4. Chart 1. North, Only north 2. South, Only south 2. North, 1: Strike.",
+    );
+    const own = model({
+      marks: [],
+      facets: { panels: [line("North", [1, 2, 3, 4], [{ mark: "rule", y: 2, label: "Cap" }])] },
+    });
+    expect(generatedSummary(own, chartWords({ panelAt: (p, at) => `${at} (${p})` }))).toContain(
+      "Cap (North) 2.",
+    );
+  });
+
   it("shares nothing in a grid of one, so the panel's series sentence leads and names it once", () => {
     const m = model({ marks: [], facets: { panels: [line("North", [1, 2, 3, 4])] } });
     expect(generatedSummary(m, words)).toBe(

@@ -550,12 +550,32 @@ function treeSummary(model: Model, m: TreeModel, words: Words): string[] {
   return [words.partsSummary(total, named.join(", "))];
 }
 
-/** Each rule's sentence, in spec order. */
+/** Each rule's sentence, in spec order; under `facets` the chart's rules
+ *  once, then each panel's own in panel order, its label after the panel's
+ *  name through `panelAt`. */
 export function ruleSentences(model: Model, words: Words): string[] {
+  if (model.facets === undefined) {
+    return rulesOf(model, model.marks, words);
+  }
+  // A panel's model holds its own marks, then the chart's, which are rules
+  // alone beside facets.
+  const { panels } = model.facets;
+  const own = (p: Model) => p.marks.length - model.spec.marks.length;
+  const [first] = panels;
+  return [
+    ...(first === undefined
+      ? []
+      : rulesOf(first.model, first.model.marks.slice(own(first.model)), words)),
+    ...panels.flatMap((p) => rulesOf(p.model, p.model.marks.slice(0, own(p.model)), words, p.name)),
+  ];
+}
+
+function rulesOf(model: Model, marks: Model["marks"], words: Words, panel?: string): string[] {
   const out: string[] = [];
-  for (const m of model.marks) {
+  for (const m of marks) {
     if (m.kind === "rule") {
-      out.push(words.rule(m.label, m.axis === "x" ? model.xText(m.value) : model.yText(m.value)));
+      const label = panel === undefined ? m.label : words.panelAt(panel, m.label);
+      out.push(words.rule(label, m.axis === "x" ? model.xText(m.value) : model.yText(m.value)));
     }
   }
   return out;
@@ -656,7 +676,9 @@ function facetSentences(model: Model, facets: FacetsModel, words: Words): string
     const named = NAMING.has(m?.kind ?? "") && series.length === 1 && series[0]?.name === p.name;
     const heads = named ? own.filter((s) => s.startsWith(p.name)) : [];
     if (heads.length === 1) {
-      out.push(...heads, ...own.filter((s) => !heads.includes(s)));
+      for (const s of [...heads, ...own.filter((t) => !heads.includes(t))]) {
+        out.push(s);
+      }
     } else if (own.length > 0) {
       out.push(words.panel(p.name, own.join(" ")));
     }

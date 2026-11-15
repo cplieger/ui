@@ -1159,6 +1159,22 @@ describe("the table of small multiples", () => {
     expect(t.after).toBe("Target 5%. North, 1: Strike.");
   });
 
+  it("reads the chart's rules once after the table, then each panel's own after its name", () => {
+    const t = tableModel(
+      model({
+        marks: [{ mark: "rule", y: 1, label: "Chart" }],
+        facets: {
+          panels: [
+            line("North", [0, 1], [1, 2], [{ mark: "rule", y: 2, label: "Only north" }]),
+            line("South", [0, 1], [2, 1], [{ mark: "rule", y: 3, label: "Only south" }]),
+          ],
+        },
+      }),
+      words,
+    );
+    expect(t.after).toBe("Chart 1. North, Only north 2. South, Only south 3.");
+  });
+
   const step = (name: string, x: number[], y: (number | null)[]) => ({
     marks: [{ mark: "line" as const, curve: "step" as const, x, series: [{ name, y }] }],
   });
