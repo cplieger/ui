@@ -29,6 +29,8 @@ import {
   num,
   POINT_RADIUS,
   pointAt,
+  piePaths,
+  sliceRing,
   pointPaths,
   rangePath,
   rectPaths,
@@ -42,13 +44,15 @@ import {
   snap,
   type Segment,
   tickPath,
+  treePaths,
   upright,
 } from "./geometry.js";
 import { dayPlace } from "./calendar.js";
 import type { Layout, Leader, Metrics, Note, Text } from "./layout.js";
 import { drawnTotal, drawnValue, sampleValue, type Model } from "./model.js";
 import { MARKER_RADIUS } from "./notes.js";
-import { primaryOf, type Reading, type Widths } from "./readout.js";
+import { sliceAngles } from "./pie.js";
+import type { Reading, Widths } from "./readout.js";
 import type { Words } from "./words.js";
 import type { Navigator, Selection } from "./select.js";
 
@@ -89,12 +93,19 @@ export function readMetrics(plot: HTMLElement, locale: string | undefined): Metr
   const measure = fontMeasure(plot, locale);
   const probe = document.createElement("span");
   probe.dataset["mono"] = "";
-  plot.append(probe);
+  const holeProbe = document.createElement("span");
+  holeProbe.dataset["hole"] = "";
+  plot.append(probe, holeProbe);
   const mono = fontMeasure(probe, locale);
+  const hole = fontMeasure(holeProbe, locale);
+  const holeSize = Number.parseFloat(getComputedStyle(holeProbe).fontSize) || 16;
   probe.remove();
+  holeProbe.remove();
   return {
     measure,
     mono,
+    hole,
+    holeLine: Math.ceil(holeSize * 1.3),
     lineHeight: Math.ceil(size * 1.3),
     ...read,
     dpr: window.devicePixelRatio || 1,
@@ -153,7 +164,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   // A bar's, a point's and a box's value axis is x, so their gridlines and
   // zero line stand upright, and a scatter's stand both ways; a point
   // chart's, a box plot's and a scatter's zero is only a linear x's.
-  const primary = primaryOf(model);
+  const primary = model.primary;
   const bars = primary?.kind === "bar";
   const placed = primary?.kind === "point" || primary?.kind === "box";
   if (bars || placed || primary?.kind === "scatter") {
@@ -203,6 +214,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   if (zero !== "") {
     area.append(svgEl("path", { "data-part": "zero", d: zero }));
   }
+  const notes = new Map(lay.notes.map((n) => [n.mark, n]));
   model.marks.forEach((m, index) => {
     switch (m.kind) {
       case "rect": {
@@ -349,6 +361,33 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         area.append(g);
         break;
       }
+      case "pie": {
+        if (lay.pie === undefined) {
+          break;
+        }
+        const g = svgEl("g", { "data-part": "pie" });
+        for (const p of piePaths(m, lay.pie)) {
+          g.append(svgEl("path", { "data-series": String(p.slot), d: p.d }));
+        }
+        area.append(g);
+        if (lay.hole !== undefined) {
+          const hole = texts("hole", [lay.hole.label, lay.hole.total]);
+          hole.lastElementChild?.setAttribute("data-hole", "");
+          area.append(hole);
+        }
+        break;
+      }
+      case "tree": {
+        if (lay.tree === undefined) {
+          break;
+        }
+        const g = svgEl("g", { "data-part": "tree" });
+        for (const p of treePaths(m, lay.tree.tiles)) {
+          g.append(svgEl("path", { "data-series": String(p.slot), d: p.d }));
+        }
+        area.append(g, texts("tile", lay.tree.labels));
+        break;
+      }
       case "rule":
         if ("at" in m.place) {
           const at = m.place.at;
@@ -362,7 +401,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         }
         break;
       case "text": {
-        const note = lay.notes.find((n) => n.mark === index);
+        const note = notes.get(index);
         if (note !== undefined) {
           area.append(lay.numbered ? marker(note, f) : texts("note", note.lines));
         }
@@ -388,7 +427,7 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
   svg.setAttribute("height", num(lay.height));
   svg.setAttribute("viewBox", `0 0 ${num(lay.width)} ${num(lay.height)}`);
   // A band x labels its columns, as a band y its rows, with no tick.
-  const primary = primaryOf(model);
+  const primary = model.primary;
   const band = primary?.kind === "cell" && "names" in primary.x;
   const ticks = svgEl("path", {
     "data-part": "ticks",
@@ -400,6 +439,7 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
           lay.frame.dpr,
         ),
   });
+  const plot = plotArea(model, lay);
   svg.replaceChildren(
     texts("y", lay.yLabels, lay.mono),
     ticks,
@@ -407,13 +447,13 @@ export function drawPlot(svg: SVGSVGElement, model: Model, lay: Layout): void {
     texts("titles", lay.titles),
     texts("rule-label", lay.ruleLabels),
     texts("head", lay.heads),
-    // Before the plot, so the dots cover the leaders' ends.
-    ...(lay.leaders.length > 0
-      ? [svgEl("path", { "data-part": "leader", d: leaderPath(lay.leaders) })]
-      : []),
-    plotArea(model, lay),
+    plot,
     texts("end", lay.endLabels),
   );
+  if (lay.leaders.length > 0) {
+    // Before the plot, so the dots cover the leaders' ends.
+    plot.before(svgEl("path", { "data-part": "leader", d: leaderPath(lay.leaders) }));
+  }
 }
 
 const ring = (cx: number, cy: number, radius: number): string => {
@@ -438,10 +478,11 @@ const outset = (g: Segment): string =>
  *  or the chosen one, each line's point or each layer's top or the chosen
  *  one, the drawn dot, a row's hairline, a bar row's bar, its bars in each
  *  panel, or the chosen part, a point row's dots or the chosen one, a box
- *  row's boxes or the chosen one, or a scatter's dot. */
+ *  row's boxes or the chosen one, a scatter's dot, a drawn slice, a tree's
+ *  drawn tile, or a group's rectangle. */
 function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): string {
   const f = lay.frame;
-  const m = primaryOf(model);
+  const m = model.primary;
   if (sel.kind === "rect" && m?.kind === "rect") {
     if (m.arrange === "group") {
       const subs = groupEdges(m, sel.i, f);
@@ -543,6 +584,19 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
   if (sel.kind === "day" && m?.kind === "calendar") {
     return lay.days === undefined ? "" : outset(dayBox(lay.days, sel.i, f.dpr));
   }
+  if (sel.kind === "slice" && m?.kind === "pie") {
+    const s = sliceAngles(m).find((a) => a.index === sel.i);
+    return s === undefined || lay.pie === undefined ? "" : sliceRing(lay.pie, s.from, s.to);
+  }
+  if ((sel.kind === "part" || sel.kind === "group") && m?.kind === "tree") {
+    // Tiles stand 1 px apart, so a part rings inside its tile; groups stand
+    // 4 px apart, so a group rings around its rectangle, head band included.
+    const b = sel.kind === "part" ? lay.tree?.tiles[sel.i] : lay.tree?.groups[sel.i];
+    if (b === undefined || (sel.kind === "group" && (m.groups[sel.i]?.value ?? 0) <= 0)) {
+      return "";
+    }
+    return sel.kind === "part" ? inset(b.left, b.right, b.top, b.bottom) : outset(b);
+  }
   if (sel.kind === "slope" && m?.kind === "slope") {
     // A chosen series rings both its ends, the whole column each end in it.
     return m.series
@@ -564,7 +618,7 @@ function ringPath(model: Model, lay: Layout, sel: Selection, nav: Navigator): st
 // A scatter dot's crosshair: a rule up from the x axis and one across from
 // the y axis, each ending at the dot's edge so neither crosses it.
 function scatterHair(model: Model, lay: Layout, sel: Selection): string {
-  const m = primaryOf(model);
+  const m = model.primary;
   const f = lay.frame;
   if (sel.kind !== "scatter" || m?.kind !== "scatter") {
     return "";
@@ -613,16 +667,27 @@ export function drawSelection(
     const c = lay.xLabels[k]?.column;
     name.toggleAttribute("data-selected", sel?.kind === "cell" && c === sel.column);
   });
-  const chosen = sel?.kind === "slope" ? sel.part : undefined;
+  const chosen = sel?.kind === "slope" ? sel.part : sel?.kind === "slice" ? sel.i : undefined;
   svg.querySelectorAll('[data-part="end"] > text').forEach((label, k) => {
     const s = lay.endLabels[k]?.series;
     label.toggleAttribute("data-selected", s !== undefined && s === chosen);
   });
+  // A tree's selected part's label, both its lines, or its group's head.
+  svg.querySelectorAll('[data-part="tile"] > text').forEach((label, k) => {
+    const p = lay.tree?.labels[k]?.series;
+    label.toggleAttribute("data-selected", sel?.kind === "part" && p === sel.i);
+  });
+  if (lay.tree !== undefined) {
+    svg.querySelectorAll('[data-part="head"] > text').forEach((head, k) => {
+      const g = lay.heads[k]?.series;
+      head.toggleAttribute("data-selected", sel?.kind === "group" && g === sel.i);
+    });
+  }
   if (area === null || sel === undefined) {
     return;
   }
   const g = svgEl("g", { "data-part": "selection" });
-  const m = primaryOf(model);
+  const m = model.primary;
   const s = m?.kind === "slope" && chosen !== undefined ? m.series[chosen] : undefined;
   if (m?.kind === "slope" && s !== undefined) {
     // The chosen series lies over the others where lines cross.
@@ -681,12 +746,13 @@ export function frameLegend(
 ): void {
   const at = span("at");
   at.style.minInlineSize = rowHeld(widths.at);
-  const parts: HTMLElement[] = [at];
+  const parts = document.createDocumentFragment();
+  parts.append(at);
   reading.entries.forEach((e, k) => {
     const value = span("value");
     if (e.name === undefined) {
       value.style.minInlineSize = rowHeld(widths.values[k] ?? 0);
-      parts.push(value);
+      parts.append(value);
       return;
     }
     value.style.minInlineSize = `${num(widths.values[k] ?? 0)}px`;
@@ -700,16 +766,16 @@ export function frameLegend(
       name.dataset["name"] = e.name;
     }
     chip.append(swatch, name, value);
-    parts.push(chip);
+    parts.append(chip);
   });
   if (reading.total !== undefined) {
     const whole = span("total");
     const value = span("value");
     value.style.minInlineSize = `${num(widths.total)}px`;
     whole.append(total, " ", value);
-    parts.push(whole);
+    parts.append(whole);
   }
-  legend.replaceChildren(...parts);
+  legend.replaceChildren(parts);
   writeLegend(legend, reading);
 }
 
@@ -729,7 +795,7 @@ function roundDown(v: number): number {
  * each size. Undefined without bubbles.
  */
 export function sizeKey(model: Model, lay: Layout): HTMLElement | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   const largest = lay.frame.bubble;
   if (m?.kind !== "scatter" || m.size === undefined || largest === undefined) {
     return undefined;
@@ -810,7 +876,7 @@ const swatchRing = (x: number): SVGElement =>
  * Undefined without a cell mark, a grid's or a calendar's.
  */
 export function colourKey(model: Model, words: Words, measure: Measure): HTMLElement | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   if (m?.kind !== "cell" && m?.kind !== "calendar") {
     return undefined;
   }
@@ -839,7 +905,10 @@ export function colourKey(model: Model, words: Words, measure: Measure): HTMLEle
       }),
     );
   });
-  svg.append(g, ...classes.steps.map((_, k) => swatchRing(x(k))));
+  svg.append(g);
+  classes.steps.forEach((_, k) => {
+    svg.append(swatchRing(x(k)));
+  });
   const write =
     classes.digits === undefined
       ? model.colourText

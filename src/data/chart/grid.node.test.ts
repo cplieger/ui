@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pointGrid } from "./grid.js";
+import { boxGrid, pointGrid } from "./grid.js";
 
 const REACH = 40;
 
@@ -99,5 +99,45 @@ describe("the pointer grid", () => {
     expect(g.nearest(530, 520)).toBe(1);
     expect(g.nearest(-1000, -1000)).toBe(undefined);
     expect(grid([]).nearest(0, 0)).toBe(undefined);
+  });
+});
+
+describe("the box grid", () => {
+  const box = (left: number, top: number, right: number, bottom: number) => ({
+    left,
+    top,
+    right,
+    bottom,
+  });
+
+  it("finds the box under a point, deep inside one larger than many cells", () => {
+    const g = boxGrid([box(0, 0, 300, 200), box(301, 0, 400, 200)], 4);
+    expect(g.nearest(150, 100)).toBe(0);
+    expect(g.nearest(0, 0)).toBe(0);
+    expect(g.nearest(300, 200)).toBe(0);
+    expect(g.nearest(350, 199)).toBe(1);
+  });
+
+  it("reaches a box within 4 px of a point in a gap or past an edge, and no farther", () => {
+    const g = boxGrid([box(0, 0, 100, 100), box(104, 0, 200, 100)], 4);
+    expect(g.nearest(101, 50)).toBe(0);
+    expect(g.nearest(103, 50)).toBe(1);
+    expect(g.nearest(-4, 50)).toBe(0);
+    expect(g.nearest(-4.01, 50)).toBe(undefined);
+    expect(g.nearest(50, 104)).toBe(0);
+    expect(g.nearest(200 + 2.8, 100 + 2.8)).toBe(1);
+    expect(g.nearest(200 + 2.9, 100 + 2.9)).toBe(undefined);
+  });
+
+  it("takes the first of two equally near boxes", () => {
+    const g = boxGrid([box(0, 0, 100, 100), box(101, 0, 200, 100)], 4);
+    expect(g.nearest(100.5, 50)).toBe(0);
+  });
+
+  it("never reaches an undefined box, and has nothing to reach with none", () => {
+    const g = boxGrid([undefined, box(0, 0, 10, 10), undefined], 4);
+    expect(g.nearest(5, 5)).toBe(1);
+    expect(boxGrid([undefined], 4).nearest(0, 0)).toBe(undefined);
+    expect(boxGrid([], 4).nearest(0, 0)).toBe(undefined);
   });
 });

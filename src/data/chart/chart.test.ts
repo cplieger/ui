@@ -97,6 +97,22 @@ function start(spec: ChartSpec | null, b: Built = build(), options: ChartOptions
   return renderChart(b.figure, spec, { signal: b.life.signal, toggle: b.toggle, ...options });
 }
 
+// Sets the chart's box to `width` and resolves once the chart has drawn at it.
+// Observers deliver in the order they were made, so the chart's runs before
+// this one and asks for its frame first; this one's frame then runs after it.
+async function resize(b: Built, width: number): Promise<void> {
+  (b.figure.parentElement as HTMLElement).style.inlineSize = `${String(width)}px`;
+  await new Promise<void>((done) => {
+    const seen = new ResizeObserver(() => {
+      seen.disconnect();
+      requestAnimationFrame(() => {
+        done();
+      });
+    });
+    seen.observe(b.figure);
+  });
+}
+
 const get = (figure: HTMLElement, name: string) =>
   figure.querySelector<HTMLElement>(`:scope > [data-part="${name}"]`);
 const notice = (words = "Check failed. Retry.") => {
@@ -653,8 +669,7 @@ describe("the teardown", () => {
     expect(b.toggle.getAttribute("aria-pressed")).toBe("false");
     const svg = get(b.figure, "plot")?.querySelector("svg");
     const width = svg?.getAttribute("width");
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "400px";
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await resize(b, 400);
     expect(svg?.getAttribute("width")).toBe(width);
   });
 
@@ -805,6 +820,97 @@ describe("the table view on update", () => {
     start(full, b);
     expect(get(b.figure, "table")?.querySelector("table")).toBeNull();
   });
+
+  it("writes a pie's Total row in the foot, its cells rewritten in place on update", () => {
+    const pie = (forest: number): ChartSpec => ({
+      marks: [
+        {
+          mark: "pie",
+          slices: [
+            { name: "Agriculture", value: 182_637 },
+            { name: "Forest", value: forest },
+          ],
+        },
+      ],
+    });
+    const b = build();
+    const chart = start(pie(106_645), b);
+    chart.showTable(true);
+    const table = get(b.figure, "table")?.querySelector("table");
+    const foot = () => table?.tFoot?.rows[0];
+    const row = foot();
+    const total = row?.cells[1];
+    expect(row?.querySelector("th")?.scope).toBe("row");
+    expect([...(row?.cells ?? [])].map((c) => c.textContent)).toEqual(["Total", "289,282", "100%"]);
+    expect(
+      [...(table?.tBodies[0]?.querySelectorAll("th") ?? [])].map(
+        (th) => th.querySelector("bdi")?.textContent,
+      ),
+    ).toEqual(["Agriculture", "Forest"]);
+    chart.update(pie(17_363));
+    expect(get(b.figure, "table")?.querySelector("table")).toBe(table);
+    expect(foot()).toBe(row);
+    expect(foot()?.cells[1]).toBe(total);
+    expect(total?.textContent).toBe("200,000");
+    expect(table?.tFoot?.rows).toHaveLength(1);
+  });
+
+  it("writes a treemap's groups in a tbody each, kept and moved by name on update", () => {
+    const tree = (groups: readonly (readonly [string, number])[]): ChartSpec => ({
+      marks: [
+        {
+          mark: "tree",
+          nodes: groups.map(([name, value]) => ({
+            name,
+            children: [
+              { name: "A", value },
+              { name: "B", value: 1 },
+            ],
+          })),
+        },
+      ],
+    });
+    const b = build();
+    const chart = start(
+      tree([
+        ["Asia", 3],
+        ["Europe", 2],
+        ["Africa", 1],
+      ]),
+      b,
+    );
+    chart.showTable(true);
+    const table = get(b.figure, "table")?.querySelector("table");
+    const bodies = () => [...(table?.tBodies ?? [])];
+    const [asia, europe] = bodies();
+    const heads = (tb: HTMLTableSectionElement | undefined) =>
+      [...(tb?.querySelectorAll("th") ?? [])].map((th) => `${th.scope} ${th.textContent ?? ""}`);
+    expect(bodies()).toHaveLength(3);
+    expect(heads(asia)).toEqual(["rowgroup Asia", "row A", "row B"]);
+    expect(
+      [...(asia?.querySelectorAll("th") ?? [])].map((th) => th.querySelector("bdi")?.textContent),
+    ).toEqual(["Asia", "A", "B"]);
+    expect([...(asia?.rows[0]?.cells ?? [])].map((c) => c.textContent)).toEqual([
+      "Asia",
+      "4",
+      "44%",
+    ]);
+    const cell = europe?.rows[1]?.cells[1];
+    chart.update(
+      tree([
+        ["Europe", 7],
+        ["Asia", 3],
+      ]),
+    );
+    expect(get(b.figure, "table")?.querySelector("table")).toBe(table);
+    expect(bodies()).toHaveLength(2);
+    expect(bodies()[0]).toBe(europe);
+    expect(bodies()[1]).toBe(asia);
+    expect(europe?.rows[1]?.cells[1]).toBe(cell);
+    expect(cell?.textContent).toBe("7");
+    expect(table?.tHead?.nextElementSibling).toBe(europe);
+    expect(table?.lastElementChild).toBe(table?.tFoot);
+  });
 });
 
 describe("the drawing under update and resize", () => {
@@ -909,10 +1015,34 @@ describe("the drawing under update and resize", () => {
     const wide = slot();
     chart.update(bars([1, 1, 1, 1], [1, 1, 1, 1]));
     expect(slot()).toBe(wide);
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "560px";
-    await vi.waitFor(() => {
-      expect(slot()).toBeLessThan(wide);
+    await resize(b, 560);
+    expect(slot()).toBeLessThan(wide);
+  });
+
+  it("keeps a treemap's rows on an update of the same names, and lays out afresh on new names", () => {
+    const gdp = [27.4, 17.8, 4.5, 4.2, 3.7, 3.3, 3, 2.2, 2.1, 1.7, 1.4, 1.2, 1.1, 0.9, 0.5, 0.3];
+    const moved = gdp.map((v, i) => (i === 0 ? v * 0.4 : i === 1 ? v * 2.5 : v));
+    const tree = (values: readonly number[], prefix = "C"): ChartSpec => ({
+      marks: [
+        {
+          mark: "tree",
+          nodes: values.map((value, i) => ({ name: `${prefix}${String(i)}`, value })),
+        },
+      ],
     });
+    const tiles = (b: Built) =>
+      b.figure.querySelector('svg [data-part="tree"] path')?.getAttribute("d") ?? "";
+    const fresh = build();
+    start(tree(moved), fresh);
+    const b = build();
+    const chart = start(tree(gdp), b);
+    const before = tiles(b);
+    chart.update(tree(moved));
+    // The edges moved, along the rows the first values made, not afresh.
+    expect(tiles(b)).not.toBe(before);
+    expect(tiles(b)).not.toBe(tiles(fresh));
+    chart.update(tree(moved, "D"));
+    expect(tiles(b)).toBe(tiles(fresh));
   });
 
   it("measures afresh on a resize, with no two x labels overlapping", async () => {
@@ -920,10 +1050,8 @@ describe("the drawing under update and resize", () => {
     start(counts(9), b);
     const ticks = () => b.figure.querySelectorAll('svg [data-part="x"] text').length;
     const wide = ticks();
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "320px";
-    await vi.waitFor(() => {
-      expect(ticks()).toBeLessThan(wide);
-    });
+    await resize(b, 320);
+    expect(ticks()).toBeLessThan(wide);
     const boxes = [...b.figure.querySelectorAll('svg [data-part="x"] text')]
       .map((t) => t.getBoundingClientRect())
       .sort((p, q) => p.left - q.left);
@@ -1006,16 +1134,11 @@ describe("the notes", () => {
   it("switches to the list on a resize under 30rem and back above it", async () => {
     const b = build({ width: 600 });
     start(one, b);
-    const host = b.figure.parentElement as HTMLElement;
-    host.style.inlineSize = "320px";
-    await vi.waitFor(() => {
-      expect(listed(b)).toEqual(["Deploy"]);
-    });
+    await resize(b, 320);
+    expect(listed(b)).toEqual(["Deploy"]);
     expect(svgNotes(b)).toEqual([]);
-    host.style.inlineSize = "600px";
-    await vi.waitFor(() => {
-      expect(get(b.figure, "notes")).toBeNull();
-    });
+    await resize(b, 600);
+    expect(get(b.figure, "notes")).toBeNull();
     expect(svgNotes(b)).toEqual(["Deploy"]);
   });
 

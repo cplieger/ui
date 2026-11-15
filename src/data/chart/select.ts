@@ -5,23 +5,27 @@
  * @module
  */
 
+import { writer } from "../scale/format.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
 
 import { dotGroups, dotRadius, scatterAt, snap, type DotGroup, type Frame } from "./geometry.js";
-import { pointGrid, type Grid } from "./grid.js";
+import { boxGrid, pointGrid, type Grid } from "./grid.js";
 import type { Layout } from "./layout.js";
 import { noteJoin, type Join } from "./notes.js";
 import { dayAt, monthsFrom } from "./calendar.js";
+import { sliceAngles, TURN, type Slice } from "./pie.js";
 import type {
   CalendarModel,
   CellModel,
   DotModel,
   DotRef,
   Model,
+  PieModel,
   RectModel,
   SampleModel,
   ScatterModel,
   SlopeModel,
+  TreeModel,
 } from "./model.js";
 import {
   barsApart,
@@ -44,14 +48,18 @@ import {
   columnReading,
   measureText,
   partText,
+  partAmount,
   pointPart,
   pointReading,
   postReading,
-  primaryOf,
   rowReading,
   samplePart,
   sampleReading,
   scatterReading,
+  sliceReading,
+  sliceShare,
+  treeNode,
+  treeReading,
   type Reading,
 } from "./readout.js";
 import type { Words } from "./words.js";
@@ -59,9 +67,10 @@ import type { Words } from "./words.js";
 /**
  * A bucket, a sample or a slope's column `i`, with one series (`part`) when
  * Up or Down chose it; the posts `[from, to)` of a dot row; a dot row as a
- * whole; a bar, point or box row, with one series (`part`) when Left or
- * Right chose it; a scatter's dot `i` of `series`; a cell chart's cell at
- * `row` and `column`, indices into its axes; or a calendar's day `i`.
+ * whole; a bar, point or box row, with one series (`part`) when Left or Right
+ * chose it; a scatter's dot `i` of `series`; a cell chart's cell at `row` and
+ * `column`, indices into its axes; a calendar's day `i`; a pie's slice `i`; or
+ * a tree's part `i` or group `i`, indices into its parts and its groups.
  */
 export type Selection =
   | { readonly kind: "rect"; readonly i: number; readonly part: number | undefined }
@@ -77,7 +86,9 @@ export type Selection =
     }
   | { readonly kind: "scatter"; readonly series: number; readonly i: number }
   | { readonly kind: "cell"; readonly row: number; readonly column: number }
-  | { readonly kind: "day"; readonly i: number };
+  | { readonly kind: "day"; readonly i: number }
+  | { readonly kind: "slice"; readonly i: number }
+  | { readonly kind: "part" | "group"; readonly i: number };
 
 export type Key =
   "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End" | "PageUp" | "PageDown";
@@ -97,6 +108,10 @@ export const isKey = (key: string): key is Key => KEYS.has(key);
 
 /** How far a pointer reaches for a dot in its row, or for a scatter dot's edge, in px. */
 const REACH = 40;
+/** How far past a pie's rim a pointer still selects a slice, in px. */
+const RIM_REACH = 8;
+/** How far from a tree's tile or head band a pointer in a gap still selects it, in px. */
+const TILE_REACH = 4;
 /** One x tick's room when the axis draws fewer than two ticks, in px. */
 const TICK_FALLBACK = 80;
 /** Page Up and Page Down move a band chart's selection this many rows, and
@@ -185,9 +200,10 @@ const lineStops = (m: SampleModel): number[] =>
  *  slope's right column, on a timeline the first row's last post, or that
  *  row when it is silent, a bar, point or box chart's first row, whole, a
  *  scatter's first dot in x order, a cell chart's first cell in reading
- *  order, or a calendar's newest day. */
+ *  order, a calendar's newest day, a pie's first slice, at 12 o'clock, or a
+ *  tree's first group, or with one level its first part. */
 export function initial(model: Model): Selection | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   switch (m?.kind) {
     case undefined:
       return undefined;
@@ -227,12 +243,20 @@ export function initial(model: Model): Selection | undefined {
     }
     case "calendar":
       return m.values.length === 0 ? undefined : { kind: "day", i: m.values.length - 1 };
+    case "pie":
+      return m.slices.length === 0 ? undefined : { kind: "slice", i: 0 };
+    case "tree":
+      return m.groups.length > 0
+        ? { kind: "group", i: 0 }
+        : m.parts.length > 0
+          ? { kind: "part", i: 0 }
+          : undefined;
   }
 }
 
 /** The x value a dot selection stands at, which Up and Down aim for. */
 export function xOf(model: Model, sel: Selection): number | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   return sel.kind === "dot" && m?.kind === "dot" ? m.rows[sel.row]?.x[sel.from] : undefined;
 }
 
@@ -444,6 +468,98 @@ function moveCell(
   return column === undefined ? undefined : { ...sel, column };
 }
 
+/** Where `key` moves stop `i` of `n` in one order, a pie's slices
+ *  clockwise or a tree's parts: Right and Down to the next, Left and Up to
+ *  the one before, Home and End to the first and last; undefined at an end
+ *  and for the Page keys, which are the page's. */
+function walk(n: number, i: number, key: Key): number | undefined {
+  const to =
+    key === "ArrowRight" || key === "ArrowDown"
+      ? i + 1
+      : key === "ArrowLeft" || key === "ArrowUp"
+        ? i - 1
+        : key === "Home"
+          ? 0
+          : key === "End"
+            ? n - 1
+            : i;
+  return to === i || to < 0 || to >= n ? undefined : to;
+}
+
+/**
+ * Where `key` moves a tree's selection. One level walks its parts. Two
+ * levels take a band chart's map, groups for rows: Up and Down to the group
+ * before or after, a part's to the one before or after its own group; Left
+ * and Right through every part across groups, a group's Right to its first
+ * part and Left to the last part before it; Home and End to the first and
+ * last at the selected level. The Page keys are the page's.
+ */
+function moveTree(
+  m: TreeModel,
+  sel: Selection & { kind: "part" | "group" },
+  key: Key,
+): Selection | undefined {
+  if (m.groups.length === 0) {
+    const i = sel.kind === "part" ? walk(m.parts.length, sel.i, key) : undefined;
+    return i === undefined ? undefined : { kind: "part", i };
+  }
+  const g = sel.kind === "group" ? sel.i : (m.parts[sel.i]?.group ?? -1);
+  const stop = (kind: "part" | "group", i: number, n: number): Selection | undefined =>
+    i >= 0 && i < n ? { kind, i } : undefined;
+  switch (key) {
+    case "ArrowUp":
+    case "ArrowDown":
+      return stop("group", g + (key === "ArrowUp" ? -1 : 1), m.groups.length);
+    case "ArrowLeft":
+    case "ArrowRight": {
+      const right = key === "ArrowRight";
+      if (sel.kind === "part") {
+        return stop("part", sel.i + (right ? 1 : -1), m.parts.length);
+      }
+      const before = m.groups[g - 1];
+      const i = right
+        ? (m.groups[g]?.first ?? -1)
+        : before === undefined
+          ? -1
+          : before.first + before.count - 1;
+      return stop("part", i, m.parts.length);
+    }
+    case "Home":
+    case "End": {
+      const n = sel.kind === "group" ? m.groups.length : m.parts.length;
+      const i = key === "Home" ? 0 : n - 1;
+      return i === sel.i ? undefined : stop(sel.kind, i, n);
+    }
+    case "PageUp":
+    case "PageDown":
+      return undefined;
+  }
+}
+
+/** The drawn slice of `m` whose angle from `lay`'s pie centre holds plot px
+ *  `(px, py)`, within the rim and RIM_REACH past it and outside a donut's
+ *  hole; undefined elsewhere. */
+function sliceAt(
+  slices: readonly Slice[],
+  lay: Layout,
+  px: number,
+  py: number,
+): number | undefined {
+  const p = lay.pie;
+  if (p === undefined) {
+    return undefined;
+  }
+  const dx = px - p.cx;
+  const dy = py - p.cy;
+  const d = Math.hypot(dx, dy);
+  if (d > p.r + RIM_REACH || d < p.inner) {
+    return undefined;
+  }
+  // Clockwise from 12 o'clock, as the slices' angles run.
+  const a = (Math.atan2(dx, -dy) + TURN) % TURN;
+  return slices.find((s) => a >= s.from && a < s.to)?.index;
+}
+
 /** Where `key` moves a calendar's day `i`: Left and Right a week, Up and
  *  Down a day, Home and End to the first and last, Page Up and Page Down
  *  to the same date a month away (its last day when it has no such date),
@@ -496,7 +612,7 @@ function spanOf(edges: readonly number[], v: number): number {
 
 /** A selection's position along x on the plot, in px. */
 function selectionPx(model: Model, sel: Selection, f: Frame): number | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   if (sel.kind === "rect" && m?.kind === "rect") {
     const [a, b] = bucketSpan(m, sel.i, f);
     return (a + b) / 2;
@@ -521,14 +637,16 @@ export interface Navigator {
   /** What a pointer at plot px `(px, py)` selects; undefined when nothing
    *  is within reach, which clears the selection. */
   pick(px: number, py: number): Selection | undefined;
-  /** The crosshair's px along x, absent for a row or a scatter's dot,
-   *  whose crosshair is two rules to its edge. */
+  /** The crosshair's px along x, absent for a row, a scatter's dot, whose
+   *  crosshair is two rules to its edge, a slice or a tree's node. */
   crosshair(sel: Selection): number | undefined;
   /** A touch drag moves the selection; on a bar, point, box or scatter
-   *  chart only a tap does, since a vertical drag is the page's scroll. */
+   *  chart only a tap does, since a vertical drag is the page's scroll,
+   *  and on a pie or a tree, which have no axis to drag along. */
   readonly drags: boolean;
   /** Page Up and Page Down move the selection; on a slope, whose two
-   *  columns have no ticks to page by, they are the page's. */
+   *  columns have no ticks to page by, and on a pie or a tree, which have
+   *  no ticks, they are the page's. */
   readonly pages: boolean;
   /** A touch drag keeps the row it began on, as along a cell chart's row. */
   readonly alongRow: boolean;
@@ -536,7 +654,7 @@ export interface Navigator {
 
 export function navigator(model: Model, lay: Layout): Navigator {
   const f = lay.frame;
-  const m = primaryOf(model);
+  const m = model.primary;
   const cache = new Map<number, DotGroup[]>();
   const groups = (r: number): DotGroup[] => {
     let g = cache.get(r);
@@ -550,6 +668,12 @@ export function navigator(model: Model, lay: Layout): Navigator {
   let stops: number[] | undefined;
   const lineStopsOnce = (l: SampleModel): number[] => (stops ??= lineStops(l));
   let grid: Grid | undefined;
+  let slices: Slice[] | undefined;
+  const slicesOf = (p: PieModel): Slice[] => (slices ??= sliceAngles(p));
+  // Every drawn tile, then every head band, so a tile wins a tie with a band.
+  let tiles: Grid | undefined;
+  const tilesOf = (): Grid =>
+    (tiles ??= boxGrid([...(lay.tree?.tiles ?? []), ...(lay.tree?.bands ?? [])], TILE_REACH));
   // Built at the first pick, so a draw no pointer reaches never pays for it;
   // in draw order, so among equally near dots it takes the one on top.
   const gridOf = (s: ScatterModel): Grid => {
@@ -622,6 +746,13 @@ export function navigator(model: Model, lay: Layout): Navigator {
       if (m.kind === "calendar") {
         return sel.kind === "day" ? moveDay(m, sel.i, key) : undefined;
       }
+      if (m.kind === "pie") {
+        const i = sel.kind === "slice" ? walk(m.slices.length, sel.i, key) : undefined;
+        return i === undefined ? undefined : { kind: "slice", i };
+      }
+      if (m.kind === "tree") {
+        return sel.kind === "part" || sel.kind === "group" ? moveTree(m, sel, key) : undefined;
+      }
       if (sel.kind !== m.kind) {
         return undefined;
       }
@@ -643,6 +774,21 @@ export function navigator(model: Model, lay: Layout): Navigator {
       switch (m?.kind) {
         case undefined:
           return undefined;
+        case "tree": {
+          // The tile or head band under the pointer, in a gap the nearest
+          // within TILE_REACH; elsewhere nothing.
+          const k = tilesOf().nearest(px, py);
+          const n = m.parts.length;
+          return k === undefined
+            ? undefined
+            : k < n
+              ? { kind: "part", i: k }
+              : { kind: "group", i: k - n };
+        }
+        case "pie": {
+          const i = sliceAt(slicesOf(m), lay, px, py);
+          return i === undefined ? undefined : { kind: "slice", i };
+        }
         case "rect": {
           let best: number | undefined;
           let gap = Number.POSITIVE_INFINITY;
@@ -753,8 +899,14 @@ export function navigator(model: Model, lay: Layout): Navigator {
       }
     },
     crosshair: (sel) => selectionPx(model, sel, f),
-    drags: m?.kind !== "bar" && m?.kind !== "point" && m?.kind !== "box" && m?.kind !== "scatter",
-    pages: m?.kind !== "slope",
+    drags:
+      m?.kind !== "bar" &&
+      m?.kind !== "point" &&
+      m?.kind !== "box" &&
+      m?.kind !== "scatter" &&
+      m?.kind !== "pie" &&
+      m?.kind !== "tree",
+    pages: m?.kind !== "slope" && m?.kind !== "pie" && m?.kind !== "tree",
     alongRow: m?.kind === "cell" || m?.kind === "calendar",
   };
 }
@@ -762,8 +914,8 @@ export function navigator(model: Model, lay: Layout): Navigator {
 /** `sel` from `before` in `after`, where its x, or its row, is still in the
  *  data; undefined when it left. */
 export function rekey(before: Model, sel: Selection, after: Model): Selection | undefined {
-  const was = primaryOf(before);
-  const now = primaryOf(after);
+  const was = before.primary;
+  const now = after.primary;
   if (was === undefined || now === undefined) {
     return undefined;
   }
@@ -824,6 +976,25 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
     const column = find(was.x, now.x, sel.column);
     return row === -1 || column === -1 ? undefined : { kind: "cell", row, column };
   }
+  if (sel.kind === "slice" && was.kind === "pie" && now.kind === "pie") {
+    // Names are unique, so a slice is found by its name in any order.
+    const name = was.slices[sel.i]?.name;
+    const i = now.slices.findIndex((s) => s.name === name);
+    return i === -1 ? undefined : { kind: "slice", i };
+  }
+  if ((sel.kind === "part" || sel.kind === "group") && was.kind === "tree" && now.kind === "tree") {
+    // Sibling names are unique, so a node is found by its group's name and its own.
+    const groupOf = (m: TreeModel, g: number) => (g === -1 ? undefined : m.groups[g]?.name);
+    if (sel.kind === "group") {
+      const name = was.groups[sel.i]?.name;
+      const i = now.groups.findIndex((g) => g.name === name);
+      return i === -1 ? undefined : { kind: "group", i };
+    }
+    const p = was.parts[sel.i];
+    const group = p === undefined ? undefined : groupOf(was, p.group);
+    const i = now.parts.findIndex((q) => q.name === p?.name && groupOf(now, q.group) === group);
+    return i === -1 ? undefined : { kind: "part", i };
+  }
   if (sel.kind === "day" && was.kind === "calendar" && now.kind === "calendar") {
     // A day is found by its date.
     const i = was.day + sel.i - now.day;
@@ -859,7 +1030,7 @@ export function rekey(before: Model, sel: Selection, after: Model): Selection | 
 
 /** What the legend row reads for `sel`. */
 export function selectionReading(model: Model, sel: Selection, words: Words): Reading | undefined {
-  const m = primaryOf(model);
+  const m = model.primary;
   if (sel.kind === "rect" && m?.kind === "rect") {
     return bucketReading(model, m, sel.i, words);
   }
@@ -893,6 +1064,12 @@ export function selectionReading(model: Model, sel: Selection, words: Words): Re
   if (sel.kind === "day" && m?.kind === "calendar") {
     return dayReading(model, m, sel.i, words);
   }
+  if (sel.kind === "slice" && m?.kind === "pie") {
+    return sliceReading(model, m, sel.i, words);
+  }
+  if ((sel.kind === "part" || sel.kind === "group") && m?.kind === "tree") {
+    return treeReading(model, m, sel.kind === "group", sel.i, words);
+  }
   return undefined;
 }
 
@@ -923,7 +1100,7 @@ function stopOf(model: Model, sel: Selection): number | undefined {
   if (sel.kind !== "line" && sel.kind !== "area") {
     return undefined;
   }
-  const m = primaryOf(model);
+  const m = model.primary;
   return m?.kind === sel.kind && m.step ? stepStopAt(m, sel.i) : sel.i;
 }
 
@@ -959,7 +1136,7 @@ function noteReadings(model: Model, sel: Selection, words: Words): string {
 
 function readingWords(model: Model, sel: Selection, words: Words, part: boolean): string {
   const reading = selectionReading(model, sel, words);
-  const m = primaryOf(model);
+  const m = model.primary;
   if (reading === undefined || m === undefined) {
     return "";
   }
@@ -995,6 +1172,26 @@ function readingWords(model: Model, sel: Selection, words: Words, part: boolean)
     if (part && s !== undefined) {
       return slopeWords(model, m, s, words);
     }
+  } else if (sel.kind === "slice" && m.kind === "pie") {
+    // The slice's own value and share, then the whole the share is of.
+    const s = m.slices[sel.i];
+    const v = s?.value ?? null;
+    return v === null
+      ? words.reading(s?.name ?? "", words.noData, "")
+      : words.reading(
+          s?.name ?? "",
+          `${partAmount(model, m, v)}, ${sliceShare(model, m, sel.i, words)}`,
+          partAmount(model, m, m.total),
+        );
+  } else if ((sel.kind === "part" || sel.kind === "group") && m.kind === "tree") {
+    // A group's part count follows its value and share.
+    const node = treeNode(model, m, sel.kind === "group", sel.i, words);
+    const g = sel.kind === "group" ? m.groups[sel.i] : undefined;
+    const parts =
+      g === undefined
+        ? node.text
+        : `${node.text}, ${words.parts(writer("number", model.locale)(g.count), g.count)}`;
+    return words.reading(node.name, parts, "");
   } else if (sel.kind === "scatter" && m.kind === "scatter") {
     // The dot's series, then each measure; the chips' counts are the chart's, not the dot's.
     const s = m.series[sel.series];

@@ -708,11 +708,23 @@ describe("the table of a scatter plot", () => {
     expect(t.after).toBe("World average 70. Monaco: A city-state.");
   });
 
-  it("sets the dots' names, as a band's rows and a slope's series, in their own direction", () => {
+  it("sets the dots' names, as a band's rows, a slope's series and a whole's parts, in their own direction", () => {
     expect(namedRows(model(world()))).toBe(true);
     expect(
       namedRows(
         model({ marks: [{ mark: "slope", x: ["a", "b"], series: [{ name: "s", y: [1, 2] }] }] }),
+      ),
+    ).toBe(true);
+    expect(
+      namedRows(model({ marks: [{ mark: "pie", slices: [{ name: "Forest", value: 1 }] }] })),
+    ).toBe(true);
+    expect(
+      namedRows(
+        model({
+          marks: [
+            { mark: "tree", nodes: [{ name: "Asia", children: [{ name: "China", value: 1 }] }] },
+          ],
+        }),
       ),
     ).toBe(true);
     expect(
@@ -876,6 +888,34 @@ describe("the table of a calendar", () => {
   });
 });
 
+describe("the table of a calendar at the end of what Date holds", () => {
+  it("writes the last week, ending on Saturday 13 September 275760", () => {
+    const t = tableModel(
+      chartModel(
+        { marks: [{ mark: "cell", days: { start: 8.64e15 - 86_400_000, values: [1, 2] } }] },
+        "en",
+        "UTC",
+      ),
+      words,
+    );
+    expect(t.columns.map((c) => c.text)).toEqual([
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ]);
+    expect(t.rows.map((r) => r.head)).toEqual([
+      [{ at: 8.64e15 - 6 * 86_400_000, text: "Sep 7, 275760", date: true }],
+    ]);
+    expect(t.rows.map((r) => r.cells.map((c) => text(c.parts)))).toEqual([
+      ["", "", "", "", "", "1", "2"],
+    ]);
+  });
+});
+
 describe("the table of a box plot", () => {
   const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
     y: { label: "Endpoint" },
@@ -946,5 +986,135 @@ describe("the table of a box plot", () => {
     const t = tableModel(model(latency()), chartWords({ boxLabels: { median: "Médiane" } }));
     expect(t.columns.map((c) => c.text)).toContain("Médiane");
     expect(t.columns.map((c) => c.text)).toContain("Low");
+  });
+});
+
+describe("the table of a pie", () => {
+  const land = (unit = true): ChartSpec => ({
+    marks: [
+      {
+        mark: "pie",
+        ...(unit ? { unit: { other: "km²" } } : {}),
+        slices: [
+          { name: "Agriculture", value: 182_637 },
+          { name: "Forest", value: 106_645 },
+          { name: "Water", value: null },
+        ],
+      },
+    ],
+  });
+
+  it("has a row per slice in the order sent, its value and share, and the whole in its foot", () => {
+    const t = tableModel(model(land()), words);
+    expect(t.corner).toBe("");
+    expect(t.columns.map((c) => c.text)).toEqual(["km²", "Share"]);
+    expect(cells(t)).toEqual([
+      ["Agriculture", "182,637", "63%"],
+      ["Forest", "106,645", "37%"],
+      ["Water", "No data", "No data"],
+    ]);
+    const foot = t.foot;
+    expect(
+      foot === undefined ? [] : [text(foot.head), ...foot.cells.map((c) => text(c.parts))],
+    ).toEqual(["Total", "289,282", "100%"]);
+  });
+
+  it("heads the values Value without a unit", () => {
+    expect(tableModel(model(land(false)), words).columns[0]?.text).toBe("Value");
+  });
+
+  it("has no foot under any other mark", () => {
+    const t = tableModel(
+      model({ x: {}, marks: [{ mark: "line", x: [0, 1], series: [{ name: "A", y: [1, 2] }] }] }),
+      words,
+    );
+    expect(t.foot).toBe(undefined);
+  });
+});
+
+describe("the table of a treemap", () => {
+  // GDP in 2023, bn USD: 62,580 in all.
+  const gdp = (india: number | null = 3550): ChartSpec => ({
+    marks: [
+      {
+        mark: "tree",
+        unit: { other: "bn USD" },
+        nodes: [
+          {
+            name: "Asia",
+            children: [
+              { name: "China", value: 17_795 },
+              { name: "India", value: india },
+            ],
+          },
+          {
+            name: "Americas",
+            children: [
+              { name: "United States", value: 27_361 },
+              { name: "Brazil", value: 2174 },
+              { name: "Other", value: 11_700 },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const foot = (t: TableModel) =>
+    t.foot === undefined ? [] : [text(t.foot.head), ...t.foot.cells.map((c) => text(c.parts))];
+
+  it("has a group per tbody, its head row its sum and share, then its parts in the order sent", () => {
+    const t = tableModel(model(gdp()), words);
+    expect(t.columns.map((c) => c.text)).toEqual(["bn USD", "Share"]);
+    expect(cells(t)).toEqual([
+      ["China", "17,795", "28%"],
+      ["India", "3,550", "5.7%"],
+      ["United States", "27,361", "44%"],
+      ["Brazil", "2,174", "3.5%"],
+      ["Other", "11,700", "19%"],
+    ]);
+    expect(
+      t.groups?.map((g) => [
+        g.key,
+        g.count,
+        g.head.scope,
+        text(g.head.head),
+        ...g.head.cells.map((c) => text(c.parts)),
+      ]),
+    ).toEqual([
+      ["Asia", 2, "rowgroup", "Asia", "21,345", "34%"],
+      ["Americas", 3, "rowgroup", "Americas", "41,235", "66%"],
+    ]);
+    expect(foot(t)).toEqual(["Total", "62,580", "100%"]);
+  });
+
+  it("writes a gap No data, its group's sum and the whole without it", () => {
+    const t = tableModel(model(gdp(null)), words);
+    expect(cells(t)[1]).toEqual(["India", "No data", "No data"]);
+    expect(t.groups?.[0]?.head.cells.map((c) => text(c.parts))).toEqual(["17,795", "30%"]);
+    expect(foot(t)).toEqual(["Total", "59,030", "100%"]);
+  });
+
+  it("has one body of parts with one level, and the whole in its foot", () => {
+    const t = tableModel(
+      model({
+        marks: [
+          {
+            mark: "tree",
+            nodes: [
+              { name: "United States", value: 3 },
+              { name: "China", value: 1 },
+            ],
+          },
+        ],
+      }),
+      words,
+    );
+    expect(t.groups).toBe(undefined);
+    expect(t.columns[0]?.text).toBe("Value");
+    expect(cells(t)).toEqual([
+      ["United States", "3", "75%"],
+      ["China", "1", "25%"],
+    ]);
+    expect(foot(t)).toEqual(["Total", "4", "100%"]);
   });
 });

@@ -23,12 +23,14 @@ import {
   type CellModel,
   type DotModel,
   type Model,
+  type PieModel,
   type PointModel,
   type RectModel,
   type SampleModel,
   type ScatterModel,
   type SeriesModel,
   type SlopeModel,
+  type TreeModel,
 } from "./model.js";
 import { noteJoin } from "./notes.js";
 import {
@@ -48,9 +50,14 @@ import {
   dotValue,
   measureText,
   measuresOf,
-  primaryOf,
+  groupsText,
+  partName,
+  partsText,
+  partAmount,
   rowsText,
+  sliceShare,
   totalWord,
+  treeShare,
 } from "./readout.js";
 import type { Words } from "./words.js";
 
@@ -487,6 +494,49 @@ function calendarSummary(model: Model, m: CalendarModel, words: Words): string[]
   return [words.cellSummary(daysText(model, m, words), place(high), place(low))];
 }
 
+// The whole, then each slice's share in the clockwise order.
+function pieSummary(model: Model, m: PieModel, words: Words): string[] {
+  const parts = m.slices.map((s, i) => `${s.name} ${sliceShare(model, m, i, words)}`);
+  return [words.partsSummary(partAmount(model, m, m.total), parts.join(", "))];
+}
+
+/** A tree of one level's summary names this many of its largest parts:
+ *  a sentence of every share in a treemap of many would not be read to
+ *  its end, and the table holds them all. */
+const LARGEST = 5;
+
+// Two levels: the whole and each group's share, then the largest part. One
+// level: the whole and its LARGEST largest parts, largest first, ties in
+// the app's order, then how many more.
+function treeSummary(model: Model, m: TreeModel, words: Words): string[] {
+  const total = partAmount(model, m, m.total);
+  const value = (i: number) => m.parts[i]?.value ?? null;
+  const ranked = m.parts
+    .map((_, i) => i)
+    .filter((i) => value(i) !== null)
+    .sort((a, b) => (value(b) ?? 0) - (value(a) ?? 0) || a - b);
+  if (m.groups.length > 0) {
+    const shares = m.groups.map((g) => `${g.name} ${treeShare(model, m, g.value)}`);
+    const out = [words.partsSummary(total, shares.join(", "))];
+    const top = ranked[0];
+    const v = top === undefined ? 0 : (value(top) ?? 0);
+    if (top !== undefined && v > 0) {
+      out.push(
+        words.largest(partName(m, top, words), partAmount(model, m, v), treeShare(model, m, v)),
+      );
+    }
+    return out;
+  }
+  const named = ranked
+    .slice(0, LARGEST)
+    .map((i) => `${m.parts[i]?.name ?? ""} ${treeShare(model, m, value(i) ?? 0)}`);
+  const rest = m.parts.length - named.length;
+  if (rest > 0) {
+    named.push(words.more(writer("number", model.locale)(rest)));
+  }
+  return [words.partsSummary(total, named.join(", "))];
+}
+
 /** Each rule's sentence, in spec order. */
 export function ruleSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
@@ -505,7 +555,7 @@ export function ruleSentences(model: Model, words: Words): string[] {
  *  joins or else both its values, on a calendar its instant's date. */
 export function noteSentences(model: Model, words: Words): string[] {
   const out: string[] = [];
-  const m = primaryOf(model);
+  const m = model.primary;
   for (const t of model.marks) {
     if (t.kind === "text" && m?.kind === "scatter") {
       const d = t.x === undefined ? undefined : scatterDotAt(m, t.x, t.y);
@@ -536,7 +586,7 @@ export function noteSentences(model: Model, words: Words): string[] {
 
 /** The summary the chart writes for `model`, before the spec's own `summary`. */
 export function generatedSummary(model: Model, words: Words): string {
-  const m = primaryOf(model);
+  const m = model.primary;
   const head =
     m?.kind === "rect"
       ? rectSummary(model, m, words)
@@ -558,7 +608,11 @@ export function generatedSummary(model: Model, words: Words): string {
                       ? calendarSummary(model, m, words)
                       : m?.kind === "box"
                         ? boxSummary(model, m, words)
-                        : [];
+                        : m?.kind === "pie"
+                          ? pieSummary(model, m, words)
+                          : m?.kind === "tree"
+                            ? treeSummary(model, m, words)
+                            : [];
   return [...head, ...ruleSentences(model, words), ...noteSentences(model, words)].join(" ");
 }
 
@@ -584,16 +638,28 @@ function gridText(model: Model, m: CellModel, words: Words): string {
 
 /** The plot's name: its kind, its series count from two up, and its x
  *  domain, or on a bar, point or box chart its row count, on a scatter its dot
- *  count, on a cell chart its rows by its columns and on a calendar its
- *  day count, since their x is no span. */
+ *  count, on a cell chart its rows by its columns, on a calendar its
+ *  day count, on a pie its slice count and on a tree its group and part
+ *  counts, since their x is no span. */
 export function shortDescription(model: Model, words: Words): string {
-  const m = primaryOf(model);
+  const m = model.primary;
   const kind = model.kind === undefined ? "" : words.kind[model.kind];
   const n =
-    m === undefined || m.kind === "dot" || m.kind === "cell" || m.kind === "calendar"
+    m === undefined ||
+    m.kind === "dot" ||
+    m.kind === "cell" ||
+    m.kind === "calendar" ||
+    m.kind === "pie" ||
+    m.kind === "tree"
       ? 0
       : m.series.length;
-  const series = n > 1 ? words.seriesCount(writer("number", model.locale)(n)) : "";
+  // A tree's groups take the series' place, before its parts.
+  const series =
+    m?.kind === "tree"
+      ? groupsText(model, m, words)
+      : n > 1
+        ? words.seriesCount(writer("number", model.locale)(n))
+        : "";
   const range =
     m?.kind === "bar" || m?.kind === "point" || m?.kind === "box"
       ? rowsText(model, words)
@@ -603,6 +669,8 @@ export function shortDescription(model: Model, words: Words): string {
           ? gridText(model, m, words)
           : m?.kind === "calendar"
             ? daysText(model, m, words)
-            : domainText(model, words);
+            : m?.kind === "pie" || m?.kind === "tree"
+              ? partsText(model, m, words)
+              : domainText(model, words);
   return words.shortDescription(kind, series, range);
 }
