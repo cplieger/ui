@@ -62,7 +62,8 @@ export interface StatusModel {
   /** The app's own start buttons, shown first so they never move. */
   readonly starts?: HTMLElement;
   readonly conditions: readonly StatusCondition[];
-  /** Newest first; the panel shows the first three. */
+  /** Newest first; the panel shows three: running work first, then the
+   *  queue, each in this order. */
   readonly work: readonly StatusWork[];
   /** The idle line while nothing runs, "Next scan 03:00". */
   readonly next?: string;
@@ -465,7 +466,9 @@ export function createHeaderStatus(
   let toldIds = new Set<string>();
   /** Trouble was said and the return to all good not yet. */
   let troubled = false;
-  const stopping = new Set<string>();
+  /** Each stop in flight by id, its token telling a late answer from an
+   *  earlier stop of an item that left and came back. */
+  const stopping = new Map<string, object>();
   const refused = new Map<string, string>();
   const kept = new Set<Element>();
   /** One signal per shown time, so a time that leaves or is enhanced again
@@ -648,6 +651,9 @@ export function createHeaderStatus(
       if (!panel.contains(t) && parts.banner?.contains(t) !== true) {
         own.abort();
         times.delete(t);
+        // enhanceTimes skips a time with the tip, and a cached row can bring
+        // this one back with the same moment.
+        delete t.dataset["cpTip"];
       }
     }
   };
@@ -681,7 +687,10 @@ export function createHeaderStatus(
       "conditions",
       conditionOrder(model.conditions).map(conditionRow),
     );
-    const shown = model.work.slice(0, 3);
+    const shown = [
+      ...model.work.filter((x) => x.queued !== true),
+      ...model.work.filter((x) => x.queued === true),
+    ].slice(0, 3);
     const total = model.workTotal ?? model.work.filter((x) => x.queued !== true).length;
     const runningShown = shown.filter((x) => x.queued !== true).length;
     const workRows = shown.map(workRow);
@@ -849,13 +858,14 @@ export function createHeaderStatus(
     if (current?.stop === undefined || stopping.has(key)) {
       return;
     }
-    stopping.add(key);
+    const mine = {};
+    stopping.set(key, mine);
     refused.delete(key);
     render();
     try {
       await current.stop.run();
     } catch (error) {
-      if (ended()) {
+      if (ended() || stopping.get(key) !== mine) {
         return;
       }
       stopping.delete(key);
@@ -904,7 +914,7 @@ export function createHeaderStatus(
       checkDates(next);
       model = next;
       const present = new Set(model.work.map((x) => x.id));
-      for (const key of [...stopping, ...refused.keys()]) {
+      for (const key of [...stopping.keys(), ...refused.keys()]) {
         if (!present.has(key)) {
           stopping.delete(key);
           refused.delete(key);

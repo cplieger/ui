@@ -599,11 +599,16 @@ describe("the panel's sections", () => {
   it("lets go of a time once its row leaves or its moment changes", () => {
     const signals = vi.spyOn(AbortSignal, "any");
     const { status } = mount();
-    status.update(model({ recent: [{ id: "r", words: "Scan ended", at: Date.now() - 60_000 }] }));
+    const ended = model({ recent: [{ id: "r", words: "Scan ended", at: Date.now() - 60_000 }] });
+    status.update(ended);
     const recent = signals.mock.results.at(-1)?.value as AbortSignal;
     expect(recent.aborted).toBe(false);
     status.update(model({}));
     expect(recent.aborted).toBe(true);
+    status.update(ended);
+    const back = signals.mock.results.at(-1)?.value as AbortSignal;
+    expect(back).not.toBe(recent);
+    expect(back.aborted).toBe(false);
     const urgent = (seen: number) =>
       model({ conditions: [problem("u", { urgent: true, seen, href: "/u" })] });
     status.update(urgent(Date.now() - 60_000));
@@ -613,6 +618,36 @@ describe("the panel's sections", () => {
     expect(first.aborted).toBe(true);
     expect((signals.mock.results.at(-1)?.value as AbortSignal).aborted).toBe(false);
     signals.mockRestore();
+  });
+});
+
+describe("a time that comes back", () => {
+  const now = new Date(2026, 10, 15, 12, 0).getTime();
+  const words = (row: HTMLElement | undefined) =>
+    row?.querySelector("time")?.firstChild?.textContent;
+
+  it("keeps a recent event's time moving after the section emptied", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"], now });
+    const { panel, status } = mount({ locale: "en-GB" });
+    const ended = model({ recent: [{ id: "r", words: "Scan ended", at: now - 60_000 }] });
+    status.update(ended);
+    expect(words(rows(panel, "recent")[0])).toBe("1 minute ago");
+    status.update(model({}));
+    status.update(ended);
+    vi.advanceTimersByTime(5 * 60_000);
+    expect(words(rows(panel, "recent")[0])).toBe("6 minutes ago");
+  });
+
+  it("keeps a condition's since moving after the conditions emptied", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"], now });
+    const { panel, status } = mount({ locale: "en-GB" });
+    const failing = model({ conditions: [problem("p", { since: now - 60_000 })] });
+    status.update(failing);
+    expect(words(rows(panel, "conditions")[0])).toBe("1 minute ago");
+    status.update(model({}));
+    status.update(failing);
+    vi.advanceTimersByTime(5 * 60_000);
+    expect(words(rows(panel, "conditions")[0])).toBe("6 minutes ago");
   });
 });
 
@@ -656,9 +691,27 @@ describe("the running section", () => {
     );
     expect(panel.querySelector(".cp-list-foot")).toBeNull();
     status.update(
-      model({ work: [queued("q1"), job("a"), job("b"), job("c")], workHref: "/running" }),
+      model({
+        work: [queued("q1"), job("a"), job("b"), job("c"), job("d")],
+        workHref: "/running",
+      }),
     );
-    expect(panel.querySelector(".cp-list-foot > a")?.textContent).toBe("Show all 3 running");
+    expect(panel.querySelector(".cp-list-foot > a")?.textContent).toBe("Show all 4 running");
+  });
+
+  it("shows running work before the queue, each in the app's order", () => {
+    const { panel, status } = mount();
+    const stop = { run: () => Promise.resolve() };
+    const queued = (id: string) => job(id, { queued: true, stop });
+    status.update(
+      model({ work: [queued("q1"), queued("q2"), queued("q3"), job("a", { stop }), job("b")] }),
+    );
+    expect(rows(panel, "work").map((r) => r.closest("li")?.dataset["cpKey"])).toEqual([
+      "a",
+      "b",
+      "q1",
+    ]);
+    expect(stopButton(panel, "a").textContent).toBe("Stop");
   });
 
   it("writes a row's progress, how far it is and its phase", () => {
@@ -905,6 +958,35 @@ describe("the running section", () => {
     status.update(m);
     expect(rows(panel, "work")[0]?.querySelector(".cp-cell-stack > small")).toBeNull();
     expect(stopButton(panel, "a").firstChild?.textContent).toBe("Stop");
+  });
+
+  it("keeps a second stop's Stopping… when the first stop's refusal comes late", async () => {
+    const { panel, status } = mount();
+    const refusals: ((error: Error) => void)[] = [];
+    const run = vi.fn(
+      () =>
+        new Promise<void>((_, reject) => {
+          refusals.push(reject);
+        }),
+    );
+    const m = model({ work: [job("a", { stop: { run } })] });
+    status.update(m);
+    stopButton(panel, "a").click();
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledOnce();
+    });
+    status.update(model({}));
+    status.update(m);
+    stopButton(panel, "a").click();
+    await vi.waitFor(() => {
+      expect(run).toHaveBeenCalledTimes(2);
+    });
+    refusals[0]?.(new Error("No such pass"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(said()).toBe("");
+    expect(stopButton(panel, "a").firstChild?.textContent).toBe("Stopping…");
+    expect(stopButton(panel, "a").getAttribute("aria-disabled")).toBe("true");
+    expect(rows(panel, "work")[0]?.querySelector(".cp-cell-stack > small")).toBeNull();
   });
 
   it("shows a queued item as Queued with Cancel, never counted, and cancels at once", async () => {
