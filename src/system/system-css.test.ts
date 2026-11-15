@@ -4716,8 +4716,15 @@ describe("css/system.css lists, feeds and counts", () => {
     );
     expect(copy).toBe(verdict);
     expect(spacer.getBoundingClientRect().height).toBe(5);
+    // Its line below is a row's width, as the rows beside it share it, and
+    // unseen; the first spacer has no line above, as the first row has none.
     const cell = getComputedStyle(spacer.cells[0] as Element);
-    expect([cell.paddingTop, cell.borderBottomWidth]).toEqual(["0px", "0px"]);
+    expect([cell.paddingTop, cell.borderTopWidth, cell.borderBottomWidth]).toEqual([
+      "0px",
+      "0px",
+      "1px",
+    ]);
+    expect(cell.borderBottomColor).toBe("rgba(0, 0, 0, 0)");
     const bar = table.querySelector(".cp-skeleton") as HTMLElement;
     const td = bar.parentElement as HTMLElement;
     expect(bar.getBoundingClientRect().width / td.clientWidth).toBeLessThan(0.8);

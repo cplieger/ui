@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
 import { enhanceKeyedList, type KeyedListOptions } from "./keyed-list.js";
@@ -560,6 +560,391 @@ describe("enhanceKeyedList", () => {
         signal: life.signal,
       }),
     ).toThrow(TypeError);
+  });
+
+  describe("with rows of different heights", () => {
+    /** A day-by-day history: every 40th row a day's heading, the others
+     *  one line, or taller by their index, as a wrapped row or a row with
+     *  its details open is. */
+    const TALL = ["", "5.5rem", "", "9rem", "", "4.25rem", "12.5rem"];
+    function historyItem(key: string): HTMLLIElement {
+      const i = Number(key.slice(1));
+      if (i % 40 === 0) {
+        const heading = document.createElement("h3");
+        heading.className = "cp-list-heading";
+        heading.textContent = `Day ${String(i / 40)}`;
+        const li = document.createElement("li");
+        li.dataset["key"] = key;
+        li.append(heading);
+        return li;
+      }
+      const li = titleItem(key);
+      const row = li.firstElementChild as HTMLElement;
+      row.style.minBlockSize = TALL[i % TALL.length] ?? "";
+      return li;
+    }
+
+    /** Where `el` sits in `scroller`'s content, in px from its start. */
+    const offsetIn = (scroller: Element, el: Element): number =>
+      el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+
+    it("places 10,000 of them as with every row drawn once scrolled end to end, never drawing past the view", async () => {
+      const keys = keysOf(10_000);
+      const marks = ["t1", "t5000", "t9999"];
+      // Gecko lays a grid out in at most 9,999 rows
+      // (https://bugzilla.mozilla.org/show_bug.cgi?id=1752237), so the list
+      // drawn whole is a column of flex items.
+      const whole = virtualList();
+      whole.style.display = "flex";
+      whole.style.flexDirection = "column";
+      const all = enhance(whole, {
+        keys,
+        window: false,
+        row: (key) => {
+          const li = historyItem(key);
+          li.style.flex = "none";
+          return li;
+        },
+      });
+      const placed = marks.map((key) => offsetIn(whole, all.rowOf(key) as HTMLElement));
+      const height = whole.scrollHeight;
+      const heights = rows(whole).map((el) => el.getBoundingClientRect().height);
+      const least = Math.min(...heights);
+      const tallest = Math.max(...heights);
+      whole.remove();
+
+      const ul = virtualList();
+      const list = enhance(ul, { keys, row: historyItem });
+      // Rows a view can hold at their least height, a part row at each
+      // edge, and five past each edge.
+      const bound = Math.ceil(ul.clientHeight / least) + 1 + 2 * 5;
+      let most = rows(ul).length;
+      // Each step reveals a row past the last one drawn by fewer rows than
+      // the view holds, so the rows between are in view once it is scrolled
+      // to, and every row is drawn once in this task.
+      const ahead = Math.max(1, Math.floor(ul.clientHeight / tallest) - 1);
+      for (let step = 0; step < 20_000; step += 1) {
+        const next = Number(rows(ul).at(-1)?.dataset["key"]?.slice(1)) + ahead;
+        list.reveal(`t${String(Math.min(next, keys.length - 1))}`);
+        most = Math.max(most, rows(ul).length);
+        if (next >= keys.length - 1) {
+          break;
+        }
+      }
+      await frames();
+      expect(most).toBeLessThanOrEqual(bound);
+      expect(Math.abs(ul.scrollHeight - height)).toBeLessThan(1);
+      const last = list.rowOf("t9999") as HTMLElement;
+      expect(Math.abs(offsetIn(ul, last) - (placed[2] ?? 0))).toBeLessThan(1);
+      for (const [n, key] of marks.entries()) {
+        const row = list.reveal(key, { scroll: false }) as HTMLElement;
+        expect(Math.abs(offsetIn(ul, row) - (placed[n] ?? 0))).toBeLessThan(1);
+      }
+    }, 120_000);
+
+    it("scrolls a far row into view, where it stays as the rows around it are measured", async () => {
+      const ul = virtualList();
+      const list = enhance(ul, { keys: keysOf(10_000), row: historyItem });
+      const row = list.reveal("t7003") as HTMLElement;
+      const inView = (): boolean => {
+        const box = row.getBoundingClientRect();
+        const view = ul.getBoundingClientRect();
+        return box.top >= view.top - 1 && box.bottom <= view.bottom + 1;
+      };
+      expect(inView()).toBe(true);
+      await frames();
+      await frames();
+      expect(row.isConnected).toBe(true);
+      expect(inView()).toBe(true);
+    });
+
+    it("ends a windowed table body of mixed heights where it ends drawn whole", async () => {
+      /** A body of copies, every fifth with a second line, in its panel. */
+      const panelOf = (): { panel: HTMLDivElement; body: HTMLTableSectionElement } => {
+        const panel = document.createElement("div");
+        panel.style.blockSize = "15rem";
+        panel.style.inlineSize = "40rem";
+        panel.style.overflowY = "auto";
+        const table = document.createElement("table");
+        table.className = "cp-table";
+        const body = table.createTBody();
+        body.dataset["virtual"] = "";
+        panel.append(table);
+        document.body.append(panel);
+        return { panel, body };
+      };
+      const copy = (key: string): HTMLTableRowElement => {
+        const tr = copyRow(key);
+        if (Number(key.slice(1)) % 5 === 0) {
+          const line = document.createElement("div");
+          line.textContent = "Kept: the release with the better subtitles";
+          tr.cells[0]?.append(line);
+        }
+        return tr;
+      };
+      const keys = keysOf(400);
+      const whole = panelOf();
+      const all = enhanceKeyedList(whole.body, {
+        keys,
+        row: copy,
+        window: false,
+        signal: life.signal,
+      });
+      const end = offsetIn(whole.panel, all.rowOf("t399") as HTMLElement);
+      const height = whole.panel.scrollHeight;
+      whole.panel.remove();
+
+      const { panel, body } = panelOf();
+      const list = enhanceKeyedList(body, { keys, row: copy, signal: life.signal });
+      for (let step = 0; step < 2000; step += 1) {
+        if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1) {
+          break;
+        }
+        panel.scrollTop += panel.clientHeight;
+        await frames();
+      }
+      expect(Math.abs(panel.scrollHeight - height)).toBeLessThan(1);
+      expect(Math.abs(offsetIn(panel, list.rowOf("t399") as HTMLElement) - end)).toBeLessThan(1);
+    });
+
+    it("draws a day's heading as an item of the list: no line above it, the space a group's heading has, lined up with the rows", () => {
+      const item = (inner: string) => `<li>${inner}</li>`;
+      const heading = (day: string) => item(`<h3 class="cp-list-heading">${day}</h3>`);
+      const row = item('<div class="cp-list-row"><span class="cp-cell-stack">Grabbed</span></div>');
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<ul class="cp-list">${heading("Today")}${row}${row}${heading("Yesterday")}${row}</ul>` +
+          `<ol class="cp-list" data-variant="timeline" data-surface="plain">${heading("Today")}${row}${row}${heading("Yesterday")}${row}</ol>`,
+      );
+      const [boxed, timeline] = [...document.querySelectorAll<HTMLElement>(".cp-list")] as [
+        HTMLElement,
+        HTMLElement,
+      ];
+      const items = [...boxed.children];
+      const style = (el: Element | undefined, pseudo?: string) =>
+        getComputedStyle(el as Element, pseudo);
+      const rem = Number.parseFloat(style(document.documentElement).fontSize);
+      expect(items.map((li) => style(li).borderBlockStartWidth)).toEqual([
+        "0px",
+        "1px",
+        "1px",
+        "0px",
+        "1px",
+      ]);
+      const [first, second] = [...boxed.querySelectorAll(".cp-list-heading")];
+      expect(style(first).marginBlockStart).toBe("0px");
+      expect(style(second).marginBlockStart).toBe(`${String(rem)}px`);
+      expect(style(second).marginBlockEnd).toBe(`${String(rem / 2)}px`);
+      // Only the first clears the box's edge; the others have their margin.
+      expect([style(first).paddingBlockStart, style(second).paddingBlockStart]).toEqual([
+        `${String(0.75 * rem)}px`,
+        "0px",
+      ]);
+      expect(style(second).paddingInlineStart).toBe(
+        style(boxed.querySelector(".cp-list-row") ?? undefined).paddingInlineStart,
+      );
+      // A timeline's line joins the marks of one day only.
+      const lines = [...timeline.children].map((li) => style(li, "::before").content);
+      expect(lines).toEqual(["none", '""', "none", "none", "none"]);
+      expect(
+        style(timeline.querySelector(".cp-list-heading") ?? undefined).paddingInlineStart,
+      ).toBe("0px");
+      boxed.dataset["density"] = "compact";
+      expect(style(second).paddingInlineStart).toBe(
+        style(boxed.querySelector(".cp-list-row") ?? undefined).paddingInlineStart,
+      );
+    });
+  });
+
+  describe("in a box taller than the window, or one that grows with its rows", () => {
+    interface Shape {
+      readonly ul: HTMLUListElement;
+      /** What the reader scrolls. */
+      readonly scroller: HTMLElement;
+    }
+    const page = (): HTMLElement => document.scrollingElement as HTMLElement;
+    const SHAPES: readonly (readonly [string, () => Shape])[] = [
+      [
+        "its own scroller, taller than the window",
+        () => {
+          const ul = virtualList();
+          ul.style.setProperty("--cp-list-h", "300vh");
+          return { ul, scroller: ul };
+        },
+      ],
+      [
+        "a scrolling box taller than the window",
+        () => {
+          const box = document.createElement("div");
+          box.style.blockSize = "300vh";
+          box.style.overflowY = "auto";
+          const ul = document.createElement("ul");
+          ul.className = "cp-list";
+          box.append(ul);
+          document.body.append(box);
+          return { ul, scroller: box };
+        },
+      ],
+      [
+        "a clipping box that grows with it",
+        () => {
+          const box = document.createElement("div");
+          box.style.overflowY = "clip";
+          const ul = document.createElement("ul");
+          ul.className = "cp-list";
+          box.append(ul);
+          document.body.append(box);
+          return { ul, scroller: page() };
+        },
+      ],
+      [
+        "a list set to scroll that grows with its rows",
+        () => {
+          const ul = virtualList();
+          ul.style.blockSize = "auto";
+          ul.style.contain = "none";
+          return { ul, scroller: page() };
+        },
+      ],
+    ];
+
+    /** The top of what `scroller` shows, in px of the window. */
+    const viewTop = (scroller: HTMLElement): number =>
+      scroller === page() ? 0 : Math.max(0, scroller.getBoundingClientRect().top);
+
+    /** Spies on every way to move a scroller; each calls through. */
+    function scrollWrites() {
+      return {
+        by: vi.spyOn(Element.prototype, "scrollBy"),
+        top: vi.spyOn(Element.prototype, "scrollTop", "set"),
+        to: vi.spyOn(Element.prototype, "scrollTo"),
+        windowTo: vi.spyOn(window, "scrollTo"),
+        windowBy: vi.spyOn(window, "scrollBy"),
+      };
+    }
+
+    afterEach(() => {
+      document.documentElement.style.removeProperty("overflow-anchor");
+    });
+
+    it.each(SHAPES)("draws no more rows than the window holds, in %s", async (_, make) => {
+      const { ul, scroller } = make();
+      enhance(ul, { keys: keysOf(5000) });
+      const pitch = pitchOf(ul);
+      // The rows the window holds, a part row at each edge, five past each.
+      const bound = Math.ceil(innerHeight / pitch) + 1 + 2 * 5;
+      expect(rows(ul).length).toBeLessThanOrEqual(bound);
+      scroller.scrollTop += 2000 * pitch;
+      await frames();
+      expect(rows(ul).length).toBeLessThanOrEqual(bound);
+      expect(rowAt(ul, viewTop(scroller)).dataset["key"]).toMatch(/^t(19\d\d|20\d\d)$/);
+    });
+
+    it.each(SHAPES)(
+      "keeps the row in view still by a relative scroll when a row above it grows, in %s",
+      async (_, make) => {
+        const { ul, scroller } = make();
+        // With the engine's anchoring off, the module alone keeps the place.
+        scroller.style.overflowAnchor = "none";
+        enhance(ul, { keys: keysOf(5000) });
+        scroller.scrollTop += 300.5 * pitchOf(ul);
+        await frames();
+        const top = viewTop(scroller);
+        const seen = rowAt(ul, top);
+        const was = seen.getBoundingClientRect().top;
+        const above = rows(ul)[0] as HTMLElement;
+        expect(above.getBoundingClientRect().bottom).toBeLessThan(top);
+        const from = scroller.scrollTop;
+        const writes = scrollWrites();
+        (above.firstElementChild as HTMLElement).style.minBlockSize = "10rem";
+        await frames();
+        await frames();
+        expect(Math.abs(seen.getBoundingClientRect().top - was)).toBeLessThan(1);
+        // The grown row's slot moves the guess for the rows not drawn too, so
+        // the scroller may move by more than the row grew, all of it relative.
+        expect(writes.by).toHaveBeenCalled();
+        const moved = (writes.by.mock.calls as unknown as readonly [ScrollToOptions][]).reduce(
+          (sum, [how]) => sum + (how.top ?? 0),
+          0,
+        );
+        expect(Math.abs(scroller.scrollTop - from - moved)).toBeLessThan(1);
+        expect(writes.top).not.toHaveBeenCalled();
+        expect(writes.to).not.toHaveBeenCalled();
+        expect(writes.windowTo).not.toHaveBeenCalled();
+        expect(writes.windowBy).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(SHAPES)(
+      "keeps a drawn row that grows above the view, with the app's patch, under the engine's own anchoring, in %s",
+      async (_, make) => {
+        const { ul, scroller } = make();
+        const list = enhance(ul, { keys: keysOf(5000) });
+        scroller.scrollTop += 300.5 * pitchOf(ul);
+        await frames();
+        const top = viewTop(scroller);
+        const seen = rowAt(ul, top);
+        const was = seen.getBoundingClientRect().top;
+        const above = rows(ul)[0] as HTMLElement;
+        const key = above.dataset["key"] ?? "";
+        expect(above.getBoundingClientRect().bottom).toBeLessThan(top);
+        // A resize observer runs after layout and before paint, so it reads
+        // the place the reader sees in the frame the growth is painted.
+        const painted: number[] = [];
+        let grown = false;
+        const watch = new ResizeObserver(() => {
+          if (grown) {
+            painted.push(seen.getBoundingClientRect().top - was);
+          }
+        });
+        watch.observe(above);
+        await frames();
+        grown = true;
+        // The app's patch: a row's details opened, which `row` does not know.
+        above.dataset["open"] = "";
+        (above.firstElementChild as HTMLElement).style.minBlockSize = "10rem";
+        await frames();
+        await frames();
+        watch.disconnect();
+        expect(list.rowOf(key)).toBe(above);
+        expect(above.dataset["open"]).toBe("");
+        expect(Math.abs(seen.getBoundingClientRect().top - was)).toBeLessThan(1);
+        expect(painted.length).toBeGreaterThan(0);
+        expect(Math.abs(painted[0] ?? Infinity)).toBeLessThan(1);
+      },
+    );
+
+    it.each(SHAPES)(
+      "goes back to the list's start by a relative scroll on a new set of rows, in %s",
+      async (_, make) => {
+        const { ul, scroller } = make();
+        const list = enhance(ul, { keys: keysOf(5000) });
+        const pitch = pitchOf(ul);
+        scroller.scrollTop += 2000 * pitch;
+        await frames();
+        const writes = scrollWrites();
+        list.reset(keysOf(500, 1));
+        const first = list.rowOf("t1") as HTMLElement;
+        expect(Math.abs(first.getBoundingClientRect().top - viewTop(scroller))).toBeLessThan(pitch);
+        expect(writes.by).toHaveBeenCalled();
+        expect(writes.top).not.toHaveBeenCalled();
+        expect(writes.to).not.toHaveBeenCalled();
+        expect(writes.windowTo).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it("draws in the frame after a resize or a visual viewport scroll, never inside the event", async () => {
+    const ul = virtualList();
+    enhance(ul, { keys: keysOf(20_000) });
+    const first = keysIn(ul);
+    ul.scrollTop = 5000 * pitchOf(ul);
+    dispatchEvent(new Event("resize"));
+    window.visualViewport?.dispatchEvent(new Event("resize"));
+    window.visualViewport?.dispatchEvent(new Event("scroll"));
+    expect(keysIn(ul)).toEqual(first);
+    await frames();
+    expect(keysIn(ul)).not.toEqual(first);
   });
 
   it("stops following the scroll once its signal aborts", async () => {

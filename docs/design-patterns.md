@@ -50,7 +50,7 @@ Every region that loads data has four designed states, for loading, empty, error
 ```
 
 1. Retry turns busy while the work runs again, and the state and its reason stay until the answer comes, so the item never shows two spinners.
-2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page; the item carries `tabindex="-1"` so it can take focus.
+2. When the work is done, the state turns `done` and Retry leaves. If Retry had focus, focus the item before removing Retry, so focus never falls to the page. The item carries `tabindex="-1"` so it can take focus.
 3. When it fails again, the reason changes to the new one and Retry is back at rest.
 4. Announce the outcome through `@cplieger/ui/announce`, assertively for a failure of what the person just did.
 
@@ -107,7 +107,7 @@ Rows are never interactive. A row's actions are buttons in its last cell, and a 
 
 ## Charts
 
-Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes is a [chart](data/chart.md), whose [Choosing a chart](data/chart.md#choosing-a-chart) says which form answers which question, from stacked columns per time bucket and bars by category to a timeline strip of who acts when. Outside it:
+Pick the form by the question the data answers, after [Datawrapper's guide to chart types](https://www.datawrapper.de/blog/chart-types-guide). A chart with axes, or a pie or treemap of one whole, is a [chart](data/chart.md), whose [Choosing a chart](data/chart.md#choosing-a-chart) says which form answers which question, from stacked columns per time bucket and bars by category to a timeline strip of who acts when. Outside it:
 
 - A number now is a `.cp-figure` from [Components](design-components.md), with a [sparkline](data/sparkline.md) for how it moved over the range.
 - A count that is almost always zero, such as failed checks, is a `.cp-figure`, since a chart of zeros says less than the number.

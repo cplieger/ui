@@ -1,5 +1,5 @@
 /**
- * chart.ts — `renderChart()` builds a chart with axes inside an app's
+ * chart.ts — `renderChart()` builds a chart inside an app's
  * `<figure class="cp-chart">`: its plot, legend row, summary and table
  * view, through one lifecycle of loading, empty, error and full states.
  * `durationEdges()` gives the duration ladder a histogram bins on.
@@ -13,7 +13,7 @@ import { forgetMeasures } from "../scale/measure.js";
 
 import { colourKey, drawPlot, frameLegend, readMetrics, sizeKey } from "./draw.js";
 import { explore } from "./explore.js";
-import { layout, type Floors } from "./layout.js";
+import { layout, type Floors, type TreeKept } from "./layout.js";
 import { chartModel, type Model } from "./model.js";
 import { chipChosen, overall, readoutWidths, totalWord, type Widths } from "./readout.js";
 import type { ChartSpec } from "./spec.js";
@@ -91,7 +91,9 @@ function caption(figure: HTMLElement): { title: HTMLElement; summary: HTMLElemen
   let title = cap.querySelector<HTMLElement>(':scope > [data-part="title"]');
   if (title === null) {
     title = part("span", "title");
-    title.append(...cap.childNodes);
+    const content = document.createRange();
+    content.selectNodeContents(cap);
+    title.append(content.extractContents());
     cap.append(title);
   }
   let summary = cap.querySelector<HTMLElement>(':scope > [data-part="summary"]');
@@ -189,6 +191,8 @@ export function renderChart(
   let drawnBox: number | undefined;
   // The last drawing numbered its notes, so the list below the plot is shown.
   let listed = false;
+  // A treemap's rows, which an update of the same names keeps.
+  let kept: TreeKept | undefined;
 
   let timing: SkeletonTimingController | undefined;
   let committed = false;
@@ -267,19 +271,20 @@ export function renderChart(
     plotStale = false;
     const metrics = readMetrics(plot, locale);
     drawnBox = chartWidth();
-    const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox);
+    const lay = layout(drawn, words, metrics, plot.clientWidth, floors, drawnBox, kept);
     floors = lay.gutters;
+    kept = lay.tree?.kept;
     drawPlot(svg, drawn, lay);
     listed = lay.numbered;
     if (listed) {
       const texts = drawn.marks.map((m) => (m.kind === "text" ? m.text : ""));
-      list.replaceChildren(
-        ...lay.notes.map((n) => {
-          const li = document.createElement("li");
-          li.textContent = texts[n.mark] ?? "";
-          return li;
-        }),
-      );
+      const items = document.createDocumentFragment();
+      for (const n of lay.notes) {
+        const li = document.createElement("li");
+        li.textContent = texts[n.mark] ?? "";
+        items.append(li);
+      }
+      list.replaceChildren(items);
       if (list.parentElement !== figure) {
         plot.after(list);
       }
