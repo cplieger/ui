@@ -8,7 +8,7 @@ import type { Format, Unit } from "../scale/format.js";
 type Slot = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 /** Values along a series; `null` or `NaN` is a gap. */
-type Values = ArrayLike<number | null>;
+type Values = readonly (number | null)[];
 
 interface Scale {
   readonly type?: "linear" | "log" | "time" | "band";
@@ -39,8 +39,8 @@ interface Series {
 
 export interface RectMark {
   readonly mark: "rect";
-  readonly x1: ArrayLike<number>;
-  readonly x2: ArrayLike<number>;
+  readonly x1: readonly number[];
+  readonly x2: readonly number[];
   /** The last bucket is still filling. */
   readonly open?: boolean;
   /** How several series share a bucket: stacked from the baseline (the
@@ -58,7 +58,7 @@ export interface RectMark {
 
 interface LineMark {
   readonly mark: "line";
-  readonly x: ArrayLike<number>;
+  readonly x: readonly number[];
   /** Default "linear". */
   readonly curve?: "linear" | "step";
   readonly series: readonly Series[];
@@ -66,7 +66,7 @@ interface LineMark {
 
 interface AreaMark {
   readonly mark: "area";
-  readonly x: ArrayLike<number>;
+  readonly x: readonly number[];
   /** Default "linear"; "step" holds each value until the next sample. */
   readonly curve?: "linear" | "step";
   /** Several series stack in series order from the baseline (the default),
@@ -80,7 +80,7 @@ interface AreaMark {
 
 interface DotRow {
   readonly name: string;
-  readonly x: ArrayLike<number>;
+  readonly x: readonly number[];
 }
 
 interface DotMark {
@@ -262,6 +262,65 @@ export interface BoxMark {
   readonly series: readonly BoxSeries[];
 }
 
+interface PieSlice {
+  readonly name: string;
+  readonly slot?: Slot;
+  /** 0 or more; `null` or `NaN` is no data. A 0 or no data draws no slice
+   *  but is still read and listed. */
+  readonly value: number | null;
+}
+
+/** A few parts of one whole as slices of a circle, clockwise from 12
+ *  o'clock in the order sent, never sorted. The chart takes no x or y scale
+ *  and no rule or text mark, which would have no scale to sit on. */
+export interface PieMark {
+  readonly mark: "pie";
+  /** A donut: the inner half of the radius left open, the total in it. */
+  readonly hole?: boolean;
+  /** The values' noun ("km²"). */
+  readonly unit?: Unit;
+  /** The values' format; default "number". Shares are always percent. */
+  readonly format?: Format;
+  readonly slices: readonly PieSlice[];
+}
+
+/** A part of a treemap's whole. */
+interface TreePart {
+  readonly name: string;
+  /** One level only: picks this part out of the mark's slot. Inside a group
+   *  it is a `TypeError`, since a part takes its group's. */
+  readonly slot?: Slot;
+  /** 0 or more; `null` or `NaN` is no data. A 0 or no data draws no tile
+   *  but is still read and listed. */
+  readonly value: number | null;
+}
+
+/** A treemap's group of parts, its value their sum. */
+interface TreeGroup {
+  readonly name: string;
+  /** The series rule: group i takes slot i, past the ninth only its own. */
+  readonly slot?: Slot;
+  /** One or more parts; a part holds no children. */
+  readonly children: readonly TreePart[];
+}
+
+/** Parts of one whole as tiles of the plot, in one level of parts or two of
+ *  groups and their parts, laid out in the order sent and never sorted, so
+ *  send the largest first. The chart takes no x or y scale and no rule or
+ *  text mark, which would have no scale to sit on. */
+export interface TreeMark {
+  readonly mark: "tree";
+  /** One level: every tile's slot, default 1; a `TypeError` beside groups,
+   *  which take a slot each. */
+  readonly slot?: Slot;
+  /** The values' noun ("USD"). */
+  readonly unit?: Unit;
+  /** The values' format; default "number". Shares are always percent. */
+  readonly format?: Format;
+  /** All parts or all groups; siblings' names are unique. */
+  readonly nodes: readonly TreePart[] | readonly TreeGroup[];
+}
+
 /** A cell chart's colour classes: equal rounded classes over the data, or
  *  the app's `thresholds`; a value past either end takes the end class. */
 interface ColourScale {
@@ -333,6 +392,8 @@ export type Mark =
   | CellMark
   | CalendarMark
   | BoxMark
+  | PieMark
+  | TreeMark
   | RuleMark
   | TextMark;
 
@@ -340,21 +401,23 @@ export interface ChartSpec {
   /** Default `{}`. A slope names its columns itself, so there it is a
    *  `TypeError`; a scatter's is linear or log; a cell mark's categories
    *  make it a band, and its bins' edges are its domain. A calendar's days
-   *  are its x, so there it is a `TypeError` too. */
+   *  are its x and a pie or a tree has no axes, so beside any of them it is a
+   *  `TypeError` too. */
   readonly x?: Scale;
   /** Band when the chart has a dot, bar, point or box mark or a cell
    *  mark's categories; linear under a slope; linear or log under a scatter or a
    *  cell mark's bins; a `TypeError` beside a calendar, whose rows are
-   *  weekdays. */
+   *  weekdays, and beside a pie or a tree. */
   readonly y?: Scale;
   /** A scatter's size, when its series carry `r`; a `TypeError` otherwise. */
   readonly r?: SizeScale;
   /** A cell mark's classes, a grid's or a calendar's; a `TypeError` beside
    *  any other mark. */
   readonly colour?: ColourScale;
-  /** One rect, line, area, dot, bar, point, slope, scatter, cell or box
-   *  mark and any rules and text marks, drawn in order: a rule after a rect draws
-   *  over it. A second data mark is a `TypeError`. */
+  /** One rect, line, area, dot, bar, point, slope, scatter, cell, box, pie
+   *  or tree mark and any rules and text marks, drawn in order: a rule after a
+   *  rect draws over it. A second data mark, or a rule or text mark beside a
+   *  pie or a tree, is a `TypeError`. */
   readonly marks: readonly Mark[];
   /** The plot's height in px. A band chart (dot, bar, point or box, or a
    *  cell mark with categories on y) is as tall as its rows, and a calendar as

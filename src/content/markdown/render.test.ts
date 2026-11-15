@@ -1223,7 +1223,7 @@ const COLUMNS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
     DEL: [],
     UL: [],
     LI: [],
-    OL: ["start"],
+    OL: ["start", "data-cp-digits"],
     CODE: ["class", "data-math"],
     INPUT: ["type", "checked", "disabled", "aria-label"],
     TABLE: [],
@@ -1325,6 +1325,13 @@ describe("the allowlist", () => {
       ),
       { numRuns: 500 },
     );
+  });
+
+  it("holds for an ordered list whose numbers reach 10", () => {
+    const el = render("10) a");
+    expect(el.querySelector("ol")?.getAttribute("data-cp-digits")).toBe("2");
+    expectInVocabulary(el);
+    el.remove();
   });
 
   it("holds with a base", () => {

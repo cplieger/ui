@@ -43,9 +43,18 @@ const title = (): string | undefined => question()?.querySelector("h2")?.textCon
 // question may open as it goes.
 async function answer(words: string): Promise<void> {
   const q = question();
-  const b = [...(q?.querySelectorAll("button") ?? [])].find((x) => x.textContent === words);
+  if (q === null) {
+    throw new Error(`no question open to answer "${words}"`);
+  }
+  const b = [...q.querySelectorAll("button")].find((x) => x.textContent === words);
+  // The question goes in its own close listener, which runs before this one;
+  // its exit animation is the engine's to time, so no poll bounds the wait.
+  const gone = new Promise((r) => {
+    q.addEventListener("close", r, { once: true });
+  });
   await userEvent.click(b as HTMLButtonElement);
-  await expect.poll(() => q?.isConnected).toBe(false);
+  await gone;
+  expect(q.isConnected).toBe(false);
 }
 
 const FIELDS =
