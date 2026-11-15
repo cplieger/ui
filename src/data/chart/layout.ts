@@ -341,10 +341,12 @@ const overlap = (a: Box, b: Box): boolean =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
 // All notes switch together, so a reader never matches some on the plot and
-// some in the list below it. The sweep by left edge tests a box only against
-// the kept boxes still crossing that edge: until an overlap they are apart, fit
-// the plot and cross one vertical line, so at most plot height / line height
-// of them, however many notes pile up.
+// some in the list below it. The sweep by left, then right, edge keeps the boxes
+// passed so far sorted by top with no two sharing a row, so a box can overlap
+// only the run whose rows meet its own; a run it misses has ended at its left
+// edge (the right-edge tie order makes this hold for a zero-width box too), so
+// the box takes the run's place. That is n log n edge reads, and a splice moves
+// at most the kept boxes, plot height / line height of them.
 export function numberedNotes(notes: readonly Note[], narrow: boolean): boolean {
   if (notes.length === 0) {
     return false;
@@ -352,16 +354,35 @@ export function numberedNotes(notes: readonly Note[], narrow: boolean): boolean 
   if (narrow || notes.some((n) => !n.fits)) {
     return true;
   }
-  const boxes = notes.map((n) => n.box).sort((a, b) => a.left - b.left);
-  let kept: Box[] = [];
+  const boxes = notes.map((n) => n.box).sort((a, b) => a.left - b.left || a.right - b.right);
+  const kept: Box[] = [];
   for (const box of boxes) {
-    kept = kept.filter((k) => k.right > box.left);
-    if (kept.some((k) => overlap(k, box))) {
+    const { top, bottom } = box;
+    const from = firstPast(kept, (k) => k.bottom > top);
+    const to = firstPast(kept, (k) => k.top >= bottom);
+    if (kept.slice(from, to).some((k) => overlap(k, box))) {
       return true;
     }
-    kept.push(box);
+    kept.splice(from, to - from, box);
   }
   return false;
+}
+
+// The first index of `list` from which `past` holds, which it does from some
+// index on; list.length when it never does.
+function firstPast<T>(list: readonly T[], past: (item: T) => boolean): number {
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    const item = list[mid];
+    if (item !== undefined && past(item)) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return lo;
 }
 
 /** A bar's value label: the value it writes, its row, and the series whose

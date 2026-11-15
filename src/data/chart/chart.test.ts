@@ -97,6 +97,22 @@ function start(spec: ChartSpec | null, b: Built = build(), options: ChartOptions
   return renderChart(b.figure, spec, { signal: b.life.signal, toggle: b.toggle, ...options });
 }
 
+// Sets the chart's box to `width` and resolves once the chart has drawn at it.
+// Observers deliver in the order they were made, so the chart's runs before
+// this one and asks for its frame first; this one's frame then runs after it.
+async function resize(b: Built, width: number): Promise<void> {
+  (b.figure.parentElement as HTMLElement).style.inlineSize = `${String(width)}px`;
+  await new Promise<void>((done) => {
+    const seen = new ResizeObserver(() => {
+      seen.disconnect();
+      requestAnimationFrame(() => {
+        done();
+      });
+    });
+    seen.observe(b.figure);
+  });
+}
+
 const get = (figure: HTMLElement, name: string) =>
   figure.querySelector<HTMLElement>(`:scope > [data-part="${name}"]`);
 const notice = (words = "Check failed. Retry.") => {
@@ -653,8 +669,7 @@ describe("the teardown", () => {
     expect(b.toggle.getAttribute("aria-pressed")).toBe("false");
     const svg = get(b.figure, "plot")?.querySelector("svg");
     const width = svg?.getAttribute("width");
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "400px";
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await resize(b, 400);
     expect(svg?.getAttribute("width")).toBe(width);
   });
 
@@ -1000,10 +1015,8 @@ describe("the drawing under update and resize", () => {
     const wide = slot();
     chart.update(bars([1, 1, 1, 1], [1, 1, 1, 1]));
     expect(slot()).toBe(wide);
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "560px";
-    await vi.waitFor(() => {
-      expect(slot()).toBeLessThan(wide);
-    });
+    await resize(b, 560);
+    expect(slot()).toBeLessThan(wide);
   });
 
   it("keeps a treemap's rows on an update of the same names, and lays out afresh on new names", () => {
@@ -1037,10 +1050,8 @@ describe("the drawing under update and resize", () => {
     start(counts(9), b);
     const ticks = () => b.figure.querySelectorAll('svg [data-part="x"] text').length;
     const wide = ticks();
-    (b.figure.parentElement as HTMLElement).style.inlineSize = "320px";
-    await vi.waitFor(() => {
-      expect(ticks()).toBeLessThan(wide);
-    });
+    await resize(b, 320);
+    expect(ticks()).toBeLessThan(wide);
     const boxes = [...b.figure.querySelectorAll('svg [data-part="x"] text')]
       .map((t) => t.getBoundingClientRect())
       .sort((p, q) => p.left - q.left);
@@ -1123,16 +1134,11 @@ describe("the notes", () => {
   it("switches to the list on a resize under 30rem and back above it", async () => {
     const b = build({ width: 600 });
     start(one, b);
-    const host = b.figure.parentElement as HTMLElement;
-    host.style.inlineSize = "320px";
-    await vi.waitFor(() => {
-      expect(listed(b)).toEqual(["Deploy"]);
-    });
+    await resize(b, 320);
+    expect(listed(b)).toEqual(["Deploy"]);
     expect(svgNotes(b)).toEqual([]);
-    host.style.inlineSize = "600px";
-    await vi.waitFor(() => {
-      expect(get(b.figure, "notes")).toBeNull();
-    });
+    await resize(b, 600);
+    expect(get(b.figure, "notes")).toBeNull();
     expect(svgNotes(b)).toEqual(["Deploy"]);
   });
 

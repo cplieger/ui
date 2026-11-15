@@ -1588,15 +1588,13 @@ describe("a treemap", () => {
 });
 
 describe("numberedNotes", () => {
-  const HEIGHT = 200;
   const LINE = 17;
-  const ROWS = Math.floor(HEIGHT / LINE);
   // A note whose box counts every read of its edges into `reads`, and throws
-  // past `most` so a quadratic check fails fast.
+  // past `most` so a slower sweep fails fast.
   const counted =
     (reads: { n: number }, most: number) =>
-    (left: number, top: number): Note => {
-      const edges = { left, top, right: left + 2, bottom: top + LINE };
+    (left: number, top: number, width: number): Note => {
+      const edges = { left, top, right: left + width, bottom: top + LINE };
       const box = new Proxy(edges, {
         get(target, key, receiver) {
           if (++reads.n > most) {
@@ -1608,26 +1606,30 @@ describe("numberedNotes", () => {
       return { mark: 0, point: { x: left, y: top }, box, lines: [], fits: true, number: 1 };
     };
 
-  it("finds a pile after many notes apart in work near n x (plot height / line height)", () => {
-    const APART = 2_000;
-    const PILED = 40_000;
-    const n = APART + PILED;
-    const most = 8 * n * (ROWS + Math.log2(n));
+  it("sweeps notes apart on a 40,000px plot and a pile past them in n log n reads", () => {
+    // A staircase: note k sits on row k mod ROWS and spans ROWS px, so it ends
+    // where the next note on its row starts and every row holds a note at
+    // every left edge, ROWS of them crossing each sweep line.
+    const ROWS = Math.floor(40_000 / LINE);
+    const APART = 20_000;
+    const n = APART + 2;
+    const most = 8 * n * Math.log2(n);
     const reads = { n: 0 };
     const note = counted(reads, most);
-    const apart = Array.from({ length: APART }, (_, k) =>
-      note(3 * Math.floor(k / ROWS), LINE * (k % ROWS)),
-    );
-    const piled = Array.from({ length: PILED }, () => note(300, 0));
+    const apart = Array.from({ length: APART }, (_, k) => note(k, LINE * (k % ROWS), ROWS));
+    expect(numberedNotes(apart, false)).toBe(false);
+    expect(reads.n).toBeLessThanOrEqual(most);
+    reads.n = 0;
+    const piled = [note(APART + ROWS, 0, 2), note(APART + ROWS, 0, 2)];
     expect(numberedNotes([...apart, ...piled], false)).toBe(true);
     expect(reads.n).toBeLessThanOrEqual(most);
   });
 
   it("keeps notes apart unnumbered, even ones touching edge to edge", () => {
-    const reads = { n: 0 };
-    const note = counted(reads, Infinity);
+    const rows = Math.floor(200 / LINE);
+    const note = counted({ n: 0 }, Infinity);
     const apart = Array.from({ length: 2_000 }, (_, k) =>
-      note(2 * Math.floor(k / ROWS), LINE * (k % ROWS)),
+      note(2 * Math.floor(k / rows), LINE * (k % rows), 2),
     );
     expect(numberedNotes(apart, false)).toBe(false);
   });
