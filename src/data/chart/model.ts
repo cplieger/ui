@@ -1543,8 +1543,9 @@ type Entry = (v: unknown, i: number, length: number) => unknown;
 
 interface Door {
   /** A copy of `v` read by index, each entry through `each`, when it is an
-   *  array whose one length read is a whole number of at most `most`; else
-   *  `v` itself, for its field's check to refuse. */
+   *  array; `v` itself otherwise, for its field's check to refuse. An array
+   *  whose one length read is not a whole number from 0 to `most` is the
+   *  `RangeError` naming `field`. */
   readonly list: (v: unknown, field: string, each?: Entry, most?: number, why?: string) => unknown;
   readonly add: (n: number, field: string) => void;
 }
