@@ -8,6 +8,8 @@ import { chartModel, type Model } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 import { chartWords } from "./words.js";
 
+type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"]>;
+
 const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
 const metrics: Metrics = {
   measure: face,
@@ -477,6 +479,56 @@ describe("facets: the spec", () => {
         ),
       );
     }
+  });
+
+  it("refuses a per-category panel whose series takes another slot than the first panel's", () => {
+    const stack = (slot?: Slot): Mark => ({
+      mark: "rect",
+      x1: [0, 10],
+      x2: [10, 20],
+      series: [
+        { name: "Posts", y: [1, 2] },
+        { name: "Replies", y: [3, 4], ...(slot === undefined ? {} : { slot }) },
+      ],
+    });
+    const regions = (a: Mark, b: Mark): ChartSpec => ({
+      marks: [],
+      facets: {
+        panels: [
+          { name: "North", marks: [a] },
+          { name: "South", marks: [b] },
+        ],
+      },
+    });
+    expect(() => model(regions(stack(), stack(2)))).not.toThrow();
+    expect(() => model(regions(stack(4), stack(4)))).not.toThrow();
+    expect(() => model(regions(stack(), stack(4)))).toThrow(
+      new TypeError(
+        "renderChart: facets.panels[1].marks[0].series[1].slot must be facets.panels[0]'s; a series keeps one colour in every panel",
+      ),
+    );
+    const pie = (slot: Slot): Mark => ({
+      mark: "pie",
+      slices: [
+        { name: "Coal", value: 1 },
+        { name: "Gas", value: 2, slot },
+      ],
+    });
+    expect(() => model(regions(pie(2), pie(5)))).toThrow(
+      /facets\.panels\[1\]\.marks\[0\]\.slices\[1\]\.slot must be facets\.panels\[0\]'s/,
+    );
+    // Per-series panels may each name a slot, colour highlighting one of them.
+    const line = (name: string, slot?: Slot): Mark => ({
+      mark: "line",
+      x: [0, 1],
+      series: [{ name, y: [1, 2], ...(slot === undefined ? {} : { slot }) }],
+    });
+    expect(() =>
+      model({
+        marks: [],
+        facets: { panels: [{ marks: [line("North")] }, { marks: [line("South", 3)] }] },
+      }),
+    ).not.toThrow();
   });
 
   it("colours every heatmap panel by one set of classes over every panel's values", () => {

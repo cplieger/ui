@@ -2290,6 +2290,10 @@ function sharedFields(mark: Record<string, unknown>): [string, unknown][] {
   }
 }
 
+// A checked series' or slice's slot, as the model gives it.
+const slotOf = (part: unknown, i: number): number =>
+  isObject(part) && typeof part["slot"] === "number" ? part["slot"] : i + 1;
+
 const sameList = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((n, i) => n === b[i]);
 
@@ -2320,6 +2324,7 @@ function checkFacets(
   const ruleNames = rules.map((_, m) => `marks[${String(m)}]`);
   let first: Record<string, unknown> | undefined;
   const lists: string[][] = [];
+  const slots: { at: string; of: number[] }[] = [];
   const seen = new Set<string>();
   panels.forEach((panel, p) => {
     const at = `facets.panels[${String(p)}]`;
@@ -2367,6 +2372,9 @@ function checkFacets(
     }
     const list = seriesNames(mark);
     lists.push(list);
+    const field = kind === "pie" ? "slices" : "series";
+    const parts = mark[field];
+    slots.push({ at: `${what}.${field}`, of: isArray(parts) ? parts.map(slotOf) : [] });
     const given = panel["name"];
     const name = typeof given === "string" ? given : list.length === 1 ? list[0] : undefined;
     if (name === undefined) {
@@ -2390,6 +2398,19 @@ function checkFacets(
   const perSeries = lists.every((l) => l.length === 1);
   if (!perSeries && !alike) {
     fail("facets.panels must each hold one series, or all the same series in the same order");
+  }
+  // The legend row's chips are framed once from the first panel, so their
+  // swatches hold for every panel only while each series keeps its slot.
+  if (!perSeries) {
+    const theirs = slots[0]?.of ?? [];
+    for (const { at, of } of slots) {
+      const s = of.findIndex((slot, i) => slot !== theirs[i]);
+      if (s !== -1) {
+        fail(
+          `${at}[${String(s)}].slot must be facets.panels[0]'s; a series keeps one colour in every panel`,
+        );
+      }
+    }
   }
   if (facets["context"] === true) {
     const kind = first?.["mark"];
