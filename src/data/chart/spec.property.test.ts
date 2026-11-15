@@ -711,7 +711,7 @@ describe("a chart spec", () => {
           // A cell axis that is an object reads as bins, so its edges are named.
           expect((thrown as Error).message, what).toMatch(
             new RegExp(
-              `^${PREFIX}${named(path).replaceAll(/[[\].]/gu, "\\$&")}(?:\\.edges)?(?![\\w.[])`,
+              `^${PREFIX}${named(path).replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")}(?:\\.edges)?(?![\\w.[])`,
               "u",
             ),
           );

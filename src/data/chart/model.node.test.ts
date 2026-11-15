@@ -863,7 +863,7 @@ describe("spec errors", () => {
     ]) {
       const m = mark(list);
       expect(() => build({ ...scales(m), marks: [m] }), JSON.stringify(list)).toThrow(
-        new RegExp(`^renderChart: ${message.replaceAll(/[[\].]/gu, "\\$&")}`, "u"),
+        new RegExp(`^renderChart: ${message.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")}`, "u"),
       );
       expect(() => build({ ...scales(m), marks: [m] })).toThrow(TypeError);
     }
