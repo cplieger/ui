@@ -2,11 +2,13 @@
  * feedback.ts — the gallery's wiring for the feedback lane's cards that run
  * on the library: the region refreshing over its old content, the message
  * feed's read summaries, which load on first open, announcements that
- * reach a dialog, and the proposals shown before they apply.
+ * reach a dialog, the proposals shown before they apply, and the batched
+ * action.
  */
 
 import { anchorTo } from "@cplieger/ui/anchor";
 import { announce } from "@cplieger/ui/announce";
+import { enhanceBatchedAction } from "@cplieger/ui/batch-report";
 import { enhanceLoadingRegion } from "@cplieger/ui/loading-region";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceProposal } from "@cplieger/ui/proposal";
@@ -205,5 +207,34 @@ for (const card of document.querySelectorAll<HTMLElement>("#proposal .cp-proposa
           },
         }
       : {}),
+  });
+}
+
+/** The episodes the gallery's last batch fails to start, with their reasons. */
+const UNSTARTED = [
+  {
+    name: "Kaiba, episode 4",
+    reason: "No provider has Basque subtitles",
+    note: "Checked 6 providers",
+  },
+  { name: "Kaiba, episode 9", reason: "The video file is missing" },
+];
+
+// A batched action names its report by data-report, its total by
+// data-batch-total and a press's share by data-batch-size.
+for (const button of document.querySelectorAll<HTMLButtonElement>("button[data-batch-total]")) {
+  const report = document.getElementById(button.dataset["report"] ?? "");
+  if (report === null) {
+    continue;
+  }
+  const total = Number(button.dataset["batchTotal"]);
+  enhanceBatchedAction(button, report, {
+    total,
+    size: Number(button.dataset["batchSize"]),
+    send: async (offset, count, signal) => {
+      await after(900, signal);
+      const missed = offset + count === total ? UNSTARTED : [];
+      return { started: count - missed.length, missed };
+    },
   });
 }

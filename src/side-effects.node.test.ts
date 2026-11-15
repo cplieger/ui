@@ -14,6 +14,7 @@ const PURE = [
   "/anchor",
   "/announce",
   "/ask",
+  "/batch-report",
   "/chart",
   "/checkbox",
   "/chip",

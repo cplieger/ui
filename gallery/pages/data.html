@@ -16,7 +16,7 @@
           <table class="cp-table" id="g-table">
             <caption tabindex="-1">Library, 1 to 4 of 412 entries</caption>
             <thead><tr>
-              <th data-col="select"><label><input class="cp-checkbox" type="checkbox" data-select-all="rows"></label></th>
+              <th data-col="select"><label><input class="cp-checkbox" type="checkbox" data-select-all="rows" aria-label="Select all 4 entries on this page"></label></th>
               <th aria-sort="ascending"><button class="cp-sort" type="button">Title</button></th>
               <th data-priority="mid"><button class="cp-sort" type="button">Verdict</button></th>
               <th data-col="num" data-priority="low"><button class="cp-sort" type="button">Size</button></th>
@@ -55,7 +55,7 @@
         <h2>A row that acts and explains itself</h2>
         <div class="cp-panel" data-flush>
           <table class="cp-table">
-            <thead><tr><th data-col="expand"><span class="cp-visually-hidden">Why this rank</span></th><th>Release</th><th data-col="num">Rank</th><th data-col="actions"><span class="cp-visually-hidden">Actions</span></th></tr></thead>
+            <thead><tr><th scope="col" data-col="expand"><span class="cp-visually-hidden">Why this rank</span></th><th scope="col">Release</th><th scope="col" data-col="num">Rank</th><th scope="col" data-col="actions"><span class="cp-visually-hidden">Actions</span></th></tr></thead>
             <tbody>
               <tr><td data-col="expand"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-expanded="false" aria-controls="why-1" aria-label="Why Arid's release ranks first"><span class="cp-icon" data-cp-icon="chevron-right" aria-hidden="true"></span></button></td><td><div class="cp-cell-stack"><strong>[Arid] Frieren S01E04</strong><span class="cp-meta">English, ASS, 412 downloads</span></div></td><td data-col="num">1st</td><td data-col="actions"><button class="cp-button" data-size="sm" type="button" aria-label="Download [Arid] Frieren S01E04" data-outcome="ok"><span class="cp-icon" data-cp-icon="download" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Download</span></button></td></tr>
               <tr id="why-1" data-part="detail" hidden><td colspan="4"><div><dl class="cp-facts" data-variant="compare"><dt>Episode</dt><dd><span class="cp-state" data-tone="success"><span class="cp-icon" data-cp-icon="check" aria-hidden="true"></span>Same</span><small>S01E04 in both</small></dd><dt>Release group</dt><dd><span class="cp-state" data-tone="warning"><span class="cp-icon" data-cp-icon="triangle-alert" aria-hidden="true"></span>Differs</span><small>Arid's video, a fansub's subtitles</small></dd><dt>Frame rate</dt><dd><span class="cp-state" data-tone="neutral"><span class="cp-icon" data-cp-icon="circle-help" aria-hidden="true"></span>Unknown</span><small>The provider does not say</small></dd></dl></div></td></tr>
@@ -425,8 +425,8 @@
       </div>
       <div class="card" data-new>
         <h2>A batched action</h2>
-        <button class="cp-button" data-variant="primary" type="button" data-batch-total="248" data-batch-size="100" data-report="batch-report"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span><span>Start the first 100</span></button>
-        <div class="cp-batch-report" id="batch-report" tabindex="-1"><p>248 episodes need subtitles.</p></div>
+        <button class="cp-button" data-variant="primary" type="button" data-batch-total="248" data-batch-size="100" data-report="batch-report"><span class="cp-icon" data-cp-icon="captions" aria-hidden="true"></span><span class="cp-icon" data-cp-icon="spinner-arc" data-part="busy" aria-hidden="true"></span><span class="cp-roll">Start the first 100</span></button>
+        <div class="cp-batch-report" id="batch-report"><p>248 episodes need subtitles.</p></div>
         <footer>Each press sends the next batch and the button names what the next press does; the report under it sums up the presses and lists each item that did not go, with its reason. After the last batch, focus moves to the report.</footer>
       </div>
       <div class="card" data-new>

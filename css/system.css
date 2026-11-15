@@ -5931,6 +5931,12 @@ th[aria-sort="descending"] > .cp-sort::after {
 .cp-facts[data-variant="compare"] {
   grid-template-columns: max-content auto minmax(0, 1fr);
   gap: var(--cp-space-1) var(--cp-space-3);
+  align-items: baseline;
+}
+
+/* Each label starts a row, so a fact with no note keeps the next in line. */
+.cp-facts[data-variant="compare"] > dt {
+  grid-column: 1;
 }
 
 .cp-facts[data-variant="compare"] > dd {
@@ -5945,6 +5951,11 @@ th[aria-sort="descending"] > .cp-sort::after {
 
 .cp-facts .cp-state > .cp-icon {
   --cp-icon-size: var(--cp-icon-ui);
+}
+
+.cp-facts .cp-state[data-cp-state]::before {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
 }
 
 .cp-facts[data-variant="compare"] > dd > small {
@@ -5973,6 +5984,32 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 
   .cp-facts[data-variant="compare"] > dd > * {
+    margin-block-end: var(--cp-space-3);
+  }
+}
+
+/* A box named cp-facts, such as a batch report, stacks the facts it holds
+ * below 24rem as a phone does, whatever the viewport. */
+@container cp-facts (width < 24rem) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cp-facts > dd:not(:last-child) {
+    margin-block-end: var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] > dt {
+    grid-column: 1 / -1;
+  }
+
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
     margin-block-end: var(--cp-space-3);
   }
 }
@@ -9339,11 +9376,13 @@ div.cp-list-foot {
   }
 }
 
-/* A batched action's report, under the control that ran it: a <p> summing
- * up what the presses did, then a <ul> of each item that did not go, its
- * name beside its reason as a .cp-state word, in aligned columns that stack
- * under 40rem as .cp-facts does. */
+/* A batched action's report (@cplieger/ui/batch-report), under the control
+ * that runs it: a <p> summing up the presses, then a compared .cp-facts of
+ * each item that did not go, its reason a failed .cp-state. */
 .cp-batch-report {
+  container: cp-facts / inline-size;
+  display: grid;
+  gap: var(--cp-space-2);
   margin: var(--cp-space-2) 0 0;
   color: var(--cp-ink-muted);
   font-size: var(--cp-text-sm);
@@ -9351,30 +9390,6 @@ div.cp-list-foot {
 
 .cp-batch-report > p {
   margin: 0;
-}
-
-.cp-batch-report > ul {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--cp-space-1) var(--cp-space-3);
-  margin: var(--cp-space-2) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.cp-batch-report > ul > li {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: baseline;
-  color: var(--cp-ink);
-}
-
-@media (width < 40rem) {
-  .cp-batch-report > ul {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--cp-space-2);
-  }
 }
 
 /* A share bar (@cplieger/ui/share-bar): the parts of a whole as segments

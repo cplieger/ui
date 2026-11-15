@@ -22,6 +22,12 @@
 .cp-facts[data-variant="compare"] {
   grid-template-columns: max-content auto minmax(0, 1fr);
   gap: var(--cp-space-1) var(--cp-space-3);
+  align-items: baseline;
+}
+
+/* Each label starts a row, so a fact with no note keeps the next in line. */
+.cp-facts[data-variant="compare"] > dt {
+  grid-column: 1;
 }
 
 .cp-facts[data-variant="compare"] > dd {
@@ -36,6 +42,11 @@
 
 .cp-facts .cp-state > .cp-icon {
   --cp-icon-size: var(--cp-icon-ui);
+}
+
+.cp-facts .cp-state[data-cp-state]::before {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
 }
 
 .cp-facts[data-variant="compare"] > dd > small {
@@ -64,6 +75,32 @@
   }
 
   .cp-facts[data-variant="compare"] > dd > * {
+    margin-block-end: var(--cp-space-3);
+  }
+}
+
+/* A box named cp-facts, such as a batch report, stacks the facts it holds
+ * below 24rem as a phone does, whatever the viewport. */
+@container cp-facts (width < 24rem) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cp-facts > dd:not(:last-child) {
+    margin-block-end: var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0 var(--cp-space-3);
+  }
+
+  .cp-facts[data-variant="compare"] > dt {
+    grid-column: 1 / -1;
+  }
+
+  .cp-facts[data-variant="compare"] > dd:not(:last-child) > * {
     margin-block-end: var(--cp-space-3);
   }
 }
