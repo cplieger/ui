@@ -88,7 +88,9 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
   // Only the strip scrolls, never the page (as scrollIntoView would), so a
   // tab Back restores in a strip off screen leaves the page where it was.
   // Only a press or a key glides, since nothing animates on load (design.md
-  // "Motion"). A tab wider than the strip shows its reading start.
+  // "Motion"). A tab wider than the strip shows its reading start. The tab
+  // stops at the strip's padding, as at rest, so the pill's corner keeps the
+  // same inset on both edges and nests in the strip's.
   const reveal = (glide: boolean): void => {
     const tab = selected();
     // A strip with no box (in a closed dialog or a hidden panel) measures 0
@@ -96,8 +98,10 @@ export function enhanceTabs(list: HTMLElement, options: TabsOptions = {}): Tabs 
     if (tab === null || list.clientWidth === 0) {
       return;
     }
-    const left = list.getBoundingClientRect().left + list.clientLeft;
-    const right = left + list.clientWidth;
+    const pad = getComputedStyle(list);
+    const edge = list.getBoundingClientRect().left + list.clientLeft;
+    const left = edge + parseFloat(pad.paddingLeft);
+    const right = edge + list.clientWidth - parseFloat(pad.paddingRight);
     const box = tab.getBoundingClientRect();
     const past = box.right - right;
     const before = box.left - left;

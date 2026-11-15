@@ -287,6 +287,35 @@ describe("enhanceTabs", () => {
   });
 
   it.each([
+    { dir: "ltr", start: "left", end: "right" },
+    { dir: "rtl", start: "right", end: "left" },
+  ] as const)(
+    "stops a tab it scrolls to at the strip's padding, the inset its other edges have ($dir)",
+    ({ dir, start, end }) => {
+      const { list, tabs } = strip();
+      list.dir = dir;
+      narrow(list, tabs);
+      list.style.padding = "4px";
+      const api = enhanceTabs(list, { signal: life.signal });
+      const inset = (tab: HTMLElement | undefined) => {
+        const port = list.getBoundingClientRect();
+        const box = (tab as HTMLElement).getBoundingClientRect();
+        return {
+          left: box.left - port.left,
+          right: port.right - box.right,
+          top: box.top - port.top,
+        };
+      };
+      const [first, , last] = tabs;
+      api.select(last as HTMLElement);
+      expect(inset(last)[end]).toBeCloseTo(4, 0);
+      expect(inset(last).top).toBeCloseTo(4, 0);
+      api.select(first as HTMLElement);
+      expect(inset(first)[start]).toBeCloseTo(4, 0);
+    },
+  );
+
+  it.each([
     { dir: "ltr", scroll: 32, start: (r: DOMRect) => r.left },
     { dir: "rtl", scroll: -32, start: (r: DOMRect) => r.right },
   ])("shows a tab wider than the strip from its reading start ($dir)", ({ dir, scroll, start }) => {
