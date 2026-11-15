@@ -18,6 +18,8 @@ const words = chartWords();
 const metrics: Metrics = {
   measure: face,
   mono: face,
+  hole: face,
+  holeLine: 21,
   lineHeight: 17,
   nameLine: 18,
   rem: 16,

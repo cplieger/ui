@@ -24,6 +24,8 @@ const face = measurer((t) => 7.5 * Array.from(t).length, 7.5, "en");
 const metrics: Metrics = {
   measure: face,
   mono: face,
+  hole: face,
+  holeLine: 21,
   lineHeight: 17,
   nameLine: 18,
   rem: 16,
@@ -106,12 +108,26 @@ describe("calendar days and weeks", () => {
     expect(monthsFrom(day(2026, 2, 31), -1)).toBe(day(2026, 1, 28));
     expect(monthsFrom(day(2026, 11, 15), 1)).toBe(day(2027, 0, 15));
     expect(monthsFrom(day(2026, 0, 15), -1)).toBe(day(2025, 11, 15));
+    // In the years 0 to 99, which Date.UTC reads as 1900 to 1999.
+    const early = (y: number, m: number, d: number) => new Date(0).setUTCFullYear(y, m, d) / DAY;
+    expect(monthsFrom(early(50, 0, 31), 1)).toBe(early(50, 1, 28));
+    expect(monthsFrom(early(0, 0, 31), 1)).toBe(early(0, 1, 29));
+    // Friday 12 September 275760 to 12 October, and Saturday 27 April
+    // -271821 to 27 March, each past what Date holds.
+    expect(monthsFrom(1e8 - 1, 1)).toBe(1e8 - 1 + 30);
+    expect(monthsFrom(-1e8 + 7, -1)).toBe(-1e8 + 7 - 31);
   });
 
   it("knows a month's first day and writes a day's own date", () => {
     expect(monthFirst(dayNo(Date.UTC(2026, 4, 1)))).toBe(true);
     expect(monthFirst(dayNo(Date.UTC(2026, 4, 2)))).toBe(false);
     expect(dayFormat("en", { dateStyle: "full" })(dayNo(JAN1))).toBe("Thursday, January 1, 2026");
+    expect(monthFirst(1e8 + 18)).toBe(true);
+    expect(() => dayFormat("en", { dateStyle: "full" })(1e8 + 1)).toThrow(
+      new RangeError(
+        "renderChart: a calendar day must lie within 8.64e15 ms either side of 1970, the range Date holds",
+      ),
+    );
   });
 });
 

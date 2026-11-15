@@ -24,6 +24,15 @@ export function probeDigits(locale: string | undefined): string {
   return digits;
 }
 
+/** The largest `width` of any of `items`, 0 for none. */
+export function widestOf<T>(items: Iterable<T>, width: (item: T) => number): number {
+  let most = 0;
+  for (const item of items) {
+    most = Math.max(most, width(item));
+  }
+  return most;
+}
+
 /** Widths in pixels: `text` as it is, `number` with every digit as wide as
  *  the font's widest, or its tabular advance when that is wider. */
 export interface Measure {
@@ -54,8 +63,7 @@ export function measurer(
     }
     return w;
   };
-  const widest = Math.max(...Array.from(probeDigits(locale), known));
-  const digit = Math.max(widest, tabular);
+  const digit = Math.max(widestOf(probeDigits(locale), known), tabular);
   return {
     text: known,
     number: (text) => {

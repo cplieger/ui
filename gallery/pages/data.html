@@ -202,6 +202,12 @@
         <ul class="cp-list g-gap-top" id="v-list" data-virtual aria-label="Titles"></ul>
         <footer>20,000 titles the server sends 100 at a time, of which only those in view are drawn, each keyed by its id. A page that has not come yet shows as skeleton rows until it does. A live update changes rows in place and keeps the scroll and the focus. A row's one interactive part is its title link. The count reads “20,000 of 20,000 titles”; once a filter leaves some, it reads how many, such as “2,000 of 20,000 titles” for Frieren, and is said once typing stops.</footer>
       </div>
+      <div class="card g-wide" data-new>
+        <h2>A long log of mixed heights</h2>
+        <ol class="cp-list" id="k-log" data-variant="timeline" data-surface="plain" data-virtual aria-label="Activity, newest first"></ol>
+        <div class="cp-cluster g-gap-top"><button class="cp-button" data-size="sm" type="button" data-keyed-newer>Add a newer event</button></div>
+        <footer>A year of activity, about 8,500 events under a heading for each day, newest first, of which only those in view are drawn. Rows differ in height: a grab says its release on a second line, a full check opens its phases in place, and each day starts with its heading, which is a row of the same list. Each drawn row is measured, so the log scrolls end to end without a jump and ends on its oldest day. Open a check's phases, scroll on and back, and it is still open. Add a newer event while scrolled down the log: it goes in at the top of today and the rows you are reading stay still.</footer>
+      </div>
     </div>
   </section>
 
