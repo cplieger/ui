@@ -58,6 +58,32 @@ const open = (select: HTMLSelectElement): boolean =>
 const dots = (links: readonly HTMLAnchorElement[]): string[] =>
   links.map((l) => (l.querySelector(".cp-dot") === null ? "" : (l.textContent ?? "")));
 
+/** Resolves once `el` is in the band the module watches; Chromium may
+ *  deliver the module's own observer's entries a task later. */
+const entered = (el: Element): Promise<void> =>
+  new Promise((resolve) => {
+    const probe = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          probe.disconnect();
+          resolve();
+        }
+      },
+      { rootMargin: "-20% 0px -60% 0px" },
+    );
+    probe.observe(el);
+  });
+
+/** Presses the last, short category, whose section never reaches the band,
+ *  and waits until the one before it has. */
+async function holdLast(links: readonly HTMLAnchorElement[]): Promise<void> {
+  const seen = entered(document.getElementById("s-chk") as HTMLElement);
+  links[2]?.click();
+  await seen;
+  await new Promise(requestAnimationFrame);
+  await task();
+}
+
 describe("enhanceSettings", () => {
   it("shows the save bar with its count only while a change waits", () => {
     const { form, bar, fields } = page();
@@ -242,6 +268,28 @@ describe("enhanceSettings", () => {
     expect(pressed).toEqual(["#s-dis"]);
   });
 
+  it("keeps a key choice waiting for Enter through a repaint", () => {
+    const { form, nav, fields } = page();
+    const s = enhanceSettings(form, { signal: life.signal });
+    const pressed: string[] = [];
+    nav.addEventListener("click", (e) => {
+      e.preventDefault();
+      pressed.push((e.target as HTMLAnchorElement).hash);
+    });
+    const select = nav.querySelector("select") as HTMLSelectElement;
+    select.focus();
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    select.selectedIndex = 2;
+    select.dispatchEvent(new Event("change"));
+    s.paint([fields[0] as Element]);
+    expect([select.selectedIndex, select.options[0]?.text]).toEqual([
+      2,
+      "Connections, unsaved changes",
+    ]);
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(pressed).toEqual(["#s-dis"]);
+  });
+
   it.runIf(server.browser === "chromium")(
     "waits for Enter after a letter Chromium sends as a key and then its character",
     async () => {
@@ -351,6 +399,43 @@ describe("enhanceSettings", () => {
     await vi.waitFor(() => {
       expect(current()).toBe(0);
     });
+  });
+
+  it("ends a pressed category's hold on a wheel, a touch drag or a scrolling key over the categories", async () => {
+    const { form, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    for (const gesture of [
+      new WheelEvent("wheel", { bubbles: true }),
+      new Event("touchmove", { bubbles: true }),
+      new KeyboardEvent("keydown", { key: "PageDown", bubbles: true }),
+      new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+    ]) {
+      await holdLast(links);
+      expect(current(), gesture.type).toBe(2);
+      links[2]?.dispatchEvent(gesture);
+      scrollTo(0, 0);
+      await vi.waitFor(() => {
+        expect(current(), gesture.type).toBe(0);
+      });
+    }
+  });
+
+  it("keeps a pressed category through keys a field takes, which scroll nothing", async () => {
+    const { form, fields, links } = page(true);
+    enhanceSettings(form, { signal: life.signal });
+    const current = (): number => links.findIndex((l) => l.hasAttribute("aria-current"));
+    await holdLast(links);
+    const theme = fields[3] as HTMLInputElement;
+    for (const key of ["a", "ArrowDown", "Home", " "]) {
+      theme.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    }
+    const top = entered(document.getElementById("s-con") as HTMLElement);
+    scrollTo(0, 0);
+    await top;
+    await new Promise(requestAnimationFrame);
+    await task();
+    expect(current()).toBe(2);
   });
 
   it("leaves the current category to a router that marks it page, one section shown at a time", async () => {

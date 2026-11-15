@@ -63,7 +63,42 @@ const MOVES = new Set([
   "PageUp",
   "PageDown",
 ]);
+// Keys that scroll the page unless the focused element takes them.
+const SCROLLS = new Set([" ", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"]);
+// Input types whose keys move a caret or a value.
+const ENTRIES = new Set([
+  "text",
+  "search",
+  "url",
+  "tel",
+  "email",
+  "password",
+  "number",
+  "date",
+  "datetime-local",
+  "month",
+  "week",
+  "time",
+  "range",
+]);
 let seq = 0;
+
+/** Whether the focused `el` acts on `key` itself, so the page does not
+ *  scroll: a text entry or a select takes every key, a radio its arrows,
+ *  and any other control its Space. */
+function takes(el: EventTarget | undefined, key: string): boolean {
+  if (el instanceof HTMLInputElement) {
+    return ENTRIES.has(el.type) || key === " " || (el.type === "radio" && key.startsWith("Arrow"));
+  }
+  if (!(el instanceof HTMLElement)) {
+    return false;
+  }
+  return (
+    el.isContentEditable ||
+    el.matches("textarea, select") ||
+    (key === " " && el.matches("button, summary"))
+  );
+}
 
 const isCurrent = (link: Element): boolean => {
   const v = link.getAttribute("aria-current");
@@ -199,17 +234,26 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   box.append(select);
   field.append(label, box);
 
+  // A key choice waiting for Enter (see the select's listeners below).
+  let keyed = false;
+  let waiting = false;
   const sync = (): void => {
     const at = links.findIndex(isCurrent);
     select.selectedIndex = at === -1 ? 0 : at;
   };
   const fillSelect = (): void => {
+    const chosen = select.selectedIndex;
     const options = links.map((link) => {
       const name = nameOf(link);
       return new Option(changed.has(link) ? words.marked(name) : name);
     });
     select.replaceChildren(...options);
-    sync();
+    if (waiting && chosen >= 0 && chosen < options.length) {
+      select.selectedIndex = chosen;
+    } else {
+      waiting = false;
+      sync();
+    }
   };
 
   const ownerOf = (el: Element): HTMLAnchorElement | undefined => {
@@ -296,14 +340,25 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     },
     { rootMargin: "-20% 0px -60% 0px" },
   );
-  const release = (e: Event): void => {
-    if (!e.composedPath().includes(nav)) {
-      held = null;
-    }
+  // A wheel or a touch drag anywhere scrolls the page, since the nav never
+  // scrolls while the script runs (a row of links at 48rem and wider, the
+  // select below it). A key ends the hold only when it scrolls the page, so
+  // Tab, a letter, or keys a field or the select take keep it.
+  const release = (): void => {
+    held = null;
   };
-  for (const type of ["wheel", "touchmove", "keydown"]) {
+  for (const type of ["wheel", "touchmove"]) {
     addEventListener(type, release, { ...listen, passive: true });
   }
+  addEventListener(
+    "keydown",
+    (e) => {
+      if (SCROLLS.has(e.key) && !takes(e.composedPath()[0], e.key)) {
+        held = null;
+      }
+    },
+    { ...listen, passive: true },
+  );
   nav.addEventListener(
     "click",
     (e) => {
@@ -355,9 +410,8 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   // choice waits for Enter, and Escape or leaving the select puts the current
   // back. That change fires inside the key's own task, a letter's inside its
   // keypress, which Chromium sends as a later task, so both arm the hold; a
-  // picker's commit comes in a later one and moves at once.
-  let keyed = false;
-  let waiting = false;
+  // picker's commit comes in a later one and moves at once. A repaint keeps
+  // the waiting choice.
   const arm = (): void => {
     keyed = true;
     setTimeout(() => {
