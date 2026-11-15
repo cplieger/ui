@@ -669,6 +669,14 @@ describe("spec errors", () => {
     expect(() => build({ x: {}, marks: [{ mark: "line", x: [0], series }] })).toThrow(
       past("marks[0].series[5].y"),
     );
+    const shared = counted(MOST, 1);
+    const line = {
+      mark: "line",
+      x: times(MOST, (i) => i),
+      series: times(3, (s) => ({ name: `s${String(s)}`, y: shared.list })),
+    };
+    expect(() => build({ x: {}, marks: [line] })).toThrow(past("marks[0].series[1].y"));
+    expect(shared.read.n).toBe(MOST);
     const second = counted(600_000, 0);
     const timeline: Mark = {
       mark: "dot",
@@ -767,6 +775,17 @@ describe("spec errors", () => {
       ],
       ["slope x", { mark: "slope", x: million(1), series: [{ name: "a", y: [1, 2] }] }, 3, "x"],
       ["cell y", { mark: "cell", x: ["a"], y: million("r"), values: [[1]] }, 1, "y"],
+      [
+        "cell y edges",
+        {
+          mark: "cell",
+          x: ["a"],
+          y: { edges: new Array<number>(MOST + 1).fill(0) },
+          values: [[1]],
+        },
+        1,
+        "y.edges",
+      ],
     ];
     for (const [what, mark, leading, field] of cases) {
       expect(() => build({ x: {}, marks: [mark, rule] }), what).toThrow(past("marks[1]"));
