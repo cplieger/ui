@@ -1720,10 +1720,6 @@ html:has(.g-header) {
   color: var(--av-on);
 }
 
-.g-range-wide {
-  min-inline-size: 14rem;
-}
-
 .g-grow {
   flex: 1;
 }

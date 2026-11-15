@@ -1305,6 +1305,23 @@ describe("css/system.css", () => {
     }
   });
 
+  it("gives a range in a setting row room to drag, and wraps it under the words when narrow", () => {
+    theme("light");
+    const markup =
+      '<div class="cp-setting"><div><label class="cp-label" for="s">Minimum seeders</label></div><div class="cp-range-row"><input class="cp-range" id="s" type="range" min="0" max="50" value="5"><output for="s">5</output></div></div>';
+    const wide = build(`<div style="inline-size: 640px">${markup}</div>`);
+    const words = wide.querySelector(".cp-setting > div") as HTMLElement;
+    const row = (wide.querySelector(".cp-range-row") as HTMLElement).getBoundingClientRect();
+    expect(row.width).toBe(224);
+    expect(row.left).toBeGreaterThan(words.getBoundingClientRect().right);
+    const narrow = build(`<div style="inline-size: 320px">${markup}</div>`);
+    const under = (narrow.querySelector(".cp-range-row") as HTMLElement).getBoundingClientRect();
+    expect(under.width).toBe(224);
+    expect(under.top).toBeGreaterThanOrEqual(
+      (narrow.querySelector(".cp-setting > div") as HTMLElement).getBoundingClientRect().bottom,
+    );
+  });
+
   it("fills a chosen radio with the accent", () => {
     theme("light");
     const el = build(
@@ -2409,6 +2426,22 @@ describe("css/system.css", () => {
     expect(box(narrow, ".cp-settings-nav").bottom).toBeLessThanOrEqual(
       box(narrow, ".cp-setting").top,
     );
+  });
+
+  it("keeps the save bar and the toasts clear of the bottom bar on a phone", async () => {
+    theme("light");
+    await page.viewport(390, 700);
+    const el = build(
+      '<div class="cp-app"><header class="cp-header"><nav class="cp-nav" aria-label="Main"><a class="cp-nav-item" href="#"><span class="cp-nav-label">Library</span></a></nav></header>' +
+        '<main class="cp-main"><form><div style="block-size: 2000px"></div><div class="cp-savebar"><span>1 unsaved change</span></div></form></main></div>' +
+        '<section class="cp-toaster"><div style="block-size: 40px"></div></section>',
+    );
+    const nav = (el.querySelector(".cp-nav") as HTMLElement).getBoundingClientRect();
+    expect(nav.bottom).toBeCloseTo(700, 2);
+    const bar = (el.querySelector(".cp-savebar") as HTMLElement).getBoundingClientRect();
+    expect(nav.top - bar.bottom).toBeCloseTo(12, 2);
+    const toaster = (el.querySelector(".cp-toaster") as HTMLElement).getBoundingClientRect();
+    expect(nav.top - toaster.bottom).toBeCloseTo(12, 2);
   });
 
   it("keeps the save bar in view at the bottom of a long form, and gone while hidden", () => {

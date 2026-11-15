@@ -558,7 +558,7 @@ for (const form of $$("form[data-settings]")) {
   const update = () => {
     const n = count();
     bar.hidden = n === 0;
-    $(".g-dirty", bar).textContent = `${n} unsaved change${n === 1 ? "" : "s"}`;
+    $("[data-part=count]", bar).textContent = `${n} unsaved change${n === 1 ? "" : "s"}`;
   };
   form.addEventListener("input", update);
   form.addEventListener("change", update);
@@ -905,7 +905,8 @@ for (const form of $$("form[data-settings]")) {
     const set = new Set();
     for (const f of $$("input, select, textarea", form)) {
       if (!f.name || f.name.startsWith("g-")) continue;
-      const was = f.type === "checkbox" || f.type === "radio" ? f.defaultChecked : f.defaultValue;
+      // A select has no defaultValue: its saved choice is the option marked selected.
+      const was = f.type === "checkbox" || f.type === "radio" ? f.defaultChecked : f.tagName === "SELECT" ? ([...f.options].find((o) => o.defaultSelected) ?? f.options[0])?.value : f.defaultValue;
       const now = f.type === "checkbox" || f.type === "radio" ? f.checked : f.value;
       if (was !== now) set.add(f.closest("section")?.id);
     }
@@ -947,6 +948,7 @@ for (const form of $$("form[data-settings]")) {
       summary.hidden = true;
       for (const f of $$("input, select, textarea", form)) {
         if (f.type === "checkbox" || f.type === "radio") f.defaultChecked = f.checked;
+        else if (f.tagName === "SELECT") for (const o of f.options) o.defaultSelected = o.selected;
         else f.defaultValue = f.value;
       }
       setTimeout(mark, 0);
