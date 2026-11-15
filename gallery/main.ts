@@ -78,7 +78,7 @@ for (const button of all<HTMLButtonElement>(".cp-code > .cp-copy")) {
 }
 // A token field names its suggestions by data-suggest, its limit by
 // data-max, a limit it shares by data-limit and its note by data-note, and
-// data-free takes new words. The search page listens for "tokens".
+// data-free takes new words.
 const limits = new Map<string, TokenLimit>([["hidden-tags", createTokenLimit(4)]]);
 for (const box of all<HTMLElement>("[data-tokens]")) {
   const byId = (key: string): HTMLElement | undefined => {
@@ -94,7 +94,6 @@ for (const box of all<HTMLElement>("[data-tokens]")) {
     ...(note === undefined ? {} : { note }),
     ...(max === undefined ? {} : { max: Number(max) }),
     ...(limit === undefined ? {} : { limit }),
-    onChange: () => box.dispatchEvent(new CustomEvent("tokens", { bubbles: true })),
   });
 }
 for (const search of all<HTMLElement>(".cp-search")) {

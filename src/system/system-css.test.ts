@@ -1697,6 +1697,58 @@ describe("css/system.css", () => {
     expect(el.querySelectorAll(".cp-menu kbd").length).toBe(4);
   });
 
+  it.each([
+    ["light", 255],
+    ["dark", 255],
+    ["light", 0],
+    ["light", 120],
+    ["light", 180],
+    ["dark", 0],
+    ["dark", 120],
+    ["dark", 180],
+  ] as const)(
+    "marks a matched word in a wash of the third harmony colour, a row's inks at 4.5:1 on it (%s, accent hue %i)",
+    (t, hue) => {
+      theme(t);
+      root.style.setProperty("--cp-accent-h", String(hue));
+      const el = build(
+        '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-cell-stack"><span>Frieren <mark>Bey</mark>ond</span><small>Series, <mark>2023</mark></small></span></div></li></ul>',
+      );
+      const surface = getComputedStyle(el.querySelector(".cp-list") ?? el).backgroundColor;
+      const [title, line] = [...el.querySelectorAll("mark")].map((m) => getComputedStyle(m));
+      const wash = title?.backgroundColor ?? "";
+      expect(title?.color).toBe(
+        getComputedStyle(el.querySelector(".cp-cell-stack > span") ?? el).color,
+      );
+      expect(line?.color).toBe(getComputedStyle(el.querySelector("small") ?? el).color);
+      expect(line?.backgroundColor).toBe(wash);
+      expect(title?.borderTopLeftRadius).toBe("3px");
+      expect(title?.paddingInlineStart).toBe("1px");
+      expect(rgb(wash)).not.toEqual(rgb(surface));
+      expect(contrast(title?.color ?? "", wash)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(line?.color ?? "", wash)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it("puts a loader in a token field's glass place at the glass's size, so the words stay put", () => {
+    theme("light");
+    const el = build(
+      '<div class="cp-tokens"><span class="cp-icon" data-cp-icon="search" aria-hidden="true"></span><input aria-label="Glass"></div>' +
+        '<div class="cp-tokens"><span class="cp-loader" aria-hidden="true"><span></span></span><input aria-label="Loader"></div>',
+    );
+    const [glass, loading] = [...el.querySelectorAll(".cp-tokens")];
+    const loader = loading?.querySelector(".cp-loader")?.getBoundingClientRect();
+    const shape = loading?.querySelector(".cp-loader > span")?.getBoundingClientRect();
+    expect(loader?.width).toBe(18);
+    expect(loader?.height).toBe(18);
+    expect(shape?.width).toBe(14);
+    const left = (box: Element | undefined): number =>
+      (box?.querySelector("input")?.getBoundingClientRect().left ?? 0) -
+      (box?.getBoundingClientRect().left ?? 0);
+    expect(left(loading)).toBeCloseTo(left(glass), 1);
+    expect(loading?.getBoundingClientRect().height).toBe(glass?.getBoundingClientRect().height);
+  });
+
   it("ends a palette's action with its keys as muted words, and fills the active action", () => {
     theme("light");
     const el = build(

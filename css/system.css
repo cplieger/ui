@@ -2689,6 +2689,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A matched word, such as a search result's. The wash keeps one lightness
+ * whatever the accent, so muted words on it keep 4.5:1 in both themes. */
+:where(.cp) :where(mark) {
+  padding-inline: 0.0625rem;
+  border-radius: 0.1875rem;
+  background: light-dark(
+    oklch(from var(--cp-harmony-3) 91.5% calc(c * 0.5) h),
+    oklch(from var(--cp-harmony-3) 34% calc(c * 0.4) h)
+  );
+  color: inherit;
+}
+
 :where(.cp) ::selection {
   background: var(--cp-selection-bg);
   color: var(--cp-ink);
@@ -4865,6 +4877,19 @@ textarea.cp-input {
 .cp-tokens > .cp-icon {
   margin-inline: 0.25rem 0.125rem;
   color: var(--cp-ink-muted);
+}
+
+/* A loader stands in for the glass while results load, at the glass's
+ * size, so the words beside it do not move. */
+.cp-tokens > .cp-loader {
+  inline-size: var(--cp-icon-ui);
+  block-size: var(--cp-icon-ui);
+  margin-inline: 0.25rem 0.125rem;
+}
+
+.cp-tokens > .cp-loader > span {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
 }
 
 .cp-tokens > input {

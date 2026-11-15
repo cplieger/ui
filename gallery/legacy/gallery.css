@@ -1082,66 +1082,8 @@ input.cp-input::-webkit-calendar-picker-indicator {
   mix-blend-mode: normal;
 }
 
-/* Search results */
-
-.g-results {
-  display: grid;
-  gap: var(--cp-space-3);
-}
-
-.g-result {
-  display: grid;
-  gap: var(--cp-space-1);
-  padding: var(--cp-space-4);
-  border: var(--cp-line-w) solid var(--cp-line);
-  border-radius: var(--cp-radius-surface);
-  background: var(--cp-surface-raised);
-  animation: result-in 320ms var(--cp-ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 30ms);
-}
-
-.g-result h3 {
-  font-size: var(--cp-text-md);
-}
-
-.g-result p {
-  margin: 0;
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-  line-height: var(--cp-leading-body);
-}
-
-.g-result mark {
-  border-radius: 0.1875rem;
-  background: oklch(from var(--cp-harmony-3) l c h / 45%);
-  color: inherit;
-  padding-inline: 0.0625rem;
-}
-
-@keyframes result-in {
-  from {
-    opacity: 0;
-    translate: 0 0.375rem;
-  }
-}
-.g-search-head {
-  display: grid;
-  gap: var(--cp-space-3);
-  margin-block-end: var(--cp-space-5);
-}
-
-.g-search-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cp-space-2);
-  color: var(--cp-ink-muted);
-  font-size: var(--cp-text-sm);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) :is(.g-dialog, .cp-tooltip, .g-result) {
+  :root:not([data-motion="full"]) :is(.g-dialog, .cp-tooltip) {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
@@ -1767,19 +1709,6 @@ html:has(.g-header) {
 /* The batch bar sticks under the gallery's own header. */
 :root {
   --cp-sticky-top: 3.5rem;
-}
-
-/* The search field shows its loader where its magnifier was. */
-.cp-tokens > .load-twirl {
-  flex: none;
-  inline-size: 1.125rem;
-  block-size: 1.125rem;
-  margin-inline: 0.125rem;
-}
-
-.cp-tokens > .load-twirl > span {
-  inline-size: 0.875rem;
-  block-size: 0.875rem;
 }
 
 /* The stepper's number rolls in a window laid over its field. */
