@@ -70,17 +70,22 @@ describe("enhanceRovingFocus", () => {
     expect(document.activeElement).toBe(buttons[1]);
   });
 
-  it("leaves a key to the browser at an end it cannot pass, so the page scrolls", () => {
+  it("leaves an arrow to the browser at an end it cannot pass, so the page scrolls, and keeps Home and End", () => {
     const { bar, buttons } = toolbar();
     enhanceRovingFocus(bar, { signal: life.signal, orientation: "vertical", wrap: false });
+    const first = buttons[0] as HTMLButtonElement;
     const last = buttons[2] as HTMLButtonElement;
+    const press = (on: HTMLElement, key: string) =>
+      on.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    first.focus();
+    expect(press(first, "ArrowUp"), "ArrowUp").toBe(true);
+    expect(press(first, "Home"), "Home").toBe(false);
+    expect(document.activeElement).toBe(first);
     last.focus();
-    const press = (key: string) =>
-      last.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
-    expect(press("ArrowDown"), "ArrowDown").toBe(true);
-    expect(press("End"), "End").toBe(true);
+    expect(press(last, "ArrowDown"), "ArrowDown").toBe(true);
+    expect(press(last, "End"), "End").toBe(false);
     expect(document.activeElement).toBe(last);
-    expect(press("ArrowUp"), "ArrowUp").toBe(false);
+    expect(press(last, "ArrowUp"), "ArrowUp").toBe(false);
     expect(document.activeElement).toBe(buttons[1]);
   });
 

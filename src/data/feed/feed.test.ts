@@ -34,6 +34,7 @@ afterEach(() => {
     Object.defineProperty(window, "visualViewport", viewport);
   }
   sheet.remove();
+  delete document.documentElement.dataset["pointer"];
   document.documentElement.classList.remove("cp");
   document.body.replaceChildren();
   document.documentElement.scrollTop = 0;
@@ -1018,6 +1019,16 @@ describe("enhanceFeed", () => {
 });
 
 describe("a feed that takes no reply", () => {
+  /** The foot's textarea inside a composer form, as an app writes it. */
+  function composer(c: Conversation): HTMLFormElement {
+    const form = document.createElement("form");
+    form.className = "cp-form";
+    const area = c.foot.querySelector("textarea") as HTMLTextAreaElement;
+    area.replaceWith(form);
+    form.append(area);
+    return form;
+  }
+
   /** The foot's composer replaced by who writes there and a way to write to each. */
   function readOnly(c: Conversation): HTMLDivElement {
     const stack = document.createElement("div");
@@ -1036,25 +1047,25 @@ describe("a feed that takes no reply", () => {
       actions.append(b);
     }
     stack.append(words, actions);
-    c.foot.querySelector("textarea")?.replaceWith(stack);
+    composer(c).replaceWith(stack);
     return stack;
   }
 
   it("sits where the composer sits, pinned to the scroller's end, and sizes the foot", async () => {
     const writes = conversation();
     const reads = conversation();
+    const form = composer(writes);
     const stack = readOnly(reads);
     enhance(writes);
     enhance(reads);
     await settle();
-    const area = writes.foot.querySelector("textarea") as HTMLTextAreaElement;
     const from = (el: Element, box: Element) => {
       const r = el.getBoundingClientRect();
       const b = box.getBoundingClientRect();
       return { start: r.left - b.left, end: b.bottom - r.bottom };
     };
-    expect(from(stack, reads.foot).start).toBeCloseTo(from(area, writes.foot).start, 1);
-    expect(from(stack, reads.foot).end).toBeCloseTo(from(area, writes.foot).end, 1);
+    expect(from(stack, reads.foot).start).toBeCloseTo(from(form, writes.foot).start, 1);
+    expect(from(stack, reads.foot).end).toBeCloseTo(from(form, writes.foot).end, 1);
     const [words, actions] = [...stack.children] as [Element, Element];
     expect(actions.getBoundingClientRect().top - words.getBoundingClientRect().bottom).toBeCloseTo(
       4,
@@ -1074,8 +1085,6 @@ describe("a feed that takes no reply", () => {
   });
 });
 
-// An agent's history: a feed newest first that no enhanceFeed follows, its
-// origins links to their conversations and Show older at its end.
 describe("a history", () => {
   function history(n: number): {
     box: HTMLDivElement;
@@ -1146,6 +1155,24 @@ describe("a history", () => {
       expect(document.elementFromPoint(x, box.top - reach), tier).toBe(link);
       expect(document.elementFromPoint(x, box.bottom + reach), tier).toBe(link);
     }
+    delete document.documentElement.dataset["pointer"];
+  });
+
+  it("keeps the author's link above an origin link's target when the header wraps under a finger", () => {
+    const { box, feed } = history(1);
+    box.style.inlineSize = "320px";
+    const header = feed.querySelector(".cp-feed-entry > header") as HTMLElement;
+    const author = header.querySelector("a") as HTMLAnchorElement;
+    const link = document.createElement("a");
+    link.className = "cp-chip";
+    link.href = "#c-internal";
+    link.textContent = "/workspace/grelot/internal/server/static-src";
+    header.append(link);
+    document.documentElement.dataset["pointer"] = "coarse";
+    const a = author.getBoundingClientRect();
+    expect(link.getBoundingClientRect().top, "wrapped").toBeGreaterThanOrEqual(a.bottom);
+    const x = a.left + a.width / 2;
+    expect(document.elementFromPoint(x, a.bottom - 1)).toBe(author);
     delete document.documentElement.dataset["pointer"];
   });
 

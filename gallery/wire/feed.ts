@@ -353,18 +353,21 @@ for (const context of document.querySelectorAll<HTMLElement>(".cp-context")) {
   enhanceContextPanel(context);
 }
 
-// Each day separator names the day of the entry after it.
 const dayWords = new Intl.DateTimeFormat(document.documentElement.lang, {
   weekday: "long",
   day: "numeric",
   month: "long",
 });
-for (const time of document.querySelectorAll<HTMLTimeElement>(".cp-feed-day > time[data-day]")) {
-  const next = time.parentElement?.nextElementSibling?.querySelector("header > time");
-  const day = next instanceof HTMLTimeElement ? new Date(next.dateTime) : new Date();
+/** Writes `day`, a local day, into a day separator's `time`. */
+export function markDay(time: HTMLTimeElement, day: Date): void {
   const pad = (n: number) => String(n).padStart(2, "0");
   time.dateTime = `${String(day.getFullYear())}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
   time.textContent = dayWords.format(day);
+}
+// Each day separator names the day of the entry after it.
+for (const time of document.querySelectorAll<HTMLTimeElement>(".cp-feed-day > time[data-day]")) {
+  const next = time.parentElement?.nextElementSibling?.querySelector("header > time");
+  markDay(time, next instanceof HTMLTimeElement ? new Date(next.dateTime) : new Date());
 }
 
 if (msgFeed instanceof HTMLOListElement && compose instanceof HTMLFormElement) {

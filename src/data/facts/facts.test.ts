@@ -15,7 +15,7 @@ const path = (p: string) =>
   `<li><code class="cp-mono">${p.replaceAll("/", "/<wbr>").replace("/<wbr>", "/")}</code></li>`;
 
 const AGENT =
-  '<dl class="cp-facts"><dt>Machine</dt><dd>borgcube (kiro-cli)</dd>' +
+  '<dl class="cp-facts"><dt>Machine</dt><dd>host-a (kiro-cli)</dd>' +
   '<dt>Paths</dt><dd><ul class="cp-stack" data-gap="tight">' +
   `${path("/workspace/grelot/internal")}${path("/workspace/grelot/web/src/messages")}</ul></dd>` +
   '<dt>Delegates</dt><dd><ul class="cp-stack" data-gap="tight">' +

@@ -12,7 +12,7 @@ import { enhanceLoadMore } from "@cplieger/ui/load-more";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { enhanceRovingFocus } from "@cplieger/ui/roving-focus";
 
-import { messageFeed } from "./feed.js";
+import { markDay, messageFeed } from "./feed.js";
 
 interface Conversation {
   readonly id: string;
@@ -42,9 +42,9 @@ const OLDER: readonly (readonly Conversation[])[] = [
       people: 2,
     },
     {
-      id: "c-homelab",
+      id: "c-monitoring",
       kind: "Thread",
-      title: "/workspace/homelab/stacks/monitoring",
+      title: "/workspace/monitoring/alerts/rules",
       preview: "You: The alert rules ship with the app now.",
       ago: 340_000,
       people: 4,
@@ -169,7 +169,6 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       detail.close();
       return;
     }
-    // Opening a conversation marks it read.
     row.removeAttribute("data-unread");
     row.querySelector(".cp-badge")?.remove();
     const name = row.querySelector(".cp-cell-stack > .cp-truncate");
@@ -197,10 +196,14 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
   } else {
     first?.removeAttribute("aria-current");
   }
+  // Back to a hash naming no conversation closes the phone's dialog; wide,
+  // the docked conversation stays, so the layout never loses its detail.
   addEventListener("hashchange", () => {
     const row = linkOf(byHash());
     if (row !== null) {
       route(row, false);
+    } else if (root.getBoundingClientRect().width < 52 * rem) {
+      route(null, false);
     }
   });
 
@@ -224,7 +227,6 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
     keyed.reset(shown());
   });
 
-  /** A row for `c` in the shape of the card's first row. */
   const make = (c: Conversation): HTMLLIElement => {
     const item = template?.cloneNode(true);
     const link = item instanceof HTMLLIElement ? linkOf(item) : null;
@@ -336,7 +338,6 @@ if (root !== null && list instanceof HTMLUListElement && filters !== null) {
       touch(open.hash.slice(1), from, text, false);
     }
   });
-  // The conversation lowest in the list that is not open hears from @gpt.
   document.querySelector("[data-msg-elsewhere]")?.addEventListener("click", () => {
     const open = current()?.hash.slice(1);
     const id = shown().findLast((k) => k !== open);
@@ -388,7 +389,6 @@ const agentOlder = document.querySelector<HTMLButtonElement>("[data-agent-older]
 const postTemplate = agentHistory?.querySelector(".cp-feed-entry");
 
 if (agentOlder !== null && postTemplate instanceof HTMLLIElement) {
-  /** An entry for `p` in the shape of the history's first one. */
   const post = (p: Post): HTMLLIElement => {
     const item = postTemplate.cloneNode(true) as HTMLLIElement;
     const [author, origin] = item.querySelectorAll<HTMLAnchorElement>("header > a");
@@ -422,13 +422,32 @@ if (agentOlder !== null && postTemplate instanceof HTMLLIElement) {
     }
     return item;
   };
+  const dayKey = (d: Date) => d.toDateString();
   let page = 0;
   enhanceLoadMore(agentOlder, {
     load: async () => {
       await pause(700);
       const posts = HISTORY[page] ?? [];
       page += 1;
-      return { items: posts.map(post), more: page < HISTORY.length };
+      const times = agentHistory?.querySelectorAll<HTMLTimeElement>(".cp-feed-entry time");
+      const lastTime = times?.[times.length - 1];
+      let day = lastTime === undefined ? "" : dayKey(new Date(lastTime.dateTime));
+      const items: HTMLLIElement[] = [];
+      for (const p of posts) {
+        const item = post(p);
+        const at = new Date(item.querySelector("time")?.dateTime ?? Date.now());
+        if (dayKey(at) !== day) {
+          day = dayKey(at);
+          const sep = document.createElement("li");
+          sep.className = "cp-feed-day";
+          const time = document.createElement("time");
+          markDay(time, at);
+          sep.append(time);
+          items.push(sep);
+        }
+        items.push(item);
+      }
+      return { items, more: page < HISTORY.length };
     },
     words: {
       count: (n) => (n === 1 ? "1 older message" : `${String(n)} older messages`),

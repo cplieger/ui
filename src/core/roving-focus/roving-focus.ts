@@ -116,9 +116,9 @@ export function enhanceRovingFocus(group: HTMLElement, options: RovingFocusOptio
       } else {
         return;
       }
-      // With nowhere to go, the key scrolls the page as it would without
-      // the group.
-      if (next === at) {
+      // An arrow with nowhere to go scrolls the page as it would without
+      // the group; Home and End always name an item, even the focused one.
+      if (next === at && key !== "Home" && key !== "End") {
         return;
       }
       e.preventDefault();

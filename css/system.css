@@ -7762,7 +7762,10 @@ div.cp-list-foot {
   gap: var(--cp-space-1) var(--cp-space-2);
 }
 
+/* Above an origin chip's target, which reaches over a wrapped header's gap. */
 .cp-feed-entry > header > a:not(.cp-chip) {
+  position: relative;
+  z-index: 1;
   color: var(--cp-ink);
   font-weight: var(--cp-weight-medium);
   text-decoration-color: transparent;

@@ -116,6 +116,22 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect([...missing]).toEqual([]);
   });
 
+  it("closes an open conversation on Back at a phone's width and focuses its row", async () => {
+    const tab = await (browser as Browser).newPage({ viewport: { width: 390, height: 800 } });
+    await tab.goto(`${origin}/messages.html`);
+    await tab.waitForFunction(() => document.querySelector("[data-build]") !== null);
+    const row = tab.locator("#msg-list a.cp-list-row").nth(1);
+    const id = await row.getAttribute("href");
+    await row.focus();
+    await tab.keyboard.press("Enter");
+    await tab.waitForFunction(() => document.querySelector<HTMLDialogElement>("#msg + dialog")?.open);
+    await tab.goBack();
+    await tab.waitForFunction(() => !document.querySelector<HTMLDialogElement>("#msg + dialog")?.open);
+    const focused = await tab.evaluate(() => document.activeElement?.getAttribute("href"));
+    await tab.close();
+    expect(focused).toBe(id);
+  }, 60_000);
+
   it.each(pageNames)(
     "runs %s's script to its end inside a sandboxed frame, as a preview tab shows it",
     async (page) => {

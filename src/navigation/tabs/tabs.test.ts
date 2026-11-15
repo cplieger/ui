@@ -60,6 +60,21 @@ function inView(list: HTMLElement, tab: HTMLElement | undefined): boolean {
   return box.left >= port.left - 0.5 && box.right <= port.right + 0.5;
 }
 
+/** Resolves on the strip's first scroll that leaves `tab` in view: the
+ *  reveal runs from a resize observer, whose frame a loaded machine delays
+ *  past any fixed wait. */
+function scrolledTo(list: HTMLElement, tab: HTMLElement | undefined): Promise<void> {
+  return new Promise((done) => {
+    const check = (): void => {
+      if (inView(list, tab)) {
+        list.removeEventListener("scroll", check);
+        done();
+      }
+    };
+    list.addEventListener("scroll", check);
+  });
+}
+
 function nav(current: number | null = 0): { list: HTMLElement; links: HTMLAnchorElement[] } {
   const list = document.createElement("nav");
   list.className = "cp-tabs";
@@ -115,6 +130,19 @@ describe("enhanceTabs", () => {
     expect(document.activeElement).toBe(tabs[0]);
     await userEvent.keyboard("{Home}");
     expect(onSelect).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps Home on the first tab and End on the last from scrolling the page", () => {
+    const { list, tabs } = strip();
+    enhanceTabs(list, { signal: life.signal });
+    const press = (on: HTMLElement | undefined, key: string) =>
+      (on as HTMLElement).dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+      );
+    tabs[0]?.focus();
+    expect(press(tabs[0], "Home"), "Home").toBe(false);
+    tabs[2]?.focus();
+    expect(press(tabs[2], "End"), "End").toBe(false);
   });
 
   it("selects on a press, and a press on the selected tab changes nothing", async () => {
@@ -174,10 +202,10 @@ describe("enhanceTabs", () => {
     const { list, tabs } = strip();
     narrow(list, tabs);
     enhanceTabs(list, { signal: life.signal });
+    const scrolled = scrolledTo(list, tabs[1]);
     await userEvent.click(tabs[1] as HTMLElement, { position: { x: 4, y: 4 } });
-    await vi.waitFor(() => {
-      expect(inView(list, tabs[1])).toBe(true);
-    });
+    await scrolled;
+    expect(inView(list, tabs[1])).toBe(true);
   });
 
   it("scrolls a strip too narrow for its tabs to the tab a key selects", async () => {
@@ -185,10 +213,10 @@ describe("enhanceTabs", () => {
     narrow(list, tabs);
     enhanceTabs(list, { signal: life.signal });
     tabs[0]?.focus();
+    const scrolled = scrolledTo(list, tabs[2]);
     await userEvent.keyboard("{End}");
-    await vi.waitFor(() => {
-      expect(inView(list, tabs[2])).toBe(true);
-    });
+    await scrolled;
+    expect(inView(list, tabs[2])).toBe(true);
   });
 
   it("scrolls a strip too narrow for its tabs to the one select() picks, never the page", () => {
@@ -208,10 +236,10 @@ describe("enhanceTabs", () => {
   it("starts with the selected tab in view in a strip too narrow for its tabs", async () => {
     const { list, tabs } = strip(2);
     narrow(list, tabs);
+    const scrolled = scrolledTo(list, tabs[2]);
     enhanceTabs(list, { signal: life.signal });
-    await vi.waitFor(() => {
-      expect(inView(list, tabs[2])).toBe(true);
-    });
+    await scrolled;
+    expect(inView(list, tabs[2])).toBe(true);
   });
 
   it("brings the selected tab into view once a strip in a hidden panel is shown", async () => {
@@ -222,10 +250,10 @@ describe("enhanceTabs", () => {
     wrap.append(list);
     narrow(list, tabs);
     enhanceTabs(list, { signal: life.signal });
+    const scrolled = scrolledTo(list, tabs[2]);
     wrap.hidden = false;
-    await vi.waitFor(() => {
-      expect(inView(list, tabs[2])).toBe(true);
-    });
+    await scrolled;
+    expect(inView(list, tabs[2])).toBe(true);
   });
 
   it("brings the selected tab into view once a strip in a closed dialog is opened", async () => {
@@ -239,10 +267,10 @@ describe("enhanceTabs", () => {
     narrow(list, tabs);
     const api = enhanceTabs(list, { signal: life.signal });
     api.select(tabs[2] as HTMLElement);
+    const scrolled = scrolledTo(list, tabs[2]);
     dialog.showModal();
-    await vi.waitFor(() => {
-      expect(inView(list, tabs[2])).toBe(true);
-    });
+    await scrolled;
+    expect(inView(list, tabs[2])).toBe(true);
   });
 
   it.each(["ltr", "rtl"])(
@@ -254,10 +282,10 @@ describe("enhanceTabs", () => {
       list.style.inlineSize = "20rem";
       enhanceTabs(list, { signal: life.signal });
       await new Promise(requestAnimationFrame);
+      const scrolled = scrolledTo(list, tabs[2]);
       list.style.inlineSize = "6rem";
-      await vi.waitFor(() => {
-        expect(inView(list, tabs[2])).toBe(true);
-      });
+      await scrolled;
+      expect(inView(list, tabs[2])).toBe(true);
     },
   );
 
@@ -278,12 +306,12 @@ describe("enhanceTabs", () => {
       });
       seen.observe(list);
     });
+    const scrolled = scrolledTo(list, tabs[2]);
     for (const t of tabs) {
       t.style.inlineSize = "5rem";
     }
-    await vi.waitFor(() => {
-      expect(inView(list, tabs[2])).toBe(true);
-    });
+    await scrolled;
+    expect(inView(list, tabs[2])).toBe(true);
   });
 
   it.each([
