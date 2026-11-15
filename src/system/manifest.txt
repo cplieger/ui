@@ -67,6 +67,7 @@ feedback/chip/chip.css
 feedback/badge/badge.css
 feedback/dot/dot.css
 feedback/notice/notice.css
+feedback/proposal/proposal.css
 layout/panel/panel.css
 feedback/loading-region/loading-region.css
 layout/stack/stack.css

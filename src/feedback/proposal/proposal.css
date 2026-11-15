@@ -1,0 +1,33 @@
+/* A change shown before it applies (@cplieger/ui/proposal): its words, then
+ * Apply and Discard. The dashed edge says it has not happened yet; an
+ * unverified one takes the warning wash, and an applied one turns solid on
+ * the success wash. In forced colours the dashed and solid edges still tell
+ * them apart. */
+.cp-proposal {
+  display: grid;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-4);
+  border: var(--cp-line-w) dashed var(--cp-accent-8);
+  border-radius: var(--cp-radius-surface);
+  background: var(--cp-selected);
+}
+
+.cp-proposal[data-variant="unverified"] {
+  border-color: var(--cp-warning-8);
+  background: var(--cp-warning-3);
+}
+
+.cp-proposal[data-cp-state="applied"] {
+  border-style: solid;
+  border-color: var(--cp-success-8);
+  background: var(--cp-success-3);
+}
+
+.cp-proposal > p {
+  margin: 0;
+  line-height: var(--cp-leading-body);
+}
+
+.cp-proposal > .cp-cluster:empty {
+  display: none;
+}

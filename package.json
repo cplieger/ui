@@ -44,6 +44,7 @@
     "./pointer": "./src/core/pointer/pointer.ts",
     "./popconfirm": "./src/overlays/popconfirm/popconfirm.ts",
     "./press": "./src/core/press/press.ts",
+    "./proposal": "./src/feedback/proposal/proposal.ts",
     "./radio-focus": "./src/core/radio-focus/radio-focus.ts",
     "./range": "./src/forms/range/range.ts",
     "./ranked-bars": "./src/data/ranked-bars/ranked-bars.ts",

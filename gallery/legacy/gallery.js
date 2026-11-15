@@ -936,26 +936,6 @@ for (const p of $$(".g-player")) {
   });
 }
 
-// ------------------------------------------------------------- proposal
-for (const card of $$(".g-proposal")) {
-  const apply = () => {
-    card.dataset.state = "applied";
-    $("p", card).textContent = card.dataset.applied;
-    $(".g-row-inline", card).replaceChildren(el("button", { class: "cp-button", "data-size": "sm", type: "button", text: "Undo", onclick: () => location.reload() }));
-    announce(card.dataset.applied);
-  };
-  $("[data-apply]", card)?.addEventListener("click", () => {
-    if (card.hasAttribute("data-unverified")) document.getElementById(card.dataset.confirm).showModal();
-    else apply();
-  });
-  $("[data-discard-proposal]", card)?.addEventListener("click", () => {
-    card.remove();
-    announce("Proposal discarded");
-  });
-  const confirmD = card.dataset.confirm && document.getElementById(card.dataset.confirm);
-  confirmD?.addEventListener("close", () => confirmD.returnValue === "apply" && apply());
-}
-
 // --------------------------------------------- settings across sections
 // A dot on each category with unsaved changes, in the nav and the select; a
 // guard when leaving with unsaved changes; a banner when the settings

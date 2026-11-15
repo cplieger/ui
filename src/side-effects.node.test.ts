@@ -48,6 +48,7 @@ const PURE = [
   "/pointer",
   "/popconfirm",
   "/press",
+  "/proposal",
   "/radio-focus",
   "/range",
   "/ranked-bars",

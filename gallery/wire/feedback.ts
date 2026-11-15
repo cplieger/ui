@@ -1,14 +1,15 @@
 /**
  * feedback.ts — the gallery's wiring for the feedback lane's cards that run
  * on the library: the region refreshing over its old content, the message
- * feed's read summaries, which load on first open, and announcements that
- * reach a dialog.
+ * feed's read summaries, which load on first open, announcements that
+ * reach a dialog, and the proposals shown before they apply.
  */
 
 import { anchorTo } from "@cplieger/ui/anchor";
 import { announce } from "@cplieger/ui/announce";
 import { enhanceLoadingRegion } from "@cplieger/ui/loading-region";
 import { enhancePanel } from "@cplieger/ui/panel";
+import { enhanceProposal } from "@cplieger/ui/proposal";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 
 // The stale card's two buttons refresh one panel; data-fail makes the
@@ -173,4 +174,36 @@ for (const log of document.querySelectorAll<HTMLOListElement>("ol#heard")) {
       log.append(item);
     }
   }).observe(document.body, { childList: true, subtree: true });
+}
+
+/** Settles after `ms`, as an app's request to its server would. */
+function after(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((done) => {
+    const timer = setTimeout(done, ms);
+    signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+    });
+  });
+}
+
+for (const card of document.querySelectorAll<HTMLElement>("#proposal .cp-proposal")) {
+  const unchecked = card.dataset["variant"] === "unverified";
+  enhanceProposal(card, {
+    apply: (signal) => after(900, signal),
+    undo: (signal) => after(600, signal),
+    words: {
+      applied: unchecked
+        ? "Applied: +0.400 s, not checked against a reference."
+        : "Applied: +1.250 s with drift corrected.",
+    },
+    ...(unchecked
+      ? {
+          confirm: {
+            title: "Apply an unchecked change?",
+            message: "Nothing confirmed that +0.400 s matches the audio.",
+            cancelLabel: "Keep the current timing",
+          },
+        }
+      : {}),
+  });
 }
