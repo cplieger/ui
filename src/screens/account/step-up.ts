@@ -179,6 +179,20 @@ export async function stepUp<T, C extends StepUpClient>(
     return offered;
   };
 
+  /** Offers what a fresh `me()` holds, less the dropped ways; failed
+   *  when nothing is left. */
+  const reoffer = async (d: Dialog): Promise<StepUpAnswer<T> | undefined> => {
+    const me = await read(() => client.me());
+    if (!me.ok) {
+      if (offered.length === 0) {
+        d.say(generic(me, w));
+      }
+      return undefined;
+    }
+    d.offer(await offerOf(me.data.methods));
+    return offered.length === 0 ? { kind: "failed", words: w["stepUp.none"] } : undefined;
+  };
+
   const press = async (d: Dialog): Promise<StepUpChoice> => {
     last = await d.next();
     return last;
@@ -270,8 +284,12 @@ export async function stepUp<T, C extends StepUpClient>(
     }
   };
 
-  /** What a refused step-up does: undefined keeps the dialog open. */
-  const failed = (d: Dialog, error: Refusal | PasskeyMiss): StepUpAnswer<T> | undefined => {
+  /** What a refused step-up does: undefined keeps the dialog open, and
+   *  "stale" keeps it once a fresh `me()` has redrawn its ways. */
+  const failed = (
+    d: Dialog,
+    error: Refusal | PasskeyMiss,
+  ): StepUpAnswer<T> | "stale" | undefined => {
     if ("kind" in error) {
       missed(d, error);
       return undefined;
@@ -312,6 +330,15 @@ export async function stepUp<T, C extends StepUpClient>(
         drop(d, "password");
         d.say({ tone: "neutral", text: w["stepUp.passwordOff"] });
         return undefined;
+      case "auth_second_factor_required":
+        if (reasonOf(error) !== "second_factor_held") {
+          refused(d, error);
+          return undefined;
+        }
+        drop(d, "oidc");
+        drop(d, "password");
+        d.say({ tone: "neutral", text: w["stepUp.secondFactorHeld"] });
+        return "stale";
       case "auth_https_required":
         return { kind: "failed", words: w["stepUp.https"], refusal: error };
       case "auth_required":
@@ -691,8 +718,9 @@ export async function stepUp<T, C extends StepUpClient>(
         : { kind: "failed", words: generic(error, w).text, refusal: error };
     } else {
       const final = failed(ui, out.error);
-      if (final !== undefined) {
-        return settle(final);
+      const after = final === "stale" ? await reoffer(ui) : final;
+      if (after !== undefined) {
+        return settle(after);
       }
     }
     if (signal?.aborted === true) {

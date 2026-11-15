@@ -808,6 +808,12 @@ export function drawMethods<C extends SecurityClient>(
         return { tone: "warning", text: w.auth_totp_disabled };
       case "auth_second_factor_unavailable":
         return { tone: "warning", text: w.auth_second_factor_unavailable };
+      case "auth_forbidden":
+        if (reasonOf(r) !== "totp_needs_password") {
+          return undefined;
+        }
+        void ctx.refresh("password-set");
+        return { tone: "warning", text: w["auth_forbidden.totp_needs_password"] };
       default:
         return undefined;
     }

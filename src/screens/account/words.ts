@@ -148,6 +148,9 @@ export interface AccountWords {
   readonly "stepUp.wrong": string;
   /** Password step-up was turned off after the methods were read. */
   readonly "stepUp.passwordOff": string;
+  /** `auth_second_factor_required` `second_factor_held`: a password
+   *  step-up offered from a `me()` read before a second factor was held. */
+  readonly "stepUp.secondFactorHeld": string;
   /** The account holds no method this page can confirm with. */
   readonly "stepUp.none": string;
   readonly "stepUp.https": string;
@@ -539,6 +542,9 @@ export interface AccountWords {
   readonly "auth_password_rejected.breached": string;
   readonly auth_password_rejected: string;
   readonly "auth_forbidden.no_usable_method": string;
+  /** Setting up an authenticator app on an account with no password,
+   *  from a `me()` read before the password went. */
+  readonly "auth_forbidden.totp_needs_password": string;
 
   readonly "register.duplicate": string;
   readonly "register.not-discoverable": string;
@@ -822,6 +828,7 @@ export const defaultAccountWords: AccountWords = {
   "stepUp.codeFormat": "Enter the 6 digits from your authenticator app.",
   "stepUp.wrong": "The password is wrong.",
   "stepUp.passwordOff": "Password sign-in is turned off. Confirm it is you another way.",
+  "stepUp.secondFactorHeld": "Step up with your code or passkey.",
   "stepUp.none":
     "Nothing on this account can confirm it is you here. Sign out, then sign in again.",
   "stepUp.https": "Confirming it is you needs HTTPS. Open the app over HTTPS to do this.",
@@ -1217,6 +1224,8 @@ export const defaultAccountWords: AccountWords = {
   auth_password_rejected: "Choose another password.",
   "auth_forbidden.no_usable_method":
     "This app allows no second factor this account can set up. Ask an administrator.",
+  "auth_forbidden.totp_needs_password":
+    "Set a password first: an authenticator app protects password sign-in.",
 
   "register.duplicate": "That passkey is already on your account.",
   "register.not-discoverable":

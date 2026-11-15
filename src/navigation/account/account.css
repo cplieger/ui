@@ -10,10 +10,12 @@
 }
 
 /* The avatar fills the button, so the button is as tall as the header's
- * other controls on each pointer tier. */
+ * other controls on each pointer tier, and is round so its corner nests
+ * in the round button's. */
 .cp-button.cp-account > .cp-avatar {
   inline-size: 100%;
   block-size: 100%;
+  border-radius: 50%;
   box-shadow: 0 0 0 2px oklch(from var(--cp-shell-ink) l c h / 70%);
   transition: box-shadow var(--cp-dur-micro) var(--cp-ease-out);
 }

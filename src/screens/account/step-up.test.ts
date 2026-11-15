@@ -394,6 +394,84 @@ describe("stepUp: a code from an authenticator app", () => {
   });
 });
 
+describe("stepUp: a way the server turns away after the methods were read", () => {
+  const held = meWith({
+    password_step_up: false,
+    second_factor_held: true,
+    totp: { enrolled: true, usable: true, removable: true },
+  });
+
+  it("offers only the code and passkey once a password step-up meets a second factor held", async () => {
+    const fake = new Fake()
+      .answer("me", ok(meWith()))
+      .always("me", ok(held))
+      .answer("stepUpPassword", refuse(403, "auth_second_factor_required", "second_factor_held"));
+    const { sent, answer } = start(fake);
+    const d = await dialogOf();
+    await userEvent.fill(field(d, "password"), "lantern harbour");
+    await userEvent.click(button(d, "Confirm"));
+    await vi.waitFor(() => {
+      expect(noticeOf(d)).toBe("Step up with your code or passkey.");
+    });
+    expect(fake.named("me")).toHaveLength(2);
+    expect(shown(field(d, "password"))).toBe(false);
+    expect(shown(field(d, "code"))).toBe(true);
+    expect(buttons(d)).toEqual(["Use a passkey", "Cancel", "Confirm"]);
+    expect(document.activeElement).toBe(field(d, "code"));
+    await userEvent.fill(field(d, "code"), "123456");
+    await userEvent.click(button(d, "Confirm"));
+    expect(await answer).toEqual({ kind: "done", result: ok("revoked") });
+    expect(fake.named("stepUpPassword")).toHaveLength(1);
+    expect(fake.named("stepUpCode")[0]?.args).toEqual(["123456"]);
+    expect(sent()).toBe(2);
+  });
+
+  it("answers failed with its words when the fresh methods leave nothing to confirm with", async () => {
+    const fake = new Fake()
+      .answer("me", ok(meWith()))
+      .always("me", ok(meWith({ password_step_up: false, passkey_count: 0 })))
+      .answer("stepUpPassword", refuse(403, "auth_second_factor_required", "second_factor_held"));
+    const { answer } = start(fake);
+    const d = await dialogOf();
+    await userEvent.fill(field(d, "password"), "lantern harbour");
+    await userEvent.click(button(d, "Confirm"));
+    expect(await answer).toEqual({
+      kind: "failed",
+      words: "Nothing on this account can confirm it is you here. Sign out, then sign in again.",
+    });
+    await gone();
+  });
+
+  it("keeps the other ways when another second-factor refusal comes", async () => {
+    const fake = new Fake().answer(
+      "stepUpPassword",
+      refuse(403, "auth_second_factor_required", "enrol_needs_known_device"),
+    );
+    start(fake);
+    const d = await dialogOf();
+    await userEvent.fill(field(d, "password"), "lantern harbour");
+    await userEvent.click(button(d, "Confirm"));
+    await vi.waitFor(() => {
+      expect(noticeOf(d)).not.toBe("");
+    });
+    expect(shown(field(d, "password"))).toBe(true);
+    expect(buttons(d)).toEqual(["Use a passkey", "Use Authelia", "Cancel", "Confirm"]);
+  });
+
+  it("drops the password, keeping the other ways, once password sign-in was turned off", async () => {
+    const fake = new Fake().answer("stepUpPassword", refuse(403, "auth_password_login_disabled"));
+    start(fake);
+    const d = await dialogOf();
+    await userEvent.fill(field(d, "password"), "lantern harbour");
+    await userEvent.click(button(d, "Confirm"));
+    await vi.waitFor(() => {
+      expect(noticeOf(d)).toBe("Password sign-in is turned off. Confirm it is you another way.");
+    });
+    expect(shown(field(d, "password"))).toBe(false);
+    expect(buttons(d)).toEqual(["Use a passkey", "Use Authelia", "Cancel"]);
+  });
+});
+
 describe("stepUp: a passkey and single sign-on", () => {
   it("confirms with a passkey and runs the action again", async () => {
     const { fake, answer } = start();

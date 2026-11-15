@@ -122,6 +122,12 @@ export async function setUpFactor(spec: FactorSpec): Promise<FactorEnd> {
         );
         return true;
       }
+      case "auth_forbidden":
+        if (reason !== "totp_needs_password") {
+          d.notices.show("danger", generic(r, w).text);
+          return true;
+        }
+        return false;
       case "auth_token_invalid":
       case "auth_totp_disabled":
       case "auth_https_required":

@@ -498,6 +498,67 @@ describe("mountSecurity: the authenticator app", () => {
     ]);
   });
 
+  const unset = { totp: { enrolled: false, usable: false, removable: false } };
+  const noPassword = meWith({ ...unset, password: false });
+
+  /** The setup ended for want of a password: the sentence above the
+   *  methods, which are read again, with Set a password… focused. */
+  const needsPassword = async (region: HTMLElement, fake: Fake): Promise<void> => {
+    await vi.waitFor(() => {
+      expect(noticeOf(region)).toBe(
+        "Set a password first: an authenticator app protects password sign-in.",
+      );
+      expect(document.activeElement?.getAttribute("data-cp-action")).toBe("password-set");
+    });
+    expect(fake.named("me")).toHaveLength(2);
+    expect(rowOf(region, "Password").contains(document.activeElement)).toBe(true);
+    expect(region.textContent).not.toContain("Set up an authenticator app");
+  };
+
+  it("sends a person whose password went to Set a password… when the setup is refused at its start", async () => {
+    const fake = offered(unset)
+      .always("me", ok(noPassword))
+      .answer("beginTOTP", refuse(403, "auth_forbidden", "totp_needs_password"));
+    const { region } = mount(fake);
+    await ready(region);
+    await press(rowOf(region, "Authenticator app"), "Set up an authenticator app");
+    await needsPassword(region, fake);
+    expect(document.querySelector("dialog")).toBeNull();
+  });
+
+  it("closes the setup on a password removed in another tab meanwhile, with Set a password… in reach", async () => {
+    const fake = offered(unset)
+      .always("me", ok(noPassword))
+      .answer("finishTOTP", refuse(403, "auth_forbidden", "totp_needs_password"));
+    const { region } = mount(fake);
+    await ready(region);
+    await press(rowOf(region, "Authenticator app"), "Set up an authenticator app");
+    const d = await dialogOf("Set up an authenticator app");
+    await userEvent.fill(field(d, "code"), "123456");
+    await userEvent.click(button(d, "Turn on"));
+    await needsPassword(region, fake);
+    await vi.waitFor(() => {
+      expect(d.isConnected).toBe(false);
+    });
+    expect(fake.named("finishTOTP")).toHaveLength(1);
+  });
+
+  it("keeps the setup open with the generic failure on a refusal for another reason", async () => {
+    const fake = offered(unset).answer("finishTOTP", refuse(403, "auth_forbidden"));
+    const { region } = mount(fake);
+    await ready(region);
+    await press(rowOf(region, "Authenticator app"), "Set up an authenticator app");
+    const d = await dialogOf("Set up an authenticator app");
+    await userEvent.fill(field(d, "code"), "123456");
+    await userEvent.click(button(d, "Turn on"));
+    await vi.waitFor(() => {
+      expect(d.querySelector("[data-part='notice']")?.textContent).toContain(
+        "The server could not do this. Try again in a moment.",
+      );
+    });
+    expect(d.open).toBe(true);
+  });
+
   it("says when the app turned authenticator apps off, and offers no setup to a passkey-only person", async () => {
     const off = offered({ totp: { enrolled: true, usable: false, removable: true } });
     const { region } = mount(off);
