@@ -28,7 +28,7 @@ import type { Words } from "./words.js";
  *  chart a drag explores, in any direction on one that only taps select. */
 const DRAG = 8;
 
-interface Explorer {
+export interface Explorer {
   /** `model` was drawn as `lay`, its legend row framed with no selection. */
   drawn(model: Model, lay: Layout): void;
   /** `model` replaces the data: the selection stays where its x still is. */
@@ -37,6 +37,20 @@ interface Explorer {
   clear(): void;
   /** Drops the selection and what it would come back as. */
   reset(): void;
+  /** Another panel's selection at this panel's same position, or none:
+   *  drawn as synced while this panel holds no selection of its own. */
+  echo(sel: Selection | undefined): void;
+  /** What the next focus or arrow brings back: another panel's position. */
+  carry(sel: Selection | undefined): void;
+}
+
+/** A panel of small multiples: the figure, not the panel, reads the
+ *  selection in the legend row and syncs it into the other panels. */
+interface PanelLink {
+  /** The panel's name, which starts each place its keys say. */
+  readonly name: () => string;
+  /** The panel's selection changed to `sel`, or cleared. */
+  readonly follow: (sel: Selection | undefined) => void;
 }
 
 interface Touch {
@@ -50,7 +64,8 @@ interface Touch {
 
 /**
  * Follows the keys, focus and pointers on `plot` until `signal` aborts,
- * drawing the selection into `svg` and reading it in `legend`.
+ * drawing the selection into `svg` and reading it in `legend`, or, in a
+ * `panel`, telling the panel's figure.
  */
 export function explore(
   plot: HTMLElement,
@@ -58,6 +73,7 @@ export function explore(
   legend: HTMLElement,
   words: Words,
   signal: AbortSignal,
+  panel?: PanelLink,
 ): Explorer {
   let model: Model | undefined;
   let lay: Layout | undefined;
@@ -71,12 +87,24 @@ export function explore(
   // A pointer that just lifted, whose leave the browser sends at once.
   let lifted: number | undefined;
   let pressed = false;
+  let echoed: Selection | undefined;
+
+  const paint = (): boolean => {
+    if (model === undefined || lay === undefined || nav === undefined) {
+      return false;
+    }
+    drawSelection(svg, model, lay, sel ?? echoed, nav, sel === undefined);
+    return true;
+  };
 
   const show = (): void => {
-    if (model === undefined || lay === undefined || nav === undefined) {
+    if (!paint() || model === undefined) {
       return;
     }
-    drawSelection(svg, model, lay, sel, nav);
+    if (panel !== undefined) {
+      panel.follow(sel);
+      return;
+    }
     const reading = sel === undefined ? overall(model, words) : selectionReading(model, sel, words);
     if (reading !== undefined) {
       writeLegend(legend, reading);
@@ -101,7 +129,7 @@ export function explore(
 
   const say = (s: Selection, part: boolean): void => {
     if (model !== undefined) {
-      announce(spoken(model, s, words, part));
+      announce(spoken(model, s, words, part, panel?.name()));
     }
   };
 
@@ -111,7 +139,9 @@ export function explore(
       return;
     }
     const box = svg.getBoundingClientRect();
-    const next = nav.pick(e.clientX - box.left - lay.left, y - box.top - lay.top);
+    // A clipped panel's SVG starts at its plot's edge.
+    const left = lay.clip === true ? 0 : lay.left;
+    const next = nav.pick(e.clientX - box.left - left, y - box.top - lay.top);
     if (next === undefined) {
       clear();
     } else {
@@ -247,6 +277,7 @@ export function explore(
     if (model !== undefined && model !== m) {
       sel = sel === undefined ? undefined : rekey(model, sel, m);
       memory = memory === undefined ? undefined : rekey(model, memory, m);
+      echoed = echoed === undefined ? undefined : rekey(model, echoed, m);
       lay = undefined;
       nav = undefined;
     }
@@ -267,10 +298,18 @@ export function explore(
       memory = undefined;
       lastX = undefined;
       touch = undefined;
+      echoed = undefined;
       show();
       model = undefined;
       lay = undefined;
       nav = undefined;
+    },
+    echo(s) {
+      echoed = s;
+      paint();
+    },
+    carry(s) {
+      memory = s;
     },
   };
 }
