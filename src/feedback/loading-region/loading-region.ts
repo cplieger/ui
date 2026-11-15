@@ -29,6 +29,9 @@ export interface LoadingRegionWords {
   /** Said and shown when a refresh fails over content loaded at `loadedAt`.
    *  Default "The refresh failed. What you see is from 14:02." */
   readonly refreshFailed?: (reason: unknown, loadedAt: Date) => string;
+  /** What the person can do about a failure, shown under its sentence and
+   *  not said; none when it returns undefined. Default none. */
+  readonly remedy?: (reason: unknown) => string | undefined;
   /** Retry's words at rest. Default "Retry". */
   readonly retry?: string;
   /** Retry's words while it loads. Default "Retrying…". */
@@ -36,7 +39,8 @@ export interface LoadingRegionWords {
 }
 
 export interface LoadingRegionOptions<T> {
-  /** Fetches the content. Its signal aborts with the module's. */
+  /** Fetches the content. Its signal aborts with the module's, and when a
+   *  later `load()` replaces this one. */
   readonly load: (signal: AbortSignal) => Promise<T>;
   /** Puts the content in the region. After a first load the region is
    *  empty when it runs; after a refresh it holds the old content, which
@@ -59,14 +63,22 @@ export interface LoadingRegionOptions<T> {
 export interface LoadingRegion {
   /**
    * Loads the region's content, turning `from`, the button pressed, while
-   * it runs. Resolves true once the content is rendered, false when it
-   * failed or the signal aborted, and false at once while a load runs.
+   * it runs. A load already running is aborted and its call resolves
+   * false. Resolves true once the content is rendered, false when it
+   * failed or the signal aborted.
    */
   load(from?: Element): Promise<boolean>;
   readonly state: LoadingState;
 }
 
 const NOTICE = "data-cp-load-notice";
+
+/** A load under way, and what an abort puts back. */
+interface Run {
+  readonly life: AbortController;
+  readonly before: LoadingState;
+  readonly timing: { cancel(): void } | null;
+}
 /** The refresh line's thickness in loading-region.css. */
 const LINE_PX = 3;
 
@@ -90,6 +102,22 @@ function inlineLoad(words: string): HTMLSpanElement {
   load.className = "cp-inline-load";
   load.append(square, words);
   return load;
+}
+
+/** `work`, settled early by `signal`'s abort, so a load whose host ignores
+ *  its signal still frees the region for the load that replaced it. */
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  const aborted = new Promise<never>((_resolve, reject) => {
+    signal.addEventListener(
+      "abort",
+      () => {
+        reject(new DOMException("The load was replaced.", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+  aborted.catch(() => undefined);
+  return Promise.race([work, aborted]);
 }
 
 function holdsContent(region: Element): boolean {
@@ -137,9 +165,10 @@ export function enhanceLoadingRegion<T>(
   const locale = options.locale ?? (document.documentElement.lang || undefined);
   let state: LoadingState = holdsContent(region) ? "ready" : "idle";
   let loadedAt = options.loadedAt ?? new Date();
-  let running: AbortController | null = null;
+  let running: Run | null = null;
   let notice: HTMLElement | null = null;
   let sentence: HTMLElement | null = null;
+  let remedyLine: HTMLElement | null = null;
   let retry: HTMLButtonElement | null = null;
   let retryCycle: Confirm | null = null;
 
@@ -151,7 +180,7 @@ export function enhanceLoadingRegion<T>(
   region.dataset["cpLoad"] = state;
 
   whenAborted(signal, () => {
-    running?.abort();
+    running?.life.abort();
   });
 
   const failedSentence = (reason: unknown): string => {
@@ -172,12 +201,13 @@ export function enhanceLoadingRegion<T>(
     return `The refresh failed. What you see is from ${format.format(loadedAt)}.`;
   };
 
-  /** The one notice the region's failures write, made on the first. */
-  const noticeWith = (text: string): HTMLElement => {
+  /** The one notice the region's failures write, made on the first. A
+   *  refresh's failure is a warning, since what it keeps is still true as
+   *  of its time; a first load's is danger, with nothing to show. */
+  const noticeWith = (text: string, over: boolean, reason: unknown): HTMLElement => {
     if (notice === null || sentence === null || retry === null) {
       notice = document.createElement("div");
       notice.className = "cp-notice";
-      notice.dataset["tone"] = "danger";
       notice.setAttribute(NOTICE, "");
       sentence = document.createElement("span");
       const button = document.createElement("button");
@@ -188,7 +218,10 @@ export function enhanceLoadingRegion<T>(
       roll.className = "cp-roll";
       roll.textContent = retryWords;
       button.append(glyph("spinner-arc", "busy"), roll);
-      notice.append(glyph("circle-x"), sentence, button);
+      const body = document.createElement("span");
+      body.dataset["part"] = "text";
+      body.append(sentence);
+      notice.append(glyph("circle-x"), body, button);
       retry = button;
       retryCycle = enhanceConfirm(button, {
         busy: words.retrying ?? "Retrying…",
@@ -203,7 +236,17 @@ export function enhanceLoadingRegion<T>(
         until(signal),
       );
     }
+    notice.dataset["tone"] = over ? "warning" : "danger";
+    notice.firstElementChild?.setAttribute("data-cp-icon", over ? "triangle-alert" : "circle-x");
     sentence.textContent = text;
+    const remedy = words.remedy?.(reason);
+    if (remedy === undefined) {
+      remedyLine?.remove();
+    } else {
+      remedyLine ??= document.createElement("small");
+      remedyLine.textContent = remedy;
+      sentence.after(remedyLine);
+    }
     return notice;
   };
 
@@ -231,7 +274,6 @@ export function enhanceLoadingRegion<T>(
 
   const run = async (from: Element | undefined): Promise<boolean> => {
     const life = new AbortController();
-    running = life;
     const before = state;
     const stale = state === "ready" || state === "stale";
     const firstTime = state === "idle";
@@ -259,7 +301,8 @@ export function enhanceLoadingRegion<T>(
           { showDelayMs: 200, minVisibleMs: 400, signal: life.signal },
         )
       : null;
-    const work = options.load(life.signal);
+    running = { life, before, timing };
+    const work = untilAborted(options.load(life.signal), life.signal);
     let data: T;
     try {
       if (from !== undefined && from === retry && retryCycle !== null) {
@@ -271,14 +314,14 @@ export function enhanceLoadingRegion<T>(
         data = from === undefined ? await work : await turnWhile(from, work);
       }
     } catch (reason) {
-      timing?.cancel();
       if (life.signal.aborted) {
-        mark(before);
+        settleAborted(life);
         return false;
       }
+      timing?.cancel();
       const regain = attending(region);
       const text = stale ? refreshSentence(reason) : failedSentence(reason);
-      const box = noticeWith(text);
+      const box = noticeWith(text, stale, reason);
       if (stale) {
         if (region.firstElementChild !== box) {
           region.prepend(box);
@@ -294,11 +337,19 @@ export function enhanceLoadingRegion<T>(
       return false;
     }
     if (life.signal.aborted) {
-      timing?.cancel();
-      mark(before);
+      settleAborted(life);
       return false;
     }
-    await new Promise<void>((resolve) => {
+    // A later load cancels this one's deferred paint, so its abort settles it.
+    return new Promise<boolean>((resolve) => {
+      life.signal.addEventListener(
+        "abort",
+        () => {
+          settleAborted(life);
+          resolve(false);
+        },
+        { once: true },
+      );
       const paint = (): void => {
         const regain = attending(region);
         notice?.remove();
@@ -311,7 +362,7 @@ export function enhanceLoadingRegion<T>(
         if (regain && lost()) {
           refocus(from);
         }
-        resolve();
+        resolve(true);
       };
       if (timing === null) {
         paint();
@@ -319,18 +370,37 @@ export function enhanceLoadingRegion<T>(
         timing.commit(paint);
       }
     });
-    return true;
+  };
+
+  /** Puts back the state a run started from, unless a later load
+   *  superseded it, which already did and now owns the region. */
+  const settleAborted = (life: AbortController): void => {
+    if (running?.life !== life) {
+      return;
+    }
+    running.timing?.cancel();
+    mark(running.before);
+    running = null;
   };
 
   const api: LoadingRegion = {
     async load(from) {
-      if (signal?.aborted === true || state === "loading" || state === "refreshing") {
+      if (signal?.aborted === true) {
         return false;
       }
+      if (running !== null) {
+        const earlier = running;
+        earlier.life.abort();
+        settleAborted(earlier.life);
+      }
+      const settled = run(from);
+      const mine = running;
       try {
-        return await run(from);
+        return await settled;
       } finally {
-        running = null;
+        if (running === mine) {
+          running = null;
+        }
       }
     },
     get state() {

@@ -59,7 +59,7 @@ Ended, a job reads:
   - `words` = `{ count?, stopped?, stoppedCause?, said?, stopFailed? }`, each count already written in that language.
     - `count(done, total)` is how far the job is, by default "{done} of {total}".
     - `stopped` is the outcome of a job stopped from its button, by default "Stopped". An app whose button reads Cancel passes "Cancelled".
-    - `stoppedCause(at)` is its cause, given the count at the press, by default "Stopped by you at {at}", or "Stopped by you" for a row with no count.
+    - `stoppedCause(done?, total?)` is its cause, given how far the bar was at the press, or nothing for a row with no bar, by default "Stopped by you at {count}", such as "Stopped by you at 12 of 40", or "Stopped by you". An app whose button reads Cancel passes `(done, total) => \`Cancelled by you at ${done} of ${total}\``.
     - `said(kind)` is said once a job stops, by default "{kind} stopped".
     - `stopFailed` is the sentence for a stop that failed, or a function given what `stop` rejected with, by default "The job could not be stopped.".
   - `signal` ends the wiring and any stop under way, which then writes nothing.
@@ -70,7 +70,7 @@ Ended, a job reads:
 
 ## Behaviour
 
-- A press on Stop runs `stop` with the button `aria-busy`, still focusable, and a second press waits for the first. Once it resolves the job ends with `stopped` in the neutral tone and the count at the press as its cause.
+- A press on Stop runs `stop` with the button `aria-busy`, still focusable, and a second press waits for the first. The busy state lasts only while `stop` is pending. Once it resolves the job ends with `stopped` in the neutral tone and the count at the press as its cause. When the app's job stream later reports the job's own end, `end` rewrites that outcome and cause; leave its `said` out then, since the stop was already said.
 - A stop that fails keeps the job running and adds its sentence under the row as a failed `.cp-state`, with focus left on Stop, so a second press tries again. That press removes the line.
 - When the job ends while focus is on Stop or a line that goes, focus moves to the job's first part that takes focus, its link, else the row, so it never drops to the page.
 - The list's foot is [load-more](../data/load-more.md), which adds the next jobs before it and focuses the first one's link.

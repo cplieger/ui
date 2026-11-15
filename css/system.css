@@ -8378,6 +8378,14 @@ div.cp-list-foot {
   margin-block-end: var(--cp-space-3);
 }
 
+/* What the person can do about the failure, on its own line under it. */
+[data-cp-load-notice] > [data-part="text"] > small {
+  display: block;
+  margin-block-start: var(--cp-space-1);
+  color: var(--cp-tone-11);
+  font-size: var(--cp-text-xs);
+}
+
 @keyframes cp-load-line {
   from {
     background-position: -40% 0;

@@ -32,9 +32,10 @@ export interface JobWords {
   readonly count?: (done: string, total: string) => string;
   /** The outcome of a job stopped from its button. Default "Stopped". */
   readonly stopped?: string;
-  /** Its cause, given the count at the press. Default "Stopped by you at
-   *  {at}", or "Stopped by you" for a row with no count. */
-  readonly stoppedCause?: (at: string) => string;
+  /** Its cause, given how far the bar was at the press, or nothing for a
+   *  row with no bar. Default "Stopped by you at {count}", or "Stopped by
+   *  you". */
+  readonly stoppedCause?: (done?: string, total?: string) => string;
   /** Said once a job stops, given its kind. Default "{kind} stopped". */
   readonly said?: (kind: string) => string;
   /** The sentence for a stop that failed, or built from what `stop`
@@ -96,6 +97,14 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
     life.abort();
   });
 
+  /** The bar's place written in the list's language, or none without one. */
+  const place = (row: Element): readonly [string, string] | null => {
+    const bar = row.querySelector(":scope > progress");
+    return bar instanceof HTMLProgressElement ? [format(bar.value), format(bar.max)] : null;
+  };
+  const countWords = (at: readonly [string, string]): string =>
+    words.count?.(...at) ?? `${at[0]} of ${at[1]}`;
+
   const progress = (item: Element, done: number, total?: number): void => {
     const row = rowOf(item);
     const bar = row.querySelector(":scope > progress");
@@ -107,9 +116,9 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
     }
     bar.value = done;
     const count = part(row, "count");
-    if (count !== null) {
-      const at = [format(bar.value), format(bar.max)] as const;
-      count.textContent = words.count?.(...at) ?? `${at[0]} of ${at[1]}`;
+    const at = place(row);
+    if (count !== null && at !== null) {
+      count.textContent = countWords(at);
     }
   };
 
@@ -207,7 +216,7 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
         stopping.add(row);
         row.querySelector(':scope > [data-part="stop-failed"]')?.remove();
         button.setAttribute("aria-busy", "true");
-        const at = part(row, "count")?.textContent ?? "";
+        const at = place(row);
         const kind = part(row, "kind")?.textContent ?? "The job";
         stop(row, life.signal).then(
           () => {
@@ -220,8 +229,8 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
               words: words.stopped ?? "Stopped",
               tone: "neutral",
               cause:
-                words.stoppedCause?.(at) ??
-                (at === "" ? "Stopped by you" : `Stopped by you at ${at}`),
+                (at === null ? words.stoppedCause?.() : words.stoppedCause?.(...at)) ??
+                (at === null ? "Stopped by you" : `Stopped by you at ${countWords(at)}`),
               said: words.said?.(kind) ?? `${kind} stopped`,
             });
           },

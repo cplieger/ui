@@ -93,14 +93,14 @@ function wire(
   button: HTMLButtonElement,
   report: HTMLElement,
   extra: Partial<BatchOptions> = {},
-): { calls: Deferred[]; sends: [number, number][] } {
+): { calls: Deferred[]; sends: number[] } {
   const calls: Deferred[] = [];
-  const sends: [number, number][] = [];
+  const sends: number[] = [];
   enhanceBatchedAction(button, report, {
     total: 248,
     size: 100,
-    send: (offset, count) => {
-      sends.push([offset, count]);
+    send: (count) => {
+      sends.push(count);
       const d = deferred();
       calls.push(d);
       return d.promise;
@@ -126,7 +126,7 @@ async function press(
 }
 
 describe("enhanceBatchedAction", () => {
-  it("sends each batch from where the last ended and names what the next press does", async () => {
+  it("sends each batch's share and names what the next press does", async () => {
     const { button, report } = card();
     const { calls, sends } = wire(button, report);
     button.focus();
@@ -136,11 +136,7 @@ describe("enhanceBatchedAction", () => {
     expect(document.activeElement).toBe(button);
     await press(button, calls, { started: 100 }, () => label(button) === "Start the remaining 48");
     await press(button, calls, { started: 48 }, () => label(button) === "All 248 started");
-    expect(sends).toEqual([
-      [0, 100],
-      [100, 100],
-      [200, 48],
-    ]);
+    expect(sends).toEqual([100, 100, 48]);
     expect(report.querySelector("p")?.textContent).toBe("Started 248 of 248. None remain.");
     expect(report.querySelector("dl")).toBeNull();
     await until(() => button.disabled);
@@ -213,7 +209,50 @@ describe("enhanceBatchedAction", () => {
     await until(() => said("assertive") === "Nothing started: the provider timed out.");
     button.click();
     expect(failed()).toBeNull();
-    expect(sends.at(-1)).toEqual([100, 100]);
+    expect(sends.at(-1)).toBe(100);
+  });
+
+  it("keeps pending items in what remains and sends them again until none is held back", async () => {
+    const { button, report } = card();
+    const { calls, sends } = wire(button, report);
+    await press(button, calls, { started: 100 }, () => label(button) === "Start the next 100");
+    await press(
+      button,
+      calls,
+      { started: 88, pending: 12 },
+      () => label(button) === "Start the remaining 60",
+    );
+    expect(report.querySelector("p")?.textContent).toBe(
+      "Started 188 of 248. 12 waiting to be sent again. 48 remain.",
+    );
+    await press(
+      button,
+      calls,
+      { started: 50, pending: 10 },
+      () => label(button) === "Start the remaining 10",
+    );
+    expect(report.querySelector("p")?.textContent).toBe(
+      "Started 238 of 248. 10 waiting to be sent again.",
+    );
+    expect(button.disabled).toBe(false);
+    await press(button, calls, { started: 10 }, () => label(button) === "All 248 started");
+    expect(sends).toEqual([100, 100, 60, 10]);
+    expect(report.querySelector("p")?.textContent).toBe("Started 248 of 248. None remain.");
+    await until(() => button.disabled);
+  });
+
+  it("fails a press whose answer does not account for its batch, counting nothing", async () => {
+    const { button, report } = card();
+    const { calls, sends } = wire(button, report);
+    button.click();
+    calls[0]?.resolve({ started: 90 });
+    const failed = () => report.querySelector(':scope > .cp-state[data-cp-state="failed"]');
+    await until(() => failed() !== null);
+    expect(failed()?.textContent).toBe("The batch could not start.");
+    expect(report.querySelector("p")?.textContent).toBe("248 episodes need subtitles.");
+    expect(label(button)).toBe("Start the first 100");
+    button.click();
+    expect(sends).toEqual([100, 100]);
   });
 
   it("sends one batch at a time, staying focusable and busy while it goes", async () => {

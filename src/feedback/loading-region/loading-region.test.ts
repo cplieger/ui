@@ -205,14 +205,48 @@ describe("enhanceLoadingRegion: a refresh", () => {
     expect(getComputedStyle(region, "::before").content).toBe("none");
   });
 
-  it("does not start a second load while one runs", async () => {
+  it("aborts a load under way when another starts, and renders only the newer one", async () => {
     const region = panel("Old");
-    const { handle, loads } = wired(region);
+    const signals: AbortSignal[] = [];
+    const answers: Deferred<string>[] = [];
+    const handle = enhanceLoadingRegion<string>(region, {
+      load: (signal) => {
+        signals.push(signal);
+        const d = deferred<string>();
+        answers.push(d);
+        // Ignores its signal, as a host's fetch wrapper may.
+        return d.promise;
+      },
+      render: (text) => region.replaceChildren(text),
+      signal: life.signal,
+    });
     const first = handle.load();
-    expect(await handle.load()).toBe(false);
-    expect(loads).toHaveLength(1);
-    loads[0]?.resolve("x");
-    await first;
+    const second = handle.load();
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("refreshing");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    answers[0]?.resolve("Older");
+    answers[1]?.resolve("Newer");
+    expect(await second).toBe(true);
+    expect(region.textContent).toBe("Newer");
+    expect(handle.state).toBe("ready");
+  });
+
+  it("starts a superseded first load over, behind its placeholder", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region, { words: { loading: "Loading who read it…" } });
+    const first = handle.load();
+    await sleep(260);
+    const second = handle.load();
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("loading");
+    await sleep(260);
+    expect(region.textContent).toBe("Loading who read it…");
+    loads[1]?.resolve("Read");
+    expect(await second).toBe(true);
+    expect(region.textContent).toBe("Read");
   });
 
   it("puts its failure above the old content with its age, and rewrites the same notice", async () => {
@@ -228,6 +262,10 @@ describe("enhanceLoadingRegion: a refresh", () => {
     const box = notice(region);
     expect(region.firstElementChild).toBe(box);
     expect(region.querySelector("p")?.textContent).toBe("Old");
+    // What it keeps is still true as of its time, so it warns.
+    expect(box?.getAttribute("data-tone")).toBe("warning");
+    expect(box?.querySelector('[data-cp-icon="triangle-alert"]')).not.toBeNull();
+    expect(box?.querySelector('[data-cp-icon="circle-x"]')).toBeNull();
     expect(box?.textContent).toContain("The refresh failed. What you see is from 14:02.");
     // A refresh from a button outside the region keeps focus on it.
     button.focus();
@@ -238,6 +276,36 @@ describe("enhanceLoadingRegion: a refresh", () => {
     expect(notice(region)).toBe(box);
     expect(region.querySelectorAll(".cp-notice")).toHaveLength(1);
     expect(document.activeElement).toBe(button);
+  });
+
+  it("shows the host's remedy under a failure's sentence, unsaid, and drops it when none", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      words: {
+        remedy: (reason) =>
+          reason instanceof Error && reason.message === "auth"
+            ? "Sign in to Sonarr again in Settings."
+            : undefined,
+      },
+    });
+    const first = handle.load();
+    loads[0]?.reject(new Error("auth"));
+    await first;
+    const line = notice(region)?.querySelector("small");
+    expect(line?.textContent).toBe("Sign in to Sonarr again in Settings.");
+    const sentence = getComputedStyle(line?.previousElementSibling as Element);
+    const style = getComputedStyle(line as Element);
+    expect(style.display).toBe("block");
+    expect(parseFloat(style.fontSize)).toBeGreaterThanOrEqual(13);
+    expect(style.color).not.toBe(sentence.color);
+    await sleep(150);
+    expect(polite()).toBe("The content did not load.");
+
+    const again = handle.load();
+    loads[1]?.reject(new Error("timeout"));
+    await again;
+    expect(notice(region)?.querySelector("small")).toBeNull();
+    expect(notice(region)?.getAttribute("data-tone")).toBe("danger");
   });
 
   it("takes the host's refresh words, given the reason and the time", async () => {
@@ -296,7 +364,7 @@ describe("enhanceLoadingRegion: a refresh", () => {
     await done;
   });
 
-  it("stops a load under way when its signal aborts", async () => {
+  it("stops a load under way when its signal aborts, and is no longer busy", async () => {
     const region = panel("Old");
     const own = new AbortController();
     let seen: AbortSignal | undefined;
@@ -308,14 +376,17 @@ describe("enhanceLoadingRegion: a refresh", () => {
       render: () => undefined,
       signal: own.signal,
     });
-    void handle.load();
+    const first = handle.load();
     own.abort();
     expect(seen?.aborted).toBe(true);
+    expect(await first).toBe(false);
+    expect(handle.state).toBe("ready");
+    expect(region.getAttribute("aria-busy")).toBe("false");
     expect(await handle.load()).toBe(false);
   });
 });
 
-describe("enhanceLoadingRegion: a popover that loads on its first open", () => {
+describe("enhanceLoadingRegion: a popover that loads when it opens", () => {
   function popover(): { invoker: HTMLButtonElement; region: HTMLDivElement } {
     const region = document.createElement("div");
     region.className = "cp-popover";
@@ -386,6 +457,40 @@ describe("enhanceLoadingRegion: a popover that loads on its first open", () => {
     expect(handle.state).toBe("ready");
     expect(region.getAttribute("aria-busy")).toBe("false");
     expect(document.activeElement).toBe(region.querySelector("h3"));
+  });
+
+  it("reloads on each open over the last names, and keeps them when a reopen fails", async () => {
+    const { region } = popover();
+    const { handle, loads } = wired(region, {
+      render: (text) => {
+        const heading = document.createElement("h3");
+        heading.textContent = text;
+        region.replaceChildren(heading);
+      },
+    });
+    region.addEventListener("beforetoggle", (e) => {
+      if (e.newState === "open") {
+        void handle.load();
+      }
+    });
+    region.showPopover();
+    loads[0]?.resolve("Read by 2");
+    await sleep(0);
+    region.hidePopover();
+
+    region.showPopover();
+    expect(handle.state).toBe("refreshing");
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    expect(region.textContent).toBe("Read by 2");
+    region.hidePopover();
+    region.showPopover();
+    expect(loads).toHaveLength(3);
+    loads[1]?.resolve("stale answer");
+    loads[2]?.reject(new Error("timeout"));
+    await sleep(0);
+    expect(handle.state).toBe("stale");
+    expect(region.querySelector("h3")?.textContent).toBe("Read by 2");
+    expect(notice(region)?.getAttribute("data-tone")).toBe("warning");
   });
 
   it("leaves focus where the person moved it while the names loaded", async () => {

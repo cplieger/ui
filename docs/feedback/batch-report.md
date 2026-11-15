@@ -19,11 +19,15 @@ import { enhanceBatchedAction } from "@cplieger/ui/batch-report";
 enhanceBatchedAction(button, report, {
   total: 248,
   size: 100,
-  send: async (offset, count, signal) => {
-    const answer = await api.findSubtitles(episodes.slice(offset, offset + count), { signal });
+  // queue holds the episodes not yet started, the ones held back first.
+  send: async (count, signal) => {
+    const batch = queue.slice(0, count);
+    const answer = await api.findSubtitles(batch, { signal });
+    queue = [...answer.held, ...queue.slice(count)];
     return {
       started: answer.started.length,
       missed: answer.refused.map((r) => ({ name: r.title, reason: r.reason })),
+      pending: answer.held.length,
     };
   },
   signal: view.signal,
@@ -49,13 +53,13 @@ After each press the report holds its sum and the misses so far:
 - `enhanceBatchedAction(button, report, opts)` wires `button`, which holds a `.cp-roll` with the first press's words and a `spinner-arc` busy span, and writes each press's result into `report`, a `.cp-batch-report`. It throws a `RangeError` when `total` or `size` is not a whole number of at least 1, and a `TypeError` when the button has no `.cp-roll`.
 - `BatchOptions` = `{ total, size, send, locale?, words?, signal? }`.
   - `total` is how many items the action covers, and `size` how many one press sends.
-  - `send(offset, count, signal)` sends `count` items from `offset`, the number earlier presses sent, and resolves with a `BatchAnswer` = `{ started, missed? }`: how many started, and each `BatchMiss` = `{ name, reason, note? }` that did not. A rejection fails the press: nothing counts as sent, so the next press sends the same items.
+  - `send(count, signal)` sends the app's next `count` items, the pending ones first, so the app keeps the queue and each item's own key. It resolves with a `BatchAnswer` = `{ started, missed?, pending? }` accounting for every item of the batch: how many started, each `BatchMiss` = `{ name, reason, note? }` refused for good, and how many wait to be sent again, such as those a full queue or a lost connection held back, or those the app never sent once it stopped at the first of them. Pending items stay in what remains, and the button reads "Start the remaining 18" until none is held back. A rejection fails the press: nothing counts, so the next press sends the same items. An answer that does not account for exactly `count` items fails the press the same way, with a `RangeError`.
   - `locale` is the language the counts are written in, by default the button's `lang`.
   - `words` = `{ next?, done?, busy?, report?, failed? }`, each count already written in that language.
     - `next(size, left, last)` is the button's words while batches remain, by default "Start the next {size}", or "Start the remaining {left}" when `last`, once one press covers what is left.
     - `done(started, total, all)` is its words after the last batch, by default "All {total} started" when `all` started, else "{started} of {total} started".
     - `busy` is its words while a batch is sent, by default "Starting…".
-    - `report(counts)` is the sum after each press, given `{ started, total, left, missed, format }`, the numbers and the page's way of writing one. By default "Started {started} of {total}. {left} remain." with "None remain." at the end, and "{missed} couldn't start:" once an item did not go.
+    - `report(counts)` is the sum after each press, given `{ started, total, left, pending, missed, format }`, the numbers and the page's way of writing one, where `left` counts items never sent and `pending` those the last press held back. By default "Started {started} of {total}. {left} remain." with "{pending} waiting to be sent again." before it while some are held back, "None remain." at the end, and "{missed} couldn't start:" once an item did not go. An app with its own reason for holding items back words it here, such as "12 waiting for capacity".
     - `failed` is the sentence for a press that failed outright, or a function given what `send` rejected with, by default "The batch could not start.".
   - `signal` ends the wiring and the batch under way, which then writes nothing.
 

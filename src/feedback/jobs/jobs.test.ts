@@ -203,7 +203,7 @@ describe("enhanceJobs", () => {
     const { calls } = wire(ul, {
       words: {
         stopped: "Cancelled",
-        stoppedCause: (at) => `Cancelled by you at ${at}`,
+        stoppedCause: (done, total) => `Cancelled by you at ${done ?? "?"} of ${total ?? "?"}`,
         said: (kind) => `${kind} cancelled`,
       },
     });

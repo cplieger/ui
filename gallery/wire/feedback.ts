@@ -45,6 +45,7 @@ for (const region of document.querySelectorAll<HTMLElement>("#stale-region")) {
     words: {
       refreshFailed: (reason, at) =>
         `The refresh failed: ${reason instanceof Error ? reason.message : String(reason)} What you see is from ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(at)}.`,
+      remedy: () => "Check that Sonarr is running, then press Retry.",
     },
   });
   for (const button of document.querySelectorAll<HTMLButtonElement>(
@@ -102,9 +103,9 @@ export function readButton(read: readonly string[], waiting: readonly string[]):
 }
 
 /**
- * Gives a read summary's button its panel, which loads the names on its
- * first open after 600 ms, and again on an open after a failure. A button
- * marked data-read-fails fails its first load, so the panel shows its Retry.
+ * Gives a read summary's button its panel, which loads the names on each
+ * open after 600 ms. A button marked data-read-fails fails its first load,
+ * so the panel shows its Retry.
  */
 export function readSummary(button: HTMLButtonElement): void {
   const panel = document.createElement("div");
@@ -131,18 +132,19 @@ export function readSummary(button: HTMLButtonElement): void {
         }, 600);
         signal.addEventListener("abort", () => {
           clearTimeout(timer);
+          refuse(signal.reason);
         });
       }),
     render: () => {
-      panel.append(
+      panel.replaceChildren(
         readers("Read", people(button.dataset["read"])),
         readers("Not read yet", people(button.dataset["waiting"])),
       );
     },
     words: { loading: "Loading who read it…", failed: "The readers could not be loaded." },
   });
-  panel.addEventListener("toggle", (e) => {
-    if (e.newState === "open" && (names.state === "idle" || names.state === "failed")) {
+  panel.addEventListener("beforetoggle", (e) => {
+    if (e.newState === "open") {
       void names.load();
     }
   });
@@ -230,14 +232,19 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("button[data-b
   if (report === null) {
     continue;
   }
+  // The second press holds 12 back, which the third sends again; the last
+  // refuses two for good.
   const total = Number(button.dataset["batchTotal"]);
+  let left = total;
   enhanceBatchedAction(button, report, {
     total,
     size: Number(button.dataset["batchSize"]),
-    send: async (offset, count, signal) => {
+    send: async (count, signal) => {
       await after(900, signal);
-      const missed = offset + count === total ? UNSTARTED : [];
-      return { started: count - missed.length, missed };
+      const pending = left === total - 100 ? 12 : 0;
+      const missed = count === left ? UNSTARTED : [];
+      left -= count - pending;
+      return { started: count - missed.length - pending, missed, pending };
     },
   });
 }
