@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { page } from "vitest/browser";
 
 import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { createIcons } from "../../foundations/icons/icons.js";
 import {
   createHeaderStatus,
   type HeaderStatus,
@@ -1230,6 +1231,148 @@ describe("the starts", () => {
     ]);
     expect(button.dataset["state"]).toBe("working");
     expect(words(button)).toBe("Quick check 0/8");
+  });
+
+  const pending = () => {
+    const box = { finish: (): void => undefined };
+    const run = vi.fn(
+      () =>
+        new Promise<void>((done) => {
+          box.finish = done;
+        }),
+    );
+    return { box, run };
+  };
+
+  const { icon } = createIcons({ base: "/static/icons/" });
+  const drawing = (el: Element | null | undefined) =>
+    el instanceof HTMLElement ? el.style.getPropertyValue("--cp-icon-image") : undefined;
+
+  it("draws a copy of a start's icon before its label and keeps it through Starting…", async () => {
+    const { panel, status } = mount();
+    const { box, run } = pending();
+    const zap = icon("zap");
+    status.update(model({ starts: [begin("q", { label: "Quick check", icon: zap, run })] }));
+    const q = startButton(panel, "q");
+    const glyph = q.firstElementChild;
+    expect(glyph?.matches('.cp-icon[data-cp-icon="zap"][aria-hidden="true"]')).toBe(true);
+    expect(drawing(glyph)).toBe('url("/static/icons/zap.svg")');
+    expect(zap.isConnected).toBe(false);
+    expect(q.textContent).toBe("Quick check");
+    q.click();
+    expect(q.textContent).toBe("Starting…");
+    expect(q.firstElementChild).toBe(glyph);
+    box.finish();
+    await vi.waitFor(() => {
+      expect(q.textContent).toBe("Quick check");
+    });
+    expect(q.firstElementChild).toBe(glyph);
+    // A strict content policy refuses a style set as an attribute.
+    const set = vi.spyOn(Element.prototype, "setAttribute");
+    status.update(
+      model({ starts: [begin("q", { label: "Quick check", icon: icon("timer"), run })] }),
+    );
+    expect(q.firstElementChild).toBe(glyph);
+    expect(glyph?.getAttribute("data-cp-icon")).toBe("timer");
+    expect(drawing(glyph)).toBe('url("/static/icons/timer.svg")');
+    expect(set.mock.calls.filter(([name]) => name === "style")).toEqual([]);
+    set.mockRestore();
+    status.update(model({ starts: [begin("q", { label: "Quick check", run })] }));
+    expect(q.querySelector(".cp-icon")).toBeNull();
+  });
+
+  it("turns a start's icon while it starts, only when asked, and marks it busy", async () => {
+    const { panel, status } = mount();
+    const full = pending();
+    const quick = pending();
+    status.update(
+      model({
+        starts: [
+          begin("f", { label: "Full check", icon: icon("refresh-cw"), turn: true, run: full.run }),
+          begin("q", { label: "Quick check", icon: icon("zap"), run: quick.run }),
+        ],
+      }),
+    );
+    const f = startButton(panel, "f");
+    const q = startButton(panel, "q");
+    const glyph = (b: HTMLButtonElement) => b.querySelector(".cp-icon") as HTMLElement;
+    expect(glyph(f).getAnimations()).toHaveLength(0);
+    f.click();
+    q.click();
+    expect(glyph(f).getAnimations()).toHaveLength(1);
+    expect(glyph(q).getAnimations()).toHaveLength(0);
+    expect(f.getAttribute("aria-busy")).toBe("true");
+    expect(q.getAttribute("aria-busy")).toBe("true");
+    status.update(
+      model({
+        starts: [
+          begin("f", { label: "Full check", icon: icon("refresh-cw"), turn: true, run: full.run }),
+        ],
+      }),
+    );
+    expect(f.getAttribute("aria-busy")).toBe("true");
+    expect(glyph(f).getAnimations()).toHaveLength(1);
+    full.box.finish();
+    await vi.waitFor(() => {
+      expect(f.textContent).toBe("Full check");
+    });
+    expect(f.hasAttribute("aria-busy")).toBe(false);
+    // The turn in progress finishes: the animation now ends.
+    const [anim] = glyph(f).getAnimations();
+    expect(anim?.effect?.getTiming().iterations).toBe(1);
+  });
+
+  it("describes a start by its tip, after its reason", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const tip = "Reads what SeaDex changed in the last 48 hours and judges only those entries.";
+    status.update(model({ starts: [begin("q", { label: "Quick check", tip })] }));
+    const q = startButton(panel, "q");
+    expect(q.dataset["cpTip"]).toBe(tip);
+    await expect
+      .element(page.getByRole("button", { name: "Quick check" }))
+      .toHaveAccessibleDescription(tip);
+    status.update(
+      model({
+        starts: [begin("q", { label: "Quick check", tip, unavailable: "A check is queued" })],
+      }),
+    );
+    expect(startButton(panel, "q")).toBe(q);
+    expect(startLine(panel, "q").textContent).toBe("A check is queued");
+    await expect
+      .element(page.getByRole("button", { name: "Quick check" }))
+      .toHaveAccessibleDescription(`A check is queued ${tip}`);
+    q.focus();
+    status.update(model({ starts: [begin("q", { label: "Quick check" })] }));
+    expect(startButton(panel, "q")).toBe(q);
+    expect(document.activeElement).toBe(q);
+    expect(q.hasAttribute("data-cp-tip")).toBe(false);
+    expect(q.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("writes the starts' info button last, its tip shown on a tap", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const startsInfo = { label: "About the checks", tip: "Quick check reads the last 48 hours." };
+    const starts = [begin("q", { label: "Quick check" }), begin("f", { label: "Full check" })];
+    status.update(model({ starts, startsInfo }));
+    const last = () => panel.querySelector('[data-cp-status="starts"] li:last-child button');
+    const info = last() as HTMLButtonElement;
+    expect(info.hasAttribute("data-cp-start")).toBe(false);
+    expect(
+      info.matches('.cp-button[data-variant="quiet"][data-size="sm"][data-cp-tip-toggle]'),
+    ).toBe(true);
+    expect(info.dataset["cpTip"]).toBe(startsInfo.tip);
+    expect(info.querySelector('.cp-icon[data-cp-icon="info"]')).not.toBeNull();
+    await expect
+      .element(page.getByRole("button", { name: "About the checks" }))
+      .toBeInTheDocument();
+    status.update(model({ starts: [...starts].reverse(), startsInfo }));
+    expect(last()).toBe(info);
+    status.update(model({ starts }));
+    expect(panel.querySelector("[data-cp-tip-toggle]")).toBeNull();
+    status.update(model({ startsInfo }));
+    expect(panel.querySelector('[data-cp-status="starts"]')).toBeNull();
   });
 });
 

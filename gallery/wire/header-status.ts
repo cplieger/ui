@@ -8,9 +8,11 @@
 import { renderChart } from "@cplieger/ui/chart";
 import { enhanceConfirm } from "@cplieger/ui/confirm";
 import { createHeaderStatus, type StatusModel } from "@cplieger/ui/header-status";
+import { createIcons } from "@cplieger/ui/icons";
 import { toast } from "@cplieger/ui/toast";
 
 const MINUTE = 60_000;
+const icons = createIcons<string>({ base: new URL("icons/svg/", location.href).href });
 const now = Date.now();
 
 const button = document.querySelector<HTMLButtonElement>("button[data-hs-pill]");
@@ -98,6 +100,8 @@ if (startsPill !== null && startsPanel !== null) {
     {
       id: "quick",
       label: "Quick check",
+      icon: icons.icon("zap"),
+      tip: "Reads what changed in the last 48 hours and judges only those entries. Seconds.",
       run: () =>
         new Promise<void>((accepted) => {
           setTimeout(() => {
@@ -109,6 +113,9 @@ if (startsPill !== null && startsPanel !== null) {
     {
       id: "full",
       label: "Full check",
+      icon: icons.icon("refresh-cw"),
+      turn: true,
+      tip: "Re-reads the whole catalogue and both libraries, and judges everything. About a minute.",
       run: () =>
         new Promise<void>((_, refuse) => {
           setTimeout(() => {
@@ -119,12 +126,23 @@ if (startsPill !== null && startsPanel !== null) {
     {
       id: "refresh",
       label: "Refresh now",
+      icon: icons.icon("refresh-cw"),
       run: () => Promise.resolve(),
       unavailable: "Refreshed 10 seconds ago",
     },
   ];
   const show = (): void => {
-    status.update({ starts, conditions: [], work, recent, next: "Next full check at 03:00" });
+    status.update({
+      starts,
+      startsInfo: {
+        label: "About the checks",
+        tip: "Quick check judges what changed in the last 48 hours, in seconds. Full check judges everything, in about a minute.",
+      },
+      conditions: [],
+      work,
+      recent,
+      next: "Next full check at 03:00",
+    });
   };
   const check = (step: number): void => {
     if (step > 8) {

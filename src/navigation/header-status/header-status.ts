@@ -10,6 +10,7 @@ import { announce } from "../../feedback/announce/announce.js";
 import { markKept } from "../../data/list-row/list-row.js";
 import { focusOn, landing } from "../../data/list-row/row.js";
 import { enhanceRelativeTime } from "../../data/relative-time/relative-time.js";
+import { turnWhile } from "../../buttons/turn/turn.js";
 import { ask, type AskOptions } from "../../overlays/ask/ask.js";
 import { enhancePanel } from "../../overlays/panel/panel.js";
 
@@ -71,11 +72,21 @@ export interface StatusStart {
   /** Why it cannot start now, shown under it; the button stays focusable
    *  and pressing it runs nothing. */
   readonly unavailable?: string;
+  /** A drawing from `@cplieger/ui/icons` before the label, as `ask()`
+   *  takes one; the panel draws its own copy. */
+  readonly icon?: Element;
+  /** The icon turns while it starts, as `./turn` does. */
+  readonly turn?: boolean;
+  /** What it does, the button's tip and its description. */
+  readonly tip?: string;
 }
 
 export interface StatusModel {
   /** Shown first, so they never move. */
   readonly starts?: readonly StatusStart[];
+  /** An info button after the starts, "About the checks", whose tip a tap
+   *  shows too, since a start's own tip shows only to a mouse or the keys. */
+  readonly startsInfo?: { readonly label: string; readonly tip: string };
   readonly conditions: readonly StatusCondition[];
   /** Newest first; the panel shows three: running work first, then the
    *  queue, each in this order. */
@@ -344,6 +355,21 @@ function h<K extends keyof HTMLElementTagNameMap>(
 const icon = (name: string, tone?: string): HTMLElement =>
   h("span", { class: "cp-icon", "data-cp-icon": name, "data-tone": tone, "aria-hidden": "true" });
 
+/** A copy of an app's icon, its drawing set through the CSSOM, since a
+ *  strict content policy refuses a copied `style` attribute. */
+const copyIcon = (from: Element): HTMLElement => {
+  const span = h("span", {
+    class: "cp-icon",
+    "data-cp-icon": from.getAttribute("data-cp-icon") ?? undefined,
+    "data-cp-icon-size": from.getAttribute("data-cp-icon-size") ?? undefined,
+    "aria-hidden": "true",
+  });
+  if (from instanceof HTMLElement) {
+    span.style.cssText = from.style.cssText;
+  }
+  return span;
+};
+
 const hidden = (text: string): HTMLElement => h("span", { class: "cp-visually-hidden" }, text);
 
 const stamp = (d: Date | number): HTMLTimeElement =>
@@ -409,7 +435,13 @@ function patch(old: Element, fresh: Element): Element {
     }
   }
   for (const { name, value } of [...fresh.attributes]) {
-    if (old.getAttribute(name) !== value) {
+    if (old.getAttribute(name) === value) {
+      continue;
+    }
+    // A strict content policy refuses a `style` set as an attribute.
+    if (name === "style" && old instanceof HTMLElement && fresh instanceof HTMLElement) {
+      old.style.cssText = fresh.style.cssText;
+    } else {
       old.setAttribute(name, value);
     }
   }
@@ -573,8 +605,12 @@ export function createHeaderStatus(
     const verb = busy ? w.starting : s.label;
     const reason = s.unavailable ?? startRefused.get(s.id);
     const line = `${id}-start-${String(i)}`;
-    // The line is always there, hidden when empty, so the button is never
-    // re-made, which would drop its focus.
+    const about = `${line}-tip`;
+    // The tip's own copy describes the button, so the tooltip, which adds a
+    // description only to a control with none, never fights the patch.
+    const describedBy = [reason === undefined ? "" : line, s.tip === undefined ? "" : about];
+    // The line and the tip's copy are always there, hidden when empty, so
+    // the button is never re-made, which would drop its focus.
     return h(
       "li",
       { "data-cp-key": s.id },
@@ -585,15 +621,42 @@ export function createHeaderStatus(
           "data-size": "sm",
           type: "button",
           "data-cp-start": s.id,
+          "data-cp-tip": s.tip,
           "aria-disabled": busy || s.unavailable !== undefined ? "true" : undefined,
+          "aria-busy": busy ? "true" : undefined,
           "aria-label": w.startName(verb, s),
-          "aria-describedby": reason === undefined ? undefined : line,
+          "aria-describedby": describedBy.filter((x) => x !== "").join(" ") || undefined,
         },
+        s.icon !== undefined && copyIcon(s.icon),
         verb,
       ),
       h("small", { id: line, hidden: reason === undefined ? "" : undefined }, reason),
+      h(
+        "span",
+        { id: about, class: "cp-visually-hidden", hidden: s.tip === undefined ? "" : undefined },
+        s.tip,
+      ),
     );
   };
+
+  const startsInfo = (info: NonNullable<StatusModel["startsInfo"]>): HTMLLIElement =>
+    h(
+      "li",
+      {},
+      h(
+        "button",
+        {
+          class: "cp-button",
+          "data-variant": "quiet",
+          "data-size": "sm",
+          type: "button",
+          "aria-label": info.label,
+          "data-cp-tip": info.tip,
+          "data-cp-tip-toggle": "",
+        },
+        icon("info"),
+      ),
+    );
 
   const workRow = (x: StatusWork): HTMLLIElement => {
     const busy = stopping.has(x.id);
@@ -740,7 +803,11 @@ export function createHeaderStatus(
         list = h("ul", { class: "cp-cluster" });
         s.append(list);
       }
-      syncList(list, starts.map(startItem));
+      const items = starts.map(startItem);
+      if (model.startsInfo !== undefined) {
+        items.push(startsInfo(model.startsInfo));
+      }
+      syncList(list, items);
       kids.push(s);
     }
     const conditions = listSection(
@@ -953,7 +1020,11 @@ export function createHeaderStatus(
     render();
     let reason: string | undefined;
     try {
-      await s.run();
+      const button =
+        s.turn === true && s.icon !== undefined
+          ? panel.querySelector(`[data-cp-start="${CSS.escape(key)}"]`)
+          : null;
+      await (button === null ? s.run() : turnWhile(button, s.run()));
     } catch (error) {
       reason = w.startRefused(error);
     }
