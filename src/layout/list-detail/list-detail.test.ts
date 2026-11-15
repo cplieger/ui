@@ -421,6 +421,42 @@ describe("enhanceListDetail", () => {
     expect(document.activeElement).toBe(m.opener);
   });
 
+  it("keeps a sheet reopened during an exit the engine cut short", async () => {
+    installDialogs({ signal: life.signal });
+    const route = { close: (): void => undefined };
+    const onDismiss = vi.fn(() => {
+      route.close();
+    });
+    const m = mount(400, { onDismiss });
+    route.close = m.api.close;
+    m.api.open();
+    await played(m.dialog);
+    await userEvent.keyboard("{Escape}");
+    await new Promise((r) => setTimeout(r, 0));
+    // Held, so the reopen lands inside the exit in script on a slow host.
+    const exit = m.dialog
+      .getAnimations()
+      .filter((a) => !(a instanceof CSSTransition || a instanceof CSSAnimation));
+    for (const a of exit) {
+      a.pause();
+    }
+    // No user activation between the two, so the engine closes the sheet
+    // itself while an exit in script plays on.
+    await userEvent.keyboard("{Escape}");
+    await new Promise((r) => setTimeout(r, 0));
+    m.opener.focus();
+    m.api.open();
+    for (const a of exit.filter((e) => e.playState === "paused")) {
+      a.play();
+    }
+    await played(m.dialog);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(m.dialog.open).toBe(true);
+    expect(m.detail.parentElement).toBe(m.dialog);
+    expect(m.detail.hidden).toBe(false);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
   it("closes the sheet when it is opened and closed again in one task while it leaves", async () => {
     const { root, opener, detail, dialog, api } = mount(400);
     api.open();

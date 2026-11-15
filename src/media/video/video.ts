@@ -203,6 +203,14 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     drawButton();
   };
 
+  /** Marks a failed source and turns its controls off; the next `loadstart`
+   *  clears it. */
+  const showError = (): void => {
+    root.setAttribute(ERROR, "");
+    play.disabled = true;
+    busy = false;
+  };
+
   const seekTo = (at: number): void => {
     const end = total();
     video.currentTime = Math.max(0, Number.isFinite(end) ? Math.min(at, end) : at);
@@ -215,11 +223,29 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
    *  so the captions are never moved after their times were given back. */
   let dead = signal?.aborted === true;
 
+  /** Gives `t` back its cues' own times and its own `addCue`. */
+  const release = (t: TextTrack): void => {
+    for (const cue of [...(t.cues ?? [])]) {
+      const m = moved.get(cue);
+      // A cue the app retimed since the last move keeps the app's times.
+      if (m !== undefined && carries(cue, m.wrote)) {
+        place(t, cue, ...m.own);
+      }
+    }
+    Reflect.deleteProperty(t, "addCue");
+    placing.delete(t);
+  };
+
   const applyOffset = (): void => {
     if (dead) {
       return;
     }
     const track = captionTrack(video);
+    for (const t of [...placing]) {
+      if (t !== track) {
+        release(t);
+      }
+    }
     if (track === undefined) {
       return;
     }
@@ -301,10 +327,8 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   video.addEventListener(
     "error",
     () => {
-      root.setAttribute(ERROR, "");
-      play.disabled = true;
-      setBusy(false);
-      drawTime(video.currentTime);
+      showError();
+      draw();
     },
     listen,
   );
@@ -384,7 +408,9 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     },
     until(signal, true),
   );
+  // Either can change which track is the caption track.
   video.textTracks.addEventListener("addtrack", applyOffset, listen);
+  video.textTracks.addEventListener("removetrack", applyOffset, listen);
 
   // A closed pane stops the video where it is, so reopening carries on.
   const shown = new ResizeObserver(() => {
@@ -398,6 +424,10 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   let pending:
     { readonly stop: AbortController; readonly from: number; readonly resume: boolean } | undefined;
 
+  // A source that failed before this call has already fired its error.
+  if (video.error !== null) {
+    showError();
+  }
   applyOffset();
   draw();
 
@@ -409,18 +439,9 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     root.removeAttribute(ERROR);
     root.removeAttribute("aria-busy");
     video.controls = hadControls;
-    const track = captionTrack(video);
-    for (const cue of [...(track?.cues ?? [])]) {
-      const m = moved.get(cue);
-      // A cue the app retimed since the last move keeps the app's times.
-      if (track !== undefined && m !== undefined && carries(cue, m.wrote)) {
-        place(track, cue, ...m.own);
-      }
+    for (const t of [...placing]) {
+      release(t);
     }
-    for (const t of placing) {
-      Reflect.deleteProperty(t, "addCue");
-    }
-    placing.clear();
   });
 
   return {

@@ -172,10 +172,10 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       if (detail.parentElement !== dialog) {
         dialog.append(detail);
       }
-      if (dialog.open) {
-        // Opened again while closeDialog plays the exit.
-        stopExit();
-      } else {
+      // closeDialog's exit in script can outlive a sheet the engine already
+      // closed, and its end would close the sheet opened again here.
+      stopExit();
+      if (!dialog.open) {
         dialog.showModal();
       }
     }

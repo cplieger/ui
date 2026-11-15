@@ -483,6 +483,59 @@ describe("enhanceVideo", () => {
     expect(root.hasAttribute("aria-busy")).toBe(false);
   });
 
+  it("marks a source that failed before it starts, and clears the mark once a source loads", async () => {
+    const root = document.createElement("div");
+    root.className = "cp-video";
+    const video = document.createElement("video");
+    video.controls = true;
+    root.append(video);
+    document.body.append(root);
+    const failed = new Promise((resolve) => {
+      video.addEventListener("error", resolve, { once: true });
+    });
+    video.src = objectUrl(new Blob(["not a video"], { type: "video/webm" }));
+    await failed;
+    const handle = enhanceVideo(root, { signal: life.signal });
+    const play = root.querySelector('[data-part="play"]') as HTMLButtonElement;
+    const seek = root.querySelector("input.cp-range") as HTMLInputElement;
+    expect(root.hasAttribute("data-cp-error")).toBe(true);
+    expect(root.hasAttribute("aria-busy")).toBe(false);
+    expect(play.querySelector(".cp-icon")?.getAttribute("data-cp-icon")).toBe("play");
+    expect([play.disabled, seek.disabled]).toEqual([true, true]);
+    handle.load(await sample());
+    await metadata(video);
+    expect(root.hasAttribute("data-cp-error")).toBe(false);
+    expect([play.disabled, seek.disabled]).toEqual([false, false]);
+  });
+
+  it("gives back a track's own times once another becomes the caption track", async () => {
+    const root = document.createElement("div");
+    root.className = "cp-video";
+    const video = document.createElement("video");
+    root.append(video);
+    document.body.append(root);
+    const chapters = video.addTextTrack("chapters", "Chapters", "en");
+    chapters.addCue(new VTTCue(1, 2, "Opening"));
+    enhanceVideo(root, { offset: 1, signal: life.signal });
+    expect(times(chapters)).toEqual([[2, 3]]);
+    const added = new Promise((resolve) => {
+      video.textTracks.addEventListener("addtrack", resolve, { once: true });
+    });
+    const subtitles = video.addTextTrack("subtitles", "English", "en");
+    subtitles.addCue(new VTTCue(5, 6, "One"));
+    await added;
+    expect(times(chapters)).toEqual([[1, 2]]);
+    expect(times(subtitles)).toEqual([[6, 7]]);
+    chapters.addCue(new VTTCue(3, 4, "Middle"));
+    expect(times(chapters).at(-1)).toEqual([3, 4]);
+    life.abort();
+    expect(times(chapters)).toEqual([
+      [1, 2],
+      [3, 4],
+    ]);
+    expect(times(subtitles)).toEqual([[5, 6]]);
+  });
+
   it("gives back the native controls and the cues' own times once its signal aborts", async () => {
     const { root, video, handle } = await pane();
     await expect.poll(() => cues(video).length).toBe(2);
