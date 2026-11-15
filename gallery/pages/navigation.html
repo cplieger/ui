@@ -115,6 +115,19 @@
         <footer>The pill and its panel follow the app's model: a problem, a warning, one scan running and the recent events. SeaDex's row links to its status block below: pressing it closes the panel, and the block's heading takes focus. Stop on the scan reads Stopping… until the scan leaves, and the idle line then shows the next check.</footer>
       </div>
       <div class="card g-wide" data-new>
+        <h2>Starts in the panel</h2>
+        <div class="g-mini-header">
+          <header class="cp-header">
+            <a class="cp-wordmark" href="#status"><span class="cp-mark" aria-hidden="true">S</span><span class="cp-hidden-narrow">Release scout</span></a>
+            <div class="cp-toolbar">
+              <button class="cp-header-status" type="button" popovertarget="hs-starts-panel" data-hs-starts><span>All good</span></button>
+              <div class="cp-popover cp-status-panel" data-variant="panel" id="hs-starts-panel" popover data-hs-starts-panel></div>
+            </div>
+          </header>
+        </div>
+        <footer>The work a person can start from the panel comes first in it, one button per start that the module keeps. Quick check reads Starting… while the app accepts it, then the check shows under Running and the pill counts it. Full check is refused, so the reason stands under it and is said. Refresh now cannot start just after a refresh: it stays focusable with its reason under it, and pressing it starts nothing.</footer>
+      </div>
+      <div class="card g-wide" data-new>
         <h2>A component's status</h2>
         <div class="cp-stack">
           <ul class="cp-list" aria-labelledby="cs-sonarr">

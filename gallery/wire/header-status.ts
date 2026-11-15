@@ -1,7 +1,8 @@
 /**
  * header-status.ts — the gallery's header status on the library: pills in
  * each state, an urgent condition's banner, a pill and panel whose problem
- * link lands on a component's status block, and that block's chart and test.
+ * link lands on a component's status block, that block's chart and test, and
+ * a panel's starts.
  */
 
 import { renderChart } from "@cplieger/ui/chart";
@@ -83,6 +84,67 @@ if (button !== null && panel !== null) {
     });
   };
   show([scanning, queued]);
+}
+
+const startsPill = document.querySelector<HTMLButtonElement>("button[data-hs-starts]");
+const startsPanel = document.querySelector<HTMLElement>("[data-hs-starts-panel]");
+if (startsPill !== null && startsPanel !== null) {
+  const status = createHeaderStatus({ button: startsPill, panel: startsPanel });
+  let work: StatusModel["work"] = [];
+  let recent: NonNullable<StatusModel["recent"]> = [
+    { id: "r1", words: "Full check finished", at: now - 50 * MINUTE },
+  ];
+  const starts: StatusModel["starts"] = [
+    {
+      id: "quick",
+      label: "Quick check",
+      run: () =>
+        new Promise<void>((accepted) => {
+          setTimeout(() => {
+            accepted();
+            check(0);
+          }, 1200);
+        }),
+    },
+    {
+      id: "full",
+      label: "Full check",
+      run: () =>
+        new Promise<void>((_, refuse) => {
+          setTimeout(() => {
+            refuse(new Error("GitHub budget resets at 15:40"));
+          }, 900);
+        }),
+    },
+    {
+      id: "refresh",
+      label: "Refresh now",
+      run: () => Promise.resolve(),
+      unavailable: "Refreshed 10 seconds ago",
+    },
+  ];
+  const show = (): void => {
+    status.update({ starts, conditions: [], work, recent, next: "Next full check at 03:00" });
+  };
+  const check = (step: number): void => {
+    if (step > 8) {
+      work = [];
+      recent = [
+        { id: `q${String(Date.now())}`, words: "Quick check finished", at: Date.now() },
+        ...recent,
+      ];
+      show();
+      return;
+    }
+    work = [
+      { id: "quick-run", title: "Quick check", phase: "Reading series", value: step, max: 8 },
+    ];
+    show();
+    setTimeout(() => {
+      check(step + 1);
+    }, 700);
+  };
+  show();
 }
 
 const STATES: readonly StatusModel[] = [

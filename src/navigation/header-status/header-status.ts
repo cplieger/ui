@@ -58,9 +58,24 @@ export interface StatusWork {
   readonly stop?: { readonly run: () => Promise<void>; readonly ask?: StopQuestion };
 }
 
+/** Work the person can start from the panel, the mirror of a Stop. */
+export interface StatusStart {
+  /** Stable across updates. */
+  readonly id: string;
+  /** The button's words, "Quick check". */
+  readonly label: string;
+  /** The button reads "Starting…" until it settles; its rejection's
+   *  message is the start's reason line. The started work shows once the
+   *  app puts it in `work`. */
+  readonly run: () => Promise<void>;
+  /** Why it cannot start now, shown under it; the button stays focusable
+   *  and pressing it runs nothing. */
+  readonly unavailable?: string;
+}
+
 export interface StatusModel {
-  /** The app's own start buttons, shown first so they never move. */
-  readonly starts?: HTMLElement;
+  /** Shown first, so they never move. */
+  readonly starts?: readonly StatusStart[];
   readonly conditions: readonly StatusCondition[];
   /** Newest first; the panel shows three: running work first, then the
    *  queue, each in this order. */
@@ -132,6 +147,14 @@ export interface StatusWords {
   /** A refused Stop's reason line. Default the error's message, else
    *  "Could not stop". */
   readonly refused: (error: unknown) => string;
+  /** A start's word while its `run` is pending. Default "Starting…". */
+  readonly starting: string;
+  /** A start's name for a reader, from its shown word. Default the label,
+   *  then "Starting… Quick check" while it starts. */
+  readonly startName: (verb: string, start: StatusStart) => string;
+  /** A refused start's reason line. Default the error's message, else
+   *  "Could not start". */
+  readonly startRefused: (error: unknown) => string;
   /** Default "Show all 12 running". */
   readonly showAll: (n: number) => string;
   /** The sections' headings. Default "Problems and warnings", "Running",
@@ -227,6 +250,9 @@ function wordsFor(options: HeaderStatusOptions): StatusWords {
     stopping: "Stopping…",
     queued: "Queued",
     refused: (e) => (e instanceof Error && e.message !== "" ? e.message : "Could not stop"),
+    starting: "Starting…",
+    startName: (v, s) => (v === s.label ? v : `${v} ${s.label}`),
+    startRefused: (e) => (e instanceof Error && e.message !== "" ? e.message : "Could not start"),
     showAll: (k) => `Show all ${n.format(k)} running`,
     sections: {
       conditions: "Problems and warnings",
@@ -470,6 +496,9 @@ export function createHeaderStatus(
    *  earlier stop of an item that left and came back. */
   const stopping = new Map<string, object>();
   const refused = new Map<string, string>();
+  /** The same for starts, by start id. */
+  const starting = new Map<string, object>();
+  const startRefused = new Map<string, string>();
   const kept = new Set<Element>();
   /** One signal per shown time, so a time that leaves or is enhanced again
    *  releases its relative-time entry rather than holding it until destroy. */
@@ -539,6 +568,33 @@ export function createHeaderStatus(
     return item(c.id, row(c.href, lead, body, end, c.href !== undefined && hidden(`, ${w.fix}`)));
   };
 
+  const startItem = (s: StatusStart, i: number): HTMLLIElement => {
+    const busy = starting.has(s.id);
+    const verb = busy ? w.starting : s.label;
+    const reason = s.unavailable ?? startRefused.get(s.id);
+    const line = `${id}-start-${String(i)}`;
+    // The line is always there, hidden when empty, so the button is never
+    // re-made, which would drop its focus.
+    return h(
+      "li",
+      { "data-cp-key": s.id },
+      h(
+        "button",
+        {
+          class: "cp-button",
+          "data-size": "sm",
+          type: "button",
+          "data-cp-start": s.id,
+          "aria-disabled": busy || s.unavailable !== undefined ? "true" : undefined,
+          "aria-label": w.startName(verb, s),
+          "aria-describedby": reason === undefined ? undefined : line,
+        },
+        verb,
+      ),
+      h("small", { id: line, hidden: reason === undefined ? "" : undefined }, reason),
+    );
+  };
+
   const workRow = (x: StatusWork): HTMLLIElement => {
     const busy = stopping.has(x.id);
     const verb = busy ? w.stopping : x.queued === true ? w.cancel : w.stop;
@@ -562,7 +618,7 @@ export function createHeaderStatus(
       "span",
       { class: "cp-cell-stack" },
       x.href !== undefined && !whole ? h("a", { href: x.href }, x.title) : h("span", {}, x.title),
-      reason !== undefined && h("small", {}, reason),
+      reason !== undefined && h("small", { "data-cp-refused": "" }, reason),
     );
     const end =
       x.queued === true &&
@@ -676,11 +732,15 @@ export function createHeaderStatus(
     kept.clear();
 
     const kids: HTMLElement[] = [head];
-    if (model.starts !== undefined) {
+    const starts = model.starts ?? [];
+    if (starts.length > 0) {
       const s = section("starts");
-      if (s.firstElementChild !== model.starts || s.childElementCount !== 1) {
-        s.replaceChildren(model.starts);
+      let list = s.firstElementChild;
+      if (list === null) {
+        list = h("ul", { class: "cp-cluster" });
+        s.append(list);
       }
+      syncList(list, starts.map(startItem));
       kids.push(s);
     }
     const conditions = listSection(
@@ -761,6 +821,12 @@ export function createHeaderStatus(
             },
           );
           kept.add(li);
+          // A refusal is the person's own press, newer than the drop, so it
+          // stays in sight among the kept lines.
+          const own = li.querySelector<HTMLElement>("[data-cp-refused]");
+          if (own !== null) {
+            own.hidden = false;
+          }
         }
       }
     }
@@ -869,9 +935,6 @@ export function createHeaderStatus(
         return;
       }
       stopping.delete(key);
-      if (!model.work.some((x) => x.id === key)) {
-        return;
-      }
       const reason = w.refused(error);
       refused.set(key, reason);
       announce(reason);
@@ -879,13 +942,47 @@ export function createHeaderStatus(
     }
   };
 
+  const start = async (key: string): Promise<void> => {
+    const s = model.starts?.find((x) => x.id === key);
+    if (gone || s === undefined || s.unavailable !== undefined || starting.has(key)) {
+      return;
+    }
+    const mine = {};
+    starting.set(key, mine);
+    startRefused.delete(key);
+    render();
+    let reason: string | undefined;
+    try {
+      await s.run();
+    } catch (error) {
+      reason = w.startRefused(error);
+    }
+    // update() drops the entry of a start that left, so a late answer to
+    // one that left, or to an earlier press, ends here.
+    if (ended() || starting.get(key) !== mine) {
+      return;
+    }
+    starting.delete(key);
+    if (reason !== undefined) {
+      // An unavailable start shows its own reason, newer than the press.
+      if (model.starts?.find((x) => x.id === key)?.unavailable === undefined) {
+        startRefused.set(key, reason);
+      }
+      announce(reason);
+    }
+    render();
+  };
+
   panel.addEventListener(
     "click",
     (e) => {
       const target = e.target instanceof Element ? e.target : null;
       const stopper = target?.closest<HTMLElement>("[data-cp-stop]");
+      const starter = target?.closest<HTMLElement>("[data-cp-start]");
       if (stopper !== null && stopper !== undefined) {
         void stop(stopper.dataset["cpStop"] ?? "");
+      } else if (starter !== null && starter !== undefined) {
+        void start(starter.dataset["cpStart"] ?? "");
       } else if (target?.closest("[data-cp-retry]") !== null && target !== null) {
         model.reconnect?.();
       } else if (
@@ -918,6 +1015,16 @@ export function createHeaderStatus(
         if (!present.has(key)) {
           stopping.delete(key);
           refused.delete(key);
+        }
+      }
+      const starts = new Map((model.starts ?? []).map((s) => [s.id, s]));
+      for (const key of [...starting.keys(), ...startRefused.keys()]) {
+        const s = starts.get(key);
+        if (s === undefined) {
+          starting.delete(key);
+          startRefused.delete(key);
+        } else if (s.unavailable !== undefined) {
+          startRefused.delete(key);
         }
       }
       render();

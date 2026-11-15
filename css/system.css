@@ -10858,6 +10858,24 @@ button.cp-figure[aria-expanded="true"]::after {
   gap: var(--cp-space-2);
 }
 
+/* The starts: each start's reason line sits under its own button. */
+.cp-status-panel > section > ul.cp-cluster {
+  align-items: start;
+  margin: 0;
+  padding: 0;
+}
+
+.cp-status-panel > section > .cp-cluster > li {
+  display: grid;
+  justify-items: start;
+  gap: var(--cp-space-1);
+}
+
+.cp-status-panel > section > .cp-cluster > li > small {
+  color: var(--cp-ink-muted);
+  font-size: var(--cp-text-xs);
+}
+
 /* The foot's link holds the hit size, and the foot's padding gives back what
  * the link grows by, so the foot keeps its height under a mouse. */
 .cp-status-panel > footer {

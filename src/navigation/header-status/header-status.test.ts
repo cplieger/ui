@@ -7,6 +7,7 @@ import {
   type HeaderStatus,
   type StatusCondition,
   type StatusModel,
+  type StatusStart,
   type StatusWork,
 } from "./header-status.js";
 
@@ -397,9 +398,20 @@ const heading = (panel: HTMLElement) => panel.querySelector("h2")?.textContent;
 const stopButton = (panel: HTMLElement, id: string) =>
   panel.querySelector<HTMLButtonElement>(`[data-cp-stop="${id}"]`) as HTMLButtonElement;
 
-const full = (starts: HTMLElement): StatusModel =>
+const begin = (id: string, extra: Partial<StatusStart> = {}): StatusStart => ({
+  id,
+  label: id,
+  run: () => Promise.resolve(),
+  ...extra,
+});
+const startButton = (panel: HTMLElement, id: string) =>
+  panel.querySelector<HTMLButtonElement>(`[data-cp-start="${id}"]`) as HTMLButtonElement;
+const startLine = (panel: HTMLElement, id: string) =>
+  startButton(panel, id).nextElementSibling as HTMLElement;
+
+const full = (): StatusModel =>
   model({
-    starts,
+    starts: [begin("Quick check"), begin("Full check")],
     conditions: [warning("w"), problem("p", { href: "/fix/p" })],
     work: [job("a", { stop: { run: () => Promise.resolve() } })],
     notices: [{ id: "n", title: "Backup restored" }],
@@ -410,9 +422,7 @@ const full = (starts: HTMLElement): StatusModel =>
 describe("the panel's sections", () => {
   it("writes the heading, then starts, conditions, running, notices, recent and the foot", () => {
     const { panel, status } = mount();
-    const starts = document.createElement("div");
-    starts.className = "cp-cluster";
-    status.update(full(starts));
+    status.update(full());
     expect(sections(panel)).toEqual([
       "header",
       "starts",
@@ -422,7 +432,11 @@ describe("the panel's sections", () => {
       "recent",
       "footer",
     ]);
-    expect(panel.querySelector('[data-cp-status="starts"] > .cp-cluster')).toBe(starts);
+    expect(
+      [...panel.querySelectorAll('[data-cp-status="starts"] > ul.cp-cluster > li > button')].map(
+        (b) => b.textContent,
+      ),
+    ).toEqual(["Quick check", "Full check"]);
     expect(panel.querySelector("footer > a")?.getAttribute("href")).toBe("/activity");
     expect(panel.getAttribute("aria-labelledby")).toBe(panel.querySelector("h2")?.id);
     for (const list of panel.querySelectorAll("section > .cp-list")) {
@@ -435,7 +449,7 @@ describe("the panel's sections", () => {
 
   it("gives the foot's history link the hit size under a mouse and a finger", () => {
     const { panel, status } = mount();
-    status.update(full(document.createElement("div")));
+    status.update(full());
     panel.showPopover();
     const link = panel.querySelector("footer > a") as HTMLElement;
     // offsetHeight, since the panel's entry scales its box.
@@ -450,8 +464,8 @@ describe("the panel's sections", () => {
 
   it("leaves out every empty section", () => {
     const { panel, status } = mount();
-    status.update(full(document.createElement("div")));
-    status.update(model({ work: [job("a")] }));
+    status.update(full());
+    status.update(model({ starts: [], work: [job("a")] }));
     expect(sections(panel)).toEqual(["header", "work"]);
     status.update(model({}));
     expect(sections(panel)).toEqual(["header"]);
@@ -1006,6 +1020,260 @@ describe("the running section", () => {
       expect(run).toHaveBeenCalledOnce();
     });
     expect(document.querySelector("dialog")).toBeNull();
+  });
+});
+
+describe("the starts", () => {
+  it("writes each start as a small button, first in the panel, patched by id", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const quick = begin("q", { label: "Quick check" });
+    const fullCheck = begin("f", { label: "Full check" });
+    status.update(model({ starts: [quick, fullCheck], conditions: [problem("p")] }));
+    expect(sections(panel)).toEqual(["header", "starts", "conditions"]);
+    const q = startButton(panel, "q");
+    expect(q.matches('.cp-button[data-size="sm"]')).toBe(true);
+    expect(startLine(panel, "q").hidden).toBe(true);
+    await expect.element(page.getByRole("button", { name: "Quick check" })).toBeInTheDocument();
+    status.update(model({ starts: [fullCheck, quick] }));
+    expect(startButton(panel, "q")).toBe(q);
+    expect([...panel.querySelectorAll("[data-cp-start]")].map((b) => b.textContent)).toEqual([
+      "Full check",
+      "Quick check",
+    ]);
+  });
+
+  it("reads Starting… while it starts, keeps focus and ignores a second press", async () => {
+    const { panel, status } = mount();
+    // The panel's opening moves focus to its heading, on the toggle task.
+    const opened = new Promise((resolve) => {
+      panel.addEventListener("toggle", resolve, { once: true });
+    });
+    panel.showPopover();
+    await opened;
+    let finish: () => void = () => undefined;
+    const run = vi.fn(
+      () =>
+        new Promise<void>((done) => {
+          finish = done;
+        }),
+    );
+    const m = model({ starts: [begin("q", { label: "Quick check", run })] });
+    status.update(m);
+    const q = startButton(panel, "q");
+    q.focus();
+    q.click();
+    expect(run).toHaveBeenCalledOnce();
+    expect(q.textContent).toBe("Starting…");
+    expect(q.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(q);
+    await expect
+      .element(page.getByRole("button", { name: "Starting… Quick check" }))
+      .toBeInTheDocument();
+    q.click();
+    status.update(m);
+    expect(startButton(panel, "q")).toBe(q);
+    expect(q.textContent).toBe("Starting…");
+    expect(run).toHaveBeenCalledOnce();
+    finish();
+    await vi.waitFor(() => {
+      expect(q.textContent).toBe("Quick check");
+    });
+    expect(q.hasAttribute("aria-disabled")).toBe(false);
+    expect(document.activeElement).toBe(q);
+    expect(said()).toBe("");
+  });
+
+  it("writes a refusal as the start's reason line, says it, and gives the button back", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const run = vi.fn((): Promise<void> =>
+      Promise.reject(new Error("GitHub budget resets at 15:40")),
+    );
+    status.update(model({ starts: [begin("f", { label: "Full check", run })] }));
+    startButton(panel, "f").click();
+    await vi.waitFor(() => {
+      expect(startLine(panel, "f").textContent).toBe("GitHub budget resets at 15:40");
+    });
+    expect(startLine(panel, "f").hidden).toBe(false);
+    expect(said()).toBe("GitHub budget resets at 15:40");
+    const f = startButton(panel, "f");
+    expect(f.textContent).toBe("Full check");
+    expect(f.hasAttribute("aria-disabled")).toBe(false);
+    await expect
+      .element(page.getByRole("button", { name: "Full check" }))
+      .toHaveAccessibleDescription("GitHub budget resets at 15:40");
+    run.mockImplementationOnce(() => new Promise<void>(() => undefined));
+    f.click();
+    expect(startLine(panel, "f").hidden).toBe(true);
+    expect(f.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("says Could not start for a refusal with no message", async () => {
+    const { panel, status } = mount();
+    status.update(model({ starts: [begin("f", { run: () => Promise.reject(new Error("")) })] }));
+    startButton(panel, "f").click();
+    await vi.waitFor(() => {
+      expect(startLine(panel, "f").textContent).toBe("Could not start");
+    });
+  });
+
+  it("drops a refusal that comes back after its start left or was pressed again", async () => {
+    const { panel, status } = mount();
+    const refusals: ((error: Error) => void)[] = [];
+    const run = vi.fn(
+      () =>
+        new Promise<void>((_, reject) => {
+          refusals.push(reject);
+        }),
+    );
+    const m = model({ starts: [begin("f", { run })] });
+    status.update(m);
+    startButton(panel, "f").click();
+    status.update(model({}));
+    status.update(m);
+    expect(startButton(panel, "f").textContent).toBe("f");
+    startButton(panel, "f").click();
+    expect(run).toHaveBeenCalledTimes(2);
+    refusals[0]?.(new Error("No budget"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(said()).toBe("");
+    expect(startButton(panel, "f").textContent).toBe("Starting…");
+    expect(startLine(panel, "f").hidden).toBe(true);
+    status.update(model({}));
+    refusals[1]?.(new Error("No budget"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(said()).toBe("");
+    status.update(m);
+    expect(startLine(panel, "f").hidden).toBe(true);
+    expect(startButton(panel, "f").textContent).toBe("f");
+  });
+
+  it("shows an unavailable start focusable with its reason, and runs nothing", async () => {
+    const { panel, status } = mount();
+    panel.showPopover();
+    const run = vi.fn(() => Promise.resolve());
+    const refresh = { label: "Refresh now", run };
+    status.update(
+      model({ starts: [begin("r", { ...refresh, unavailable: "Refreshed 10 seconds ago" })] }),
+    );
+    const r = startButton(panel, "r");
+    expect(r.disabled).toBe(false);
+    expect(r.getAttribute("aria-disabled")).toBe("true");
+    expect(r.textContent).toBe("Refresh now");
+    const line = startLine(panel, "r");
+    expect(line.hidden).toBe(false);
+    expect(line.textContent).toBe("Refreshed 10 seconds ago");
+    await expect
+      .element(page.getByRole("button", { name: "Refresh now" }))
+      .toHaveAccessibleDescription("Refreshed 10 seconds ago");
+    r.focus();
+    expect(document.activeElement).toBe(r);
+    r.click();
+    expect(run).not.toHaveBeenCalled();
+    status.update(model({ starts: [begin("r", refresh)] }));
+    expect(r.hasAttribute("aria-disabled")).toBe(false);
+    expect(line.hidden).toBe(true);
+    r.click();
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  it("shows the unavailable reason over a refusal, and drops the refusal", async () => {
+    const { panel, status } = mount();
+    let refuse = (_: Error): void => undefined;
+    const run = vi.fn(
+      () =>
+        new Promise<void>((_, reject) => {
+          refuse = reject;
+        }),
+    );
+    const later = "Checked a minute ago";
+    status.update(model({ starts: [begin("f", { run })] }));
+    startButton(panel, "f").click();
+    refuse(new Error("GitHub budget resets at 15:40"));
+    await vi.waitFor(() => {
+      expect(startLine(panel, "f").textContent).toBe("GitHub budget resets at 15:40");
+    });
+    status.update(model({ starts: [begin("f", { run, unavailable: later })] }));
+    expect(startLine(panel, "f").textContent).toBe(later);
+    status.update(model({ starts: [begin("f", { run })] }));
+    expect(startLine(panel, "f").hidden).toBe(true);
+    startButton(panel, "f").click();
+    status.update(model({ starts: [begin("f", { run, unavailable: later })] }));
+    expect(startButton(panel, "f").textContent).toBe("Starting…");
+    refuse(new Error("GitHub budget resets at 15:40"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(said()).toBe("GitHub budget resets at 15:40");
+    expect(startButton(panel, "f").textContent).toBe("f");
+    expect(startLine(panel, "f").textContent).toBe(later);
+    status.update(model({ starts: [begin("f", { run })] }));
+    expect(startLine(panel, "f").hidden).toBe(true);
+  });
+
+  it("shows the started work under Running, and the pill reads it as work", async () => {
+    const { button, panel, status } = mount();
+    const quick: StatusStart = begin("q", {
+      label: "Quick check",
+      run: () => {
+        status.update(model({ starts: [quick], work: [job("Quick check", { value: 0, max: 8 })] }));
+        return Promise.resolve();
+      },
+    });
+    status.update(model({ starts: [quick] }));
+    expect(button.dataset["state"]).toBe("ok");
+    startButton(panel, "q").click();
+    await vi.waitFor(() => {
+      expect(startButton(panel, "q").textContent).toBe("Quick check");
+    });
+    expect(rows(panel, "work").map((r) => r.querySelector(".cp-cell-stack")?.textContent)).toEqual([
+      "Quick check",
+    ]);
+    expect(button.dataset["state"]).toBe("working");
+    expect(words(button)).toBe("Quick check 0/8");
+  });
+});
+
+describe("a Stop refused while offline", () => {
+  const refusal = (r: HTMLElement | undefined) =>
+    r?.querySelector<HTMLElement>(".cp-cell-stack > small:not(.cp-kept)");
+
+  it("keeps a refusal from before the drop in sight once offline, and after the return", async () => {
+    const { panel, status } = mount();
+    const run = vi.fn(() => Promise.reject(new Error("The pass is writing")));
+    const m = model({ work: [job("a", { stop: { run } })] });
+    status.update(m);
+    stopButton(panel, "a").click();
+    await vi.waitFor(() => {
+      expect(refusal(rows(panel, "work")[0])?.textContent).toBe("The pass is writing");
+    });
+    status.connection("lost");
+    vi.advanceTimersByTime(10_000);
+    const [a] = rows(panel, "work") as [HTMLElement];
+    expect(a.hasAttribute("data-kept")).toBe(true);
+    expect(refusal(a)?.hidden).toBe(false);
+    status.update(m);
+    expect(refusal(rows(panel, "work")[0])?.hidden).toBe(false);
+    status.connection("live");
+    expect(a.hasAttribute("data-kept")).toBe(false);
+    expect(refusal(a)?.hidden).toBe(false);
+    expect(refusal(a)?.textContent).toBe("The pass is writing");
+  });
+
+  it("shows a refusal made while offline, with Stop back", async () => {
+    const { panel, status } = mount();
+    const run = vi.fn(() => Promise.reject(new Error("The pass is writing")));
+    status.update(model({ work: [job("a", { stop: { run } })] }));
+    status.connection("lost");
+    vi.advanceTimersByTime(10_000);
+    stopButton(panel, "a").click();
+    await vi.waitFor(() => {
+      expect(refusal(rows(panel, "work")[0])?.textContent).toBe("The pass is writing");
+    });
+    const [a] = rows(panel, "work") as [HTMLElement];
+    expect(a.hasAttribute("data-kept")).toBe(true);
+    expect(refusal(a)?.hidden).toBe(false);
+    expect(a.querySelector(".cp-kept")).not.toBeNull();
+    expect(stopButton(panel, "a").textContent).toBe("Stop");
   });
 });
 
