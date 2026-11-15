@@ -38,7 +38,7 @@ export function dateAt(t: number, what: string): Date {
 export type TimeUnit = "minute" | "hour" | "day" | "month" | "year";
 
 /** A step of the time axis: `count` of `unit`, `ms` long on average. */
-export interface TimeStep {
+interface TimeStep {
   readonly unit: TimeUnit;
   readonly count: number;
   readonly ms: number;
