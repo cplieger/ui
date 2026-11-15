@@ -6,6 +6,8 @@
  * @module
  */
 
+import type { LogEntryView } from "./client.js";
+
 /** The page's address, for words that depend on how it was reached. */
 export interface PageHost {
   /** `location.hostname`, such as "nas.lan" or "192.168.1.20". */
@@ -388,6 +390,57 @@ export interface AccountWords {
   readonly "keys.expiredRefused": string;
   /** A credential beside the session failed on a key route. */
   readonly "keys.signInAgain": string;
+
+  readonly "log.title": string;
+  readonly "log.help": string;
+  readonly "log.when": string;
+  readonly "log.what": string;
+  /** The account an entry is about. */
+  readonly "log.account": string;
+  readonly "log.who": string;
+  readonly "log.where": string;
+  readonly "log.type": string;
+  /** An entry's class, `change` or `session`, as its chip. */
+  readonly "log.classOf": (logClass: string) => string;
+  /** The words of a kind of access's own, undefined for a kind it does
+   *  not know. `how` words a sign-in method, as "a passkey". */
+  readonly "log.kind": (entry: LogEntryView, how: (method: string) => string) => string | undefined;
+  readonly "log.you": string;
+  readonly "log.person": (id: number) => string;
+  /** A key that acted; `label` is absent on a key with none. */
+  readonly "log.key": (label: string | undefined) => string;
+  /** `channel` names the out-of-band call, such as the admin socket. */
+  readonly "log.outOfBand": (channel: string) => string;
+  /** An entry with no actor, such as a lock the app's sweep reported. */
+  readonly "log.nobody": string;
+  /** Each count is already written in the page's language. */
+  readonly "log.counts": (changes: string, sessions: string) => string;
+  readonly "log.evicted": (count: string) => string;
+  readonly "log.filterKind": string;
+  readonly "log.everyKind": string;
+  /** The kind filter's group of the app's own kinds. */
+  readonly "log.appKinds": string;
+  readonly "log.groupOf": (logClass: string) => string;
+  readonly "log.filterPerson": string;
+  readonly "log.everyone": string;
+  readonly "log.order": string;
+  readonly "log.newestFirst": string;
+  readonly "log.oldestFirst": string;
+  readonly "log.pages": string;
+  readonly "log.newer": string;
+  readonly "log.older": string;
+  readonly "log.earlier": string;
+  readonly "log.later": string;
+  /** The times of a page's first and last entries. */
+  readonly "log.range": (from: string, to: string) => string;
+  readonly "log.empty": string;
+  readonly "log.emptyFiltered": string;
+  readonly "log.clear": string;
+  readonly "log.arrived": (count: number) => string;
+  readonly "log.forbidden": string;
+  readonly "log.unknownKind": string;
+  readonly "log.badPage": string;
+  readonly "log.newest": string;
   readonly auth_key_label_taken: (label: string) => string;
   /** `scope` is the scope the server named, when it named one. */
   readonly auth_unknown_scope: (scope: string | undefined) => string;
@@ -439,6 +492,150 @@ export interface AccountWords {
 }
 
 const outOfTime = "The passkey request ran out of time. Try again.";
+
+const ROLE: Readonly<Record<string, string>> = { admin: "an admin", user: "a user" };
+const roleOf = (role: string): string => (Object.hasOwn(ROLE, role) ? (ROLE[role] ?? role) : role);
+
+/** The method a lock or its re-enable names, as its own subject. */
+function lockOf(method: string): string {
+  switch (method) {
+    case "password":
+      return "Password sign-in";
+    case "totp":
+      return "The authenticator app";
+    case "recovery_code":
+      return "The recovery code";
+    case "passkey":
+      return "Passkey sign-in";
+    default:
+      return "A sign-in method";
+  }
+}
+
+/** Every kind access logs, from its docs/security-log.md and the kinds
+ *  its Parts 4 and 5 add. */
+function logKind(e: LogEntryView, how: (method: string) => string): string | undefined {
+  const by =
+    e.method === "password" || e.method === "passkey" || e.method === "oidc"
+      ? ` with ${how(e.method)}`
+      : "";
+  const sso = how("oidc");
+  switch (e.kind) {
+    case "signed_in":
+      return `Signed in${by}`;
+    case "stepped_up":
+      return `Confirmed a recent sign-in${by}`;
+    case "session_revoked": {
+      const n = e.session_ids?.length ?? 1;
+      if (e.detail === "transport_changed") {
+        return "Signed out: the connection changed between HTTP and HTTPS";
+      }
+      if (e.detail === "signed_in_again") {
+        return "Signed out by a fresh sign-in";
+      }
+      return n > 1 ? `Signed out ${String(n)} sessions` : "Signed out";
+    }
+    case "user_sessions_revoked":
+      return "Signed out everywhere else";
+    case "password_set":
+      return "Password set";
+    case "password_changed":
+      return "Password changed";
+    case "password_removed":
+      return "Password removed";
+    case "passkey_added":
+      return "Passkey added";
+    case "passkey_removed":
+      return "Passkey removed";
+    case "oidc_linked":
+      return `Linked to ${sso}`;
+    case "oidc_unlinked":
+      return `Unlinked from ${sso}`;
+    case "setup_token_issued":
+      return "Setup token issued";
+    case "recovery_issued":
+      return "Recovery link issued";
+    case "recovery_consumed":
+      return "Recovery link opened";
+    case "recovery_completed":
+      return e.method === "password"
+        ? "Recovered with a new password"
+        : e.method === "passkey"
+          ? "Recovered with a new passkey"
+          : "Account recovered";
+    case "key_minted":
+      return "API key created";
+    case "key_rotated":
+      return "API key rotated";
+    case "key_revoked":
+      return "API key revoked";
+    case "user_created":
+      return e.role === undefined ? "Account created" : `Account created as ${roleOf(e.role)}`;
+    case "user_disabled":
+      return "Account turned off";
+    case "user_enabled":
+      return "Account turned back on";
+    case "user_deleted":
+      return "Account deleted";
+    case "role_changed":
+      return e.role === undefined ? "Role changed" : `Role changed to ${e.role}`;
+    case "invite_issued":
+      return e.role === undefined ? "Invite issued" : `Invite issued for ${roleOf(e.role)}`;
+    case "method_locked":
+      if (e.method === undefined) {
+        return "Locked after failed attempts";
+      }
+      return `${lockOf(e.method)} turned off after too many failed attempts${
+        e.trusted === true
+          ? " from a known device"
+          : e.trusted === false
+            ? " from unknown devices"
+            : ""
+      }`;
+    case "method_reenabled":
+      return e.method === undefined ? "Unlocked" : `${lockOf(e.method)} turned back on`;
+    case "totp_added":
+      return "Authenticator app set up";
+    case "totp_replaced":
+      return "Authenticator app replaced";
+    case "totp_removed":
+      return "Authenticator app removed";
+    case "second_factor_reset":
+      return "Second factor reset";
+    case "second_factor_failed":
+      return "A second-factor code was refused";
+    case "recovery_code_issued":
+      return "Recovery code issued";
+    case "recovery_code_replaced":
+      return "Recovery code replaced";
+    case "recovery_code_used":
+      return "Recovery code used";
+    case "temporary_password_set":
+      return "Temporary password issued";
+    case "temporary_password_withdrawn":
+      return "Temporary password withdrawn";
+    case "temporary_password_used":
+      return "Temporary password used";
+    case "user_approved":
+      return "Account approved";
+    case "registration_expired":
+      return "Waiting account removed";
+    case "owner_set":
+      return "Made an owner";
+    case "owner_removed":
+      return "No longer an owner";
+    case "oidc_not_admitted":
+      return `${sso} sign-in not admitted`;
+    case "role_synced":
+      return e.role === undefined ? `Role set by ${sso}` : `Role set by ${sso} to ${e.role}`;
+    case "role_sync_skipped":
+      return `Role from ${sso} not applied`;
+    case "sso_mode_changed":
+      return "Single sign-on mode changed";
+    default:
+      return undefined;
+  }
+}
 
 export const defaultAccountWords: AccountWords = {
   "generic.network": "The app is not answering. Check your connection, then try again.",
@@ -819,6 +1016,47 @@ export const defaultAccountWords: AccountWords = {
   "keys.gone": "This key is gone.",
   "keys.expiredRefused": "This key has expired. Revoke it, or create a new one.",
   "keys.signInAgain": "Your sign-in did not check out. Sign in again, then try once more.",
+  "log.title": "Security log",
+  "log.help": "Failed sign-ins are not recorded.",
+  "log.when": "When",
+  "log.what": "What",
+  "log.account": "Account",
+  "log.who": "Who",
+  "log.where": "From where",
+  "log.type": "Type",
+  "log.classOf": (c) => (c === "change" ? "Change" : c === "session" ? "Session" : c),
+  "log.kind": logKind,
+  "log.you": "You",
+  "log.person": (id) => `Person ${String(id)}`,
+  "log.key": (label) => (label === undefined || label === "" ? "A key" : `Key ${label}`),
+  "log.outOfBand": () => "The app's own command",
+  "log.nobody": "The app",
+  "log.counts": (changes, sessions) =>
+    `The log holds ${changes} changes and ${sessions} session entries.`,
+  "log.evicted": (count) => `${count} older entries were removed.`,
+  "log.filterKind": "Kind",
+  "log.everyKind": "Every kind",
+  "log.appKinds": "This app",
+  "log.groupOf": (c) => (c === "change" ? "Changes" : c === "session" ? "Sessions" : c),
+  "log.filterPerson": "Account",
+  "log.everyone": "Everyone",
+  "log.order": "Order",
+  "log.newestFirst": "Newest first",
+  "log.oldestFirst": "Oldest first",
+  "log.pages": "Pages of the security log",
+  "log.newer": "Newer",
+  "log.older": "Older",
+  "log.earlier": "Earlier",
+  "log.later": "Later",
+  "log.range": (from, to) => `${from} to ${to}`,
+  "log.empty": "Nothing has happened yet.",
+  "log.emptyFiltered": "Nothing matches these filters.",
+  "log.clear": "Clear filters",
+  "log.arrived": (n) => (n === 1 ? "1 new entry" : `${String(n)} new entries`),
+  "log.forbidden": "Only an administrator can read the security log.",
+  "log.unknownKind": "This app does not record that kind of entry.",
+  "log.badPage": "This address does not name a page of the log.",
+  "log.newest": "Show the newest",
   auth_key_label_taken: (label) => `You already have a key named ${label}.`,
   auth_unknown_scope: (scope) =>
     scope === undefined ? "This app has no such scope." : `This app has no scope named ${scope}.`,

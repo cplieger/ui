@@ -34,10 +34,12 @@ describe("mountSecurity: the screen", () => {
       "Sign-in methods",
       "Sessions",
       "API keys",
+      "Security log",
     ]);
     expect(region.querySelector("h4")?.textContent).toBe("Passkeys");
     expect(region.querySelectorAll("h2")).toHaveLength(0);
-    expect(region.querySelectorAll("[style]")).toHaveLength(0);
+    // The log's order pill sets its place through the CSSOM.
+    expect(region.querySelectorAll("[style]:not(.cp-pill)")).toHaveLength(0);
   });
 
   it("shows each method's state as a .cp-state, Set in the success tone and Not set muted", async () => {
@@ -507,7 +509,11 @@ describe("mountSecurity: the authenticator app", () => {
     document.body.replaceChildren();
     const passkeyOnly = mount(offered({ password: false }));
     await ready(passkeyOnly.region);
-    expect(passkeyOnly.region.textContent).not.toContain("Authenticator app");
+    const methods = [...passkeyOnly.region.querySelectorAll("tbody tr")].map(
+      (r) => (r as HTMLTableRowElement).cells[0]?.textContent,
+    );
+    expect(methods).not.toContain("Authenticator app");
+    expect(passkeyOnly.region.textContent).not.toContain("Set up an authenticator app");
   });
 
   it("removes it with a code from it while it is usable", async () => {

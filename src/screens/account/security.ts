@@ -1,8 +1,8 @@
 /**
  * security.ts — Account and security, the signed-in person's own screen:
  * the session line, then a section each for the profile, the sign-in
- * methods, the sessions and the API keys, each heading at the host's level,
- * as docs/design-account.md
+ * methods, the sessions, the API keys and the security log, each heading at
+ * the host's level, as docs/design-account.md
  * "Account and security" lays it out.
  * @module
  */
@@ -23,23 +23,28 @@ import type {
 } from "./client.js";
 import { clockAt, el, heading, sketch, stateMark } from "./dom.js";
 import { drawKeys, type KeyScopes, type KeysSection } from "./keys.js";
+import { drawLog, type LogOptions, type SecurityLogScreen } from "./log.js";
 import { drawMethods } from "./methods.js";
 import { drawProfile } from "./profile.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
   cleanAddress,
+  endsSession,
+  leaver,
   partsOf,
   read,
   slot,
   type AccountPart,
   type ScreenOptions,
+  type SignedOutOptions,
+  type SignedOutReason,
   type Slot,
 } from "./screen.js";
 import { drawSessions, type SessionsSection } from "./sessions.js";
 import { stepUp, type StepUpAnswer } from "./step-up.js";
 import { wordsOf, type AccountWords } from "./words.js";
 
-export interface SecurityOptions<C extends SecurityClient> extends ScreenOptions {
+export interface SecurityOptions<C extends SecurityClient> extends ScreenOptions, SignedOutOptions {
   /** The host's `@cplieger/access` client. */
   readonly client: C;
   /** The host's `@cplieger/access` module, `import * as access`. */
@@ -62,20 +67,21 @@ export interface SecurityOptions<C extends SecurityClient> extends ScreenOptions
   /** In place of Create key…, for a person who may not make keys here: a
    *  link to where they are made, worded by `words`. */
   readonly keysCreatedElsewhere?: { readonly words: string; readonly href: string };
-  /** Runs when the session is gone, or the person signed this one out.
-   *  Default: navigate to `signInPath` with `arrived` saying why. */
-  readonly onSignedOut?: (why: { readonly reason: SignedOutReason }) => void;
-  /** Default "/sign-in". */
-  readonly signInPath?: string;
+  /**
+   * The security log, for a viewer who may read it: by default the entries
+   * about the viewer, or every entry with `everyone` (an app with one
+   * account shows every entry anyway). `kinds` words the app's own.
+   */
+  readonly log?: LogOptions & { readonly everyone?: boolean };
 }
 
-/** Why the screen ended its session: it expired, the connection changed
- *  between HTTP and HTTPS, or the person signed this device out. */
-export type SignedOutReason = "session-ended" | "transport-changed" | "signed-out";
-
 export interface SecurityScreen {
-  /** Reads the account, its sessions and its keys again and redraws them. */
+  /** Reads the account, its sessions, its keys and the log again and
+   *  redraws them. */
   refresh(): Promise<void>;
+  /** Reads what the security log gained, as `mountSecurityLog`'s
+   *  `refresh` does. */
+  refreshLog(): Promise<void>;
 }
 
 /** What every section of the screen shares. */
@@ -177,6 +183,8 @@ export function mountSecurity<C extends SecurityClient>(
   sessionsPart.heading.tabIndex = -1;
   const keysPart = section(w["keys.title"]);
   keysPart.heading.tabIndex = -1;
+  const logPart = section(w["log.title"]);
+  logPart.heading.tabIndex = -1;
   top.append(session, notices.root);
   region.replaceChildren(top);
 
@@ -185,6 +193,7 @@ export function mountSecurity<C extends SecurityClient>(
   let ctx: Ctx<C> | undefined;
   let sessionsView: SessionsSection | undefined;
   let keysView: KeysSection | undefined;
+  let logView: SecurityLogScreen | undefined;
 
   function section(title: string): {
     readonly root: HTMLElement;
@@ -199,22 +208,8 @@ export function mountSecurity<C extends SecurityClient>(
     return { root, heading: h, body };
   }
 
-  const leave = (reason: SignedOutReason): void => {
-    if (options.onSignedOut === undefined) {
-      navigate(`${options.signInPath ?? "/sign-in"}?arrived=${reason}`);
-    } else {
-      options.onSignedOut({ reason });
-    }
-  };
-
-  const signedOut = (r: Refusal): boolean => {
-    const code = codeOf(r);
-    if (code !== "auth_session_expired" && code !== "auth_required") {
-      return false;
-    }
-    leave(reasonOf(r) === "transport_changed" ? "transport-changed" : "session-ended");
-    return true;
-  };
+  const leave = leaver(options, navigate);
+  const signedOut = (r: Refusal): boolean => endsSession(r, leave);
 
   const attempt = async <T>(
     name: AccountAction,
@@ -437,6 +432,30 @@ export function mountSecurity<C extends SecurityClient>(
         keysView = drawKeys(ctx, keysPart.body, keysPart.heading);
         top.append(keysPart.root);
       }
+      // access reads the log only to a viewer its policy lets list users,
+      // an admin under its role policy; its refusal removes the section.
+      if (has("security-log") && me.user.role === "admin") {
+        const everyone = options.log?.everyone === true || me.single_user === true;
+        logView = drawLog(
+          {
+            client,
+            w,
+            provider,
+            options: options.log ?? {},
+            search: options.search ?? location.search,
+            user: everyone ? undefined : me.user.id,
+            viewer: me.user.id,
+            life,
+            leave,
+            forbidden: () => {
+              logPart.root.remove();
+            },
+          },
+          logPart.body,
+          logPart.heading,
+        );
+        top.append(logPart.root);
+      }
       const said = returned();
       if (said !== undefined) {
         const into = methods.body.querySelector<HTMLElement>("[data-part='notice']");
@@ -475,7 +494,15 @@ export function mountSecurity<C extends SecurityClient>(
   void load();
   return {
     refresh: async () => {
-      await Promise.all([refresh(), sessionsView?.refresh(), keysView?.refresh()]);
+      await Promise.all([
+        refresh(),
+        sessionsView?.refresh(),
+        keysView?.refresh(),
+        logView?.refresh(),
+      ]);
+    },
+    refreshLog: async () => {
+      await logView?.refresh();
     },
   };
 }

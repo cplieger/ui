@@ -8,8 +8,8 @@
 import type { Confirm } from "../../buttons/confirm/confirm.js";
 import { announce } from "../../feedback/announce/announce.js";
 import { ask } from "../../overlays/ask/ask.js";
-import { clock, type Tone } from "./answer.js";
-import type { Result, StateResponse } from "./client.js";
+import { clock, codeOf, reasonOf, type Tone } from "./answer.js";
+import type { Refusal, Result, StateResponse } from "./client.js";
 import { el, glyph, line, notice, uid } from "./dom.js";
 import type { Runner } from "./run.js";
 import type { AccountWords } from "./words.js";
@@ -48,6 +48,43 @@ export interface ScreenOptions {
 
 export function partsOf(parts: readonly AccountPart[] | undefined): (p: AccountPart) => boolean {
   return parts === undefined ? () => true : (p) => parts.includes(p);
+}
+
+/** Why a screen ended its session: it expired, the connection changed
+ *  between HTTP and HTTPS, or the person signed this device out. */
+export type SignedOutReason = "session-ended" | "transport-changed" | "signed-out";
+
+export interface SignedOutOptions {
+  /** Runs when the session is gone, or the person signed this one out.
+   *  Default: navigate to `signInPath` with `arrived` saying why. */
+  readonly onSignedOut?: (why: { readonly reason: SignedOutReason }) => void;
+  /** Default "/sign-in". */
+  readonly signInPath?: string;
+}
+
+/** Ends a screen for a reason, as `o.onSignedOut` says. */
+export function leaver(
+  o: SignedOutOptions,
+  navigate: (url: string) => void,
+): (reason: SignedOutReason) => void {
+  return (reason) => {
+    if (o.onSignedOut === undefined) {
+      navigate(`${o.signInPath ?? "/sign-in"}?arrived=${reason}`);
+    } else {
+      o.onSignedOut({ reason });
+    }
+  };
+}
+
+/** Ends the screen through `leave` when `r` says the session is gone;
+ *  true when it did. */
+export function endsSession(r: Refusal, leave: (reason: SignedOutReason) => void): boolean {
+  const code = codeOf(r);
+  if (code !== "auth_session_expired" && code !== "auth_required") {
+    return false;
+  }
+  leave(reasonOf(r) === "transport_changed" ? "transport-changed" : "session-ended");
+  return true;
 }
 
 /** `value` when it is a path on this origin, else undefined. */

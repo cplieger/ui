@@ -11,11 +11,16 @@ export type {
   KeyCreated,
   KeyView,
   KeysClient,
+  LogActorView,
+  LogClient,
+  LogEntryView,
+  LogQuery,
   MeView,
   MethodsView,
   OIDCReturn,
   PasskeyMiss,
   PasskeyView,
+  PersonView,
   ProofOutcome,
   Refusal,
   RegisterOutcome,
@@ -23,6 +28,7 @@ export type {
   SecondFactorProof,
   SecurityAccess,
   SecurityClient,
+  SecurityLogView,
   SessionNow,
   SessionView,
   SessionsClient,
@@ -42,10 +48,12 @@ export type {
 } from "./client.js";
 export { accountActions, accountRunner, runDirect } from "./run.js";
 export type { KeyScope, KeyScopes } from "./keys.js";
+export { mountSecurityLog } from "./log.js";
+export type { LogKinds, LogOptions, SecurityLogOptions, SecurityLogScreen } from "./log.js";
 export type { AccountAction, DefineAction, Runner } from "./run.js";
-export type { AccountPart, ScreenOptions } from "./screen.js";
+export type { AccountPart, ScreenOptions, SignedOutOptions, SignedOutReason } from "./screen.js";
 export { mountSecurity } from "./security.js";
-export type { SecurityOptions, SecurityScreen, SignedOutReason } from "./security.js";
+export type { SecurityOptions, SecurityScreen } from "./security.js";
 export { mountSetup } from "./setup.js";
 export type { SetupOptions } from "./setup.js";
 export { mountSignIn } from "./sign-in.js";

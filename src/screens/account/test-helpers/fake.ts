@@ -13,6 +13,7 @@ import type {
   OIDCReturn,
   PasskeyMiss,
   PasskeyView,
+  PersonView,
   ProofOutcome,
   Refusal,
   RegisterOutcome,
@@ -20,6 +21,7 @@ import type {
   SecondFactorProof,
   SecurityAccess,
   SecurityClient,
+  SecurityLogView,
   SessionView,
   SetupAccess,
   SetupClient,
@@ -75,7 +77,7 @@ export function meWith(
   rest: Partial<Omit<AccountView, "methods">> = {},
 ): AccountView {
   return {
-    user: { username: "mika" },
+    user: { id: 1, username: "mika", role: "admin" },
     methods: { ...holdsAll, ...methods },
     can_link_oidc: false,
     sso_governed: false,
@@ -183,7 +185,12 @@ export class Fake {
     [
       "updateProfile",
       (r: { readonly display_name: string }) =>
-        ok(meWith({}, { user: { username: "mika", display_name: r.display_name } })),
+        ok(
+          meWith(
+            {},
+            { user: { id: 1, username: "mika", role: "admin", display_name: r.display_name } },
+          ),
+        ),
     ],
     ["setPassword", ok(undefined)],
     ["removePassword", ok(undefined)],
@@ -229,6 +236,8 @@ export class Fake {
         }),
     ],
     ["revokeKey", ok(undefined)],
+    ["adminSecurityLog", ok({ entries: [], classes: [] })],
+    ["adminUsers", ok([])],
   ]);
   /** Calls the client leaves out, as a server before access Part 2. */
   readonly #without = new Set<string>();
@@ -238,6 +247,13 @@ export class Fake {
    *  function of the call's arguments. */
   answer(name: string, ...answers: Answer[]): this {
     this.#queued.set(name, [...(this.#queued.get(name) ?? []), ...answers]);
+    return this;
+  }
+
+  /** Makes `answer` the default of `name`, for every call no queued
+   *  answer takes. */
+  always(name: string, answer: Answer): this {
+    this.#defaults.set(name, answer);
     return this;
   }
 
@@ -394,6 +410,8 @@ export class Fake {
       renameKey: (id, r) => call<Result<void>>("renameKey", [id, r]),
       rotateKey: (id) => call<Result<KeyCreated>>("rotateKey", [id]),
       revokeKey: (id) => call<Result<void>>("revokeKey", [id]),
+      adminSecurityLog: (q) => call<Result<SecurityLogView>>("adminSecurityLog", [q]),
+      adminUsers: () => call<Result<readonly PersonView[]>>("adminUsers", []),
     };
     for (const n of this.#without) {
       Reflect.deleteProperty(client, n);

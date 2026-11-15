@@ -148,7 +148,10 @@ export interface SessionNow {
 
 /** `GET /me` as Account and security reads it. */
 export interface AccountView extends MeView {
+  readonly user: MeView["user"] & { readonly id: number; readonly role: string };
   readonly can_link_oidc: boolean;
+  /** From access Part 5: the app has one account. */
+  readonly single_user?: boolean;
   /** From access Part 5: the identity provider manages this person's
    *  sign-in, so their local methods are dormant. */
   readonly sso_only?: boolean;
@@ -246,7 +249,7 @@ export interface SetupAccess<C> {
 /** The client calls Account and security's profile and sign-in methods
  *  make. The calls access Part 4 adds are optional: a control that needs
  *  one shows only when the client has it. */
-export interface SecurityClient extends StepUpClient, SessionsClient, KeysClient {
+export interface SecurityClient extends StepUpClient, SessionsClient, KeysClient, LogClient {
   state(): Promise<Result<StateResponse>>;
   me(): Promise<Result<AccountView>>;
   updateProfile(r: { readonly display_name: string }): Promise<Result<AccountView>>;
@@ -333,6 +336,81 @@ export interface KeysClient {
    *  the old one. */
   rotateKey?(id: number): Promise<Result<KeyCreated>>;
   revokeKey(id: number): Promise<Result<void>>;
+}
+
+/** Who made a logged change, with the label, user agent or key suffix the
+ *  change's commit read. */
+export interface LogActorView {
+  readonly user_id?: number;
+  readonly session_id?: string;
+  readonly key_id?: number;
+  /** The channel of an out-of-band call, such as the app's own command. */
+  readonly out_of_band?: string;
+  readonly label?: string;
+  readonly user_agent?: string;
+  readonly key_suffix?: string;
+}
+
+/** One security-log entry. `at` is when it was appended, `occurred_at`
+ *  when the change happened. */
+export interface LogEntryView {
+  readonly seq: number;
+  readonly at: string;
+  readonly occurred_at: string;
+  readonly class: string;
+  readonly kind: string;
+  /** The account the entry is about. */
+  readonly user_id?: number;
+  readonly actor: LogActorView;
+  readonly ip?: string;
+  readonly session_ids?: readonly string[];
+  readonly key_id?: number;
+  readonly passkey_id?: number;
+  readonly method?: string;
+  readonly role?: string;
+  /** A lock's context: true for attempts from a device known to the
+   *  account. */
+  readonly trusted?: boolean;
+  readonly detail?: string;
+}
+
+/** One page of the security log, and every class's count and the
+ *  entries its size limit removed. */
+export interface SecurityLogView {
+  readonly entries: readonly LogEntryView[];
+  readonly classes: readonly {
+    readonly class: string;
+    readonly count: number;
+    readonly evicted: number;
+  }[];
+}
+
+/** `adminSecurityLog`'s query: `after` and `before` are exclusive bounds
+ *  and never set the order. */
+export interface LogQuery {
+  readonly user?: number;
+  readonly actor?: number;
+  readonly actorKey?: number;
+  readonly after?: number;
+  readonly before?: number;
+  readonly kinds?: readonly string[];
+  readonly limit?: number;
+  readonly oldestFirst?: boolean;
+}
+
+/** A person of the app, as the admin's users list names them. */
+export interface PersonView {
+  readonly id: number;
+  readonly username: string;
+  readonly display_name?: string;
+}
+
+/** The client calls the security log makes. */
+export interface LogClient {
+  adminSecurityLog(q?: LogQuery): Promise<Result<SecurityLogView>>;
+  /** Names the people in the log, and offers them as a filter. Absent or
+   *  refused, a person reads by their number. */
+  adminUsers?(): Promise<Result<readonly PersonView[]>>;
 }
 
 /** A passkey assertion taken as a proof, or why there is none. */

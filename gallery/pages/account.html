@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#qr">QR code</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#security-log">Security log</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -151,7 +151,7 @@
       <div class="card g-wide" data-new>
         <h2>The whole screen</h2>
         <div data-security-demo="every"></div>
-        <footer>Profile, then every method: a password, two passkeys, an authenticator app with its recovery code, and single sign-on; then Sessions and API keys, as the cards below them show. Type "wrong" as the current password for its field error, or a new password under 15 characters. In a code field, 111111 is a wrong code and 222222 one already used. Remove password asks to confirm it is you first. Rename edits the name in its cell: Enter saves, Escape puts it back.</footer>
+        <footer>Profile, then every method: a password, two passkeys, an authenticator app with its recovery code, and single sign-on; then Sessions, API keys and, for an admin, the security log of their own entries, as the cards below them show. Type "wrong" as the current password for its field error, or a new password under 15 characters. In a code field, 111111 is a wrong code and 222222 one already used. Remove password asks to confirm it is you first. Rename edits the name in its cell: Enter saves, Escape puts it back.</footer>
       </div>
       <div class="card" data-new>
         <h2>Set up an authenticator app</h2>
@@ -218,6 +218,33 @@
         <h2>Over plain HTTP</h2>
         <div data-security-demo="plain-keys"></div>
         <footer>Signed in over plain HTTP: this device reads "Plain HTTP" with its end, and Create key and Rotate are held with "Needs HTTPS." and the way to the HTTPS address.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="security-log">
+    <h2>Security log</h2>
+    <p><code>mountSecurityLog(region, options)</code> shows what succeeded and what changed: when, what, about whom, who did it and from where, each entry's type as a chip. The kind, the account and the order are filters, held in the address with the page, so Back returns to a page and a page opens in a new tab. Newer and Older page by the entries themselves, since entries keep arriving. Account and security shows the same view, for an admin, under its own sections.</p>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>The admin's log</h2>
+        <div data-log-demo="admin"></div>
+        <div class="cp-cluster"><button class="cp-button" type="button" data-log-add>Add an entry</button></div>
+        <footer>Six entries a page, newest first, so Older and Newer page through a month of a small app: sign-ins with their method and browser, a key that acted, a lock from unknown devices, a temporary password, the app's own command, and the app's own kind in its own words. This card writes the view into the page's address. Add an entry stands for the app's live stream: the first page takes it on top and says so; a later page lights Newer.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>One person's entries</h2>
+        <div data-log-demo="person"></div>
+        <footer>The log fixed to alice, as an admin's user page shows it: no Account column and no Account filter.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Older entries removed</h2>
+        <div data-log-demo="evicted"></div>
+        <footer>The size limit removed entries, so a neutral notice above the table says how many.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Nothing yet</h2>
+        <div data-log-demo="empty"></div>
+        <footer>A new app's log; a filter that matches nothing offers Clear filters instead.</footer>
       </div>
     </div>
   </section>

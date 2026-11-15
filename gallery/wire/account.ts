@@ -6,6 +6,12 @@
 
 import {
   mountSecurity,
+  mountSecurityLog,
+  type LogClient,
+  type LogEntryView,
+  type LogKinds,
+  type LogQuery,
+  type SecurityLogView,
   type AccountPart,
   type KeyScopes,
   type KeyView,
@@ -741,7 +747,7 @@ function account(
 ): Account {
   return {
     me: {
-      user: { username: "mika", display_name: "Mika Laine" },
+      user: { id: 1, username: "mika", role: "admin", display_name: "Mika Laine" },
       methods: {
         ...HOLDS,
         passkey_count: 2,
@@ -826,6 +832,269 @@ const ACCOUNTS: Readonly<Record<string, () => Account>> = {
     ),
 };
 
+/** The people the admin's log names. */
+const PEOPLE = [
+  { id: 1, username: "mika", display_name: "Mika Laine" },
+  { id: 2, username: "alice" },
+  { id: 3, username: "sam", display_name: "Sam Ortiz" },
+];
+
+const FIREFOX = "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0";
+const IPHONE =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
+
+/** A month of a small app's log, oldest first: sign-ins, a key rotated, a
+ *  lock from unknown devices and its re-enable, a recovery, the app's own
+ *  kind, and an admin's work on alice. */
+function logOf(): LogEntryView[] {
+  const plan: (Omit<LogEntryView, "seq" | "at" | "occurred_at"> & { readonly hours: number })[] = [
+    { hours: 700, class: "change", kind: "user_created", user_id: 1, role: "admin", actor: {} },
+    {
+      hours: 699,
+      class: "session",
+      kind: "signed_in",
+      user_id: 1,
+      method: "passkey",
+      ip: "192.0.2.10",
+      actor: { user_id: 1, user_agent: FIREFOX },
+    },
+    {
+      hours: 650,
+      class: "change",
+      kind: "invite_issued",
+      role: "user",
+      ip: "192.0.2.10",
+      actor: { user_id: 1, user_agent: FIREFOX },
+    },
+    {
+      hours: 640,
+      class: "change",
+      kind: "user_created",
+      user_id: 2,
+      role: "user",
+      ip: "198.51.100.40",
+      actor: {},
+    },
+    {
+      hours: 639,
+      class: "session",
+      kind: "signed_in",
+      user_id: 2,
+      method: "password",
+      ip: "198.51.100.40",
+      actor: { user_id: 2, user_agent: IPHONE },
+    },
+    {
+      hours: 500,
+      class: "change",
+      kind: "key_minted",
+      user_id: 1,
+      key_id: 14,
+      ip: "192.0.2.10",
+      actor: { user_id: 1, label: "Desk", user_agent: FIREFOX },
+    },
+    {
+      hours: 300,
+      class: "change",
+      kind: "totp_added",
+      user_id: 2,
+      ip: "198.51.100.40",
+      actor: { user_id: 2, user_agent: IPHONE },
+    },
+    {
+      hours: 200,
+      class: "change",
+      kind: "method_locked",
+      user_id: 2,
+      method: "password",
+      trusted: false,
+      actor: {},
+    },
+    {
+      hours: 199,
+      class: "change",
+      kind: "temporary_password_set",
+      user_id: 2,
+      ip: "192.0.2.10",
+      actor: { user_id: 1, label: "Desk", user_agent: FIREFOX },
+    },
+    {
+      hours: 190,
+      class: "session",
+      kind: "temporary_password_used",
+      user_id: 2,
+      ip: "203.0.113.7",
+      actor: { user_id: 2, user_agent: IPHONE },
+    },
+    {
+      hours: 189,
+      class: "change",
+      kind: "password_set",
+      user_id: 2,
+      ip: "203.0.113.7",
+      actor: { user_id: 2, user_agent: IPHONE },
+    },
+    {
+      hours: 120,
+      class: "change",
+      kind: "release_tracker.public_url_changed",
+      detail: "https://tracker.example",
+      ip: "192.0.2.10",
+      actor: { user_id: 1, user_agent: FIREFOX },
+    },
+    {
+      hours: 60,
+      class: "change",
+      kind: "user_created",
+      user_id: 3,
+      role: "user",
+      actor: { out_of_band: "admin socket" },
+    },
+    {
+      hours: 30,
+      class: "session",
+      kind: "stepped_up",
+      user_id: 1,
+      method: "password",
+      ip: "192.0.2.10",
+      actor: { user_id: 1, user_agent: FIREFOX },
+    },
+    {
+      hours: 29,
+      class: "change",
+      kind: "key_rotated",
+      user_id: 1,
+      key_id: 14,
+      ip: "192.0.2.10",
+      actor: { user_id: 1, user_agent: FIREFOX },
+    },
+    {
+      hours: 5,
+      class: "change",
+      kind: "key_revoked",
+      user_id: 1,
+      key_id: 15,
+      ip: "198.51.100.9",
+      actor: { user_id: 1, key_id: 14, label: "ci", key_suffix: "q2Z" },
+    },
+    {
+      hours: 2,
+      class: "session",
+      kind: "session_revoked",
+      user_id: 1,
+      session_ids: ["s9"],
+      detail: "transport_changed",
+      ip: "10.0.0.14",
+      actor: {},
+    },
+    {
+      hours: 1,
+      class: "session",
+      kind: "signed_in",
+      user_id: 3,
+      method: "oidc",
+      ip: "198.51.100.23",
+      actor: { user_id: 3, user_agent: IPHONE },
+    },
+  ];
+  return plan.map(({ hours, ...e }, i) => ({
+    ...e,
+    seq: 100 + i * 3,
+    at: ago(hours * HOUR),
+    occurred_at: ago(hours * HOUR),
+  }));
+}
+
+const LOG = logOf();
+
+/** `adminSecurityLog` as access answers it over `log`. */
+function logPage(
+  log: readonly LogEntryView[],
+  q: LogQuery = {},
+  evicted = 0,
+): Result<SecurityLogView> {
+  const match = log.filter(
+    (e) =>
+      (q.kinds === undefined || q.kinds.length === 0 || q.kinds.includes(e.kind)) &&
+      (q.user === undefined || e.user_id === q.user) &&
+      (q.after === undefined || e.seq > q.after) &&
+      (q.before === undefined || e.seq < q.before),
+  );
+  const ordered = q.oldestFirst === true ? match : [...match].reverse();
+  const count = (c: string): number => log.filter((e) => e.class === c).length;
+  return {
+    ok: true,
+    data: {
+      entries: ordered.slice(0, q.limit ?? 50),
+      classes: [
+        { class: "change", count: count("change"), evicted },
+        { class: "session", count: count("session"), evicted: 0 },
+      ],
+    },
+  };
+}
+
+/** The app's words for its own kind. */
+const APP_KINDS: LogKinds = {
+  "release_tracker.public_url_changed": (e) => `Public address changed to ${e.detail ?? "another"}`,
+};
+
+/** A log client: each card's own entries, and a way to add one. */
+function logClient(log: LogEntryView[], evicted = 0): LogClient & { add(): void } {
+  return {
+    adminSecurityLog: (q) => after(logPage(log, q, evicted), 400),
+    adminUsers: () => after({ ok: true, data: PEOPLE }, 200),
+    add() {
+      const seq = Math.max(0, ...log.map((e) => e.seq)) + 1;
+      const now = new Date().toISOString();
+      log.push({
+        seq,
+        at: now,
+        occurred_at: now,
+        class: "session",
+        kind: "signed_in",
+        user_id: 2,
+        method: "passkey",
+        ip: "198.51.100.40",
+        actor: { user_id: 2, user_agent: IPHONE },
+      });
+    },
+  };
+}
+
+const after = async <T>(value: T, ms = 600): Promise<T> => {
+  await wait(ms);
+  return value;
+};
+
+for (const region of document.querySelectorAll<HTMLElement>("[data-log-demo]")) {
+  const name = region.dataset["logDemo"] ?? "";
+  const client =
+    name === "empty"
+      ? logClient([])
+      : name === "evicted"
+        ? logClient(logOf().slice(-6), 312)
+        : logClient(logOf());
+  const screen = mountSecurityLog(region, {
+    client,
+    level: 3,
+    provider: "Authelia",
+    viewer: 1,
+    kinds: APP_KINDS,
+    limit: name === "admin" ? 6 : 50,
+    ...(name === "person" ? { user: 2 } : {}),
+    ...(name === "admin" ? {} : { search: "", onQuery: () => undefined }),
+    onSignedOut: () => {
+      toast({ title: "Signed out: the app would open its sign-in page" });
+    },
+  });
+  const more = region.parentElement?.querySelector<HTMLButtonElement>("[data-log-add]");
+  more?.addEventListener("click", () => {
+    client.add();
+    void screen.refresh();
+  });
+}
+
 type SecurityDemo = SecurityClient;
 
 /** Account and security's answers on `a`, which each write changes, by
@@ -853,10 +1122,6 @@ function securityFake(a: Account): {
     `rt_${Array.from(crypto.getRandomValues(new Uint8Array(18)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31] ?? "a").join("")}`;
   const minted = (id: number): number[] =>
     a.keys.filter((k) => k.parent_key_id === id).flatMap((k) => [k.id, ...minted(k.id)]);
-  const after = async <T>(value: T, ms = 600): Promise<T> => {
-    await wait(ms);
-    return value;
-  };
   const byCode = (code: string): Refusal | undefined =>
     code === "111111"
       ? refusal(401, "auth_code_invalid", "code_invalid")
@@ -999,6 +1264,8 @@ function securityFake(a: Account): {
       return done;
     },
     keys: () => after({ ok: true, data: a.keys }, 300),
+    adminSecurityLog: (q) => after(logPage(LOG, q), 300),
+    adminUsers: () => after({ ok: true, data: PEOPLE }, 200),
     async createKey(r) {
       await wait(700);
       const no = fresh();
@@ -1117,7 +1384,11 @@ const KEY_PARTS: readonly AccountPart[] = ["keys", "key-rotate"];
 const SESSION_PARTS: readonly AccountPart[] = ["sessions", "session-rename"];
 
 const CARD_OPTIONS: Readonly<Record<string, Partial<SecurityOptions<SecurityDemo>>>> = {
-  every: { parts: [...METHOD_PARTS, ...SESSION_PARTS, ...KEY_PARTS], scopes: SCOPES },
+  every: {
+    parts: [...METHOD_PARTS, ...SESSION_PARTS, ...KEY_PARTS, "security-log"],
+    scopes: SCOPES,
+    log: { kinds: APP_KINDS, limit: 5, onQuery: () => undefined },
+  },
   sessions: { parts: SESSION_PARTS },
   keys: { parts: KEY_PARTS, scopes: SCOPES },
   "keys-none": { parts: KEY_PARTS, scopes: SCOPES },
