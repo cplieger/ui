@@ -506,10 +506,8 @@ describe("spec errors", () => {
   });
 
   it("refuses a list of more entries than a spec holds values, before reading one", () => {
-    const most = (field: string, n = 1_000_000) =>
-      new RangeError(
-        `renderChart: ${field} must hold at most ${String(n)} entries, the most values a spec takes`,
-      );
+    const most = (field: string, n = 1_000_000, why = "the most values a spec takes") =>
+      new RangeError(`renderChart: ${field} must hold at most ${String(n)} entries, ${why}`);
     expect(() =>
       build({ x: {}, marks: [{ mark: "line", x: new Array(1_000_001), series: [] }] }),
     ).toThrow(most("marks[0].x"));
@@ -526,8 +524,22 @@ describe("spec errors", () => {
       values: [],
     });
     expect(() => build({ x: {}, marks: [bins(1_000_002)] })).toThrow(
-      most("marks[0].x.edges", 1_000_001),
+      most("marks[0].x.edges", 1_000_001, "a bin per value a spec takes"),
     );
+    // A Proxy over an array passes Array.isArray and may claim any length.
+    const nan = new Proxy([], {
+      get: (target, key) => (key === "length" ? Number.NaN : Reflect.get(target, key)),
+    });
+    const instants = (): number[] => new Array<number>(600_000).fill(0);
+    const timeline: Mark = {
+      mark: "dot",
+      rows: [
+        { name: "a", x: nan },
+        { name: "b", x: instants() },
+        { name: "c", x: instants() },
+      ],
+    };
+    expect(() => build({ x: {}, marks: [timeline] })).toThrow(most("marks[0].rows[0].x"));
   });
 
   it("counts a timeline row whose x is no array as one value", () => {

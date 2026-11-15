@@ -124,7 +124,7 @@ class Extent {
   }
 
   addAll(values: readonly number[]): void {
-    for (const v of Array.from(values)) {
+    for (const v of values) {
       this.count(v);
       this.add(v);
     }
@@ -225,7 +225,7 @@ function addBars(extent: Extent, m: BarMark): void {
 // A point's dot is placed by its value, so a log x has no place for 0 or below.
 function addPoints(extent: Extent, m: PointMark, log: boolean): void {
   for (const s of m.series) {
-    for (const v of Array.from(s.x)) {
+    for (const v of s.x) {
       if (v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY) {
         throw new RangeError("renderChart: a point's x cannot be infinite");
       }
@@ -680,7 +680,7 @@ function yExtent(spec: ChartSpec, log: boolean): Extent {
       addScatter(extent, m, "y", log);
     } else if (m.mark === "line" || m.mark === "slope") {
       for (const s of m.series) {
-        for (const value of Array.from(s.y)) {
+        for (const value of s.y) {
           const v = yValue(value);
           if (v !== null) {
             extent.count(v);

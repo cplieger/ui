@@ -1550,7 +1550,7 @@ const MOST_VALUES = 1_000_000;
 interface Door {
   /** `v` when it is an array, refused past `most` entries before one is
    *  read; else none, for its field's check to refuse. */
-  readonly list: (v: unknown, field: string, most?: number) => readonly unknown[];
+  readonly list: (v: unknown, field: string, most?: number, why?: string) => readonly unknown[];
   readonly add: (n: number, field: string) => void;
 }
 
@@ -1560,7 +1560,9 @@ function axisLength(axis: unknown, field: string, { list }: Door): number {
     return list(axis, field).length;
   }
   // A bin per value, on one more edge.
-  const edges = isObject(axis) ? list(axis["edges"], `${field}.edges`, MOST_VALUES + 1) : [];
+  const edges = isObject(axis)
+    ? list(axis["edges"], `${field}.edges`, MOST_VALUES + 1, "a bin per value a spec takes")
+    : [];
   return Math.max(0, edges.length - 1);
 }
 
@@ -1677,21 +1679,19 @@ function countMark(mark: Record<string, unknown>, what: string, door: Door): voi
 function checkLists(spec: Record<string, unknown>): void {
   let count = 0;
   const door: Door = {
-    list: (v, field, most = MOST_VALUES) => {
+    // Each comparison fails on NaN, which a Proxy's length can be.
+    list: (v, field, most = MOST_VALUES, why = "the most values a spec takes") => {
       if (!isArray(v)) {
         return [];
       }
-      if (v.length > most) {
-        fail(
-          `${field} must hold at most ${String(most)} entries, the most values a spec takes`,
-          RangeError,
-        );
+      if (!(v.length <= most)) {
+        fail(`${field} must hold at most ${String(most)} entries, ${why}`, RangeError);
       }
       return v;
     },
     add: (n, field) => {
       count += n;
-      if (count > MOST_VALUES) {
+      if (!(count <= MOST_VALUES)) {
         fail(
           `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
           RangeError,
@@ -2252,9 +2252,7 @@ export function chartModel(
   const cellNames = cellMark === undefined || "edges" in cellMark.x ? undefined : cellMark.x;
   // The values a cell chart's inferred classes span.
   const filled = (m: CellMark): number[] =>
-    m.values.flatMap((row) =>
-      Array.from(row).flatMap((v) => (v === null || Number.isNaN(v) ? [] : [v])),
-    );
+    m.values.flatMap((row) => row.flatMap((v) => (v === null || Number.isNaN(v) ? [] : [v])));
   const marks = spec.marks.map((m, index): MarkModel => {
     switch (m.mark) {
       case "rect":
