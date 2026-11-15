@@ -1411,6 +1411,104 @@ describe("small multiples' panels", () => {
     expect(get(b.figure, "notes")).toBeNull();
   });
 
+  // Coal and gas per country, in 15-minute buckets: a per-category form.
+  const countries = (shape: "bars" | "area"): ChartSpec => ({
+    ...full,
+    facets: {
+      panels: [
+        ["Germany", 2],
+        ["France", 1],
+      ].map(([name, k]) => ({
+        name: String(name),
+        marks: [
+          {
+            mark: "rect",
+            shape,
+            x1: starts,
+            x2: starts.map((s) => s + 15 * MIN),
+            series: [
+              { name: "Coal", y: starts.map(() => 2 * Number(k)) },
+              { name: "Gas", y: starts.map(() => Number(k)) },
+            ],
+          },
+        ],
+      })),
+    },
+    marks: [],
+  });
+  const box = (svg: SVGSVGElement, part: string) =>
+    (svg.querySelector(`[data-part="${part}"]`) as SVGGraphicsElement).getBBox();
+
+  it.each(["bars", "area"] as const)(
+    "draws column panels as %s on one y scale, each stack from the same baseline",
+    (shape) => {
+      const b = build({ width: 600 });
+      start(countries(shape), b);
+      const [germany, france] = panelsOf(b).map((p) => box(plotOf(p), "rect"));
+      expect(
+        panelsOf(b).map((p) => plotOf(p).querySelectorAll('[data-part="rect"] > path').length),
+      ).toEqual([2, 2]);
+      // Totals of 6 and 3 on one scale from 0: one stack twice the other's
+      // height, less the 1 px gap between layers.
+      expect(Math.abs((germany?.height ?? 0) - 2 * (france?.height ?? 0))).toBeLessThanOrEqual(2);
+      expect(germany?.y).toBeLessThan(france?.y ?? 0);
+      expect((germany?.y ?? 0) + (germany?.height ?? 0)).toBeCloseTo(
+        (france?.y ?? 0) + (france?.height ?? 0),
+        0,
+      );
+      // The shared x puts every bucket at the same place in each panel.
+      expect(germany?.x).toBeCloseTo(france?.x ?? -1, 1);
+      expect(germany?.width).toBeCloseTo(france?.width ?? -1, 1);
+    },
+  );
+
+  it.each([
+    ["line", "line"],
+    ["area", "layers"],
+  ] as const)(
+    "draws no end labels in %s panels, so each plot reaches its panel's right edge",
+    (mark, part) => {
+      const series = [
+        { name: "Gas", y: [3, 4, 5, 4] },
+        { name: "Wind", y: [1, 2, 2, 3] },
+      ];
+      const lone: ChartSpec = {
+        x: { type: "time", domain: [START, START + 45 * MIN] },
+        marks: [{ mark, x: starts, series }],
+      };
+      const alone = build({ width: 600 });
+      start(lone, alone);
+      const svg = get(alone.figure, "plot")?.querySelector("svg") as SVGSVGElement;
+      expect(svg.querySelectorAll('[data-part="end"] > text')).toHaveLength(2);
+      const b = build({ width: 600 });
+      start(
+        {
+          ...lone,
+          marks: [],
+          facets: {
+            panels: ["North", "South"].map((name) => ({
+              name,
+              marks: [{ mark, x: starts, series }],
+            })),
+          },
+        },
+        b,
+      );
+      for (const p of panelsOf(b)) {
+        const plot = plotOf(p);
+        expect(plot.querySelectorAll('[data-part="end"] text')).toHaveLength(0);
+        const drawn = box(plot, part);
+        // The plot's own svg runs AREA_ROOM past the plot on each side.
+        const area = plot.querySelector('[data-part="area"]') as SVGSVGElement;
+        const [vx = 0, , vw = 0] = (plot.getAttribute("viewBox") ?? "").split(" ").map(Number);
+        expect(area.x.baseVal.value + area.width.baseVal.value - AREA_ROOM).toBeCloseTo(vx + vw, 1);
+        // The last sample sits at the domain's end, the plot's right edge.
+        const plotW = area.width.baseVal.value - 2 * AREA_ROOM;
+        expect(Math.abs(drawn.x + drawn.width - plotW)).toBeLessThanOrEqual(2);
+      }
+    },
+  );
+
   it("gives the plot back its region and tab stop when an update drops the facets", () => {
     const b = build();
     const chart = start(regions(["North", "South"]), b);

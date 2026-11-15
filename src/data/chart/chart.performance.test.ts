@@ -94,7 +94,7 @@ async function timed(
 
 const MOVES = 21;
 
-// The mean of 21 moves across the plot.
+// The mean of 21 moves across the plot, or across one panel's.
 async function moveMs(plot: HTMLElement): Promise<number> {
   const box = plot.getBoundingClientRect();
   const t0 = await cpu();
@@ -305,6 +305,77 @@ const fewParts: ChartSpec = {
   marks: [{ mark: "tree", nodes: [{ name: "a", value: 1 }] }],
 };
 
+// The step line's 8,640 values and the stacked area's three layers of
+// 4,320 samples, each split across panels: a figure's budget is summed over
+// its panels, since one task draws them all.
+const regions = ["North", "South", "East", "West", "Centre", "Coast"];
+const hours12 = minutes.slice(0, 1_440);
+const linePanels: ChartSpec = {
+  x: { type: "time", domain: [START, START + 1_439 * MIN] },
+  y: { label: "Agents" },
+  marks: [],
+  facets: {
+    panels: regions.map((name, k) => ({
+      marks: [
+        {
+          mark: "line",
+          curve: "step",
+          x: hours12,
+          series: [{ name, y: hours12.map((_, i) => 4 + ((i * 7 + k) % 9)) }],
+        },
+      ],
+    })),
+  },
+};
+const fewLinePanels: ChartSpec = {
+  ...linePanels,
+  facets: {
+    panels: regions.slice(0, 2).map((name) => ({
+      marks: [{ mark: "line", x: hours12.slice(0, 3), series: [{ name, y: [1, 2, 3] }] }],
+    })),
+  },
+};
+const hours18 = minutes.slice(0, 1_080);
+const areaPanels: ChartSpec = {
+  x: { type: "time", domain: [START, START + 1_079 * MIN] },
+  marks: [],
+  facets: {
+    panels: regions.slice(0, 4).map((name, k) => ({
+      name,
+      marks: [
+        {
+          mark: "area",
+          x: hours18,
+          series: [
+            { name: "Gas", y: hours18.map((_, i) => 40 + ((i * 7 + k) % 13)) },
+            { name: "Wind", y: hours18.map((_, i) => 10 + ((i * 5 + k) % 17)) },
+            { name: "Solar", y: hours18.map((_, i) => (i * 3 + k) % 11) },
+          ],
+        },
+      ],
+    })),
+  },
+};
+const fewAreaPanels: ChartSpec = {
+  ...areaPanels,
+  facets: {
+    panels: regions.slice(0, 2).map((name) => ({
+      name,
+      marks: [
+        {
+          mark: "area",
+          x: hours18.slice(0, 3),
+          series: [
+            { name: "Gas", y: [1, 2, 3] },
+            { name: "Wind", y: [0, 1, 1] },
+            { name: "Solar", y: [1, 1, 1] },
+          ],
+        },
+      ],
+    })),
+  },
+};
+
 describe("performance", () => {
   it.skipIf(!chromium)("renders a 72-hour step line of 8,640 values within its bound", async () => {
     const { ms, plot } = await timed(stepLine, few);
@@ -327,6 +398,28 @@ describe("performance", () => {
       const { ms, plot } = await timed(stackedArea, fewLayers);
       expect(ms).toBeLessThan(RENDER_MS);
       expect(await moveMs(plot)).toBeLessThan(MOVE_MS);
+    },
+  );
+
+  it.skipIf(!chromium)(
+    "renders six line panels of 1,440 values each within the step line's bound",
+    async () => {
+      const { ms, plot } = await timed(linePanels, fewLinePanels);
+      expect(plot.querySelectorAll('[data-part="panel"]')).toHaveLength(6);
+      expect(ms).toBeLessThan(RENDER_MS);
+      const frame = plot.querySelector<HTMLElement>('[data-part="frame"]') as HTMLElement;
+      expect(await moveMs(frame)).toBeLessThan(MOVE_MS);
+    },
+  );
+
+  it.skipIf(!chromium)(
+    "renders four stacked area panels of three layers of 1,080 samples within the area's bound",
+    async () => {
+      const { ms, plot } = await timed(areaPanels, fewAreaPanels);
+      expect(plot.querySelectorAll('[data-part="layers"] > path')).toHaveLength(12);
+      expect(ms).toBeLessThan(RENDER_MS);
+      const frame = plot.querySelector<HTMLElement>('[data-part="frame"]') as HTMLElement;
+      expect(await moveMs(frame)).toBeLessThan(MOVE_MS);
     },
   );
 
