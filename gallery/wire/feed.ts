@@ -9,7 +9,6 @@ import { enhanceContextPanel } from "@cplieger/ui/context-panel";
 import { enhanceFeed } from "@cplieger/ui/feed";
 import { type FieldError, reportErrors } from "@cplieger/ui/form";
 import { enhanceListDetail } from "@cplieger/ui/list-detail";
-import { enhanceLoadMore } from "@cplieger/ui/load-more";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
 import { enhanceReorder } from "@cplieger/ui/reorder";
 import { enhanceTextarea, utf8Length } from "@cplieger/ui/textarea";
@@ -37,102 +36,6 @@ document.querySelector("[data-dot-next]")?.addEventListener("click", () => {
   dot.dataset["tone"] = live ? "success" : "neutral";
   dotWords.textContent = live ? "Checking now" : "Waiting";
 });
-
-interface JobEnd {
-  readonly words: string;
-  readonly glyph: string;
-  readonly tone: string;
-  readonly cause: string;
-}
-
-// Stop leaves with its job's end, so focus moves to the job's link first
-// rather than drop to the body.
-function endJob(job: HTMLElement, end: JobEnd): void {
-  job.dataset["ended"] = "";
-  const mark = document.createElement("span");
-  mark.className = "cp-icon";
-  mark.dataset["cpIcon"] = end.glyph;
-  mark.setAttribute("aria-hidden", "true");
-  const state = document.createElement("span");
-  state.className = "cp-state";
-  state.dataset["tone"] = end.tone;
-  state.append(mark, end.words);
-  const outcome = document.createElement("span");
-  outcome.dataset["part"] = "end";
-  outcome.append(state);
-  const cause = document.createElement("small");
-  cause.textContent = end.cause;
-  const body = job.querySelector(":scope > .cp-cell-stack");
-  body?.append(cause);
-  body?.after(outcome);
-  const stop = job.querySelector<HTMLElement>("[data-stop]");
-  if (stop?.contains(document.activeElement) === true) {
-    job.querySelector("a")?.focus();
-  }
-  for (const part of job.querySelectorAll(":scope > :is([data-stop], progress, small)")) {
-    part.remove();
-  }
-}
-
-for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
-  const template = list.querySelector("li:has(> .cp-list-row)")?.cloneNode(true);
-  setInterval(() => {
-    for (const job of list.querySelectorAll<HTMLElement>(".cp-list-row:not([data-ended])")) {
-      const bar = job.querySelector("progress");
-      const n = job.querySelector("[data-job-n]");
-      if (bar === null || n === null) {
-        continue;
-      }
-      bar.value = Math.min(bar.max, bar.value + 1);
-      n.textContent = `${String(bar.value)} of ${String(bar.max)}`;
-      if (bar.value === bar.max) {
-        endJob(job, {
-          words: "Finished",
-          glyph: "circle-check",
-          tone: "success",
-          cause: `All ${String(bar.max)} done`,
-        });
-      }
-    }
-  }, 700);
-  list.addEventListener("click", (e) => {
-    const target = e.target instanceof Element ? e.target : null;
-    const job = target?.closest("[data-stop]")?.closest<HTMLElement>(".cp-list-row");
-    if (job != null) {
-      const at = job.querySelector("[data-job-n]")?.textContent ?? "";
-      endJob(job, {
-        words: "Stopped",
-        glyph: "circle-minus",
-        tone: "neutral",
-        cause: at === "" ? "Stopped by you" : `Stopped by you at ${at}`,
-      });
-      announce(`${job.querySelector("[data-job-kind]")?.textContent ?? "The job"} stopped`);
-    }
-  });
-  const more = list.querySelector<HTMLButtonElement>("[data-more-jobs]");
-  if (more === null || !(template instanceof HTMLElement)) {
-    continue;
-  }
-  enhanceLoadMore(more, {
-    load: () => {
-      const added = Array.from({ length: 3 }, () => template.cloneNode(true) as HTMLElement);
-      for (const item of added) {
-        const bar = item.querySelector("progress");
-        const n = item.querySelector("[data-job-n]");
-        if (bar !== null && n !== null) {
-          bar.value = 0;
-          n.textContent = `0 of ${String(bar.max)}`;
-        }
-      }
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ items: added, more: false });
-        }, 600);
-      });
-    },
-    words: { count: (n) => (n === 1 ? "1 more job" : `${String(n)} more jobs`) },
-  });
-}
 
 for (const list of document.querySelectorAll<HTMLOListElement>("ol[data-reorder]")) {
   enhanceReorder(list);

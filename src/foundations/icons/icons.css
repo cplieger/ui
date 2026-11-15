@@ -44,6 +44,10 @@
   --cp-icon-image: url("../icons/svg/bell-ring.svg");
 }
 
+:where(.cp) .cp-icon:where([data-cp-icon="captions"]) {
+  --cp-icon-image: url("../icons/svg/captions.svg");
+}
+
 :where(.cp) .cp-icon:where([data-cp-icon="check"]) {
   --cp-icon-image: url("../icons/svg/check.svg");
 }
@@ -66,6 +70,10 @@
 
 :where(.cp) .cp-icon:where([data-cp-icon="circle-dashed"]) {
   --cp-icon-image: url("../icons/svg/circle-dashed.svg");
+}
+
+:where(.cp) .cp-icon:where([data-cp-icon="circle-minus"]) {
+  --cp-icon-image: url("../icons/svg/circle-minus.svg");
 }
 
 :where(.cp) .cp-icon:where([data-cp-icon="circle-x"]) {

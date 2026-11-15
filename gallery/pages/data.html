@@ -431,10 +431,10 @@
       </div>
       <div class="card" data-new>
         <h2>Jobs</h2>
-        <ul class="cp-list" data-jobs>
-          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-job-n>12 of 40</span> · <span data-job-phase>Searching providers</span></small></div></li>
-          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-job-kind>Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-stop>Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-job-n>20 of 26</span> · <span data-job-phase>Matching cues to the audio</span></small></div></li>
-          <li class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button" data-more-jobs>Show all 5 running</button></li>
+        <ul class="cp-list" aria-label="Running jobs" data-jobs>
+          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-part="kind">Finding subtitles</strong><a href="#steps">Frieren, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-part="stop">Stop</button><progress max="40" value="12" aria-label="Finding subtitles, Frieren Season 1"></progress><small><span data-part="count">12 of 40</span> · <span data-part="phase">Searching providers</span></small></div></li>
+          <li><div class="cp-list-row"><span class="cp-cell-stack"><strong data-part="kind">Fixing timing</strong><a href="#steps">Mushishi, Season 1</a></span><button class="cp-button" data-size="sm" type="button" data-part="stop">Stop</button><progress max="26" value="20" aria-label="Fixing timing, Mushishi Season 1"></progress><small><span data-part="count">20 of 26</span> · <span data-part="phase">Matching cues to the audio</span></small></div></li>
+          <li class="cp-list-foot"><button class="cp-button" data-variant="quiet" data-size="sm" type="button">Show all 5 running</button></li>
         </ul>
         <footer>What, where as a link, how far, the phase, and Stop. An ended job drops its bar and Stop, and keeps its outcome at its end and its cause under its scope. Show all 5 running adds the other jobs before the foot, moves focus to the first one's link, and goes.</footer>
       </div>

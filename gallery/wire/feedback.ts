@@ -2,13 +2,15 @@
  * feedback.ts — the gallery's wiring for the feedback lane's cards that run
  * on the library: the region refreshing over its old content, the message
  * feed's read summaries, which load on first open, announcements that
- * reach a dialog, the proposals shown before they apply, and the batched
- * action.
+ * reach a dialog, the proposals shown before they apply, the batched
+ * action and the running jobs.
  */
 
 import { anchorTo } from "@cplieger/ui/anchor";
 import { announce } from "@cplieger/ui/announce";
 import { enhanceBatchedAction } from "@cplieger/ui/batch-report";
+import { enhanceJobs } from "@cplieger/ui/jobs";
+import { enhanceLoadMore } from "@cplieger/ui/load-more";
 import { enhanceLoadingRegion } from "@cplieger/ui/loading-region";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceProposal } from "@cplieger/ui/proposal";
@@ -236,5 +238,45 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("button[data-b
       const missed = offset + count === total ? UNSTARTED : [];
       return { started: count - missed.length, missed };
     },
+  });
+}
+
+// Each job gains a step every 700 ms and finishes at its end; Stop takes
+// 600 ms, and the foot adds the three other running jobs.
+for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
+  const template = list.querySelector("li:has(> .cp-list-row)")?.cloneNode(true);
+  const jobs = enhanceJobs(list, { stop: (_row, signal) => after(600, signal) });
+  setInterval(() => {
+    for (const row of list.querySelectorAll<HTMLElement>(".cp-list-row:not([data-ended])")) {
+      const bar = row.querySelector("progress");
+      if (bar === null || row.querySelector('[aria-busy="true"]') !== null) {
+        continue;
+      }
+      jobs.progress(row, bar.value + 1);
+      if (bar.value === bar.max) {
+        const kind = row.querySelector('[data-part="kind"]')?.textContent ?? "A job";
+        jobs.end(row, {
+          words: "Finished",
+          tone: "success",
+          cause: `All ${String(bar.max)} done`,
+          said: `${kind} finished`,
+        });
+      }
+    }
+  }, 700);
+  const more = list.querySelector<HTMLButtonElement>(".cp-list-foot > button");
+  if (more === null || !(template instanceof HTMLElement)) {
+    continue;
+  }
+  enhanceLoadMore(more, {
+    load: async (signal) => {
+      await after(600, signal);
+      const added = Array.from({ length: 3 }, () => template.cloneNode(true) as HTMLElement);
+      for (const item of added) {
+        jobs.progress(item, 0);
+      }
+      return { items: added, more: false };
+    },
+    words: { count: (n) => (n === 1 ? "1 more job" : `${String(n)} more jobs`) },
   });
 }
