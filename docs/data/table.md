@@ -152,13 +152,4 @@ enhanceRowDetail(table, { signal: page.signal });
 
 ## Outcome
 
-```html
-<td data-col="actions">
-  <span class="cp-outcome">
-    <a href="/releases/arid-04"><span class="cp-icon" data-cp-icon="circle-check" aria-hidden="true"></span>Downloaded · Pinned</a>
-  </span>
-</td>
-```
-
-- A row action whose result is worth keeping in view, such as a download, runs through [confirm](../buttons/confirm.md) with `done: false`, then the app replaces the cell's content with a `.cp-outcome`: a link to the result, in the success tone, or a `.cp-field-error` with the reason and a Retry button that runs the same cycle.
-- Focus moves to the outcome's link or Retry, and the app says the result with [announce](../feedback/announce.md), assertively for an error.
+A row action whose result is worth keeping in view, such as a download, settles into a `.cp-outcome` in its cell: a link to the result, in the success tone, or its failed `.cp-state` beside Retry. [outcome](../feedback/outcome.md) runs it.

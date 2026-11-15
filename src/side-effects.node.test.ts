@@ -42,6 +42,7 @@ const PURE = [
   "/markdown",
   "/menu",
   "/meter",
+  "/outcome",
   "/overflow",
   "/pairs",
   "/palette",

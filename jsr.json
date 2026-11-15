@@ -35,6 +35,7 @@
     "./markdown": "./src/content/markdown/markdown.ts",
     "./menu": "./src/overlays/menu/menu.ts",
     "./meter": "./src/data/meter/meter.ts",
+    "./outcome": "./src/feedback/outcome/outcome.ts",
     "./overflow": "./src/buttons/overflow/overflow.ts",
     "./pairs": "./src/forms/pairs/pairs.ts",
     "./palette": "./src/overlays/palette/palette.ts",

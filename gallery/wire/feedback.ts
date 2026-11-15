@@ -3,7 +3,7 @@
  * on the library: the region refreshing over its old content, the message
  * feed's read summaries, which load on first open, announcements that
  * reach a dialog, the proposals shown before they apply, the batched
- * action and the running jobs.
+ * action, the running jobs and a row's action settling into its outcome.
  */
 
 import { anchorTo } from "@cplieger/ui/anchor";
@@ -12,6 +12,7 @@ import { enhanceBatchedAction } from "@cplieger/ui/batch-report";
 import { enhanceJobs } from "@cplieger/ui/jobs";
 import { enhanceLoadMore } from "@cplieger/ui/load-more";
 import { enhanceLoadingRegion } from "@cplieger/ui/loading-region";
+import { enhanceOutcome } from "@cplieger/ui/outcome";
 import { enhancePanel } from "@cplieger/ui/panel";
 import { enhanceProposal } from "@cplieger/ui/proposal";
 import { enhanceRelativeTime } from "@cplieger/ui/relative-time";
@@ -278,5 +279,26 @@ for (const list of document.querySelectorAll<HTMLElement>("[data-jobs]")) {
       return { items: added, more: false };
     },
     words: { count: (n) => (n === 1 ? "1 more job" : `${String(n)} more jobs`) },
+  });
+}
+
+// A row's Download settles into its result; the one marked
+// data-outcome="fail" fails once, and its Retry then succeeds.
+for (const button of document.querySelectorAll<HTMLButtonElement>("button[data-outcome]")) {
+  let fails = button.dataset["outcome"] === "fail";
+  enhanceOutcome(button, {
+    run: async (signal) => {
+      await after(1400, signal);
+      if (fails) {
+        fails = false;
+        throw new Error("The provider timed out.");
+      }
+      return { href: "#table", words: "Downloaded · Pinned" };
+    },
+    words: {
+      busy: "Downloading…",
+      said: () => "Downloaded and pinned.",
+      failedSaid: () => "Download failed: the provider timed out.",
+    },
   });
 }
