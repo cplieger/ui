@@ -26,10 +26,12 @@
   inline-size: 7rem;
 }
 
-/* Beside the poster the block takes what the toolbar leaves, so it is the
- * container query below, not the flex wrap, that puts it under. */
+/* Beside the poster the block keeps 18rem of words: a toolbar that does
+ * not fit beside them wraps to its own line, and the container query below,
+ * not the flex wrap, puts the block under the poster. */
 .cp-heading-row > .cp-cover:first-child + * {
   flex: 1 1 0;
+  min-inline-size: min(18rem, 100%);
 }
 
 /* A title's line of facts sits close under it, read as one block. */

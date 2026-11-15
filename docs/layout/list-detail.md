@@ -63,7 +63,7 @@ function route(entry: string | null): void {
 | --- | --- | --- |
 | `signal` | none | Aborting it closes the detail and removes the sheet and the listeners. |
 | `dockAt` | `52` | The box's width, in rem, from which the detail docks. |
-| `onDismiss` | `close()` | Runs on Close, and on Escape, a press outside, or the browser closing the sheet itself while the detail is in its sheet. Go back here, and let the route close the detail. |
+| `onDismiss` | `close()` | Runs on Close, and on Escape, a press outside, or the browser closing the sheet itself while the detail is in its sheet. Go back here, and let the route close the detail. The browser closing the sheet while the route has not yet answered a dismissal, as a scripted exit can, calls it no second time. |
 
 - `open()` shows the detail and focuses its heading. Calling it again while the detail shows moves focus back to the heading. `open({ still: true })` shows it without its entrance, for a page that loads with an entry open.
 - `close()` hides the detail and returns focus to the element that had it before `open()`, usually the entry's link. When another entry's link opens the docked detail, focus returns to that link. The sheet slides out with the detail still in it; calling `open()` during that exit keeps it open.

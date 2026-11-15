@@ -18,6 +18,7 @@ export interface ListDetailOptions {
   readonly dockAt?: number;
   /** Close, Escape, a press outside the sheet, or the engine closing the
    *  sheet itself. The app goes back, and its route then calls `close()`.
+   *  An engine close before the route has answered is not passed on.
    *  Default: `close()`. */
   readonly onDismiss?: () => void;
 }
@@ -85,6 +86,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
    *  leaves the detail where it is. */
   let turn = 0;
   let still = 0;
+  /** onDismiss has been called since the last open(): the engine closing
+   *  the sheet while the route works on it is not a second dismissal. */
+  let asked = false;
 
   const heading = (): HTMLElement | null =>
     detail.querySelector<HTMLElement>(":scope > header > :is(h1, h2, h3, h4)");
@@ -165,6 +169,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       return;
     }
     shown = false;
+    asked = false;
     turn += 1;
     const was = at;
     at = null;
@@ -198,6 +203,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
 
   const api: ListDetail = {
     open(opts = {}) {
+      asked = false;
       if (!shown) {
         shown = true;
         turn += 1;
@@ -230,6 +236,7 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     if (onDismiss === undefined) {
       api.close();
     } else {
+      asked = true;
       onDismiss();
     }
   };
@@ -261,9 +268,12 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       if (!shown) {
         restore(returnTo);
         returnTo = null;
-      } else if (at === "dialog" && !dialog.open) {
+      } else if (at === "dialog" && !dialog.open && !asked) {
         // The engine closed it itself, as Chromium does on a second Escape
-        // with no user activation between, so the route has to follow.
+        // with no user activation between, so the route has to follow
+        // (https://html.spec.whatwg.org/multipage/interaction.html#close-requests-and-close-watchers).
+        // A route already asked closes it in its own time: installDialogs'
+        // scripted exit can close the sheet first.
         dismiss();
       }
     },

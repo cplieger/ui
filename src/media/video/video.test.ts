@@ -122,14 +122,12 @@ describe("enhanceVideo", () => {
   });
 
   it("plays and pauses from its button, and follows the host's own calls", async () => {
-    const { root, video, play } = await pane();
+    const { video, play } = await pane();
     await userEvent.click(play);
     await expect.poll(() => video.paused).toBe(false);
     await expect.poll(() => play.getAttribute("aria-label")).toBe("Pause");
-    expect(root.hasAttribute("data-cp-playing")).toBe(true);
     video.pause();
     await expect.poll(() => play.getAttribute("aria-label")).toBe("Play");
-    expect(root.hasAttribute("data-cp-playing")).toBe(false);
     await expect
       .poll(() => play.querySelector(".cp-icon")?.getAttribute("data-cp-icon"))
       .toBe("play");
@@ -188,6 +186,26 @@ describe("enhanceVideo", () => {
     await expect.poll(() => track.activeCues?.length).toBe(0);
   });
 
+  it("ignores an offset that is not a finite number, keeping every cue in place", async () => {
+    const { video, handle } = await pane();
+    await expect.poll(() => cues(video).length).toBe(2);
+    handle.offset = 1;
+    // The nudge stepper's text for one second earlier, read without its minus.
+    expect(() => {
+      handle.offset = Number("\u22121.00");
+    }).not.toThrow();
+    expect(handle.offset).toBe(1);
+    expect(cues(video).map((c) => [c.startTime, c.endTime])).toEqual([
+      [2, 3],
+      [4, 5],
+    ]);
+    handle.offset = -0.5;
+    expect(cues(video).map((c) => [c.startTime, c.endTime])).toEqual([
+      [0.5, 1.5],
+      [2.5, 3.5],
+    ]);
+  });
+
   it("gives a replaced track the current offset", async () => {
     const { video, handle } = await pane({ offset: 0.5 });
     await expect.poll(() => cues(video)[0]?.startTime).toBe(1.5);
@@ -220,6 +238,67 @@ describe("enhanceVideo", () => {
     handle.load(await sample(), 3);
     await metadata(video);
     expect(handle.position).toBeCloseTo(3, 1);
+    expect(video.paused, "a paused video stays paused").toBe(true);
+  });
+
+  it("carries on playing a video that was playing when a new source loads", async () => {
+    const { video, play, handle } = await pane();
+    await userEvent.click(play);
+    await expect.poll(() => video.currentTime).toBeGreaterThan(0.2);
+    handle.load(await sample());
+    await metadata(video);
+    await expect.poll(() => video.paused).toBe(false);
+    await expect.poll(() => play.getAttribute("aria-label")).toBe("Pause");
+  });
+
+  it("drops the move of a source a later load() replaced before its metadata", async () => {
+    const { video, handle } = await pane();
+    const [a, b] = [await sample(), await sample()];
+    handle.load(a, 8);
+    handle.load(b, 0);
+    await metadata(video);
+    expect(video.currentSrc).toBe(b);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(handle.position).toBe(0);
+  });
+
+  it("drops the move of a source that failed, so the next one starts where it asks", async () => {
+    const { root, video, handle } = await pane();
+    handle.load(objectUrl(new Blob(["not a video"], { type: "video/webm" })), 9);
+    await expect.poll(() => root.hasAttribute("data-cp-error")).toBe(true);
+    handle.load(await sample(), 0);
+    await metadata(video);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(handle.position).toBe(0);
+  });
+
+  it("keeps focus on a focused seek bar while a new source loads", async () => {
+    const { video, seek, handle } = await pane();
+    const next = await sample();
+    seek.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(handle.position).toBeCloseTo(5, 1);
+    handle.load(next, 8);
+    await metadata(video);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(document.activeElement).toBe(seek);
+    expect(handle.position).toBeCloseTo(8, 1);
+    expect(seek.hasAttribute("aria-disabled")).toBe(false);
+  });
+
+  it("marks the seek bar unavailable, focusable and still, until the total is known", async () => {
+    const root = document.createElement("div");
+    root.className = "cp-video";
+    root.append(document.createElement("video"));
+    document.body.append(root);
+    const { position } = enhanceVideo(root, { signal: life.signal });
+    expect(position).toBe(0);
+    const seek = root.querySelector("input.cp-range") as HTMLInputElement;
+    expect([seek.disabled, seek.getAttribute("aria-disabled")]).toEqual([false, "true"]);
+    seek.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(seek);
+    expect((root.querySelector("video") as HTMLVideoElement).currentTime).toBe(0);
   });
 
   it("marks a source that fails and turns its controls off", async () => {

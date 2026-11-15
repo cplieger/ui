@@ -1027,7 +1027,7 @@ for (const [n, host] of $$(".g-shell[data-frame-name]").entries()) {
 
 // ===================================================== motion helpers
 // A dialog's exit: Chromium animates it in CSS (overlay and display allow
-// discrete); an engine that cannot gets the same fade or slide in script
+// discrete); an engine that cannot gets the same fade in script
 // before the dialog really closes.
 if (!CSS.supports("overlay", "auto")) {
   for (const d of $$("dialog.g-dialog")) {
@@ -1036,10 +1036,8 @@ if (!CSS.supports("overlay", "auto")) {
       if (!d.open || d.dataset.leaving !== undefined) return;
       if (reduced()) return close.call(d, value);
       d.dataset.leaving = "";
-      const sheet = d.classList.contains("g-sheet");
-      const rtl = getComputedStyle(d).direction === "rtl";
-      const frames = sheet ? [{ translate: "0 0" }, { translate: rtl ? "-100% 0" : "100% 0" }] : [{ opacity: 1, scale: 1 }, { opacity: 0, scale: 0.96 }];
-      d.animate(frames, { duration: sheet ? 280 : 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }).onfinish = (e) => {
+      const frames = [{ opacity: 1, scale: 1 }, { opacity: 0, scale: 0.96 }];
+      d.animate(frames, { duration: 160, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }).onfinish = (e) => {
         delete d.dataset.leaving;
         close.call(d, value);
         e.target.cancel();

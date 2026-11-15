@@ -771,7 +771,7 @@ input.cp-input::-webkit-calendar-picker-indicator {
 }
 
 @media (width < 40rem) {
-  .g-dialog:not(.g-sheet) {
+  .g-dialog {
     inline-size: 100vw;
     max-inline-size: 100vw;
     margin: auto 0 0;
@@ -781,13 +781,15 @@ input.cp-input::-webkit-calendar-picker-indicator {
     opacity: 1;
   }
 
-  .g-dialog:not(.g-sheet)[open] {
+  .g-dialog[open] {
     translate: 0 0;
   }
 
   @starting-style {
-    .g-dialog:not(.g-sheet)[open] {
+    .g-dialog[open] {
       translate: 0 100%;
+      opacity: 1;
+      scale: 1;
     }
   }
 }

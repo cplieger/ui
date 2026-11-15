@@ -21,7 +21,7 @@ The title's line of facts sits 4px under it. The toolbar is optional.
 
 ## An item's hero
 
-A `.cp-cover` before the title block makes the row an item's hero: the poster, 7rem wide, with the title block beside it from its top. Once the row is under 26.5rem, the poster, its gap and 18rem of words, the title block goes under the poster. The row follows its own box, so a hero in a narrow panel wraps as it does on a phone. The toolbar, when the page has actions, stays level with the title at the row's end, and takes its own line under 40rem.
+A `.cp-cover` before the title block makes the row an item's hero: the poster, 7rem wide, with the title block beside it from its top. Once the row is under 26.5rem, the poster, its gap and 18rem of words, the title block goes under the poster. The row follows its own box, so a hero in a narrow panel wraps as it does on a phone. The toolbar, when the page has actions, stays level with the title at the row's end. It takes its own line under 40rem, and wherever the row cannot hold the poster, 18rem of words and the toolbar side by side, so a long title is never squeezed beside it.
 
 ```html
 <header class="cp-heading-row">

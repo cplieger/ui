@@ -127,6 +127,21 @@ describe("heading row with a poster: the item hero", () => {
     expect(bar.left).toBeCloseTo(poster.left, 0);
   });
 
+  it("keeps 18rem of title beside the poster and drops a toolbar that does not fit under it", () => {
+    const row = hero(640, { actions: true });
+    const resume = document.createElement("button");
+    resume.className = "cp-button";
+    resume.type = "button";
+    resume.textContent = "Resume automation";
+    row.querySelector(".cp-toolbar")?.prepend(resume);
+    const poster = box(row, ".cp-cover");
+    const block = box(row, ".cp-cover + div");
+    const bar = box(row, ".cp-toolbar");
+    expect(block.top).toBeCloseTo(poster.top, 0);
+    expect(block.width).toBeGreaterThanOrEqual(288);
+    expect(bar.top).toBeGreaterThanOrEqual(Math.max(block.bottom, poster.bottom));
+  });
+
   it("gives the title block the rest of the row when there are no actions", () => {
     const row = hero(900);
     expect(row.querySelector(".cp-toolbar")).toBeNull();

@@ -30,16 +30,17 @@ export interface VideoOptions {
 
 export interface Video {
   /** Seconds added to every caption's times; setting it moves every cue and
-   *  redraws the showing caption. */
+   *  redraws the showing caption. A value that is not finite is ignored. */
   offset: number;
   /** The video's current time, in seconds. */
   readonly position: number;
-  /** Plays `src`, such as a MediaSource object URL, from `at` seconds once
-   *  its metadata loads. Default: where the video is now. */
+  /** Loads `src`, such as a MediaSource object URL, and moves to `at`
+   *  seconds once its metadata loads; a video that was playing carries on, a
+   *  paused one stays paused. Default `at`: where the video is now. A later
+   *  call replaces this one's pending move. */
   load(src: string, at?: number): void;
 }
 
-const PLAYING = "data-cp-playing";
 const ERROR = "data-cp-error";
 
 /** m:ss, or h:mm:ss from an hour. */
@@ -60,11 +61,19 @@ function captionTrack(video: HTMLVideoElement): TextTrack | undefined {
 
 /** Moves `cue` to its new times. A cue moved in place keeps its old slot in
  *  Gecko's active list, so it goes out and back in, which also reruns the
- *  engine's choice of the showing cue while the video is paused. */
+ *  engine's choice of the showing cue while the video is paused (pinned by
+ *  the test "moves every cue by the offset and redraws the showing caption
+ *  while paused", red in Firefox without it). The times are checked first,
+ *  since a non-finite time throws after the cue is out. */
 function place(track: TextTrack, cue: TextTrackCue, start: number, end: number): void {
+  const from = Math.max(0, start);
+  const to = Math.max(0, end);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) {
+    return;
+  }
   track.removeCue(cue);
-  cue.startTime = Math.max(0, start);
-  cue.endTime = Math.max(0, end);
+  cue.startTime = from;
+  cue.endTime = to;
   track.addCue(cue);
 }
 
@@ -79,7 +88,7 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   const listen = until(signal);
   const words = { play: "Play", pause: "Pause", seek: "Seek", ...options.words };
   const step = options.step ?? 5;
-  let offset = options.offset ?? 0;
+  let offset = Number.isFinite(options.offset) ? (options.offset ?? 0) : 0;
   const hadControls = video.controls;
   video.controls = false;
 
@@ -121,7 +130,6 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
 
   const drawButton = (): void => {
     const playing = !video.paused && !video.ended;
-    root.toggleAttribute(PLAYING, playing);
     const name = playing ? words.pause : words.play;
     play.setAttribute("aria-label", name);
     play.dataset["cpTip"] = name;
@@ -133,10 +141,19 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     }
   };
 
+  /** Until the total is known the seek bar is marked unavailable, not
+   *  disabled, so a focused bar keeps focus across `load()`. */
+  const unknown = (): boolean => seek.getAttribute("aria-disabled") === "true";
+
   const drawTime = (at: number): void => {
     const end = total();
     const known = Number.isFinite(end) && end > 0;
-    seek.disabled = !known || root.hasAttribute(ERROR);
+    seek.disabled = root.hasAttribute(ERROR);
+    if (known) {
+      seek.removeAttribute("aria-disabled");
+    } else {
+      seek.setAttribute("aria-disabled", "true");
+    }
     seek.max = known ? String(end) : "0";
     if (!held) {
       seek.value = String(at);
@@ -259,20 +276,27 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   seek.addEventListener(
     "input",
     () => {
-      drawTime(seek.valueAsNumber);
+      drawTime(unknown() ? video.currentTime : seek.valueAsNumber);
     },
     listen,
   );
   seek.addEventListener(
     "change",
     () => {
-      seekTo(seek.valueAsNumber);
+      if (unknown()) {
+        drawTime(video.currentTime);
+      } else {
+        seekTo(seek.valueAsNumber);
+      }
     },
     listen,
   );
   seek.addEventListener(
     "keydown",
     (e) => {
+      if (unknown()) {
+        return;
+      }
       const back = seek.matches(":dir(rtl)") ? "ArrowRight" : "ArrowLeft";
       const forward = back === "ArrowLeft" ? "ArrowRight" : "ArrowLeft";
       const by: Record<string, number> = {
@@ -317,10 +341,11 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   });
   shown.observe(root);
 
+  let pending: AbortController | undefined;
+
   whenAborted(signal, () => {
     shown.disconnect();
     bar.remove();
-    root.removeAttribute(PLAYING);
     root.removeAttribute(ERROR);
     root.removeAttribute("aria-busy");
     video.controls = hadControls;
@@ -341,22 +366,37 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       return offset;
     },
     set offset(value: number) {
-      offset = value;
-      applyOffset();
+      if (Number.isFinite(value)) {
+        offset = value;
+        applyOffset();
+      }
     },
     get position() {
       return video.currentTime;
     },
     load(src: string, at?: number) {
       const from = at ?? video.currentTime;
+      const resume = !video.paused && !video.ended;
+      // A source that failed or was replaced never fires loadedmetadata, so
+      // its move would otherwise land on the next source.
+      pending?.abort();
+      const move = new AbortController();
+      pending = move;
       video.addEventListener(
         "loadedmetadata",
         () => {
+          // A seek to 0 on a fresh source would fire a needless `seeking`.
           if (from > 0) {
             seekTo(from);
           }
+          if (resume) {
+            video.play().catch(() => undefined);
+          }
         },
-        { once: true, ...listen },
+        {
+          once: true,
+          signal: signal === undefined ? move.signal : AbortSignal.any([signal, move.signal]),
+        },
       );
       video.src = src;
     },

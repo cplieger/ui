@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { installDialogs } from "../../overlays/dialog/dialog.js";
 import { enhanceListDetail, type ListDetailOptions } from "./list-detail.js";
 
 let life = new AbortController();
@@ -362,6 +363,27 @@ describe("enhanceListDetail", () => {
     expect(dialog.open).toBe(true);
     close.click();
     expect(onDismiss).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks a slow route once for one Escape on a page that runs installDialogs", async () => {
+    installDialogs({ signal: life.signal });
+    const route = { close: (): void => undefined };
+    const onDismiss = vi.fn(() => {
+      setTimeout(() => {
+        route.close();
+      }, 400);
+    });
+    const m = mount(400, { onDismiss });
+    route.close = m.api.close;
+    m.api.open();
+    await played(m.dialog);
+    expect(document.activeElement).toBe(m.heading);
+    await userEvent.keyboard("{Escape}");
+    await new Promise((r) => setTimeout(r, 700));
+    await exited(m.dialog);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect([m.dialog.open, m.detail.hidden]).toEqual([false, true]);
+    expect(document.activeElement).toBe(m.opener);
   });
 
   it("closes nothing on a press inside the sheet or one that starts inside and ends outside", async () => {
