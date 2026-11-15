@@ -70,23 +70,43 @@ const isCurrent = (link: Element): boolean => {
   return v !== null && v !== "false";
 };
 
+/** A hex digit's value, or -1 for any other byte or none. */
+const hexOf = (byte: number | undefined): number => {
+  if (byte === undefined) {
+    return -1;
+  }
+  const digit = "0123456789abcdef".indexOf(String.fromCharCode(byte | 0x20));
+  return byte >= 0x30 && digit !== -1 ? digit : -1;
+};
+
+/** The URL Standard's string percent-decode, then UTF-8 decode without BOM:
+ *  a `%` not followed by two hex digits stays, and a bad byte becomes U+FFFD,
+ *  so it never throws (https://url.spec.whatwg.org/#string-percent-decode). */
+function percentDecode(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  const out: number[] = [];
+  for (let i = 0; i < bytes.length; i++) {
+    const byte = bytes[i] ?? 0;
+    const high = byte === 0x25 ? hexOf(bytes[i + 1]) : -1;
+    const low = high === -1 ? -1 : hexOf(bytes[i + 2]);
+    if (low === -1) {
+      out.push(byte);
+    } else {
+      out.push(high * 16 + low);
+      i += 2;
+    }
+  }
+  return new TextDecoder("utf-8", { ignoreBOM: true }).decode(new Uint8Array(out));
+}
+
 /** The element a fragment names, found as the browser finds it: the raw
  *  id, then the percent-decoded one
- *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-a-potential-indicated-element).
- *  A fragment that does not decode names no second element. */
+ *  (https://html.spec.whatwg.org/multipage/browsing-the-web.html#find-a-potential-indicated-element). */
 function byFragment(root: Document | ShadowRoot, fragment: string): Element | null {
   if (fragment === "") {
     return null;
   }
-  const raw = root.getElementById(fragment);
-  if (raw !== null) {
-    return raw;
-  }
-  try {
-    return root.getElementById(decodeURIComponent(fragment));
-  } catch {
-    return null;
-  }
+  return root.getElementById(fragment) ?? root.getElementById(percentDecode(fragment));
 }
 
 /** The link's words without its end part or the words read after them. */
@@ -246,7 +266,11 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
     }
     for (const other of targets.keys()) {
       if (other === link) {
-        other.setAttribute("aria-current", "location");
+        // A same-value write still reaches `currents`, whose sync would put
+        // back a key choice waiting for Enter.
+        if (other.getAttribute("aria-current") !== "location") {
+          other.setAttribute("aria-current", "location");
+        }
       } else if (other.getAttribute("aria-current") === "location") {
         other.removeAttribute("aria-current");
       }
@@ -283,6 +307,11 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   nav.addEventListener(
     "click",
     (e) => {
+      // A modified or non-primary press opens the link elsewhere, and this
+      // page stays where it was.
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+        return;
+      }
       const link = e.target instanceof Element ? e.target.closest("a") : null;
       if (link !== null && targets.has(link)) {
         held = link;
@@ -324,10 +353,19 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
   // in Firefox and in Chromium on Linux and Windows; moving to a category
   // then would change the page under the person's keys (WCAG 3.2.2), so the
   // choice waits for Enter, and Escape or leaving the select puts the current
-  // back. That change fires inside the key's own task; a picker's commit
-  // comes in a later one and moves at once.
+  // back. That change fires inside the key's own task, a letter's inside its
+  // keypress, which Chromium sends as a later task, so both arm the hold; a
+  // picker's commit comes in a later one and moves at once.
   let keyed = false;
   let waiting = false;
+  const arm = (): void => {
+    keyed = true;
+    setTimeout(() => {
+      keyed = false;
+    });
+  };
+  const typed = (e: KeyboardEvent): boolean =>
+    e.key.length === 1 && e.key !== " " && !e.altKey && !e.ctrlKey && !e.metaKey;
   select.addEventListener(
     "keydown",
     (e) => {
@@ -340,11 +378,18 @@ export function enhanceSettings(form: HTMLFormElement, options: SettingsOptions 
         waiting = false;
         sync();
       }
-      keyed = !e.altKey && (MOVES.has(e.key) || (e.key.length === 1 && e.key !== " "));
-      if (keyed) {
-        setTimeout(() => {
-          keyed = false;
-        });
+      keyed = false;
+      if (typed(e) || (!e.altKey && MOVES.has(e.key))) {
+        arm();
+      }
+    },
+    listen,
+  );
+  select.addEventListener(
+    "keypress",
+    (e) => {
+      if (typed(e)) {
+        arm();
       }
     },
     listen,

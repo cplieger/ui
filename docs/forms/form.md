@@ -48,7 +48,7 @@ url.addEventListener("blur", () => (isValidUrl(url.value) ? clearError(url) : sh
     <button class="cp-button" type="button">Load the latest and keep my changes</button>
   </div>
   <div class="cp-field"><label class="cp-label" for="every">Check every</label><input class="cp-input" id="every" name="every" value="30"></div>
-  <div class="cp-savebar" aria-label="Unsaved changes" hidden>
+  <div class="cp-savebar" role="group" aria-label="Unsaved changes" hidden>
     <span data-part="count"></span>
     <button class="cp-button" type="reset">Discard</button>
     <button class="cp-button" data-variant="primary" type="submit">Save changes</button>

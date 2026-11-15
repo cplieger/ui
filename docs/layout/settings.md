@@ -20,7 +20,7 @@ The script of a settings page, as [Settings](../design-settings.md) describes it
       <div class="cp-panel">…</div>
     </section>
     <section class="cp-stack" id="checks" aria-labelledby="checks-h">…</section>
-    <div class="cp-savebar" aria-label="Unsaved changes" hidden>
+    <div class="cp-savebar" role="group" aria-label="Unsaved changes" hidden>
       <span data-part="count"></span>
       <button class="cp-button" type="reset">Discard</button>
       <button class="cp-button" data-variant="primary" type="submit">Save changes</button>
@@ -55,10 +55,10 @@ The guard from [form](../forms/form.md) decides what waits: a field whose value 
 | `words` | below | The words it writes. |
 | `signal` | none | Aborting it removes the select, the dots it wrote, the bar's height and its listeners. |
 
-- **The bar** is `hidden` while nothing waits, and its count reads "1 unsaved change" or "3 unsaved changes". While a button in the bar plays its busy and done words, the bar stays with its last count, and it is painted again once the button is back at rest, so a save that leaves nothing waiting hides it then. While the bar shows, a field that focus or a link scrolls into view stops with its focus ring above the bar: the script gives the form the bar's height as `--cp-savebar-size`, which grows when the bar wraps on a phone.
+- **The bar** is a `div` with `role="group"` and its `aria-label`, a named group and not a landmark, so a page of several forms adds no region per form. It is `hidden` while nothing waits, and its count reads "1 unsaved change" or "3 unsaved changes". While a button in the bar plays its busy and done words, the bar stays with its last count, and it is painted again once the button is back at rest, so a save that leaves nothing waiting hides it then. While the bar shows, a field that focus or a link scrolls into view stops with its focus ring above the bar: the script gives the form the bar's height as `--cp-savebar-size`, which grows when the bar wraps on a phone.
 - **The dot**: a category with a change holds a `.cp-dot` in its row's `[data-part="end"]`, with ", unsaved changes" for a screen reader. It makes the end part when the row has none and removes it again when it empties. A dot painted as the page opens stands still, and one added later pops in.
 - **The select**: below 48rem the stylesheet hides the links and shows a select labelled "Category", which the script appends to the nav, one option per link, the open category chosen. A changed category's option reads "Checks, unsaved changes", since an option holds only text. Choosing an option presses its link, so the router, the jump to the section and the guard's question treat it as the link, and a choice the page refused shows the open category again. A choice made with the arrow or letter keys of a closed select waits for Enter, and Escape or leaving the select puts the open category back, so the keys never move the page under the person. A choice made in the select's open picker moves at once.
-- **The category in view**: on a page of sections, the first section in the band from 20% to 40% of the window gives its link `aria-current="location"`. A pressed link is current at once and stays current until the person scrolls, so a last section too short to reach the band still reads as open. `aria-current="page"` is the app's, and the script never writes it: while a link carries it, the app's router shows one section at a time and says which is open, so the script marks no section in view.
+- **The category in view**: on a page of sections, the first section in the band from 20% to 40% of the window gives its link `aria-current="location"`. A pressed link is current at once (a press with Ctrl, Meta, Shift or Alt, or another button, opens it elsewhere and leaves the current one) and stays current until the person scrolls, so a last section too short to reach the band still reads as open. `aria-current="page"` is the app's, and the script never writes it: while a link carries it, the app's router shows one section at a time and says which is open, so the script marks no section in view.
 - `update()` reads the categories again, after the app added, removed or renamed one.
 - Without script, the categories stay a row of links that scrolls sideways below 48rem.
 

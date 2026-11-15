@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { cdp, server, userEvent } from "vitest/browser";
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { guardChanges } from "../../forms/form/form.js";
@@ -38,7 +38,7 @@ function page(tall = false): {
     `<section id="s-con"${height}><h2>Connections</h2><input name="url"></section>` +
     `<section id="s-chk"${height}><h2>Checks</h2><input name="every"><input name="retries"></section>` +
     '<section id="s-dis"><h2>Display</h2><input name="theme"></section>' +
-    '<div class="cp-savebar" aria-label="Unsaved changes" hidden><span data-part="count"></span><button class="cp-button" type="reset">Discard</button><button class="cp-button" data-variant="primary" type="submit">Save changes</button></div>' +
+    '<div class="cp-savebar" role="group" aria-label="Unsaved changes" hidden><span data-part="count"></span><button class="cp-button" type="reset">Discard</button><button class="cp-button" data-variant="primary" type="submit">Save changes</button></div>' +
     "</form></div>";
   document.body.append(host);
   const form = host.querySelector("form") as HTMLFormElement;
@@ -218,6 +218,60 @@ describe("enhanceSettings", () => {
     select.blur();
     expect([pressed.length, select.selectedIndex]).toEqual([1, 2]);
   });
+
+  it("waits for Enter after a letter whose keypress comes a task after its keydown", async () => {
+    const { form, nav } = page();
+    enhanceSettings(form, { signal: life.signal });
+    const pressed: string[] = [];
+    nav.addEventListener("click", (e) => {
+      e.preventDefault();
+      pressed.push((e.target as HTMLAnchorElement).hash);
+    });
+    const select = nav.querySelector("select") as HTMLSelectElement;
+    select.focus();
+    await new Promise(requestAnimationFrame);
+    await task();
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "d", bubbles: true }));
+    await task();
+    select.dispatchEvent(new KeyboardEvent("keypress", { key: "d", bubbles: true }));
+    select.selectedIndex = 2;
+    select.dispatchEvent(new Event("change"));
+    await task();
+    expect(pressed).toEqual([]);
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(pressed).toEqual(["#s-dis"]);
+  });
+
+  it.runIf(server.browser === "chromium")(
+    "waits for Enter after a letter Chromium sends as a key and then its character",
+    async () => {
+      const { form, nav } = page();
+      enhanceSettings(form, { signal: life.signal });
+      const pressed: string[] = [];
+      nav.addEventListener("click", (e) => {
+        e.preventDefault();
+        pressed.push((e.target as HTMLAnchorElement).hash);
+      });
+      const select = nav.querySelector("select") as HTMLSelectElement;
+      select.focus();
+      for (let i = 0; i < 5; i++) {
+        select.selectedIndex = 0;
+        await cdp().send("Input.dispatchKeyEvent", {
+          type: "rawKeyDown",
+          key: "d",
+          code: "KeyD",
+          windowsVirtualKeyCode: 68,
+        });
+        await task();
+        await cdp().send("Input.dispatchKeyEvent", { type: "char", key: "d", text: "d" });
+        await task();
+        expect([pressed, select.selectedIndex]).toEqual([[], 2]);
+        await cdp().send("Input.dispatchKeyEvent", { type: "keyUp", key: "d", code: "KeyD" });
+        select.blur();
+        select.focus();
+      }
+    },
+  );
 
   it("moves at once on a change a task after the key, as a picker the arrows opened commits", async () => {
     const { form, nav } = page();
@@ -407,14 +461,51 @@ describe("enhanceSettings", () => {
     expect(current()).toBe(2);
   });
 
-  it("finds a section whose fragment does not percent-decode, as the browser does", () => {
+  it("finds a section whose fragment does not percent-decode whole, as the browser does", () => {
     const { form, nav, fields } = page();
-    nav.querySelector("ul")?.insertAdjacentHTML("beforeend", row("Offers", "#50%-off"));
-    form.insertAdjacentHTML("beforeend", '<section id="50%-off"><input name="rate"></section>');
+    nav
+      .querySelector("ul")
+      ?.insertAdjacentHTML("beforeend", row("Offers", "#50%-off") + row("Sale", "#50% off"));
+    form.insertAdjacentHTML(
+      "beforeend",
+      '<section id="50%-off"><input name="rate"></section><section id="50% off"><input name="sale"></section>',
+    );
     const s = enhanceSettings(form, { signal: life.signal });
     const links = [...nav.querySelectorAll<HTMLAnchorElement>("a.cp-list-row")];
-    s.paint([form.querySelector('[name="rate"]') as Element, fields[1] as Element]);
-    expect(dots(links)).toEqual(["", "Checks, unsaved changes", "", "Offers, unsaved changes"]);
+    expect(links[4]?.hash).toBe("#50%%20off");
+    s.paint([
+      form.querySelector('[name="rate"]') as Element,
+      form.querySelector('[name="sale"]') as Element,
+      fields[1] as Element,
+    ]);
+    expect(dots(links)).toEqual([
+      "",
+      "Checks, unsaved changes",
+      "",
+      "Offers, unsaved changes",
+      "Sale, unsaved changes",
+    ]);
+  });
+
+  it("keeps the current category through a modified or non-primary press, which opens the link elsewhere", () => {
+    const { form, links } = page();
+    enhanceSettings(form, { signal: life.signal });
+    const target = links[2] as HTMLAnchorElement;
+    target.addEventListener("click", (e) => {
+      e.preventDefault();
+    });
+    for (const init of [
+      { ctrlKey: true },
+      { metaKey: true },
+      { shiftKey: true },
+      { altKey: true },
+      { button: 1 },
+    ]) {
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, ...init }));
+    }
+    expect(links.map((l) => l.getAttribute("aria-current"))).toEqual(["location", null, null]);
+    target.click();
+    expect(links.map((l) => l.getAttribute("aria-current"))).toEqual([null, null, "location"]);
   });
 
   it("throws without a settings nav", () => {
