@@ -433,6 +433,11 @@ const WRONG: readonly unknown[] = [
   [1],
   ["a"],
   [null],
+  { length: Number.NaN },
+  { length: -1 },
+  { length: 1e7 },
+  { length: 1, 0: "a" },
+  { length: 1, 0: 1 },
   {},
   { other: 1 },
   { edges: [1] },
@@ -582,7 +587,71 @@ const EACH = { numRuns: 60 };
 
 const zone = fc.constantFrom("UTC", "America/New_York", "Asia/Kolkata");
 
+// `list` with every read of an element throwing, so a check that walks or
+// copies it before refusing it fails by that error.
+const unread = <T extends object>(list: T): T =>
+  new Proxy(list, {
+    get(target, key) {
+      if (typeof key === "string" && /^\d+$/u.test(key)) {
+        throw new Error(`read element ${key}`);
+      }
+      // A typed array's length getter needs the array itself as its receiver.
+      return Reflect.get(target, key) as unknown;
+    },
+  });
+
+// A field's name as the chart's errors write it: marks[0].series[1].y.
+const named = (path: Path): string =>
+  path.map((k, i) => (typeof k === "number" ? `[${String(k)}]` : i === 0 ? k : `.${k}`)).join("");
+
+// Each list a spec holds, a number per entry and one more for a bin's edges.
+const lists = (spec: unknown): Path[] =>
+  paths(spec).filter((path) => Array.isArray(at(spec, path)));
+const MOST_ENTRIES = (path: Path): number => (path.at(-1) === "edges" ? 1_000_001 : 1_000_000);
+
+// Every stand-in for a list: no array, an array-like of each length that is
+// no array's, a typed array, and an array one entry past the most a spec holds.
+const NOT_LISTS = (path: Path): readonly unknown[] => [
+  "a",
+  1,
+  {},
+  unread(new Float64Array([1])),
+  unread({ length: 1, 0: "a" }),
+  ...[-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 1e7, 2 ** 32 - 1, 2 ** 32, 4e9].map((length) =>
+    unread({ length }),
+  ),
+  unread(new Array<number>(MOST_ENTRIES(path) + 1)),
+];
+
 describe("a chart spec", () => {
+  it.each(SPECS.map((_, k) => k))(
+    "refuses each list of spec %i given anything but an array within the ceiling, by its name, before reading it",
+    (k) => {
+      const spec = SPECS[k];
+      for (const path of lists(spec)) {
+        for (const list of NOT_LISTS(path)) {
+          const changed = mutate(spec, [[path, list]]);
+          let thrown: unknown;
+          try {
+            exercise(changed, "UTC");
+          } catch (e) {
+            thrown = e;
+          }
+          const what = `${named(path)} given ${Object.prototype.toString.call(list)} of length ${String((list as { length?: unknown }).length)}`;
+          expect(thrown, what).toBeInstanceOf(Error);
+          expect(thrown instanceof TypeError || thrown instanceof RangeError, what).toBe(true);
+          // A cell axis that is an object reads as bins, so its edges are named.
+          expect((thrown as Error).message, what).toMatch(
+            new RegExp(
+              `^${PREFIX}${named(path).replaceAll(/[[\].]/gu, "\\$&")}(?:\\.edges)?(?![\\w.[])`,
+              "u",
+            ),
+          );
+        }
+      }
+    },
+  );
+
   // Each at a ceiling the check holds: the tallest plot on a fine linear
   // y, on a log y of every decade, and a binned y of a thousand rows.
   it("draws a plot at its tallest in at most MOST_DRAWN elements and subpaths", () => {

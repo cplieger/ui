@@ -88,8 +88,8 @@ export interface SeriesModel {
 
 export interface RectModel {
   readonly kind: "rect";
-  readonly x1: ArrayLike<number>;
-  readonly x2: ArrayLike<number>;
+  readonly x1: readonly number[];
+  readonly x2: readonly number[];
   readonly open: boolean;
   /** "group" sets two or more series side by side in each bucket; one
    *  series grouped is a plain column, so it reads "stack". "share" draws
@@ -119,7 +119,7 @@ export function drawnValue(m: RectModel, s: SeriesModel, i: number): number {
 }
 
 interface Samples {
-  readonly x: ArrayLike<number>;
+  readonly x: readonly number[];
   readonly step: boolean;
   readonly series: readonly SeriesModel[];
   /** The samples inside the domain, `[from, to)`. */
@@ -196,7 +196,7 @@ export function sampleValue(m: AreaModel, s: SeriesModel, i: number): number | n
 
 export interface DotRowModel {
   readonly name: string;
-  readonly x: ArrayLike<number>;
+  readonly x: readonly number[];
   /** The dots inside the domain, `[from, to)`. */
   readonly from: number;
   readonly to: number;
@@ -248,7 +248,7 @@ export const barsApart = (m: { readonly arrange?: string | undefined }): boolean
 export const subRows = (m: {
   readonly kind: "bar" | "box";
   readonly arrange?: string | undefined;
-  readonly series: ArrayLike<unknown>;
+  readonly series: readonly unknown[];
 }): number => (m.kind === "box" || barsApart(m) ? m.series.length : 1);
 
 /** Row `i`'s total of bar mark `m`, or `null` when every value is a gap. */
@@ -648,8 +648,16 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 
 const isArray = (v: unknown): v is readonly unknown[] => Array.isArray(v);
 
-const arrayLike = (v: unknown): v is ArrayLike<unknown> =>
-  isObject(v) && typeof v["length"] === "number";
+// Whether any entry of `list` fails `ok`. for-of reads a sparse array's holes
+// as undefined, which Array.prototype.some skips.
+function anyBut(list: readonly unknown[], ok: (v: unknown) => boolean): boolean {
+  for (const v of list) {
+    if (!ok(v)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function optional(v: unknown, type: "string" | "boolean" | "number", what: string): void {
   if (v !== undefined && typeof v !== type) {
@@ -724,7 +732,7 @@ function checkDomain(domain: unknown, what: string): void {
     fail(`${what}.domain must be an array of a low and a high`);
   }
   if (isArray(domain)) {
-    if (domain.some((v) => typeof v !== "number")) {
+    if (anyBut(domain, (v) => typeof v === "number")) {
       fail(`${what}.domain must be two numbers`);
     }
     within(domain, `${what}.domain`);
@@ -769,7 +777,7 @@ function checkColour(colour: unknown): void {
     fail("colour.steps must be a whole number of classes from 2 to 9");
   }
   if (thresholds !== undefined) {
-    if (!arrayLike(thresholds) || Array.from(thresholds).some((t) => typeof t !== "number")) {
+    if (!isArray(thresholds) || anyBut(thresholds, (t) => typeof t === "number")) {
       fail("colour.thresholds must be an array of numbers");
     }
     for (const [field, v] of [
@@ -781,7 +789,7 @@ function checkColour(colour: unknown): void {
         fail(`colour.${field} has no place beside thresholds, which place every class`);
       }
     }
-    const list = Array.from(thresholds as ArrayLike<number>);
+    const list = thresholds as readonly number[];
     if (list.length < 1 || list.length > 8) {
       fail("colour.thresholds must hold one to eight boundaries, for 2 to 9 classes", RangeError);
     }
@@ -815,12 +823,12 @@ function checkColour(colour: unknown): void {
 }
 
 // Every x is finite and in order: strictly increasing, or with `ties` never decreasing.
-function checkX(values: unknown, what: string, ties: boolean): ArrayLike<number> {
-  if (!arrayLike(values)) {
+function checkX(values: unknown, what: string, ties: boolean): readonly number[] {
+  if (!isArray(values)) {
     fail(`${what} must be an array of numbers`);
   }
   let before = Number.NEGATIVE_INFINITY;
-  for (const v of Array.from(values)) {
+  for (const v of values) {
     if (typeof v !== "number" || !Number.isFinite(v)) {
       fail(`${what} must hold finite numbers`, RangeError);
     }
@@ -829,8 +837,8 @@ function checkX(values: unknown, what: string, ties: boolean): ArrayLike<number>
     }
     before = v;
   }
-  within(Array.from(values), what);
-  return values as ArrayLike<number>;
+  within(values, what);
+  return values as readonly number[];
 }
 
 function checkSlot(slot: unknown, what: string, field = "slot"): void {
@@ -860,16 +868,16 @@ function checkSeriesHead(
 }
 
 function checkValues(values: unknown, length: number, of: string, against: string): void {
-  if (!arrayLike(values)) {
+  if (!isArray(values)) {
     fail(`${of} must be an array of numbers`);
   }
   if (values.length !== length) {
     fail(`${of} must be as long as its ${against}`);
   }
-  if (Array.from(values).some((v) => v !== null && typeof v !== "number")) {
+  if (anyBut(values, (v) => v === null || typeof v === "number")) {
     fail(`${of} must hold numbers or null`);
   }
-  within(Array.from(values), of);
+  within(values, of);
 }
 
 function checkSeries(
@@ -877,8 +885,8 @@ function checkSeries(
   length: number,
   what: string,
   channel = "y",
-): asserts series is ArrayLike<Record<string, unknown>> {
-  if (!arrayLike(series)) {
+): asserts series is readonly Record<string, unknown>[] {
+  if (!isArray(series)) {
     fail(`${what}.series must be an array`);
   }
   for (let s = 0; s < series.length; s++) {
@@ -894,7 +902,7 @@ function checkSeries(
 function checkScatter(mark: Record<string, unknown>, what: string): void {
   checkUnit(mark["unit"], what);
   const list = mark["series"];
-  if (!arrayLike(list)) {
+  if (!isArray(list)) {
     fail(`${what}.series must be an array`);
   }
   const seen = new Set<unknown>();
@@ -910,10 +918,10 @@ function checkScatter(mark: Record<string, unknown>, what: string): void {
     }
     sized = r;
     const names = one["names"];
-    if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
+    if (!isArray(names) || anyBut(names, (n) => typeof n === "string")) {
       fail(`${at}.names must be an array of the dots' names`);
     }
-    for (const name of Array.from(names)) {
+    for (const name of names) {
       if (name === "" || seen.has(name)) {
         fail(`${what} must name each dot once across its series, never ""`, RangeError);
       }
@@ -966,21 +974,21 @@ function checkDiverge(
 }
 
 // The readings and the table name a row, or a cell's column, by its name alone.
-function checkNames(names: unknown, what: string, axis = "y"): ArrayLike<unknown> {
-  if (!arrayLike(names) || Array.from(names).some((n) => typeof n !== "string")) {
+function checkNames(names: unknown, what: string, axis = "y"): readonly string[] {
+  if (!isArray(names) || anyBut(names, (n) => typeof n === "string")) {
     fail(`${what}.${axis} must be an array of the categories' names`);
   }
   if (axis === "y" && names.length > MOST_ROWS) {
     fail(`${what}.y must name at most ${String(MOST_ROWS)} rows`, RangeError);
   }
   const seen = new Set<unknown>();
-  for (const name of Array.from(names)) {
+  for (const name of names) {
     if (name === "" || seen.has(name)) {
       fail(`${what}.${axis} must name each category once, never ""`, RangeError);
     }
     seen.add(name);
   }
-  return names;
+  return names as readonly string[];
 }
 
 // A cell axis names its categories or gives its bins' edges; returns its
@@ -989,14 +997,14 @@ function checkCellAxis(axis: unknown, what: string, name: "x" | "y"): number {
   if (!isObject(axis)) {
     fail(`${what}.${name} must name its categories or give its bins' edges`);
   }
-  if (arrayLike(axis)) {
+  if (isArray(axis)) {
     return checkNames(axis, what, name).length;
   }
   const edges = axis["edges"];
-  if (!arrayLike(edges) || Array.from(edges).some((e) => typeof e !== "number")) {
+  if (!isArray(edges) || anyBut(edges, (e) => typeof e === "number")) {
     fail(`${what}.${name}.edges must be an array of numbers`);
   }
-  const list = Array.from(edges as ArrayLike<number>);
+  const list = edges as readonly number[];
   if (list.length < 2) {
     fail(`${what}.${name}.edges must hold two or more, a bin's low and high edges`, RangeError);
   }
@@ -1026,15 +1034,13 @@ function checkDays(mark: Record<string, unknown>, what: string): void {
     fail(`${what}.days.start must be finite`, RangeError);
   }
   const values = days["values"];
-  if (!arrayLike(values) || Array.from(values).some((v) => v !== null && typeof v !== "number")) {
+  if (!isArray(values) || anyBut(values, (v) => v === null || typeof v === "number")) {
     fail(`${what}.days.values must be an array of numbers or null`);
   }
-  if (
-    Array.from(values).some((v) => v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY)
-  ) {
+  if (values.some((v) => v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY)) {
     fail(`${what}.days.values cannot hold an infinite value`, RangeError);
   }
-  within(Array.from(values), `${what}.days.values`);
+  within(values, `${what}.days.values`);
   optional(days["open"], "boolean", `${what}.days.open`);
   const weekStart = mark["weekStart"];
   if (
@@ -1061,7 +1067,7 @@ function checkCells(mark: Record<string, unknown>, what: string): void {
   const columns = checkCellAxis(mark["x"], what, "x");
   const rows = checkCellAxis(mark["y"], what, "y");
   const values = mark["values"];
-  if (!arrayLike(values) || values.length !== rows) {
+  if (!isArray(values) || values.length !== rows) {
     fail(`${what}.values must hold one row per y entry`);
   }
   for (let r = 0; r < rows; r++) {
@@ -1069,7 +1075,7 @@ function checkCells(mark: Record<string, unknown>, what: string): void {
     const at = `${what}.values[${String(r)}]`;
     checkValues(row, columns, at, "x");
     if (
-      Array.from(row as ArrayLike<unknown>).some(
+      (row as readonly unknown[]).some(
         (v) => v === Number.POSITIVE_INFINITY || v === Number.NEGATIVE_INFINITY,
       )
     ) {
@@ -1083,13 +1089,13 @@ const FIVE = ["low", "q1", "median", "q3", "high"] as const;
 // The chart computes no quartile, so it takes each category's five numbers
 // as sent, all or none, in order, with its outliers beyond them.
 function checkBox(mark: Record<string, unknown>, what: string): void {
-  const names = Array.from(checkNames(mark["y"], what)) as string[];
+  const names = checkNames(mark["y"], what);
   const whiskers = mark["whiskers"];
   if (whiskers !== undefined && !(typeof whiskers === "string" && whiskers.trim() !== "")) {
     fail(`${what}.whiskers must be a non-empty string naming the whiskers' convention`);
   }
   const list = mark["series"];
-  if (!arrayLike(list)) {
+  if (!isArray(list)) {
     fail(`${what}.series must be an array`);
   }
   checkSubRows(names.length, subRows({ kind: "box", series: list }), what);
@@ -1101,23 +1107,18 @@ function checkBox(mark: Record<string, unknown>, what: string): void {
       checkValues(one[field], names.length, `${at}.${field}`, "y");
     }
     const outliers = one["outliers"];
-    if (
-      outliers !== undefined &&
-      !(
-        arrayLike(outliers) &&
-        outliers.length === names.length &&
-        Array.from(outliers).every(
-          (o) => arrayLike(o) && Array.from(o).every((v) => typeof v === "number"),
-        )
-      )
-    ) {
+    if (outliers !== undefined && !(isArray(outliers) && outliers.length === names.length)) {
       fail(`${at}.outliers must hold an array of numbers per category`);
     }
     names.forEach((name, i) => {
       const where = `${at} at "${name}"`;
-      const five = FIVE.map((field) => (one[field] as ArrayLike<number | null>)[i] ?? null);
+      const listed = outliers === undefined ? [] : outliers[i];
+      if (!isArray(listed) || anyBut(listed, (v) => typeof v === "number")) {
+        fail(`${at}.outliers[${String(i)}] must be an array of numbers`);
+      }
+      const extra = listed as readonly number[];
+      const five = FIVE.map((field) => (one[field] as readonly (number | null)[])[i] ?? null);
       const gaps = five.filter((v) => v === null || Number.isNaN(v)).length;
-      const extra = Array.from((outliers as ArrayLike<ArrayLike<number>> | undefined)?.[i] ?? []);
       if (gaps === FIVE.length) {
         if (extra.length > 0) {
           fail(`${where} has outliers but no five numbers for them to lie beyond`);
@@ -1155,7 +1156,7 @@ function checkPie(mark: Record<string, unknown>, what: string): void {
   checkUnit(mark["unit"], what);
   checkFormat(mark["format"], what);
   const list = mark["slices"];
-  if (!arrayLike(list)) {
+  if (!isArray(list)) {
     fail(`${what}.slices must be an array`);
   }
   const seen = new Set<unknown>();
@@ -1188,7 +1189,7 @@ function checkPart(value: unknown, at: string, of: string): void {
 
 // Siblings' names tell them apart in the legend row, the readings and the
 // table; two groups may each hold an "Other".
-function checkSiblings(list: ArrayLike<unknown>, what: string, of: string): void {
+function checkSiblings(list: readonly unknown[], what: string, of: string): void {
   const seen = new Set<unknown>();
   for (let k = 0; k < list.length; k++) {
     const one = list[k];
@@ -1208,7 +1209,7 @@ function checkTree(mark: Record<string, unknown>, what: string): void {
   checkFormat(mark["format"], what);
   checkSlot(mark["slot"], what);
   const nodes = mark["nodes"];
-  if (!arrayLike(nodes)) {
+  if (!isArray(nodes)) {
     fail(`${what}.nodes must be an array`);
   }
   checkSiblings(nodes, `${what}.nodes`, "node");
@@ -1232,7 +1233,7 @@ function checkTree(mark: Record<string, unknown>, what: string): void {
       continue;
     }
     checkSeriesHead(node, k, at);
-    if (!arrayLike(children)) {
+    if (!isArray(children)) {
       fail(`${at}.children must be an array`);
     }
     if (children.length === 0) {
@@ -1328,7 +1329,7 @@ function checkMark(mark: unknown, what: string): void {
       checkSlot(mark["slot"], what);
       checkUnit(mark["unit"], what);
       const rows = mark["rows"];
-      if (!arrayLike(rows)) {
+      if (!isArray(rows)) {
         fail(`${what}.rows must be an array`);
       }
       if (rows.length > MOST_ROWS) {
@@ -1377,11 +1378,10 @@ function checkMark(mark: unknown, what: string): void {
       }
       checkDiverge(mark, arrange === "diverge", list.length, what);
       checkSubRows(names.length, subRows({ kind: "bar", arrange, series: list }), what);
-      const all = Array.from(list);
-      all.forEach((one, s) => {
+      list.forEach((one, s) => {
         const at = `${what}.series[${String(s)}]`;
         checkSlot(one["below"], at, "below");
-        if (one["below"] !== undefined && all.length > 1) {
+        if (one["below"] !== undefined && list.length > 1) {
           fail(`${at}.below has no place beside other series, whose slots tell them apart`);
         }
       });
@@ -1402,18 +1402,18 @@ function checkMark(mark: unknown, what: string): void {
     case "slope": {
       const columns = mark["x"];
       if (
-        !arrayLike(columns) ||
+        !isArray(columns) ||
         columns.length !== 2 ||
-        Array.from(columns).some((c) => typeof c !== "string")
+        anyBut(columns, (c) => typeof c === "string")
       ) {
         fail(`${what}.x must name its two columns, left to right`);
       }
-      const [from, to] = Array.from(columns);
+      const [from, to] = columns;
       if (from === "" || to === "" || from === to) {
         fail(`${what}.x must name two different columns, never ""`, RangeError);
       }
       const list = mark["series"];
-      if (arrayLike(list) && list.length > MOST_ROWS) {
+      if (isArray(list) && list.length > MOST_ROWS) {
         fail(
           `${what}.series must hold at most ${String(MOST_ROWS)} series, since each end names every series on a line of its own`,
           RangeError,
@@ -1421,7 +1421,7 @@ function checkMark(mark: unknown, what: string): void {
       }
       checkSeries(list, 2, what);
       // The legend row, the readings and the table name a series by its name alone.
-      const names = Array.from(list, (s) => s["name"]);
+      const names = list.map((s) => s["name"]);
       if (names.some((n, k) => n === "" || names.indexOf(n) !== k)) {
         fail(`${what}.series must name each series once, never ""`, RangeError);
       }
@@ -1486,16 +1486,16 @@ function checkMark(mark: unknown, what: string): void {
 
 // Every instant a time x places is written through Intl, so each is held to
 // what Date holds by its own field, whatever the domain.
-function checkInstants(spec: Record<string, unknown>, marks: ArrayLike<unknown>): void {
+function checkInstants(spec: Record<string, unknown>, marks: readonly unknown[]): void {
   const x = spec["x"];
   if (!isObject(x) || x["type"] !== "time") {
     return;
   }
   const each = (values: unknown, what: string): void => {
-    if (!arrayLike(values)) {
+    if (!isArray(values)) {
       return;
     }
-    Array.from(values).forEach((v, i) => {
+    values.forEach((v, i) => {
       if (typeof v === "number" && Number.isFinite(v)) {
         withinDate(v, `${what}[${String(i)}]`);
       }
@@ -1515,18 +1515,18 @@ function checkInstants(spec: Record<string, unknown>, marks: ArrayLike<unknown>)
         each(mark["x"], `${what}.x`);
         break;
       case "dot":
-        Array.from(mark["rows"] as ArrayLike<Record<string, unknown>>).forEach((row, r) => {
+        (mark["rows"] as readonly Record<string, unknown>[]).forEach((row, r) => {
           each(row["x"], `${what}.rows[${String(r)}].x`);
         });
         break;
       case "point":
-        Array.from(mark["series"] as ArrayLike<Record<string, unknown>>).forEach((one, s) => {
+        (mark["series"] as readonly Record<string, unknown>[]).forEach((one, s) => {
           each(one["x"], `${what}.series[${String(s)}].x`);
         });
         break;
       case "cell": {
         const axis = mark["x"];
-        if (isObject(axis) && !arrayLike(axis)) {
+        if (isObject(axis) && !isArray(axis)) {
           each(axis["edges"], `${what}.x.edges`);
         }
         break;
@@ -1547,106 +1547,173 @@ function checkInstants(spec: Record<string, unknown>, marks: ArrayLike<unknown>)
 // chart is designed for; past it the readings and the table grow without end.
 const MOST_VALUES = 1_000_000;
 
-// Counts each value a mark places, a sample per series, a bucket, bar, dot,
-// box, outlier, cell, day, slice, part, rule or note, in spec order; a mark
-// with no series still places its x. A series, timeline row or cell row counts
-// as one value at least, and a cell grid with no rows counts its columns, so
-// every legend chip, row and column name is bounded too.
-function checkValueCount(marks: ArrayLike<unknown>): void {
-  let count = 0;
-  const add = (n: number, field: string): void => {
-    count += n;
-    if (count > MOST_VALUES) {
-      fail(
-        `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
-        RangeError,
-      );
+interface Door {
+  /** `v` when it is an array, refused past `most` entries before one is
+   *  read; else none, for its field's check to refuse. */
+  readonly list: (v: unknown, field: string, most?: number) => readonly unknown[];
+  readonly add: (n: number, field: string) => void;
+}
+
+// A cell axis's columns or rows: its names, or its bins between its edges.
+function axisLength(axis: unknown, field: string, { list }: Door): number {
+  if (isArray(axis)) {
+    return list(axis, field).length;
+  }
+  // A bin per value, on one more edge.
+  const edges = isObject(axis) ? list(axis["edges"], `${field}.edges`, MOST_VALUES + 1) : [];
+  return Math.max(0, edges.length - 1);
+}
+
+function countCells(mark: Record<string, unknown>, what: string, door: Door): void {
+  const { list, add } = door;
+  const days = mark["days"];
+  if (isObject(days)) {
+    add(list(days["values"], `${what}.days.values`).length, `${what}.days.values`);
+    return;
+  }
+  const columns = axisLength(mark["x"], `${what}.x`, door);
+  axisLength(mark["y"], `${what}.y`, door);
+  const rows = list(mark["values"], `${what}.values`);
+  if (rows.length === 0) {
+    add(columns, `${what}.x`);
+  }
+  rows.forEach((row, r) => {
+    const at = `${what}.values[${String(r)}]`;
+    add(Math.max(1, list(row, at).length), at);
+  });
+}
+
+function countMark(mark: Record<string, unknown>, what: string, door: Door): void {
+  const { list, add } = door;
+  const series = list(mark["series"], `${what}.series`);
+  const across = (n: number, channels: readonly string[], empty: string): void => {
+    if (series.length === 0) {
+      add(n, empty);
     }
+    series.forEach((one, s) => {
+      const at = `${what}.series[${String(s)}]`;
+      for (const channel of channels) {
+        list(isObject(one) ? one[channel] : undefined, `${at}.${channel}`);
+      }
+      add(Math.max(1, n), `${at}.${channels[0] ?? ""}`);
+    });
   };
-  const lengthOf = (v: unknown): number => (v as ArrayLike<unknown>).length;
-  for (let m = 0; m < marks.length; m++) {
-    const mark = marks[m] as Record<string, unknown>;
-    const what = `marks[${String(m)}]`;
-    const series = (mark["series"] ?? []) as ArrayLike<Record<string, unknown>>;
-    const across = (n: number, channel: string, empty: string): void => {
-      if (series.length === 0) {
-        add(n, empty);
-      }
-      for (let s = 0; s < series.length; s++) {
-        add(Math.max(1, n), `${what}.series[${String(s)}].${channel}`);
-      }
-    };
-    switch (mark["mark"]) {
-      case "rect":
-        across(lengthOf(mark["x1"]), "y", `${what}.x1`);
-        break;
-      case "line":
-      case "area":
-        across(lengthOf(mark["x"]), "y", `${what}.x`);
-        break;
-      case "bar":
-      case "point":
-        across(lengthOf(mark["y"]), "x", `${what}.y`);
-        break;
-      case "slope":
-        across(2, "y", `${what}.x`);
-        break;
-      case "dot":
-        Array.from(mark["rows"] as ArrayLike<Record<string, unknown>>, (row, r) => {
-          add(Math.max(1, lengthOf(row["x"])), `${what}.rows[${String(r)}].x`);
-        });
-        break;
-      case "scatter":
-        Array.from(series, (one, s) => {
-          add(Math.max(1, lengthOf(one["names"])), `${what}.series[${String(s)}].names`);
-        });
-        break;
-      case "box":
-        across(lengthOf(mark["y"]), "median", `${what}.y`);
-        Array.from(series, (one, s) => {
-          const outliers = (one["outliers"] ?? []) as ArrayLike<ArrayLike<number>>;
-          add(
-            Array.from(outliers).reduce((n, o) => n + o.length, 0),
-            `${what}.series[${String(s)}].outliers`,
-          );
-        });
-        break;
-      case "cell": {
-        const days = mark["days"];
-        if (isObject(days)) {
-          add(lengthOf(days["values"]), `${what}.days.values`);
-          break;
+  switch (mark["mark"]) {
+    case "rect":
+      list(mark["x2"], `${what}.x2`);
+      across(list(mark["x1"], `${what}.x1`).length, ["y"], `${what}.x1`);
+      return;
+    case "line":
+    case "area":
+      across(list(mark["x"], `${what}.x`).length, ["y"], `${what}.x`);
+      return;
+    case "bar":
+    case "point":
+      across(list(mark["y"], `${what}.y`).length, ["x"], `${what}.y`);
+      return;
+    case "slope":
+      list(mark["x"], `${what}.x`);
+      across(2, ["y"], `${what}.x`);
+      return;
+    case "box": {
+      const n = list(mark["y"], `${what}.y`).length;
+      across(n, ["median", "low", "q1", "q3", "high"], `${what}.y`);
+      series.forEach((one, s) => {
+        const at = `${what}.series[${String(s)}].outliers`;
+        const outliers = list(isObject(one) ? one["outliers"] : undefined, at);
+        // Read only when one per category, as the box check takes them.
+        if (outliers.length === n) {
+          outliers.forEach((o, i) => {
+            add(list(o, `${at}[${String(i)}]`).length, `${at}[${String(i)}]`);
+          });
         }
-        const values = mark["values"] as ArrayLike<ArrayLike<unknown>>;
-        if (values.length === 0) {
-          const x = mark["x"];
-          add(
-            arrayLike(x) ? x.length : lengthOf((x as Record<string, unknown>)["edges"]) - 1,
-            `${what}.x`,
-          );
+      });
+      return;
+    }
+    case "dot":
+      list(mark["rows"], `${what}.rows`).forEach((row, r) => {
+        const at = `${what}.rows[${String(r)}].x`;
+        add(Math.max(1, list(isObject(row) ? row["x"] : undefined, at).length), at);
+      });
+      return;
+    case "scatter":
+      series.forEach((one, s) => {
+        const at = `${what}.series[${String(s)}]`;
+        const field = (name: string): unknown => (isObject(one) ? one[name] : undefined);
+        for (const channel of ["x", "y", "r"]) {
+          list(field(channel), `${at}.${channel}`);
         }
-        Array.from(values, (row, r) => {
-          add(Math.max(1, row.length), `${what}.values[${String(r)}]`);
-        });
-        break;
+        add(Math.max(1, list(field("names"), `${at}.names`).length), `${at}.names`);
+      });
+      return;
+    case "cell":
+      countCells(mark, what, door);
+      return;
+    case "pie":
+      add(list(mark["slices"], `${what}.slices`).length, `${what}.slices`);
+      return;
+    case "tree": {
+      const nodes = list(mark["nodes"], `${what}.nodes`);
+      add(nodes.length, `${what}.nodes`);
+      nodes.forEach((node, k) => {
+        const at = `${what}.nodes[${String(k)}].children`;
+        if (isObject(node) && node["children"] !== undefined) {
+          add(list(node["children"], at).length, at);
+        }
+      });
+      return;
+    }
+    default:
+      add(1, what);
+  }
+}
+
+// The door every list passes before another check reads it, each one through
+// Door.list. It counts each value a mark places, in spec order: a sample per
+// series, a bucket, bar, dot, box, outlier, cell, day, slice, part, rule or
+// note, and a mark with no series its x. A series, timeline row or cell row is
+// one value at least, and a cell grid with no rows its columns, so every
+// legend chip, row and column name is bounded too.
+function checkLists(spec: Record<string, unknown>): void {
+  let count = 0;
+  const door: Door = {
+    list: (v, field, most = MOST_VALUES) => {
+      if (!isArray(v)) {
+        return [];
       }
-      case "pie":
-        add(lengthOf(mark["slices"]), `${what}.slices`);
-        break;
-      case "tree": {
-        const nodes = mark["nodes"] as ArrayLike<Record<string, unknown>>;
-        add(nodes.length, `${what}.nodes`);
-        Array.from(nodes, (node, k) => {
-          if (node["children"] !== undefined) {
-            add(lengthOf(node["children"]), `${what}.nodes[${String(k)}].children`);
-          }
-        });
-        break;
+      if (v.length > most) {
+        fail(
+          `${field} must hold at most ${String(most)} entries, the most values a spec takes`,
+          RangeError,
+        );
       }
-      default:
-        add(1, what);
+      return v;
+    },
+    add: (n, field) => {
+      count += n;
+      if (count > MOST_VALUES) {
+        fail(
+          `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
+          RangeError,
+        );
+      }
+    },
+  };
+  for (const name of ["x", "y", "r", "colour"]) {
+    const scale = spec[name];
+    if (isObject(scale)) {
+      door.list(scale["domain"], `${name}.domain`);
+      door.list(scale["thresholds"], `${name}.thresholds`);
     }
   }
+  door.list(spec["marks"], "marks").forEach((mark, m) => {
+    const what = `marks[${String(m)}]`;
+    if (isObject(mark)) {
+      countMark(mark, what, door);
+    } else {
+      door.add(1, what);
+    }
+  });
 }
 
 /** Throws a `TypeError` or `RangeError` naming the first rule `spec` breaks. */
@@ -1654,6 +1721,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
   if (!isObject(spec)) {
     fail("the spec must be an object");
   }
+  checkLists(spec);
   if (spec["x"] !== undefined) {
     checkScale(spec["x"], "x");
   }
@@ -1675,7 +1743,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     }
   }
   const marks = spec["marks"];
-  if (!arrayLike(marks)) {
+  if (!isArray(marks)) {
     fail("marks must be an array");
   }
   let data = -1;
@@ -1694,7 +1762,6 @@ function check(spec: unknown): asserts spec is ChartSpec {
     }
     data = m;
   }
-  checkValueCount(marks);
   checkInstants(spec, marks);
   const height = spec["height"];
   const primary = marks[data];
@@ -1711,7 +1778,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
   }
   if (isObject(primary) && primary["mark"] === "scatter") {
     const list = primary["series"];
-    const sized = arrayLike(list) && isObject(list[0]) && list[0]["r"] !== undefined;
+    const sized = isArray(list) && isObject(list[0]) && list[0]["r"] !== undefined;
     for (const axis of sized ? ["x", "y", "r"] : ["x", "y"]) {
       const scale = spec[axis];
       const label = isObject(scale) ? scale["label"] : undefined;
@@ -1727,7 +1794,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
   }
   const cellChart = isObject(primary) && primary["mark"] === "cell";
   const calendar = cellChart && primary["days"] !== undefined;
-  const binnedY = cellChart && isObject(primary["y"]) && !arrayLike(primary["y"]);
+  const binnedY = cellChart && isObject(primary["y"]) && !isArray(primary["y"]);
   const band =
     isObject(primary) &&
     (primary["mark"] === "dot" ||
@@ -1743,7 +1810,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     );
   }
   if (binnedY) {
-    const edges = Array.from((primary["y"] as { edges: ArrayLike<number> }).edges);
+    const { edges } = primary["y"] as { edges: readonly number[] };
     const log = isObject(spec["y"]) && spec["y"]["type"] === "log";
     // A log y's edge at or below 0 is the y scale's to name; the 1e-9 lets a
     // float share of exactly a thousandth (1 / 1000) through.
@@ -1776,7 +1843,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
 
 // A log axis has no place for 0 or below, so a line reads such a value as a
 // gap, as the extent already leaves it out.
-const gaps = (y: ArrayLike<number | null>, log: boolean): (number | null)[] =>
+const gaps = (y: readonly (number | null)[], log: boolean): (number | null)[] =>
   Array.from(y, (v) => (v === null || Number.isNaN(v) || (log && v <= 0) ? null : v));
 
 function series(list: RectMark["series"], log = false): SeriesModel[] {
@@ -1784,7 +1851,6 @@ function series(list: RectMark["series"], log = false): SeriesModel[] {
 }
 
 // A rect's series and each of its `length` buckets' sum, a `null` as 0.
-// Array.from takes `length` as checkX's walk did, a NaN or -1 as 0.
 function rectSeries(list: RectMark["series"], length: number) {
   const out = series(list);
   const totals = Array.from({ length }, () => 0);
@@ -1797,7 +1863,7 @@ function rectSeries(list: RectMark["series"], length: number) {
 }
 
 // An area's series and each of its `length` samples' stack top, `null` where
-// any series is a gap; `length` taken as rectSeries takes it.
+// any series is a gap.
 function areaSeries(list: RectMark["series"], length: number) {
   const out = series(list);
   const totals = Array.from({ length }, (): number | null => 0);

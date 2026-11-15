@@ -453,21 +453,25 @@ describe("spec errors", () => {
   });
 
   it("counts a series with no samples as one value", MILLION, () => {
-    const series = Array.from({ length: 1_000_001 }, (_, s) => ({
-      name: `s${String(s)}`,
-      slot: ((s % 9) + 1) as Slot,
-      y: [],
-    }));
-    const empty = (k: number): Mark => ({ mark: "line", x: [], series: series.slice(0, k) });
-    expect(build({ x: {}, marks: [empty(1_000_000)] }).kind).toBe("line");
-    expect(() => build({ x: {}, marks: [empty(1_000_001)] })).toThrow(
+    const rule: Mark = { mark: "rule", y: 0, label: "Zero" };
+    const empty: Mark = {
+      mark: "line",
+      x: [],
+      series: Array.from({ length: 1_000_000 }, (_, s) => ({
+        name: `s${String(s)}`,
+        slot: ((s % 9) + 1) as Slot,
+        y: [],
+      })),
+    };
+    expect(build({ x: {}, marks: [empty] }).kind).toBe("line");
+    expect(() => build({ x: {}, marks: [empty, rule] })).toThrow(
       new RangeError(
-        "renderChart: marks[0].series[1000000].y must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
+        "renderChart: marks[1] must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
       ),
     );
     const scatter: Mark = {
       mark: "scatter",
-      series: Array.from({ length: 1_000_001 }, (_, s) => ({
+      series: Array.from({ length: 1_000_000 }, (_, s) => ({
         name: `s${String(s)}`,
         slot: ((s % 9) + 1) as Slot,
         x: [],
@@ -475,52 +479,152 @@ describe("spec errors", () => {
         names: [],
       })),
     };
-    expect(() => build({ x: {}, marks: [scatter] })).toThrow("marks[0].series[1000000].names");
+    expect(() => build({ x: {}, marks: [scatter, rule] })).toThrow("renderChart: marks[1] must");
   });
 
   it("counts a cell grid's columns when it has no rows", MILLION, () => {
     const past = new RangeError(
-      "renderChart: marks[0].x must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
+      "renderChart: marks[1] must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
     );
-    const named = (n: number): Mark => ({
+    const rule: Mark = { mark: "rule", x: 1, label: "a" };
+    const named: Mark = {
       mark: "cell",
-      x: Array.from({ length: n }, (_, i) => `c${String(i)}`),
+      x: Array.from({ length: 1_000_000 }, (_, i) => `c${String(i)}`),
       y: [],
       values: [],
-    });
-    expect(build({ x: {}, marks: [named(1_000_000)] }).kind).toBe("heatmap");
-    expect(() => build({ x: {}, marks: [named(1_000_001)] })).toThrow(past);
-    const binned = (bins: number): Mark => ({
+    };
+    expect(build({ x: {}, marks: [named] }).kind).toBe("heatmap");
+    expect(() => build({ x: {}, marks: [named, rule] })).toThrow(past);
+    const binned: Mark = {
       mark: "cell",
-      x: { edges: Array.from({ length: bins + 1 }, (_, i) => i) },
+      x: { edges: Array.from({ length: 1_000_001 }, (_, i) => i) },
       y: [],
       values: [],
-    });
-    expect(build({ x: {}, marks: [binned(1_000_000)] }).kind).toBe("heatmap");
-    expect(() => build({ x: {}, marks: [binned(1_000_001)] })).toThrow(past);
+    };
+    expect(build({ x: {}, marks: [binned] }).kind).toBe("heatmap");
+    expect(() => build({ x: {}, marks: [binned, rule] })).toThrow(past);
   });
 
-  it("builds a stack whose x is an array-like of any length", () => {
-    for (const length of [-1, Number.NaN]) {
-      const area = build({ x: {}, marks: [{ mark: "area", x: { length }, series: [] }] });
-      expect(area.marks[0]).toMatchObject({ kind: "area", totals: [] });
-    }
-    const bars = build({
-      x: {},
-      marks: [{ mark: "rect", x1: { length: -1 }, x2: { length: -1 }, series: [] }],
+  it("refuses a list of more entries than a spec holds values, before reading one", () => {
+    const most = (field: string, n = 1_000_000) =>
+      new RangeError(
+        `renderChart: ${field} must hold at most ${String(n)} entries, the most values a spec takes`,
+      );
+    expect(() =>
+      build({ x: {}, marks: [{ mark: "line", x: new Array(1_000_001), series: [] }] }),
+    ).toThrow(most("marks[0].x"));
+    const series = new Array(1_000_001);
+    expect(() => build({ x: {}, marks: [{ mark: "line", x: [], series }] })).toThrow(
+      most("marks[0].series"),
+    );
+    expect(() => build({ x: {}, marks: new Array(1_000_001) })).toThrow(most("marks"));
+    // A binned axis holds a million bins, on one more edge.
+    const bins = (edges: number): Mark => ({
+      mark: "cell",
+      x: { edges: new Array<number>(edges) },
+      y: [],
+      values: [],
     });
-    expect(bars.marks[0]).toMatchObject({ kind: "rect", totals: [] });
-    const one = build({
-      x: {},
-      marks: [
-        {
-          mark: "area",
-          x: { length: 1.9, 0: 0 },
-          series: [{ name: "a", y: { length: 1.9, 0: 5 } }],
-        },
+    expect(() => build({ x: {}, marks: [bins(1_000_002)] })).toThrow(
+      most("marks[0].x.edges", 1_000_001),
+    );
+  });
+
+  it("counts a timeline row whose x is no array as one value", () => {
+    const timeline: Mark = {
+      mark: "dot",
+      rows: [
+        { name: "a", x: { length: Number.NaN } as never },
+        { name: "b", x: new Array<number>(999_999).fill(0) },
       ],
-    });
-    expect(one.marks[0]).toMatchObject({ kind: "area", totals: [5] });
+    };
+    expect(() => build({ x: {}, marks: [timeline, note()] })).toThrow(
+      new RangeError(
+        "renderChart: marks[1] must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together",
+      ),
+    );
+    expect(() => build({ x: {}, marks: [timeline] })).toThrow(
+      new TypeError("renderChart: marks[0].rows[0].x must be an array of numbers"),
+    );
+  });
+
+  // Each list is a plain array, so a typed array or an object with a length
+  // is a TypeError naming its field, whatever its length says.
+  it.each<[string, (list: unknown) => Mark, string]>([
+    ["an area's x", (x) => ({ mark: "area", x, series: [] }) as never, "marks[0].x must be"],
+    [
+      "a rect's x1",
+      (x1) => ({ mark: "rect", x1, x2: [1], series: [] }) as never,
+      "marks[0].x1 must be",
+    ],
+    [
+      "a series' y",
+      (y) => ({ mark: "line", x: [0], series: [{ name: "a", y }] }) as never,
+      "marks[0].series[0].y must be",
+    ],
+    [
+      "a bar's names",
+      (y) => ({ mark: "bar", y, series: [{ name: "a", x: [1] }] }) as never,
+      "marks[0].y must be",
+    ],
+    [
+      "a cell's columns, read as bins",
+      (x) => ({ mark: "cell", x, y: ["a"], values: [[1]] }) as never,
+      "marks[0].x.edges must be",
+    ],
+    [
+      "a scatter's names",
+      (names) => ({ mark: "scatter", series: [{ name: "a", names, x: [1], y: [1] }] }) as never,
+      "marks[0].series[0].names must be",
+    ],
+    ["a pie's slices", (slices) => ({ mark: "pie", slices }) as never, "marks[0].slices must be"],
+    ["a timeline's rows", (rows) => ({ mark: "dot", rows }) as never, "marks[0].rows must be"],
+    ["a tree's nodes", (nodes) => ({ mark: "tree", nodes }) as never, "marks[0].nodes must be"],
+  ])("refuses %s that is no array", (_, mark, message) => {
+    const scales = (m: Mark) =>
+      m.mark === "scatter"
+        ? { x: { label: "x" }, y: { label: "y" } }
+        : m.mark === "pie" || m.mark === "tree" || m.mark === "cell"
+          ? {}
+          : { x: {} };
+    for (const list of [
+      new Float64Array([1]),
+      { length: 1, 0: "a" },
+      { length: 1, 0: 1 },
+      ...[-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 1e7, 2 ** 32].map((length) => ({
+        length,
+      })),
+    ]) {
+      const m = mark(list);
+      expect(() => build({ ...scales(m), marks: [m] }), JSON.stringify(list)).toThrow(
+        new RegExp(`^renderChart: ${message.replaceAll(/[[\].]/gu, "\\$&")}`, "u"),
+      );
+      expect(() => build({ ...scales(m), marks: [m] })).toThrow(TypeError);
+    }
+  });
+
+  it("refuses a sparse array's hole as the entry it stands for", () => {
+    const holes = new Array<number>(2);
+    expect(() => build({ x: {}, marks: [line([1, 2], { x: holes })] })).toThrow(
+      new RangeError("renderChart: marks[0].x must hold finite numbers"),
+    );
+    expect(() => build({ x: {}, marks: [line(holes, { x: [0, 1] })] })).toThrow(
+      new TypeError("renderChart: marks[0].series[0].y must hold numbers or null"),
+    );
+    expect(() => build({ marks: [{ mark: "bar", y: new Array<string>(1), series: [] }] })).toThrow(
+      new TypeError("renderChart: marks[0].y must be an array of the categories' names"),
+    );
+    expect(() =>
+      build({
+        marks: [{ mark: "cell", x: { edges: new Array<number>(2) }, y: ["a"], values: [[1]] }],
+      }),
+    ).toThrow(new TypeError("renderChart: marks[0].x.edges must be an array of numbers"));
+  });
+
+  it("refuses marks that are no array", () => {
+    expect(() => build({ marks: { length: 1, 0: note() } })).toThrow(
+      new TypeError("renderChart: marks must be an array"),
+    );
   });
 
   it("names the rule it breaks", () => {

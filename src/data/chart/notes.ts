@@ -160,7 +160,7 @@ export type Join =
  * that end's neighbour, or at any x for a lone one; undefined otherwise.
  */
 export function nearestStop(
-  xs: ArrayLike<number>,
+  xs: readonly number[],
   from: number,
   to: number,
   x: number,

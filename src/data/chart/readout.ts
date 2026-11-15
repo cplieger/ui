@@ -792,7 +792,7 @@ export function sampleReading(model: Model, m: SampleModel, i: number, words: Wo
   return { at: model.xText(m.x[i] ?? 0), entries: all, total: stackText(model, m, i, words) };
 }
 
-const span = (model: Model, x: ArrayLike<number>, from: number, to: number, words: Words) =>
+const span = (model: Model, x: readonly number[], from: number, to: number, words: Words) =>
   words.range(...model.xSpan(x[from] ?? 0, x[to - 1] ?? 0));
 
 const bare = (value: string): Entry[] => [{ slot: undefined, name: undefined, value }];

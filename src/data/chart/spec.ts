@@ -8,7 +8,7 @@ import type { Format, Unit } from "../scale/format.js";
 type Slot = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 /** Values along a series; `null` or `NaN` is a gap. */
-type Values = ArrayLike<number | null>;
+type Values = readonly (number | null)[];
 
 interface Scale {
   readonly type?: "linear" | "log" | "time" | "band";
@@ -39,8 +39,8 @@ interface Series {
 
 export interface RectMark {
   readonly mark: "rect";
-  readonly x1: ArrayLike<number>;
-  readonly x2: ArrayLike<number>;
+  readonly x1: readonly number[];
+  readonly x2: readonly number[];
   /** The last bucket is still filling. */
   readonly open?: boolean;
   /** How several series share a bucket: stacked from the baseline (the
@@ -58,7 +58,7 @@ export interface RectMark {
 
 interface LineMark {
   readonly mark: "line";
-  readonly x: ArrayLike<number>;
+  readonly x: readonly number[];
   /** Default "linear". */
   readonly curve?: "linear" | "step";
   readonly series: readonly Series[];
@@ -66,7 +66,7 @@ interface LineMark {
 
 interface AreaMark {
   readonly mark: "area";
-  readonly x: ArrayLike<number>;
+  readonly x: readonly number[];
   /** Default "linear"; "step" holds each value until the next sample. */
   readonly curve?: "linear" | "step";
   /** Several series stack in series order from the baseline (the default),
@@ -80,7 +80,7 @@ interface AreaMark {
 
 interface DotRow {
   readonly name: string;
-  readonly x: ArrayLike<number>;
+  readonly x: readonly number[];
 }
 
 interface DotMark {

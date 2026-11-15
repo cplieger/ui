@@ -123,7 +123,7 @@ class Extent {
     }
   }
 
-  addAll(values: ArrayLike<number>): void {
+  addAll(values: readonly number[]): void {
     for (const v of Array.from(values)) {
       this.count(v);
       this.add(v);
