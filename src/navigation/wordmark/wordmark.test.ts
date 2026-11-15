@@ -62,6 +62,19 @@ it("fits an image to the mark's box at the image's own aspect ratio", () => {
   expect(getComputedStyle(img).objectFit).toBe("contain");
 });
 
+it.each(["light", "dark"] as const)(
+  "shows a single image with no scheme at the mark's size in the header and on a gate, in %s",
+  (theme) => {
+    const single = `<span class="cp-mark">${IMG("light").replace(' data-cp-scheme="light"', "")}</span>`;
+    const inHeader = q(build(header(single), theme), "img");
+    expect(getComputedStyle(inHeader).display).not.toBe("none");
+    expect(size(inHeader)).toEqual([24, 24]);
+    const onGate = q(build(gate(single), theme), "img");
+    expect(getComputedStyle(onGate).display).not.toBe("none");
+    expect(size(onGate)).toEqual([36, 36]);
+  },
+);
+
 it.each(["light", "dark"] as const)("shows only the image pinned by data-theme=%s", (theme) => {
   expect(shown(build(header(PAIR), theme))).toEqual([theme]);
 });
