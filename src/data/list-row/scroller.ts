@@ -23,10 +23,11 @@ function scrolls(el: Element): boolean {
   return scrollsItself(el) && el.scrollHeight > el.clientHeight;
 }
 
-/** The nearest box around `el` that scrolls now, else the page. */
-export function scrollerOf(el: Element): HTMLElement {
-  for (let at = el.parentElement; at !== null; at = at.parentElement) {
-    if (scrolls(at)) {
+/** The nearest box around `el`, or `el` itself with `self`, that scrolls
+ *  now, else the page. */
+export function scrollerOf(el: Element, self = false): HTMLElement {
+  for (let at = self ? el : el.parentElement; at !== null; at = at.parentElement) {
+    if (at instanceof HTMLElement && scrolls(at)) {
       return at;
     }
   }
@@ -92,7 +93,7 @@ export function viewOf(scroller: HTMLElement): Band {
 }
 
 /** Whether `el` is its own scroller, overflowing now or not. */
-export function scrollsItself(el: Element): boolean {
+function scrollsItself(el: Element): boolean {
   const y = getComputedStyle(el).overflowY;
   return y === "auto" || y === "scroll";
 }
