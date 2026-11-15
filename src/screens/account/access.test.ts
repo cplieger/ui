@@ -15,6 +15,7 @@ import type {
   SignInClient,
   StepUpAccess,
   StepUpClient,
+  UsersClient,
 } from "./client.js";
 
 // typecheck:tests compiles these against the pinned @cplieger/access, so a
@@ -30,6 +31,7 @@ export function hostPasses(client: access.AuthClient, answer: ApiResult<number>)
     fits<SecurityClient>(client),
     fits<LogClient>(client),
     fits<InviteClient>(client),
+    fits<UsersClient>(client),
     fits<SignInAccess<access.AuthClient>>(access),
     fits<SetupAccess<access.AuthClient>>(access),
     fits<StepUpAccess<access.AuthClient>>(access),

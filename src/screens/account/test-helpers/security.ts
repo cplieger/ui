@@ -162,7 +162,7 @@ export const dialogOf = (title: string): Promise<HTMLDialogElement> =>
 export const field = (root: ParentNode, name: string): HTMLInputElement =>
   root.querySelector<HTMLInputElement>(`input[name='${name}']`)!;
 
-export const errorOf = (input: HTMLInputElement): string => {
+export const errorOf = (input: HTMLInputElement | HTMLSelectElement): string => {
   expect(input.getAttribute("aria-invalid")).toBe("true");
   const id = (input.getAttribute("aria-describedby") ?? "")
     .split(" ")

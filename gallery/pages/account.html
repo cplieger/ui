@@ -392,6 +392,32 @@
       </div>
     </div>
   </section>
+  <section class="g-section" id="users">
+    <h2>Users</h2>
+    <p><code>mountUsers(region, options)</code> is the admin's list of the app's people: each one's role, with "from the identity provider" when the role follows it, the Owner badge, whether they can sign in, and their ways in, a live temporary password and dormant local sign-in among them. Each row's actions sit in its menu, and the list is read again after every change, so what a row says is the server's.</p>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>An owner's view</h2>
+        <div data-users-demo="owner"></div>
+        <footer>Signed in as mika, an owner. Issue a temporary password shows it once, with the words to pass on and Copy. Reset second factor asks first, naming the person and what stays. Make owner needs an enabled admin; removing the last owner is refused in words. Unlink single sign-on says what the person can do next. Approve enables robin's waiting registration.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>An admin who is not an owner</h2>
+        <div data-users-demo="admin"></div>
+        <footer>Owners show their badge, but only an owner can change them, so mika's row has no actions here and no row offers Make owner.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Single sign-on only</h2>
+        <div data-users-demo="sso-only"></div>
+        <footer>Under single sign-on only, a temporary password for alice keeps her methods and lets her link once: the shown-once words say to sign in with Authelia and choose Link to an existing account, on the HTTPS address. sam, linked, gets Unlink and issue a temporary password instead.</footer>
+      </div>
+      <div class="card g-wide" data-new>
+        <h2>Over plain HTTP</h2>
+        <div data-users-demo="plain"></div>
+        <footer>A temporary password needs HTTPS, so Issue is held with "Needs HTTPS." and the way to the HTTPS address; resetting a second factor, owners and unlinking still work here.</footer>
+      </div>
+    </div>
+  </section>
   <section class="g-section" id="qr">
     <h2>QR code</h2>
     <p><code>qrCode(text)</code> from <code>@cplieger/ui/qr</code> draws a text as a QR code in the page, so the secret in an authenticator link never leaves it. The key beside it, in groups of four, is the way in for a person who cannot scan.</p>

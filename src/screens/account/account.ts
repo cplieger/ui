@@ -52,7 +52,12 @@ export type {
   StepUpChoice,
   StepUpClient,
   StepUpResult,
+  TemporaryPasswordOptions,
+  TemporaryPasswordResponse,
   TotpBegin,
+  UserMethodsView,
+  UserView,
+  UsersClient,
   WaitingApproval,
 } from "./client.js";
 export { mountInvite } from "./invite.js";
@@ -71,5 +76,7 @@ export { mountSignIn } from "./sign-in.js";
 export type { SignInArrival, SignInOptions, SignedInEvent } from "./sign-in.js";
 export { stepUp } from "./step-up.js";
 export type { StepUpAnswer, StepUpOptions } from "./step-up.js";
+export { mountUsers } from "./users.js";
+export type { UsersOptions, UsersScreen } from "./users.js";
 export { defaultAccountWords, wordsOf } from "./words.js";
 export type { AccountWords, PageHost } from "./words.js";

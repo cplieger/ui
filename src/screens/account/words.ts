@@ -453,6 +453,100 @@ export interface AccountWords {
   /** A credential beside the session failed on a key route. */
   readonly "keys.signInAgain": string;
 
+  readonly "users.title": string;
+  readonly "users.person": string;
+  readonly "users.role": string;
+  readonly "users.signIn": string;
+  readonly "users.state": string;
+  readonly "users.roleOf": (role: string) => string;
+  readonly "users.fromProvider": string;
+  readonly "users.owner": string;
+  readonly "users.you": string;
+  readonly "users.enabled": string;
+  readonly "users.disabled": string;
+  readonly "users.waiting": string;
+  /** A person's ways in, as one list. */
+  readonly "users.ways": (ways: {
+    readonly password: boolean;
+    readonly passkeys: number;
+    readonly totp: boolean;
+    readonly oidc: string | undefined;
+  }) => string;
+  readonly "users.temporaryUntil": (until: string) => string;
+  readonly "users.dormant": string;
+  readonly "users.forbidden": string;
+  readonly "users.recent": string;
+  readonly "users.gone": string;
+  readonly "users.approve": string;
+  readonly "users.approveLabel": (name: string) => string;
+  readonly "users.approved": (name: string) => string;
+  readonly "users.edit": string;
+  readonly "users.editTitle": (name: string) => string;
+  readonly "users.editSubmit": string;
+  readonly "users.editBusy": string;
+  readonly "users.canSignIn": string;
+  readonly "users.roleSynced": string;
+  readonly "users.saved": (name: string) => string;
+  readonly "users.temporary": string;
+  readonly "users.temporaryTitle": (name: string) => string;
+  /** `keeps`: the person's own methods stay, as single sign-on only keeps
+   *  an unlinked person's. */
+  readonly "users.temporaryDoes": (name: string, keeps: boolean) => string;
+  readonly "users.relink": string;
+  readonly "users.relinkTitle": (name: string) => string;
+  readonly "users.relinkDoes": (name: string, provider: string) => string;
+  readonly "users.lasts": string;
+  readonly "users.hours": (hours: number) => string;
+  readonly "users.revokePasskeys": string;
+  readonly "users.revokePasskeysHelp": string;
+  readonly "users.keepKeys": string;
+  readonly "users.keepKeysHelp": string;
+  readonly "users.temporarySubmit": string;
+  readonly "users.relinkSubmit": string;
+  readonly "users.temporaryBusy": string;
+  readonly "users.temporaryShown": (name: string) => string;
+  readonly "users.temporaryLabel": string;
+  readonly "users.temporaryGive": (name: string, until: string) => string;
+  readonly "users.temporaryHttps": (origin: string) => string;
+  readonly "users.temporaryDormant": (
+    name: string,
+    provider: string,
+    origin: string,
+    until: string,
+  ) => string;
+  readonly "users.passwordKept": (name: string) => string;
+  readonly "users.reset": string;
+  readonly "users.resetTitle": (name: string) => string;
+  readonly "users.resetSentence": string;
+  readonly "users.resetAnswer": string;
+  readonly "users.resetDone": (name: string) => string;
+  readonly "users.makeOwner": string;
+  readonly "users.makeOwnerTitle": (name: string) => string;
+  readonly "users.makeOwnerSentence": string;
+  readonly "users.removeOwner": string;
+  readonly "users.removeOwnerTitle": (name: string) => string;
+  readonly "users.removeOwnerSentence": string;
+  readonly "users.ownerDone": (name: string, owner: boolean) => string;
+  readonly "users.unlink": string;
+  readonly "users.unlinkTitle": (name: string, provider: string) => string;
+  /** What the person can do once unlinked: sign in with their own
+   *  password or passkey, nothing until an admin issues a temporary
+   *  password, or only through an admin's link. */
+  readonly "users.unlinkNext": (name: string, next: "own" | "none" | "admin-link") => string;
+  readonly "users.unlinkAnswer": string;
+  readonly "users.unlinked": (name: string, provider: string) => string;
+  readonly "users.delete": string;
+  readonly "users.deleteTitle": (name: string) => string;
+  readonly "users.deleteSentence": string;
+  readonly "users.deleteAnswer": string;
+  readonly "users.deleted": (name: string) => string;
+  readonly "auth_forbidden.self_recovery": string;
+  readonly "auth_forbidden.owner_target": string;
+  readonly "auth_forbidden.owner_role": string;
+  readonly "auth_forbidden.owner_needs_local_method": string;
+  readonly "auth_forbidden.last_owner": string;
+  readonly "auth_sso_only.linked": string;
+
   readonly "log.title": string;
   readonly "log.help": string;
   readonly "log.when": string;
@@ -1180,6 +1274,113 @@ export const defaultAccountWords: AccountWords = {
   "keys.gone": "This key is gone.",
   "keys.expiredRefused": "This key has expired. Revoke it, or create a new one.",
   "keys.signInAgain": "Your sign-in did not check out. Sign in again, then try once more.",
+  "users.title": "Users",
+  "users.person": "Person",
+  "users.role": "Role",
+  "users.signIn": "Signs in with",
+  "users.state": "State",
+  "users.roleOf": (role) => (role === "admin" ? "Admin" : role === "user" ? "User" : role),
+  "users.fromProvider": "from the identity provider",
+  "users.owner": "Owner",
+  "users.you": "You",
+  "users.enabled": "Enabled",
+  "users.disabled": "Disabled",
+  "users.waiting": "Waiting for approval",
+  "users.ways": ({ password, passkeys, totp, oidc }) => {
+    const ways = [
+      ...(password ? ["Password"] : []),
+      ...(passkeys === 0 ? [] : [passkeys === 1 ? "1 passkey" : `${String(passkeys)} passkeys`]),
+      ...(totp ? ["Authenticator app"] : []),
+      ...(oidc === undefined ? [] : [oidc]),
+    ];
+    return ways.length === 0 ? "No way in yet" : ways.join(", ");
+  },
+  "users.temporaryUntil": (until) => `Temporary password until ${until}`,
+  "users.dormant": "Local sign-in dormant",
+  "users.forbidden": "Only an administrator can see the users.",
+  "users.recent": "Changing people needs a recent sign-in.",
+  "users.gone": "This person is gone.",
+  "users.approve": "Approve",
+  "users.approveLabel": (name) => `Approve ${name}`,
+  "users.approved": (name) => `${name} can sign in now.`,
+  "users.edit": "Edit…",
+  "users.editTitle": (name) => `Edit ${name}`,
+  "users.editSubmit": "Save",
+  "users.editBusy": "Saving…",
+  "users.canSignIn": "Can sign in",
+  "users.roleSynced": "The identity provider sets the role again at their next sign-in.",
+  "users.saved": (name) => `${name} is saved.`,
+  "users.temporary": "Issue a temporary password…",
+  "users.temporaryTitle": (name) => `Issue a temporary password for ${name}`,
+  "users.temporaryDoes": (name, keeps) =>
+    keeps
+      ? `It lets ${name} link their single sign-on once. Their password, authenticator app and recovery code stay.`
+      : `It signs ${name} out everywhere and replaces their password, authenticator app and recovery code.`,
+  "users.relink": "Unlink and issue a temporary password…",
+  "users.relinkTitle": (name) => `Unlink ${name} and issue a temporary password`,
+  "users.relinkDoes": (name, provider) =>
+    `It unlinks ${name} from ${provider}, signs them out everywhere and replaces their password, authenticator app and recovery code.`,
+  "users.lasts": "Works for",
+  "users.hours": (hours) =>
+    hours % 24 === 0 && hours > 24
+      ? `${String(hours / 24)} days`
+      : hours === 1
+        ? "1 hour"
+        : `${String(hours)} hours`,
+  "users.revokePasskeys": "Also revoke passkeys",
+  "users.revokePasskeysHelp": "For a lost device that held them.",
+  "users.keepKeys": "Keep API keys",
+  "users.keepKeysHelp": "Left off, their API keys are revoked.",
+  "users.temporarySubmit": "Issue",
+  "users.relinkSubmit": "Unlink and issue",
+  "users.temporaryBusy": "Issuing…",
+  "users.temporaryShown": (name) => `Temporary password for ${name}`,
+  "users.temporaryLabel": "Temporary password",
+  "users.temporaryGive": (name, until) =>
+    `Give ${name} this temporary password. It works once, until ${until}.`,
+  "users.temporaryHttps": (origin) =>
+    `Enter it on ${origin}. It does not work on the plain address.`,
+  "users.temporaryDormant": (name, provider, origin, until) =>
+    `Ask ${name} to sign in with ${provider}, choose Link to an existing account, and enter this temporary password on ${origin}. It works once, until ${until}.`,
+  "users.passwordKept": (name) =>
+    `${name}'s current password stays and comes back if single sign-on is relaxed; set a new one if it may be known.`,
+  "users.reset": "Reset second factor…",
+  "users.resetTitle": (name) => `Reset ${name}'s second factor?`,
+  "users.resetSentence":
+    "Their authenticator app and recovery code are deleted and they are signed out everywhere. Their password and passkeys stay.",
+  "users.resetAnswer": "Reset second factor",
+  "users.resetDone": (name) => `${name}'s second factor is reset.`,
+  "users.makeOwner": "Make owner",
+  "users.makeOwnerTitle": (name) => `Make ${name} an owner?`,
+  "users.makeOwnerSentence":
+    "An owner is always an admin, keeps their own sign-in under every single sign-on rule, and only an owner can change them.",
+  "users.removeOwner": "Remove owner",
+  "users.removeOwnerTitle": (name) => `Remove ${name} as an owner?`,
+  "users.removeOwnerSentence": "They stay an admin.",
+  "users.ownerDone": (name, owner) =>
+    owner ? `${name} is an owner.` : `${name} is no longer an owner.`,
+  "users.unlink": "Unlink single sign-on…",
+  "users.unlinkTitle": (name, provider) => `Unlink ${name} from ${provider}?`,
+  "users.unlinkNext": (name, next) =>
+    next === "own"
+      ? `It signs them out everywhere. ${name} then signs in with their own password or passkey.`
+      : next === "none"
+        ? `It signs them out everywhere. ${name} then cannot sign in until an admin issues a temporary password.`
+        : `It signs them out everywhere. ${name} then signs in only through an admin's link with a temporary password.`,
+  "users.unlinkAnswer": "Unlink",
+  "users.unlinked": (name, provider) => `${name} is unlinked from ${provider}.`,
+  "users.delete": "Delete…",
+  "users.deleteTitle": (name) => `Delete ${name}?`,
+  "users.deleteSentence": "Their account goes for good, and nothing signed in as them works.",
+  "users.deleteAnswer": "Delete user",
+  "users.deleted": (name) => `${name} is deleted.`,
+  "auth_forbidden.self_recovery": "Use Account and security for your own account.",
+  "auth_forbidden.owner_target": "Only an owner can change an owner.",
+  "auth_forbidden.owner_role": "An owner is always an admin. Remove them as an owner first.",
+  "auth_forbidden.owner_needs_local_method": "An owner needs a password or a passkey.",
+  "auth_forbidden.last_owner": "This is the last owner. Make someone else an owner first.",
+  "auth_sso_only.linked":
+    "This person signs in with single sign-on. Use Unlink and issue a temporary password instead.",
   "log.title": "Security log",
   "log.help": "Failed sign-ins are not recorded.",
   "log.when": "When",

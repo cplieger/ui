@@ -20,6 +20,7 @@ import {
   mountInvite,
   mountSetup,
   mountSignIn,
+  mountUsers,
   stepUp,
   type AccountView,
   type InviteAccess,
@@ -52,6 +53,10 @@ import {
   type StepUpCallbacks,
   type StepUpClient,
   type StepUpResult,
+  type TemporaryPasswordOptions,
+  type TemporaryPasswordResponse,
+  type UserView,
+  type UsersClient,
 } from "@cplieger/ui/account";
 import { qrCode } from "@cplieger/ui/qr";
 import { toast } from "@cplieger/ui/toast";
@@ -1810,6 +1815,234 @@ for (const region of document.querySelectorAll<HTMLElement>("[data-security-demo
     navigate: () => {
       toast({ title: "The page would leave for Authelia here" });
     },
+    onSignedOut: () => {
+      toast({ title: "Signed out: the app would open its sign-in page" });
+    },
+  });
+}
+
+/** The people of a small app: its owner, a person with an authenticator
+ *  app, one linked to single sign-on whose local sign-in is dormant, and a
+ *  registration waiting for approval. */
+function peopleOf(): UserView[] {
+  const at = "2026-10-01T10:00:00Z";
+  return [
+    {
+      id: 1,
+      username: "mika",
+      display_name: "Mika Laine",
+      role: "admin",
+      enabled: true,
+      oidc_linked: false,
+      owner: true,
+      created_at: at,
+      methods: { password: true, passkey_count: 2, totp: true },
+    },
+    {
+      id: 2,
+      username: "alice",
+      role: "user",
+      enabled: true,
+      oidc_linked: false,
+      owner: false,
+      created_at: at,
+      methods: { password: true, passkey_count: 1, totp: true },
+    },
+    {
+      id: 3,
+      username: "sam",
+      display_name: "Sam Ortiz",
+      role: "admin",
+      enabled: true,
+      oidc_linked: true,
+      owner: false,
+      created_at: at,
+      methods: {
+        password: true,
+        passkey_count: 0,
+        role_from_provider: true,
+        local_methods_dormant: true,
+      },
+    },
+    {
+      id: 4,
+      username: "robin",
+      role: "user",
+      enabled: false,
+      oidc_linked: false,
+      owner: false,
+      created_at: at,
+      methods: { password: true, passkey_count: 0, waiting_approval: true },
+    },
+  ];
+}
+
+/** The users list's answers, which each write changes; `viewer` is the
+ *  signed-in admin, an owner unless `owner` is false. */
+function usersFake(o: {
+  readonly owner: boolean;
+  readonly plain?: boolean;
+  readonly sso?: "alongside" | "for_linked" | "only";
+}): { readonly client: UsersClient; readonly access: StepUpAccess<UsersClient> } {
+  let people = peopleOf();
+  const done = { ok: true as const, data: undefined };
+  const find = (id: number): UserView | Refusal =>
+    people.find((u) => u.id === id) ?? refusal(404, "auth_not_found");
+  const change = (id: number, to: Partial<UserView>): Result<UserView> => {
+    const u = find(id);
+    if ("ok" in u) {
+      return u;
+    }
+    const next = { ...u, ...to };
+    people = people.map((p) => (p.id === id ? next : p));
+    return { ok: true, data: next };
+  };
+  const issue = async (
+    id: number,
+    t: TemporaryPasswordOptions,
+  ): Promise<Result<TemporaryPasswordResponse>> => {
+    await wait(700);
+    const u = find(id);
+    if ("ok" in u) {
+      return u;
+    }
+    const expires = later((t.ttl_hours ?? 24) * HOUR);
+    const dormant = o.sso === "only" && u.owner !== true;
+    change(id, {
+      methods: {
+        password: u.methods?.password ?? false,
+        passkey_count: t.revoke_passkeys === true ? 0 : (u.methods?.passkey_count ?? 0),
+        ...(dormant ? {} : { totp: false }),
+        temporary_password: { expires_at: expires },
+      },
+    });
+    return {
+      ok: true,
+      data: {
+        password: "K7QM-2XRA-PL9D-4HVT",
+        expires_at: expires,
+        https_only: dormant,
+        https_origin: "https://tracker.example",
+        dormant,
+        password_kept: dormant && (u.methods?.password ?? false),
+      },
+    };
+  };
+  const client: UsersClient = {
+    async state() {
+      await wait(150);
+      return {
+        ok: true,
+        data: { ...EVERY, sso: o.sso ?? "alongside", secure: o.plain !== true },
+      };
+    },
+    async me() {
+      await wait(150);
+      return {
+        ok: true,
+        data: {
+          user: { id: 1, username: "mika", role: "admin" },
+          methods: HOLDS,
+          can_link_oidc: false,
+          owner: o.owner,
+          session: {
+            id: "s1",
+            method: "passkey",
+            auth_time: ago(HOUR),
+            idle_deadline: later(HOUR),
+            absolute_deadline: later(8 * HOUR),
+            secure: o.plain !== true,
+          },
+        },
+      };
+    },
+    async loginPassword() {
+      await wait(500);
+      return { ok: true, data: SIGNED_IN };
+    },
+    async adminUsers() {
+      await wait(400);
+      return { ok: true, data: people };
+    },
+    async adminUpdateUser(id, r) {
+      await wait(600);
+      const u = find(id);
+      if (!("ok" in u) && u.owner === true && r.role === "user") {
+        return refusal(403, "auth_forbidden", "owner_role");
+      }
+      return change(id, {
+        ...(r.role === undefined ? {} : { role: r.role }),
+        ...(r.enabled === undefined
+          ? {}
+          : {
+              enabled: r.enabled,
+              ...(!("ok" in u) && u.methods !== undefined
+                ? { methods: { ...u.methods, waiting_approval: false } }
+                : {}),
+            }),
+      });
+    },
+    async adminDeleteUser(id) {
+      await wait(600);
+      people = people.filter((u) => u.id !== id);
+      return done;
+    },
+    adminTemporaryPassword: issue,
+    async adminResetSecondFactor(id) {
+      await wait(600);
+      const u = find(id);
+      if ("ok" in u) {
+        return u;
+      }
+      change(id, { methods: { password: false, passkey_count: 0, ...u.methods, totp: false } });
+      return done;
+    },
+    async adminSetOwner(id, r) {
+      await wait(600);
+      if (!r.owner && people.filter((u) => u.owner === true).length === 1) {
+        return refusal(403, "auth_forbidden", "last_owner");
+      }
+      return change(id, { owner: r.owner });
+    },
+    async adminUnlinkOIDC(id) {
+      await wait(600);
+      const u = find(id);
+      if ("ok" in u) {
+        return u;
+      }
+      change(id, {
+        oidc_linked: false,
+        methods: { password: false, passkey_count: 0, ...u.methods, local_methods_dormant: false },
+      });
+      return done;
+    },
+    async adminRelinkOIDC(id, t) {
+      change(id, { oidc_linked: false });
+      return issue(id, t);
+    },
+  };
+  const access: StepUpAccess<UsersClient> = {
+    passkeySupport: () => Promise.resolve({ webauthn: true, conditional: false }),
+    async withStepUp(_c, action) {
+      return { kind: "done", result: await action() };
+    },
+  };
+  return { client, access };
+}
+
+for (const region of document.querySelectorAll<HTMLElement>("[data-users-demo]")) {
+  const name = region.dataset["usersDemo"] ?? "";
+  const { client, access } = usersFake({
+    owner: name !== "admin",
+    plain: name === "plain",
+    ...(name === "sso-only" ? { sso: "only" as const } : {}),
+  });
+  mountUsers(region, {
+    client,
+    access,
+    app: "Release tracker",
+    provider: "Authelia",
+    level: 3,
     onSignedOut: () => {
       toast({ title: "Signed out: the app would open its sign-in page" });
     },

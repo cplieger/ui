@@ -18,7 +18,6 @@ import type {
   PasswordAnswer,
   PendingLinkView,
   PendingPasskeyOutcome,
-  PersonView,
   ProofOutcome,
   Refusal,
   RegisterOutcome,
@@ -39,7 +38,10 @@ import type {
   StepUpAccess,
   StepUpClient,
   StepUpResult,
+  TemporaryPasswordResponse,
   TotpBegin,
+  UserView,
+  UsersClient,
 } from "../client.js";
 
 export interface Call {
@@ -117,6 +119,34 @@ export const BACKUP: KeyView = {
   last_used_at: "2026-11-13T03:00:00Z",
 };
 
+/** An enabled user with a password and an authenticator app. */
+export const ALICE_USER: UserView = {
+  id: 2,
+  username: "alice",
+  role: "user",
+  enabled: true,
+  oidc_linked: false,
+  owner: false,
+  created_at: "2026-10-01T10:00:00Z",
+  methods: {
+    password: true,
+    passkey_count: 0,
+    totp: true,
+    waiting_approval: false,
+    role_from_provider: false,
+    local_methods_dormant: false,
+  },
+};
+
+/** A temporary password issued over HTTPS, valid for 24 hours. */
+export const TEMPORARY: TemporaryPasswordResponse = {
+  password: "K7QM-2XRA-PL9D-4HVT",
+  expires_at: "2099-01-01T18:00:00Z",
+  https_only: false,
+  dormant: false,
+  password_kept: false,
+};
+
 export const PHONE: PasskeyView = {
   id: 7,
   name: "Phone",
@@ -165,6 +195,7 @@ export type FakeClient = SignInClient &
   InviteClient &
   StepUpClient &
   SecurityClient &
+  UsersClient &
   StepUpCalls & { readonly prefix: string; readonly oidcPrefix: string };
 
 export class Fake {
@@ -259,6 +290,13 @@ export class Fake {
     ["loginSetPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
     ["pendingPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
     ["adminUsers", ok([])],
+    ["adminUpdateUser", (id: number) => ok({ ...ALICE_USER, id })],
+    ["adminDeleteUser", ok(undefined)],
+    ["adminTemporaryPassword", ok(TEMPORARY)],
+    ["adminResetSecondFactor", ok(undefined)],
+    ["adminSetOwner", (id: number) => ok({ ...ALICE_USER, id })],
+    ["adminUnlinkOIDC", ok(undefined)],
+    ["adminRelinkOIDC", ok(TEMPORARY)],
     ["oidcPending", ok({ issuer: "https://id.example", username_hint: "mika@example.com" })],
     ["oidcLinkPending", ok(meWith())],
     ["oidcCreatePending", ok(signedIn)],
@@ -447,7 +485,17 @@ export class Fake {
       rotateKey: (id) => call<Result<KeyCreated>>("rotateKey", [id]),
       revokeKey: (id) => call<Result<void>>("revokeKey", [id]),
       adminSecurityLog: (q) => call<Result<SecurityLogView>>("adminSecurityLog", [q]),
-      adminUsers: () => call<Result<readonly PersonView[]>>("adminUsers", []),
+      adminUsers: (o?: { readonly key?: number }) =>
+        call<Result<readonly UserView[]>>("adminUsers", o === undefined ? [] : [o]),
+      adminUpdateUser: (id, r) => call<Result<UserView>>("adminUpdateUser", [id, r]),
+      adminDeleteUser: (id) => call<Result<void>>("adminDeleteUser", [id]),
+      adminTemporaryPassword: (id, o) =>
+        call<Result<TemporaryPasswordResponse>>("adminTemporaryPassword", [id, o]),
+      adminResetSecondFactor: (id) => call<Result<void>>("adminResetSecondFactor", [id]),
+      adminSetOwner: (id, r) => call<Result<UserView>>("adminSetOwner", [id, r]),
+      adminUnlinkOIDC: (id) => call<Result<void>>("adminUnlinkOIDC", [id]),
+      adminRelinkOIDC: (id, o) =>
+        call<Result<TemporaryPasswordResponse>>("adminRelinkOIDC", [id, o]),
       oidcPending: () => call<Result<PendingLinkView>>("oidcPending", []),
       oidcLinkPending: () => call<Result<unknown>>("oidcLinkPending", []),
       oidcCreatePending: (r) => call<Result<SignedIn>>("oidcCreatePending", [r]),

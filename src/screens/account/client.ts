@@ -519,6 +519,76 @@ export interface LogClient {
   adminUsers?(): Promise<Result<readonly PersonView[]>>;
 }
 
+/** A person's ways in, as only the admin's users list carries them. The
+ *  fields access Parts 4 and 5 add are optional: absent reads as none. */
+export interface UserMethodsView {
+  readonly password: boolean;
+  readonly passkey_count: number;
+  readonly totp?: boolean;
+  readonly temporary_password?: { readonly expires_at: string };
+  readonly waiting_approval?: boolean;
+  /** The role follows the identity provider: a change here lasts until
+   *  the person's next sign-in. */
+  readonly role_from_provider?: boolean;
+  readonly local_methods_dormant?: boolean;
+}
+
+/** A person of the app, on the admin's users list. */
+export interface UserView extends PersonView {
+  readonly role: string;
+  readonly enabled: boolean;
+  readonly oidc_linked: boolean;
+  /** From access Part 5. */
+  readonly owner?: boolean;
+  readonly created_at: string;
+  readonly methods?: UserMethodsView;
+}
+
+/** What Issue a temporary password asks for. */
+export interface TemporaryPasswordOptions {
+  /** Default 24, at most 168. */
+  readonly ttl_hours?: number;
+  readonly revoke_passkeys?: boolean;
+  /** Default false: the person's API keys are revoked. */
+  readonly keep_keys?: boolean;
+}
+
+/** A temporary password, shown once. `https_only`, `dormant` and
+ *  `password_kept` choose the words the admin passes on with it. */
+export interface TemporaryPasswordResponse {
+  readonly password: string;
+  readonly expires_at: string;
+  readonly https_only: boolean;
+  readonly https_origin?: string;
+  readonly dormant: boolean;
+  readonly password_kept: boolean;
+}
+
+/** The client calls the admin's users list makes. The calls access Parts
+ *  4 and 5 add are optional: a row offers an action only when the client
+ *  has its call. */
+export interface UsersClient extends StepUpClient {
+  state(): Promise<Result<StateResponse>>;
+  me(): Promise<Result<AccountView>>;
+  adminUsers(o?: { readonly key?: number }): Promise<Result<readonly UserView[]>>;
+  adminUpdateUser(
+    id: number,
+    r: { readonly role?: string; readonly enabled?: boolean },
+  ): Promise<Result<UserView>>;
+  adminDeleteUser(id: number): Promise<Result<void>>;
+  adminTemporaryPassword?(
+    id: number,
+    o: TemporaryPasswordOptions,
+  ): Promise<Result<TemporaryPasswordResponse>>;
+  adminResetSecondFactor?(id: number): Promise<Result<void>>;
+  adminSetOwner?(id: number, r: { readonly owner: boolean }): Promise<Result<UserView>>;
+  adminUnlinkOIDC?(id: number): Promise<Result<void>>;
+  adminRelinkOIDC?(
+    id: number,
+    o: TemporaryPasswordOptions,
+  ): Promise<Result<TemporaryPasswordResponse>>;
+}
+
 /** A passkey assertion taken as a proof, or why there is none. */
 export type ProofOutcome =
   { readonly kind: "proof"; readonly proof: SecondFactorProof } | PasskeyMiss;
