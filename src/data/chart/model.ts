@@ -648,16 +648,8 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 
 const isArray = (v: unknown): v is readonly unknown[] => Array.isArray(v);
 
-// Whether any entry of `list` fails `ok`. for-of reads a sparse array's holes
-// as undefined, which Array.prototype.some skips.
-function anyBut(list: readonly unknown[], ok: (v: unknown) => boolean): boolean {
-  for (const v of list) {
-    if (!ok(v)) {
-      return true;
-    }
-  }
-  return false;
-}
+const anyBut = (list: readonly unknown[], ok: (v: unknown) => boolean): boolean =>
+  list.some((v) => !ok(v));
 
 function optional(v: unknown, type: "string" | "boolean" | "number", what: string): void {
   if (v !== undefined && typeof v !== type) {
@@ -1547,151 +1539,344 @@ function checkInstants(spec: Record<string, unknown>, marks: readonly unknown[])
 // chart is designed for; past it the readings and the table grow without end.
 const MOST_VALUES = 1_000_000;
 
+type Entry = (v: unknown, i: number, length: number) => unknown;
+
 interface Door {
-  /** `v` when it is an array, refused past `most` entries before one is
-   *  read; else none, for its field's check to refuse. */
-  readonly list: (v: unknown, field: string, most?: number, why?: string) => readonly unknown[];
+  /** A copy of `v` read by index, each entry through `each`, when it is an
+   *  array whose one length read is a whole number of at most `most`; else
+   *  `v` itself, for its field's check to refuse. */
+  readonly list: (v: unknown, field: string, each?: Entry, most?: number, why?: string) => unknown;
   readonly add: (n: number, field: string) => void;
 }
 
-// A cell axis's columns or rows: its names, or its bins between its edges.
-function axisLength(axis: unknown, field: string, { list }: Door): number {
-  if (isArray(axis)) {
-    return list(axis, field).length;
+const size = (copy: unknown): number => (isArray(copy) ? copy.length : 0);
+
+// `names` of `v`, each read once, in an object of the chart's own.
+function fields(v: Record<string, unknown>, names: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const name of names) {
+    const field = v[name];
+    if (field !== undefined) {
+      out[name] = field;
+    }
   }
-  // A bin per value, on one more edge.
-  const edges = isObject(axis)
-    ? list(axis["edges"], `${field}.edges`, MOST_VALUES + 1, "a bin per value a spec takes")
-    : [];
-  return Math.max(0, edges.length - 1);
+  return out;
 }
 
-function countCells(mark: Record<string, unknown>, what: string, door: Door): void {
+function put(copy: Record<string, unknown>, key: string, to: (v: unknown) => unknown): void {
+  if (copy[key] !== undefined) {
+    copy[key] = to(copy[key]);
+  }
+}
+
+// A unit's forms or a format's Intl options, which their checks read as entries.
+const entries = (v: unknown): unknown => (isObject(v) ? Object.fromEntries(Object.entries(v)) : v);
+
+const SCALE = ["type", "label", "unit", "domain", "zero", "format", "mono", "reverse"];
+const COLOUR = [
+  "type",
+  "steps",
+  "domain",
+  "thresholds",
+  "pivot",
+  "reverse",
+  "label",
+  "unit",
+  "format",
+];
+const PART = ["name", "slot", "value", "children"];
+
+// Each mark's fields and its series', by its kind: what spec.ts documents.
+const MARKS = new Map<string, readonly (readonly string[])[]>([
+  [
+    "rect",
+    [
+      ["x1", "x2", "open", "arrange", "shape", "series"],
+      ["name", "slot", "y"],
+    ],
+  ],
+  [
+    "line",
+    [
+      ["x", "curve", "series"],
+      ["name", "slot", "y"],
+    ],
+  ],
+  [
+    "area",
+    [
+      ["x", "curve", "arrange", "series"],
+      ["name", "slot", "y"],
+    ],
+  ],
+  ["dot", [["slot", "unit", "rows"]]],
+  [
+    "bar",
+    [
+      ["y", "arrange", "left", "centre", "labels", "series"],
+      ["name", "slot", "below", "x"],
+    ],
+  ],
+  [
+    "point",
+    [
+      ["y", "link", "series"],
+      ["name", "slot", "x"],
+    ],
+  ],
+  [
+    "slope",
+    [
+      ["x", "series"],
+      ["name", "slot", "y"],
+    ],
+  ],
+  [
+    "scatter",
+    [
+      ["unit", "series"],
+      ["name", "slot", "names", "x", "y", "r"],
+    ],
+  ],
+  ["cell", [["days", "weekStart", "x", "y", "values"]]],
+  [
+    "box",
+    [
+      ["y", "whiskers", "series"],
+      ["name", "slot", ...FIVE, "outliers"],
+    ],
+  ],
+  ["pie", [["hole", "unit", "format", "slices"]]],
+  ["tree", [["slot", "unit", "format", "nodes"]]],
+  ["rule", [["x", "y", "label"]]],
+  ["text", [["x", "y", "text", "side"]]],
+]);
+
+// A cell axis's columns or rows: its names, or its bins between its edges.
+function copyAxis(m: Record<string, unknown>, key: "x" | "y", what: string, door: Door): number {
+  const axis = m[key];
+  const field = `${what}.${key}`;
+  if (isArray(axis)) {
+    m[key] = door.list(axis, field);
+    return size(m[key]);
+  }
+  if (!isObject(axis)) {
+    return 0;
+  }
+  const bins = fields(axis, ["edges"]);
+  // A bin per value, on one more edge.
+  put(bins, "edges", (v) =>
+    door.list(v, `${field}.edges`, undefined, MOST_VALUES + 1, "a bin per value a spec takes"),
+  );
+  m[key] = bins;
+  return Math.max(0, size(bins["edges"]) - 1);
+}
+
+function copyCells(m: Record<string, unknown>, what: string, door: Door): void {
   const { list, add } = door;
-  const days = mark["days"];
+  const days = m["days"];
   if (isObject(days)) {
-    add(list(days["values"], `${what}.days.values`).length, `${what}.days.values`);
+    const copy = fields(days, ["start", "values", "open"]);
+    put(copy, "values", (v) => list(v, `${what}.days.values`));
+    add(size(copy["values"]), `${what}.days.values`);
+    m["days"] = copy;
     return;
   }
-  const columns = axisLength(mark["x"], `${what}.x`, door);
-  axisLength(mark["y"], `${what}.y`, door);
-  const rows = list(mark["values"], `${what}.values`);
-  if (rows.length === 0) {
+  const columns = copyAxis(m, "x", what, door);
+  copyAxis(m, "y", what, door);
+  put(m, "values", (v) =>
+    list(v, `${what}.values`, (row, r) => {
+      const at = `${what}.values[${String(r)}]`;
+      const copy = list(row, at);
+      add(Math.max(1, size(copy)), at);
+      return copy;
+    }),
+  );
+  if (size(m["values"]) === 0) {
     add(columns, `${what}.x`);
   }
-  rows.forEach((row, r) => {
-    const at = `${what}.values[${String(r)}]`;
-    add(Math.max(1, list(row, at).length), at);
-  });
 }
 
-function countMark(mark: Record<string, unknown>, what: string, door: Door): void {
+function copyMark(
+  mark: Record<string, unknown>,
+  what: string,
+  door: Door,
+): Record<string, unknown> {
   const { list, add } = door;
-  const series = list(mark["series"], `${what}.series`);
-  const across = (n: number, channels: readonly string[], empty: string): void => {
-    if (series.length === 0) {
+  const kind = mark["mark"];
+  const [names = [], parts = []] = (typeof kind === "string" ? MARKS.get(kind) : undefined) ?? [];
+  const m = fields(mark, names);
+  if (kind !== undefined) {
+    m["mark"] = kind;
+  }
+  put(m, "unit", entries);
+  put(m, "format", entries);
+  const own = (key: string): number => {
+    put(m, key, (v) => list(v, `${what}.${key}`));
+    return size(m[key]);
+  };
+  const eachSeries = (fill: (one: Record<string, unknown> | undefined, at: string) => void) => {
+    put(m, "series", (v) =>
+      list(v, `${what}.series`, (one, s) => {
+        const copy = isObject(one) ? fields(one, parts) : undefined;
+        fill(copy, `${what}.series[${String(s)}]`);
+        return copy ?? one;
+      }),
+    );
+    return size(m["series"]);
+  };
+  const channels = (one: Record<string, unknown> | undefined, at: string, keys: string[]) => {
+    if (one !== undefined) {
+      for (const key of keys) {
+        put(one, key, (v) => list(v, `${at}.${key}`));
+      }
+    }
+  };
+  // Each series is n values, one at least, and a mark with no series its x.
+  const across = (n: number, keys: string[], empty: string): void => {
+    const count = eachSeries((one, at) => {
+      channels(one, at, keys);
+      add(Math.max(1, n), `${at}.${keys[0] ?? ""}`);
+    });
+    if (count === 0) {
       add(n, empty);
     }
-    series.forEach((one, s) => {
-      const at = `${what}.series[${String(s)}]`;
-      for (const channel of channels) {
-        list(isObject(one) ? one[channel] : undefined, `${at}.${channel}`);
-      }
-      add(Math.max(1, n), `${at}.${channels[0] ?? ""}`);
-    });
   };
-  switch (mark["mark"]) {
-    case "rect":
-      list(mark["x2"], `${what}.x2`);
-      across(list(mark["x1"], `${what}.x1`).length, ["y"], `${what}.x1`);
-      return;
+  switch (kind) {
+    case "rect": {
+      own("x2");
+      across(own("x1"), ["y"], `${what}.x1`);
+      return m;
+    }
     case "line":
     case "area":
-      across(list(mark["x"], `${what}.x`).length, ["y"], `${what}.x`);
-      return;
+      across(own("x"), ["y"], `${what}.x`);
+      return m;
     case "bar":
     case "point":
-      across(list(mark["y"], `${what}.y`).length, ["x"], `${what}.y`);
-      return;
+      across(own("y"), ["x"], `${what}.y`);
+      return m;
     case "slope":
-      list(mark["x"], `${what}.x`);
+      own("x");
       across(2, ["y"], `${what}.x`);
-      return;
+      return m;
     case "box": {
-      const n = list(mark["y"], `${what}.y`).length;
-      across(n, ["median", "low", "q1", "q3", "high"], `${what}.y`);
-      series.forEach((one, s) => {
-        const at = `${what}.series[${String(s)}].outliers`;
-        const outliers = list(isObject(one) ? one["outliers"] : undefined, at);
+      const n = own("y");
+      const five = ["median", "low", "q1", "q3", "high"];
+      const count = eachSeries((one, at) => {
+        channels(one, at, five);
+        add(Math.max(1, n), `${at}.median`);
         // Read only when one per category, as the box check takes them.
-        if (outliers.length === n) {
-          outliers.forEach((o, i) => {
-            add(list(o, `${at}[${String(i)}]`).length, `${at}[${String(i)}]`);
-          });
-        }
+        put(one ?? {}, "outliers", (v) =>
+          list(v, `${at}.outliers`, (o, i, length) => {
+            if (length !== n) {
+              return o;
+            }
+            const where = `${at}.outliers[${String(i)}]`;
+            const copy = list(o, where);
+            add(size(copy), where);
+            return copy;
+          }),
+        );
       });
-      return;
+      if (count === 0) {
+        add(n, `${what}.y`);
+      }
+      return m;
     }
     case "dot":
-      list(mark["rows"], `${what}.rows`).forEach((row, r) => {
-        const at = `${what}.rows[${String(r)}].x`;
-        add(Math.max(1, list(isObject(row) ? row["x"] : undefined, at).length), at);
-      });
-      return;
+      put(m, "rows", (v) =>
+        list(v, `${what}.rows`, (row, r) => {
+          const at = `${what}.rows[${String(r)}].x`;
+          const copy = isObject(row) ? fields(row, ["name", "x"]) : undefined;
+          put(copy ?? {}, "x", (x) => list(x, at));
+          add(Math.max(1, size(copy?.["x"])), at);
+          return copy ?? row;
+        }),
+      );
+      return m;
     case "scatter":
-      series.forEach((one, s) => {
-        const at = `${what}.series[${String(s)}]`;
-        const field = (name: string): unknown => (isObject(one) ? one[name] : undefined);
-        for (const channel of ["x", "y", "r"]) {
-          list(field(channel), `${at}.${channel}`);
-        }
-        add(Math.max(1, list(field("names"), `${at}.names`).length), `${at}.names`);
+      eachSeries((one, at) => {
+        channels(one, at, ["x", "y", "r", "names"]);
+        add(Math.max(1, size(one?.["names"])), `${at}.names`);
       });
-      return;
+      return m;
     case "cell":
-      countCells(mark, what, door);
-      return;
+      copyCells(m, what, door);
+      return m;
     case "pie":
-      add(list(mark["slices"], `${what}.slices`).length, `${what}.slices`);
-      return;
-    case "tree": {
-      const nodes = list(mark["nodes"], `${what}.nodes`);
-      add(nodes.length, `${what}.nodes`);
-      nodes.forEach((node, k) => {
-        const at = `${what}.nodes[${String(k)}].children`;
-        if (isObject(node) && node["children"] !== undefined) {
-          add(list(node["children"], at).length, at);
-        }
-      });
-      return;
-    }
+      put(m, "slices", (v) =>
+        list(v, `${what}.slices`, (one) => {
+          add(1, `${what}.slices`);
+          return isObject(one) ? fields(one, ["name", "slot", "value"]) : one;
+        }),
+      );
+      return m;
+    case "tree":
+      put(m, "nodes", (v) =>
+        list(v, `${what}.nodes`, (node, k) => {
+          add(1, `${what}.nodes`);
+          if (!isObject(node)) {
+            return node;
+          }
+          const copy = fields(node, PART);
+          const at = `${what}.nodes[${String(k)}].children`;
+          put(copy, "children", (c) =>
+            list(c, at, (part) => {
+              add(1, at);
+              return isObject(part) ? fields(part, PART) : part;
+            }),
+          );
+          return copy;
+        }),
+      );
+      return m;
     default:
       add(1, what);
+      return m;
   }
 }
 
-// The door every list passes before another check reads it, each one through
-// Door.list. It counts each value a mark places, in spec order: a sample per
-// series, a bucket, bar, dot, box, outlier, cell, day, slice, part, rule or
-// note, and a mark with no series its x. A series, timeline row or cell row is
-// one value at least, and a cell grid with no rows its columns, so every
-// legend chip, row and column name is bounded too.
-function checkLists(spec: Record<string, unknown>): void {
+// The door every spec passes before a check reads it: the chart's own copy of
+// the fields spec.ts documents, each read once, every list through Door.list,
+// so no check or model reads the app's objects again. It counts each value a
+// mark places as it copies it: a sample per series, a bucket, bar, dot, box,
+// outlier, cell, day, slice, part, rule or note, and a mark with no series its
+// x. A series, timeline row or cell row is one value at least, and a cell grid
+// with no rows its columns, so every legend chip, row and column name is
+// bounded too.
+function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
   let count = 0;
   const door: Door = {
-    // Each comparison fails on NaN, which a Proxy's length can be.
-    list: (v, field, most = MOST_VALUES, why = "the most values a spec takes") => {
+    list: (
+      v,
+      field,
+      each = (entry) => entry,
+      most = MOST_VALUES,
+      why = "the most values a spec takes",
+    ) => {
       if (!isArray(v)) {
-        return [];
+        return v;
       }
-      if (!(v.length <= most)) {
+      // A Proxy over an array may claim any length, NaN included.
+      const length: unknown = v.length;
+      if (!(
+        typeof length === "number" &&
+        Number.isInteger(length) &&
+        length >= 0 &&
+        length <= most
+      )) {
         fail(`${field} must hold at most ${String(most)} entries, ${why}`, RangeError);
       }
-      return v;
+      const out: unknown[] = [];
+      for (let i = 0; i < length; i++) {
+        out.push(each(v[i], i, length));
+      }
+      return out;
     },
     add: (n, field) => {
       count += n;
-      if (!(count <= MOST_VALUES)) {
+      if (count > MOST_VALUES) {
         fail(
           `${field} must not take the spec past ${String(MOST_VALUES)} values, its samples, bars, dots, cells, parts, rules and notes together`,
           RangeError,
@@ -1699,29 +1884,40 @@ function checkLists(spec: Record<string, unknown>): void {
       }
     },
   };
+  const copy = fields(spec, ["x", "y", "r", "colour", "marks", "height", "summary", "empty"]);
   for (const name of ["x", "y", "r", "colour"]) {
-    const scale = spec[name];
-    if (isObject(scale)) {
-      door.list(scale["domain"], `${name}.domain`);
-      door.list(scale["thresholds"], `${name}.thresholds`);
-    }
+    put(copy, name, (scale) => {
+      if (!isObject(scale)) {
+        return scale;
+      }
+      const own = fields(scale, name === "colour" ? COLOUR : SCALE);
+      put(own, "unit", entries);
+      put(own, "format", entries);
+      put(own, "domain", (v) => door.list(v, `${name}.domain`));
+      put(own, "thresholds", (v) => door.list(v, `${name}.thresholds`));
+      return own;
+    });
   }
-  door.list(spec["marks"], "marks").forEach((mark, m) => {
-    const what = `marks[${String(m)}]`;
-    if (isObject(mark)) {
-      countMark(mark, what, door);
-    } else {
-      door.add(1, what);
-    }
-  });
+  put(copy, "marks", (v) =>
+    door.list(v, "marks", (mark, m) => {
+      const what = `marks[${String(m)}]`;
+      if (!isObject(mark)) {
+        door.add(1, what);
+        return mark;
+      }
+      return copyMark(mark, what, door);
+    }),
+  );
+  return copy;
 }
 
-/** Throws a `TypeError` or `RangeError` naming the first rule `spec` breaks. */
-function check(spec: unknown): asserts spec is ChartSpec {
-  if (!isObject(spec)) {
+/** The chart's own copy of `given`, which no later code reads again; throws a
+ *  `TypeError` or `RangeError` naming the first rule the spec breaks. */
+function check(given: unknown): ChartSpec {
+  if (!isObject(given)) {
     fail("the spec must be an object");
   }
-  checkLists(spec);
+  const spec = copySpec(given);
   if (spec["x"] !== undefined) {
     checkScale(spec["x"], "x");
   }
@@ -1839,6 +2035,7 @@ function check(spec: unknown): asserts spec is ChartSpec {
     fail("summary must be a string or a function");
   }
   optional(spec["empty"], "string", "empty");
+  return spec as unknown as ChartSpec;
 }
 
 // A log axis has no place for 0 or below, so a line reads such a value as a
@@ -2235,11 +2432,11 @@ function timeReach(lo: number, hi: number, timeZone: string | undefined): Reach 
  * `RangeError` or `TypeError` naming the first rule the spec breaks.
  */
 export function chartModel(
-  spec: ChartSpec,
+  given: ChartSpec,
   locale: string | undefined,
   timeZone: string | undefined,
 ): Model {
-  check(spec);
+  const spec = check(given);
   const x = xScale(spec, timeZone);
   const y = yScale(spec);
   const size = rScale(spec);

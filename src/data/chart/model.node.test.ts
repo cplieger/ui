@@ -542,6 +542,54 @@ describe("spec errors", () => {
     expect(() => build({ x: {}, marks: [timeline] })).toThrow(most("marks[0].rows[0].x"));
   });
 
+  // An array may lie about its entries after the door has counted them.
+  it("builds from the lists as the door read them, once each", () => {
+    const y = [1, 2];
+    let pulls = 0;
+    Object.defineProperty(y, Symbol.iterator, {
+      *value() {
+        for (let i = 0; i < 1_500_000; i++) {
+          pulls++;
+          yield 1;
+        }
+      },
+    });
+    const own = build({ x: {}, marks: [line(y)] });
+    expect(own.marks[0]).toMatchObject({ kind: "line", series: [{ y: [1, 2] }] });
+    expect(pulls).toBe(0);
+
+    let reads = 0;
+    const x = new Proxy([0, 1, 2], {
+      get: (target, key) => {
+        if (key !== "length") {
+          return Reflect.get(target, key) as unknown;
+        }
+        reads++;
+        return reads === 1 ? 3 : 1_000_001;
+      },
+    });
+    const growing = build({
+      x: {},
+      marks: [{ mark: "line", x, series: [{ name: "a", y: [1, 2, 3] }] }],
+    });
+    expect(growing.marks[0]).toMatchObject({ kind: "line", x: [0, 1, 2] });
+    expect(reads).toBe(1);
+
+    let gets = 0;
+    const series = {
+      name: "a",
+      get y(): number[] {
+        gets++;
+        return gets === 1 ? [1, 2] : new Array<number>(1_500_000).fill(1);
+      },
+    };
+    const swapped = build({ x: {}, marks: [{ mark: "line", x: [0, 1], series: [series] }] });
+    expect(swapped.marks[0]).toMatchObject({ kind: "line", series: [{ y: [1, 2] }] });
+    expect(gets).toBe(1);
+    const [held] = swapped.spec.marks;
+    expect(held?.mark === "line" ? held.series[0] : undefined).not.toBe(series);
+  });
+
   it("counts a timeline row whose x is no array as one value", () => {
     const timeline: Mark = {
       mark: "dot",

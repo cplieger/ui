@@ -514,10 +514,10 @@ function drawnIn(figure: Element | undefined): number {
   return n;
 }
 
-// Draws `spec`, reads it key by key, shows its table and updates a second
-// chart to it, so every part that reads the spec runs; returns how many
-// elements the first figure holds, its table's included.
-function exercise(spec: unknown, timeZone: string): number {
+// Draws `spec`, reads it key by key, shows its table and, unless `again` is
+// false, updates a second chart to it, so every part that reads the spec
+// runs; returns how many elements the first figure holds, its table's included.
+function exercise(spec: unknown, timeZone: string, again = true): number {
   const box = document.createElement("div");
   box.style.inlineSize = "480px";
   document.body.append(box);
@@ -538,11 +538,13 @@ function exercise(spec: unknown, timeZone: string): number {
     chart.showTable(true);
     void chart.summary;
     const drawn = drawnIn(one);
-    const later = renderChart(two as HTMLElement, SPECS[0] as unknown as ChartSpec, {
-      signal: life.signal,
-      timeZone,
-    });
-    later.update(spec as ChartSpec);
+    if (again) {
+      const later = renderChart(two as HTMLElement, SPECS[0] as unknown as ChartSpec, {
+        signal: life.signal,
+        timeZone,
+      });
+      later.update(spec as ChartSpec);
+    }
     return drawn;
   } finally {
     life.abort();
@@ -623,6 +625,23 @@ const NOT_LISTS = (path: Path): readonly unknown[] => [
   unread(new Array<number>(MOST_ENTRIES(path) + 1)),
 ];
 
+// Copies of `list` that lie about their entries once read: one whose own
+// iterator throws, and one whose length reads 4e9 after its first read.
+function liars(list: readonly unknown[]): readonly unknown[] {
+  const iterated = [...list];
+  Object.defineProperty(iterated, Symbol.iterator, {
+    value: () => {
+      throw new Error("pulled the iterator");
+    },
+  });
+  let reads = 0;
+  const growing = new Proxy([...list], {
+    get: (target, key) =>
+      key === "length" && reads++ > 0 ? 4e9 : (Reflect.get(target, key) as unknown),
+  });
+  return [iterated, growing];
+}
+
 describe("a chart spec", () => {
   it.each(SPECS.map((_, k) => k))(
     "refuses each list of spec %i given anything but an array within the ceiling, by its name, before reading it",
@@ -647,6 +666,21 @@ describe("a chart spec", () => {
               "u",
             ),
           );
+        }
+      }
+    },
+  );
+
+  // The chart builds from its own copy, read once: one length read per list
+  // and its entries by index, never by the list's iterator.
+  it.each(SPECS.map((_, k) => k))(
+    "draws spec %i as written when a list lies about its entries after one read",
+    (k) => {
+      const spec = SPECS[k];
+      const drawn = exercise(spec, "UTC", false);
+      for (const path of lists(spec)) {
+        for (const liar of liars(at(spec, path) as readonly unknown[])) {
+          expect(exercise(mutate(spec, [[path, liar]]), "UTC", false), named(path)).toBe(drawn);
         }
       }
     },
