@@ -1815,39 +1815,48 @@ function copyMark(
     }
   };
   // Each series is n values, one at least, charged before its channels, which
-  // charge what they hold past n; a mark with no series is its x.
-  const across = (n: number, keys: string[], empty: string): void => {
+  // charge what they hold past n; a mark with no series is its x. The mark's
+  // own list is charged before it is read, as `paid` of the first series' n,
+  // since panels may share it by reference.
+  const across = (n: number, keys: string[], empty: string, paid: number): void => {
+    let owed = paid;
     const count = eachSeries((one, at) => {
-      add(Math.max(1, n), `${at}.${keys[0] ?? ""}`);
+      add(Math.max(1, n) - owed, `${at}.${keys[0] ?? ""}`);
+      owed = 0;
       channels(one, at, keys, n);
     });
     if (count === 0) {
-      add(n, empty);
+      add(n - paid, empty);
     }
   };
   switch (kind) {
     case "rect": {
-      const n = own("x1");
+      const n = own("x1", ALL);
       own("x2", past(n));
-      across(n, ["y"], `${what}.x1`);
+      across(n, ["y"], `${what}.x1`, n);
       return m;
     }
     case "line":
-    case "area":
-      across(own("x"), ["y"], `${what}.x`);
+    case "area": {
+      const n = own("x", ALL);
+      across(n, ["y"], `${what}.x`, n);
       return m;
+    }
     case "bar":
-    case "point":
-      across(own("y"), ["x"], `${what}.y`);
+    case "point": {
+      const n = own("y", ALL);
+      across(n, ["x"], `${what}.y`, n);
       return m;
+    }
     case "slope":
-      own("x", past(2));
-      across(2, ["y"], `${what}.x`);
+      across(2, ["y"], `${what}.x`, Math.min(2, own("x", ALL)));
       return m;
     case "box": {
-      const n = own("y");
-      const count = eachSeries((one, at) => {
-        add(Math.max(1, n), `${at}.median`);
+      const n = own("y", ALL);
+      let owed = n;
+      eachSeries((one, at) => {
+        add(Math.max(1, n) - owed, `${at}.median`);
+        owed = 0;
         channels(one, at, ["median", "low", "q1", "q3", "high"], n);
         // Its rows are read only when one per category, as the box check takes them.
         put(one ?? {}, "outliers", (v) =>
@@ -1858,9 +1867,6 @@ function copyMark(
           }),
         );
       });
-      if (count === 0) {
-        add(n, `${what}.y`);
-      }
       return m;
     }
     case "dot":
@@ -1933,8 +1939,8 @@ function copyMark(
 // the fields spec.ts documents, each read once, every list through Door.list,
 // so no check or model reads the app's objects again. It counts a sample per
 // series, a bucket, bar, dot, box, outlier, cell, day, slice, part, rule or
-// note, and a mark with no series its x. Every list a series, row, node or
-// part holds is charged before its first entry is read, so a list they share
+// note, and a mark with no series its x. Every list a mark, series, row, node
+// or part holds is charged before its first entry is read, so a list they share
 // by reference is copied only for those the ceiling admits, once per field
 // that holds it: a fixed multiple of the ceiling in all.
 function copySpec(spec: Record<string, unknown>): Record<string, unknown> {

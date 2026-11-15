@@ -663,6 +663,35 @@ describe("spec errors", () => {
     }
   });
 
+  it("reads a list the panels' marks share only up to the ceiling", MILLION, () => {
+    const one = { name: "a", y: [1] };
+    const cases: readonly (readonly [string, (list: unknown) => unknown, unknown])[] = [
+      ["line x", (x) => ({ mark: "line", x, series: [one] }), 1],
+      ["area x", (x) => ({ mark: "area", x, series: [] }), 1],
+      ["rect x1", (x1) => ({ mark: "rect", x1, x2: [1], series: [one] }), 0],
+      ["bar y", (y) => ({ mark: "bar", y, series: [{ name: "a", x: [1] }] }), "a"],
+      ["point y", (y) => ({ mark: "point", y, series: [] }), "a"],
+      [
+        "box y",
+        (y) => ({
+          mark: "box",
+          y,
+          series: [{ name: "a", low: [1], q1: [2], median: [3], q3: [4], high: [5] }],
+        }),
+        "a",
+      ],
+    ];
+    for (const [what, mark, entry] of cases) {
+      const shared = counted(181_819, entry);
+      const field = what.split(" ")[1] ?? "";
+      const facets = { panels: times(11, () => ({ marks: [mark(shared.list)] })) };
+      expect(() => build({ x: {}, marks: [], facets } as ChartSpec), what).toThrow(
+        past(`facets.panels[5].marks[0].${field}`),
+      );
+      expect(shared.read.n, what).toBe(5 * 181_819);
+    }
+  });
+
   it("charges each series' samples before it copies them", MILLION, () => {
     const y = (): number[] => new Array<number>(200_000).fill(1);
     const series = times(8, (s) => ({ name: `s${String(s)}`, y: y() }));
