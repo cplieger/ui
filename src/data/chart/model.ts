@@ -348,19 +348,14 @@ export interface ScatterModel {
    *  then the app's order; bubbles largest first across every series, ties
    *  in that order, so a small bubble is never hidden under a large one. */
   readonly drawn: readonly DotRef[];
+  /** The drawn dot at each x, then y: the last drawn among coincident dots. */
+  readonly at: ReadonlyMap<number, ReadonlyMap<number, DotRef>>;
 }
 
 /** The shown dot of `m` whose values are `x` and `y`, the one drawn on top
  *  among coincident dots. Undefined when no shown dot has both. */
 export function scatterDotAt(m: ScatterModel, x: number, y: number): DotRef | undefined {
-  for (let d = m.drawn.length - 1; d >= 0; d--) {
-    const ref = m.drawn[d];
-    const s = ref === undefined ? undefined : m.series[ref.series];
-    if (ref !== undefined && s?.x[ref.i] === x && s.y[ref.i] === y) {
-      return ref;
-    }
-  }
-  return undefined;
+  return m.at.get(x)?.get(y);
 }
 
 /** A category's five numbers, each at most the next. */
@@ -557,12 +552,18 @@ type MarkModel =
   | RuleModel
   | TextModel;
 
+/** A mark drawing the chart's data, every mark but a rule or a note. */
+export type DataModel = Exclude<MarkModel, RuleModel | TextModel>;
+
 export interface Model {
   readonly spec: ChartSpec;
   readonly x: Continuous;
   readonly y: Continuous | Band;
   /** In the spec's order. */
   readonly marks: readonly MarkModel[];
+  /** The first data mark in `marks`, the one the legend, keys and readings
+   *  read; absent with rules and notes alone. */
+  readonly primary: DataModel | undefined;
   /** The data mark's kind; absent with rules alone. */
   readonly kind: Kind | undefined;
   /** Nothing to draw: every value null, every row empty, every rect 0, no
@@ -1867,7 +1868,17 @@ function scatterModel(
     const r = (d: DotRef) => series[d.series]?.r?.[d.i] ?? 0;
     drawn.sort((a, b) => r(b) - r(a));
   }
-  return { kind: "scatter", unit: mark.unit, series, shown, size, drawn };
+  const at = new Map<number, Map<number, DotRef>>();
+  for (const ref of drawn) {
+    const s = series[ref.series];
+    const dx = s?.x[ref.i];
+    const dy = s?.y[ref.i];
+    if (dx !== null && dx !== undefined && dy !== null && dy !== undefined) {
+      const column = at.get(dx) ?? new Map<number, DotRef>();
+      at.set(dx, column.set(dy, ref));
+    }
+  }
+  return { kind: "scatter", unit: mark.unit, series, shown, size, drawn, at };
 }
 
 function pieModel(mark: PieMark): PieModel {
@@ -1949,8 +1960,7 @@ function shownBuckets(mark: RectMark, index: number, x: Continuous): number[] {
   return out;
 }
 
-function kindOf(marks: readonly MarkModel[], x: Continuous): Kind | undefined {
-  const first = marks.find((m) => m.kind !== "rule" && m.kind !== "text");
+function kindOf(first: DataModel | undefined, x: Continuous): Kind | undefined {
   switch (first?.kind) {
     case undefined:
       return undefined;
@@ -2308,6 +2318,7 @@ export function chartModel(
   });
   // A calendar writes its days as dates, never its x ends, which may lie past Date.
   const reach = x.type === "time" && !calendar ? timeReach(x.lo, x.hi, timeZone) : "time";
+  const primary = marks.find((m): m is DataModel => m.kind !== "rule" && m.kind !== "text");
   const signed = marks.some((m) => m.kind === "bar" && signedBar(m));
   const slope = marks.find((m) => m.kind === "slope");
   const cellX = marks.find((m) => m.kind === "cell")?.x;
@@ -2345,7 +2356,8 @@ export function chartModel(
     x,
     y,
     marks,
-    kind: kindOf(marks, x),
+    primary,
+    kind: kindOf(primary, x),
     empty: !marks.some((m) => hasData(m, x)),
     xText,
     xSpan,

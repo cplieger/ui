@@ -24,8 +24,8 @@ import {
   type BoxSeriesModel,
   type CalendarModel,
   type CellModel,
+  type DataModel,
   type DotModel,
-  type LineModel,
   type Model,
   type PieModel,
   type TreeModel,
@@ -62,29 +62,7 @@ export interface Reading {
 }
 
 /** The mark the legend row reads: the chart's one data mark. */
-type Primary =
-  | RectModel
-  | LineModel
-  | AreaModel
-  | DotModel
-  | BarModel
-  | PointModel
-  | SlopeModel
-  | ScatterModel
-  | CellModel
-  | CalendarModel
-  | BoxModel
-  | PieModel
-  | TreeModel;
-
-export function primaryOf(model: Model): Primary | undefined {
-  for (const m of model.marks) {
-    if (m.kind !== "rule" && m.kind !== "text") {
-      return m;
-    }
-  }
-  return undefined;
-}
+export const primaryOf = (model: Model): DataModel | undefined => model.primary;
 
 export const counted = (
   value: string,

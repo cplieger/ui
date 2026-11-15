@@ -214,6 +214,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
   if (zero !== "") {
     area.append(svgEl("path", { "data-part": "zero", d: zero }));
   }
+  const notes = new Map(lay.notes.map((n) => [n.mark, n]));
   model.marks.forEach((m, index) => {
     switch (m.kind) {
       case "rect": {
@@ -400,7 +401,7 @@ function plotArea(model: Model, lay: Layout): SVGElement {
         }
         break;
       case "text": {
-        const note = lay.notes.find((n) => n.mark === index);
+        const note = notes.get(index);
         if (note !== undefined) {
           area.append(lay.numbered ? marker(note, f) : texts("note", note.lines));
         }

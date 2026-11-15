@@ -742,6 +742,29 @@ describe("notes", () => {
     expect(getComputedStyle(number).fontSize).toBe("13px");
   });
 
+  it("finds each note's layout once, so 20,000 numbered notes read the layout's notes a few times each", () => {
+    const NOTES = 20_000;
+    const d = draw(
+      noted(per(NOTES, (k) => ({ mark: "text", x: (k % 24) * 900_000, y: 6, text: "Deploy" }))),
+      320,
+    );
+    expect(d.lay.numbered).toBe(true);
+    let reads = 0;
+    const most = 4 * NOTES;
+    const notes = new Proxy(d.lay.notes, {
+      get(target, key, receiver) {
+        if (typeof key === "string" && /^\d+$/.test(key) && ++reads > most) {
+          throw new Error(`more than ${String(most)} reads`);
+        }
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    drawPlot(svg, d.model, { ...d.lay, notes });
+    expect(svg.querySelectorAll('[data-part="marker"]')).toHaveLength(NOTES);
+    expect(reads).toBeLessThanOrEqual(most);
+  });
+
   it("keeps a marker at the plot's edge whole inside the area's clip", () => {
     const d = draw(noted([{ mark: "text", x: 0, y: 0, text: "Start" }]), 320);
     const b = (d.svg.querySelector('[data-part="marker"] path') as SVGPathElement).getBBox();

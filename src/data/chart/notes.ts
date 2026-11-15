@@ -185,12 +185,33 @@ export function nearestStop(
 }
 
 // The shown bucket whose [x1, x2) holds x, or at the domain's high end the
-// bucket ending there, which no bucket's interval holds.
+// bucket ending there, which no bucket's interval holds. checkX keeps x1
+// strictly increasing and x2 never decreasing, so the first shown bucket
+// ending past x is the only one that can hold it.
 function bucketAt(m: RectModel, x: number, hi: number): number | undefined {
-  const x1 = (i: number) => m.x1[i] ?? 0;
   const x2 = (i: number) => m.x2[i] ?? 0;
-  const held = m.shown.find((i) => x1(i) <= x && x < x2(i));
-  return held ?? (x === hi ? m.shown.find((i) => x2(i) === x) : undefined);
+  const held = m.shown[firstShown(m, (i) => x2(i) > x)];
+  if (held !== undefined && (m.x1[held] ?? 0) <= x) {
+    return held;
+  }
+  const end = x === hi ? m.shown[firstShown(m, (i) => x2(i) >= x)] : undefined;
+  return end !== undefined && x2(end) === x ? end : undefined;
+}
+
+// The first place in m.shown whose bucket passes `past`, which holds from
+// some place on; m.shown.length when none does.
+function firstShown(m: RectModel, past: (i: number) => boolean): number {
+  let lo = 0;
+  let hi = m.shown.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (past(m.shown[mid] ?? 0)) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return lo;
 }
 
 /**

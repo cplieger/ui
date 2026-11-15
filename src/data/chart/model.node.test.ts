@@ -1793,6 +1793,7 @@ describe("the scatter mark", () => {
       shown: [[0], []],
       size: undefined,
       drawn: [{ series: 0, i: 0 }],
+      at: new Map([[2, new Map([[8, { series: 0, i: 0 }]])]]),
     });
     expect(m.kind).toBe("scatter");
     expect(m.empty).toBe(false);
