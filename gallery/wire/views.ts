@@ -14,7 +14,7 @@ if (pane !== null && nudge instanceof HTMLInputElement) {
   const video = enhanceVideo(pane);
   // The stepper writes a typographic minus, which Number() refuses.
   nudge.addEventListener("change", () => {
-    video.offset = Number(nudge.value.replace("\u2212", "-")) || 0;
+    video.offset = Number(nudge.value.replace("\u2212", "-"));
   });
 }
 

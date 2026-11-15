@@ -101,6 +101,34 @@ function metadata(video: HTMLVideoElement): Promise<unknown> {
   });
 }
 
+/** A pane with no source, holding a script-built subtitles track. */
+function bare(): { root: HTMLElement; track: TextTrack } {
+  const root = document.createElement("div");
+  root.className = "cp-video";
+  const video = document.createElement("video");
+  root.append(video);
+  document.body.append(root);
+  return { root, track: video.addTextTrack("subtitles", "English", "en") };
+}
+
+const times = (track: TextTrack): number[][] =>
+  [...(track.cues ?? [])].map((c) => [c.startTime, c.endTime]);
+
+// Gecko's VTTCue refuses an unbounded end; the spec's unrestricted double allows it.
+const unbounded = ((): boolean => {
+  try {
+    return new VTTCue(1, Infinity, "").endTime === Infinity;
+  } catch {
+    return false;
+  }
+})();
+
+async function playingAt(video: HTMLVideoElement, play: HTMLButtonElement, at: number) {
+  await seeked(video, at);
+  await userEvent.click(play);
+  await expect.poll(() => video.paused).toBe(false);
+}
+
 async function seeked(video: HTMLVideoElement, at: number): Promise<void> {
   const done = new Promise((resolve) => {
     video.addEventListener("seeked", resolve, { once: true });
@@ -206,6 +234,58 @@ describe("enhanceVideo", () => {
     ]);
   });
 
+  it("moves a cue the app adds after the offset is set, and leaves later ones once it aborts", () => {
+    const { root, track } = bare();
+    const handle = enhanceVideo(root, { offset: 1, signal: life.signal });
+    track.addCue(new VTTCue(1, 2, "One"));
+    expect(times(track)).toEqual([[2, 3]]);
+    handle.offset = 2;
+    track.addCue(new VTTCue(5, 6, "Two"));
+    expect(times(track)).toEqual([
+      [3, 4],
+      [7, 8],
+    ]);
+    life.abort();
+    expect(times(track)).toEqual([
+      [1, 2],
+      [5, 6],
+    ]);
+    track.addCue(new VTTCue(9, 10, "Three"));
+    expect(times(track).at(-1)).toEqual([9, 10]);
+  });
+
+  it("moves a script-built track created after it starts", async () => {
+    const root = document.createElement("div");
+    root.className = "cp-video";
+    const video = document.createElement("video");
+    root.append(video);
+    document.body.append(root);
+    enhanceVideo(root, { offset: 1, signal: life.signal });
+    const added = new Promise((resolve) => {
+      video.textTracks.addEventListener("addtrack", resolve, { once: true });
+    });
+    const track = video.addTextTrack("subtitles", "English", "en");
+    track.addCue(new VTTCue(1, 2, "One"));
+    await added;
+    track.addCue(new VTTCue(3, 4, "Two"));
+    expect(times(track)).toEqual([
+      [2, 3],
+      [4, 5],
+    ]);
+  });
+
+  it.skipIf(!unbounded)("moves the start of a cue with no end", () => {
+    const { root, track } = bare();
+    track.addCue(new VTTCue(1, Infinity, "Live"));
+    track.addCue(new VTTCue(3, 4, "Two"));
+    const handle = enhanceVideo(root, { signal: life.signal });
+    handle.offset = 2;
+    expect(times(track)).toEqual([
+      [3, Infinity],
+      [5, 6],
+    ]);
+  });
+
   it("gives a replaced track the current offset", async () => {
     const { video, handle } = await pane({ offset: 0.5 });
     await expect.poll(() => cues(video)[0]?.startTime).toBe(1.5);
@@ -249,6 +329,33 @@ describe("enhanceVideo", () => {
     await metadata(video);
     await expect.poll(() => video.paused).toBe(false);
     await expect.poll(() => play.getAttribute("aria-label")).toBe("Pause");
+  });
+
+  it("keeps a replaced load()'s place and playback for the call that replaced it", async () => {
+    const { video, play, handle } = await pane();
+    await playingAt(video, play, 1);
+    const [a, b] = [await sample(), await sample()];
+    handle.load(a, 4);
+    handle.load(b);
+    await metadata(video);
+    expect(video.currentSrc).toBe(b);
+    await expect.poll(() => video.paused).toBe(false);
+    expect(handle.position).toBeGreaterThanOrEqual(4);
+    expect(handle.position).toBeLessThan(5);
+  });
+
+  it("resumes the place and playback a failed source had on the next load()", async () => {
+    const { root, video, play, handle } = await pane();
+    await playingAt(video, play, 3);
+    handle.load(objectUrl(new Blob(["not a video"], { type: "video/webm" })));
+    await expect.poll(() => root.hasAttribute("data-cp-error")).toBe(true);
+    const at = handle.position;
+    handle.load(await sample());
+    await metadata(video);
+    await expect.poll(() => video.paused).toBe(false);
+    expect(handle.position).toBeGreaterThanOrEqual(3);
+    expect(handle.position).toBeLessThan(4);
+    expect(at, "the failed source reset the element").toBeLessThan(3);
   });
 
   it("drops the move of a source a later load() replaced before its metadata", async () => {

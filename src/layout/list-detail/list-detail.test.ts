@@ -386,6 +386,23 @@ describe("enhanceListDetail", () => {
     expect(document.activeElement).toBe(m.opener);
   });
 
+  it("keeps the sheet open for a route that refuses on a page that runs installDialogs", async () => {
+    installDialogs({ signal: life.signal });
+    const onDismiss = vi.fn();
+    const m = mount(400, { onDismiss });
+    m.api.open();
+    await played(m.dialog);
+    await userEvent.keyboard("{Escape}");
+    // Longer than the sheet's 280ms exit in script.
+    await new Promise((r) => setTimeout(r, 600));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect([m.dialog.open, m.detail.hidden]).toEqual([true, false]);
+    expect(m.detail.parentElement).toBe(m.dialog);
+    expect(m.dialog.contains(document.activeElement)).toBe(true);
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(() => onDismiss.mock.calls.length).toBe(2);
+  });
+
   it("closes nothing on a press inside the sheet or one that starts inside and ends outside", async () => {
     const onDismiss = vi.fn();
     const { heading, dialog, api } = mount(400, { onDismiss });

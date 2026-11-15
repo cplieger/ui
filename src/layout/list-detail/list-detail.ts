@@ -17,8 +17,8 @@ export interface ListDetailOptions {
   /** The box's width, in rem, from which the detail docks. Default 52. */
   readonly dockAt?: number;
   /** Close, Escape, a press outside the sheet, or the engine closing the
-   *  sheet itself. The app goes back, and its route then calls `close()`.
-   *  An engine close before the route has answered is not passed on.
+   *  sheet itself. The app goes back, and its route then calls `close()`;
+   *  until then Close, Escape and a press outside leave the sheet open.
    *  Default: `close()`. */
   readonly onDismiss?: () => void;
 }
@@ -86,9 +86,6 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
    *  leaves the detail where it is. */
   let turn = 0;
   let still = 0;
-  /** onDismiss has been called since the last open(): the engine closing
-   *  the sheet while the route works on it is not a second dismissal. */
-  let asked = false;
 
   const heading = (): HTMLElement | null =>
     detail.querySelector<HTMLElement>(":scope > header > :is(h1, h2, h3, h4)");
@@ -108,6 +105,16 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
   const stow = (): void => {
     detail.hidden = true;
     root.append(detail);
+  };
+
+  /** Cancels the exit closeDialog plays in script, which keeps the sheet
+   *  open: its cancelled exit only drops the leaving mark. */
+  const stopExit = (): void => {
+    for (const a of dialog.getAnimations()) {
+      if (!(a instanceof CSSTransition || a instanceof CSSAnimation)) {
+        a.cancel();
+      }
+    }
   };
 
   /** Puts the shown detail where the box's width says. A move between the
@@ -148,11 +155,8 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
         dialog.append(detail);
       }
       if (dialog.open) {
-        // Opened again while closeDialog plays the exit: cancelling it
-        // keeps the dialog open.
-        for (const a of dialog.getAnimations()) {
-          a.cancel();
-        }
+        // Opened again while closeDialog plays the exit.
+        stopExit();
       } else {
         dialog.showModal();
       }
@@ -169,7 +173,6 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       return;
     }
     shown = false;
-    asked = false;
     turn += 1;
     const was = at;
     at = null;
@@ -203,7 +206,6 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
 
   const api: ListDetail = {
     open(opts = {}) {
-      asked = false;
       if (!shown) {
         shown = true;
         turn += 1;
@@ -236,7 +238,9 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
     if (onDismiss === undefined) {
       api.close();
     } else {
-      asked = true;
+      // installDialogs' cancel handler starts closing the sheet in engines
+      // with no CSS exit; the route decides whether it closes.
+      stopExit();
       onDismiss();
     }
   };
@@ -268,12 +272,10 @@ export function enhanceListDetail(root: HTMLElement, options: ListDetailOptions 
       if (!shown) {
         restore(returnTo);
         returnTo = null;
-      } else if (at === "dialog" && !dialog.open && !asked) {
+      } else if (at === "dialog" && !dialog.open) {
         // The engine closed it itself, as Chromium does on a second Escape
         // with no user activation between, so the route has to follow
         // (https://html.spec.whatwg.org/multipage/interaction.html#close-requests-and-close-watchers).
-        // A route already asked closes it in its own time: installDialogs'
-        // scripted exit can close the sheet first.
         dismiss();
       }
     },

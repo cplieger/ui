@@ -36,8 +36,10 @@ export interface Video {
   readonly position: number;
   /** Loads `src`, such as a MediaSource object URL, and moves to `at`
    *  seconds once its metadata loads; a video that was playing carries on, a
-   *  paused one stays paused. Default `at`: where the video is now. A later
-   *  call replaces this one's pending move. */
+   *  paused one stays paused. Default `at`: where the video is now. A call
+   *  made before an earlier call's source has loaded its metadata, or after
+   *  it failed, replaces that call's move and takes over its playback and,
+   *  by default, its `at`. */
   load(src: string, at?: number): void;
 }
 
@@ -59,22 +61,28 @@ function captionTrack(video: HTMLVideoElement): TextTrack | undefined {
   return tracks.find((t) => t.kind === "subtitles" || t.kind === "captions") ?? tracks[0];
 }
 
-/** Moves `cue` to its new times. A cue moved in place keeps its old slot in
- *  Gecko's active list, so it goes out and back in, which also reruns the
- *  engine's choice of the showing cue while the video is paused (pinned by
- *  the test "moves every cue by the offset and redraws the showing caption
- *  while paused", red in Firefox without it). The times are checked first,
- *  since a non-finite time throws after the cue is out. */
-function place(track: TextTrack, cue: TextTrackCue, start: number, end: number): void {
+/** The times a cue takes for `start` and `end`, never below 0, or undefined
+ *  for a start that is not finite, which throws, or a NaN end. An unbounded
+ *  end is a cue's own (`endTime` is an unrestricted double). */
+function cueTimes(start: number, end: number): readonly [number, number] | undefined {
   const from = Math.max(0, start);
   const to = Math.max(0, end);
-  if (!Number.isFinite(from) || !Number.isFinite(to)) {
+  return Number.isFinite(from) && !Number.isNaN(to) ? [from, to] : undefined;
+}
+
+/** Moves `cue`, which is in `track`. A cue moved in place keeps its old slot
+ *  in Gecko's active list, so it goes out and back in, which also reruns the
+ *  engine's choice of the showing cue while the video is paused (pinned by
+ *  the test "moves every cue by the offset and redraws the showing caption
+ *  while paused", red in Firefox without it). */
+function place(track: TextTrack, cue: TextTrackCue, start: number, end: number): void {
+  const times = cueTimes(start, end);
+  if (times === undefined) {
     return;
   }
   track.removeCue(cue);
-  cue.startTime = from;
-  cue.endTime = to;
-  track.addCue(cue);
+  [cue.startTime, cue.endTime] = times;
+  TextTrack.prototype.addCue.call(track, cue);
 }
 
 /** `root` is a `.cp-video` holding the `<video>`, which carries `controls`
@@ -181,6 +189,9 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     drawTime(video.currentTime);
   };
 
+  /** Tracks whose own `addCue` places a new cue at the offset. */
+  const placing = new Set<TextTrack>();
+
   const applyOffset = (): void => {
     const track = captionTrack(video);
     if (track === undefined) {
@@ -188,6 +199,20 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
     }
     if (track.mode === "disabled") {
       track.mode = "showing";
+    }
+    if (!placing.has(track)) {
+      placing.add(track);
+      // A cue the app adds later, such as a MediaSource window's captions,
+      // fires no event.
+      track.addCue = (cue: TextTrackCue): void => {
+        const [start, end] = own.get(cue) ?? [cue.startTime, cue.endTime];
+        own.set(cue, [start, end]);
+        const times = cueTimes(start + offset, end + offset);
+        if (times !== undefined) {
+          [cue.startTime, cue.endTime] = times;
+        }
+        TextTrack.prototype.addCue.call(track, cue);
+      };
     }
     for (const cue of [...(track.cues ?? [])]) {
       const [start, end] = own.get(cue) ?? [cue.startTime, cue.endTime];
@@ -341,7 +366,9 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
   });
   shown.observe(root);
 
-  let pending: AbortController | undefined;
+  /** The move a load() makes once its source's metadata loads. */
+  let pending:
+    { readonly stop: AbortController; readonly from: number; readonly resume: boolean } | undefined;
 
   whenAborted(signal, () => {
     shown.disconnect();
@@ -355,6 +382,9 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       if (track !== undefined && times !== undefined) {
         place(track, cue, ...times);
       }
+    }
+    for (const t of placing) {
+      Reflect.deleteProperty(t, "addCue");
     }
   });
 
@@ -375,16 +405,18 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
       return video.currentTime;
     },
     load(src: string, at?: number) {
-      const from = at ?? video.currentTime;
-      const resume = !video.paused && !video.ended;
+      // A pending load has already reset the element to paused at 0.
+      const resume = pending?.resume ?? (!video.paused && !video.ended);
+      const from = at ?? pending?.from ?? video.currentTime;
       // A source that failed or was replaced never fires loadedmetadata, so
       // its move would otherwise land on the next source.
-      pending?.abort();
-      const move = new AbortController();
-      pending = move;
+      pending?.stop.abort();
+      const stop = new AbortController();
+      pending = { stop, from, resume };
       video.addEventListener(
         "loadedmetadata",
         () => {
+          pending = undefined;
           // A seek to 0 on a fresh source would fire a needless `seeking`.
           if (from > 0) {
             seekTo(from);
@@ -395,7 +427,7 @@ export function enhanceVideo(root: HTMLElement, options: VideoOptions = {}): Vid
         },
         {
           once: true,
-          signal: signal === undefined ? move.signal : AbortSignal.any([signal, move.signal]),
+          signal: signal === undefined ? stop.signal : AbortSignal.any([signal, stop.signal]),
         },
       );
       video.src = src;
