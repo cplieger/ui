@@ -33,6 +33,7 @@ import {
   barTotal,
   bucketTotal,
   cellCount,
+  drawnTotal,
   pointLink,
   sampleTotal,
   slopeChange,
@@ -207,8 +208,9 @@ function heldCells(model: Model, m: SampleModel, x: number, words: Words): Cell[
   if (m.x[i] === x) {
     return sampleCells(model, m, i, words);
   }
-  // A gap in any series breaks every layer of an area.
-  const whole = m.kind !== "area" || sampleTotal(m, next) !== null;
+  // An area draws a held step only between two drawn samples: a gap in any
+  // series, or a share's zero total, at either end breaks every layer.
+  const whole = m.kind !== "area" || (drawnTotal(m, i) !== null && drawnTotal(m, next) !== null);
   return sampleCells(
     model,
     m,

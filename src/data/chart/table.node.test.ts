@@ -1225,39 +1225,88 @@ describe("the table of small multiples", () => {
     ]);
   });
 
+  const area = (
+    name: string,
+    x: number[],
+    a: (number | null)[],
+    b: number[],
+    arrange: "stack" | "share" = "stack",
+  ) => ({
+    name,
+    marks: [
+      {
+        mark: "area" as const,
+        curve: "step" as const,
+        arrange,
+        x,
+        series: [
+          { name: "A", y: a },
+          { name: "B", y: b },
+        ],
+      },
+    ],
+  });
+  const areaTable = (panels: ReturnType<typeof area>[]) =>
+    cells(tableModel(model({ marks: [], facets: { panels } }), words));
+
   it("holds no layer of a stepped area panel where a gap in any series ends the drawn step", () => {
-    const area = (name: string, x: number[], a: (number | null)[], b: number[]) => ({
-      name,
-      marks: [
-        {
-          mark: "area" as const,
-          curve: "step" as const,
-          x,
-          series: [
-            { name: "A", y: a },
-            { name: "B", y: b },
-          ],
-        },
-      ],
-    });
-    const t = tableModel(
-      model({
-        marks: [],
-        facets: {
-          panels: [
-            area("Germany", [0, 2, 4], [1, 3, null], [2, 2, 5]),
-            area("France", [0, 1, 2, 3, 4], [1, 2, 1, 2, 1], [1, 1, 1, 1, 1]),
-          ],
-        },
-      }),
-      words,
-    );
-    expect(cells(t)).toEqual([
+    expect(
+      areaTable([
+        area("Germany", [0, 2, 4], [1, 3, null], [2, 2, 5]),
+        area("France", [0, 1, 2, 3, 4], [1, 2, 1, 2, 1], [1, 1, 1, 1, 1]),
+      ]),
+    ).toEqual([
       ["0", "1", "2", "3", "1", "1", "2"],
       ["1", "1", "2", "3", "2", "1", "3"],
       ["2", "3", "2", "5", "1", "1", "2"],
       ["3", "No data", "No data", "No data", "2", "1", "3"],
       ["4", "No data", "5", "No data", "1", "1", "2"],
+    ]);
+  });
+
+  it("holds no layer of a stepped area panel from a sample that is a gap in any series", () => {
+    expect(
+      areaTable([
+        area("Germany", [0, 2, 4], [1, null, 1], [2, 2, 5]),
+        area("France", [0, 1, 2, 3, 4], [1, 2, 1, 2, 1], [1, 1, 1, 1, 1]),
+      ]),
+    ).toEqual([
+      ["0", "1", "2", "3", "1", "1", "2"],
+      ["1", "No data", "No data", "No data", "2", "1", "3"],
+      ["2", "No data", "2", "No data", "1", "1", "2"],
+      ["3", "No data", "No data", "No data", "2", "1", "3"],
+      ["4", "1", "5", "6", "1", "1", "2"],
+    ]);
+  });
+
+  it("holds no share of a stepped share panel up to a sample whose total is 0", () => {
+    const t = areaTable([
+      area("North", [0, 10], [1, 0], [1, 0], "share"),
+      area("South", [0, 5, 10], [1, 3, 0], [1, 1, 0], "share"),
+    ]);
+    expect(t[1]).toEqual(["5", "No data", "No data", "No data", "75%", "25%", "4"]);
+  });
+
+  it("holds a stepped share panel's shares only between two samples it draws", () => {
+    expect(
+      areaTable([
+        area("Germany", [0, 2, 4, 6], [1, 0, 1, 1], [1, 0, 3, 1], "share"),
+        area(
+          "France",
+          [0, 1, 2, 3, 4, 5, 6],
+          [1, 2, 1, 2, 1, 2, 1],
+          [3, 2, 3, 2, 3, 2, 3],
+          "share",
+        ),
+      ]),
+    ).toEqual([
+      ["0", "50%", "50%", "2", "25%", "75%", "4"],
+      ["1", "No data", "No data", "No data", "50%", "50%", "4"],
+      ["2", "0", "0", "0", "25%", "75%", "4"],
+      ["3", "No data", "No data", "No data", "50%", "50%", "4"],
+      ["4", "25%", "75%", "4", "25%", "75%", "4"],
+      ["5", "25%", "75%", "4", "50%", "50%", "4"],
+      ["6", "50%", "50%", "2", "25%", "75%", "4"],
     ]);
   });
 
