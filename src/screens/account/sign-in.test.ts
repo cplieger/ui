@@ -552,7 +552,7 @@ describe("mountSignIn: single sign-on return", () => {
       "This Authelia identity is not linked to an account here. Sign in another way, then link it in Settings → Account.",
     ],
   ] as const)("shows %s as its notice", async (search, tone, words) => {
-    const { panel } = mount(new Fake(), {
+    const { panel } = mount(new Fake().without("oidcPending"), {
       search,
       provider: "Authelia",
       place: "Settings → Account",

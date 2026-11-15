@@ -17,10 +17,15 @@ import {
   type KeyView,
   type SecurityOptions,
   type SessionView,
+  mountInvite,
   mountSetup,
   mountSignIn,
   stepUp,
   type AccountView,
+  type InviteAccess,
+  type InviteClient,
+  type InviteOptions,
+  type PendingLinkView,
   type MeView,
   type MethodsView,
   type Refusal,
@@ -90,7 +95,14 @@ interface Script {
   readonly code?: (code: string) => Result<SignInOutcome>;
   /** The recovery code step's answer. Default: set up a new authenticator. */
   readonly recovery?: () => Result<SignInOutcome>;
+  /** The identity a single sign-on return left unlinked. */
+  readonly pending?: () => Result<PendingLinkView>;
+  readonly link?: () => Result<unknown>;
+  readonly create?: (username: string) => Result<SignedIn>;
+  readonly admin?: (temporary: string) => Result<SignedIn>;
 }
+
+const ALICE: PendingLinkView = { issuer: "https://id.example", username_hint: "mika@example.com" };
 
 /** A pending sign-in from access Part 4. */
 const step = (
@@ -184,6 +196,22 @@ function fake(script: Script): { readonly client: Demo; readonly access: SignInA
       return code === "000000"
         ? refusal(401, "auth_code_invalid", "code_invalid")
         : { ok: true, data: { signed_in: { ...SIGNED_IN, recovery_code: "WXYZ2345EFGH6789" } } };
+    },
+    async oidcPending() {
+      await wait(300);
+      return (script.pending ?? (() => ({ ok: true, data: ALICE })))();
+    },
+    async oidcLinkPending() {
+      await wait(500);
+      return (script.link ?? (() => ({ ok: true, data: null })))();
+    },
+    async oidcCreatePending(r) {
+      await wait(700);
+      return (script.create ?? (() => ({ ok: true, data: SIGNED_IN })))(r.username);
+    },
+    async oidcLinkByAdmin(r) {
+      await wait(700);
+      return (script.admin ?? (() => ({ ok: true, data: SIGNED_IN })))(r.temporary_password);
     },
   };
   const ceremony = async (): Promise<PendingPasskeyOutcome> => {
@@ -300,6 +328,7 @@ const CARDS: Readonly<Record<string, Card>> = {
     place: "Settings → Account",
     recoveryHint: ownerHint(),
     search: "?oidc=not_linked",
+    parts: ["password", "passkeys", "single-sign-on"],
     words: {
       "oidc.not_linked": (provider, place) =>
         `This ${provider} identity is not linked to your account. Sign in another way, then link it in ${place}.`,
@@ -437,6 +466,61 @@ const CARDS: Readonly<Record<string, Card>> = {
   enrol: {
     script: { login: () => step("enrol", ["totp", "passkey"]) },
     then: signInNow,
+  },
+  link: (() => {
+    let password = "";
+    return {
+      provider: "Authelia",
+      search: "?oidc=not_linked",
+      script: {
+        login: (r: { readonly password: string }): Result<PasswordAnswer> => {
+          password = r.password;
+          return { ok: true, data: SIGNED_IN };
+        },
+        link: (): Result<unknown> =>
+          password === "taken" ? refusal(409, "auth_identity_taken") : { ok: true, data: null },
+      },
+    };
+  })(),
+  "link-create": {
+    provider: "Authelia",
+    search: "?oidc=not_linked",
+    script: {
+      pending: () => ({
+        ok: true,
+        data: { ...ALICE, can_create: true, suggested_username: "mika" },
+      }),
+      create: (username) => {
+        switch (username) {
+          case "taken":
+            return refusal(409, "auth_username_taken");
+          case "late":
+            return refusal(404, "auth_not_found");
+          default:
+            return { ok: true, data: SIGNED_IN };
+        }
+      },
+    },
+  },
+  "link-admin": {
+    provider: "Authelia",
+    search: "?oidc=not_linked",
+    script: {
+      state: () => ({ ok: true, data: { ...PART4, sso: "only" } }),
+      pending: () => ({
+        ok: true,
+        data: { ...ALICE, can_create: true, suggested_username: "mika" },
+      }),
+      admin: (temporary) =>
+        temporary === "wrong"
+          ? refusal(401, "auth_invalid_credentials")
+          : { ok: true, data: SIGNED_IN },
+    },
+  },
+  "link-expired": {
+    provider: "Authelia",
+    search: "?oidc=not_linked",
+    script: { pending: () => refusal(404, "auth_not_found") },
   },
   "known-device": {
     script: {
@@ -633,6 +717,106 @@ for (const panel of document.querySelectorAll<HTMLElement>("[data-setup-demo]"))
     },
     onSetupComplete: () => {
       toast({ title: "Setup was done: the app would open sign-in" });
+    },
+    ...options,
+    client,
+    access,
+  });
+  if (then !== undefined) {
+    whenShown(panel, then);
+  }
+}
+
+interface InviteScript {
+  readonly state?: StateResponse;
+}
+
+/** The invite answers, by what the person types. */
+function inviteByWords(r: {
+  readonly username: string;
+  readonly password: string;
+}): Result<SignedIn> {
+  if (r.username === "taken") {
+    return refusal(409, "auth_username_taken");
+  }
+  switch (r.password) {
+    case "common":
+      return refusal(400, "auth_password_rejected", "common");
+    case "used":
+      return refusal(401, "auth_token_invalid");
+    default:
+      return { ok: true, data: SIGNED_IN };
+  }
+}
+
+function inviteFake(
+  script: InviteScript,
+  accept = inviteByWords,
+): { readonly client: InviteClient; readonly access: InviteAccess } {
+  const client: InviteClient = {
+    async state() {
+      await wait(300);
+      return { ok: true, data: script.state ?? EVERY };
+    },
+    async inviteAcceptPassword(r) {
+      await wait(700);
+      return accept(r);
+    },
+    async inviteAcceptOIDC() {
+      await wait(500);
+      return { ok: true, data: { url: "#invite" } };
+    },
+  };
+  const access: InviteAccess = {
+    storePasswordCredential: () => Promise.resolve(),
+    takeFragmentToken: () => undefined,
+  };
+  return { client, access };
+}
+
+type InviteCard = Omit<InviteOptions<InviteClient>, "client" | "access" | "app"> & {
+  readonly script?: InviteScript;
+  readonly accept?: typeof inviteByWords;
+  readonly then?: (panel: HTMLElement) => void;
+};
+
+const INVITE_CARDS: Readonly<Record<string, InviteCard>> = {
+  page: { token: "inv-1" },
+  role: { token: "inv-1", roleFromProvider: true },
+  only: { token: "inv-1", script: { state: { ...EVERY, sso: "only" } } },
+  broken: {},
+  "single-owner": {
+    token: "inv-1",
+    accept: () => refusal(403, "auth_forbidden", "single_owner"),
+    then: (panel) => {
+      fill(panel, "username", "noor");
+      fill(panel, "password", "lantern harbour quietly");
+      submitForm(panel);
+    },
+  },
+  plain: {
+    token: "inv-1",
+    script: {
+      state: { ...EVERY, passkeys: false, secure: false, https_origin: "https://tracker.example" },
+    },
+  },
+};
+
+for (const panel of document.querySelectorAll<HTMLElement>("[data-invite-demo]")) {
+  const card = INVITE_CARDS[panel.dataset["inviteDemo"] ?? ""];
+  if (card === undefined) {
+    continue;
+  }
+  const { script = {}, accept, then, ...options } = card;
+  const { client, access } = inviteFake(script, accept);
+  mountInvite(panel, {
+    app: "Release tracker",
+    provider: "Authelia",
+    navigate: () => {
+      toast({ title: "The app would open Authelia" });
+    },
+    onSignedIn: () => {
+      toast({ title: "Joined: the app would open" });
     },
     ...options,
     client,

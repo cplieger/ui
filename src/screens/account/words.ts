@@ -546,6 +546,42 @@ export interface AccountWords {
    *  from a `me()` read before the password went. */
   readonly "auth_forbidden.totp_needs_password": string;
 
+  readonly "link.title": string;
+  /** `who` is the provider's name for the person, when it sent one. */
+  readonly "link.as": (provider: string, who: string | undefined) => string;
+  readonly "link.existing": string;
+  readonly "link.existingLine": (provider: string) => string;
+  readonly "link.adminLine": string;
+  readonly "link.username": string;
+  readonly "link.temporary": string;
+  readonly "link.submit": string;
+  readonly "link.busy": string;
+  readonly "link.done": string;
+  readonly "link.usernameEmpty": string;
+  readonly "link.temporaryEmpty": string;
+  readonly "link.wrong": string;
+  readonly "link.notNow": string;
+  readonly "link.create": string;
+  readonly "link.createLine": (provider: string) => string;
+  /** The pending sign-in lapsed: start over at the provider. */
+  readonly "link.expired": (provider: string) => string;
+  /** Signed in, but linking the identity was refused with words of its
+   *  own. */
+  readonly "link.continue": string;
+  readonly auth_username_taken: string;
+  /** A pending create through an invite used or revoked meanwhile. */
+  readonly "auth_token_invalid.invite": string;
+  readonly "auth_forbidden.provisioning_disabled": string;
+  readonly "auth_forbidden.single_owner": string;
+
+  readonly "invite.title": (app: string) => string;
+  readonly "invite.provider": (provider: string) => string;
+  readonly "invite.providerBusy": string;
+  readonly "invite.forward": string;
+  readonly "invite.role": (provider: string) => string;
+  readonly "invite.broken": string;
+  readonly "invite.off": string;
+
   readonly "register.duplicate": string;
   readonly "register.not-discoverable": string;
 
@@ -1226,6 +1262,43 @@ export const defaultAccountWords: AccountWords = {
     "This app allows no second factor this account can set up. Ask an administrator.",
   "auth_forbidden.totp_needs_password":
     "Set a password first: an authenticator app protects password sign-in.",
+
+  "link.title": "Link this identity",
+  "link.as": (provider, who) =>
+    who === undefined
+      ? `You signed in with ${provider}.`
+      : `You signed in with ${provider} as ${who}.`,
+  "link.existing": "Link to an existing account",
+  "link.existingLine": (provider) =>
+    `Sign in to that account here, and ${provider} is linked to it.`,
+  "link.adminLine": "Enter the account's username and the temporary password an admin gave you.",
+  "link.username": "Username",
+  "link.temporary": "Temporary password",
+  "link.submit": "Link account",
+  "link.busy": "Linking…",
+  "link.done": "Linked",
+  "link.usernameEmpty": "Enter a username.",
+  "link.temporaryEmpty": "Enter the temporary password.",
+  "link.wrong": "The username or temporary password is wrong.",
+  "link.notNow":
+    "This way of linking is not available now. Sign in to the account and link from it.",
+  "link.create": "Create a new account",
+  "link.createLine": (provider) => `A new account here, signing in with ${provider}.`,
+  "link.expired": (provider) => `Your sign-in expired. Sign in with ${provider} again.`,
+  "link.continue": "Continue",
+  auth_username_taken: "That username is taken. Choose another.",
+  "auth_token_invalid.invite": "This invite no longer works. Ask whoever sent it for a new one.",
+  "auth_forbidden.provisioning_disabled":
+    "New accounts by single sign-on are turned off. Ask an administrator.",
+  "auth_forbidden.single_owner": "This app has one owner and takes no invites.",
+
+  "invite.title": (app) => `Join ${app}`,
+  "invite.provider": (provider) => `Accept with ${provider}`,
+  "invite.providerBusy": "Opening…",
+  "invite.forward": "This invite is for you alone. Do not forward it.",
+  "invite.role": (provider) => `Your role comes from ${provider} after your first sign-in.`,
+  "invite.broken": "This invite link does not work. Ask whoever sent it for a new one.",
+  "invite.off": "This invite cannot be accepted here. Ask whoever sent it.",
 
   "register.duplicate": "That passkey is already on your account.",
   "register.not-discoverable":

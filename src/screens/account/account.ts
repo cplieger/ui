@@ -8,6 +8,8 @@
 
 export type {
   AccountView,
+  InviteAccess,
+  InviteClient,
   KeyCreated,
   KeyView,
   KeysClient,
@@ -24,6 +26,7 @@ export type {
   PasswordAnswer,
   Pending,
   PendingMethod,
+  PendingLinkView,
   PendingPasskeyOutcome,
   PersonView,
   ProofOutcome,
@@ -52,6 +55,8 @@ export type {
   TotpBegin,
   WaitingApproval,
 } from "./client.js";
+export { mountInvite } from "./invite.js";
+export type { InviteOptions } from "./invite.js";
 export { accountActions, accountRunner, runDirect } from "./run.js";
 export type { KeyScope, KeyScopes } from "./keys.js";
 export { mountSecurityLog } from "./log.js";

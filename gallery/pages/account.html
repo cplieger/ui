@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#sign-in-steps">The next steps</a><a href="#setup">Setup</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#security-log">Security log</a><a href="#qr">QR code</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#sign-in-steps">The next steps</a><a href="#link">Link an identity</a><a href="#setup">Setup</a><a href="#invite">Invite</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#security-log">Security log</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -147,6 +147,35 @@
       </div>
     </div>
   </section>
+  <section class="g-section" id="link">
+    <h2>Link this identity</h2>
+    <p>After single sign-on with an identity no account uses, <code>mountSignIn</code> with the <code>pending-link</code> part turns into "Link this identity": sign in to an existing account and the identity is linked to it, or, under single sign-on only, link with a temporary password from an admin. "Create a new account" shows when the server offers it, with the provider's username filled in.</p>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>Link to an existing account</h2>
+        <div class="cp-gate">
+          <div class="cp-wordmark"><span class="cp-mark" aria-hidden="true">R</span>Release tracker</div>
+          <section class="cp-panel" data-account-demo="link"></section>
+        </div>
+        <footer>Sign in with any password to link Authelia to the account. The password "taken" shows the identity linked to another account: signed in, with Continue.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Or create a new account</h2>
+        <section class="cp-panel" data-account-demo="link-create"></section>
+        <footer>The username "taken" is refused on its field, "late" shows a pending sign-in that expired.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Single sign-on only</h2>
+        <section class="cp-panel" data-account-demo="link-admin"></section>
+        <footer>The account's username and an admin's temporary password. The temporary password "wrong" is refused.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>The sign-in expired</h2>
+        <section class="cp-panel" data-account-demo="link-expired"></section>
+        <footer>The pending sign-in lasts 10 minutes. After it, the plain sign-in screen with the provider's button.</footer>
+      </div>
+    </div>
+  </section>
   <section class="g-section" id="setup">
     <h2>Setup</h2>
     <p><code>mountSetup(region, options)</code> creates the first account: the setup token when the app asks for one, a username and a password, or a passkey under a rule. It fills the gate page's panel, or a step of the app's own setup with no heading of its own. After a password setup the app may offer a passkey.</p>
@@ -191,6 +220,45 @@
         <h2>This app needs HTTPS</h2>
         <section class="cp-panel" data-setup-demo="strict"></section>
         <footer>An app that refuses setup over plain HTTP: no form, only the way to its HTTPS address.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="invite">
+    <h2>Invite</h2>
+    <p><code>mountInvite(panel, options)</code> opens an invite link: a username and a password, or the provider under a rule. The token comes from the link's <code>#token=</code> and leaves the address bar at once.</p>
+    <div class="g-grid">
+      <div class="card g-wide" data-new>
+        <h2>The invite page</h2>
+        <div class="cp-gate">
+          <div class="cp-wordmark"><span class="cp-mark" aria-hidden="true">R</span>Release tracker</div>
+          <section class="cp-panel" data-invite-demo="page"></section>
+        </div>
+        <footer>Type the username "taken" for a name in use, the password "common" for a refused password, or "used" for an invite already used.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>The role from the provider</h2>
+        <section class="cp-panel" data-invite-demo="role"></section>
+        <footer>An app that takes roles from its identity provider says the invite's role lasts until the first sign-in.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Single sign-on only</h2>
+        <section class="cp-panel" data-invite-demo="only"></section>
+        <footer>Under single sign-on only, the provider is the one way to accept.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A link that does not work</h2>
+        <section class="cp-panel" data-invite-demo="broken"></section>
+        <footer>No token in the link, or one the server refuses.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>One owner</h2>
+        <section class="cp-panel" data-invite-demo="single-owner"></section>
+        <footer>A single-user app takes no invites.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Over plain HTTP</h2>
+        <section class="cp-panel" data-invite-demo="plain"></section>
+        <footer>Accepting an invite needs HTTPS.</footer>
       </div>
     </div>
   </section>

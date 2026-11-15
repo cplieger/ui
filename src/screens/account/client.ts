@@ -130,6 +130,49 @@ export interface SignInClient {
     ticket: string,
     code: string,
   ): Promise<Result<{ readonly signed_in: SignedIn } | WaitingApproval>>;
+  /** The identity a single sign-on return left unlinked. With
+   *  `oidcLinkPending`, the screen offers to link it. */
+  oidcPending?(): Promise<Result<PendingLinkView>>;
+  /** Links the pending identity to the account just signed in. */
+  oidcLinkPending?(): Promise<Result<unknown>>;
+  /** From access Part 5: a new account for the pending identity. */
+  oidcCreatePending?(r: { readonly username: string }): Promise<Result<SignedIn>>;
+  /** From access Part 5, under `sso: "only"`: links the pending identity
+   *  to an account with a temporary password from an admin. */
+  oidcLinkByAdmin?(r: {
+    readonly username: string;
+    readonly temporary_password: string;
+  }): Promise<Result<SignedIn>>;
+}
+
+/** `oidcPending()`'s answer: the identity, as the provider named it. */
+export interface PendingLinkView {
+  readonly issuer: string;
+  readonly username_hint?: string;
+  readonly email?: string;
+  /** From access Part 5: "Create a new account" is offered. Absent reads
+   *  as false. */
+  readonly can_create?: boolean;
+  readonly suggested_username?: string;
+}
+
+/** The client calls the invite screen makes. */
+export interface InviteClient {
+  state(): Promise<Result<StateResponse>>;
+  inviteAcceptPassword(r: {
+    readonly token: string;
+    readonly username: string;
+    readonly password: string;
+  }): Promise<Result<SignedIn>>;
+  /** From access Part 5: the provider's address to accept by single
+   *  sign-on. */
+  inviteAcceptOIDC?(r: { readonly token: string }): Promise<Result<{ readonly url: string }>>;
+}
+
+/** The `@cplieger/access` functions the invite screen calls. */
+export interface InviteAccess {
+  storePasswordCredential(username: string, password: string): Promise<void>;
+  takeFragmentToken(name: string): string | undefined;
 }
 
 /** The `@cplieger/access` functions the sign-in screen calls, over the host's

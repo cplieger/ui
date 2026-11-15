@@ -27,6 +27,7 @@ import type {
   OIDCReturn,
   PasskeyMiss,
   PasswordAnswer,
+  PendingLinkView,
   Refusal,
   Result,
   SignInAccess,
@@ -47,8 +48,9 @@ import {
   sketch,
   uid,
 } from "./dom.js";
+import { adminLinkForm, createSection, lapsed, linkRefused, type LinkContext } from "./link.js";
 import { continueSignIn } from "./pending.js";
-import { runDirect } from "./run.js";
+import { runDirect, type AccountAction } from "./run.js";
 import {
   cleanAddress,
   cycle,
@@ -176,8 +178,8 @@ export function mountSignIn<C extends SignInClient>(
   }
 
   const stack = el("div", "cp-stack");
-  if (options.heading !== false) {
-    const title = heading(1, w["signIn.title"]);
+  const title = options.heading === false ? undefined : heading(1, w["signIn.title"]);
+  if (title !== undefined) {
     panel.setAttribute("aria-labelledby", title.id);
     stack.append(title);
   }
@@ -199,9 +201,23 @@ export function mountSignIn<C extends SignInClient>(
   let opened = false;
   let typed = options.username;
   let ssoLinkNode: HTMLAnchorElement | undefined;
+  /** The return left an identity to link, and the host mounts the link. */
+  let linking =
+    back.kind === "not_linked" &&
+    has("pending-link") &&
+    client.oidcPending !== undefined &&
+    client.oidcLinkPending !== undefined;
 
   const finish = (result: SignedIn): void => {
     stopConditional();
+    if (linking) {
+      void link(result);
+      return;
+    }
+    leave(result);
+  };
+
+  const leave = (result: SignedIn): void => {
     const event = { next, cloneWarning: result.clone_warning === true };
     if (options.onSignedIn === undefined) {
       navigate(next);
@@ -211,10 +227,7 @@ export function mountSignIn<C extends SignInClient>(
   };
 
   /** Runs one write, answering null when the write itself failed. */
-  const attempt = async <T>(
-    name: "auth.sign_in" | "auth.sign_in_passkey",
-    work: () => Promise<T>,
-  ): Promise<T | null> => {
+  const attempt = async <T>(name: AccountAction, work: () => Promise<T>): Promise<T | null> => {
     try {
       return await run(name, work);
     } catch {
@@ -229,11 +242,12 @@ export function mountSignIn<C extends SignInClient>(
     const skeleton = skeletonTiming(() => {
       body.replaceChildren(sketch());
     }, life);
-    const [state, support] = await Promise.all([
+    const [state, support, pending] = await Promise.all([
       options.state === undefined || opened
         ? read(() => client.state())
         : Promise.resolve({ ok: true as const, data: options.state }),
       access.passkeySupport(),
+      linking ? read(readPending) : Promise.resolve(undefined),
     ]);
     if (signal?.aborted === true) {
       skeleton.cancel();
@@ -253,8 +267,15 @@ export function mountSignIn<C extends SignInClient>(
       webauthn = support.webauthn;
       transport = transportOf(s);
       precheck = transport.plain && s.temporary_password_https_only === true;
-      const said = after ?? opening();
+      let said = after ?? opening();
       opened = true;
+      if (pending?.ok === false) {
+        linking = false;
+        said = lapsed(pending, w, provider);
+      }
+      if (title !== undefined) {
+        title.textContent = linking ? w["link.title"] : w["signIn.title"];
+      }
       if (strict(s)) {
         holdable = [];
         body.replaceChildren(needsHttps(transport, app, w));
@@ -264,6 +285,13 @@ export function mountSignIn<C extends SignInClient>(
         return;
       }
       const temporary = temporaryOf(s);
+      if (pending?.ok === true && linking) {
+        drawLink(s, pending.data, support.webauthn, support.conditional, temporary);
+        if (said !== undefined) {
+          notices.show(said.tone, said.text);
+        }
+        return;
+      }
       const drawn = draw({
         password: (s.password_login && has("password")) || temporary === "only",
         passkey: s.passkeys && has("passkeys") && support.webauthn,
@@ -298,14 +326,14 @@ export function mountSignIn<C extends SignInClient>(
     return s.temporary_password_https_only === true ? "https" : "switch";
   };
 
-  /** Draws the methods that are on; false when none is. */
-  const draw = (methods: Methods): boolean => {
+  /** Draws the methods that are on into `into`; false when none is. */
+  const draw = (methods: Methods, into: HTMLElement = body): boolean => {
     holdable = [];
     conditionalOn = false;
     ssoLinkNode = undefined;
     const others = Number(methods.passkey) + Number(methods.sso);
     if (!methods.password && others === 0) {
-      body.replaceChildren();
+      into.replaceChildren();
       return false;
     }
     const nodes: Node[] = [];
@@ -368,7 +396,7 @@ export function mountSignIn<C extends SignInClient>(
       foot.dataset["part"] = "hint";
       nodes.push(foot);
     }
-    body.replaceChildren(...nodes);
+    into.replaceChildren(...nodes);
     conditionalOn = form !== undefined && methods.passkey && methods.conditional;
     if (conditionalOn && form !== undefined) {
       form.username.setAttribute("autocomplete", "username webauthn");
@@ -400,7 +428,9 @@ export function mountSignIn<C extends SignInClient>(
       case "stepped_up":
         return undefined;
       case "not_linked":
-        return { tone: "warning", text: w["oidc.not_linked"](provider, place) };
+        return linking
+          ? undefined
+          : { tone: "warning", text: w["oidc.not_linked"](provider, place) };
       case "error":
         switch (r.code) {
           case "auth_rate_limited":
@@ -435,6 +465,122 @@ export function mountSignIn<C extends SignInClient>(
       const said = generic(r, w);
       notices.show(said.tone, said.text);
     }
+  };
+
+  const readPending = async (): Promise<Result<PendingLinkView>> =>
+    (await client.oidcPending?.()) ?? { ok: false, status: 0, error: "no call" };
+
+  /** "Link this identity": the existing account to sign in to, or under
+   *  `sso: "only"` an admin's temporary password, then "Create a new
+   *  account" when the answer offers it. */
+  const drawLink = (
+    s: StateResponse,
+    pending: PendingLinkView,
+    passkeys: boolean,
+    conditional: boolean,
+    temporary: Temporary,
+  ): void => {
+    const mode = s.sso ?? "alongside";
+    const existing = el("section", "cp-stack");
+    const existingTitle = heading(2, w["link.existing"]);
+    existing.setAttribute("aria-labelledby", existingTitle.id);
+    const methods = el("div", "cp-stack");
+    let local: boolean;
+    if (mode === "only") {
+      holdable = [];
+      conditionalOn = false;
+      ssoLinkNode = undefined;
+      local = client.oidcLinkByAdmin !== undefined;
+      if (local) {
+        methods.append(adminLinkForm(linkContext()));
+      }
+    } else {
+      local = draw(
+        {
+          password: (s.password_login && has("password")) || temporary === "only",
+          passkey: s.passkeys && has("passkeys") && passkeys,
+          sso: false,
+          conditional,
+          temporary,
+          mode: "alongside",
+        },
+        methods,
+      );
+    }
+    const nodes: Node[] = [
+      line("", w["link.as"](provider, pending.username_hint ?? pending.email)),
+    ];
+    if (local) {
+      existing.append(
+        existingTitle,
+        line("cp-help", mode === "only" ? w["link.adminLine"] : w["link.existingLine"](provider)),
+        methods,
+      );
+      nodes.push(existing);
+    }
+    if (pending.can_create === true && client.oidcCreatePending !== undefined) {
+      nodes.push(createSection(linkContext(), pending));
+    }
+    if (nodes.length === 1) {
+      nodes.push(line("", w["signIn.off"]));
+    }
+    body.replaceChildren(...nodes);
+  };
+
+  const linkContext = (): LinkContext => ({
+    client,
+    words: w,
+    provider,
+    notices,
+    attempt,
+    holdable,
+    done: (result) => {
+      linking = false;
+      leave(result);
+    },
+    reload: (said) => {
+      linking = false;
+      void load(said);
+    },
+    redraw: (said) => {
+      void load(said);
+    },
+    refused,
+    held,
+    ...life,
+  });
+
+  /** Links the pending identity to the account just signed in. Signed in
+   *  either way: a refusal says why, with Continue into the app. */
+  const link = async (result: SignedIn): Promise<void> => {
+    linking = false;
+    const answer = await attempt("auth.link_pending", async () => {
+      const linked = await client.oidcLinkPending?.();
+      return linked ?? { ok: false as const, status: 0, error: "no call" };
+    });
+    if (signal?.aborted === true) {
+      return;
+    }
+    if (answer?.ok === true) {
+      leave(result);
+      return;
+    }
+    const said =
+      answer === null
+        ? { tone: "danger" as const, text: w["generic.server"] }
+        : linkRefused(answer, w, provider);
+    const go = el("button", "cp-button", w["link.continue"]);
+    go.type = "button";
+    go.addEventListener(
+      "click",
+      () => {
+        leave(result);
+      },
+      { once: true },
+    );
+    body.replaceChildren();
+    notices.show(said.tone, said.text, go);
+    go.focus();
   };
 
   const passwordForm = (temporary: Temporary, primary: boolean): PasswordForm => {

@@ -7,6 +7,8 @@
 import { codeOf, reasonOf } from "../answer.js";
 import type {
   AccountView,
+  InviteAccess,
+  InviteClient,
   KeyCreated,
   KeyView,
   MethodsView,
@@ -14,6 +16,7 @@ import type {
   PasskeyMiss,
   PasskeyView,
   PasswordAnswer,
+  PendingLinkView,
   PendingPasskeyOutcome,
   PersonView,
   ProofOutcome,
@@ -159,6 +162,7 @@ interface StepUpCalls {
 
 export type FakeClient = SignInClient &
   SetupClient &
+  InviteClient &
   StepUpClient &
   SecurityClient &
   StepUpCalls & { readonly prefix: string; readonly oidcPrefix: string };
@@ -255,6 +259,12 @@ export class Fake {
     ["loginSetPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
     ["pendingPasskey", { kind: "answered", answer: { signed_in: signedIn } }],
     ["adminUsers", ok([])],
+    ["oidcPending", ok({ issuer: "https://id.example", username_hint: "mika@example.com" })],
+    ["oidcLinkPending", ok(meWith())],
+    ["oidcCreatePending", ok(signedIn)],
+    ["oidcLinkByAdmin", ok(signedIn)],
+    ["inviteAcceptPassword", ok(signedIn)],
+    ["inviteAcceptOIDC", ok({ url: "https://id.example/authorize?state=invite" })],
   ]);
   /** Calls the client leaves out, as a server before access Part 2. */
   readonly #without = new Set<string>();
@@ -438,6 +448,12 @@ export class Fake {
       revokeKey: (id) => call<Result<void>>("revokeKey", [id]),
       adminSecurityLog: (q) => call<Result<SecurityLogView>>("adminSecurityLog", [q]),
       adminUsers: () => call<Result<readonly PersonView[]>>("adminUsers", []),
+      oidcPending: () => call<Result<PendingLinkView>>("oidcPending", []),
+      oidcLinkPending: () => call<Result<unknown>>("oidcLinkPending", []),
+      oidcCreatePending: (r) => call<Result<SignedIn>>("oidcCreatePending", [r]),
+      oidcLinkByAdmin: (r) => call<Result<SignedIn>>("oidcLinkByAdmin", [r]),
+      inviteAcceptPassword: (r) => call<Result<SignedIn>>("inviteAcceptPassword", [r]),
+      inviteAcceptOIDC: (r) => call<Result<{ readonly url: string }>>("inviteAcceptOIDC", [r]),
     };
     for (const n of this.#without) {
       Reflect.deleteProperty(client, n);
@@ -447,6 +463,7 @@ export class Fake {
 
   /** The access module, as the screens type it. */
   access(): SignInAccess<FakeClient> &
+    InviteAccess &
     SetupAccess<FakeClient> &
     StepUpAccess<FakeClient> &
     SecurityAccess<FakeClient> {
@@ -483,6 +500,7 @@ export class Fake {
       oidcSignInURL: (c, redirect) =>
         `${c.oidcPrefix}/start/signin${redirect === undefined ? "" : `?${new URLSearchParams({ redirect }).toString()}`}`,
     } satisfies SignInAccess<FakeClient> &
+      InviteAccess &
       SetupAccess<FakeClient> &
       StepUpAccess<FakeClient> &
       SecurityAccess<FakeClient>;
