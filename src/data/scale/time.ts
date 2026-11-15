@@ -284,3 +284,66 @@ export const localDay = (t: number, timeZone: string | undefined): number =>
  *  before. */
 export const localYear = (t: number, timeZone: string | undefined): number =>
   civil(localDay(t, timeZone)).year;
+
+/** The calendar unit an instant's words name: its minute, or the day, month
+ *  or year it starts. */
+export type Grain = "minute" | "day" | "month" | "year";
+
+/** The coarsest grain every instant of `times` starts in `timeZone`: a local
+ *  midnight (a day's first instant where midnight is skipped) for "day",
+ *  the 1st of a month for "month", 1 January for "year"; "minute" for none. */
+export function grainOf(times: Iterable<number>, timeZone: string | undefined): Grain {
+  let grain: Grain | undefined;
+  for (const t of times) {
+    const w = wall(t, timeZone);
+    const day = Math.floor(w / DAY);
+    if (mod(w, DAY) !== 0 && t !== midnight(day, timeZone)) {
+      return "minute";
+    }
+    const date = civil(day);
+    if (date.day !== 1) {
+      grain = "day";
+    } else if (date.month !== 1 && grain !== "day") {
+      grain = "month";
+    } else {
+      grain ??= "year";
+    }
+  }
+  return grain ?? "minute";
+}
+
+/** The whole grains from `a` to `b` on `timeZone`'s calendar, both on that
+ *  grain: 1 for a 23-hour day, 2 from 1 January to 1 March. */
+export function grainsBetween(
+  a: number,
+  b: number,
+  grain: Exclude<Grain, "minute">,
+  timeZone: string | undefined,
+): number {
+  const from = localDay(a, timeZone);
+  const to = localDay(b, timeZone);
+  if (grain === "day") {
+    return to - from;
+  }
+  const p = civil(from);
+  const q = civil(to);
+  return grain === "month" ? (q.year - p.year) * 12 + q.month - p.month : q.year - p.year;
+}
+
+/** The first instant of the grain before the one `t` starts. */
+export function grainBefore(
+  t: number,
+  grain: Exclude<Grain, "minute">,
+  timeZone: string | undefined,
+): number {
+  const day = localDay(t, timeZone);
+  if (grain === "day") {
+    return midnight(day - 1, timeZone);
+  }
+  const { year, month } = civil(day);
+  const before =
+    grain === "year"
+      ? civilDays(year - 1, 1, 1)
+      : civilDays(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1, 1);
+  return midnight(before, timeZone);
+}

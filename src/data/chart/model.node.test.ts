@@ -1910,7 +1910,7 @@ describe("the slope mark", () => {
     });
     expect(m.kind).toBe("slope");
     expect([m.xText(0), m.xText(1)]).toEqual(["2005", "2015"]);
-    expect(m.xSpan(0, 1)).toEqual(["2005", "2015"]);
+    expect(m.xSpan(0, 1).map((p) => p.text)).toEqual(["2005", "2015"]);
     expect(m.amountText(34)).toBe("34");
   });
 
@@ -2844,19 +2844,26 @@ describe("the largest value", () => {
 describe("an instant's words on a time x", () => {
   const over = (lo: number, hi: number) =>
     build({ x: { type: "time" }, marks: [line([1, 2], { x: [lo, hi] })] });
-  const newYear = Date.UTC(2026, 0, 1);
+  // Noon, so the instants keep their minute.
+  const newYear = Date.UTC(2026, 0, 1, 12);
 
   it("adds the year when the domain's ends lie in different years, and the era before year 1", () => {
-    expect(over(newYear, newYear + 10 * 86_400_000).xText(newYear)).toBe("Jan 1, 12:00 AM");
+    expect(over(newYear, newYear + 10 * 86_400_000).xText(newYear)).toBe("Jan 1, 12:00 PM");
     expect(over(newYear - 86_400_000, newYear + 86_400_000).xText(newYear)).toBe(
-      "Jan 1, 2026, 12:00 AM",
+      "Jan 1, 2026, 12:00 PM",
     );
     const bc = new Date(newYear).setUTCFullYear(-500);
-    expect(over(bc, newYear).xText(bc)).toBe("Jan 1, 501 BC, 12:00 AM");
-    expect(over(bc, newYear).xSpan(bc, newYear)).toEqual([
-      "Jan 1, 501 BC, 12:00 AM",
-      "Jan 1, 2026 AD, 12:00 AM",
-    ]);
+    expect(over(bc, newYear).xText(bc)).toBe("Jan 1, 501 BC, 12:00 PM");
+    expect(
+      over(bc, newYear)
+        .xSpan(bc, newYear)
+        .map((p) => p.text),
+    ).toEqual(["Jan 1, 501 BC, 12:00 PM", "Jan 1, 2026 AD, 12:00 PM"]);
+    // Two New Year's midnights are years, each with its era before year 1.
+    const midnight = Date.UTC(2026, 0, 1);
+    const bcYear = new Date(midnight).setUTCFullYear(-500);
+    expect(over(bcYear, midnight).xText(bcYear)).toBe("501 BC");
+    expect(over(bcYear, midnight).xText(midnight)).toBe("2026 AD");
   });
 
   it("refuses a time x past what Date holds, naming the limit", () => {

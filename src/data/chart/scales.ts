@@ -7,7 +7,7 @@
 import type { Format } from "../scale/format.js";
 
 import { resolution } from "../scale/linear.js";
-import { localDay, midnight, withinTime } from "../scale/time.js";
+import { grainOf, localDay, midnight, withinTime, type Grain } from "../scale/time.js";
 
 import type {
   BarMark,
@@ -599,6 +599,46 @@ export function xScale(spec: ChartSpec, timeZone?: string): Continuous {
     under,
     drawnLo: under?.drawn === "below" ? under.from : lo,
   };
+}
+
+// Every x value the spec sets on a time x: the domain's ends, the data's
+// instants, a time x's cell edges, and the rules' and notes' places.
+function* timeValues(spec: ChartSpec, x: Continuous): Generator<number> {
+  yield x.lo;
+  yield x.hi;
+  for (const m of spec.marks) {
+    if (m.mark === "rect") {
+      yield* m.x1;
+      yield* m.x2;
+    } else if (m.mark === "line" || m.mark === "area") {
+      yield* m.x;
+    } else if (m.mark === "dot") {
+      for (const row of m.rows) {
+        yield* row.x;
+      }
+    } else if (m.mark === "point") {
+      for (const s of m.series) {
+        for (const v of s.x) {
+          if (finite(v)) {
+            yield v;
+          }
+        }
+      }
+    } else if (m.mark === "cell" && !isCalendar(m) && "edges" in m.x) {
+      yield* m.x.edges;
+    } else if ((m.mark === "rule" || m.mark === "text") && typeof m.x === "number") {
+      yield m.x;
+    }
+  }
+}
+
+/** The grain a time x's instants are written at, the coarsest every x
+ *  value of `spec` starts in `timeZone`; "minute" off a time x and under a
+ *  calendar, which writes its own days. */
+export function timeGrain(spec: ChartSpec, x: Continuous, timeZone?: string): Grain {
+  return x.type === "time" && calendarOf(spec) === undefined
+    ? grainOf(timeValues(spec, x), timeZone)
+    : "minute";
 }
 
 /** Where a rule at `value` sits on `scale`: at a domain value, or off the

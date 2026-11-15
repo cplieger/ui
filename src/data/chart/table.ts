@@ -126,9 +126,10 @@ function timed(model: Model, write: (m: Model) => string): Part[] {
   const marked: Model = {
     ...model,
     xText: (v) => mark(v, model.xText(v)),
-    xSpan: (from, to) => {
-      const [a, b] = model.xSpan(from, to);
-      return [mark(from, a), mark(to, b)];
+    xSpan: (from, to, open) => {
+      const [a, b] = model.xSpan(from, to, open);
+      const first = { at: a.at, text: mark(a.at, a.text) };
+      return b === undefined ? [first] : [first, { at: b.at, text: mark(b.at, b.text) }];
     },
   };
   return write(marked)

@@ -4,7 +4,8 @@
  * @module
  */
 
-import { writer, type Unit } from "../scale/format.js";
+import { grainStep, writer, type Unit } from "../scale/format.js";
+import { grainsBetween } from "../scale/time.js";
 
 import {
   barTotal,
@@ -69,8 +70,20 @@ function evenStep(steps: readonly number[]): number | undefined {
   return first !== undefined && steps.every((s) => s === first) ? first : undefined;
 }
 
-// A bucket's or a sample interval's size, a duration on a time x.
-function sizeText(model: Model, size: number | undefined, words: Words): string {
+// The one size of every span `[from, to)` of `spans`, in words: whole
+// calendar units at a coarser grain than the minute, which a month's or a
+// clock change's length in ms would hide, else a duration on a time x.
+function sizeText(
+  model: Model,
+  spans: readonly (readonly [number, number])[],
+  words: Words,
+): string {
+  const { grain } = model;
+  if (model.x.type === "time" && grain !== "minute") {
+    const count = evenStep(spans.map(([a, b]) => grainsBetween(a, b, grain, model.timeZone)));
+    return count === undefined ? "" : words.every(grainStep(count, grain, model.locale));
+  }
+  const size = evenStep(spans.map(([a, b]) => b - a));
   if (size === undefined) {
     return "";
   }
@@ -100,7 +113,7 @@ function rectSummary(model: Model, m: RectModel, words: Words): string[] {
   }
   const every = sizeText(
     model,
-    evenStep(m.shown.map((i) => (m.x2[i] ?? 0) - (m.x1[i] ?? 0))),
+    m.shown.map((i) => [m.x1[i] ?? 0, m.x2[i] ?? 0] as const),
     words,
   );
   const out = [words.stackSummary(all, every, range, parts)];
@@ -172,13 +185,11 @@ function seriesSentence(
 }
 
 function lineSummary(model: Model, m: SampleModel, words: Words): string[] {
-  const steps: number[] = [];
+  const steps: (readonly [number, number])[] = [];
   for (let i = m.from + 1; i < m.to; i++) {
-    steps.push((m.x[i] ?? 0) - (m.x[i - 1] ?? 0));
+    steps.push([m.x[i - 1] ?? 0, m.x[i] ?? 0]);
   }
-  const out = [
-    words.lineSummary(domainText(model, words), sizeText(model, evenStep(steps), words)),
-  ];
+  const out = [words.lineSummary(domainText(model, words), sizeText(model, steps, words))];
   const yText = (v: number) => model.yText(v);
   for (const s of m.series) {
     // Under "share" a layer's share exists only where its stack is drawn.

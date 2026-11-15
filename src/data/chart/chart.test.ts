@@ -1629,3 +1629,102 @@ describe("small multiples' panels", () => {
     );
   });
 });
+
+describe("instants at the calendar unit every x value falls on", () => {
+  const TZ = "Europe/Paris";
+  const HR = 3_600_000;
+  // Paris is UTC+1 in winter and UTC+2 from late March to late October, so
+  // the 1st of April to October is at 10 PM UTC the day before.
+  const months = per(60, (i) => Date.UTC(2020, i, 1) - (i % 12 >= 3 && i % 12 <= 9 ? 2 : 1) * HR);
+  const monthly: ChartSpec = {
+    x: { type: "time", domain: [months[0] ?? 0, months[59] ?? 0] },
+    y: { label: "Unemployment", format: "percent" },
+    marks: [
+      { mark: "line", x: months, series: [{ name: "North", y: per(60, (i) => 0.05 + i / 2000) }] },
+    ],
+  };
+  const summary = (b: Built) =>
+    b.figure.querySelector('figcaption > [data-part="summary"]')?.textContent ?? "";
+
+  it("writes monthly samples as months, stepping every 1 month", () => {
+    const b = build();
+    start(monthly, b, { locale: "en", timeZone: TZ });
+    expect(summary(b)).toMatch(/^Jan 2020 to Dec 2024, every 1\u00A0month\. North: last /u);
+    expect(get(b.figure, "plot")?.getAttribute("aria-label")).toContain("Jan 2020 to Dec 2024");
+    expect(get(b.figure, "legend")?.textContent).toContain("Dec 2024");
+    expect(get(b.figure, "legend")?.textContent).not.toContain("12:00");
+  });
+
+  it("names each panel's range in months", () => {
+    const b = build();
+    const line = (name: string) => ({
+      marks: [{ mark: "line" as const, x: months, series: [{ name, y: per(60, () => 0.05) }] }],
+    });
+    start({ ...monthly, marks: [], facets: { panels: [line("North"), line("South")] } }, b, {
+      locale: "en",
+      timeZone: TZ,
+    });
+    const frames = b.figure.querySelectorAll('[data-part="frame"]');
+    expect(frames[1]?.getAttribute("aria-label")).toMatch(
+      /^South: Line chart, .*Jan 2020 to Dec 2024$/u,
+    );
+  });
+
+  it("writes daily buckets as dates across a clock change, the table keeping each instant", () => {
+    // Midnights of 27 March to 3 April 2026: the 29th is 23 hours long.
+    const days = per(8, (i) => Date.UTC(2026, 2, 27 + i) - (i < 3 ? 1 : 2) * HR);
+    const b = build();
+    start(
+      {
+        x: { type: "time" },
+        y: { label: "Posts" },
+        marks: [
+          {
+            mark: "rect",
+            x1: days.slice(0, 7),
+            x2: days.slice(1),
+            series: [{ name: "Posts", y: per(7, (i) => i + 1) }],
+          },
+        ],
+      },
+      b,
+      { locale: "en", timeZone: TZ },
+    );
+    expect(summary(b)).toMatch(
+      /^28, every 1\u00A0day from Mar 27 to Apr 2\. Busiest: Apr 2, 7\.$/u,
+    );
+    b.toggle.click();
+    const times = [...(get(b.figure, "table")?.querySelectorAll("tbody time") ?? [])];
+    expect(times.slice(0, 3).map((t) => t.textContent)).toEqual(["Mar 27", "Mar 28", "Mar 29"]);
+    expect(times[2]?.getAttribute("datetime")).toBe("2026-03-28T23:00:00.000Z");
+  });
+
+  it("writes yearly samples as years, stepping every 1 year", () => {
+    const years = per(10, (i) => Date.UTC(2015 + i, 0, 1) - HR);
+    const b = build();
+    start(
+      {
+        x: { type: "time" },
+        y: { label: "Members" },
+        marks: [
+          { mark: "line", x: years, series: [{ name: "Members", y: per(10, (i) => 100 + i) }] },
+        ],
+      },
+      b,
+      { locale: "en", timeZone: TZ },
+    );
+    expect(summary(b)).toMatch(/^2015 to 2024, every 1\u00A0year\. Members: last 109/u);
+  });
+
+  it("keeps the minute when one x value falls inside a day", () => {
+    const b = build();
+    const note = {
+      mark: "text" as const,
+      x: Date.UTC(2023, 1, 14, 13, 30),
+      y: 0.06,
+      text: "Strike",
+    };
+    start({ ...monthly, marks: [...monthly.marks, note] }, b, { locale: "en", timeZone: TZ });
+    expect(summary(b)).toMatch(/^Jan 1, 2020, 12:00\sAM to Dec 1, 2024, 12:00\sAM\. /u);
+  });
+});

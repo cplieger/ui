@@ -10,12 +10,13 @@ import {
   widthKey,
   writer,
   type Reach,
+  type Span,
   type Unit,
   type WidthKey,
 } from "../scale/format.js";
 import { position } from "../scale/position.js";
 import { lowerBound, upperBound } from "../scale/reduce.js";
-import { localDay, localYear, spansDay } from "../scale/time.js";
+import { localDay, localYear, spansDay, type Grain } from "../scale/time.js";
 
 import { dayFormat, weekCount, weekRow, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
@@ -25,6 +26,7 @@ import {
   rScale,
   ruleAt,
   isCalendar,
+  timeGrain,
   withinDate,
   xScale,
   yScale,
@@ -579,8 +581,10 @@ export interface Model {
   /** An x value as the readings and the table write it; on a slope or a
    *  cell chart of categories a column's index as its name. */
   readonly xText: (v: number) => string;
-  /** Both ends of a span of x, the end without a date the start already says. */
-  readonly xSpan: (from: number, to: number) => readonly [string, string];
+  /** A span of x as `spanFormat` writes it; `open` for a bucket's. */
+  readonly xSpan: (from: number, to: number, open?: boolean) => Span;
+  /** The calendar unit a time x's instants are written at (`timeGrain`). */
+  readonly grain: Grain;
   /** A y value, as the axis and the readings write it. */
   readonly yText: (v: number) => string;
   /** A bubble's size, in the r scale's format. */
@@ -2743,6 +2747,7 @@ interface Scales {
   readonly y: Continuous | Band;
   readonly size: Size | undefined;
   readonly classes: Classes;
+  readonly grain: Grain;
 }
 
 /** `spec`'s colour classes, inferred over every cell grid's or calendar's
@@ -2776,11 +2781,13 @@ export function chartModel(
   const spec = check(given);
   const { facets, ...rest } = spec;
   if (facets === undefined) {
+    const x = xScale(spec, timeZone);
     const scales = {
-      x: xScale(spec, timeZone),
+      x,
       y: yScale(spec),
       size: rScale(spec),
       classes: colourClasses(spec),
+      grain: timeGrain(spec, x, timeZone),
     };
     return build(spec, scales, "marks", locale, timeZone);
   }
@@ -2788,8 +2795,10 @@ export function chartModel(
   const each = facets.panels.map((p) => ({ ...rest, marks: [...p.marks, ...spec.marks] }));
   const all = { ...rest, marks: [...facets.panels.flatMap((p) => p.marks), ...spec.marks] };
   const y = yScale(all);
+  const x = xScale(all, timeZone);
   const scales: Scales = {
-    x: xScale(all, timeZone),
+    x,
+    grain: timeGrain(all, x, timeZone),
     // Every panel holds the same band, so the first names its rows once.
     y: y.type === "band" ? yScale(each[0] ?? all) : y,
     size: rScale(all),
@@ -2814,7 +2823,7 @@ export function chartModel(
 /** The model of a checked `spec` on `scales`, its marks named under `field`. */
 function build(
   spec: ChartSpec,
-  { x, y, size, classes: colour }: Scales,
+  { x, y, size, classes: colour, grain }: Scales,
   field: string,
   locale: string | undefined,
   timeZone: string | undefined,
@@ -2965,12 +2974,15 @@ function build(
       : calendar
         ? (v: number) => dateText(localDay(v, timeZone))
         : x.type === "time"
-          ? instantFormat(locale, timeZone, reach)
+          ? instantFormat(locale, timeZone, reach, grain)
           : writer(x.format, locale, { signed });
   const xSpan =
     x.type === "time" && !calendar
-      ? spanFormat(locale, timeZone, reach)
-      : (from: number, to: number) => [xText(from), xText(to)] as const;
+      ? spanFormat(locale, timeZone, reach, grain)
+      : (from: number, to: number): Span => [
+          { at: from, text: xText(from) },
+          { at: to, text: xText(to) },
+        ];
   const yText = writer(y.type === "band" ? undefined : y.format, locale);
   const rText = writer(size?.format, locale);
   const colourText = writer(spec.colour?.format, locale);
@@ -2995,6 +3007,7 @@ function build(
     empty: !marks.some((m) => hasData(m, x)),
     xText,
     xSpan,
+    grain,
     yText,
     rText,
     colourText,

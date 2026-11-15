@@ -1212,12 +1212,10 @@ describe("keys, the pointer and the synced selection in small multiples", () => 
       ],
     },
   };
-  // A time domain of months reads its instants to the minute.
+  // Every instant is the 1st of a month in the chart's zone, so each reads as its month.
   const instant = new Intl.DateTimeFormat("en", {
     month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+    year: "numeric",
     timeZone: "UTC",
   });
   const jan = instant.format(months[0]);

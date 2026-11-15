@@ -323,7 +323,8 @@ describe("time formats", () => {
     // 11:00 PM in Paris, then midnight, the next day.
     const late = Date.UTC(2026, 10, 11, 22);
     for (const locale of ["en", "fr"]) {
-      const span = spanFormat(locale, "Europe/Paris", "day");
+      const span = (from: number, to: number) =>
+        spanFormat(locale, "Europe/Paris", "day")(from, to).map((p) => p.text);
       expect(span(at, at + 3_600_000)).toEqual([
         intl(locale, full),
         paris(locale, at + 3_600_000, { hour: "numeric", minute: "2-digit" }),
@@ -332,7 +333,8 @@ describe("time formats", () => {
         paris(locale, late, full),
         paris(locale, late + 3_600_000, full),
       ]);
-      expect(spanFormat(locale, "Europe/Paris", "time")(at, at + 3_600_000)).toEqual([
+      const time = spanFormat(locale, "Europe/Paris", "time")(at, at + 3_600_000);
+      expect(time.map((p) => p.text)).toEqual([
         intl(locale, { hour: "numeric", minute: "2-digit" }),
         paris(locale, at + 3_600_000, { hour: "numeric", minute: "2-digit" }),
       ]);
@@ -357,7 +359,7 @@ describe("time formats", () => {
       // The same day in two years is two dates, so the end keeps its own.
       const span = spanFormat(locale, "Europe/Paris", "year");
       const later = new Date(at).setUTCFullYear(2027);
-      expect(span(at, later)[1]).toBe(
+      expect(span(at, later)[1]?.text).toBe(
         new Intl.DateTimeFormat(locale, {
           ...full,
           year: "numeric",
