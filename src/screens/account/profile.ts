@@ -70,6 +70,9 @@ export function drawProfile<C extends SecurityClient>(
         const saved = answer.result.data.user.display_name ?? value;
         name.input.value = saved;
         name.input.defaultValue = saved;
+        if (ctx.has("passkeys") && ctx.webauthn) {
+          void ctx.access.sendSignals(client);
+        }
         return;
       }
       ctx.settle(answer, notices, (r) => {

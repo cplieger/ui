@@ -2384,3 +2384,41 @@ for (const form of document.querySelectorAll<HTMLFormElement>("[data-second-fact
     rule.focus();
   });
 }
+
+// Each card mounts its own copy of a screen, so the page holds many regions
+// named "Sign in" or "API keys" and many log pagers; the card's own heading
+// leads each name, as a page with one screen never needs.
+let cardNames = 0;
+function nameByCard(section: Element): void {
+  const card = section.closest(".card");
+  const own = card?.querySelector(":scope > h2");
+  const by = section.getAttribute("aria-labelledby");
+  if (own === null || own === undefined || by === null) {
+    return;
+  }
+  if (own.id === "") {
+    cardNames += 1;
+    own.id = `account-card-${String(cardNames)}`;
+  }
+  if (!by.split(" ").includes(own.id)) {
+    section.setAttribute("aria-labelledby", `${own.id} ${by}`);
+  }
+}
+const named = (): void => {
+  for (const section of document.querySelectorAll(".card section[aria-labelledby]")) {
+    nameByCard(section);
+  }
+  for (const nav of document.querySelectorAll(".card nav[aria-label]")) {
+    const card = nav.closest(".card")?.querySelector(":scope > h2")?.textContent ?? "";
+    const label = nav.getAttribute("aria-label") ?? "";
+    if (card !== "" && !label.startsWith(`${card}: `)) {
+      nav.setAttribute("aria-label", `${card}: ${label}`);
+    }
+  }
+};
+named();
+new MutationObserver(named).observe(document.body, {
+  subtree: true,
+  childList: true,
+  attributeFilter: ["aria-labelledby", "aria-label"],
+});

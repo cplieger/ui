@@ -99,3 +99,13 @@
   opacity: 1;
   translate: none;
 }
+
+/* A dialog drawn in place, without opening it, for the reference only. */
+.dialog-frame > .cp-dialog {
+  inline-size: min(32rem, 100%);
+  max-inline-size: 100%;
+  margin: 0;
+  opacity: 1;
+  scale: none;
+  translate: none;
+}

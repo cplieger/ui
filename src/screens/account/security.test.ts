@@ -172,6 +172,41 @@ describe("mountSecurity: the profile", () => {
     await vi.waitFor(() => {
       expect(input.value).toBe("Mika Laine");
     });
+    // The load's signal, then the new display name for the passkey provider.
+    expect(fake.named("sendSignals")).toHaveLength(2);
+  });
+
+  it("tells the passkey provider the accepted passkeys when it loads", async () => {
+    const { fake, region } = mount();
+    await ready(region);
+    expect(fake.named("sendSignals")).toHaveLength(1);
+  });
+
+  it("lets a keyboard scroll each wide table, its panel named by the table's heading", async () => {
+    const { region } = mount();
+    await ready(region);
+    const panels = [...region.querySelectorAll<HTMLElement>(".cp-panel[data-flush]")];
+    expect(panels.length).toBeGreaterThanOrEqual(3);
+    for (const p of panels) {
+      expect(p.tabIndex).toBe(0);
+      expect(p.getAttribute("role")).toBe("group");
+      const by = p.getAttribute("aria-labelledby") ?? "";
+      expect(document.getElementById(by)?.tagName).toMatch(/^H[2-4]$/);
+      expect(p.querySelector("table")?.getAttribute("aria-labelledby")).toBe(by);
+    }
+  });
+
+  it("sends no signal from a browser without WebAuthn", async () => {
+    const fake = new Fake().answer("passkeySupport", { webauthn: false, conditional: false });
+    const { region } = mount(fake);
+    await ready(region);
+    await userEvent.fill(field(region, "display_name"), "Mika");
+    await userEvent.click(button(region, "Save profile"));
+    await vi.waitFor(() => {
+      expect(fake.named("updateProfile")).toHaveLength(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(fake.named("sendSignals")).toHaveLength(0);
   });
 
   it("puts a refused display name on its field", async () => {
@@ -457,9 +492,27 @@ describe("mountSecurity: passkeys", () => {
       expect(fake.named("renamePasskey")[0]?.args).toEqual([7, { name: "Laptop" }]);
     });
     expect(ran).toContain("auth.passkey_rename");
-    await vi.waitFor(() => {
-      expect(fake.named("sendSignals")).toHaveLength(1);
-    });
+    // A passkey's name lives only on the server: the load's signal is the one sent.
+    expect(fake.named("sendSignals")).toHaveLength(1);
+  });
+
+  it("keeps the edit while an input method composes, Enter and Escape alike", async () => {
+    const { fake, region } = mount();
+    await ready(region);
+    await press(passkeyRows(region)[0] as HTMLElement, "Rename…");
+    const input = region.querySelector("tbody input.cp-input") as HTMLInputElement;
+    await userEvent.fill(input, "Laptop");
+    for (const key of ["Enter", "Escape"]) {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key, isComposing: true, bubbles: true, cancelable: true }),
+      );
+      // WebKit's order: the composition ends, then its confirming key.
+      input.dispatchEvent(new CompositionEvent("compositionend", { data: "ラ" }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(region.querySelector("tbody input.cp-input")).toBe(input);
+    expect(fake.named("renamePasskey")).toHaveLength(0);
   });
 
   it("removes one after a danger question, and tells the password manager", async () => {
@@ -474,7 +527,7 @@ describe("mountSecurity: passkeys", () => {
       expect(noticeOf(region)).toBe("Phone removed.");
     });
     expect(fake.named("removePasskey")[0]?.args).toEqual([7]);
-    expect(fake.named("sendSignals")).toHaveLength(1);
+    expect(fake.named("sendSignals")).toHaveLength(2);
   });
 
   it("offers no Remove on a passkey the server would refuse", async () => {

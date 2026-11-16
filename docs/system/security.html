@@ -19,7 +19,7 @@
   </head>
   <body>
     <!-- Account and security as mountSecurity draws it: the session line, the profile, the
-         sign-in methods, the passkeys, the sessions and the API keys. -->
+         sign-in methods, the passkeys, the sessions and the API keys, with a new key shown once. -->
     <div class="cp-app">
       <header class="cp-header">
         <a
@@ -174,6 +174,9 @@
                 <div
                   class="cp-panel"
                   data-flush
+                  role="group"
+                  aria-labelledby="sign-in-methods-title"
+                  tabindex="0"
                 >
                   <table
                     class="cp-table"
@@ -428,6 +431,9 @@
                 <div
                   class="cp-panel"
                   data-flush
+                  role="group"
+                  aria-labelledby="passkeys-title"
+                  tabindex="0"
                 >
                   <table
                     class="cp-table"
@@ -601,6 +607,9 @@
                 <div
                   class="cp-panel"
                   data-flush
+                  role="group"
+                  aria-labelledby="sessions-title"
+                  tabindex="0"
                 >
                   <table
                     class="cp-table"
@@ -865,6 +874,9 @@
                 <div
                   class="cp-panel"
                   data-flush
+                  role="group"
+                  aria-labelledby="api-keys-title"
+                  tabindex="0"
                 >
                   <table
                     class="cp-table"
@@ -1274,6 +1286,79 @@
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+            <!-- The dialog Create key… opens with the new key, drawn in place. -->
+            <div class="dialog-frame">
+              <div
+                class="cp-dialog"
+                role="group"
+                aria-labelledby="new-key-title"
+              >
+                <form method="dialog">
+                  <header>
+                    <h3 id="new-key-title">New key for backup script</h3>
+                  </header>
+                  <div class="cp-dialog-body">
+                    <div class="cp-stack">
+                      <div
+                        class="cp-notice"
+                        data-tone="warning"
+                      >
+                        <span
+                          class="cp-icon"
+                          data-cp-icon="triangle-alert"
+                          aria-hidden="true"
+                        ></span>
+                        <div data-part="body">Copy it now. It will not be shown again.</div>
+                      </div>
+                      <div class="cp-field">
+                        <span
+                          class="cp-label"
+                          id="new-key-label"
+                          >API key</span
+                        >
+                        <div
+                          class="cp-code"
+                          role="group"
+                          aria-labelledby="new-key-label"
+                        >
+                          <code
+                            class="cp-mono"
+                            tabindex="0"
+                            >rt_example-shown-once-for-the-backup-script</code
+                          >
+                          <button
+                            class="cp-button cp-copy"
+                            type="button"
+                          >
+                            <span
+                              class="cp-icon"
+                              data-cp-icon="copy"
+                              aria-hidden="true"
+                            ></span
+                            ><span
+                              class="cp-icon"
+                              data-cp-icon="check"
+                              data-part="done"
+                              aria-hidden="true"
+                            ></span
+                            >Copy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <footer>
+                    <button
+                      class="cp-button"
+                      type="submit"
+                      data-variant="primary"
+                    >
+                      Done
+                    </button>
+                  </footer>
+                </form>
               </div>
             </div>
           </section>

@@ -402,6 +402,9 @@ export function mountSecurity<C extends SecurityClient>(
       }
       me = got.data;
       passkeys = keys;
+      if (has("passkeys") && support.webauthn) {
+        void access.sendSignals(client);
+      }
       ctx = {
         client,
         access,

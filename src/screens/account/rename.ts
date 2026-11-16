@@ -60,7 +60,18 @@ export function renameInPlace(spec: RenameSpec): void {
   input.addEventListener("input", () => {
     clearError(input);
   });
+  // An IME's own Enter and Escape confirm or drop its candidate. WebKit can
+  // deliver compositionend before that keydown, with isComposing already
+  // false, so a keydown within 50 ms of it, either side, is the IME's too:
+  // https://bugs.webkit.org/show_bug.cgi?id=165004
+  let composedAt = Number.NEGATIVE_INFINITY;
+  input.addEventListener("compositionend", (e) => {
+    composedAt = e.timeStamp;
+  });
   input.addEventListener("keydown", (e) => {
+    if (e.isComposing || Math.abs(e.timeStamp - composedAt) < 50) {
+      return;
+    }
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -69,7 +80,7 @@ export function renameInPlace(spec: RenameSpec): void {
       }
       return;
     }
-    if (e.key !== "Enter" || saving || e.isComposing) {
+    if (e.key !== "Enter" || saving) {
       return;
     }
     e.preventDefault();

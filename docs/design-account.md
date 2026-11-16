@@ -165,7 +165,7 @@ An `auth_recent_auth_required` with reason `reenable_needs_other_method` opens n
 
 The header reaches it through the account button, `.cp-account`, a menu button whose menu says who is signed in, links to this page as "Account and security" and ends with "Sign out".
 
-The page says who is signed in, "Signed in as mika with a passkey.", then has one section each for the profile, the sign-in methods, the sessions and the API keys, in that order, and the security log for an admin. Inside an app's own settings part the sections are `<h3>` under the part's `<h2>`. Each section saves on its own. The methods, passkeys, sessions and keys are `.cp-table`s, since they compare values down columns. A row with one action shows it as a small button with a short word, "Change…" named "Change password…". A row with more holds them in a ⋯ menu, as [row actions](design-patterns.md#tables) asks.
+The page says who is signed in, "Signed in as mika with a passkey.", then has one section each for the profile, the sign-in methods, the sessions and the API keys, in that order, and the security log for an admin. Inside an app's own settings part the sections are `<h3>` under the part's `<h2>`. Each section saves on its own. The methods, passkeys, sessions and keys are `.cp-table`s, since they compare values down columns. Each table sits in a flush `.cp-panel` that scrolls it sideways on a phone; the panel is a group named by the table's heading, with `tabindex="0"`, so the arrow keys reach every column. A row with one action shows it as a small button with a short word, "Change…" named "Change password…". A row with more holds them in a ⋯ menu, as [row actions](design-patterns.md#tables) asks.
 
 ![Account and security in the dark theme: who is signed in, the profile, the sign-in methods with their states, the passkeys with one that may be copied, the sessions with one over plain HTTP, and the API keys with one retiring after a rotation](images/system-security-dark.png)
 
@@ -193,7 +193,7 @@ Where the app manages sign-in through single sign-on for this person (`MeRespons
 | `auth_method_not_locked` | no words, and the section refreshes |
 | `auth_not_found` | no words, and the list refreshes without the item |
 
-`registerPasskey` tells the person's password manager about a new passkey. After a rename or a removal, call `sendSignals` so it follows.
+`registerPasskey` tells the person's password manager about a new passkey. The screen calls `sendSignals` when it loads, after a removal and after a new display name, so the password manager drops a passkey the server no longer accepts and shows the current name. A passkey's own name lives only on the server, so a rename sends nothing.
 
 **Sessions.** This device first, marked "This device", then the others by last activity. Its columns are the label or else the browser, such as "Firefox on Linux", the sign-in method, the last activity as a `<time>`, and the address. Row actions are "Rename…" and "Sign out". The section's action is "Sign out everywhere else…", and its confirmation names the count, such as "Sign out 3 other sessions".
 

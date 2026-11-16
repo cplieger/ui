@@ -218,13 +218,18 @@ export interface Column {
 }
 
 /** A flush `.cp-panel` holding a `.cp-table` named by `labelledBy`, and
- *  its body. */
+ *  its body. The panel scrolls a wide table sideways, so it takes focus
+ *  for the arrow keys; a group, since its section is the region of that
+ *  name already. */
 export function table(
   labelledBy: string,
   columns: readonly Column[],
 ): { readonly root: HTMLElement; readonly body: HTMLTableSectionElement } {
   const root = el("div", "cp-panel");
   root.dataset["flush"] = "";
+  root.setAttribute("role", "group");
+  root.setAttribute("aria-labelledby", labelledBy);
+  root.tabIndex = 0;
   const t = el("table", "cp-table");
   t.setAttribute("aria-labelledby", labelledBy);
   const row = el("tr");

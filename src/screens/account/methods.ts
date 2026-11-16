@@ -760,7 +760,6 @@ export function drawMethods<C extends SecurityClient>(
           return a.words;
         }
         if (a.result.ok) {
-          void access.sendSignals(client);
           return undefined;
         }
         return nameRefused(a.result, w) ?? (ctx.settle(a, notices), false);
