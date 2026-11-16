@@ -36,7 +36,7 @@ button.addEventListener("click", async () => {
 });
 ```
 
-- `run(work)` resolves `true` once the button shows its done state, or once it is back at rest when `done` is `false`. It resolves `false`, without calling `work`, while work is running or after `signal` aborts, so one request goes at a time. It also resolves `false` when `signal` aborts before `work` ends.
+- `run(work)` resolves `true` once the button shows its done state, or once it is back at rest when `done` is `false`. It resolves `false`, without calling `work`, while the button is busy (its work running, or its `busyMin` still holding after the work ended) or after `signal` aborts, so one request goes at a time. Work handed to it then is dropped, never queued: a second control that must always act, such as a Retry beside it, starts its request itself and checks the `false`. It also resolves `false` when `signal` aborts before `work` ends.
 - A run during the done state ends it and starts at once, so a press while "Saved" shows saves the change made since.
 - When `work` rejects, the button returns to rest at once and the rejection passes through. Show the error with a notice or a toast.
 - Work that ends within 150ms skips the busy state. A busy state that shows lasts at least 400ms, so it never flashes.

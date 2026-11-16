@@ -45,11 +45,10 @@ export interface ConfirmOptions {
 export interface Confirm {
   /**
    * Runs `work` through the cycle. Resolves true once the button shows its
-   * done state, or is back at rest when `done` is false. Resolves false
-   * without calling `work` while work is running or after `signal` aborts,
-   * and false when `signal` aborts before `work` ends. A run during the done
-   * state ends it and starts at once. When `work` rejects, the button
-   * returns to rest and the rejection passes through.
+   * done state, or is back at rest when `done` is false. Resolves false,
+   * without calling `work`, while busy (work running or busyMin holding) or
+   * after `signal` aborts, and when `signal` aborts before `work` ends. A run
+   * in the done state ends it and starts at once; a rejection passes through.
    */
   run(work: () => Promise<unknown>): Promise<boolean>;
   /** Sets the words the button rests on, such as "Retry" after work that
