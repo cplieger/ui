@@ -47,7 +47,7 @@ These adopted criteria are not fully met yet. Each item says what falls short an
 - [2.4.12 Focus not obscured (enhanced)](#2412-focus-not-obscured-enhanced): No stylesheet sets `scroll-padding` for the sticky header, the foot bar or the status line. The bar requires that no part of a focused control sits under them.
 - [3.2.5 Change on request](#325-change-on-request): Markdown output opens web links in a new tab and the link does not say so. The bar requires the link's name to say it opens a new tab, or the link to open in the same tab.
 - [WCAG 3 2.6.1.4](#2614-no-visual-motion-no-exceptions): The spinners, the loader and the skeleton move for as long as their work runs. The bar requires each to stop within 5 seconds on a whole cycle, at a still frame. Its words keep saying the work runs, and reduced motion keeps its still state.
-- [WCAG 3 2.1.5.5, 2.1.5.6, 2.1.6.7, 2.1.6.8, 2.12.4.3 and 2.12.4.4](#2155-caption-language-adjustable): The video bar has play, seek and time only. The bar requires a captions button that turns the track on and off, a choice of captions track, a choice of audio track where the engine exposes `audioTracks`, and a chapter list from a `chapters` track.
+- [WCAG 3 2.1.5.5, 2.1.5.6, 2.1.6.7, 2.1.6.8, 2.12.4.3 and 2.12.4.4](#2155-caption-language-adjustable): The video bar has play, seek and time only. The bar requires a captions button that turns the track on and off, a choice of captions track and a chapter list from a `chapters` track. Where the engine exposes `audioTracks`, it also requires a choice of audio track.
 - [WCAG 3 2.1.5.1](#2151-captions-adjustable): The video's `::cue` rule sets the caption colour, background and font, which can override the person's caption settings. The bar requires the person's caption settings to win.
 - [WCAG 3 2.4.1.5](#2415-no-keyboard-conflicts): The palette's Ctrl+K takes the browser's own Ctrl+K on Windows and Linux, and the person cannot change it. The bar requires a stored shortcut map in which the person can change or turn off each shortcut, with a row for each on the settings page. The palette's default stays Ctrl+K, or Command+K on a Mac.
 
@@ -68,7 +68,7 @@ An icon is decorative (`aria-hidden`) and the control holding it carries the nam
 
 Level A. Adopted for media an app authors. Met by the app. [Understanding 1.2.1](https://www.w3.org/WAI/WCAG22/Understanding/audio-only-and-video-only-prerecorded.html)
 
-ui produces no media. Its video element plays the person's own library files, which the app neither authors nor can change: WCAG's statement of partial conformance for third-party content covers them. ui's part: the player never hides a track the file carries and every control works by keyboard.
+ui produces no media. Its video element plays the person's own library files, which the app neither authors nor can change. WCAG's statement of partial conformance for third-party content covers them. ui's part is that the player never hides a track the file carries and every control works by keyboard.
 
 - Manual: the media cards (video: tracks, controls).
 
@@ -195,7 +195,7 @@ The purpose of regions comes from landmarks, of controls from native elements an
 
 Level A. Adopted. Met by ui. [Understanding 1.4.1](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)
 
-Colour is never alone: a state has its glyph and word, a link in text is underlined, a chart's series have a legend and the table view, a selected row has a check and its ink.
+Colour is never alone. A state has its glyph and word, and a link in text is underlined. A chart's series have a legend and the table view, and a selected row has a check and its ink.
 
 - axe: `link-in-text-block`.
 - Manual: forced colours and a greyscale screenshot per gallery card.
@@ -282,7 +282,7 @@ Nothing is wider than a 320px window and nothing is clipped. A data table wider 
 
 Level AA. Adopted. Met by ui. [Understanding 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
 
-A boundary holds 3:1 on steps 1 to 3 (4.5:1 under `prefers-contrast: more`), the focus ring is the accent's step 9, series slots hold 3:1 on every surface, and in forced colours every control keeps a system-colour border.
+A boundary holds 3:1 on steps 1 to 3 (4.5:1 under `prefers-contrast: more`), and the focus ring is the accent's step 9. Series slots hold 3:1 on every surface, and in forced colours every control keeps a system-colour border.
 
 - Unit: boundary and series contrast tests.
 - Manual: forced colours and a contrast check per gallery card.
@@ -325,7 +325,7 @@ Only a modal `dialog` holds focus, and Escape closes it. A roving group leaves o
 
 Level AAA. Adopted. Met by ui. [Understanding 2.1.3](https://www.w3.org/WAI/WCAG22/Understanding/keyboard-no-exception.html)
 
-Every action has a keyboard path with no timing: reorder by Move up and Move down or Alt with an arrow, a range by its keys, a chart through its keyboard explorer and table view, a drop zone by its file button.
+Every action has a keyboard path with no timing. Reorder works by Move up and Move down or Alt with an arrow, a range by its keys, a chart through its keyboard explorer and table view, a drop zone by its file button.
 
 - axe: `scrollable-region-focusable`.
 - Manual: each gallery card's APG key table.
@@ -334,7 +334,7 @@ Every action has a keyboard path with no timing: reorder by Move up and Move dow
 
 Level A. Adopted. Met by ui. [Understanding 2.1.4](https://www.w3.org/WAI/WCAG22/Understanding/character-key-shortcuts.html)
 
-No ui module binds a shortcut of a character key alone: the palette opens with Ctrl or Command and a letter, the composer sends with Ctrl or Command and Enter, and type-ahead runs only while its menu or list has focus (the criterion's exception).
+No ui module binds a shortcut of a character key alone. The palette opens with Ctrl or Command and a letter, and the composer sends with Ctrl or Command and Enter. Type-ahead runs only while its menu or list has focus (the criterion's exception).
 
 - Manual: a search of every `keydown` handler, and the keyboard check.
 
@@ -361,7 +361,7 @@ No loop over 5 seconds runs beside other content, except a busy indicator such a
 
 Level AAA. Adopted. Met by ui and the app. [Understanding 2.2.3](https://www.w3.org/WAI/WCAG22/Understanding/no-timing.html)
 
-No ui element sets a time limit on an activity. The account flows' recovery page (15 minutes) and passkey ceremony expiry are the server's security limits: a recovery link that never expires is a standing credential that harms every account holder, so those two steps are excepted, and each says how to start again with nothing typed lost.
+No ui element sets a time limit on an activity. The account flows' recovery page (15 minutes) and passkey ceremony expiry are the server's security limits. A recovery link that never expires is a standing credential that harms every account holder, so those two steps are excepted. Each says how to start again with nothing typed lost.
 
 - Manual: the sign-in, set-up and settings screens.
 
@@ -972,7 +972,7 @@ No ui element plays a sound, so nothing is conveyed by sound.
 
 A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#blocks-of-text-adjustable)
 
-The draft's values are @@, so ui adopts the testable part, that text stays manipulable: a person's style for margins, measure, line height and justification overrides ui's with no loss, since no text box has a fixed height or a clipping overflow, and ui never justifies text. Tested at WCAG 2.2 1.4.12's values until the draft sets its own.
+The draft's values are @@, so ui adopts the testable part, that text stays manipulable. A person's style for margins, measure, line height and justification overrides ui's with no loss, since no text box has a fixed height or a clipping overflow, and ui never justifies text. Tested at WCAG 2.2 1.4.12's values until the draft sets its own.
 
 - Manual: the 1.4.12 text-spacing style plus `text-align: justify` and `max-inline-size: none` per page, clipping and overlap per text node.
 
@@ -1005,7 +1005,7 @@ Every visible word is in the DOM as text: no ui element draws words in a canvas 
 
 A core requirement. Adopted, stricter than WCAG 2.2. Met by ui and the app. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#human-language-detectable)
 
-Stricter than 3.1.2, which excepts names and technical terms: every element that shows text in a known language other than the page's carries its `lang`. ui's elements keep a `lang` the app sets on an item (a title in Japanese stays `lang="ja"`), and the app sets it whenever its data knows the language.
+Stricter than 3.1.2, which excepts names and technical terms. Every element that shows text in a known language other than the page's carries its `lang`. The elements keep a `lang` the app sets on an item, so a title in Japanese stays `lang="ja"`. The app sets it whenever its data knows the language.
 
 - axe: `html-has-lang`, `html-lang-valid`, `valid-lang`.
 - Manual: the list cards (Long names), the media cards, the content cards.
@@ -1171,7 +1171,7 @@ Stricter than 2.1.4, which covers single keys only. No custom shortcut takes a k
 
 A supplemental requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#focus-placed)
 
-When the person leaves a context and comes back, focus returns where it was: a closed dialog, sheet, popover or menu gives focus back to its invoker (native `dialog` and popover behaviour, kept by each module), and a list-detail's Back returns focus to the row that opened it.
+When the person leaves a context and comes back, focus returns where it was. A closed dialog, sheet, popover or menu gives focus back to its invoker, as native `dialog` and popovers do and each module keeps. A list-detail's Back returns focus to the row that opened it.
 
 - Manual: the anchored overlay cards, the dialog cards, the navigation cards (focus after close and after Back).
 
@@ -1195,7 +1195,7 @@ Tab never moves focus into content that was not visible before: a collapsed acco
 
 A supplemental requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#navigation-keys-described)
 
-A key outside the APG's tables and the common Tab, arrow, Enter, Space and Escape set is described where it is used: the chart's keys and the sentence editor's keys in their hints, every shortcut in the shortcut list.
+A key outside the APG's tables and the common Tab, arrow, Enter, Space and Escape set is described where it is used. The chart's keys and the sentence editor's keys are in their hints, and every shortcut is in the shortcut list.
 
 - Manual: the form editor cards, the dialog cards, the chart cards (hint present for each non-common key).
 
@@ -1267,7 +1267,7 @@ No ui element reads gaze.
 
 A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#pointer-accessible)
 
-A press never stops the focus the engine gives it. The combobox and the select panel keep focus in their field on a press in their popup, which is the APG combobox pattern: the pressed option becomes the active descendant, the field's focus, and the click picks it.
+A press never stops the focus the engine gives it. The combobox and the select panel keep focus in their field on a press in their popup, which is the APG combobox pattern. The pressed option becomes the active descendant, the field keeps focus, and the click picks it.
 
 - Manual: focus after a press and a press-drag-away per gallery card.
 
@@ -1325,7 +1325,7 @@ The error sentence is placed under its field. A form's summary, when it has one,
 
 A core requirement. Adopted, stricter than WCAG 2.2. Met by ui and the app. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#errors-preventable)
 
-Stricter than 3.3.4, which covers legal, financial and data submissions only: every form is checked before it saves with a chance to correct it, and an action that cannot be checked is confirmed or undone (see 3.3.6, adopted).
+Stricter than 3.3.4, which covers legal, financial and data submissions only. Every form is checked before it saves with a chance to correct it, and an action that cannot be checked is confirmed or undone (see 3.3.6, adopted).
 
 - Manual: each form's error flow.
 
@@ -1467,7 +1467,7 @@ Blocks are set apart by space and a boundary or a surface step, not by space alo
 
 A core requirement. Adopted, stricter than WCAG 2.2. Met by ui. [Draft](https://www.w3.org/TR/2026/WD-wcag-3.0-20260910/#overlay-content-dismissible)
 
-Stricter than 1.4.13, which covers hover content only: every overlay that covers the main content (dialog, sheet, popover, menu, palette, toast stack) has a way to dismiss it, Escape and a visible close or an outside press.
+Stricter than 1.4.13, which covers hover content only. Every overlay that covers the main content has a way to dismiss it: Escape, and a visible close or an outside press. That covers the dialog, sheet, popover, menu, palette and toast stack.
 
 - Manual: the anchored overlay cards, the dialog cards (Escape and close per overlay in three engines).
 
@@ -1827,7 +1827,7 @@ An ARIA 1.3 attribute. Several ids are new in 1.3. Ruling: no use.
 
 Evidence: a11ysupport.io tests the single-id form (ARIA 1.2) only: no pairing has a result for several ids. WebAIM (May 2025): Announced in some screen readers, but there is no way to reach the details from the element, so 'more of a placeholder'. ARIA-AT: No test plan. Feature page: [a11ysupport.io](https://a11ysupport.io/tech/aria/aria-details_attribute).
 
-No pairing has evidence for several ids, and even the single id reaches the content only in NVDA and Orca. ui's one case for details, a chart and its table view, already has its text alternative tied by `aria-describedby` and its table one button away, which every pairing reaches.
+No pairing has evidence for several ids, and even the single id reaches the content only in NVDA and Orca. ui's one case for details is a chart and its table view. The chart already has its text alternative tied by `aria-describedby` and its table one button away, which every pairing reaches.
 
 ### `aria-braillelabel`
 
@@ -1863,7 +1863,7 @@ An ARIA 1.3 role. Ruling: no use.
 
 Evidence: a11ysupport.io: No page (404). ARIA-AT: No test plan. WebAIM (May 2025): Support 'still inconsistent', with `role="mark"` 'catching on'. Feature page: [the ARIA 1.3 Editor's Draft](https://w3c.github.io/aria/#mark).
 
-Native HTML first: should ui ever highlight text for reference (search hits), it uses `<mark>`, whose role engines map from HTML. ui highlights no text for reference today: the syntax highlighter's colours are styling, not marks.
+Native HTML comes first. Should ui ever highlight text for reference, such as search hits, it uses `<mark>`, whose role engines map from HTML. ui highlights no text for reference today: the syntax highlighter's colours are styling, not marks.
 
 ### `role="comment"`
 
