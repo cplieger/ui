@@ -10,7 +10,7 @@
 import { enhanceRowDetail } from "../../data/table/table.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { focusAction, rowActions, rowHead, type Action } from "./actions.js";
-import { codeOf, reasonOf, retryAfter } from "./answer.js";
+import { codeOf, reasonOf, retryAfter, runes } from "./answer.js";
 import type { KeyCreated, KeyView, Refusal, Result, SecurityClient, TokenView } from "./client.js";
 import { formDialog, type FormDialog } from "./dialogs.js";
 import {
@@ -26,7 +26,7 @@ import {
   time,
   uid,
 } from "./dom.js";
-import { NAME_MAX, nameRefused, renameInPlace, runes } from "./rename.js";
+import { NAME_MAX, nameRefused, renameInPlace } from "./rename.js";
 import { duration, holdBy, holdFor, holdForHttps, isHeld, question, read, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 import { showSecret } from "./shown.js";

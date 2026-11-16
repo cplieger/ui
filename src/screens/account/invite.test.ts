@@ -353,3 +353,60 @@ describe("mountInvite: single sign-on", () => {
     });
   });
 });
+
+describe("mountInvite: a second factor first", () => {
+  it("continues into the sign-in's own enrolment, and joins once it finishes", async () => {
+    const fake = new Fake()
+      .answer(
+        "inviteAcceptPassword",
+        ok({ pending: { ticket: "t1", next: "enrol", methods: ["passkey"] } }),
+      )
+      .answer("pendingPasskey", { kind: "answered", answer: { signed_in: signedIn } });
+    const { panel, joined } = mount(fake);
+    await drawn(panel);
+    await accept(panel);
+    await vi.waitFor(() => {
+      expect(panel.querySelector("h2")?.textContent).toBe("Set up a second factor");
+    });
+    expect(fake.named("storePasswordCredential")).toHaveLength(0);
+    expect(joined).toEqual([]);
+    await userEvent.click(button(panel, "Register a passkey"));
+    await vi.waitFor(() => {
+      expect(joined).toEqual(["mika"]);
+    });
+    expect(fake.named("pendingPasskey")[0]?.args[1]).toBe("t1");
+    expect(fake.named("storePasswordCredential")[0]?.args).toEqual([
+      "noor",
+      "lantern harbour quietly",
+    ]);
+  });
+
+  it("joins at once when the answer is the session", async () => {
+    const fake = new Fake().answer("inviteAcceptPassword", ok({ signed_in: signedIn }));
+    const { panel, joined } = mount(fake);
+    await drawn(panel);
+    await accept(panel);
+    await vi.waitFor(() => {
+      expect(joined).toEqual(["mika"]);
+    });
+    expect(panel.querySelector("h2")).toBeNull();
+  });
+});
+
+describe("mountInvite: the password's bounds", () => {
+  it("words the limit from the app's state, and refuses a password outside it unsent", async () => {
+    const fake = new Fake().answer(
+      "state",
+      ok({ ...EVERY, password_length: { min: 30, max: 64 } }),
+    );
+    const { panel } = mount(fake);
+    await drawn(panel);
+    const help = document.getElementById(
+      input(panel, "password").getAttribute("aria-describedby") ?? "",
+    );
+    expect(help?.textContent).toBe("30 to 64 characters. A few unrelated words make a strong one.");
+    await accept(panel);
+    expect(errorOf(panel, "password")).toBe("Use 30 to 64 characters.");
+    expect(fake.named("inviteAcceptPassword")).toHaveLength(0);
+  });
+});

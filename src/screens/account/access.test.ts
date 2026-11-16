@@ -38,7 +38,7 @@ export function hostPasses(client: access.AuthClient, answer: ApiResult<number>)
     fits<SetupAccess<access.AuthClient>>(access),
     fits<StepUpAccess<access.AuthClient>>(access),
     fits<SecurityAccess<access.AuthClient>>(access),
-    fits<InviteAccess>(access),
+    fits<InviteAccess<access.AuthClient>>(access),
   ];
 }
 

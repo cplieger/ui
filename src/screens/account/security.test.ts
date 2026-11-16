@@ -284,6 +284,52 @@ describe("mountSecurity: the password", () => {
     expect(fake.named("removePassword")).toHaveLength(2);
   });
 
+  it("shows the recovery code a new password issued once, before saying it is saved", async () => {
+    const fake = new Fake()
+      .answer("me", ok(meWith({ password: false, recovery_code: false })))
+      .answer("setPassword", ok({ recovery_code: "H4NW6PTB7KQ2M9XR" }));
+    const { region } = mount(fake);
+    await ready(region);
+    await press(rowOf(region, "Password"), "Set a password…");
+    const d = await dialogOf("Set a password");
+    await userEvent.fill(field(d, "password"), "lantern harbour quietly");
+    await userEvent.click(button(d, "Save password"));
+    const shown = await dialogOf("Your recovery code");
+    expect(shown.querySelector(".cp-code code")?.textContent).toBe("H4NW-6PTB-7KQ2-M9XR");
+    expect(noticeOf(region)).toBe("");
+    await userEvent.click(shown.querySelector("input[type='checkbox']") as HTMLInputElement);
+    await userEvent.click(button(shown, "Continue"));
+    await vi.waitFor(() => {
+      expect(noticeOf(region)).toBe("Password saved.");
+    });
+  });
+
+  it("words the new password's limit from the app's state, and refuses one outside it unsent", async () => {
+    const fake = new Fake().answer(
+      "state",
+      ok({
+        setup_required: false,
+        password_login: true,
+        passkeys: true,
+        oidc: true,
+        password_length: { min: 30, max: 64 },
+      }),
+    );
+    const { region } = mount(fake);
+    await ready(region);
+    await press(rowOf(region, "Password"), "Change password…");
+    const d = await dialogOf("Change password");
+    const fresh = field(d, "password");
+    expect(document.getElementById(fresh.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "30 to 64 characters. A few unrelated words make a strong one.",
+    );
+    await userEvent.fill(field(d, "current_password"), "old words here");
+    await userEvent.fill(fresh, "lantern harbour quietly");
+    await userEvent.click(button(d, "Save password"));
+    expect(errorOf(fresh)).toBe("Use 30 to 64 characters.");
+    expect(fake.named("setPassword")).toHaveLength(0);
+  });
+
   it("offers no Remove password when it is the only way in", async () => {
     const fake = new Fake().answer("me", ok(meWith({ passkey_count: 0, oidc_linked: false })));
     const { region } = mount(fake);
@@ -329,6 +375,24 @@ describe("mountSecurity: passkeys", () => {
     });
     expect(fake.named("registerPasskey")[0]?.args).toHaveLength(1);
     expect(document.querySelector("dialog")).toBeNull();
+  });
+
+  it("shows the recovery code a first second factor issued once, before saying it is added", async () => {
+    const fake = new Fake().answer("registerPasskey", {
+      kind: "registered",
+      recovery_code: "M9XRTB4HNW6P7KQ2",
+    });
+    const { region } = mount(fake);
+    await ready(region);
+    await press(rowOf(region, "Passkeys"), "Add a passkey");
+    const shown = await dialogOf("Your recovery code");
+    expect(shown.querySelector(".cp-code code")?.textContent).toBe("M9XR-TB4H-NW6P-7KQ2");
+    expect(noticeOf(region)).toBe("");
+    await userEvent.click(shown.querySelector("input[type='checkbox']") as HTMLInputElement);
+    await userEvent.click(button(shown, "Continue"));
+    await vi.waitFor(() => {
+      expect(noticeOf(region)).toBe("Passkey added.");
+    });
   });
 
   it("asks for a code first while a second factor is held, keeping the dialog on a wrong one", async () => {

@@ -11,22 +11,26 @@ import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
 import {
+  checkLength,
   codeOf,
   generic,
   passkeyMiss,
+  passwordMisfit,
   passwordWords,
   reasonOf,
   retryAfter,
   type Said,
 } from "./answer.js";
 import type {
+  PasswordAnswer,
+  PasswordLength,
   Pending,
+  PendingAccess,
+  PendingClient,
   PendingMethod,
   PendingPasskeyOutcome,
   Refusal,
   Result,
-  SignInAccess,
-  SignInClient,
   SignInOutcome,
   SignedIn,
   WaitingApproval,
@@ -38,9 +42,9 @@ import type { AccountAction, Runner } from "./run.js";
 import { cycle, holdFor, read, type Hold, type Slot } from "./screen.js";
 import type { AccountWords } from "./words.js";
 
-export interface PendingContext<C extends SignInClient> {
+export interface PendingContext<C extends PendingClient> {
   readonly client: C;
-  readonly access: SignInAccess<C>;
+  readonly access: PendingAccess<C>;
   readonly words: AccountWords;
   readonly run: Runner;
   /** Where the step draws, in place of the sign-in form. */
@@ -50,6 +54,8 @@ export interface PendingContext<C extends SignInClient> {
   readonly webauthn: boolean;
   /** The username signing in, kept with a password the person chooses. */
   readonly username: string;
+  /** The bounds of a password the person chooses. */
+  readonly passwordLength: PasswordLength;
   readonly finish: (signedIn: SignedIn) => void;
   /** Back to the sign-in form, saying why. */
   readonly restart: (said?: Said) => void;
@@ -67,9 +73,14 @@ interface Sent {
   readonly hold?: readonly HTMLElement[];
 }
 
+/** A password answer as a step's: the session alone before access Part 4. */
+export function stepOf(d: PasswordAnswer): SignInOutcome {
+  return "pending" in d || "signed_in" in d ? d : { signed_in: d };
+}
+
 /** Takes the answer of a sign-in's first step; a `pending` one draws its
  *  step in `x.body`. */
-export function continueSignIn<C extends SignInClient>(
+export function continueSignIn<C extends PendingClient>(
   x: PendingContext<C>,
   answer: SignInOutcome,
 ): void {
@@ -206,7 +217,7 @@ export function continueSignIn<C extends SignInClient>(
         notices.show("warning", w["pending.unavailable"]);
         return;
       case "auth_password_rejected":
-        mark(at.input, passwordWords(r, w), "danger");
+        mark(at.input, passwordWords(r, w, x.passwordLength), "danger");
         return;
       case "auth_password_login_disabled":
         drop("password", { tone: "neutral", text: w["pending.passwordOff"] });
@@ -474,18 +485,23 @@ export function continueSignIn<C extends SignInClient>(
           label: w["pending.newPassword"],
           name: "new_password",
           autocomplete: "new-password",
-          help: w["setup.passwordHelp"],
+          help: w["setup.passwordHelp"](x.passwordLength.min, x.passwordLength.max),
         },
         w["password.show"],
       );
       enhanceReveal(f.reveal, f.input, life);
+      checkLength(f.input, x.passwordLength, w, life);
       const { form } = oneField(
         f,
         { text: w["pending.save"], busy: w["pending.saveBusy"] },
         (submit, confirm) => {
           const password = f.input.value;
-          if (password === "") {
-            mark(f.input, w["pending.newPasswordEmpty"], "danger");
+          const misfit =
+            password === ""
+              ? w["pending.newPasswordEmpty"]
+              : passwordMisfit(password, x.passwordLength, w);
+          if (misfit !== undefined) {
+            mark(f.input, misfit, "danger");
             return;
           }
           void send(

@@ -112,7 +112,7 @@ export interface AccountWords {
   readonly "setup.username": string;
   readonly "setup.usernameHelp": string;
   readonly "setup.password": string;
-  readonly "setup.passwordHelp": string;
+  readonly "setup.passwordHelp": (min: number, max: number) => string;
   readonly "setup.submit": string;
   readonly "setup.busy": string;
   readonly "setup.done": string;
@@ -227,7 +227,7 @@ export interface AccountWords {
   readonly "password.setTitle": string;
   readonly "password.current": string;
   readonly "password.new": string;
-  readonly "password.newHelp": string;
+  readonly "password.newHelp": (min: number, max: number) => string;
   readonly "password.save": string;
   readonly "password.busy": string;
   readonly "password.done": string;
@@ -1008,7 +1008,8 @@ export const defaultAccountWords: AccountWords = {
   "setup.username": "Username",
   "setup.usernameHelp": "Letters, digits, dots, dashes and underscores. No spaces.",
   "setup.password": "Password",
-  "setup.passwordHelp": "15 to 128 characters. A few unrelated words make a strong one.",
+  "setup.passwordHelp": (min, max) =>
+    `${String(min)} to ${String(max)} characters. A few unrelated words make a strong one.`,
   "setup.submit": "Create account",
   "setup.busy": "Creating account…",
   "setup.done": "Account created",
@@ -1131,7 +1132,8 @@ export const defaultAccountWords: AccountWords = {
   "password.setTitle": "Set a password",
   "password.current": "Current password",
   "password.new": "New password",
-  "password.newHelp": "15 to 128 characters. A few unrelated words make a strong one.",
+  "password.newHelp": (min, max) =>
+    `${String(min)} to ${String(max)} characters. A few unrelated words make a strong one.`,
   "password.save": "Save password",
   "password.busy": "Saving…",
   "password.done": "Saved",

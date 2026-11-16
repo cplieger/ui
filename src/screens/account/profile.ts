@@ -7,10 +7,10 @@
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { clearError, showError } from "../../forms/form/form.js";
-import { codeOf, reasonOf } from "./answer.js";
+import { codeOf, reasonOf, runes } from "./answer.js";
 import type { AccountView, SecurityClient } from "./client.js";
 import { actionButton, el, field } from "./dom.js";
-import { NAME_MAX, runes } from "./rename.js";
+import { NAME_MAX } from "./rename.js";
 import { cycle, slot } from "./screen.js";
 import type { Ctx } from "./security.js";
 

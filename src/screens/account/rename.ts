@@ -6,7 +6,7 @@
  */
 
 import { clearError, showError } from "../../forms/form/form.js";
-import { codeOf, reasonOf } from "./answer.js";
+import { codeOf, reasonOf, runes } from "./answer.js";
 import type { Refusal } from "./client.js";
 import { el } from "./dom.js";
 import type { AccountWords } from "./words.js";
@@ -14,15 +14,6 @@ import type { AccountWords } from "./words.js";
 /** A display name, a passkey's name and a key's label: one line of at
  *  most this many characters (access `maxDisplayRunes`). */
 export const NAME_MAX = 128;
-
-/** How many code points `text` holds, as access counts a name's runes. */
-export function runes(text: string): number {
-  let n = 0;
-  for (const _ of text) {
-    n += 1;
-  }
-  return n;
-}
 
 export interface RenameSpec {
   /** The node showing the name, replaced by the field while it is edited. */

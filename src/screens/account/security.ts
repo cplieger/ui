@@ -12,10 +12,19 @@ import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { installDialogs } from "../../overlays/dialog/dialog.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
 import { focusAction } from "./actions.js";
-import { clock, codeOf, generic, reasonOf, retryAfter, type Said } from "./answer.js";
+import {
+  clock,
+  codeOf,
+  generic,
+  passwordLengthOf,
+  reasonOf,
+  retryAfter,
+  type Said,
+} from "./answer.js";
 import type {
   AccountView,
   PasskeyView,
+  PasswordLength,
   Refusal,
   Result,
   SecurityAccess,
@@ -103,6 +112,8 @@ export interface Ctx<C extends SecurityClient> {
   readonly httpsOrigin: string | undefined;
   /** The app offers authenticator apps. */
   readonly appTotp: boolean;
+  /** The bounds of a new password. */
+  readonly passwordLength: PasswordLength;
   readonly webauthn: boolean;
   /** This page's session was made over plain HTTP. */
   readonly plain: boolean;
@@ -406,6 +417,7 @@ export function mountSecurity<C extends SecurityClient>(
         usableHere,
         httpsOrigin: state.ok ? state.data.https_origin : undefined,
         appTotp: state.ok && state.data.totp === true,
+        passwordLength: passwordLengthOf(state.ok ? state.data : undefined),
         webauthn: support.webauthn,
         plain: !me.session.secure,
         scopes: options.scopes,

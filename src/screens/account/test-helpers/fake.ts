@@ -475,7 +475,7 @@ export class Fake {
         call<Result<{ readonly uri: string; readonly text: string }>>("pendingTOTPBegin", [ticket]),
       pendingTOTPFinish: (ticket, code) =>
         call<Result<{ readonly signed_in: SignedIn }>>("pendingTOTPFinish", [ticket, code]),
-      setupPassword: (r) => call<Result<SignedIn>>("setupPassword", [r]),
+      setupPassword: (r) => call<Result<PasswordAnswer>>("setupPassword", [r]),
       me: () => call<Result<AccountView>>("me", []),
       updateProfile: (r) => call<Result<AccountView>>("updateProfile", [r]),
       setPassword: (r) => call<Result<void>>("setPassword", [r]),
@@ -532,7 +532,7 @@ export class Fake {
       oidcLinkPending: () => call<Result<unknown>>("oidcLinkPending", []),
       oidcCreatePending: (r) => call<Result<SignedIn>>("oidcCreatePending", [r]),
       oidcLinkByAdmin: (r) => call<Result<SignedIn>>("oidcLinkByAdmin", [r]),
-      inviteAcceptPassword: (r) => call<Result<SignedIn>>("inviteAcceptPassword", [r]),
+      inviteAcceptPassword: (r) => call<Result<PasswordAnswer>>("inviteAcceptPassword", [r]),
       inviteAcceptOIDC: (r) => call<Result<{ readonly url: string }>>("inviteAcceptOIDC", [r]),
     };
     for (const n of this.#without) {
@@ -543,7 +543,7 @@ export class Fake {
 
   /** The access module, as the screens type it. */
   access(): SignInAccess<FakeClient> &
-    InviteAccess &
+    InviteAccess<FakeClient> &
     SetupAccess<FakeClient> &
     StepUpAccess<FakeClient> &
     SecurityAccess<FakeClient> {
@@ -580,7 +580,7 @@ export class Fake {
       oidcSignInURL: (c, redirect) =>
         `${c.oidcPrefix}/start/signin${redirect === undefined ? "" : `?${new URLSearchParams({ redirect }).toString()}`}`,
     } satisfies SignInAccess<FakeClient> &
-      InviteAccess &
+      InviteAccess<FakeClient> &
       SetupAccess<FakeClient> &
       StepUpAccess<FakeClient> &
       SecurityAccess<FakeClient>;

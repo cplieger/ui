@@ -4,13 +4,20 @@ import { userEvent } from "vitest/browser";
 import type { Refusal, StateResponse } from "./client.js";
 import type { AccountAction } from "./run.js";
 import { mountSetup, type SetupOptions } from "./setup.js";
-import { Fake, noAnswer, ok, refuse, type FakeClient } from "./test-helpers/fake.js";
+import { Fake, noAnswer, ok, refuse, signedIn, type FakeClient } from "./test-helpers/fake.js";
+import { dialogOf } from "./test-helpers/security.js";
 import { pageHost, type PageHost } from "./words.js";
 
 let life = new AbortController();
 let sheet: HTMLLinkElement;
 
 beforeEach(async () => {
+  // Dialogs close without their exit glide, so a test reading what follows
+  // a recovery code's dialog waits on no animation frames.
+  const real = matchMedia.bind(window);
+  vi.stubGlobal("matchMedia", (q: string) =>
+    real(q.includes("prefers-reduced-motion: reduce") ? "all" : q),
+  );
   document.documentElement.classList.add("cp");
   sheet = document.createElement("link");
   sheet.rel = "stylesheet";
@@ -24,6 +31,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   life.abort();
   life = new AbortController();
   sheet.remove();
@@ -342,20 +350,8 @@ describe("mountSetup: creating the account", () => {
       "Leave your username out of the password.",
     ],
     [
-      "a short password, with the answer's bounds",
-      {
-        ok: false,
-        status: 400,
-        error: "access: password must be at least 12 characters Length: 12 to 64 characters.",
-        code: "auth_password_rejected",
-        body: { code: "auth_password_rejected", reason: "too_short" },
-      },
-      "password",
-      "Use 12 to 64 characters.",
-    ],
-    [
-      "a long password with no bounds",
-      refuse(400, "auth_password_rejected", "too_long"),
+      "a short password, with access's own bounds before the state sends them",
+      refuse(400, "auth_password_rejected", "too_short"),
       "password",
       "Use 15 to 128 characters.",
     ],
@@ -665,6 +661,167 @@ describe("mountSetup: the passkey offer", () => {
       expect(button(region, "Skip")).toBeDefined();
     });
   }
+});
+
+/** Checks "I saved my recovery code" in the open recovery-code dialog and
+ *  presses Continue, answering the code it showed. */
+async function savedCode(): Promise<string | null | undefined> {
+  const shown = await dialogOf("Your recovery code");
+  const code = shown.querySelector(".cp-code code")?.textContent;
+  await userEvent.click(shown.querySelector("input[type='checkbox']") as HTMLInputElement);
+  await userEvent.click(button(shown, "Continue"));
+  return code;
+}
+
+describe("mountSetup: the recovery code after the passkey offer", () => {
+  it("shows the code the passkey issued once, then goes on", async () => {
+    const fake = new Fake()
+      .answer("state", ok(SETUP))
+      .answer("registerPasskey", { kind: "registered", recovery_code: "M9XRTB4HNW6P7KQ2" });
+    const { region, went } = mount(fake, { offerPasskey: () => true });
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(button(region, "Add a passkey")).toBeDefined();
+    });
+    await userEvent.click(button(region, "Add a passkey"));
+    await dialogOf("Your recovery code");
+    expect(went).toEqual([]);
+    expect(await savedCode()).toBe("M9XR-TB4H-NW6P-7KQ2");
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+  });
+});
+
+describe("mountSetup: a second factor first", () => {
+  const enrol = ok({ pending: { ticket: "t1", next: "enrol", methods: ["totp", "passkey"] } });
+
+  it("continues into the sign-in's own enrolment, and keeps the password once it finishes", async () => {
+    const names: AccountAction[] = [];
+    const fake = new Fake()
+      .answer("state", ok(SETUP))
+      .answer("setupPassword", enrol)
+      .answer("pendingTOTPBegin", ok({ uri: "otpauth://totp/x?secret=JBSWY3DP", text: "JBSWY3DP" }))
+      .answer(
+        "pendingTOTPFinish",
+        ok({ signed_in: { ...signedIn, recovery_code: "WXYZ2345EFGH6789" } }),
+      );
+    const { region, went } = mount(fake, {
+      offerPasskey: () => true,
+      run: (name, work) => {
+        names.push(name);
+        return work();
+      },
+    });
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(region.querySelector("h2")?.textContent).toBe("Set up a second factor");
+    });
+    expect(region.querySelector("h1")?.textContent).toBe("Set up Release tracker");
+    expect(button(region, "Register a passkey")).toBeDefined();
+    await vi.waitFor(() => {
+      expect(region.querySelector("svg.cp-qr")).not.toBeNull();
+    });
+    expect(fake.named("pendingTOTPBegin")[0]?.args).toEqual(["t1"]);
+    expect(fake.named("storePasswordCredential")).toHaveLength(0);
+    await userEvent.fill(input(region, "code"), "123456");
+    await userEvent.click(button(region, "Turn on"));
+    expect(await savedCode()).toBe("WXYZ-2345-EFGH-6789");
+    await vi.waitFor(() => {
+      expect(went).toEqual(["/"]);
+    });
+    expect(fake.named("pendingTOTPFinish")[0]?.args).toEqual(["t1", "123456"]);
+    expect(fake.named("storePasswordCredential")[0]?.args).toEqual([
+      "mika",
+      "lantern harbour quietly",
+    ]);
+    expect(button(region, "Add a passkey")).toBeUndefined();
+    expect(names).toEqual(["auth.setup", "auth.enrol_totp", "auth.enrol_totp"]);
+  });
+
+  it("goes back to the form with the token when the person starts again", async () => {
+    const fake = new Fake().always("state", ok(SETUP)).answer("setupPassword", enrol);
+    const { region } = mount(fake, { token: { help: "Run setup-token.", value: "tok-1" } });
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(button(region, "Start again")).toBeDefined();
+    });
+    await userEvent.click(button(region, "Start again"));
+    await vi.waitFor(() => {
+      expect(input(region, "token").value).toBe("tok-1");
+    });
+    expect(input(region, "password")).not.toBeNull();
+    expect(fake.named("storePasswordCredential")).toHaveLength(0);
+  });
+
+  it("says over the form that the setup timed out when the ticket lapsed", async () => {
+    const fake = new Fake()
+      .always("state", ok(SETUP))
+      .answer("setupPassword", enrol)
+      .answer("pendingTOTPBegin", refuse(401, "auth_token_invalid"));
+    const { region } = mount(fake);
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(noticeOf(region)?.textContent).toBe("This sign-in timed out. Start again.");
+    });
+    expect(input(region, "password")).not.toBeNull();
+  });
+});
+
+describe("mountSetup: the password's bounds", () => {
+  const bounded = ok({ ...SETUP, password_length: { min: 12, max: 64 } });
+
+  it("words the limit from the app's state, and sends only a password inside it", async () => {
+    const fake = new Fake().answer("state", bounded);
+    const { region } = mount(fake);
+    await drawn(region);
+    const help = document.getElementById(
+      input(region, "password").getAttribute("aria-describedby") ?? "",
+    );
+    expect(help?.textContent).toBe("12 to 64 characters. A few unrelated words make a strong one.");
+    // Eleven characters, 22 code units: access counts characters.
+    await fillIn(region, "🔑".repeat(11));
+    await userEvent.click(button(region, "Create account"));
+    expect(errorOf(region, "password")).toBe("Use 12 to 64 characters.");
+    await fillIn(region, "x".repeat(65));
+    await userEvent.click(button(region, "Create account"));
+    expect(errorOf(region, "password")).toBe("Use 12 to 64 characters.");
+    expect(fake.named("setupPassword")).toHaveLength(0);
+    // Twelve characters once composed, as access normalises it.
+    const composed = "e\u0301".repeat(12);
+    await fillIn(region, composed);
+    await userEvent.click(button(region, "Create account"));
+    await vi.waitFor(() => {
+      expect(fake.named("setupPassword")).toHaveLength(1);
+    });
+    expect(fake.named("setupPassword")[0]?.args[0]).toMatchObject({ password: composed });
+  });
+
+  it("words the server's length refusal with the state's bounds", async () => {
+    const fake = new Fake()
+      .answer("state", bounded)
+      .answer("setupPassword", refuse(400, "auth_password_rejected", "too_short"));
+    const { region } = mount(fake);
+    await drawn(region);
+    await create(region);
+    await vi.waitFor(() => {
+      expect(errorOf(region, "password")).toBe("Use 12 to 64 characters.");
+    });
+  });
+
+  it("marks a password outside the bounds once the person leaves the field", async () => {
+    const { region } = mount();
+    await drawn(region);
+    await userEvent.fill(input(region, "password"), "short");
+    await userEvent.tab();
+    expect(errorOf(region, "password")).toBe("Use 15 to 128 characters.");
+    await userEvent.type(input(region, "password"), " and longer now");
+    expect(input(region, "password").getAttribute("aria-invalid")).not.toBe("true");
+  });
 });
 
 describe("pageHost", () => {

@@ -51,6 +51,7 @@ import {
   type PasskeySignInOutcome,
   type PasswordAnswer,
   type Pending,
+  type PendingClient,
   type PendingPasskeyOutcome,
   type SignInOutcome,
   type SignedIn,
@@ -169,6 +170,32 @@ function byWords(r: { readonly username: string; readonly password: string }): R
   }
 }
 
+/** A pending sign-in's enrolment: 000000 is a wrong code, and the
+ *  authenticator app's finish issues the recovery code. */
+const ENROL: Required<Pick<PendingClient, "pendingTOTPBegin" | "pendingTOTPFinish">> = {
+  async pendingTOTPBegin() {
+    await wait(400);
+    return {
+      ok: true,
+      data: {
+        uri: "otpauth://totp/Release%20tracker:mika?secret=JBSWY3DPEHPK3PXP&issuer=Release%20tracker",
+        text: "JBSWY3DPEHPK3PXP",
+      },
+    };
+  },
+  async pendingTOTPFinish(_ticket, code) {
+    await wait(600);
+    return code === "000000"
+      ? refusal(401, "auth_code_invalid", "code_invalid")
+      : { ok: true, data: { signed_in: { ...SIGNED_IN, recovery_code: "WXYZ2345EFGH6789" } } };
+  },
+};
+
+const ceremony = async (): Promise<PendingPasskeyOutcome> => {
+  await wait(900);
+  return { kind: "answered", answer: { signed_in: SIGNED_IN } };
+};
+
 function fake(script: Script): { readonly client: Demo; readonly access: SignInAccess<Demo> } {
   let pressed = 0;
   const client: Demo = {
@@ -194,22 +221,7 @@ function fake(script: Script): { readonly client: Demo; readonly access: SignInA
       await wait(600);
       return { ok: true, data: { signed_in: SIGNED_IN } };
     },
-    async pendingTOTPBegin() {
-      await wait(400);
-      return {
-        ok: true,
-        data: {
-          uri: "otpauth://totp/Release%20tracker:mika?secret=JBSWY3DPEHPK3PXP&issuer=Release%20tracker",
-          text: "JBSWY3DPEHPK3PXP",
-        },
-      };
-    },
-    async pendingTOTPFinish(_ticket, code) {
-      await wait(600);
-      return code === "000000"
-        ? refusal(401, "auth_code_invalid", "code_invalid")
-        : { ok: true, data: { signed_in: { ...SIGNED_IN, recovery_code: "WXYZ2345EFGH6789" } } };
-    },
+    ...ENROL,
     async oidcPending() {
       await wait(300);
       return (script.pending ?? (() => ({ ok: true, data: ALICE })))();
@@ -226,10 +238,6 @@ function fake(script: Script): { readonly client: Demo; readonly access: SignInA
       await wait(700);
       return (script.admin ?? (() => ({ ok: true, data: SIGNED_IN })))(r.temporary_password);
     },
-  };
-  const ceremony = async (): Promise<PendingPasskeyOutcome> => {
-    await wait(900);
-    return { kind: "answered", answer: { signed_in: SIGNED_IN } };
   };
   const access: SignInAccess<Demo> = {
     async signInWithPasskey(_c, o) {
@@ -592,7 +600,7 @@ function setupByWords(r: {
   readonly token?: string;
   readonly username: string;
   readonly password: string;
-}): Result<SignedIn> {
+}): Result<PasswordAnswer> {
   if (r.token === "wrong") {
     return refusal(401, "auth_token_invalid");
   }
@@ -632,6 +640,7 @@ function setupFake(script: SetupScript): {
       await wait(700);
       return (script.setup ?? setupByWords)(r);
     },
+    ...ENROL,
   };
   const access: SetupAccess<SetupClient> = {
     async setupWithPasskey() {
@@ -645,6 +654,7 @@ function setupFake(script: SetupScript): {
     passkeySupport: () => Promise.resolve({ webauthn: true, conditional: false }),
     storePasswordCredential: () => Promise.resolve(),
     takeFragmentToken: () => undefined,
+    pendingPasskey: ceremony,
   };
   return { client, access };
 }
@@ -672,6 +682,15 @@ const SETUP_CARDS: Readonly<Record<string, SetupCard>> = {
   page: { token: { help: tokenHelp() }, offerPasskey: () => true },
   step: { heading: false },
   offer: { offerPasskey: () => true, then: createAccount },
+  rule: {
+    script: {
+      setup: (r) =>
+        r.password === "lantern harbour quietly"
+          ? step("enrol", ["totp", "passkey"])
+          : setupByWords(r),
+    },
+    then: createAccount,
+  },
   token: {
     token: { help: tokenHelp(), value: "wrong" },
     then: createAccount,
@@ -748,7 +767,7 @@ interface InviteScript {
 function inviteByWords(r: {
   readonly username: string;
   readonly password: string;
-}): Result<SignedIn> {
+}): Result<PasswordAnswer> {
   if (r.username === "taken") {
     return refusal(409, "auth_username_taken");
   }
@@ -765,7 +784,7 @@ function inviteByWords(r: {
 function inviteFake(
   script: InviteScript,
   accept = inviteByWords,
-): { readonly client: InviteClient; readonly access: InviteAccess } {
+): { readonly client: InviteClient; readonly access: InviteAccess<InviteClient> } {
   const client: InviteClient = {
     async state() {
       await wait(300);
@@ -779,10 +798,13 @@ function inviteFake(
       await wait(500);
       return { ok: true, data: { url: "#invite" } };
     },
+    ...ENROL,
   };
-  const access: InviteAccess = {
+  const access: InviteAccess<InviteClient> = {
+    passkeySupport: () => Promise.resolve({ webauthn: true, conditional: false }),
     storePasswordCredential: () => Promise.resolve(),
     takeFragmentToken: () => undefined,
+    pendingPasskey: ceremony,
   };
   return { client, access };
 }
@@ -797,6 +819,15 @@ const INVITE_CARDS: Readonly<Record<string, InviteCard>> = {
   page: { token: "inv-1" },
   role: { token: "inv-1", roleFromProvider: true },
   only: { token: "inv-1", script: { state: { ...EVERY, sso: "only" } } },
+  rule: {
+    token: "inv-1",
+    accept: () => step("enrol", ["totp", "passkey"]),
+    then: (panel) => {
+      fill(panel, "username", "noor");
+      fill(panel, "password", "lantern harbour quietly");
+      submitForm(panel);
+    },
+  },
   broken: {},
   "single-owner": {
     token: "inv-1",
@@ -1220,6 +1251,12 @@ const ACCOUNTS: Readonly<Record<string, () => Account>> = {
       { session: { ...account().me.session, method: "password", secure: false } },
       { secure: false, keys: keysOf().slice(0, 2) },
     ),
+  "first-passkey": () =>
+    account({
+      passkey_count: 0,
+      totp: { enrolled: false, usable: false, removable: false },
+      recovery_code: false,
+    }),
   "passkey-only": () =>
     account(
       {
@@ -1565,8 +1602,9 @@ function securityFake(a: Account): {
       if (r.password.length < 15) {
         return refusal(400, "auth_password_rejected", "too_short");
       }
-      methods({ password: true });
-      return done;
+      const issues = a.me.methods.passkey_count > 0 && a.me.methods.recovery_code !== true;
+      methods({ password: true, recovery_code: a.me.methods.recovery_code === true || issues });
+      return { ok: true, data: issues ? { recovery_code: "H4NW6PTB7KQ2M9XR" } : {} };
     },
     async removePassword(r) {
       await wait(700);
@@ -1750,6 +1788,12 @@ function securityFake(a: Account): {
       if (no !== undefined) {
         return { kind: "failed", error: no };
       }
+      const held = a.me.methods;
+      const issues =
+        held.password &&
+        held.passkey_count === 0 &&
+        held.totp?.enrolled !== true &&
+        held.recovery_code !== true;
       const id = Math.max(0, ...a.passkeys.map((k) => k.id)) + 1;
       a.passkeys = [
         ...a.passkeys,
@@ -1761,8 +1805,13 @@ function securityFake(a: Account): {
           rp_id: location.hostname,
         },
       ];
-      methods({ passkey_count: a.passkeys.length });
-      return { kind: "registered" };
+      methods({
+        passkey_count: a.passkeys.length,
+        recovery_code: held.recovery_code === true || issues,
+      });
+      return issues
+        ? { kind: "registered", recovery_code: "M9XRTB4HNW6P7KQ2" }
+        : { kind: "registered" };
     },
     sendSignals: () => Promise.resolve(),
     storePasswordCredential: () => Promise.resolve(),

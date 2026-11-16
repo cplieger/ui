@@ -69,10 +69,10 @@ While `GET /api/auth/state` says `setup_required`, every address opens the setup
 
 1. Setup token, where the app asks for one, with help naming the command that prints it. A setup link fills it.
 2. Username, with help "Letters, digits, dots, dashes and underscores. No spaces."
-3. Password, with `autocomplete="new-password"` and help "15 to 128 characters. A few unrelated words make a strong one." The page sets no `minlength` or `maxlength`, since those count code units rather than characters, and shows the server's refusal on the field.
+3. Password, with `autocomplete="new-password"` and help naming the app's bounds, `state()`'s `password_length`: "15 to 128 characters. A few unrelated words make a strong one." The page sets no `minlength` or `maxlength`, since those count code units rather than characters. It counts characters of the composed (NFC) form, as access does: a password outside the bounds is marked when the person leaves the field and refused before sending. The server's refusal shows on the field.
 4. The primary "Create account". Where the app offers a passkey instead, "Create with a passkey" sits under an `<hr>`.
 
-After it, the app opens on its own [first run](design-patterns.md#first-run) states.
+After it, the app opens on its own [first run](design-patterns.md#first-run) states. Where the app requires a second factor, the answer is a pending sign-in whose next step is enrolment: the account exists, and the token is spent, only once the person sets one up. The screen continues into the sign-in's own setup step, and its recovery code, in the same panel.
 
 | Answer | Words |
 | --- | --- |
@@ -85,7 +85,7 @@ Every new-password field shows `auth_password_rejected` on itself, by reason:
 
 | Reason | Words |
 | --- | --- |
-| `too_short`, `too_long` | "Use 15 to 128 characters.", with the bounds the answer gives |
+| `too_short`, `too_long` | "Use 15 to 128 characters.", with the bounds from `state()` |
 | `contains_username` | "Leave your username out of the password." |
 | `contains_forbidden_word` | "Leave the app's name and words like "password" out of it." |
 | `common` | "That password is too common. Choose another." |
@@ -93,7 +93,7 @@ Every new-password field shows `auth_password_rejected` on itself, by reason:
 
 **Links.** An invite, recovery or setup link carries its token as `#token=<value>`. The page reads it with `takeFragmentToken("token")` before anything else runs, which also removes it from the address bar.
 
-**An invite**, in a multi-user app, opens such a link. The gate "Join Release tracker" asks for a username and a password, with "Create account". `auth_username_taken` says "That username is taken. Choose another." on the field. A missing token, or `auth_token_invalid` on submit, replaces the form with a `.cp-empty`: "This invite link does not work. Ask whoever sent it for a new one."
+**An invite**, in a multi-user app, opens such a link. The gate "Join Release tracker" asks for a username and a password, with "Create account". `auth_username_taken` says "That username is taken. Choose another." on the field. Under the app's second-factor rule it continues into the same setup step as first run. A missing token, or `auth_token_invalid` on submit, replaces the form with a `.cp-empty`: "This invite link does not work. Ask whoever sent it for a new one."
 
 ## Recovery
 

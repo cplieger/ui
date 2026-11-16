@@ -12,18 +12,31 @@ import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
 import { clearError, reportErrors, type FieldError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
 import { installTooltips } from "../../overlays/tooltip/tooltip.js";
-import { codeOf, generic, passwordWords, reasonOf, retryAfter, usernameWords } from "./answer.js";
+import {
+  checkLength,
+  codeOf,
+  generic,
+  passwordLengthOf,
+  passwordMisfit,
+  passwordWords,
+  reasonOf,
+  retryAfter,
+  usernameWords,
+  type Said,
+} from "./answer.js";
 import type {
+  PasswordAnswer,
   RegisterOutcome,
   Refusal,
   Result,
   SetupAccess,
   SetupClient,
   PasskeySignInOutcome,
-  SignedIn,
 } from "./client.js";
 import { actionButton, el, field, heading, line, notice, passwordField, sketch } from "./dom.js";
-import { runDirect } from "./run.js";
+import { showRecoveryCode } from "./factor.js";
+import { continueSignIn } from "./pending.js";
+import { runDirect, type AccountAction } from "./run.js";
 import {
   cycle,
   holdFor,
@@ -115,6 +128,8 @@ export function mountSetup<C extends SetupClient>(
   let hold: Hold | undefined;
   const held = (): boolean => hold?.active() === true;
   let holdable: HTMLElement[] = [];
+  let passwordLength = passwordLengthOf(undefined);
+  let webauthn = false;
 
   const done = (): void => {
     if (options.onDone === undefined) {
@@ -132,10 +147,7 @@ export function mountSetup<C extends SetupClient>(
   };
 
   /** Runs one write, answering null when the write itself failed. */
-  const attempt = async <T>(
-    name: "auth.setup" | "auth.setup_passkey" | "auth.passkey_add",
-    work: () => Promise<T>,
-  ): Promise<T | null> => {
+  const attempt = async <T>(name: AccountAction, work: () => Promise<T>): Promise<T | null> => {
     try {
       return await run(name, work);
     } catch {
@@ -143,7 +155,8 @@ export function mountSetup<C extends SetupClient>(
     }
   };
 
-  const load = async (): Promise<void> => {
+  /** Draws the screen from `state()`, saying `said` over it. */
+  const load = async (said?: Said): Promise<void> => {
     notices.clear();
     region.setAttribute("aria-busy", "true");
     const skeleton = skeletonTiming(() => {
@@ -178,7 +191,12 @@ export function mountSetup<C extends SetupClient>(
         body.replaceChildren(needsHttps(t, app, w));
         return;
       }
+      passwordLength = passwordLengthOf(state.data);
+      webauthn = support.webauthn;
       draw(t, has("setup-passkey") && state.data.passkeys && support.webauthn && !t.plain);
+      if (said !== undefined) {
+        notices.show(said.tone, said.text);
+      }
     });
   };
 
@@ -228,11 +246,12 @@ export function mountSetup<C extends SetupClient>(
         label: w["setup.password"],
         name: "password",
         autocomplete: "new-password",
-        help: w["setup.passwordHelp"],
+        help: w["setup.passwordHelp"](passwordLength.min, passwordLength.max),
       },
       w["password.show"],
     );
     enhanceReveal(password.reveal, password.input, life);
+    checkLength(password.input, passwordLength, w, life);
     const submit = actionButton(w["setup.submit"], { primary: true, type: "submit" });
     form.append(username.root, password.root, submit);
     holdable.push(submit);
@@ -268,8 +287,8 @@ export function mountSetup<C extends SetupClient>(
     return parts;
   };
 
-  /** Reports the empty fields, the password only when `password`; true
-   *  when none is empty. */
+  /** Reports the empty fields, and the password only when `password`;
+   *  true when every field is ready to send. */
   const filled = (f: SetupForm, password: boolean): boolean => {
     const empty: FieldError[] = [];
     if (f.token?.value.trim() === "") {
@@ -278,8 +297,13 @@ export function mountSetup<C extends SetupClient>(
     if (f.username.value.trim() === "") {
       empty.push({ field: f.username, message: w["setup.usernameEmpty"] });
     }
-    if (password && f.password.value === "") {
-      empty.push({ field: f.password, message: w["setup.passwordEmpty"] });
+    const misfit = password
+      ? f.password.value === ""
+        ? w["setup.passwordEmpty"]
+        : passwordMisfit(f.password.value, passwordLength, w)
+      : undefined;
+    if (misfit !== undefined) {
+      empty.push({ field: f.password, message: misfit });
     }
     report(f, empty);
     return empty.length === 0;
@@ -303,18 +327,20 @@ export function mountSetup<C extends SetupClient>(
     }
     notices.clear();
     const request = { ...tokenOf(f), username: f.username.value, password: f.password.value };
+    const kept = (): Promise<void> =>
+      access.storePasswordCredential(request.username, request.password);
     const got = await cycle(
       f.confirm,
       async () => {
-        const answer: Result<SignedIn> | null = await attempt("auth.setup", () =>
+        const answer: Result<PasswordAnswer> | null = await attempt("auth.setup", () =>
           client.setupPassword(request),
         );
-        if (answer?.ok === true) {
-          await access.storePasswordCredential(request.username, request.password);
+        if (answer?.ok === true && !("pending" in answer.data)) {
+          await kept();
         }
         return answer;
       },
-      (answer) => answer?.ok === true,
+      (answer) => answer?.ok === true && !("pending" in answer.data),
     );
     if (got === undefined || signal?.aborted === true) {
       return;
@@ -323,12 +349,38 @@ export function mountSetup<C extends SetupClient>(
     if (answer === null) {
       notices.show("danger", w["generic.server"], retryButton(f));
     } else if (answer.ok) {
-      const offer = (await options.offerPasskey?.()) === true;
-      if (!ended()) {
-        if (offer) {
-          offerPasskey();
-        } else {
-          done();
+      if ("pending" in answer.data) {
+        // Under a second-factor rule the account exists only once the
+        // enrolment finishes, so the password is kept with the browser then.
+        continueSignIn(
+          {
+            client,
+            access,
+            words: w,
+            run,
+            body,
+            notices,
+            webauthn,
+            username: request.username,
+            passwordLength,
+            finish: () => {
+              void kept().then(done, done);
+            },
+            restart: (said) => {
+              void load(said);
+            },
+            ...life,
+          },
+          answer.data,
+        );
+      } else {
+        const offer = (await options.offerPasskey?.()) === true;
+        if (!ended()) {
+          if (offer) {
+            offerPasskey();
+          } else {
+            done();
+          }
         }
       }
     } else {
@@ -367,7 +419,7 @@ export function mountSetup<C extends SetupClient>(
         report(f, [{ field: f.username, message: usernameWords(r, w) }]);
         return;
       case "auth_password_rejected":
-        report(f, [{ field: f.password, message: passwordWords(r, w) }]);
+        report(f, [{ field: f.password, message: passwordWords(r, w, passwordLength) }]);
         return;
       case "auth_breach_check_unavailable":
         notices.show("warning", w.auth_breach_check_unavailable);
@@ -506,7 +558,15 @@ export function mountSetup<C extends SetupClient>(
           if (outcome === null) {
             notices.show("danger", w["generic.server"]);
           } else if (outcome.kind === "registered") {
-            done();
+            if (outcome.recovery_code === undefined) {
+              done();
+            } else {
+              void showRecoveryCode(outcome.recovery_code, w, signal).then(() => {
+                if (!ended()) {
+                  done();
+                }
+              });
+            }
           } else if (outcome.kind !== "failed") {
             ceremonyRefused(outcome.kind);
           } else if (typeof outcome.error === "string") {

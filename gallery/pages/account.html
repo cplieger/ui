@@ -199,7 +199,12 @@
       <div class="card" data-new>
         <h2>The passkey offer</h2>
         <section class="cp-panel" data-setup-demo="offer"></section>
-        <footer>After a password setup, when the app's own check says passkeys work at this address: Add a passkey, or Skip.</footer>
+        <footer>After a password setup, when the app's own check says passkeys work at this address: Add a passkey, or Skip. When that passkey is the first second factor beside the password, the recovery code that issues follows once.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A second factor first</h2>
+        <section class="cp-panel" data-setup-demo="rule"></section>
+        <footer>An app that requires a second factor: the account exists, and the token is spent, only once the person sets one up. The sign-in's own setup step follows the password, with the authenticator app's QR code and a passkey. Type 000000 for a wrong code; any other six digits finish, and the recovery code follows once.</footer>
       </div>
       <div class="card" data-new>
         <h2>A token that does not work</h2>
@@ -239,6 +244,11 @@
         <h2>The role from the provider</h2>
         <section class="cp-panel" data-invite-demo="role"></section>
         <footer>An app that takes roles from its identity provider says the invite's role lasts until the first sign-in.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A second factor first</h2>
+        <section class="cp-panel" data-invite-demo="rule"></section>
+        <footer>An app that requires a second factor: the account exists, and the invite is spent, only once the person sets one up, in the sign-in's own setup step. Type 000000 for a wrong code; any other six digits finish, and the recovery code follows once.</footer>
       </div>
       <div class="card" data-new>
         <h2>Single sign-on only</h2>
@@ -325,7 +335,12 @@
       <div class="card" data-new>
         <h2>Only a passkey</h2>
         <div data-security-demo="passkey-only"></div>
-        <footer>One passkey is the only way in: the row suggests a second one, and there is no authenticator app to set up without a password.</footer>
+        <footer>One passkey is the only way in: the row suggests a second one, and there is no authenticator app to set up without a password. Set a password adds one beside the passkey, and the recovery code that issues follows once.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>A first passkey beside a password</h2>
+        <div data-security-demo="first-passkey"></div>
+        <footer>A password and nothing else: Add a passkey makes the passkey a second factor, and the recovery code that issues follows once, held open until "I saved my recovery code" is checked.</footer>
       </div>
     </div>
   </section>

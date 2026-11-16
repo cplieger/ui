@@ -9,7 +9,15 @@
 import type { Confirm } from "../../buttons/confirm/confirm.js";
 import { clearError, showError } from "../../forms/form/form.js";
 import { enhanceReveal } from "../../forms/secret/secret.js";
-import { codeOf, passwordWords, reasonOf, retryAfter, type Said } from "./answer.js";
+import {
+  checkLength,
+  codeOf,
+  passwordMisfit,
+  passwordWords,
+  reasonOf,
+  retryAfter,
+  type Said,
+} from "./answer.js";
 import type {
   AccountView,
   PasskeyView,
@@ -439,6 +447,14 @@ export function drawMethods<C extends SecurityClient>(
     return true;
   }
 
+  /** Shows a recovery code a write issued, once, before the screen moves
+   *  on. */
+  async function issuedCode(code: string | undefined): Promise<void> {
+    if (code !== undefined) {
+      await showRecoveryCode(code, w, ctx.signal);
+    }
+  }
+
   function done(text: string, focus?: string): void {
     notices.show("success", text);
     void ctx.refresh(focus);
@@ -476,10 +492,11 @@ export function drawMethods<C extends SecurityClient>(
         label: w["password.new"],
         name: "password",
         autocomplete: "new-password",
-        help: w["password.newHelp"],
+        help: w["password.newHelp"](ctx.passwordLength.min, ctx.passwordLength.max),
       },
       w["password.show"],
     );
+    checkLength(fresh.input, ctx.passwordLength, w, ctx.life);
     for (const f of [current, fresh]) {
       if (f !== undefined) {
         enhanceReveal(f.reveal, f.input, ctx.life);
@@ -505,8 +522,12 @@ export function drawMethods<C extends SecurityClient>(
         current.input.focus();
         return;
       }
-      if (fresh.input.value === "") {
-        showError(fresh.input, w["password.newEmpty"]);
+      const misfit =
+        fresh.input.value === ""
+          ? w["password.newEmpty"]
+          : passwordMisfit(fresh.input.value, ctx.passwordLength, w);
+      if (misfit !== undefined) {
+        showError(fresh.input, misfit);
         fresh.input.focus();
         return;
       }
@@ -538,7 +559,7 @@ export function drawMethods<C extends SecurityClient>(
                 }
                 return false;
               case "auth_password_rejected":
-                showError(fresh.input, passwordWords(r, w));
+                showError(fresh.input, passwordWords(r, w, ctx.passwordLength));
                 fresh.input.focus();
                 return true;
               case "auth_breach_check_unavailable":
@@ -548,10 +569,22 @@ export function drawMethods<C extends SecurityClient>(
                 return waited(d, r);
             }
           });
-          if (ok === true) {
-            void access.storePasswordCredential(me.user.username, request.password);
-            done(w["password.changed"], "password-change");
+          if (ok !== true) {
+            return;
           }
+          void access.storePasswordCredential(me.user.username, request.password);
+          const a = got.answer;
+          const issued: unknown = a.kind === "done" && a.result.ok ? a.result.data : undefined;
+          const code =
+            typeof issued === "object" &&
+            issued !== null &&
+            "recovery_code" in issued &&
+            typeof issued.recovery_code === "string"
+              ? issued.recovery_code
+              : undefined;
+          void issuedCode(code).then(() => {
+            done(w["password.changed"], "password-change");
+          });
         });
     });
   }
@@ -681,7 +714,9 @@ export function drawMethods<C extends SecurityClient>(
       const outcome = a.result.data;
       const said = registered(outcome);
       if (outcome.kind === "registered") {
-        done(w["passkeys.added"], "passkey-add");
+        void issuedCode(outcome.recovery_code).then(() => {
+          done(w["passkeys.added"], "passkey-add");
+        });
       } else if (said !== undefined) {
         notices.show(said.tone, said.text);
       }

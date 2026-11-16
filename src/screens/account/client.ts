@@ -45,6 +45,14 @@ export interface StateResponse {
   /** From access Part 5: how single sign-on sits beside local sign-in.
    *  Absent reads as `"alongside"`. */
   readonly sso?: SSOMode;
+  /** From access Part 4: the bounds a new password must fit. */
+  readonly password_length?: PasswordLength;
+}
+
+/** A password's bounds, in characters of its NFC form. */
+export interface PasswordLength {
+  readonly min: number;
+  readonly max: number;
 }
 
 /** How single sign-on sits beside local sign-in, for everyone but the
@@ -102,7 +110,12 @@ export type PasskeySignInOutcome =
     };
 
 export type RegisterOutcome =
-  | { readonly kind: "registered" }
+  | {
+      readonly kind: "registered";
+      /** From access Part 4: set when this passkey is the first second
+       *  factor of a person with a password. Show it once. */
+      readonly recovery_code?: string;
+    }
   | { readonly kind: "cancelled" | "duplicate" | "timeout" | "not-discoverable" }
   | { readonly kind: "failed"; readonly error: Refusal | string };
 
@@ -111,19 +124,13 @@ export type OIDCReturn =
   | { readonly kind: "none" | "not_linked" | "linked" | "stepped_up" }
   | { readonly kind: "error"; readonly code: string | undefined };
 
-/** `loginPassword`'s answer: the session before access Part 4, a step's
- *  answer from it. */
+/** A password sign-in's, setup's or invite's answer: the session before
+ *  access Part 4, a step's answer from it. */
 export type PasswordAnswer = SignedIn | SignInOutcome;
 
-/** The client calls the sign-in screen makes. The pending steps' calls
- *  come with access Part 4: a step shows a method only when the client has
- *  its call. */
-export interface SignInClient {
-  state(): Promise<Result<StateResponse>>;
-  loginPassword(r: {
-    readonly username: string;
-    readonly password: string;
-  }): Promise<Result<PasswordAnswer>>;
+/** The client calls a pending sign-in's steps make. They come with access
+ *  Part 4: a step shows a method only when the client has its call. */
+export interface PendingClient {
   loginCode?(ticket: string, code: string): Promise<Result<SignInOutcome>>;
   loginRecoveryCode?(ticket: string, code: string): Promise<Result<SignInOutcome>>;
   loginSetPassword?(ticket: string, password: string): Promise<Result<SignInOutcome>>;
@@ -134,6 +141,15 @@ export interface SignInClient {
     ticket: string,
     code: string,
   ): Promise<Result<{ readonly signed_in: SignedIn } | WaitingApproval>>;
+}
+
+/** The client calls the sign-in screen makes. */
+export interface SignInClient extends PendingClient {
+  state(): Promise<Result<StateResponse>>;
+  loginPassword(r: {
+    readonly username: string;
+    readonly password: string;
+  }): Promise<Result<PasswordAnswer>>;
   /** The identity a single sign-on return left unlinked. With
    *  `oidcLinkPending`, the screen offers to link it. */
   oidcPending?(): Promise<Result<PendingLinkView>>;
@@ -161,37 +177,22 @@ export interface PendingLinkView {
 }
 
 /** The client calls the invite screen makes. */
-export interface InviteClient {
+export interface InviteClient extends PendingClient {
   state(): Promise<Result<StateResponse>>;
   inviteAcceptPassword(r: {
     readonly token: string;
     readonly username: string;
     readonly password: string;
-  }): Promise<Result<SignedIn>>;
+  }): Promise<Result<PasswordAnswer>>;
   /** From access Part 5: the provider's address to accept by single
    *  sign-on. */
   inviteAcceptOIDC?(r: { readonly token: string }): Promise<Result<{ readonly url: string }>>;
 }
 
-/** The `@cplieger/access` functions the invite screen calls. */
-export interface InviteAccess {
+/** The `@cplieger/access` functions a pending sign-in's steps call, over
+ *  the host's client type `C`. The ones access Part 4 adds are optional. */
+export interface PendingAccess<C> {
   storePasswordCredential(username: string, password: string): Promise<void>;
-  takeFragmentToken(name: string): string | undefined;
-}
-
-/** The `@cplieger/access` functions the sign-in screen calls, over the host's
- *  client type `C`. The ones access Part 4 adds are optional. */
-export interface SignInAccess<C> {
-  signInWithPasskey(
-    c: C,
-    o?: { readonly mediation?: "conditional"; readonly signal?: AbortSignal },
-  ): Promise<PasskeySignInOutcome>;
-  passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
-  storePasswordCredential(username: string, password: string): Promise<void>;
-  readOIDCReturn(search: string): OIDCReturn;
-  oidcSignInURL(c: C, redirect?: string): string;
-  /** True when `value` reads as a temporary password, in any spelling. */
-  looksLikeTemporaryPassword?(value: string): boolean;
   /** A passkey as the second step. */
   readonly loginSecondPasskey?: (c: C, ticket: string) => Promise<PendingPasskeyOutcome>;
   /** A passkey in place of a password, after a temporary password. */
@@ -200,14 +201,33 @@ export interface SignInAccess<C> {
   readonly pendingPasskey?: (c: C, ticket: string) => Promise<PendingPasskeyOutcome>;
 }
 
+/** The `@cplieger/access` functions the invite screen calls. */
+export interface InviteAccess<C> extends PendingAccess<C> {
+  passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
+  takeFragmentToken(name: string): string | undefined;
+}
+
+/** The `@cplieger/access` functions the sign-in screen calls. */
+export interface SignInAccess<C> extends PendingAccess<C> {
+  signInWithPasskey(
+    c: C,
+    o?: { readonly mediation?: "conditional"; readonly signal?: AbortSignal },
+  ): Promise<PasskeySignInOutcome>;
+  passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
+  readOIDCReturn(search: string): OIDCReturn;
+  oidcSignInURL(c: C, redirect?: string): string;
+  /** True when `value` reads as a temporary password, in any spelling. */
+  looksLikeTemporaryPassword?(value: string): boolean;
+}
+
 /** The client calls the setup screen makes. */
-export interface SetupClient {
+export interface SetupClient extends PendingClient {
   state(): Promise<Result<StateResponse>>;
   setupPassword(r: {
     readonly token?: string;
     readonly username: string;
     readonly password: string;
-  }): Promise<Result<SignedIn>>;
+  }): Promise<Result<PasswordAnswer>>;
 }
 
 /** `MeResponse.methods`: what the signed-in person holds, and what the
@@ -345,14 +365,13 @@ export interface StepUpAccess<C> {
 }
 
 /** The `@cplieger/access` functions the setup screen calls. */
-export interface SetupAccess<C> {
+export interface SetupAccess<C> extends PendingAccess<C> {
   setupWithPasskey(
     c: C,
     r: { readonly token?: string; readonly username: string },
   ): Promise<PasskeySignInOutcome>;
   registerPasskey(c: C): Promise<RegisterOutcome>;
   passkeySupport(): Promise<{ readonly webauthn: boolean; readonly conditional: boolean }>;
-  storePasswordCredential(username: string, password: string): Promise<void>;
   takeFragmentToken(name: string): string | undefined;
 }
 
@@ -363,10 +382,13 @@ export interface SecurityClient extends StepUpClient, SessionsClient, KeysClient
   state(): Promise<Result<StateResponse>>;
   me(): Promise<Result<AccountView>>;
   updateProfile(r: { readonly display_name: string }): Promise<Result<AccountView>>;
+  /** Answers nothing before access Part 4, then `{recovery_code?}`: set
+   *  when the new password joins a usable passkey of a person who held
+   *  no code. */
   setPassword(r: {
     readonly current_password?: string;
     readonly password: string;
-  }): Promise<Result<void>>;
+  }): Promise<Result<unknown>>;
   removePassword(r: { readonly current_password: string }): Promise<Result<void>>;
   passkeys(): Promise<Result<readonly PasskeyView[]>>;
   renamePasskey(id: number, r: { readonly name: string }): Promise<Result<void>>;

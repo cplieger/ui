@@ -5,7 +5,8 @@
  * @module
  */
 
-import type { PasskeyMiss, Refusal } from "./client.js";
+import { showError } from "../../forms/form/form.js";
+import type { PasskeyMiss, PasswordLength, Refusal, StateResponse } from "./client.js";
 import type { AccountWords } from "./words.js";
 
 export type Tone = "danger" | "warning" | "neutral" | "success";
@@ -66,27 +67,66 @@ export function usernameWords(r: Refusal, w: AccountWords): string {
   }
 }
 
-/** The words for `auth_password_rejected`, by its reason. The bounds come
- *  only in access's `Error.Detail` sentence ("Length: 15 to 128
- *  characters."), which the app's envelope sends as the message or a
- *  `detail` field. */
-export function passwordWords(r: Refusal, w: AccountWords): string {
+/** How many code points `text` holds, as access counts runes. */
+export function runes(text: string): number {
+  let n = 0;
+  for (const _ of text) {
+    n += 1;
+  }
+  return n;
+}
+
+/** The bounds a new password must fit: `state()`'s, else access's fixed
+ *  15 to 128, which it held before Part 4 sent them. */
+export function passwordLengthOf(s: StateResponse | undefined): PasswordLength {
+  return s?.password_length ?? { min: 15, max: 128 };
+}
+
+/** The words for a password outside `length`, or undefined when it fits
+ *  or is empty. Counts code points of the NFC form, as access does. */
+export function passwordMisfit(
+  value: string,
+  length: PasswordLength,
+  w: AccountWords,
+): string | undefined {
+  if (value === "") {
+    return undefined;
+  }
+  const n = runes(value.normalize("NFC"));
+  if (n < length.min) {
+    return w["auth_password_rejected.too_short"](length.min, length.max);
+  }
+  return n > length.max ? w["auth_password_rejected.too_long"](length.min, length.max) : undefined;
+}
+
+/** Marks `input` with its misfit when the person leaves it, before any
+ *  request. */
+export function checkLength(
+  input: HTMLInputElement,
+  length: PasswordLength,
+  w: AccountWords,
+  life: { readonly signal?: AbortSignal },
+): void {
+  input.addEventListener(
+    "change",
+    () => {
+      const misfit = passwordMisfit(input.value, length, w);
+      if (misfit !== undefined) {
+        showError(input, misfit);
+      }
+    },
+    life,
+  );
+}
+
+/** The words for `auth_password_rejected`, by its reason, with the bounds
+ *  of the field it refused. */
+export function passwordWords(r: Refusal, w: AccountWords, length: PasswordLength): string {
   const reason = reasonOf(r);
   switch (reason) {
     case "too_short":
-    case "too_long": {
-      const body = r.body;
-      const detail =
-        typeof body === "object" && body !== null && Object.hasOwn(body, "detail")
-          ? (body as Record<string, unknown>)["detail"]
-          : undefined;
-      const said = `${r.error} ${typeof detail === "string" ? detail : ""}`;
-      const bounds = /Length: (\d+) to (\d+) characters/.exec(said);
-      return w[`auth_password_rejected.${reason}`](
-        Number(bounds?.[1] ?? 15),
-        Number(bounds?.[2] ?? 128),
-      );
-    }
+    case "too_long":
+      return w[`auth_password_rejected.${reason}`](length.min, length.max);
     case "contains_username":
     case "contains_forbidden_word":
     case "common":

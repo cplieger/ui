@@ -403,6 +403,31 @@ describe("mountSignIn: choosing a credential after a temporary password", () => 
     expect(ran).toEqual(["auth.sign_in", "auth.sign_in_set_password"]);
   });
 
+  it("words the new password's bounds from the app's state, and refuses one outside them unsent", async () => {
+    const fake = new Fake().answer(
+      "state",
+      ok({
+        setup_required: false,
+        password_login: true,
+        passkeys: true,
+        oidc: true,
+        password_length: { min: 12, max: 64 },
+      }),
+    );
+    const { panel } = await stepped(fake, choose);
+    const field = input(panel, "new_password");
+    expect(document.getElementById(field.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "12 to 64 characters. A few unrelated words make a strong one.",
+    );
+    await userEvent.fill(field, "copper lamp");
+    await userEvent.click(submit(panel));
+    expect(errorOf(field)).toBe("Use 12 to 64 characters.");
+    await userEvent.fill(field, "x".repeat(65));
+    await userEvent.click(submit(panel));
+    expect(errorOf(field)).toBe("Use 12 to 64 characters.");
+    expect(fake.named("loginSetPassword")).toHaveLength(0);
+  });
+
   it("refuses the temporary password itself as the new one", async () => {
     const fake = new Fake().answer(
       "loginSetPassword",

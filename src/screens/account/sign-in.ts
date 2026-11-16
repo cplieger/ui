@@ -18,6 +18,7 @@ import {
   codeOf,
   generic,
   passkeyMiss,
+  passwordLengthOf,
   reasonOf,
   retryAfter,
   usernameWords,
@@ -32,7 +33,6 @@ import type {
   Result,
   SignInAccess,
   SignInClient,
-  SignInOutcome,
   SignedIn,
   StateResponse,
 } from "./client.js";
@@ -49,7 +49,7 @@ import {
   uid,
 } from "./dom.js";
 import { adminLinkForm, createSection, lapsed, linkRefused, type LinkContext } from "./link.js";
-import { continueSignIn } from "./pending.js";
+import { continueSignIn, stepOf } from "./pending.js";
 import { runDirect, type AccountAction } from "./run.js";
 import {
   cleanAddress,
@@ -138,12 +138,6 @@ interface PasswordForm {
   readonly temporary: () => boolean;
 }
 
-/** `loginPassword`'s answer as a step's: the session alone before access
- *  Part 4. */
-function stepOf(d: PasswordAnswer): SignInOutcome {
-  return "pending" in d || "signed_in" in d ? d : { signed_in: d };
-}
-
 /** Fills `panel`, the gate page's `.cp-panel`, with the sign-in screen. */
 export function mountSignIn<C extends SignInClient>(
   panel: HTMLElement,
@@ -198,6 +192,7 @@ export function mountSignIn<C extends SignInClient>(
   /** A plain screen that must not send a temporary password. */
   let precheck = false;
   let webauthn = false;
+  let passwordLength = passwordLengthOf(undefined);
   let opened = false;
   let typed = options.username;
   let ssoLinkNode: HTMLAnchorElement | undefined;
@@ -266,6 +261,7 @@ export function mountSignIn<C extends SignInClient>(
       const s = state.data;
       webauthn = support.webauthn;
       transport = transportOf(s);
+      passwordLength = passwordLengthOf(s);
       precheck = transport.plain && s.temporary_password_https_only === true;
       let said = after ?? opening();
       opened = true;
@@ -761,6 +757,7 @@ export function mountSignIn<C extends SignInClient>(
           notices,
           webauthn,
           username: credentials.username,
+          passwordLength,
           finish,
           restart: (said) => {
             void load(said);
