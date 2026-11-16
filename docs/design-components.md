@@ -50,7 +50,7 @@ This page lists the classes in `@cplieger/ui/css/system`. [Design language](desi
 | `[data-token]`, `.cp-syntax` | a highlighted token in the `--cp-syntax-*` colours inside `.cp`, `.cp-code`, `.cp-prose` or a `.cp-syntax` host such as a file view, as [highlight](content/highlight.md) writes it |
 | `.cp-table` | a data table, with `data-col="select"`, `"num"` or `"actions"` and `data-priority`, its `<caption>` small and muted at its start. A row's header, a `<th scope="row">` in the body, reads as one of the row's cells, a link in a cell holds its glyph beside its words, and the row a keyboard is in takes the hover fill. A body row with `data-kept` mutes every cell and its title link, as a kept list row does |
 | `.cp-sort` | a sortable header's button inside a `<th>`, its arrow drawn on the column `aria-sort` marks and turned over for descending. [table](data/table.md) sorts |
-| `.cp-title-cell` | a title cell: a `.cp-cover` sized to the row beside the title and its line |
+| `.cp-title-cell` | a title cell: a 2rem-wide `.cp-cover` beside the title and its line, 6px from the row's top and bottom edges |
 | `.cp-batchbar`, `.cp-batch-count` | the actions for the selected rows and their count, the bar sticking `--cp-sticky-top` from the top, 0 unless a sticky header above it sets its height. [table](data/table.md) runs it |
 | `.cp-pager` | the range and the Previous and Next links under a table |
 | `.cp-share`, `.cp-share-bar`, `.cp-share-legend` | the parts of a whole as segments sized by share with a 2px gap, a tip on each, and a legend of chips that can be links, over the table that holds the numbers, as [share-bar](data/share-bar.md) describes |

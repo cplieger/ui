@@ -96,9 +96,8 @@ th[aria-sort="descending"] > .cp-sort::after {
   }
 }
 
-/* The title cell: a .cp-cover beside the title and its line. The cover
- * fills its row less 1px each side, so pictures in stacked rows
- * sit 2px apart; the words keep their own padding. */
+/* The title cell: a .cp-cover beside the title and its line, inset by the
+ * shared cover tokens, so the row takes the cover's height. */
 .cp-title-cell {
   display: flex;
   align-items: center;
@@ -106,17 +105,16 @@ th[aria-sort="descending"] > .cp-sort::after {
 }
 
 .cp-table :is(td, th):has(> .cp-title-cell) {
-  padding-block: 1px;
+  padding-block: var(--cp-cover-inset);
 }
 
 .cp-title-cell > .cp-cell-stack {
-  padding-block: var(--cp-space-2);
+  padding-block: 0;
 }
 
 .cp-title-cell > .cp-cover {
   flex: none;
-  inline-size: 2.25rem;
-  border-radius: calc(var(--cp-radius-control) - 0.125rem);
+  inline-size: var(--cp-cover-row-w);
 }
 
 .cp-title-cell > .cp-cover > .cp-icon {

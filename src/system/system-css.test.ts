@@ -1589,7 +1589,7 @@ describe("css/system.css", () => {
     panel.hidePopover();
   });
 
-  it("runs a listbox's covered options edge to edge, a title over its facts, 2px apart", () => {
+  it("runs a listbox's covered options edge to edge, a title over its facts, the covers flush", () => {
     theme("light");
     const option = (title: string) =>
       `<li role="option"><span class="cp-cover" data-harmony="2"><span class="cp-icon"></span></span><strong>${title}</strong><small>2023 · TV</small></li>`;
@@ -1610,7 +1610,7 @@ describe("css/system.css", () => {
     expect(Math.round(cover.left - box.left)).toBe(1);
     expect([cover.width, cover.height]).toEqual([32, 48]);
     expect(first.getBoundingClientRect().top - box.top).toBe(1);
-    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(2);
+    expect(second.getBoundingClientRect().top - first.getBoundingClientRect().bottom).toBe(0);
     const title = (first.querySelector("strong") as Element).getBoundingClientRect();
     const facts = (first.querySelector("small") as Element).getBoundingClientRect();
     expect(facts.top).toBeGreaterThanOrEqual(title.bottom);
@@ -1657,7 +1657,7 @@ describe("css/system.css", () => {
       '<div class="cp-app"><header class="cp-header"><nav class="cp-nav"><a class="cp-nav-item" href="#a" aria-current="page"><span class="cp-nav-label">Overview</span></a><a class="cp-nav-item" href="#b"><span class="cp-nav-label">Library</span></a></nav></header><main class="cp-main">Main</main></div>',
     );
     const nav = el.querySelector(".cp-nav") as HTMLElement;
-    expect(getComputedStyle(nav).position).toBe("static");
+    expect(getComputedStyle(nav).position).toBe("relative");
     await page.viewport(390, 800);
     expect(getComputedStyle(nav).position).toBe("fixed");
     expect(Math.round(nav.getBoundingClientRect().bottom)).toBe(800);
@@ -3061,7 +3061,7 @@ describe("css/system.css", () => {
     );
   });
 
-  it("gives a lone row action the width of its column", () => {
+  it("sizes a lone row action to its words, not to its column", () => {
     theme("light");
     const el = build(
       '<table class="cp-table"><tbody>' +
@@ -3070,7 +3070,7 @@ describe("css/system.css", () => {
         "</tbody></table>",
     );
     const [a, b] = [...el.querySelectorAll("button")].map((x) => x.getBoundingClientRect().width);
-    expect(a).toBe(b);
+    expect(a).toBeLessThan(b as number);
   });
 });
 
@@ -5329,22 +5329,26 @@ describe("css/system.css data tables", () => {
     );
   });
 
-  it("sizes a title cell's cover to its row less 1px each side, in a cell or a row's header", () => {
+  it("insets a title cell's 2:3 cover 6px from its row's edges, in a cell or a row's header", () => {
     theme("light");
+    root.dataset["pointer"] = "fine";
     const cell = (tag: "td" | "th") =>
       `<tr><${tag}><div class="cp-title-cell"><span class="cp-cover" data-harmony="4"><span class="cp-icon" data-cp-icon="tv"></span></span>` +
       `<div class="cp-cell-stack"><a href="#t">Mushishi</a><span class="cp-meta">TV, 2005</span></div></div></${tag}></tr>`;
     const el = build(`<table class="cp-table"><tbody>${cell("td")}${cell("th")}</tbody></table>`);
+    const radius = getComputedStyle(
+      host("", { style: "border-radius: var(--cp-radius-control)" }),
+    ).borderStartStartRadius;
     for (const row of el.querySelectorAll("tr")) {
       const cover = row.querySelector(".cp-cover") as Element;
       const box = cover.getBoundingClientRect();
-      expect([box.width, box.height]).toEqual([36, 54]);
-      expect(getComputedStyle(row.cells[0] as Element).paddingBlockStart).toBe("1px");
-      expect(getComputedStyle(cover).borderStartStartRadius).toBe(
-        getComputedStyle(
-          host("", { style: "border-radius: calc(var(--cp-radius-control) - 0.125rem)" }),
-        ).borderStartStartRadius,
-      );
+      const cs = getComputedStyle(row.cells[0] as Element);
+      expect([box.width, box.height]).toEqual([32, 48]);
+      expect([cs.paddingBlockStart, cs.paddingBlockEnd]).toEqual(["6px", "6px"]);
+      expect(
+        (row.cells[0] as Element).getBoundingClientRect().height - box.height,
+      ).toBeLessThanOrEqual(13);
+      expect(getComputedStyle(cover).borderStartStartRadius).toBe(radius);
       expect((cover.querySelector(".cp-icon") as Element).getBoundingClientRect().width).toBe(16);
     }
   });
@@ -5734,7 +5738,7 @@ describe("css/system.css data tables", () => {
     const list = el.querySelector("dl") as Element;
     const [dt, dd] = [list.querySelector("dt"), list.querySelector("dd")] as Element[];
     const style = getComputedStyle(list);
-    expect([style.rowGap, style.columnGap, style.margin]).toEqual(["8px", "20px", "0px"]);
+    expect([style.rowGap, style.columnGap, style.margin]).toEqual(["4px", "20px", "0px"]);
     expect(getComputedStyle(dt as Element).color).toBe(resolve("var(--cp-ink-muted)"));
     expect(getComputedStyle(dd as Element).margin).toBe("0px");
     expect((dd as Element).getBoundingClientRect().top).toBe(
