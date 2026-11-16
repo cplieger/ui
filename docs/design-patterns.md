@@ -274,7 +274,7 @@ First sync running is a `.cp-empty` whose heading starts with a `.cp-loader`, th
   <section class="cp-empty" data-variant="page" aria-labelledby="not-found-title">
     <span class="cp-icon" data-cp-icon="telescope" aria-hidden="true"></span>
     <h1 id="not-found-title" tabindex="-1">This page does not exist</h1>
-    <p>The address may be old, or it was mistyped.</p>
+    <p>The address may be old, or the item was removed.</p>
     <a class="cp-button" data-variant="primary" href="/">Go to the start</a>
   </section>
 </main>

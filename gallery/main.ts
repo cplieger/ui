@@ -41,6 +41,7 @@ import "./wire/marks.js";
 import "./wire/nav-feedback.js";
 import "./wire/overlays.js";
 import "./wire/templates.js";
+import "./wire/views.js";
 
 const all = <E extends Element>(selector: string): E[] => [
   ...document.querySelectorAll<E>(selector),
