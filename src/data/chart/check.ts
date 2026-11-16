@@ -1197,6 +1197,44 @@ function ownShared(frame: Frame): [string, unknown][] {
   }
 }
 
+/** Splits the panels' refs into the chart's, each a key and value every
+ *  panel holds, drawn once, and each panel's own, the rest. Linear in the refs. */
+export function sharedRefs(panels: readonly (readonly FrameRef[])[]): {
+  shared: FrameRef[];
+  own: FrameRef[][];
+} {
+  const ids = panels.map((refs) => refs.map((r) => JSON.stringify([r.key, r.value])));
+  const counts = ids.map((list) => {
+    const m = new Map<string, number>();
+    list.forEach((id) => m.set(id, (m.get(id) ?? 0) + 1));
+    return m;
+  });
+  // How many times every panel holds each pair.
+  const held = new Map<string, number>();
+  for (const id of counts[0]?.keys() ?? []) {
+    held.set(id, Math.min(...counts.map((m) => m.get(id) ?? 0)));
+  }
+  // A panel's first `held` refs of a pair are the chart's, the rest its own.
+  const split = (refs: readonly FrameRef[], list: readonly string[]) => {
+    const taken = new Map<string, number>();
+    const mine: FrameRef[] = [];
+    const theirs: FrameRef[] = [];
+    refs.forEach((r, k) => {
+      const id = list[k] ?? "";
+      const n = taken.get(id) ?? 0;
+      if (n < (held.get(id) ?? 0)) {
+        taken.set(id, n + 1);
+        theirs.push(r);
+      } else {
+        mine.push(r);
+      }
+    });
+    return { mine, theirs };
+  };
+  const parts = panels.map((refs, p) => split(refs, ids[p] ?? []));
+  return { shared: parts[0]?.theirs ?? [], own: parts.map((s) => s.mine) };
+}
+
 const same = (a: unknown, b: unknown): boolean =>
   a === b || JSON.stringify(a) === JSON.stringify(b);
 
@@ -1307,16 +1345,10 @@ function readFacets(facets: unknown, c: MarkCopy, words: Words, d: Door, spec: R
     names.add(name);
     return name;
   });
-  // A ref every panel holds at one value is the chart's, drawn once.
-  const shared = (head.read.frame.refs ?? []).filter((ref) =>
-    read.every((p) =>
-      (p.read.frame.refs ?? []).some((r) => r.key === ref.key && r.value === ref.value),
-    ),
-  );
-  const sharedKeys = new Set(shared.map((r) => r.key));
+  const { shared, own: ownRefs } = sharedRefs(read.map((p) => p.read.frame.refs ?? []));
   const panels: PlotPanel[] = read.map((p, k) => {
     const { marks, unplaced } = marksOf(
-      (p.read.frame.refs ?? []).filter((r) => !sharedKeys.has(r.key)),
+      ownRefs[k] ?? [],
       p.read.frame.notes ?? [],
       p.read.f,
       c,

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_CALENDAR_DAYS, MAX_ROWS } from "../frame/limits.js";
 
-import { check } from "./check.js";
+import { check, sharedRefs } from "./check.js";
 import { chartModel } from "./model.js";
 import { noteJoin } from "./notes.js";
 import type { ChartSpec } from "./spec.js";
@@ -345,6 +345,55 @@ describe("facets", () => {
     });
     expect(plot.marks).toEqual([{ mark: "rule", y: 2, label: "goal" }]);
     expect(plot.facets?.panels.map((p) => p.marks.length)).toEqual([1, 1]);
+  });
+
+  it("keeps a panel's own ref whose key a shared ref holds at another value", () => {
+    const at = (key: string, refs: { key: string; value: number }[]) => ({
+      key,
+      data: { ...seriesFrame([0, 1], [[1, 2]], { refs }), series: [{ key, values: [1, 2] }] },
+    });
+    const plot = check({
+      mark: { mark: "line" },
+      facets: {
+        panels: [
+          at("p", [
+            { key: "goal", value: 1 },
+            { key: "goal", value: 2 },
+          ]),
+          at("q", [{ key: "goal", value: 1 }]),
+        ],
+      },
+    });
+    expect(plot.marks).toEqual([{ mark: "rule", y: 1, label: "goal" }]);
+    expect(plot.facets?.panels.map((p) => p.marks.slice(1))).toEqual([
+      [{ mark: "rule", y: 2, label: "goal" }],
+      [],
+    ]);
+  });
+
+  it("shares a ref as often as every panel holds it", () => {
+    const goal = { key: "goal", value: 1 };
+    expect(sharedRefs([[goal, goal], [goal]])).toEqual({ shared: [goal], own: [[goal], []] });
+  });
+
+  it("reads each ref a fixed number of times, however many the panels hold", () => {
+    let reads = 0;
+    const counted = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        get key() {
+          reads += 1;
+          return "r";
+        },
+        get value() {
+          reads += 1;
+          return i;
+        },
+      }));
+    const panels = [counted(300), counted(300), counted(300)];
+    const { shared, own } = sharedRefs(panels);
+    expect(shared).toHaveLength(300);
+    expect(own).toEqual([[], [], []]);
+    expect(reads).toBeLessThanOrEqual(4 * 900);
   });
 
   it("refuses panels whose frames' units differ", () => {
