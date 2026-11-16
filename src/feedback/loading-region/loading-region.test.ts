@@ -43,13 +43,7 @@ interface Deferred<T> {
 }
 
 function deferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
+  return Promise.withResolvers<T>();
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -599,6 +593,38 @@ describe("enhanceLoadingRegion: a host callback that throws", () => {
     expect(region.getAttribute("aria-busy")).toBe("false");
     expect(region.firstElementChild).toBe(notice(region));
     expect(region.querySelector("p")?.textContent).toBe("Old");
+  });
+
+  it("brings Retry to rest with its notice when the content it fetched fails to render", async () => {
+    const region = panel("Old");
+    let renders = 0;
+    const { handle, loads } = wired(region, {
+      render: () => {
+        renders += 1;
+        throw new Error("boom");
+      },
+    });
+    const first = handle.load();
+    loads[0]?.reject(new Error("timeout"));
+    expect(await first).toBe(false);
+    const retry = retryIn(region) as HTMLButtonElement;
+    const atRest = retry.textContent;
+    retry.click();
+    await sleep(300);
+    expect(retry.getAttribute("aria-busy")).toBe("true");
+    loads[1]?.resolve("New");
+    await sleep(50);
+    expect(renders).toBe(1);
+    expect(handle.state).toBe("stale");
+    expect(retryIn(region)).toBe(retry);
+    expect(retry.getAttribute("aria-busy") ?? "false").toBe("false");
+    expect(retry.hasAttribute("data-cp-state")).toBe(false);
+    // The words roll back to rest; the outgoing ones leave with the roll.
+    const end = performance.now() + 3000;
+    while (retry.textContent !== atRest && performance.now() < end) {
+      await sleep(20);
+    }
+    expect(retry.textContent).toBe(atRest);
   });
 
   it("settles a first load whose render throws after its placeholder showed", async () => {

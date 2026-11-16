@@ -66,10 +66,12 @@ export interface LoadingRegionOptions<T> {
 
 export interface LoadingRegion {
   /**
-   * Loads the region's content, turning `from`, the button pressed, while
-   * it runs. A load already running is aborted and its call resolves
-   * false. Resolves true once the content is rendered, false when it
-   * failed or the signal aborted.
+   * Loads the region's content. The failure notice's Retry as `from` runs
+   * through confirm's busy cycle; any other `from`, the button pressed,
+   * turns through `turnWhile`. A load already running is aborted and its
+   * call resolves false; one replacing a load from the same button keeps
+   * that button busy. Resolves true once the content is rendered, false
+   * when it failed or the signal aborted.
    */
   load(from?: Element): Promise<boolean>;
   readonly state: LoadingState;
@@ -309,7 +311,9 @@ export function enhanceLoadingRegion<T>(
     }
   };
 
-  const run = async (from: Element | undefined): Promise<boolean> => {
+  /** Runs a load; `whole` is the Retry cycle's work, settled by `run`
+   *  once the load painted or failed. */
+  const attempt = async (from: Element | undefined, whole: Promise<void>): Promise<boolean> => {
     const life = new AbortController();
     const before = state;
     const stale = state === "ready" || state === "stale";
@@ -366,8 +370,8 @@ export function enhanceLoadingRegion<T>(
       if (from !== undefined && from === retry && retryCycle !== null) {
         const cycle = retryCycle;
         const button = retry;
-        // The cycle holds its busy state for its minimum after work ends;
-        // the content goes in as soon as it comes.
+        // The cycle holds its busy state for its minimum after a paint, and
+        // rests at once on a failure; the content goes in as soon as it comes.
         void (async () => {
           // A replaced cycle refuses this run until its own settling puts
           // the button at rest; a task tick, not a microtask loop, so a
@@ -378,7 +382,7 @@ export function enhanceLoadingRegion<T>(
               return;
             }
           }
-          await cycle.run(() => work);
+          await cycle.run(() => whole);
         })().catch(() => undefined);
         data = await work;
       } else {
@@ -430,6 +434,20 @@ export function enhanceLoadingRegion<T>(
         timing.commit(paint);
       }
     });
+  };
+
+  const run = (from: Element | undefined): Promise<boolean> => {
+    const whole: PromiseWithResolvers<void> = Promise.withResolvers();
+    whole.promise.catch(() => undefined);
+    const result = attempt(from, whole.promise);
+    void result.then((painted) => {
+      if (painted) {
+        whole.resolve();
+      } else {
+        whole.reject(new Error("The load did not paint."));
+      }
+    });
+    return result;
   };
 
   /** Puts back the state a run started from, unless a later load

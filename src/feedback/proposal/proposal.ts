@@ -234,10 +234,14 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
             cancelLabel: question.cancelLabel ?? "Cancel",
             focus: "decline",
             icon: glyph("triangle-alert"),
+            signal: life.signal,
           }).finally(() => {
             busy = false;
           });
-          if (!yes || ended()) {
+          if (ended()) {
+            return;
+          }
+          if (!yes) {
             if (apply.isConnected && document.activeElement === document.body) {
               apply.focus();
             }

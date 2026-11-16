@@ -58,7 +58,7 @@ enhanceProposal(unchecked, {
   - `confirm` = `{ title, message, confirmLabel?, cancelLabel? }` is the question an unverified proposal asks before Apply runs, through [ask](../overlays/ask.md) with the declining button focused and no tone, since an unchecked change is neither the normal answer nor a removal. Its buttons default to "Apply" and "Cancel".
   - `returnFocus` is where focus goes once Discard removed the card, by default the card's parent.
   - `words` = `{ applied, applying?, discarded?, undo?, undoing?, undone?, applyFailed?, discardFailed?, undoFailed? }`. `applied` is what the card says once the change applied, and is required. `applying` is Apply's words while it runs, by default "Applying…". `discarded` and `undone` are said once the card went and once Undo put it back, by default "Proposal discarded" and "Change undone". `undo` and `undoing` are Undo's words, by default "Undo" and "Undoing…". Each `…Failed` is the failed line's sentence, or a function given what the action rejected with, by default "The change could not be applied.", "The proposal could not be discarded." and "The change could not be undone.". A failed-line function that throws is reported to the page as an uncaught error, and its default sentence takes its place.
-  - `signal` ends the card's wiring and any action under way.
+  - `signal` ends the card's wiring and any action under way: an open question answers as declined and closes, and nothing applies.
 
 ## Behaviour
 

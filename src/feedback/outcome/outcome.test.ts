@@ -42,13 +42,7 @@ interface Deferred {
 }
 
 function deferred(): Deferred {
-  let resolve!: (result: OutcomeResult) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<OutcomeResult>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
+  return Promise.withResolvers<OutcomeResult>();
 }
 
 async function until(check: () => boolean, ms = 2000): Promise<void> {

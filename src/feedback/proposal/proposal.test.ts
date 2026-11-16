@@ -46,13 +46,8 @@ interface Deferred {
 }
 
 function deferred(): Deferred {
-  let resolve!: () => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<void>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
+  const d: PromiseWithResolvers<void> = Promise.withResolvers();
+  return d;
 }
 
 /** Waits until `check` holds, for work that settles across a few tasks. */
@@ -453,6 +448,18 @@ describe("enhanceProposal: the unverified proposal", () => {
     calls[0]?.resolve();
     await until(() => card.dataset["cpState"] === "applied");
     expect(calls).toHaveLength(1);
+  });
+
+  it("closes its question and applies nothing when its signal aborts while it asks", async () => {
+    const card = proposal(true);
+    const calls = wire(card, { confirm });
+    part(card, "apply").click();
+    await until(() => open() !== null);
+    life.abort();
+    await until(() => document.querySelector("dialog") === null);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(calls).toHaveLength(0);
+    expect(card.dataset["cpState"]).toBeUndefined();
   });
 
   it("needs its question, and only it takes one", () => {

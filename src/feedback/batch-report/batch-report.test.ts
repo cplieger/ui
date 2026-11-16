@@ -43,13 +43,7 @@ interface Deferred {
 }
 
 function deferred(): Deferred {
-  let resolve!: (answer: BatchAnswer) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<BatchAnswer>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
+  return Promise.withResolvers<BatchAnswer>();
 }
 
 /** Waits until `check` holds, for work that settles across a few tasks. */

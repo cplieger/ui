@@ -4507,8 +4507,7 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(far.top).toBeGreaterThanOrEqual(bar.bottom);
     expect(stop.right).toBeCloseTo(bar.right, 1);
     // 26px is --cp-control-h-sm under a mouse.
-    expect(stop.height).toBeCloseTo(26, 1);
-    expect((stop.top + stop.bottom) / 2).toBeCloseTo((text.top + text.bottom) / 2, 1);
+    expect([stop.top, stop.height]).toEqual([text.top, 26]);
     const link = getComputedStyle(r.querySelector("a") as Element);
     expect([link.color, link.fontWeight]).toEqual([resolved("var(--cp-ink)"), "500"]);
     const small = getComputedStyle(r.querySelector("small") as Element);
@@ -4540,6 +4539,24 @@ describe("css/system.css lists, feeds and counts", () => {
     expect(retry.left).toBeGreaterThan(replace.right);
     expect(details.top).toBeGreaterThanOrEqual(actions.bottom);
     expect(details.left).toBeCloseTo(actions.left, 1);
+  });
+
+  it("tops a failing status row's lead, state and small info button on its heading", () => {
+    theme("light");
+    const el = build(
+      '<ul class="cp-list"><li><div class="cp-list-row"><span class="cp-icon" data-cp-icon="radio-tower" aria-hidden="true"></span><div class="cp-cell-stack"><h3 id="st-sd" tabindex="-1">SeaDex</h3><small>Its API answers 503 Service Unavailable</small><small>Since 14:02</small></div><span data-part="end"><span class="cp-state" data-tone="danger"><span class="cp-icon" data-cp-icon="circle-x" aria-hidden="true"></span>Failing</span></span><button class="cp-button" data-variant="quiet" data-size="sm" type="button" aria-label="About SeaDex states"><span class="cp-icon" data-cp-icon="info" aria-hidden="true"></span></button><div class="cp-cluster" data-part="actions"><button class="cp-button" data-size="sm" type="button">Test again</button></div><details open><summary>Show details</summary><p>503 from the provider</p></details></div></li></ul>',
+    );
+    el.style.inlineSize = "30rem";
+    const top = (s: string) => (el.querySelector(s) as Element).getBoundingClientRect().top;
+    const heading = top("h3");
+    expect(top(".cp-list-row > .cp-icon"), "lead").toBeCloseTo(heading, 1);
+    expect(top(".cp-state"), "state").toBeCloseTo(heading, 1);
+    expect(top('[aria-label="About SeaDex states"]'), "info").toBeCloseTo(heading, 1);
+    // 26px is --cp-control-h-sm under a mouse.
+    expect(
+      (el.querySelector('[aria-label="About SeaDex states"]') as Element).getBoundingClientRect()
+        .height,
+    ).toBeCloseTo(26, 1);
   });
 
   it("titles a row with a heading in the row's own font, size and line, at a title link's weight", () => {
