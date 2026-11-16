@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest";
 
+import type { BinsFrame, FrameNote, FrameRef, FrameSeries, FrameTreePart } from "../frame/frame.js";
 import { writer } from "../scale/format.js";
 
 import { chartModel, type Model } from "./model.js";
-import type { ChartSpec, Mark } from "./spec.js";
+import type { ChartFrame, ChartSpec } from "./spec.js";
 import { generatedSummary, shortDescription, summaryOf } from "./summary.js";
-import { ladder } from "./test-helpers/frames.js";
+import {
+  binsFrame,
+  boxes,
+  categories,
+  events,
+  grid,
+  ladder,
+  points,
+  seriesFrame,
+  tree,
+} from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -27,23 +38,42 @@ const starts = per(24, (i) => START + i * 15 * MIN);
 const ends = starts.map((t) => t + 15 * MIN);
 const posts = { one: "post", other: "posts" };
 
+type Values = readonly (number | null)[];
+type More = Omit<ChartSpec, "data" | "mark" | "facets">;
+// Series keyed by their names, in order.
+const named = (...series: (readonly [string, Values])[]): FrameSeries[] =>
+  series.map(([key, values]) => ({ key, values: [...values] }));
+// `frame` with refs and notes keyed by their words.
+const marked = <F extends ChartFrame>(
+  frame: F,
+  refs: readonly (readonly [string, number])[] = [],
+  notes: readonly (readonly [number, string])[] = [],
+): F => ({
+  ...frame,
+  ...(refs.length === 0 ? {} : { refs: refs.map(([key, value]): FrameRef => ({ key, value })) }),
+  ...(notes.length === 0 ? {} : { notes: notes.map(([at, key]): FrameNote => ({ key, at })) }),
+});
+// A part of a tree frame, no data for null.
+const part = (key: string, value: number | null): FrameTreePart =>
+  value === null ? { key } : { key, value };
+
 // 24 quarter hours: bucket 13 is the busiest closed one, bucket 23 the open one.
-const stacked: ChartSpec = {
-  x: { type: "time", domain: [START, END] },
-  y: { label: "Posts", unit: posts },
-  marks: [
-    {
-      mark: "rect",
-      x1: starts,
-      x2: ends,
-      open: true,
-      series: [
-        { name: "Announce", y: per(24, (i) => (i === 23 ? 30 : 5)) },
-        { name: "Path", y: per(24, (i) => (i === 13 ? 9 : 4)) },
-      ],
-    },
-  ],
-};
+const kinds = named(
+  ["Announce", per(24, (i) => (i === 23 ? 30 : 5))],
+  ["Path", per(24, (i) => (i === 13 ? 9 : 4))],
+);
+const quarters = (
+  series: FrameSeries[] = kinds,
+  mark: object = {},
+  data: Partial<BinsFrame> = {},
+): ChartSpec =>
+  ({
+    data: binsFrame(starts, ends, [], { open: true, series, ...data }),
+    mark: { mark: "rect", ...mark },
+    x: { domain: [START, END] },
+    y: { label: "Posts", unit: posts },
+  }) as ChartSpec;
+const stacked = quarters();
 
 describe("the summary of a column chart", () => {
   it("says the total, the bucket size, the range, each series and the busiest closed bucket", () => {
@@ -56,28 +86,14 @@ describe("the summary of a column chart", () => {
   it("drops the parts for one series and the size for unequal buckets", () => {
     const x2 = [...ends];
     x2[0] = START + 10 * MIN;
-    const one: ChartSpec = {
-      ...stacked,
-      marks: [{ mark: "rect", x1: starts, x2, series: [{ name: "All", y: per(24, () => 1) }] }],
-    };
+    const one = quarters(named(["All", per(24, () => 1)]), {}, { x2, open: false });
     expect(generatedSummary(model(one), words)).toBe(
       `24${nb}posts from ${span(START, END)}. Busiest: ${span(START, START + 10 * MIN)}, 1${nb}post.`,
     );
   });
 
   it("names no busiest bucket when only the open one has posts", () => {
-    const quiet: ChartSpec = {
-      ...stacked,
-      marks: [
-        {
-          mark: "rect",
-          x1: starts,
-          x2: ends,
-          open: true,
-          series: [{ name: "All", y: per(24, (i) => (i === 23 ? 3 : 0)) }],
-        },
-      ],
-    };
+    const quiet = quarters(named(["All", per(24, (i) => (i === 23 ? 3 : 0))]));
     expect(generatedSummary(model(quiet), words)).toBe(
       `3${nb}posts, every 15${nb}min from ${span(START, END)}.`,
     );
@@ -87,12 +103,7 @@ describe("the summary of a column chart", () => {
     expect(shortDescription(model(stacked), words)).toBe(
       `Stacked column chart, 2 series, ${span(START, END)}`,
     );
-    const one: ChartSpec = {
-      ...stacked,
-      marks: [
-        { mark: "rect", x1: starts, x2: ends, series: [{ name: "All", y: per(24, () => 1) }] },
-      ],
-    };
+    const one = quarters(named(["All", per(24, () => 1)]), {}, { open: false });
     expect(shortDescription(model(one), words)).toBe(`Column chart, ${span(START, END)}`);
   });
 
@@ -108,13 +119,14 @@ describe("the summary of a column chart", () => {
     }).format(t);
   const across = (lo: number, hi: number): Model =>
     model({
+      data: seriesFrame([lo, hi], [], { series: named(["Load", [3, 5]]) }),
+      mark: { mark: "line" },
       x: { type: "time", domain: [lo, hi] },
-      marks: [{ mark: "line", x: [lo, hi], series: [{ name: "Load", y: [3, 5] }] }],
     });
 
   it("dates both ends of a domain a whole day long, whose clock times match", () => {
     const day = 24 * HR;
-    const m = model({ ...stacked, x: { type: "time", domain: [END - day, END] } });
+    const m = model({ ...stacked, x: { domain: [END - day, END] } });
     expect(shortDescription(m, words)).toBe(
       `Stacked column chart, 2 series, ${dated(END - day)} to ${dated(END)}`,
     );
@@ -141,11 +153,8 @@ describe("the summary of a column chart", () => {
 });
 
 describe("the summary of a step area", () => {
-  const rect = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
-  const shaped = (more: Partial<Extract<Mark, { mark: "rect" }>>): ChartSpec => ({
-    ...stacked,
-    marks: [{ ...rect, shape: "area", ...more }],
-  });
+  const shaped = (mark: object, series = kinds): ChartSpec =>
+    quarters(series, { shape: "area", ...mark });
 
   it("says what the columns say, the shape changing only the drawing", () => {
     expect(generatedSummary(model(shaped({})), words)).toBe(
@@ -160,14 +169,13 @@ describe("the summary of a step area", () => {
     expect(shortDescription(model(shaped({ arrange: "share" })), words)).toBe(
       `100% stacked area chart, 2 series, ${span(START, END)}`,
     );
-    const one = shaped({ series: [{ name: "All", y: per(24, () => 1) }] });
+    const one = shaped({}, named(["All", per(24, () => 1)]));
     expect(shortDescription(model(one), words)).toBe(`Area chart, ${span(START, END)}`);
   });
 });
 
 describe("the summary of grouped columns", () => {
-  const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
-  const grouped: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "group" }] };
+  const grouped = quarters(kinds, { arrange: "group" });
 
   it("names the highest single value of a closed bucket in place of the busiest bucket", () => {
     // The open bucket's Announce 30 is still filling, so Path's 9 is the highest.
@@ -178,16 +186,7 @@ describe("the summary of grouped columns", () => {
   });
 
   it("names the busiest bucket of one series grouped, which is a plain column chart", () => {
-    const one: ChartSpec = {
-      ...grouped,
-      marks: [
-        {
-          ...mark,
-          arrange: "group",
-          series: [{ name: "All", y: per(24, (i) => (i === 4 ? 3 : 1)) }],
-        },
-      ],
-    };
+    const one = quarters(named(["All", per(24, (i) => (i === 4 ? 3 : 1))]), { arrange: "group" });
     expect(generatedSummary(model(one), words)).toBe(
       `26${nb}posts, every 15${nb}min from ${span(START, END)}. ` +
         `Busiest: ${span(starts[4] ?? 0, ends[4] ?? 0)}, 3${nb}posts.`,
@@ -202,8 +201,7 @@ describe("the summary of grouped columns", () => {
 });
 
 describe("the summary of columns stacked to 100%", () => {
-  const mark = stacked.marks[0] as Extract<Mark, { mark: "rect" }>;
-  const share: ChartSpec = { ...stacked, marks: [{ ...mark, arrange: "share" }] };
+  const share = quarters(kinds, { arrange: "share" });
 
   it("gives each series' share of the grand total and the busiest bucket's absolute total", () => {
     // 145 and 101 of 246; bucket 13 holds 5 and 9.
@@ -232,28 +230,28 @@ describe("the summary of columns stacked to 100%", () => {
 
 const edges = ladder();
 const reads = (
-  series: Extract<Mark, { mark: "rect" }>["series"],
-  rules: Mark[] = [],
+  series: FrameSeries[],
+  refs: readonly (readonly [string, number])[] = [],
+  low = 1,
 ): ChartSpec => ({
-  x: {
-    type: "log",
-    format: "duration",
-    label: "Time from post to read",
-    domain: [1, edges.at(-1) ?? 0],
-  },
+  data: marked(
+    binsFrame(edges.slice(0, -1), edges.slice(1), [], { axis: "value", unit: "seconds", series }),
+    refs,
+  ),
+  mark: { mark: "rect" },
+  x: { type: "log", label: "Time from post to read", domain: [low, edges.at(-1) ?? 0] },
   y: { label: "Reads", unit: { one: "read", other: "reads" } },
-  marks: [{ mark: "rect", x1: edges.slice(0, -1), x2: edges.slice(1), series }, ...rules],
 });
 const bins = edges.length - 1;
 
 describe("the summary of a histogram", () => {
-  const rules: Mark[] = [
-    { mark: "rule", x: 42, label: "Median" },
-    { mark: "rule", x: 18 * 60, label: "95th percentile" },
-  ];
+  const rules = [
+    ["Median", 42],
+    ["95th percentile", 18 * 60],
+  ] as const;
 
   it("says the count from under the low end, then each rule", () => {
-    const m = model(reads([{ name: "Reads", y: per(bins, () => 2) }], rules));
+    const m = model(reads(named(["Reads", per(bins, () => 2)]), rules));
     expect(generatedSummary(m, words)).toBe(
       `32${nb}reads from under ${dur(1)} to ${dur(edges.at(-1) ?? 0)}. ` +
         `Median ${dur(42)}. 95th percentile ${dur(18 * 60)}.`,
@@ -265,13 +263,7 @@ describe("the summary of a histogram", () => {
 
   it("adds each series' total after the count when stacked", () => {
     const m = model(
-      reads(
-        [
-          { name: "Direct", y: per(bins, () => 3) },
-          { name: "Path", y: per(bins, () => 1) },
-        ],
-        rules.slice(0, 1),
-      ),
+      reads(named(["Direct", per(bins, () => 3)], ["Path", per(bins, () => 1)]), rules.slice(0, 1)),
     );
     expect(generatedSummary(m, words)).toBe(
       `64${nb}reads from under ${dur(1)} to ${dur(edges.at(-1) ?? 0)}. ` +
@@ -283,10 +275,7 @@ describe("the summary of a histogram", () => {
   });
 
   it("reads a plain range when the underflow bin is not drawn below the low end", () => {
-    const m = model({
-      ...reads([{ name: "Reads", y: per(bins, () => 1) }]),
-      x: { type: "log", format: "duration", domain: [10, edges.at(-1) ?? 0] },
-    });
+    const m = model(reads(named(["Reads", per(bins, () => 1)]), [], 10));
     expect(generatedSummary(m, words)).toMatch(
       new RegExp(`^12${nb}reads from ${dur(10)} to `, "u"),
     );
@@ -296,19 +285,15 @@ describe("the summary of a histogram", () => {
 describe("the summary of a step line", () => {
   const x = per(361, (i) => START + i * MIN);
   const m = model({
+    data: seriesFrame(x, [], {
+      series: named(
+        ["Live", x.map((_, i) => (i < 30 ? null : i < 200 ? 4 : i < 300 ? 12 : 10))],
+        ["Active", x.map((_, i) => (i < 100 ? 0 : i < 250 ? 9 : 6))],
+      ),
+    }),
+    mark: { mark: "line", curve: "step" },
     x: { type: "time", domain: [START, END] },
     y: { label: "Agents" },
-    marks: [
-      {
-        mark: "line",
-        curve: "step",
-        x,
-        series: [
-          { name: "Live", y: x.map((_, i) => (i < 30 ? null : i < 200 ? 4 : i < 300 ? 12 : 10)) },
-          { name: "Active", y: x.map((_, i) => (i < 100 ? 0 : i < 250 ? 9 : 6)) },
-        ],
-      },
-    ],
   });
 
   it("says the range, the sample interval and each series' last, low and high", () => {
@@ -322,17 +307,14 @@ describe("the summary of a step line", () => {
     const n = 90 * 24 * 60;
     const long = per(n, (i) => START + i * MIN);
     const big = model({
+      data: seriesFrame(long, [], {
+        series: named(
+          ["Load", long.map((_, i) => (i === 7 ? -3 : i === n - 2 ? 40 : i % 10))],
+          ["Idle", long.map(() => null)],
+        ),
+      }),
+      mark: { mark: "line" },
       x: { type: "time", domain: [START, START + (n - 1) * MIN] },
-      marks: [
-        {
-          mark: "line",
-          x: long,
-          series: [
-            { name: "Load", y: long.map((_, i) => (i === 7 ? -3 : i === n - 2 ? 40 : i % 10)) },
-            { name: "Idle", y: long.map(() => null) },
-          ],
-        },
-      ],
     });
     const text = generatedSummary(big, words);
     expect(text).toContain("Load: last 9, low -3, high 40.");
@@ -345,14 +327,11 @@ describe("the summary of a step line", () => {
 
   it("drops the interval when the samples are unevenly spaced, and names a straight line", () => {
     const uneven = model({
+      data: seriesFrame([START, START + MIN, START + 3 * MIN], [], {
+        series: named(["Load", [1, 2, 3]]),
+      }),
+      mark: { mark: "line" },
       x: { type: "time", domain: [START, END] },
-      marks: [
-        {
-          mark: "line",
-          x: [START, START + MIN, START + 3 * MIN],
-          series: [{ name: "Load", y: [1, 2, 3] }],
-        },
-      ],
     });
     expect(generatedSummary(uneven, words)).toBe(
       `${span(START, END)}. Load: last 3, low 1, high 3.`,
@@ -363,21 +342,17 @@ describe("the summary of a step line", () => {
 
 describe("the summary of a stacked area", () => {
   const x = per(7, (i) => START + i * MIN);
-  const spec = (more: Partial<Extract<Mark, { mark: "area" }>> = {}): ChartSpec => ({
-    x: { type: "time", domain: [START, START + 6 * MIN] },
-    marks: [
-      {
-        mark: "area",
-        x,
-        series: [
-          { name: "Gas", y: [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204] },
-          { name: "Wind", y: [410, 600, 1_020, null, 980, 980, 980] },
-          { name: "Solar", y: [500, 790, 300, 200, 412, 412, 412] },
-        ],
-        ...more,
-      },
-    ],
-  });
+  const layers = named(
+    ["Gas", [990, 1_310, 1_100, 1_000, 1_204, 1_204, 1_204]],
+    ["Wind", [410, 600, 1_020, null, 980, 980, 980]],
+    ["Solar", [500, 790, 300, 200, 412, 412, 412]],
+  );
+  const spec = (mark: object = {}, series = layers): ChartSpec =>
+    ({
+      data: seriesFrame(x, [], { series }),
+      mark: { mark: "area", ...mark },
+      x: { type: "time", domain: [START, START + 6 * MIN] },
+    }) as ChartSpec;
 
   it("says each layer's last, low and high, then the total's, a gap leaving it out", () => {
     expect(generatedSummary(model(spec()), words)).toBe(
@@ -391,7 +366,7 @@ describe("the summary of a stacked area", () => {
     expect(shortDescription(model(spec({ curve: "step" })), words)).toBe(
       `Stacked area chart, 3 series, ${span(START, START + 6 * MIN)}`,
     );
-    const one = model(spec({ series: [{ name: "Gas", y: per(7, () => 1) }] }));
+    const one = model(spec({}, named(["Gas", per(7, () => 1)])));
     expect(shortDescription(one, words)).toBe(`Area chart, ${span(START, START + 6 * MIN)}`);
     expect(generatedSummary(one, words)).not.toContain("Total");
   });
@@ -400,19 +375,10 @@ describe("the summary of a stacked area", () => {
 describe("the summary of an area stacked to 100%", () => {
   const x = per(3, (i) => START + i * MIN);
   const m = model({
+    data: seriesFrame(x, [], { series: named(["Gas", [0, 1, 1_500]], ["Wind", [0, 3, 500]]) }),
+    mark: { mark: "area", arrange: "share" },
     x: { type: "time", domain: [START, START + 2 * MIN] },
     y: { format: { style: "percent", maximumFractionDigits: 1 } },
-    marks: [
-      {
-        mark: "area",
-        x,
-        arrange: "share",
-        series: [
-          { name: "Gas", y: [0, 1, 1_500] },
-          { name: "Wind", y: [0, 3, 500] },
-        ],
-      },
-    ],
   });
 
   it("says each layer's shares where its stack is drawn and the total's amounts", () => {
@@ -432,20 +398,19 @@ describe("the summary of an area stacked to 100%", () => {
 describe("the summary of a timeline", () => {
   const quiet = ["docs-bot", "ha-agent", "notes-bot", "a", "b", "c", "d"];
   const m = model({
-    x: { type: "time", domain: [START, END] },
+    data: {
+      type: "events",
+      name: "e",
+      rows: [
+        { key: "lead-ui", at: per(5, (i) => START + i * 30 * MIN) },
+        { key: "dev-ui", at: [START + 5 * MIN, START + 9 * MIN] },
+        ...quiet.map((key) => ({ key, at: [] })),
+        { key: "late", at: [END + MIN] },
+      ],
+    },
+    mark: { mark: "dot", unit: posts },
+    x: { domain: [START, END] },
     y: { type: "band", mono: true, unit: { one: "agent", other: "agents" } },
-    marks: [
-      {
-        mark: "dot",
-        unit: posts,
-        rows: [
-          { name: "lead-ui", x: per(5, (i) => START + i * 30 * MIN) },
-          { name: "dev-ui", x: [START + 5 * MIN, START + 9 * MIN] },
-          ...quiet.map((name) => ({ name, x: [] })),
-          { name: "late", x: [END + MIN] },
-        ],
-      },
-    ],
   });
 
   it("says the range, the rows and dots, the busiest row and the first five silent ones", () => {
@@ -458,16 +423,27 @@ describe("the summary of a timeline", () => {
 });
 
 describe("the notes in the summary", () => {
-  it("follow the rules, each its x in the readings' format and its text, in spec order", () => {
-    const spec: ChartSpec = {
-      ...stacked,
-      marks: [
-        ...stacked.marks,
-        { mark: "text", x: starts[3] ?? 0, y: 9, text: "Deploy" },
-        { mark: "rule", y: 12, label: "Limit" },
-        { mark: "text", x: starts[9] ?? 0, y: 9, text: "Rollback" },
+  const noted = (
+    notes: readonly (readonly [number, string])[],
+    refs: readonly (readonly [string, number])[] = [],
+  ): ChartSpec =>
+    quarters(
+      kinds,
+      {},
+      {
+        refs: refs.map(([key, value]) => ({ key, value })),
+        notes: notes.map(([at, key]) => ({ key, at })),
+      },
+    );
+
+  it("follow the refs, each its x in the readings' format and its text, in the frame's order", () => {
+    const spec = noted(
+      [
+        [starts[3] ?? 0, "Deploy"],
+        [starts[9] ?? 0, "Rollback"],
       ],
-    };
+      [["Limit", 12]],
+    );
     expect(generatedSummary(model(spec), words)).toMatch(
       new RegExp(
         `Limit 12\\. ${time(starts[3] ?? 0)}: Deploy\\. ${time(starts[9] ?? 0)}: Rollback\\.$`,
@@ -476,44 +452,32 @@ describe("the notes in the summary", () => {
     );
   });
 
-  it("names a timeline note's row before its time", () => {
+  it("writes a timeline note at its time, which names no row", () => {
     const spec: ChartSpec = {
-      x: { type: "time", domain: [START, END] },
-      marks: [
-        { mark: "dot", rows: [{ name: "ana", x: [START + MIN] }] },
-        { mark: "text", x: START + 2 * MIN, y: "ana", text: "Paused" },
-      ],
+      data: marked(events({ ana: [START + MIN] }), [], [[START + 2 * MIN, "Paused"]]),
+      mark: { mark: "dot" },
+      x: { domain: [START, END] },
     };
     expect(generatedSummary(model(spec), words)).toMatch(
-      new RegExp(`ana, ${time(START + 2 * MIN)}: Paused\\.$`, "u"),
+      new RegExp(`\\. ${time(START + 2 * MIN)}: Paused\\.$`, "u"),
     );
   });
 
   it("include a note outside a passed domain, which is not drawn", () => {
-    const spec: ChartSpec = {
-      ...stacked,
-      marks: [...stacked.marks, { mark: "text", x: END + 60 * MIN, y: 1, text: "Later" }],
-    };
-    expect(generatedSummary(model(spec), words)).toMatch(/: Later\.$/u);
+    expect(generatedSummary(model(noted([[END + 60 * MIN, "Later"]])), words)).toMatch(
+      /: Later\.$/u,
+    );
   });
 
   it("end a note written as a sentence once", () => {
-    const spec: ChartSpec = {
-      ...stacked,
-      marks: [...stacked.marks, { mark: "text", x: START, y: 1, text: "Deploy of 1.4.0." }],
-    };
-    expect(generatedSummary(model(spec), words)).toMatch(
+    expect(generatedSummary(model(noted([[START, "Deploy of 1.4.0."]])), words)).toMatch(
       new RegExp(`${time(START)}: Deploy of 1\\.4\\.0\\.$`, "u"),
     );
   });
 
   it("take the app's words", () => {
-    const spec: ChartSpec = {
-      ...stacked,
-      marks: [...stacked.marks, { mark: "text", x: START, y: 1, text: "Start" }],
-    };
     const own = chartWords({ note: (at, text) => `[${at}] ${text}` });
-    expect(generatedSummary(model(spec), own)).toMatch(
+    expect(generatedSummary(model(noted([[START, "Start"]])), own)).toMatch(
       new RegExp(`\\[${time(START)}\\] Start$`, "u"),
     );
   });
@@ -534,32 +498,35 @@ describe("the spec's own summary", () => {
 
 describe("the summary of a bar chart", () => {
   const countries = { one: "country", other: "countries" };
-  const ages: ChartSpec = {
-    x: {},
-    y: { unit: countries },
-    marks: [
-      {
-        mark: "bar",
-        y: ["Holy See", "Monaco", "Japan", "Andorra"],
-        series: [{ name: "Median age", x: [57.4, 49.8, 49.8, null] }],
-      },
-    ],
-  };
-  const firms: ChartSpec = {
-    x: {},
-    y: { unit: { one: "company", other: "companies" } },
-    marks: [
-      {
-        mark: "bar",
-        y: ["Acme", "Brill", "Corda"],
-        series: [
-          { name: "Domestic", x: [40, 3, 7] },
-          { name: "International", x: [2, 22, 2] },
-          { name: "Online", x: [null, null, null] },
-        ],
-      },
-    ],
-  };
+  const rows = (
+    names: readonly string[],
+    series: FrameSeries[],
+    mark: object = {},
+    more: More = {},
+    unit = "count",
+  ): ChartSpec =>
+    ({
+      data: categories(names, [], { unit, series }),
+      mark: { mark: "bar", ...mark },
+      ...more,
+    }) as ChartSpec;
+  const ages = rows(
+    ["Holy See", "Monaco", "Japan", "Andorra"],
+    named(["Median age", [57.4, 49.8, 49.8, null]]),
+    {},
+    { y: { unit: countries } },
+  );
+  const firms = (arrange?: "group" | "split"): ChartSpec =>
+    rows(
+      ["Acme", "Brill", "Corda"],
+      named(
+        ["Domestic", [40, 3, 7]],
+        ["International", [2, 22, 2]],
+        ["Online", [null, null, null]],
+      ),
+      arrange === undefined ? {} : { arrange },
+      { y: { unit: { one: "company", other: "companies" } } },
+    );
 
   it("counts the rows, then names the highest and lowest, the first row on a tie", () => {
     expect(generatedSummary(model(ages), words)).toBe(
@@ -568,17 +535,17 @@ describe("the summary of a bar chart", () => {
   });
 
   it("signs a diverging bar chart's extremes and names its kind", () => {
-    const m = model({
-      x: { format: { style: "percent", maximumFractionDigits: 1 } },
-      y: { unit: { one: "state", other: "states" } },
-      marks: [
+    const m = model(
+      rows(
+        ["Utah", "Texas", "Puerto Rico"],
+        named(["Change", [0.16, 0, -0.143]]),
+        {},
         {
-          mark: "bar",
-          y: ["Utah", "Texas", "Puerto Rico"],
-          series: [{ name: "Change", x: [0.16, 0, -0.143] }],
+          x: { format: { style: "percent", maximumFractionDigits: 1 } },
+          y: { unit: { one: "state", other: "states" } },
         },
-      ],
-    });
+      ),
+    );
     expect(generatedSummary(m, words)).toBe(
       `3${nb}states. Highest Utah +16%, lowest Puerto Rico -14.3%.`,
     );
@@ -586,17 +553,14 @@ describe("the summary of a bar chart", () => {
   });
 
   it("names each series' extremes and the totals', leaving out a series with no value", () => {
-    expect(generatedSummary(model(firms), words)).toBe(
+    expect(generatedSummary(model(firms()), words)).toBe(
       `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
         "International: highest Brill 22, lowest Acme 2. Total: highest Acme 42, lowest Corda 9.",
     );
   });
 
   it("names each grouped series' extremes and no totals", () => {
-    const grouped: ChartSpec = {
-      ...firms,
-      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "group" }],
-    };
+    const grouped = firms("group");
     expect(generatedSummary(model(grouped), words)).toBe(
       `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
         "International: highest Brill 22, lowest Acme 2.",
@@ -607,10 +571,7 @@ describe("the summary of a bar chart", () => {
   });
 
   it("names each split series' extremes and no totals, a split bar chart at every width", () => {
-    const split: ChartSpec = {
-      ...firms,
-      marks: [{ ...(firms.marks[0] as Extract<Mark, { mark: "bar" }>), arrange: "split" }],
-    };
+    const split = firms("split");
     expect(generatedSummary(model(split), words)).toBe(
       `3${nb}companies, 3 series. Domestic: highest Acme 40, lowest Brill 3. ` +
         "International: highest Brill 22, lowest Acme 2.",
@@ -621,21 +582,12 @@ describe("the summary of a bar chart", () => {
   });
 
   it("names each 100% series' highest and lowest share, leaving out a row whose total is 0, and no totals", () => {
-    const share: ChartSpec = {
-      x: {},
-      y: { unit: { one: "company", other: "companies" } },
-      marks: [
-        {
-          mark: "bar",
-          y: ["Acme", "Brill", "Corda", "Dune"],
-          arrange: "share",
-          series: [
-            { name: "Domestic", x: [40, 3, 1, 0] },
-            { name: "International", x: [10, 1, 3, 0] },
-          ],
-        },
-      ],
-    };
+    const share = rows(
+      ["Acme", "Brill", "Corda", "Dune"],
+      named(["Domestic", [40, 3, 1, 0]], ["International", [10, 1, 3, 0]]),
+      { arrange: "share" },
+      { y: { unit: { one: "company", other: "companies" } } },
+    );
     expect(generatedSummary(model(share), words)).toBe(
       `4${nb}companies, 2 series. Domestic: highest Acme 80%, lowest Corda 25%. ` +
         "International: highest Corda 75%, lowest Acme 20%.",
@@ -646,24 +598,13 @@ describe("the summary of a bar chart", () => {
   });
 
   it("names each diverging series' extremes and the totals', a diverging stacked bar chart", () => {
-    const likert: ChartSpec = {
-      x: { format: "percent" },
-      y: { unit: { one: "item", other: "items" } },
-      marks: [
-        {
-          mark: "bar",
-          y: ["Item 1", "Item 2"],
-          arrange: "diverge",
-          left: 1,
-          centre: true,
-          series: [
-            { name: "Disagree", x: [0.25, 0.1] },
-            { name: "Neutral", x: [0.2, 0.3] },
-            { name: "Agree", x: [0.55, 0.4] },
-          ],
-        },
-      ],
-    };
+    const likert = rows(
+      ["Item 1", "Item 2"],
+      named(["Disagree", [0.25, 0.1]], ["Neutral", [0.2, 0.3]], ["Agree", [0.55, 0.4]]),
+      { arrange: "diverge", left: 1, centre: true },
+      { y: { unit: { one: "item", other: "items" } } },
+      "ratio",
+    );
     expect(generatedSummary(model(likert), words)).toBe(
       `2${nb}items, 3 series. Disagree: highest Item 1 25%, lowest Item 2 10%. ` +
         "Neutral: highest Item 2 30%, lowest Item 1 20%. " +
@@ -676,21 +617,12 @@ describe("the summary of a bar chart", () => {
   });
 
   it("names each side's extremes and the totals', a back-to-back bar chart", () => {
-    const pyramid: ChartSpec = {
-      x: {},
-      y: { unit: { one: "age group", other: "age groups" } },
-      marks: [
-        {
-          mark: "bar",
-          y: ["90+", "45-50", "0-5"],
-          arrange: "mirror",
-          series: [
-            { name: "Male", x: [210, 2734, 1690] },
-            { name: "Female", x: [520, 2690, 1610] },
-          ],
-        },
-      ],
-    };
+    const pyramid = rows(
+      ["90+", "45-50", "0-5"],
+      named(["Male", [210, 2734, 1690]], ["Female", [520, 2690, 1610]]),
+      { arrange: "mirror" },
+      { y: { unit: { one: "age group", other: "age groups" } } },
+    );
     expect(generatedSummary(model(pyramid), words)).toBe(
       `3${nb}age groups, 2 series. Male: highest 45-50 2,734, lowest 90+ 210. ` +
         "Female: highest 45-50 2,690, lowest 90+ 520. " +
@@ -702,16 +634,13 @@ describe("the summary of a bar chart", () => {
   });
 
   it("says only the count when every value is a gap, in categories without a unit", () => {
-    const empty: ChartSpec = {
-      x: {},
-      marks: [{ mark: "bar", y: ["a", "b"], series: [{ name: "a", x: [null, null] }] }],
-    };
+    const empty = rows(["a", "b"], named(["a", [null, null]]));
     expect(generatedSummary(model(empty), words)).toBe("2 categories.");
   });
 
   it("is named by its kind, its series count and its row count", () => {
     expect(shortDescription(model(ages), words)).toBe(`Bar chart, 4${nb}countries`);
-    expect(shortDescription(model(firms), words)).toBe(
+    expect(shortDescription(model(firms()), words)).toBe(
       `Stacked bar chart, 3 series, 3${nb}companies`,
     );
   });
@@ -722,28 +651,37 @@ describe("the summary of a bar chart", () => {
       countSummary: (count) => `[${count}]`,
       extremes: (high, low) => `${high} > ${low}`,
     });
-    const plain: ChartSpec = { ...ages, y: {} };
+    const plain = rows(
+      ["Holy See", "Monaco", "Japan", "Andorra"],
+      named(["Median age", [57.4, 49.8, 49.8, null]]),
+    );
     expect(generatedSummary(model(plain), own)).toBe("[4 rows] Holy See 57.4 > Monaco 49.8");
   });
 });
 
 describe("the summary of a dot plot", () => {
   const degrees = { one: "degree", other: "degrees" };
-  const pay: ChartSpec = {
-    x: {},
-    y: { unit: degrees },
-    marks: [
-      {
-        mark: "point",
-        y: ["Doctorate", "Master's", "Less than 9th grade"],
-        series: [
-          { name: "Women", x: [128_700, 91_000, 29_100] },
-          { name: "Men", x: [163_500, null, 43_350] },
-          { name: "Other", x: [null, null, null] },
-        ],
-      },
-    ],
-  };
+  const dots = (
+    names: readonly string[],
+    series: FrameSeries[],
+    mark: object = {},
+    more: More = {},
+  ): ChartSpec =>
+    ({
+      data: categories(names, [], { series }),
+      mark: { mark: "point", ...mark },
+      ...more,
+    }) as ChartSpec;
+  const pay = dots(
+    ["Doctorate", "Master's", "Less than 9th grade"],
+    named(
+      ["Women", [128_700, 91_000, 29_100]],
+      ["Men", [163_500, null, 43_350]],
+      ["Other", [null, null, null]],
+    ),
+    {},
+    { y: { unit: degrees } },
+  );
 
   it("counts rows and series, then names each series' highest and lowest row", () => {
     expect(generatedSummary(model(pay), words)).toBe(
@@ -753,26 +691,21 @@ describe("the summary of a dot plot", () => {
   });
 
   it("names one series' extremes, and a time x's earliest and latest", () => {
-    const one = model({
-      x: {},
-      marks: [
-        { mark: "point", y: ["Japan", "Monaco"], series: [{ name: "Age", x: [49.8, 54.5] }] },
-      ],
-    });
+    const one = model(dots(["Japan", "Monaco"], named(["Age", [49.8, 54.5]])));
     expect(generatedSummary(one, words)).toBe(
       "2 categories. Highest Monaco 54.5, lowest Japan 49.8.",
     );
     expect(shortDescription(one, words)).toBe("Dot plot, 2 categories");
-    const releases = model({
-      x: { type: "time" },
-      marks: [
+    const releases = model(
+      dots(
+        ["api", "web"],
+        named(["Release", [START + 90 * MIN, START]]),
+        {},
         {
-          mark: "point",
-          y: ["api", "web"],
-          series: [{ name: "Release", x: [START + 90 * MIN, START] }],
+          x: { type: "time" },
         },
-      ],
-    });
+      ),
+    );
     expect(generatedSummary(releases, words)).toBe(
       `2 categories. Release: earliest web ${time(START)}, latest api ${time(START + 90 * MIN)}.`,
     );
@@ -783,12 +716,9 @@ describe("the summary of a dot plot", () => {
       kind: { dotPlot: "Punktdiagramm" },
       spanSeries: (name, first, last) => `${name}: ${first} bis ${last}.`,
     });
-    const releases = model({
-      x: { type: "time" },
-      marks: [
-        { mark: "point", y: ["a", "b"], series: [{ name: "R", x: [START, START + 90 * MIN] }] },
-      ],
-    });
+    const releases = model(
+      dots(["a", "b"], named(["R", [START, START + 90 * MIN]]), {}, { x: { type: "time" } }),
+    );
     expect(generatedSummary(releases, own)).toBe(
       `2 categories. R: a ${time(START)} bis b ${time(START + 90 * MIN)}.`,
     );
@@ -797,18 +727,13 @@ describe("the summary of a dot plot", () => {
 });
 
 describe("the summary of band rows alike or alone", () => {
-  const bars = (x: (number | null)[][], more: Partial<Extract<Mark, { mark: "bar" }>> = {}) =>
+  const bars = (x: Values[], mark: object = {}) =>
     model({
-      x: {},
-      marks: [
-        {
-          mark: "bar",
-          y: ["Japan", "Italy", "Spain"].slice(0, x[0]?.length ?? 0),
-          ...more,
-          series: x.map((v, i) => ({ name: ["Female", "Male"][i] ?? "", x: v })),
-        },
-      ],
-    });
+      data: categories(["Japan", "Italy", "Spain"].slice(0, x[0]?.length ?? 0), [], {
+        series: x.map((v, i) => ({ key: ["Female", "Male"][i] ?? "", values: [...v] })),
+      }),
+      mark: { mark: "bar", ...mark },
+    } as ChartSpec);
 
   it("gives the value once when every row holds it, a series or the totals", () => {
     expect(generatedSummary(bars([[40, 40, 40]]), words)).toBe("3 categories. 40 each.");
@@ -816,19 +741,11 @@ describe("the summary of band rows alike or alone", () => {
     expect(
       generatedSummary(
         model({
-          x: { format: "percent" },
-          marks: [
-            {
-              mark: "bar",
-              y: ["Item 1", "Item 2"],
-              arrange: "diverge",
-              left: 1,
-              series: [
-                { name: "Disagree", x: [0.25, 0.4] },
-                { name: "Agree", x: [0.75, 0.6] },
-              ],
-            },
-          ],
+          data: categories(["Item 1", "Item 2"], [], {
+            unit: "ratio",
+            series: named(["Disagree", [0.25, 0.4]], ["Agree", [0.75, 0.6]]),
+          }),
+          mark: { mark: "bar", arrange: "diverge", left: 1 },
         }),
         words,
       ),
@@ -849,18 +766,9 @@ describe("the summary of band rows alike or alone", () => {
   it("reads a point series, a time x's instants and a link's gaps alike once", () => {
     const point = (x: NonNullable<ChartSpec["x"]>, a: number[], b: number[], link?: "range") =>
       model({
+        data: categories(["api", "web"], [], { series: named(["Before", a], ["After", b]) }),
+        mark: { mark: "point", ...(link === undefined ? {} : { link }) },
         x,
-        marks: [
-          {
-            mark: "point",
-            y: ["api", "web"],
-            ...(link === undefined ? {} : { link }),
-            series: [
-              { name: "Before", x: a },
-              { name: "After", x: b },
-            ],
-          },
-        ],
       });
     expect(generatedSummary(point({}, [5, 5], [7, 9]), words)).toBe(
       "2 categories, 2 series. Before: 5 each. After: highest web 9, lowest api 7.",
@@ -889,19 +797,14 @@ describe("the summary of band rows alike or alone", () => {
 
 describe("the summary of a range or arrow plot", () => {
   const pay = (link: "range" | "arrow"): ChartSpec => ({
-    x: {},
+    data: categories(["Doctorate", "Master's", "Less than 9th grade", "None"], [], {
+      series: named(
+        ["Women", [128_700, 91_000, 29_100, null]],
+        ["Men", [163_500, 144_310, 43_350, 20_000]],
+      ),
+    }),
+    mark: { mark: "point", link },
     y: { unit: { one: "degree", other: "degrees" } },
-    marks: [
-      {
-        mark: "point",
-        y: ["Doctorate", "Master's", "Less than 9th grade", "None"],
-        link,
-        series: [
-          { name: "Women", x: [128_700, 91_000, 29_100, null] },
-          { name: "Men", x: [163_500, 144_310, 43_350, 20_000] },
-        ],
-      },
-    ],
   });
 
   it("names the highest and lowest gap after each series, leaving a row with a gap out", () => {
@@ -915,18 +818,10 @@ describe("the summary of a range or arrow plot", () => {
 
   it("names the largest and smallest change with their signs", () => {
     const fell = model({
-      x: {},
-      marks: [
-        {
-          mark: "point",
-          y: ["Norway", "Chad"],
-          link: "arrow",
-          series: [
-            { name: "2013", x: [5.8, 3] },
-            { name: "2023", x: [93, 1.5] },
-          ],
-        },
-      ],
+      data: categories(["Norway", "Chad"], [], {
+        series: named(["2013", [5.8, 3]], ["2023", [93, 1.5]]),
+      }),
+      mark: { mark: "point", link: "arrow" },
     });
     expect(generatedSummary(fell, words)).toBe(
       "2 categories, 2 series. 2013: highest Norway 5.8, lowest Chad 3. 2023: highest Norway 93, lowest Chad 1.5. Change: highest Norway +87.2, lowest Chad -1.5.",
@@ -943,19 +838,22 @@ describe("the summary of a range or arrow plot", () => {
 
 describe("the summary of a slope chart", () => {
   const slope = (
-    series: readonly { name: string; y: (number | null)[] }[],
-    more: readonly Mark[] = [],
+    series: FrameSeries[],
+    notes: readonly (readonly [number, string])[] = [],
   ): ChartSpec => ({
-    marks: [{ mark: "slope", x: ["2005", "2015"], series }, ...more],
+    data: marked(categories(["2005", "2015"], [], { series }), [], notes),
+    mark: { mark: "slope" },
   });
-  const pets = slope([
-    { name: "Cats", y: [50, 34] },
-    { name: "Dogs", y: [40, 31] },
-    { name: "Horses", y: [30, 39] },
-    { name: "Mice", y: [null, 44] },
-    { name: "Sheep", y: [20, 35] },
-    { name: "Goats", y: [10, 25] },
-  ]);
+  const pets = slope(
+    named(
+      ["Cats", [50, 34]],
+      ["Dogs", [40, 31]],
+      ["Horses", [30, 39]],
+      ["Mice", [null, 44]],
+      ["Sheep", [20, 35]],
+      ["Goats", [10, 25]],
+    ),
+  );
 
   it("gives each series' ends and change, then the largest rise and fall", () => {
     expect(generatedSummary(model(pets), words)).toBe(
@@ -966,29 +864,18 @@ describe("the summary of a slope chart", () => {
   });
 
   it("leaves out the rise when none rose and the fall when none fell, and 0 is neither", () => {
-    expect(
-      generatedSummary(
-        model(
-          slope([
-            { name: "a", y: [3, 1] },
-            { name: "b", y: [2, 2] },
-          ]),
-        ),
-        words,
-      ),
-    ).toBe("2005 to 2015, 2 series. a: 3 to 1, -2. b: 2 to 2, 0. Largest fall: a -2.");
-    expect(generatedSummary(model(slope([{ name: "a", y: [1, 3] }])), words)).toBe(
+    expect(generatedSummary(model(slope(named(["a", [3, 1]], ["b", [2, 2]]))), words)).toBe(
+      "2005 to 2015, 2 series. a: 3 to 1, -2. b: 2 to 2, 0. Largest fall: a -2.",
+    );
+    expect(generatedSummary(model(slope(named(["a", [1, 3]]))), words)).toBe(
       "2005 to 2015. a: 1 to 3, +2. Largest rise: a +2.",
     );
   });
 
-  it("says its notes at their column, and names the columns in its short description", () => {
-    const noted = slope(
-      [{ name: "a", y: [1, 3] }],
-      [{ mark: "text", x: "2015", y: 3, text: "New high" }],
-    );
+  it("says its notes at their plain value, a slope having no x place, and names the columns in its short description", () => {
+    const noted = slope(named(["a", [1, 3]]), [[1, "New high"]]);
     expect(generatedSummary(model(noted), words)).toBe(
-      "2005 to 2015. a: 1 to 3, +2. Largest rise: a +2. 2015: New high.",
+      "2005 to 2015. a: 1 to 3, +2. Largest rise: a +2. 1: New high.",
     );
     expect(shortDescription(model(pets), words)).toBe("Slope chart, 6 series, 2005 to 2015");
   });
@@ -1000,7 +887,7 @@ describe("the summary of a slope chart", () => {
       rise: (name, change) => `up ${name} ${change}`,
       fall: (name, change) => `down ${name} ${change}`,
     });
-    expect(generatedSummary(model(slope([{ name: "a", y: [1, null] }])), own)).toBe(
+    expect(generatedSummary(model(slope(named(["a", [1, null]]))), own)).toBe(
       "[2005 to 2015|] <a 1 No data >",
     );
   });
@@ -1008,18 +895,13 @@ describe("the summary of a slope chart", () => {
 
 describe("a scatter's short description", () => {
   const scatter = (unit?: { one: string; other: string }): ChartSpec => ({
+    data: points([
+      { key: "Europe", names: ["Albania", "Andorra"], x: [18_920, 65_928], y: [79.8, 84.1] },
+      { key: "Africa", names: ["Chad", "Mali"], x: [1_500, null], y: [53, 59] },
+    ]),
+    mark: { mark: "scatter", ...(unit === undefined ? {} : { unit }) },
     x: { label: "GDP per capita" },
     y: { label: "Life expectancy" },
-    marks: [
-      {
-        mark: "scatter",
-        ...(unit === undefined ? {} : { unit }),
-        series: [
-          { name: "Europe", names: ["Albania", "Andorra"], x: [18_920, 65_928], y: [79.8, 84.1] },
-          { name: "Africa", names: ["Chad", "Mali"], x: [1_500, null], y: [53, 59] },
-        ],
-      },
-    ],
   });
 
   it("names its kind, its series and the dots it draws, in its unit", () => {
@@ -1031,9 +913,10 @@ describe("a scatter's short description", () => {
   it("counts points without a unit, one in the singular", () => {
     expect(shortDescription(model(scatter()), words)).toBe("Scatter plot, 2 series, 3 points");
     const one = model({
+      data: points([{ key: "All", names: ["Chad"], x: [1], y: [2] }]),
+      mark: { mark: "scatter" },
       x: { label: "a" },
       y: { label: "b" },
-      marks: [{ mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1], y: [2] }] }],
     });
     expect(shortDescription(one, words)).toBe("Scatter plot, 1 point");
   });
@@ -1041,25 +924,23 @@ describe("a scatter's short description", () => {
 
 describe("a scatter's summary", () => {
   const countries = { one: "country", other: "countries" };
-  const world = (more: readonly Mark[] = []): ChartSpec => ({
+  const world = (notes: readonly (readonly [number, string])[] = []): ChartSpec => ({
+    data: marked(
+      points([
+        {
+          key: "Europe",
+          names: ["Albania", "Monaco", "Norway", "Kosovo"],
+          x: [18_920, 140_000, 82_000, null],
+          y: [79.8, 85.9, 83.2, 79],
+        },
+        { key: "Africa", names: ["Burundi", "Chad"], x: [900, 1_500], y: [62, 53] },
+      ]),
+      [],
+      notes,
+    ),
+    mark: { mark: "scatter", unit: countries },
     x: { label: "GDP per capita" },
     y: { label: "Life expectancy" },
-    marks: [
-      {
-        mark: "scatter",
-        unit: countries,
-        series: [
-          {
-            name: "Europe",
-            names: ["Albania", "Monaco", "Norway", "Kosovo"],
-            x: [18_920, 140_000, 82_000, null],
-            y: [79.8, 85.9, 83.2, 79],
-          },
-          { name: "Africa", names: ["Burundi", "Chad"], x: [900, 1_500], y: [62, 53] },
-        ],
-      },
-      ...more,
-    ],
   });
 
   it("counts the dots and series, then gives each measure's highest and lowest dot", () => {
@@ -1070,17 +951,13 @@ describe("a scatter's summary", () => {
 
   it("gives a tie to the first dot in series order, then in the app's order", () => {
     const tied = model({
+      data: points([
+        { key: "a", names: ["a1", "a2"], x: [1, 3], y: [2, 2] },
+        { key: "b", names: ["b1", "b2"], x: [3, 1], y: [5, 1] },
+      ]),
+      mark: { mark: "scatter" },
       x: { label: "x" },
       y: { label: "y" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [
-            { name: "a", names: ["a1", "a2"], x: [1, 3], y: [2, 2] },
-            { name: "b", names: ["b1", "b2"], x: [3, 1], y: [5, 1] },
-          ],
-        },
-      ],
     });
     expect(generatedSummary(tied, words)).toBe(
       "4 points, 2 series. x: highest a2 3, lowest a1 1. y: highest b1 5, lowest b2 1.",
@@ -1089,35 +966,32 @@ describe("a scatter's summary", () => {
 
   it("reads one dot once and dots all alike as one value", () => {
     const one = model({
+      data: points([{ key: "All", names: ["Chad", "Mali"], x: [1_500, 2_000], y: [53, 53] }]),
+      mark: { mark: "scatter" },
       x: { label: "GDP per capita" },
       y: { label: "Life expectancy" },
-      marks: [
-        {
-          mark: "scatter",
-          series: [{ name: "All", names: ["Chad", "Mali"], x: [1_500, 2_000], y: [53, 53] }],
-        },
-      ],
     });
     expect(generatedSummary(one, words)).toBe(
       "2 points. GDP per capita: highest Mali 2,000, lowest Chad 1,500. Life expectancy: 53 each.",
     );
     const lone = model({
+      data: points([{ key: "All", names: ["Chad"], x: [1_500], y: [53] }]),
+      mark: { mark: "scatter" },
       x: { label: "GDP per capita" },
       y: { label: "Life expectancy" },
-      marks: [{ mark: "scatter", series: [{ name: "All", names: ["Chad"], x: [1_500], y: [53] }] }],
     });
     expect(generatedSummary(lone, words)).toBe(
       "1 point. GDP per capita: Chad 1,500. Life expectancy: Chad 53.",
     );
   });
 
-  it("writes a note's place as the dot it joins, or else both its measures", () => {
-    const notes: Mark[] = [
-      { mark: "text", x: 140_000, y: 85.9, text: "A city-state" },
-      { mark: "text", x: 50_000, y: 70, text: "Nobody here" },
-    ];
+  it("writes a note's place as its x measure, since an x names no dot", () => {
+    const notes = [
+      [140_000, "A city-state"],
+      [50_000, "Nobody here"],
+    ] as const;
     expect(generatedSummary(model(world(notes)), words)).toMatch(
-      / Monaco: A city-state\. GDP per capita 50,000, Life expectancy 70: Nobody here\.$/u,
+      / GDP per capita 140,000: A city-state\. GDP per capita 50,000: Nobody here\.$/u,
     );
   });
 
@@ -1133,25 +1007,20 @@ describe("a scatter's summary", () => {
 
 describe("a bubble chart's summary and short description", () => {
   const world = model({
+    data: points([
+      {
+        key: "Asia",
+        names: ["India", "Japan", "Laos"],
+        x: [2_500, 48_000, 8_400],
+        y: [72, 84.5, 68],
+        r: [1_440_000_000, 124_000_000, null],
+      },
+      { key: "Oceania", names: ["Tuvalu"], x: [5_000], y: [65], r: [9_800] },
+    ]),
+    mark: { mark: "scatter", unit: { one: "country", other: "countries" } },
     x: { label: "GDP per capita" },
     y: { label: "Life expectancy" },
     r: { label: "Population", format: { notation: "compact" } },
-    marks: [
-      {
-        mark: "scatter",
-        unit: { one: "country", other: "countries" },
-        series: [
-          {
-            name: "Asia",
-            names: ["India", "Japan", "Laos"],
-            x: [2_500, 48_000, 8_400],
-            y: [72, 84.5, 68],
-            r: [1_440_000_000, 124_000_000, null],
-          },
-          { name: "Oceania", names: ["Tuvalu"], x: [5_000], y: [65], r: [9_800] },
-        ],
-      },
-    ],
   });
 
   it("gives the size's highest and lowest dot after the two measures", () => {
@@ -1169,14 +1038,12 @@ describe("a heatmap's short description", () => {
   const week = (x: ChartSpec["x"], y: ChartSpec["y"]): ChartSpec => ({
     ...(x === undefined ? {} : { x }),
     ...(y === undefined ? {} : { y }),
-    marks: [
-      {
-        mark: "cell",
-        x: per(24, String),
-        y: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        values: per(7, () => per(24, () => 1)),
-      },
-    ],
+    data: grid(
+      { names: per(24, String) },
+      { names: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+      per(7, () => per(24, () => 1)),
+    ),
+    mark: { mark: "cell" },
   });
 
   it("gives its rows by its columns in the axes' units", () => {
@@ -1205,20 +1072,18 @@ describe("a heatmap's short description", () => {
 
 describe("a 2D histogram's short description", () => {
   const bins = (
-    x: Extract<Mark, { mark: "cell"; values: unknown }>["x"],
+    x: { readonly edges: number[] } | { readonly names: string[] },
     one: string,
     other: string,
   ): ChartSpec => ({
+    data: grid(
+      x,
+      { edges: per(13, (i) => 25 + 5 * i) },
+      per(12, () => per("edges" in x ? x.edges.length - 1 : x.names.length, () => 1)),
+    ),
+    mark: { mark: "cell" },
     x: { unit: { one, other } },
     y: { unit: { one: "year", other: "years" } },
-    marks: [
-      {
-        mark: "cell",
-        x,
-        y: { edges: per(13, (i) => 25 + 5 * i) },
-        values: per(12, () => per("edges" in x ? x.edges.length - 1 : x.length, () => 1)),
-      },
-    ],
   });
 
   it("names it a 2D histogram with bare bin counts, since a binned axis's unit is its values'", () => {
@@ -1233,13 +1098,7 @@ describe("a 2D histogram's short description", () => {
   it("is a heatmap when one axis names its categories, counted in that axis's unit", () => {
     expect(
       shortDescription(
-        model(
-          bins(
-            per(3, (i) => `Q${String(i + 1)}`),
-            "quarter",
-            "quarters",
-          ),
-        ),
+        model(bins({ names: per(3, (i) => `Q${String(i + 1)}`) }, "quarter", "quarters")),
         words,
       ),
     ).toBe(`Heatmap, 12 by 3${nb}quarters`);
@@ -1247,17 +1106,24 @@ describe("a 2D histogram's short description", () => {
 });
 
 describe("a cell chart's summary", () => {
-  const grid = (values: (number | null)[][], over: Partial<ChartSpec> = {}): ChartSpec => ({
+  const cells = (
+    values: Values[],
+    notes: readonly (readonly [number, string])[] = [],
+  ): ChartSpec => ({
+    data: marked(
+      grid({ names: ["2 PM", "3 PM"] }, { names: ["Monday", "Tuesday"] }, values),
+      [],
+      notes,
+    ),
+    mark: { mark: "cell" },
     colour: { unit: posts },
-    marks: [{ mark: "cell", x: ["2 PM", "3 PM"], y: ["Monday", "Tuesday"], values }],
-    ...over,
   });
 
   it("counts the cells and names the highest and lowest, each with its value", () => {
     expect(
       generatedSummary(
         model(
-          grid([
+          cells([
             [4, 57],
             [0, null],
           ]),
@@ -1271,7 +1137,7 @@ describe("a cell chart's summary", () => {
     expect(
       generatedSummary(
         model(
-          grid([
+          cells([
             [5, 5],
             [5, 5],
           ]),
@@ -1283,17 +1149,11 @@ describe("a cell chart's summary", () => {
 
   it("reads a binned y's highest bin first, as the plot draws it from the top", () => {
     const spec: ChartSpec = {
-      marks: [
-        {
-          mark: "cell",
-          x: { edges: [0, 1, 2] },
-          y: { edges: [0, 10, 20] },
-          values: [
-            [1, 9],
-            [9, 1],
-          ],
-        },
-      ],
+      data: grid({ edges: [0, 1, 2] }, { edges: [0, 10, 20] }, [
+        [1, 9],
+        [9, 1],
+      ]),
+      mark: { mark: "cell" },
     };
     expect(generatedSummary(model(spec), words)).toBe(
       "4 cells. Highest 10 to 20, 0 to 1: 9. Lowest 10 to 20, 1 to 2: 1.",
@@ -1304,7 +1164,7 @@ describe("a cell chart's summary", () => {
     expect(
       generatedSummary(
         model(
-          grid([
+          cells([
             [null, null],
             [null, null],
           ]),
@@ -1318,7 +1178,7 @@ describe("a cell chart's summary", () => {
     expect(
       generatedSummary(
         model(
-          grid([
+          cells([
             [1, 2],
             [3, 4],
           ]),
@@ -1328,63 +1188,47 @@ describe("a cell chart's summary", () => {
     ).not.toContain("Total");
   });
 
-  it("places a note at the cell it names", () => {
-    const spec = grid(
+  it("says a note at its plain value, a grid of names having no x place", () => {
+    const spec = cells(
       [
         [1, 2],
         [3, 4],
       ],
-      {
-        marks: [
-          {
-            mark: "cell",
-            x: ["2 PM", "3 PM"],
-            y: ["Monday", "Tuesday"],
-            values: [
-              [1, 2],
-              [3, 4],
-            ],
-          },
-          { mark: "text", x: "3 PM", y: "Tuesday", text: "Release" },
-        ],
-      },
+      [[3, "Release"]],
     );
-    expect(generatedSummary(model(spec), words)).toContain("Tuesday, 3 PM: Release.");
+    expect(generatedSummary(model(spec), words)).toContain(" 3: Release.");
   });
 });
 
 describe("the summary of a box plot", () => {
   const latency = (more: Record<string, unknown> = {}, two = false): ChartSpec => ({
     y: { unit: { one: "endpoint", other: "endpoints" } },
-    marks: [
-      {
-        mark: "box",
-        y: ["search", "export", "health"],
-        series: [
-          {
-            name: "Latency",
-            low: [120, 300, 1],
-            q1: [180, 900, 2],
-            median: [240, 1400, 2],
-            q3: [410, 2100, 3],
-            high: [760, 4000, 4],
-          },
-          ...(two
-            ? [
-                {
-                  name: "After",
-                  low: [null, 50, null],
-                  q1: [null, 60, null],
-                  median: [null, 70, null],
-                  q3: [null, 80, null],
-                  high: [null, 90, null],
-                },
-              ]
-            : []),
-        ],
-        ...more,
-      },
-    ],
+    mark: { mark: "box", ...more } as ChartSpec["mark"],
+    data: boxes(
+      ["search", "export", "health"],
+      [
+        {
+          key: "Latency",
+          low: [120, 300, 1],
+          q1: [180, 900, 2],
+          median: [240, 1400, 2],
+          q3: [410, 2100, 3],
+          high: [760, 4000, 4],
+        },
+        ...(two
+          ? [
+              {
+                key: "After",
+                low: [null, 50, null],
+                q1: [null, 60, null],
+                median: [null, 70, null],
+                q3: [null, 80, null],
+                high: [null, 90, null],
+              },
+            ]
+          : []),
+      ],
+    ),
   });
 
   it("names each series' highest and lowest median and widest middle half, then the whiskers", () => {
@@ -1412,20 +1256,11 @@ describe("the summary of a box plot", () => {
 
 describe("the summary and short description of a pie", () => {
   const land = (hole = false, water: number | null = 8224): ChartSpec => ({
-    marks: [
-      {
-        mark: "pie",
-        hole,
-        unit: { other: "km²" },
-        slices: [
-          { name: "Agriculture", value: 182_637 },
-          { name: "Forest", value: 106_645 },
-          { name: "Housing & traffic", value: 48_631 },
-          { name: "Other land", value: 11_443 },
-          { name: "Water", value: water },
-        ],
-      },
-    ],
+    data: categories(
+      ["Agriculture", "Forest", "Housing & traffic", "Other land", "Water"],
+      [[182_637, 106_645, 48_631, 11_443, water]],
+    ),
+    mark: { mark: "pie", hole, unit: { other: "km²" } },
   });
 
   it("gives the whole, then each slice's share in the order sent", () => {
@@ -1456,44 +1291,21 @@ describe("the summary and short description of a pie", () => {
 describe("the summary of a treemap", () => {
   // GDP in 2023, bn USD: 62,580 in all, Asia 41%, the Americas 47% and Europe 12%.
   const gdp = (us: number | null = 27_361): ChartSpec => ({
-    marks: [
-      {
-        mark: "tree",
-        unit: { other: "bn USD" },
-        nodes: [
-          {
-            name: "Asia",
-            children: [
-              { name: "China", value: 17_795 },
-              { name: "Japan", value: 4213 },
-              { name: "India", value: 3550 },
-            ],
-          },
-          {
-            name: "Americas",
-            children: [
-              { name: "United States", value: us },
-              { name: "Brazil", value: 2174 },
-            ],
-          },
-          {
-            name: "Europe",
-            children: [
-              { name: "Germany", value: 4456 },
-              { name: "France", value: 3031 },
-            ],
-          },
-        ],
-      },
-    ],
+    data: tree({
+      groups: [
+        {
+          key: "Asia",
+          children: [part("China", 17_795), part("Japan", 4213), part("India", 3550)],
+        },
+        { key: "Americas", children: [part("United States", us), part("Brazil", 2174)] },
+        { key: "Europe", children: [part("Germany", 4456), part("France", 3031)] },
+      ],
+    }),
+    mark: { mark: "tree", unit: { other: "bn USD" } },
   });
-  const flat = (values: readonly (number | null)[]): ChartSpec => ({
-    marks: [
-      {
-        mark: "tree",
-        nodes: values.map((value, i) => ({ name: `Country ${String(i + 1)}`, value })),
-      },
-    ],
+  const flat = (values: Values): ChartSpec => ({
+    data: tree({ parts: values.map((v, i) => part(`Country ${String(i + 1)}`, v)) }),
+    mark: { mark: "tree" },
   });
 
   it("gives the whole and each group's share in the order sent, then the largest part", () => {
@@ -1532,24 +1344,32 @@ describe("the summary of a treemap", () => {
 });
 
 describe("the summary of small multiples", () => {
-  const line = (name: string, y: (number | null)[], more: Mark[] = []) => ({
-    marks: [{ mark: "line" as const, x: [0, 1, 2, 3], series: [{ name, y }] }, ...more],
+  type Panel = NonNullable<ChartSpec["facets"]>["panels"][number];
+  const line = (
+    key: string,
+    values: Values,
+    refs: readonly (readonly [string, number])[] = [],
+    notes: readonly (readonly [number, string])[] = [],
+    unit = "count",
+  ): Panel => ({
+    key,
+    data: marked(
+      seriesFrame([0, 1, 2, 3], [], { series: named([key, values]), unit }),
+      refs,
+      notes,
+    ),
   });
   const regions = { one: "region", other: "regions" };
 
-  it("says the panel count, the shared range once, each panel's series, the rules, then the notes", () => {
+  it("says the panel count, the shared range once, each panel's series, the refs, then the notes", () => {
     const m = model({
-      y: { format: "percent" },
-      marks: [{ mark: "rule", y: 0.05, label: "Target" }],
+      mark: { mark: "line" },
+      refs: [{ key: "target", label: "Target" }],
       facets: {
         unit: regions,
         panels: [
-          line(
-            "North",
-            [0.042, 0.098, 0.07, 0.061],
-            [{ mark: "text", x: 1, y: 0.098, text: "Strike" }],
-          ),
-          line("South", [0.031, 0.074, 0.05, 0.039]),
+          line("North", [0.042, 0.098, 0.07, 0.061], [["target", 0.05]], [[1, "Strike"]], "ratio"),
+          line("South", [0.031, 0.074, 0.05, 0.039], [["target", 0.05]], [], "ratio"),
         ],
       },
     });
@@ -1559,22 +1379,16 @@ describe("the summary of small multiples", () => {
   });
 
   it("puts a panel's own sentences after its name when they do not start with it", () => {
-    const panel = (name: string, coal: number[], gas: number[]) => ({
+    const panel = (name: string, coal: number[], gas: number[]): Panel => ({
+      key: name,
       name,
-      marks: [
-        {
-          mark: "rect" as const,
-          x1: [0, 10],
-          x2: [10, 20],
-          series: [
-            { name: "Coal", y: coal },
-            { name: "Gas", y: gas },
-          ],
-        },
-      ],
+      data: binsFrame([0, 10], [10, 20], [], {
+        axis: "value",
+        series: named(["Coal", coal], ["Gas", gas]),
+      }),
     });
     const m = model({
-      marks: [],
+      mark: { mark: "rect" },
       facets: { panels: [panel("Germany", [3, 4], [1, 2]), panel("France", [1, 0], [5, 6])] },
     });
     expect(generatedSummary(m, words)).toBe(
@@ -1583,36 +1397,47 @@ describe("the summary of small multiples", () => {
   });
 
   it("names per-series bar panels whose sentences do not name their series, and says the shared rows once", () => {
-    const panel = (name: string, coal: number) => ({
+    const panel = (name: string, coal: number): Panel => ({
+      key: name,
       name,
-      marks: [
-        {
-          mark: "bar" as const,
-          y: ["Coal", "Gas"],
-          series: [{ name: "Share", x: [coal, 2] }],
-        },
-      ],
+      data: categories(["Coal", "Gas"], [], { series: named(["Share", [coal, 2]]) }),
     });
-    const m = model({ marks: [], facets: { panels: [panel("2023", 3), panel("2024", 1)] } });
+    const m = model({
+      mark: { mark: "bar" },
+      facets: { panels: [panel("2023", 3), panel("2024", 1)] },
+    });
     expect(generatedSummary(m, words)).toBe(
       "2 panels. 2 categories. 2023. Highest Coal 3, lowest Gas 2. 2024. Highest Gas 2, lowest Coal 1.",
     );
   });
 
-  it("reads the chart's rules once, then each panel's own after its name, before the notes", () => {
+  it("reads the chart's refs once, then each panel's own after its name, before the notes", () => {
     const m = model({
-      marks: [{ mark: "rule", y: 1, label: "Chart" }],
+      mark: { mark: "line" },
+      refs: [
+        { key: "chart", label: "Chart" },
+        { key: "north", label: "Only north" },
+        { key: "south", label: "Only south", axis: "x" },
+      ],
       facets: {
         panels: [
           line(
             "North",
             [1, 2, 3, 4],
             [
-              { mark: "rule", y: 2, label: "Only north" },
-              { mark: "text", x: 1, y: 2, text: "Strike" },
+              ["chart", 1],
+              ["north", 2],
+            ],
+            [[1, "Strike"]],
+          ),
+          line(
+            "South",
+            [4, 3, 2, 1],
+            [
+              ["chart", 1],
+              ["south", 2],
             ],
           ),
-          line("South", [4, 3, 2, 1], [{ mark: "rule", x: 2, label: "Only south" }]),
         ],
       },
     });
@@ -1620,8 +1445,9 @@ describe("the summary of small multiples", () => {
       "2 panels. 0 to 3, every 1. North: last 4, low 1, high 4. South: last 1, low 1, high 4. Chart 1. North, Only north 2. South, Only south 2. North, 1: Strike.",
     );
     const own = model({
-      marks: [],
-      facets: { panels: [line("North", [1, 2, 3, 4], [{ mark: "rule", y: 2, label: "Cap" }])] },
+      mark: { mark: "line" },
+      refs: [{ key: "cap", label: "Cap" }],
+      facets: { panels: [line("North", [1, 2, 3, 4], [["cap", 2]]), line("South", [4, 3, 2, 1])] },
     });
     expect(generatedSummary(own, chartWords({ panelAt: (p, at) => `${at} (${p})` }))).toContain(
       "Cap (North) 2.",
@@ -1629,7 +1455,7 @@ describe("the summary of small multiples", () => {
   });
 
   it("shares nothing in a grid of one, so the panel's series sentence leads and names it once", () => {
-    const m = model({ marks: [], facets: { panels: [line("North", [1, 2, 3, 4])] } });
+    const m = model({ mark: { mark: "line" }, facets: { panels: [line("North", [1, 2, 3, 4])] } });
     expect(generatedSummary(m, words)).toBe(
       "1 panel. North: last 4, low 1, high 4. 0 to 3, every 1.",
     );
@@ -1641,19 +1467,12 @@ describe("the summary of small multiples", () => {
       panel: (name, sentences) => `[${name}] ${sentences}`,
     });
     const m = model({
-      marks: [],
+      mark: { mark: "pie" },
       facets: {
-        panels: ["A", "B"].map((name, k) => ({
+        panels: ["A", "B"].map((name, k): Panel => ({
+          key: name,
           name,
-          marks: [
-            {
-              mark: "pie" as const,
-              slices: [
-                { name: "X", value: k + 1 },
-                { name: "Y", value: 1 },
-              ],
-            },
-          ],
+          data: categories(["X", "Y"], [[k + 1, 1]]),
         })),
       },
     });
