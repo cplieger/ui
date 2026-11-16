@@ -1,0 +1,412 @@
+/**
+ * settings.ts — the owner's access settings: how single sign-on sits beside
+ * local sign-in, each choice checked with the server before it applies, as
+ * docs/design-account.md "Admin" describes. The app's own second-factor
+ * settings take their words from `AccountWords`.
+ * @module
+ */
+
+import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
+import { installAnnouncer } from "../../feedback/announce/announce.js";
+import { skeletonTiming } from "../../feedback/skeleton/skeleton.js";
+import { installDialogs } from "../../overlays/dialog/dialog.js";
+import { codeOf, generic, reasonOf, type Said, type Tone } from "./answer.js";
+import type {
+  AccessSettingsClient,
+  AccountView,
+  Readiness,
+  Refusal,
+  Result,
+  SSOMode,
+  StepUpAccess,
+} from "./client.js";
+import { actionButton, el, heading, line, sketch, uid } from "./dom.js";
+import { runDirect, type AccountAction } from "./run.js";
+import {
+  cycle,
+  endsSession,
+  holdForHttps,
+  leaver,
+  read,
+  slot,
+  type ScreenOptions,
+  type SignedOutOptions,
+} from "./screen.js";
+import { stepUp, type StepUpAnswer } from "./step-up.js";
+import { wordsOf, type AccountWords } from "./words.js";
+
+export interface AccessSettingsOptions<C extends AccessSettingsClient>
+  extends Omit<ScreenOptions, "parts" | "search">, SignedOutOptions {
+  /** The host's `@cplieger/access` client. */
+  readonly client: C;
+  /** The host's `@cplieger/access` module, `import * as access`. */
+  readonly access: StepUpAccess<C>;
+  /** The app's name, for "Open Release tracker over HTTPS". */
+  readonly app: string;
+  /** The heading's level. Default 2. */
+  readonly level?: number;
+  /** The single sign-on provider's name. */
+  readonly provider?: string;
+  /** Where a single sign-on step-up comes back. Default: this page. */
+  readonly redirect?: string;
+}
+
+export interface AccessSettingsScreen {
+  /** Reads the app's mode and the viewer again and redraws. */
+  refresh(): Promise<void>;
+}
+
+const MODES: readonly SSOMode[] = ["alongside", "for_linked", "only"];
+const NOT_RUN: Refusal = { ok: false, status: 0, error: "not run" };
+
+/** The words of a state the owner fixes elsewhere, which both the
+ *  readiness read and the change answer; undefined for any other. */
+function blocker(
+  code: string | undefined,
+  reason: string | undefined,
+  w: AccountWords,
+): string | undefined {
+  if (code === "auth_oidc_unavailable") {
+    return w["settings.needsOidc"];
+  }
+  if (code !== "auth_forbidden") {
+    return undefined;
+  }
+  switch (reason) {
+    case "owner_needs_local_method":
+      return w["settings.needsOwnMethod"];
+    case "registration_enabled":
+      return w["auth_forbidden.registration_enabled"];
+    case "not_owner":
+      return w["auth_forbidden.not_owner"];
+    default:
+      return w.auth_forbidden;
+  }
+}
+
+/** A refusal worth sending again as it is: no answer, or a server that
+ *  was busy or down for a moment. */
+const passing = (r: Refusal): boolean => {
+  const code = codeOf(r);
+  return r.status === 0 || code === "auth_unavailable" || code === "auth_busy";
+};
+
+/**
+ * Fills `region` with the SSO mode's three choices, for an owner of a
+ * multi-user app; it stays empty for anyone else, and on a client before
+ * access Part 5.
+ */
+export function mountAccessSettings<C extends AccessSettingsClient>(
+  region: HTMLElement,
+  options: AccessSettingsOptions<C>,
+): AccessSettingsScreen {
+  const { client, access, signal } = options;
+  const w = wordsOf(options.words);
+  const run = options.run ?? runDirect;
+  const provider = options.provider ?? w.provider;
+  const level = options.level ?? 2;
+  const life = signal === undefined ? {} : { signal };
+  const navigate =
+    options.navigate ??
+    ((url: string) => {
+      location.assign(url);
+    });
+  const redirect = options.redirect ?? location.pathname + location.search + location.hash;
+  const leave = leaver(options, navigate);
+  installAnnouncer(life);
+  installDialogs(life);
+
+  const root = el("section", "cp-stack");
+  const h = heading(level, w["settings.title"]);
+  root.setAttribute("aria-labelledby", h.id);
+  const notices = slot(el("div"));
+  notices.root.dataset["part"] = "notice";
+  const content = el("div", "cp-stack");
+  content.dataset["part"] = "sso-mode";
+  root.append(h, notices.root, content);
+
+  let current: SSOMode = "alongside";
+  let asked = 0;
+
+  const guarded = <T>(
+    work: () => Promise<Result<T>>,
+    name?: AccountAction,
+  ): Promise<StepUpAnswer<T>> =>
+    stepUp(
+      async () => {
+        if (name === undefined) {
+          return read(work);
+        }
+        try {
+          return await run(name, work);
+        } catch {
+          return NOT_RUN;
+        }
+      },
+      {
+        client,
+        access,
+        reason: w["settings.recent"],
+        provider,
+        run,
+        ...(options.words === undefined ? {} : { words: options.words }),
+        ...(signal === undefined ? {} : { signal }),
+        ...(options.navigate === undefined ? {} : { navigate: options.navigate }),
+        redirect,
+      },
+    );
+
+  const wordsFor = (r: Refusal): Said => {
+    if (r === NOT_RUN) {
+      return { tone: "danger", text: w["generic.server"] };
+    }
+    if (codeOf(r) === "auth_https_required") {
+      return { tone: "warning", text: w["security.needsHttps"] };
+    }
+    const said = blocker(codeOf(r), reasonOf(r), w);
+    return said === undefined ? generic(r, w) : { tone: "danger", text: said };
+  };
+
+  const applies = (me: AccountView): boolean =>
+    me.owner === true &&
+    me.single_user !== true &&
+    client.adminSSOReadiness !== undefined &&
+    client.adminApplySSO !== undefined;
+
+  const failed = (r: Refusal): void => {
+    if (endsSession(r, leave)) {
+      return;
+    }
+    const retry = el("button", "cp-button", w["generic.retry"]);
+    retry.type = "button";
+    retry.addEventListener("click", () => void load(), { once: true });
+    const said = generic(r, w);
+    notices.show(said.tone, said.text, retry);
+  };
+
+  async function load(): Promise<void> {
+    notices.clear();
+    region.setAttribute("aria-busy", "true");
+    const skeleton = skeletonTiming(() => {
+      content.replaceChildren(sketch());
+    }, life);
+    const [state, me] = await Promise.all([read(() => client.state()), read(() => client.me())]);
+    if (signal?.aborted === true) {
+      skeleton.cancel();
+      return;
+    }
+    skeleton.commit(() => {
+      region.removeAttribute("aria-busy");
+      if (me.ok && !applies(me.data)) {
+        region.replaceChildren();
+        return;
+      }
+      if (!root.isConnected) {
+        region.replaceChildren(root);
+      }
+      if (!me.ok || !state.ok) {
+        content.replaceChildren();
+        failed(me.ok ? (state as Refusal) : me);
+        return;
+      }
+      current = state.data.sso ?? "alongside";
+      draw(me.data, state.data.https_origin);
+    });
+  }
+
+  function draw(me: AccountView, httpsOrigin: string | undefined): void {
+    asked += 1;
+    const form = el("form", "cp-form");
+    form.noValidate = true;
+    const set = el("fieldset", "cp-choices");
+    set.append(el("legend", "cp-label", w["settings.mode"](provider)));
+    const name = uid("sso");
+    const radios = MODES.map((mode) => {
+      const choice = el("label", "cp-choice");
+      const input = el("input", "cp-radio");
+      input.type = "radio";
+      input.name = name;
+      input.value = mode;
+      input.checked = mode === current;
+      const words = el("span", undefined, w["settings.modeOf"](mode));
+      words.append(el("small", undefined, w["settings.modeLine"](mode, provider)));
+      choice.append(input, words);
+      set.append(choice);
+      return input;
+    });
+    const help = line("cp-help", w["settings.help"]);
+    help.id = uid("sso-help");
+    const described = [help.id];
+    const parts: HTMLElement[] = [set, help];
+    // access refuses the readiness read and the change over plain HTTP.
+    if (!me.session.secure) {
+      set.disabled = true;
+      const https = holdForHttps([], { httpsOrigin }, options.app, w);
+      described.push(https.id);
+      parts.push(https);
+    }
+    set.setAttribute("aria-describedby", described.join(" "));
+    const readiness = slot(el("div"));
+    readiness.root.dataset["part"] = "readiness";
+    const apply = actionButton(w["settings.apply"], { primary: true, type: "submit" });
+    apply.hidden = true;
+    const confirm = enhanceConfirm(apply, {
+      busy: w["settings.applyBusy"],
+      done: w["settings.applyDone"],
+      ...life,
+    });
+    form.append(...parts, readiness.root, apply);
+    content.replaceChildren(form);
+
+    let chosen = current;
+    const label = (mode: SSOMode): string => w["settings.modeOf"](mode);
+
+    const settleOn = (mode: SSOMode): void => {
+      chosen = mode;
+      for (const r of radios) {
+        r.checked = r.value === mode;
+      }
+    };
+
+    const retry = (mode: SSOMode): HTMLButtonElement => {
+      const b = el("button", "cp-button", w["generic.retry"]);
+      b.type = "button";
+      b.addEventListener("click", () => void choose(mode), { once: true });
+      return b;
+    };
+
+    const changes = (mode: SSOMode, r: Readiness): { readonly tone: Tone; readonly node: Node } => {
+      const lines = [
+        ...(r.locked_out > 0 ? [w["settings.lockedOut"](r.locked_out)] : []),
+        ...(r.methods_made_dormant > 0 ? [w["settings.dormant"](r.methods_made_dormant)] : []),
+        ...(r.methods_restored > 0 ? [w["settings.restored"](r.methods_restored)] : []),
+        ...(r.temporary_passwords_withdrawn > 0
+          ? [w["settings.withdrawn"](r.temporary_passwords_withdrawn)]
+          : []),
+      ];
+      const tone = r.locked_out > 0 || r.temporary_passwords_withdrawn > 0 ? "warning" : "neutral";
+      if (lines.length === 0) {
+        return { tone, node: document.createTextNode(w["settings.noChange"]) };
+      }
+      const box = el("div", "cp-stack");
+      box.dataset["gap"] = "tight";
+      const list = el("ul", "cp-stack");
+      list.dataset["gap"] = "tight";
+      for (const l of lines) {
+        list.append(el("li", undefined, l));
+      }
+      box.append(el("p", undefined, w["settings.changes"](label(mode))), list);
+      return { tone, node: box };
+    };
+
+    async function choose(mode: SSOMode): Promise<void> {
+      apply.hidden = true;
+      readiness.clear();
+      chosen = mode;
+      const n = ++asked;
+      if (mode === current) {
+        return;
+      }
+      const ask = client.adminSSOReadiness?.bind(client);
+      if (ask === undefined) {
+        return;
+      }
+      readiness.root.setAttribute("aria-busy", "true");
+      readiness.root.replaceChildren(line("cp-help", w["settings.checking"]));
+      const answer = await guarded(() => ask(mode));
+      if (n !== asked || signal?.aborted === true) {
+        return;
+      }
+      readiness.root.removeAttribute("aria-busy");
+      switch (answer.kind) {
+        case "cancelled":
+          readiness.clear();
+          settleOn(current);
+          return;
+        case "redirecting":
+          return;
+        case "failed":
+          if (answer.refusal === undefined || !endsSession(answer.refusal, leave)) {
+            readiness.show("danger", answer.words);
+          }
+          return;
+        case "done":
+          break;
+      }
+      const r = answer.result;
+      if (!r.ok) {
+        if (!endsSession(r, leave)) {
+          const said = wordsFor(r);
+          readiness.show(said.tone, said.text, passing(r) ? retry(mode) : undefined);
+        }
+        return;
+      }
+      const refusal = r.data.refusal;
+      if (refusal !== undefined) {
+        readiness.show("danger", blocker(refusal.code, refusal.reason, w) ?? w["generic.server"]);
+        return;
+      }
+      const said = changes(mode, r.data);
+      readiness.show(said.tone, said.node);
+      apply.hidden = false;
+    }
+
+    set.addEventListener("change", (e) => {
+      const target = e.target;
+      if (target instanceof HTMLInputElement && radios.includes(target)) {
+        void choose(target.value as SSOMode);
+      }
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const change = client.adminApplySSO?.bind(client);
+      const mode = chosen;
+      if (apply.hidden || mode === current || change === undefined) {
+        return;
+      }
+      notices.clear();
+      void cycle(
+        confirm,
+        () => guarded(() => change(mode), "auth.admin_sso_apply"),
+        (a) => a.kind === "done" && a.result.ok,
+      ).then((got) => {
+        if (got === undefined || signal?.aborted === true) {
+          return;
+        }
+        const a = got.answer;
+        switch (a.kind) {
+          case "cancelled":
+          case "redirecting":
+            return;
+          case "failed":
+            if (a.refusal === undefined || !endsSession(a.refusal, leave)) {
+              readiness.show("danger", a.words);
+            }
+            return;
+          case "done":
+            break;
+        }
+        const r = a.result;
+        if (r.ok) {
+          current = mode;
+          apply.hidden = true;
+          readiness.clear();
+          notices.show("success", w["settings.applied"](label(mode)));
+          return;
+        }
+        if (endsSession(r, leave)) {
+          return;
+        }
+        // A change refused for the state it meets, the readiness read's own
+        // refusal, holds until the owner fixes that state and chooses again.
+        apply.hidden = !passing(r);
+        const said = wordsFor(r);
+        readiness.show(said.tone, said.text);
+      });
+    });
+  }
+
+  void load();
+  return { refresh: load };
+}

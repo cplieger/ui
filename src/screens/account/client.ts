@@ -44,8 +44,12 @@ export interface StateResponse {
   readonly temporary_password_https_only?: boolean;
   /** From access Part 5: how single sign-on sits beside local sign-in.
    *  Absent reads as `"alongside"`. */
-  readonly sso?: "alongside" | "for_linked" | "only";
+  readonly sso?: SSOMode;
 }
+
+/** How single sign-on sits beside local sign-in, for everyone but the
+ *  owners (access Part 5). */
+export type SSOMode = "alongside" | "for_linked" | "only";
 
 export interface SignedIn {
   readonly user: { readonly username: string };
@@ -622,6 +626,27 @@ export interface UsersClient extends StepUpClient {
     id: number,
     o: TemporaryPasswordOptions,
   ): Promise<Result<TemporaryPasswordResponse>>;
+}
+
+/** What a change of the SSO mode would do, or the refusal that stops it,
+ *  which `adminApplySSO` would answer exactly. Each count is zero in the
+ *  direction that does not apply. */
+export interface Readiness {
+  readonly refusal?: { readonly code: string; readonly reason?: string };
+  /** People not linked yet, who could not sign in under the mode. */
+  readonly locked_out: number;
+  readonly methods_made_dormant: number;
+  readonly methods_restored: number;
+  readonly temporary_passwords_withdrawn: number;
+}
+
+/** The client calls the owner's access settings make; the two calls
+ *  arrive with access Part 5, and the screen draws nothing without them. */
+export interface AccessSettingsClient extends StepUpClient {
+  state(): Promise<Result<StateResponse>>;
+  me(): Promise<Result<AccountView>>;
+  adminSSOReadiness?(mode: SSOMode): Promise<Result<Readiness>>;
+  adminApplySSO?(mode: SSOMode): Promise<Result<void>>;
 }
 
 /** A passkey assertion taken as a proof, or why there is none. */

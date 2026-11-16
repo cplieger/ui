@@ -55,6 +55,7 @@ export const accountActions = [
   "auth.admin_relink_oidc",
   "auth.admin_invite",
   "auth.admin_key_revoke",
+  "auth.admin_sso_apply",
 ] as const;
 
 export type AccountAction = (typeof accountActions)[number];

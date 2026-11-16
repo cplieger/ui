@@ -4,7 +4,7 @@
     <p>The shared screens of an app built on @cplieger/access, from <code>@cplieger/ui/account</code>, each running here on a fake client. A screen fills the element the app gives it, takes the app's words for any answer, and shows a method only while the app mounts it and the server has it on.</p>
   </header>
 
-  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#sign-in-steps">The next steps</a><a href="#link">Link an identity</a><a href="#setup">Setup</a><a href="#invite">Invite</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#security-log">Security log</a><a href="#qr">QR code</a></nav>
+  <nav class="g-index" aria-label="On this page"><a href="#sign-in">Sign-in</a><a href="#sign-in-steps">The next steps</a><a href="#link">Link an identity</a><a href="#setup">Setup</a><a href="#invite">Invite</a><a href="#step-up">Step-up</a><a href="#account-security">Account and security</a><a href="#account-keys">Sessions and API keys</a><a href="#security-log">Security log</a><a href="#users">Users</a><a href="#access-settings">Access settings</a><a href="#qr">QR code</a></nav>
 
   <section class="g-section" id="sign-in">
     <h2>Sign-in</h2>
@@ -420,6 +420,38 @@
         <h2>Over plain HTTP</h2>
         <div data-users-demo="plain"></div>
         <footer>A temporary password needs HTTPS, so Issue is held with "Needs HTTPS." and the way to the HTTPS address; resetting a second factor, owners and unlinking still work here.</footer>
+      </div>
+    </div>
+  </section>
+  <section class="g-section" id="access-settings">
+    <h2>Access settings</h2>
+    <p><code>mountAccessSettings(region, options)</code> is the owner's choice of how single sign-on sits beside local sign-in. Choosing a mode asks the server, after a recent sign-in, what it would change, and shows that before Apply; a state the owner must fix first shows in its place, with no Apply. It draws nothing for an admin who is not an owner, or in an app with one account.</p>
+    <div class="g-grid">
+      <div class="card" data-new>
+        <h2>Choosing a mode</h2>
+        <div data-access-settings-demo="owner"></div>
+        <footer>Single sign-on only would leave 3 people who are not linked yet unable to sign in, make 5 people's own sign-in dormant and withdraw 2 temporary passwords. For linked accounts changes nobody's sign-in here. Apply makes the change; choosing Alongside again asks nothing.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Something to fix first</h2>
+        <div data-access-settings-demo="blocked"></div>
+        <footer>Here single sign-on is not set up, so any stricter mode says "Set up single sign-on first." in place of its changes. The server answers the same way for an owner with no password or passkey of their own, and while sign-ups are on.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>Over plain HTTP</h2>
+        <div data-access-settings-demo="plain"></div>
+        <footer>The server checks and changes the mode only over HTTPS, so the choice is held with "Needs HTTPS." and the way to the HTTPS address.</footer>
+      </div>
+      <div class="card" data-new>
+        <h2>The app's own second-factor settings</h2>
+        <form class="cp-form" data-second-factor-demo novalidate>
+          <div class="cp-panel">
+            <div class="cp-setting"><div><label class="cp-label" for="acc-totp" data-account-word="settings.totp"></label><span class="cp-help" data-account-word="settings.totpLine"></span></div><input class="cp-switch" id="acc-totp" name="totp" type="checkbox" role="switch"></div>
+            <div class="cp-setting"><div><label class="cp-label" for="acc-rsf" data-account-word="settings.requireSecondFactor"></label><span class="cp-help" data-account-word="settings.requireSecondFactorLine"></span><span class="cp-field-error" id="acc-rsf-error" hidden></span></div><input class="cp-switch" id="acc-rsf" name="require_second_factor" type="checkbox" role="switch"></div>
+          </div>
+          <button class="cp-button" type="submit">Save</button>
+        </form>
+        <footer>These two are the app's own settings, saved by its own form, with the words from <code>defaultAccountWords</code>. Turn on Require a second factor and save: with authenticator apps off (and passkeys off in this app) the app refuses the field itself; with them on, the server says "Set up your own second factor first.", since this owner holds none.</footer>
       </div>
     </div>
   </section>

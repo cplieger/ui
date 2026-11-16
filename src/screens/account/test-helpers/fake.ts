@@ -6,6 +6,7 @@
 
 import { codeOf, reasonOf } from "../answer.js";
 import type {
+  AccessSettingsClient,
   AccountView,
   InviteAccess,
   InviteClient,
@@ -16,6 +17,7 @@ import type {
   PasskeyMiss,
   PasskeyView,
   PasswordAnswer,
+  Readiness,
   PendingLinkView,
   PendingPasskeyOutcome,
   ProofOutcome,
@@ -33,6 +35,7 @@ import type {
   SignInClient,
   SignInOutcome,
   PasskeySignInOutcome,
+  SSOMode,
   SignedIn,
   StateResponse,
   StepUpAccess,
@@ -198,6 +201,7 @@ export type FakeClient = SignInClient &
   StepUpClient &
   SecurityClient &
   UsersClient &
+  AccessSettingsClient &
   StepUpCalls & { readonly prefix: string; readonly oidcPrefix: string };
 
 export class Fake {
@@ -308,6 +312,16 @@ export class Fake {
     ["adminTokens", ok([])],
     ["adminKeys", ok([])],
     ["adminRevokeKey", ok(undefined)],
+    [
+      "adminSSOReadiness",
+      ok({
+        locked_out: 0,
+        methods_made_dormant: 0,
+        methods_restored: 0,
+        temporary_passwords_withdrawn: 0,
+      }),
+    ],
+    ["adminApplySSO", ok(undefined)],
     ["oidcPending", ok({ issuer: "https://id.example", username_hint: "mika@example.com" })],
     ["oidcLinkPending", ok(meWith())],
     ["oidcCreatePending", ok(signedIn)],
@@ -512,6 +526,8 @@ export class Fake {
       adminTokens: () => call<Result<readonly TokenView[]>>("adminTokens", []),
       adminKeys: () => call<Result<readonly KeyView[]>>("adminKeys", []),
       adminRevokeKey: (id) => call<Result<void>>("adminRevokeKey", [id]),
+      adminSSOReadiness: (mode: SSOMode) => call<Result<Readiness>>("adminSSOReadiness", [mode]),
+      adminApplySSO: (mode: SSOMode) => call<Result<void>>("adminApplySSO", [mode]),
       oidcPending: () => call<Result<PendingLinkView>>("oidcPending", []),
       oidcLinkPending: () => call<Result<unknown>>("oidcLinkPending", []),
       oidcCreatePending: (r) => call<Result<SignedIn>>("oidcCreatePending", [r]),

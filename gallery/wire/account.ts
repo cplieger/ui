@@ -5,6 +5,8 @@
  */
 
 import {
+  defaultAccountWords,
+  mountAccessSettings,
   mountSecurity,
   mountSecurityLog,
   type LogClient,
@@ -22,7 +24,9 @@ import {
   mountSignIn,
   mountUsers,
   stepUp,
+  type AccessSettingsClient,
   type AccountView,
+  type AccountWords,
   type InviteAccess,
   type InviteClient,
   type InviteOptions,
@@ -32,7 +36,9 @@ import {
   type Refusal,
   type RegisterOutcome,
   type PasskeyView,
+  type Readiness,
   type Result,
+  type SSOMode,
   type SecondFactorProof,
   type SecurityAccess,
   type SecurityClient,
@@ -59,6 +65,7 @@ import {
   type UserView,
   type UsersClient,
 } from "@cplieger/ui/account";
+import { clearError, showError } from "@cplieger/ui/form";
 import { qrCode } from "@cplieger/ui/qr";
 import { toast } from "@cplieger/ui/toast";
 
@@ -1964,7 +1971,7 @@ function tokensOf(): TokenView[] {
 function usersFake(o: {
   readonly owner: boolean;
   readonly plain?: boolean;
-  readonly sso?: "alongside" | "for_linked" | "only";
+  readonly sso?: SSOMode;
 }): { readonly client: UsersClient; readonly access: StepUpAccess<UsersClient> } {
   let people = peopleOf();
   let keys = everyKeyOf();
@@ -2190,5 +2197,141 @@ for (const region of document.querySelectorAll<HTMLElement>("[data-users-demo]")
     onSignedOut: () => {
       toast({ title: "Signed out: the app would open its sign-in page" });
     },
+  });
+}
+
+/** What each mode would change in the gallery's app, by the mode the
+ *  page holds now. */
+function readinessOf(from: SSOMode, to: SSOMode, blocked: boolean): Readiness {
+  const none = {
+    locked_out: 0,
+    methods_made_dormant: 0,
+    methods_restored: 0,
+    temporary_passwords_withdrawn: 0,
+  };
+  if (blocked && to !== "alongside") {
+    return { ...none, refusal: { code: "auth_oidc_unavailable" } };
+  }
+  const strict = { alongside: 0, for_linked: 1, only: 2 } as const;
+  if (strict[to] < strict[from]) {
+    return { ...none, methods_restored: 5 };
+  }
+  return to === "only"
+    ? {
+        locked_out: 3,
+        methods_made_dormant: 5,
+        methods_restored: 0,
+        temporary_passwords_withdrawn: 2,
+      }
+    : none;
+}
+
+function settingsFake(o: { readonly plain: boolean; readonly blocked: boolean }): {
+  readonly client: AccessSettingsClient;
+  readonly access: StepUpAccess<AccessSettingsClient>;
+} {
+  let mode: SSOMode = "alongside";
+  const client: AccessSettingsClient = {
+    async state() {
+      await wait(150);
+      return {
+        ok: true,
+        data: {
+          ...EVERY,
+          oidc: !o.blocked && !o.plain,
+          secure: !o.plain,
+          https_origin: "https://tracker.example",
+          sso: mode,
+        },
+      };
+    },
+    async me() {
+      await wait(150);
+      return {
+        ok: true,
+        data: {
+          user: { id: 1, username: "mika", role: "admin" },
+          methods: HOLDS,
+          can_link_oidc: false,
+          owner: true,
+          single_user: false,
+          session: {
+            id: "s1",
+            method: "passkey",
+            auth_time: ago(HOUR),
+            idle_deadline: later(HOUR),
+            absolute_deadline: later(8 * HOUR),
+            secure: !o.plain,
+          },
+        },
+      };
+    },
+    async loginPassword() {
+      await wait(500);
+      return { ok: true, data: SIGNED_IN };
+    },
+    async adminSSOReadiness(to) {
+      await wait(500);
+      return { ok: true, data: readinessOf(mode, to, o.blocked) };
+    },
+    async adminApplySSO(to) {
+      await wait(700);
+      mode = to;
+      return { ok: true, data: undefined };
+    },
+  };
+  const access: StepUpAccess<AccessSettingsClient> = {
+    passkeySupport: () => Promise.resolve({ webauthn: true, conditional: false }),
+    async withStepUp(_c, action) {
+      return { kind: "done", result: await action() };
+    },
+  };
+  return { client, access };
+}
+
+for (const region of document.querySelectorAll<HTMLElement>("[data-access-settings-demo]")) {
+  const name = region.dataset["accessSettingsDemo"] ?? "";
+  const { client, access } = settingsFake({ plain: name === "plain", blocked: name === "blocked" });
+  mountAccessSettings(region, {
+    client,
+    access,
+    app: "Release tracker",
+    provider: "Authelia",
+    level: 3,
+    onSignedOut: () => {
+      toast({ title: "Signed out: the app would open its sign-in page" });
+    },
+  });
+}
+
+for (const form of document.querySelectorAll<HTMLFormElement>("[data-second-factor-demo]")) {
+  for (const node of form.querySelectorAll<HTMLElement>("[data-account-word]")) {
+    const word = defaultAccountWords[node.dataset["accountWord"] as keyof AccountWords];
+    if (typeof word === "string") {
+      node.textContent = word;
+    }
+  }
+  const totp = form.querySelector<HTMLInputElement>("[name='totp']");
+  const rule = form.querySelector<HTMLInputElement>("[name='require_second_factor']");
+  if (totp === null || rule === null) {
+    continue;
+  }
+  form.addEventListener("change", () => {
+    clearError(rule);
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!rule.checked) {
+      toast({ title: "Saved" });
+      return;
+    }
+    // The app's own check runs first; then its save meets access's.
+    showError(
+      rule,
+      totp.checked
+        ? defaultAccountWords["auth_second_factor_required.enable_without_second_factor"]
+        : defaultAccountWords["settings.noWayToEnrol"],
+    );
+    rule.focus();
   });
 }

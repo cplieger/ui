@@ -18,6 +18,7 @@ import type {
   KeyView,
   Refusal,
   Result,
+  SSOMode,
   StepUpAccess,
   TemporaryPasswordOptions,
   TemporaryPasswordResponse,
@@ -195,7 +196,7 @@ export function mountUsers<C extends UsersClient>(
   let keys: readonly KeyView[] = [];
   let tokens: readonly TokenView[] = [];
   let filter = keyOf(options.search ?? location.search);
-  let mode: "alongside" | "for_linked" | "only" = "alongside";
+  let mode: SSOMode = "alongside";
   let httpsOrigin: string | undefined;
   let keysView: KeysSection | undefined;
 

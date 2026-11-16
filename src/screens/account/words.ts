@@ -596,6 +596,41 @@ export interface AccountWords {
   readonly "auth_forbidden.last_owner": string;
   readonly "auth_sso_only.linked": string;
 
+  readonly "settings.title": string;
+  readonly "settings.help": string;
+  readonly "settings.mode": (provider: string) => string;
+  readonly "settings.modeOf": (mode: string) => string;
+  readonly "settings.modeLine": (mode: string, provider: string) => string;
+  readonly "settings.recent": string;
+  readonly "settings.checking": string;
+  /** The heading of what choosing `label` would change. */
+  readonly "settings.changes": (label: string) => string;
+  readonly "settings.lockedOut": (count: number) => string;
+  readonly "settings.dormant": (count: number) => string;
+  readonly "settings.restored": (count: number) => string;
+  readonly "settings.withdrawn": (count: number) => string;
+  readonly "settings.noChange": string;
+  readonly "settings.apply": string;
+  readonly "settings.applyBusy": string;
+  readonly "settings.applyDone": string;
+  readonly "settings.applied": (label: string) => string;
+  /** A refusal of the readiness read: single sign-on is not set up. */
+  readonly "settings.needsOidc": string;
+  /** A refusal of the readiness read: the owner holds no password or
+   *  passkey of their own. */
+  readonly "settings.needsOwnMethod": string;
+  readonly "auth_forbidden.registration_enabled": string;
+  readonly "auth_forbidden.not_owner": string;
+  /** The words of the app's own second-factor settings, which its own
+   *  save checks. */
+  readonly "settings.totp": string;
+  readonly "settings.totpLine": string;
+  readonly "settings.requireSecondFactor": string;
+  readonly "settings.requireSecondFactorLine": string;
+  /** The app's field error when the rule would be on with no way to
+   *  enrol. */
+  readonly "settings.noWayToEnrol": string;
+  readonly "auth_second_factor_required.enable_without_second_factor": string;
   readonly "log.title": string;
   readonly "log.help": string;
   readonly "log.when": string;
@@ -1494,6 +1529,64 @@ export const defaultAccountWords: AccountWords = {
   "auth_forbidden.last_owner": "This is the last owner. Make someone else an owner first.",
   "auth_sso_only.linked":
     "This person signs in with single sign-on. Use Unlink and issue a temporary password instead.",
+  "settings.title": "Single sign-on",
+  "settings.help": "Owners keep their own password and passkeys under every choice.",
+  "settings.mode": (provider) => `How people sign in with ${provider}`,
+  "settings.modeOf": (mode) =>
+    mode === "alongside"
+      ? "Alongside"
+      : mode === "for_linked"
+        ? "For linked accounts"
+        : mode === "only"
+          ? "Single sign-on only"
+          : mode,
+  "settings.modeLine": (mode, provider) =>
+    mode === "alongside"
+      ? `A person linked to ${provider} signs in with it, or with their own password or passkey.`
+      : mode === "for_linked"
+        ? `A person linked to ${provider} signs in only with it. Their own password and passkeys rest, and come back under Alongside.`
+        : mode === "only"
+          ? `Everyone signs in with ${provider}. A person not linked yet links once, with a temporary password from an admin.`
+          : "",
+  "settings.recent": "Changing how people sign in needs a recent sign-in.",
+  "settings.checking": "Checking who this changes…",
+  "settings.changes": (label) => `Choosing ${label}:`,
+  "settings.lockedOut": (n) =>
+    n === 1
+      ? "1 account is not linked yet and could not sign in"
+      : `${String(n)} accounts are not linked yet and could not sign in`,
+  "settings.dormant": (n) =>
+    n === 1
+      ? "1 account's local sign-in turns dormant"
+      : `${String(n)} accounts' local sign-in turns dormant`,
+  "settings.restored": (n) =>
+    n === 1
+      ? "1 account gets its local sign-in back"
+      : `${String(n)} accounts get their local sign-in back`,
+  "settings.withdrawn": (n) =>
+    n === 1
+      ? "1 temporary password is withdrawn"
+      : `${String(n)} temporary passwords are withdrawn`,
+  "settings.noChange": "Nobody's sign-in changes.",
+  "settings.apply": "Apply",
+  "settings.applyBusy": "Applying…",
+  "settings.applyDone": "Applied",
+  "settings.applied": (label) => `${label} is on.`,
+  "settings.needsOidc": "Set up single sign-on first.",
+  "settings.needsOwnMethod": "Add a password or a passkey to your own account first.",
+  "auth_forbidden.registration_enabled":
+    "Turn off sign-ups first. Under single sign-on only, people join through the identity provider.",
+  "auth_forbidden.not_owner": "Only an owner can change this.",
+  "settings.totp": "Authenticator app",
+  "settings.totpLine":
+    "People can add an authenticator app for a code at sign-in. Turned off, each person's app is kept and works again once it is back on.",
+  "settings.requireSecondFactor": "Require a second factor",
+  "settings.requireSecondFactorLine":
+    "Everyone who signs in with a password also needs an authenticator app or a passkey.",
+  "settings.noWayToEnrol":
+    "Turn on authenticator apps or passkeys first, or turn off Require a second factor.",
+  "auth_second_factor_required.enable_without_second_factor":
+    "Set up your own second factor first.",
   "log.title": "Security log",
   "log.help": "Failed sign-ins are not recorded.",
   "log.when": "When",

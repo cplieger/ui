@@ -7,6 +7,7 @@
  */
 
 export type {
+  AccessSettingsClient,
   AccountView,
   InviteAccess,
   InviteClient,
@@ -30,9 +31,11 @@ export type {
   PendingPasskeyOutcome,
   PersonView,
   ProofOutcome,
+  Readiness,
   Refusal,
   RegisterOutcome,
   Result,
+  SSOMode,
   SecondFactorProof,
   SecurityAccess,
   SecurityClient,
@@ -71,6 +74,8 @@ export type { LogKinds, LogOptions, SecurityLogOptions, SecurityLogScreen } from
 export type { AccountAction, DefineAction, Runner } from "./run.js";
 export type { AccountPart, ScreenOptions, SignedOutOptions, SignedOutReason } from "./screen.js";
 export { mountSecurity } from "./security.js";
+export { mountAccessSettings } from "./settings.js";
+export type { AccessSettingsOptions, AccessSettingsScreen } from "./settings.js";
 export type { SecurityOptions, SecurityScreen } from "./security.js";
 export { mountSetup } from "./setup.js";
 export type { SetupOptions } from "./setup.js";

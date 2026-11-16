@@ -3,6 +3,7 @@ import type { ApiResult } from "@cplieger/reactive/fetch";
 import { expect, it } from "vitest";
 
 import type {
+  AccessSettingsClient,
   InviteAccess,
   InviteClient,
   LogClient,
@@ -32,6 +33,7 @@ export function hostPasses(client: access.AuthClient, answer: ApiResult<number>)
     fits<LogClient>(client),
     fits<InviteClient>(client),
     fits<UsersClient>(client),
+    fits<AccessSettingsClient>(client),
     fits<SignInAccess<access.AuthClient>>(access),
     fits<SetupAccess<access.AuthClient>>(access),
     fits<StepUpAccess<access.AuthClient>>(access),
