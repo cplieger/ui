@@ -86,7 +86,8 @@
 }
 
 /* Each mark is a point on the bar's line: its tick rises over the bar and
- * its words centre under it. */
+ * its words centre under it. A ring in the surface's colour parts the tick
+ * from any fill under it, as a chart parts a mark from its series. */
 .cp-meter > [data-part="marks"] {
   position: relative;
   block-size: 1lh;
@@ -111,6 +112,7 @@
   inline-size: 2px;
   block-size: calc(var(--cp-meter-h) + var(--cp-space-1));
   background: var(--cp-ink-muted);
+  box-shadow: 0 0 0 1px var(--cp-chart-surface);
 }
 
 .cp-meter > [data-part="words"] {

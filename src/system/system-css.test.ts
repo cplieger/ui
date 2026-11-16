@@ -550,7 +550,7 @@ describe("css/system.css sparkline", () => {
     const path = fourth.querySelector("path") as SVGPathElement;
     expect(getComputedStyle(fourth).color).toBe(slot(4));
     expect(getComputedStyle(path).fill).toBe("none");
-    expect(getComputedStyle(path).strokeWidth).toBe("2px");
+    expect(getComputedStyle(path).strokeWidth).toBe("1.5px");
     expect(getComputedStyle(path).vectorEffect).toBe("non-scaling-stroke");
     const ink = host("");
     ink.style.color = "var(--cp-ink)";
@@ -984,6 +984,22 @@ describe("css/system.css meter", () => {
     const text = words.getBoundingClientRect();
     expect(text.left + text.width / 2 - bar.left).toBeCloseTo(189.5, 0);
     expect(getComputedStyle(marks[0] as Element).fontSize).toBe("13px");
+  });
+
+  it("rings each tick in the surface it sits on, its ink at 3:1 on that surface, in both themes", () => {
+    for (const t of ["light", "dark"] as const) {
+      for (const surface of ["--cp-surface-page", "--cp-surface-raised"]) {
+        const el = meter('<meter max="100" low="80" high="90" value="95"></meter>');
+        theme(t);
+        el.style.setProperty("--cp-chart-surface", `var(${surface})`);
+        const ring = token(surface);
+        for (const mark of el.querySelectorAll('[data-part="marks"] > span')) {
+          const tick = getComputedStyle(mark, "::before");
+          expect(tick.boxShadow).toBe(`${ring} 0px 0px 0px 1px`);
+          expect(contrast(tick.backgroundColor, ring)).toBeGreaterThanOrEqual(3);
+        }
+      }
+    }
   });
 
   it("measures marks from the end in a right-to-left page", () => {
