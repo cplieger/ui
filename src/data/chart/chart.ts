@@ -564,18 +564,13 @@ export function renderChart(
   // load the page starts while the chart lives measures it again once the
   // set settles. WebKit fires no loadingdone for such a load, only loading;
   // chart.test.ts "measures the chart again once the face has loaded" pins it.
-  let settling = false;
-  const onFonts = (): void => {
-    if (settling) {
-      return;
+  const remeasure = (): void => {
+    if (!life.signal.aborted) {
+      measureAfresh();
     }
-    settling = true;
-    afterFontsSettle(() => {
-      settling = false;
-      if (!life.signal.aborted) {
-        measureAfresh();
-      }
-    });
+  };
+  const onFonts = (): void => {
+    afterFontsSettle(remeasure);
   };
   document.fonts.addEventListener("loading", onFonts, { signal: life.signal });
   if (document.fonts.status === "loading") {

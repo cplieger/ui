@@ -142,12 +142,13 @@ describe.each(browsers)("the gallery in %s", (name) => {
     expect(wrong).toEqual([]);
   }, 60_000);
 
-  // Chromium's trace counts the elements each restyle visits. A `:has()` left
-  // of a combinator whose last compound names no class, type or attribute
-  // made every insertion restyle the whole page, about 9,800 elements here:
+  // A `:has()` left of a combinator whose last compound names no class, type
+  // or attribute makes Chromium restyle the whole page on every insertion,
+  // about 9,800 elements here; Chromium's trace counts the elements each
+  // restyle visits. How Blink's `:has()` invalidation works:
   // https://blogs.igalia.com/blee/posts/2023/05/31/how-blink-invalidates-styles-when-has-in-use.html
   it.runIf(name === "chromium")(
-    "restyles about one chart's elements, not the page's, once a node is added to a chart",
+    "restyles under a tenth of the page, not all of it, once a node is added to a chart",
     async () => {
       const tab = await (browser as Browser).newPage({ viewport: { width: 1440, height: 900 } });
       await tab.goto(`${origin}/charts.html`);

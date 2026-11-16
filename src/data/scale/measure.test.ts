@@ -61,6 +61,17 @@ describe("afterFontsSettle", () => {
     expect(seen[1]).toBe(seen[0]);
   });
 
+  it("runs a function registered twice before one settle once", async () => {
+    let runs = 0;
+    const run = (): void => {
+      runs += 1;
+    };
+    afterFontsSettle(run);
+    afterFontsSettle(run);
+    await document.fonts.ready;
+    expect(runs).toBe(1);
+  });
+
   it("reports a run that throws and still runs the later ones", async () => {
     const boom = new Error("boom");
     const reported: unknown[] = [];

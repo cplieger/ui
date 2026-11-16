@@ -35,11 +35,7 @@
   margin-inline-start: var(--cp-space-2);
 }
 
-/* The rows after the button, the legend being a fieldset's first child: a
- * `:has()` here would make Chromium restyle the whole document on every
- * node inserted anywhere (Blink's invalidation sets, see
- * https://blogs.igalia.com/blee/posts/2023/05/31/how-blink-invalidates-styles-when-has-in-use.html).
- */
+/* No `:has()` here: Chromium then restyles the page on every insertion (gallery.node.test.ts). */
 .cp-choices > legend + .cp-button ~ :not(legend, legend + .cp-button) {
   clear: both;
   margin-block-start: var(--cp-space-2);
