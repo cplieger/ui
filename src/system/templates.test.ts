@@ -371,7 +371,7 @@ describe("the page templates", () => {
       form?.querySelectorAll(":scope > section > .cp-panel > .cp-setting").length,
     ).toBeGreaterThan(0);
     const bar = form?.lastElementChild;
-    expect(bar?.matches(".cp-savebar")).toBe(true);
+    expect(bar?.matches('div.cp-savebar[role="group"][aria-label="Unsaved changes"]')).toBe(true);
     expect(bar?.querySelector('[data-part="count"]')).not.toBeNull();
     expect(bar?.querySelector('button[type="reset"]')?.textContent).toBe("Discard");
     expect(bar?.lastElementChild?.matches('button[type="submit"][data-variant="primary"]')).toBe(

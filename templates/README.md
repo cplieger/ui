@@ -52,9 +52,9 @@ The app page with no rail, whose main holds the heading and `.cp-settings`, as [
 | category heading | its `<h2>` |
 | errors | the form's danger `.cp-notice` summary, hidden until a save fails |
 | groups | a `<section>` with its `<h3>` over a `.cp-panel` of `.cp-setting` rows |
-| save bar | `.cp-savebar`: the count, Discard as the form's reset, the primary "Save changes" |
+| save bar | `div.cp-savebar[role="group"]`, named "Unsaved changes": the count, Discard as the form's reset, the primary "Save changes" |
 
-Scripts: the app page's, [form](../docs/forms/form.md) (`guardChanges` for the count, the dots and the leave guard; `reportErrors` for the summary) and [secret](../docs/forms/secret.md) for a saved key.
+Scripts: the app page's, [form](../docs/forms/form.md) (`guardChanges` for what waits and the leave guard; `reportErrors` for the summary), [settings](../docs/layout/settings.md) to paint the save bar, its count, the dots and the category select below 48rem from the guard, and [secret](../docs/forms/secret.md) for a saved key.
 
 ## Not found: `not-found.html`
 
