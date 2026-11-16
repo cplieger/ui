@@ -386,6 +386,66 @@ describe("enhanceLoadingRegion: a refresh", () => {
   });
 });
 
+describe("enhanceLoadingRegion: a host callback that throws", () => {
+  it("fails a load that throws before it returns its promise, and loads again after", async () => {
+    const region = panel("Old");
+    let calls = 0;
+    const handle = enhanceLoadingRegion<string>(region, {
+      load: (signal) => {
+        calls += 1;
+        if (calls === 1) {
+          throw new Error("bad url");
+        }
+        return Promise.resolve(signal.aborted ? "" : "New");
+      },
+      render: (text) => region.replaceChildren(text),
+      signal: life.signal,
+    });
+    expect(await handle.load()).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(notice(region)?.getAttribute("data-tone")).toBe("warning");
+    expect(region.textContent).toContain("Old");
+    expect(await handle.load()).toBe(true);
+    expect(handle.state).toBe("ready");
+    expect(region.textContent).toBe("New");
+  });
+
+  it("fails a refresh whose render throws, keeping the old content under the notice", async () => {
+    const region = panel("Old");
+    const { handle, loads } = wired(region, {
+      render: () => {
+        throw new Error("boom");
+      },
+    });
+    const done = handle.load();
+    loads[0]?.resolve("New");
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("stale");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(region.firstElementChild).toBe(notice(region));
+    expect(region.querySelector("p")?.textContent).toBe("Old");
+  });
+
+  it("settles a first load whose render throws after its placeholder showed", async () => {
+    const region = panel();
+    const { handle, loads } = wired(region, {
+      render: () => {
+        throw new Error("boom");
+      },
+    });
+    const done = handle.load();
+    await sleep(260);
+    expect(region.querySelector(".cp-inline-load")).not.toBeNull();
+    loads[0]?.resolve("Series");
+    expect(await done).toBe(false);
+    expect(handle.state).toBe("failed");
+    expect(region.getAttribute("aria-busy")).toBe("false");
+    expect(region.children).toHaveLength(1);
+    expect(notice(region)?.getAttribute("data-tone")).toBe("danger");
+  });
+});
+
 describe("enhanceLoadingRegion: a popover that loads when it opens", () => {
   function popover(): { invoker: HTMLButtonElement; region: HTMLDivElement } {
     const region = document.createElement("div");
@@ -491,6 +551,40 @@ describe("enhanceLoadingRegion: a popover that loads when it opens", () => {
     expect(handle.state).toBe("stale");
     expect(region.querySelector("h3")?.textContent).toBe("Read by 2");
     expect(notice(region)?.getAttribute("data-tone")).toBe("warning");
+  });
+
+  it("keeps a scrolled popover's scroll while it refreshes, the line at its visible top", async () => {
+    const { region } = popover();
+    region.style.maxBlockSize = "80px";
+    for (let i = 0; i < 20; i += 1) {
+      const p = document.createElement("p");
+      p.textContent = `Reader ${String(i)}`;
+      region.append(p);
+    }
+    const { handle, loads } = wired(region, {
+      render: (text) => {
+        region.querySelector("p")?.replaceChildren(text);
+      },
+    });
+    const elsewhere = document.createElement("input");
+    document.body.append(elsewhere);
+    region.showPopover();
+    elsewhere.focus();
+    region.scrollTop = 30;
+    const done = handle.load();
+    expect(handle.state).toBe("refreshing");
+    expect(getComputedStyle(region).overflowY).toBe("auto");
+    expect(region.scrollTop).toBe(30);
+    expect(Number.parseFloat(getComputedStyle(region, "::before").insetBlockStart)).toBe(30);
+    region.scrollTop = 50;
+    expect(region.scrollTop).toBe(50);
+    await new Promise((resolve) => {
+      region.addEventListener("scroll", resolve, { once: true });
+    });
+    expect(Number.parseFloat(getComputedStyle(region, "::before").insetBlockStart)).toBe(50);
+    loads[0]?.resolve("Read");
+    expect(await done).toBe(true);
+    expect(region.scrollTop).toBe(50);
   });
 
   it("leaves focus where the person moved it while the names loaded", async () => {

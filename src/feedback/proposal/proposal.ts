@@ -8,6 +8,7 @@
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { focusOn } from "../../data/list-row/row.js";
+import { glyph } from "../../foundations/icons/glyph.js";
 import { ask } from "../../overlays/ask/ask.js";
 import { announce } from "../announce/announce.js";
 
@@ -71,17 +72,6 @@ const DEFAULT_FAILED = {
 
 type Action = keyof typeof DEFAULT_FAILED;
 
-function glyph(name: string, part?: string): HTMLSpanElement {
-  const span = document.createElement("span");
-  span.className = "cp-icon";
-  span.dataset["cpIcon"] = name;
-  if (part !== undefined) {
-    span.dataset["part"] = part;
-  }
-  span.setAttribute("aria-hidden", "true");
-  return span;
-}
-
 /**
  * Wires `card`, a `.cp-proposal` holding its words in a `<p>` and a
  * `data-part="apply"` button with a `.cp-roll` and its busy span, beside an
@@ -103,9 +93,7 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
       'enhanceProposal: a data-variant="unverified" card takes confirm, and only it does',
     );
   }
-  const actions = apply.parentElement ?? card;
   const proposed = [...lines.childNodes];
-  const buttons = [...actions.children];
   const life = new AbortController();
   whenAborted(signal, () => {
     life.abort();
@@ -118,6 +106,13 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
   });
   let busy = false;
   let failedLine: HTMLElement | null = null;
+  /** Where Discard goes back to when Undo puts the proposal back. */
+  let discardAt: { readonly parent: Node; readonly next: Node | null } | null = null;
+
+  // A settle moves focus only when it was in the card, or the change would
+  // drop it to the page; a reader who moved on keeps their place.
+  const following = (): boolean =>
+    card.contains(document.activeElement) || document.activeElement === document.body;
 
   const fail = (action: Action, reason: unknown): void => {
     const sentence = {
@@ -176,10 +171,17 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
           if (!ok) {
             return;
           }
+          const follow = following();
           delete card.dataset["cpState"];
           lines.replaceChildren(...proposed);
-          actions.replaceChildren(...buttons);
-          apply.focus();
+          button.replaceWith(apply);
+          if (discard !== null && discardAt !== null) {
+            const { parent, next } = discardAt;
+            parent.insertBefore(discard, next?.parentNode === parent ? next : null);
+          }
+          if (follow) {
+            apply.focus();
+          }
           announce(words.undone ?? "Change undone");
         });
       },
@@ -190,14 +192,20 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
   const undoButton = options.undo === undefined ? null : makeUndo(options.undo);
 
   const toApplied = (): void => {
+    const follow = following();
     card.dataset["cpState"] = "applied";
     lines.textContent = words.applied;
+    if (discard?.parentNode != null) {
+      discardAt = { parent: discard.parentNode, next: discard.nextSibling };
+      discard.remove();
+    }
     if (undoButton === null) {
-      actions.replaceChildren();
-      focusOn(lines);
+      apply.remove();
     } else {
-      actions.replaceChildren(undoButton);
-      undoButton.focus();
+      apply.replaceWith(undoButton);
+    }
+    if (follow) {
+      focusOn(undoButton ?? lines);
     }
     announce(words.applied);
   };
@@ -256,9 +264,10 @@ export function enhanceProposal(card: HTMLElement, options: ProposalOptions): vo
           return;
         }
         const back = options.returnFocus ?? card.parentElement;
+        const follow = following();
         card.remove();
         life.abort();
-        if (back !== null) {
+        if (back !== null && follow) {
           focusOn(back);
         }
         announce(words.discarded ?? "Proposal discarded");

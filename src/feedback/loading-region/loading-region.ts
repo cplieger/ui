@@ -11,6 +11,7 @@ import { enhanceConfirm, type Confirm } from "../../buttons/confirm/confirm.js";
 import { turnWhile } from "../../buttons/turn/turn.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { focusOn } from "../../data/list-row/row.js";
+import { glyph } from "../../foundations/icons/glyph.js";
 import { announce } from "../announce/announce.js";
 import { skeletonTiming } from "../skeleton/skeleton.js";
 
@@ -81,17 +82,6 @@ interface Run {
 }
 /** The refresh line's thickness in loading-region.css. */
 const LINE_PX = 3;
-
-function glyph(name: string, part?: string): HTMLSpanElement {
-  const span = document.createElement("span");
-  span.className = "cp-icon";
-  span.dataset["cpIcon"] = name;
-  if (part !== undefined) {
-    span.dataset["part"] = part;
-  }
-  span.setAttribute("aria-hidden", "true");
-  return span;
-}
 
 function inlineLoad(words: string): HTMLSpanElement {
   const square = document.createElement("span");
@@ -171,9 +161,14 @@ export function enhanceLoadingRegion<T>(
   let remedyLine: HTMLElement | null = null;
   let retry: HTMLButtonElement | null = null;
   let retryCycle: Confirm | null = null;
+  let tracking: AbortController | null = null;
 
   const mark = (next: LoadingState): void => {
     state = next;
+    if (next !== "refreshing") {
+      tracking?.abort();
+      tracking = null;
+    }
     region.dataset["cpLoad"] = next;
     region.setAttribute("aria-busy", String(next === "loading" || next === "refreshing"));
   };
@@ -272,6 +267,23 @@ export function enhanceLoadingRegion<T>(
     );
   };
 
+  /** Puts the refresh line under a leading table's head, else on the
+   *  region's top edge, in the region's content coordinates, so it stays in
+   *  view while a region that scrolls is scrolled. */
+  const placeLine = (): void => {
+    const head = leadTable(region)?.tHead ?? null;
+    let at = region.scrollTop;
+    if (head !== null) {
+      const top = region.getBoundingClientRect().top + region.clientTop;
+      at += head.getBoundingClientRect().bottom - top - LINE_PX;
+    }
+    if (at === 0) {
+      region.style.removeProperty("--cp-load-line-at");
+    } else {
+      region.style.setProperty("--cp-load-line-at", `${String(at)}px`);
+    }
+  };
+
   const run = async (from: Element | undefined): Promise<boolean> => {
     const life = new AbortController();
     const before = state;
@@ -279,14 +291,9 @@ export function enhanceLoadingRegion<T>(
     const firstTime = state === "idle";
     mark(stale ? "refreshing" : "loading");
     if (stale) {
-      const head = leadTable(region)?.tHead ?? null;
-      if (head !== null) {
-        const top = region.getBoundingClientRect().top + region.clientTop;
-        const at = head.getBoundingClientRect().bottom - top - LINE_PX;
-        region.style.setProperty("--cp-load-line-at", `${String(at)}px`);
-      } else {
-        region.style.removeProperty("--cp-load-line-at");
-      }
+      placeLine();
+      tracking = new AbortController();
+      region.addEventListener("scroll", placeLine, { passive: true, signal: tracking.signal });
     }
     const timing = firstTime
       ? skeletonTiming(
@@ -302,24 +309,17 @@ export function enhanceLoadingRegion<T>(
         )
       : null;
     running = { life, before, timing };
-    const work = untilAborted(options.load(life.signal), life.signal);
-    let data: T;
-    try {
-      if (from !== undefined && from === retry && retryCycle !== null) {
-        // The cycle holds its busy state for its minimum after work ends;
-        // the content goes in as soon as it comes.
-        retryCycle.run(() => work).catch(() => undefined);
-        data = await work;
-      } else {
-        data = from === undefined ? await work : await turnWhile(from, work);
-      }
-    } catch (reason) {
-      if (life.signal.aborted) {
-        settleAborted(life);
-        return false;
-      }
+    // Called in the executor, at once, so a load that throws before it
+    // returns a promise fails like one that rejects.
+    const work = untilAborted(
+      new Promise<T>((resolve) => {
+        resolve(options.load(life.signal));
+      }),
+      life.signal,
+    );
+
+    const failed = (reason: unknown, regain: boolean): false => {
       timing?.cancel();
-      const regain = attending(region);
       const text = stale ? refreshSentence(reason) : failedSentence(reason);
       const box = noticeWith(text, stale, reason);
       if (stale) {
@@ -335,6 +335,23 @@ export function enhanceLoadingRegion<T>(
         retry.focus();
       }
       return false;
+    };
+    let data: T;
+    try {
+      if (from !== undefined && from === retry && retryCycle !== null) {
+        // The cycle holds its busy state for its minimum after work ends;
+        // the content goes in as soon as it comes.
+        retryCycle.run(() => work).catch(() => undefined);
+        data = await work;
+      } else {
+        data = from === undefined ? await work : await turnWhile(from, work);
+      }
+    } catch (reason) {
+      if (life.signal.aborted) {
+        settleAborted(life);
+        return false;
+      }
+      return failed(reason, attending(region));
     }
     if (life.signal.aborted) {
       settleAborted(life);
@@ -356,7 +373,12 @@ export function enhanceLoadingRegion<T>(
         if (!stale) {
           region.replaceChildren();
         }
-        options.render(data);
+        try {
+          options.render(data);
+        } catch (reason) {
+          resolve(failed(reason, regain));
+          return;
+        }
         loadedAt = new Date();
         mark("ready");
         if (regain && lost()) {

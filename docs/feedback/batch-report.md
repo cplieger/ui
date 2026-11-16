@@ -2,7 +2,7 @@
 
 `@cplieger/ui/batch-report`
 
-A batched action: work on more items than one press should send, such as finding subtitles for 248 episodes. Each press sends the next batch, and the button names what its next press does, such as "Start the next 100" or "Start the remaining 48". The `.cp-batch-report` under it sums up the presses and lists each item that did not go, with its reason. After the last batch the button is disabled and says what started, and focus moves to the report.
+A batched action: work on more items than one press should send, such as finding subtitles for 248 episodes. Each press sends the next batch, and the button names what its next press does, such as "Start the next 100" or "Start the remaining 48". The `.cp-batch-report` under it sums up the presses and lists each item that did not go, with its reason. After the last batch the button is disabled and says what started, and focus moves from it to the report.
 
 ```html
 <button class="cp-button" data-variant="primary" type="button" id="find-subtitles">
@@ -68,7 +68,7 @@ After each press the report holds its sum and the misses so far:
 - One batch goes at a time. The button turns busy through [confirm](../buttons/confirm.md)'s cycle, `aria-busy` and still focusable, then rolls to the next press's words.
 - The report's sum replaces the last one, and its compared [facts](../design-components.md) list every item that did not go across all presses, each reason a failed `.cp-state`.
 - A press that fails outright adds its sentence as a failed `.cp-state` line at the report's end, leaves the counts and the button's words as they were, and keeps focus on the button, so a second press tries again. The next press removes the line.
-- After the last batch the button is disabled and focus moves to the report, since a disabled button cannot hold it.
+- After the last batch the button is disabled and, when focus was on the button or lost to the page, it moves to the report, since a disabled button cannot hold it. A person who moved on while the last batch was sent keeps their place.
 
 ## Accessibility
 

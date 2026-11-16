@@ -8411,13 +8411,16 @@ div.cp-list-foot {
  * it refreshes, its old content stays and a line runs along its top edge,
  * inside its border, or under the head of the table it starts with, at
  * --cp-load-line-at, which the script measures. */
-/* At zero specificity, so a popover's or a sticky box's own position and a
- * flush panel's scroll win; the clip keeps the line inside a rounded edge. */
-:where([data-cp-load]) {
+/* At zero specificity, so a class's own position or overflow, such as a
+ * scrolling panel's, wins. A popover and a dialog are left out: the user
+ * agent already positions them and lets them scroll, and any author
+ * declaration would replace that. The clip keeps the line inside a rounded
+ * edge. */
+:where([data-cp-load]:not([popover], dialog)) {
   position: relative;
 }
 
-:where([data-cp-load="refreshing"]) {
+:where([data-cp-load="refreshing"]:not([popover], dialog)) {
   overflow: clip;
 }
 

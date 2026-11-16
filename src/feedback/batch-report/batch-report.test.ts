@@ -145,6 +145,19 @@ describe("enhanceBatchedAction", () => {
     expect(calls).toHaveLength(3);
   });
 
+  it("leaves focus where the person moved it while the last batch went", async () => {
+    const { button, report } = card();
+    const elsewhere = document.createElement("input");
+    document.body.append(elsewhere);
+    const { calls } = wire(button, report, { total: 40 });
+    button.focus();
+    button.click();
+    elsewhere.focus();
+    calls[0]?.resolve({ started: 40 });
+    await until(() => button.disabled);
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
   it("lists every item that did not go, across presses, as compared facts", async () => {
     const { button, report } = card();
     const { calls } = wire(button, report);

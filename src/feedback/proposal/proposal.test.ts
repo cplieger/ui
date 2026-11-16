@@ -223,7 +223,7 @@ describe("enhanceProposal: Undo and Discard", () => {
     await until(() => card.dataset["cpState"] === undefined);
     expect(card.querySelector("p")?.textContent).toBe("Proposed: +1.250 s with drift corrected.");
     expect(part(card, "apply")).toBe(apply);
-    expect(part(card, "discard")).not.toBeNull();
+    expect(apply.nextElementSibling).toBe(part(card, "discard"));
     expect(document.activeElement).toBe(apply);
     await until(() => said("polite") === "Change undone");
   });
@@ -275,6 +275,85 @@ describe("enhanceProposal: Undo and Discard", () => {
     part(card, "discard").click();
     await until(() => !card.isConnected);
     expect(document.activeElement).toBe(host);
+  });
+});
+
+/** The same card with its buttons beside the words, with no cluster. */
+function flat(card: HTMLElement): HTMLElement {
+  const cluster = card.querySelector(".cp-cluster");
+  cluster?.replaceWith(...(cluster?.children ?? []));
+  return card;
+}
+
+describe("enhanceProposal: buttons beside the words", () => {
+  it("keeps the words, puts Undo in Apply's place, and puts both buttons back on Undo", async () => {
+    const card = flat(proposal());
+    const undone = deferred();
+    const calls = wire(card, { undo: () => undone.promise });
+    const words = card.querySelector("p");
+    const apply = part(card, "apply");
+    const discard = part(card, "discard");
+    apply.click();
+    calls[0]?.resolve();
+    await until(() => card.dataset["cpState"] === "applied");
+    const undo = card.lastElementChild as HTMLButtonElement;
+    expect([...card.children]).toEqual([words, undo]);
+    expect(words?.textContent).toBe("Applied: +1.250 s with drift corrected.");
+    expect(undo.textContent).toBe("Undo");
+    expect(document.activeElement).toBe(undo);
+    undo.click();
+    undone.resolve();
+    await until(() => card.dataset["cpState"] === undefined);
+    expect(card.children).toHaveLength(3);
+    expect(card.children[0]).toBe(words);
+    expect(card.children[1]).toBe(apply);
+    expect(card.children[2]).toBe(discard);
+    expect(document.activeElement).toBe(apply);
+  });
+
+  it("keeps the words and focuses them when the app cannot undo", async () => {
+    const card = flat(proposal());
+    const calls = wire(card);
+    const words = card.querySelector("p");
+    part(card, "apply").click();
+    calls[0]?.resolve();
+    await until(() => card.dataset["cpState"] === "applied");
+    expect(card.children).toHaveLength(1);
+    expect(card.firstElementChild).toBe(words);
+    expect(words?.textContent).toBe("Applied: +1.250 s with drift corrected.");
+    expect(document.activeElement).toBe(words);
+  });
+});
+
+describe("enhanceProposal: a reader who moved on", () => {
+  it("keeps their place when Apply settles", async () => {
+    const card = proposal();
+    const elsewhere = document.createElement("input");
+    document.body.append(elsewhere);
+    const calls = wire(card, { undo: () => Promise.resolve() });
+    const apply = part(card, "apply");
+    apply.focus();
+    apply.click();
+    elsewhere.focus();
+    calls[0]?.resolve();
+    await until(() => card.dataset["cpState"] === "applied");
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it("keeps their place when Discard settles", async () => {
+    const card = proposal();
+    const back = document.createElement("h2");
+    const elsewhere = document.createElement("input");
+    document.body.prepend(back, elsewhere);
+    const dropped = deferred();
+    wire(card, { discard: () => dropped.promise, returnFocus: back });
+    const discard = part(card, "discard");
+    discard.focus();
+    discard.click();
+    elsewhere.focus();
+    dropped.resolve();
+    await until(() => !card.isConnected);
+    expect(document.activeElement).toBe(elsewhere);
   });
 });
 

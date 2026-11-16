@@ -8,6 +8,8 @@
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
 import { localeOf } from "../../core/locale/locale.js";
 import { focusOn, landing, rowOf } from "../../data/list-row/row.js";
+import { glyph } from "../../foundations/icons/glyph.js";
+import type { IconName } from "../../foundations/icons/icons.js";
 import { announce } from "../announce/announce.js";
 
 /** The outcome's tone, which picks its glyph. */
@@ -67,7 +69,7 @@ export interface Jobs {
   end(row: Element, end: JobEnd): void;
 }
 
-const GLYPH: Record<JobTone, string> = {
+const GLYPH: Record<JobTone, IconName> = {
   success: "circle-check",
   warning: "triangle-alert",
   danger: "circle-x",
@@ -139,14 +141,10 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
     ];
     const hadFocus = going.some((el) => el.contains(document.activeElement));
 
-    const glyph = document.createElement("span");
-    glyph.className = "cp-icon";
-    glyph.setAttribute("data-cp-icon", GLYPH[how.tone]);
-    glyph.setAttribute("aria-hidden", "true");
     const state = document.createElement("span");
     state.className = "cp-state";
     state.dataset["tone"] = how.tone;
-    state.append(glyph, how.words);
+    state.append(glyph(GLYPH[how.tone]), how.words);
     let outcome = row.querySelector(':scope > [data-part="end"]');
     if (outcome === null) {
       outcome = document.createElement("span");
@@ -218,11 +216,16 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
         button.setAttribute("aria-busy", "true");
         const at = place(row);
         const kind = part(row, "kind")?.textContent ?? "The job";
-        stop(row, life.signal).then(
+        // Called in the executor, at once, so a stop that throws before it
+        // returns a promise fails like one that rejects.
+        new Promise<void>((resolve) => {
+          resolve(stop(row, life.signal));
+        }).then(
           () => {
             stopping.delete(row);
             button.removeAttribute("aria-busy");
-            if (life.signal.aborted) {
+            // An end the app wrote while the stop ran is the job's real end.
+            if (life.signal.aborted || row.hasAttribute("data-ended")) {
               return;
             }
             end(row, {
@@ -237,7 +240,7 @@ export function enhanceJobs(list: HTMLElement, options: JobsOptions = {}): Jobs 
           (reason: unknown) => {
             stopping.delete(row);
             button.removeAttribute("aria-busy");
-            if (!life.signal.aborted) {
+            if (!life.signal.aborted && !row.hasAttribute("data-ended")) {
               fail(row, reason);
             }
           },

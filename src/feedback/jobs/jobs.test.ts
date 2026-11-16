@@ -243,6 +243,45 @@ describe("enhanceJobs", () => {
     expect(failed()).toBeNull();
   });
 
+  it("keeps the end the app wrote while Stop was pending", async () => {
+    const ul = list();
+    const { calls, jobs } = wire(ul);
+    const row = first(ul);
+    jobs.progress(row, 39);
+    stopOf(row).click();
+    jobs.end(row, { words: "Finished", tone: "success", cause: "All 40 done" });
+    calls[0]?.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(row.querySelector('[data-part="end"] .cp-state')?.textContent).toBe("Finished");
+    expect(row.querySelector(".cp-cell-stack > small")?.textContent).toBe("All 40 done");
+    expect(said("polite")).toBe("");
+  });
+
+  it("fails a stop that throws before it returns a promise, and a second press works", async () => {
+    const ul = list();
+    let presses = 0;
+    wire(ul, {
+      stop: () => {
+        presses += 1;
+        if (presses === 1) {
+          throw new Error("no job id");
+        }
+        return Promise.resolve();
+      },
+    });
+    const row = first(ul);
+    const stop = stopOf(row);
+    stop.click();
+    const failed = () => row.querySelector(':scope > .cp-state[data-cp-state="failed"]');
+    await until(() => failed() !== null);
+    expect(failed()?.textContent).toBe("The job could not be stopped.");
+    expect(stop.hasAttribute("aria-busy")).toBe(false);
+    expect(row.hasAttribute("data-ended")).toBe(false);
+    stop.click();
+    await until(() => row.hasAttribute("data-ended"));
+    expect(presses).toBe(2);
+  });
+
   it("stops rows a page brought in later, and focuses the first one it added", async () => {
     const ul = list();
     const foot = document.createElement("li");

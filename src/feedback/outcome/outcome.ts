@@ -7,6 +7,7 @@
 
 import { enhanceConfirm } from "../../buttons/confirm/confirm.js";
 import { until, whenAborted } from "../../core/lifetime/lifetime.js";
+import { glyph } from "../../foundations/icons/glyph.js";
 import { announce } from "../announce/announce.js";
 
 /** What the action made: a link to it and its words, such as
@@ -37,17 +38,6 @@ export interface OutcomeOptions {
   readonly words: OutcomeWords;
   /** Ends the wiring and any action under way, which then writes nothing. */
   readonly signal?: AbortSignal;
-}
-
-function glyph(name: string, part?: string): HTMLSpanElement {
-  const span = document.createElement("span");
-  span.className = "cp-icon";
-  span.dataset["cpIcon"] = name;
-  if (part !== undefined) {
-    span.dataset["part"] = part;
-  }
-  span.setAttribute("aria-hidden", "true");
-  return span;
 }
 
 const sentenceOf = (reason: unknown): string =>

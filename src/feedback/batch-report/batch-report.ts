@@ -234,8 +234,14 @@ export function enhanceBatchedAction(
         .then(
           (ran) => {
             if (ran && settled >= total) {
+              // Read before the button goes disabled, which drops its focus;
+              // a reader who moved on keeps their place.
+              const at = document.activeElement;
+              const follow = at === button || at === document.body || report.contains(at);
               button.disabled = true;
-              focusOn(report);
+              if (follow) {
+                focusOn(report);
+              }
             }
           },
           (reason: unknown) => {
