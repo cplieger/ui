@@ -1,73 +1,22 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
-import { tmpdir } from "node:os";
-import { extname, join, normalize } from "node:path";
-
 import { chromium, firefox, webkit, type Browser, type BrowserType } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { buildGallery, frameNames, pageNames } from "./build.js";
+import { frameNames, pageNames } from "./build.js";
+import { serveGallery, type Served } from "./serve.js";
 
-const TYPES: Record<string, string> = {
-  ".html": "text/html",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".svg": "image/svg+xml",
-  ".woff2": "font/woff2",
-  ".vtt": "text/vtt",
-  ".webm": "video/webm",
-};
 const ENGINES: Record<string, BrowserType> = { chromium, firefox, webkit };
 const browsers = (process.env["CPLIEGER_BROWSERS"] ?? "chromium").split(",");
 
-let out = "";
+let served: Served | undefined;
 let origin = "";
-let close = (): void => undefined;
-const missing = new Set<string>();
 
 beforeAll(async () => {
-  out = await mkdtemp(join(tmpdir(), "ui-gallery-"));
-  await buildGallery(out);
-  const server = createServer((req, res) => {
-    const path = new URL(req.url ?? "/", "http://x").pathname;
-    // A page framed the way a preview tab frames it: sandboxed, so at an
-    // opaque origin, where reading a stylesheet's rules throws.
-    const framed = /^\/framed\/([\w-]+)$/.exec(path);
-    if (framed !== null) {
-      res.writeHead(200, { "content-type": "text/html" });
-      res.end(
-        `<link rel="icon" href="data:,"><iframe sandbox="allow-scripts" src="/${framed[1] ?? ""}.html"></iframe>`,
-      );
-      return;
-    }
-    // normalize() of a rooted path cannot climb above it, so the join stays under out.
-    const file = join(out, normalize(decodeURIComponent(path)));
-    readFile(file).then(
-      (body) => {
-        // An opaque-origin page fetches its module script and fonts by CORS.
-        res.writeHead(200, {
-          "content-type": TYPES[extname(file)] ?? "application/octet-stream",
-          "access-control-allow-origin": "*",
-        });
-        res.end(body);
-      },
-      () => {
-        missing.add(path);
-        res.writeHead(404).end();
-      },
-    );
-  });
-  await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
-  origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
-  close = () => {
-    server.close();
-  };
+  served = await serveGallery();
+  origin = served.origin;
 }, 60_000);
 
 afterAll(async () => {
-  close();
-  await rm(out, { recursive: true, force: true });
+  await served?.close();
 });
 
 describe.each(browsers)("the gallery in %s", (name) => {
@@ -113,7 +62,7 @@ describe.each(browsers)("the gallery in %s", (name) => {
   );
 
   it("finds every file the pages ask for", () => {
-    expect([...missing]).toEqual([]);
+    expect([...(served?.missing ?? [])]).toEqual([]);
   });
 
   it.each(pageNames)(
