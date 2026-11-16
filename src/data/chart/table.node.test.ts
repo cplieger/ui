@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { writer } from "../scale/format.js";
-import { durationEdges } from "../scale/ladder.js";
 
 import { chartModel, stepStops, type LineModel, type Model } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 import { namedRows, tableModel, type TableModel } from "./table.js";
+import { ladder } from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -17,7 +17,7 @@ const words = chartWords();
 
 const time = (t: number) =>
   new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: TZ }).format(t);
-const dur = (ms: number) => writer("duration", "en")(ms);
+const dur = (seconds: number) => writer("duration", "en")(seconds);
 const model = (spec: ChartSpec): Model => chartModel(spec, "en", TZ);
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 
@@ -178,14 +178,14 @@ describe("the table of columns stacked to 100%", () => {
 });
 
 describe("the table of a histogram", () => {
-  const edges = durationEdges();
+  const edges = ladder();
   const t = tableModel(
     model({
       x: {
         type: "log",
         format: "duration",
         label: "Time from post to read",
-        domain: [1_000, edges.at(-1) ?? 0],
+        domain: [1, edges.at(-1) ?? 0],
       },
       marks: [
         {
@@ -194,8 +194,8 @@ describe("the table of a histogram", () => {
           x2: edges.slice(1),
           series: [{ name: "Reads", y: edges.slice(1).map(() => 1) }],
         },
-        { mark: "rule", x: 42_000, label: "Median" },
-        { mark: "rule", x: 18 * MIN, label: "95th percentile" },
+        { mark: "rule", x: 42, label: "Median" },
+        { mark: "rule", x: 18 * 60, label: "95th percentile" },
       ],
     }),
     words,
@@ -206,13 +206,13 @@ describe("the table of a histogram", () => {
     expect(t.columns).toEqual([{ text: "Reads", num: true }]);
     expect(t.rows).toHaveLength(edges.length - 1);
     expect(cells(t).slice(0, 2)).toEqual([
-      [`Under ${dur(1_000)}`, "1"],
-      [`${dur(1_000)} to ${dur(2_000)}`, "1"],
+      [`Under ${dur(1)}`, "1"],
+      [`${dur(1)} to ${dur(2)}`, "1"],
     ]);
   });
 
   it("writes the rules as a sentence after the table", () => {
-    expect(t.after).toBe(`Median ${dur(42_000)}. 95th percentile ${dur(18 * MIN)}.`);
+    expect(t.after).toBe(`Median ${dur(42)}. 95th percentile ${dur(18 * 60)}.`);
   });
 });
 

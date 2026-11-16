@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cdp, server } from "vitest/browser";
 
-import { durationEdges } from "../scale/ladder.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import {
@@ -20,6 +19,7 @@ import { chartModel, type CellModel, type Model, type RectModel } from "./model.
 import { bucketReading, cellReading, overall, readoutWidths } from "./readout.js";
 import { navigator } from "./select.js";
 import type { ChartSpec } from "./spec.js";
+import { ladder } from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const root = document.documentElement;
@@ -402,9 +402,9 @@ describe("the marks", () => {
   });
 
   it("draws rules 2 px in ink, and a rule outside the domain as its label only", () => {
-    const edges = durationEdges();
+    const edges = ladder();
     const d = draw({
-      x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+      x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
       marks: [
         {
           mark: "rect",
@@ -412,8 +412,8 @@ describe("the marks", () => {
           x2: edges.slice(1),
           series: [{ name: "Reads", y: edges.slice(1).map(() => 2) }],
         },
-        { mark: "rule", x: 42_000, label: "Median" },
-        { mark: "rule", x: 4 * 86_400_000, label: "95th percentile" },
+        { mark: "rule", x: 42, label: "Median" },
+        { mark: "rule", x: 4 * 86_400, label: "95th percentile" },
       ],
     });
     const rules = [...d.svg.querySelectorAll('[data-part="rule"]')];
@@ -440,14 +440,14 @@ describe("the marks", () => {
   });
 
   it("writes only finite numbers into the drawing, for every mark on every scale", () => {
-    const edges = durationEdges();
+    const edges = ladder();
     const rule = (axis: "x" | "y", v: number) => ({ mark: "rule", [axis]: v, label: "R" }) as const;
     const line = (x: number[], y: (number | null)[]) =>
       ({ mark: "line", x, series: [{ name: "a", y }] }) as const;
     const specs: ChartSpec[] = [
       { ...stacked, marks: [...stacked.marks, rule("x", 900_000), rule("y", 99), rule("x", -5)] },
       {
-        x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+        x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
         marks: [
           {
             mark: "rect",
@@ -455,10 +455,10 @@ describe("the marks", () => {
             x2: edges.slice(1),
             series: [{ name: "Reads", y: edges.slice(1).map((_, i) => i % 3) }],
           },
-          rule("x", 400),
+          rule("x", 0.4),
           rule("x", 0),
           rule("x", -1),
-          rule("x", 9e12),
+          rule("x", 9e9),
         ],
       },
       ...(["linear", "log", "time"] as const).flatMap((type) => [

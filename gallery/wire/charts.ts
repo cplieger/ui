@@ -6,7 +6,7 @@
  * error states, and phone-width frames.
  */
 
-import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
+import { renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
 
 const S = 1_000;
 const MIN = 60 * S;
@@ -94,19 +94,24 @@ function posts({ start, starts, ends, counts }: Posts, drawn: Drawn = {}): Chart
   };
 }
 
+// chartdata's duration ladder in seconds, up to its 3-day edge.
+const LADDER = [
+  0, 1, 2, 5, 10, 30, 60, 120, 300, 600, 1_800, 3_600, 7_200, 21_600, 43_200, 86_400, 259_200,
+];
+
 // Reads binned as the server bins them, on the duration ladder: each bin
 // [edge, next edge), the last closed. The delays are log-normal round a
 // 42-second median, with 18 minutes at the 95th percentile.
 function reads(n: number, seed: number): ChartSpec {
   const rand = random(seed);
-  const edges = durationEdges();
+  const edges = LADDER;
   const last = edges[edges.length - 1] ?? 0;
   const delays: number[] = [];
   while (delays.length < n) {
     const z = Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
-    const ms = Math.round(42 * S * Math.exp(1.974 * z));
-    if (ms <= last) {
-      delays.push(ms);
+    const seconds = Math.round(42 * S * Math.exp(1.974 * z)) / S;
+    if (seconds <= last) {
+      delays.push(seconds);
     }
   }
   delays.sort((a, b) => a - b);
@@ -118,7 +123,7 @@ function reads(n: number, seed: number): ChartSpec {
   }
   const rank = (q: number): number => delays[Math.ceil(q * delays.length) - 1] ?? 0;
   return {
-    x: { type: "log", format: "duration", label: "Time from post to read", domain: [S, last] },
+    x: { type: "log", format: "duration", label: "Time from post to read", domain: [1, last] },
     y: { label: "Reads", unit: { one: "read", other: "reads" } },
     marks: [
       {
@@ -342,7 +347,7 @@ function latency(): ChartSpec {
     const spike = after >= 0 && after < 12 ? 520 * Math.exp(-after / 4) : 0;
     const dip = t >= flush && t < flush + 25 * MIN ? -90 : 0;
     x.push(t);
-    p95.push(Math.round(200 + 60 * busy(t) + 30 * rand() + spike + dip));
+    p95.push(Math.round(200 + 60 * busy(t) + 30 * rand() + spike + dip) / S);
   }
   const at = (t: number): number => p95[x.indexOf(t)] ?? 0;
   return {
@@ -350,7 +355,7 @@ function latency(): ChartSpec {
     y: { label: "Response time", format: "duration" },
     marks: [
       { mark: "line", x, series: [{ name: "95th percentile", slot: 1, y: p95 }] },
-      { mark: "rule", y: 500, label: "Target" },
+      { mark: "rule", y: 0.5, label: "Target" },
       { mark: "text", x: deploy, y: at(deploy), text: "Deploy of 1.4.0", side: "right" },
       { mark: "text", x: flush, y: at(flush), text: "Cache flushed", side: "below" },
     ],

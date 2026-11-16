@@ -1072,8 +1072,8 @@ describe("the drawing under update and resize", () => {
         marks: [
           {
             mark: "cell",
-            x: { edges: [1_000, 2_000, 5_000] },
-            y: { edges: [100_000, 200_000, 500_000] },
+            x: { edges: [1, 2, 5] },
+            y: { edges: [100, 200, 500] },
             values: [
               [1, 2],
               [3, 4],

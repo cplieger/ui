@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { MAX_VALUES } from "../frame/limits.js";
 import { forgetMeasures } from "../scale/measure.js";
 
 import { renderChart, type ChartSpec } from "./chart.js";
@@ -677,8 +678,6 @@ function liars(list: readonly unknown[]): readonly unknown[] {
   return [iterated, growing];
 }
 
-const MOST_VALUES = 1_000_000;
-
 // The index reads of the list each `share` change spreads, by the change's value.
 const READS = new WeakMap<object, { n: number }>();
 
@@ -695,7 +694,7 @@ const repeats = (spec: unknown): (readonly [Path, number])[] =>
 function share(spec: unknown, path: Path, j: number, copies: number): readonly [Path, unknown] {
   const list = at(spec, path) as readonly unknown[];
   const read = { n: 0 };
-  const length = Math.min(MOST_ENTRIES(path), Math.ceil((2 * MOST_VALUES) / copies));
+  const length = Math.min(MOST_ENTRIES(path), Math.ceil((2 * MAX_VALUES) / copies));
   const shared = new Proxy(new Array<unknown>(length).fill(list[0] ?? 0), {
     get(target, key) {
       if (typeof key === "string" && /^\d+$/u.test(key)) {
@@ -1005,7 +1004,7 @@ describe("a chart spec", () => {
         } finally {
           // Each place a shared list sits is charged before it is read.
           for (const [value, read] of reads) {
-            expect(read.n, fc.stringify(value)).toBeLessThanOrEqual(MOST_VALUES);
+            expect(read.n, fc.stringify(value)).toBeLessThanOrEqual(MAX_VALUES);
           }
         }
         seen.drawn++;

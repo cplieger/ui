@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { durationEdges } from "../scale/ladder.js";
 import { position } from "../scale/position.js";
 
 import {
@@ -51,6 +50,7 @@ import {
 import type { ChartSpec } from "./spec.js";
 import { generatedSummary } from "./summary.js";
 import { tableModel } from "./table.js";
+import { ladder } from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 function frame(model: Model, width: number, height: number, yHi: number, dpr = 1): Frame {
@@ -226,9 +226,9 @@ describe("rect geometry", () => {
   });
 
   it("draws the read histogram's underflow bin below the low end, the width of its neighbour", () => {
-    const edges = durationEdges();
+    const edges = ladder();
     const spec: ChartSpec = {
-      x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+      x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
       marks: [
         {
           mark: "rect",
@@ -239,13 +239,13 @@ describe("rect geometry", () => {
       ],
     };
     const m = model(spec);
-    expect(m.x.drawnLo).toBe(500);
+    expect(m.x.drawnLo).toBe(0.5);
     const f = frame(m, 276, 200, 1, 1);
     const under = bucketEdges(rectOf(m), 0, f);
     const next = bucketEdges(rectOf(m), 1, f);
     expect(under.left).toBe(0);
-    expect(under.right).toBe(Math.round(f.xAt(1_000) - 0.5));
-    expect(f.xAt(1_000) - f.xAt(500)).toBeCloseTo(f.xAt(2_000) - f.xAt(1_000), 9);
+    expect(under.right).toBe(Math.round(f.xAt(1) - 0.5));
+    expect(f.xAt(1) - f.xAt(0.5)).toBeCloseTo(f.xAt(2) - f.xAt(1), 9);
     expect(next.left).toBe(under.right + 1);
   });
 });
@@ -567,9 +567,9 @@ describe("step area geometry", () => {
   });
 
   it("joins the read histogram's underflow bin to its run", () => {
-    const edges = durationEdges();
+    const edges = ladder();
     const m = model({
-      x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+      x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
       marks: [
         {
           mark: "rect",

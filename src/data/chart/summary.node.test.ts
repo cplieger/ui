@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { writer } from "../scale/format.js";
-import { durationEdges } from "../scale/ladder.js";
 
 import { chartModel, type Model } from "./model.js";
 import type { ChartSpec, Mark } from "./spec.js";
 import { generatedSummary, shortDescription, summaryOf } from "./summary.js";
+import { ladder } from "./test-helpers/frames.js";
 import { chartWords } from "./words.js";
 
 const TZ = "Europe/Paris";
@@ -19,7 +19,7 @@ const nb = "\u00A0";
 const time = (t: number) =>
   new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: TZ }).format(t);
 const span = (a: number, b: number) => `${time(a)} to ${time(b)}`;
-const dur = (ms: number) => writer("duration", "en")(ms);
+const dur = (seconds: number) => writer("duration", "en")(seconds);
 const model = (spec: ChartSpec): Model => chartModel(spec, "en", TZ);
 const per = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 
@@ -230,7 +230,7 @@ describe("the summary of columns stacked to 100%", () => {
   });
 });
 
-const edges = durationEdges();
+const edges = ladder();
 const reads = (
   series: Extract<Mark, { mark: "rect" }>["series"],
   rules: Mark[] = [],
@@ -239,7 +239,7 @@ const reads = (
     type: "log",
     format: "duration",
     label: "Time from post to read",
-    domain: [1_000, edges.at(-1) ?? 0],
+    domain: [1, edges.at(-1) ?? 0],
   },
   y: { label: "Reads", unit: { one: "read", other: "reads" } },
   marks: [{ mark: "rect", x1: edges.slice(0, -1), x2: edges.slice(1), series }, ...rules],
@@ -248,18 +248,18 @@ const bins = edges.length - 1;
 
 describe("the summary of a histogram", () => {
   const rules: Mark[] = [
-    { mark: "rule", x: 42_000, label: "Median" },
-    { mark: "rule", x: 18 * MIN, label: "95th percentile" },
+    { mark: "rule", x: 42, label: "Median" },
+    { mark: "rule", x: 18 * 60, label: "95th percentile" },
   ];
 
   it("says the count from under the low end, then each rule", () => {
     const m = model(reads([{ name: "Reads", y: per(bins, () => 2) }], rules));
     expect(generatedSummary(m, words)).toBe(
-      `32${nb}reads from under ${dur(1_000)} to ${dur(edges.at(-1) ?? 0)}. ` +
-        `Median ${dur(42_000)}. 95th percentile ${dur(18 * MIN)}.`,
+      `32${nb}reads from under ${dur(1)} to ${dur(edges.at(-1) ?? 0)}. ` +
+        `Median ${dur(42)}. 95th percentile ${dur(18 * 60)}.`,
     );
     expect(shortDescription(m, words)).toBe(
-      `Histogram, under ${dur(1_000)} to ${dur(edges.at(-1) ?? 0)}`,
+      `Histogram, under ${dur(1)} to ${dur(edges.at(-1) ?? 0)}`,
     );
   });
 
@@ -274,21 +274,21 @@ describe("the summary of a histogram", () => {
       ),
     );
     expect(generatedSummary(m, words)).toBe(
-      `64${nb}reads from under ${dur(1_000)} to ${dur(edges.at(-1) ?? 0)}. ` +
-        `Direct 48, Path 16. Median ${dur(42_000)}.`,
+      `64${nb}reads from under ${dur(1)} to ${dur(edges.at(-1) ?? 0)}. ` +
+        `Direct 48, Path 16. Median ${dur(42)}.`,
     );
     expect(shortDescription(m, words)).toBe(
-      `Histogram, 2 series, under ${dur(1_000)} to ${dur(edges.at(-1) ?? 0)}`,
+      `Histogram, 2 series, under ${dur(1)} to ${dur(edges.at(-1) ?? 0)}`,
     );
   });
 
   it("reads a plain range when the underflow bin is not drawn below the low end", () => {
     const m = model({
       ...reads([{ name: "Reads", y: per(bins, () => 1) }]),
-      x: { type: "log", format: "duration", domain: [10_000, edges.at(-1) ?? 0] },
+      x: { type: "log", format: "duration", domain: [10, edges.at(-1) ?? 0] },
     });
     expect(generatedSummary(m, words)).toMatch(
-      new RegExp(`^12${nb}reads from ${dur(10_000)} to `, "u"),
+      new RegExp(`^12${nb}reads from ${dur(10)} to `, "u"),
     );
   });
 });

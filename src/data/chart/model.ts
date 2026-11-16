@@ -4,6 +4,7 @@
  * @module
  */
 
+import { MAX_MAGNITUDE, MAX_ROWS, MAX_SUB_ROWS, MAX_VALUES } from "../frame/limits.js";
 import {
   instantFormat,
   spanFormat,
@@ -22,7 +23,6 @@ import { dayFormat, weekCount, weekRow, weekStartOf } from "./calendar.js";
 import { classes, type Classes } from "./classes.js";
 import { shareWriter } from "./pie.js";
 import {
-  LIMIT,
   rScale,
   ruleAt,
   isCalendar,
@@ -616,23 +616,14 @@ export interface Model {
   readonly facets?: FacetsModel;
 }
 
-// No reader scans a plot past a thousand rows: the most rows a plot holds, a
-// binned y's included, the most weeks a calendar holds and the most series a
-// slope names at each end, a line each.
-const MOST_ROWS = 1_000;
-
 // Datawrapper's advice is to show fewer panels than first planned; past this
 // many no reader compares them, and the grid would scroll for screens.
 const MOST_PANELS = 100;
 
 // A thousand of the y axis's 40px tick spaces, so a plot draws at most
-// about a thousand y ticks.
+// about a thousand y ticks. A box's sub-row is 16px and a grouped bar's 13px
+// at the default text size, so MAX_SUB_ROWS of them must fit in it (tested).
 const MOST_HEIGHT = 40_000;
-
-// A box's sub-row is 16px and a grouped bar's 13px at the default text size,
-// so this many keep a band plot's sub-rows within MOST_HEIGHT there, its
-// rows' own spacing aside.
-const MOST_SUB_ROWS = MOST_HEIGHT / 16;
 
 /** A plot's ceilings: the figure's, shared out evenly among its panels,
  *  since each panel draws a plot of its own. */
@@ -646,8 +637,8 @@ interface Room {
 
 function room(panels: number): Room {
   return {
-    rows: Math.floor(MOST_ROWS / panels),
-    subRows: Math.floor(MOST_SUB_ROWS / panels),
+    rows: Math.floor(MAX_ROWS / panels),
+    subRows: Math.floor(MAX_SUB_ROWS / panels),
     height: Math.floor(MOST_HEIGHT / panels),
     each: panels > 1 ? ` in each of ${String(panels)} panels` : "",
   };
@@ -752,7 +743,7 @@ function checkFormat(format: unknown, what: string): void {
 // Infinite and non-numeric values are each check's own to refuse, in its own words.
 function within(values: Iterable<unknown>, what: string): void {
   for (const v of values) {
-    if (typeof v === "number" && Number.isFinite(v) && Math.abs(v) > LIMIT) {
+    if (typeof v === "number" && Number.isFinite(v) && Math.abs(v) > MAX_MAGNITUDE) {
       fail(`${what} must lie within ±1e300`, RangeError);
     }
   }
@@ -1363,8 +1354,8 @@ function checkMark(mark: unknown, what: string, most: Room): void {
       if (!isArray(rows)) {
         fail(`${what}.rows must be an array`);
       }
-      if (rows.length > MOST_ROWS) {
-        fail(`${what}.rows must hold at most ${String(MOST_ROWS)} rows`, RangeError);
+      if (rows.length > MAX_ROWS) {
+        fail(`${what}.rows must hold at most ${String(MAX_ROWS)} rows`, RangeError);
       }
       for (let r = 0; r < rows.length; r++) {
         const row = rows[r];
@@ -1444,9 +1435,9 @@ function checkMark(mark: unknown, what: string, most: Room): void {
         fail(`${what}.x must name two different columns, never ""`, RangeError);
       }
       const list = mark["series"];
-      if (isArray(list) && list.length > MOST_ROWS) {
+      if (isArray(list) && list.length > MAX_ROWS) {
         fail(
-          `${what}.series must hold at most ${String(MOST_ROWS)} series, since each end names every series on a line of its own`,
+          `${what}.series must hold at most ${String(MAX_ROWS)} series, since each end names every series on a line of its own`,
           RangeError,
         );
       }
@@ -1577,10 +1568,6 @@ function checkInstants(
     }
   }
 }
-
-// About seven series of a minute's samples over 90 days, the largest data a
-// chart is designed for; past it the readings and the table grow without end.
-const MOST_VALUES = 1_000_000;
 
 interface List {
   readonly each?: (v: unknown, i: number, length: number) => unknown;
@@ -1733,7 +1720,7 @@ function copyAxis(
   // A bin per value, on one more edge.
   put(bins, "edges", (v) =>
     door.list(v, `${field}.edges`, {
-      most: MOST_VALUES + 1,
+      most: MAX_VALUES + 1,
       why: "a bin per value a spec takes",
       ...past(covered + 1),
     }),
@@ -1951,9 +1938,9 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
     what = "its samples, bars, dots, cells, parts, rules and notes together",
   ): void => {
     count += n;
-    if (count > MOST_VALUES) {
+    if (count > MAX_VALUES) {
       fail(
-        `${field} must not take the spec past ${String(MOST_VALUES)} values, ${what}`,
+        `${field} must not take the spec past ${String(MAX_VALUES)} values, ${what}`,
         RangeError,
       );
     }
@@ -1965,7 +1952,7 @@ function copySpec(spec: Record<string, unknown>): Record<string, unknown> {
       }
       const {
         each = (entry) => entry,
-        most = MOST_VALUES,
+        most = MAX_VALUES,
         why = "the most values a spec takes",
         charge,
       } = options;
@@ -2542,7 +2529,7 @@ function pieModel(mark: PieMark): PieModel {
     value: s.value === null || Number.isNaN(s.value) ? null : s.value,
   }));
   const total = slices.reduce((n, s) => n + (s.value ?? 0), 0);
-  if (total > LIMIT) {
+  if (total > MAX_MAGNITUDE) {
     fail("the total of a pie's slices must lie within ±1e300", RangeError);
   }
   return {
@@ -2586,7 +2573,7 @@ function treeModel(mark: TreeMark): TreeModel {
     groups.push({ name: node.name, slot, value, first, count: node.children.length });
   });
   const total = parts.reduce((n, p) => n + (p.value ?? 0), 0);
-  if (total > LIMIT) {
+  if (total > MAX_MAGNITUDE) {
     fail("the total of a tree's nodes must lie within ±1e300", RangeError);
   }
   return { kind: "tree", unit: mark.unit, groups, parts, total };

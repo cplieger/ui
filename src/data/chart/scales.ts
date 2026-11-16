@@ -6,6 +6,7 @@
 
 import type { Format } from "../scale/format.js";
 
+import { MAX_MAGNITUDE } from "../frame/limits.js";
 import { resolution } from "../scale/linear.js";
 import { grainOf, localDay, midnight, withinTime, type Grain } from "../scale/time.js";
 
@@ -59,11 +60,6 @@ export interface Band {
   readonly mono: boolean;
 }
 
-/** The largest magnitude a chart places on a value or colour scale: past
- *  about 1e306 a span times a tick spacing overflows to Infinity, and the
- *  axis's search for a step never ends. */
-export const LIMIT = 1e300;
-
 const finite = (v: number | null | undefined): v is number =>
   typeof v === "number" && Number.isFinite(v);
 
@@ -113,8 +109,10 @@ class Extent {
   }
 
   add(v: number): void {
-    // The spec check holds every value within LIMIT, so only a stack's sum passes it here.
-    if (Math.abs(v) > LIMIT && Number.isFinite(v)) {
+    // The spec check holds every value within MAX_MAGNITUDE, so only a stack's
+    // sum passes it here. Past about 1e306 a span times a tick spacing
+    // overflows to Infinity, and the axis's search for a step never ends.
+    if (Math.abs(v) > MAX_MAGNITUDE && Number.isFinite(v)) {
       throw new RangeError("renderChart: a stack's total must lie within ±1e300");
     }
     if (Number.isFinite(v) && (!this.#log || v > 0)) {

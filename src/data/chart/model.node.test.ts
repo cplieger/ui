@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { MAX_MAGNITUDE, MAX_ROWS, MAX_SUB_ROWS, MAX_VALUES } from "../frame/limits.js";
+
 import {
   binOf,
   cellOrder,
@@ -343,10 +345,11 @@ describe("spec errors", () => {
       y: names(n),
       series: [{ name: "a", x: names(n).map(() => 1) }],
     });
-    expect(() => build({ marks: [bars(1_001)] })).toThrow(
-      new RangeError("renderChart: marks[0].y must name at most 1000 rows"),
+    expect(MAX_ROWS).toBe(1_000);
+    expect(() => build({ marks: [bars(MAX_ROWS + 1)] })).toThrow(
+      new RangeError(`renderChart: marks[0].y must name at most ${String(MAX_ROWS)} rows`),
     );
-    expect(build({ marks: [bars(1_000)] }).kind).toBe("bar");
+    expect(build({ marks: [bars(MAX_ROWS)] }).kind).toBe("bar");
     const rows = (n: number): Mark => ({
       mark: "dot",
       rows: names(n).map((name) => ({ name, x: [] })),
@@ -397,6 +400,9 @@ describe("spec errors", () => {
         series: names(k).map((name) => ({ name, low: v, q1: v, median: v, q3: v, high: v })),
       };
     };
+    expect(MAX_SUB_ROWS).toBe(2_500);
+    // A box's sub-row is 16px, so chartdata's sub-rows fit in the plot's 40,000px ceiling.
+    expect(MAX_SUB_ROWS * 16).toBeLessThanOrEqual(40_000);
     const subRows = new RangeError(
       "renderChart: marks[0].series must take at most 2500 sub-rows, a sub-row per series in each row, since the plot is as tall as its rows",
     );
@@ -591,7 +597,7 @@ describe("spec errors", () => {
   });
 
   // The values ceiling; a list is charged where it sits, before it is read.
-  const MOST = 1_000_000;
+  const MOST = MAX_VALUES;
   const past = (field: string) =>
     new RangeError(
       `renderChart: ${field} must not take the spec past 1000000 values, its samples, bars, dots, cells, parts, rules and notes together`,
@@ -2823,7 +2829,8 @@ describe("the largest value", () => {
   ];
 
   it.each(at)("takes %s of 1e300", (_, spec) => {
-    expect(() => build(spec(1e300))).not.toThrow();
+    expect(MAX_MAGNITUDE).toBe(1e300);
+    expect(() => build(spec(MAX_MAGNITUDE))).not.toThrow();
   });
 
   it.each(at)("refuses %s of 1e301 with a RangeError", (_, spec) => {

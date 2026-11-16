@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { writer } from "../scale/format.js";
-import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
 import {
@@ -40,6 +39,7 @@ import {
   type Reading,
 } from "./readout.js";
 import type { ChartSpec, Mark } from "./spec.js";
+import { ladder } from "./test-helpers/frames.js";
 
 type Slot = NonNullable<Extract<Mark, { mark: "line" }>["series"][number]["slot"]>;
 import { chartWords } from "./words.js";
@@ -197,9 +197,9 @@ describe("the legend row of one series", () => {
   });
 
   it("reads the underflow bin as under its edge, and the domain from under the low end, capitalised", () => {
-    const edges = durationEdges();
+    const edges = ladder();
     const m = model({
-      x: { type: "log", format: "duration", domain: [1_000, edges.at(-1) ?? 0] },
+      x: { type: "log", format: "duration", domain: [1, edges.at(-1) ?? 0] },
       y: { unit: { one: "read", other: "reads" } },
       marks: [
         {
@@ -212,12 +212,12 @@ describe("the legend row of one series", () => {
     });
     const rect = m.marks[0] as RectModel;
     expect(overall(m, words)?.at).toBe(
-      `Under ${writer("duration", "en")(1_000)} to ${writer("duration", "en")(edges.at(-1) ?? 0)}`,
+      `Under ${writer("duration", "en")(1)} to ${writer("duration", "en")(edges.at(-1) ?? 0)}`,
     );
     expect(overall(m, words)?.entries[0]?.value).toBe(`32${nb}reads`);
-    expect(bucketReading(m, rect, 0, words).at).toBe(`Under ${writer("duration", "en")(1_000)}`);
+    expect(bucketReading(m, rect, 0, words).at).toBe(`Under ${writer("duration", "en")(1)}`);
     expect(bucketReading(m, rect, 5, words).at).toBe(
-      `${writer("duration", "en")(30_000)} to ${writer("duration", "en")(60_000)}`,
+      `${writer("duration", "en")(30)} to ${writer("duration", "en")(60)}`,
     );
   });
 });
@@ -510,7 +510,7 @@ describe("the legend row's widths", () => {
   it("holds a duration wider than its extremes, writing one text per duration width", () => {
     const n = 1_000;
     const y = per(n, (i) =>
-      i === 0 ? 0 : i === n - 1 ? 9 * 60 * MIN : i === 500 ? 9_420_013 : 100 + i * 9,
+      i === 0 ? 0 : i === n - 1 ? 9 * 3_600 : i === 500 ? 9_420.013 : (100 + i * 9) / 1_000,
     );
     const m = model({
       x: {},
@@ -520,7 +520,7 @@ describe("the legend row's widths", () => {
     let texts = 0;
     const counting = { ...measure, number: (t: string) => (texts++, measure.number(t)) };
     const w = readoutWidths(m, words, counting);
-    expect(w.values[0]).toBe(measure.number(writer("duration", "en")(9_420_013)));
+    expect(w.values[0]).toBe(measure.number(writer("duration", "en")(9_420.013)));
     // Six duration widths (0 ms, 109 to 999 ms, 1 sec, 2 to 9 sec, 2 hr 37 min,
     // 9 hr), with No data, the x's three digit counts and the overall row.
     expect(texts).toBeLessThan(20);
@@ -939,14 +939,14 @@ describe("the legend row of a range or arrow plot", () => {
     const later = START + 90 * MIN;
     const range = plot("range", { type: "time" }, [later, START, START], [START, later, START]);
     expect(pointReading(range, pointOf(range), 0, words).total).toBe(
-      writer("duration", "en")(90 * MIN),
+      writer("duration", "en")(90 * 60),
     );
     const arrow = plot("arrow", { type: "time" }, [later, START, START], [START, later, START]);
     expect(pointReading(arrow, pointOf(arrow), 0, words).total).toBe(
-      writer("duration", "en")(-90 * MIN),
+      writer("duration", "en")(-90 * 60),
     );
     expect(pointReading(arrow, pointOf(arrow), 1, words).total).toBe(
-      `+${writer("duration", "en")(90 * MIN)}`,
+      `+${writer("duration", "en")(90 * 60)}`,
     );
   });
 

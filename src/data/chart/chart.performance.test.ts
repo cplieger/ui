@@ -139,7 +139,7 @@ const durationLine: ChartSpec = {
       x: minutes,
       series: Array.from({ length: 2 }, (_, k) => ({
         name: `p${String(50 + 45 * k)}`,
-        y: minutes.map((_, i) => 100 + ((i * 7_919 + k * 104_729) % 89_900)),
+        y: minutes.map((_, i) => (100 + ((i * 7_919 + k * 104_729) % 89_900)) / 1_000),
       })),
     },
   ],

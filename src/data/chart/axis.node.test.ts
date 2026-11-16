@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { writer } from "../scale/format.js";
-import { durationEdges } from "../scale/ladder.js";
 import { measurer } from "../scale/measure.js";
 
 import {
@@ -16,11 +15,14 @@ import {
 } from "./axis.js";
 import { xScale, yScale, type Continuous } from "./scales.js";
 import type { ChartSpec } from "./spec.js";
+import { ladder } from "./test-helpers/frames.js";
 
 const S = 1_000;
 const MIN = 60 * S;
 const HR = 60 * MIN;
 const DAY = 24 * HR;
+// A duration's seconds.
+const D = { s: 1, min: 60, hr: 3_600, day: 86_400 } as const;
 
 // A face 7.5 px a character, so the read histogram's duration labels run 30 to 52 px.
 const perChar = (w: number) => (text: string) => w * Array.from(text).length;
@@ -41,10 +43,10 @@ const step = (axis: Axis) =>
   Math.abs((axis.ticks[1]?.value ?? Number.NaN) - (axis.ticks[0]?.value ?? Number.NaN));
 const words = (axis: Axis) => labelled(axis).map((t) => t.label?.lines.join("\n"));
 
-const histogram = (maxMs?: number): ChartSpec => {
-  const edges = durationEdges(maxMs);
+const histogram = (max?: number): ChartSpec => {
+  const edges = ladder(max);
   return {
-    x: { type: "log", format: "duration", domain: [S, edges.at(-1) ?? 0] },
+    x: { type: "log", format: "duration", domain: [D.s, edges.at(-1) ?? 0] },
     marks: [
       {
         mark: "rect",
@@ -65,7 +67,7 @@ const eight = Date.UTC(2026, 10, 11, 7);
 describe("a duration axis", () => {
   it("places the read histogram's eight ticks near 15, 63, 100, 149, 186, 224, 253 and 276 px on the phone plot", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
-    const at = [S, 10 * S, MIN, 10 * MIN, HR, 6 * HR, DAY, 3 * DAY].map((v) =>
+    const at = [D.s, 10 * D.s, D.min, 10 * D.min, D.hr, 6 * D.hr, D.day, 3 * D.day].map((v) =>
       Math.round(axis.at(v)),
     );
     expect(at).toEqual([15, 63, 100, 149, 186, 224, 253, 276]);
@@ -73,18 +75,20 @@ describe("a duration axis", () => {
 
   it("thins the read histogram's ticks at 276 px to 1 sec, 1 min, 1 hr and 3 days", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
-    expect(axis.ticks.map((t) => t.value)).toEqual([S, MIN, HR, 3 * DAY]);
-    expect(words(axis)).toEqual([S, MIN, HR, 3 * DAY].map((v) => writer("duration", "en")(v)));
+    expect(axis.ticks.map((t) => t.value)).toEqual([D.s, D.min, D.hr, 3 * D.day]);
+    expect(words(axis)).toEqual(
+      [D.s, D.min, D.hr, 3 * D.day].map((v) => writer("duration", "en")(v)),
+    );
     expect(axis.ticks.at(-1)?.label?.box.end).toBe(276);
     expect(axis.ticks[0]?.label?.box.start).toBe(0);
   });
 
   it("ends the thinned list at 7 days or 90 days at those retentions, near 14, 94, 175 and 276 px and 12, 80, 148 and 276 px", () => {
-    const week = xAxis(xScale(histogram(7 * DAY)), 276, ctx());
-    expect(week.ticks.map((t) => t.value)).toEqual([S, MIN, HR, 7 * DAY]);
+    const week = xAxis(xScale(histogram(7 * D.day)), 276, ctx());
+    expect(week.ticks.map((t) => t.value)).toEqual([D.s, D.min, D.hr, 7 * D.day]);
     expect(week.ticks.map((t) => Math.round(t.at))).toEqual([14, 94, 175, 276]);
-    const quarter = xAxis(xScale(histogram(90 * DAY)), 276, ctx());
-    expect(quarter.ticks.map((t) => t.value)).toEqual([S, MIN, HR, 90 * DAY]);
+    const quarter = xAxis(xScale(histogram(90 * D.day)), 276, ctx());
+    expect(quarter.ticks.map((t) => t.value)).toEqual([D.s, D.min, D.hr, 90 * D.day]);
     expect(quarter.ticks.map((t) => Math.round(t.at))).toEqual([12, 80, 148, 276]);
   });
 
@@ -96,8 +100,8 @@ describe("a duration axis", () => {
 
   it("starts the drawing at the underflow bin's drawn edge, with no tick in the extension", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
-    expect(axis.at(500)).toBe(0);
-    expect(Math.min(...axis.ticks.map((t) => t.value))).toBe(S);
+    expect(axis.at(0.5)).toBe(0);
+    expect(Math.min(...axis.ticks.map((t) => t.value))).toBe(D.s);
   });
 });
 
@@ -487,8 +491,8 @@ describe("the y gutter", () => {
 describe("the rule label band", () => {
   it("lays the read histogram's labels at 276 px: the median running right, the 95th percentile ending at its rule on the second line", () => {
     const axis = xAxis(xScale(histogram()), 276, ctx());
-    const median = axis.at(42 * S);
-    const p95 = axis.at(18 * MIN);
+    const median = axis.at(42 * D.s);
+    const p95 = axis.at(18 * D.min);
     expect(Math.round(median)).toBe(93);
     expect(Math.round(p95)).toBe(161);
     const band = ruleBand(

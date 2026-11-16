@@ -40,7 +40,15 @@ describe("writer", () => {
     const options = { style: "unit", unit: "megabyte" } as const;
     expect(writer(options, "en")(-3)).toBe(new Intl.NumberFormat("en", options).format(-3));
     expect(writer((v) => `v${String(v)}`, "en")(3)).toBe("v3");
-    expect(writer("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
+    expect(writer("duration", "en")(87)).toBe("1\u00A0min, 27\u00A0sec");
+  });
+
+  it("writes a duration's seconds, as a frame carries them", () => {
+    expect(writer("duration", "en")(90)).toBe("1\u00A0min, 30\u00A0sec");
+    expect(writer("duration", "en")(0.4)).toBe("400\u00A0ms");
+    expect(writer("duration", "en")(86_400)).toBe("1\u00A0day");
+    expect(widthKey("duration", "en")?.(90)).toBe(widthKey("duration", "en")?.(80));
+    expect(widthKey("duration", "en")?.(90)).not.toBe(widthKey("duration", "en")?.(0.09));
   });
 
   it("writes a value that rounds to 0 without a sign, in every number format", () => {
@@ -168,29 +176,30 @@ describe("widthKey", () => {
     expect(key?.(-0.0001)).toBe(key?.(0));
   });
 
-  const SECOND = 1_000;
+  // Durations are seconds.
+  const SECOND = 1;
   const MINUTE = 60 * SECOND;
   const HOUR = 60 * MINUTE;
   const DAY = 24 * HOUR;
   const durations = [
     0,
     -0,
-    0.3,
-    -0.3,
-    0.4,
-    0.5,
-    0.6,
-    999.4,
-    999.6,
-    1_234,
-    1_456,
-    9_999,
-    12_345,
-    -5_000,
-    59_600,
-    9_420_013,
-    1_080_000_000,
-    ...Array.from({ length: 1_000 }, (_, i) => i),
+    0.000_3,
+    -0.000_3,
+    0.000_4,
+    0.000_5,
+    0.000_6,
+    0.999_4,
+    0.999_6,
+    1.234,
+    1.456,
+    9.999,
+    12.345,
+    -5,
+    59.6,
+    9_420.013,
+    1_080_000,
+    ...Array.from({ length: 1_000 }, (_, i) => i / 1_000),
     ...Array.from({ length: 120 }, (_, i) => (i + 1) * SECOND),
     ...Array.from({ length: 540 }, (_, i) => (1 + Math.floor(i / 60)) * MINUTE + (i % 60) * SECOND),
     ...Array.from({ length: 540 }, (_, i) => (1 + Math.floor(i / 60)) * HOUR + (i % 60) * MINUTE),
@@ -219,19 +228,19 @@ describe("widthKey", () => {
 
   it("keys a duration by its units, each count's digits and plural form, and its sign", () => {
     const key = widthKey("duration", "en");
-    expect(key?.(100)).toBe(key?.(999));
+    expect(key?.(0.1)).toBe(key?.(0.999));
     expect(key?.(2 * SECOND)).toBe(key?.(9 * SECOND));
     expect(key?.(2 * HOUR + 37 * MINUTE)).toBe(key?.(9 * HOUR + 12 * MINUTE));
-    expect(key?.(99)).not.toBe(key?.(100));
+    expect(key?.(0.099)).not.toBe(key?.(0.1));
     expect(key?.(1 * SECOND)).not.toBe(key?.(2 * SECOND));
-    expect(key?.(1_234)).toBe(key?.(1_456));
-    expect(key?.(59_600)).toBe(key?.(60_000));
-    expect(key?.(-0.3)).toBe(key?.(0));
-    expect(key?.(1_234)).not.toBe(key?.(12_345));
-    expect(key?.(61_000)).not.toBe(key?.(60_000));
-    expect(key?.(-5_000)).not.toBe(key?.(5_000));
-    expect(key?.(0.3)).toBe(key?.(0));
-    expect(key?.(0.6)).not.toBe(key?.(0));
+    expect(key?.(1.234)).toBe(key?.(1.456));
+    expect(key?.(59.6)).toBe(key?.(60));
+    expect(key?.(-0.000_3)).toBe(key?.(0));
+    expect(key?.(1.234)).not.toBe(key?.(12.345));
+    expect(key?.(61)).not.toBe(key?.(60));
+    expect(key?.(-5)).not.toBe(key?.(5));
+    expect(key?.(0.000_3)).toBe(key?.(0));
+    expect(key?.(0.000_6)).not.toBe(key?.(0));
     expect(key?.(Infinity)).toBeNaN();
   });
 
@@ -261,13 +270,11 @@ describe("writer, signed", () => {
   });
 
   it("puts a plus before a duration above 0 ms or a positive function's text, and only once", () => {
-    expect(writer("duration", "en", { signed: true })(87_000)).toBe("+1\u00A0min, 27\u00A0sec");
-    expect(writer("duration", "en", { signed: true })(-87_000)).toBe(
-      writer("duration", "en")(-87_000),
-    );
-    expect(writer("duration", "en", { signed: true })(0.3)).toBe("0\u00A0ms");
-    expect(writer("duration", "en", { signed: true })(0.4)).toBe("0\u00A0ms");
-    expect(writer("duration", "en", { signed: true })(0.6)).toBe("+1\u00A0ms");
+    expect(writer("duration", "en", { signed: true })(87)).toBe("+1\u00A0min, 27\u00A0sec");
+    expect(writer("duration", "en", { signed: true })(-87)).toBe(writer("duration", "en")(-87));
+    expect(writer("duration", "en", { signed: true })(0.000_3)).toBe("0\u00A0ms");
+    expect(writer("duration", "en", { signed: true })(0.000_4)).toBe("0\u00A0ms");
+    expect(writer("duration", "en", { signed: true })(0.000_6)).toBe("+1\u00A0ms");
     expect(writer((v) => `v${String(v)}`, "en", { signed: true })(3)).toBe("+v3");
     expect(writer((v) => `v${String(v)}`, "en", { signed: true })(0.3)).toBe("+v0.3");
     expect(writer((v) => `+${String(v)}`, "en", { signed: true })(3)).toBe("+3");
@@ -298,20 +305,20 @@ describe("the duration rule", () => {
   });
 
   it("writes each record through Intl.DurationFormat in en and fr, a plain number-unit space made non-breaking", () => {
-    for (const [ms, record] of [
-      [87_000, { minutes: 1, seconds: 27 }],
-      [1_087_000, { minutes: 18 }],
-      [108_000_000, { days: 1, hours: 6 }],
-      [400, { milliseconds: 400 }],
+    for (const [seconds, record] of [
+      [87, { minutes: 1, seconds: 27 }],
+      [1_087, { minutes: 18 }],
+      [108_000, { days: 1, hours: 6 }],
+      [0.4, { milliseconds: 400 }],
     ] as const) {
-      expect(writer("duration", "en")(ms)).toBe(
+      expect(writer("duration", "en")(seconds)).toBe(
         short("en", record).replaceAll(/(\d) (?=\p{L})/gu, "$1\u00A0"),
       );
-      expect(writer("duration", "fr")(ms)).toBe(short("fr", record));
+      expect(writer("duration", "fr")(seconds)).toBe(short("fr", record));
     }
-    expect(writer("duration", "en")(87_000)).toBe("1\u00A0min, 27\u00A0sec");
-    expect(writer("duration", "fr")(108_000_000)).toMatch(/^1\u202Fj et 6\u202Fh$/u);
-    expect(writer("duration", "fr")(87_000)).toMatch(/^1\u00A0min et 27\u202Fs$/u);
+    expect(writer("duration", "en")(87)).toBe("1\u00A0min, 27\u00A0sec");
+    expect(writer("duration", "fr")(108_000)).toMatch(/^1\u202Fj et 6\u202Fh$/u);
+    expect(writer("duration", "fr")(87)).toMatch(/^1\u00A0min et 27\u202Fs$/u);
   });
 
   it("writes zero as zero milliseconds", () => {

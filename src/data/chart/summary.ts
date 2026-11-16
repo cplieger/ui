@@ -87,7 +87,8 @@ function sizeText(
   if (size === undefined) {
     return "";
   }
-  const text = model.x.type === "time" ? writer("duration", model.locale)(size) : model.xText(size);
+  const text =
+    model.x.type === "time" ? writer("duration", model.locale)(size / 1_000) : model.xText(size);
   return words.every(text);
 }
 
