@@ -6384,6 +6384,7 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-variant-numeric: tabular-nums;
 }
 
+.cp-chart > [data-part="legend"] [data-part="panel"],
 .cp-chart > [data-part="legend"] [data-part="at"] {
   display: inline-block;
 }
@@ -6512,6 +6513,48 @@ th[aria-sort="descending"] > .cp-sort::after {
   font-size: var(--cp-text-md);
 }
 
+/* Small multiples run left to right whatever the text direction, as the
+ * plot's geometry does; the script sets the columns and gaps it laid out. */
+.cp-chart [data-part="panels"] {
+  display: grid;
+  justify-content: start;
+  direction: ltr;
+}
+
+/* A head never widens its column: a long name is cut. */
+.cp-chart [data-part="panels"] [data-part="head"] {
+  display: flex;
+  gap: var(--cp-space-2);
+  contain: inline-size;
+  block-size: 18px;
+  line-height: 18px;
+  color: var(--cp-ink-muted);
+}
+
+.cp-chart [data-part="head"] > [data-part="name"] {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The selected panel's name, by weight as well as ink. */
+.cp-chart [data-selected] > [data-part="head"] > bdi {
+  color: var(--cp-ink);
+  font-weight: var(--cp-weight-medium);
+}
+
+.cp-chart [data-part="head"] > [data-part="figure"] {
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--cp-ink);
+  white-space: nowrap;
+}
+
+.cp-chart [data-part="panels"] [data-part="frame"] {
+  border: 1px solid transparent;
+}
+
 .cp-chart svg {
   display: block;
   overflow: visible;
@@ -6540,6 +6583,21 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: none;
   stroke: var(--cp-border-strong);
   stroke-width: 1px;
+}
+
+/* Small multiples' other panels behind this one's data, faint enough that
+ * only the panel's own series reads as data. */
+.cp-chart svg [data-part="context"] {
+  fill: none;
+  stroke: var(--cp-border);
+  stroke-width: 1px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cp-chart svg [data-part="context"][data-dots] {
+  fill: var(--cp-border);
+  stroke: none;
 }
 
 .cp-chart svg :is([data-part="rect"], [data-part="layers"]) path,
@@ -6745,6 +6803,17 @@ th[aria-sort="descending"] > .cp-sort::after {
   fill: none;
   stroke: var(--cp-ink);
   stroke-width: 2px;
+}
+
+/* Another panel's selection at this panel's same position: a fainter ring,
+ * and its row's name in ink alone, so the one real selection stands out. */
+.cp-chart svg[data-synced] [data-part="ring"] {
+  stroke: var(--cp-ink-muted);
+  stroke-width: 1px;
+}
+
+.cp-chart svg[data-synced] text[data-selected] {
+  font-weight: inherit;
 }
 
 .cp-chart svg :is([data-part="rule-label"], [data-part="end"]) text {

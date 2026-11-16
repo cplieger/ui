@@ -2,8 +2,8 @@
  * charts.ts — the gallery wiring for the Charts page: grelot's four
  * statistics drawn by the library's chart from seeded data, the other time
  * series, bars and dots by category, slope and scatter charts, heatmaps and
- * box plots, pies and treemaps, their loading, empty and error states, and
- * phone-width frames.
+ * box plots, pies and treemaps, small multiples, their loading, empty and
+ * error states, and phone-width frames.
  */
 
 import { durationEdges, renderChart, type Chart, type ChartSpec } from "@cplieger/ui/chart";
@@ -1152,6 +1152,150 @@ function gdp(): ChartSpec {
   };
 }
 
+// Monthly unemployment in six made-up regions, sent highest last rate
+// first: a 2020 spike, then each region's own recovery.
+const JOBLESS = [
+  ["Coast", 0.064, 0.058, 0.0004],
+  ["North", 0.052, 0.046, 0.0002],
+  ["East", 0.046, 0.034, 0],
+  ["Centre", 0.041, 0.04, -0.0001],
+  ["West", 0.038, 0.022, -0.0002],
+  ["South", 0.035, 0.029, -0.0003],
+] as const;
+
+const MONTHS_2020 = Array.from({ length: 60 }, (_, m) => new Date(2020, m, 1).getTime());
+const PLANT_CLOSED = new Date(2023, 2, 1).getTime();
+
+function regions(context: boolean): ChartSpec {
+  const rand = random(600);
+  return {
+    x: { type: "time", domain: [MONTHS_2020[0] ?? 0, MONTHS_2020[59] ?? 0] },
+    y: { label: "Unemployment", format: "percent" },
+    facets: {
+      unit: { one: "region", other: "regions" },
+      context,
+      panels: JOBLESS.map(([name, base, spike, drift]) => {
+        const y = MONTHS_2020.map((t, m) => {
+          const shock = m < 3 ? 0 : spike * Math.exp(-(m - 3) / 7);
+          const plant = name === "North" && t >= PLANT_CLOSED ? 0.012 : 0;
+          return Number((base + shock + plant + drift * m + 0.003 * (rand() - 0.5)).toFixed(4));
+        });
+        const marks: ChartSpec["marks"] =
+          name === "North"
+            ? [
+                { mark: "line", x: MONTHS_2020, series: [{ name, slot: 1, y }] },
+                { mark: "text", x: PLANT_CLOSED, y: y[38] ?? 0, text: "Plant closes" },
+              ]
+            : [{ mark: "line", x: MONTHS_2020, series: [{ name, slot: 1, y }] }];
+        return { marks };
+      }),
+    },
+    marks: [{ mark: "rule", y: 0.05, label: "2019 average" }],
+  };
+}
+
+// Four agents' posts by kind in 1-hour buckets over 24 hours, one panel an
+// agent, each stack in the same kinds.
+function agentColumns(): ChartSpec {
+  const start = END - 24 * HR;
+  const starts = Array.from({ length: 24 }, (_, i) => start + i * HR);
+  const rand = random(700);
+  return {
+    x: { type: "time", domain: [start, END] },
+    y: { label: "Posts", unit: { one: "post", other: "posts" } },
+    facets: {
+      unit: { one: "agent", other: "agents" },
+      panels: AGENTS.slice(0, 4).map(([name, rate]) => ({
+        name,
+        marks: [
+          {
+            mark: "rect",
+            x1: starts,
+            x2: starts.map((t) => t + HR),
+            open: true,
+            series: KINDS.slice(0, 3).map(([kind, share], i) => ({
+              name: kind,
+              slot: (i + 1) as 1 | 2 | 3,
+              y: starts.map((t) => {
+                const filled = Math.min(1, (NOW - t) / HR);
+                return Math.round(40 * rate * share * busy(t + HR / 2) * filled * (0.5 + rand()));
+              }),
+            })),
+          },
+        ],
+      })),
+    },
+    marks: [],
+  };
+}
+
+// The share of adults who use each platform daily, by age, illustrative,
+// sorted by the youngest group's share.
+const DAILY: readonly (readonly [string, readonly number[]])[] = [
+  ["YouTube", [0.62, 0.52, 0.4, 0.27]],
+  ["Instagram", [0.58, 0.41, 0.24, 0.12]],
+  ["TikTok", [0.48, 0.3, 0.16, 0.07]],
+  ["Facebook", [0.33, 0.5, 0.54, 0.49]],
+  ["Snapchat", [0.41, 0.16, 0.05, 0.02]],
+  ["X", [0.18, 0.13, 0.09, 0.05]],
+];
+
+const AGE_BANDS = ["18 to 29", "30 to 49", "50 to 64", "65 and over"] as const;
+
+function dailyUse(): ChartSpec {
+  return {
+    x: { label: "Use it daily", format: "percent" },
+    y: { unit: { one: "platform", other: "platforms" } },
+    facets: {
+      unit: { one: "age group", other: "age groups" },
+      panels: AGE_BANDS.map((band, b) => ({
+        marks: [
+          {
+            mark: "bar",
+            y: DAILY.map(([platform]) => platform),
+            series: [{ name: band, slot: 1, x: DAILY.map(([, shares]) => shares[b] ?? null) }],
+          },
+        ],
+      })),
+    },
+    marks: [],
+  };
+}
+
+// Visits by device on six sites of one company over 30 days: the same
+// three slices in the same order in every pie.
+const SITES = [
+  ["Shop", 31_200, 52_800, 4_100],
+  ["Docs", 48_900, 9_300, 1_200],
+  ["Blog", 12_600, 21_400, 1_900],
+  ["Forum", 18_300, 14_700, 2_600],
+  ["Status", 6_100, 7_900, 300],
+  ["Support", 9_800, 11_200, 1_400],
+] as const;
+
+function devices(): ChartSpec {
+  return {
+    facets: {
+      unit: { one: "site", other: "sites" },
+      panels: SITES.map(([name, desktop, phone, tablet]) => ({
+        name,
+        marks: [
+          {
+            mark: "pie",
+            unit: { one: "visit", other: "visits" },
+            slices: [
+              { name: "Desktop", value: desktop },
+              { name: "Phone", value: phone },
+              { name: "Tablet", value: tablet },
+            ],
+          },
+        ],
+      })),
+    },
+    marks: [],
+  };
+}
+
 const SPECS = new Map<string, (hours: number) => ChartSpec>([
   ["posts", (hours) => posts(postCounts(hours))],
   ["reads", (hours) => reads(READS.get(hours) ?? 1_204, hours)],
@@ -1257,6 +1401,12 @@ make("gdp", gdp());
 make("phone-browsers", browsers());
 make("phone-land", landUse());
 make("phone-gdp", gdp());
+make("regions", regions(true));
+make("agent-columns", agentColumns());
+make("daily-use", dailyUse());
+make("devices", devices());
+make("phone-regions", regions(true));
+make("phone-daily-use", dailyUse());
 make("activity", activity(6));
 make("agents", agents(6));
 make("loading", null);

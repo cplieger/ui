@@ -25,6 +25,7 @@ import {
   type CalendarModel,
   type CellModel,
   type DotModel,
+  type FacetsModel,
   type Model,
   type PieModel,
   type TreeModel,
@@ -47,6 +48,8 @@ interface Entry {
 }
 
 export interface Reading {
+  /** Under `facets`, the selected panel's name, or the panel count. */
+  readonly panel?: string;
   /** The x it reads, or a dot row's name. */
   readonly at: string;
   readonly entries: readonly Entry[];
@@ -67,12 +70,27 @@ export const counted = (
   model: Model,
 ): string => (unit === undefined ? value : withNoun(value, noun(unit, count, model.locale)));
 
+/** Small multiples' panel count, in `facets.unit` or as `words.panels`. */
+export function panelCount(model: Model, facets: FacetsModel, words: Words): string {
+  const n = facets.panels.length;
+  const count = writer("number", model.locale)(n);
+  return facets.unit === undefined ? words.panels(count, n) : counted(count, n, facets.unit, model);
+}
+
 /** The x domain in words, `underRange` when a log x's underflow bin is drawn below it. */
 export function domainText(model: Model, words: Words): string {
-  const { x, xText } = model;
+  const { x, xText, primary } = model;
+  // Buckets and bins tile their domain, so its end is their last one's.
+  const open = primary?.kind === "rect" || (primary?.kind === "cell" && "edges" in primary.x);
   return x.under?.drawn === "below"
     ? words.underRange(xText(x.lo), xText(x.hi))
-    : words.range(...model.xSpan(x.lo, x.hi));
+    : spanText(model, x.lo, x.hi, words, open);
+}
+
+/** The span from `from` to `to` in words, `open` for a bucket's (`Model.xSpan`). */
+function spanText(model: Model, from: number, to: number, words: Words, open = false): string {
+  const [first, last] = model.xSpan(from, to, open);
+  return last === undefined ? first.text : words.range(first.text, last.text);
 }
 
 // The legend row's x reading starts its line, so an underflow range reads as
@@ -91,7 +109,7 @@ export function bucketText(model: Model, m: RectModel, i: number, words: Words):
   const text =
     under !== undefined && model.marks[under.mark] === m && under.index === i
       ? words.under(model.xText(m.x2[i] ?? 0))
-      : words.range(...model.xSpan(m.x1[i] ?? 0, m.x2[i] ?? 0));
+      : spanText(model, m.x1[i] ?? 0, m.x2[i] ?? 0, words, true);
   return m.open && i === m.x1.length - 1 ? words.soFar(text) : text;
 }
 
@@ -494,7 +512,7 @@ export function cellAxisText(
   const hi = a.edges[i + 1] ?? 0;
   const range =
     axis === "x"
-      ? words.range(...model.xSpan(lo, hi))
+      ? spanText(model, lo, hi, words, true)
       : words.range(model.yText(lo), model.yText(hi));
   const label = model.spec[axis]?.label ?? "";
   return label === "" || !labelled ? range : words.measure(label, range);
@@ -793,7 +811,7 @@ export function sampleReading(model: Model, m: SampleModel, i: number, words: Wo
 }
 
 const span = (model: Model, x: readonly number[], from: number, to: number, words: Words) =>
-  words.range(...model.xSpan(x[from] ?? 0, x[to - 1] ?? 0));
+  spanText(model, x[from] ?? 0, x[to - 1] ?? 0, words);
 
 const bare = (value: string): Entry[] => [{ slot: undefined, name: undefined, value }];
 
@@ -831,6 +849,8 @@ export function rowReading(model: Model, m: DotModel, r: number, words: Words): 
 
 /** The legend's slot widths, in px. */
 export interface Widths {
+  /** Under `facets`, the panel slot's. */
+  readonly panel?: number;
   readonly at: number;
   readonly values: readonly number[];
   readonly total: number;
@@ -976,7 +996,8 @@ function scatterTexts(
   return texts.length === 0 ? [measureText(model, axis, null, words)] : texts;
 }
 
-const widest = (texts: Iterable<string>, measure: Measure): number => {
+/** The widest of `texts`, measured with numbers as tabular figures. */
+export const widest = (texts: Iterable<string>, measure: Measure): number => {
   let w = 0;
   for (const t of texts) {
     w = Math.max(w, measure.number(t));
